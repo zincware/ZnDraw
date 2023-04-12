@@ -11,8 +11,18 @@ def main(
     select_atoms: bool = typer.Option(False),
     bonds: bool = typer.Option(False),
 ) -> None:
-    """Dask4DVC CLI callback.
-    Run the DVC graph or DVC experiments in parallel using dask.
+    """ZnDraw: Visualize Molecules
+
+    With 'zndraw molecule.xyz' you can visualize the molecule in your browser.
+
+    Attributes
+    ----------
+    file : str
+        Path to the xyz file.
+    select_canvas : bool
+        Add a canvas that helps to select points in space.
+    select_atoms : bool
+        Allow selection of atoms.
     """
     graph = io.read_file(file)
 

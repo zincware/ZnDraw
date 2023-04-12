@@ -22,6 +22,18 @@ def get_max_vals(graph: nx.Graph):
 
 @dataclasses.dataclass
 class DashApp:
+    """The ZnDraw Dash App
+
+    Attributes
+    ----------
+    graph : nx.Graph
+        The graph that is visualized.
+    fig : go.Figure
+        The figure that is visualized.
+    app : dash.Dash
+        The Dash app.
+    """
+
     graph: nx.Graph
     fig: go.Figure = dataclasses.field(default_factory=go.Figure)
     app: dash.Dash = dataclasses.field(default_factory=dash.Dash)
@@ -33,6 +45,7 @@ class DashApp:
     _canvas_surface: go.Surface = None  # there seems to be a copy of this in fig.data
 
     def update_layout(self):
+        """Create a clean layout for the figure."""
         self.fig.update_layout(showlegend=False)
         self.fig.update_layout(
             scene=dict(
@@ -43,6 +56,7 @@ class DashApp:
         )
 
     def plot_atoms(self):
+        """Plot the atoms in the graph."""
         x = []
         y = []
         z = []
@@ -71,6 +85,7 @@ class DashApp:
         self.fig.add_trace(self._atoms_scatter)
 
     def plot_bonds(self):
+        """Plot the bonds in the graph."""
         traces = []
         for edge in self.graph.edges:
             traces.append(
@@ -87,6 +102,7 @@ class DashApp:
         self.fig.add_traces(traces)
 
     def add_canvas_slider(self):
+        """Add a slider to the app to control the canvas position."""
         if not self.select_canvas:
             return
         x_max, y_max, z_max = get_max_vals(self.graph)
@@ -123,6 +139,8 @@ class DashApp:
         self.fig.add_trace(self._canvas_surface)
 
     def callback_graph_clickData(self):
+        """Create a callback if the user clicks on the graph."""
+
         @self.app.callback(
             Output("graph", "figure", allow_duplicate=True),
             [Input("graph", "clickData")],
@@ -144,18 +162,20 @@ class DashApp:
             return self.fig
 
     def callback_slider_canvas(self):
+        """Create a callback if the user moves the canvas slider."""
+
         @self.app.callback(
             Output("graph", "figure", allow_duplicate=True),
             [Input("slider-canvas", "value")],
             prevent_initial_call=True,
         )
         def move_canvas(value):
-            # self._canvas_surface["z"] = np.ones_like(self._canvas_surface["z"]) * value
             self.fig.data[0]["z"] = np.ones_like(self.fig.data[0]["z"]) * value
             self.fig.update_layout(uirevision="constant")
             return self.fig
 
     def run_dash_server_click(self):
+        """Run the dash server including callbacks."""
         x_max, y_max, z_max = get_max_vals(self.graph)
 
         div = [
@@ -174,6 +194,7 @@ class DashApp:
         self.app.run_server(debug=True, use_reloader=False)
 
     def run_dash_server(self):
+        """Run the dash server without callbacks."""
         self.app.layout = html.Div(
             [dcc.Graph(figure=self.fig, style={"width": "90vw", "height": "90vh"})]
         )

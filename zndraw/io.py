@@ -1,18 +1,17 @@
 import ase.io
-import pandas as pd
-import plotly.express as px
 
 import networkx as nx
-import numpy as np
 from ase.neighborlist import build_neighbor_list
 
 
 def read_file(filename: str) -> nx.Graph:
+    """Reads a file and returns a networkx graph."""
     atoms = ase.io.read(filename)
     return get_graph(atoms)
 
 
 def get_graph(atoms: ase.Atoms) -> nx.Graph:
+    """Returns a networkx graph from an ase.Atoms object."""
     nl = build_neighbor_list(atoms, self_interaction=False)
     cm = nl.get_connectivity_matrix(sparse=False)
     G = nx.from_numpy_array(cm)
