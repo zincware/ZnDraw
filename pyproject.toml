@@ -1,0 +1,27 @@
+[tool.poetry]
+name = "zndraw"
+version = "0.1.0"
+description = ""
+authors = ["zincwarecode <zincwarecode@gmail.com>"]
+license = "Apache-2.0"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+dash = "^2.9.2"
+ase = "^3.22.1"
+pandas = "^2.0.0"
+networkx = "^3.1"
+typer = "^0.7.0"
+
+[tool.poetry.group.dev.dependencies]
+black = "^23.3.0"
+ruff = "^0.0.261"
+pytest = "^7.3.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.scripts]
+zndraw = 'zndraw.cli:app'
