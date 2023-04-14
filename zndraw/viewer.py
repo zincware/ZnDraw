@@ -47,12 +47,21 @@ class DashApp:
     def update_layout(self):
         """Create a clean layout for the figure."""
         self.fig.update_layout(showlegend=False)
+
+        # Default parameters which are used when `layout.scene.camera` is not provided
+        camera = {
+            "up": {"x": 0, "y": 0, "z": 1},
+            "center": {"x": 0, "y": 0, "z": 0},
+            "eye": {"x": 0.75, "y": 0.75, "z": 0.75},
+        }
+
         self.fig.update_layout(
             scene=dict(
                 xaxis=dict(visible=False),
                 yaxis=dict(visible=False),
                 zaxis=dict(visible=False),
-            )
+            ),
+            scene_camera=camera,
         )
 
     def plot_atoms(self):
