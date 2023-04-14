@@ -99,8 +99,8 @@ function render() {
 		intersects[i].object.callback();
 
 	}
+	controls.update();
 
-	// renderer.render( scene, camera );
 
 }
 
@@ -111,8 +111,7 @@ function animate() {
 
 	// required if controls.enableDamping or controls.autoRotate are set to true
 	window.requestAnimationFrame(render);
-
-	controls.update();
+	
 	renderer.render(scene, camera);
 
 }
