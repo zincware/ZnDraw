@@ -11,6 +11,20 @@ const renderer = new THREE.WebGLRenderer();
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
 
+// const light = new THREE.AmbientLight( 0xDDDDDD ); // soft white light
+// scene.add( light );
+
+// const light = new THREE.PointLight( 0xFFFFFF, 1, 100 );
+// light.position.set( 0, 0, 0 );
+// scene.add( light );
+
+const hemisphere_light = new THREE.HemisphereLight( 0xffffff, 0x777777, 1 );
+scene.add( hemisphere_light );
+
+// const pint_light_1 = new THREE.PointLight( 0xffffff, 1, 100 );
+// pint_light_1.position.set( 5, 0, 0 );
+// scene.add( pint_light_1 );
+
 let obj = await (await fetch("xyz")).json();
 
 const atoms = new THREE.Group();
@@ -19,7 +33,7 @@ obj["nodes"].forEach(function (item, index) {
 	// console.log("Adding item " + index + " to scene(" + item + ")");
 
 	const geometry = new THREE.SphereGeometry(item["radius"], 32, 16);
-	const material = new THREE.MeshBasicMaterial({ color: item["color"] });
+	const material = new THREE.MeshStandardMaterial({ color: item["color"] });
 	const cube = new THREE.Mesh(geometry, material);
 	atoms.add(cube);
 	cube.position.set(item["x"], item["y"], item["z"]);
@@ -48,7 +62,7 @@ obj["edges"].forEach(function (item, index) {
 	const geometry = new THREE.CylinderGeometry(0.1, 0.1, 1.0, 32);
 
 	// const geometry = new THREE.SphereGeometry(item["radius"], 32, 16);
-	const material = new THREE.MeshBasicMaterial({ color: "white" });
+	const material = new THREE.MeshStandardMaterial({ color: "white" });
 	const cylinder = new THREE.Mesh(geometry, material);
 	bonds.add(cylinder);
 	cylinder.position.set(...item["position"]); // spread operator
