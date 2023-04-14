@@ -56,4 +56,5 @@ def xyz():
 def add_message(uuid):
     content = request.json
     _ = content
+    # print(content)
     return {}

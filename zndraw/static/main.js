@@ -70,22 +70,24 @@ const controls = new OrbitControls(camera, renderer.domElement);
 // camera.position.set( 0, 20, 100 );
 controls.update();
 
+function onWindowResize() {
+    camera.aspect = window.innerWidth / window.innerHeight
+    camera.updateProjectionMatrix()
+    renderer.setSize(window.innerWidth, window.innerHeight)
+    renderer.render(scene, camera);
+}
+
 const raycaster = new THREE.Raycaster();
 const pointer = new THREE.Vector2();
 
-function onPointerMove(event) {
+function onPointerDown(event) {
 
 	// calculate pointer position in normalized device coordinates
 	// (-1 to +1) for both components
+	// event.preventDefault(); # this doesn't work
 
 	pointer.x = (event.clientX / window.innerWidth) * 2 - 1;
 	pointer.y = - (event.clientY / window.innerHeight) * 2 + 1;
-
-}
-
-window.addEventListener('pointermove', onPointerMove);
-
-function render() {
 
 	// update the picking ray with the camera and pointer position
 	raycaster.setFromCamera(pointer, camera);
@@ -99,20 +101,17 @@ function render() {
 		intersects[i].object.callback();
 
 	}
-	controls.update();
-
-
 }
+
+window.addEventListener('pointerdown', onPointerDown, false);
+window.addEventListener('resize', onWindowResize, false)
 
 
 function animate() {
 
 	requestAnimationFrame(animate);
-
-	// required if controls.enableDamping or controls.autoRotate are set to true
-	window.requestAnimationFrame(render);
-	
 	renderer.render(scene, camera);
+	controls.update();
 
 }
 
