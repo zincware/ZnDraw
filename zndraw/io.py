@@ -2,12 +2,16 @@ import ase.io
 
 import networkx as nx
 from ase.neighborlist import build_neighbor_list
+import numpy as np
 
 
 def read_file(filename: str) -> nx.Graph:
     """Reads a file and returns a networkx graph."""
     atoms = ase.io.read(filename)
     return get_graph(atoms)
+
+
+colors = {"H": "white", "C": "grey", "N": "blue", "O": "red", "F": "green"}
 
 
 def get_graph(atoms: ase.Atoms) -> nx.Graph:
@@ -21,10 +25,12 @@ def get_graph(atoms: ase.Atoms) -> nx.Graph:
     for node in G.nodes:
         node_data[node] = {
             "symbol": atoms[node].symbol,
-            "number": atoms[node].number,
-            "x": atoms[node].position[0],
-            "y": atoms[node].position[1],
-            "z": atoms[node].position[2],
+            "number": atoms[node].number.item(),
+            "color": colors.get(atoms[node].symbol, "skyblue"),
+            "radius": 0.25 * (2 - np.exp(-0.2 * atoms[node].number)),
+            "x": atoms[node].position[0].item(),
+            "y": atoms[node].position[1].item(),
+            "z": atoms[node].position[2].item(),
         }
 
     nx.set_node_attributes(G, node_data)
