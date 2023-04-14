@@ -1,5 +1,6 @@
 from flask import Flask
 from flask import render_template
+from flask import request
 import uuid
 import numpy as np
 from zndraw import globals, io
@@ -49,3 +50,10 @@ def xyz():
             }
         )
     return data
+
+
+@app.route("/atom/<uuid>", methods=["GET", "POST"])
+def add_message(uuid):
+    content = request.json
+    _ = content
+    return {}
