@@ -200,6 +200,7 @@ window.addEventListener('pointerdown', onPointerDown, false);
 window.addEventListener('resize', onWindowResize, false);
 
 let animation_frame = 0;
+let clock = new THREE.Clock();
 
 function move_atoms() {
 	if (animation_frame < position.length - 1) {
@@ -207,6 +208,10 @@ function move_atoms() {
 	} else {
 		animation_frame = 0;
 	}
+	if (clock.getElapsedTime () < 1 / config["max_fps"]){
+		return;
+	}
+	clock.start();
 
 	position[animation_frame].forEach(function (item, index) {
 		atoms.children[index].position.set(...item);
@@ -228,9 +233,8 @@ function move_atoms() {
 
 		let scale = (direction.length() / 2) / bond_1.geometry.parameters.height;
 
-		if (scale > 2) {
-			bond_1.material.transparent = true ;
-			bond_2.material.transparent = true ;
+		if (scale > 1.5) {
+			scale = 0.0;
 		}
 
 		bond_1.scale.set(1, 1, scale);
