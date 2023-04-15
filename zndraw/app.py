@@ -37,6 +37,19 @@ def atoms_step(step):
         return []
 
 
+@app.route("/atoms/<start>&<stop>")
+def atoms_steps(start, stop):
+    try:
+        result = []
+        for step in range(int(start), int(stop)):
+            atoms = globals.config.get_atoms(step=int(step))
+            graph = io.get_graph(atoms)
+            result.append([graph.nodes[idx] | {"id": idx} for idx in graph.nodes])
+        return result
+    except (KeyError, IndexError):
+        return []
+
+
 @app.route("/atoms/<step>/<atom_id>")
 def atom_step(step, atom_id):
     return {}
@@ -67,14 +80,14 @@ def select():
     return {}
 
 
-@app.route("/update")
-def update_scene():
+@app.route("/update/<step>")
+def update_scene(step):
     if "selected" not in session:
         return []
 
     function = globals.config.get_update_function()
     atoms = function(
-        [int(x) for x in session["selected"]], globals.config.get_atoms(step=0)
+        [int(x) for x in session["selected"]], globals.config.get_atoms(step=int(step))
     )  # TODO animation
 
     globals._atoms_cache |= {

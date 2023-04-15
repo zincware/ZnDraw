@@ -47,6 +47,12 @@ const bondsGroup_2 = new THREE.Group();
 let node1 = new THREE.Vector3();
 let node2 = new THREE.Vector3();
 
+// some global variables
+let frames = [];
+let selected_ids = [];
+let animation_frame = 0;
+let scene_building = false;
+
 // Helper Functions
 
 function halfCylinderGeometry(pointX, pointY) {
@@ -125,22 +131,26 @@ function drawAtoms(atoms, bonds) {
 	});
 
 	scene.add(atomsGroup);
+	if (config["bond_size"] > 0) {
 
+		bonds.forEach(function (item, index) {
+			// console.log("Adding item " + index + " to scene(" + item + ")");
+			addBond(item);
 
-	bonds.forEach(function (item, index) {
-		// console.log("Adding item " + index + " to scene(" + item + ")");
-		addBond(item);
+		});
 
-	});
+		bondsGroup.add(bondsGroup_1);
+		bondsGroup.add(bondsGroup_2);
+		scene.add(bondsGroup);
 
-	bondsGroup.add(bondsGroup_1);
-	bondsGroup.add(bondsGroup_2);
-	scene.add(bondsGroup);
+	}
+
 
 }
 
 async function build_scene(step) {
 	const urls = ["atoms/" + step, "bonds/" + step];
+	console.log("Updating scene");
 
 	// this is faster then doing it one by one
 	const arrayOfResponses = await Promise.all(
@@ -151,6 +161,7 @@ async function build_scene(step) {
 	);
 	drawAtoms(arrayOfResponses[0], arrayOfResponses[1]);
 	selected_ids = [];
+	scene_building = false;
 }
 
 build_scene(0);
@@ -174,9 +185,6 @@ function onWindowResize() {
 const raycaster = new THREE.Raycaster();
 const pointer = new THREE.Vector2();
 
-// some global variables
-let frames = [];
-let selected_ids = [];
 
 async function onPointerDown(event) {
 
@@ -220,15 +228,16 @@ async function onPointerDown(event) {
 
 async function getAnimationFrames() {
 	frames = [];
+
 	let step = 0;
 	while (true) {
-		let obj = await (await fetch("atoms/" + step)).json();
+		let obj = await (await fetch("atoms/" + step + "&" + (step + config["frames_per_post"]))).json();
 		if (Object.keys(obj).length === 0) {
 			console.log("Animation read finished");
 			break;
 		}
-		frames.push(obj);  // TODO: handle multiple frames at once
-		++step;
+		frames = frames.concat(obj);  // TODO: handle multiple frames at once
+		step += config["frames_per_post"];
 
 	}
 }
@@ -242,35 +251,47 @@ if (config["animate"] === true) {
 window.addEventListener('pointerdown', onPointerDown, false);
 window.addEventListener('resize', onWindowResize, false);
 
+window.addEventListener("keydown", (event) => {
+	if (event.isComposing || event.key === " ") {
+		animation_frame = 0;
+	}
+});
+
 if (config["update_function"] !== null) {
 	window.addEventListener("keydown", (event) => {
-		if (event.isComposing || event.key === " ") {
-			fetch("update");
-			getAnimationFrames();
+		if (event.isComposing || event.key === "Enter") {
+			fetch("update/" + animation_frame).then((response) => getAnimationFrames());
 		}
 	});
 }
 
 
-let animation_frame = 0;
+
 let clock = new THREE.Clock();
 
+
 function move_atoms() {
-	if (clock.getElapsedTime() < 1 / config["max_fps"]) {
+	if (clock.getElapsedTime() < (1 / config["max_fps"])) {
 		return;
 	}
-	clock.start();
 
 	if (animation_frame < frames.length - 1) {
 		animation_frame += 1;
-	} else {
+	} else if (config["restart_animation"]) {
 		animation_frame = 0;
 	}
+	if (frames.length < animation_frame) {
+		// waiting for async call to finish
+		return;
+	}
 
-	if (frames[animation_frame].length > atomsGroup.children.length) {
+	if (frames[animation_frame].length != atomsGroup.children.length) {
 		// we need to update the scene
-		console.log("Updating scene");
+		if (scene_building === true) {
+			return;
+		}
 		build_scene(animation_frame);
+		scene_building = true;
 		return; // we need to wait for the scene to be updated
 	}
 
@@ -278,36 +299,44 @@ function move_atoms() {
 		atomsGroup.getObjectByUserDataProperty("id", item["id"]).position.set(...item["position"]);
 		// atomsGroup.children[item["id"]].position.set(...item["position"]);
 	});
-	console.log("Animation running")
+	console.log("Animation (" + animation_frame + "/" + frames.length + ")");
+	let div_info = document.getElementById('info');
+	let fps = 1 / clock.getElapsedTime();
+	div_info.innerHTML = "Frame (" + animation_frame + "/" + frames.length + ") with " + Math.round(fps) + "fps";
 
-	scene.updateMatrixWorld();
+	// document.title = "Animation (" + animation_frame + "/" + frames.length + ")";
 
-	for (let i = 0; i < bondsGroup_1.children.length; i++) {
-		// can't resize the cylinders
+	if (config["bond_size"] > 0) {
+		scene.updateMatrixWorld();
 
-		let bond_1 = bondsGroup_1.children[i];
-		let bond_2 = bondsGroup_2.children[i];
+		for (let i = 0; i < bondsGroup_1.children.length; i++) {
+			// can't resize the cylinders
 
-		atomsGroup.getObjectByUserDataProperty("id", bond_1.userData["id"]).getWorldPosition(node1);
-		atomsGroup.getObjectByUserDataProperty("id", bond_2.userData["id"]).getWorldPosition(node2);
+			let bond_1 = bondsGroup_1.children[i];
+			let bond_2 = bondsGroup_2.children[i];
 
-		let direction = new THREE.Vector3().subVectors(node1, node2);
+			atomsGroup.getObjectByUserDataProperty("id", bond_1.userData["id"]).getWorldPosition(node1);
+			atomsGroup.getObjectByUserDataProperty("id", bond_2.userData["id"]).getWorldPosition(node2);
 
-		let scale = (direction.length() / 2) / bond_1.geometry.parameters.height;
+			let direction = new THREE.Vector3().subVectors(node1, node2);
 
-		if (scale > 1.5) {
-			scale = 0.0;
+			let scale = (direction.length() / 2) / bond_1.geometry.parameters.height;
+
+			if (scale > 1.5) {
+				scale = 0.0;
+			}
+
+			bond_1.scale.set(1, 1, scale);
+			bond_2.scale.set(1, 1, scale);
+
+			bond_1.position.copy(node1);
+			bond_2.position.copy(node2);
+
+			bond_1.lookAt(node2);
+			bond_2.lookAt(node1);
 		}
-
-		bond_1.scale.set(1, 1, scale);
-		bond_2.scale.set(1, 1, scale);
-
-		bond_1.position.copy(node1);
-		bond_2.position.copy(node2);
-
-		bond_1.lookAt(node2);
-		bond_2.lookAt(node1);
 	}
+	clock.start();
 }
 
 function animate() {

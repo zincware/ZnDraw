@@ -11,6 +11,9 @@ class Config:
     bond_size: float = None
     max_fps: int = None
     update_function: str = None
+    frames_per_post: int = 10
+    restart_animation: bool = False
+    repeat: tuple = (1, 1, 1)
 
     def get_update_function(self):
         if self.update_function is None:
@@ -24,9 +27,9 @@ class Config:
             return _atoms_cache[step]
         except KeyError:
             for idx, atoms in enumerate(ase.io.iread(self.file)):
-                _atoms_cache[idx] = atoms.copy()
+                _atoms_cache[idx] = atoms.copy().repeat(self.repeat)
                 if step == 0:
-                    return atoms
+                    break
         return _atoms_cache[step]
 
 
