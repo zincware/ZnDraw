@@ -32,7 +32,7 @@ function halfCylinderGeometry(pointX, pointY) {
 	// Make the geometry (of "direction" length)
 	var direction = new THREE.Vector3().subVectors(pointY, pointX);
 
-	var geometry = new THREE.CylinderGeometry(0.15, 0.15, direction.length() / 2, 16);
+	var geometry = new THREE.CylinderGeometry(0.15 * config["bond_size"], 0.15 * config["bond_size"], direction.length() / 2, 16);
 	// // shift it so one end rests on the origin
 	geometry.applyMatrix4(new THREE.Matrix4().makeTranslation(0, direction.length() / 4, 0));
 	// // rotate it the right way for lookAt to work
@@ -58,7 +58,7 @@ function halfCylinderMesh(pointX, pointY, material) {
 // Setup Scene
 
 function addAtom(item) {
-	const geometry = new THREE.SphereGeometry(item["radius"], 32, 16);
+	const geometry = new THREE.SphereGeometry(item["radius"] * config["sphere_size"], 32, 16);
 	const material = new THREE.MeshPhongMaterial({ color: item["color"] });
 	const particle = new THREE.Mesh(geometry, material);
 	atoms.add(particle);
@@ -181,9 +181,14 @@ async function onPointerDown(event) {
 }
 
 async function getAnimationFrames() {
-	position = await (await fetch("animation")).json();
-	cleanScene();
-	drawAtoms(obj);
+	while (true) {
+		let obj = await (await fetch("animation")).json();
+		if (Object.keys(obj).length === 0) {
+			console.log("Animation read finished");
+			break;
+		}
+		position = position.concat(obj);
+	}
 }
 
 console.log(config);
@@ -197,13 +202,13 @@ window.addEventListener('resize', onWindowResize, false);
 let animation_frame = 0;
 
 function move_atoms() {
-	let theRemovedElement = position[animation_frame];
 	if (animation_frame < position.length - 1) {
 		animation_frame += 1;
 	} else {
 		animation_frame = 0;
 	}
-	theRemovedElement.forEach(function (item, index) {
+
+	position[animation_frame].forEach(function (item, index) {
 		atoms.children[index].position.set(...item);
 	});
 	console.log("Animation running")

@@ -42,7 +42,12 @@ def main(
     file: str = typer.Argument(..., help="Trajectory File"),
     port: int = typer.Option(5123, help="Port to run the server on"),
     animate: bool = typer.Option(False, help="Animate the trajectory"),
+    sphere_size: float = typer.Option(1.0, help="size of the hydrogen sphere"),
+    bond_size: float = typer.Option(1.0, help="size of a bond"),
 ):
     globals.config.file = file
     globals.config.animate = animate
+    globals.config.sphere_size = sphere_size
+    globals.config.bond_size = bond_size
+
     app.run(port=port)

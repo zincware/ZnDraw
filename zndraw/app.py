@@ -35,23 +35,21 @@ def config():
     return dataclasses.asdict(globals.config)
 
 
-@app.route("/animation")
-def get_position_updates():
+def get_atoms():
     import ase.io
 
-    print("### LOADING ATOMS ###")
-    atoms = []
-    for atom in ase.io.iread(globals.config.file):
-        atoms.append(atom)
-        if len(atoms) == 100:
-            break
-    # atoms = list(ase.io.iread(globals.config.file))
+    yield from ase.io.iread(globals.config.file)
 
-    positions = []
-    for atom in atoms:
-        positions.append(atom.positions)
 
-    return np.array(positions).tolist()
+atoms_iter = iter(get_atoms())
+
+
+@app.route("/animation")
+def get_position_updates():
+    try:
+        return [next(atoms_iter).get_positions().tolist() for _ in range(10)]
+    except StopIteration:
+        return {}
 
 
 @app.route("/atom/<atom_id>", methods=["GET", "POST"])
