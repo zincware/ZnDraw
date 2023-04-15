@@ -52,6 +52,8 @@ let frames = [];
 let selected_ids = [];
 let animation_frame = 0;
 let scene_building = false;
+const div_info = document.getElementById('info');
+
 
 // Helper Functions
 
@@ -59,7 +61,7 @@ function halfCylinderGeometry(pointX, pointY) {
 	// Make the geometry (of "direction" length)
 	var direction = new THREE.Vector3().subVectors(pointY, pointX);
 
-	var geometry = new THREE.CylinderGeometry(0.15 * config["bond_size"], 0.15 * config["bond_size"], direction.length() / 2, 16);
+	var geometry = new THREE.CylinderGeometry(0.15 * config["bond_size"], 0.15 * config["bond_size"], direction.length() / 2, config["resolution"] * 2);
 	// // shift it so one end rests on the origin
 	geometry.applyMatrix4(new THREE.Matrix4().makeTranslation(0, direction.length() / 4, 0));
 	// // rotate it the right way for lookAt to work
@@ -85,7 +87,7 @@ function halfCylinderMesh(pointX, pointY, material) {
 // Setup Scene
 
 function addAtom(item) {
-	const geometry = new THREE.SphereGeometry(item["radius"] * config["sphere_size"], 32, 16);
+	const geometry = new THREE.SphereGeometry(item["radius"] * config["sphere_size"], config["resolution"] * 4, config["resolution"] * 2);
 	const material = new THREE.MeshPhongMaterial({ color: item["color"] });
 	const particle = new THREE.Mesh(geometry, material);
 	atomsGroup.add(particle);
@@ -214,7 +216,7 @@ async function onPointerDown(event) {
 				selected_ids.splice(index, 1);
 			}
 		} else {
-			intersects[i].object.material.color.set(0xff0000);
+			intersects[i].object.material.color.set(0xffa500);
 			selected_ids.push(intersects[i].object.userData["id"]);
 		};
 	}
@@ -274,6 +276,12 @@ function move_atoms() {
 	if (clock.getElapsedTime() < (1 / config["max_fps"])) {
 		return;
 	}
+	console.log("Animation (" + animation_frame + "/" + frames.length + ")");
+	if (frames.length < config["frame_buffer"]) {
+		div_info.innerHTML = "Buffer (0 /" + frames.length + ")";
+		return;
+	}
+
 
 	if (animation_frame < frames.length - 1) {
 		animation_frame += 1;
@@ -299,12 +307,8 @@ function move_atoms() {
 		atomsGroup.getObjectByUserDataProperty("id", item["id"]).position.set(...item["position"]);
 		// atomsGroup.children[item["id"]].position.set(...item["position"]);
 	});
-	console.log("Animation (" + animation_frame + "/" + frames.length + ")");
-	let div_info = document.getElementById('info');
-	let fps = 1 / clock.getElapsedTime();
-	div_info.innerHTML = "Frame (" + animation_frame + "/" + frames.length + ") with " + Math.round(fps) + "fps";
 
-	// document.title = "Animation (" + animation_frame + "/" + frames.length + ")";
+	div_info.innerHTML = "Frame (" + animation_frame + "/" + frames.length + ")";
 
 	if (config["bond_size"] > 0) {
 		scene.updateMatrixWorld();

@@ -13,7 +13,9 @@ class Config:
     update_function: str = None
     frames_per_post: int = 10
     restart_animation: bool = False
+    resolution: int = 5
     repeat: tuple = (1, 1, 1)
+    frame_buffer: int = 100
 
     def get_update_function(self):
         if self.update_function is None:
@@ -26,6 +28,8 @@ class Config:
         try:
             return _atoms_cache[step]
         except KeyError:
+            if not self.animate and step != 0:
+                raise
             for idx, atoms in enumerate(ase.io.iread(self.file)):
                 _atoms_cache[idx] = atoms.copy().repeat(self.repeat)
                 if step == 0:
