@@ -1,9 +1,9 @@
-from flask import Flask
-from flask import render_template
-from flask import session, request
-import uuid
-from zndraw import globals, io
 import dataclasses
+import uuid
+
+from flask import Flask, render_template, request, session
+
+from zndraw import globals, io
 
 app = Flask(__name__)
 app.secret_key = str(uuid.uuid4())

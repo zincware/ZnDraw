@@ -27,3 +27,8 @@ zndraw = 'zndraw.cli:cli'
 
 [tool.poetry.urls]
 repository = "https://github.com/zincware/ZnDraw"
+
+[tool.ruff]
+line-length = 90
+
+select = ["I"]

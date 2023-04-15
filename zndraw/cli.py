@@ -1,9 +1,10 @@
-import typer
-from zndraw import app, globals, __version__
 import pathlib
 import sys
-
 import webbrowser
+
+import typer
+
+from zndraw import __version__, app, globals
 
 cli = typer.Typer()
 

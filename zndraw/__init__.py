@@ -1,5 +1,6 @@
-from zndraw.app import app
 import importlib.metadata
+
+from zndraw.app import app
 
 __all__ = ["app"]
 
