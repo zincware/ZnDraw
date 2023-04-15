@@ -1,11 +1,16 @@
 import typer
-from zndraw import app, globals
+from zndraw import app, globals, __version__
 import pathlib
 import sys
 
 import webbrowser
 
 cli = typer.Typer()
+
+
+def version_callback():
+    typer.echo(f"ZnDraw {__version__}")
+    raise typer.Exit()
 
 
 @cli.command()
@@ -30,12 +35,14 @@ def main(
     ),
     frames_per_post: int = typer.Option(10, help="Number of frames to send per POST."),
 ):
-    """
-    ZnDraw: Visualize Molecules
+    """ZnDraw: Visualize Molecules
 
-    CLI for the ZnDraw visualizer.
+    The ZnDraw CLI. Use 'zndraw version' to get the current version.
     """
     sys.path.insert(1, pathlib.Path.cwd().as_posix())
+
+    if file == "version":
+        version_callback()
 
     globals.config.file = file
     globals.config.animate = animate
