@@ -17,11 +17,11 @@ const hemisphere_light = new THREE.HemisphereLight(0xffffff, 0x777777, 1);
 scene.add(hemisphere_light);
 
 
-const atoms = new THREE.Group();
+const atomsGroup = new THREE.Group();
 
-const bonds = new THREE.Group();
-const bonds_1 = new THREE.Group();
-const bonds_2 = new THREE.Group();
+const bondsGroup = new THREE.Group();
+const bondsGroup_1 = new THREE.Group();
+const bondsGroup_2 = new THREE.Group();
 
 let node1 = new THREE.Vector3();
 let node2 = new THREE.Vector3();
@@ -61,7 +61,7 @@ function addAtom(item) {
 	const geometry = new THREE.SphereGeometry(item["radius"] * config["sphere_size"], 32, 16);
 	const material = new THREE.MeshPhongMaterial({ color: item["color"] });
 	const particle = new THREE.Mesh(geometry, material);
-	atoms.add(particle);
+	atomsGroup.add(particle);
 	particle.position.set(...item["position"]);
 	particle.userData["id"] = item["id"];
 	particle.userData["color"] = item["color"];
@@ -78,58 +78,59 @@ function addAtom(item) {
 }
 
 function addBond(item) {
-	atoms.children[item[0]].getWorldPosition(node1);
-	atoms.children[item[1]].getWorldPosition(node2);
+	atomsGroup.children[item[0]].getWorldPosition(node1);
+	atomsGroup.children[item[1]].getWorldPosition(node2);
 
-	const bond_1 = halfCylinderMesh(node1, node2, atoms.children[item[0]].material);
-	const bond_2 = halfCylinderMesh(node2, node1, atoms.children[item[1]].material);
+	const bond_1 = halfCylinderMesh(node1, node2, atomsGroup.children[item[0]].material);
+	const bond_2 = halfCylinderMesh(node2, node1, atomsGroup.children[item[1]].material);
 
 	bond_1.userData["id"] = item[0];
 	bond_2.userData["id"] = item[1];
 
-	bonds_1.add(bond_1);
-	bonds_2.add(bond_2);
+	bondsGroup_1.add(bond_1);
+	bondsGroup_2.add(bond_2);
 
 }
 
 function cleanScene() {
-	while (atoms.children.length > 0) {
-		scene.remove(atoms.children.shift());
+	while (atomsGroup.children.length > 0) {
+		scene.remove(atomsGroup.children.shift());
 	};
-	while (bonds_1.children.length > 0) {
-		scene.remove(bonds_1.children.shift());
+	while (bondsGroup_1.children.length > 0) {
+		scene.remove(bondsGroup_1.children.shift());
 	};
-	while (bonds_2.children.length > 0) {
-		scene.remove(bonds_2.children.shift());
+	while (bondsGroup_2.children.length > 0) {
+		scene.remove(bondsGroup_2.children.shift());
 	};
 }
 
 
-function drawAtoms(obj) {
+function drawAtoms(atoms, bonds) {
 	cleanScene();
 
-	obj["nodes"].forEach(function (item, index) {
+	atoms.forEach(function (item, index) {
 		// console.log("Adding item " + index + " to scene(" + item + ")");
 		addAtom(item);
 	});
 
-	scene.add(atoms);
+	scene.add(atomsGroup);
 
 
-	obj["edges"].forEach(function (item, index) {
+	bonds.forEach(function (item, index) {
 		// console.log("Adding item " + index + " to scene(" + item + ")");
 		addBond(item);
 
 	});
 
-	bonds.add(bonds_1);
-	bonds.add(bonds_2);
-	scene.add(bonds);
+	bondsGroup.add(bondsGroup_1);
+	bondsGroup.add(bondsGroup_2);
+	scene.add(bondsGroup);
 
 }
 
-let obj = await (await fetch("xyz")).json();
-drawAtoms(obj);
+let atoms = await (await fetch("atoms")).json();
+let bonds = await (await fetch("bonds")).json();
+drawAtoms(atoms, bonds);
 
 // interactions
 
@@ -167,7 +168,7 @@ async function onPointerDown(event) {
 	raycaster.setFromCamera(pointer, camera);
 
 	// calculate objects intersecting the picking ray
-	const intersects = raycaster.intersectObjects(atoms.children);
+	const intersects = raycaster.intersectObjects(atomsGroup.children);
 
 	for (let i = 0; i < intersects.length; i++) {
 
@@ -187,6 +188,12 @@ async function onPointerDown(event) {
 			console.log(intersects[i].object.position);
 			selected_ids.push(intersects[i].object.userData["id"]);
 		};
+
+		// if (position.length === 0) {
+		// 	position = await (await fetch("animation")).json();
+		// }
+		// cleanScene();
+		// drawAtoms(obj);
 
 	}
 }
@@ -236,20 +243,20 @@ function move_atoms() {
 	clock.start();
 
 	position[animation_frame].forEach(function (item, index) {
-		atoms.children[index].position.set(...item);
+		atomsGroup.children[index].position.set(...item);
 	});
 	console.log("Animation running")
 
 	scene.updateMatrixWorld();
 
-	for (let i = 0; i < bonds_1.children.length; i++) {
+	for (let i = 0; i < bondsGroup_1.children.length; i++) {
 		// can't resize the cylinders
 
-		let bond_1 = bonds_1.children[i];
-		let bond_2 = bonds_2.children[i];
+		let bond_1 = bondsGroup_1.children[i];
+		let bond_2 = bondsGroup_2.children[i];
 
-		atoms.children[bond_1.userData["id"]].getWorldPosition(node1);
-		atoms.children[bond_2.userData["id"]].getWorldPosition(node2);
+		atomsGroup.children[bond_1.userData["id"]].getWorldPosition(node1);
+		atomsGroup.children[bond_2.userData["id"]].getWorldPosition(node2);
 
 		let direction = new THREE.Vector3().subVectors(node1, node2);
 

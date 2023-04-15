@@ -24,14 +24,14 @@ def config():
 def atoms():
     atoms = globals.config.get_atoms(step=0)
     graph = io.get_graph(atoms)
-    return {idx: graph.nodes[idx] for idx in graph.nodes}
+    return [graph.nodes[idx] | {"id": idx} for idx in graph.nodes]
 
 
 @app.route("/atoms/<step>")
 def atoms_step(step):
     atoms = globals.config.get_atoms(step=int(step))
     graph = io.get_graph(atoms)
-    return {idx: graph.nodes[idx] for idx in graph.nodes}
+    return [graph.nodes[idx] | {"id": idx} for idx in graph.nodes]
 
 
 @app.route("/atoms/<step>/<atom_id>")
@@ -56,23 +56,6 @@ def bonds_step(step):
 @app.route("/bonds/<step>/<bond_id>")
 def bond_step(step, bond_id):
     return {}
-
-
-@app.route("/xyz")
-def xyz():
-    atoms = io.read_file(globals.config.file)
-    graph = io.get_graph(atoms)
-    globals.atoms = atoms
-    globals.graph = graph
-
-    data = {"nodes": [], "edges": []}
-    for node in graph.nodes:
-        data["nodes"].append(graph.nodes[node] | {"id": node})
-
-    for edge in graph.edges:
-        data["edges"].append(edge)
-
-    return data
 
 
 def get_atoms():
