@@ -35,6 +35,7 @@ class Config:
                 _atoms_cache[idx] = atoms.copy().repeat(self.repeat)
                 if step == 0:
                     break
+
         return _atoms_cache[step]
 
 

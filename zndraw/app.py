@@ -17,7 +17,9 @@ def index():
 
 @app.route("/config")
 def config():
-    return dataclasses.asdict(globals.config)
+    return dataclasses.asdict(globals.config) | {
+        "total_frames": len(globals._atoms_cache)
+    }
 
 
 @app.route("/atoms")

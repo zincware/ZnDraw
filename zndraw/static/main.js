@@ -25,7 +25,7 @@ THREE.Object3D.prototype.getObjectByUserDataProperty = function (name, value) {
 
 // THREE.Cache.enabled = true;
 
-const config = await (await fetch("config")).json();
+let config = {};
 
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
@@ -53,9 +53,17 @@ let selected_ids = [];
 let animation_frame = 0;
 let scene_building = false;
 const div_info = document.getElementById('info');
+const div_loading = document.getElementById('loading');
+const div_progressBar = document.getElementById('progressBar');
+const div_bufferBar = document.getElementById('bufferBar');
 
 
 // Helper Functions
+
+async function load_config() {
+	config = await (await fetch("config")).json();
+	console.log(config)
+}
 
 function halfCylinderGeometry(pointX, pointY) {
 	// Make the geometry (of "direction" length)
@@ -164,7 +172,9 @@ async function build_scene(step) {
 	drawAtoms(arrayOfResponses[0], arrayOfResponses[1]);
 	selected_ids = [];
 	scene_building = false;
+	div_loading.style.display = 'none';
 }
+await load_config();
 
 build_scene(0);
 
@@ -231,6 +241,9 @@ async function onPointerDown(event) {
 async function getAnimationFrames() {
 	frames = [];
 
+	await fetch("atoms/1")
+	load_config();
+
 	let step = 0;
 	while (true) {
 		let obj = await (await fetch("atoms/" + step + "&" + (step + config["frames_per_post"]))).json();
@@ -240,15 +253,16 @@ async function getAnimationFrames() {
 		}
 		frames = frames.concat(obj);  // TODO: handle multiple frames at once
 		step += config["frames_per_post"];
-
 	}
 }
 
-console.log(config);
 
 if (config["animate"] === true) {
+	div_info.innerHTML = "Reading file...";
 	getAnimationFrames();
 }
+
+console.log(config);
 
 window.addEventListener('pointerdown', onPointerDown, false);
 window.addEventListener('resize', onWindowResize, false);
@@ -278,10 +292,11 @@ function move_atoms() {
 	}
 	console.log("Animation (" + animation_frame + "/" + frames.length + ")");
 	if (frames.length < config["frame_buffer"]) {
-		div_info.innerHTML = "Buffer (0 /" + frames.length + ")";
+		div_info.innerHTML = "Buffering...";
+		div_progressBar.style.width = ((frames.length / config["frame_buffer"]) * 100).toFixed(2) + "%";
 		return;
 	}
-
+	div_progressBar.style.visibility = "hidden";
 
 	if (animation_frame < frames.length - 1) {
 		animation_frame += 1;
@@ -291,6 +306,11 @@ function move_atoms() {
 	if (frames.length < animation_frame) {
 		// waiting for async call to finish
 		return;
+	}
+	if (config["total_frames"] > 0) {
+		div_progressBar.style.visibility = "visible";
+		div_progressBar.style.width = ((animation_frame / config["total_frames"]) * 100).toFixed(2) + "%";
+		div_bufferBar.style.width = ((frames.length / config["total_frames"]) * 100).toFixed(2) + "%";
 	}
 
 	if (frames[animation_frame].length != atomsGroup.children.length) {
