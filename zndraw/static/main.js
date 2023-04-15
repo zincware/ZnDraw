@@ -2,6 +2,27 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
 
+THREE.Object3D.prototype.getObjectByUserDataProperty = function (name, value) {
+
+	if (this.userData[name] === value) return this;
+
+	for (var i = 0, l = this.children.length; i < l; i++) {
+
+		var child = this.children[i];
+		var object = child.getObjectByUserDataProperty(name, value);
+
+		if (object !== undefined) {
+
+			return object;
+
+		}
+
+	}
+
+	return undefined;
+
+}
+
 // THREE.Cache.enabled = true;
 
 const config = await (await fetch("config")).json();
@@ -65,16 +86,6 @@ function addAtom(item) {
 	particle.position.set(...item["position"]);
 	particle.userData["id"] = item["id"];
 	particle.userData["color"] = item["color"];
-	particle.callback = function () {
-		let data = {
-			"position": this.position,
-		}
-		fetch("atom/" + item["id"], {
-			"method": "POST",
-			"headers": { "Content-Type": "application/json" },
-			"body": JSON.stringify(data),
-		})
-	}
 }
 
 function addBond(item) {
@@ -128,9 +139,21 @@ function drawAtoms(atoms, bonds) {
 
 }
 
-let atoms = await (await fetch("atoms")).json();
-let bonds = await (await fetch("bonds")).json();
-drawAtoms(atoms, bonds);
+async function build_scene(step) {
+	const urls = ["atoms/" + step, "bonds/" + step];
+
+	// this is faster then doing it one by one
+	const arrayOfResponses = await Promise.all(
+		urls.map((url) =>
+			fetch(url)
+				.then((res) => res.json())
+		)
+	);
+	drawAtoms(arrayOfResponses[0], arrayOfResponses[1]);
+	selected_ids = [];
+}
+
+build_scene(0);
 
 // interactions
 
@@ -151,8 +174,8 @@ function onWindowResize() {
 const raycaster = new THREE.Raycaster();
 const pointer = new THREE.Vector2();
 
-let position = [];
-
+// some global variables
+let frames = [];
 let selected_ids = [];
 
 async function onPointerDown(event) {
@@ -174,7 +197,7 @@ async function onPointerDown(event) {
 
 		let mesh = intersects[i].object;
 
-		mesh.callback();
+		// mesh.callback();
 
 		if (selected_ids.includes(mesh.userData["id"])) {
 			mesh.material.color.set(mesh.userData["color"]);
@@ -183,67 +206,77 @@ async function onPointerDown(event) {
 				selected_ids.splice(index, 1);
 			}
 		} else {
-
 			intersects[i].object.material.color.set(0xff0000);
-			console.log(intersects[i].object.position);
 			selected_ids.push(intersects[i].object.userData["id"]);
 		};
-
-		// if (position.length === 0) {
-		// 	position = await (await fetch("animation")).json();
-		// }
-		// cleanScene();
-		// drawAtoms(obj);
-
 	}
+
+	fetch("select", {
+		"method": "POST",
+		"headers": { "Content-Type": "application/json" },
+		"body": JSON.stringify(selected_ids),
+	})
 }
 
-async function getAnimationFrames(url) {
-	position = [];
+async function getAnimationFrames() {
+	frames = [];
+	let step = 0;
 	while (true) {
-		let obj = await (await fetch(url)).json();
+		let obj = await (await fetch("atoms/" + step)).json();
 		if (Object.keys(obj).length === 0) {
 			console.log("Animation read finished");
 			break;
 		}
-		position = position.concat(obj);
+		frames.push(obj);  // TODO: handle multiple frames at once
+		++step;
+
 	}
 }
 
 console.log(config);
 
 if (config["animate"] === true) {
-	getAnimationFrames("animation");
+	getAnimationFrames();
 }
 
 window.addEventListener('pointerdown', onPointerDown, false);
 window.addEventListener('resize', onWindowResize, false);
 
-window.addEventListener("keydown", (event) => {
-	if (event.isComposing || event.keyCode === 229) {
-		return;
-	}
-	if (config["update_function"] !== "") {
-		getAnimationFrames("update");
-	}
-});
+if (config["update_function"] !== null) {
+	window.addEventListener("keydown", (event) => {
+		if (event.isComposing || event.key === " ") {
+			fetch("update");
+			getAnimationFrames();
+		}
+	});
+}
+
 
 let animation_frame = 0;
 let clock = new THREE.Clock();
 
 function move_atoms() {
-	if (animation_frame < position.length - 1) {
-		animation_frame += 1;
-	} else {
-		animation_frame = 0;
-	}
 	if (clock.getElapsedTime() < 1 / config["max_fps"]) {
 		return;
 	}
 	clock.start();
 
-	position[animation_frame].forEach(function (item, index) {
-		atomsGroup.children[index].position.set(...item);
+	if (animation_frame < frames.length - 1) {
+		animation_frame += 1;
+	} else {
+		animation_frame = 0;
+	}
+
+	if (frames[animation_frame].length > atomsGroup.children.length) {
+		// we need to update the scene
+		console.log("Updating scene");
+		build_scene(animation_frame);
+		return; // we need to wait for the scene to be updated
+	}
+
+	frames[animation_frame].forEach(function (item, index) {
+		atomsGroup.getObjectByUserDataProperty("id", item["id"]).position.set(...item["position"]);
+		// atomsGroup.children[item["id"]].position.set(...item["position"]);
 	});
 	console.log("Animation running")
 
@@ -255,8 +288,8 @@ function move_atoms() {
 		let bond_1 = bondsGroup_1.children[i];
 		let bond_2 = bondsGroup_2.children[i];
 
-		atomsGroup.children[bond_1.userData["id"]].getWorldPosition(node1);
-		atomsGroup.children[bond_2.userData["id"]].getWorldPosition(node2);
+		atomsGroup.getObjectByUserDataProperty("id", bond_1.userData["id"]).getWorldPosition(node1);
+		atomsGroup.getObjectByUserDataProperty("id", bond_2.userData["id"]).getWorldPosition(node2);
 
 		let direction = new THREE.Vector3().subVectors(node1, node2);
 
@@ -282,7 +315,7 @@ function animate() {
 	renderer.render(scene, camera);
 	controls.update();
 
-	if (position.length > 0) {
+	if (frames.length > 0) {
 		move_atoms();
 	}
 

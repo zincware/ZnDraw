@@ -1,6 +1,5 @@
 import dataclasses
 import importlib
-import functools
 import ase.io
 
 
@@ -21,12 +20,14 @@ class Config:
         return getattr(module, function_name)
 
     def get_atoms(self, step=0) -> ase.Atoms:
-        if step in _atoms_cache:
+        try:
             return _atoms_cache[step]
-        for idx, atoms in enumerate(ase.io.iread(self.file)):
-            _atoms_cache[idx] = atoms.copy()
-            if idx == step:
-                return atoms
+        except KeyError:
+            for idx, atoms in enumerate(ase.io.iread(self.file)):
+                _atoms_cache[idx] = atoms.copy()
+                if step == 0:
+                    return atoms
+        return _atoms_cache[step]
 
 
 # TODO set defaults here and load in typer?
