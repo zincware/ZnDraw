@@ -56,6 +56,7 @@ const div_info = document.getElementById('info');
 const div_loading = document.getElementById('loading');
 const div_progressBar = document.getElementById('progressBar');
 const div_bufferBar = document.getElementById('bufferBar');
+const div_greyOut = document.getElementById('greyOut');
 
 
 // Helper Functions
@@ -162,6 +163,9 @@ async function build_scene(step) {
 	const urls = ["atoms/" + step, "bonds/" + step];
 	console.log("Updating scene");
 
+	div_loading.style.visibility = 'visible';
+	div_greyOut.style.visibility = 'visible';
+
 	// this is faster then doing it one by one
 	const arrayOfResponses = await Promise.all(
 		urls.map((url) =>
@@ -169,10 +173,13 @@ async function build_scene(step) {
 				.then((res) => res.json())
 		)
 	);
+
 	drawAtoms(arrayOfResponses[0], arrayOfResponses[1]);
 	selected_ids = [];
 	scene_building = false;
-	div_loading.style.display = 'none';
+
+	div_greyOut.style.visibility = 'hidden';
+	div_loading.style.visibility = 'hidden';
 }
 await load_config();
 

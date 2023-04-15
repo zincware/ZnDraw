@@ -35,6 +35,7 @@ def main(
         False, help="run the animation in an endless loop."
     ),
     frames_per_post: int = typer.Option(10, help="Number of frames to send per POST."),
+    browser: bool = typer.Option(True, help="Open the browser automatically."),
 ):
     """ZnDraw: Visualize Molecules
 
@@ -57,5 +58,6 @@ def main(
     globals.config.restart_animation = restart_animation
     globals.config.repeat = (repeat, repeat, repeat)
 
-    webbrowser.open(f"http://localhost:{port}")
+    if browser:
+        webbrowser.open(f"http://localhost:{port}")
     app.run(port=port)
