@@ -3,6 +3,7 @@ import ase.io
 import networkx as nx
 from ase.neighborlist import build_neighbor_list
 import numpy as np
+import functools
 
 
 def read_file(filename: str) -> ase.Atoms:

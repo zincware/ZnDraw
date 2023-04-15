@@ -15,6 +15,49 @@ def index():
     return render_template("index.html")
 
 
+@app.route("/config")
+def config():
+    return dataclasses.asdict(globals.config)
+
+
+@app.route("/atoms")
+def atoms():
+    atoms = globals.config.get_atoms(step=0)
+    graph = io.get_graph(atoms)
+    return {idx: graph.nodes[idx] for idx in graph.nodes}
+
+
+@app.route("/atoms/<step>")
+def atoms_step(step):
+    atoms = globals.config.get_atoms(step=int(step))
+    graph = io.get_graph(atoms)
+    return {idx: graph.nodes[idx] for idx in graph.nodes}
+
+
+@app.route("/atoms/<step>/<atom_id>")
+def atom_step(step, atom_id):
+    return {}
+
+
+@app.route("/bonds")
+def bonds():
+    atoms = globals.config.get_atoms(step=0)
+    graph = io.get_graph(atoms)
+    return list(graph.edges)
+
+
+@app.route("/bonds/<step>/")
+def bonds_step(step):
+    atoms = globals.config.get_atoms(step=int(step))
+    graph = io.get_graph(atoms)
+    return list(graph.edges)
+
+
+@app.route("/bonds/<step>/<bond_id>")
+def bond_step(step, bond_id):
+    return {}
+
+
 @app.route("/xyz")
 def xyz():
     atoms = io.read_file(globals.config.file)
@@ -30,11 +73,6 @@ def xyz():
         data["edges"].append(edge)
 
     return data
-
-
-@app.route("/config")
-def config():
-    return dataclasses.asdict(globals.config)
 
 
 def get_atoms():
