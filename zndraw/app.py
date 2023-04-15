@@ -1,6 +1,6 @@
 from flask import Flask
 from flask import render_template
-from flask import session
+from flask import session, request
 import uuid
 import numpy as np
 from zndraw import globals, io
@@ -28,10 +28,27 @@ def xyz():
 
     return data
 
+@app.route("/animation")
+def get_position_updates():
+    import ase.io
+    print("### LOADING ATOMS ###")
+    atoms = []
+    for atom in ase.io.iread(globals.file):
+        atoms.append(atom)
+        if len(atoms) == 1000:
+            break
+
+    positions = []
+    for atom in atoms:
+        positions.append(atom.positions)
+
+    return np.diff(positions, axis=0).tolist()
+
 
 @app.route("/atom/<atom_id>", methods=["GET", "POST"])
 def add_message(atom_id):
-    # content = request.json
+    content = request.json
+    print(content)
     session["selected"] = atom_id
     session["step"] = 0
     return {}
