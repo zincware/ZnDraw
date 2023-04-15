@@ -24,3 +24,6 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry.scripts]
 zndraw = 'zndraw.cli:cli'
+
+[tool.poetry.urls]
+repository = "https://github.com/zincware/ZnDraw"
