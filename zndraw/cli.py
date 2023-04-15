@@ -3,6 +3,8 @@ from zndraw import app, globals
 import pathlib
 import sys
 
+import webbrowser
+
 cli = typer.Typer()
 
 
@@ -47,4 +49,5 @@ def main(
     globals.config.restart_animation = restart_animation
     globals.config.repeat = (repeat, repeat, repeat)
 
+    webbrowser.open(f"http://localhost:{port}")
     app.run(port=port)
