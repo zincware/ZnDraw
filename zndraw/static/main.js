@@ -64,6 +64,7 @@ function addAtom(item) {
 	atoms.add(particle);
 	particle.position.set(...item["position"]);
 	particle.userData["id"] = item["id"];
+	particle.userData["color"] = item["color"];
 	particle.callback = function () {
 		let data = {
 			"position": this.position,
@@ -170,9 +171,22 @@ async function onPointerDown(event) {
 
 	for (let i = 0; i < intersects.length; i++) {
 
-		intersects[i].object.material.color.set(0xff0000);
-		intersects[i].object.callback();
-		console.log(intersects[i].object.position);
+		let mesh = intersects[i].object;
+
+		mesh.callback();
+
+		if (selected_ids.includes(mesh.userData["id"])) {
+			mesh.material.color.set(mesh.userData["color"]);
+			let index = selected_ids.indexOf(mesh.userData["id"]);
+			if (index !== -1) {
+				selected_ids.splice(index, 1);
+			}
+		} else {
+
+			intersects[i].object.material.color.set(0xff0000);
+			console.log(intersects[i].object.position);
+			selected_ids.push(intersects[i].object.userData["id"]);
+		};
 
 		// if (position.length === 0) {
 		// 	position = await (await fetch("animation")).json();
@@ -206,12 +220,12 @@ window.addEventListener('resize', onWindowResize, false);
 
 window.addEventListener("keydown", (event) => {
 	if (event.isComposing || event.keyCode === 229) {
-	  return;
+		return;
 	}
 	if (config["update_function"] !== "") {
 		getAnimationFrames("update");
 	}
-  });
+});
 
 let animation_frame = 0;
 let clock = new THREE.Clock();
@@ -222,7 +236,7 @@ function move_atoms() {
 	} else {
 		animation_frame = 0;
 	}
-	if (clock.getElapsedTime () < 1 / config["max_fps"]){
+	if (clock.getElapsedTime() < 1 / config["max_fps"]) {
 		return;
 	}
 	clock.start();
@@ -236,10 +250,10 @@ function move_atoms() {
 
 	for (let i = 0; i < bonds_1.children.length; i++) {
 		// can't resize the cylinders
-		
+
 		let bond_1 = bonds_1.children[i];
 		let bond_2 = bonds_2.children[i];
-		
+
 		atoms.children[bond_1.userData["id"]].getWorldPosition(node1);
 		atoms.children[bond_2.userData["id"]].getWorldPosition(node2);
 

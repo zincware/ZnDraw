@@ -58,17 +58,27 @@ def get_position_updates():
 def add_message(atom_id):
     # content = request.json
     try:
-        session["selected"] = session["selected"] + [atom_id]
+        if atom_id in session["selected"]:
+            session["selected"] = [x for x in session["selected"] if x != atom_id]
+        else:
+            session["selected"] = session["selected"] + [atom_id]
     except KeyError:
         session["selected"] = [atom_id]
+
+    session["updated"] = True
 
     print(session["selected"])
     return {}
 
 
-@app.route("/update")
+@app.route("/update", methods=["GET", "POST"])
 def update_scene():
+    # content = request.json
+
     if "selected" not in session:
+        return []
+
+    if not session["updated"]:
         return []
 
     function = globals.config.get_update_function()
@@ -76,7 +86,7 @@ def update_scene():
         [int(x) for x in session["selected"]], globals.atoms
     )  # TODO animation
 
-    del session["selected"]
+    session["updated"] = False
 
     return np.array([x.get_positions() for x in atoms]).tolist()
 
