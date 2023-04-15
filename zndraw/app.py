@@ -22,21 +22,24 @@ def xyz():
     data = {"nodes": [], "edges": []}
     for node in graph.nodes:
         data["nodes"].append(graph.nodes[node] | {"id": node})
-    
+
     for edge in graph.edges:
         data["edges"].append(edge)
 
     return data
 
+
 @app.route("/animation")
 def get_position_updates():
     import ase.io
+
     print("### LOADING ATOMS ###")
-    atoms = []
-    for atom in ase.io.iread(globals.file):
-        atoms.append(atom)
-        if len(atoms) == 1000:
-            break
+    # atoms = []
+    # for atom in ase.io.iread(globals.file):
+    #     atoms.append(atom)
+    #     if len(atoms) == 500:
+    #         break
+    atoms = list(ase.io.iread(globals.file))
 
     positions = []
     for atom in atoms:

@@ -26,20 +26,51 @@ let node2 = new THREE.Vector3();
 
 // Helper Functions
 
-function halfCylinderMesh(pointX, pointY, material) {
-	// edge from X to Y
-	var direction = new THREE.Vector3().subVectors(pointY, pointX);
+// function alignBetweenVectors(pointY, pointX, mesh) {
+// 	// edge from X to Y
+// 	var direction = new THREE.Vector3().subVectors(pointY, pointX);
+// 	// shift it so one end rests on the origin
+// 	// mesh.applyMatrix4(new THREE.Matrix4().makeTranslation(0, direction.length(), 0));
+// 	// rotate it the right way for lookAt to work
+// 	// mesh.applyMatrix4(new THREE.Matrix4().makeRotationX(THREE.MathUtils.degToRad(90)));
+// 	// Position it where we want
+// 	mesh.position.x = 0;
+// 	mesh.position.y = direction.length() / 4;
+// 	mesh.position.z = 0;
+
+// 	// mesh.applyMatrix4(new THREE.Matrix4().makeRotationX(THREE.MathUtils.degToRad(90)));
+
+// 	mesh.position.x += pointX.x;
+// 	mesh.position.y += pointX.y;
+// 	mesh.position.z += pointX.z;
+// 	// And make it point to where we want
+// 	mesh.lookAt(pointY);
+
+
+// }
+
+function halfCylinderGeometry(pointX, pointY) {
 	// Make the geometry (of "direction" length)
+	var direction = new THREE.Vector3().subVectors(pointY, pointX);
+
 	var geometry = new THREE.CylinderGeometry(0.15, 0.15, direction.length() / 2, 16);
-	// shift it so one end rests on the origin
+	// // shift it so one end rests on the origin
 	geometry.applyMatrix4(new THREE.Matrix4().makeTranslation(0, direction.length() / 4, 0));
-	// rotate it the right way for lookAt to work
+	// // rotate it the right way for lookAt to work
 	geometry.applyMatrix4(new THREE.Matrix4().makeRotationX(THREE.MathUtils.degToRad(90)));
-	// Make a mesh with the geometry
+
+	return geometry;
+
+}
+
+function halfCylinderMesh(pointX, pointY, material) {
+	// // Make a mesh with the geometry
+	var geometry = halfCylinderGeometry(pointX, pointY);
 	var mesh = new THREE.Mesh(geometry, material);
-	// Position it where we want
+	// alignBetweenVectors(pointX, pointY, mesh);
+	// // Position it where we want
 	mesh.position.copy(pointX);
-	// And make it point to where we want
+	// // And make it point to where we want
 	mesh.lookAt(pointY);
 
 	return mesh;
@@ -75,8 +106,8 @@ function addBond(item) {
 	const bond_1 = halfCylinderMesh(node1, node2, atoms.children[item[0]].material);
 	const bond_2 = halfCylinderMesh(node2, node1, atoms.children[item[1]].material);
 
-	atoms.children[item[0]].userData["bonds"].push(bond_1.id);
-	atoms.children[item[1]].userData["bonds"].push(bond_2.id);
+	bond_1.userData["id"] = item[0];
+	bond_2.userData["id"] = item[1];
 
 	bonds_1.add(bond_1);
 	bonds_2.add(bond_2);
@@ -84,8 +115,8 @@ function addBond(item) {
 }
 
 function cleanScene() {
-		scene.remove(atoms);
-		scene.remove(bonds);
+	scene.remove(atoms);
+	scene.remove(bonds);
 }
 
 
@@ -192,33 +223,40 @@ function animate() {
 	renderer.render(scene, camera);
 	controls.update();
 
-	
-
-	// for (let [atom_id, positions] of Object.entries(position)) {
-	// 	if (positions.length > 0) {
-	// 		let theRemovedElement = positions.shift(); // theRemovedElement == 1
-	// 		// I want to iterate over children and select the one where userDAta equals atom_id			
-	// 		atoms.children[atom_id].position.set(...theRemovedElement);
-	// 		// console.log(theRemovedElement); // [2, 3, 4]
-	// 	}
-	//   }
-
 	if (position.length > 0) {
 		let theRemovedElement = position.shift();
 		theRemovedElement.forEach(function (item, index) {
 			atoms.children[index].position.x += item[0];
 			atoms.children[index].position.y += item[1];
 			atoms.children[index].position.z += item[2];
-	
 		});
 		console.log("Animation running")
+
+		scene.updateMatrixWorld();
+
+		for (let i = 0; i < bonds_1.children.length; i++) {
+			// can't resize the cylinders
+			atoms.children[bonds_1.children[i].userData["id"]].getWorldPosition(node1);
+			atoms.children[bonds_2.children[i].userData["id"]].getWorldPosition(node2);
+
+			let direction = new THREE.Vector3().subVectors(node1, node2);
+
+			let scale = (direction.length() / 2) / bonds_1.children[i].geometry.parameters.height;
+
+			bonds_1.children[i].scale.set(1, 1, scale);
+			bonds_2.children[i].scale.set(1, 1, scale);
+
+			bonds_1.children[i].position.copy(node1);
+			bonds_2.children[i].position.copy(node2);
+
+			bonds_1.children[i].lookAt(node2);
+			bonds_2.children[i].lookAt(node1);
+		}
 	}
-	
-	
+
+
 
 	// animation loop
-
-	// atoms.children[0].position.x += 0.01;
 
 	requestAnimationFrame(animate);
 
