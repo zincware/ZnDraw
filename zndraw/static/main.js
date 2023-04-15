@@ -11,66 +11,74 @@ const renderer = new THREE.WebGLRenderer({antialias: true, alpha: true});
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
 
-// const light = new THREE.AmbientLight( 0xDDDDDD ); // soft white light
-// scene.add( light );
-
-// const light = new THREE.PointLight( 0xFFFFFF, 1, 100 );
-// light.position.set( 0, 0, 0 );
-// scene.add( light );
-
 const hemisphere_light = new THREE.HemisphereLight( 0xffffff, 0x777777, 1 );
 scene.add( hemisphere_light );
 
-// const pint_light_1 = new THREE.PointLight( 0xffffff, 1, 100 );
-// pint_light_1.position.set( 5, 0, 0 );
-// scene.add( pint_light_1 );
 
 let obj = await (await fetch("xyz")).json();
 
 const atoms = new THREE.Group();
 
-obj["nodes"].forEach(function (item, index) {
-	// console.log("Adding item " + index + " to scene(" + item + ")");
 
+function addAtoms(item) {
 	const geometry = new THREE.SphereGeometry(item["radius"], 32, 16);
 	const material = new THREE.MeshPhongMaterial({ color: item["color"] });
-	const cube = new THREE.Mesh(geometry, material);
-	atoms.add(cube);
-	cube.position.set(...item["position"]);
-	cube.callback = function () {
+	const particle = new THREE.Mesh(geometry, material);
+	atoms.add(particle);
+	particle.position.set(...item["position"]);
+	particle.callback = function () {
 		let data = {
 			"atom": item,
 		}
-		fetch("atom/" + index, {
+		fetch("atom/" + item["id"], {
 			"method": "POST",
 			"headers": { "Content-Type": "application/json" },
 			"body": JSON.stringify(data),
 		})
 	}
+}
 
+function halfCylinderMesh(pointX, pointY, material) {
+	// edge from X to Y
+	var direction = new THREE.Vector3().subVectors(pointY, pointX);
+	// Make the geometry (of "direction" length)
+	var geometry = new THREE.CylinderGeometry(0.15, 0.15, direction.length() / 2, 16);
+	// shift it so one end rests on the origin
+	geometry.applyMatrix4(new THREE.Matrix4().makeTranslation(0, direction.length() / 4, 0));
+	// rotate it the right way for lookAt to work
+	geometry.applyMatrix4(new THREE.Matrix4().makeRotationX(THREE.MathUtils.degToRad(90)));
+	// Make a mesh with the geometry
+	var mesh = new THREE.Mesh(geometry, material);
+	// Position it where we want
+	mesh.position.copy(pointX);
+	// And make it point to where we want
+	mesh.lookAt(pointY);
+
+	return mesh;
+ }
+
+
+obj["nodes"].forEach(function (item, index) {
+	// console.log("Adding item " + index + " to scene(" + item + ")");
+	addAtoms(item);
 });
 
 scene.add(atoms);
 
 const bonds = new THREE.Group();
 
+var node1 = new THREE.Vector3();
+var node2 = new THREE.Vector3();
+
 obj["edges"].forEach(function (item, index) {
 	// console.log("Adding item " + index + " to scene(" + item + ")");
 
-	// const geometry = new THREE.CylinderGeometry(obj["radius"], obj["radius"], item["height"], 32);
-	const geometry = new THREE.CylinderGeometry(item["radius"], item["radius"], item["height"], 32);
+	atoms.children[item[0]].getWorldPosition(node1);
+	atoms.children[item[1]].getWorldPosition(node2);
 
-	// const geometry = new THREE.SphereGeometry(item["radius"], 32, 16);
-	const material = new THREE.MeshPhongMaterial({ color: "white" });
-	const cylinder = new THREE.Mesh(geometry, material);
-	bonds.add(cylinder);
-	cylinder.position.set(...item["position"]); // spread operator
+	bonds.add(halfCylinderMesh(node1, node2, atoms.children[item[0]].material));
+	bonds.add(halfCylinderMesh(node2, node1, atoms.children[item[1]].material));
 
-	const quaternion = new THREE.Quaternion()
-	const cylinderUpAxis = new THREE.Vector3(0, 1, 0)
-	const stickAxis = new THREE.Vector3(...item["axis"])
-	quaternion.setFromUnitVectors(cylinderUpAxis, stickAxis)
-	cylinder.applyQuaternion(quaternion)
 });
 
 scene.add(bonds);
@@ -112,6 +120,7 @@ function onPointerDown(event) {
 
 		intersects[i].object.material.color.set(0xff0000);
 		intersects[i].object.callback();
+		console.log(intersects[i].object.position);
 
 	}
 }
