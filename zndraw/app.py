@@ -17,7 +17,9 @@ def index():
 
 @app.route("/xyz")
 def xyz():
-    graph = io.read_file(globals.config.file)
+    atoms = io.read_file(globals.config.file)
+    graph = io.get_graph(atoms)
+    globals.atoms = atoms
     globals.graph = graph
 
     data = {"nodes": [], "edges": []}
@@ -54,25 +56,39 @@ def get_position_updates():
 
 @app.route("/atom/<atom_id>", methods=["GET", "POST"])
 def add_message(atom_id):
-    content = request.json
-    print(content)
-    session["selected"] = atom_id
-    session["step"] = 0
+    # content = request.json
+    try:
+        session["selected"] = session["selected"] + [atom_id]
+    except KeyError:
+        session["selected"] = [atom_id]
+
+    print(session["selected"])
     return {}
 
 
 @app.route("/update")
-def new_atoms():
+def update_scene():
     if "selected" not in session:
-        return {}
-    if session["step"] > 10:
-        return {}
-    node = globals.graph.nodes[int(session["selected"])]
-    positions = np.array(node["position"]) + np.ones(3) * session["step"]
-    session["step"] += 1
-    return {
-        "id": session["selected"],
-        "position": positions.tolist(),
-        "radius": 0.1,
-        "color": "limegreen",
-    }
+        return []
+
+    function = globals.config.get_update_function()
+    atoms = function(
+        [int(x) for x in session["selected"]], globals.atoms
+    )  # TODO animation
+
+    del session["selected"]
+
+    return np.array([x.get_positions() for x in atoms]).tolist()
+
+    # graph = io.get_graph(atoms)
+    # globals.atoms = atoms
+    # globals.graph = graph
+
+    # data = {"nodes": [], "edges": []}
+    # for node in graph.nodes:
+    #     data["nodes"].append(graph.nodes[node] | {"id": node})
+
+    # for edge in graph.edges:
+    #     data["edges"].append(edge)
+
+    # return data

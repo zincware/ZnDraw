@@ -63,6 +63,7 @@ function addAtom(item) {
 	const particle = new THREE.Mesh(geometry, material);
 	atoms.add(particle);
 	particle.position.set(...item["position"]);
+	particle.userData["id"] = item["id"];
 	particle.callback = function () {
 		let data = {
 			"position": this.position,
@@ -150,6 +151,7 @@ const pointer = new THREE.Vector2();
 
 let position = [];
 
+let selected_ids = [];
 
 async function onPointerDown(event) {
 
@@ -171,6 +173,7 @@ async function onPointerDown(event) {
 		intersects[i].object.material.color.set(0xff0000);
 		intersects[i].object.callback();
 		console.log(intersects[i].object.position);
+
 		// if (position.length === 0) {
 		// 	position = await (await fetch("animation")).json();
 		// }
@@ -180,9 +183,10 @@ async function onPointerDown(event) {
 	}
 }
 
-async function getAnimationFrames() {
+async function getAnimationFrames(url) {
+	position = [];
 	while (true) {
-		let obj = await (await fetch("animation")).json();
+		let obj = await (await fetch(url)).json();
 		if (Object.keys(obj).length === 0) {
 			console.log("Animation read finished");
 			break;
@@ -192,12 +196,22 @@ async function getAnimationFrames() {
 }
 
 console.log(config);
+
 if (config["animate"] === true) {
-	getAnimationFrames();
+	getAnimationFrames("animation");
 }
 
 window.addEventListener('pointerdown', onPointerDown, false);
 window.addEventListener('resize', onWindowResize, false);
+
+window.addEventListener("keydown", (event) => {
+	if (event.isComposing || event.keyCode === 229) {
+	  return;
+	}
+	if (config["update_function"] !== "") {
+		getAnimationFrames("update");
+	}
+  });
 
 let animation_frame = 0;
 let clock = new THREE.Clock();

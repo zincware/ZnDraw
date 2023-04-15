@@ -44,12 +44,16 @@ def main(
     animate: bool = typer.Option(False, help="Animate the trajectory"),
     sphere_size: float = typer.Option(1.0, help="size of the hydrogen sphere"),
     bond_size: float = typer.Option(1.0, help="size of a bond"),
-    max_fps: int = typer.Option(10, help="Maximum frames per second"),
+    max_fps: int = typer.Option(100, help="Maximum frames per second"),
+    update_function: str = typer.Option(
+        None, help="Path to a python file with an update function 'module.function'."
+    ),
 ):
     globals.config.file = file
     globals.config.animate = animate
     globals.config.sphere_size = sphere_size
     globals.config.bond_size = bond_size
     globals.config.max_fps = max_fps
+    globals.config.update_function = update_function
 
     app.run(port=port)

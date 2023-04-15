@@ -5,11 +5,9 @@ from ase.neighborlist import build_neighbor_list
 import numpy as np
 
 
-def read_file(filename: str) -> nx.Graph:
+def read_file(filename: str) -> ase.Atoms:
     """Reads a file and returns a networkx graph."""
-    atoms = ase.io.read(filename)
-    # return get_graph(atoms.repeat((2, 2, 2)))
-    return get_graph(atoms)
+    return ase.io.read(filename)
 
 
 colors = {"H": "white", "C": "grey", "N": "blue", "O": "red", "F": "green"}
