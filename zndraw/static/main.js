@@ -188,12 +188,6 @@ async function onPointerDown(event) {
 			selected_ids.push(intersects[i].object.userData["id"]);
 		};
 
-		// if (position.length === 0) {
-		// 	position = await (await fetch("animation")).json();
-		// }
-		// cleanScene();
-		// drawAtoms(obj);
-
 	}
 }
 
