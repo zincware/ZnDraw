@@ -28,9 +28,7 @@ def get_graph(atoms: ase.Atoms) -> nx.Graph:
             "number": atoms[node].number.item(),
             "color": colors.get(atoms[node].symbol, "skyblue"),
             "radius": 0.25 * (2 - np.exp(-0.2 * atoms[node].number)),
-            "x": atoms[node].position[0].item(),
-            "y": atoms[node].position[1].item(),
-            "z": atoms[node].position[2].item(),
+            "position": atoms[node].position.tolist(),
         }
 
     nx.set_node_attributes(G, node_data)

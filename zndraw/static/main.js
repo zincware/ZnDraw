@@ -7,7 +7,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
 
-const renderer = new THREE.WebGLRenderer();
+const renderer = new THREE.WebGLRenderer({antialias: true, alpha: true});
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
 
@@ -33,10 +33,10 @@ obj["nodes"].forEach(function (item, index) {
 	// console.log("Adding item " + index + " to scene(" + item + ")");
 
 	const geometry = new THREE.SphereGeometry(item["radius"], 32, 16);
-	const material = new THREE.MeshStandardMaterial({ color: item["color"] });
+	const material = new THREE.MeshPhongMaterial({ color: item["color"] });
 	const cube = new THREE.Mesh(geometry, material);
 	atoms.add(cube);
-	cube.position.set(item["x"], item["y"], item["z"]);
+	cube.position.set(...item["position"]);
 	cube.callback = function () {
 		let data = {
 			"atom": item,
@@ -47,7 +47,6 @@ obj["nodes"].forEach(function (item, index) {
 			"body": JSON.stringify(data),
 		})
 	}
-	cube.radius += 0.1;
 
 });
 
@@ -59,10 +58,10 @@ obj["edges"].forEach(function (item, index) {
 	// console.log("Adding item " + index + " to scene(" + item + ")");
 
 	// const geometry = new THREE.CylinderGeometry(obj["radius"], obj["radius"], item["height"], 32);
-	const geometry = new THREE.CylinderGeometry(0.1, 0.1, 1.0, 32);
+	const geometry = new THREE.CylinderGeometry(item["radius"], item["radius"], item["height"], 32);
 
 	// const geometry = new THREE.SphereGeometry(item["radius"], 32, 16);
-	const material = new THREE.MeshStandardMaterial({ color: "white" });
+	const material = new THREE.MeshPhongMaterial({ color: "white" });
 	const cylinder = new THREE.Mesh(geometry, material);
 	bonds.add(cylinder);
 	cylinder.position.set(...item["position"]); // spread operator
@@ -117,8 +116,24 @@ function onPointerDown(event) {
 	}
 }
 
+// Async with onInterval can spawn many requests
+async function onInterval(event) {
+	let obj = await (await fetch("update")).json();
+	if (obj.hasOwnProperty('position')) {
+		// atoms.children[obj["id"]].position.set(...obj["position"])
+		//atoms.children[obj["id"]].material.color.set(0x00ff00);
+
+		const geometry = new THREE.SphereGeometry(obj["radius"], 32, 16);
+		const material = new THREE.MeshPhongMaterial({ color: obj["color"] });
+		const cube = new THREE.Mesh(geometry, material);
+		atoms.add(cube);
+		cube.position.set(...obj["position"]);
+	}
+}
+
 window.addEventListener('pointerdown', onPointerDown, false);
-window.addEventListener('resize', onWindowResize, false)
+window.addEventListener('resize', onWindowResize, false);
+window.setInterval(onInterval, 1000);
 
 
 function animate() {
