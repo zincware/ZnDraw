@@ -17,7 +17,7 @@ colors = {"H": "white", "C": "grey", "N": "blue", "O": "red", "F": "green"}
 
 def get_graph(atoms: ase.Atoms) -> nx.Graph:
     """Returns a networkx graph from an ase.Atoms object."""
-    atoms.pbc = False
+    # atoms.pbc = False
     nl = build_neighbor_list(atoms, self_interaction=False)
     cm = nl.get_connectivity_matrix(sparse=False)
     G = nx.from_numpy_array(cm)

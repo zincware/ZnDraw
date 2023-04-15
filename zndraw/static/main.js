@@ -26,29 +26,6 @@ let node2 = new THREE.Vector3();
 
 // Helper Functions
 
-// function alignBetweenVectors(pointY, pointX, mesh) {
-// 	// edge from X to Y
-// 	var direction = new THREE.Vector3().subVectors(pointY, pointX);
-// 	// shift it so one end rests on the origin
-// 	// mesh.applyMatrix4(new THREE.Matrix4().makeTranslation(0, direction.length(), 0));
-// 	// rotate it the right way for lookAt to work
-// 	// mesh.applyMatrix4(new THREE.Matrix4().makeRotationX(THREE.MathUtils.degToRad(90)));
-// 	// Position it where we want
-// 	mesh.position.x = 0;
-// 	mesh.position.y = direction.length() / 4;
-// 	mesh.position.z = 0;
-
-// 	// mesh.applyMatrix4(new THREE.Matrix4().makeRotationX(THREE.MathUtils.degToRad(90)));
-
-// 	mesh.position.x += pointX.x;
-// 	mesh.position.y += pointX.y;
-// 	mesh.position.z += pointX.z;
-// 	// And make it point to where we want
-// 	mesh.lookAt(pointY);
-
-
-// }
-
 function halfCylinderGeometry(pointX, pointY) {
 	// Make the geometry (of "direction" length)
 	var direction = new THREE.Vector3().subVectors(pointY, pointX);
@@ -82,9 +59,6 @@ function addAtom(item) {
 	const geometry = new THREE.SphereGeometry(item["radius"], 32, 16);
 	const material = new THREE.MeshPhongMaterial({ color: item["color"] });
 	const particle = new THREE.Mesh(geometry, material);
-	particle.userData["bonds"] = [];
-	particle.userData["id"] = item["id"];
-	particle.name = item["id"];
 	atoms.add(particle);
 	particle.position.set(...item["position"]);
 	particle.callback = function () {
@@ -115,8 +89,15 @@ function addBond(item) {
 }
 
 function cleanScene() {
-	scene.remove(atoms);
-	scene.remove(bonds);
+	while (atoms.children.length > 0) {
+		scene.remove(atoms.children.shift());
+	};
+	while (bonds_1.children.length > 0) {
+		scene.remove(bonds_1.children.shift());
+	};
+	while (bonds_2.children.length > 0) {
+		scene.remove(bonds_2.children.shift());
+	};
 }
 
 
@@ -191,6 +172,8 @@ async function onPointerDown(event) {
 		if (position.length === 0) {
 			position = await (await fetch("animation")).json();
 		}
+		cleanScene();
+		drawAtoms(obj);
 
 	}
 }
@@ -226,9 +209,10 @@ function animate() {
 	if (position.length > 0) {
 		let theRemovedElement = position.shift();
 		theRemovedElement.forEach(function (item, index) {
-			atoms.children[index].position.x += item[0];
-			atoms.children[index].position.y += item[1];
-			atoms.children[index].position.z += item[2];
+			atoms.children[index].position.set(...item);
+			// atoms.children[index].position.x += item[0];
+			// atoms.children[index].position.y += item[1];
+			// atoms.children[index].position.z += item[2];
 		});
 		console.log("Animation running")
 
@@ -236,21 +220,30 @@ function animate() {
 
 		for (let i = 0; i < bonds_1.children.length; i++) {
 			// can't resize the cylinders
-			atoms.children[bonds_1.children[i].userData["id"]].getWorldPosition(node1);
-			atoms.children[bonds_2.children[i].userData["id"]].getWorldPosition(node2);
+			
+			let bond_1 = bonds_1.children[i];
+			let bond_2 = bonds_2.children[i];
+			
+			atoms.children[bond_1.userData["id"]].getWorldPosition(node1);
+			atoms.children[bond_2.userData["id"]].getWorldPosition(node2);
 
 			let direction = new THREE.Vector3().subVectors(node1, node2);
 
-			let scale = (direction.length() / 2) / bonds_1.children[i].geometry.parameters.height;
+			let scale = (direction.length() / 2) / bond_1.geometry.parameters.height;
 
-			bonds_1.children[i].scale.set(1, 1, scale);
-			bonds_2.children[i].scale.set(1, 1, scale);
+			if (scale > 2) {
+				bond_1.material.transparent = true ;
+				bond_2.material.transparent = true ;
+			}
 
-			bonds_1.children[i].position.copy(node1);
-			bonds_2.children[i].position.copy(node2);
+			bond_1.scale.set(1, 1, scale);
+			bond_2.scale.set(1, 1, scale);
 
-			bonds_1.children[i].lookAt(node2);
-			bonds_2.children[i].lookAt(node1);
+			bond_1.position.copy(node1);
+			bond_2.position.copy(node2);
+
+			bond_1.lookAt(node2);
+			bond_2.lookAt(node1);
 		}
 	}
 

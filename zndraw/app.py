@@ -34,10 +34,10 @@ def get_position_updates():
     import ase.io
 
     print("### LOADING ATOMS ###")
-    # atoms = []
+    atoms = []
     # for atom in ase.io.iread(globals.file):
     #     atoms.append(atom)
-    #     if len(atoms) == 500:
+    #     if len(atoms) == 100:
     #         break
     atoms = list(ase.io.iread(globals.file))
 
@@ -45,7 +45,7 @@ def get_position_updates():
     for atom in atoms:
         positions.append(atom.positions)
 
-    return np.diff(positions, axis=0).tolist()
+    return np.array(positions).tolist()
 
 
 @app.route("/atom/<atom_id>", methods=["GET", "POST"])
