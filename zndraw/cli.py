@@ -38,6 +38,11 @@ cli = typer.Typer()
 
 
 @cli.command()
-def main(file: str, port: int = typer.Option(5123)):
-    globals.file = file
+def main(
+    file: str = typer.Argument(..., help="Trajectory File"),
+    port: int = typer.Option(5123, help="Port to run the server on"),
+    animate: bool = typer.Option(False, help="Animate the trajectory"),
+):
+    globals.config.file = file
+    globals.config.animate = animate
     app.run(port=port)

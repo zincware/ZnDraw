@@ -4,6 +4,7 @@ from flask import session, request
 import uuid
 import numpy as np
 from zndraw import globals, io
+import dataclasses
 
 app = Flask(__name__)
 app.secret_key = str(uuid.uuid4())
@@ -16,7 +17,7 @@ def index():
 
 @app.route("/xyz")
 def xyz():
-    graph = io.read_file(globals.file)
+    graph = io.read_file(globals.config.file)
     globals.graph = graph
 
     data = {"nodes": [], "edges": []}
@@ -29,17 +30,22 @@ def xyz():
     return data
 
 
+@app.route("/config")
+def config():
+    return dataclasses.asdict(globals.config)
+
+
 @app.route("/animation")
 def get_position_updates():
     import ase.io
 
     print("### LOADING ATOMS ###")
     atoms = []
-    # for atom in ase.io.iread(globals.file):
-    #     atoms.append(atom)
-    #     if len(atoms) == 100:
-    #         break
-    atoms = list(ase.io.iread(globals.file))
+    for atom in ase.io.iread(globals.config.file):
+        atoms.append(atom)
+        if len(atoms) == 100:
+            break
+    # atoms = list(ase.io.iread(globals.config.file))
 
     positions = []
     for atom in atoms:

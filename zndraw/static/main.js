@@ -4,6 +4,8 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
 // THREE.Cache.enabled = true;
 
+const config = await (await fetch("config")).json();
+
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
 
@@ -169,37 +171,73 @@ async function onPointerDown(event) {
 		intersects[i].object.material.color.set(0xff0000);
 		intersects[i].object.callback();
 		console.log(intersects[i].object.position);
-		if (position.length === 0) {
-			position = await (await fetch("animation")).json();
-		}
-		cleanScene();
-		drawAtoms(obj);
+		// if (position.length === 0) {
+		// 	position = await (await fetch("animation")).json();
+		// }
+		// cleanScene();
+		// drawAtoms(obj);
 
 	}
 }
 
-// Async with onInterval can spawn many requests
-async function onInterval(event) {
-	// drawAtoms(obj);
-	// drawAtoms();
-	// let obj = await (await fetch("update")).json();
-	// if (obj.hasOwnProperty('position')) {
-	// 	// atoms.children[obj["id"]].position.set(...obj["position"])
-	// 	//atoms.children[obj["id"]].material.color.set(0x00ff00);
-	// 	cleanScene();
-	// 	drawAtoms();
+async function getAnimationFrames() {
+	position = await (await fetch("animation")).json();
+	cleanScene();
+	drawAtoms(obj);
+}
 
-	// 	// const geometry = new THREE.SphereGeometry(obj["radius"], 32, 16);
-	// 	// const material = new THREE.MeshPhongMaterial({ color: obj["color"] });
-	// 	// const cube = new THREE.Mesh(geometry, material);
-	// 	// atoms.add(cube);
-	// 	// cube.position.set(...obj["position"]);
-	// }
+console.log(config);
+if (config["animate"] === true) {
+	getAnimationFrames();
 }
 
 window.addEventListener('pointerdown', onPointerDown, false);
 window.addEventListener('resize', onWindowResize, false);
-// window.setInterval(onInterval, 1000);
+
+let animation_frame = 0;
+
+function move_atoms() {
+	let theRemovedElement = position[animation_frame];
+	if (animation_frame < position.length - 1) {
+		animation_frame += 1;
+	} else {
+		animation_frame = 0;
+	}
+	theRemovedElement.forEach(function (item, index) {
+		atoms.children[index].position.set(...item);
+	});
+	console.log("Animation running")
+
+	scene.updateMatrixWorld();
+
+	for (let i = 0; i < bonds_1.children.length; i++) {
+		// can't resize the cylinders
+		
+		let bond_1 = bonds_1.children[i];
+		let bond_2 = bonds_2.children[i];
+		
+		atoms.children[bond_1.userData["id"]].getWorldPosition(node1);
+		atoms.children[bond_2.userData["id"]].getWorldPosition(node2);
+
+		let direction = new THREE.Vector3().subVectors(node1, node2);
+
+		let scale = (direction.length() / 2) / bond_1.geometry.parameters.height;
+
+		if (scale > 2) {
+			bond_1.material.transparent = true ;
+			bond_2.material.transparent = true ;
+		}
+
+		bond_1.scale.set(1, 1, scale);
+		bond_2.scale.set(1, 1, scale);
+
+		bond_1.position.copy(node1);
+		bond_2.position.copy(node2);
+
+		bond_1.lookAt(node2);
+		bond_2.lookAt(node1);
+	}
+}
 
 function animate() {
 
@@ -207,47 +245,8 @@ function animate() {
 	controls.update();
 
 	if (position.length > 0) {
-		let theRemovedElement = position.shift();
-		theRemovedElement.forEach(function (item, index) {
-			atoms.children[index].position.set(...item);
-			// atoms.children[index].position.x += item[0];
-			// atoms.children[index].position.y += item[1];
-			// atoms.children[index].position.z += item[2];
-		});
-		console.log("Animation running")
-
-		scene.updateMatrixWorld();
-
-		for (let i = 0; i < bonds_1.children.length; i++) {
-			// can't resize the cylinders
-			
-			let bond_1 = bonds_1.children[i];
-			let bond_2 = bonds_2.children[i];
-			
-			atoms.children[bond_1.userData["id"]].getWorldPosition(node1);
-			atoms.children[bond_2.userData["id"]].getWorldPosition(node2);
-
-			let direction = new THREE.Vector3().subVectors(node1, node2);
-
-			let scale = (direction.length() / 2) / bond_1.geometry.parameters.height;
-
-			if (scale > 2) {
-				bond_1.material.transparent = true ;
-				bond_2.material.transparent = true ;
-			}
-
-			bond_1.scale.set(1, 1, scale);
-			bond_2.scale.set(1, 1, scale);
-
-			bond_1.position.copy(node1);
-			bond_2.position.copy(node2);
-
-			bond_1.lookAt(node2);
-			bond_2.lookAt(node1);
-		}
+		move_atoms();
 	}
-
-
 
 	// animation loop
 
