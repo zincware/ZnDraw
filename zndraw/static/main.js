@@ -59,12 +59,15 @@ const div_progressBar = document.getElementById('progressBar');
 const div_bufferBar = document.getElementById('bufferBar');
 const div_greyOut = document.getElementById('greyOut');
 const div_lst_selected_ids = document.getElementById('lst_selected_ids');
+const div_FPS = document.getElementById('FPS');
+
 const o_selectAtoms = document.getElementById('selectAtoms');
 const o_autoRestart = document.getElementById('autoRestart');
 const o_animate = document.getElementById('animate');
 const o_reset_selection = document.getElementById('reset_selection');
 const o_hide_selection = document.getElementById('hide_selection');
 const o_reset = document.getElementById('reset');
+const o_max_fps = document.getElementById('max_fps');
 
 
 // Helper Functions
@@ -350,9 +353,11 @@ window.addEventListener("keydown", (event) => {
 		animation_running = !animation_running;
 	}
 	if (event.isComposing || event.key === "ArrowLeft") {
+		event.preventDefault();
 		animation_frame = Math.max(0, animation_frame - 1);
 	}
 	if (event.isComposing || event.key === "ArrowRight") {
+		event.preventDefault();
 		animation_frame = Math.min(frames.length - 1, animation_frame + 1);
 	}
 	if (event.isComposing || event.key === "ArrowUp") {
@@ -366,6 +371,7 @@ window.addEventListener("keydown", (event) => {
 if (config["update_function"] !== null) {
 	window.addEventListener("keydown", (event) => {
 		if (event.isComposing || event.key === "Enter") {
+			div_info.innerHTML = "Processing...";
 			fetch("update/" + animation_frame).then((response) => getAnimationFrames());
 		}
 	});
@@ -373,14 +379,14 @@ if (config["update_function"] !== null) {
 
 
 
-let clock = new THREE.Clock();
+let move_atoms_clock = new THREE.Clock();
 
 
 function move_atoms() {
 	if (frames.length === 0) {
 		return;
 	}
-	if (clock.getElapsedTime() < (1 / config["max_fps"])) {
+	if (move_atoms_clock.getElapsedTime() < (1 / o_max_fps.value)) {
 		return;
 	}
 	if (scene_building === true) {
@@ -453,7 +459,9 @@ function move_atoms() {
 			bond_2.lookAt(node1);
 		}
 	}
-	clock.start();
+	let fps = 1 / move_atoms_clock.getElapsedTime();
+	div_FPS.innerHTML = fps.toFixed(2) + " FPS";
+	move_atoms_clock.start();
 }
 
 function animate() {
@@ -468,7 +476,6 @@ function animate() {
 	// animation loop
 
 	requestAnimationFrame(animate);
-
 
 }
 

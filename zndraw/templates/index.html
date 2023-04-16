@@ -58,6 +58,19 @@
                   Auto Restart
                 </label>
               </div>
+
+              <div class="row g-3">
+                <div class="col-auto">
+                  <label for="max_fps" class="form-label">Max FPS</label>
+                </div>
+                <div class="col-auto">
+                  <input type="range" class="form-range" min="1" max="100" step="0.5" id="max_fps"
+                    value="{{ config.max_fps }}" , oninput="max_fps_output.value = this.value">
+                </div>
+                <div class="col-auto text-center">
+                  <output id="max_fps_output">{{ config.max_fps }}</output>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -73,7 +86,7 @@
             aria-labelledby="panelsStayOpen-headingTwo">
             <div class="accordion-body">
               <div class="btn-group-vertical" role="group" aria-label="Basic example">
-                <button type="button" class="btn btn-secondary" id="animate">Load Animation</button>
+                <button type="button" class="btn btn-secondary" id="animate"{% if config.update_function %} disabled {% endif %}>Load Animation</button>
                 <button type="button" class="btn btn-secondary" id="reset_selection">Reset Selection</button>
                 <button type="button" class="btn btn-secondary" id="hide_selection" disabled>Hide Selection</button>
                 <button type="button" class="btn btn-secondary" id="reset">Reset Scene</button>
@@ -93,6 +106,8 @@
             aria-labelledby="panelsStayOpen-headingThree">
             <div class="accordion-body">
               <dl class="row">
+                <dt class="col-sm-3">FPS</dt>
+                <dd class="col-sm-9" id="FPS">-</dd>
                 <dt class="col-sm-3">Selected IDs</dt>
                 <dd class="col-sm-9" id="lst_selected_ids">A description list is perfect for defining terms.</dd>
                 {% if config.update_function %}

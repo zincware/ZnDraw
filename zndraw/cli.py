@@ -21,7 +21,7 @@ def main(
     animate: bool = typer.Option(False, help="Animate the trajectory"),
     sphere_size: float = typer.Option(1.0, help="size of the hydrogen sphere"),
     bond_size: float = typer.Option(1.0, help="size of a bond"),
-    max_fps: int = typer.Option(1000, help="Maximum frames per second"),
+    max_fps: int = typer.Option(100, help="Maximum frames per second"),
     update_function: str = typer.Option(
         None, help="Path to a python file with an update function 'module.function'."
     ),
