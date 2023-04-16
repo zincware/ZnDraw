@@ -68,6 +68,7 @@ let selected_ids = [];
 let animation_frame = 0;
 let scene_building = false;
 let animation_running = true;
+let data_loading = false;
 let fps = [];
 
 const div_info = document.getElementById('info');
@@ -351,6 +352,7 @@ async function update_selection() {
 }
 
 async function getAnimationFrames() {
+	data_loading = true;
 	frames = [];
 
 	await fetch("atoms/1")
@@ -366,6 +368,7 @@ async function getAnimationFrames() {
 		frames = frames.concat(obj);  // TODO: handle multiple frames at once
 		step += parseInt(o_frames_per_post.value);
 	}
+	data_loading = false;
 }
 
 
@@ -519,6 +522,9 @@ window.addEventListener("keydown", (event) => {
 	if (event.isComposing || event.key === "r") {
 		center_camera();
 	}
+	if (event.isComposing || event.key === "q") {
+		getAnimationFrames();
+	}
 });
 
 if (config["update_function"] !== null) {
@@ -543,6 +549,9 @@ function move_atoms() {
 		return;
 	}
 	if (scene_building === true) {
+		return;
+	}
+	if (data_loading === true) {
 		return;
 	}
 	console.log("Animation (" + animation_frame + "/" + (frames.length - 1) + ")");

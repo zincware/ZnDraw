@@ -67,7 +67,11 @@ def update_scene(step):
         [int(x) for x in session["selected"]], globals.config.get_atoms(step=int(step))
     )
 
-    globals._atoms_cache |= {
-        idx + len(globals._atoms_cache): atom for idx, atom in enumerate(atoms)
-    }
+    offset = len(globals._atoms_cache)
+
+    for idx, atom in enumerate(atoms):
+        print(f"processing {idx}")
+        globals._atoms_cache[idx + offset] = atom
+    
+    # this has to return before the scene is automatically updated
     return {}
