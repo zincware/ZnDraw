@@ -2,6 +2,7 @@ import dataclasses
 import importlib
 
 import ase.io
+import tqdm
 
 
 @dataclasses.dataclass
@@ -24,18 +25,25 @@ class Config:
         module = importlib.import_module(module_name)
         return getattr(module, function_name)
 
+    def load_atoms(self):
+        if self.update_function is not None:
+            return
+        if len(_atoms_cache) > 1:
+            # already loaded
+            return
+        for idx, atom in enumerate(
+            tqdm.tqdm(ase.io.iread(self.file), desc="File Reading")
+        ):
+            _atoms_cache[idx] = atom
+
     def get_atoms(self, step=0) -> ase.Atoms:
         try:
-            return _atoms_cache[step]
+            return _atoms_cache[step].repeat(self.repeat)
         except KeyError:
-            if self.update_function is not None and step != 0:
+            if step != 0:
                 raise
-            for idx, atoms in enumerate(ase.io.iread(self.file)):
-                _atoms_cache[idx] = atoms.copy().repeat(self.repeat)
-                if step == 0:
-                    break
-
-        return _atoms_cache[step]
+            _atoms_cache[0] = ase.io.read(self.file)
+            return _atoms_cache[0]
 
 
 # TODO set defaults here and load in typer?

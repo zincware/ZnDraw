@@ -12,6 +12,7 @@ ase = "^3.22.1"
 networkx = "^3.1"
 typer = {extras = ["all"], version = "^0.7.0"}
 flask = "^2.2.3"
+tqdm = "^4.65.0"
 
 [tool.poetry.group.dev.dependencies]
 black = "^23.3.0"

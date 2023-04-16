@@ -42,6 +42,10 @@ def main(
     if file == "version":
         version_callback()
 
+    if not pathlib.Path(file).exists():
+        typer.echo(f"File {file} does not exist.")
+        raise typer.Exit()
+
     globals.config.file = file
     globals.config.animate = animate
     globals.config.sphere_size = sphere_size

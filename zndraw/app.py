@@ -75,3 +75,10 @@ def update_scene(step):
 
     # this has to return before the scene is automatically updated
     return {}
+
+
+@app.route("/load")
+def load():
+    """Function to call asynchronously to load atoms in the background."""
+    globals.config.load_atoms()
+    return {}

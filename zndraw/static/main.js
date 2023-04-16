@@ -257,6 +257,9 @@ function drawAtoms(atoms, bonds) {
 }
 
 async function build_scene(step) {
+	if (scene_building) {
+		return;
+	}
 	const urls = ["atoms/" + step, "bonds/" + step];
 	animation_frame = step;
 	console.log("Updating scene");
@@ -359,8 +362,7 @@ async function getAnimationFrames() {
 
 	data_loading = true;
 	if (frames.length < 2) {
-		await fetch("atoms/1");
-		load_config();
+		fetch("load");
 	}
 
 	let step = frames.length;
@@ -373,6 +375,7 @@ async function getAnimationFrames() {
 		}
 		frames = frames.concat(obj);
 		step += parseInt(o_frames_per_post.value);
+		await fetch("atoms/1").then(load_config());
 	}
 	data_loading = false;
 }
@@ -385,8 +388,6 @@ if (config["animate"] === true) {
 if (config["restart_animation"] === true) {
 	o_autoRestart.checked = true;
 }
-
-console.log(config);
 
 window.addEventListener('pointerdown', onPointerDown, false);
 window.addEventListener('resize', onWindowResize, false);
@@ -424,14 +425,12 @@ o_hide_selection.onclick = function () {
 			bondsGroup_1.getObjectById(item).visible = false;
 			bondsGroup_2.getObjectById(item).visible = false;
 		});
-
-		// bondsGroup_1.getObjectById(item).visible = false;
-		// bondsGroup_2.getObjectByUserDataProperty("id", item).visible = false;
 	});
 }
 
 o_reset.onclick = function () {
 	load_config();
+	animation_frame = 0;
 	build_scene(0);
 	selected_ids = [];
 	update_selection();
@@ -495,7 +494,6 @@ o_help_btn.onmouseout = function () {
 }
 
 window.addEventListener("keydown", (event) => {
-	console.log(camera.position);
 	if (event.isComposing || event.key === " ") {
 		event.preventDefault();
 		if (animation_running && animation_frame == frames.length - 1) {
@@ -513,10 +511,10 @@ window.addEventListener("keydown", (event) => {
 		animation_frame = Math.min(frames.length - 1, animation_frame + 1);
 	}
 	if (event.isComposing || event.key === "ArrowUp") {
-		animation_frame = frames.length - 1;
+		animation_frame = parseInt(Math.min(frames.length - 1, animation_frame + (frames.length / 10)));
 	}
 	if (event.isComposing || event.key === "ArrowDown") {
-		animation_frame = 0;
+		animation_frame = parseInt(Math.max(0, animation_frame - (frames.length / 10)));
 	}
 	if (event.isComposing || event.key === "l") {
 		spotLight.position.x = camera.position.x;
@@ -584,9 +582,10 @@ function move_atoms() {
 		return; // we need to wait for the scene to be updated
 	}
 
+
+
 	frames[animation_frame].forEach(function (item, index) {
 		atomsGroup.getObjectByUserDataProperty("id", index).position.set(...item);
-		// atomsGroup.children[item["id"]].position.set(...item["position"]);
 	});
 
 	div_info.innerHTML = "Frame (" + animation_frame + "/" + (frames.length - 1) + ")";
