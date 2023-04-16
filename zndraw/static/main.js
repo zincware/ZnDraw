@@ -34,8 +34,12 @@ const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
 
-const hemisphere_light = new THREE.HemisphereLight(0xffffff, 0x777777, 1);
-scene.add(hemisphere_light);
+const hemisphereLight = new THREE.HemisphereLight(0xffffff, 0x777777, 0.1);
+const spotLight = new THREE.SpotLight(0xffffff, 1);
+spotLight.position.set(0, 0, 100);
+scene.add(spotLight);
+
+scene.add(hemisphereLight);
 
 
 const atomsGroup = new THREE.Group();
@@ -48,15 +52,14 @@ let node1 = new THREE.Vector3();
 let node2 = new THREE.Vector3();
 
 const materials = {
-	"LineBasicMaterial": new THREE.LineBasicMaterial({ color: "#ffa500" }),
-	"LineDashedMaterial": new THREE.LineDashedMaterial({ color: "#ffa500", dashSize: 0.3, gapSize: 0.1 }),
 	"MeshBasicMaterial": new THREE.MeshBasicMaterial({ color: "#ffa500" }),
 	"MeshLambertMaterial": new THREE.MeshLambertMaterial({ color: "#ffa500" }),
+	"MeshMatcapMaterial": new THREE.MeshMatcapMaterial({ color: "#ffa500" }),
 	"MeshPhongMaterial": new THREE.MeshPhongMaterial({ color: "#ffa500" }),
-	"MeshStandardMaterial": new THREE.MeshStandardMaterial({ color: "#ffa500" }),
 	"MeshPhysicalMaterial": new THREE.MeshPhysicalMaterial({ color: "#ffa500" }),
+	"MeshStandardMaterial": new THREE.MeshStandardMaterial({ color: "#ffa500" }),
 	"MeshToonMaterial": new THREE.MeshToonMaterial({ color: "#ffa500" }),
-	"MeshNormalMaterial": new THREE.MeshNormalMaterial({ color: "#ffa500" }),
+
 };
 
 // some global variables
@@ -65,6 +68,8 @@ let selected_ids = [];
 let animation_frame = 0;
 let scene_building = false;
 let animation_running = true;
+let fps = [];
+
 const div_info = document.getElementById('info');
 const div_loading = document.getElementById('loading');
 const div_progressBar = document.getElementById('progressBar');
@@ -74,6 +79,7 @@ const div_lst_selected_ids = document.getElementById('lst_selected_ids');
 const div_FPS = document.getElementById('FPS');
 const div_n_particles = document.getElementById('n_particles');
 const div_n_bonds = document.getElementById('n_bonds');
+const div_help_container = document.getElementById('help_container');
 
 const o_selectAtoms = document.getElementById('selectAtoms');
 const o_autoRestart = document.getElementById('autoRestart');
@@ -91,6 +97,10 @@ const o_bond_minus = document.getElementById('bond_minus');
 const o_resolution_plus = document.getElementById('resolution_plus');
 const o_resolution_minus = document.getElementById('resolution_minus');
 const o_materialSelect = document.getElementById('materialSelect');
+const o_wireframe = document.getElementById('wireframe');
+const o_spotLightIntensity = document.getElementById('spotLightIntensity');
+const o_hemisphereLightIntensity = document.getElementById('hemisphereLightIntensity');
+const o_help_btn = document.getElementById('help_btn');
 
 
 // Helper Functions
@@ -107,7 +117,38 @@ async function update_materials() {
 		option.value = material;
 		o_materialSelect.appendChild(option);
 	}
-	o_materialSelect.value = "LineBasicMaterial";
+	o_materialSelect.value = "MeshPhongMaterial";
+}
+
+function center_camera() {
+	// try to move the camera such that all atoms are in view
+
+	let trials = 0;
+
+	const frustum = new THREE.Frustum()
+
+	camera.position.x = 0;
+	camera.position.y = 0;
+	camera.position.z = 0;
+
+	atomsGroup.children.forEach((atom) => {
+
+		while (true) {
+			const matrix = new THREE.Matrix4().multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse)
+			frustum.setFromProjectionMatrix(matrix)
+			camera.updateMatrix();
+			camera.updateMatrixWorld();
+			if (frustum.containsPoint(atom.position)) {
+				break;
+			}
+			console.log('Atom out of view');
+			camera.position.z += 1;
+			trials += 1;
+			if (trials > 100) {
+				break;
+			}
+		}
+	});
 }
 
 update_materials();
@@ -143,11 +184,12 @@ function halfCylinderMesh(pointX, pointY, material) {
 
 function addAtom(item) {
 	const geometry = new THREE.SphereGeometry(item["radius"] * config["sphere_size"], config["resolution"] * 4, config["resolution"] * 2);
-	
+
 	const particle = new THREE.Mesh(geometry, materials[o_materialSelect.value].clone());
 	atomsGroup.add(particle);
-	console.log("color" + item["color"]);
 	particle.material.color.set(item["color"]);
+	particle.material.wireframe = o_wireframe.checked;
+
 	particle.position.set(...item["position"]);
 	particle.userData["id"] = item["id"];
 	particle.userData["color"] = item["color"];
@@ -248,10 +290,8 @@ build_scene(0);
 // interactions
 
 camera.position.z = 50;
-
 const controls = new OrbitControls(camera, renderer.domElement);
 
-// camera.position.set( 0, 20, 100 );
 controls.update();
 
 function onWindowResize() {
@@ -386,7 +426,7 @@ o_reset.onclick = function () {
 	build_scene(0);
 	selected_ids = [];
 	update_selection();
-	camera.position.z = 50;
+	center_camera();
 }
 
 o_sphere_plus.onclick = function () {
@@ -423,10 +463,39 @@ o_materialSelect.onchange = function () {
 	build_scene(animation_frame);
 }
 
+o_wireframe.onchange = function () {
+	build_scene(animation_frame);
+}
+
+o_spotLightIntensity.oninput = function () {
+	document.getElementById("spotLightIntensity_output").value = o_spotLightIntensity.value;
+	spotLight.intensity = o_spotLightIntensity.value;
+}
+
+o_hemisphereLightIntensity.oninput = function () {
+	document.getElementById("hemisphereLightIntensity_output").value = o_hemisphereLightIntensity.value;
+	hemisphereLight.intensity = o_hemisphereLightIntensity.value;
+}
+
+o_help_btn.onmouseover = function () {
+	console.log("help");
+	div_help_container.style.display = "block";
+}
+
+o_help_btn.onmouseout = function () {
+	console.log("help leeave");
+	div_help_container.style.display = "none";
+}
+
 window.addEventListener("keydown", (event) => {
+	console.log(camera.position);
 	if (event.isComposing || event.key === " ") {
 		event.preventDefault();
-		animation_running = !animation_running;
+		if (animation_running && animation_frame == frames.length - 1) {
+			animation_frame = 0;
+		} else {
+			animation_running = !animation_running;
+		}
 	}
 	if (event.isComposing || event.key === "ArrowLeft") {
 		event.preventDefault();
@@ -441,6 +510,14 @@ window.addEventListener("keydown", (event) => {
 	}
 	if (event.isComposing || event.key === "ArrowDown") {
 		animation_frame = 0;
+	}
+	if (event.isComposing || event.key === "l") {
+		spotLight.position.x = camera.position.x;
+		spotLight.position.y = camera.position.y;
+		spotLight.position.z = camera.position.z;
+	}
+	if (event.isComposing || event.key === "r") {
+		center_camera();
 	}
 });
 
@@ -535,8 +612,14 @@ function move_atoms() {
 			bond_2.lookAt(node1);
 		}
 	}
-	let fps = 1 / move_atoms_clock.getElapsedTime();
-	div_FPS.innerHTML = fps.toFixed(2) + " FPS";
+
+	fps.push(move_atoms_clock.getElapsedTime());
+
+	if (fps.length > 10) {
+		fps.shift();
+	}
+
+	div_FPS.innerHTML = (1 / (fps.reduce((a, b) => a + b, 0) / fps.length)).toFixed(2) + " FPS";
 	move_atoms_clock.start();
 }
 
@@ -552,8 +635,6 @@ function animate() {
 	// animation loop
 
 	requestAnimationFrame(animate);
-
 }
-
 
 animate();

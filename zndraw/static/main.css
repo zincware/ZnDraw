@@ -30,6 +30,16 @@ canvas {
     display: block;
 }
 
+#help_btn {
+    position: absolute;
+    top: 5px;
+    right: 10px;
+    width: 30px;
+    z-index: 100;
+    display: block;
+    opacity: 0.5;
+}
+
 .atom-spinner,
 .atom-spinner * {
     box-sizing: border-box;
@@ -227,7 +237,7 @@ canvas {
     /* padding from the top */
     list-style: none;
     background-color: #ECEFF1;
-    opacity: 90%;
+    opacity: 95%;
     box-shadow: 2px 2px 6px rgba(0, 0, 0, .4);
     transition-duration: .25s;
 }
