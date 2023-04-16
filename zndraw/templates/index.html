@@ -46,10 +46,9 @@
           <div id="panelsStayOpen-collapseOne" class="accordion-collapse collapse show"
             aria-labelledby="panelsStayOpen-headingOne">
             <div class="container">
-              <div class="row">
-                <div class="col-sm">
-
-                  <div class="accordion-body">
+              <div class="accordion-body">
+                <div class="row">
+                  <div class="col-sm">
                     <div class="form-check form-switch">
                       <input class="form-check-input" type="checkbox" value="" id="selectAtoms" checked>
                       <label class="form-check-label" for="selectAtoms">
@@ -74,41 +73,42 @@
                       </label>
                     </div>
                   </div>
-                </div>
-                <div class="col-sm">
-                  <div class="row">
-                    <div class="col-sm-3">
-                      <div class="row">Max FPS</div>
-                      <div class="row">Buffer</div>
-                      <div class="row">POST</div>
+                  <div class="col-sm">
+                    <div class="row">
+                      <div class="col-sm-3">
+                        <div class="row">Max FPS</div>
+                        <div class="row">Buffer</div>
+                        <div class="row">POST</div>
 
-                      <div class="row">1. Light</div>
-                      <div class="row">2. Light</div>
-                    </div>
-                    <div class="col-sm-2">
-                      <div class="row"><output id="max_fps_output">{{ config.max_fps }}</output></div>
-                      <div class="row"><output id="frame_buffer_output">{{ config.frame_buffer }}</output></div>
-                      <div class="row"><output id="frames_per_post_output">{{ config.frames_per_post }}</output></div>
-
-                      <div class="row"><output id="spotLightIntensity_output">1</output></div>
-                      <div class="row"><output id="hemisphereLightIntensity_output">0.1</output></div>
-                    </div>
-                    <div class="col-sm">
-                      <div class="row"><input type="range" class="form-range" min="1" max="100" step="0.5" id="max_fps"
-                          value="{{ config.max_fps }}" , oninput="max_fps_output.value = this.value"></div>
-                      <div class="row"><input type="range" class="form-range" min="1" max="1000" id="frame_buffer"
-                          value="{{ config.frame_buffer }}" , oninput="frame_buffer_output.value = this.value"></div>
-                      <div class="row"><input type="range" class="form-range" min="1" max="100" id="frames_per_post"
-                          value="{{ config.frames_per_post }}" , oninput="frames_per_post_output.value = this.value">
+                        <div class="row">1. Light</div>
+                        <div class="row">2. Light</div>
                       </div>
+                      <div class="col-sm-2">
+                        <div class="row"><output id="max_fps_output">{{ config.max_fps }}</output></div>
+                        <div class="row"><output id="frame_buffer_output">{{ config.frame_buffer }}</output></div>
+                        <div class="row"><output id="frames_per_post_output">{{ config.frames_per_post }}</output></div>
 
-                      <div class="row"><input type="range" class="form-range" min="0" max="1" step="0.01"
-                          id="spotLightIntensity" value="1"></div>
-                      <div class="row"><input type="range" class="form-range" min="0" max="1" step="0.01"
-                          id="hemisphereLightIntensity" value="0.1"></div>
+                        <div class="row"><output id="spotLightIntensity_output">1</output></div>
+                        <div class="row"><output id="hemisphereLightIntensity_output">0.1</output></div>
+                      </div>
+                      <div class="col-sm">
+                        <div class="row"><input type="range" class="form-range" min="1" max="100" step="0.5"
+                            id="max_fps" value="{{ config.max_fps }}" , oninput="max_fps_output.value = this.value">
+                        </div>
+                        <div class="row"><input type="range" class="form-range" min="1" max="1000" id="frame_buffer"
+                            value="{{ config.frame_buffer }}" , oninput="frame_buffer_output.value = this.value"></div>
+                        <div class="row"><input type="range" class="form-range" min="1" max="100" id="frames_per_post"
+                            value="{{ config.frames_per_post }}" , oninput="frames_per_post_output.value = this.value">
+                        </div>
+
+                        <div class="row"><input type="range" class="form-range" min="0" max="1" step="0.01"
+                            id="spotLightIntensity" value="1"></div>
+                        <div class="row"><input type="range" class="form-range" min="0" max="1" step="0.01"
+                            id="hemisphereLightIntensity" value="0.1"></div>
+                      </div>
+                      <div class="col-sm-1"><!-- Padding on the right --></div>
+
                     </div>
-                    <div class="col-sm-1"><!-- Padding on the right --></div>
-
                   </div>
                 </div>
               </div>
