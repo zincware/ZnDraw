@@ -22,13 +22,6 @@ def config():
     }
 
 
-@app.route("/atoms")  # TODO remove
-def atoms():
-    atoms = globals.config.get_atoms(step=0)
-    graph = io.get_graph(atoms)
-    return [graph.nodes[idx] | {"id": idx} for idx in graph.nodes]
-
-
 @app.route("/atoms/<step>")
 def atoms_step(step):
     try:
@@ -37,24 +30,6 @@ def atoms_step(step):
         return [graph.nodes[idx] | {"id": idx} for idx in graph.nodes]
     except (KeyError, IndexError):
         return []
-
-
-@app.route("/atoms/<start>&<stop>")
-def atoms_steps(start, stop):
-    result = []
-    try:
-        for step in range(int(start), int(stop)):
-            atoms = globals.config.get_atoms(step=int(step))
-            graph = io.get_graph(atoms)
-            result.append([graph.nodes[idx] | {"id": idx} for idx in graph.nodes])
-        return result
-    except (KeyError, IndexError):
-        return result
-
-
-@app.route("/atoms/<step>/<atom_id>")
-def atom_step(step, atom_id):
-    return {}
 
 
 @app.route("/positions/<start>&<stop>")
@@ -69,23 +44,11 @@ def positions_step(start, stop):
         return result
 
 
-@app.route("/bonds")  # TODO remove
-def bonds():
-    atoms = globals.config.get_atoms(step=0)
-    graph = io.get_graph(atoms)
-    return list(graph.edges)
-
-
 @app.route("/bonds/<step>/")
 def bonds_step(step):
     atoms = globals.config.get_atoms(step=int(step))
     graph = io.get_graph(atoms)
     return list(graph.edges)
-
-
-@app.route("/bonds/<step>/<bond_id>")
-def bond_step(step, bond_id):
-    return {}
 
 
 @app.route("/select", methods=["POST"])
@@ -102,7 +65,7 @@ def update_scene(step):
     function = globals.config.get_update_function()
     atoms = function(
         [int(x) for x in session["selected"]], globals.config.get_atoms(step=int(step))
-    )  # TODO animation
+    )
 
     globals._atoms_cache |= {
         idx + len(globals._atoms_cache): atom for idx, atom in enumerate(atoms)
