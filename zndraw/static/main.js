@@ -52,14 +52,19 @@ let frames = [];
 let selected_ids = [];
 let animation_frame = 0;
 let scene_building = false;
+let animation_running = true;
 const div_info = document.getElementById('info');
 const div_loading = document.getElementById('loading');
 const div_progressBar = document.getElementById('progressBar');
 const div_bufferBar = document.getElementById('bufferBar');
 const div_greyOut = document.getElementById('greyOut');
+const div_lst_selected_ids = document.getElementById('lst_selected_ids');
 const o_selectAtoms = document.getElementById('selectAtoms');
 const o_autoRestart = document.getElementById('autoRestart');
 const o_animate = document.getElementById('animate');
+const o_reset_selection = document.getElementById('reset_selection');
+const o_hide_selection = document.getElementById('hide_selection');
+const o_reset = document.getElementById('reset');
 
 
 // Helper Functions
@@ -106,6 +111,7 @@ function addAtom(item) {
 	particle.position.set(...item["position"]);
 	particle.userData["id"] = item["id"];
 	particle.userData["color"] = item["color"];
+	particle.userData["bond_ids"] = [];
 }
 
 function addBond(item) {
@@ -115,8 +121,14 @@ function addBond(item) {
 	const bond_1 = halfCylinderMesh(node1, node2, atomsGroup.children[item[0]].material);
 	const bond_2 = halfCylinderMesh(node2, node1, atomsGroup.children[item[1]].material);
 
-	bond_1.userData["id"] = item[0];
-	bond_2.userData["id"] = item[1];
+	bond_1.userData["atom_id"] = item[0];
+	bond_2.userData["atom_id"] = item[1];
+
+	atomsGroup.children[item[0]].userData["bond_ids"].push(bond_1.id);
+	atomsGroup.children[item[0]].userData["bond_ids"].push(bond_2.id);
+	atomsGroup.children[item[1]].userData["bond_ids"].push(bond_1.id);
+	atomsGroup.children[item[1]].userData["bond_ids"].push(bond_2.id);
+
 
 	bondsGroup_1.add(bond_1);
 	bondsGroup_2.add(bond_2);
@@ -164,6 +176,7 @@ function drawAtoms(atoms, bonds) {
 
 async function build_scene(step) {
 	const urls = ["atoms/" + step, "bonds/" + step];
+	animation_frame = step;
 	console.log("Updating scene");
 
 	div_loading.style.visibility = 'visible';
@@ -179,6 +192,7 @@ async function build_scene(step) {
 
 	drawAtoms(arrayOfResponses[0], arrayOfResponses[1]);
 	selected_ids = [];
+	await update_selection();
 	scene_building = false;
 
 	div_greyOut.style.visibility = 'hidden';
@@ -240,12 +254,17 @@ async function onPointerDown(event) {
 			selected_ids.push(intersects[i].object.userData["id"]);
 		};
 	}
+	await update_selection();
+}
 
+async function update_selection() {
 	fetch("select", {
 		"method": "POST",
 		"headers": { "Content-Type": "application/json" },
 		"body": JSON.stringify(selected_ids),
 	})
+
+	div_lst_selected_ids.innerHTML = selected_ids.join(", ");
 }
 
 async function getAnimationFrames() {
@@ -295,9 +314,51 @@ o_animate.onclick = function () {
 	getAnimationFrames();
 }
 
+o_reset_selection.onclick = function () {
+	selected_ids.forEach(function (item, index) {
+		let mesh = atomsGroup.getObjectByUserDataProperty("id", item);
+		mesh.material.color.set(mesh.userData["color"]);
+	});
+	selected_ids = [];
+	update_selection();
+}
+
+o_hide_selection.onclick = function () {
+	selected_ids.forEach(function (item, index) {
+		let mesh = atomsGroup.getObjectByUserDataProperty("id", item);
+		mesh.visible = false;
+
+		mesh.userData["bond_ids"].forEach(function (item, index) {
+			bondsGroup_1.getObjectById(item).visible = false;
+			bondsGroup_2.getObjectById(item).visible = false;
+		});
+
+		// bondsGroup_1.getObjectById(item).visible = false;
+		// bondsGroup_2.getObjectByUserDataProperty("id", item).visible = false;
+	});
+}
+
+o_reset.onclick = function () {
+	build_scene(0);
+	selected_ids = [];
+	update_selection();
+}
 
 window.addEventListener("keydown", (event) => {
 	if (event.isComposing || event.key === " ") {
+		event.preventDefault();
+		animation_running = !animation_running;
+	}
+	if (event.isComposing || event.key === "ArrowLeft") {
+		animation_frame = Math.max(0, animation_frame - 1);
+	}
+	if (event.isComposing || event.key === "ArrowRight") {
+		animation_frame = Math.min(frames.length - 1, animation_frame + 1);
+	}
+	if (event.isComposing || event.key === "ArrowUp") {
+		animation_frame = frames.length - 1;
+	}
+	if (event.isComposing || event.key === "ArrowDown") {
 		animation_frame = 0;
 	}
 });
@@ -322,18 +383,23 @@ function move_atoms() {
 	if (clock.getElapsedTime() < (1 / config["max_fps"])) {
 		return;
 	}
-	console.log("Animation (" + animation_frame + "/" + frames.length + ")");
+	if (scene_building === true) {
+		return;
+	}
+	console.log("Animation (" + animation_frame + "/" + (frames.length - 1) + ")");
 	if (frames.length < config["frame_buffer"]) {
 		div_info.innerHTML = "Buffering...";
-		div_progressBar.style.width = ((frames.length / config["frame_buffer"]) * 100).toFixed(2) + "%";
+		div_progressBar.style.width = (((frames.length - 1) / config["frame_buffer"]) * 100).toFixed(2) + "%";
 		return;
 	}
 	div_progressBar.style.visibility = "hidden";
 
-	if (animation_frame < frames.length - 1) {
-		animation_frame += 1;
-	} else if (o_autoRestart.checked === true) {
-		animation_frame = 0;
+	if (animation_running === true) {
+		if (animation_frame < frames.length - 1) {
+			animation_frame += 1;
+		} else if (o_autoRestart.checked === true) {
+			animation_frame = 0;
+		}
 	}
 	if (frames.length < animation_frame) {
 		// waiting for async call to finish
@@ -342,14 +408,11 @@ function move_atoms() {
 	if (config["total_frames"] > 0) {
 		div_progressBar.style.visibility = "visible";
 		div_progressBar.style.width = ((animation_frame / config["total_frames"]) * 100).toFixed(2) + "%";
-		div_bufferBar.style.width = ((frames.length / config["total_frames"]) * 100).toFixed(2) + "%";
+		div_bufferBar.style.width = (((frames.length - 1) / config["total_frames"]) * 100).toFixed(2) + "%";
 	}
 
 	if (frames[animation_frame].length != atomsGroup.children.length) {
 		// we need to update the scene
-		if (scene_building === true) {
-			return;
-		}
 		build_scene(animation_frame);
 		scene_building = true;
 		return; // we need to wait for the scene to be updated
@@ -360,19 +423,17 @@ function move_atoms() {
 		// atomsGroup.children[item["id"]].position.set(...item["position"]);
 	});
 
-	div_info.innerHTML = "Frame (" + animation_frame + "/" + frames.length + ")";
+	div_info.innerHTML = "Frame (" + animation_frame + "/" + (frames.length - 1) + ")";
 
 	if (config["bond_size"] > 0) {
 		scene.updateMatrixWorld();
 
 		for (let i = 0; i < bondsGroup_1.children.length; i++) {
-			// can't resize the cylinders
-
 			let bond_1 = bondsGroup_1.children[i];
 			let bond_2 = bondsGroup_2.children[i];
 
-			atomsGroup.getObjectByUserDataProperty("id", bond_1.userData["id"]).getWorldPosition(node1);
-			atomsGroup.getObjectByUserDataProperty("id", bond_2.userData["id"]).getWorldPosition(node2);
+			atomsGroup.getObjectByUserDataProperty("id", bond_1.userData["atom_id"]).getWorldPosition(node1);
+			atomsGroup.getObjectByUserDataProperty("id", bond_2.userData["atom_id"]).getWorldPosition(node2);
 
 			let direction = new THREE.Vector3().subVectors(node1, node2);
 

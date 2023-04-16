@@ -12,13 +12,13 @@ app.secret_key = str(uuid.uuid4())
 @app.route("/")
 def index():
     session["key"] = str(uuid.uuid4())  # TODO use session key e.g. for atoms cache
-    return render_template("index.html")
+    return render_template("index.html", config=dataclasses.asdict(globals.config))
 
 
 @app.route("/config")
 def config():
     return dataclasses.asdict(globals.config) | {
-        "total_frames": len(globals._atoms_cache)
+        "total_frames": len(globals._atoms_cache) - 1
     }
 
 
@@ -41,15 +41,15 @@ def atoms_step(step):
 
 @app.route("/atoms/<start>&<stop>")
 def atoms_steps(start, stop):
+    result = []
     try:
-        result = []
         for step in range(int(start), int(stop)):
             atoms = globals.config.get_atoms(step=int(step))
             graph = io.get_graph(atoms)
             result.append([graph.nodes[idx] | {"id": idx} for idx in graph.nodes])
         return result
     except (KeyError, IndexError):
-        return []
+        return result
 
 
 @app.route("/atoms/<step>/<atom_id>")

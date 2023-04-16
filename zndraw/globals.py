@@ -29,6 +29,8 @@ class Config:
         try:
             return _atoms_cache[step]
         except KeyError:
+            if self.update_function is not None and step != 0:
+                raise
             for idx, atoms in enumerate(ase.io.iread(self.file)):
                 _atoms_cache[idx] = atoms.copy().repeat(self.repeat)
                 if step == 0:
