@@ -1,4 +1,6 @@
 [![zincware](https://img.shields.io/badge/Powered%20by-zincware-darkcyan)](https://github.com/zincware)
+[![PyPI version](https://badge.fury.io/py/zndraw.svg)](https://badge.fury.io/py/zndraw)
+
 
 # ZnDraw
 
@@ -14,6 +16,7 @@ To interface with ``zndraw --update-function module.function`` you need to be ab
 The ZnDraw function expects as inputs
 - atom_ids: list[int], the ids of the currently selected atoms
 - atoms: ase.Atoms, the configuration as `ase.Atoms` file where atom_ids where selected.
+
 and as an output:
 - list[ase.Atoms], a list of ase Atoms objects to display.
 
