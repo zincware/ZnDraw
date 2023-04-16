@@ -47,6 +47,18 @@ const bondsGroup_2 = new THREE.Group();
 let node1 = new THREE.Vector3();
 let node2 = new THREE.Vector3();
 
+const materials = {
+	"LineBasicMaterial": new THREE.LineBasicMaterial({ color: "#ffa500" }),
+	"LineDashedMaterial": new THREE.LineDashedMaterial({ color: "#ffa500", dashSize: 0.3, gapSize: 0.1 }),
+	"MeshBasicMaterial": new THREE.MeshBasicMaterial({ color: "#ffa500" }),
+	"MeshLambertMaterial": new THREE.MeshLambertMaterial({ color: "#ffa500" }),
+	"MeshPhongMaterial": new THREE.MeshPhongMaterial({ color: "#ffa500" }),
+	"MeshStandardMaterial": new THREE.MeshStandardMaterial({ color: "#ffa500" }),
+	"MeshPhysicalMaterial": new THREE.MeshPhysicalMaterial({ color: "#ffa500" }),
+	"MeshToonMaterial": new THREE.MeshToonMaterial({ color: "#ffa500" }),
+	"MeshNormalMaterial": new THREE.MeshNormalMaterial({ color: "#ffa500" }),
+};
+
 // some global variables
 let frames = [];
 let selected_ids = [];
@@ -78,6 +90,7 @@ const o_bond_plus = document.getElementById('bond_plus');
 const o_bond_minus = document.getElementById('bond_minus');
 const o_resolution_plus = document.getElementById('resolution_plus');
 const o_resolution_minus = document.getElementById('resolution_minus');
+const o_materialSelect = document.getElementById('materialSelect');
 
 
 // Helper Functions
@@ -86,6 +99,18 @@ async function load_config() {
 	config = await (await fetch("config")).json();
 	console.log(config)
 }
+
+async function update_materials() {
+	for (const material in materials) {
+		const option = document.createElement("option");
+		option.text = material;
+		option.value = material;
+		o_materialSelect.appendChild(option);
+	}
+	o_materialSelect.value = "LineBasicMaterial";
+}
+
+update_materials();
 
 function halfCylinderGeometry(pointX, pointY) {
 	// Make the geometry (of "direction" length)
@@ -118,9 +143,11 @@ function halfCylinderMesh(pointX, pointY, material) {
 
 function addAtom(item) {
 	const geometry = new THREE.SphereGeometry(item["radius"] * config["sphere_size"], config["resolution"] * 4, config["resolution"] * 2);
-	const material = new THREE.MeshPhongMaterial({ color: item["color"] });
-	const particle = new THREE.Mesh(geometry, material);
+	
+	const particle = new THREE.Mesh(geometry, materials[o_materialSelect.value].clone());
 	atomsGroup.add(particle);
+	console.log("color" + item["color"]);
+	particle.material.color.set(item["color"]);
 	particle.position.set(...item["position"]);
 	particle.userData["id"] = item["id"];
 	particle.userData["color"] = item["color"];
@@ -389,6 +416,10 @@ o_resolution_plus.onclick = function () {
 
 o_resolution_minus.onclick = function () {
 	config["resolution"] -= 1;
+	build_scene(animation_frame);
+}
+
+o_materialSelect.onchange = function () {
 	build_scene(animation_frame);
 }
 

@@ -63,23 +63,26 @@
                       </label>
                     </div>
 
-                    <div class="row">
-                      <div class="col-auto">
-                        <label for="max_fps" class="form-label">Max FPS</label>
-                        <output id="max_fps_output">{{ config.max_fps }}</output>
-                      </div>
-                      <div class="col-auto">
-                        <input type="range" class="form-range" min="1" max="100" step="0.5" id="max_fps"
-                          value="{{ config.max_fps }}" , oninput="max_fps_output.value = this.value">
-                      </div>
-                    </div>
+                    <select class="form-select" aria-label="Default select example" id="materialSelect">
+                      <option selected>Select Material</option>
+                    </select>
                   </div>
 
                 </div>
                 <div class="col-sm">
                   <div class="row">
                     <div class="col-auto">
-                      <label for="frame_buffer" class="form-label">Initial Buffer Size</label>
+                      <label for="max_fps" class="form-label">Max FPS</label>
+                      <output id="max_fps_output">{{ config.max_fps }}</output>
+                    </div>
+                    <div class="col-auto">
+                      <input type="range" class="form-range" min="1" max="100" step="0.5" id="max_fps"
+                        value="{{ config.max_fps }}" , oninput="max_fps_output.value = this.value">
+                    </div>
+                  </div>
+                  <div class="row">
+                    <div class="col-auto">
+                      <label for="frame_buffer" class="form-label">Buffer</label>
                       <output id="frame_buffer_output">{{ config.frame_buffer }}</output>
                     </div>
                     <div class="col-auto">
@@ -89,7 +92,7 @@
                   </div>
                   <div class="row">
                     <div class="col-auto">
-                      <label for="frames_per_post" class="form-label">POST Request Size</label>
+                      <label for="frames_per_post" class="form-label">POST</label>
                       <output id="frames_per_post_output">{{ config.frames_per_post }}</output>
                     </div>
                     <div class="col-auto">
