@@ -619,7 +619,7 @@ function move_atoms() {
 		fps.shift();
 	}
 
-	div_FPS.innerHTML = (1 / (fps.reduce((a, b) => a + b, 0) / fps.length)).toFixed(2) + " FPS";
+	div_FPS.innerHTML = (1 / (fps.reduce((a, b) => a + b, 0) / fps.length)).toFixed(2);
 	move_atoms_clock.start();
 }
 
