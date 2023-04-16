@@ -60,6 +60,8 @@ const div_bufferBar = document.getElementById('bufferBar');
 const div_greyOut = document.getElementById('greyOut');
 const div_lst_selected_ids = document.getElementById('lst_selected_ids');
 const div_FPS = document.getElementById('FPS');
+const div_n_particles = document.getElementById('n_particles');
+const div_n_bonds = document.getElementById('n_bonds');
 
 const o_selectAtoms = document.getElementById('selectAtoms');
 const o_autoRestart = document.getElementById('autoRestart');
@@ -68,6 +70,14 @@ const o_reset_selection = document.getElementById('reset_selection');
 const o_hide_selection = document.getElementById('hide_selection');
 const o_reset = document.getElementById('reset');
 const o_max_fps = document.getElementById('max_fps');
+const o_frame_buffer = document.getElementById('frame_buffer');
+const o_frames_per_post = document.getElementById('frames_per_post');
+const o_sphere_plus = document.getElementById('sphere_plus');
+const o_sphere_minus = document.getElementById('sphere_minus');
+const o_bond_plus = document.getElementById('bond_plus');
+const o_bond_minus = document.getElementById('bond_minus');
+const o_resolution_plus = document.getElementById('resolution_plus');
+const o_resolution_minus = document.getElementById('resolution_minus');
 
 
 // Helper Functions
@@ -198,6 +208,9 @@ async function build_scene(step) {
 	await update_selection();
 	scene_building = false;
 
+	div_n_particles.innerHTML = atomsGroup.children.length;
+	div_n_bonds.innerHTML = bondsGroup_1.children.length;
+
 	div_greyOut.style.visibility = 'hidden';
 	div_loading.style.visibility = 'hidden';
 }
@@ -278,13 +291,13 @@ async function getAnimationFrames() {
 
 	let step = 0;
 	while (true) {
-		let obj = await (await fetch("atoms/" + step + "&" + (step + config["frames_per_post"]))).json();
+		let obj = await (await fetch("atoms/" + step + "&" + (parseInt(o_frames_per_post.value) + step))).json();
 		if (Object.keys(obj).length === 0) {
 			console.log("Animation read finished");
 			break;
 		}
 		frames = frames.concat(obj);  // TODO: handle multiple frames at once
-		step += config["frames_per_post"];
+		step += parseInt(o_frames_per_post.value);
 	}
 }
 
@@ -342,9 +355,41 @@ o_hide_selection.onclick = function () {
 }
 
 o_reset.onclick = function () {
+	load_config();
 	build_scene(0);
 	selected_ids = [];
 	update_selection();
+	camera.position.z = 50;
+}
+
+o_sphere_plus.onclick = function () {
+	config["sphere_size"] += 0.1;
+	build_scene(animation_frame);
+}
+
+o_sphere_minus.onclick = function () {
+	config["sphere_size"] -= 0.1;
+	build_scene(animation_frame);
+}
+
+o_bond_plus.onclick = function () {
+	config["bond_size"] += 0.1;
+	build_scene(animation_frame);
+}
+
+o_bond_minus.onclick = function () {
+	config["bond_size"] -= 0.1;
+	build_scene(animation_frame);
+}
+
+o_resolution_plus.onclick = function () {
+	config["resolution"] += 1;
+	build_scene(animation_frame);
+}
+
+o_resolution_minus.onclick = function () {
+	config["resolution"] -= 1;
+	build_scene(animation_frame);
 }
 
 window.addEventListener("keydown", (event) => {
@@ -393,9 +438,9 @@ function move_atoms() {
 		return;
 	}
 	console.log("Animation (" + animation_frame + "/" + (frames.length - 1) + ")");
-	if (frames.length < config["frame_buffer"]) {
+	if (frames.length < parseInt(o_frame_buffer.value)) {
 		div_info.innerHTML = "Buffering...";
-		div_progressBar.style.width = (((frames.length - 1) / config["frame_buffer"]) * 100).toFixed(2) + "%";
+		div_progressBar.style.width = (((frames.length - 1) / parseInt(o_frame_buffer.value)) * 100).toFixed(2) + "%";
 		return;
 	}
 	div_progressBar.style.visibility = "hidden";

@@ -45,30 +45,58 @@
           </h2>
           <div id="panelsStayOpen-collapseOne" class="accordion-collapse collapse show"
             aria-labelledby="panelsStayOpen-headingOne">
-            <div class="accordion-body">
-              <div class="form-check form-switch">
-                <input class="form-check-input" type="checkbox" value="" id="selectAtoms" checked>
-                <label class="form-check-label" for="selectAtoms">
-                  Select Atoms
-                </label>
-              </div>
-              <div class="form-check form-switch">
-                <input class="form-check-input" type="checkbox" value="" id="autoRestart">
-                <label class="form-check-label" for="autoRestart">
-                  Auto Restart
-                </label>
-              </div>
+            <div class="container">
+              <div class="row">
+                <div class="col-sm">
 
-              <div class="row g-3">
-                <div class="col-auto">
-                  <label for="max_fps" class="form-label">Max FPS</label>
+                  <div class="accordion-body">
+                    <div class="form-check form-switch">
+                      <input class="form-check-input" type="checkbox" value="" id="selectAtoms" checked>
+                      <label class="form-check-label" for="selectAtoms">
+                        Select Atoms
+                      </label>
+                    </div>
+                    <div class="form-check form-switch">
+                      <input class="form-check-input" type="checkbox" value="" id="autoRestart">
+                      <label class="form-check-label" for="autoRestart">
+                        Auto Restart
+                      </label>
+                    </div>
+
+                    <div class="row">
+                      <div class="col-auto">
+                        <label for="max_fps" class="form-label">Max FPS</label>
+                        <output id="max_fps_output">{{ config.max_fps }}</output>
+                      </div>
+                      <div class="col-auto">
+                        <input type="range" class="form-range" min="1" max="100" step="0.5" id="max_fps"
+                          value="{{ config.max_fps }}" , oninput="max_fps_output.value = this.value">
+                      </div>
+                    </div>
+                  </div>
+
                 </div>
-                <div class="col-auto">
-                  <input type="range" class="form-range" min="1" max="100" step="0.5" id="max_fps"
-                    value="{{ config.max_fps }}" , oninput="max_fps_output.value = this.value">
-                </div>
-                <div class="col-auto text-center">
-                  <output id="max_fps_output">{{ config.max_fps }}</output>
+                <div class="col-sm">
+                  <div class="row">
+                    <div class="col-auto">
+                      <label for="frame_buffer" class="form-label">Initial Buffer Size</label>
+                      <output id="frame_buffer_output">{{ config.frame_buffer }}</output>
+                    </div>
+                    <div class="col-auto">
+                      <input type="range" class="form-range" min="1" max="1000" id="frame_buffer"
+                        value="{{ config.frame_buffer }}" , oninput="frame_buffer_output.value = this.value">
+                    </div>
+                  </div>
+                  <div class="row">
+                    <div class="col-auto">
+                      <label for="frames_per_post" class="form-label">POST Request Size</label>
+                      <output id="frames_per_post_output">{{ config.frames_per_post }}</output>
+                    </div>
+                    <div class="col-auto">
+                      <input type="range" class="form-range" min="1" max="100" id="frames_per_post"
+                        value="{{ config.frames_per_post }}" , oninput="frames_per_post_output.value = this.value">
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -85,11 +113,42 @@
           <div id="panelsStayOpen-collapseTwo" class="accordion-collapse collapse show"
             aria-labelledby="panelsStayOpen-headingTwo">
             <div class="accordion-body">
-              <div class="btn-group-vertical" role="group" aria-label="Basic example">
-                <button type="button" class="btn btn-secondary" id="animate"{% if config.update_function %} disabled {% endif %}>Load Animation</button>
-                <button type="button" class="btn btn-secondary" id="reset_selection">Reset Selection</button>
-                <button type="button" class="btn btn-secondary" id="hide_selection" disabled>Hide Selection</button>
-                <button type="button" class="btn btn-secondary" id="reset">Reset Scene</button>
+
+              <div class="container">
+                <div class="row">
+                  <div class="col-sm">
+
+                    <div class="btn-group-vertical" role="group" aria-label="Basic example">
+                      <button type="button" class="btn btn-secondary" id="animate" {% if config.update_function %}
+                        disabled {% endif %}>Load Animation</button>
+                      <button type="button" class="btn btn-secondary" id="reset_selection">Reset Selection</button>
+                      <button type="button" class="btn btn-secondary" id="hide_selection" disabled>Hide
+                        Selection</button>
+                      <button type="button" class="btn btn-secondary" id="reset">Reset Scene</button>
+                    </div>
+                  </div>
+                  <div class="col-sm">
+                    <div class="text-center">
+                      <div class="btn-group" role="group" aria-label="Basic example">
+                        <button type="button" class="btn btn-primary" id="sphere_plus">+</button>
+                        <button type="button" class="btn btn-primary" disabled>Particles</button>
+                        <button type="button" class="btn btn-primary" id="sphere_minus">-</button>
+                      </div>
+                      <p></p>
+                      <div class="btn-group" role="group" aria-label="Basic example">
+                        <button type="button" class="btn btn-primary" id="bond_plus">+</button>
+                        <button type="button" class="btn btn-primary" disabled>Bonds</button>
+                        <button type="button" class="btn btn-primary" id="bond_minus">-</button>
+                      </div>
+                      <p></p>
+                      <div class="btn-group" role="group" aria-label="Basic example">
+                        <button type="button" class="btn btn-primary" id="resolution_plus">+</button>
+                        <button type="button" class="btn btn-primary" disabled>Resolution</button>
+                        <button type="button" class="btn btn-primary" id="resolution_minus">-</button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -108,8 +167,12 @@
               <dl class="row">
                 <dt class="col-sm-3">FPS</dt>
                 <dd class="col-sm-9" id="FPS">-</dd>
+                <dt class="col-sm-3">Particles</dt>
+                <dd class="col-sm-9" id="n_particles">-</dd>
+                <dt class="col-sm-3">Bonds</dt>
+                <dd class="col-sm-9" id="n_bonds">-</dd>
                 <dt class="col-sm-3">Selected IDs</dt>
-                <dd class="col-sm-9" id="lst_selected_ids">A description list is perfect for defining terms.</dd>
+                <dd class="col-sm-9" id="lst_selected_ids"></dd>
                 {% if config.update_function %}
                 <dt class="col-sm-3">Function</dt>
                 <dd class="col-sm-9" id="lst_selected_ids"><code>{{ config.update_function }}</code></dd>
