@@ -34,7 +34,7 @@ def main(
     restart_animation: bool = typer.Option(
         False, help="run the animation in an endless loop."
     ),
-    frames_per_post: int = typer.Option(10, help="Number of frames to send per POST."),
+    frames_per_post: int = typer.Option(100, help="Number of frames to send per POST."),
     browser: bool = typer.Option(True, help="Open the browser automatically."),
 ):
     """ZnDraw: Visualize Molecules

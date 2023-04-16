@@ -12,7 +12,7 @@ class Config:
     bond_size: float = None
     max_fps: int = None
     update_function: str = None
-    frames_per_post: int = 10
+    frames_per_post: int = 100
     restart_animation: bool = False
     resolution: int = 5
     repeat: tuple = (1, 1, 1)

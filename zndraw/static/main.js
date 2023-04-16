@@ -358,7 +358,7 @@ async function getAnimationFrames() {
 
 	let step = 0;
 	while (true) {
-		let obj = await (await fetch("atoms/" + step + "&" + (parseInt(o_frames_per_post.value) + step))).json();
+		let obj = await (await fetch("positions/" + step + "&" + (parseInt(o_frames_per_post.value) + step))).json();
 		if (Object.keys(obj).length === 0) {
 			console.log("Animation read finished");
 			break;
@@ -578,7 +578,7 @@ function move_atoms() {
 	}
 
 	frames[animation_frame].forEach(function (item, index) {
-		atomsGroup.getObjectByUserDataProperty("id", item["id"]).position.set(...item["position"]);
+		atomsGroup.getObjectByUserDataProperty("id", index).position.set(...item);
 		// atomsGroup.children[item["id"]].position.set(...item["position"]);
 	});
 

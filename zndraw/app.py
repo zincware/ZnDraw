@@ -1,7 +1,7 @@
 import dataclasses
 import uuid
 
-from flask import Flask, render_template, request, session
+from flask import Flask, make_response, render_template, request, session
 
 from zndraw import globals, io
 
@@ -22,7 +22,7 @@ def config():
     }
 
 
-@app.route("/atoms")
+@app.route("/atoms")  # TODO remove
 def atoms():
     atoms = globals.config.get_atoms(step=0)
     graph = io.get_graph(atoms)
@@ -57,7 +57,19 @@ def atom_step(step, atom_id):
     return {}
 
 
-@app.route("/bonds")
+@app.route("/positions/<start>&<stop>")
+def positions_step(start, stop):
+    result = []
+    try:
+        for step in range(int(start), int(stop)):
+            atoms = globals.config.get_atoms(step=int(step))
+            result.append(atoms.get_positions().tolist())
+        return result
+    except (KeyError, IndexError):
+        return result
+
+
+@app.route("/bonds")  # TODO remove
 def bonds():
     atoms = globals.config.get_atoms(step=0)
     graph = io.get_graph(atoms)

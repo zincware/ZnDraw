@@ -61,7 +61,7 @@ canvas {
 .atom-spinner .spinner-circle {
     display: block;
     position: absolute;
-    color: #ff00cc;
+    color: #ffa500;
     font-size: calc(60px * 0.24);
     top: 50%;
     left: 50%;
@@ -76,7 +76,7 @@ canvas {
     animation-duration: 2s;
     border-left-width: calc(60px / 25);
     border-top-width: calc(60px / 25);
-    border-left-color: #ff00cc;
+    border-left-color: #ffa500;
     border-left-style: solid;
     border-top-style: solid;
     border-top-color: transparent;
