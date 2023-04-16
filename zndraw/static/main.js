@@ -89,7 +89,6 @@ const o_reset_selection = document.getElementById('reset_selection');
 const o_hide_selection = document.getElementById('hide_selection');
 const o_reset = document.getElementById('reset');
 const o_max_fps = document.getElementById('max_fps');
-const o_frame_buffer = document.getElementById('frame_buffer');
 const o_frames_per_post = document.getElementById('frames_per_post');
 const o_sphere_plus = document.getElementById('sphere_plus');
 const o_sphere_minus = document.getElementById('sphere_minus');
@@ -352,20 +351,27 @@ async function update_selection() {
 }
 
 async function getAnimationFrames() {
+	if (data_loading) {
+		console.log("Animation read already in progress");
+		return;
+	}
+	console.log("Loading animation frames");
+
 	data_loading = true;
-	frames = [];
+	if (frames.length < 2) {
+		await fetch("atoms/1");
+		load_config();
+	}
 
-	await fetch("atoms/1")
-	load_config();
-
-	let step = 0;
+	let step = frames.length;
 	while (true) {
 		let obj = await (await fetch("positions/" + step + "&" + (parseInt(o_frames_per_post.value) + step))).json();
+		console.log("Read " + step + "-" + (parseInt(o_frames_per_post.value) + step) + " frames");
 		if (Object.keys(obj).length === 0) {
 			console.log("Animation read finished");
 			break;
 		}
-		frames = frames.concat(obj);  // TODO: handle multiple frames at once
+		frames = frames.concat(obj);
 		step += parseInt(o_frames_per_post.value);
 	}
 	data_loading = false;
@@ -481,12 +487,10 @@ o_hemisphereLightIntensity.oninput = function () {
 }
 
 o_help_btn.onmouseover = function () {
-	console.log("help");
 	div_help_container.style.display = "block";
 }
 
 o_help_btn.onmouseout = function () {
-	console.log("help leeave");
 	div_help_container.style.display = "none";
 }
 
@@ -532,6 +536,9 @@ if (config["update_function"] !== null) {
 		if (event.isComposing || event.key === "Enter") {
 			div_info.innerHTML = "Processing...";
 			fetch("update/" + animation_frame).then((response) => getAnimationFrames());
+			if (!data_loading) {
+				getAnimationFrames();
+			}
 		}
 	});
 }
@@ -549,15 +556,6 @@ function move_atoms() {
 		return;
 	}
 	if (scene_building === true) {
-		return;
-	}
-	if (data_loading === true) {
-		return;
-	}
-	console.log("Animation (" + animation_frame + "/" + (frames.length - 1) + ")");
-	if (frames.length < parseInt(o_frame_buffer.value)) {
-		div_info.innerHTML = "Buffering...";
-		div_progressBar.style.width = (((frames.length - 1) / parseInt(o_frame_buffer.value)) * 100).toFixed(2) + "%";
 		return;
 	}
 	div_progressBar.style.visibility = "hidden";
@@ -626,6 +624,9 @@ function move_atoms() {
 
 	if (fps.length > 10) {
 		fps.shift();
+	}
+	if (!data_loading) {
+		getAnimationFrames();
 	}
 
 	div_FPS.innerHTML = (1 / (fps.reduce((a, b) => a + b, 0) / fps.length)).toFixed(2);

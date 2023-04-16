@@ -16,7 +16,6 @@ class Config:
     restart_animation: bool = False
     resolution: int = 5
     repeat: tuple = (1, 1, 1)
-    frame_buffer: int = 100
 
     def get_update_function(self):
         if self.update_function is None:

@@ -72,6 +72,6 @@ def update_scene(step):
     for idx, atom in enumerate(atoms):
         print(f"processing {idx}")
         globals._atoms_cache[idx + offset] = atom
-    
+
     # this has to return before the scene is automatically updated
     return {}

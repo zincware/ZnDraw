@@ -22,7 +22,7 @@ and as an output:
 - list[ase.Atoms], a list of ase Atoms objects to display.
 
 ```python
-def function(atom_ids: list[int], atoms: ase.Atoms) -> list[ase.Atoms]:
+def function(atom_ids: list[int], atoms: ase.Atoms) -> list[ase.Atoms]|Generator[ase.Atoms, None, None]:
     ...
 ```
 
