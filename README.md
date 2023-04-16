@@ -24,3 +24,5 @@ and as an output:
 def function(atom_ids: list[int], atoms: ase.Atoms) -> list[ase.Atoms]:
     ...
 ```
+
+![Alt text](https://raw.githubusercontent.com/zincware/ZnDraw/main/misc/zndraw_ui.png "ZnDraw UI")
