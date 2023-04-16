@@ -57,6 +57,9 @@ const div_loading = document.getElementById('loading');
 const div_progressBar = document.getElementById('progressBar');
 const div_bufferBar = document.getElementById('bufferBar');
 const div_greyOut = document.getElementById('greyOut');
+const o_selectAtoms = document.getElementById('selectAtoms');
+const o_autoRestart = document.getElementById('autoRestart');
+const o_animate = document.getElementById('animate');
 
 
 // Helper Functions
@@ -268,11 +271,30 @@ if (config["animate"] === true) {
 	div_info.innerHTML = "Reading file...";
 	getAnimationFrames();
 }
+if (config["restart_animation"] === true) {
+	o_autoRestart.checked = true;
+}
 
 console.log(config);
 
 window.addEventListener('pointerdown', onPointerDown, false);
 window.addEventListener('resize', onWindowResize, false);
+
+o_selectAtoms.onclick = function () {
+	if (o_selectAtoms.checked) {
+		console.log("Selecting atoms");
+		window.addEventListener('pointerdown', onPointerDown, false);
+	}
+	else {
+		console.log("Deselecting atoms");
+		window.removeEventListener('pointerdown', onPointerDown, false);
+	}
+}
+o_animate.onclick = function () {
+	div_info.innerHTML = "Reading file...";
+	getAnimationFrames();
+}
+
 
 window.addEventListener("keydown", (event) => {
 	if (event.isComposing || event.key === " ") {
@@ -294,6 +316,9 @@ let clock = new THREE.Clock();
 
 
 function move_atoms() {
+	if (frames.length === 0) {
+		return;
+	}
 	if (clock.getElapsedTime() < (1 / config["max_fps"])) {
 		return;
 	}
@@ -307,7 +332,7 @@ function move_atoms() {
 
 	if (animation_frame < frames.length - 1) {
 		animation_frame += 1;
-	} else if (config["restart_animation"]) {
+	} else if (o_autoRestart.checked === true) {
 		animation_frame = 0;
 	}
 	if (frames.length < animation_frame) {
