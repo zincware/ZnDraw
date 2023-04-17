@@ -5,7 +5,7 @@
 
 # ZnDraw
 
-Install via ``pip install zndraw``.
+Install via ``pip install zndraw`` or ``pip install zndraw[webview]`` for an integrated webbrowser.
 
 ## CLI
 
