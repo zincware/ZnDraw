@@ -7,13 +7,14 @@ license = "Apache-2.0"
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = "^3.8"
+python = "^3.9"
 ase = "^3.22.1"
 networkx = "^3.1"
 typer = {extras = ["all"], version = "^0.7.0"}
 flask = "^2.2.3"
 tqdm = "^4.65.0"
 pywebview = {version = "^4.0.2", optional = true}
+znh5md = "^0.1.6"
 
 [tool.poetry.group.dev.dependencies]
 black = "^23.3.0"
