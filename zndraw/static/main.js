@@ -71,6 +71,8 @@ let animation_running = true;
 let data_loading = false;
 let fps = [];
 
+let keydown = {"shift": false, "ctrl": false, "alt": false};
+
 const div_info = document.getElementById('info');
 const div_loading = document.getElementById('loading');
 const div_progressBar = document.getElementById('progressBar');
@@ -293,21 +295,19 @@ async function onPointerDown(event) {
 	const intersects = raycaster.intersectObjects(atomsGroup.children);
 
 	for (let i = 0; i < intersects.length; i++) {
-
 		let mesh = intersects[i].object;
 
-		// mesh.callback();
-
 		if (selected_ids.includes(mesh.userData["id"])) {
-			mesh.material.color.set(mesh.userData["color"]);
-			let index = selected_ids.indexOf(mesh.userData["id"]);
-			if (index !== -1) {
-				selected_ids.splice(index, 1);
-			}
-		} else {
-			intersects[i].object.material.color.set(0xffa500);
-			selected_ids.push(intersects[i].object.userData["id"]);
+			reset_selected([mesh.userData["id"]]);
+			continue;
 		};
+		
+		if (!keydown["shift"]){
+			reset_selected(selected_ids);
+		}
+		intersects[i].object.material.color.set(0xffa500);
+		selected_ids.push(intersects[i].object.userData["id"]);
+
 	}
 	await update_selection();
 }
@@ -376,14 +376,24 @@ o_animate.onclick = function () {
 	getAnimationFrames();
 }
 
-o_reset_selection.onclick = function () {
+function reset_selected(ids) {
 	selected_ids.forEach(function (item, index) {
-		let mesh = atomsGroup.getObjectByUserDataProperty("id", item);
-		mesh.material.color.set(mesh.userData["color"]);
+		if (ids.includes(item)) {
+			let mesh = atomsGroup.getObjectByUserDataProperty("id", item);
+			mesh.material.color.set(mesh.userData["color"]);
+		}
 	});
-	selected_ids = [];
+	// remove ids from selected_ids
+	selected_ids = selected_ids.filter(function (item) {
+		return !ids.includes(item);
+	});
 	update_selection();
+};
+
+o_reset_selection.onclick = function () {
+	reset_selected(selected_ids);
 }
+
 
 o_hide_selection.onclick = function () {
 	selected_ids.forEach(function (item, index) {
@@ -492,14 +502,34 @@ window.addEventListener("keydown", (event) => {
 	if (event.isComposing || event.key === "q") {
 		getAnimationFrames();
 	}
+	if (event.isComposing || event.shiftKey) {
+		keydown["shift"] = true;
+	}
+	if (event.isComposing || event.ctrlKey) {
+		keydown["strg"] = true;
+	}
+	if (event.isComposing || event.altKey) {
+		keydown["alt"] = true;
+	}
 	if (event.isComposing || event.key === "c") {
-		controls.target = atomsGroup.getObjectByUserDataProperty("id", selected_ids[0]).position.clone();
-		// camera.updateMatrix();
-		// camera.updateMatrixWorld();
-		// scene.updateMatrixWorld();
-		// scene.updateMatrix();
-		// renderer.render(scene, camera);
-		// controls.update();
+		if (selected_ids.length === 0) {
+			controls.target = new THREE.Vector3(0, 0, 0);
+		} else {
+			controls.target = atomsGroup.getObjectByUserDataProperty("id", selected_ids[0]).position.clone();
+		}
+		
+	}
+});
+
+window.addEventListener("keyup", (event) => {
+	if (event.isComposing || !event.shiftKey) {
+		keydown["shift"] = false;
+	}
+	if (event.isComposing || !event.ctrlKey) {
+		keydown["strg"] = false;
+	}
+	if (event.isComposing || !event.altKey) {
+		keydown["alt"] = false;
 	}
 });
 
