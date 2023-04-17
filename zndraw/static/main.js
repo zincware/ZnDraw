@@ -35,7 +35,7 @@ renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
 
 const hemisphereLight = new THREE.HemisphereLight(0xffffff, 0x777777, 0.1);
-const spotLight = new THREE.SpotLight(0xffffff, 1);
+const spotLight = new THREE.SpotLight(0xffffff, 1, 0, Math.PI / 2);
 spotLight.position.set(0, 0, 100);
 scene.add(spotLight);
 
@@ -70,6 +70,8 @@ let scene_building = false;
 let animation_running = true;
 let data_loading = false;
 let fps = [];
+
+let keydown = {"shift": false, "ctrl": false, "alt": false, "c": false, "l": false};
 
 const div_info = document.getElementById('info');
 const div_loading = document.getElementById('loading');
@@ -118,37 +120,6 @@ async function update_materials() {
 		o_materialSelect.appendChild(option);
 	}
 	o_materialSelect.value = "MeshPhongMaterial";
-}
-
-function center_camera() {
-	// try to move the camera such that all atoms are in view
-
-	let trials = 0;
-
-	const frustum = new THREE.Frustum()
-
-	camera.position.x = 0;
-	camera.position.y = 0;
-	camera.position.z = 0;
-
-	atomsGroup.children.forEach((atom) => {
-
-		while (true) {
-			const matrix = new THREE.Matrix4().multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse)
-			frustum.setFromProjectionMatrix(matrix)
-			camera.updateMatrix();
-			camera.updateMatrixWorld();
-			if (frustum.containsPoint(atom.position)) {
-				break;
-			}
-			console.log('Atom out of view');
-			camera.position.z += 1;
-			trials += 1;
-			if (trials > 100) {
-				break;
-			}
-		}
-	});
 }
 
 update_materials();
@@ -324,21 +295,19 @@ async function onPointerDown(event) {
 	const intersects = raycaster.intersectObjects(atomsGroup.children);
 
 	for (let i = 0; i < intersects.length; i++) {
-
 		let mesh = intersects[i].object;
 
-		// mesh.callback();
-
 		if (selected_ids.includes(mesh.userData["id"])) {
-			mesh.material.color.set(mesh.userData["color"]);
-			let index = selected_ids.indexOf(mesh.userData["id"]);
-			if (index !== -1) {
-				selected_ids.splice(index, 1);
-			}
-		} else {
-			intersects[i].object.material.color.set(0xffa500);
-			selected_ids.push(intersects[i].object.userData["id"]);
+			reset_selected([mesh.userData["id"]]);
+			continue;
 		};
+
+		if (!keydown["shift"]){
+			reset_selected(selected_ids);
+		}
+		intersects[i].object.material.color.set(0xffa500);
+		selected_ids.push(intersects[i].object.userData["id"]);
+
 	}
 	await update_selection();
 }
@@ -407,14 +376,24 @@ o_animate.onclick = function () {
 	getAnimationFrames();
 }
 
-o_reset_selection.onclick = function () {
+function reset_selected(ids) {
 	selected_ids.forEach(function (item, index) {
-		let mesh = atomsGroup.getObjectByUserDataProperty("id", item);
-		mesh.material.color.set(mesh.userData["color"]);
+		if (ids.includes(item)) {
+			let mesh = atomsGroup.getObjectByUserDataProperty("id", item);
+			mesh.material.color.set(mesh.userData["color"]);
+		}
 	});
-	selected_ids = [];
+	// remove ids from selected_ids
+	selected_ids = selected_ids.filter(function (item) {
+		return !ids.includes(item);
+	});
 	update_selection();
+};
+
+o_reset_selection.onclick = function () {
+	reset_selected(selected_ids);
 }
+
 
 o_hide_selection.onclick = function () {
 	selected_ids.forEach(function (item, index) {
@@ -434,7 +413,6 @@ o_reset.onclick = function () {
 	build_scene(0);
 	selected_ids = [];
 	update_selection();
-	center_camera();
 }
 
 o_sphere_plus.onclick = function () {
@@ -516,16 +494,39 @@ window.addEventListener("keydown", (event) => {
 	if (event.isComposing || event.key === "ArrowDown") {
 		animation_frame = parseInt(Math.max(0, animation_frame - (frames.length / 10)));
 	}
-	if (event.isComposing || event.key === "l") {
-		spotLight.position.x = camera.position.x;
-		spotLight.position.y = camera.position.y;
-		spotLight.position.z = camera.position.z;
-	}
-	if (event.isComposing || event.key === "r") {
-		center_camera();
-	}
 	if (event.isComposing || event.key === "q") {
 		getAnimationFrames();
+	}
+	if (event.isComposing || event.shiftKey) {
+		keydown["shift"] = true;
+	}
+	if (event.isComposing || event.ctrlKey) {
+		keydown["strg"] = true;
+	}
+	if (event.isComposing || event.altKey) {
+		keydown["alt"] = true;
+	}
+	for  (let key in keydown) {
+		if (event.isComposing || event.key === key) {
+			keydown[key] = true;
+		}
+	}
+});
+
+window.addEventListener("keyup", (event) => {
+	if (event.isComposing || !event.shiftKey) {
+		keydown["shift"] = false;
+	}
+	if (event.isComposing || !event.ctrlKey) {
+		keydown["ctrl"] = false;
+	}
+	if (event.isComposing || !event.altKey) {
+		keydown["alt"] = false;
+	}
+	for  (let key in keydown) {
+		if (event.isComposing || event.key === key) {
+			keydown[key] = false;
+		}
 	}
 });
 
@@ -583,7 +584,6 @@ function move_atoms() {
 	}
 
 
-
 	frames[animation_frame].forEach(function (item, index) {
 		atomsGroup.getObjectByUserDataProperty("id", index).position.set(...item);
 	});
@@ -632,6 +632,14 @@ function move_atoms() {
 	move_atoms_clock.start();
 }
 
+function centerCamera(){
+					if (selected_ids.length === 0) {
+			controls.target = new THREE.Vector3(0, 0, 0);
+		} else {
+			controls.target = atomsGroup.getObjectByUserDataProperty("id", selected_ids[0]).position.clone();
+		}
+}
+
 function animate() {
 
 	renderer.render(scene, camera);
@@ -639,6 +647,14 @@ function animate() {
 
 	if (frames.length > 0) {
 		move_atoms();
+	}
+	if (keydown["c"]){
+		centerCamera();
+	}
+	if (keydown["l"]){
+		spotLight.position.x = camera.position.x;
+		spotLight.position.y = camera.position.y;
+		spotLight.position.z = camera.position.z;
 	}
 
 	// animation loop
