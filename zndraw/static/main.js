@@ -301,7 +301,7 @@ async function onPointerDown(event) {
 			reset_selected([mesh.userData["id"]]);
 			continue;
 		};
-		
+
 		if (!keydown["shift"]){
 			reset_selected(selected_ids);
 		}
@@ -526,7 +526,7 @@ window.addEventListener("keyup", (event) => {
 		keydown["shift"] = false;
 	}
 	if (event.isComposing || !event.ctrlKey) {
-		keydown["strg"] = false;
+		keydown["ctrl"] = false;
 	}
 	if (event.isComposing || !event.altKey) {
 		keydown["alt"] = false;
