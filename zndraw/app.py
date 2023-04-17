@@ -17,8 +17,9 @@ def index():
 
 @app.route("/config")
 def config():
-    return dataclasses.asdict(globals.config) | {
-        "total_frames": len(globals._atoms_cache) - 1
+    return {
+        **dataclasses.asdict(globals.config),
+        "total_frames": len(globals._atoms_cache) - 1,
     }
 
 
@@ -27,7 +28,7 @@ def atoms_step(step):
     try:
         atoms = globals.config.get_atoms(step=int(step))
         graph = io.get_graph(atoms)
-        return [graph.nodes[idx] | {"id": idx} for idx in graph.nodes]
+        return [{**graph.nodes[idx], "id": idx} for idx in graph.nodes]
     except (KeyError, IndexError):
         return []
 
