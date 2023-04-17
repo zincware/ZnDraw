@@ -64,7 +64,7 @@ def main(
     globals.config.repeat = (repeat, repeat, repeat)
 
     if webview is not None:
-        webview.create_window("Flask example", app)
+        webview.create_window("ZnDraw", app, fullscreen=True, frameless=True)
         with contextlib.suppress(webview.WebViewException):
             webview.start()
             return
