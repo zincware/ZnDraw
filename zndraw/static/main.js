@@ -71,7 +71,7 @@ let animation_running = true;
 let data_loading = false;
 let fps = [];
 
-let keydown = {"shift": false, "ctrl": false, "alt": false, "c": false, "l": false};
+let keydown = { "shift": false, "ctrl": false, "alt": false, "c": false, "l": false };
 
 const div_info = document.getElementById('info');
 const div_loading = document.getElementById('loading');
@@ -83,6 +83,7 @@ const div_FPS = document.getElementById('FPS');
 const div_n_particles = document.getElementById('n_particles');
 const div_n_bonds = document.getElementById('n_bonds');
 const div_help_container = document.getElementById('help_container');
+const div_distance_plt = document.getElementById('distance_plt');
 
 const o_selectAtoms = document.getElementById('selectAtoms');
 const o_autoRestart = document.getElementById('autoRestart');
@@ -302,7 +303,7 @@ async function onPointerDown(event) {
 			continue;
 		};
 
-		if (!keydown["shift"]){
+		if (!keydown["shift"]) {
 			reset_selected(selected_ids);
 		}
 		intersects[i].object.material.color.set(0xffa500);
@@ -506,11 +507,17 @@ window.addEventListener("keydown", (event) => {
 	if (event.isComposing || event.altKey) {
 		keydown["alt"] = true;
 	}
-	for  (let key in keydown) {
+	for (let key in keydown) {
 		if (event.isComposing || event.key === key) {
 			keydown[key] = true;
 		}
 	}
+
+	if ((event.isComposing || event.key === "d") && selected_ids.length == 2) {
+       fetch("distance/" + selected_ids[0] + "+" + selected_ids[1] + "&" + animation_frame).then(response => response.text()).then(data => {
+ 				div_distance_plt.innerHTML = data;
+ 			});
+ }
 });
 
 window.addEventListener("keyup", (event) => {
@@ -523,7 +530,7 @@ window.addEventListener("keyup", (event) => {
 	if (event.isComposing || !event.altKey) {
 		keydown["alt"] = false;
 	}
-	for  (let key in keydown) {
+	for (let key in keydown) {
 		if (event.isComposing || event.key === key) {
 			keydown[key] = false;
 		}
@@ -632,12 +639,12 @@ function move_atoms() {
 	move_atoms_clock.start();
 }
 
-function centerCamera(){
-					if (selected_ids.length === 0) {
-			controls.target = new THREE.Vector3(0, 0, 0);
-		} else {
-			controls.target = atomsGroup.getObjectByUserDataProperty("id", selected_ids[0]).position.clone();
-		}
+function centerCamera() {
+	if (selected_ids.length === 0) {
+		controls.target = new THREE.Vector3(0, 0, 0);
+	} else {
+		controls.target = atomsGroup.getObjectByUserDataProperty("id", selected_ids[0]).position.clone();
+	}
 }
 
 function animate() {
@@ -648,10 +655,10 @@ function animate() {
 	if (frames.length > 0) {
 		move_atoms();
 	}
-	if (keydown["c"]){
+	if (keydown["c"]) {
 		centerCamera();
 	}
-	if (keydown["l"]){
+	if (keydown["l"]) {
 		spotLight.position.x = camera.position.x;
 		spotLight.position.y = camera.position.y;
 		spotLight.position.z = camera.position.z;

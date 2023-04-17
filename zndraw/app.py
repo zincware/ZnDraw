@@ -1,6 +1,9 @@
+import base64
 import dataclasses
 import uuid
+from io import BytesIO
 
+import matplotlib.pyplot as plt
 from flask import Flask, make_response, render_template, request, session
 
 from zndraw import globals, io
@@ -83,3 +86,31 @@ def load():
     """Function to call asynchronously to load atoms in the background."""
     globals.config.load_atoms()
     return {}
+
+
+@app.route("/distance/<id1>+<id2>&<step>")
+def distances(id1, id2, step):
+    # Generate the figure **without using pyplot**.
+
+    # TODO this could be a list of python functions mapped to some keys that take
+    # selected indices and return some properties e.g. as plots
+    fig, ax = plt.subplots(figsize=(4.5, 2.5), dpi=100)
+
+    distances = []
+    for atom in globals.config.get_atoms_list():
+        distances.append(atom.get_distance(int(id1), int(id2)))
+    ax.plot(distances, label=f"avg {sum(distances)/len(distances):.2f}")
+    ax.axvline(
+        x=int(step), color="black", label=f"step {step} ({distances[int(step)]:.2f}"
+    )
+    ax.set_xlabel("Frame")
+    ax.set_ylabel("Distance")
+    ax.set_title(f"Distance between {id1} and {id2}")
+    ax.legend()
+
+    # Save it to a temporary buffer.
+    buf = BytesIO()
+    fig.savefig(buf, format="png", dpi=100)
+    # Embed the result in the html output.
+    data = base64.b64encode(buf.getbuffer()).decode("ascii")
+    return f"<img src='data:image/png;base64,{data}'/>"

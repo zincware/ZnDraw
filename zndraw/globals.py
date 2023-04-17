@@ -45,6 +45,9 @@ class Config:
             _atoms_cache[0] = ase.io.read(self.file)
             return _atoms_cache[0]
 
+    def get_atoms_list(self):
+        return list(_atoms_cache.values())
+
 
 # TODO set defaults here and load in typer?
 
