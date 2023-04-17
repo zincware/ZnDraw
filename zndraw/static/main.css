@@ -1,3 +1,8 @@
+:root {
+    --spinner-size: 60px;
+}
+
+
 body {
     margin: 0;
     /* overflow: hidden;  don't show scrolling bars */
@@ -46,8 +51,8 @@ canvas {
 }
 
 .atom-spinner {
-    height: 150px;
-    width: 150px;
+    height: var(--spinner-size);
+    width: var(--spinner-size);
     overflow: hidden;
 }
 
@@ -62,7 +67,7 @@ canvas {
     display: block;
     position: absolute;
     color: #ffa500;
-    font-size: calc(60px * 0.24);
+    font-size: calc(var(--spinner-size) * 0.24);
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
@@ -73,9 +78,9 @@ canvas {
     width: 100%;
     height: 100%;
     border-radius: 50%;
-    animation-duration: 2s;
-    border-left-width: calc(60px / 25);
-    border-top-width: calc(60px / 25);
+    animation-duration: 1s;
+    border-left-width: calc(var(--spinner-size) / 25);
+    border-top-width: calc(var(--spinner-size) / 25);
     border-left-color: #ffa500;
     border-left-style: solid;
     border-top-style: solid;
