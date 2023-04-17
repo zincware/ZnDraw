@@ -35,7 +35,7 @@ renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
 
 const hemisphereLight = new THREE.HemisphereLight(0xffffff, 0x777777, 0.1);
-const spotLight = new THREE.SpotLight(0xffffff, 1);
+const spotLight = new THREE.SpotLight(0xffffff, 1, 0, Math.PI / 2);
 spotLight.position.set(0, 0, 100);
 scene.add(spotLight);
 
@@ -71,7 +71,7 @@ let animation_running = true;
 let data_loading = false;
 let fps = [];
 
-let keydown = {"shift": false, "ctrl": false, "alt": false};
+let keydown = {"shift": false, "ctrl": false, "alt": false, "c": false, "l": false};
 
 const div_info = document.getElementById('info');
 const div_loading = document.getElementById('loading');
@@ -495,9 +495,7 @@ window.addEventListener("keydown", (event) => {
 		animation_frame = parseInt(Math.max(0, animation_frame - (frames.length / 10)));
 	}
 	if (event.isComposing || event.key === "l") {
-		spotLight.position.x = camera.position.x;
-		spotLight.position.y = camera.position.y;
-		spotLight.position.z = camera.position.z;
+		keydown["l"] = true;
 	}
 	if (event.isComposing || event.key === "q") {
 		getAnimationFrames();
@@ -512,12 +510,7 @@ window.addEventListener("keydown", (event) => {
 		keydown["alt"] = true;
 	}
 	if (event.isComposing || event.key === "c") {
-		if (selected_ids.length === 0) {
-			controls.target = new THREE.Vector3(0, 0, 0);
-		} else {
-			controls.target = atomsGroup.getObjectByUserDataProperty("id", selected_ids[0]).position.clone();
-		}
-		
+		keydown["c"] = true;		
 	}
 });
 
@@ -530,6 +523,12 @@ window.addEventListener("keyup", (event) => {
 	}
 	if (event.isComposing || !event.altKey) {
 		keydown["alt"] = false;
+	}
+	if (event.isComposing || event.key === "c") {
+		keydown["c"] = false;
+	}
+	if (event.isComposing || event.key === "l") {
+		keydown["l"] = false;
 	}
 });
 
@@ -635,6 +634,14 @@ function move_atoms() {
 	move_atoms_clock.start();
 }
 
+function centerCamera(){
+					if (selected_ids.length === 0) {
+			controls.target = new THREE.Vector3(0, 0, 0);
+		} else {
+			controls.target = atomsGroup.getObjectByUserDataProperty("id", selected_ids[0]).position.clone();
+		}
+}
+
 function animate() {
 
 	renderer.render(scene, camera);
@@ -642,6 +649,14 @@ function animate() {
 
 	if (frames.length > 0) {
 		move_atoms();
+	}
+	if (keydown["c"]){
+		centerCamera();
+	}
+	if (keydown["l"]){
+		spotLight.position.x = camera.position.x;
+		spotLight.position.y = camera.position.y;
+		spotLight.position.z = camera.position.z;
 	}
 
 	// animation loop
