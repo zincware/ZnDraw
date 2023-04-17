@@ -1,3 +1,4 @@
+import contextlib
 import pathlib
 import sys
 import webbrowser
@@ -5,6 +6,11 @@ import webbrowser
 import typer
 
 from zndraw import __version__, app, globals
+
+try:
+    import webview as wv
+except ImportError:
+    wv = None
 
 cli = typer.Typer()
 
@@ -32,6 +38,7 @@ def main(
     ),
     frames_per_post: int = typer.Option(100, help="Number of frames to send per POST."),
     browser: bool = typer.Option(True, help="Open the browser automatically."),
+    webview: bool = typer.Option(True, help="Use the webview library if available."),
 ):
     """ZnDraw: Visualize Molecules
 
@@ -57,6 +64,11 @@ def main(
     globals.config.restart_animation = restart_animation
     globals.config.repeat = (repeat, repeat, repeat)
 
+    if wv is not None and webview:
+        wv.create_window("ZnDraw", app)
+        with contextlib.suppress(wv.WebViewException):
+            wv.start()
+            return
     if browser:
         webbrowser.open(f"http://localhost:{port}")
     app.run(port=port)
