@@ -494,9 +494,6 @@ window.addEventListener("keydown", (event) => {
 	if (event.isComposing || event.key === "ArrowDown") {
 		animation_frame = parseInt(Math.max(0, animation_frame - (frames.length / 10)));
 	}
-	if (event.isComposing || event.key === "l") {
-		keydown["l"] = true;
-	}
 	if (event.isComposing || event.key === "q") {
 		getAnimationFrames();
 	}
@@ -509,8 +506,10 @@ window.addEventListener("keydown", (event) => {
 	if (event.isComposing || event.altKey) {
 		keydown["alt"] = true;
 	}
-	if (event.isComposing || event.key === "c") {
-		keydown["c"] = true;		
+	for  (let key in keydown) {
+		if (event.isComposing || event.key === key) {
+			keydown[key] = true;
+		}
 	}
 });
 
@@ -524,11 +523,10 @@ window.addEventListener("keyup", (event) => {
 	if (event.isComposing || !event.altKey) {
 		keydown["alt"] = false;
 	}
-	if (event.isComposing || event.key === "c") {
-		keydown["c"] = false;
-	}
-	if (event.isComposing || event.key === "l") {
-		keydown["l"] = false;
+	for  (let key in keydown) {
+		if (event.isComposing || event.key === key) {
+			keydown[key] = false;
+		}
 	}
 });
 
