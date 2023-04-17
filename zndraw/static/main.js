@@ -120,37 +120,6 @@ async function update_materials() {
 	o_materialSelect.value = "MeshPhongMaterial";
 }
 
-function center_camera() {
-	// try to move the camera such that all atoms are in view
-
-	let trials = 0;
-
-	const frustum = new THREE.Frustum()
-
-	camera.position.x = 0;
-	camera.position.y = 0;
-	camera.position.z = 0;
-
-	atomsGroup.children.forEach((atom) => {
-
-		while (true) {
-			const matrix = new THREE.Matrix4().multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse)
-			frustum.setFromProjectionMatrix(matrix)
-			camera.updateMatrix();
-			camera.updateMatrixWorld();
-			if (frustum.containsPoint(atom.position)) {
-				break;
-			}
-			console.log('Atom out of view');
-			camera.position.z += 1;
-			trials += 1;
-			if (trials > 100) {
-				break;
-			}
-		}
-	});
-}
-
 update_materials();
 
 function halfCylinderGeometry(pointX, pointY) {
@@ -434,7 +403,6 @@ o_reset.onclick = function () {
 	build_scene(0);
 	selected_ids = [];
 	update_selection();
-	center_camera();
 }
 
 o_sphere_plus.onclick = function () {
@@ -521,11 +489,17 @@ window.addEventListener("keydown", (event) => {
 		spotLight.position.y = camera.position.y;
 		spotLight.position.z = camera.position.z;
 	}
-	if (event.isComposing || event.key === "r") {
-		center_camera();
-	}
 	if (event.isComposing || event.key === "q") {
 		getAnimationFrames();
+	}
+	if (event.isComposing || event.key === "c") {
+		controls.target = atomsGroup.getObjectByUserDataProperty("id", selected_ids[0]).position.clone();
+		// camera.updateMatrix();
+		// camera.updateMatrixWorld();
+		// scene.updateMatrixWorld();
+		// scene.updateMatrix();
+		// renderer.render(scene, camera);
+		// controls.update();
 	}
 });
 
@@ -581,7 +555,6 @@ function move_atoms() {
 		scene_building = true;
 		return; // we need to wait for the scene to be updated
 	}
-
 
 
 	frames[animation_frame].forEach(function (item, index) {
