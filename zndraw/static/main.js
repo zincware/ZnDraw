@@ -1,5 +1,8 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { TextGeometry } from 'three/addons/geometries/TextGeometry.js';
+import { FontLoader } from 'three/addons/loaders/FontLoader.js';
+
 
 
 THREE.Object3D.prototype.getObjectByUserDataProperty = function (name, value) {
@@ -43,6 +46,7 @@ scene.add(hemisphereLight);
 
 
 const atomsGroup = new THREE.Group();
+const atomsTextGroup = new THREE.Group();
 
 const bondsGroup = new THREE.Group();
 const bondsGroup_1 = new THREE.Group();
@@ -71,7 +75,7 @@ let animation_running = true;
 let data_loading = false;
 let fps = [];
 
-let keydown = {"shift": false, "ctrl": false, "alt": false, "c": false, "l": false};
+let keydown = { "shift": false, "ctrl": false, "alt": false, "c": false, "l": false };
 
 const div_info = document.getElementById('info');
 const div_loading = document.getElementById('loading');
@@ -167,6 +171,51 @@ function addAtom(item) {
 	particle.userData["bond_ids"] = [];
 }
 
+const font_loader = new FontLoader();
+
+
+
+function addAtomsText(item) {
+	font_loader.load('/static/helvetiker_regular.typeface.json', function (font) {
+		const geometry = new TextGeometry(" " + item["id"], {
+			font: font,
+			size: 0.3,
+			height: 0.1,
+			curveSegments: 12,
+			// bevelEnabled: true,
+			// bevelThickness: 0.05,
+			// bevelSize: 8,
+			// bevelOffset: 0,
+			// bevelSegments: 5
+		});
+
+		const particle = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({ color: "black" }));
+		atomsTextGroup.add(particle);
+
+		// let text_pos = new THREE.Vector3(0, 0, 1); // ...item["position"]
+		// text_pos.add(new THREE.Vector3(0, 1, 0));
+		// particle.position.set(item["position"][0] + 0.2,item["position"][1] + 0.2, item["position"][2] + 0.2 ); // 
+		particle.position.set(...item["position"].map(function (x) { return x + 0.25 }));
+		particle.lookAt(camera.position);
+
+		// const points = [];
+		// points.push(new THREE.Vector3(...item["position"]));
+		// points.push(new THREE.Vector3(...item["position"].map(function (x) { return x + 0.6 })));
+		// const line_geometry = new THREE.BufferGeometry().setFromPoints(points);
+		// const line = new THREE.Line(line_geometry, new THREE.LineBasicMaterial({
+		// 	color: "black",
+		// 	linewidth: 1, // OpenGL does not support linewidth on most systems
+		// 	linecap: 'round', //ignored by WebGLRenderer
+		// 	linejoin: 'round' //ignored by WebGLRenderer
+		// }));
+
+		// atomsTextGroup.add(line);
+
+
+	});
+}
+
+
 function addBond(item) {
 	atomsGroup.children[item[0]].getWorldPosition(node1);
 	atomsGroup.children[item[1]].getWorldPosition(node2);
@@ -207,9 +256,11 @@ function drawAtoms(atoms, bonds) {
 	atoms.forEach(function (item, index) {
 		// console.log("Adding item " + index + " to scene(" + item + ")");
 		addAtom(item);
+		addAtomsText(item);
 	});
 
 	scene.add(atomsGroup);
+	scene.add(atomsTextGroup);
 	if (config["bond_size"] > 0) {
 
 		bonds.forEach(function (item, index) {
@@ -302,7 +353,7 @@ async function onPointerDown(event) {
 			continue;
 		};
 
-		if (!keydown["shift"]){
+		if (!keydown["shift"]) {
 			reset_selected(selected_ids);
 		}
 		intersects[i].object.material.color.set(0xffa500);
@@ -506,7 +557,14 @@ window.addEventListener("keydown", (event) => {
 	if (event.isComposing || event.altKey) {
 		keydown["alt"] = true;
 	}
-	for  (let key in keydown) {
+
+	if (event.isComposing || event.key === "t") {
+		atomsTextGroup.children.forEach(element => {
+			element.lookAt(camera.position);
+		});
+	}
+
+	for (let key in keydown) {
 		if (event.isComposing || event.key === key) {
 			keydown[key] = true;
 		}
@@ -523,7 +581,7 @@ window.addEventListener("keyup", (event) => {
 	if (event.isComposing || !event.altKey) {
 		keydown["alt"] = false;
 	}
-	for  (let key in keydown) {
+	for (let key in keydown) {
 		if (event.isComposing || event.key === key) {
 			keydown[key] = false;
 		}
@@ -632,26 +690,27 @@ function move_atoms() {
 	move_atoms_clock.start();
 }
 
-function centerCamera(){
-					if (selected_ids.length === 0) {
-			controls.target = new THREE.Vector3(0, 0, 0);
-		} else {
-			controls.target = atomsGroup.getObjectByUserDataProperty("id", selected_ids[0]).position.clone();
-		}
+function centerCamera() {
+	if (selected_ids.length === 0) {
+		controls.target = new THREE.Vector3(0, 0, 0);
+	} else {
+		controls.target = atomsGroup.getObjectByUserDataProperty("id", selected_ids[0]).position.clone();
+	}
 }
 
 function animate() {
 
-	renderer.render(scene, camera);
+	renderer.render(scene, camera); // add render function
+
 	controls.update();
 
 	if (frames.length > 0) {
 		move_atoms();
 	}
-	if (keydown["c"]){
+	if (keydown["c"]) {
 		centerCamera();
 	}
-	if (keydown["l"]){
+	if (keydown["l"]) {
 		spotLight.position.x = camera.position.x;
 		spotLight.position.y = camera.position.y;
 		spotLight.position.z = camera.position.z;
