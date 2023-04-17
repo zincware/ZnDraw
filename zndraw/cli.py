@@ -1,3 +1,4 @@
+import contextlib
 import pathlib
 import sys
 import webbrowser
@@ -5,6 +6,11 @@ import webbrowser
 import typer
 
 from zndraw import __version__, app, globals
+
+try:
+    import webview
+except ImportError:
+    webview = None
 
 cli = typer.Typer()
 
@@ -57,6 +63,11 @@ def main(
     globals.config.restart_animation = restart_animation
     globals.config.repeat = (repeat, repeat, repeat)
 
+    if webview is not None:
+        webview.create_window("Flask example", app)
+        with contextlib.suppress(webview.WebViewException):
+            webview.start()
+            return
     if browser:
         webbrowser.open(f"http://localhost:{port}")
     app.run(port=port)
