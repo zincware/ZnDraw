@@ -1,12 +1,17 @@
+import pathlib
+
 import ase.io
 import networkx as nx
 import numpy as np
+import znh5md
 from ase.data.colors import jmol_colors
 from ase.neighborlist import build_neighbor_list
 
 
 def read_file(filename: str) -> ase.Atoms:
     """Reads a file and returns a networkx graph."""
+    if pathlib.Path(filename).suffix == ".h5":
+        return znh5md.ASEH5MD(filename).get_atoms_list()
     return ase.io.read(filename)
 
 
