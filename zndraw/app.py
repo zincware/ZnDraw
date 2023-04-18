@@ -98,7 +98,10 @@ def distances(id1, id2, step):
 
     distances = []
     for atom in globals.config.get_atoms_list():
-        distances.append(atom.get_distance(int(id1), int(id2)))
+        try:
+            distances.append(atom.get_distance(int(id1), int(id2)))
+        except IndexError:
+            distances.append(0)
     ax.plot(distances, label=f"avg {sum(distances)/len(distances):.2f}")
     ax.axvline(
         x=int(step), color="black", label=f"step {step} ({distances[int(step)]:.2f}"
