@@ -336,7 +336,15 @@ async function getAnimationFrames() {
 
 	let step = frames.length;
 	while (true) {
-		let obj = await (await fetch("positions/" + step + "&" + (parseInt(o_frames_per_post.value) + step))).json();
+
+		const steps = Array.from({length:o_frames_per_post.value},(v,k)=>k+step)
+
+		let obj = await fetch("positions", {
+			"method": "POST",
+			"headers": { "Content-Type": "application/json" },
+			"body": JSON.stringify({"steps": steps}),
+		}).then(response => response.json())
+
 		console.log("Read " + step + "-" + (parseInt(o_frames_per_post.value) + step) + " frames");
 		if (Object.keys(obj).length === 0) {
 			console.log("Animation read finished");

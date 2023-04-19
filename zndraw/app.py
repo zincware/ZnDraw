@@ -33,11 +33,11 @@ def atoms_step(step):
         return []
 
 
-@app.route("/positions/<start>&<stop>")
-def positions_step(start, stop):
+@app.route("/positions", methods=["POST"])
+def positions_step():
     result = []
     try:
-        for step in range(int(start), int(stop)):
+        for step in request.json["steps"]:
             atoms = globals.config.get_atoms(step=int(step))
             result.append(atoms.get_positions().tolist())
         return result
