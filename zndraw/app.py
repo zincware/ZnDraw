@@ -23,8 +23,9 @@ def config():
     }
 
 
-@app.route("/atoms/<step>")
-def atoms_step(step):
+@app.route("/atoms", methods=["POST"])
+def atoms_step():
+    step = request.json
     try:
         atoms = globals.config.get_atoms(step=int(step))
         graph = io.get_graph(atoms)
@@ -33,11 +34,12 @@ def atoms_step(step):
         return []
 
 
-@app.route("/positions/<start>&<stop>")
-def positions_step(start, stop):
+@app.route("/positions", methods=["POST"])
+def positions_step():
+    params = request.json
     result = []
     try:
-        for step in range(int(start), int(stop)):
+        for step in range(params["start"], params["stop"]):
             atoms = globals.config.get_atoms(step=int(step))
             result.append(atoms.get_positions().tolist())
         return result
@@ -45,27 +47,30 @@ def positions_step(start, stop):
         return result
 
 
-@app.route("/bonds/<step>/")
-def bonds_step(step):
+@app.route("/bonds", methods=["POST"])
+def bonds_step():
+    step = request.json
     atoms = globals.config.get_atoms(step=int(step))
     graph = io.get_graph(atoms)
     return list(graph.edges)
 
 
 @app.route("/select", methods=["POST"])
-def select():
-    session["selected"] = request.json
-    return {}
+def select() -> list[int]:
+    """Update the selected atoms."""
+    return (
+        request.json
+    )  # + [x + 1 for x in request.json] + [x - 1 for x in request.json]
 
 
-@app.route("/update/<step>")
-def update_scene(step):
-    if "selected" not in session:
-        return []
+@app.route("/update", methods=["POST"])
+def update_scene():
+    selected_ids = request.json["selected_ids"]
+    step = request.json["step"]
 
     function = globals.config.get_update_function()
     atoms = function(
-        [int(x) for x in session["selected"]], globals.config.get_atoms(step=int(step))
+        [int(x) for x in selected_ids], globals.config.get_atoms(step=int(step))
     )
 
     offset = len(globals._atoms_cache)

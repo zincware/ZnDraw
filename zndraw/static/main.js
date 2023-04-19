@@ -25,22 +25,16 @@ THREE.Object3D.prototype.getObjectByUserDataProperty = function (name, value) {
 
 // THREE.Cache.enabled = true;
 
-let config = {};
+/**
+ * ThreeJS variables
+ */
 
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-
 const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-renderer.setSize(window.innerWidth, window.innerHeight);
-document.body.appendChild(renderer.domElement);
 
 const hemisphereLight = new THREE.HemisphereLight(0xffffff, 0x777777, 0.1);
 const spotLight = new THREE.SpotLight(0xffffff, 1, 0, Math.PI / 2);
-spotLight.position.set(0, 0, 100);
-scene.add(spotLight);
-
-scene.add(hemisphereLight);
-
 
 const atomsGroup = new THREE.Group();
 
@@ -62,6 +56,30 @@ const materials = {
 
 };
 
+/**
+ * Three JS Setup
+ */
+
+renderer.setSize(window.innerWidth, window.innerHeight);
+document.body.appendChild(renderer.domElement);
+
+
+spotLight.position.set(0, 0, 100);
+scene.add(spotLight);
+
+scene.add(hemisphereLight);
+
+let config = {};
+
+
+
+
+
+
+
+
+
+
 // some global variables
 let frames = [];
 let selected_ids = [];
@@ -71,7 +89,11 @@ let animation_running = true;
 let data_loading = false;
 let fps = [];
 
-let keydown = {"shift": false, "ctrl": false, "alt": false, "c": false, "l": false};
+let keydown = { "shift": false, "ctrl": false, "alt": false, "c": false, "l": false };
+
+/**
+ * DOM variables
+ */
 
 const div_info = document.getElementById('info');
 const div_loading = document.getElementById('loading');
@@ -231,7 +253,7 @@ async function build_scene(step) {
 	if (scene_building) {
 		return;
 	}
-	const urls = ["atoms/" + step, "bonds/" + step];
+	const urls = ["atoms", "bonds"];
 	animation_frame = step;
 	console.log("Updating scene");
 
@@ -241,10 +263,15 @@ async function build_scene(step) {
 	// this is faster then doing it one by one
 	const arrayOfResponses = await Promise.all(
 		urls.map((url) =>
-			fetch(url)
+			fetch(url, {
+				"method": "POST",
+				"headers": { "Content-Type": "application/json" },
+				"body": JSON.stringify(step)
+			})
 				.then((res) => res.json())
 		)
 	);
+
 
 	drawAtoms(arrayOfResponses[0], arrayOfResponses[1]);
 	selected_ids = [];
@@ -294,30 +321,54 @@ async function onPointerDown(event) {
 	// calculate objects intersecting the picking ray
 	const intersects = raycaster.intersectObjects(atomsGroup.children);
 
-	for (let i = 0; i < intersects.length; i++) {
-		let mesh = intersects[i].object;
-
-		if (selected_ids.includes(mesh.userData["id"])) {
-			reset_selected([mesh.userData["id"]]);
-			continue;
-		};
-
-		if (!keydown["shift"]){
-			reset_selected(selected_ids);
-		}
-		intersects[i].object.material.color.set(0xffa500);
-		selected_ids.push(intersects[i].object.userData["id"]);
-
+	if (intersects.length == 0) {
+		return;
 	}
+
+	// for (let i = 0; i < intersects.length; i++) {
+	let mesh = intersects[0].object;
+	if (!keydown["shift"]) {
+		selected_ids = [mesh.userData["id"]];
+		mesh.material.color.set(0xffa500);
+	} else {
+		if (!selected_ids.includes(mesh.userData["id"])) {
+			mesh.material.color.set(0xffa500);
+			selected_ids.push(mesh.userData["id"]);
+		} else {
+			mesh.material.color.set(mesh.userData["color"]);
+			selected_ids.splice(selected_ids.indexOf(mesh.userData["id"]), 1);
+		}
+	}
+	// update colors here for better performance
+	update_color_of_ids(selected_ids);
 	await update_selection();
 }
 
+/**
+ * We update the color of every atom in the scene
+ * @param {list[int]} ids, the selected ids
+ * @returns 
+ */
+
+async function update_color_of_ids(ids) {
+	atomsGroup.children.forEach(function (mesh) {
+		if (ids.includes(mesh.userData["id"])) {
+			mesh.material.color.set(0xffa500);
+		} else {
+			mesh.material.color.set(mesh.userData["color"]);
+		}
+	});
+	return ids;
+}
+
 async function update_selection() {
-	fetch("select", {
+	console.log("Updating selection");
+	div_lst_selected_ids.innerHTML = "Loading...";
+	selected_ids = await fetch("select", {
 		"method": "POST",
 		"headers": { "Content-Type": "application/json" },
 		"body": JSON.stringify(selected_ids),
-	})
+	}).then(response => response.json()).then((ids) => update_color_of_ids(ids));
 
 	div_lst_selected_ids.innerHTML = selected_ids.join(", ");
 }
@@ -336,7 +387,16 @@ async function getAnimationFrames() {
 
 	let step = frames.length;
 	while (true) {
-		let obj = await (await fetch("positions/" + step + "&" + (parseInt(o_frames_per_post.value) + step))).json();
+
+		let obj = await fetch("positions", {
+			"method": "POST",
+			"headers": { "Content-Type": "application/json" },
+			"body": JSON.stringify({ "start": step, "stop": parseInt(o_frames_per_post.value) + step }),
+		}).then(response => response.json()).then(function (response_json) {
+			load_config();
+			return response_json;
+		});
+
 		console.log("Read " + step + "-" + (parseInt(o_frames_per_post.value) + step) + " frames");
 		if (Object.keys(obj).length === 0) {
 			console.log("Animation read finished");
@@ -344,7 +404,6 @@ async function getAnimationFrames() {
 		}
 		frames = frames.concat(obj);
 		step += parseInt(o_frames_per_post.value);
-		await fetch("atoms/1").then(load_config());
 	}
 	data_loading = false;
 }
@@ -376,22 +435,10 @@ o_animate.onclick = function () {
 	getAnimationFrames();
 }
 
-function reset_selected(ids) {
-	selected_ids.forEach(function (item, index) {
-		if (ids.includes(item)) {
-			let mesh = atomsGroup.getObjectByUserDataProperty("id", item);
-			mesh.material.color.set(mesh.userData["color"]);
-		}
-	});
-	// remove ids from selected_ids
-	selected_ids = selected_ids.filter(function (item) {
-		return !ids.includes(item);
-	});
-	update_selection();
-};
 
 o_reset_selection.onclick = function () {
-	reset_selected(selected_ids);
+	selected_ids = [];
+	update_selection();
 }
 
 
@@ -506,7 +553,7 @@ window.addEventListener("keydown", (event) => {
 	if (event.isComposing || event.altKey) {
 		keydown["alt"] = true;
 	}
-	for  (let key in keydown) {
+	for (let key in keydown) {
 		if (event.isComposing || event.key === key) {
 			keydown[key] = true;
 		}
@@ -523,7 +570,7 @@ window.addEventListener("keyup", (event) => {
 	if (event.isComposing || !event.altKey) {
 		keydown["alt"] = false;
 	}
-	for  (let key in keydown) {
+	for (let key in keydown) {
 		if (event.isComposing || event.key === key) {
 			keydown[key] = false;
 		}
@@ -534,7 +581,13 @@ if (config["update_function"] !== null) {
 	window.addEventListener("keydown", (event) => {
 		if (event.isComposing || event.key === "Enter") {
 			div_info.innerHTML = "Processing...";
-			fetch("update/" + animation_frame).then((response) => getAnimationFrames());
+
+			fetch("update", {
+				"method": "POST",
+				"headers": { "Content-Type": "application/json" },
+				"body": JSON.stringify({ "selected_ids": selected_ids, "step": animation_frame }),
+			}).then((response) => getAnimationFrames());
+
 			if (!data_loading) {
 				getAnimationFrames();
 			}
@@ -632,12 +685,12 @@ function move_atoms() {
 	move_atoms_clock.start();
 }
 
-function centerCamera(){
-					if (selected_ids.length === 0) {
-			controls.target = new THREE.Vector3(0, 0, 0);
-		} else {
-			controls.target = atomsGroup.getObjectByUserDataProperty("id", selected_ids[0]).position.clone();
-		}
+function centerCamera() {
+	if (selected_ids.length === 0) {
+		controls.target = new THREE.Vector3(0, 0, 0);
+	} else {
+		controls.target = atomsGroup.getObjectByUserDataProperty("id", selected_ids[0]).position.clone();
+	}
 }
 
 function animate() {
@@ -648,10 +701,10 @@ function animate() {
 	if (frames.length > 0) {
 		move_atoms();
 	}
-	if (keydown["c"]){
+	if (keydown["c"]) {
 		centerCamera();
 	}
-	if (keydown["l"]){
+	if (keydown["l"]) {
 		spotLight.position.x = camera.position.x;
 		spotLight.position.y = camera.position.y;
 		spotLight.position.z = camera.position.z;
