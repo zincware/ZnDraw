@@ -1,5 +1,6 @@
 import contextlib
 import pathlib
+import socket
 import sys
 import webbrowser
 
@@ -23,7 +24,7 @@ def version_callback():
 @cli.command()
 def main(
     file: str = typer.Argument(..., help="Trajectory File"),
-    port: int = typer.Option(5123, help="Port to run the server on"),
+    port: int = typer.Option(None, help="Port to run the server on"),
     animate: bool = typer.Option(False, help="Animate the trajectory"),
     sphere_size: float = typer.Option(1.0, help="size of the hydrogen sphere"),
     bond_size: float = typer.Option(1.0, help="size of a bond"),
@@ -45,6 +46,11 @@ def main(
     The ZnDraw CLI. Use 'zndraw version' to get the current version.
     """
     sys.path.insert(1, pathlib.Path.cwd().as_posix())
+    if port is None:
+        sock = socket.socket()
+        sock.bind(("", 0))
+        port = sock.getsockname()[1]
+        sock.close()
 
     if file == "version":
         version_callback()

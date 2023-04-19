@@ -28,30 +28,23 @@ class Config:
         return getattr(module, function_name)
 
     def load_atoms(self, item=None):
-        if self.update_function is not None:
-            return
-
-        if item not in (None, 0):
-            raise ValueError("Only 0 is allowed for ase atoms read")
-
-        if pathlib.Path(self.file).suffix == ".h5":
-            if item == 0:
+        if item == 0:
+            if pathlib.Path(self.file).suffix == ".h5":
                 _atoms_cache[0] = znh5md.ASEH5MD(self.file)[0]
             else:
+                _atoms_cache[0] = ase.io.read(self.file)
+        elif self.update_function is not None:
+            return
+        else:
+            if pathlib.Path(self.file).suffix == ".h5":
                 _atoms_cache.update(
                     dict(enumerate(znh5md.ASEH5MD(self.file).get_atoms_list()))
                 )
-            return
-
-        if len(_atoms_cache) > 1:
-            # already loaded
-            return
-        for idx, atom in enumerate(
-            tqdm.tqdm(ase.io.iread(self.file), desc="File Reading")
-        ):
-            _atoms_cache[idx] = atom
-            if item is not None and idx == item:
-                return
+            else:
+                for idx, atom in enumerate(
+                    tqdm.tqdm(ase.io.iread(self.file), desc="File Reading")
+                ):
+                    _atoms_cache[idx] = atom
 
     def get_atoms(self, step=0) -> ase.Atoms:
         try:

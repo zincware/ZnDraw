@@ -12,7 +12,7 @@ Install via ``pip install zndraw`` or ``pip install zndraw[webview]`` to open zn
 You can use ZnDraw with the CLI ``zndraw atoms.xyz``.
 For a full list of arguments use `zndraw --help`.
 
-To interface with ``zndraw --update-function module.function`` you need to be able to import via ``from module import function``.
+To interface with ``zndraw --update-function zndraw.examples.explode`` you need to be able to import via ``from module import function``.
 
 The ZnDraw function expects as inputs
 - atom_ids: list[int], the ids of the currently selected atoms

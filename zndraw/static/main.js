@@ -534,7 +534,13 @@ if (config["update_function"] !== null) {
 	window.addEventListener("keydown", (event) => {
 		if (event.isComposing || event.key === "Enter") {
 			div_info.innerHTML = "Processing...";
-			fetch("update/" + animation_frame).then((response) => getAnimationFrames());
+
+			fetch("update", {
+				"method": "POST",
+				"headers": { "Content-Type": "application/json" },
+				"body": JSON.stringify({"selected_ids": selected_ids, "step": animation_frame}),
+			}).then((response) => getAnimationFrames());
+
 			if (!data_loading) {
 				getAnimationFrames();
 			}

@@ -58,14 +58,14 @@ def select():
     return {}
 
 
-@app.route("/update/<step>")
-def update_scene(step):
-    if "selected" not in session:
-        return []
+@app.route("/update", methods=["POST"])
+def update_scene():
+    selected_ids = request.json["selected_ids"]
+    step = request.json["step"]
 
     function = globals.config.get_update_function()
     atoms = function(
-        [int(x) for x in session["selected"]], globals.config.get_atoms(step=int(step))
+        [int(x) for x in selected_ids], globals.config.get_atoms(step=int(step))
     )
 
     offset = len(globals._atoms_cache)
