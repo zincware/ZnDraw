@@ -23,8 +23,9 @@ def config():
     }
 
 
-@app.route("/atoms/<step>")
-def atoms_step(step):
+@app.route("/atoms", methods=["POST"])
+def atoms_step():
+    step = request.json
     try:
         atoms = globals.config.get_atoms(step=int(step))
         graph = io.get_graph(atoms)
@@ -35,9 +36,10 @@ def atoms_step(step):
 
 @app.route("/positions", methods=["POST"])
 def positions_step():
+    params = request.json
     result = []
     try:
-        for step in request.json["steps"]:
+        for step in range(params["start"], params["stop"]):
             atoms = globals.config.get_atoms(step=int(step))
             result.append(atoms.get_positions().tolist())
         return result
@@ -45,8 +47,9 @@ def positions_step():
         return result
 
 
-@app.route("/bonds/<step>/")
-def bonds_step(step):
+@app.route("/bonds", methods=["POST"])
+def bonds_step():
+    step = request.json
     atoms = globals.config.get_atoms(step=int(step))
     graph = io.get_graph(atoms)
     return list(graph.edges)
@@ -54,8 +57,7 @@ def bonds_step(step):
 
 @app.route("/select", methods=["POST"])
 def select():
-    session["selected"] = request.json
-    return {}
+    return request.json
 
 
 @app.route("/update", methods=["POST"])
