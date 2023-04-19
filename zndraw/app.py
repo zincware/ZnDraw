@@ -56,8 +56,11 @@ def bonds_step():
 
 
 @app.route("/select", methods=["POST"])
-def select():
-    return request.json
+def select() -> list[int]:
+    """Update the selected atoms."""
+    return (
+        request.json
+    )  # + [x + 1 for x in request.json] + [x - 1 for x in request.json]
 
 
 @app.route("/update", methods=["POST"])

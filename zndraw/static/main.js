@@ -263,11 +263,11 @@ async function build_scene(step) {
 	// this is faster then doing it one by one
 	const arrayOfResponses = await Promise.all(
 		urls.map((url) =>
-		fetch(url, {
-			"method": "POST",
-			"headers": { "Content-Type": "application/json" },
-			"body": JSON.stringify(step)
-		})
+			fetch(url, {
+				"method": "POST",
+				"headers": { "Content-Type": "application/json" },
+				"body": JSON.stringify(step)
+			})
 				.then((res) => res.json())
 		)
 	);
@@ -321,30 +321,54 @@ async function onPointerDown(event) {
 	// calculate objects intersecting the picking ray
 	const intersects = raycaster.intersectObjects(atomsGroup.children);
 
-	for (let i = 0; i < intersects.length; i++) {
-		let mesh = intersects[i].object;
-
-		if (selected_ids.includes(mesh.userData["id"])) {
-			reset_selected([mesh.userData["id"]]);
-			continue;
-		};
-
-		if (!keydown["shift"]) {
-			reset_selected(selected_ids);
-		}
-		intersects[i].object.material.color.set(0xffa500);
-		selected_ids.push(intersects[i].object.userData["id"]);
-
+	if (intersects.length == 0) {
+		return;
 	}
+
+	// for (let i = 0; i < intersects.length; i++) {
+	let mesh = intersects[0].object;
+	if (!keydown["shift"]) {
+		selected_ids = [mesh.userData["id"]];
+		mesh.material.color.set(0xffa500);
+	} else {
+		if (!selected_ids.includes(mesh.userData["id"])) {
+			mesh.material.color.set(0xffa500);
+			selected_ids.push(mesh.userData["id"]);
+		} else {
+			mesh.material.color.set(mesh.userData["color"]);
+			selected_ids.splice(selected_ids.indexOf(mesh.userData["id"]), 1);
+		}
+	}
+	// update colors here for better performance
+	update_color_of_ids(selected_ids);
 	await update_selection();
 }
 
+/**
+ * We update the color of every atom in the scene
+ * @param {list[int]} ids, the selected ids
+ * @returns 
+ */
+
+async function update_color_of_ids(ids) {
+	atomsGroup.children.forEach(function (mesh) {
+		if (ids.includes(mesh.userData["id"])) {
+			mesh.material.color.set(0xffa500);
+		} else {
+			mesh.material.color.set(mesh.userData["color"]);
+		}
+	});
+	return ids;
+}
+
 async function update_selection() {
+	console.log("Updating selection");
+	div_lst_selected_ids.innerHTML = "Loading...";
 	selected_ids = await fetch("select", {
 		"method": "POST",
 		"headers": { "Content-Type": "application/json" },
 		"body": JSON.stringify(selected_ids),
-	}).then(response => response.json())
+	}).then(response => response.json()).then((ids) => update_color_of_ids(ids));
 
 	div_lst_selected_ids.innerHTML = selected_ids.join(", ");
 }
@@ -368,10 +392,10 @@ async function getAnimationFrames() {
 			"method": "POST",
 			"headers": { "Content-Type": "application/json" },
 			"body": JSON.stringify({ "start": step, "stop": parseInt(o_frames_per_post.value) + step }),
-		}).then(response => response.json()).then(function(response_json) {
+		}).then(response => response.json()).then(function (response_json) {
 			load_config();
 			return response_json;
-		  });
+		});
 
 		console.log("Read " + step + "-" + (parseInt(o_frames_per_post.value) + step) + " frames");
 		if (Object.keys(obj).length === 0) {
@@ -411,22 +435,10 @@ o_animate.onclick = function () {
 	getAnimationFrames();
 }
 
-function reset_selected(ids) {
-	selected_ids.forEach(function (item, index) {
-		if (ids.includes(item)) {
-			let mesh = atomsGroup.getObjectByUserDataProperty("id", item);
-			mesh.material.color.set(mesh.userData["color"]);
-		}
-	});
-	// remove ids from selected_ids
-	selected_ids = selected_ids.filter(function (item) {
-		return !ids.includes(item);
-	});
-	update_selection();
-};
 
 o_reset_selection.onclick = function () {
-	reset_selected(selected_ids);
+	selected_ids = [];
+	update_selection();
 }
 
 
