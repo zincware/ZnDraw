@@ -546,26 +546,53 @@ function createRadioElement(name, checked, id, properties) {
 	let function_container = document.createElement('div');
 	function_container.classList.add("container-fluid", "bg-light", "rounded", "border", "border-primary");
 
-	let function_container_label = document.createElement('h3');
+	let function_container_label = document.createElement('h5');
 	function_container_label.innerHTML = id;
 
 	function_container.appendChild(function_container_label);
+
+	let function_container_col = document.createElement('div');
+	function_container_col.classList.add("row");
+
+	let descriptions = document.createElement('div');
+	descriptions.classList.add("col-sm-2");
+
+	let values = document.createElement('div');
+	values.classList.add("col-sm-1");
+
+	let controllers = document.createElement('div');
+	controllers.classList.add("col-sm-8");
+
+	function_container_col.appendChild(descriptions);
+	function_container_col.appendChild(values);
+	function_container_col.appendChild(controllers);
 
 	console.log(properties);
 
 	Object.values(properties).forEach((item) => {
 		console.log(item);
-		let label = document.createElement('label');
-		label.classList.add("form-label");
+		let label = document.createElement('div');
 		label.innerHTML = item["title"];
-		function_container.appendChild(label);
+		let label_row = document.createElement('div');
+		label_row.classList.add("row-sm");
+		label_row.appendChild(label);
+
+		let value = document.createElement('div');
+		value.innerHTML = item["default"];
+		let value_row = document.createElement('div');
+		value_row.classList.add("row-sm");
+		value_row.appendChild(value);
+
+		descriptions.appendChild(label_row);
+		values.appendChild(value_row);
 
 		if (item["type"] == "integer") {
 			let controller = document.createElement('input');
 			controller.type = "range";
 			controller.step = 1;
+			controller.value = item["default"];
 			controller.id = id + "_" + item["title"];
-			
+
 			if ("minimum" in item) {
 				controller.min = item["minimum"];
 			}
@@ -573,12 +600,16 @@ function createRadioElement(name, checked, id, properties) {
 				controller.max = item["maximum"];
 			}
 
-			function_container.appendChild(controller);
+			let controller_row = document.createElement('div');
+			controller_row.classList.add("row-sm");
+			controller_row.appendChild(controller);
+
+			controllers.appendChild(controller_row);
 
 
 			controller.onclick = function () {
 				// fetch with post 
-				label.innerHTML = item["title"] + "(" + controller.value + ")";
+				value.innerHTML = controller.value;
 				fetch("update_function_values", {
 					"method": "POST",
 					"headers": { "Content-Type": "application/json" },
@@ -591,6 +622,7 @@ function createRadioElement(name, checked, id, properties) {
 			};
 		}
 	});
+	function_container.appendChild(function_container_col);
 	radioFragment.appendChild(function_container);
 
 	return radioFragment;
