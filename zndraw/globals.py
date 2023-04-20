@@ -55,7 +55,17 @@ class Config:
 
     def set_update_function_parameters(self, value):
         instance = _update_functions[value["function_id"]]
-        setattr(instance, value["property"].lower(), int(value["value"]))
+        attribute = value["property"].lower()
+        value = value["value"]
+        if instance.__annotations__[attribute] == float:
+            value = float(value)
+        elif instance.__annotations__[attribute] == int:
+            value = int(value)
+        elif instance.__annotations__[attribute] == bool:
+            value = bool(value)
+        else:
+            value = value
+        setattr(instance, attribute, value)
 
     def load_atoms(self, item=None):
         if item == 0:

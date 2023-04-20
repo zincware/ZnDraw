@@ -58,9 +58,18 @@ def bonds_step():
 @app.route("/select", methods=["POST"])
 def select() -> list[int]:
     """Update the selected atoms."""
-    return (
-        request.json
-    )  # + [x + 1 for x in request.json] + [x - 1 for x in request.json]
+    step = request.json["step"]
+    selected_ids = request.json["selected_ids"]
+
+    atoms = globals.config.get_atoms()
+
+    for id in tuple(selected_ids):
+        selected_symbol = atoms[id].symbol
+        selected_ids += [
+            idx for idx, atom in enumerate(atoms) if atom.symbol == selected_symbol
+        ]
+
+    return list(set(selected_ids))
 
 
 @app.route("/add_update_function", methods=["POST"])

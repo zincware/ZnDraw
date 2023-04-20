@@ -364,7 +364,7 @@ async function update_selection() {
 	selected_ids = await fetch("select", {
 		"method": "POST",
 		"headers": { "Content-Type": "application/json" },
-		"body": JSON.stringify(selected_ids),
+		"body": JSON.stringify({"selected_ids": selected_ids, "step": animation_frame}),
 	}).then(response => response.json()).then((ids) => update_color_of_ids(ids));
 
 	div_lst_selected_ids.innerHTML = selected_ids.join(", ");
@@ -586,40 +586,49 @@ function createRadioElement(name, checked, id, properties) {
 		descriptions.appendChild(label_row);
 		values.appendChild(value_row);
 
-		if (item["type"] == "integer") {
-			let controller = document.createElement('input');
+		let controller = document.createElement('input');
+		if (item["type"] == "integer"){
 			controller.type = "range";
 			controller.step = 1;
-			controller.value = item["default"];
-			controller.id = id + "_" + item["title"];
+		} else if (item["type"] == "number"){
+			controller.type = "range";
+			controller.step = 0.1;
+		} else if (item["type"] == "text") {
+			controller.type = "text";
+		} else {
+			console.log("Unknown type: " + item["type"]);
+		}
+		controller.value = item["default"];
+		controller.id = id + "_" + item["title"];
 
-			if ("minimum" in item) {
-				controller.min = item["minimum"];
-			}
-			if ("maximum" in item) {
-				controller.max = item["maximum"];
-			}
+		if ("minimum" in item) {
+			controller.min = item["minimum"];
+		}
+		if ("maximum" in item) {
+			controller.max = item["maximum"];
+		}
 
-			let controller_row = document.createElement('div');
-			controller_row.classList.add("row-sm");
-			controller_row.appendChild(controller);
+		let controller_row = document.createElement('div');
+		controller_row.classList.add("row-sm");
+		controller_row.appendChild(controller);
 
-			controllers.appendChild(controller_row);
+		controllers.appendChild(controller_row);
 
+		controller.oninput = function () {
+			value.innerHTML = controller.value;
+		}
 
-			controller.onclick = function () {
-				// fetch with post 
-				value.innerHTML = controller.value;
-				fetch("update_function_values", {
-					"method": "POST",
-					"headers": { "Content-Type": "application/json" },
-					"body": JSON.stringify({
-						"function_id": id,
-						"property": item["title"],
-						"value": controller.value
-					})
-				});
-			};
+		controller.onclick = function () {
+			// fetch with post 
+			fetch("update_function_values", {
+				"method": "POST",
+				"headers": { "Content-Type": "application/json" },
+				"body": JSON.stringify({
+					"function_id": id,
+					"property": item["title"],
+					"value": controller.value
+				})
+			});
 		}
 	});
 	function_container.appendChild(function_container_col);
