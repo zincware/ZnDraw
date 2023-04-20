@@ -186,8 +186,21 @@
                 <dd class="col-sm-9" id="lst_selected_ids"><code>{{ config.update_function }}</code></dd>
                 {% endif %}
               </dl>
-              <div id="python_class_control">
-              </div>
+            </div>
+          </div>
+        </div>
+        <div class="accordion-item">
+          <h2 class="accordion-header" id="panelsStayOpen-headingFour">
+            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+              data-bs-target="#panelsStayOpen-collapseFour" aria-expanded="false"
+              aria-controls="panelsStayOpen-collapseFour">
+              Manipulate Particles
+            </button>
+          </h2>
+          <div id="panelsStayOpen-collapseFour" class="accordion-collapse collapse"
+            aria-labelledby="panelsStayOpen-headingFour">
+            <div class="accordion-body">
+              <div id="python_class_control"></div>
             </div>
           </div>
         </div>
@@ -251,7 +264,7 @@
       <div class="h-100 p-5 bg-light rounded-3 border border-primary">
         <div class="form-group">
           <label for="newPythonClass">Add path to python module</label>
-          <input class="form-control" id="newPythonClass" placeholder="zndraw.examples.explode">
+          <input class="form-control" id="newPythonClass" placeholder="zndraw.examples.Duplicate">
           <br>
           <button id="newPythonClassBtn" class="btn btn-primary">Add to Scene</button>
         </div>
