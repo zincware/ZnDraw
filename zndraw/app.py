@@ -60,16 +60,17 @@ def select() -> list[int]:
     """Update the selected atoms."""
     step = request.json["step"]
     selected_ids = request.json["selected_ids"]
+    return selected_ids
 
-    atoms = globals.config.get_atoms()
+    # atoms = globals.config.get_atoms(step)
 
-    for id in tuple(selected_ids):
-        selected_symbol = atoms[id].symbol
-        selected_ids += [
-            idx for idx, atom in enumerate(atoms) if atom.symbol == selected_symbol
-        ]
+    # for id in tuple(selected_ids):
+    #     selected_symbol = atoms[id].symbol
+    #     selected_ids += [
+    #         idx for idx, atom in enumerate(atoms) if atom.symbol == selected_symbol
+    #     ]
 
-    return list(set(selected_ids))
+    # return list(set(selected_ids))
 
 
 @app.route("/add_update_function", methods=["POST"])
