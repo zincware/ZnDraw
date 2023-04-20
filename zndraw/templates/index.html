@@ -186,6 +186,8 @@
                 <dd class="col-sm-9" id="lst_selected_ids"><code>{{ config.update_function }}</code></dd>
                 {% endif %}
               </dl>
+              <div id="python_class_control">
+              </div>
             </div>
           </div>
         </div>
@@ -210,7 +212,11 @@
   <div id="progressBar"></div>
   <div id="bufferBar"></div>
   <div id="greyOut"></div>
-  <img id="help_btn" src="https://openmoji.org/data/color/svg/2139.svg" />
+  <div id="right_btn_group">
+    <img id="help_btn" src="https://openmoji.org/data/color/svg/2139.svg" />
+    <img id="add_btn" src="https://openmoji.org/data/color/svg/2795.svg" />
+  </div>
+
 
   <div class="container py-4" id="help_container" style="display: none; opacity: 0.9;">
     <div class="h-100 p-5 bg-light rounded-3 border border-primary">
@@ -236,6 +242,19 @@
           <dd class="col-sm-9"><code>keydown shift</code></dd>
 
         </dl>
+      </div>
+    </div>
+  </div>
+
+  <div id="add_class">
+    <div class="container py-4" id="help_container">
+      <div class="h-100 p-5 bg-light rounded-3 border border-primary">
+        <div class="form-group">
+          <label for="newPythonClass">Add path to python module</label>
+          <input class="form-control" id="newPythonClass" placeholder="zndraw.examples.explode">
+          <br>
+          <button id="newPythonClassBtn" class="btn btn-primary">Add to Scene</button>
+        </div>
       </div>
     </div>
   </div>

@@ -3,6 +3,7 @@ import importlib
 import pathlib
 
 import ase.io
+import pydantic
 import tqdm
 import znh5md
 
@@ -20,12 +21,41 @@ class Config:
     resolution: int = 5
     repeat: tuple = (1, 1, 1)
 
+    _update_function_name: str = None
+
+    @property
+    def update_function_name(self):
+        if self._update_function_name is not None:
+            return self._update_function_name
+        return self.update_function.rsplit(".", 1)[1]
+
+    @update_function_name.setter
+    def update_function_name(self, value):
+        self._update_function_name = value
+
+    def get_update_signature(self):
+        module_name, function_name = self.update_function.rsplit(".", 1)
+        if function_name in _update_functions:
+            return _update_functions[self.update_function_name].schema()
+        module = importlib.import_module(module_name)
+        instance: pydantic.BaseModel = getattr(module, function_name)()
+        _update_functions[function_name] = instance
+        return _update_functions[self.update_function_name].schema()
+
     def get_update_function(self):
+        module_name, function_name = self.update_function.rsplit(".", 1)
         if self.update_function is None:
             return None
-        module_name, function_name = self.update_function.rsplit(".", 1)
+        if function_name in _update_functions:
+            return _update_functions[self.update_function_name].run
+
         module = importlib.import_module(module_name)
-        return getattr(module, function_name)
+        _update_functions[self.update_function_name] = getattr(module, function_name)()
+        return _update_functions[self.update_function_name].run
+
+    def set_update_function_parameters(self, value):
+        instance = _update_functions[value["function_id"]]
+        setattr(instance, value["property"].lower(), int(value["value"]))
 
     def load_atoms(self, item=None):
         if item == 0:
@@ -57,6 +87,8 @@ class Config:
 
 
 # TODO set defaults here and load in typer?
+
+_update_functions = {}
 
 _atoms_cache: dict = {}
 config = Config()

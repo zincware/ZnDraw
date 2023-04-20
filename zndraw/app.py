@@ -63,6 +63,31 @@ def select() -> list[int]:
     )  # + [x + 1 for x in request.json] + [x - 1 for x in request.json]
 
 
+@app.route("/add_update_function", methods=["POST"])
+def add_update_function():
+    """Add a function to the config."""
+    globals.config.update_function = request.json
+    try:
+        signature = globals.config.get_update_signature()
+    except (ImportError, ValueError) as err:
+        return {"error": str(err)}
+    return signature
+
+
+@app.route("/update_function_values", methods=["POST"])
+def update_function_values():
+    """Update the values of the update function."""
+    globals.config.set_update_function_parameters(request.json)
+    return {}
+
+
+@app.route("/select_update_function/<name>")
+def select_update_function(name):
+    """Select a function from the config."""
+    globals.config.update_function_name = name
+    return {}
+
+
 @app.route("/update", methods=["POST"])
 def update_scene():
     selected_ids = request.json["selected_ids"]

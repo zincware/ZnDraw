@@ -72,14 +72,6 @@ scene.add(hemisphereLight);
 let config = {};
 
 
-
-
-
-
-
-
-
-
 // some global variables
 let frames = [];
 let selected_ids = [];
@@ -105,6 +97,7 @@ const div_FPS = document.getElementById('FPS');
 const div_n_particles = document.getElementById('n_particles');
 const div_n_bonds = document.getElementById('n_bonds');
 const div_help_container = document.getElementById('help_container');
+const div_python_class_control = document.getElementById('python_class_control');
 
 const o_selectAtoms = document.getElementById('selectAtoms');
 const o_autoRestart = document.getElementById('autoRestart');
@@ -125,6 +118,8 @@ const o_wireframe = document.getElementById('wireframe');
 const o_spotLightIntensity = document.getElementById('spotLightIntensity');
 const o_hemisphereLightIntensity = document.getElementById('hemisphereLightIntensity');
 const o_help_btn = document.getElementById('help_btn');
+const o_add_btn = document.getElementById('add_btn');
+const o_newPythonClassBtn = document.getElementById('newPythonClassBtn');
 
 
 // Helper Functions
@@ -364,6 +359,8 @@ async function update_color_of_ids(ids) {
 async function update_selection() {
 	console.log("Updating selection");
 	div_lst_selected_ids.innerHTML = "Loading...";
+	// TODO: only update colors / html if the select ids from the python
+	// script are different from the current ones
 	selected_ids = await fetch("select", {
 		"method": "POST",
 		"headers": { "Content-Type": "application/json" },
@@ -416,6 +413,10 @@ if (config["animate"] === true) {
 if (config["restart_animation"] === true) {
 	o_autoRestart.checked = true;
 }
+
+/**
+ * Event listeners
+ */
 
 window.addEventListener('pointerdown', onPointerDown, false);
 window.addEventListener('resize', onWindowResize, false);
@@ -518,6 +519,115 @@ o_help_btn.onmouseout = function () {
 	div_help_container.style.display = "none";
 }
 
+o_add_btn.onclick = function () {
+	document.getElementById("add_class").style.display = "block";
+}
+
+
+/**
+ * Helper function, move later
+ * @param {} name 
+ * @param {*} checked 
+ * @returns 
+ */
+function createRadioElement(name, checked, id, properties) {
+	var radioHtml = '<input class="form-check-input" type="radio" name="' + name + '"  id="' + id + '"';
+	if (checked) {
+		radioHtml += ' checked="checked"';
+	}
+	radioHtml += '/>';
+
+	var radioFragment = document.createElement('div');
+	radioFragment.classList.add("form-check");
+	radioFragment.innerHTML = radioHtml;
+
+
+
+	let function_container = document.createElement('div');
+	function_container.classList.add("container-fluid", "bg-light", "rounded", "border", "border-primary");
+
+	let function_container_label = document.createElement('h3');
+	function_container_label.innerHTML = id;
+
+	function_container.appendChild(function_container_label);
+
+	console.log(properties);
+
+	Object.values(properties).forEach((item) => {
+		console.log(item);
+		let label = document.createElement('label');
+		label.classList.add("form-label");
+		label.innerHTML = item["title"];
+		function_container.appendChild(label);
+
+		if (item["type"] == "integer") {
+			let controller = document.createElement('input');
+			controller.type = "range";
+			controller.step = 1;
+			controller.id = id + "_" + item["title"];
+			
+			if ("minimum" in item) {
+				controller.min = item["minimum"];
+			}
+			if ("maximum" in item) {
+				controller.max = item["maximum"];
+			}
+
+			function_container.appendChild(controller);
+
+
+			controller.onclick = function () {
+				// fetch with post 
+				label.innerHTML = item["title"] + "(" + controller.value + ")";
+				fetch("update_function_values", {
+					"method": "POST",
+					"headers": { "Content-Type": "application/json" },
+					"body": JSON.stringify({
+						"function_id": id,
+						"property": item["title"],
+						"value": controller.value
+					})
+				});
+			};
+		}
+	});
+	radioFragment.appendChild(function_container);
+
+	return radioFragment;
+}
+
+o_newPythonClassBtn.onclick = function () {
+	document.getElementById("add_class").style.display = "none";
+
+	fetch("add_update_function", {
+		"method": "POST",
+		"headers": { "Content-Type": "application/json" },
+		"body": JSON.stringify(document.getElementById("newPythonClass").value),
+	}).then(response => response.json()).then(function (response_json) {
+		// if not null alert
+		if ("error" in response_json) {
+			alert(response_json["error"]);
+			stepError(response_json["error"]);
+		} else {
+			console.log(response_json);
+			load_config();
+		}
+		return response_json;
+	}).then(function (response_json) {
+		console.log(response_json);
+		div_python_class_control.appendChild(createRadioElement("flexRadioUpdateFunction", true, response_json["title"], response_json["properties"]));
+
+		document.getElementById(response_json["title"]).onclick = function () {
+			console.log("clicked");
+			console.log(document.querySelector('input[name="flexRadioUpdateFunction"]:checked').id);
+			fetch("/select_update_function/" + document.querySelector('input[name="flexRadioUpdateFunction"]:checked').id)
+		};
+
+	});
+
+
+}
+
 window.addEventListener("keydown", (event) => {
 	if (event.isComposing || event.key === " ") {
 		event.preventDefault();
@@ -577,23 +687,22 @@ window.addEventListener("keyup", (event) => {
 	}
 });
 
-if (config["update_function"] !== null) {
-	window.addEventListener("keydown", (event) => {
-		if (event.isComposing || event.key === "Enter") {
-			div_info.innerHTML = "Processing...";
+window.addEventListener("keydown", (event) => {
+	if (event.isComposing || event.key === "Enter") {
+		div_info.innerHTML = "Processing...";
 
-			fetch("update", {
-				"method": "POST",
-				"headers": { "Content-Type": "application/json" },
-				"body": JSON.stringify({ "selected_ids": selected_ids, "step": animation_frame }),
-			}).then((response) => getAnimationFrames());
+		fetch("update", {
+			"method": "POST",
+			"headers": { "Content-Type": "application/json" },
+			"body": JSON.stringify({ "selected_ids": selected_ids, "step": animation_frame }),
+		}).then((response) => getAnimationFrames());
 
-			if (!data_loading) {
-				getAnimationFrames();
-			}
+		if (!data_loading) {
+			getAnimationFrames();
 		}
-	});
-}
+	}
+});
+
 
 
 
