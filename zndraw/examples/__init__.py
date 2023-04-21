@@ -31,7 +31,7 @@ class Explode(UpdateFunction):
 
 class Delete(UpdateFunction):
     def run(self, atom_ids: list[int], atoms: ase.Atoms) -> list[ase.Atoms]:
-        for idx, atom_id in enumerate(atom_ids):
+        for idx, atom_id in enumerate(sorted(atom_ids)):
             atoms.pop(atom_id - idx)  # we remove the atom and shift the index
         return [atoms]
 

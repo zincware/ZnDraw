@@ -124,22 +124,6 @@ const o_newPythonClassBtn = document.getElementById('newPythonClassBtn');
 
 // Helper Functions
 
-function arraysEqual(a, b) {
-	if (a === b) return true;
-	if (a == null || b == null) return false;
-	if (a.length !== b.length) return false;
-  
-	// If you don't care about the order of the elements inside
-	// the array, you should sort both arrays here.
-	// Please note that calling sort on an array will modify that array.
-	// you might want to clone your array first.
-  
-	for (var i = 0; i < a.length; ++i) {
-	  if (a[i] !== b[i]) return false;
-	}
-	return true;
-  }
-
 async function load_config() {
 	config = await (await fetch("config")).json();
 	console.log(config)
@@ -374,19 +358,19 @@ async function update_color_of_ids(ids) {
 
 async function update_selection() {
 	console.log("Updating selection");
-	div_lst_selected_ids.innerHTML = "Loading...";
+	div_lst_selected_ids.innerHTML = selected_ids.join(", ");
 	await fetch("select", {
 		"method": "POST",
 		"headers": { "Content-Type": "application/json" },
-		"body": JSON.stringify({"selected_ids": selected_ids, "step": animation_frame}),
+		"body": JSON.stringify({ "selected_ids": selected_ids, "step": animation_frame }),
 	}).then(response => response.json()).then(function (response_json) {
 		if (response_json["updated"]) {
 			update_color_of_ids(response_json["selected_ids"]);
-			selected_ids = response_json;
+			selected_ids = response_json["selected_ids"];
 		}
+		div_lst_selected_ids.innerHTML = response_json["selected_ids"].join(", ");
 	});
 
-	div_lst_selected_ids.innerHTML = selected_ids.join(", ");
 }
 
 async function getAnimationFrames() {
@@ -606,10 +590,10 @@ function createRadioElement(name, checked, id, properties) {
 		values.appendChild(value_row);
 
 		let controller = document.createElement('input');
-		if (item["type"] == "integer"){
+		if (item["type"] == "integer") {
 			controller.type = "range";
 			controller.step = 1;
-		} else if (item["type"] == "number"){
+		} else if (item["type"] == "number") {
 			controller.type = "range";
 			controller.step = 0.1;
 		} else if (item["type"] == "text") {
