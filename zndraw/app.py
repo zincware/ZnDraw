@@ -100,7 +100,7 @@ def select_update_function(name):
 
 @app.route("/update", methods=["POST"])
 def update_scene():
-    selected_ids = request.json["selected_ids"]
+    selected_ids = list(sorted(request.json["selected_ids"]))
     step = request.json["step"]
 
     function = globals.config.get_update_function()
