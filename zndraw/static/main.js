@@ -124,6 +124,22 @@ const o_newPythonClassBtn = document.getElementById('newPythonClassBtn');
 
 // Helper Functions
 
+function arraysEqual(a, b) {
+	if (a === b) return true;
+	if (a == null || b == null) return false;
+	if (a.length !== b.length) return false;
+  
+	// If you don't care about the order of the elements inside
+	// the array, you should sort both arrays here.
+	// Please note that calling sort on an array will modify that array.
+	// you might want to clone your array first.
+  
+	for (var i = 0; i < a.length; ++i) {
+	  if (a[i] !== b[i]) return false;
+	}
+	return true;
+  }
+
 async function load_config() {
 	config = await (await fetch("config")).json();
 	console.log(config)
@@ -359,13 +375,16 @@ async function update_color_of_ids(ids) {
 async function update_selection() {
 	console.log("Updating selection");
 	div_lst_selected_ids.innerHTML = "Loading...";
-	// TODO: only update colors / html if the select ids from the python
-	// script are different from the current ones
-	selected_ids = await fetch("select", {
+	await fetch("select", {
 		"method": "POST",
 		"headers": { "Content-Type": "application/json" },
 		"body": JSON.stringify({"selected_ids": selected_ids, "step": animation_frame}),
-	}).then(response => response.json()).then((ids) => update_color_of_ids(ids));
+	}).then(response => response.json()).then(function (response_json) {
+		if (response_json["updated"]) {
+			update_color_of_ids(response_json["selected_ids"]);
+			selected_ids = response_json;
+		}
+	});
 
 	div_lst_selected_ids.innerHTML = selected_ids.join(", ");
 }

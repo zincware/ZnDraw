@@ -60,7 +60,7 @@ def select() -> list[int]:
     """Update the selected atoms."""
     step = request.json["step"]
     selected_ids = request.json["selected_ids"]
-    return selected_ids
+    return {"selected_ids": selected_ids, "updated": False}
 
     # atoms = globals.config.get_atoms(step)
 
