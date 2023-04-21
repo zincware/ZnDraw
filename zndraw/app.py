@@ -1,7 +1,8 @@
 import dataclasses
 import uuid
 
-from flask import Flask, make_response, render_template, request, session
+import networkx as nx
+from flask import Flask, render_template, request, session
 
 from zndraw import globals, io
 
@@ -59,18 +60,32 @@ def bonds_step():
 def select() -> list[int]:
     """Update the selected atoms."""
     step = request.json["step"]
+    method = request.json["method"]
     selected_ids = request.json["selected_ids"]
-    return {"selected_ids": selected_ids, "updated": False}
+    if method == "particles":
+        return {"selected_ids": selected_ids, "updated": False}
+    elif method == "species":
+        atoms = globals.config.get_atoms(step)
 
-    # atoms = globals.config.get_atoms(step)
+        for id in tuple(selected_ids):
+            selected_symbol = atoms[id].symbol
+            selected_ids += [
+                idx for idx, atom in enumerate(atoms) if atom.symbol == selected_symbol
+            ]
+        return {"selected_ids": list(set(selected_ids)), "updated": True}
+    elif method == "connected":
+        atoms = globals.config.get_atoms(step)
+        graph = io.get_graph(atoms)
 
-    # for id in tuple(selected_ids):
-    #     selected_symbol = atoms[id].symbol
-    #     selected_ids += [
-    #         idx for idx, atom in enumerate(atoms) if atom.symbol == selected_symbol
-    #     ]
+        total_ids = []
 
-    # return {"selected_ids": list(set(selected_ids)), "updated": True}
+        for node_id in selected_ids:
+            total_ids += list(nx.node_connected_component(graph, node_id))
+
+        return {"selected_ids": list(set(total_ids)), "updated": True}
+
+    else:
+        raise ValueError(f"Unknown selection method: {method}")
 
 
 @app.route("/add_update_function", methods=["POST"])

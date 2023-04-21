@@ -99,7 +99,6 @@ const div_n_bonds = document.getElementById('n_bonds');
 const div_help_container = document.getElementById('help_container');
 const div_python_class_control = document.getElementById('python_class_control');
 
-const o_selectAtoms = document.getElementById('selectAtoms');
 const o_autoRestart = document.getElementById('autoRestart');
 const o_animate = document.getElementById('animate');
 const o_reset_selection = document.getElementById('reset_selection');
@@ -362,7 +361,7 @@ async function update_selection() {
 	await fetch("select", {
 		"method": "POST",
 		"headers": { "Content-Type": "application/json" },
-		"body": JSON.stringify({ "selected_ids": selected_ids, "step": animation_frame }),
+		"body": JSON.stringify({ "selected_ids": selected_ids, "step": animation_frame , "method": document.getElementById("selection-method").value}),
 	}).then(response => response.json()).then(function (response_json) {
 		if (response_json["updated"]) {
 			update_color_of_ids(response_json["selected_ids"]);
@@ -424,16 +423,17 @@ if (config["restart_animation"] === true) {
 window.addEventListener('pointerdown', onPointerDown, false);
 window.addEventListener('resize', onWindowResize, false);
 
-o_selectAtoms.onclick = function () {
-	if (o_selectAtoms.checked) {
+document.getElementById("selection-method").onclick = function () {
+	if (document.getElementById("selection-method").value == "none") {
+		console.log("Deselecting atoms");
+		window.removeEventListener('pointerdown', onPointerDown, false);
+	} else {
 		console.log("Selecting atoms");
 		window.addEventListener('pointerdown', onPointerDown, false);
 	}
-	else {
-		console.log("Deselecting atoms");
-		window.removeEventListener('pointerdown', onPointerDown, false);
-	}
+
 }
+
 o_animate.onclick = function () {
 	div_info.innerHTML = "Reading file...";
 	getAnimationFrames();
@@ -442,6 +442,7 @@ o_animate.onclick = function () {
 
 o_reset_selection.onclick = function () {
 	selected_ids = [];
+	update_color_of_ids(selected_ids);
 	update_selection();
 }
 
