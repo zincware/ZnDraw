@@ -58,14 +58,49 @@ def bonds_step():
 @app.route("/select", methods=["POST"])
 def select() -> list[int]:
     """Update the selected atoms."""
-    return (
-        request.json
-    )  # + [x + 1 for x in request.json] + [x - 1 for x in request.json]
+    step = request.json["step"]
+    selected_ids = request.json["selected_ids"]
+    return {"selected_ids": selected_ids, "updated": False}
+
+    # atoms = globals.config.get_atoms(step)
+
+    # for id in tuple(selected_ids):
+    #     selected_symbol = atoms[id].symbol
+    #     selected_ids += [
+    #         idx for idx, atom in enumerate(atoms) if atom.symbol == selected_symbol
+    #     ]
+
+    # return {"selected_ids": list(set(selected_ids)), "updated": True}
+
+
+@app.route("/add_update_function", methods=["POST"])
+def add_update_function():
+    """Add a function to the config."""
+    globals.config.update_function = request.json
+    try:
+        signature = globals.config.get_update_signature()
+    except (ImportError, ValueError) as err:
+        return {"error": str(err)}
+    return signature
+
+
+@app.route("/update_function_values", methods=["POST"])
+def update_function_values():
+    """Update the values of the update function."""
+    globals.config.set_update_function_parameters(request.json)
+    return {}
+
+
+@app.route("/select_update_function/<name>")
+def select_update_function(name):
+    """Select a function from the config."""
+    globals.config.update_function_name = name
+    return {}
 
 
 @app.route("/update", methods=["POST"])
 def update_scene():
-    selected_ids = request.json["selected_ids"]
+    selected_ids = list(sorted(request.json["selected_ids"]))
     step = request.json["step"]
 
     function = globals.config.get_update_function()

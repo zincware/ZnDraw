@@ -35,7 +35,7 @@ canvas {
     display: block;
 }
 
-#help_btn {
+#right_btn_group {
     position: absolute;
     top: 5px;
     right: 10px;
@@ -43,6 +43,12 @@ canvas {
     z-index: 100;
     display: block;
     opacity: 0.5;
+}
+
+#add_class {
+    z-index: 2000;
+    display: none;
+
 }
 
 .atom-spinner,
