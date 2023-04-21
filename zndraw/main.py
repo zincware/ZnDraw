@@ -1,7 +1,9 @@
 import dataclasses
 import socket
-import subprocess
-import time
+import threading
+import webbrowser
+
+from zndraw import app, globals
 
 
 @dataclasses.dataclass
@@ -17,11 +19,11 @@ class ZnDraw:
             sock.bind(("", 0))
             self.port = sock.getsockname()[1]
             sock.close()
-        self.process = subprocess.Popen(
-            ["zndraw", self.file, "--port", str(self.port)], stdout=subprocess.PIPE
-        )
-        time.sleep(2)
-        print(self.process.stdout.readline().decode("utf-8").strip())
+
+        globals.config.file = self.file
+        self.thread = threading.Thread(target=app.run, kwargs={"port": self.port})
+        self.thread.start()
+        webbrowser.open(f"http://127.0.0.1:{self.port}")
 
     def _repr_html_(self):
         from IPython.display import IFrame
@@ -31,4 +33,4 @@ class ZnDraw:
         )._repr_html_()
 
     def __del__(self):
-        self.process.kill()
+        self.thread.join()
