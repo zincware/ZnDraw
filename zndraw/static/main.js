@@ -322,11 +322,13 @@ async function onPointerDown(event) {
 	// for (let i = 0; i < intersects.length; i++) {
 	let mesh = intersects[0].object;
 	if (!keydown["shift"]) {
-		selected_ids = [mesh.userData["id"]];
-		mesh.material.color.set(0xffa500);
+		if (selected_ids.includes(mesh.userData["id"])) {
+			selected_ids = [];
+		} else {
+			selected_ids = [mesh.userData["id"]];
+		}
 	} else {
 		if (!selected_ids.includes(mesh.userData["id"])) {
-			mesh.material.color.set(0xffa500);
 			selected_ids.push(mesh.userData["id"]);
 		} else {
 			mesh.material.color.set(mesh.userData["color"]);
