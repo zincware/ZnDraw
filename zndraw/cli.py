@@ -40,11 +40,18 @@ def main(
     frames_per_post: int = typer.Option(100, help="Number of frames to send per POST."),
     browser: bool = typer.Option(True, help="Open the browser automatically."),
     webview: bool = typer.Option(True, help="Use the webview library if available."),
+    verbose: bool = typer.Option(False, help="Run the server in verbose mode."),
 ):
     """ZnDraw: Visualize Molecules
 
     The ZnDraw CLI. Use 'zndraw version' to get the current version.
     """
+    if not verbose:
+        import logging
+
+        log = logging.getLogger("werkzeug")
+        log.setLevel(logging.ERROR)
+
     sys.path.insert(1, pathlib.Path.cwd().as_posix())
     if port is None:
         sock = socket.socket()
@@ -76,5 +83,5 @@ def main(
             wv.start()
             return
     if browser:
-        webbrowser.open(f"http://localhost:{port}")
+        webbrowser.open(f"http://127.0.0.1:{port}")
     app.run(port=port)
