@@ -26,25 +26,39 @@ def main(
     file: str = typer.Argument(..., help="Trajectory File"),
     port: int = typer.Option(None, help="Port to run the server on"),
     animate: bool = typer.Option(False, help="Animate the trajectory"),
-    sphere_size: float = typer.Option(1.0, help="size of the hydrogen sphere"),
-    bond_size: float = typer.Option(1.0, help="size of a bond"),
-    max_fps: int = typer.Option(100, help="Maximum frames per second"),
+    sphere_size: float = typer.Option(
+        globals.config.sphere_size, help="size of the hydrogen sphere"
+    ),
+    bond_size: float = typer.Option(globals.config.bond_size, help="size of a bond"),
+    max_fps: int = typer.Option(
+        globals.config.max_fps, help="Maximum frames per second"
+    ),
     update_function: str = typer.Option(
         None, help="Path to a python file with an update function 'module.function'."
     ),
-    repeat: int = typer.Option(1, help="Repeat the trajectory n times"),
-    resolution: int = typer.Option(5, help="Proportional to the number of polygons."),
+    resolution: int = typer.Option(
+        globals.config.resolution, help="Proportional to the number of polygons."
+    ),
     restart_animation: bool = typer.Option(
         False, help="run the animation in an endless loop."
     ),
-    frames_per_post: int = typer.Option(100, help="Number of frames to send per POST."),
+    frames_per_post: int = typer.Option(
+        globals.config.frames_per_post, help="Number of frames to send per POST."
+    ),
     browser: bool = typer.Option(True, help="Open the browser automatically."),
     webview: bool = typer.Option(True, help="Use the webview library if available."),
+    verbose: bool = typer.Option(False, help="Run the server in verbose mode."),
 ):
     """ZnDraw: Visualize Molecules
 
     The ZnDraw CLI. Use 'zndraw version' to get the current version.
     """
+    if not verbose:
+        import logging
+
+        log = logging.getLogger("werkzeug")
+        log.setLevel(logging.ERROR)
+
     sys.path.insert(1, pathlib.Path.cwd().as_posix())
     if port is None:
         sock = socket.socket()
@@ -68,7 +82,6 @@ def main(
     globals.config.resolution = resolution
     globals.config.frames_per_post = frames_per_post
     globals.config.restart_animation = restart_animation
-    globals.config.repeat = (repeat, repeat, repeat)
 
     if wv is not None and webview:
         wv.create_window("ZnDraw", app)
@@ -76,5 +89,5 @@ def main(
             wv.start()
             return
     if browser:
-        webbrowser.open(f"http://localhost:{port}")
+        webbrowser.open(f"http://127.0.0.1:{port}")
     app.run(port=port)

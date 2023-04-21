@@ -70,5 +70,4 @@ class ChangeType(UpdateScene):
     def run(self, atom_ids: list[int], atoms: ase.Atoms) -> list[ase.Atoms]:
         for atom_id in atom_ids:
             atoms[atom_id].symbol = self.symbol
-        print(atoms)
         return [atoms]

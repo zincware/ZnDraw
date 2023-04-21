@@ -99,7 +99,6 @@ const div_n_bonds = document.getElementById('n_bonds');
 const div_help_container = document.getElementById('help_container');
 const div_python_class_control = document.getElementById('python_class_control');
 
-const o_selectAtoms = document.getElementById('selectAtoms');
 const o_autoRestart = document.getElementById('autoRestart');
 const o_animate = document.getElementById('animate');
 const o_reset_selection = document.getElementById('reset_selection');
@@ -323,11 +322,13 @@ async function onPointerDown(event) {
 	// for (let i = 0; i < intersects.length; i++) {
 	let mesh = intersects[0].object;
 	if (!keydown["shift"]) {
-		selected_ids = [mesh.userData["id"]];
-		mesh.material.color.set(0xffa500);
+		if (selected_ids.includes(mesh.userData["id"])) {
+			selected_ids = [];
+		} else {
+			selected_ids = [mesh.userData["id"]];
+		}
 	} else {
 		if (!selected_ids.includes(mesh.userData["id"])) {
-			mesh.material.color.set(0xffa500);
 			selected_ids.push(mesh.userData["id"]);
 		} else {
 			mesh.material.color.set(mesh.userData["color"]);
@@ -362,7 +363,7 @@ async function update_selection() {
 	await fetch("select", {
 		"method": "POST",
 		"headers": { "Content-Type": "application/json" },
-		"body": JSON.stringify({ "selected_ids": selected_ids, "step": animation_frame }),
+		"body": JSON.stringify({ "selected_ids": selected_ids, "step": animation_frame, "method": document.getElementById("selection-method").value }),
 	}).then(response => response.json()).then(function (response_json) {
 		if (response_json["updated"]) {
 			update_color_of_ids(response_json["selected_ids"]);
@@ -424,16 +425,17 @@ if (config["restart_animation"] === true) {
 window.addEventListener('pointerdown', onPointerDown, false);
 window.addEventListener('resize', onWindowResize, false);
 
-o_selectAtoms.onclick = function () {
-	if (o_selectAtoms.checked) {
+document.getElementById("selection-method").onclick = function () {
+	if (document.getElementById("selection-method").value == "none") {
+		console.log("Deselecting atoms");
+		window.removeEventListener('pointerdown', onPointerDown, false);
+	} else {
 		console.log("Selecting atoms");
 		window.addEventListener('pointerdown', onPointerDown, false);
 	}
-	else {
-		console.log("Deselecting atoms");
-		window.removeEventListener('pointerdown', onPointerDown, false);
-	}
+
 }
+
 o_animate.onclick = function () {
 	div_info.innerHTML = "Reading file...";
 	getAnimationFrames();
@@ -442,6 +444,7 @@ o_animate.onclick = function () {
 
 o_reset_selection.onclick = function () {
 	selected_ids = [];
+	update_color_of_ids(selected_ids);
 	update_selection();
 }
 
@@ -698,6 +701,60 @@ window.addEventListener("keydown", (event) => {
 	if (event.isComposing || event.key === "q") {
 		getAnimationFrames();
 	}
+	if (event.isComposing || event.key === "i") {
+		scene.updateMatrixWorld();
+		camera.updateMatrixWorld();
+
+		let ids = document.getElementsByClassName("particle-id")
+		if (ids.length > 0) {
+			return;
+		}
+
+		let positions = [];
+		let distances = [];
+		atomsGroup.children.forEach(function (item) {
+			let vector = item.position.clone().project(camera);
+			vector.x = (vector.x + 1) / 2 * window.innerWidth;
+			vector.y = -(vector.y - 1) / 2 * window.innerHeight;
+			// if x smaller 0 or larger window width return
+			if (vector.x < 50 || vector.x > window.innerWidth - 50) {
+				return;
+			}
+			// if y smaller 0 or larger window height return
+			if (vector.y < 50 || vector.y > window.innerHeight - 50) {
+				return;
+			}
+
+
+			// between -1 and 1
+			pointer.x = (vector.x / window.innerWidth) * 2 - 1;
+			pointer.y = - (vector.y / window.innerHeight) * 2 + 1;
+
+			raycaster.setFromCamera(pointer, camera);
+			let intersects = raycaster.intersectObjects(atomsGroup.children.concat(bondsGroup_1.children, bondsGroup_2.children));
+
+			if (!(intersects[0].object == item)) {
+				return;
+			}
+			positions.push([vector, item.userData["id"]]);
+			distances.push(intersects[0].distance);
+		});
+
+		positions.forEach(function (item, index) {
+
+			var text2 = document.createElement('div');
+			text2.classList.add("particle-id", "rounded");
+			text2.style.position = 'absolute';
+			text2.style.fontSize = Math.max(15, parseInt(50 - 0.3 * (distances[index] * Math.max(...distances)))) + 'px';
+			// text2.style.width = parseInt(100 / item[2]); 
+			// text2.style.height = parseInt(100 / item[2]);
+			text2.style.backgroundColor = "#cccccc";
+			text2.innerHTML = item[1];
+			text2.style.top = item[0].y + 'px';
+			text2.style.left = item[0].x + 'px';
+			document.body.appendChild(text2);
+		});
+	};
 	if (event.isComposing || event.shiftKey) {
 		keydown["shift"] = true;
 	}
@@ -727,6 +784,12 @@ window.addEventListener("keyup", (event) => {
 	for (let key in keydown) {
 		if (event.isComposing || event.key === key) {
 			keydown[key] = false;
+		}
+	}
+	if (event.isComposing || event.key === "i") {
+		let ids = document.getElementsByClassName("particle-id")
+		while (ids.length > 0) {
+			ids[0].parentNode.removeChild(ids[0]);
 		}
 	}
 });
@@ -845,6 +908,13 @@ function centerCamera() {
 		controls.target = atomsGroup.getObjectByUserDataProperty("id", selected_ids[0]).position.clone();
 	}
 }
+
+/**
+ * Dynamic indices
+ * 
+ */
+
+
 
 function animate() {
 

@@ -12,9 +12,9 @@ import znh5md
 class Config:
     file: str = None
     animate: bool = None
-    sphere_size: float = None
-    bond_size: float = None
-    max_fps: int = None
+    sphere_size: float = 1.0
+    bond_size: float = 1.0
+    max_fps: int = 100
     update_function: str = None
     frames_per_post: int = 100
     restart_animation: bool = False
@@ -65,7 +65,6 @@ class Config:
             value = bool(value)
         else:
             value = value
-        print(f"Setting {attribute} of {instance} to {value}")
         setattr(instance, attribute, value)
 
     def load_atoms(self, item=None):
