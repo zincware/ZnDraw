@@ -621,7 +621,7 @@ function createRadioElement(name, checked, id, properties) {
 			value.innerHTML = controller.value;
 		}
 
-		controller.onclick = function () {
+		controller.onchange = function () {
 			// fetch with post 
 			fetch("update_function_values", {
 				"method": "POST",

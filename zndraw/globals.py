@@ -65,6 +65,7 @@ class Config:
             value = bool(value)
         else:
             value = value
+        print(f"Setting {attribute} of {instance} to {value}")
         setattr(instance, attribute, value)
 
     def load_atoms(self, item=None):

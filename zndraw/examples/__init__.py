@@ -53,11 +53,13 @@ class Duplicate(UpdateFunction):
     x: float = Field(0.5, le=5, ge=0)
     y: float = Field(0.5, le=5, ge=0)
     z: float = Field(0.5, le=5, ge=0)
+    symbol: str = Field("")
 
     def run(self, atom_ids: list[int], atoms: ase.Atoms) -> list[ase.Atoms]:
         for atom_id in atom_ids:
             atom = ase.Atom(atoms[atom_id].symbol, atoms[atom_id].position)
             atom.position += np.array([self.x, self.y, self.z])
+            atom.symbol = self.symbol if self.symbol != "" else atom.symbol
             atoms += atom
         return [atoms]
 
@@ -66,10 +68,7 @@ class ChangeType(UpdateFunction):
     symbol: str = Field("")
 
     def run(self, atom_ids: list[int], atoms: ase.Atoms) -> list[ase.Atoms]:
-        raise NotImplementedError("Chaning Atom Type is currently not supported")
         for atom_id in atom_ids:
-            atom = atoms.pop(atom_id)
-            atom.symbol = self.symbol
-            atoms += atom
+            atoms[atom_id].symbol = self.symbol
         print(atoms)
         return [atoms]
