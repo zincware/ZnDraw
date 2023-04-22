@@ -148,7 +148,7 @@ async function build_scene(step) {
 	div_n_particles.innerHTML = particleGroup.children.length;
 	
 
-	div_n_bonds.innerHTML = countBonds();  //bondsGroup.children[0].children.length;
+	div_n_bonds.innerHTML = countBonds();
 
 	div_greyOut.style.visibility = 'hidden';
 	div_loading.style.visibility = 'hidden';

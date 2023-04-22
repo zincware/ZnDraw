@@ -109,7 +109,10 @@ function halfCylinderMesh(pointX, pointY, material, config) {
 
 function addAtom(item, config) {
     let geometry = sphereGeometry(config["sphere_size"], config["resolution"]);
-    let material = speciesMaterial(document.getElementById('materialSelect').value, item["color"], document.getElementById('wireframe').checked);
+    let material = speciesMaterial(
+        document.getElementById('materialSelect').value, item["color"],
+        document.getElementById('wireframe').checked
+    );
 
     const particle = new THREE.Mesh(geometry, material);
 
@@ -138,11 +141,6 @@ function addBond(item, config) {
     bond_1.userData["target_atom"] = item[1];
     bond_2.userData["target_atom"] = item[0];
 
-    // particle1.userData["bond_ids"].push(bond_1.id);
-    // particle1.userData["bond_ids"].push(bond_2.id);
-    // particle2.userData["bond_ids"].push(bond_1.id);
-    // particle2.userData["bond_ids"].push(bond_2.id);
-
     for (let i = 0; i < particleGroup.children.length; i++) {
         if (particleGroup.children[i].children[0].userData["id"] == item[0]) {
             particleGroup.children[i].add(bond_1);
@@ -157,14 +155,14 @@ function addBond(item, config) {
 export function countBonds() {
     let count = 0;
     particleGroup.traverse((child) => {
-        if (child.isMesh){
+        if (child.isMesh) {
             count += 1;
         }
     });
     return (count - particleGroup.children.length) / 2; // subtract the number of particles and account for bonds being two meshes
 }
 
-function getAtomGrpById(atom_id){
+function getAtomGrpById(atom_id) {
     let atom = undefined;
     for (let i = 0; i < particleGroup.children.length; i++) {
         if (particleGroup.children[i].children[0].userData["id"] == atom_id) {
@@ -182,7 +180,7 @@ function getAtomGrpById(atom_id){
  */
 export function getAtomById(atom_id) {
     let atom_grp = getAtomGrpById(atom_id);
-    if (atom_grp == undefined){
+    if (atom_grp == undefined) {
         return undefined;
     }
     return atom_grp.children[0];
@@ -199,28 +197,22 @@ export function cleanScene(scene) {
 export function drawAtoms(atoms, bonds, config, scene) {
     cleanScene(scene);
 
-    atoms.forEach(function (item, index) {
-        // console.log("Adding item " + index + " to scene(" + item + ")");
-        addAtom(item, config);
-    });
+    atoms.forEach((item) => { addAtom(item, config) });
 
     if (config["bond_size"] > 0) {
-
-        bonds.forEach(function (item, index) {
-            // console.log("Adding item " + index + " to scene(" + item + ")");
-            addBond(item, config);
-
-        });
+        bonds.forEach((item) => { addBond(item, config) });
     }
     scene.add(particleGroup);
 }
+
+
 /**
  * Update the positions of the particles
  * @param {Float32List} positions as (n_particles, 3)
  */
 export function updateParticlePositions(positions) {
     positions.forEach(function (item, index) {
-		let per_atom_grp = getAtomGrpById(index);
+        let per_atom_grp = getAtomGrpById(index);
         let atom = per_atom_grp.children[0];
         atom.position.set(...item);
 
@@ -236,5 +228,5 @@ export function updateParticlePositions(positions) {
             bond.position.copy(atom.position);
             bond.lookAt(target_atom.position);
         }
-	});
+    });
 };
