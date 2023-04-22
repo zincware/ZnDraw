@@ -164,20 +164,28 @@ export function countBonds() {
     return (count - particleGroup.children.length) / 2; // subtract the number of particles and account for bonds being two meshes
 }
 
+function getAtomGrpById(atom_id){
+    let atom = undefined;
+    for (let i = 0; i < particleGroup.children.length; i++) {
+        if (particleGroup.children[i].children[0].userData["id"] == atom_id) {
+            atom = particleGroup.children[i];
+            break;
+        }
+    }
+    return atom;
+}
+
 /**
  * Get the atom from the ID given by flask
  * @param {BigInt} atom_id 
  * @returns {THREE.Mesh}
  */
 export function getAtomById(atom_id) {
-    let atom = undefined;
-    for (let i = 0; i < particleGroup.children.length; i++) {
-        if (particleGroup.children[i].children[0].userData["id"] == atom_id) {
-            atom = particleGroup.children[i].children[0];
-            break;
-        }
+    let atom_grp = getAtomGrpById(atom_id);
+    if (atom_grp == undefined){
+        return undefined;
     }
-    return atom;
+    return atom_grp.children[0];
 }
 
 // TODO rename clean AtomsBonds
@@ -206,3 +214,27 @@ export function drawAtoms(atoms, bonds, config, scene) {
     }
     scene.add(particleGroup);
 }
+/**
+ * Update the positions of the particles
+ * @param {Float32List} positions as (n_particles, 3)
+ */
+export function updateParticlePositions(positions) {
+    positions.forEach(function (item, index) {
+		let per_atom_grp = getAtomGrpById(index);
+        let atom = per_atom_grp.children[0];
+        atom.position.set(...item);
+
+        for (let j = 1; j < per_atom_grp.children.length; j++) {
+            let bond = per_atom_grp.children[j];
+            let target_atom = getAtomById(bond.userData["target_atom"]);
+            direction.subVectors(atom.position, target_atom.position);
+            let scale = (direction.length() / 2);
+            if (scale > 1.5) {
+                scale = 0.0;
+            }
+            bond.scale.set(1, 1, scale);
+            bond.position.copy(atom.position);
+            bond.lookAt(target_atom.position);
+        }
+	});
+};

@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { particleGroup, materials, drawAtoms, speciesMaterial, countBonds, getAtomById } from './modules/particles.js';
+import { particleGroup, materials, drawAtoms, speciesMaterial, countBonds, getAtomById, updateParticlePositions } from './modules/particles.js';
 
 
 // THREE.Cache.enabled = true;
@@ -733,33 +733,9 @@ function move_atoms() {
 		return; // we need to wait for the scene to be updated
 	}
 
-
-	frames[animation_frame].forEach(function (item, index) {
-		getAtomById(index).position.set(...item);
-	});
-
 	div_info.innerHTML = "Frame (" + animation_frame + "/" + (frames.length - 1) + ")";
-	// TODO move into particles module
-	if (config["bond_size"] > 0) {
-		scene.updateMatrixWorld();
-		const direction = new THREE.Vector3();
 
-		particleGroup.children.forEach((per_atom_grp) => {
-			let atom = per_atom_grp.children[0];
-			for (let j = 1; j < per_atom_grp.children.length; j++) {
-				let bond = per_atom_grp.children[j];
-				let target_atom = getAtomById(bond.userData["target_atom"]);
-				direction.subVectors(atom.position, target_atom.position);
-				let scale = (direction.length() / 2);
-				if (scale > 1.5) {
-					scale = 0.0;
-				}
-				bond.scale.set(1, 1, scale);
-				bond.position.copy(atom.position);
-				bond.lookAt(target_atom.position);
-			}
-		});
-	}
+	updateParticlePositions(frames[animation_frame]);
 
 	fps.push(move_atoms_clock.getElapsedTime());
 
