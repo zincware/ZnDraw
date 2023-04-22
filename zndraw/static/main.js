@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { atomsGroup, bondsGroup, materials, drawAtoms, speciesMaterial } from './modules/particles.js';
+import { particleGroup, bondsGroup, materials, drawAtoms, speciesMaterial } from './modules/particles.js';
 
 
 THREE.Object3D.prototype.getObjectByUserDataProperty = function (name, value) {
@@ -166,7 +166,7 @@ async function build_scene(step) {
 	await update_selection();
 	scene_building = false;
 
-	div_n_particles.innerHTML = atomsGroup.children.length;
+	div_n_particles.innerHTML = particleGroup.children.length;
 	div_n_bonds.innerHTML = bondsGroup.children[0].children.length;
 
 	div_greyOut.style.visibility = 'hidden';
@@ -207,7 +207,7 @@ async function onPointerDown(event) {
 	raycaster.setFromCamera(pointer, camera);
 
 	// calculate objects intersecting the picking ray
-	const intersects = raycaster.intersectObjects(atomsGroup.children);
+	const intersects = raycaster.intersectObjects(particleGroup.children, true);
 
 	if (intersects.length == 0) {
 		return;
@@ -241,7 +241,8 @@ async function onPointerDown(event) {
  */
 
 async function update_color_of_ids(ids) {
-	atomsGroup.children.forEach(function (mesh) {
+	particleGroup.children.forEach(function (atom_grp) {
+		let mesh = atom_grp.children[0];
 		if (ids.includes(mesh.userData["id"])) {
 			let material = speciesMaterial(document.getElementById('materialSelect').value, 0xffa500, document.getElementById('wireframe').checked);
 			mesh.material = material;
@@ -347,7 +348,7 @@ o_reset_selection.onclick = function () {
 
 o_hide_selection.onclick = function () {
 	selected_ids.forEach(function (item, index) {
-		let mesh = atomsGroup.getObjectByUserDataProperty("id", item);
+		let mesh = particleGroup.getObjectByUserDataProperty("id", item);
 		mesh.visible = false;
 
 		mesh.userData["bond_ids"].forEach(function (item, index) {
@@ -366,11 +367,11 @@ o_reset.onclick = function () {
 }
 
 o_sphere_plus.onclick = function () {
-	atomsGroup.children[0].geometry.scale(1.1, 1.1, 1.1);
+	particleGroup.children[0].children[0].geometry.scale(1.1, 1.1, 1.1);
 }
 
 o_sphere_minus.onclick = function () {
-	atomsGroup.children[0].geometry.scale(0.9, 0.9, 0.9);
+	particleGroup.children[0].children[0].geometry.scale(0.9, 0.9, 0.9);
 }
 
 o_bond_plus.onclick = function () {
@@ -604,7 +605,8 @@ window.addEventListener("keydown", (event) => {
 
 		let positions = [];
 		let distances = [];
-		atomsGroup.children.forEach(function (item) {
+		particleGroup.children.forEach(function (atoms_grp) {
+			let item = atoms_grp.children[0];
 			let vector = item.position.clone().project(camera);
 			vector.x = (vector.x + 1) / 2 * window.innerWidth;
 			vector.y = -(vector.y - 1) / 2 * window.innerHeight;
@@ -623,7 +625,7 @@ window.addEventListener("keydown", (event) => {
 			pointer.y = - (vector.y / window.innerHeight) * 2 + 1;
 
 			raycaster.setFromCamera(pointer, camera);
-			let intersects = raycaster.intersectObjects(atomsGroup.children.concat(bondsGroup.children[0].children, bondsGroup.children[1].children));
+			let intersects = raycaster.intersectObjects(particleGroup.children, true);
 
 			if (!(intersects[0].object == item)) {
 				return;
@@ -737,7 +739,7 @@ function move_atoms() {
 		div_bufferBar.style.width = (((frames.length - 1) / config["total_frames"]) * 100).toFixed(2) + "%";
 	}
 
-	if (frames[animation_frame].length != atomsGroup.children.length) {
+	if (frames[animation_frame].length != particleGroup.children.length) {
 		// we need to update the scene
 		build_scene(animation_frame);
 		scene_building = true;
@@ -746,7 +748,7 @@ function move_atoms() {
 
 
 	frames[animation_frame].forEach(function (item, index) {
-		atomsGroup.getObjectByUserDataProperty("id", index).position.set(...item);
+		particleGroup.getObjectByUserDataProperty("id", index).position.set(...item);
 	});
 
 	div_info.innerHTML = "Frame (" + animation_frame + "/" + (frames.length - 1) + ")";
@@ -758,8 +760,8 @@ function move_atoms() {
 			let bond_1 = bondsGroup.children[0].children[i];
 			let bond_2 = bondsGroup.children[1].children[i];
 
-			atomsGroup.getObjectByUserDataProperty("id", bond_1.userData["atom_id"]).getWorldPosition(node1);
-			atomsGroup.getObjectByUserDataProperty("id", bond_2.userData["atom_id"]).getWorldPosition(node2);
+			particleGroup.getObjectByUserDataProperty("id", bond_1.userData["atom_id"]).getWorldPosition(node1);
+			particleGroup.getObjectByUserDataProperty("id", bond_2.userData["atom_id"]).getWorldPosition(node2);
 
 			let direction = new THREE.Vector3().subVectors(node1, node2);
 
@@ -797,7 +799,7 @@ function centerCamera() {
 	if (selected_ids.length === 0) {
 		controls.target = new THREE.Vector3(0, 0, 0);
 	} else {
-		controls.target = atomsGroup.getObjectByUserDataProperty("id", selected_ids[0]).position.clone();
+		controls.target = particleGroup.getObjectByUserDataProperty("id", selected_ids[0]).position.clone();
 	}
 }
 
