@@ -107,34 +107,38 @@ update_materials();
 
 // Setup Scene
 
-
-
-
-
+let build_scene_cache = {};
 
 async function build_scene(step) {
 	if (scene_building) {
 		return;
 	}
-	const urls = ["atoms", "bonds"];
-	animation_frame = step;
 	console.log("Updating scene");
 
 	div_loading.style.visibility = 'visible';
 	div_greyOut.style.visibility = 'visible';
 
-	// this is faster then doing it one by one
-	const arrayOfResponses = await Promise.all(
-		urls.map((url) =>
-			fetch(url, {
-				"method": "POST",
-				"headers": { "Content-Type": "application/json" },
-				"body": JSON.stringify(step)
-			})
-				.then((res) => res.json())
-		)
-	);
+	const urls = ["atoms", "bonds"];
+	animation_frame = step;
 
+	let arrayOfResponses = [];
+	if (build_scene_cache.hasOwnProperty(step)) {
+		console.log("Using cached scene");
+		arrayOfResponses = build_scene_cache[step];
+	} else {
+		// this is faster then doing it one by one
+		arrayOfResponses = await Promise.all(
+			urls.map((url) =>
+				fetch(url, {
+					"method": "POST",
+					"headers": { "Content-Type": "application/json" },
+					"body": JSON.stringify(step)
+				})
+					.then((res) => res.json())
+			)
+		);
+		build_scene_cache[step] = arrayOfResponses;
+	}
 
 	drawAtoms(arrayOfResponses[0], arrayOfResponses[1], config, scene);
 	selected_ids = [];
@@ -142,7 +146,6 @@ async function build_scene(step) {
 	scene_building = false;
 
 	div_n_particles.innerHTML = particleGroup.children.length;
-	
 
 	div_n_bonds.innerHTML = countBonds();
 
@@ -731,7 +734,7 @@ function move_atoms() {
 
 	div_info.innerHTML = "Frame (" + animation_frame + "/" + (frames.length - 1) + ")";
 
-	if (animation_frame != displayed_frame){
+	if (animation_frame != displayed_frame) {
 		displayed_frame = animation_frame;
 		updateParticlePositions(frames[animation_frame]);
 	}

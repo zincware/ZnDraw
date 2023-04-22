@@ -27,6 +27,7 @@ def config():
 @app.route("/atoms", methods=["POST"])
 def atoms_step():
     step = request.json
+    print(f"Build graph for {step = }")
     try:
         atoms = globals.config.get_atoms(step=int(step))
         graph = io.get_graph(atoms)
