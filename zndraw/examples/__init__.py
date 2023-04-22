@@ -13,7 +13,7 @@ class UpdateScene(BaseModel, abc.ABC):
 
 class Explode(UpdateScene):
     steps: int = Field(100, le=1000, ge=1)
-    particles: int = Field(10, le=100, ge=1)
+    particles: int = Field(10, le=20, ge=1)
 
     def run(self, atom_ids: list[int], atoms: ase.Atoms) -> list[ase.Atoms]:
         particles = []
