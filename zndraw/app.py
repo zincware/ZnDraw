@@ -31,6 +31,7 @@ def atoms_step():
     try:
         atoms = globals.config.get_atoms(step=int(step))
         graph = io.get_graph(atoms)
+        print(f"Graph has {len(graph.nodes)} nodes and {len(graph.edges)} edges")
         return [{**graph.nodes[idx], "id": idx} for idx in graph.nodes]
     except (KeyError, IndexError):
         return []

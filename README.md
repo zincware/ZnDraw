@@ -46,4 +46,6 @@ To add your method click on the `+` on the right side of the window.
 Your should be able to add your method from the working directory via `module.MyUpdateCls` as long
 as it can be imported via `from module import MyUpdateCls`.
 
-![Alt text](https://raw.githubusercontent.com/zincware/ZnDraw/main/misc/zndraw_ui.png "ZnDraw UI")
+![ZnDraw UI](https://raw.githubusercontent.com/zincware/ZnDraw/main/misc/zndraw_ui.png "ZnDraw UI")
+
+![ZnDraw UI2](https://raw.githubusercontent.com/zincware/ZnDraw/main/misc/zndraw_protein.png "ZnDraw UI2")

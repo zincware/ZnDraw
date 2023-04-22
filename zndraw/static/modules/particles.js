@@ -30,11 +30,9 @@ const halfCylinderGeometryFactory = () => {
         key = bond_size + "_" + resolution;
 
         if (key in cache) {
-            console.log('Fetching CylinderGeometry from cache');
             return cache[key];
         }
         else {
-            console.log('Creating new CylinderGeometry');
             const geometry = new THREE.CylinderGeometry(0.15 * bond_size, 0.15 * bond_size, 1, resolution * 2);
             // shift it so one end rests on the origin
             geometry.applyMatrix4(new THREE.Matrix4().makeTranslation(0, 1 / 2, 0));
@@ -53,11 +51,9 @@ const sphereGeometryFactory = () => {
         key = sphere_size + "_" + resolution;
 
         if (key in cache) {
-            console.log('Fetching SphereGeometry from cache');
             return cache[key];
         }
         else {
-            console.log('Creating new SphereGeometry');
             const geometry = new THREE.SphereGeometry(sphere_size, resolution * 4, resolution * 2);
             cache[key] = geometry;
             return geometry;
