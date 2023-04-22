@@ -164,6 +164,22 @@ export function countBonds() {
     return (count - particleGroup.children.length) / 2; // subtract the number of particles and account for bonds being two meshes
 }
 
+/**
+ * Get the atom from the ID given by flask
+ * @param {BigInt} atom_id 
+ * @returns {THREE.Mesh}
+ */
+export function getAtomById(atom_id) {
+    let atom = undefined;
+    for (let i = 0; i < particleGroup.children.length; i++) {
+        if (particleGroup.children[i].children[0].userData["id"] == atom_id) {
+            atom = particleGroup.children[i].children[0];
+            break;
+        }
+    }
+    return atom;
+}
+
 // TODO rename clean AtomsBonds
 // this does not remove the scene!
 export function cleanScene(scene) {

@@ -1,28 +1,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { particleGroup, materials, drawAtoms, speciesMaterial, countBonds } from './modules/particles.js';
+import { particleGroup, materials, drawAtoms, speciesMaterial, countBonds, getAtomById } from './modules/particles.js';
 
-
-THREE.Object3D.prototype.getObjectByUserDataProperty = function (name, value) {
-
-	if (this.userData[name] === value) return this;
-
-	for (var i = 0, l = this.children.length; i < l; i++) {
-
-		var child = this.children[i];
-		var object = child.getObjectByUserDataProperty(name, value);
-
-		if (object !== undefined) {
-
-			return object;
-
-		}
-
-	}
-
-	return undefined;
-
-}
 
 // THREE.Cache.enabled = true;
 
@@ -756,20 +735,21 @@ function move_atoms() {
 
 
 	frames[animation_frame].forEach(function (item, index) {
-		particleGroup.getObjectByUserDataProperty("id", index).position.set(...item);
+		getAtomById(index).position.set(...item);
 	});
 
 	div_info.innerHTML = "Frame (" + animation_frame + "/" + (frames.length - 1) + ")";
 	// TODO move into particles module
 	if (config["bond_size"] > 0) {
 		scene.updateMatrixWorld();
+		const direction = new THREE.Vector3();
 
 		particleGroup.children.forEach((per_atom_grp) => {
 			let atom = per_atom_grp.children[0];
 			for (let j = 1; j < per_atom_grp.children.length; j++) {
 				let bond = per_atom_grp.children[j];
-				let target_atom = particleGroup.getObjectByUserDataProperty("id", bond.userData["target_atom"]);
-				let direction = new THREE.Vector3().subVectors(atom.position, target_atom.position);
+				let target_atom = getAtomById(bond.userData["target_atom"]);
+				direction.subVectors(atom.position, target_atom.position);
 				let scale = (direction.length() / 2);
 				if (scale > 1.5) {
 					scale = 0.0;
@@ -798,7 +778,7 @@ function centerCamera() {
 	if (selected_ids.length === 0) {
 		controls.target = new THREE.Vector3(0, 0, 0);
 	} else {
-		controls.target = particleGroup.getObjectByUserDataProperty("id", selected_ids[0]).position.clone();
+		controls.target = getAtomById(selected_ids[0]).position.clone();
 	}
 }
 
