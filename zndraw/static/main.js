@@ -1,9 +1,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { hello_world } from './modules/particles.js';
+import {atomsGroup, bondsGroup, materials, drawAtoms} from './modules/particles.js';
 
-
-hello_world();
 
 THREE.Object3D.prototype.getObjectByUserDataProperty = function (name, value) {
 
@@ -39,25 +37,12 @@ const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
 const hemisphereLight = new THREE.HemisphereLight(0xffffff, 0x777777, 0.1);
 const spotLight = new THREE.SpotLight(0xffffff, 1, 0, Math.PI / 2);
 
-const atomsGroup = new THREE.Group();
 
-const bondsGroup = new THREE.Group();
-const bondsGroup_1 = new THREE.Group();
-const bondsGroup_2 = new THREE.Group();
+
 
 let node1 = new THREE.Vector3();
 let node2 = new THREE.Vector3();
 
-const materials = {
-	"MeshBasicMaterial": new THREE.MeshBasicMaterial({ color: "#ffa500" }),
-	"MeshLambertMaterial": new THREE.MeshLambertMaterial({ color: "#ffa500" }),
-	"MeshMatcapMaterial": new THREE.MeshMatcapMaterial({ color: "#ffa500" }),
-	"MeshPhongMaterial": new THREE.MeshPhongMaterial({ color: "#ffa500" }),
-	"MeshPhysicalMaterial": new THREE.MeshPhysicalMaterial({ color: "#ffa500" }),
-	"MeshStandardMaterial": new THREE.MeshStandardMaterial({ color: "#ffa500" }),
-	"MeshToonMaterial": new THREE.MeshToonMaterial({ color: "#ffa500" }),
-
-};
 
 /**
  * Three JS Setup
@@ -143,107 +128,14 @@ async function update_materials() {
 
 update_materials();
 
-function halfCylinderGeometry(pointX, pointY) {
-	// Make the geometry (of "direction" length)
-	var direction = new THREE.Vector3().subVectors(pointY, pointX);
 
-	var geometry = new THREE.CylinderGeometry(0.15 * config["bond_size"], 0.15 * config["bond_size"], direction.length() / 2, config["resolution"] * 2);
-	// // shift it so one end rests on the origin
-	geometry.applyMatrix4(new THREE.Matrix4().makeTranslation(0, direction.length() / 4, 0));
-	// // rotate it the right way for lookAt to work
-	geometry.applyMatrix4(new THREE.Matrix4().makeRotationX(THREE.MathUtils.degToRad(90)));
-
-	return geometry;
-
-}
-
-function halfCylinderMesh(pointX, pointY, material) {
-	// // Make a mesh with the geometry
-	var geometry = halfCylinderGeometry(pointX, pointY);
-	var mesh = new THREE.Mesh(geometry, material);
-	// alignBetweenVectors(pointX, pointY, mesh);
-	// // Position it where we want
-	mesh.position.copy(pointX);
-	// // And make it point to where we want
-	mesh.lookAt(pointY);
-
-	return mesh;
-}
 
 // Setup Scene
 
-function addAtom(item) {
-	const geometry = new THREE.SphereGeometry(item["radius"] * config["sphere_size"], config["resolution"] * 4, config["resolution"] * 2);
-
-	const particle = new THREE.Mesh(geometry, materials[o_materialSelect.value].clone());
-	atomsGroup.add(particle);
-	particle.material.color.set(item["color"]);
-	particle.material.wireframe = o_wireframe.checked;
-
-	particle.position.set(...item["position"]);
-	particle.userData["id"] = item["id"];
-	particle.userData["color"] = item["color"];
-	particle.userData["bond_ids"] = [];
-}
-
-function addBond(item) {
-	atomsGroup.children[item[0]].getWorldPosition(node1);
-	atomsGroup.children[item[1]].getWorldPosition(node2);
-
-	const bond_1 = halfCylinderMesh(node1, node2, atomsGroup.children[item[0]].material);
-	const bond_2 = halfCylinderMesh(node2, node1, atomsGroup.children[item[1]].material);
-
-	bond_1.userData["atom_id"] = item[0];
-	bond_2.userData["atom_id"] = item[1];
-
-	atomsGroup.children[item[0]].userData["bond_ids"].push(bond_1.id);
-	atomsGroup.children[item[0]].userData["bond_ids"].push(bond_2.id);
-	atomsGroup.children[item[1]].userData["bond_ids"].push(bond_1.id);
-	atomsGroup.children[item[1]].userData["bond_ids"].push(bond_2.id);
 
 
-	bondsGroup_1.add(bond_1);
-	bondsGroup_2.add(bond_2);
-
-}
-
-function cleanScene() {
-	while (atomsGroup.children.length > 0) {
-		scene.remove(atomsGroup.children.shift());
-	};
-	while (bondsGroup_1.children.length > 0) {
-		scene.remove(bondsGroup_1.children.shift());
-	};
-	while (bondsGroup_2.children.length > 0) {
-		scene.remove(bondsGroup_2.children.shift());
-	};
-}
 
 
-function drawAtoms(atoms, bonds) {
-	cleanScene();
-
-	atoms.forEach(function (item, index) {
-		// console.log("Adding item " + index + " to scene(" + item + ")");
-		addAtom(item);
-	});
-
-	scene.add(atomsGroup);
-	if (config["bond_size"] > 0) {
-
-		bonds.forEach(function (item, index) {
-			// console.log("Adding item " + index + " to scene(" + item + ")");
-			addBond(item);
-
-		});
-
-		bondsGroup.add(bondsGroup_1);
-		bondsGroup.add(bondsGroup_2);
-		scene.add(bondsGroup);
-
-	}
-
-}
 
 async function build_scene(step) {
 	if (scene_building) {
@@ -269,13 +161,13 @@ async function build_scene(step) {
 	);
 
 
-	drawAtoms(arrayOfResponses[0], arrayOfResponses[1]);
+	drawAtoms(arrayOfResponses[0], arrayOfResponses[1], config, scene);
 	selected_ids = [];
 	await update_selection();
 	scene_building = false;
 
 	div_n_particles.innerHTML = atomsGroup.children.length;
-	div_n_bonds.innerHTML = bondsGroup_1.children.length;
+	div_n_bonds.innerHTML = bondsGroup.children[0].children.length;
 
 	div_greyOut.style.visibility = 'hidden';
 	div_loading.style.visibility = 'hidden';
@@ -457,8 +349,8 @@ o_hide_selection.onclick = function () {
 		mesh.visible = false;
 
 		mesh.userData["bond_ids"].forEach(function (item, index) {
-			bondsGroup_1.getObjectById(item).visible = false;
-			bondsGroup_2.getObjectById(item).visible = false;
+			bondsGroup.children[0].getObjectById(item).visible = false;
+			bondsGroup.children[1].getObjectById(item).visible = false;
 		});
 	});
 }
@@ -733,7 +625,7 @@ window.addEventListener("keydown", (event) => {
 			pointer.y = - (vector.y / window.innerHeight) * 2 + 1;
 
 			raycaster.setFromCamera(pointer, camera);
-			let intersects = raycaster.intersectObjects(atomsGroup.children.concat(bondsGroup_1.children, bondsGroup_2.children));
+			let intersects = raycaster.intersectObjects(atomsGroup.children.concat(bondsGroup.children[0].children, bondsGroup.children[1].children));
 
 			if (!(intersects[0].object == item)) {
 				return;
@@ -864,9 +756,9 @@ function move_atoms() {
 	if (config["bond_size"] > 0) {
 		scene.updateMatrixWorld();
 
-		for (let i = 0; i < bondsGroup_1.children.length; i++) {
-			let bond_1 = bondsGroup_1.children[i];
-			let bond_2 = bondsGroup_2.children[i];
+		for (let i = 0; i < bondsGroup.children[0].children.length; i++) {
+			let bond_1 = bondsGroup.children[0].children[i];
+			let bond_2 = bondsGroup.children[1].children[i];
 
 			atomsGroup.getObjectByUserDataProperty("id", bond_1.userData["atom_id"]).getWorldPosition(node1);
 			atomsGroup.getObjectByUserDataProperty("id", bond_2.userData["atom_id"]).getWorldPosition(node2);
