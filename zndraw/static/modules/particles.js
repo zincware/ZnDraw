@@ -3,9 +3,6 @@ import * as THREE from 'three';
 // each entry in the particleGroup again is a group of [particle, bond1, bond2, bond3, ...]
 export const particleGroup = new THREE.Group();
 
-export const bondsGroup = new THREE.Group();
-export const bondsGroup_1 = new THREE.Group();
-export const bondsGroup_2 = new THREE.Group();
 
 export const materials = {
     "MeshBasicMaterial": new THREE.MeshBasicMaterial({ color: "#ffa500" }),
@@ -137,26 +134,34 @@ function addBond(item, config) {
     const bond_1 = halfCylinderMesh(node1, node2, particle1.material, config);
     const bond_2 = halfCylinderMesh(node2, node1, particle2.material, config);
 
-    bond_1.userData["atom_id"] = item[0];
-    bond_2.userData["atom_id"] = item[1];
+    // the atom to look at
+    bond_1.userData["target_atom"] = item[1];
+    bond_2.userData["target_atom"] = item[0];
 
-    particle1.userData["bond_ids"].push(bond_1.id);
-    particle1.userData["bond_ids"].push(bond_2.id);
-    particle2.userData["bond_ids"].push(bond_1.id);
-    particle2.userData["bond_ids"].push(bond_2.id);
+    // particle1.userData["bond_ids"].push(bond_1.id);
+    // particle1.userData["bond_ids"].push(bond_2.id);
+    // particle2.userData["bond_ids"].push(bond_1.id);
+    // particle2.userData["bond_ids"].push(bond_2.id);
 
-    // for (let i = 0; i < particleGroup.children.length; i++) {
-    //     if (particleGroup.children[i].children[0].userData["id"] == item[0]) {
-    //         particleGroup.children[i].add(bond_1);
-    //     }
-    //     if (particleGroup.children[i].children[0].userData["id"] == item[1]) {
-    //         particleGroup.children[i].add(bond_2);
-    //     }
-    // }
+    for (let i = 0; i < particleGroup.children.length; i++) {
+        if (particleGroup.children[i].children[0].userData["id"] == item[0]) {
+            particleGroup.children[i].add(bond_1);
+        }
+        if (particleGroup.children[i].children[0].userData["id"] == item[1]) {
+            particleGroup.children[i].add(bond_2);
+        }
+    }
 
-    bondsGroup_1.add(bond_1);
-    bondsGroup_2.add(bond_2);
+}
 
+export function countBonds() {
+    let count = 0;
+    particleGroup.traverse((child) => {
+        if (child.isMesh){
+            count += 1;
+        }
+    });
+    return (count - particleGroup.children.length) / 2; // subtract the number of particles and account for bonds being two meshes
 }
 
 // TODO rename clean AtomsBonds
@@ -164,12 +169,6 @@ function addBond(item, config) {
 export function cleanScene(scene) {
     while (particleGroup.children.length > 0) {
         scene.remove(particleGroup.children.shift());
-    };
-    while (bondsGroup_1.children.length > 0) {
-        scene.remove(bondsGroup_1.children.shift());
-    };
-    while (bondsGroup_2.children.length > 0) {
-        scene.remove(bondsGroup_2.children.shift());
     };
 }
 
@@ -181,7 +180,6 @@ export function drawAtoms(atoms, bonds, config, scene) {
         addAtom(item, config);
     });
 
-    scene.add(particleGroup);
     if (config["bond_size"] > 0) {
 
         bonds.forEach(function (item, index) {
@@ -189,11 +187,6 @@ export function drawAtoms(atoms, bonds, config, scene) {
             addBond(item, config);
 
         });
-
-        bondsGroup.add(bondsGroup_1);
-        bondsGroup.add(bondsGroup_2);
-        scene.add(bondsGroup);
-
     }
-
+    scene.add(particleGroup);
 }

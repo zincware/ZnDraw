@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { particleGroup, bondsGroup, materials, drawAtoms, speciesMaterial } from './modules/particles.js';
+import { particleGroup, materials, drawAtoms, speciesMaterial, countBonds } from './modules/particles.js';
 
 
 THREE.Object3D.prototype.getObjectByUserDataProperty = function (name, value) {
@@ -167,7 +167,9 @@ async function build_scene(step) {
 	scene_building = false;
 
 	div_n_particles.innerHTML = particleGroup.children.length;
-	div_n_bonds.innerHTML = bondsGroup.children[0].children.length;
+	
+
+	div_n_bonds.innerHTML = countBonds();  //bondsGroup.children[0].children.length;
 
 	div_greyOut.style.visibility = 'hidden';
 	div_loading.style.visibility = 'hidden';
@@ -245,10 +247,14 @@ async function update_color_of_ids(ids) {
 		let mesh = atom_grp.children[0];
 		if (ids.includes(mesh.userData["id"])) {
 			let material = speciesMaterial(document.getElementById('materialSelect').value, 0xffa500, document.getElementById('wireframe').checked);
-			mesh.material = material;
+			atom_grp.children.forEach(function (item) {
+				item.material = material;
+			});
 		} else {
 			let material = speciesMaterial(document.getElementById('materialSelect').value, mesh.userData["color"], document.getElementById('wireframe').checked);
-			mesh.material = material;
+			atom_grp.children.forEach(function (item) {
+				item.material = material;
+			});
 		}
 	});
 	return ids;
@@ -346,17 +352,17 @@ o_reset_selection.onclick = function () {
 }
 
 
-o_hide_selection.onclick = function () {
-	selected_ids.forEach(function (item, index) {
-		let mesh = particleGroup.getObjectByUserDataProperty("id", item);
-		mesh.visible = false;
+// o_hide_selection.onclick = function () {
+// 	selected_ids.forEach(function (item, index) {
+// 		let mesh = particleGroup.getObjectByUserDataProperty("id", item);
+// 		mesh.visible = false;
 
-		mesh.userData["bond_ids"].forEach(function (item, index) {
-			bondsGroup.children[0].getObjectById(item).visible = false;
-			bondsGroup.children[1].getObjectById(item).visible = false;
-		});
-	});
-}
+// 		mesh.userData["bond_ids"].forEach(function (item, index) {
+// 			bondsXGroup.children[0].getObjectById(item).visible = false;
+// 			bondsXGroup.children[1].getObjectById(item).visible = false;
+// 		});
+// 	});
+// }
 
 o_reset.onclick = function () {
 	load_config();
@@ -375,11 +381,13 @@ o_sphere_minus.onclick = function () {
 }
 
 o_bond_plus.onclick = function () {
-	bondsGroup.children[0].children[0].geometry.scale(1.1, 1.1, 1.0);
+	// assume that particle 0 is bound to any other particle here is dangerous
+	particleGroup.children[0].children[1].geometry.scale(1.1, 1.1, 1.0);
 }
 
 o_bond_minus.onclick = function () {
-	bondsGroup.children[0].children[0].geometry.scale(0.9, 0.9, 1.0);
+	// see issue with plus
+	particleGroup.children[0].children[1].geometry.scale(0.9, 0.9, 1.0);
 }
 
 o_resolution_plus.onclick = function () {
@@ -752,34 +760,31 @@ function move_atoms() {
 	});
 
 	div_info.innerHTML = "Frame (" + animation_frame + "/" + (frames.length - 1) + ")";
-
+	// TODO move into particles module
 	if (config["bond_size"] > 0) {
 		scene.updateMatrixWorld();
 
-		for (let i = 0; i < bondsGroup.children[0].children.length; i++) {
-			let bond_1 = bondsGroup.children[0].children[i];
-			let bond_2 = bondsGroup.children[1].children[i];
-
-			particleGroup.getObjectByUserDataProperty("id", bond_1.userData["atom_id"]).getWorldPosition(node1);
-			particleGroup.getObjectByUserDataProperty("id", bond_2.userData["atom_id"]).getWorldPosition(node2);
-
-			let direction = new THREE.Vector3().subVectors(node1, node2);
-
-			let scale = (direction.length() / 2) / bond_1.geometry.parameters.height;
-
-			if (scale > 1.5) {
-				scale = 0.0;
+		for (let i = 0; i < particleGroup.children.length; i++) {
+			let per_atom_grp = particleGroup.children[i];
+			let atom = per_atom_grp.children[0];
+			for (let j = 1; j < per_atom_grp.children.length; j++) {
+				let bond = per_atom_grp.children[j];
+				let target_atom = particleGroup.getObjectByUserDataProperty("id", bond.userData["target_atom"]);
+				// console.log("bond update ->");
+				// console.log(atom);
+				// console.log(target_atom);
+				// console.log(bond);
+				let direction = new THREE.Vector3().subVectors(atom.position, target_atom.position);
+				let scale = (direction.length() / 2);
+				if (scale > 1.5) {
+					scale = 0.0;
+				}
+				bond.scale.set(1, 1, scale);
+				bond.position.copy(atom.position);
+				bond.lookAt(target_atom.position);
 			}
-
-			bond_1.scale.set(1, 1, scale);
-			bond_2.scale.set(1, 1, scale);
-
-			bond_1.position.copy(node1);
-			bond_2.position.copy(node2);
-
-			bond_1.lookAt(node2);
-			bond_2.lookAt(node1);
 		}
+
 	}
 
 	fps.push(move_atoms_clock.getElapsedTime());
