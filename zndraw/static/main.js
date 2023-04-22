@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import {atomsGroup, bondsGroup, materials, drawAtoms} from './modules/particles.js';
+import { atomsGroup, bondsGroup, materials, drawAtoms, speciesMaterial } from './modules/particles.js';
 
 
 THREE.Object3D.prototype.getObjectByUserDataProperty = function (name, value) {
@@ -243,9 +243,11 @@ async function onPointerDown(event) {
 async function update_color_of_ids(ids) {
 	atomsGroup.children.forEach(function (mesh) {
 		if (ids.includes(mesh.userData["id"])) {
-			mesh.material.color.set(0xffa500);
+			let material = speciesMaterial(document.getElementById('materialSelect').value, 0xffa500, document.getElementById('wireframe').checked);
+			mesh.material = material;
 		} else {
-			mesh.material.color.set(mesh.userData["color"]);
+			let material = speciesMaterial(document.getElementById('materialSelect').value, mesh.userData["color"], document.getElementById('wireframe').checked);
+			mesh.material = material;
 		}
 	});
 	return ids;

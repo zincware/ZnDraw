@@ -67,8 +67,31 @@ const sphereGeometryFactory = () => {
     }
 }
 
+
+const speciesMaterialFactory = () => {
+    let cache = {};
+    let key = ""
+    return (name, color, wireframe) => {
+        key = name + "_" + color + "_" + wireframe;
+
+        if (key in cache) {
+            console.log('Fetching material from cache');
+            return cache[key];
+        }
+        else {
+            console.log('Creating new material');
+            const material = materials[name].clone()
+            material.color.set(color);
+            material.wireframe = wireframe;
+            cache[key] = material;
+            return material;
+        }
+    }
+}
+
 const halfCylinderGeometry = halfCylinderGeometryFactory();
 const sphereGeometry = sphereGeometryFactory();
+export const speciesMaterial = speciesMaterialFactory();
 
 function halfCylinderMesh(pointX, pointY, material, config) {
     // // Make a mesh with the geometry
@@ -88,11 +111,10 @@ function halfCylinderMesh(pointX, pointY, material, config) {
 
 function addAtom(item, config) {
     let geometry = sphereGeometry(config["sphere_size"], config["resolution"]);
+    let material = speciesMaterial(document.getElementById('materialSelect').value, item["color"], document.getElementById('wireframe').checked);
 
-    const particle = new THREE.Mesh(geometry, materials[document.getElementById('materialSelect').value].clone());
+    const particle = new THREE.Mesh(geometry, material);
     atomsGroup.add(particle);
-    particle.material.color.set(item["color"]);
-    particle.material.wireframe = document.getElementById('wireframe').checked;
     particle.scale.set(item["radius"], item["radius"], item["radius"]);
 
     particle.position.set(...item["position"]);
