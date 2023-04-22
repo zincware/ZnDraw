@@ -93,7 +93,7 @@ class Config:
             if step != 0:
                 raise
             self.load_atoms(0)
-            return _atoms_cache[0]
+            return _atoms_cache[0].repeat(self.repeat)
 
 
 # TODO set defaults here and load in typer?

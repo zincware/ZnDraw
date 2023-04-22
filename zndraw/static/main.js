@@ -18,11 +18,6 @@ const spotLight = new THREE.SpotLight(0xffffff, 1, 0, Math.PI / 2);
 
 
 
-
-let node1 = new THREE.Vector3();
-let node2 = new THREE.Vector3();
-
-
 /**
  * Three JS Setup
  */
@@ -43,6 +38,7 @@ let config = {};
 let frames = [];
 let selected_ids = [];
 let animation_frame = 0;
+let displayed_frame = 0;
 let scene_building = false;
 let animation_running = true;
 let data_loading = false;
@@ -735,7 +731,10 @@ function move_atoms() {
 
 	div_info.innerHTML = "Frame (" + animation_frame + "/" + (frames.length - 1) + ")";
 
-	updateParticlePositions(frames[animation_frame]);
+	if (animation_frame != displayed_frame){
+		displayed_frame = animation_frame;
+		updateParticlePositions(frames[animation_frame]);
+	}
 
 	fps.push(move_atoms_clock.getElapsedTime());
 

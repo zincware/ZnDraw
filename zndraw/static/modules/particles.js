@@ -214,19 +214,20 @@ export function updateParticlePositions(positions) {
     positions.forEach(function (item, index) {
         let per_atom_grp = getAtomGrpById(index);
         let atom = per_atom_grp.children[0];
-        atom.position.set(...item);
-
+        node1.set(...item);
+        atom.position.copy(node1);
+        
         for (let j = 1; j < per_atom_grp.children.length; j++) {
             let bond = per_atom_grp.children[j];
-            let target_atom = getAtomById(bond.userData["target_atom"]);
-            direction.subVectors(atom.position, target_atom.position);
+            node2.set(...positions[bond.userData["target_atom"]]);
+            direction.subVectors(node1, node2);
             let scale = (direction.length() / 2);
             if (scale > 1.5) {
                 scale = 0.0;
             }
             bond.scale.set(1, 1, scale);
-            bond.position.copy(atom.position);
-            bond.lookAt(target_atom.position);
+            bond.position.copy(node1);
+            bond.lookAt(node2);
         }
     });
 };
