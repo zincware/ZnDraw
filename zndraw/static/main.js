@@ -764,16 +764,11 @@ function move_atoms() {
 	if (config["bond_size"] > 0) {
 		scene.updateMatrixWorld();
 
-		for (let i = 0; i < particleGroup.children.length; i++) {
-			let per_atom_grp = particleGroup.children[i];
+		particleGroup.children.forEach((per_atom_grp) => {
 			let atom = per_atom_grp.children[0];
 			for (let j = 1; j < per_atom_grp.children.length; j++) {
 				let bond = per_atom_grp.children[j];
 				let target_atom = particleGroup.getObjectByUserDataProperty("id", bond.userData["target_atom"]);
-				// console.log("bond update ->");
-				// console.log(atom);
-				// console.log(target_atom);
-				// console.log(bond);
 				let direction = new THREE.Vector3().subVectors(atom.position, target_atom.position);
 				let scale = (direction.length() / 2);
 				if (scale > 1.5) {
@@ -783,8 +778,7 @@ function move_atoms() {
 				bond.position.copy(atom.position);
 				bond.lookAt(target_atom.position);
 			}
-		}
-
+		});
 	}
 
 	fps.push(move_atoms_clock.getElapsedTime());
