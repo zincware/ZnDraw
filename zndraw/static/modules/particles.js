@@ -20,30 +20,52 @@ export const materials = {
 let node1 = new THREE.Vector3();
 let node2 = new THREE.Vector3();
 
-// TODO do not create new variables every time but reuse!
-function halfCylinderGeometry(pointX, pointY, config) {
-	// Make the geometry (of "direction" length)
-	var direction = new THREE.Vector3().subVectors(pointY, pointX);
+const direction = new THREE.Vector3();
 
-	var geometry = new THREE.CylinderGeometry(0.15 * config["bond_size"], 0.15 * config["bond_size"], direction.length() / 2, config["resolution"] * 2);
-	// // shift it so one end rests on the origin
-	geometry.applyMatrix4(new THREE.Matrix4().makeTranslation(0, direction.length() / 4, 0));
-	// // rotate it the right way for lookAt to work
-	geometry.applyMatrix4(new THREE.Matrix4().makeRotationX(THREE.MathUtils.degToRad(90)));
+// TODO reuse geometry and material for all atoms and just modify the meshes
 
-	return geometry;
+// a simple memoized function to add something
+const halfCylinderGeometryFactory = () => {
+    let cache = {};
+    let key = ""
+    return (bond_size, resolution) => {
+        key = bond_size + "_" + resolution;
 
-}
+      if (key in cache) {
+        console.log('Fetching CylinderGeometry from cache');
+        return cache[key];
+      }
+      else {
+        console.log('Creating new CylinderGeometry');
+        let geometry = new THREE.CylinderGeometry(bond_size, bond_size, 1, resolution);
+        // shift it so one end rests on the origin
+        geometry.applyMatrix4(new THREE.Matrix4().makeTranslation(0, 1 / 2, 0));
+        // rotate it the right way for lookAt to work
+        geometry.applyMatrix4(new THREE.Matrix4().makeRotationX(THREE.MathUtils.degToRad(90)));
+        cache[key] = geometry;
+        return geometry;
+      }
+    }
+  }
+
+const halfCylinderGeometry = halfCylinderGeometryFactory();
 
 function halfCylinderMesh(pointX, pointY, material, config) {
 	// // Make a mesh with the geometry
-	var geometry = halfCylinderGeometry(pointX, pointY, config);
+	direction.subVectors(pointY, pointX);
+
+    let geometry = halfCylinderGeometry(0.15 * config["bond_size"], config["resolution"] * 2);
+    
 	var mesh = new THREE.Mesh(geometry, material);
+
+	
 	// alignBetweenVectors(pointX, pointY, mesh);
 	// // Position it where we want
 	mesh.position.copy(pointX);
 	// // And make it point to where we want
 	mesh.lookAt(pointY);
+    let scale = (direction.length() / 2) / mesh.geometry.parameters.height;
+    mesh.scale.set(1, 1, scale);
 
 	return mesh;
 }
