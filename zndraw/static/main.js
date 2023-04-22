@@ -1,6 +1,9 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { hello_world } from './modules/particles.js';
 
+
+hello_world();
 
 THREE.Object3D.prototype.getObjectByUserDataProperty = function (name, value) {
 
@@ -239,7 +242,6 @@ function drawAtoms(atoms, bonds) {
 		scene.add(bondsGroup);
 
 	}
-
 
 }
 
