@@ -364,23 +364,19 @@ o_reset.onclick = function () {
 }
 
 o_sphere_plus.onclick = function () {
-	config["sphere_size"] += 0.1;
-	build_scene(animation_frame);
+	atomsGroup.children[0].geometry.scale(1.1, 1.1, 1.1);
 }
 
 o_sphere_minus.onclick = function () {
-	config["sphere_size"] -= 0.1;
-	build_scene(animation_frame);
+	atomsGroup.children[0].geometry.scale(0.9, 0.9, 0.9);
 }
 
 o_bond_plus.onclick = function () {
-	config["bond_size"] += 0.1;
-	build_scene(animation_frame);
+	bondsGroup.children[0].children[0].geometry.scale(1.1, 1.1, 1.0);
 }
 
 o_bond_minus.onclick = function () {
-	config["bond_size"] -= 0.1;
-	build_scene(animation_frame);
+	bondsGroup.children[0].children[0].geometry.scale(0.9, 0.9, 1.0);
 }
 
 o_resolution_plus.onclick = function () {
