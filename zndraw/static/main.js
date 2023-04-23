@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { particleGroup, materials, drawAtoms, speciesMaterial, countBonds, getAtomById, updateParticlePositions } from './modules/particles.js';
-import * as pointerControl from './modules/pointerControl.js';
+
 
 // THREE.Cache.enabled = true;
 
@@ -162,8 +162,6 @@ const controls = new OrbitControls(camera, renderer.domElement);
 
 controls.update();
 
-pointerControl.setup(camera);
-
 function onWindowResize() {
 	camera.aspect = window.innerWidth / window.innerHeight
 	camera.updateProjectionMatrix()
@@ -171,16 +169,24 @@ function onWindowResize() {
 	renderer.render(scene, camera);
 }
 
-// Used for displaying the indices
 const raycaster = new THREE.Raycaster();
 const pointer = new THREE.Vector2();
 
 
 async function onPointerDown(event) {
 
+	// calculate pointer position in normalized device coordinates
+	// (-1 to +1) for both components
+	// event.preventDefault(); # this doesn't work
+
+	pointer.x = (event.clientX / window.innerWidth) * 2 - 1;
+	pointer.y = - (event.clientY / window.innerHeight) * 2 + 1;
+
+	// update the picking ray with the camera and pointer position
+	raycaster.setFromCamera(pointer, camera);
 
 	// calculate objects intersecting the picking ray
-	const intersects = pointerControl.raycaster.intersectObjects(particleGroup.children, true);
+	const intersects = raycaster.intersectObjects(particleGroup.children, true);
 
 	if (intersects.length == 0) {
 		return;
