@@ -16,9 +16,13 @@ def index():
     return render_template("index.html", config=globals.config.dict())
 
 
-@app.route("/config")
+@app.route("/config", methods=["POST", "GET"])
 def config():
     """Get the zndraw configuration."""
+    if request.method == "POST":
+        print(f"Updating config: {request.json}")
+        for key, value in request.json.items():
+            setattr(globals.config, key, value)
     return {
         **globals.config.dict(),
         "total_frames": len(globals.config._atoms_cache) - 1,

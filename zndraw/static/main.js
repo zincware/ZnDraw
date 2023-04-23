@@ -125,6 +125,8 @@ async function build_scene(step) {
 		build_scene_cache[step] = arrayOfResponses;
 	}
 
+	config = await (await fetch("config")).json();
+
 	PARTICLES.drawAtoms(arrayOfResponses["nodes"], arrayOfResponses["edges"], config, scene);
 	selected_ids = [];
 	await update_selection();
@@ -328,6 +330,12 @@ document.getElementById("sphereRadius").onchange = function () {
 	let particleGeometry = PARTICLES.particleGroup.children[0].children[0].geometry;
 	let scale = radius / particleGeometry.boundingSphere.radius;
 	particleGeometry.scale(scale, scale, scale);
+	fetch("config", {
+			"method": "POST",
+			"headers": { "Content-Type": "application/json" },
+			"body": JSON.stringify({ "sphere_size": radius }),
+		});
+
 };
 
 document.getElementById("sphereRadius").oninput = function () {
@@ -342,17 +350,28 @@ document.getElementById("bondDiameter").oninput = function () {
 
 document.getElementById("bondDiameter").onchange = function () {
 	let diameter = parseFloat(document.getElementById("bondDiameter").value);
-	// Dangerous, assumes that there is a bond for the first atom
-	let bondGeometry = PARTICLES.particleGroup.children[0].children[1].geometry;
-	// This does not work for the box, only for the spheres!
-	let scale = diameter / bondGeometry.boundingSphere.radius;
-	// console.log(bondGeometry)
-	bondGeometry.scale(scale, scale, 1);
+	// // Dangerous, assumes that there is a bond for the first atom
+	// let bondGeometry = PARTICLES.particleGroup.children[0].children[1].geometry;
+	// // This does not work for the box, only for the spheres!
+	// let scale = diameter / bondGeometry.boundingSphere.radius;
+	// // console.log(bondGeometry)
+	// bondGeometry.scale(scale, scale, 1);
+	fetch("config", {
+		"method": "POST",
+		"headers": { "Content-Type": "application/json" },
+		"body": JSON.stringify({ "bond_size": diameter }),
+	});
+	// currently we can't scale correctly so we reset everything
+	build_scene(animation_frame);
 };
 
 document.getElementById("resolution").onchange = function () {
 	let resolution = parseInt(document.getElementById("resolution").value);
-	config["resolution"] = resolution;
+	fetch("config", {
+		"method": "POST",
+		"headers": { "Content-Type": "application/json" },
+		"body": JSON.stringify({ "resolution": resolution }),
+	});
 	build_scene(animation_frame);
 };
 
