@@ -111,6 +111,8 @@ def update_function_values():
 @app.route("/select_update_function/<name>")
 def select_update_function(name):
     """Select a function from the config."""
+    if name == "none":
+        name = None
     globals.config.update_function_name = name
     return {}
 

@@ -28,7 +28,6 @@
     integrity="sha384-ENjdO4Dr2bkBIFxQpeoTz1HIcje39Wm4jDKdf19U8gI4ddQ3GYNS7NTKfAdVQSZe"
     crossorigin="anonymous"></script>
 
-
   <!-- Loading Spinner -->
   <div class="atom-spinner" , id="atom-spinner">
     <div class="spinner-inner">
@@ -150,6 +149,16 @@
       <div class="mb-3">
         <button type="button" class="btn btn-secondary" id="reset_selection">Reset Selection</button>
       </div>
+      <div class="mb-3">
+        <label for="addSceneModifier" class="form-label">Add Scene Modifier</label>
+        <select class="form-select" aria-label="Default select example" id="addSceneModifier">
+          <option selected, value="none"> </option>
+          <option value="add">Add New</option>
+        </select>
+        <div id="addSceneModifierHelp" class="form-text">Load a Python class to modify the scene
+        </div>
+      </div>
+      <div id="sceneModifierSettings"></div>
     </div>
   </div>
 
@@ -163,24 +172,22 @@
     <div class="offcanvas-body">
 
       <div class="mb-3">
-        <div class="mb-3">
-          <label for="spotLightIntensity" class="form-label" id="spotLightIntensityLabel">Spot light intensity:
-            1.0</label>
-          <input type="range" class="form-range" min="0" max="1" step="0.01" id="spotLightIntensity" value="1">
-        </div>
-        <div class="mb-3">
-          <label for="hemisphereLightIntensity" class="form-label" id="hemisphereLightIntensityLabel">Hemisphere light
-            intensity: 1.0</label>
-          <input type="range" class="form-range" min="0" max="1" step="0.01" id="hemisphereLightIntensity" value="0.1">
-        </div>
-        <div class="mb-3">
-          <label for="max_fps" class="form-label" id="max_fpsLabel">Max FPS: {{ config.max_fps }}</label>
-          <input type="range" class="form-range" min="1" max="100" step="0.5" id="max_fps" value="{{ config.max_fps }}"
-            , oninput="max_fpsLabel.innerHTML = 'Max FPS: ' + this.value">
-        </div>
-        <div class="mb-3">
-          <button type="button" class="btn btn-secondary" id="reset">Reset Scene</button>
-        </div>
+        <label for="spotLightIntensity" class="form-label" id="spotLightIntensityLabel">Spot light intensity:
+          1.0</label>
+        <input type="range" class="form-range" min="0" max="1" step="0.01" id="spotLightIntensity" value="1">
+      </div>
+      <div class="mb-3">
+        <label for="hemisphereLightIntensity" class="form-label" id="hemisphereLightIntensityLabel">Hemisphere light
+          intensity: 1.0</label>
+        <input type="range" class="form-range" min="0" max="1" step="0.01" id="hemisphereLightIntensity" value="0.1">
+      </div>
+      <div class="mb-3">
+        <label for="max_fps" class="form-label" id="max_fpsLabel">Max FPS: {{ config.max_fps }}</label>
+        <input type="range" class="form-range" min="1" max="100" step="0.5" id="max_fps" value="{{ config.max_fps }}" ,
+          oninput="max_fpsLabel.innerHTML = 'Max FPS: ' + this.value">
+      </div>
+      <div class="mb-3">
+        <button type="button" class="btn btn-secondary" id="reset">Reset Scene</button>
       </div>
     </div>
   </div>
@@ -304,8 +311,32 @@
           <dd class="col-sm-9"><code>keydown shift</code></dd>
           <dt class="col-sm-3">show particle index</dt>
           <dd class="col-sm-9"><code>keydown I</code></dd>
-
         </dl>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add Scene Modifer -->
+  <div class="modal" tabindex="-1" id="addModifierModal">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Add Scene Modifier</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label for="addSceneModifierImport" class="form-label">Path to modifier <code>class</code></label>
+            <input type="email" class="form-control" id="addSceneModifierImport"
+              aria-describedby="addSceneModifierImportHelp">
+            <div id="addSceneModifierImportHelp" class="form-text">The input should be <code>module.cls</code> such that
+              <code> from module import cls</code> works.</div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+          <button type="button" class="btn btn-primary" id="addSceneModifierImportBtn">Load</button>
+        </div>
       </div>
     </div>
   </div>
@@ -314,6 +345,9 @@
   <div id="info"></div>
   <div id="progressBar"></div>
   <div id="bufferBar"></div>
+
+  <script src="{{ url_for('static', filename='ui_controls.js') }}"></script>
+
 </body>
 
 </html>

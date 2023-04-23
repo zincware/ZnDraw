@@ -83,6 +83,9 @@ const o_help_btn = document.getElementById('help_btn');
 const o_add_btn = document.getElementById('add_btn');
 const o_newPythonClassBtn = document.getElementById('newPythonClassBtn');
 
+const addModifierModal = new bootstrap.Modal(document.getElementById("addModifierModal"));
+const addSceneModifier = document.getElementById("addSceneModifier");
+
 
 // Helper Functions
 
@@ -426,18 +429,12 @@ o_hemisphereLightIntensity.oninput = function () {
  * @param {*} checked 
  * @returns 
  */
-function createRadioElement(name, checked, id, properties) {
-	var radioHtml = '<input class="form-check-input" type="radio" name="' + name + '"  id="' + id + '"';
-	if (checked) {
-		radioHtml += ' checked="checked"';
-	}
-	radioHtml += '/>';
+function createRadioElement(id, properties) {
 
 	var radioFragment = document.createElement('div');
-	radioFragment.classList.add("form-check");
-	radioFragment.innerHTML = radioHtml;
-
-
+	radioFragment.classList.add("mb-3");
+	radioFragment.classList.add("collapse", "show", "scene-modifier");
+	radioFragment.id = "sceneModifier_" + id;
 
 	let function_container = document.createElement('div');
 	function_container.classList.add("container-fluid", "bg-light", "rounded", "border", "border-primary");
@@ -531,6 +528,68 @@ function createRadioElement(name, checked, id, properties) {
 	radioFragment.appendChild(function_container);
 
 	return radioFragment;
+}
+
+addSceneModifier.onchange = function () {
+	console.log(this.value);
+	if (this.value == "add") {
+		addModifierModal.show();
+	} else {
+		fetch("/select_update_function/" + this.value)
+	}
+
+	let domElements = document.getElementsByClassName("scene-modifier");
+
+	[...domElements].forEach(element => {
+		let bs_collapse = new bootstrap.Collapse(element, {
+			toggle: false
+		  });
+		if (element.id == "sceneModifier_" + this.value) {
+			bs_collapse.show();
+		} else {
+			bs_collapse.hide();
+		}
+	});
+};
+
+document.getElementById("addSceneModifierImportBtn").onclick = function () {
+	let function_id = document.getElementById("addSceneModifierImport").value;
+	fetch("add_update_function", {
+		"method": "POST",
+		"headers": { "Content-Type": "application/json" },
+		"body": JSON.stringify(function_id),
+	}).then(response => response.json()).then(function (response_json) {
+		// if not null alert
+		if ("error" in response_json) {
+			// TODO check if method is already loaded
+			alert(response_json["error"]);
+			stepError(response_json["error"]);
+		} else {
+			if (document.getElementById("sceneModifier_" + response_json["title"]) != null) {
+				alert("Function already loaded");
+				stepError("Function already loaded");
+			};
+
+			addModifierModal.hide();
+
+			console.log(response_json);
+			load_config();
+		}
+		return response_json;
+	}).then(function (response_json) {
+		console.log(response_json);
+		let modifier = document.createElement("option");
+		modifier.value = response_json["title"];
+		modifier.innerHTML = response_json["title"];
+		addSceneModifier.appendChild(modifier);
+		addSceneModifier.value = response_json["title"];
+		return response_json;
+	}).then(function (response_json) {
+		let sceneModifierSettings = document.getElementById("sceneModifierSettings");
+		// sceneModifierSettings.innerHTML = "";
+		// TODO make them invisible and only the select one displayed / collapse / none ?
+		sceneModifierSettings.appendChild(createRadioElement(response_json["title"], response_json["properties"]));
+	});
 }
 
 // o_newPythonClassBtn.onclick = function () {

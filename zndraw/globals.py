@@ -34,6 +34,8 @@ class Config:
         self._update_function_name = value
 
     def get_update_signature(self):
+        if self.update_function is None:
+            return {}
         module_name, function_name = self.update_function.rsplit(".", 1)
         if function_name in _update_functions:
             return _update_functions[self.update_function_name].schema()
