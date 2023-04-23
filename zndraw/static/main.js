@@ -121,7 +121,6 @@ async function build_scene(step) {
 	div_loading.style.visibility = 'visible';
 	div_greyOut.style.visibility = 'visible';
 
-	const urls = ["atoms", "bonds"];
 	animation_frame = step;
 
 	let arrayOfResponses = [];
@@ -130,20 +129,17 @@ async function build_scene(step) {
 		arrayOfResponses = build_scene_cache[step];
 	} else {
 		// this is faster then doing it one by one
-		arrayOfResponses = await Promise.all(
-			urls.map((url) =>
-				fetch(url, {
+		 
+		arrayOfResponses = await (await fetch("graph", {
 					"method": "POST",
 					"headers": { "Content-Type": "application/json" },
 					"body": JSON.stringify(step)
-				})
-					.then((res) => res.json())
-			)
-		);
+				})).json();
+		console.log(arrayOfResponses);
 		build_scene_cache[step] = arrayOfResponses;
 	}
 
-	drawAtoms(arrayOfResponses[0], arrayOfResponses[1], config, scene);
+	drawAtoms(arrayOfResponses["nodes"], arrayOfResponses["edges"], config, scene);
 	selected_ids = [];
 	await update_selection();
 	scene_building = false;

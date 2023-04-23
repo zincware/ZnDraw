@@ -1,4 +1,3 @@
-import dataclasses
 import uuid
 
 import networkx as nx
@@ -12,29 +11,43 @@ app.secret_key = str(uuid.uuid4())
 
 @app.route("/")
 def index():
+    """Render the main ZnDraw page."""
     session["key"] = str(uuid.uuid4())  # TODO use session key e.g. for atoms cache
-    return render_template("index.html", config=dataclasses.asdict(globals.config))
+    return render_template("index.html", config=globals.config.dict())
 
 
 @app.route("/config")
 def config():
+    """Get the zndraw configuration."""
     return {
-        **dataclasses.asdict(globals.config),
+        **globals.config.dict(),
         "total_frames": len(globals._atoms_cache) - 1,
     }
 
-
-@app.route("/atoms", methods=["POST"])
-def atoms_step():
+@app.route("/graph", methods=["POST"])
+def get_graph():
     step = request.json
-    print(f"Build graph for {step = }")
     try:
         atoms = globals.config.get_atoms(step=int(step))
         graph = io.get_graph(atoms)
-        print(f"Graph has {len(graph.nodes)} nodes and {len(graph.edges)} edges")
-        return [{**graph.nodes[idx], "id": idx} for idx in graph.nodes]
-    except (KeyError, IndexError):
-        return []
+        return {
+            "nodes": [{**graph.nodes[idx], "id": idx} for idx in graph.nodes],
+            "edges": list(graph.edges),
+        }
+    except IndexError:
+        return {}
+
+# @app.route("/atoms", methods=["POST"])
+# def atoms_step():
+#     step = request.json
+#     print(f"Build graph for {step = }")
+#     try:
+#         atoms = globals.config.get_atoms(step=int(step))
+#         graph = io.get_graph(atoms)
+#         print(f"Graph has {len(graph.nodes)} nodes and {len(graph.edges)} edges")
+#         return [{**graph.nodes[idx], "id": idx} for idx in graph.nodes]
+#     except (KeyError, IndexError):
+#         return []
 
 
 @app.route("/positions", methods=["POST"])
@@ -50,12 +63,12 @@ def positions_step():
         return result
 
 
-@app.route("/bonds", methods=["POST"])
-def bonds_step():
-    step = request.json
-    atoms = globals.config.get_atoms(step=int(step))
-    graph = io.get_graph(atoms)
-    return list(graph.edges)
+# @app.route("/bonds", methods=["POST"])
+# def bonds_step():
+#     step = request.json
+#     atoms = globals.config.get_atoms(step=int(step))
+#     graph = io.get_graph(atoms)
+#     return list(graph.edges)
 
 
 @app.route("/select", methods=["POST"])

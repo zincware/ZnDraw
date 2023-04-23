@@ -53,7 +53,8 @@ def main(
         typer.echo(f"File {file} does not exist.")
         raise typer.Exit()
 
-    globals.config.file = file
+    globals.config = globals.Config(file=file)
+    print(globals.config)
 
     if wv is not None and webview:
         wv.create_window("ZnDraw", app)
