@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { particleGroup, materials, drawAtoms, speciesMaterial, countBonds, getAtomById, updateParticlePositions } from './modules/particles.js';
-
+import { keydown } from './modules/keypress.js';
 
 // THREE.Cache.enabled = true;
 
@@ -44,7 +44,6 @@ let animation_running = true;
 let data_loading = false;
 let fps = [];
 
-let keydown = { "shift": false, "ctrl": false, "alt": false, "c": false, "l": false };
 
 /**
  * DOM variables
@@ -588,38 +587,6 @@ document.getElementById("addSceneModifierImportBtn").onclick = function () {
 	});
 }
 
-// o_newPythonClassBtn.onclick = function () {
-// 	document.getElementById("add_class").style.display = "none";
-
-// 	fetch("add_update_function", {
-// 		"method": "POST",
-// 		"headers": { "Content-Type": "application/json" },
-// 		"body": JSON.stringify(document.getElementById("newPythonClass").value),
-// 	}).then(response => response.json()).then(function (response_json) {
-// 		// if not null alert
-// 		if ("error" in response_json) {
-// 			alert(response_json["error"]);
-// 			stepError(response_json["error"]);
-// 		} else {
-// 			console.log(response_json);
-// 			load_config();
-// 		}
-// 		return response_json;
-// 	}).then(function (response_json) {
-// 		console.log(response_json);
-// 		div_python_class_control.appendChild(createRadioElement("flexRadioUpdateFunction", true, response_json["title"], response_json["properties"]));
-
-// 		document.getElementById(response_json["title"]).onclick = function () {
-// 			console.log("clicked");
-// 			console.log(document.querySelector('input[name="flexRadioUpdateFunction"]:checked').id);
-// 			fetch("/select_update_function/" + document.querySelector('input[name="flexRadioUpdateFunction"]:checked').id)
-// 		};
-
-// 	});
-
-
-// }
-
 window.addEventListener("keydown", (event) => {
 	if (event.isComposing || event.key === " ") {
 		event.preventDefault();
@@ -701,37 +668,9 @@ window.addEventListener("keydown", (event) => {
 			document.body.appendChild(text2);
 		});
 	};
-	if (event.isComposing || event.shiftKey) {
-		keydown["shift"] = true;
-	}
-	if (event.isComposing || event.ctrlKey) {
-		keydown["strg"] = true;
-	}
-	if (event.isComposing || event.altKey) {
-		keydown["alt"] = true;
-	}
-	for (let key in keydown) {
-		if (event.isComposing || event.key === key) {
-			keydown[key] = true;
-		}
-	}
 });
 
 window.addEventListener("keyup", (event) => {
-	if (event.isComposing || !event.shiftKey) {
-		keydown["shift"] = false;
-	}
-	if (event.isComposing || !event.ctrlKey) {
-		keydown["ctrl"] = false;
-	}
-	if (event.isComposing || !event.altKey) {
-		keydown["alt"] = false;
-	}
-	for (let key in keydown) {
-		if (event.isComposing || event.key === key) {
-			keydown[key] = false;
-		}
-	}
 	if (event.isComposing || event.key === "i") {
 		let ids = document.getElementsByClassName("particle-id")
 		while (ids.length > 0) {
@@ -834,7 +773,6 @@ function centerCamera() {
  * Dynamic indices
  * 
  */
-
 
 
 function animate() {
