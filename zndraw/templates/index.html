@@ -60,19 +60,30 @@
         <ul class="navbar-nav me-auto mb-2 mb-lg-0">
           <li class="nav-item mx-1">
             <button class="btn btn-outline-secondary" type="button" data-bs-toggle="offcanvas"
-              data-bs-target="#particleCanvas" aria-controls="offcanvasExample">
+              data-bs-target="#particleCanvas" aria-controls="particleCanvas">
               Particles
             </button>
           </li>
           <li class="nav-item mx-1">
             <button class="btn btn-outline-secondary" type="button" data-bs-toggle="offcanvas"
-              data-bs-target="#interactionCanvas" aria-controls="offcanvasExample">
+              data-bs-target="#interactionCanvas" aria-controls="interactionCanvas">
               Interaction
+            </button>
+          </li>
+          <li class="nav-item mx-1">
+            <button class="btn btn-outline-secondary" type="button" data-bs-toggle="offcanvas"
+              data-bs-target="#sceneCanvas" aria-controls="sceneCanvas">
+              Scene
             </button>
           </li>
         </ul>
         <form class="d-flex">
-          <button class="btn btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#infoBoxCollapse" aria-expanded="false" aria-controls="infoBoxCollapse">
+          <button class="btn btn-outline-primary" type="button" data-bs-toggle="collapse"
+            data-bs-target="#helpBoxCollapse" aria-expanded="false" aria-controls="helpBoxCollapse">
+            Help
+          </button>
+          <button class="btn btn-outline-primary" type="button" data-bs-toggle="collapse"
+            data-bs-target="#infoBoxCollapse" aria-expanded="false" aria-controls="infoBoxCollapse">
             Info Box
           </button>
         </form>
@@ -82,7 +93,7 @@
 
   <!-- Off Canvas -->
   <!-- Particles -->
-  <div class="offcanvas offcanvas-start" data-bs-scroll="true" data-bs-backdrop="false" tabindex="-1"
+  <div class="offcanvas offcanvas-start canvasControl" data-bs-scroll="true" data-bs-backdrop="false" tabindex="-1"
     id="particleCanvas" aria-labelledby="particleCanvasLabel">
     <div class="offcanvas-header">
       <h5 class="offcanvas-title" id="particleCanvasLabel">Particles</h5>
@@ -117,10 +128,10 @@
   </div>
 
   <!-- Interaction -->
-  <div class="offcanvas offcanvas-start" data-bs-scroll="true" data-bs-backdrop="false" tabindex="-1"
+  <div class="offcanvas offcanvas-start canvasControl" data-bs-scroll="true" data-bs-backdrop="false" tabindex="-1"
     id="interactionCanvas" aria-labelledby="interactioneCanvasLabel">
     <div class="offcanvas-header">
-      <h5 class="offcanvas-title" id="interactionCanvasLabel">Particles</h5>
+      <h5 class="offcanvas-title" id="interactionCanvasLabel">Interaction</h5>
       <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
     </div>
     <div class="offcanvas-body">
@@ -133,10 +144,43 @@
           <option value="connected">Connected Particles</option>
           <option value="none">None</option>
         </select>
-        <div id="selection-methodHelp" class="form-text">Select single particles, whole molecules or disable selection.</div>
+        <div id="selection-methodHelp" class="form-text">Select single particles, whole molecules or disable selection.
+        </div>
       </div>
       <div class="mb-3">
         <button type="button" class="btn btn-secondary" id="reset_selection">Reset Selection</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scene -->
+  <div class="offcanvas offcanvas-start canvasControl" data-bs-scroll="true" data-bs-backdrop="false" tabindex="-1"
+    id="sceneCanvas" aria-labelledby="sceneCanvasLabel">
+    <div class="offcanvas-header">
+      <h5 class="offcanvas-title" id="sceneCanvasLabel">Scene</h5>
+      <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+    </div>
+    <div class="offcanvas-body">
+
+      <div class="mb-3">
+        <div class="mb-3">
+          <label for="spotLightIntensity" class="form-label" id="spotLightIntensityLabel">Spot light intensity:
+            1.0</label>
+          <input type="range" class="form-range" min="0" max="1" step="0.01" id="spotLightIntensity" value="1">
+        </div>
+        <div class="mb-3">
+          <label for="hemisphereLightIntensity" class="form-label" id="hemisphereLightIntensityLabel">Hemisphere light
+            intensity: 1.0</label>
+          <input type="range" class="form-range" min="0" max="1" step="0.01" id="hemisphereLightIntensity" value="0.1">
+        </div>
+        <div class="mb-3">
+          <label for="max_fps" class="form-label" id="max_fpsLabel">Max FPS: {{ config.max_fps }}</label>
+          <input type="range" class="form-range" min="1" max="100" step="0.5" id="max_fps" value="{{ config.max_fps }}"
+            , oninput="max_fpsLabel.innerHTML = 'Max FPS: ' + this.value">
+        </div>
+        <div class="mb-3">
+          <button type="button" class="btn btn-secondary" id="reset">Reset Scene</button>
+        </div>
       </div>
     </div>
   </div>
@@ -164,24 +208,18 @@
             <div class="row">2. Light</div>
           </div>
           <div class="col-sm-2">
-            <div class="row"><output id="max_fps_output">{{ config.max_fps }}</output></div>
             <div class="row"><output id="frames_per_post_output">{{ config.frames_per_post }}</output></div>
 
-            <div class="row"><output id="spotLightIntensity_output">1</output></div>
-            <div class="row"><output id="hemisphereLightIntensity_output">0.1</output></div>
           </div>
           <div class="col-sm">
-            <div class="row"><input type="range" class="form-range" min="1" max="100" step="0.5" id="max_fps"
-                value="{{ config.max_fps }}" , oninput="max_fps_output.value = this.value">
+            <div class="row">
             </div>
             <div class="row"><input type="range" class="form-range" min="1" max="500" id="frames_per_post"
                 value="{{ config.frames_per_post }}" , oninput="frames_per_post_output.value = this.value">
             </div>
 
-            <div class="row"><input type="range" class="form-range" min="0" max="1" step="0.01" id="spotLightIntensity"
-                value="1"></div>
-            <div class="row"><input type="range" class="form-range" min="0" max="1" step="0.01"
-                id="hemisphereLightIntensity" value="0.1"></div>
+            <div class="row"></div>
+            <div class="row"></div>
           </div>
           <div class="col-sm-1"><!-- Padding on the right --></div>
 
@@ -197,7 +235,6 @@
               endif %}>Load Animation</button>
             <button type="button" class="btn btn-secondary" id="hide_selection" disabled>Hide
               Selection</button>
-            <button type="button" class="btn btn-secondary" id="reset">Reset Scene</button>
           </div>
         </div>
         <div class="col-sm">
@@ -223,25 +260,55 @@
 
   <!-- Info Box -->
   <div class="collapse" id="infoBoxCollapse">
-  <div class="container-fluid rounded border border-dark" id="infoBox">
-    <dl class="row">
-      <dt class="col-sm-3">File</dt>
-      <dd class="col-sm-9"><code>{{ config.file }}</code></dd>
-      <dt class="col-sm-3">FPS</dt>
-      <dd class="col-sm-9" id="FPS">-</dd>
-      <dt class="col-sm-3">Particles</dt>
-      <dd class="col-sm-9" id="n_particles">-</dd>
-      <dt class="col-sm-3">Bonds</dt>
-      <dd class="col-sm-9" id="n_bonds">-</dd>
-      <dt class="col-sm-3">Selected IDs</dt>
-      <dd class="col-sm-9" id="lst_selected_ids"></dd>
-      {% if config.update_function %}
-      <dt class="col-sm-3">Function</dt>
-      <dd class="col-sm-9" id="lst_selected_ids"><code>{{ config.update_function }}</code></dd>
-      {% endif %}
-    </dl>
+    <div class="container-fluid rounded border border-dark" id="infoBox">
+      <dl class="row">
+        <dt class="col-sm-3">File</dt>
+        <dd class="col-sm-9"><code>{{ config.file }}</code></dd>
+        <dt class="col-sm-3">FPS</dt>
+        <dd class="col-sm-9" id="FPS">-</dd>
+        <dt class="col-sm-3">Particles</dt>
+        <dd class="col-sm-9" id="n_particles">-</dd>
+        <dt class="col-sm-3">Bonds</dt>
+        <dd class="col-sm-9" id="n_bonds">-</dd>
+        <dt class="col-sm-3">Selected IDs</dt>
+        <dd class="col-sm-9" id="lst_selected_ids"></dd>
+        {% if config.update_function %}
+        <dt class="col-sm-3">Function</dt>
+        <dd class="col-sm-9" id="lst_selected_ids"><code>{{ config.update_function }}</code></dd>
+        {% endif %}
+      </dl>
+    </div>
   </div>
-</div>
+
+  <!-- Help Box -->
+  <div class="collapse" id="helpBoxCollapse">
+    <div class="container-fluid bg-light rounded border border-primary pt-2" id="helpBox">
+      <h2>ZnDraw Help</h2>
+      <div class="rounded-3 bg-white px-2 pt-2">
+        <dl class="row">
+          <dt class="col-sm-3">move light to camera position</dt>
+          <dd class="col-sm-9"><code>keypress L</code></dd>
+          <dt class="col-sm-3">play / pause</dt>
+          <dd class="col-sm-9"><code>keypress space</code></dd>
+          <dt class="col-sm-3">frame forwards / backwards</dt>
+          <dd class="col-sm-9"><code>keypress &#9654;\&#9664; </code></dd>
+          <dt class="col-sm-3">jump forwards / backwards</dt>
+          <dd class="col-sm-9"><code>keypress &#9650;\&#9660; </code></dd>
+          <dt class="col-sm-3">run update function</dt>
+          <dd class="col-sm-9"><code>keypress enter</code></dd>
+          <dt class="col-sm-3">center camera around selected particle</dt>
+          <dd class="col-sm-9"><code>keypress C</code></dd>
+          <dt class="col-sm-3">reload animation</dt>
+          <dd class="col-sm-9"><code>keypress Q</code></dd>
+          <dt class="col-sm-3">select multiple particles</dt>
+          <dd class="col-sm-9"><code>keydown shift</code></dd>
+          <dt class="col-sm-3">show particle index</dt>
+          <dd class="col-sm-9"><code>keydown I</code></dd>
+
+        </dl>
+      </div>
+    </div>
+  </div>
 
   <!-- Progress Bar -->
   <div id="info"></div>

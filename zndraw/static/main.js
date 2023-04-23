@@ -397,13 +397,14 @@ o_wireframe.onchange = function () {
 }
 
 o_spotLightIntensity.oninput = function () {
-	document.getElementById("spotLightIntensity_output").value = o_spotLightIntensity.value;
 	spotLight.intensity = o_spotLightIntensity.value;
+	document.getElementById("spotLightIntensityLabel").innerHTML = "Spot light intensity: " + o_spotLightIntensity.value;
 }
 
 o_hemisphereLightIntensity.oninput = function () {
-	document.getElementById("hemisphereLightIntensity_output").value = o_hemisphereLightIntensity.value;
 	hemisphereLight.intensity = o_hemisphereLightIntensity.value;
+	document.getElementById("hemisphereLightIntensityLabel").innerHTML = "Hemisphere light intensity: " + o_hemisphereLightIntensity.value;
+
 }
 
 // o_help_btn.onmouseover = function () {

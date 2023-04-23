@@ -165,6 +165,19 @@ canvas {
     width: 30%;
     z-index: 100;
     display: block;
-    background-color: lightgray;
+    background-color: rgb(235, 235, 235);
     opacity: 0.8;
+}
+
+#helpBox {
+    position: absolute;
+    top: 20%;
+    display: block;
+    left: 10%;
+    right: 10%;
+    width: 80%;
+}
+
+.canvasControl {
+    opacity: 0.95;
 }
