@@ -316,18 +316,6 @@ o_reset_selection.onclick = function () {
 }
 
 
-// o_hide_selection.onclick = function () {
-// 	selected_ids.forEach(function (item, index) {
-// 		let mesh = particleGroup.getObjectByUserDataProperty("id", item);
-// 		mesh.visible = false;
-
-// 		mesh.userData["bond_ids"].forEach(function (item, index) {
-// 			bondsXGroup.children[0].getObjectById(item).visible = false;
-// 			bondsXGroup.children[1].getObjectById(item).visible = false;
-// 		});
-// 	});
-// }
-
 o_reset.onclick = function () {
 	load_config();
 	animation_frame = 0;
@@ -392,18 +380,6 @@ o_hemisphereLightIntensity.oninput = function () {
 	document.getElementById("hemisphereLightIntensityLabel").innerHTML = "Hemisphere light intensity: " + o_hemisphereLightIntensity.value;
 
 }
-
-// o_help_btn.onmouseover = function () {
-// 	div_help_container.style.display = "block";
-// }
-
-// o_help_btn.onmouseout = function () {
-// 	div_help_container.style.display = "none";
-// }
-
-// o_add_btn.onclick = function () {
-// 	document.getElementById("add_class").style.display = "block";
-// }
 
 
 /**
