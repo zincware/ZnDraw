@@ -24,6 +24,7 @@ def config():
         "total_frames": len(globals.config._atoms_cache) - 1,
     }
 
+
 @app.route("/graph", methods=["POST"])
 def get_graph():
     step = request.json
@@ -49,6 +50,7 @@ def positions_step():
         return result
     except KeyError:
         return result
+
 
 @app.route("/select", methods=["POST"])
 def select() -> list[int]:
@@ -92,7 +94,7 @@ def add_update_function():
     return signature
 
 
-@app.route("/set_update_function_parameter", methods=["POST"]) 
+@app.route("/set_update_function_parameter", methods=["POST"])
 def set_update_function_parameter():
     """Update the values of the update function."""
     globals.config.set_update_function_parameter(request.json)
@@ -112,7 +114,7 @@ def select_update_function(name):
 def update_scene():
     selected_ids = list(sorted(request.json["selected_ids"]))
     step = request.json["step"]
-    
+
     globals.config.apply_update_function(selected_ids, step)
     return {}
 
