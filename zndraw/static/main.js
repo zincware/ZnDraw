@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { particleGroup, materials, drawAtoms, speciesMaterial, countBonds, getAtomById, updateParticlePositions } from './modules/particles.js';
+import { particleGroup, materials, drawAtoms, speciesMaterial, countBonds, getAtomById, updateParticlePositions, printIndices } from './modules/particles.js';
 import { keydown } from './modules/keypress.js';
 
 // THREE.Cache.enabled = true;
@@ -588,61 +588,6 @@ document.getElementById("addSceneModifierImportBtn").onclick = function () {
 }
 
 
-function printIndices() {
-	scene.updateMatrixWorld();
-	camera.updateMatrixWorld();
-
-	let ids = document.getElementsByClassName("particle-id")
-	if (ids.length > 0) {
-		return;
-	}
-
-	let positions = [];
-	let distances = [];
-	particleGroup.children.forEach(function (atoms_grp) {
-		let item = atoms_grp.children[0];
-		let vector = item.position.clone().project(camera);
-		vector.x = (vector.x + 1) / 2 * window.innerWidth;
-		vector.y = -(vector.y - 1) / 2 * window.innerHeight;
-		// if x smaller 0 or larger window width return
-		if (vector.x < 50 || vector.x > window.innerWidth - 50) {
-			return;
-		}
-		// if y smaller 0 or larger window height return
-		if (vector.y < 50 || vector.y > window.innerHeight - 50) {
-			return;
-		}
-
-
-		// between -1 and 1
-		pointer.x = (vector.x / window.innerWidth) * 2 - 1;
-		pointer.y = - (vector.y / window.innerHeight) * 2 + 1;
-
-		raycaster.setFromCamera(pointer, camera);
-		let intersects = raycaster.intersectObjects(particleGroup.children, true);
-
-		if (!(intersects[0].object == item)) {
-			return;
-		}
-		positions.push([vector, item.userData["id"]]);
-		distances.push(intersects[0].distance);
-	});
-
-	positions.forEach(function (item, index) {
-
-		var text2 = document.createElement('div');
-		text2.classList.add("particle-id", "rounded");
-		text2.style.position = 'absolute';
-		text2.style.fontSize = Math.max(15, parseInt(50 - 0.3 * (distances[index] * Math.max(...distances)))) + 'px';
-		// text2.style.width = parseInt(100 / item[2]); 
-		// text2.style.height = parseInt(100 / item[2]);
-		text2.style.backgroundColor = "#cccccc";
-		text2.innerHTML = item[1];
-		text2.style.top = item[0].y + 'px';
-		text2.style.left = item[0].x + 'px';
-		document.body.appendChild(text2);
-	});
-}
 
 window.addEventListener("keydown", (event) => {
 	if (event.isComposing || event.key === " ") {
@@ -671,7 +616,7 @@ window.addEventListener("keydown", (event) => {
 		getAnimationFrames();
 	}
 	if (event.isComposing || event.key === "i") {
-		printIndices();
+		printIndices(camera);
 	};
 });
 
