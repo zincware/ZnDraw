@@ -51,7 +51,7 @@ let keydown = { "shift": false, "ctrl": false, "alt": false, "c": false, "l": fa
  */
 
 const div_info = document.getElementById('info');
-const div_loading = document.getElementById('loading');
+const div_loading = document.getElementById('atom-spinner');
 const div_progressBar = document.getElementById('progressBar');
 const div_bufferBar = document.getElementById('bufferBar');
 const div_greyOut = document.getElementById('greyOut');
@@ -350,33 +350,43 @@ o_reset.onclick = function () {
 	update_selection();
 }
 
-o_sphere_plus.onclick = function () {
-	particleGroup.children[0].children[0].geometry.scale(1.1, 1.1, 1.1);
-}
+document.getElementById("sphereRadius").onchange = function () {
+	let radius = parseFloat(document.getElementById("sphereRadius").value);
+	let particleGeometry = particleGroup.children[0].children[0].geometry;
+	let scale = radius / particleGeometry.boundingSphere.radius;
+	particleGeometry.scale(scale, scale, scale);
+};
 
-o_sphere_minus.onclick = function () {
-	particleGroup.children[0].children[0].geometry.scale(0.9, 0.9, 0.9);
-}
+document.getElementById("sphereRadius").oninput = function () {
+	let radius = parseFloat(document.getElementById("sphereRadius").value);
+	document.getElementById("sphereRadiusLabel").innerHTML = "Sphere radius: " + radius;
+};
 
-o_bond_plus.onclick = function () {
-	// assume that particle 0 is bound to any other particle here is dangerous
-	particleGroup.children[0].children[1].geometry.scale(1.1, 1.1, 1.0);
-}
+document.getElementById("bondDiameter").oninput = function () {
+	let radius = parseFloat(document.getElementById("bondDiameter").value);
+	document.getElementById("bondDiameterLabel").innerHTML = "Bond diameter: " + radius;
+};
 
-o_bond_minus.onclick = function () {
-	// see issue with plus
-	particleGroup.children[0].children[1].geometry.scale(0.9, 0.9, 1.0);
-}
+document.getElementById("bondDiameter").onchange = function () {
+	let diameter = parseFloat(document.getElementById("bondDiameter").value);
+	// Dangerous, assumes that there is a bond for the first atom
+	let bondGeometry = particleGroup.children[0].children[1].geometry;
+	// This does not work for the box, only for the spheres!
+	let scale = diameter / bondGeometry.boundingSphere.radius;
+	// console.log(bondGeometry)
+	bondGeometry.scale(scale, scale, 1);
+};
 
-o_resolution_plus.onclick = function () {
-	config["resolution"] += 1;
+document.getElementById("resolution").onchange = function () {
+	let resolution = parseInt(document.getElementById("resolution").value);
+	config["resolution"] = resolution;
 	build_scene(animation_frame);
-}
+};
 
-o_resolution_minus.onclick = function () {
-	config["resolution"] -= 1;
-	build_scene(animation_frame);
-}
+document.getElementById("resolution").oninput = function () {
+	let resolution = parseInt(document.getElementById("resolution").value);
+	document.getElementById("resolutionLabel").innerHTML = "Resolution: " + resolution;
+};
 
 o_materialSelect.onchange = function () {
 	build_scene(animation_frame);
@@ -396,17 +406,17 @@ o_hemisphereLightIntensity.oninput = function () {
 	hemisphereLight.intensity = o_hemisphereLightIntensity.value;
 }
 
-o_help_btn.onmouseover = function () {
-	div_help_container.style.display = "block";
-}
+// o_help_btn.onmouseover = function () {
+// 	div_help_container.style.display = "block";
+// }
 
-o_help_btn.onmouseout = function () {
-	div_help_container.style.display = "none";
-}
+// o_help_btn.onmouseout = function () {
+// 	div_help_container.style.display = "none";
+// }
 
-o_add_btn.onclick = function () {
-	document.getElementById("add_class").style.display = "block";
-}
+// o_add_btn.onclick = function () {
+// 	document.getElementById("add_class").style.display = "block";
+// }
 
 
 /**
@@ -522,37 +532,37 @@ function createRadioElement(name, checked, id, properties) {
 	return radioFragment;
 }
 
-o_newPythonClassBtn.onclick = function () {
-	document.getElementById("add_class").style.display = "none";
+// o_newPythonClassBtn.onclick = function () {
+// 	document.getElementById("add_class").style.display = "none";
 
-	fetch("add_update_function", {
-		"method": "POST",
-		"headers": { "Content-Type": "application/json" },
-		"body": JSON.stringify(document.getElementById("newPythonClass").value),
-	}).then(response => response.json()).then(function (response_json) {
-		// if not null alert
-		if ("error" in response_json) {
-			alert(response_json["error"]);
-			stepError(response_json["error"]);
-		} else {
-			console.log(response_json);
-			load_config();
-		}
-		return response_json;
-	}).then(function (response_json) {
-		console.log(response_json);
-		div_python_class_control.appendChild(createRadioElement("flexRadioUpdateFunction", true, response_json["title"], response_json["properties"]));
+// 	fetch("add_update_function", {
+// 		"method": "POST",
+// 		"headers": { "Content-Type": "application/json" },
+// 		"body": JSON.stringify(document.getElementById("newPythonClass").value),
+// 	}).then(response => response.json()).then(function (response_json) {
+// 		// if not null alert
+// 		if ("error" in response_json) {
+// 			alert(response_json["error"]);
+// 			stepError(response_json["error"]);
+// 		} else {
+// 			console.log(response_json);
+// 			load_config();
+// 		}
+// 		return response_json;
+// 	}).then(function (response_json) {
+// 		console.log(response_json);
+// 		div_python_class_control.appendChild(createRadioElement("flexRadioUpdateFunction", true, response_json["title"], response_json["properties"]));
 
-		document.getElementById(response_json["title"]).onclick = function () {
-			console.log("clicked");
-			console.log(document.querySelector('input[name="flexRadioUpdateFunction"]:checked').id);
-			fetch("/select_update_function/" + document.querySelector('input[name="flexRadioUpdateFunction"]:checked').id)
-		};
+// 		document.getElementById(response_json["title"]).onclick = function () {
+// 			console.log("clicked");
+// 			console.log(document.querySelector('input[name="flexRadioUpdateFunction"]:checked').id);
+// 			fetch("/select_update_function/" + document.querySelector('input[name="flexRadioUpdateFunction"]:checked').id)
+// 		};
 
-	});
+// 	});
 
 
-}
+// }
 
 window.addEventListener("keydown", (event) => {
 	if (event.isComposing || event.key === " ") {
