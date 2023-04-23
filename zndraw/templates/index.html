@@ -57,19 +57,31 @@
         <span class="navbar-toggler-icon"></span>
       </button>
       <div class="collapse navbar-collapse" id="navbarNavDropdown">
-        <ul class="navbar-nav">
-          <li class="nav-item">
+        <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+          <li class="nav-item mx-1">
             <button class="btn btn-outline-secondary" type="button" data-bs-toggle="offcanvas"
               data-bs-target="#particleCanvas" aria-controls="offcanvasExample">
               Particles
             </button>
           </li>
+          <li class="nav-item mx-1">
+            <button class="btn btn-outline-secondary" type="button" data-bs-toggle="offcanvas"
+              data-bs-target="#interactionCanvas" aria-controls="offcanvasExample">
+              Interaction
+            </button>
+          </li>
         </ul>
+        <form class="d-flex">
+          <button class="btn btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#infoBoxCollapse" aria-expanded="false" aria-controls="infoBoxCollapse">
+            Info Box
+          </button>
+        </form>
       </div>
     </div>
   </nav>
 
   <!-- Off Canvas -->
+  <!-- Particles -->
   <div class="offcanvas offcanvas-start" data-bs-scroll="true" data-bs-backdrop="false" tabindex="-1"
     id="particleCanvas" aria-labelledby="particleCanvasLabel">
     <div class="offcanvas-header">
@@ -82,7 +94,7 @@
         <label for="materialSelect" class="form-label">Select particle material</label>
         <select class="form-select" id="materialSelect">
         </select>
-        <div id="materialSelect" class="form-text">Change the material of the particles and bonds..</div>
+        <div id="materialSelectHelp" class="form-text">Change the material of the particles and bonds..</div>
       </div>
       <div class="mb-3">
         <input class="form-check-input" type="checkbox" value="" id="wireframe">
@@ -104,16 +116,35 @@
     </div>
   </div>
 
-  <!-- TODOs -->
-  <div style="display: none;">
-    <div class="row">
-      <div class="col-sm">
+  <!-- Interaction -->
+  <div class="offcanvas offcanvas-start" data-bs-scroll="true" data-bs-backdrop="false" tabindex="-1"
+    id="interactionCanvas" aria-labelledby="interactioneCanvasLabel">
+    <div class="offcanvas-header">
+      <h5 class="offcanvas-title" id="interactionCanvasLabel">Particles</h5>
+      <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+    </div>
+    <div class="offcanvas-body">
+
+      <div class="mb-3">
+        <label for="selection-method" class="form-label">Select particle material</label>
         <select class="form-select" aria-label="Default select example" id="selection-method">
           <option selected, value="particles">Particles</option>
           <option value="species">Species</option>
           <option value="connected">Connected Particles</option>
           <option value="none">None</option>
         </select>
+        <div id="selection-methodHelp" class="form-text">Select single particles, whole molecules or disable selection.</div>
+      </div>
+      <div class="mb-3">
+        <button type="button" class="btn btn-secondary" id="reset_selection">Reset Selection</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TODOs -->
+  <div style="display: none;">
+    <div class="row">
+      <div class="col-sm">
         <div class="form-check form-switch">
           <input class="form-check-input" type="checkbox" value="" id="autoRestart">
           <label class="form-check-label" for="autoRestart">
@@ -164,7 +195,6 @@
           <div class="btn-group-vertical" role="group" aria-label="Basic example">
             <button type="button" class="btn btn-secondary" id="animate" {% if config.update_function %} disabled {%
               endif %}>Load Animation</button>
-            <button type="button" class="btn btn-secondary" id="reset_selection">Reset Selection</button>
             <button type="button" class="btn btn-secondary" id="hide_selection" disabled>Hide
               Selection</button>
             <button type="button" class="btn btn-secondary" id="reset">Reset Scene</button>
@@ -191,9 +221,30 @@
     </div>
   </div>
 
+  <!-- Info Box -->
+  <div class="collapse" id="infoBoxCollapse">
+  <div class="container-fluid rounded border border-dark" id="infoBox">
+    <dl class="row">
+      <dt class="col-sm-3">File</dt>
+      <dd class="col-sm-9"><code>{{ config.file }}</code></dd>
+      <dt class="col-sm-3">FPS</dt>
+      <dd class="col-sm-9" id="FPS">-</dd>
+      <dt class="col-sm-3">Particles</dt>
+      <dd class="col-sm-9" id="n_particles">-</dd>
+      <dt class="col-sm-3">Bonds</dt>
+      <dd class="col-sm-9" id="n_bonds">-</dd>
+      <dt class="col-sm-3">Selected IDs</dt>
+      <dd class="col-sm-9" id="lst_selected_ids"></dd>
+      {% if config.update_function %}
+      <dt class="col-sm-3">Function</dt>
+      <dd class="col-sm-9" id="lst_selected_ids"><code>{{ config.update_function }}</code></dd>
+      {% endif %}
+    </dl>
+  </div>
+</div>
 
   <!-- Progress Bar -->
-
+  <div id="info"></div>
   <div id="progressBar"></div>
   <div id="bufferBar"></div>
 </body>

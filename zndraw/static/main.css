@@ -146,3 +146,25 @@ canvas {
     z-index: 1;
     text-align: center;
 }
+
+#info {
+    position: absolute;
+    bottom: 10px;
+    text-align: center;
+    width: 100%;
+    z-index: 100;
+    display: block;
+    opacity: 0.5;
+}
+
+#infoBox {
+    position: absolute;
+    bottom: 1%;
+    left: 69%;
+    right: 1%;
+    width: 30%;
+    z-index: 100;
+    display: block;
+    background-color: lightgray;
+    opacity: 0.8;
+}
