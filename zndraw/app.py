@@ -21,7 +21,7 @@ def config():
     """Get the zndraw configuration."""
     return {
         **globals.config.dict(),
-        "total_frames": len(globals._atoms_cache) - 1,
+        "total_frames": len(globals.config._atoms_cache) - 1,
     }
 
 @app.route("/graph", methods=["POST"])
@@ -85,18 +85,17 @@ def select() -> list[int]:
 @app.route("/add_update_function", methods=["POST"])
 def add_update_function():
     """Add a function to the config."""
-    globals.config.update_function = request.json
     try:
-        signature = globals.config.get_update_signature()
+        signature = globals.config.add_update_function(request.json)
     except (ImportError, ValueError) as err:
         return {"error": str(err)}
     return signature
 
 
-@app.route("/update_function_values", methods=["POST"])
-def update_function_values():
+@app.route("/set_update_function_parameter", methods=["POST"]) 
+def set_update_function_parameter():
     """Update the values of the update function."""
-    globals.config.set_update_function_parameters(request.json)
+    globals.config.set_update_function_parameter(request.json)
     return {}
 
 
@@ -105,7 +104,7 @@ def select_update_function(name):
     """Select a function from the config."""
     if name == "none":
         name = None
-    globals.config.update_function_name = name
+    globals.config.active_update_function = name
     return {}
 
 
@@ -113,18 +112,8 @@ def select_update_function(name):
 def update_scene():
     selected_ids = list(sorted(request.json["selected_ids"]))
     step = request.json["step"]
-
-    function = globals.config.get_update_function()
-    atoms = function(
-        [int(x) for x in selected_ids], globals.config.get_atoms(step=int(step))
-    )
-
-    offset = len(globals._atoms_cache)
-
-    for idx, atom in enumerate(atoms):
-        globals._atoms_cache[idx + offset] = atom
-
-    # this has to return before the scene is automatically updated
+    
+    globals.config.apply_update_function(selected_ids, step)
     return {}
 
 

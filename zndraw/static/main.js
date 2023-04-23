@@ -509,7 +509,7 @@ function createRadioElement(id, properties) {
 
 		controller.onchange = function () {
 			// fetch with post 
-			fetch("update_function_values", {
+			fetch("set_update_function_parameter", {
 				"method": "POST",
 				"headers": { "Content-Type": "application/json" },
 				"body": JSON.stringify({
@@ -748,7 +748,11 @@ window.addEventListener("keydown", (event) => {
 			"method": "POST",
 			"headers": { "Content-Type": "application/json" },
 			"body": JSON.stringify({ "selected_ids": selected_ids, "step": animation_frame }),
-		}).then((response) => getAnimationFrames());
+		}).then((response) => {
+			frames.length = animation_frame + 1;
+			
+			getAnimationFrames();
+		});
 
 		if (!data_loading) {
 			getAnimationFrames();
