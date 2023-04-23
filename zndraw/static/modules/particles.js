@@ -148,6 +148,7 @@ function addBond(item, config) {
 
 }
 
+
 export function countBonds() {
     let count = 0;
     particleGroup.traverse((child) => {

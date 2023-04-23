@@ -1,4 +1,3 @@
-import dataclasses
 import uuid
 
 import networkx as nx
@@ -12,29 +11,32 @@ app.secret_key = str(uuid.uuid4())
 
 @app.route("/")
 def index():
+    """Render the main ZnDraw page."""
     session["key"] = str(uuid.uuid4())  # TODO use session key e.g. for atoms cache
-    return render_template("index.html", config=dataclasses.asdict(globals.config))
+    return render_template("index.html", config=globals.config.dict())
 
 
 @app.route("/config")
 def config():
+    """Get the zndraw configuration."""
     return {
-        **dataclasses.asdict(globals.config),
-        "total_frames": len(globals._atoms_cache) - 1,
+        **globals.config.dict(),
+        "total_frames": len(globals.config._atoms_cache) - 1,
     }
 
 
-@app.route("/atoms", methods=["POST"])
-def atoms_step():
+@app.route("/graph", methods=["POST"])
+def get_graph():
     step = request.json
-    print(f"Build graph for {step = }")
     try:
         atoms = globals.config.get_atoms(step=int(step))
         graph = io.get_graph(atoms)
-        print(f"Graph has {len(graph.nodes)} nodes and {len(graph.edges)} edges")
-        return [{**graph.nodes[idx], "id": idx} for idx in graph.nodes]
-    except (KeyError, IndexError):
-        return []
+        return {
+            "nodes": [{**graph.nodes[idx], "id": idx} for idx in graph.nodes],
+            "edges": list(graph.edges),
+        }
+    except KeyError:
+        return {}
 
 
 @app.route("/positions", methods=["POST"])
@@ -46,16 +48,8 @@ def positions_step():
             atoms = globals.config.get_atoms(step=int(step))
             result.append(atoms.get_positions().tolist())
         return result
-    except (KeyError, IndexError):
+    except KeyError:
         return result
-
-
-@app.route("/bonds", methods=["POST"])
-def bonds_step():
-    step = request.json
-    atoms = globals.config.get_atoms(step=int(step))
-    graph = io.get_graph(atoms)
-    return list(graph.edges)
 
 
 @app.route("/select", methods=["POST"])
@@ -93,25 +87,26 @@ def select() -> list[int]:
 @app.route("/add_update_function", methods=["POST"])
 def add_update_function():
     """Add a function to the config."""
-    globals.config.update_function = request.json
     try:
-        signature = globals.config.get_update_signature()
+        signature = globals.config.add_update_function(request.json)
     except (ImportError, ValueError) as err:
         return {"error": str(err)}
     return signature
 
 
-@app.route("/update_function_values", methods=["POST"])
-def update_function_values():
+@app.route("/set_update_function_parameter", methods=["POST"])
+def set_update_function_parameter():
     """Update the values of the update function."""
-    globals.config.set_update_function_parameters(request.json)
+    globals.config.set_update_function_parameter(request.json)
     return {}
 
 
 @app.route("/select_update_function/<name>")
 def select_update_function(name):
     """Select a function from the config."""
-    globals.config.update_function_name = name
+    if name == "none":
+        name = None
+    globals.config.active_update_function = name
     return {}
 
 
@@ -120,17 +115,7 @@ def update_scene():
     selected_ids = list(sorted(request.json["selected_ids"]))
     step = request.json["step"]
 
-    function = globals.config.get_update_function()
-    atoms = function(
-        [int(x) for x in selected_ids], globals.config.get_atoms(step=int(step))
-    )
-
-    offset = len(globals._atoms_cache)
-
-    for idx, atom in enumerate(atoms):
-        globals._atoms_cache[idx + offset] = atom
-
-    # this has to return before the scene is automatically updated
+    globals.config.apply_update_function(selected_ids, step)
     return {}
 
 

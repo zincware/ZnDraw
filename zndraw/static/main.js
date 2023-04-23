@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { particleGroup, materials, drawAtoms, speciesMaterial, countBonds, getAtomById, updateParticlePositions } from './modules/particles.js';
-
+import * as pointerControl from './modules/pointerControl.js';
 
 // THREE.Cache.enabled = true;
 
@@ -51,7 +51,7 @@ let keydown = { "shift": false, "ctrl": false, "alt": false, "c": false, "l": fa
  */
 
 const div_info = document.getElementById('info');
-const div_loading = document.getElementById('loading');
+const div_loading = document.getElementById('atom-spinner');
 const div_progressBar = document.getElementById('progressBar');
 const div_bufferBar = document.getElementById('bufferBar');
 const div_greyOut = document.getElementById('greyOut');
@@ -82,6 +82,9 @@ const o_hemisphereLightIntensity = document.getElementById('hemisphereLightInten
 const o_help_btn = document.getElementById('help_btn');
 const o_add_btn = document.getElementById('add_btn');
 const o_newPythonClassBtn = document.getElementById('newPythonClassBtn');
+
+const addModifierModal = new bootstrap.Modal(document.getElementById("addModifierModal"));
+const addSceneModifier = document.getElementById("addSceneModifier");
 
 
 // Helper Functions
@@ -118,7 +121,6 @@ async function build_scene(step) {
 	div_loading.style.visibility = 'visible';
 	div_greyOut.style.visibility = 'visible';
 
-	const urls = ["atoms", "bonds"];
 	animation_frame = step;
 
 	let arrayOfResponses = [];
@@ -127,20 +129,17 @@ async function build_scene(step) {
 		arrayOfResponses = build_scene_cache[step];
 	} else {
 		// this is faster then doing it one by one
-		arrayOfResponses = await Promise.all(
-			urls.map((url) =>
-				fetch(url, {
+		 
+		arrayOfResponses = await (await fetch("graph", {
 					"method": "POST",
 					"headers": { "Content-Type": "application/json" },
 					"body": JSON.stringify(step)
-				})
-					.then((res) => res.json())
-			)
-		);
+				})).json();
+		console.log(arrayOfResponses);
 		build_scene_cache[step] = arrayOfResponses;
 	}
 
-	drawAtoms(arrayOfResponses[0], arrayOfResponses[1], config, scene);
+	drawAtoms(arrayOfResponses["nodes"], arrayOfResponses["edges"], config, scene);
 	selected_ids = [];
 	await update_selection();
 	scene_building = false;
@@ -163,6 +162,8 @@ const controls = new OrbitControls(camera, renderer.domElement);
 
 controls.update();
 
+pointerControl.setup(camera);
+
 function onWindowResize() {
 	camera.aspect = window.innerWidth / window.innerHeight
 	camera.updateProjectionMatrix()
@@ -170,24 +171,16 @@ function onWindowResize() {
 	renderer.render(scene, camera);
 }
 
+// Used for displaying the indices
 const raycaster = new THREE.Raycaster();
 const pointer = new THREE.Vector2();
 
 
 async function onPointerDown(event) {
 
-	// calculate pointer position in normalized device coordinates
-	// (-1 to +1) for both components
-	// event.preventDefault(); # this doesn't work
-
-	pointer.x = (event.clientX / window.innerWidth) * 2 - 1;
-	pointer.y = - (event.clientY / window.innerHeight) * 2 + 1;
-
-	// update the picking ray with the camera and pointer position
-	raycaster.setFromCamera(pointer, camera);
 
 	// calculate objects intersecting the picking ray
-	const intersects = raycaster.intersectObjects(particleGroup.children, true);
+	const intersects = pointerControl.raycaster.intersectObjects(particleGroup.children, true);
 
 	if (intersects.length == 0) {
 		return;
@@ -350,33 +343,43 @@ o_reset.onclick = function () {
 	update_selection();
 }
 
-o_sphere_plus.onclick = function () {
-	particleGroup.children[0].children[0].geometry.scale(1.1, 1.1, 1.1);
-}
+document.getElementById("sphereRadius").onchange = function () {
+	let radius = parseFloat(document.getElementById("sphereRadius").value);
+	let particleGeometry = particleGroup.children[0].children[0].geometry;
+	let scale = radius / particleGeometry.boundingSphere.radius;
+	particleGeometry.scale(scale, scale, scale);
+};
 
-o_sphere_minus.onclick = function () {
-	particleGroup.children[0].children[0].geometry.scale(0.9, 0.9, 0.9);
-}
+document.getElementById("sphereRadius").oninput = function () {
+	let radius = parseFloat(document.getElementById("sphereRadius").value);
+	document.getElementById("sphereRadiusLabel").innerHTML = "Sphere radius: " + radius;
+};
 
-o_bond_plus.onclick = function () {
-	// assume that particle 0 is bound to any other particle here is dangerous
-	particleGroup.children[0].children[1].geometry.scale(1.1, 1.1, 1.0);
-}
+document.getElementById("bondDiameter").oninput = function () {
+	let radius = parseFloat(document.getElementById("bondDiameter").value);
+	document.getElementById("bondDiameterLabel").innerHTML = "Bond diameter: " + radius;
+};
 
-o_bond_minus.onclick = function () {
-	// see issue with plus
-	particleGroup.children[0].children[1].geometry.scale(0.9, 0.9, 1.0);
-}
+document.getElementById("bondDiameter").onchange = function () {
+	let diameter = parseFloat(document.getElementById("bondDiameter").value);
+	// Dangerous, assumes that there is a bond for the first atom
+	let bondGeometry = particleGroup.children[0].children[1].geometry;
+	// This does not work for the box, only for the spheres!
+	let scale = diameter / bondGeometry.boundingSphere.radius;
+	// console.log(bondGeometry)
+	bondGeometry.scale(scale, scale, 1);
+};
 
-o_resolution_plus.onclick = function () {
-	config["resolution"] += 1;
+document.getElementById("resolution").onchange = function () {
+	let resolution = parseInt(document.getElementById("resolution").value);
+	config["resolution"] = resolution;
 	build_scene(animation_frame);
-}
+};
 
-o_resolution_minus.onclick = function () {
-	config["resolution"] -= 1;
-	build_scene(animation_frame);
-}
+document.getElementById("resolution").oninput = function () {
+	let resolution = parseInt(document.getElementById("resolution").value);
+	document.getElementById("resolutionLabel").innerHTML = "Resolution: " + resolution;
+};
 
 o_materialSelect.onchange = function () {
 	build_scene(animation_frame);
@@ -387,26 +390,27 @@ o_wireframe.onchange = function () {
 }
 
 o_spotLightIntensity.oninput = function () {
-	document.getElementById("spotLightIntensity_output").value = o_spotLightIntensity.value;
 	spotLight.intensity = o_spotLightIntensity.value;
+	document.getElementById("spotLightIntensityLabel").innerHTML = "Spot light intensity: " + o_spotLightIntensity.value;
 }
 
 o_hemisphereLightIntensity.oninput = function () {
-	document.getElementById("hemisphereLightIntensity_output").value = o_hemisphereLightIntensity.value;
 	hemisphereLight.intensity = o_hemisphereLightIntensity.value;
+	document.getElementById("hemisphereLightIntensityLabel").innerHTML = "Hemisphere light intensity: " + o_hemisphereLightIntensity.value;
+
 }
 
-o_help_btn.onmouseover = function () {
-	div_help_container.style.display = "block";
-}
+// o_help_btn.onmouseover = function () {
+// 	div_help_container.style.display = "block";
+// }
 
-o_help_btn.onmouseout = function () {
-	div_help_container.style.display = "none";
-}
+// o_help_btn.onmouseout = function () {
+// 	div_help_container.style.display = "none";
+// }
 
-o_add_btn.onclick = function () {
-	document.getElementById("add_class").style.display = "block";
-}
+// o_add_btn.onclick = function () {
+// 	document.getElementById("add_class").style.display = "block";
+// }
 
 
 /**
@@ -415,18 +419,12 @@ o_add_btn.onclick = function () {
  * @param {*} checked 
  * @returns 
  */
-function createRadioElement(name, checked, id, properties) {
-	var radioHtml = '<input class="form-check-input" type="radio" name="' + name + '"  id="' + id + '"';
-	if (checked) {
-		radioHtml += ' checked="checked"';
-	}
-	radioHtml += '/>';
+function createRadioElement(id, properties) {
 
 	var radioFragment = document.createElement('div');
-	radioFragment.classList.add("form-check");
-	radioFragment.innerHTML = radioHtml;
-
-
+	radioFragment.classList.add("mb-3");
+	radioFragment.classList.add("collapse", "show", "scene-modifier");
+	radioFragment.id = "sceneModifier_" + id;
 
 	let function_container = document.createElement('div');
 	function_container.classList.add("container-fluid", "bg-light", "rounded", "border", "border-primary");
@@ -505,7 +503,7 @@ function createRadioElement(name, checked, id, properties) {
 
 		controller.onchange = function () {
 			// fetch with post 
-			fetch("update_function_values", {
+			fetch("set_update_function_parameter", {
 				"method": "POST",
 				"headers": { "Content-Type": "application/json" },
 				"body": JSON.stringify({
@@ -522,37 +520,99 @@ function createRadioElement(name, checked, id, properties) {
 	return radioFragment;
 }
 
-o_newPythonClassBtn.onclick = function () {
-	document.getElementById("add_class").style.display = "none";
+addSceneModifier.onchange = function () {
+	console.log(this.value);
+	if (this.value == "add") {
+		addModifierModal.show();
+	} else {
+		fetch("/select_update_function/" + this.value)
+	}
 
+	let domElements = document.getElementsByClassName("scene-modifier");
+
+	[...domElements].forEach(element => {
+		let bs_collapse = new bootstrap.Collapse(element, {
+			toggle: false
+		  });
+		if (element.id == "sceneModifier_" + this.value) {
+			bs_collapse.show();
+		} else {
+			bs_collapse.hide();
+		}
+	});
+};
+
+document.getElementById("addSceneModifierImportBtn").onclick = function () {
+	let function_id = document.getElementById("addSceneModifierImport").value;
 	fetch("add_update_function", {
 		"method": "POST",
 		"headers": { "Content-Type": "application/json" },
-		"body": JSON.stringify(document.getElementById("newPythonClass").value),
+		"body": JSON.stringify(function_id),
 	}).then(response => response.json()).then(function (response_json) {
 		// if not null alert
 		if ("error" in response_json) {
+			// TODO check if method is already loaded
 			alert(response_json["error"]);
 			stepError(response_json["error"]);
 		} else {
+			if (document.getElementById("sceneModifier_" + response_json["title"]) != null) {
+				alert("Function already loaded");
+				stepError("Function already loaded");
+			};
+
+			addModifierModal.hide();
+
 			console.log(response_json);
 			load_config();
 		}
 		return response_json;
 	}).then(function (response_json) {
 		console.log(response_json);
-		div_python_class_control.appendChild(createRadioElement("flexRadioUpdateFunction", true, response_json["title"], response_json["properties"]));
-
-		document.getElementById(response_json["title"]).onclick = function () {
-			console.log("clicked");
-			console.log(document.querySelector('input[name="flexRadioUpdateFunction"]:checked').id);
-			fetch("/select_update_function/" + document.querySelector('input[name="flexRadioUpdateFunction"]:checked').id)
-		};
-
+		let modifier = document.createElement("option");
+		modifier.value = response_json["title"];
+		modifier.innerHTML = response_json["title"];
+		addSceneModifier.appendChild(modifier);
+		addSceneModifier.value = response_json["title"];
+		return response_json;
+	}).then(function (response_json) {
+		let sceneModifierSettings = document.getElementById("sceneModifierSettings");
+		// sceneModifierSettings.innerHTML = "";
+		// TODO make them invisible and only the select one displayed / collapse / none ?
+		sceneModifierSettings.appendChild(createRadioElement(response_json["title"], response_json["properties"]));
 	});
-
-
 }
+
+// o_newPythonClassBtn.onclick = function () {
+// 	document.getElementById("add_class").style.display = "none";
+
+// 	fetch("add_update_function", {
+// 		"method": "POST",
+// 		"headers": { "Content-Type": "application/json" },
+// 		"body": JSON.stringify(document.getElementById("newPythonClass").value),
+// 	}).then(response => response.json()).then(function (response_json) {
+// 		// if not null alert
+// 		if ("error" in response_json) {
+// 			alert(response_json["error"]);
+// 			stepError(response_json["error"]);
+// 		} else {
+// 			console.log(response_json);
+// 			load_config();
+// 		}
+// 		return response_json;
+// 	}).then(function (response_json) {
+// 		console.log(response_json);
+// 		div_python_class_control.appendChild(createRadioElement("flexRadioUpdateFunction", true, response_json["title"], response_json["properties"]));
+
+// 		document.getElementById(response_json["title"]).onclick = function () {
+// 			console.log("clicked");
+// 			console.log(document.querySelector('input[name="flexRadioUpdateFunction"]:checked').id);
+// 			fetch("/select_update_function/" + document.querySelector('input[name="flexRadioUpdateFunction"]:checked').id)
+// 		};
+
+// 	});
+
+
+// }
 
 window.addEventListener("keydown", (event) => {
 	if (event.isComposing || event.key === " ") {
@@ -682,7 +742,11 @@ window.addEventListener("keydown", (event) => {
 			"method": "POST",
 			"headers": { "Content-Type": "application/json" },
 			"body": JSON.stringify({ "selected_ids": selected_ids, "step": animation_frame }),
-		}).then((response) => getAnimationFrames());
+		}).then((response) => {
+			frames.length = animation_frame + 1;
+			
+			getAnimationFrames();
+		});
 
 		if (!data_loading) {
 			getAnimationFrames();
