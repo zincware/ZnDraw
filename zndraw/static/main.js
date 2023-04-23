@@ -350,12 +350,6 @@ document.getElementById("bondDiameter").oninput = function () {
 
 document.getElementById("bondDiameter").onchange = function () {
 	let diameter = parseFloat(document.getElementById("bondDiameter").value);
-	// // Dangerous, assumes that there is a bond for the first atom
-	// let bondGeometry = PARTICLES.particleGroup.children[0].children[1].geometry;
-	// // This does not work for the box, only for the spheres!
-	// let scale = diameter / bondGeometry.boundingSphere.radius;
-	// // console.log(bondGeometry)
-	// bondGeometry.scale(scale, scale, 1);
 	fetch("config", {
 		"method": "POST",
 		"headers": { "Content-Type": "application/json" },
