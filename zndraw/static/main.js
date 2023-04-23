@@ -58,29 +58,17 @@ const div_lst_selected_ids = document.getElementById('lst_selected_ids');
 const div_FPS = document.getElementById('FPS');
 const div_n_particles = document.getElementById('n_particles');
 const div_n_bonds = document.getElementById('n_bonds');
-const div_help_container = document.getElementById('help_container');
-const div_python_class_control = document.getElementById('python_class_control');
 
 const o_autoRestart = document.getElementById('autoRestart');
 const o_animate = document.getElementById('animate');
 const o_reset_selection = document.getElementById('reset_selection');
-const o_hide_selection = document.getElementById('hide_selection');
 const o_reset = document.getElementById('reset');
 const o_max_fps = document.getElementById('max_fps');
 const o_frames_per_post = document.getElementById('frames_per_post');
-const o_sphere_plus = document.getElementById('sphere_plus');
-const o_sphere_minus = document.getElementById('sphere_minus');
-const o_bond_plus = document.getElementById('bond_plus');
-const o_bond_minus = document.getElementById('bond_minus');
-const o_resolution_plus = document.getElementById('resolution_plus');
-const o_resolution_minus = document.getElementById('resolution_minus');
 const o_materialSelect = document.getElementById('materialSelect');
 const o_wireframe = document.getElementById('wireframe');
 const o_spotLightIntensity = document.getElementById('spotLightIntensity');
 const o_hemisphereLightIntensity = document.getElementById('hemisphereLightIntensity');
-const o_help_btn = document.getElementById('help_btn');
-const o_add_btn = document.getElementById('add_btn');
-const o_newPythonClassBtn = document.getElementById('newPythonClassBtn');
 
 const addModifierModal = new bootstrap.Modal(document.getElementById("addModifierModal"));
 const addSceneModifier = document.getElementById("addSceneModifier");
@@ -638,14 +626,11 @@ window.addEventListener("keydown", (event) => {
 			"headers": { "Content-Type": "application/json" },
 			"body": JSON.stringify({ "selected_ids": selected_ids, "step": animation_frame }),
 		}).then((response) => {
-			frames.length = animation_frame + 1;
-
+			if (frames.length > 0) {
+				frames.length = animation_frame + 1;
+			}
 			getAnimationFrames();
 		});
-
-		if (!data_loading) {
-			getAnimationFrames();
-		}
 	}
 });
 
@@ -683,7 +668,6 @@ function move_atoms() {
 		div_progressBar.style.width = ((animation_frame / config["total_frames"]) * 100).toFixed(2) + "%";
 		div_bufferBar.style.width = (((frames.length - 1) / config["total_frames"]) * 100).toFixed(2) + "%";
 	}
-
 	if (frames[animation_frame].length != particleGroup.children.length) {
 		// we need to update the scene
 		build_scene(animation_frame);
