@@ -1,8 +1,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { particleGroup, materials, drawAtoms, speciesMaterial, countBonds, getAtomById, updateParticlePositions, printIndices, getAtomsCenter } from './modules/particles.js';
+import * as PARTICLES from './modules/particles.js';
 import { keydown } from './modules/keypress.js';
-
 // THREE.Cache.enabled = true;
 
 /**
@@ -82,7 +81,7 @@ async function load_config() {
 }
 
 async function update_materials() {
-	for (const material in materials) {
+	for (const material in PARTICLES.materials) {
 		const option = document.createElement("option");
 		option.text = material;
 		option.value = material;
@@ -126,14 +125,14 @@ async function build_scene(step) {
 		build_scene_cache[step] = arrayOfResponses;
 	}
 
-	drawAtoms(arrayOfResponses["nodes"], arrayOfResponses["edges"], config, scene);
+	PARTICLES.drawAtoms(arrayOfResponses["nodes"], arrayOfResponses["edges"], config, scene);
 	selected_ids = [];
 	await update_selection();
 	scene_building = false;
 
-	div_n_particles.innerHTML = particleGroup.children.length;
+	div_n_particles.innerHTML = PARTICLES.particleGroup.children.length;
 
-	div_n_bonds.innerHTML = countBonds();
+	div_n_bonds.innerHTML = PARTICLES.countBonds();
 
 	div_greyOut.style.visibility = 'hidden';
 	div_loading.style.visibility = 'hidden';
@@ -173,7 +172,7 @@ async function onPointerDown(event) {
 	raycaster.setFromCamera(pointer, camera);
 
 	// calculate objects intersecting the picking ray
-	const intersects = raycaster.intersectObjects(particleGroup.children, true);
+	const intersects = raycaster.intersectObjects(PARTICLES.particleGroup.children, true);
 
 	if (intersects.length == 0) {
 		return;
@@ -207,15 +206,15 @@ async function onPointerDown(event) {
  */
 
 async function update_color_of_ids(ids) {
-	particleGroup.children.forEach(function (atom_grp) {
+	PARTICLES.particleGroup.children.forEach(function (atom_grp) {
 		let mesh = atom_grp.children[0];
 		if (ids.includes(mesh.userData["id"])) {
-			let material = speciesMaterial(document.getElementById('materialSelect').value, 0xffa500, document.getElementById('wireframe').checked);
+			let material = PARTICLES.speciesMaterial(document.getElementById('materialSelect').value, 0xffa500, document.getElementById('wireframe').checked);
 			atom_grp.children.forEach(function (item) {
 				item.material = material;
 			});
 		} else {
-			let material = speciesMaterial(document.getElementById('materialSelect').value, mesh.userData["color"], document.getElementById('wireframe').checked);
+			let material = PARTICLES.speciesMaterial(document.getElementById('materialSelect').value, mesh.userData["color"], document.getElementById('wireframe').checked);
 			atom_grp.children.forEach(function (item) {
 				item.material = material;
 			});
@@ -326,7 +325,7 @@ o_reset.onclick = function () {
 
 document.getElementById("sphereRadius").onchange = function () {
 	let radius = parseFloat(document.getElementById("sphereRadius").value);
-	let particleGeometry = particleGroup.children[0].children[0].geometry;
+	let particleGeometry = PARTICLES.particleGroup.children[0].children[0].geometry;
 	let scale = radius / particleGeometry.boundingSphere.radius;
 	particleGeometry.scale(scale, scale, scale);
 };
@@ -344,7 +343,7 @@ document.getElementById("bondDiameter").oninput = function () {
 document.getElementById("bondDiameter").onchange = function () {
 	let diameter = parseFloat(document.getElementById("bondDiameter").value);
 	// Dangerous, assumes that there is a bond for the first atom
-	let bondGeometry = particleGroup.children[0].children[1].geometry;
+	let bondGeometry = PARTICLES.particleGroup.children[0].children[1].geometry;
 	// This does not work for the box, only for the spheres!
 	let scale = diameter / bondGeometry.boundingSphere.radius;
 	// console.log(bondGeometry)
@@ -580,7 +579,7 @@ window.addEventListener("keydown", (event) => {
 		getAnimationFrames();
 	}
 	if (event.isComposing || event.key === "i") {
-		printIndices(camera);
+		PARTICLES.printIndices(camera);
 	};
 });
 
@@ -644,7 +643,7 @@ function move_atoms() {
 		div_progressBar.style.width = ((animation_frame / config["total_frames"]) * 100).toFixed(2) + "%";
 		div_bufferBar.style.width = (((frames.length - 1) / config["total_frames"]) * 100).toFixed(2) + "%";
 	}
-	if (frames[animation_frame].length != particleGroup.children.length) {
+	if (frames[animation_frame].length != PARTICLES.particleGroup.children.length) {
 		// we need to update the scene
 		build_scene(animation_frame);
 		scene_building = true;
@@ -655,7 +654,7 @@ function move_atoms() {
 
 	if (animation_frame != displayed_frame) {
 		displayed_frame = animation_frame;
-		updateParticlePositions(frames[animation_frame]);
+		PARTICLES.updateParticlePositions(frames[animation_frame]);
 	}
 
 	fps.push(move_atoms_clock.getElapsedTime());
@@ -675,7 +674,7 @@ function centerCamera() {
 	if (selected_ids.length === 0) {
 		controls.target = new THREE.Vector3(0, 0, 0);
 	} else {
-		controls.target = getAtomsCenter(selected_ids);
+		controls.target = PARTICLES.getAtomsCenter(selected_ids);
 	}
 }
 
