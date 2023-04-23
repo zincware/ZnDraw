@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { particleGroup, materials, drawAtoms, speciesMaterial, countBonds, getAtomById, updateParticlePositions, printIndices } from './modules/particles.js';
+import { particleGroup, materials, drawAtoms, speciesMaterial, countBonds, getAtomById, updateParticlePositions, printIndices, getAtomsCenter } from './modules/particles.js';
 import { keydown } from './modules/keypress.js';
 
 // THREE.Cache.enabled = true;
@@ -675,7 +675,7 @@ function centerCamera() {
 	if (selected_ids.length === 0) {
 		controls.target = new THREE.Vector3(0, 0, 0);
 	} else {
-		controls.target = getAtomById(selected_ids[0]).position.clone();
+		controls.target = getAtomsCenter(selected_ids);
 	}
 }
 

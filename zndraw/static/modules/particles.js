@@ -183,6 +183,25 @@ export function getAtomById(atom_id) {
     return atom_grp.children[0];
 }
 
+/**
+ * Compute the center of a list of atoms
+ * @param {list} atom_ids 
+ */
+export function getAtomsCenter(atom_ids){
+    let center = new THREE.Vector3(0,0,0);
+    let count = 0;
+    for (let i = 0; i < atom_ids.length; i++) {
+        let atom = getAtomById(atom_ids[i]);
+        if (atom == undefined) {
+            continue;
+        }
+        center.add(atom.position);
+        count += 1;
+    }
+    center.divideScalar(count);
+    return center;
+}
+
 // TODO rename clean AtomsBonds
 // this does not remove the scene!
 export function cleanScene(scene) {
