@@ -34,20 +34,8 @@ def get_graph():
             "nodes": [{**graph.nodes[idx], "id": idx} for idx in graph.nodes],
             "edges": list(graph.edges),
         }
-    except IndexError:
+    except KeyError:
         return {}
-
-# @app.route("/atoms", methods=["POST"])
-# def atoms_step():
-#     step = request.json
-#     print(f"Build graph for {step = }")
-#     try:
-#         atoms = globals.config.get_atoms(step=int(step))
-#         graph = io.get_graph(atoms)
-#         print(f"Graph has {len(graph.nodes)} nodes and {len(graph.edges)} edges")
-#         return [{**graph.nodes[idx], "id": idx} for idx in graph.nodes]
-#     except (KeyError, IndexError):
-#         return []
 
 
 @app.route("/positions", methods=["POST"])
@@ -59,17 +47,8 @@ def positions_step():
             atoms = globals.config.get_atoms(step=int(step))
             result.append(atoms.get_positions().tolist())
         return result
-    except (KeyError, IndexError):
+    except KeyError:
         return result
-
-
-# @app.route("/bonds", methods=["POST"])
-# def bonds_step():
-#     step = request.json
-#     atoms = globals.config.get_atoms(step=int(step))
-#     graph = io.get_graph(atoms)
-#     return list(graph.edges)
-
 
 @app.route("/select", methods=["POST"])
 def select() -> list[int]:

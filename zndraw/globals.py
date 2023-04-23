@@ -15,16 +15,34 @@ class Config(BaseModel):
     bond_size: float = Field(1.0, description="Bond Size")
     sphere_size: float = Field(1.0, description="Sphere Size")
     resolution: int = Field(5, description="Resolution")
+    max_fps: int = Field(100, description="Maximum Frames Per Second")
+    frames_per_post: int = Field(100, description="Frames per JS POST request")
 
-    def get_atoms(self, step: int = 0):
+    def get_atoms(self, step: int = 0) -> ase.Atoms:
+        """Get the atoms for a given step.
+        
+        Raises:
+            KeyError: If the step could not be loaded.
+        """
         try:
             return _atoms_cache[step]
         except KeyError:
-            # TODO ZnH5MD
+            self.load_atoms(step)                
+        return _atoms_cache[step]
+    
+    def load_atoms(self, step: int = -1):
+        """Load the atoms up to a given step."""
+        # TODO ZnH5MD
+        if pathlib.Path(self.file).suffix == ".h5":
+            # We load all at once here
+            _atoms_cache.update(
+                dict(enumerate(znh5md.ASEH5MD(self.file).get_atoms_list()))
+            )
+        else:
             for idx, atoms in enumerate(tqdm.tqdm(ase.io.iread(self.file))):
                 _atoms_cache[idx] = atoms
                 if idx == step:
-                    return atoms
+                        break
 
 
 # @dataclasses.dataclass
