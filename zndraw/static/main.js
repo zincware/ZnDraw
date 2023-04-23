@@ -1,35 +1,17 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { particleGroup, materials, drawAtoms, speciesMaterial, countBonds, getAtomById, updateParticlePositions } from './modules/particles.js';
-
-
+import * as PARTICLES from './modules/particles.js';
+import { keydown } from './modules/keypress.js';
 // THREE.Cache.enabled = true;
-
-/**
- * ThreeJS variables
- */
-
-const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-
-const hemisphereLight = new THREE.HemisphereLight(0xffffff, 0x777777, 0.1);
-const spotLight = new THREE.SpotLight(0xffffff, 1, 0, Math.PI / 2);
-
 
 
 /**
  * Three JS Setup
  */
 
-renderer.setSize(window.innerWidth, window.innerHeight);
-document.body.appendChild(renderer.domElement);
-
-
-spotLight.position.set(0, 0, 100);
-scene.add(spotLight);
-
-scene.add(hemisphereLight);
+/**
+ * ThreeJS variables
+ */
 
 let config = {};
 
@@ -44,7 +26,6 @@ let animation_running = true;
 let data_loading = false;
 let fps = [];
 
-let keydown = { "shift": false, "ctrl": false, "alt": false, "c": false, "l": false };
 
 /**
  * DOM variables
@@ -59,29 +40,17 @@ const div_lst_selected_ids = document.getElementById('lst_selected_ids');
 const div_FPS = document.getElementById('FPS');
 const div_n_particles = document.getElementById('n_particles');
 const div_n_bonds = document.getElementById('n_bonds');
-const div_help_container = document.getElementById('help_container');
-const div_python_class_control = document.getElementById('python_class_control');
 
 const o_autoRestart = document.getElementById('autoRestart');
 const o_animate = document.getElementById('animate');
 const o_reset_selection = document.getElementById('reset_selection');
-const o_hide_selection = document.getElementById('hide_selection');
 const o_reset = document.getElementById('reset');
 const o_max_fps = document.getElementById('max_fps');
 const o_frames_per_post = document.getElementById('frames_per_post');
-const o_sphere_plus = document.getElementById('sphere_plus');
-const o_sphere_minus = document.getElementById('sphere_minus');
-const o_bond_plus = document.getElementById('bond_plus');
-const o_bond_minus = document.getElementById('bond_minus');
-const o_resolution_plus = document.getElementById('resolution_plus');
-const o_resolution_minus = document.getElementById('resolution_minus');
 const o_materialSelect = document.getElementById('materialSelect');
 const o_wireframe = document.getElementById('wireframe');
 const o_spotLightIntensity = document.getElementById('spotLightIntensity');
 const o_hemisphereLightIntensity = document.getElementById('hemisphereLightIntensity');
-const o_help_btn = document.getElementById('help_btn');
-const o_add_btn = document.getElementById('add_btn');
-const o_newPythonClassBtn = document.getElementById('newPythonClassBtn');
 
 const addModifierModal = new bootstrap.Modal(document.getElementById("addModifierModal"));
 const addSceneModifier = document.getElementById("addSceneModifier");
@@ -93,15 +62,33 @@ async function load_config() {
 	config = await (await fetch("config")).json();
 	console.log(config)
 }
+await load_config();
+
+// THREE JS Setup
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+const renderer = new THREE.WebGLRenderer({ antialias: config["antialias"], alpha: true });
+
+const hemisphereLight = new THREE.HemisphereLight(0xffffff, 0x777777, 0.1);
+const spotLight = new THREE.SpotLight(0xffffff, 1, 0, Math.PI / 2);
+
+renderer.setSize(window.innerWidth, window.innerHeight);
+document.body.appendChild(renderer.domElement);
+
+
+spotLight.position.set(0, 0, 100);
+scene.add(spotLight);
+
+scene.add(hemisphereLight);
 
 async function update_materials() {
-	for (const material in materials) {
+	for (const material in PARTICLES.materials) {
 		const option = document.createElement("option");
 		option.text = material;
 		option.value = material;
 		o_materialSelect.appendChild(option);
 	}
-	o_materialSelect.value = "MeshPhongMaterial";
+	o_materialSelect.value = config["material"];
 }
 
 update_materials();
@@ -129,29 +116,30 @@ async function build_scene(step) {
 		arrayOfResponses = build_scene_cache[step];
 	} else {
 		// this is faster then doing it one by one
-		 
+
 		arrayOfResponses = await (await fetch("graph", {
-					"method": "POST",
-					"headers": { "Content-Type": "application/json" },
-					"body": JSON.stringify(step)
-				})).json();
+			"method": "POST",
+			"headers": { "Content-Type": "application/json" },
+			"body": JSON.stringify(step)
+		})).json();
 		console.log(arrayOfResponses);
 		build_scene_cache[step] = arrayOfResponses;
 	}
 
-	drawAtoms(arrayOfResponses["nodes"], arrayOfResponses["edges"], config, scene);
+	config = await (await fetch("config")).json();
+
+	PARTICLES.drawAtoms(arrayOfResponses["nodes"], arrayOfResponses["edges"], config, scene);
 	selected_ids = [];
 	await update_selection();
 	scene_building = false;
 
-	div_n_particles.innerHTML = particleGroup.children.length;
+	div_n_particles.innerHTML = PARTICLES.particleGroup.children.length;
 
-	div_n_bonds.innerHTML = countBonds();
+	div_n_bonds.innerHTML = PARTICLES.countBonds();
 
 	div_greyOut.style.visibility = 'hidden';
 	div_loading.style.visibility = 'hidden';
 }
-await load_config();
 
 build_scene(0);
 
@@ -186,7 +174,7 @@ async function onPointerDown(event) {
 	raycaster.setFromCamera(pointer, camera);
 
 	// calculate objects intersecting the picking ray
-	const intersects = raycaster.intersectObjects(particleGroup.children, true);
+	const intersects = raycaster.intersectObjects(PARTICLES.particleGroup.children, true);
 
 	if (intersects.length == 0) {
 		return;
@@ -220,15 +208,15 @@ async function onPointerDown(event) {
  */
 
 async function update_color_of_ids(ids) {
-	particleGroup.children.forEach(function (atom_grp) {
+	PARTICLES.particleGroup.children.forEach(function (atom_grp) {
 		let mesh = atom_grp.children[0];
 		if (ids.includes(mesh.userData["id"])) {
-			let material = speciesMaterial(document.getElementById('materialSelect').value, 0xffa500, document.getElementById('wireframe').checked);
+			let material = PARTICLES.speciesMaterial(document.getElementById('materialSelect').value, 0xffa500, document.getElementById('wireframe').checked);
 			atom_grp.children.forEach(function (item) {
 				item.material = material;
 			});
 		} else {
-			let material = speciesMaterial(document.getElementById('materialSelect').value, mesh.userData["color"], document.getElementById('wireframe').checked);
+			let material = PARTICLES.speciesMaterial(document.getElementById('materialSelect').value, mesh.userData["color"], document.getElementById('wireframe').checked);
 			atom_grp.children.forEach(function (item) {
 				item.material = material;
 			});
@@ -329,18 +317,6 @@ o_reset_selection.onclick = function () {
 }
 
 
-// o_hide_selection.onclick = function () {
-// 	selected_ids.forEach(function (item, index) {
-// 		let mesh = particleGroup.getObjectByUserDataProperty("id", item);
-// 		mesh.visible = false;
-
-// 		mesh.userData["bond_ids"].forEach(function (item, index) {
-// 			bondsXGroup.children[0].getObjectById(item).visible = false;
-// 			bondsXGroup.children[1].getObjectById(item).visible = false;
-// 		});
-// 	});
-// }
-
 o_reset.onclick = function () {
 	load_config();
 	animation_frame = 0;
@@ -351,9 +327,15 @@ o_reset.onclick = function () {
 
 document.getElementById("sphereRadius").onchange = function () {
 	let radius = parseFloat(document.getElementById("sphereRadius").value);
-	let particleGeometry = particleGroup.children[0].children[0].geometry;
+	let particleGeometry = PARTICLES.particleGroup.children[0].children[0].geometry;
 	let scale = radius / particleGeometry.boundingSphere.radius;
 	particleGeometry.scale(scale, scale, scale);
+	fetch("config", {
+			"method": "POST",
+			"headers": { "Content-Type": "application/json" },
+			"body": JSON.stringify({ "sphere_size": radius }),
+		});
+
 };
 
 document.getElementById("sphereRadius").oninput = function () {
@@ -368,17 +350,22 @@ document.getElementById("bondDiameter").oninput = function () {
 
 document.getElementById("bondDiameter").onchange = function () {
 	let diameter = parseFloat(document.getElementById("bondDiameter").value);
-	// Dangerous, assumes that there is a bond for the first atom
-	let bondGeometry = particleGroup.children[0].children[1].geometry;
-	// This does not work for the box, only for the spheres!
-	let scale = diameter / bondGeometry.boundingSphere.radius;
-	// console.log(bondGeometry)
-	bondGeometry.scale(scale, scale, 1);
+	fetch("config", {
+		"method": "POST",
+		"headers": { "Content-Type": "application/json" },
+		"body": JSON.stringify({ "bond_size": diameter }),
+	});
+	// currently we can't scale correctly so we reset everything
+	build_scene(animation_frame);
 };
 
 document.getElementById("resolution").onchange = function () {
 	let resolution = parseInt(document.getElementById("resolution").value);
-	config["resolution"] = resolution;
+	fetch("config", {
+		"method": "POST",
+		"headers": { "Content-Type": "application/json" },
+		"body": JSON.stringify({ "resolution": resolution }),
+	});
 	build_scene(animation_frame);
 };
 
@@ -405,18 +392,6 @@ o_hemisphereLightIntensity.oninput = function () {
 	document.getElementById("hemisphereLightIntensityLabel").innerHTML = "Hemisphere light intensity: " + o_hemisphereLightIntensity.value;
 
 }
-
-// o_help_btn.onmouseover = function () {
-// 	div_help_container.style.display = "block";
-// }
-
-// o_help_btn.onmouseout = function () {
-// 	div_help_container.style.display = "none";
-// }
-
-// o_add_btn.onclick = function () {
-// 	document.getElementById("add_class").style.display = "block";
-// }
 
 
 /**
@@ -539,7 +514,7 @@ addSceneModifier.onchange = function () {
 	[...domElements].forEach(element => {
 		let bs_collapse = new bootstrap.Collapse(element, {
 			toggle: false
-		  });
+		});
 		if (element.id == "sceneModifier_" + this.value) {
 			bs_collapse.show();
 		} else {
@@ -588,37 +563,7 @@ document.getElementById("addSceneModifierImportBtn").onclick = function () {
 	});
 }
 
-// o_newPythonClassBtn.onclick = function () {
-// 	document.getElementById("add_class").style.display = "none";
 
-// 	fetch("add_update_function", {
-// 		"method": "POST",
-// 		"headers": { "Content-Type": "application/json" },
-// 		"body": JSON.stringify(document.getElementById("newPythonClass").value),
-// 	}).then(response => response.json()).then(function (response_json) {
-// 		// if not null alert
-// 		if ("error" in response_json) {
-// 			alert(response_json["error"]);
-// 			stepError(response_json["error"]);
-// 		} else {
-// 			console.log(response_json);
-// 			load_config();
-// 		}
-// 		return response_json;
-// 	}).then(function (response_json) {
-// 		console.log(response_json);
-// 		div_python_class_control.appendChild(createRadioElement("flexRadioUpdateFunction", true, response_json["title"], response_json["properties"]));
-
-// 		document.getElementById(response_json["title"]).onclick = function () {
-// 			console.log("clicked");
-// 			console.log(document.querySelector('input[name="flexRadioUpdateFunction"]:checked').id);
-// 			fetch("/select_update_function/" + document.querySelector('input[name="flexRadioUpdateFunction"]:checked').id)
-// 		};
-
-// 	});
-
-
-// }
 
 window.addEventListener("keydown", (event) => {
 	if (event.isComposing || event.key === " ") {
@@ -647,91 +592,11 @@ window.addEventListener("keydown", (event) => {
 		getAnimationFrames();
 	}
 	if (event.isComposing || event.key === "i") {
-		scene.updateMatrixWorld();
-		camera.updateMatrixWorld();
-
-		let ids = document.getElementsByClassName("particle-id")
-		if (ids.length > 0) {
-			return;
-		}
-
-		let positions = [];
-		let distances = [];
-		particleGroup.children.forEach(function (atoms_grp) {
-			let item = atoms_grp.children[0];
-			let vector = item.position.clone().project(camera);
-			vector.x = (vector.x + 1) / 2 * window.innerWidth;
-			vector.y = -(vector.y - 1) / 2 * window.innerHeight;
-			// if x smaller 0 or larger window width return
-			if (vector.x < 50 || vector.x > window.innerWidth - 50) {
-				return;
-			}
-			// if y smaller 0 or larger window height return
-			if (vector.y < 50 || vector.y > window.innerHeight - 50) {
-				return;
-			}
-
-
-			// between -1 and 1
-			pointer.x = (vector.x / window.innerWidth) * 2 - 1;
-			pointer.y = - (vector.y / window.innerHeight) * 2 + 1;
-
-			raycaster.setFromCamera(pointer, camera);
-			let intersects = raycaster.intersectObjects(particleGroup.children, true);
-
-			if (!(intersects[0].object == item)) {
-				return;
-			}
-			positions.push([vector, item.userData["id"]]);
-			distances.push(intersects[0].distance);
-		});
-
-		positions.forEach(function (item, index) {
-
-			var text2 = document.createElement('div');
-			text2.classList.add("particle-id", "rounded");
-			text2.style.position = 'absolute';
-			text2.style.fontSize = Math.max(15, parseInt(50 - 0.3 * (distances[index] * Math.max(...distances)))) + 'px';
-			// text2.style.width = parseInt(100 / item[2]); 
-			// text2.style.height = parseInt(100 / item[2]);
-			text2.style.backgroundColor = "#cccccc";
-			text2.innerHTML = item[1];
-			text2.style.top = item[0].y + 'px';
-			text2.style.left = item[0].x + 'px';
-			document.body.appendChild(text2);
-		});
+		PARTICLES.printIndices(camera);
 	};
-	if (event.isComposing || event.shiftKey) {
-		keydown["shift"] = true;
-	}
-	if (event.isComposing || event.ctrlKey) {
-		keydown["strg"] = true;
-	}
-	if (event.isComposing || event.altKey) {
-		keydown["alt"] = true;
-	}
-	for (let key in keydown) {
-		if (event.isComposing || event.key === key) {
-			keydown[key] = true;
-		}
-	}
 });
 
 window.addEventListener("keyup", (event) => {
-	if (event.isComposing || !event.shiftKey) {
-		keydown["shift"] = false;
-	}
-	if (event.isComposing || !event.ctrlKey) {
-		keydown["ctrl"] = false;
-	}
-	if (event.isComposing || !event.altKey) {
-		keydown["alt"] = false;
-	}
-	for (let key in keydown) {
-		if (event.isComposing || event.key === key) {
-			keydown[key] = false;
-		}
-	}
 	if (event.isComposing || event.key === "i") {
 		let ids = document.getElementsByClassName("particle-id")
 		while (ids.length > 0) {
@@ -749,14 +614,11 @@ window.addEventListener("keydown", (event) => {
 			"headers": { "Content-Type": "application/json" },
 			"body": JSON.stringify({ "selected_ids": selected_ids, "step": animation_frame }),
 		}).then((response) => {
-			frames.length = animation_frame + 1;
-			
+			if (frames.length > 0) {
+				frames.length = animation_frame + 1;
+			}
 			getAnimationFrames();
 		});
-
-		if (!data_loading) {
-			getAnimationFrames();
-		}
 	}
 });
 
@@ -794,8 +656,7 @@ function move_atoms() {
 		div_progressBar.style.width = ((animation_frame / config["total_frames"]) * 100).toFixed(2) + "%";
 		div_bufferBar.style.width = (((frames.length - 1) / config["total_frames"]) * 100).toFixed(2) + "%";
 	}
-
-	if (frames[animation_frame].length != particleGroup.children.length) {
+	if (frames[animation_frame].length != PARTICLES.particleGroup.children.length) {
 		// we need to update the scene
 		build_scene(animation_frame);
 		scene_building = true;
@@ -806,7 +667,7 @@ function move_atoms() {
 
 	if (animation_frame != displayed_frame) {
 		displayed_frame = animation_frame;
-		updateParticlePositions(frames[animation_frame]);
+		PARTICLES.updateParticlePositions(frames[animation_frame]);
 	}
 
 	fps.push(move_atoms_clock.getElapsedTime());
@@ -824,9 +685,9 @@ function move_atoms() {
 
 function centerCamera() {
 	if (selected_ids.length === 0) {
-		controls.target = new THREE.Vector3(0, 0, 0);
+		controls.target = PARTICLES.getAtomsCenter([...Array(PARTICLES.particleGroup.children.length).keys()]);
 	} else {
-		controls.target = getAtomById(selected_ids[0]).position.clone();
+		controls.target = PARTICLES.getAtomsCenter(selected_ids);
 	}
 }
 
@@ -834,7 +695,6 @@ function centerCamera() {
  * Dynamic indices
  * 
  */
-
 
 
 function animate() {

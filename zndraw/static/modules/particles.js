@@ -20,17 +20,20 @@ let node2 = new THREE.Vector3();
 
 const direction = new THREE.Vector3();
 
+let sphereGeometryFactoryCache = {};
+let speciesMaterialFactoryCache = {};
+let halfCylinderGeometryFactoryCache = {};
+
 // TODO reuse geometry and material for all atoms and just modify the meshes
 
 // a simple memoized function to add something
 const halfCylinderGeometryFactory = () => {
-    let cache = {};
     let key = ""
     return (bond_size, resolution) => {
         key = bond_size + "_" + resolution;
 
-        if (key in cache) {
-            return cache[key];
+        if (key in halfCylinderGeometryFactoryCache) {
+            return halfCylinderGeometryFactoryCache[key];
         }
         else {
             const geometry = new THREE.CylinderGeometry(0.15 * bond_size, 0.15 * bond_size, 1, resolution * 2);
@@ -38,24 +41,23 @@ const halfCylinderGeometryFactory = () => {
             geometry.applyMatrix4(new THREE.Matrix4().makeTranslation(0, 1 / 2, 0));
             // rotate it the right way for lookAt to work
             geometry.applyMatrix4(new THREE.Matrix4().makeRotationX(THREE.MathUtils.degToRad(90)));
-            cache[key] = geometry;
+            halfCylinderGeometryFactoryCache[key] = geometry;
             return geometry;
         }
     }
 }
 
 const sphereGeometryFactory = () => {
-    let cache = {};
     let key = ""
     return (sphere_size, resolution) => {
         key = sphere_size + "_" + resolution;
 
-        if (key in cache) {
-            return cache[key];
+        if (key in sphereGeometryFactoryCache) {
+            return sphereGeometryFactoryCache[key];
         }
         else {
             const geometry = new THREE.SphereGeometry(sphere_size, resolution * 4, resolution * 2);
-            cache[key] = geometry;
+            sphereGeometryFactoryCache[key] = geometry;
             return geometry;
         }
     }
@@ -63,21 +65,19 @@ const sphereGeometryFactory = () => {
 
 
 const speciesMaterialFactory = () => {
-    let cache = {};
     let key = ""
     return (name, color, wireframe) => {
         key = name + "_" + color + "_" + wireframe;
 
-        if (key in cache) {
-            console.log('Fetching material from cache');
-            return cache[key];
+        if (key in speciesMaterialFactoryCache) {
+            return speciesMaterialFactoryCache[key];
         }
         else {
             console.log('Creating new material');
             const material = materials[name].clone()
             material.color.set(color);
             material.wireframe = wireframe;
-            cache[key] = material;
+            speciesMaterialFactoryCache[key] = material;
             return material;
         }
     }
@@ -183,9 +183,32 @@ export function getAtomById(atom_id) {
     return atom_grp.children[0];
 }
 
+/**
+ * Compute the center of a list of atoms
+ * @param {list} atom_ids 
+ */
+export function getAtomsCenter(atom_ids){
+    let center = new THREE.Vector3(0,0,0);
+    let count = 0;
+    for (let i = 0; i < atom_ids.length; i++) {
+        let atom = getAtomById(atom_ids[i]);
+        if (atom == undefined) {
+            continue;
+        }
+        center.add(atom.position);
+        count += 1;
+    }
+    center.divideScalar(count);
+    return center;
+}
+
 // TODO rename clean AtomsBonds
 // this does not remove the scene!
 export function cleanScene(scene) {
+    speciesMaterialFactoryCache = {};
+    sphereGeometryFactoryCache = {};
+    halfCylinderGeometryFactoryCache = {};
+
     while (particleGroup.children.length > 0) {
         scene.remove(particleGroup.children.shift());
     };
@@ -228,3 +251,64 @@ export function updateParticlePositions(positions) {
         }
     });
 };
+
+const raycaster = new THREE.Raycaster();
+const pointer = new THREE.Vector2();
+
+
+/**
+ * Print the particle Indices as 2D overlay
+ * @param {THREE.Camera} camera 
+ * @returns 
+ */
+export function printIndices(camera) {
+
+	let ids = document.getElementsByClassName("particle-id")
+	if (ids.length > 0) {
+		return;
+	}
+
+	let positions = [];
+	let distances = [];
+	particleGroup.children.forEach(function (atoms_grp) {
+		let item = atoms_grp.children[0];
+		let vector = item.position.clone().project(camera);
+		vector.x = (vector.x + 1) / 2 * window.innerWidth;
+		vector.y = -(vector.y - 1) / 2 * window.innerHeight;
+		// if x smaller 0 or larger window width return
+		if (vector.x < 50 || vector.x > window.innerWidth - 50) {
+			return;
+		}
+		// if y smaller 0 or larger window height return
+		if (vector.y < 50 || vector.y > window.innerHeight - 50) {
+			return;
+		}
+
+
+		// between -1 and 1
+		pointer.x = (vector.x / window.innerWidth) * 2 - 1;
+		pointer.y = - (vector.y / window.innerHeight) * 2 + 1;
+
+		raycaster.setFromCamera(pointer, camera);
+		let intersects = raycaster.intersectObjects(particleGroup.children, true);
+
+		if (!(intersects[0].object == item)) {
+			return;
+		}
+		positions.push([vector, item.userData["id"]]);
+		distances.push(intersects[0].distance);
+	});
+
+	positions.forEach(function (item, index) {
+
+		var text2 = document.createElement('div');
+		text2.classList.add("particle-id", "rounded");
+		text2.style.position = 'absolute';
+		text2.style.fontSize = Math.max(15, parseInt(50 - 0.3 * (distances[index] * Math.max(...distances)))) + 'px';
+		text2.style.backgroundColor = "#cccccc";
+		text2.innerHTML = item[1];
+		text2.style.top = item[0].y + 'px';
+		text2.style.left = item[0].x + 'px';
+		document.body.appendChild(text2);
+	});
+}

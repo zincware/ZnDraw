@@ -16,9 +16,13 @@ def index():
     return render_template("index.html", config=globals.config.dict())
 
 
-@app.route("/config")
+@app.route("/config", methods=["POST", "GET"])
 def config():
     """Get the zndraw configuration."""
+    if request.method == "POST":
+        print(f"Updating config: {request.json}")
+        for key, value in request.json.items():
+            setattr(globals.config, key, value)
     return {
         **globals.config.dict(),
         "total_frames": len(globals.config._atoms_cache) - 1,
@@ -57,8 +61,11 @@ def select() -> list[int]:
     """Update the selected atoms."""
     step = request.json["step"]
     method = request.json["method"]
-    selected_ids = request.json["selected_ids"]
-    if method == "particles":
+    try:
+        selected_ids = [int(x) for x in request.json["selected_ids"]]
+    except TypeError:
+        selected_ids = []
+    if method in ["particles", "none"]:
         return {"selected_ids": selected_ids, "updated": False}
     elif method == "species":
         atoms = globals.config.get_atoms(step)
