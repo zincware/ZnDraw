@@ -685,7 +685,7 @@ function move_atoms() {
 
 function centerCamera() {
 	if (selected_ids.length === 0) {
-		controls.target = new THREE.Vector3(0, 0, 0);
+		controls.target = PARTICLES.getAtomsCenter([...Array(PARTICLES.particleGroup.children.length).keys()]);
 	} else {
 		controls.target = PARTICLES.getAtomsCenter(selected_ids);
 	}

@@ -61,7 +61,10 @@ def select() -> list[int]:
     """Update the selected atoms."""
     step = request.json["step"]
     method = request.json["method"]
-    selected_ids = [int(x) for x in request.json["selected_ids"]]
+    try:
+        selected_ids = [int(x) for x in request.json["selected_ids"]]
+    except TypeError:
+        selected_ids = []
     if method in ["particles", "none"]:
         return {"selected_ids": selected_ids, "updated": False}
     elif method == "species":
