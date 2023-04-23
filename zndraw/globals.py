@@ -14,10 +14,12 @@ class Config(BaseModel):
     file: str = Field(..., description="Trajectory File")
     bond_size: float = Field(1.0, description="Bond Size")
     sphere_size: float = Field(1.0, description="Sphere Size")
-    resolution: int = Field(5, description="Resolution")
+    resolution: int = Field(10, description="Resolution")
     max_fps: int = Field(100, description="Maximum Frames Per Second")
     frames_per_post: int = Field(100, description="Frames per JS POST request")
     active_update_function: str = Field(None, description="Active Update Function")
+    material: str = Field("MeshPhongMaterial", description="Material")
+    antialias: bool = Field(True, description="Antialias")
 
     _update_functions = PrivateAttr(default_factory=dict)
     _atoms_cache = PrivateAttr(default_factory=dict)

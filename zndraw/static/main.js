@@ -4,31 +4,14 @@ import * as PARTICLES from './modules/particles.js';
 import { keydown } from './modules/keypress.js';
 // THREE.Cache.enabled = true;
 
-/**
- * ThreeJS variables
- */
-
-const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-
-const hemisphereLight = new THREE.HemisphereLight(0xffffff, 0x777777, 0.1);
-const spotLight = new THREE.SpotLight(0xffffff, 1, 0, Math.PI / 2);
-
-
 
 /**
  * Three JS Setup
  */
 
-renderer.setSize(window.innerWidth, window.innerHeight);
-document.body.appendChild(renderer.domElement);
-
-
-spotLight.position.set(0, 0, 100);
-scene.add(spotLight);
-
-scene.add(hemisphereLight);
+/**
+ * ThreeJS variables
+ */
 
 let config = {};
 
@@ -79,6 +62,24 @@ async function load_config() {
 	config = await (await fetch("config")).json();
 	console.log(config)
 }
+await load_config();
+
+// THREE JS Setup
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+const renderer = new THREE.WebGLRenderer({ antialias: config["antialias"], alpha: true });
+
+const hemisphereLight = new THREE.HemisphereLight(0xffffff, 0x777777, 0.1);
+const spotLight = new THREE.SpotLight(0xffffff, 1, 0, Math.PI / 2);
+
+renderer.setSize(window.innerWidth, window.innerHeight);
+document.body.appendChild(renderer.domElement);
+
+
+spotLight.position.set(0, 0, 100);
+scene.add(spotLight);
+
+scene.add(hemisphereLight);
 
 async function update_materials() {
 	for (const material in PARTICLES.materials) {
@@ -87,7 +88,7 @@ async function update_materials() {
 		option.value = material;
 		o_materialSelect.appendChild(option);
 	}
-	o_materialSelect.value = "MeshPhongMaterial";
+	o_materialSelect.value = config["material"];
 }
 
 update_materials();
@@ -139,7 +140,6 @@ async function build_scene(step) {
 	div_greyOut.style.visibility = 'hidden';
 	div_loading.style.visibility = 'hidden';
 }
-await load_config();
 
 build_scene(0);
 

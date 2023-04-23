@@ -70,7 +70,6 @@ const speciesMaterialFactory = () => {
         key = name + "_" + color + "_" + wireframe;
 
         if (key in speciesMaterialFactoryCache) {
-            console.log('Fetching material from cache');
             return speciesMaterialFactoryCache[key];
         }
         else {
