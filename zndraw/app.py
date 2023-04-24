@@ -56,6 +56,21 @@ def positions_step():
     except KeyError:
         return result
 
+@app.route("/forces", methods=["POST"])
+def forces_step():
+    # atoms = globals.config.get_atoms(step=int(request.json["step"]))
+    # forces = atoms.get_forces().tolist()
+    # print("get forces")
+    # return {"forces": forces}
+    params = request.json
+    result = []
+    try:
+        for step in range(params["start"], params["stop"]):
+            atoms = globals.config.get_atoms(step=int(step))
+            result.append(atoms.get_forces().tolist())
+        return result
+    except KeyError:
+        return result
 
 @app.route("/select", methods=["POST"])
 def select() -> list[int]:

@@ -247,6 +247,9 @@ async function update_selection() {
 
 }
 
+let forces = []
+
+// TODO move into module
 async function getAnimationFrames() {
 	if (data_loading) {
 		console.log("Animation read already in progress");
@@ -271,12 +274,22 @@ async function getAnimationFrames() {
 			return response_json;
 		});
 
+		let loaded_forces = await fetch("forces", {
+			"method": "POST",
+			"headers": { "Content-Type": "application/json" },
+			"body": JSON.stringify({ "start": step, "stop": parseInt(o_frames_per_post.value) + step }),
+		}).then(response => response.json()).then(function (response_json) {
+			load_config();
+			return response_json;
+		});
+
 		console.log("Read " + step + "-" + (parseInt(o_frames_per_post.value) + step) + " frames");
 		if (Object.keys(obj).length === 0) {
 			console.log("Animation read finished");
 			break;
 		}
 		frames = frames.concat(obj);
+		forces = forces.concat(loaded_forces);
 		step += parseInt(o_frames_per_post.value);
 	}
 	data_loading = false;
@@ -605,7 +618,20 @@ window.addEventListener("keydown", (event) => {
 	if (event.isComposing || event.key === "i") {
 		PARTICLES.printIndices(camera);
 	};
+	if (event.isComposing || event.key === "f") {
+		getForces()
+	}
 });
+
+async function getForces() {
+	let response = await fetch("forces", {
+		"method": "POST",
+		"headers": { "Content-Type": "application/json" },
+		"body": JSON.stringify({"step": animation_frame}),
+	});
+	let response_json = await response.json();
+	scene.add(PARTICLES.drawArrows(response_json["forces"]));
+}
 
 window.addEventListener("keyup", (event) => {
 	if (event.isComposing || event.key === "i") {
@@ -615,6 +641,7 @@ window.addEventListener("keyup", (event) => {
 		}
 	}
 });
+
 
 window.addEventListener("keydown", (event) => {
 	if (event.isComposing || event.key === "Enter") {
@@ -690,6 +717,7 @@ function move_atoms() {
 	if (animation_frame != displayed_frame) {
 		displayed_frame = animation_frame;
 		PARTICLES.updateParticlePositions(frames[animation_frame]);
+		PARTICLES.updateArrows(forces[animation_frame]);
 	}
 
 	fps.push(move_atoms_clock.getElapsedTime());
@@ -711,6 +739,8 @@ function centerCamera() {
 	} else {
 		controls.target = PARTICLES.getAtomsCenter(selected_ids);
 	}
+	console.log("centering camera: ")
+	console.log(controls.target);
 }
 
 /**
@@ -718,7 +748,7 @@ function centerCamera() {
  * 
  */
 
-
+scene.add(PARTICLES.arrowGroup);
 function animate() {
 
 	renderer.render(scene, camera);
