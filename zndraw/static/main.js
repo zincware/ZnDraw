@@ -552,20 +552,8 @@ window.addEventListener("keydown", (event) => {
 	if (event.isComposing || event.key === "i") {
 		PARTICLES.printIndices(camera);
 	};
-	if (event.isComposing || event.key === "f") {
-		getForces()
-	}
 });
 
-async function getForces() {
-	let response = await fetch("forces", {
-		"method": "POST",
-		"headers": { "Content-Type": "application/json" },
-		"body": JSON.stringify({"step": animation_frame}),
-	});
-	let response_json = await response.json();
-	scene.add(PARTICLES.drawArrows(response_json["forces"]));
-}
 
 window.addEventListener("keyup", (event) => {
 	if (event.isComposing || event.key === "i") {
