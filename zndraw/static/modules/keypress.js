@@ -1,4 +1,5 @@
 export const keydown = { "shift": false, "ctrl": false, "alt": false, "c": false, "l": false };
+export const keyconfig = { "multiselect": false }
 
 
 
@@ -35,3 +36,7 @@ window.addEventListener("keydown", (event) => {
 		}
 	}
 });
+
+document.getElementById("multiselect").onchange = function() {
+	keyconfig.multiselect = this.checked;
+}
