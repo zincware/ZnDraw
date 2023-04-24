@@ -360,63 +360,26 @@ document.getElementById("cameraLightIntensity").oninput = function () {
  */
 function createRadioElement(id, properties) {
 
-	var radioFragment = document.createElement('div');
-	radioFragment.classList.add("mb-3");
-	radioFragment.classList.add("collapse", "show", "scene-modifier");
-	radioFragment.id = "sceneModifier_" + id;
-
-	let function_container = document.createElement('div');
-	function_container.classList.add("container-fluid", "bg-light", "rounded", "border", "border-primary");
-
-	let function_container_label = document.createElement('h5');
-	function_container_label.innerHTML = id;
-
-	function_container.appendChild(function_container_label);
-
-	let function_container_col = document.createElement('div');
-	function_container_col.classList.add("row");
-
-	let descriptions = document.createElement('div');
-	descriptions.classList.add("col-sm-2");
-
-	let values = document.createElement('div');
-	values.classList.add("col-sm-1");
-
-	let controllers = document.createElement('div');
-	controllers.classList.add("col-sm-8");
-
-	function_container_col.appendChild(descriptions);
-	function_container_col.appendChild(values);
-	function_container_col.appendChild(controllers);
+	let modifierCanvas = document.createElement('div');
+	// modifierCanvas.classList.add("mb-3");
+	modifierCanvas.classList.add("collapse", "show", "scene-modifier", "border", "border-primary", "rounded", "p-3");
+	modifierCanvas.id = "sceneModifier_" + id;
 
 	console.log(properties);
 
 	Object.values(properties).forEach((item) => {
-		console.log(item);
-		let label = document.createElement('div');
-		label.innerHTML = item["title"];
-		let label_row = document.createElement('div');
-		label_row.classList.add("row-sm");
-		label_row.appendChild(label);
-
-		let value = document.createElement('div');
-		value.innerHTML = item["default"];
-		let value_row = document.createElement('div');
-		value_row.classList.add("row-sm");
-		value_row.appendChild(value);
-
-		descriptions.appendChild(label_row);
-		values.appendChild(value_row);
-
 		let controller = document.createElement('input');
 		if (item["type"] == "integer") {
 			controller.type = "range";
+			controller.classList.add("form-range");
 			controller.step = 1;
 		} else if (item["type"] == "number") {
 			controller.type = "range";
+			controller.classList.add("form-range");
 			controller.step = 0.1;
 		} else if (item["type"] == "text") {
 			controller.type = "text";
+			controller.classList.add("form-control");
 		} else {
 			console.log("Unknown type: " + item["type"]);
 		}
@@ -430,16 +393,21 @@ function createRadioElement(id, properties) {
 			controller.max = item["maximum"];
 		}
 
-		let controller_row = document.createElement('div');
-		controller_row.classList.add("row-sm");
-		controller_row.appendChild(controller);
+		let controller_label = document.createElement('label');
+		controller_label.classList.add("form-label");
+		controller_label.setAttribute("for", controller.id);
+		controller_label.innerHTML = item["title"] + ": " + controller.value;
 
-		controllers.appendChild(controller_row);
+		let function_container = document.createElement('div');
+		// function_container.classList.add("mb-1");
+		function_container.appendChild(controller_label);
+		function_container.appendChild(controller);
+
+		modifierCanvas.appendChild(function_container);
 
 		controller.oninput = function () {
-			value.innerHTML = controller.value;
+			controller_label.innerHTML = item["title"] + ": " + controller.value;
 		}
-
 		controller.onchange = function () {
 			// fetch with post 
 			fetch("set_update_function_parameter", {
@@ -453,10 +421,8 @@ function createRadioElement(id, properties) {
 			});
 		}
 	});
-	function_container.appendChild(function_container_col);
-	radioFragment.appendChild(function_container);
 
-	return radioFragment;
+	return modifierCanvas;
 }
 
 addSceneModifier.onchange = function () {
