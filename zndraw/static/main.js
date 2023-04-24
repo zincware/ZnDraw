@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import * as PARTICLES from './modules/particles.js';
 import * as DRAW from './modules/draw.js';
+import * as DATA from './modules/data.js';
 import { keydown, keyconfig } from './modules/keypress.js';
 // THREE.Cache.enabled = true;
 
@@ -18,13 +19,11 @@ let config = {};
 
 
 // some global variables
-let frames = [];
 let selected_ids = [];
 let animation_frame = 0;
 let displayed_frame = 0;
 let scene_building = false;
 let animation_running = true;
-let data_loading = false;
 let fps = [];
 
 
@@ -47,7 +46,6 @@ const o_animate = document.getElementById('animate');
 const o_reset_selection = document.getElementById('reset_selection');
 const o_reset = document.getElementById('reset');
 const o_max_fps = document.getElementById('max_fps');
-const o_frames_per_post = document.getElementById('frames_per_post');
 const o_materialSelect = document.getElementById('materialSelect');
 const o_wireframe = document.getElementById('wireframe');
 const o_spotLightIntensity = document.getElementById('spotLightIntensity');
@@ -247,58 +245,10 @@ async function update_selection() {
 
 }
 
-let forces = []
-
-// TODO move into module
-async function getAnimationFrames() {
-	if (data_loading) {
-		console.log("Animation read already in progress");
-		return;
-	}
-	console.log("Loading animation frames");
-
-	data_loading = true;
-	if (frames.length < 2) {
-		fetch("load");
-	}
-
-	let step = frames.length;
-	while (true) {
-
-		let obj = await fetch("positions", {
-			"method": "POST",
-			"headers": { "Content-Type": "application/json" },
-			"body": JSON.stringify({ "start": step, "stop": parseInt(o_frames_per_post.value) + step }),
-		}).then(response => response.json()).then(function (response_json) {
-			load_config();
-			return response_json;
-		});
-
-		let loaded_forces = await fetch("forces", {
-			"method": "POST",
-			"headers": { "Content-Type": "application/json" },
-			"body": JSON.stringify({ "start": step, "stop": parseInt(o_frames_per_post.value) + step }),
-		}).then(response => response.json()).then(function (response_json) {
-			load_config();
-			return response_json;
-		});
-
-		console.log("Read " + step + "-" + (parseInt(o_frames_per_post.value) + step) + " frames");
-		if (Object.keys(obj).length === 0) {
-			console.log("Animation read finished");
-			break;
-		}
-		frames = frames.concat(obj);
-		forces = forces.concat(loaded_forces);
-		step += parseInt(o_frames_per_post.value);
-	}
-	data_loading = false;
-}
-
 
 if (config["animate"] === true) {
 	div_info.innerHTML = "Reading file...";
-	getAnimationFrames();
+	DATA.getAnimationFrames();
 }
 if (config["restart_animation"] === true) {
 	o_autoRestart.checked = true;
@@ -324,7 +274,7 @@ document.getElementById("selection-method").onclick = function () {
 
 o_animate.onclick = function () {
 	div_info.innerHTML = "Reading file...";
-	getAnimationFrames();
+	DATA.getAnimationFrames();
 }
 
 
@@ -592,7 +542,7 @@ document.getElementById("addSceneModifierImportBtn").onclick = function () {
 window.addEventListener("keydown", (event) => {
 	if (event.isComposing || event.key === " ") {
 		event.preventDefault();
-		if (animation_running && animation_frame == frames.length - 1) {
+		if (animation_running && animation_frame == DATA.frames.length - 1) {
 			animation_frame = 0;
 		} else {
 			animation_running = !animation_running;
@@ -604,16 +554,16 @@ window.addEventListener("keydown", (event) => {
 	}
 	if (event.isComposing || event.key === "ArrowRight") {
 		event.preventDefault();
-		animation_frame = Math.min(frames.length - 1, animation_frame + 1);
+		animation_frame = Math.min(DATA.frames.length - 1, animation_frame + 1);
 	}
 	if (event.isComposing || event.key === "ArrowUp") {
-		animation_frame = parseInt(Math.min(frames.length - 1, animation_frame + (frames.length / 10)));
+		animation_frame = parseInt(Math.min(DATA.frames.length - 1, animation_frame + (DATA.frames.length / 10)));
 	}
 	if (event.isComposing || event.key === "ArrowDown") {
-		animation_frame = parseInt(Math.max(0, animation_frame - (frames.length / 10)));
+		animation_frame = parseInt(Math.max(0, animation_frame - (DATA.frames.length / 10)));
 	}
 	if (event.isComposing || event.key === "q") {
-		getAnimationFrames();
+		DATA.getAnimationFrames();
 	}
 	if (event.isComposing || event.key === "i") {
 		PARTICLES.printIndices(camera);
@@ -652,10 +602,10 @@ window.addEventListener("keydown", (event) => {
 			"headers": { "Content-Type": "application/json" },
 			"body": JSON.stringify({ "selected_ids": selected_ids, "step": animation_frame, "points": DRAW.positions }),
 		}).then((response) => {
-			if (frames.length > 0) {
-				frames.length = animation_frame + 1;
+			if (DATA.frames.length > 0) {
+				DATA.spliceFrames(animation_frame + 1);
 			}
-			getAnimationFrames();
+			DATA.getAnimationFrames();
 		});
 	}
 });
@@ -678,7 +628,7 @@ let move_atoms_clock = new THREE.Clock();
 
 
 function move_atoms() {
-	if (frames.length === 0) {
+	if (DATA.frames.length === 0) {
 		return;
 	}
 	if (move_atoms_clock.getElapsedTime() < (1 / o_max_fps.value)) {
@@ -690,34 +640,34 @@ function move_atoms() {
 	div_progressBar.style.visibility = "hidden";
 
 	if (animation_running === true) {
-		if (animation_frame < frames.length - 1) {
+		if (animation_frame < DATA.frames.length - 1) {
 			animation_frame += 1;
 		} else if (o_autoRestart.checked === true) {
 			animation_frame = 0;
 		}
 	}
-	if (frames.length < animation_frame) {
+	if (DATA.frames.length < animation_frame) {
 		// waiting for async call to finish
 		return;
 	}
 	if (config["total_frames"] > 0) {
 		div_progressBar.style.visibility = "visible";
 		div_progressBar.style.width = ((animation_frame / config["total_frames"]) * 100).toFixed(2) + "%";
-		div_bufferBar.style.width = (((frames.length - 1) / config["total_frames"]) * 100).toFixed(2) + "%";
+		div_bufferBar.style.width = (((DATA.frames.length - 1) / config["total_frames"]) * 100).toFixed(2) + "%";
 	}
-	if (frames[animation_frame].length != PARTICLES.particleGroup.children.length) {
+	if (DATA.frames.position[animation_frame].length != PARTICLES.particleGroup.children.length) {
 		// we need to update the scene
 		build_scene(animation_frame);
 		scene_building = true;
 		return; // we need to wait for the scene to be updated
 	}
 
-	div_info.innerHTML = "Frame (" + animation_frame + "/" + (frames.length - 1) + ")";
+	div_info.innerHTML = "Frame (" + animation_frame + "/" + (DATA.frames.length - 1) + ")";
 
 	if (animation_frame != displayed_frame) {
 		displayed_frame = animation_frame;
-		PARTICLES.updateParticlePositions(frames[animation_frame]);
-		PARTICLES.updateArrows(forces[animation_frame]);
+		PARTICLES.updateParticlePositions(DATA.frames.position[animation_frame]);
+		PARTICLES.updateArrows(DATA.frames.force[animation_frame]);
 	}
 
 	fps.push(move_atoms_clock.getElapsedTime());
@@ -725,9 +675,9 @@ function move_atoms() {
 	if (fps.length > 10) {
 		fps.shift();
 	}
-	if (!data_loading) {
-		getAnimationFrames();
-	}
+	// if (!data_loading) {
+	// 	DATA.getAnimationFrames();
+	// }
 
 	div_FPS.innerHTML = (1 / (fps.reduce((a, b) => a + b, 0) / fps.length)).toFixed(2);
 	move_atoms_clock.start();
@@ -754,7 +704,7 @@ function animate() {
 	renderer.render(scene, camera);
 	controls.update();
 
-	if (frames.length > 0) {
+	if (DATA.frames.length > 0) {
 		move_atoms();
 	}
 	if (keydown["c"]) {

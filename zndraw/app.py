@@ -44,33 +44,23 @@ def get_graph():
         return {}
 
 
-@app.route("/positions", methods=["POST"])
+@app.route("/data", methods=["POST"])
 def positions_step():
     params = request.json
-    result = []
+    result = {"position": [], "force": []}
     try:
         for step in range(params["start"], params["stop"]):
             atoms = globals.config.get_atoms(step=int(step))
-            result.append(atoms.get_positions().tolist())
+            result["position"].append(atoms.get_positions().tolist())
+            # TODO MAKE THIS OPTIONAL!!, also energy, etc.
+            try:
+                result["force"].append(atoms.get_forces().tolist())
+            except:
+                result["force"].append(np.zeros_like(atoms.get_positions()).tolist())
         return result
     except KeyError:
         return result
 
-@app.route("/forces", methods=["POST"])
-def forces_step():
-    # atoms = globals.config.get_atoms(step=int(request.json["step"]))
-    # forces = atoms.get_forces().tolist()
-    # print("get forces")
-    # return {"forces": forces}
-    params = request.json
-    result = []
-    try:
-        for step in range(params["start"], params["stop"]):
-            atoms = globals.config.get_atoms(step=int(step))
-            result.append(atoms.get_forces().tolist())
-        return result
-    except KeyError:
-        return result
 
 @app.route("/select", methods=["POST"])
 def select() -> list[int]:
