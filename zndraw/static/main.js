@@ -661,8 +661,6 @@ function centerCamera() {
 	} else {
 		controls.target = PARTICLES.getAtomsCenter(selected_ids);
 	}
-	console.log("centering camera: ")
-	console.log(controls.target);
 }
 
 /**
