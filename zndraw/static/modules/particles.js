@@ -36,7 +36,7 @@ const halfCylinderGeometryFactory = () => {
             return halfCylinderGeometryFactoryCache[key];
         }
         else {
-            const geometry = new THREE.CylinderGeometry(0.15 * bond_size, 0.15 * bond_size, 1, resolution * 2);
+            const geometry = new THREE.CylinderGeometry(0.15 * bond_size, 0.15 * bond_size, 1, resolution * 2, 1, true);
             // shift it so one end rests on the origin
             geometry.applyMatrix4(new THREE.Matrix4().makeTranslation(0, 1 / 2, 0));
             // rotate it the right way for lookAt to work
@@ -187,8 +187,8 @@ export function getAtomById(atom_id) {
  * Compute the center of a list of atoms
  * @param {list} atom_ids 
  */
-export function getAtomsCenter(atom_ids){
-    let center = new THREE.Vector3(0,0,0);
+export function getAtomsCenter(atom_ids) {
+    let center = new THREE.Vector3(0, 0, 0);
     let count = 0;
     for (let i = 0; i < atom_ids.length; i++) {
         let atom = getAtomById(atom_ids[i]);
@@ -236,7 +236,7 @@ export function updateParticlePositions(positions) {
         let atom = per_atom_grp.children[0];
         node1.set(...item);
         atom.position.copy(node1);
-        
+
         for (let j = 1; j < per_atom_grp.children.length; j++) {
             let bond = per_atom_grp.children[j];
             node2.set(...positions[bond.userData["target_atom"]]);
@@ -263,52 +263,52 @@ const pointer = new THREE.Vector2();
  */
 export function printIndices(camera) {
 
-	let ids = document.getElementsByClassName("particle-id")
-	if (ids.length > 0) {
-		return;
-	}
+    let ids = document.getElementsByClassName("particle-id")
+    if (ids.length > 0) {
+        return;
+    }
 
-	let positions = [];
-	let distances = [];
-	particleGroup.children.forEach(function (atoms_grp) {
-		let item = atoms_grp.children[0];
-		let vector = item.position.clone().project(camera);
-		vector.x = (vector.x + 1) / 2 * window.innerWidth;
-		vector.y = -(vector.y - 1) / 2 * window.innerHeight;
-		// if x smaller 0 or larger window width return
-		if (vector.x < 50 || vector.x > window.innerWidth - 50) {
-			return;
-		}
-		// if y smaller 0 or larger window height return
-		if (vector.y < 50 || vector.y > window.innerHeight - 50) {
-			return;
-		}
+    let positions = [];
+    let distances = [];
+    particleGroup.children.forEach(function (atoms_grp) {
+        let item = atoms_grp.children[0];
+        let vector = item.position.clone().project(camera);
+        vector.x = (vector.x + 1) / 2 * window.innerWidth;
+        vector.y = -(vector.y - 1) / 2 * window.innerHeight;
+        // if x smaller 0 or larger window width return
+        if (vector.x < 50 || vector.x > window.innerWidth - 50) {
+            return;
+        }
+        // if y smaller 0 or larger window height return
+        if (vector.y < 50 || vector.y > window.innerHeight - 50) {
+            return;
+        }
 
 
-		// between -1 and 1
-		pointer.x = (vector.x / window.innerWidth) * 2 - 1;
-		pointer.y = - (vector.y / window.innerHeight) * 2 + 1;
+        // between -1 and 1
+        pointer.x = (vector.x / window.innerWidth) * 2 - 1;
+        pointer.y = - (vector.y / window.innerHeight) * 2 + 1;
 
-		raycaster.setFromCamera(pointer, camera);
-		let intersects = raycaster.intersectObjects(particleGroup.children, true);
+        raycaster.setFromCamera(pointer, camera);
+        let intersects = raycaster.intersectObjects(particleGroup.children, true);
 
-		if (!(intersects[0].object == item)) {
-			return;
-		}
-		positions.push([vector, item.userData["id"]]);
-		distances.push(intersects[0].distance);
-	});
+        if (!(intersects[0].object == item)) {
+            return;
+        }
+        positions.push([vector, item.userData["id"]]);
+        distances.push(intersects[0].distance);
+    });
 
-	positions.forEach(function (item, index) {
+    positions.forEach(function (item, index) {
 
-		var text2 = document.createElement('div');
-		text2.classList.add("particle-id", "rounded");
-		text2.style.position = 'absolute';
-		text2.style.fontSize = Math.max(15, parseInt(50 - 0.3 * (distances[index] * Math.max(...distances)))) + 'px';
-		text2.style.backgroundColor = "#cccccc";
-		text2.innerHTML = item[1];
-		text2.style.top = item[0].y + 'px';
-		text2.style.left = item[0].x + 'px';
-		document.body.appendChild(text2);
-	});
+        var text2 = document.createElement('div');
+        text2.classList.add("particle-id", "rounded");
+        text2.style.position = 'absolute';
+        text2.style.fontSize = Math.max(15, parseInt(50 - 0.3 * (distances[index] * Math.max(...distances)))) + 'px';
+        text2.style.backgroundColor = "#cccccc";
+        text2.innerHTML = item[1];
+        text2.style.top = item[0].y + 'px';
+        text2.style.left = item[0].x + 'px';
+        document.body.appendChild(text2);
+    });
 }

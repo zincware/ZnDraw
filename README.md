@@ -21,13 +21,14 @@ from pydantic import BaseModel
 
 class UpdateScene(BaseModel, abc.ABC):
     @abc.abstractmethod
-    def run(self, atom_ids: list[int], atoms: ase.Atoms) -> list[ase.Atoms]:
+    def run(self, atom_ids: list[int], atoms: ase.Atoms, **kwargs) -> list[ase.Atoms]:
         pass
 ```
 
 The ``run`` method expects as inputs
 - atom_ids: list[int], the ids of the currently selected atoms
 - atoms: ase.Atoms, the configuration as `ase.Atoms` file where atom_ids where selected.
+- kwargs: dict could be additional information from the scene
 
 and as an output:
 - list[ase.Atoms], a list of ase Atoms objects to display.
@@ -49,3 +50,5 @@ as it can be imported via `from module import MyUpdateCls`.
 ![ZnDraw UI](https://raw.githubusercontent.com/zincware/ZnDraw/main/misc/zndraw_ui.png "ZnDraw UI")
 
 ![ZnDraw UI2](https://raw.githubusercontent.com/zincware/ZnDraw/main/misc/zndraw_protein.png "ZnDraw UI2")
+
+![ZnDraw UI3](https://raw.githubusercontent.com/zincware/ZnDraw/main/misc/zndraw_draw.png "ZnDraw UI3")

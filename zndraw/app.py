@@ -1,6 +1,7 @@
 import uuid
 
 import networkx as nx
+import numpy as np
 from flask import Flask, render_template, request, session
 
 from zndraw import globals, io
@@ -121,8 +122,8 @@ def select_update_function(name):
 def update_scene():
     selected_ids = list(sorted(request.json["selected_ids"]))
     step = request.json["step"]
-
-    globals.config.apply_update_function(selected_ids, step)
+    points = np.array([[x["x"], x["y"], x["z"]] for x in request.json["points"]])
+    globals.config.apply_update_function(selected_ids, step, points=points)
     return {}
 
 
