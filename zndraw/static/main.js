@@ -71,7 +71,10 @@ const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerH
 const renderer = new THREE.WebGLRenderer({ antialias: config["antialias"], alpha: true });
 
 const hemisphereLight = new THREE.HemisphereLight(0xffffff, 0x777777, 0.1);
-const spotLight = new THREE.SpotLight(0xffffff, 1, 0, Math.PI / 2);
+const spotLight = new THREE.SpotLight(0xffffff, 0, 0, Math.PI / 2);
+const cameraLight = new THREE.PointLight(0xffffff, 1.0);
+
+camera.add(cameraLight);
 
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
@@ -79,6 +82,7 @@ document.body.appendChild(renderer.domElement);
 
 spotLight.position.set(0, 0, 100);
 scene.add(spotLight);
+scene.add(camera); // add the camera to the scene because of the cameraLight
 
 scene.add(hemisphereLight);
 
@@ -392,6 +396,12 @@ o_hemisphereLightIntensity.oninput = function () {
 	hemisphereLight.intensity = o_hemisphereLightIntensity.value;
 	document.getElementById("hemisphereLightIntensityLabel").innerHTML = "Hemisphere light intensity: " + o_hemisphereLightIntensity.value;
 
+}
+
+document.getElementById("cameraLightIntensity").oninput = function () {
+	let intensity = parseFloat(document.getElementById("cameraLightIntensity").value);
+	cameraLight.intensity = intensity;
+	document.getElementById("cameraLightIntensityLabel").innerHTML = "Camera light intensity: " + intensity;
 }
 
 
