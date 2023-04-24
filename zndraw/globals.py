@@ -63,7 +63,7 @@ class Config(BaseModel):
             value = value
         setattr(instance, attribute, value)
 
-    def apply_update_function(self, selected_ids, step):
+    def apply_update_function(self, selected_ids, step, **kwargs):
         """Apply the update function to the selected atoms.
 
         Arguments
@@ -83,7 +83,7 @@ class Config(BaseModel):
         step = int(step)
         function = self._update_functions[self.active_update_function].run
 
-        atoms = function([int(x) for x in selected_ids], self.get_atoms(step=step))
+        atoms = function(selected_ids, self.get_atoms(step=step), **kwargs)
 
         for key in list(self._atoms_cache.keys()):
             # we remove all steps after the current one

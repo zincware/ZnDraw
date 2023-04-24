@@ -75,6 +75,12 @@
               Scene
             </button>
           </li>
+          <li class="nav-item mx-1">
+            <button class="btn btn-outline-secondary" type="button" data-bs-toggle="offcanvas"
+              data-bs-target="#drawCanvas" aria-controls="drawCanvas">
+              Draw
+            </button>
+          </li>
         </ul>
         <form class="d-flex">
           <button class="btn btn-outline-primary mx-1" type="button" data-bs-toggle="collapse"
@@ -111,16 +117,21 @@
         <label for="wireframe" class="form-label">Wireframe material</label>
       </div>
       <div class="mb-3">
-        <label for="sphereRadius" class="form-label" id="sphereRadiusLabel">Sphere radius: {{ config['sphere_size'] }}</label>
-        <input type="range" class="form-range" id="sphereRadius" min="0.1" max="4" step="0.1" value="{{ config['sphere_size'] }}">
+        <label for="sphereRadius" class="form-label" id="sphereRadiusLabel">Sphere radius: {{ config['sphere_size']
+          }}</label>
+        <input type="range" class="form-range" id="sphereRadius" min="0.1" max="4" step="0.1"
+          value="{{ config['sphere_size'] }}">
       </div>
       <div class="mb-3">
-        <label for="bondDiameter" class="form-label" id="bondDiameterLabel">Bond diameter: {{ config['bond_size'] }}</label>
-        <input type="range" class="form-range" id="bondDiameter" min="0.1" max="2.0" step="0.1" value="{{ config['bond_size'] }}">
+        <label for="bondDiameter" class="form-label" id="bondDiameterLabel">Bond diameter: {{ config['bond_size']
+          }}</label>
+        <input type="range" class="form-range" id="bondDiameter" min="0.1" max="2.0" step="0.1"
+          value="{{ config['bond_size'] }}">
       </div>
       <div class="mb-3">
         <label for="resolution" class="form-label" id="resolutionLabel">Resolution: {{ config['resolution'] }}</label>
-        <input type="range" class="form-range" id="resolution" min="1" max="20" step="1" value="{{ config['resolution'] }}">
+        <input type="range" class="form-range" id="resolution" min="1" max="20" step="1"
+          value="{{ config['resolution'] }}">
       </div>
 
     </div>
@@ -194,11 +205,28 @@
       </div>
       <div class="mb-3">
         <button type="button" class="btn btn-secondary" id="reset">Reset Scene</button>
-        <button type="button" class="btn btn-secondary" id="animate" {% if config.update_function %} disabled {%
-          endif %}>Load Animation</button>
+        <button type="button" class="btn btn-secondary" id="animate" {% if config.update_function %} disabled {% endif
+          %}>Load Animation</button>
       </div>
     </div>
   </div>
+
+  <!-- Draw -->
+  <div class="offcanvas offcanvas-start canvasControl" data-bs-scroll="true" data-bs-backdrop="false" tabindex="-1"
+    id="drawCanvas" aria-labelledby="drawCanvasLabel">
+    <div class="offcanvas-header">
+      <h5 class="offcanvas-title" id="drawCanvasLabel">Draw</h5>
+      <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+    </div>
+    <div class="offcanvas-body">
+
+      <div class="mb-3">
+        <button type="button" class="btn btn-secondary" id="drawAddAnchor">Add anchor point</button>
+        <button type="button" class="btn btn-secondary" id="drawRemoveLine">Remove Line</button>
+      </div>
+    </div>
+  </div>
+
 
   <!-- TODOs -->
   <div style="display: none;">
@@ -332,7 +360,8 @@
             <input type="email" class="form-control" id="addSceneModifierImport"
               aria-describedby="addSceneModifierImportHelp">
             <div id="addSceneModifierImportHelp" class="form-text">The input should be <code>module.cls</code> such that
-              <code> from module import cls</code> works.</div>
+              <code> from module import cls</code> works.
+            </div>
           </div>
         </div>
         <div class="modal-footer">

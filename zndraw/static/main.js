@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import * as PARTICLES from './modules/particles.js';
+import * as DRAW from './modules/draw.js';
 import { keydown } from './modules/keypress.js';
 // THREE.Cache.enabled = true;
 
@@ -331,10 +332,10 @@ document.getElementById("sphereRadius").onchange = function () {
 	let scale = radius / particleGeometry.boundingSphere.radius;
 	particleGeometry.scale(scale, scale, scale);
 	fetch("config", {
-			"method": "POST",
-			"headers": { "Content-Type": "application/json" },
-			"body": JSON.stringify({ "sphere_size": radius }),
-		});
+		"method": "POST",
+		"headers": { "Content-Type": "application/json" },
+		"body": JSON.stringify({ "sphere_size": radius }),
+	});
 
 };
 
@@ -612,7 +613,7 @@ window.addEventListener("keydown", (event) => {
 		fetch("update", {
 			"method": "POST",
 			"headers": { "Content-Type": "application/json" },
-			"body": JSON.stringify({ "selected_ids": selected_ids, "step": animation_frame }),
+			"body": JSON.stringify({ "selected_ids": selected_ids, "step": animation_frame, "points": DRAW.positions }),
 		}).then((response) => {
 			if (frames.length > 0) {
 				frames.length = animation_frame + 1;
@@ -621,6 +622,19 @@ window.addEventListener("keydown", (event) => {
 		});
 	}
 });
+
+// Drawing
+
+DRAW.init(camera, renderer, scene, controls)
+
+document.getElementById("drawAddAnchor").onclick = function () {
+	let { position } = PARTICLES.particleGroup.children[selected_ids[0]].children[0];
+	DRAW.createAnchorPoint(position);
+};
+
+document.getElementById("drawRemoveLine").onclick = function () {
+	DRAW.reset();
+};
 
 
 
