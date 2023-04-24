@@ -53,10 +53,10 @@ def positions_step():
             atoms = globals.config.get_atoms(step=int(step))
             result["position"].append(atoms.get_positions().tolist())
             # TODO MAKE THIS OPTIONAL!!, also energy, etc.
-            try:
-                result["force"].append(atoms.get_forces().tolist())
-            except:
-                result["force"].append(np.zeros_like(atoms.get_positions()).tolist())
+            # try:
+            #     result["force"].append(atoms.get_forces().tolist())
+            # except:
+            #     result["force"].append(np.zeros_like(atoms.get_positions()).tolist())
         return result
     except KeyError:
         return result

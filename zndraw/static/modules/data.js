@@ -57,7 +57,7 @@ export async function getAnimationFrames() {
 			break;
 		}
         frames.position = frames.position.concat(obj["position"]);
-        frames.force = frames.force.concat(obj["force"]);
+        // frames.force = frames.force.concat(obj["force"]);
         frames.length = frames.position.length;
         
 		step += frames_per_post;

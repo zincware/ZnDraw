@@ -337,7 +337,7 @@ export async function updateArrows(vectors){
 export function createArrowPerParticle() {
     particleGroup.children.forEach(function (atoms_grp) {
         let item = atoms_grp.children[0];
-        let arrow = new THREE.ArrowHelper(new THREE.Vector3(0, 0, 0), item.position, 1, 0xff0000);
+        let arrow = new THREE.ArrowHelper(new THREE.Vector3(1, 0, 0), item.position, 0, 0xff0000);
         arrowGroup.add(arrow);
     });
     return arrowGroup;

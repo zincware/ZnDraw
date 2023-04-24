@@ -651,7 +651,7 @@ function move_atoms() {
 	if (animation_frame != displayed_frame) {
 		displayed_frame = animation_frame;
 		PARTICLES.updateParticlePositions(DATA.frames.position[animation_frame]);
-		PARTICLES.updateArrows(DATA.frames.force[animation_frame]);
+		// PARTICLES.updateArrows(DATA.frames.force[animation_frame]);
 	}
 
 	fps.push(move_atoms_clock.getElapsedTime());
@@ -682,7 +682,7 @@ function centerCamera() {
  * 
  */
 
-scene.add(PARTICLES.arrowGroup);
+// scene.add(PARTICLES.arrowGroup);
 function animate() {
 
 	renderer.render(scene, camera);
