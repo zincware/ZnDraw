@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import * as PARTICLES from './modules/particles.js';
 import * as DRAW from './modules/draw.js';
-import { keydown } from './modules/keypress.js';
+import { keydown, keyconfig } from './modules/keypress.js';
 // THREE.Cache.enabled = true;
 
 
@@ -183,7 +183,7 @@ async function onPointerDown(event) {
 
 	// for (let i = 0; i < intersects.length; i++) {
 	let mesh = intersects[0].object;
-	if (!keydown["shift"]) {
+	if (!keydown["shift"] && !keyconfig.multiselect) {
 		if (selected_ids.includes(mesh.userData["id"])) {
 			selected_ids = [];
 		} else {
@@ -635,8 +635,6 @@ document.getElementById("drawAddAnchor").onclick = function () {
 document.getElementById("drawRemoveLine").onclick = function () {
 	DRAW.reset();
 };
-
-
 
 
 let move_atoms_clock = new THREE.Clock();
