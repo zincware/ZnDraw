@@ -561,6 +561,15 @@ document.getElementById("drawRemoveLine").onclick = function () {
 	DRAW.reset();
 };
 
+document.getElementById("analyseDistanceBtn").onclick = function () {
+	fetch("analyse", {
+		"method": "POST",
+		"headers": { "Content-Type": "application/json" },
+		"body": JSON.stringify({ "selected_ids": selected_ids, "step": animation_frame, "points": DRAW.positions }),
+	}).then((response) => response.json()).then(function (response_json) {
+		Plotly.newPlot('analysePlot', response_json);
+	});
+};
 
 let move_atoms_clock = new THREE.Clock();
 

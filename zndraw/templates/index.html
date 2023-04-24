@@ -19,6 +19,7 @@
     }
   }
 </script>
+<script src="https://cdn.plot.ly/plotly-2.20.0.min.js" charset="utf-8"></script>
 </head>
 
 <body>
@@ -79,6 +80,12 @@
             <button class="btn btn-outline-secondary" type="button" data-bs-toggle="offcanvas"
               data-bs-target="#drawCanvas" aria-controls="drawCanvas">
               Draw
+            </button>
+          </li>
+          <li class="nav-item mx-1">
+            <button class="btn btn-outline-secondary" type="button" data-bs-toggle="offcanvas"
+              data-bs-target="#analyseCanvas" aria-controls="analyseCanvas">
+              Analyse
             </button>
           </li>
         </ul>
@@ -235,155 +242,172 @@
     </div>
   </div>
 
-
-  <!-- TODOs -->
-  <div style="display: none;">
-    <div class="row">
-      <div class="col-sm">
-        <div class="form-check form-switch">
-        </div>
-
-
-      </div>
-      <div class="col-sm">
-        <div class="row">
-          <div class="col-sm-3">
-            <div class="row">Max FPS</div>
-            <div class="row">POST</div>
-
-            <div class="row">1. Light</div>
-            <div class="row">2. Light</div>
-          </div>
-          <div class="col-sm-2">
-            <div class="row"><output id="frames_per_post_output">{{ config.frames_per_post }}</output></div>
-
-          </div>
-          <div class="col-sm">
-            <div class="row">
-            </div>
-            <div class="row"><input type="range" class="form-range" min="1" max="500" id="frames_per_post"
-                value="{{ config.frames_per_post }}" , oninput="frames_per_post_output.value = this.value">
-            </div>
-
-            <div class="row"></div>
-            <div class="row"></div>
-          </div>
-          <div class="col-sm-1"><!-- Padding on the right --></div>
-
-        </div>
-      </div>
+  <!-- Analyse -->
+  <div class="offcanvas offcanvas-start canvasControl" data-bs-scroll="true" data-bs-backdrop="false" tabindex="-1"
+    id="analyseCanvas" aria-labelledby="analyseCanvasLabel">
+    <div class="offcanvas-header">
+      <h5 class="offcanvas-title" id="analyseCanvasLabel">Analyse</h5>
+      <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
     </div>
-    <div class="container">
+    <div class="offcanvas-body">
+      <div class="mb-3">
+        <button type="button" class="btn btn-secondary" id="analyseDistanceBtn">Get distance</button>
+        <div id="analyseDistanceBtnHelp" class="form-text">Get the distance between two selected particles.</div>
+      </div>
+      <div id="analysePlot"></div>
+    </div>
+  </div>
+
+
+    <!-- TODOs -->
+    <div style="display: none;">
       <div class="row">
         <div class="col-sm">
-
-          <div class="btn-group-vertical" role="group" aria-label="Basic example">
-            <button type="button" class="btn btn-secondary" id="hide_selection" disabled>Hide
-              Selection</button>
+          <div class="form-check form-switch">
           </div>
+
+
         </div>
         <div class="col-sm">
-          <div class="btn-group-vertical" role="group" aria-label="Basic example">
-            <button type="button" class="btn btn-outline-dark" id="sphere_plus">+</button>
-            <button type="button" class="btn btn-outline-dark" id="bond_plus">+</button>
-            <button type="button" class="btn btn-outline-dark" id="resolution_plus">+</button>
+          <div class="row">
+            <div class="col-sm-3">
+              <div class="row">Max FPS</div>
+              <div class="row">POST</div>
+
+              <div class="row">1. Light</div>
+              <div class="row">2. Light</div>
+            </div>
+            <div class="col-sm-2">
+              <div class="row"><output id="frames_per_post_output">{{ config.frames_per_post }}</output></div>
+
+            </div>
+            <div class="col-sm">
+              <div class="row">
+              </div>
+              <div class="row"><input type="range" class="form-range" min="1" max="500" id="frames_per_post"
+                  value="{{ config.frames_per_post }}" , oninput="frames_per_post_output.value = this.value">
+              </div>
+
+              <div class="row"></div>
+              <div class="row"></div>
+            </div>
+            <div class="col-sm-1"><!-- Padding on the right --></div>
+
           </div>
-          <div class="btn-group-vertical" role="group" aria-label="Basic example">
-            <button type="button" class="btn btn-outline-dark" disabled>Particles</button>
-            <button type="button" class="btn btn-outline-dark" disabled>Bonds</button>
-            <button type="button" class="btn btn-outline-dark" disabled>Resolution</button>
+        </div>
+      </div>
+      <div class="container">
+        <div class="row">
+          <div class="col-sm">
+
+            <div class="btn-group-vertical" role="group" aria-label="Basic example">
+              <button type="button" class="btn btn-secondary" id="hide_selection" disabled>Hide
+                Selection</button>
+            </div>
           </div>
-          <div class="btn-group-vertical" role="group" aria-label="Basic example">
-            <button type="button" class="btn btn-outline-dark" id="sphere_minus">-</button>
-            <button type="button" class="btn btn-outline-dark" id="bond_minus">-</button>
-            <button type="button" class="btn btn-outline-dark" id="resolution_minus">-</button>
+          <div class="col-sm">
+            <div class="btn-group-vertical" role="group" aria-label="Basic example">
+              <button type="button" class="btn btn-outline-dark" id="sphere_plus">+</button>
+              <button type="button" class="btn btn-outline-dark" id="bond_plus">+</button>
+              <button type="button" class="btn btn-outline-dark" id="resolution_plus">+</button>
+            </div>
+            <div class="btn-group-vertical" role="group" aria-label="Basic example">
+              <button type="button" class="btn btn-outline-dark" disabled>Particles</button>
+              <button type="button" class="btn btn-outline-dark" disabled>Bonds</button>
+              <button type="button" class="btn btn-outline-dark" disabled>Resolution</button>
+            </div>
+            <div class="btn-group-vertical" role="group" aria-label="Basic example">
+              <button type="button" class="btn btn-outline-dark" id="sphere_minus">-</button>
+              <button type="button" class="btn btn-outline-dark" id="bond_minus">-</button>
+              <button type="button" class="btn btn-outline-dark" id="resolution_minus">-</button>
+            </div>
           </div>
         </div>
       </div>
     </div>
-  </div>
 
-  <!-- Info Box -->
-  <div class="collapse" id="infoBoxCollapse">
-    <div class="container-fluid rounded border border-dark" id="infoBox">
-      <dl class="row">
-        <dt class="col-sm-3">File</dt>
-        <dd class="col-sm-9"><code>{{ config.file }}</code></dd>
-        <dt class="col-sm-3">FPS</dt>
-        <dd class="col-sm-9" id="FPS">-</dd>
-        <dt class="col-sm-3">Particles</dt>
-        <dd class="col-sm-9" id="n_particles">-</dd>
-        <dt class="col-sm-3">Bonds</dt>
-        <dd class="col-sm-9" id="n_bonds">-</dd>
-        <dt class="col-sm-3">Selected IDs</dt>
-        <dd class="col-sm-9" id="lst_selected_ids"></dd>
-        {% if config.update_function %}
-        <dt class="col-sm-3">Function</dt>
-        <dd class="col-sm-9" id="lst_selected_ids"><code>{{ config.update_function }}</code></dd>
-        {% endif %}
-      </dl>
-    </div>
-  </div>
-
-  <!-- Help Box -->
-  <div class="collapse" id="helpBoxCollapse">
-    <div class="container-fluid bg-light rounded border border-primary pt-2" id="helpBox">
-      <h2>ZnDraw Help</h2>
-      <div class="rounded-3 bg-white px-2 pt-2">
+    <!-- Info Box -->
+    <div class="collapse" id="infoBoxCollapse">
+      <div class="container-fluid rounded border border-dark" id="infoBox">
         <dl class="row">
-          <dt class="col-sm-3">move light to camera position</dt>
-          <dd class="col-sm-9"><code>keypress L</code></dd>
-          <dt class="col-sm-3">play / pause</dt>
-          <dd class="col-sm-9"><code>keypress space</code></dd>
-          <dt class="col-sm-3">frame forwards / backwards</dt>
-          <dd class="col-sm-9"><code>keypress &#9654;\&#9664; </code></dd>
-          <dt class="col-sm-3">jump forwards / backwards</dt>
-          <dd class="col-sm-9"><code>keypress &#9650;\&#9660; </code></dd>
-          <dt class="col-sm-3">run update function</dt>
-          <dd class="col-sm-9"><code>keypress enter</code></dd>
-          <dt class="col-sm-3">center camera around selected particle</dt>
-          <dd class="col-sm-9"><code>keypress C</code></dd>
-          <dt class="col-sm-3">reload animation</dt>
-          <dd class="col-sm-9"><code>keypress Q</code></dd>
-          <dt class="col-sm-3">select multiple particles</dt>
-          <dd class="col-sm-9"><code>keydown shift</code></dd>
-          <dt class="col-sm-3">show particle index</dt>
-          <dd class="col-sm-9"><code>keydown I</code></dd>
+          <dt class="col-sm-3">File</dt>
+          <dd class="col-sm-9"><code>{{ config.file }}</code></dd>
+          <dt class="col-sm-3">FPS</dt>
+          <dd class="col-sm-9" id="FPS">-</dd>
+          <dt class="col-sm-3">Particles</dt>
+          <dd class="col-sm-9" id="n_particles">-</dd>
+          <dt class="col-sm-3">Bonds</dt>
+          <dd class="col-sm-9" id="n_bonds">-</dd>
+          <dt class="col-sm-3">Selected IDs</dt>
+          <dd class="col-sm-9" id="lst_selected_ids"></dd>
+          {% if config.update_function %}
+          <dt class="col-sm-3">Function</dt>
+          <dd class="col-sm-9" id="lst_selected_ids"><code>{{ config.update_function }}</code></dd>
+          {% endif %}
         </dl>
       </div>
     </div>
-  </div>
 
-  <!-- Add Scene Modifer -->
-  <div class="modal" tabindex="-1" id="addModifierModal">
-    <div class="modal-dialog">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title">Add Scene Modifier</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-        </div>
-        <div class="modal-body">
-          <div class="mb-3">
-            <label for="addSceneModifierImport" class="form-label">Path to modifier <code>class</code></label>
-            <input type="email" class="form-control" id="addSceneModifierImport"
-              aria-describedby="addSceneModifierImportHelp">
-            <div id="addSceneModifierImportHelp" class="form-text">The input should be <code>module.cls</code> such that
-              <code> from module import cls</code> works.
-            </div>
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-          <button type="button" class="btn btn-primary" id="addSceneModifierImportBtn">Load</button>
+    <!-- Help Box -->
+    <div class="collapse" id="helpBoxCollapse">
+      <div class="container-fluid bg-light rounded border border-primary pt-2" id="helpBox">
+        <h2>ZnDraw Help</h2>
+        <div class="rounded-3 bg-white px-2 pt-2">
+          <dl class="row">
+            <dt class="col-sm-3">move light to camera position</dt>
+            <dd class="col-sm-9"><code>keypress L</code></dd>
+            <dt class="col-sm-3">play / pause</dt>
+            <dd class="col-sm-9"><code>keypress space</code></dd>
+            <dt class="col-sm-3">frame forwards / backwards</dt>
+            <dd class="col-sm-9"><code>keypress &#9654;\&#9664; </code></dd>
+            <dt class="col-sm-3">jump forwards / backwards</dt>
+            <dd class="col-sm-9"><code>keypress &#9650;\&#9660; </code></dd>
+            <dt class="col-sm-3">run update function</dt>
+            <dd class="col-sm-9"><code>keypress enter</code></dd>
+            <dt class="col-sm-3">center camera around selected particle</dt>
+            <dd class="col-sm-9"><code>keypress C</code></dd>
+            <dt class="col-sm-3">reload animation</dt>
+            <dd class="col-sm-9"><code>keypress Q</code></dd>
+            <dt class="col-sm-3">select multiple particles</dt>
+            <dd class="col-sm-9"><code>keydown shift</code></dd>
+            <dt class="col-sm-3">show particle index</dt>
+            <dd class="col-sm-9"><code>keydown I</code></dd>
+          </dl>
         </div>
       </div>
     </div>
-  </div>
 
-  <!-- Progress Bar -->
-  <div id="info"></div>
-  <div id="progressBar"></div>
-  <div id="bufferBar"></div>
+    <!-- Add Scene Modifer -->
+    <div class="modal" tabindex="-1" id="addModifierModal">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Add Scene Modifier</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <div class="mb-3">
+              <label for="addSceneModifierImport" class="form-label">Path to modifier <code>class</code></label>
+              <input type="email" class="form-control" id="addSceneModifierImport"
+                aria-describedby="addSceneModifierImportHelp">
+              <div id="addSceneModifierImportHelp" class="form-text">The input should be <code>module.cls</code> such
+                that
+                <code> from module import cls</code> works.
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            <button type="button" class="btn btn-primary" id="addSceneModifierImportBtn">Load</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Progress Bar -->
+    <div id="info"></div>
+    <div id="progressBar"></div>
+    <div id="bufferBar"></div>
 
 </body>
 
