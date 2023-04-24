@@ -10,13 +10,21 @@ export function spliceFrames(stop) {
     frames.length = frames.position.length;
 }
 
-let config;
+export let config = {};
+
+let _config_update = false;
+
 const frames_per_post = 100;
 
 // Move config to this module?
-async function load_config() {
+export async function load_config() {
+    if (_config_update) {
+        return;
+    }
+    _config_update = true;
 	config = await (await fetch("config")).json();
 	console.log(config)
+    _config_update = false;
 }
 
 export async function getAnimationFrames() {

@@ -7,17 +7,6 @@ import { keydown, keyconfig } from './modules/keypress.js';
 // THREE.Cache.enabled = true;
 
 
-/**
- * Three JS Setup
- */
-
-/**
- * ThreeJS variables
- */
-
-let config = {};
-
-
 // some global variables
 let selected_ids = [];
 let animation_frame = 0;
@@ -57,16 +46,11 @@ const addSceneModifier = document.getElementById("addSceneModifier");
 
 // Helper Functions
 
-async function load_config() {
-	config = await (await fetch("config")).json();
-	console.log(config)
-}
-await load_config();
-
+await DATA.load_config();
 // THREE JS Setup
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-const renderer = new THREE.WebGLRenderer({ antialias: config["antialias"], alpha: true });
+const renderer = new THREE.WebGLRenderer({ antialias: DATA.config["antialias"], alpha: true });
 
 const hemisphereLight = new THREE.HemisphereLight(0xffffff, 0x777777, 0.1);
 const spotLight = new THREE.SpotLight(0xffffff, 0, 0, Math.PI / 2);
@@ -91,7 +75,7 @@ async function update_materials() {
 		option.value = material;
 		o_materialSelect.appendChild(option);
 	}
-	o_materialSelect.value = config["material"];
+	o_materialSelect.value = DATA.config["material"];
 }
 
 update_materials();
@@ -129,9 +113,9 @@ async function build_scene(step) {
 		build_scene_cache[step] = arrayOfResponses;
 	}
 
-	config = await (await fetch("config")).json();
+	await DATA.load_config();
 
-	PARTICLES.drawAtoms(arrayOfResponses["nodes"], arrayOfResponses["edges"], config, scene);
+	PARTICLES.drawAtoms(arrayOfResponses["nodes"], arrayOfResponses["edges"], DATA.config, scene);
 	selected_ids = [];
 	await update_selection();
 	scene_building = false;
@@ -246,11 +230,11 @@ async function update_selection() {
 }
 
 
-if (config["animate"] === true) {
+if (DATA.config["animate"] === true) {
 	div_info.innerHTML = "Reading file...";
 	DATA.getAnimationFrames();
 }
-if (config["restart_animation"] === true) {
+if (DATA.config["restart_animation"] === true) {
 	o_autoRestart.checked = true;
 }
 
@@ -286,7 +270,7 @@ o_reset_selection.onclick = function () {
 
 
 o_reset.onclick = function () {
-	load_config();
+	DATA.load_config();
 	animation_frame = 0;
 	build_scene(0);
 	selected_ids = [];
@@ -518,7 +502,7 @@ document.getElementById("addSceneModifierImportBtn").onclick = function () {
 			addModifierModal.hide();
 
 			console.log(response_json);
-			load_config();
+			DATA.load_config();
 		}
 		return response_json;
 	}).then(function (response_json) {
@@ -650,10 +634,10 @@ function move_atoms() {
 		// waiting for async call to finish
 		return;
 	}
-	if (config["total_frames"] > 0) {
+	if (DATA.config["total_frames"] > 0) {
 		div_progressBar.style.visibility = "visible";
-		div_progressBar.style.width = ((animation_frame / config["total_frames"]) * 100).toFixed(2) + "%";
-		div_bufferBar.style.width = (((DATA.frames.length - 1) / config["total_frames"]) * 100).toFixed(2) + "%";
+		div_progressBar.style.width = ((animation_frame / DATA.config["total_frames"]) * 100).toFixed(2) + "%";
+		div_bufferBar.style.width = (((DATA.frames.length - 1) / DATA.config["total_frames"]) * 100).toFixed(2) + "%";
 	}
 	if (DATA.frames.position[animation_frame].length != PARTICLES.particleGroup.children.length) {
 		// we need to update the scene
