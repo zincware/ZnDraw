@@ -2,6 +2,7 @@ import * as THREE from 'three';
 
 // each entry in the particleGroup again is a group of [particle, bond1, bond2, bond3, ...]
 export const particleGroup = new THREE.Group();
+export const arrowGroup = new THREE.Group();
 
 
 export const materials = {
@@ -204,6 +205,7 @@ export function getAtomsCenter(atom_ids) {
 
 // TODO rename clean AtomsBonds
 // this does not remove the scene!
+// TODO add setup function that loads the scene inside this module
 export function cleanScene(scene) {
     speciesMaterialFactoryCache = {};
     sphereGeometryFactoryCache = {};
@@ -211,6 +213,10 @@ export function cleanScene(scene) {
 
     while (particleGroup.children.length > 0) {
         scene.remove(particleGroup.children.shift());
+    };
+
+    while (arrowGroup.children.length > 0) {
+        scene.remove(arrowGroup.children.shift());
     };
 }
 
@@ -222,6 +228,7 @@ export function drawAtoms(atoms, bonds, config, scene) {
     if (config["bond_size"] > 0) {
         bonds.forEach((item) => { addBond(item, config) });
     }
+    createArrowPerParticle();
     scene.add(particleGroup);
 }
 
@@ -311,4 +318,27 @@ export function printIndices(camera) {
         text2.style.left = item[0].x + 'px';
         document.body.appendChild(text2);
     });
+}
+
+/**
+ * Draw an arrow on each particle with the given direction / magnitude
+ * @param {THREE.Vector3} vectors 
+ */
+export async function updateArrows(vectors){
+
+    arrowGroup.children.forEach((item, index) => {
+        const vector = new THREE.Vector3(...vectors[index]);
+        item.setDirection(vector.clone().normalize());
+        item.setLength(vector.length()); // find a good factor here
+        item.position.copy(getAtomById(index).position);
+    });
+}
+
+export function createArrowPerParticle() {
+    particleGroup.children.forEach(function (atoms_grp) {
+        let item = atoms_grp.children[0];
+        let arrow = new THREE.ArrowHelper(new THREE.Vector3(1, 0, 0), item.position, 0, 0xff0000);
+        arrowGroup.add(arrow);
+    });
+    return arrowGroup;
 }
