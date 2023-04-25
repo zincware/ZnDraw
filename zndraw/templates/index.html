@@ -221,7 +221,8 @@
         </label>
       </div>
       <div class="mb-3">
-        <input class="form-check-input" type="checkbox" value="" id="continuousLoading" {{ "checked" if config['continuous_loading'] }}>
+        <input class="form-check-input" type="checkbox" value="" id="continuousLoading" {{ "checked" if
+          config['continuous_loading'] }}>
         <label class="form-check-label" for="continuousLoading">
           Continuous Loading of new data.
         </label>
@@ -351,8 +352,7 @@
 
   <!-- Progress Bar -->
   <div id="info"></div>
-  <div id="progressBar"></div>
-  <div id="bufferBar"></div>
+  <input id="frame-slider" class="frame-slider" type="range" value="80" min="0" max="100">
 
 </body>
 
