@@ -555,6 +555,23 @@ document.getElementById("showBox").onclick = function () {
 	}
 };
 
+document.getElementById("continuousLoading").onclick = function () {
+	if (this.checked) {
+		fetch("config",
+			{
+				"method": "POST",
+				"headers": { "Content-Type": "application/json" },
+				"body": JSON.stringify({ "continuous_loading": true }),
+			}).then(DATA.load_config).then(DATA.getAnimationFrames);
+		} else {
+			fetch("config",
+				{
+					"method": "POST",
+					"headers": { "Content-Type": "application/json" },
+					"body": JSON.stringify({ "continuous_loading": false }),
+				}).then(DATA.load_config);
+		}
+	};
 
 let move_atoms_clock = new THREE.Clock();
 
