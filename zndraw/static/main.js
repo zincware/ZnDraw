@@ -12,7 +12,7 @@ let selected_ids = [];
 let animation_frame = 0;
 let displayed_frame = 0;
 let scene_building = false;
-let animation_running = true;
+let animation_running = false;
 let fps = [];
 
 
@@ -210,10 +210,6 @@ async function update_selection() {
 }
 
 
-if (DATA.config["animate"] === true) {
-	div_info.innerHTML = "Reading file...";
-	DATA.getAnimationFrames();
-}
 if (DATA.config["restart_animation"] === true) {
 	o_autoRestart.checked = true;
 }
@@ -493,7 +489,7 @@ window.addEventListener("keydown", (event) => {
 		animation_frame = parseInt(Math.max(0, animation_frame - (DATA.frames.length / 10)));
 	}
 	if (event.isComposing || event.key === "q") {
-		DATA.getAnimationFrames();
+		DATA.resetAnimationFrames();
 	}
 	if (event.isComposing || event.key === "i") {
 		PARTICLES.printIndices(camera);
@@ -559,6 +555,23 @@ document.getElementById("showBox").onclick = function () {
 	}
 };
 
+document.getElementById("continuousLoading").onclick = function () {
+	if (this.checked) {
+		fetch("config",
+			{
+				"method": "POST",
+				"headers": { "Content-Type": "application/json" },
+				"body": JSON.stringify({ "continuous_loading": true }),
+			}).then(DATA.load_config).then(DATA.getAnimationFrames);
+		} else {
+			fetch("config",
+				{
+					"method": "POST",
+					"headers": { "Content-Type": "application/json" },
+					"body": JSON.stringify({ "continuous_loading": false }),
+				}).then(DATA.load_config);
+		}
+	};
 
 let move_atoms_clock = new THREE.Clock();
 
@@ -630,10 +643,8 @@ function centerCamera() {
 	}
 }
 
-/**
- * Dynamic indices
- * 
- */
+div_info.innerHTML = "Reading file...";
+DATA.getAnimationFrames();
 
 // scene.add(PARTICLES.arrowGroup);
 function animate() {
@@ -641,9 +652,7 @@ function animate() {
 	renderer.render(scene, camera);
 	controls.update();
 
-	if (DATA.frames.length > 0) {
-		move_atoms();
-	}
+	move_atoms();
 	if (keydown["c"]) {
 		centerCamera();
 	}

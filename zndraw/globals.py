@@ -20,6 +20,7 @@ class Config(BaseModel):
     active_update_function: str = Field(None, description="Active Update Function")
     material: str = Field("MeshPhongMaterial", description="Material")
     antialias: bool = Field(True, description="Antialias")
+    continuous_loading: bool = Field(True, description="Continuous Loading of the trajectory")
 
     _update_functions = PrivateAttr(default_factory=dict)
     _atoms_cache = PrivateAttr(default_factory=dict)

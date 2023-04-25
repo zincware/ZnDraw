@@ -55,17 +55,20 @@ export async function getAnimationFrames() {
 		});
 
 		console.log("Read " + step + "-" + (frames_per_post + step) + " frames");
-		if (Object.keys(obj).length === 0) {
-			console.log("Animation read finished");
-			break;
+		if (obj["position"].length === 0) {
+			if (!config["continuous_loading"]){
+				console.log("Animation read finished");
+				break;
+			} else {
+				console.log("Continuous Loading: waiting for new frames");
+			}
 		}
 		frames.position = frames.position.concat(obj["position"]);
 		frames.box = frames.box.concat(obj["box"]);
 		// frames.force = frames.force.concat(obj["force"]);
 		frames.length = frames.position.length;
 
-		step += frames_per_post;
-		step = Math.min(step, frames.length);
+		step = frames.length;
 	}
 	data_loading = false;
 }
@@ -96,4 +99,14 @@ export async function getRebuildCache(step) {
 		frames.length = frames.position.length;
 	}
 	return arrayOfResponses;
+}
+
+export function resetAnimationFrames() {
+	frames.position = [];
+	frames.force = [];
+	frames.length = 0;
+	frames.box = [];
+	rebuild_cache = {};
+	getRebuildCache(0);
+	getAnimationFrames();
 }
