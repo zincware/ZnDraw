@@ -149,15 +149,6 @@ canvas {
     opacity: 0.95;
 }
 
-#frame-slider-hover {
-    position: fixed;
-    width: 100%;
-    z-index: 100;
-    overflow: hidden;
-    bottom: 0;
-    display: block;
-    left: 0;
-}
 
 .frame-slider {
     -webkit-appearance: none;
