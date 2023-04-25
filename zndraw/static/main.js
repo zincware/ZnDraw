@@ -96,19 +96,16 @@ async function build_scene(step) {
 
 	animation_frame = step;
 
-	let arrayOfResponses = await DATA.getRebuildCache(step);
-
-	PARTICLES.drawAtoms(arrayOfResponses["nodes"], arrayOfResponses["edges"], DATA.config, scene);
-	selected_ids = [];
-	await update_selection();
-	scene_building = false;
-
-	div_n_particles.innerHTML = PARTICLES.particleGroup.children.length;
-
-	div_n_bonds.innerHTML = PARTICLES.countBonds();
-
-	div_greyOut.style.visibility = 'hidden';
-	div_loading.style.visibility = 'hidden';
+	await DATA.getRebuildCache(step).then(function (arrayOfResponses) {
+		PARTICLES.drawAtoms(arrayOfResponses["nodes"], arrayOfResponses["edges"], DATA.config, scene);
+		selected_ids = [];
+	}).then(update_selection).then(function () {
+		scene_building = false;
+		div_n_particles.innerHTML = PARTICLES.particleGroup.children.length;
+		div_n_bonds.innerHTML = PARTICLES.countBonds();
+		div_greyOut.style.visibility = 'hidden';
+		div_loading.style.visibility = 'hidden';
+	});
 }
 
 build_scene(0);
