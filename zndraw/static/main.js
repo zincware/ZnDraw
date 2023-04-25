@@ -210,10 +210,6 @@ async function update_selection() {
 }
 
 
-if (DATA.config["animate"] === true) {
-	div_info.innerHTML = "Reading file...";
-	DATA.getAnimationFrames();
-}
 if (DATA.config["restart_animation"] === true) {
 	o_autoRestart.checked = true;
 }
@@ -630,10 +626,8 @@ function centerCamera() {
 	}
 }
 
-/**
- * Dynamic indices
- * 
- */
+div_info.innerHTML = "Reading file...";
+DATA.getAnimationFrames();
 
 // scene.add(PARTICLES.arrowGroup);
 function animate() {
@@ -641,9 +635,7 @@ function animate() {
 	renderer.render(scene, camera);
 	controls.update();
 
-	if (DATA.frames.length > 0) {
-		move_atoms();
-	}
+	move_atoms();
 	if (keydown["c"]) {
 		centerCamera();
 	}
