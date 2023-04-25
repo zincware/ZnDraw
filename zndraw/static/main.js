@@ -84,7 +84,6 @@ update_materials();
 
 // Setup Scene
 
-let build_scene_cache = {};
 
 async function build_scene(step) {
 	if (scene_building) {
@@ -97,35 +96,16 @@ async function build_scene(step) {
 
 	animation_frame = step;
 
-	let arrayOfResponses = [];
-	if (build_scene_cache.hasOwnProperty(step)) {
-		console.log("Using cached scene");
-		arrayOfResponses = build_scene_cache[step];
-	} else {
-		// this is faster then doing it one by one
-
-		arrayOfResponses = await (await fetch("graph", {
-			"method": "POST",
-			"headers": { "Content-Type": "application/json" },
-			"body": JSON.stringify(step)
-		})).json();
-		console.log(arrayOfResponses);
-		build_scene_cache[step] = arrayOfResponses;
-	}
-
-	await DATA.load_config();
-
-	PARTICLES.drawAtoms(arrayOfResponses["nodes"], arrayOfResponses["edges"], DATA.config, scene);
-	selected_ids = [];
-	await update_selection();
-	scene_building = false;
-
-	div_n_particles.innerHTML = PARTICLES.particleGroup.children.length;
-
-	div_n_bonds.innerHTML = PARTICLES.countBonds();
-
-	div_greyOut.style.visibility = 'hidden';
-	div_loading.style.visibility = 'hidden';
+	await DATA.getRebuildCache(step).then(function (arrayOfResponses) {
+		PARTICLES.drawAtoms(arrayOfResponses["nodes"], arrayOfResponses["edges"], DATA.config, scene);
+		selected_ids = [];
+	}).then(update_selection).then(function () {
+		scene_building = false;
+		div_n_particles.innerHTML = PARTICLES.particleGroup.children.length;
+		div_n_bonds.innerHTML = PARTICLES.countBonds();
+		div_greyOut.style.visibility = 'hidden';
+		div_loading.style.visibility = 'hidden';
+	});
 }
 
 build_scene(0);
@@ -571,6 +551,15 @@ document.getElementById("analyseDistanceBtn").onclick = function () {
 	});
 };
 
+document.getElementById("showBox").onclick = function () {
+	if (this.checked) {
+		scene.add(PARTICLES.createBox(DATA.frames.box[animation_frame]));
+	} else {
+		scene.remove(PARTICLES.box);
+	}
+};
+
+
 let move_atoms_clock = new THREE.Clock();
 
 
@@ -614,6 +603,9 @@ function move_atoms() {
 	if (animation_frame != displayed_frame) {
 		displayed_frame = animation_frame;
 		PARTICLES.updateParticlePositions(DATA.frames.position[animation_frame]);
+		// if (PARTICLES.boxGeometry !== undefined) {
+		// 	PARTICLES.updateBox(DATA.frames.box[animation_frame]);
+		// }
 		// PARTICLES.updateArrows(DATA.frames.force[animation_frame]);
 	}
 

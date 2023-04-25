@@ -39,6 +39,7 @@ def get_graph():
         return {
             "nodes": [{**graph.nodes[idx], "id": idx} for idx in graph.nodes],
             "edges": list(graph.edges),
+            "box": atoms.get_cell().diagonal().tolist(),
         }
     except KeyError:
         return {}
@@ -47,11 +48,12 @@ def get_graph():
 @app.route("/data", methods=["POST"])
 def positions_step():
     params = request.json
-    result = {"position": [], "force": []}
+    result = {"position": [], "force": [], "box": []}
     try:
         for step in range(params["start"], params["stop"]):
             atoms = globals.config.get_atoms(step=int(step))
             result["position"].append(atoms.get_positions().tolist())
+            result["box"].append(atoms.get_cell().diagonal().tolist())
             # TODO MAKE THIS OPTIONAL!!, also energy, etc.
             # try:
             #     result["force"].append(atoms.get_forces().tolist())
