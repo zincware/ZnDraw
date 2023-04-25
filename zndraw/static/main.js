@@ -12,7 +12,7 @@ let selected_ids = [];
 let animation_frame = 0;
 let displayed_frame = 0;
 let scene_building = false;
-let animation_running = true;
+let animation_running = false;
 let fps = [];
 
 
