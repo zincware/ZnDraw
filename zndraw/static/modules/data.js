@@ -65,6 +65,7 @@ export async function getAnimationFrames() {
 		frames.length = frames.position.length;
 
 		step += frames_per_post;
+		step = Math.min(step, frames.length);
 	}
 	data_loading = false;
 }
@@ -82,15 +83,17 @@ export async function getRebuildCache(step) {
 			"headers": { "Content-Type": "application/json" },
 			"body": JSON.stringify(step)
 		})).json();
-		console.log(arrayOfResponses);
 		rebuild_cache[step] = arrayOfResponses;
 	}
 	await load_config();
 	if (step === 0) {
-		frames.position = [arrayOfResponses["positions"]];  // TODO: sending data twice here
+		let positions = [];
+		for (let i = 0; i < arrayOfResponses["nodes"].length; i++) {
+			positions.push(arrayOfResponses["nodes"][i]["position"]);
+		}
+		frames.position = [positions];
 		frames.box = [arrayOfResponses["box"]];
 		frames.length = frames.position.length;
-		console.log(frames);
 	}
 	return arrayOfResponses;
 }
