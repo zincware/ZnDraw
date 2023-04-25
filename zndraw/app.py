@@ -138,7 +138,8 @@ def analyse():
     step = request.json["step"]
     from zndraw.analyse import get_distance_plot
 
-    return get_distance_plot(step, selected_ids)
+    fig = get_distance_plot(step, selected_ids)
+    return fig.to_json()
 
 
 @app.route("/load")

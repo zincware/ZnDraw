@@ -23,9 +23,15 @@ def get_distance_plot(step: int, ids: list):
     df = pd.DataFrame({"step": list(range(len(atoms_lst)))} | distances)
 
     fig = px.line(
-        df.dropna().head(step),
+        df,
         x="step",
         y=df.columns,
         title="Distance between selected particles",
+        render_mode="svg"  # This is important, otherwise openGL will be used
+        # and there can/will be issues with three.js
     )
-    return fig.to_json()
+    # smooth_df = df.rolling(window=100).mean().dropna()
+    # for col in smooth_df.columns:
+    #     if col != "step":
+    #         fig.add_scatter(x=smooth_df["step"], y=smooth_df[col], name=f"smooth_{col}")
+    return fig
