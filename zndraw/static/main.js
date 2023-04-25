@@ -488,6 +488,8 @@ window.addEventListener("keydown", (event) => {
 	}
 	if (event.isComposing || event.key === "q") {
 		DATA.resetAnimationFrames();
+		animation_frame = 0;
+		document.getElementById("frame-slider").value = 0;
 	}
 	if (event.isComposing || event.key === "i") {
 		PARTICLES.printIndices(camera);
@@ -572,15 +574,12 @@ document.getElementById("continuousLoading").onclick = function () {
 };
 
 document.getElementById("frame-slider").oninput = function () {
+	if (this.value > DATA.frames.length - 1) {
+		this.value = DATA.frames.length - 1;
+	}
 	animation_frame = parseInt(this.value);
 };
 
-// document.getElementById("frame-slider").onmouseenter = function () {
-// 	this.style.bottom = "0px";
-// };
-// document.getElementById("frame-slider").onmouseleave = function () {
-// 	this.style.bottom = "-8px";
-// };
 let move_atoms_clock = new THREE.Clock();
 
 
