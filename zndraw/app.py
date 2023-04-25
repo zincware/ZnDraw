@@ -132,6 +132,16 @@ def update_scene():
     return {}
 
 
+@app.route("/analyse", methods=["POST"])
+def analyse():
+    selected_ids = list(sorted(request.json["selected_ids"]))
+    step = request.json["step"]
+    from zndraw.analyse import get_distance_plot
+
+    fig = get_distance_plot(step, selected_ids)
+    return fig.to_json()
+
+
 @app.route("/load")
 def load():
     """Function to call asynchronously to load atoms in the background."""
