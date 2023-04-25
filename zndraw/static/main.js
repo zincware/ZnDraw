@@ -4,7 +4,6 @@ import * as PARTICLES from './modules/particles.js';
 import * as DRAW from './modules/draw.js';
 import * as DATA from './modules/data.js';
 import { keydown, keyconfig } from './modules/keypress.js';
-import { config } from './modules/data.js';
 // THREE.Cache.enabled = true;
 
 
@@ -53,7 +52,7 @@ function getCamera(){
 	let width = window.innerWidth;
 	let height = window.innerHeight;
 
-	if (config.camera == "PerspectiveCamera"){
+	if (DATA.config.camera == "PerspectiveCamera"){
 		return new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
 	} else {
 		return new THREE.OrthographicCamera( width / - 2, width / 2, height / 2, height / - 2, 1, 1000 );
