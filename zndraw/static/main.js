@@ -489,7 +489,7 @@ window.addEventListener("keydown", (event) => {
 		animation_frame = parseInt(Math.max(0, animation_frame - (DATA.frames.length / 10)));
 	}
 	if (event.isComposing || event.key === "q") {
-		DATA.getAnimationFrames();
+		DATA.resetAnimationFrames();
 	}
 	if (event.isComposing || event.key === "i") {
 		PARTICLES.printIndices(camera);

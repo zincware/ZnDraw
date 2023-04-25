@@ -97,3 +97,13 @@ export async function getRebuildCache(step) {
 	}
 	return arrayOfResponses;
 }
+
+export function resetAnimationFrames() {
+	frames.position = [];
+	frames.force = [];
+	frames.length = 0;
+	frames.box = [];
+	rebuild_cache = {};
+	getRebuildCache(0);
+	getAnimationFrames();
+}
