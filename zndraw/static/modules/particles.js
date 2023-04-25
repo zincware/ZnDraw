@@ -19,6 +19,7 @@ export const materials = {
 let node1 = new THREE.Vector3();
 let node2 = new THREE.Vector3();
 export let box;
+export let boxGeometry;
 
 const direction = new THREE.Vector3();
 
@@ -345,12 +346,15 @@ export function createArrowPerParticle() {
 }
 
 export function createBox(size) {
-    console.log(size);
-    const geometry = new THREE.BoxGeometry( ...size );
-    const edgesGeometry = new THREE.EdgesGeometry( geometry );
-    edgesGeometry.applyMatrix4(new THREE.Matrix4().makeTranslation(size[0]/2, size[1]/2, size[2]/2));
+    const geometry = new THREE.BoxGeometry( 1, 1, 1 );
+    geometry.applyMatrix4(new THREE.Matrix4().makeTranslation(1/2, 1/2, 1/2));
+    boxGeometry = new THREE.EdgesGeometry( geometry );
     const material = new THREE.LineBasicMaterial( { color: 0x000000 } );
-    box = new THREE.LineSegments( edgesGeometry, material );
-    // box.scale.set(...size);
+    box = new THREE.LineSegments( boxGeometry, material );
+    boxGeometry.scale(...size);
     return box;
+}
+
+export function updateBox(size) {
+    console.log("update box not implemented yet")
 }
