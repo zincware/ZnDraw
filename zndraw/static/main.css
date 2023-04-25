@@ -97,39 +97,6 @@ canvas {
     }
 }
 
-#progressBar {
-    height: 5px;
-    position: fixed;
-    opacity: 1.0;
-    z-index: 100;
-    background: #FFA500;
-    overflow: hidden;
-    animation: progressBar 1.5s ease-in-out;
-    animation-iteration-count: infinite;
-    animation-fill-mode: both;
-    bottom: 0;
-    content: "";
-    display: block;
-    left: 0;
-}
-
-#bufferBar {
-    height: 5px;
-    position: fixed;
-    opacity: 1.0;
-    z-index: 50;
-    background: #b2b2b2;
-    overflow: hidden;
-    animation: progressBar 1.5s ease-in-out;
-    animation-iteration-count: infinite;
-    animation-fill-mode: both;
-    bottom: 0;
-    content: "";
-    display: block;
-    left: 0;
-    visibility: visible;
-    width: 0%;
-}
 
 #greyOut {
     pointer-events: none;
@@ -193,19 +160,16 @@ canvas {
 }
 
 .frame-slider {
+    -webkit-appearance: none;
     position: fixed;
     width: 100%;
     z-index: 100;
     overflow: hidden;
-    bottom: -8px;
+    bottom: -6px;
     display: block;
     left: 0;
     transition: bottom .1s ease;
-}
-
-.frame-slider {
     height: 12px;
-    -webkit-appearance: none;
     width: 100%;
 }
 
@@ -230,7 +194,7 @@ canvas {
     height: 12px;
     width: 30px;
     border-radius: 0px;
-    background: #FFA500;
+    background: #314159;
     cursor: pointer;
     -webkit-appearance: none;
     margin-top: 0px;
@@ -257,7 +221,7 @@ canvas {
     height: 12px;
     width: 30px;
     border-radius: 0px;
-    background: #FFA500;
+    background: #314159;
     cursor: pointer;
 }
 
@@ -292,7 +256,7 @@ canvas {
     height: 12px;
     width: 30px;
     border-radius: 0px;
-    background: #FFA500;
+    background: #314159;
     cursor: pointer;
 }
 

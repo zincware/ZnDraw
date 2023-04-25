@@ -575,12 +575,12 @@ document.getElementById("frame-slider").oninput = function () {
 	animation_frame = parseInt(this.value);
 };
 
-document.getElementById("frame-slider").onmouseenter = function () {
-	this.style.bottom = "0px";
-};
-document.getElementById("frame-slider").onmouseleave = function () {
-	this.style.bottom = "-8px";
-};
+// document.getElementById("frame-slider").onmouseenter = function () {
+// 	this.style.bottom = "0px";
+// };
+// document.getElementById("frame-slider").onmouseleave = function () {
+// 	this.style.bottom = "-8px";
+// };
 let move_atoms_clock = new THREE.Clock();
 
 
