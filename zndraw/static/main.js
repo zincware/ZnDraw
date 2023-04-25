@@ -22,8 +22,6 @@ let fps = [];
 
 const div_info = document.getElementById('info');
 const div_loading = document.getElementById('atom-spinner');
-const div_progressBar = document.getElementById('progressBar');
-const div_bufferBar = document.getElementById('bufferBar');
 const div_greyOut = document.getElementById('greyOut');
 const div_lst_selected_ids = document.getElementById('lst_selected_ids');
 const div_FPS = document.getElementById('FPS');
@@ -490,6 +488,8 @@ window.addEventListener("keydown", (event) => {
 	}
 	if (event.isComposing || event.key === "q") {
 		DATA.resetAnimationFrames();
+		animation_frame = 0;
+		document.getElementById("frame-slider").value = 0;
 	}
 	if (event.isComposing || event.key === "i") {
 		PARTICLES.printIndices(camera);
@@ -563,15 +563,22 @@ document.getElementById("continuousLoading").onclick = function () {
 				"headers": { "Content-Type": "application/json" },
 				"body": JSON.stringify({ "continuous_loading": true }),
 			}).then(DATA.load_config).then(DATA.getAnimationFrames);
-		} else {
-			fetch("config",
-				{
-					"method": "POST",
-					"headers": { "Content-Type": "application/json" },
-					"body": JSON.stringify({ "continuous_loading": false }),
-				}).then(DATA.load_config);
-		}
-	};
+	} else {
+		fetch("config",
+			{
+				"method": "POST",
+				"headers": { "Content-Type": "application/json" },
+				"body": JSON.stringify({ "continuous_loading": false }),
+			}).then(DATA.load_config);
+	}
+};
+
+document.getElementById("frame-slider").oninput = function () {
+	if (this.value > DATA.frames.length - 1) {
+		this.value = DATA.frames.length - 1;
+	}
+	animation_frame = parseInt(this.value);
+};
 
 let move_atoms_clock = new THREE.Clock();
 
@@ -586,7 +593,6 @@ function move_atoms() {
 	if (scene_building === true) {
 		return;
 	}
-	div_progressBar.style.visibility = "hidden";
 
 	if (animation_running === true) {
 		if (animation_frame < DATA.frames.length - 1) {
@@ -600,9 +606,9 @@ function move_atoms() {
 		return;
 	}
 	if (DATA.config["total_frames"] > 0) {
-		div_progressBar.style.visibility = "visible";
-		div_progressBar.style.width = ((animation_frame / DATA.config["total_frames"]) * 100).toFixed(2) + "%";
-		div_bufferBar.style.width = (((DATA.frames.length - 1) / DATA.config["total_frames"]) * 100).toFixed(2) + "%";
+		// div_progressBar.style.width = ((animation_frame / DATA.config["total_frames"]) * 100).toFixed(2) + "%";
+		document.getElementById("frame-slider").value = animation_frame;
+		document.getElementById("frame-slider").max = DATA.config["total_frames"];
 	}
 	if (DATA.frames.position[animation_frame].length != PARTICLES.particleGroup.children.length) {
 		// we need to update the scene
