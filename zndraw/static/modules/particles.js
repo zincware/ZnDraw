@@ -18,6 +18,7 @@ export const materials = {
 
 let node1 = new THREE.Vector3();
 let node2 = new THREE.Vector3();
+export let box;
 
 const direction = new THREE.Vector3();
 
@@ -341,4 +342,15 @@ export function createArrowPerParticle() {
         arrowGroup.add(arrow);
     });
     return arrowGroup;
+}
+
+export function createBox(size) {
+    console.log(size);
+    const geometry = new THREE.BoxGeometry( ...size );
+    const edgesGeometry = new THREE.EdgesGeometry( geometry );
+    edgesGeometry.applyMatrix4(new THREE.Matrix4().makeTranslation(size[0]/2, size[1]/2, size[2]/2));
+    const material = new THREE.LineBasicMaterial( { color: 0x000000 } );
+    box = new THREE.LineSegments( edgesGeometry, material );
+    // box.scale.set(...size);
+    return box;
 }

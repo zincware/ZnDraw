@@ -1,12 +1,13 @@
 // Handle Data Loading
 
-export const frames = {"position": [], "force": [], length: 0};
+export const frames = {"position": [], "force": [], length: 0, "box": []};
 let data_loading = false;
 
 export function spliceFrames(stop) {
     let start=0;
     frames.position.splice(start, stop);
     frames.force.splice(start, stop);
+	frames.box.splice(start, stop);
     frames.length = frames.position.length;
 }
 
@@ -57,6 +58,7 @@ export async function getAnimationFrames() {
 			break;
 		}
         frames.position = frames.position.concat(obj["position"]);
+		frames.box = frames.box.concat(obj["box"]);
         // frames.force = frames.force.concat(obj["force"]);
         frames.length = frames.position.length;
         

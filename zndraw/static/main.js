@@ -571,6 +571,15 @@ document.getElementById("analyseDistanceBtn").onclick = function () {
 	});
 };
 
+document.getElementById("showBox").onclick = function () {
+	if (this.checked) {
+		scene.add(PARTICLES.createBox(DATA.frames.box[animation_frame]));
+	} else {
+		scene.remove(PARTICLES.box);
+	}
+};
+
+
 let move_atoms_clock = new THREE.Clock();
 
 
