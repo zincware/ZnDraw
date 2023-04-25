@@ -28,6 +28,9 @@ def main(
     browser: bool = typer.Option(True, help="Open the browser automatically."),
     webview: bool = typer.Option(True, help="Use the webview library if available."),
     verbose: bool = typer.Option(False, help="Run the server in verbose mode."),
+    camera: str = typer.Option(
+        "PerspectiveCamera", help="Either PerspectiveCamera or OrthographicCamera"
+    ),
 ):
     """ZnDraw: Visualize Molecules
 
@@ -53,7 +56,7 @@ def main(
         typer.echo(f"File {file} does not exist.")
         raise typer.Exit()
 
-    globals.config = globals.Config(file=file)
+    globals.config = globals.Config(file=file, camera=camera)
     print(globals.config)
 
     if wv is not None and webview:

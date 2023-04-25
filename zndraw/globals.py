@@ -1,4 +1,5 @@
 import dataclasses
+import enum
 import importlib
 import pathlib
 import typing
@@ -10,8 +11,16 @@ import znh5md
 from pydantic import BaseModel, Field, PrivateAttr
 
 
+class CameraChoices(str, enum.Enum):
+    OrthographicCamera = "OrthographicCamera"
+    PerspectiveCamera = "PerspectiveCamera"
+
+
 class Config(BaseModel):
     file: str = Field(..., description="Trajectory File")
+    camera: CameraChoices = Field(
+        CameraChoices.PerspectiveCamera, description="Camera style"
+    )
     bond_size: float = Field(1.0, description="Bond Size")
     sphere_size: float = Field(1.0, description="Sphere Size")
     resolution: int = Field(10, description="Resolution")

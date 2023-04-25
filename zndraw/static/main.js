@@ -47,7 +47,21 @@ const addSceneModifier = document.getElementById("addSceneModifier");
 await DATA.load_config();
 // THREE JS Setup
 const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+
+function getCamera(){
+	let width = window.innerWidth;
+	let height = window.innerHeight;
+
+	if (DATA.config.camera == "PerspectiveCamera"){
+		return new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+	} else {
+		return new THREE.OrthographicCamera( width / - 2, width / 2, height / 2, height / - 2, 1, 1000 );
+	}
+}
+
+const camera = getCamera();
+camera.position.z = 50;
+
 const renderer = new THREE.WebGLRenderer({ antialias: DATA.config["antialias"], alpha: true });
 
 const hemisphereLight = new THREE.HemisphereLight(0xffffff, 0x777777, 0.1);
@@ -110,7 +124,6 @@ build_scene(0);
 
 // interactions
 
-camera.position.z = 50;
 const controls = new OrbitControls(camera, renderer.domElement);
 
 controls.update();
