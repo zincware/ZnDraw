@@ -1,14 +1,16 @@
 // Handle Data Loading
 
-export const frames = {"position": [], "force": [], length: 0, "box": []};
+export const frames = { "position": [], "force": [], length: 0, "box": [] };
 let data_loading = false;
+export let rebuild_cache = {};
+
 
 export function spliceFrames(stop) {
-    let start=0;
-    frames.position.splice(start, stop);
-    frames.force.splice(start, stop);
+	let start = 0;
+	frames.position.splice(start, stop);
+	frames.force.splice(start, stop);
 	frames.box.splice(start, stop);
-    frames.length = frames.position.length;
+	frames.length = frames.position.length;
 }
 
 export let config = {};
@@ -19,13 +21,13 @@ const frames_per_post = 100;
 
 // Move config to this module?
 export async function load_config() {
-    if (_config_update) {
-        return;
-    }
-    _config_update = true;
+	if (_config_update) {
+		return;
+	}
+	_config_update = true;
 	config = await (await fetch("config")).json();
 	console.log(config)
-    _config_update = false;
+	_config_update = false;
 }
 
 export async function getAnimationFrames() {
@@ -33,7 +35,7 @@ export async function getAnimationFrames() {
 		console.log("Animation read already in progress");
 		return;
 	}
-    data_loading = true;
+	data_loading = true;
 	console.log("Loading animation frames");
 
 	if (frames.position.length < 2) {
@@ -57,13 +59,38 @@ export async function getAnimationFrames() {
 			console.log("Animation read finished");
 			break;
 		}
-        frames.position = frames.position.concat(obj["position"]);
+		frames.position = frames.position.concat(obj["position"]);
 		frames.box = frames.box.concat(obj["box"]);
-        // frames.force = frames.force.concat(obj["force"]);
-        frames.length = frames.position.length;
-        
+		// frames.force = frames.force.concat(obj["force"]);
+		frames.length = frames.position.length;
+
 		step += frames_per_post;
 	}
 	data_loading = false;
 }
 
+export async function getRebuildCache(step) {
+	let arrayOfResponses = [];
+	if (rebuild_cache.hasOwnProperty(step)) {
+		console.log("Using cached scene");
+		arrayOfResponses = rebuild_cache[step];
+	} else {
+		// this is faster then doing it one by one
+
+		arrayOfResponses = await (await fetch("graph", {
+			"method": "POST",
+			"headers": { "Content-Type": "application/json" },
+			"body": JSON.stringify(step)
+		})).json();
+		console.log(arrayOfResponses);
+		rebuild_cache[step] = arrayOfResponses;
+	}
+	await load_config();
+	if (step === 0) {
+		frames.position = [arrayOfResponses["positions"]];  // TODO: sending data twice here
+		frames.box = [arrayOfResponses["box"]];
+		frames.length = frames.position.length;
+		console.log(frames);
+	}
+	return arrayOfResponses;
+}

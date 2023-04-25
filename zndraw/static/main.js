@@ -84,7 +84,6 @@ update_materials();
 
 // Setup Scene
 
-let build_scene_cache = {};
 
 async function build_scene(step) {
 	if (scene_building) {
@@ -97,23 +96,7 @@ async function build_scene(step) {
 
 	animation_frame = step;
 
-	let arrayOfResponses = [];
-	if (build_scene_cache.hasOwnProperty(step)) {
-		console.log("Using cached scene");
-		arrayOfResponses = build_scene_cache[step];
-	} else {
-		// this is faster then doing it one by one
-
-		arrayOfResponses = await (await fetch("graph", {
-			"method": "POST",
-			"headers": { "Content-Type": "application/json" },
-			"body": JSON.stringify(step)
-		})).json();
-		console.log(arrayOfResponses);
-		build_scene_cache[step] = arrayOfResponses;
-	}
-
-	await DATA.load_config();
+	let arrayOfResponses = await DATA.getRebuildCache(step);
 
 	PARTICLES.drawAtoms(arrayOfResponses["nodes"], arrayOfResponses["edges"], DATA.config, scene);
 	selected_ids = [];

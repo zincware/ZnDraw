@@ -39,6 +39,8 @@ def get_graph():
         return {
             "nodes": [{**graph.nodes[idx], "id": idx} for idx in graph.nodes],
             "edges": list(graph.edges),
+            "positions": atoms.get_positions().tolist(),
+            "box": atoms.get_cell().diagonal().tolist(),
         }
     except KeyError:
         return {}
