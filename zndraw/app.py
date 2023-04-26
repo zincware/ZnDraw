@@ -4,7 +4,7 @@ import networkx as nx
 import numpy as np
 from flask import Flask, render_template, request, session
 
-from zndraw import globals, io
+from zndraw import globals, io, tools
 
 app = Flask(__name__)
 app.secret_key = str(uuid.uuid4())
@@ -75,26 +75,19 @@ def select() -> list[int]:
         selected_ids = []
     if method in ["particles", "none"]:
         return {"selected_ids": selected_ids, "updated": False}
-    elif method == "species":
-        atoms = globals.config.get_atoms(step)
 
-        for id in tuple(selected_ids):
-            selected_symbol = atoms[id].symbol
-            selected_ids += [
-                idx for idx, atom in enumerate(atoms) if atom.symbol == selected_symbol
-            ]
-        return {"selected_ids": list(set(selected_ids)), "updated": True}
+    atoms = globals.config.get_atoms(step)
+
+    if method == "species":
+        return {
+            "selected_ids": tools.select.select_identical_species(atoms, selected_ids),
+            "updated": True,
+        }
     elif method == "connected":
-        atoms = globals.config.get_atoms(step)
-        graph = io.get_graph(atoms)
-
-        total_ids = []
-
-        for node_id in selected_ids:
-            total_ids += list(nx.node_connected_component(graph, node_id))
-
-        return {"selected_ids": list(set(total_ids)), "updated": True}
-
+        return {
+            "selected_ids": tools.select.select_connected(atoms, selected_ids),
+            "updated": True,
+        }
     else:
         raise ValueError(f"Unknown selection method: {method}")
 
