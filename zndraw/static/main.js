@@ -346,8 +346,6 @@ addSceneModifier.onchange = function () {
 	console.log(this.value);
 	if (this.value == "add") {
 		addModifierModal.show();
-	} else {
-		fetch("/select_update_function/" + this.value)
 	}
 
 	let domElements = document.getElementsByClassName("scene-modifier");
@@ -450,10 +448,16 @@ window.addEventListener("keydown", (event) => {
 	if (event.isComposing || event.key === "Enter") {
 		div_info.innerHTML = "Processing...";
 
+		let form = document.getElementById("sceneModifier_"+addSceneModifier.value);
+		let modifier_kwargs = {}
+		Array.from(form.elements).forEach((input) => {
+			modifier_kwargs[input.dataset.key.toLowerCase()] = input.value;
+		  });
+
 		fetch("update", {
 			"method": "POST",
 			"headers": { "Content-Type": "application/json" },
-			"body": JSON.stringify({ "selected_ids": selected_ids, "step": animation_frame, "points": DRAW.positions }),
+			"body": JSON.stringify({ "selected_ids": selected_ids, "step": animation_frame, "points": DRAW.positions, "modifier": addSceneModifier.value, "modifier_kwargs": modifier_kwargs }),
 		}).then(function (response) {
 			DATA.resetAnimationFrames(); // use DATA.spliceFrames(animation_frame + 1); ?
 		}).then(DATA.getAnimationFrames);

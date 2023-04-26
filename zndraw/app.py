@@ -82,34 +82,23 @@ def select() -> list[int]:
 def add_update_function():
     """Add a function to the config."""
     try:
-        signature = globals.config.add_update_function(request.json)
+        signature = globals.config.get_modifier_schema(request.json)
     except (ImportError, ValueError) as err:
         return {"error": str(err)}
     return signature
 
 
-@app.route("/set_update_function_parameter", methods=["POST"])
-def set_update_function_parameter():
-    """Update the values of the update function."""
-    globals.config.set_update_function_parameter(request.json)
-    return {}
-
-
-@app.route("/select_update_function/<name>")
-def select_update_function(name):
-    """Select a function from the config."""
-    if name == "none":
-        name = None
-    globals.config.active_update_function = name
-    return {}
-
-
 @app.route("/update", methods=["POST"])
 def update_scene():
+    """Update the scene with the selected atoms."""
+    modifier = request.json["modifier"]
+    modifier_kwargs = request.json["modifier_kwargs"]
     selected_ids = list(sorted(request.json["selected_ids"]))
     step = request.json["step"]
     points = np.array([[x["x"], x["y"], x["z"]] for x in request.json["points"]])
-    globals.config.apply_update_function(selected_ids, step, points=points)
+    globals.config.run_modifier(
+        modifier, selected_ids, step, modifier_kwargs, points=points
+    )
     return {}
 
 

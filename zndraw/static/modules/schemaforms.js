@@ -3,7 +3,7 @@
 
 export function createElementFromSchema(schema) {
 
-	let modifierCanvas = document.createElement('div');
+	let modifierCanvas = document.createElement('form');
 	// modifierCanvas.classList.add("mb-3");
 	modifierCanvas.classList.add("collapse", "show", "scene-modifier", "border", "border-primary", "rounded", "p-3");
 	modifierCanvas.id = "sceneModifier_" + schema.title;
@@ -12,6 +12,7 @@ export function createElementFromSchema(schema) {
 
 	Object.values(schema.properties).forEach((item) => {
 		let controller = document.createElement('input');
+		controller.dataset.key = item["title"];
 		if (item["type"] == "integer") {
 			controller.type = "range";
 			controller.classList.add("form-range");
@@ -50,18 +51,6 @@ export function createElementFromSchema(schema) {
 
 		controller.oninput = function () {
 			controller_label.innerHTML = item["title"] + ": " + controller.value;
-		}
-		controller.onchange = function () {
-			// fetch with post 
-			fetch("set_update_function_parameter", {
-				"method": "POST",
-				"headers": { "Content-Type": "application/json" },
-				"body": JSON.stringify({
-					"function_id": id,
-					"property": item["title"],
-					"value": controller.value
-				})
-			});
 		}
 	});
 
