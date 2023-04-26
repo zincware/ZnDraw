@@ -170,12 +170,12 @@ async function onPointerDown(event) {
 		if (!selected_ids.includes(mesh.userData["id"])) {
 			selected_ids.push(mesh.userData["id"]);
 		} else {
-			mesh.material.color.set(mesh.userData["color"]);
 			selected_ids.splice(selected_ids.indexOf(mesh.userData["id"]), 1);
 		}
 	}
 	// update colors here for better performance
-	update_color_of_ids(selected_ids);
+	// TODO chain them
+	await update_color_of_ids(selected_ids);
 	await update_selection();
 }
 
