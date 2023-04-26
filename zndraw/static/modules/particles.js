@@ -209,9 +209,9 @@ export function getAtomsCenter(atom_ids) {
 // this does not remove the scene!
 // TODO add setup function that loads the scene inside this module
 export function cleanScene(scene) {
-    speciesMaterialFactoryCache = {};
-    sphereGeometryFactoryCache = {};
-    halfCylinderGeometryFactoryCache = {};
+    // speciesMaterialFactoryCache = {};
+    // sphereGeometryFactoryCache = {};
+    // halfCylinderGeometryFactoryCache = {};
 
     while (particleGroup.children.length > 0) {
         scene.remove(particleGroup.children.shift());

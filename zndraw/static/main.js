@@ -48,14 +48,14 @@ await DATA.load_config();
 // THREE JS Setup
 const scene = new THREE.Scene();
 
-function getCamera(){
+function getCamera() {
 	let width = window.innerWidth;
 	let height = window.innerHeight;
 
-	if (DATA.config.camera == "PerspectiveCamera"){
+	if (DATA.config.camera == "PerspectiveCamera") {
 		return new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
 	} else {
-		return new THREE.OrthographicCamera( width / - 2, width / 2, height / 2, height / - 2, 1, 1000 );
+		return new THREE.OrthographicCamera(width / - 2, width / 2, height / 2, height / - 2, 1, 1000);
 	}
 }
 
@@ -101,6 +101,7 @@ async function build_scene(step) {
 	if (scene_building) {
 		return;
 	}
+	scene_building = true;
 	console.log("Updating scene");
 
 	div_loading.style.visibility = 'visible';
@@ -352,7 +353,7 @@ function createRadioElement(id, properties) {
 	modifierCanvas.classList.add("collapse", "show", "scene-modifier", "border", "border-primary", "rounded", "p-3");
 	modifierCanvas.id = "sceneModifier_" + id;
 
-	console.log(properties);
+	console.log("Adding modifier: " + id);
 
 	Object.values(properties).forEach((item) => {
 		let controller = document.createElement('input');
@@ -451,15 +452,11 @@ document.getElementById("addSceneModifierImportBtn").onclick = function () {
 				alert("Function already loaded");
 				stepError("Function already loaded");
 			};
-
 			addModifierModal.hide();
-
-			console.log(response_json);
 			DATA.load_config();
 		}
 		return response_json;
 	}).then(function (response_json) {
-		console.log(response_json);
 		let modifier = document.createElement("option");
 		modifier.value = response_json["title"];
 		modifier.innerHTML = response_json["title"];
@@ -528,12 +525,9 @@ window.addEventListener("keydown", (event) => {
 			"method": "POST",
 			"headers": { "Content-Type": "application/json" },
 			"body": JSON.stringify({ "selected_ids": selected_ids, "step": animation_frame, "points": DRAW.positions }),
-		}).then((response) => {
-			if (DATA.frames.length > 0) {
-				DATA.spliceFrames(animation_frame + 1);
-			}
-			DATA.getAnimationFrames();
-		});
+		}).then(function (response) {
+			DATA.resetAnimationFrames(); // use DATA.spliceFrames(animation_frame + 1); ?
+		}).then(DATA.getAnimationFrames);
 	}
 });
 
@@ -597,7 +591,7 @@ let move_atoms_clock = new THREE.Clock();
 
 
 function move_atoms() {
-	if (DATA.frames.length === 0) {
+	if (DATA.frames.length < animation_frame) {
 		return;
 	}
 	if (move_atoms_clock.getElapsedTime() < (1 / o_max_fps.value)) {
@@ -607,27 +601,19 @@ function move_atoms() {
 		return;
 	}
 
-	if (animation_running === true) {
-		if (animation_frame < DATA.frames.length - 1) {
-			animation_frame += 1;
-		} else if (o_autoRestart.checked === true) {
-			animation_frame = 0;
+	document.getElementById("frame-slider").value = animation_frame;
+	document.getElementById("frame-slider").max = DATA.config["total_frames"];
+
+	try {
+		if (DATA.frames.position[animation_frame].length != PARTICLES.particleGroup.children.length) {
+			// we need to update the scene
+			console.log("Particle count changed from " + DATA.frames.position[animation_frame].length + " to " + PARTICLES.particleGroup.children.length + ", rebuilding scene");
+			build_scene(animation_frame);
+			return; // we need to wait for the scene to be updated
 		}
-	}
-	if (DATA.frames.length < animation_frame) {
-		// waiting for async call to finish
-		return;
-	}
-	if (DATA.config["total_frames"] > 0) {
-		// div_progressBar.style.width = ((animation_frame / DATA.config["total_frames"]) * 100).toFixed(2) + "%";
-		document.getElementById("frame-slider").value = animation_frame;
-		document.getElementById("frame-slider").max = DATA.config["total_frames"];
-	}
-	if (DATA.frames.position[animation_frame].length != PARTICLES.particleGroup.children.length) {
-		// we need to update the scene
-		build_scene(animation_frame);
-		scene_building = true;
-		return; // we need to wait for the scene to be updated
+	} catch (e) {
+		console.log("Scene not ready yet");
+		return; // scene is not ready yet
 	}
 
 	div_info.innerHTML = "Frame (" + animation_frame + "/" + (DATA.frames.length - 1) + ")";
@@ -652,6 +638,13 @@ function move_atoms() {
 
 	div_FPS.innerHTML = (1 / (fps.reduce((a, b) => a + b, 0) / fps.length)).toFixed(2);
 	move_atoms_clock.start();
+	if (animation_running === true) {
+		if (animation_frame < DATA.frames.length - 1) {
+			animation_frame += 1;
+		} else if (o_autoRestart.checked === true) {
+			animation_frame = 0;
+		}
+	}
 }
 
 function centerCamera() {
