@@ -620,12 +620,12 @@ function move_atoms() {
 
 	if (animation_frame != displayed_frame) {
 		displayed_frame = animation_frame;
+		PARTICLES.updateParticlePositions(DATA.frames.position[animation_frame]);
 		// if (PARTICLES.boxGeometry !== undefined) {
 		// 	PARTICLES.updateBox(DATA.frames.box[animation_frame]);
 		// }
 		// PARTICLES.updateArrows(DATA.frames.force[animation_frame]);
 	}
-	PARTICLES.updateParticlePositions(DATA.frames.position[animation_frame]);
 
 	fps.push(move_atoms_clock.getElapsedTime());
 
