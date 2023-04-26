@@ -1,11 +1,11 @@
 // Convert schema to bootstrap form
 
 
-export function createElementFromSchema(schema) {
+export function createElementFromSchema(schema, clsName) {
 
 	let modifierCanvas = document.createElement('form');
 	// modifierCanvas.classList.add("mb-3");
-	modifierCanvas.classList.add("collapse", "show", "scene-modifier", "border", "border-primary", "rounded", "p-3");
+	modifierCanvas.classList.add("collapse", "show", clsName, "border", "border-primary", "rounded", "p-3");
 	modifierCanvas.id = "sceneModifier_" + schema.title;
 
 	console.log("Adding modifier: " + schema.title);

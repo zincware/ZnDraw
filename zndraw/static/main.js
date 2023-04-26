@@ -40,6 +40,7 @@ const o_spotLightIntensity = document.getElementById('spotLightIntensity');
 const o_hemisphereLightIntensity = document.getElementById('hemisphereLightIntensity');
 
 const addModifierModal = new bootstrap.Modal(document.getElementById("addModifierModal"));
+const addAnalysisModal = new bootstrap.Modal(document.getElementById("addAnalysisModal"));
 const addSceneModifier = document.getElementById("addSceneModifier");
 
 
@@ -394,11 +395,64 @@ document.getElementById("addSceneModifierImportBtn").onclick = function () {
 		let sceneModifierSettings = document.getElementById("sceneModifierSettings");
 		// sceneModifierSettings.innerHTML = "";
 		// TODO make them invisible and only the select one displayed / collapse / none ?
-		sceneModifierSettings.appendChild(createElementFromSchema(response_json));
+		sceneModifierSettings.appendChild(createElementFromSchema(response_json, "scene-modifier"));
 	});
 }
 
 
+document.getElementById("addAnalysis").onchange = function () {
+	console.log(this.value);
+	if (this.value == "add") {
+		addAnalysisModal.show();
+	}
+
+	let domElements = document.getElementsByClassName("scene-analysis");
+
+	[...domElements].forEach(element => {
+		let bs_collapse = new bootstrap.Collapse(element, {
+			toggle: false
+		});
+		if (element.id == "sceneModifier_" + this.value) {
+			bs_collapse.show();
+		} else {
+			bs_collapse.hide();
+		}
+	});
+};
+
+document.getElementById("addAnalysisImportBtn").onclick = function () {
+	let function_id = document.getElementById("addAnalysisImport").value;
+	fetch("add_analysis", {
+		"method": "POST",
+		"headers": { "Content-Type": "application/json" },
+		"body": JSON.stringify(function_id),
+	}).then(response => response.json()).then(function (response_json) {
+		// if not null alert
+		if ("error" in response_json) {
+			// TODO check if method is already loaded
+			alert(response_json["error"]);
+			stepError(response_json["error"]);
+		} else {
+			if (document.getElementById("sceneModifier_" + response_json["title"]) != null) {
+				alert("Function already loaded");
+				stepError("Function already loaded");
+			};
+			addAnalysisModal.hide();
+			DATA.load_config();
+		}
+		return response_json;
+	}).then(function (response_json) {
+		let modifier = document.createElement("option");
+		modifier.value = response_json["title"];
+		modifier.innerHTML = response_json["title"];
+		document.getElementById("addAnalysis").appendChild(modifier);
+		document.getElementById("addAnalysis").value = response_json["title"];
+		return response_json;
+	}).then(function (response_json) {
+		let analysisSettings = document.getElementById("analysisSettings");
+		analysisSettings.appendChild(createElementFromSchema(response_json, "scene-analysis"));
+	});
+}
 
 window.addEventListener("keydown", (event) => {
 	if (event.isComposing || event.key === " ") {
@@ -477,13 +531,17 @@ document.getElementById("drawRemoveLine").onclick = function () {
 	DRAW.reset();
 };
 
-document.getElementById("analyseDistanceBtn").onclick = function () {
+document.getElementById("analyseBtn").onclick = function () {
 	fetch("analyse", {
 		"method": "POST",
 		"headers": { "Content-Type": "application/json" },
-		"body": JSON.stringify({ "selected_ids": selected_ids, "step": animation_frame, "points": DRAW.positions }),
+		"body": JSON.stringify({ "selected_ids": selected_ids, "step": animation_frame, "points": DRAW.positions, "modifier": document.getElementById("addAnalysis").value }),
 	}).then((response) => response.json()).then(function (response_json) {
 		Plotly.newPlot('analysePlot', response_json);
+		document.getElementById("analysePlot").on('plotly_click', function(data){
+			console.log(data);
+			animation_frame = data.points[0].pointIndex;
+		});
 	});
 };
 

@@ -264,9 +264,18 @@
     </div>
     <div class="offcanvas-body">
       <div class="mb-3">
-        <button type="button" class="btn btn-secondary" id="analyseDistanceBtn">Get distance</button>
-        <div id="analyseDistanceBtnHelp" class="form-text">Get the distance between two selected particles.</div>
+        <button type="button" class="btn btn-secondary" id="analyseBtn">Analyse</button>
       </div>
+      <div class="mb-3">
+        <label for="addAnalysis" class="form-label">Select scene modifier</label>
+        <select class="form-select" aria-label="Default select example" id="addAnalysis">
+          <option selected, value="none"> </option>
+          <option value="add">Add New</option>
+        </select>
+        <div id="addAnalysisHelp" class="form-text">Load a Python class to modify the scene
+        </div>
+      </div>
+      <div id="analysisSettings"></div>
       <div id="analysePlot"></div>
     </div>
   </div>
@@ -345,6 +354,33 @@
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
           <button type="button" class="btn btn-primary" id="addSceneModifierImportBtn">Load</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add Analysis -->
+  <div class="modal" tabindex="-1" id="addAnalysisModal">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Add Analysis</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label for="addAnalysisImport" class="form-label">Path to modifier <code>class</code></label>
+            <input type="email" class="form-control" id="addAnalysisImport"
+              aria-describedby="addAnalysisImportHelp">
+            <div id="addAnalysisImportHelp" class="form-text">The input should be <code>module.cls</code> such
+              that
+              <code> from module import cls</code> works.
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+          <button type="button" class="btn btn-primary" id="addAnalysisImportBtn">Load</button>
         </div>
       </div>
     </div>

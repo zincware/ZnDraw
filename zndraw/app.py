@@ -102,13 +102,33 @@ def update_scene():
     return {}
 
 
+@app.route("/add_analysis", methods=["POST"])
+def add_analysis():
+    """Add a function to the config."""
+    try:
+        signature = globals.config.get_modifier_schema(request.json)
+    except (ImportError, ValueError) as err:
+        return {"error": str(err)}
+    return signature
+    # try:
+    #     signature = globals.config.get_modifier_schema(request.json)
+    # except (ImportError, ValueError) as err:
+    #     return {"error": str(err)}
+    # return signature
+
+
 @app.route("/analyse", methods=["POST"])
 def analyse():
+    import importlib
+
     selected_ids = list(sorted(request.json["selected_ids"]))
     step = request.json["step"]
-    from zndraw.analyse import get_distance_plot
-
-    fig = get_distance_plot(step, selected_ids)
+    modifier = request.json["modifier"]
+    module_name, function_name = modifier.rsplit(".", 1)
+    module = importlib.import_module(module_name)
+    cls = getattr(module, function_name)
+    instance = cls()
+    fig = instance.run(selected_ids)
     return fig.to_json()
 
 
