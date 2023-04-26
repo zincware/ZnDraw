@@ -89,7 +89,7 @@ export async function getRebuildCache(step) {
 		rebuild_cache[step] = arrayOfResponses;
 	}
 	await load_config();
-	if (step === 0) {
+	if( (step === 0) && ( frames.position.length === 0 )){
 		let positions = [];
 		for (let i = 0; i < arrayOfResponses["nodes"].length; i++) {
 			positions.push(arrayOfResponses["nodes"][i]["position"]);
@@ -102,6 +102,7 @@ export async function getRebuildCache(step) {
 }
 
 export function resetAnimationFrames() {
+	console.log("Resetting animation frames")
 	frames.position = [];
 	frames.force = [];
 	frames.length = 0;

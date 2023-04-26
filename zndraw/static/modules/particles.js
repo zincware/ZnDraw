@@ -223,7 +223,7 @@ export function cleanScene(scene) {
 }
 
 export function drawAtoms(atoms, bonds, config, scene) {
-    cleanScene(scene);
+    cleanScene(scene); // TODO remove this
 
     atoms.forEach((item) => { addAtom(item, config) });
 

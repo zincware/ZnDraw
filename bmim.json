@@ -1,0 +1,13 @@
+{
+    "file": "tmp/bmim_500K.h5",
+    "camera": "PerspectiveCamera",
+    "bond_size": 1.0,
+    "sphere_size": 1.0,
+    "resolution": 10,
+    "max_fps": 100,
+    "frames_per_post": 100,
+    "active_update_function": null,
+    "material": "MeshPhongMaterial",
+    "antialias": true,
+    "continuous_loading": false
+}
