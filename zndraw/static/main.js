@@ -526,7 +526,7 @@ window.addEventListener("keydown", (event) => {
 			"headers": { "Content-Type": "application/json" },
 			"body": JSON.stringify({ "selected_ids": selected_ids, "step": animation_frame, "points": DRAW.positions }),
 		}).then(function (response) {
-			DATA.resetAnimationFrames();
+			DATA.resetAnimationFrames(); // use DATA.spliceFrames(animation_frame + 1); ?
 		}).then(DATA.getAnimationFrames);
 	}
 });
