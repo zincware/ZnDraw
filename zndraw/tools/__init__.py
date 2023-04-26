@@ -1,3 +1,3 @@
-from zndraw.tools import select
+from zndraw.tools import data, select
 
-__all__ = ["select"]
+__all__ = ["select", "data"]
