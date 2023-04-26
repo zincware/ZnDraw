@@ -31,6 +31,7 @@ def main(
     camera: str = typer.Option(
         "PerspectiveCamera", help="Either PerspectiveCamera or OrthographicCamera"
     ),
+    export: str = typer.Option(None, help="Export the scene to a file."),
 ):
     """ZnDraw: Visualize Molecules
 
@@ -56,7 +57,13 @@ def main(
         typer.echo(f"File {file} does not exist.")
         raise typer.Exit()
 
-    globals.config = globals.Config(file=file, camera=camera)
+    if pathlib.Path(file).suffix == ".json":
+        globals.config = globals.Config.parse_file(file)
+    else:
+        globals.config = globals.Config(file=file, camera=camera)
+    if export is not None:
+        pathlib.Path(export).write_text(globals.config.json(indent=4))
+        return
     print(globals.config)
 
     if wv is not None and webview:
