@@ -124,10 +124,11 @@ def analyse():
     selected_ids = list(sorted(request.json["selected_ids"]))
     step = request.json["step"]
     modifier = request.json["modifier"]
+    modifier_kwargs = request.json["modifier_kwargs"]
     module_name, function_name = modifier.rsplit(".", 1)
     module = importlib.import_module(module_name)
     cls = getattr(module, function_name)
-    instance = cls()
+    instance = cls(**modifier_kwargs)
     fig = instance.run(selected_ids)
     return fig.to_json()
 

@@ -355,7 +355,7 @@ addSceneModifier.onchange = function () {
 		let bs_collapse = new bootstrap.Collapse(element, {
 			toggle: false
 		});
-		if (element.id == "sceneModifier_" + this.value) {
+		if (element.id == "scene-modifier_" + this.value) {
 			bs_collapse.show();
 		} else {
 			bs_collapse.hide();
@@ -376,7 +376,7 @@ document.getElementById("addSceneModifierImportBtn").onclick = function () {
 			alert(response_json["error"]);
 			stepError(response_json["error"]);
 		} else {
-			if (document.getElementById("sceneModifier_" + response_json["title"]) != null) {
+			if (document.getElementById("scene-modifier_" + response_json["title"]) != null) {
 				alert("Function already loaded");
 				stepError("Function already loaded");
 			};
@@ -412,7 +412,7 @@ document.getElementById("addAnalysis").onchange = function () {
 		let bs_collapse = new bootstrap.Collapse(element, {
 			toggle: false
 		});
-		if (element.id == "sceneModifier_" + this.value) {
+		if (element.id == "scene-analysis_" + this.value) {
 			bs_collapse.show();
 		} else {
 			bs_collapse.hide();
@@ -433,7 +433,7 @@ document.getElementById("addAnalysisImportBtn").onclick = function () {
 			alert(response_json["error"]);
 			stepError(response_json["error"]);
 		} else {
-			if (document.getElementById("sceneModifier_" + response_json["title"]) != null) {
+			if (document.getElementById("scene-analysis_" + response_json["title"]) != null) {
 				alert("Function already loaded");
 				stepError("Function already loaded");
 			};
@@ -502,7 +502,7 @@ window.addEventListener("keydown", (event) => {
 	if (event.isComposing || event.key === "Enter") {
 		div_info.innerHTML = "Processing...";
 
-		let form = document.getElementById("sceneModifier_"+addSceneModifier.value);
+		let form = document.getElementById("scene-modifier_"+addSceneModifier.value);
 		let modifier_kwargs = {}
 		Array.from(form.elements).forEach((input) => {
 			modifier_kwargs[input.dataset.key.toLowerCase()] = input.value;
@@ -532,10 +532,16 @@ document.getElementById("drawRemoveLine").onclick = function () {
 };
 
 document.getElementById("analyseBtn").onclick = function () {
+	let form = document.getElementById("scene-analysis_"+document.getElementById("addAnalysis").value);
+		let modifier_kwargs = {}
+		Array.from(form.elements).forEach((input) => {
+			modifier_kwargs[input.dataset.key.toLowerCase()] = input.value;
+		  });
+	
 	fetch("analyse", {
 		"method": "POST",
 		"headers": { "Content-Type": "application/json" },
-		"body": JSON.stringify({ "selected_ids": selected_ids, "step": animation_frame, "points": DRAW.positions, "modifier": document.getElementById("addAnalysis").value }),
+		"body": JSON.stringify({ "selected_ids": selected_ids, "step": animation_frame, "points": DRAW.positions, "modifier": document.getElementById("addAnalysis").value, "modifier_kwargs": modifier_kwargs }),
 	}).then((response) => response.json()).then(function (response_json) {
 		Plotly.newPlot('analysePlot', response_json);
 		document.getElementById("analysePlot").on('plotly_click', function(data){
