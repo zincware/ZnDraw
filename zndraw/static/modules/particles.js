@@ -209,9 +209,9 @@ export function getAtomsCenter(atom_ids) {
 // this does not remove the scene!
 // TODO add setup function that loads the scene inside this module
 export function cleanScene(scene) {
-    speciesMaterialFactoryCache = {};
-    sphereGeometryFactoryCache = {};
-    halfCylinderGeometryFactoryCache = {};
+    // speciesMaterialFactoryCache = {};
+    // sphereGeometryFactoryCache = {};
+    // halfCylinderGeometryFactoryCache = {};
 
     while (particleGroup.children.length > 0) {
         scene.remove(particleGroup.children.shift());
@@ -223,7 +223,7 @@ export function cleanScene(scene) {
 }
 
 export function drawAtoms(atoms, bonds, config, scene) {
-    cleanScene(scene); // TODO remove this
+    cleanScene(scene);
 
     atoms.forEach((item) => { addAtom(item, config) });
 
