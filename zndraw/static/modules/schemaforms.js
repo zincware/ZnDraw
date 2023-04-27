@@ -10,9 +10,10 @@ export function createElementFromSchema(schema, clsName) {
 
 	console.log("Adding modifier: " + schema.title);
 	console.log(schema);
-	Object.values(schema.properties).forEach((item) => {
+
+	for (const [key, item] of Object.entries(schema.properties)) {
 		let controller = document.createElement('input');
-		controller.dataset.key = item["title"];
+		controller.dataset.key = key;
 		if (item["type"] == "integer") {
 			controller.type = "range";
 			controller.classList.add("form-range");
@@ -25,14 +26,17 @@ export function createElementFromSchema(schema, clsName) {
 			controller.type = "checkbox";
 			controller.classList.add("form-check-input");
 			controller.checked = item["default"];
-			controller.disabled = true;
+			controller.onchange = function () {
+				this.value = this.checked;
+			}
+			// controller.disabled = true;
 		} else if (["test", "string"].includes(item["type"])) {
 			// check if enum is available to create a select
 			if ("enum" in item) {
 				// we overwrite the controller with a select!
 				controller = document.createElement('select');
 				controller.classList.add("form-select");
-				controller.dataset.key = item["title"];
+				controller.dataset.key = key;
 				item["enum"].forEach((enum_item) => {
 					let option = document.createElement('option');
 					option.value = enum_item;
@@ -47,7 +51,7 @@ export function createElementFromSchema(schema, clsName) {
 			console.log("Unknown type: " + item["type"]);
 		}
 		controller.value = item["default"];
-		controller.id = schema.title + "_" + item["title"];
+		// controller.id = schema.title + "_" + item["title"];
 
 		if ("minimum" in item) {
 			controller.min = item["minimum"];
@@ -74,7 +78,7 @@ export function createElementFromSchema(schema, clsName) {
 		function_container.appendChild(controller);
 
 		modifierCanvas.appendChild(function_container);
-	});
+	};
 
 	return modifierCanvas;
 }

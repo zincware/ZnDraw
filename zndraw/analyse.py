@@ -10,6 +10,8 @@ from zndraw import globals
 
 
 class Distance(BaseModel):
+    smooth: bool = False
+
     @classmethod
     def schema_from_atoms(cls, atoms):
         return cls.schema()
@@ -36,17 +38,20 @@ class Distance(BaseModel):
             render_mode="svg"  # This is important, otherwise openGL will be used
             # and there can/will be issues with three.js
         )
-        # smooth_df = df.rolling(window=100).mean().dropna()
-        # for col in smooth_df.columns:
-        #     if col != "step":
-        #         fig.add_scatter(x=smooth_df["step"], y=smooth_df[col], name=f"smooth_{col}")
+        if self.smooth:
+            smooth_df = df.rolling(window=100).mean().dropna()
+            for col in smooth_df.columns:
+                if col != "step":
+                    fig.add_scatter(
+                        x=smooth_df["step"], y=smooth_df[col], name=f"smooth_{col}"
+                    )
         return fig
 
 
 class Properties2D(BaseModel):
-    horizontal: str = "CV1"
-    vertical: str = "CV2"
-    color: str = "ω1"
+    x_data: str = "step"
+    y_data: str = "energy"
+    color: str = "energy"
     fix_aspect_ratio: bool = True
 
     @classmethod
@@ -54,8 +59,8 @@ class Properties2D(BaseModel):
         schema = cls.schema()
         available_properties = list(atoms[0].calc.results.keys())
         available_properties += ["step"]
-        schema["properties"]["horizontal"]["enum"] = available_properties
-        schema["properties"]["vertical"]["enum"] = available_properties
+        schema["properties"]["x_data"]["enum"] = available_properties
+        schema["properties"]["y_data"]["enum"] = available_properties
         schema["properties"]["color"]["enum"] = available_properties
         return schema
 
@@ -63,26 +68,24 @@ class Properties2D(BaseModel):
         print(f"run {self}")
         atoms_lst = list(globals.config._atoms_cache.values())
 
-        if self.horizontal == "step":
-            horizontal = list(range(len(atoms_lst)))
+        if self.x_data == "step":
+            x_data = list(range(len(atoms_lst)))
         else:
-            horizontal = [x.calc.results[self.horizontal] for x in atoms_lst]
+            x_data = [x.calc.results[self.x_data] for x in atoms_lst]
 
-        if self.vertical == "step":
-            vertical = list(range(len(atoms_lst)))
+        if self.y_data == "step":
+            y_data = list(range(len(atoms_lst)))
         else:
-            vertical = [x.calc.results[self.vertical] for x in atoms_lst]
+            y_data = [x.calc.results[self.y_data] for x in atoms_lst]
 
         if self.color == "step":
             color = list(range(len(atoms_lst)))
         else:
             color = [x.calc.results[self.color] for x in atoms_lst]
 
-        df = pd.DataFrame(
-            {self.horizontal: horizontal, self.vertical: vertical, self.color: color}
-        )
+        df = pd.DataFrame({self.x_data: x_data, self.y_data: y_data, self.color: color})
         fig = px.scatter(
-            df, x=self.horizontal, y=self.vertical, color=self.color, render_mode="svg"
+            df, x=self.x_data, y=self.y_data, color=self.color, render_mode="svg"
         )
         if self.fix_aspect_ratio:
             fig.update_yaxes(
@@ -95,6 +98,7 @@ class Properties2D(BaseModel):
 
 class Properties1D(BaseModel):
     value: str = "energy"
+    smooth: bool = False
 
     @classmethod
     def schema_from_atoms(cls, atoms):
@@ -111,5 +115,13 @@ class Properties1D(BaseModel):
         df = pd.DataFrame({"step": list(range(len(atoms_lst))), self.value: data})
 
         fig = px.line(df, x="step", y=self.value, render_mode="svg")
+
+        if self.smooth:
+            smooth_df = df.rolling(window=100).mean().dropna()
+            for col in smooth_df.columns:
+                if col != "step":
+                    fig.add_scatter(
+                        x=smooth_df["step"], y=smooth_df[col], name=f"smooth_{col}"
+                    )
 
         return fig
