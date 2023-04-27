@@ -516,7 +516,7 @@ document.getElementById("sceneModifierBtn").onclick = function () {
 	let form = document.getElementById("scene-modifier_" + addSceneModifier.value);
 	let modifier_kwargs = {}
 	Array.from(form.elements).forEach((input) => {
-		modifier_kwargs[input.dataset.key.toLowerCase()] = input.value;
+		modifier_kwargs[input.dataset.key] = input.value;
 	});
 
 	fetch("update", {

@@ -44,8 +44,8 @@ class Distance(BaseModel):
 
 
 class Properties2D(BaseModel):
-    horizontal: str = "CV1"
-    vertical: str = "CV2"
+    x_data: str = "CV1"
+    y_data: str = "CV2"
     color: str = "ω1"
     fix_aspect_ratio: bool = True
 
@@ -54,8 +54,8 @@ class Properties2D(BaseModel):
         schema = cls.schema()
         available_properties = list(atoms[0].calc.results.keys())
         available_properties += ["step"]
-        schema["properties"]["horizontal"]["enum"] = available_properties
-        schema["properties"]["vertical"]["enum"] = available_properties
+        schema["properties"]["x_data"]["enum"] = available_properties
+        schema["properties"]["y_data"]["enum"] = available_properties
         schema["properties"]["color"]["enum"] = available_properties
         return schema
 
@@ -63,26 +63,24 @@ class Properties2D(BaseModel):
         print(f"run {self}")
         atoms_lst = list(globals.config._atoms_cache.values())
 
-        if self.horizontal == "step":
-            horizontal = list(range(len(atoms_lst)))
+        if self.x_data == "step":
+            x_data = list(range(len(atoms_lst)))
         else:
-            horizontal = [x.calc.results[self.horizontal] for x in atoms_lst]
+            x_data = [x.calc.results[self.x_data] for x in atoms_lst]
 
-        if self.vertical == "step":
-            vertical = list(range(len(atoms_lst)))
+        if self.y_data == "step":
+            y_data = list(range(len(atoms_lst)))
         else:
-            vertical = [x.calc.results[self.vertical] for x in atoms_lst]
+            y_data = [x.calc.results[self.y_data] for x in atoms_lst]
 
         if self.color == "step":
             color = list(range(len(atoms_lst)))
         else:
             color = [x.calc.results[self.color] for x in atoms_lst]
 
-        df = pd.DataFrame(
-            {self.horizontal: horizontal, self.vertical: vertical, self.color: color}
-        )
+        df = pd.DataFrame({self.x_data: x_data, self.y_data: y_data, self.color: color})
         fig = px.scatter(
-            df, x=self.horizontal, y=self.vertical, color=self.color, render_mode="svg"
+            df, x=self.x_data, y=self.y_data, color=self.color, render_mode="svg"
         )
         if self.fix_aspect_ratio:
             fig.update_yaxes(
