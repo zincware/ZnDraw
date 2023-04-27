@@ -456,30 +456,37 @@ document.getElementById("addAnalysisImportBtn").onclick = function () {
 
 window.addEventListener("keydown", (event) => {
 	if (event.isComposing || event.key === " ") {
-		event.preventDefault();
-		if (animation_running && animation_frame == DATA.frames.length - 1) {
-			animation_frame = 0;
-		} else {
-			animation_running = !animation_running;
+		if (document.activeElement == document.body) {
+			if (animation_running && animation_frame == DATA.frames.length - 1) {
+				animation_frame = 0;
+			} else {
+				animation_running = !animation_running;
+			}
 		}
 	}
 	if (event.isComposing || event.key === "ArrowLeft") {
-		event.preventDefault();
-		animation_running = false;
-		animation_frame = Math.max(0, animation_frame - 1);
+		if (document.activeElement == document.body) {
+			animation_running = false;
+			animation_frame = Math.max(0, animation_frame - 1);
+		}
 	}
 	if (event.isComposing || event.key === "ArrowRight") {
-		event.preventDefault();
+		if (document.activeElement == document.body) {
 		animation_running = false;
 		animation_frame = Math.min(DATA.frames.length - 1, animation_frame + 1);
+		}
 	}
 	if (event.isComposing || event.key === "ArrowUp") {
-		animation_running = false;
-		animation_frame = parseInt(Math.min(DATA.frames.length - 1, animation_frame + (DATA.frames.length / 10)));
+		if (document.activeElement == document.body) {
+			animation_running = false;
+			animation_frame = parseInt(Math.min(DATA.frames.length - 1, animation_frame + (DATA.frames.length / 10)));
+		}
 	}
 	if (event.isComposing || event.key === "ArrowDown") {
-		animation_running = false;
-		animation_frame = parseInt(Math.max(0, animation_frame - (DATA.frames.length / 10)));
+		if (document.activeElement == document.body) {
+			animation_running = false;
+			animation_frame = parseInt(Math.max(0, animation_frame - (DATA.frames.length / 10)));
+		}
 	}
 	if (event.isComposing || event.key === "q") {
 		DATA.resetAnimationFrames();
@@ -487,7 +494,9 @@ window.addEventListener("keydown", (event) => {
 		document.getElementById("frame-slider").value = 0;
 	}
 	if (event.isComposing || event.key === "i") {
-		PARTICLES.printIndices(camera);
+		if (document.activeElement == document.body) {
+			PARTICLES.printIndices(camera);
+		}
 	};
 });
 
