@@ -465,16 +465,20 @@ window.addEventListener("keydown", (event) => {
 	}
 	if (event.isComposing || event.key === "ArrowLeft") {
 		event.preventDefault();
+		animation_running = false;
 		animation_frame = Math.max(0, animation_frame - 1);
 	}
 	if (event.isComposing || event.key === "ArrowRight") {
 		event.preventDefault();
+		animation_running = false;
 		animation_frame = Math.min(DATA.frames.length - 1, animation_frame + 1);
 	}
 	if (event.isComposing || event.key === "ArrowUp") {
+		animation_running = false;
 		animation_frame = parseInt(Math.min(DATA.frames.length - 1, animation_frame + (DATA.frames.length / 10)));
 	}
 	if (event.isComposing || event.key === "ArrowDown") {
+		animation_running = false;
 		animation_frame = parseInt(Math.max(0, animation_frame - (DATA.frames.length / 10)));
 	}
 	if (event.isComposing || event.key === "q") {
