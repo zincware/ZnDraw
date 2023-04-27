@@ -139,3 +139,13 @@ def load():
     """Function to call asynchronously to load atoms in the background."""
     globals.config.load_atoms()
     return {}
+
+
+@app.route("/download")
+def download():
+    """Download the current atoms."""
+    from flask import send_file
+
+    b = globals.config.export_atoms()
+    b.seek(0)
+    return send_file(b, download_name="traj.h5", as_attachment=True)
