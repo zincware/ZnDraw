@@ -37,6 +37,34 @@ window.addEventListener("keydown", (event) => {
 	}
 });
 
-document.getElementById("multiselect").onchange = function() {
+document.getElementById("multiselect").onchange = function () {
 	keyconfig.multiselect = this.checked;
 }
+
+
+
+// Rescale offcanvas by dragging
+let active_offcanvas_border;
+const offcanvas_borders = document.getElementsByClassName("offcanvas-border");
+
+
+function resize_offcanvas(e) {
+	if (e.clientX < 200) {
+		return;
+	}
+	active_offcanvas_border.parentNode.style.width = e.clientX + "px";
+	active_offcanvas_border.style.left = e.clientX + "px";
+}
+
+for (let i = 0; i < offcanvas_borders.length; i++) {
+	offcanvas_borders[i].onpointerdown = function (e) {
+		console.log(this);
+		active_offcanvas_border = this;
+		document.addEventListener("pointermove", resize_offcanvas);
+	}
+}
+
+document.addEventListener("pointerup", function (e) {
+	document.removeEventListener("pointermove", resize_offcanvas);
+});
+

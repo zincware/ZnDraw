@@ -258,3 +258,14 @@ canvas {
 .frame-slider:focus::-ms-fill-upper {
     background: #EEEEEE;
 }
+
+
+.offcanvas-border {
+    content: '';
+    background-color: #00000000;
+    position: absolute;
+    left: 400px;
+    width: 4px;
+    height: 100%;
+    cursor: ew-resize;
+}

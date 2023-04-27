@@ -4,6 +4,7 @@ import * as PARTICLES from './modules/particles.js';
 import * as DRAW from './modules/draw.js';
 import * as DATA from './modules/data.js';
 import { keydown, keyconfig } from './modules/keypress.js';
+import { createElementFromSchema } from './modules/schemaforms.js';
 // THREE.Cache.enabled = true;
 
 
@@ -39,6 +40,7 @@ const o_spotLightIntensity = document.getElementById('spotLightIntensity');
 const o_hemisphereLightIntensity = document.getElementById('hemisphereLightIntensity');
 
 const addModifierModal = new bootstrap.Modal(document.getElementById("addModifierModal"));
+const addAnalysisModal = new bootstrap.Modal(document.getElementById("addAnalysisModal"));
 const addSceneModifier = document.getElementById("addSceneModifier");
 
 
@@ -340,85 +342,11 @@ document.getElementById("cameraLightIntensity").oninput = function () {
 }
 
 
-/**
- * Helper function, move later
- * @param {} name 
- * @param {*} checked 
- * @returns 
- */
-function createRadioElement(id, properties) {
-
-	let modifierCanvas = document.createElement('div');
-	// modifierCanvas.classList.add("mb-3");
-	modifierCanvas.classList.add("collapse", "show", "scene-modifier", "border", "border-primary", "rounded", "p-3");
-	modifierCanvas.id = "sceneModifier_" + id;
-
-	console.log("Adding modifier: " + id);
-
-	Object.values(properties).forEach((item) => {
-		let controller = document.createElement('input');
-		if (item["type"] == "integer") {
-			controller.type = "range";
-			controller.classList.add("form-range");
-			controller.step = 1;
-		} else if (item["type"] == "number") {
-			controller.type = "range";
-			controller.classList.add("form-range");
-			controller.step = 0.1;
-		} else if (item["type"] == "text") {
-			controller.type = "text";
-			controller.classList.add("form-control");
-		} else {
-			console.log("Unknown type: " + item["type"]);
-		}
-		controller.value = item["default"];
-		controller.id = id + "_" + item["title"];
-
-		if ("minimum" in item) {
-			controller.min = item["minimum"];
-		}
-		if ("maximum" in item) {
-			controller.max = item["maximum"];
-		}
-
-		let controller_label = document.createElement('label');
-		controller_label.classList.add("form-label");
-		controller_label.setAttribute("for", controller.id);
-		controller_label.innerHTML = item["title"] + ": " + controller.value;
-
-		let function_container = document.createElement('div');
-		// function_container.classList.add("mb-1");
-		function_container.appendChild(controller_label);
-		function_container.appendChild(controller);
-
-		modifierCanvas.appendChild(function_container);
-
-		controller.oninput = function () {
-			controller_label.innerHTML = item["title"] + ": " + controller.value;
-		}
-		controller.onchange = function () {
-			// fetch with post 
-			fetch("set_update_function_parameter", {
-				"method": "POST",
-				"headers": { "Content-Type": "application/json" },
-				"body": JSON.stringify({
-					"function_id": id,
-					"property": item["title"],
-					"value": controller.value
-				})
-			});
-		}
-	});
-
-	return modifierCanvas;
-}
 
 addSceneModifier.onchange = function () {
 	console.log(this.value);
 	if (this.value == "add") {
 		addModifierModal.show();
-	} else {
-		fetch("/select_update_function/" + this.value)
 	}
 
 	let domElements = document.getElementsByClassName("scene-modifier");
@@ -427,7 +355,7 @@ addSceneModifier.onchange = function () {
 		let bs_collapse = new bootstrap.Collapse(element, {
 			toggle: false
 		});
-		if (element.id == "sceneModifier_" + this.value) {
+		if (element.id == "scene-modifier_" + this.value) {
 			bs_collapse.show();
 		} else {
 			bs_collapse.hide();
@@ -448,7 +376,7 @@ document.getElementById("addSceneModifierImportBtn").onclick = function () {
 			alert(response_json["error"]);
 			stepError(response_json["error"]);
 		} else {
-			if (document.getElementById("sceneModifier_" + response_json["title"]) != null) {
+			if (document.getElementById("scene-modifier_" + response_json["title"]) != null) {
 				alert("Function already loaded");
 				stepError("Function already loaded");
 			};
@@ -467,34 +395,98 @@ document.getElementById("addSceneModifierImportBtn").onclick = function () {
 		let sceneModifierSettings = document.getElementById("sceneModifierSettings");
 		// sceneModifierSettings.innerHTML = "";
 		// TODO make them invisible and only the select one displayed / collapse / none ?
-		sceneModifierSettings.appendChild(createRadioElement(response_json["title"], response_json["properties"]));
+		sceneModifierSettings.appendChild(createElementFromSchema(response_json, "scene-modifier"));
 	});
 }
 
 
+document.getElementById("addAnalysis").onchange = function () {
+	console.log(this.value);
+	if (this.value == "add") {
+		addAnalysisModal.show();
+	}
+
+	let domElements = document.getElementsByClassName("scene-analysis");
+
+	[...domElements].forEach(element => {
+		let bs_collapse = new bootstrap.Collapse(element, {
+			toggle: false
+		});
+		if (element.id == "scene-analysis_" + this.value) {
+			bs_collapse.show();
+		} else {
+			bs_collapse.hide();
+		}
+	});
+};
+
+document.getElementById("addAnalysisImportBtn").onclick = function () {
+	let function_id = document.getElementById("addAnalysisImport").value;
+	fetch("add_analysis", {
+		"method": "POST",
+		"headers": { "Content-Type": "application/json" },
+		"body": JSON.stringify(function_id),
+	}).then(response => response.json()).then(function (response_json) {
+		// if not null alert
+		if ("error" in response_json) {
+			// TODO check if method is already loaded
+			alert(response_json["error"]);
+			stepError(response_json["error"]);
+		} else {
+			if (document.getElementById("scene-analysis_" + response_json["title"]) != null) {
+				alert("Function already loaded");
+				stepError("Function already loaded");
+			};
+			addAnalysisModal.hide();
+			DATA.load_config();
+		}
+		return response_json;
+	}).then(function (response_json) {
+		let modifier = document.createElement("option");
+		modifier.value = response_json["title"];
+		modifier.innerHTML = response_json["title"];
+		document.getElementById("addAnalysis").appendChild(modifier);
+		document.getElementById("addAnalysis").value = response_json["title"];
+		return response_json;
+	}).then(function (response_json) {
+		let analysisSettings = document.getElementById("analysisSettings");
+		analysisSettings.appendChild(createElementFromSchema(response_json, "scene-analysis"));
+	});
+}
 
 window.addEventListener("keydown", (event) => {
 	if (event.isComposing || event.key === " ") {
-		event.preventDefault();
-		if (animation_running && animation_frame == DATA.frames.length - 1) {
-			animation_frame = 0;
-		} else {
-			animation_running = !animation_running;
+		if (document.activeElement == document.body) {
+			if (animation_running && animation_frame == DATA.frames.length - 1) {
+				animation_frame = 0;
+			} else {
+				animation_running = !animation_running;
+			}
 		}
 	}
 	if (event.isComposing || event.key === "ArrowLeft") {
-		event.preventDefault();
-		animation_frame = Math.max(0, animation_frame - 1);
+		if (document.activeElement == document.body) {
+			animation_running = false;
+			animation_frame = Math.max(0, animation_frame - 1);
+		}
 	}
 	if (event.isComposing || event.key === "ArrowRight") {
-		event.preventDefault();
+		if (document.activeElement == document.body) {
+		animation_running = false;
 		animation_frame = Math.min(DATA.frames.length - 1, animation_frame + 1);
+		}
 	}
 	if (event.isComposing || event.key === "ArrowUp") {
-		animation_frame = parseInt(Math.min(DATA.frames.length - 1, animation_frame + (DATA.frames.length / 10)));
+		if (document.activeElement == document.body) {
+			animation_running = false;
+			animation_frame = parseInt(Math.min(DATA.frames.length - 1, animation_frame + (DATA.frames.length / 10)));
+		}
 	}
 	if (event.isComposing || event.key === "ArrowDown") {
-		animation_frame = parseInt(Math.max(0, animation_frame - (DATA.frames.length / 10)));
+		if (document.activeElement == document.body) {
+			animation_running = false;
+			animation_frame = parseInt(Math.max(0, animation_frame - (DATA.frames.length / 10)));
+		}
 	}
 	if (event.isComposing || event.key === "q") {
 		DATA.resetAnimationFrames();
@@ -502,7 +494,9 @@ window.addEventListener("keydown", (event) => {
 		document.getElementById("frame-slider").value = 0;
 	}
 	if (event.isComposing || event.key === "i") {
-		PARTICLES.printIndices(camera);
+		if (document.activeElement == document.body) {
+			PARTICLES.printIndices(camera);
+		}
 	};
 });
 
@@ -516,20 +510,25 @@ window.addEventListener("keyup", (event) => {
 	}
 });
 
+document.getElementById("sceneModifierBtn").onclick = function () {
+	div_info.innerHTML = "Processing...";
 
-window.addEventListener("keydown", (event) => {
-	if (event.isComposing || event.key === "Enter") {
-		div_info.innerHTML = "Processing...";
+	let form = document.getElementById("scene-modifier_" + addSceneModifier.value);
+	let modifier_kwargs = {}
+	Array.from(form.elements).forEach((input) => {
+		modifier_kwargs[input.dataset.key.toLowerCase()] = input.value;
+	});
 
-		fetch("update", {
-			"method": "POST",
-			"headers": { "Content-Type": "application/json" },
-			"body": JSON.stringify({ "selected_ids": selected_ids, "step": animation_frame, "points": DRAW.positions }),
-		}).then(function (response) {
-			DATA.resetAnimationFrames(); // use DATA.spliceFrames(animation_frame + 1); ?
-		}).then(DATA.getAnimationFrames);
-	}
-});
+	fetch("update", {
+		"method": "POST",
+		"headers": { "Content-Type": "application/json" },
+		"body": JSON.stringify({ "selected_ids": selected_ids, "step": animation_frame, "points": DRAW.positions, "modifier": addSceneModifier.value, "modifier_kwargs": modifier_kwargs }),
+	}).then(function (response) {
+		DATA.resetAnimationFrames(); // use DATA.spliceFrames(animation_frame + 1); ?
+	}).then(DATA.getAnimationFrames);
+}
+
+
 
 // Drawing
 
@@ -544,13 +543,23 @@ document.getElementById("drawRemoveLine").onclick = function () {
 	DRAW.reset();
 };
 
-document.getElementById("analyseDistanceBtn").onclick = function () {
+document.getElementById("analyseBtn").onclick = function () {
+	let form = document.getElementById("scene-analysis_" + document.getElementById("addAnalysis").value);
+	let modifier_kwargs = {}
+	Array.from(form.elements).forEach((input) => {
+		modifier_kwargs[input.dataset.key.toLowerCase()] = input.value;
+	});
+
 	fetch("analyse", {
 		"method": "POST",
 		"headers": { "Content-Type": "application/json" },
-		"body": JSON.stringify({ "selected_ids": selected_ids, "step": animation_frame, "points": DRAW.positions }),
+		"body": JSON.stringify({ "selected_ids": selected_ids, "step": animation_frame, "points": DRAW.positions, "modifier": document.getElementById("addAnalysis").value, "modifier_kwargs": modifier_kwargs }),
 	}).then((response) => response.json()).then(function (response_json) {
 		Plotly.newPlot('analysePlot', response_json);
+		document.getElementById("analysePlot").on('plotly_click', function (data) {
+			console.log(data);
+			animation_frame = data.points[0].pointIndex;
+		});
 	});
 };
 

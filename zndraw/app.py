@@ -4,7 +4,7 @@ import networkx as nx
 import numpy as np
 from flask import Flask, render_template, request, session
 
-from zndraw import globals, io
+from zndraw import globals, io, tools
 
 app = Flask(__name__)
 app.secret_key = str(uuid.uuid4())
@@ -47,21 +47,7 @@ def get_graph():
 
 @app.route("/data", methods=["POST"])
 def positions_step():
-    params = request.json
-    result = {"position": [], "force": [], "box": []}
-    try:
-        for step in range(params["start"], params["stop"]):
-            atoms = globals.config.get_atoms(step=int(step))
-            result["position"].append(atoms.get_positions().tolist())
-            result["box"].append(atoms.get_cell().diagonal().tolist())
-            # TODO MAKE THIS OPTIONAL!!, also energy, etc.
-            # try:
-            #     result["force"].append(atoms.get_forces().tolist())
-            # except:
-            #     result["force"].append(np.zeros_like(atoms.get_positions()).tolist())
-        return result
-    except KeyError:
-        return result
+    return tools.data.serialize_atoms(request.json["start"], request.json["stop"])
 
 
 @app.route("/select", methods=["POST"])
@@ -75,26 +61,19 @@ def select() -> list[int]:
         selected_ids = []
     if method in ["particles", "none"]:
         return {"selected_ids": selected_ids, "updated": False}
-    elif method == "species":
-        atoms = globals.config.get_atoms(step)
 
-        for id in tuple(selected_ids):
-            selected_symbol = atoms[id].symbol
-            selected_ids += [
-                idx for idx, atom in enumerate(atoms) if atom.symbol == selected_symbol
-            ]
-        return {"selected_ids": list(set(selected_ids)), "updated": True}
+    atoms = globals.config.get_atoms(step)
+
+    if method == "species":
+        return {
+            "selected_ids": tools.select.select_identical_species(atoms, selected_ids),
+            "updated": True,
+        }
     elif method == "connected":
-        atoms = globals.config.get_atoms(step)
-        graph = io.get_graph(atoms)
-
-        total_ids = []
-
-        for node_id in selected_ids:
-            total_ids += list(nx.node_connected_component(graph, node_id))
-
-        return {"selected_ids": list(set(total_ids)), "updated": True}
-
+        return {
+            "selected_ids": tools.select.select_connected(atoms, selected_ids),
+            "updated": True,
+        }
     else:
         raise ValueError(f"Unknown selection method: {method}")
 
@@ -103,44 +82,55 @@ def select() -> list[int]:
 def add_update_function():
     """Add a function to the config."""
     try:
-        signature = globals.config.add_update_function(request.json)
+        signature = globals.config.get_modifier_schema(request.json)
     except (ImportError, ValueError) as err:
         return {"error": str(err)}
     return signature
 
 
-@app.route("/set_update_function_parameter", methods=["POST"])
-def set_update_function_parameter():
-    """Update the values of the update function."""
-    globals.config.set_update_function_parameter(request.json)
-    return {}
-
-
-@app.route("/select_update_function/<name>")
-def select_update_function(name):
-    """Select a function from the config."""
-    if name == "none":
-        name = None
-    globals.config.active_update_function = name
-    return {}
-
-
 @app.route("/update", methods=["POST"])
 def update_scene():
+    """Update the scene with the selected atoms."""
+    modifier = request.json["modifier"]
+    modifier_kwargs = request.json["modifier_kwargs"]
     selected_ids = list(sorted(request.json["selected_ids"]))
     step = request.json["step"]
     points = np.array([[x["x"], x["y"], x["z"]] for x in request.json["points"]])
-    globals.config.apply_update_function(selected_ids, step, points=points)
+    globals.config.run_modifier(
+        modifier, selected_ids, step, modifier_kwargs, points=points
+    )
     return {}
+
+
+@app.route("/add_analysis", methods=["POST"])
+def add_analysis():
+    """Add a function to the config."""
+    import importlib
+
+    try:
+        module_name, function_name = request.json.rsplit(".", 1)
+        module = importlib.import_module(module_name)
+        cls = getattr(module, function_name)()
+        schema = cls.schema_from_atoms(globals.config._atoms_cache)
+        schema["title"] = request.json
+    except (ImportError, ValueError) as err:
+        return {"error": str(err)}
+    return schema
 
 
 @app.route("/analyse", methods=["POST"])
 def analyse():
+    import importlib
+
     selected_ids = list(sorted(request.json["selected_ids"]))
     step = request.json["step"]
-    from zndraw.analyse import get_distance_plot
-
-    fig = get_distance_plot(step, selected_ids)
+    modifier = request.json["modifier"]
+    modifier_kwargs = request.json["modifier_kwargs"]
+    module_name, function_name = modifier.rsplit(".", 1)
+    module = importlib.import_module(module_name)
+    cls = getattr(module, function_name)
+    instance = cls(**modifier_kwargs)
+    fig = instance.run(selected_ids)
     return fig.to_json()
 
 
