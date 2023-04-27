@@ -30,7 +30,7 @@ class Config(BaseModel):
     material: str = Field("MeshPhongMaterial", description="Material")
     antialias: bool = Field(True, description="Antialias")
     continuous_loading: bool = Field(
-        True, description="Continuous Loading of the trajectory"
+        False, description="Continuous Loading of the trajectory"
     )
 
     _atoms_cache = PrivateAttr(default_factory=dict)

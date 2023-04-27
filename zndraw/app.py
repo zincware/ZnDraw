@@ -105,16 +105,17 @@ def update_scene():
 @app.route("/add_analysis", methods=["POST"])
 def add_analysis():
     """Add a function to the config."""
+    import importlib
+
     try:
-        signature = globals.config.get_modifier_schema(request.json)
+        module_name, function_name = request.json.rsplit(".", 1)
+        module = importlib.import_module(module_name)
+        cls = getattr(module, function_name)()
+        schema = cls.schema_from_atoms(globals.config._atoms_cache)
+        schema["title"] = request.json
     except (ImportError, ValueError) as err:
         return {"error": str(err)}
-    return signature
-    # try:
-    #     signature = globals.config.get_modifier_schema(request.json)
-    # except (ImportError, ValueError) as err:
-    #     return {"error": str(err)}
-    # return signature
+    return schema
 
 
 @app.route("/analyse", methods=["POST"])

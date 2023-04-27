@@ -10,6 +10,10 @@ from zndraw import globals
 
 
 class Distance(BaseModel):
+    @classmethod
+    def schema_from_atoms(cls, atoms):
+        return cls.schema()
+
     def run(self, ids):
         atoms_lst = list(globals.config._atoms_cache.values())
         distances = {}
@@ -43,19 +47,69 @@ class Properties2D(BaseModel):
     horizontal: str = "CV1"
     vertical: str = "CV2"
     color: str = "ω1"
+    fix_aspect_ratio: bool = True
+
+    @classmethod
+    def schema_from_atoms(cls, atoms):
+        schema = cls.schema()
+        available_properties = list(atoms[0].calc.results.keys())
+        available_properties += ["step"]
+        schema["properties"]["horizontal"]["enum"] = available_properties
+        schema["properties"]["vertical"]["enum"] = available_properties
+        schema["properties"]["color"]["enum"] = available_properties
+        return schema
+
+    def run(self, ids):
+        print(f"run {self}")
+        atoms_lst = list(globals.config._atoms_cache.values())
+
+        if self.horizontal == "step":
+            horizontal = list(range(len(atoms_lst)))
+        else:
+            horizontal = [x.calc.results[self.horizontal] for x in atoms_lst]
+
+        if self.vertical == "step":
+            vertical = list(range(len(atoms_lst)))
+        else:
+            vertical = [x.calc.results[self.vertical] for x in atoms_lst]
+
+        if self.color == "step":
+            color = list(range(len(atoms_lst)))
+        else:
+            color = [x.calc.results[self.color] for x in atoms_lst]
+
+        df = pd.DataFrame(
+            {self.horizontal: horizontal, self.vertical: vertical, self.color: color}
+        )
+        fig = px.scatter(
+            df, x=self.horizontal, y=self.vertical, color=self.color, render_mode="svg"
+        )
+        if self.fix_aspect_ratio:
+            fig.update_yaxes(
+                scaleanchor="x",
+                scaleratio=1,
+            )
+
+        return fig
+
+
+class Properties1D(BaseModel):
+    value: str = "energy"
+
+    @classmethod
+    def schema_from_atoms(cls, atoms):
+        schema = cls.schema()
+        available_properties = list(atoms[0].calc.results.keys())
+        schema["properties"]["value"]["enum"] = available_properties
+        return schema
 
     def run(self, ids):
         atoms_lst = list(globals.config._atoms_cache.values())
 
-        cv1 = [x.calc.results[self.horizontal] for x in atoms_lst]
-        cv2 = [x.calc.results[self.vertical] for x in atoms_lst]
-        omega1 = [x.calc.results[self.color] for x in atoms_lst]
+        data = np.array([x.calc.results[self.value] for x in atoms_lst])
 
-        df = pd.DataFrame({"cv1": cv1, "cv2": cv2, "omega1": omega1})
-        fig = px.scatter(df, x="cv1", y="cv2", color="omega1", render_mode="svg")
-        fig.update_yaxes(
-            scaleanchor="x",
-            scaleratio=1,
-        )
+        df = pd.DataFrame({"step": list(range(len(atoms_lst))), self.value: data})
+
+        fig = px.line(df, x="step", y=self.value, render_mode="svg")
 
         return fig

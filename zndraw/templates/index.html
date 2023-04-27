@@ -268,16 +268,16 @@
       <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
     </div>
     <div class="offcanvas-body">
-      <div class="mb-3">
+      <div class="d-grid gap-2 col-6 mx-auto mb-3">
         <button type="button" class="btn btn-secondary" id="analyseBtn">Analyse</button>
       </div>
       <div class="mb-3">
-        <label for="addAnalysis" class="form-label">Select scene modifier</label>
+        <label for="addAnalysis" class="form-label">Select analysis method</label>
         <select class="form-select" aria-label="Default select example" id="addAnalysis">
           <option selected, value="none"> </option>
           <option value="add">Add New</option>
         </select>
-        <div id="addAnalysisHelp" class="form-text">Load a Python class to modify the scene
+        <div id="addAnalysisHelp" class="form-text">Load a Python class to analyse the data
         </div>
       </div>
       <div id="analysisSettings"></div>

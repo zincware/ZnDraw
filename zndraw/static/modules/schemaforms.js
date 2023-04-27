@@ -9,7 +9,7 @@ export function createElementFromSchema(schema, clsName) {
 	modifierCanvas.id = clsName+ "_" + schema.title;
 
 	console.log("Adding modifier: " + schema.title);
-
+	console.log(schema);
 	Object.values(schema.properties).forEach((item) => {
 		let controller = document.createElement('input');
 		controller.dataset.key = item["title"];
@@ -21,9 +21,28 @@ export function createElementFromSchema(schema, clsName) {
 			controller.type = "range";
 			controller.classList.add("form-range");
 			controller.step = 0.1;
-		} else if (item["type"] == "text") {
-			controller.type = "text";
-			controller.classList.add("form-control");
+		} else if (item["type"] == "boolean") {
+			controller.type = "checkbox";
+			controller.classList.add("form-check-input");
+			controller.checked = item["default"];
+			controller.disabled = true;
+		} else if (["test", "string"].includes(item["type"])) {
+			// check if enum is available to create a select
+			if ("enum" in item) {
+				// we overwrite the controller with a select!
+				controller = document.createElement('select');
+				controller.classList.add("form-select");
+				controller.dataset.key = item["title"];
+				item["enum"].forEach((enum_item) => {
+					let option = document.createElement('option');
+					option.value = enum_item;
+					option.innerHTML = enum_item;
+					controller.appendChild(option);
+				});
+			} else {
+				controller.type = "text";
+				controller.classList.add("form-control");
+			}
 		} else {
 			console.log("Unknown type: " + item["type"]);
 		}
@@ -40,7 +59,14 @@ export function createElementFromSchema(schema, clsName) {
 		let controller_label = document.createElement('label');
 		controller_label.classList.add("form-label");
 		controller_label.setAttribute("for", controller.id);
-		controller_label.innerHTML = item["title"] + ": " + controller.value;
+		if (["text", "boolean"].includes(item["type"])) {
+			controller_label.innerHTML = item["title"];
+		} else {
+			controller_label.innerHTML = item["title"] + ": " + controller.value;
+			controller.oninput = function () {
+				controller_label.innerHTML = item["title"] + ": " + controller.value;
+			}
+		}
 
 		let function_container = document.createElement('div');
 		// function_container.classList.add("mb-1");
@@ -48,10 +74,6 @@ export function createElementFromSchema(schema, clsName) {
 		function_container.appendChild(controller);
 
 		modifierCanvas.appendChild(function_container);
-
-		controller.oninput = function () {
-			controller_label.innerHTML = item["title"] + ": " + controller.value;
-		}
 	});
 
 	return modifierCanvas;
