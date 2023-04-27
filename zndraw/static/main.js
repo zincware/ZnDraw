@@ -501,26 +501,25 @@ window.addEventListener("keyup", (event) => {
 	}
 });
 
+document.getElementById("sceneModifierBtn").onclick = function () {
+	div_info.innerHTML = "Processing...";
 
-window.addEventListener("keydown", (event) => {
-	if (event.isComposing || event.key === "Enter") {
-		div_info.innerHTML = "Processing...";
+	let form = document.getElementById("scene-modifier_" + addSceneModifier.value);
+	let modifier_kwargs = {}
+	Array.from(form.elements).forEach((input) => {
+		modifier_kwargs[input.dataset.key.toLowerCase()] = input.value;
+	});
 
-		let form = document.getElementById("scene-modifier_"+addSceneModifier.value);
-		let modifier_kwargs = {}
-		Array.from(form.elements).forEach((input) => {
-			modifier_kwargs[input.dataset.key.toLowerCase()] = input.value;
-		  });
+	fetch("update", {
+		"method": "POST",
+		"headers": { "Content-Type": "application/json" },
+		"body": JSON.stringify({ "selected_ids": selected_ids, "step": animation_frame, "points": DRAW.positions, "modifier": addSceneModifier.value, "modifier_kwargs": modifier_kwargs }),
+	}).then(function (response) {
+		DATA.resetAnimationFrames(); // use DATA.spliceFrames(animation_frame + 1); ?
+	}).then(DATA.getAnimationFrames);
+}
 
-		fetch("update", {
-			"method": "POST",
-			"headers": { "Content-Type": "application/json" },
-			"body": JSON.stringify({ "selected_ids": selected_ids, "step": animation_frame, "points": DRAW.positions, "modifier": addSceneModifier.value, "modifier_kwargs": modifier_kwargs }),
-		}).then(function (response) {
-			DATA.resetAnimationFrames(); // use DATA.spliceFrames(animation_frame + 1); ?
-		}).then(DATA.getAnimationFrames);
-	}
-});
+
 
 // Drawing
 
@@ -536,19 +535,19 @@ document.getElementById("drawRemoveLine").onclick = function () {
 };
 
 document.getElementById("analyseBtn").onclick = function () {
-	let form = document.getElementById("scene-analysis_"+document.getElementById("addAnalysis").value);
-		let modifier_kwargs = {}
-		Array.from(form.elements).forEach((input) => {
-			modifier_kwargs[input.dataset.key.toLowerCase()] = input.value;
-		  });
-	
+	let form = document.getElementById("scene-analysis_" + document.getElementById("addAnalysis").value);
+	let modifier_kwargs = {}
+	Array.from(form.elements).forEach((input) => {
+		modifier_kwargs[input.dataset.key.toLowerCase()] = input.value;
+	});
+
 	fetch("analyse", {
 		"method": "POST",
 		"headers": { "Content-Type": "application/json" },
 		"body": JSON.stringify({ "selected_ids": selected_ids, "step": animation_frame, "points": DRAW.positions, "modifier": document.getElementById("addAnalysis").value, "modifier_kwargs": modifier_kwargs }),
 	}).then((response) => response.json()).then(function (response_json) {
 		Plotly.newPlot('analysePlot', response_json);
-		document.getElementById("analysePlot").on('plotly_click', function(data){
+		document.getElementById("analysePlot").on('plotly_click', function (data) {
 			console.log(data);
 			animation_frame = data.points[0].pointIndex;
 		});
