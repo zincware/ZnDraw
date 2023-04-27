@@ -10,6 +10,8 @@ from zndraw import globals
 
 
 class Distance(BaseModel):
+    smooth: bool = False
+
     @classmethod
     def schema_from_atoms(cls, atoms):
         return cls.schema()
@@ -36,17 +38,20 @@ class Distance(BaseModel):
             render_mode="svg"  # This is important, otherwise openGL will be used
             # and there can/will be issues with three.js
         )
-        # smooth_df = df.rolling(window=100).mean().dropna()
-        # for col in smooth_df.columns:
-        #     if col != "step":
-        #         fig.add_scatter(x=smooth_df["step"], y=smooth_df[col], name=f"smooth_{col}")
+        if self.smooth:
+            smooth_df = df.rolling(window=100).mean().dropna()
+            for col in smooth_df.columns:
+                if col != "step":
+                    fig.add_scatter(
+                        x=smooth_df["step"], y=smooth_df[col], name=f"smooth_{col}"
+                    )
         return fig
 
 
 class Properties2D(BaseModel):
-    x_data: str = "CV1"
-    y_data: str = "CV2"
-    color: str = "ω1"
+    x_data: str = "step"
+    y_data: str = "energy"
+    color: str = "energy"
     fix_aspect_ratio: bool = True
 
     @classmethod
@@ -93,6 +98,7 @@ class Properties2D(BaseModel):
 
 class Properties1D(BaseModel):
     value: str = "energy"
+    smooth: bool = False
 
     @classmethod
     def schema_from_atoms(cls, atoms):
@@ -109,5 +115,13 @@ class Properties1D(BaseModel):
         df = pd.DataFrame({"step": list(range(len(atoms_lst))), self.value: data})
 
         fig = px.line(df, x="step", y=self.value, render_mode="svg")
+
+        if self.smooth:
+            smooth_df = df.rolling(window=100).mean().dropna()
+            for col in smooth_df.columns:
+                if col != "step":
+                    fig.add_scatter(
+                        x=smooth_df["step"], y=smooth_df[col], name=f"smooth_{col}"
+                    )
 
         return fig
