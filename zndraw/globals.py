@@ -1,6 +1,7 @@
 import dataclasses
 import enum
 import importlib
+import io
 import pathlib
 import typing
 
@@ -84,6 +85,13 @@ class Config(BaseModel):
 
         for idx, atom in enumerate(atoms):
             self._atoms_cache[idx + step + 1] = atom
+
+    def export_atoms(self):
+        file = io.BytesIO()
+        db = znh5md.io.DataWriter(file)
+        db.initialize_database_groups()
+        db.add(znh5md.io.AtomsReader(list(self._atoms_cache.values())))
+        return file
 
     def get_atoms(self, step: int = 0) -> ase.Atoms:
         """Get the atoms for a given step.
