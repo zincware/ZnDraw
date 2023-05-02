@@ -4,7 +4,7 @@ import * as PARTICLES from './modules/particles.js';
 import * as DRAW from './modules/draw.js';
 import * as DATA from './modules/data.js';
 import { keydown, keyconfig } from './modules/keypress.js';
-import { createElementFromSchema } from './modules/schemaforms.js';
+import { addModifierModal, addAnalysisModal, addAnalysisOption, addSceneModifierOption, loadAnalysisMethods, loadSceneModifier } from './modules/methods.js';
 // THREE.Cache.enabled = true;
 
 
@@ -38,10 +38,6 @@ const o_materialSelect = document.getElementById('materialSelect');
 const o_wireframe = document.getElementById('wireframe');
 const o_spotLightIntensity = document.getElementById('spotLightIntensity');
 const o_hemisphereLightIntensity = document.getElementById('hemisphereLightIntensity');
-
-const addModifierModal = new bootstrap.Modal(document.getElementById("addModifierModal"));
-const addAnalysisModal = new bootstrap.Modal(document.getElementById("addAnalysisModal"));
-const addSceneModifier = document.getElementById("addSceneModifier");
 
 
 // Helper Functions
@@ -343,7 +339,7 @@ document.getElementById("cameraLightIntensity").oninput = function () {
 
 
 
-addSceneModifier.onchange = function () {
+document.getElementById("addSceneModifier").onchange = function () {
 	console.log(this.value);
 	if (this.value == "add") {
 		addModifierModal.show();
@@ -368,40 +364,6 @@ document.getElementById("addSceneModifierImportBtn").onclick = function () {
 	let function_id = document.getElementById("addSceneModifierImport").value;
 	addSceneModifierOption(function_id);
 }
-
-async function addSceneModifierOption(function_id) {
-	await fetch("add_update_function", {
-		"method": "POST",
-		"headers": { "Content-Type": "application/json" },
-		"body": JSON.stringify(function_id),
-	}).then(response => response.json()).then(function (response_json) {
-		// if not null alert
-		if ("error" in response_json) {
-			// TODO check if method is already loaded
-			alert(response_json["error"]);
-			stepError(response_json["error"]);
-		} else {
-			if (document.getElementById("scene-modifier_" + response_json["title"]) != null) {
-				alert("Function already loaded");
-				stepError("Function already loaded");
-			};
-			addModifierModal.hide();
-			DATA.load_config();
-		}
-		return response_json;
-	}).then(function (response_json) {
-		let modifier = document.createElement("option");
-		modifier.value = response_json["title"];
-		modifier.innerHTML = response_json["title"];
-		addSceneModifier.appendChild(modifier);
-		return response_json;
-	}).then(function (response_json) {
-		let sceneModifierSettings = document.getElementById("sceneModifierSettings");
-		sceneModifierSettings.appendChild(createElementFromSchema(response_json, "scene-modifier"));
-		addSceneModifier.value = response_json["title"];
-	});
-}
-
 
 document.getElementById("addAnalysis").onchange = function () {
 	console.log(this.value);
@@ -428,69 +390,6 @@ document.getElementById("addAnalysisImportBtn").onclick = function () {
 	addAnalysisOption(document.getElementById("addAnalysisImport").value);
 }
 
-async function addAnalysisOption(function_id) {
-	await fetch("add_analysis", {
-		"method": "POST",
-		"headers": { "Content-Type": "application/json" },
-		"body": JSON.stringify(function_id),
-	}).then(response => response.json()).then(function (response_json) {
-		// if not null alert
-		if ("error" in response_json) {
-			// TODO check if method is already loaded
-			alert(response_json["error"]);
-			stepError(response_json["error"]);
-		} else {
-			if (document.getElementById("scene-analysis_" + response_json["title"]) != null) {
-				alert("Function already loaded");
-				stepError("Function already loaded");
-			};
-			addAnalysisModal.hide();
-			DATA.load_config();
-		}
-		return response_json;
-	}).then(function (response_json) {
-		let modifier = document.createElement("option");
-		modifier.value = response_json["title"];
-		modifier.innerHTML = response_json["title"];
-		document.getElementById("addAnalysis").appendChild(modifier);
-		return response_json;
-	}).then(function (response_json) {
-		let analysisSettings = document.getElementById("analysisSettings");
-		analysisSettings.appendChild(createElementFromSchema(response_json, "scene-analysis"));
-		document.getElementById("addAnalysis").value = response_json["title"];
-	});
-}
-
-// load analysis methods from config 
-async function loadAnalysisMethods() {
-	// iterate DATA.config.analysis_methods and add them to the select
-	for (let i = 0; i < DATA.config.analysis_functions.length; i++) {
-		let analysis_function = DATA.config.analysis_functions[i];
-		await addAnalysisOption(analysis_function);
-	}
-	document.getElementById("addAnalysis").value = "";
-	// Create a new 'change' event
-	var event = new Event('change');
-
-	// Dispatch it.
-	document.getElementById("addAnalysis").dispatchEvent(event);
-}
-
-loadAnalysisMethods();
-
-// load analysis methods from config 
-async function loadSceneModifier() {
-	// iterate DATA.config.analysis_methods and add them to the select
-	for (let i = 0; i < DATA.config.modify_functions.length; i++) {
-		let modify_function = DATA.config.modify_functions[i];
-		await addSceneModifierOption(modify_function);
-	}
-	addSceneModifier.value = "";
-	// Dispatch it.
-	addSceneModifier.dispatchEvent(new Event('change'));
-}
-
-loadSceneModifier();
 
 window.addEventListener("keydown", (event) => {
 	if (event.isComposing || event.key === " ") {
@@ -551,7 +450,7 @@ window.addEventListener("keyup", (event) => {
 document.getElementById("sceneModifierBtn").onclick = function () {
 	div_info.innerHTML = "Processing...";
 
-	let form = document.getElementById("scene-modifier_" + addSceneModifier.value);
+	let form = document.getElementById("scene-modifier_" + document.getElementById("addSceneModifier").value);
 	let modifier_kwargs = {}
 	Array.from(form.elements).forEach((input) => {
 		modifier_kwargs[input.dataset.key] = input.value;
@@ -704,6 +603,9 @@ function centerCamera() {
 
 div_info.innerHTML = "Reading file...";
 DATA.getAnimationFrames();
+
+loadAnalysisMethods();
+loadSceneModifier();
 
 // scene.add(PARTICLES.arrowGroup);
 function animate() {
