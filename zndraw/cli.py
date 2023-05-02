@@ -6,7 +6,7 @@ import webbrowser
 
 import typer
 
-from zndraw import __version__, app, globals
+from zndraw import __version__, app, shared
 
 try:
     import webview as wv
@@ -58,13 +58,13 @@ def main(
         raise typer.Exit()
 
     if pathlib.Path(file).suffix == ".json":
-        globals.config = globals.Config.parse_file(file)
+        shared.config = shared.Config.parse_file(file)
     else:
-        globals.config = globals.Config(file=file, camera=camera)
+        shared.config = shared.Config(file=file, camera=camera)
     if export is not None:
-        pathlib.Path(export).write_text(globals.config.json(indent=4))
+        pathlib.Path(export).write_text(shared.config.json(indent=4))
         return
-    print(globals.config)
+    print(shared.config)
 
     if wv is not None and webview:
         wv.create_window("ZnDraw", app)
