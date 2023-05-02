@@ -90,7 +90,7 @@ class Config(BaseModel):
         file = io.BytesIO()
         db = znh5md.io.DataWriter(file)
         db.initialize_database_groups()
-        db.add(znh5md.io.AtomsReader(list(self._atoms_cache.values())))
+        db.add(znh5md.io.AtomsReader(self.atoms_list))
         return file
 
     def get_atoms(self, step: int = 0) -> ase.Atoms:
