@@ -17,7 +17,7 @@ class Distance(BaseModel):
         return cls.schema()
 
     def run(self, ids):
-        atoms_lst = list(shared.config._atoms_cache.values())
+        atoms_lst = shared.config.atoms_list
         distances = {}
         for x in itertools.combinations(ids, 2):
             distances[f"{tuple(x)}"] = []
@@ -66,7 +66,7 @@ class Properties2D(BaseModel):
 
     def run(self, ids):
         print(f"run {self}")
-        atoms_lst = list(shared.config._atoms_cache.values())
+        atoms_lst = shared.config.atoms_list
 
         if self.x_data == "step":
             x_data = list(range(len(atoms_lst)))
@@ -108,7 +108,7 @@ class Properties1D(BaseModel):
         return schema
 
     def run(self, ids):
-        atoms_lst = list(shared.config._atoms_cache.values())
+        atoms_lst = shared.config.atoms_list
 
         data = np.array([x.calc.results[self.value] for x in atoms_lst])
 

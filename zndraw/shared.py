@@ -90,7 +90,7 @@ class Config(BaseModel):
         file = io.BytesIO()
         db = znh5md.io.DataWriter(file)
         db.initialize_database_groups()
-        db.add(znh5md.io.AtomsReader(list(self._atoms_cache.values())))
+        db.add(znh5md.io.AtomsReader(self.atoms_list))
         return file
 
     def get_atoms(self, step: int = 0) -> ase.Atoms:
@@ -104,6 +104,11 @@ class Config(BaseModel):
         except KeyError:
             self.load_atoms(step)
         return self._atoms_cache[step]
+
+    @property
+    def atoms_list(self) -> typing.List[ase.Atoms]:
+        """Get a list of the atoms in the atoms cache."""
+        return list(self._atoms_cache.values())
 
     def load_atoms(self, step: int = 999999999):
         """Load the atoms up to a given step."""
