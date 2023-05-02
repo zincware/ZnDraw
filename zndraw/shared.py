@@ -16,7 +16,13 @@ _ANALYSIS_FUNCTIONS = [
     "zndraw.analyse.Properties2D",
     "zndraw.analyse.Distance",
 ]
-_MODIFY_FUNCTIONS = ["zndraw.examples.Explode"]
+_MODIFY_FUNCTIONS = [
+    "zndraw.examples.Explode",
+    "zndraw.examples.Delete",
+    "zndraw.examples.Move",
+    "zndraw.examples.Duplicate",
+    "zndraw.examples.AddLineParticles",
+]
 _SELECTION_FUNCTIONS = []
 
 
