@@ -4,7 +4,7 @@ import * as PARTICLES from './modules/particles.js';
 import * as DRAW from './modules/draw.js';
 import * as DATA from './modules/data.js';
 import { keydown, keyconfig } from './modules/keypress.js';
-import { createElementFromSchema } from './modules/schemaforms.js';
+import { addModifierModal, addAnalysisModal, addAnalysisOption, addSceneModifierOption, loadAnalysisMethods, loadSceneModifier } from './modules/methods.js';
 // THREE.Cache.enabled = true;
 
 
@@ -38,10 +38,6 @@ const o_materialSelect = document.getElementById('materialSelect');
 const o_wireframe = document.getElementById('wireframe');
 const o_spotLightIntensity = document.getElementById('spotLightIntensity');
 const o_hemisphereLightIntensity = document.getElementById('hemisphereLightIntensity');
-
-const addModifierModal = new bootstrap.Modal(document.getElementById("addModifierModal"));
-const addAnalysisModal = new bootstrap.Modal(document.getElementById("addAnalysisModal"));
-const addSceneModifier = document.getElementById("addSceneModifier");
 
 
 // Helper Functions
@@ -343,7 +339,7 @@ document.getElementById("cameraLightIntensity").oninput = function () {
 
 
 
-addSceneModifier.onchange = function () {
+document.getElementById("addSceneModifier").onchange = function () {
 	console.log(this.value);
 	if (this.value == "add") {
 		addModifierModal.show();
@@ -363,42 +359,11 @@ addSceneModifier.onchange = function () {
 	});
 };
 
+
 document.getElementById("addSceneModifierImportBtn").onclick = function () {
 	let function_id = document.getElementById("addSceneModifierImport").value;
-	fetch("add_update_function", {
-		"method": "POST",
-		"headers": { "Content-Type": "application/json" },
-		"body": JSON.stringify(function_id),
-	}).then(response => response.json()).then(function (response_json) {
-		// if not null alert
-		if ("error" in response_json) {
-			// TODO check if method is already loaded
-			alert(response_json["error"]);
-			stepError(response_json["error"]);
-		} else {
-			if (document.getElementById("scene-modifier_" + response_json["title"]) != null) {
-				alert("Function already loaded");
-				stepError("Function already loaded");
-			};
-			addModifierModal.hide();
-			DATA.load_config();
-		}
-		return response_json;
-	}).then(function (response_json) {
-		let modifier = document.createElement("option");
-		modifier.value = response_json["title"];
-		modifier.innerHTML = response_json["title"];
-		addSceneModifier.appendChild(modifier);
-		addSceneModifier.value = response_json["title"];
-		return response_json;
-	}).then(function (response_json) {
-		let sceneModifierSettings = document.getElementById("sceneModifierSettings");
-		// sceneModifierSettings.innerHTML = "";
-		// TODO make them invisible and only the select one displayed / collapse / none ?
-		sceneModifierSettings.appendChild(createElementFromSchema(response_json, "scene-modifier"));
-	});
+	addSceneModifierOption(function_id);
 }
-
 
 document.getElementById("addAnalysis").onchange = function () {
 	console.log(this.value);
@@ -420,39 +385,11 @@ document.getElementById("addAnalysis").onchange = function () {
 	});
 };
 
+
 document.getElementById("addAnalysisImportBtn").onclick = function () {
-	let function_id = document.getElementById("addAnalysisImport").value;
-	fetch("add_analysis", {
-		"method": "POST",
-		"headers": { "Content-Type": "application/json" },
-		"body": JSON.stringify(function_id),
-	}).then(response => response.json()).then(function (response_json) {
-		// if not null alert
-		if ("error" in response_json) {
-			// TODO check if method is already loaded
-			alert(response_json["error"]);
-			stepError(response_json["error"]);
-		} else {
-			if (document.getElementById("scene-analysis_" + response_json["title"]) != null) {
-				alert("Function already loaded");
-				stepError("Function already loaded");
-			};
-			addAnalysisModal.hide();
-			DATA.load_config();
-		}
-		return response_json;
-	}).then(function (response_json) {
-		let modifier = document.createElement("option");
-		modifier.value = response_json["title"];
-		modifier.innerHTML = response_json["title"];
-		document.getElementById("addAnalysis").appendChild(modifier);
-		document.getElementById("addAnalysis").value = response_json["title"];
-		return response_json;
-	}).then(function (response_json) {
-		let analysisSettings = document.getElementById("analysisSettings");
-		analysisSettings.appendChild(createElementFromSchema(response_json, "scene-analysis"));
-	});
+	addAnalysisOption(document.getElementById("addAnalysisImport").value);
 }
+
 
 window.addEventListener("keydown", (event) => {
 	if (event.isComposing || event.key === " ") {
@@ -472,8 +409,8 @@ window.addEventListener("keydown", (event) => {
 	}
 	if (event.isComposing || event.key === "ArrowRight") {
 		if (document.activeElement == document.body) {
-		animation_running = false;
-		animation_frame = Math.min(DATA.frames.length - 1, animation_frame + 1);
+			animation_running = false;
+			animation_frame = Math.min(DATA.frames.length - 1, animation_frame + 1);
 		}
 	}
 	if (event.isComposing || event.key === "ArrowUp") {
@@ -513,7 +450,7 @@ window.addEventListener("keyup", (event) => {
 document.getElementById("sceneModifierBtn").onclick = function () {
 	div_info.innerHTML = "Processing...";
 
-	let form = document.getElementById("scene-modifier_" + addSceneModifier.value);
+	let form = document.getElementById("scene-modifier_" + document.getElementById("addSceneModifier").value);
 	let modifier_kwargs = {}
 	Array.from(form.elements).forEach((input) => {
 		modifier_kwargs[input.dataset.key] = input.value;
@@ -522,10 +459,10 @@ document.getElementById("sceneModifierBtn").onclick = function () {
 	fetch("update", {
 		"method": "POST",
 		"headers": { "Content-Type": "application/json" },
-		"body": JSON.stringify({ "selected_ids": selected_ids, "step": animation_frame, "points": DRAW.positions, "modifier": addSceneModifier.value, "modifier_kwargs": modifier_kwargs }),
+		"body": JSON.stringify({ "selected_ids": selected_ids, "step": animation_frame, "points": DRAW.positions, "modifier": document.getElementById("addSceneModifier").value, "modifier_kwargs": modifier_kwargs }),
 	}).then(function (response) {
 		DATA.resetAnimationFrames(); // use DATA.spliceFrames(animation_frame + 1); ?
-	}).then(DATA.getAnimationFrames);
+	}).then(DATA.getAnimationFrames); //.then(function () { animation_running = true; });
 }
 
 
@@ -666,6 +603,9 @@ function centerCamera() {
 
 div_info.innerHTML = "Reading file...";
 DATA.getAnimationFrames();
+
+loadAnalysisMethods();
+loadSceneModifier();
 
 // scene.add(PARTICLES.arrowGroup);
 function animate() {
