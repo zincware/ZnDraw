@@ -107,11 +107,19 @@ def add_analysis():
     """Add a function to the config."""
     import importlib
 
+    # we need to load the first atoms to get the schema
+    atoms = shared.config.get_atoms(0)
+
     try:
         module_name, function_name = request.json.rsplit(".", 1)
         module = importlib.import_module(module_name)
-        cls = getattr(module, function_name)()
-        schema = cls.schema_from_atoms(shared.config._atoms_cache)
+        cls = getattr(module, function_name)
+        try:
+            schema = cls.schema_from_atoms(shared.config.atoms_list)
+        except AttributeError as e:
+            raise ImportError(
+                f"Unable to import {cls}. Can not generate schema."
+            ) from e
         schema["title"] = request.json
     except (ImportError, ValueError) as err:
         return {"error": str(err)}

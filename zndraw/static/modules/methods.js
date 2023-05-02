@@ -5,7 +5,7 @@ import * as DATA from './data.js';
 export const addModifierModal = new bootstrap.Modal(document.getElementById("addModifierModal"));
 export const addAnalysisModal = new bootstrap.Modal(document.getElementById("addAnalysisModal"));
 
-export async function addAnalysisOption(function_id) {
+export async function addAnalysisOption(function_id, alert_error = true) {
     await fetch("add_analysis", {
         "method": "POST",
         "headers": { "Content-Type": "application/json" },
@@ -14,7 +14,9 @@ export async function addAnalysisOption(function_id) {
         // if not null alert
         if ("error" in response_json) {
             // TODO check if method is already loaded
-            alert(response_json["error"]);
+            if (alert_error) {
+                alert(response_json["error"]);
+            }
             stepError(response_json["error"]);
         } else {
             if (document.getElementById("scene-analysis_" + response_json["title"]) != null) {
@@ -77,7 +79,11 @@ export async function loadAnalysisMethods() {
     // iterate DATA.config.analysis_methods and add them to the select
     for (let i = 0; i < DATA.config.analysis_functions.length; i++) {
         let analysis_function = DATA.config.analysis_functions[i];
-        await addAnalysisOption(analysis_function);
+        try {
+            await addAnalysisOption(analysis_function, false);
+        } catch (error) {
+            console.log(error);
+        }
     }
     document.getElementById("addAnalysis").value = "";
     document.getElementById("addAnalysis").dispatchEvent(new Event('change'));
