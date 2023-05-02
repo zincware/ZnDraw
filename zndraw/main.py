@@ -3,7 +3,7 @@ import socket
 import threading
 import webbrowser
 
-from zndraw import app, globals
+from zndraw import app, shared
 
 
 @dataclasses.dataclass
@@ -20,7 +20,7 @@ class ZnDraw:
             self.port = sock.getsockname()[1]
             sock.close()
 
-        globals.config.file = self.file
+        shared.config.file = self.file
         self.thread = threading.Thread(target=app.run, kwargs={"port": self.port})
         self.thread.start()
         webbrowser.open(f"http://127.0.0.1:{self.port}")
