@@ -11,6 +11,14 @@ import tqdm
 import znh5md
 from pydantic import BaseModel, Field, PrivateAttr
 
+_ANALYSIS_FUNCTIONS = [
+    "zndraw.analyse.Properties1D",
+    "zndraw.analyse.Properties2D",
+    "zndraw.analyse.Distance",
+]
+_MODIFY_FUNCTIONS = ["zndraw.examples.Explode"]
+_SELECTION_FUNCTIONS = []
+
 
 class CameraChoices(str, enum.Enum):
     OrthographicCamera = "OrthographicCamera"
@@ -33,6 +41,9 @@ class Config(BaseModel):
     continuous_loading: bool = Field(
         False, description="Continuous Loading of the trajectory"
     )
+    analysis_functions: typing.List[str] = _ANALYSIS_FUNCTIONS
+    modify_functions: typing.List[str] = _MODIFY_FUNCTIONS
+    selection_functions: typing.List[str] = _SELECTION_FUNCTIONS
 
     _atoms_cache = PrivateAttr(default_factory=dict)
     _modifier_applied: bool = PrivateAttr(False)

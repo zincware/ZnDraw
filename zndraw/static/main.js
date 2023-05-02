@@ -420,9 +420,13 @@ document.getElementById("addAnalysis").onchange = function () {
 	});
 };
 
+	
 document.getElementById("addAnalysisImportBtn").onclick = function () {
-	let function_id = document.getElementById("addAnalysisImport").value;
-	fetch("add_analysis", {
+	addAnalysisOption(document.getElementById("addAnalysisImport").value);
+}
+
+async function addAnalysisOption(function_id) {
+	await fetch("add_analysis", {
 		"method": "POST",
 		"headers": { "Content-Type": "application/json" },
 		"body": JSON.stringify(function_id),
@@ -446,13 +450,30 @@ document.getElementById("addAnalysisImportBtn").onclick = function () {
 		modifier.value = response_json["title"];
 		modifier.innerHTML = response_json["title"];
 		document.getElementById("addAnalysis").appendChild(modifier);
-		document.getElementById("addAnalysis").value = response_json["title"];
 		return response_json;
 	}).then(function (response_json) {
 		let analysisSettings = document.getElementById("analysisSettings");
 		analysisSettings.appendChild(createElementFromSchema(response_json, "scene-analysis"));
+		document.getElementById("addAnalysis").value = response_json["title"];
 	});
 }
+
+// load analysis methods from config 
+async function loadAnalysisMethods() {
+	// iterate DATA.config.analysis_methods and add them to the select
+	for (let i = 0; i < DATA.config.analysis_functions.length; i++) {
+		let analysis_function = DATA.config.analysis_functions[i];
+		await addAnalysisOption(analysis_function);
+	}
+	document.getElementById("addAnalysis").value = "";
+	// Create a new 'change' event
+	var event = new Event('change');
+
+	// Dispatch it.
+	document.getElementById("addAnalysis").dispatchEvent(event);
+}
+
+loadAnalysisMethods();
 
 window.addEventListener("keydown", (event) => {
 	if (event.isComposing || event.key === " ") {
