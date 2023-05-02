@@ -363,9 +363,14 @@ addSceneModifier.onchange = function () {
 	});
 };
 
+
 document.getElementById("addSceneModifierImportBtn").onclick = function () {
 	let function_id = document.getElementById("addSceneModifierImport").value;
-	fetch("add_update_function", {
+	addSceneModifierOption(function_id);
+}
+
+async function addSceneModifierOption(function_id) {
+	await fetch("add_update_function", {
 		"method": "POST",
 		"headers": { "Content-Type": "application/json" },
 		"body": JSON.stringify(function_id),
@@ -389,13 +394,11 @@ document.getElementById("addSceneModifierImportBtn").onclick = function () {
 		modifier.value = response_json["title"];
 		modifier.innerHTML = response_json["title"];
 		addSceneModifier.appendChild(modifier);
-		addSceneModifier.value = response_json["title"];
 		return response_json;
 	}).then(function (response_json) {
 		let sceneModifierSettings = document.getElementById("sceneModifierSettings");
-		// sceneModifierSettings.innerHTML = "";
-		// TODO make them invisible and only the select one displayed / collapse / none ?
 		sceneModifierSettings.appendChild(createElementFromSchema(response_json, "scene-modifier"));
+		addSceneModifier.value = response_json["title"];
 	});
 }
 
@@ -420,7 +423,7 @@ document.getElementById("addAnalysis").onchange = function () {
 	});
 };
 
-	
+
 document.getElementById("addAnalysisImportBtn").onclick = function () {
 	addAnalysisOption(document.getElementById("addAnalysisImport").value);
 }
@@ -475,6 +478,20 @@ async function loadAnalysisMethods() {
 
 loadAnalysisMethods();
 
+// load analysis methods from config 
+async function loadSceneModifier() {
+	// iterate DATA.config.analysis_methods and add them to the select
+	for (let i = 0; i < DATA.config.modify_functions.length; i++) {
+		let modify_function = DATA.config.modify_functions[i];
+		await addSceneModifierOption(modify_function);
+	}
+	addSceneModifier.value = "";
+	// Dispatch it.
+	addSceneModifier.dispatchEvent(new Event('change'));
+}
+
+loadSceneModifier();
+
 window.addEventListener("keydown", (event) => {
 	if (event.isComposing || event.key === " ") {
 		if (document.activeElement == document.body) {
@@ -493,8 +510,8 @@ window.addEventListener("keydown", (event) => {
 	}
 	if (event.isComposing || event.key === "ArrowRight") {
 		if (document.activeElement == document.body) {
-		animation_running = false;
-		animation_frame = Math.min(DATA.frames.length - 1, animation_frame + 1);
+			animation_running = false;
+			animation_frame = Math.min(DATA.frames.length - 1, animation_frame + 1);
 		}
 	}
 	if (event.isComposing || event.key === "ArrowUp") {
