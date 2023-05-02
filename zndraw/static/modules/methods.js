@@ -62,12 +62,12 @@ export async function addSceneModifierOption(function_id) {
         let modifier = document.createElement("option");
         modifier.value = response_json["title"];
         modifier.innerHTML = response_json["title"];
-        addSceneModifier.appendChild(modifier);
+        document.getElementById("addSceneModifier").appendChild(modifier);
         return response_json;
     }).then(function (response_json) {
         let sceneModifierSettings = document.getElementById("sceneModifierSettings");
         sceneModifierSettings.appendChild(createElementFromSchema(response_json, "scene-modifier"));
-        addSceneModifier.value = response_json["title"];
+        document.getElementById("addSceneModifier").value = response_json["title"];
     });
 }
 
@@ -90,6 +90,6 @@ export async function loadSceneModifier() {
         let modify_function = DATA.config.modify_functions[i];
         await addSceneModifierOption(modify_function);
     }
-    addSceneModifier.value = "";
-    addSceneModifier.dispatchEvent(new Event('change'));
+    document.getElementById("addSceneModifier").value = "";
+    document.getElementById("addSceneModifier").dispatchEvent(new Event('change'));
 }

@@ -459,7 +459,7 @@ document.getElementById("sceneModifierBtn").onclick = function () {
 	fetch("update", {
 		"method": "POST",
 		"headers": { "Content-Type": "application/json" },
-		"body": JSON.stringify({ "selected_ids": selected_ids, "step": animation_frame, "points": DRAW.positions, "modifier": addSceneModifier.value, "modifier_kwargs": modifier_kwargs }),
+		"body": JSON.stringify({ "selected_ids": selected_ids, "step": animation_frame, "points": DRAW.positions, "modifier": document.getElementById("addSceneModifier").value, "modifier_kwargs": modifier_kwargs }),
 	}).then(function (response) {
 		DATA.resetAnimationFrames(); // use DATA.spliceFrames(animation_frame + 1); ?
 	}).then(DATA.getAnimationFrames); //.then(function () { animation_running = true; });
