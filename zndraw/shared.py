@@ -105,6 +105,11 @@ class Config(BaseModel):
             self.load_atoms(step)
         return self._atoms_cache[step]
 
+    @property
+    def atoms_list(self) -> typing.List[ase.Atoms]:
+        """Get a list of the atoms in the atoms cache."""
+        return list(self._atoms_cache.values())
+
     def load_atoms(self, step: int = 999999999):
         """Load the atoms up to a given step."""
         # TODO ZnH5MD
