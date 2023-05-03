@@ -77,8 +77,7 @@ export async function addSceneModifierOption(function_id) {
 // load analysis methods from config 
 export async function loadAnalysisMethods() {
     // iterate DATA.config.analysis_methods and add them to the select
-    for (let i = 0; i < DATA.config.analysis_functions.length; i++) {
-        let analysis_function = DATA.config.analysis_functions[i];
+    for (let analysis_function of DATA.config.analysis_functions) {
         try {
             await addAnalysisOption(analysis_function, false);
         } catch (error) {
@@ -92,9 +91,12 @@ export async function loadAnalysisMethods() {
 // load analysis methods from config 
 export async function loadSceneModifier() {
     // iterate DATA.config.analysis_methods and add them to the select
-    for (let i = 0; i < DATA.config.modify_functions.length; i++) {
-        let modify_function = DATA.config.modify_functions[i];
-        await addSceneModifierOption(modify_function);
+    for (let modify_function of DATA.config.modify_functions) {
+        try {
+            await addSceneModifierOption(modify_function);
+        } catch (error) {
+            console.log(error);
+        }
     }
     document.getElementById("addSceneModifier").value = "";
     document.getElementById("addSceneModifier").dispatchEvent(new Event('change'));

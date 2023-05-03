@@ -145,6 +145,3 @@ class Config(BaseModel):
 
 
 config: Config = None
-
-graph = None
-atoms = None
