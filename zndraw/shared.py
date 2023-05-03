@@ -94,7 +94,7 @@ class Config(BaseModel):
         module = importlib.import_module(module_name)
         cls: pydantic.BaseModel = getattr(module, function_name)
         instance = cls(**modifier_kwargs)
-        atoms = instance.run(selected_ids, self.get_atoms(step=step), **kwargs)
+        atoms = instance.run(selected_ids, self.get_atoms(step=step).copy(), **kwargs)
         for key in list(self._atoms_cache.keys()):
             # we remove all steps after the current one
             if key > step:
