@@ -34,7 +34,8 @@ def config():
 def get_graph():
     step = request.json
     try:
-        atoms = shared.config.get_atoms(step=int(step))
+        shared.config.load_atoms()
+        atoms = shared.config.atoms_list[step]
         graph = io.get_graph(atoms)
         return {
             "nodes": [{**graph.nodes[idx], "id": idx} for idx in graph.nodes],
@@ -62,7 +63,7 @@ def select() -> list[int]:
     if method in ["particles", "none"]:
         return {"selected_ids": selected_ids, "updated": False}
 
-    atoms = shared.config.get_atoms(step)
+    atoms = shared.config.atoms_list[step]
 
     if method == "species":
         return {
@@ -108,7 +109,7 @@ def add_analysis():
     import importlib
 
     # we need to load the first atoms to get the schema
-    atoms = shared.config.get_atoms(0)
+    atoms = shared.config.load_atoms()
 
     try:
         module_name, function_name = request.json.rsplit(".", 1)

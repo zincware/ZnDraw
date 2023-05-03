@@ -106,7 +106,7 @@ class Config(BaseModel):
         module = importlib.import_module(module_name)
         cls: pydantic.BaseModel = getattr(module, function_name)
         instance = cls(**modifier_kwargs)
-        atoms = instance.run(selected_ids, self.get_atoms(step=step).copy(), **kwargs)
+        atoms = instance.run(selected_ids, self.atoms_list[step].copy(), **kwargs)
 
         self._atoms_cache = self._atoms_cache[: step + 1]
         self._atoms_cache.extend(atoms)
@@ -117,15 +117,6 @@ class Config(BaseModel):
         db.initialize_database_groups()
         db.add(znh5md.io.AtomsReader(self.atoms_list))
         return file
-
-    def get_atoms(self, step: int = 0) -> ase.Atoms:
-        """Get the atoms for a given step.
-
-        Raises:
-            IndexError: If the step could not be loaded.
-        """
-        self.load_atoms()
-        return self._atoms_cache[step]
 
     @property
     def atoms_list(self) -> typing.List[ase.Atoms]:
@@ -138,19 +129,16 @@ class Config(BaseModel):
         while self._loaded == LoadingState.Loading:
             time.sleep(0.1)
             log.debug("Waiting for loading to finish")
-        if self._loaded == LoadingState.Loaded:
-            log.debug(f"Already loaded {len(self._atoms_cache)} steps")
-            return
         self._loaded = LoadingState.Loading
-        log.info("Loading atoms")
+        log.debug("Loading atoms")
         if self._modifier_applied:
             return  # We don't want to load any further from file at this point
         if pathlib.Path(self.file).suffix == ".h5":
             # We load all at once here
             self._atoms_cache = znh5md.ASEH5MD(self.file).get_atoms_list()
         else:
-            for idx, atoms in enumerate(tqdm.tqdm(ase.io.iread(self.file))):
-                self._atoms_cache.append(atoms)
+            atoms = list(ase.io.iread(self.file))
+            self._atoms_cache = atoms
         self._loaded = LoadingState.Loaded
 
 

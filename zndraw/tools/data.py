@@ -3,6 +3,7 @@ from zndraw import shared
 
 def serialize_atoms(start: int, stop: int):
     result = {"position": [], "force": [], "box": []}
+    shared.config.load_atoms()
     try:
         for step in range(start, stop):
             atoms = shared.config.atoms_list[step]
