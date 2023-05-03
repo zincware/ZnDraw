@@ -5,7 +5,7 @@ def serialize_atoms(start: int, stop: int):
     result = {"position": [], "force": [], "box": []}
     try:
         for step in range(start, stop):
-            atoms = shared.config.get_atoms(step=int(step))
+            atoms = shared.config.atoms_list[step]
             result["position"].append(atoms.get_positions().tolist())
             result["box"].append(atoms.get_cell().diagonal().tolist())
             # TODO MAKE THIS OPTIONAL!!, also energy, etc.
@@ -14,5 +14,5 @@ def serialize_atoms(start: int, stop: int):
             # except:
             #     result["force"].append(np.zeros_like(atoms.get_positions()).tolist())
         return result
-    except KeyError:
+    except IndexError:
         return result

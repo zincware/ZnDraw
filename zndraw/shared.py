@@ -1,8 +1,11 @@
 import dataclasses
 import enum
+import functools
 import importlib
 import io
+import logging
 import pathlib
+import time
 import typing
 
 import ase.io
@@ -10,6 +13,8 @@ import pydantic
 import tqdm
 import znh5md
 from pydantic import BaseModel, Field, PrivateAttr
+
+log = logging.getLogger(__name__)
 
 _ANALYSIS_FUNCTIONS = [
     "zndraw.analyse.Properties1D",
@@ -29,6 +34,12 @@ _SELECTION_FUNCTIONS = []
 class CameraChoices(str, enum.Enum):
     OrthographicCamera = "OrthographicCamera"
     PerspectiveCamera = "PerspectiveCamera"
+
+
+class LoadingState(str, enum.Enum):
+    NotLoaded = "NotLoaded"
+    Loading = "Loading"
+    Loaded = "Loaded"
 
 
 class Config(BaseModel):
@@ -51,8 +62,9 @@ class Config(BaseModel):
     modify_functions: typing.List[str] = _MODIFY_FUNCTIONS
     selection_functions: typing.List[str] = _SELECTION_FUNCTIONS
 
-    _atoms_cache = PrivateAttr(default_factory=dict)
+    _atoms_cache = PrivateAttr(default_factory=list)
     _modifier_applied: bool = PrivateAttr(False)
+    _loaded: LoadingState = PrivateAttr(LoadingState.NotLoaded)
 
     def get_modifier_schema(self, update_function) -> dict:
         """Add an update function to the config.
@@ -94,14 +106,10 @@ class Config(BaseModel):
         module = importlib.import_module(module_name)
         cls: pydantic.BaseModel = getattr(module, function_name)
         instance = cls(**modifier_kwargs)
-        atoms = instance.run(selected_ids, self.get_atoms(step=step), **kwargs)
-        for key in list(self._atoms_cache.keys()):
-            # we remove all steps after the current one
-            if key > step:
-                del self._atoms_cache[key]
+        atoms = instance.run(selected_ids, self.get_atoms(step=step).copy(), **kwargs)
 
-        for idx, atom in enumerate(atoms):
-            self._atoms_cache[idx + step + 1] = atom
+        self._atoms_cache = self._atoms_cache[: step + 1]
+        self._atoms_cache.extend(atoms)
 
     def export_atoms(self):
         file = io.BytesIO()
@@ -114,34 +122,36 @@ class Config(BaseModel):
         """Get the atoms for a given step.
 
         Raises:
-            KeyError: If the step could not be loaded.
+            IndexError: If the step could not be loaded.
         """
-        try:
-            return self._atoms_cache[step]
-        except KeyError:
-            self.load_atoms(step)
+        self.load_atoms()
         return self._atoms_cache[step]
 
     @property
     def atoms_list(self) -> typing.List[ase.Atoms]:
         """Get a list of the atoms in the atoms cache."""
-        return list(self._atoms_cache.values())
+        return self._atoms_cache
 
-    def load_atoms(self, step: int = 999999999):
+    def load_atoms(self):
         """Load the atoms up to a given step."""
         # TODO ZnH5MD
+        while self._loaded == LoadingState.Loading:
+            time.sleep(0.1)
+            log.debug("Waiting for loading to finish")
+        if self._loaded == LoadingState.Loaded:
+            log.debug(f"Already loaded {len(self._atoms_cache)} steps")
+            return
+        self._loaded = LoadingState.Loading
+        log.info("Loading atoms")
         if self._modifier_applied:
             return  # We don't want to load any further from file at this point
         if pathlib.Path(self.file).suffix == ".h5":
             # We load all at once here
-            self._atoms_cache.update(
-                dict(enumerate(znh5md.ASEH5MD(self.file).get_atoms_list()[: step + 1]))
-            )
+            self._atoms_cache = znh5md.ASEH5MD(self.file).get_atoms_list()
         else:
             for idx, atoms in enumerate(tqdm.tqdm(ase.io.iread(self.file))):
-                self._atoms_cache[idx] = atoms
-                if idx == step:
-                    break
+                self._atoms_cache.append(atoms)
+        self._loaded = LoadingState.Loaded
 
 
 config: Config = None

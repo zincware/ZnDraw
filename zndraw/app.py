@@ -41,7 +41,7 @@ def get_graph():
             "edges": list(graph.edges),
             "box": atoms.get_cell().diagonal().tolist(),
         }
-    except KeyError:
+    except IndexError:
         return {}
 
 
