@@ -5,6 +5,7 @@ description = ""
 authors = ["zincwarecode <zincwarecode@gmail.com>"]
 license = "Apache-2.0"
 readme = "README.md"
+include = ["zndraw/static/node_modules/**/*"]
 
 [tool.poetry.dependencies]
 python = "^3.9"
