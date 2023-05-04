@@ -45,6 +45,7 @@ class Stream {
       let data = this.data[this.step];
       delete this.data[this.step];
       if (data !== undefined) {
+        // TODO this also happens if the stream is to slow to keep up!
         this.step += 1;
       } else {
         this.step = 0;

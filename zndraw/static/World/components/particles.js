@@ -3,12 +3,14 @@ import * as THREE from 'three';
 
 export function createParticleGroup() {
     const particleGroup = new THREE.Group();
-    
+
     particleGroup.tick = (data) => {
         if (data == null) {
             return;
         }
-        data.forEach((item) => { 
+        const particles = data["particles"];
+        const bonds = data["bonds"];
+        particles.forEach((item) => {
             if (particleGroup.getObjectByName(item.id)) {
                 particleGroup.getObjectByName(item.id).position.set(item.x, item.y, item.z);
                 // Update size and color if changed
@@ -23,15 +25,31 @@ export function createParticleGroup() {
                 particle.scale.set(item.radius, item.radius, item.radius)
                 particle.name = item.id;
                 particleGroup.add(particle);
-         }
-         });
-         // remove particles that are not in data
-            particleGroup.children.forEach((particle) => {
-                if (data.filter((item) => item.id === particle.name).length === 0) {
-                    particleGroup.remove(particle);
-                }
             }
+        });
+        // remove particles that are not in data
+        particleGroup.children.forEach((particle) => {
+            if (particles.filter((item) => item.id === particle.name).length === 0) {
+                particleGroup.remove(particle);
+            }
+        }
         );
+
+        // Update bonds
+        bonds.forEach((item) => {
+            const geometry = new THREE.BufferGeometry().setFromPoints(
+                [
+                    particleGroup.getObjectByName(item[0]).position,
+                    particleGroup.getObjectByName(item[1]).position,
+                ]
+            );
+            const material = new THREE.LineBasicMaterial({
+                color: 0xff00ff
+            });
+            const line = new THREE.Line( geometry, material );
+            particleGroup.add(line);
+            // console.log(item);
+        });
 
     }
 

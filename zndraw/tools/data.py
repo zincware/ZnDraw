@@ -1,6 +1,9 @@
 from zndraw import shared
 import numpy as np
 from ase.data.colors import jmol_colors
+import networkx as nx
+from ase.neighborlist import build_neighbor_list
+import ase
 
 
 def _rgb2hex(data):
@@ -25,17 +28,28 @@ def serialize_atoms(start: int, stop: int):
         return result
 
 
+def get_bonds(atoms: ase.Atoms):
+    atoms.pbc = False
+    nl = build_neighbor_list(atoms, self_interaction=False)
+    cm = nl.get_connectivity_matrix(sparse=False)
+    G = nx.from_numpy_array(cm)
+    return list(G.edges)
+
+
 def serialize_frame(step):
     atoms = shared.config.get_atoms(step=int(step))
-    return [
-        {
-            "id": idx,
-            "x": atom.position[0],
-            "y": atom.position[1],
-            "z": atom.position[2],
-            "color": _rgb2hex(jmol_colors[atom.number]),
-            "radius": 0.25 * (2 - np.exp(-0.2 * atom.number)),
-            # "species": atom.species,
-        }
-        for idx, atom in enumerate(atoms)
-    ]
+    return {
+        "particles": [
+            {
+                "id": idx,
+                "x": atom.position[0],
+                "y": atom.position[1],
+                "z": atom.position[2],
+                "color": _rgb2hex(jmol_colors[atom.number]),
+                "radius": 0.25 * (2 - np.exp(-0.2 * atom.number)),
+                # "species": atom.species,
+            }
+            for idx, atom in enumerate(atoms)
+        ],
+        "bonds": get_bonds(atoms),
+    }
