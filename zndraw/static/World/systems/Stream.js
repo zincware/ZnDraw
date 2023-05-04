@@ -46,6 +46,8 @@ class Stream {
       delete this.data[this.step];
       if (data !== undefined) {
         this.step += 1;
+      } else {
+        this.step = 0;
       }
       return data;
     } catch (error) {

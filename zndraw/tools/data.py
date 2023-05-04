@@ -2,9 +2,11 @@ from zndraw import shared
 import numpy as np
 from ase.data.colors import jmol_colors
 
+
 def _rgb2hex(data):
     r, g, b = np.array(data * 255, dtype=int)
     return "#%02x%02x%02x" % (r, g, b)
+
 
 def serialize_atoms(start: int, stop: int):
     result = {"position": [], "force": [], "box": []}

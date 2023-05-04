@@ -168,5 +168,10 @@ def echo(ws):
         data = json.loads(ws.receive())
         step = data["step"]
         print(f"Sending step {step}")
-        data = {x: tools.data.serialize_frame(x) for x in range(step, step + 10)}
+        data = {}
+        for x in range(step, step + 10):
+            try:
+                data[x] = tools.data.serialize_frame(x)
+            except KeyError:
+                pass
         ws.send(json.dumps(data))
