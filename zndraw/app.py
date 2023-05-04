@@ -167,11 +167,12 @@ def echo(ws):
     while True:
         data = json.loads(ws.receive())
         step = data["step"]
-        print(f"Sending step {step}")
+        print(f"Requesting data for step {step}")
         data = {}
-        for x in range(step, step + 10):
+        for x in range(step, step + 100):
             try:
                 data[x] = tools.data.serialize_frame(x)
             except KeyError:
                 pass
         ws.send(json.dumps(data))
+        print(f"Sent data for step {step}")

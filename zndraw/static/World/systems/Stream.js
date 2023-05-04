@@ -22,10 +22,17 @@ class Stream {
     socket.onopen = (event) => {
       console.log("Websocket connection opened");
       this._ready = true;
+      this.requestFrame();
     };
     socket.addEventListener("message", (event) => {
       this._ready = true;
-      this.data = JSON.parse(event.data);
+      this.data = { ...this.data, ...JSON.parse(event.data)}
+      for (let key in this.data) {
+        if (key < this.step) {
+          delete this.data[key];
+        }
+      }
+      console.log(this.data);
     });
   }
 
@@ -47,7 +54,11 @@ class Stream {
       if (data !== undefined) {
         // TODO this also happens if the stream is to slow to keep up!
         this.step += 1;
-      } else {
+      }
+      if (Object.keys(this.data).length < 50) {
+        this.requestFrame();
+      }
+      if (this.step > 999) { // temporary freeze for larger than 1000
         this.step = 0;
       }
       return data;

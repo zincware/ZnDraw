@@ -4,6 +4,7 @@ from ase.data.colors import jmol_colors
 import networkx as nx
 from ase.neighborlist import build_neighbor_list
 import ase
+import functools
 
 
 def _rgb2hex(data):
@@ -28,7 +29,9 @@ def serialize_atoms(start: int, stop: int):
         return result
 
 
-def get_bonds(atoms: ase.Atoms):
+@functools.lru_cache(maxsize=16)
+def get_bonds(step: int):
+    atoms = shared.config.get_atoms(step=step)
     atoms.pbc = False
     nl = build_neighbor_list(atoms, self_interaction=False)
     cm = nl.get_connectivity_matrix(sparse=False)
@@ -51,5 +54,6 @@ def serialize_frame(step):
             }
             for idx, atom in enumerate(atoms)
         ],
-        "bonds": get_bonds(atoms),
+        "bonds": get_bonds(0),
+        # "bonds": [(1, 2), (2, 3), (3, 4)],
     }
