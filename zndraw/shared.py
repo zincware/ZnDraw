@@ -132,16 +132,15 @@ class Config(BaseModel):
         # TODO ZnH5MD
         if self._modifier_applied:
             return  # We don't want to load any further from file at this point
+        print("Loading atoms")
         if pathlib.Path(self.file).suffix == ".h5":
             # We load all at once here
             self._atoms_cache.update(
-                dict(enumerate(znh5md.ASEH5MD(self.file).get_atoms_list()[: step + 1]))
+                dict(enumerate(znh5md.ASEH5MD(self.file).get_atoms_list()))
             )
         else:
             for idx, atoms in enumerate(tqdm.tqdm(ase.io.iread(self.file))):
                 self._atoms_cache[idx] = atoms
-                if idx == step:
-                    break
 
 
 config: Config = None

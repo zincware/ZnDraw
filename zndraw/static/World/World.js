@@ -7,6 +7,8 @@ import { createControls } from './systems/controls.js';
 import { createRenderer } from './systems/renderer.js';
 import { Resizer } from './systems/Resizer.js';
 import { Loop } from './systems/Loop.js';
+import { Stream } from './systems/Stream.js';
+import { createParticleGroup } from './components/particles.js';
 
 // These variables are module-scoped: we cannot access them
 // from outside the module
@@ -14,28 +16,28 @@ let camera;
 let renderer;
 let scene;
 let loop;
+let stream;
 
 class World {
     constructor(container) {
         camera = createCamera();
         scene = createScene();
         renderer = createRenderer();
-        loop = new Loop(camera, scene, renderer);
+        stream = new Stream();
+        loop = new Loop(camera, scene, renderer, stream);
+
         container.append(renderer.domElement);
 
         const controls = createControls(camera, renderer.domElement);
 
-        const cube = createCube();
+        const particles = createParticleGroup();
         const light = createLights();
 
-        scene.add(cube, light);
+        scene.add(particles, light);
 
         // disable mesh rotation
-        // loop.updatables.push(cube);
-
+        loop.constraint_updatables.push(particles);
         loop.updatables.push(controls);
-
-        scene.add(cube);
 
         const resizer = new Resizer(container, camera, renderer);
 

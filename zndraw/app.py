@@ -2,12 +2,15 @@ import uuid
 
 import networkx as nx
 import numpy as np
-from flask import Flask, render_template, request, session
+from flask import Flask, render_template, request, session, jsonify
 
 from zndraw import io, shared, tools
+from flask_sock import Sock
+import json
 
 app = Flask(__name__)
 app.secret_key = str(uuid.uuid4())
+sock = Sock(app)
 
 
 @app.route("/")
@@ -157,3 +160,13 @@ def download():
     b = shared.config.export_atoms()
     b.seek(0)
     return send_file(b, download_name="traj.h5", as_attachment=True)
+
+
+@sock.route("/echo")
+def echo(ws):
+    while True:
+        data = json.loads(ws.receive())
+        step = data["step"]
+        print(f"Sending step {step}")
+        data = {x: tools.data.serialize_frame(x) for x in range(step, step + 10)}
+        ws.send(json.dumps(data))
