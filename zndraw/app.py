@@ -2,21 +2,21 @@ import uuid
 
 import networkx as nx
 import numpy as np
-from flask import Flask, render_template, request, session, jsonify
+from flask import Flask, render_template, request, session, Response, stream_with_context
 
 from zndraw import io, shared, tools
-from flask_sock import Sock
 import json
+import tqdm
 
 app = Flask(__name__)
 app.secret_key = str(uuid.uuid4())
-sock = Sock(app)
 
 
 @app.route("/")
 def index():
     """Render the main ZnDraw page."""
     session["key"] = str(uuid.uuid4())  # TODO use session key e.g. for atoms cache
+    session["step"] = 0
     return render_template("index.html", config=shared.config.dict())
 
 
@@ -162,17 +162,20 @@ def download():
     return send_file(b, download_name="traj.h5", as_attachment=True)
 
 
-@sock.route("/echo")
-def echo(ws):
-    while True:
-        data = json.loads(ws.receive())
-        step = data["step"]
-        print(f"Requesting data for step {step}")
-        data = {}
-        for x in range(step, step + 100):
-            try:
-                data[x] = tools.data.serialize_frame(x)
-            except KeyError:
-                pass
-        ws.send(json.dumps(data))
-        print(f"Sent data for step {step}")
+@app.route("/frame-set", methods=["POST"])
+def frame_set():
+    session["step"] = request.json["step"]
+    # print(f"Setting step to {session['step']}")
+    return {}
+
+
+@app.route('/frame-stream')
+def frame_stream():
+
+    def generate(step):
+        for idx in tqdm.tqdm(range(step, step + 100), desc=f"Streaming from {step}"):
+            data = {idx: tools.data.serialize_frame(idx)}
+            yield f"data: {json.dumps(data)}\n\n"
+        yield f"data: {json.dumps({})} \nretry: 10\n\n"
+
+    return Response(generate(session["step"]), mimetype='text/event-stream')

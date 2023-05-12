@@ -14,40 +14,56 @@ let socket;
 
 class Stream {
   constructor() {
-    this._ready = false;
     this.data = null;
     this.step = 0;
-    socket = new WebSocket('ws://' + location.host + '/echo');
+    this.last_request = 1;
+    this._buffer_filled = false;
 
-    socket.onopen = (event) => {
-      console.log("Websocket connection opened");
-      this._ready = true;
-      this.requestFrame();
-    };
-    socket.addEventListener("message", (event) => {
-      this._ready = true;
-      this.data = { ...this.data, ...JSON.parse(event.data)}
+    this.setup_event_source();
+  }
+
+  setup_event_source() {
+    this.eventSource = new EventSource("/frame-stream");
+
+    this.eventSource.onmessage = (event) => {
+      let data = JSON.parse(event.data);
+      // if data length is zero, close the connection
+      if (Object.keys(data).length === 0) {
+        this.eventSource.close();
+        return
+      }
+      this.data = { ...this.data, ...data }
       for (let key in this.data) {
         if (key < this.step) {
           delete this.data[key];
         }
       }
-      console.log(this.data);
-    });
+    }
   }
 
   requestFrame() {
-    if (this._ready) {
-      this._ready = false;
-      socket.send(JSON.stringify({ "step": this.step }));
-    }
+    // fetch frame-set with post request step: this.step
+    this.last_request = this.step;
+    console.log("Requesting frame " + this.step);
+    fetch("/frame-set", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ step: this.step }),
+    }).then((response) => {
+      // if the event source is closed, open it again
+      if (this.eventSource.readyState === 2) {
+        this.setup_event_source();
+      }
+    });
   }
 
   get_next_frame() {
-    console.log("Step" + this.step);
     if (this.data == null) {
       return undefined;
     }
+    console.log("Step " + this.step + " with " + Object.keys(this.data).length);
     try {
       let data = this.data[this.step];
       delete this.data[this.step];
@@ -55,10 +71,10 @@ class Stream {
         // TODO this also happens if the stream is to slow to keep up!
         this.step += 1;
       }
-      if (Object.keys(this.data).length < 50) {
+      if ((this.step - this.last_request > 50) || (this.step < this.last_request)) {
         this.requestFrame();
       }
-      if (this.step > 999) { // temporary freeze for larger than 1000
+      if (this.step > 900) { // temporary freeze for larger than 1000
         this.step = 0;
       }
       return data;
