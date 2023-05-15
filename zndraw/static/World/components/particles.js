@@ -108,7 +108,7 @@ const halfCylinderGeometry = halfCylinderGeometryFactory();
 const sphereGeometry = sphereGeometryFactory();
 export const speciesMaterial = speciesMaterialFactory();
 
-export function createParticleGroup() {
+export function createParticleGroup(config) {
   const particleGroup = new THREE.Group();
 
   particleGroup.tick = (data) => {
@@ -154,17 +154,22 @@ export function createParticleGroup() {
         updateParticleScaleAndMaterial(
           particleGroup.getObjectByName(item.id).children[0],
           item.radius,
-          speciesMaterial("MeshPhongMaterial", item.color, false),
+          speciesMaterial(config.config.material, item.color, config.config.material_wireframe),
         );
       } else {
         const particle = new THREE.Mesh(
           sphereGeometry(item.radius, 32),
-          speciesMaterial("MeshPhongMaterial", item.color, false),
+          speciesMaterial(config.config.material, item.color, config.config.material_wireframe),
         );
         const particleSubGroup = new THREE.Group();
         particleSubGroup.add(particle);
         particleSubGroup.name = item.id;
         particleSubGroup.position.set(item.x, item.y, item.z);
+        
+        particleSubGroup.select = () => {
+          console.log("Selecting " + item.id);
+        };
+
         particleGroup.add(particleSubGroup);
       }
     });
@@ -193,6 +198,8 @@ export function createParticleGroup() {
         // update bond orientation
         updateBondOrientation(bond_1, node1, node2);
         updateBondOrientation(bond_2, node2, node1);
+        bond_1.material = particle1.material;
+        bond_2.material = particle2.material;
       } else {
         // temporary config
         console.log("Creating new bond");

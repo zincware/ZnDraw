@@ -23,7 +23,10 @@ class Stream {
       }
       this.data = { ...this.data, ...data };
       for (const key in this.data) {
-        if (key < this.step) {
+        if (key < this.step - 10) {
+          delete this.data[key];
+        }
+        if (key > this.step + 100) {
           delete this.data[key];
         }
       }
@@ -52,25 +55,24 @@ class Stream {
     if (this.data == null) {
       return undefined;
     }
-    console.log("Step " + this.step + " with " + Object.keys(this.data).length);
-    try {
-      const data = this.data[this.step];
-      delete this.data[this.step];
-      if (data !== undefined) {
-        // TODO this also happens if the stream is to slow to keep up!
-        this.step += 1;
-      }
-      if (this.step - this.last_request > 50 || this.step < this.last_request) {
-        this.requestFrame();
-      }
-      if (this.step > 900) {
-        // temporary freeze for larger than 1000
-        this.step = 0;
-      }
-      return data;
-    } catch (error) {
-      return undefined;
+    console.log("Step " + this.step + " with cache size: " + Object.keys(this.data).length);
+    const data = this.data[this.step];
+    if (data !== undefined) {
+      // TODO this also happens if the stream is to slow to keep up!
+      this.step += 1;
+    } else {
+      // if the data is not available, request it. This should not happen if the stream is fast enough
+      this.requestFrame();
     }
+    if (this.step - this.last_request > 50 || this.step < this.last_request) {
+      this.requestFrame();
+    }
+    if (this.step > 900) {
+      // temporary freeze for larger than 1000
+      // TODO we need a good way for handling jumps in frames
+      this.step = 0;
+    }
+    return data;
   }
 }
 

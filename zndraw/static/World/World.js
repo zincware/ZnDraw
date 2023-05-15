@@ -18,7 +18,7 @@ let loop;
 let stream;
 
 class World {
-  constructor(container) {
+  constructor(container, config) {
     camera = createCamera();
     scene = createScene();
     renderer = createRenderer();
@@ -29,7 +29,7 @@ class World {
 
     const controls = createControls(camera, renderer.domElement);
 
-    const particles = createParticleGroup();
+    const particles = createParticleGroup(config);
     const light = createLights();
 
     scene.add(particles, light);

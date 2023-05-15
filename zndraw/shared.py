@@ -43,6 +43,7 @@ class Config(BaseModel):
     frames_per_post: int = Field(100, description="Frames per JS POST request")
     active_update_function: str = Field(None, description="Active Update Function")
     material: str = Field("MeshPhongMaterial", description="Material")
+    material_wireframe: bool = Field(False, description="Material Wireframe")
     antialias: bool = Field(True, description="Antialias")
     continuous_loading: bool = Field(
         False, description="Continuous Loading of the trajectory"
