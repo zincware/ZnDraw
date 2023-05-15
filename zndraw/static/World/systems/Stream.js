@@ -1,16 +1,3 @@
-import { Clock, SkeletonHelper } from "three";
-
-const clock = new Clock();
-
-// const socket =
-
-// // Connection opened
-// socket.addEventListener("open", (event) => {
-//   socket.send("Hello Server!");
-// });
-
-let socket;
-
 class Stream {
   constructor() {
     this.data = null;

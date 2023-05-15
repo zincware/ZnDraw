@@ -1,5 +1,4 @@
 import { createCamera } from "./components/camera.js";
-import { createCube } from "./components/cube.js";
 import { createLights } from "./components/lights.js";
 import { createScene } from "./components/scene.js";
 
