@@ -35,9 +35,9 @@ class Stream {
 
   requestFrame() {
     // fetch frame-set with post request step: this.config.step
-    // if (this.config.step === this.last_request) {
-    //   return;
-    // }
+    if (this.config.step === this.last_request) {
+      return;
+    }
     this.last_request = this.config.step;
     console.log("Requesting frame " + this.config.step);
     fetch("/frame-set", {
@@ -81,7 +81,7 @@ class Stream {
     ) {
       this.requestFrame();
     }
-    if (this.config.step > 900) {
+    if (this.config.step >= this.config.config.total_frames) {
       // temporary freeze for larger than 1000
       // TODO we need a good way for handling jumps in frames
       this.config.step = 0;
