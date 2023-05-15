@@ -212,8 +212,18 @@ export function createParticleGroup(config) {
         // temporary config
         console.log("Creating new bond");
 
-        bond_1 = halfCylinderMesh(node1, node2, particle1.material, config.config);
-        bond_2 = halfCylinderMesh(node2, node1, particle2.material, config.config);
+        bond_1 = halfCylinderMesh(
+          node1,
+          node2,
+          particle1.material,
+          config.config,
+        );
+        bond_2 = halfCylinderMesh(
+          node2,
+          node1,
+          particle2.material,
+          config.config,
+        );
 
         // the atom to look at
         bond_1.name = item[0] + "-" + item[1];
