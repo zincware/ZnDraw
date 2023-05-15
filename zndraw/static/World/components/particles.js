@@ -1,5 +1,16 @@
 import * as THREE from "three";
 
+export const materials = {
+  "MeshBasicMaterial": new THREE.MeshBasicMaterial({ color: "#ffa500" }),
+  "MeshLambertMaterial": new THREE.MeshLambertMaterial({ color: "#ffa500" }),
+  "MeshMatcapMaterial": new THREE.MeshMatcapMaterial({ color: "#ffa500" }),
+  "MeshPhongMaterial": new THREE.MeshPhongMaterial({ color: "#ffa500" }),
+  "MeshPhysicalMaterial": new THREE.MeshPhysicalMaterial({ color: "#ffa500" }),
+  "MeshStandardMaterial": new THREE.MeshStandardMaterial({ color: "#ffa500" }),
+  "MeshToonMaterial": new THREE.MeshToonMaterial({ color: "#ffa500" }),
+
+};
+
 const sphereGeometryFactoryCache = {};
 const speciesMaterialFactoryCache = {};
 const halfCylinderGeometryFactoryCache = {};
@@ -56,8 +67,8 @@ const sphereGeometryFactory = () => {
 
 const speciesMaterialFactory = () => {
   return (name, color, wireframe) => {
-    // key = name + "_" + color + "_" + wireframe;
-    const key = (name, color, wireframe);
+    const key = name + "_" + color + "_" + wireframe;
+    // const key = (name, color, wireframe);
 
     if (key in speciesMaterialFactoryCache) {
       return speciesMaterialFactoryCache[key];
@@ -86,6 +97,12 @@ function updateBondOrientation(bond, pointX, pointY) {
   bond.lookAt(pointY);
   const scale = direction.length() / 2 / bond.geometry.parameters.height;
   bond.scale.set(1, 1, scale);
+}
+
+function updateParticleScaleAndMaterial(particle, radius, material) {
+  const scale = radius / particle.geometry.parameters.radius;
+  particle.scale.set(scale, scale, scale);
+  particle.material = material;
 }
 
 const halfCylinderGeometry = halfCylinderGeometryFactory();
@@ -135,21 +152,16 @@ export function createParticleGroup() {
           .getObjectByName(item.id)
           .position.set(item.x, item.y, item.z);
         // Update size and color if changed
-        particleGroup
-          .getObjectByName(item.id)
-          .children[0].scale.set(item.radius, item.radius, item.radius);
-        particleGroup
-          .getObjectByName(item.id)
-          .children[0].material.color.set(item.color);
-      } else {
-        // let geometry = sphereGeometry(item.radius, 32);
-        // let material = speciesMaterial(item.species, item.color, false);
-        // const particle = new THREE.Mesh(geometry, material);
-        const particle = new THREE.Mesh(
-          new THREE.SphereGeometry(1, 32, 32),
-          new THREE.MeshPhongMaterial({ color: item.color }),
+        updateParticleScaleAndMaterial(
+          particleGroup.getObjectByName(item.id).children[0],
+          item.radius,
+          speciesMaterial("MeshPhongMaterial", item.color, false),
         );
-        particle.scale.set(item.radius, item.radius, item.radius);
+      } else {
+        const particle = new THREE.Mesh(
+          sphereGeometry(item.radius, 32),
+          speciesMaterial("MeshPhongMaterial", item.color, false),
+        );
         const particleSubGroup = new THREE.Group();
         particleSubGroup.add(particle);
         particleSubGroup.name = item.id;
