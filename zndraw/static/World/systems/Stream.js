@@ -1,4 +1,4 @@
-import { Clock, SkeletonHelper } from 'three';
+import {Clock, SkeletonHelper} from 'three';
 
 const clock = new Clock();
 
@@ -20,40 +20,40 @@ class Stream {
     this._buffer_filled = false;
 
     // fetch load to start loading data in the background
-    fetch("/load");
+    fetch('/load');
 
     this.setup_event_source();
   }
 
   setup_event_source() {
-    this.eventSource = new EventSource("/frame-stream");
+    this.eventSource = new EventSource('/frame-stream');
 
     this.eventSource.onmessage = (event) => {
-      let data = JSON.parse(event.data);
+      const data = JSON.parse(event.data);
       // if data length is zero, close the connection
       if (Object.keys(data).length === 0) {
         this.eventSource.close();
-        return
+        return;
       }
-      this.data = { ...this.data, ...data }
-      for (let key in this.data) {
+      this.data = {...this.data, ...data};
+      for (const key in this.data) {
         if (key < this.step) {
           delete this.data[key];
         }
       }
-    }
+    };
   }
 
   requestFrame() {
     // fetch frame-set with post request step: this.step
     this.last_request = this.step;
-    console.log("Requesting frame " + this.step);
-    fetch("/frame-set", {
-      method: "POST",
+    console.log('Requesting frame ' + this.step);
+    fetch('/frame-set', {
+      method: 'POST',
       headers: {
-        "Content-Type": "application/json",
+        'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ step: this.step }),
+      body: JSON.stringify({step: this.step}),
     }).then((response) => {
       // if the event source is closed, open it again
       if (this.eventSource.readyState === 2) {
@@ -66,9 +66,9 @@ class Stream {
     if (this.data == null) {
       return undefined;
     }
-    console.log("Step " + this.step + " with " + Object.keys(this.data).length);
+    console.log('Step ' + this.step + ' with ' + Object.keys(this.data).length);
     try {
-      let data = this.data[this.step];
+      const data = this.data[this.step];
       delete this.data[this.step];
       if (data !== undefined) {
         // TODO this also happens if the stream is to slow to keep up!
@@ -87,4 +87,4 @@ class Stream {
   }
 }
 
-export { Stream };
+export {Stream};

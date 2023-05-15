@@ -2,5 +2,9 @@
   "dependencies": {
     "bootstrap": "^5.2.3",
     "three": "^0.152.2"
+  },
+  "devDependencies": {
+    "eslint": "^8.40.0",
+    "eslint-config-google": "^0.14.0"
   }
 }

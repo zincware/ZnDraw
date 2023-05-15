@@ -1,4 +1,4 @@
-import { Clock } from 'three';
+import {Clock} from 'three';
 
 const clock = new Clock();
 
@@ -46,4 +46,4 @@ class Loop {
   }
 }
 
-export { Loop };
+export {Loop};

@@ -1,4 +1,4 @@
-import { DirectionalLight } from 'three';
+import {DirectionalLight} from 'three';
 
 function createLights() {
   // Create a directional light
@@ -10,4 +10,4 @@ function createLights() {
   return light;
 }
 
-export { createLights };
+export {createLights};
