@@ -26,10 +26,6 @@ repos:
         additional_dependencies:
           - eslint@latest
           - eslint-config-google@latest
-  - repo: https://github.com/pre-commit/mirrors-csslint
-    rev: 1.0.3
-    hooks:
-    -   id: csslint
   - repo: https://github.com/psf/black
     rev: 23.3.0
     hooks:
