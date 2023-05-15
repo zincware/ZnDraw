@@ -55,7 +55,12 @@ class Stream {
     if (this.data == null) {
       return undefined;
     }
-    console.log("Step " + this.step + " with cache size: " + Object.keys(this.data).length);
+    console.log(
+      "Step " +
+        this.step +
+        " with cache size: " +
+        Object.keys(this.data).length,
+    );
     const data = this.data[this.step];
     if (data !== undefined) {
       // TODO this also happens if the stream is to slow to keep up!

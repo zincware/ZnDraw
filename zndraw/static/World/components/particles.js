@@ -154,18 +154,26 @@ export function createParticleGroup(config) {
         updateParticleScaleAndMaterial(
           particleGroup.getObjectByName(item.id).children[0],
           item.radius,
-          speciesMaterial(config.config.material, item.color, config.config.material_wireframe),
+          speciesMaterial(
+            config.config.material,
+            item.color,
+            config.config.material_wireframe,
+          ),
         );
       } else {
         const particle = new THREE.Mesh(
           sphereGeometry(item.radius, 32),
-          speciesMaterial(config.config.material, item.color, config.config.material_wireframe),
+          speciesMaterial(
+            config.config.material,
+            item.color,
+            config.config.material_wireframe,
+          ),
         );
         const particleSubGroup = new THREE.Group();
         particleSubGroup.add(particle);
         particleSubGroup.name = item.id;
         particleSubGroup.position.set(item.x, item.y, item.z);
-        
+
         particleSubGroup.select = () => {
           console.log("Selecting " + item.id);
         };
