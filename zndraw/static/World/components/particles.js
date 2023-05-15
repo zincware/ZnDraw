@@ -162,7 +162,7 @@ export function createParticleGroup(config) {
         );
       } else {
         const particle = new THREE.Mesh(
-          sphereGeometry(item.radius, 32),
+          sphereGeometry(item.radius, config.config.resolution),
           speciesMaterial(
             config.config.material,
             item.color,
@@ -211,10 +211,9 @@ export function createParticleGroup(config) {
       } else {
         // temporary config
         console.log("Creating new bond");
-        const config = { bond_size: 1.0, resolution: 8 };
 
-        bond_1 = halfCylinderMesh(node1, node2, particle1.material, config);
-        bond_2 = halfCylinderMesh(node2, node1, particle2.material, config);
+        bond_1 = halfCylinderMesh(node1, node2, particle1.material, config.config);
+        bond_2 = halfCylinderMesh(node2, node1, particle2.material, config.config);
 
         // the atom to look at
         bond_1.name = item[0] + "-" + item[1];

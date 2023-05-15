@@ -32,7 +32,7 @@ class World {
     const particles = createParticleGroup(config);
     const light = createLights();
 
-    scene.add(particles, light);
+    scene.add(particles, light, camera);
 
     // disable mesh rotation
     loop.constraint_updatables.push(particles);
