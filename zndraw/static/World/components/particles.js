@@ -21,13 +21,13 @@ const halfCylinderGeometryFactory = () => {
         1,
         resolution * 2,
         1,
-        true
+        true,
       );
       // shift it so one end rests on the origin
       geometry.applyMatrix4(new THREE.Matrix4().makeTranslation(0, 1 / 2, 0));
       // rotate it the right way for lookAt to work
       geometry.applyMatrix4(
-        new THREE.Matrix4().makeRotationX(THREE.MathUtils.degToRad(90))
+        new THREE.Matrix4().makeRotationX(THREE.MathUtils.degToRad(90)),
       );
       halfCylinderGeometryFactoryCache[key] = geometry;
       return geometry;
@@ -46,7 +46,7 @@ const sphereGeometryFactory = () => {
       const geometry = new THREE.SphereGeometry(
         sphere_size,
         resolution * 4,
-        resolution * 2
+        resolution * 2,
       );
       sphereGeometryFactoryCache[key] = geometry;
       return geometry;
@@ -75,7 +75,7 @@ const speciesMaterialFactory = () => {
 function halfCylinderMesh(pointX, pointY, material, config) {
   const geometry = halfCylinderGeometry(
     config["bond_size"],
-    config["resolution"]
+    config["resolution"],
   );
   return new THREE.Mesh(geometry, material);
 }
@@ -110,10 +110,10 @@ export function createParticleGroup() {
           return;
         }
         const bond_a = bonds.filter(
-          (item) => item[0] + "-" + item[1] === bond.name
+          (item) => item[0] + "-" + item[1] === bond.name,
         );
         const bond_b = bonds.filter(
-          (item) => item[1] + "-" + item[0] === bond.name
+          (item) => item[1] + "-" + item[0] === bond.name,
         );
 
         if (bond_a.length === 0 && bond_b.length === 0) {
@@ -147,7 +147,7 @@ export function createParticleGroup() {
         // const particle = new THREE.Mesh(geometry, material);
         const particle = new THREE.Mesh(
           new THREE.SphereGeometry(1, 32, 32),
-          new THREE.MeshPhongMaterial({ color: item.color })
+          new THREE.MeshPhongMaterial({ color: item.color }),
         );
         particle.scale.set(item.radius, item.radius, item.radius);
         const particleSubGroup = new THREE.Group();
