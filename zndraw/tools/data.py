@@ -1,10 +1,12 @@
-from zndraw import shared
+import functools
+
+import ase
+import networkx as nx
 import numpy as np
 from ase.data.colors import jmol_colors
-import networkx as nx
 from ase.neighborlist import build_neighbor_list
-import ase
-import functools
+
+from zndraw import shared
 
 
 def _rgb2hex(data):

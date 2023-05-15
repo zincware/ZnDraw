@@ -2,7 +2,7 @@ import { Clock, SkeletonHelper } from 'three';
 
 const clock = new Clock();
 
-// const socket = 
+// const socket =
 
 // // Connection opened
 // socket.addEventListener("open", (event) => {

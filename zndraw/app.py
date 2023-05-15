@@ -1,12 +1,13 @@
+import json
 import uuid
 
 import networkx as nx
 import numpy as np
-from flask import Flask, render_template, request, session, Response, stream_with_context
+import tqdm
+from flask import (Flask, Response, render_template, request, session,
+                   stream_with_context)
 
 from zndraw import io, shared, tools
-import json
-import tqdm
 
 app = Flask(__name__)
 app.secret_key = str(uuid.uuid4())
@@ -31,7 +32,6 @@ def config():
         **shared.config.dict(),
         "total_frames": len(shared.config._atoms_cache) - 1,
     }
-
 
 
 @app.route("/select", methods=["POST"])
@@ -150,13 +150,12 @@ def frame_set():
     return {}
 
 
-@app.route('/frame-stream')
+@app.route("/frame-stream")
 def frame_stream():
-
     def generate(step):
         for idx in tqdm.tqdm(range(step, step + 100), desc=f"Streaming from {step}"):
             data = {idx: tools.data.serialize_frame(idx)}
             yield f"data: {json.dumps(data)}\n\n"
         yield f"data: {json.dumps({})} \nretry: 10\n\n"
 
-    return Response(generate(session["step"]), mimetype='text/event-stream')
+    return Response(generate(session["step"]), mimetype="text/event-stream")
