@@ -15,14 +15,14 @@ let camera;
 let renderer;
 let scene;
 let loop;
-let stream;
+let stream
 
 class World {
   constructor(container, config) {
     camera = createCamera();
     scene = createScene();
     renderer = createRenderer();
-    stream = new Stream();
+    stream = new Stream(config);
     loop = new Loop(camera, scene, renderer, stream, config);
 
     container.append(renderer.domElement);

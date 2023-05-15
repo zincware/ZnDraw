@@ -26,9 +26,36 @@ function updateFPS(config) {
   };
 }
 
+function setupSlider(config) {
+  const slider = document.getElementById("frame-slider");
+  config.set_step_callbacks.push((config) => {
+    slider.value = config.step;
+    slider.max = config.config.total_frames;
+  });
+
+  slider.oninput = function () {
+    config.set_step(parseInt(this.value));
+  };
+}
+
+function setupPlayPause(config) {
+  window.addEventListener("keydown", (event) => {
+    if (event.isComposing || event.key === " ") {
+      config.play = !config.play;
+      if (config.play) {
+        console.log("play");
+      } else {
+        console.log("pause");
+      }
+    }
+  });
+}
+
 export function setUIEvents(config) {
   update_materials(config);
   updateFPS(config);
+  setupSlider(config);
+  setupPlayPause(config);
 
   // disable loading spinner by making it invisible
   const loadingElem = document.getElementById("atom-spinner");

@@ -146,7 +146,7 @@ def download():
 @app.route("/frame-set", methods=["POST"])
 def frame_set():
     session["step"] = request.json["step"]
-    # print(f"Setting step to {session['step']}")
+    print(f"Setting step to {session['step']}")
     return {}
 
 

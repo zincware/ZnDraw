@@ -6,6 +6,9 @@ class Config {
   constructor() {
     this.config = {};
     this.config_url = "/config";
+    this.step = 0;
+    this.set_step_callbacks = [];
+    this.play = true;
   }
 
   start() {
@@ -36,6 +39,13 @@ class Config {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(config),
     });
+  }
+
+  set_step(step) {
+    this.step = step;
+    for (const callback of this.set_step_callbacks) {
+      callback(this);
+    }
   }
 }
 

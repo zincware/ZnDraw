@@ -1,7 +1,7 @@
 class Stream {
-  constructor() {
+  constructor(config) {
+    this.config = config;
     this.data = null;
-    this.step = 0;
     this.last_request = 1;
     this._buffer_filled = false;
 
@@ -23,10 +23,10 @@ class Stream {
       }
       this.data = { ...this.data, ...data };
       for (const key in this.data) {
-        if (key < this.step - 10) {
+        if (key < this.config.step - 10) {
           delete this.data[key];
         }
-        if (key > this.step + 100) {
+        if (key > this.config.step + 100) {
           delete this.data[key];
         }
       }
@@ -34,15 +34,15 @@ class Stream {
   }
 
   requestFrame() {
-    // fetch frame-set with post request step: this.step
-    this.last_request = this.step;
-    console.log("Requesting frame " + this.step);
+    // fetch frame-set with post request step: this.config.step
+    this.last_request = this.config.step;
+    console.log("Requesting frame " + this.config.step);
     fetch("/frame-set", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ step: this.step }),
+      body: JSON.stringify({ step: this.config.step }),
     }).then((response) => {
       // if the event source is closed, open it again
       if (this.eventSource.readyState === 2) {
@@ -57,25 +57,25 @@ class Stream {
     }
     console.log(
       "Step " +
-        this.step +
+        this.config.step +
         " with cache size: " +
         Object.keys(this.data).length,
     );
-    const data = this.data[this.step];
-    if (data !== undefined) {
+    const data = this.data[this.config.step];
+    if ((data !== undefined) && (this.config.play) ){
       // TODO this also happens if the stream is to slow to keep up!
-      this.step += 1;
+      this.config.set_step(this.config.step + 1);
     } else {
       // if the data is not available, request it. This should not happen if the stream is fast enough
       this.requestFrame();
     }
-    if (this.step - this.last_request > 50 || this.step < this.last_request) {
+    if (this.config.step - this.last_request > 50 || this.config.step < this.last_request) {
       this.requestFrame();
     }
-    if (this.step > 900) {
+    if (this.config.step > 900) {
       // temporary freeze for larger than 1000
       // TODO we need a good way for handling jumps in frames
-      this.step = 0;
+      this.config.step = 0;
     }
     return data;
   }
