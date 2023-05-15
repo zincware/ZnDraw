@@ -52,3 +52,14 @@ as it can be imported via `from module import MyUpdateCls`.
 ![ZnDraw UI2](https://raw.githubusercontent.com/zincware/ZnDraw/main/misc/zndraw_protein.png "ZnDraw UI2")
 
 ![ZnDraw UI3](https://raw.githubusercontent.com/zincware/ZnDraw/main/misc/zndraw_draw.png "ZnDraw UI3")
+
+
+# Development
+
+ZnDraw is developed using https://python-poetry.org/.
+Furthermore, the javascript packages have to be installed using https://www.npmjs.com/.
+
+```bash
+cd zndraw/static/
+npm install
+```
