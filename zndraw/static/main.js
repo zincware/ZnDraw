@@ -9,6 +9,11 @@ function main() {
 
   // 2. Render the scene
   world.start();
+
+  // disable loading spinner by making it invisible
+  const loadingElem = document.getElementById("atom-spinner");
+  loadingElem.style.display = "none";
+
 }
 
 main();
