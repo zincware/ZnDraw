@@ -15,7 +15,7 @@ let camera;
 let renderer;
 let scene;
 let loop;
-let stream
+let stream;
 
 class World {
   constructor(container, config) {

@@ -62,14 +62,17 @@ class Stream {
         Object.keys(this.data).length,
     );
     const data = this.data[this.config.step];
-    if ((data !== undefined) && (this.config.play) ){
+    if (data !== undefined && this.config.play) {
       // TODO this also happens if the stream is to slow to keep up!
       this.config.set_step(this.config.step + 1);
     } else {
       // if the data is not available, request it. This should not happen if the stream is fast enough
       this.requestFrame();
     }
-    if (this.config.step - this.last_request > 50 || this.config.step < this.last_request) {
+    if (
+      this.config.step - this.last_request > 50 ||
+      this.config.step < this.last_request
+    ) {
       this.requestFrame();
     }
     if (this.config.step > 900) {
