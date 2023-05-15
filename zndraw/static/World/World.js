@@ -1,14 +1,14 @@
-import {createCamera} from './components/camera.js';
-import {createCube} from './components/cube.js';
-import {createLights} from './components/lights.js';
-import {createScene} from './components/scene.js';
+import { createCamera } from "./components/camera.js";
+import { createCube } from "./components/cube.js";
+import { createLights } from "./components/lights.js";
+import { createScene } from "./components/scene.js";
 
-import {createControls} from './systems/controls.js';
-import {createRenderer} from './systems/renderer.js';
-import {Resizer} from './systems/Resizer.js';
-import {Loop} from './systems/Loop.js';
-import {Stream} from './systems/Stream.js';
-import {createParticleGroup} from './components/particles.js';
+import { createControls } from "./systems/controls.js";
+import { createRenderer } from "./systems/renderer.js";
+import { Resizer } from "./systems/Resizer.js";
+import { Loop } from "./systems/Loop.js";
+import { Stream } from "./systems/Stream.js";
+import { createParticleGroup } from "./components/particles.js";
 
 // These variables are module-scoped: we cannot access them
 // from outside the module
@@ -55,4 +55,4 @@ class World {
   }
 }
 
-export {World};
+export { World };
