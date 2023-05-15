@@ -37,7 +37,7 @@ class Loop {
       object.tick(delta);
     }
 
-    if (delta > 1/30) {
+    if (delta > 1/20) {
       for (const object of this.constraint_updatables) {
         object.tick(this.stream.get_next_frame());
       }

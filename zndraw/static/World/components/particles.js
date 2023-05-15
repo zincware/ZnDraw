@@ -45,9 +45,9 @@ const sphereGeometryFactory = () => {
 
 
 const speciesMaterialFactory = () => {
-    let key = ""
     return (name, color, wireframe) => {
-        key = name + "_" + color + "_" + wireframe;
+        // key = name + "_" + color + "_" + wireframe;
+        const key = (name, color, wireframe)
 
         if (key in speciesMaterialFactoryCache) {
             return speciesMaterialFactoryCache[key];
@@ -63,6 +63,18 @@ const speciesMaterialFactory = () => {
     }
 }
 
+function halfCylinderMesh(pointX, pointY, material, config) {
+    let geometry = halfCylinderGeometry(config["bond_size"], config["resolution"]);
+    return new THREE.Mesh(geometry, material);
+}
+
+function updateBondOrientation(bond, pointX, pointY) {
+    let direction = new THREE.Vector3();
+    direction.subVectors(pointY, pointX);
+    bond.lookAt(pointY);
+    let scale = (direction.length() / 2) / bond.geometry.parameters.height;
+    bond.scale.set(1, 1, scale);
+}
 
 const halfCylinderGeometry = halfCylinderGeometryFactory();
 const sphereGeometry = sphereGeometryFactory();
@@ -76,24 +88,25 @@ export function createParticleGroup() {
             return;
         }
         const particles = data["particles"];
+        const bonds = data["bonds"];
 
-        particles.forEach((item) => {
-            if (particleGroup.getObjectByName(item.id)) {
-                particleGroup.getObjectByName(item.id).position.set(item.x, item.y, item.z);
-                // Update size and color if changed
-                particleGroup.getObjectByName(item.id).scale.set(item.radius, item.radius, item.radius);
-                particleGroup.getObjectByName(item.id).material.color.set(item.color);
-            } else {
-                const particle = new THREE.Mesh(
-                    new THREE.SphereGeometry(1, 32, 32),
-                    new THREE.MeshPhongMaterial({ color: item.color })
-                );
-                particle.position.set(item.x, item.y, item.z);
-                particle.scale.set(item.radius, item.radius, item.radius)
-                particle.name = item.id;
-                particleGroup.add(particle);
-            }
+        // remove bonds that are not in data
+        particleGroup.children.forEach((particle) => {
+            particle.children.forEach((bond, idx) => {
+                if (idx === 0) {
+                    // entry 0 is the particle itself
+                    return;
+                }
+                const bond_a = bonds.filter((item) => item[0] + "-" + item[1] === bond.name);
+                const bond_b = bonds.filter((item) => item[1] + "-" + item[0] === bond.name);
+
+                if (bond_a.length === 0 && bond_b.length === 0) {
+                    console.log("Removing bond " + bond.name + " in " + bonds[0]);
+                    particle.remove(bond);
+                }
+            });
         });
+
         // remove particles that are not in data
         particleGroup.children.forEach((particle) => {
             if (particles.filter((item) => item.id === particle.name).length === 0) {
@@ -101,86 +114,75 @@ export function createParticleGroup() {
             }
         }
         );
+        particles.forEach((item) => {
+            if (particleGroup.getObjectByName(item.id)) {
+                particleGroup.getObjectByName(item.id).position.set(item.x, item.y, item.z);
+                // Update size and color if changed
+                particleGroup.getObjectByName(item.id).children[0].scale.set(item.radius, item.radius, item.radius);
+                particleGroup.getObjectByName(item.id).children[0].material.color.set(item.color);
+            } else {
+                // let geometry = sphereGeometry(item.radius, 32);
+                // let material = speciesMaterial(item.species, item.color, false);
+                // const particle = new THREE.Mesh(geometry, material);
+                const particle = new THREE.Mesh(
+                    new THREE.SphereGeometry(1, 32, 32),
+                    new THREE.MeshPhongMaterial({ color: item.color })
+                );
+                particle.scale.set(item.radius, item.radius, item.radius)
+                const particleSubGroup = new THREE.Group();
+                particleSubGroup.add(particle);
+                particleSubGroup.name = item.id;
+                particleSubGroup.position.set(item.x, item.y, item.z);
+                particleGroup.add(particleSubGroup);
+            }
+        });
+
+
+        // now update bonds
+        bonds.forEach((item) => {
+            let particle1SubGroup = particleGroup.getObjectByName(item[0]);
+            let particle2SubGroup = particleGroup.getObjectByName(item[1]);
+            let particle1 = particle1SubGroup.children[0];
+            let particle2 = particle2SubGroup.children[0];
+
+            let node1 = new THREE.Vector3();
+            let node2 = new THREE.Vector3();
+
+            particle1.getWorldPosition(node1);
+            particle2.getWorldPosition(node2);
+
+            // existing bonds
+            let bond_1 = particleGroup.getObjectByName(item[0] + "-" + item[1]);
+            let bond_2 = particleGroup.getObjectByName(item[1] + "-" + item[0]);
+
+            let direction = new THREE.Vector3();
+            direction.subVectors(node1, node2);
+
+            if (bond_1 && bond_2) {
+                // update bond orientation
+                updateBondOrientation(bond_1, node1, node2);
+                updateBondOrientation(bond_2, node2, node1);
+            } else {
+                // temporary config
+                console.log("Creating new bond");
+                let config = { "bond_size": 1.0, "resolution": 8 }
+
+                bond_1 = halfCylinderMesh(node1, node2, particle1.material, config);
+                bond_2 = halfCylinderMesh(node2, node1, particle2.material, config);
+
+                // the atom to look at
+                bond_1.name = item[0] + "-" + item[1];
+                bond_2.name = item[1] + "-" + item[0];
+
+                particle1SubGroup.add(bond_1);
+                particle2SubGroup.add(bond_2);
+
+                // update bond orientation
+                updateBondOrientation(bond_1, node1, node2);
+                updateBondOrientation(bond_2, node2, node1);
+            }
+        });
     }
 
     return particleGroup;
-}
-
-function halfCylinderMesh(pointX, pointY, material, config) {
-    // // Make a mesh with the geometry
-    const direction = new THREE.Vector3();
-
-    direction.subVectors(pointY, pointX);
-
-    let geometry = halfCylinderGeometry(config["bond_size"], config["resolution"]);
-
-    let mesh = new THREE.Mesh(geometry, material);
-    // // Position it where we want
-    mesh.position.copy(pointX);
-    // // And make it point to where we want
-    mesh.lookAt(pointY);
-    let scale = (direction.length() / 2) / mesh.geometry.parameters.height;
-    mesh.scale.set(1, 1, scale);
-    return mesh;
-}
-
-function addBond(particleGroup, item) {
-    let particle1 = particleGroup.getObjectByName(item[0]);
-    let particle2 = particleGroup.getObjectByName(item[1]);
-
-    let node1 = new THREE.Vector3();
-    let node2 = new THREE.Vector3();
-
-    particle1.getWorldPosition(node1);
-    particle2.getWorldPosition(node2);
-
-    // temporary config
-    let config = {"bond_size": 1.0, "resolution": 8}
-
-    const bond_1 = halfCylinderMesh(node1, node2, particle1.material, config);
-    const bond_2 = halfCylinderMesh(node2, node1, particle2.material, config);
-
-    // the atom to look at
-    bond_1.name = item[0] + "-" + item[1];
-    bond_2.name = item[1] + "-" + item[0];
-
-    // return new THREE.Group().add(bond_1, bond_2);
-    return bond_1;
-}
-
-export function createBondsGroup(particleGroup) {
-    const bondsGroup = new THREE.Group();
-
-    bondsGroup.tick = (data) => {
-        if (data == null) {
-            return;
-        }
-        if (bondsGroup.children.length > 10) {
-            return; // do not update anymore
-        }
-        console.log("updating bonds")
-        // Update bonds
-
-        const bonds = data["bonds"];
-
-        // remove bonds to particles that no longer exist
-        bondsGroup.children.forEach((bond) => {
-            if (bonds.filter((item) => item[0] === bond.name.split("-")[0] && item[1] === bond.name.split("-")[1]).length === 0) {
-                bondsGroup.remove(bond);
-            }
-        });
-
-        bonds.forEach((item) => {
-            if (bondsGroup.getObjectByName(item[0] + "-" + item[1])) {
-                return;
-                // console.log("update");
-            } else {
-                bondsGroup.add(addBond(particleGroup, item));
-                // console.log(item);
-            }
-        });
-
-    }
-    return bondsGroup;
-
 }
