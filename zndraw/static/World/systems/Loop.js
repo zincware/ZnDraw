@@ -3,13 +3,14 @@ import { Clock } from "three";
 const clock = new Clock();
 
 class Loop {
-  constructor(camera, scene, renderer, stream) {
+  constructor(camera, scene, renderer, stream, config) {
     this.camera = camera;
     this.scene = scene;
     this.renderer = renderer;
     this.stream = stream;
     this.updatables = [];
     this.constraint_updatables = [];
+    this.config = config;
   }
 
   start() {
@@ -37,7 +38,7 @@ class Loop {
       object.tick(delta);
     }
 
-    if (delta > 1 / 60) {
+    if (delta > 1 / this.config.config.max_fps) {
       for (const object of this.constraint_updatables) {
         object.tick(this.stream.get_next_frame());
       }

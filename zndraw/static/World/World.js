@@ -23,7 +23,7 @@ class World {
     scene = createScene();
     renderer = createRenderer();
     stream = new Stream();
-    loop = new Loop(camera, scene, renderer, stream);
+    loop = new Loop(camera, scene, renderer, stream, config);
 
     container.append(renderer.domElement);
 

@@ -57,5 +57,4 @@ def serialize_frame(step):
             for idx, atom in enumerate(atoms)
         ],
         "bonds": get_bonds(int(step)),
-        # "bonds": [(1, 2), (2, 3), (3, 4)],
     }
