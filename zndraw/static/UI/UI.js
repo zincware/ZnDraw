@@ -48,6 +48,16 @@ function setupPlayPause(config) {
         console.log("pause");
       }
     }
+    
+    if (event.isComposing || event.key === "ArrowRight") {
+      config.play = false;
+      config.set_step(config.step + 1);
+    }
+    if (event.isComposing || event.key === "ArrowLeft") {
+      config.play = false;
+      config.set_step(config.step - 1);
+    }
+    
   });
 }
 
