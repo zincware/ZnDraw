@@ -20,20 +20,16 @@ repos:
       - id: sort-simple-yaml
       - id: trailing-whitespace
   - repo: https://github.com/pre-commit/mirrors-eslint
-    rev: 'latest'
+    rev: 8.40.0
     hooks:
     -   id: eslint
         additional_dependencies:
           - eslint@latest
           - eslint-config-google@latest
   - repo: https://github.com/pre-commit/mirrors-csslint
-    rev: 'latest'
+    rev: 1.0.3
     hooks:
     -   id: csslint
-  - repo: https://github.com/pre-commit/mirrors-jshint
-    rev: 'latest'
-    hooks:
-    -   id: jshint
   - repo: https://github.com/psf/black
     rev: 23.3.0
     hooks:
