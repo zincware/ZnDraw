@@ -20,18 +20,18 @@ repos:
       - id: sort-simple-yaml
       - id: trailing-whitespace
   - repo: https://github.com/pre-commit/mirrors-eslint
-    rev: ''  # Use the sha / tag you want to point at
+    rev: 'latest'
     hooks:
     -   id: eslint
         additional_dependencies:
           - eslint@latest
           - eslint-config-google@latest
   - repo: https://github.com/pre-commit/mirrors-csslint
-    rev: ''  # Use the sha / tag you want to point at
+    rev: 'latest'
     hooks:
     -   id: csslint
   - repo: https://github.com/pre-commit/mirrors-jshint
-    rev: ''  # Use the sha / tag you want to point at
+    rev: 'latest'
     hooks:
     -   id: jshint
   - repo: https://github.com/psf/black
