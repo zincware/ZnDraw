@@ -77,7 +77,7 @@ class Stream {
     }
     if (
       this.config.step - this.last_request > 50 ||
-      this.config.step < this.last_request  // Going backwards is stil a problem
+      this.config.step < this.last_request // Going backwards is stil a problem
     ) {
       this.requestFrame();
     }

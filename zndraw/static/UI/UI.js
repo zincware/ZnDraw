@@ -48,10 +48,12 @@ function setupPlayPause(config) {
         console.log("pause");
       }
     }
-    
+
     if (event.isComposing || event.key === "ArrowRight") {
       config.play = false;
-      config.set_step(Math.min(config.config.total_frames - 1, config.step + 1));
+      config.set_step(
+        Math.min(config.config.total_frames - 1, config.step + 1),
+      );
     }
     if (event.isComposing || event.key === "ArrowLeft") {
       config.play = false;
@@ -59,13 +61,21 @@ function setupPlayPause(config) {
     }
     if (event.isComposing || event.key === "ArrowUp") {
       config.play = false;
-      config.set_step(parseInt(Math.min(config.config.total_frames - 1, config.step + (config.config.total_frames / 10))));
+      config.set_step(
+        parseInt(
+          Math.min(
+            config.config.total_frames - 1,
+            config.step + config.config.total_frames / 10,
+          ),
+        ),
+      );
     }
     if (event.isComposing || event.key === "ArrowDown") {
       config.play = false;
-      config.set_step(parseInt(Math.max(0, config.step - (config.config.total_frames / 10))));
+      config.set_step(
+        parseInt(Math.max(0, config.step - config.config.total_frames / 10)),
+      );
     }
-    
   });
 }
 
