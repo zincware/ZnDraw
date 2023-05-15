@@ -19,6 +19,9 @@ class Stream {
     this.last_request = 1;
     this._buffer_filled = false;
 
+    // fetch load to start loading data in the background
+    fetch("/load");
+
     this.setup_event_source();
   }
 

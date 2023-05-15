@@ -33,25 +33,6 @@ def config():
     }
 
 
-@app.route("/graph", methods=["POST"])
-def get_graph():
-    step = request.json
-    try:
-        atoms = shared.config.get_atoms(step=int(step))
-        graph = io.get_graph(atoms)
-        return {
-            "nodes": [{**graph.nodes[idx], "id": idx} for idx in graph.nodes],
-            "edges": list(graph.edges),
-            "box": atoms.get_cell().diagonal().tolist(),
-        }
-    except KeyError:
-        return {}
-
-
-@app.route("/data", methods=["POST"])
-def positions_step():
-    return tools.data.serialize_atoms(request.json["start"], request.json["stop"])
-
 
 @app.route("/select", methods=["POST"])
 def select() -> list[int]:
