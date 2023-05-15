@@ -21,9 +21,9 @@ function update_materials(config) {
 }
 
 function updateFPS(config) {
-	document.getElementById('max_fps').onchange = function () {
-		config.update({ max_fps: this.value });
-	};
+  document.getElementById("max_fps").onchange = function () {
+    config.update({ max_fps: this.value });
+  };
 }
 
 export function setUIEvents(config) {
