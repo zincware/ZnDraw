@@ -10,20 +10,22 @@ function createControls(camera, canvas, config, scene) {
   // this.controls.autoRotate = true;
   controls.enableDamping = false;
 
-  controls.tick = function(delta) { 
-    if ((config.selected.length > 0) && (config.pressed_keys.c == true)) {
+  controls.tick = function (delta) {
+    if (config.selected.length > 0 && config.pressed_keys.c == true) {
       // iterate through selected and compute center
-      
+
       let items = [];
       config.selected.forEach((item) => {
         items.push(scene.getObjectByName(item));
       });
 
-      const center = items.reduce((a, b) => a.add(b.position), new THREE.Vector3()).divideScalar(items.length);
+      const center = items
+        .reduce((a, b) => a.add(b.position), new THREE.Vector3())
+        .divideScalar(items.length);
       controls.target.copy(center);
     }
     controls.update();
-  }
+  };
 
   return controls;
 }
