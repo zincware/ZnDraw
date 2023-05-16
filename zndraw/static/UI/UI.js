@@ -31,6 +31,27 @@ function update_resolution(config) {
   };
 }
 
+function update_sphere_radius(config) {
+  const o_sphere_radius = document.getElementById("sphereRadius");
+  o_sphere_radius.value = config.config.sphere_radius;
+
+  o_sphere_radius.onchange = function () {
+    config.update({ sphere_size: parseFloat(o_sphere_radius.value) })
+  };
+}
+
+function update_bond_radius(config) {
+  const o_bond_radius = document.getElementById("bondDiameter");
+  o_bond_radius.value = config.config.bond_radius;
+
+  o_bond_radius.onchange = function () {
+    config.update({ bond_size: parseFloat(o_bond_radius.value) }).then(() => {
+      config.rebuild();
+    });
+  };
+}
+
+
 function updateFPS(config) {
   document.getElementById("max_fps").onchange = function () {
     config.update({ max_fps: this.value });
@@ -107,6 +128,8 @@ export function setUIEvents(config) {
   setupPlayPause(config);
   attachKeyPressed(config);
   update_resolution(config);
+  update_sphere_radius(config);
+  update_bond_radius(config);
 
   // disable loading spinner by making it invisible
   const loadingElem = document.getElementById("atom-spinner");

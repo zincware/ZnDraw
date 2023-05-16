@@ -166,7 +166,7 @@ export function createParticleGroup(config) {
 
         updateParticleScaleAndMaterial(
           particleGroup.getObjectByName(item.id).children[0],
-          item.radius,
+          item.radius * config.config.sphere_size,
           material,
         );
       } else {
