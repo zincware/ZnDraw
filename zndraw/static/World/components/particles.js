@@ -151,14 +151,23 @@ export function createParticleGroup(config) {
           .getObjectByName(item.id)
           .position.set(item.x, item.y, item.z);
         // Update size and color if changed
-        updateParticleScaleAndMaterial(
-          particleGroup.getObjectByName(item.id).children[0],
-          item.radius,
-          speciesMaterial(
+        let material = speciesMaterial(
             config.config.material,
             item.color,
             config.config.material_wireframe,
-          ),
+        );
+        if (particleGroup.getObjectByName(item.id).selected) {
+            material = speciesMaterial(
+                config.config.material,
+                "ffa500",
+                config.config.material_wireframe,
+            );
+        }
+
+        updateParticleScaleAndMaterial(
+          particleGroup.getObjectByName(item.id).children[0],
+          item.radius,
+          material,
         );
       } else {
         const particle = new THREE.Mesh(
@@ -174,8 +183,9 @@ export function createParticleGroup(config) {
         particleSubGroup.name = item.id;
         particleSubGroup.position.set(item.x, item.y, item.z);
 
-        particleSubGroup.select = () => {
-          console.log("Selecting " + item.id);
+        particleSubGroup.click = () => {
+            console.log("Clicked on " + item.id);
+            particleSubGroup.selected = !particleSubGroup.selected;          
         };
 
         particleGroup.add(particleSubGroup);
