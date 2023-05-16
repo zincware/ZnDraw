@@ -47,8 +47,7 @@ class World {
       this.stop();
       this.rebuild();
       this.start();
-    }
-    );
+    });
   }
 
   render() {

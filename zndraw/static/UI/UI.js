@@ -36,7 +36,7 @@ function update_sphere_radius(config) {
   o_sphere_radius.value = config.config.sphere_radius;
 
   o_sphere_radius.onchange = function () {
-    config.update({ sphere_size: parseFloat(o_sphere_radius.value) })
+    config.update({ sphere_size: parseFloat(o_sphere_radius.value) });
   };
 }
 
@@ -50,7 +50,6 @@ function update_bond_radius(config) {
     });
   };
 }
-
 
 function updateFPS(config) {
   document.getElementById("max_fps").onchange = function () {

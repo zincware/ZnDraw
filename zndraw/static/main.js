@@ -34,7 +34,7 @@ class Config {
           this.onLoadCallback(this);
           this.onLoadCallback = null;
         }
-        if (timeout > 0){
+        if (timeout > 0) {
           setTimeout(() => this.update_config(), 100);
         }
       });
