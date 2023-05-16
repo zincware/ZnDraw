@@ -79,11 +79,21 @@ function setupPlayPause(config) {
   });
 }
 
+function attachKeyPressed(config) {
+  window.addEventListener("keydown", (event) => {
+    config.pressed_keys[event.key] = true;
+  });
+  window.addEventListener("keyup", (event) => {
+    config.pressed_keys[event.key] = false;
+  });
+}
+
 export function setUIEvents(config) {
   update_materials(config);
   updateFPS(config);
   setupSlider(config);
   setupPlayPause(config);
+  attachKeyPressed(config);
 
   // disable loading spinner by making it invisible
   const loadingElem = document.getElementById("atom-spinner");

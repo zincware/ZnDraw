@@ -30,7 +30,7 @@ class World {
 
     container.append(renderer.domElement);
 
-    const controls = createControls(camera, renderer.domElement);
+    const controls = createControls(camera, renderer.domElement, config, scene);
 
     const particles = createParticleGroup(config);
     const light = createLights();

@@ -185,7 +185,6 @@ export function createParticleGroup(config) {
 
         // CLICK EVENT
         particleSubGroup.click = () => {
-          console.log("Clicked on " + item.id);
           if (config.selected.includes(item.id)) {
             config.selected = config.selected.filter((e) => e !== item.id);
           } else {

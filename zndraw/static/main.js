@@ -10,6 +10,7 @@ class Config {
     this.set_step_callbacks = [];
     this.play = true;
     this.selected = [];
+    this.pressed_keys = {};
   }
 
   start() {
