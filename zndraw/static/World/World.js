@@ -8,6 +8,7 @@ import { Resizer } from "./systems/Resizer.js";
 import { Loop } from "./systems/Loop.js";
 import { Stream } from "./systems/Stream.js";
 import { createParticleGroup } from "./components/particles.js";
+import { Selection } from "./systems/select.js";
 
 // These variables are module-scoped: we cannot access them
 // from outside the module
@@ -16,6 +17,7 @@ let renderer;
 let scene;
 let loop;
 let stream;
+let selection;
 
 class World {
   constructor(container, config) {
@@ -24,6 +26,7 @@ class World {
     renderer = createRenderer();
     stream = new Stream(config);
     loop = new Loop(camera, scene, renderer, stream, config);
+    selection = new Selection(camera, scene, config);
 
     container.append(renderer.domElement);
 
