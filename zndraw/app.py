@@ -4,8 +4,14 @@ import uuid
 import networkx as nx
 import numpy as np
 import tqdm
-from flask import (Flask, Response, render_template, request, session,
-                   stream_with_context)
+from flask import (
+    Flask,
+    Response,
+    render_template,
+    request,
+    session,
+    stream_with_context,
+)
 
 from zndraw import io, shared, tools
 

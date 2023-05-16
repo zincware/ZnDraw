@@ -1,4 +1,8 @@
 import { materials } from "../World/components/particles.js";
+import { createElementFromSchema } from "./schemaforms.js";
+
+
+const addModifierModal = new bootstrap.Modal(document.getElementById("addModifierModal"));
 
 function update_materials(config) {
   const o_materialSelect = document.getElementById("materialSelect");
@@ -125,6 +129,73 @@ function attachKeyPressed(config) {
   });
 }
 
+async function addSceneModifierOption(function_id) {
+  await fetch("add_update_function", {
+      "method": "POST",
+      "headers": { "Content-Type": "application/json" },
+      "body": JSON.stringify(function_id),
+  }).then(response => response.json()).then(function (response_json) {
+      // if not null alert
+      if ("error" in response_json) {
+          // TODO check if method is already loaded
+          alert(response_json["error"]);
+          stepError(response_json["error"]);
+      } else {
+          if (document.getElementById("scene-modifier_" + response_json["title"]) != null) {
+              alert("Function already loaded");
+              stepError("Function already loaded");
+          };
+          addModifierModal.hide();
+      }
+      return response_json;
+  }).then(function (response_json) {
+      let modifier = document.createElement("option");
+      modifier.value = response_json["title"];
+      modifier.innerHTML = response_json["title"];
+      document.getElementById("addSceneModifier").appendChild(modifier);
+      return response_json;
+  }).then(function (response_json) {
+      let sceneModifierSettings = document.getElementById("sceneModifierSettings");
+      sceneModifierSettings.appendChild(createElementFromSchema(response_json, "scene-modifier"));
+      document.getElementById("addSceneModifier").value = response_json["title"];
+  });
+}
+
+// load analysis methods from config 
+async function loadSceneModifier(config) {
+  // iterate DATA.config.analysis_methods and add them to the select
+  for (let modify_function of config.config.modify_functions) {
+      try {
+          await addSceneModifierOption(modify_function);
+      } catch (error) {
+          console.log(error);
+      }
+  }
+  document.getElementById("addSceneModifier").value = "";
+  document.getElementById("addSceneModifier").dispatchEvent(new Event('change'));
+
+
+  document.getElementById("addSceneModifier").onchange = function () {
+    console.log(this.value);
+    if (this.value == "add") {
+      addModifierModal.show();
+    }
+  
+    let domElements = document.getElementsByClassName("scene-modifier");
+  
+    [...domElements].forEach(element => {
+      let bs_collapse = new bootstrap.Collapse(element, {
+        toggle: false
+      });
+      if (element.id == "scene-modifier_" + this.value) {
+        bs_collapse.show();
+      } else {
+        bs_collapse.hide();
+      }
+    });
+  };
+}
+
 export function setUIEvents(config) {
   update_materials(config);
   updateFPS(config);
@@ -134,6 +205,7 @@ export function setUIEvents(config) {
   update_resolution(config);
   update_sphere_radius(config);
   update_bond_radius(config);
+  loadSceneModifier(config);
 
   // disable loading spinner by making it invisible
   const loadingElem = document.getElementById("atom-spinner");

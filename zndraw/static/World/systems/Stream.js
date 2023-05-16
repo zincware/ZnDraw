@@ -54,6 +54,12 @@ class Stream {
     });
   }
 
+  deleteCache() {
+    this.data = null;
+    this.last_request = -1;
+    this.requestFrame();
+  }
+
   get_next_frame() {
     if (this.data == null) {
       return undefined;

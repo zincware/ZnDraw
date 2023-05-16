@@ -66,6 +66,10 @@ class World {
     // remove all children from particles
     scene.children[0].clear();
   }
+
+  deleteCache() {
+    stream.deleteCache();
+  }
 }
 
 export { World };
