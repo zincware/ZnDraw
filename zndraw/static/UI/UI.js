@@ -28,7 +28,8 @@ function update_resolution(config) {
     config.update({ resolution: parseInt(o_resolution.value) }).then(() => {
       config.rebuild();
     });
-    document.getElementById("resolutionLabel").innerHTML = "Resolution: " + this.value;
+    document.getElementById("resolutionLabel").innerHTML =
+      "Resolution: " + this.value;
   };
 }
 
@@ -38,7 +39,8 @@ function update_sphere_radius(config) {
 
   o_sphere_radius.onchange = function () {
     config.update({ sphere_size: parseFloat(o_sphere_radius.value) });
-    document.getElementById("sphereRadiusLabel").innerHTML = "Sphere radius: " + this.value;
+    document.getElementById("sphereRadiusLabel").innerHTML =
+      "Sphere radius: " + this.value;
   };
 }
 
@@ -50,7 +52,8 @@ function update_bond_radius(config) {
     config.update({ bond_size: parseFloat(o_bond_radius.value) }).then(() => {
       config.rebuild();
     });
-    document.getElementById("bondDiameterLabel").innerHTML = "Bond diameter: " + this.value;
+    document.getElementById("bondDiameterLabel").innerHTML =
+      "Bond diameter: " + this.value;
   };
 }
 
