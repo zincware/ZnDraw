@@ -152,16 +152,16 @@ export function createParticleGroup(config) {
           .position.set(item.x, item.y, item.z);
         // Update size and color if changed
         let material = speciesMaterial(
-            config.config.material,
-            item.color,
-            config.config.material_wireframe,
+          config.config.material,
+          item.color,
+          config.config.material_wireframe,
         );
         if (config.selected.includes(item.id)) {
-            material = speciesMaterial(
-                config.config.material,
-                "ffa500",
-                config.config.material_wireframe,
-            );
+          material = speciesMaterial(
+            config.config.material,
+            "ffa500",
+            config.config.material_wireframe,
+          );
         }
 
         updateParticleScaleAndMaterial(
@@ -182,15 +182,15 @@ export function createParticleGroup(config) {
         particleSubGroup.add(particle);
         particleSubGroup.name = item.id;
         particleSubGroup.position.set(item.x, item.y, item.z);
-        
+
         // CLICK EVENT
         particleSubGroup.click = () => {
-            console.log("Clicked on " + item.id);
-            if (config.selected.includes(item.id)) {
-                config.selected = config.selected.filter((e) => e !== item.id);
-            } else {
-                config.selected.push(item.id);
-            }
+          console.log("Clicked on " + item.id);
+          if (config.selected.includes(item.id)) {
+            config.selected = config.selected.filter((e) => e !== item.id);
+          } else {
+            config.selected.push(item.id);
+          }
         };
 
         particleGroup.add(particleSubGroup);

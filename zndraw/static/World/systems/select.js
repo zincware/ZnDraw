@@ -9,7 +9,7 @@ class Selection {
     this.raycaster = new THREE.Raycaster();
     this.pointer = new THREE.Vector2();
 
-    window.addEventListener('pointerdown', this.onPointerDown.bind(this));
+    window.addEventListener("pointerdown", this.onPointerDown.bind(this));
   }
 
   onPointerDown(event) {
@@ -18,7 +18,10 @@ class Selection {
 
     this.raycaster.setFromCamera(this.pointer, this.camera);
 
-    const intersects = this.raycaster.intersectObjects(this.scene.children, true);
+    const intersects = this.raycaster.intersectObjects(
+      this.scene.children,
+      true,
+    );
 
     if (intersects.length > 0) {
       const object = intersects[0].object;
