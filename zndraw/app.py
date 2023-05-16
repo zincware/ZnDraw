@@ -79,7 +79,8 @@ def update_scene():
     modifier_kwargs = request.json["modifier_kwargs"]
     selected_ids = list(sorted(request.json["selected_ids"]))
     step = request.json["step"]
-    points = np.array([[x["x"], x["y"], x["z"]] for x in request.json["points"]])
+    # points = np.array([[x["x"], x["y"], x["z"]] for x in request.json["points"]])
+    points = None
     shared.config.run_modifier(
         modifier, selected_ids, step, modifier_kwargs, points=points
     )
