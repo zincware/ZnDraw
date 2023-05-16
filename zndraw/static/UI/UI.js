@@ -82,6 +82,7 @@ function setupPlayPause(config) {
 function attachKeyPressed(config) {
   window.addEventListener("keydown", (event) => {
     config.pressed_keys[event.key] = true;
+    console.log(event.key);
   });
   window.addEventListener("keyup", (event) => {
     config.pressed_keys[event.key] = false;

@@ -186,10 +186,19 @@ export function createParticleGroup(config) {
         // CLICK EVENT
         particleSubGroup.click = () => {
           if (config.selected.includes(item.id)) {
-            config.selected = config.selected.filter((e) => e !== item.id);
+            if (!config.pressed_keys.Shift){
+              config.selected = [];
+            } else {
+              config.selected = config.selected.filter((e) => e !== item.id);
+            }
           } else {
-            config.selected.push(item.id);
+            if (!config.pressed_keys.Shift){
+              config.selected = [item.id];
+            } else {
+              config.selected.push(item.id);
+            }
           }
+          
         };
 
         particleGroup.add(particleSubGroup);
