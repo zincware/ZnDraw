@@ -20,6 +20,17 @@ function update_materials(config) {
   };
 }
 
+function update_resolution(config) {
+  const o_resolution = document.getElementById("resolution");
+  o_resolution.value = config.config.resolution;
+
+  o_resolution.onchange = function () {
+    config.update({ resolution: parseInt(o_resolution.value) }).then(() => {
+      config.rebuild();
+    });
+  };
+}
+
 function updateFPS(config) {
   document.getElementById("max_fps").onchange = function () {
     config.update({ max_fps: this.value });
@@ -95,6 +106,7 @@ export function setUIEvents(config) {
   setupSlider(config);
   setupPlayPause(config);
   attachKeyPressed(config);
+  update_resolution(config);
 
   // disable loading spinner by making it invisible
   const loadingElem = document.getElementById("atom-spinner");

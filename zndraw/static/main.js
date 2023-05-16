@@ -8,6 +8,7 @@ class Config {
     this.config_url = "/config";
     this.step = 0;
     this.set_step_callbacks = [];
+    this.rebuild_callbacks = [];
     this.play = true;
     this.selected = [];
     this.pressed_keys = {};
@@ -17,8 +18,15 @@ class Config {
     this.update_config();
   }
 
-  update_config() {
-    fetch(this.config_url)
+  rebuild() {
+    console.log("rebuild");
+    for (const callback of this.rebuild_callbacks) {
+      this.update_config(0).then(() => callback(this));
+    }
+  }
+
+  async update_config(timeout = 100) {
+    await fetch(this.config_url)
       .then((response) => response.json())
       .then((data) => {
         this.config = data;
@@ -26,7 +34,9 @@ class Config {
           this.onLoadCallback(this);
           this.onLoadCallback = null;
         }
-        setTimeout(() => this.update_config(), 100);
+        if (timeout > 0){
+          setTimeout(() => this.update_config(), 100);
+        }
       });
   }
 
@@ -34,9 +44,9 @@ class Config {
     this.onLoadCallback = callback;
   }
 
-  update(config) {
+  async update(config) {
     // this.config = {...this.config, ...config};
-    fetch(this.config_url, {
+    await fetch(this.config_url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(config),

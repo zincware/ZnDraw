@@ -42,6 +42,13 @@ class World {
     loop.updatables.push(controls);
 
     const resizer = new Resizer(container, camera, renderer);
+
+    config.rebuild_callbacks.push(() => {
+      this.stop();
+      this.rebuild();
+      this.start();
+    }
+    );
   }
 
   render() {
@@ -54,6 +61,11 @@ class World {
 
   stop() {
     loop.stop();
+  }
+
+  rebuild() {
+    // remove all children from particles
+    scene.children[0].clear();
   }
 }
 
