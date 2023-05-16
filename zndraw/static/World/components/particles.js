@@ -156,6 +156,8 @@ export function createParticleGroup(config) {
           item.color,
           config.config.material_wireframe,
         );
+
+        // handle selected particles
         if (config.selected.includes(item.id)) {
           material = speciesMaterial(
             config.config.material,
@@ -205,60 +207,62 @@ export function createParticleGroup(config) {
     });
 
     // now update bonds
-    bonds.forEach((item) => {
-      const particle1SubGroup = particleGroup.getObjectByName(item[0]);
-      const particle2SubGroup = particleGroup.getObjectByName(item[1]);
-      const particle1 = particle1SubGroup.children[0];
-      const particle2 = particle2SubGroup.children[0];
+    if (config.config.bond_size > 0) {
+      bonds.forEach((item) => {
+        const particle1SubGroup = particleGroup.getObjectByName(item[0]);
+        const particle2SubGroup = particleGroup.getObjectByName(item[1]);
+        const particle1 = particle1SubGroup.children[0];
+        const particle2 = particle2SubGroup.children[0];
 
-      const node1 = new THREE.Vector3();
-      const node2 = new THREE.Vector3();
+        const node1 = new THREE.Vector3();
+        const node2 = new THREE.Vector3();
 
-      particle1.getWorldPosition(node1);
-      particle2.getWorldPosition(node2);
+        particle1.getWorldPosition(node1);
+        particle2.getWorldPosition(node2);
 
-      // existing bonds
-      let bond_1 = particleGroup.getObjectByName(item[0] + "-" + item[1]);
-      let bond_2 = particleGroup.getObjectByName(item[1] + "-" + item[0]);
+        // existing bonds
+        let bond_1 = particleGroup.getObjectByName(item[0] + "-" + item[1]);
+        let bond_2 = particleGroup.getObjectByName(item[1] + "-" + item[0]);
 
-      const direction = new THREE.Vector3();
-      direction.subVectors(node1, node2);
+        const direction = new THREE.Vector3();
+        direction.subVectors(node1, node2);
 
-      if (bond_1 && bond_2) {
-        // update bond orientation
-        updateBondOrientation(bond_1, node1, node2);
-        updateBondOrientation(bond_2, node2, node1);
-        bond_1.material = particle1.material;
-        bond_2.material = particle2.material;
-      } else {
-        // temporary config
-        console.log("Creating new bond");
+        if (bond_1 && bond_2) {
+          // update bond orientation
+          updateBondOrientation(bond_1, node1, node2);
+          updateBondOrientation(bond_2, node2, node1);
+          bond_1.material = particle1.material;
+          bond_2.material = particle2.material;
+        } else {
+          // temporary config
+          console.log("Creating new bond");
 
-        bond_1 = halfCylinderMesh(
-          node1,
-          node2,
-          particle1.material,
-          config.config,
-        );
-        bond_2 = halfCylinderMesh(
-          node2,
-          node1,
-          particle2.material,
-          config.config,
-        );
+          bond_1 = halfCylinderMesh(
+            node1,
+            node2,
+            particle1.material,
+            config.config,
+          );
+          bond_2 = halfCylinderMesh(
+            node2,
+            node1,
+            particle2.material,
+            config.config,
+          );
 
-        // the atom to look at
-        bond_1.name = item[0] + "-" + item[1];
-        bond_2.name = item[1] + "-" + item[0];
+          // the atom to look at
+          bond_1.name = item[0] + "-" + item[1];
+          bond_2.name = item[1] + "-" + item[0];
 
-        particle1SubGroup.add(bond_1);
-        particle2SubGroup.add(bond_2);
+          particle1SubGroup.add(bond_1);
+          particle2SubGroup.add(bond_2);
 
-        // update bond orientation
-        updateBondOrientation(bond_1, node1, node2);
-        updateBondOrientation(bond_2, node2, node1);
-      }
-    });
+          // update bond orientation
+          updateBondOrientation(bond_1, node1, node2);
+          updateBondOrientation(bond_2, node2, node1);
+        }
+      });
+    }
   };
 
   return particleGroup;
