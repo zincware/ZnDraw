@@ -154,8 +154,12 @@ def frame_set():
 def frame_stream():
     def generate(step):
         for idx in tqdm.tqdm(range(step, step + 100), desc=f"Streaming from {step}"):
-            data = {idx: tools.data.serialize_frame(idx)}
-            yield f"data: {json.dumps(data)}\n\n"
+            try:
+                data = {idx: tools.data.serialize_frame(idx)}
+                yield f"data: {json.dumps(data)}\n\n"
+            except KeyError:
+                print(f"Can not load step {idx}")
+                break
         yield f"data: {json.dumps({})} \nretry: 10\n\n"
 
     return Response(generate(session["step"]), mimetype="text/event-stream")
