@@ -212,22 +212,29 @@ async function loadSceneModifier(config) {
   document.getElementById("sceneModifierBtn").onclick = function () {
     // div_info.innerHTML = "Processing...";
 
-    let form = document.getElementById("scene-modifier_" + document.getElementById("addSceneModifier").value);
-    let modifier_kwargs = {}
+    let form = document.getElementById(
+      "scene-modifier_" + document.getElementById("addSceneModifier").value,
+    );
+    let modifier_kwargs = {};
     Array.from(form.elements).forEach((input) => {
       modifier_kwargs[input.dataset.key] = input.value;
     });
 
     fetch("update", {
-      "method": "POST",
-      "headers": { "Content-Type": "application/json" },
-      "body": JSON.stringify({ "selected_ids": config.selected, "step": config.step, "modifier": document.getElementById("addSceneModifier").value, "modifier_kwargs": modifier_kwargs }),
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        selected_ids: config.selected,
+        step: config.step,
+        modifier: document.getElementById("addSceneModifier").value,
+        modifier_kwargs: modifier_kwargs,
+      }),
     });
     //   }).then(function (response) {
     //     DATA.resetAnimationFrames(); // use DATA.spliceFrames(animation_frame + 1); ?
     //   }).then(DATA.getAnimationFrames); //.then(function () { animation_running = true; });
     // }
-  }
+  };
 }
 
 export function setUIEvents(config) {
