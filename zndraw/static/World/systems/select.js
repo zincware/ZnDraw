@@ -23,9 +23,6 @@ class Selection {
         if (intersects.length > 0) {
             const object = intersects[0].object;
             object.parent.click();
-            //console.log(object);
-            //object.material.color.set(0xffa500);
-            //this.config.selected = object;
         }
     }
 }

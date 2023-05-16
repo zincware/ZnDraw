@@ -9,7 +9,7 @@ class Config {
     this.step = 0;
     this.set_step_callbacks = [];
     this.play = true;
-    this.selected = null;
+    this.selected = [];
   }
 
   start() {
