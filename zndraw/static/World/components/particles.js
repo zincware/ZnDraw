@@ -143,6 +143,10 @@ export function createParticleGroup(config) {
     particleGroup.children.forEach((particle) => {
       if (particles.filter((item) => item.id === particle.name).length === 0) {
         particleGroup.remove(particle);
+        // remove from config.selected
+        config.selected = config.selected.filter(
+          (item) => item !== particle.name,
+        );
       }
     });
     particles.forEach((item) => {
