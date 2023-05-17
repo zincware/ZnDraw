@@ -221,19 +221,10 @@ async function loadSceneModifier(config) {
     });
 
     fetch("update", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        selected_ids: config.selected,
-        step: config.step,
-        modifier: document.getElementById("addSceneModifier").value,
-        modifier_kwargs: modifier_kwargs,
-      }),
-    });
-    //   }).then(function (response) {
-    //     DATA.resetAnimationFrames(); // use DATA.spliceFrames(animation_frame + 1); ?
-    //   }).then(DATA.getAnimationFrames); //.then(function () { animation_running = true; });
-    // }
+      "method": "POST",
+      "headers": { "Content-Type": "application/json" },
+      "body": JSON.stringify({ "selected_ids": config.selected, "step": config.step, "modifier": document.getElementById("addSceneModifier").value, "modifier_kwargs": modifier_kwargs }),
+    }).then(() => { config.deleteCache(); });
   };
 }
 
