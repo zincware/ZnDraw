@@ -221,10 +221,17 @@ async function loadSceneModifier(config) {
     });
 
     fetch("update", {
-      "method": "POST",
-      "headers": { "Content-Type": "application/json" },
-      "body": JSON.stringify({ "selected_ids": config.selected, "step": config.step, "modifier": document.getElementById("addSceneModifier").value, "modifier_kwargs": modifier_kwargs }),
-    }).then(() => { config.deleteCache(); });
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        selected_ids: config.selected,
+        step: config.step,
+        modifier: document.getElementById("addSceneModifier").value,
+        modifier_kwargs: modifier_kwargs,
+      }),
+    }).then(() => {
+      config.deleteCache();
+    });
   };
 }
 
