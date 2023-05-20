@@ -66,12 +66,13 @@ function main() {
   const world = new World(container, config);
 
   // config.onLoad(setUIEvents);
-  config.onLoadCallback = () => {setUIEvents(config);};
+  config.onLoadCallback = () => {
+    setUIEvents(config);
+  };
   config.start();
 
   // 2. Render the scene
   world.start();
-
 }
 
 main();
