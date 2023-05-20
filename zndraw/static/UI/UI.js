@@ -25,13 +25,13 @@ function update_materials(config) {
   };
 }
 
-function update_resolution(config) {
+function update_resolution(config, world) {
   const o_resolution = document.getElementById("resolution");
   o_resolution.value = config.config.resolution;
 
   o_resolution.onchange = function () {
     config.update({ resolution: parseInt(o_resolution.value) }).then(() => {
-      config.rebuild();
+      world.rebuild();
     });
     document.getElementById("resolutionLabel").innerHTML =
       "Resolution: " + this.value;
@@ -49,13 +49,13 @@ function update_sphere_radius(config) {
   };
 }
 
-function update_bond_radius(config) {
+function update_bond_radius(config, world) {
   const o_bond_radius = document.getElementById("bondDiameter");
   o_bond_radius.value = config.config.bond_radius;
 
   o_bond_radius.onchange = function () {
     config.update({ bond_size: parseFloat(o_bond_radius.value) }).then(() => {
-      config.rebuild();
+      world.rebuild();
     });
     document.getElementById("bondDiameterLabel").innerHTML =
       "Bond diameter: " + this.value;
@@ -241,9 +241,9 @@ export function setUIEvents(config, world) {
   setupSlider(config);
   setupPlayPause(config);
   attachKeyPressed(config);
-  update_resolution(config);
+  update_resolution(config, world);
   update_sphere_radius(config);
-  update_bond_radius(config);
+  update_bond_radius(config, world);
   loadSceneModifier(config, world);
 
   // disable loading spinner by making it invisible

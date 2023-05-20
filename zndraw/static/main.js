@@ -8,7 +8,6 @@ class Config {
     this.config_url = "/config";
     this.step = 0;
     this.set_step_callbacks = [];
-    this.rebuild_callbacks = [];
     this.play = true;
     this.selected = [];
     this.pressed_keys = {};
@@ -16,13 +15,6 @@ class Config {
 
   start() {
     this.update_config();
-  }
-
-  rebuild() {
-    console.log("rebuild");
-    for (const callback of this.rebuild_callbacks) {
-      this.update_config(0).then(() => callback(this));
-    }
   }
 
   async update_config(timeout = 100) {
