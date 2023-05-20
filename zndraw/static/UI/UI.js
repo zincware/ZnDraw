@@ -25,13 +25,13 @@ function update_materials(config) {
   };
 }
 
-function update_resolution(config) {
+function update_resolution(config, world) {
   const o_resolution = document.getElementById("resolution");
   o_resolution.value = config.config.resolution;
 
   o_resolution.onchange = function () {
     config.update({ resolution: parseInt(o_resolution.value) }).then(() => {
-      config.rebuild();
+      world.rebuild();
     });
     document.getElementById("resolutionLabel").innerHTML =
       "Resolution: " + this.value;
@@ -49,13 +49,13 @@ function update_sphere_radius(config) {
   };
 }
 
-function update_bond_radius(config) {
+function update_bond_radius(config, world) {
   const o_bond_radius = document.getElementById("bondDiameter");
   o_bond_radius.value = config.config.bond_radius;
 
   o_bond_radius.onchange = function () {
     config.update({ bond_size: parseFloat(o_bond_radius.value) }).then(() => {
-      config.rebuild();
+      world.rebuild();
     });
     document.getElementById("bondDiameterLabel").innerHTML =
       "Bond diameter: " + this.value;
@@ -175,7 +175,7 @@ async function addSceneModifierOption(function_id) {
 }
 
 // load analysis methods from config
-async function loadSceneModifier(config) {
+async function loadSceneModifier(config, world) {
   // iterate DATA.config.analysis_methods and add them to the select
   for (let modify_function of config.config.modify_functions) {
     try {
@@ -230,21 +230,21 @@ async function loadSceneModifier(config) {
         modifier_kwargs: modifier_kwargs,
       }),
     }).then(() => {
-      config.deleteCache();
+      world.deleteCache();
     });
   };
 }
 
-export function setUIEvents(config) {
+export function setUIEvents(config, world) {
   update_materials(config);
   updateFPS(config);
   setupSlider(config);
   setupPlayPause(config);
   attachKeyPressed(config);
-  update_resolution(config);
+  update_resolution(config, world);
   update_sphere_radius(config);
-  update_bond_radius(config);
-  loadSceneModifier(config);
+  update_bond_radius(config, world);
+  loadSceneModifier(config, world);
 
   // disable loading spinner by making it invisible
   const loadingElem = document.getElementById("atom-spinner");

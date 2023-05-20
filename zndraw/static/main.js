@@ -8,7 +8,6 @@ class Config {
     this.config_url = "/config";
     this.step = 0;
     this.set_step_callbacks = [];
-    this.rebuild_callbacks = [];
     this.play = true;
     this.selected = [];
     this.pressed_keys = {};
@@ -18,30 +17,19 @@ class Config {
     this.update_config();
   }
 
-  rebuild() {
-    console.log("rebuild");
-    for (const callback of this.rebuild_callbacks) {
-      this.update_config(0).then(() => callback(this));
-    }
-  }
-
   async update_config(timeout = 100) {
     await fetch(this.config_url)
       .then((response) => response.json())
       .then((data) => {
         this.config = data;
         if (this.onLoadCallback) {
-          this.onLoadCallback(this);
+          this.onLoadCallback();
           this.onLoadCallback = null;
         }
         if (timeout > 0) {
           setTimeout(() => this.update_config(), timeout);
         }
       });
-  }
-
-  onLoad(callback) {
-    this.onLoadCallback = callback;
   }
 
   async update(config) {
@@ -65,11 +53,15 @@ function main() {
   // Get a reference to the container element
   const container = document.querySelector("#scene-container");
   const config = new Config();
-  config.onLoad(setUIEvents);
-  config.start();
 
   // 1. Create an instance of the World app
   const world = new World(container, config);
+
+  // config.onLoad(setUIEvents);
+  config.onLoadCallback = () => {
+    setUIEvents(config, world);
+  };
+  config.start();
 
   // 2. Render the scene
   world.start();

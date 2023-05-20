@@ -42,13 +42,6 @@ class World {
     loop.updatables.push(controls);
 
     const resizer = new Resizer(container, camera, renderer);
-
-    config.rebuild_callbacks.push(() => {
-      this.stop();
-      this.rebuild();
-      this.start();
-    });
-    config.deleteCache = this.deleteCache;
   }
 
   render() {
