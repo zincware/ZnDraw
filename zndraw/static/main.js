@@ -67,7 +67,7 @@ function main() {
 
   // config.onLoad(setUIEvents);
   config.onLoadCallback = () => {
-    setUIEvents(config);
+    setUIEvents(config, world);
   };
   config.start();
 

@@ -48,7 +48,6 @@ class World {
       this.rebuild();
       this.start();
     });
-    config.deleteCache = this.deleteCache;
   }
 
   render() {
