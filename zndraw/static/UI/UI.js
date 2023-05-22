@@ -118,6 +118,10 @@ function setupPlayPause(config) {
         parseInt(Math.max(0, config.step - config.config.total_frames / 10)),
       );
     }
+    if (event.isComposing || event.key === "End") {
+      config.play = false;
+      config.set_step(config.config.total_frames - 1);
+    }
   });
 }
 
