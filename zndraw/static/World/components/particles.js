@@ -119,15 +119,22 @@ export function createParticleGroup(config) {
     const bonds = data["bonds"];
 
     // create particle arrays
-    let existing_particles = particles.filter((x) =>
-      particleGroup.getObjectByName(x.id),
-    );
-    let new_particles = particles.filter(
-      (x) => !particleGroup.getObjectByName(x.id),
-    );
-    let deleted_particles = particleGroup.children.filter(
-      (x) => !particles.find((y) => y.id === x.name),
-    );
+    let existing_particles = [];
+    let new_particles = [];
+    let deleted_particles = [];
+
+    particles.forEach((x) => {
+      const particleObject = particleGroup.getObjectByName(x.id);
+
+      if (particleObject) {
+        existing_particles.push(x);
+      } else {
+        new_particles.push(x);
+      }
+    });
+
+    deleted_particles = particleGroup.children.filter((x) => !particles.find((y) => y.id === x.name));
+
 
     // create bond arrays
     const all_bonds = particleGroup.children.flatMap(particleSubGroup =>
@@ -167,10 +174,11 @@ export function createParticleGroup(config) {
       );
 
       // handle selected particles
+      // TODO this should not depend on FPS!
       if (config.selected.includes(particle.id)) {
         material = speciesMaterial(
           config.config.material,
-          "ffa500",
+          "#ffa500",
           config.config.material_wireframe,
         );
       }
