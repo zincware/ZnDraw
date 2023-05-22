@@ -39,6 +39,7 @@ def select() -> list[int]:
     """Update the selected atoms."""
     step = request.json["step"]
     method = request.json["method"]
+    print(f"Selecting atoms {request.json}")
     try:
         selected_ids = [int(x) for x in request.json["selected_ids"]]
     except TypeError:
