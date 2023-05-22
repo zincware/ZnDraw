@@ -31,24 +31,15 @@ class Loop {
   tick() {
     // only call the getDelta function once per frame!
     const delta = clock.getElapsedTime();
-    // console.log(
-    //   `The last frame rendered in ${delta * 1000} milliseconds`,
-    // );
 
     for (const object of this.updatables) {
       object.tick(delta);
     }
 
-    if (delta > 1 / this.config.config.max_fps) {
-      constraint_clock.start();
+    if ((this.config.config.max_fps > 60) || (delta > 1 / this.config.config.max_fps)) {
       for (const object of this.constraint_updatables) {
         object.tick(this.stream.get_next_frame());
       }
-      let constraint_delta = constraint_clock.getElapsedTime();
-      // console.log(
-      //   "constraint_delta ",
-      //   parseInt(constraint_delta * 1000) + " ms",
-      // );
       clock.start();
     }
   }
