@@ -1,6 +1,7 @@
 {
   "dependencies": {
     "bootstrap": "^5.2.3",
+    "plotly.js-dist": "^2.23.2",
     "three": "^0.152.2"
   }
 }

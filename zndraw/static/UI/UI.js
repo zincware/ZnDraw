@@ -5,6 +5,10 @@ const addModifierModal = new bootstrap.Modal(
   document.getElementById("addModifierModal"),
 );
 
+const addAnalysisModal = new bootstrap.Modal(
+  document.getElementById("addAnalysisModal"),
+);
+
 function update_materials(config) {
   const o_materialSelect = document.getElementById("materialSelect");
 
@@ -178,6 +182,52 @@ async function addSceneModifierOption(function_id) {
     });
 }
 
+
+async function addAnalysisOption(function_id) {
+  await fetch("add_analysis", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(function_id),
+  })
+    .then((response) => response.json())
+    .then(function (response_json) {
+      // if not null alert
+      if ("error" in response_json) {
+        // TODO check if method is already loaded
+        alert(response_json["error"]);
+        stepError(response_json["error"]);
+      } else {
+        if (
+          document.getElementById("scene-analysis_" + response_json["title"]) !=
+          null
+        ) {
+          alert("Function already loaded");
+          stepError("Function already loaded");
+        }
+        addAnalysisModal.hide();
+      }
+      return response_json;
+    })
+    .then(function (response_json) {
+      let modifier = document.createElement("option");
+      modifier.value = response_json["title"];
+      modifier.innerHTML = response_json["title"];
+      document.getElementById("addAnalysis").appendChild(modifier);
+      return response_json;
+    })
+    .then(function (response_json) {
+      console.log(response_json);
+      let sceneModifierSettings = document.getElementById(
+        "analysisSettings",
+      );
+      sceneModifierSettings.appendChild(
+        createElementFromSchema(response_json, "scene-analysis"),
+      );
+      document.getElementById("addAnalysis").value =
+        response_json["title"];
+    });
+}
+
 // load analysis methods from config
 async function loadSceneModifier(config, world) {
   // iterate DATA.config.analysis_methods and add them to the select
@@ -239,6 +289,66 @@ async function loadSceneModifier(config, world) {
   };
 }
 
+async function loadSceneAnalysis(config, world) {
+  // iterate DATA.config.analysis_methods and add them to the select
+  for (let method of config.config.analysis_functions) {
+    try {
+      await addAnalysisOption(method);
+    } catch (error) {
+      console.log(error);
+    }
+  }
+  document.getElementById("addAnalysis").value = "";
+  document
+    .getElementById("addAnalysis")
+    .dispatchEvent(new Event("change"));
+
+  document.getElementById("addAnalysis").onchange = function () {
+    console.log(this.value);
+    if (this.value == "add") {
+      addAnalysisModal.show();
+    }
+
+    let domElements = document.getElementsByClassName("scene-analysis");
+    console.log(domElements);
+
+    [...domElements].forEach((element) => {
+      let bs_collapse = new bootstrap.Collapse(element, {
+        toggle: false,
+      });
+      if (element.id == "scene-analysis_" + this.value) {
+        bs_collapse.show();
+      } else {
+        bs_collapse.hide();
+      }
+    });
+  };
+
+  document.getElementById("analyseBtn").onclick = function () {
+    // div_info.innerHTML = "Processing...";
+
+    let form = document.getElementById(
+      "scene-analysis_" + document.getElementById("addAnalysis").value,
+    );
+    let modifier_kwargs = {};
+    Array.from(form.elements).forEach((input) => {
+      modifier_kwargs[input.dataset.key] = input.value;
+    });
+
+    fetch("analyse", {
+      "method": "POST",
+      "headers": { "Content-Type": "application/json" },
+      "body": JSON.stringify({ "selected_ids": config.selected, "step": config.step, "points": [], "modifier": document.getElementById("addAnalysis").value, "modifier_kwargs": modifier_kwargs }),
+    }).then((response) => response.json()).then(function (response_json) {
+      Plotly.newPlot('analysePlot', response_json);
+      document.getElementById("analysePlot").on('plotly_click', function (data) {
+        console.log(data);
+        config.set_step(data.points[0].pointIndex);
+      });
+    });
+  };
+}
+
 function clickAddSceneModifier() {
   document.getElementById("addSceneModifierImportBtn").onclick =
     async function () {
@@ -260,6 +370,7 @@ export function setUIEvents(config, world) {
   update_sphere_radius(config);
   update_bond_radius(config, world);
   loadSceneModifier(config, world);
+  loadSceneAnalysis(config, world);
 
   clickAddSceneModifier();
 

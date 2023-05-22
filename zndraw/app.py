@@ -109,6 +109,7 @@ def add_analysis():
         schema["title"] = request.json
     except (ImportError, ValueError) as err:
         return {"error": str(err)}
+    print(f"Adding analysis {schema}")
     return schema
 
 
