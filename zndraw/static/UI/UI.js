@@ -182,7 +182,6 @@ async function addSceneModifierOption(function_id) {
     });
 }
 
-
 async function addAnalysisOption(function_id) {
   await fetch("add_analysis", {
     method: "POST",
@@ -217,14 +216,11 @@ async function addAnalysisOption(function_id) {
     })
     .then(function (response_json) {
       console.log(response_json);
-      let sceneModifierSettings = document.getElementById(
-        "analysisSettings",
-      );
+      let sceneModifierSettings = document.getElementById("analysisSettings");
       sceneModifierSettings.appendChild(
         createElementFromSchema(response_json, "scene-analysis"),
       );
-      document.getElementById("addAnalysis").value =
-        response_json["title"];
+      document.getElementById("addAnalysis").value = response_json["title"];
     });
 }
 
@@ -299,9 +295,7 @@ async function loadSceneAnalysis(config, world) {
     }
   }
   document.getElementById("addAnalysis").value = "";
-  document
-    .getElementById("addAnalysis")
-    .dispatchEvent(new Event("change"));
+  document.getElementById("addAnalysis").dispatchEvent(new Event("change"));
 
   document.getElementById("addAnalysis").onchange = function () {
     console.log(this.value);
@@ -336,16 +330,26 @@ async function loadSceneAnalysis(config, world) {
     });
 
     fetch("analyse", {
-      "method": "POST",
-      "headers": { "Content-Type": "application/json" },
-      "body": JSON.stringify({ "selected_ids": config.selected, "step": config.step, "points": [], "modifier": document.getElementById("addAnalysis").value, "modifier_kwargs": modifier_kwargs }),
-    }).then((response) => response.json()).then(function (response_json) {
-      Plotly.newPlot('analysePlot', response_json);
-      document.getElementById("analysePlot").on('plotly_click', function (data) {
-        console.log(data);
-        config.set_step(data.points[0].pointIndex);
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        selected_ids: config.selected,
+        step: config.step,
+        points: [],
+        modifier: document.getElementById("addAnalysis").value,
+        modifier_kwargs: modifier_kwargs,
+      }),
+    })
+      .then((response) => response.json())
+      .then(function (response_json) {
+        Plotly.newPlot("analysePlot", response_json);
+        document
+          .getElementById("analysePlot")
+          .on("plotly_click", function (data) {
+            console.log(data);
+            config.set_step(data.points[0].pointIndex);
+          });
       });
-    });
   };
 }
 
