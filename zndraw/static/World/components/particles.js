@@ -72,7 +72,7 @@ const speciesMaterialFactory = () => {
     if (key in speciesMaterialFactoryCache) {
       return speciesMaterialFactoryCache[key];
     } else {
-      console.log("Creating new material");
+      // console.log("Creating new material");
       const material = materials[name].clone();
       material.color.set(color);
       material.wireframe = wireframe;
@@ -118,6 +118,102 @@ export function createParticleGroup(config) {
     const particles = data["particles"];
     const bonds = data["bonds"];
 
+    // iterate new only, remove all that are not in new
+
+    // can we compute the differences and intersections in a single loop?
+
+    
+    // iterate difference between existing and new
+    // and remove all that are not in new
+
+    // iterate intersection between existing and new
+    // and update
+
+    // iterate difference between new and existing
+    // and create
+
+    // for particle in existing + new
+    // new.get() -> update / create
+    // else remove
+
+    // for bond in existing + new
+    // new.get() -> update / create
+    // else remove
+
+    let existing_particles = particles.filter(x => particleGroup.getObjectByName(x.id));
+    let new_particles = particles.filter(x => !particleGroup.getObjectByName(x.id));
+    let deleted_particles = particleGroup.children.filter(x => !particles.find(y => y.id === x.name));
+
+    console.log("Having existing particles: " + existing_particles.length + " and adding " + new_particles.length + " and removing " + deleted_particles.length);
+
+    // update existing particles
+    existing_particles.forEach((particle) => {
+      const particleSubGroup = particleGroup.getObjectByName(particle.id);
+
+      particleSubGroup.position.set(particle.x, particle.y, particle.z);
+      
+      let material = speciesMaterial(
+        config.config.material,
+        particle.color,
+        config.config.material_wireframe,
+      );
+
+      // handle selected particles
+      if (config.selected.includes(particle.id)) {
+        material = speciesMaterial(
+          config.config.material,
+          "ffa500",
+          config.config.material_wireframe,
+        );
+      }
+
+      updateParticleScaleAndMaterial(
+        particleSubGroup.children[0],
+        particle.radius * config.config.sphere_size,
+        material,
+      );
+    });
+
+    // create new particles
+    new_particles.forEach((particle) => {
+      const particle_mesh = new THREE.Mesh(
+        sphereGeometry(particle.radius, config.config.resolution),
+        speciesMaterial(
+          config.config.material,
+          particle.color,
+          config.config.material_wireframe,
+        ),
+      );
+      const particleSubGroup = new THREE.Group();
+        particleSubGroup.add(particle_mesh);
+        particleSubGroup.name = particle.id;
+        particleSubGroup.position.set(particle.x, particle.y, particle.z);
+
+        // CLICK EVENT
+        particleSubGroup.click = () => {
+          if (config.selected.includes(particle.id)) {
+            if (!config.pressed_keys.Shift) {
+              config.selected = [];
+            } else {
+              config.selected = config.selected.filter((e) => e !== particle.id);
+            }
+          } else {
+            if (!config.pressed_keys.Shift) {
+              config.selected = [particle.id];
+            } else {
+              config.selected.push(particle.id);
+            }
+          }
+        };
+
+        particleGroup.add(particleSubGroup);
+    });
+
+    // remove deleted particles
+    deleted_particles.forEach((particle) => {
+      particleGroup.remove(particle);
+    });
+
     // remove bonds that are not in data
     particleGroup.children.forEach((particle) => {
       particle.children.forEach((bond, idx) => {
@@ -133,81 +229,10 @@ export function createParticleGroup(config) {
         );
 
         if (bond_a.length === 0 && bond_b.length === 0) {
-          console.log("Removing bond " + bond.name + " in " + bonds[0]);
+          // console.log("Removing bond " + bond.name + " in " + bonds[0]);
           particle.remove(bond);
         }
       });
-    });
-
-    // remove particles that are not in data
-    particleGroup.children.forEach((particle) => {
-      if (particles.filter((item) => item.id === particle.name).length === 0) {
-        particleGroup.remove(particle);
-        // remove from config.selected
-        config.selected = config.selected.filter(
-          (item) => item !== particle.name,
-        );
-      }
-    });
-    particles.forEach((item) => {
-      if (particleGroup.getObjectByName(item.id)) {
-        particleGroup
-          .getObjectByName(item.id)
-          .position.set(item.x, item.y, item.z);
-        // Update size and color if changed
-        let material = speciesMaterial(
-          config.config.material,
-          item.color,
-          config.config.material_wireframe,
-        );
-
-        // handle selected particles
-        if (config.selected.includes(item.id)) {
-          material = speciesMaterial(
-            config.config.material,
-            "ffa500",
-            config.config.material_wireframe,
-          );
-        }
-
-        updateParticleScaleAndMaterial(
-          particleGroup.getObjectByName(item.id).children[0],
-          item.radius * config.config.sphere_size,
-          material,
-        );
-      } else {
-        const particle = new THREE.Mesh(
-          sphereGeometry(item.radius, config.config.resolution),
-          speciesMaterial(
-            config.config.material,
-            item.color,
-            config.config.material_wireframe,
-          ),
-        );
-        const particleSubGroup = new THREE.Group();
-        particleSubGroup.add(particle);
-        particleSubGroup.name = item.id;
-        particleSubGroup.position.set(item.x, item.y, item.z);
-
-        // CLICK EVENT
-        particleSubGroup.click = () => {
-          if (config.selected.includes(item.id)) {
-            if (!config.pressed_keys.Shift) {
-              config.selected = [];
-            } else {
-              config.selected = config.selected.filter((e) => e !== item.id);
-            }
-          } else {
-            if (!config.pressed_keys.Shift) {
-              config.selected = [item.id];
-            } else {
-              config.selected.push(item.id);
-            }
-          }
-        };
-
-        particleGroup.add(particleSubGroup);
-      }
     });
 
     // now update bonds
@@ -239,7 +264,7 @@ export function createParticleGroup(config) {
           bond_2.material = particle2.material;
         } else {
           // temporary config
-          console.log("Creating new bond");
+          // console.log("Creating new bond");
 
           bond_1 = halfCylinderMesh(
             node1,

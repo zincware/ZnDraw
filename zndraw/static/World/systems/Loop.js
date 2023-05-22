@@ -1,6 +1,7 @@
 import { Clock } from "three";
 
 const clock = new Clock();
+const constraint_clock = new Clock();
 
 class Loop {
   constructor(camera, scene, renderer, stream, config) {
@@ -39,9 +40,12 @@ class Loop {
     }
 
     if (delta > 1 / this.config.config.max_fps) {
+      constraint_clock.start();
       for (const object of this.constraint_updatables) {
         object.tick(this.stream.get_next_frame());
       }
+      let constraint_delta = constraint_clock.getElapsedTime();
+      console.log("constraint_delta ", parseInt(constraint_delta * 1000) + " ms");
       clock.start();
     }
   }
