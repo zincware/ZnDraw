@@ -130,15 +130,10 @@ export function createParticleGroup(config) {
     );
 
     // create bond arrays
-    let all_bonds = [];
-    particleGroup.children.forEach((particleSubGroup) => {
-      particleSubGroup.children.forEach((item, idx) => {
-        if (idx === 0) {
-          return;
-        }
-        all_bonds.push(item);
-      });
-    });
+    const all_bonds = particleGroup.children.flatMap(particleSubGroup =>
+      particleSubGroup.children.slice(1)
+    );
+    
 
     let existing_bonds = all_bonds.filter(
       (x) =>
