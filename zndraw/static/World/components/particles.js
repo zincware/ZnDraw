@@ -130,10 +130,9 @@ export function createParticleGroup(config) {
     );
 
     // create bond arrays
-    const all_bonds = particleGroup.children.flatMap(particleSubGroup =>
-      particleSubGroup.children.slice(1)
+    const all_bonds = particleGroup.children.flatMap((particleSubGroup) =>
+      particleSubGroup.children.slice(1),
     );
-
 
     let existing_bonds = all_bonds.filter(
       (x) =>
@@ -240,7 +239,12 @@ export function createParticleGroup(config) {
         const node2 = new THREE.Vector3();
 
         const createBond = (startNode, endNode, startMaterial, name) => {
-          const bond_mesh = halfCylinderMesh(startNode, endNode, startMaterial, config.config);
+          const bond_mesh = halfCylinderMesh(
+            startNode,
+            endNode,
+            startMaterial,
+            config.config,
+          );
           bond_mesh.tick = () => {
             particle1.getWorldPosition(node1);
             particle2.getWorldPosition(node2);
@@ -251,15 +255,24 @@ export function createParticleGroup(config) {
           return bond_mesh;
         };
 
-        const bond_1 = createBond(node1, node2, particle1.material,`${particle1Name}-${particle2Name}`);
-        const bond_2 = createBond(node2, node1, particle2.material,`${particle2Name}-${particle1Name}`);
+        const bond_1 = createBond(
+          node1,
+          node2,
+          particle1.material,
+          `${particle1Name}-${particle2Name}`,
+        );
+        const bond_2 = createBond(
+          node2,
+          node1,
+          particle2.material,
+          `${particle2Name}-${particle1Name}`,
+        );
 
         particle1SubGroup.add(bond_1);
         particle2SubGroup.add(bond_2);
 
         bond_1.tick();
         bond_2.tick();
-
       });
 
       // update existing bonds
