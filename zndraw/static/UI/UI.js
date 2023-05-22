@@ -369,7 +369,6 @@ function resizeOffcanvas() {
   let active_offcanvas_border;
   const offcanvas_borders = document.getElementsByClassName("offcanvas-border");
 
-
   function resize_offcanvas(e) {
     if (e.clientX < 200) {
       return;
@@ -383,7 +382,7 @@ function resizeOffcanvas() {
       console.log(this);
       active_offcanvas_border = this;
       document.addEventListener("pointermove", resize_offcanvas);
-    }
+    };
   }
 
   document.addEventListener("pointerup", function (e) {
