@@ -133,8 +133,9 @@ export function createParticleGroup(config) {
       }
     });
 
-    deleted_particles = particleGroup.children.filter((x) => !particles.find((y) => y.id === x.name));
-
+    deleted_particles = particleGroup.children.filter(
+      (x) => !particles.find((y) => y.id === x.name),
+    );
 
     // create bond arrays
     const all_bonds = particleGroup.children.flatMap((particleSubGroup) =>
