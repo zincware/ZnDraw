@@ -193,8 +193,9 @@ async function addAnalysisOption(function_id) {
       // if not null alert
       if ("error" in response_json) {
         // TODO check if method is already loaded
-        alert(response_json["error"]);
-        stepError(response_json["error"]);
+        console.log("Adding analysis failed with error: " + response_json["error"]);
+        // alert(response_json["error"]);
+        // stepError(response_json["error"]);
       } else {
         if (
           document.getElementById("scene-analysis_" + response_json["title"]) !=
