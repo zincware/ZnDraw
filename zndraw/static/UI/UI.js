@@ -236,11 +236,14 @@ async function loadSceneModifier(config, world) {
 }
 
 function clickAddSceneModifier() {
-  document.getElementById("addSceneModifierImportBtn").onclick = async function () {
-    let function_id = document.getElementById("addSceneModifierImport").value;
-    await addSceneModifierOption(function_id);
-    document.getElementById("addSceneModifier").dispatchEvent(new Event("change"));
-  }
+  document.getElementById("addSceneModifierImportBtn").onclick =
+    async function () {
+      let function_id = document.getElementById("addSceneModifierImport").value;
+      await addSceneModifierOption(function_id);
+      document
+        .getElementById("addSceneModifier")
+        .dispatchEvent(new Event("change"));
+    };
 }
 
 export function setUIEvents(config, world) {

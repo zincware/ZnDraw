@@ -67,7 +67,7 @@ def add_update_function():
     """Add a function to the config."""
     try:
         signature = shared.config.get_modifier_schema(request.json)
-    except (Exception) as err:
+    except Exception as err:
         return {"error": str(err)}
     return signature
 

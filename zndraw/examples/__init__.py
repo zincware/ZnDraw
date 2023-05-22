@@ -85,6 +85,7 @@ class AddLineParticles(UpdateScene):
 
 class Demo(UpdateScene):
     """Scene update for testing purposes."""
+
     z: float = Field(0.5, le=5, ge=0)
     symbol: str = Field("same")
 
