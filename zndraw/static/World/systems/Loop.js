@@ -36,7 +36,10 @@ class Loop {
       object.tick(delta);
     }
 
-    if ((this.config.config.max_fps > 60) || (delta > 1 / this.config.config.max_fps)) {
+    if (
+      this.config.config.max_fps > 60 ||
+      delta > 1 / this.config.config.max_fps
+    ) {
       for (const object of this.constraint_updatables) {
         object.tick(this.stream.get_next_frame());
       }
