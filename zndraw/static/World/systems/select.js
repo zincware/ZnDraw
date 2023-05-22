@@ -27,10 +27,16 @@ class Selection {
       const object = intersects[0].object;
       object.parent.click();
       await fetch("select", {
-        "method": "POST",
-        "headers": { "Content-Type": "application/json" },
-        "body": JSON.stringify({ "selected_ids": this.config.selected, "step": this.config.step, "method": document.getElementById("selection-method").value }),
-      }).then(response => response.json()).then(data => this.config.selected = data["selected_ids"]);
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          selected_ids: this.config.selected,
+          step: this.config.step,
+          method: document.getElementById("selection-method").value,
+        }),
+      })
+        .then((response) => response.json())
+        .then((data) => (this.config.selected = data["selected_ids"]));
     }
   }
 }
