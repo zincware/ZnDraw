@@ -118,11 +118,16 @@ export function createParticleGroup(config) {
     const particles = data["particles"];
     const bonds = data["bonds"];
 
-
     // create particle arrays
-    let existing_particles = particles.filter(x => particleGroup.getObjectByName(x.id));
-    let new_particles = particles.filter(x => !particleGroup.getObjectByName(x.id));
-    let deleted_particles = particleGroup.children.filter(x => !particles.find(y => y.id === x.name));
+    let existing_particles = particles.filter((x) =>
+      particleGroup.getObjectByName(x.id),
+    );
+    let new_particles = particles.filter(
+      (x) => !particleGroup.getObjectByName(x.id),
+    );
+    let deleted_particles = particleGroup.children.filter(
+      (x) => !particles.find((y) => y.id === x.name),
+    );
 
     // create bond arrays
     let all_bonds = [];
@@ -135,9 +140,21 @@ export function createParticleGroup(config) {
       });
     });
 
-    let existing_bonds = all_bonds.filter(x => bonds.find(y => y[0] + "-" + y[1] === x.name) || bonds.find(y => y[1] + "-" + y[0] === x.name));
-    let new_bonds = bonds.filter(x => !all_bonds.find(y => y.name === x[0] + "-" + x[1]) && !all_bonds.find(y => y.name === x[1] + "-" + x[0]));
-    let deleted_bonds = all_bonds.filter(x => !bonds.find(y => y[0] + "-" + y[1] === x.name) && !bonds.find(y => y[1] + "-" + y[0] === x.name));
+    let existing_bonds = all_bonds.filter(
+      (x) =>
+        bonds.find((y) => y[0] + "-" + y[1] === x.name) ||
+        bonds.find((y) => y[1] + "-" + y[0] === x.name),
+    );
+    let new_bonds = bonds.filter(
+      (x) =>
+        !all_bonds.find((y) => y.name === x[0] + "-" + x[1]) &&
+        !all_bonds.find((y) => y.name === x[1] + "-" + x[0]),
+    );
+    let deleted_bonds = all_bonds.filter(
+      (x) =>
+        !bonds.find((y) => y[0] + "-" + y[1] === x.name) &&
+        !bonds.find((y) => y[1] + "-" + y[0] === x.name),
+    );
 
     // console.log("Having existing particles: " + existing_particles.length + " and adding " + new_particles.length + " and removing " + deleted_particles.length);
     // console.log("Having existing bonds: " + existing_bonds.length + " and adding " + new_bonds.length + " and removing " + deleted_bonds.length);
@@ -269,7 +286,6 @@ export function createParticleGroup(config) {
       existing_bonds.forEach((bond) => {
         bond.tick();
       });
-
     }
   };
 
