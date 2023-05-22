@@ -81,3 +81,14 @@ class AddLineParticles(UpdateScene):
         for point in points:
             atoms += ase.Atom(self.symbol, position=point)
         return [atoms]
+
+
+class Demo(UpdateScene):
+    """Scene update for testing purposes."""
+    z: float = Field(0.5, le=5, ge=0)
+    symbol: str = Field("same")
+
+    def run(self, atom_ids: list[int], atoms: ase.Atoms, **kwargs) -> list[ase.Atoms]:
+        for atom_id in atom_ids:
+            atoms[atom_id].symbol = "H"
+        return [atoms]

@@ -235,6 +235,14 @@ async function loadSceneModifier(config, world) {
   };
 }
 
+function clickAddSceneModifier() {
+  document.getElementById("addSceneModifierImportBtn").onclick = async function () {
+    let function_id = document.getElementById("addSceneModifierImport").value;
+    await addSceneModifierOption(function_id);
+    document.getElementById("addSceneModifier").dispatchEvent(new Event("change"));
+  }
+}
+
 export function setUIEvents(config, world) {
   update_materials(config);
   updateFPS(config);
@@ -245,6 +253,8 @@ export function setUIEvents(config, world) {
   update_sphere_radius(config);
   update_bond_radius(config, world);
   loadSceneModifier(config, world);
+
+  clickAddSceneModifier();
 
   // disable loading spinner by making it invisible
   const loadingElem = document.getElementById("atom-spinner");
