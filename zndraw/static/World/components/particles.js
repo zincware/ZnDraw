@@ -99,9 +99,9 @@ function updateBondOrientation(bond, pointX, pointY) {
 }
 
 function updateParticleScaleAndMaterial(particle, radius, material) {
-  const scale = radius / particle.geometry.parameters.radius;
-  particle.scale.set(scale, scale, scale);
-  particle.material = material;
+  const scale = radius / particle.children[0].geometry.parameters.radius;
+  particle.children[0].scale.set(scale, scale, scale);
+  particle.children.forEach((x) => (x.material = material));
 }
 
 const halfCylinderGeometry = halfCylinderGeometryFactory();
@@ -184,7 +184,7 @@ export function createParticleGroup(config) {
       }
 
       updateParticleScaleAndMaterial(
-        particleSubGroup.children[0],
+        particleSubGroup,
         particle.radius * config.config.sphere_size,
         material,
       );
@@ -253,7 +253,6 @@ export function createParticleGroup(config) {
             particle1.getWorldPosition(node1);
             particle2.getWorldPosition(node2);
             updateBondOrientation(bond_mesh, startNode, endNode);
-            bond_mesh.material = startMaterial;
           };
           bond_mesh.name = name;
           return bond_mesh;
