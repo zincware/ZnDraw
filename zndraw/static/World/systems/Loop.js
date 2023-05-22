@@ -45,10 +45,10 @@ class Loop {
         object.tick(this.stream.get_next_frame());
       }
       let constraint_delta = constraint_clock.getElapsedTime();
-      console.log(
-        "constraint_delta ",
-        parseInt(constraint_delta * 1000) + " ms",
-      );
+      // console.log(
+      //   "constraint_delta ",
+      //   parseInt(constraint_delta * 1000) + " ms",
+      // );
       clock.start();
     }
   }
