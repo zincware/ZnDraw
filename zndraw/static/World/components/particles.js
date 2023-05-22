@@ -133,7 +133,7 @@ export function createParticleGroup(config) {
     const all_bonds = particleGroup.children.flatMap(particleSubGroup =>
       particleSubGroup.children.slice(1)
     );
-    
+
 
     let existing_bonds = all_bonds.filter(
       (x) =>
@@ -229,52 +229,37 @@ export function createParticleGroup(config) {
         bond.removeFromParent();
       });
       new_bonds.forEach((bond) => {
-        const particle1SubGroup = particleGroup.getObjectByName(bond[0]);
-        const particle2SubGroup = particleGroup.getObjectByName(bond[1]);
+        const [particle1Name, particle2Name] = bond;
+
+        const particle1SubGroup = particleGroup.getObjectByName(particle1Name);
+        const particle2SubGroup = particleGroup.getObjectByName(particle2Name);
         const particle1 = particle1SubGroup.children[0];
         const particle2 = particle2SubGroup.children[0];
 
         const node1 = new THREE.Vector3();
         const node2 = new THREE.Vector3();
 
-        // const direction = new THREE.Vector3();
-        // direction.subVectors(node1, node2);
-
-        const bond_1 = halfCylinderMesh(
-          node1,
-          node2,
-          particle1.material,
-          config.config,
-        );
-        const bond_2 = halfCylinderMesh(
-          node2,
-          node1,
-          particle2.material,
-          config.config,
-        );
-
-        bond_1.tick = () => {
-          particle1.getWorldPosition(node1);
-          particle2.getWorldPosition(node2);
-          updateBondOrientation(bond_1, node1, node2);
-          bond_1.material = particle1.material;
-        };
-        bond_2.tick = () => {
-          particle1.getWorldPosition(node1);
-          particle2.getWorldPosition(node2);
-          updateBondOrientation(bond_2, node2, node1);
-          bond_2.material = particle2.material;
+        const createBond = (startNode, endNode, startMaterial, name) => {
+          const bond_mesh = halfCylinderMesh(startNode, endNode, startMaterial, config.config);
+          bond_mesh.tick = () => {
+            particle1.getWorldPosition(node1);
+            particle2.getWorldPosition(node2);
+            updateBondOrientation(bond_mesh, startNode, endNode);
+            bond_mesh.material = startMaterial;
+          };
+          bond_mesh.name = name;
+          return bond_mesh;
         };
 
-        // the atom to look at
-        bond_1.name = bond[0] + "-" + bond[1];
-        bond_2.name = bond[1] + "-" + bond[0];
+        const bond_1 = createBond(node1, node2, particle1.material,`${particle1Name}-${particle2Name}`);
+        const bond_2 = createBond(node2, node1, particle2.material,`${particle2Name}-${particle1Name}`);
 
         particle1SubGroup.add(bond_1);
         particle2SubGroup.add(bond_2);
 
         bond_1.tick();
         bond_2.tick();
+
       });
 
       // update existing bonds
