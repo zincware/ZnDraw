@@ -11,7 +11,7 @@ class Config {
     this.play = true;
     this.selected = [];
     this.pressed_keys = {};
-    this.draw_vectors = []
+    this.draw_vectors = [];
   }
 
   start() {

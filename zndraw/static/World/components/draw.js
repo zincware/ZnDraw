@@ -54,16 +54,17 @@ export class Curve3D {
     this.transformControls.attach(sphere);
 
     // save the points here for passing to flask
-    this.config.draw_vectors = Array.from(this.anchorPoints.children, (child) => child.position)
+    this.config.draw_vectors = Array.from(
+      this.anchorPoints.children,
+      (child) => child.position,
+    );
 
     sphere.update = () => {
-        if (this.config.draw_vectors.length < 2) {
-            return;
-        }
+      if (this.config.draw_vectors.length < 2) {
+        return;
+      }
       this.curve.geometry.dispose();
-      const curve = new THREE.CatmullRomCurve3(
-        this.config.draw_vectors
-      );
+      const curve = new THREE.CatmullRomCurve3(this.config.draw_vectors);
 
       const points = curve.getPoints(this.ARC_SEGMENTS);
       const geometry = new THREE.BufferGeometry().setFromPoints(points);
