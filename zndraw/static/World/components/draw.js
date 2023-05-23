@@ -15,6 +15,17 @@ export class Curve3D {
 
     this.scene.add(this.curve);
     this.scene.add(this.anchorPoints);
+
+    document.getElementById("drawAddAnchor").onclick = () => {
+      this.createAnchorPoint();
+    };
+    document.getElementById("drawRemoveLine").onclick = () => {
+      this.removeCurve();
+    };
+
+    document.getElementById("drawDetach").onclick = () => {
+      this.transformControls.detach();
+    }
   }
 
   createCurve() {
@@ -32,12 +43,7 @@ export class Curve3D {
   }
 
   createAnchorPoint() {
-    const position = new THREE.Vector3(0, 0, 0);
-    if (this.config.selected.length == 1) {
-        position.copy(
-            this.particleGroup.getObjectByName(this.config.selected[0]).position
-        );
-    }
+    const position = this.particleGroup.get_center();
     
     const geometry = new THREE.SphereGeometry(0.2, 32, 32);
     const material = new THREE.MeshBasicMaterial({ color: "#000000" });

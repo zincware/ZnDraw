@@ -23,23 +23,25 @@ class Selection {
       true,
     );
 
-    if (intersects.length > 0) {
-      const object = intersects[0].object;
-      if (object.parent.parent.name != "particleGroup") {
-        return;
+    // iterate itersections until we find a particle
+    for (let i = 0; i < intersects.length; i++) {
+      const particleGroup = this.scene.getObjectByName("particleGroup");
+      const object = intersects[i].object;
+      if (particleGroup.children.includes(object.parent)) {
+        object.parent.click();
+        await fetch("select", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            selected_ids: this.config.selected,
+            step: this.config.step,
+            method: document.getElementById("selection-method").value,
+          }),
+        })
+          .then((response) => response.json())
+          .then((data) => (this.config.selected = data["selected_ids"]));
+        break;
       }
-      object.parent.click();
-      await fetch("select", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          selected_ids: this.config.selected,
-          step: this.config.step,
-          method: document.getElementById("selection-method").value,
-        }),
-      })
-        .then((response) => response.json())
-        .then((data) => (this.config.selected = data["selected_ids"]));
     }
   }
 }

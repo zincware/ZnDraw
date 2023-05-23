@@ -61,13 +61,6 @@ class World {
       }
     });
 
-    document.getElementById("drawAddAnchor").onclick = () => {
-      curve.createAnchorPoint();
-    };
-    document.getElementById("drawRemoveLine").onclick = () => {
-      curve.removeCurve();
-    };
-
     scene.add(particles, light, camera, index, transform_controls);
 
     // disable mesh rotation
