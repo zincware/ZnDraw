@@ -25,6 +25,9 @@ class Selection {
 
     if (intersects.length > 0) {
       const object = intersects[0].object;
+      if (object.parent.parent.name != "particleGroup") {
+        return;
+      }
       object.parent.click();
       await fetch("select", {
         method: "POST",

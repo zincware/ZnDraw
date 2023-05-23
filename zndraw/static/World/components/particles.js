@@ -156,6 +156,7 @@ export function createIndexGroup(particleGroup) {
 }
 export function createParticleGroup(config) {
   const particleGroup = new THREE.Group();
+  particleGroup.name = "particleGroup";
 
   particleGroup.tick = (data) => {
     if (data == null) {
