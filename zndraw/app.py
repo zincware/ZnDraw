@@ -114,6 +114,23 @@ def add_analysis():
     return schema
 
 
+@app.route("/add_bonds", methods=["POST"])
+def add_bonds():
+    """Add a function to the config."""
+    try:
+        signature = shared.config.get_modifier_schema(request.json)
+    except Exception as err:
+        return {"error": str(err)}
+    return signature
+
+
+@app.route("/set_bonds", methods=["POST"])
+def set_bonds():
+    """Add a function to the config."""
+    print(f"Setting bonds {request.json}")
+    return {}
+
+
 @app.route("/analyse", methods=["POST"])
 def analyse():
     selected_ids = list(sorted(request.json["selected_ids"]))

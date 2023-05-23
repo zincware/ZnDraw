@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 import functools
 
 import ase
@@ -15,7 +15,9 @@ def _rgb2hex(data):
 
 
 class ASEComputeBonds(BaseModel):
-    
+    double_bonds: float = Field(1, le=10, ge=1)
+    triple_bonds: float = Field(5, le=10, ge=1)
+
     def get_frame(self, step: int):
         atoms = shared.config.get_atoms(step=int(step))
         return {

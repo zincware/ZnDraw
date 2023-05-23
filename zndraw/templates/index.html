@@ -310,6 +310,13 @@
         </div>
       </div>
       <div id="bondsSettings"></div>
+      <div class="d-grid gap-2 col-6 mx-auto mb-3 pt-4">
+        <button type="button" class="btn btn-secondary" id="bondsBtnSave">Save</button>
+        <button type="button" class="btn btn-secondary" id="bondsBtnSingleBond">Single Bond</button>
+        <button type="button" class="btn btn-secondary" id="bondsBtnDoubleBond">Double Bond</button>
+        <button type="button" class="btn btn-secondary" id="bondsBtnTripleBond">Triple Bond</button>
+      </div>
+
     </div>
   </div>
 
@@ -415,6 +422,32 @@
       </div>
     </div>
   </div>
+
+    <!-- Add Bonds -->
+    <div class="modal" tabindex="-1" id="addBondsModal">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Add Bonds</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <div class="mb-3">
+              <label for="addBondsImport" class="form-label">Path to bonds <code>class</code></label>
+              <input type="email" class="form-control" id="addBondsImport" aria-describedby="addBondsImportHelp">
+              <div id="addBondsImportHelp" class="form-text">The input should be <code>module.cls</code> such
+                that
+                <code> from module import cls</code> works.
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            <button type="button" class="btn btn-primary" id="addBondsImportBtn">Load</button>
+          </div>
+        </div>
+      </div>
+    </div>
 
   <!-- Progress Bar -->
   <div id="info"></div>

@@ -23,6 +23,10 @@ _MODIFY_FUNCTIONS = [
     "zndraw.examples.Duplicate",
     "zndraw.examples.AddLineParticles",
 ]
+
+_BONDS_FUNCTIONS = [
+    "zndraw.tools.data.ASEComputeBonds",
+]
 _SELECTION_FUNCTIONS = []
 
 
@@ -51,6 +55,7 @@ class Config(BaseModel):
     analysis_functions: typing.List[str] = _ANALYSIS_FUNCTIONS
     modify_functions: typing.List[str] = _MODIFY_FUNCTIONS
     selection_functions: typing.List[str] = _SELECTION_FUNCTIONS
+    bonds_functions: typing.List[str] = _BONDS_FUNCTIONS
 
     _atoms_cache = PrivateAttr(default_factory=dict)
     _modifier_applied: bool = PrivateAttr(False)
