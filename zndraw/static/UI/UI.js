@@ -410,7 +410,7 @@ async function loadSceneBonds(config, world) {
   // iterate DATA.config.analysis_methods and add them to the select
   for (let method of config.config.bonds_functions) {
     try {
-      await addBondsOption(method);  // TODO
+      await addBondsOption(method); // TODO
     } catch (error) {
       console.log(error);
     }
@@ -462,12 +462,19 @@ async function loadSceneBonds(config, world) {
     });
   }
 
-  document.getElementById("bondsBtnSave").onclick = () => {fetch_set_bonds(undefined)};
-  document.getElementById("bondsBtnSingleBond").onclick = () => {fetch_set_bonds(1)};
-  document.getElementById("bondsBtnDoubleBond").onclick = () => {fetch_set_bonds(2)};
-  document.getElementById("bondsBtnTripleBond").onclick = () => {fetch_set_bonds(3)};
+  document.getElementById("bondsBtnSave").onclick = () => {
+    fetch_set_bonds(undefined);
+  };
+  document.getElementById("bondsBtnSingleBond").onclick = () => {
+    fetch_set_bonds(1);
+  };
+  document.getElementById("bondsBtnDoubleBond").onclick = () => {
+    fetch_set_bonds(2);
+  };
+  document.getElementById("bondsBtnTripleBond").onclick = () => {
+    fetch_set_bonds(3);
+  };
 }
-
 
 function clickAddSceneModifier() {
   document.getElementById("addSceneModifierImportBtn").onclick =

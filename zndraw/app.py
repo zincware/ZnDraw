@@ -1,6 +1,6 @@
+import importlib
 import json
 import uuid
-import importlib
 
 import networkx as nx
 import numpy as np

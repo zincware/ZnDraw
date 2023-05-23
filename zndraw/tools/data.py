@@ -1,4 +1,3 @@
-from pydantic import BaseModel, Field
 import functools
 
 import ase
@@ -6,8 +5,10 @@ import networkx as nx
 import numpy as np
 from ase.data.colors import jmol_colors
 from ase.neighborlist import build_neighbor_list
+from pydantic import BaseModel, Field
 
 from zndraw import shared
+
 
 def _rgb2hex(data):
     r, g, b = np.array(data * 255, dtype=int)
@@ -42,6 +43,6 @@ class ASEComputeBonds(BaseModel):
         cm = nl.get_connectivity_matrix(sparse=False)
         G = nx.from_numpy_array(cm)
         return list(G.edges)
-    
+
     def update_bond_order(self, particles: list[int], order: int):
         pass
