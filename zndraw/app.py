@@ -39,6 +39,7 @@ def select() -> list[int]:
     """Update the selected atoms."""
     step = request.json["step"]
     method = request.json["method"]
+    print(f"Selecting atoms {request.json}")
     try:
         selected_ids = [int(x) for x in request.json["selected_ids"]]
     except TypeError:
@@ -67,7 +68,7 @@ def add_update_function():
     """Add a function to the config."""
     try:
         signature = shared.config.get_modifier_schema(request.json)
-    except (ImportError, ValueError) as err:
+    except Exception as err:
         return {"error": str(err)}
     return signature
 
@@ -108,6 +109,7 @@ def add_analysis():
         schema["title"] = request.json
     except (ImportError, ValueError) as err:
         return {"error": str(err)}
+    print(f"Adding analysis {schema}")
     return schema
 
 
