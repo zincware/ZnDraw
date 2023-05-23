@@ -46,6 +46,9 @@ class Config {
     for (const callback of this.set_step_callbacks) {
       callback(this);
     }
+    document.getElementById(
+      "info",
+    ).innerHTML = `${this.step} / ${this.config.total_frames}`;
   }
 }
 
