@@ -156,6 +156,25 @@ export function createIndexGroup(particleGroup) {
 }
 export function createParticleGroup(config) {
   const particleGroup = new THREE.Group();
+  particleGroup.name = "particleGroup";
+
+  particleGroup.get_center = () => {
+    const items = [];
+    if (config.selected.length > 0) {
+      config.selected.forEach((x) => {
+        items.push(particleGroup.getObjectByName(x));
+      });
+    } else {
+      particleGroup.children.forEach((x) => {
+        items.push(x);
+      });
+    }
+
+    const center = items
+      .reduce((a, b) => a.add(b.position), new THREE.Vector3())
+      .divideScalar(items.length);
+    return center;
+  };
 
   particleGroup.tick = (data) => {
     if (data == null) {

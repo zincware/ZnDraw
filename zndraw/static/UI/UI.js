@@ -228,6 +228,7 @@ async function loadSceneModifier(config, world) {
         step: config.step,
         modifier: document.getElementById("addSceneModifier").value,
         modifier_kwargs: modifier_kwargs,
+        points: config.draw_vectors,
       }),
     }).then(() => {
       world.deleteCache();
