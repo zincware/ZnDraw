@@ -13,9 +13,6 @@ class Loop {
     this.updatables = [];
     this.constraint_updatables = [];
     this.config = config;
-
-    console.log("Using label renderer: ");
-    console.log(this.renderer2d);
   }
 
   start() {
