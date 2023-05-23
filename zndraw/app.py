@@ -154,10 +154,11 @@ def frame_set():
 
 @app.route("/frame-stream")
 def frame_stream():
+    method = tools.data.ASEComputeBonds()
     def generate(step):
         for idx in tqdm.tqdm(range(step, step + 100), desc=f"Streaming from {step}"):
             try:
-                data = {idx: tools.data.serialize_frame(idx)}
+                data = {idx: method.get_frame(idx)}
                 yield f"data: {json.dumps(data)}\n\n"
             except KeyError:
                 print(f"Can not load step {idx}")
