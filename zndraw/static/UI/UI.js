@@ -415,8 +415,8 @@ async function loadSceneBonds(config, world) {
       console.log(error);
     }
   }
-  document.getElementById("addBondsMethod").value = "";
-  document.getElementById("addBondsMethod").dispatchEvent(new Event("change"));
+  // document.getElementById("addBondsMethod").value = "";
+  // document.getElementById("addBondsMethod").dispatchEvent(new Event("change"));
 
   document.getElementById("addBondsMethod").onchange = function () {
     console.log(this.value);
