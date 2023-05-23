@@ -85,6 +85,12 @@
               Analyse
             </button>
           </li>
+          <li class="nav-item mx-1">
+            <button class="btn btn-outline-secondary" type="button" data-bs-toggle="offcanvas"
+              data-bs-target="#bondsCanvas" aria-controls="bondsCanvas" onclick="document.activeElement.blur();">
+              Bonds
+            </button>
+          </li>
         </ul>
         <form class="d-flex">
           <a class="btn btn-outline-primary mx-1" href="download" role="button">Download</a>
@@ -282,6 +288,28 @@
       </div>
       <div id="analysisSettings"></div>
       <div id="analysePlot"></div>
+    </div>
+  </div>
+
+  <!-- Bonds -->
+  <div class="offcanvas offcanvas-start canvasControl" data-bs-scroll="true" data-bs-backdrop="false" tabindex="-1"
+    id="bondsCanvas" aria-labelledby="bondsCanvasLabel">
+    <div class="offcanvas-border"></div>
+    <div class="offcanvas-header">
+      <h5 class="offcanvas-title" id="bondsCanvasLabel">Bonds</h5>
+      <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+    </div>
+    <div class="offcanvas-body">
+      <div class="mb-3">
+        <label for="addBondsMethod" class="form-label">Select bonds method</label>
+        <select class="form-select" aria-label="Default select example" id="addBondsMethod">
+          <option selected, value="none"> </option>
+          <option value="add">Add New</option>
+        </select>
+        <div id="addBondsMethodHelp" class="form-text">Load a Python class to configure bonds
+        </div>
+      </div>
+      <div id="bondsSettings"></div>
     </div>
   </div>
 
