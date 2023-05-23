@@ -6,6 +6,7 @@ import numpy as np
 from ase.data.colors import jmol_colors
 from ase.neighborlist import build_neighbor_list
 from pydantic import BaseModel, Field
+import random
 
 from zndraw import shared
 
@@ -42,7 +43,8 @@ class ASEComputeBonds(BaseModel):
         nl = build_neighbor_list(atoms, self_interaction=False)
         cm = nl.get_connectivity_matrix(sparse=False)
         G = nx.from_numpy_array(cm)
-        return list(G.edges)
-
+        random.seed(0)
+        return [list(x) + [random.randrange(0, 4)] for x in G.edges]
+    
     def update_bond_order(self, particles: list[int], order: int):
         pass

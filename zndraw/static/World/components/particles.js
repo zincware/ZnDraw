@@ -324,6 +324,20 @@ export function createParticleGroup(config) {
             particle2.getWorldPosition(node2);
             updateBondOrientation(bond_mesh, startNode, endNode);
           };
+          bond_mesh.set_order = (order) => {
+            bond_mesh.order = order;
+            if (bond_mesh.order == 1) {
+              bond_mesh.material = startMaterial;
+            } else if (bond_mesh.order == 2) {
+              bond_mesh.material = startMaterial.clone();
+              bond_mesh.material.opacity = 0.8;
+              bond_mesh.material.transparent = true;
+            } else if (bond_mesh.order == 3) {
+              bond_mesh.material = startMaterial.clone();
+              bond_mesh.material.opacity = 0.3;
+              bond_mesh.material.transparent = true;
+            }
+          }
           bond_mesh.name = name;
           return bond_mesh;
         };
@@ -350,6 +364,9 @@ export function createParticleGroup(config) {
 
       // update existing bonds
       existing_bonds.forEach((bond) => {
+        // get the entry from bonds
+        let order = bonds.find((x) => (x[0] + "-" + x[1] === bond.name) || (x[1] + "-" + x[0] === bond.name));
+        bond.set_order(order[2]);
         bond.tick();
       });
     }
