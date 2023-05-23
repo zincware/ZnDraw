@@ -1,4 +1,5 @@
 import functools
+import random
 
 import ase
 import networkx as nx
@@ -6,7 +7,6 @@ import numpy as np
 from ase.data.colors import jmol_colors
 from ase.neighborlist import build_neighbor_list
 from pydantic import BaseModel, Field
-import random
 
 from zndraw import shared
 
@@ -45,6 +45,6 @@ class ASEComputeBonds(BaseModel):
         G = nx.from_numpy_array(cm)
         random.seed(0)
         return [list(x) + [random.randrange(0, 4)] for x in G.edges]
-    
+
     def update_bond_order(self, particles: list[int], order: int):
         pass

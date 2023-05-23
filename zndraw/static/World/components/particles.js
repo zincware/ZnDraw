@@ -337,7 +337,7 @@ export function createParticleGroup(config) {
               bond_mesh.material.opacity = 0.3;
               bond_mesh.material.transparent = true;
             }
-          }
+          };
           bond_mesh.name = name;
           return bond_mesh;
         };
@@ -365,7 +365,10 @@ export function createParticleGroup(config) {
       // update existing bonds
       existing_bonds.forEach((bond) => {
         // get the entry from bonds
-        let order = bonds.find((x) => (x[0] + "-" + x[1] === bond.name) || (x[1] + "-" + x[0] === bond.name));
+        let order = bonds.find(
+          (x) =>
+            x[0] + "-" + x[1] === bond.name || x[1] + "-" + x[0] === bond.name,
+        );
         bond.set_order(order[2]);
         bond.tick();
       });
