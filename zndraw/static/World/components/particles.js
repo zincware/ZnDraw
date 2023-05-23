@@ -1,6 +1,5 @@
 import * as THREE from "three";
-import { CSS2DObject } from 'three/examples/jsm/renderers/CSS2DRenderer.js';
-
+import { CSS2DObject } from "three/examples/jsm/renderers/CSS2DRenderer.js";
 
 export const materials = {
   MeshBasicMaterial: new THREE.MeshBasicMaterial({ color: "#ffa500" }),
@@ -121,9 +120,9 @@ export function createIndexGroup(particleGroup) {
     particleGroup.children.forEach((particleSubGroup) => {
       const particle = particleSubGroup.children[0];
 
-      const text = document.createElement('div');
-      text.className = 'label';
-      text.style.color = 'black';
+      const text = document.createElement("div");
+      text.className = "label";
+      text.style.color = "black";
       text.textContent = particleSubGroup.name;
       text.style.fontSize = "20px";
 
@@ -131,7 +130,6 @@ export function createIndexGroup(particleGroup) {
       label.name = `label-${particleSubGroup.name}`;
       label.position.copy(particleSubGroup.position);
       indexGroup.add(label);
-
     });
   };
 
@@ -143,14 +141,15 @@ export function createIndexGroup(particleGroup) {
 
   indexGroup.tick = (data) => {
     particleGroup.children.forEach((particleSubGroup) => {
-      const label = indexGroup.getObjectByName(`label-${particleSubGroup.name}`);
+      const label = indexGroup.getObjectByName(
+        `label-${particleSubGroup.name}`,
+      );
       if (label) {
         label.position.copy(particleSubGroup.position);
       } else {
         indexGroup.remove(label);
       }
     });
-
   };
 
   return indexGroup;

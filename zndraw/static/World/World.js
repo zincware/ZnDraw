@@ -7,7 +7,10 @@ import { createRenderer, create2DRenderer } from "./systems/renderer.js";
 import { Resizer } from "./systems/Resizer.js";
 import { Loop } from "./systems/Loop.js";
 import { Stream } from "./systems/Stream.js";
-import { createParticleGroup, createIndexGroup } from "./components/particles.js";
+import {
+  createParticleGroup,
+  createIndexGroup,
+} from "./components/particles.js";
 import { Selection } from "./systems/select.js";
 
 // These variables are module-scoped: we cannot access them
@@ -41,13 +44,14 @@ class World {
     window.addEventListener("keydown", (event) => {
       if (event.isComposing || event.key === "i") {
         index.show();
-      }});
+      }
+    });
     // remove index group when i is released
     window.addEventListener("keyup", (event) => {
       if (event.isComposing || event.key === "i") {
         index.hide();
-      }});
-
+      }
+    });
 
     scene.add(particles, light, camera, index);
 
