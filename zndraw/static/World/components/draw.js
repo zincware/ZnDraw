@@ -34,11 +34,11 @@ export class Curve3D {
   createAnchorPoint() {
     const position = new THREE.Vector3(0, 0, 0);
     if (this.config.selected.length == 1) {
-        position.copy(
-            this.particleGroup.getObjectByName(this.config.selected[0]).position
-        );
+      position.copy(
+        this.particleGroup.getObjectByName(this.config.selected[0]).position,
+      );
     }
-    
+
     const geometry = new THREE.SphereGeometry(0.2, 32, 32);
     const material = new THREE.MeshBasicMaterial({ color: "#000000" });
     const sphere = new THREE.Mesh(geometry, material);
@@ -48,16 +48,17 @@ export class Curve3D {
     this.transformControls.attach(sphere);
 
     // save the points here for passing to flask
-    this.config.draw_vectors = Array.from(this.anchorPoints.children, (child) => child.position)
+    this.config.draw_vectors = Array.from(
+      this.anchorPoints.children,
+      (child) => child.position,
+    );
 
     sphere.update = () => {
-        if (this.config.draw_vectors.length < 2) {
-            return;
-        }
+      if (this.config.draw_vectors.length < 2) {
+        return;
+      }
       this.curve.geometry.dispose();
-      const curve = new THREE.CatmullRomCurve3(
-        this.config.draw_vectors
-      );
+      const curve = new THREE.CatmullRomCurve3(this.config.draw_vectors);
 
       const points = curve.getPoints(this.ARC_SEGMENTS);
       const geometry = new THREE.BufferGeometry().setFromPoints(points);
