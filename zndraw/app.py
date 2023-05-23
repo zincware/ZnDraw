@@ -1,8 +1,11 @@
+import json
 import uuid
 
 import networkx as nx
 import numpy as np
-from flask import Flask, render_template, request, session
+import tqdm
+from flask import (Flask, Response, render_template, request, session,
+                   stream_with_context)
 
 from zndraw import io, shared, tools
 
@@ -14,6 +17,7 @@ app.secret_key = str(uuid.uuid4())
 def index():
     """Render the main ZnDraw page."""
     session["key"] = str(uuid.uuid4())  # TODO use session key e.g. for atoms cache
+    session["step"] = 0
     return render_template("index.html", config=shared.config.dict())
 
 
@@ -30,31 +34,12 @@ def config():
     }
 
 
-@app.route("/graph", methods=["POST"])
-def get_graph():
-    step = request.json
-    try:
-        atoms = shared.config.get_atoms(step=int(step))
-        graph = io.get_graph(atoms)
-        return {
-            "nodes": [{**graph.nodes[idx], "id": idx} for idx in graph.nodes],
-            "edges": list(graph.edges),
-            "box": atoms.get_cell().diagonal().tolist(),
-        }
-    except KeyError:
-        return {}
-
-
-@app.route("/data", methods=["POST"])
-def positions_step():
-    return tools.data.serialize_atoms(request.json["start"], request.json["stop"])
-
-
 @app.route("/select", methods=["POST"])
 def select() -> list[int]:
     """Update the selected atoms."""
     step = request.json["step"]
     method = request.json["method"]
+    print(f"Selecting atoms {request.json}")
     try:
         selected_ids = [int(x) for x in request.json["selected_ids"]]
     except TypeError:
@@ -83,7 +68,7 @@ def add_update_function():
     """Add a function to the config."""
     try:
         signature = shared.config.get_modifier_schema(request.json)
-    except (ImportError, ValueError) as err:
+    except Exception as err:
         return {"error": str(err)}
     return signature
 
@@ -95,7 +80,8 @@ def update_scene():
     modifier_kwargs = request.json["modifier_kwargs"]
     selected_ids = list(sorted(request.json["selected_ids"]))
     step = request.json["step"]
-    points = np.array([[x["x"], x["y"], x["z"]] for x in request.json["points"]])
+    # points = np.array([[x["x"], x["y"], x["z"]] for x in request.json["points"]])
+    points = None
     shared.config.run_modifier(
         modifier, selected_ids, step, modifier_kwargs, points=points
     )
@@ -123,6 +109,7 @@ def add_analysis():
         schema["title"] = request.json
     except (ImportError, ValueError) as err:
         return {"error": str(err)}
+    print(f"Adding analysis {schema}")
     return schema
 
 
@@ -157,3 +144,25 @@ def download():
     b = shared.config.export_atoms()
     b.seek(0)
     return send_file(b, download_name="traj.h5", as_attachment=True)
+
+
+@app.route("/frame-set", methods=["POST"])
+def frame_set():
+    session["step"] = request.json["step"]
+    print(f"Setting step to {session['step']}")
+    return {}
+
+
+@app.route("/frame-stream")
+def frame_stream():
+    def generate(step):
+        for idx in tqdm.tqdm(range(step, step + 100), desc=f"Streaming from {step}"):
+            try:
+                data = {idx: tools.data.serialize_frame(idx)}
+                yield f"data: {json.dumps(data)}\n\n"
+            except KeyError:
+                print(f"Can not load step {idx}")
+                break
+        yield f"data: {json.dumps({})} \nretry: 10\n\n"
+
+    return Response(generate(session["step"]), mimetype="text/event-stream")

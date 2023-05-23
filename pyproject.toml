@@ -1,10 +1,11 @@
 [tool.poetry]
 name = "zndraw"
-version = "0.1.7"
+version = "0.2.0a1"
 description = ""
 authors = ["zincwarecode <zincwarecode@gmail.com>"]
 license = "Apache-2.0"
 readme = "README.md"
+include = ["zndraw/static/node_modules/**/*"]
 
 [tool.poetry.dependencies]
 python = "^3.9"
