@@ -1,4 +1,5 @@
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+import { TransformControls } from "three/examples/jsm/controls/TransformControls.js";
 import * as THREE from "three";
 
 function createControls(camera, canvas, config, scene) {
@@ -12,17 +13,7 @@ function createControls(camera, canvas, config, scene) {
 
   controls.tick = function (delta) {
     if (config.selected.length > 0 && config.pressed_keys.c == true) {
-      // iterate through selected and compute center
-
-      let items = [];
-      config.selected.forEach((item) => {
-        items.push(scene.getObjectByName(item));
-      });
-
-      const center = items
-        .reduce((a, b) => a.add(b.position), new THREE.Vector3())
-        .divideScalar(items.length);
-      controls.target.copy(center);
+      controls.target.copy(scene.getObjectByName("particleGroup").get_center());
     }
     controls.update();
   };
@@ -30,4 +21,17 @@ function createControls(camera, canvas, config, scene) {
   return controls;
 }
 
-export { createControls };
+function createTransformControls(camera, canvas, orbit) {
+  const controls = new TransformControls(camera, canvas);
+
+  controls.addEventListener("dragging-changed", function (event) {
+    orbit.enabled = !event.value;
+  });
+  controls.addEventListener("objectChange", function () {
+    controls.object.update();
+  });
+
+  return controls;
+}
+
+export { createControls, createTransformControls };

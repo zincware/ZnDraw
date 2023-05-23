@@ -2,7 +2,7 @@ import { createCamera } from "./components/camera.js";
 import { createLights } from "./components/lights.js";
 import { createScene } from "./components/scene.js";
 
-import { createControls } from "./systems/controls.js";
+import { createControls, createTransformControls } from "./systems/controls.js";
 import { createRenderer, create2DRenderer } from "./systems/renderer.js";
 import { Resizer } from "./systems/Resizer.js";
 import { Loop } from "./systems/Loop.js";
@@ -12,6 +12,8 @@ import {
   createIndexGroup,
 } from "./components/particles.js";
 import { Selection } from "./systems/select.js";
+
+import { Curve3D } from "./components/draw.js";
 
 // These variables are module-scoped: we cannot access them
 // from outside the module
@@ -36,10 +38,16 @@ class World {
     container.append(renderer.domElement);
 
     const controls = createControls(camera, renderer.domElement, config, scene);
+    const transform_controls = createTransformControls(
+      camera,
+      renderer.domElement,
+      controls,
+    );
 
     const particles = createParticleGroup(config);
     const index = createIndexGroup(particles);
     const light = createLights();
+    const curve = new Curve3D(scene, transform_controls, config, particles);
 
     window.addEventListener("keydown", (event) => {
       if (event.isComposing || event.key === "i") {
@@ -53,7 +61,7 @@ class World {
       }
     });
 
-    scene.add(particles, light, camera, index);
+    scene.add(particles, light, camera, index, transform_controls);
 
     // disable mesh rotation
     loop.constraint_updatables.push(particles);
