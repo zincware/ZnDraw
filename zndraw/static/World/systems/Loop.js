@@ -4,14 +4,18 @@ const clock = new Clock();
 const constraint_clock = new Clock();
 
 class Loop {
-  constructor(camera, scene, renderer, stream, config) {
+  constructor(camera, scene, renderer, renderer2d, stream, config) {
     this.camera = camera;
     this.scene = scene;
     this.renderer = renderer;
+    this.renderer2d = renderer2d;
     this.stream = stream;
     this.updatables = [];
     this.constraint_updatables = [];
     this.config = config;
+
+    console.log("Using label renderer: ");
+    console.log(this.renderer2d);
   }
 
   start() {
@@ -31,6 +35,7 @@ class Loop {
   tick() {
     // only call the getDelta function once per frame!
     const delta = clock.getElapsedTime();
+    this.renderer2d.render(this.scene, this.camera);
 
     for (const object of this.updatables) {
       object.tick(delta);
