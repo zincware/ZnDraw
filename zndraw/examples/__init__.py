@@ -75,12 +75,14 @@ class ChangeType(UpdateScene):
 
 class AddLineParticles(UpdateScene):
     symbol: str = Field("H")
+    steps: int = Field(10, le=100, ge=1)
 
     def run(self, atom_ids: list[int], atoms: ase.Atoms, **kwargs) -> list[ase.Atoms]:
         points = kwargs["points"]
         for point in points:
             atoms += ase.Atom(self.symbol, position=point)
-        return [atoms]
+        for _ in range(self.steps):
+            yield atoms
 
 
 class Demo(UpdateScene):

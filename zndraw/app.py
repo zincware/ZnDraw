@@ -76,13 +76,11 @@ def add_update_function():
 @app.route("/update", methods=["POST"])
 def update_scene():
     """Update the scene with the selected atoms."""
-    print(f"Updating scene {request.json}")
     modifier = request.json["modifier"]
     modifier_kwargs = request.json["modifier_kwargs"]
     selected_ids = list(sorted(request.json["selected_ids"]))
     step = request.json["step"]
-    # points = np.array([[x["x"], x["y"], x["z"]] for x in request.json["points"]])
-    points = None
+    points = np.array([[x["x"], x["y"], x["z"]] for x in request.json["points"]])
     shared.config.run_modifier(
         modifier, selected_ids, step, modifier_kwargs, points=points
     )
