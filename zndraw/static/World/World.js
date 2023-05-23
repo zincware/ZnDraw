@@ -13,7 +13,7 @@ import {
 } from "./components/particles.js";
 import { Selection } from "./systems/select.js";
 
-import { Curve3D } from "./components/draw.js"
+import { Curve3D } from "./components/draw.js";
 
 // These variables are module-scoped: we cannot access them
 // from outside the module
@@ -38,7 +38,11 @@ class World {
     container.append(renderer.domElement);
 
     const controls = createControls(camera, renderer.domElement, config, scene);
-    const transform_controls = createTransformControls(camera, renderer.domElement, controls);
+    const transform_controls = createTransformControls(
+      camera,
+      renderer.domElement,
+      controls,
+    );
 
     const particles = createParticleGroup(config);
     const index = createIndexGroup(particles);
@@ -59,10 +63,10 @@ class World {
 
     document.getElementById("drawAddAnchor").onclick = () => {
       curve.createAnchorPoint();
-    }
+    };
     document.getElementById("drawRemoveLine").onclick = () => {
       curve.removeCurve();
-    }
+    };
 
     scene.add(particles, light, camera, index, transform_controls);
 
