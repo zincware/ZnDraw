@@ -6,6 +6,7 @@ import numpy as np
 from ase.data.colors import jmol_colors
 from ase.neighborlist import build_neighbor_list, natural_cutoffs
 from pydantic import BaseModel, Field
+
 from zndraw import shared
 
 
