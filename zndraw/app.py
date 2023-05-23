@@ -1,5 +1,6 @@
 import json
 import uuid
+import importlib
 
 import networkx as nx
 import numpy as np
@@ -18,6 +19,7 @@ def index():
     """Render the main ZnDraw page."""
     session["key"] = str(uuid.uuid4())  # TODO use session key e.g. for atoms cache
     session["step"] = 0
+    session["method"] = "zndraw.tools.data.ASEComputeBonds"
     return render_template("index.html", config=shared.config.dict())
 
 
@@ -114,8 +116,6 @@ def add_analysis():
 
 @app.route("/analyse", methods=["POST"])
 def analyse():
-    import importlib
-
     selected_ids = list(sorted(request.json["selected_ids"]))
     step = request.json["step"]
     modifier = request.json["modifier"]
@@ -148,13 +148,17 @@ def download():
 @app.route("/frame-set", methods=["POST"])
 def frame_set():
     session["step"] = request.json["step"]
+    session["method"] = request.json.get("method", session["method"])
     print(f"Setting step to {session['step']}")
     return {}
 
 
 @app.route("/frame-stream")
 def frame_stream():
-    method = tools.data.ASEComputeBonds()
+    module_name, function_name = session["method"].rsplit(".", 1)
+    module = importlib.import_module(module_name)
+    method = getattr(module, function_name)()
+
     def generate(step):
         for idx in tqdm.tqdm(range(step, step + 100), desc=f"Streaming from {step}"):
             try:
