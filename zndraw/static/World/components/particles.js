@@ -171,8 +171,8 @@ export function createParticleGroup(config) {
     }
 
     const center = items
-        .reduce((a, b) => a.add(b.position), new THREE.Vector3())
-        .divideScalar(items.length);
+      .reduce((a, b) => a.add(b.position), new THREE.Vector3())
+      .divideScalar(items.length);
     return center;
   };
 

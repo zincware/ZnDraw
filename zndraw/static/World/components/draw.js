@@ -25,7 +25,7 @@ export class Curve3D {
 
     document.getElementById("drawDetach").onclick = () => {
       this.transformControls.detach();
-    }
+    };
   }
 
   createCurve() {
@@ -44,7 +44,7 @@ export class Curve3D {
 
   createAnchorPoint() {
     const position = this.particleGroup.get_center();
-    
+
     const geometry = new THREE.SphereGeometry(0.2, 32, 32);
     const material = new THREE.MeshBasicMaterial({ color: "#000000" });
     const sphere = new THREE.Mesh(geometry, material);
