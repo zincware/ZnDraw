@@ -1,9 +1,11 @@
 import * as THREE from "three";
 
 export class Curve3D {
-  constructor(scene, transformControls) {
+  constructor(scene, transformControls, config, particleGroup) {
     this.scene = scene;
     this.transformControls = transformControls;
+    this.config = config;
+    this.particleGroup = particleGroup;
 
     this.ARC_SEGMENTS = 200;
     this.curve;
@@ -31,15 +33,30 @@ export class Curve3D {
 
   createAnchorPoint() {
     const position = new THREE.Vector3(0, 0, 0);
+    if (this.config.selected.length == 1) {
+        position.copy(
+            this.particleGroup.getObjectByName(this.config.selected[0]).position
+        );
+    }
+    
     const geometry = new THREE.SphereGeometry(0.2, 32, 32);
     const material = new THREE.MeshBasicMaterial({ color: "#000000" });
     const sphere = new THREE.Mesh(geometry, material);
     sphere.position.copy(position);
 
+    this.anchorPoints.add(sphere);
+    this.transformControls.attach(sphere);
+
+    // save the points here for passing to flask
+    this.config.draw_vectors = Array.from(this.anchorPoints.children, (child) => child.position)
+
     sphere.update = () => {
+        if (this.config.draw_vectors.length < 2) {
+            return;
+        }
       this.curve.geometry.dispose();
       const curve = new THREE.CatmullRomCurve3(
-        Array.from(this.anchorPoints.children, (child) => child.position),
+        this.config.draw_vectors
       );
 
       const points = curve.getPoints(this.ARC_SEGMENTS);
@@ -47,8 +64,7 @@ export class Curve3D {
       this.curve.geometry = geometry;
     };
 
-    this.anchorPoints.add(sphere);
-    this.transformControls.attach(sphere);
+    sphere.update();
   }
 
   removeCurve() {
@@ -58,5 +74,6 @@ export class Curve3D {
     this.transformControls.detach();
     this.curve.geometry.dispose();
     this.curve.geometry = new THREE.BufferGeometry();
+    this.config.draw_vectors = [];
   }
 }
