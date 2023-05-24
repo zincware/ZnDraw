@@ -103,9 +103,7 @@ function setupPlayPause(config) {
 
     if (event.isComposing || event.key === "ArrowRight") {
       config.play = false;
-      config.set_step(
-        Math.min(config.config.total_frames, config.step + 1),
-      );
+      config.set_step(Math.min(config.config.total_frames, config.step + 1));
     }
     if (event.isComposing || event.key === "ArrowLeft") {
       config.play = false;
