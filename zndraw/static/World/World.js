@@ -61,6 +61,11 @@ class World {
       }
     });
 
+    document.getElementById("reset").onclick = () => {
+      this.deleteCache();
+      this.rebuild();
+    };
+
     scene.add(particles, light, camera, index, transform_controls);
 
     // disable mesh rotation
