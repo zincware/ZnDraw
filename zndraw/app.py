@@ -131,6 +131,13 @@ def set_bonds():
     module_name, function_name = request.json["method"].rsplit(".", 1)
     module = importlib.import_module(module_name)
     shared.bond_method = getattr(module, function_name)(**request.json["bonds_kwargs"])
+
+    if "order" in request.json:
+        shared.bond_method.update_bond_order(
+            atoms=shared.config.get_atoms(request.json["step"]),
+            particles=request.json["selected_ids"],
+            order=request.json["order"],
+        )
     return {}
 
 
