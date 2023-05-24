@@ -310,119 +310,128 @@
         </div>
       </div>
       <div id="bondsSettings"></div>
-      <div class="d-grid gap-2 col-6 mx-auto mb-3 pt-4">
-        <button type="button" class="btn btn-secondary" id="bondsBtnSave">Save</button>
-        <button type="button" class="btn btn-secondary" id="bondsBtnZeroBond">Delete Bond</button>
-        <button type="button" class="btn btn-secondary" id="bondsBtnSingleBond">Single Bond</button>
-        <button type="button" class="btn btn-secondary" id="bondsBtnDoubleBond">Double Bond</button>
-        <button type="button" class="btn btn-secondary" id="bondsBtnTripleBond">Triple Bond</button>
+
+      <div class="container">
+        <div class="row my-3">
+          <div class="col">
+            <button type="button" class="btn btn-primary w-100" id="bondsBtnSave">Save</button>
+          </div>
+          <div class="col">
+            <button type="button" class="btn btn-danger w-100" id="bondsBtnZeroBond">Delete Bond</button>
+          </div>
+        </div>
+        <div class="row">
+          <div class="btn-group" role="group" aria-label="Basic example">
+            <button type="button" class="btn btn-outline-secondary" id="bondsBtnSingleBond">Single Bond</button>
+            <button type="button" class="btn btn-outline-secondary" id="bondsBtnDoubleBond">Double Bond</button>
+            <button type="button" class="btn btn-outline-secondary" id="bondsBtnTripleBond">Triple Bond</button>
+          </div>
+        </div>
       </div>
-
     </div>
-  </div>
 
 
-  <!-- Info Box -->
-  <div class="collapse" id="infoBoxCollapse">
-    <div class="container-fluid rounded border border-dark" id="infoBox">
-      <dl class="row">
-        <dt class="col-sm-3">File</dt>
-        <dd class="col-sm-9"><code>{{ config.file }}</code></dd>
-        <dt class="col-sm-3">FPS</dt>
-        <dd class="col-sm-9" id="FPS">-</dd>
-        <dt class="col-sm-3">Particles</dt>
-        <dd class="col-sm-9" id="n_particles">-</dd>
-        <dt class="col-sm-3">Bonds</dt>
-        <dd class="col-sm-9" id="n_bonds">-</dd>
-        <dt class="col-sm-3">Selected IDs</dt>
-        <dd class="col-sm-9" id="lst_selected_ids"></dd>
-        {% if config.update_function %}
-        <dt class="col-sm-3">Function</dt>
-        <dd class="col-sm-9" id="lst_selected_ids"><code>{{ config.update_function }}</code></dd>
-        {% endif %}
-      </dl>
-    </div>
-  </div>
-
-  <!-- Help Box -->
-  <div class="collapse" id="helpBoxCollapse">
-    <div class="container-fluid bg-light rounded border border-primary pt-2" id="helpBox">
-      <h2>ZnDraw Help</h2>
-      <div class="rounded-3 bg-white px-2 pt-2">
+    <!-- Info Box -->
+    <div class="collapse" id="infoBoxCollapse">
+      <div class="container-fluid rounded border border-dark" id="infoBox">
         <dl class="row">
-          <dt class="col-sm-3">move light to camera position</dt>
-          <dd class="col-sm-9"><code>keypress L</code></dd>
-          <dt class="col-sm-3">play / pause</dt>
-          <dd class="col-sm-9"><code>keypress space</code></dd>
-          <dt class="col-sm-3">frame forwards / backwards</dt>
-          <dd class="col-sm-9"><code>keypress &#9654;\&#9664; </code></dd>
-          <dt class="col-sm-3">jump forwards / backwards</dt>
-          <dd class="col-sm-9"><code>keypress &#9650;\&#9660; </code></dd>
-          <dt class="col-sm-3">center camera around selected particle</dt>
-          <dd class="col-sm-9"><code>keypress C</code></dd>
-          <dt class="col-sm-3">reload animation</dt>
-          <dd class="col-sm-9"><code>keypress Q</code></dd>
-          <dt class="col-sm-3">select multiple particles</dt>
-          <dd class="col-sm-9"><code>keydown shift</code></dd>
-          <dt class="col-sm-3">show particle index</dt>
-          <dd class="col-sm-9"><code>keydown I</code></dd>
+          <dt class="col-sm-3">File</dt>
+          <dd class="col-sm-9"><code>{{ config.file }}</code></dd>
+          <dt class="col-sm-3">FPS</dt>
+          <dd class="col-sm-9" id="FPS">-</dd>
+          <dt class="col-sm-3">Particles</dt>
+          <dd class="col-sm-9" id="n_particles">-</dd>
+          <dt class="col-sm-3">Bonds</dt>
+          <dd class="col-sm-9" id="n_bonds">-</dd>
+          <dt class="col-sm-3">Selected IDs</dt>
+          <dd class="col-sm-9" id="lst_selected_ids"></dd>
+          {% if config.update_function %}
+          <dt class="col-sm-3">Function</dt>
+          <dd class="col-sm-9" id="lst_selected_ids"><code>{{ config.update_function }}</code></dd>
+          {% endif %}
         </dl>
       </div>
     </div>
-  </div>
 
-  <!-- Add Scene Modifer -->
-  <div class="modal" tabindex="-1" id="addModifierModal">
-    <div class="modal-dialog">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title">Add Scene Modifier</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-        </div>
-        <div class="modal-body">
-          <div class="mb-3">
-            <label for="addSceneModifierImport" class="form-label">Path to modifier <code>class</code></label>
-            <input type="email" class="form-control" id="addSceneModifierImport"
-              aria-describedby="addSceneModifierImportHelp">
-            <div id="addSceneModifierImportHelp" class="form-text">The input should be <code>module.cls</code> such
-              that
-              <code> from module import cls</code> works.
-            </div>
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-          <button type="button" class="btn btn-primary" id="addSceneModifierImportBtn">Load</button>
+    <!-- Help Box -->
+    <div class="collapse" id="helpBoxCollapse">
+      <div class="container-fluid bg-light rounded border border-primary pt-2" id="helpBox">
+        <h2>ZnDraw Help</h2>
+        <div class="rounded-3 bg-white px-2 pt-2">
+          <dl class="row">
+            <dt class="col-sm-3">move light to camera position</dt>
+            <dd class="col-sm-9"><code>keypress L</code></dd>
+            <dt class="col-sm-3">play / pause</dt>
+            <dd class="col-sm-9"><code>keypress space</code></dd>
+            <dt class="col-sm-3">frame forwards / backwards</dt>
+            <dd class="col-sm-9"><code>keypress &#9654;\&#9664; </code></dd>
+            <dt class="col-sm-3">jump forwards / backwards</dt>
+            <dd class="col-sm-9"><code>keypress &#9650;\&#9660; </code></dd>
+            <dt class="col-sm-3">center camera around selected particle</dt>
+            <dd class="col-sm-9"><code>keypress C</code></dd>
+            <dt class="col-sm-3">reload animation</dt>
+            <dd class="col-sm-9"><code>keypress Q</code></dd>
+            <dt class="col-sm-3">select multiple particles</dt>
+            <dd class="col-sm-9"><code>keydown shift</code></dd>
+            <dt class="col-sm-3">show particle index</dt>
+            <dd class="col-sm-9"><code>keydown I</code></dd>
+          </dl>
         </div>
       </div>
     </div>
-  </div>
 
-  <!-- Add Analysis -->
-  <div class="modal" tabindex="-1" id="addAnalysisModal">
-    <div class="modal-dialog">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title">Add Analysis</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-        </div>
-        <div class="modal-body">
-          <div class="mb-3">
-            <label for="addAnalysisImport" class="form-label">Path to modifier <code>class</code></label>
-            <input type="email" class="form-control" id="addAnalysisImport" aria-describedby="addAnalysisImportHelp">
-            <div id="addAnalysisImportHelp" class="form-text">The input should be <code>module.cls</code> such
-              that
-              <code> from module import cls</code> works.
+    <!-- Add Scene Modifer -->
+    <div class="modal" tabindex="-1" id="addModifierModal">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Add Scene Modifier</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <div class="mb-3">
+              <label for="addSceneModifierImport" class="form-label">Path to modifier <code>class</code></label>
+              <input type="email" class="form-control" id="addSceneModifierImport"
+                aria-describedby="addSceneModifierImportHelp">
+              <div id="addSceneModifierImportHelp" class="form-text">The input should be <code>module.cls</code> such
+                that
+                <code> from module import cls</code> works.
+              </div>
             </div>
           </div>
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-          <button type="button" class="btn btn-primary" id="addAnalysisImportBtn">Load</button>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            <button type="button" class="btn btn-primary" id="addSceneModifierImportBtn">Load</button>
+          </div>
         </div>
       </div>
     </div>
-  </div>
+
+    <!-- Add Analysis -->
+    <div class="modal" tabindex="-1" id="addAnalysisModal">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Add Analysis</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <div class="mb-3">
+              <label for="addAnalysisImport" class="form-label">Path to modifier <code>class</code></label>
+              <input type="email" class="form-control" id="addAnalysisImport" aria-describedby="addAnalysisImportHelp">
+              <div id="addAnalysisImportHelp" class="form-text">The input should be <code>module.cls</code> such
+                that
+                <code> from module import cls</code> works.
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            <button type="button" class="btn btn-primary" id="addAnalysisImportBtn">Load</button>
+          </div>
+        </div>
+      </div>
+    </div>
 
     <!-- Add Bonds -->
     <div class="modal" tabindex="-1" id="addBondsModal">
@@ -450,9 +459,9 @@
       </div>
     </div>
 
-  <!-- Progress Bar -->
-  <div id="info"></div>
-  <input id="frame-slider" class="frame-slider" type="range" value="0" min="0" max="100">
+    <!-- Progress Bar -->
+    <div id="info"></div>
+    <input id="frame-slider" class="frame-slider" type="range" value="0" min="0" max="100">
 </body>
 
 </html>
