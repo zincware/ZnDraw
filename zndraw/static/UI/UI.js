@@ -468,6 +468,9 @@ async function loadSceneBonds(config, world) {
   document.getElementById("bondsBtnSave").onclick = () => {
     fetch_set_bonds(undefined);
   };
+  document.getElementById("bondsBtnZeroBond").onclick = () => {
+    fetch_set_bonds(0);
+  };
   document.getElementById("bondsBtnSingleBond").onclick = () => {
     fetch_set_bonds(1);
   };
