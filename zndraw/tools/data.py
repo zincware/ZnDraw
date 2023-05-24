@@ -7,7 +7,7 @@ import numpy as np
 from ase.data.colors import jmol_colors
 from ase.neighborlist import build_neighbor_list, natural_cutoffs
 from pydantic import BaseModel, Field
-
+from networkx.exception import NetworkXError
 from zndraw import shared
 
 
@@ -17,9 +17,9 @@ def _rgb2hex(data):
 
 
 class ASEComputeBonds(BaseModel):
-    single_bond_multiplier: float = Field(1.0, le=10, ge=0)
-    double_bond_multiplier: float = Field(0.85, le=10, ge=0)
-    triple_bond_multiplier: float = Field(0.7, le=10, ge=0)
+    single_bond_multiplier: float = Field(1.1, le=2, ge=0)
+    double_bond_multiplier: float = Field(0.0, le=1, ge=0)
+    triple_bond_multiplier: float = Field(0.0, le=1, ge=0)
 
     def get_frame(self, step: int):
         atoms = shared.config.get_atoms(step=int(step))
@@ -42,7 +42,6 @@ class ASEComputeBonds(BaseModel):
             ],
             "bonds": self.get_bonds(atoms),
         }
-
     def build_graph(self, atoms: ase.Atoms):
         cutoffs = [
             self.single_bond_multiplier,
@@ -50,11 +49,13 @@ class ASEComputeBonds(BaseModel):
             self.triple_bond_multiplier,
         ]
         connectivity_matrix = np.zeros((len(atoms), len(atoms)), dtype=int)
+        atoms.pbc = False
+        distance_matrix = atoms.get_all_distances(mic=False)
+        np.fill_diagonal(distance_matrix, np.inf)
         for cutoff in cutoffs:
-            nl = build_neighbor_list(
-                atoms, cutoffs=natural_cutoffs(atoms, cutoff), self_interaction=False
-            )
-            connectivity_matrix += nl.get_connectivity_matrix(sparse=False)
+            cutoffs = np.array(natural_cutoffs(atoms, mult=cutoff))
+            cutoffs = cutoffs[:, None] + cutoffs[None, :]
+            connectivity_matrix[distance_matrix <= cutoffs] += 1
         G = nx.from_numpy_array(connectivity_matrix)
         return G
 
@@ -64,7 +65,17 @@ class ASEComputeBonds(BaseModel):
         for key in modifications:
             atom_1, atom_2 = key
             weight = modifications[key]
-            graph.add_edge(atom_1, atom_2, weight=weight)
+            if weight == 0:
+                self.remove_edge(graph, atom_1, atom_2)
+            else:
+                graph.add_edge(atom_1, atom_2, weight=weight)
+                
+    @staticmethod            
+    def remove_edge(graph, atom_1, atom_2):
+        try:
+            graph.remove_edge(atom_1, atom_2)
+        except NetworkXError:
+            pass
 
     def get_bonds(self, atoms: ase.Atoms):
         graph = atoms.info["graph_representation"]
