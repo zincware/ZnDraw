@@ -150,3 +150,5 @@ class Config(BaseModel):
 
 
 config: Config = None
+
+bond_method = None

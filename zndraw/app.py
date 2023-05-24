@@ -19,7 +19,7 @@ def index():
     """Render the main ZnDraw page."""
     session["key"] = str(uuid.uuid4())  # TODO use session key e.g. for atoms cache
     session["step"] = 0
-    session["method"] = "zndraw.tools.data.ASEComputeBonds"
+    shared.bond_method = tools.data.ASEComputeBonds()
     return render_template("index.html", config=shared.config.dict())
 
 
@@ -128,6 +128,9 @@ def add_bonds():
 def set_bonds():
     """Add a function to the config."""
     print(f"Setting bonds {request.json}")
+    module_name, function_name = request.json["method"].rsplit(".", 1)
+    module = importlib.import_module(module_name)
+    shared.bond_method = getattr(module, function_name)(**request.json["bonds_kwargs"])
     return {}
 
 
@@ -165,21 +168,16 @@ def download():
 @app.route("/frame-set", methods=["POST"])
 def frame_set():
     session["step"] = request.json["step"]
-    session["method"] = request.json.get("method", session["method"])
     print(f"Setting step to {session['step']}")
     return {}
 
 
 @app.route("/frame-stream")
 def frame_stream():
-    module_name, function_name = session["method"].rsplit(".", 1)
-    module = importlib.import_module(module_name)
-    method = getattr(module, function_name)()
-
     def generate(step):
         for idx in tqdm.tqdm(range(step, step + 100), desc=f"Streaming from {step}"):
             try:
-                data = {idx: method.get_frame(idx)}
+                data = {idx: shared.bond_method.get_frame(idx)}
                 yield f"data: {json.dumps(data)}\n\n"
             except KeyError:
                 print(f"Can not load step {idx}")

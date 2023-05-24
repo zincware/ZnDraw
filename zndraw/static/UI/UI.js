@@ -453,6 +453,7 @@ async function loadSceneBonds(config, world) {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
+        method: document.getElementById("addBondsMethod").value,
         selected_ids: config.selected,
         step: config.step,
         bonds: config.bonds,
