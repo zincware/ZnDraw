@@ -90,6 +90,10 @@ function halfCylinderMesh(pointX, pointY, material, config) {
   );
   const mesh = new THREE.Mesh(geometry, material);
   const bond = new THREE.Group();
+  mesh.userData.type = "bond";
+  bond.click = function () {
+    this.parent.click();
+  }
   bond.add(mesh);
   return bond;
 }
@@ -272,6 +276,7 @@ export function createParticleGroup(config) {
           config.config.material_wireframe,
         ),
       );
+      particle_mesh.userData.type = "particle";
       const particleSubGroup = new THREE.Group();
       particleSubGroup.add(particle_mesh);
       particleSubGroup.name = particle.id;
