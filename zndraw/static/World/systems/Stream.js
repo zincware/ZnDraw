@@ -47,10 +47,9 @@ class Stream {
       },
       body: JSON.stringify({ step: this.config.step }),
     }).then((response) => {
-      // if the event source is closed, open it again
-      if (this.eventSource.readyState === 2) {
-        this.setup_event_source();
-      }
+      // close the event source and reopen it to get the new data
+      this.eventSource.close();
+      this.setup_event_source();
     });
   }
 
@@ -76,11 +75,11 @@ class Stream {
       if (this.config.play) {
         this.config.set_step(this.config.step + 1);
       }
-    } else {
-      // if the data is not available, request it. This should not happen if the stream is fast enough
-      console.log("Unexpected request frame " + this.config.step);
-      this.requestFrame();
     }
+    // } else {
+    //   // if the data is not available, request it. This should not happen if the stream is fast enough
+    //   this.requestFrame();
+    // }
     if (
       this.config.step - this.last_request > 50 ||
       this.config.step < this.last_request // Going backwards is stil a problem
