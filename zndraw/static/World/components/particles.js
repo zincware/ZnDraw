@@ -341,10 +341,13 @@ export function createParticleGroup(config) {
             bond_mesh.order = order;
             if (bond_mesh.order == 1) {
               if (bond_mesh.children.length != 1) {
-                const bond1 = bond_mesh.children[0].clone();
+                const bond1 = halfCylinderMesh(
+                  startNode,
+                  endNode,
+                  startMaterial,
+                  config.config,
+                ).children[0];
                 // differentiate between double / triple bond rescale
-                bond1.translateX(-0.1);
-                bond1.scale.set(2, 2, 1);
 
                 // remove all chidren from bond_mesh
                 for (let i = bond_mesh.children.length - 1; i >= 0; i--) {
@@ -355,8 +358,13 @@ export function createParticleGroup(config) {
               }
             } else if (bond_mesh.order == 2) {
               if (bond_mesh.children.length != 2) {
-                const bond1 = bond_mesh.children[0].clone();
-                const bond2 = bond_mesh.children[0].clone();
+                const bond1 = halfCylinderMesh(
+                  startNode,
+                  endNode,
+                  startMaterial,
+                  config.config,
+                ).children[0];
+                const bond2 = bond1.clone();
                 bond1.scale.set(0.5, 0.5, 1);
                 bond2.scale.set(0.5, 0.5, 1);
 
@@ -371,9 +379,14 @@ export function createParticleGroup(config) {
               }
             } else if (bond_mesh.order == 3) {
               if (bond_mesh.children.length != 3) {
-                const bond1 = bond_mesh.children[0].clone();
-                const bond2 = bond_mesh.children[0].clone();
-                const bond3 = bond_mesh.children[0].clone();
+                const bond1 = halfCylinderMesh(
+                  startNode,
+                  endNode,
+                  startMaterial,
+                  config.config,
+                ).children[0];
+                const bond2 = bond1.clone();
+                const bond3 = bond2.clone();
                 bond1.scale.set(0.3, 0.3, 1);
                 bond2.scale.set(0.3, 0.3, 1);
                 bond3.scale.set(0.3, 0.3, 1);
