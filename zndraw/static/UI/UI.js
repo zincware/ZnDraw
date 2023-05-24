@@ -72,6 +72,12 @@ function updateFPS(config) {
   };
 }
 
+function updateAutoRestart(config) {
+  document.getElementById("autoRestart").onchange = function () {
+    config.update({ auto_restart: this.checked });
+  };
+}
+
 function setupSlider(config) {
   const slider = document.getElementById("frame-slider");
   config.set_step_callbacks.push((config) => {
@@ -398,6 +404,7 @@ function resizeOffcanvas() {
 export function setUIEvents(config, world) {
   update_materials(config);
   updateFPS(config);
+  updateAutoRestart(config);
   setupSlider(config);
   setupPlayPause(config);
   attachKeyPressed(config);

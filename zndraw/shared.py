@@ -48,6 +48,7 @@ class Config(BaseModel):
     continuous_loading: bool = Field(
         False, description="Continuous Loading of the trajectory"
     )
+    auto_restart: bool = Field(False, description="Auto Restart")
     analysis_functions: typing.List[str] = _ANALYSIS_FUNCTIONS
     modify_functions: typing.List[str] = _MODIFY_FUNCTIONS
     selection_functions: typing.List[str] = _SELECTION_FUNCTIONS
