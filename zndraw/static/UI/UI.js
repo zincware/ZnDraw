@@ -420,7 +420,7 @@ async function loadSceneBonds(config, world) {
   document.getElementById("addBondsMethod").onchange = function () {
     console.log(this.value);
     if (this.value == "add") {
-      addAnalysisModal.show();
+      addBondsModal.show();
     }
 
     let domElements = document.getElementsByClassName("scene-bonds");
