@@ -87,7 +87,7 @@ class Stream {
     ) {
       this.requestFrame();
     }
-    if (this.config.step >= this.config.config.total_frames) {
+    if (this.config.step > this.config.config.total_frames) {
       // temporary freeze for larger than 1000
       // TODO we need a good way for handling jumps in frames
       this.config.step = 0;
