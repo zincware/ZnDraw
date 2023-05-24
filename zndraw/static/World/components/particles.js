@@ -93,7 +93,7 @@ function halfCylinderMesh(pointX, pointY, material, config) {
   mesh.userData.type = "bond";
   bond.click = function () {
     this.parent.click();
-  }
+  };
   bond.add(mesh);
   return bond;
 }
@@ -102,7 +102,8 @@ function updateBondOrientation(bond, pointX, pointY) {
   const direction = new THREE.Vector3();
   direction.subVectors(pointY, pointX);
   bond.lookAt(pointY);
-  const scale = direction.length() / 2 / bond.children[0].geometry.parameters.height;
+  const scale =
+    direction.length() / 2 / bond.children[0].geometry.parameters.height;
   bond.scale.set(1, 1, scale);
 }
 
@@ -354,19 +355,19 @@ export function createParticleGroup(config) {
               }
             } else if (bond_mesh.order == 2) {
               if (bond_mesh.children.length != 2) {
-              const bond1 = bond_mesh.children[0].clone();
-              const bond2 = bond_mesh.children[0].clone();
-              bond1.scale.set(0.5, 0.5, 1);
-              bond2.scale.set(0.5, 0.5, 1);
+                const bond1 = bond_mesh.children[0].clone();
+                const bond2 = bond_mesh.children[0].clone();
+                bond1.scale.set(0.5, 0.5, 1);
+                bond2.scale.set(0.5, 0.5, 1);
 
-              // remove all chidren from bond_mesh
-              for (let i = bond_mesh.children.length - 1; i >= 0; i--) {
-                bond_mesh.children[i].removeFromParent();
-              }
+                // remove all chidren from bond_mesh
+                for (let i = bond_mesh.children.length - 1; i >= 0; i--) {
+                  bond_mesh.children[i].removeFromParent();
+                }
 
-              bond1.translateX(0.1);
-              bond2.translateX(-0.1);
-              bond_mesh.add(bond1, bond2);
+                bond1.translateX(0.1);
+                bond2.translateX(-0.1);
+                bond_mesh.add(bond1, bond2);
               }
             } else if (bond_mesh.order == 3) {
               if (bond_mesh.children.length != 3) {
@@ -376,16 +377,16 @@ export function createParticleGroup(config) {
                 bond1.scale.set(0.3, 0.3, 1);
                 bond2.scale.set(0.3, 0.3, 1);
                 bond3.scale.set(0.3, 0.3, 1);
-  
+
                 // remove all chidren from bond_mesh
                 for (let i = bond_mesh.children.length - 1; i >= 0; i--) {
                   bond_mesh.children[i].removeFromParent();
                 }
-  
+
                 bond1.translateX(0.1);
                 bond2.translateX(-0.1);
                 bond_mesh.add(bond1, bond2, bond3);
-                }
+              }
             }
           };
           bond_mesh.name = name;
