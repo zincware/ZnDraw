@@ -6,8 +6,9 @@ import networkx as nx
 import numpy as np
 from ase.data.colors import jmol_colors
 from ase.neighborlist import build_neighbor_list, natural_cutoffs
-from pydantic import BaseModel, Field
 from networkx.exception import NetworkXError
+from pydantic import BaseModel, Field
+
 from zndraw import shared
 
 
@@ -42,6 +43,7 @@ class ASEComputeBonds(BaseModel):
             ],
             "bonds": self.get_bonds(atoms),
         }
+
     def build_graph(self, atoms: ase.Atoms):
         cutoffs = [
             self.single_bond_multiplier,
@@ -69,8 +71,8 @@ class ASEComputeBonds(BaseModel):
                 self.remove_edge(graph, atom_1, atom_2)
             else:
                 graph.add_edge(atom_1, atom_2, weight=weight)
-                
-    @staticmethod            
+
+    @staticmethod
     def remove_edge(graph, atom_1, atom_2):
         try:
             graph.remove_edge(atom_1, atom_2)
