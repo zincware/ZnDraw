@@ -443,6 +443,7 @@ async function loadSceneBonds(config, world) {
     let form = document.getElementById(
       "scene-bonds_" + document.getElementById("addBondsMethod").value,
     );
+    world.rebuild();
 
     let modifier_kwargs = {};
     Array.from(form.elements).forEach((input) => {
