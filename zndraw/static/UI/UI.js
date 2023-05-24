@@ -416,7 +416,6 @@ async function loadSceneBonds(config, world) {
     }
   }
   // document.getElementById("addBondsMethod").value = "";
-  // document.getElementById("addBondsMethod").dispatchEvent(new Event("change"));
 
   document.getElementById("addBondsMethod").onchange = function () {
     console.log(this.value);
@@ -438,6 +437,8 @@ async function loadSceneBonds(config, world) {
       }
     });
   };
+
+  document.getElementById("addBondsMethod").dispatchEvent(new Event("change"));
 
   function fetch_set_bonds(order) {
     let form = document.getElementById(
