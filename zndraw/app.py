@@ -182,13 +182,23 @@ def frame_set():
 @app.route("/frame-stream")
 def frame_stream():
     def generate(step):
-        for idx in tqdm.tqdm(range(step, step + 100), desc=f"Streaming from {step}"):
+        values = list(range(step, step + shared.config.js_frame_buffer[1])) + list(
+            range(step, step - shared.config.js_frame_buffer[0], -1)
+        )
+
+        pbar = tqdm.tqdm(values, desc=f"Streaming {step}", ncols=80)
+        for idx in pbar:
             try:
-                data = {idx: shared.bond_method.get_frame(idx)}
+                data = {idx: tools.data.serialize_frame(idx)}
+                pbar.set_description(
+                    f"Streaming {step} {'+' if idx-step > 0 else '-'} {str(abs(idx-step)).zfill(3)}"
+                )
                 yield f"data: {json.dumps(data)}\n\n"
             except KeyError:
-                print(f"Can not load step {idx}")
-                break
+                pbar.set_description(
+                    f"Streaming {step} {'+' if idx-step > 0 else '-'} ... "
+                )
+
         yield f"data: {json.dumps({})} \nretry: 10\n\n"
 
     return Response(generate(session["step"]), mimetype="text/event-stream")

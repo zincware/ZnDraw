@@ -27,6 +27,9 @@ class Config {
           this.onLoadCallback();
           this.onLoadCallback = null;
         }
+        document.getElementById(
+          "info",
+        ).innerHTML = `${this.step} / ${this.config.total_frames}`;
         if (timeout > 0) {
           setTimeout(() => this.update_config(), timeout);
         }

@@ -76,6 +76,12 @@ function updateFPS(config) {
   };
 }
 
+function updateAutoRestart(config) {
+  document.getElementById("autoRestart").onchange = function () {
+    config.update({ auto_restart: this.checked });
+  };
+}
+
 function setupSlider(config) {
   const slider = document.getElementById("frame-slider");
   config.set_step_callbacks.push((config) => {
@@ -97,13 +103,15 @@ function setupPlayPause(config) {
       } else {
         console.log("pause");
       }
+      if (config.step == config.config.total_frames) {
+        config.set_step(0);
+        config.play = true;
+      }
     }
 
     if (event.isComposing || event.key === "ArrowRight") {
       config.play = false;
-      config.set_step(
-        Math.min(config.config.total_frames - 1, config.step + 1),
-      );
+      config.set_step(Math.min(config.config.total_frames, config.step + 1));
     }
     if (event.isComposing || event.key === "ArrowLeft") {
       config.play = false;
@@ -114,7 +122,7 @@ function setupPlayPause(config) {
       config.set_step(
         parseInt(
           Math.min(
-            config.config.total_frames - 1,
+            config.config.total_frames,
             config.step + config.config.total_frames / 10,
           ),
         ),
@@ -128,7 +136,7 @@ function setupPlayPause(config) {
     }
     if (event.isComposing || event.key === "End") {
       config.play = false;
-      config.set_step(config.config.total_frames - 1);
+      config.set_step(config.config.total_frames);
     }
   });
 }
@@ -333,7 +341,8 @@ async function loadSceneModifier(config, world) {
         points: config.draw_vectors,
       }),
     }).then(() => {
-      world.deleteCache();
+      config.set_step(config.step + 1);
+      world.rebuild();
     });
   };
 }
@@ -522,6 +531,7 @@ function resizeOffcanvas() {
 export function setUIEvents(config, world) {
   update_materials(config);
   updateFPS(config);
+  updateAutoRestart(config);
   setupSlider(config);
   setupPlayPause(config);
   attachKeyPressed(config);

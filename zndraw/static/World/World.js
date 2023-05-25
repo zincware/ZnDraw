@@ -90,6 +90,7 @@ class World {
 
   rebuild() {
     // remove all children from particles
+    this.deleteCache();
     scene.children[0].clear();
     this.deleteCache();
   }
