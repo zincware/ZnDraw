@@ -26,7 +26,7 @@ export function createElementFromSchema(schema, clsName) {
     } else if (item["type"] == "number") {
       controller.type = "range";
       controller.classList.add("form-range");
-      controller.step = 0.1;
+      controller.step = 0.01;
     } else if (item["type"] == "boolean") {
       controller.type = "checkbox";
       controller.classList.add("form-check-input");

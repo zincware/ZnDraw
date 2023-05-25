@@ -189,7 +189,7 @@ def frame_stream():
         pbar = tqdm.tqdm(values, desc=f"Streaming {step}", ncols=80)
         for idx in pbar:
             try:
-                data = {idx: tools.data.serialize_frame(idx)}
+                data = {idx: shared.bond_method.get_frame(idx)}
                 pbar.set_description(
                     f"Streaming {step} {'+' if idx-step > 0 else '-'} {str(abs(idx-step)).zfill(3)}"
                 )
