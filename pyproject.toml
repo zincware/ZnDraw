@@ -21,9 +21,8 @@ plotly = "^5.14.1"
 pandas = "^2.0.1"
 
 [tool.poetry.group.dev.dependencies]
-black = "^23.3.0"
-ruff = "^0.0.261"
 pytest = "^7.3.0"
+pre-commit = "^3.3.2"
 
 [build-system]
 requires = ["poetry-core"]

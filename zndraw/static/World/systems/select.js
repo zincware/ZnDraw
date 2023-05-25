@@ -1,4 +1,4 @@
-import * as THREE from "three";
+import * as THREE from 'three';
 
 class Selection {
   constructor(camera, scene, config) {
@@ -9,7 +9,7 @@ class Selection {
     this.raycaster = new THREE.Raycaster();
     this.pointer = new THREE.Vector2();
 
-    window.addEventListener("pointerdown", this.onPointerDown.bind(this));
+    window.addEventListener('pointerdown', this.onPointerDown.bind(this));
   }
 
   async onPointerDown(event) {
@@ -19,31 +19,31 @@ class Selection {
     this.raycaster.setFromCamera(this.pointer, this.camera);
 
     const intersects = this.raycaster.intersectObjects(
-      this.scene.children,
-      true,
+        this.scene.children,
+        true,
     );
 
     // iterate itersections until we find a particle
     for (let i = 0; i < intersects.length; i++) {
-      const particleGroup = this.scene.getObjectByName("particleGroup");
+      const particleGroup = this.scene.getObjectByName('particleGroup');
       const object = intersects[i].object;
       if (particleGroup.children.includes(object.parent)) {
         object.parent.click();
-        await fetch("select", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
+        await fetch('select', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
           body: JSON.stringify({
             selected_ids: this.config.selected,
             step: this.config.step,
-            method: document.getElementById("selection-method").value,
+            method: document.getElementById('selection-method').value,
           }),
         })
-          .then((response) => response.json())
-          .then((data) => (this.config.selected = data["selected_ids"]));
+            .then((response) => response.json())
+            .then((data) => (this.config.selected = data['selected_ids']));
         break;
       }
     }
   }
 }
 
-export { Selection };
+export {Selection};

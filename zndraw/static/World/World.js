@@ -1,19 +1,19 @@
-import { createCamera } from "./components/camera.js";
-import { createLights } from "./components/lights.js";
-import { createScene } from "./components/scene.js";
+import {createCamera} from './components/camera.js';
+import {createLights} from './components/lights.js';
+import {createScene} from './components/scene.js';
 
-import { createControls, createTransformControls } from "./systems/controls.js";
-import { createRenderer, create2DRenderer } from "./systems/renderer.js";
-import { Resizer } from "./systems/Resizer.js";
-import { Loop } from "./systems/Loop.js";
-import { Stream } from "./systems/Stream.js";
+import {createControls, createTransformControls} from './systems/controls.js';
+import {createRenderer, create2DRenderer} from './systems/renderer.js';
+import {Resizer} from './systems/Resizer.js';
+import {Loop} from './systems/Loop.js';
+import {Stream} from './systems/Stream.js';
 import {
   createParticleGroup,
   createIndexGroup,
-} from "./components/particles.js";
-import { Selection } from "./systems/select.js";
+} from './components/particles.js';
+import {Selection} from './systems/select.js';
 
-import { Curve3D } from "./components/draw.js";
+import {Curve3D} from './components/draw.js';
 
 // These variables are module-scoped: we cannot access them
 // from outside the module
@@ -39,9 +39,9 @@ class World {
 
     const controls = createControls(camera, renderer.domElement, config, scene);
     const transform_controls = createTransformControls(
-      camera,
-      renderer.domElement,
-      controls,
+        camera,
+        renderer.domElement,
+        controls,
     );
 
     const particles = createParticleGroup(config);
@@ -49,19 +49,19 @@ class World {
     const light = createLights();
     const curve = new Curve3D(scene, transform_controls, config, particles);
 
-    window.addEventListener("keydown", (event) => {
-      if (event.isComposing || event.key === "i") {
+    window.addEventListener('keydown', (event) => {
+      if (event.isComposing || event.key === 'i') {
         index.show();
       }
     });
     // remove index group when i is released
-    window.addEventListener("keyup", (event) => {
-      if (event.isComposing || event.key === "i") {
+    window.addEventListener('keyup', (event) => {
+      if (event.isComposing || event.key === 'i') {
         index.hide();
       }
     });
 
-    document.getElementById("reset").onclick = () => {
+    document.getElementById('reset').onclick = () => {
       this.deleteCache();
       this.rebuild();
     };
@@ -98,4 +98,4 @@ class World {
   }
 }
 
-export { World };
+export {World};

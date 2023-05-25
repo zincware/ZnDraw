@@ -1,4 +1,4 @@
-import * as THREE from "three";
+import * as THREE from 'three';
 
 export class Curve3D {
   constructor(scene, transformControls, config, particleGroup) {
@@ -16,14 +16,14 @@ export class Curve3D {
     this.scene.add(this.curve);
     this.scene.add(this.anchorPoints);
 
-    document.getElementById("drawAddAnchor").onclick = () => {
+    document.getElementById('drawAddAnchor').onclick = () => {
       this.createAnchorPoint();
     };
-    document.getElementById("drawRemoveLine").onclick = () => {
+    document.getElementById('drawRemoveLine').onclick = () => {
       this.removeCurve();
     };
 
-    document.getElementById("drawDetach").onclick = () => {
+    document.getElementById('drawDetach').onclick = () => {
       this.transformControls.detach();
     };
   }
@@ -34,7 +34,7 @@ export class Curve3D {
     // const points = curve.getPoints( this.ARC_SEGMENTS );
     const geometry = new THREE.BufferGeometry();
 
-    const material = new THREE.LineBasicMaterial({ color: 0xff0000 });
+    const material = new THREE.LineBasicMaterial({color: 0xff0000});
 
     // Create the final object to add to the scene
     const curveObject = new THREE.Line(geometry, material);
@@ -46,7 +46,7 @@ export class Curve3D {
     const position = this.particleGroup.get_center();
 
     const geometry = new THREE.SphereGeometry(0.2, 32, 32);
-    const material = new THREE.MeshBasicMaterial({ color: "#000000" });
+    const material = new THREE.MeshBasicMaterial({color: '#000000'});
     const sphere = new THREE.Mesh(geometry, material);
     sphere.position.copy(position);
 
@@ -55,8 +55,8 @@ export class Curve3D {
 
     // save the points here for passing to flask
     this.config.draw_vectors = Array.from(
-      this.anchorPoints.children,
-      (child) => child.position,
+        this.anchorPoints.children,
+        (child) => child.position,
     );
 
     sphere.update = () => {
