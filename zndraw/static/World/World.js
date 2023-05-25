@@ -72,7 +72,7 @@ class World {
     // disable mesh rotation
     loop.constraint_updatables.push(particles);
     loop.constraint_updatables.push(index);
-    loop.updatables.push(controls, canvas);
+    loop.updatables.push(controls);
 
     const resizer = new Resizer(container, camera, renderer, renderer2d);
   }

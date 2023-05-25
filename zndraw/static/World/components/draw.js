@@ -19,13 +19,6 @@ export class Canvas3D {
     this.canvas = null;
   }
 
-  tick() {
-    if (this.canvas) {
-      this.canvas.lookAt(this.camera.position);
-      this.canvas.position.copy(this.particleGroup.get_center());
-    }
-  }
-
   click(point) {
     console.log(point);
     this.curve.createAnchorPoint(point);
@@ -41,6 +34,7 @@ export class Canvas3D {
     plane.add(wireframe);
     plane.name = "drawCanvas";
     plane.position.copy(this.particleGroup.get_center());
+    plane.lookAt(this.camera.position);
     plane.click = this.click.bind(this);
     this.canvas = plane;
     this.scene.add(plane);
