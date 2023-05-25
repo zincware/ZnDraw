@@ -20,7 +20,6 @@ export class Canvas3D {
   }
 
   click(point) {
-    console.log(point);
     this.curve.createAnchorPoint(point);
   }
 
