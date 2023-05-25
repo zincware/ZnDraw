@@ -109,8 +109,8 @@ export class Curve3D {
   }
 
   createAnchorPoint(position = undefined) {
-    if (position === undefined) {
-      const position = this.particleGroup.get_center();
+    if (position == undefined) {
+      position = this.particleGroup.get_center();
     }
 
     const geometry = new THREE.SphereGeometry(0.2, 32, 32);
