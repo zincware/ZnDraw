@@ -48,6 +48,7 @@ class Config(BaseModel):
     continuous_loading: bool = Field(
         False, description="Continuous Loading of the trajectory"
     )
+    auto_restart: bool = Field(False, description="Auto Restart")
     analysis_functions: typing.List[str] = _ANALYSIS_FUNCTIONS
     modify_functions: typing.List[str] = _MODIFY_FUNCTIONS
     selection_functions: typing.List[str] = _SELECTION_FUNCTIONS
@@ -136,7 +137,7 @@ class Config(BaseModel):
         # TODO ZnH5MD
         if self._modifier_applied:
             return  # We don't want to load any further from file at this point
-        print("Loading atoms")
+        # print("Loading atoms")
         if pathlib.Path(self.file).suffix == ".h5":
             # We load all at once here
             self._atoms_cache.update(
