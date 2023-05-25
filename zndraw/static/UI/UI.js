@@ -99,6 +99,10 @@ function setupPlayPause(config) {
       } else {
         console.log("pause");
       }
+      if (config.step == config.config.total_frames) {
+        config.set_step(0);
+        config.play = true;
+      }
     }
 
     if (event.isComposing || event.key === "ArrowRight") {
