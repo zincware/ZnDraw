@@ -51,6 +51,7 @@ class Config(BaseModel):
     analysis_functions: typing.List[str] = _ANALYSIS_FUNCTIONS
     modify_functions: typing.List[str] = _MODIFY_FUNCTIONS
     selection_functions: typing.List[str] = _SELECTION_FUNCTIONS
+    js_frame_buffer: tuple = Field((50, 200), description="Javascript frame buffer in negative/positive direction")
 
     _atoms_cache = PrivateAttr(default_factory=dict)
     _modifier_applied: bool = PrivateAttr(False)

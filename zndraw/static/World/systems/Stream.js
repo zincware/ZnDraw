@@ -23,10 +23,10 @@ class Stream {
       }
       this.data = { ...this.data, ...data };
       for (const key in this.data) {
-        if (key < this.config.step - 10) {
+        if (key < this.config.step - this.config.config.js_frame_buffer[0]) {
           delete this.data[key];
         }
-        if (key > this.config.step + 100) {
+        if (key > this.config.step + this.config.config.js_frame_buffer[1]) {
           delete this.data[key];
         }
       }
@@ -63,12 +63,12 @@ class Stream {
     if (this.data == null) {
       return undefined;
     }
-    // console.log(
-    //   "Step " +
-    //     this.config.step +
-    //     " with cache size: " +
-    //     Object.keys(this.data).length,
-    // );
+    console.log(
+      "Step " +
+        this.config.step +
+        " with cache size: " +
+        Object.keys(this.data).length,
+    );
     const data = this.data[this.config.step];
     if (data !== undefined) {
       // TODO this also happens if the stream is to slow to keep up!
@@ -81,14 +81,12 @@ class Stream {
     //   this.requestFrame();
     // }
     if (
-      this.config.step - this.last_request > 50 ||
-      this.config.step < this.last_request // Going backwards is stil a problem
+      this.config.step - this.last_request > this.config.config.js_frame_buffer[1] / 2 ||
+      this.last_request - this.config.step > this.config.config.js_frame_buffer[0] / 2
     ) {
       this.requestFrame();
     }
     if (this.config.step >= this.config.config.total_frames) {
-      // temporary freeze for larger than 1000
-      // TODO we need a good way for handling jumps in frames
       this.config.step = 0;
     }
     return data;
