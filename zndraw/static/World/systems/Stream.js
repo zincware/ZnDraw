@@ -6,13 +6,13 @@ class Stream {
     this._buffer_filled = false;
 
     // fetch load to start loading data in the background
-    fetch('/load');
+    fetch("/load");
 
     this.setup_event_source();
   }
 
   setup_event_source() {
-    this.eventSource = new EventSource('/frame-stream');
+    this.eventSource = new EventSource("/frame-stream");
 
     this.eventSource.onmessage = (event) => {
       const data = JSON.parse(event.data);
@@ -21,7 +21,7 @@ class Stream {
         this.eventSource.close();
         return;
       }
-      this.data = {...this.data, ...data};
+      this.data = { ...this.data, ...data };
       for (const key in this.data) {
         if (key < this.config.step - this.config.config.js_frame_buffer[0]) {
           delete this.data[key];
@@ -39,13 +39,13 @@ class Stream {
       return;
     }
     this.last_request = this.config.step;
-    console.log('Requesting frame ' + this.config.step);
-    fetch('/frame-set', {
-      method: 'POST',
+    console.log("Requesting frame " + this.config.step);
+    fetch("/frame-set", {
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
-      body: JSON.stringify({step: this.config.step}),
+      body: JSON.stringify({ step: this.config.step }),
     }).then((response) => {
       // close the event source and reopen it to get the new data
       this.eventSource.close();
@@ -64,9 +64,9 @@ class Stream {
       return undefined;
     }
     console.log(
-        'Step ' +
+      "Step " +
         this.config.step +
-        ' with cache size: ' +
+        " with cache size: " +
         Object.keys(this.data).length,
     );
     const data = this.data[this.config.step];
@@ -92,4 +92,4 @@ class Stream {
   }
 }
 
-export {Stream};
+export { Stream };

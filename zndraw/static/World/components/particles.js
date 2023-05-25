@@ -1,14 +1,14 @@
-import * as THREE from 'three';
-import {CSS2DObject} from 'three/examples/jsm/renderers/CSS2DRenderer.js';
+import * as THREE from "three";
+import { CSS2DObject } from "three/examples/jsm/renderers/CSS2DRenderer.js";
 
 export const materials = {
-  MeshBasicMaterial: new THREE.MeshBasicMaterial({color: '#ffa500'}),
-  MeshLambertMaterial: new THREE.MeshLambertMaterial({color: '#ffa500'}),
-  MeshMatcapMaterial: new THREE.MeshMatcapMaterial({color: '#ffa500'}),
-  MeshPhongMaterial: new THREE.MeshPhongMaterial({color: '#ffa500'}),
-  MeshPhysicalMaterial: new THREE.MeshPhysicalMaterial({color: '#ffa500'}),
-  MeshStandardMaterial: new THREE.MeshStandardMaterial({color: '#ffa500'}),
-  MeshToonMaterial: new THREE.MeshToonMaterial({color: '#ffa500'}),
+  MeshBasicMaterial: new THREE.MeshBasicMaterial({ color: "#ffa500" }),
+  MeshLambertMaterial: new THREE.MeshLambertMaterial({ color: "#ffa500" }),
+  MeshMatcapMaterial: new THREE.MeshMatcapMaterial({ color: "#ffa500" }),
+  MeshPhongMaterial: new THREE.MeshPhongMaterial({ color: "#ffa500" }),
+  MeshPhysicalMaterial: new THREE.MeshPhysicalMaterial({ color: "#ffa500" }),
+  MeshStandardMaterial: new THREE.MeshStandardMaterial({ color: "#ffa500" }),
+  MeshToonMaterial: new THREE.MeshToonMaterial({ color: "#ffa500" }),
 };
 
 const sphereGeometryFactoryCache = {};
@@ -19,26 +19,26 @@ const halfCylinderGeometryFactoryCache = {};
 
 // a simple memoized function to add something
 const halfCylinderGeometryFactory = () => {
-  let key = '';
+  let key = "";
   return (bond_size, resolution) => {
-    key = bond_size + '_' + resolution;
+    key = bond_size + "_" + resolution;
 
     if (key in halfCylinderGeometryFactoryCache) {
       return halfCylinderGeometryFactoryCache[key];
     } else {
       const geometry = new THREE.CylinderGeometry(
-          0.15 * bond_size,
-          0.15 * bond_size,
-          1,
-          resolution * 2,
-          1,
-          true,
+        0.15 * bond_size,
+        0.15 * bond_size,
+        1,
+        resolution * 2,
+        1,
+        true,
       );
       // shift it so one end rests on the origin
       geometry.applyMatrix4(new THREE.Matrix4().makeTranslation(0, 1 / 2, 0));
       // rotate it the right way for lookAt to work
       geometry.applyMatrix4(
-          new THREE.Matrix4().makeRotationX(THREE.MathUtils.degToRad(90)),
+        new THREE.Matrix4().makeRotationX(THREE.MathUtils.degToRad(90)),
       );
       halfCylinderGeometryFactoryCache[key] = geometry;
       return geometry;
@@ -47,17 +47,17 @@ const halfCylinderGeometryFactory = () => {
 };
 
 const sphereGeometryFactory = () => {
-  let key = '';
+  let key = "";
   return (sphere_size, resolution) => {
-    key = sphere_size + '_' + resolution;
+    key = sphere_size + "_" + resolution;
 
     if (key in sphereGeometryFactoryCache) {
       return sphereGeometryFactoryCache[key];
     } else {
       const geometry = new THREE.SphereGeometry(
-          sphere_size,
-          resolution * 4,
-          resolution * 2,
+        sphere_size,
+        resolution * 4,
+        resolution * 2,
       );
       sphereGeometryFactoryCache[key] = geometry;
       return geometry;
@@ -67,7 +67,7 @@ const sphereGeometryFactory = () => {
 
 const speciesMaterialFactory = () => {
   return (name, color, wireframe) => {
-    const key = name + '_' + color + '_' + wireframe;
+    const key = name + "_" + color + "_" + wireframe;
     // const key = (name, color, wireframe);
 
     if (key in speciesMaterialFactoryCache) {
@@ -85,8 +85,8 @@ const speciesMaterialFactory = () => {
 
 function halfCylinderMesh(pointX, pointY, material, config) {
   const geometry = halfCylinderGeometry(
-      config['bond_size'],
-      config['resolution'],
+    config["bond_size"],
+    config["resolution"],
   );
   return new THREE.Mesh(geometry, material);
 }
@@ -112,7 +112,7 @@ export const speciesMaterial = speciesMaterialFactory();
 export function createIndexGroup(particleGroup) {
   const indexGroup = new THREE.Group();
 
-  indexGroup.show = function() {
+  indexGroup.show = function () {
     if (indexGroup.children.length > 0) {
       return;
     }
@@ -120,11 +120,11 @@ export function createIndexGroup(particleGroup) {
     particleGroup.children.forEach((particleSubGroup) => {
       const particle = particleSubGroup.children[0];
 
-      const text = document.createElement('div');
-      text.className = 'label';
-      text.style.color = 'black';
+      const text = document.createElement("div");
+      text.className = "label";
+      text.style.color = "black";
       text.textContent = particleSubGroup.name;
-      text.style.fontSize = '20px';
+      text.style.fontSize = "20px";
 
       const label = new CSS2DObject(text);
       label.name = `label-${particleSubGroup.name}`;
@@ -133,7 +133,7 @@ export function createIndexGroup(particleGroup) {
     });
   };
 
-  indexGroup.hide = function() {
+  indexGroup.hide = function () {
     while (indexGroup.children.length > 0) {
       indexGroup.remove(indexGroup.children[0]);
     }
@@ -142,7 +142,7 @@ export function createIndexGroup(particleGroup) {
   indexGroup.tick = (data) => {
     particleGroup.children.forEach((particleSubGroup) => {
       const label = indexGroup.getObjectByName(
-          `label-${particleSubGroup.name}`,
+        `label-${particleSubGroup.name}`,
       );
       if (label) {
         label.position.copy(particleSubGroup.position);
@@ -156,7 +156,7 @@ export function createIndexGroup(particleGroup) {
 }
 export function createParticleGroup(config) {
   const particleGroup = new THREE.Group();
-  particleGroup.name = 'particleGroup';
+  particleGroup.name = "particleGroup";
 
   particleGroup.get_center = () => {
     const items = [];
@@ -171,8 +171,8 @@ export function createParticleGroup(config) {
     }
 
     const center = items
-        .reduce((a, b) => a.add(b.position), new THREE.Vector3())
-        .divideScalar(items.length);
+      .reduce((a, b) => a.add(b.position), new THREE.Vector3())
+      .divideScalar(items.length);
     return center;
   };
 
@@ -180,8 +180,8 @@ export function createParticleGroup(config) {
     if (data == null) {
       return;
     }
-    const particles = data['particles'];
-    const bonds = data['bonds'];
+    const particles = data["particles"];
+    const bonds = data["bonds"];
 
     // create particle arrays
     const existing_particles = [];
@@ -199,7 +199,7 @@ export function createParticleGroup(config) {
     });
 
     deleted_particles = particleGroup.children.filter(
-        (x) => !particles.find((y) => y.id === x.name),
+      (x) => !particles.find((y) => y.id === x.name),
     );
 
     // create bond arrays
@@ -208,19 +208,19 @@ export function createParticleGroup(config) {
     );
 
     const existing_bonds = all_bonds.filter(
-        (x) =>
-          bonds.find((y) => y[0] + '-' + y[1] === x.name) ||
-        bonds.find((y) => y[1] + '-' + y[0] === x.name),
+      (x) =>
+        bonds.find((y) => y[0] + "-" + y[1] === x.name) ||
+        bonds.find((y) => y[1] + "-" + y[0] === x.name),
     );
     const new_bonds = bonds.filter(
-        (x) =>
-          !all_bonds.find((y) => y.name === x[0] + '-' + x[1]) &&
-        !all_bonds.find((y) => y.name === x[1] + '-' + x[0]),
+      (x) =>
+        !all_bonds.find((y) => y.name === x[0] + "-" + x[1]) &&
+        !all_bonds.find((y) => y.name === x[1] + "-" + x[0]),
     );
     const deleted_bonds = all_bonds.filter(
-        (x) =>
-          !bonds.find((y) => y[0] + '-' + y[1] === x.name) &&
-        !bonds.find((y) => y[1] + '-' + y[0] === x.name),
+      (x) =>
+        !bonds.find((y) => y[0] + "-" + y[1] === x.name) &&
+        !bonds.find((y) => y[1] + "-" + y[0] === x.name),
     );
 
     // console.log("Having existing particles: " + existing_particles.length + " and adding " + new_particles.length + " and removing " + deleted_particles.length);
@@ -233,37 +233,37 @@ export function createParticleGroup(config) {
       particleSubGroup.position.set(particle.x, particle.y, particle.z);
 
       let material = speciesMaterial(
-          config.config.material,
-          particle.color,
-          config.config.material_wireframe,
+        config.config.material,
+        particle.color,
+        config.config.material_wireframe,
       );
 
       // handle selected particles
       // TODO this should not depend on FPS!
       if (config.selected.includes(particle.id)) {
         material = speciesMaterial(
-            config.config.material,
-            '#ffa500',
-            config.config.material_wireframe,
+          config.config.material,
+          "#ffa500",
+          config.config.material_wireframe,
         );
       }
 
       updateParticleScaleAndMaterial(
-          particleSubGroup,
-          particle.radius * config.config.sphere_size,
-          material,
+        particleSubGroup,
+        particle.radius * config.config.sphere_size,
+        material,
       );
     });
 
     // create new particles
     new_particles.forEach((particle) => {
       const particle_mesh = new THREE.Mesh(
-          sphereGeometry(particle.radius, config.config.resolution),
-          speciesMaterial(
-              config.config.material,
-              particle.color,
-              config.config.material_wireframe,
-          ),
+        sphereGeometry(particle.radius, config.config.resolution),
+        speciesMaterial(
+          config.config.material,
+          particle.color,
+          config.config.material_wireframe,
+        ),
       );
       const particleSubGroup = new THREE.Group();
       particleSubGroup.add(particle_mesh);
@@ -314,10 +314,10 @@ export function createParticleGroup(config) {
 
         const createBond = (startNode, endNode, startMaterial, name) => {
           const bond_mesh = halfCylinderMesh(
-              startNode,
-              endNode,
-              startMaterial,
-              config.config,
+            startNode,
+            endNode,
+            startMaterial,
+            config.config,
           );
           bond_mesh.tick = () => {
             particle1.getWorldPosition(node1);
@@ -329,16 +329,16 @@ export function createParticleGroup(config) {
         };
 
         const bond_1 = createBond(
-            node1,
-            node2,
-            particle1.material,
-            `${particle1Name}-${particle2Name}`,
+          node1,
+          node2,
+          particle1.material,
+          `${particle1Name}-${particle2Name}`,
         );
         const bond_2 = createBond(
-            node2,
-            node1,
-            particle2.material,
-            `${particle2Name}-${particle1Name}`,
+          node2,
+          node1,
+          particle2.material,
+          `${particle2Name}-${particle1Name}`,
         );
 
         particle1SubGroup.add(bond_1);
