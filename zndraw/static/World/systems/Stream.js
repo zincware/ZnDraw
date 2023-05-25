@@ -23,10 +23,10 @@ class Stream {
       }
       this.data = { ...this.data, ...data };
       for (const key in this.data) {
-        if (key < this.config.step - 10) {
+        if (key < this.config.step - this.config.config.js_frame_buffer[0]) {
           delete this.data[key];
         }
-        if (key > this.config.step + 100) {
+        if (key > this.config.step + this.config.config.js_frame_buffer[1]) {
           delete this.data[key];
         }
       }
@@ -47,10 +47,9 @@ class Stream {
       },
       body: JSON.stringify({ step: this.config.step }),
     }).then((response) => {
-      // if the event source is closed, open it again
-      if (this.eventSource.readyState === 2) {
-        this.setup_event_source();
-      }
+      // close the event source and reopen it to get the new data
+      this.eventSource.close();
+      this.setup_event_source();
     });
   }
 
@@ -64,32 +63,29 @@ class Stream {
     if (this.data == null) {
       return undefined;
     }
-    // console.log(
-    //   "Step " +
-    //     this.config.step +
-    //     " with cache size: " +
-    //     Object.keys(this.data).length,
-    // );
+    console.log(
+      "Step " +
+        this.config.step +
+        " with cache size: " +
+        Object.keys(this.data).length,
+    );
     const data = this.data[this.config.step];
     if (data !== undefined) {
       // TODO this also happens if the stream is to slow to keep up!
       if (this.config.play) {
         this.config.set_step(this.config.step + 1);
       }
-    } else {
-      // if the data is not available, request it. This should not happen if the stream is fast enough
-      console.log("Unexpected request frame " + this.config.step);
-      this.requestFrame();
     }
+    // TODO: do we need to request new fames, if they are already in the buffer?
     if (
-      this.config.step - this.last_request > 50 ||
-      this.config.step < this.last_request // Going backwards is stil a problem
+      this.config.step - this.last_request >
+        this.config.config.js_frame_buffer[1] / 2 ||
+      this.last_request - this.config.step >
+        this.config.config.js_frame_buffer[0] / 2
     ) {
       this.requestFrame();
     }
     if (this.config.step >= this.config.config.total_frames) {
-      // temporary freeze for larger than 1000
-      // TODO we need a good way for handling jumps in frames
       this.config.step = 0;
     }
     return data;
