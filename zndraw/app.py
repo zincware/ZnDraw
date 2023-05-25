@@ -162,7 +162,9 @@ def frame_stream():
         pbar = tqdm.tqdm(values, desc=f"Streaming {step}", ncols=80)
         for idx in pbar:
             try:
-                pbar.set_description(f"Streaming {step} {'+' if idx-step > 0 else '-'} {str(abs(idx-step)).zfill(3)}")
+                pbar.set_description(
+                    f"Streaming {step} {'+' if idx-step > 0 else '-'} {str(abs(idx-step)).zfill(3)}"
+                )
                 data = {idx: tools.data.serialize_frame(idx)}
                 yield f"data: {json.dumps(data)}\n\n"
             except KeyError:
