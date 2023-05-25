@@ -290,7 +290,6 @@ async function loadSceneModifier(config, world) {
     }).then(() => {
       config.set_step(config.step + 1);
       world.rebuild();
-      setTimeout(() => {config.play = true;}, 250);
     });
   };
 }
