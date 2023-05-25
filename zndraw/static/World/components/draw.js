@@ -1,5 +1,60 @@
 import * as THREE from "three";
 
+export class Canvas3D {
+  constructor(scene, transformControls, config, particleGroup, camera, curve) {
+    this.scene = scene;
+    this.transformControls = transformControls;
+    this.config = config;
+    this.particleGroup = particleGroup;
+    this.camera = camera;
+    this.curve = curve;
+
+    document.getElementById("drawAddCanvas").onclick = () => {
+      this.createCanvas();
+    }
+    document.getElementById("drawRemoveCanvas").onclick = () => {
+      this.removeCanvas();
+    }
+
+    this.canvas = null;
+  }
+
+  tick() {
+    if (this.canvas) {
+      this.canvas.lookAt(this.camera.position);
+      this.canvas.position.copy(this.particleGroup.get_center());
+    }
+  }
+
+  click(point) {
+    console.log(point);
+    this.curve.createAnchorPoint(point);
+  }
+
+  createCanvas() {
+    const geometry = new THREE.PlaneGeometry(10, 10);
+    const material = new THREE.MeshBasicMaterial({ color: 0xcccccc, side: THREE.DoubleSide, transparent: true, opacity: 0.5 });
+    const wireframeGeometry = new THREE.WireframeGeometry(geometry);
+    const wireframeMaterial = new THREE.LineBasicMaterial({ color: 0x000000});
+    const wireframe = new THREE.LineSegments(wireframeGeometry, wireframeMaterial);
+    const plane = new THREE.Mesh(geometry, material);
+    plane.add(wireframe);
+    plane.name = "drawCanvas";
+    plane.position.copy(this.particleGroup.get_center());
+    plane.click = this.click.bind(this);
+    this.canvas = plane;
+    this.scene.add(plane);
+  }
+
+  removeCanvas() {
+    if (this.canvas) {
+      this.scene.remove(this.canvas);
+      this.canvas = null;
+    }
+  }
+
+}
+
 export class Curve3D {
   constructor(scene, transformControls, config, particleGroup) {
     this.scene = scene;
@@ -42,8 +97,10 @@ export class Curve3D {
     this.curve = curveObject;
   }
 
-  createAnchorPoint() {
-    const position = this.particleGroup.get_center();
+  createAnchorPoint(position = undefined) {
+    if (position === undefined) {
+      const position = this.particleGroup.get_center();
+    }
 
     const geometry = new THREE.SphereGeometry(0.2, 32, 32);
     const material = new THREE.MeshBasicMaterial({ color: "#000000" });

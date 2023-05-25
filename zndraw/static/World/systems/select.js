@@ -27,6 +27,11 @@ class Selection {
     for (let i = 0; i < intersects.length; i++) {
       const particleGroup = this.scene.getObjectByName("particleGroup");
       const object = intersects[i].object;
+
+      if (object.name == "drawCanvas") {
+        object.click(intersects[i].point);
+      }
+
       if (particleGroup.children.includes(object.parent)) {
         object.parent.click();
         await fetch("select", {

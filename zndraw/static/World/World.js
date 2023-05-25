@@ -13,7 +13,7 @@ import {
 } from "./components/particles.js";
 import { Selection } from "./systems/select.js";
 
-import { Curve3D } from "./components/draw.js";
+import { Curve3D, Canvas3D } from "./components/draw.js";
 
 // These variables are module-scoped: we cannot access them
 // from outside the module
@@ -48,6 +48,7 @@ class World {
     const index = createIndexGroup(particles);
     const light = createLights();
     const curve = new Curve3D(scene, transform_controls, config, particles);
+    const canvas = new Canvas3D(scene, transform_controls, config, particles, camera, curve);
 
     window.addEventListener("keydown", (event) => {
       if (event.isComposing || event.key === "i") {
@@ -71,7 +72,7 @@ class World {
     // disable mesh rotation
     loop.constraint_updatables.push(particles);
     loop.constraint_updatables.push(index);
-    loop.updatables.push(controls);
+    loop.updatables.push(controls, canvas);
 
     const resizer = new Resizer(container, camera, renderer, renderer2d);
   }
