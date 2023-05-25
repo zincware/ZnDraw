@@ -52,6 +52,9 @@ class Config(BaseModel):
     analysis_functions: typing.List[str] = _ANALYSIS_FUNCTIONS
     modify_functions: typing.List[str] = _MODIFY_FUNCTIONS
     selection_functions: typing.List[str] = _SELECTION_FUNCTIONS
+    js_frame_buffer: tuple = Field(
+        (50, 200), description="Javascript frame buffer in negative/positive direction"
+    )
 
     _atoms_cache = PrivateAttr(default_factory=dict)
     _modifier_applied: bool = PrivateAttr(False)
@@ -134,7 +137,7 @@ class Config(BaseModel):
         # TODO ZnH5MD
         if self._modifier_applied:
             return  # We don't want to load any further from file at this point
-        print("Loading atoms")
+        # print("Loading atoms")
         if pathlib.Path(self.file).suffix == ".h5":
             # We load all at once here
             self._atoms_cache.update(
