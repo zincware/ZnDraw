@@ -48,7 +48,14 @@ class World {
     const index = createIndexGroup(particles);
     const light = createLights();
     const curve = new Curve3D(scene, transform_controls, config, particles);
-    const canvas = new Canvas3D(scene, transform_controls, config, particles, camera, curve);
+    const canvas = new Canvas3D(
+      scene,
+      transform_controls,
+      config,
+      particles,
+      camera,
+      curve,
+    );
 
     window.addEventListener("keydown", (event) => {
       if (event.isComposing || event.key === "i") {

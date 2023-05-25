@@ -11,10 +11,10 @@ export class Canvas3D {
 
     document.getElementById("drawAddCanvas").onclick = () => {
       this.createCanvas();
-    }
+    };
     document.getElementById("drawRemoveCanvas").onclick = () => {
       this.removeCanvas();
-    }
+    };
 
     this.canvas = null;
   }
@@ -35,10 +35,18 @@ export class Canvas3D {
       geometry = new THREE.TorusKnotGeometry(1.5, 0.3, 64, 12);
     }
 
-    const material = new THREE.MeshBasicMaterial({ color: 0xcccccc, side: THREE.DoubleSide, transparent: true, opacity: 0.5 });
+    const material = new THREE.MeshBasicMaterial({
+      color: 0xcccccc,
+      side: THREE.DoubleSide,
+      transparent: true,
+      opacity: 0.5,
+    });
     const wireframeGeometry = new THREE.WireframeGeometry(geometry);
-    const wireframeMaterial = new THREE.LineBasicMaterial({ color: 0x000000});
-    const wireframe = new THREE.LineSegments(wireframeGeometry, wireframeMaterial);
+    const wireframeMaterial = new THREE.LineBasicMaterial({ color: 0x000000 });
+    const wireframe = new THREE.LineSegments(
+      wireframeGeometry,
+      wireframeMaterial,
+    );
     const plane = new THREE.Mesh(geometry, material);
 
     plane.add(wireframe);
@@ -56,7 +64,6 @@ export class Canvas3D {
       this.canvas = null;
     }
   }
-
 }
 
 export class Curve3D {
