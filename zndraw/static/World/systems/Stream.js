@@ -76,10 +76,7 @@ class Stream {
         this.config.set_step(this.config.step + 1);
       }
     }
-    // } else {
-    //   // if the data is not available, request it. This should not happen if the stream is fast enough
-    //   this.requestFrame();
-    // }
+    // TODO: do we need to request new fames, if they are already in the buffer?
     if (
       this.config.step - this.last_request > this.config.config.js_frame_buffer[1] / 2 ||
       this.last_request - this.config.step > this.config.config.js_frame_buffer[0] / 2
