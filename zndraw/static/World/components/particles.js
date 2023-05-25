@@ -365,16 +365,16 @@ export function createParticleGroup(config) {
                   config.config,
                 ).children[0];
                 const bond2 = bond1.clone();
-                bond1.scale.set(0.5, 0.5, 1);
-                bond2.scale.set(0.5, 0.5, 1);
+                bond1.scale.set(0.8, 0.8, 1);
+                bond2.scale.set(0.8, 0.8, 1);
 
                 // remove all chidren from bond_mesh
                 for (let i = bond_mesh.children.length - 1; i >= 0; i--) {
                   bond_mesh.children[i].removeFromParent();
                 }
 
-                bond1.translateX(0.1);
-                bond2.translateX(-0.1);
+                bond1.translateX(0.2);
+                bond2.translateX(-0.2);
                 bond_mesh.add(bond1, bond2);
               }
             } else if (bond_mesh.order == 3) {
@@ -387,17 +387,17 @@ export function createParticleGroup(config) {
                 ).children[0];
                 const bond2 = bond1.clone();
                 const bond3 = bond2.clone();
-                bond1.scale.set(0.3, 0.3, 1);
-                bond2.scale.set(0.3, 0.3, 1);
-                bond3.scale.set(0.3, 0.3, 1);
+                bond1.scale.set(0.7, 0.7, 1);
+                bond2.scale.set(0.7, 0.7, 1);
+                bond3.scale.set(0.7, 0.7, 1);
 
                 // remove all chidren from bond_mesh
                 for (let i = bond_mesh.children.length - 1; i >= 0; i--) {
                   bond_mesh.children[i].removeFromParent();
                 }
 
-                bond1.translateX(0.1);
-                bond2.translateX(-0.1);
+                bond1.translateX(0.25);
+                bond2.translateX(-0.25);
                 bond_mesh.add(bond1, bond2, bond3);
               }
             }
