@@ -30,6 +30,7 @@ class Selection {
 
       if (object.name == "drawCanvas") {
         object.click(intersects[i].point);
+        break;
       }
 
       if (particleGroup.children.includes(object.parent)) {

@@ -25,12 +25,22 @@ export class Canvas3D {
   }
 
   createCanvas() {
-    const geometry = new THREE.PlaneGeometry(10, 10);
+    this.removeCanvas();
+    let canvasType = document.getElementById("drawCanvasSelect").value;
+    console.log(canvasType);
+    let geometry;
+    if (canvasType == "PlaneGeometry") {
+      geometry = new THREE.PlaneGeometry(10, 10);
+    } else if (canvasType == "TorusKnotGeometry") {
+      geometry = new THREE.TorusKnotGeometry(1.5, 0.3, 64, 12);
+    }
+
     const material = new THREE.MeshBasicMaterial({ color: 0xcccccc, side: THREE.DoubleSide, transparent: true, opacity: 0.5 });
     const wireframeGeometry = new THREE.WireframeGeometry(geometry);
     const wireframeMaterial = new THREE.LineBasicMaterial({ color: 0x000000});
     const wireframe = new THREE.LineSegments(wireframeGeometry, wireframeMaterial);
     const plane = new THREE.Mesh(geometry, material);
+
     plane.add(wireframe);
     plane.name = "drawCanvas";
     plane.position.copy(this.particleGroup.get_center());
