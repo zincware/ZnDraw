@@ -33,11 +33,12 @@ class World {
     renderer2d = create2DRenderer();
     stream = new Stream(config);
     loop = new Loop(camera, scene, renderer, renderer2d, stream, config);
-    selection = new Selection(camera, scene, config);
+    const controls = createControls(camera, renderer.domElement, config, scene);
+    
+    selection = new Selection(camera, scene, config, controls);
 
     container.append(renderer.domElement);
 
-    const controls = createControls(camera, renderer.domElement, config, scene);
     const transform_controls = createTransformControls(
       camera,
       renderer.domElement,
