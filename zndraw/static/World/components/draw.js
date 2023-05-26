@@ -16,16 +16,13 @@ export class Canvas3D {
       this.removeCanvas();
     };
 
-    // event listener for keydown t
     document.addEventListener("keydown", (event) => {
       if (event.key == "t") {
-        this.camera.attach(this.canvas);
-      }
-    });
-    // event listener for keyup t
-    document.addEventListener("keyup", (event) => {
-      if (event.key == "z") {
-        this.scene.attach(this.canvas);
+        if (this.camera.children.includes(this.canvas)) {
+          this.scene.attach(this.canvas);
+        } else {
+          this.camera.attach(this.canvas);
+        }
       }
     });
 
@@ -33,7 +30,9 @@ export class Canvas3D {
   }
 
   click(point) {
+    if (!this.camera.children.includes(this.canvas)) {
     this.curve.createAnchorPoint(point);
+    }
   }
 
   createCanvas() {
@@ -72,7 +71,7 @@ export class Canvas3D {
 
   removeCanvas() {
     if (this.canvas) {
-      this.scene.remove(this.canvas);
+      this.canvas.removeFromParent();
       this.canvas = null;
     }
   }
