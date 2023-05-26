@@ -1,12 +1,14 @@
 import { Clock } from "three";
 
 const clock = new Clock();
+const constraint_clock = new Clock();
 
 class Loop {
-  constructor(camera, scene, renderer, stream, config) {
+  constructor(camera, scene, renderer, renderer2d, stream, config) {
     this.camera = camera;
     this.scene = scene;
     this.renderer = renderer;
+    this.renderer2d = renderer2d;
     this.stream = stream;
     this.updatables = [];
     this.constraint_updatables = [];
@@ -30,15 +32,16 @@ class Loop {
   tick() {
     // only call the getDelta function once per frame!
     const delta = clock.getElapsedTime();
-    // console.log(
-    //   `The last frame rendered in ${delta * 1000} milliseconds`,
-    // );
+    this.renderer2d.render(this.scene, this.camera);
 
     for (const object of this.updatables) {
       object.tick(delta);
     }
 
-    if (delta > 1 / this.config.config.max_fps) {
+    if (
+      this.config.config.max_fps > 60 ||
+      delta > 1 / this.config.config.max_fps
+    ) {
       for (const object of this.constraint_updatables) {
         object.tick(this.stream.get_next_frame());
       }

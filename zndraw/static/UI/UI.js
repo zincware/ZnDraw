@@ -5,6 +5,10 @@ const addModifierModal = new bootstrap.Modal(
   document.getElementById("addModifierModal"),
 );
 
+const addAnalysisModal = new bootstrap.Modal(
+  document.getElementById("addAnalysisModal"),
+);
+
 function update_materials(config) {
   const o_materialSelect = document.getElementById("materialSelect");
 
@@ -68,6 +72,12 @@ function updateFPS(config) {
   };
 }
 
+function updateAutoRestart(config) {
+  document.getElementById("autoRestart").onchange = function () {
+    config.update({ auto_restart: this.checked });
+  };
+}
+
 function setupSlider(config) {
   const slider = document.getElementById("frame-slider");
   config.set_step_callbacks.push((config) => {
@@ -89,13 +99,15 @@ function setupPlayPause(config) {
       } else {
         console.log("pause");
       }
+      if (config.step == config.config.total_frames) {
+        config.set_step(0);
+        config.play = true;
+      }
     }
 
     if (event.isComposing || event.key === "ArrowRight") {
       config.play = false;
-      config.set_step(
-        Math.min(config.config.total_frames - 1, config.step + 1),
-      );
+      config.set_step(Math.min(config.config.total_frames, config.step + 1));
     }
     if (event.isComposing || event.key === "ArrowLeft") {
       config.play = false;
@@ -106,7 +118,7 @@ function setupPlayPause(config) {
       config.set_step(
         parseInt(
           Math.min(
-            config.config.total_frames - 1,
+            config.config.total_frames,
             config.step + config.config.total_frames / 10,
           ),
         ),
@@ -117,6 +129,10 @@ function setupPlayPause(config) {
       config.set_step(
         parseInt(Math.max(0, config.step - config.config.total_frames / 10)),
       );
+    }
+    if (event.isComposing || event.key === "End") {
+      config.play = false;
+      config.set_step(config.config.total_frames);
     }
   });
 }
@@ -171,6 +187,51 @@ async function addSceneModifierOption(function_id) {
       );
       document.getElementById("addSceneModifier").value =
         response_json["title"];
+    });
+}
+
+async function addAnalysisOption(function_id) {
+  await fetch("add_analysis", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(function_id),
+  })
+    .then((response) => response.json())
+    .then(function (response_json) {
+      // if not null alert
+      if ("error" in response_json) {
+        // TODO check if method is already loaded
+        console.log(
+          "Adding analysis failed with error: " + response_json["error"],
+        );
+        // alert(response_json["error"]);
+        // stepError(response_json["error"]);
+      } else {
+        if (
+          document.getElementById("scene-analysis_" + response_json["title"]) !=
+          null
+        ) {
+          alert("Function already loaded");
+          stepError("Function already loaded");
+        }
+        addAnalysisModal.hide();
+      }
+      return response_json;
+    })
+    .then(function (response_json) {
+      let modifier = document.createElement("option");
+      modifier.value = response_json["title"];
+      modifier.innerHTML = response_json["title"];
+      document.getElementById("addAnalysis").appendChild(modifier);
+      return response_json;
+    })
+    .then(function (response_json) {
+      console.log(response_json);
+      let sceneModifierSettings = document.getElementById("analysisSettings");
+      sceneModifierSettings.appendChild(
+        createElementFromSchema(response_json, "scene-analysis"),
+      );
+      document.getElementById("addAnalysis").value = response_json["title"];
     });
 }
 
@@ -231,14 +292,121 @@ async function loadSceneModifier(config, world) {
         points: config.draw_vectors,
       }),
     }).then(() => {
-      world.deleteCache();
+      config.set_step(config.step + 1);
+      world.rebuild();
     });
   };
+}
+
+async function loadSceneAnalysis(config, world) {
+  // iterate DATA.config.analysis_methods and add them to the select
+  for (let method of config.config.analysis_functions) {
+    try {
+      await addAnalysisOption(method);
+    } catch (error) {
+      console.log(error);
+    }
+  }
+  document.getElementById("addAnalysis").value = "";
+  document.getElementById("addAnalysis").dispatchEvent(new Event("change"));
+
+  document.getElementById("addAnalysis").onchange = function () {
+    console.log(this.value);
+    if (this.value == "add") {
+      addAnalysisModal.show();
+    }
+
+    let domElements = document.getElementsByClassName("scene-analysis");
+    console.log(domElements);
+
+    [...domElements].forEach((element) => {
+      let bs_collapse = new bootstrap.Collapse(element, {
+        toggle: false,
+      });
+      if (element.id == "scene-analysis_" + this.value) {
+        bs_collapse.show();
+      } else {
+        bs_collapse.hide();
+      }
+    });
+  };
+
+  document.getElementById("analyseBtn").onclick = function () {
+    // div_info.innerHTML = "Processing...";
+
+    let form = document.getElementById(
+      "scene-analysis_" + document.getElementById("addAnalysis").value,
+    );
+    let modifier_kwargs = {};
+    Array.from(form.elements).forEach((input) => {
+      modifier_kwargs[input.dataset.key] = input.value;
+    });
+
+    fetch("analyse", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        selected_ids: config.selected,
+        step: config.step,
+        points: [],
+        modifier: document.getElementById("addAnalysis").value,
+        modifier_kwargs: modifier_kwargs,
+      }),
+    })
+      .then((response) => response.json())
+      .then(function (response_json) {
+        Plotly.newPlot("analysePlot", response_json);
+        document
+          .getElementById("analysePlot")
+          .on("plotly_click", function (data) {
+            console.log(data);
+            config.set_step(data.points[0].pointIndex);
+          });
+      });
+  };
+}
+
+function clickAddSceneModifier() {
+  document.getElementById("addSceneModifierImportBtn").onclick =
+    async function () {
+      let function_id = document.getElementById("addSceneModifierImport").value;
+      await addSceneModifierOption(function_id);
+      document
+        .getElementById("addSceneModifier")
+        .dispatchEvent(new Event("change"));
+    };
+}
+
+function resizeOffcanvas() {
+  // Rescale offcanvas by dragging
+  let active_offcanvas_border;
+  const offcanvas_borders = document.getElementsByClassName("offcanvas-border");
+
+  function resize_offcanvas(e) {
+    if (e.clientX < 200) {
+      return;
+    }
+    active_offcanvas_border.parentNode.style.width = e.clientX + "px";
+    active_offcanvas_border.style.left = e.clientX + "px";
+  }
+
+  for (let i = 0; i < offcanvas_borders.length; i++) {
+    offcanvas_borders[i].onpointerdown = function (e) {
+      console.log(this);
+      active_offcanvas_border = this;
+      document.addEventListener("pointermove", resize_offcanvas);
+    };
+  }
+
+  document.addEventListener("pointerup", function (e) {
+    document.removeEventListener("pointermove", resize_offcanvas);
+  });
 }
 
 export function setUIEvents(config, world) {
   update_materials(config);
   updateFPS(config);
+  updateAutoRestart(config);
   setupSlider(config);
   setupPlayPause(config);
   attachKeyPressed(config);
@@ -246,6 +414,10 @@ export function setUIEvents(config, world) {
   update_sphere_radius(config);
   update_bond_radius(config, world);
   loadSceneModifier(config, world);
+  loadSceneAnalysis(config, world);
+
+  clickAddSceneModifier();
+  resizeOffcanvas();
 
   // disable loading spinner by making it invisible
   const loadingElem = document.getElementById("atom-spinner");
