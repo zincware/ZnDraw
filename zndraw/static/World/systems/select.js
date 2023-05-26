@@ -33,21 +33,27 @@ class Selection {
 
   async onWheel(event) {
     const intersects = await this.getIntersected(event);
+
+    function renewTimeOut() {
+      if (typeof this._disable_controls_timeout_id === "number") {
+        clearTimeout(this._disable_controls_timeout_id);
+      }
+      this._disable_controls_timeout_id = setTimeout(() => {
+        this.controls.enabled = true;
+        this._wheel_target = null;
+      }, 500);
+    }
+
+
     if (this._wheel_target === null) {
       for (let i = 0; i < intersects.length; i++) {
         const object = intersects[i].object;
 
         if (object.name == "drawCanvas") {
           this.controls.enabled = false;
-          if (typeof this._disable_controls_timeout_id === "number") {
-            clearTimeout(this._disable_controls_timeout_id);
-          }
           this._wheel_target = object;
 
-          this._disable_controls_timeout_id = setTimeout(() => {
-            this.controls.enabled = true;
-            this._wheel_target = null;
-          }, 500);
+          renewTimeOut.bind(this)();          
 
           console.log(event.deltaY);
           object.scale.set(
@@ -59,18 +65,12 @@ class Selection {
         }
       }
     } else {
-      if (typeof this._disable_controls_timeout_id === "number") {
-        clearTimeout(this._disable_controls_timeout_id);
-      }
+      renewTimeOut.bind(this)();
       this._wheel_target.scale.set(
         this._wheel_target.scale.x + event.deltaY * 0.0005,
         this._wheel_target.scale.y + event.deltaY * 0.0005,
         this._wheel_target.scale.z + event.deltaY * 0.0005,
       );
-      this._disable_controls_timeout_id = setTimeout(() => {
-        this.controls.enabled = true;
-        this._wheel_target = null;
-      }, 500);
     }
   }
 
