@@ -90,8 +90,7 @@ class Stream {
     if (
       this.step - this.last_request >
         this.config.config.js_frame_buffer[1] / 2 ||
-      this.last_request - this.step >
-        this.config.config.js_frame_buffer[0] / 2
+      this.last_request - this.step > this.config.config.js_frame_buffer[0] / 2
     ) {
       this.requestFrame();
     }
