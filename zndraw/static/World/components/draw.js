@@ -16,6 +16,19 @@ export class Canvas3D {
       this.removeCanvas();
     };
 
+    // event listener for keydown t
+    document.addEventListener("keydown", (event) => {
+      if (event.key == "t") {
+        this.camera.attach(this.canvas);
+      }
+    });
+    // event listener for keyup t
+    document.addEventListener("keyup", (event) => {
+      if (event.key == "z") {
+        this.scene.attach(this.canvas);
+      }
+    });
+
     this.canvas = null;
   }
 
