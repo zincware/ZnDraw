@@ -74,7 +74,6 @@ class Selection {
     }
   }
 
-
   async onPointerDown(event) {
     const intersects = await this.getIntersected(event);
 

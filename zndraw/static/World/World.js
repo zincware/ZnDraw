@@ -34,7 +34,7 @@ class World {
     stream = new Stream(config);
     loop = new Loop(camera, scene, renderer, renderer2d, stream, config);
     const controls = createControls(camera, renderer.domElement, config, scene);
-    
+
     selection = new Selection(camera, scene, config, controls);
 
     container.append(renderer.domElement);
