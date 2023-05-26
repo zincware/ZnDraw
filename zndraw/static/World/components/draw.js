@@ -31,7 +31,7 @@ export class Canvas3D {
 
   click(point) {
     if (!this.camera.children.includes(this.canvas)) {
-    this.curve.createAnchorPoint(point);
+      this.curve.createAnchorPoint(point);
     }
   }
 
