@@ -44,7 +44,6 @@ class Selection {
       }, 500);
     }
 
-
     if (this._wheel_target === null) {
       for (let i = 0; i < intersects.length; i++) {
         const object = intersects[i].object;
@@ -53,7 +52,7 @@ class Selection {
           this.controls.enabled = false;
           this._wheel_target = object;
 
-          renewTimeOut.bind(this)();          
+          renewTimeOut.bind(this)();
 
           console.log(event.deltaY);
           object.scale.set(
