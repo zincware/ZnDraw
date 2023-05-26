@@ -1,5 +1,6 @@
 class Stream {
   constructor(config) {
+    this.step = 1;
     this.config = config;
     this.data = null;
     this.last_request = 1;
@@ -23,10 +24,10 @@ class Stream {
       }
       this.data = { ...this.data, ...data };
       for (const key in this.data) {
-        if (key < this.config.step - this.config.config.js_frame_buffer[0]) {
+        if (key < this.step - this.config.config.js_frame_buffer[0]) {
           delete this.data[key];
         }
-        if (key > this.config.step + this.config.config.js_frame_buffer[1]) {
+        if (key > this.step + this.config.config.js_frame_buffer[1]) {
           delete this.data[key];
         }
       }
@@ -34,18 +35,18 @@ class Stream {
   }
 
   requestFrame() {
-    // fetch frame-set with post request step: this.config.step
-    if (this.config.step === this.last_request) {
+    // fetch frame-set with post request step: this.step
+    if (this.step === this.last_request) {
       return;
     }
-    this.last_request = this.config.step;
-    console.log("Requesting frame " + this.config.step);
+    this.last_request = this.step;
+    console.log("Requesting frame " + this.step);
     fetch("/frame-set", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ step: this.config.step }),
+      body: JSON.stringify({ step: this.step }),
     }).then((response) => {
       // close the event source and reopen it to get the new data
       this.eventSource.close();
@@ -59,42 +60,51 @@ class Stream {
     this.requestFrame();
   }
 
+  setStep() {
+    this.step = step;
+    this.requestFrame();
+  }
+
+  getStep() {
+    return this.step;
+  }
+
   get_next_frame() {
     if (this.data == null) {
       return undefined;
     }
     console.log(
       "Step " +
-        this.config.step +
+        this.step +
         " with cache size: " +
         Object.keys(this.data).length,
     );
-    const data = this.data[this.config.step];
+    const data = this.data[this.step];
     if (data !== undefined) {
       // TODO this also happens if the stream is to slow to keep up!
       if (this.config.play) {
-        this.config.set_step(this.config.step + 1);
+        this.set_step(this.step + 1);
       }
     }
     // TODO: do we need to request new fames, if they are already in the buffer?
     if (
-      this.config.step - this.last_request >
+      this.step - this.last_request >
         this.config.config.js_frame_buffer[1] / 2 ||
-      this.last_request - this.config.step >
+      this.last_request - this.step >
         this.config.config.js_frame_buffer[0] / 2
     ) {
       this.requestFrame();
     }
     if (
-      this.config.step > this.config.config.total_frames &&
+      this.step > this.config.config.total_frames &&
       this.config.config.total_frames > 0
     ) {
       // temporary freeze for larger than 1000
       // TODO we need a good way for handling jumps in frames
       if (this.config.config.auto_restart) {
-        this.config.set_step(0);
+        this.set_step(0);
       } else {
-        this.config.set_step(Math.max(0, this.config.step - 1));
+        this.set_step(Math.max(0, this.step - 1));
       }
     }
     return data;
