@@ -11,6 +11,7 @@ class Selection {
     this.pointer = new THREE.Vector2();
 
     this._disable_controls_timeout_id = null;
+    this._wheel_target = null;
 
     window.addEventListener("pointerdown", this.onPointerDown.bind(this));
     window.addEventListener("wheel", this.onWheel.bind(this));
@@ -32,25 +33,44 @@ class Selection {
 
   async onWheel(event) {
     const intersects = await this.getIntersected(event);
-    for (let i = 0; i < intersects.length; i++) {
-      const object = intersects[i].object;
+    if (this._wheel_target === null) {
+      for (let i = 0; i < intersects.length; i++) {
+        const object = intersects[i].object;
 
-      if (object.name == "drawCanvas") {
-        this.controls.enabled = false;
-        if (typeof this._disable_controls_timeout_id === "number") {
-          clearTimeout(this._disable_controls_timeout_id);
+        if (object.name == "drawCanvas") {
+          this.controls.enabled = false;
+          if (typeof this._disable_controls_timeout_id === "number") {
+            clearTimeout(this._disable_controls_timeout_id);
+          }
+          this._wheel_target = object;
+
+          this._disable_controls_timeout_id = setTimeout(() => {
+            this.controls.enabled = true;
+            this._wheel_target = null;
+          }, 500);
+
+          console.log(event.deltaY);
+          object.scale.set(
+            object.scale.x + event.deltaY * 0.0005,
+            object.scale.y + event.deltaY * 0.0005,
+            object.scale.z + event.deltaY * 0.0005,
+          );
+          break;
         }
-        this._disable_controls_timeout_id = setTimeout(() => {
-          this.controls.enabled = true;
-        }, 500);
-        console.log(event.deltaY);
-        object.scale.set(
-          object.scale.x + event.deltaY * 0.0005,
-          object.scale.y + event.deltaY * 0.0005,
-          object.scale.z + event.deltaY * 0.0005,
-        );
-        break;
       }
+    } else {
+      if (typeof this._disable_controls_timeout_id === "number") {
+        clearTimeout(this._disable_controls_timeout_id);
+      }
+      this._wheel_target.scale.set(
+        this._wheel_target.scale.x + event.deltaY * 0.0005,
+        this._wheel_target.scale.y + event.deltaY * 0.0005,
+        this._wheel_target.scale.z + event.deltaY * 0.0005,
+      );
+      this._disable_controls_timeout_id = setTimeout(() => {
+        this.controls.enabled = true;
+        this._wheel_target = null;
+      }, 500);
     }
   }
 
