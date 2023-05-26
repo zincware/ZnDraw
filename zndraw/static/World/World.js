@@ -25,8 +25,8 @@ class World {
     scene = createScene();
     renderer = createRenderer();
     stream = new Stream(config);
-    loop = new Loop(camera, scene, renderer, stream, config);
-    selection = new Selection(camera, scene, config);
+    loop = new Loop(camera, scene, renderer, stream);
+    selection = new Selection(camera, scene);
 
     container.append(renderer.domElement);
 
@@ -63,6 +63,14 @@ class World {
 
   deleteCache() {
     stream.deleteCache();
+  }
+
+  set_step(step) {
+    stream.setStep(step);
+  }
+
+  get_step() {
+    return stream.getStep();
   }
 }
 
