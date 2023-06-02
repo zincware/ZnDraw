@@ -119,8 +119,8 @@ class Config(BaseModel):
 
     def reset_scene_modifiers(self) -> None:
         """Reset the scene modifiers."""
-        for key in list(self._atoms_cache):
-            del self._atoms_cache[key]
+        for key in list(self._loaded_modifiers):
+            del self._loaded_modifiers[key]
         self._loaded_modifiers = {}
 
     def export_atoms(self):
