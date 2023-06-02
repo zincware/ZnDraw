@@ -202,3 +202,9 @@ def frame_stream():
         yield f"data: {json.dumps({})} \nretry: 10\n\n"
 
     return Response(generate(session["step"]), mimetype="text/event-stream")
+
+
+@app.route("/reset-scene-modifiers")
+def reset_scene_modifiers():
+    shared.config.reset_scene_modifiers()
+    return {}
