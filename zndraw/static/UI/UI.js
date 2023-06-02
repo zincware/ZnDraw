@@ -528,6 +528,12 @@ function resizeOffcanvas() {
   });
 }
 
+function sceneModifierResetBtnClick() {
+  document.getElementById("sceneModifierResetBtn").onclick = function () {
+    fetch("reset-scene-modifiers");
+  };
+}
+
 export function setUIEvents(config, world) {
   update_materials(config);
   updateFPS(config);
@@ -541,6 +547,7 @@ export function setUIEvents(config, world) {
   loadSceneModifier(config, world);
   loadSceneAnalysis(config, world);
   loadSceneBonds(config, world);
+  sceneModifierResetBtnClick();
 
   clickAddSceneModifier();
   resizeOffcanvas();
