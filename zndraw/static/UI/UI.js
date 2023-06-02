@@ -176,14 +176,14 @@ async function addSceneModifierOption(function_id) {
       return response_json;
     })
     .then(function (response_json) {
-      let modifier = document.createElement("option");
+      const modifier = document.createElement("option");
       modifier.value = response_json["title"];
       modifier.innerHTML = response_json["title"];
       document.getElementById("addSceneModifier").appendChild(modifier);
       return response_json;
     })
     .then(function (response_json) {
-      let sceneModifierSettings = document.getElementById(
+      const sceneModifierSettings = document.getElementById(
         "sceneModifierSettings",
       );
       sceneModifierSettings.appendChild(
@@ -223,7 +223,7 @@ async function addAnalysisOption(function_id) {
       return response_json;
     })
     .then(function (response_json) {
-      let modifier = document.createElement("option");
+      const modifier = document.createElement("option");
       modifier.value = response_json["title"];
       modifier.innerHTML = response_json["title"];
       document.getElementById("addAnalysis").appendChild(modifier);
@@ -231,7 +231,7 @@ async function addAnalysisOption(function_id) {
     })
     .then(function (response_json) {
       console.log(response_json);
-      let sceneModifierSettings = document.getElementById("analysisSettings");
+      const sceneModifierSettings = document.getElementById("analysisSettings");
       sceneModifierSettings.appendChild(
         createElementFromSchema(response_json, "scene-analysis"),
       );
@@ -287,7 +287,7 @@ async function addBondsOption(function_id) {
 // load analysis methods from config
 async function loadSceneModifier(config, world) {
   // iterate DATA.config.analysis_methods and add them to the select
-  for (let modify_function of config.config.modify_functions) {
+  for (const modify_function of config.config.modify_functions) {
     try {
       await addSceneModifierOption(modify_function);
     } catch (error) {
@@ -305,10 +305,10 @@ async function loadSceneModifier(config, world) {
       addModifierModal.show();
     }
 
-    let domElements = document.getElementsByClassName("scene-modifier");
+    const domElements = document.getElementsByClassName("scene-modifier");
 
     [...domElements].forEach((element) => {
-      let bs_collapse = new bootstrap.Collapse(element, {
+      const bs_collapse = new bootstrap.Collapse(element, {
         toggle: false,
       });
       if (element.id == "scene-modifier_" + this.value) {
@@ -322,10 +322,10 @@ async function loadSceneModifier(config, world) {
   document.getElementById("sceneModifierBtn").onclick = function () {
     // div_info.innerHTML = "Processing...";
 
-    let form = document.getElementById(
+    const form = document.getElementById(
       "scene-modifier_" + document.getElementById("addSceneModifier").value,
     );
-    let modifier_kwargs = {};
+    const modifier_kwargs = {};
     Array.from(form.elements).forEach((input) => {
       modifier_kwargs[input.dataset.key] = input.value;
     });
@@ -349,7 +349,7 @@ async function loadSceneModifier(config, world) {
 
 async function loadSceneAnalysis(config, world) {
   // iterate DATA.config.analysis_methods and add them to the select
-  for (let method of config.config.analysis_functions) {
+  for (const method of config.config.analysis_functions) {
     try {
       await addAnalysisOption(method);
     } catch (error) {
@@ -365,11 +365,11 @@ async function loadSceneAnalysis(config, world) {
       addAnalysisModal.show();
     }
 
-    let domElements = document.getElementsByClassName("scene-analysis");
+    const domElements = document.getElementsByClassName("scene-analysis");
     console.log(domElements);
 
     [...domElements].forEach((element) => {
-      let bs_collapse = new bootstrap.Collapse(element, {
+      const bs_collapse = new bootstrap.Collapse(element, {
         toggle: false,
       });
       if (element.id == "scene-analysis_" + this.value) {
@@ -383,10 +383,10 @@ async function loadSceneAnalysis(config, world) {
   document.getElementById("analyseBtn").onclick = function () {
     // div_info.innerHTML = "Processing...";
 
-    let form = document.getElementById(
+    const form = document.getElementById(
       "scene-analysis_" + document.getElementById("addAnalysis").value,
     );
-    let modifier_kwargs = {};
+    const modifier_kwargs = {};
     Array.from(form.elements).forEach((input) => {
       modifier_kwargs[input.dataset.key] = input.value;
     });
@@ -494,7 +494,9 @@ async function loadSceneBonds(config, world) {
 function clickAddSceneModifier() {
   document.getElementById("addSceneModifierImportBtn").onclick =
     async function () {
-      let function_id = document.getElementById("addSceneModifierImport").value;
+      const function_id = document.getElementById(
+        "addSceneModifierImport",
+      ).value;
       await addSceneModifierOption(function_id);
       document
         .getElementById("addSceneModifier")

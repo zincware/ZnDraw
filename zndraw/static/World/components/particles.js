@@ -196,8 +196,8 @@ export function createParticleGroup(config) {
     const bonds = data["bonds"];
 
     // create particle arrays
-    let existing_particles = [];
-    let new_particles = [];
+    const existing_particles = [];
+    const new_particles = [];
     let deleted_particles = [];
 
     particles.forEach((x) => {
@@ -219,17 +219,17 @@ export function createParticleGroup(config) {
       particleSubGroup.children.slice(1),
     );
 
-    let existing_bonds = all_bonds.filter(
+    const existing_bonds = all_bonds.filter(
       (x) =>
         bonds.find((y) => y[0] + "-" + y[1] === x.name) ||
         bonds.find((y) => y[1] + "-" + y[0] === x.name),
     );
-    let new_bonds = bonds.filter(
+    const new_bonds = bonds.filter(
       (x) =>
         !all_bonds.find((y) => y.name === x[0] + "-" + x[1]) &&
         !all_bonds.find((y) => y.name === x[1] + "-" + x[0]),
     );
-    let deleted_bonds = all_bonds.filter(
+    const deleted_bonds = all_bonds.filter(
       (x) =>
         !bonds.find((y) => y[0] + "-" + y[1] === x.name) &&
         !bonds.find((y) => y[1] + "-" + y[0] === x.name),

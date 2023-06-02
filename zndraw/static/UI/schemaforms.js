@@ -1,7 +1,7 @@
 // Convert schema to bootstrap form
 
 export function createElementFromSchema(schema, clsName) {
-  let modifierCanvas = document.createElement("form");
+  const modifierCanvas = document.createElement("form");
   // modifierCanvas.classList.add("mb-3");
   modifierCanvas.classList.add(
     "collapse",
@@ -43,7 +43,7 @@ export function createElementFromSchema(schema, clsName) {
         controller.classList.add("form-select");
         controller.dataset.key = key;
         item["enum"].forEach((enum_item) => {
-          let option = document.createElement("option");
+          const option = document.createElement("option");
           option.value = enum_item;
           option.innerHTML = enum_item;
           controller.appendChild(option);
@@ -65,7 +65,7 @@ export function createElementFromSchema(schema, clsName) {
       controller.max = item["maximum"];
     }
 
-    let controller_label = document.createElement("label");
+    const controller_label = document.createElement("label");
     controller_label.classList.add("form-label");
     controller_label.setAttribute("for", controller.id);
     if (["text", "boolean"].includes(item["type"])) {
@@ -77,7 +77,7 @@ export function createElementFromSchema(schema, clsName) {
       };
     }
 
-    let function_container = document.createElement("div");
+    const function_container = document.createElement("div");
     // function_container.classList.add("mb-1");
     function_container.appendChild(controller_label);
     function_container.appendChild(controller);
