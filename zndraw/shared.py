@@ -116,7 +116,7 @@ class Config(BaseModel):
 
         for idx, atom in enumerate(atoms):
             self._atoms_cache[idx + step + 1] = atom
-    
+
     def reset_scene_modifiers(self) -> None:
         """Reset the scene modifiers."""
         for key in self._atoms_cache:

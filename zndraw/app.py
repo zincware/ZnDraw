@@ -203,6 +203,7 @@ def frame_stream():
 
     return Response(generate(session["step"]), mimetype="text/event-stream")
 
+
 @app.route("/reset-scene-modifiers")
 def reset_scene_modifiers():
     shared.config.reset_scene_modifiers()
