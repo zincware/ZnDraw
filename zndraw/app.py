@@ -1,3 +1,4 @@
+import importlib
 import json
 import uuid
 
@@ -18,6 +19,7 @@ def index():
     """Render the main ZnDraw page."""
     session["key"] = str(uuid.uuid4())  # TODO use session key e.g. for atoms cache
     session["step"] = 0
+    shared.bond_method = tools.data.ASEComputeBonds()
     return render_template("index.html", config=shared.config.dict())
 
 
@@ -112,10 +114,35 @@ def add_analysis():
     return schema
 
 
+@app.route("/add_bonds", methods=["POST"])
+def add_bonds():
+    """Add a function to the config."""
+    try:
+        signature = shared.config.get_modifier_schema(request.json)
+    except Exception as err:
+        return {"error": str(err)}
+    return signature
+
+
+@app.route("/set_bonds", methods=["POST"])
+def set_bonds():
+    """Add a function to the config."""
+    print(f"Setting bonds {request.json}")
+    module_name, function_name = request.json["method"].rsplit(".", 1)
+    module = importlib.import_module(module_name)
+    shared.bond_method = getattr(module, function_name)(**request.json["bonds_kwargs"])
+
+    if "order" in request.json:
+        shared.bond_method.update_bond_order(
+            atoms=shared.config.get_atoms(request.json["step"]),
+            particles=request.json["selected_ids"],
+            order=request.json["order"],
+        )
+    return {}
+
+
 @app.route("/analyse", methods=["POST"])
 def analyse():
-    import importlib
-
     selected_ids = list(sorted(request.json["selected_ids"]))
     step = request.json["step"]
     modifier = request.json["modifier"]
@@ -162,7 +189,7 @@ def frame_stream():
         pbar = tqdm.tqdm(values, desc=f"Streaming {step}", ncols=80)
         for idx in pbar:
             try:
-                data = {idx: tools.data.serialize_frame(idx)}
+                data = {idx: shared.bond_method.get_frame(idx)}
                 pbar.set_description(
                     f"Streaming {step} {'+' if idx-step > 0 else '-'} {str(abs(idx-step)).zfill(3)}"
                 )
@@ -175,3 +202,9 @@ def frame_stream():
         yield f"data: {json.dumps({})} \nretry: 10\n\n"
 
     return Response(generate(session["step"]), mimetype="text/event-stream")
+
+
+@app.route("/reset-scene-modifiers")
+def reset_scene_modifiers():
+    shared.config.reset_scene_modifiers()
+    return {}

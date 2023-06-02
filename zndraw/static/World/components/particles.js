@@ -88,21 +88,33 @@ function halfCylinderMesh(pointX, pointY, material, config) {
     config["bond_size"],
     config["resolution"],
   );
-  return new THREE.Mesh(geometry, material);
+  const mesh = new THREE.Mesh(geometry, material);
+  const bond = new THREE.Group();
+  mesh.userData.type = "bond";
+  bond.click = function () {
+    this.parent.click();
+  };
+  bond.add(mesh);
+  return bond;
 }
 
 function updateBondOrientation(bond, pointX, pointY) {
   const direction = new THREE.Vector3();
   direction.subVectors(pointY, pointX);
   bond.lookAt(pointY);
-  const scale = direction.length() / 2 / bond.geometry.parameters.height;
+  const scale =
+    direction.length() / 2 / bond.children[0].geometry.parameters.height;
   bond.scale.set(1, 1, scale);
 }
 
 function updateParticleScaleAndMaterial(particle, radius, material) {
   const scale = radius / particle.children[0].geometry.parameters.radius;
   particle.children[0].scale.set(scale, scale, scale);
-  particle.children.forEach((x) => (x.material = material));
+  particle.traverse((x) => {
+    if (x instanceof THREE.Mesh) {
+      x.material = material;
+    }
+  });
 }
 
 const halfCylinderGeometry = halfCylinderGeometryFactory();
@@ -265,6 +277,7 @@ export function createParticleGroup(config) {
           config.config.material_wireframe,
         ),
       );
+      particle_mesh.userData.type = "particle";
       const particleSubGroup = new THREE.Group();
       particleSubGroup.add(particle_mesh);
       particleSubGroup.name = particle.id;
@@ -324,6 +337,71 @@ export function createParticleGroup(config) {
             particle2.getWorldPosition(node2);
             updateBondOrientation(bond_mesh, startNode, endNode);
           };
+          bond_mesh.set_order = (order) => {
+            bond_mesh.order = order;
+            if (bond_mesh.order == 1) {
+              if (bond_mesh.children.length != 1) {
+                const bond1 = halfCylinderMesh(
+                  startNode,
+                  endNode,
+                  startMaterial,
+                  config.config,
+                ).children[0];
+                // differentiate between double / triple bond rescale
+
+                // remove all chidren from bond_mesh
+                for (let i = bond_mesh.children.length - 1; i >= 0; i--) {
+                  bond_mesh.children[i].removeFromParent();
+                }
+
+                bond_mesh.add(bond1);
+              }
+            } else if (bond_mesh.order == 2) {
+              if (bond_mesh.children.length != 2) {
+                const bond1 = halfCylinderMesh(
+                  startNode,
+                  endNode,
+                  startMaterial,
+                  config.config,
+                ).children[0];
+                const bond2 = bond1.clone();
+                bond1.scale.set(0.8, 0.8, 1);
+                bond2.scale.set(0.8, 0.8, 1);
+
+                // remove all chidren from bond_mesh
+                for (let i = bond_mesh.children.length - 1; i >= 0; i--) {
+                  bond_mesh.children[i].removeFromParent();
+                }
+
+                bond1.translateX(0.2);
+                bond2.translateX(-0.2);
+                bond_mesh.add(bond1, bond2);
+              }
+            } else if (bond_mesh.order == 3) {
+              if (bond_mesh.children.length != 3) {
+                const bond1 = halfCylinderMesh(
+                  startNode,
+                  endNode,
+                  startMaterial,
+                  config.config,
+                ).children[0];
+                const bond2 = bond1.clone();
+                const bond3 = bond2.clone();
+                bond1.scale.set(0.7, 0.7, 1);
+                bond2.scale.set(0.7, 0.7, 1);
+                bond3.scale.set(0.7, 0.7, 1);
+
+                // remove all chidren from bond_mesh
+                for (let i = bond_mesh.children.length - 1; i >= 0; i--) {
+                  bond_mesh.children[i].removeFromParent();
+                }
+
+                bond1.translateX(0.25);
+                bond2.translateX(-0.25);
+                bond_mesh.add(bond1, bond2, bond3);
+              }
+            }
+          };
           bond_mesh.name = name;
           return bond_mesh;
         };
@@ -350,6 +428,12 @@ export function createParticleGroup(config) {
 
       // update existing bonds
       existing_bonds.forEach((bond) => {
+        // get the entry from bonds
+        let order = bonds.find(
+          (x) =>
+            x[0] + "-" + x[1] === bond.name || x[1] + "-" + x[0] === bond.name,
+        );
+        bond.set_order(order[2]);
         bond.tick();
       });
     }

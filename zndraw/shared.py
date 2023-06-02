@@ -23,6 +23,10 @@ _MODIFY_FUNCTIONS = [
     "zndraw.examples.Duplicate",
     "zndraw.examples.AddLineParticles",
 ]
+
+_BONDS_FUNCTIONS = [
+    "zndraw.tools.data.ASEComputeBonds",
+]
 _SELECTION_FUNCTIONS = []
 
 
@@ -52,11 +56,12 @@ class Config(BaseModel):
     analysis_functions: typing.List[str] = _ANALYSIS_FUNCTIONS
     modify_functions: typing.List[str] = _MODIFY_FUNCTIONS
     selection_functions: typing.List[str] = _SELECTION_FUNCTIONS
+    bonds_functions: typing.List[str] = _BONDS_FUNCTIONS
     js_frame_buffer: tuple = Field(
-        (50, 200), description="Javascript frame buffer in negative/positive direction"
+        (50, 50), description="Javascript frame buffer in negative/positive direction"
     )
-
     _atoms_cache = PrivateAttr(default_factory=dict)
+    _loaded_modifiers: typing.Dict[str, typing.Any] = PrivateAttr(default_factory=dict)
     _modifier_applied: bool = PrivateAttr(False)
 
     def get_modifier_schema(self, update_function) -> dict:
@@ -95,10 +100,14 @@ class Config(BaseModel):
         Save the updated atoms in the cache.
         """
         self._modifier_applied = True
-        module_name, function_name = modifier.rsplit(".", 1)
-        module = importlib.import_module(module_name)
-        cls: pydantic.BaseModel = getattr(module, function_name)
-        instance = cls(**modifier_kwargs)
+        if modifier not in self._loaded_modifiers:
+            module_name, function_name = modifier.rsplit(".", 1)
+            module = importlib.import_module(module_name)
+            cls: pydantic.BaseModel = getattr(module, function_name)
+            instance = cls(**modifier_kwargs)
+            self._loaded_modifiers[modifier] = instance
+        instance = self._loaded_modifiers[modifier]
+        kwargs = kwargs | modifier_kwargs
         atoms = instance.run(selected_ids, self.get_atoms(step=step).copy(), **kwargs)
         for key in list(self._atoms_cache.keys()):
             # we remove all steps after the current one
@@ -107,6 +116,12 @@ class Config(BaseModel):
 
         for idx, atom in enumerate(atoms):
             self._atoms_cache[idx + step + 1] = atom
+
+    def reset_scene_modifiers(self) -> None:
+        """Reset the scene modifiers."""
+        for key in list(self._loaded_modifiers):
+            del self._loaded_modifiers[key]
+        self._loaded_modifiers = {}
 
     def export_atoms(self):
         file = io.BytesIO()
@@ -149,3 +164,5 @@ class Config(BaseModel):
 
 
 config: Config = None
+
+bond_method = None

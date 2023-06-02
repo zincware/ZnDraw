@@ -9,6 +9,10 @@ const addAnalysisModal = new bootstrap.Modal(
   document.getElementById("addAnalysisModal"),
 );
 
+const addBondsModal = new bootstrap.Modal(
+  document.getElementById("addBondsModal"),
+);
+
 function update_materials(config) {
   const o_materialSelect = document.getElementById("materialSelect");
 
@@ -235,6 +239,51 @@ async function addAnalysisOption(function_id) {
     });
 }
 
+async function addBondsOption(function_id) {
+  await fetch("add_bonds", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(function_id),
+  })
+    .then((response) => response.json())
+    .then(function (response_json) {
+      // if not null alert
+      if ("error" in response_json) {
+        // TODO check if method is already loaded
+        console.log(
+          "Adding bonds failed with error: " + response_json["error"],
+        );
+        // alert(response_json["error"]);
+        // stepError(response_json["error"]);
+      } else {
+        if (
+          document.getElementById("scene-bonds_" + response_json["title"]) !=
+          null
+        ) {
+          alert("Function already loaded");
+          stepError("Function already loaded");
+        }
+        addBondsModal.hide();
+      }
+      return response_json;
+    })
+    .then(function (response_json) {
+      let modifier = document.createElement("option");
+      modifier.value = response_json["title"];
+      modifier.innerHTML = response_json["title"];
+      document.getElementById("addBondsMethod").appendChild(modifier);
+      return response_json;
+    })
+    .then(function (response_json) {
+      console.log(response_json);
+      let sceneModifierSettings = document.getElementById("bondsSettings");
+      sceneModifierSettings.appendChild(
+        createElementFromSchema(response_json, "scene-bonds"),
+      );
+      document.getElementById("addBondsMethod").value = response_json["title"];
+    });
+}
+
 // load analysis methods from config
 async function loadSceneModifier(config, world) {
   // iterate DATA.config.analysis_methods and add them to the select
@@ -366,6 +415,82 @@ async function loadSceneAnalysis(config, world) {
   };
 }
 
+async function loadSceneBonds(config, world) {
+  // iterate DATA.config.analysis_methods and add them to the select
+  for (let method of config.config.bonds_functions) {
+    try {
+      await addBondsOption(method); // TODO
+    } catch (error) {
+      console.log(error);
+    }
+  }
+  // document.getElementById("addBondsMethod").value = "";
+
+  document.getElementById("addBondsMethod").onchange = function () {
+    console.log(this.value);
+    if (this.value == "add") {
+      addBondsModal.show();
+    }
+
+    let domElements = document.getElementsByClassName("scene-bonds");
+    console.log(domElements);
+
+    [...domElements].forEach((element) => {
+      let bs_collapse = new bootstrap.Collapse(element, {
+        toggle: false,
+      });
+      if (element.id == "scene-bonds_" + this.value) {
+        bs_collapse.show();
+      } else {
+        bs_collapse.hide();
+      }
+    });
+  };
+
+  document.getElementById("addBondsMethod").dispatchEvent(new Event("change"));
+
+  function fetch_set_bonds(order) {
+    let form = document.getElementById(
+      "scene-bonds_" + document.getElementById("addBondsMethod").value,
+    );
+    world.rebuild();
+
+    let modifier_kwargs = {};
+    Array.from(form.elements).forEach((input) => {
+      modifier_kwargs[input.dataset.key] = input.value;
+    });
+
+    fetch("set_bonds", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        method: document.getElementById("addBondsMethod").value,
+        selected_ids: config.selected,
+        step: config.step,
+        bonds: config.bonds,
+        bonds_kwargs: modifier_kwargs,
+        order: order,
+      }),
+    });
+  }
+
+  document.getElementById("bondsBtnSave").onclick = () => {
+    fetch_set_bonds(undefined);
+  };
+  document.getElementById("bondsBtnZeroBond").onclick = () => {
+    fetch_set_bonds(0);
+  };
+  document.getElementById("bondsBtnSingleBond").onclick = () => {
+    fetch_set_bonds(1);
+  };
+  document.getElementById("bondsBtnDoubleBond").onclick = () => {
+    fetch_set_bonds(2);
+  };
+  document.getElementById("bondsBtnTripleBond").onclick = () => {
+    fetch_set_bonds(3);
+  };
+}
+
 function clickAddSceneModifier() {
   document.getElementById("addSceneModifierImportBtn").onclick =
     async function () {
@@ -403,6 +528,12 @@ function resizeOffcanvas() {
   });
 }
 
+function sceneModifierResetBtnClick() {
+  document.getElementById("sceneModifierResetBtn").onclick = function () {
+    fetch("reset-scene-modifiers");
+  };
+}
+
 export function setUIEvents(config, world) {
   update_materials(config);
   updateFPS(config);
@@ -415,6 +546,8 @@ export function setUIEvents(config, world) {
   update_bond_radius(config, world);
   loadSceneModifier(config, world);
   loadSceneAnalysis(config, world);
+  loadSceneBonds(config, world);
+  sceneModifierResetBtnClick();
 
   clickAddSceneModifier();
   resizeOffcanvas();

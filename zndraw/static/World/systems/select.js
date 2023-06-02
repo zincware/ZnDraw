@@ -86,7 +86,10 @@ class Selection {
         break;
       }
 
-      if (particleGroup.children.includes(object.parent)) {
+      if (
+        object.userData.type === "particle" ||
+        object.userData.type === "bond"
+      ) {
         object.parent.click();
         await fetch("select", {
           method: "POST",
