@@ -107,6 +107,14 @@ class World {
   deleteCache() {
     stream.deleteCache();
   }
+
+  set_step(step) {
+    stream.setStep(step);
+  }
+
+  get_step() {
+    return stream.getStep();
+  }
 }
 
 export { World };
