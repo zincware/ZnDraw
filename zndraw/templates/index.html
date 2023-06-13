@@ -13,12 +13,33 @@
         }
       }
     </script>
+    <style>
+    body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 50vh;
+    }
+
+    #js-blocker-warning {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      z-index: 1;
+    }
+  </style>
   <link rel="stylesheet" href="{{ url_for('static', filename='main.css') }}">
   <!-- Bootstrap -->
   <link rel="stylesheet" href="{{ url_for('static', filename='node_modules/bootstrap/dist/css/bootstrap.min.css') }}">
 </head>
 
 <body>
+    <noscript>
+    <div class="alert alert-danger" role="alert" id="js-blocker-warning">
+      !WARNING! JavaScript is disabled in your Browser. Please enable it to use ZnDraw.
+    </div>
+    </noscript>
   <script src="{{ url_for('static', filename='node_modules/bootstrap/dist/js/bootstrap.min.js') }}"></script>
   <script src="{{ url_for('static', filename='node_modules/plotly.js-dist/plotly.js') }}"></script>
   <script type="module" src="{{ url_for('static', filename='main.js') }}"></script>
