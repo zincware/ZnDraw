@@ -7,6 +7,7 @@ import numpy as np
 import tqdm
 from flask import (Flask, Response, render_template, request, session,
                    stream_with_context)
+import uuid
 
 from zndraw import io, shared, tools
 
@@ -186,7 +187,10 @@ def frame_stream():
             range(step, step - shared.config.js_frame_buffer[0], -1)
         )
 
-        pbar = tqdm.tqdm(values, desc=f"Streaming {step}", ncols=80)
+        stream_id = uuid.uuid4()
+        shared.streaming = stream_id
+
+        pbar = tqdm.tqdm(values, desc=f"Streaming {step}", ncols=80, leave=False)
         for idx in pbar:
             try:
                 data = {idx: shared.bond_method.get_frame(idx)}
@@ -194,10 +198,14 @@ def frame_stream():
                     f"Streaming {step} {'+' if idx-step > 0 else '-'} {str(abs(idx-step)).zfill(3)}"
                 )
                 yield f"data: {json.dumps(data)}\n\n"
+                if shared.streaming != stream_id:
+                    break
             except KeyError:
                 pbar.set_description(
                     f"Streaming {step} {'+' if idx-step > 0 else '-'} ... "
                 )
+        
+        pbar.close()
 
         yield f"data: {json.dumps({})} \nretry: 10\n\n"
 
