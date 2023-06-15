@@ -58,7 +58,7 @@ as long as it can be imported via `from module import MyUpdateCls`.
 
 # ZnTrack Integration
 
-You can use **zndraw** to view data that is made accessible via
+You can use **ZnDraw** to view data that is made accessible via
 [ZnTrack](https://zntrack.readthedocs.io). For this example we use
 https://github.com/IPSProjects/SDR. All requirements described in this
 repository are required.
