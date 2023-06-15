@@ -32,7 +32,9 @@ def main(
         "PerspectiveCamera", help="Either PerspectiveCamera or OrthographicCamera"
     ),
     export: str = typer.Option(None, help="Export the scene to a file."),
-    remote: str = typer.Option(None, help="Remote to use for loading data via ZnTrack."),
+    remote: str = typer.Option(
+        None, help="Remote to use for loading data via ZnTrack."
+    ),
     rev: str = typer.Option(None, help="Revision to use for loading data via ZnTrack."),
 ):
     """ZnDraw: Visualize Molecules

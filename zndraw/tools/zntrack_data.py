@@ -1,10 +1,11 @@
 """Handling ZnTrack data requests."""
-import zntrack
 import ase
+import zntrack
+
 
 def get_atoms_via_dvc(name_and_attr, remote, rev) -> list[ase.Atoms]:
     """Load Atoms via ZnTrack.
-    
+
     Attributes
     ----------
     name_and_attr : str

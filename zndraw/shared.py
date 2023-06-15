@@ -157,6 +157,7 @@ class Config(BaseModel):
         # print("Loading atoms")
         if self.remote is not None and self.rev is not None:
             from zndraw.tools.zntrack_data import get_atoms_via_dvc
+
             self._atoms_cache.update(
                 dict(enumerate(get_atoms_via_dvc(self.file, self.remote, self.rev)))
             )
