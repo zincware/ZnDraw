@@ -96,6 +96,9 @@ function setupSlider(config) {
 
 function setupPlayPause(config) {
   window.addEventListener("keydown", (event) => {
+    if (document.activeElement.tagName == "INPUT") {
+      return;
+    }
     if (event.isComposing || event.key === " ") {
       config.play = !config.play;
       if (config.play) {
