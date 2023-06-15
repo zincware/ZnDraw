@@ -7,7 +7,6 @@ import numpy as np
 import tqdm
 from flask import (Flask, Response, render_template, request, session,
                    stream_with_context)
-import uuid
 
 from zndraw import io, shared, tools
 
@@ -204,7 +203,7 @@ def frame_stream():
                 pbar.set_description(
                     f"Streaming {step} {'+' if idx-step > 0 else '-'} ... "
                 )
-        
+
         pbar.close()
 
         yield f"data: {json.dumps({})} \nretry: 10\n\n"

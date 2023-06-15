@@ -3,8 +3,8 @@ import enum
 import importlib
 import io
 import pathlib
-import uuid
 import typing
+import uuid
 
 import ase.io
 import pydantic
