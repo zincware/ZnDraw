@@ -37,6 +37,8 @@ class CameraChoices(str, enum.Enum):
 
 class Config(BaseModel):
     file: str = Field(..., description="Trajectory File")
+    remote: str = Field(None, description="Remote to use for loading data via ZnTrack.")
+    rev: str = Field(None, description="Revision to use for loading data via ZnTrack.")
     camera: CameraChoices = Field(
         CameraChoices.PerspectiveCamera, description="Camera style"
     )
@@ -153,14 +155,20 @@ class Config(BaseModel):
         if self._modifier_applied:
             return  # We don't want to load any further from file at this point
         # print("Loading atoms")
-        if pathlib.Path(self.file).suffix == ".h5":
-            # We load all at once here
+        if self.remote is not None and self.rev is not None:
+            from zndraw.tools.zntrack_data import get_atoms_via_dvc
             self._atoms_cache.update(
-                dict(enumerate(znh5md.ASEH5MD(self.file).get_atoms_list()))
+                dict(enumerate(get_atoms_via_dvc(self.file, self.remote, self.rev)))
             )
         else:
-            for idx, atoms in enumerate(tqdm.tqdm(ase.io.iread(self.file))):
-                self._atoms_cache[idx] = atoms
+            if pathlib.Path(self.file).suffix == ".h5":
+                # We load all at once here
+                self._atoms_cache.update(
+                    dict(enumerate(znh5md.ASEH5MD(self.file).get_atoms_list()))
+                )
+            else:
+                for idx, atoms in enumerate(tqdm.tqdm(ase.io.iread(self.file))):
+                    self._atoms_cache[idx] = atoms
 
 
 config: Config = None
