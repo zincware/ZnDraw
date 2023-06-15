@@ -56,6 +56,15 @@ as long as it can be imported via `from module import MyUpdateCls`.
 
 ![ZnDraw UI3](https://raw.githubusercontent.com/zincware/ZnDraw/main/misc/zndraw_draw.png "ZnDraw UI3")
 
+# ZnTrack Integration
+
+You can use **zndraw** to view data that is made accessible via [ZnTrack](https://zntrack.readthedocs.io).
+For this example we use https://github.com/IPSProjects/SDR. All requirements described in this repository are required.
+
+```bash
+zndraw Acetone-x10:atoms --remote https://github.com/IPSProjects/SDR --rev acetone
+```
+
 # Development
 
 ZnDraw is developed using https://python-poetry.org/. Furthermore, the
