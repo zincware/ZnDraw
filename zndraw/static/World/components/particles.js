@@ -5,7 +5,7 @@ export const materials = {
   MeshBasicMaterial: new THREE.MeshBasicMaterial({ color: "#ffa500" }),
   MeshLambertMaterial: new THREE.MeshLambertMaterial({ color: "#ffa500" }),
   MeshMatcapMaterial: new THREE.MeshMatcapMaterial({ color: "#ffa500" }),
-  MeshPhongMaterial: new THREE.MeshPhongMaterial({ color: "#ffa500" }),
+  MeshPhongMaterial: new THREE.MeshPhongMaterial({ color: "#ffa500", shininess: 100 }),
   MeshPhysicalMaterial: new THREE.MeshPhysicalMaterial({ color: "#ffa500" }),
   MeshStandardMaterial: new THREE.MeshStandardMaterial({ color: "#ffa500" }),
   MeshToonMaterial: new THREE.MeshToonMaterial({ color: "#ffa500" }),
