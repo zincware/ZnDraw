@@ -32,6 +32,10 @@ def main(
         "PerspectiveCamera", help="Either PerspectiveCamera or OrthographicCamera"
     ),
     export: str = typer.Option(None, help="Export the scene to a file."),
+    remote: str = typer.Option(
+        None, help="Remote to use for loading data via ZnTrack."
+    ),
+    rev: str = typer.Option(None, help="Revision to use for loading data via ZnTrack."),
 ):
     """ZnDraw: Visualize Molecules
 
@@ -53,14 +57,14 @@ def main(
     if file == "version":
         version_callback()
 
-    if not pathlib.Path(file).exists():
+    if not pathlib.Path(file).exists() and remote is None and rev is None:
         typer.echo(f"File {file} does not exist.")
         raise typer.Exit()
 
     if pathlib.Path(file).suffix == ".json":
         shared.config = shared.Config.parse_file(file)
     else:
-        shared.config = shared.Config(file=file, camera=camera)
+        shared.config = shared.Config(file=file, camera=camera, remote=remote, rev=rev)
     if export is not None:
         pathlib.Path(export).write_text(shared.config.json(indent=4))
         return
