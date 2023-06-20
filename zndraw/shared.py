@@ -133,6 +133,15 @@ class Config(BaseModel):
         db.add(znh5md.io.AtomsReader(self.atoms_list))
         return file
 
+    def export_selection(self, step, selected_ids):
+        string_io = io.StringIO()
+        atoms = self.get_atoms(step=step)
+        atoms = atoms[selected_ids]
+        ase.io.write(string_io, atoms, format="xyz")
+        byte_string = string_io.getvalue().encode("utf-8")
+        bytes_io = io.BytesIO(byte_string)
+        return bytes_io
+
     def get_atoms(self, step: int = 0) -> ase.Atoms:
         """Get the atoms for a given step.
 
