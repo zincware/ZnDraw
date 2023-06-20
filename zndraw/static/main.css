@@ -12,7 +12,6 @@ body {
   min-height: 100vh;
 }
 
-
 #scene-container {
   /* tell our scene container to take up the full page */
   position: absolute;
@@ -105,7 +104,6 @@ body {
     transform: rotateZ(360deg) rotateX(66deg) rotateZ(360deg);
   }
 }
-
 
 #js-blocker-warning {
   display: flex;
