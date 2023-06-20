@@ -47,7 +47,7 @@ class World {
 
     const particles = createParticleGroup(config);
     const index = createIndexGroup(particles);
-    const light = createLights();
+    const lights = createLights();
     const curve = new Curve3D(scene, transform_controls, config, particles);
     const canvas = new Canvas3D(
       scene,
@@ -75,7 +75,8 @@ class World {
       this.rebuild();
     };
 
-    scene.add(particles, light, camera, index, transform_controls);
+    scene.add(particles, camera, index, transform_controls);
+    scene.add(...lights);
 
     // disable mesh rotation
     loop.constraint_updatables.push(particles);
