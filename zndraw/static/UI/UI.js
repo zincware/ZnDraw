@@ -534,6 +534,21 @@ function sceneModifierResetBtnClick() {
   };
 }
 
+function downloadSelection(config) {
+  document.getElementById("download-selected").onclick = function () {
+    fetch("download-selected/" + config.step + "/" + config.selected.join(","))
+      .then((response) => response.blob())
+      .then((blob) => {
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "selected_atoms.xyz";
+        a.click();
+        window.URL.revokeObjectURL(url);
+      });
+  };
+}
+
 export function setUIEvents(config, world) {
   update_materials(config);
   updateFPS(config);
@@ -548,6 +563,7 @@ export function setUIEvents(config, world) {
   loadSceneAnalysis(config, world);
   loadSceneBonds(config, world);
   sceneModifierResetBtnClick();
+  downloadSelection(config);
 
   clickAddSceneModifier();
   resizeOffcanvas();
