@@ -6,7 +6,12 @@ body {
   /* remove margins and scroll bars */
   margin: 0;
   overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
 }
+
 
 #scene-container {
   /* tell our scene container to take up the full page */
@@ -99,6 +104,15 @@ body {
   100% {
     transform: rotateZ(360deg) rotateX(66deg) rotateZ(360deg);
   }
+}
+
+
+#js-blocker-warning {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  z-index: 1;
 }
 
 #greyOut {
