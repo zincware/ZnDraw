@@ -137,7 +137,7 @@ class Config(BaseModel):
         atoms = self.get_atoms(step=step)
         atoms = atoms[selected_ids]
         ase.io.write(string_io, atoms, format="xyz")
-        byte_string = string_io.getvalue().encode('utf-8')
+        byte_string = string_io.getvalue().encode("utf-8")
         bytes_io = io.BytesIO(byte_string)
         return bytes_io
 

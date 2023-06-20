@@ -5,8 +5,8 @@ import uuid
 import networkx as nx
 import numpy as np
 import tqdm
-from flask import (Flask, Response, render_template, request, session,
-                   stream_with_context, send_file)
+from flask import (Flask, Response, render_template, request, send_file,
+                   session, stream_with_context)
 
 from zndraw import io, shared, tools
 
@@ -170,6 +170,7 @@ def download():
     b.seek(0)
     return send_file(b, download_name="traj.h5", as_attachment=True)
 
+
 @app.route("/download-selected/<int:step>/<selected_ids>")
 def download_selection(step, selected_ids):
     """Download the current atoms."""
@@ -177,7 +178,6 @@ def download_selection(step, selected_ids):
     b = shared.config.export_selection(step, selected_ids)
     b.seek(0)
     return send_file(b, download_name="traj.xyz", as_attachment=True)
-
 
 
 @app.route("/frame-set", methods=["POST"])
