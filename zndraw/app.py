@@ -5,14 +5,14 @@ import uuid
 import networkx as nx
 import numpy as np
 import tqdm
-from flask import (Flask, Response, render_template, request, send_file,
-                   session, stream_with_context, g)
+from flask import (Flask, Response, g, render_template, request, send_file,
+                   session, stream_with_context)
 from flask_session import Session
 
 from zndraw import io, shared, tools
 
 app = Flask(__name__)
-SESSION_TYPE = 'filesystem'
+SESSION_TYPE = "filesystem"
 app.config.from_object(__name__)
 app.secret_key = str(uuid.uuid4())
 Session(app)
@@ -23,7 +23,7 @@ def index():
     """Render the main ZnDraw page."""
     session["key"] = str(uuid.uuid4())  # TODO use session key e.g. for atoms cache
     session["step"] = 0
-    session["config"] = shared.config  
+    session["config"] = shared.config
     session["bond_method"] = tools.data.ASEComputeBonds()
     return render_template("index.html", config=session["config"].dict())
 
@@ -135,7 +135,9 @@ def set_bonds():
     print(f"Setting bonds {request.json}")
     module_name, function_name = request.json["method"].rsplit(".", 1)
     module = importlib.import_module(module_name)
-    session["bond_method"] = getattr(module, function_name)(**request.json["bonds_kwargs"])
+    session["bond_method"] = getattr(module, function_name)(
+        **request.json["bonds_kwargs"]
+    )
 
     if "order" in request.json:
         session["bond_method"].update_bond_order(
@@ -194,7 +196,6 @@ def frame_set():
 
 @app.route("/frame-stream")
 def frame_stream():
-
     @stream_with_context
     def generate(step):
         values = list(range(step, step + session["config"].js_frame_buffer[1])) + list(
