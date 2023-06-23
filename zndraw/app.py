@@ -6,12 +6,16 @@ import networkx as nx
 import numpy as np
 import tqdm
 from flask import (Flask, Response, render_template, request, send_file,
-                   session, stream_with_context)
+                   session, stream_with_context, g)
+from flask_session import Session
 
 from zndraw import io, shared, tools
 
 app = Flask(__name__)
+SESSION_TYPE = 'filesystem'
+app.config.from_object(__name__)
 app.secret_key = str(uuid.uuid4())
+Session(app)
 
 
 @app.route("/")
@@ -19,8 +23,9 @@ def index():
     """Render the main ZnDraw page."""
     session["key"] = str(uuid.uuid4())  # TODO use session key e.g. for atoms cache
     session["step"] = 0
-    shared.bond_method = tools.data.ASEComputeBonds()
-    return render_template("index.html", config=shared.config.dict())
+    session["config"] = shared.config  
+    session["bond_method"] = tools.data.ASEComputeBonds()
+    return render_template("index.html", config=session["config"].dict())
 
 
 @app.route("/config", methods=["POST", "GET"])
@@ -29,10 +34,10 @@ def config():
     if request.method == "POST":
         print(f"Updating config: {request.json}")
         for key, value in request.json.items():
-            setattr(shared.config, key, value)
+            setattr(session["config"], key, value)
     return {
-        **shared.config.dict(),
-        "total_frames": len(shared.config._atoms_cache) - 1,
+        **session["config"].dict(),
+        "total_frames": len(session["config"]._atoms_cache) - 1,
     }
 
 
@@ -49,7 +54,7 @@ def select() -> list[int]:
     if method in ["particles", "none"]:
         return {"selected_ids": selected_ids, "updated": False}
 
-    atoms = shared.config.get_atoms(step)
+    atoms = session["config"].get_atoms(step)
 
     if method == "species":
         return {
@@ -69,7 +74,7 @@ def select() -> list[int]:
 def add_update_function():
     """Add a function to the config."""
     try:
-        signature = shared.config.get_modifier_schema(request.json)
+        signature = session["config"].get_modifier_schema(request.json)
     except Exception as err:
         return {"error": str(err)}
     return signature
@@ -83,7 +88,7 @@ def update_scene():
     selected_ids = list(sorted(request.json["selected_ids"]))
     step = request.json["step"]
     points = np.array([[x["x"], x["y"], x["z"]] for x in request.json["points"]])
-    shared.config.run_modifier(
+    session["config"].run_modifier(
         modifier, selected_ids, step, modifier_kwargs, points=points
     )
     return {}
@@ -95,14 +100,14 @@ def add_analysis():
     import importlib
 
     # we need to load the first atoms to get the schema
-    atoms = shared.config.get_atoms(0)
+    atoms = session["config"].get_atoms(0)
 
     try:
         module_name, function_name = request.json.rsplit(".", 1)
         module = importlib.import_module(module_name)
         cls = getattr(module, function_name)
         try:
-            schema = cls.schema_from_atoms(shared.config.atoms_list)
+            schema = cls.schema_from_atoms(session["config"].atoms_list)
         except AttributeError as e:
             raise ImportError(
                 f"Unable to import {cls}. Can not generate schema."
@@ -118,7 +123,7 @@ def add_analysis():
 def add_bonds():
     """Add a function to the config."""
     try:
-        signature = shared.config.get_modifier_schema(request.json)
+        signature = session["config"].get_modifier_schema(request.json)
     except Exception as err:
         return {"error": str(err)}
     return signature
@@ -130,11 +135,11 @@ def set_bonds():
     print(f"Setting bonds {request.json}")
     module_name, function_name = request.json["method"].rsplit(".", 1)
     module = importlib.import_module(module_name)
-    shared.bond_method = getattr(module, function_name)(**request.json["bonds_kwargs"])
+    session["bond_method"] = getattr(module, function_name)(**request.json["bonds_kwargs"])
 
     if "order" in request.json:
-        shared.bond_method.update_bond_order(
-            atoms=shared.config.get_atoms(request.json["step"]),
+        session["bond_method"].update_bond_order(
+            atoms=session["config"].get_atoms(request.json["step"]),
             particles=request.json["selected_ids"],
             order=request.json["order"],
         )
@@ -158,7 +163,7 @@ def analyse():
 @app.route("/load")
 def load():
     """Function to call asynchronously to load atoms in the background."""
-    shared.config.load_atoms()
+    session["config"].load_atoms()
     return {}
 
 
@@ -166,7 +171,7 @@ def load():
 def download():
     """Download the current atoms."""
 
-    b = shared.config.export_atoms()
+    b = session["config"].export_atoms()
     b.seek(0)
     return send_file(b, download_name="traj.h5", as_attachment=True)
 
@@ -175,7 +180,7 @@ def download():
 def download_selection(step, selected_ids):
     """Download the current atoms."""
     selected_ids = [int(x) for x in selected_ids.split(",")]
-    b = shared.config.export_selection(step, selected_ids)
+    b = session["config"].export_selection(step, selected_ids)
     b.seek(0)
     return send_file(b, download_name="traj.xyz", as_attachment=True)
 
@@ -189,28 +194,32 @@ def frame_set():
 
 @app.route("/frame-stream")
 def frame_stream():
+
+    @stream_with_context
     def generate(step):
-        values = list(range(step, step + shared.config.js_frame_buffer[1])) + list(
-            range(step, step - shared.config.js_frame_buffer[0], -1)
+        values = list(range(step, step + session["config"].js_frame_buffer[1])) + list(
+            range(step, step - session["config"].js_frame_buffer[0], -1)
         )
 
-        stream_id = uuid.uuid4()
-        shared.streaming = stream_id
+        session["stream-id"] = uuid.uuid4()
+        # stream_id = uuid.uuid4()
+        # shared.streaming = stream_id
 
         pbar = tqdm.tqdm(values, desc=f"Streaming {step}", ncols=80, leave=False)
         for idx in pbar:
             try:
-                data = {idx: shared.bond_method.get_frame(idx)}
+                data = {idx: session["bond_method"].get_frame(idx)}
                 pbar.set_description(
                     f"Streaming {step} {'+' if idx-step > 0 else '-'} {str(abs(idx-step)).zfill(3)}"
                 )
                 yield f"data: {json.dumps(data)}\n\n"
-                if shared.streaming != stream_id:
-                    break
+                # if shared.streaming != stream_id:
+                #     break
             except KeyError:
                 pbar.set_description(
                     f"Streaming {step} {'+' if idx-step > 0 else '-'} ... "
                 )
+            pbar.set_description(str(session["stream-id"]))
 
         pbar.close()
 
@@ -221,5 +230,5 @@ def frame_stream():
 
 @app.route("/reset-scene-modifiers")
 def reset_scene_modifiers():
-    shared.config.reset_scene_modifiers()
+    session["config"].reset_scene_modifiers()
     return {}
