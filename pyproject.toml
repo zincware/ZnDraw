@@ -19,6 +19,7 @@ znh5md = "^0.1.6"
 pydantic = "^1.10.7"
 plotly = "^5.14.1"
 pandas = "^2.0.1"
+flask-session = "^0.5.0"
 
 [tool.poetry.group.dev.dependencies]
 black = "^23.3.0"

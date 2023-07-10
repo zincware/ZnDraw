@@ -4,6 +4,7 @@ import importlib
 import io
 import pathlib
 import typing
+import uuid
 
 import ase.io
 import pydantic
@@ -60,7 +61,7 @@ class Config(BaseModel):
     selection_functions: typing.List[str] = _SELECTION_FUNCTIONS
     bonds_functions: typing.List[str] = _BONDS_FUNCTIONS
     js_frame_buffer: tuple = Field(
-        (50, 50), description="Javascript frame buffer in negative/positive direction"
+        (500, 500), description="Javascript frame buffer in negative/positive direction"
     )
     _atoms_cache = PrivateAttr(default_factory=dict)
     _loaded_modifiers: typing.Dict[str, typing.Any] = PrivateAttr(default_factory=dict)
@@ -184,3 +185,4 @@ class Config(BaseModel):
 config: Config = None
 
 bond_method = None
+streaming: uuid.UUID = None
