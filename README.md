@@ -76,3 +76,6 @@ javascript packages have to be installed using https://www.npmjs.com/.
 cd zndraw/static/
 npm install
 ```
+
+You can also use the docker image via `docker run -it -p 5003:5003 -v "$(pwd)":/src pythonf/zndraw  /src/traj.h5`.
+This will display the file `traj.h5` from the current working directory on `http://localhost:5003`.

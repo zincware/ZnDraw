@@ -77,4 +77,4 @@ def main(
             return
     if browser:
         webbrowser.open(f"http://127.0.0.1:{port}")
-    app.run(port=port)
+    app.run(port=port, host='0.0.0.0')
