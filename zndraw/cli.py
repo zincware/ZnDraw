@@ -1,76 +1,34 @@
-import contextlib
-import pathlib
 import socket
-import sys
 import webbrowser
 
 import typer
-
-from zndraw import __version__, app, shared
-
-try:
-    import webview as wv
-except ImportError:
-    wv = None
+import znh5md
 
 cli = typer.Typer()
 
+from zndraw.app import app, socketio
 
-def version_callback():
-    typer.echo(f"ZnDraw {__version__}")
-    raise typer.Exit()
+
+def _get_port() -> int:
+    sock = socket.socket()
+    sock.bind(("", 0))
+    port = sock.getsockname()[1]
+    sock.close()
+    return port
 
 
 @cli.command()
-def main(
-    file: str = typer.Argument(..., help="Trajectory File"),
-    port: int = typer.Option(None, help="Port to run the server on"),
-    browser: bool = typer.Option(True, help="Open the browser automatically."),
-    webview: bool = typer.Option(True, help="Use the webview library if available."),
-    verbose: bool = typer.Option(False, help="Run the server in verbose mode."),
-    camera: str = typer.Option(
-        "PerspectiveCamera", help="Either PerspectiveCamera or OrthographicCamera"
-    ),
-    export: str = typer.Option(None, help="Export the scene to a file."),
-):
-    """ZnDraw: Visualize Molecules
+def main(filename: str):
+    # get an empty port
+    port = _get_port()
 
-    The ZnDraw CLI. Use 'zndraw version' to get the current version.
-    """
-    if not verbose:
-        import logging
+    import logging
 
-        log = logging.getLogger("werkzeug")
-        log.setLevel(logging.ERROR)
+    log = logging.getLogger("werkzeug")
+    log.setLevel(logging.ERROR)
 
-    sys.path.insert(1, pathlib.Path.cwd().as_posix())
-    if port is None:
-        sock = socket.socket()
-        sock.bind(("", 0))
-        port = sock.getsockname()[1]
-        sock.close()
+    filename = filename.replace("/", ".slash.").replace("\\", ".slash.")
+    print(f"Reading {filename}...")
 
-    if file == "version":
-        version_callback()
-
-    if not pathlib.Path(file).exists():
-        typer.echo(f"File {file} does not exist.")
-        raise typer.Exit()
-
-    if pathlib.Path(file).suffix == ".json":
-        shared.config = shared.Config.parse_file(file)
-    else:
-        shared.config = shared.Config(file=file, camera=camera)
-    if export is not None:
-        pathlib.Path(export).write_text(shared.config.json(indent=4))
-        return
-    print(shared.config)
-
-    if wv is not None and webview:
-        wv.create_window("ZnDraw", app)
-        with contextlib.suppress(wv.WebViewException):
-            wv.start()
-            return
-    if browser:
-        webbrowser.open(f"http://127.0.0.1:{port}")
-    app.run(port=port)
+    webbrowser.open(f"http://127.0.0.1:{port}/read/{filename}")
+    socketio.run(app, port=port, host="0.0.0.0")
