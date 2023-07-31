@@ -5,8 +5,14 @@ import uuid
 import networkx as nx
 import numpy as np
 import tqdm
-from flask import (Flask, Response, render_template, request, session,
-                   stream_with_context)
+from flask import (
+    Flask,
+    Response,
+    render_template,
+    request,
+    session,
+    stream_with_context,
+)
 
 from zndraw import io, shared, tools
 
@@ -59,6 +65,11 @@ def select() -> list[int]:
     elif method == "connected":
         return {
             "selected_ids": tools.select.select_connected(atoms, selected_ids),
+            "updated": True,
+        }
+    elif method == "all":
+        return {
+            "selected_ids": tools.select.select_all(atoms, selected_ids),
             "updated": True,
         }
     else:

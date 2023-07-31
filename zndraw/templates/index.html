@@ -21,6 +21,11 @@
 <body>
   <script src="{{ url_for('static', filename='node_modules/bootstrap/dist/js/bootstrap.min.js') }}"></script>
   <script src="{{ url_for('static', filename='node_modules/plotly.js-dist/plotly.js') }}"></script>
+
+  <script defer src="{{ url_for('static', filename='node_modules/@fortawesome/fontawesome-free/js/brands.js') }}"></script>
+  <script defer src="{{ url_for('static', filename='node_modules/@fortawesome/fontawesome-free/js/solid.js') }}"></script>
+  <script defer src="{{ url_for('static', filename='node_modules/@fortawesome/fontawesome-free/js/fontawesome.js') }}"></script>
+
   <script type="module" src="{{ url_for('static', filename='main.js') }}"></script>
 
   <div id="scene-container"></div>
@@ -166,6 +171,7 @@
           <option value="species">Species</option>
           <option value="connected">Connected Particles</option>
           <option value="none">None</option>
+          <option value="all">All</option>
         </select>
         <div id="selection-methodHelp" class="form-text">Select single particles, whole molecules or disable selection.
         </div>
