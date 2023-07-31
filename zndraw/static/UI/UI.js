@@ -534,6 +534,28 @@ function sceneModifierResetBtnClick() {
   };
 }
 
+function deleteOnButtonPress(config, world) {
+  // call fetch when delete key is pressed
+  document.addEventListener("keydown", function (event) {
+    if (event.key == "Delete") {
+      fetch("update", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              selected_ids: config.selected,
+              step: config.step,
+              modifier: "zndraw.examples.Delete",
+              modifier_kwargs: {},
+              points: config.draw_vectors,
+            }),
+          }).then(() => {
+            config.set_step(config.step + 1);
+            world.rebuild();
+          });
+    }
+  });
+}
+
 export function setUIEvents(config, world) {
   update_materials(config);
   updateFPS(config);
@@ -548,6 +570,7 @@ export function setUIEvents(config, world) {
   loadSceneAnalysis(config, world);
   loadSceneBonds(config, world);
   sceneModifierResetBtnClick();
+  deleteOnButtonPress(config, world);
 
   clickAddSceneModifier();
   resizeOffcanvas();

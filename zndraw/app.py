@@ -89,6 +89,7 @@ def add_update_function():
 @app.route("/update", methods=["POST"])
 def update_scene():
     """Update the scene with the selected atoms."""
+    # delete via {'selected_ids': [144], 'step': 38, 'modifier': 'zndraw.examples.Delete', 'modifier_kwargs': {}, 'points': []}
     modifier = request.json["modifier"]
     modifier_kwargs = request.json["modifier_kwargs"]
     selected_ids = list(sorted(request.json["selected_ids"]))
