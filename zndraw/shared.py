@@ -11,12 +11,14 @@ import pydantic
 import tqdm
 import znh5md
 from pydantic import BaseModel, Field, PrivateAttr
+
 from zndraw.settings import GlobalConfig
 
 if pathlib.Path("~/.zincware/zndraw/config.json").expanduser().exists():
     SETTINGS = GlobalConfig.from_file()
 else:
     SETTINGS = GlobalConfig()
+
 
 class CameraChoices(str, enum.Enum):
     OrthographicCamera = "OrthographicCamera"

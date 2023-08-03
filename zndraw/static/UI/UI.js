@@ -539,19 +539,19 @@ function deleteOnButtonPress(config, world) {
   document.addEventListener("keydown", function (event) {
     if (event.key == "Delete") {
       fetch("update", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              selected_ids: config.selected,
-              step: config.step,
-              modifier: "zndraw.examples.Delete",
-              modifier_kwargs: {},
-              points: config.draw_vectors,
-            }),
-          }).then(() => {
-            config.set_step(config.step + 1);
-            world.rebuild();
-          });
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          selected_ids: config.selected,
+          step: config.step,
+          modifier: "zndraw.examples.Delete",
+          modifier_kwargs: {},
+          points: config.draw_vectors,
+        }),
+      }).then(() => {
+        config.set_step(config.step + 1);
+        world.rebuild();
+      });
     }
   });
 }
