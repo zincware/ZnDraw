@@ -555,7 +555,7 @@ function deleteOnButtonPress(config, world) {
     }
   });
 }
-  function downloadSelection(config) {
+function downloadSelection(config) {
   document.getElementById("download-selected").onclick = function () {
     fetch("download-selected/" + config.step + "/" + config.selected.join(","))
       .then((response) => response.blob())
@@ -586,7 +586,7 @@ export function setUIEvents(config, world) {
   sceneModifierResetBtnClick();
   deleteOnButtonPress(config, world);
   downloadSelection(config);
-  
+
   clickAddSceneModifier();
   resizeOffcanvas();
 
