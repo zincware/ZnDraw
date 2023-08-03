@@ -4,6 +4,7 @@ import importlib
 import io
 import pathlib
 import typing
+import uuid
 
 import ase.io
 import pydantic
@@ -11,23 +12,12 @@ import tqdm
 import znh5md
 from pydantic import BaseModel, Field, PrivateAttr
 
-_ANALYSIS_FUNCTIONS = [
-    "zndraw.analyse.Properties1D",
-    "zndraw.analyse.Properties2D",
-    "zndraw.analyse.Distance",
-]
-_MODIFY_FUNCTIONS = [
-    "zndraw.examples.Explode",
-    "zndraw.examples.Delete",
-    "zndraw.examples.Move",
-    "zndraw.examples.Duplicate",
-    "zndraw.examples.AddLineParticles",
-]
+from zndraw.settings import GlobalConfig
 
-_BONDS_FUNCTIONS = [
-    "zndraw.tools.data.ASEComputeBonds",
-]
-_SELECTION_FUNCTIONS = []
+if pathlib.Path("~/.zincware/zndraw/config.json").expanduser().exists():
+    SETTINGS = GlobalConfig.from_file()
+else:
+    SETTINGS = GlobalConfig()
 
 
 class CameraChoices(str, enum.Enum):
@@ -55,12 +45,12 @@ class Config(BaseModel):
         False, description="Continuous Loading of the trajectory"
     )
     auto_restart: bool = Field(False, description="Auto Restart")
-    analysis_functions: typing.List[str] = _ANALYSIS_FUNCTIONS
-    modify_functions: typing.List[str] = _MODIFY_FUNCTIONS
-    selection_functions: typing.List[str] = _SELECTION_FUNCTIONS
-    bonds_functions: typing.List[str] = _BONDS_FUNCTIONS
+    analysis_functions: typing.List[str] = SETTINGS.analysis_functions
+    modify_functions: typing.List[str] = SETTINGS.modify_functions
+    selection_functions: typing.List[str] = SETTINGS.selection_functions
+    bonds_functions: typing.List[str] = SETTINGS.bonds_functions
     js_frame_buffer: tuple = Field(
-        (50, 50), description="Javascript frame buffer in negative/positive direction"
+        (250, 250), description="Javascript frame buffer in negative/positive direction"
     )
     _atoms_cache = PrivateAttr(default_factory=dict)
     _loaded_modifiers: typing.Dict[str, typing.Any] = PrivateAttr(default_factory=dict)
@@ -83,6 +73,10 @@ class Config(BaseModel):
         instance: pydantic.BaseModel = getattr(module, function_name)()
         schema = instance.schema()
         schema["title"] = update_function
+        if update_function in SETTINGS.function_schema:
+            kwargs = SETTINGS.function_schema[update_function]
+            for key, value in kwargs.items():
+                schema["properties"][key]["default"] = value
         return schema
 
     def run_modifier(self, modifier, selected_ids, step, modifier_kwargs, **kwargs):
@@ -184,3 +178,4 @@ class Config(BaseModel):
 config: Config = None
 
 bond_method = None
+streaming: uuid.UUID = None
