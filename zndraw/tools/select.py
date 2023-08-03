@@ -26,3 +26,8 @@ def select_connected(atoms: ase.Atoms, selected_ids: list[int]) -> list[int]:
         total_ids += list(nx.node_connected_component(graph, node_id))
 
     return list(set(total_ids))
+
+
+def select_all(atoms: ase.Atoms, selected_ids: list[int]) -> list[int]:
+    """Select all atoms."""
+    return list(range(len(atoms)))

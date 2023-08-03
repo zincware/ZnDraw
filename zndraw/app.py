@@ -5,8 +5,8 @@ import uuid
 import networkx as nx
 import numpy as np
 import tqdm
-from flask import (Flask, Response, render_template, request, session,
-                   stream_with_context)
+from flask import (Flask, Response, render_template, request, send_file,
+                   session, stream_with_context)
 
 from zndraw import io, shared, tools
 
@@ -61,6 +61,11 @@ def select() -> list[int]:
             "selected_ids": tools.select.select_connected(atoms, selected_ids),
             "updated": True,
         }
+    elif method == "all":
+        return {
+            "selected_ids": tools.select.select_all(atoms, selected_ids),
+            "updated": True,
+        }
     else:
         raise ValueError(f"Unknown selection method: {method}")
 
@@ -78,6 +83,7 @@ def add_update_function():
 @app.route("/update", methods=["POST"])
 def update_scene():
     """Update the scene with the selected atoms."""
+    # delete via {'selected_ids': [144], 'step': 38, 'modifier': 'zndraw.examples.Delete', 'modifier_kwargs': {}, 'points': []}
     modifier = request.json["modifier"]
     modifier_kwargs = request.json["modifier_kwargs"]
     selected_ids = list(sorted(request.json["selected_ids"]))
@@ -165,11 +171,19 @@ def load():
 @app.route("/download")
 def download():
     """Download the current atoms."""
-    from flask import send_file
 
     b = shared.config.export_atoms()
     b.seek(0)
     return send_file(b, download_name="traj.h5", as_attachment=True)
+
+
+@app.route("/download-selected/<int:step>/<selected_ids>")
+def download_selection(step, selected_ids):
+    """Download the current atoms."""
+    selected_ids = [int(x) for x in selected_ids.split(",")]
+    b = shared.config.export_selection(step, selected_ids)
+    b.seek(0)
+    return send_file(b, download_name="traj.xyz", as_attachment=True)
 
 
 @app.route("/frame-set", methods=["POST"])
@@ -186,7 +200,10 @@ def frame_stream():
             range(step, step - shared.config.js_frame_buffer[0], -1)
         )
 
-        pbar = tqdm.tqdm(values, desc=f"Streaming {step}", ncols=80)
+        stream_id = uuid.uuid4()
+        shared.streaming = stream_id
+
+        pbar = tqdm.tqdm(values, desc=f"Streaming {step}", ncols=80, leave=False)
         for idx in pbar:
             try:
                 data = {idx: shared.bond_method.get_frame(idx)}
@@ -194,10 +211,14 @@ def frame_stream():
                     f"Streaming {step} {'+' if idx-step > 0 else '-'} {str(abs(idx-step)).zfill(3)}"
                 )
                 yield f"data: {json.dumps(data)}\n\n"
+                if shared.streaming != stream_id:
+                    break
             except KeyError:
                 pbar.set_description(
                     f"Streaming {step} {'+' if idx-step > 0 else '-'} ... "
                 )
+
+        pbar.close()
 
         yield f"data: {json.dumps({})} \nretry: 10\n\n"
 
