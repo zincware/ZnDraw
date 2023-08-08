@@ -16,7 +16,21 @@ except ImportError:
     wv = None
 
 def view(data: list[ase.Atoms], verbose: bool = False, port: int = None, webview: bool = True, browser: bool = True) -> None:
-    """Visualize a list of ASE atoms objects."""
+    """Visualize a list of ASE atoms objects.
+    
+    Attributes
+    ----------
+    data : list[ase.Atoms]
+        The list of atoms objects to visualize.
+    verbose : bool, optional
+        Whether to print verbose output, by default False
+    port : int, optional
+        The port to run the server on, by default None
+    webview : bool, optional
+        Whether to use webview, if available by default True
+    browser : bool, optional
+        Whether to open the browser, by default True   
+    """
     if not verbose:
         import logging
 
