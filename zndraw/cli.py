@@ -41,6 +41,8 @@ def main(
 
     The ZnDraw CLI. Use 'zndraw version' to get the current version.
     """
+
+    # TODO use zndraw.view() to open the file.
     if not verbose:
         import logging
 
