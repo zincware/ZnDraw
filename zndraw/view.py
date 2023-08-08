@@ -1,12 +1,10 @@
-import typing
-import ase
+import contextlib
 import logging
 import socket
-
-import contextlib
-import socket
+import typing
 import webbrowser
 
+import ase
 
 from zndraw import app, shared
 
