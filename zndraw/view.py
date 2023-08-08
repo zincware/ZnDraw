@@ -1,12 +1,10 @@
-import typing
-import ase
+import contextlib
 import logging
 import socket
-
-import contextlib
-import socket
+import typing
 import webbrowser
 
+import ase
 
 from zndraw import app, shared
 
@@ -15,7 +13,14 @@ try:
 except ImportError:
     wv = None
 
-def view(data: list[ase.Atoms], verbose: bool = False, port: int = None, webview: bool = True, browser: bool = True) -> None:
+
+def view(
+    data: list[ase.Atoms],
+    verbose: bool = False,
+    port: int = None,
+    webview: bool = True,
+    browser: bool = True,
+) -> None:
     """Visualize a list of ASE atoms objects."""
     if not verbose:
         import logging
