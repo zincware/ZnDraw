@@ -13,9 +13,16 @@ try:
 except ImportError:
     wv = None
 
-def view(data: list[ase.Atoms], verbose: bool = False, port: int = None, webview: bool = True, browser: bool = True) -> None:
+
+def view(
+    data: list[ase.Atoms],
+    verbose: bool = False,
+    port: int = None,
+    webview: bool = True,
+    browser: bool = True,
+) -> None:
     """Visualize a list of ASE atoms objects.
-    
+
     Attributes
     ----------
     data : list[ase.Atoms]
@@ -27,7 +34,7 @@ def view(data: list[ase.Atoms], verbose: bool = False, port: int = None, webview
     webview : bool, optional
         Whether to use webview, if available by default True
     browser : bool, optional
-        Whether to open the browser, by default True   
+        Whether to open the browser, by default True
     """
     if not verbose:
         import logging
