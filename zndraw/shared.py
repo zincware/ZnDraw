@@ -155,6 +155,8 @@ class Config(BaseModel):
     def load_atoms(self, step: int = 999999999):
         """Load the atoms up to a given step."""
         # TODO ZnH5MD
+        if self.file == "":
+            return
         if self._modifier_applied:
             return  # We don't want to load any further from file at this point
         # print("Loading atoms")
