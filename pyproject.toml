@@ -15,6 +15,8 @@ flask = "^2.2.3"
 tqdm = "^4.65.0"
 znh5md = "^0.1.6"
 flask-socketio = "^5.3.4"
+dask = {extras = ["dataframe", "distributed"], version = "^2023.8.0"}
+eventlet = "^0.33.3"
 
 [tool.poetry.group.dev.dependencies]
 pre-commit = "^3.3.3"

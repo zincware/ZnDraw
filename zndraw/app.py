@@ -4,6 +4,10 @@ import tqdm
 import znh5md
 from flask import Flask, redirect, render_template, session, url_for
 from flask_socketio import SocketIO, emit
+from dask.distributed import Client, Variable
+from zndraw.data import DataHandler
+import numpy as np
+import time
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = str(uuid.uuid4())
@@ -39,16 +43,25 @@ def session_view():
 
 @socketio.on("configuration:id")
 def handle_get_id_on_configurations(json):
-    print("received json: " + str(json))
+    start_time = time.time()
 
-    ds = znh5md.ASEH5MD(session["filename"])
-    atoms = ds.get_atoms_list(int(json["id"]))
+    print("received json: " + str(json) )
+    atoms_list = DataHandler(Client(app.config["dask-scheduler"])).get_atoms(int(json["id"]))
+    print("time to get atoms: " + str(time.time() - start_time))
+    
+    atoms_dict = []
+    for atoms in atoms_list:
+        _dict = atoms.todict()
+        for key in _dict:
+            if isinstance(_dict[key], np.ndarray):
+                _dict[key] = _dict[key].tolist()
+        atoms_dict.append(_dict)
 
     emit(
-        "configuration:id",
-        {
-            "positions": atoms.get_positions().tolist(),
-            "cell": atoms.get_cell().tolist(),
-            "atomic_numbers": atoms.get_atomic_numbers().tolist(),
-        },
+        "configuration:id", atoms_dict
+        # {
+        #     "positions": atoms.get_positions().tolist(),
+        #     "cell": atoms.get_cell().tolist(),
+        #     "atomic_numbers": atoms.get_atomic_numbers().tolist(),
+        # },
     )

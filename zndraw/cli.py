@@ -2,11 +2,12 @@ import socket
 import webbrowser
 
 import typer
-import znh5md
+from dask.distributed import Client, Variable
 
 cli = typer.Typer()
 
 from zndraw.app import app, socketio
+from zndraw.data import DataHandler
 
 
 def _get_port() -> int:
@@ -27,8 +28,13 @@ def main(filename: str):
     log = logging.getLogger("werkzeug")
     log.setLevel(logging.ERROR)
 
-    filename = filename.replace("/", ".slash.").replace("\\", ".slash.")
-    print(f"Reading {filename}...")
+    with Client() as client:
+        _filename = Variable("filename")
+        _filename.set(filename)
 
-    webbrowser.open(f"http://127.0.0.1:{port}/read/{filename}")
-    socketio.run(app, port=port, host="0.0.0.0")
+        DataHandler(client).create_dataset(filename)
+
+        app.config["dask-scheduler"] = client.scheduler_info()["address"]
+
+        webbrowser.open(f"http://127.0.0.1:{port}")
+        socketio.run(app, port=port, host="0.0.0.0")

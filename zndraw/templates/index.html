@@ -38,9 +38,15 @@
         socket.emit("connection", { data: "I'm connected!" });
       });
       socket.on("configuration:id", (data) => {
-        // construct an Atoms class from the data dictionary
-        var atoms = new Atoms(data.positions, data.cell, data.atomic_numbers);
-        console.log(atoms);
+        // data is a list, iterate over it
+        const atomsArray = data.map(config => {
+            return new Atoms(config.positions, config.cell, config.atomic_numbers);
+        });
+
+        console.log(atomsArray);
+        // // construct an Atoms class from the data dictionary
+        // 
+        // 
       });
 
       var slider = document.getElementById("myRange");
