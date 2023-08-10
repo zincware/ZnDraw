@@ -39,11 +39,19 @@
       });
       socket.on("configuration:id", (data) => {
         // data is a list, iterate over it
-        const atomsArray = data.map(config => {
-            return new Atoms(config.positions, config.cell, config.atomic_numbers);
+        // const atomsArray = data.map(config => {
+        //     return new Atoms(config.positions, config.cell, config.atomic_numbers);
+        // });
+
+        Object.keys(data).forEach((key) => {
+          data[key] = new Atoms(
+            data[key].positions,
+            data[key].cell,
+            data[key].atomic_numbers
+          );
         });
 
-        console.log(atomsArray);
+        console.log(data);
         // // construct an Atoms class from the data dictionary
         // 
         // 

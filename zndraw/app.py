@@ -45,23 +45,10 @@ def session_view():
 def handle_get_id_on_configurations(json):
     start_time = time.time()
 
-    print("received json: " + str(json) )
-    atoms_list = DataHandler(Client(app.config["dask-scheduler"])).get_atoms(int(json["id"]))
-    print("time to get atoms: " + str(time.time() - start_time))
-    
-    atoms_dict = []
-    for atoms in atoms_list:
-        _dict = atoms.todict()
-        for key in _dict:
-            if isinstance(_dict[key], np.ndarray):
-                _dict[key] = _dict[key].tolist()
-        atoms_dict.append(_dict)
+    _id = int(json["id"])
 
-    emit(
-        "configuration:id", atoms_dict
-        # {
-        #     "positions": atoms.get_positions().tolist(),
-        #     "cell": atoms.get_cell().tolist(),
-        #     "atomic_numbers": atoms.get_atomic_numbers().tolist(),
-        # },
-    )
+    print("received json: " + str(json) )
+    atoms_dict = DataHandler(Client(app.config["dask-scheduler"])).get_atoms_json(slice(_id-50, _id+50))
+    print("time to get atoms: " + str(time.time() - start_time))
+
+    emit("configuration:id", atoms_dict)
