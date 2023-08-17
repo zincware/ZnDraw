@@ -53,7 +53,7 @@ class Cache {
         this._socket = socket;
         this._cache = {};
 
-        this._last_request = undefined;
+        this._last_request = -999999;
     }
 
     async _get(id) {
@@ -82,10 +82,36 @@ class Cache {
     }
 
     get(id) {
+        // convert id to integer
+        id = parseInt(id);
         const value = this._cache[id];
-        if (value === undefined && id !== this._last_request) {
+                
+        if (value === undefined) {
+            document.getElementById("frame-slider").disabled = true;
+
+            if (Math.abs(id - this._last_request) < 15) {
+                return value;
+            }
+
             this._last_request = id;
             this._get(id);
+            
+        } else {
+            document.getElementById("frame-slider").disabled = false;
+            // set focus to the slider
+            document.getElementById("frame-slider").focus();
+
+            if (Math.abs(id - this._last_request) < 15) {
+                return value;
+            }
+
+            for (let i = id + 1; i < id + 10; i++) {
+                if (!(i in this._cache)) {
+                    this._last_request = i;
+                    this._get(i);
+                    break;
+                }
+            }
         }
         return value;
     }

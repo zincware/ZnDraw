@@ -25,8 +25,8 @@ def _get_radius(value):
 
 
 class ASEComputeBonds(BaseModel):
-    single_bond_multiplier: float = Field(1.1, le=2, ge=0)
-    double_bond_multiplier: float = Field(0.0, le=1, ge=0)
+    single_bond_multiplier: float = Field(1.2, le=2, ge=0)
+    double_bond_multiplier: float = Field(0.9, le=1, ge=0)
     triple_bond_multiplier: float = Field(0.0, le=1, ge=0)
 
     def build_graph(self, atoms: ase.Atoms):

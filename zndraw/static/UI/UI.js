@@ -76,7 +76,7 @@ function setupSlider(socket, world) {
   const slider = document.getElementById("frame-slider");
 
   socket.on("config", (config) => {
-    slider.max = config.n_frames;
+    slider.max = config.n_frames - 1;
   });
 
   slider.oninput = function () {
@@ -84,50 +84,60 @@ function setupSlider(socket, world) {
   };
 }
 
-function setupPlayPause(config) {
-  window.addEventListener("keydown", (event) => {
-    if (event.isComposing || event.key === " ") {
-      config.play = !config.play;
-      if (config.play) {
-        console.log("play");
-      } else {
-        console.log("pause");
-      }
-    }
 
+function setupPlayPause(world) {
+  window.addEventListener("keydown", (event) => {
     if (event.isComposing || event.key === "ArrowRight") {
-      config.play = false;
-      config.set_step(
-        Math.min(config.config.total_frames - 1, config.step + 1),
-      );
-    }
-    if (event.isComposing || event.key === "ArrowLeft") {
-      config.play = false;
-      config.set_step(Math.max(0, config.step - 1));
-    }
-    if (event.isComposing || event.key === "ArrowUp") {
-      config.play = false;
-      config.set_step(
-        parseInt(
-          Math.min(
-            config.config.total_frames - 1,
-            config.step + config.config.total_frames / 10,
-          ),
-        ),
-      );
-    }
-    if (event.isComposing || event.key === "ArrowDown") {
-      config.play = false;
-      config.set_step(
-        parseInt(Math.max(0, config.step - config.config.total_frames / 10)),
-      );
-    }
-    if (event.isComposing || event.key === "End") {
-      config.play = false;
-      config.set_step(config.config.total_frames - 1);
+      world.setStep(world.step + 1);
     }
   });
+
 }
+
+// function setupPlayPause(config) {
+//   window.addEventListener("keydown", (event) => {
+//     if (event.isComposing || event.key === " ") {
+//       config.play = !config.play;
+//       if (config.play) {
+//         console.log("play");
+//       } else {
+//         console.log("pause");
+//       }
+//     }
+
+//     if (event.isComposing || event.key === "ArrowRight") {
+//       config.play = false;
+//       config.set_step(
+//         Math.min(config.config.total_frames - 1, config.step + 1),
+//       );
+//     }
+//     if (event.isComposing || event.key === "ArrowLeft") {
+//       config.play = false;
+//       config.set_step(Math.max(0, config.step - 1));
+//     }
+//     if (event.isComposing || event.key === "ArrowUp") {
+//       config.play = false;
+//       config.set_step(
+//         parseInt(
+//           Math.min(
+//             config.config.total_frames - 1,
+//             config.step + config.config.total_frames / 10,
+//           ),
+//         ),
+//       );
+//     }
+//     if (event.isComposing || event.key === "ArrowDown") {
+//       config.play = false;
+//       config.set_step(
+//         parseInt(Math.max(0, config.step - config.config.total_frames / 10)),
+//       );
+//     }
+//     if (event.isComposing || event.key === "End") {
+//       config.play = false;
+//       config.set_step(config.config.total_frames - 1);
+//     }
+//   });
+// }
 
 function attachKeyPressed(config) {
   window.addEventListener("keydown", (event) => {
@@ -396,6 +406,7 @@ function resizeOffcanvas() {
 
 export function setUIEvents(socket, world) {
   setupSlider(socket, world);
+  // setupPlayPause(world);
   // update_materials(config);
   // updateFPS(config);
   // setupSlider(config);

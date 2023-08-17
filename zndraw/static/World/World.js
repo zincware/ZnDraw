@@ -9,7 +9,6 @@ import { Loop } from "./systems/Loop.js";
 import { Stream } from "./systems/Stream.js";
 import {
   ParticleGroup,
-  createParticleGroup,
   createIndexGroup,
 } from "./components/particles.js";
 import { Selection } from "./systems/select.js";
@@ -51,6 +50,8 @@ class World {
     loop.constraint_updatables.push(particles);
 
     const resizer = new Resizer(container, camera, renderer, renderer2d);
+
+    this.step = loop.step;
 
     // renderer.render(scene, camera);
   }

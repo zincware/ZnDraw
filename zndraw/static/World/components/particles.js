@@ -157,136 +157,6 @@ export function createIndexGroup(particleGroup) {
 
   return indexGroup;
 }
-export function createParticleGroup(config) {
-  const particleGroup = new THREE.Group();
-  particleGroup.name = "particleGroup";
-
-  particleGroup.get_center = () => {
-    const items = [];
-    if (config.selected.length > 0) {
-      config.selected.forEach((x) => {
-        items.push(particleGroup.getObjectByName(x));
-      });
-    } else {
-      particleGroup.children.forEach((x) => {
-        items.push(x);
-      });
-    }
-
-    const center = items
-      .reduce((a, b) => a.add(b.position), new THREE.Vector3())
-      .divideScalar(items.length);
-    return center;
-  };
-
-  particleGroup.tick = (data) => {
-    if (data == null) {
-      return;
-    }
-    const particles = data["particles"];
-    const bonds = data["bonds"];
-
-    // create particle arrays
-    let existing_particles = [];
-    let new_particles = [];
-    let deleted_particles = [];
-
-    particles.forEach((x) => {
-      const particleObject = particleGroup.getObjectByName(x.id);
-
-      if (particleObject) {
-        existing_particles.push(x);
-      } else {
-        new_particles.push(x);
-      }
-    });
-
-
-
-
-
-    // console.log("Having existing particles: " + existing_particles.length + " and adding " + new_particles.length + " and removing " + deleted_particles.length);
-    // console.log("Having existing bonds: " + existing_bonds.length + " and adding " + new_bonds.length + " and removing " + deleted_bonds.length);
-
-    // update existing particles
-    existing_particles.forEach((particle) => {
-      const particleSubGroup = particleGroup.getObjectByName(particle.id);
-
-      particleSubGroup.position.set(particle.x, particle.y, particle.z);
-
-      let material = speciesMaterial(
-        config.config.material,
-        particle.color,
-        config.config.material_wireframe,
-      );
-
-      // handle selected particles
-      // TODO this should not depend on FPS!
-      if (config.selected.includes(particle.id)) {
-        material = speciesMaterial(
-          config.config.material,
-          "#ffa500",
-          config.config.material_wireframe,
-        );
-      }
-
-      updateParticleScaleAndMaterial(
-        particleSubGroup,
-        particle.radius * config.config.sphere_size,
-        material,
-      );
-    });
-
-    // create new particles
-    new_particles.forEach((particle) => {
-      const particle_mesh = new THREE.Mesh(
-        sphereGeometry(particle.radius, config.config.resolution),
-        speciesMaterial(
-          config.config.material,
-          particle.color,
-          config.config.material_wireframe,
-        ),
-      );
-      const particleSubGroup = new THREE.Group();
-      particleSubGroup.add(particle_mesh);
-      particleSubGroup.name = particle.id;
-      particleSubGroup.position.set(particle.x, particle.y, particle.z);
-
-      // CLICK EVENT
-      particleSubGroup.click = () => {
-        if (config.selected.includes(particle.id)) {
-          if (!config.pressed_keys.Shift) {
-            config.selected = [];
-          } else {
-            config.selected = config.selected.filter((e) => e !== particle.id);
-          }
-        } else {
-          if (!config.pressed_keys.Shift) {
-            config.selected = [particle.id];
-          } else {
-            config.selected.push(particle.id);
-          }
-        }
-      };
-
-      particleGroup.add(particleSubGroup);
-    });
-
-
-
-    if (config.config.bond_size > 0) {
-      // remove bonds that are not in data
-
-      // update existing bonds
-      existing_bonds.forEach((bond) => {
-        bond.tick();
-      });
-    }
-  };
-
-  return particleGroup;
-}
-
 
 class ParticleGroup extends THREE.Group {
   constructor(socket, cache) {
@@ -414,11 +284,79 @@ class ParticleGroup extends THREE.Group {
           1.3,
           8
         );
-        bond_mesh.tick = () => {
+        bond_mesh.step = () => {
           particle1.getWorldPosition(node1);
           particle2.getWorldPosition(node2);
           updateBondOrientation(bond_mesh, startNode, endNode);
         };
+
+        bond_mesh.set_order = (order) => {
+          bond_mesh.order = order;
+          if (bond_mesh.order == 1) {
+            if (bond_mesh.children.length != 1) {
+              const bond1 = halfCylinderMesh(
+                startNode,
+                endNode,
+                startMaterial,
+                1.3, 8
+              ).children[0];
+              // differentiate between double / triple bond rescale
+
+              // remove all chidren from bond_mesh
+              for (let i = bond_mesh.children.length - 1; i >= 0; i--) {
+                bond_mesh.children[i].removeFromParent();
+              }
+
+              bond_mesh.add(bond1);
+            }
+          } else if (bond_mesh.order == 2) {
+            if (bond_mesh.children.length != 2) {
+              const bond1 = halfCylinderMesh(
+                startNode,
+                endNode,
+                startMaterial,
+                1.3, 8
+              ).children[0];
+              const bond2 = bond1.clone();
+              bond1.scale.set(0.8, 0.8, 1);
+              bond2.scale.set(0.8, 0.8, 1);
+
+              // remove all chidren from bond_mesh
+              for (let i = bond_mesh.children.length - 1; i >= 0; i--) {
+                bond_mesh.children[i].removeFromParent();
+              }
+
+              bond1.translateX(0.2);
+              bond2.translateX(-0.2);
+              bond_mesh.add(bond1, bond2);
+            }
+          } else if (bond_mesh.order == 3) {
+            if (bond_mesh.children.length != 3) {
+              const bond1 = halfCylinderMesh(
+                startNode,
+                endNode,
+                startMaterial,
+                1.3, 8
+              ).children[0];
+              const bond2 = bond1.clone();
+              const bond3 = bond2.clone();
+              bond1.scale.set(0.7, 0.7, 1);
+              bond2.scale.set(0.7, 0.7, 1);
+              bond3.scale.set(0.7, 0.7, 1);
+
+              // remove all chidren from bond_mesh
+              for (let i = bond_mesh.children.length - 1; i >= 0; i--) {
+                bond_mesh.children[i].removeFromParent();
+              }
+
+              bond1.translateX(0.25);
+              bond2.translateX(-0.25);
+              bond_mesh.add(bond1, bond2, bond3);
+            }
+          }
+        };
+
+
         bond_mesh.name = name;
         return bond_mesh;
       };
@@ -439,27 +377,34 @@ class ParticleGroup extends THREE.Group {
       particle1SubGroup.add(bond_1);
       particle2SubGroup.add(bond_2);
 
-      bond_1.tick();
-      bond_2.tick();
+      bond_1.step();
+      bond_2.step();
     });
 
     existing_bonds.forEach((bond) => {
-      bond.tick();
+      // let order = bonds.find(
+      //   (x) =>
+      //     x[0] + "-" + x[1] === bond.name || x[1] + "-" + x[0] === bond.name,
+      // );
+      // bond.set_order(2);
+      bond.step();
     });
   }
 
-  step(frame) {
-    const particles = this.cache.get(frame);
-    if (particles == null) {
+  step(frame, iteration = 0) {
+    if (iteration > 100) {
+      console.log("Timeout for frame " + frame);
       return;
     }
-
-    
-    this._updateParticles(particles);
-    this._updateBonds(particles.connectivity);
-    
-
-
+    const particles = this.cache.get(frame);
+    if (particles == null) {
+      // TODO: do not allow moving forward in time if the frame is not yet loaded
+      setTimeout(() => this.step(frame, iteration + 1), 100);
+      console.log("Waiting for frame " + frame);
+    } else {
+      this._updateParticles(particles);
+      this._updateBonds(particles.connectivity);
+    }
   }
 
 }
