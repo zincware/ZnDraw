@@ -5,7 +5,14 @@ import znh5md
 import pandas as pd
 import dask.dataframe as dd
 import numpy as np
+from ase.data.colors import jmol_colors
 
+def _rgb2hex(value):
+    r, g, b = np.array(value * 255, dtype=int)
+    return "#%02x%02x%02x" % (r, g, b)
+
+def _get_radius(value):
+    return 0.25 * (2 - np.exp(-0.2 * value)),
 
 @dataclasses.dataclass
 class DataHandler:
@@ -29,9 +36,17 @@ class DataHandler:
         return df.loc[_slice]["atoms"].compute().to_dict()
     
     def get_atoms_json(self, _slice) -> dict[str, ase.Atoms]:
-        _dict = {key: val.todict() for key, val in self.get_atoms(_slice).items()}
-        for frame in _dict:
-            for key in _dict[frame]:
-                if isinstance(_dict[frame][key], np.ndarray):
-                    _dict[frame][key] = _dict[frame][key].tolist()
-        return _dict
+        data = {}
+        for idx, atoms in self.get_atoms(_slice).items():
+            atoms_dict = atoms.todict()
+            for key in list(atoms_dict):
+                # includes ['numbers', 'positions', 'cell', 'pbc']
+                if isinstance(atoms_dict[key], np.ndarray):
+                    atoms_dict[key] = atoms_dict[key].tolist()
+            
+            atoms_dict["colors"] = [_rgb2hex(jmol_colors[number]) for number in atoms_dict["numbers"]]
+            atoms_dict["radii"] = [_get_radius(number) for number in atoms_dict["numbers"]]
+            data[idx] = atoms_dict
+        
+        return data
+

@@ -1,0 +1,272 @@
+:root {
+    --spinner-size: 60px;
+  }
+  
+  body {
+    /* remove margins and scroll bars */
+    margin: 0;
+    overflow: hidden;
+  }
+  
+  #scene-container {
+    /* tell our scene container to take up the full page */
+    position: absolute;
+    width: 100%;
+    height: 100%;
+  
+    /*
+      Set the container's background color to the same as the scene's
+      background to prevent flashing on load
+    */
+    background-color: rgb(255, 255, 255);
+  }
+  
+  .atom-spinner,
+  .atom-spinner * {
+    box-sizing: border-box;
+  }
+  
+  .atom-spinner {
+    height: var(--spinner-size);
+    width: var(--spinner-size);
+    overflow: hidden;
+    position: absolute;
+    bottom: 50%;
+    left: 50%;
+    z-index: 100;
+    display: block;
+  }
+  
+  .atom-spinner .spinner-inner {
+    position: relative;
+    display: block;
+    height: 100%;
+    width: 100%;
+  }
+  
+  .atom-spinner .spinner-circle {
+    display: block;
+    position: absolute;
+    color: #ffa500;
+    font-size: calc(var(--spinner-size) * 0.24);
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+  }
+  
+  .atom-spinner .spinner-line {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    animation-duration: 1s;
+    border-left-width: calc(var(--spinner-size) / 25);
+    border-top-width: calc(var(--spinner-size) / 25);
+    border-left-color: #ffa500;
+    border-left-style: solid;
+    border-top-style: solid;
+    border-top-color: transparent;
+  }
+  
+  .atom-spinner .spinner-line:nth-child(1) {
+    animation: atom-spinner-animation-1 1s linear infinite;
+    transform: rotateZ(120deg) rotateX(66deg) rotateZ(0deg);
+  }
+  
+  .atom-spinner .spinner-line:nth-child(2) {
+    animation: atom-spinner-animation-2 1s linear infinite;
+    transform: rotateZ(240deg) rotateX(66deg) rotateZ(0deg);
+  }
+  
+  .atom-spinner .spinner-line:nth-child(3) {
+    animation: atom-spinner-animation-3 1s linear infinite;
+    transform: rotateZ(360deg) rotateX(66deg) rotateZ(0deg);
+  }
+  
+  @keyframes atom-spinner-animation-1 {
+    100% {
+      transform: rotateZ(120deg) rotateX(66deg) rotateZ(360deg);
+    }
+  }
+  
+  @keyframes atom-spinner-animation-2 {
+    100% {
+      transform: rotateZ(240deg) rotateX(66deg) rotateZ(360deg);
+    }
+  }
+  
+  @keyframes atom-spinner-animation-3 {
+    100% {
+      transform: rotateZ(360deg) rotateX(66deg) rotateZ(360deg);
+    }
+  }
+  
+  #greyOut {
+    pointer-events: none;
+    display: block;
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+    height: 100%;
+    background-color: black;
+    opacity: 0.05;
+    z-index: 1;
+    text-align: center;
+  }
+  
+  #info {
+    position: absolute;
+    bottom: 10px;
+    text-align: center;
+    width: 100%;
+    z-index: 100;
+    display: block;
+    opacity: 0.5;
+  }
+  
+  #infoBox {
+    position: absolute;
+    bottom: 1%;
+    left: 69%;
+    right: 1%;
+    width: 30%;
+    z-index: 100;
+    display: block;
+    background-color: rgb(235, 235, 235);
+    opacity: 0.8;
+  }
+  
+  #helpBox {
+    position: absolute;
+    top: 20%;
+    display: block;
+    left: 10%;
+    right: 10%;
+    width: 80%;
+  }
+  
+  .canvasControl {
+    opacity: 0.95;
+  }
+  
+  .frame-slider {
+    -webkit-appearance: none;
+    position: fixed;
+    width: 100%;
+    z-index: 100;
+    overflow: hidden;
+    bottom: -6px;
+    display: block;
+    left: 0;
+    transition: bottom 0.1s ease;
+    height: 12px;
+    width: 100%;
+  }
+  
+  .frame-slider:focus {
+    outline: none;
+  }
+  
+  .frame-slider::-webkit-slider-runnable-track {
+    width: 100%;
+    height: 12px;
+    cursor: pointer;
+    animate: 0.2s;
+    box-shadow: 0px 0px 0px #000000;
+    background: #eeeeee;
+    border-radius: 0px;
+    border: 0px solid #000000;
+  }
+  
+  .frame-slider::-webkit-slider-thumb {
+    box-shadow: 0px 0px 0px #000000;
+    border: 0px solid #000000;
+    height: 12px;
+    width: 30px;
+    border-radius: 0px;
+    background: #314159;
+    cursor: pointer;
+    -webkit-appearance: none;
+    margin-top: 0px;
+  }
+  
+  .frame-slider:focus::-webkit-slider-runnable-track {
+    background: #eeeeee;
+  }
+  
+  .frame-slider::-moz-range-track {
+    width: 100%;
+    height: 12px;
+    cursor: pointer;
+    animate: 0.2s;
+    box-shadow: 0px 0px 0px #000000;
+    background: #eeeeee;
+    border-radius: 0px;
+    border: 0px solid #000000;
+  }
+  
+  .frame-slider::-moz-range-thumb {
+    box-shadow: 0px 0px 0px #000000;
+    border: 0px solid #000000;
+    height: 12px;
+    width: 30px;
+    border-radius: 0px;
+    background: #314159;
+    cursor: pointer;
+  }
+  
+  .frame-slider::-ms-track {
+    width: 100%;
+    height: 12px;
+    cursor: pointer;
+    animate: 0.2s;
+    background: transparent;
+    border-color: transparent;
+    color: transparent;
+  }
+  
+  .frame-slider::-ms-fill-lower {
+    background: #eeeeee;
+    border: 0px solid #000000;
+    border-radius: 0px;
+    box-shadow: 0px 0px 0px #000000;
+  }
+  
+  .frame-slider::-ms-fill-upper {
+    background: #eeeeee;
+    border: 0px solid #000000;
+    border-radius: 0px;
+    box-shadow: 0px 0px 0px #000000;
+  }
+  
+  .frame-slider::-ms-thumb {
+    margin-top: 1px;
+    box-shadow: 0px 0px 0px #000000;
+    border: 0px solid #000000;
+    height: 12px;
+    width: 30px;
+    border-radius: 0px;
+    background: #314159;
+    cursor: pointer;
+  }
+  
+  .frame-slider:focus::-ms-fill-lower {
+    background: #eeeeee;
+  }
+  
+  .frame-slider:focus::-ms-fill-upper {
+    background: #eeeeee;
+  }
+  
+  .offcanvas-border {
+    content: "";
+    background-color: #00000000;
+    position: absolute;
+    left: 400px;
+    width: 4px;
+    height: 100%;
+    cursor: ew-resize;
+  }

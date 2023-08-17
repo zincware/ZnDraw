@@ -64,4 +64,4 @@ def handle_get_id_on_configurations(json):
 def config():
     data_handler = DataHandler(Client(app.config["dask-scheduler"]))
 
-    return {"n_frames": len(data_handler)}
+    emit("config", {"n_frames": len(data_handler), "max_fps": 5})
