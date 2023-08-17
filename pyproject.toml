@@ -17,6 +17,8 @@ znh5md = "^0.1.6"
 flask-socketio = "^5.3.4"
 dask = {extras = ["dataframe", "distributed"], version = "^2023.8.0"}
 eventlet = "^0.33.3"
+networkx = "^3.1"
+pydantic = "^2.2.0"
 
 [tool.poetry.group.dev.dependencies]
 pre-commit = "^3.3.3"

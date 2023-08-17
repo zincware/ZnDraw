@@ -26,7 +26,8 @@ function main() {
     setup(socket);
     world.start();
     
-    cache.get(0);
+    // disable loading screen
+    document.getElementById("atom-spinner").style.display = "none";
 }
 
 main();

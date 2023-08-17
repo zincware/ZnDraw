@@ -5,7 +5,10 @@ export const materials = {
   MeshBasicMaterial: new THREE.MeshBasicMaterial({ color: "#ffa500" }),
   MeshLambertMaterial: new THREE.MeshLambertMaterial({ color: "#ffa500" }),
   MeshMatcapMaterial: new THREE.MeshMatcapMaterial({ color: "#ffa500" }),
-  MeshPhongMaterial: new THREE.MeshPhongMaterial({ color: "#ffa500" }),
+  MeshPhongMaterial: new THREE.MeshPhongMaterial({
+    color: "#ffa500",
+    shininess: 100,
+  }),
   MeshPhysicalMaterial: new THREE.MeshPhysicalMaterial({ color: "#ffa500" }),
   MeshStandardMaterial: new THREE.MeshStandardMaterial({ color: "#ffa500" }),
   MeshToonMaterial: new THREE.MeshToonMaterial({ color: "#ffa500" }),
@@ -83,10 +86,10 @@ const speciesMaterialFactory = () => {
   };
 };
 
-function halfCylinderMesh(pointX, pointY, material, config) {
+function halfCylinderMesh(pointX, pointY, material, bond_size, resolution) {
   const geometry = halfCylinderGeometry(
-    config["bond_size"],
-    config["resolution"],
+    bond_size,
+    resolution,
   );
   return new THREE.Mesh(geometry, material);
 }
@@ -202,26 +205,7 @@ export function createParticleGroup(config) {
       (x) => !particles.find((y) => y.id === x.name),
     );
 
-    // create bond arrays
-    const all_bonds = particleGroup.children.flatMap((particleSubGroup) =>
-      particleSubGroup.children.slice(1),
-    );
-
-    let existing_bonds = all_bonds.filter(
-      (x) =>
-        bonds.find((y) => y[0] + "-" + y[1] === x.name) ||
-        bonds.find((y) => y[1] + "-" + y[0] === x.name),
-    );
-    let new_bonds = bonds.filter(
-      (x) =>
-        !all_bonds.find((y) => y.name === x[0] + "-" + x[1]) &&
-        !all_bonds.find((y) => y.name === x[1] + "-" + x[0]),
-    );
-    let deleted_bonds = all_bonds.filter(
-      (x) =>
-        !bonds.find((y) => y[0] + "-" + y[1] === x.name) &&
-        !bonds.find((y) => y[1] + "-" + y[0] === x.name),
-    );
+    
 
     // console.log("Having existing particles: " + existing_particles.length + " and adding " + new_particles.length + " and removing " + deleted_particles.length);
     // console.log("Having existing bonds: " + existing_bonds.length + " and adding " + new_bonds.length + " and removing " + deleted_bonds.length);
@@ -298,55 +282,6 @@ export function createParticleGroup(config) {
 
     if (config.config.bond_size > 0) {
       // remove bonds that are not in data
-      deleted_bonds.forEach((bond) => {
-        bond.removeFromParent();
-      });
-      new_bonds.forEach((bond) => {
-        const [particle1Name, particle2Name] = bond;
-
-        const particle1SubGroup = particleGroup.getObjectByName(particle1Name);
-        const particle2SubGroup = particleGroup.getObjectByName(particle2Name);
-        const particle1 = particle1SubGroup.children[0];
-        const particle2 = particle2SubGroup.children[0];
-
-        const node1 = new THREE.Vector3();
-        const node2 = new THREE.Vector3();
-
-        const createBond = (startNode, endNode, startMaterial, name) => {
-          const bond_mesh = halfCylinderMesh(
-            startNode,
-            endNode,
-            startMaterial,
-            config.config,
-          );
-          bond_mesh.tick = () => {
-            particle1.getWorldPosition(node1);
-            particle2.getWorldPosition(node2);
-            updateBondOrientation(bond_mesh, startNode, endNode);
-          };
-          bond_mesh.name = name;
-          return bond_mesh;
-        };
-
-        const bond_1 = createBond(
-          node1,
-          node2,
-          particle1.material,
-          `${particle1Name}-${particle2Name}`,
-        );
-        const bond_2 = createBond(
-          node2,
-          node1,
-          particle2.material,
-          `${particle2Name}-${particle1Name}`,
-        );
-
-        particle1SubGroup.add(bond_1);
-        particle2SubGroup.add(bond_2);
-
-        bond_1.tick();
-        bond_2.tick();
-      });
 
       // update existing bonds
       existing_bonds.forEach((bond) => {
@@ -374,14 +309,7 @@ class ParticleGroup extends THREE.Group {
   tick() {
   }
 
-  step(frame) {
-    const particles = this.cache.get(frame);
-    if (particles == null) {
-      return;
-    }
-
-    // console.log(particles);
-
+  _updateParticles(particles) {
     let existing_particles = [];
     let new_particles = [];
     let deleted_particles = [];
@@ -440,7 +368,90 @@ class ParticleGroup extends THREE.Group {
       // console.log(particleSubGroup);
       this.add(particleSubGroup);
     });
+  }
 
+  _updateBonds(bonds) {
+    // create bond arrays
+    const all_bonds = this.children.flatMap((particleSubGroup) =>
+      particleSubGroup.children.slice(1),
+    );
+
+    let existing_bonds = all_bonds.filter(
+      (x) =>
+        bonds.find((y) => y[0] + "-" + y[1] === x.name) ||
+        bonds.find((y) => y[1] + "-" + y[0] === x.name),
+    );
+    let new_bonds = bonds.filter(
+      (x) =>
+        !all_bonds.find((y) => y.name === x[0] + "-" + x[1]) &&
+        !all_bonds.find((y) => y.name === x[1] + "-" + x[0]),
+    );
+    let deleted_bonds = all_bonds.filter(
+      (x) =>
+        !bonds.find((y) => y[0] + "-" + y[1] === x.name) &&
+        !bonds.find((y) => y[1] + "-" + y[0] === x.name),
+    );
+
+    deleted_bonds.forEach((bond) => {
+      bond.removeFromParent();
+    });
+
+    new_bonds.forEach((bond) => {
+      const [particle1Name, particle2Name] = bond;
+
+      const particle1SubGroup = this.getObjectByName(particle1Name);
+      const particle2SubGroup = this.getObjectByName(particle2Name);
+      const particle1 = particle1SubGroup.children[0];
+      const particle2 = particle2SubGroup.children[0];
+
+      const node1 = new THREE.Vector3();
+      const node2 = new THREE.Vector3();
+
+      const createBond = (startNode, endNode, startMaterial, name) => {
+        const bond_mesh = halfCylinderMesh(
+          startNode,
+          endNode,
+          startMaterial,
+          1.3,
+          8
+        );
+        bond_mesh.tick = () => {
+          particle1.getWorldPosition(node1);
+          particle2.getWorldPosition(node2);
+          updateBondOrientation(bond_mesh, startNode, endNode);
+        };
+        bond_mesh.name = name;
+        return bond_mesh;
+      };
+
+      const bond_1 = createBond(
+        node1,
+        node2,
+        particle1.material,
+        `${particle1Name}-${particle2Name}`,
+      );
+      const bond_2 = createBond(
+        node2,
+        node1,
+        particle2.material,
+        `${particle2Name}-${particle1Name}`,
+      );
+
+      particle1SubGroup.add(bond_1);
+      particle2SubGroup.add(bond_2);
+
+      bond_1.tick();
+      bond_2.tick();
+    });
+  }
+
+  step(frame) {
+    const particles = this.cache.get(frame);
+    if (particles == null) {
+      return;
+    }
+    this._updateParticles(particles);  
+    this._updateBonds(particles.connectivity);
   }
 
 }

@@ -11,12 +11,13 @@ class Atom {
 }
 
 class Atoms {
-    constructor({ positions, cell, numbers, colors, radii }) {
+    constructor({ positions, cell, numbers, colors, radii, connectivity }) {
         this.positions = positions;
         this.cell = cell;
         this.numbers = numbers;
         this.colors = colors;
         this.radii = radii;
+        this.connectivity = connectivity;
     }
 
     [Symbol.iterator]() {
@@ -49,6 +50,8 @@ class Cache {
     constructor(socket) {
         this._socket = socket;
         this._cache = {};
+
+        this._last_request = undefined;
     }
 
     async _get(id) {
@@ -63,7 +66,8 @@ class Cache {
                             cell: data[key].cell,
                             numbers: data[key].numbers,
                             colors: data[key].colors,
-                            radii: data[key].radii
+                            radii: data[key].radii,
+                            connectivity: data[key].connectivity
                         });
                     });
                     resolve();
@@ -77,7 +81,8 @@ class Cache {
 
     get(id) {
         const value = this._cache[id];
-        if (value === undefined) {
+        if (value === undefined && id !== this._last_request) {
+            this._last_request = id;
             this._get(id);
         }
         return value;

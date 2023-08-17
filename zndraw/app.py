@@ -1,13 +1,14 @@
+import time
 import uuid
 
+import numpy as np
 import tqdm
 import znh5md
-from flask import Flask, redirect, render_template, session, url_for, request
-from flask_socketio import SocketIO, emit
 from dask.distributed import Client, Variable
+from flask import Flask, redirect, render_template, request, session, url_for
+from flask_socketio import SocketIO, emit
+
 from zndraw.data import DataHandler
-import numpy as np
-import time
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = str(uuid.uuid4())
@@ -40,6 +41,7 @@ def session_view():
     """View the session."""
     return dict(session)
 
+
 @app.route("/exit")
 def exit():
     """Exit the session."""
@@ -53,12 +55,15 @@ def handle_get_id_on_configurations(json):
 
     _id = int(json["id"])
 
-    print("received json: " + str(json) )
-    atoms_dict = DataHandler(Client(app.config["dask-scheduler"])).get_atoms_json(slice(_id-50, _id+50))
+    print("received json: " + str(json))
+    atoms_dict = DataHandler(Client(app.config["dask-scheduler"])).get_atoms_json(
+        slice(_id - 50, _id + 50)
+    )
     print("time to get atoms: " + str(time.time() - start_time))
 
     # emit("configuration:id", atoms_dict)
     return atoms_dict
+
 
 @socketio.on("config")
 def config():
