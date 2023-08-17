@@ -12,10 +12,14 @@ class DataHandler:
     client: Client
 
     def create_dataset(self, filename):
+        # TODO this should happen on a worker
         atoms = znh5md.ASEH5MD(filename).get_atoms_list()
-        df = dd.from_pandas(pd.DataFrame({"atoms": atoms}), npartitions=10)
+        df = dd.DataFrame.from_dict({"atoms": atoms}, npartitions=10)
         self.client.persist(df)
         self.client.publish_dataset(atoms=df)
+
+    def __len__(self):
+        return len(self.get_dataset())
 
     def get_dataset(self):
         return self.client.get_dataset("atoms") 

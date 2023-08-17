@@ -36,5 +36,7 @@ def main(filename: str):
 
         app.config["dask-scheduler"] = client.scheduler_info()["address"]
 
+        print(f"Starting server on http://127.0.0.1:{port}")
+
         webbrowser.open(f"http://127.0.0.1:{port}")
         socketio.run(app, port=port, host="0.0.0.0")

@@ -1,66 +1,504 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <title>ZnDraw</title>
-  </head>
 
-  <body>
-    Hello World
-
-    <div class="slidecontainer">
-      <input
-        type="range"
-        min="1"
-        max="100"
-        value="50"
-        class="slider"
-        id="myRange"
-      />
-    </div>
-
-    <script
-      src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"
-      integrity="sha512-q/dWJ3kcmjBLU4Qc47E4A9kTB4m3wuTY7vkFJDTZKjTs8jhyGQnaUrxa0Ytd0ssMZhbNua9hE+E7Qv1j+DyZwA=="
-      crossorigin="anonymous"
-    ></script>
-    <script type="text/javascript" charset="utf-8">
-      class Atoms {
-        constructor(positions, cell, atomic_numbers) {
-          this.positions = positions;
-          this.cell = cell;
-          this.atomic_numbers = atomic_numbers;
+<head>
+  <meta charset="utf-8">
+  <title>ZnDraw</title>
+  <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favion-192x192.png') }}">
+  <script type="importmap">
+      {
+        "imports": {
+          "three": "{{ url_for('static', filename='/node_modules/three/build/three.module.js') }}",
+          "three/": "{{ url_for('static', filename='/node_modules/three/') }}"
         }
       }
-
-      var socket = io();
-      socket.on("connect", function () {
-        socket.emit("connection", { data: "I'm connected!" });
-      });
-      socket.on("configuration:id", (data) => {
-        // data is a list, iterate over it
-        // const atomsArray = data.map(config => {
-        //     return new Atoms(config.positions, config.cell, config.atomic_numbers);
-        // });
-
-        Object.keys(data).forEach((key) => {
-          data[key] = new Atoms(
-            data[key].positions,
-            data[key].cell,
-            data[key].atomic_numbers
-          );
-        });
-
-        console.log(data);
-        // // construct an Atoms class from the data dictionary
-        // 
-        // 
-      });
-
-      var slider = document.getElementById("myRange");
-      slider.oninput = function () {
-        socket.emit("configuration:id", { id: this.value });
-      };
     </script>
-  </body>
+  <link rel="stylesheet" href="{{ url_for('static', filename='main.css') }}">
+  <!-- Bootstrap -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='node_modules/bootstrap/dist/css/bootstrap.min.css') }}">
+</head>
+
+<body>
+  <script src="{{ url_for('static', filename='node_modules/socket.io/client-dist/socket.io.js') }}"></script>
+  <script src="{{ url_for('static', filename='node_modules/bootstrap/dist/js/bootstrap.min.js') }}"></script>
+  <script src="{{ url_for('static', filename='node_modules/plotly.js-dist/plotly.js') }}"></script>
+
+  <script defer src="{{ url_for('static', filename='node_modules/@fortawesome/fontawesome-free/js/brands.js') }}"></script>
+  <script defer src="{{ url_for('static', filename='node_modules/@fortawesome/fontawesome-free/js/solid.js') }}"></script>
+  <script defer src="{{ url_for('static', filename='node_modules/@fortawesome/fontawesome-free/js/fontawesome.js') }}"></script>
+
+  <script type="module" src="{{ url_for('static', filename='main.js') }}"></script>
+
+  <div id="scene-container"></div>
+
+  <!-- Loading Spinner -->
+  <div class="atom-spinner" , id="atom-spinner">
+    <div class="spinner-inner">
+      <div class="spinner-line"></div>
+      <div class="spinner-line"></div>
+      <div class="spinner-line"></div>
+      <!--Chrome renders little circles malformed :(-->
+      <div class="spinner-circle">
+        &#9679;
+      </div>
+    </div>
+  </div>
+  <div id="greyOut"></div>
+
+
+  <!-- Navigation -->
+
+  <nav class="navbar fixed-top navbar-expand-sm bg-light"> <!-- navbar-expand to use smaller breakpoint -->
+    <div class="container-fluid">
+      <a class="navbar-brand">
+        <!-- <img src="{{ url_for('static', filename='favion-192x192.png') }}" alt="ZnDraw Logo" width="30" height="24"> -->
+        ZnDraw
+      </a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNavDropdown"
+        aria-controls="navbarNavDropdown" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="navbarNavDropdown">
+        <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+          <!-- <li class="nav-item mx-1">
+            <button class="btn btn-outline-secondary" type="button" data-bs-toggle="offcanvas"
+              data-bs-target="#particleCanvas" aria-controls="particleCanvas" onclick="document.activeElement.blur();">
+              <i class="fas fa-atom"></i> Particles
+            </button>
+          </li> -->
+          <li class="nav-item mx-1">
+            <button class="btn btn-outline-secondary" type="button" data-bs-toggle="offcanvas"
+              data-bs-target="#interactionCanvas" aria-controls="interactionCanvas"
+              onclick="document.activeElement.blur();">
+              <i class="fas fa-retweet"></i> Interaction
+            </button>
+          </li>
+          <!-- <li class="nav-item mx-1">
+            <button class="btn btn-outline-secondary" type="button" data-bs-toggle="offcanvas"
+              data-bs-target="#sceneCanvas" aria-controls="sceneCanvas" onclick="document.activeElement.blur();">
+              <i class="fas fa-cube"></i> Scene
+            </button>
+          </li> -->
+          <li class="nav-item mx-1">
+            <button class="btn btn-outline-secondary" type="button" data-bs-toggle="offcanvas"
+              data-bs-target="#drawCanvas" aria-controls="drawCanvas" onclick="document.activeElement.blur();">
+              <i class="fas fa-pencil-alt"></i> Draw
+            </button>
+          </li>
+          <li class="nav-item mx-1">
+            <button class="btn btn-outline-secondary" type="button" data-bs-toggle="offcanvas"
+              data-bs-target="#analyseCanvas" aria-controls="analyseCanvas" onclick="document.activeElement.blur();">
+              <i class="fas fa-chart-bar"></i> Analyse
+            </button>
+          </li>
+          <li class="nav-item mx-1">
+            <button class="btn btn-outline-secondary" type="button" data-bs-toggle="offcanvas"
+              data-bs-target="#bondsCanvas" aria-controls="bondsCanvas" onclick="document.activeElement.blur();">
+              <i class="fas fa-link"></i> Bonds
+            </button>
+          </li>
+        </ul>
+        <form class="d-flex">
+          <a class="btn btn-outline-primary mx-1" href="download" role="button"><i class="fas fa-download"></i> Download</a>
+          <button class="btn btn-outline-primary mx-1" type="button" data-bs-toggle="collapse"
+            data-bs-target="#helpBoxCollapse" aria-expanded="false" aria-controls="helpBoxCollapse">
+            <i class="fas fa-question-circle"></i> Help
+          </button>
+          <a class="btn btn-outline-danger mx-1" href="/exit" role="button">EXIT <i class="fa-regular fa-circle-xmark"></i></a>
+          <!-- <button class="btn btn-outline-primary mx-1" type="button" data-bs-toggle="collapse"
+            data-bs-target="#helpBoxCollapse" aria-expanded="false" aria-controls="helpBoxCollapse">
+            <i class="fas fa-question-circle"></i> Help
+          </button> -->
+          <!-- <button class="btn btn-outline-primary" type="button" data-bs-toggle="collapse"
+            data-bs-target="#infoBoxCollapse" aria-expanded="false" aria-controls="infoBoxCollapse">
+            <i class="fas fa-info-circle"></i> Info
+          </button> -->
+        </form>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Off Canvas -->
+  <!-- Particles -->
+  <div class="offcanvas offcanvas-start canvasControl" data-bs-scroll="true" data-bs-backdrop="false" tabindex="-1"
+    id="particleCanvas" aria-labelledby="particleCanvasLabel">
+    <div class="offcanvas-border"></div>
+    <div class="offcanvas-header">
+      <h5 class="offcanvas-title" id="particleCanvasLabel">Particles</h5>
+      <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+    </div>
+    <div class="offcanvas-body">
+
+      <div class="mb-3">
+        <label for="materialSelect" class="form-label">Select particle material</label>
+        <select class="form-select" id="materialSelect">
+        </select>
+        <div id="materialSelectHelp" class="form-text">Change the material of the particles and bonds..</div>
+      </div>
+      <div class="mb-3">
+        <input class="form-check-input" type="checkbox" value="" id="wireframe">
+        <label for="wireframe" class="form-label">Wireframe material</label>
+      </div>
+      <div class="mb-3">
+        <label for="sphereRadius" class="form-label" id="sphereRadiusLabel">Sphere radius: {{ config['sphere_size']
+          }}</label>
+        <input type="range" class="form-range" id="sphereRadius" min="0.1" max="4" step="0.1"
+          value="{{ config['sphere_size'] }}">
+      </div>
+      <div class="mb-3">
+        <label for="bondDiameter" class="form-label" id="bondDiameterLabel">Bond diameter: {{ config['bond_size']
+          }}</label>
+        <input type="range" class="form-range" id="bondDiameter" min="0" max="2.0" step="0.1"
+          value="{{ config['bond_size'] }}">
+      </div>
+      <div class="mb-3">
+        <label for="resolution" class="form-label" id="resolutionLabel">Resolution: {{ config['resolution'] }}</label>
+        <input type="range" class="form-range" id="resolution" min="1" max="20" step="1"
+          value="{{ config['resolution'] }}">
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Interaction -->
+  <div class="offcanvas offcanvas-start canvasControl" data-bs-scroll="true" data-bs-backdrop="false" tabindex="-1"
+    id="interactionCanvas" aria-labelledby="interactioneCanvasLabel">
+    <div class="offcanvas-border"></div>
+    <div class="offcanvas-header">
+      <h5 class="offcanvas-title" id="interactionCanvasLabel">Interaction</h5>
+      <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+    </div>
+    <div class="offcanvas-body" id="interactionOffCanvasBody">
+
+      <div class="mb-3">
+        <label for="selection-method" class="form-label">Selection Method</label>
+        <select class="form-select" aria-label="Default select example" id="selection-method">
+          <option selected, value="particles">Particles</option>
+          <option value="species">Species</option>
+          <option value="connected">Connected Particles</option>
+          <option value="none">None</option>
+          <option value="all">All</option>
+        </select>
+        <div id="selection-methodHelp" class="form-text">Select single particles, whole molecules or disable selection.
+        </div>
+      </div>
+      <div class="row my-3">
+        <div class="col">
+            <button type="button" class="btn btn-secondary w-100" id="reset_selection">Reset Selection</button>
+        </div>
+        <div class="col">
+          <a class="btn btn-secondary w-100" role="button" id="download-selected">Download Selected</a>
+        </div>
+      </div>
+      <div class="mb-3">
+        <input class="form-check-input" type="checkbox" value="" id="multiselect">
+        <label for="multiselect" class="form-label">Select multiple particles</label>
+      </div>
+
+      <div class="mb-3">
+        <label for="addSceneModifier" class="form-label">Select scene modifier</label>
+        <select class="form-select" aria-label="Default select example" id="addSceneModifier">
+          <option selected, value="none"> </option>
+          <option value="add">Add New</option>
+        </select>
+        <div id="addSceneModifierHelp" class="form-text">Load a Python class to modify the scene
+        </div>
+      </div>
+      <div id="sceneModifierSettings"></div>
+      <div class="row my-3">
+        <div class="col">
+          <button type="button" class="btn btn-danger w-100" id="sceneModifierResetBtn">Reset Modifier</button>
+        </div>
+        <div class="col">
+          <button type="button" class="btn btn-primary w-100" id="sceneModifierBtn">Modify</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Scene -->
+  <div class="offcanvas offcanvas-start canvasControl" data-bs-scroll="true" data-bs-backdrop="false" tabindex="-1"
+    id="sceneCanvas" aria-labelledby="sceneCanvasLabel">
+    <div class="offcanvas-border"></div>
+    <div class="offcanvas-header">
+      <h5 class="offcanvas-title" id="sceneCanvasLabel">Scene</h5>
+      <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+    </div>
+    <div class="offcanvas-body">
+      <div class="mb-3">
+        <label for="cameraLightIntensity" class="form-label" id="cameraLightIntensityLabel">Camera light intensity:
+          1.0</label>
+        <input type="range" class="form-range" min="0" max="1" step="0.01" id="cameraLightIntensity" value="1">
+      </div>
+      <div class="mb-3">
+        <label for="spotLightIntensity" class="form-label" id="spotLightIntensityLabel">Spot light intensity:
+          0.0</label>
+        <input type="range" class="form-range" min="0" max="1" step="0.01" id="spotLightIntensity" value="0">
+      </div>
+      <div class="mb-3">
+        <label for="hemisphereLightIntensity" class="form-label" id="hemisphereLightIntensityLabel">Hemisphere light
+          intensity: 1.0</label>
+        <input type="range" class="form-range" min="0" max="1" step="0.01" id="hemisphereLightIntensity" value="0.1">
+      </div>
+      <div class="mb-3">
+        <label for="max_fps" class="form-label" id="max_fpsLabel">Max FPS: {{ config.max_fps }}</label>
+        <input type="range" class="form-range" min="1" max="100" step="0.5" id="max_fps" value="{{ config.max_fps }}" ,
+          oninput="max_fpsLabel.innerHTML = 'Max FPS: ' + this.value">
+      </div>
+      <div class="mb-3">
+        <input class="form-check-input" type="checkbox" value="" id="autoRestart">
+        <label class="form-check-label" for="autoRestart">
+          Auto Restart
+        </label>
+      </div>
+      <div class="mb-3">
+        <input class="form-check-input" type="checkbox" value="" id="continuousLoading" {{ "checked" if
+          config['continuous_loading'] }}>
+        <label class="form-check-label" for="continuousLoading">
+          Continuous Loading of new data.
+        </label>
+      </div>
+      <div class="mb-3">
+        <input class="form-check-input" type="checkbox" value="" id="showBox">
+        <label for="showBox" class="form-label">Show Box (static)</label>
+      </div>
+      <div class="mb-3">
+        <button type="button" class="btn btn-secondary" id="reset">Reset Scene</button>
+        <button type="button" class="btn btn-secondary" id="animate" {% if config.update_function %} disabled {% endif
+          %}>Load Animation</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Draw -->
+  <div class="offcanvas offcanvas-start canvasControl" data-bs-scroll="true" data-bs-backdrop="false" tabindex="-1"
+    id="drawCanvas" aria-labelledby="drawCanvasLabel">
+    <div class="offcanvas-border"></div>
+    <div class="offcanvas-header">
+      <h5 class="offcanvas-title" id="drawCanvasLabel">Draw</h5>
+      <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+    </div>
+    <div class="offcanvas-body">
+
+      <div class="mb-3">
+        <button type="button" class="btn btn-secondary" id="drawAddAnchor">Add anchor point</button>
+        <button type="button" class="btn btn-secondary" id="drawRemoveLine">Remove Line</button>
+        <button type="button" class="btn btn-secondary" id="drawDetach">Detach</button>
+      </div>
+      <div class="mb-3">
+        <button type="button" class="btn btn-secondary" id="drawAddCanvas">Add canvas</button>
+        <button type="button" class="btn btn-secondary" id="drawRemoveCanvas">Remove canvas</button>
+      </div>
+
+      <select class="form-select" aria-label="Default select example" id="drawCanvasSelect">
+        <option selected value="PlaneGeometry">PlaneGeometry</option>
+        <option value="TorusKnotGeometry">TorusKnotGeometry</option>
+      </select>
+
+    </div>
+  </div>
+
+  <!-- Analyse -->
+  <div class="offcanvas offcanvas-start canvasControl" data-bs-scroll="true" data-bs-backdrop="false" tabindex="-1"
+    id="analyseCanvas" aria-labelledby="analyseCanvasLabel">
+    <div class="offcanvas-border"></div>
+    <div class="offcanvas-header">
+      <h5 class="offcanvas-title" id="analyseCanvasLabel">Analyse</h5>
+      <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+    </div>
+    <div class="offcanvas-body">
+      <div class="d-grid gap-2 col-6 mx-auto mb-3">
+        <button type="button" class="btn btn-secondary" id="analyseBtn">Analyse</button>
+      </div>
+      <div class="mb-3">
+        <label for="addAnalysis" class="form-label">Select analysis method</label>
+        <select class="form-select" aria-label="Default select example" id="addAnalysis">
+          <option selected, value="none"> </option>
+          <option value="add">Add New</option>
+        </select>
+        <div id="addAnalysisHelp" class="form-text">Load a Python class to analyse the data
+        </div>
+      </div>
+      <div id="analysisSettings"></div>
+      <div id="analysePlot"></div>
+    </div>
+  </div>
+
+  <!-- Bonds -->
+  <div class="offcanvas offcanvas-start canvasControl" data-bs-scroll="true" data-bs-backdrop="false" tabindex="-1"
+    id="bondsCanvas" aria-labelledby="bondsCanvasLabel">
+    <div class="offcanvas-border"></div>
+    <div class="offcanvas-header">
+      <h5 class="offcanvas-title" id="bondsCanvasLabel">Bonds</h5>
+      <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+    </div>
+    <div class="offcanvas-body">
+      <div class="mb-3">
+        <label for="addBondsMethod" class="form-label">Select bonds method</label>
+        <select class="form-select" aria-label="Default select example" id="addBondsMethod">
+          <option selected, value="none"> </option>
+          <option value="add">Add New</option>
+        </select>
+        <div id="addBondsMethodHelp" class="form-text">Load a Python class to configure bonds
+        </div>
+      </div>
+      <div id="bondsSettings"></div>
+
+      <div class="container">
+        <div class="row my-3">
+          <div class="col">
+            <button type="button" class="btn btn-primary w-100" id="bondsBtnSave">Save</button>
+          </div>
+          <div class="col">
+            <button type="button" class="btn btn-danger w-100" id="bondsBtnZeroBond">Delete Bond</button>
+          </div>
+        </div>
+        <div class="row">
+          <div class="btn-group" role="group" aria-label="Basic example">
+            <button type="button" class="btn btn-outline-secondary" id="bondsBtnSingleBond">Single Bond</button>
+            <button type="button" class="btn btn-outline-secondary" id="bondsBtnDoubleBond">Double Bond</button>
+            <button type="button" class="btn btn-outline-secondary" id="bondsBtnTripleBond">Triple Bond</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+    <!-- Info Box -->
+    <div class="collapse" id="infoBoxCollapse">
+      <div class="container-fluid rounded border border-dark" id="infoBox">
+        <dl class="row">
+          <dt class="col-sm-3">File</dt>
+          <dd class="col-sm-9"><code>{{ config.file }}</code></dd>
+          <dt class="col-sm-3">FPS</dt>
+          <dd class="col-sm-9" id="FPS">-</dd>
+          <dt class="col-sm-3">Particles</dt>
+          <dd class="col-sm-9" id="n_particles">-</dd>
+          <dt class="col-sm-3">Bonds</dt>
+          <dd class="col-sm-9" id="n_bonds">-</dd>
+          <dt class="col-sm-3">Selected IDs</dt>
+          <dd class="col-sm-9" id="lst_selected_ids"></dd>
+          {% if config.update_function %}
+          <dt class="col-sm-3">Function</dt>
+          <dd class="col-sm-9" id="lst_selected_ids"><code>{{ config.update_function }}</code></dd>
+          {% endif %}
+        </dl>
+      </div>
+    </div>
+
+    <!-- Help Box -->
+    <div class="collapse" id="helpBoxCollapse">
+      <div class="container-fluid bg-light rounded border border-primary pt-2" id="helpBox">
+        <h2>ZnDraw Help</h2>
+        <div class="rounded-3 bg-white px-2 pt-2">
+          <dl class="row">
+            <!-- <dt class="col-sm-3">move light to camera position</dt>
+            <dd class="col-sm-9"><code>keypress L</code></dd> -->
+            <dt class="col-sm-3">play / pause</dt>
+            <dd class="col-sm-9"><code>keypress space</code></dd>
+            <dt class="col-sm-3">frame forwards / backwards</dt>
+            <dd class="col-sm-9"><code>keypress &#9654;\&#9664; </code></dd>
+            <dt class="col-sm-3">jump forwards / backwards</dt>
+            <dd class="col-sm-9"><code>keypress &#9650;\&#9660; </code></dd>
+            <dt class="col-sm-3">center camera around selected particle</dt>
+            <dd class="col-sm-9"><code>keypress C</code></dd>
+            <!-- <dt class="col-sm-3">reload animation</dt>
+            <dd class="col-sm-9"><code>keypress Q</code></dd> -->
+            <dt class="col-sm-3">select multiple particles</dt>
+            <dd class="col-sm-9"><code>keydown shift</code></dd>
+            <dt class="col-sm-3">show particle index</dt>
+            <dd class="col-sm-9"><code>keydown I</code></dd>
+            <dt class="col-sm-3">toggle canvas movement</dt>
+            <dd class="col-sm-9"><code>keypress T</code></dd>
+          </dl>
+        </div>
+      </div>
+    </div>
+
+    <!-- Add Scene Modifer -->
+    <div class="modal" tabindex="-1" id="addModifierModal">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Add Scene Modifier</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <div class="mb-3">
+              <label for="addSceneModifierImport" class="form-label">Path to modifier <code>class</code></label>
+              <input type="email" class="form-control" id="addSceneModifierImport"
+                aria-describedby="addSceneModifierImportHelp">
+              <div id="addSceneModifierImportHelp" class="form-text">The input should be <code>module.cls</code> such
+                that
+                <code> from module import cls</code> works.
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            <button type="button" class="btn btn-primary" id="addSceneModifierImportBtn">Load</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Add Analysis -->
+    <div class="modal" tabindex="-1" id="addAnalysisModal">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Add Analysis</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <div class="mb-3">
+              <label for="addAnalysisImport" class="form-label">Path to modifier <code>class</code></label>
+              <input type="email" class="form-control" id="addAnalysisImport" aria-describedby="addAnalysisImportHelp">
+              <div id="addAnalysisImportHelp" class="form-text">The input should be <code>module.cls</code> such
+                that
+                <code> from module import cls</code> works.
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            <button type="button" class="btn btn-primary" id="addAnalysisImportBtn">Load</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Add Bonds -->
+    <div class="modal" tabindex="-1" id="addBondsModal">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Add Bonds</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <div class="mb-3">
+              <label for="addBondsImport" class="form-label">Path to bonds <code>class</code></label>
+              <input type="email" class="form-control" id="addBondsImport" aria-describedby="addBondsImportHelp">
+              <div id="addBondsImportHelp" class="form-text">The input should be <code>module.cls</code> such
+                that
+                <code> from module import cls</code> works.
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            <button type="button" class="btn btn-primary" id="addBondsImportBtn">Load</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Progress Bar -->
+    <div id="info"></div>
+    <input id="frame-slider" class="frame-slider" type="range" value="0" min="0" max="100">
+</body>
+
 </html>
