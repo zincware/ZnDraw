@@ -35,6 +35,12 @@ class Loop {
     this.renderer.setAnimationLoop(null);
   }
 
+  setStep(step) {
+    for (const object of this.constraint_updatables) {
+      object.step(step);
+    }
+  }
+
   tick() {
     // only call the getDelta function once per frame!
     // split into a tick() and a frame() function Maybe trigger frame() via socket?
@@ -45,12 +51,12 @@ class Loop {
       object.tick();
     }
 
-    if (clock.getElapsedTime() > 1 / this.config.max_fps) {
-      for (const object of this.constraint_updatables) {
-        object.step(0);  // This somehow must update the current frame to display
-      }
-      clock.start();
-    }
+    // if (clock.getElapsedTime() > 1 / this.config.max_fps) {
+    //   for (const object of this.constraint_updatables) {
+    //     object.step(0);  // This somehow must update the current frame to display
+    //   }
+    //   clock.start();
+    // }
   }
 }
 

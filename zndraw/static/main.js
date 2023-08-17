@@ -1,5 +1,6 @@
 import { Cache } from "./pycom/Cache.js";
 import { World } from "./World/World.js";
+import { setUIEvents } from "./UI/UI.js";
 
 
 function setup(socket) {
@@ -24,6 +25,7 @@ function main() {
     const world = new World(container, cache, socket);
 
     setup(socket);
+    setUIEvents(socket, world);
     world.start();
     
     // disable loading screen

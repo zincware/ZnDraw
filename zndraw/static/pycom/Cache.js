@@ -18,6 +18,8 @@ class Atoms {
         this.colors = colors;
         this.radii = radii;
         this.connectivity = connectivity;
+
+        this.length = this.positions.length;
     }
 
     [Symbol.iterator]() {

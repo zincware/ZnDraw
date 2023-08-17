@@ -69,6 +69,10 @@ class World {
 
   }
 
+  setStep(step) {
+    loop.setStep(step);
+  }
+
 }
     
 

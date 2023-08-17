@@ -72,15 +72,15 @@ function updateFPS(config) {
   };
 }
 
-function setupSlider(config) {
+function setupSlider(socket, world) {
   const slider = document.getElementById("frame-slider");
-  config.set_step_callbacks.push((config) => {
-    slider.value = config.step;
-    slider.max = config.config.total_frames;
+
+  socket.on("config", (config) => {
+    slider.max = config.n_frames;
   });
 
   slider.oninput = function () {
-    config.set_step(parseInt(this.value));
+    world.setStep(this.value);
   };
 }
 
@@ -394,22 +394,23 @@ function resizeOffcanvas() {
   });
 }
 
-export function setUIEvents(config, world) {
-  update_materials(config);
-  updateFPS(config);
-  setupSlider(config);
-  setupPlayPause(config);
-  attachKeyPressed(config);
-  update_resolution(config, world);
-  update_sphere_radius(config);
-  update_bond_radius(config, world);
-  loadSceneModifier(config, world);
-  loadSceneAnalysis(config, world);
+export function setUIEvents(socket, world) {
+  setupSlider(socket, world);
+  // update_materials(config);
+  // updateFPS(config);
+  // setupSlider(config);
+  // setupPlayPause(config);
+  // attachKeyPressed(config);
+  // update_resolution(config, world);
+  // update_sphere_radius(config);
+  // update_bond_radius(config, world);
+  // loadSceneModifier(config, world);
+  // loadSceneAnalysis(config, world);
 
-  clickAddSceneModifier();
-  resizeOffcanvas();
+  // clickAddSceneModifier();
+  // resizeOffcanvas();
 
-  // disable loading spinner by making it invisible
-  const loadingElem = document.getElementById("atom-spinner");
-  loadingElem.style.display = "none";
+  // // disable loading spinner by making it invisible
+  // const loadingElem = document.getElementById("atom-spinner");
+  // loadingElem.style.display = "none";
 }

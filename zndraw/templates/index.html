@@ -25,6 +25,7 @@
 
   <script defer src="{{ url_for('static', filename='node_modules/@fortawesome/fontawesome-free/js/brands.js') }}"></script>
   <script defer src="{{ url_for('static', filename='node_modules/@fortawesome/fontawesome-free/js/solid.js') }}"></script>
+  <script defer src="{{ url_for('static', filename='node_modules/@fortawesome/fontawesome-free/js/regular.js') }}"></script>
   <script defer src="{{ url_for('static', filename='node_modules/@fortawesome/fontawesome-free/js/fontawesome.js') }}"></script>
 
   <script type="module" src="{{ url_for('static', filename='main.js') }}"></script>
@@ -104,7 +105,7 @@
             data-bs-target="#helpBoxCollapse" aria-expanded="false" aria-controls="helpBoxCollapse">
             <i class="fas fa-question-circle"></i> Help
           </button>
-          <a class="btn btn-outline-danger mx-1" href="/exit" role="button">EXIT <i class="fa-regular fa-circle-xmark"></i></a>
+          <a class="btn btn-outline-danger mx-1" href="/exit" role="button"><i class="fa-solid fa-circle-xmark"></i> EXIT</a>
           <!-- <button class="btn btn-outline-primary mx-1" type="button" data-bs-toggle="collapse"
             data-bs-target="#helpBoxCollapse" aria-expanded="false" aria-controls="helpBoxCollapse">
             <i class="fas fa-question-circle"></i> Help

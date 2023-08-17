@@ -84,16 +84,16 @@ class ASEComputeBonds(BaseModel):
 class DataHandler:
     client: Client
 
-    ase_bond_calculator: ASEComputeBonds = dataclasses.field(default_factory=ASEComputeBonds)
+    ase_bond_calculator: ASEComputeBonds = dataclasses.field(
+        default_factory=ASEComputeBonds
+    )
 
     def create_dataset(self, filename):
         # TODO this should happen on a worker
         atoms_list = znh5md.ASEH5MD(filename).get_atoms_list()
 
         for atoms in atoms_list:
-            atoms.connectivity = self.ase_bond_calculator.build_graph(
-                atoms
-            )
+            atoms.connectivity = self.ase_bond_calculator.build_graph(atoms)
 
         df = dd.DataFrame.from_dict({"atoms": atoms_list}, npartitions=10)
         self.client.persist(df)
