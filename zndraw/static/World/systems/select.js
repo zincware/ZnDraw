@@ -17,7 +17,7 @@ class Selection {
     const particlesGroup = this.scene.getObjectByName("particlesGroup");
     // iterate through all children ids that are in the selection and update them
     particlesGroup.children.forEach((x) => {
-      if (this.selection.includes(x)) {
+      if (this.selection.includes(x.name)) {
         x.set_selection(true);
       } else {
         x.set_selection(false);
@@ -41,14 +41,14 @@ class Selection {
       const particlesGroup = this.scene.getObjectByName("particlesGroup");
       const object = intersects[i].object;
       if (particlesGroup.children.includes(object.parent)) {
-        if (this.selection.includes(object.parent)) {
-          this.selection = this.selection.filter((x) => x !== object.parent);
+        if (this.selection.includes(object.parent.name)) {
+          this.selection = this.selection.filter((x) => x !== object.parent.name);
           object.parent.set_selection(false);
         } else {
-          this.selection.push(object.parent);
+          this.selection.push(object.parent.name);
           object.parent.set_selection(true);
         }
-        this.socket.emit("selection", this.selection.map((x) => x.name));
+        this.socket.emit("selection", this.selection);
         break; // only (de)select one particle
       }
     }
