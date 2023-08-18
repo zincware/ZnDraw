@@ -13,7 +13,7 @@ function createControls(camera, canvas) {
 
   controls.tick = function (delta) {
     // if (config.selected.length > 0 && config.pressed_keys.c == true) {
-    //   controls.target.copy(scene.getObjectByName("particleGroup").get_center());
+    //   controls.target.copy(scene.getObjectByName("particlesGroup").get_center());
     // }
     controls.update();
   };

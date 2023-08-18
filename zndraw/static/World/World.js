@@ -8,7 +8,7 @@ import { Resizer } from "./systems/Resizer.js";
 import { Loop } from "./systems/Loop.js";
 import { Stream } from "./systems/Stream.js";
 import {
-  ParticleGroup,
+  ParticlesGroup,
   createIndexGroup,
 } from "./components/particles.js";
 import { Selection } from "./systems/select.js";
@@ -40,7 +40,7 @@ class World {
 
     container.append(renderer.domElement);
 
-    const particles = new ParticleGroup(socket, cache);
+    const particles = new ParticlesGroup(socket, cache);
 
     const light = createLights();
 

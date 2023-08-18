@@ -25,9 +25,9 @@ class Selection {
 
     // iterate itersections until we find a particle
     for (let i = 0; i < intersects.length; i++) {
-      const particleGroup = this.scene.getObjectByName("particleGroup");
+      const particlesGroup = this.scene.getObjectByName("particlesGroup");
       const object = intersects[i].object;
-      if (particleGroup.children.includes(object.parent)) {
+      if (particlesGroup.children.includes(object.parent)) {
         object.parent.click();
         await fetch("select", {
           method: "POST",

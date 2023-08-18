@@ -1,11 +1,11 @@
 import * as THREE from "three";
 
 export class Curve3D {
-  constructor(scene, transformControls, config, particleGroup) {
+  constructor(scene, transformControls, config, particlesGroup) {
     this.scene = scene;
     this.transformControls = transformControls;
     this.config = config;
-    this.particleGroup = particleGroup;
+    this.particlesGroup = particlesGroup;
 
     this.ARC_SEGMENTS = 200;
     this.curve;
