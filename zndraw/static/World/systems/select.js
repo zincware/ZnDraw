@@ -13,6 +13,18 @@ class Selection {
     window.addEventListener("pointerdown", this.onPointerDown.bind(this));
   }
 
+  step() {
+    const particlesGroup = this.scene.getObjectByName("particlesGroup");
+    // iterate through all children ids that are in the selection and update them
+    particlesGroup.children.forEach((x) => {
+      if (this.selection.includes(x)) {
+        x.set_selection(true);
+      } else {
+        x.set_selection(false);
+      }
+    });
+  }
+
   onPointerDown(event) {
     this.pointer.x = (event.clientX / window.innerWidth) * 2 - 1;
     this.pointer.y = -(event.clientY / window.innerHeight) * 2 + 1;

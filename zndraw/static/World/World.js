@@ -46,7 +46,7 @@ class World {
     scene.add(particles, light, camera); // index, transform_controls
 
     loop.updatables.push(controls);
-    loop.constraint_updatables.push(particles);
+    loop.constraint_updatables.push(particles, selection);
 
     const resizer = new Resizer(container, camera, renderer, renderer2d);
 

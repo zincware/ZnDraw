@@ -114,7 +114,7 @@ class ParticleGroup extends THREE.Group {
     );
     this.add(particle_mesh);
     this.name = particle.id;
-    this._original_material = undefined;
+    this._original_material = particle_mesh.material;
 
     this.position.set(...particle.position);
   }
@@ -126,6 +126,8 @@ class ParticleGroup extends THREE.Group {
       particle.color,
       false
     )
+    // this command may update the selected material
+    this._original_material = material;
 
     this.children[0].scale.set(scale, scale, scale);
     this.position.set(...particle.position);
@@ -162,7 +164,6 @@ class ParticleGroup extends THREE.Group {
 
   set_selection(selected) {
     if (selected) {
-      this._original_material = this.children[0].material;
       // see https://threejs.org/examples/#webgl_postprocessing_unreal_bloom_selective for inspiration
       const material = speciesMaterial(
         "MeshPhongMaterial",
