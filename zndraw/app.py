@@ -1,9 +1,7 @@
 import time
 import uuid
 
-import numpy as np
-import tqdm
-import znh5md
+
 from dask.distributed import Client, Variable
 from flask import Flask, redirect, render_template, request, session, url_for
 from flask_socketio import SocketIO, emit
@@ -20,26 +18,6 @@ socketio = SocketIO(app)
 def index():
     """Render the main ZnDraw page."""
     return render_template("index.html")
-
-
-@app.route("/read/<filename>")
-def read(filename):
-    """Read a file."""
-    filename = filename.replace(".slash.", "/").replace("\\", ".slash.")
-    session["filename"] = filename
-    # TODO convert file to H5MD, if not already
-
-    # dataset = znh5md.ASEH5MD(filename)
-    # for idx in tqdm.tqdm(range(1000)):
-    #     _ = dataset.get_atoms_list(idx)
-
-    return redirect(url_for("index"))
-
-
-@app.route("/session")
-def session_view():
-    """View the session."""
-    return dict(session)
 
 
 @app.route("/exit")
@@ -70,3 +48,7 @@ def config():
     data_handler = DataHandler(Client(app.config["dask-scheduler"]))
 
     emit("config", {"n_frames": len(data_handler), "max_fps": 5})
+
+@socketio.on("selection")
+def selection(data):
+    print(data)

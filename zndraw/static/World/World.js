@@ -7,10 +7,7 @@ import { createRenderer, create2DRenderer } from "./systems/renderer.js";
 import { Resizer } from "./systems/Resizer.js";
 import { Loop } from "./systems/Loop.js";
 import { Stream } from "./systems/Stream.js";
-import {
-  ParticlesGroup,
-  createIndexGroup,
-} from "./components/particles.js";
+import {  ParticlesGroup } from "./components/particles.js";
 import { Selection } from "./systems/select.js";
 
 import { Curve3D } from "./components/draw.js";
@@ -37,6 +34,8 @@ class World {
 
     loop = new Loop(camera, scene, renderer, renderer2d, socket);
     controls = createControls(camera, renderer.domElement);
+
+    selection = new Selection(camera, scene, socket);
 
     container.append(renderer.domElement);
 

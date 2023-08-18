@@ -114,6 +114,7 @@ class ParticleGroup extends THREE.Group {
     );
     this.add(particle_mesh);
     this.name = particle.id;
+    this._original_material = undefined;
 
     this.position.set(...particle.position);
   }
@@ -157,6 +158,21 @@ class ParticleGroup extends THREE.Group {
     this.add(bond_mesh)
     // Store all the bond information, don't pass the mesh or group here
     this.updateBondOrientation(bond_mesh, particle_group)
+  }
+
+  set_selection(selected) {
+    if (selected) {
+      this._original_material = this.children[0].material;
+      // see https://threejs.org/examples/#webgl_postprocessing_unreal_bloom_selective for inspiration
+      const material = speciesMaterial(
+        "MeshPhongMaterial",
+        "#ffa500",
+        false
+      )
+      this.children.forEach((x) => (x.material = material));
+    } else {
+      this.children.forEach((x) => (x.material = this._original_material));
+    }
   }
 }
 
