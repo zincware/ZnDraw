@@ -9,8 +9,8 @@ class Loop {
     this.scene = scene;
     this.renderer = renderer;
     this.renderer2d = renderer2d;
-    this.updatables = [];
-    this.constraint_updatables = [];
+    this.tick_updatables = [];
+    this.step_updatables = [];
 
     this.step = 0;
 
@@ -24,16 +24,10 @@ class Loop {
   }
 
   start() {
-    this.tick();
-    this.setStep(this.step);
-
     this.renderer.setAnimationLoop(() => {
-      // tell every animated object to tick forward one frame
       this.tick();
-
-      // render a frame
-      this.renderer.render(this.scene, this.camera);
     });
+    this.setStep(this.step);
   }
 
   stop() {
@@ -42,27 +36,19 @@ class Loop {
 
   setStep(step) {
     this.step = step;
-    for (const object of this.constraint_updatables) {
+
+    for (const object of this.step_updatables) {
       object.step(step);
     }
   }
 
   tick() {
-    // only call the getDelta function once per frame!
-    // split into a tick() and a frame() function Maybe trigger frame() via socket?
+    this.renderer.render(this.scene, this.camera);
     this.renderer2d.render(this.scene, this.camera);
 
-    // TODO only update necessary objects. Don't split into updatables and constraint_updatables
-    for (const object of this.updatables) {
+    for (const object of this.tick_updatables) {
       object.tick();
     }
-
-    // if (clock.getElapsedTime() > 1 / this.config.max_fps) {
-    //   for (const object of this.constraint_updatables) {
-    //     object.step(0);  // This somehow must update the current frame to display
-    //   }
-    //   clock.start();
-    // }
   }
 }
 
