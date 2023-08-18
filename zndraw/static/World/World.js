@@ -10,7 +10,7 @@ import { Stream } from "./systems/Stream.js";
 import {  ParticlesGroup } from "./components/particles.js";
 import { Selection } from "./systems/select.js";
 
-import { Curve3D } from "./components/draw.js";
+import { Line3D, Canvas3D } from "./components/draw.js";
 
 // These variables are module-scoped: we cannot access them
 // from outside the module
@@ -35,15 +35,25 @@ class World {
     loop = new Loop(camera, scene, renderer, renderer2d, socket);
     controls = createControls(camera, renderer.domElement);
 
-    selection = new Selection(camera, scene, socket);
+    
 
     container.append(renderer.domElement);
 
+    // const transform_controls = createTransformControls(
+    //   camera,
+    //   renderer.domElement,
+    //   controls,
+    // );
+
     const particles = new ParticlesGroup(socket, cache);
+    const line3D = new Line3D(camera, renderer, controls);
+    const canvas3D = new Canvas3D();
+
+    selection = new Selection(camera, scene, socket, line3D);
 
     const light = createLights();
 
-    scene.add(particles, light, camera); // index, transform_controls
+    scene.add(particles, light, camera, line3D, canvas3D); // index, transform_controls
 
     loop.tick_updatables.push(controls);
     loop.step_updatables.push(particles, selection);
@@ -82,16 +92,11 @@ class World {
 //     selection = new Selection(camera, scene, config);
 
 //     
-//     const transform_controls = createTransformControls(
-//       camera,
-//       renderer.domElement,
-//       controls,
-//     );
 
 //     
 //     const index = createIndexGroup(particles);
 //     
-//     const curve = new Curve3D(scene, transform_controls, config, particles);
+//     
 
 //     window.addEventListener("keydown", (event) => {
 //       if (event.isComposing || event.key === "i") {
