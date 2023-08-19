@@ -125,6 +125,11 @@ class DataHandler:
                 # includes ['numbers', 'positions', 'cell', 'pbc']
                 if isinstance(atoms_dict[key], np.ndarray):
                     atoms_dict[key] = atoms_dict[key].tolist()
+                elif isinstance(atoms_dict[key], np.generic):
+                    atoms_dict[key] = atoms_dict[key].item()
+            
+            # remove info if available # currently not used
+            atoms_dict.pop("info", None)
 
             atoms_dict["colors"] = [
                 _rgb2hex(jmol_colors[number]) for number in atoms_dict["numbers"]
