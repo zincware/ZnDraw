@@ -1,8 +1,9 @@
 import dataclasses
 import functools
 import random
+import pathlib
 
-import ase
+import ase.io
 import dask.dataframe as dd
 import networkx as nx
 import numpy as np
@@ -90,14 +91,21 @@ class DataHandler:
 
     def create_dataset(self, filename):
         # TODO this should happen on a worker
-        atoms_list = znh5md.ASEH5MD(filename).get_atoms_list()
+
+        if pathlib.Path(filename).suffix == ".h5":
+            # Read file using znh5md and convert to list[ase.Atoms]
+            atoms_list = znh5md.ASEH5MD(filename).get_atoms_list()
+        else:
+            atoms_list = list(ase.io.iread(filename)) 
 
         for atoms in atoms_list:
             atoms.connectivity = self.ase_bond_calculator.build_graph(atoms)
 
         df = dd.DataFrame.from_dict({"atoms": atoms_list}, npartitions=10)
+        # move dataframe to client and keep it there
         self.client.persist(df)
-        self.client.publish_dataset(atoms=df)
+        # make dataset available with the id "atoms"
+        self.client.publish_dataset(atoms=df) # = **{"atoms": df}
 
     def __len__(self):
         return len(self.get_dataset())
