@@ -96,8 +96,7 @@ class DataHandler:
             # Read file using znh5md and convert to list[ase.Atoms]
             atoms_list = znh5md.ASEH5MD(filename).get_atoms_list()
         else:
-            atoms_list = list(ase.io.iread(filename))
-            print(atoms_list) 
+            atoms_list = list(ase.io.iread(filename)) 
 
         for atoms in atoms_list:
             atoms.connectivity = self.ase_bond_calculator.build_graph(atoms)
