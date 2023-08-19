@@ -46,10 +46,10 @@ class World {
     // );
 
     const particles = new ParticlesGroup(socket, cache);
-    const line3D = new Line3D(camera, renderer, controls);
+    const line3D = new Line3D(camera, renderer);
     const canvas3D = new Canvas3D();
 
-    selection = new Selection(camera, scene, socket, line3D);
+    selection = new Selection(camera, scene, socket, line3D, renderer, controls);
 
     const light = createLights();
 

@@ -1,16 +1,41 @@
 import * as THREE from "three";
+import { TransformControls } from "three/examples/jsm/controls/TransformControls.js";
+
 
 class Selection {
-  constructor(camera, scene, socket, line3D) {
+  constructor(camera, scene, socket, line3D, renderer, controls) {
     this.camera = camera;
     this.scene = scene;
     this.socket = socket;
+    this.controls = controls;
 
     this.line3D = line3D;
 
     this.raycaster = new THREE.Raycaster();
     this.pointer = new THREE.Vector2();
     this.selection = [];
+    this.transform_controls = new TransformControls(camera, renderer.domElement);
+
+    // I don't like this here! Add in world.
+    this.scene.add(this.transform_controls);
+
+    // event on backspace
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Backspace") {
+        this.line3D.removePointer(this.transform_controls.object);
+        this.transform_controls.detach();
+      }
+    });
+
+    this.transform_controls.addEventListener("dragging-changed", function (event) {
+      controls.enabled = !event.value;
+    });
+    this.transform_controls.addEventListener("objectChange", () => {
+      // mesh -> anchorPoints -> Line3D
+      this.transform_controls.object.parent.parent.updateLine();
+});
+
+    this._drawing = false;
 
     window.addEventListener("pointerdown", this.onPointerDown.bind(this));
 
@@ -18,11 +43,16 @@ class Selection {
     // use x keypress to toggle the attachment of onPointerMove
     document.addEventListener("keydown", (event) => {
       if (event.key === "x") {
-        window.addEventListener("pointermove", onPointerMove);
-      }
-      if (event.key === "c") {
-        console.log("Remove pointermove event listener");
-        window.removeEventListener("pointermove", onPointerMove);
+        if (this._drawing) {
+          this._drawing = false;
+          this.line3D.removePointer();
+          window.removeEventListener("pointermove", onPointerMove);
+        } else {
+          this._drawing = true;
+          this.line3D.addPointer();
+          this.transform_controls.detach();
+          window.addEventListener("pointermove", onPointerMove);
+        }
       }
     });
   }
@@ -55,16 +85,15 @@ class Selection {
    * Drawing raycaster
    */
   onPointerMove(event) {
-    console.log("onPointerMove");
     const intersects = this.getIntersections();
     const particlesGroup = this.scene.getObjectByName("particlesGroup");
     for (let i = 0; i < intersects.length; i++) {
       const object = intersects[i].object;
-      if (object.parent.name === "canvas3D") {
+      if (object.name === "canvas3D") {
         this.line3D.movePointer(intersects[i].point.clone());
         break;
       }
-      if (particlesGroup.children.includes(object.parent)){
+      if (particlesGroup.children.includes(object.parent)) {
         this.line3D.movePointer(intersects[i].point.clone());
         break;
       }
@@ -79,19 +108,33 @@ class Selection {
     for (let i = 0; i < intersects.length; i++) {
       const particlesGroup = this.scene.getObjectByName("particlesGroup");
       const object = intersects[i].object;
-      if (particlesGroup.children.includes(object.parent)) {
-        if (this.selection.includes(object.parent.name)) {
-          this.selection = this.selection.filter((x) => x !== object.parent.name);
-          object.parent.set_selection(false);
-        } else {
-          this.selection.push(object.parent.name);
-          object.parent.set_selection(true);
-          this.line3D.addPoint(object.parent.position.clone());
+      if (this._drawing) {
+        if (object.name === "canvas3D") {
+          this.line3D.addPoint(intersects[i].point.clone());
+          break;
         }
-        this.socket.emit("selection", this.selection);
-        break; // only (de)select one particle
+        if (particlesGroup.children.includes(object.parent)) {
+          this.line3D.addPoint(intersects[i].point.clone());
+          break;
+        }
+      } else {
+        if (object.parent.name === "AnchorPoints") {
+          this.transform_controls.attach(object);
+        } else {
+          if (particlesGroup.children.includes(object.parent)) {
+            if (this.selection.includes(object.parent.name)) {
+              this.selection = this.selection.filter((x) => x !== object.parent.name);
+              object.parent.set_selection(false);
+            } else {
+              this.selection.push(object.parent.name);
+              object.parent.set_selection(true);
+            }
+            this.socket.emit("selection", this.selection);
+            break; // only (de)select one particle
+          }
+        }
       }
-    }
+    } 
   }
 }
 

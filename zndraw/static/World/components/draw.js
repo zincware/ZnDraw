@@ -17,7 +17,7 @@ export class Canvas3D extends THREE.Group {
       wireframeMaterial,
     );
     const plane = new THREE.Mesh(geometry, material);
-    this.name = "canvas3D";
+    plane.name = "canvas3D";
 
     this.add(plane, wireframe);
   };
@@ -26,84 +26,66 @@ export class Canvas3D extends THREE.Group {
 export class Line3D extends THREE.Group {
   constructor() {
     super();
-    this.anchorPoints = [];
+    this.anchorPoints = new THREE.Group();
+    this.anchorPoints.name = "AnchorPoints";
 
     this.ARC_SEGMENTS = 200;
 
     const geometry = new THREE.BufferGeometry();
-    const material = new THREE.LineBasicMaterial({ color: 0xff0000 });
+    const material = new THREE.LineBasicMaterial({ color: 0x000000 });
     this.line = new THREE.Line(geometry, material);
     this.curve = undefined;
 
-    this.control_points = new THREE.Group();
-    this.add(this.line, this.control_points);
-
-    // call updateControlPoints() when x is pressed
-    document.addEventListener("keydown", (event) => {
-      if (event.key === "x") {
-        this.updateControlPoints();
-      }
-    });
+    this.add(this.line, this.anchorPoints);
   }
 
   addPoint(position) {
-    // const geometry = new THREE.SphereGeometry(1.4, 32, 32);
-    // const material = new THREE.MeshBasicMaterial({ color: "#000000" });
-    // const sphere = new THREE.Mesh(geometry, material);
-    // sphere.position.copy(position);
+    const geometry = new THREE.IcosahedronGeometry( 0.1, 0 );
+    const material = new THREE.MeshPhongMaterial({ color: "#000000", shininess: 100});
+    const sphere = new THREE.Mesh(geometry, material);
+    sphere.position.copy(position);
+    this.anchorPoints.add(sphere);
 
-    this.anchorPoints.push(position);
     this.updateLine();
-    // this.add(sphere);
+
+    this.ARC_SEGMENTS = this.anchorPoints.children.length * 20;
+  }
+
+  removePointer(object) {
+    // remove last anchor point
+    if (object) {
+      this.anchorPoints.remove(object);
+    } else {
+      this.anchorPoints.remove(this.anchorPoints.children[this.anchorPoints.children.length - 1]);
+    }
+
+    this.updateLine();
+  }
+
+  addPointer() {
+    this.addPoint(new THREE.Vector3(0, 0, 0));
   }
 
   updateLine() {
-    if (this.anchorPoints.length < 2) {
+    if (this.anchorPoints.children.length < 2) {
+      // remove the line
+      this.line.geometry = new THREE.BufferGeometry();
       return;
     }
-    this.curve = new THREE.CatmullRomCurve3(this.anchorPoints);
+
+    // get list of positions from anchor points
+    this.curve = new THREE.CatmullRomCurve3(this.anchorPoints.children.map((x) => x.position)); 
 
     const points = this.curve.getPoints(this.ARC_SEGMENTS);
     const geometry = new THREE.BufferGeometry().setFromPoints(points);
     this.line.geometry = geometry;
-    this.updateControlPoints();
+
   }
 
   movePointer(position) {
-    this.anchorPoints[this.anchorPoints.length - 1].copy(position);
+    // this.anchorPoints[this.anchorPoints.length - 1].copy(position);
+    this.anchorPoints.children[this.anchorPoints.children.length - 1].position.copy(position);
+    // create red material
     this.updateLine();
-  }
-
-  updateControlPoints() {
-    // remove all children from three group control_points
-    // while (this.control_points.children.length > 0) {
-    //   this.control_points.remove(this.control_points.children[0]);
-    // }
-    // create 5 spheres along the full distance of the curve
-
-    // create a control point between each pair of anchor points
-    // the point has to be on the curve
-
-    // for (let i = 0; i < this.anchorPoints.length - 1; i++) {
-    //   const anchorPoint1 = this.anchorPoints[i];
-    //   const anchorPoint2 = this.anchorPoints[i + 1];
-    //   const controlPoint = new THREE.Vector3().addVectors(anchorPoint1, anchorPoint2).divideScalar(2);
-
-    //   const geometry = new THREE.SphereGeometry(0.2, 32, 32);
-    //   const material = new THREE.MeshBasicMaterial({ color: "#000000" });
-    //   const sphere = new THREE.Mesh(geometry, material);
-    //   sphere.position.copy(controlPoint);
-    //   this.control_points.add(sphere);
-    // }
-
-    // const n_points = Math.floor(this.curve.getLength());
-
-    // this.curve.getSpacedPoints(n_points).forEach((point) => {
-    //   const geometry = new THREE.SphereGeometry(0.2, 32, 32);
-    //   const material = new THREE.MeshBasicMaterial({ color: "#000000" });
-    //   const sphere = new THREE.Mesh(geometry, material);
-    //   sphere.position.copy(point);
-    //   this.control_points.add(sphere);
-    // });
   }
 }
