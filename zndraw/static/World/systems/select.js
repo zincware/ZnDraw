@@ -19,11 +19,21 @@ class Selection {
     // I don't like this here! Add in world.
     this.scene.add(this.transform_controls);
 
+    const onPointerMove = this.onPointerMove.bind(this);
+
     // event on backspace
     document.addEventListener("keydown", (event) => {
       if (event.key === "Backspace") {
         this.line3D.removePointer(this.transform_controls.object);
         this.transform_controls.detach();
+      }
+      if (event.key === "Escape") {
+        this.transform_controls.detach();
+        if (this._drawing) {
+          this._drawing = false;
+          this.line3D.removePointer();
+          window.removeEventListener("pointermove", onPointerMove);
+        }
       }
     });
 
@@ -33,13 +43,12 @@ class Selection {
     this.transform_controls.addEventListener("objectChange", () => {
       // mesh -> anchorPoints -> Line3D
       this.transform_controls.object.parent.parent.updateLine();
-});
+    });
 
     this._drawing = false;
 
     window.addEventListener("pointerdown", this.onPointerDown.bind(this));
 
-    const onPointerMove = this.onPointerMove.bind(this);
     // use x keypress to toggle the attachment of onPointerMove
     document.addEventListener("keydown", (event) => {
       if (event.key === "x") {
@@ -134,7 +143,7 @@ class Selection {
           }
         }
       }
-    } 
+    }
   }
 }
 
