@@ -16,13 +16,14 @@ socketio = SocketIO(app)
 import enum
 from typing import Union
 
+import ase
+import numpy as np
 from ase.data import chemical_symbols
 from pydantic import BaseModel, Field
 from typing_extensions import Annotated
-import ase
-import numpy as np
 
 Symbols = enum.Enum("Symbols", {symbol: symbol for symbol in chemical_symbols})
+
 
 class Duplicate(BaseModel):
     x: float = Field(0.5, le=5, ge=0)
@@ -38,8 +39,10 @@ class Duplicate(BaseModel):
             atoms += atom
         return [atoms]
 
+
 class Methods(BaseModel):
     method: Annotated[Union[Duplicate, None], Field(alias="Method")] = None
+
 
 ######################### Temporary #########################
 
@@ -93,30 +96,37 @@ def get_interaction_scheme():
 
     emit("interaction:schema", schema)
 
+
 @socketio.on("interaction:submit")
 def run_interaction_scheme(data):
     print(data)
     data_handler = DataHandler(Client(app.config["dask-scheduler"]))
 
-    atoms = Methods(**data).method.run(atom_ids=session["selection"], atoms=data_handler[session["step"]])
+    atoms = Methods(**data).method.run(
+        atom_ids=session["selection"], atoms=data_handler[session["step"]]
+    )
     data_handler[session["step"] + 1] = atoms[0]
     emit("cache:reset")
     emit("display", {"index": session["step"] + 1})
+
 
 @app.route("/display/<int:index>")
 def display(index):
     socketio.emit("display", {"index": index})
     return "OK"
 
+
 @app.route("/cache/<int:index>")
 def cache(index):
     socketio.emit("cache:load", {"index": index})
     return "OK"
 
+
 @app.route("/cache/reset/")
 def cache_reset():
     socketio.emit("cache:reset")
     return "OK"
+
 
 @socketio.on("step")
 def step(data):

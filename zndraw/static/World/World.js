@@ -85,7 +85,7 @@ class World {
 
   setStep(step) {
     loop.setStep(step);
-    this.socket.emit("step", {"step": step});
+    this.socket.emit("step", { step: step });
   }
 }
 
