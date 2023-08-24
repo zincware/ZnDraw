@@ -27,8 +27,15 @@ function main() {
 
     setup(socket);
     setUIEvents(socket, world);
-    initJSONEditor();
+    initJSONEditor(socket);
     world.start();
+
+    socket.on("display", (data) => {
+        socket.emit("config");
+        const slider = document.getElementById("frame-slider");
+        slider.value = data.index;
+        world.setStep(data.index);
+    });
     
     // disable loading screen
     document.getElementById("atom-spinner").style.display = "none";

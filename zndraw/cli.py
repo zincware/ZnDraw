@@ -11,10 +11,16 @@ from zndraw.data import DataHandler
 
 
 def _get_port() -> int:
-    sock = socket.socket()
-    sock.bind(("", 0))
-    port = sock.getsockname()[1]
-    sock.close()
+    try:
+        sock = socket.socket()
+        sock.bind(("", 1234))
+        port = 1234
+    except OSError:
+        sock = socket.socket()
+        sock.bind(("", 0))
+        port = sock.getsockname()[1]
+    finally:
+        sock.close()
     return port
 
 
@@ -32,11 +38,14 @@ def main(filename: str):
         _filename = Variable("filename")
         _filename.set(filename)
 
+        url = Variable("url")
+        url.set(f"http://127.0.0.1:{port}")
+
         DataHandler(client).create_dataset(filename)
 
         app.config["dask-scheduler"] = client.scheduler_info()["address"]
 
-        print(f"Starting server on http://127.0.0.1:{port}")
+        print(f"Starting server on {url.get()} with scheduler {app.config['dask-scheduler']}")
 
-        webbrowser.open(f"http://127.0.0.1:{port}")
+        webbrowser.open(url.get())
         socketio.run(app, port=port, host="0.0.0.0")

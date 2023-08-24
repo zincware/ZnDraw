@@ -2,6 +2,7 @@ import dataclasses
 import functools
 import random
 import pathlib
+import collections.abc
 
 import ase.io
 import dask.dataframe as dd
@@ -82,12 +83,44 @@ class ASEComputeBonds(BaseModel):
 
 
 @dataclasses.dataclass
-class DataHandler:
+class DataHandler(collections.abc.MutableSequence):
     client: Client
 
     ase_bond_calculator: ASEComputeBonds = dataclasses.field(
         default_factory=ASEComputeBonds
     )
+
+    def __delitem__(self, index):
+        pass
+
+    def __getitem__(self, index) -> list[ase.Atoms]:
+        df = self.get_dataset()
+        value = list(df.loc[index]["atoms"].compute().to_dict().values())
+        return value if len(value) > 1 else value[0]
+
+    def __len__(self):
+        return len(self.get_dataset())
+
+    def __setitem__(self, index, value):
+        df = self.get_dataset().compute()
+
+        if isinstance(index, slice):
+            indices = list(range(index.stop))[index]
+            for idx, atoms in zip(indices, value):
+                df.loc[idx, "atoms"] = atoms
+        elif isinstance(index, int):
+            df.loc[index, "atoms"] = value
+        else:
+            raise TypeError(f"Index must be int or slice not {type(index)}")
+        
+        self.client.unpublish_dataset("atoms")
+        self.client.restart()
+        df = dd.from_pandas(df, npartitions=10)
+        self.client.persist(df)
+        self.client.publish_dataset(atoms=df)
+
+    def insert(self, index, value):
+        pass
 
     def create_dataset(self, filename):
         # TODO this should happen on a worker
@@ -107,19 +140,16 @@ class DataHandler:
         # make dataset available with the id "atoms"
         self.client.publish_dataset(atoms=df) # = **{"atoms": df}
 
-    def __len__(self):
-        return len(self.get_dataset())
-
     def get_dataset(self):
         return self.client.get_dataset("atoms")
+    
+    def index(self):
+        return self.get_dataset().index.compute()
 
-    def get_atoms(self, _slice) -> dict[str, ase.Atoms]:
-        df = self.get_dataset()
-        return df.loc[_slice]["atoms"].compute().to_dict()
-
-    def get_atoms_json(self, _slice) -> dict[str, ase.Atoms]:
+    def get_atoms_json(self, item) -> dict[str, ase.Atoms]:
         data = {}
-        for idx, atoms in self.get_atoms(_slice).items():
+        
+        for idx, atoms in zip(self.index()[item], self[item]):
             atoms_dict = atoms.todict()
             for key in list(atoms_dict):
                 # includes ['numbers', 'positions', 'cell', 'pbc']
@@ -137,7 +167,10 @@ class DataHandler:
             atoms_dict["radii"] = [
                 _get_radius(number) for number in atoms_dict["numbers"]
             ]
-            atoms_dict["connectivity"] = self.ase_bond_calculator.get_bonds(atoms)
+            try:
+                atoms_dict["connectivity"] = self.ase_bond_calculator.get_bonds(atoms)
+            except AttributeError:
+                atoms_dict["connectivity"] = []
             data[idx] = atoms_dict
 
         return data

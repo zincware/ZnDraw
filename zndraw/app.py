@@ -2,7 +2,7 @@ import time
 import uuid
 
 
-from dask.distributed import Client, Variable
+from dask.distributed import Client
 from flask import Flask, redirect, render_template, request, session, url_for
 from flask_socketio import SocketIO, emit
 
@@ -34,8 +34,9 @@ def handle_get_id_on_configurations(json):
     _id = int(json["id"])
 
     print("received json: " + str(json))
+
     atoms_dict = DataHandler(Client(app.config["dask-scheduler"])).get_atoms_json(
-        slice(_id - 50, _id + 50)
+        slice(max(_id - 50, 0), _id + 50)
     )
     print("time to get atoms: " + str(time.time() - start_time))
 
@@ -52,3 +53,33 @@ def config():
 @socketio.on("selection")
 def selection(data):
     print(data)
+
+@socketio.on("interaction:scheme")
+def get_interaction_scheme():
+    from pydantic import BaseModel, Field
+    import enum
+    from typing import Union
+    from typing_extensions import Annotated
+
+    from ase.data import chemical_symbols
+
+    Symbols = enum.Enum("Symbols", {symbol: symbol for symbol in chemical_symbols})
+
+    class Duplicate(BaseModel):
+        x: float = Field(0.5, le=5, ge=0)
+        y: float = Field(0.5, le=5, ge=0)
+        z: float = Field(0.5, le=5, ge=0)
+        symbol: Symbols
+    
+    class Methods(BaseModel):
+        method: Annotated[Union[Duplicate, None], Field(alias='Method')] = None
+
+    schema = Methods.model_json_schema()
+    # print(schema)
+
+    emit("interaction:scheme", schema)
+
+@app.route("/display/<int:index>")
+def display(index):
+    socketio.emit("display", {"index": index})
+    return "OK"
