@@ -1,15 +1,17 @@
 import collections.abc
 import dataclasses
-from distributed import Client, Variable
-from zndraw.data import DataHandler
-
 import urllib.request
+
+from distributed import Client, Variable
+
+from zndraw.data import DataHandler
 
 
 @dataclasses.dataclass
 class ZnDraw(DataHandler):
     """The ZnDraw Interface"""
-    client : Client = dataclasses.field(default_factory=Client)
+
+    client: Client = dataclasses.field(default_factory=Client)
     url: str = None
 
     def __post_init__(self):
@@ -21,6 +23,7 @@ class ZnDraw(DataHandler):
     def display(self, index):
         """Display the atoms at the given index"""
         urllib.request.urlopen(self.url + f"/display/{index}")
+
 
 if __name__ == "__main__":
     client = Client("tcp://127.0.0.1:57037")
@@ -61,4 +64,3 @@ if __name__ == "__main__":
     # df.loc[slicer, "atoms"] = values
 
     # print(df)
-

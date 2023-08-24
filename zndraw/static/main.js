@@ -17,25 +17,25 @@ function setup(socket) {
 }
 
 function main() {
-    const socket = io();
-    const cache = new Cache(socket);
-    const container = document.querySelector("#scene-container");
-    const world = new World(container, cache, socket);
+  const socket = io();
+  const cache = new Cache(socket);
+  const container = document.querySelector("#scene-container");
+  const world = new World(container, cache, socket);
 
-    setup(socket);
-    setUIEvents(socket, world);
-    initJSONEditor(socket);
-    world.start();
+  setup(socket);
+  setUIEvents(socket, world);
+  initJSONEditor(socket);
+  world.start();
 
-    socket.on("display", (data) => {
-        socket.emit("config");
-        const slider = document.getElementById("frame-slider");
-        slider.value = data.index;
-        world.setStep(data.index);
-    });
-    
-    // disable loading screen
-    document.getElementById("atom-spinner").style.display = "none";
+  socket.on("display", (data) => {
+    socket.emit("config");
+    const slider = document.getElementById("frame-slider");
+    slider.value = data.index;
+    world.setStep(data.index);
+  });
+
+  // disable loading screen
+  document.getElementById("atom-spinner").style.display = "none";
 }
 
 main();

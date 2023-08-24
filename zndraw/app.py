@@ -1,7 +1,6 @@
 import time
 import uuid
 
-
 from dask.distributed import Client
 from flask import Flask, redirect, render_template, request, session, url_for
 from flask_socketio import SocketIO, emit
@@ -55,14 +54,15 @@ def config():
 def selection(data):
     print(data)
 
+
 @socketio.on("interaction:scheme")
 def get_interaction_scheme():
-    from pydantic import BaseModel, Field
     import enum
     from typing import Union
-    from typing_extensions import Annotated
 
     from ase.data import chemical_symbols
+    from pydantic import BaseModel, Field
+    from typing_extensions import Annotated
 
     Symbols = enum.Enum("Symbols", {symbol: symbol for symbol in chemical_symbols})
 
@@ -71,14 +71,15 @@ def get_interaction_scheme():
         y: float = Field(0.5, le=5, ge=0)
         z: float = Field(0.5, le=5, ge=0)
         symbol: Symbols
-    
+
     class Methods(BaseModel):
-        method: Annotated[Union[Duplicate, None], Field(alias='Method')] = None
+        method: Annotated[Union[Duplicate, None], Field(alias="Method")] = None
 
     schema = Methods.model_json_schema()
     # print(schema)
 
     emit("interaction:scheme", schema)
+
 
 @app.route("/display/<int:index>")
 def display(index):

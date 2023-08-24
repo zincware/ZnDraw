@@ -1,7 +1,7 @@
+import collections.abc
 import dataclasses
 import functools
 import pathlib
-import collections.abc
 
 import ase.io
 import dask.dataframe as dd
@@ -111,7 +111,7 @@ class DataHandler(collections.abc.MutableSequence):
             df.loc[index, "atoms"] = value
         else:
             raise TypeError(f"Index must be int or slice not {type(index)}")
-        
+
         self.client.unpublish_dataset("atoms")
         self.client.restart()
         df = dd.from_pandas(df, npartitions=10)
@@ -141,13 +141,13 @@ class DataHandler(collections.abc.MutableSequence):
 
     def get_dataset(self):
         return self.client.get_dataset("atoms")
-    
+
     def index(self):
         return self.get_dataset().index.compute()
 
     def get_atoms_json(self, item) -> dict[str, ase.Atoms]:
         data = {}
-        
+
         for idx, atoms in zip(self.index()[item], self[item]):
             atoms_dict = atoms.todict()
             for key in list(atoms_dict):
