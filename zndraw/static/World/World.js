@@ -66,6 +66,7 @@ class World {
     const resizer = new Resizer(container, camera, renderer, renderer2d);
 
     this.step = loop.step;
+    this.socket = socket;
 
     // renderer.render(scene, camera);
   }
@@ -84,6 +85,7 @@ class World {
 
   setStep(step) {
     loop.setStep(step);
+    this.socket.emit("step", {"step": step});
   }
 }
 

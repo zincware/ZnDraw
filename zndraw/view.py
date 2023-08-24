@@ -22,11 +22,14 @@ class ZnDraw(DataHandler):
 
     def display(self, index):
         """Display the atoms at the given index"""
+        urllib.request.urlopen(self.url + f"/cache/reset/")
         urllib.request.urlopen(self.url + f"/display/{index}")
+        for idx in range(0, len(self), 100):
+            urllib.request.urlopen(self.url + f"/cache/{idx}")
 
 
 if __name__ == "__main__":
-    client = Client("tcp://127.0.0.1:57037")
+    client = Client("tcp://127.0.0.1:61587")
     zndraw = ZnDraw(client=client)
 
     atoms = zndraw[0]
@@ -36,31 +39,4 @@ if __name__ == "__main__":
 
     zndraw[350:450] = data
 
-    zndraw.display(405)
-
-    # print(zndraw[400:])
-
-    # # print(len(zndraw))
-    # # print(zndraw)
-    # # print(zndraw[0])
-
-    # zndraw[405] = zndraw[1] # this is a dictionary so it can not be set to a value
-
-    # zndraw[400:405] = zndraw[0:5] # this is a dictionary so it can not be set to a value
-    # # # set request to zndraw.url / update
-    # # print(urllib.request.urlopen(zndraw.url + "/update").read())
-
-    # import pandas as pd
-
-    # # Example DataFrame
-    # data = {'atoms': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]}
-    # df = pd.DataFrame(data)
-
-    # # Define the slice and values to be assigned
-    # slicer = slice(2, 4)
-    # values = [1, 2, 3]
-
-    # # Perform the assignment using the .loc accessor and .values attribute
-    # df.loc[slicer, "atoms"] = values
-
-    # print(df)
+    zndraw.display(350)

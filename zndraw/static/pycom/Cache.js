@@ -51,6 +51,13 @@ class Cache {
     this._cache = {};
 
     this._last_request = -999999;
+
+    this._socket.on("cache:load", (data) => {
+      this._get(data.index);
+    });
+    this._socket.on("cache:reset", () => {
+      this.reset();
+    });
   }
 
   async _get(id) {
@@ -113,7 +120,9 @@ class Cache {
   }
 
   reset() {
+    console.log("reset cache");
     this._cache = {};
+    this._last_request = -999999;
   }
 }
 

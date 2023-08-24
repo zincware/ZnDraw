@@ -12,7 +12,7 @@ export function initJSONEditor(socket) {
       schema: { type: "object", title: "ZnDraw", properties: {} },
     },
   );
-  socket.on("interaction:scheme", function (data) {
+  socket.on("interaction:schema", function (data) {
     editor.destroy();
     editor = new JSONEditor(
       document.getElementById("interaction-json-editor"),
@@ -27,6 +27,7 @@ export function initJSONEditor(socket) {
       // Get the value from the editor
       const value = editor.getValue();
       console.log(value);
+      socket.emit("interaction:submit", value);
     });
-  socket.emit("interaction:scheme");
+  socket.emit("interaction:schema");
 }

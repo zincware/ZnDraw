@@ -113,7 +113,7 @@ class DataHandler(collections.abc.MutableSequence):
             raise TypeError(f"Index must be int or slice not {type(index)}")
 
         self.client.unpublish_dataset("atoms")
-        self.client.restart()
+        # self.client.restart()
         df = dd.from_pandas(df, npartitions=10)
         self.client.persist(df)
         self.client.publish_dataset(atoms=df)
