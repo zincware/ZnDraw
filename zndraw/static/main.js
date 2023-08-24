@@ -1,6 +1,7 @@
 import { Cache } from "./pycom/Cache.js";
 import { World } from "./World/World.js";
 import { setUIEvents } from "./UI/UI.js";
+import { initJSONEditor } from "./UI/json_editor.js";
 
 
 function setup(socket) {
@@ -26,6 +27,7 @@ function main() {
 
     setup(socket);
     setUIEvents(socket, world);
+    initJSONEditor();
     world.start();
     
     // disable loading screen

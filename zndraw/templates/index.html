@@ -9,7 +9,8 @@
       {
         "imports": {
           "three": "{{ url_for('static', filename='/node_modules/three/build/three.module.js') }}",
-          "three/": "{{ url_for('static', filename='/node_modules/three/') }}"
+          "three/": "{{ url_for('static', filename='/node_modules/three/') }}",
+          "jsoneditor": "{{ url_for('static', filename='/node_modules/@json-editor/json-editor/dist/jsoneditor.js') }}"
         }
       }
     </script>
@@ -19,14 +20,19 @@
 </head>
 
 <body>
+  <script src="https://cdn.jsdelivr.net/npm/@json-editor/json-editor@latest/dist/jsoneditor.min.js"></script>
   <script src="{{ url_for('static', filename='node_modules/socket.io/client-dist/socket.io.js') }}"></script>
   <script src="{{ url_for('static', filename='node_modules/bootstrap/dist/js/bootstrap.min.js') }}"></script>
   <script src="{{ url_for('static', filename='node_modules/plotly.js-dist/plotly.js') }}"></script>
 
-  <script defer src="{{ url_for('static', filename='node_modules/@fortawesome/fontawesome-free/js/brands.js') }}"></script>
-  <script defer src="{{ url_for('static', filename='node_modules/@fortawesome/fontawesome-free/js/solid.js') }}"></script>
-  <script defer src="{{ url_for('static', filename='node_modules/@fortawesome/fontawesome-free/js/regular.js') }}"></script>
-  <script defer src="{{ url_for('static', filename='node_modules/@fortawesome/fontawesome-free/js/fontawesome.js') }}"></script>
+  <script defer
+    src="{{ url_for('static', filename='node_modules/@fortawesome/fontawesome-free/js/brands.js') }}"></script>
+  <script defer
+    src="{{ url_for('static', filename='node_modules/@fortawesome/fontawesome-free/js/solid.js') }}"></script>
+  <script defer
+    src="{{ url_for('static', filename='node_modules/@fortawesome/fontawesome-free/js/regular.js') }}"></script>
+  <script defer
+    src="{{ url_for('static', filename='node_modules/@fortawesome/fontawesome-free/js/fontawesome.js') }}"></script>
 
   <script type="module" src="{{ url_for('static', filename='main.js') }}"></script>
 
@@ -100,12 +106,14 @@
           </li>
         </ul>
         <form class="d-flex">
-          <a class="btn btn-outline-primary mx-1" href="download" role="button"><i class="fas fa-download"></i> Download</a>
+          <a class="btn btn-outline-primary mx-1" href="download" role="button"><i class="fas fa-download"></i>
+            Download</a>
           <button class="btn btn-outline-primary mx-1" type="button" data-bs-toggle="collapse"
             data-bs-target="#helpBoxCollapse" aria-expanded="false" aria-controls="helpBoxCollapse">
             <i class="fas fa-question-circle"></i> Help
           </button>
-          <a class="btn btn-outline-danger mx-1" href="/exit" role="button"><i class="fa-solid fa-circle-xmark"></i> EXIT</a>
+          <a class="btn btn-outline-danger mx-1" href="/exit" role="button"><i class="fa-solid fa-circle-xmark"></i>
+            EXIT</a>
           <!-- <button class="btn btn-outline-primary mx-1" type="button" data-bs-toggle="collapse"
             data-bs-target="#helpBoxCollapse" aria-expanded="false" aria-controls="helpBoxCollapse">
             <i class="fas fa-question-circle"></i> Help
@@ -170,51 +178,11 @@
       <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
     </div>
     <div class="offcanvas-body" id="interactionOffCanvasBody">
-
-      <div class="mb-3">
-        <label for="selection-method" class="form-label">Selection Method</label>
-        <select class="form-select" aria-label="Default select example" id="selection-method">
-          <option selected, value="particles">Particles</option>
-          <option value="species">Species</option>
-          <option value="connected">Connected Particles</option>
-          <option value="none">None</option>
-          <option value="all">All</option>
-        </select>
-        <div id="selection-methodHelp" class="form-text">Select single particles, whole molecules or disable selection.
-        </div>
-      </div>
-      <div class="row my-3">
-        <div class="col">
-            <button type="button" class="btn btn-secondary w-100" id="reset_selection">Reset Selection</button>
-        </div>
-        <div class="col">
-          <a class="btn btn-secondary w-100" role="button" id="download-selected">Download Selected</a>
-        </div>
-      </div>
-      <div class="mb-3">
-        <input class="form-check-input" type="checkbox" value="" id="multiselect">
-        <label for="multiselect" class="form-label">Select multiple particles</label>
-      </div>
-
-      <div class="mb-3">
-        <label for="addSceneModifier" class="form-label">Select scene modifier</label>
-        <select class="form-select" aria-label="Default select example" id="addSceneModifier">
-          <option selected, value="none"> </option>
-          <option value="add">Add New</option>
-        </select>
-        <div id="addSceneModifierHelp" class="form-text">Load a Python class to modify the scene
-        </div>
-      </div>
-      <div id="sceneModifierSettings"></div>
-      <div class="row my-3">
-        <div class="col">
-          <button type="button" class="btn btn-danger w-100" id="sceneModifierResetBtn">Reset Modifier</button>
-        </div>
-        <div class="col">
-          <button type="button" class="btn btn-primary w-100" id="sceneModifierBtn">Modify</button>
-        </div>
-      </div>
-
+      <div id='interaction-json-editor'></div>
+      <button id='interaction-json-editor-submit'>Submit (console.log)</button>
+      <!-- <button id="json-schema-form-submit" type="submit">
+        Save
+      </button> -->
     </div>
   </div>
 
@@ -367,139 +335,140 @@
   </div>
 
 
-    <!-- Info Box -->
-    <div class="collapse" id="infoBoxCollapse">
-      <div class="container-fluid rounded border border-dark" id="infoBox">
+  <!-- Info Box -->
+  <div class="collapse" id="infoBoxCollapse">
+    <div class="container-fluid rounded border border-dark" id="infoBox">
+      <dl class="row">
+        <dt class="col-sm-3">File</dt>
+        <dd class="col-sm-9"><code>{{ config.file }}</code></dd>
+        <dt class="col-sm-3">FPS</dt>
+        <dd class="col-sm-9" id="FPS">-</dd>
+        <dt class="col-sm-3">Particles</dt>
+        <dd class="col-sm-9" id="n_particles">-</dd>
+        <dt class="col-sm-3">Bonds</dt>
+        <dd class="col-sm-9" id="n_bonds">-</dd>
+        <dt class="col-sm-3">Selected IDs</dt>
+        <dd class="col-sm-9" id="lst_selected_ids"></dd>
+        {% if config.update_function %}
+        <dt class="col-sm-3">Function</dt>
+        <dd class="col-sm-9" id="lst_selected_ids"><code>{{ config.update_function }}</code></dd>
+        {% endif %}
+      </dl>
+    </div>
+  </div>
+
+  <!-- Help Box -->
+  <div class="collapse" id="helpBoxCollapse">
+    <div class="container-fluid bg-light rounded border border-primary pt-2" id="helpBox">
+      <h2>ZnDraw Help</h2>
+      <div class="rounded-3 bg-white px-2 pt-2">
         <dl class="row">
-          <dt class="col-sm-3">File</dt>
-          <dd class="col-sm-9"><code>{{ config.file }}</code></dd>
-          <dt class="col-sm-3">FPS</dt>
-          <dd class="col-sm-9" id="FPS">-</dd>
-          <dt class="col-sm-3">Particles</dt>
-          <dd class="col-sm-9" id="n_particles">-</dd>
-          <dt class="col-sm-3">Bonds</dt>
-          <dd class="col-sm-9" id="n_bonds">-</dd>
-          <dt class="col-sm-3">Selected IDs</dt>
-          <dd class="col-sm-9" id="lst_selected_ids"></dd>
-          {% if config.update_function %}
-          <dt class="col-sm-3">Function</dt>
-          <dd class="col-sm-9" id="lst_selected_ids"><code>{{ config.update_function }}</code></dd>
-          {% endif %}
+          <!-- <dt class="col-sm-3">move light to camera position</dt>
+            <dd class="col-sm-9"><code>keypress L</code></dd> -->
+          <dt class="col-sm-3">play / pause</dt>
+          <dd class="col-sm-9"><code>keypress space</code></dd>
+          <dt class="col-sm-3">frame forwards / backwards</dt>
+          <dd class="col-sm-9"><code>keypress &#9654;\&#9664; </code></dd>
+          <dt class="col-sm-3">jump forwards / backwards</dt>
+          <dd class="col-sm-9"><code>keypress &#9650;\&#9660; </code></dd>
+          <dt class="col-sm-3">center camera around selected particle</dt>
+          <dd class="col-sm-9"><code>keypress C</code></dd>
+          <!-- <dt class="col-sm-3">reload animation</dt>
+            <dd class="col-sm-9"><code>keypress Q</code></dd> -->
+          <dt class="col-sm-3">select multiple particles</dt>
+          <dd class="col-sm-9"><code>keydown shift</code></dd>
+          <dt class="col-sm-3">show particle index</dt>
+          <dd class="col-sm-9"><code>keydown I</code></dd>
+          <dt class="col-sm-3">toggle canvas movement</dt>
+          <dd class="col-sm-9"><code>keypress T</code></dd>
         </dl>
       </div>
     </div>
+  </div>
 
-    <!-- Help Box -->
-    <div class="collapse" id="helpBoxCollapse">
-      <div class="container-fluid bg-light rounded border border-primary pt-2" id="helpBox">
-        <h2>ZnDraw Help</h2>
-        <div class="rounded-3 bg-white px-2 pt-2">
-          <dl class="row">
-            <!-- <dt class="col-sm-3">move light to camera position</dt>
-            <dd class="col-sm-9"><code>keypress L</code></dd> -->
-            <dt class="col-sm-3">play / pause</dt>
-            <dd class="col-sm-9"><code>keypress space</code></dd>
-            <dt class="col-sm-3">frame forwards / backwards</dt>
-            <dd class="col-sm-9"><code>keypress &#9654;\&#9664; </code></dd>
-            <dt class="col-sm-3">jump forwards / backwards</dt>
-            <dd class="col-sm-9"><code>keypress &#9650;\&#9660; </code></dd>
-            <dt class="col-sm-3">center camera around selected particle</dt>
-            <dd class="col-sm-9"><code>keypress C</code></dd>
-            <!-- <dt class="col-sm-3">reload animation</dt>
-            <dd class="col-sm-9"><code>keypress Q</code></dd> -->
-            <dt class="col-sm-3">select multiple particles</dt>
-            <dd class="col-sm-9"><code>keydown shift</code></dd>
-            <dt class="col-sm-3">show particle index</dt>
-            <dd class="col-sm-9"><code>keydown I</code></dd>
-            <dt class="col-sm-3">toggle canvas movement</dt>
-            <dd class="col-sm-9"><code>keypress T</code></dd>
-          </dl>
+  <!-- Add Scene Modifer -->
+  <div class="modal" tabindex="-1" id="addModifierModal">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Add Scene Modifier</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
-      </div>
-    </div>
-
-    <!-- Add Scene Modifer -->
-    <div class="modal" tabindex="-1" id="addModifierModal">
-      <div class="modal-dialog">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title">Add Scene Modifier</h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-          </div>
-          <div class="modal-body">
-            <div class="mb-3">
-              <label for="addSceneModifierImport" class="form-label">Path to modifier <code>class</code></label>
-              <input type="email" class="form-control" id="addSceneModifierImport"
-                aria-describedby="addSceneModifierImportHelp">
-              <div id="addSceneModifierImportHelp" class="form-text">The input should be <code>module.cls</code> such
-                that
-                <code> from module import cls</code> works.
-              </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label for="addSceneModifierImport" class="form-label">Path to modifier <code>class</code></label>
+            <input type="email" class="form-control" id="addSceneModifierImport"
+              aria-describedby="addSceneModifierImportHelp">
+            <div id="addSceneModifierImportHelp" class="form-text">The input should be <code>module.cls</code> such
+              that
+              <code> from module import cls</code> works.
             </div>
           </div>
-          <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-            <button type="button" class="btn btn-primary" id="addSceneModifierImportBtn">Load</button>
-          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+          <button type="button" class="btn btn-primary" id="addSceneModifierImportBtn">Load</button>
         </div>
       </div>
     </div>
+  </div>
 
-    <!-- Add Analysis -->
-    <div class="modal" tabindex="-1" id="addAnalysisModal">
-      <div class="modal-dialog">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title">Add Analysis</h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-          </div>
-          <div class="modal-body">
-            <div class="mb-3">
-              <label for="addAnalysisImport" class="form-label">Path to modifier <code>class</code></label>
-              <input type="email" class="form-control" id="addAnalysisImport" aria-describedby="addAnalysisImportHelp">
-              <div id="addAnalysisImportHelp" class="form-text">The input should be <code>module.cls</code> such
-                that
-                <code> from module import cls</code> works.
-              </div>
+  <!-- Add Analysis -->
+  <div class="modal" tabindex="-1" id="addAnalysisModal">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Add Analysis</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label for="addAnalysisImport" class="form-label">Path to modifier <code>class</code></label>
+            <input type="email" class="form-control" id="addAnalysisImport" aria-describedby="addAnalysisImportHelp">
+            <div id="addAnalysisImportHelp" class="form-text">The input should be <code>module.cls</code> such
+              that
+              <code> from module import cls</code> works.
             </div>
           </div>
-          <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-            <button type="button" class="btn btn-primary" id="addAnalysisImportBtn">Load</button>
-          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+          <button type="button" class="btn btn-primary" id="addAnalysisImportBtn">Load</button>
         </div>
       </div>
     </div>
+  </div>
 
-    <!-- Add Bonds -->
-    <div class="modal" tabindex="-1" id="addBondsModal">
-      <div class="modal-dialog">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title">Add Bonds</h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-          </div>
-          <div class="modal-body">
-            <div class="mb-3">
-              <label for="addBondsImport" class="form-label">Path to bonds <code>class</code></label>
-              <input type="email" class="form-control" id="addBondsImport" aria-describedby="addBondsImportHelp">
-              <div id="addBondsImportHelp" class="form-text">The input should be <code>module.cls</code> such
-                that
-                <code> from module import cls</code> works.
-              </div>
+  <!-- Add Bonds -->
+  <div class="modal" tabindex="-1" id="addBondsModal">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Add Bonds</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label for="addBondsImport" class="form-label">Path to bonds <code>class</code></label>
+            <input type="email" class="form-control" id="addBondsImport" aria-describedby="addBondsImportHelp">
+            <div id="addBondsImportHelp" class="form-text">The input should be <code>module.cls</code> such
+              that
+              <code> from module import cls</code> works.
             </div>
           </div>
-          <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-            <button type="button" class="btn btn-primary" id="addBondsImportBtn">Load</button>
-          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+          <button type="button" class="btn btn-primary" id="addBondsImportBtn">Load</button>
         </div>
       </div>
     </div>
+  </div>
 
-    <!-- Progress Bar -->
-    <div id="info"></div>
-    <input id="frame-slider" class="frame-slider" type="range" value="0" min="0" max="100">
+  <!-- Progress Bar -->
+  <div id="info"></div>
+  <input id="frame-slider" class="frame-slider" type="range" value="0" min="0" max="100">
+  
 </body>
 
 </html>
