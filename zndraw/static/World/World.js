@@ -7,7 +7,7 @@ import { createRenderer, create2DRenderer } from "./systems/renderer.js";
 import { Resizer } from "./systems/Resizer.js";
 import { Loop } from "./systems/Loop.js";
 import { Stream } from "./systems/Stream.js";
-import {  ParticlesGroup } from "./components/particles.js";
+import { ParticlesGroup } from "./components/particles.js";
 import { Selection } from "./systems/select.js";
 
 import { Line3D, Canvas3D } from "./components/draw.js";
@@ -19,7 +19,7 @@ let renderer;
 let renderer2d;
 let scene;
 let loop;
-let controls
+let controls;
 let cache;
 let selection;
 
@@ -35,8 +35,6 @@ class World {
     loop = new Loop(camera, scene, renderer, renderer2d, socket);
     controls = createControls(camera, renderer.domElement);
 
-    
-
     container.append(renderer.domElement);
 
     // const transform_controls = createTransformControls(
@@ -49,7 +47,14 @@ class World {
     const line3D = new Line3D(camera, renderer);
     const canvas3D = new Canvas3D();
 
-    selection = new Selection(camera, scene, socket, line3D, renderer, controls);
+    selection = new Selection(
+      camera,
+      scene,
+      socket,
+      line3D,
+      renderer,
+      controls,
+    );
 
     const light = createLights();
 
@@ -66,7 +71,7 @@ class World {
   }
 
   /**
-   * Start the event loop 
+   * Start the event loop
    */
   start() {
     loop.start();
@@ -75,28 +80,24 @@ class World {
   /**
    * Rebuild all objects in the scene
    */
-  rebuild() {
-
-  }
+  rebuild() {}
 
   setStep(step) {
     loop.setStep(step);
   }
-
 }
-    
 
 // class World {
 //   constructor(container, cache) {
-   
+
 //     selection = new Selection(camera, scene, config);
 
-//     
+//
 
-//     
+//
 //     const index = createIndexGroup(particles);
-//     
-//     
+//
+//
 
 //     window.addEventListener("keydown", (event) => {
 //       if (event.isComposing || event.key === "i") {
@@ -115,21 +116,21 @@ class World {
 //       this.rebuild();
 //     };
 
-//     
+//
 
 //     // disable mesh rotation
 //     loop.constraint_updatables.push(index);
-//     
+//
 
-//     
+//
 //   }
 
 //   render() {
 //     // draw a single frame
-//     
+//
 //   }
 //   start() {
-//     
+//
 //   }
 
 //   stop() {

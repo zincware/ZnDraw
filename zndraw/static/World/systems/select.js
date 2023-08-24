@@ -1,7 +1,6 @@
 import * as THREE from "three";
 import { TransformControls } from "three/examples/jsm/controls/TransformControls.js";
 
-
 class Selection {
   constructor(camera, scene, socket, line3D, renderer, controls) {
     this.camera = camera;
@@ -14,7 +13,10 @@ class Selection {
     this.raycaster = new THREE.Raycaster();
     this.pointer = new THREE.Vector2();
     this.selection = [];
-    this.transform_controls = new TransformControls(camera, renderer.domElement);
+    this.transform_controls = new TransformControls(
+      camera,
+      renderer.domElement,
+    );
 
     // I don't like this here! Add in world.
     this.scene.add(this.transform_controls);
@@ -37,9 +39,12 @@ class Selection {
       }
     });
 
-    this.transform_controls.addEventListener("dragging-changed", function (event) {
-      controls.enabled = !event.value;
-    });
+    this.transform_controls.addEventListener(
+      "dragging-changed",
+      function (event) {
+        controls.enabled = !event.value;
+      },
+    );
     this.transform_controls.addEventListener("objectChange", () => {
       // mesh -> anchorPoints -> Line3D
       this.transform_controls.object.parent.parent.updateLine();
@@ -84,10 +89,7 @@ class Selection {
 
     this.raycaster.setFromCamera(this.pointer, this.camera);
 
-    return this.raycaster.intersectObjects(
-      this.scene.children,
-      true,
-    );
+    return this.raycaster.intersectObjects(this.scene.children, true);
   }
 
   /**
@@ -132,7 +134,9 @@ class Selection {
         } else {
           if (particlesGroup.children.includes(object.parent)) {
             if (this.selection.includes(object.parent.name)) {
-              this.selection = this.selection.filter((x) => x !== object.parent.name);
+              this.selection = this.selection.filter(
+                (x) => x !== object.parent.name,
+              );
               object.parent.set_selection(false);
             } else {
               this.selection.push(object.parent.name);

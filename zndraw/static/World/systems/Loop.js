@@ -14,7 +14,7 @@ class Loop {
 
     this.step = 0;
 
-    this.config = { "max_fps": 60 };
+    this.config = { max_fps: 60 };
     // Update the config object when the server sends a new one
     socket.on("config", (data) => {
       this.config = data;

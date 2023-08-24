@@ -1,7 +1,6 @@
 import time
 import uuid
 
-
 from dask.distributed import Client, Variable
 from flask import Flask, redirect, render_template, request, session, url_for
 from flask_socketio import SocketIO, emit
@@ -48,6 +47,7 @@ def config():
     data_handler = DataHandler(Client(app.config["dask-scheduler"]))
 
     emit("config", {"n_frames": len(data_handler), "max_fps": 5})
+
 
 @socketio.on("selection")
 def selection(data):
