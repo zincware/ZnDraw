@@ -50,6 +50,7 @@ def config():
 
     emit("config", {"n_frames": len(data_handler), "max_fps": 5})
 
+
 @socketio.on("selection")
 def selection(data):
     print(data)

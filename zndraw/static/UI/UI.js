@@ -84,14 +84,12 @@ function setupSlider(socket, world) {
   };
 }
 
-
 function setupPlayPause(world) {
   window.addEventListener("keydown", (event) => {
     if (event.isComposing || event.key === "ArrowRight") {
       world.setStep(world.step + 1);
     }
   });
-
 }
 
 // function setupPlayPause(config) {

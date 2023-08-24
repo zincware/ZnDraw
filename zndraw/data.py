@@ -1,6 +1,5 @@
 import dataclasses
 import functools
-import random
 import pathlib
 import collections.abc
 
@@ -129,7 +128,7 @@ class DataHandler(collections.abc.MutableSequence):
             # Read file using znh5md and convert to list[ase.Atoms]
             atoms_list = znh5md.ASEH5MD(filename).get_atoms_list()
         else:
-            atoms_list = list(ase.io.iread(filename)) 
+            atoms_list = list(ase.io.iread(filename))
 
         for atoms in atoms_list:
             atoms.connectivity = self.ase_bond_calculator.build_graph(atoms)
@@ -138,7 +137,7 @@ class DataHandler(collections.abc.MutableSequence):
         # move dataframe to client and keep it there
         self.client.persist(df)
         # make dataset available with the id "atoms"
-        self.client.publish_dataset(atoms=df) # = **{"atoms": df}
+        self.client.publish_dataset(atoms=df)  # = **{"atoms": df}
 
     def get_dataset(self):
         return self.client.get_dataset("atoms")
@@ -157,7 +156,7 @@ class DataHandler(collections.abc.MutableSequence):
                     atoms_dict[key] = atoms_dict[key].tolist()
                 elif isinstance(atoms_dict[key], np.generic):
                     atoms_dict[key] = atoms_dict[key].item()
-            
+
             # remove info if available # currently not used
             atoms_dict.pop("info", None)
 

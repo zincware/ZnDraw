@@ -87,10 +87,7 @@ const speciesMaterialFactory = () => {
 };
 
 function halfCylinderMesh(pointX, pointY, material, bond_size, resolution) {
-  const geometry = halfCylinderGeometry(
-    bond_size,
-    resolution,
-  );
+  const geometry = halfCylinderGeometry(bond_size, resolution);
   return new THREE.Mesh(geometry, material);
 }
 
@@ -106,11 +103,7 @@ class ParticleGroup extends THREE.Group {
     super();
     const particle_mesh = new THREE.Mesh(
       sphereGeometry(particle.radius, 10),
-      speciesMaterial(
-        "MeshPhongMaterial",
-        particle.color,
-        false
-      ),
+      speciesMaterial("MeshPhongMaterial", particle.color, false),
     );
     this.add(particle_mesh);
     this.name = particle.id;
@@ -119,20 +112,19 @@ class ParticleGroup extends THREE.Group {
     this.position.set(...particle.position);
   }
 
-  update(particle){
+  update(particle) {
     const scale = particle.radius / this.children[0].geometry.parameters.radius;
     const material = speciesMaterial(
       "MeshPhongMaterial",
       particle.color,
-      false
-    )
+      false,
+    );
     // this command may update the selected material
     this._original_material = material;
 
     this.children[0].scale.set(scale, scale, scale);
     this.position.set(...particle.position);
     this.children.forEach((x) => (x.material = material));
-
   }
 
   updateBondOrientation(bond, particle_group) {
@@ -155,21 +147,17 @@ class ParticleGroup extends THREE.Group {
       particle_group.children[0],
       this.children[0].material,
       1.3,
-      8
+      8,
     );
-    this.add(bond_mesh)
+    this.add(bond_mesh);
     // Store all the bond information, don't pass the mesh or group here
-    this.updateBondOrientation(bond_mesh, particle_group)
+    this.updateBondOrientation(bond_mesh, particle_group);
   }
 
   set_selection(selected) {
     if (selected) {
       // see https://threejs.org/examples/#webgl_postprocessing_unreal_bloom_selective for inspiration
-      const material = speciesMaterial(
-        "MeshPhongMaterial",
-        "#ffa500",
-        false
-      )
+      const material = speciesMaterial("MeshPhongMaterial", "#ffa500", false);
       this.children.forEach((x) => (x.material = material));
     } else {
       this.children.forEach((x) => (x.material = this._original_material));
@@ -192,8 +180,7 @@ class ParticlesGroup extends THREE.Group {
     });
   }
 
-  tick() {
-  }
+  tick() {}
 
   _updateParticles(particles) {
     let existing_particles = [];
@@ -208,23 +195,19 @@ class ParticlesGroup extends THREE.Group {
       } else {
         new_particles.push(x);
       }
-    };
+    }
 
     // get all particles who have an id larger than particles.length
-    deleted_particles = this.children.filter(
-      (x) => x.name >= particles.length,
-    );
+    deleted_particles = this.children.filter((x) => x.name >= particles.length);
 
     new_particles.forEach((particle) => {
       this.add(new ParticleGroup(particle));
     });
 
-
     existing_particles.forEach((particle) => {
       const particleSubGroup = this.getObjectByName(particle.id);
-      particleSubGroup.update(particle)
+      particleSubGroup.update(particle);
     });
-
 
     // remove deleted particles
     deleted_particles.forEach((particle) => {
@@ -282,11 +265,10 @@ class ParticlesGroup extends THREE.Group {
       setTimeout(() => this.step(frame, iteration + 1), 100);
       console.log("Waiting for frame " + frame);
     } else {
-      this._updateParticles(particles);     
+      this._updateParticles(particles);
       this._updateBonds(particles.connectivity);
     }
   }
-
 }
 
-export { ParticlesGroup }
+export { ParticlesGroup };
