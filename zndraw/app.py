@@ -2,9 +2,8 @@
 
 # eventlet.monkey_patch()
 
-import uuid
 import importlib
-
+import uuid
 
 import numpy as np
 import tqdm

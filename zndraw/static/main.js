@@ -11,11 +11,7 @@ function setupSocket() {
   return socket;
 }
 
-
-function setupSlider(socket, world) {
-  
-  
-}
+function setupSlider(socket, world) {}
 
 function main() {
   const socket = setupSocket();
@@ -29,10 +25,8 @@ function main() {
   world.start();
 
   socket.emit("atoms:request", null, () => {
-    world.setStep(0);    
+    world.setStep(0);
   });
-
-  
 
   // disable loading screen
   document.getElementById("atom-spinner").style.display = "none";

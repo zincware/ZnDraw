@@ -34,19 +34,31 @@ class Player {
       if (document.activeElement === document.body && event.code === "Space") {
         this.toggle();
       }
-      if (document.activeElement === document.body && event.code === "ArrowRight") {
+      if (
+        document.activeElement === document.body &&
+        event.code === "ArrowRight"
+      ) {
         this.go_forward();
       }
       // on arrow left go backward
-      if (document.activeElement === document.body && event.code === "ArrowLeft") {
+      if (
+        document.activeElement === document.body &&
+        event.code === "ArrowLeft"
+      ) {
         this.go_backward();
       }
       // on arrow up go forward 10 % of the length
-      if (document.activeElement === document.body && event.code === "ArrowUp") {
+      if (
+        document.activeElement === document.body &&
+        event.code === "ArrowUp"
+      ) {
         this.go_forward(parseInt(this.cache.get_length() / 10));
       }
       // on arrow down go backward 10 % of the length
-      if (document.activeElement === document.body && event.code === "ArrowDown") {
+      if (
+        document.activeElement === document.body &&
+        event.code === "ArrowDown"
+      ) {
         this.go_backward(parseInt(this.cache.get_length() / 10));
       }
     });
@@ -55,16 +67,16 @@ class Player {
     slider.focus();
 
     slider.oninput = function () {
-      document.getElementById("info").innerHTML = `${slider.value} / ${slider.max}`;
+      document.getElementById(
+        "info",
+      ).innerHTML = `${slider.value} / ${slider.max}`;
       world.setStep(this.value);
     };
-
   }
 
   toggle() {
     this.playing = !this.playing;
-    if (this.playing)
-      this.play();
+    if (this.playing) this.play();
   }
 
   go_forward(step = 1) {
@@ -156,7 +168,9 @@ class World {
     loop.setStep(step);
     const slider = document.getElementById("frame-slider");
     slider.value = step;
-    document.getElementById("info").innerHTML = `${slider.value} / ${slider.max}`;
+    document.getElementById(
+      "info",
+    ).innerHTML = `${slider.value} / ${slider.max}`;
   }
 
   getStep() {

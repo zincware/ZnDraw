@@ -6,8 +6,8 @@ import numpy as np
 from ase.data import chemical_symbols
 from pydantic import BaseModel, Field
 
-
 Symbols = enum.Enum("Symbols", {symbol: symbol for symbol in chemical_symbols})
+
 
 class UpdateScene(BaseModel, abc.ABC):
     @abc.abstractmethod

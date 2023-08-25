@@ -50,15 +50,14 @@ export function initJSONEditor(socket, cache, world) {
       const value = editor.getValue();
       console.log(value);
       socket.emit("modifier:run", {
-        "name": selection.options[selection.selectedIndex].text,
-        "params": value,
-        "atoms": cache.get(world.getStep()),
-        "selection": world.getSelection(),
-        "step": world.getStep(),
-        "points": world.getPoints(),
+        name: selection.options[selection.selectedIndex].text,
+        params: value,
+        atoms: cache.get(world.getStep()),
+        selection: world.getSelection(),
+        step: world.getStep(),
+        points: world.getPoints(),
       });
     });
 
-  
   socket.emit("modifier:schema");
 }

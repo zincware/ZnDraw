@@ -1,9 +1,8 @@
+import json
 import pathlib
 import typing
-import json
 
 import pydantic
-
 
 _ANALYSIS_FUNCTIONS = [
     "zndraw.analyse.Properties1D",
@@ -42,7 +41,7 @@ class GlobalConfig(pydantic.BaseModel):
         load_path = pathlib.Path(path).expanduser()
         with open(load_path, "r") as f:
             return cls(**json.load(f))
-        
+
     @classmethod
     def load(cls):
         if pathlib.Path("~/.zincware/zndraw/config.json").expanduser().exists():
