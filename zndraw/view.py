@@ -1,41 +1,114 @@
-# import dataclasses
-# import urllib.request
+import dataclasses
+import socketio
+import collections.abc
+import ase
+import threading
+from zndraw.data import atoms_to_json
+import logging
+import socket
+import webbrowser
 
-# from distributed import Client, Variable
+from zndraw.app import app, io
 
-# from zndraw.data import DataHandler
+log = logging.getLogger("werkzeug")
+log.setLevel(logging.ERROR)
+
+def _get_port() -> int:
+    try:
+        sock = socket.socket()
+        sock.bind(("", 1234))
+        port = 1234
+    except OSError:
+        sock = socket.socket()
+        sock.bind(("", 0))
+        port = sock.getsockname()[1]
+    finally:
+        sock.close()
+    return port
+
+def view(filename: str, port: int, open_browser: bool = True):
+    if filename is not None:
+        app.config["filename"] = filename
+    url = f"http://127.0.0.1:{port}"
+
+    if open_browser:
+        webbrowser.open(url)
+    io.run(app, port=port, host="0.0.0.0")
 
 
-# @dataclasses.dataclass
-# class ZnDraw(DataHandler):
-#     """The ZnDraw Interface"""
+@dataclasses.dataclass
+class ZnDraw(collections.abc.MutableSequence):
+    url: str = None
+    socket: socketio.Client = dataclasses.field(default_factory=socketio.Client)
+    jupyter: bool = True
 
-#     client: Client = dataclasses.field(default_factory=Client)
-#     url: str = None
+    def __post_init__(self):
+        self._view_thread = None
+        if self.url is None:
+            port = _get_port()
+            self._view_thread = threading.Thread(target=view, args=(None, port, not self.jupyter), daemon=True)
+            self._view_thread.start()
+            self.url = f"http://127.0.0.1:{port}"
+        self.socket.connect(self.url)    
 
-#     def __post_init__(self):
-#         # TODO: start the server and get the url
-#         self.data_handler = DataHandler(self.client)
-#         if self.url is None:
-#             self.url = Variable("url").get()
+    # def __del__(self):
+    #     if self._view_thread is not None:
+    #         # just open the url and don't expect a response
+    #         self.socket.emit("exit")
+    #         self.socket.disconnect()
+    #         self._view_thread.join()
 
-#     def display(self, index):
-#         """Display the atoms at the given index"""
-#         urllib.request.urlopen(self.url + "/cache/reset/")
-#         urllib.request.urlopen(self.url + f"/display/{index}")
-#         for idx in range(0, len(self), 100):
-#             urllib.request.urlopen(self.url + f"/cache/{idx}")
+    def _repr_html_(self):
+        from IPython.display import IFrame
 
+        return IFrame(
+            src=self.url, width="100%", height="600px"
+        )._repr_html_()
 
-# if __name__ == "__main__":
-#     client = Client("tcp://127.0.0.1:61587")
-#     zndraw = ZnDraw(client=client)
+    def __delitem__(self, index):
+        pass
 
-#     atoms = zndraw[0]
+    def __getitem__(self, index):
+        get_item_event = threading.Event()
 
-#     data = [atoms.copy() for _ in range(100)]
-#     [x.rattle(0.1, seed=seed) for seed, x in enumerate(data)]
+        if not isinstance(index, int) and not isinstance(index, list):
+            raise TypeError("Index must be an integer or list of integers")
 
-#     zndraw[350:450] = data
+        index = [index] if isinstance(index, int) else index
 
-#     zndraw.display(350)
+        self.socket.emit("atoms:download", index)
+
+        downloaded_data = []
+
+        def on_download(data):
+            nonlocal downloaded_data
+            for key, val in data.items():
+                downloaded_data.append(ase.Atoms(
+                    numbers=val["numbers"],
+                    cell=val["cell"],
+                    pbc=True,
+                    positions=val["positions"],
+                ))
+            get_item_event.set()
+        
+        self.socket.on("atoms:download", on_download)
+        get_item_event.wait()
+
+        return downloaded_data[0] if len(downloaded_data) == 1 else downloaded_data
+
+    def __len__(self):
+        pass
+
+    def __setitem__(self, index, value):
+        assert isinstance(value, ase.Atoms), "Must be an ASE Atoms object"
+        assert isinstance(index, int), "Index must be an integer"
+        self.socket.emit("atoms:upload", {index: atoms_to_json(value)})
+        self.display(index)
+
+    def display(self, index):
+        """Display the atoms at the given index"""
+        self.socket.emit("display", index)
+
+    def insert(self, index, value):
+        pass
+

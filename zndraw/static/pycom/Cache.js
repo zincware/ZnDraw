@@ -56,6 +56,7 @@ class Cache {
     this._last_request = -999999;
 
     this._socket.on('atoms:upload', (data) => {
+      console.log("Received atoms from Python");
       Object.keys(data).forEach((key) => {
         this._cache[key] = new Atoms({
           positions: data[key].positions,
@@ -73,9 +74,20 @@ class Cache {
 
     this._socket.on('atoms:download', (ids) => {
       // iterate through the ids and emit the atoms object for each
-      ids.forEach((id) => {
-        this._socket.emit('atoms:download', this._cache[id]);
+      // ids.forEach((x) => {
+      //   // let data = {};
+      //   // data[x] = this._cache[x];
+      //   // this._socket.emit('atoms:download', data);
+      //   this._socket.emit('atoms:download', this._cache[x]);
+      // });
+      
+      // send all atoms at once
+      let data = {};
+      ids.forEach((x) => {
+        data[x] = this._cache[x];
       });
+      this._socket.emit('atoms:download', data);
+
     });
 
     this._socket.on('atoms:clear', (start_index) => {

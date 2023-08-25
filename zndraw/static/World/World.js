@@ -23,11 +23,15 @@ let cache;
 let selection;
 
 class Player {
-  constructor(world, cache) {
+  constructor(world, cache, socket) {
     this.world = world;
     this.playing = false;
     this.fps = 30;
     this.cache = cache;
+
+    socket.on("display", (index) => {
+      this.world.setStep(index);
+    });
 
     // toggle playing on spacebar
     document.addEventListener('keydown', (event) => {
@@ -184,7 +188,13 @@ class World {
   getLineData() {
     // create a list of positions from this.line3D.anchorPoints;
     const points = this.line3D.anchorPoints.children.map((x) => x.position);
-    const segments = this.line3D.curve.getSpacedPoints(this.line3D.ARC_SEGMENTS).map((x) => x.toArray());
+    let segments = [];
+    try {
+      segments = this.line3D.curve.getSpacedPoints(this.line3D.ARC_SEGMENTS).map((x) => x.toArray());
+    } catch (error) {
+      // console.log(error);
+    }
+    
     return { points, segments };
   }
 }

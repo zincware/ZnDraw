@@ -9,8 +9,26 @@ in a dedicated window.
 
 ## CLI
 
-You can use ZnDraw with the CLI `zndraw atoms.xyz`. For a full list of arguments
-use `zndraw --help`.
+You can use ZnDraw with the CLI `zndraw atoms.xyz`. 
+Alternatively, you can use zndraw from within a Juypter Notebook
+
+```python
+from zndraw import ZnDraw
+import ase
+
+zndraw = ZnDraw()
+
+zndraw
+# this will show you the molecule
+
+# new cell
+zndraw.socket.sleep(2) # give it some time to fully connect
+zndraw[0] = ase.Atoms(
+  "H2O", positions=[[0.75, -0.75, 0], [0.75, 0.75, 0], [0, 0, 0]]
+  )
+```
+or a normal Python script using `zndraw = ZnDraw(jupyter=False)` to open a browser window.
+
 
 ZnDraw is designed to work with your Python scripts. To interface you can
 inherit from `zndraw.examples.UpdateScene` or follow this base class:

@@ -18,7 +18,7 @@ function main() {
   const cache = new Cache(socket);
   const container = document.querySelector('#scene-container');
   const world = new World(container, cache, socket);
-  const player = new Player(world, cache);
+  const player = new Player(world, cache, socket);
 
   setUIEvents(socket, world);
   initJSONEditor(socket, cache, world);

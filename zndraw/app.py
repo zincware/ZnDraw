@@ -16,7 +16,7 @@ from zndraw.settings import GlobalConfig
 app = Flask(__name__)
 app.config["SECRET_KEY"] = str(uuid.uuid4())
 
-socketio = SocketIO(app)
+io = SocketIO(app)
 
 
 @app.route("/")
@@ -29,19 +29,27 @@ def index():
 def exit():
     """Exit the session."""
     print("Server shutting down...")
-    socketio.stop()
+    io.stop()
     return "Server shutting down..."
 
+@io.on("exit")
+def exit():
+    """Exit the session."""
+    print("Server shutting down...")
+    io.stop()
 
-@socketio.on("atoms:request")
+@io.on("atoms:request")
 def atoms_request(data):
     """Return the atoms."""
     print(f"atoms:request {data = }")
-    for atoms_dict in get_atomsdict_list(app.config["filename"]):
-        emit("atoms:upload", atoms_dict)
+    if "filename" in app.config:
+        for atoms_dict in get_atomsdict_list(app.config["filename"]):
+            emit("atoms:upload", atoms_dict)
+    else:
+        emit("atoms:upload", {})
 
 
-@socketio.on("modifier:schema")
+@io.on("modifier:schema")
 def modifier_schema():
     config = GlobalConfig.load()
 
@@ -56,19 +64,18 @@ def modifier_schema():
             for key, value in kwargs.items():
                 schema["properties"][key]["default"] = value
 
-        socketio.emit(
+        io.emit(
             "modifier:schema",
             {"name": modifier, "schema": schema},
         )
 
 
-@socketio.on("modifier:run")
+@io.on("modifier:run")
 def modifier_run(data):
     import ase
 
     points = np.array([[val["x"], val["y"], val["z"]] for val in data["points"]])
     segments = np.array(data["segments"])
-
 
     atoms = ase.Atoms(
         numbers=data["atoms"]["numbers"],
@@ -85,14 +92,16 @@ def modifier_run(data):
 
     # modifier = available_methods[data["name"]](**data["params"])
     print(f"modifier:run {modifier = } from {data['params'] = }")
-    atoms_list = modifier.run(atom_ids=data["selection"], atoms=atoms, points=points, segments=segments)
-    socketio.emit("atoms:clear", int(data["step"]) + 1)
+    atoms_list = modifier.run(
+        atom_ids=data["selection"], atoms=atoms, points=points, segments=segments
+    )
+    io.emit("atoms:clear", int(data["step"]) + 1)
     for idx, atoms in tqdm.tqdm(enumerate(atoms_list)):
         atoms_dict = atoms_to_json(atoms)
-        socketio.emit("atoms:upload", {idx + 1 + int(data["step"]): atoms_dict})
+        io.emit("atoms:upload", {idx + 1 + int(data["step"]): atoms_dict})
 
 
-@socketio.on("config")
+@io.on("config")
 def config(data):
     pass
 
@@ -102,7 +111,18 @@ def config(data):
 #     socketio.emit("atoms:download", [idx])
 #     return "OK"
 
-# @socketio.on("atoms:download")
-# def atoms_download(data):
-#     """Return the atoms."""
-#     print(f"atoms:download {data = }")
+
+@io.on("atoms:download")
+def atoms_download(data):
+    """Return the atoms."""
+    emit("atoms:download", data, broadcast=True, include_self=False)
+
+@io.on("atoms:upload")
+def atoms_upload(data):
+    """Return the atoms."""
+    emit("atoms:upload", data, broadcast=True, include_self=False)
+
+@io.on("display")
+def display(data):
+    """Display the atoms at the given index"""
+    emit("display", data, broadcast=True, include_self=False)

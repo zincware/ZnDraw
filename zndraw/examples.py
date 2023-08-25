@@ -15,10 +15,15 @@ class UpdateScene(BaseModel, abc.ABC):
     def run(self, atom_ids: list[int], atoms: ase.Atoms, **kwargs) -> list[ase.Atoms]:
         pass
 
+
 class Rotate(UpdateScene):
     angle: float = Field(90, le=360, ge=0, description="Angle in degrees")
-    direction: t.Literal["left", "right"] = Field("left", description="Direction of rotation")
-    steps: int = Field(30, ge=1, description="Number of steps to take to complete the rotation")
+    direction: t.Literal["left", "right"] = Field(
+        "left", description="Direction of rotation"
+    )
+    steps: int = Field(
+        30, ge=1, description="Number of steps to take to complete the rotation"
+    )
 
     def run(self, atom_ids: list[int], atoms: ase.Atoms, **kwargs) -> list[ase.Atoms]:
         # split atoms object into the selected from atoms_ids and the remaining
@@ -38,8 +43,6 @@ class Rotate(UpdateScene):
             # merge the selected and remaining atoms
             atoms = atoms_selected + atoms_remaining
             yield atoms
-
-
 
 
 class Explode(UpdateScene):
@@ -75,7 +78,9 @@ class Move(UpdateScene):
         atoms_selected = atoms[atom_ids]
         atoms_remaining = atoms[[x for x in range(len(atoms)) if x not in atom_ids]]
         if self.steps > len(segments):
-            raise ValueError("The number of steps must be less than the number of segments. You can add more points to increase the number of segments.")
+            raise ValueError(
+                "The number of steps must be less than the number of segments. You can add more points to increase the number of segments."
+            )
 
         # atoms_selected.positions = segments[0]
         # yield atoms_selected + atoms_remaining
@@ -86,14 +91,12 @@ class Move(UpdateScene):
             start_idx = int((idx - 1) * len(segments) / self.steps)
             end_idx = int(idx * len(segments) / self.steps)
 
-            vector = segments[end_idx]  - segments[start_idx] 
+            vector = segments[end_idx] - segments[start_idx]
             # move the selected atoms along the vector
             atoms_selected.positions += vector
             # merge the selected and remaining atoms
             atoms = atoms_selected + atoms_remaining
             yield atoms
-
-
 
 
 class Duplicate(UpdateScene):
