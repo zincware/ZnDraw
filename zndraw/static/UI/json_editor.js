@@ -49,13 +49,17 @@ export function initJSONEditor(socket, cache, world) {
       // Get the value from the editor
       const value = editor.getValue();
       console.log(value);
+
+      const {points, segments}  = world.getLineData();
+
       socket.emit('modifier:run', {
         name: selection.options[selection.selectedIndex].text,
         params: value,
         atoms: cache.get(world.getStep()),
         selection: world.getSelection(),
         step: world.getStep(),
-        points: world.getPoints(),
+        points: points,
+        segments: segments,
       });
     });
 

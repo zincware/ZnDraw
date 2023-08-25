@@ -67,6 +67,8 @@ def modifier_run(data):
     import ase
 
     points = np.array([[val["x"], val["y"], val["z"]] for val in data["points"]])
+    segments = np.array(data["segments"])
+
 
     atoms = ase.Atoms(
         numbers=data["atoms"]["numbers"],
@@ -83,7 +85,7 @@ def modifier_run(data):
 
     # modifier = available_methods[data["name"]](**data["params"])
     print(f"modifier:run {modifier = } from {data['params'] = }")
-    atoms_list = modifier.run(atom_ids=data["selection"], atoms=atoms, points=points)
+    atoms_list = modifier.run(atom_ids=data["selection"], atoms=atoms, points=points, segments=segments)
     socketio.emit("atoms:clear", int(data["step"]) + 1)
     for idx, atoms in tqdm.tqdm(enumerate(atoms_list)):
         atoms_dict = atoms_to_json(atoms)

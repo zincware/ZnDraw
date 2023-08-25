@@ -5,6 +5,7 @@ import ase
 import numpy as np
 from ase.data import chemical_symbols
 from pydantic import BaseModel, Field
+import typing as t
 
 Symbols = enum.Enum("Symbols", {symbol: symbol for symbol in chemical_symbols})
 
@@ -13,6 +14,32 @@ class UpdateScene(BaseModel, abc.ABC):
     @abc.abstractmethod
     def run(self, atom_ids: list[int], atoms: ase.Atoms, **kwargs) -> list[ase.Atoms]:
         pass
+
+class Rotate(UpdateScene):
+    angle: float = Field(90, le=360, ge=0, description="Angle in degrees")
+    direction: t.Literal["left", "right"] = Field("left", description="Direction of rotation")
+    steps: int = Field(30, ge=1, description="Number of steps to take to complete the rotation")
+
+    def run(self, atom_ids: list[int], atoms: ase.Atoms, **kwargs) -> list[ase.Atoms]:
+        # split atoms object into the selected from atoms_ids and the remaining
+        points = kwargs["points"]
+        assert len(points) == 2
+
+        angle = self.angle if self.direction == "left" else -self.angle
+        angle = angle / self.steps
+
+        atoms_selected = atoms[atom_ids]
+        atoms_remaining = atoms[[x for x in range(len(atoms)) if x not in atom_ids]]
+        # create a vector from the two points
+        vector = points[1] - points[0]
+        for _ in range(self.steps):
+            # rotate the selected atoms around the vector
+            atoms_selected.rotate(angle, vector, center=points[0])
+            # merge the selected and remaining atoms
+            atoms = atoms_selected + atoms_remaining
+            yield atoms
+
+
 
 
 class Explode(UpdateScene):
@@ -41,16 +68,32 @@ class Delete(UpdateScene):
 
 
 class Move(UpdateScene):
-    x: float = Field(0.5, le=5, ge=0)
-    y: float = Field(0.5, le=5, ge=0)
-    z: float = Field(0.5, le=5, ge=0)
+    steps: int = Field(10, ge=1)
 
     def run(self, atom_ids: list[int], atoms: ase.Atoms, **kwargs) -> list[ase.Atoms]:
-        for atom_id in atom_ids:
-            atom = atoms[atom_id]
-            atom.position += np.array([self.x, self.y, self.z])
-            atoms += atom
-        return [atoms]
+        segments = kwargs["segments"]
+        atoms_selected = atoms[atom_ids]
+        atoms_remaining = atoms[[x for x in range(len(atoms)) if x not in atom_ids]]
+        if self.steps > len(segments):
+            raise ValueError("The number of steps must be less than the number of segments. You can add more points to increase the number of segments.")
+
+        # atoms_selected.positions = segments[0]
+        # yield atoms_selected + atoms_remaining
+
+        for idx in range(1, self.steps):
+            # get the vector between the two points
+
+            start_idx = int((idx - 1) * len(segments) / self.steps)
+            end_idx = int(idx * len(segments) / self.steps)
+
+            vector = segments[end_idx]  - segments[start_idx] 
+            # move the selected atoms along the vector
+            atoms_selected.positions += vector
+            # merge the selected and remaining atoms
+            atoms = atoms_selected + atoms_remaining
+            yield atoms
+
+
 
 
 class Duplicate(UpdateScene):

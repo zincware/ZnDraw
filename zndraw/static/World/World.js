@@ -181,9 +181,11 @@ class World {
     return selection.selection;
   }
 
-  getPoints() {
+  getLineData() {
     // create a list of positions from this.line3D.anchorPoints;
-    return this.line3D.anchorPoints.children.map((x) => x.position);
+    const points = this.line3D.anchorPoints.children.map((x) => x.position);
+    const segments = this.line3D.curve.getSpacedPoints(this.line3D.ARC_SEGMENTS).map((x) => x.toArray());
+    return { points, segments };
   }
 }
 
