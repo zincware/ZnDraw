@@ -3,6 +3,8 @@
 # eventlet.monkey_patch()
 
 import uuid
+import importlib
+
 
 import numpy as np
 import tqdm
@@ -11,6 +13,7 @@ from flask_socketio import SocketIO, emit
 
 from zndraw.data import atoms_to_json, get_atomsdict_list
 from zndraw.examples import Duplicate, Explode
+from zndraw.settings import GlobalConfig
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = str(uuid.uuid4())
@@ -42,29 +45,23 @@ def atoms_request(data):
 
 @socketio.on("modifier:schema")
 def modifier_schema():
-    for modifier in [Explode, Duplicate]:
-        print(f"modifier:schema {modifier = }")
+    config = GlobalConfig.load()
+
+    for modifier in config.modify_functions:
+        module_name, function_name = modifier.rsplit(".", 1)
+        module = importlib.import_module(module_name)
+        modifier_cls = getattr(module, function_name)
+        schema = modifier_cls.model_json_schema()
+
+        if modifier in config.function_schema:
+            kwargs = config.function_schema[modifier]
+            for key, value in kwargs.items():
+                schema["properties"][key]["default"] = value
+
         socketio.emit(
             "modifier:schema",
-            {"name": modifier.__name__, "schema": modifier.model_json_schema()},
+            {"name": modifier, "schema": schema},
         )
-
-    # schema = Modifier.model_json_schema()
-
-    # # from pydantic import BaseModel, Field
-    # # import enum
-
-    # # class Methods(enum.Enum):
-    # #     Explode = "Explode"
-    # #     Duplicate = "Duplicate"
-
-    # # class Data(BaseModel):
-    # #     methods: Methods
-
-    # import json
-    # print(json.dumps(schema, indent=2))
-    # # TODO: don't use the Modifier class, but a list of schemas from each available class
-    # socketio.emit("modifier:schema", schema)
 
 
 @socketio.on("modifier:run")
@@ -80,15 +77,24 @@ def modifier_run(data):
         positions=data["atoms"]["positions"],
     )
 
-    available_methods = {x.__name__: x for x in [Explode, Duplicate]}
+    module_name, function_name = data["name"].rsplit(".", 1)
+    module = importlib.import_module(module_name)
+    modifier_cls = getattr(module, function_name)
+    modifier = modifier_cls(**data["params"])
+    # available_methods = {x.__name__: x for x in [Explode, Duplicate]}
 
-    modifier = available_methods[data["name"]](**data["params"])
+    # modifier = available_methods[data["name"]](**data["params"])
     print(f"modifier:run {modifier = } from {data['params'] = }")
     atoms_list = modifier.run(atom_ids=data["selection"], atoms=atoms, points=points)
     socketio.emit("atoms:clear", int(data["step"]) + 1)
     for idx, atoms in tqdm.tqdm(enumerate(atoms_list)):
         atoms_dict = atoms_to_json(atoms)
         socketio.emit("atoms:upload", {idx + 1 + int(data["step"]): atoms_dict})
+
+
+@socketio.on("config")
+def config(data):
+    pass
 
 
 # @app.route("/download/<int:idx>")

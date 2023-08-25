@@ -1,15 +1,21 @@
+import abc
 import enum
-from typing import Union
 
 import ase
 import numpy as np
 from ase.data import chemical_symbols
 from pydantic import BaseModel, Field
 
+
 Symbols = enum.Enum("Symbols", {symbol: symbol for symbol in chemical_symbols})
 
+class UpdateScene(BaseModel, abc.ABC):
+    @abc.abstractmethod
+    def run(self, atom_ids: list[int], atoms: ase.Atoms, **kwargs) -> list[ase.Atoms]:
+        pass
 
-class Explode(BaseModel):
+
+class Explode(UpdateScene):
     steps: int = Field(100, le=1000, ge=1)
     particles: int = Field(10, le=20, ge=1)
 
@@ -27,14 +33,28 @@ class Explode(BaseModel):
             yield struct
 
 
-class Duplicate(BaseModel):
-    x: float = Field(
-        0.5,
-        le=5,
-        ge=0,
-        description="The x coordinate of the new atom.",
-        alias="THIS IS X",
-    )
+class Delete(UpdateScene):
+    def run(self, atom_ids: list[int], atoms: ase.Atoms, **kwargs) -> list[ase.Atoms]:
+        for idx, atom_id in enumerate(sorted(atom_ids)):
+            atoms.pop(atom_id - idx)  # we remove the atom and shift the index
+        return [atoms]
+
+
+class Move(UpdateScene):
+    x: float = Field(0.5, le=5, ge=0)
+    y: float = Field(0.5, le=5, ge=0)
+    z: float = Field(0.5, le=5, ge=0)
+
+    def run(self, atom_ids: list[int], atoms: ase.Atoms, **kwargs) -> list[ase.Atoms]:
+        for atom_id in atom_ids:
+            atom = atoms[atom_id]
+            atom.position += np.array([self.x, self.y, self.z])
+            atoms += atom
+        return [atoms]
+
+
+class Duplicate(UpdateScene):
+    x: float = Field(0.5, le=5, ge=0)
     y: float = Field(0.5, le=5, ge=0)
     z: float = Field(0.5, le=5, ge=0)
     symbol: Symbols
@@ -48,5 +68,34 @@ class Duplicate(BaseModel):
         return [atoms]
 
 
-class Modifier(BaseModel):
-    method: Union[None, Duplicate, Explode]
+class ChangeType(UpdateScene):
+    symbol: Symbols
+
+    def run(self, atom_ids: list[int], atoms: ase.Atoms, **kwargs) -> list[ase.Atoms]:
+        for atom_id in atom_ids:
+            atoms[atom_id].symbol = self.symbol.name
+        return [atoms]
+
+
+class AddLineParticles(UpdateScene):
+    symbol: Symbols
+    steps: int = Field(10, le=100, ge=1)
+
+    def run(self, atom_ids: list[int], atoms: ase.Atoms, **kwargs) -> list[ase.Atoms]:
+        points = kwargs["points"]
+        for point in points:
+            atoms += ase.Atom(self.symbol.name, position=point)
+        for _ in range(self.steps):
+            yield atoms
+
+
+class Demo(UpdateScene):
+    """Scene update for testing purposes."""
+
+    z: float = Field(0.5, le=5, ge=0)
+    symbol: Symbols
+
+    def run(self, atom_ids: list[int], atoms: ase.Atoms, **kwargs) -> list[ase.Atoms]:
+        for atom_id in atom_ids:
+            atoms[atom_id].symbol = self.symbol.name
+        return [atoms]
