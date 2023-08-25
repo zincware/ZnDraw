@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "zndraw"
-version = "0.2.0a7"
+version = "0.2.0a8"
 description = ""
 authors = ["zincwarecode <zincwarecode@gmail.com>"]
 license = "Apache-2.0"
@@ -15,10 +15,10 @@ flask = "^2.2.3"
 tqdm = "^4.65.0"
 znh5md = "^0.1.6"
 flask-socketio = "^5.3.4"
-dask = {extras = ["dataframe", "distributed"], version = "^2023.8.0"}
 eventlet = "^0.33.3"
 networkx = "^3.1"
 pydantic = "^2.2.0"
+python-socketio = {extras = ["client"], version = "^5.8.0"}
 
 [tool.poetry.group.dev.dependencies]
 pre-commit = "^3.3.3"
@@ -39,4 +39,4 @@ repository = "https://github.com/zincware/ZnDraw"
 [tool.ruff]
 line-length = 90
 
-select = ["I"]
+select = ["I", "F"]

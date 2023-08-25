@@ -1,11 +1,11 @@
-import * as THREE from "three";
+import * as THREE from 'three';
 
 export class Canvas3D extends THREE.Group {
   constructor() {
     super();
     const geometry = new THREE.PlaneGeometry(10, 10);
     const material = new THREE.MeshBasicMaterial({
-      color: "#cccccc",
+      color: '#cccccc',
       side: THREE.DoubleSide,
       transparent: true,
       opacity: 0.5,
@@ -17,17 +17,17 @@ export class Canvas3D extends THREE.Group {
       wireframeMaterial,
     );
     const plane = new THREE.Mesh(geometry, material);
-    plane.name = "canvas3D";
+    plane.name = 'canvas3D';
 
     this.add(plane, wireframe);
-  };
+  }
 }
 
 export class Line3D extends THREE.Group {
   constructor() {
     super();
     this.anchorPoints = new THREE.Group();
-    this.anchorPoints.name = "AnchorPoints";
+    this.anchorPoints.name = 'AnchorPoints';
 
     this.ARC_SEGMENTS = 200;
 
@@ -40,8 +40,11 @@ export class Line3D extends THREE.Group {
   }
 
   addPoint(position) {
-    const geometry = new THREE.IcosahedronGeometry( 0.1, 0 );
-    const material = new THREE.MeshPhongMaterial({ color: "#000000", shininess: 100});
+    const geometry = new THREE.IcosahedronGeometry(0.1, 0);
+    const material = new THREE.MeshPhongMaterial({
+      color: '#000000',
+      shininess: 100,
+    });
     const sphere = new THREE.Mesh(geometry, material);
     sphere.position.copy(position);
     this.anchorPoints.add(sphere);
@@ -56,7 +59,9 @@ export class Line3D extends THREE.Group {
     if (object) {
       this.anchorPoints.remove(object);
     } else {
-      this.anchorPoints.remove(this.anchorPoints.children[this.anchorPoints.children.length - 1]);
+      this.anchorPoints.remove(
+        this.anchorPoints.children[this.anchorPoints.children.length - 1],
+      );
     }
 
     this.updateLine();
@@ -74,17 +79,20 @@ export class Line3D extends THREE.Group {
     }
 
     // get list of positions from anchor points
-    this.curve = new THREE.CatmullRomCurve3(this.anchorPoints.children.map((x) => x.position)); 
+    this.curve = new THREE.CatmullRomCurve3(
+      this.anchorPoints.children.map((x) => x.position),
+    );
 
     const points = this.curve.getPoints(this.ARC_SEGMENTS);
     const geometry = new THREE.BufferGeometry().setFromPoints(points);
     this.line.geometry = geometry;
-
   }
 
   movePointer(position) {
     // this.anchorPoints[this.anchorPoints.length - 1].copy(position);
-    this.anchorPoints.children[this.anchorPoints.children.length - 1].position.copy(position);
+    this.anchorPoints.children[
+      this.anchorPoints.children.length - 1
+    ].position.copy(position);
     // create red material
     this.updateLine();
   }

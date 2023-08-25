@@ -1,4 +1,4 @@
-import { Clock } from "three";
+import { Clock } from 'three';
 
 const clock = new Clock();
 const constraint_clock = new Clock();
@@ -14,11 +14,11 @@ class Loop {
 
     this.step = 0;
 
-    this.config = { "max_fps": 60 };
+    this.config = { max_fps: 60 };
     // Update the config object when the server sends a new one
-    socket.on("config", (data) => {
+    socket.on('config', (data) => {
       this.config = data;
-      console.log("Loop config:");
+      console.log('Loop config:');
       console.log(this.config);
     });
   }

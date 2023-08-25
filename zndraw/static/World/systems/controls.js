@@ -1,6 +1,6 @@
-import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
-import { TransformControls } from "three/examples/jsm/controls/TransformControls.js";
-import * as THREE from "three";
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { TransformControls } from 'three/examples/jsm/controls/TransformControls.js';
+import * as THREE from 'three';
 
 function createControls(camera, canvas) {
   const controls = new OrbitControls(camera, canvas);
@@ -24,10 +24,10 @@ function createControls(camera, canvas) {
 function createTransformControls(camera, canvas, orbit) {
   const controls = new TransformControls(camera, canvas);
 
-  controls.addEventListener("dragging-changed", function (event) {
+  controls.addEventListener('dragging-changed', (event) => {
     orbit.enabled = !event.value;
   });
-  controls.addEventListener("objectChange", function () {
+  controls.addEventListener('objectChange', () => {
     controls.object.update();
   });
 
