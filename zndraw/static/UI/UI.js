@@ -1,18 +1,18 @@
-import { materials } from "../World/components/particles.js";
+import { materials } from '../World/components/particles.js';
 
 const addModifierModal = new bootstrap.Modal(
-  document.getElementById("addModifierModal"),
+  document.getElementById('addModifierModal'),
 );
 
 const addAnalysisModal = new bootstrap.Modal(
-  document.getElementById("addAnalysisModal"),
+  document.getElementById('addAnalysisModal'),
 );
 
 function update_materials(config) {
-  const o_materialSelect = document.getElementById("materialSelect");
+  const o_materialSelect = document.getElementById('materialSelect');
 
   for (const material in materials) {
-    const option = document.createElement("option");
+    const option = document.createElement('option');
     option.text = material;
     option.value = material;
     o_materialSelect.appendChild(option);
@@ -23,13 +23,13 @@ function update_materials(config) {
     config.update({ material: o_materialSelect.value });
   };
 
-  document.getElementById("wireframe").onchange = function () {
+  document.getElementById('wireframe').onchange = function () {
     config.update({ material_wireframe: this.checked });
   };
 }
 
 function update_resolution(config, world) {
-  const o_resolution = document.getElementById("resolution");
+  const o_resolution = document.getElementById('resolution');
   o_resolution.value = config.config.resolution;
 
   o_resolution.onchange = function () {
@@ -37,25 +37,25 @@ function update_resolution(config, world) {
       world.rebuild();
     });
     document.getElementById(
-      "resolutionLabel",
+      'resolutionLabel',
     ).innerHTML = `Resolution: ${this.value}`;
   };
 }
 
 function update_sphere_radius(config) {
-  const o_sphere_radius = document.getElementById("sphereRadius");
+  const o_sphere_radius = document.getElementById('sphereRadius');
   o_sphere_radius.value = config.config.sphere_radius;
 
   o_sphere_radius.onchange = function () {
     config.update({ sphere_size: parseFloat(o_sphere_radius.value) });
     document.getElementById(
-      "sphereRadiusLabel",
+      'sphereRadiusLabel',
     ).innerHTML = `Sphere radius: ${this.value}`;
   };
 }
 
 function update_bond_radius(config, world) {
-  const o_bond_radius = document.getElementById("bondDiameter");
+  const o_bond_radius = document.getElementById('bondDiameter');
   o_bond_radius.value = config.config.bond_radius;
 
   o_bond_radius.onchange = function () {
@@ -63,20 +63,20 @@ function update_bond_radius(config, world) {
       world.rebuild();
     });
     document.getElementById(
-      "bondDiameterLabel",
+      'bondDiameterLabel',
     ).innerHTML = `Bond diameter: ${this.value}`;
   };
 }
 
 function updateFPS(config) {
-  document.getElementById("max_fps").onchange = function () {
+  document.getElementById('max_fps').onchange = function () {
     config.update({ max_fps: this.value });
   };
 }
 
 function setupPlayPause(world) {
-  window.addEventListener("keydown", (event) => {
-    if (event.isComposing || event.key === "ArrowRight") {
+  window.addEventListener('keydown', (event) => {
+    if (event.isComposing || event.key === 'ArrowRight') {
       world.setStep(world.step + 1);
     }
   });
@@ -128,67 +128,67 @@ function setupPlayPause(world) {
 // }
 
 function attachKeyPressed(config) {
-  window.addEventListener("keydown", (event) => {
+  window.addEventListener('keydown', (event) => {
     config.pressed_keys[event.key] = true;
   });
-  window.addEventListener("keyup", (event) => {
+  window.addEventListener('keyup', (event) => {
     config.pressed_keys[event.key] = false;
   });
 }
 
 async function addSceneModifierOption(function_id) {
-  await fetch("add_update_function", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
+  await fetch('add_update_function', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(function_id),
   })
     .then((response) => response.json())
     .then((response_json) => {
       // if not null alert
-      if ("error" in response_json) {
+      if ('error' in response_json) {
         // TODO check if method is already loaded
         alert(response_json.error);
         stepError(response_json.error);
       } else {
         if (
-          document.getElementById(`scene-modifier_${response_json.title}`) !=
-          null
+          document.getElementById(`scene-modifier_${response_json.title}`)
+          != null
         ) {
-          alert("Function already loaded");
-          stepError("Function already loaded");
+          alert('Function already loaded');
+          stepError('Function already loaded');
         }
         addModifierModal.hide();
       }
       return response_json;
     })
     .then((response_json) => {
-      const modifier = document.createElement("option");
+      const modifier = document.createElement('option');
       modifier.value = response_json.title;
       modifier.innerHTML = response_json.title;
-      document.getElementById("addSceneModifier").appendChild(modifier);
+      document.getElementById('addSceneModifier').appendChild(modifier);
       return response_json;
     })
     .then((response_json) => {
       const sceneModifierSettings = document.getElementById(
-        "sceneModifierSettings",
+        'sceneModifierSettings',
       );
       sceneModifierSettings.appendChild(
-        createElementFromSchema(response_json, "scene-modifier"),
+        createElementFromSchema(response_json, 'scene-modifier'),
       );
-      document.getElementById("addSceneModifier").value = response_json.title;
+      document.getElementById('addSceneModifier').value = response_json.title;
     });
 }
 
 async function addAnalysisOption(function_id) {
-  await fetch("add_analysis", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
+  await fetch('add_analysis', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(function_id),
   })
     .then((response) => response.json())
     .then((response_json) => {
       // if not null alert
-      if ("error" in response_json) {
+      if ('error' in response_json) {
         // TODO check if method is already loaded
         console.log(
           `Adding analysis failed with error: ${response_json.error}`,
@@ -197,30 +197,30 @@ async function addAnalysisOption(function_id) {
         // stepError(response_json["error"]);
       } else {
         if (
-          document.getElementById(`scene-analysis_${response_json.title}`) !=
-          null
+          document.getElementById(`scene-analysis_${response_json.title}`)
+          != null
         ) {
-          alert("Function already loaded");
-          stepError("Function already loaded");
+          alert('Function already loaded');
+          stepError('Function already loaded');
         }
         addAnalysisModal.hide();
       }
       return response_json;
     })
     .then((response_json) => {
-      const modifier = document.createElement("option");
+      const modifier = document.createElement('option');
       modifier.value = response_json.title;
       modifier.innerHTML = response_json.title;
-      document.getElementById("addAnalysis").appendChild(modifier);
+      document.getElementById('addAnalysis').appendChild(modifier);
       return response_json;
     })
     .then((response_json) => {
       console.log(response_json);
-      const sceneModifierSettings = document.getElementById("analysisSettings");
+      const sceneModifierSettings = document.getElementById('analysisSettings');
       sceneModifierSettings.appendChild(
-        createElementFromSchema(response_json, "scene-analysis"),
+        createElementFromSchema(response_json, 'scene-analysis'),
       );
-      document.getElementById("addAnalysis").value = response_json.title;
+      document.getElementById('addAnalysis').value = response_json.title;
     });
 }
 
@@ -234,18 +234,18 @@ async function loadSceneModifier(config, world) {
       console.log(error);
     }
   }
-  document.getElementById("addSceneModifier").value = "";
+  document.getElementById('addSceneModifier').value = '';
   document
-    .getElementById("addSceneModifier")
-    .dispatchEvent(new Event("change"));
+    .getElementById('addSceneModifier')
+    .dispatchEvent(new Event('change'));
 
-  document.getElementById("addSceneModifier").onchange = function () {
+  document.getElementById('addSceneModifier').onchange = function () {
     console.log(this.value);
-    if (this.value == "add") {
+    if (this.value == 'add') {
       addModifierModal.show();
     }
 
-    const domElements = document.getElementsByClassName("scene-modifier");
+    const domElements = document.getElementsByClassName('scene-modifier');
 
     [...domElements].forEach((element) => {
       const bs_collapse = new bootstrap.Collapse(element, {
@@ -259,24 +259,24 @@ async function loadSceneModifier(config, world) {
     });
   };
 
-  document.getElementById("sceneModifierBtn").onclick = function () {
+  document.getElementById('sceneModifierBtn').onclick = function () {
     // div_info.innerHTML = "Processing...";
 
     const form = document.getElementById(
-      `scene-modifier_${document.getElementById("addSceneModifier").value}`,
+      `scene-modifier_${document.getElementById('addSceneModifier').value}`,
     );
     const modifier_kwargs = {};
     Array.from(form.elements).forEach((input) => {
       modifier_kwargs[input.dataset.key] = input.value;
     });
 
-    fetch("update", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
+    fetch('update', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         selected_ids: config.selected,
         step: config.step,
-        modifier: document.getElementById("addSceneModifier").value,
+        modifier: document.getElementById('addSceneModifier').value,
         modifier_kwargs,
         points: config.draw_vectors,
       }),
@@ -295,16 +295,16 @@ async function loadSceneAnalysis(config, world) {
       console.log(error);
     }
   }
-  document.getElementById("addAnalysis").value = "";
-  document.getElementById("addAnalysis").dispatchEvent(new Event("change"));
+  document.getElementById('addAnalysis').value = '';
+  document.getElementById('addAnalysis').dispatchEvent(new Event('change'));
 
-  document.getElementById("addAnalysis").onchange = function () {
+  document.getElementById('addAnalysis').onchange = function () {
     console.log(this.value);
-    if (this.value == "add") {
+    if (this.value == 'add') {
       addAnalysisModal.show();
     }
 
-    const domElements = document.getElementsByClassName("scene-analysis");
+    const domElements = document.getElementsByClassName('scene-analysis');
     console.log(domElements);
 
     [...domElements].forEach((element) => {
@@ -319,32 +319,32 @@ async function loadSceneAnalysis(config, world) {
     });
   };
 
-  document.getElementById("analyseBtn").onclick = function () {
+  document.getElementById('analyseBtn').onclick = function () {
     // div_info.innerHTML = "Processing...";
 
     const form = document.getElementById(
-      `scene-analysis_${document.getElementById("addAnalysis").value}`,
+      `scene-analysis_${document.getElementById('addAnalysis').value}`,
     );
     const modifier_kwargs = {};
     Array.from(form.elements).forEach((input) => {
       modifier_kwargs[input.dataset.key] = input.value;
     });
 
-    fetch("analyse", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
+    fetch('analyse', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         selected_ids: config.selected,
         step: config.step,
         points: [],
-        modifier: document.getElementById("addAnalysis").value,
+        modifier: document.getElementById('addAnalysis').value,
         modifier_kwargs,
       }),
     })
       .then((response) => response.json())
       .then((response_json) => {
-        Plotly.newPlot("analysePlot", response_json);
-        document.getElementById("analysePlot").on("plotly_click", (data) => {
+        Plotly.newPlot('analysePlot', response_json);
+        document.getElementById('analysePlot').on('plotly_click', (data) => {
           console.log(data);
           config.set_step(data.points[0].pointIndex);
         });
@@ -353,22 +353,21 @@ async function loadSceneAnalysis(config, world) {
 }
 
 function clickAddSceneModifier() {
-  document.getElementById("addSceneModifierImportBtn").onclick =
-    async function () {
-      const function_id = document.getElementById(
-        "addSceneModifierImport",
-      ).value;
-      await addSceneModifierOption(function_id);
-      document
-        .getElementById("addSceneModifier")
-        .dispatchEvent(new Event("change"));
-    };
+  document.getElementById('addSceneModifierImportBtn').onclick = async function () {
+    const function_id = document.getElementById(
+      'addSceneModifierImport',
+    ).value;
+    await addSceneModifierOption(function_id);
+    document
+      .getElementById('addSceneModifier')
+      .dispatchEvent(new Event('change'));
+  };
 }
 
 function resizeOffcanvas() {
   // Rescale offcanvas by dragging
   let active_offcanvas_border;
-  const offcanvas_borders = document.getElementsByClassName("offcanvas-border");
+  const offcanvas_borders = document.getElementsByClassName('offcanvas-border');
 
   function resize_offcanvas(e) {
     if (e.clientX < 200) {
@@ -382,12 +381,12 @@ function resizeOffcanvas() {
     offcanvas_borders[i].onpointerdown = function (e) {
       console.log(this);
       active_offcanvas_border = this;
-      document.addEventListener("pointermove", resize_offcanvas);
+      document.addEventListener('pointermove', resize_offcanvas);
     };
   }
 
-  document.addEventListener("pointerup", (e) => {
-    document.removeEventListener("pointermove", resize_offcanvas);
+  document.addEventListener('pointerup', (e) => {
+    document.removeEventListener('pointermove', resize_offcanvas);
   });
 }
 

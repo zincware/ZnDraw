@@ -1,15 +1,15 @@
-import { createCamera } from "./components/camera.js";
-import { createLights } from "./components/lights.js";
-import { createScene } from "./components/scene.js";
+import { createCamera } from './components/camera.js';
+import { createLights } from './components/lights.js';
+import { createScene } from './components/scene.js';
 
-import { createControls, createTransformControls } from "./systems/controls.js";
-import { createRenderer, create2DRenderer } from "./systems/renderer.js";
-import { Resizer } from "./systems/Resizer.js";
-import { Loop } from "./systems/Loop.js";
-import { ParticlesGroup } from "./components/particles.js";
-import { Selection } from "./systems/select.js";
+import { createControls, createTransformControls } from './systems/controls.js';
+import { createRenderer, create2DRenderer } from './systems/renderer.js';
+import { Resizer } from './systems/Resizer.js';
+import { Loop } from './systems/Loop.js';
+import { ParticlesGroup } from './components/particles.js';
+import { Selection } from './systems/select.js';
 
-import { Line3D, Canvas3D } from "./components/draw.js";
+import { Line3D, Canvas3D } from './components/draw.js';
 
 // These variables are module-scoped: we cannot access them
 // from outside the module
@@ -30,45 +30,45 @@ class Player {
     this.cache = cache;
 
     // toggle playing on spacebar
-    document.addEventListener("keydown", (event) => {
-      if (document.activeElement === document.body && event.code === "Space") {
+    document.addEventListener('keydown', (event) => {
+      if (document.activeElement === document.body && event.code === 'Space') {
         this.toggle();
       }
       if (
-        document.activeElement === document.body &&
-        event.code === "ArrowRight"
+        document.activeElement === document.body
+        && event.code === 'ArrowRight'
       ) {
         this.go_forward();
       }
       // on arrow left go backward
       if (
-        document.activeElement === document.body &&
-        event.code === "ArrowLeft"
+        document.activeElement === document.body
+        && event.code === 'ArrowLeft'
       ) {
         this.go_backward();
       }
       // on arrow up go forward 10 % of the length
       if (
-        document.activeElement === document.body &&
-        event.code === "ArrowUp"
+        document.activeElement === document.body
+        && event.code === 'ArrowUp'
       ) {
         this.go_forward(parseInt(this.cache.get_length() / 10));
       }
       // on arrow down go backward 10 % of the length
       if (
-        document.activeElement === document.body &&
-        event.code === "ArrowDown"
+        document.activeElement === document.body
+        && event.code === 'ArrowDown'
       ) {
         this.go_backward(parseInt(this.cache.get_length() / 10));
       }
     });
 
-    const slider = document.getElementById("frame-slider");
+    const slider = document.getElementById('frame-slider');
     slider.focus();
 
     slider.oninput = function () {
       document.getElementById(
-        "info",
+        'info',
       ).innerHTML = `${slider.value} / ${slider.max}`;
       world.setStep(this.value);
     };
@@ -166,10 +166,10 @@ class World {
   setStep(step) {
     step = parseInt(step);
     loop.setStep(step);
-    const slider = document.getElementById("frame-slider");
+    const slider = document.getElementById('frame-slider');
     slider.value = step;
     document.getElementById(
-      "info",
+      'info',
     ).innerHTML = `${slider.value} / ${slider.max}`;
   }
 

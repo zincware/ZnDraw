@@ -11,7 +11,7 @@ class Resizer {
     // set initial size on load
     setSize(container, camera, renderer);
 
-    window.addEventListener("resize", () => {
+    window.addEventListener('resize', () => {
       // set the size again if a resize occurs
       setSize(container, camera, renderer);
       renderer2d.setSize(window.innerWidth, window.innerHeight);
