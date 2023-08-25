@@ -31,8 +31,23 @@ class Player {
 
     // toggle playing on spacebar
     document.addEventListener("keydown", (event) => {
-      if (event.code === "Space") {
+      if (document.activeElement === document.body && event.code === "Space") {
         this.toggle();
+      }
+      if (document.activeElement === document.body && event.code === "ArrowRight") {
+        this.go_forward();
+      }
+      // on arrow left go backward
+      if (document.activeElement === document.body && event.code === "ArrowLeft") {
+        this.go_backward();
+      }
+      // on arrow up go forward 10 % of the length
+      if (document.activeElement === document.body && event.code === "ArrowUp") {
+        this.go_forward(parseInt(this.cache.get_length() / 10));
+      }
+      // on arrow down go backward 10 % of the length
+      if (document.activeElement === document.body && event.code === "ArrowDown") {
+        this.go_backward(parseInt(this.cache.get_length() / 10));
       }
     });
 
@@ -52,13 +67,25 @@ class Player {
       this.play();
   }
 
+  go_forward(step = 1) {
+    let new_step = this.world.getStep() + step;
+    if (new_step >= this.cache.get_length()) {
+      new_step = step - 1;
+    }
+    this.world.setStep(new_step);
+  }
+
+  go_backward(step = 1) {
+    let new_step = this.world.getStep() - step;
+    if (new_step < 0) {
+      new_step = this.cache.get_length() - step;
+    }
+    this.world.setStep(new_step);
+  }
+
   play() {
     if (this.playing) {
-      let new_step = this.world.getStep() + 1;
-      if (new_step >= this.cache.get_length()) {
-        new_step = 0;
-      }
-      this.world.setStep(new_step);
+      this.go_forward();
       setTimeout(() => this.play(), 1000 / this.fps);
     }
   }
@@ -128,8 +155,8 @@ class World {
     step = parseInt(step);
     loop.setStep(step);
     const slider = document.getElementById("frame-slider");
-    document.getElementById("info").innerHTML = `${slider.value} / ${slider.max}`;
     slider.value = step;
+    document.getElementById("info").innerHTML = `${slider.value} / ${slider.max}`;
   }
 
   getStep() {
