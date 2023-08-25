@@ -10,7 +10,7 @@ from flask import Flask, render_template
 from flask_socketio import SocketIO, emit
 
 from zndraw.data import get_atomsdict_list, atoms_to_json
-from zndraw.examples import Explode
+from zndraw.examples import Explode, Duplicate
 
 
 app = Flask(__name__)
@@ -43,7 +43,26 @@ def atoms_request(data):
 
 @socketio.on("modifier:schema")
 def modifier_schema():
-    socketio.emit("modifier:schema", Explode.model_json_schema())
+    for modifier in [Explode, Duplicate]:
+        print(f"modifier:schema {modifier = }")
+        socketio.emit("modifier:schema", {"name": modifier.__name__, "schema": modifier.model_json_schema()})
+
+    # schema = Modifier.model_json_schema()
+
+    # # from pydantic import BaseModel, Field
+    # # import enum
+
+    # # class Methods(enum.Enum):
+    # #     Explode = "Explode"
+    # #     Duplicate = "Duplicate"
+    
+    # # class Data(BaseModel):
+    # #     methods: Methods
+
+    # import json
+    # print(json.dumps(schema, indent=2))
+    # # TODO: don't use the Modifier class, but a list of schemas from each available class
+    # socketio.emit("modifier:schema", schema)
 
 @socketio.on("modifier:run")
 def modifier_run(data):
@@ -56,7 +75,10 @@ def modifier_run(data):
         positions=data["atoms"]["positions"],
     )
 
-    modifier = Explode(**data["params"])
+    available_methods = {x.__name__: x for x in [Explode, Duplicate]}
+
+    modifier = available_methods[data["name"]](**data["params"])
+    print(f"modifier:run {modifier = } from {data['params'] = }")
     atoms_list = modifier.run(atom_ids=data["selection"], atoms=atoms)
     socketio.emit("atoms:clear", int(data["step"]) + 1)
     for idx, atoms in tqdm.tqdm(enumerate(atoms_list)):

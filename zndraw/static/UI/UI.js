@@ -418,7 +418,7 @@ export function setUIEvents(socket, world) {
   // loadSceneAnalysis(config, world);
 
   // clickAddSceneModifier();
-  // resizeOffcanvas();
+  resizeOffcanvas();
 
   // // disable loading spinner by making it invisible
   // const loadingElem = document.getElementById("atom-spinner");

@@ -4,6 +4,7 @@ JSONEditor.defaults.options.object_background = "bg-white";
 JSONEditor.defaults.options.disable_edit_json = true;
 JSONEditor.defaults.options.disable_properties = true;
 JSONEditor.defaults.options.disable_collapse = true;
+JSONEditor.defaults.options.no_additional_properties = true;
 
 export function initJSONEditor(socket, cache, world) {
   let editor = new JSONEditor(
@@ -12,15 +13,36 @@ export function initJSONEditor(socket, cache, world) {
       schema: { type: "object", title: "ZnDraw", properties: {} },
     },
   );
-  socket.on("modifier:schema", function (data) {
+  const selection = document.getElementById("modifier-select");
+
+  selection.onchange = function () {
+    const schema = JSON.parse(selection.value);
     editor.destroy();
     editor = new JSONEditor(
       document.getElementById("interaction-json-editor"),
       {
-        schema: data,
+        schema: schema,
+      },
+    );
+  };
+
+  socket.on("modifier:schema", function (data) {
+    let option = document.createElement("option");
+    option.value = JSON.stringify(data["schema"]);
+    option.innerHTML = data["name"];
+    selection.appendChild(option);
+    // select the one that was just added
+    selection.value = JSON.stringify(data["schema"]);
+
+    editor.destroy();
+    editor = new JSONEditor(
+      document.getElementById("interaction-json-editor"),
+      {
+        schema: data["schema"],
       },
     );
   });
+
   document
     .getElementById("interaction-json-editor-submit")
     .addEventListener("click", function () {
@@ -28,11 +50,14 @@ export function initJSONEditor(socket, cache, world) {
       const value = editor.getValue();
       console.log(value);
       socket.emit("modifier:run", {
+        "name": selection.options[selection.selectedIndex].text,
         "params": value,
         "atoms": cache.get(world.getStep()),
         "selection": world.getSelection(),
         "step": world.getStep(),
       });
     });
+
+  
   socket.emit("modifier:schema");
 }

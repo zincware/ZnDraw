@@ -27,10 +27,10 @@ class Explode(BaseModel):
             yield struct
 
 class Duplicate(BaseModel):
-    x: float = Field(0.5, le=5, ge=0)
+    x: float = Field(0.5, le=5, ge=0, description="The x coordinate of the new atom.", alias="THIS IS X")
     y: float = Field(0.5, le=5, ge=0)
     z: float = Field(0.5, le=5, ge=0)
-    symbol: str
+    symbol: Symbols
 
     def run(self, atom_ids: list[int], atoms: ase.Atoms, **kwargs) -> list[ase.Atoms]:
         for atom_id in atom_ids:
@@ -41,4 +41,4 @@ class Duplicate(BaseModel):
         return [atoms]
     
 class Modifier(BaseModel):
-    method: Annotated[Union[Duplicate, Explode], Field(alias="Method")] 
+    method: Union[None, Duplicate, Explode]
