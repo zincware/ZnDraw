@@ -3,26 +3,22 @@ import { World } from "./World/World.js";
 import { setUIEvents } from "./UI/UI.js";
 import { initJSONEditor } from "./UI/json_editor.js";
 
-function setup(socket) {
+function setupSocket() {
+  const socket = io();
   socket.on("connect", function () {
     socket.emit("connection", { data: "I'm connected!" });
   });
 
   socket.emit("config");
-
-  // socket.emit("config", (data) => {
-  //     const progress = document.getElementById("progress-visualizer");
-  //     progress.ariaValueMax = data["n_frames"];
-  // })
+  return socket;
 }
 
 function main() {
-  const socket = io();
+  const socket = setupSocket();
   const cache = new Cache(socket);
   const container = document.querySelector("#scene-container");
   const world = new World(container, cache, socket);
 
-  setup(socket);
   setUIEvents(socket, world);
   initJSONEditor(socket);
   world.start();
