@@ -55,6 +55,7 @@ export function initJSONEditor(socket, cache, world) {
         "atoms": cache.get(world.getStep()),
         "selection": world.getSelection(),
         "step": world.getStep(),
+        "points": world.getPoints(),
       });
     });
 

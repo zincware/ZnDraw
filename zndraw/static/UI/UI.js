@@ -1,5 +1,4 @@
 import { materials } from "../World/components/particles.js";
-import { createElementFromSchema } from "./schemaforms.js";
 
 const addModifierModal = new bootstrap.Modal(
   document.getElementById("addModifierModal"),

@@ -112,21 +112,21 @@ class World {
     // );
 
     const particles = new ParticlesGroup(socket, cache);
-    const line3D = new Line3D(camera, renderer);
+    this.line3D = new Line3D(camera, renderer);
     const canvas3D = new Canvas3D();
 
     selection = new Selection(
       camera,
       scene,
       socket,
-      line3D,
+      this.line3D,
       renderer,
       controls,
     );
 
     const light = createLights();
 
-    scene.add(particles, light, camera, line3D, canvas3D); // index, transform_controls
+    scene.add(particles, light, camera, this.line3D, canvas3D); // index, transform_controls
 
     loop.tick_updatables.push(controls);
     loop.step_updatables.push(particles, selection);
@@ -165,6 +165,11 @@ class World {
 
   getSelection() {
     return selection.selection;
+  }
+
+  getPoints() {
+    // create a list of positions from this.line3D.anchorPoints;
+    return this.line3D.anchorPoints.children.map((x) => x.position);
   }
 }
 
