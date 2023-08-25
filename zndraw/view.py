@@ -58,6 +58,13 @@ class ZnDraw(collections.abc.MutableSequence):
     #         self.socket.disconnect()
     #         self._view_thread.join()
 
+    def view(self, atoms_list):
+        if isinstance(atoms_list, ase.Atoms):
+            atoms_list = [atoms_list]
+        for idx, atoms in enumerate(atoms_list):
+            self._set_item(idx, atoms)
+        self.display(idx)
+
     def _repr_html_(self):
         from IPython.display import IFrame
 
@@ -99,10 +106,13 @@ class ZnDraw(collections.abc.MutableSequence):
     def __len__(self):
         pass
 
-    def __setitem__(self, index, value):
+    def _set_item(self, index, value):
         assert isinstance(value, ase.Atoms), "Must be an ASE Atoms object"
         assert isinstance(index, int), "Index must be an integer"
-        self.socket.emit("atoms:upload", {index: atoms_to_json(value)})
+        self.socket.emit("atoms:upload", {index: atoms_to_json(value)}) 
+
+    def __setitem__(self, index, value):
+        self._set_item(index, value)
         self.display(index)
 
     def display(self, index):
