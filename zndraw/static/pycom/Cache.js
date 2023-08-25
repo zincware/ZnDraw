@@ -96,6 +96,10 @@ class Cache {
     this._cache = {};
     this._last_request = -999999;
   }
+
+  get_length() {
+    return Object.keys(this._cache).length;
+  }
 }
 
 export { Cache };

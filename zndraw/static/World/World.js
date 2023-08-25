@@ -22,6 +22,48 @@ let controls;
 let cache;
 let selection;
 
+class Player {
+  constructor(world, cache) {
+    this.world = world;
+    this.playing = false;
+    this.fps = 30;
+    this.cache = cache;
+
+    // toggle playing on spacebar
+    document.addEventListener("keydown", (event) => {
+      if (event.code === "Space") {
+        this.toggle();
+      }
+    });
+
+    const slider = document.getElementById("frame-slider");
+    slider.focus();
+
+    slider.oninput = function () {
+      document.getElementById("info").innerHTML = `${slider.value} / ${slider.max}`;
+      world.setStep(this.value);
+    };
+
+  }
+
+  toggle() {
+    this.playing = !this.playing;
+    if (this.playing)
+      this.play();
+  }
+
+  play() {
+    if (this.playing) {
+      let new_step = this.world.getStep() + 1;
+      if (new_step >= this.cache.get_length()) {
+        new_step = 0;
+      }
+      this.world.setStep(new_step);
+      setTimeout(() => this.play(), 1000 / this.fps);
+    }
+  }
+}
+
 class World {
   constructor(container, cache, socket) {
     camera = createCamera();
@@ -83,7 +125,11 @@ class World {
   rebuild() {}
 
   setStep(step) {
+    step = parseInt(step);
     loop.setStep(step);
+    const slider = document.getElementById("frame-slider");
+    document.getElementById("info").innerHTML = `${slider.value} / ${slider.max}`;
+    slider.value = step;
   }
 
   getStep() {
@@ -152,4 +198,4 @@ class World {
 
 // }
 
-export { World };
+export { World, Player };

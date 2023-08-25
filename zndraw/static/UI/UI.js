@@ -72,19 +72,6 @@ function updateFPS(config) {
   };
 }
 
-function setupSlider(socket, world) {
-  const slider = document.getElementById("frame-slider");
-
-  socket.on("config", (config) => {
-    slider.max = config.n_frames - 1;
-  });
-
-  slider.oninput = function () {
-    document.getElementById("info").innerHTML = `${slider.value} / ${slider.max}`;
-    world.setStep(this.value);
-  };
-}
-
 function setupPlayPause(world) {
   window.addEventListener("keydown", (event) => {
     if (event.isComposing || event.key === "ArrowRight") {
@@ -404,7 +391,7 @@ function resizeOffcanvas() {
 }
 
 export function setUIEvents(socket, world) {
-  setupSlider(socket, world);
+  // setupSlider(socket, world);
   // setupPlayPause(world);
   // update_materials(config);
   // updateFPS(config);
