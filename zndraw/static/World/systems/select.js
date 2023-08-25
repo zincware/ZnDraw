@@ -1,5 +1,5 @@
-import * as THREE from "three";
-import { TransformControls } from "three/examples/jsm/controls/TransformControls.js";
+import * as THREE from 'three';
+import { TransformControls } from 'three/examples/jsm/controls/TransformControls.js';
 
 class Selection {
   constructor(camera, scene, socket, line3D, renderer, controls) {
@@ -24,55 +24,55 @@ class Selection {
     const onPointerMove = this.onPointerMove.bind(this);
 
     // event on backspace
-    document.addEventListener("keydown", (event) => {
-      if (event.key === "Backspace") {
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Backspace') {
         this.line3D.removePointer(this.transform_controls.object);
         this.transform_controls.detach();
       }
-      if (event.key === "Escape") {
+      if (event.key === 'Escape') {
         this.transform_controls.detach();
         if (this._drawing) {
           this._drawing = false;
           this.line3D.removePointer();
-          window.removeEventListener("pointermove", onPointerMove);
+          window.removeEventListener('pointermove', onPointerMove);
         }
       }
     });
 
     this.transform_controls.addEventListener(
-      "dragging-changed",
-      function (event) {
+      'dragging-changed',
+      (event) => {
         controls.enabled = !event.value;
       },
     );
-    this.transform_controls.addEventListener("objectChange", () => {
+    this.transform_controls.addEventListener('objectChange', () => {
       // mesh -> anchorPoints -> Line3D
       this.transform_controls.object.parent.parent.updateLine();
     });
 
     this._drawing = false;
 
-    window.addEventListener("pointerdown", this.onPointerDown.bind(this));
+    window.addEventListener('pointerdown', this.onPointerDown.bind(this));
 
     // use x keypress to toggle the attachment of onPointerMove
-    document.addEventListener("keydown", (event) => {
-      if (event.key === "x") {
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'x') {
         if (this._drawing) {
           this._drawing = false;
           this.line3D.removePointer();
-          window.removeEventListener("pointermove", onPointerMove);
+          window.removeEventListener('pointermove', onPointerMove);
         } else {
           this._drawing = true;
           this.line3D.addPointer();
           this.transform_controls.detach();
-          window.addEventListener("pointermove", onPointerMove);
+          window.addEventListener('pointermove', onPointerMove);
         }
       }
     });
   }
 
   step() {
-    const particlesGroup = this.scene.getObjectByName("particlesGroup");
+    const particlesGroup = this.scene.getObjectByName('particlesGroup');
     // iterate through all children ids that are in the selection and update them
     particlesGroup.children.forEach((x) => {
       if (this.selection.includes(x.name)) {
@@ -97,10 +97,10 @@ class Selection {
    */
   onPointerMove(event) {
     const intersects = this.getIntersections();
-    const particlesGroup = this.scene.getObjectByName("particlesGroup");
+    const particlesGroup = this.scene.getObjectByName('particlesGroup');
     for (let i = 0; i < intersects.length; i++) {
-      const object = intersects[i].object;
-      if (object.name === "canvas3D") {
+      const { object } = intersects[i];
+      if (object.name === 'canvas3D') {
         this.line3D.movePointer(intersects[i].point.clone());
         break;
       }
@@ -117,10 +117,10 @@ class Selection {
 
     // iterate intersections until we find a particle
     for (let i = 0; i < intersects.length; i++) {
-      const particlesGroup = this.scene.getObjectByName("particlesGroup");
-      const object = intersects[i].object;
+      const particlesGroup = this.scene.getObjectByName('particlesGroup');
+      const { object } = intersects[i];
       if (this._drawing) {
-        if (object.name === "canvas3D") {
+        if (object.name === 'canvas3D') {
           this.line3D.addPoint(intersects[i].point.clone());
           break;
         }
@@ -128,24 +128,20 @@ class Selection {
           this.line3D.addPoint(intersects[i].point.clone());
           break;
         }
-      } else {
-        if (object.parent.name === "AnchorPoints") {
-          this.transform_controls.attach(object);
+      } else if (object.parent.name === 'AnchorPoints') {
+        this.transform_controls.attach(object);
+      } else if (particlesGroup.children.includes(object.parent)) {
+        if (this.selection.includes(object.parent.name)) {
+          this.selection = this.selection.filter(
+            (x) => x !== object.parent.name,
+          );
+          object.parent.set_selection(false);
         } else {
-          if (particlesGroup.children.includes(object.parent)) {
-            if (this.selection.includes(object.parent.name)) {
-              this.selection = this.selection.filter(
-                (x) => x !== object.parent.name,
-              );
-              object.parent.set_selection(false);
-            } else {
-              this.selection.push(object.parent.name);
-              object.parent.set_selection(true);
-            }
-            this.socket.emit("selection", this.selection);
-            break; // only (de)select one particle
-          }
+          this.selection.push(object.parent.name);
+          object.parent.set_selection(true);
         }
+        this.socket.emit('selection', this.selection);
+        break; // only (de)select one particle
       }
     }
   }

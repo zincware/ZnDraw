@@ -1,17 +1,17 @@
-import * as THREE from "three";
-import { CSS2DObject } from "three/examples/jsm/renderers/CSS2DRenderer.js";
+import * as THREE from 'three';
+import { CSS2DObject } from 'three/examples/jsm/renderers/CSS2DRenderer.js';
 
 export const materials = {
-  MeshBasicMaterial: new THREE.MeshBasicMaterial({ color: "#ffa500" }),
-  MeshLambertMaterial: new THREE.MeshLambertMaterial({ color: "#ffa500" }),
-  MeshMatcapMaterial: new THREE.MeshMatcapMaterial({ color: "#ffa500" }),
+  MeshBasicMaterial: new THREE.MeshBasicMaterial({ color: '#ffa500' }),
+  MeshLambertMaterial: new THREE.MeshLambertMaterial({ color: '#ffa500' }),
+  MeshMatcapMaterial: new THREE.MeshMatcapMaterial({ color: '#ffa500' }),
   MeshPhongMaterial: new THREE.MeshPhongMaterial({
-    color: "#ffa500",
+    color: '#ffa500',
     shininess: 100,
   }),
-  MeshPhysicalMaterial: new THREE.MeshPhysicalMaterial({ color: "#ffa500" }),
-  MeshStandardMaterial: new THREE.MeshStandardMaterial({ color: "#ffa500" }),
-  MeshToonMaterial: new THREE.MeshToonMaterial({ color: "#ffa500" }),
+  MeshPhysicalMaterial: new THREE.MeshPhysicalMaterial({ color: '#ffa500' }),
+  MeshStandardMaterial: new THREE.MeshStandardMaterial({ color: '#ffa500' }),
+  MeshToonMaterial: new THREE.MeshToonMaterial({ color: '#ffa500' }),
 };
 
 const sphereGeometryFactoryCache = {};
@@ -22,68 +22,63 @@ const halfCylinderGeometryFactoryCache = {};
 
 // a simple memoized function to add something
 const halfCylinderGeometryFactory = () => {
-  let key = "";
+  let key = '';
   return (bond_size, resolution) => {
-    key = bond_size + "_" + resolution;
+    key = `${bond_size}_${resolution}`;
 
     if (key in halfCylinderGeometryFactoryCache) {
       return halfCylinderGeometryFactoryCache[key];
-    } else {
-      const geometry = new THREE.CylinderGeometry(
-        0.15 * bond_size,
-        0.15 * bond_size,
-        1,
-        resolution * 2,
-        1,
-        true,
-      );
-      // shift it so one end rests on the origin
-      geometry.applyMatrix4(new THREE.Matrix4().makeTranslation(0, 1 / 2, 0));
-      // rotate it the right way for lookAt to work
-      geometry.applyMatrix4(
-        new THREE.Matrix4().makeRotationX(THREE.MathUtils.degToRad(90)),
-      );
-      halfCylinderGeometryFactoryCache[key] = geometry;
-      return geometry;
     }
+    const geometry = new THREE.CylinderGeometry(
+      0.15 * bond_size,
+      0.15 * bond_size,
+      1,
+      resolution * 2,
+      1,
+      true,
+    );
+      // shift it so one end rests on the origin
+    geometry.applyMatrix4(new THREE.Matrix4().makeTranslation(0, 1 / 2, 0));
+    // rotate it the right way for lookAt to work
+    geometry.applyMatrix4(
+      new THREE.Matrix4().makeRotationX(THREE.MathUtils.degToRad(90)),
+    );
+    halfCylinderGeometryFactoryCache[key] = geometry;
+    return geometry;
   };
 };
 
 const sphereGeometryFactory = () => {
-  let key = "";
+  let key = '';
   return (sphere_size, resolution) => {
-    key = sphere_size + "_" + resolution;
+    key = `${sphere_size}_${resolution}`;
 
     if (key in sphereGeometryFactoryCache) {
       return sphereGeometryFactoryCache[key];
-    } else {
-      const geometry = new THREE.SphereGeometry(
-        sphere_size,
-        resolution * 4,
-        resolution * 2,
-      );
-      sphereGeometryFactoryCache[key] = geometry;
-      return geometry;
     }
+    const geometry = new THREE.SphereGeometry(
+      sphere_size,
+      resolution * 4,
+      resolution * 2,
+    );
+    sphereGeometryFactoryCache[key] = geometry;
+    return geometry;
   };
 };
 
-const speciesMaterialFactory = () => {
-  return (name, color, wireframe) => {
-    const key = name + "_" + color + "_" + wireframe;
-    // const key = (name, color, wireframe);
+const speciesMaterialFactory = () => (name, color, wireframe) => {
+  const key = `${name}_${color}_${wireframe}`;
+  // const key = (name, color, wireframe);
 
-    if (key in speciesMaterialFactoryCache) {
-      return speciesMaterialFactoryCache[key];
-    } else {
-      // console.log("Creating new material");
-      const material = materials[name].clone();
-      material.color.set(color);
-      material.wireframe = wireframe;
-      speciesMaterialFactoryCache[key] = material;
-      return material;
-    }
-  };
+  if (key in speciesMaterialFactoryCache) {
+    return speciesMaterialFactoryCache[key];
+  }
+  // console.log("Creating new material");
+  const material = materials[name].clone();
+  material.color.set(color);
+  material.wireframe = wireframe;
+  speciesMaterialFactoryCache[key] = material;
+  return material;
 };
 
 function halfCylinderMesh(pointX, pointY, material, bond_size, resolution) {
@@ -103,7 +98,7 @@ class ParticleGroup extends THREE.Group {
     super();
     const particle_mesh = new THREE.Mesh(
       sphereGeometry(particle.radius, 10),
-      speciesMaterial("MeshPhongMaterial", particle.color, false),
+      speciesMaterial('MeshPhongMaterial', particle.color, false),
     );
     this.add(particle_mesh);
     this.name = particle.id;
@@ -115,7 +110,7 @@ class ParticleGroup extends THREE.Group {
   update(particle) {
     const scale = particle.radius / this.children[0].geometry.parameters.radius;
     const material = speciesMaterial(
-      "MeshPhongMaterial",
+      'MeshPhongMaterial',
       particle.color,
       false,
     );
@@ -157,7 +152,7 @@ class ParticleGroup extends THREE.Group {
   set_selection(selected) {
     if (selected) {
       // see https://threejs.org/examples/#webgl_postprocessing_unreal_bloom_selective for inspiration
-      const material = speciesMaterial("MeshPhongMaterial", "#ffa500", false);
+      const material = speciesMaterial('MeshPhongMaterial', '#ffa500', false);
       this.children.forEach((x) => (x.material = material));
     } else {
       this.children.forEach((x) => (x.material = this._original_material));
@@ -171,11 +166,11 @@ class ParticleGroup extends THREE.Group {
 class ParticlesGroup extends THREE.Group {
   constructor(socket, cache) {
     super();
-    this.name = "particlesGroup";
+    this.name = 'particlesGroup';
     this.cache = cache;
-    socket.on("config", (data) => {
+    socket.on('config', (data) => {
       this.config = data;
-      console.log("ParticlesGroup config:");
+      console.log('ParticlesGroup config:');
       console.log(this.config);
     });
   }
@@ -183,8 +178,8 @@ class ParticlesGroup extends THREE.Group {
   tick() {}
 
   _updateParticles(particles) {
-    let existing_particles = [];
-    let new_particles = [];
+    const existing_particles = [];
+    const new_particles = [];
     let deleted_particles = [];
 
     for (const x of particles) {
@@ -220,24 +215,19 @@ class ParticlesGroup extends THREE.Group {
 
   _updateBonds(bonds) {
     // create bond arrays
-    const all_bonds = this.children.flatMap((particleSubGroup) =>
-      particleSubGroup.children.slice(1),
-    );
+    const all_bonds = this.children.flatMap((particleSubGroup) => particleSubGroup.children.slice(1));
 
-    let existing_bonds = all_bonds.filter(
-      (x) =>
-        bonds.find((y) => y[0] + "-" + y[1] === x.name) ||
-        bonds.find((y) => y[1] + "-" + y[0] === x.name),
+    const existing_bonds = all_bonds.filter(
+      (x) => bonds.find((y) => `${y[0]}-${y[1]}` === x.name)
+        || bonds.find((y) => `${y[1]}-${y[0]}` === x.name),
     );
-    let new_bonds = bonds.filter(
-      (x) =>
-        !all_bonds.find((y) => y.name === x[0] + "-" + x[1]) &&
-        !all_bonds.find((y) => y.name === x[1] + "-" + x[0]),
+    const new_bonds = bonds.filter(
+      (x) => !all_bonds.find((y) => y.name === `${x[0]}-${x[1]}`)
+        && !all_bonds.find((y) => y.name === `${x[1]}-${x[0]}`),
     );
-    let deleted_bonds = all_bonds.filter(
-      (x) =>
-        !bonds.find((y) => y[0] + "-" + y[1] === x.name) &&
-        !bonds.find((y) => y[1] + "-" + y[0] === x.name),
+    const deleted_bonds = all_bonds.filter(
+      (x) => !bonds.find((y) => `${y[0]}-${y[1]}` === x.name)
+        && !bonds.find((y) => `${y[1]}-${y[0]}` === x.name),
     );
 
     deleted_bonds.forEach((bond) => {

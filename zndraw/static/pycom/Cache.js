@@ -1,7 +1,9 @@
 // Interface for the communication with Python to retrieve atoms
 
 class Atom {
-  constructor({ position, number, color, id, radius }) {
+  constructor({
+    position, number, color, id, radius,
+  }) {
     this.position = position;
     this.number = number;
     this.id = id;
@@ -11,7 +13,9 @@ class Atom {
 }
 
 class Atoms {
-  constructor({ positions, cell, numbers, colors, radii, connectivity }) {
+  constructor({
+    positions, cell, numbers, colors, radii, connectivity,
+  }) {
     this.positions = positions;
     this.cell = cell;
     this.numbers = numbers;
@@ -37,9 +41,8 @@ class Atoms {
           });
           index++;
           return { value: atom, done: false };
-        } else {
-          return { done: true };
         }
+        return { done: true };
       },
     };
   }
@@ -52,7 +55,7 @@ class Cache {
 
     this._last_request = -999999;
 
-    this._socket.on("atoms:upload", (data) => {
+    this._socket.on('atoms:upload', (data) => {
       Object.keys(data).forEach((key) => {
         this._cache[key] = new Atoms({
           positions: data[key].positions,
@@ -64,18 +67,18 @@ class Cache {
         });
       });
 
-      const slider = document.getElementById("frame-slider");
+      const slider = document.getElementById('frame-slider');
       slider.max = Object.keys(this._cache).length - 1;
     });
 
-    this._socket.on("atoms:download", (ids) => {
+    this._socket.on('atoms:download', (ids) => {
       // iterate through the ids and emit the atoms object for each
       ids.forEach((id) => {
-        this._socket.emit("atoms:download", this._cache[id]);
+        this._socket.emit('atoms:download', this._cache[id]);
       });
     });
 
-    this._socket.on("atoms:clear", (start_index) => {
+    this._socket.on('atoms:clear', (start_index) => {
       // remove everything from the cache starting from start_index
       Object.keys(this._cache).forEach((key) => {
         if (parseInt(key) >= start_index) {
@@ -92,7 +95,7 @@ class Cache {
   }
 
   reset() {
-    console.log("reset cache");
+    console.log('reset cache');
     this._cache = {};
     this._last_request = -999999;
   }
