@@ -254,16 +254,10 @@ class ParticlesGroup extends THREE.Group {
     });
   }
 
-  step(frame, iteration = 0) {
-    if (iteration > 100) {
-      console.log("Timeout for frame " + frame);
-      return;
-    }
+  step(frame) {
     const particles = this.cache.get(frame);
     if (particles == null) {
-      // TODO: do not allow moving forward in time if the frame is not yet loaded
-      setTimeout(() => this.step(frame, iteration + 1), 100);
-      console.log("Waiting for frame " + frame);
+      // nothing to display
     } else {
       this._updateParticles(particles);
       this._updateBonds(particles.connectivity);

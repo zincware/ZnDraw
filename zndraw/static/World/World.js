@@ -6,7 +6,6 @@ import { createControls, createTransformControls } from "./systems/controls.js";
 import { createRenderer, create2DRenderer } from "./systems/renderer.js";
 import { Resizer } from "./systems/Resizer.js";
 import { Loop } from "./systems/Loop.js";
-import { Stream } from "./systems/Stream.js";
 import { ParticlesGroup } from "./components/particles.js";
 import { Selection } from "./systems/select.js";
 

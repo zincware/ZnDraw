@@ -1,17 +1,13 @@
-import collections.abc
-import dataclasses
-import functools
 import pathlib
+import typing
 
+import tqdm
 import ase.io
-import dask.dataframe as dd
 import networkx as nx
 import numpy as np
-import pandas as pd
 import znh5md
 from ase.data.colors import jmol_colors
-from ase.neighborlist import build_neighbor_list, natural_cutoffs
-from dask.distributed import Client, Lock, Variable
+from ase.neighborlist import natural_cutoffs
 from networkx.exception import NetworkXError
 from pydantic import BaseModel, Field
 
@@ -23,7 +19,6 @@ def _rgb2hex(value):
 
 def _get_radius(value):
     return (0.25 * (2 - np.exp(-0.2 * value)),)
-
 
 class ASEComputeBonds(BaseModel):
     single_bond_multiplier: float = Field(1.2, le=2, ge=0)
@@ -81,95 +76,44 @@ class ASEComputeBonds(BaseModel):
         atoms.info["modifications"] = modifications
 
 
-@dataclasses.dataclass
-class DataHandler(collections.abc.MutableSequence):
-    client: Client
+def atoms_to_json(atoms: ase.Atoms):
+    ase_bond_calculator = ASEComputeBonds()
 
-    ase_bond_calculator: ASEComputeBonds = dataclasses.field(
-        default_factory=ASEComputeBonds
-    )
+    atoms_dict = atoms.todict()
+    for key in list(atoms_dict):
+        # includes ['numbers', 'positions', 'cell', 'pbc']
+        if isinstance(atoms_dict[key], np.ndarray):
+            atoms_dict[key] = atoms_dict[key].tolist()
+        elif isinstance(atoms_dict[key], np.generic):
+            atoms_dict[key] = atoms_dict[key].item()
 
-    def __delitem__(self, index):
-        pass
+    # remove info if available # currently not used
+    atoms_dict.pop("info", None)
 
-    def __getitem__(self, index) -> list[ase.Atoms]:
-        df = self.get_dataset()
-        value = list(df.loc[index]["atoms"].compute().to_dict().values())
-        return value if len(value) > 1 else value[0]
+    atoms_dict["colors"] = [
+        _rgb2hex(jmol_colors[number]) for number in atoms_dict["numbers"]
+    ]
+    atoms_dict["radii"] = [
+        _get_radius(number) for number in atoms_dict["numbers"]
+    ]
 
-    def __len__(self):
-        return len(self.get_dataset())
+    try:
+        atoms_dict["connectivity"] = ase_bond_calculator.get_bonds(atoms)
+    except AttributeError:
+        atoms_dict["connectivity"] = []
 
-    def __setitem__(self, index, value):
-        df = self.get_dataset().compute()
+    return atoms_dict
 
-        if isinstance(index, slice):
-            indices = list(range(index.stop))[index]
-            for idx, atoms in zip(indices, value):
-                df.loc[idx, "atoms"] = atoms
-        elif isinstance(index, int):
-            df.loc[index, "atoms"] = value
-        else:
-            raise TypeError(f"Index must be int or slice not {type(index)}")
+def get_atomsdict_list(filename) -> typing.Generator[typing.Dict, None, None]:
+    ase_bond_calculator = ASEComputeBonds()
 
-        self.client.unpublish_dataset("atoms")
-        # self.client.restart()
-        df = dd.from_pandas(df, npartitions=10)
-        self.client.persist(df)
-        self.client.publish_dataset(atoms=df)
-
-    def insert(self, index, value):
-        pass
-
-    def create_dataset(self, filename):
-        # TODO this should happen on a worker
-
-        if pathlib.Path(filename).suffix == ".h5":
-            # Read file using znh5md and convert to list[ase.Atoms]
-            atoms_list = znh5md.ASEH5MD(filename).get_atoms_list()
-        else:
-            atoms_list = list(ase.io.iread(filename))
-
-        for atoms in atoms_list:
-            atoms.connectivity = self.ase_bond_calculator.build_graph(atoms)
-
-        df = dd.DataFrame.from_dict({"atoms": atoms_list}, npartitions=10)
-        # move dataframe to client and keep it there
-        self.client.persist(df)
-        # make dataset available with the id "atoms"
-        self.client.publish_dataset(atoms=df)  # = **{"atoms": df}
-
-    def get_dataset(self):
-        return self.client.get_dataset("atoms")
-
-    def index(self):
-        return self.get_dataset().index.compute()
-
-    def get_atoms_json(self, item) -> dict[str, ase.Atoms]:
-        data = {}
-
-        for idx, atoms in zip(self.index()[item], self[item]):
-            atoms_dict = atoms.todict()
-            for key in list(atoms_dict):
-                # includes ['numbers', 'positions', 'cell', 'pbc']
-                if isinstance(atoms_dict[key], np.ndarray):
-                    atoms_dict[key] = atoms_dict[key].tolist()
-                elif isinstance(atoms_dict[key], np.generic):
-                    atoms_dict[key] = atoms_dict[key].item()
-
-            # remove info if available # currently not used
-            atoms_dict.pop("info", None)
-
-            atoms_dict["colors"] = [
-                _rgb2hex(jmol_colors[number]) for number in atoms_dict["numbers"]
-            ]
-            atoms_dict["radii"] = [
-                _get_radius(number) for number in atoms_dict["numbers"]
-            ]
-            try:
-                atoms_dict["connectivity"] = self.ase_bond_calculator.get_bonds(atoms)
-            except AttributeError:
-                atoms_dict["connectivity"] = []
-            data[idx] = atoms_dict
-
-        return data
+    if pathlib.Path(filename).suffix == ".h5":
+        # Read file using znh5md and convert to list[ase.Atoms]
+        atoms_list = znh5md.ASEH5MD(filename).get_atoms_list()
+        for idx, atoms in tqdm.tqdm(enumerate(atoms_list), ncols=100, total=len(atoms_list)):
+            atoms.connectivity = ase_bond_calculator.build_graph(atoms)
+            yield {idx: atoms_to_json(atoms)}
+    else:
+        for idx, atoms in tqdm.tqdm(enumerate(ase.io.iread(filename)), ncols=100):
+            atoms.connectivity = ase_bond_calculator.build_graph(atoms)
+            yield {idx: atoms_to_json(atoms)}

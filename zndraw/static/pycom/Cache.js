@@ -52,71 +52,34 @@ class Cache {
 
     this._last_request = -999999;
 
-    this._socket.on("cache:load", (data) => {
-      this._get(data.index);
-    });
-    this._socket.on("cache:reset", () => {
-      this.reset();
-    });
-  }
-
-  async _get(id) {
-    // if the id is not in the cache, request it from the server
-    if (!(id in this._cache)) {
-      // create a promise that resolves when the server response is received
-      const dataPromise = new Promise((resolve) => {
-        this._socket.emit("configuration:id", { id: id }, (data) => {
-          Object.keys(data).forEach((key) => {
-            this._cache[key] = new Atoms({
-              positions: data[key].positions,
-              cell: data[key].cell,
-              numbers: data[key].numbers,
-              colors: data[key].colors,
-              radii: data[key].radii,
-              connectivity: data[key].connectivity,
-            });
-          });
-          resolve();
+    this._socket.on("atoms:upload", (data) => {
+      Object.keys(data).forEach((key) => {
+        this._cache[key] = new Atoms({
+          positions: data[key].positions,
+          cell: data[key].cell,
+          numbers: data[key].numbers,
+          colors: data[key].colors,
+          radii: data[key].radii,
+          connectivity: data[key].connectivity,
         });
       });
-      // wait for the server response before returning the cached data
-      await dataPromise;
-    }
-    return this._cache[id];
+
+      const slider = document.getElementById("frame-slider");
+      slider.max = Object.keys(this._cache).length - 1;
+    });
+
+    this._socket.on("atoms:download", (ids) => {
+      // iterate through the ids and emit the atoms object for each
+      ids.forEach((id) => {
+        this._socket.emit("atoms:download", this._cache[id]);
+      });
+    });
   }
 
   get(id) {
     // convert id to integer
     id = parseInt(id);
-    const value = this._cache[id];
-
-    if (value === undefined) {
-      document.getElementById("frame-slider").disabled = true;
-
-      if (Math.abs(id - this._last_request) < 15) {
-        return value;
-      }
-
-      this._last_request = id;
-      this._get(id);
-    } else {
-      document.getElementById("frame-slider").disabled = false;
-      // set focus to the slider
-      document.getElementById("frame-slider").focus();
-
-      if (Math.abs(id - this._last_request) < 15) {
-        return value;
-      }
-
-      for (let i = id + 1; i < id + 10; i++) {
-        if (!(i in this._cache)) {
-          this._last_request = i;
-          this._get(i);
-          break;
-        }
-      }
-    }
-    return value;
+    return this._cache[id];
   }
 
   reset() {

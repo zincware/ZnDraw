@@ -80,6 +80,7 @@ function setupSlider(socket, world) {
   });
 
   slider.oninput = function () {
+    document.getElementById("info").innerHTML = `${slider.value} / ${slider.max}`;
     world.setStep(this.value);
   };
 }
