@@ -26,10 +26,9 @@ function main() {
 
   socket.emit("atoms:request", null, () => {
     world.setStep(0);
+      // disable loading screen
+    document.getElementById("atom-spinner").style.display = "none";
   });
-
-  // disable loading screen
-  document.getElementById("atom-spinner").style.display = "none";
 }
 
 main();

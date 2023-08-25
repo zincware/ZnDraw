@@ -11,7 +11,6 @@ from flask import Flask, render_template
 from flask_socketio import SocketIO, emit
 
 from zndraw.data import atoms_to_json, get_atomsdict_list
-from zndraw.examples import Duplicate, Explode
 from zndraw.settings import GlobalConfig
 
 app = Flask(__name__)
