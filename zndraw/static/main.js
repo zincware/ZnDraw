@@ -18,7 +18,7 @@ function main() {
   const world = new World(container, cache, socket);
 
   setUIEvents(socket, world);
-  initJSONEditor(socket);
+  initJSONEditor(socket, cache, world);
   world.start();
 
   socket.emit("atoms:request", null, () => {

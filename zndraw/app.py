@@ -4,11 +4,14 @@
 # eventlet.monkey_patch()
 
 import uuid
+import tqdm
 
 from flask import Flask, render_template
 from flask_socketio import SocketIO, emit
 
-from zndraw.data import get_atomsdict_list
+from zndraw.data import get_atomsdict_list, atoms_to_json
+from zndraw.examples import Explode
+
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = str(uuid.uuid4())
@@ -26,6 +29,7 @@ def index():
 @app.route("/exit")
 def exit():
     """Exit the session."""
+    print("Server shutting down...")
     socketio.stop()
     return "Server shutting down..."
 
@@ -35,6 +39,29 @@ def atoms_request(data):
     print(f"atoms:request {data = }")
     for atoms_dict in get_atomsdict_list(app.config["filename"]):
         emit("atoms:upload", atoms_dict)
+
+
+@socketio.on("modifier:schema")
+def modifier_schema():
+    socketio.emit("modifier:schema", Explode.model_json_schema())
+
+@socketio.on("modifier:run")
+def modifier_run(data):
+    import ase
+
+    atoms = ase.Atoms(
+        numbers=data["atoms"]["numbers"],
+        cell=data["atoms"]["cell"],
+        pbc=True,
+        positions=data["atoms"]["positions"],
+    )
+
+    modifier = Explode(**data["params"])
+    atoms_list = modifier.run(atom_ids=data["selection"], atoms=atoms)
+    socketio.emit("atoms:clear", int(data["step"]) + 1)
+    for idx, atoms in tqdm.tqdm(enumerate(atoms_list)):
+        atoms_dict = atoms_to_json(atoms)
+        socketio.emit("atoms:upload", {idx + 1 + int(data["step"]): atoms_dict})
 
 # @app.route("/download/<int:idx>")
 # def download(idx):

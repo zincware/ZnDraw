@@ -84,7 +84,14 @@ class World {
 
   setStep(step) {
     loop.setStep(step);
-    this.socket.emit("step", { step: step });
+  }
+
+  getStep() {
+    return loop.step;
+  }
+
+  getSelection() {
+    return selection.selection;
   }
 }
 

@@ -74,6 +74,15 @@ class Cache {
         this._socket.emit("atoms:download", this._cache[id]);
       });
     });
+
+    this._socket.on("atoms:clear", (start_index) => {
+      // remove everything from the cache starting from start_index
+      Object.keys(this._cache).forEach((key) => {
+        if (parseInt(key) >= start_index) {
+          delete this._cache[key];
+        }
+      });
+    });
   }
 
   get(id) {

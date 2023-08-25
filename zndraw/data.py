@@ -78,6 +78,7 @@ class ASEComputeBonds(BaseModel):
 
 def atoms_to_json(atoms: ase.Atoms):
     ase_bond_calculator = ASEComputeBonds()
+    atoms.connectivity = ase_bond_calculator.build_graph(atoms)
 
     atoms_dict = atoms.todict()
     for key in list(atoms_dict):
@@ -111,9 +112,7 @@ def get_atomsdict_list(filename) -> typing.Generator[typing.Dict, None, None]:
         # Read file using znh5md and convert to list[ase.Atoms]
         atoms_list = znh5md.ASEH5MD(filename).get_atoms_list()
         for idx, atoms in tqdm.tqdm(enumerate(atoms_list), ncols=100, total=len(atoms_list)):
-            atoms.connectivity = ase_bond_calculator.build_graph(atoms)
             yield {idx: atoms_to_json(atoms)}
     else:
         for idx, atoms in tqdm.tqdm(enumerate(ase.io.iread(filename)), ncols=100):
-            atoms.connectivity = ase_bond_calculator.build_graph(atoms)
             yield {idx: atoms_to_json(atoms)}

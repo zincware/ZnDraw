@@ -5,14 +5,14 @@ JSONEditor.defaults.options.disable_edit_json = true;
 JSONEditor.defaults.options.disable_properties = true;
 JSONEditor.defaults.options.disable_collapse = true;
 
-export function initJSONEditor(socket) {
+export function initJSONEditor(socket, cache, world) {
   let editor = new JSONEditor(
     document.getElementById("interaction-json-editor"),
     {
       schema: { type: "object", title: "ZnDraw", properties: {} },
     },
   );
-  socket.on("interaction:schema", function (data) {
+  socket.on("modifier:schema", function (data) {
     editor.destroy();
     editor = new JSONEditor(
       document.getElementById("interaction-json-editor"),
@@ -27,7 +27,12 @@ export function initJSONEditor(socket) {
       // Get the value from the editor
       const value = editor.getValue();
       console.log(value);
-      socket.emit("interaction:submit", value);
+      socket.emit("modifier:run", {
+        "params": value,
+        "atoms": cache.get(world.getStep()),
+        "selection": world.getSelection(),
+        "step": world.getStep(),
+      });
     });
-  socket.emit("interaction:schema");
+  socket.emit("modifier:schema");
 }
