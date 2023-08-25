@@ -1,10 +1,10 @@
 import pathlib
 import typing
 
-import tqdm
 import ase.io
 import networkx as nx
 import numpy as np
+import tqdm
 import znh5md
 from ase.data.colors import jmol_colors
 from ase.neighborlist import natural_cutoffs
@@ -19,6 +19,7 @@ def _rgb2hex(value):
 
 def _get_radius(value):
     return (0.25 * (2 - np.exp(-0.2 * value)),)
+
 
 class ASEComputeBonds(BaseModel):
     single_bond_multiplier: float = Field(1.2, le=2, ge=0)
@@ -94,9 +95,7 @@ def atoms_to_json(atoms: ase.Atoms):
     atoms_dict["colors"] = [
         _rgb2hex(jmol_colors[number]) for number in atoms_dict["numbers"]
     ]
-    atoms_dict["radii"] = [
-        _get_radius(number) for number in atoms_dict["numbers"]
-    ]
+    atoms_dict["radii"] = [_get_radius(number) for number in atoms_dict["numbers"]]
 
     try:
         atoms_dict["connectivity"] = ase_bond_calculator.get_bonds(atoms)
@@ -105,13 +104,16 @@ def atoms_to_json(atoms: ase.Atoms):
 
     return atoms_dict
 
+
 def get_atomsdict_list(filename) -> typing.Generator[typing.Dict, None, None]:
-    ase_bond_calculator = ASEComputeBonds()
+    ASEComputeBonds()
 
     if pathlib.Path(filename).suffix == ".h5":
         # Read file using znh5md and convert to list[ase.Atoms]
         atoms_list = znh5md.ASEH5MD(filename).get_atoms_list()
-        for idx, atoms in tqdm.tqdm(enumerate(atoms_list), ncols=100, total=len(atoms_list)):
+        for idx, atoms in tqdm.tqdm(
+            enumerate(atoms_list), ncols=100, total=len(atoms_list)
+        ):
             yield {idx: atoms_to_json(atoms)}
     else:
         for idx, atoms in tqdm.tqdm(enumerate(ase.io.iread(filename)), ncols=100):
