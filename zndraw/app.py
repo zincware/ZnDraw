@@ -7,7 +7,7 @@ import uuid
 
 import numpy as np
 import tqdm
-from flask import Flask, render_template
+from flask import Flask, render_template, request
 from flask_socketio import SocketIO, emit
 
 from zndraw.data import atoms_to_json, get_atomsdict_list
@@ -16,7 +16,8 @@ from zndraw.settings import GlobalConfig
 app = Flask(__name__)
 app.config["SECRET_KEY"] = str(uuid.uuid4())
 
-io = SocketIO(app)
+io = SocketIO(app, max_http_buffer_size=1e10, async_mode="eventlet")
+# 10 GB Upload limit
 
 
 @app.route("/")
@@ -74,15 +75,20 @@ def modifier_schema():
 def modifier_run(data):
     import ase
 
+    print(f"modifier:run {data = }")
+
     points = np.array([[val["x"], val["y"], val["z"]] for val in data["points"]])
     segments = np.array(data["segments"])
 
-    atoms = ase.Atoms(
-        numbers=data["atoms"]["numbers"],
-        cell=data["atoms"]["cell"],
-        pbc=True,
-        positions=data["atoms"]["positions"],
-    )
+    if "atoms" in data:
+        atoms = ase.Atoms(
+            numbers=data["atoms"]["numbers"],
+            cell=data["atoms"]["cell"],
+            pbc=True,
+            positions=data["atoms"]["positions"],
+        )
+    else:
+        atoms = ase.Atoms()
 
     module_name, function_name = data["name"].rsplit(".", 1)
     module = importlib.import_module(module_name)
@@ -126,3 +132,28 @@ def atoms_upload(data):
 def display(data):
     """Display the atoms at the given index"""
     emit("display", data, broadcast=True, include_self=False)
+
+@io.on("upload")
+def upload(data):
+    import ase.io
+    from io import StringIO
+    import tqdm
+
+    # tested with small files only    
+
+    format = data["filename"].split(".")[-1]
+    if format == "h5":
+        print("H5MD format not supported for uploading yet")
+        # import znh5md
+        # stream = BytesIO(data["content"].encode("utf-8"))
+        # atoms = znh5md.ASEH5MD(stream).get_atoms_list()
+        # for idx, atoms in tqdm.tqdm(enumerate(atoms)):
+        #     atoms_dict = atoms_to_json(atoms)
+        #     io.emit("atoms:upload", {idx: atoms_dict})
+    else:
+        stream = StringIO(data["content"])
+        io.emit("atoms:clear", 0)
+        for idx, atoms in tqdm.tqdm(enumerate(ase.io.iread(stream, format=format))):
+            atoms_dict = atoms_to_json(atoms)
+            io.emit("atoms:upload", {idx: atoms_dict})
+    emit("display", 0)

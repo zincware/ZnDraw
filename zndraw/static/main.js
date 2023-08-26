@@ -11,7 +11,42 @@ function setupSocket() {
   return socket;
 }
 
-function setupSlider(socket, world) {}
+function setupUpload(socket) {
+  const upload_form = document.getElementById('uploadForm');
+  const upload_input = document.getElementById('fileInput');
+  const submit_button = document.getElementById('uploadBtn');
+
+  const file = {
+    dom: document.getElementById("fileInput"),
+    binary: null,
+  };
+
+  const reader = new FileReader();
+
+  // Because FileReader is asynchronous, store its
+  // result when it finishes reading the file
+  reader.addEventListener("load", () => {
+    file.binary = reader.result;
+    socket.emit('upload', { content: reader.result, filename: file.dom.files[0].name });
+  });
+
+  // At page load, if a file is already selected, read it.
+  if (file.dom.files[0]) {
+    reader.readAsBinaryString(file.dom.files[0]);
+  }
+
+  // If not, read the file once the user selects it.
+  file.dom.addEventListener("change", () => {
+    if (reader.readyState === FileReader.LOADING) {
+      reader.abort();
+    }
+
+    reader.readAsBinaryString(file.dom.files[0]);
+  });
+}
+
+
+function setupSlider(socket, world) { }
 
 function main() {
   const socket = setupSocket();
@@ -29,6 +64,8 @@ function main() {
     // disable loading screen
     document.getElementById('atom-spinner').style.display = 'none';
   });
+
+  setupUpload(socket);
 }
 
 main();

@@ -104,7 +104,12 @@
             </button>
           </li>
         </ul>
-        <form class="d-flex">
+        <div class="d-flex">
+          <form id="uploadForm" method="post" enctype="multipart/form-data">
+            <input type="file" name="file" id="fileInput" style="display: none;">
+            <input type="submit" value="Upload" id="uploadBtn" style="display: none;">
+            <label class="btn btn-outline-primary mx-1" for="fileInput"><i class="fas fa-upload"></i> Upload</label>
+          </form>
           <a class="btn btn-outline-primary mx-1" href="download" role="button"><i class="fas fa-download"></i>
             Download</a>
           <button class="btn btn-outline-primary mx-1" type="button" data-bs-toggle="collapse"
@@ -121,7 +126,7 @@
             data-bs-target="#infoBoxCollapse" aria-expanded="false" aria-controls="infoBoxCollapse">
             <i class="fas fa-info-circle"></i> Info
           </button> -->
-        </form>
+        </div>
       </div>
     </div>
   </nav>

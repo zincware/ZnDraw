@@ -11,7 +11,7 @@ cli = typer.Typer()
 
 
 @cli.command()
-def main(filename: str):
+def main(filename: str = None):
     # get an empty port
     view(filename, _get_port())
     
