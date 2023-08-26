@@ -87,6 +87,7 @@ def get_atomsdict_list(filename) -> typing.Generator[typing.Dict, None, None]:
         for idx, atoms in tqdm.tqdm(
             enumerate(atoms_list), ncols=100, total=len(atoms_list)
         ):
+            # if idx > 100: break
             yield {idx: atoms_to_json(atoms)}
     else:
         for idx, atoms in tqdm.tqdm(enumerate(ase.io.iread(filename)), ncols=100):
@@ -122,8 +123,8 @@ def atoms_to_json(atoms: ase.Atoms) -> dict:
             calc_data[key] = value
 
         atoms_dict["calc"] = calc_data
-    except RuntimeError as err:
-        print(err)
+    except (RuntimeError, AttributeError):
+        pass
 
     try:
         atoms_dict["connectivity"] = ase_bond_calculator.get_bonds(atoms)

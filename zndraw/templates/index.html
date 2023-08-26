@@ -97,12 +97,12 @@
               <i class="fas fa-chart-bar"></i> Analyse
             </button>
           </li>
-          <li class="nav-item mx-1">
+          <!-- <li class="nav-item mx-1">
             <button class="btn btn-outline-secondary" type="button" data-bs-toggle="offcanvas"
               data-bs-target="#bondsCanvas" aria-controls="bondsCanvas" onclick="document.activeElement.blur();">
               <i class="fas fa-link"></i> Bonds
             </button>
-          </li>
+          </li> -->
         </ul>
         <div class="d-flex">
           <form id="uploadForm" method="post" enctype="multipart/form-data">
@@ -110,8 +110,8 @@
             <input type="submit" value="Upload" id="uploadBtn" style="display: none;">
             <label class="btn btn-outline-primary mx-1" for="fileInput"><i class="fas fa-upload"></i> Upload</label>
           </form>
-          <a class="btn btn-outline-primary mx-1" href="download" role="button"><i class="fas fa-download"></i>
-            Download</a>
+          <!-- <a class="btn btn-outline-primary mx-1" href="download" role="button"><i class="fas fa-download"></i>
+            Download</a> -->
           <button class="btn btn-outline-primary mx-1" type="button" data-bs-toggle="collapse"
             data-bs-target="#helpBoxCollapse" aria-expanded="false" aria-controls="helpBoxCollapse">
             <i class="fas fa-question-circle"></i> Help
@@ -297,20 +297,11 @@
       <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
     </div>
     <div class="offcanvas-body">
-      <div class="d-grid gap-2 col-6 mx-auto mb-3">
-        <button type="button" class="btn btn-secondary" id="analyseBtn">Analyse</button>
-      </div>
-      <div class="mb-3">
-        <label for="addAnalysis" class="form-label">Select analysis method</label>
-        <select class="form-select" aria-label="Default select example" id="addAnalysis">
-          <option selected, value="none"> </option>
-          <option value="add">Add New</option>
-        </select>
-        <div id="addAnalysisHelp" class="form-text">Load a Python class to analyse the data
-        </div>
-      </div>
-      <div id="analysisSettings"></div>
-      <div id="analysePlot"></div>
+      <select class="form-select" aria-label="Select Modifier" id="analysis-select">
+      </select>
+      <div id='analysis-json-editor'></div>
+      <button type="button" id='analysis-json-editor-submit' class="btn btn-primary w-100">Analyse</button>
+      <div id="analysisPlot"></div>
     </div>
   </div>
 

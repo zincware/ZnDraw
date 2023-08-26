@@ -117,6 +117,10 @@ class Cache {
   get_length() {
     return Object.keys(this._cache).length;
   }
+
+  getAllAtoms() {
+    return this._cache;
+  }
 }
 
 export { Cache };

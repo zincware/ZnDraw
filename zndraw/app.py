@@ -12,7 +12,7 @@ from zndraw.settings import GlobalConfig
 app = Flask(__name__)
 app.config["SECRET_KEY"] = str(uuid.uuid4())
 
-io = SocketIO(app, max_http_buffer_size=1e10)
+io = SocketIO(app, max_http_buffer_size=int(1e10))
 # 10 GB Upload limit
 
 
@@ -102,6 +102,41 @@ def modifier_run(data):
 
     io.emit("view:set", int(data["step"]) + 1)
     io.emit("view:play")
+
+
+@io.on("analysis:schema")
+def analysis_schema(data):
+    config = GlobalConfig.load()
+    if "atoms" not in data:
+        return
+    atoms = atoms_from_json(data["atoms"])
+
+    for modifier in config.analysis_functions:
+        module_name, function_name = modifier.rsplit(".", 1)
+        module = importlib.import_module(module_name)
+        modifier_cls = getattr(module, function_name)
+        schema = modifier_cls.schema_from_atoms(atoms)
+
+        io.emit(
+            "analysis:schema",
+            {"name": modifier, "schema": schema},
+        )
+
+
+@io.on("analysis:run")
+def analysis_run(data):
+    # print(f"analysis:run {data = }")
+    atoms_list = [atoms_from_json(x) for x in data["atoms_list"].values()]
+
+    print(f"Analysing {len(atoms_list)} frames")
+
+    module_name, function_name = data["name"].rsplit(".", 1)
+    module = importlib.import_module(module_name)
+    cls = getattr(module, function_name)
+    instance = cls(**data["params"])
+
+    fig = instance.run(atoms_list, data["selection"])
+    return fig.to_json()
 
 
 @io.on("config")
