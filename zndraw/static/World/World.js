@@ -149,6 +149,19 @@ class World {
 
     scene.add(particles, light, camera, this.line3D, canvas3D); // index, transform_controls
 
+    // attach the canvas3D to the camera while t is pressed. attach to the scene when released
+    document.addEventListener("keydown", (event) => {
+      if (event.key == "t") {
+        if (camera.children.includes(canvas3D)) {
+          scene.attach(canvas3D);
+          document.getElementById("alertBox").style.display = "none";
+        } else {
+          camera.attach(canvas3D);
+          document.getElementById("alertBox").style.display = "block";
+        }
+      }
+    });
+
     loop.tick_updatables.push(controls);
     loop.step_updatables.push(particles, selection);
 

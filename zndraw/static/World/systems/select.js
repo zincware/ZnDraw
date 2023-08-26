@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 import { TransformControls } from 'three/examples/jsm/controls/TransformControls.js';
 
+let scroll_timer = null;
+
 class Selection {
   constructor(camera, scene, socket, line3D, renderer, controls) {
     this.camera = camera;
@@ -13,9 +15,11 @@ class Selection {
       return particlesGroup.get_center();
     };
 
+    window.addEventListener("wheel", this.onWheel.bind(this));
+
     // use c keypress to center the camera on the selection
     document.addEventListener('keydown', (event) => {
-      if (event.key === 'c') {       
+      if (event.key === 'c') {
         // get the first object that is selected
         const particlesGroup = this.scene.getObjectByName('particlesGroup');
 
@@ -27,7 +31,7 @@ class Selection {
             // TODO: don't use the first but the COM of the selection
           }
           return true;
-        });        
+        });
       }
     });
     document.addEventListener('keyup', (event) => {
@@ -72,8 +76,13 @@ class Selection {
       controls.enabled = !event.value;
     });
     this.transform_controls.addEventListener('objectChange', () => {
-      // mesh -> anchorPoints -> Line3D
-      this.transform_controls.object.parent.parent.updateLine();
+
+      if (this.transform_controls.object.name === 'Canvas3DGroup') {
+        // nothing to do
+      } else {
+        // mesh -> anchorPoints -> Line3D
+        this.transform_controls.object.parent.parent.updateLine();
+      }
     });
 
     this._drawing = false;
@@ -168,6 +177,36 @@ class Selection {
         }
         this.socket.emit('selection', this.selection);
         break; // only (de)select one particle
+      }
+    }
+  }
+
+  onWheel(event) {
+    const intersections = this.getIntersections();
+    for (let i = 0; i < intersections.length; i++) {
+      const { object } = intersections[i];
+      if (object.name === 'canvas3D') {
+        console.log("scrolled on canvas3D");
+        // there must be a better way to disable scrolling while over the canvas
+        this.controls.enabled = false;
+        if (scroll_timer) {
+          clearTimeout(scroll_timer);
+        }
+        scroll_timer = setTimeout(() => {
+          this.controls.enabled = true;
+        }, 500);
+
+        this.transform_controls.attach(object.parent);
+
+        object.parent.children.forEach((x) => {
+          x.scale.set(
+            x.scale.x + event.deltaY * 0.0005,
+            x.scale.y + event.deltaY * 0.0005,
+            x.scale.z + event.deltaY * 0.0005,
+          );
+        });
+
+        break;
       }
     }
   }
