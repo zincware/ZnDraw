@@ -1,9 +1,10 @@
 import importlib
 import uuid
 
+from io import BytesIO
 import numpy as np
 import tqdm
-from flask import Flask, render_template
+from flask import Flask, render_template, send_file, request
 from flask_socketio import SocketIO, emit
 
 from zndraw.data import atoms_from_json, atoms_to_json, get_atomsdict_list
@@ -148,6 +149,26 @@ def config(data):
 # def download(idx):
 #     socketio.emit("atoms:download", [idx])
 #     return "OK"
+
+# @app.route("/download")
+# def download():
+#     from zndraw.view import ZnDraw
+#     import ase.io
+
+#     url = request.base_url 
+#     url = url.replace("/download", "")
+#     print(f"Downloading {url = }")
+
+#     zndraw = ZnDraw(url=url)
+#     print(f"Downloading {zndraw = }")
+
+#     file = BytesIO()
+#     ase.io.write(file, zndraw[0], format="xyz")
+#     file.seek(0)
+#     return send_file(file, mimetype="text/plain", as_attachment=True)
+
+
+    
 
 
 @io.on("atoms:download")

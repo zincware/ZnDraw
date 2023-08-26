@@ -59,6 +59,10 @@ function main() {
   initJSONEditor(socket, cache, world);
   world.start();
 
+  document.getElementById("downloadBtn").addEventListener("click", () => {
+    socket.emit('download', {atoms_list: cache.getAllAtoms()});
+  });
+
   socket.emit('atoms:request', null, () => {
     world.setStep(0);
     // disable loading screen
