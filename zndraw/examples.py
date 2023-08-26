@@ -17,6 +17,8 @@ class UpdateScene(BaseModel, abc.ABC):
 
 
 class Rotate(UpdateScene):
+    """Rotate the selected atoms around a the line (2 points only)."""
+
     angle: float = Field(90, le=360, ge=0, description="Angle in degrees")
     direction: t.Literal["left", "right"] = Field(
         "left", description="Direction of rotation"
@@ -71,6 +73,8 @@ class Delete(UpdateScene):
 
 
 class Move(UpdateScene):
+    """Move the selected atoms along the line."""
+
     steps: int = Field(10, ge=1)
 
     def run(self, atom_ids: list[int], atoms: ase.Atoms, **kwargs) -> list[ase.Atoms]:
