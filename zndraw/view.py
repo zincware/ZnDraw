@@ -3,13 +3,14 @@ import dataclasses
 import logging
 import socket
 import threading
+import typing as t
 import webbrowser
 
 import ase
 import socketio
 
 from zndraw.app import app, io
-from zndraw.data import atoms_to_json
+from zndraw.data import atoms_from_json, atoms_to_json
 
 log = logging.getLogger("werkzeug")
 log.setLevel(logging.ERROR)
@@ -78,7 +79,7 @@ class ZnDraw(collections.abc.MutableSequence):
     def __delitem__(self, index):
         pass
 
-    def __getitem__(self, index):
+    def __getitem__(self, index) -> t.Union[ase.Atoms, list[ase.Atoms]]:
         get_item_event = threading.Event()
 
         if not isinstance(index, int) and not isinstance(index, list):
@@ -93,14 +94,7 @@ class ZnDraw(collections.abc.MutableSequence):
         def on_download(data):
             nonlocal downloaded_data
             for key, val in data.items():
-                downloaded_data.append(
-                    ase.Atoms(
-                        numbers=val["numbers"],
-                        cell=val["cell"],
-                        pbc=True,
-                        positions=val["positions"],
-                    )
-                )
+                downloaded_data.append(atoms_from_json(val))
             get_item_event.set()
 
         self.socket.on("atoms:download", on_download)

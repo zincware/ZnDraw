@@ -6,7 +6,7 @@ import tqdm
 from flask import Flask, render_template
 from flask_socketio import SocketIO, emit
 
-from zndraw.data import atoms_to_json, get_atomsdict_list
+from zndraw.data import atoms_from_json, atoms_to_json, get_atomsdict_list
 from zndraw.settings import GlobalConfig
 
 app = Flask(__name__)
@@ -80,12 +80,7 @@ def modifier_run(data):
     segments = np.array(data["segments"])
 
     if "atoms" in data:
-        atoms = ase.Atoms(
-            numbers=data["atoms"]["numbers"],
-            cell=data["atoms"]["cell"],
-            pbc=True,
-            positions=data["atoms"]["positions"],
-        )
+        atoms = atoms_from_json(data["atoms"])
     else:
         atoms = ase.Atoms()
 

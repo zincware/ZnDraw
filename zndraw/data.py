@@ -6,6 +6,7 @@ import networkx as nx
 import numpy as np
 import tqdm
 import znh5md
+from ase.calculators.singlepoint import SinglePointCalculator
 from ase.data.colors import jmol_colors
 from ase.neighborlist import natural_cutoffs
 from networkx.exception import NetworkXError
@@ -77,7 +78,22 @@ class ASEComputeBonds(BaseModel):
         atoms.info["modifications"] = modifications
 
 
-def atoms_to_json(atoms: ase.Atoms):
+def get_atomsdict_list(filename) -> typing.Generator[typing.Dict, None, None]:
+    ASEComputeBonds()
+
+    if pathlib.Path(filename).suffix == ".h5":
+        # Read file using znh5md and convert to list[ase.Atoms]
+        atoms_list = znh5md.ASEH5MD(filename).get_atoms_list()
+        for idx, atoms in tqdm.tqdm(
+            enumerate(atoms_list), ncols=100, total=len(atoms_list)
+        ):
+            yield {idx: atoms_to_json(atoms)}
+    else:
+        for idx, atoms in tqdm.tqdm(enumerate(ase.io.iread(filename)), ncols=100):
+            yield {idx: atoms_to_json(atoms)}
+
+
+def atoms_to_json(atoms: ase.Atoms) -> dict:
     ase_bond_calculator = ASEComputeBonds()
     atoms.connectivity = ase_bond_calculator.build_graph(atoms)
 
@@ -98,6 +114,18 @@ def atoms_to_json(atoms: ase.Atoms):
     atoms_dict["radii"] = [_get_radius(number) for number in atoms_dict["numbers"]]
 
     try:
+        calc_data = {}
+        for key in atoms.calc.results:
+            value = atoms.calc.results[key]
+            if isinstance(value, np.ndarray):
+                value = value.tolist()
+            calc_data[key] = value
+
+        atoms_dict["calc"] = calc_data
+    except RuntimeError as err:
+        print(err)
+
+    try:
         atoms_dict["connectivity"] = ase_bond_calculator.get_bonds(atoms)
     except AttributeError:
         atoms_dict["connectivity"] = []
@@ -105,16 +133,19 @@ def atoms_to_json(atoms: ase.Atoms):
     return atoms_dict
 
 
-def get_atomsdict_list(filename) -> typing.Generator[typing.Dict, None, None]:
-    ASEComputeBonds()
+def atoms_from_json(data: dict) -> ase.Atoms:
+    atoms = ase.Atoms(
+        numbers=data["numbers"],
+        cell=data["cell"],
+        pbc=True,
+        positions=data["positions"],
+    )
 
-    if pathlib.Path(filename).suffix == ".h5":
-        # Read file using znh5md and convert to list[ase.Atoms]
-        atoms_list = znh5md.ASEH5MD(filename).get_atoms_list()
-        for idx, atoms in tqdm.tqdm(
-            enumerate(atoms_list), ncols=100, total=len(atoms_list)
-        ):
-            yield {idx: atoms_to_json(atoms)}
-    else:
-        for idx, atoms in tqdm.tqdm(enumerate(ase.io.iread(filename)), ncols=100):
-            yield {idx: atoms_to_json(atoms)}
+    if "calc" in data:
+        atoms.calc = SinglePointCalculator(atoms, energy=data["calc"]["energy"])
+        atoms.calc.results = {
+            key: np.array(val) if isinstance(val, list) else val
+            for key, val in data["calc"].items()
+        }
+
+    return atoms

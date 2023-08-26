@@ -14,7 +14,7 @@ class Atom {
 
 class Atoms {
   constructor({
-    positions, cell, numbers, colors, radii, connectivity,
+    positions, cell, numbers, colors, radii, connectivity, calc
   }) {
     this.positions = positions;
     this.cell = cell;
@@ -22,6 +22,7 @@ class Atoms {
     this.colors = colors;
     this.radii = radii;
     this.connectivity = connectivity;
+    this.calc = calc;
 
     this.length = this.positions.length;
   }
@@ -66,6 +67,7 @@ class Cache {
           colors: data[key].colors,
           radii: data[key].radii,
           connectivity: data[key].connectivity,
+          calc: data[key].calc,
         });
       });
       const slider = document.getElementById('frame-slider');
