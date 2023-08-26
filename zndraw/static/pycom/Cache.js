@@ -57,6 +57,7 @@ class Cache {
 
     this._socket.on('atoms:upload', (data) => {
       console.log("Received atoms from Python");
+      document.getElementById("interaction-json-editor-submit").disabled = false;
       Object.keys(data).forEach((key) => {
         this._cache[key] = new Atoms({
           positions: data[key].positions,
@@ -67,7 +68,6 @@ class Cache {
           connectivity: data[key].connectivity,
         });
       });
-
       const slider = document.getElementById('frame-slider');
       slider.max = Object.keys(this._cache).length - 1;
     });

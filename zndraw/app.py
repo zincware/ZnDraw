@@ -1,13 +1,9 @@
-# import eventlet
-
-# eventlet.monkey_patch()
-
 import importlib
 import uuid
 
 import numpy as np
 import tqdm
-from flask import Flask, render_template, request
+from flask import Flask, render_template
 from flask_socketio import SocketIO, emit
 
 from zndraw.data import atoms_to_json, get_atomsdict_list
@@ -16,7 +12,7 @@ from zndraw.settings import GlobalConfig
 app = Flask(__name__)
 app.config["SECRET_KEY"] = str(uuid.uuid4())
 
-io = SocketIO(app, max_http_buffer_size=1e10, async_mode="eventlet")
+io = SocketIO(app, max_http_buffer_size=1e10)
 # 10 GB Upload limit
 
 
@@ -27,25 +23,30 @@ def index():
 
 
 @app.route("/exit")
-def exit():
+def exit_route():
     """Exit the session."""
     print("Server shutting down...")
     io.stop()
     return "Server shutting down..."
 
+
 @io.on("exit")
-def exit():
+def exit_io():
     """Exit the session."""
     print("Server shutting down...")
     io.stop()
+
 
 @io.on("atoms:request")
 def atoms_request(data):
     """Return the atoms."""
     print(f"atoms:request {data = }")
     if "filename" in app.config:
-        for atoms_dict in get_atomsdict_list(app.config["filename"]):
+        for idx, atoms_dict in enumerate(get_atomsdict_list(app.config["filename"])):
             emit("atoms:upload", atoms_dict)
+            # At some point we should just emit all messages and call this function again for the remainder ?
+            # if idx > 1000:
+            #     break
     else:
         emit("atoms:upload", {})
 
@@ -74,8 +75,6 @@ def modifier_schema():
 @io.on("modifier:run")
 def modifier_run(data):
     import ase
-
-    print(f"modifier:run {data = }")
 
     points = np.array([[val["x"], val["y"], val["z"]] for val in data["points"]])
     segments = np.array(data["segments"])
@@ -106,6 +105,9 @@ def modifier_run(data):
         atoms_dict = atoms_to_json(atoms)
         io.emit("atoms:upload", {idx + 1 + int(data["step"]): atoms_dict})
 
+    io.emit("view:set", int(data["step"]) + 1)
+    io.emit("view:play")
+
 
 @io.on("config")
 def config(data):
@@ -123,23 +125,27 @@ def atoms_download(data):
     """Return the atoms."""
     emit("atoms:download", data, broadcast=True, include_self=False)
 
+
 @io.on("atoms:upload")
 def atoms_upload(data):
     """Return the atoms."""
     emit("atoms:upload", data, broadcast=True, include_self=False)
 
-@io.on("display")
+
+@io.on("view:set")
 def display(data):
     """Display the atoms at the given index"""
-    emit("display", data, broadcast=True, include_self=False)
+    emit("view:set", data, broadcast=True, include_self=False)
+
 
 @io.on("upload")
 def upload(data):
-    import ase.io
     from io import StringIO
+
+    import ase.io
     import tqdm
 
-    # tested with small files only    
+    # tested with small files only
 
     format = data["filename"].split(".")[-1]
     if format == "h5":
@@ -156,4 +162,4 @@ def upload(data):
         for idx, atoms in tqdm.tqdm(enumerate(ase.io.iread(stream, format=format))):
             atoms_dict = atoms_to_json(atoms)
             io.emit("atoms:upload", {idx: atoms_dict})
-    emit("display", 0)
+    emit("view:set", 0)

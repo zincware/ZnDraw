@@ -29,8 +29,13 @@ class Player {
     this.fps = 30;
     this.cache = cache;
 
-    socket.on("display", (index) => {
+    socket.on("view:set", (index) => {
       this.world.setStep(index);
+    });
+
+    socket.on("view:play", () => {
+      this.playing = true;
+      this.play();
     });
 
     // toggle playing on spacebar

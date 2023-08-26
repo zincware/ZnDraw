@@ -61,6 +61,12 @@ export function initJSONEditor(socket, cache, world) {
         points: points,
         segments: segments,
       });
+
+      document.getElementById("interaction-json-editor-submit").disabled = true;
+      // if there is an error in uploading, we still want to be able to submit again
+      setTimeout(() => {
+        document.getElementById("interaction-json-editor-submit").disabled = false;
+      }, 1000);
     });
 
   socket.emit('modifier:schema');

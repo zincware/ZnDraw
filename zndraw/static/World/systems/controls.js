@@ -11,7 +11,7 @@ function createControls(camera, canvas) {
   // this.controls.autoRotate = true;
   controls.enableDamping = false;
 
-  controls.tick = function (delta) {
+  controls.tick = function () {
     // if (config.selected.length > 0 && config.pressed_keys.c == true) {
     //   controls.target.copy(scene.getObjectByName("particlesGroup").get_center());
     // }

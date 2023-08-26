@@ -1,17 +1,19 @@
-import dataclasses
-import socketio
 import collections.abc
-import ase
-import threading
-from zndraw.data import atoms_to_json
+import dataclasses
 import logging
 import socket
+import threading
 import webbrowser
 
+import ase
+import socketio
+
 from zndraw.app import app, io
+from zndraw.data import atoms_to_json
 
 log = logging.getLogger("werkzeug")
 log.setLevel(logging.ERROR)
+
 
 def _get_port() -> int:
     try:
@@ -25,6 +27,7 @@ def _get_port() -> int:
     finally:
         sock.close()
     return port
+
 
 def view(filename: str, port: int, open_browser: bool = True):
     if filename is not None:
@@ -46,10 +49,12 @@ class ZnDraw(collections.abc.MutableSequence):
         self._view_thread = None
         if self.url is None:
             port = _get_port()
-            self._view_thread = threading.Thread(target=view, args=(None, port, not self.jupyter), daemon=True)
+            self._view_thread = threading.Thread(
+                target=view, args=(None, port, not self.jupyter), daemon=True
+            )
             self._view_thread.start()
             self.url = f"http://127.0.0.1:{port}"
-        self.socket.connect(self.url)    
+        self.socket.connect(self.url)
 
     # def __del__(self):
     #     if self._view_thread is not None:
@@ -68,9 +73,7 @@ class ZnDraw(collections.abc.MutableSequence):
     def _repr_html_(self):
         from IPython.display import IFrame
 
-        return IFrame(
-            src=self.url, width="100%", height="600px"
-        )._repr_html_()
+        return IFrame(src=self.url, width="100%", height="600px")._repr_html_()
 
     def __delitem__(self, index):
         pass
@@ -90,14 +93,16 @@ class ZnDraw(collections.abc.MutableSequence):
         def on_download(data):
             nonlocal downloaded_data
             for key, val in data.items():
-                downloaded_data.append(ase.Atoms(
-                    numbers=val["numbers"],
-                    cell=val["cell"],
-                    pbc=True,
-                    positions=val["positions"],
-                ))
+                downloaded_data.append(
+                    ase.Atoms(
+                        numbers=val["numbers"],
+                        cell=val["cell"],
+                        pbc=True,
+                        positions=val["positions"],
+                    )
+                )
             get_item_event.set()
-        
+
         self.socket.on("atoms:download", on_download)
         get_item_event.wait()
 
@@ -109,7 +114,7 @@ class ZnDraw(collections.abc.MutableSequence):
     def _set_item(self, index, value):
         assert isinstance(value, ase.Atoms), "Must be an ASE Atoms object"
         assert isinstance(index, int), "Index must be an integer"
-        self.socket.emit("atoms:upload", {index: atoms_to_json(value)}) 
+        self.socket.emit("atoms:upload", {index: atoms_to_json(value)})
 
     def __setitem__(self, index, value):
         self._set_item(index, value)
@@ -121,4 +126,3 @@ class ZnDraw(collections.abc.MutableSequence):
 
     def insert(self, index, value):
         pass
-

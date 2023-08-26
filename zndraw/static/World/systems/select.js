@@ -8,6 +8,35 @@ class Selection {
     this.socket = socket;
     this.controls = controls;
 
+    this.controls.getCenter = () => {
+      const particlesGroup = this.scene.getObjectByName('particlesGroup');
+      return particlesGroup.get_center();
+    };
+
+    // use c keypress to center the camera on the selection
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'c') {       
+        // get the first object that is selected
+        const particlesGroup = this.scene.getObjectByName('particlesGroup');
+
+        particlesGroup.children.every((x) => {
+          if (this.selection.includes(x.name)) {
+            this.controls.target = x.position;
+            this.controls.enablePan = false;
+            return false;
+            // TODO: don't use the first but the COM of the selection
+          }
+          return true;
+        });        
+      }
+    });
+    document.addEventListener('keyup', (event) => {
+      if (event.key === 'c') {
+        this.controls.target = this.controls.target.clone();
+        this.controls.enablePan = true;
+      }
+    });
+
     this.line3D = line3D;
 
     this.raycaster = new THREE.Raycaster();
