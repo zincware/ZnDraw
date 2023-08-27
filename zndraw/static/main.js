@@ -71,6 +71,16 @@ function main() {
     });
   });
 
+  const helpBtn = document.getElementById("HelpBtn");
+
+  helpBtn.addEventListener("mouseover", () => {
+    new bootstrap.Collapse(document.getElementById("helpBoxCollapse"), { toggle: false }).show();
+  });
+  helpBtn.addEventListener("mouseout", () => {
+    new bootstrap.Collapse(document.getElementById("helpBoxCollapse"), { toggle: false }).hide();
+  });
+  
+
   socket.emit('atoms:request', null, () => {
     world.setStep(0);
     // disable loading screen

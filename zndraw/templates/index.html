@@ -56,7 +56,7 @@
 
   <nav class="navbar fixed-top navbar-expand-sm bg-light"> <!-- navbar-expand to use smaller breakpoint -->
     <div class="container-fluid">
-      <a class="navbar-brand">
+      <a class="navbar-brand" id="HelpBtn">
         <!-- <img src="{{ url_for('static', filename='favion-192x192.png') }}" alt="ZnDraw Logo" width="30" height="24"> -->
         ZnDraw
       </a>
@@ -113,13 +113,17 @@
           <!-- <a class="btn btn-outline-primary mx-1" target="_blank" href="download" role="button" id="downloadBtn"><i class="fas fa-download"></i>
             Download</a> -->
 
-          <button type="button" class="btn btn-outline-primary mx-1" id="downloadBtn"><i class="fas fa-download"></i> Download</button>
-          <button class="btn btn-outline-primary mx-1" type="button" data-bs-toggle="collapse"
+          <button type="button" class="btn btn-outline-primary mx-1" id="downloadBtn"><i class="fas fa-download"></i>
+            Download</button>
+          <!-- <button class="btn btn-outline-primary mx-1" type="button" data-toggle="tooltip" data-bs-toggle="collapse"
             data-bs-target="#helpBoxCollapse" aria-expanded="false" aria-controls="helpBoxCollapse">
-            <i class="fas fa-question-circle"></i> Help
-          </button>
+            <i class="fas fa-question-circle"></i> Help </button>-->
           <a class="btn btn-outline-danger mx-1" href="/exit" role="button"><i class="fa-solid fa-circle-xmark"></i>
             EXIT</a>
+          <!-- <button type="button" class="btn btn-outline-primary mx-1" id="HelpBtn"><i
+              class="fas fa-question-circle"></i> Help</button> -->
+
+          <!-- <i class="fas fa-question-circle" id="HelpBtn"></i> -->
           <!-- <button class="btn btn-outline-primary mx-1" type="button" data-bs-toggle="collapse"
             data-bs-target="#helpBoxCollapse" aria-expanded="false" aria-controls="helpBoxCollapse">
             <i class="fas fa-question-circle"></i> Help
@@ -243,7 +247,8 @@
 
       <div class="mb-3">
         <button type="button" class="btn btn-secondary" id="drawAddCanvas"><i class="fa-solid fa-plus"></i> Add</button>
-        <button type="button" class="btn btn-secondary" id="drawRemoveCanvas"><i class="fa-solid fa-trash"></i> Remove</button>
+        <button type="button" class="btn btn-secondary" id="drawRemoveCanvas"><i class="fa-solid fa-trash"></i>
+          Remove</button>
       </div>
 
 

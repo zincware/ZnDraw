@@ -253,7 +253,6 @@ def scene_schema():
             description="Show the simulation box.",
         )
 
-
     schema = Scene.model_json_schema()
 
     schema["properties"]["wireframe"]["format"] = "checkbox"
