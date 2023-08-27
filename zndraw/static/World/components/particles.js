@@ -279,7 +279,7 @@ class ParticlesGroup extends THREE.Group {
         new THREE.LineBasicMaterial({ color: '#000000' }),
       );
       this.cell_lines.position.set(cell[0][0] / 2, cell[1][1] / 2, cell[2][2] / 2);
-      this.cell_lines.set_selection = (selected) => {};
+      this.cell_lines.set_selection = (selected) => { };
       this.add(this.cell_lines);
     }
   }
@@ -296,4 +296,59 @@ class ParticlesGroup extends THREE.Group {
   }
 }
 
-export { ParticlesGroup };
+class ParticleIndexGroup extends THREE.Group {
+  constructor(particlesGroup) {
+    super();
+    this.particlesGroup = particlesGroup;
+
+    this.show_labels = false;
+
+    document.addEventListener('keydown', (event) => {
+      if (event.repeat) {
+        return;
+      }
+      if (event.isComposing || event.key === 'i') {
+        this.toggle();
+      }
+    });
+
+  }
+
+  toggle() {
+    this.show_labels = !this.show_labels;
+    if (this.show_labels) {
+      this.show();
+    } else {
+      this.hide();
+    }
+
+  }
+
+  show() {
+    this.particlesGroup.children.forEach((particle) => {
+      const text = document.createElement("div");
+      text.className = "label";
+      text.style.color = "black";
+      text.textContent = particle.name;
+      text.style.fontSize = "20px";
+
+      const label = new CSS2DObject(text);
+      label.position.set(...particle.position);
+      this.add(label);
+    });
+  }
+
+  step(frame) {
+    if (this.show_labels) {
+      this.hide();
+      this.show();
+    }
+  }
+
+
+  hide() {
+    this.clear();
+  }
+}
+
+export { ParticlesGroup, ParticleIndexGroup };

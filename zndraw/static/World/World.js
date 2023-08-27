@@ -6,7 +6,7 @@ import { createControls, createTransformControls } from './systems/controls.js';
 import { createRenderer, create2DRenderer } from './systems/renderer.js';
 import { Resizer } from './systems/Resizer.js';
 import { Loop } from './systems/Loop.js';
-import { ParticlesGroup } from './components/particles.js';
+import { ParticlesGroup, ParticleIndexGroup } from './components/particles.js';
 import { Selection } from './systems/select.js';
 
 import { Line3D, Canvas3D } from './components/draw.js';
@@ -149,6 +149,7 @@ class World {
     this.particles = new ParticlesGroup(socket, cache);
     this.line3D = new Line3D(camera, renderer);
     const canvas3D = new Canvas3D();
+    const index_grp = new ParticleIndexGroup(this.particles);
 
     selection = new Selection(
       camera,
@@ -161,7 +162,7 @@ class World {
 
     const light = createLights();
 
-    scene.add(this.particles, light, camera, this.line3D, canvas3D); // index, transform_controls
+    scene.add(this.particles, light, camera, this.line3D, canvas3D, index_grp); // index, transform_controls
 
     // attach the canvas3D to the camera while t is pressed. attach to the scene when released
     document.addEventListener("keydown", (event) => {
@@ -177,7 +178,7 @@ class World {
     });
 
     loop.tick_updatables.push(controls);
-    loop.step_updatables.push(this.particles, selection);
+    loop.step_updatables.push(this.particles, selection, index_grp);
 
     const resizer = new Resizer(container, camera, renderer, renderer2d);
 
