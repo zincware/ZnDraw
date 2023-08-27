@@ -58,11 +58,11 @@ class Selection {
 
     // event on backspace
     document.addEventListener('keydown', (event) => {
-      if (event.key === 'Backspace') {
+      if (event.key === 'Backspace' && document.activeElement === document.body) {
         this.line3D.removePointer(this.transform_controls.object);
         this.transform_controls.detach();
       }
-      if (event.key === 'Escape') {
+      if (event.key === 'Escape' && document.activeElement === document.body) {
         this.transform_controls.detach();
         if (this._drawing) {
           this._drawing = false;
