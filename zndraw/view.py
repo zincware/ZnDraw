@@ -109,6 +109,7 @@ class ZnDraw(collections.abc.MutableSequence):
         assert isinstance(value, ase.Atoms), "Must be an ASE Atoms object"
         assert isinstance(index, int), "Index must be an integer"
         self.socket.emit("atoms:upload", {index: atoms_to_json(value)})
+        self.socket.emit("view:set", index)
 
     def __setitem__(self, index, value):
         self._set_item(index, value)
@@ -116,7 +117,7 @@ class ZnDraw(collections.abc.MutableSequence):
 
     def display(self, index):
         """Display the atoms at the given index"""
-        self.socket.emit("display", index)
+        self.socket.emit("view:set", index)
 
     def insert(self, index, value):
         pass
