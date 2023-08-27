@@ -13,14 +13,6 @@ class Loop {
     this.step_updatables = [];
 
     this.step = 0;
-
-    this.config = { max_fps: 60 };
-    // Update the config object when the server sends a new one
-    socket.on('config', (data) => {
-      this.config = data;
-      console.log('Loop config:');
-      console.log(this.config);
-    });
   }
 
   start() {
