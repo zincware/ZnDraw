@@ -9,7 +9,28 @@ JSONEditor.defaults.options.no_additional_properties = true;
 export function initJSONEditor(socket, cache, world) {
   modifier_editor(socket, cache, world);
   analysis_editor(socket, cache, world);
+  scene_editor(socket, cache, world);
 }
+
+function scene_editor(socket, cache, world) {
+  socket.emit('scene:schema', { data: "hello world" }, (data) => {
+    const editor = new JSONEditor(
+      document.getElementById('scene-json-editor'),
+      {
+        schema: data,
+      },
+    );
+    
+    const submit_button = document.getElementById('scene-json-editor-submit');
+    submit_button.addEventListener('click', () => {
+      // Get the value from the editor
+      const value = editor.getValue();
+      console.log(value);
+      world.rebuild(value.resolution);
+    });
+  });
+}
+
 
 function analysis_editor(socket, cache, world) {
   let editor = new JSONEditor(
@@ -61,7 +82,7 @@ function analysis_editor(socket, cache, world) {
       atoms_list: cache.getAllAtoms(),
     }, (data) => {
       Plotly.newPlot("analysisPlot", JSON.parse(data));
-      
+
       function buildPlot() {
         Plotly.newPlot("analysisPlot", JSON.parse(data));
         const myplot = document.getElementById("analysisPlot");
@@ -71,12 +92,12 @@ function analysis_editor(socket, cache, world) {
           world.setStep(step);
         });
       }
-      
+
       // resizeObserver = new ResizeObserver(() => {
       //   buildPlot();
       // }).observe(document.getElementById("analysisPlot").parentElement);
 
-      buildPlot();      
+      buildPlot();
 
     });
 
@@ -85,11 +106,11 @@ function analysis_editor(socket, cache, world) {
     setTimeout(() => {
       document.getElementById("analysis-json-editor-submit").disabled = false;
     }, 1000);
-  }); 
+  });
 
   function get_analysis_data() {
     if (cache.get(0) !== undefined) {
-      socket.emit('analysis:schema', {atoms: cache.get(0)});
+      socket.emit('analysis:schema', { atoms: cache.get(0) });
     } else {
       setTimeout(get_analysis_data, 100);
     }
@@ -142,7 +163,7 @@ function modifier_editor(socket, cache, world) {
       const value = editor.getValue();
       console.log(value);
 
-      const {points, segments}  = world.getLineData();
+      const { points, segments } = world.getLineData();
 
       socket.emit('modifier:run', {
         name: selection.options[selection.selectedIndex].text,

@@ -132,7 +132,7 @@ class World {
     //   controls,
     // );
 
-    const particles = new ParticlesGroup(socket, cache);
+    this.particles = new ParticlesGroup(socket, cache);
     this.line3D = new Line3D(camera, renderer);
     const canvas3D = new Canvas3D();
 
@@ -147,7 +147,7 @@ class World {
 
     const light = createLights();
 
-    scene.add(particles, light, camera, this.line3D, canvas3D); // index, transform_controls
+    scene.add(this.particles, light, camera, this.line3D, canvas3D); // index, transform_controls
 
     // attach the canvas3D to the camera while t is pressed. attach to the scene when released
     document.addEventListener("keydown", (event) => {
@@ -163,7 +163,7 @@ class World {
     });
 
     loop.tick_updatables.push(controls);
-    loop.step_updatables.push(particles, selection);
+    loop.step_updatables.push(this.particles, selection);
 
     const resizer = new Resizer(container, camera, renderer, renderer2d);
 
@@ -183,7 +183,10 @@ class World {
   /**
    * Rebuild all objects in the scene
    */
-  rebuild() {}
+  rebuild(resolution) {
+    this.particles.rebuild(resolution);
+    this.setStep(loop.step);
+  }
 
   setStep(step) {
     step = parseInt(step);

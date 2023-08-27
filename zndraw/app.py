@@ -222,3 +222,15 @@ def upload(data):
             atoms_dict = atoms_to_json(atoms)
             io.emit("atoms:upload", {idx: atoms_dict})
     emit("view:set", 0)
+
+@io.on("scene:schema")
+def scene_schema(data):
+    from pydantic import BaseModel, Field
+    print(f"scene:schema {data = }")
+
+    # create a class for the material, resolution, etc.
+    class Scene(BaseModel):
+        material: str = Field("standard", description="Material")
+        resolution: int = Field(1000, description="Resolution")
+
+    return Scene.model_json_schema()

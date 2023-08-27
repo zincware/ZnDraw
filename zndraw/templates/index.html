@@ -79,12 +79,12 @@
               <i class="fas fa-retweet"></i> Interaction
             </button>
           </li>
-          <!-- <li class="nav-item mx-1">
+          <li class="nav-item mx-1">
             <button class="btn btn-outline-secondary" type="button" data-bs-toggle="offcanvas"
               data-bs-target="#sceneCanvas" aria-controls="sceneCanvas" onclick="document.activeElement.blur();">
               <i class="fas fa-cube"></i> Scene
             </button>
-          </li> -->
+          </li>
           <li class="nav-item mx-1">
             <button class="btn btn-outline-secondary" type="button" data-bs-toggle="offcanvas"
               data-bs-target="#drawCanvas" aria-controls="drawCanvas" onclick="document.activeElement.blur();">
@@ -200,48 +200,8 @@
       <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
     </div>
     <div class="offcanvas-body">
-      <div class="mb-3">
-        <label for="cameraLightIntensity" class="form-label" id="cameraLightIntensityLabel">Camera light intensity:
-          1.0</label>
-        <input type="range" class="form-range" min="0" max="1" step="0.01" id="cameraLightIntensity" value="1">
-      </div>
-      <div class="mb-3">
-        <label for="spotLightIntensity" class="form-label" id="spotLightIntensityLabel">Spot light intensity:
-          0.0</label>
-        <input type="range" class="form-range" min="0" max="1" step="0.01" id="spotLightIntensity" value="0">
-      </div>
-      <div class="mb-3">
-        <label for="hemisphereLightIntensity" class="form-label" id="hemisphereLightIntensityLabel">Hemisphere light
-          intensity: 1.0</label>
-        <input type="range" class="form-range" min="0" max="1" step="0.01" id="hemisphereLightIntensity" value="0.1">
-      </div>
-      <div class="mb-3">
-        <label for="max_fps" class="form-label" id="max_fpsLabel">Max FPS: {{ config.max_fps }}</label>
-        <input type="range" class="form-range" min="1" max="100" step="0.5" id="max_fps" value="{{ config.max_fps }}" ,
-          oninput="max_fpsLabel.innerHTML = 'Max FPS: ' + this.value">
-      </div>
-      <div class="mb-3">
-        <input class="form-check-input" type="checkbox" value="" id="autoRestart">
-        <label class="form-check-label" for="autoRestart">
-          Auto Restart
-        </label>
-      </div>
-      <div class="mb-3">
-        <input class="form-check-input" type="checkbox" value="" id="continuousLoading" {{ "checked" if
-          config['continuous_loading'] }}>
-        <label class="form-check-label" for="continuousLoading">
-          Continuous Loading of new data.
-        </label>
-      </div>
-      <div class="mb-3">
-        <input class="form-check-input" type="checkbox" value="" id="showBox">
-        <label for="showBox" class="form-label">Show Box (static)</label>
-      </div>
-      <div class="mb-3">
-        <button type="button" class="btn btn-secondary" id="reset">Reset Scene</button>
-        <button type="button" class="btn btn-secondary" id="animate" {% if config.update_function %} disabled {% endif
-          %}>Load Animation</button>
-      </div>
+      <div id='scene-json-editor'></div>
+      <button type="button" id='scene-json-editor-submit' class="btn btn-primary w-100"><i class="fa-solid fa-check"></i> Apply Changes</button>
     </div>
   </div>
 

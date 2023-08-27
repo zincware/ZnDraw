@@ -94,15 +94,20 @@ export const speciesMaterial = speciesMaterialFactory();
  * Contain a single Particle and its connections
  */
 class ParticleGroup extends THREE.Group {
-  constructor(particle) {
+  constructor(particle, resolution) {
     super();
+
+    this.resolution = resolution;
+
     const particle_mesh = new THREE.Mesh(
-      sphereGeometry(particle.radius, 10),
+      sphereGeometry(particle.radius, this.resolution),
       speciesMaterial('MeshPhongMaterial', particle.color, false),
     );
     this.add(particle_mesh);
     this.name = particle.id;
     this._original_material = particle_mesh.material;
+
+    
 
     this.position.set(...particle.position);
   }
@@ -142,7 +147,7 @@ class ParticleGroup extends THREE.Group {
       particle_group.children[0],
       this.children[0].material,
       1.3,
-      8,
+      this.resolution,
     );
     this.add(bond_mesh);
     // Store all the bond information, don't pass the mesh or group here
@@ -173,6 +178,14 @@ class ParticlesGroup extends THREE.Group {
       console.log('ParticlesGroup config:');
       console.log(this.config);
     });
+    this.resolution = 10;
+  }
+
+  rebuild(resolution) {
+    // remove all children
+    // this.children.forEach((x) => x.removeFromParent());
+    this.clear();
+    this.resolution = resolution;
   }
 
   tick() {}
@@ -196,7 +209,7 @@ class ParticlesGroup extends THREE.Group {
     deleted_particles = this.children.filter((x) => x.name >= particles.length);
 
     new_particles.forEach((particle) => {
-      this.add(new ParticleGroup(particle));
+      this.add(new ParticleGroup(particle, this.resolution));
     });
 
     existing_particles.forEach((particle) => {
