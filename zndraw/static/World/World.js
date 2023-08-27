@@ -28,6 +28,7 @@ class Player {
     this.playing = false;
     this.fps = 30;
     this.cache = cache;
+    this.loop = false;
 
     socket.on("view:set", (index) => {
       this.world.setStep(index);
@@ -83,6 +84,10 @@ class Player {
     };
   }
 
+  setLoop(loop) {
+    this.loop = loop;
+  }
+
   toggle() {
     this.playing = !this.playing;
     if (this.playing) this.play();
@@ -91,7 +96,12 @@ class Player {
   go_forward(step = 1) {
     let new_step = this.world.getStep() + step;
     if (new_step >= this.cache.get_length()) {
-      new_step = step - 1;
+      if (this.loop) {
+        new_step = step - 1;
+      } else {
+        new_step = this.world.getStep();
+        this.playing = false;
+      }
     }
     this.world.setStep(new_step);
   }
@@ -99,7 +109,11 @@ class Player {
   go_backward(step = 1) {
     let new_step = this.world.getStep() - step;
     if (new_step < 0) {
-      new_step = this.cache.get_length() - step;
+      if (this.loop) {
+        new_step = this.cache.get_length() - step;
+      } else {
+        new_step = 0;
+      }
     }
     this.world.setStep(new_step);
   }
@@ -183,8 +197,8 @@ class World {
   /**
    * Rebuild all objects in the scene
    */
-  rebuild(resolution) {
-    this.particles.rebuild(resolution);
+  rebuild(resolution, material, wireframe) {
+    this.particles.rebuild(resolution, material, wireframe);
     this.setStep(loop.step);
   }
 
@@ -219,62 +233,5 @@ class World {
     return { points, segments };
   }
 }
-
-// class World {
-//   constructor(container, cache) {
-
-//     selection = new Selection(camera, scene, config);
-
-//
-
-//
-//     const index = createIndexGroup(particles);
-//
-//
-
-//     window.addEventListener("keydown", (event) => {
-//       if (event.isComposing || event.key === "i") {
-//         index.show();
-//       }
-//     });
-//     // remove index group when i is released
-//     window.addEventListener("keyup", (event) => {
-//       if (event.isComposing || event.key === "i") {
-//         index.hide();
-//       }
-//     });
-
-//     document.getElementById("reset").onclick = () => {
-//       this.deleteCache();
-//       this.rebuild();
-//     };
-
-//
-
-//     // disable mesh rotation
-//     loop.constraint_updatables.push(index);
-//
-
-//
-//   }
-
-//   render() {
-//     // draw a single frame
-//
-//   }
-//   start() {
-//
-//   }
-
-//   stop() {
-//     loop.stop();
-//   }
-
-//   rebuild() {
-//     // remove all children from particles
-//     scene.children[0].clear();
-//   }
-
-// }
 
 export { World, Player };

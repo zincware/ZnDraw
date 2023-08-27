@@ -223,14 +223,41 @@ def upload(data):
             io.emit("atoms:upload", {idx: atoms_dict})
     emit("view:set", 0)
 
+
 @io.on("scene:schema")
-def scene_schema(data):
+def scene_schema():
+    import enum
+
     from pydantic import BaseModel, Field
-    print(f"scene:schema {data = }")
+
+    class Material(str, enum.Enum):
+        MeshBasicMaterial = "MeshBasicMaterial"
+        MeshLambertMaterial = "MeshLambertMaterial"
+        MeshMatcapMaterial = "MeshMatcapMaterial"
+        MeshPhongMaterial = "MeshPhongMaterial"
+        MeshPhysicalMaterial = "MeshPhysicalMaterial"
+        MeshStandardMaterial = "MeshStandardMaterial"
+        MeshToonMaterial = "MeshToonMaterial"
 
     # create a class for the material, resolution, etc.
     class Scene(BaseModel):
-        material: str = Field("standard", description="Material")
-        resolution: int = Field(1000, description="Resolution")
+        material: Material = Field(Material.MeshPhongMaterial, description="Material")
+        resolution: int = Field(10, ge=1, le=50, description="Resolution")
+        wireframe: bool = Field(False, description="Wireframe")
+        loop: bool = Field(
+            False,
+            alias="Animation Loop",
+            description="Automatically restart animation when finished.",
+        )
 
-    return Scene.model_json_schema()
+    schema = Scene.model_json_schema()
+
+    schema["properties"]["wireframe"]["format"] = "checkbox"
+    schema["properties"]["Animation Loop"]["format"] = "checkbox"
+    schema["properties"]["resolution"]["format"] = "range"
+
+    import json
+
+    print(json.dumps(schema, indent=2))
+
+    return schema

@@ -6,27 +6,24 @@ JSONEditor.defaults.options.disable_properties = true;
 JSONEditor.defaults.options.disable_collapse = true;
 JSONEditor.defaults.options.no_additional_properties = true;
 
-export function initJSONEditor(socket, cache, world) {
+export function initJSONEditor(socket, cache, world, player) {
   modifier_editor(socket, cache, world);
   analysis_editor(socket, cache, world);
-  scene_editor(socket, cache, world);
+  scene_editor(socket, cache, world, player);
 }
 
-function scene_editor(socket, cache, world) {
-  socket.emit('scene:schema', { data: "hello world" }, (data) => {
+function scene_editor(socket, cache, world, player) {
+  socket.emit('scene:schema', (data) => {
     const editor = new JSONEditor(
       document.getElementById('scene-json-editor'),
       {
         schema: data,
       },
     );
-    
-    const submit_button = document.getElementById('scene-json-editor-submit');
-    submit_button.addEventListener('click', () => {
-      // Get the value from the editor
+    editor.on('change', () => {
       const value = editor.getValue();
-      console.log(value);
-      world.rebuild(value.resolution);
+      world.rebuild(value.resolution, value.material, value.wireframe);
+      player.setLoop(value["Animation Loop"]);
     });
   });
 }

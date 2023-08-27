@@ -56,7 +56,7 @@ function main() {
   const player = new Player(world, cache, socket);
 
   setUIEvents(socket, world);
-  initJSONEditor(socket, cache, world);
+  initJSONEditor(socket, cache, world, player);
   world.start();
 
   document.getElementById("downloadBtn").addEventListener("click", () => {

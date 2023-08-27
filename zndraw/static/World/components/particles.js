@@ -94,14 +94,16 @@ export const speciesMaterial = speciesMaterialFactory();
  * Contain a single Particle and its connections
  */
 class ParticleGroup extends THREE.Group {
-  constructor(particle, resolution) {
+  constructor(particle, resolution, material, wireframe) {
     super();
 
     this.resolution = resolution;
+    this.material = material;
+    this.wireframe = wireframe;
 
     const particle_mesh = new THREE.Mesh(
       sphereGeometry(particle.radius, this.resolution),
-      speciesMaterial('MeshPhongMaterial', particle.color, false),
+      speciesMaterial(this.material, particle.color, this.wireframe),
     );
     this.add(particle_mesh);
     this.name = particle.id;
@@ -115,9 +117,9 @@ class ParticleGroup extends THREE.Group {
   update(particle) {
     const scale = particle.radius / this.children[0].geometry.parameters.radius;
     const material = speciesMaterial(
-      'MeshPhongMaterial',
+      this.material,
       particle.color,
-      false,
+      this.wireframe,
     );
     // this command may update the selected material
     this._original_material = material;
@@ -157,7 +159,7 @@ class ParticleGroup extends THREE.Group {
   set_selection(selected) {
     if (selected) {
       // see https://threejs.org/examples/#webgl_postprocessing_unreal_bloom_selective for inspiration
-      const material = speciesMaterial('MeshPhongMaterial', '#ffa500', false);
+      const material = speciesMaterial(this.material, '#ffa500', this.wireframe);
       this.children.forEach((x) => (x.material = material));
     } else {
       this.children.forEach((x) => (x.material = this._original_material));
@@ -179,13 +181,17 @@ class ParticlesGroup extends THREE.Group {
       console.log(this.config);
     });
     this.resolution = 10;
+    this.material = 'MeshPhongMaterial';
+    this.wireframe = false;
   }
 
-  rebuild(resolution) {
+  rebuild(resolution, material, wireframe) {
     // remove all children
     // this.children.forEach((x) => x.removeFromParent());
     this.clear();
     this.resolution = resolution;
+    this.material = material;
+    this.wireframe = wireframe;
   }
 
   tick() {}
@@ -209,7 +215,7 @@ class ParticlesGroup extends THREE.Group {
     deleted_particles = this.children.filter((x) => x.name >= particles.length);
 
     new_particles.forEach((particle) => {
-      this.add(new ParticleGroup(particle, this.resolution));
+      this.add(new ParticleGroup(particle, this.resolution, this.material, this.wireframe));
     });
 
     existing_particles.forEach((particle) => {
