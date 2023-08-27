@@ -256,8 +256,8 @@ def scene_schema():
     schema["properties"]["Animation Loop"]["format"] = "checkbox"
     schema["properties"]["resolution"]["format"] = "range"
 
-    import json
+    # import json
 
-    print(json.dumps(schema, indent=2))
+    # print(json.dumps(schema, indent=2))
 
     return schema
