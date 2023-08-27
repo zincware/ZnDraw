@@ -109,7 +109,7 @@ class ParticleGroup extends THREE.Group {
     this.name = particle.id;
     this._original_material = particle_mesh.material;
 
-    
+
 
     this.position.set(...particle.position);
   }
@@ -183,18 +183,22 @@ class ParticlesGroup extends THREE.Group {
     this.resolution = 10;
     this.material = 'MeshPhongMaterial';
     this.wireframe = false;
+    this.cell = true;
+    this.cell_lines = undefined;
+
   }
 
-  rebuild(resolution, material, wireframe) {
+  rebuild(resolution, material, wireframe, simulation_box) {
     // remove all children
     // this.children.forEach((x) => x.removeFromParent());
     this.clear();
     this.resolution = resolution;
     this.material = material;
     this.wireframe = wireframe;
+    this.cell = simulation_box;
   }
 
-  tick() {}
+  tick() { }
 
   _updateParticles(particles) {
     const existing_particles = [];
@@ -263,12 +267,30 @@ class ParticlesGroup extends THREE.Group {
     });
   }
 
+  updateCell(cell) {
+    if (this.cell) {
+      if (this.cell_lines) {
+        this.remove(this.cell_lines);
+      }
+      const boxGeometry = new THREE.BoxGeometry(cell[0][0], cell[1][1], cell[2][2]);
+      const wireframe = new THREE.EdgesGeometry(boxGeometry);
+      this.cell_lines = new THREE.LineSegments(
+        wireframe,
+        new THREE.LineBasicMaterial({ color: '#000000' }),
+      );
+      this.cell_lines.position.set(cell[0][0] / 2, cell[1][1] / 2, cell[2][2] / 2);
+      this.cell_lines.set_selection = (selected) => {};
+      this.add(this.cell_lines);
+    }
+  }
+
   step(frame) {
     const particles = this.cache.get(frame);
     if (particles == null) {
       // nothing to display
     } else {
       this._updateParticles(particles);
+      this.updateCell(particles.cell);
       this._updateBonds(particles.connectivity);
     }
   }

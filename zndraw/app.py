@@ -41,7 +41,6 @@ def exit_io():
 @io.on("atoms:request")
 def atoms_request(data):
     """Return the atoms."""
-    print(f"atoms:request {data = }")
     if "filename" in app.config:
         for idx, atoms_dict in enumerate(get_atomsdict_list(app.config["filename"])):
             emit("atoms:upload", atoms_dict)
@@ -92,7 +91,7 @@ def modifier_run(data):
     # available_methods = {x.__name__: x for x in [Explode, Duplicate]}
 
     # modifier = available_methods[data["name"]](**data["params"])
-    print(f"modifier:run {modifier = } from {data['params'] = }")
+    print(f"modifier:run {modifier = }")
     atoms_list = modifier.run(
         atom_ids=data["selection"], atoms=atoms, points=points, segments=segments
     )
@@ -174,7 +173,7 @@ def download(data):
     import ase.io
 
     file = StringIO()
-    ase.io.write(file, atoms, format="xyz")
+    ase.io.write(file, atoms, format="extxyz")
     file.seek(0)
     return file.read()
 
@@ -249,11 +248,17 @@ def scene_schema():
             alias="Animation Loop",
             description="Automatically restart animation when finished.",
         )
+        simulation_box: bool = Field(
+            False,
+            description="Show the simulation box.",
+        )
+
 
     schema = Scene.model_json_schema()
 
     schema["properties"]["wireframe"]["format"] = "checkbox"
     schema["properties"]["Animation Loop"]["format"] = "checkbox"
+    schema["properties"]["simulation_box"]["format"] = "checkbox"
     schema["properties"]["resolution"]["format"] = "range"
 
     # import json

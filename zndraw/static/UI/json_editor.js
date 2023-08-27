@@ -22,7 +22,7 @@ function scene_editor(socket, cache, world, player) {
     );
     editor.on('change', () => {
       const value = editor.getValue();
-      world.rebuild(value.resolution, value.material, value.wireframe);
+      world.rebuild(value.resolution, value.material, value.wireframe, value.simulation_box);
       player.setLoop(value["Animation Loop"]);
     });
   });

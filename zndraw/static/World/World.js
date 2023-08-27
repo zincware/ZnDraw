@@ -197,8 +197,8 @@ class World {
   /**
    * Rebuild all objects in the scene
    */
-  rebuild(resolution, material, wireframe) {
-    this.particles.rebuild(resolution, material, wireframe);
+  rebuild(resolution, material, wireframe, simulation_box) {
+    this.particles.rebuild(resolution, material, wireframe, simulation_box);
     this.setStep(loop.step);
   }
 
