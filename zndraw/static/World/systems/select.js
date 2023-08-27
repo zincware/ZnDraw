@@ -15,7 +15,7 @@ class Selection {
       return particlesGroup.get_center();
     };
 
-    window.addEventListener("wheel", this.onWheel.bind(this));
+    window.addEventListener('wheel', this.onWheel.bind(this));
 
     // use c keypress to center the camera on the selection
     document.addEventListener('keydown', (event) => {
@@ -76,7 +76,6 @@ class Selection {
       controls.enabled = !event.value;
     });
     this.transform_controls.addEventListener('objectChange', () => {
-
       if (this.transform_controls.object.name === 'Canvas3DGroup') {
         // nothing to do
       } else {
@@ -186,7 +185,7 @@ class Selection {
     for (let i = 0; i < intersections.length; i++) {
       const { object } = intersections[i];
       if (object.name === 'canvas3D') {
-        console.log("scrolled on canvas3D");
+        console.log('scrolled on canvas3D');
         // there must be a better way to disable scrolling while over the canvas
         this.controls.enabled = false;
         if (scroll_timer) {

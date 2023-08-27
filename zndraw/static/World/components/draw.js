@@ -13,38 +13,38 @@ export class Canvas3D extends THREE.Group {
 
     let geometry;
 
-    document.getElementById("drawAddCanvas").addEventListener("click", () => {
+    document.getElementById('drawAddCanvas').addEventListener('click', () => {
       this.remove(this.getObjectByName('canvas3D'));
       this.remove(this.getObjectByName('canvas3D-wireframe'));
 
       // TODO use json-forms to create dynamic forms for each geometry
 
-      const geometry_name = document.getElementById("drawCanvasSelect").value;
-      if (geometry_name === "PlaneGeometry") {
+      const geometry_name = document.getElementById('drawCanvasSelect').value;
+      if (geometry_name === 'PlaneGeometry') {
         geometry = new THREE.PlaneGeometry(10, 10);
-      } else if (geometry_name === "BoxGeometry") {
+      } else if (geometry_name === 'BoxGeometry') {
         geometry = new THREE.BoxGeometry(10, 10, 10);
-      } else if (geometry_name === "CircleGeometry") {
+      } else if (geometry_name === 'CircleGeometry') {
         geometry = new THREE.CircleGeometry(5, 32);
-      } else if (geometry_name === "ConeGeometry") {
+      } else if (geometry_name === 'ConeGeometry') {
         geometry = new THREE.ConeGeometry(5, 20, 32);
-      } else if (geometry_name === "CylinderGeometry") {
+      } else if (geometry_name === 'CylinderGeometry') {
         geometry = new THREE.CylinderGeometry(5, 5, 20, 32);
-      } else if (geometry_name === "DodecahedronGeometry") {
+      } else if (geometry_name === 'DodecahedronGeometry') {
         geometry = new THREE.DodecahedronGeometry(5);
-      } else if (geometry_name === "IcosahedronGeometry") {
+      } else if (geometry_name === 'IcosahedronGeometry') {
         geometry = new THREE.IcosahedronGeometry(5);
-      } else if (geometry_name === "OctahedronGeometry") {
+      } else if (geometry_name === 'OctahedronGeometry') {
         geometry = new THREE.OctahedronGeometry(5);
-      } else if (geometry_name === "RingGeometry") {
+      } else if (geometry_name === 'RingGeometry') {
         geometry = new THREE.RingGeometry(1, 5, 32);
-      } else if (geometry_name === "SphereGeometry") {
+      } else if (geometry_name === 'SphereGeometry') {
         geometry = new THREE.SphereGeometry(5, 32, 32);
-      } else if (geometry_name === "TetrahedronGeometry") {
+      } else if (geometry_name === 'TetrahedronGeometry') {
         geometry = new THREE.TetrahedronGeometry(5);
-      } else if (geometry_name === "TorusGeometry") {
+      } else if (geometry_name === 'TorusGeometry') {
         geometry = new THREE.TorusGeometry(5, 1, 32, 100);
-      } else if (geometry_name === "TorusKnotGeometry") {
+      } else if (geometry_name === 'TorusKnotGeometry') {
         geometry = new THREE.TorusKnotGeometry(5, 1, 100, 16);
       }
 
@@ -61,7 +61,7 @@ export class Canvas3D extends THREE.Group {
       this.add(plane, wireframe);
     });
 
-    document.getElementById("drawRemoveCanvas").addEventListener("click", () => {
+    document.getElementById('drawRemoveCanvas').addEventListener('click', () => {
       // clean previous canvas
       this.remove(this.getObjectByName('canvas3D'));
       this.remove(this.getObjectByName('canvas3D-wireframe'));

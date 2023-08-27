@@ -23,11 +23,10 @@ function scene_editor(socket, cache, world, player) {
     editor.on('change', () => {
       const value = editor.getValue();
       world.rebuild(value.resolution, value.material, value.wireframe, value.simulation_box);
-      player.setLoop(value["Animation Loop"]);
+      player.setLoop(value['Animation Loop']);
     });
   });
 }
-
 
 function analysis_editor(socket, cache, world) {
   let editor = new JSONEditor(
@@ -78,12 +77,12 @@ function analysis_editor(socket, cache, world) {
       step: world.getStep(),
       atoms_list: cache.getAllAtoms(),
     }, (data) => {
-      Plotly.newPlot("analysisPlot", JSON.parse(data));
+      Plotly.newPlot('analysisPlot', JSON.parse(data));
 
       function buildPlot() {
-        Plotly.newPlot("analysisPlot", JSON.parse(data));
-        const myplot = document.getElementById("analysisPlot");
-        myplot.on("plotly_click", (data) => {
+        Plotly.newPlot('analysisPlot', JSON.parse(data));
+        const myplot = document.getElementById('analysisPlot');
+        myplot.on('plotly_click', (data) => {
           const point = data.points[0];
           const step = point.x;
           world.setStep(step);
@@ -95,13 +94,12 @@ function analysis_editor(socket, cache, world) {
       // }).observe(document.getElementById("analysisPlot").parentElement);
 
       buildPlot();
-
     });
 
-    document.getElementById("analysis-json-editor-submit").disabled = true;
+    document.getElementById('analysis-json-editor-submit').disabled = true;
     // if there is an error in uploading, we still want to be able to submit again
     setTimeout(() => {
-      document.getElementById("analysis-json-editor-submit").disabled = false;
+      document.getElementById('analysis-json-editor-submit').disabled = false;
     }, 1000);
   });
 
@@ -114,7 +112,6 @@ function analysis_editor(socket, cache, world) {
   }
   get_analysis_data();
 }
-
 
 function modifier_editor(socket, cache, world) {
   let editor = new JSONEditor(
@@ -168,14 +165,14 @@ function modifier_editor(socket, cache, world) {
         atoms: cache.get(world.getStep()),
         selection: world.getSelection(),
         step: world.getStep(),
-        points: points,
-        segments: segments,
+        points,
+        segments,
       });
 
-      document.getElementById("interaction-json-editor-submit").disabled = true;
+      document.getElementById('interaction-json-editor-submit').disabled = true;
       // if there is an error in uploading, we still want to be able to submit again
       setTimeout(() => {
-        document.getElementById("interaction-json-editor-submit").disabled = false;
+        document.getElementById('interaction-json-editor-submit').disabled = false;
       }, 1000);
     });
 

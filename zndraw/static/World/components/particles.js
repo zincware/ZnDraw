@@ -109,8 +109,6 @@ class ParticleGroup extends THREE.Group {
     this.name = particle.id;
     this._original_material = particle_mesh.material;
 
-
-
     this.position.set(...particle.position);
   }
 
@@ -185,7 +183,6 @@ class ParticlesGroup extends THREE.Group {
     this.wireframe = false;
     this.cell = true;
     this.cell_lines = undefined;
-
   }
 
   rebuild(resolution, material, wireframe, simulation_box) {
@@ -311,7 +308,6 @@ class ParticleIndexGroup extends THREE.Group {
         this.toggle();
       }
     });
-
   }
 
   toggle() {
@@ -321,16 +317,15 @@ class ParticleIndexGroup extends THREE.Group {
     } else {
       this.hide();
     }
-
   }
 
   show() {
     this.particlesGroup.children.forEach((particle) => {
-      const text = document.createElement("div");
-      text.className = "label";
-      text.style.color = "black";
+      const text = document.createElement('div');
+      text.className = 'label';
+      text.style.color = 'black';
       text.textContent = particle.name;
-      text.style.fontSize = "20px";
+      text.style.fontSize = '20px';
 
       const label = new CSS2DObject(text);
       label.position.set(...particle.position);
@@ -344,7 +339,6 @@ class ParticleIndexGroup extends THREE.Group {
       this.show();
     }
   }
-
 
   hide() {
     this.clear();

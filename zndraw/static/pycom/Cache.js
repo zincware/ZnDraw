@@ -14,7 +14,7 @@ class Atom {
 
 class Atoms {
   constructor({
-    positions, cell, numbers, colors, radii, connectivity, calc
+    positions, cell, numbers, colors, radii, connectivity, calc,
   }) {
     this.positions = positions;
     this.cell = cell;
@@ -57,8 +57,8 @@ class Cache {
     this._last_request = -999999;
 
     this._socket.on('atoms:upload', (data) => {
-      console.log("Received atoms from Python");
-      document.getElementById("interaction-json-editor-submit").disabled = false;
+      console.log('Received atoms from Python');
+      document.getElementById('interaction-json-editor-submit').disabled = false;
       Object.keys(data).forEach((key) => {
         this._cache[key] = new Atoms({
           positions: data[key].positions,
@@ -82,14 +82,13 @@ class Cache {
       //   // this._socket.emit('atoms:download', data);
       //   this._socket.emit('atoms:download', this._cache[x]);
       // });
-      
+
       // send all atoms at once
-      let data = {};
+      const data = {};
       ids.forEach((x) => {
         data[x] = this._cache[x];
       });
       this._socket.emit('atoms:download', data);
-
     });
 
     this._socket.on('atoms:clear', (start_index) => {

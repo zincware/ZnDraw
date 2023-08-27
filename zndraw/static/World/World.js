@@ -30,11 +30,11 @@ class Player {
     this.cache = cache;
     this.loop = false;
 
-    socket.on("view:set", (index) => {
+    socket.on('view:set', (index) => {
       this.world.setStep(index);
     });
 
-    socket.on("view:play", () => {
+    socket.on('view:play', () => {
       this.playing = true;
       this.play();
     });
@@ -165,14 +165,14 @@ class World {
     scene.add(this.particles, light, camera, this.line3D, canvas3D, index_grp); // index, transform_controls
 
     // attach the canvas3D to the camera while t is pressed. attach to the scene when released
-    document.addEventListener("keydown", (event) => {
-      if (event.key == "t") {
+    document.addEventListener('keydown', (event) => {
+      if (event.key == 't') {
         if (camera.children.includes(canvas3D)) {
           scene.attach(canvas3D);
-          document.getElementById("alertBox").style.display = "none";
+          document.getElementById('alertBox').style.display = 'none';
         } else {
           camera.attach(canvas3D);
-          document.getElementById("alertBox").style.display = "block";
+          document.getElementById('alertBox').style.display = 'block';
         }
       }
     });
@@ -230,7 +230,7 @@ class World {
     } catch (error) {
       // console.log(error);
     }
-    
+
     return { points, segments };
   }
 }
