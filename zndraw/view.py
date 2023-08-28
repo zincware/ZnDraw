@@ -44,7 +44,7 @@ def view(filename: str, port: int, open_browser: bool = True):
 class ZnDraw(collections.abc.MutableSequence):
     url: str = None
     socket: socketio.Client = dataclasses.field(default_factory=socketio.Client)
-    jupyter: bool = True
+    jupyter: bool = False
 
     def __post_init__(self):
         self._view_thread = None
@@ -56,6 +56,8 @@ class ZnDraw(collections.abc.MutableSequence):
             self._view_thread.start()
             self.url = f"http://127.0.0.1:{port}"
         self.socket.connect(self.url)
+        if not self.jupyter:
+            self.socket.sleep(2)  # wait for the server to start
 
     # def __del__(self):
     #     if self._view_thread is not None:

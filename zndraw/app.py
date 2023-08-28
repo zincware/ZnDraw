@@ -165,8 +165,6 @@ def selection_run(data):
 
 @io.on("analysis:run")
 def analysis_run(data):
-    print("analysis:run ...")
-    # print(f"analysis:run {data = }")
     atoms_list = [atoms_from_json(x) for x in data["atoms_list"].values()]
 
     print(f"Analysing {len(atoms_list)} frames")
@@ -207,7 +205,6 @@ def atoms_download(data):
 @io.on("atoms:upload")
 def atoms_upload(data):
     """Return the atoms."""
-    print("atoms:upload ...")
     emit("atoms:upload", data, broadcast=True, include_self=False)
 
 
