@@ -60,6 +60,7 @@ def view(filename: str, port: int, open_browser: bool = True, webview: bool = Tr
     if filename is not None:
         app.config["filename"] = filename
     url = f"http://127.0.0.1:{port}"
+    print(f"Starting ZnDraw server at {url}")
 
     if wv is not None and webview:
         multiprocessing.Process(
