@@ -25,7 +25,7 @@ function selection_editor(socket, cache, world) {
 
   socket.emit('selection:schema');
 
-  let editor = undefined;
+  let editor;
   selection.onchange = function () {
     if (editor !== undefined) {
       editor.destroy();
@@ -40,7 +40,7 @@ function selection_editor(socket, cache, world) {
         schema,
       },
     );
-  }
+  };
 
   document.getElementById('selection-json-editor-submit').addEventListener('click', () => {
     // Get the value from the editor
@@ -73,7 +73,7 @@ function scene_editor(socket, cache, world) {
 }
 
 function analysis_editor(socket, cache, world) {
-  let editor = undefined;
+  let editor;
   const selection = document.getElementById('analysis-select');
   selection.onchange = function () {
     if (editor !== undefined) {
@@ -148,7 +148,7 @@ function analysis_editor(socket, cache, world) {
 }
 
 function modifier_editor(socket, cache, world) {
-  let editor = undefined
+  let editor;
   const selection = document.getElementById('modifier-select');
 
   selection.onchange = function () {

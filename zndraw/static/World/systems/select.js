@@ -30,7 +30,7 @@ class Selection {
       return particlesGroup.get_center();
     };
 
-    this.socket.on("selection:run", (data) => {
+    this.socket.on('selection:run', (data) => {
       this.selection = data;
       this.step();
     });
@@ -41,6 +41,7 @@ class Selection {
     document.addEventListener('keydown', (event) => {
       if (event.key === 'c') {
         if (this.controls.enablePan) {
+          document.getElementById('alertBoxCamera').style.display = 'block';
 
           // get the first object that is selected
           const particlesGroup = this.scene.getObjectByName('particlesGroup');
@@ -55,6 +56,7 @@ class Selection {
             return true;
           });
         } else {
+          document.getElementById('alertBoxCamera').style.display = 'none';
           this.controls.target = this.controls.target.clone();
           this.controls.enablePan = true;
         }
@@ -106,7 +108,7 @@ class Selection {
     this._drawing = false;
 
     window.addEventListener('pointerdown', this.onPointerDown.bind(this));
-    window.addEventListener("dblclick", this.onDoubleClick.bind(this));
+    window.addEventListener('dblclick', this.onDoubleClick.bind(this));
 
     // use x keypress to toggle the attachment of onPointerMove
     document.addEventListener('keydown', (event) => {
@@ -149,7 +151,7 @@ class Selection {
   onDoubleClick(event) {
     const intersects = this.getIntersections();
     const particlesGroup = this.scene.getObjectByName('particlesGroup');
-    let selection = [];
+    const selection = [];
     for (let i = 0; i < intersects.length; i++) {
       const { object } = intersects[i];
       if (particlesGroup.children.includes(object.parent)) {
@@ -161,7 +163,7 @@ class Selection {
           name: selectionOptions.options[selectionOptions.selectedIndex].text,
           params: {},
           atoms: this.cache.get(this.world.getStep()),
-          selection: selection,
+          selection,
         });
         break;
       }

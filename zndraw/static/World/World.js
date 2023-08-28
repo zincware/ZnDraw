@@ -173,10 +173,10 @@ class World {
       if (event.key == 't') {
         if (camera.children.includes(canvas3D)) {
           scene.attach(canvas3D);
-          document.getElementById('alertBox').style.display = 'none';
+          document.getElementById('alertBoxDrawing').style.display = 'none';
         } else {
           camera.attach(canvas3D);
-          document.getElementById('alertBox').style.display = 'block';
+          document.getElementById('alertBoxDrawing').style.display = 'block';
         }
       }
     });

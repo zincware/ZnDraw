@@ -139,7 +139,16 @@ body {
   opacity: 0.8;
 }
 
-#alertBox {
+#alertBoxDrawing {
+  position: absolute;
+  bottom: 2%;
+  display: none;
+  right: 2%;
+  z-index: 100;
+  opacity: 0.7;
+}
+
+#alertBoxCamera {
   position: absolute;
   bottom: 2%;
   display: none;

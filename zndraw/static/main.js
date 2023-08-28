@@ -80,7 +80,7 @@ function main() {
       document.body.removeChild(elem);
     });
   });
-  
+
   const helpBtn = document.getElementById('HelpBtn');
 
   helpBtn.addEventListener('mouseover', () => {
