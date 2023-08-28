@@ -1,9 +1,11 @@
 import collections.abc
+import contextlib
 import dataclasses
 import logging
 import multiprocessing
 import socket
 import threading
+import time
 import typing as t
 import webbrowser
 
@@ -78,6 +80,7 @@ class ZnDraw(collections.abc.MutableSequence):
     jupyter: bool = False
 
     display_new: bool = True
+    _retires: int = 5
 
     def __post_init__(self):
         self._view_thread = None
@@ -88,7 +91,11 @@ class ZnDraw(collections.abc.MutableSequence):
             )
             self._view_thread.start()
             self.url = f"http://127.0.0.1:{port}"
-        self.socket.connect(self.url)
+        for _ in range(self._retires):
+            with contextlib.suppress(socketio.exceptions.ConnectionError):
+                self.socket.connect(self.url)
+                break
+            time.sleep(1)
         if not self.jupyter:
             self.socket.sleep(2)  # wait for the server to start
 
