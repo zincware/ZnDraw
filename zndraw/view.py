@@ -91,11 +91,18 @@ class ZnDraw(collections.abc.MutableSequence):
             )
             self._view_thread.start()
             self.url = f"http://127.0.0.1:{port}"
+
+        self.socket.on(
+            "connect", lambda: print(f"Connected to ZnDraw server at {self.url}")
+        )
+
         for _ in range(self._retires):
             with contextlib.suppress(socketio.exceptions.ConnectionError):
                 self.socket.connect(self.url)
                 break
             time.sleep(1)
+        else:
+            self.socket.connect(self.url)
         if not self.jupyter:
             self.socket.sleep(2)  # wait for the server to start
 
