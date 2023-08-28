@@ -143,7 +143,7 @@ def atoms_from_json(data: dict) -> ase.Atoms:
     )
 
     if "calc" in data:
-        atoms.calc = SinglePointCalculator(atoms, energy=data["calc"]["energy"])
+        atoms.calc = SinglePointCalculator(atoms)
         atoms.calc.results = {
             key: np.array(val) if isinstance(val, list) else val
             for key, val in data["calc"].items()
