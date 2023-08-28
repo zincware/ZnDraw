@@ -31,13 +31,6 @@ def exit_route():
     return "Server shutting down..."
 
 
-@io.on("exit")
-def exit_io():
-    """Exit the session."""
-    print("Server shutting down...")
-    io.stop()
-
-
 def _read_file(filename):
     for idx, atoms_dict in enumerate(get_atomsdict_list(filename)):
         io.emit("atoms:upload", atoms_dict)

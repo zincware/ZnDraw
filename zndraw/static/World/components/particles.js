@@ -112,7 +112,6 @@ class ParticleGroup extends THREE.Group {
     this._original_material = particle_mesh.material;
 
     this.position.set(...particle.position);
-
   }
 
   update(particle) {
@@ -134,7 +133,7 @@ class ParticleGroup extends THREE.Group {
     const bondsToRemove = [];
 
     bonds.forEach(([_, targetParticleGroup, bond_type]) => {
-      const bond_mesh = this.bonds.find(bond => bond.particle_group === targetParticleGroup);
+      const bond_mesh = this.bonds.find((bond) => bond.particle_group === targetParticleGroup);
       if (bond_mesh) {
         this.updateBondOrientation(bond_mesh.bond, targetParticleGroup);
       } else {
@@ -142,7 +141,7 @@ class ParticleGroup extends THREE.Group {
       }
     });
 
-    this.bonds = this.bonds.filter(bond => {
+    this.bonds = this.bonds.filter((bond) => {
       const exists = bonds.some(([_, particle_group]) => particle_group === bond.particle_group);
       if (!exists) {
         bondsToRemove.push(bond);
@@ -151,7 +150,7 @@ class ParticleGroup extends THREE.Group {
       return true;
     });
 
-    bondsToRemove.forEach(bondToRemove => {
+    bondsToRemove.forEach((bondToRemove) => {
       this.remove(bondToRemove.bond);
     });
   }
@@ -178,7 +177,7 @@ class ParticleGroup extends THREE.Group {
       1.3,
       this.resolution,
     );
-    this.bonds.push({ bond: bond_mesh, particle_group: particle_group });
+    this.bonds.push({ bond: bond_mesh, particle_group });
     this.add(bond_mesh);
     // Store all the bond information, don't pass the mesh or group here
     this.updateBondOrientation(bond_mesh, particle_group);
@@ -216,7 +215,6 @@ class ParticlesGroup extends THREE.Group {
     this.show_bonds = true;
 
     this.bonds_exist = false;
-
   }
 
   rebuild(resolution, material, wireframe, simulation_box, bonds) {

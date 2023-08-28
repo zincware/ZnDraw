@@ -172,7 +172,7 @@ class ZnDraw(collections.abc.MutableSequence):
     def insert(self, index, value):
         """Insert atoms before index"""
         raise NotImplementedError
-    
+
     def append(self, value: ase.Atoms) -> None:
         """Append atoms to the end of the list"""
         self[len(self)] = value

@@ -57,6 +57,15 @@ function main() {
   initJSONEditor(socket, cache, world);
   world.start();
 
+  // socket dicsconnect event
+  socket.on('disconnect', () => {
+    window.close();
+  });
+
+  document.getElementById('ExitBtn').addEventListener('click', () => {
+    fetch('/exit', { method: 'GET' });
+  });
+
   document.getElementById('downloadBtn').addEventListener('click', () => {
     socket.emit('download', { atoms_list: cache.getAllAtoms() }, (data) => {
       const blob = new Blob([data], { type: 'text/csv' });

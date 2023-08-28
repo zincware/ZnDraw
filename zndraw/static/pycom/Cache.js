@@ -103,10 +103,9 @@ class Cache {
       });
     });
 
-    this._socket.on("atoms:size", () => {
-      this._socket.emit("atoms:size", this.get_length());
-    }
-    );
+    this._socket.on('atoms:size', () => {
+      this._socket.emit('atoms:size', this.get_length());
+    });
   }
 
   get(id) {

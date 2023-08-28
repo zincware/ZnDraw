@@ -68,7 +68,8 @@
         <ul class="navbar-nav me-auto mb-2 mb-lg-0">
           <li class="nav-item mx-1">
             <button class="btn btn-outline-secondary" type="button" data-bs-toggle="offcanvas"
-              data-bs-target="#selectionCanvas" aria-controls="selectionCanvas" onclick="document.activeElement.blur();">
+              data-bs-target="#selectionCanvas" aria-controls="selectionCanvas"
+              onclick="document.activeElement.blur();">
               <i class="fa-regular fa-hand-pointer"></i> Selection
             </button>
           </li>
@@ -118,8 +119,8 @@
           <!-- <button class="btn btn-outline-primary mx-1" type="button" data-toggle="tooltip" data-bs-toggle="collapse"
             data-bs-target="#helpBoxCollapse" aria-expanded="false" aria-controls="helpBoxCollapse">
             <i class="fas fa-question-circle"></i> Help </button>-->
-          <a class="btn btn-outline-danger mx-1" href="/exit" role="button"><i class="fa-solid fa-circle-xmark"></i>
-            EXIT</a>
+          <button class="btn btn-outline-danger mx-1" id="ExitBtn"><i class="fa-solid fa-circle-xmark"></i>
+            EXIT</button>
           <!-- <button type="button" class="btn btn-outline-primary mx-1" id="HelpBtn"><i
               class="fas fa-question-circle"></i> Help</button> -->
 
@@ -155,13 +156,15 @@
       <div id='selection-json-editor'></div>
       <div class="row my-3">
         <div class="col">
-          <button type="button" id='selection-json-editor-submit' class="btn btn-primary w-100"><i class="fa-solid fa-circle-check"></i> Apply</button>
+          <button type="button" id='selection-json-editor-submit' class="btn btn-primary w-100"><i
+              class="fa-solid fa-circle-check"></i> Apply</button>
         </div>
         <div class="col">
-          <a class="btn btn-secondary w-100" role="button" id="downloadSelectedBtn"><i class="fa-solid fa-download"></i> Download</a>
+          <a class="btn btn-secondary w-100" role="button" id="downloadSelectedBtn"><i class="fa-solid fa-download"></i>
+            Download</a>
         </div>
       </div>
-      
+
     </div>
   </div>
 
@@ -179,7 +182,8 @@
       </select>
       <hr>
       <div id='interaction-json-editor'></div>
-      <button type="button" id='interaction-json-editor-submit' class="btn btn-primary w-100"><i class="fa-solid fa-play"></i> Run Modifier</button>
+      <button type="button" id='interaction-json-editor-submit' class="btn btn-primary w-100"><i
+          class="fa-solid fa-play"></i> Run Modifier</button>
     </div>
   </div>
 
