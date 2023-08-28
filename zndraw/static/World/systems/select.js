@@ -27,27 +27,26 @@ class Selection {
     // use c keypress to center the camera on the selection
     document.addEventListener('keydown', (event) => {
       if (event.key === 'c') {
-        // get the first object that is selected
-        const particlesGroup = this.scene.getObjectByName('particlesGroup');
+        if (this.controls.enablePan) {
 
-        particlesGroup.children.every((x) => {
-          if (this.selection.includes(x.name)) {
-            this.controls.target = x.position;
-            this.controls.enablePan = false;
-            return false;
-            // TODO: don't use the first but the COM of the selection
-          }
-          return true;
-        });
+          // get the first object that is selected
+          const particlesGroup = this.scene.getObjectByName('particlesGroup');
+
+          particlesGroup.children.every((x) => {
+            if (this.selection.includes(x.name)) {
+              this.controls.target = x.position;
+              this.controls.enablePan = false;
+              return false;
+              // TODO: don't use the first but the COM of the selection
+            }
+            return true;
+          });
+        } else {
+          this.controls.target = this.controls.target.clone();
+          this.controls.enablePan = true;
+        }
       }
     });
-    document.addEventListener('keyup', (event) => {
-      if (event.key === 'c') {
-        this.controls.target = this.controls.target.clone();
-        this.controls.enablePan = true;
-      }
-    });
-
     this.line3D = line3D;
 
     this.raycaster = new THREE.Raycaster();
@@ -94,7 +93,7 @@ class Selection {
     this._drawing = false;
 
     window.addEventListener('pointerdown', this.onPointerDown.bind(this));
-    window.addEventListener("dblclick", this.onDoubleClick.bind(this));     
+    window.addEventListener("dblclick", this.onDoubleClick.bind(this));
 
     // use x keypress to toggle the attachment of onPointerMove
     document.addEventListener('keydown', (event) => {
@@ -136,24 +135,24 @@ class Selection {
 
   onDoubleClick(event) {
     const intersects = this.getIntersections();
-      const particlesGroup = this.scene.getObjectByName('particlesGroup');
-      let selection = [];
-      for (let i = 0; i < intersects.length; i++) {
-        const { object } = intersects[i];
-        if (particlesGroup.children.includes(object.parent)) {
-          selection.push(object.parent.name);
-          
-          const selectionOptions = document.getElementById('selection-select');
-          
-          this.socket.emit('selection:run', {
-            name: selectionOptions.options[selectionOptions.selectedIndex].text,
-            params: {},
-            atoms: this.cache.get(this.world.getStep()),
-            selection: selection,
-          });
-          break;
-        }
-      }     
+    const particlesGroup = this.scene.getObjectByName('particlesGroup');
+    let selection = [];
+    for (let i = 0; i < intersects.length; i++) {
+      const { object } = intersects[i];
+      if (particlesGroup.children.includes(object.parent)) {
+        selection.push(object.parent.name);
+
+        const selectionOptions = document.getElementById('selection-select');
+
+        this.socket.emit('selection:run', {
+          name: selectionOptions.options[selectionOptions.selectedIndex].text,
+          params: {},
+          atoms: this.cache.get(this.world.getStep()),
+          selection: selection,
+        });
+        break;
+      }
+    }
   }
 
   /**
