@@ -12,6 +12,19 @@ class Selection {
     this.cache = cache;
     this.world = world;
 
+    this.shift_pressed = false;
+
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Shift') {
+        this.shift_pressed = true;
+      }
+    });
+    document.addEventListener('keyup', (event) => {
+      if (event.key === 'Shift') {
+        this.shift_pressed = false;
+      }
+    });
+
     this.controls.getCenter = () => {
       const particlesGroup = this.scene.getObjectByName('particlesGroup');
       return particlesGroup.get_center();
@@ -194,14 +207,24 @@ class Selection {
       } else if (object.parent.name === 'AnchorPoints') {
         this.transform_controls.attach(object);
       } else if (particlesGroup.children.includes(object.parent)) {
-        if (this.selection.includes(object.parent.name)) {
-          this.selection = this.selection.filter(
-            (x) => x !== object.parent.name,
-          );
-          object.parent.set_selection(false);
+        if (this.shift_pressed) {
+          if (this.selection.includes(object.parent.name)) {
+            this.selection = this.selection.filter(
+              (x) => x !== object.parent.name,
+            );
+            object.parent.set_selection(false);
+          } else {
+            this.selection.push(object.parent.name);
+            object.parent.set_selection(true);
+          }
         } else {
-          this.selection.push(object.parent.name);
+          if (this.selection.includes(object.parent.name)) {
+            this.selection = [];
+          } else {
+            this.selection = [object.parent.name];
+          }
           object.parent.set_selection(true);
+          this.step();
         }
         break; // only (de)select one particle
       }
