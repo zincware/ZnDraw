@@ -29,16 +29,16 @@ function scene_editor(socket, cache, world) {
 }
 
 function analysis_editor(socket, cache, world) {
-  let editor = new JSONEditor(
-    document.getElementById('analysis-json-editor'),
-    {
-      schema: { type: 'object', title: 'ZnDraw', properties: {} },
-    },
-  );
+  let editor = undefined;
   const selection = document.getElementById('analysis-select');
   selection.onchange = function () {
+    if (editor !== undefined) {
+      editor.destroy();
+    }
+    if (selection.value === '') {
+      return;
+    }
     const schema = JSON.parse(selection.value);
-    editor.destroy();
     editor = new JSONEditor(
       document.getElementById('analysis-json-editor'),
       {
@@ -52,16 +52,6 @@ function analysis_editor(socket, cache, world) {
     option.value = JSON.stringify(data.schema);
     option.innerHTML = data.name;
     selection.appendChild(option);
-    // select the one that was just added
-    selection.value = JSON.stringify(data.schema);
-
-    editor.destroy();
-    editor = new JSONEditor(
-      document.getElementById('analysis-json-editor'),
-      {
-        schema: data.schema,
-      },
-    );
   });
 
   document.getElementById('analysis-json-editor-submit').addEventListener('click', () => {
@@ -114,17 +104,17 @@ function analysis_editor(socket, cache, world) {
 }
 
 function modifier_editor(socket, cache, world) {
-  let editor = new JSONEditor(
-    document.getElementById('interaction-json-editor'),
-    {
-      schema: { type: 'object', title: 'ZnDraw', properties: {} },
-    },
-  );
+  let editor = undefined
   const selection = document.getElementById('modifier-select');
 
   selection.onchange = function () {
+    if (editor !== undefined) {
+      editor.destroy();
+    }
+    if (selection.value === '') {
+      return;
+    }
     const schema = JSON.parse(selection.value);
-    editor.destroy();
     editor = new JSONEditor(
       document.getElementById('interaction-json-editor'),
       {
@@ -138,16 +128,6 @@ function modifier_editor(socket, cache, world) {
     option.value = JSON.stringify(data.schema);
     option.innerHTML = data.name;
     selection.appendChild(option);
-    // select the one that was just added
-    selection.value = JSON.stringify(data.schema);
-
-    editor.destroy();
-    editor = new JSONEditor(
-      document.getElementById('interaction-json-editor'),
-      {
-        schema: data.schema,
-      },
-    );
   });
 
   document

@@ -13,7 +13,7 @@ from zndraw.settings import GlobalConfig
 app = Flask(__name__)
 app.config["SECRET_KEY"] = str(uuid.uuid4())
 
-io = SocketIO(app, max_http_buffer_size=int(1e10))
+io = SocketIO(app, max_http_buffer_size=int(1e10)) #, async_mode="threading")
 # 10 GB Upload limit
 
 
@@ -37,16 +37,16 @@ def exit_io():
     print("Server shutting down...")
     io.stop()
 
+def _read_file(filename):
+    for idx, atoms_dict in enumerate(get_atomsdict_list(filename)):
+        io.emit("atoms:upload", atoms_dict)
 
 @io.on("atoms:request")
 def atoms_request(data):
     """Return the atoms."""
+
     if "filename" in app.config:
-        for idx, atoms_dict in enumerate(get_atomsdict_list(app.config["filename"])):
-            emit("atoms:upload", atoms_dict)
-            # At some point we should just emit all messages and call this function again for the remainder ?
-            # if idx > 1000:
-            #     break
+        io.start_background_task(target=_read_file, filename=app.config["filename"])
     else:
         emit("atoms:upload", {})
 
@@ -125,6 +125,7 @@ def analysis_schema(data):
 
 @io.on("analysis:run")
 def analysis_run(data):
+    print("analysis:run ...")
     # print(f"analysis:run {data = }")
     atoms_list = [atoms_from_json(x) for x in data["atoms_list"].values()]
 
@@ -187,6 +188,7 @@ def atoms_download(data):
 @io.on("atoms:upload")
 def atoms_upload(data):
     """Return the atoms."""
+    print(f"atoms:upload ...")
     emit("atoms:upload", data, broadcast=True, include_self=False)
 
 
