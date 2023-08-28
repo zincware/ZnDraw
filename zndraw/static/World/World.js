@@ -89,6 +89,9 @@ class Player {
   }
 
   toggle() {
+    if ((!this.playing) && this.world.getStep() == this.cache.get_length() - 1) {
+      this.world.setStep(0);
+    }
     this.playing = !this.playing;
     if (this.playing) this.play();
   }
