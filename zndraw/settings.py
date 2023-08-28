@@ -21,7 +21,15 @@ _MODIFY_FUNCTIONS = [
 _BONDS_FUNCTIONS = [
     "zndraw.tools.data.ASEComputeBonds",
 ]
-_SELECTION_FUNCTIONS = []
+_SELECTION_FUNCTIONS = [
+    "zndraw.selection.NoneSelection",
+    "zndraw.selection.All",
+    "zndraw.selection.Invert",
+    "zndraw.selection.Range",
+    "zndraw.selection.Random",
+    "zndraw.selection.IdenticalSpecies",
+    "zndraw.selection.ConnectedParticles",
+]
 
 
 class GlobalConfig(pydantic.BaseModel):

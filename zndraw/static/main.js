@@ -69,6 +69,18 @@ function main() {
     });
   });
 
+  document.getElementById('downloadSelectedBtn').addEventListener('click', () => {
+    socket.emit('download', { atoms_list: cache.getAllAtoms(), selection: world.selection.selection }, (data) => {
+      const blob = new Blob([data], { type: 'text/csv' });
+      const elem = window.document.createElement('a');
+      elem.href = window.URL.createObjectURL(blob);
+      elem.download = 'trajectory.xyz';
+      document.body.appendChild(elem);
+      elem.click();
+      document.body.removeChild(elem);
+    });
+  });
+  
   const helpBtn = document.getElementById('HelpBtn');
 
   helpBtn.addEventListener('mouseover', () => {

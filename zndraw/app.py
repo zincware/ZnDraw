@@ -13,7 +13,7 @@ from zndraw.settings import GlobalConfig
 app = Flask(__name__)
 app.config["SECRET_KEY"] = str(uuid.uuid4())
 
-io = SocketIO(app, max_http_buffer_size=int(1e10)) #, async_mode="threading")
+io = SocketIO(app, max_http_buffer_size=int(1e10))  # , async_mode="threading")
 # 10 GB Upload limit
 
 
@@ -37,9 +37,11 @@ def exit_io():
     print("Server shutting down...")
     io.stop()
 
+
 def _read_file(filename):
     for idx, atoms_dict in enumerate(get_atomsdict_list(filename)):
         io.emit("atoms:upload", atoms_dict)
+
 
 @io.on("atoms:request")
 def atoms_request(data):
@@ -123,6 +125,44 @@ def analysis_schema(data):
         )
 
 
+@io.on("selection:schema")
+def selection_schema():
+    config = GlobalConfig.load()
+
+    for selection in config.selection_functions:
+        module_name, function_name = selection.rsplit(".", 1)
+        module = importlib.import_module(module_name)
+        cls = getattr(module, function_name)
+
+        data = {"name": selection, "schema": cls.model_json_schema()}
+
+        io.emit(
+            "selection:schema",
+            data,
+        )
+
+
+@io.on("selection:run")
+def selection_run(data):
+    import ase
+
+    if "atoms" in data:
+        atoms = atoms_from_json(data["atoms"])
+    else:
+        atoms = ase.Atoms()
+
+    try:
+        module_name, function_name = data["name"].rsplit(".", 1)
+        module = importlib.import_module(module_name)
+        selection_cls = getattr(module, function_name)
+        selection = selection_cls(**data["params"])
+
+        selected_ids = selection.get_ids(atoms, data["selection"])
+        io.emit("selection:run", selected_ids)
+    except ValueError as err:
+        print(err)
+
+
 @io.on("analysis:run")
 def analysis_run(data):
     print("analysis:run ...")
@@ -145,32 +185,11 @@ def config(data):
     pass
 
 
-# @app.route("/download/<int:idx>")
-# def download(idx):
-#     socketio.emit("atoms:download", [idx])
-#     return "OK"
-
-# @app.route("/download")
-# def download():
-#     from zndraw.view import ZnDraw
-#     import ase.io
-
-#     url = request.base_url
-#     url = url.replace("/download", "")
-#     print(f"Downloading {url = }")
-
-#     zndraw = ZnDraw(url=url)
-#     print(f"Downloading {zndraw = }")
-
-#     file = BytesIO()
-#     ase.io.write(file, zndraw[0], format="xyz")
-#     file.seek(0)
-#     return send_file(file, mimetype="text/plain", as_attachment=True)
-
-
 @io.on("download")
 def download(data):
     atoms = [atoms_from_json(x) for x in data["atoms_list"].values()]
+    if "selection" in data:
+        atoms = [atoms[data["selection"]] for atoms in atoms]
     import ase.io
 
     file = StringIO()
@@ -188,7 +207,7 @@ def atoms_download(data):
 @io.on("atoms:upload")
 def atoms_upload(data):
     """Return the atoms."""
-    print(f"atoms:upload ...")
+    print("atoms:upload ...")
     emit("atoms:upload", data, broadcast=True, include_self=False)
 
 

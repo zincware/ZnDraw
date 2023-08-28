@@ -149,4 +149,9 @@ def atoms_from_json(data: dict) -> ase.Atoms:
             for key, val in data["calc"].items()
         }
 
+    if "connectivity" in data:
+        atoms.connectivity = nx.Graph()
+        for edge in data["connectivity"]:
+            atoms.connectivity.add_edge(edge[0], edge[1], weight=edge[2])
+
     return atoms

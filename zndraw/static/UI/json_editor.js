@@ -6,10 +6,54 @@ JSONEditor.defaults.options.disable_properties = true;
 JSONEditor.defaults.options.disable_collapse = true;
 JSONEditor.defaults.options.no_additional_properties = true;
 
-export function initJSONEditor(socket, cache, world, player) {
+export function initJSONEditor(socket, cache, world) {
   modifier_editor(socket, cache, world);
   analysis_editor(socket, cache, world);
-  scene_editor(socket, cache, world, player);
+  scene_editor(socket, cache, world);
+  selection_editor(socket, cache, world);
+}
+
+function selection_editor(socket, cache, world) {
+  const selection = document.getElementById('selection-select');
+
+  socket.on('selection:schema', (data) => {
+    const option = document.createElement('option');
+    option.value = JSON.stringify(data.schema);
+    option.innerHTML = data.name;
+    selection.appendChild(option);
+  });
+
+  socket.emit('selection:schema');
+
+  let editor = undefined;
+  selection.onchange = function () {
+    if (editor !== undefined) {
+      editor.destroy();
+    }
+    if (selection.value === '') {
+      return;
+    }
+    const schema = JSON.parse(selection.value);
+    editor = new JSONEditor(
+      document.getElementById('selection-json-editor'),
+      {
+        schema,
+      },
+    );
+  }
+
+  document.getElementById('selection-json-editor-submit').addEventListener('click', () => {
+    // Get the value from the editor
+    const value = editor.getValue();
+    console.log(value);
+
+    socket.emit('selection:run', {
+      name: selection.options[selection.selectedIndex].text,
+      params: value,
+      atoms: cache.get(world.getStep()),
+      selection: world.getSelection(),
+    });
+  });
 }
 
 function scene_editor(socket, cache, world) {

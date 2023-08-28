@@ -153,13 +153,15 @@ class World {
     const canvas3D = new Canvas3D();
     const index_grp = new ParticleIndexGroup(this.particles);
 
-    selection = new Selection(
+    this.selection = new Selection(
       camera,
       scene,
       socket,
       this.line3D,
       renderer,
       controls,
+      cache,
+      this,
     );
 
     const light = createLights();
@@ -180,7 +182,7 @@ class World {
     });
 
     loop.tick_updatables.push(controls, this.player);
-    loop.step_updatables.push(this.particles, selection, index_grp);
+    loop.step_updatables.push(this.particles, this.selection, index_grp);
 
     const resizer = new Resizer(container, camera, renderer, renderer2d);
 
@@ -220,7 +222,7 @@ class World {
   }
 
   getSelection() {
-    return selection.selection;
+    return this.selection.selection;
   }
 
   getLineData() {

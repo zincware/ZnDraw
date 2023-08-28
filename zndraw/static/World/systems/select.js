@@ -4,16 +4,23 @@ import { TransformControls } from 'three/examples/jsm/controls/TransformControls
 let scroll_timer = null;
 
 class Selection {
-  constructor(camera, scene, socket, line3D, renderer, controls) {
+  constructor(camera, scene, socket, line3D, renderer, controls, cache, world) {
     this.camera = camera;
     this.scene = scene;
     this.socket = socket;
     this.controls = controls;
+    this.cache = cache;
+    this.world = world;
 
     this.controls.getCenter = () => {
       const particlesGroup = this.scene.getObjectByName('particlesGroup');
       return particlesGroup.get_center();
     };
+
+    this.socket.on("selection:run", (data) => {
+      this.selection = data;
+      this.step();
+    });
 
     window.addEventListener('wheel', this.onWheel.bind(this));
 
@@ -87,6 +94,7 @@ class Selection {
     this._drawing = false;
 
     window.addEventListener('pointerdown', this.onPointerDown.bind(this));
+    window.addEventListener("dblclick", this.onDoubleClick.bind(this));     
 
     // use x keypress to toggle the attachment of onPointerMove
     document.addEventListener('keydown', (event) => {
@@ -124,6 +132,28 @@ class Selection {
     this.raycaster.setFromCamera(this.pointer, this.camera);
 
     return this.raycaster.intersectObjects(this.scene.children, true);
+  }
+
+  onDoubleClick(event) {
+    const intersects = this.getIntersections();
+      const particlesGroup = this.scene.getObjectByName('particlesGroup');
+      let selection = [];
+      for (let i = 0; i < intersects.length; i++) {
+        const { object } = intersects[i];
+        if (particlesGroup.children.includes(object.parent)) {
+          selection.push(object.parent.name);
+          
+          const selectionOptions = document.getElementById('selection-select');
+          
+          this.socket.emit('selection:run', {
+            name: selectionOptions.options[selectionOptions.selectedIndex].text,
+            params: {},
+            atoms: this.cache.get(this.world.getStep()),
+            selection: selection,
+          });
+          break;
+        }
+      }     
   }
 
   /**
@@ -174,7 +204,6 @@ class Selection {
           this.selection.push(object.parent.name);
           object.parent.set_selection(true);
         }
-        this.socket.emit('selection', this.selection);
         break; // only (de)select one particle
       }
     }
