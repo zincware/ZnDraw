@@ -252,6 +252,10 @@ def scene_schema():
             False,
             description="Show the simulation box.",
         )
+        bonds: bool = Field(
+            True,
+            description="Show bonds.",
+        )
 
     schema = Scene.model_json_schema()
 
@@ -259,6 +263,7 @@ def scene_schema():
     schema["properties"]["Animation Loop"]["format"] = "checkbox"
     schema["properties"]["simulation_box"]["format"] = "checkbox"
     schema["properties"]["resolution"]["format"] = "range"
+    schema["properties"]["bonds"]["format"] = "checkbox"
 
     # import json
 

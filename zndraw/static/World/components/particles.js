@@ -183,9 +183,10 @@ class ParticlesGroup extends THREE.Group {
     this.wireframe = false;
     this.cell = true;
     this.cell_lines = undefined;
+    this.show_bonds = true;
   }
 
-  rebuild(resolution, material, wireframe, simulation_box) {
+  rebuild(resolution, material, wireframe, simulation_box, bonds) {
     // remove all children
     // this.children.forEach((x) => x.removeFromParent());
     this.clear();
@@ -193,6 +194,7 @@ class ParticlesGroup extends THREE.Group {
     this.material = material;
     this.wireframe = wireframe;
     this.cell = simulation_box;
+    this.show_bonds = bonds;
   }
 
   tick() { }
@@ -288,7 +290,9 @@ class ParticlesGroup extends THREE.Group {
     } else {
       this._updateParticles(particles);
       this.updateCell(particles.cell);
-      this._updateBonds(particles.connectivity);
+      if (this.show_bonds) {
+        this._updateBonds(particles.connectivity);
+      }
     }
   }
 }
