@@ -8,12 +8,38 @@ import webbrowser
 
 import ase
 import socketio
+import multiprocessing
 
 from zndraw.app import app, io
 from zndraw.data import atoms_from_json, atoms_to_json
 
+try:
+    import webview as wv
+    import urllib.request
+except ImportError:
+    wv = None
+
 log = logging.getLogger("werkzeug")
 log.setLevel(logging.ERROR)
+
+
+def _view_with_webview(url):
+    wv.create_window(
+        "ZnDraw",
+        url,
+        width=1280,
+        height=720,
+        resizable=True,
+        fullscreen=False,
+        confirm_close=True,
+        background_color="#FFFFFF",
+    )
+    wv.start()
+    try:
+        urllib.request.urlopen(url + "/exit")
+    except urllib.error.RemoteDisconnected:
+        pass
+
 
 
 def _get_port() -> int:
@@ -35,7 +61,9 @@ def view(filename: str, port: int, open_browser: bool = True):
         app.config["filename"] = filename
     url = f"http://127.0.0.1:{port}"
 
-    if open_browser:
+    if wv is not None:
+        multiprocessing.Process(target=_view_with_webview, args=(url,), daemon=True).start()
+    elif open_browser:
         webbrowser.open(url)
     io.run(app, port=port, host="0.0.0.0")
 
