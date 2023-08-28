@@ -12,7 +12,7 @@ export function initJSONEditor(socket, cache, world, player) {
   scene_editor(socket, cache, world, player);
 }
 
-function scene_editor(socket, cache, world, player) {
+function scene_editor(socket, cache, world) {
   socket.emit('scene:schema', (data) => {
     const editor = new JSONEditor(
       document.getElementById('scene-json-editor'),
@@ -23,7 +23,7 @@ function scene_editor(socket, cache, world, player) {
     editor.on('change', () => {
       const value = editor.getValue();
       world.rebuild(value.resolution, value.material, value.wireframe, value.simulation_box, value.bonds);
-      player.setLoop(value['Animation Loop']);
+      world.player.setLoop(value['Animation Loop']);
     });
   });
 }

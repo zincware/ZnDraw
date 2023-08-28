@@ -1,5 +1,5 @@
 import { Cache } from './pycom/Cache.js';
-import { World, Player } from './World/World.js';
+import { World } from './World/World.js';
 import { setUIEvents } from './UI/UI.js';
 import { initJSONEditor } from './UI/json_editor.js';
 
@@ -52,10 +52,9 @@ function main() {
   const cache = new Cache(socket);
   const container = document.querySelector('#scene-container');
   const world = new World(container, cache, socket);
-  const player = new Player(world, cache, socket);
 
   setUIEvents(socket, world);
-  initJSONEditor(socket, cache, world, player);
+  initJSONEditor(socket, cache, world);
   world.start();
 
   document.getElementById('downloadBtn').addEventListener('click', () => {
