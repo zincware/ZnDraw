@@ -72,6 +72,9 @@ class Cache {
       });
       const slider = document.getElementById('frame-slider');
       slider.max = Object.keys(this._cache).length - 1;
+      document.getElementById(
+        'info',
+      ).innerHTML = `${slider.value} / ${slider.max}`;
     });
 
     this._socket.on('atoms:download', (ids) => {
@@ -99,6 +102,11 @@ class Cache {
         }
       });
     });
+
+    this._socket.on("atoms:size", () => {
+      this._socket.emit("atoms:size", this.get_length());
+    }
+    );
   }
 
   get(id) {

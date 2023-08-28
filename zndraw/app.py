@@ -214,6 +214,12 @@ def display(data):
     emit("view:set", data, broadcast=True, include_self=False)
 
 
+@io.on("atoms:size")
+def atoms_size(data):
+    """Return the atoms."""
+    emit("atoms:size", data, broadcast=True, include_self=False)
+
+
 @io.on("upload")
 def upload(data):
     from io import StringIO

@@ -1,6 +1,7 @@
 import collections.abc
 import dataclasses
 import logging
+import multiprocessing
 import socket
 import threading
 import typing as t
@@ -8,14 +9,14 @@ import webbrowser
 
 import ase
 import socketio
-import multiprocessing
 
 from zndraw.app import app, io
 from zndraw.data import atoms_from_json, atoms_to_json
 
 try:
-    import webview as wv
     import urllib.request
+
+    import webview as wv
 except ImportError:
     wv = None
 
@@ -41,7 +42,6 @@ def _view_with_webview(url):
         pass
 
 
-
 def _get_port() -> int:
     try:
         sock = socket.socket()
@@ -62,7 +62,9 @@ def view(filename: str, port: int, open_browser: bool = True):
     url = f"http://127.0.0.1:{port}"
 
     if wv is not None:
-        multiprocessing.Process(target=_view_with_webview, args=(url,), daemon=True).start()
+        multiprocessing.Process(
+            target=_view_with_webview, args=(url,), daemon=True
+        ).start()
     elif open_browser:
         webbrowser.open(url)
     io.run(app, port=port, host="0.0.0.0")
@@ -73,6 +75,8 @@ class ZnDraw(collections.abc.MutableSequence):
     url: str = None
     socket: socketio.Client = dataclasses.field(default_factory=socketio.Client)
     jupyter: bool = False
+
+    display_new: bool = True
 
     def __post_init__(self):
         self._view_thread = None
@@ -99,7 +103,8 @@ class ZnDraw(collections.abc.MutableSequence):
             atoms_list = [atoms_list]
         for idx, atoms in enumerate(atoms_list):
             self._set_item(idx, atoms)
-        self.display(idx)
+        if self.display_new:
+            self.display(idx)
 
     def _repr_html_(self):
         from IPython.display import IFrame
@@ -130,24 +135,50 @@ class ZnDraw(collections.abc.MutableSequence):
         self.socket.on("atoms:download", on_download)
         get_item_event.wait()
 
-        return downloaded_data[0] if len(downloaded_data) == 1 else downloaded_data
+        data = downloaded_data[0] if len(downloaded_data) == 1 else downloaded_data
+        if data == []:
+            raise IndexError("Index out of range")
+        return data
 
     def __len__(self):
-        pass
+        get_size_event = threading.Event()
+        self.socket.emit("atoms:size", {})
+
+        _size = None
+
+        def on_size(size):
+            nonlocal _size
+            _size = size
+            get_size_event.set()
+
+        self.socket.on("atoms:size", on_size)
+        get_size_event.wait()
+        return _size
 
     def _set_item(self, index, value):
         assert isinstance(value, ase.Atoms), "Must be an ASE Atoms object"
         assert isinstance(index, int), "Index must be an integer"
         self.socket.emit("atoms:upload", {index: atoms_to_json(value)})
-        self.socket.emit("view:set", index)
 
     def __setitem__(self, index, value):
         self._set_item(index, value)
-        self.display(index)
+        if self.display_new:
+            self.display(index)
 
     def display(self, index):
         """Display the atoms at the given index"""
         self.socket.emit("view:set", index)
 
     def insert(self, index, value):
-        pass
+        """Insert atoms before index"""
+        raise NotImplementedError
+    
+    def append(self, value: ase.Atoms) -> None:
+        """Append atoms to the end of the list"""
+        self[len(self)] = value
+
+    def extend(self, values: list[ase.Atoms]) -> None:
+        for val in values:
+            self._set_item(len(self), val)
+        if self.display_new:
+            self.display(len(self) - 1)
