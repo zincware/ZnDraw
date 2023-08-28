@@ -56,12 +56,12 @@ def _get_port() -> int:
     return port
 
 
-def view(filename: str, port: int, open_browser: bool = True):
+def view(filename: str, port: int, open_browser: bool = True, webview: bool = True):
     if filename is not None:
         app.config["filename"] = filename
     url = f"http://127.0.0.1:{port}"
 
-    if wv is not None:
+    if wv is not None and webview:
         multiprocessing.Process(
             target=_view_with_webview, args=(url,), daemon=True
         ).start()
