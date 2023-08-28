@@ -112,7 +112,7 @@ class ParticleGroup extends THREE.Group {
     this._original_material = particle_mesh.material;
 
     this.position.set(...particle.position);
-    
+
   }
 
   update(particle) {
@@ -131,27 +131,28 @@ class ParticleGroup extends THREE.Group {
   }
 
   updateBonds(bonds) {
-    // bonds is a list of triples (this, otherGrp, bond_type)
-    bonds.forEach((bond) => {
-      const [_, targetParticleGroup, bond_type] = bond;
-      let bond_mesh = this.bonds.find((x) => x.particle_group === targetParticleGroup);
+    const bondsToRemove = [];
+
+    bonds.forEach(([_, targetParticleGroup, bond_type]) => {
+      const bond_mesh = this.bonds.find(bond => bond.particle_group === targetParticleGroup);
       if (bond_mesh) {
         this.updateBondOrientation(bond_mesh.bond, targetParticleGroup);
       } else {
-        // bond does not exist
         this.connect(targetParticleGroup);
       }
     });
 
-    // remove all bonds that are not in bonds
-    this.bonds = this.bonds.filter((bond) => {
-      const exists = bonds.find((x) => x[1] === bond.particle_group);
-      if (exists) {
-        return true;
-      } else {
-        this.remove(bond.bond);
+    this.bonds = this.bonds.filter(bond => {
+      const exists = bonds.some(([_, particle_group]) => particle_group === bond.particle_group);
+      if (!exists) {
+        bondsToRemove.push(bond);
         return false;
       }
+      return true;
+    });
+
+    bondsToRemove.forEach(bondToRemove => {
+      this.remove(bondToRemove.bond);
     });
   }
 
@@ -177,7 +178,7 @@ class ParticleGroup extends THREE.Group {
       1.3,
       this.resolution,
     );
-    this.bonds.push({bond: bond_mesh, particle_group: particle_group});
+    this.bonds.push({ bond: bond_mesh, particle_group: particle_group });
     this.add(bond_mesh);
     // Store all the bond information, don't pass the mesh or group here
     this.updateBondOrientation(bond_mesh, particle_group);
@@ -268,25 +269,17 @@ class ParticlesGroup extends THREE.Group {
   }
 
   _updateBonds(bonds) {
-    // bonds is a list of triples (a, b, bond_type)
-
-    function getBondsForParticle(particleName) {
-      let bondsWithGroups = bonds.filter((x) => x[0] === particleName || x[1] === particleName);
-      // iterate over bondsWtihGroups and replace the particle names with the actual particle groups
-      bondsWithGroups = bondsWithGroups.map((x) => {
-          if (x[0] === particleName) {
-            return [x[0], this.getObjectByName(x[1]), x[2]];
-          } else {
-            return [x[1], this.getObjectByName(x[0]), x[2]];
-          }
-      });
+    const getBondsForParticle = (particleName) => {
+      const bondsWithGroups = bonds
+        .filter(([a, b]) => a === particleName || b === particleName)
+        .map(([a, b, bond_type]) => (a === particleName ? [a, this.getObjectByName(b), bond_type] : [b, this.getObjectByName(a), bond_type]));
       return bondsWithGroups;
-    }
+    };
 
     this.children.forEach((particleSubGroup) => {
-      particleSubGroup.updateBonds(
-        getBondsForParticle.bind(this)(particleSubGroup.name),
-      );
+      const particleName = particleSubGroup.name;
+      const bondsForParticle = getBondsForParticle(particleName);
+      particleSubGroup.updateBonds(bondsForParticle);
     });
   }
 
