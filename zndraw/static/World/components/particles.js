@@ -101,6 +101,8 @@ class ParticleGroup extends THREE.Group {
     this.material = material;
     this.wireframe = wireframe;
 
+    this.bonds = [];
+
     const particle_mesh = new THREE.Mesh(
       sphereGeometry(particle.radius, this.resolution),
       speciesMaterial(this.material, particle.color, this.wireframe),
@@ -110,6 +112,7 @@ class ParticleGroup extends THREE.Group {
     this._original_material = particle_mesh.material;
 
     this.position.set(...particle.position);
+    
   }
 
   update(particle) {
@@ -125,6 +128,31 @@ class ParticleGroup extends THREE.Group {
     this.children[0].scale.set(scale, scale, scale);
     this.position.set(...particle.position);
     this.children.forEach((x) => (x.material = material));
+  }
+
+  updateBonds(bonds) {
+    // bonds is a list of triples (this, otherGrp, bond_type)
+    bonds.forEach((bond) => {
+      const [_, targetParticleGroup, bond_type] = bond;
+      let bond_mesh = this.bonds.find((x) => x.particle_group === targetParticleGroup);
+      if (bond_mesh) {
+        this.updateBondOrientation(bond_mesh.bond, targetParticleGroup);
+      } else {
+        // bond does not exist
+        this.connect(targetParticleGroup);
+      }
+    });
+
+    // remove all bonds that are not in bonds
+    this.bonds = this.bonds.filter((bond) => {
+      const exists = bonds.find((x) => x[1] === bond.particle_group);
+      if (exists) {
+        return true;
+      } else {
+        this.remove(bond.bond);
+        return false;
+      }
+    });
   }
 
   updateBondOrientation(bond, particle_group) {
@@ -149,6 +177,7 @@ class ParticleGroup extends THREE.Group {
       1.3,
       this.resolution,
     );
+    this.bonds.push({bond: bond_mesh, particle_group: particle_group});
     this.add(bond_mesh);
     // Store all the bond information, don't pass the mesh or group here
     this.updateBondOrientation(bond_mesh, particle_group);
@@ -184,6 +213,9 @@ class ParticlesGroup extends THREE.Group {
     this.cell = true;
     this.cell_lines = undefined;
     this.show_bonds = true;
+
+    this.bonds_exist = false;
+
   }
 
   rebuild(resolution, material, wireframe, simulation_box, bonds) {
@@ -236,33 +268,25 @@ class ParticlesGroup extends THREE.Group {
   }
 
   _updateBonds(bonds) {
-    // create bond arrays
-    const all_bonds = this.children.flatMap((particleSubGroup) => particleSubGroup.children.slice(1));
+    // bonds is a list of triples (a, b, bond_type)
 
-    const existing_bonds = all_bonds.filter(
-      (x) => bonds.find((y) => `${y[0]}-${y[1]}` === x.name)
-        || bonds.find((y) => `${y[1]}-${y[0]}` === x.name),
-    );
-    const new_bonds = bonds.filter(
-      (x) => !all_bonds.find((y) => y.name === `${x[0]}-${x[1]}`)
-        && !all_bonds.find((y) => y.name === `${x[1]}-${x[0]}`),
-    );
-    const deleted_bonds = all_bonds.filter(
-      (x) => !bonds.find((y) => `${y[0]}-${y[1]}` === x.name)
-        && !bonds.find((y) => `${y[1]}-${y[0]}` === x.name),
-    );
+    function getBondsForParticle(particleName) {
+      let bondsWithGroups = bonds.filter((x) => x[0] === particleName || x[1] === particleName);
+      // iterate over bondsWtihGroups and replace the particle names with the actual particle groups
+      bondsWithGroups = bondsWithGroups.map((x) => {
+          if (x[0] === particleName) {
+            return [x[0], this.getObjectByName(x[1]), x[2]];
+          } else {
+            return [x[1], this.getObjectByName(x[0]), x[2]];
+          }
+      });
+      return bondsWithGroups;
+    }
 
-    deleted_bonds.forEach((bond) => {
-      bond.removeFromParent();
-    });
-
-    new_bonds.forEach((bond) => {
-      const [particle1Name, particle2Name] = bond;
-      const particle1SubGroup = this.getObjectByName(particle1Name);
-      const particle2SubGroup = this.getObjectByName(particle2Name);
-
-      particle1SubGroup.connect(particle2SubGroup);
-      particle2SubGroup.connect(particle1SubGroup);
+    this.children.forEach((particleSubGroup) => {
+      particleSubGroup.updateBonds(
+        getBondsForParticle.bind(this)(particleSubGroup.name),
+      );
     });
   }
 
