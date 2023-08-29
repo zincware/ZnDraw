@@ -127,6 +127,17 @@ class Selection {
     });
   }
 
+  getSelectedParticles() {
+    const particlesGroup = this.scene.getObjectByName('particlesGroup');
+    const selection = [];
+    particlesGroup.children.forEach((x) => {
+      if (this.selection.includes(x.name)) {
+        selection.push(x);
+      }
+    });
+    return selection;
+  }
+
   step() {
     const particlesGroup = this.scene.getObjectByName('particlesGroup');
     // iterate through all children ids that are in the selection and update them

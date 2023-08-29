@@ -1,9 +1,11 @@
 import * as THREE from 'three';
 
 export class Canvas3D extends THREE.Group {
-  constructor() {
+  constructor(selection) {
     super();
     this.name = 'Canvas3DGroup';
+
+    this.selection = selection;
     const material = new THREE.MeshBasicMaterial({
       color: '#cccccc',
       side: THREE.DoubleSide,
@@ -14,8 +16,8 @@ export class Canvas3D extends THREE.Group {
     let geometry;
 
     document.getElementById('drawAddCanvas').addEventListener('click', () => {
-      this.remove(this.getObjectByName('canvas3D'));
-      this.remove(this.getObjectByName('canvas3D-wireframe'));
+      // this.remove(this.getObjectByName('canvas3D'));
+      // this.remove(this.getObjectByName('canvas3D-wireframe'));
 
       // TODO use json-forms to create dynamic forms for each geometry
 
@@ -58,7 +60,13 @@ export class Canvas3D extends THREE.Group {
       plane.name = 'canvas3D';
       wireframe.name = 'canvas3D-wireframe';
 
-      this.add(plane, wireframe);
+      if (this.selection.getSelectedParticles().length > 0) {
+        const selectedParticle = this.selection.getSelectedParticles()[0];
+        plane.position.copy(selectedParticle.position);
+        wireframe.position.copy(selectedParticle.position);
+      }
+
+      this.add(plane);
     });
 
     document.getElementById('drawRemoveCanvas').addEventListener('click', () => {

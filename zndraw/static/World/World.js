@@ -150,7 +150,6 @@ class World {
 
     this.particles = new ParticlesGroup(socket, cache);
     this.line3D = new Line3D(camera, renderer);
-    const canvas3D = new Canvas3D();
     const index_grp = new ParticleIndexGroup(this.particles);
 
     this.selection = new Selection(
@@ -163,6 +162,8 @@ class World {
       cache,
       this,
     );
+
+    const canvas3D = new Canvas3D(this.selection);
 
     const light = createLights();
 

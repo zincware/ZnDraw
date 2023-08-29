@@ -287,3 +287,24 @@ def scene_schema():
     # print(json.dumps(schema, indent=2))
 
     return schema
+
+@io.on("draw:schema")
+def draw_schema():
+    from pydantic import BaseModel, Field
+    import typing as t
+
+    class SphereGeometry(BaseModel):
+        radius: float = 5.0
+
+    class CircleGeometry(BaseModel):
+        radius: float = 5.0
+
+    class Geometry(BaseModel):
+        geometry: t.Union[SphereGeometry, CircleGeometry] = SphereGeometry()
+        wireframe: bool = False
+
+    schema = Geometry.model_json_schema()
+    import json
+    print(json.dumps(schema, indent=2))
+
+    io.emit("draw:schema", schema)        

@@ -6,11 +6,23 @@ JSONEditor.defaults.options.disable_properties = true;
 JSONEditor.defaults.options.disable_collapse = true;
 JSONEditor.defaults.options.no_additional_properties = true;
 
+
 export function initJSONEditor(socket, cache, world) {
   modifier_editor(socket, cache, world);
   analysis_editor(socket, cache, world);
   scene_editor(socket, cache, world);
   selection_editor(socket, cache, world);
+  draw_editor(socket, cache, world);
+}
+
+function draw_editor(socket, cache, world) {
+  socket.on('draw:schema', (data) => {
+    const div = document.getElementById('draw-json-editor');
+    const editor = new JSONEditor(div, {
+      schema: data,
+    });
+  });
+  socket.emit('draw:schema');
 }
 
 function selection_editor(socket, cache, world) {
