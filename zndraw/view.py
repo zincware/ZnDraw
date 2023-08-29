@@ -58,7 +58,13 @@ def _get_port() -> int:
     return port
 
 
-def view(filename: str, port: int, open_browser: bool = True, webview: bool = True, fullscreen: bool = False):
+def view(
+    filename: str,
+    port: int,
+    open_browser: bool = True,
+    webview: bool = True,
+    fullscreen: bool = False,
+):
     if filename is not None:
         app.config["filename"] = filename
     url = f"http://127.0.0.1:{port}"

@@ -288,10 +288,12 @@ def scene_schema():
 
     return schema
 
+
 @io.on("draw:schema")
 def draw_schema():
-    from pydantic import BaseModel, Field
     import typing as t
+
+    from pydantic import BaseModel
 
     class SphereGeometry(BaseModel):
         radius: float = 5.0
@@ -305,6 +307,7 @@ def draw_schema():
 
     schema = Geometry.model_json_schema()
     import json
+
     print(json.dumps(schema, indent=2))
 
-    io.emit("draw:schema", schema)        
+    io.emit("draw:schema", schema)

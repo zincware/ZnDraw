@@ -21,10 +21,18 @@ def main(
     fullscreen: bool = typer.Option(
         False,
         help="Use fullscreen mode for the ZnDraw GUI. (only with webview)",
-    )
+    ),
+    port: int = typer.Option(
+        None, help="""Port to use for the ZnDraw server. Default port is 1234"""
+    ),
+    browser: bool = typer.Option(
+        True, help="""Whether to open the ZnDraw GUI in the default web browser."""
+    ),
 ):
     """Start the ZnDraw server.
 
     Visualize Trajectories, Structures, and more in ZnDraw.
     """
-    view(filename, _get_port(), webview=webview, fullscreen=fullscreen)
+    if port is None:
+        port = _get_port()
+    view(filename, port, webview=webview, fullscreen=fullscreen, open_browser=browser)
