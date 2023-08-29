@@ -21,6 +21,13 @@ function draw_editor(socket, cache, world) {
     const editor = new JSONEditor(div, {
       schema: data,
     });
+
+    // detect a change
+    editor.on('change', (event) => {
+      console.log(event);
+      console.log(editor.getValue());
+    });
+
   });
   socket.emit('draw:schema');
 }

@@ -294,16 +294,22 @@ def draw_schema():
     import typing as t
 
     class SphereGeometry(BaseModel):
-        radius: float = 5.0
+        name: t.Literal['SphereGeometry'] = Field('SphereGeometry')
+        radius: float = 4.0
 
     class CircleGeometry(BaseModel):
+        name: t.Literal['CircleGeometry'] = Field('CircleGeometry')
         radius: float = 5.0
 
     class Geometry(BaseModel):
-        geometry: t.Union[SphereGeometry, CircleGeometry] = SphereGeometry()
+        geometry: t.Union[SphereGeometry, CircleGeometry] = Field(default_factory=CircleGeometry, discriminator='name')
         wireframe: bool = False
 
     schema = Geometry.model_json_schema()
+    for prop in ["SphereGeometry", "CircleGeometry"]:
+        schema["$defs"][prop]["properties"]["name"]["options"] = {"hidden": True}
+        schema["$defs"][prop]["properties"]["name"]["type"] = "string"
+
     import json
     print(json.dumps(schema, indent=2))
 

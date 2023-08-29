@@ -7,10 +7,10 @@ export class Canvas3D extends THREE.Group {
 
     this.selection = selection;
     const material = new THREE.MeshBasicMaterial({
-      color: '#cccccc',
+      color: '#62929E',
       side: THREE.DoubleSide,
       transparent: true,
-      opacity: 0.5,
+      opacity: 0.2,
     });
 
     let geometry;
@@ -41,7 +41,7 @@ export class Canvas3D extends THREE.Group {
       } else if (geometry_name === 'RingGeometry') {
         geometry = new THREE.RingGeometry(1, 5, 32);
       } else if (geometry_name === 'SphereGeometry') {
-        geometry = new THREE.SphereGeometry(5, 32, 32);
+        geometry = new THREE.SphereGeometry(5.5, 32, 32);
       } else if (geometry_name === 'TetrahedronGeometry') {
         geometry = new THREE.TetrahedronGeometry(5);
       } else if (geometry_name === 'TorusGeometry') {
@@ -50,23 +50,29 @@ export class Canvas3D extends THREE.Group {
         geometry = new THREE.TorusKnotGeometry(5, 1, 100, 16);
       }
 
-      const wireframeGeometry = new THREE.WireframeGeometry(geometry);
-      const wireframeMaterial = new THREE.LineBasicMaterial({ color: 0x000000 });
+      let wireframeGeometry
+
+      if (true) {
+        const thresholdAngle = 1;
+        wireframeGeometry = new THREE.EdgesGeometry(geometry, thresholdAngle);
+      } else {
+        wireframeGeometry = new THREE.WireframeGeometry(geometry);
+      }
+      const wireframeMaterial = new THREE.LineBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.5 });
       const wireframe = new THREE.LineSegments(
-        wireframeGeometry,
-        wireframeMaterial,
-      );
+          wireframeGeometry,
+          wireframeMaterial,
+        );
+      wireframe.name = 'canvas3D-wireframe';
+    
       const plane = new THREE.Mesh(geometry, material);
       plane.name = 'canvas3D';
-      wireframe.name = 'canvas3D-wireframe';
-
-      if (this.selection.getSelectedParticles().length > 0) {
-        const selectedParticle = this.selection.getSelectedParticles()[0];
-        plane.position.copy(selectedParticle.position);
-        wireframe.position.copy(selectedParticle.position);
-      }
 
       this.add(plane, wireframe);
+      if (this.selection.getSelectedParticles().length > 0) {
+        const selectedParticle = this.selection.getSelectedParticles()[0];
+        this.position.copy(selectedParticle.position);
+      }
     });
 
     document.getElementById('drawRemoveCanvas').addEventListener('click', () => {
