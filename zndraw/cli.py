@@ -18,9 +18,13 @@ def main(
         If `pip install pywebview` is available, webview will be used.
         Otherwise, the GUI will be opened in the default web browser.""",
     ),
+    fullscreen: bool = typer.Option(
+        False,
+        help="Use fullscreen mode for the ZnDraw GUI. (only with webview)",
+    )
 ):
     """Start the ZnDraw server.
 
     Visualize Trajectories, Structures, and more in ZnDraw.
     """
-    view(filename, _get_port(), webview=webview)
+    view(filename, _get_port(), webview=webview, fullscreen=fullscreen)

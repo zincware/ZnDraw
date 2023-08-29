@@ -26,14 +26,14 @@ log = logging.getLogger("werkzeug")
 log.setLevel(logging.ERROR)
 
 
-def _view_with_webview(url):
+def _view_with_webview(url, fullscreen=False):
     wv.create_window(
         "ZnDraw",
         url,
         width=1280,
         height=720,
         resizable=True,
-        fullscreen=False,
+        fullscreen=fullscreen,
         confirm_close=True,
         background_color="#FFFFFF",
     )
@@ -58,7 +58,7 @@ def _get_port() -> int:
     return port
 
 
-def view(filename: str, port: int, open_browser: bool = True, webview: bool = True):
+def view(filename: str, port: int, open_browser: bool = True, webview: bool = True, fullscreen: bool = False):
     if filename is not None:
         app.config["filename"] = filename
     url = f"http://127.0.0.1:{port}"
@@ -66,7 +66,7 @@ def view(filename: str, port: int, open_browser: bool = True, webview: bool = Tr
 
     if wv is not None and webview:
         multiprocessing.Process(
-            target=_view_with_webview, args=(url,), daemon=True
+            target=_view_with_webview, args=(url, fullscreen), daemon=True
         ).start()
     elif open_browser:
         webbrowser.open(url)
