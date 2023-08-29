@@ -313,9 +313,10 @@ class ParticlesGroup extends THREE.Group {
 }
 
 class ParticleIndexGroup extends THREE.Group {
-  constructor(particlesGroup) {
+  constructor(particlesGroup, camera) {
     super();
     this.particlesGroup = particlesGroup;
+    this.camera = camera;
 
     this.show_labels = false;
 
@@ -331,36 +332,68 @@ class ParticleIndexGroup extends THREE.Group {
 
   toggle() {
     this.show_labels = !this.show_labels;
-    if (this.show_labels) {
-      this.show();
-    } else {
-      this.hide();
-    }
-  }
-
-  show() {
-    this.particlesGroup.children.forEach((particle) => {
-      const text = document.createElement('div');
-      text.className = 'label';
-      text.style.color = 'black';
-      text.textContent = particle.name;
-      text.style.fontSize = '20px';
-
-      const label = new CSS2DObject(text);
-      label.position.set(...particle.position);
-      this.add(label);
-    });
+    this.clear();
   }
 
   step(frame) {
     if (this.show_labels) {
-      this.hide();
-      this.show();
+      this.clear();
     }
   }
 
-  hide() {
-    this.clear();
+  tick() {
+    if (this.show_labels) {
+      const raycaster = new THREE.Raycaster();
+      raycaster.camera = this.camera;
+
+      const direction = new THREE.Vector3();
+
+      function get2dPositions(position, camera) {
+        const vector = position.clone();
+        vector.project(camera);
+
+        const vector2d = new THREE.Vector2(vector.x, vector.y);
+
+        // add shifts +/- x/y if you want to sample from the top/bottom/left/right of the particle
+
+        return [vector2d];
+      }
+
+      this.particlesGroup.children.forEach((object) => {
+        // combine all intersects from the center and top/bottom/left/right of the particle
+        let visible = true;
+        let intersects
+
+          // center
+        const positions = get2dPositions(object.position, this.camera);
+
+        positions.forEach((position) => {
+          raycaster.setFromCamera(position, this.camera);
+          intersects = raycaster.intersectObjects(this.particlesGroup.children);
+
+          if (intersects.length > 0 && intersects[0].object.parent !== object) {
+            visible = false;
+          }
+        });
+
+        if (!visible) {
+          // get the `${particle.name}-label`; object from this and remove it
+          const label = this.getObjectByName(`${object.name}-label`);
+          this.remove(label);
+        } else if (!this.getObjectByName(`${object.name}-label`)) {
+          const text = document.createElement('span');
+          // <span class="badge bg-secondary">New</span> 
+          text.className = 'badge bg-dark';
+          text.textContent = object.name;
+          text.style.fontSize = '20px';
+          
+          const label = new CSS2DObject(text);
+          label.position.set(...object.position);
+          label.name = `${object.name}-label`;
+          this.add(label);
+        }
+      });
+    }
   }
 }
 

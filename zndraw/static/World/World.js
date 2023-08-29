@@ -150,7 +150,7 @@ class World {
 
     this.particles = new ParticlesGroup(socket, cache);
     this.line3D = new Line3D(camera, renderer);
-    const index_grp = new ParticleIndexGroup(this.particles);
+    const index_grp = new ParticleIndexGroup(this.particles, camera);
 
     this.selection = new Selection(
       camera,
@@ -182,7 +182,7 @@ class World {
       }
     });
 
-    loop.tick_updatables.push(controls, this.player);
+    loop.tick_updatables.push(controls, this.player, index_grp);
     loop.step_updatables.push(this.particles, this.selection, index_grp);
 
     const resizer = new Resizer(container, camera, renderer, renderer2d);
