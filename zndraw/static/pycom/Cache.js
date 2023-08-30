@@ -1,12 +1,13 @@
 // Interface for the communication with Python to retrieve atoms
 
 class Atom {
-  constructor({ position, number, color, id, radius }) {
+  constructor({ position, number, color, id, radius, calc }) {
     this.position = position;
     this.number = number;
     this.id = id;
     this.color = color;
     this.radius = radius;
+    this.calc = calc;
   }
 }
 
@@ -29,12 +30,23 @@ class Atoms {
     return {
       next() {
         if (index < atoms.positions.length) {
+          const calc = {};
+          // iterate through every property in this.calc if it has the same length as atoms.positions, add to calc object.
+          if (atoms.calc !== undefined) {
+            Object.keys(atoms.calc).forEach((key) => {
+              if (atoms.calc[key].length === atoms.positions.length) {
+                calc[key] = atoms.calc[key][index];
+              }
+            });
+          }
+          
           const atom = new Atom({
             position: atoms.positions[index],
             number: atoms.numbers[index],
             color: atoms.colors[index],
             radius: atoms.radii[index],
             id: index,
+            calc: calc,
           });
           index++;
           return { value: atom, done: false };

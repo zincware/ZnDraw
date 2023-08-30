@@ -112,6 +112,44 @@ class ParticleGroup extends THREE.Group {
     this._original_material = particle_mesh.material;
 
     this.position.set(...particle.position);
+
+    this.arrows = {};
+
+    this.show_forces = false;
+    // event listener for keypress F
+    document.addEventListener("keydown", (event) => {
+      if (event.isComposing || event.key === "f") {
+        this.show_forces = !this.show_forces;
+        if (!this.show_forces) {
+          Object.keys(this.arrows).forEach((key) => {
+            this.remove(this.arrows[key]);
+          });
+          this.arrows = {};
+        }
+      }
+    });
+  }
+
+  addOrUpdateArrow(name, direction) {
+    if (name in this.arrows) {
+      // this.remove(this.arrows[name]);
+      // update the position
+      direction.normalize();
+      this.arrows[name].setDirection(direction);
+      return;
+    }
+
+    const color = 0x000000;
+
+    const origin = new THREE.Vector3(0, 0, 0);
+    const length = direction.length() * 50;
+    const hex = color;
+
+    direction.normalize();
+
+    const arrowHelper = new THREE.ArrowHelper(direction, origin, length, hex);
+    this.arrows[name] = arrowHelper;
+    this.add(arrowHelper);
   }
 
   update(particle) {
@@ -121,6 +159,12 @@ class ParticleGroup extends THREE.Group {
       particle.color,
       this.wireframe,
     );
+    if (this.show_forces) {
+      if (particle.calc.forces !== undefined) {
+        this.addOrUpdateArrow("force", new THREE.Vector3(...particle.calc.forces));
+      }
+    }
+    // console.log(particle);
     // this command may update the selected material
     this._original_material = material;
 
@@ -233,7 +277,7 @@ class ParticlesGroup extends THREE.Group {
     this.show_bonds = bonds;
   }
 
-  tick() {}
+  tick() { }
 
   _updateParticles(particles) {
     const existing_particles = [];
