@@ -6,7 +6,7 @@ import { createControls, createTransformControls } from './systems/controls.js';
 import { createRenderer, create2DRenderer } from './systems/renderer.js';
 import { Resizer } from './systems/Resizer.js';
 import { Loop } from './systems/Loop.js';
-import { ParticlesGroup, ParticleIndexGroup } from './components/particles.js';
+import { ParticlesGroup, ParticleIndexGroup, CellGroup } from './components/particles.js';
 import { Selection } from './systems/select.js';
 
 import { Line3D, Canvas3D } from './components/draw.js';
@@ -155,6 +155,8 @@ class World {
     this.line3D = new Line3D(camera, renderer);
     const index_grp = new ParticleIndexGroup(this.particles, camera);
 
+    this.cell_grp = new CellGroup(cache);
+
     this.selection = new Selection(
       camera,
       scene,
@@ -170,7 +172,7 @@ class World {
 
     const light = createLights();
 
-    scene.add(this.particles, light, camera, this.line3D, canvas3D, index_grp); // index, transform_controls
+    scene.add(this.particles, light, camera, this.line3D, canvas3D, index_grp, this.cell_grp); // index, transform_controls
 
     // attach the canvas3D to the camera while t is pressed. attach to the scene when released
     document.addEventListener('keydown', (event) => {
@@ -186,7 +188,7 @@ class World {
     });
 
     loop.tick_updatables.push(controls, index_grp);
-    loop.step_updatables.push(this.particles, this.selection, index_grp);
+    loop.step_updatables.push(this.particles, this.selection, index_grp, this.cell_grp);
 
     const resizer = new Resizer(container, camera, renderer, renderer2d);
 
@@ -207,7 +209,8 @@ class World {
    * Rebuild all objects in the scene
    */
   rebuild(resolution, material, wireframe, simulation_box, bonds) {
-    this.particles.rebuild(resolution, material, wireframe, simulation_box, bonds);
+    this.particles.rebuild(resolution, material, wireframe, bonds);
+    this.cell_grp.set_visibility(simulation_box);
     this.setStep(loop.step);
   }
 
