@@ -4,13 +4,13 @@
 
 # ZnDraw
 
-Install via `pip install zndraw`.
-If you have `pip install pywebview` installed, ZnDraw will open in a dedicated window.
+Install via `pip install zndraw`. If you have `pip install pywebview` installed,
+ZnDraw will open in a dedicated window.
 
 ## CLI
 
-You can use ZnDraw with the CLI `zndraw atoms.xyz`. 
-Alternatively, you can use zndraw from within a Juypter Notebook
+You can use ZnDraw with the CLI `zndraw atoms.xyz`. Alternatively, you can use
+zndraw from within a Juypter Notebook
 
 ```python
 from zndraw import ZnDraw
@@ -27,8 +27,9 @@ zndraw[0] = ase.Atoms(
   "H2O", positions=[[0.75, -0.75, 0], [0.75, 0.75, 0], [0, 0, 0]]
   )
 ```
-or a normal Python script using `zndraw = ZnDraw(jupyter=False)` to open a browser window.
 
+or a normal Python script using `zndraw = ZnDraw(jupyter=False)` to open a
+browser window.
 
 ZnDraw is designed to work with your Python scripts. To interface you can
 inherit from `zndraw.examples.UpdateScene` or follow this base class:

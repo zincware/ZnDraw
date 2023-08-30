@@ -421,13 +421,13 @@ class ParticleIndexGroup extends THREE.Group {
           text.style.textShadow = '1px 1px 1px #000000';
 
           // const text = document.createElement('div');
-          // // <span class="badge bg-secondary">New</span> 
+          // // <span class="badge bg-secondary">New</span>
           // text.className = 'label';
           // text.textContent =  `\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0X------${object.name}`;
           // text.style.fontSize = '20px';
           // text.style.color = `#${object.children[0].material.color.getHexString()}`
           // // text-shadow: #FC0 1px 0 10px;
-          // 
+          //
           // console.log(object.children[0].material.color);
 
           const label = new CSS2DObject(text);
