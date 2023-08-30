@@ -50,6 +50,6 @@ repos:
       - id: mdformat
         args: ["--wrap=80"]
   - repo: https://github.com/pre-commit/mirrors-prettier
-    rev: "latest"
+    rev: v3.0.3
     hooks:
       - id: prettier
