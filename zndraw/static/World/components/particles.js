@@ -1,17 +1,17 @@
-import * as THREE from 'three';
-import { CSS2DObject } from 'three/examples/jsm/renderers/CSS2DRenderer.js';
+import * as THREE from "three";
+import { CSS2DObject } from "three/examples/jsm/renderers/CSS2DRenderer.js";
 
 export const materials = {
-  MeshBasicMaterial: new THREE.MeshBasicMaterial({ color: '#ffa500' }),
-  MeshLambertMaterial: new THREE.MeshLambertMaterial({ color: '#ffa500' }),
-  MeshMatcapMaterial: new THREE.MeshMatcapMaterial({ color: '#ffa500' }),
+  MeshBasicMaterial: new THREE.MeshBasicMaterial({ color: "#ffa500" }),
+  MeshLambertMaterial: new THREE.MeshLambertMaterial({ color: "#ffa500" }),
+  MeshMatcapMaterial: new THREE.MeshMatcapMaterial({ color: "#ffa500" }),
   MeshPhongMaterial: new THREE.MeshPhongMaterial({
-    color: '#ffa500',
+    color: "#ffa500",
     shininess: 100,
   }),
-  MeshPhysicalMaterial: new THREE.MeshPhysicalMaterial({ color: '#ffa500' }),
-  MeshStandardMaterial: new THREE.MeshStandardMaterial({ color: '#ffa500' }),
-  MeshToonMaterial: new THREE.MeshToonMaterial({ color: '#ffa500' }),
+  MeshPhysicalMaterial: new THREE.MeshPhysicalMaterial({ color: "#ffa500" }),
+  MeshStandardMaterial: new THREE.MeshStandardMaterial({ color: "#ffa500" }),
+  MeshToonMaterial: new THREE.MeshToonMaterial({ color: "#ffa500" }),
 };
 
 const sphereGeometryFactoryCache = {};
@@ -22,7 +22,7 @@ const halfCylinderGeometryFactoryCache = {};
 
 // a simple memoized function to add something
 const halfCylinderGeometryFactory = () => {
-  let key = '';
+  let key = "";
   return (bond_size, resolution) => {
     key = `${bond_size}_${resolution}`;
 
@@ -49,7 +49,7 @@ const halfCylinderGeometryFactory = () => {
 };
 
 const sphereGeometryFactory = () => {
-  let key = '';
+  let key = "";
   return (sphere_size, resolution) => {
     key = `${sphere_size}_${resolution}`;
 
@@ -133,7 +133,9 @@ class ParticleGroup extends THREE.Group {
     const bondsToRemove = [];
 
     bonds.forEach(([_, targetParticleGroup, bond_type]) => {
-      const bond_mesh = this.bonds.find((bond) => bond.particle_group === targetParticleGroup);
+      const bond_mesh = this.bonds.find(
+        (bond) => bond.particle_group === targetParticleGroup,
+      );
       if (bond_mesh) {
         this.updateBondOrientation(bond_mesh.bond, targetParticleGroup);
       } else {
@@ -142,7 +144,9 @@ class ParticleGroup extends THREE.Group {
     });
 
     this.bonds = this.bonds.filter((bond) => {
-      const exists = bonds.some(([_, particle_group]) => particle_group === bond.particle_group);
+      const exists = bonds.some(
+        ([_, particle_group]) => particle_group === bond.particle_group,
+      );
       if (!exists) {
         bondsToRemove.push(bond);
         return false;
@@ -186,7 +190,11 @@ class ParticleGroup extends THREE.Group {
   set_selection(selected) {
     if (selected) {
       // see https://threejs.org/examples/#webgl_postprocessing_unreal_bloom_selective for inspiration
-      const material = speciesMaterial(this.material, '#ffa500', this.wireframe);
+      const material = speciesMaterial(
+        this.material,
+        "#ffa500",
+        this.wireframe,
+      );
       this.children.forEach((x) => (x.material = material));
     } else {
       this.children.forEach((x) => (x.material = this._original_material));
@@ -200,15 +208,15 @@ class ParticleGroup extends THREE.Group {
 class ParticlesGroup extends THREE.Group {
   constructor(socket, cache) {
     super();
-    this.name = 'particlesGroup';
+    this.name = "particlesGroup";
     this.cache = cache;
-    socket.on('config', (data) => {
+    socket.on("config", (data) => {
       this.config = data;
-      console.log('ParticlesGroup config:');
+      console.log("ParticlesGroup config:");
       console.log(this.config);
     });
     this.resolution = 10;
-    this.material = 'MeshPhongMaterial';
+    this.material = "MeshPhongMaterial";
     this.wireframe = false;
     this.show_bonds = true;
 
@@ -225,7 +233,7 @@ class ParticlesGroup extends THREE.Group {
     this.show_bonds = bonds;
   }
 
-  tick() { }
+  tick() {}
 
   _updateParticles(particles) {
     const existing_particles = [];
@@ -246,7 +254,14 @@ class ParticlesGroup extends THREE.Group {
     deleted_particles = this.children.filter((x) => x.name >= particles.length);
 
     new_particles.forEach((particle) => {
-      this.add(new ParticleGroup(particle, this.resolution, this.material, this.wireframe));
+      this.add(
+        new ParticleGroup(
+          particle,
+          this.resolution,
+          this.material,
+          this.wireframe,
+        ),
+      );
     });
 
     existing_particles.forEach((particle) => {
@@ -267,7 +282,11 @@ class ParticlesGroup extends THREE.Group {
     const getBondsForParticle = (particleName) => {
       const bondsWithGroups = bonds
         .filter(([a, b]) => a === particleName || b === particleName)
-        .map(([a, b, bond_type]) => (a === particleName ? [a, this.getObjectByName(b), bond_type] : [b, this.getObjectByName(a), bond_type]));
+        .map(([a, b, bond_type]) =>
+          a === particleName
+            ? [a, this.getObjectByName(b), bond_type]
+            : [b, this.getObjectByName(a), bond_type],
+        );
       return bondsWithGroups;
     };
 
@@ -294,7 +313,7 @@ class ParticlesGroup extends THREE.Group {
 class CellGroup extends THREE.Group {
   constructor(cache) {
     super();
-    this.name = 'cellGroup';
+    this.name = "cellGroup";
     this.cache = cache;
     this.is_visible = false;
   }
@@ -308,13 +327,21 @@ class CellGroup extends THREE.Group {
     const cell = particles.cell;
 
     this.clear();
-    const boxGeometry = new THREE.BoxGeometry(cell[0][0], cell[1][1], cell[2][2]);
+    const boxGeometry = new THREE.BoxGeometry(
+      cell[0][0],
+      cell[1][1],
+      cell[2][2],
+    );
     const wireframe = new THREE.EdgesGeometry(boxGeometry);
     this.cell_lines = new THREE.LineSegments(
       wireframe,
-      new THREE.LineBasicMaterial({ color: '#000000' }),
+      new THREE.LineBasicMaterial({ color: "#000000" }),
     );
-    this.cell_lines.position.set(cell[0][0] / 2, cell[1][1] / 2, cell[2][2] / 2);
+    this.cell_lines.position.set(
+      cell[0][0] / 2,
+      cell[1][1] / 2,
+      cell[2][2] / 2,
+    );
     // this.cell_lines.set_selection = (selected) => { };
     this.add(this.cell_lines);
   }
@@ -323,7 +350,6 @@ class CellGroup extends THREE.Group {
     this.is_visible = visible;
   }
 }
-
 
 class ParticleIndexGroup extends THREE.Group {
   constructor(particlesGroup, camera) {
@@ -334,11 +360,11 @@ class ParticleIndexGroup extends THREE.Group {
     this.show_labels = false;
     this.label_offset = 0;
 
-    document.addEventListener('keydown', (event) => {
+    document.addEventListener("keydown", (event) => {
       if (event.repeat) {
         return;
       }
-      if (event.isComposing || event.key === 'i') {
+      if (event.isComposing || event.key === "i") {
         this.toggle();
       }
     });
@@ -381,7 +407,7 @@ class ParticleIndexGroup extends THREE.Group {
       this.particlesGroup.children.forEach((object) => {
         // combine all intersects from the center and top/bottom/left/right of the particle
         let visible = true;
-        let intersects
+        let intersects;
 
         // center
         const positions = get2dPositions(object.position, this.camera);
@@ -401,24 +427,28 @@ class ParticleIndexGroup extends THREE.Group {
           this.remove(label);
         } else if (!this.getObjectByName(`${object.name}-label`)) {
           // create a div with unicode f00d
-          const text = document.createElement('div');
-          const blank = '\u00A0';
-          const line = '\u23AF';
-          text.className = 'label';
+          const text = document.createElement("div");
+          const blank = "\u00A0";
+          const line = "\u23AF";
+          text.className = "label";
           if (this.label_offset === 0) {
             text.textContent = object.name;
           } else if (this.label_offset > 0) {
-            text.textContent = `${blank.repeat(this.label_offset * 2 + 6)}\u00D7${line.repeat(this.label_offset)}${blank}${object.name}`;
+            text.textContent = `${blank.repeat(
+              this.label_offset * 2 + 6,
+            )}\u00D7${line.repeat(this.label_offset)}${blank}${object.name}`;
           } else {
-            text.textContent = `${object.name}${blank}${line.repeat(this.label_offset * -1)}\u00D7${blank.repeat(this.label_offset * -2 + 6)}`;
+            text.textContent = `${object.name}${blank}${line.repeat(
+              this.label_offset * -1,
+            )}\u00D7${blank.repeat(this.label_offset * -2 + 6)}`;
           }
-            // textContent = object.name + label_offset * \u23AF + label_offset * \u00A0
+          // textContent = object.name + label_offset * \u23AF + label_offset * \u00A0
           // text.textContent = `\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00D7\u23AF\u23AF\u23AF\u00A0${object.name}`;
           // text.textContent = object.name;
           // text.textContent = String.fromCodePoint(0xf00d);
-          text.style.fontSize = '20px';
+          text.style.fontSize = "20px";
           // text.style.color = `#${object.children[0].material.color.getHexString()}`;
-          text.style.textShadow = '1px 1px 1px #000000';
+          text.style.textShadow = "1px 1px 1px #000000";
 
           // const text = document.createElement('div');
           // // <span class="badge bg-secondary">New</span>

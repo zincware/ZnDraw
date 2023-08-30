@@ -1,15 +1,19 @@
-import { createCamera } from './components/camera.js';
-import { createLights } from './components/lights.js';
-import { createScene } from './components/scene.js';
+import { createCamera } from "./components/camera.js";
+import { createLights } from "./components/lights.js";
+import { createScene } from "./components/scene.js";
 
-import { createControls, createTransformControls } from './systems/controls.js';
-import { createRenderer, create2DRenderer } from './systems/renderer.js';
-import { Resizer } from './systems/Resizer.js';
-import { Loop } from './systems/Loop.js';
-import { ParticlesGroup, ParticleIndexGroup, CellGroup } from './components/particles.js';
-import { Selection } from './systems/select.js';
+import { createControls, createTransformControls } from "./systems/controls.js";
+import { createRenderer, create2DRenderer } from "./systems/renderer.js";
+import { Resizer } from "./systems/Resizer.js";
+import { Loop } from "./systems/Loop.js";
+import {
+  ParticlesGroup,
+  ParticleIndexGroup,
+  CellGroup,
+} from "./components/particles.js";
+import { Selection } from "./systems/select.js";
 
-import { Line3D, Canvas3D } from './components/draw.js';
+import { Line3D, Canvas3D } from "./components/draw.js";
 
 // These variables are module-scoped: we cannot access them
 // from outside the module
@@ -30,55 +34,55 @@ class Player {
     this.cache = cache;
     this.loop = false;
 
-    socket.on('view:set', (index) => {
+    socket.on("view:set", (index) => {
       this.world.setStep(index);
     });
 
-    socket.on('view:play', () => {
+    socket.on("view:play", () => {
       this.playing = true;
       this.play();
     });
 
     // toggle playing on spacebar
-    document.addEventListener('keydown', (event) => {
-      if (document.activeElement === document.body && event.code === 'Space') {
+    document.addEventListener("keydown", (event) => {
+      if (document.activeElement === document.body && event.code === "Space") {
         this.toggle();
       }
       if (
-        document.activeElement === document.body
-        && event.code === 'ArrowRight'
+        document.activeElement === document.body &&
+        event.code === "ArrowRight"
       ) {
         this.go_forward();
       }
       // on arrow left go backward
       if (
-        document.activeElement === document.body
-        && event.code === 'ArrowLeft'
+        document.activeElement === document.body &&
+        event.code === "ArrowLeft"
       ) {
         this.go_backward();
       }
       // on arrow up go forward 10 % of the length
       if (
-        document.activeElement === document.body
-        && event.code === 'ArrowUp'
+        document.activeElement === document.body &&
+        event.code === "ArrowUp"
       ) {
         this.go_forward(parseInt(this.cache.get_length() / 10));
       }
       // on arrow down go backward 10 % of the length
       if (
-        document.activeElement === document.body
-        && event.code === 'ArrowDown'
+        document.activeElement === document.body &&
+        event.code === "ArrowDown"
       ) {
         this.go_backward(parseInt(this.cache.get_length() / 10));
       }
     });
 
-    const slider = document.getElementById('frame-slider');
+    const slider = document.getElementById("frame-slider");
     slider.focus();
 
     slider.oninput = function () {
       document.getElementById(
-        'info',
+        "info",
       ).innerHTML = `${slider.value} / ${slider.max}`;
       world.setStep(this.value);
     };
@@ -89,7 +93,7 @@ class Player {
   }
 
   toggle() {
-    if ((!this.playing) && this.world.getStep() == this.cache.get_length() - 1) {
+    if (!this.playing && this.world.getStep() == this.cache.get_length() - 1) {
       this.world.setStep(0);
     }
     this.playing = !this.playing;
@@ -172,23 +176,36 @@ class World {
 
     const light = createLights();
 
-    scene.add(this.particles, light, camera, this.line3D, canvas3D, this.index_grp, this.cell_grp); // index, transform_controls
+    scene.add(
+      this.particles,
+      light,
+      camera,
+      this.line3D,
+      canvas3D,
+      this.index_grp,
+      this.cell_grp,
+    ); // index, transform_controls
 
     // attach the canvas3D to the camera while t is pressed. attach to the scene when released
-    document.addEventListener('keydown', (event) => {
-      if (event.key == 't') {
+    document.addEventListener("keydown", (event) => {
+      if (event.key == "t") {
         if (camera.children.includes(canvas3D)) {
           scene.attach(canvas3D);
-          document.getElementById('alertBoxDrawing').style.display = 'none';
+          document.getElementById("alertBoxDrawing").style.display = "none";
         } else {
           camera.attach(canvas3D);
-          document.getElementById('alertBoxDrawing').style.display = 'block';
+          document.getElementById("alertBoxDrawing").style.display = "block";
         }
       }
     });
 
     loop.tick_updatables.push(controls, this.index_grp);
-    loop.step_updatables.push(this.particles, this.selection, this.index_grp, this.cell_grp);
+    loop.step_updatables.push(
+      this.particles,
+      this.selection,
+      this.index_grp,
+      this.cell_grp,
+    );
 
     const resizer = new Resizer(container, camera, renderer, renderer2d);
 
@@ -208,7 +225,14 @@ class World {
   /**
    * Rebuild all objects in the scene
    */
-  rebuild(resolution, material, wireframe, simulation_box, bonds, label_offset) {
+  rebuild(
+    resolution,
+    material,
+    wireframe,
+    simulation_box,
+    bonds,
+    label_offset,
+  ) {
     this.particles.rebuild(resolution, material, wireframe, bonds);
     this.cell_grp.set_visibility(simulation_box);
     this.setStep(loop.step);
@@ -218,10 +242,10 @@ class World {
   setStep(step) {
     step = parseInt(step);
     loop.setStep(step);
-    const slider = document.getElementById('frame-slider');
+    const slider = document.getElementById("frame-slider");
     slider.value = step;
     document.getElementById(
-      'info',
+      "info",
     ).innerHTML = `${slider.value} / ${slider.max}`;
   }
 
@@ -238,7 +262,9 @@ class World {
     const points = this.line3D.anchorPoints.children.map((x) => x.position);
     let segments = [];
     try {
-      segments = this.line3D.curve.getSpacedPoints(this.line3D.ARC_SEGMENTS).map((x) => x.toArray());
+      segments = this.line3D.curve
+        .getSpacedPoints(this.line3D.ARC_SEGMENTS)
+        .map((x) => x.toArray());
     } catch (error) {
       // console.log(error);
     }
