@@ -332,6 +332,7 @@ class ParticleIndexGroup extends THREE.Group {
     this.camera = camera;
 
     this.show_labels = false;
+    this.label_offset = 0;
 
     document.addEventListener('keydown', (event) => {
       if (event.repeat) {
@@ -341,6 +342,11 @@ class ParticleIndexGroup extends THREE.Group {
         this.toggle();
       }
     });
+  }
+
+  rebuild(label_offset) {
+    this.label_offset = label_offset;
+    this.clear();
   }
 
   toggle() {
@@ -396,9 +402,19 @@ class ParticleIndexGroup extends THREE.Group {
         } else if (!this.getObjectByName(`${object.name}-label`)) {
           // create a div with unicode f00d
           const text = document.createElement('div');
+          const blank = '\u00A0';
+          const line = '\u23AF';
           text.className = 'label';
+          if (this.label_offset === 0) {
+            text.textContent = object.name;
+          } else if (this.label_offset > 0) {
+            text.textContent = `${blank.repeat(this.label_offset * 2 + 6)}\u00D7${line.repeat(this.label_offset)}${blank}${object.name}`;
+          } else {
+            text.textContent = `${object.name}${blank}${line.repeat(this.label_offset * -1)}\u00D7${blank.repeat(this.label_offset * -2 + 6)}`;
+          }
+            // textContent = object.name + label_offset * \u23AF + label_offset * \u00A0
           // text.textContent = `\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00D7\u23AF\u23AF\u23AF\u00A0${object.name}`;
-          text.textContent = object.name;
+          // text.textContent = object.name;
           // text.textContent = String.fromCodePoint(0xf00d);
           text.style.fontSize = '20px';
           // text.style.color = `#${object.children[0].material.color.getHexString()}`;

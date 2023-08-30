@@ -277,6 +277,12 @@ def scene_schema():
             True,
             description="Show bonds.",
         )
+        label_offset: int = Field(
+            0,
+            ge=-7,
+            le=7,
+            description="Move the label to the left or right (keypress i).",
+        )
 
     schema = Scene.model_json_schema()
 
@@ -284,6 +290,7 @@ def scene_schema():
     schema["properties"]["Animation Loop"]["format"] = "checkbox"
     schema["properties"]["simulation_box"]["format"] = "checkbox"
     schema["properties"]["resolution"]["format"] = "range"
+    schema["properties"]["label_offset"]["format"] = "range"
     schema["properties"]["bonds"]["format"] = "checkbox"
 
     # import json
