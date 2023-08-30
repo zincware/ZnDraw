@@ -381,11 +381,25 @@ class ParticleIndexGroup extends THREE.Group {
           const label = this.getObjectByName(`${object.name}-label`);
           this.remove(label);
         } else if (!this.getObjectByName(`${object.name}-label`)) {
-          const text = document.createElement('span');
-          // <span class="badge bg-secondary">New</span> 
-          text.className = 'badge bg-dark';
+          // create a div with unicode f00d
+          const text = document.createElement('div');
+          text.className = 'label';
+          // text.textContent = `\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00D7\u23AF\u23AF\u23AF\u00A0${object.name}`;
           text.textContent = object.name;
+          // text.textContent = String.fromCodePoint(0xf00d);
           text.style.fontSize = '20px';
+          // text.style.color = `#${object.children[0].material.color.getHexString()}`;
+          text.style.textShadow = '1px 1px 1px #000000';
+
+          // const text = document.createElement('div');
+          // // <span class="badge bg-secondary">New</span> 
+          // text.className = 'label';
+          // text.textContent =  `\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0X------${object.name}`;
+          // text.style.fontSize = '20px';
+          // text.style.color = `#${object.children[0].material.color.getHexString()}`
+          // // text-shadow: #FC0 1px 0 10px;
+          // 
+          // console.log(object.children[0].material.color);
           
           const label = new CSS2DObject(text);
           label.position.set(...object.position);

@@ -306,8 +306,5 @@ def draw_schema():
         wireframe: bool = False
 
     schema = Geometry.model_json_schema()
-    import json
-
-    print(json.dumps(schema, indent=2))
 
     io.emit("draw:schema", schema)
