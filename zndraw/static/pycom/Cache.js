@@ -1,9 +1,7 @@
 // Interface for the communication with Python to retrieve atoms
 
 class Atom {
-  constructor({
-    position, number, color, id, radius,
-  }) {
+  constructor({ position, number, color, id, radius }) {
     this.position = position;
     this.number = number;
     this.id = id;
@@ -13,9 +11,7 @@ class Atom {
 }
 
 class Atoms {
-  constructor({
-    positions, cell, numbers, colors, radii, connectivity, calc,
-  }) {
+  constructor({ positions, cell, numbers, colors, radii, connectivity, calc }) {
     this.positions = positions;
     this.cell = cell;
     this.numbers = numbers;
@@ -56,9 +52,11 @@ class Cache {
 
     this._last_request = -999999;
 
-    this._socket.on('atoms:upload', (data) => {
-      console.log('Received atoms from Python');
-      document.getElementById('interaction-json-editor-submit').disabled = false;
+    this._socket.on("atoms:upload", (data) => {
+      console.log("Received atoms from Python");
+      document.getElementById(
+        "interaction-json-editor-submit",
+      ).disabled = false;
       Object.keys(data).forEach((key) => {
         this._cache[key] = new Atoms({
           positions: data[key].positions,
@@ -70,14 +68,14 @@ class Cache {
           calc: data[key].calc,
         });
       });
-      const slider = document.getElementById('frame-slider');
+      const slider = document.getElementById("frame-slider");
       slider.max = Object.keys(this._cache).length - 1;
       document.getElementById(
-        'info',
+        "info",
       ).innerHTML = `${slider.value} / ${slider.max}`;
     });
 
-    this._socket.on('atoms:download', (ids) => {
+    this._socket.on("atoms:download", (ids) => {
       // iterate through the ids and emit the atoms object for each
       // ids.forEach((x) => {
       //   // let data = {};
@@ -91,10 +89,10 @@ class Cache {
       ids.forEach((x) => {
         data[x] = this._cache[x];
       });
-      this._socket.emit('atoms:download', data);
+      this._socket.emit("atoms:download", data);
     });
 
-    this._socket.on('atoms:clear', (start_index) => {
+    this._socket.on("atoms:clear", (start_index) => {
       // remove everything from the cache starting from start_index
       Object.keys(this._cache).forEach((key) => {
         if (parseInt(key) >= start_index) {
@@ -103,8 +101,8 @@ class Cache {
       });
     });
 
-    this._socket.on('atoms:size', () => {
-      this._socket.emit('atoms:size', this.get_length());
+    this._socket.on("atoms:size", () => {
+      this._socket.emit("atoms:size", this.get_length());
     });
   }
 
@@ -115,7 +113,7 @@ class Cache {
   }
 
   reset() {
-    console.log('reset cache');
+    console.log("reset cache");
     this._cache = {};
     this._last_request = -999999;
   }

@@ -1,4 +1,4 @@
-import { Clock } from 'three';
+import { Clock } from "three";
 
 const clock = new Clock();
 const constraint_clock = new Clock();

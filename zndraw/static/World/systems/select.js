@@ -1,5 +1,5 @@
-import * as THREE from 'three';
-import { TransformControls } from 'three/examples/jsm/controls/TransformControls.js';
+import * as THREE from "three";
+import { TransformControls } from "three/examples/jsm/controls/TransformControls.js";
 
 let scroll_timer = null;
 
@@ -14,37 +14,37 @@ class Selection {
 
     this.shift_pressed = false;
 
-    document.addEventListener('keydown', (event) => {
-      if (event.key === 'Shift') {
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Shift") {
         this.shift_pressed = true;
       }
     });
-    document.addEventListener('keyup', (event) => {
-      if (event.key === 'Shift') {
+    document.addEventListener("keyup", (event) => {
+      if (event.key === "Shift") {
         this.shift_pressed = false;
       }
     });
 
     this.controls.getCenter = () => {
-      const particlesGroup = this.scene.getObjectByName('particlesGroup');
+      const particlesGroup = this.scene.getObjectByName("particlesGroup");
       return particlesGroup.get_center();
     };
 
-    this.socket.on('selection:run', (data) => {
+    this.socket.on("selection:run", (data) => {
       this.selection = data;
       this.step();
     });
 
-    window.addEventListener('wheel', this.onWheel.bind(this));
+    window.addEventListener("wheel", this.onWheel.bind(this));
 
     // use c keypress to center the camera on the selection
-    document.addEventListener('keydown', (event) => {
-      if (event.key === 'c') {
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "c") {
         if (this.controls.enablePan) {
-          document.getElementById('alertBoxCamera').style.display = 'block';
+          document.getElementById("alertBoxCamera").style.display = "block";
 
           // get the first object that is selected
-          const particlesGroup = this.scene.getObjectByName('particlesGroup');
+          const particlesGroup = this.scene.getObjectByName("particlesGroup");
 
           particlesGroup.children.every((x) => {
             if (this.selection.includes(x.name)) {
@@ -56,7 +56,7 @@ class Selection {
             return true;
           });
         } else {
-          document.getElementById('alertBoxCamera').style.display = 'none';
+          document.getElementById("alertBoxCamera").style.display = "none";
           this.controls.target = this.controls.target.clone();
           this.controls.enablePan = true;
         }
@@ -78,26 +78,29 @@ class Selection {
     const onPointerMove = this.onPointerMove.bind(this);
 
     // event on backspace
-    document.addEventListener('keydown', (event) => {
-      if (event.key === 'Backspace' && document.activeElement === document.body) {
+    document.addEventListener("keydown", (event) => {
+      if (
+        event.key === "Backspace" &&
+        document.activeElement === document.body
+      ) {
         this.line3D.removePointer(this.transform_controls.object);
         this.transform_controls.detach();
       }
-      if (event.key === 'Escape' && document.activeElement === document.body) {
+      if (event.key === "Escape" && document.activeElement === document.body) {
         this.transform_controls.detach();
         if (this._drawing) {
           this._drawing = false;
           this.line3D.removePointer();
-          window.removeEventListener('pointermove', onPointerMove);
+          window.removeEventListener("pointermove", onPointerMove);
         }
       }
     });
 
-    this.transform_controls.addEventListener('dragging-changed', (event) => {
+    this.transform_controls.addEventListener("dragging-changed", (event) => {
       controls.enabled = !event.value;
     });
-    this.transform_controls.addEventListener('objectChange', () => {
-      if (this.transform_controls.object.name === 'Canvas3DGroup') {
+    this.transform_controls.addEventListener("objectChange", () => {
+      if (this.transform_controls.object.name === "Canvas3DGroup") {
         // nothing to do
       } else {
         // mesh -> anchorPoints -> Line3D
@@ -107,28 +110,28 @@ class Selection {
 
     this._drawing = false;
 
-    window.addEventListener('pointerdown', this.onPointerDown.bind(this));
-    window.addEventListener('dblclick', this.onDoubleClick.bind(this));
+    window.addEventListener("pointerdown", this.onPointerDown.bind(this));
+    window.addEventListener("dblclick", this.onDoubleClick.bind(this));
 
     // use x keypress to toggle the attachment of onPointerMove
-    document.addEventListener('keydown', (event) => {
-      if (event.key === 'x') {
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "x") {
         if (this._drawing) {
           this._drawing = false;
           this.line3D.removePointer();
-          window.removeEventListener('pointermove', onPointerMove);
+          window.removeEventListener("pointermove", onPointerMove);
         } else {
           this._drawing = true;
           this.line3D.addPointer();
           this.transform_controls.detach();
-          window.addEventListener('pointermove', onPointerMove);
+          window.addEventListener("pointermove", onPointerMove);
         }
       }
     });
   }
 
   getSelectedParticles() {
-    const particlesGroup = this.scene.getObjectByName('particlesGroup');
+    const particlesGroup = this.scene.getObjectByName("particlesGroup");
     const selection = [];
     particlesGroup.children.forEach((x) => {
       if (this.selection.includes(x.name)) {
@@ -139,7 +142,7 @@ class Selection {
   }
 
   step() {
-    const particlesGroup = this.scene.getObjectByName('particlesGroup');
+    const particlesGroup = this.scene.getObjectByName("particlesGroup");
     // iterate through all children ids that are in the selection and update them
     particlesGroup.children.forEach((x) => {
       if (this.selection.includes(x.name)) {
@@ -161,16 +164,16 @@ class Selection {
 
   onDoubleClick(event) {
     const intersects = this.getIntersections();
-    const particlesGroup = this.scene.getObjectByName('particlesGroup');
+    const particlesGroup = this.scene.getObjectByName("particlesGroup");
     const selection = [];
     for (let i = 0; i < intersects.length; i++) {
       const { object } = intersects[i];
       if (particlesGroup.children.includes(object.parent)) {
         selection.push(object.parent.name);
 
-        const selectionOptions = document.getElementById('selection-select');
+        const selectionOptions = document.getElementById("selection-select");
 
-        this.socket.emit('selection:run', {
+        this.socket.emit("selection:run", {
           name: selectionOptions.options[selectionOptions.selectedIndex].text,
           params: {},
           atoms: this.cache.get(this.world.getStep()),
@@ -186,10 +189,10 @@ class Selection {
    */
   onPointerMove(event) {
     const intersects = this.getIntersections();
-    const particlesGroup = this.scene.getObjectByName('particlesGroup');
+    const particlesGroup = this.scene.getObjectByName("particlesGroup");
     for (let i = 0; i < intersects.length; i++) {
       const { object } = intersects[i];
-      if (object.name === 'canvas3D') {
+      if (object.name === "canvas3D") {
         this.line3D.movePointer(intersects[i].point.clone());
         break;
       }
@@ -206,10 +209,10 @@ class Selection {
 
     // iterate intersections until we find a particle
     for (let i = 0; i < intersects.length; i++) {
-      const particlesGroup = this.scene.getObjectByName('particlesGroup');
+      const particlesGroup = this.scene.getObjectByName("particlesGroup");
       const { object } = intersects[i];
       if (this._drawing) {
-        if (object.name === 'canvas3D') {
+        if (object.name === "canvas3D") {
           this.line3D.addPoint(intersects[i].point.clone());
           break;
         }
@@ -217,7 +220,7 @@ class Selection {
           this.line3D.addPoint(intersects[i].point.clone());
           break;
         }
-      } else if (object.parent.name === 'AnchorPoints') {
+      } else if (object.parent.name === "AnchorPoints") {
         this.transform_controls.attach(object);
       } else if (particlesGroup.children.includes(object.parent)) {
         if (this.shift_pressed) {
@@ -248,8 +251,8 @@ class Selection {
     const intersections = this.getIntersections();
     for (let i = 0; i < intersections.length; i++) {
       const { object } = intersections[i];
-      if (object.name === 'canvas3D') {
-        console.log('scrolled on canvas3D');
+      if (object.name === "canvas3D") {
+        console.log("scrolled on canvas3D");
         // there must be a better way to disable scrolling while over the canvas
         this.controls.enabled = false;
         if (scroll_timer) {
