@@ -5,6 +5,7 @@ JSONEditor.defaults.options.disable_edit_json = true;
 JSONEditor.defaults.options.disable_properties = true;
 JSONEditor.defaults.options.disable_collapse = true;
 JSONEditor.defaults.options.no_additional_properties = true;
+JSONEditor.defaults.options.keep_oneof_values = false;
 
 
 export function initJSONEditor(socket, cache, world) {
@@ -21,13 +22,9 @@ function draw_editor(socket, cache, world) {
     const editor = new JSONEditor(div, {
       schema: data,
     });
-
-    // detect a change
-    editor.on('change', (event) => {
-      console.log(event);
-      console.log(editor.getValue());
+    editor.on('change', () => {
+      document.getElementById('drawAddCanvas').parameters = editor.getValue();
     });
-
   });
   socket.emit('draw:schema');
 }

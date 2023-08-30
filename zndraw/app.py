@@ -8,6 +8,7 @@ from flask import Flask, render_template
 from flask_socketio import SocketIO, emit
 
 from zndraw.data import atoms_from_json, atoms_to_json, get_atomsdict_list
+from zndraw.drawing import Geometry
 from zndraw.settings import GlobalConfig
 
 app = Flask(__name__)
@@ -302,28 +303,4 @@ def scene_schema():
 
 @io.on("draw:schema")
 def draw_schema():
-    import typing as t
-
-    from pydantic import BaseModel
-
-    class SphereGeometry(BaseModel):
-        name: t.Literal['SphereGeometry'] = Field('SphereGeometry')
-        radius: float = 4.0
-
-    class CircleGeometry(BaseModel):
-        name: t.Literal['CircleGeometry'] = Field('CircleGeometry')
-        radius: float = 5.0
-
-    class Geometry(BaseModel):
-        geometry: t.Union[SphereGeometry, CircleGeometry] = Field(default_factory=CircleGeometry, discriminator='name')
-        wireframe: bool = False
-
-    schema = Geometry.model_json_schema()
-    for prop in ["SphereGeometry", "CircleGeometry"]:
-        schema["$defs"][prop]["properties"]["name"]["options"] = {"hidden": True}
-        schema["$defs"][prop]["properties"]["name"]["type"] = "string"
-
-    import json
-    print(json.dumps(schema, indent=2))
-
-    io.emit("draw:schema", schema)
+    io.emit("draw:schema", Geometry.updated_schema())
