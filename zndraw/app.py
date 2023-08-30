@@ -8,6 +8,7 @@ from flask import Flask, render_template
 from flask_socketio import SocketIO, emit
 
 from zndraw.data import atoms_from_json, atoms_to_json, get_atomsdict_list
+from zndraw.drawing import Geometry
 from zndraw.settings import GlobalConfig
 
 app = Flask(__name__)
@@ -302,20 +303,4 @@ def scene_schema():
 
 @io.on("draw:schema")
 def draw_schema():
-    import typing as t
-
-    from pydantic import BaseModel
-
-    class SphereGeometry(BaseModel):
-        radius: float = 5.0
-
-    class CircleGeometry(BaseModel):
-        radius: float = 5.0
-
-    class Geometry(BaseModel):
-        geometry: t.Union[SphereGeometry, CircleGeometry] = SphereGeometry()
-        wireframe: bool = False
-
-    schema = Geometry.model_json_schema()
-
-    io.emit("draw:schema", schema)
+    io.emit("draw:schema", Geometry.updated_schema())

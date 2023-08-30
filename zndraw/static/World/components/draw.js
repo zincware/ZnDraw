@@ -6,67 +6,85 @@ export class Canvas3D extends THREE.Group {
     this.name = 'Canvas3DGroup';
 
     this.selection = selection;
-    const material = new THREE.MeshBasicMaterial({
-      color: '#cccccc',
-      side: THREE.DoubleSide,
-      transparent: true,
-      opacity: 0.5,
-    });
+    let material;
 
     let geometry;
 
-    document.getElementById('drawAddCanvas').addEventListener('click', () => {
+    const drawAddCanvasBtn = document.getElementById('drawAddCanvas');
+
+    drawAddCanvasBtn.addEventListener('click', () => {
       this.remove(this.getObjectByName('canvas3D'));
       this.remove(this.getObjectByName('canvas3D-wireframe'));
+      console.log(drawAddCanvasBtn.parameters);
+
+      material = new THREE.MeshBasicMaterial({
+        color: drawAddCanvasBtn.parameters.color,
+        side: THREE.DoubleSide,
+        transparent: true,
+        opacity: drawAddCanvasBtn.parameters.opacity,
+      });
 
       // TODO use json-forms to create dynamic forms for each geometry
 
-      const geometry_name = document.getElementById('drawCanvasSelect').value;
+      // const geometry_name = document.getElementById('drawCanvasSelect').value;
+      const params = drawAddCanvasBtn.parameters.geometry;
+      const geometry_name = params.method;
+
       if (geometry_name === 'PlaneGeometry') {
-        geometry = new THREE.PlaneGeometry(10, 10);
+        geometry = new THREE.PlaneGeometry(params.width, params.height);
       } else if (geometry_name === 'BoxGeometry') {
-        geometry = new THREE.BoxGeometry(10, 10, 10);
+        geometry = new THREE.BoxGeometry(params.width, params.height, params.depth);
       } else if (geometry_name === 'CircleGeometry') {
-        geometry = new THREE.CircleGeometry(5, 32);
+        geometry = new THREE.CircleGeometry(params.radius, 32);
       } else if (geometry_name === 'ConeGeometry') {
-        geometry = new THREE.ConeGeometry(5, 20, 32);
+        geometry = new THREE.ConeGeometry(params.radius, params.height, 32);
       } else if (geometry_name === 'CylinderGeometry') {
-        geometry = new THREE.CylinderGeometry(5, 5, 20, 32);
+        geometry = new THREE.CylinderGeometry(params.radius_top, params.radius_bottom, params.height, 32);
       } else if (geometry_name === 'DodecahedronGeometry') {
-        geometry = new THREE.DodecahedronGeometry(5);
+        geometry = new THREE.DodecahedronGeometry(params.radius);
       } else if (geometry_name === 'IcosahedronGeometry') {
-        geometry = new THREE.IcosahedronGeometry(5);
+        geometry = new THREE.IcosahedronGeometry(params.radius);
       } else if (geometry_name === 'OctahedronGeometry') {
-        geometry = new THREE.OctahedronGeometry(5);
+        geometry = new THREE.OctahedronGeometry(params.radius);
       } else if (geometry_name === 'RingGeometry') {
-        geometry = new THREE.RingGeometry(1, 5, 32);
+        geometry = new THREE.RingGeometry(params.inner_radius, params.outer_radius, 32);
       } else if (geometry_name === 'SphereGeometry') {
-        geometry = new THREE.SphereGeometry(5, 32, 32);
+        geometry = new THREE.SphereGeometry(params.radius, 32, 32);
       } else if (geometry_name === 'TetrahedronGeometry') {
-        geometry = new THREE.TetrahedronGeometry(5);
+        geometry = new THREE.TetrahedronGeometry(params.radius);
       } else if (geometry_name === 'TorusGeometry') {
-        geometry = new THREE.TorusGeometry(5, 1, 32, 100);
+        geometry = new THREE.TorusGeometry(params.radius, params.tube, 32, 100);
       } else if (geometry_name === 'TorusKnotGeometry') {
-        geometry = new THREE.TorusKnotGeometry(5, 1, 100, 16);
+        geometry = new THREE.TorusKnotGeometry(params.radius, params.tube, 100, 16);
       }
 
-      const wireframeGeometry = new THREE.WireframeGeometry(geometry);
-      const wireframeMaterial = new THREE.LineBasicMaterial({ color: 0x000000 });
-      const wireframe = new THREE.LineSegments(
-        wireframeGeometry,
-        wireframeMaterial,
-      );
+
+
       const plane = new THREE.Mesh(geometry, material);
       plane.name = 'canvas3D';
-      wireframe.name = 'canvas3D-wireframe';
 
+      if (drawAddCanvasBtn.parameters.wireframe) {
+        let wireframeGeometry
+
+        if (true) {
+          const thresholdAngle = 1;
+          wireframeGeometry = new THREE.EdgesGeometry(geometry, thresholdAngle);
+        } else {
+          wireframeGeometry = new THREE.WireframeGeometry(geometry);
+        }
+        const wireframeMaterial = new THREE.LineBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.5 });
+        const wireframe = new THREE.LineSegments(
+          wireframeGeometry,
+          wireframeMaterial,
+        );
+        wireframe.name = 'canvas3D-wireframe';
+        this.add(wireframe);
+      }
+      this.add(plane);
       if (this.selection.getSelectedParticles().length > 0) {
         const selectedParticle = this.selection.getSelectedParticles()[0];
-        plane.position.copy(selectedParticle.position);
-        wireframe.position.copy(selectedParticle.position);
+        this.position.copy(selectedParticle.position);
       }
-
-      this.add(plane, wireframe);
     });
 
     document.getElementById('drawRemoveCanvas').addEventListener('click', () => {
