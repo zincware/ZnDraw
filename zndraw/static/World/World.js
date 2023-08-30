@@ -6,7 +6,7 @@ import { createControls, createTransformControls } from './systems/controls.js';
 import { createRenderer, create2DRenderer } from './systems/renderer.js';
 import { Resizer } from './systems/Resizer.js';
 import { Loop } from './systems/Loop.js';
-import { ParticlesGroup, ParticleIndexGroup } from './components/particles.js';
+import { ParticlesGroup, ParticleIndexGroup, CellGroup } from './components/particles.js';
 import { Selection } from './systems/select.js';
 
 import { Line3D, Canvas3D } from './components/draw.js';
@@ -36,6 +36,7 @@ class Player {
 
     socket.on('view:play', () => {
       this.playing = true;
+      this.play();
     });
 
     // toggle playing on spacebar
@@ -92,6 +93,7 @@ class Player {
       this.world.setStep(0);
     }
     this.playing = !this.playing;
+    if (this.playing) this.play();
   }
 
   go_forward(step = 1) {
@@ -119,9 +121,10 @@ class Player {
     this.world.setStep(new_step);
   }
 
-  tick() {
+  play() {
     if (this.playing) {
       this.go_forward();
+      setTimeout(() => this.play(), 1000 / this.fps);
     }
   }
 }
@@ -150,7 +153,9 @@ class World {
 
     this.particles = new ParticlesGroup(socket, cache);
     this.line3D = new Line3D(camera, renderer);
-    const index_grp = new ParticleIndexGroup(this.particles);
+    this.index_grp = new ParticleIndexGroup(this.particles, camera);
+
+    this.cell_grp = new CellGroup(cache);
 
     this.selection = new Selection(
       camera,
@@ -167,7 +172,7 @@ class World {
 
     const light = createLights();
 
-    scene.add(this.particles, light, camera, this.line3D, canvas3D, index_grp); // index, transform_controls
+    scene.add(this.particles, light, camera, this.line3D, canvas3D, this.index_grp, this.cell_grp); // index, transform_controls
 
     // attach the canvas3D to the camera while t is pressed. attach to the scene when released
     document.addEventListener('keydown', (event) => {
@@ -182,8 +187,8 @@ class World {
       }
     });
 
-    loop.tick_updatables.push(controls, this.player);
-    loop.step_updatables.push(this.particles, this.selection, index_grp);
+    loop.tick_updatables.push(controls, this.index_grp);
+    loop.step_updatables.push(this.particles, this.selection, this.index_grp, this.cell_grp);
 
     const resizer = new Resizer(container, camera, renderer, renderer2d);
 
@@ -203,9 +208,11 @@ class World {
   /**
    * Rebuild all objects in the scene
    */
-  rebuild(resolution, material, wireframe, simulation_box, bonds) {
-    this.particles.rebuild(resolution, material, wireframe, simulation_box, bonds);
+  rebuild(resolution, material, wireframe, simulation_box, bonds, label_offset) {
+    this.particles.rebuild(resolution, material, wireframe, bonds);
+    this.cell_grp.set_visibility(simulation_box);
     this.setStep(loop.step);
+    this.index_grp.rebuild(label_offset);
   }
 
   setStep(step) {

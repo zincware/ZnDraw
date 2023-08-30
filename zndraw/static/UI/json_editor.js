@@ -85,7 +85,7 @@ function scene_editor(socket, cache, world) {
     );
     editor.on('change', () => {
       const value = editor.getValue();
-      world.rebuild(value.resolution, value.material, value.wireframe, value.simulation_box, value.bonds);
+      world.rebuild(value.resolution, value.material, value.wireframe, value.simulation_box, value.bonds, value.label_offset);
       world.player.setLoop(value['Animation Loop']);
     });
   });

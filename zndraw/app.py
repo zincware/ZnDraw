@@ -31,8 +31,8 @@ def exit_route():
     return "Server shutting down..."
 
 
-def _read_file(filename):
-    for idx, atoms_dict in enumerate(get_atomsdict_list(filename)):
+def _read_file(filename, stride):
+    for idx, atoms_dict in enumerate(get_atomsdict_list(filename, stride)):
         io.emit("atoms:upload", atoms_dict)
 
 
@@ -41,7 +41,11 @@ def atoms_request(data):
     """Return the atoms."""
 
     if "filename" in app.config:
-        io.start_background_task(target=_read_file, filename=app.config["filename"])
+        io.start_background_task(
+            target=_read_file,
+            filename=app.config["filename"],
+            stride=app.config["stride"],
+        )
     else:
         emit("atoms:upload", {})
 
@@ -273,6 +277,12 @@ def scene_schema():
             True,
             description="Show bonds.",
         )
+        label_offset: int = Field(
+            0,
+            ge=-7,
+            le=7,
+            description="Move the label to the left or right (keypress i).",
+        )
 
     schema = Scene.model_json_schema()
 
@@ -280,6 +290,7 @@ def scene_schema():
     schema["properties"]["Animation Loop"]["format"] = "checkbox"
     schema["properties"]["simulation_box"]["format"] = "checkbox"
     schema["properties"]["resolution"]["format"] = "range"
+    schema["properties"]["label_offset"]["format"] = "range"
     schema["properties"]["bonds"]["format"] = "checkbox"
 
     # import json
@@ -288,10 +299,12 @@ def scene_schema():
 
     return schema
 
+
 @io.on("draw:schema")
 def draw_schema():
-    from pydantic import BaseModel, Field
     import typing as t
+
+    from pydantic import BaseModel
 
     class SphereGeometry(BaseModel):
         name: t.Literal['SphereGeometry'] = Field('SphereGeometry')
@@ -313,4 +326,4 @@ def draw_schema():
     import json
     print(json.dumps(schema, indent=2))
 
-    io.emit("draw:schema", schema)        
+    io.emit("draw:schema", schema)

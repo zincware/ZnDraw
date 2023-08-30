@@ -210,21 +210,18 @@ class ParticlesGroup extends THREE.Group {
     this.resolution = 10;
     this.material = 'MeshPhongMaterial';
     this.wireframe = false;
-    this.cell = true;
-    this.cell_lines = undefined;
     this.show_bonds = true;
 
     this.bonds_exist = false;
   }
 
-  rebuild(resolution, material, wireframe, simulation_box, bonds) {
+  rebuild(resolution, material, wireframe, bonds) {
     // remove all children
     // this.children.forEach((x) => x.removeFromParent());
     this.clear();
     this.resolution = resolution;
     this.material = material;
     this.wireframe = wireframe;
-    this.cell = simulation_box;
     this.show_bonds = bonds;
   }
 
@@ -281,30 +278,12 @@ class ParticlesGroup extends THREE.Group {
     });
   }
 
-  updateCell(cell) {
-    if (this.cell) {
-      if (this.cell_lines) {
-        this.remove(this.cell_lines);
-      }
-      const boxGeometry = new THREE.BoxGeometry(cell[0][0], cell[1][1], cell[2][2]);
-      const wireframe = new THREE.EdgesGeometry(boxGeometry);
-      this.cell_lines = new THREE.LineSegments(
-        wireframe,
-        new THREE.LineBasicMaterial({ color: '#000000' }),
-      );
-      this.cell_lines.position.set(cell[0][0] / 2, cell[1][1] / 2, cell[2][2] / 2);
-      this.cell_lines.set_selection = (selected) => { };
-      this.add(this.cell_lines);
-    }
-  }
-
   step(frame) {
     const particles = this.cache.get(frame);
     if (particles == null) {
       // nothing to display
     } else {
       this._updateParticles(particles);
-      this.updateCell(particles.cell);
       if (this.show_bonds) {
         this._updateBonds(particles.connectivity);
       }
@@ -312,12 +291,48 @@ class ParticlesGroup extends THREE.Group {
   }
 }
 
+class CellGroup extends THREE.Group {
+  constructor(cache) {
+    super();
+    this.name = 'cellGroup';
+    this.cache = cache;
+    this.is_visible = false;
+  }
+
+  step(frame) {
+    if (!this.is_visible) {
+      this.clear();
+      return;
+    }
+    const particles = this.cache.get(frame);
+    const cell = particles.cell;
+
+    this.clear();
+    const boxGeometry = new THREE.BoxGeometry(cell[0][0], cell[1][1], cell[2][2]);
+    const wireframe = new THREE.EdgesGeometry(boxGeometry);
+    this.cell_lines = new THREE.LineSegments(
+      wireframe,
+      new THREE.LineBasicMaterial({ color: '#000000' }),
+    );
+    this.cell_lines.position.set(cell[0][0] / 2, cell[1][1] / 2, cell[2][2] / 2);
+    // this.cell_lines.set_selection = (selected) => { };
+    this.add(this.cell_lines);
+  }
+
+  set_visibility(visible) {
+    this.is_visible = visible;
+  }
+}
+
+
 class ParticleIndexGroup extends THREE.Group {
-  constructor(particlesGroup) {
+  constructor(particlesGroup, camera) {
     super();
     this.particlesGroup = particlesGroup;
+    this.camera = camera;
 
     this.show_labels = false;
+    this.label_offset = 0;
 
     document.addEventListener('keydown', (event) => {
       if (event.repeat) {
@@ -329,39 +344,100 @@ class ParticleIndexGroup extends THREE.Group {
     });
   }
 
-  toggle() {
-    this.show_labels = !this.show_labels;
-    if (this.show_labels) {
-      this.show();
-    } else {
-      this.hide();
-    }
+  rebuild(label_offset) {
+    this.label_offset = label_offset;
+    this.clear();
   }
 
-  show() {
-    this.particlesGroup.children.forEach((particle) => {
-      const text = document.createElement('div');
-      text.className = 'label';
-      text.style.color = 'black';
-      text.textContent = particle.name;
-      text.style.fontSize = '20px';
-
-      const label = new CSS2DObject(text);
-      label.position.set(...particle.position);
-      this.add(label);
-    });
+  toggle() {
+    this.show_labels = !this.show_labels;
+    this.clear();
   }
 
   step(frame) {
     if (this.show_labels) {
-      this.hide();
-      this.show();
+      this.clear();
     }
   }
 
-  hide() {
-    this.clear();
+  tick() {
+    if (this.show_labels) {
+      const raycaster = new THREE.Raycaster();
+      raycaster.camera = this.camera;
+
+      const direction = new THREE.Vector3();
+
+      function get2dPositions(position, camera) {
+        const vector = position.clone();
+        vector.project(camera);
+
+        const vector2d = new THREE.Vector2(vector.x, vector.y);
+
+        // add shifts +/- x/y if you want to sample from the top/bottom/left/right of the particle
+
+        return [vector2d];
+      }
+
+      this.particlesGroup.children.forEach((object) => {
+        // combine all intersects from the center and top/bottom/left/right of the particle
+        let visible = true;
+        let intersects
+
+        // center
+        const positions = get2dPositions(object.position, this.camera);
+
+        positions.forEach((position) => {
+          raycaster.setFromCamera(position, this.camera);
+          intersects = raycaster.intersectObjects(this.particlesGroup.children);
+
+          if (intersects.length > 0 && intersects[0].object.parent !== object) {
+            visible = false;
+          }
+        });
+
+        if (!visible) {
+          // get the `${particle.name}-label`; object from this and remove it
+          const label = this.getObjectByName(`${object.name}-label`);
+          this.remove(label);
+        } else if (!this.getObjectByName(`${object.name}-label`)) {
+          // create a div with unicode f00d
+          const text = document.createElement('div');
+          const blank = '\u00A0';
+          const line = '\u23AF';
+          text.className = 'label';
+          if (this.label_offset === 0) {
+            text.textContent = object.name;
+          } else if (this.label_offset > 0) {
+            text.textContent = `${blank.repeat(this.label_offset * 2 + 6)}\u00D7${line.repeat(this.label_offset)}${blank}${object.name}`;
+          } else {
+            text.textContent = `${object.name}${blank}${line.repeat(this.label_offset * -1)}\u00D7${blank.repeat(this.label_offset * -2 + 6)}`;
+          }
+            // textContent = object.name + label_offset * \u23AF + label_offset * \u00A0
+          // text.textContent = `\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00D7\u23AF\u23AF\u23AF\u00A0${object.name}`;
+          // text.textContent = object.name;
+          // text.textContent = String.fromCodePoint(0xf00d);
+          text.style.fontSize = '20px';
+          // text.style.color = `#${object.children[0].material.color.getHexString()}`;
+          text.style.textShadow = '1px 1px 1px #000000';
+
+          // const text = document.createElement('div');
+          // // <span class="badge bg-secondary">New</span> 
+          // text.className = 'label';
+          // text.textContent =  `\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0X------${object.name}`;
+          // text.style.fontSize = '20px';
+          // text.style.color = `#${object.children[0].material.color.getHexString()}`
+          // // text-shadow: #FC0 1px 0 10px;
+          // 
+          // console.log(object.children[0].material.color);
+
+          const label = new CSS2DObject(text);
+          label.position.set(...object.position);
+          label.name = `${object.name}-label`;
+          this.add(label);
+        }
+      });
+    }
   }
 }
 
-export { ParticlesGroup, ParticleIndexGroup };
+export { ParticlesGroup, ParticleIndexGroup, CellGroup };

@@ -58,9 +58,17 @@ def _get_port() -> int:
     return port
 
 
-def view(filename: str, port: int, open_browser: bool = True, webview: bool = True, fullscreen: bool = False):
+def view(
+    filename: str,
+    port: int,
+    open_browser: bool = True,
+    webview: bool = True,
+    fullscreen: bool = False,
+    stride: int = 1,
+):
     if filename is not None:
         app.config["filename"] = filename
+        app.config["stride"] = stride
     url = f"http://127.0.0.1:{port}"
     print(f"Starting ZnDraw server at {url}")
 
@@ -80,7 +88,7 @@ class ZnDraw(collections.abc.MutableSequence):
     jupyter: bool = False
 
     display_new: bool = True
-    _retires: int = 5
+    _retries: int = 5
 
     def __post_init__(self):
         self._view_thread = None
@@ -96,7 +104,7 @@ class ZnDraw(collections.abc.MutableSequence):
             "connect", lambda: print(f"Connected to ZnDraw server at {self.url}")
         )
 
-        for _ in range(self._retires):
+        for _ in range(self._retries):
             with contextlib.suppress(socketio.exceptions.ConnectionError):
                 self.socket.connect(self.url)
                 break
