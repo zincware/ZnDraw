@@ -36,6 +36,7 @@ class Player {
 
     socket.on('view:play', () => {
       this.playing = true;
+      this.play();
     });
 
     // toggle playing on spacebar
@@ -92,6 +93,7 @@ class Player {
       this.world.setStep(0);
     }
     this.playing = !this.playing;
+    if (this.playing) this.play();
   }
 
   go_forward(step = 1) {
@@ -119,9 +121,10 @@ class Player {
     this.world.setStep(new_step);
   }
 
-  tick() {
+  play() {
     if (this.playing) {
       this.go_forward();
+      setTimeout(() => this.play(), 1000 / this.fps);
     }
   }
 }
@@ -182,7 +185,7 @@ class World {
       }
     });
 
-    loop.tick_updatables.push(controls, this.player, index_grp);
+    loop.tick_updatables.push(controls, index_grp);
     loop.step_updatables.push(this.particles, this.selection, index_grp);
 
     const resizer = new Resizer(container, camera, renderer, renderer2d);
