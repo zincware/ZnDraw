@@ -31,8 +31,8 @@ def exit_route():
     return "Server shutting down..."
 
 
-def _read_file(filename):
-    for idx, atoms_dict in enumerate(get_atomsdict_list(filename)):
+def _read_file(filename, stride):
+    for idx, atoms_dict in enumerate(get_atomsdict_list(filename, stride)):
         io.emit("atoms:upload", atoms_dict)
 
 
@@ -41,7 +41,11 @@ def atoms_request(data):
     """Return the atoms."""
 
     if "filename" in app.config:
-        io.start_background_task(target=_read_file, filename=app.config["filename"])
+        io.start_background_task(
+            target=_read_file,
+            filename=app.config["filename"],
+            stride=app.config["stride"],
+        )
     else:
         emit("atoms:upload", {})
 
