@@ -33,20 +33,37 @@ def exit_route():
 
 
 def _read_file(filename, stride):
-    for idx, atoms_dict in enumerate(get_atomsdict_list(filename, stride)):
-        io.emit("atoms:upload", atoms_dict)
+    print("Reading file...")
+    from zndraw import ZnDraw
+    import tqdm
+    vis = ZnDraw(url="http://localhost:1234")
+    import ase.io
+
+    for atoms in tqdm.tqdm(ase.io.iread(filename)):
+        vis.append(atoms)
+    
+    vis.disconnect()
+
+    # for idx, atoms_dict in enumerate(get_atomsdict_list(filename, stride)):
+    #     io.emit("atoms:upload", atoms_dict)
 
 
 @io.on("atoms:request")
 def atoms_request(data):
     """Return the atoms."""
+    import multiprocessing as mp
 
     if "filename" in app.config:
-        io.start_background_task(
+        mp.Process(
             target=_read_file,
-            filename=app.config["filename"],
-            stride=app.config["stride"],
-        )
+            args=(app.config["filename"], app.config["stride"]),
+            daemon=True,
+        ).start()
+        # io.start_background_task(
+        #     target=_read_file,
+        #     filename=app.config["filename"],
+        #     stride=app.config["stride"],
+        # )
     else:
         emit("atoms:upload", {})
 

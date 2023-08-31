@@ -113,13 +113,9 @@ class ZnDraw(collections.abc.MutableSequence):
             self.socket.connect(self.url)
         if not self.jupyter:
             self.socket.sleep(2)  # wait for the server to start
-
-    # def __del__(self):
-    #     if self._view_thread is not None:
-    #         # just open the url and don't expect a response
-    #         self.socket.emit("exit")
-    #         self.socket.disconnect()
-    #         self._view_thread.join()
+   
+    def disconnect(self):
+        self.socket.disconnect()
 
     def view(self, atoms_list):
         if isinstance(atoms_list, ase.Atoms):
