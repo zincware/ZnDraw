@@ -69,6 +69,14 @@
           src="{{ url_for('static', filename='main.js') }}"
         ></script>
 
+        <noscript>
+          <div class="alert alert-danger" role="alert" id="js-blocker-warning">
+            <h4 class="alert-heading">
+              Please enable JavaScript to use ZnDraw.
+            </h4>
+          </div>
+        </noscript>
+
         <div id="scene-container"></div>
 
         <!-- Loading Spinner -->
