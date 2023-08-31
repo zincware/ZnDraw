@@ -39,7 +39,7 @@ class Atoms {
               }
             });
           }
-          
+
           const atom = new Atom({
             position: atoms.positions[index],
             number: atoms.numbers[index],

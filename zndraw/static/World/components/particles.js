@@ -160,7 +160,10 @@ class ParticleGroup extends THREE.Group {
     );
     if (this.show_forces) {
       if (particle.calc.forces !== undefined) {
-        this.addOrUpdateArrow("force", new THREE.Vector3(...particle.calc.forces));
+        this.addOrUpdateArrow(
+          "force",
+          new THREE.Vector3(...particle.calc.forces),
+        );
       }
     }
     // console.log(particle);
@@ -276,7 +279,7 @@ class ParticlesGroup extends THREE.Group {
     this.show_bonds = bonds;
   }
 
-  tick() { }
+  tick() {}
 
   _updateParticles(particles) {
     const existing_particles = [];
