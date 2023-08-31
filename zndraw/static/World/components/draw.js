@@ -13,8 +13,7 @@ export class Canvas3D extends THREE.Group {
     const drawAddCanvasBtn = document.getElementById("drawAddCanvas");
 
     drawAddCanvasBtn.addEventListener("click", () => {
-      this.remove(this.getObjectByName("canvas3D"));
-      this.remove(this.getObjectByName("canvas3D-wireframe"));
+      this.removeCanvas();
       console.log(drawAddCanvasBtn.parameters);
 
       material = new THREE.MeshBasicMaterial({
@@ -110,10 +109,13 @@ export class Canvas3D extends THREE.Group {
     document
       .getElementById("drawRemoveCanvas")
       .addEventListener("click", () => {
-        // clean previous canvas
-        this.remove(this.getObjectByName("canvas3D"));
-        this.remove(this.getObjectByName("canvas3D-wireframe"));
+        this.removeCanvas();
       });
+  }
+
+  removeCanvas() {
+    this.remove(this.getObjectByName("canvas3D"));
+    this.remove(this.getObjectByName("canvas3D-wireframe"));
   }
 }
 

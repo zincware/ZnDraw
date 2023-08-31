@@ -134,11 +134,17 @@ class Selection {
         if (event.key === "Backspace") {
           // remove pointer if transform_controls is attached to it
           if (
-            this.transform_controls.object &&
-            this.transform_controls.object.name === "AnchorPoint"
+            this.transform_controls.object
           ) {
-            this.line3D.removePointer(this.transform_controls.object);
-            this.transform_controls.detach();
+            if (this.transform_controls.object.name === "AnchorPoint")
+            {
+              this.line3D.removePointer(this.transform_controls.object);
+              this.transform_controls.detach();
+            } else if (this.transform_controls.object.name === "Canvas3DGroup") {
+              this.transform_controls.object.removeCanvas();
+              this.transform_controls.detach();
+            }
+            
           } else if (this.selection.length > 0) {
             console.log("remove selected particles");
             const { points, segments } = this.world.getLineData();
@@ -309,18 +315,19 @@ class Selection {
   }
 
   onWheel(event) {
+    if (this.shift_pressed) {
     const intersections = this.getIntersections();
     for (let i = 0; i < intersections.length; i++) {
       const { object } = intersections[i];
       if (object.name === "canvas3D") {
         console.log("scrolled on canvas3D");
         // there must be a better way to disable scrolling while over the canvas
-        this.controls.enabled = false;
+        this.controls.enableZoom = false;
         if (scroll_timer) {
           clearTimeout(scroll_timer);
         }
         scroll_timer = setTimeout(() => {
-          this.controls.enabled = true;
+          this.controls.enableZoom = true;
         }, 500);
 
         this.transform_controls.attach(object.parent);
@@ -337,6 +344,7 @@ class Selection {
       }
     }
   }
+}
 }
 
 export { Selection };
