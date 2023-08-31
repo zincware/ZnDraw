@@ -145,7 +145,7 @@ export class Line3D extends THREE.Group {
     if (index !== undefined) {
       const allMeshes = [...this.anchorPoints.children];
       this.anchorPoints.clear();
-      
+
       allMeshes.splice(index, 0, sphere);
       this.anchorPoints.add(...allMeshes);
     } else {

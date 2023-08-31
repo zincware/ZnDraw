@@ -106,16 +106,18 @@ class Selection {
           // TODO shift added point a bit + insert at correct position
           const transform_object = this.transform_controls.object;
           if (transform_object.name === "AnchorPoint" && !this._drawing) {
-            const index = this.line3D.anchorPoints.children.indexOf(
-              transform_object,
-            );
+            const index =
+              this.line3D.anchorPoints.children.indexOf(transform_object);
 
-            let new_pos
+            let new_pos;
             if (index > 0) {
               // Add the point between the current and the previous point
               const obj_before = this.line3D.anchorPoints.children[index - 1];
-              new_pos = obj_before.position.clone().sub(transform_object.position).multiplyScalar(0.5).add(transform_object.position);
-
+              new_pos = obj_before.position
+                .clone()
+                .sub(transform_object.position)
+                .multiplyScalar(0.5)
+                .add(transform_object.position);
             } else {
               // No previous point, add the point at the same position
               new_pos = transform_object.position.clone();
@@ -126,11 +128,8 @@ class Selection {
             this.transform_controls.attach(point);
           }
         }
-          
 
-        if (
-          event.key === "Backspace"
-        ) {
+        if (event.key === "Backspace") {
           this.line3D.removePointer(this.transform_controls.object);
           this.transform_controls.detach();
         }
