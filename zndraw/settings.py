@@ -10,26 +10,26 @@ _ANALYSIS_FUNCTIONS = [
     "zndraw.analyse.Distance",
 ]
 _MODIFY_FUNCTIONS = [
-    "zndraw.examples.Explode",
-    "zndraw.examples.Delete",
-    "zndraw.examples.Move",
-    "zndraw.examples.Duplicate",
-    "zndraw.examples.AddLineParticles",
-    "zndraw.examples.Rotate",
+    "zndraw.modify.Explode",
+    "zndraw.modify.Delete",
+    "zndraw.modify.Move",
+    "zndraw.modify.Duplicate",
+    "zndraw.modify.AddLineParticles",
+    "zndraw.modify.Rotate",
 ]
 
 _BONDS_FUNCTIONS = [
     "zndraw.tools.data.ASEComputeBonds",
 ]
 _SELECTION_FUNCTIONS = [
-    "zndraw.selection.NoneSelection",
-    "zndraw.selection.All",
-    "zndraw.selection.Invert",
-    "zndraw.selection.Range",
-    "zndraw.selection.Random",
-    "zndraw.selection.IdenticalSpecies",
-    "zndraw.selection.ConnectedParticles",
-    "zndraw.selection.Neighbour",
+    "zndraw.select.NoneSelection",
+    "zndraw.select.All",
+    "zndraw.select.Invert",
+    "zndraw.select.Range",
+    "zndraw.select.Random",
+    "zndraw.select.IdenticalSpecies",
+    "zndraw.select.ConnectedParticles",
+    "zndraw.select.Neighbour",
 ]
 
 
