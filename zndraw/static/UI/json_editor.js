@@ -52,6 +52,10 @@ function selection_editor(socket, cache, world) {
     editor = new JSONEditor(document.getElementById("selection-json-editor"), {
       schema,
     });
+    editor.on("change", () => {
+      const value = editor.getValue();
+      selection.parameters = value;
+    });
   };
 
   document

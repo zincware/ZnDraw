@@ -204,10 +204,11 @@ class Selection {
         selection.push(object.parent.name);
 
         const selectionOptions = document.getElementById("selection-select");
+        const params = selectionOptions.parameters;
 
         this.socket.emit("selection:run", {
           name: selectionOptions.options[selectionOptions.selectedIndex].text,
-          params: {},
+          params: params, // THIS IS NOT RIGHT
           atoms: this.cache.get(this.world.getStep()),
           selection,
         });
