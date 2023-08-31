@@ -46,26 +46,28 @@ class Selection {
 
     // use c keypress to center the camera on the selection
     document.addEventListener("keydown", (event) => {
-      if (event.key === "c") {
-        if (this.controls.enablePan) {
-          document.getElementById("alertBoxCamera").style.display = "block";
+      if (document.activeElement === document.body) {
+        if (event.key === "c") {
+          if (this.controls.enablePan) {
+            // get the first object that is selected
+            const particlesGroup = this.scene.getObjectByName("particlesGroup");
 
-          // get the first object that is selected
-          const particlesGroup = this.scene.getObjectByName("particlesGroup");
-
-          particlesGroup.children.every((x) => {
-            if (this.selection.includes(x.name)) {
-              this.controls.target = x.position;
-              this.controls.enablePan = false;
-              return false;
-              // TODO: don't use the first but the COM of the selection
-            }
-            return true;
-          });
-        } else {
-          document.getElementById("alertBoxCamera").style.display = "none";
-          this.controls.target = this.controls.target.clone();
-          this.controls.enablePan = true;
+            particlesGroup.children.every((x) => {
+              if (this.selection.includes(x.name)) {
+                this.controls.target = x.position;
+                this.controls.enablePan = false;
+                document.getElementById("alertBoxCamera").style.display =
+                  "block";
+                return false;
+                // TODO: don't use the first but the COM of the selection
+              }
+              return true;
+            });
+          } else {
+            document.getElementById("alertBoxCamera").style.display = "none";
+            this.controls.target = this.controls.target.clone();
+            this.controls.enablePan = true;
+          }
         }
       }
     });
@@ -130,8 +132,34 @@ class Selection {
         }
 
         if (event.key === "Backspace") {
-          this.line3D.removePointer(this.transform_controls.object);
-          this.transform_controls.detach();
+          // remove pointer if transform_controls is attached to it
+          if (
+            this.transform_controls.object &&
+            this.transform_controls.object.name === "AnchorPoint"
+          ) {
+            this.line3D.removePointer(this.transform_controls.object);
+            this.transform_controls.detach();
+          } else if (this.selection.length > 0) {
+            console.log("remove selected particles");
+            const { points, segments } = this.world.getLineData();
+            this.socket.emit("modifier:run", {
+              name: "zndraw.modify.Delete",
+              params: {},
+              atoms: this.cache.get(this.world.getStep()),
+              selection: this.world.getSelection(),
+              step: this.world.getStep(),
+              points,
+              segments,
+            });
+            // should we always reset the selection after modifying?
+            this.selection.forEach((x) => {
+              const particle = this.scene.getObjectByName(x);
+              particle.set_selection(false);
+            });
+            this.selection = [];
+          } else {
+            this.line3D.removePointer();
+          }
         }
         if (event.key === "Escape") {
           this.transform_controls.detach();
