@@ -266,7 +266,7 @@ class World {
         segments = this.line3D.curve
           .getSpacedPoints(this.line3D.ARC_SEGMENTS)
           .map((x) => x.toArray());
-        }
+      }
     } catch (error) {
       // console.log(error);
     }

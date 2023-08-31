@@ -56,7 +56,8 @@ class Selection {
               if (this.selection.includes(x.name)) {
                 this.controls.target = x.position;
                 this.controls.enablePan = false;
-                document.getElementById("alertBoxCamera").style.display = "block";
+                document.getElementById("alertBoxCamera").style.display =
+                  "block";
                 return false;
                 // TODO: don't use the first but the COM of the selection
               }
@@ -132,7 +133,10 @@ class Selection {
 
         if (event.key === "Backspace") {
           // remove pointer if transform_controls is attached to it
-          if (this.transform_controls.object && this.transform_controls.object.name === "AnchorPoint") {
+          if (
+            this.transform_controls.object &&
+            this.transform_controls.object.name === "AnchorPoint"
+          ) {
             this.line3D.removePointer(this.transform_controls.object);
             this.transform_controls.detach();
           } else if (this.selection.length > 0) {
@@ -153,7 +157,6 @@ class Selection {
               particle.set_selection(false);
             });
             this.selection = [];
-
           } else {
             this.line3D.removePointer();
           }
