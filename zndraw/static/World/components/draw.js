@@ -133,19 +133,30 @@ export class Line3D extends THREE.Group {
     this.add(this.line, this.anchorPoints);
   }
 
-  addPoint(position) {
+  addPoint(position, index) {
     const geometry = new THREE.IcosahedronGeometry(0.1, 0);
     const material = new THREE.MeshPhongMaterial({
       color: "#000000",
       shininess: 100,
     });
     const sphere = new THREE.Mesh(geometry, material);
+    sphere.name = "AnchorPoint";
     sphere.position.copy(position);
-    this.anchorPoints.add(sphere);
+    if (index !== undefined) {
+      const allMeshes = [...this.anchorPoints.children];
+      this.anchorPoints.clear();
+      
+      allMeshes.splice(index, 0, sphere);
+      this.anchorPoints.add(...allMeshes);
+    } else {
+      this.anchorPoints.add(sphere);
+    }
 
     this.updateLine();
 
     this.ARC_SEGMENTS = this.anchorPoints.children.length * 20;
+
+    return sphere;
   }
 
   removePointer(object) {
