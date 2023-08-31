@@ -13,15 +13,22 @@ class Selection {
     this.world = world;
 
     this.shift_pressed = false;
+    this.ctrl_pressed = false;
 
     document.addEventListener("keydown", (event) => {
       if (event.key === "Shift") {
         this.shift_pressed = true;
       }
+      if (event.key === "Control") {
+        this.ctrl_pressed = true;
+      }
     });
     document.addEventListener("keyup", (event) => {
       if (event.key === "Shift") {
         this.shift_pressed = false;
+      }
+      if (event.key === "Control") {
+        this.ctrl_pressed = false;
       }
     });
 
@@ -79,19 +86,60 @@ class Selection {
 
     // event on backspace
     document.addEventListener("keydown", (event) => {
-      if (
-        event.key === "Backspace" &&
-        document.activeElement === document.body
-      ) {
-        this.line3D.removePointer(this.transform_controls.object);
-        this.transform_controls.detach();
-      }
-      if (event.key === "Escape" && document.activeElement === document.body) {
-        this.transform_controls.detach();
-        if (this._drawing) {
-          this._drawing = false;
-          this.line3D.removePointer();
-          window.removeEventListener("pointermove", onPointerMove);
+      if (document.activeElement === document.body) {
+        // use x keypress to toggle the attachment of onPointerMove
+        if (event.key === "x") {
+          if (this._drawing) {
+            this._drawing = false;
+            this.line3D.removePointer();
+            window.removeEventListener("pointermove", onPointerMove);
+          } else {
+            this._drawing = true;
+            this.line3D.addPointer();
+            this.transform_controls.detach();
+            window.addEventListener("pointermove", onPointerMove);
+          }
+        }
+
+        // make a copy of the currently selected point when d is pressed
+        if (event.key === "d") {
+          // TODO shift added point a bit + insert at correct position
+          const transform_object = this.transform_controls.object;
+          if (transform_object.name === "AnchorPoint" && !this._drawing) {
+            const index =
+              this.line3D.anchorPoints.children.indexOf(transform_object);
+
+            let new_pos;
+            if (index > 0) {
+              // Add the point between the current and the previous point
+              const obj_before = this.line3D.anchorPoints.children[index - 1];
+              new_pos = obj_before.position
+                .clone()
+                .sub(transform_object.position)
+                .multiplyScalar(0.5)
+                .add(transform_object.position);
+            } else {
+              // No previous point, add the point at the same position
+              new_pos = transform_object.position.clone();
+            }
+
+            const point = this.line3D.addPoint(new_pos, index);
+            this.transform_controls.detach();
+            this.transform_controls.attach(point);
+          }
+        }
+
+        if (event.key === "Backspace") {
+          this.line3D.removePointer(this.transform_controls.object);
+          this.transform_controls.detach();
+        }
+        if (event.key === "Escape") {
+          this.transform_controls.detach();
+          if (this._drawing) {
+            this._drawing = false;
+            this.line3D.removePointer();
+            window.removeEventListener("pointermove", onPointerMove);
+          }
         }
       }
     });
@@ -112,22 +160,6 @@ class Selection {
 
     window.addEventListener("pointerdown", this.onPointerDown.bind(this));
     window.addEventListener("dblclick", this.onDoubleClick.bind(this));
-
-    // use x keypress to toggle the attachment of onPointerMove
-    document.addEventListener("keydown", (event) => {
-      if (event.key === "x") {
-        if (this._drawing) {
-          this._drawing = false;
-          this.line3D.removePointer();
-          window.removeEventListener("pointermove", onPointerMove);
-        } else {
-          this._drawing = true;
-          this.line3D.addPointer();
-          this.transform_controls.detach();
-          window.addEventListener("pointermove", onPointerMove);
-        }
-      }
-    });
   }
 
   getSelectedParticles() {
@@ -220,7 +252,7 @@ class Selection {
           this.line3D.addPoint(intersects[i].point.clone());
           break;
         }
-      } else if (object.parent.name === "AnchorPoints") {
+      } else if (object.name === "AnchorPoint") {
         this.transform_controls.attach(object);
       } else if (particlesGroup.children.includes(object.parent)) {
         if (this.shift_pressed) {
