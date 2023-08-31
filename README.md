@@ -1,6 +1,6 @@
 [![zincware](https://img.shields.io/badge/Powered%20by-zincware-darkcyan)](https://github.com/zincware)
 [![PyPI version](https://badge.fury.io/py/zndraw.svg)](https://badge.fury.io/py/zndraw)
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.8304531.svg)](https://doi.org/10.5281/zenodo.8304531)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.8304530.svg)](https://doi.org/10.5281/zenodo.8304530)
 !['Threejs](https://img.shields.io/badge/threejs-black?style=for-the-badge&logo=three.js&logoColor=white)
 
 # ZnDraw
