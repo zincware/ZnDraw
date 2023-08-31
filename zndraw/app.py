@@ -7,7 +7,7 @@ import tqdm
 from flask import Flask, render_template
 from flask_socketio import SocketIO, emit
 
-from zndraw.data import atoms_from_json, atoms_to_json, get_atomsdict_list
+from zndraw.data import atoms_from_json, atoms_to_json
 from zndraw.draw import Geometry
 from zndraw.settings import GlobalConfig
 
@@ -34,14 +34,16 @@ def exit_route():
 
 def _read_file(filename, stride):
     print("Reading file...")
-    from zndraw import ZnDraw
     import tqdm
+
+    from zndraw import ZnDraw
+
     vis = ZnDraw(url="http://localhost:1234")
     import ase.io
 
     for atoms in tqdm.tqdm(ase.io.iread(filename)):
         vis.append(atoms)
-    
+
     vis.disconnect()
 
     # for idx, atoms_dict in enumerate(get_atomsdict_list(filename, stride)):

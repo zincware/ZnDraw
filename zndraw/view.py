@@ -113,7 +113,7 @@ class ZnDraw(collections.abc.MutableSequence):
             self.socket.connect(self.url)
         if not self.jupyter:
             self.socket.sleep(2)  # wait for the server to start
-   
+
     def disconnect(self):
         self.socket.disconnect()
 
