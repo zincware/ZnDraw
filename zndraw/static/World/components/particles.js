@@ -132,8 +132,7 @@ class ParticleGroup extends THREE.Group {
 
   addOrUpdateArrow(name, direction) {
     if (name in this.arrows) {
-      // this.remove(this.arrows[name]);
-      // update the position
+      this.arrows[name].setLength(direction.length() * 50);
       direction.normalize();
       this.arrows[name].setDirection(direction);
       return;
