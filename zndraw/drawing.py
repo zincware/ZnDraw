@@ -77,7 +77,7 @@ class TorusKnotGeometry(BaseModel):
     tube: float = 1.0
 
 
-methods = [
+methods = t.Union[
     SphereGeometry,
     PlaneGeometry,
     BoxGeometry,
@@ -95,7 +95,7 @@ methods = [
 
 
 class Geometry(BaseModel):
-    geometry: t.Union[*methods] = Field(discriminator="method")
+    geometry: methods = Field(discriminator="method")
     wireframe: bool = True
     color: str = "#62929E"
     opacity: float = Field(0.2, ge=0.0, le=1.0)
@@ -103,7 +103,7 @@ class Geometry(BaseModel):
     @classmethod
     def updated_schema(cls):
         schema = cls.model_json_schema()
-        for prop in [x.__name__ for x in methods]:
+        for prop in [x.__name__ for x in t.get_args(methods)]:
             schema["$defs"][prop]["properties"]["method"]["options"] = {"hidden": True}
             schema["$defs"][prop]["properties"]["method"]["type"] = "string"
 
