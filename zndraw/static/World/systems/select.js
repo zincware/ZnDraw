@@ -46,26 +46,27 @@ class Selection {
 
     // use c keypress to center the camera on the selection
     document.addEventListener("keydown", (event) => {
-      if (event.key === "c") {
-        if (this.controls.enablePan) {
-          document.getElementById("alertBoxCamera").style.display = "block";
+      if (document.activeElement === document.body) {
+        if (event.key === "c") {
+          if (this.controls.enablePan) {
+            // get the first object that is selected
+            const particlesGroup = this.scene.getObjectByName("particlesGroup");
 
-          // get the first object that is selected
-          const particlesGroup = this.scene.getObjectByName("particlesGroup");
-
-          particlesGroup.children.every((x) => {
-            if (this.selection.includes(x.name)) {
-              this.controls.target = x.position;
-              this.controls.enablePan = false;
-              return false;
-              // TODO: don't use the first but the COM of the selection
-            }
-            return true;
-          });
-        } else {
-          document.getElementById("alertBoxCamera").style.display = "none";
-          this.controls.target = this.controls.target.clone();
-          this.controls.enablePan = true;
+            particlesGroup.children.every((x) => {
+              if (this.selection.includes(x.name)) {
+                this.controls.target = x.position;
+                this.controls.enablePan = false;
+                document.getElementById("alertBoxCamera").style.display = "block";
+                return false;
+                // TODO: don't use the first but the COM of the selection
+              }
+              return true;
+            });
+          } else {
+            document.getElementById("alertBoxCamera").style.display = "none";
+            this.controls.target = this.controls.target.clone();
+            this.controls.enablePan = true;
+          }
         }
       }
     });
