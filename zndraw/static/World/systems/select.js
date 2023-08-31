@@ -109,10 +109,17 @@ class Selection {
             const index = this.line3D.anchorPoints.children.indexOf(
               transform_object,
             );
-            const new_pos = transform_object.position.clone();
-            new_pos.x += 0.1;
-            new_pos.y += 0.1;
-            new_pos.z += 0.1;
+
+            let new_pos
+            if (index > 0) {
+              // Add the point between the current and the previous point
+              const obj_before = this.line3D.anchorPoints.children[index - 1];
+              new_pos = obj_before.position.clone().sub(transform_object.position).multiplyScalar(0.5).add(transform_object.position);
+
+            } else {
+              // No previous point, add the point at the same position
+              new_pos = transform_object.position.clone();
+            }
 
             const point = this.line3D.addPoint(new_pos, index);
             this.transform_controls.detach();
