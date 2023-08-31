@@ -6,6 +6,10 @@ body {
   /* remove margins and scroll bars */
   margin: 0;
   overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
 }
 
 #scene-container {
@@ -287,4 +291,12 @@ body {
   width: 4px;
   height: 100%;
   cursor: ew-resize;
+}
+
+#js-blocker-warning {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  z-index: 1;
 }
