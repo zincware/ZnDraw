@@ -23,6 +23,7 @@ repos:
     rev: v8.40.0
     hooks:
       - id: eslint
+        args: [--fix]
         additional_dependencies:
           - eslint@latest
           - eslint-config-prettier
@@ -44,6 +45,7 @@ repos:
     rev: "v0.0.265"
     hooks:
       - id: ruff
+        args: [--fix]
   - repo: https://github.com/executablebooks/mdformat
     rev: 0.7.16
     hooks:
