@@ -67,9 +67,9 @@ class ConnectedParticles(SelectionBase):
 
         return list(set(total_ids))
 
+
 class Neighbour(SelectionBase):
     """Select the nth order neighbours of the selected atoms."""
-
 
     order: int = Field(1, description="Order of neighbour")
 
@@ -81,6 +81,8 @@ class Neighbour(SelectionBase):
             return selected_ids
 
         for node_id in selected_ids:
-            total_ids += list(nx.single_source_shortest_path_length(graph, node_id, self.order).keys())
+            total_ids += list(
+                nx.single_source_shortest_path_length(graph, node_id, self.order).keys()
+            )
 
         return list(set(total_ids))
