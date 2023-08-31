@@ -8,7 +8,7 @@ from flask import Flask, render_template
 from flask_socketio import SocketIO, emit
 
 from zndraw.data import atoms_from_json, atoms_to_json, get_atomsdict_list
-from zndraw.drawing import Geometry
+from zndraw.draw import Geometry
 from zndraw.settings import GlobalConfig
 
 app = Flask(__name__)
