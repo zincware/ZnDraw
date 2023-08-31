@@ -131,8 +131,32 @@ class Selection {
         }
 
         if (event.key === "Backspace") {
-          this.line3D.removePointer(this.transform_controls.object);
-          this.transform_controls.detach();
+          // remove pointer if transform_controls is attached to it
+          if (this.transform_controls.object && this.transform_controls.object.name === "AnchorPoint") {
+            this.line3D.removePointer(this.transform_controls.object);
+            this.transform_controls.detach();
+          } else if (this.selection.length > 0) {
+            console.log("remove selected particles");
+            const { points, segments } = this.world.getLineData();
+            this.socket.emit("modifier:run", {
+              name: "zndraw.modify.Delete",
+              params: {},
+              atoms: this.cache.get(this.world.getStep()),
+              selection: this.world.getSelection(),
+              step: this.world.getStep(),
+              points,
+              segments,
+            });
+            // should we always reset the selection after modifying?
+            this.selection.forEach((x) => {
+              const particle = this.scene.getObjectByName(x);
+              particle.set_selection(false);
+            });
+            this.selection = [];
+
+          } else {
+            this.line3D.removePointer();
+          }
         }
         if (event.key === "Escape") {
           this.transform_controls.detach();
