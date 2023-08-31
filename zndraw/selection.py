@@ -66,3 +66,21 @@ class ConnectedParticles(SelectionBase):
             total_ids += list(nx.node_connected_component(graph, node_id))
 
         return list(set(total_ids))
+
+class Neighbour(SelectionBase):
+    """Select the nth order neighbours of the selected atoms."""
+
+
+    order: int = Field(1, description="Order of neighbour")
+
+    def get_ids(self, atoms: ase.Atoms, selected_ids: list[int]) -> list[int]:
+        total_ids = []
+        try:
+            graph = atoms.connectivity
+        except AttributeError:
+            return selected_ids
+
+        for node_id in selected_ids:
+            total_ids += list(nx.single_source_shortest_path_length(graph, node_id, self.order).keys())
+
+        return list(set(total_ids))

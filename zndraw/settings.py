@@ -29,6 +29,7 @@ _SELECTION_FUNCTIONS = [
     "zndraw.selection.Random",
     "zndraw.selection.IdenticalSpecies",
     "zndraw.selection.ConnectedParticles",
+    "zndraw.selection.Neighbour",
 ]
 
 
