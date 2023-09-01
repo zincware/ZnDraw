@@ -1,4 +1,5 @@
 import importlib
+import multiprocessing as mp
 import uuid
 from io import StringIO
 
@@ -6,7 +7,6 @@ import numpy as np
 import tqdm
 from flask import Flask, render_template
 from flask_socketio import SocketIO, emit
-import multiprocessing as mp
 
 from zndraw.data import atoms_from_json, atoms_to_json
 from zndraw.draw import Geometry

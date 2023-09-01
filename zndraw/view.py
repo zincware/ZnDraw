@@ -1,5 +1,4 @@
 import logging
-import multiprocessing
 import webbrowser
 
 from zndraw.app import app, io

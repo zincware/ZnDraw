@@ -27,7 +27,7 @@ function main() {
   });
 
   // creata a function displayIncomingAtoms that calls cache.get_length(), if larger 1 call world.setStep(0), else setTimerout(displayIncomingAtoms, 1000)
-  
+
   const displayIncomingAtoms = () => {
     cache.get_length();
     if (cache.get_length() > 1) {
@@ -39,7 +39,7 @@ function main() {
   };
 
   socket.emit("atoms:request", window.location.href, () => {
-    displayIncomingAtoms();    
+    displayIncomingAtoms();
   });
 }
 
