@@ -217,6 +217,9 @@ class ParticlesGroup extends THREE.Group {
     });
 
     this.bonds_exist = false;
+    this.selection = [];
+
+    this.particle_cache = undefined;
 
     // rebuild attributes
     this.resolution = 10;
@@ -241,17 +244,39 @@ class ParticlesGroup extends THREE.Group {
     this.particles_mesh = undefined;
   }
 
-  tick() {}
+  tick() { }
+
+  click(instanceId, shift) { 
+    if (instanceId !== undefined) {
+      if (shift) {
+        if (this.selection.includes(instanceId)) {
+          this.selection = this.selection.filter(
+            (x) => x !== instanceId,
+          );
+        } else {
+          this.selection.push(instanceId);
+        }
+      } else {
+        if (this.selection.includes(instanceId)) {
+          this.selection = [];
+        } else {
+          this.selection = [instanceId];
+        }
+      }
+    } else {
+      this.selection = [];
+    }
+    this.step();
+    // trigger this._updateParticles() to update the selection
+  }
 
   _get_particle_mesh(particle) {
     const particles_geometry = new THREE.SphereGeometry(this.particle_size);
     const particles_material = new THREE.MeshPhongMaterial({ color: "#ffffff" });
 
     const particles_mesh = new THREE.InstancedMesh(particles_geometry, particles_material, particle.positions.length);
-    particles_mesh.set_selection = (selected) => {};
     return particles_mesh;
   }
-
 
   _updateParticles(particles) {
     if (particles === undefined) {
@@ -268,19 +293,26 @@ class ParticlesGroup extends THREE.Group {
     }
     const matrix = new THREE.Matrix4();
     const dummy = new THREE.Object3D();
+    const color = new THREE.Color();
 
     for (let i = 0; i < this.particles_mesh.count; i++) {
       this.particles_mesh.getMatrixAt(i, matrix);
       matrix.decompose(dummy.position, dummy.rotation, dummy.scale);
-      
+
       dummy.position.set(...particles.positions[i]);
       dummy.scale.x = dummy.scale.y = dummy.scale.z = particles.radii[i];
 
       dummy.updateMatrix();
       this.particles_mesh.setMatrixAt(i, dummy.matrix);
-      this.particles_mesh.setColorAt(i, new THREE.Color(particles.colors[i]));      
+      if (this.selection.includes(i)) {
+        color.set(0xffa500);
+      } else {
+        color.set(particles.colors[i]);
+      }
+      this.particles_mesh.setColorAt(i, color);
     }
     this.particles_mesh.instanceMatrix.needsUpdate = true;
+    this.particles_mesh.instanceColor.needsUpdate = true;
 
     // const existing_particles = [];
     // const new_particles = [];
@@ -344,12 +376,14 @@ class ParticlesGroup extends THREE.Group {
   }
 
   step(frame) {
-    const particles = this.cache.get(frame);
-    if (particles == null) {
+    if (frame !== undefined) {
+      this.particle_cache = this.cache.get(frame);
+    }
+    if (this.particle_cache == null) {
       // nothing to display
     } else {
-      this._updateParticles(particles);
-      
+      this._updateParticles(this.particle_cache);
+
       // if (this.show_bonds) {
       //   this._updateBonds(particles.connectivity);
       // }

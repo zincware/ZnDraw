@@ -202,7 +202,6 @@ class World {
     loop.tick_updatables.push(controls, this.index_grp);
     loop.step_updatables.push(
       this.particles,
-      this.selection,
       this.index_grp,
       this.cell_grp,
     );
@@ -256,7 +255,7 @@ class World {
   }
 
   getSelection() {
-    return this.selection.selection;
+    return this.particles.selection;
   }
 
   getLineData() {

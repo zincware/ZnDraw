@@ -38,11 +38,13 @@ class Selection {
     };
 
     this.socket.on("selection:run", (data) => {
-      this.selection = data;
-      this.step();
+      const particlesGroup = this.scene.getObjectByName("particlesGroup");
+      particlesGroup.selection = data;
+      particlesGroup.step();
     });
 
     window.addEventListener("wheel", this.onWheel.bind(this));
+    const particlesGroup = this.scene.getObjectByName("particlesGroup");
 
     // use c keypress to center the camera on the selection
     document.addEventListener("keydown", (event) => {
@@ -50,7 +52,7 @@ class Selection {
         if (event.key === "c") {
           if (this.controls.enablePan) {
             // get the first object that is selected
-            const particlesGroup = this.scene.getObjectByName("particlesGroup");
+
 
             particlesGroup.children.every((x) => {
               if (this.selection.includes(x.name)) {
@@ -155,12 +157,8 @@ class Selection {
               points,
               segments,
             });
-            // should we always reset the selection after modifying?
-            this.selection.forEach((x) => {
-              const particle = this.scene.getObjectByName(x);
-              particle.set_selection(false);
-            });
-            this.selection = [];
+            particlesGroup.click();
+
           } else {
             this.line3D.removePointer();
           }
@@ -205,47 +203,35 @@ class Selection {
     return selection;
   }
 
-  step() {
-    const particlesGroup = this.scene.getObjectByName("particlesGroup");
-    // iterate through all children ids that are in the selection and update them
-    particlesGroup.children.forEach((x) => {
-      if (this.selection.includes(x.name)) {
-        x.set_selection(true);
-      } else {
-        x.set_selection(false);
-      }
-    });
-  }
-
-  getIntersections() {
+  getIntersections(object) {
     this.pointer.x = (event.clientX / window.innerWidth) * 2 - 1;
     this.pointer.y = -(event.clientY / window.innerHeight) * 2 + 1;
 
     this.raycaster.setFromCamera(this.pointer, this.camera);
-
-    return this.raycaster.intersectObjects(this.scene.children, true);
+    if (object) {
+      return this.raycaster.intersectObject(object, true);
+    } else {
+      return this.raycaster.intersectObjects(this.scene.children, true);
+    }
   }
 
   onDoubleClick(event) {
-    const intersects = this.getIntersections();
     const particlesGroup = this.scene.getObjectByName("particlesGroup");
-    const selection = [];
-    for (let i = 0; i < intersects.length; i++) {
-      const { object } = intersects[i];
-      if (particlesGroup.children.includes(object.parent)) {
-        selection.push(object.parent.name);
 
-        const selectionOptions = document.getElementById("selection-select");
-        const params = selectionOptions.parameters;
+    const particleIntersects = this.getIntersections(particlesGroup);
+    if (particleIntersects.length > 0) {
+      const instanceId = particleIntersects[0].instanceId;
+      particlesGroup.click(instanceId, this.shift_pressed);
+      const selectionOptions = document.getElementById("selection-select");
+      const params = selectionOptions.parameters;
 
-        this.socket.emit("selection:run", {
-          name: selectionOptions.options[selectionOptions.selectedIndex].text,
-          params: params, // THIS IS NOT RIGHT
-          atoms: this.cache.get(this.world.getStep()),
-          selection,
-        });
-        break;
-      }
+      this.socket.emit("selection:run", {
+        name: selectionOptions.options[selectionOptions.selectedIndex].text,
+        params: params,
+        atoms: this.cache.get(this.world.getStep()),
+        selection: particlesGroup.selection,
+      });
+
     }
   }
 
@@ -271,10 +257,11 @@ class Selection {
 
   onPointerDown(event) {
     const intersects = this.getIntersections();
+    const particlesGroup = this.scene.getObjectByName("particlesGroup");
 
     // iterate intersections until we find a particle
     for (let i = 0; i < intersects.length; i++) {
-      const particlesGroup = this.scene.getObjectByName("particlesGroup");
+
       const { object } = intersects[i];
       if (this._drawing) {
         if (object.name === "canvas3D") {
@@ -287,28 +274,15 @@ class Selection {
         }
       } else if (object.name === "AnchorPoint") {
         this.transform_controls.attach(object);
-      } else if (particlesGroup.children.includes(object.parent)) {
-        if (this.shift_pressed) {
-          if (this.selection.includes(object.parent.name)) {
-            this.selection = this.selection.filter(
-              (x) => x !== object.parent.name,
-            );
-            object.parent.set_selection(false);
-          } else {
-            this.selection.push(object.parent.name);
-            object.parent.set_selection(true);
-          }
-        } else {
-          if (this.selection.includes(object.parent.name)) {
-            this.selection = [];
-          } else {
-            this.selection = [object.parent.name];
-          }
-          object.parent.set_selection(true);
-          this.step();
-        }
-        break; // only (de)select one particle
       }
+    }
+
+
+
+    const particleIntersects = this.getIntersections(particlesGroup);
+    if (particleIntersects.length > 0) {
+      const instanceId = particleIntersects[0].instanceId;
+      particlesGroup.click(instanceId, this.shift_pressed);
     }
   }
 
