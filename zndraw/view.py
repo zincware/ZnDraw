@@ -40,10 +40,12 @@ def view(
     webview: bool = True,
     fullscreen: bool = False,
     stride: int = 1,
+    compute_bonds: bool = True,
 ):
     if filename is not None:
         app.config["filename"] = filename
         app.config["stride"] = stride
+    app.config["compute_bonds"] = compute_bonds
     url = f"http://127.0.0.1:{port}"
     print(f"Starting ZnDraw server at {url}")
 

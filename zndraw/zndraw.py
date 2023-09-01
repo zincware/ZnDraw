@@ -15,6 +15,9 @@ import znh5md
 
 from zndraw.data import atoms_from_json, atoms_to_json
 from zndraw.utils import get_port
+from zndraw.bonds import ASEComputeBonds
+
+import networkx as nx
 
 
 @dataclasses.dataclass
@@ -22,6 +25,9 @@ class ZnDraw(collections.abc.MutableSequence):
     url: str = None
     socket: socketio.Client = dataclasses.field(default_factory=socketio.Client)
     jupyter: bool = False
+    bonds_calculator: ASEComputeBonds = dataclasses.field(
+        default_factory=ASEComputeBonds
+    )
 
     display_new: bool = True
     _retries: int = 5
@@ -115,6 +121,11 @@ class ZnDraw(collections.abc.MutableSequence):
     def _set_item(self, index, value):
         assert isinstance(value, ase.Atoms), "Must be an ASE Atoms object"
         assert isinstance(index, int), "Index must be an integer"
+        if self.bonds_calculator is not None:
+            value.connectivity = self.bonds_calculator.build_graph(value)
+        else:
+            value.connectivity = nx.Graph()
+
         self.socket.emit("atoms:upload", {index: atoms_to_json(value)})
 
     def __setitem__(self, index, value):
