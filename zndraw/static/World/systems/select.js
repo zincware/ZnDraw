@@ -108,50 +108,57 @@ class Selection {
    * Drawing raycaster
    */
   onPointerMove(event) {
-    const intersects = this.getIntersections();
     const particlesGroup = this.scene.getObjectByName("particlesGroup");
-    for (let i = 0; i < intersects.length; i++) {
-      const { object } = intersects[i];
-      if (object.name === "canvas3D") {
-        this.line3D.movePointer(intersects[i].point.clone());
-        break;
-      }
-      if (particlesGroup.children.includes(object.parent)) {
-        this.line3D.movePointer(intersects[i].point.clone());
-        break;
+    const canvas3D = this.scene.getObjectByName("canvas3D");
+
+    const particleIntersects = this.getIntersections(particlesGroup);
+    const canvasIntersects = this.getIntersections(canvas3D);
+
+    if (particleIntersects.length > 0) {
+      const position = particleIntersects[0].point.clone();
+      this.line3D.movePointer(position);
+    } else if (canvasIntersects.length > 0) {
+      if (canvasIntersects[0].object.name === "canvas3D") {
+        const position = canvasIntersects[0].point.clone();
+        this.line3D.movePointer(position);
       }
     }
+    // } else {
+    //   this.line3D.removePointer();
+    // }
     return false;
   }
 
   onPointerDown(event) {
-    const intersects = this.getIntersections();
     const particlesGroup = this.scene.getObjectByName("particlesGroup");
-
-    // iterate intersections until we find a particle
-    for (let i = 0; i < intersects.length; i++) {
-
-      const { object } = intersects[i];
-      if (this._drawing) {
-        if (object.name === "canvas3D") {
-          this.line3D.addPoint(intersects[i].point.clone());
-          break;
-        }
-        if (particlesGroup.children.includes(object.parent)) {
-          this.line3D.addPoint(intersects[i].point.clone());
-          break;
-        }
-      } else if (object.name === "AnchorPoint") {
-        this.transform_controls.attach(object);
-      }
-    }
-
-
-
+    const anchorPoints = this.scene.getObjectByName("AnchorPoints");
+    const canvas3D = this.scene.getObjectByName("canvas3D");
+    // const canvasIntersects = this.getIntersections(this
+    const anchorPointsIntersects = this.getIntersections(anchorPoints);
     const particleIntersects = this.getIntersections(particlesGroup);
-    if (particleIntersects.length > 0) {
-      const instanceId = particleIntersects[0].instanceId;
-      particlesGroup.click(instanceId, this.shift_pressed);
+    const canvasIntersects = this.getIntersections(canvas3D);
+
+
+    if (this._drawing) {
+      if (particleIntersects.length > 0) {
+        const position = particleIntersects[0].point.clone();
+        this.line3D.addPoint(position);
+      } else if (canvasIntersects.length > 0) {
+        if (canvasIntersects[0].object.name === "canvas3D") {
+          const position = canvasIntersects[0].point.clone();
+          this.line3D.addPoint(position);
+        }
+      }
+    } else {
+      if (anchorPointsIntersects.length > 0) {
+        const object = anchorPointsIntersects[0].object;
+        if (object.name === "AnchorPoint") {
+          this.transform_controls.attach(object);
+        }
+      } else if (particleIntersects.length > 0) {
+        const instanceId = particleIntersects[0].instanceId;
+        particlesGroup.click(instanceId, this.shift_pressed);
+      }
     }
   }
 
@@ -161,7 +168,6 @@ class Selection {
       for (let i = 0; i < intersections.length; i++) {
         const { object } = intersections[i];
         if (object.name === "canvas3D") {
-          console.log("scrolled on canvas3D");
           // there must be a better way to disable scrolling while over the canvas
           this.controls.enableZoom = false;
           if (scroll_timer) {
@@ -287,7 +293,7 @@ class Selection {
               this.transform_controls.detach();
             }
           } else if (particlesGroup.selection.length > 0) {
-            console.log("remove selected particles");
+
             const { points, segments } = this.world.getLineData();
             this.socket.emit("modifier:run", {
               name: "zndraw.modify.Delete",
