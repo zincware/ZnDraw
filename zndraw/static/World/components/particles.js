@@ -35,6 +35,8 @@ class ParticlesGroup extends THREE.Group {
     this.show_bonds = true;
     this.particle_size = 1;
     this.bonds_size = 1;
+
+    this.highlight_mesh = undefined;
   }
 
   rebuild(resolution, material, wireframe, bonds, particle_size, bonds_size) {
@@ -75,6 +77,40 @@ class ParticlesGroup extends THREE.Group {
     }
     this.step();
     // trigger this._updateParticles() to update the selection
+  }
+
+  hover(instanceId, object) {
+    this.step();
+    if (instanceId !== undefined) {
+      const color = new THREE.Color();
+      color.set("#ffa500");
+      const all_bonds = this._get_all_bonds(this.particle_cache.connectivity);
+      if (object === this.bonds_mesh) {
+        instanceId = all_bonds[instanceId][0];
+      }
+      const matrix = new THREE.Matrix4();
+      const dummy = new THREE.Object3D();
+
+      const particles_geometry = new THREE.SphereGeometry(
+        this.particle_size,
+        this.resolution * 4,
+        this.resolution * 2,
+      );
+
+      // change color of particle and all bonds
+
+      this.particles_mesh.setColorAt(instanceId, color);
+
+      // const bondsForParticle = all_bonds.filter(
+      //   ([a, b]) => a === instanceId || b === instanceId,
+      // );
+      // bondsForParticle.forEach(([a, b]) => {
+      //   const bondId = all_bonds.findIndex(
+      //     ([a2, b2]) => a2 === a && b2 === b,
+      //   );
+      //   this.bonds_mesh.setColorAt(bondId, color);
+      // });
+    }
   }
 
   _get_particle_mesh(particle) {
