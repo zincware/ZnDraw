@@ -41,7 +41,18 @@ class ZnDraw(collections.abc.MutableSequence):
 
                 port = get_port()
                 self._view_thread = threading.Thread(
-                    target=view, args=(None, port, not self.jupyter), daemon=True
+                    target=view,
+                    kwargs={
+                        "filename": None,
+                        "port": port,
+                        "open_browser": not self.jupyter,
+                        "webview": False,
+                        "fullscreen": False,
+                        "stride": False,
+                        "compute_bonds": True,
+                        "multiprocessing": False,
+                    },
+                    daemon=True,
                 )
                 self._view_thread.start()
                 self.url = f"http://127.0.0.1:{port}"
