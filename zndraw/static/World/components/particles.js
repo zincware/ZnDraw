@@ -128,7 +128,7 @@ class ParticlesGroup extends THREE.Group {
     this.bonds_mesh = undefined;
   }
 
-  tick() { }
+  tick() {}
 
   click(instanceId, shift, object) {
     if (instanceId !== undefined) {
@@ -138,9 +138,7 @@ class ParticlesGroup extends THREE.Group {
       }
       if (shift) {
         if (this.selection.includes(instanceId)) {
-          this.selection = this.selection.filter(
-            (x) => x !== instanceId,
-          );
+          this.selection = this.selection.filter((x) => x !== instanceId);
         } else {
           this.selection.push(instanceId);
         }
@@ -159,11 +157,19 @@ class ParticlesGroup extends THREE.Group {
   }
 
   _get_particle_mesh(particle) {
-    const particles_geometry = new THREE.SphereGeometry(this.particle_size, this.resolution * 4, this.resolution * 2);
+    const particles_geometry = new THREE.SphereGeometry(
+      this.particle_size,
+      this.resolution * 4,
+      this.resolution * 2,
+    );
     const particles_material = materials[this.material].clone();
     particles_material.wireframe = this.wireframe;
 
-    const particles_mesh = new THREE.InstancedMesh(particles_geometry, particles_material, particle.positions.length);
+    const particles_mesh = new THREE.InstancedMesh(
+      particles_geometry,
+      particles_material,
+      particle.positions.length,
+    );
     return particles_mesh;
   }
 
@@ -232,13 +238,15 @@ class ParticlesGroup extends THREE.Group {
       return bonds
         .filter(([a, b]) => a === instanceId || b === instanceId)
         .map(([a, b, bond_type]) =>
-          a === instanceId
-            ? [a, b, bond_type]
-            : [b, a, bond_type],
+          a === instanceId ? [a, b, bond_type] : [b, a, bond_type],
         );
     };
     const allBonds = [];
-    for (let instanceId = 0; instanceId < this.particles_mesh.count; instanceId++) {
+    for (
+      let instanceId = 0;
+      instanceId < this.particles_mesh.count;
+      instanceId++
+    ) {
       const bondsForParticle = getBondsForParticle(instanceId);
       bondsForParticle.forEach(([_, targetInstanceId, bond_type]) => {
         allBonds.push([instanceId, targetInstanceId, bond_type]);
@@ -255,13 +263,11 @@ class ParticlesGroup extends THREE.Group {
       this.bonds_mesh = this._get_bonds_mesh(bonds);
       this.add(this.bonds_mesh);
     }
-    if (this.bonds_mesh.count !== (bonds.length * 2)) {
+    if (this.bonds_mesh.count !== bonds.length * 2) {
       this.remove(this.bonds_mesh);
       this.bonds_mesh = this._get_bonds_mesh(bonds);
       this.add(this.bonds_mesh);
     }
-
-
 
     const matrix = new THREE.Matrix4();
     const dummy = new THREE.Object3D();
@@ -296,11 +302,9 @@ class ParticlesGroup extends THREE.Group {
       this.bonds_mesh.setMatrixAt(instanceId, dummy.matrix);
       this.particles_mesh.getColorAt(particleAId, color);
       this.bonds_mesh.setColorAt(instanceId, color);
-
     }
     this.bonds_mesh.instanceMatrix.needsUpdate = true;
     this.bonds_mesh.instanceColor.needsUpdate = true;
-
   }
 
   step(frame) {
@@ -403,14 +407,20 @@ class ParticleIndexGroup extends THREE.Group {
       const dummy = new THREE.Object3D();
       const direction = new THREE.Vector3();
 
-      for (let instanceId = 0; instanceId < this.particlesGroup.particles_mesh.count; instanceId++) {
+      for (
+        let instanceId = 0;
+        instanceId < this.particlesGroup.particles_mesh.count;
+        instanceId++
+      ) {
         this.particlesGroup.particles_mesh.getMatrixAt(instanceId, matrix);
         matrix.decompose(dummy.position, dummy.rotation, dummy.scale);
         // combine all intersects from the center and top/bottom/left/right of the particle
         let visible = true;
         direction.copy(dummy.position).sub(this.camera.position).normalize();
         raycaster.set(this.camera.position, direction);
-        const intersects = raycaster.intersectObjects(this.particlesGroup.children);
+        const intersects = raycaster.intersectObjects(
+          this.particlesGroup.children,
+        );
         if (intersects.length > 0 && intersects[0].instanceId !== instanceId) {
           visible = false;
         }

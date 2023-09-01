@@ -200,11 +200,7 @@ class World {
     });
 
     loop.tick_updatables.push(controls, this.index_grp);
-    loop.step_updatables.push(
-      this.particles,
-      this.index_grp,
-      this.cell_grp,
-    );
+    loop.step_updatables.push(this.particles, this.index_grp, this.cell_grp);
 
     const resizer = new Resizer(container, camera, renderer, renderer2d);
 
@@ -234,7 +230,14 @@ class World {
     particle_size,
     bonds_size,
   ) {
-    this.particles.rebuild(resolution, material, wireframe, bonds, particle_size, bonds_size);
+    this.particles.rebuild(
+      resolution,
+      material,
+      wireframe,
+      bonds,
+      particle_size,
+      bonds_size,
+    );
     this.cell_grp.set_visibility(simulation_box);
     this.setStep(loop.step);
     this.index_grp.rebuild(label_offset);

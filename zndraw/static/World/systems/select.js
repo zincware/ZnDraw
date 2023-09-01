@@ -56,7 +56,6 @@ class Selection {
       }
     });
 
-
     window.addEventListener("pointerdown", this.onPointerDown.bind(this));
     window.addEventListener("dblclick", this.onDoubleClick.bind(this));
   }
@@ -90,7 +89,11 @@ class Selection {
     const particleIntersects = this.getIntersections(particlesGroup);
     if (particleIntersects.length > 0) {
       const instanceId = particleIntersects[0].instanceId;
-      particlesGroup.click(instanceId, this.shift_pressed, particleIntersects[0].object);
+      particlesGroup.click(
+        instanceId,
+        this.shift_pressed,
+        particleIntersects[0].object,
+      );
       const selectionOptions = document.getElementById("selection-select");
       const params = selectionOptions.parameters;
 
@@ -100,7 +103,6 @@ class Selection {
         atoms: this.cache.get(this.world.getStep()),
         selection: particlesGroup.selection,
       });
-
     }
   }
 
@@ -138,7 +140,6 @@ class Selection {
     const particleIntersects = this.getIntersections(particlesGroup);
     const canvasIntersects = this.getIntersections(canvas3D);
 
-
     if (this._drawing) {
       if (particleIntersects.length > 0) {
         const position = particleIntersects[0].point.clone();
@@ -157,7 +158,11 @@ class Selection {
         }
       } else if (particleIntersects.length > 0) {
         const instanceId = particleIntersects[0].instanceId;
-        particlesGroup.click(instanceId, this.shift_pressed, particleIntersects[0].object);
+        particlesGroup.click(
+          instanceId,
+          this.shift_pressed,
+          particleIntersects[0].object,
+        );
       }
     }
   }
@@ -194,8 +199,6 @@ class Selection {
   }
 
   _setupKeyboardEvents() {
-
-
     document.addEventListener("keydown", (event) => {
       if (event.key === "Shift") {
         this.shift_pressed = true;
@@ -220,7 +223,6 @@ class Selection {
         if (event.key === "c") {
           if (this.controls.enablePan) {
             // get the first object that is selected
-
 
             particlesGroup.children.every((x) => {
               if (this.selection.includes(x.name)) {
@@ -293,7 +295,6 @@ class Selection {
               this.transform_controls.detach();
             }
           } else if (particlesGroup.selection.length > 0) {
-
             const { points, segments } = this.world.getLineData();
             this.socket.emit("modifier:run", {
               name: "zndraw.modify.Delete",
@@ -305,7 +306,6 @@ class Selection {
               segments,
             });
             particlesGroup.click();
-
           } else {
             this.line3D.removePointer();
           }
@@ -323,8 +323,6 @@ class Selection {
 
     const onPointerMove = this.onPointerMove.bind(this);
   }
-
-
 }
 
 export { Selection };
