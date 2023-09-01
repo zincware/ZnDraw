@@ -1,15 +1,18 @@
 import importlib
+import multiprocessing as mp
 import uuid
 from io import StringIO
 
+import ase
 import numpy as np
 import tqdm
 from flask import Flask, render_template
 from flask_socketio import SocketIO, emit
 
-from zndraw.data import atoms_from_json, atoms_to_json, get_atomsdict_list
+from zndraw.data import atoms_from_json, atoms_to_json
 from zndraw.draw import Geometry
 from zndraw.settings import GlobalConfig
+from zndraw.zndraw import ZnDraw
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = str(uuid.uuid4())
@@ -32,23 +35,46 @@ def exit_route():
     return "Server shutting down..."
 
 
-def _read_file(filename, stride):
-    for idx, atoms_dict in enumerate(get_atomsdict_list(filename, stride)):
-        io.emit("atoms:upload", atoms_dict)
+def _read_file(filename, stride, compute_bonds, url=None):
+    if url is None:
+        if compute_bonds:
+            instance = ZnDraw(socket=io, display_new=False)
+        else:
+            instance = ZnDraw(socket=io, display_new=False, bonds_calculator=None)
+    else:
+        if compute_bonds:
+            instance = ZnDraw(url=url, display_new=False)
+        else:
+            instance = ZnDraw(url=url, display_new=False, bonds_calculator=None)
+
+    instance.read(filename, stride)
 
 
 @io.on("atoms:request")
-def atoms_request(data):
+def atoms_request(url):
     """Return the atoms."""
 
     if "filename" in app.config:
-        io.start_background_task(
-            target=_read_file,
-            filename=app.config["filename"],
-            stride=app.config["stride"],
-        )
+        if app.config["multiprocessing"]:
+            proc = mp.Process(
+                target=_read_file,
+                args=(
+                    app.config["filename"],
+                    app.config["stride"],
+                    app.config["compute_bonds"],
+                    url,
+                ),
+            )
+            proc.start()
+        else:
+            io.start_background_task(
+                target=_read_file,
+                filename=app.config["filename"],
+                stride=app.config["stride"],
+                compute_bonds=app.config["compute_bonds"],
+            )
     else:
-        emit("atoms:upload", {})
+        emit("atoms:upload", {0: atoms_to_json(ase.Atoms())})
 
 
 @io.on("modifier:schema")

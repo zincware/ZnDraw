@@ -2,7 +2,8 @@ from typing import Optional
 
 import typer
 
-from zndraw.view import _get_port, view
+from zndraw.utils import get_port
+from zndraw.view import view
 
 cli = typer.Typer()
 
@@ -33,13 +34,23 @@ def main(
         help="""Stride for the frames to be visualized. If set to 1, all frames will be visualized.
         If e.g. set to 2, every second frame will be visualized.""",
     ),
+    compute_bonds: bool = typer.Option(
+        True,
+        help="""Whether to compute bonds for the structure. If set to False, no bonds will be computed.""",
+    ),
+    multiprocessing: bool = typer.Option(
+        False,
+        "--multiprocessing",
+        "-mp",
+        help="""Use multiprocessing to read data files. This will slow down the loading time, but enables loading large files in the background.""",
+    ),
 ):
     """Start the ZnDraw server.
 
     Visualize Trajectories, Structures, and more in ZnDraw.
     """
     if port is None:
-        port = _get_port()
+        port = get_port()
     view(
         filename,
         port,
@@ -47,4 +58,6 @@ def main(
         fullscreen=fullscreen,
         open_browser=browser,
         stride=stride,
+        compute_bonds=compute_bonds,
+        multiprocessing=multiprocessing,
     )
