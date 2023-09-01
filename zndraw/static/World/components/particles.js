@@ -210,16 +210,12 @@ class ParticlesGroup extends THREE.Group {
     super();
     this.name = "particlesGroup";
     this.cache = cache;
-    socket.on("config", (data) => {
-      this.config = data;
-      console.log("ParticlesGroup config:");
-      console.log(this.config);
-    });
 
     this.bonds_exist = false;
     this.selection = [];
 
     this.particle_cache = undefined;
+    this.bonds_mesh = undefined;
 
     // rebuild attributes
     this.resolution = 10;
@@ -242,11 +238,12 @@ class ParticlesGroup extends THREE.Group {
     this.bonds_size = bonds_size;
     this.clear();
     this.particles_mesh = undefined;
+    this.bonds_mesh = undefined;
   }
 
   tick() { }
 
-  click(instanceId, shift) { 
+  click(instanceId, shift) {
     if (instanceId !== undefined) {
       if (shift) {
         if (this.selection.includes(instanceId)) {
@@ -271,7 +268,7 @@ class ParticlesGroup extends THREE.Group {
   }
 
   _get_particle_mesh(particle) {
-    const particles_geometry = new THREE.SphereGeometry(this.particle_size);
+    const particles_geometry = new THREE.SphereGeometry(this.particle_size, this.resolution * 4, this.resolution * 2);
     const particles_material = new THREE.MeshPhongMaterial({ color: "#ffffff" });
 
     const particles_mesh = new THREE.InstancedMesh(particles_geometry, particles_material, particle.positions.length);
@@ -313,66 +310,138 @@ class ParticlesGroup extends THREE.Group {
     }
     this.particles_mesh.instanceMatrix.needsUpdate = true;
     this.particles_mesh.instanceColor.needsUpdate = true;
+  }
 
-    // const existing_particles = [];
-    // const new_particles = [];
-    // let deleted_particles = [];
+  _get_bonds_mesh(bonds) {
+    const geometry = new THREE.CylinderGeometry(
+      0.15 * this.bonds_size,
+      0.15 * this.bonds_size,
+      1,
+      this.resolution * 2,
+      1,
+      true,
+    );
+    // shift it so one end rests on the origin
+    geometry.applyMatrix4(new THREE.Matrix4().makeTranslation(0, 1 / 2, 0));
+    // rotate it the right way for lookAt to work
+    geometry.applyMatrix4(
+      new THREE.Matrix4().makeRotationX(THREE.MathUtils.degToRad(90)),
+    );
 
-    // for (const x of particles) {
-    //   const particleObject = this.getObjectByName(x.id);
-
-    //   if (particleObject) {
-    //     existing_particles.push(x);
-    //   } else {
-    //     new_particles.push(x);
-    //   }
-    // }
-
-    // // get all particles who have an id larger than particles.length
-    // deleted_particles = this.children.filter((x) => x.name >= particles.length);
-
-    // new_particles.forEach((particle) => {
-    //   this.add(
-    //     new ParticleGroup(
-    //       particle,
-    //       this.resolution,
-    //       this.material,
-    //       this.wireframe,
-    //     ),
-    //   );
-    // });
-
-    // existing_particles.forEach((particle) => {
-    //   const particleSubGroup = this.getObjectByName(particle.id);
-    //   particleSubGroup.update(particle);
-    // });
-
-    // // remove deleted particles
-    // deleted_particles.forEach((particle) => {
-    //   particle.removeFromParent();
-    //   // config.selected = config.selected.filter((e) => e !== particle.name);
-    // });
-
-    // // console.log("Having existing particles: " + existing_particles.length + " and adding " + new_particles.length + " and removing " + deleted_particles.length);
+    const material = new THREE.MeshPhongMaterial({ color: "#ffffff" });
+    // bonds A-B from 0..n, bonds B-A from n+1..2n
+    const mesh = new THREE.InstancedMesh(geometry, material, bonds.length * 2);
+    return mesh;
   }
 
   _updateBonds(bonds) {
-    const getBondsForParticle = (particleName) => {
-      const bondsWithGroups = bonds
-        .filter(([a, b]) => a === particleName || b === particleName)
+    if (bonds === undefined) {
+      return;
+    }
+    if (this.bonds_mesh === undefined) {
+      this.bonds_mesh = this._get_bonds_mesh(bonds);
+      this.add(this.bonds_mesh);
+    }
+    if (this.bonds_mesh.count !== (bonds.length * 2)) {
+      this.remove(this.bonds_mesh);
+      this.bonds_mesh = this._get_bonds_mesh(bonds);
+      this.add(this.bonds_mesh);
+    }
+
+    const getBondsForParticle = (instanceId) => {
+      return bonds
+        .filter(([a, b]) => a === instanceId || b === instanceId)
         .map(([a, b, bond_type]) =>
-          a === particleName
-            ? [a, this.getObjectByName(b), bond_type]
-            : [b, this.getObjectByName(a), bond_type],
+          a === instanceId
+            ? [a, b, bond_type]
+            : [b, a, bond_type],
         );
-      return bondsWithGroups;
     };
 
-    this.children.forEach((particleSubGroup) => {
-      const particleName = particleSubGroup.name;
-      const bondsForParticle = getBondsForParticle(particleName);
-      particleSubGroup.updateBonds(bondsForParticle);
-    });
+    const matrix = new THREE.Matrix4();
+    const dummy = new THREE.Object3D();
+    const color = new THREE.Color();
+    const distance = new THREE.Vector3();
+
+    const particleA = new THREE.Object3D();
+    const particleB = new THREE.Object3D();
+
+    // create a flat list of all bonds using this.particles_mesh.count and getBondForParticle
+    const allBonds = [];
+    for (let instanceId = 0; instanceId < this.particles_mesh.count; instanceId++) {
+      const bondsForParticle = getBondsForParticle(instanceId);
+      bondsForParticle.forEach(([_, targetInstanceId, bond_type]) => {
+        allBonds.push([instanceId, targetInstanceId, bond_type]);
+      });
+    }
+
+    for (let instanceId = 0; instanceId < this.bonds_mesh.count; instanceId++) {
+      const [particleAId, particleBId, bond_type] = allBonds[instanceId];
+      this.particles_mesh.getMatrixAt(particleAId, matrix);
+      matrix.decompose(particleA.position, particleA.rotation, particleA.scale);
+      this.particles_mesh.getMatrixAt(particleBId, matrix);
+      matrix.decompose(particleB.position, particleB.rotation, particleB.scale);
+
+      this.bonds_mesh.getMatrixAt(instanceId, matrix);
+      matrix.decompose(dummy.position, dummy.rotation, dummy.scale);
+
+      dummy.position.copy(particleA.position);
+      dummy.lookAt(particleB.position);
+
+      distance.subVectors(particleA.position, particleB.position);
+      const bondLength = distance.length();
+      dummy.scale.set(1, 1, bondLength / 2);
+
+      dummy.updateMatrix();
+      this.bonds_mesh.setMatrixAt(instanceId, dummy.matrix);
+      this.particles_mesh.getColorAt(particleAId, color);
+      this.bonds_mesh.setColorAt(instanceId, color);
+      
+    }
+    this.bonds_mesh.instanceMatrix.needsUpdate = true;
+    this.bonds_mesh.instanceColor.needsUpdate = true;
+
+    // for (let i = 0; i < this.bonds_mesh.count; i++) {
+
+    // }
+
+    // for (let i = 0; i < this.particles_mesh.count; i++) {
+    //   this.particles_mesh.getMatrixAt(i, matrix);
+    //   matrix.decompose(dummy.position, dummy.rotation, dummy.scale);
+
+    //   dummy.position.set(...particles.positions[i]);
+    //   dummy.scale.x = dummy.scale.y = dummy.scale.z = particles.radii[i];
+
+    //   dummy.updateMatrix();
+    //   this.particles_mesh.setMatrixAt(i, dummy.matrix);
+    //   if (this.selection.includes(i)) {
+    //     color.set(0xffa500);
+    //   } else {
+    //     color.set(particles.colors[i]);
+    //   }
+    //   this.particles_mesh.setColorAt(i, color);
+    // }
+    // this.particles_mesh.instanceMatrix.needsUpdate = true;
+    // this.particles_mesh.instanceColor.needsUpdate = true;
+
+
+
+    // const getBondsForParticle = (particleName) => {
+    //   const bondsWithGroups = bonds
+    //     .filter(([a, b]) => a === particleName || b === particleName)
+    //     .map(([a, b, bond_type]) =>
+    //       a === particleName
+    //         ? [a, this.getObjectByName(b), bond_type]
+    //         : [b, this.getObjectByName(a), bond_type],
+    //     );
+    //   return bondsWithGroups;
+    // };
+
+    // this.children.forEach((particleSubGroup) => {
+    //   const particleName = particleSubGroup.name;
+    //   const bondsForParticle = getBondsForParticle(particleName);
+    //   particleSubGroup.updateBonds(bondsForParticle);
+    // });
   }
 
   step(frame) {
@@ -384,9 +453,9 @@ class ParticlesGroup extends THREE.Group {
     } else {
       this._updateParticles(this.particle_cache);
 
-      // if (this.show_bonds) {
-      //   this._updateBonds(particles.connectivity);
-      // }
+      if (this.show_bonds) {
+        this._updateBonds(this.particle_cache.connectivity);
+      }
     }
   }
 }
