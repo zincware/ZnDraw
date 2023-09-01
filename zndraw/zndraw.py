@@ -9,15 +9,14 @@ import typing as t
 import ase
 import ase.io
 import flask_socketio
+import networkx as nx
 import socketio
 import tqdm
 import znh5md
 
+from zndraw.bonds import ASEComputeBonds
 from zndraw.data import atoms_from_json, atoms_to_json
 from zndraw.utils import get_port
-from zndraw.bonds import ASEComputeBonds
-
-import networkx as nx
 
 
 @dataclasses.dataclass
