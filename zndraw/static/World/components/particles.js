@@ -407,7 +407,7 @@ class ParticlesGroup extends THREE.Group {
       this.bonds_mesh.setMatrixAt(instanceId, dummy.matrix);
       this.particles_mesh.getColorAt(particleAId, color);
       this.bonds_mesh.setColorAt(instanceId, color);
-      
+
     }
     this.bonds_mesh.instanceMatrix.needsUpdate = true;
     this.bonds_mesh.instanceColor.needsUpdate = true;
@@ -509,83 +509,53 @@ class ParticleIndexGroup extends THREE.Group {
   tick() {
     if (this.show_labels) {
       const raycaster = new THREE.Raycaster();
-      raycaster.camera = this.camera;
-
+      // raycaster.camera = this.camera;
+      const matrix = new THREE.Matrix4();
+      const dummy = new THREE.Object3D();
       const direction = new THREE.Vector3();
 
-      function get2dPositions(position, camera) {
-        const vector = position.clone();
-        vector.project(camera);
-
-        const vector2d = new THREE.Vector2(vector.x, vector.y);
-
-        // add shifts +/- x/y if you want to sample from the top/bottom/left/right of the particle
-
-        return [vector2d];
-      }
-
-      this.particlesGroup.children.forEach((object) => {
+      for (let instanceId = 0; instanceId < this.particlesGroup.particles_mesh.count; instanceId++) {
+        this.particlesGroup.particles_mesh.getMatrixAt(instanceId, matrix);
+        matrix.decompose(dummy.position, dummy.rotation, dummy.scale);
         // combine all intersects from the center and top/bottom/left/right of the particle
         let visible = true;
-        let intersects;
-
-        // center
-        const positions = get2dPositions(object.position, this.camera);
-
-        positions.forEach((position) => {
-          raycaster.setFromCamera(position, this.camera);
-          intersects = raycaster.intersectObjects(this.particlesGroup.children);
-
-          if (intersects.length > 0 && intersects[0].object.parent !== object) {
-            visible = false;
-          }
-        });
+        direction.copy(dummy.position).sub(this.camera.position).normalize();
+        raycaster.set(this.camera.position, direction);
+        const intersects = raycaster.intersectObjects(this.particlesGroup.children);
+        if (intersects.length > 0 && intersects[0].instanceId !== instanceId) {
+          visible = false;
+        }
 
         if (!visible) {
           // get the `${particle.name}-label`; object from this and remove it
-          const label = this.getObjectByName(`${object.name}-label`);
+          const label = this.getObjectByName(`${instanceId}-label`);
           this.remove(label);
-        } else if (!this.getObjectByName(`${object.name}-label`)) {
+        } else if (!this.getObjectByName(`${instanceId}-label`)) {
           // create a div with unicode f00d
           const text = document.createElement("div");
           const blank = "\u00A0";
           const line = "\u23AF";
           text.className = "label";
           if (this.label_offset === 0) {
-            text.textContent = object.name;
+            text.textContent = instanceId;
           } else if (this.label_offset > 0) {
             text.textContent = `${blank.repeat(
               this.label_offset * 2 + 6,
-            )}\u00D7${line.repeat(this.label_offset)}${blank}${object.name}`;
+            )}\u00D7${line.repeat(this.label_offset)}${blank}${instanceId}`;
           } else {
-            text.textContent = `${object.name}${blank}${line.repeat(
+            text.textContent = `${instanceId}${blank}${line.repeat(
               this.label_offset * -1,
             )}\u00D7${blank.repeat(this.label_offset * -2 + 6)}`;
           }
-          // textContent = object.name + label_offset * \u23AF + label_offset * \u00A0
-          // text.textContent = `\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00D7\u23AF\u23AF\u23AF\u00A0${object.name}`;
-          // text.textContent = object.name;
-          // text.textContent = String.fromCodePoint(0xf00d);
           text.style.fontSize = "20px";
-          // text.style.color = `#${object.children[0].material.color.getHexString()}`;
           text.style.textShadow = "1px 1px 1px #000000";
 
-          // const text = document.createElement('div');
-          // // <span class="badge bg-secondary">New</span>
-          // text.className = 'label';
-          // text.textContent =  `\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0X------${object.name}`;
-          // text.style.fontSize = '20px';
-          // text.style.color = `#${object.children[0].material.color.getHexString()}`
-          // // text-shadow: #FC0 1px 0 10px;
-          //
-          // console.log(object.children[0].material.color);
-
           const label = new CSS2DObject(text);
-          label.position.set(...object.position);
-          label.name = `${object.name}-label`;
+          label.position.copy(dummy.position);
+          label.name = `${instanceId}-label`;
           this.add(label);
         }
-      });
+      }
     }
   }
 }
