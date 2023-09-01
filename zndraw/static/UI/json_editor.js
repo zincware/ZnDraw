@@ -222,6 +222,7 @@ function modifier_editor(socket, cache, world) {
         points,
         segments,
       });
+      world.particles.click(); // reset selection
 
       document.getElementById("interaction-json-editor-submit").disabled = true;
       // if there is an error in uploading, we still want to be able to submit again
