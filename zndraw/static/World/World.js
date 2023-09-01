@@ -2,7 +2,7 @@ import { createCamera } from "./components/camera.js";
 import { createLights } from "./components/lights.js";
 import { createScene } from "./components/scene.js";
 
-import { createControls, createTransformControls } from "./systems/controls.js";
+import { createControls } from "./systems/controls.js";
 import { createRenderer, create2DRenderer } from "./systems/renderer.js";
 import { Resizer } from "./systems/Resizer.js";
 import { Loop } from "./systems/Loop.js";
@@ -23,8 +23,6 @@ let renderer2d;
 let scene;
 let loop;
 let controls;
-let cache;
-let selection;
 
 class Player {
   constructor(world, cache, socket) {
@@ -142,18 +140,12 @@ class World {
 
     cache = cache;
 
-    loop = new Loop(camera, scene, renderer, renderer2d, socket);
+    loop = new Loop(camera, scene, renderer, renderer2d);
     controls = createControls(camera, renderer.domElement);
 
     this.player = new Player(this, cache, socket);
 
     container.append(renderer.domElement);
-
-    // const transform_controls = createTransformControls(
-    //   camera,
-    //   renderer.domElement,
-    //   controls,
-    // );
 
     this.particles = new ParticlesGroup(socket, cache);
     this.line3D = new Line3D(camera, renderer);

@@ -152,11 +152,7 @@ function analysis_editor(socket, cache, world) {
               world.setStep(step);
             });
           }
-
-          // resizeObserver = new ResizeObserver(() => {
-          //   buildPlot();
-          // }).observe(document.getElementById("analysisPlot").parentElement);
-
+          
           buildPlot();
         },
       );

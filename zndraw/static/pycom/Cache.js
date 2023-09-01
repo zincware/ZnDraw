@@ -76,14 +76,6 @@ class Cache {
     });
 
     this._socket.on("atoms:download", (ids) => {
-      // iterate through the ids and emit the atoms object for each
-      // ids.forEach((x) => {
-      //   // let data = {};
-      //   // data[x] = this._cache[x];
-      //   // this._socket.emit('atoms:download', data);
-      //   this._socket.emit('atoms:download', this._cache[x]);
-      // });
-
       // send all atoms at once
       const data = {};
       ids.forEach((x) => {

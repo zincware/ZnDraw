@@ -13,81 +13,6 @@ const materials = {
   MeshToonMaterial: new THREE.MeshToonMaterial(),
 };
 
-const sphereGeometryFactoryCache = {};
-const speciesMaterialFactoryCache = {};
-const halfCylinderGeometryFactoryCache = {};
-
-// TODO reuse geometry and material for all atoms and just modify the meshes
-
-// a simple memoized function to add something
-const halfCylinderGeometryFactory = () => {
-  let key = "";
-  return (bond_size, resolution) => {
-    key = `${bond_size}_${resolution}`;
-
-    if (key in halfCylinderGeometryFactoryCache) {
-      return halfCylinderGeometryFactoryCache[key];
-    }
-    const geometry = new THREE.CylinderGeometry(
-      0.15 * bond_size,
-      0.15 * bond_size,
-      1,
-      resolution * 2,
-      1,
-      true,
-    );
-    // shift it so one end rests on the origin
-    geometry.applyMatrix4(new THREE.Matrix4().makeTranslation(0, 1 / 2, 0));
-    // rotate it the right way for lookAt to work
-    geometry.applyMatrix4(
-      new THREE.Matrix4().makeRotationX(THREE.MathUtils.degToRad(90)),
-    );
-    halfCylinderGeometryFactoryCache[key] = geometry;
-    return geometry;
-  };
-};
-
-const sphereGeometryFactory = () => {
-  let key = "";
-  return (sphere_size, resolution) => {
-    key = `${sphere_size}_${resolution}`;
-
-    if (key in sphereGeometryFactoryCache) {
-      return sphereGeometryFactoryCache[key];
-    }
-    const geometry = new THREE.SphereGeometry(
-      sphere_size,
-      resolution * 4,
-      resolution * 2,
-    );
-    sphereGeometryFactoryCache[key] = geometry;
-    return geometry;
-  };
-};
-
-const speciesMaterialFactory = () => (name, color, wireframe) => {
-  const key = `${name}_${color}_${wireframe}`;
-  // const key = (name, color, wireframe);
-
-  if (key in speciesMaterialFactoryCache) {
-    return speciesMaterialFactoryCache[key];
-  }
-  // console.log("Creating new material");
-  const material = materials[name].clone();
-  material.color.set(color);
-  material.wireframe = wireframe;
-  speciesMaterialFactoryCache[key] = material;
-  return material;
-};
-
-function halfCylinderMesh(pointX, pointY, material, bond_size, resolution) {
-  const geometry = halfCylinderGeometry(bond_size, resolution);
-  return new THREE.Mesh(geometry, material);
-}
-
-const halfCylinderGeometry = halfCylinderGeometryFactory();
-const sphereGeometry = sphereGeometryFactory();
-export const speciesMaterial = speciesMaterialFactory();
 
 /**
  * Contain all Particles of the World.
@@ -111,9 +36,6 @@ class ParticlesGroup extends THREE.Group {
     this.show_bonds = true;
     this.particle_size = 1;
     this.bonds_size = 1;
-
-    // TODO
-    // this._updateParticles();
   }
 
   rebuild(resolution, material, wireframe, bonds, particle_size, bonds_size) {
