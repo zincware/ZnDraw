@@ -264,6 +264,8 @@ def scene_schema():
     class Scene(BaseModel):
         material: Material = Field(Material.MeshPhongMaterial, description="Material")
         resolution: int = Field(10, ge=1, le=50, description="Resolution")
+        particle_size: float = Field(1.0, ge=0.1, le=5, description="Particle Size")
+        bonds_size: float = Field(1.0, ge=0.1, le=5, description="Bonds Size")
         wireframe: bool = Field(False, description="Wireframe")
         loop: bool = Field(
             False,
@@ -292,6 +294,10 @@ def scene_schema():
     schema["properties"]["simulation_box"]["format"] = "checkbox"
     schema["properties"]["resolution"]["format"] = "range"
     schema["properties"]["label_offset"]["format"] = "range"
+    schema["properties"]["particle_size"]["format"] = "range"
+    schema["properties"]["particle_size"]["step"] = 0.1
+    schema["properties"]["bonds_size"]["format"] = "range"
+    schema["properties"]["bonds_size"]["step"] = 0.1
     schema["properties"]["bonds"]["format"] = "checkbox"
 
     # import json

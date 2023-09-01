@@ -215,67 +215,113 @@ class ParticlesGroup extends THREE.Group {
       console.log("ParticlesGroup config:");
       console.log(this.config);
     });
+
+    this.bonds_exist = false;
+
+    // rebuild attributes
     this.resolution = 10;
     this.material = "MeshPhongMaterial";
     this.wireframe = false;
     this.show_bonds = true;
+    this.particle_size = 1;
+    this.bonds_size = 1;
 
-    this.bonds_exist = false;
+    // TODO
+    // this._updateParticles();
   }
 
-  rebuild(resolution, material, wireframe, bonds) {
-    // remove all children
-    // this.children.forEach((x) => x.removeFromParent());
-    this.clear();
+  rebuild(resolution, material, wireframe, bonds, particle_size, bonds_size) {
     this.resolution = resolution;
     this.material = material;
     this.wireframe = wireframe;
     this.show_bonds = bonds;
+    this.particle_size = particle_size;
+    this.bonds_size = bonds_size;
+    this.clear();
+    this.particles_mesh = undefined;
   }
 
   tick() {}
 
+  _get_particle_mesh(particle) {
+    const particles_geometry = new THREE.SphereGeometry(this.particle_size);
+    const particles_material = new THREE.MeshPhongMaterial({ color: "#ffffff" });
+
+    const particles_mesh = new THREE.InstancedMesh(particles_geometry, particles_material, particle.positions.length);
+    particles_mesh.set_selection = (selected) => {};
+    return particles_mesh;
+  }
+
+
   _updateParticles(particles) {
-    const existing_particles = [];
-    const new_particles = [];
-    let deleted_particles = [];
-
-    for (const x of particles) {
-      const particleObject = this.getObjectByName(x.id);
-
-      if (particleObject) {
-        existing_particles.push(x);
-      } else {
-        new_particles.push(x);
-      }
+    if (particles === undefined) {
+      return;
     }
+    if (this.particles_mesh === undefined) {
+      this.particles_mesh = this._get_particle_mesh(particles);
+      this.add(this.particles_mesh);
+    }
+    if (this.particles_mesh.count !== particles.positions.length) {
+      this.remove(this.particles_mesh);
+      this.particles_mesh = this._get_particle_mesh(particles);
+      this.add(this.particles_mesh);
+    }
+    const matrix = new THREE.Matrix4();
+    const dummy = new THREE.Object3D();
 
-    // get all particles who have an id larger than particles.length
-    deleted_particles = this.children.filter((x) => x.name >= particles.length);
+    for (let i = 0; i < this.particles_mesh.count; i++) {
+      this.particles_mesh.getMatrixAt(i, matrix);
+      matrix.decompose(dummy.position, dummy.rotation, dummy.scale);
+      
+      dummy.position.set(...particles.positions[i]);
+      dummy.scale.x = dummy.scale.y = dummy.scale.z = particles.radii[i];
 
-    new_particles.forEach((particle) => {
-      this.add(
-        new ParticleGroup(
-          particle,
-          this.resolution,
-          this.material,
-          this.wireframe,
-        ),
-      );
-    });
+      dummy.updateMatrix();
+      this.particles_mesh.setMatrixAt(i, dummy.matrix);
+      this.particles_mesh.setColorAt(i, new THREE.Color(particles.colors[i]));      
+    }
+    this.particles_mesh.instanceMatrix.needsUpdate = true;
 
-    existing_particles.forEach((particle) => {
-      const particleSubGroup = this.getObjectByName(particle.id);
-      particleSubGroup.update(particle);
-    });
+    // const existing_particles = [];
+    // const new_particles = [];
+    // let deleted_particles = [];
 
-    // remove deleted particles
-    deleted_particles.forEach((particle) => {
-      particle.removeFromParent();
-      // config.selected = config.selected.filter((e) => e !== particle.name);
-    });
+    // for (const x of particles) {
+    //   const particleObject = this.getObjectByName(x.id);
 
-    // console.log("Having existing particles: " + existing_particles.length + " and adding " + new_particles.length + " and removing " + deleted_particles.length);
+    //   if (particleObject) {
+    //     existing_particles.push(x);
+    //   } else {
+    //     new_particles.push(x);
+    //   }
+    // }
+
+    // // get all particles who have an id larger than particles.length
+    // deleted_particles = this.children.filter((x) => x.name >= particles.length);
+
+    // new_particles.forEach((particle) => {
+    //   this.add(
+    //     new ParticleGroup(
+    //       particle,
+    //       this.resolution,
+    //       this.material,
+    //       this.wireframe,
+    //     ),
+    //   );
+    // });
+
+    // existing_particles.forEach((particle) => {
+    //   const particleSubGroup = this.getObjectByName(particle.id);
+    //   particleSubGroup.update(particle);
+    // });
+
+    // // remove deleted particles
+    // deleted_particles.forEach((particle) => {
+    //   particle.removeFromParent();
+    //   // config.selected = config.selected.filter((e) => e !== particle.name);
+    // });
+
+    // // console.log("Having existing particles: " + existing_particles.length + " and adding " + new_particles.length + " and removing " + deleted_particles.length);
   }
 
   _updateBonds(bonds) {
@@ -303,9 +349,10 @@ class ParticlesGroup extends THREE.Group {
       // nothing to display
     } else {
       this._updateParticles(particles);
-      if (this.show_bonds) {
-        this._updateBonds(particles.connectivity);
-      }
+      
+      // if (this.show_bonds) {
+      //   this._updateBonds(particles.connectivity);
+      // }
     }
   }
 }

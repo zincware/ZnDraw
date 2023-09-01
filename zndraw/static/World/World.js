@@ -232,8 +232,10 @@ class World {
     simulation_box,
     bonds,
     label_offset,
+    particle_size,
+    bonds_size,
   ) {
-    this.particles.rebuild(resolution, material, wireframe, bonds);
+    this.particles.rebuild(resolution, material, wireframe, bonds, particle_size, bonds_size);
     this.cell_grp.set_visibility(simulation_box);
     this.setStep(loop.step);
     this.index_grp.rebuild(label_offset);
