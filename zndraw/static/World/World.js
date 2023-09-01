@@ -30,7 +30,7 @@ class Player {
   constructor(world, cache, socket) {
     this.world = world;
     this.playing = false;
-    this.fps = 30;
+    this.fps = 60;
     this.cache = cache;
     this.loop = false;
 
@@ -200,12 +200,7 @@ class World {
     });
 
     loop.tick_updatables.push(controls, this.index_grp);
-    loop.step_updatables.push(
-      this.particles,
-      this.selection,
-      this.index_grp,
-      this.cell_grp,
-    );
+    loop.step_updatables.push(this.particles, this.index_grp, this.cell_grp);
 
     const resizer = new Resizer(container, camera, renderer, renderer2d);
 
@@ -232,11 +227,22 @@ class World {
     simulation_box,
     bonds,
     label_offset,
+    particle_size,
+    bonds_size,
+    fps,
   ) {
-    this.particles.rebuild(resolution, material, wireframe, bonds);
+    this.particles.rebuild(
+      resolution,
+      material,
+      wireframe,
+      bonds,
+      particle_size,
+      bonds_size,
+    );
     this.cell_grp.set_visibility(simulation_box);
     this.setStep(loop.step);
     this.index_grp.rebuild(label_offset);
+    this.player.fps = fps;
   }
 
   setStep(step) {
@@ -254,7 +260,7 @@ class World {
   }
 
   getSelection() {
-    return this.selection.selection;
+    return this.particles.selection;
   }
 
   getLineData() {

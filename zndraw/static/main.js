@@ -88,7 +88,7 @@ function main() {
         "download",
         {
           atoms_list: cache.getAllAtoms(),
-          selection: world.selection.selection,
+          selection: world.getSelection(),
         },
         (data) => {
           const blob = new Blob([data], { type: "text/csv" });

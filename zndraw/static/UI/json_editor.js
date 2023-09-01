@@ -91,6 +91,9 @@ function scene_editor(socket, cache, world) {
         value.simulation_box,
         value.bonds,
         value.label_offset,
+        value.particle_size,
+        value.bonds_size,
+        value.fps,
       );
       world.player.setLoop(value["Animation Loop"]);
     });
@@ -220,6 +223,7 @@ function modifier_editor(socket, cache, world) {
         points,
         segments,
       });
+      world.particles.click(); // reset selection
 
       document.getElementById("interaction-json-editor-submit").disabled = true;
       // if there is an error in uploading, we still want to be able to submit again

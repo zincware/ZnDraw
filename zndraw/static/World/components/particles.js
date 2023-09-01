@@ -1,17 +1,16 @@
 import * as THREE from "three";
 import { CSS2DObject } from "three/examples/jsm/renderers/CSS2DRenderer.js";
 
-export const materials = {
-  MeshBasicMaterial: new THREE.MeshBasicMaterial({ color: "#ffa500" }),
-  MeshLambertMaterial: new THREE.MeshLambertMaterial({ color: "#ffa500" }),
-  MeshMatcapMaterial: new THREE.MeshMatcapMaterial({ color: "#ffa500" }),
+const materials = {
+  MeshBasicMaterial: new THREE.MeshBasicMaterial(),
+  MeshLambertMaterial: new THREE.MeshLambertMaterial(),
+  MeshMatcapMaterial: new THREE.MeshMatcapMaterial(),
   MeshPhongMaterial: new THREE.MeshPhongMaterial({
-    color: "#ffa500",
     shininess: 100,
   }),
-  MeshPhysicalMaterial: new THREE.MeshPhysicalMaterial({ color: "#ffa500" }),
-  MeshStandardMaterial: new THREE.MeshStandardMaterial({ color: "#ffa500" }),
-  MeshToonMaterial: new THREE.MeshToonMaterial({ color: "#ffa500" }),
+  MeshPhysicalMaterial: new THREE.MeshPhysicalMaterial(),
+  MeshStandardMaterial: new THREE.MeshStandardMaterial(),
+  MeshToonMaterial: new THREE.MeshToonMaterial(),
 };
 
 const sphereGeometryFactoryCache = {};
@@ -91,118 +90,6 @@ const sphereGeometry = sphereGeometryFactory();
 export const speciesMaterial = speciesMaterialFactory();
 
 /**
- * Contain a single Particle and its connections
- */
-class ParticleGroup extends THREE.Group {
-  constructor(particle, resolution, material, wireframe) {
-    super();
-
-    this.resolution = resolution;
-    this.material = material;
-    this.wireframe = wireframe;
-
-    this.bonds = [];
-
-    const particle_mesh = new THREE.Mesh(
-      sphereGeometry(particle.radius, this.resolution),
-      speciesMaterial(this.material, particle.color, this.wireframe),
-    );
-    this.add(particle_mesh);
-    this.name = particle.id;
-    this._original_material = particle_mesh.material;
-
-    this.position.set(...particle.position);
-  }
-
-  update(particle) {
-    const scale = particle.radius / this.children[0].geometry.parameters.radius;
-    const material = speciesMaterial(
-      this.material,
-      particle.color,
-      this.wireframe,
-    );
-    // this command may update the selected material
-    this._original_material = material;
-
-    this.children[0].scale.set(scale, scale, scale);
-    this.position.set(...particle.position);
-    this.children.forEach((x) => (x.material = material));
-  }
-
-  updateBonds(bonds) {
-    const bondsToRemove = [];
-
-    bonds.forEach(([_, targetParticleGroup, bond_type]) => {
-      const bond_mesh = this.bonds.find(
-        (bond) => bond.particle_group === targetParticleGroup,
-      );
-      if (bond_mesh) {
-        this.updateBondOrientation(bond_mesh.bond, targetParticleGroup);
-      } else {
-        this.connect(targetParticleGroup);
-      }
-    });
-
-    this.bonds = this.bonds.filter((bond) => {
-      const exists = bonds.some(
-        ([_, particle_group]) => particle_group === bond.particle_group,
-      );
-      if (!exists) {
-        bondsToRemove.push(bond);
-        return false;
-      }
-      return true;
-    });
-
-    bondsToRemove.forEach((bondToRemove) => {
-      this.remove(bondToRemove.bond);
-    });
-  }
-
-  updateBondOrientation(bond, particle_group) {
-    const node1 = new THREE.Vector3();
-    const node2 = new THREE.Vector3();
-
-    this.children[0].getWorldPosition(node1);
-    particle_group.children[0].getWorldPosition(node2);
-
-    const direction = new THREE.Vector3();
-    direction.subVectors(node1, node2);
-    bond.lookAt(node2);
-    const scale = direction.length() / 2 / bond.geometry.parameters.height;
-    bond.scale.set(1, 1, scale);
-  }
-
-  connect(particle_group) {
-    const bond_mesh = halfCylinderMesh(
-      this.children[0],
-      particle_group.children[0],
-      this.children[0].material,
-      1.3,
-      this.resolution,
-    );
-    this.bonds.push({ bond: bond_mesh, particle_group });
-    this.add(bond_mesh);
-    // Store all the bond information, don't pass the mesh or group here
-    this.updateBondOrientation(bond_mesh, particle_group);
-  }
-
-  set_selection(selected) {
-    if (selected) {
-      // see https://threejs.org/examples/#webgl_postprocessing_unreal_bloom_selective for inspiration
-      const material = speciesMaterial(
-        this.material,
-        "#ffa500",
-        this.wireframe,
-      );
-      this.children.forEach((x) => (x.material = material));
-    } else {
-      this.children.forEach((x) => (x.material = this._original_material));
-    }
-  }
-}
-
-/**
  * Contain all Particles of the World.
  */
 class ParticlesGroup extends THREE.Group {
@@ -210,101 +97,227 @@ class ParticlesGroup extends THREE.Group {
     super();
     this.name = "particlesGroup";
     this.cache = cache;
-    socket.on("config", (data) => {
-      this.config = data;
-      console.log("ParticlesGroup config:");
-      console.log(this.config);
-    });
+
+    this.bonds_exist = false;
+    this.selection = [];
+
+    this.particle_cache = undefined;
+    this.bonds_mesh = undefined;
+
+    // rebuild attributes
     this.resolution = 10;
     this.material = "MeshPhongMaterial";
     this.wireframe = false;
     this.show_bonds = true;
+    this.particle_size = 1;
+    this.bonds_size = 1;
 
-    this.bonds_exist = false;
+    // TODO
+    // this._updateParticles();
   }
 
-  rebuild(resolution, material, wireframe, bonds) {
-    // remove all children
-    // this.children.forEach((x) => x.removeFromParent());
-    this.clear();
+  rebuild(resolution, material, wireframe, bonds, particle_size, bonds_size) {
     this.resolution = resolution;
     this.material = material;
     this.wireframe = wireframe;
     this.show_bonds = bonds;
+    this.particle_size = particle_size;
+    this.bonds_size = bonds_size;
+    this.clear();
+    this.particles_mesh = undefined;
+    this.bonds_mesh = undefined;
   }
 
   tick() {}
 
-  _updateParticles(particles) {
-    const existing_particles = [];
-    const new_particles = [];
-    let deleted_particles = [];
-
-    for (const x of particles) {
-      const particleObject = this.getObjectByName(x.id);
-
-      if (particleObject) {
-        existing_particles.push(x);
-      } else {
-        new_particles.push(x);
+  click(instanceId, shift, object) {
+    if (instanceId !== undefined) {
+      if (object === this.bonds_mesh) {
+        const all_bonds = this._get_all_bonds(this.particle_cache.connectivity);
+        instanceId = all_bonds[instanceId][0];
       }
+      if (shift) {
+        if (this.selection.includes(instanceId)) {
+          this.selection = this.selection.filter((x) => x !== instanceId);
+        } else {
+          this.selection.push(instanceId);
+        }
+      } else {
+        if (this.selection.includes(instanceId)) {
+          this.selection = [];
+        } else {
+          this.selection = [instanceId];
+        }
+      }
+    } else {
+      this.selection = [];
     }
+    this.step();
+    // trigger this._updateParticles() to update the selection
+  }
 
-    // get all particles who have an id larger than particles.length
-    deleted_particles = this.children.filter((x) => x.name >= particles.length);
+  _get_particle_mesh(particle) {
+    const particles_geometry = new THREE.SphereGeometry(
+      this.particle_size,
+      this.resolution * 4,
+      this.resolution * 2,
+    );
+    const particles_material = materials[this.material].clone();
+    particles_material.wireframe = this.wireframe;
 
-    new_particles.forEach((particle) => {
-      this.add(
-        new ParticleGroup(
-          particle,
-          this.resolution,
-          this.material,
-          this.wireframe,
-        ),
-      );
-    });
+    const particles_mesh = new THREE.InstancedMesh(
+      particles_geometry,
+      particles_material,
+      particle.positions.length,
+    );
+    return particles_mesh;
+  }
 
-    existing_particles.forEach((particle) => {
-      const particleSubGroup = this.getObjectByName(particle.id);
-      particleSubGroup.update(particle);
-    });
+  _updateParticles(particles) {
+    if (particles === undefined) {
+      return;
+    }
+    if (this.particles_mesh === undefined) {
+      this.particles_mesh = this._get_particle_mesh(particles);
+      this.add(this.particles_mesh);
+    }
+    if (this.particles_mesh.count !== particles.positions.length) {
+      this.remove(this.particles_mesh);
+      this.particles_mesh = this._get_particle_mesh(particles);
+      this.add(this.particles_mesh);
+    }
+    const matrix = new THREE.Matrix4();
+    const dummy = new THREE.Object3D();
+    const color = new THREE.Color();
 
-    // remove deleted particles
-    deleted_particles.forEach((particle) => {
-      particle.removeFromParent();
-      // config.selected = config.selected.filter((e) => e !== particle.name);
-    });
+    for (let i = 0; i < this.particles_mesh.count; i++) {
+      this.particles_mesh.getMatrixAt(i, matrix);
+      matrix.decompose(dummy.position, dummy.rotation, dummy.scale);
 
-    // console.log("Having existing particles: " + existing_particles.length + " and adding " + new_particles.length + " and removing " + deleted_particles.length);
+      dummy.position.set(...particles.positions[i]);
+      dummy.scale.x = dummy.scale.y = dummy.scale.z = particles.radii[i];
+
+      dummy.updateMatrix();
+      this.particles_mesh.setMatrixAt(i, dummy.matrix);
+      if (this.selection.includes(i)) {
+        color.set(0xffa500);
+      } else {
+        color.set(particles.colors[i]);
+      }
+      this.particles_mesh.setColorAt(i, color);
+    }
+    this.particles_mesh.instanceMatrix.needsUpdate = true;
+    this.particles_mesh.instanceColor.needsUpdate = true;
+  }
+
+  _get_bonds_mesh(bonds) {
+    const geometry = new THREE.CylinderGeometry(
+      0.15 * this.bonds_size,
+      0.15 * this.bonds_size,
+      1,
+      this.resolution * 2,
+      1,
+      true,
+    );
+    // shift it so one end rests on the origin
+    geometry.applyMatrix4(new THREE.Matrix4().makeTranslation(0, 1 / 2, 0));
+    // rotate it the right way for lookAt to work
+    geometry.applyMatrix4(
+      new THREE.Matrix4().makeRotationX(THREE.MathUtils.degToRad(90)),
+    );
+
+    const material = materials[this.material].clone();
+    material.wireframe = this.wireframe;
+    // bonds A-B from 0..n, bonds B-A from n+1..2n
+    const mesh = new THREE.InstancedMesh(geometry, material, bonds.length * 2);
+    return mesh;
+  }
+
+  _get_all_bonds(bonds) {
+    const getBondsForParticle = (instanceId) => {
+      return bonds
+        .filter(([a, b]) => a === instanceId || b === instanceId)
+        .map(([a, b, bond_type]) =>
+          a === instanceId ? [a, b, bond_type] : [b, a, bond_type],
+        );
+    };
+    const allBonds = [];
+    for (
+      let instanceId = 0;
+      instanceId < this.particles_mesh.count;
+      instanceId++
+    ) {
+      const bondsForParticle = getBondsForParticle(instanceId);
+      bondsForParticle.forEach(([_, targetInstanceId, bond_type]) => {
+        allBonds.push([instanceId, targetInstanceId, bond_type]);
+      });
+    }
+    return allBonds;
   }
 
   _updateBonds(bonds) {
-    const getBondsForParticle = (particleName) => {
-      const bondsWithGroups = bonds
-        .filter(([a, b]) => a === particleName || b === particleName)
-        .map(([a, b, bond_type]) =>
-          a === particleName
-            ? [a, this.getObjectByName(b), bond_type]
-            : [b, this.getObjectByName(a), bond_type],
-        );
-      return bondsWithGroups;
-    };
+    if (bonds === undefined || bonds.length === 0) {
+      return;
+    }
+    if (this.bonds_mesh === undefined) {
+      this.bonds_mesh = this._get_bonds_mesh(bonds);
+      this.add(this.bonds_mesh);
+    }
+    if (this.bonds_mesh.count !== bonds.length * 2) {
+      this.remove(this.bonds_mesh);
+      this.bonds_mesh = this._get_bonds_mesh(bonds);
+      this.add(this.bonds_mesh);
+    }
 
-    this.children.forEach((particleSubGroup) => {
-      const particleName = particleSubGroup.name;
-      const bondsForParticle = getBondsForParticle(particleName);
-      particleSubGroup.updateBonds(bondsForParticle);
-    });
+    const matrix = new THREE.Matrix4();
+    const dummy = new THREE.Object3D();
+    const color = new THREE.Color();
+    const distance = new THREE.Vector3();
+
+    const particleA = new THREE.Object3D();
+    const particleB = new THREE.Object3D();
+
+    // create a flat list of all bonds using this.particles_mesh.count and getBondForParticle
+
+    const allBonds = this._get_all_bonds(bonds);
+
+    for (let instanceId = 0; instanceId < this.bonds_mesh.count; instanceId++) {
+      const [particleAId, particleBId, bond_type] = allBonds[instanceId];
+      this.particles_mesh.getMatrixAt(particleAId, matrix);
+      matrix.decompose(particleA.position, particleA.rotation, particleA.scale);
+      this.particles_mesh.getMatrixAt(particleBId, matrix);
+      matrix.decompose(particleB.position, particleB.rotation, particleB.scale);
+
+      this.bonds_mesh.getMatrixAt(instanceId, matrix);
+      matrix.decompose(dummy.position, dummy.rotation, dummy.scale);
+
+      dummy.position.copy(particleA.position);
+      dummy.lookAt(particleB.position);
+
+      distance.subVectors(particleA.position, particleB.position);
+      const bondLength = distance.length();
+      dummy.scale.set(1, 1, bondLength / 2);
+
+      dummy.updateMatrix();
+      this.bonds_mesh.setMatrixAt(instanceId, dummy.matrix);
+      this.particles_mesh.getColorAt(particleAId, color);
+      this.bonds_mesh.setColorAt(instanceId, color);
+    }
+    this.bonds_mesh.instanceMatrix.needsUpdate = true;
+    this.bonds_mesh.instanceColor.needsUpdate = true;
   }
 
   step(frame) {
-    const particles = this.cache.get(frame);
-    if (particles == null) {
+    if (frame !== undefined) {
+      this.particle_cache = this.cache.get(frame);
+    }
+    if (this.particle_cache == null) {
       // nothing to display
     } else {
-      this._updateParticles(particles);
+      this._updateParticles(this.particle_cache);
+
       if (this.show_bonds) {
-        this._updateBonds(particles.connectivity);
+        this._updateBonds(this.particle_cache.connectivity);
       }
     }
   }
@@ -389,83 +402,59 @@ class ParticleIndexGroup extends THREE.Group {
   tick() {
     if (this.show_labels) {
       const raycaster = new THREE.Raycaster();
-      raycaster.camera = this.camera;
-
+      // raycaster.camera = this.camera;
+      const matrix = new THREE.Matrix4();
+      const dummy = new THREE.Object3D();
       const direction = new THREE.Vector3();
 
-      function get2dPositions(position, camera) {
-        const vector = position.clone();
-        vector.project(camera);
-
-        const vector2d = new THREE.Vector2(vector.x, vector.y);
-
-        // add shifts +/- x/y if you want to sample from the top/bottom/left/right of the particle
-
-        return [vector2d];
-      }
-
-      this.particlesGroup.children.forEach((object) => {
+      for (
+        let instanceId = 0;
+        instanceId < this.particlesGroup.particles_mesh.count;
+        instanceId++
+      ) {
+        this.particlesGroup.particles_mesh.getMatrixAt(instanceId, matrix);
+        matrix.decompose(dummy.position, dummy.rotation, dummy.scale);
         // combine all intersects from the center and top/bottom/left/right of the particle
         let visible = true;
-        let intersects;
-
-        // center
-        const positions = get2dPositions(object.position, this.camera);
-
-        positions.forEach((position) => {
-          raycaster.setFromCamera(position, this.camera);
-          intersects = raycaster.intersectObjects(this.particlesGroup.children);
-
-          if (intersects.length > 0 && intersects[0].object.parent !== object) {
-            visible = false;
-          }
-        });
+        direction.copy(dummy.position).sub(this.camera.position).normalize();
+        raycaster.set(this.camera.position, direction);
+        const intersects = raycaster.intersectObjects(
+          this.particlesGroup.children,
+        );
+        if (intersects.length > 0 && intersects[0].instanceId !== instanceId) {
+          visible = false;
+        }
 
         if (!visible) {
           // get the `${particle.name}-label`; object from this and remove it
-          const label = this.getObjectByName(`${object.name}-label`);
+          const label = this.getObjectByName(`${instanceId}-label`);
           this.remove(label);
-        } else if (!this.getObjectByName(`${object.name}-label`)) {
+        } else if (!this.getObjectByName(`${instanceId}-label`)) {
           // create a div with unicode f00d
           const text = document.createElement("div");
           const blank = "\u00A0";
           const line = "\u23AF";
           text.className = "label";
           if (this.label_offset === 0) {
-            text.textContent = object.name;
+            text.textContent = instanceId;
           } else if (this.label_offset > 0) {
             text.textContent = `${blank.repeat(
               this.label_offset * 2 + 6,
-            )}\u00D7${line.repeat(this.label_offset)}${blank}${object.name}`;
+            )}\u00D7${line.repeat(this.label_offset)}${blank}${instanceId}`;
           } else {
-            text.textContent = `${object.name}${blank}${line.repeat(
+            text.textContent = `${instanceId}${blank}${line.repeat(
               this.label_offset * -1,
             )}\u00D7${blank.repeat(this.label_offset * -2 + 6)}`;
           }
-          // textContent = object.name + label_offset * \u23AF + label_offset * \u00A0
-          // text.textContent = `\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00D7\u23AF\u23AF\u23AF\u00A0${object.name}`;
-          // text.textContent = object.name;
-          // text.textContent = String.fromCodePoint(0xf00d);
           text.style.fontSize = "20px";
-          // text.style.color = `#${object.children[0].material.color.getHexString()}`;
           text.style.textShadow = "1px 1px 1px #000000";
 
-          // const text = document.createElement('div');
-          // // <span class="badge bg-secondary">New</span>
-          // text.className = 'label';
-          // text.textContent =  `\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0X------${object.name}`;
-          // text.style.fontSize = '20px';
-          // text.style.color = `#${object.children[0].material.color.getHexString()}`
-          // // text-shadow: #FC0 1px 0 10px;
-          //
-          // console.log(object.children[0].material.color);
-
           const label = new CSS2DObject(text);
-          label.position.set(...object.position);
-          label.name = `${object.name}-label`;
+          label.position.copy(dummy.position);
+          label.name = `${instanceId}-label`;
           this.add(label);
         }
-      });
+      }
     }
   }
 }

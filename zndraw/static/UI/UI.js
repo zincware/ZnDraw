@@ -1,4 +1,4 @@
-import { materials } from "../World/components/particles.js";
+// import { materials } from "../World/components/particles.js";
 
 const addModifierModal = new bootstrap.Modal(
   document.getElementById("addModifierModal"),
