@@ -90,7 +90,7 @@ class Selection {
     const particleIntersects = this.getIntersections(particlesGroup);
     if (particleIntersects.length > 0) {
       const instanceId = particleIntersects[0].instanceId;
-      particlesGroup.click(instanceId, this.shift_pressed);
+      particlesGroup.click(instanceId, this.shift_pressed, particleIntersects[0].object);
       const selectionOptions = document.getElementById("selection-select");
       const params = selectionOptions.parameters;
 
@@ -157,7 +157,7 @@ class Selection {
         }
       } else if (particleIntersects.length > 0) {
         const instanceId = particleIntersects[0].instanceId;
-        particlesGroup.click(instanceId, this.shift_pressed);
+        particlesGroup.click(instanceId, this.shift_pressed, particleIntersects[0].object);
       }
     }
   }

@@ -243,8 +243,12 @@ class ParticlesGroup extends THREE.Group {
 
   tick() { }
 
-  click(instanceId, shift) {
+  click(instanceId, shift, object) {
     if (instanceId !== undefined) {
+      if (object === this.bonds_mesh) {
+        const all_bonds = this._get_all_bonds(this.particle_cache.connectivity);
+        instanceId = all_bonds[instanceId][0];
+      }
       if (shift) {
         if (this.selection.includes(instanceId)) {
           this.selection = this.selection.filter(
@@ -334,6 +338,26 @@ class ParticlesGroup extends THREE.Group {
     return mesh;
   }
 
+  _get_all_bonds(bonds) {
+    const getBondsForParticle = (instanceId) => {
+      return bonds
+        .filter(([a, b]) => a === instanceId || b === instanceId)
+        .map(([a, b, bond_type]) =>
+          a === instanceId
+            ? [a, b, bond_type]
+            : [b, a, bond_type],
+        );
+    };
+    const allBonds = [];
+    for (let instanceId = 0; instanceId < this.particles_mesh.count; instanceId++) {
+      const bondsForParticle = getBondsForParticle(instanceId);
+      bondsForParticle.forEach(([_, targetInstanceId, bond_type]) => {
+        allBonds.push([instanceId, targetInstanceId, bond_type]);
+      });
+    }
+    return allBonds;
+  }
+
   _updateBonds(bonds) {
     if (bonds === undefined) {
       return;
@@ -348,15 +372,7 @@ class ParticlesGroup extends THREE.Group {
       this.add(this.bonds_mesh);
     }
 
-    const getBondsForParticle = (instanceId) => {
-      return bonds
-        .filter(([a, b]) => a === instanceId || b === instanceId)
-        .map(([a, b, bond_type]) =>
-          a === instanceId
-            ? [a, b, bond_type]
-            : [b, a, bond_type],
-        );
-    };
+
 
     const matrix = new THREE.Matrix4();
     const dummy = new THREE.Object3D();
@@ -367,13 +383,8 @@ class ParticlesGroup extends THREE.Group {
     const particleB = new THREE.Object3D();
 
     // create a flat list of all bonds using this.particles_mesh.count and getBondForParticle
-    const allBonds = [];
-    for (let instanceId = 0; instanceId < this.particles_mesh.count; instanceId++) {
-      const bondsForParticle = getBondsForParticle(instanceId);
-      bondsForParticle.forEach(([_, targetInstanceId, bond_type]) => {
-        allBonds.push([instanceId, targetInstanceId, bond_type]);
-      });
-    }
+
+    const allBonds = this._get_all_bonds(bonds);
 
     for (let instanceId = 0; instanceId < this.bonds_mesh.count; instanceId++) {
       const [particleAId, particleBId, bond_type] = allBonds[instanceId];
@@ -401,47 +412,6 @@ class ParticlesGroup extends THREE.Group {
     this.bonds_mesh.instanceMatrix.needsUpdate = true;
     this.bonds_mesh.instanceColor.needsUpdate = true;
 
-    // for (let i = 0; i < this.bonds_mesh.count; i++) {
-
-    // }
-
-    // for (let i = 0; i < this.particles_mesh.count; i++) {
-    //   this.particles_mesh.getMatrixAt(i, matrix);
-    //   matrix.decompose(dummy.position, dummy.rotation, dummy.scale);
-
-    //   dummy.position.set(...particles.positions[i]);
-    //   dummy.scale.x = dummy.scale.y = dummy.scale.z = particles.radii[i];
-
-    //   dummy.updateMatrix();
-    //   this.particles_mesh.setMatrixAt(i, dummy.matrix);
-    //   if (this.selection.includes(i)) {
-    //     color.set(0xffa500);
-    //   } else {
-    //     color.set(particles.colors[i]);
-    //   }
-    //   this.particles_mesh.setColorAt(i, color);
-    // }
-    // this.particles_mesh.instanceMatrix.needsUpdate = true;
-    // this.particles_mesh.instanceColor.needsUpdate = true;
-
-
-
-    // const getBondsForParticle = (particleName) => {
-    //   const bondsWithGroups = bonds
-    //     .filter(([a, b]) => a === particleName || b === particleName)
-    //     .map(([a, b, bond_type]) =>
-    //       a === particleName
-    //         ? [a, this.getObjectByName(b), bond_type]
-    //         : [b, this.getObjectByName(a), bond_type],
-    //     );
-    //   return bondsWithGroups;
-    // };
-
-    // this.children.forEach((particleSubGroup) => {
-    //   const particleName = particleSubGroup.name;
-    //   const bondsForParticle = getBondsForParticle(particleName);
-    //   particleSubGroup.updateBonds(bondsForParticle);
-    // });
   }
 
   step(frame) {
