@@ -11,68 +11,8 @@ class Selection {
     this.controls = controls;
     this.cache = cache;
     this.world = world;
+    this._drawing = false;
 
-    this.shift_pressed = false;
-    this.ctrl_pressed = false;
-
-    document.addEventListener("keydown", (event) => {
-      if (event.key === "Shift") {
-        this.shift_pressed = true;
-      }
-      if (event.key === "Control") {
-        this.ctrl_pressed = true;
-      }
-    });
-    document.addEventListener("keyup", (event) => {
-      if (event.key === "Shift") {
-        this.shift_pressed = false;
-      }
-      if (event.key === "Control") {
-        this.ctrl_pressed = false;
-      }
-    });
-
-    this.controls.getCenter = () => {
-      const particlesGroup = this.scene.getObjectByName("particlesGroup");
-      return particlesGroup.get_center();
-    };
-
-    this.socket.on("selection:run", (data) => {
-      const particlesGroup = this.scene.getObjectByName("particlesGroup");
-      particlesGroup.selection = data;
-      particlesGroup.step();
-    });
-
-    window.addEventListener("wheel", this.onWheel.bind(this));
-    const particlesGroup = this.scene.getObjectByName("particlesGroup");
-
-    // use c keypress to center the camera on the selection
-    document.addEventListener("keydown", (event) => {
-      if (document.activeElement === document.body) {
-        if (event.key === "c") {
-          if (this.controls.enablePan) {
-            // get the first object that is selected
-
-
-            particlesGroup.children.every((x) => {
-              if (this.selection.includes(x.name)) {
-                this.controls.target = x.position;
-                this.controls.enablePan = false;
-                document.getElementById("alertBoxCamera").style.display =
-                  "block";
-                return false;
-                // TODO: don't use the first but the COM of the selection
-              }
-              return true;
-            });
-          } else {
-            document.getElementById("alertBoxCamera").style.display = "none";
-            this.controls.target = this.controls.target.clone();
-            this.controls.enablePan = true;
-          }
-        }
-      }
-    });
     this.line3D = line3D;
 
     this.raycaster = new THREE.Raycaster();
@@ -86,93 +26,23 @@ class Selection {
     // I don't like this here! Add in world.
     this.scene.add(this.transform_controls);
 
-    const onPointerMove = this.onPointerMove.bind(this);
+    this.shift_pressed = false;
+    this.ctrl_pressed = false;
 
-    // event on backspace
-    document.addEventListener("keydown", (event) => {
-      if (document.activeElement === document.body) {
-        // use x keypress to toggle the attachment of onPointerMove
-        if (event.key === "x") {
-          if (this._drawing) {
-            this._drawing = false;
-            this.line3D.removePointer();
-            window.removeEventListener("pointermove", onPointerMove);
-          } else {
-            this._drawing = true;
-            this.line3D.addPointer();
-            this.transform_controls.detach();
-            window.addEventListener("pointermove", onPointerMove);
-          }
-        }
+    this._setupKeyboardEvents();
 
-        // make a copy of the currently selected point when d is pressed
-        if (event.key === "d") {
-          // TODO shift added point a bit + insert at correct position
-          const transform_object = this.transform_controls.object;
-          if (transform_object.name === "AnchorPoint" && !this._drawing) {
-            const index =
-              this.line3D.anchorPoints.children.indexOf(transform_object);
+    this.controls.getCenter = () => {
+      const particlesGroup = this.scene.getObjectByName("particlesGroup");
+      return particlesGroup.get_center();
+    };
 
-            let new_pos;
-            if (index > 0) {
-              // Add the point between the current and the previous point
-              const obj_before = this.line3D.anchorPoints.children[index - 1];
-              new_pos = obj_before.position
-                .clone()
-                .sub(transform_object.position)
-                .multiplyScalar(0.5)
-                .add(transform_object.position);
-            } else {
-              // No previous point, add the point at the same position
-              new_pos = transform_object.position.clone();
-            }
-
-            const point = this.line3D.addPoint(new_pos, index);
-            this.transform_controls.detach();
-            this.transform_controls.attach(point);
-          }
-        }
-
-        if (event.key === "Backspace") {
-          // remove pointer if transform_controls is attached to it
-          if (this.transform_controls.object) {
-            if (this.transform_controls.object.name === "AnchorPoint") {
-              this.line3D.removePointer(this.transform_controls.object);
-              this.transform_controls.detach();
-            } else if (
-              this.transform_controls.object.name === "Canvas3DGroup"
-            ) {
-              this.transform_controls.object.removeCanvas();
-              this.transform_controls.detach();
-            }
-          } else if (this.selection.length > 0) {
-            console.log("remove selected particles");
-            const { points, segments } = this.world.getLineData();
-            this.socket.emit("modifier:run", {
-              name: "zndraw.modify.Delete",
-              params: {},
-              atoms: this.cache.get(this.world.getStep()),
-              selection: this.world.getSelection(),
-              step: this.world.getStep(),
-              points,
-              segments,
-            });
-            particlesGroup.click();
-
-          } else {
-            this.line3D.removePointer();
-          }
-        }
-        if (event.key === "Escape") {
-          this.transform_controls.detach();
-          if (this._drawing) {
-            this._drawing = false;
-            this.line3D.removePointer();
-            window.removeEventListener("pointermove", onPointerMove);
-          }
-        }
-      }
+    this.socket.on("selection:run", (data) => {
+      const particlesGroup = this.scene.getObjectByName("particlesGroup");
+      particlesGroup.selection = data;
+      particlesGroup.step();
     });
+
+    window.addEventListener("wheel", this.onWheel.bind(this));
 
     this.transform_controls.addEventListener("dragging-changed", (event) => {
       controls.enabled = !event.value;
@@ -186,7 +56,6 @@ class Selection {
       }
     });
 
-    this._drawing = false;
 
     window.addEventListener("pointerdown", this.onPointerDown.bind(this));
     window.addEventListener("dblclick", this.onDoubleClick.bind(this));
@@ -317,6 +186,139 @@ class Selection {
       }
     }
   }
+
+  _setupKeyboardEvents() {
+
+
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Shift") {
+        this.shift_pressed = true;
+      }
+      if (event.key === "Control") {
+        this.ctrl_pressed = true;
+      }
+    });
+    document.addEventListener("keyup", (event) => {
+      if (event.key === "Shift") {
+        this.shift_pressed = false;
+      }
+      if (event.key === "Control") {
+        this.ctrl_pressed = false;
+      }
+    });
+
+    // use c keypress to center the camera on the selection
+    document.addEventListener("keydown", (event) => {
+      if (document.activeElement === document.body) {
+        const particlesGroup = this.scene.getObjectByName("particlesGroup");
+        if (event.key === "c") {
+          if (this.controls.enablePan) {
+            // get the first object that is selected
+
+
+            particlesGroup.children.every((x) => {
+              if (this.selection.includes(x.name)) {
+                this.controls.target = x.position;
+                this.controls.enablePan = false;
+                document.getElementById("alertBoxCamera").style.display =
+                  "block";
+                return false;
+                // TODO: don't use the first but the COM of the selection
+              }
+              return true;
+            });
+          } else {
+            document.getElementById("alertBoxCamera").style.display = "none";
+            this.controls.target = this.controls.target.clone();
+            this.controls.enablePan = true;
+          }
+        }
+        if (event.key === "x") {
+          if (this._drawing) {
+            this._drawing = false;
+            this.line3D.removePointer();
+            window.removeEventListener("pointermove", onPointerMove);
+          } else {
+            this._drawing = true;
+            this.line3D.addPointer();
+            this.transform_controls.detach();
+            window.addEventListener("pointermove", onPointerMove);
+          }
+        }
+
+        // make a copy of the currently selected point when d is pressed
+        if (event.key === "d") {
+          // TODO shift added point a bit + insert at correct position
+          const transform_object = this.transform_controls.object;
+          if (transform_object.name === "AnchorPoint" && !this._drawing) {
+            const index =
+              this.line3D.anchorPoints.children.indexOf(transform_object);
+
+            let new_pos;
+            if (index > 0) {
+              // Add the point between the current and the previous point
+              const obj_before = this.line3D.anchorPoints.children[index - 1];
+              new_pos = obj_before.position
+                .clone()
+                .sub(transform_object.position)
+                .multiplyScalar(0.5)
+                .add(transform_object.position);
+            } else {
+              // No previous point, add the point at the same position
+              new_pos = transform_object.position.clone();
+            }
+
+            const point = this.line3D.addPoint(new_pos, index);
+            this.transform_controls.detach();
+            this.transform_controls.attach(point);
+          }
+        }
+
+        if (event.key === "Backspace") {
+          // remove pointer if transform_controls is attached to it
+          if (this.transform_controls.object) {
+            if (this.transform_controls.object.name === "AnchorPoint") {
+              this.line3D.removePointer(this.transform_controls.object);
+              this.transform_controls.detach();
+            } else if (
+              this.transform_controls.object.name === "Canvas3DGroup"
+            ) {
+              this.transform_controls.object.removeCanvas();
+              this.transform_controls.detach();
+            }
+          } else if (particlesGroup.selection.length > 0) {
+            console.log("remove selected particles");
+            const { points, segments } = this.world.getLineData();
+            this.socket.emit("modifier:run", {
+              name: "zndraw.modify.Delete",
+              params: {},
+              atoms: this.cache.get(this.world.getStep()),
+              selection: this.world.getSelection(),
+              step: this.world.getStep(),
+              points,
+              segments,
+            });
+            particlesGroup.click();
+
+          } else {
+            this.line3D.removePointer();
+          }
+        }
+        if (event.key === "Escape") {
+          this.transform_controls.detach();
+          if (this._drawing) {
+            this._drawing = false;
+            this.line3D.removePointer();
+            window.removeEventListener("pointermove", onPointerMove);
+          }
+        }
+      }
+    });
+
+    const onPointerMove = this.onPointerMove.bind(this);
+  }
+
+
 }
 
 export { Selection };
