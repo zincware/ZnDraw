@@ -256,7 +256,7 @@ class ParticlesGroup extends THREE.Group {
   }
 
   _updateBonds(bonds) {
-    if (bonds === undefined) {
+    if (bonds === undefined || bonds.length === 0) {
       return;
     }
     if (this.bonds_mesh === undefined) {
