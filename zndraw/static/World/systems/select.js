@@ -107,7 +107,10 @@ class Selection {
     const canvasIntersects = this.getIntersections(canvas3D);
 
     if (particleIntersects.length > 0) {
-      particlesGroup.hover(particleIntersects[0].instanceId, particleIntersects[0].object);
+      particlesGroup.hover(
+        particleIntersects[0].instanceId,
+        particleIntersects[0].object,
+      );
     } else {
       particlesGroup.hover();
     }
@@ -117,7 +120,6 @@ class Selection {
         const position = particleIntersects[0].point.clone();
 
         this.line3D.movePointer(position);
-
       } else if (canvasIntersects.length > 0) {
         if (canvasIntersects[0].object.name === "canvas3D") {
           const position = canvasIntersects[0].point.clone();
@@ -318,7 +320,6 @@ class Selection {
         }
       }
     });
-
   }
 }
 
