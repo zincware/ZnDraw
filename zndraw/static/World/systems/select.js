@@ -23,6 +23,24 @@ class Selection {
       renderer.domElement,
     );
 
+    // change mode of transform_controls when pressing t, itereate between translate, rotate, scale
+    document.addEventListener("keydown", (event) => {
+      if (document.activeElement === document.body) {
+        if (event.key === "t") {
+          if (this.transform_controls.mode === "translate") {
+            this.transform_controls.setMode("rotate");
+          } else if (this.transform_controls.mode === "rotate") {
+            this.transform_controls.setMode("scale");
+          } else if (this.transform_controls.mode === "scale") {
+            this.transform_controls.setMode("translate");
+          }
+        }
+        if (event.key === "f") {
+          this.transform_controls.detach();
+        }
+      }
+    });
+
     // I don't like this here! Add in world.
     this.scene.add(this.transform_controls);
 
