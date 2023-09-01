@@ -3,7 +3,6 @@ import contextlib
 import dataclasses
 import logging
 import multiprocessing
-import socket
 import threading
 import time
 import typing as t
@@ -44,18 +43,7 @@ def _view_with_webview(url, fullscreen=False):
         pass
 
 
-def _get_port() -> int:
-    try:
-        sock = socket.socket()
-        sock.bind(("", 1234))
-        port = 1234
-    except OSError:
-        sock = socket.socket()
-        sock.bind(("", 0))
-        port = sock.getsockname()[1]
-    finally:
-        sock.close()
-    return port
+
 
 
 def view(
