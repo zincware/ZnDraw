@@ -13,7 +13,6 @@ const materials = {
   MeshToonMaterial: new THREE.MeshToonMaterial(),
 };
 
-
 /**
  * Contain all Particles of the World.
  */

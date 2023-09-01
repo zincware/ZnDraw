@@ -102,7 +102,10 @@ export class Canvas3D extends THREE.Group {
       if (particlesGroup.selection.length > 0) {
         const matrix = new THREE.Matrix4();
         const dummy = new THREE.Object3D();
-        particlesGroup.particles_mesh.getMatrixAt(particlesGroup.selection[0], matrix);
+        particlesGroup.particles_mesh.getMatrixAt(
+          particlesGroup.selection[0],
+          matrix,
+        );
         matrix.decompose(dummy.position, dummy.quaternion, dummy.scale);
         this.position.copy(dummy.position);
       }

@@ -78,7 +78,7 @@ class Selection {
     const particleIntersects = this.getIntersections(particlesGroup);
     if (particleIntersects.length > 0) {
       const instanceId = particleIntersects[0].instanceId;
-            particlesGroup.click(
+      particlesGroup.click(
         instanceId,
         this.shift_pressed,
         particleIntersects[0].object,
@@ -215,7 +215,10 @@ class Selection {
             if (particlesGroup.selection.length > 0) {
               const matrix = new THREE.Matrix4();
               const dummy = new THREE.Object3D();
-              particlesGroup.particles_mesh.getMatrixAt(particlesGroup.selection[0], matrix);
+              particlesGroup.particles_mesh.getMatrixAt(
+                particlesGroup.selection[0],
+                matrix,
+              );
               matrix.decompose(dummy.position, dummy.quaternion, dummy.scale);
               this.controls.target.copy(dummy.position);
               // this.controls.enablePan = false;

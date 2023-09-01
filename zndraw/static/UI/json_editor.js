@@ -152,7 +152,7 @@ function analysis_editor(socket, cache, world) {
               world.setStep(step);
             });
           }
-          
+
           buildPlot();
         },
       );
