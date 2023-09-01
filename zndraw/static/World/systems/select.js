@@ -60,17 +60,6 @@ class Selection {
     window.addEventListener("dblclick", this.onDoubleClick.bind(this));
   }
 
-  getSelectedParticles() {
-    const particlesGroup = this.scene.getObjectByName("particlesGroup");
-    const selection = [];
-    particlesGroup.children.forEach((x) => {
-      if (this.selection.includes(x.name)) {
-        selection.push(x);
-      }
-    });
-    return selection;
-  }
-
   getIntersections(object) {
     this.pointer.x = (event.clientX / window.innerWidth) * 2 - 1;
     this.pointer.y = -(event.clientY / window.innerHeight) * 2 + 1;
@@ -223,22 +212,23 @@ class Selection {
         if (event.key === "c") {
           if (this.controls.enablePan) {
             // get the first object that is selected
-
-            particlesGroup.children.every((x) => {
-              if (this.selection.includes(x.name)) {
-                this.controls.target = x.position;
-                this.controls.enablePan = false;
-                document.getElementById("alertBoxCamera").style.display =
-                  "block";
-                return false;
-                // TODO: don't use the first but the COM of the selection
-              }
-              return true;
-            });
+            if (particlesGroup.selection.length > 0) {
+              const matrix = new THREE.Matrix4();
+              const dummy = new THREE.Object3D();
+              particlesGroup.particles_mesh.getMatrixAt(
+                particlesGroup.selection[0],
+                matrix,
+              );
+              matrix.decompose(dummy.position, dummy.quaternion, dummy.scale);
+              this.controls.target.copy(dummy.position);
+              // this.controls.enablePan = false;
+              // document.getElementById("alertBoxCamera").style.display = "block";
+            }
           } else {
-            document.getElementById("alertBoxCamera").style.display = "none";
-            this.controls.target = this.controls.target.clone();
-            this.controls.enablePan = true;
+            // follow is currently not working due to instancing
+            // document.getElementById("alertBoxCamera").style.display = "none";
+            // this.controls.target = this.controls.target.clone();
+            // this.controls.enablePan = true;
           }
         }
         if (event.key === "x") {

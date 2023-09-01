@@ -1,11 +1,10 @@
 import * as THREE from "three";
 
 export class Canvas3D extends THREE.Group {
-  constructor(selection) {
+  constructor(particlesGroup) {
     super();
     this.name = "Canvas3DGroup";
 
-    this.selection = selection;
     let material;
 
     let geometry;
@@ -100,9 +99,15 @@ export class Canvas3D extends THREE.Group {
         this.add(wireframe);
       }
       this.add(plane);
-      if (this.selection.getSelectedParticles().length > 0) {
-        const selectedParticle = this.selection.getSelectedParticles()[0];
-        this.position.copy(selectedParticle.position);
+      if (particlesGroup.selection.length > 0) {
+        const matrix = new THREE.Matrix4();
+        const dummy = new THREE.Object3D();
+        particlesGroup.particles_mesh.getMatrixAt(
+          particlesGroup.selection[0],
+          matrix,
+        );
+        matrix.decompose(dummy.position, dummy.quaternion, dummy.scale);
+        this.position.copy(dummy.position);
       }
     });
 

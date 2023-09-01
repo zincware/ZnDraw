@@ -1,10 +1,5 @@
-import { Clock } from "three";
-
-const clock = new Clock();
-const constraint_clock = new Clock();
-
 class Loop {
-  constructor(camera, scene, renderer, renderer2d, socket) {
+  constructor(camera, scene, renderer, renderer2d) {
     this.camera = camera;
     this.scene = scene;
     this.renderer = renderer;

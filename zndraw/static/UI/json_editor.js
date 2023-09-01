@@ -153,10 +153,6 @@ function analysis_editor(socket, cache, world) {
             });
           }
 
-          // resizeObserver = new ResizeObserver(() => {
-          //   buildPlot();
-          // }).observe(document.getElementById("analysisPlot").parentElement);
-
           buildPlot();
         },
       );
