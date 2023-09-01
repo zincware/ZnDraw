@@ -15,7 +15,9 @@ class UpdateScene(BaseModel, abc.ABC):
     def run(self, atom_ids: list[int], atoms: ase.Atoms, **kwargs) -> list[ase.Atoms]:
         pass
 
-    def apply_selection(self, atom_ids: list[int], atoms: ase.Atoms) -> t.Tuple[ase.Atoms, ase.Atoms]:
+    def apply_selection(
+        self, atom_ids: list[int], atoms: ase.Atoms
+    ) -> t.Tuple[ase.Atoms, ase.Atoms]:
         """Split the atoms object into the selected and remaining atoms."""
         atoms_selected = atoms[atom_ids]
         atoms_remaining_ids = [x for x in range(len(atoms)) if x not in atom_ids]
