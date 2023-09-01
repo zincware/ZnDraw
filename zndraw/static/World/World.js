@@ -164,7 +164,7 @@ class World {
       this,
     );
 
-    const canvas3D = new Canvas3D(this.selection);
+    const canvas3D = new Canvas3D(this.particles);
 
     const light = createLights();
 

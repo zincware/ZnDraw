@@ -60,17 +60,6 @@ class Selection {
     window.addEventListener("dblclick", this.onDoubleClick.bind(this));
   }
 
-  getSelectedParticles() {
-    const particlesGroup = this.scene.getObjectByName("particlesGroup");
-    const selection = [];
-    particlesGroup.children.forEach((x) => {
-      if (this.selection.includes(x.name)) {
-        selection.push(x);
-      }
-    });
-    return selection;
-  }
-
   getIntersections(object) {
     this.pointer.x = (event.clientX / window.innerWidth) * 2 - 1;
     this.pointer.y = -(event.clientY / window.innerHeight) * 2 + 1;
