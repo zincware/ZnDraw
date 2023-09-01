@@ -1,17 +1,16 @@
 import * as THREE from "three";
 import { CSS2DObject } from "three/examples/jsm/renderers/CSS2DRenderer.js";
 
-export const materials = {
-  MeshBasicMaterial: new THREE.MeshBasicMaterial({ color: "#ffa500" }),
-  MeshLambertMaterial: new THREE.MeshLambertMaterial({ color: "#ffa500" }),
-  MeshMatcapMaterial: new THREE.MeshMatcapMaterial({ color: "#ffa500" }),
+const materials = {
+  MeshBasicMaterial: new THREE.MeshBasicMaterial(),
+  MeshLambertMaterial: new THREE.MeshLambertMaterial(),
+  MeshMatcapMaterial: new THREE.MeshMatcapMaterial(),
   MeshPhongMaterial: new THREE.MeshPhongMaterial({
-    color: "#ffa500",
     shininess: 100,
   }),
-  MeshPhysicalMaterial: new THREE.MeshPhysicalMaterial({ color: "#ffa500" }),
-  MeshStandardMaterial: new THREE.MeshStandardMaterial({ color: "#ffa500" }),
-  MeshToonMaterial: new THREE.MeshToonMaterial({ color: "#ffa500" }),
+  MeshPhysicalMaterial: new THREE.MeshPhysicalMaterial(),
+  MeshStandardMaterial: new THREE.MeshStandardMaterial(),
+  MeshToonMaterial: new THREE.MeshToonMaterial(),
 };
 
 const sphereGeometryFactoryCache = {};
@@ -91,118 +90,6 @@ const sphereGeometry = sphereGeometryFactory();
 export const speciesMaterial = speciesMaterialFactory();
 
 /**
- * Contain a single Particle and its connections
- */
-class ParticleGroup extends THREE.Group {
-  constructor(particle, resolution, material, wireframe) {
-    super();
-
-    this.resolution = resolution;
-    this.material = material;
-    this.wireframe = wireframe;
-
-    this.bonds = [];
-
-    const particle_mesh = new THREE.Mesh(
-      sphereGeometry(particle.radius, this.resolution),
-      speciesMaterial(this.material, particle.color, this.wireframe),
-    );
-    this.add(particle_mesh);
-    this.name = particle.id;
-    this._original_material = particle_mesh.material;
-
-    this.position.set(...particle.position);
-  }
-
-  update(particle) {
-    const scale = particle.radius / this.children[0].geometry.parameters.radius;
-    const material = speciesMaterial(
-      this.material,
-      particle.color,
-      this.wireframe,
-    );
-    // this command may update the selected material
-    this._original_material = material;
-
-    this.children[0].scale.set(scale, scale, scale);
-    this.position.set(...particle.position);
-    this.children.forEach((x) => (x.material = material));
-  }
-
-  updateBonds(bonds) {
-    const bondsToRemove = [];
-
-    bonds.forEach(([_, targetParticleGroup, bond_type]) => {
-      const bond_mesh = this.bonds.find(
-        (bond) => bond.particle_group === targetParticleGroup,
-      );
-      if (bond_mesh) {
-        this.updateBondOrientation(bond_mesh.bond, targetParticleGroup);
-      } else {
-        this.connect(targetParticleGroup);
-      }
-    });
-
-    this.bonds = this.bonds.filter((bond) => {
-      const exists = bonds.some(
-        ([_, particle_group]) => particle_group === bond.particle_group,
-      );
-      if (!exists) {
-        bondsToRemove.push(bond);
-        return false;
-      }
-      return true;
-    });
-
-    bondsToRemove.forEach((bondToRemove) => {
-      this.remove(bondToRemove.bond);
-    });
-  }
-
-  updateBondOrientation(bond, particle_group) {
-    const node1 = new THREE.Vector3();
-    const node2 = new THREE.Vector3();
-
-    this.children[0].getWorldPosition(node1);
-    particle_group.children[0].getWorldPosition(node2);
-
-    const direction = new THREE.Vector3();
-    direction.subVectors(node1, node2);
-    bond.lookAt(node2);
-    const scale = direction.length() / 2 / bond.geometry.parameters.height;
-    bond.scale.set(1, 1, scale);
-  }
-
-  connect(particle_group) {
-    const bond_mesh = halfCylinderMesh(
-      this.children[0],
-      particle_group.children[0],
-      this.children[0].material,
-      1.3,
-      this.resolution,
-    );
-    this.bonds.push({ bond: bond_mesh, particle_group });
-    this.add(bond_mesh);
-    // Store all the bond information, don't pass the mesh or group here
-    this.updateBondOrientation(bond_mesh, particle_group);
-  }
-
-  set_selection(selected) {
-    if (selected) {
-      // see https://threejs.org/examples/#webgl_postprocessing_unreal_bloom_selective for inspiration
-      const material = speciesMaterial(
-        this.material,
-        "#ffa500",
-        this.wireframe,
-      );
-      this.children.forEach((x) => (x.material = material));
-    } else {
-      this.children.forEach((x) => (x.material = this._original_material));
-    }
-  }
-}
-
-/**
  * Contain all Particles of the World.
  */
 class ParticlesGroup extends THREE.Group {
@@ -273,7 +160,8 @@ class ParticlesGroup extends THREE.Group {
 
   _get_particle_mesh(particle) {
     const particles_geometry = new THREE.SphereGeometry(this.particle_size, this.resolution * 4, this.resolution * 2);
-    const particles_material = new THREE.MeshPhongMaterial({ color: "#ffffff" });
+    const particles_material = materials[this.material].clone();
+    particles_material.wireframe = this.wireframe;
 
     const particles_mesh = new THREE.InstancedMesh(particles_geometry, particles_material, particle.positions.length);
     return particles_mesh;
@@ -332,7 +220,8 @@ class ParticlesGroup extends THREE.Group {
       new THREE.Matrix4().makeRotationX(THREE.MathUtils.degToRad(90)),
     );
 
-    const material = new THREE.MeshPhongMaterial({ color: "#ffffff" });
+    const material = materials[this.material].clone();
+    material.wireframe = this.wireframe;
     // bonds A-B from 0..n, bonds B-A from n+1..2n
     const mesh = new THREE.InstancedMesh(geometry, material, bonds.length * 2);
     return mesh;
