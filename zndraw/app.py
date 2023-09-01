@@ -2,8 +2,8 @@ import importlib
 import multiprocessing as mp
 import uuid
 from io import StringIO
-import ase
 
+import ase
 import numpy as np
 import tqdm
 from flask import Flask, render_template
