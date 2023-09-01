@@ -1,9 +1,9 @@
+import ase
+import networkx as nx
+import numpy as np
 from ase.neighborlist import natural_cutoffs
 from networkx.exception import NetworkXError
 from pydantic import BaseModel, Field
-import ase
-import numpy as np
-import networkx as nx
 
 
 class ASEComputeBonds(BaseModel):
