@@ -6,6 +6,7 @@ import numpy as np
 import tqdm
 from flask import Flask, render_template
 from flask_socketio import SocketIO, emit
+import multiprocessing as mp
 
 from zndraw.data import atoms_from_json, atoms_to_json
 from zndraw.draw import Geometry
@@ -33,26 +34,44 @@ def exit_route():
     return "Server shutting down..."
 
 
-def _read_file(filename, stride, compute_bonds):
-    if compute_bonds:
-        ZnDraw(socket=io, display_new=False).read(filename, stride)
+def _read_file(filename, stride, compute_bonds, url=None):
+    if url is None:
+        if compute_bonds:
+            instance = ZnDraw(socket=io, display_new=False)
+        else:
+            instance = ZnDraw(socket=io, display_new=False, bonds_calculator=None)
     else:
-        ZnDraw(socket=io, display_new=False, bonds_calculator=None).read(
-            filename, stride
-        )
+        if compute_bonds:
+            instance = ZnDraw(url=url, display_new=False)
+        else:
+            instance = ZnDraw(url=url, display_new=False, bonds_calculator=None)
+
+    instance.read(filename, stride)
 
 
 @io.on("atoms:request")
-def atoms_request(data):
+def atoms_request(url):
     """Return the atoms."""
 
     if "filename" in app.config:
-        io.start_background_task(
-            target=_read_file,
-            filename=app.config["filename"],
-            stride=app.config["stride"],
-            compute_bonds=app.config["compute_bonds"],
-        )
+        if app.config["multiprocessing"]:
+            proc = mp.Process(
+                target=_read_file,
+                args=(
+                    app.config["filename"],
+                    app.config["stride"],
+                    app.config["compute_bonds"],
+                    url,
+                ),
+            )
+            proc.start()
+        else:
+            io.start_background_task(
+                target=_read_file,
+                filename=app.config["filename"],
+                stride=app.config["stride"],
+                compute_bonds=app.config["compute_bonds"],
+            )
     else:
         emit("atoms:upload", {})
 

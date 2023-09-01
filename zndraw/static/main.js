@@ -26,10 +26,20 @@ function main() {
     window.close();
   });
 
-  socket.emit("atoms:request", null, () => {
-    world.setStep(0);
-    // disable loading screen
-    document.getElementById("atom-spinner").style.display = "none";
+  // creata a function displayIncomingAtoms that calls cache.get_length(), if larger 1 call world.setStep(0), else setTimerout(displayIncomingAtoms, 1000)
+  
+  const displayIncomingAtoms = () => {
+    cache.get_length();
+    if (cache.get_length() > 1) {
+      world.setStep(0);
+      document.getElementById("atom-spinner").style.display = "none";
+    } else {
+      setTimeout(displayIncomingAtoms, 100);
+    }
+  };
+
+  socket.emit("atoms:request", window.location.href, () => {
+    displayIncomingAtoms();    
   });
 }
 

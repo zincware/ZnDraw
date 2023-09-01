@@ -51,6 +51,8 @@ class ZnDraw(collections.abc.MutableSequence):
                 "connect", lambda: print(f"Connected to ZnDraw server at {self.url}")
             )
 
+            self.socket.on("disconnect", lambda: self.disconnect())
+
             for _ in range(self._retries):
                 with contextlib.suppress(socketio.exceptions.ConnectionError):
                     self.socket.connect(self.url)
@@ -68,6 +70,9 @@ class ZnDraw(collections.abc.MutableSequence):
             self._set_item(idx, atoms)
         if self.display_new:
             self.display(idx)
+
+    def disconnect(self):
+        self.socket.disconnect()
 
     def _repr_html_(self):
         from IPython.display import IFrame

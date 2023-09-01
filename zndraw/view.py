@@ -36,16 +36,18 @@ def _view_with_webview(url, fullscreen=False):
 def view(
     filename: str,
     port: int,
-    open_browser: bool = True,
-    webview: bool = True,
-    fullscreen: bool = False,
-    stride: int = 1,
-    compute_bonds: bool = True,
+    open_browser: bool,
+    webview: bool,
+    fullscreen: bool,
+    stride: int,
+    compute_bonds: bool,
+    multiprocessing: bool,
 ):
     if filename is not None:
         app.config["filename"] = filename
         app.config["stride"] = stride
     app.config["compute_bonds"] = compute_bonds
+    app.config["multiprocessing"] = multiprocessing
     url = f"http://127.0.0.1:{port}"
     print(f"Starting ZnDraw server at {url}")
 

@@ -38,6 +38,12 @@ def main(
         True,
         help="""Whether to compute bonds for the structure. If set to False, no bonds will be computed.""",
     ),
+    multiprocessing: bool = typer.Option(
+        False,
+        "--multiprocessing",
+        "-mp",
+        help="""Use multiprocessing to read data files. This will slow down the loading time, but enables loading large files in the background.""",
+    ),
 ):
     """Start the ZnDraw server.
 
@@ -53,4 +59,5 @@ def main(
         open_browser=browser,
         stride=stride,
         compute_bonds=compute_bonds,
+        multiprocessing=multiprocessing,
     )

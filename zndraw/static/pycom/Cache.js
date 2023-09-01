@@ -46,7 +46,7 @@ class Atoms {
 }
 
 class Cache {
-  constructor(socket) {
+  constructor(socket, world) {
     this._socket = socket;
     this._cache = {};
 
