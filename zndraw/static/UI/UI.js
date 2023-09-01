@@ -13,7 +13,6 @@ function resizeOffcanvas() {
 
   for (let i = 0; i < offcanvas_borders.length; i++) {
     offcanvas_borders[i].onpointerdown = function (e) {
-      console.log(this);
       active_offcanvas_border = this;
       document.addEventListener("pointermove", resize_offcanvas);
     };
