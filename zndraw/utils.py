@@ -1,5 +1,6 @@
 import socket
 
+
 def get_port(default: int = 1234) -> int:
     """Get an open port."""
     try:

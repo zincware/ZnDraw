@@ -1,11 +1,6 @@
-
 import logging
 import multiprocessing
-
-
 import webbrowser
-
-
 
 from zndraw.app import app, io
 
@@ -38,9 +33,6 @@ def _view_with_webview(url, fullscreen=False):
         pass
 
 
-
-
-
 def view(
     filename: str,
     port: int,
@@ -62,5 +54,3 @@ def view(
     elif open_browser:
         webbrowser.open(url)
     io.run(app, port=port, host="0.0.0.0")
-
-

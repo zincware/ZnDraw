@@ -2,8 +2,8 @@ from typing import Optional
 
 import typer
 
-from zndraw.view import view
 from zndraw.utils import get_port
+from zndraw.view import view
 
 cli = typer.Typer()
 

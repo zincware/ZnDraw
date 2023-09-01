@@ -1,25 +1,21 @@
 import collections.abc
 import contextlib
 import dataclasses
-
+import pathlib
 import threading
 import time
-
-import ase
-import socketio
-
 import typing as t
 
-import pathlib
-import tqdm
-
-import znh5md
+import ase
 import ase.io
-
-from zndraw.utils import get_port
-from zndraw.data import atoms_from_json, atoms_to_json
-
 import flask_socketio
+import socketio
+import tqdm
+import znh5md
+
+from zndraw.data import atoms_from_json, atoms_to_json
+from zndraw.utils import get_port
+
 
 @dataclasses.dataclass
 class ZnDraw(collections.abc.MutableSequence):
@@ -37,6 +33,7 @@ class ZnDraw(collections.abc.MutableSequence):
         else:
             if self.url is None:
                 from zndraw.view import view
+
                 port = get_port()
                 self._view_thread = threading.Thread(
                     target=view, args=(None, port, not self.jupyter), daemon=True
@@ -142,7 +139,7 @@ class ZnDraw(collections.abc.MutableSequence):
             self._set_item(len(self), val)
         if self.display_new:
             self.display(len(self) - 1)
-    
+
     def read(self, filename: str, stride: int = 1):
         """Read atoms from file and return a list of atoms dicts.
 
@@ -169,5 +166,3 @@ class ZnDraw(collections.abc.MutableSequence):
                 if idx % stride == 0:
                     self[frame_idx] = atoms
                     frame_idx += 1
-    
-

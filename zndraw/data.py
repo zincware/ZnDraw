@@ -1,11 +1,7 @@
-import pathlib
-import typing
 
 import ase.io
 import networkx as nx
 import numpy as np
-import tqdm
-import znh5md
 from ase.calculators.singlepoint import SinglePointCalculator
 from ase.data.colors import jmol_colors
 from ase.neighborlist import natural_cutoffs
