@@ -78,7 +78,7 @@ class Selection {
     const particleIntersects = this.getIntersections(particlesGroup);
     if (particleIntersects.length > 0) {
       const instanceId = particleIntersects[0].instanceId;
-      particlesGroup.click(
+            particlesGroup.click(
         instanceId,
         this.shift_pressed,
         particleIntersects[0].object,
@@ -212,22 +212,20 @@ class Selection {
         if (event.key === "c") {
           if (this.controls.enablePan) {
             // get the first object that is selected
-
-            particlesGroup.children.every((x) => {
-              if (this.selection.includes(x.name)) {
-                this.controls.target = x.position;
-                this.controls.enablePan = false;
-                document.getElementById("alertBoxCamera").style.display =
-                  "block";
-                return false;
-                // TODO: don't use the first but the COM of the selection
-              }
-              return true;
-            });
+            if (particlesGroup.selection.length > 0) {
+              const matrix = new THREE.Matrix4();
+              const dummy = new THREE.Object3D();
+              particlesGroup.particles_mesh.getMatrixAt(particlesGroup.selection[0], matrix);
+              matrix.decompose(dummy.position, dummy.quaternion, dummy.scale);
+              this.controls.target.copy(dummy.position);
+              // this.controls.enablePan = false;
+              // document.getElementById("alertBoxCamera").style.display = "block";
+            }
           } else {
-            document.getElementById("alertBoxCamera").style.display = "none";
-            this.controls.target = this.controls.target.clone();
-            this.controls.enablePan = true;
+            // follow is currently not working due to instancing
+            // document.getElementById("alertBoxCamera").style.display = "none";
+            // this.controls.target = this.controls.target.clone();
+            // this.controls.enablePan = true;
           }
         }
         if (event.key === "x") {
