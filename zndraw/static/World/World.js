@@ -30,7 +30,7 @@ class Player {
   constructor(world, cache, socket) {
     this.world = world;
     this.playing = false;
-    this.fps = 30;
+    this.fps = 60;
     this.cache = cache;
     this.loop = false;
 
@@ -229,6 +229,7 @@ class World {
     label_offset,
     particle_size,
     bonds_size,
+    fps,
   ) {
     this.particles.rebuild(
       resolution,
@@ -241,6 +242,7 @@ class World {
     this.cell_grp.set_visibility(simulation_box);
     this.setStep(loop.step);
     this.index_grp.rebuild(label_offset);
+    this.player.fps = fps;
   }
 
   setStep(step) {

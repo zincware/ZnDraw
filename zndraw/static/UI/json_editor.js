@@ -93,6 +93,7 @@ function scene_editor(socket, cache, world) {
         value.label_offset,
         value.particle_size,
         value.bonds_size,
+        value.fps,
       );
       world.player.setLoop(value["Animation Loop"]);
     });
