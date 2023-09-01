@@ -63,7 +63,6 @@ function selection_editor(socket, cache, world) {
     .addEventListener("click", () => {
       // Get the value from the editor
       const value = editor.getValue();
-      console.log(value);
 
       socket.emit("selection:run", {
         name: selection.options[selection.selectedIndex].text,
@@ -128,7 +127,6 @@ function analysis_editor(socket, cache, world) {
     .addEventListener("click", () => {
       // Get the value from the editor
       const value = editor.getValue();
-      console.log(value);
 
       socket.emit(
         "analysis:run",
@@ -206,7 +204,6 @@ function modifier_editor(socket, cache, world) {
     .addEventListener("click", () => {
       // Get the value from the editor
       const value = editor.getValue();
-      console.log(value);
 
       const { points, segments } = world.getLineData();
 

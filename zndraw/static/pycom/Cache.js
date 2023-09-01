@@ -50,8 +50,6 @@ class Cache {
     this._socket = socket;
     this._cache = {};
 
-    this._last_request = -999999;
-
     this._socket.on("atoms:upload", (data) => {
       console.log("Received atoms from Python");
       document.getElementById(
@@ -102,12 +100,6 @@ class Cache {
     // convert id to integer
     id = parseInt(id);
     return this._cache[id];
-  }
-
-  reset() {
-    console.log("reset cache");
-    this._cache = {};
-    this._last_request = -999999;
   }
 
   get_length() {

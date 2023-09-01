@@ -13,7 +13,6 @@ export class Canvas3D extends THREE.Group {
 
     drawAddCanvasBtn.addEventListener("click", () => {
       this.removeCanvas();
-      console.log(drawAddCanvasBtn.parameters);
 
       material = new THREE.MeshBasicMaterial({
         color: drawAddCanvasBtn.parameters.color,

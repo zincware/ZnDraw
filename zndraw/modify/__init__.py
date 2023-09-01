@@ -15,6 +15,16 @@ class UpdateScene(BaseModel, abc.ABC):
     def run(self, atom_ids: list[int], atoms: ase.Atoms, **kwargs) -> list[ase.Atoms]:
         pass
 
+    def apply_selection(self, atom_ids: list[int], atoms: ase.Atoms) -> t.Tuple[ase.Atoms, ase.Atoms]:
+        """Split the atoms object into the selected and remaining atoms."""
+        atoms_selected = atoms[atom_ids]
+        atoms_remaining_ids = [x for x in range(len(atoms)) if x not in atom_ids]
+        if len(atoms_remaining_ids) > 0:
+            atoms_remaining = atoms[atoms_remaining_ids]
+        else:
+            atoms_remaining = ase.Atoms()
+        return atoms_selected, atoms_remaining
+
 
 class Rotate(UpdateScene):
     """Rotate the selected atoms around a the line (2 points only)."""
@@ -35,8 +45,7 @@ class Rotate(UpdateScene):
         angle = self.angle if self.direction == "left" else -self.angle
         angle = angle / self.steps
 
-        atoms_selected = atoms[atom_ids]
-        atoms_remaining = atoms[[x for x in range(len(atoms)) if x not in atom_ids]]
+        atoms_selected, atoms_remaining = self.apply_selection(atom_ids, atoms)
         # create a vector from the two points
         vector = points[1] - points[0]
         for _ in range(self.steps):
@@ -79,19 +88,15 @@ class Move(UpdateScene):
 
     def run(self, atom_ids: list[int], atoms: ase.Atoms, **kwargs) -> list[ase.Atoms]:
         segments = kwargs["segments"]
-        atoms_selected = atoms[atom_ids]
-        atoms_remaining = atoms[[x for x in range(len(atoms)) if x not in atom_ids]]
+        atoms_selected, atoms_remaining = self.apply_selection(atom_ids, atoms)
+
         if self.steps > len(segments):
             raise ValueError(
                 "The number of steps must be less than the number of segments. You can add more points to increase the number of segments."
             )
 
-        # atoms_selected.positions = segments[0]
-        # yield atoms_selected + atoms_remaining
-
         for idx in range(1, self.steps):
             # get the vector between the two points
-
             start_idx = int((idx - 1) * len(segments) / self.steps)
             end_idx = int(idx * len(segments) / self.steps)
 

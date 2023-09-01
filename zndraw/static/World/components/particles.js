@@ -98,6 +98,11 @@ class ParticlesGroup extends THREE.Group {
     if (particles === undefined) {
       return;
     }
+    if (particles.positions.length === 0) {
+      this.remove(this.particles_mesh);
+      this.particles_mesh = undefined;
+      return;
+    }
     if (this.particles_mesh === undefined) {
       this.particles_mesh = this._get_particle_mesh(particles);
       this.add(this.particles_mesh);
@@ -177,7 +182,12 @@ class ParticlesGroup extends THREE.Group {
   }
 
   _updateBonds(bonds) {
-    if (bonds === undefined || bonds.length === 0) {
+    if (bonds === undefined) {
+      return;
+    }
+    if (bonds.length === 0) {
+      this.remove(this.bonds_mesh);
+      this.bonds_mesh = undefined;
       return;
     }
     if (this.bonds_mesh === undefined) {
