@@ -30,7 +30,7 @@ function main() {
 
   const displayIncomingAtoms = () => {
     cache.get_length();
-    if (cache.get_length() > 1) {
+    if (cache.get_length() > 0) {
       world.setStep(0);
       document.getElementById("atom-spinner").style.display = "none";
     } else {

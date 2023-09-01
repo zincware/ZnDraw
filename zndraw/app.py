@@ -2,6 +2,7 @@ import importlib
 import multiprocessing as mp
 import uuid
 from io import StringIO
+import ase
 
 import numpy as np
 import tqdm
@@ -73,7 +74,7 @@ def atoms_request(url):
                 compute_bonds=app.config["compute_bonds"],
             )
     else:
-        emit("atoms:upload", {})
+        emit("atoms:upload", {0: atoms_to_json(ase.Atoms())})
 
 
 @io.on("modifier:schema")
