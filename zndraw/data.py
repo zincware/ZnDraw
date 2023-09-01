@@ -78,38 +78,10 @@ class ASEComputeBonds(BaseModel):
         atoms.info["modifications"] = modifications
 
 
-def get_atomsdict_list(filename, stride) -> typing.Generator[typing.Dict, None, None]:
-    """Read atoms from file and return a list of atoms dicts.
-
-    Parameters
-    ----------
-    filename : str
-        Path to the file which should be read.
-    stride : int
-        Stride for the frames to be visualized. If set to 1, all frames will be visualized.
-    """
-
-    frame_idx = 0
-
-    if pathlib.Path(filename).suffix == ".h5":
-        # Read file using znh5md and convert to list[ase.Atoms]
-        atoms_list = znh5md.ASEH5MD(filename).get_atoms_list()
-        for idx, atoms in tqdm.tqdm(
-            enumerate(atoms_list), ncols=100, total=len(atoms_list)
-        ):
-            if idx % stride == 0:
-                yield {frame_idx: atoms_to_json(atoms)}
-                frame_idx += 1
-    else:
-        for idx, atoms in tqdm.tqdm(enumerate(ase.io.iread(filename)), ncols=100):
-            if idx % stride == 0:
-                yield {frame_idx: atoms_to_json(atoms)}
-                frame_idx += 1
-
-
 def atoms_to_json(atoms: ase.Atoms) -> dict:
     ase_bond_calculator = ASEComputeBonds()
-    atoms.connectivity = ase_bond_calculator.build_graph(atoms)
+    if not hasattr(atoms, "connectivity"):
+        atoms.connectivity = ase_bond_calculator.build_graph(atoms)
 
     atoms_dict = atoms.todict()
     for key in list(atoms_dict):

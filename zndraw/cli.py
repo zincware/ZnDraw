@@ -2,7 +2,8 @@ from typing import Optional
 
 import typer
 
-from zndraw.view import _get_port, view
+from zndraw.view import view
+from zndraw.utils import get_port
 
 cli = typer.Typer()
 
@@ -39,7 +40,7 @@ def main(
     Visualize Trajectories, Structures, and more in ZnDraw.
     """
     if port is None:
-        port = _get_port()
+        port = get_port()
     view(
         filename,
         port,

@@ -7,9 +7,10 @@ import tqdm
 from flask import Flask, render_template
 from flask_socketio import SocketIO, emit
 
-from zndraw.data import atoms_from_json, atoms_to_json, get_atomsdict_list
+from zndraw.data import atoms_from_json, atoms_to_json
 from zndraw.draw import Geometry
 from zndraw.settings import GlobalConfig
+from zndraw.zndraw import ZnDraw
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = str(uuid.uuid4())
@@ -33,8 +34,7 @@ def exit_route():
 
 
 def _read_file(filename, stride):
-    for idx, atoms_dict in enumerate(get_atomsdict_list(filename, stride)):
-        io.emit("atoms:upload", atoms_dict)
+    ZnDraw(socket=io, display_new=False).read(filename, stride)
 
 
 @io.on("atoms:request")

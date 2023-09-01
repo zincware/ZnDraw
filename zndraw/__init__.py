@@ -1,6 +1,6 @@
 import importlib.metadata
 
-from zndraw.view import ZnDraw
+from zndraw.zndraw import ZnDraw
 
 __all__ = ["ZnDraw"]
 
