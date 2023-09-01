@@ -180,7 +180,8 @@ class World {
 
     // attach the canvas3D to the camera while t is pressed. attach to the scene when released
     document.addEventListener("keydown", (event) => {
-      if (event.key == "t") {
+      if (document.activeElement === document.body) {
+      if (event.key == "f") {
         if (camera.children.includes(canvas3D)) {
           scene.attach(canvas3D);
           document.getElementById("alertBoxDrawing").style.display = "none";
@@ -189,6 +190,7 @@ class World {
           document.getElementById("alertBoxDrawing").style.display = "block";
         }
       }
+    }
     });
 
     loop.tick_updatables.push(controls, this.index_grp);
