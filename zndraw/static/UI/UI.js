@@ -57,11 +57,19 @@ function setupUpload(socket) {
 }
 
 function setupNavbarLeft() {
-
   function showMenu(menu) {
-    const menus = ["selectionMenu", "interactionMenu", "sceneMenu", "drawMenu", "analysisMenu"];
+    const menus = [
+      "selectionMenu",
+      "interactionMenu",
+      "sceneMenu",
+      "drawMenu",
+      "analysisMenu",
+    ];
     for (let i = 0; i < menus.length; i++) {
-      if ((menus[i] === menu) && (document.getElementById(menus[i]).style.display === "none")) {
+      if (
+        menus[i] === menu &&
+        document.getElementById(menus[i]).style.display === "none"
+      ) {
         document.getElementById(menus[i]).style.display = "block";
         document.getElementById(`${menus[i]}Btn`).classList.add("active");
       } else {

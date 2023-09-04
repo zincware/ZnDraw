@@ -35,7 +35,6 @@ body {
   height: 50px;
 }
 
-
 #scene-container {
   /* tell our scene container to take up the full page */
   position: absolute;

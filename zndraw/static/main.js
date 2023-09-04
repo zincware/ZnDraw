@@ -41,7 +41,6 @@ function main() {
   socket.emit("atoms:request", window.location.href, () => {
     displayIncomingAtoms();
   });
-  
 }
 
 main();
