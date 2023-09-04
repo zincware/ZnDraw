@@ -17,7 +17,7 @@ body {
   top: 50px;
   left: 0;
   height: 100%;
-  width: 140px;
+  width: 50px;
   /* Adjust the width as needed */
   /* background-color: #f0f0f0;
         padding: 15px;  */
@@ -26,7 +26,7 @@ body {
 .fixed-left-menu {
   position: fixed;
   top: 50px;
-  left: 140px;
+  left: 50px;
   height: 100%;
   overflow-y: auto;
 }
