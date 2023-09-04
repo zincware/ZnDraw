@@ -56,9 +56,66 @@ function setupUpload(socket) {
   });
 }
 
+function setupNavbarLeft() {
+
+  function showMenu(menu) {
+    const menus = ["selectionMenu", "interactionMenu", "sceneMenu", "drawMenu", "analysisMenu"];
+    for (let i = 0; i < menus.length; i++) {
+      if ((menus[i] === menu) && (document.getElementById(menus[i]).style.display === "none")) {
+        document.getElementById(menus[i]).style.display = "block";
+        document.getElementById(`${menus[i]}Btn`).classList.add("active");
+      } else {
+        document.getElementById(menus[i]).style.display = "none";
+        document.getElementById(`${menus[i]}Btn`).classList.remove("active");
+      }
+    }
+  }
+
+  function closeMenu(menu) {
+    document.getElementById(menu).style.display = "none";
+    document.getElementById(`${menu}Btn`).classList.remove("active");
+  }
+
+  document.getElementById("selectionMenuBtn").onclick = () => {
+    showMenu("selectionMenu");
+  };
+  document.getElementById("selectionMenuClose").onclick = () => {
+    closeMenu("selectionMenu");
+  };
+
+  document.getElementById("interactionMenuBtn").onclick = () => {
+    showMenu("interactionMenu");
+  };
+  document.getElementById("interactionMenuClose").onclick = () => {
+    closeMenu("interactionMenu");
+  };
+
+  document.getElementById("sceneMenuBtn").onclick = () => {
+    showMenu("sceneMenu");
+  };
+  document.getElementById("sceneMenuClose").onclick = () => {
+    closeMenu("sceneMenu");
+  };
+
+  document.getElementById("drawMenuBtn").onclick = () => {
+    showMenu("drawMenu");
+  };
+  document.getElementById("drawMenuClose").onclick = () => {
+    closeMenu("drawMenu");
+  };
+
+  document.getElementById("analysisMenuBtn").onclick = () => {
+    showMenu("analysisMenu");
+  };
+  document.getElementById("analysisMenuClose").onclick = () => {
+    closeMenu("analysisMenu");
+  };
+}
+
 export function setUIEvents(socket, cache, world) {
   resizeOffcanvas();
   setupUpload(socket);
+  setupNavbarLeft();
 
   document.getElementById("ExitBtn").addEventListener("click", () => {
     fetch("/exit", { method: "GET" });

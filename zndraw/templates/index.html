@@ -71,37 +71,6 @@
 
     <!-- Navigation -->
 
-    <style>
-      /* Custom CSS for the fixed left container */
-      .fixed-left-container {
-        position: fixed;
-        top: 50px;
-        left: 0;
-        height: 100%;
-        width: 140px;
-        /* Adjust the width as needed */
-        /* background-color: #f0f0f0;
-              padding: 15px;  */
-      }
-
-      .fixed-left-menu {
-        position: fixed;
-        top: 50px;
-        left: 140px;
-        height: 100%;
-      }
-
-      .main-navbar {
-        height: 50px;
-      }
-
-      /* Adjust the content margin to prevent it from being hidden under the fixed container */
-      /* .content {
-              margin-left: 120px;
-              padding: 15px;
-          } */
-    </style>
-
     <nav class="navbar fixed-top navbar-expand-sm bg-light main-navbar">
       <div class="container-fluid">
         <a class="navbar-brand" id="HelpBtn">
@@ -127,24 +96,9 @@
           </button>
           <a class="btn btn-outline-info mx-1" href="/" role="button"><i class="fa-solid fa-rotate-right"></i>
             Reload</a>
-          <!-- <button class="btn btn-outline-primary mx-1" type="button" data-toggle="tooltip" data-bs-toggle="collapse"
-data-bs-target="#helpBoxCollapse" aria-expanded="false" aria-controls="helpBoxCollapse">
-<i class="fas fa-question-circle"></i> Help </button>-->
           <button class="btn btn-outline-danger mx-1" id="ExitBtn">
             <i class="fa-solid fa-circle-xmark"></i> EXIT
           </button>
-          <!-- <button type="button" class="btn btn-outline-primary mx-1" id="HelpBtn"><i
-class="fas fa-question-circle"></i> Help</button> -->
-
-          <!-- <i class="fas fa-question-circle" id="HelpBtn"></i> -->
-          <!-- <button class="btn btn-outline-primary mx-1" type="button" data-bs-toggle="collapse"
-data-bs-target="#helpBoxCollapse" aria-expanded="false" aria-controls="helpBoxCollapse">
-<i class="fas fa-question-circle"></i> Help
-</button> -->
-          <!-- <button class="btn btn-outline-primary" type="button" data-bs-toggle="collapse"
-data-bs-target="#infoBoxCollapse" aria-expanded="false" aria-controls="infoBoxCollapse">
-<i class="fas fa-info-circle"></i> Info
-</button> -->
         </div>
       </div>
     </nav>
@@ -163,27 +117,22 @@ data-bs-target="#infoBoxCollapse" aria-expanded="false" aria-controls="infoBoxCo
               </button>
             </div>
             <div class="row py-1">
-              <button class="btn btn-light text-end" type="button" data-bs-toggle="offcanvas"
-                data-bs-target="#interactionCanvas" aria-controls="interactionCanvas"
-                onclick="document.activeElement.blur();">
+              <button class="btn btn-light text-end" type="button" id="interactionMenuBtn">
                 Interaction <i class="fas fa-retweet"></i>
               </button>
             </div>
             <div class="row py-1">
-              <button class="btn btn-light text-end" type="button" data-bs-toggle="offcanvas"
-                data-bs-target="#sceneCanvas" aria-controls="sceneCanvas" onclick="document.activeElement.blur();">
+              <button class="btn btn-light text-end" type="button" id="sceneMenuBtn">
                 Scene <i class="fas fa-cube"></i>
               </button>
             </div>
             <div class="row py-1">
-              <button class="btn btn-light text-end" type="button" data-bs-toggle="offcanvas"
-                data-bs-target="#drawCanvas" aria-controls="drawCanvas" onclick="document.activeElement.blur();">
+              <button class="btn btn-light text-end" type="button" id="drawMenuBtn">
                 Draw <i class="fas fa-pencil-alt"></i>
               </button>
             </div>
             <div class="row py-1">
-              <button class="btn btn-light text-end" type="button" data-bs-toggle="offcanvas"
-                data-bs-target="#analyseCanvas" aria-controls="analyseCanvas" onclick="document.activeElement.blur();">
+              <button class="btn btn-light text-end" type="button" id="analysisMenuBtn">
                 Analyse <i class="fas fa-chart-bar"></i>
               </button>
             </div>
@@ -192,15 +141,14 @@ data-bs-target="#infoBoxCollapse" aria-expanded="false" aria-controls="infoBoxCo
       </div>
     </div>
 
-    <div class="fixed-left-menu">
-      <div class="card h-100 rounded-0">
-        <div class="card-body" id="selectionMenu" style="display: none;">
-
+    <div class="fixed-left-menu"  >
+      <!-- Selection -->
+      <div class="card h-100 rounded-0" id="selectionMenu" style="display: none;">
+        <div class="card-body">
           <div class="row">
             <div class="col"><h4>Selection</h4></div>
             <div class="col col-md-auto"><button type="button" class="btn-close" aria-label="Close" id="selectionMenuClose"></button></div>
           </div>
-
           <select class="form-select" aria-label="Selection Method" id="selection-select">
             <option selected value="">Selection Method</option>
           </select>
@@ -220,91 +168,44 @@ data-bs-target="#infoBoxCollapse" aria-expanded="false" aria-controls="infoBoxCo
           </div>
         </div>
       </div>
-    </div>
 
-    <!-- Off Canvas -->
-
-    <!-- Selection -->
-    <div class="offcanvas offcanvas-start canvasControl" data-bs-scroll="true" data-bs-backdrop="false" tabindex="-1"
-      id="selectionCanvas" aria-labelledby="selectionCanvasLabel">
-      <div class="offcanvas-border"></div>
-      <div class="offcanvas-header">
-        <h5 class="offcanvas-title" id="selectionCanvasLabel">Selection</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
-      </div>
-      <div class="offcanvas-body">
-        <select class="form-select" aria-label="Selection Method" id="selection-select">
-          <option selected value="">Selection Method</option>
-        </select>
-        <hr />
-        <div id="selection-json-editor"></div>
-        <div class="row my-3">
-          <div class="col">
-            <button type="button" id="selection-json-editor-submit" class="btn btn-primary w-100">
-              <i class="fa-solid fa-circle-check"></i> Apply
-            </button>
+      <!-- Interaction -->  
+      <div class="card h-100 rounded-0" id="interactionMenu"  style="display: none;">
+        <div class="card-body">
+          <div class="row">
+            <div class="col"><h4>Interaction</h4></div>
+            <div class="col col-md-auto"><button type="button" class="btn-close" aria-label="Close" id="interactionMenuClose"></button></div>
           </div>
-          <div class="col">
-            <a class="btn btn-secondary w-100" role="button" id="downloadSelectedBtn"><i
-                class="fa-solid fa-download"></i> Download</a>
-          </div>
+          <select class="form-select" aria-label="Select Modifier" id="modifier-select">
+            <option selected value="">Select Interaction Method</option>
+          </select>
+          <hr />
+          <div id="interaction-json-editor"></div>
+          <button type="button" id="interaction-json-editor-submit" class="btn btn-primary w-100">
+            <i class="fa-solid fa-play"></i> Run Modifier
+          </button>
         </div>
       </div>
-    </div>
 
-    <!-- Interaction -->
-    <div class="offcanvas offcanvas-start canvasControl" data-bs-scroll="true" data-bs-backdrop="false" tabindex="-1"
-      id="interactionCanvas" aria-labelledby="interactioneCanvasLabel">
-      <div class="offcanvas-border"></div>
-      <div class="offcanvas-header">
-        <h5 class="offcanvas-title" id="interactionCanvasLabel">
-          Interaction
-        </h5>
-        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+      <!-- Scene -->
+      <div class="card h-100 rounded-0" id="sceneMenu"  style="display: none;">
+        <div class="card-body">
+          <div class="row">
+            <div class="col"></div>
+            <div class="col col-md-auto"><button type="button" class="btn-close" aria-label="Close" id="sceneMenuClose"></button></div>
+          </div>
+          <div id="scene-json-editor"></div>
+        </div>
       </div>
-      <div class="offcanvas-body" id="interactionOffCanvasBody">
-        <select class="form-select" aria-label="Select Modifier" id="modifier-select">
-          <option selected value="">Select Interaction Method</option>
-        </select>
-        <hr />
-        <div id="interaction-json-editor"></div>
-        <button type="button" id="interaction-json-editor-submit" class="btn btn-primary w-100">
-          <i class="fa-solid fa-play"></i> Run Modifier
-        </button>
-      </div>
-    </div>
 
-    <!-- Scene -->
-    <div class="offcanvas offcanvas-start canvasControl" data-bs-scroll="true" data-bs-backdrop="false" tabindex="-1"
-      id="sceneCanvas" aria-labelledby="sceneCanvasLabel">
-      <div class="offcanvas-border"></div>
-      <div class="offcanvas-header">
-        <h5 class="offcanvas-title" id="sceneCanvasLabel">Scene</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
-      </div>
-      <div class="offcanvas-body">
-        <div id="scene-json-editor"></div>
-        <!-- <button type="button" id='scene-json-editor-submit' class="btn btn-primary w-100"><i class="fa-solid fa-check"></i> Apply Changes</button> -->
-      </div>
-    </div>
-
-    <!-- Draw -->
-    <div class="offcanvas offcanvas-start canvasControl" data-bs-scroll="true" data-bs-backdrop="false" tabindex="-1"
-      id="drawCanvas" aria-labelledby="drawCanvasLabel">
-      <div class="offcanvas-border"></div>
-      <div class="offcanvas-header">
-        <h5 class="offcanvas-title" id="drawCanvasLabel">Draw</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
-      </div>
-      <div class="offcanvas-body">
-        <!-- <div class="mb-3">
-        <button type="button" class="btn btn-secondary" id="drawAddAnchor">Add anchor point</button>
-        <button type="button" class="btn btn-secondary" id="drawRemoveLine">Remove Line</button>
-        <button type="button" class="btn btn-secondary" id="drawDetach">Detach</button>
-      </div> -->
-
-        <div id="draw-json-editor"></div>
-
+      <!-- Draw -->
+      <div class="card h-100 rounded-0" id="drawMenu"  style="display: none;">
+        <div class="card-body">
+          <div class="row">
+            <div class="col"></div>
+            <div class="col col-md-auto"><button type="button" class="btn-close" aria-label="Close" id="drawMenuClose"></button></div>
+          </div>
+          <div id="draw-json-editor"></div>
         <div class="mb-3">
           <button type="button" class="btn btn-secondary" id="drawAddCanvas">
             <i class="fa-solid fa-plus"></i> Add
@@ -313,28 +214,28 @@ data-bs-target="#infoBoxCollapse" aria-expanded="false" aria-controls="infoBoxCo
             <i class="fa-solid fa-trash"></i> Remove
           </button>
         </div>
+        </div>
       </div>
-    </div>
 
-    <!-- Analyse -->
-    <div class="offcanvas offcanvas-start canvasControl" data-bs-scroll="true" data-bs-backdrop="false" tabindex="-1"
-      id="analyseCanvas" aria-labelledby="analyseCanvasLabel">
-      <div class="offcanvas-border"></div>
-      <div class="offcanvas-header">
-        <h5 class="offcanvas-title" id="analyseCanvasLabel">Analyse</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+      <!-- Analyse -->
+      <div class="card h-100 rounded-0" id="analysisMenu"  style="display: none;">
+        <div class="card-body" style="width: 500px;">
+          <div class="row">
+            <div class="col"><h4>Analysis</h4></div>
+            <div class="col col-md-auto"><button type="button" class="btn-close" aria-label="Close" id="analysisMenuClose"></button></div>
+          </div>
+          <select class="form-select" aria-label="Select Modifier" id="analysis-select">
+            <option selected value="">Select Analysis Method</option>
+          </select>
+          <hr />
+          <div id="analysis-json-editor"></div>
+          <button type="button" id="analysis-json-editor-submit" class="btn btn-primary w-100">
+            Analyse
+          </button>
+          <div id="analysisPlot"></div>
+        </div>
       </div>
-      <div class="offcanvas-body">
-        <select class="form-select" aria-label="Select Modifier" id="analysis-select">
-          <option selected value="">Select Analysis Method</option>
-        </select>
-        <hr />
-        <div id="analysis-json-editor"></div>
-        <button type="button" id="analysis-json-editor-submit" class="btn btn-primary w-100">
-          Analyse
-        </button>
-        <div id="analysisPlot"></div>
-      </div>
+
     </div>
 
     <!-- Bonds -->
