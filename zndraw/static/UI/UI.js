@@ -99,14 +99,14 @@ export function setUIEvents(socket, cache, world) {
 
   const helpBtn = document.getElementById("HelpBtn");
 
-  helpBtn.addEventListener("mouseover", () => {
-    new bootstrap.Collapse(document.getElementById("helpBoxCollapse"), {
-      toggle: false,
-    }).show();
-  });
-  helpBtn.addEventListener("mouseout", () => {
-    new bootstrap.Collapse(document.getElementById("helpBoxCollapse"), {
-      toggle: false,
-    }).hide();
-  });
+  // helpBtn.addEventListener("mouseover", () => {
+  //   new bootstrap.Collapse(document.getElementById("helpBoxCollapse"), {
+  //     toggle: false,
+  //   }).show();
+  // });
+  // helpBtn.addEventListener("mouseout", () => {
+  //   new bootstrap.Collapse(document.getElementById("helpBoxCollapse"), {
+  //     toggle: false,
+  //   }).hide();
+  // });
 }

@@ -41,6 +41,21 @@ function main() {
   socket.emit("atoms:request", window.location.href, () => {
     displayIncomingAtoms();
   });
+
+  document.getElementById("selectionMenuBtn").onclick = () => {
+    const selectionMenu = document.getElementById("selectionMenu");
+    if (selectionMenu.style.display === "none") {
+      selectionMenu.style.display = "block";
+      document.getElementById("selectionMenuBtn").classList.add("active");
+    } else {
+      selectionMenu.style.display = "none";
+      document.getElementById("selectionMenuBtn").classList.remove("active");
+    }
+  };
+  document.getElementById("selectionMenuClose").onclick = () => {
+    document.getElementById("selectionMenu").style.display = "none";
+    document.getElementById("selectionMenuBtn").classList.remove("active");
+  };
 }
 
 main();
