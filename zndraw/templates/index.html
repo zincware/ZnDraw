@@ -137,6 +137,9 @@
               >
                 <i class="fas fa-download"></i> Download
               </button>
+              <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#helpModal">
+                <i class="fa-solid fa-circle-info"></i>
+              </button>
               <a class="btn btn-outline-info mx-1" href="/" role="button"
                 ><i class="fa-solid fa-rotate-right"></i> Reload</a
               >
@@ -418,150 +421,42 @@
           </div>
         </div>
 
-        <!-- Bonds -->
-        <div
-          class="offcanvas offcanvas-start canvasControl"
-          data-bs-scroll="true"
-          data-bs-backdrop="false"
-          tabindex="-1"
-          id="bondsCanvas"
-          aria-labelledby="bondsCanvasLabel"
-        >
-          <div class="offcanvas-border"></div>
-          <div class="offcanvas-header">
-            <h5 class="offcanvas-title" id="bondsCanvasLabel">Bonds</h5>
-            <button
-              type="button"
-              class="btn-close"
-              data-bs-dismiss="offcanvas"
-              aria-label="Close"
-            ></button>
-          </div>
-          <div class="offcanvas-body">
-            <div class="mb-3">
-              <label for="addBondsMethod" class="form-label"
-                >Select bonds method</label
-              >
-              <select
-                class="form-select"
-                aria-label="Default select example"
-                id="addBondsMethod"
-              >
-                <option selected, value="none"></option>
-                <option value="add">Add New</option>
-              </select>
-              <div id="addBondsMethodHelp" class="form-text">
-                Load a Python class to configure bonds
+        <!-- Modal -->
+        <div class="modal fade" id="helpModal" tabindex="-1" aria-labelledby="helpModalLabel" aria-hidden="true">
+          <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+              <div class="modal-header">
+                <h1 class="modal-title fs-5" id="helpModalLabel">ZnDraw Help</h1>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
               </div>
-            </div>
-            <div id="bondsSettings"></div>
-
-            <div class="container">
-              <div class="row my-3">
-                <div class="col">
-                  <button
-                    type="button"
-                    class="btn btn-primary w-100"
-                    id="bondsBtnSave"
-                  >
-                    Save
-                  </button>
-                </div>
-                <div class="col">
-                  <button
-                    type="button"
-                    class="btn btn-danger w-100"
-                    id="bondsBtnZeroBond"
-                  >
-                    Delete Bond
-                  </button>
+              <div class="modal-body">
+                <div class="rounded-3 bg-white px-2 pt-2">
+                  <dl class="row">
+                    <dt class="col-sm-3">play / pause</dt>
+                    <dd class="col-sm-9"><code>keypress space</code></dd>
+                    <dt class="col-sm-3">frame forwards / backwards</dt>
+                    <dd class="col-sm-9"><code>keypress &#9654;\&#9664; </code></dd>
+                    <dt class="col-sm-3">jump forwards / backwards</dt>
+                    <dd class="col-sm-9"><code>keypress &#9650;\&#9660; </code></dd>
+                    <dt class="col-sm-3">center camera around selected particle</dt>
+                    <dd class="col-sm-9"><code>keypress C</code></dd>
+                    <dt class="col-sm-3">select multiple particles</dt>
+                    <dd class="col-sm-9"><code>keydown shift</code></dd>
+                    <dt class="col-sm-3">show particle index</dt>
+                    <dd class="col-sm-9"><code>keydown I</code></dd>
+                    <dt class="col-sm-3">toggle canvas movement</dt>
+                    <dd class="col-sm-9"><code>keypress F</code></dd>
+                    <dt class="col-sm-3">duplicate selected anchor point</dt>
+                    <dd class="col-sm-9"><code>keypress T</code></dd>
+                    <dt class="col-sm-3">switch transform control mode</dt>
+                    <dd class="col-sm-9"><code>keypress D</code></dd>
+                    <dt class="col-sm-3">select / scale drawing geometry</dt>
+                    <dd class="col-sm-9">
+                      <code>keypress shift</code> + <code>mousewheel</code>
+                    </dd>
+                  </dl>
                 </div>
               </div>
-              <div class="row">
-                <div class="btn-group" role="group" aria-label="Basic example">
-                  <button
-                    type="button"
-                    class="btn btn-outline-secondary"
-                    id="bondsBtnSingleBond"
-                  >
-                    Single Bond
-                  </button>
-                  <button
-                    type="button"
-                    class="btn btn-outline-secondary"
-                    id="bondsBtnDoubleBond"
-                  >
-                    Double Bond
-                  </button>
-                  <button
-                    type="button"
-                    class="btn btn-outline-secondary"
-                    id="bondsBtnTripleBond"
-                  >
-                    Triple Bond
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Info Box -->
-        <!-- <div class="collapse" id="infoBoxCollapse">
-    <div class="container-fluid rounded border border-dark" id="infoBox">
-      <dl class="row">
-        <dt class="col-sm-3">File</dt>
-        <dd class="col-sm-9"><code>{{ config.file }}</code></dd>
-        <dt class="col-sm-3">FPS</dt>
-        <dd class="col-sm-9" id="FPS">-</dd>
-        <dt class="col-sm-3">Particles</dt>
-        <dd class="col-sm-9" id="n_particles">-</dd>
-        <dt class="col-sm-3">Bonds</dt>
-        <dd class="col-sm-9" id="n_bonds">-</dd>
-        <dt class="col-sm-3">Selected IDs</dt>
-        <dd class="col-sm-9" id="lst_selected_ids"></dd>
-        {% if config.update_function %}
-        <dt class="col-sm-3">Function</dt>
-        <dd class="col-sm-9" id="lst_selected_ids"><code>{{ config.update_function }}</code></dd>
-        {% endif %}
-      </dl>
-    </div>
-  </div> -->
-
-        <!-- Help Box -->
-        <div class="collapse" id="helpBoxCollapse">
-          <div
-            class="container-fluid bg-light rounded border border-primary pt-2"
-            id="helpBox"
-          >
-            <h2>ZnDraw Help</h2>
-            <div class="rounded-3 bg-white px-2 pt-2">
-              <dl class="row">
-                <!-- <dt class="col-sm-3">move light to camera position</dt>
-            <dd class="col-sm-9"><code>keypress L</code></dd> -->
-                <dt class="col-sm-3">play / pause</dt>
-                <dd class="col-sm-9"><code>keypress space</code></dd>
-                <dt class="col-sm-3">frame forwards / backwards</dt>
-                <dd class="col-sm-9"><code>keypress &#9654;\&#9664; </code></dd>
-                <dt class="col-sm-3">jump forwards / backwards</dt>
-                <dd class="col-sm-9"><code>keypress &#9650;\&#9660; </code></dd>
-                <dt class="col-sm-3">center camera around selected particle</dt>
-                <dd class="col-sm-9"><code>keypress C</code></dd>
-                <dt class="col-sm-3">select multiple particles</dt>
-                <dd class="col-sm-9"><code>keydown shift</code></dd>
-                <dt class="col-sm-3">show particle index</dt>
-                <dd class="col-sm-9"><code>keydown I</code></dd>
-                <dt class="col-sm-3">toggle canvas movement</dt>
-                <dd class="col-sm-9"><code>keypress F</code></dd>
-                <dt class="col-sm-3">duplicate selected anchor point</dt>
-                <dd class="col-sm-9"><code>keypress T</code></dd>
-                <dt class="col-sm-3">switch transform control mode</dt>
-                <dd class="col-sm-9"><code>keypress D</code></dd>
-                <dt class="col-sm-3">select / scale drawing geometry</dt>
-                <dd class="col-sm-9">
-                  <code>keypress shift</code> + <code>mousewheel</code>
-                </dd>
-              </dl>
             </div>
           </div>
         </div>
