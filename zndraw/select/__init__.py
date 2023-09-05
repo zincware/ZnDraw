@@ -109,28 +109,34 @@ class Neighbour(SelectionBase):
         return list(set(total_ids))
 
 
-methods = t.Union[
-    NoneSelection,
-    All,
-    Invert,
-    Range,
-    Random,
-    IdenticalSpecies,
-    ConnectedParticles,
-    Neighbour,
-]
 
-class Selection(SelectionBase):
-    method: methods = Field(..., description="Selection method", discriminator="method")
 
-    def get_ids(self, atoms: ase.Atoms, selected_ids: list[int]) -> list[int]:
-        return self.method.get_ids(atoms, selected_ids)
+def get_selection_class(methods = None):
+    if methods is None:
+        methods = t.Union[
+            NoneSelection,
+            All,
+            Invert,
+            Range,
+            Random,
+            IdenticalSpecies,
+            ConnectedParticles,
+            Neighbour,
+        ]
+
+    class Selection(SelectionBase):
+        method: methods = Field(..., description="Selection method", discriminator="method")
+
+        def get_ids(self, atoms: ase.Atoms, selected_ids: list[int]) -> list[int]:
+            return self.method.get_ids(atoms, selected_ids)
+        
+        @classmethod
+        def model_json_schema(cls, *args, **kwargs) -> dict[str, Any]:
+            schema = super().model_json_schema(*args, **kwargs)
+            for prop in [x.__name__ for x in t.get_args(methods)]:
+                schema["$defs"][prop]["properties"]["method"]["options"] = {"hidden": True}
+                schema["$defs"][prop]["properties"]["method"]["type"] = "string"
+
+            return schema
     
-    @classmethod
-    def model_json_schema(cls, *args, **kwargs) -> dict[str, Any]:
-        schema = super().model_json_schema(*args, **kwargs)
-        for prop in [x.__name__ for x in t.get_args(methods)]:
-            schema["$defs"][prop]["properties"]["method"]["options"] = {"hidden": True}
-            schema["$defs"][prop]["properties"]["method"]["type"] = "string"
-
-        return schema
+    return Selection

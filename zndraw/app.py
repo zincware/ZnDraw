@@ -13,7 +13,7 @@ from zndraw.data import atoms_from_json, atoms_to_json
 from zndraw.draw import Geometry
 from zndraw.settings import GlobalConfig
 from zndraw.zndraw import ZnDraw
-from zndraw.select import Selection
+from zndraw.select import get_selection_class
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = str(uuid.uuid4())
@@ -152,8 +152,7 @@ def analysis_schema(data):
 
 @io.on("selection:schema")
 def selection_schema():
-    # GlobalConfig.patch()
-    io.emit("selection:schema", Selection.model_json_schema())
+    io.emit("selection:schema", get_selection_class().model_json_schema())
 
 
 @io.on("selection:run")
