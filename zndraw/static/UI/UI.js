@@ -79,6 +79,14 @@ function setupNavbarLeft() {
     }
   }
 
+  const popovers = {
+    selectionMenu: new bootstrap.Popover(document.getElementById("selectionMenuBtn")),
+    interactionMenu: new bootstrap.Popover(document.getElementById("interactionMenuBtn")),
+    sceneMenu: new bootstrap.Popover(document.getElementById("sceneMenuBtn")),
+    drawMenu: new bootstrap.Popover(document.getElementById("drawMenuBtn")),
+    analysisMenu: new bootstrap.Popover(document.getElementById("analysisMenuBtn")),    
+  }
+
   function closeMenu(menu) {
     document.getElementById(menu).style.display = "none";
     document.getElementById(`${menu}Btn`).classList.remove("active");
@@ -86,13 +94,16 @@ function setupNavbarLeft() {
 
   document.getElementById("selectionMenuBtn").onclick = () => {
     showMenu("selectionMenu");
+    popovers.selectionMenu.hide()
   };
+
   document.getElementById("selectionMenuClose").onclick = () => {
     closeMenu("selectionMenu");
   };
 
   document.getElementById("interactionMenuBtn").onclick = () => {
     showMenu("interactionMenu");
+    popovers.interactionMenu.hide()
   };
   document.getElementById("interactionMenuClose").onclick = () => {
     closeMenu("interactionMenu");
@@ -100,6 +111,7 @@ function setupNavbarLeft() {
 
   document.getElementById("sceneMenuBtn").onclick = () => {
     showMenu("sceneMenu");
+    popovers.sceneMenu.hide()
   };
   document.getElementById("sceneMenuClose").onclick = () => {
     closeMenu("sceneMenu");
@@ -107,6 +119,7 @@ function setupNavbarLeft() {
 
   document.getElementById("drawMenuBtn").onclick = () => {
     showMenu("drawMenu");
+    popovers.drawMenu.hide()
   };
   document.getElementById("drawMenuClose").onclick = () => {
     closeMenu("drawMenu");
@@ -114,10 +127,57 @@ function setupNavbarLeft() {
 
   document.getElementById("analysisMenuBtn").onclick = () => {
     showMenu("analysisMenu");
+    popovers.analysisMenu.hide()
   };
   document.getElementById("analysisMenuClose").onclick = () => {
     closeMenu("analysisMenu");
   };
+
+  
+  document.getElementById("drawMenuBtn").onpointerenter = () => {
+    if (document.getElementById("drawMenu").style.display === "none") {
+      popovers.drawMenu.show()
+    }
+  }
+  document.getElementById("drawMenuBtn").onpointerleave = () => {
+    popovers.drawMenu.hide()
+  }
+
+  document.getElementById("sceneMenuBtn").onpointerenter = () => {
+    if (document.getElementById("sceneMenu").style.display === "none") {
+      popovers.sceneMenu.show()
+    }
+  }
+  document.getElementById("sceneMenuBtn").onpointerleave = () => {
+    popovers.sceneMenu.hide()
+  }
+
+  document.getElementById("selectionMenuBtn").onpointerenter = () => {
+    if (document.getElementById("selectionMenu").style.display === "none") {
+      popovers.selectionMenu.show()
+    }
+  }
+  document.getElementById("selectionMenuBtn").onpointerleave = () => {
+    popovers.selectionMenu.hide()
+  }
+
+  document.getElementById("interactionMenuBtn").onpointerenter = () => {
+    if (document.getElementById("interactionMenu").style.display === "none") {
+      popovers.interactionMenu.show()
+    }
+  }
+  document.getElementById("interactionMenuBtn").onpointerleave = () => {
+    popovers.interactionMenu.hide()
+  }
+
+  document.getElementById("analysisMenuBtn").onpointerenter = () => {
+    if (document.getElementById("analysisMenu").style.display === "none") {
+      popovers.analysisMenu.show()
+    }
+  }
+  document.getElementById("analysisMenuBtn").onpointerleave = () => {
+    popovers.analysisMenu.hide()
+  }
 }
 
 export function setUIEvents(socket, cache, world) {

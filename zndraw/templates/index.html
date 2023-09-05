@@ -44,7 +44,7 @@
       <body>
         <script src="{{ url_for('static', filename='node_modules/@json-editor/json-editor/dist/jsoneditor.js') }}"></script>
         <script src="{{ url_for('static', filename='node_modules/socket.io/client-dist/socket.io.js') }}"></script>
-        <script src="{{ url_for('static', filename='node_modules/bootstrap/dist/js/bootstrap.min.js') }}"></script>
+        <script src="{{ url_for('static', filename='node_modules/bootstrap/dist/js/bootstrap.bundle.min.js') }}"></script>
         <script src="{{ url_for('static', filename='node_modules/plotly.js-dist/plotly.js') }}"></script>
 
         <script
@@ -160,9 +160,10 @@
                     class="btn btn-light"
                     type="button"
                     id="selectionMenuBtn"
-                    data-toggle="tooltip"
                     data-placement="right"
-                    title="Selection"
+                    data-bs-container="body"
+                    data-bs-content="Selection"
+                    data-target="selectionMenu"
                   >
                     <i class="fa-regular fa-hand-pointer"></i>
                   </button>
@@ -172,9 +173,10 @@
                     class="btn btn-light"
                     type="button"
                     id="interactionMenuBtn"
-                    data-toggle="tooltip"
                     data-placement="right"
-                    title="Interaction"
+                    data-bs-container="body"
+                    data-bs-content="Interaction"
+                    data-target="interactionMenu"
                   >
                     <i class="fas fa-retweet"></i>
                   </button>
@@ -184,9 +186,10 @@
                     class="btn btn-light"
                     type="button"
                     id="sceneMenuBtn"
-                    data-toggle="tooltip"
                     data-placement="right"
-                    title="Scene"
+                    data-bs-container="body"
+                    data-bs-content="Scene"
+                    data-target="sceneMenu"
                   >
                     <i class="fas fa-cube"></i>
                   </button>
@@ -196,9 +199,10 @@
                     class="btn btn-light"
                     type="button"
                     id="drawMenuBtn"
-                    data-toggle="tooltip"
                     data-placement="right"
-                    title="Draw"
+                    data-bs-container="body"
+                    data-bs-content="Drawing"
+                    data-target="drawMenu"
                   >
                     <i class="fas fa-pencil-alt"></i>
                   </button>
@@ -208,9 +212,10 @@
                     class="btn btn-light"
                     type="button"
                     id="analysisMenuBtn"
-                    data-toggle="tooltip"
                     data-placement="right"
-                    title="Analysis"
+                    data-bs-container="body"
+                    data-bs-content="Analysis"
+                    data-target="analysisMenu"
                   >
                     <i class="fas fa-chart-bar"></i>
                   </button>
