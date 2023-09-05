@@ -20,7 +20,7 @@ repos:
       - id: sort-simple-yaml
       - id: trailing-whitespace
   - repo: https://github.com/pre-commit/mirrors-eslint
-    rev: v8.40.0
+    rev: v8.48.0
     hooks:
       - id: eslint
         args: [--fix]
@@ -28,7 +28,7 @@ repos:
           - eslint@latest
           - eslint-config-prettier
   - repo: https://github.com/psf/black
-    rev: 23.3.0
+    rev: 23.7.0
     hooks:
       - id: black
   - repo: https://github.com/PyCQA/isort
@@ -36,18 +36,18 @@ repos:
     hooks:
       - id: isort
   - repo: https://github.com/codespell-project/codespell
-    rev: v2.2.4
+    rev: v2.2.5
     hooks:
       - id: codespell
         additional_dependencies: ["tomli"]
-  - repo: https://github.com/charliermarsh/ruff-pre-commit
+  - repo: https://github.com/astral-sh/ruff-pre-commit
     # Ruff version.
-    rev: "v0.0.265"
+    rev: "v0.0.287"
     hooks:
       - id: ruff
         args: [--fix]
   - repo: https://github.com/executablebooks/mdformat
-    rev: 0.7.16
+    rev: 0.7.17
     hooks:
       - id: mdformat
         args: ["--wrap=80"]
