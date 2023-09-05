@@ -101,11 +101,9 @@ class Selection {
         this.shift_pressed,
         particleIntersects[0].object,
       );
-      const selectionOptions = document.getElementById("selection-select");
-      const params = selectionOptions.parameters;
+      const params = document.getElementById("selection-json-editor").parameters;
 
       this.socket.emit("selection:run", {
-        name: selectionOptions.options[selectionOptions.selectedIndex].text,
         params: params,
         atoms: this.cache.get(this.world.getStep()),
         selection: particlesGroup.selection,

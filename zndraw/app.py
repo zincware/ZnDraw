@@ -165,7 +165,7 @@ def selection_run(data):
         atoms = ase.Atoms()
 
     try:
-        selection = Selection(**data["params"])
+        selection = get_selection_class()(**data["params"])
         selected_ids = selection.get_ids(atoms, data["selection"])
         io.emit("selection:run", selected_ids)
     except ValueError as err:

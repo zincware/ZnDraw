@@ -34,6 +34,12 @@ function selection_editor(socket, cache, world) {
     const editor = new JSONEditor(div, {
       schema: data,
     });
+
+    editor.on("change", () => {
+      const value = editor.getValue();
+      div.parameters = value;
+    });
+
     document
       .getElementById("selection-json-editor-submit")
       .addEventListener("click", () => {
