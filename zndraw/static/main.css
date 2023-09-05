@@ -29,6 +29,7 @@ body {
   left: 50px;
   height: 100%;
   overflow-y: auto;
+  min-width: 20%;
 }
 
 .main-navbar {
