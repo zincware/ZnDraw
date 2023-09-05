@@ -101,7 +101,9 @@ class Selection {
         this.shift_pressed,
         particleIntersects[0].object,
       );
-      const params = document.getElementById("selection-json-editor").parameters;
+      const params = document.getElementById(
+        "selection-json-editor",
+      ).parameters;
 
       this.socket.emit("selection:run", {
         params: params,
