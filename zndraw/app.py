@@ -11,9 +11,9 @@ from flask_socketio import SocketIO, emit
 
 from zndraw.data import atoms_from_json, atoms_to_json
 from zndraw.draw import Geometry
+from zndraw.select import get_selection_class
 from zndraw.settings import GlobalConfig
 from zndraw.zndraw import ZnDraw
-from zndraw.select import get_selection_class
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = str(uuid.uuid4())
@@ -170,6 +170,7 @@ def selection_run(data):
         io.emit("selection:run", selected_ids)
     except ValueError as err:
         print(err)
+
 
 @io.on("analysis:run")
 def analysis_run(data):

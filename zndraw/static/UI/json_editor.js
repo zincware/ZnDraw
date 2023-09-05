@@ -34,9 +34,9 @@ function selection_editor(socket, cache, world) {
     const editor = new JSONEditor(div, {
       schema: data,
     });
-    document.getElementById("selection-json-editor-submit").addEventListener(
-      "click",
-      () => {
+    document
+      .getElementById("selection-json-editor-submit")
+      .addEventListener("click", () => {
         // Get the value from the editor
         const value = editor.getValue();
         console.log(value);
@@ -46,209 +46,208 @@ function selection_editor(socket, cache, world) {
           atoms: cache.get(world.getStep()),
           selection: world.getSelection(),
         });
-      },
-    );
+      });
   });
 
   socket.emit("selection:schema");
 }
-  // const selection = document.getElementById("selection-select");
+// const selection = document.getElementById("selection-select");
 
-  // socket.on("selection:schema", (data) => {
-  //   const option = document.createElement("option");
-  //   option.value = JSON.stringify(data.schema);
-  //   option.innerHTML = data.name;
-  //   selection.appendChild(option);
-  // });
+// socket.on("selection:schema", (data) => {
+//   const option = document.createElement("option");
+//   option.value = JSON.stringify(data.schema);
+//   option.innerHTML = data.name;
+//   selection.appendChild(option);
+// });
 
-  // socket.emit("selection:schema");
+// socket.emit("selection:schema");
 
-  // let editor;
-  // selection.onchange = function () {
-  //   if (editor !== undefined) {
-  //     editor.destroy();
-  //   }
-  //   if (selection.value === "") {
-  //     return;
-  //   }
-  //   const schema = JSON.parse(selection.value);
-  //   editor = new JSONEditor(document.getElementById("selection-json-editor"), {
-  //     schema,
-  //   });
-  //   editor.on("change", () => {
-  //     const value = editor.getValue();
-  //     selection.parameters = value;
-  //   });
-  //   };
+// let editor;
+// selection.onchange = function () {
+//   if (editor !== undefined) {
+//     editor.destroy();
+//   }
+//   if (selection.value === "") {
+//     return;
+//   }
+//   const schema = JSON.parse(selection.value);
+//   editor = new JSONEditor(document.getElementById("selection-json-editor"), {
+//     schema,
+//   });
+//   editor.on("change", () => {
+//     const value = editor.getValue();
+//     selection.parameters = value;
+//   });
+//   };
 
-  //   document
-  //     .getElementById("selection-json-editor-submit")
-  //     .addEventListener("click", () => {
-  //       // Get the value from the editor
-  //       const value = editor.getValue();
+//   document
+//     .getElementById("selection-json-editor-submit")
+//     .addEventListener("click", () => {
+//       // Get the value from the editor
+//       const value = editor.getValue();
 
-  // socket.emit("selection:run", {
-  //   name: selection.options[selection.selectedIndex].text,
-  //   params: value,
-  //   atoms: cache.get(world.getStep()),
-  //   selection: world.getSelection(),
-  // });
-  //     });
-  // }
+// socket.emit("selection:run", {
+//   name: selection.options[selection.selectedIndex].text,
+//   params: value,
+//   atoms: cache.get(world.getStep()),
+//   selection: world.getSelection(),
+// });
+//     });
+// }
 
-  function scene_editor(socket, cache, world) {
-    socket.emit("scene:schema", (data) => {
-      const editor = new JSONEditor(
-        document.getElementById("scene-json-editor"),
-        {
-          schema: data,
-        },
+function scene_editor(socket, cache, world) {
+  socket.emit("scene:schema", (data) => {
+    const editor = new JSONEditor(
+      document.getElementById("scene-json-editor"),
+      {
+        schema: data,
+      },
+    );
+    editor.on("change", () => {
+      const value = editor.getValue();
+      world.rebuild(
+        value.resolution,
+        value.material,
+        value.wireframe,
+        value.simulation_box,
+        value.bonds,
+        value.label_offset,
+        value.particle_size,
+        value.bonds_size,
+        value.fps,
       );
-      editor.on("change", () => {
-        const value = editor.getValue();
-        world.rebuild(
-          value.resolution,
-          value.material,
-          value.wireframe,
-          value.simulation_box,
-          value.bonds,
-          value.label_offset,
-          value.particle_size,
-          value.bonds_size,
-          value.fps,
-        );
-        world.player.setLoop(value["Animation Loop"]);
-      });
+      world.player.setLoop(value["Animation Loop"]);
     });
-  }
+  });
+}
 
-  function analysis_editor(socket, cache, world) {
-    let editor;
-    const selection = document.getElementById("analysis-select");
-    selection.onchange = function () {
-      if (editor !== undefined) {
-        editor.destroy();
-      }
-      if (selection.value === "") {
-        return;
-      }
-      const schema = JSON.parse(selection.value);
-      editor = new JSONEditor(document.getElementById("analysis-json-editor"), {
-        schema,
-      });
-    };
-
-    socket.on("analysis:schema", (data) => {
-      const option = document.createElement("option");
-      option.value = JSON.stringify(data.schema);
-      option.innerHTML = data.name;
-      selection.appendChild(option);
-    });
-
-    document
-      .getElementById("analysis-json-editor-submit")
-      .addEventListener("click", () => {
-        // Get the value from the editor
-        const value = editor.getValue();
-
-        socket.emit(
-          "analysis:run",
-          {
-            name: selection.options[selection.selectedIndex].text,
-            params: value,
-            atoms: cache.get(world.getStep()),
-            selection: world.getSelection(),
-            step: world.getStep(),
-            atoms_list: cache.getAllAtoms(),
-          },
-          (data) => {
-            Plotly.newPlot("analysisPlot", JSON.parse(data));
-
-            function buildPlot() {
-              Plotly.newPlot("analysisPlot", JSON.parse(data));
-              const myplot = document.getElementById("analysisPlot");
-              myplot.on("plotly_click", (data) => {
-                const point = data.points[0];
-                const step = point.x;
-                world.setStep(step);
-              });
-            }
-
-            buildPlot();
-          },
-        );
-
-        document.getElementById("analysis-json-editor-submit").disabled = true;
-        // if there is an error in uploading, we still want to be able to submit again
-        setTimeout(() => {
-          document.getElementById("analysis-json-editor-submit").disabled = false;
-        }, 1000);
-      });
-
-    function get_analysis_data() {
-      if (cache.get(0) !== undefined) {
-        socket.emit("analysis:schema", { atoms: cache.get(0) });
-      } else {
-        setTimeout(get_analysis_data, 100);
-      }
+function analysis_editor(socket, cache, world) {
+  let editor;
+  const selection = document.getElementById("analysis-select");
+  selection.onchange = function () {
+    if (editor !== undefined) {
+      editor.destroy();
     }
-    get_analysis_data();
-  }
-
-  function modifier_editor(socket, cache, world) {
-    let editor;
-    const selection = document.getElementById("modifier-select");
-
-    selection.onchange = function () {
-      if (editor !== undefined) {
-        editor.destroy();
-      }
-      if (selection.value === "") {
-        return;
-      }
-      const schema = JSON.parse(selection.value);
-      editor = new JSONEditor(
-        document.getElementById("interaction-json-editor"),
-        {
-          schema,
-        },
-      );
-    };
-
-    socket.on("modifier:schema", (data) => {
-      const option = document.createElement("option");
-      option.value = JSON.stringify(data.schema);
-      option.innerHTML = data.name;
-      selection.appendChild(option);
+    if (selection.value === "") {
+      return;
+    }
+    const schema = JSON.parse(selection.value);
+    editor = new JSONEditor(document.getElementById("analysis-json-editor"), {
+      schema,
     });
+  };
 
-    document
-      .getElementById("interaction-json-editor-submit")
-      .addEventListener("click", () => {
-        // Get the value from the editor
-        const value = editor.getValue();
+  socket.on("analysis:schema", (data) => {
+    const option = document.createElement("option");
+    option.value = JSON.stringify(data.schema);
+    option.innerHTML = data.name;
+    selection.appendChild(option);
+  });
 
-        const { points, segments } = world.getLineData();
+  document
+    .getElementById("analysis-json-editor-submit")
+    .addEventListener("click", () => {
+      // Get the value from the editor
+      const value = editor.getValue();
 
-        socket.emit("modifier:run", {
+      socket.emit(
+        "analysis:run",
+        {
           name: selection.options[selection.selectedIndex].text,
           params: value,
           atoms: cache.get(world.getStep()),
           selection: world.getSelection(),
           step: world.getStep(),
-          points,
-          segments,
-        });
-        world.particles.click(); // reset selection
+          atoms_list: cache.getAllAtoms(),
+        },
+        (data) => {
+          Plotly.newPlot("analysisPlot", JSON.parse(data));
 
-        document.getElementById("interaction-json-editor-submit").disabled = true;
-        // if there is an error in uploading, we still want to be able to submit again
-        setTimeout(() => {
-          document.getElementById(
-            "interaction-json-editor-submit",
-          ).disabled = false;
-        }, 1000);
-      });
+          function buildPlot() {
+            Plotly.newPlot("analysisPlot", JSON.parse(data));
+            const myplot = document.getElementById("analysisPlot");
+            myplot.on("plotly_click", (data) => {
+              const point = data.points[0];
+              const step = point.x;
+              world.setStep(step);
+            });
+          }
 
-    socket.emit("modifier:schema");
+          buildPlot();
+        },
+      );
+
+      document.getElementById("analysis-json-editor-submit").disabled = true;
+      // if there is an error in uploading, we still want to be able to submit again
+      setTimeout(() => {
+        document.getElementById("analysis-json-editor-submit").disabled = false;
+      }, 1000);
+    });
+
+  function get_analysis_data() {
+    if (cache.get(0) !== undefined) {
+      socket.emit("analysis:schema", { atoms: cache.get(0) });
+    } else {
+      setTimeout(get_analysis_data, 100);
+    }
   }
+  get_analysis_data();
+}
+
+function modifier_editor(socket, cache, world) {
+  let editor;
+  const selection = document.getElementById("modifier-select");
+
+  selection.onchange = function () {
+    if (editor !== undefined) {
+      editor.destroy();
+    }
+    if (selection.value === "") {
+      return;
+    }
+    const schema = JSON.parse(selection.value);
+    editor = new JSONEditor(
+      document.getElementById("interaction-json-editor"),
+      {
+        schema,
+      },
+    );
+  };
+
+  socket.on("modifier:schema", (data) => {
+    const option = document.createElement("option");
+    option.value = JSON.stringify(data.schema);
+    option.innerHTML = data.name;
+    selection.appendChild(option);
+  });
+
+  document
+    .getElementById("interaction-json-editor-submit")
+    .addEventListener("click", () => {
+      // Get the value from the editor
+      const value = editor.getValue();
+
+      const { points, segments } = world.getLineData();
+
+      socket.emit("modifier:run", {
+        name: selection.options[selection.selectedIndex].text,
+        params: value,
+        atoms: cache.get(world.getStep()),
+        selection: world.getSelection(),
+        step: world.getStep(),
+        points,
+        segments,
+      });
+      world.particles.click(); // reset selection
+
+      document.getElementById("interaction-json-editor-submit").disabled = true;
+      // if there is an error in uploading, we still want to be able to submit again
+      setTimeout(() => {
+        document.getElementById(
+          "interaction-json-editor-submit",
+        ).disabled = false;
+      }, 1000);
+    });
+
+  socket.emit("modifier:schema");
+}

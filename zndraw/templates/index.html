@@ -137,7 +137,12 @@
               >
                 <i class="fas fa-download"></i> Download
               </button>
-              <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#helpModal">
+              <button
+                type="button"
+                class="btn btn-outline-primary"
+                data-bs-toggle="modal"
+                data-bs-target="#helpModal"
+              >
                 <i class="fa-solid fa-circle-info"></i>
               </button>
               <a class="btn btn-outline-info mx-1" href="/" role="button"
@@ -237,8 +242,7 @@
           >
             <div class="card-body">
               <div class="row">
-                <div class="col">
-                </div>
+                <div class="col"></div>
                 <div class="col col-md-auto">
                   <button
                     type="button"
@@ -413,12 +417,25 @@
         </div>
 
         <!-- Modal -->
-        <div class="modal fade" id="helpModal" tabindex="-1" aria-labelledby="helpModalLabel" aria-hidden="true">
+        <div
+          class="modal fade"
+          id="helpModal"
+          tabindex="-1"
+          aria-labelledby="helpModalLabel"
+          aria-hidden="true"
+        >
           <div class="modal-dialog modal-xl">
             <div class="modal-content">
               <div class="modal-header">
-                <h1 class="modal-title fs-5" id="helpModalLabel">ZnDraw Help</h1>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                <h1 class="modal-title fs-5" id="helpModalLabel">
+                  ZnDraw Help
+                </h1>
+                <button
+                  type="button"
+                  class="btn-close"
+                  data-bs-dismiss="modal"
+                  aria-label="Close"
+                ></button>
               </div>
               <div class="modal-body">
                 <div class="rounded-3 bg-white px-2 pt-2">
@@ -426,10 +443,16 @@
                     <dt class="col-sm-3">play / pause</dt>
                     <dd class="col-sm-9"><code>keypress space</code></dd>
                     <dt class="col-sm-3">frame forwards / backwards</dt>
-                    <dd class="col-sm-9"><code>keypress &#9654;\&#9664; </code></dd>
+                    <dd class="col-sm-9">
+                      <code>keypress &#9654;\&#9664; </code>
+                    </dd>
                     <dt class="col-sm-3">jump forwards / backwards</dt>
-                    <dd class="col-sm-9"><code>keypress &#9650;\&#9660; </code></dd>
-                    <dt class="col-sm-3">center camera around selected particle</dt>
+                    <dd class="col-sm-9">
+                      <code>keypress &#9650;\&#9660; </code>
+                    </dd>
+                    <dt class="col-sm-3">
+                      center camera around selected particle
+                    </dt>
                     <dd class="col-sm-9"><code>keypress C</code></dd>
                     <dt class="col-sm-3">select multiple particles</dt>
                     <dd class="col-sm-9"><code>keydown shift</code></dd>

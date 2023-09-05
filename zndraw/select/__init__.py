@@ -1,16 +1,13 @@
 import random
+import typing as t
 from typing import Any
 
 import ase
 import networkx as nx
 from pydantic import BaseModel, Field
-import typing as t
-
-from pydantic.json_schema import DEFAULT_REF_TEMPLATE, GenerateJsonSchema, JsonSchemaMode
 
 
-
-class SelectionBase(BaseModel):    
+class SelectionBase(BaseModel):
     def get_ids(self, atoms: ase.Atoms, selected_ids: list[int]) -> list[int]:
         raise NotImplementedError()
 
@@ -18,13 +15,13 @@ class SelectionBase(BaseModel):
 class NoneSelection(SelectionBase):
     method: t.Literal["NoneSelection"] = Field("NoneSelection")
 
-
     def get_ids(self, atoms: ase.Atoms, selected_ids: list[int]) -> list[int]:
         return []
 
 
 class All(SelectionBase):
     """Select all atoms."""
+
     method: t.Literal["All"] = Field("All")
 
     def get_ids(self, atoms: ase.Atoms, selected_ids: list[int]) -> list[int]:
@@ -109,9 +106,7 @@ class Neighbour(SelectionBase):
         return list(set(total_ids))
 
 
-
-
-def get_selection_class(methods = None):
+def get_selection_class(methods=None):
     if methods is None:
         methods = t.Union[
             NoneSelection,
@@ -125,18 +120,22 @@ def get_selection_class(methods = None):
         ]
 
     class Selection(SelectionBase):
-        method: methods = Field(..., description="Selection method", discriminator="method")
+        method: methods = Field(
+            ..., description="Selection method", discriminator="method"
+        )
 
         def get_ids(self, atoms: ase.Atoms, selected_ids: list[int]) -> list[int]:
             return self.method.get_ids(atoms, selected_ids)
-        
+
         @classmethod
         def model_json_schema(cls, *args, **kwargs) -> dict[str, Any]:
             schema = super().model_json_schema(*args, **kwargs)
             for prop in [x.__name__ for x in t.get_args(methods)]:
-                schema["$defs"][prop]["properties"]["method"]["options"] = {"hidden": True}
+                schema["$defs"][prop]["properties"]["method"]["options"] = {
+                    "hidden": True
+                }
                 schema["$defs"][prop]["properties"]["method"]["type"] = "string"
 
             return schema
-    
+
     return Selection
