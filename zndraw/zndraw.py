@@ -48,7 +48,9 @@ class ZnDraw(collections.abc.MutableSequence):
                         "open_browser": not self.jupyter,
                         "webview": False,
                         "fullscreen": False,
-                        "stride": False,
+                        "start": False,
+                        "stop": False,
+                        "step": False,
                         "compute_bonds": True,
                         "multiprocessing": False,
                     },
@@ -166,15 +168,19 @@ class ZnDraw(collections.abc.MutableSequence):
         if self.display_new:
             self.display(len(self) - 1)
 
-    def read(self, filename: str, stride: int = 1):
+    def read(self, filename: str, start: int, stop: int, step: int = 1):
         """Read atoms from file and return a list of atoms dicts.
 
         Parameters
         ----------
         filename : str
             Path to the file which should be read.
-        stride : int
-            Stride for the frames to be visualized. If set to 1, all frames will be visualized.
+        start : int
+            First frame to be read. If set to 0, the first frame will be read.
+        stop : int
+            Last frame to be read. If set to None, the last frame will be read.
+        step : int
+            Stepsize for the frames to be visualized. If set to 1, all frames will be visualized.
         """
         frame_idx = 0
 
@@ -182,13 +188,13 @@ class ZnDraw(collections.abc.MutableSequence):
             # Read file using znh5md and convert to list[ase.Atoms]
             atoms_list = znh5md.ASEH5MD(filename).get_atoms_list()
             for idx, atoms in tqdm.tqdm(
-                enumerate(atoms_list), ncols=100, total=len(atoms_list)
+                enumerate(atoms_list[start:stop]), ncols=100, total=len(atoms_list[start:stop])
             ):
-                if idx % stride == 0:
+                if idx % step == 0:
                     self[frame_idx] = atoms
                     frame_idx += 1
         else:
-            for idx, atoms in tqdm.tqdm(enumerate(ase.io.iread(filename)), ncols=100):
-                if idx % stride == 0:
+            for idx, atoms in tqdm.tqdm(enumerate(ase.io.iread(filename[start:stop])), ncols=100):
+                if idx % step == 0:
                     self[frame_idx] = atoms
                     frame_idx += 1

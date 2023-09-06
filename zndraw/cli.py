@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, List
 
 import typer
 
@@ -29,9 +29,17 @@ def main(
     browser: bool = typer.Option(
         True, help="""Whether to open the ZnDraw GUI in the default web browser."""
     ),
-    stride: int = typer.Option(
+    start: int = typer.Option( 
+        0,
+        help="""First frame to be visualized. If set to 0, the first frame will be visualized."""
+    ),
+    stop: int = typer.Option(
+        None,
+        help="""Last frame to be visualized. If set to None, the last frame will be visualized.""",
+    ),
+    step: int = typer.Option(
         1,
-        help="""Stride for the frames to be visualized. If set to 1, all frames will be visualized.
+        help="""Stepsize for the frames to be visualized. If set to 1, all frames will be visualized.
         If e.g. set to 2, every second frame will be visualized.""",
     ),
     compute_bonds: bool = typer.Option(
@@ -51,13 +59,16 @@ def main(
     """
     if port is None:
         port = get_port()
+            
     view(
         filename,
         port,
         webview=webview,
         fullscreen=fullscreen,
         open_browser=browser,
-        stride=stride,
+        start=start,
+        stop=stop,
+        step=step,
         compute_bonds=compute_bonds,
         multiprocessing=multiprocessing,
     )
