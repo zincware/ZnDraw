@@ -44,7 +44,7 @@ def view(
     multiprocessing: bool,
 ):
     app.wsgi_app = ProxyFix(
-    app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1
+    app.wsgi_app, x_for=5, x_proto=5, x_host=5, x_prefix=5
 )
     if filename is not None:
         app.config["filename"] = filename
