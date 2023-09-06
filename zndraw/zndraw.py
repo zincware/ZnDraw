@@ -191,7 +191,11 @@ class ZnDraw(collections.abc.MutableSequence):
             # Read file using ASE and convert to list[ase.Atoms]
             atoms_list = list(ase.io.iread(filename))
 
-        for idx, atoms in tqdm.tqdm(enumerate(atoms_list[start:stop]), ncols=100, total=len(atoms_list[start:stop])):
+        for idx, atoms in tqdm.tqdm(
+            enumerate(atoms_list[start:stop]),
+            ncols=100,
+            total=len(atoms_list[start:stop]),
+        ):
             # Only add atoms if the index is a multiple of step
             if idx % step == 0:
                 self[frame_idx] = atoms
