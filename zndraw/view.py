@@ -1,6 +1,5 @@
 import logging
 import webbrowser
-from werkzeug.middleware.proxy_fix import ProxyFix
 
 from zndraw.app import app, io
 
@@ -43,9 +42,6 @@ def view(
     compute_bonds: bool,
     multiprocessing: bool,
 ):
-    app.wsgi_app = ProxyFix(
-    app.wsgi_app, x_for=5, x_proto=5, x_host=5, x_prefix=5
-)
     if filename is not None:
         app.config["filename"] = filename
         app.config["stride"] = stride
