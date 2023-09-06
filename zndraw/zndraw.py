@@ -97,10 +97,12 @@ class ZnDraw(collections.abc.MutableSequence):
     def __getitem__(self, index) -> t.Union[ase.Atoms, list[ase.Atoms]]:
         get_item_event = threading.Event()
 
-        if not isinstance(index, int) and not isinstance(index, list):
-            raise TypeError("Index must be an integer or list of integers")
+        length = len(self)
+        if isinstance(index, slice):
+            index = range(*index.indices(length))
 
         index = [index] if isinstance(index, int) else index
+        index = [i if i >= 0 else length + i for i in index]
 
         self.socket.emit("atoms:download", index)
 
