@@ -10,7 +10,7 @@ ZnDraw will open in a dedicated window.
 
 ## CLI
 
-You can use ZnDraw to view a file `zndraw traj.xyz`.
+You can use ZnDraw to view a file using the CLI `zndraw traj.xyz`.
 Supported file formats include everything that `ase.io` can read and additionally `h5` files in the H5MD standard.
 
 If you want to view the frames while they are added to the scene you can use `zndraw -mp traj.xyz`.
