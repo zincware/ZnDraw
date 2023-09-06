@@ -80,6 +80,7 @@ class Delete(UpdateScene):
     def run(self, atom_ids: list[int], atoms: ase.Atoms, **kwargs) -> list[ase.Atoms]:
         for idx, atom_id in enumerate(sorted(atom_ids)):
             atoms.pop(atom_id - idx)  # we remove the atom and shift the index
+        del atoms.connectivity
         return [atoms]
 
 
