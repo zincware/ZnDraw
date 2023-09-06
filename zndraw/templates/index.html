@@ -15,7 +15,7 @@
     <script type="importmap">
       {
         "imports": {
-          "three": "{{ url_for('static', filename='/node_modules/three/build/three.module.js') }}",
+          "three": "{{ url_for('static', filename='/node_modules/three/build/three.module.min.js') }}",
           "three/": "{{ url_for('static', filename='/node_modules/three/') }}"
         }
       }
@@ -33,25 +33,25 @@
 
   <body>
     <script src="{{ url_for('static', filename='node_modules/@json-editor/json-editor/dist/jsoneditor.js') }}"></script>
-    <script src="{{ url_for('static', filename='node_modules/socket.io/client-dist/socket.io.js') }}"></script>
+    <script src="{{ url_for('static', filename='node_modules/socket.io/client-dist/socket.io.min.js') }}"></script>
     <script src="{{ url_for('static', filename='node_modules/bootstrap/dist/js/bootstrap.bundle.min.js') }}"></script>
     <script src="{{ url_for('static', filename='node_modules/plotly.js-dist/plotly.js') }}"></script>
 
     <script
       defer
-      src="{{ url_for('static', filename='node_modules/@fortawesome/fontawesome-free/js/brands.js') }}"
+      src="{{ url_for('static', filename='node_modules/@fortawesome/fontawesome-free/js/brands.min.js') }}"
     ></script>
     <script
       defer
-      src="{{ url_for('static', filename='node_modules/@fortawesome/fontawesome-free/js/solid.js') }}"
+      src="{{ url_for('static', filename='node_modules/@fortawesome/fontawesome-free/js/solid.min.js') }}"
     ></script>
     <script
       defer
-      src="{{ url_for('static', filename='node_modules/@fortawesome/fontawesome-free/js/regular.js') }}"
+      src="{{ url_for('static', filename='node_modules/@fortawesome/fontawesome-free/js/regular.min.js') }}"
     ></script>
     <script
       defer
-      src="{{ url_for('static', filename='node_modules/@fortawesome/fontawesome-free/js/fontawesome.js') }}"
+      src="{{ url_for('static', filename='node_modules/@fortawesome/fontawesome-free/js/fontawesome.min.js') }}"
     ></script>
 
     <script
