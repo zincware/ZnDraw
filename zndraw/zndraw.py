@@ -182,21 +182,20 @@ class ZnDraw(collections.abc.MutableSequence):
         step : int
             Stepsize for the frames to be visualized. If set to 1, all frames will be visualized.
         """
-        frame_idx = 0
 
         if pathlib.Path(filename).suffix == ".h5":
             # Read file using znh5md and convert to list[ase.Atoms]
-            atoms_list = znh5md.ASEH5MD(filename).get_atoms_list()
+            atoms_list = znh5md.ASEH5MD(filename)[start:stop:step]
+            
         else:
             # Read file using ASE and convert to list[ase.Atoms]
-            atoms_list = list(ase.io.iread(filename))
-
+            # TODO use read generator in loop
+            atoms_list = list(ase.io.iread(filename))[start:stop:step]
         for idx, atoms in tqdm.tqdm(
-            enumerate(atoms_list[start:stop]),
-            ncols=100,
-            total=len(atoms_list[start:stop]),
+            enumerate(atoms_list), ncols=100, total=len(atoms_list)
         ):
-            # Only add atoms if the index is a multiple of step
-            if idx % step == 0:
-                self[frame_idx] = atoms
-                frame_idx += 1
+            self[idx] = atoms
+            
+            
+
+
