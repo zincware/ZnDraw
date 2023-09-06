@@ -18,7 +18,9 @@ from zndraw.zndraw import ZnDraw
 app = Flask(__name__)
 app.config["SECRET_KEY"] = str(uuid.uuid4())
 
-io = SocketIO(app, max_http_buffer_size=int(1e10), cors_allowed_origins="*")  # , async_mode="threading")
+io = SocketIO(
+    app, max_http_buffer_size=int(1e10), cors_allowed_origins="*"
+)  # , async_mode="threading")
 # 10 GB Upload limit
 
 
