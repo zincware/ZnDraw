@@ -44,7 +44,7 @@
       <body>
         <script src="{{ url_for('static', filename='node_modules/@json-editor/json-editor/dist/jsoneditor.js') }}"></script>
         <script src="{{ url_for('static', filename='node_modules/socket.io/client-dist/socket.io.js') }}"></script>
-        <script src="{{ url_for('static', filename='node_modules/bootstrap/dist/js/bootstrap.min.js') }}"></script>
+        <script src="{{ url_for('static', filename='node_modules/bootstrap/dist/js/bootstrap.bundle.min.js') }}"></script>
         <script src="{{ url_for('static', filename='node_modules/plotly.js-dist/plotly.js') }}"></script>
 
         <script
@@ -93,8 +93,7 @@
 
         <!-- Navigation -->
 
-        <nav class="navbar fixed-top navbar-expand-sm bg-light">
-          <!-- navbar-expand to use smaller breakpoint -->
+        <nav class="navbar fixed-top navbar-expand-sm bg-light main-navbar">
           <div class="container-fluid">
             <a class="navbar-brand" id="HelpBtn">
               <!-- <img src="{{ url_for('static', filename='favion-192x192.png') }}" alt="ZnDraw Logo" width="30" height="24"> -->
@@ -111,481 +110,367 @@
             >
               <span class="navbar-toggler-icon"></span>
             </button>
-            <div class="collapse navbar-collapse" id="navbarNavDropdown">
-              <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-                <li class="nav-item mx-1">
-                  <button
-                    class="btn btn-outline-secondary"
-                    type="button"
-                    data-bs-toggle="offcanvas"
-                    data-bs-target="#selectionCanvas"
-                    aria-controls="selectionCanvas"
-                    onclick="document.activeElement.blur();"
-                  >
-                    <i class="fa-regular fa-hand-pointer"></i> Selection
-                  </button>
-                </li>
-                <li class="nav-item mx-1">
-                  <button
-                    class="btn btn-outline-secondary"
-                    type="button"
-                    data-bs-toggle="offcanvas"
-                    data-bs-target="#interactionCanvas"
-                    aria-controls="interactionCanvas"
-                    onclick="document.activeElement.blur();"
-                  >
-                    <i class="fas fa-retweet"></i> Interaction
-                  </button>
-                </li>
-                <li class="nav-item mx-1">
-                  <button
-                    class="btn btn-outline-secondary"
-                    type="button"
-                    data-bs-toggle="offcanvas"
-                    data-bs-target="#sceneCanvas"
-                    aria-controls="sceneCanvas"
-                    onclick="document.activeElement.blur();"
-                  >
-                    <i class="fas fa-cube"></i> Scene
-                  </button>
-                </li>
-                <li class="nav-item mx-1">
-                  <button
-                    class="btn btn-outline-secondary"
-                    type="button"
-                    data-bs-toggle="offcanvas"
-                    data-bs-target="#drawCanvas"
-                    aria-controls="drawCanvas"
-                    onclick="document.activeElement.blur();"
-                  >
-                    <i class="fas fa-pencil-alt"></i> Draw
-                  </button>
-                </li>
-                <li class="nav-item mx-1">
-                  <button
-                    class="btn btn-outline-secondary"
-                    type="button"
-                    data-bs-toggle="offcanvas"
-                    data-bs-target="#analyseCanvas"
-                    aria-controls="analyseCanvas"
-                    onclick="document.activeElement.blur();"
-                  >
-                    <i class="fas fa-chart-bar"></i> Analyse
-                  </button>
-                </li>
-                <!-- <li class="nav-item mx-1">
-            <button class="btn btn-outline-secondary" type="button" data-bs-toggle="offcanvas"
-              data-bs-target="#bondsCanvas" aria-controls="bondsCanvas" onclick="document.activeElement.blur();">
-              <i class="fas fa-link"></i> Bonds
-            </button>
-          </li> -->
-              </ul>
-              <div class="d-flex">
-                <form
-                  id="uploadForm"
-                  method="post"
-                  enctype="multipart/form-data"
+            <div class="collapse navbar-collapse" id="navbarNavDropdown"></div>
+            <div class="d-flex">
+              <form id="uploadForm" method="post" enctype="multipart/form-data">
+                <input
+                  type="file"
+                  name="file"
+                  id="fileInput"
+                  style="display: none"
+                />
+                <input
+                  type="submit"
+                  value="Upload"
+                  id="uploadBtn"
+                  style="display: none"
+                />
+                <label class="btn btn-outline-primary mx-1" for="fileInput"
+                  ><i class="fas fa-upload"></i> Upload</label
                 >
-                  <input
-                    type="file"
-                    name="file"
-                    id="fileInput"
-                    style="display: none"
-                  />
-                  <input
-                    type="submit"
-                    value="Upload"
-                    id="uploadBtn"
-                    style="display: none"
-                  />
-                  <label class="btn btn-outline-primary mx-1" for="fileInput"
-                    ><i class="fas fa-upload"></i> Upload</label
-                  >
-                </form>
+              </form>
 
-                <button
-                  type="button"
-                  class="btn btn-outline-primary mx-1"
-                  id="downloadBtn"
-                >
-                  <i class="fas fa-download"></i> Download
-                </button>
-                <a class="btn btn-outline-info mx-1" href="/" role="button"
-                  ><i class="fa-solid fa-rotate-right"></i> Reload</a
-                >
-                <!-- <button class="btn btn-outline-primary mx-1" type="button" data-toggle="tooltip" data-bs-toggle="collapse"
-            data-bs-target="#helpBoxCollapse" aria-expanded="false" aria-controls="helpBoxCollapse">
-            <i class="fas fa-question-circle"></i> Help </button>-->
-                <button class="btn btn-outline-danger mx-1" id="ExitBtn">
-                  <i class="fa-solid fa-circle-xmark"></i> EXIT
-                </button>
-                <!-- <button type="button" class="btn btn-outline-primary mx-1" id="HelpBtn"><i
-              class="fas fa-question-circle"></i> Help</button> -->
-
-                <!-- <i class="fas fa-question-circle" id="HelpBtn"></i> -->
-                <!-- <button class="btn btn-outline-primary mx-1" type="button" data-bs-toggle="collapse"
-            data-bs-target="#helpBoxCollapse" aria-expanded="false" aria-controls="helpBoxCollapse">
-            <i class="fas fa-question-circle"></i> Help
-          </button> -->
-                <!-- <button class="btn btn-outline-primary" type="button" data-bs-toggle="collapse"
-            data-bs-target="#infoBoxCollapse" aria-expanded="false" aria-controls="infoBoxCollapse">
-            <i class="fas fa-info-circle"></i> Info
-          </button> -->
-              </div>
+              <button
+                type="button"
+                class="btn btn-outline-primary mx-1"
+                id="downloadBtn"
+              >
+                <i class="fas fa-download"></i> Download
+              </button>
+              <button
+                type="button"
+                class="btn btn-outline-primary"
+                data-bs-toggle="modal"
+                data-bs-target="#helpModal"
+              >
+                <i class="fa-solid fa-circle-info"></i>
+              </button>
+              <a class="btn btn-outline-info mx-1" href="/" role="button"
+                ><i class="fa-solid fa-rotate-right"></i> Reload</a
+              >
+              <button class="btn btn-outline-danger mx-1" id="ExitBtn">
+                <i class="fa-solid fa-circle-xmark"></i> EXIT
+              </button>
             </div>
           </div>
         </nav>
 
-        <!-- Off Canvas -->
-
-        <!-- Selection -->
-        <div
-          class="offcanvas offcanvas-start canvasControl"
-          data-bs-scroll="true"
-          data-bs-backdrop="false"
-          tabindex="-1"
-          id="selectionCanvas"
-          aria-labelledby="selectionCanvasLabel"
-        >
-          <div class="offcanvas-border"></div>
-          <div class="offcanvas-header">
-            <h5 class="offcanvas-title" id="selectionCanvasLabel">Selection</h5>
-            <button
-              type="button"
-              class="btn-close"
-              data-bs-dismiss="offcanvas"
-              aria-label="Close"
-            ></button>
-          </div>
-          <div class="offcanvas-body">
-            <select
-              class="form-select"
-              aria-label="Selection Method"
-              id="selection-select"
-            >
-              <option selected value="">Selection Method</option>
-            </select>
-            <hr />
-            <div id="selection-json-editor"></div>
-            <div class="row my-3">
+        <div class="fixed-left-container">
+          <!-- Content for the fixed left container -->
+          <div class="card h-100 rounded-0">
+            <!-- <div class="card-header text-center">
+      <h4>ZnDraw</h4>
+    </div> -->
+            <div class="card-body">
               <div class="col">
-                <button
-                  type="button"
-                  id="selection-json-editor-submit"
-                  class="btn btn-primary w-100"
-                >
-                  <i class="fa-solid fa-circle-check"></i> Apply
-                </button>
-              </div>
-              <div class="col">
-                <a
-                  class="btn btn-secondary w-100"
-                  role="button"
-                  id="downloadSelectedBtn"
-                  ><i class="fa-solid fa-download"></i> Download</a
-                >
+                <div class="row py-1">
+                  <button
+                    class="btn btn-light"
+                    type="button"
+                    id="selectionMenuBtn"
+                    data-placement="right"
+                    data-bs-container="body"
+                    data-bs-content="Selection"
+                    data-target="selectionMenu"
+                  >
+                    <i class="fa-regular fa-hand-pointer"></i>
+                  </button>
+                </div>
+                <div class="row py-1">
+                  <button
+                    class="btn btn-light"
+                    type="button"
+                    id="interactionMenuBtn"
+                    data-placement="right"
+                    data-bs-container="body"
+                    data-bs-content="Interaction"
+                    data-target="interactionMenu"
+                  >
+                    <i class="fas fa-retweet"></i>
+                  </button>
+                </div>
+                <div class="row py-1">
+                  <button
+                    class="btn btn-light"
+                    type="button"
+                    id="sceneMenuBtn"
+                    data-placement="right"
+                    data-bs-container="body"
+                    data-bs-content="Scene"
+                    data-target="sceneMenu"
+                  >
+                    <i class="fas fa-cube"></i>
+                  </button>
+                </div>
+                <div class="row py-1">
+                  <button
+                    class="btn btn-light"
+                    type="button"
+                    id="drawMenuBtn"
+                    data-placement="right"
+                    data-bs-container="body"
+                    data-bs-content="Drawing"
+                    data-target="drawMenu"
+                  >
+                    <i class="fas fa-pencil-alt"></i>
+                  </button>
+                </div>
+                <div class="row py-1">
+                  <button
+                    class="btn btn-light"
+                    type="button"
+                    id="analysisMenuBtn"
+                    data-placement="right"
+                    data-bs-container="body"
+                    data-bs-content="Analysis"
+                    data-target="analysisMenu"
+                  >
+                    <i class="fas fa-chart-bar"></i>
+                  </button>
+                </div>
               </div>
             </div>
           </div>
         </div>
 
-        <!-- Interaction -->
-        <div
-          class="offcanvas offcanvas-start canvasControl"
-          data-bs-scroll="true"
-          data-bs-backdrop="false"
-          tabindex="-1"
-          id="interactionCanvas"
-          aria-labelledby="interactioneCanvasLabel"
-        >
-          <div class="offcanvas-border"></div>
-          <div class="offcanvas-header">
-            <h5 class="offcanvas-title" id="interactionCanvasLabel">
-              Interaction
-            </h5>
-            <button
-              type="button"
-              class="btn-close"
-              data-bs-dismiss="offcanvas"
-              aria-label="Close"
-            ></button>
-          </div>
-          <div class="offcanvas-body" id="interactionOffCanvasBody">
-            <select
-              class="form-select"
-              aria-label="Select Modifier"
-              id="modifier-select"
-            >
-              <option selected value="">Select Interaction Method</option>
-            </select>
-            <hr />
-            <div id="interaction-json-editor"></div>
-            <button
-              type="button"
-              id="interaction-json-editor-submit"
-              class="btn btn-primary w-100"
-            >
-              <i class="fa-solid fa-play"></i> Run Modifier
-            </button>
-          </div>
-        </div>
-
-        <!-- Scene -->
-        <div
-          class="offcanvas offcanvas-start canvasControl"
-          data-bs-scroll="true"
-          data-bs-backdrop="false"
-          tabindex="-1"
-          id="sceneCanvas"
-          aria-labelledby="sceneCanvasLabel"
-        >
-          <div class="offcanvas-border"></div>
-          <div class="offcanvas-header">
-            <h5 class="offcanvas-title" id="sceneCanvasLabel">Scene</h5>
-            <button
-              type="button"
-              class="btn-close"
-              data-bs-dismiss="offcanvas"
-              aria-label="Close"
-            ></button>
-          </div>
-          <div class="offcanvas-body">
-            <div id="scene-json-editor"></div>
-            <!-- <button type="button" id='scene-json-editor-submit' class="btn btn-primary w-100"><i class="fa-solid fa-check"></i> Apply Changes</button> -->
-          </div>
-        </div>
-
-        <!-- Draw -->
-        <div
-          class="offcanvas offcanvas-start canvasControl"
-          data-bs-scroll="true"
-          data-bs-backdrop="false"
-          tabindex="-1"
-          id="drawCanvas"
-          aria-labelledby="drawCanvasLabel"
-        >
-          <div class="offcanvas-border"></div>
-          <div class="offcanvas-header">
-            <h5 class="offcanvas-title" id="drawCanvasLabel">Draw</h5>
-            <button
-              type="button"
-              class="btn-close"
-              data-bs-dismiss="offcanvas"
-              aria-label="Close"
-            ></button>
-          </div>
-          <div class="offcanvas-body">
-            <!-- <div class="mb-3">
-        <button type="button" class="btn btn-secondary" id="drawAddAnchor">Add anchor point</button>
-        <button type="button" class="btn btn-secondary" id="drawRemoveLine">Remove Line</button>
-        <button type="button" class="btn btn-secondary" id="drawDetach">Detach</button>
-      </div> -->
-
-            <div id="draw-json-editor"></div>
-
-            <div class="mb-3">
-              <button
-                type="button"
-                class="btn btn-secondary"
-                id="drawAddCanvas"
-              >
-                <i class="fa-solid fa-plus"></i> Add
-              </button>
-              <button
-                type="button"
-                class="btn btn-secondary"
-                id="drawRemoveCanvas"
-              >
-                <i class="fa-solid fa-trash"></i> Remove
-              </button>
+        <div class="fixed-left-menu">
+          <!-- Selection -->
+          <div
+            class="card h-100 rounded-0"
+            id="selectionMenu"
+            style="display: none"
+          >
+            <div class="card-body">
+              <div class="row">
+                <div class="col"></div>
+                <div class="col col-md-auto">
+                  <button
+                    type="button"
+                    class="btn-close"
+                    aria-label="Close"
+                    id="selectionMenuClose"
+                  ></button>
+                </div>
+              </div>
+              <div id="selection-json-editor"></div>
+              <div class="row my-3">
+                <div class="col">
+                  <button
+                    type="button"
+                    id="selection-json-editor-submit"
+                    class="btn btn-primary w-100"
+                  >
+                    <i class="fa-solid fa-circle-check"></i> Apply
+                  </button>
+                </div>
+                <div class="col">
+                  <a
+                    class="btn btn-secondary w-100"
+                    role="button"
+                    id="downloadSelectedBtn"
+                    ><i class="fa-solid fa-download"></i> Download</a
+                  >
+                </div>
+              </div>
             </div>
           </div>
-        </div>
 
-        <!-- Analyse -->
-        <div
-          class="offcanvas offcanvas-start canvasControl"
-          data-bs-scroll="true"
-          data-bs-backdrop="false"
-          tabindex="-1"
-          id="analyseCanvas"
-          aria-labelledby="analyseCanvasLabel"
-        >
-          <div class="offcanvas-border"></div>
-          <div class="offcanvas-header">
-            <h5 class="offcanvas-title" id="analyseCanvasLabel">Analyse</h5>
-            <button
-              type="button"
-              class="btn-close"
-              data-bs-dismiss="offcanvas"
-              aria-label="Close"
-            ></button>
-          </div>
-          <div class="offcanvas-body">
-            <select
-              class="form-select"
-              aria-label="Select Modifier"
-              id="analysis-select"
-            >
-              <option selected value="">Select Analysis Method</option>
-            </select>
-            <hr />
-            <div id="analysis-json-editor"></div>
-            <button
-              type="button"
-              id="analysis-json-editor-submit"
-              class="btn btn-primary w-100"
-            >
-              Analyse
-            </button>
-            <div id="analysisPlot"></div>
-          </div>
-        </div>
-
-        <!-- Bonds -->
-        <div
-          class="offcanvas offcanvas-start canvasControl"
-          data-bs-scroll="true"
-          data-bs-backdrop="false"
-          tabindex="-1"
-          id="bondsCanvas"
-          aria-labelledby="bondsCanvasLabel"
-        >
-          <div class="offcanvas-border"></div>
-          <div class="offcanvas-header">
-            <h5 class="offcanvas-title" id="bondsCanvasLabel">Bonds</h5>
-            <button
-              type="button"
-              class="btn-close"
-              data-bs-dismiss="offcanvas"
-              aria-label="Close"
-            ></button>
-          </div>
-          <div class="offcanvas-body">
-            <div class="mb-3">
-              <label for="addBondsMethod" class="form-label"
-                >Select bonds method</label
-              >
+          <!-- Interaction -->
+          <div
+            class="card h-100 rounded-0"
+            id="interactionMenu"
+            style="display: none"
+          >
+            <div class="card-body">
+              <div class="row">
+                <div class="col">
+                  <h4>Interaction</h4>
+                </div>
+                <div class="col col-md-auto">
+                  <button
+                    type="button"
+                    class="btn-close"
+                    aria-label="Close"
+                    id="interactionMenuClose"
+                  ></button>
+                </div>
+              </div>
               <select
                 class="form-select"
-                aria-label="Default select example"
-                id="addBondsMethod"
+                aria-label="Select Modifier"
+                id="modifier-select"
               >
-                <option selected, value="none"></option>
-                <option value="add">Add New</option>
+                <option selected value="">Select Interaction Method</option>
               </select>
-              <div id="addBondsMethodHelp" class="form-text">
-                Load a Python class to configure bonds
-              </div>
+              <hr />
+              <div id="interaction-json-editor"></div>
+              <button
+                type="button"
+                id="interaction-json-editor-submit"
+                class="btn btn-primary w-100"
+              >
+                <i class="fa-solid fa-play"></i> Run Modifier
+              </button>
             </div>
-            <div id="bondsSettings"></div>
+          </div>
 
-            <div class="container">
+          <!-- Scene -->
+          <div
+            class="card h-100 rounded-0"
+            id="sceneMenu"
+            style="display: none"
+          >
+            <div class="card-body">
+              <div class="row">
+                <div class="col"></div>
+                <div class="col col-md-auto">
+                  <button
+                    type="button"
+                    class="btn-close"
+                    aria-label="Close"
+                    id="sceneMenuClose"
+                  ></button>
+                </div>
+              </div>
+              <div id="scene-json-editor"></div>
+            </div>
+          </div>
+
+          <!-- Draw -->
+          <div class="card h-100 rounded-0" id="drawMenu" style="display: none">
+            <div class="card-body">
+              <div class="row">
+                <div class="col"></div>
+                <div class="col col-md-auto">
+                  <button
+                    type="button"
+                    class="btn-close"
+                    aria-label="Close"
+                    id="drawMenuClose"
+                  ></button>
+                </div>
+              </div>
+              <div id="draw-json-editor"></div>
+
               <div class="row my-3">
                 <div class="col">
                   <button
                     type="button"
                     class="btn btn-primary w-100"
-                    id="bondsBtnSave"
+                    id="drawAddCanvas"
                   >
-                    Save
+                    <i class="fa-solid fa-plus"></i> Add
                   </button>
                 </div>
                 <div class="col">
                   <button
                     type="button"
                     class="btn btn-danger w-100"
-                    id="bondsBtnZeroBond"
+                    id="drawRemoveCanvas"
                   >
-                    Delete Bond
-                  </button>
-                </div>
-              </div>
-              <div class="row">
-                <div class="btn-group" role="group" aria-label="Basic example">
-                  <button
-                    type="button"
-                    class="btn btn-outline-secondary"
-                    id="bondsBtnSingleBond"
-                  >
-                    Single Bond
-                  </button>
-                  <button
-                    type="button"
-                    class="btn btn-outline-secondary"
-                    id="bondsBtnDoubleBond"
-                  >
-                    Double Bond
-                  </button>
-                  <button
-                    type="button"
-                    class="btn btn-outline-secondary"
-                    id="bondsBtnTripleBond"
-                  >
-                    Triple Bond
+                    <i class="fa-solid fa-trash"></i> Remove
                   </button>
                 </div>
               </div>
             </div>
           </div>
+
+          <!-- Analyse -->
+          <div
+            class="card h-100 rounded-0"
+            id="analysisMenu"
+            style="display: none"
+          >
+            <div class="card-body" style="width: 500px">
+              <div class="row">
+                <div class="col">
+                  <h4>Analysis</h4>
+                </div>
+                <div class="col col-md-auto">
+                  <button
+                    type="button"
+                    class="btn-close"
+                    aria-label="Close"
+                    id="analysisMenuClose"
+                  ></button>
+                </div>
+              </div>
+              <select
+                class="form-select"
+                aria-label="Select Modifier"
+                id="analysis-select"
+              >
+                <option selected value="">Select Analysis Method</option>
+              </select>
+              <hr />
+              <div id="analysis-json-editor"></div>
+              <button
+                type="button"
+                id="analysis-json-editor-submit"
+                class="btn btn-primary w-100"
+              >
+                Analyse
+              </button>
+              <div id="analysisPlot"></div>
+            </div>
+          </div>
         </div>
 
-        <!-- Info Box -->
-        <!-- <div class="collapse" id="infoBoxCollapse">
-    <div class="container-fluid rounded border border-dark" id="infoBox">
-      <dl class="row">
-        <dt class="col-sm-3">File</dt>
-        <dd class="col-sm-9"><code>{{ config.file }}</code></dd>
-        <dt class="col-sm-3">FPS</dt>
-        <dd class="col-sm-9" id="FPS">-</dd>
-        <dt class="col-sm-3">Particles</dt>
-        <dd class="col-sm-9" id="n_particles">-</dd>
-        <dt class="col-sm-3">Bonds</dt>
-        <dd class="col-sm-9" id="n_bonds">-</dd>
-        <dt class="col-sm-3">Selected IDs</dt>
-        <dd class="col-sm-9" id="lst_selected_ids"></dd>
-        {% if config.update_function %}
-        <dt class="col-sm-3">Function</dt>
-        <dd class="col-sm-9" id="lst_selected_ids"><code>{{ config.update_function }}</code></dd>
-        {% endif %}
-      </dl>
-    </div>
-  </div> -->
-
-        <!-- Help Box -->
-        <div class="collapse" id="helpBoxCollapse">
-          <div
-            class="container-fluid bg-light rounded border border-primary pt-2"
-            id="helpBox"
-          >
-            <h2>ZnDraw Help</h2>
-            <div class="rounded-3 bg-white px-2 pt-2">
-              <dl class="row">
-                <!-- <dt class="col-sm-3">move light to camera position</dt>
-            <dd class="col-sm-9"><code>keypress L</code></dd> -->
-                <dt class="col-sm-3">play / pause</dt>
-                <dd class="col-sm-9"><code>keypress space</code></dd>
-                <dt class="col-sm-3">frame forwards / backwards</dt>
-                <dd class="col-sm-9"><code>keypress &#9654;\&#9664; </code></dd>
-                <dt class="col-sm-3">jump forwards / backwards</dt>
-                <dd class="col-sm-9"><code>keypress &#9650;\&#9660; </code></dd>
-                <dt class="col-sm-3">center camera around selected particle</dt>
-                <dd class="col-sm-9"><code>keypress C</code></dd>
-                <dt class="col-sm-3">select multiple particles</dt>
-                <dd class="col-sm-9"><code>keydown shift</code></dd>
-                <dt class="col-sm-3">show particle index</dt>
-                <dd class="col-sm-9"><code>keydown I</code></dd>
-                <dt class="col-sm-3">toggle canvas movement</dt>
-                <dd class="col-sm-9"><code>keypress F</code></dd>
-                <dt class="col-sm-3">duplicate selected anchor point</dt>
-                <dd class="col-sm-9"><code>keypress T</code></dd>
-                <dt class="col-sm-3">switch transform control mode</dt>
-                <dd class="col-sm-9"><code>keypress D</code></dd>
-                <dt class="col-sm-3">select / scale drawing geometry</dt>
-                <dd class="col-sm-9">
-                  <code>keypress shift</code> + <code>mousewheel</code>
-                </dd>
-              </dl>
+        <!-- Modal -->
+        <div
+          class="modal fade"
+          id="helpModal"
+          tabindex="-1"
+          aria-labelledby="helpModalLabel"
+          aria-hidden="true"
+        >
+          <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+              <div class="modal-header">
+                <h1 class="modal-title fs-5" id="helpModalLabel">
+                  ZnDraw Help
+                </h1>
+                <button
+                  type="button"
+                  class="btn-close"
+                  data-bs-dismiss="modal"
+                  aria-label="Close"
+                ></button>
+              </div>
+              <div class="modal-body">
+                <div class="rounded-3 bg-white px-2 pt-2">
+                  <dl class="row">
+                    <dt class="col-sm-3">play / pause</dt>
+                    <dd class="col-sm-9"><code>keypress space</code></dd>
+                    <dt class="col-sm-3">frame forwards / backwards</dt>
+                    <dd class="col-sm-9">
+                      <code>keypress &#9654;\&#9664; </code>
+                    </dd>
+                    <dt class="col-sm-3">jump forwards / backwards</dt>
+                    <dd class="col-sm-9">
+                      <code>keypress &#9650;\&#9660; </code>
+                    </dd>
+                    <dt class="col-sm-3">
+                      center camera around selected particle
+                    </dt>
+                    <dd class="col-sm-9"><code>keypress C</code></dd>
+                    <dt class="col-sm-3">select multiple particles</dt>
+                    <dd class="col-sm-9"><code>keydown shift</code></dd>
+                    <dt class="col-sm-3">show particle index</dt>
+                    <dd class="col-sm-9"><code>keydown I</code></dd>
+                    <dt class="col-sm-3">toggle canvas movement</dt>
+                    <dd class="col-sm-9"><code>keypress F</code></dd>
+                    <dt class="col-sm-3">duplicate selected anchor point</dt>
+                    <dd class="col-sm-9"><code>keypress T</code></dd>
+                    <dt class="col-sm-3">switch transform control mode</dt>
+                    <dd class="col-sm-9"><code>keypress D</code></dd>
+                    <dt class="col-sm-3">select / scale drawing geometry</dt>
+                    <dd class="col-sm-9">
+                      <code>keypress shift</code> + <code>mousewheel</code>
+                    </dd>
+                  </dl>
+                </div>
+              </div>
             </div>
           </div>
         </div>
