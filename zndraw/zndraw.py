@@ -48,9 +48,9 @@ class ZnDraw(collections.abc.MutableSequence):
                         "open_browser": not self.jupyter,
                         "webview": False,
                         "fullscreen": False,
-                        "start": False,
-                        "stop": False,
-                        "step": False,
+                        "start": 0,
+                        "stop": None,
+                        "step": 1,
                         "compute_bonds": True,
                         "multiprocessing": False,
                     },
@@ -168,7 +168,7 @@ class ZnDraw(collections.abc.MutableSequence):
         if self.display_new:
             self.display(len(self) - 1)
 
-    def read(self, filename: str, start: int, stop: int, step: int = 1):
+    def read(self, filename: str, start: int, stop: int, step: int):
         """Read atoms from file and return a list of atoms dicts.
 
         Parameters
@@ -187,18 +187,12 @@ class ZnDraw(collections.abc.MutableSequence):
         if pathlib.Path(filename).suffix == ".h5":
             # Read file using znh5md and convert to list[ase.Atoms]
             atoms_list = znh5md.ASEH5MD(filename).get_atoms_list()
-            for idx, atoms in tqdm.tqdm(
-                enumerate(atoms_list[start:stop]),
-                ncols=100,
-                total=len(atoms_list[start:stop]),
-            ):
-                if idx % step == 0:
-                    self[frame_idx] = atoms
-                    frame_idx += 1
         else:
-            for idx, atoms in tqdm.tqdm(
-                enumerate(ase.io.iread(filename[start:stop])), ncols=100
-            ):
-                if idx % step == 0:
-                    self[frame_idx] = atoms
-                    frame_idx += 1
+            # Read file using ASE and convert to list[ase.Atoms]
+            atoms_list = list(ase.io.iread(filename))
+
+        for idx, atoms in tqdm.tqdm(enumerate(atoms_list[start:stop]), ncols=100, total=len(atoms_list[start:stop])):
+            # Only add atoms if the index is a multiple of step
+            if idx % step == 0:
+                self[frame_idx] = atoms
+                frame_idx += 1
