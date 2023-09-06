@@ -186,7 +186,7 @@ class ZnDraw(collections.abc.MutableSequence):
         if pathlib.Path(filename).suffix == ".h5":
             # Read file using znh5md and convert to list[ase.Atoms]
             atoms_list = znh5md.ASEH5MD(filename)[start:stop:step]
-            
+
         else:
             # Read file using ASE and convert to list[ase.Atoms]
             # TODO use read generator in loop
@@ -195,7 +195,3 @@ class ZnDraw(collections.abc.MutableSequence):
             enumerate(atoms_list), ncols=100, total=len(atoms_list)
         ):
             self[idx] = atoms
-            
-            
-
-
