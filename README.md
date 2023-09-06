@@ -10,15 +10,18 @@ ZnDraw will open in a dedicated window.
 
 ## CLI
 
-You can use ZnDraw to view a file using the CLI `zndraw traj.xyz`.
-Supported file formats include everything that `ase.io` can read and additionally `h5` files in the H5MD standard.
+You can use ZnDraw to view a file using the CLI `zndraw traj.xyz`. Supported
+file formats include everything that `ase.io` can read and additionally `h5`
+files in the H5MD standard.
 
-If you want to view the frames while they are added to the scene you can use `zndraw -mp traj.xyz`.
-See `zndraw --help` for more CLI options.
+If you want to view the frames while they are added to the scene you can use
+`zndraw -mp traj.xyz`. See `zndraw --help` for more CLI options.
 
 ## Python
-ZnDraw provides a Python interface.
-The `zndraw.ZnDraw` object offers `append`, `extend` as well as assignment operations. More information is available in the example notebook.
+
+ZnDraw provides a Python interface. The `zndraw.ZnDraw` object offers `append`,
+`extend` as well as assignment operations. More information is available in the
+example notebook.
 
 ```python
 from zndraw import ZnDraw
