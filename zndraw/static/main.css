@@ -12,6 +12,30 @@ body {
   min-height: 100vh;
 }
 
+.fixed-left-container {
+  position: fixed;
+  top: 50px;
+  left: 0;
+  height: 100%;
+  width: 50px;
+  /* Adjust the width as needed */
+  /* background-color: #f0f0f0;
+        padding: 15px;  */
+}
+
+.fixed-left-menu {
+  position: fixed;
+  top: 50px;
+  left: 50px;
+  height: 100%;
+  overflow-y: auto;
+  min-width: 20%;
+}
+
+.main-navbar {
+  height: 50px;
+}
+
 #scene-container {
   /* tell our scene container to take up the full page */
   position: absolute;

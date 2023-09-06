@@ -11,6 +11,7 @@ from flask_socketio import SocketIO, emit
 
 from zndraw.data import atoms_from_json, atoms_to_json
 from zndraw.draw import Geometry
+from zndraw.select import get_selection_class
 from zndraw.settings import GlobalConfig
 from zndraw.zndraw import ZnDraw
 
@@ -155,19 +156,7 @@ def analysis_schema(data):
 
 @io.on("selection:schema")
 def selection_schema():
-    config = GlobalConfig.load()
-
-    for selection in config.selection_functions:
-        module_name, function_name = selection.rsplit(".", 1)
-        module = importlib.import_module(module_name)
-        cls = getattr(module, function_name)
-
-        data = {"name": selection, "schema": cls.model_json_schema()}
-
-        io.emit(
-            "selection:schema",
-            data,
-        )
+    io.emit("selection:schema", get_selection_class().model_json_schema())
 
 
 @io.on("selection:run")
@@ -180,11 +169,7 @@ def selection_run(data):
         atoms = ase.Atoms()
 
     try:
-        module_name, function_name = data["name"].rsplit(".", 1)
-        module = importlib.import_module(module_name)
-        selection_cls = getattr(module, function_name)
-        selection = selection_cls(**data["params"])
-
+        selection = get_selection_class()(**data["params"])
         selected_ids = selection.get_ids(atoms, data["selection"])
         io.emit("selection:run", selected_ids)
     except ValueError as err:
