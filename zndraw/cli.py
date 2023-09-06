@@ -1,4 +1,4 @@
-from typing import Optional, List
+from typing import Optional
 
 import typer
 
@@ -29,9 +29,9 @@ def main(
     browser: bool = typer.Option(
         True, help="""Whether to open the ZnDraw GUI in the default web browser."""
     ),
-    start: int = typer.Option( 
+    start: int = typer.Option(
         0,
-        help="""First frame to be visualized. If set to 0, the first frame will be visualized."""
+        help="""First frame to be visualized. If set to 0, the first frame will be visualized.""",
     ),
     stop: int = typer.Option(
         None,
@@ -59,7 +59,7 @@ def main(
     """
     if port is None:
         port = get_port()
-            
+
     view(
         filename,
         port,

@@ -188,13 +188,17 @@ class ZnDraw(collections.abc.MutableSequence):
             # Read file using znh5md and convert to list[ase.Atoms]
             atoms_list = znh5md.ASEH5MD(filename).get_atoms_list()
             for idx, atoms in tqdm.tqdm(
-                enumerate(atoms_list[start:stop]), ncols=100, total=len(atoms_list[start:stop])
+                enumerate(atoms_list[start:stop]),
+                ncols=100,
+                total=len(atoms_list[start:stop]),
             ):
                 if idx % step == 0:
                     self[frame_idx] = atoms
                     frame_idx += 1
         else:
-            for idx, atoms in tqdm.tqdm(enumerate(ase.io.iread(filename[start:stop])), ncols=100):
+            for idx, atoms in tqdm.tqdm(
+                enumerate(ase.io.iread(filename[start:stop])), ncols=100
+            ):
                 if idx % step == 0:
                     self[frame_idx] = atoms
                     frame_idx += 1
