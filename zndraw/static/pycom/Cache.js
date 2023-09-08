@@ -74,12 +74,12 @@ class Cache {
       ).innerHTML = `${slider.value} / ${slider.max}`;
     });
 
-    this._socket.on("atoms:delete", (id) => { 
-      delete this._cache[id]; 
+    this._socket.on("atoms:delete", (id) => {
+      delete this._cache[id];
       // move all keys after id one step back
       const keys = Object.keys(this._cache);
       for (let i = id; i < keys.length; i++) {
-        this._cache[i] = this._cache[i+1];
+        this._cache[i] = this._cache[i + 1];
       }
       delete this._cache[keys.length]; // delete last element, keys.length is important, not keys.length-1
       const slider = document.getElementById("frame-slider");

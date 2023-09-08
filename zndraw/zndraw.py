@@ -94,7 +94,7 @@ class ZnDraw(collections.abc.MutableSequence):
     def __delitem__(self, index):
         if isinstance(index, int):
             if index < 0:
-                index = len(self) + index  
+                index = len(self) + index
 
             if 0 <= index < len(self):
                 self.socket.emit("atoms:delete", index)
