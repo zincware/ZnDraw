@@ -52,6 +52,11 @@ def main(
         "-mp",
         help="""Use multiprocessing to read data files. This will slow down the loading time, but enables loading large files in the background.""",
     ),
+    upgrade_insecure_requests: bool = typer.Option(
+        False,
+        hidden=True,
+        help="Set the html attribute upgrade-insecure-requests. If you are running ZnDraw behind a reverse proxy and encounter issues with insecure requests, you might want to set this to true.",
+    ),
 ):
     """Start the ZnDraw server.
 
@@ -71,4 +76,5 @@ def main(
         step=step,
         compute_bonds=compute_bonds,
         multiprocessing=multiprocessing,
+        upgrade_insecure_requests=upgrade_insecure_requests,
     )

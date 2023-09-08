@@ -27,6 +27,10 @@ io = SocketIO(
 @app.route("/")
 def index():
     """Render the main ZnDraw page."""
+    if "upgrade_insecure_requests" in app.config:
+        return render_template(
+            "index.html", upgrade_insecure_requests=app.config["upgrade_insecure_requests"]
+        )
     return render_template("index.html")
 
 

@@ -43,12 +43,14 @@ def view(
     step: int,
     compute_bonds: bool,
     multiprocessing: bool,
+    upgrade_insecure_requests: bool,
 ):
     if filename is not None:
         app.config["filename"] = filename
         app.config["start"] = start
         app.config["stop"] = stop
         app.config["step"] = step
+    app.config["upgrade_insecure_requests"] = upgrade_insecure_requests
     app.config["compute_bonds"] = compute_bonds
     app.config["multiprocessing"] = multiprocessing
     url = f"http://127.0.0.1:{port}"
