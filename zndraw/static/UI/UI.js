@@ -160,10 +160,18 @@ function setupNavbarLeft() {
   };
 }
 
+function setupMobile() {
+  // set display style of .playPauseCtrl to block if on mobile
+  if( /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ) {
+    document.getElementById("playPauseCtrl").style.display = "block";
+  }
+}
+
 export function setUIEvents(socket, cache, world) {
   // resizeOffcanvas();
   setupUpload(socket);
   setupNavbarLeft();
+  setupMobile();
 
   document.getElementById("ExitBtn").addEventListener("click", () => {
     fetch("/exit", { method: "GET" });
