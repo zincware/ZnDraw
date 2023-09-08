@@ -46,9 +46,10 @@ class Atoms {
 }
 
 class Cache {
-  constructor(socket, world) {
+  constructor(socket) {
     this._socket = socket;
     this._cache = {};
+    this.world;
 
     this._socket.on("atoms:upload", (data) => {
       console.log("Received atoms from Python");
@@ -71,6 +72,22 @@ class Cache {
       document.getElementById(
         "info",
       ).innerHTML = `${slider.value} / ${slider.max}`;
+    });
+
+    this._socket.on("atoms:delete", (id) => { 
+      delete this._cache[id]; 
+      // move all keys after id one step back
+      const keys = Object.keys(this._cache);
+      for (let i = id; i < keys.length; i++) {
+        this._cache[i] = this._cache[i+1];
+      }
+      delete this._cache[keys.length]; // delete last element, keys.length is important, not keys.length-1
+      const slider = document.getElementById("frame-slider");
+      slider.max = Object.keys(this._cache).length - 1;
+      document.getElementById(
+        "info",
+      ).innerHTML = `${slider.value} / ${slider.max}`;
+      this.world.setStep(this.world.getStep()); // wenn this.world.getStep größer als aktueller Step, dann sag setStep
     });
 
     this._socket.on("atoms:download", (ids) => {
@@ -108,6 +125,10 @@ class Cache {
 
   getAllAtoms() {
     return this._cache;
+  }
+
+  attachWorld(world) {
+    this.world = world;
   }
 }
 

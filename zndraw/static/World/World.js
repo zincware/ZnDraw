@@ -139,6 +139,7 @@ class World {
     renderer2d = create2DRenderer();
 
     cache = cache;
+    cache.attachWorld(this);
 
     loop = new Loop(camera, scene, renderer, renderer2d);
     controls = createControls(camera, renderer.domElement);

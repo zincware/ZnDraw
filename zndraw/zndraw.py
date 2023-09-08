@@ -92,7 +92,16 @@ class ZnDraw(collections.abc.MutableSequence):
         return IFrame(src=self.url, width="100%", height="600px")._repr_html_()
 
     def __delitem__(self, index):
-        pass
+        if isinstance(index, int):
+            if index < 0:
+                index = len(self) + index  
+
+            if 0 <= index < len(self):
+                self.socket.emit("atoms:delete", index)
+            else:
+                raise IndexError("Index out of range")
+        else:
+            raise TypeError("Index must be an integer")
 
     def __getitem__(self, index) -> t.Union[ase.Atoms, list[ase.Atoms]]:
         get_item_event = threading.Event()
