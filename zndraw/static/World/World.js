@@ -52,7 +52,7 @@ class Player {
       if (!this.playing) {
         document.getElementById("playBtn").innerHTML =
           '<i class="fa-solid fa-play"></i>';
-      } 
+      }
     });
     // detect forwardBtn click
     document.getElementById("forwardBtn").addEventListener("click", () => {
