@@ -73,6 +73,15 @@ function setupNavbarLeft() {
     document.getElementById(`${menu}Btn`).classList.remove("active");
   }
 
+  // close all popovers when clicking anywhere
+  document.addEventListener("click", () => {
+    popovers.selectionMenu.hide();
+    popovers.interactionMenu.hide();
+    popovers.sceneMenu.hide();
+    popovers.drawMenu.hide();
+    popovers.analysisMenu.hide();
+  });
+
   document.getElementById("selectionMenuBtn").onclick = () => {
     showMenu("selectionMenu");
     popovers.selectionMenu.hide();
