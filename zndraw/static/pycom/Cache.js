@@ -87,7 +87,7 @@ class Cache {
       document.getElementById(
         "info",
       ).innerHTML = `${slider.value} / ${slider.max}`;
-      this.world.setStep(this.world.getStep()); 
+      this.world.setStep(this.world.getStep());
       // update step in the world
       if (this.world.getStep() > slider.max) {
         this.world.setStep(slider.max);
