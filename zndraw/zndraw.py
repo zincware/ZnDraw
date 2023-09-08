@@ -48,7 +48,9 @@ class ZnDraw(collections.abc.MutableSequence):
                         "open_browser": not self.jupyter,
                         "webview": False,
                         "fullscreen": False,
-                        "stride": False,
+                        "start": 0,
+                        "stop": None,
+                        "step": 1,
                         "compute_bonds": True,
                         "multiprocessing": False,
                     },
@@ -95,10 +97,12 @@ class ZnDraw(collections.abc.MutableSequence):
     def __getitem__(self, index) -> t.Union[ase.Atoms, list[ase.Atoms]]:
         get_item_event = threading.Event()
 
-        if not isinstance(index, int) and not isinstance(index, list):
-            raise TypeError("Index must be an integer or list of integers")
+        length = len(self)
+        if isinstance(index, slice):
+            index = range(*index.indices(length))
 
         index = [index] if isinstance(index, int) else index
+        index = [i if i >= 0 else length + i for i in index]
 
         self.socket.emit("atoms:download", index)
 
@@ -166,29 +170,30 @@ class ZnDraw(collections.abc.MutableSequence):
         if self.display_new:
             self.display(len(self) - 1)
 
-    def read(self, filename: str, stride: int = 1):
+    def read(self, filename: str, start: int, stop: int, step: int):
         """Read atoms from file and return a list of atoms dicts.
 
         Parameters
         ----------
         filename : str
             Path to the file which should be read.
-        stride : int
-            Stride for the frames to be visualized. If set to 1, all frames will be visualized.
+        start : int
+            First frame to be read. If set to 0, the first frame will be read.
+        stop : int
+            Last frame to be read. If set to None, the last frame will be read.
+        step : int
+            Stepsize for the frames to be visualized. If set to 1, all frames will be visualized.
         """
-        frame_idx = 0
 
         if pathlib.Path(filename).suffix == ".h5":
             # Read file using znh5md and convert to list[ase.Atoms]
-            atoms_list = znh5md.ASEH5MD(filename).get_atoms_list()
-            for idx, atoms in tqdm.tqdm(
-                enumerate(atoms_list), ncols=100, total=len(atoms_list)
-            ):
-                if idx % stride == 0:
-                    self[frame_idx] = atoms
-                    frame_idx += 1
+            atoms_list = znh5md.ASEH5MD(filename)[start:stop:step]
+
         else:
-            for idx, atoms in tqdm.tqdm(enumerate(ase.io.iread(filename)), ncols=100):
-                if idx % stride == 0:
-                    self[frame_idx] = atoms
-                    frame_idx += 1
+            # Read file using ASE and convert to list[ase.Atoms]
+            # TODO use read generator in loop
+            atoms_list = list(ase.io.iread(filename))[start:stop:step]
+        for idx, atoms in tqdm.tqdm(
+            enumerate(atoms_list), ncols=100, total=len(atoms_list)
+        ):
+            self[idx] = atoms

@@ -38,13 +38,17 @@ def view(
     open_browser: bool,
     webview: bool,
     fullscreen: bool,
-    stride: int,
+    start: int,
+    stop: int,
+    step: int,
     compute_bonds: bool,
     multiprocessing: bool,
 ):
     if filename is not None:
         app.config["filename"] = filename
-        app.config["stride"] = stride
+        app.config["start"] = start
+        app.config["stop"] = stop
+        app.config["step"] = step
     app.config["compute_bonds"] = compute_bonds
     app.config["multiprocessing"] = multiprocessing
     url = f"http://127.0.0.1:{port}"

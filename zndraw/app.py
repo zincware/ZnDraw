@@ -38,7 +38,7 @@ def exit_route():
     return "Server shutting down..."
 
 
-def _read_file(filename, stride, compute_bonds, url=None):
+def _read_file(filename, start, stop, step, compute_bonds, url=None):
     if url is None:
         if compute_bonds:
             instance = ZnDraw(socket=io, display_new=False)
@@ -50,7 +50,7 @@ def _read_file(filename, stride, compute_bonds, url=None):
         else:
             instance = ZnDraw(url=url, display_new=False, bonds_calculator=None)
 
-    instance.read(filename, stride)
+    instance.read(filename, start, stop, step)
 
 
 @io.on("atoms:request")
@@ -63,7 +63,9 @@ def atoms_request(url):
                 target=_read_file,
                 args=(
                     app.config["filename"],
-                    app.config["stride"],
+                    app.config["start"],
+                    app.config["stop"],
+                    app.config["step"],
                     app.config["compute_bonds"],
                     url,
                 ),
@@ -73,7 +75,9 @@ def atoms_request(url):
             io.start_background_task(
                 target=_read_file,
                 filename=app.config["filename"],
-                stride=app.config["stride"],
+                start=app.config["start"],
+                stop=app.config["stop"],
+                step=app.config["step"],
                 compute_bonds=app.config["compute_bonds"],
             )
     else:
