@@ -11,9 +11,9 @@ from flask_socketio import SocketIO, emit
 
 from zndraw.data import atoms_from_json, atoms_to_json
 from zndraw.draw import Geometry
+from zndraw.modify import get_modify_class
 from zndraw.select import get_selection_class
 from zndraw.settings import GlobalConfig
-from zndraw.modify import get_modify_class
 from zndraw.zndraw import ZnDraw
 
 app = Flask(__name__)
@@ -154,6 +154,7 @@ def selection_schema():
 @io.on("selection:run")
 def selection_run(data):
     import ase
+
     config = GlobalConfig.load()
     cls = get_selection_class(config.get_selection_methods())
 

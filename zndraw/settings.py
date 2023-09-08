@@ -1,7 +1,7 @@
+import importlib
 import json
 import pathlib
 import typing as t
-import importlib
 
 import pydantic
 
@@ -59,7 +59,7 @@ class GlobalConfig(pydantic.BaseModel):
             return cls.from_file()
         else:
             return cls()
-    
+
     def get_selection_methods(self):
         classes = []
         for method in self.selection_functions:
@@ -67,7 +67,7 @@ class GlobalConfig(pydantic.BaseModel):
             module = importlib.import_module(module_name)
             cls = getattr(module, cls_name)
             classes.append(cls)
-        
+
         return t.Union[tuple(classes)]
 
     def get_analysis_methods(self):
@@ -77,7 +77,7 @@ class GlobalConfig(pydantic.BaseModel):
             module = importlib.import_module(module_name)
             cls = getattr(module, cls_name)
             classes.append(cls)
-        
+
         return t.Union[tuple(classes)]
 
     def get_modify_methods(self):
@@ -87,5 +87,5 @@ class GlobalConfig(pydantic.BaseModel):
             module = importlib.import_module(module_name)
             cls = getattr(module, cls_name)
             classes.append(cls)
-        
+
         return t.Union[tuple(classes)]

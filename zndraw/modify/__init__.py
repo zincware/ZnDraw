@@ -82,6 +82,7 @@ class Explode(UpdateScene):
 
 class Delete(UpdateScene):
     """Delete the selected atoms."""
+
     method: t.Literal["Delete"] = Field("Delete")
 
     def run(self, atom_ids: list[int], atoms: ase.Atoms, **kwargs) -> list[ase.Atoms]:
@@ -93,6 +94,7 @@ class Delete(UpdateScene):
 
 class Move(UpdateScene):
     """Move the selected atoms along the line."""
+
     method: t.Literal["Move"] = Field("Move")
 
     steps: int = Field(10, ge=1)
@@ -159,7 +161,6 @@ class AddLineParticles(UpdateScene):
             atoms += ase.Atom(self.symbol.name, position=point)
         for _ in range(self.steps):
             yield atoms
-
 
 
 def get_modify_class(methods):
