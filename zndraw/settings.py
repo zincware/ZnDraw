@@ -1,6 +1,7 @@
 import json
 import pathlib
-import typing
+import typing as t
+import importlib
 
 import pydantic
 
@@ -34,11 +35,11 @@ _SELECTION_FUNCTIONS = [
 
 
 class GlobalConfig(pydantic.BaseModel):
-    analysis_functions: typing.List[str] = _ANALYSIS_FUNCTIONS
-    modify_functions: typing.List[str] = _MODIFY_FUNCTIONS
-    bonds_functions: typing.List[str] = _BONDS_FUNCTIONS
-    selection_functions: typing.List[str] = _SELECTION_FUNCTIONS
-    function_schema: typing.Dict[str, dict] = {}
+    analysis_functions: t.List[str] = _ANALYSIS_FUNCTIONS
+    modify_functions: t.List[str] = _MODIFY_FUNCTIONS
+    bonds_functions: t.List[str] = _BONDS_FUNCTIONS
+    selection_functions: t.List[str] = _SELECTION_FUNCTIONS
+    function_schema: t.Dict[str, dict] = {}
 
     def save(self, path="~/.zincware/zndraw/config.json"):
         save_path = pathlib.Path(path).expanduser()
@@ -58,3 +59,13 @@ class GlobalConfig(pydantic.BaseModel):
             return cls.from_file()
         else:
             return cls()
+    
+    def get_selection_methods(self):
+        classes = []
+        for method in self.selection_functions:
+            module_name, cls_name = method.rsplit(".", 1)
+            module = importlib.import_module(module_name)
+            cls = getattr(module, cls_name)
+            classes.append(cls)
+        
+        return t.Union[tuple(classes)]

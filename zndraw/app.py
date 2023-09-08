@@ -163,12 +163,17 @@ def analysis_schema(data):
 
 @io.on("selection:schema")
 def selection_schema():
-    io.emit("selection:schema", get_selection_class().model_json_schema())
+    config = GlobalConfig.load()
+    cls = get_selection_class(config.get_selection_methods())
+
+    io.emit("selection:schema", cls.model_json_schema())
 
 
 @io.on("selection:run")
 def selection_run(data):
     import ase
+    config = GlobalConfig.load()
+    cls = get_selection_class(config.get_selection_methods())
 
     if "atoms" in data:
         atoms = atoms_from_json(data["atoms"])
@@ -176,7 +181,7 @@ def selection_run(data):
         atoms = ase.Atoms()
 
     try:
-        selection = get_selection_class()(**data["params"])
+        selection = cls(**data["params"])
         selected_ids = selection.get_ids(atoms, data["selection"])
         io.emit("selection:run", selected_ids)
     except ValueError as err:
