@@ -13,6 +13,7 @@ from zndraw.data import atoms_from_json, atoms_to_json
 from zndraw.draw import Geometry
 from zndraw.select import get_selection_class
 from zndraw.settings import GlobalConfig
+from zndraw.modify import get_modify_class
 from zndraw.zndraw import ZnDraw
 
 app = Flask(__name__)
@@ -93,26 +94,14 @@ def atoms_request(url):
 def modifier_schema():
     config = GlobalConfig.load()
 
-    for modifier in config.modify_functions:
-        module_name, function_name = modifier.rsplit(".", 1)
-        module = importlib.import_module(module_name)
-        modifier_cls = getattr(module, function_name)
-        schema = modifier_cls.model_json_schema()
-
-        if modifier in config.function_schema:
-            kwargs = config.function_schema[modifier]
-            for key, value in kwargs.items():
-                schema["properties"][key]["default"] = value
-
-        io.emit(
-            "modifier:schema",
-            {"name": modifier, "schema": schema},
-        )
+    cls = get_modify_class(config.get_modify_methods())
+    io.emit("modifier:schema", cls.model_json_schema())
 
 
 @io.on("modifier:run")
 def modifier_run(data):
-    import ase
+    config = GlobalConfig.load()
+    cls = get_modify_class(config.get_modify_methods())
 
     points = np.array([[val["x"], val["y"], val["z"]] for val in data["points"]])
     segments = np.array(data["segments"])
@@ -121,16 +110,9 @@ def modifier_run(data):
         atoms = atoms_from_json(data["atoms"])
     else:
         atoms = ase.Atoms()
+    instance = cls(**data["params"])
 
-    module_name, function_name = data["name"].rsplit(".", 1)
-    module = importlib.import_module(module_name)
-    modifier_cls = getattr(module, function_name)
-    modifier = modifier_cls(**data["params"])
-    # available_methods = {x.__name__: x for x in [Explode, Duplicate]}
-
-    # modifier = available_methods[data["name"]](**data["params"])
-    print(f"modifier:run {modifier = }")
-    atoms_list = modifier.run(
+    atoms_list = instance.run(
         atom_ids=data["selection"], atoms=atoms, points=points, segments=segments
     )
     io.emit("atoms:clear", int(data["step"]) + 1)

@@ -31,6 +31,8 @@ class UpdateScene(BaseModel, abc.ABC):
 class Rotate(UpdateScene):
     """Rotate the selected atoms around a the line (2 points only)."""
 
+    method: t.Literal["Rotate"] = Field("Rotate")
+
     angle: float = Field(90, le=360, ge=0, description="Angle in degrees")
     direction: t.Literal["left", "right"] = Field(
         "left", description="Direction of rotation"
@@ -59,6 +61,8 @@ class Rotate(UpdateScene):
 
 
 class Explode(UpdateScene):
+    method: t.Literal["Explode"] = Field("Explode")
+
     steps: int = Field(100, le=1000, ge=1)
     particles: int = Field(10, le=20, ge=1)
 
@@ -77,6 +81,9 @@ class Explode(UpdateScene):
 
 
 class Delete(UpdateScene):
+    """Delete the selected atoms."""
+    method: t.Literal["Delete"] = Field("Delete")
+
     def run(self, atom_ids: list[int], atoms: ase.Atoms, **kwargs) -> list[ase.Atoms]:
         for idx, atom_id in enumerate(sorted(atom_ids)):
             atoms.pop(atom_id - idx)  # we remove the atom and shift the index
@@ -86,6 +93,7 @@ class Delete(UpdateScene):
 
 class Move(UpdateScene):
     """Move the selected atoms along the line."""
+    method: t.Literal["Move"] = Field("Move")
 
     steps: int = Field(10, ge=1)
 
@@ -112,6 +120,8 @@ class Move(UpdateScene):
 
 
 class Duplicate(UpdateScene):
+    method: t.Literal["Duplicate"] = Field("Duplicate")
+
     x: float = Field(0.5, le=5, ge=0)
     y: float = Field(0.5, le=5, ge=0)
     z: float = Field(0.5, le=5, ge=0)
@@ -127,6 +137,8 @@ class Duplicate(UpdateScene):
 
 
 class ChangeType(UpdateScene):
+    method: t.Literal["ChangeType"] = Field("ChangeType")
+
     symbol: Symbols
 
     def run(self, atom_ids: list[int], atoms: ase.Atoms, **kwargs) -> list[ase.Atoms]:
@@ -136,6 +148,8 @@ class ChangeType(UpdateScene):
 
 
 class AddLineParticles(UpdateScene):
+    method: t.Literal["AddLineParticles"] = Field("AddLineParticles")
+
     symbol: Symbols
     steps: int = Field(10, le=100, ge=1)
 
@@ -147,13 +161,25 @@ class AddLineParticles(UpdateScene):
             yield atoms
 
 
-class Demo(UpdateScene):
-    """Scene update for testing purposes."""
 
-    z: float = Field(0.5, le=5, ge=0)
-    symbol: Symbols
+def get_modify_class(methods):
+    class Modifier(UpdateScene):
+        method: methods = Field(
+            ..., description="Modify method", discriminator="method"
+        )
 
-    def run(self, atom_ids: list[int], atoms: ase.Atoms, **kwargs) -> list[ase.Atoms]:
-        for atom_id in atom_ids:
-            atoms[atom_id].symbol = self.symbol.name
-        return [atoms]
+        def run(self, *args, **kwargs) -> list[ase.Atoms]:
+            return self.method.run(*args, **kwargs)
+
+        @classmethod
+        def model_json_schema(cls, *args, **kwargs) -> dict[str, t.Any]:
+            schema = super().model_json_schema(*args, **kwargs)
+            for prop in [x.__name__ for x in t.get_args(methods)]:
+                schema["$defs"][prop]["properties"]["method"]["options"] = {
+                    "hidden": True
+                }
+                schema["$defs"][prop]["properties"]["method"]["type"] = "string"
+
+            return schema
+
+    return Modifier

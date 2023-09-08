@@ -69,3 +69,23 @@ class GlobalConfig(pydantic.BaseModel):
             classes.append(cls)
         
         return t.Union[tuple(classes)]
+
+    def get_analysis_methods(self):
+        classes = []
+        for method in self.analysis_functions:
+            module_name, cls_name = method.rsplit(".", 1)
+            module = importlib.import_module(module_name)
+            cls = getattr(module, cls_name)
+            classes.append(cls)
+        
+        return t.Union[tuple(classes)]
+
+    def get_modify_methods(self):
+        classes = []
+        for method in self.modify_functions:
+            module_name, cls_name = method.rsplit(".", 1)
+            module = importlib.import_module(module_name)
+            cls = getattr(module, cls_name)
+            classes.append(cls)
+        
+        return t.Union[tuple(classes)]

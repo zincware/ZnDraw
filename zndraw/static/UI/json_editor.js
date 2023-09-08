@@ -158,59 +158,43 @@ function analysis_editor(socket, cache, world) {
 }
 
 function modifier_editor(socket, cache, world) {
-  let editor;
-  const selection = document.getElementById("modifier-select");
-
-  selection.onchange = function () {
-    if (editor !== undefined) {
-      editor.destroy();
-    }
-    if (selection.value === "") {
-      return;
-    }
-    const schema = JSON.parse(selection.value);
-    editor = new JSONEditor(
-      document.getElementById("interaction-json-editor"),
-      {
-        schema,
-      },
-    );
-  };
-
   socket.on("modifier:schema", (data) => {
-    const option = document.createElement("option");
-    option.value = JSON.stringify(data.schema);
-    option.innerHTML = data.name;
-    selection.appendChild(option);
-  });
-
-  document
-    .getElementById("interaction-json-editor-submit")
-    .addEventListener("click", () => {
-      // Get the value from the editor
-      const value = editor.getValue();
-
-      const { points, segments } = world.getLineData();
-
-      socket.emit("modifier:run", {
-        name: selection.options[selection.selectedIndex].text,
-        params: value,
-        atoms: cache.get(world.getStep()),
-        selection: world.getSelection(),
-        step: world.getStep(),
-        points,
-        segments,
-      });
-      world.particles.click(); // reset selection
-
-      document.getElementById("interaction-json-editor-submit").disabled = true;
-      // if there is an error in uploading, we still want to be able to submit again
-      setTimeout(() => {
-        document.getElementById(
-          "interaction-json-editor-submit",
-        ).disabled = false;
-      }, 1000);
+    const div = document.getElementById("interaction-json-editor");
+    const editor = new JSONEditor(div, {
+      schema: data,
     });
+
+    editor.on("change", () => {
+      const value = editor.getValue();
+      div.parameters = value;
+    });
+
+    document
+      .getElementById("interaction-json-editor-submit")
+      .addEventListener("click", () => {
+        // Get the value from the editor
+        const value = editor.getValue();
+        const { points, segments } = world.getLineData();
+
+        socket.emit("modifier:run", {
+          params: value,
+          atoms: cache.get(world.getStep()),
+          selection: world.getSelection(),
+          step: world.getStep(),
+          points,
+          segments,
+        });
+        world.particles.click(); // reset selection
+
+        document.getElementById("interaction-json-editor-submit").disabled = true;
+        // if there is an error in uploading, we still want to be able to submit again
+        setTimeout(() => {
+          document.getElementById(
+            "interaction-json-editor-submit",
+          ).disabled = false;
+        }, 1000);
+        });
+  });
 
   socket.emit("modifier:schema");
 }
