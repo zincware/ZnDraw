@@ -76,6 +76,7 @@ class Cache {
 
     this._socket.on("atoms:delete", (id) => { 
       delete this._cache[id]; 
+      console.log(this.world.getStep())
       // move all keys after id one step back
       const keys = Object.keys(this._cache);
       for (let i = id; i < keys.length; i++) {
@@ -87,7 +88,11 @@ class Cache {
       document.getElementById(
         "info",
       ).innerHTML = `${slider.value} / ${slider.max}`;
-      this.world.setStep(this.world.getStep()); // wenn this.world.getStep größer als aktueller Step, dann sag setStep
+      this.world.setStep(this.world.getStep()); 
+      // update step in the world
+      if (this.world.getStep() > slider.max) {
+        this.world.setStep(slider.max);
+      }
     });
 
     this._socket.on("atoms:download", (ids) => {
