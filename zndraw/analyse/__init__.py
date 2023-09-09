@@ -54,7 +54,8 @@ class Properties2D(BaseModel):
     def schema_from_atoms(cls, atoms):
         schema = cls.model_json_schema()
         try:
-            available_properties = list(atoms.calc.results.keys())
+            available_properties = list(atoms.calc.results)
+            available_properties += list(atoms.arrays)
             available_properties += ["step"]
             schema["properties"]["x_data"]["enum"] = available_properties
             schema["properties"]["y_data"]["enum"] = available_properties
@@ -69,17 +70,30 @@ class Properties2D(BaseModel):
         if self.x_data == "step":
             x_data = list(range(len(atoms_lst)))
         else:
-            x_data = [x.calc.results[self.x_data] for x in atoms_lst]
+            try:
+                x_data = [x.calc.results[self.x_data] for x in atoms_lst]
+            except KeyError:
+                x_data = [x.arrays[self.x_data] for x in atoms_lst]
 
         if self.y_data == "step":
             y_data = list(range(len(atoms_lst)))
         else:
-            y_data = [x.calc.results[self.y_data] for x in atoms_lst]
+            try:
+                y_data = [x.calc.results[self.y_data] for x in atoms_lst]
+            except KeyError:
+                y_data = [x.arrays[self.y_data] for x in atoms_lst]
 
         if self.color == "step":
             color = list(range(len(atoms_lst)))
         else:
-            color = [x.calc.results[self.color] for x in atoms_lst]
+            try:
+                color = [x.calc.results[self.color] for x in atoms_lst]
+            except KeyError:
+                color = [x.arrays[self.color] for x in atoms_lst]
+        
+        y_data = np.array(y_data).reshape(-1)
+        x_data = np.array(x_data).reshape(-1)
+        color = np.array(color).reshape(-1)
 
         df = pd.DataFrame({self.x_data: x_data, self.y_data: y_data, self.color: color})
         fig = px.scatter(
@@ -90,7 +104,6 @@ class Properties2D(BaseModel):
                 scaleanchor="x",
                 scaleratio=1,
             )
-
         return fig
 
 
