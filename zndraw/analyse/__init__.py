@@ -90,7 +90,7 @@ class Properties2D(BaseModel):
                 color = [x.calc.results[self.color] for x in atoms_lst]
             except KeyError:
                 color = [x.arrays[self.color] for x in atoms_lst]
-        
+
         y_data = np.array(y_data).reshape(-1)
         x_data = np.array(x_data).reshape(-1)
         color = np.array(color).reshape(-1)
