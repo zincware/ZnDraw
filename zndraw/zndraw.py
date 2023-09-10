@@ -92,7 +92,11 @@ class ZnDraw(collections.abc.MutableSequence):
         return IFrame(src=self.url, width="100%", height="600px")._repr_html_()
 
     def __delitem__(self, index):
-        if isinstance(index, int) or isinstance(index, slice) or isinstance(index, list):        
+        if (
+            isinstance(index, int)
+            or isinstance(index, slice)
+            or isinstance(index, list)
+        ):
             length = len(self)
             if isinstance(index, slice):
                 index = range(*index.indices(length))

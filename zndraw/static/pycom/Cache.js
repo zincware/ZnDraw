@@ -103,11 +103,12 @@ class Cache {
         });
         this.world.setStep(newStep);
       }
-      
-      slider.max = remainingKeys.length - 1;
-      document.getElementById("info").innerHTML = `${slider.value} / ${slider.max}`;
-    });
 
+      slider.max = remainingKeys.length - 1;
+      document.getElementById(
+        "info",
+      ).innerHTML = `${slider.value} / ${slider.max}`;
+    });
 
     this._socket.on("atoms:download", (ids) => {
       // send all atoms at once
