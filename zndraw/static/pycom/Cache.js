@@ -74,25 +74,40 @@ class Cache {
       ).innerHTML = `${slider.value} / ${slider.max}`;
     });
 
-    this._socket.on("atoms:delete", (id) => {
-      delete this._cache[id];
+    this._socket.on("atoms:delete", (ids) => {
+      for (const id of ids) {
+        delete this._cache[id];
+      }
       // move all keys after id one step back
-      const keys = Object.keys(this._cache);
-      for (let i = id; i < keys.length; i++) {
-        this._cache[i] = this._cache[i + 1];
+      const remainingKeys = Object.keys(this._cache);
+      for (let i = ids[0]; i < remainingKeys.length; i++) {
+        const currentKey = remainingKeys[i];
+        const newIndex = i;
+        if (currentKey !== newIndex) {
+          this._cache[newIndex] = this._cache[currentKey];
+          delete this._cache[currentKey];
+        }
       }
-      delete this._cache[keys.length]; // delete last element, keys.length is important, not keys.length-1
+      // update slider
       const slider = document.getElementById("frame-slider");
-      slider.max = Object.keys(this._cache).length - 1;
-      document.getElementById(
-        "info",
-      ).innerHTML = `${slider.value} / ${slider.max}`;
-      this.world.setStep(this.world.getStep()); 
-      // update step in the world
-      if (this.world.getStep() > slider.max) {
-        this.world.setStep(slider.max);
+
+      // update world
+      if (this.world.getStep() >= slider.max) {
+        this.world.setStep(remainingKeys.length - 1);
+      } else {
+        let newStep = this.world.getStep();
+        ids.forEach((id) => {
+          if (this.world.getStep() > id) {
+            newStep = newStep - 1;
+          }
+        });
+        this.world.setStep(newStep);
       }
+      
+      slider.max = remainingKeys.length - 1;
+      document.getElementById("info").innerHTML = `${slider.value} / ${slider.max}`;
     });
+
 
     this._socket.on("atoms:download", (ids) => {
       // send all atoms at once
