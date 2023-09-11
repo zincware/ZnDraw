@@ -334,3 +334,8 @@ def scene_schema():
 @io.on("draw:schema")
 def draw_schema():
     io.emit("draw:schema", Geometry.updated_schema())
+
+
+@io.on("atoms:delete")
+def delete_atoms(data):
+    emit("atoms:delete", data, broadcast=True, include_self=False)
