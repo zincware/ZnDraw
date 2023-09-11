@@ -103,7 +103,6 @@ class ZnDraw(collections.abc.MutableSequence):
 
             index = [index] if isinstance(index, int) else index
             index = [i if i >= 0 else length + i for i in index]
-            print(index)
             self.socket.emit("atoms:delete", index)
             if index[0] >= length or index[-1] >= length:
                 raise IndexError("Index out of range")
