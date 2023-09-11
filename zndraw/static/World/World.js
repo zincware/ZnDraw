@@ -41,6 +41,28 @@ class Player {
       this.play();
     });
 
+    // detect playBtn click
+    document.getElementById("playBtn").addEventListener("click", () => {
+      this.toggle();
+      // if playing set the icon to <i class="fa-solid fa-pause"></i> else to <i class="fa-solid fa-play"></i>
+      if (this.playing) {
+        document.getElementById("playBtn").innerHTML =
+          '<i class="fa-solid fa-pause"></i>';
+      }
+      if (!this.playing) {
+        document.getElementById("playBtn").innerHTML =
+          '<i class="fa-solid fa-play"></i>';
+      }
+    });
+    // detect forwardBtn click
+    document.getElementById("forwardBtn").addEventListener("click", () => {
+      this.go_forward();
+    });
+    // detect backwardBtn click
+    document.getElementById("backwardBtn").addEventListener("click", () => {
+      this.go_backward();
+    });
+
     // toggle playing on spacebar
     document.addEventListener("keydown", (event) => {
       if (document.activeElement === document.body && event.code === "Space") {

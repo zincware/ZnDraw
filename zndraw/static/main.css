@@ -155,6 +155,13 @@ body {
   opacity: 0.5;
 }
 
+#playPauseCtrl {
+  position: fixed;
+  bottom: 5%;
+  z-index: 100;
+  display: none;
+}
+
 #infoBox {
   position: absolute;
   bottom: 1%;
