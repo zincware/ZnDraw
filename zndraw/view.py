@@ -43,7 +43,7 @@ def view(
     step: int,
     compute_bonds: bool,
     multiprocessing: bool,
-    upgrade_insecure_requests: bool,
+    upgrade_insecure_requests: bool = False,
 ):
     if filename is not None:
         app.config["filename"] = filename
