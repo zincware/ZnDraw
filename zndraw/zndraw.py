@@ -107,7 +107,7 @@ class ZnDraw(collections.abc.MutableSequence):
             if index[0] >= length or index[-1] >= length:
                 raise IndexError("Index out of range")
         else:
-            raise TypeError("Index must be an integer or a slice")
+            raise TypeError("Index must be an integer, slice or list[int]")
 
     def __getitem__(self, index) -> t.Union[ase.Atoms, list[ase.Atoms]]:
         get_item_event = threading.Event()
