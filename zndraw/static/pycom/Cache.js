@@ -112,10 +112,10 @@ class Cache {
 
     this._socket.on("atoms:insert", (data) => {
       // move all keys after id one step forward
-      console.log(data)
+      console.log(data);
       const remainingKeys = Object.keys(this._cache);
       const id = parseInt(Object.keys(data)[0]);
-      for (let i = remainingKeys.length-1; i >= id; i--) {
+      for (let i = remainingKeys.length - 1; i >= id; i--) {
         const currentKey = remainingKeys[i];
         const newIndex = i + 1;
         this._cache[newIndex] = this._cache[currentKey];
