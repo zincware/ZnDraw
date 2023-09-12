@@ -339,3 +339,7 @@ def draw_schema():
 @io.on("atoms:delete")
 def delete_atoms(data):
     emit("atoms:delete", data, broadcast=True, include_self=False)
+    
+@io.on("atoms:insert")
+def insert_atoms(data):
+    emit("atoms:insert", data, broadcast=True, include_self=False)

@@ -173,7 +173,9 @@ class ZnDraw(collections.abc.MutableSequence):
 
     def insert(self, index, value):
         """Insert atoms before index"""
-        raise NotImplementedError
+        self.socket.emit("atoms:insert", {index: atoms_to_json(value)})
+        if self.display_new:
+            self.display(index)
 
     def append(self, value: ase.Atoms) -> None:
         """Append atoms to the end of the list"""
