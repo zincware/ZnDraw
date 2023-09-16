@@ -17,12 +17,13 @@ class ASEComputeBonds(BaseModel):
             self.double_bond_multiplier,
             self.triple_bond_multiplier,
         ]
-        connectivity_matrix = np.zeros((len(atoms), len(atoms)), dtype=int)
-        atoms.pbc = False
-        distance_matrix = atoms.get_all_distances(mic=False)
+        atoms_copy = atoms.copy()
+        connectivity_matrix = np.zeros((len(atoms_copy), len(atoms_copy)), dtype=int)
+        atoms_copy.pbc = False
+        distance_matrix = atoms_copy.get_all_distances(mic=False)
         np.fill_diagonal(distance_matrix, np.inf)
         for cutoff in cutoffs:
-            cutoffs = np.array(natural_cutoffs(atoms, mult=cutoff))
+            cutoffs = np.array(natural_cutoffs(atoms_copy, mult=cutoff))
             cutoffs = cutoffs[:, None] + cutoffs[None, :]
             connectivity_matrix[distance_matrix <= cutoffs] += 1
         G = nx.from_numpy_array(connectivity_matrix)
