@@ -123,7 +123,6 @@ class Cache {
 
     this._socket.on("atoms:insert", (data) => {
       // move all keys after id one step forward
-      console.log(data);
       const remainingKeys = Object.keys(this._cache);
       const id = parseInt(Object.keys(data)[0]);
       for (let i = remainingKeys.length - 1; i >= id; i--) {
@@ -134,19 +133,18 @@ class Cache {
       }
       // insert new atoms
       this._cache[id] = new Atoms({
-        positions: data.positions,
-        cell: data.cell,
-        numbers: data.numbers,
-        colors: data.colors,
-        radii: data.radii,
-        connectivity: data.connectivity,
-        calc: data.calc,
+        positions: data[id].positions,
+          cell: data[id].cell,
+          numbers: data[id].numbers,
+          colors: data[id].colors,
+          radii: data[id].radii,
+          connectivity: data[id].connectivity,
+          calc: data[id].calc,
+          pbc: data[id].pbc,
       });
       // update slider
       const slider = document.getElementById("frame-slider");
-      console.log(1);
       slider.max = Object.keys(this._cache).length - 1;
-      console.log(2);
       document.getElementById(
         "info",
       ).innerHTML = `${slider.value} / ${slider.max}`;
