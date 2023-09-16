@@ -11,7 +11,16 @@ class Atom {
 }
 
 class Atoms {
-  constructor({ positions, cell, numbers, colors, radii, connectivity, calc, pbc }) {
+  constructor({
+    positions,
+    cell,
+    numbers,
+    colors,
+    radii,
+    connectivity,
+    calc,
+    pbc,
+  }) {
     this.positions = positions;
     this.cell = cell;
     this.numbers = numbers;
