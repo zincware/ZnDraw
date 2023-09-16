@@ -1,0 +1,43 @@
+name: tests
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+  schedule:
+    - cron: '14 3 * * 1'  # at 03:14 on Monday.
+
+jobs:
+  pytest:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version:
+          - "3.11"
+          - "3.10"
+          - 3.9
+        os:
+          - ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install Poetry
+        run: |
+          pipx install poetry
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v3
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: 'poetry'
+      - name: Install package
+        run: |
+          poetry install --no-interaction
+      - name: Pytest
+        run: |
+          poetry run coverage run -m pytest -vv
+          poetry run coverage xml
+      - uses: codecov/codecov-action@v2
+        with:
+          flags: fulltest
+          verbose: true
