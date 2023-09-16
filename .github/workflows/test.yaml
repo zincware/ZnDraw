@@ -37,7 +37,7 @@ jobs:
         run: |
           poetry run coverage run -m pytest -vv
           poetry run coverage xml
-      - uses: codecov/codecov-action@v2
-        with:
-          flags: fulltest
-          verbose: true
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@v3
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
