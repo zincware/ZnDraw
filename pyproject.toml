@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "zndraw"
-version = "0.2.0"
+version = "0.2.1"
 description = ""
 authors = ["zincwarecode <zincwarecode@gmail.com>"]
 license = "Apache-2.0"
