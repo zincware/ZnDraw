@@ -134,13 +134,13 @@ class Cache {
       // insert new atoms
       this._cache[id] = new Atoms({
         positions: data[id].positions,
-          cell: data[id].cell,
-          numbers: data[id].numbers,
-          colors: data[id].colors,
-          radii: data[id].radii,
-          connectivity: data[id].connectivity,
-          calc: data[id].calc,
-          pbc: data[id].pbc,
+        cell: data[id].cell,
+        numbers: data[id].numbers,
+        colors: data[id].colors,
+        radii: data[id].radii,
+        connectivity: data[id].connectivity,
+        calc: data[id].calc,
+        pbc: data[id].pbc,
       });
       // update slider
       const slider = document.getElementById("frame-slider");
