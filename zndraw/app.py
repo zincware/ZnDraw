@@ -13,6 +13,7 @@ from zndraw.data import atoms_from_json, atoms_to_json
 from zndraw.draw import Geometry
 from zndraw.modify import get_modify_class
 from zndraw.select import get_selection_class
+from zndraw.analyse import get_analysis_class
 from zndraw.settings import GlobalConfig
 from zndraw.zndraw import ZnDraw
 
@@ -128,25 +129,6 @@ def modifier_run(data):
     io.emit("view:play")
 
 
-@io.on("analysis:schema")
-def analysis_schema(data):
-    config = GlobalConfig.load()
-    if "atoms" not in data:
-        return
-    atoms = atoms_from_json(data["atoms"])
-
-    for modifier in config.analysis_functions:
-        module_name, function_name = modifier.rsplit(".", 1)
-        module = importlib.import_module(module_name)
-        modifier_cls = getattr(module, function_name)
-        schema = modifier_cls.schema_from_atoms(atoms)
-
-        io.emit(
-            "analysis:schema",
-            {"name": modifier, "schema": schema},
-        )
-
-
 @io.on("selection:schema")
 def selection_schema():
     config = GlobalConfig.load()
@@ -157,8 +139,6 @@ def selection_schema():
 
 @io.on("selection:run")
 def selection_run(data):
-    import ase
-
     config = GlobalConfig.load()
     cls = get_selection_class(config.get_selection_methods())
 
@@ -175,20 +155,33 @@ def selection_run(data):
         print(err)
 
 
+@io.on("analysis:schema")
+def analysis_schema(data):
+    config = GlobalConfig.load()
+
+    cls = get_analysis_class(config.get_analysis_methods())
+
+    if "atoms" not in data:
+        return
+    atoms = atoms_from_json(data["atoms"])
+
+    io.emit("analysis:schema", cls.model_json_schema_from_atoms(atoms))
+
 @io.on("analysis:run")
 def analysis_run(data):
+    config = GlobalConfig.load()
+    cls = get_analysis_class(config.get_analysis_methods())
+    
     atoms_list = [atoms_from_json(x) for x in data["atoms_list"].values()]
 
     print(f"Analysing {len(atoms_list)} frames")
 
-    module_name, function_name = data["name"].rsplit(".", 1)
-    module = importlib.import_module(module_name)
-    cls = getattr(module, function_name)
-    instance = cls(**data["params"])
-
-    fig = instance.run(atoms_list, data["selection"])
-    return fig.to_json()
-
+    try:
+        instance = cls(**data["params"])
+        fig = instance.run(atoms_list, data["selection"])
+        return fig.to_json()
+    except ValueError as err:
+        print(err)
 
 @io.on("config")
 def config(data):

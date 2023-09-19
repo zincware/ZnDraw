@@ -1,4 +1,6 @@
 import socket
+import contextlib
+import ase
 
 
 def get_port(default: int = 1234) -> int:
@@ -14,3 +16,12 @@ def get_port(default: int = 1234) -> int:
     finally:
         sock.close()
     return port
+
+
+@contextlib.contextmanager
+def set_global_atoms(atoms: ase.Atoms):
+    """Temporarily create a global 'ATOMS' variable."""
+    global ATOMS
+    ATOMS = atoms
+    yield
+    del ATOMS

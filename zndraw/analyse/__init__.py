@@ -1,17 +1,19 @@
 import itertools
+from typing import Any
 
 import numpy as np
 import pandas as pd
 import plotly.express as px
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+import ase
+import typing as t
+from zndraw.utils import set_global_atoms
 
 
 class Distance(BaseModel):
-    smooth: bool = False
+    method: t.Literal["Distance"] = "Distance"
 
-    @classmethod
-    def schema_from_atoms(cls, atoms):
-        return cls.model_json_schema()
+    smooth: bool = False
 
     def run(self, atoms_lst, ids):
         distances = {}
@@ -45,17 +47,20 @@ class Distance(BaseModel):
 
 
 class Properties2D(BaseModel):
+    method: t.Literal["Properties2D"] = "Properties2D"
+
     x_data: str = "step"
     y_data: str = "energy"
     color: str = "energy"
     fix_aspect_ratio: bool = True
 
     @classmethod
-    def schema_from_atoms(cls, atoms):
-        schema = cls.model_json_schema()
+    def model_json_schema(cls, *args, **kwargs) -> dict[str, Any]:
+        schema = super().model_json_schema(*args, **kwargs)
+        print(f"GATHERING PROPERTIES FROM {ATOMS=}")
         try:
-            available_properties = list(atoms.calc.results)
-            available_properties += list(atoms.arrays)
+            available_properties = list(ATOMS.calc.results)
+            available_properties += list(ATOMS.arrays)
             available_properties += ["step"]
             schema["properties"]["x_data"]["enum"] = available_properties
             schema["properties"]["y_data"]["enum"] = available_properties
@@ -108,14 +113,16 @@ class Properties2D(BaseModel):
 
 
 class Properties1D(BaseModel):
+    method: t.Literal["Properties1D"] = "Properties1D"
+
     value: str = "energy"
     smooth: bool = False
-
+   
     @classmethod
-    def schema_from_atoms(cls, atoms):
-        schema = cls.model_json_schema()
+    def model_json_schema(cls, *args, **kwargs) -> dict[str, Any]:
+        schema = super().model_json_schema(*args, **kwargs)
         try:
-            available_properties = list(atoms.calc.results.keys())
+            available_properties = list(ATOMS.calc.results.keys()) # global ATOMS object
             schema["properties"]["value"]["enum"] = available_properties
         except AttributeError:
             pass
@@ -137,3 +144,32 @@ class Properties1D(BaseModel):
                     )
 
         return fig
+
+
+def get_analysis_class(methods):
+    class Analysis(BaseModel):
+        method: methods = Field(
+            ..., description="Analysis method", discriminator="method"
+        )
+
+        def run(self, *args, **kwargs) -> list[ase.Atoms]:
+            return self.method.run(*args, **kwargs)
+        
+        @classmethod
+        def model_json_schema_from_atoms(cls, atoms, *args, **kwargs) -> dict[str, t.Any]:
+            with set_global_atoms(atoms):
+                result = cls.model_json_schema(*args, **kwargs)
+            return result
+
+        @classmethod
+        def model_json_schema(cls, *args, **kwargs) -> dict[str, t.Any]:
+            schema = super().model_json_schema(*args, **kwargs)
+            for prop in [x.__name__ for x in t.get_args(methods)]:
+                schema["$defs"][prop]["properties"]["method"]["options"] = {
+                    "hidden": True
+                }
+                schema["$defs"][prop]["properties"]["method"]["type"] = "string"
+
+            return schema
+
+    return Analysis
