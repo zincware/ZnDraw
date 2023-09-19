@@ -1,6 +1,7 @@
 import collections.abc
 import contextlib
 import dataclasses
+import logging
 import pathlib
 import threading
 import time
@@ -17,6 +18,23 @@ import znh5md
 from zndraw.bonds import ASEComputeBonds
 from zndraw.data import atoms_from_json, atoms_to_json
 from zndraw.utils import get_port
+
+
+class ZnDrawLoggingHandler(logging.Handler):
+    """Logging handler which emits log messages to the ZnDraw server."""
+
+    def __init__(self, socket):
+        super().__init__()
+        self.socket = socket
+
+    def emit(self, record):
+        try:
+            msg = self.format(record)
+            self.socket.emit("message:log", msg)
+        except RecursionError:  # See StreamHandler
+            raise
+        except Exception:
+            self.handleError(record)
 
 
 @dataclasses.dataclass
@@ -186,6 +204,13 @@ class ZnDraw(collections.abc.MutableSequence):
             self._set_item(len(self), val)
         if self.display_new:
             self.display(len(self) - 1)
+
+    def log(self, message: str) -> None:
+        """Log a message to the console"""
+        self.socket.emit("message:log", message)
+
+    def get_logging_handler(self) -> ZnDrawLoggingHandler:
+        return ZnDrawLoggingHandler(self.socket)
 
     def read(self, filename: str, start: int, stop: int, step: int):
         """Read atoms from file and return a list of atoms dicts.
