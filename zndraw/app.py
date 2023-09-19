@@ -1,4 +1,3 @@
-import importlib
 import multiprocessing as mp
 import uuid
 from io import StringIO
@@ -9,11 +8,11 @@ import tqdm
 from flask import Flask, render_template
 from flask_socketio import SocketIO, emit
 
+from zndraw.analyse import get_analysis_class
 from zndraw.data import atoms_from_json, atoms_to_json
 from zndraw.draw import Geometry
 from zndraw.modify import get_modify_class
 from zndraw.select import get_selection_class
-from zndraw.analyse import get_analysis_class
 from zndraw.settings import GlobalConfig
 from zndraw.zndraw import ZnDraw
 
@@ -167,11 +166,12 @@ def analysis_schema(data):
 
     io.emit("analysis:schema", cls.model_json_schema_from_atoms(atoms))
 
+
 @io.on("analysis:run")
 def analysis_run(data):
     config = GlobalConfig.load()
     cls = get_analysis_class(config.get_analysis_methods())
-    
+
     atoms_list = [atoms_from_json(x) for x in data["atoms_list"].values()]
 
     print(f"Analysing {len(atoms_list)} frames")
@@ -182,6 +182,7 @@ def analysis_run(data):
         return fig.to_json()
     except ValueError as err:
         print(err)
+
 
 @io.on("config")
 def config(data):

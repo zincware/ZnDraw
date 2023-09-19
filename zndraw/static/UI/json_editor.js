@@ -96,9 +96,9 @@ function analysis_editor(socket, cache, world) {
       div.parameters = value;
     });
 
-    document.getElementById("analysis-json-editor-submit").addEventListener(
-      "click",
-      () => {
+    document
+      .getElementById("analysis-json-editor-submit")
+      .addEventListener("click", () => {
         // Get the value from the editor
         const value = editor.getValue();
 
@@ -113,7 +113,7 @@ function analysis_editor(socket, cache, world) {
           },
           (data) => {
             Plotly.newPlot("analysisPlot", JSON.parse(data));
-  
+
             function buildPlot() {
               Plotly.newPlot("analysisPlot", JSON.parse(data));
               const myplot = document.getElementById("analysisPlot");
@@ -123,18 +123,19 @@ function analysis_editor(socket, cache, world) {
                 world.setStep(step);
               });
             }
-  
+
             buildPlot();
           },
         );
 
         document.getElementById("analysis-json-editor-submit").disabled = true;
-      // if there is an error in uploading, we still want to be able to submit again
-      setTimeout(() => {
-        document.getElementById("analysis-json-editor-submit").disabled = false;
-      }, 1000);
-      }
-    );
+        // if there is an error in uploading, we still want to be able to submit again
+        setTimeout(() => {
+          document.getElementById(
+            "analysis-json-editor-submit",
+          ).disabled = false;
+        }, 1000);
+      });
   });
 
   function get_analysis_data() {

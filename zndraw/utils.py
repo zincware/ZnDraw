@@ -1,5 +1,6 @@
-import socket
 import contextlib
+import socket
+
 import ase
 
 

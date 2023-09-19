@@ -1,12 +1,13 @@
 import itertools
+import typing as t
 from typing import Any
 
+import ase
 import numpy as np
 import pandas as pd
 import plotly.express as px
 from pydantic import BaseModel, Field
-import ase
-import typing as t
+
 from zndraw.utils import set_global_atoms
 
 
@@ -117,12 +118,14 @@ class Properties1D(BaseModel):
 
     value: str = "energy"
     smooth: bool = False
-   
+
     @classmethod
     def model_json_schema(cls, *args, **kwargs) -> dict[str, Any]:
         schema = super().model_json_schema(*args, **kwargs)
         try:
-            available_properties = list(ATOMS.calc.results.keys()) # global ATOMS object
+            available_properties = list(
+                ATOMS.calc.results.keys()
+            )  # global ATOMS object
             schema["properties"]["value"]["enum"] = available_properties
         except AttributeError:
             pass
@@ -154,9 +157,11 @@ def get_analysis_class(methods):
 
         def run(self, *args, **kwargs) -> list[ase.Atoms]:
             return self.method.run(*args, **kwargs)
-        
+
         @classmethod
-        def model_json_schema_from_atoms(cls, atoms, *args, **kwargs) -> dict[str, t.Any]:
+        def model_json_schema_from_atoms(
+            cls, atoms, *args, **kwargs
+        ) -> dict[str, t.Any]:
             with set_global_atoms(atoms):
                 result = cls.model_json_schema(*args, **kwargs)
             return result
