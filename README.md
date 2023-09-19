@@ -28,12 +28,22 @@ example notebook.
 from zndraw import ZnDraw
 import ase
 
-zndraw = ZnDraw()
+vis = ZnDraw()
 
-zndraw.socket.sleep(2) # give it some time to fully connect
-zndraw[0] = ase.Atoms(
+vis.socket.sleep(2) # give it some time to fully connect
+vis[0] = ase.Atoms(
   "H2O", positions=[[0.75, -0.75, 0], [0.75, 0.75, 0], [0, 0, 0]]
   )
+```
+
+ZnDraw also provides an interface to the Python [logging](https://docs.python.org/3/library/logging.html) library, including support for formatters and different logging levels.
+
+```python
+import logging
+
+log = logging.getLogger(__name__)
+log.addHandler(vis.get_logging_handler())
+log.critical("Critical Message")
 ```
 
 ## User Interface
