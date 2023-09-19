@@ -58,10 +58,10 @@ class Properties2D(BaseModel):
     @classmethod
     def model_json_schema(cls, *args, **kwargs) -> dict[str, Any]:
         schema = super().model_json_schema(*args, **kwargs)
-        print(f"GATHERING PROPERTIES FROM {ATOMS=}")
+        print(f"GATHERING PROPERTIES FROM {ATOMS=}")  # noqa: F821
         try:
-            available_properties = list(ATOMS.calc.results)
-            available_properties += list(ATOMS.arrays)
+            available_properties = list(ATOMS.calc.results)  # noqa: F821
+            available_properties += list(ATOMS.arrays)  # noqa: F821
             available_properties += ["step"]
             schema["properties"]["x_data"]["enum"] = available_properties
             schema["properties"]["y_data"]["enum"] = available_properties
@@ -124,7 +124,7 @@ class Properties1D(BaseModel):
         schema = super().model_json_schema(*args, **kwargs)
         try:
             available_properties = list(
-                ATOMS.calc.results.keys()
+                ATOMS.calc.results.keys()  # noqa: F821
             )  # global ATOMS object
             schema["properties"]["value"]["enum"] = available_properties
         except AttributeError:
