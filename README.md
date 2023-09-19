@@ -36,7 +36,9 @@ vis[0] = ase.Atoms(
   )
 ```
 
-ZnDraw also provides an interface to the Python [logging](https://docs.python.org/3/library/logging.html) library, including support for formatters and different logging levels.
+ZnDraw also provides an interface to the Python
+[logging](https://docs.python.org/3/library/logging.html) library, including
+support for formatters and different logging levels.
 
 ```python
 import logging

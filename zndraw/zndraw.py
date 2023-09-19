@@ -1,11 +1,11 @@
 import collections.abc
 import contextlib
 import dataclasses
+import logging
 import pathlib
 import threading
 import time
 import typing as t
-import logging
 
 import ase
 import ase.io
@@ -20,10 +20,9 @@ from zndraw.data import atoms_from_json, atoms_to_json
 from zndraw.utils import get_port
 
 
-
 class ZnDrawLoggingHandler(logging.Handler):
     """Logging handler which emits log messages to the ZnDraw server."""
-    
+
     def __init__(self, socket):
         super().__init__()
         self.socket = socket
@@ -205,7 +204,7 @@ class ZnDraw(collections.abc.MutableSequence):
             self._set_item(len(self), val)
         if self.display_new:
             self.display(len(self) - 1)
-    
+
     def log(self, message: str) -> None:
         """Log a message to the console"""
         self.socket.emit("message:log", message)

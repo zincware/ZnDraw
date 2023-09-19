@@ -349,6 +349,7 @@ def delete_atoms(data):
 def insert_atoms(data):
     emit("atoms:insert", data, broadcast=True, include_self=False)
 
+
 @io.on("message:log")
 def log(data):
     emit("message:log", data, broadcast=True, include_self=False)
