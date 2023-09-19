@@ -113,7 +113,11 @@ def modifier_run(data):
     instance = cls(**data["params"])
 
     atoms_list = instance.run(
-        atom_ids=data["selection"], atoms=atoms, points=points, segments=segments, json_data=data["atoms"] if "atoms" in data else None,
+        atom_ids=data["selection"],
+        atoms=atoms,
+        points=points,
+        segments=segments,
+        json_data=data["atoms"] if "atoms" in data else None,
     )
     io.emit("atoms:clear", int(data["step"]) + 1)
     for idx, atoms in tqdm.tqdm(enumerate(atoms_list)):
