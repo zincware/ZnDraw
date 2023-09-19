@@ -113,7 +113,7 @@ def modifier_run(data):
     instance = cls(**data["params"])
 
     atoms_list = instance.run(
-        atom_ids=data["selection"], atoms=atoms, points=points, segments=segments
+        atom_ids=data["selection"], atoms=atoms, points=points, segments=segments, json_data=data["atoms"] if "atoms" in data else None,
     )
     io.emit("atoms:clear", int(data["step"]) + 1)
     for idx, atoms in tqdm.tqdm(enumerate(atoms_list)):
@@ -322,3 +322,13 @@ def scene_schema():
 @io.on("draw:schema")
 def draw_schema():
     io.emit("draw:schema", Geometry.updated_schema())
+
+
+@io.on("atoms:delete")
+def delete_atoms(data):
+    emit("atoms:delete", data, broadcast=True, include_self=False)
+
+
+@io.on("atoms:insert")
+def insert_atoms(data):
+    emit("atoms:insert", data, broadcast=True, include_self=False)

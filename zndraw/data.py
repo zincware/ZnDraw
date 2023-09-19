@@ -62,7 +62,7 @@ def atoms_from_json(data: dict) -> ase.Atoms:
     atoms = ase.Atoms(
         numbers=data["numbers"],
         cell=data["cell"],
-        pbc=True,
+        pbc=data["pbc"],
         positions=data["positions"],
     )
 
