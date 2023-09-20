@@ -1969,7 +1969,18 @@ typer = {version = ">=0.7.0,<0.8.0", extras = ["all"]}
 [package.extras]
 dask = ["dask[array] (>=2022.11.1,<2023.0.0)"]
 
+[[package]]
+name = "znjson"
+version = "0.2.2"
+description = "A Python Package to Encode/Decode some common file formats to json"
+optional = false
+python-versions = ">=3.8,<4.0"
+files = [
+    {file = "znjson-0.2.2-py3-none-any.whl", hash = "sha256:ee29bb63716f66d1d259a8e3565fb66b9c8b79aee896dc231df990ad26e7fb6b"},
+    {file = "znjson-0.2.2.tar.gz", hash = "sha256:d421ff377d490d876ea016780ffd60a585949a29d6df28ae971da2a329f35b45"},
+]
+
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.9"
-content-hash = "cfc4dd9ec56d4d5d40c4346352b091f22b31a6f3767d893a578ab2a336e33996"
+content-hash = "a6bc27537a766b6ace6dda0b1bacc59e73e0c3f278476bfb3e98541a856b8177"
