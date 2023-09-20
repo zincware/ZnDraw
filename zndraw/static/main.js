@@ -52,9 +52,8 @@ function main() {
       socket.emit("numpy", (data) => {
         // create FLOAT32ARRAY from data
         const array = new Float64Array(data);
-        console.log(array);     
-      }
-      );
+        console.log(array);
+      });
     }
   });
 }

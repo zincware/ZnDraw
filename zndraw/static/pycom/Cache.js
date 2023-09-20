@@ -33,8 +33,11 @@ class Atoms {
     calc,
     pbc,
   }) {
-    this.positions = float64ArrayTo2DArray(new Float64Array(positions), [300, 3]),
-    this.cell = cell;
+    (this.positions = float64ArrayTo2DArray(
+      new Float64Array(positions),
+      [300, 3],
+    )),
+      (this.cell = cell);
     this.numbers = numbers;
     this.colors = colors;
     this.radii = radii;
