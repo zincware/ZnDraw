@@ -54,6 +54,8 @@ def atoms_to_json(atoms: ase.Atoms) -> dict:
         atoms_dict["connectivity"] = ase_bond_calculator.get_bonds(atoms)
     except AttributeError:
         atoms_dict["connectivity"] = []
+    
+    atoms_dict["positions"] = np.array(atoms_dict["positions"]).tobytes()
 
     return atoms_dict
 
@@ -63,6 +65,7 @@ def atoms_from_json(data: dict) -> ase.Atoms:
         numbers=data["numbers"],
         cell=data["cell"],
         pbc=data["pbc"],
+        # positions=np.frombuffer(data["positions"], dtype=float).reshape(-1, 3),
         positions=data["positions"],
     )
 

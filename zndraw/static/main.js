@@ -45,6 +45,18 @@ function main() {
   socket.on("message:log", (msg) => {
     console.log(msg);
   });
+
+  // keypress J
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "j") {
+      socket.emit("numpy", (data) => {
+        // create FLOAT32ARRAY from data
+        const array = new Float64Array(data);
+        console.log(array);     
+      }
+      );
+    }
+  });
 }
 
 main();
