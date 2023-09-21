@@ -7,6 +7,9 @@ import numpy as np
 from ase.data import chemical_symbols
 from pydantic import BaseModel, Field
 
+import logging
+log = logging.getLogger("zndraw")
+
 Symbols = enum.Enum("Symbols", {symbol: symbol for symbol in chemical_symbols})
 
 
@@ -78,6 +81,7 @@ class Explode(UpdateScene):
 
 class Delete(UpdateScene):
     def run(self, atom_ids: list[int], atoms: ase.Atoms, **kwargs) -> list[ase.Atoms]:
+        log.info(f"Deleting atoms {atom_ids}")
         for idx, atom_id in enumerate(sorted(atom_ids)):
             atoms.pop(atom_id - idx)  # we remove the atom and shift the index
         del atoms.connectivity

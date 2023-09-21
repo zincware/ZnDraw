@@ -312,6 +312,7 @@ class Selection {
               step: this.world.getStep(),
               points,
               segments,
+              url: window.location.href,
             });
             particlesGroup.click();
           } else {

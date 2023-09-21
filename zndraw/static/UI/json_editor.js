@@ -200,6 +200,7 @@ function modifier_editor(socket, cache, world) {
         step: world.getStep(),
         points,
         segments,
+        url: window.location.href,
       });
       world.particles.click(); // reset selection
 
