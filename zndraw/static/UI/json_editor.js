@@ -43,6 +43,7 @@ function selection_editor(socket, cache, world) {
     document
       .getElementById("selection-json-editor-submit")
       .addEventListener("click", () => {
+        console.log(new Date().toISOString(), "running selection");
         // Get the value from the editor
         const value = editor.getValue();
         console.log(value);
@@ -111,6 +112,7 @@ function analysis_editor(socket, cache, world) {
     .getElementById("analysis-json-editor-submit")
     .addEventListener("click", () => {
       // Get the value from the editor
+      console.log(new Date().toISOString(), "running analysis");
       const value = editor.getValue();
 
       socket.emit(
@@ -191,7 +193,7 @@ function modifier_editor(socket, cache, world) {
       const value = editor.getValue();
 
       const { points, segments } = world.getLineData();
-
+      console.log(new Date().toISOString(), "running modifier");
       socket.emit("modifier:run", {
         name: selection.options[selection.selectedIndex].text,
         params: value,
