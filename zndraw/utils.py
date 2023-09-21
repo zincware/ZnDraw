@@ -1,5 +1,6 @@
-import socket
 import logging
+import socket
+
 
 def get_port(default: int = 1234) -> int:
     """Get an open port."""
@@ -14,6 +15,7 @@ def get_port(default: int = 1234) -> int:
     finally:
         sock.close()
     return port
+
 
 class ZnDrawLoggingHandler(logging.Handler):
     """Logging handler which emits log messages to the ZnDraw server."""

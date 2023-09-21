@@ -1,7 +1,6 @@
 import collections.abc
 import contextlib
 import dataclasses
-import logging
 import pathlib
 import threading
 import time
@@ -17,10 +16,7 @@ import znh5md
 
 from zndraw.bonds import ASEComputeBonds
 from zndraw.data import atoms_from_json, atoms_to_json
-from zndraw.utils import get_port, ZnDrawLoggingHandler
-
-
-
+from zndraw.utils import ZnDrawLoggingHandler, get_port
 
 
 @dataclasses.dataclass

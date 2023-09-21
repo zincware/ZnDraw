@@ -66,7 +66,7 @@ def view(
         ).start()
     elif open_browser:
         webbrowser.open(url)
-    
+
     logging_handler = ZnDrawLoggingHandler(io)
     logging_handler.setLevel(logging.INFO)
     # attach ISO timestamp to log messages

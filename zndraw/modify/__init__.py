@@ -1,5 +1,6 @@
 import abc
 import enum
+import logging
 import typing as t
 
 import ase
@@ -7,7 +8,6 @@ import numpy as np
 from ase.data import chemical_symbols
 from pydantic import BaseModel, Field
 
-import logging
 log = logging.getLogger("zndraw")
 
 Symbols = enum.Enum("Symbols", {symbol: symbol for symbol in chemical_symbols})
