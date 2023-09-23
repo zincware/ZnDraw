@@ -10,10 +10,10 @@ import ase
 import ase.io
 import flask_socketio
 import networkx as nx
+import numpy as np
 import socketio
 import tqdm
 import znh5md
-import numpy as np
 
 from zndraw.bonds import ASEComputeBonds
 from zndraw.data import atoms_from_json, atoms_to_json
@@ -22,7 +22,7 @@ from zndraw.utils import ZnDrawLoggingHandler, get_port
 
 def _await_answer(socket, channel, data=None, timeout=5):
     """Wait for an answer from the server.
-    
+
     I haven't used asyncio, so this should do..
     """
     event = threading.Event()

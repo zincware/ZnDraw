@@ -357,11 +357,12 @@ def insert_atoms(data):
 def log(data):
     emit("message:log", data, broadcast=True, include_self=False)
 
+
 @io.on("selection:get")
 def selection_get(data):
     emit("selection:get", data, broadcast=True, include_self=False)
 
+
 @io.on("draw:get_line")
 def draw_points(data):
     emit("draw:get_line", data, broadcast=True, include_self=False)
-

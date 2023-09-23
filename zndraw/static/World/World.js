@@ -228,7 +228,6 @@ class World {
       this.socket.emit("draw:get_line", this.getLineData());
     });
 
-
     // renderer.render(scene, camera);
   }
 
