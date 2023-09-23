@@ -6,7 +6,7 @@ from io import StringIO
 import ase
 import numpy as np
 import tqdm
-from flask import Flask, render_template
+from flask import Flask, render_template, session
 from flask_socketio import SocketIO, emit
 
 from zndraw.data import atoms_from_json, atoms_to_json
@@ -27,10 +27,12 @@ io = SocketIO(
 @app.route("/")
 def index():
     """Render the main ZnDraw page."""
+    session["uuid"] = str(uuid.uuid4())
     if "upgrade_insecure_requests" in app.config:
         return render_template(
             "index.html",
             upgrade_insecure_requests=app.config["upgrade_insecure_requests"],
+            uuid=session["uuid"],
         )
     return render_template("index.html")
 
@@ -354,3 +356,12 @@ def insert_atoms(data):
 @io.on("message:log")
 def log(data):
     emit("message:log", data, broadcast=True, include_self=False)
+
+@io.on("selection:get")
+def selection_get(data):
+    emit("selection:get", data, broadcast=True, include_self=False)
+
+@io.on("draw:get_line")
+def draw_points(data):
+    emit("draw:get_line", data, broadcast=True, include_self=False)
+

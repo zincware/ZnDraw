@@ -224,6 +224,11 @@ class World {
     this.step = loop.step;
     this.socket = socket;
 
+    this.socket.on("draw:get_line", (data) => {
+      this.socket.emit("draw:get_line", this.getLineData());
+    });
+
+
     // renderer.render(scene, camera);
   }
 

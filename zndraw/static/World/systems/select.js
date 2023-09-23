@@ -60,6 +60,11 @@ class Selection {
       particlesGroup.step();
     });
 
+    this.socket.on("selection:get", (data) => {
+      const particlesGroup = this.scene.getObjectByName("particlesGroup");
+      this.socket.emit("selection:get", particlesGroup.selection);
+    });
+
     window.addEventListener("wheel", this.onWheel.bind(this));
 
     this.transform_controls.addEventListener("dragging-changed", (event) => {

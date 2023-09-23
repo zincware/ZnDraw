@@ -13,10 +13,32 @@ import networkx as nx
 import socketio
 import tqdm
 import znh5md
+import numpy as np
 
 from zndraw.bonds import ASEComputeBonds
 from zndraw.data import atoms_from_json, atoms_to_json
 from zndraw.utils import ZnDrawLoggingHandler, get_port
+
+
+def _await_answer(socket, channel, data=None, timeout=5):
+    """Wait for an answer from the server.
+    
+    I haven't used asyncio, so this should do..
+    """
+    event = threading.Event()
+
+    answer = None
+
+    def on_answer(data):
+        nonlocal answer
+        answer = data
+        event.set()
+
+    socket.on(channel, on_answer)
+    socket.emit(channel, data)
+
+    event.wait(timeout=timeout)
+    return answer
 
 
 @dataclasses.dataclass
@@ -138,19 +160,7 @@ class ZnDraw(collections.abc.MutableSequence):
         return data
 
     def __len__(self):
-        get_size_event = threading.Event()
-        self.socket.emit("atoms:size", {})
-
-        _size = None
-
-        def on_size(size):
-            nonlocal _size
-            _size = size
-            get_size_event.set()
-
-        self.socket.on("atoms:size", on_size)
-        get_size_event.wait()
-        return _size
+        return _await_answer(self.socket, "atoms:size", data={})
 
     def _set_item(self, index, value):
         assert isinstance(value, ase.Atoms), "Must be an ASE Atoms object"
@@ -221,3 +231,15 @@ class ZnDraw(collections.abc.MutableSequence):
             enumerate(atoms_list), ncols=100, total=len(atoms_list)
         ):
             self[idx] = atoms
+
+    def get_selection(self) -> list[int]:
+        """Get the selected atoms"""
+        return _await_answer(self.socket, "selection:get", data={})
+
+    def get_line(self) -> tuple[np.ndarray, np.ndarray]:
+        """Get the points of the selected atoms"""
+        data = _await_answer(self.socket, "draw:get_line", data={})
+        points = np.array([[val["x"], val["y"], val["z"]] for val in data["points"]])
+        segments = np.array(data["segments"])
+
+        return points, segments
