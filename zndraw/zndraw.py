@@ -154,8 +154,8 @@ class ZnDraw(collections.abc.MutableSequence):
 
     def _set_item(self, index, value):
         assert isinstance(value, ase.Atoms), "Must be an ASE Atoms object"
-        assert isinstance(index, int), "Index must be an integer" 
-        if hasattr(value, "connectivity"):    
+        assert isinstance(index, int), "Index must be an integer"
+        if hasattr(value, "connectivity"):
             pass
         elif self.bonds_calculator is not None:
             value.connectivity = self.bonds_calculator.build_graph(value)
