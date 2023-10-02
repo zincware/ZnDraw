@@ -155,10 +155,13 @@ class ZnDraw(collections.abc.MutableSequence):
     def _set_item(self, index, value):
         assert isinstance(value, ase.Atoms), "Must be an ASE Atoms object"
         assert isinstance(index, int), "Index must be an integer"
-        if self.bonds_calculator is not None:
-            value.connectivity = self.bonds_calculator.build_graph(value)
-        else:
-            value.connectivity = nx.Graph()
+        try:
+            bonds = value.connectivity
+        except AttributeError:
+            if self.bonds_calculator is not None:
+                value.connectivity = self.bonds_calculator.build_graph(value)
+            else:
+                value.connectivity = nx.Graph()
 
         self.socket.emit("atoms:upload", {index: atoms_to_json(value)})
 
