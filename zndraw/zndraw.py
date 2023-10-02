@@ -156,7 +156,7 @@ class ZnDraw(collections.abc.MutableSequence):
         assert isinstance(value, ase.Atoms), "Must be an ASE Atoms object"
         assert isinstance(index, int), "Index must be an integer"
         try:
-            bonds = value.connectivity
+            pass
         except AttributeError:
             if self.bonds_calculator is not None:
                 value.connectivity = self.bonds_calculator.build_graph(value)
