@@ -18,6 +18,7 @@ import znh5md
 from zndraw.bonds import ASEComputeBonds
 from zndraw.data import atoms_from_json, atoms_to_json
 from zndraw.utils import ZnDrawLoggingHandler, get_port
+from zndraw.select import get_selection_class
 
 
 def _await_answer(socket, channel, data=None, timeout=5):
@@ -42,6 +43,14 @@ def _await_answer(socket, channel, data=None, timeout=5):
 
 
 @dataclasses.dataclass
+class FileIO:
+    name: str
+    start: int = 0
+    stop: int = None
+    step: int = 1
+
+
+@dataclasses.dataclass
 class ZnDraw(collections.abc.MutableSequence):
     url: str = None
     socket: socketio.Client = dataclasses.field(default_factory=socketio.Client)
@@ -49,6 +58,7 @@ class ZnDraw(collections.abc.MutableSequence):
     bonds_calculator: ASEComputeBonds = dataclasses.field(
         default_factory=ASEComputeBonds
     )
+    file: FileIO = None
 
     display_new: bool = True
     _retries: int = 5
@@ -84,6 +94,16 @@ class ZnDraw(collections.abc.MutableSequence):
             self.socket.on(
                 "connect", lambda: print(f"Connected to ZnDraw server at {self.url}")
             )
+
+            self.socket.on(
+                "atoms:request",
+                lambda url: self.read(
+                    self.file.name, self.file.start, self.file.stop, self.file.step
+                ),
+            )
+            self.socket.on("modifier:run", self._run_modifier)
+            self.socket.on("selection:run", self._run_selection)
+            self.socket.on("analysis:run", self._run_analysis)
 
             self.socket.on("disconnect", lambda: self.disconnect())
 
@@ -206,7 +226,7 @@ class ZnDraw(collections.abc.MutableSequence):
     def get_logging_handler(self) -> ZnDrawLoggingHandler:
         return ZnDrawLoggingHandler(self.socket)
 
-    def read(self, filename: str, start: int, stop: int, step: int):
+    def read(self, filename: str, start: int = 0, stop: int = None, step: int = 1):
         """Read atoms from file and return a list of atoms dicts.
 
         Parameters
@@ -245,3 +265,66 @@ class ZnDraw(collections.abc.MutableSequence):
         segments = np.array(data["segments"])
 
         return points, segments
+
+    def set_selection(self, selection: list[int]) -> None:
+        """Set the selected atoms"""
+        self.socket.emit("selection:set", selection)
+
+    def _run_modifier(self, data):
+        import ase, importlib
+
+        points = np.array([[val["x"], val["y"], val["z"]] for val in data["points"]])
+        segments = np.array(data["segments"])
+
+        if "atoms" in data:
+            atoms = atoms_from_json(data["atoms"])
+        else:
+            atoms = ase.Atoms()
+
+        module_name, function_name = data["name"].rsplit(".", 1)
+        module = importlib.import_module(module_name)
+        modifier_cls = getattr(module, function_name)
+        modifier = modifier_cls(**data["params"])
+        # available_methods = {x.__name__: x for x in [Explode, Duplicate]}
+
+        # modifier = available_methods[data["name"]](**data["params"])
+        print(f"modifier:run {modifier = }")
+        atoms_list = modifier.run(
+            atom_ids=data["selection"],
+            atoms=atoms,
+            points=points,
+            segments=segments,
+            json_data=data["atoms"] if "atoms" in data else None,
+            url=data["url"],
+        )
+        del self[data["step"] :]
+        self.extend(atoms_list)
+
+    def _run_selection(self, data):
+        import ase
+
+        if "atoms" in data:
+            atoms = atoms_from_json(data["atoms"])
+        else:
+            atoms = ase.Atoms()
+
+        try:
+            selection = get_selection_class()(**data["params"])
+            selected_ids = selection.get_ids(atoms, data["selection"])
+            self.set_selection(selected_ids)
+        except ValueError as err:
+            print(err)
+
+    def _run_analysis(self, data):
+        import importlib
+        atoms_list = list(self)
+
+        print(f"Analysing {len(atoms_list)} frames")
+
+        module_name, function_name = data["name"].rsplit(".", 1)
+        module = importlib.import_module(module_name)
+        cls = getattr(module, function_name)
+        instance = cls(**data["params"])
+
+        fig = instance.run(atoms_list, data["selection"])
+        self.socket.emit("analysis:figure", fig.to_json())

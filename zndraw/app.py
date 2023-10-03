@@ -6,14 +6,14 @@ from io import StringIO
 import ase
 import numpy as np
 import tqdm
-from flask import Flask, render_template, session
+from flask import Flask, render_template, session, request
 from flask_socketio import SocketIO, emit
 
 from zndraw.data import atoms_from_json, atoms_to_json
 from zndraw.draw import Geometry
 from zndraw.select import get_selection_class
 from zndraw.settings import GlobalConfig
-from zndraw.zndraw import ZnDraw
+from zndraw.zndraw import ZnDraw, FileIO
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = str(uuid.uuid4())
@@ -27,14 +27,27 @@ io = SocketIO(
 @app.route("/")
 def index():
     """Render the main ZnDraw page."""
-    session["uuid"] = str(uuid.uuid4())
-    if "upgrade_insecure_requests" in app.config:
-        return render_template(
-            "index.html",
-            upgrade_insecure_requests=app.config["upgrade_insecure_requests"],
-            uuid=session["uuid"],
+    if "uuid" not in session:
+        session["uuid"] = str(uuid.uuid4())
+        proc = mp.Process(
+            target=ZnDraw,
+            kwargs={
+                "url": request.url_root,
+                "file": FileIO(
+                    name=app.config["filename"],
+                    start=app.config["start"],
+                    stop=app.config["stop"],
+                    step=app.config["step"],
+                ),
+            },
         )
-    return render_template("index.html")
+        proc.start()
+
+    return render_template(
+        "index.html",
+        upgrade_insecure_requests=app.config["upgrade_insecure_requests"],
+        uuid=session["uuid"],
+    )
 
 
 @app.route("/exit")
@@ -45,50 +58,10 @@ def exit_route():
     return "Server shutting down..."
 
 
-def _read_file(filename, start, stop, step, compute_bonds, url=None):
-    if url is None:
-        if compute_bonds:
-            instance = ZnDraw(socket=io, display_new=False)
-        else:
-            instance = ZnDraw(socket=io, display_new=False, bonds_calculator=None)
-    else:
-        if compute_bonds:
-            instance = ZnDraw(url=url, display_new=False)
-        else:
-            instance = ZnDraw(url=url, display_new=False, bonds_calculator=None)
-
-    instance.read(filename, start, stop, step)
-
-
 @io.on("atoms:request")
 def atoms_request(url):
     """Return the atoms."""
-
-    if "filename" in app.config:
-        if app.config["multiprocessing"]:
-            proc = mp.Process(
-                target=_read_file,
-                args=(
-                    app.config["filename"],
-                    app.config["start"],
-                    app.config["stop"],
-                    app.config["step"],
-                    app.config["compute_bonds"],
-                    url,
-                ),
-            )
-            proc.start()
-        else:
-            io.start_background_task(
-                target=_read_file,
-                filename=app.config["filename"],
-                start=app.config["start"],
-                stop=app.config["stop"],
-                step=app.config["step"],
-                compute_bonds=app.config["compute_bonds"],
-            )
-    else:
-        emit("atoms:upload", {0: atoms_to_json(ase.Atoms())})
+    emit("atoms:request", url, broadcast=True, include_self=False)
 
 
 @io.on("modifier:schema")
@@ -114,39 +87,7 @@ def modifier_schema():
 
 @io.on("modifier:run")
 def modifier_run(data):
-    import ase
-
-    points = np.array([[val["x"], val["y"], val["z"]] for val in data["points"]])
-    segments = np.array(data["segments"])
-
-    if "atoms" in data:
-        atoms = atoms_from_json(data["atoms"])
-    else:
-        atoms = ase.Atoms()
-
-    module_name, function_name = data["name"].rsplit(".", 1)
-    module = importlib.import_module(module_name)
-    modifier_cls = getattr(module, function_name)
-    modifier = modifier_cls(**data["params"])
-    # available_methods = {x.__name__: x for x in [Explode, Duplicate]}
-
-    # modifier = available_methods[data["name"]](**data["params"])
-    print(f"modifier:run {modifier = }")
-    atoms_list = modifier.run(
-        atom_ids=data["selection"],
-        atoms=atoms,
-        points=points,
-        segments=segments,
-        json_data=data["atoms"] if "atoms" in data else None,
-        url=data["url"],
-    )
-    io.emit("atoms:clear", int(data["step"]) + 1)
-    for idx, atoms in tqdm.tqdm(enumerate(atoms_list)):
-        atoms_dict = atoms_to_json(atoms)
-        io.emit("atoms:upload", {idx + 1 + int(data["step"]): atoms_dict})
-
-    io.emit("view:set", int(data["step"]) + 1)
-    io.emit("view:play")
+    emit("modifier:run", data, broadcast=True, include_self=False)
 
 
 @io.on("analysis:schema")
@@ -175,34 +116,13 @@ def selection_schema():
 
 @io.on("selection:run")
 def selection_run(data):
-    import ase
-
-    if "atoms" in data:
-        atoms = atoms_from_json(data["atoms"])
-    else:
-        atoms = ase.Atoms()
-
-    try:
-        selection = get_selection_class()(**data["params"])
-        selected_ids = selection.get_ids(atoms, data["selection"])
-        io.emit("selection:run", selected_ids)
-    except ValueError as err:
-        print(err)
+    emit("selection:run", data, broadcast=True, include_self=False)
 
 
 @io.on("analysis:run")
 def analysis_run(data):
-    atoms_list = [atoms_from_json(x) for x in data["atoms_list"].values()]
+    emit("analysis:run", data, broadcast=True, include_self=False)
 
-    print(f"Analysing {len(atoms_list)} frames")
-
-    module_name, function_name = data["name"].rsplit(".", 1)
-    module = importlib.import_module(module_name)
-    cls = getattr(module, function_name)
-    instance = cls(**data["params"])
-
-    fig = instance.run(atoms_list, data["selection"])
-    return fig.to_json()
 
 
 @io.on("config")
@@ -363,6 +283,15 @@ def selection_get(data):
     emit("selection:get", data, broadcast=True, include_self=False)
 
 
+@io.on("selection:set")
+def selection_get(data):
+    emit("selection:set", data, broadcast=True, include_self=False)
+
+
 @io.on("draw:get_line")
 def draw_points(data):
     emit("draw:get_line", data, broadcast=True, include_self=False)
+
+@io.on("analysis:figure")
+def analysis_figure(data):
+    emit("analysis:figure", data, broadcast=True, include_self=False)

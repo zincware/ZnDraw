@@ -54,7 +54,7 @@ class Selection {
       return particlesGroup.get_center();
     };
 
-    this.socket.on("selection:run", (data) => {
+    this.socket.on("selection:set", (data) => {
       const particlesGroup = this.scene.getObjectByName("particlesGroup");
       particlesGroup.selection = data;
       particlesGroup.step();

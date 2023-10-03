@@ -115,6 +115,22 @@ function analysis_editor(socket, cache, world) {
       console.log(new Date().toISOString(), "running analysis");
       const value = editor.getValue();
 
+      socket.on("analysis:figure", (data) => {
+        Plotly.newPlot("analysisPlot", JSON.parse(data));
+
+        function buildPlot() {
+          Plotly.newPlot("analysisPlot", JSON.parse(data));
+          const myplot = document.getElementById("analysisPlot");
+          myplot.on("plotly_click", (data) => {
+            const point = data.points[0];
+            const step = point.x;
+            world.setStep(step);
+          });
+        }
+
+        buildPlot();
+      });
+
       socket.emit(
         "analysis:run",
         {
@@ -123,23 +139,7 @@ function analysis_editor(socket, cache, world) {
           atoms: cache.get(world.getStep()),
           selection: world.getSelection(),
           step: world.getStep(),
-          atoms_list: cache.getAllAtoms(),
-        },
-        (data) => {
-          Plotly.newPlot("analysisPlot", JSON.parse(data));
-
-          function buildPlot() {
-            Plotly.newPlot("analysisPlot", JSON.parse(data));
-            const myplot = document.getElementById("analysisPlot");
-            myplot.on("plotly_click", (data) => {
-              const point = data.points[0];
-              const step = point.x;
-              world.setStep(step);
-            });
-          }
-
-          buildPlot();
-        },
+        }
       );
 
       document.getElementById("analysis-json-editor-submit").disabled = true;
