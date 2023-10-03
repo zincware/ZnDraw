@@ -1,12 +1,11 @@
 import importlib
 import multiprocessing as mp
 import uuid
-from io import StringIO
 
 from flask import Flask, render_template, request, session
 from flask_socketio import SocketIO, emit
 
-from zndraw.data import atoms_from_json, atoms_to_json
+from zndraw.data import atoms_from_json
 from zndraw.draw import Geometry
 from zndraw.select import get_selection_class
 from zndraw.settings import GlobalConfig

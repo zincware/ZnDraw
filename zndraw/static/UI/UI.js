@@ -192,26 +192,23 @@ export function setUIEvents(socket, cache, world) {
 
   socket.on("download:response", (data) => {
     const blob = new Blob([data], { type: "text/csv" });
-      const elem = window.document.createElement("a");
-      elem.href = window.URL.createObjectURL(blob);
-      elem.download = "trajectory.xyz";
-      document.body.appendChild(elem);
-      elem.click();
-      document.body.removeChild(elem);
+    const elem = window.document.createElement("a");
+    elem.href = window.URL.createObjectURL(blob);
+    elem.download = "trajectory.xyz";
+    document.body.appendChild(elem);
+    elem.click();
+    document.body.removeChild(elem);
   });
 
   document.getElementById("downloadBtn").addEventListener("click", () => {
-    socket.emit("download:request", { });
+    socket.emit("download:request", {});
   });
 
   document
     .getElementById("downloadSelectedBtn")
     .addEventListener("click", () => {
-      socket.emit(
-        "download:request",
-        {
-          selection: world.getSelection(),
-        }
-      );
+      socket.emit("download:request", {
+        selection: world.getSelection(),
+      });
     });
 }
