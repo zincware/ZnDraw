@@ -131,16 +131,13 @@ function analysis_editor(socket, cache, world) {
         buildPlot();
       });
 
-      socket.emit(
-        "analysis:run",
-        {
-          name: selection.options[selection.selectedIndex].text,
-          params: value,
-          atoms: cache.get(world.getStep()),
-          selection: world.getSelection(),
-          step: world.getStep(),
-        }
-      );
+      socket.emit("analysis:run", {
+        name: selection.options[selection.selectedIndex].text,
+        params: value,
+        atoms: cache.get(world.getStep()),
+        selection: world.getSelection(),
+        step: world.getStep(),
+      });
 
       document.getElementById("analysis-json-editor-submit").disabled = true;
       // if there is an error in uploading, we still want to be able to submit again

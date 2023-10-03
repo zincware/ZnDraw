@@ -3,17 +3,14 @@ import multiprocessing as mp
 import uuid
 from io import StringIO
 
-import ase
-import numpy as np
-import tqdm
-from flask import Flask, render_template, session, request
+from flask import Flask, render_template, request, session
 from flask_socketio import SocketIO, emit
 
 from zndraw.data import atoms_from_json, atoms_to_json
 from zndraw.draw import Geometry
 from zndraw.select import get_selection_class
 from zndraw.settings import GlobalConfig
-from zndraw.zndraw import ZnDraw, FileIO
+from zndraw.zndraw import FileIO, ZnDraw
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = str(uuid.uuid4())
@@ -122,7 +119,6 @@ def selection_run(data):
 @io.on("analysis:run")
 def analysis_run(data):
     emit("analysis:run", data, broadcast=True, include_self=False)
-
 
 
 @io.on("config")
@@ -291,6 +287,7 @@ def selection_get(data):
 @io.on("draw:get_line")
 def draw_points(data):
     emit("draw:get_line", data, broadcast=True, include_self=False)
+
 
 @io.on("analysis:figure")
 def analysis_figure(data):

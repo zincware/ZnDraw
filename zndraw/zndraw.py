@@ -17,8 +17,8 @@ import znh5md
 
 from zndraw.bonds import ASEComputeBonds
 from zndraw.data import atoms_from_json, atoms_to_json
-from zndraw.utils import ZnDrawLoggingHandler, get_port
 from zndraw.select import get_selection_class
+from zndraw.utils import ZnDrawLoggingHandler, get_port
 
 
 def _await_answer(socket, channel, data=None, timeout=5):
@@ -271,7 +271,9 @@ class ZnDraw(collections.abc.MutableSequence):
         self.socket.emit("selection:set", selection)
 
     def _run_modifier(self, data):
-        import ase, importlib
+        import importlib
+
+        import ase
 
         points = np.array([[val["x"], val["y"], val["z"]] for val in data["points"]])
         segments = np.array(data["segments"])
@@ -317,6 +319,7 @@ class ZnDraw(collections.abc.MutableSequence):
 
     def _run_analysis(self, data):
         import importlib
+
         atoms_list = list(self)
 
         print(f"Analysing {len(atoms_list)} frames")
