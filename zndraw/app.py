@@ -55,12 +55,6 @@ def exit_route():
     return "Server shutting down..."
 
 
-@io.on("atoms:request")
-def atoms_request(url):
-    """Return the atoms."""
-    emit("atoms:request", url, broadcast=True, include_self=False)
-
-
 @io.on("modifier:schema")
 def modifier_schema():
     config = GlobalConfig.load()
@@ -80,11 +74,6 @@ def modifier_schema():
             "modifier:schema",
             {"name": modifier, "schema": schema},
         )
-
-
-@io.on("modifier:run")
-def modifier_run(data):
-    emit("modifier:run", data, broadcast=True, include_self=False)
 
 
 @io.on("analysis:schema")
@@ -109,85 +98,6 @@ def analysis_schema(data):
 @io.on("selection:schema")
 def selection_schema():
     io.emit("selection:schema", get_selection_class().model_json_schema())
-
-
-@io.on("selection:run")
-def selection_run(data):
-    emit("selection:run", data, broadcast=True, include_self=False)
-
-
-@io.on("analysis:run")
-def analysis_run(data):
-    emit("analysis:run", data, broadcast=True, include_self=False)
-
-
-@io.on("config")
-def config(data):
-    pass
-
-
-@io.on("download")
-def download(data):
-    atoms = [atoms_from_json(x) for x in data["atoms_list"].values()]
-    if "selection" in data:
-        atoms = [atoms[data["selection"]] for atoms in atoms]
-    import ase.io
-
-    file = StringIO()
-    ase.io.write(file, atoms, format="extxyz")
-    file.seek(0)
-    return file.read()
-
-
-@io.on("atoms:download")
-def atoms_download(data):
-    """Return the atoms."""
-    emit("atoms:download", data, broadcast=True, include_self=False)
-
-
-@io.on("atoms:upload")
-def atoms_upload(data):
-    """Return the atoms."""
-    emit("atoms:upload", data, broadcast=True, include_self=False)
-
-
-@io.on("view:set")
-def display(data):
-    """Display the atoms at the given index"""
-    emit("view:set", data, broadcast=True, include_self=False)
-
-
-@io.on("atoms:size")
-def atoms_size(data):
-    """Return the atoms."""
-    emit("atoms:size", data, broadcast=True, include_self=False)
-
-
-@io.on("upload")
-def upload(data):
-    from io import StringIO
-
-    import ase.io
-    import tqdm
-
-    # tested with small files only
-
-    format = data["filename"].split(".")[-1]
-    if format == "h5":
-        print("H5MD format not supported for uploading yet")
-        # import znh5md
-        # stream = BytesIO(data["content"].encode("utf-8"))
-        # atoms = znh5md.ASEH5MD(stream).get_atoms_list()
-        # for idx, atoms in tqdm.tqdm(enumerate(atoms)):
-        #     atoms_dict = atoms_to_json(atoms)
-        #     io.emit("atoms:upload", {idx: atoms_dict})
-    else:
-        stream = StringIO(data["content"])
-        io.emit("atoms:clear", 0)
-        for idx, atoms in tqdm.tqdm(enumerate(ase.io.iread(stream, format=format))):
-            atoms_dict = atoms_to_json(atoms)
-            io.emit("atoms:upload", {idx: atoms_dict})
-    emit("view:set", 0)
 
 
 @io.on("scene:schema")
@@ -252,6 +162,66 @@ def scene_schema():
     # print(json.dumps(schema, indent=2))
 
     return schema
+
+
+@io.on("atoms:request")
+def atoms_request(url):
+    """Return the atoms."""
+    emit("atoms:request", url, broadcast=True, include_self=False)
+
+
+@io.on("modifier:run")
+def modifier_run(data):
+    emit("modifier:run", data, broadcast=True, include_self=False)
+
+
+@io.on("selection:run")
+def selection_run(data):
+    emit("selection:run", data, broadcast=True, include_self=False)
+
+
+@io.on("analysis:run")
+def analysis_run(data):
+    emit("analysis:run", data, broadcast=True, include_self=False)
+
+
+@io.on("download:request")
+def download_request(data):
+    emit("download:request", data, broadcast=True, include_self=False)
+
+
+@io.on("download:response")
+def download_response(data):
+    emit("download:response", data, broadcast=True, include_self=False)
+
+
+@io.on("atoms:download")
+def atoms_download(data):
+    """Return the atoms."""
+    emit("atoms:download", data, broadcast=True, include_self=False)
+
+
+@io.on("atoms:upload")
+def atoms_upload(data):
+    """Return the atoms."""
+    emit("atoms:upload", data, broadcast=True, include_self=False)
+
+
+@io.on("view:set")
+def display(data):
+    """Display the atoms at the given index"""
+    emit("view:set", data, broadcast=True, include_self=False)
+
+
+@io.on("atoms:size")
+def atoms_size(data):
+    """Return the atoms."""
+    emit("atoms:size", data, broadcast=True, include_self=False)
+
+
+@io.on("upload")
+def upload(data):
+    emit("upload", data, broadcast=True, include_self=False)
 
 
 @io.on("draw:schema")

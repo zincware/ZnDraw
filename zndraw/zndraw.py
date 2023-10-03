@@ -5,6 +5,7 @@ import pathlib
 import threading
 import time
 import typing as t
+from io import StringIO
 
 import ase
 import ase.io
@@ -104,6 +105,8 @@ class ZnDraw(collections.abc.MutableSequence):
             self.socket.on("modifier:run", self._run_modifier)
             self.socket.on("selection:run", self._run_selection)
             self.socket.on("analysis:run", self._run_analysis)
+            self.socket.on("download:request", self._download_file)
+            self.socket.on("upload", self._upload_file)
 
             self.socket.on("disconnect", lambda: self.disconnect())
 
@@ -331,3 +334,38 @@ class ZnDraw(collections.abc.MutableSequence):
 
         fig = instance.run(atoms_list, data["selection"])
         self.socket.emit("analysis:figure", fig.to_json())
+
+    def _download_file(self, data):
+        atoms = list(self)
+        if "selection" in data:
+            atoms = [atoms[data["selection"]] for atoms in atoms]
+        import ase.io
+
+        file = StringIO()
+        ase.io.write(file, atoms, format="extxyz")
+        file.seek(0)
+
+        self.socket.emit("download:response", file.read())
+
+    def _upload_file(self, data):
+        from io import StringIO
+
+        import ase.io
+        import tqdm
+
+        # tested with small files only
+
+        format = data["filename"].split(".")[-1]
+        if format == "h5":
+            print("H5MD format not supported for uploading yet")
+            # import znh5md
+            # stream = BytesIO(data["content"].encode("utf-8"))
+            # atoms = znh5md.ASEH5MD(stream).get_atoms_list()
+            # for idx, atoms in tqdm.tqdm(enumerate(atoms)):
+            #     atoms_dict = atoms_to_json(atoms)
+            #     io.emit("atoms:upload", {idx: atoms_dict})
+        else:
+            stream = StringIO(data["content"])
+            del self[:]
+            for atoms in tqdm.tqdm(ase.io.iread(stream, format=format)):
+                self.append(atoms)
