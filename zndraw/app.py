@@ -35,7 +35,7 @@ def index():
                 stop=app.config.get("stop"),
                 step=app.config.get("step"),
             ),
-            "wait": True
+            "wait": True,
         }
 
         proc = mp.Process(
@@ -59,6 +59,7 @@ def on_join(data):
     except KeyError:
         session["uuid"] = data["uuid"]
         join_room(session["uuid"])
+
 
 @app.route("/exit")
 def exit_route():
@@ -115,9 +116,11 @@ def analysis_schema(data):
 def selection_schema():
     io.emit("selection:schema", get_selection_class().model_json_schema())
 
+
 @io.on("draw:schema")
 def draw_schema():
     io.emit("draw:schema", Geometry.updated_schema())
+
 
 @io.on("scene:schema")
 def scene_schema():
