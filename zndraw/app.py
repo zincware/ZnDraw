@@ -3,7 +3,7 @@ import multiprocessing as mp
 import uuid
 
 from flask import Flask, render_template, request, session
-from flask_socketio import SocketIO, emit
+from flask_socketio import SocketIO, emit, join_room
 
 from zndraw.data import atoms_from_json
 from zndraw.draw import Geometry
@@ -25,17 +25,22 @@ def index():
     """Render the main ZnDraw page."""
     if "uuid" not in session:
         session["uuid"] = str(uuid.uuid4())
+
+        kwargs = {
+            "url": request.url_root,
+            "token": session["uuid"],
+            "file": FileIO(
+                name=app.config.get("filename"),
+                start=app.config.get("start"),
+                stop=app.config.get("stop"),
+                step=app.config.get("step"),
+            ),
+            "wait": True
+        }
+
         proc = mp.Process(
             target=ZnDraw,
-            kwargs={
-                "url": request.url_root,
-                "file": FileIO(
-                    name=app.config["filename"],
-                    start=app.config["start"],
-                    stop=app.config["stop"],
-                    step=app.config["step"],
-                ),
-            },
+            kwargs=kwargs,
         )
         proc.start()
 
@@ -45,6 +50,15 @@ def index():
         uuid=session["uuid"],
     )
 
+
+@io.on("join")
+def on_join(data):
+    """Join a room."""
+    try:
+        join_room(session["uuid"])
+    except KeyError:
+        session["uuid"] = data["uuid"]
+        join_room(session["uuid"])
 
 @app.route("/exit")
 def exit_route():
@@ -60,19 +74,22 @@ def modifier_schema():
 
     for modifier in config.modify_functions:
         module_name, function_name = modifier.rsplit(".", 1)
-        module = importlib.import_module(module_name)
-        modifier_cls = getattr(module, function_name)
-        schema = modifier_cls.model_json_schema()
+        try:
+            module = importlib.import_module(module_name)
+            modifier_cls = getattr(module, function_name)
+            schema = modifier_cls.model_json_schema()
 
-        if modifier in config.function_schema:
-            kwargs = config.function_schema[modifier]
-            for key, value in kwargs.items():
-                schema["properties"][key]["default"] = value
+            if modifier in config.function_schema:
+                kwargs = config.function_schema[modifier]
+                for key, value in kwargs.items():
+                    schema["properties"][key]["default"] = value
 
-        io.emit(
-            "modifier:schema",
-            {"name": modifier, "schema": schema},
-        )
+            io.emit(
+                "modifier:schema",
+                {"name": modifier, "schema": schema},
+            )
+        except ImportError:
+            print(f"Could not import {modifier}")
 
 
 @io.on("analysis:schema")
@@ -98,6 +115,9 @@ def analysis_schema(data):
 def selection_schema():
     io.emit("selection:schema", get_selection_class().model_json_schema())
 
+@io.on("draw:schema")
+def draw_schema():
+    io.emit("draw:schema", Geometry.updated_schema())
 
 @io.on("scene:schema")
 def scene_schema():
@@ -166,98 +186,93 @@ def scene_schema():
 @io.on("atoms:request")
 def atoms_request(url):
     """Return the atoms."""
-    emit("atoms:request", url, broadcast=True, include_self=False)
+    emit("atoms:request", url, include_self=False, to=session["uuid"])
 
 
 @io.on("modifier:run")
 def modifier_run(data):
-    emit("modifier:run", data, broadcast=True, include_self=False)
+    emit("modifier:run", data, include_self=False, to=session["uuid"])
 
 
 @io.on("selection:run")
 def selection_run(data):
-    emit("selection:run", data, broadcast=True, include_self=False)
+    emit("selection:run", data, include_self=False, to=session["uuid"])
 
 
 @io.on("analysis:run")
 def analysis_run(data):
-    emit("analysis:run", data, broadcast=True, include_self=False)
+    emit("analysis:run", data, include_self=False, to=session["uuid"])
 
 
 @io.on("download:request")
 def download_request(data):
-    emit("download:request", data, broadcast=True, include_self=False)
+    emit("download:request", data, include_self=False, to=session["uuid"])
 
 
 @io.on("download:response")
 def download_response(data):
-    emit("download:response", data, broadcast=True, include_self=False)
+    emit("download:response", data, include_self=False, to=session["uuid"])
 
 
 @io.on("atoms:download")
 def atoms_download(data):
     """Return the atoms."""
-    emit("atoms:download", data, broadcast=True, include_self=False)
+    emit("atoms:download", data, include_self=False, to=session["uuid"])
 
 
 @io.on("atoms:upload")
 def atoms_upload(data):
     """Return the atoms."""
-    emit("atoms:upload", data, broadcast=True, include_self=False)
+    emit("atoms:upload", data, include_self=False, to=session["uuid"])
 
 
 @io.on("view:set")
 def display(data):
     """Display the atoms at the given index"""
-    emit("view:set", data, broadcast=True, include_self=False)
+    emit("view:set", data, include_self=False, to=session["uuid"])
 
 
 @io.on("atoms:size")
 def atoms_size(data):
     """Return the atoms."""
-    emit("atoms:size", data, broadcast=True, include_self=False)
+    emit("atoms:size", data, include_self=False, to=session["uuid"])
 
 
 @io.on("upload")
 def upload(data):
-    emit("upload", data, broadcast=True, include_self=False)
-
-
-@io.on("draw:schema")
-def draw_schema():
-    io.emit("draw:schema", Geometry.updated_schema())
+    emit("upload", data, include_self=False, to=session["uuid"])
 
 
 @io.on("atoms:delete")
 def delete_atoms(data):
-    emit("atoms:delete", data, broadcast=True, include_self=False)
+    emit("atoms:delete", data, include_self=False, to=session["uuid"])
 
 
 @io.on("atoms:insert")
 def insert_atoms(data):
-    emit("atoms:insert", data, broadcast=True, include_self=False)
+    emit("atoms:insert", data, include_self=False, to=session["uuid"])
 
 
 @io.on("message:log")
 def log(data):
-    emit("message:log", data, broadcast=True, include_self=False)
+    emit("message:log", data, include_self=False, to=session["uuid"])
 
 
 @io.on("selection:get")
 def selection_get(data):
-    emit("selection:get", data, broadcast=True, include_self=False)
+    emit("selection:get", data, include_self=False, to=session["uuid"])
 
 
 @io.on("selection:set")
 def selection_get(data):
-    emit("selection:set", data, broadcast=True, include_self=False)
+    emit("selection:set", data, include_self=False, to=session["uuid"])
 
 
 @io.on("draw:get_line")
 def draw_points(data):
-    emit("draw:get_line", data, broadcast=True, include_self=False)
+    emit("draw:get_line", data, include_self=False, to=session["uuid"])
 
 
 @io.on("analysis:figure")
 def analysis_figure(data):
-    emit("analysis:figure", data, broadcast=True, include_self=False)
+    emit("analysis:figure", data, include_self=False, to=session["uuid"])

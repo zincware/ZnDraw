@@ -11,8 +11,8 @@ try:
 except ImportError:
     wv = None
 
-werkzeug_log = logging.getLogger("werkzeug")
-werkzeug_log.setLevel(logging.ERROR)
+# werkzeug_log = logging.getLogger("werkzeug")
+# werkzeug_log.setLevel(logging.ERROR)
 
 log = logging.getLogger("zndraw")
 log.setLevel(logging.INFO)

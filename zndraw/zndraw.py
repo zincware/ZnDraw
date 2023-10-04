@@ -60,6 +60,8 @@ class ZnDraw(collections.abc.MutableSequence):
         default_factory=ASEComputeBonds
     )
     file: FileIO = None
+    wait: bool = False
+    token: str = None
 
     display_new: bool = True
     _retries: int = 5
@@ -93,7 +95,7 @@ class ZnDraw(collections.abc.MutableSequence):
                 self.url = f"http://127.0.0.1:{port}"
 
             self.socket.on(
-                "connect", lambda: print(f"Connected to ZnDraw server at {self.url}")
+                "connect", lambda: self.socket.emit("join", {"uuid": self.token})
             )
 
             self.socket.on(
@@ -119,6 +121,9 @@ class ZnDraw(collections.abc.MutableSequence):
                 self.socket.connect(self.url)
             if not self.jupyter:
                 self.socket.sleep(2)  # wait for the server to start
+        
+        if self.wait:
+            self.socket.wait()
 
     def view(self, atoms_list):
         if isinstance(atoms_list, ase.Atoms):
@@ -244,6 +249,9 @@ class ZnDraw(collections.abc.MutableSequence):
             Stepsize for the frames to be visualized. If set to 1, all frames will be visualized.
         """
 
+        if filename is None:
+            return
+
         if pathlib.Path(filename).suffix == ".h5":
             # Read file using znh5md and convert to list[ase.Atoms]
             atoms_list = znh5md.ASEH5MD(filename)[start:stop:step]
@@ -254,7 +262,7 @@ class ZnDraw(collections.abc.MutableSequence):
             atoms_list = list(ase.io.iread(filename))[start:stop:step]
         for idx, atoms in tqdm.tqdm(
             enumerate(atoms_list), ncols=100, total=len(atoms_list)
-        ):
+        ):  
             self[idx] = atoms
 
     def get_selection(self) -> list[int]:

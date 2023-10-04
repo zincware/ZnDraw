@@ -6,7 +6,7 @@ import { initJSONEditor } from "./UI/json_editor.js";
 function setupSocket() {
   const socket = io();
   socket.on("connect", () => {
-    socket.emit("connection", { data: "I'm connected!" });
+    socket.emit("join", { data: "I'm connected!" });
   });
   return socket;
 }
