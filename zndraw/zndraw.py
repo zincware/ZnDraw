@@ -61,7 +61,7 @@ class ZnDraw(collections.abc.MutableSequence):
     )
     file: FileIO = None
     wait: bool = False
-    token: str = None
+    token: str = "default"
 
     display_new: bool = True
     _retries: int = 5

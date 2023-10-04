@@ -47,6 +47,7 @@ def view(
     step: int,
     compute_bonds: bool,
     multiprocessing: bool,
+    use_token: bool = False,
     upgrade_insecure_requests: bool = False,
 ):
     if filename is not None:
@@ -54,6 +55,8 @@ def view(
         app.config["start"] = start
         app.config["stop"] = stop
         app.config["step"] = step
+    if not use_token:
+        app.config["uuid"] = "default"
     app.config["upgrade_insecure_requests"] = upgrade_insecure_requests
     app.config["compute_bonds"] = compute_bonds
     app.config["multiprocessing"] = multiprocessing

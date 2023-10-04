@@ -24,7 +24,7 @@ io = SocketIO(
 def index():
     """Render the main ZnDraw page."""
     if "uuid" not in session:
-        session["uuid"] = str(uuid.uuid4())
+        session["uuid"] = app.config.get("uuid", str(uuid.uuid4()))
 
         kwargs = {
             "url": request.url_root,

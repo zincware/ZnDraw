@@ -57,6 +57,10 @@ def main(
         hidden=True,
         help="Set the html attribute upgrade-insecure-requests. If you are running ZnDraw behind a reverse proxy and encounter issues with insecure requests, you might want to set this to true.",
     ),
+    use_token: bool = typer.Option(
+        False,
+        help="Use a token to authenticate the ZnDraw server.  This is useful if you are running ZnDraw as a server application.",
+    ),
 ):
     """Start the ZnDraw server.
 
@@ -77,4 +81,5 @@ def main(
         compute_bonds=compute_bonds,
         multiprocessing=multiprocessing,
         upgrade_insecure_requests=upgrade_insecure_requests,
+        use_token=use_token,
     )
