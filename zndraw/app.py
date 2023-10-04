@@ -56,9 +56,12 @@ def on_join(data):
     """Join a room."""
     try:
         join_room(session["uuid"])
+        print(f"Client for webpage joined room {session['uuid']}")
     except KeyError:
         session["uuid"] = data["uuid"]
         join_room(session["uuid"])
+        print(f"Client from 'zndraw.ZnDraw' joined room {session['uuid']}")
+    emit("join", {}, include_self=False, to=session["uuid"])
 
 
 @app.route("/exit")
@@ -184,12 +187,6 @@ def scene_schema():
     # print(json.dumps(schema, indent=2))
 
     return schema
-
-
-@io.on("atoms:request")
-def atoms_request(url):
-    """Return the atoms."""
-    emit("atoms:request", url, include_self=False, to=session["uuid"])
 
 
 @io.on("modifier:run")

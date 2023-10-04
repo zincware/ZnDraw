@@ -28,23 +28,15 @@ function main() {
 
   // creata a function displayIncomingAtoms that calls cache.get_length(), if larger 1 call world.setStep(0), else setTimerout(displayIncomingAtoms, 1000)
 
-  const displayIncomingAtoms = () => {
-    cache.get_length();
-    if (cache.get_length() > 0) {
-      world.setStep(0);
-      document.getElementById("atom-spinner").style.display = "none";
-    } else {
-      setTimeout(displayIncomingAtoms, 100);
-    }
-  };
-
-  socket.emit("atoms:request", window.location.href, () => {
-    displayIncomingAtoms();
+  socket.on("join", () => {
+    socket.emit("join", {}); // we send an ACK to the server, so that it can send us the atoms
   });
 
   socket.on("message:log", (msg) => {
     console.log(msg);
   });
+
+  document.getElementById("atom-spinner").style.display = "none";
 }
 
 main();

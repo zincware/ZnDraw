@@ -45,7 +45,7 @@ def _await_answer(socket, channel, data=None, timeout=5):
 
 @dataclasses.dataclass
 class FileIO:
-    name: str
+    name: str = None
     start: int = 0
     stop: int = None
     step: int = 1
@@ -59,7 +59,7 @@ class ZnDraw(collections.abc.MutableSequence):
     bonds_calculator: ASEComputeBonds = dataclasses.field(
         default_factory=ASEComputeBonds
     )
-    file: FileIO = None
+    file: FileIO = dataclasses.field(default_factory=FileIO)
     wait: bool = False
     token: str = "default"
 
@@ -99,8 +99,8 @@ class ZnDraw(collections.abc.MutableSequence):
             )
 
             self.socket.on(
-                "atoms:request",
-                lambda url: self.read(
+                "join",
+                lambda *args: self.read(
                     self.file.name, self.file.start, self.file.stop, self.file.step
                 ),
             )
