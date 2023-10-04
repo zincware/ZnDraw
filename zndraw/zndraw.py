@@ -121,7 +121,7 @@ class ZnDraw(collections.abc.MutableSequence):
                 self.socket.connect(self.url)
             if not self.jupyter:
                 self.socket.sleep(2)  # wait for the server to start
-        
+
         if self.wait:
             self.socket.wait()
 
@@ -262,7 +262,7 @@ class ZnDraw(collections.abc.MutableSequence):
             atoms_list = list(ase.io.iread(filename))[start:stop:step]
         for idx, atoms in tqdm.tqdm(
             enumerate(atoms_list), ncols=100, total=len(atoms_list)
-        ):  
+        ):
             self[idx] = atoms
 
     def get_selection(self) -> list[int]:
