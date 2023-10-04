@@ -23,7 +23,7 @@ class Selection {
       renderer.domElement,
     );
 
-    // change mode of transform_controls when pressing t, itereate between translate, rotate, scale
+    // change mode of transform_controls when pressing t, iterate between translate, rotate, scale
     document.addEventListener("keydown", (event) => {
       if (document.activeElement === document.body) {
         if (event.key === "t") {
