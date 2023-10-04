@@ -258,11 +258,6 @@ def log(data):
     emit("message:log", data, include_self=False, to=session["uuid"])
 
 
-@io.on("selection:get")
-def selection_get(data):
-    emit("selection:get", data, include_self=False, to=session["uuid"])
-
-
 @io.on("selection:set")
 def selection_get(data):
     emit("selection:set", data, include_self=False, to=session["uuid"])
