@@ -58,6 +58,7 @@ class Selection {
       const particlesGroup = this.scene.getObjectByName("particlesGroup");
       particlesGroup.selection = data;
       particlesGroup.step();
+      this.socket.emit("scene:selection", particlesGroup.selection);
     });
 
     window.addEventListener("wheel", this.onWheel.bind(this));

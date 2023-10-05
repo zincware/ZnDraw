@@ -184,7 +184,6 @@ class ZnDraw(collections.abc.MutableSequence):
             raise TypeError("Index must be an integer, slice or list[int]")
 
     def __getitem__(self, index) -> t.Union[ase.Atoms, list[ase.Atoms]]:
-        get_item_event = threading.Event()
 
         length = len(self)
         if isinstance(index, slice):
@@ -193,18 +192,7 @@ class ZnDraw(collections.abc.MutableSequence):
         index = [index] if isinstance(index, int) else index
         index = [i if i >= 0 else length + i for i in index]
 
-        self.socket.emit("atoms:download", index)
-
-        downloaded_data = []
-
-        def on_download(data):
-            nonlocal downloaded_data
-            for key, val in data.items():
-                downloaded_data.append(atoms_from_json(val))
-            get_item_event.set()
-
-        self.socket.on("atoms:download", on_download)
-        get_item_event.wait()
+        downloaded_data = _await_answer(self.socket, "atoms:download", index)
 
         data = downloaded_data[0] if len(downloaded_data) == 1 else downloaded_data
         if data == []:
@@ -402,7 +390,7 @@ class ZnDraw(collections.abc.MutableSequence):
 
     @selection.setter
     def selection(self, value: list[int]):
-        raise NotImplementedError
+        self.socket.emit("selection:set", value)
 
     @property
     def line(self) -> tuple[np.ndarray, np.ndarray]:
