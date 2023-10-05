@@ -2,7 +2,7 @@ import importlib
 import multiprocessing as mp
 import uuid
 
-from flask import Flask, render_template, request, session, redirect
+from flask import Flask, redirect, render_template, request, session
 from flask_socketio import SocketIO, emit, join_room
 
 from zndraw.data import atoms_from_json
@@ -50,11 +50,13 @@ def index():
         uuid=session["uuid"],
     )
 
+
 @app.route("/token/<token>")
 def token(token):
     session["uuid"] = token
     return redirect("/")
-    
+
+
 @io.on("join")
 def on_join(data):
     """Join a room."""
