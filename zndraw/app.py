@@ -238,12 +238,6 @@ def display(data):
     emit("view:set", data, include_self=False, to=session["uuid"])
 
 
-@io.on("atoms:size")
-def atoms_size(data):
-    """Return the atoms."""
-    emit("atoms:size", data, include_self=False, to=session["uuid"])
-
-
 @io.on("upload")
 def upload(data):
     emit("upload", data, include_self=False, to=session["uuid"])
@@ -277,3 +271,15 @@ def draw_points(data):
 @io.on("analysis:figure")
 def analysis_figure(data):
     emit("analysis:figure", data, include_self=False, to=session["uuid"])
+
+@io.on("scene:step")
+def scene_step(data):
+    emit("scene:step", data, include_self=False, to=session["uuid"])
+
+@io.on("scene:length")
+def scene_step(data):
+    emit("scene:length", data, include_self=False, to=session["uuid"])
+
+@io.on("scene:selection")
+def scene_selection(data):
+    emit("scene:selection", data, include_self=False, to=session["uuid"])

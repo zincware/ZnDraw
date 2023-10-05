@@ -267,6 +267,7 @@ class World {
   }
 
   setStep(step) {
+    this.socket.emit("scene:step", step);
     step = parseInt(step);
     loop.setStep(step);
     const slider = document.getElementById("frame-slider");

@@ -21,6 +21,7 @@ class ParticlesGroup extends THREE.Group {
     super();
     this.name = "particlesGroup";
     this.cache = cache;
+    this.socket = socket;
 
     this.bonds_exist = false;
     this.selection = [];
@@ -73,6 +74,7 @@ class ParticlesGroup extends THREE.Group {
     } else {
       this.selection = [];
     }
+    this.socket.emit("scene:selection", this.selection);
     this.step();
     // trigger this._updateParticles() to update the selection
   }

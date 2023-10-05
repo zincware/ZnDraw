@@ -83,6 +83,7 @@ class Cache {
       document.getElementById(
         "info",
       ).innerHTML = `${slider.value} / ${slider.max}`;
+      this._socket.emit("scene:length", this.get_length())
     });
 
     this._socket.on("atoms:delete", (ids) => {
@@ -119,6 +120,7 @@ class Cache {
       document.getElementById(
         "info",
       ).innerHTML = `${slider.value} / ${slider.max}`;
+      this._socket.emit("scene:length", this.get_length())
     });
 
     this._socket.on("atoms:insert", (data) => {
@@ -148,6 +150,7 @@ class Cache {
       document.getElementById(
         "info",
       ).innerHTML = `${slider.value} / ${slider.max}`;
+      this._socket.emit("scene:length", this.get_length())
     });
 
     this._socket.on("atoms:download", (ids) => {
@@ -166,10 +169,7 @@ class Cache {
           delete this._cache[key];
         }
       });
-    });
-
-    this._socket.on("atoms:size", () => {
-      this._socket.emit("atoms:size", this.get_length());
+      this._socket.emit("scene:length", this.get_length())
     });
   }
 

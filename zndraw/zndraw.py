@@ -42,6 +42,13 @@ def _await_answer(socket, channel, data=None, timeout=5):
     event.wait(timeout=timeout)
     return answer
 
+def process_line_data(data) -> tuple[np.ndarray, np.ndarray]:
+    """Get the points of the selected atoms"""
+    points = np.array([[val["x"], val["y"], val["z"]] for val in data["points"]])
+    segments = np.array(data["segments"])
+
+    return points, segments
+
 
 @dataclasses.dataclass
 class FileIO:
@@ -65,6 +72,10 @@ class ZnDraw(collections.abc.MutableSequence):
 
     display_new: bool = True
     _retries: int = 5
+    _step: int = None
+    _length: int = None
+    _selection: list[int] = dataclasses.field(default_factory=list)
+    _line: tuple[np.ndarray, np.ndarray] = None
 
     def __post_init__(self):
         self._view_thread = None
@@ -109,6 +120,11 @@ class ZnDraw(collections.abc.MutableSequence):
             self.socket.on("analysis:run", self._run_analysis)
             self.socket.on("download:request", self._download_file)
             self.socket.on("upload", self._upload_file)
+            self.socket.on("scene:step", lambda step: setattr(self, "_step", step))
+            self.socket.on("scene:length", lambda length: setattr(self, "_length", length))
+            self.socket.on("scene:selection", lambda selection: setattr(self, "_selection", selection))
+            self.socket.on("scene:line", lambda data: setattr(self, "_line", process_line_data(data)))
+
 
             self.socket.on("disconnect", lambda: self.disconnect())
 
@@ -188,7 +204,7 @@ class ZnDraw(collections.abc.MutableSequence):
         return data
 
     def __len__(self):
-        return _await_answer(self.socket, "atoms:size", data={})
+        return self._length
 
     def _set_item(self, index, value):
         assert isinstance(value, ase.Atoms), "Must be an ASE Atoms object"
@@ -203,6 +219,7 @@ class ZnDraw(collections.abc.MutableSequence):
         self.socket.emit("atoms:upload", {index: atoms_to_json(value)})
 
     def __setitem__(self, index, value):
+        # TODO support index as slice and value as list
         self._set_item(index, value)
         if self.display_new:
             self.display(index)
@@ -263,23 +280,9 @@ class ZnDraw(collections.abc.MutableSequence):
         for idx, atoms in tqdm.tqdm(
             enumerate(atoms_list), ncols=100, total=len(atoms_list)
         ):
-            self[idx] = atoms
-
-    def get_selection(self) -> list[int]:
-        """Get the selected atoms"""
-        return _await_answer(self.socket, "selection:get", data={})
-
-    def get_line(self) -> tuple[np.ndarray, np.ndarray]:
-        """Get the points of the selected atoms"""
-        data = _await_answer(self.socket, "draw:get_line", data={})
-        points = np.array([[val["x"], val["y"], val["z"]] for val in data["points"]])
-        segments = np.array(data["segments"])
-
-        return points, segments
-
-    def set_selection(self, selection: list[int]) -> None:
-        """Set the selected atoms"""
-        self.socket.emit("selection:set", selection)
+            self._set_item(idx, atoms)
+            if idx == 0:
+                self.display(idx)      
 
     def _run_modifier(self, data):
         import importlib
@@ -289,10 +292,7 @@ class ZnDraw(collections.abc.MutableSequence):
         points = np.array([[val["x"], val["y"], val["z"]] for val in data["points"]])
         segments = np.array(data["segments"])
 
-        if "atoms" in data:
-            atoms = atoms_from_json(data["atoms"])
-        else:
-            atoms = ase.Atoms()
+        atoms = self[self.step]
 
         module_name, function_name = data["name"].rsplit(".", 1)
         module = importlib.import_module(module_name)
@@ -310,8 +310,11 @@ class ZnDraw(collections.abc.MutableSequence):
             json_data=data["atoms"] if "atoms" in data else None,
             url=data["url"],
         )
-        del self[data["step"] :]
-        self.extend(atoms_list)
+        print(f"{len(atoms_list) = }")
+        # del self[self.step + 1:]
+
+        for idx, atoms in enumerate(atoms_list):
+            self[self.step + idx + 1] = atoms
 
     def _run_selection(self, data):
         import ase
@@ -323,8 +326,7 @@ class ZnDraw(collections.abc.MutableSequence):
 
         try:
             selection = get_selection_class()(**data["params"])
-            selected_ids = selection.get_ids(atoms, data["selection"])
-            self.set_selection(selected_ids)
+            self.selection = selection.get_ids(atoms, data["selection"])
         except ValueError as err:
             print(err)
 
@@ -377,3 +379,29 @@ class ZnDraw(collections.abc.MutableSequence):
             del self[:]
             for atoms in tqdm.tqdm(ase.io.iread(stream, format=format)):
                 self.append(atoms)
+    
+    @property
+    def step(self) -> int:
+        return self._step
+
+    @step.setter
+    def step(self, value: int):
+        self._step = value
+        self.display(value)
+    
+    @property
+    def selection(self) -> list[int]:
+        return self._selection
+    
+    @selection.setter
+    def selection(self, value: list[int]):
+        raise NotImplementedError
+    
+    @property
+    def line(self) -> tuple[np.ndarray, np.ndarray]:
+        return self._line
+    
+    @line.setter
+    def line(self, value: list[int]) -> None:
+        self.socket.emit("selection:set", value)
+
