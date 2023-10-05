@@ -108,7 +108,7 @@
             data-bs-toggle="modal"
             data-bs-target="#codeModal"
           >
-          <i class="fa-solid fa-code"></i>
+            <i class="fa-solid fa-code"></i>
           </button>
 
           <form id="uploadForm" method="post" enctype="multipart/form-data">
@@ -423,9 +423,7 @@
       <div class="modal-dialog modal-xl">
         <div class="modal-content">
           <div class="modal-header">
-            <h1 class="modal-title fs-5" id="helpModalLabel">
-              ZnDraw Help
-            </h1>
+            <h1 class="modal-title fs-5" id="helpModalLabel">ZnDraw Help</h1>
             <button
               type="button"
               class="btn-close"
@@ -490,13 +488,12 @@
             ></button>
           </div>
           <div class="modal-body">
-            <h3>Python Code </h3>
-            <code id="python-code-block">
-            </code>
-            <br>
+            <h3>Python Code</h3>
+            <code id="python-code-block"> </code>
+            <br />
             <h3>Share Link</h3>
             <code id="share-link-block"></code>
-            <br>
+            <br />
             <a
               class="btn btn-primary"
               href="{{ url_for('token', token=uuid) }}"
@@ -505,7 +502,9 @@
               >Copy link to clipboard</a
             >
             <script>
-              document.getElementById("python-code-block").innerHTML = `from zndraw import ZnDraw <br>vis = ZnDraw(url="${window.location.href}", token="{{ uuid }}")`;
+              document.getElementById(
+                "python-code-block",
+              ).innerHTML = `from zndraw import ZnDraw <br>vis = ZnDraw(url="${window.location.href}", token="{{ uuid }}")`;
               // url but without trailing slash
               const url = window.location.href.replace(/\/$/, "");
               const target_href = "{{ url_for('token', token=uuid) }}";
@@ -513,10 +512,12 @@
 
               document.getElementById("share-link-block").innerHTML = full_url;
 
-              document.getElementById("btnShareLink").onclick = function(event) {
+              document.getElementById("btnShareLink").onclick = function (
+                event,
+              ) {
                 event.preventDefault();
                 navigator.clipboard.writeText(full_url);
-              }
+              };
             </script>
           </div>
         </div>
