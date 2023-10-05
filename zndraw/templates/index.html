@@ -102,6 +102,15 @@
         </button>
         <div class="collapse navbar-collapse" id="navbarNavDropdown"></div>
         <div class="d-flex">
+          <button
+            type="button"
+            class="btn btn-outline-primary"
+            data-bs-toggle="modal"
+            data-bs-target="#codeModal"
+          >
+          <i class="fa-solid fa-code"></i>
+          </button>
+
           <form id="uploadForm" method="post" enctype="multipart/form-data">
             <input
               type="file"
@@ -415,7 +424,7 @@
         <div class="modal-content">
           <div class="modal-header">
             <h1 class="modal-title fs-5" id="helpModalLabel">
-              ZnDraw Help {{ uuid }}
+              ZnDraw Help
             </h1>
             <button
               type="button"
@@ -455,6 +464,60 @@
                 </dd>
               </dl>
             </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div
+      class="modal fade"
+      id="codeModal"
+      tabindex="-1"
+      aria-labelledby="codeModalLabel"
+      aria-hidden="true"
+    >
+      <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h1 class="modal-title fs-5" id="codeModalLabel">
+              ZnDraw Code Access
+            </h1>
+            <button
+              type="button"
+              class="btn-close"
+              data-bs-dismiss="modal"
+              aria-label="Close"
+            ></button>
+          </div>
+          <div class="modal-body">
+            <h3>Python Code </h3>
+            <code id="python-code-block">
+            </code>
+            <br>
+            <h3>Share Link</h3>
+            <code id="share-link-block"></code>
+            <br>
+            <a
+              class="btn btn-primary"
+              href={{ url_for('token', token=uuid) }}
+              role="button"
+              id="btnShareLink"
+              >Copy link to clipboard</a
+            >
+            <script>
+              document.getElementById("python-code-block").innerHTML = `from zndraw import ZnDraw <br>vis = ZnDraw(url="${window.location.href}", token="{{ uuid }}")`;
+              // url but without trailing slash
+              const url = window.location.href.replace(/\/$/, "");
+              const target_href = "{{ url_for('token', token=uuid) }}";
+              const full_url = url + target_href;
+              
+              document.getElementById("share-link-block").innerHTML = full_url;
+
+              document.getElementById("btnShareLink").onclick = function(event) {
+                event.preventDefault();
+                navigator.clipboard.writeText(full_url);
+              }
+            </script>
           </div>
         </div>
       </div>
