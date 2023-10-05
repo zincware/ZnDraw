@@ -184,7 +184,6 @@ class ZnDraw(collections.abc.MutableSequence):
             raise TypeError("Index must be an integer, slice or list[int]")
 
     def __getitem__(self, index) -> t.Union[ase.Atoms, list[ase.Atoms]]:
-
         length = len(self)
         if isinstance(index, slice):
             index = range(*index.indices(length))
@@ -282,7 +281,6 @@ class ZnDraw(collections.abc.MutableSequence):
 
     def _run_modifier(self, data):
         import importlib
-
 
         points = np.array([[val["x"], val["y"], val["z"]] for val in data["points"]])
         segments = np.array(data["segments"])
