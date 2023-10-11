@@ -16,7 +16,7 @@ import znh5md
 
 from zndraw.bonds import ASEComputeBonds
 from zndraw.data import atoms_from_json, atoms_to_json
-from zndraw.utils import get_port
+from zndraw.utils import ZnDrawLoggingHandler, get_port
 
 
 @dataclasses.dataclass
@@ -155,7 +155,9 @@ class ZnDraw(collections.abc.MutableSequence):
     def _set_item(self, index, value):
         assert isinstance(value, ase.Atoms), "Must be an ASE Atoms object"
         assert isinstance(index, int), "Index must be an integer"
-        if self.bonds_calculator is not None:
+        if hasattr(value, "connectivity"):
+            pass
+        elif self.bonds_calculator is not None:
             value.connectivity = self.bonds_calculator.build_graph(value)
         else:
             value.connectivity = nx.Graph()
@@ -186,6 +188,13 @@ class ZnDraw(collections.abc.MutableSequence):
             self._set_item(len(self), val)
         if self.display_new:
             self.display(len(self) - 1)
+
+    def log(self, message: str) -> None:
+        """Log a message to the console"""
+        self.socket.emit("message:log", message)
+
+    def get_logging_handler(self) -> ZnDrawLoggingHandler:
+        return ZnDrawLoggingHandler(self.socket)
 
     def read(self, filename: str, start: int, stop: int, step: int):
         """Read atoms from file and return a list of atoms dicts.

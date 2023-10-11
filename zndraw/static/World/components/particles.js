@@ -305,11 +305,13 @@ class ParticleIndexGroup extends THREE.Group {
     this.label_offset = 0;
 
     document.addEventListener("keydown", (event) => {
-      if (event.repeat) {
-        return;
-      }
-      if (event.isComposing || event.key === "i") {
-        this.toggle();
+      if (document.activeElement === document.body) {
+        if (event.repeat) {
+          return;
+        }
+        if (event.isComposing || event.key === "i") {
+          this.toggle();
+        }
       }
     });
   }

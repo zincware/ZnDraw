@@ -62,7 +62,7 @@ class Cache {
     this.world;
 
     this._socket.on("atoms:upload", (data) => {
-      console.log("Received atoms from Python");
+      console.log(new Date().toISOString(), "Received atoms from Python");
       document.getElementById(
         "interaction-json-editor-submit",
       ).disabled = false;

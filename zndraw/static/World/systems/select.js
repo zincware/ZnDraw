@@ -23,7 +23,7 @@ class Selection {
       renderer.domElement,
     );
 
-    // change mode of transform_controls when pressing t, itereate between translate, rotate, scale
+    // change mode of transform_controls when pressing t, iterate between translate, rotate, scale
     document.addEventListener("keydown", (event) => {
       if (document.activeElement === document.body) {
         if (event.key === "t") {
@@ -104,7 +104,7 @@ class Selection {
       const params = document.getElementById(
         "selection-json-editor",
       ).parameters;
-
+      console.log(new Date().toISOString(), "running selection");
       this.socket.emit("selection:run", {
         params: params,
         atoms: this.cache.get(this.world.getStep()),
@@ -304,6 +304,7 @@ class Selection {
             }
           } else if (particlesGroup.selection.length > 0) {
             const { points, segments } = this.world.getLineData();
+            console.log(new Date().toISOString(), "running modifier");
             this.socket.emit("modifier:run", {
               name: "zndraw.modify.Delete",
               params: {},
@@ -312,6 +313,7 @@ class Selection {
               step: this.world.getStep(),
               points,
               segments,
+              url: window.location.href,
             });
             particlesGroup.click();
           } else {

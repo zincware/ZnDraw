@@ -1,7 +1,7 @@
 [tool.poetry]
 name = "zndraw"
-version = "0.2.1"
-description = ""
+version = "0.2.2a2"
+description = "Display and Edit Molecular Structures and Trajectories in the Browser."
 authors = ["zincwarecode <zincwarecode@gmail.com>"]
 license = "Apache-2.0"
 readme = "README.md"
@@ -12,7 +12,7 @@ python = "^3.9"
 ase = "^3.22.1"
 typer = {extras = ["all"], version = "^0.7.0"}
 flask = "^2.2.3"
-tqdm = "^4.65.0"
+tqdm = "^4.20.0"
 znh5md = "^0.1.6"
 flask-socketio = "^5.3.4"
 eventlet = "^0.33.3"

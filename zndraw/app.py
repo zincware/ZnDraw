@@ -118,6 +118,7 @@ def modifier_run(data):
         points=points,
         segments=segments,
         json_data=data["atoms"] if "atoms" in data else None,
+        url=data["url"],
     )
     io.emit("atoms:clear", int(data["step"]) + 1)
     for idx, atoms in tqdm.tqdm(enumerate(atoms_list)):
@@ -330,3 +331,8 @@ def delete_atoms(data):
 @io.on("atoms:insert")
 def insert_atoms(data):
     emit("atoms:insert", data, broadcast=True, include_self=False)
+
+
+@io.on("message:log")
+def log(data):
+    emit("message:log", data, broadcast=True, include_self=False)
