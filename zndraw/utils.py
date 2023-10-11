@@ -27,6 +27,8 @@ def set_global_atoms(atoms: ase.Atoms):
     ATOMS = atoms
     yield
     del ATOMS
+
+
 class ZnDrawLoggingHandler(logging.Handler):
     """Logging handler which emits log messages to the ZnDraw server."""
 
