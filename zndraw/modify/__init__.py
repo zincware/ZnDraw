@@ -6,7 +6,7 @@ import typing as t
 import ase
 import numpy as np
 from ase.data import chemical_symbols
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 log = logging.getLogger("zndraw")
 
@@ -17,14 +17,13 @@ def hide_method(schema):
     """Hide the method field in the schema used for the discriminator."""
     if "method" in schema["properties"]:
         schema["properties"]["method"]["description"] = "Modify method"
-        schema["properties"]["method"]["options"] = {"hidden": True}    
+        schema["properties"]["method"]["options"] = {"hidden": True}
         schema["properties"]["method"]["type"] = "string"
     print(schema)
     return schema
 
 
 class UpdateScene(BaseModel, abc.ABC):
-
     model_config = ConfigDict(json_schema_extra=hide_method)
 
     @abc.abstractmethod
@@ -186,8 +185,7 @@ def get_modify_class(methods):
             ..., description="Modify method", discriminator="method"
         )
 
-        model_config = ConfigDict(json_schema_extra=None) # disable method hiding
-
+        model_config = ConfigDict(json_schema_extra=None)  # disable method hiding
 
         def run(self, *args, **kwargs) -> list[ase.Atoms]:
             return self.method.run(*args, **kwargs)
