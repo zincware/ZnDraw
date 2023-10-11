@@ -1,4 +1,3 @@
-import importlib
 import multiprocessing as mp
 import uuid
 from io import StringIO
@@ -9,8 +8,10 @@ import tqdm
 from flask import Flask, render_template
 from flask_socketio import SocketIO, emit
 
+from zndraw.analyse import get_analysis_class
 from zndraw.data import atoms_from_json, atoms_to_json
 from zndraw.draw import Geometry
+from zndraw.modify import get_modify_class
 from zndraw.select import get_selection_class
 from zndraw.settings import GlobalConfig
 from zndraw.zndraw import ZnDraw
@@ -93,26 +94,14 @@ def atoms_request(url):
 def modifier_schema():
     config = GlobalConfig.load()
 
-    for modifier in config.modify_functions:
-        module_name, function_name = modifier.rsplit(".", 1)
-        module = importlib.import_module(module_name)
-        modifier_cls = getattr(module, function_name)
-        schema = modifier_cls.model_json_schema()
-
-        if modifier in config.function_schema:
-            kwargs = config.function_schema[modifier]
-            for key, value in kwargs.items():
-                schema["properties"][key]["default"] = value
-
-        io.emit(
-            "modifier:schema",
-            {"name": modifier, "schema": schema},
-        )
+    cls = get_modify_class(config.get_modify_methods())
+    io.emit("modifier:schema", cls.model_json_schema())
 
 
 @io.on("modifier:run")
 def modifier_run(data):
-    import ase
+    config = GlobalConfig.load()
+    cls = get_modify_class(config.get_modify_methods())
 
     points = np.array([[val["x"], val["y"], val["z"]] for val in data["points"]])
     segments = np.array(data["segments"])
@@ -121,16 +110,9 @@ def modifier_run(data):
         atoms = atoms_from_json(data["atoms"])
     else:
         atoms = ase.Atoms()
+    instance = cls(**data["params"])
 
-    module_name, function_name = data["name"].rsplit(".", 1)
-    module = importlib.import_module(module_name)
-    modifier_cls = getattr(module, function_name)
-    modifier = modifier_cls(**data["params"])
-    # available_methods = {x.__name__: x for x in [Explode, Duplicate]}
-
-    # modifier = available_methods[data["name"]](**data["params"])
-    print(f"modifier:run {modifier = }")
-    atoms_list = modifier.run(
+    atoms_list = instance.run(
         atom_ids=data["selection"],
         atoms=atoms,
         points=points,
@@ -147,33 +129,18 @@ def modifier_run(data):
     io.emit("view:play")
 
 
-@io.on("analysis:schema")
-def analysis_schema(data):
-    config = GlobalConfig.load()
-    if "atoms" not in data:
-        return
-    atoms = atoms_from_json(data["atoms"])
-
-    for modifier in config.analysis_functions:
-        module_name, function_name = modifier.rsplit(".", 1)
-        module = importlib.import_module(module_name)
-        modifier_cls = getattr(module, function_name)
-        schema = modifier_cls.schema_from_atoms(atoms)
-
-        io.emit(
-            "analysis:schema",
-            {"name": modifier, "schema": schema},
-        )
-
-
 @io.on("selection:schema")
 def selection_schema():
-    io.emit("selection:schema", get_selection_class().model_json_schema())
+    config = GlobalConfig.load()
+    cls = get_selection_class(config.get_selection_methods())
+
+    io.emit("selection:schema", cls.model_json_schema())
 
 
 @io.on("selection:run")
 def selection_run(data):
-    import ase
+    config = GlobalConfig.load()
+    cls = get_selection_class(config.get_selection_methods())
 
     if "atoms" in data:
         atoms = atoms_from_json(data["atoms"])
@@ -181,26 +148,41 @@ def selection_run(data):
         atoms = ase.Atoms()
 
     try:
-        selection = get_selection_class()(**data["params"])
+        selection = cls(**data["params"])
         selected_ids = selection.get_ids(atoms, data["selection"])
         io.emit("selection:run", selected_ids)
     except ValueError as err:
         print(err)
 
 
+@io.on("analysis:schema")
+def analysis_schema(data):
+    config = GlobalConfig.load()
+
+    cls = get_analysis_class(config.get_analysis_methods())
+
+    if "atoms" not in data:
+        return
+    atoms = atoms_from_json(data["atoms"])
+
+    io.emit("analysis:schema", cls.model_json_schema_from_atoms(atoms))
+
+
 @io.on("analysis:run")
 def analysis_run(data):
+    config = GlobalConfig.load()
+    cls = get_analysis_class(config.get_analysis_methods())
+
     atoms_list = [atoms_from_json(x) for x in data["atoms_list"].values()]
 
     print(f"Analysing {len(atoms_list)} frames")
 
-    module_name, function_name = data["name"].rsplit(".", 1)
-    module = importlib.import_module(module_name)
-    cls = getattr(module, function_name)
-    instance = cls(**data["params"])
-
-    fig = instance.run(atoms_list, data["selection"])
-    return fig.to_json()
+    try:
+        instance = cls(**data["params"])
+        fig = instance.run(atoms_list, data["selection"])
+        return fig.to_json()
+    except ValueError as err:
+        print(err)
 
 
 @io.on("config")

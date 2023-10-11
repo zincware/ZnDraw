@@ -106,19 +106,7 @@ class Neighbour(SelectionBase):
         return list(set(total_ids))
 
 
-def get_selection_class(methods=None):
-    if methods is None:
-        methods = t.Union[
-            NoneSelection,
-            All,
-            Invert,
-            Range,
-            Random,
-            IdenticalSpecies,
-            ConnectedParticles,
-            Neighbour,
-        ]
-
+def get_selection_class(methods):
     class Selection(SelectionBase):
         method: methods = Field(
             ..., description="Selection method", discriminator="method"
