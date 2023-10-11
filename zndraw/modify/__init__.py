@@ -6,14 +6,27 @@ import typing as t
 import ase
 import numpy as np
 from ase.data import chemical_symbols
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 log = logging.getLogger("zndraw")
 
 Symbols = enum.Enum("Symbols", {symbol: symbol for symbol in chemical_symbols})
 
 
+def hide_method(schema):
+    """Hide the method field in the schema used for the discriminator."""
+    if "method" in schema["properties"]:
+        schema["properties"]["method"]["description"] = "Modify method"
+        schema["properties"]["method"]["options"] = {"hidden": True}    
+        schema["properties"]["method"]["type"] = "string"
+    print(schema)
+    return schema
+
+
 class UpdateScene(BaseModel, abc.ABC):
+
+    model_config = ConfigDict(json_schema_extra=hide_method)
+
     @abc.abstractmethod
     def run(self, atom_ids: list[int], atoms: ase.Atoms, **kwargs) -> list[ase.Atoms]:
         pass
@@ -173,18 +186,10 @@ def get_modify_class(methods):
             ..., description="Modify method", discriminator="method"
         )
 
+        model_config = ConfigDict(json_schema_extra=None) # disable method hiding
+
+
         def run(self, *args, **kwargs) -> list[ase.Atoms]:
             return self.method.run(*args, **kwargs)
-
-        @classmethod
-        def model_json_schema(cls, *args, **kwargs) -> dict[str, t.Any]:
-            schema = super().model_json_schema(*args, **kwargs)
-            for prop in [x.__name__ for x in t.get_args(methods)]:
-                schema["$defs"][prop]["properties"]["method"]["options"] = {
-                    "hidden": True
-                }
-                schema["$defs"][prop]["properties"]["method"]["type"] = "string"
-
-            return schema
 
     return Modifier
