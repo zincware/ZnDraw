@@ -252,6 +252,13 @@ class ParticlesGroup extends THREE.Group {
       }
     }
   }
+
+  get_center() {
+    const center = new THREE.Vector3();
+    this.particles_mesh.computeBoundingSphere();
+    center.copy(this.particles_mesh.boundingSphere.center);
+    return center;
+  }
 }
 
 class CellGroup extends THREE.Group {
