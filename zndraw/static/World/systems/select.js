@@ -50,9 +50,9 @@ class Selection {
 
     this._setupKeyboardEvents();
 
-    this.controls.getCenter = () => {
+    this.controls.getCenter = (selection) => {
       const particlesGroup = this.scene.getObjectByName("particlesGroup");
-      return particlesGroup.get_center();
+      return particlesGroup.get_center(selection);
     };
 
     this.socket.on("selection:run", (data) => {

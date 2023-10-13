@@ -235,8 +235,7 @@ class World {
     loop.start();
     // center camera if there are particles
     const particles = this.particles.cache.get(0);
-    if (particles === undefined || particles.length === 0) {
-    } else {
+    if (!(particles === undefined || particles.length === 0)) {
       centerCamera(this.selection.controls, this.particles);
     }
   }
