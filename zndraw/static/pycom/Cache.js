@@ -76,9 +76,9 @@ class Atoms {
       const vec = new THREE.Vector3().fromArray(position);
       return acc.add(vec);
     }, new THREE.Vector3());
-  
+
     const mean = sum.divideScalar(this.positions.length);
-  
+
     return mean;
   }
 }
