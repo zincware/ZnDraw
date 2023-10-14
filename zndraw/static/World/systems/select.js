@@ -76,6 +76,7 @@ class Selection {
 
     window.addEventListener("pointerdown", this.onPointerDown.bind(this));
     window.addEventListener("dblclick", this.onDoubleClick.bind(this));
+    window.addEventListener("pointermove", this.onPointerMove.bind(this));
   }
 
   getIntersections(object) {
@@ -124,12 +125,24 @@ class Selection {
     const canvasIntersects = this.getIntersections(canvas3D);
 
     if (particleIntersects.length > 0) {
-      const position = particleIntersects[0].point.clone();
-      this.line3D.movePointer(position);
-    } else if (canvasIntersects.length > 0) {
-      if (canvasIntersects[0].object.name === "canvas3D") {
-        const position = canvasIntersects[0].point.clone();
+      particlesGroup.hover(
+        particleIntersects[0].instanceId,
+        particleIntersects[0].object,
+      );
+    } else {
+      particlesGroup.hover();
+    }
+
+    if (this._drawing) {
+      if (particleIntersects.length > 0) {
+        const position = particleIntersects[0].point.clone();
+
         this.line3D.movePointer(position);
+      } else if (canvasIntersects.length > 0) {
+        if (canvasIntersects[0].object.name === "canvas3D") {
+          const position = canvasIntersects[0].point.clone();
+          this.line3D.movePointer(position);
+        }
       }
     }
     // } else {
@@ -253,12 +266,10 @@ class Selection {
           if (this._drawing) {
             this._drawing = false;
             this.line3D.removePointer();
-            window.removeEventListener("pointermove", onPointerMove);
           } else {
             this._drawing = true;
             this.line3D.addPointer();
             this.transform_controls.detach();
-            window.addEventListener("pointermove", onPointerMove);
           }
         }
 
@@ -325,13 +336,10 @@ class Selection {
           if (this._drawing) {
             this._drawing = false;
             this.line3D.removePointer();
-            window.removeEventListener("pointermove", onPointerMove);
           }
         }
       }
     });
-
-    const onPointerMove = this.onPointerMove.bind(this);
   }
 }
 
