@@ -252,6 +252,16 @@ class ParticlesGroup extends THREE.Group {
       }
     }
   }
+
+  get_center(selection) {
+    let selectedParticles = this.particle_cache;
+    if (selection !== undefined && selection.length > 0) {
+      selectedParticles = this.particle_cache.select(selection);
+    }
+    const center = new THREE.Vector3();
+    center.copy(selectedParticles.getCenter());
+    return center;
+  }
 }
 
 class CellGroup extends THREE.Group {

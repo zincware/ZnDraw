@@ -1,5 +1,5 @@
 // Interface for the communication with Python to retrieve atoms
-
+import * as THREE from "three";
 class Atom {
   constructor({ position, number, color, id, radius }) {
     this.position = position;
@@ -52,6 +52,34 @@ class Atoms {
         return { done: true };
       },
     };
+  }
+  select(indices) {
+    const selectedPositions = indices.map((index) => this.positions[index]);
+    const selectedNumbers = indices.map((index) => this.numbers[index]);
+    const selectedColors = indices.map((index) => this.colors[index]);
+    const selectedRadii = indices.map((index) => this.radii[index]);
+    const selectedAtoms = new Atoms({
+      positions: selectedPositions,
+      cell: this.cell,
+      numbers: selectedNumbers,
+      colors: selectedColors,
+      radii: selectedRadii,
+      connectivity: this.connectivity,
+      calc: this.calc,
+      pbc: this.pbc,
+    });
+    return selectedAtoms;
+  }
+
+  getCenter() {
+    const sum = this.positions.reduce((acc, position) => {
+      const vec = new THREE.Vector3().fromArray(position);
+      return acc.add(vec);
+    }, new THREE.Vector3());
+
+    const mean = sum.divideScalar(this.positions.length);
+
+    return mean;
   }
 }
 

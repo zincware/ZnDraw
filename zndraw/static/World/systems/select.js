@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { TransformControls } from "three/examples/jsm/controls/TransformControls.js";
+import { centerCamera } from "./events.js";
 
 let scroll_timer = null;
 
@@ -49,9 +50,9 @@ class Selection {
 
     this._setupKeyboardEvents();
 
-    this.controls.getCenter = () => {
+    this.controls.getCenter = (selection) => {
       const particlesGroup = this.scene.getObjectByName("particlesGroup");
-      return particlesGroup.get_center();
+      return particlesGroup.get_center(selection);
     };
 
     this.socket.on("selection:run", (data) => {
@@ -228,26 +229,7 @@ class Selection {
       if (document.activeElement === document.body) {
         const particlesGroup = this.scene.getObjectByName("particlesGroup");
         if (event.key === "c") {
-          if (this.controls.enablePan) {
-            // get the first object that is selected
-            if (particlesGroup.selection.length > 0) {
-              const matrix = new THREE.Matrix4();
-              const dummy = new THREE.Object3D();
-              particlesGroup.particles_mesh.getMatrixAt(
-                particlesGroup.selection[0],
-                matrix,
-              );
-              matrix.decompose(dummy.position, dummy.quaternion, dummy.scale);
-              this.controls.target.copy(dummy.position);
-              // this.controls.enablePan = false;
-              // document.getElementById("alertBoxCamera").style.display = "block";
-            }
-          } else {
-            // follow is currently not working due to instancing
-            // document.getElementById("alertBoxCamera").style.display = "none";
-            // this.controls.target = this.controls.target.clone();
-            // this.controls.enablePan = true;
-          }
+          centerCamera(this.controls, particlesGroup);
         }
         if (event.key === "x") {
           if (this._drawing) {
