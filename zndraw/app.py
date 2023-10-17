@@ -265,11 +265,11 @@ def analysis_schema(data: dict):
 @io.on("modifier:schema")
 def modifier_schema(data: dict):
     if "sid" in data:
-        emit("modifier:schema", data, include_self=False, to=data["sid"])
+        emit("modifier:schema", data["schema"], include_self=False, to=data["sid"])
     else:
         try:
             # emit to all webclients in the group, if no sid is provided
-            emit("modifier:schema", data, include_self=False, to=session["token"])
+            emit("modifier:schema", data["schema"], include_self=False, to=session["token"])
         except KeyError:
             return "No host found."
 
@@ -374,26 +374,6 @@ def selection_run(data: dict):
             emit("selection:run", data, to=app.config["DEFAULT_PYCLIENT"])
         except KeyError:
             return "No host found."
-
-
-# @io.on("analysis:figure")
-# def analysis_figure(data: dict):
-#     sid = data.pop("sid", None)
-#     if sid is not None:
-#         emit("analysis:figure", data["figure"], to=sid)
-#     else:
-#         try:
-#             # emit to all webclients in the group, if no sid is provided
-#             # print(f"sending to room {session['token']}")
-#             emit(
-#                 "analysis:figure",
-#                 data["figure"],
-#                 to=session[
-#                     "token"
-#                 ],  # this is not working, because the session token is "default"
-#             )
-#         except KeyError:
-#             return "No host found."
 
 
 @io.on("upload")

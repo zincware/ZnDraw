@@ -22,6 +22,7 @@ from zndraw.data import atoms_from_json, atoms_to_json
 from zndraw.select import get_selection_class
 from zndraw.analyse import get_analysis_class
 from zndraw.utils import ZnDrawLoggingHandler, get_port
+from zndraw.modify import get_modify_class
 from zndraw.settings import GlobalConfig
 from zndraw.draw import Geometry
 
@@ -178,8 +179,10 @@ class ZnDrawBase:  # collections.abc.MutableSequence
     @property
     def step(self) -> int:
         if self._target_sid is not None:
-            return int(self.socket.call("scene:step", {"sid": self._target_sid}))
-        return int(self.socket.call("scene:step", {}))
+            step=  int(self.socket.call("scene:step", {"sid": self._target_sid}))
+        else:
+            step = int(self.socket.call("scene:step", {}))
+        return step
 
     @step.setter
     def step(self, index):
@@ -266,25 +269,10 @@ class ZnDrawDefault(ZnDrawBase):
 
     def modifier_schema(self):
         config = GlobalConfig.load()
+        cls = get_modify_class(config.get_modify_methods())
+        data = {"schema": cls.model_json_schema(), "sid": self._target_sid}
+        self.socket.emit("modifier:schema", data)
 
-        for modifier in config.modify_functions:
-            module_name, function_name = modifier.rsplit(".", 1)
-            try:
-                module = importlib.import_module(module_name)
-                modifier_cls = getattr(module, function_name)
-                schema = modifier_cls.model_json_schema()
-
-                if modifier in config.function_schema:
-                    kwargs = config.function_schema[modifier]
-                    for key, value in kwargs.items():
-                        schema["properties"][key]["default"] = value
-
-                self.socket.emit(
-                    "modifier:schema",
-                    {"name": modifier, "schema": schema, "sid": self._target_sid},
-                )
-            except ImportError:
-                print(f"Could not import {modifier}")
 
     def selection_schema(self):
         config = GlobalConfig.load()
@@ -306,10 +294,9 @@ class ZnDrawDefault(ZnDrawBase):
 
     def modifier_run(self, data):
         with self._set_sid(data["sid"]):
-            module_name, function_name = data["name"].rsplit(".", 1)
-            module = importlib.import_module(module_name)
-            modifier_cls = getattr(module, function_name)
-            modifier = modifier_cls(**data["params"])
+            config = GlobalConfig.load()
+            cls = get_modify_class(config.get_modify_methods())
+            modifier = cls(**data["params"])
 
             if len(self) > self.step + 1:
                 del self[self.step + 1 :]
@@ -323,7 +310,7 @@ class ZnDrawDefault(ZnDrawBase):
                     atoms=self[self.step],
                     points=self.points,
                     segments=self.segments,
-                    json_data=data["atoms"] if "atoms" in data else None,
+                    json_data=atoms_to_json(self[self.step]),
                     url=data["url"],
                 )
             ):

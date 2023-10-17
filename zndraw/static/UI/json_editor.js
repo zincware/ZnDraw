@@ -155,16 +155,12 @@ function modifier_editor(socket, cache, world) {
         // Get the value from the editor
         const value = editor.getValue();
         const { points, segments } = world.getLineData();
-
+        console.log(value);
         socket.emit("modifier:run", {
           params: value,
-          atoms: cache.get(world.getStep()),
-          selection: world.getSelection(),
-          step: world.getStep(),
-          points,
-          segments,
+          url: window.location.href,
         });
-        world.particles.click(); // reset selection
+        // world.particles.click(); // reset selection
 
         document.getElementById(
           "interaction-json-editor-submit",

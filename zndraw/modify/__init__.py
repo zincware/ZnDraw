@@ -20,7 +20,6 @@ def hide_method(schema):
         schema["properties"]["method"]["description"] = "Modify method"
         schema["properties"]["method"]["options"] = {"hidden": True}
         schema["properties"]["method"]["type"] = "string"
-    print(schema)
     return schema
 
 
@@ -84,6 +83,7 @@ class Explode(UpdateScene):
     delay: int = Field(0, le=1000, ge=0, description="Delay between each step in ms")
 
     def run(self, atom_ids: list[int], atoms: ase.Atoms, **kwargs) -> list[ase.Atoms]:
+        print(self)
         particles = []
         for _atom_id in atom_ids:
             for _ in range(self.particles):
@@ -191,6 +191,6 @@ def get_modify_class(methods):
         model_config = ConfigDict(json_schema_extra=None)  # disable method hiding
 
         def run(self, *args, **kwargs) -> list[ase.Atoms]:
-            return self.method.run(*args, **kwargs)
+            yield from self.method.run(*args, **kwargs)
 
     return Modifier

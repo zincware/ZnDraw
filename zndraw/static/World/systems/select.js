@@ -286,13 +286,7 @@ class Selection {
             const { points, segments } = this.world.getLineData();
             console.log(new Date().toISOString(), "running modifier");
             this.socket.emit("modifier:run", {
-              name: "zndraw.modify.Delete",
-              params: {},
-              atoms: this.cache.get(this.world.getStep()),
-              selection: this.world.getSelection(),
-              step: this.world.getStep(),
-              points,
-              segments,
+              params: {"method": {"method": "Delete"}},
               url: window.location.href,
             });
             // particlesGroup.click();
