@@ -225,23 +225,35 @@ class World {
     this.step = loop.step;
     this.socket = socket;
 
-    this.socket.on("scene:points", function(callback) {
-      const { points, segments } = this.getLineData();
-      callback(points);
-    }.bind(this));
+    this.socket.on(
+      "scene:points",
+      function (callback) {
+        const { points, segments } = this.getLineData();
+        callback(points);
+      }.bind(this),
+    );
 
-    this.socket.on("scene:segments", function(callback) {
-      const { points, segments } = this.getLineData();
-      callback(segments);
-    }.bind(this));
+    this.socket.on(
+      "scene:segments",
+      function (callback) {
+        const { points, segments } = this.getLineData();
+        callback(segments);
+      }.bind(this),
+    );
 
-    this.socket.on("scene:step", function(callback) {
-      callback(this.getStep());
-    }.bind(this));
+    this.socket.on(
+      "scene:step",
+      function (callback) {
+        callback(this.getStep());
+      }.bind(this),
+    );
 
-    this.socket.on("selection:get", function(callback) {
-      callback(this.getSelection());
-    }.bind(this));
+    this.socket.on(
+      "selection:get",
+      function (callback) {
+        callback(this.getSelection());
+      }.bind(this),
+    );
     // renderer.render(scene, camera);
   }
 

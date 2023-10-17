@@ -178,14 +178,17 @@ class Cache {
       ).innerHTML = `${slider.value} / ${slider.max}`;
     });
 
-    this._socket.on("atoms:download", function(ids, callback) {
-      // send all atoms at once
-      const data = {};
-      ids.forEach((x) => {
-        data[x] = this._cache[x];
-      });
-      callback(data);
-    }.bind(this));
+    this._socket.on(
+      "atoms:download",
+      function (ids, callback) {
+        // send all atoms at once
+        const data = {};
+        ids.forEach((x) => {
+          data[x] = this._cache[x];
+        });
+        callback(data);
+      }.bind(this),
+    );
 
     this._socket.on("atoms:clear", (start_index) => {
       // remove everything from the cache starting from start_index
@@ -196,9 +199,12 @@ class Cache {
       });
     });
 
-    this._socket.on("atoms:length", function(callback) {
-      callback(this.get_length());
-    }.bind(this));
+    this._socket.on(
+      "atoms:length",
+      function (callback) {
+        callback(this.get_length());
+      }.bind(this),
+    );
   }
 
   get(id) {

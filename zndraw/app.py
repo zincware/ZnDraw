@@ -1,9 +1,8 @@
-import multiprocessing as mp
+import contextlib
 import uuid
 
 from flask import Flask, redirect, render_template, request, session
-from flask_socketio import SocketIO, emit, join_room, call
-import contextlib
+from flask_socketio import SocketIO, call, emit, join_room
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = str(uuid.uuid4())
@@ -257,7 +256,12 @@ def analysis_schema(data: dict):
     else:
         try:
             # emit to all webclients in the group, if no sid is provided
-            emit("analysis:schema", data["schema"], include_self=False, to=session["token"])
+            emit(
+                "analysis:schema",
+                data["schema"],
+                include_self=False,
+                to=session["token"],
+            )
         except KeyError:
             return "No host found."
 
@@ -269,7 +273,12 @@ def modifier_schema(data: dict):
     else:
         try:
             # emit to all webclients in the group, if no sid is provided
-            emit("modifier:schema", data["schema"], include_self=False, to=session["token"])
+            emit(
+                "modifier:schema",
+                data["schema"],
+                include_self=False,
+                to=session["token"],
+            )
         except KeyError:
             return "No host found."
 

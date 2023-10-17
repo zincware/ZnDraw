@@ -1,30 +1,24 @@
-import collections.abc
 import contextlib
 import dataclasses
 import pathlib
 import threading
 import time
 import typing as t
-from io import StringIO
-import importlib
 
 import ase
 import ase.io
-import flask_socketio
-import networkx as nx
 import numpy as np
 import socketio
 import tqdm
 import znh5md
 
-from zndraw.bonds import ASEComputeBonds
-from zndraw.data import atoms_from_json, atoms_to_json
-from zndraw.select import get_selection_class
 from zndraw.analyse import get_analysis_class
-from zndraw.utils import ZnDrawLoggingHandler, get_port
-from zndraw.modify import get_modify_class
-from zndraw.settings import GlobalConfig
+from zndraw.data import atoms_from_json, atoms_to_json
 from zndraw.draw import Geometry
+from zndraw.modify import get_modify_class
+from zndraw.select import get_selection_class
+from zndraw.settings import GlobalConfig
+from zndraw.utils import ZnDrawLoggingHandler
 
 
 def _await_answer(socket, channel, data=None, timeout=5):
@@ -125,7 +119,7 @@ class ZnDrawBase:  # collections.abc.MutableSequence
     def insert(self, index, value):
         """Insert atoms before index"""
         self.socket.emit("atoms:insert", {index: atoms_to_json(value)})
-    
+
     def append(self, value: ase.Atoms) -> None:
         """Append atoms to the end of the list"""
         self[len(self)] = value
@@ -179,7 +173,7 @@ class ZnDrawBase:  # collections.abc.MutableSequence
     @property
     def step(self) -> int:
         if self._target_sid is not None:
-            step=  int(self.socket.call("scene:step", {"sid": self._target_sid}))
+            step = int(self.socket.call("scene:step", {"sid": self._target_sid}))
         else:
             step = int(self.socket.call("scene:step", {}))
         return step
@@ -262,17 +256,18 @@ class ZnDrawDefault(ZnDrawBase):
         cls = get_analysis_class(config.get_analysis_methods())
 
         self.socket.emit(
-                "analysis:schema",
-                {"schema": cls.model_json_schema_from_atoms(self[0]), "sid": self._target_sid},
-            )
-
+            "analysis:schema",
+            {
+                "schema": cls.model_json_schema_from_atoms(self[0]),
+                "sid": self._target_sid,
+            },
+        )
 
     def modifier_schema(self):
         config = GlobalConfig.load()
         cls = get_modify_class(config.get_modify_methods())
         data = {"schema": cls.model_json_schema(), "sid": self._target_sid}
         self.socket.emit("modifier:schema", data)
-
 
     def selection_schema(self):
         config = GlobalConfig.load()
@@ -343,16 +338,18 @@ class ZnDrawDefault(ZnDrawBase):
             except ValueError as err:
                 print(err)
 
+
 @dataclasses.dataclass
 class ZnDraw(ZnDrawBase):
     """ZnDraw client.
-    
+
     Attributes
     ----------
     display_new : bool
         Display new atoms in the webclient, when they are added.
-    
+
     """
+
     jupyter: bool = False
     display_new: bool = True
 
@@ -433,7 +430,7 @@ class ZnDraw(ZnDrawBase):
 
     def get_logging_handler(self) -> ZnDrawLoggingHandler:
         return ZnDrawLoggingHandler(self.socket)
-    
+
     def __setitem__(self, index, value):
         super().__setitem__(index, value)
         if self.display_new:

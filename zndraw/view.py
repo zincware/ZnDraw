@@ -1,10 +1,10 @@
 import logging
+import multiprocessing as mp
 import webbrowser
 
 from zndraw.app import app, io
 from zndraw.utils import ZnDrawLoggingHandler
-from zndraw.zndraw import ZnDrawDefault, FileIO
-import multiprocessing as mp
+from zndraw.zndraw import FileIO, ZnDrawDefault
 
 try:
     import urllib.request
