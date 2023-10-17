@@ -504,7 +504,7 @@
             <script>
               document.getElementById(
                 "python-code-block",
-              ).innerHTML = `from zndraw import ZnDraw <br>vis = ZnDraw(url="${window.location.href}", token="{{ uuid }}")`;
+              ).innerHTML = `from zndraw import ZnDraw <br>vis = ZnDraw(url="${window.location.href}", token="{{ token }}")`;
               // url but without trailing slash
               const url = window.location.href.replace(/\/$/, "");
               const target_href = "{{ url_for('token', token=token) }}";
