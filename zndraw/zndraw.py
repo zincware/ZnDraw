@@ -20,6 +20,7 @@ import znh5md
 from zndraw.bonds import ASEComputeBonds
 from zndraw.data import atoms_from_json, atoms_to_json
 from zndraw.select import get_selection_class
+from zndraw.analyse import get_analysis_class
 from zndraw.utils import ZnDrawLoggingHandler, get_port
 from zndraw.settings import GlobalConfig
 from zndraw.draw import Geometry
@@ -81,7 +82,6 @@ class ZnDrawBase:  # collections.abc.MutableSequence
                 break
             except socketio.exceptions.ConnectionError:
                 time.sleep(0.1)
-        self.socket.wait()
 
     def __len__(self) -> int:
         if self._target_sid is not None:
@@ -214,11 +214,12 @@ class ZnDrawDefault(ZnDrawBase):
         self.socket.on("selection:run", self.selection_run)
         self.socket.on("analysis:run", self.analysis_run)
         self._connect()
+        self.socket.wait()
 
     def initialize_webclient(self, sid):
         with self._set_sid(sid):
             self.read_data()
-            self.analyis_schema()
+            self.analysis_schema()
             self.modifier_schema()
             self.selection_schema()
             self.draw_schema()
@@ -252,20 +253,16 @@ class ZnDrawDefault(ZnDrawBase):
             self.step = frame
             frame += 1
 
-    def analyis_schema(self):
+    def analysis_schema(self):
         config = GlobalConfig.load()
-        atoms = self[0]
 
-        for modifier in config.analysis_functions:
-            module_name, function_name = modifier.rsplit(".", 1)
-            module = importlib.import_module(module_name)
-            modifier_cls = getattr(module, function_name)
-            schema = modifier_cls.schema_from_atoms(atoms)
+        cls = get_analysis_class(config.get_analysis_methods())
 
-            self.socket.emit(
+        self.socket.emit(
                 "analysis:schema",
-                {"name": modifier, "schema": schema, "sid": self._target_sid},
+                {"schema": cls.model_json_schema_from_atoms(self[0]), "sid": self._target_sid},
             )
+
 
     def modifier_schema(self):
         config = GlobalConfig.load()
@@ -290,10 +287,13 @@ class ZnDrawDefault(ZnDrawBase):
                 print(f"Could not import {modifier}")
 
     def selection_schema(self):
+        config = GlobalConfig.load()
+        cls = get_selection_class(config.get_selection_methods())
+
         self.socket.emit(
             "selection:schema",
             {
-                "schema": get_selection_class().model_json_schema(),
+                "schema": cls.model_json_schema(),
                 "sid": self._target_sid,
             },
         )
@@ -332,32 +332,46 @@ class ZnDrawDefault(ZnDrawBase):
 
     def selection_run(self, data):
         with self._set_sid(data["sid"]):
+            config = GlobalConfig.load()
+            cls = get_selection_class(config.get_selection_methods())
             atoms = self[self.step]
-            selection = get_selection_class()(**data["params"])
-            self.selection = selection.get_ids(atoms, self.selection)
+
+            try:
+                selection = cls(**data["params"])
+                self.selection = selection.get_ids(atoms, self.selection)
+            except ValueError as err:
+                print(err)
 
     def analysis_run(self, data):
         with self._set_sid(data["sid"]):
-            atoms_list = list(self)
+            config = GlobalConfig.load()
+            cls = get_analysis_class(config.get_analysis_methods())
 
-            module_name, function_name = data["name"].rsplit(".", 1)
-            module = importlib.import_module(module_name)
-            cls = getattr(module, function_name)
-            instance = cls(**data["params"])
-
-            fig = instance.run(atoms_list, self.selection)
-
-            data = {"figure": fig.to_json(), "sid": self._target_sid}
-
-            self.socket.emit("analysis:figure", data)
-
+            try:
+                instance = cls(**data["params"])
+                fig = instance.run(list(self), self.selection)
+                return fig.to_json()
+                # data = {"figure": fig.to_json(), "sid": self._target_sid}
+                # self.socket.emit("analysis:figure", data)
+            except ValueError as err:
+                print(err)
 
 @dataclasses.dataclass
 class ZnDraw(ZnDrawBase):
+    """ZnDraw client.
+    
+    Attributes
+    ----------
+    display_new : bool
+        Display new atoms in the webclient, when they are added.
+    
+    """
     jupyter: bool = False
+    display_new: bool = True
 
     def __post_init__(self):
         super().__post_init__()
+        self._connect()
         #     self._view_thread = None
         #     if isinstance(self.socket, flask_socketio.SocketIO):
         #         pass
@@ -432,6 +446,11 @@ class ZnDraw(ZnDrawBase):
 
     def get_logging_handler(self) -> ZnDrawLoggingHandler:
         return ZnDrawLoggingHandler(self.socket)
+    
+    def __setitem__(self, index, value):
+        super().__setitem__(index, value)
+        if self.display_new:
+            self.step = index
 
     # def _download_file(self, data):
     #     atoms = list(self)

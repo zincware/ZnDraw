@@ -49,6 +49,8 @@ function selection_editor(socket, cache, world) {
 
         socket.emit("selection:run", {
           params: value,
+          atoms: cache.get(world.getStep()),
+          selection: world.getSelection(),
         });
       });
   });
@@ -81,117 +83,98 @@ function scene_editor(socket, cache, world) {
 }
 
 function analysis_editor(socket, cache, world) {
-  let editor;
-  const selection = document.getElementById("analysis-select");
-  selection.onchange = function () {
-    if (editor !== undefined) {
-      editor.destroy();
-    }
-    if (selection.value === "") {
-      return;
-    }
-    const schema = JSON.parse(selection.value);
-    editor = new JSONEditor(document.getElementById("analysis-json-editor"), {
-      schema,
-    });
-  };
-
   socket.on("analysis:schema", (data) => {
-    const option = document.createElement("option");
-    option.value = JSON.stringify(data.schema);
-    option.innerHTML = data.name;
-    selection.appendChild(option);
-  });
-
-  document
-    .getElementById("analysis-json-editor-submit")
-    .addEventListener("click", () => {
-      // Get the value from the editor
-      console.log(new Date().toISOString(), "running analysis");
-      const value = editor.getValue();
-
-      socket.on("analysis:figure", (data) => {
-        Plotly.newPlot("analysisPlot", JSON.parse(data));
-
-        function buildPlot() {
-          Plotly.newPlot("analysisPlot", JSON.parse(data));
-          const myplot = document.getElementById("analysisPlot");
-          myplot.on("plotly_click", (data) => {
-            const point = data.points[0];
-            const step = point.x;
-            world.setStep(step);
-          });
-        }
-
-        buildPlot();
-      });
-
-      socket.emit("analysis:run", {
-        name: selection.options[selection.selectedIndex].text,
-        params: value,
-      });
-
-      document.getElementById("analysis-json-editor-submit").disabled = true;
-      // if there is an error in uploading, we still want to be able to submit again
-      setTimeout(() => {
-        document.getElementById("analysis-json-editor-submit").disabled = false;
-      }, 1000);
+    const div = document.getElementById("analysis-json-editor");
+    const editor = new JSONEditor(div, {
+      schema: data,
     });
+
+    editor.on("change", () => {
+      const value = editor.getValue();
+      div.parameters = value;
+    });
+
+    document
+      .getElementById("analysis-json-editor-submit")
+      .addEventListener("click", () => {
+        // Get the value from the editor
+        const value = editor.getValue();
+
+        socket.emit(
+          "analysis:run",
+          {
+            params: value,
+            atoms: cache.get(world.getStep()),
+            selection: world.getSelection(),
+            step: world.getStep(),
+            atoms_list: cache.getAllAtoms(),
+          },
+          (data) => {
+            Plotly.newPlot("analysisPlot", JSON.parse(data));
+
+            function buildPlot() {
+              Plotly.newPlot("analysisPlot", JSON.parse(data));
+              const myplot = document.getElementById("analysisPlot");
+              myplot.on("plotly_click", (data) => {
+                const point = data.points[0];
+                const step = point.x;
+                world.setStep(step);
+              });
+            }
+
+            buildPlot();
+          },
+        );
+
+        document.getElementById("analysis-json-editor-submit").disabled = true;
+        // if there is an error in uploading, we still want to be able to submit again
+        setTimeout(() => {
+          document.getElementById(
+            "analysis-json-editor-submit",
+          ).disabled = false;
+        }, 1000);
+      });
+  });
 }
 
 function modifier_editor(socket, cache, world) {
-  let editor;
-  const selection = document.getElementById("modifier-select");
-
-  selection.onchange = function () {
-    if (editor !== undefined) {
-      editor.destroy();
-    }
-    if (selection.value === "") {
-      return;
-    }
-    const schema = JSON.parse(selection.value);
-    editor = new JSONEditor(
-      document.getElementById("interaction-json-editor"),
-      {
-        schema,
-      },
-    );
-  };
-
   socket.on("modifier:schema", (data) => {
-    const option = document.createElement("option");
-    option.value = JSON.stringify(data.schema);
-    option.innerHTML = data.name;
-    selection.appendChild(option);
-  });
+    const div = document.getElementById("interaction-json-editor");
+    const editor = new JSONEditor(div, {
+      schema: data,
+    });
 
-  document
-    .getElementById("interaction-json-editor-submit")
-    .addEventListener("click", () => {
-      // Get the value from the editor
+    editor.on("change", () => {
       const value = editor.getValue();
+      div.parameters = value;
+    });
 
-      const { points, segments } = world.getLineData();
-      console.log(new Date().toISOString(), "running modifier");
-      socket.emit("modifier:run", {
-        name: selection.options[selection.selectedIndex].text,
-        params: value,
-        atoms: cache.get(world.getStep()),
-        selection: world.getSelection(),
-        step: world.getStep(),
-        points,
-        segments,
-        url: window.location.href,
-      });
-      // world.particles.click(); // reset selection
+    document
+      .getElementById("interaction-json-editor-submit")
+      .addEventListener("click", () => {
+        // Get the value from the editor
+        const value = editor.getValue();
+        const { points, segments } = world.getLineData();
 
-      document.getElementById("interaction-json-editor-submit").disabled = true;
-      // if there is an error in uploading, we still want to be able to submit again
-      setTimeout(() => {
+        socket.emit("modifier:run", {
+          params: value,
+          atoms: cache.get(world.getStep()),
+          selection: world.getSelection(),
+          step: world.getStep(),
+          points,
+          segments,
+        });
+        world.particles.click(); // reset selection
+
         document.getElementById(
           "interaction-json-editor-submit",
-        ).disabled = false;
-      }, 1000);
-    });
+        ).disabled = true;
+        // if there is an error in uploading, we still want to be able to submit again
+        setTimeout(() => {
+          document.getElementById(
+            "interaction-json-editor-submit",
+          ).disabled = false;
+        }, 1000);
+      });
+  });
 }
