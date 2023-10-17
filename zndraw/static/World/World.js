@@ -14,6 +14,7 @@ import {
 import { Selection } from "./systems/select.js";
 
 import { Line3D, Canvas3D } from "./components/draw.js";
+import { centerCamera } from "./systems/events.js";
 
 // These variables are module-scoped: we cannot access them
 // from outside the module
@@ -249,6 +250,11 @@ class World {
    */
   start() {
     loop.start();
+    // center camera if there are particles
+    const particles = this.particles.cache.get(0);
+    if (!(particles === undefined || particles.length === 0)) {
+      centerCamera(this.selection.controls, this.particles);
+    }
   }
 
   /**
