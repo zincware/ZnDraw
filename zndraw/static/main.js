@@ -6,7 +6,7 @@ import { initJSONEditor } from "./UI/json_editor.js";
 function setupSocket() {
   const socket = io();
   socket.on("connect", () => {
-    socket.emit("join", { data: "I'm connected!" });
+    console.log("connected to server");
   });
   return socket;
 }
@@ -27,10 +27,6 @@ function main() {
   });
 
   // creata a function displayIncomingAtoms that calls cache.get_length(), if larger 1 call world.setStep(0), else setTimerout(displayIncomingAtoms, 1000)
-
-  socket.on("join", () => {
-    socket.emit("join", {}); // we send an ACK to the server, so that it can send us the atoms
-  });
 
   socket.on("message:log", (msg) => {
     console.log(msg);

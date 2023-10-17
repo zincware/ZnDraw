@@ -3,6 +3,8 @@ import webbrowser
 
 from zndraw.app import app, io
 from zndraw.utils import ZnDrawLoggingHandler
+from zndraw.zndraw import ZnDrawDefault, FileIO
+import multiprocessing as mp
 
 try:
     import urllib.request
@@ -50,17 +52,26 @@ def view(
     use_token: bool = False,
     upgrade_insecure_requests: bool = False,
 ):
-    if filename is not None:
-        app.config["filename"] = filename
-        app.config["start"] = start
-        app.config["stop"] = stop
-        app.config["step"] = step
+    # if filename is not None:
+    #     app.config["filename"] = filename
+    #     app.config["start"] = start
+    #     app.config["stop"] = stop
+    #     app.config["step"] = step
     if not use_token:
         app.config["uuid"] = "default"
     app.config["upgrade_insecure_requests"] = upgrade_insecure_requests
     app.config["compute_bonds"] = compute_bonds
     app.config["multiprocessing"] = multiprocessing
     url = f"http://127.0.0.1:{port}"
+
+    file_io = FileIO(filename, start, stop, step)
+
+    proc = mp.Process(
+        target=ZnDrawDefault,
+        kwargs={"url": url, "token": "default", "file_io": file_io},
+    )
+    proc.start()
+
     print(f"Starting ZnDraw server at {url}")
 
     if wv is not None and webview:

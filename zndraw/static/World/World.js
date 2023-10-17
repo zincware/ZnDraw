@@ -32,7 +32,7 @@ class Player {
     this.cache = cache;
     this.loop = false;
 
-    socket.on("view:set", (index) => {
+    socket.on("scene:set", (index) => {
       this.world.setStep(index);
     });
 
@@ -224,10 +224,23 @@ class World {
     this.step = loop.step;
     this.socket = socket;
 
-    this.socket.on("draw:get_line", (data) => {
-      this.socket.emit("draw:get_line", this.getLineData());
-    });
+    this.socket.on("scene:points", function(callback) {
+      const { points, segments } = this.getLineData();
+      callback(points);
+    }.bind(this));
 
+    this.socket.on("scene:segments", function(callback) {
+      const { points, segments } = this.getLineData();
+      callback(segments);
+    }.bind(this));
+
+    this.socket.on("scene:step", function(callback) {
+      callback(this.getStep());
+    }.bind(this));
+
+    this.socket.on("selection:get", function(callback) {
+      callback(this.getSelection());
+    }.bind(this));
     // renderer.render(scene, camera);
   }
 
@@ -267,7 +280,6 @@ class World {
   }
 
   setStep(step) {
-    this.socket.emit("scene:step", step);
     step = parseInt(step);
     loop.setStep(step);
     const slider = document.getElementById("frame-slider");

@@ -74,7 +74,6 @@ class ParticlesGroup extends THREE.Group {
     } else {
       this.selection = [];
     }
-    this.socket.emit("scene:selection", this.selection);
     this.step();
     // trigger this._updateParticles() to update the selection
   }

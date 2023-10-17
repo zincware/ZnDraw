@@ -25,7 +25,6 @@ function draw_editor(socket, cache, world) {
       document.getElementById("drawAddCanvas").parameters = editor.getValue();
     });
   });
-  socket.emit("draw:schema");
 }
 
 function selection_editor(socket, cache, world) {
@@ -50,13 +49,9 @@ function selection_editor(socket, cache, world) {
 
         socket.emit("selection:run", {
           params: value,
-          atoms: cache.get(world.getStep()),
-          selection: world.getSelection(),
         });
       });
   });
-
-  socket.emit("selection:schema");
 }
 
 function scene_editor(socket, cache, world) {
@@ -134,9 +129,6 @@ function analysis_editor(socket, cache, world) {
       socket.emit("analysis:run", {
         name: selection.options[selection.selectedIndex].text,
         params: value,
-        atoms: cache.get(world.getStep()),
-        selection: world.getSelection(),
-        step: world.getStep(),
       });
 
       document.getElementById("analysis-json-editor-submit").disabled = true;
@@ -145,15 +137,6 @@ function analysis_editor(socket, cache, world) {
         document.getElementById("analysis-json-editor-submit").disabled = false;
       }, 1000);
     });
-
-  function get_analysis_data() {
-    if (cache.get(0) !== undefined) {
-      socket.emit("analysis:schema", { atoms: cache.get(0) });
-    } else {
-      setTimeout(get_analysis_data, 100);
-    }
-  }
-  get_analysis_data();
 }
 
 function modifier_editor(socket, cache, world) {
@@ -201,7 +184,7 @@ function modifier_editor(socket, cache, world) {
         segments,
         url: window.location.href,
       });
-      world.particles.click(); // reset selection
+      // world.particles.click(); // reset selection
 
       document.getElementById("interaction-json-editor-submit").disabled = true;
       // if there is an error in uploading, we still want to be able to submit again
@@ -211,6 +194,4 @@ function modifier_editor(socket, cache, world) {
         ).disabled = false;
       }, 1000);
     });
-
-  socket.emit("modifier:schema");
 }

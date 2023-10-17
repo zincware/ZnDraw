@@ -83,7 +83,6 @@ class Cache {
       document.getElementById(
         "info",
       ).innerHTML = `${slider.value} / ${slider.max}`;
-      this._socket.emit("scene:length", this.get_length());
     });
 
     this._socket.on("atoms:delete", (ids) => {
@@ -120,7 +119,6 @@ class Cache {
       document.getElementById(
         "info",
       ).innerHTML = `${slider.value} / ${slider.max}`;
-      this._socket.emit("scene:length", this.get_length());
     });
 
     this._socket.on("atoms:insert", (data) => {
@@ -150,17 +148,16 @@ class Cache {
       document.getElementById(
         "info",
       ).innerHTML = `${slider.value} / ${slider.max}`;
-      this._socket.emit("scene:length", this.get_length());
     });
 
-    this._socket.on("atoms:download", (ids) => {
+    this._socket.on("atoms:download", function(ids, callback) {
       // send all atoms at once
       const data = {};
       ids.forEach((x) => {
         data[x] = this._cache[x];
       });
-      this._socket.emit("atoms:download", data);
-    });
+      callback(data);
+    }.bind(this));
 
     this._socket.on("atoms:clear", (start_index) => {
       // remove everything from the cache starting from start_index
@@ -169,8 +166,11 @@ class Cache {
           delete this._cache[key];
         }
       });
-      this._socket.emit("scene:length", this.get_length());
     });
+
+    this._socket.on("atoms:length", function(callback) {
+      callback(this.get_length());
+    }.bind(this));
   }
 
   get(id) {

@@ -58,7 +58,6 @@ class Selection {
       const particlesGroup = this.scene.getObjectByName("particlesGroup");
       particlesGroup.selection = data;
       particlesGroup.step();
-      this.socket.emit("scene:selection", particlesGroup.selection);
     });
 
     window.addEventListener("wheel", this.onWheel.bind(this));
@@ -108,8 +107,6 @@ class Selection {
       console.log(new Date().toISOString(), "running selection");
       this.socket.emit("selection:run", {
         params: params,
-        atoms: this.cache.get(this.world.getStep()),
-        selection: particlesGroup.selection,
       });
     }
   }
@@ -316,7 +313,7 @@ class Selection {
               segments,
               url: window.location.href,
             });
-            particlesGroup.click();
+            // particlesGroup.click();
           } else {
             this.line3D.removePointer();
           }

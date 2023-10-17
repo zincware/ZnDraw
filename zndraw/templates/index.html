@@ -496,7 +496,7 @@
             <br />
             <a
               class="btn btn-primary"
-              href="{{ url_for('token', token=uuid) }}"
+              href="{{ url_for('token', token=token) }}"
               role="button"
               id="btnShareLink"
               >Copy link to clipboard</a
@@ -507,7 +507,7 @@
               ).innerHTML = `from zndraw import ZnDraw <br>vis = ZnDraw(url="${window.location.href}", token="{{ uuid }}")`;
               // url but without trailing slash
               const url = window.location.href.replace(/\/$/, "");
-              const target_href = "{{ url_for('token', token=uuid) }}";
+              const target_href = "{{ url_for('token', token=token) }}";
               const full_url = url + target_href;
 
               document.getElementById("share-link-block").innerHTML = full_url;
