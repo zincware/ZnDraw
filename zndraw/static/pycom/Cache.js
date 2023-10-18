@@ -10,6 +10,18 @@ class Atom {
   }
 }
 
+function float64ArrayTo2DArray(arr, shape) {
+  var result = [];
+  for (var i = 0; i < shape[0]; i++) {
+    var row = [];
+    for (var j = 0; j < shape[1]; j++) {
+      row.push(arr[i * shape[1] + j]);
+    }
+    result.push(row);
+  }
+  return result;
+}
+
 class Atoms {
   constructor({
     positions,
@@ -21,14 +33,19 @@ class Atoms {
     calc,
     pbc,
   }) {
-    this.positions = positions;
-    this.cell = cell;
+    (this.positions = float64ArrayTo2DArray(
+      new Float64Array(positions),
+      [300, 3],
+    )),
+      (this.cell = cell);
     this.numbers = numbers;
     this.colors = colors;
     this.radii = radii;
     this.connectivity = connectivity;
     this.calc = calc;
     this.pbc = pbc;
+
+    console.log(this.positions);
 
     this.length = this.positions.length;
   }
