@@ -11,7 +11,7 @@ from selenium.webdriver.chrome.options import Options
 from zndraw import ZnDraw
 
 chrome_options = Options()
-chrome_options.add_argument("--headless=new")  # for Chrome >= 109
+chrome_options.add_argument("--headless")  # for Chrome >= 109
 
 
 def test_zndraw(water):
