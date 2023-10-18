@@ -19,9 +19,10 @@ def test_zndraw(water):
 
     driver = webdriver.Chrome(options=chrome_options)
     driver.get(f"{vis.url}/token/{vis.token}")
+    assert "ZnDraw" in driver.title
 
     vis[0] = water
-
+    
     assert len(vis) == 1
     assert vis[0] == water
 
