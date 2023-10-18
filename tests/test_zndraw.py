@@ -5,10 +5,10 @@
 #     response = client.app.get("/")
 #     assert b"<h2>Hello, World!</h2>" in response.data
 
+import numpy.testing as npt
 import pytest
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
-import numpy.testing as npt
 
 from zndraw import ZnDraw
 
@@ -24,6 +24,7 @@ def vis() -> ZnDraw:
     yield visualizer
     visualizer.close()
 
+
 @pytest.mark.chrome
 def test_gui_running(water):
     vis = ZnDraw(token="test_token")
@@ -33,6 +34,7 @@ def test_gui_running(water):
     assert "ZnDraw" in driver.title
     vis.close()
 
+
 @pytest.mark.chrome
 def test_vis_atoms(vis, water):
     vis[0] = water
@@ -41,11 +43,13 @@ def test_vis_atoms(vis, water):
 
     assert vis.step == 0
 
+
 @pytest.mark.chrome
 def test_vis_selection(vis, water):
     vis[0] = water
     vis.selection = [1, 2]
     assert vis.selection == [1, 2]
+
 
 @pytest.mark.parametrize("display_new", [True, False])
 @pytest.mark.chrome
@@ -60,6 +64,7 @@ def test_vis_step(vis, ase_s22, display_new):
         assert vis.step == 0
     vis.step = 10
     assert vis.step == 10
+
 
 @pytest.mark.chrome
 def test_vis_points(vis, water):
