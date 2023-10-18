@@ -66,3 +66,13 @@ def test_vis_points(vis, water):
     vis[0] = water
     npt.assert_array_equal(vis.points, [])
     npt.assert_array_equal(vis.segments, [])
+
+
+@pytest.mark.chrome
+def test_multiple_instances(vis, ase_s22):
+    vis2 = ZnDraw(url=vis.url, token=vis.token)
+    vis2.extend(ase_s22)
+
+    assert len(vis) == 22
+
+    vis2.close()
