@@ -5,9 +5,10 @@
 #     response = client.app.get("/")
 #     assert b"<h2>Hello, World!</h2>" in response.data
 
+import pytest
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
-import pytest
+
 from zndraw import ZnDraw
 
 chrome_options = Options()
