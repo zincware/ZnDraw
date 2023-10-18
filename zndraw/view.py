@@ -92,3 +92,7 @@ def view(
     logging.getLogger("zndraw").addHandler(logging_handler)
 
     io.run(app, port=port, host="0.0.0.0")
+
+    proc.terminate()
+    proc.join()
+    # raise ValueError("ZnDraw server stopped unexpectedly")

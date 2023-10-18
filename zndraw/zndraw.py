@@ -71,12 +71,14 @@ class ZnDrawBase:  # collections.abc.MutableSequence
         self.socket.on("disconnect", lambda: self.socket.disconnect())
 
     def _connect(self):
-        while True:
+        for _ in range(100):
             try:
                 self.socket.connect(self.url)
                 break
             except socketio.exceptions.ConnectionError:
                 time.sleep(0.1)
+        else:
+            raise socketio.exceptions.ConnectionError
 
     def __len__(self) -> int:
         if self._target_sid is not None:
@@ -350,11 +352,37 @@ class ZnDraw(ZnDrawBase):
 
     """
 
+    url: str = None
+    token: str = None
+
     jupyter: bool = False
     display_new: bool = True
 
     def __post_init__(self):
         super().__post_init__()
+        if self.url is None:
+            from zndraw.view import view
+            from zndraw.utils import get_port
+
+            port = get_port()
+            self._view_thread = threading.Thread(
+                target=view,
+                kwargs={
+                    "filename": None,
+                    "port": port,
+                    "open_browser": False,
+                    "webview": False,
+                    "fullscreen": False,
+                    "start": 0,
+                    "stop": None,
+                    "step": 1,
+                    "compute_bonds": True,
+                    "multiprocessing": False,
+                },
+                )
+            self._view_thread.start()
+            self.url = f"http://127.0.0.1:{port}"
+
         self._connect()
         #     self._view_thread = None
         #     if isinstance(self.socket, flask_socketio.SocketIO):
@@ -418,6 +446,24 @@ class ZnDraw(ZnDrawBase):
 
         #     if self.wait:
         #         self.socket.wait()
+    
+    def close(self):
+        import urllib.request
+        import time
+        self.socket.disconnect()
+
+        time.sleep(1)
+
+        # open self.url/exit
+        try:
+            urllib.request.urlopen(f"{self.url}/exit")
+        except Exception:
+            pass
+        if hasattr(self, "_view_thread"):
+            print("Waiting for ZnDraw client to close")
+            # self._view_thread.terminate()
+            self._view_thread.join()
+            # raise ValueError("ZnDraw client closed")
 
     def _repr_html_(self):
         from IPython.display import IFrame
