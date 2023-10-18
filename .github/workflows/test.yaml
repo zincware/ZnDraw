@@ -10,6 +10,9 @@ on:
 jobs:
   pytest:
     runs-on: ${{ matrix.os }}
+    services:
+      selenium:
+        image: selenium/standalone-chrome
     strategy:
       fail-fast: false
       matrix:
@@ -22,13 +25,7 @@ jobs:
 
     steps:
       - uses: actions/checkout@v3
-      - uses: actions/setup-java@v3
-        with:
-          java-version: "11"
-          distribution: "temurin"
-      - uses: browser-actions/setup-chrome@latest
       - run: chrome --version
-
       - name: Install Poetry
         run: |
           pipx install poetry
