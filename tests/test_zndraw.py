@@ -5,13 +5,14 @@
 #     response = client.app.get("/")
 #     assert b"<h2>Hello, World!</h2>" in response.data
 
-from zndraw import ZnDraw
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.common.by import By
+
+from zndraw import ZnDraw
 
 chrome_options = Options()
-chrome_options.add_argument("--headless=new") # for Chrome >= 109
+chrome_options.add_argument("--headless=new")  # for Chrome >= 109
+
 
 def test_zndraw(water):
     vis = ZnDraw(token="test_token")

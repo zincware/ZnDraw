@@ -361,8 +361,8 @@ class ZnDraw(ZnDrawBase):
     def __post_init__(self):
         super().__post_init__()
         if self.url is None:
-            from zndraw.view import view
             from zndraw.utils import get_port
+            from zndraw.view import view
 
             port = get_port()
             self._view_thread = threading.Thread(
@@ -379,7 +379,7 @@ class ZnDraw(ZnDrawBase):
                     "compute_bonds": True,
                     "multiprocessing": False,
                 },
-                )
+            )
             self._view_thread.start()
             self.url = f"http://127.0.0.1:{port}"
 
@@ -446,10 +446,11 @@ class ZnDraw(ZnDrawBase):
 
         #     if self.wait:
         #         self.socket.wait()
-    
+
     def close(self):
-        import urllib.request
         import time
+        import urllib.request
+
         self.socket.disconnect()
 
         time.sleep(1)
