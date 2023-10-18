@@ -7,13 +7,14 @@
 
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
-
+import pytest
 from zndraw import ZnDraw
 
 chrome_options = Options()
 chrome_options.add_argument("--headless")  # for Chrome >= 109
 
 
+@pytest.mark.chrome
 def test_zndraw(water):
     vis = ZnDraw(token="test_token")
 

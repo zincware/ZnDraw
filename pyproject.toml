@@ -43,3 +43,7 @@ repository = "https://github.com/zincware/ZnDraw"
 line-length = 90
 
 select = ["I", "F"]
+
+# by default do not run pytest marked with "chrome"
+[tool.pytest.ini_options]
+addopts = "-m 'not chrome'"
