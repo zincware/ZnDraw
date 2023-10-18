@@ -22,7 +22,7 @@ def test_zndraw(water):
     assert "ZnDraw" in driver.title
 
     vis[0] = water
-    
+
     assert len(vis) == 1
     assert vis[0] == water
 
