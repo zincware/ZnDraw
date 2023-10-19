@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "zndraw"
-version = "0.2.2a2"
+version = "0.2.2a4"
 description = "Display and Edit Molecular Structures and Trajectories in the Browser."
 authors = ["zincwarecode <zincwarecode@gmail.com>"]
 license = "Apache-2.0"
@@ -26,6 +26,7 @@ pandas = "^2.0.3"
 pre-commit = "^3.3.3"
 pytest = "^7.4.2"
 coverage = "^7.3.1"
+selenium = "^4.14.0"
 
 [build-system]
 requires = ["poetry-core"]
@@ -42,3 +43,7 @@ repository = "https://github.com/zincware/ZnDraw"
 line-length = 90
 
 select = ["I", "F"]
+
+# by default do not run pytest marked with "chrome"
+[tool.pytest.ini_options]
+addopts = "-m 'not chrome'"

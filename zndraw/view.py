@@ -1,8 +1,10 @@
 import logging
+import multiprocessing as mp
 import webbrowser
 
 from zndraw.app import app, io
 from zndraw.utils import ZnDrawLoggingHandler
+from zndraw.zndraw import FileIO, ZnDrawDefault
 
 try:
     import urllib.request
@@ -11,10 +13,10 @@ try:
 except ImportError:
     wv = None
 
-werkzeug_log = logging.getLogger("werkzeug")
-werkzeug_log.setLevel(logging.ERROR)
+# werkzeug_log = logging.getLogger("werkzeug")
+# werkzeug_log.setLevel(logging.ERROR)
 
-log = logging.getLogger("zndraw")
+log = logging.getLogger(__name__)
 log.setLevel(logging.INFO)
 
 
@@ -46,24 +48,30 @@ def view(
     stop: int,
     step: int,
     compute_bonds: bool,
-    multiprocessing: bool,
+    use_token: bool = False,
     upgrade_insecure_requests: bool = False,
 ):
-    if filename is not None:
-        app.config["filename"] = filename
-        app.config["start"] = start
-        app.config["stop"] = stop
-        app.config["step"] = step
+    if not use_token:
+        app.config["token"] = "notoken"
     app.config["upgrade_insecure_requests"] = upgrade_insecure_requests
     app.config["compute_bonds"] = compute_bonds
-    app.config["multiprocessing"] = multiprocessing
     url = f"http://127.0.0.1:{port}"
-    print(f"Starting ZnDraw server at {url}")
+
+    file_io = FileIO(filename, start, stop, step)
+
+    proc = mp.Process(
+        target=ZnDrawDefault,
+        kwargs={"url": url, "token": "default", "file_io": file_io},
+    )
+    proc.start()
+
+    log.critical(f"Starting ZnDraw server at {url}")
 
     if wv is not None and webview:
-        multiprocessing.Process(
+        wv_proc = mp.Process(
             target=_view_with_webview, args=(url, fullscreen), daemon=True
-        ).start()
+        )
+        wv_proc.start()
     elif open_browser:
         webbrowser.open(url)
 
@@ -78,3 +86,9 @@ def view(
     logging.getLogger("zndraw").addHandler(logging_handler)
 
     io.run(app, port=port, host="0.0.0.0")
+
+    proc.terminate()
+    proc.join()
+    if wv is not None and webview:
+        wv_proc.terminate()
+        wv_proc.join()

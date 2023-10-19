@@ -32,14 +32,14 @@ def set_global_atoms(atoms: ase.Atoms):
 class ZnDrawLoggingHandler(logging.Handler):
     """Logging handler which emits log messages to the ZnDraw server."""
 
-    def __init__(self, socket):
+    def __init__(self, zndraw):
         super().__init__()
-        self.socket = socket
+        self.zndraw = zndraw
 
     def emit(self, record):
         try:
             msg = self.format(record)
-            self.socket.emit("message:log", msg)
+            self.zndraw.log(msg)
         except RecursionError:  # See StreamHandler
             raise
         except Exception:

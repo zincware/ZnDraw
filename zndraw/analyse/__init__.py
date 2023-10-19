@@ -1,4 +1,5 @@
 import itertools
+import logging
 import typing as t
 from typing import Any
 
@@ -9,6 +10,8 @@ import plotly.express as px
 from pydantic import BaseModel, Field
 
 from zndraw.utils import set_global_atoms
+
+log = logging.getLogger(__name__)
 
 
 class Distance(BaseModel):
@@ -58,7 +61,7 @@ class Properties2D(BaseModel):
     @classmethod
     def model_json_schema(cls, *args, **kwargs) -> dict[str, Any]:
         schema = super().model_json_schema(*args, **kwargs)
-        print(f"GATHERING PROPERTIES FROM {ATOMS=}")  # noqa: F821
+        log.debug(f"GATHERING PROPERTIES FROM {ATOMS=}")  # noqa: F821
         try:
             available_properties = list(ATOMS.calc.results)  # noqa: F821
             available_properties += list(ATOMS.arrays)  # noqa: F821
@@ -71,7 +74,7 @@ class Properties2D(BaseModel):
         return schema
 
     def run(self, atoms_lst, ids):
-        print(f"run {self}")
+        log.info(f"run {self}")
 
         if self.x_data == "step":
             x_data = list(range(len(atoms_lst)))
@@ -126,6 +129,7 @@ class Properties1D(BaseModel):
             available_properties = list(
                 ATOMS.calc.results.keys()  # noqa: F821
             )  # global ATOMS object
+            log.debug(f"AVAILABLE PROPERTIES: {available_properties=}")
             schema["properties"]["value"]["enum"] = available_properties
         except AttributeError:
             pass

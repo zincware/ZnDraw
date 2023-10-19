@@ -55,7 +55,7 @@ class Selection {
       return particlesGroup.get_center(selection);
     };
 
-    this.socket.on("selection:run", (data) => {
+    this.socket.on("selection:set", (data) => {
       const particlesGroup = this.scene.getObjectByName("particlesGroup");
       particlesGroup.selection = data;
       particlesGroup.step();
@@ -108,8 +108,6 @@ class Selection {
       console.log(new Date().toISOString(), "running selection");
       this.socket.emit("selection:run", {
         params: params,
-        atoms: this.cache.get(this.world.getStep()),
-        selection: particlesGroup.selection,
       });
     }
   }
@@ -288,16 +286,10 @@ class Selection {
             const { points, segments } = this.world.getLineData();
             console.log(new Date().toISOString(), "running modifier");
             this.socket.emit("modifier:run", {
-              name: "zndraw.modify.Delete",
-              params: {},
-              atoms: this.cache.get(this.world.getStep()),
-              selection: this.world.getSelection(),
-              step: this.world.getStep(),
-              points,
-              segments,
+              params: { method: { method: "Delete" } },
               url: window.location.href,
             });
-            particlesGroup.click();
+            // particlesGroup.click();
           } else {
             this.line3D.removePointer();
           }

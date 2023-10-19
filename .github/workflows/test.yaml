@@ -10,6 +10,9 @@ on:
 jobs:
   pytest:
     runs-on: ${{ matrix.os }}
+    # services:
+    #   selenium:
+    #     image: selenium/standalone-chrome
     strategy:
       fail-fast: false
       matrix:
@@ -21,7 +24,7 @@ jobs:
           - ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Install Poetry
         run: |
           pipx install poetry
@@ -33,7 +36,13 @@ jobs:
       - name: Install package
         run: |
           poetry install --no-interaction
+      # - name: Start XVFB
+      #   run: |
+      #     google-chrome --version
+      #     export DISPLAY=:99
       - name: Pytest
+        # env:
+        #   DISPLAY: ":99"
         run: |
           poetry run coverage run -m pytest -vv
           poetry run coverage xml

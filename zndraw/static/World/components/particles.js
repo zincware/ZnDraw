@@ -21,6 +21,7 @@ class ParticlesGroup extends THREE.Group {
     super();
     this.name = "particlesGroup";
     this.cache = cache;
+    this.socket = socket;
 
     this.bonds_exist = false;
     this.selection = [];

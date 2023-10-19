@@ -1,9 +1,12 @@
 import importlib
 import json
+import logging
 import pathlib
 import typing as t
 
 import pydantic
+
+log = logging.getLogger(__name__)
 
 _ANALYSIS_FUNCTIONS = [
     "zndraw.analyse.Properties1D",
@@ -17,6 +20,7 @@ _MODIFY_FUNCTIONS = [
     "zndraw.modify.Duplicate",
     "zndraw.modify.AddLineParticles",
     "zndraw.modify.Rotate",
+    "zndraw.modify.ChangeType",
 ]
 
 _BONDS_FUNCTIONS = [
@@ -45,7 +49,7 @@ class GlobalConfig(pydantic.BaseModel):
         save_path = pathlib.Path(path).expanduser()
         save_path.parent.mkdir(parents=True, exist_ok=True)
         with open(save_path, "w") as f:
-            f.write(self.json())
+            f.write(self.model_dump_json(indent=4))
 
     @classmethod
     def from_file(cls, path="~/.zincware/zndraw/config.json"):
@@ -89,6 +93,6 @@ class GlobalConfig(pydantic.BaseModel):
                 cls = getattr(module, cls_name)
                 classes.append(cls)
             except ModuleNotFoundError:
-                print(f"Module {module_name} not found - skipping")
+                log.critical(f"Module {module_name} not found - skipping")
 
         return t.Union[tuple(classes)]

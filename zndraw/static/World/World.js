@@ -33,13 +33,17 @@ class Player {
     this.cache = cache;
     this.loop = false;
 
-    socket.on("view:set", (index) => {
+    socket.on("scene:set", (index) => {
       this.world.setStep(index);
     });
 
-    socket.on("view:play", () => {
+    socket.on("scene:play", () => {
       this.playing = true;
       this.play();
+    });
+
+    socket.on("scene:pause", () => {
+      this.playing = false;
     });
 
     // detect playBtn click
@@ -225,6 +229,35 @@ class World {
     this.step = loop.step;
     this.socket = socket;
 
+    this.socket.on(
+      "scene:points",
+      function (callback) {
+        const { points, segments } = this.getLineData();
+        callback(points);
+      }.bind(this),
+    );
+
+    this.socket.on(
+      "scene:segments",
+      function (callback) {
+        const { points, segments } = this.getLineData();
+        callback(segments);
+      }.bind(this),
+    );
+
+    this.socket.on(
+      "scene:step",
+      function (callback) {
+        callback(this.getStep());
+      }.bind(this),
+    );
+
+    this.socket.on(
+      "selection:get",
+      function (callback) {
+        callback(this.getSelection());
+      }.bind(this),
+    );
     // renderer.render(scene, camera);
   }
 
