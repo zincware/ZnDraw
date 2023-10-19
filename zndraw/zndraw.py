@@ -1,11 +1,11 @@
 import contextlib
 import dataclasses
+import logging
 import pathlib
 import threading
 import time
 import typing as t
 from io import StringIO
-import logging
 
 import ase
 import ase.io
@@ -23,6 +23,7 @@ from zndraw.settings import GlobalConfig
 from zndraw.utils import ZnDrawLoggingHandler
 
 log = logging.getLogger(__name__)
+
 
 def _await_answer(socket, channel, data=None, timeout=5):
     """Wait for an answer from the server.

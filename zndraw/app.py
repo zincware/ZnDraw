@@ -1,6 +1,6 @@
 import contextlib
-import uuid
 import logging
+import uuid
 
 from flask import Flask, redirect, render_template, request, session
 from flask_socketio import SocketIO, call, emit, join_room
@@ -67,7 +67,9 @@ def disconnect():
         app.config["ROOM_HOSTS"][token].remove(request.sid)
         if not app.config["ROOM_HOSTS"][token]:
             del app.config["ROOM_HOSTS"][token]
-    log.debug(f'disconnect {request.sid} and updated HOSTS to {app.config["ROOM_HOSTS"]}')
+    log.debug(
+        f'disconnect {request.sid} and updated HOSTS to {app.config["ROOM_HOSTS"]}'
+    )
 
 
 @app.route("/token/<token>")
