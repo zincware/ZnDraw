@@ -80,7 +80,7 @@ class Explode(UpdateScene):
 
     steps: int = Field(100, le=1000, ge=1)
     particles: int = Field(10, le=20, ge=1)
-    delay: int = Field(0, le=1000, ge=0, description="Delay between each step in ms")
+    delay: int = Field(0, le=60000, ge=0, description="Delay between each step in ms")
 
     def run(self, atom_ids: list[int], atoms: ase.Atoms, **kwargs) -> list[ase.Atoms]:
         print(self)
@@ -94,8 +94,8 @@ class Explode(UpdateScene):
             for particle in particles:
                 particle.positions += np.random.normal(scale=0.1, size=(1, 3))
                 struct += particle
-            yield struct
             time.sleep(self.delay / 1000)
+            yield struct
 
 
 class Delete(UpdateScene):
