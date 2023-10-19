@@ -2,8 +2,11 @@ import importlib
 import json
 import pathlib
 import typing as t
+import logging
 
 import pydantic
+
+log = logging.getLogger(__name__)
 
 _ANALYSIS_FUNCTIONS = [
     "zndraw.analyse.Properties1D",
@@ -90,6 +93,6 @@ class GlobalConfig(pydantic.BaseModel):
                 cls = getattr(module, cls_name)
                 classes.append(cls)
             except ModuleNotFoundError:
-                print(f"Module {module_name} not found - skipping")
+                log.critical(f"Module {module_name} not found - skipping")
 
         return t.Union[tuple(classes)]

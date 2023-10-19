@@ -1,5 +1,6 @@
 import contextlib
 import uuid
+import logging
 
 from flask import Flask, redirect, render_template, request, session
 from flask_socketio import SocketIO, call, emit, join_room
@@ -13,6 +14,8 @@ io = SocketIO(
     app, max_http_buffer_size=int(1e10), cors_allowed_origins="*"
 )  # , async_mode="threading")
 # 10 GB Upload limit
+
+log = logging.getLogger(__name__)
 
 
 @app.route("/")
@@ -50,7 +53,7 @@ def connect():
 
         emit("webclient:available", request.sid, to="default")
 
-        print(
+        log.debug(
             f"connected {request.sid} and updated HOSTS to {app.config['ROOM_HOSTS']}"
         )
 
@@ -64,7 +67,7 @@ def disconnect():
         app.config["ROOM_HOSTS"][token].remove(request.sid)
         if not app.config["ROOM_HOSTS"][token]:
             del app.config["ROOM_HOSTS"][token]
-    print(f'disconnect {request.sid} and updated HOSTS to {app.config["ROOM_HOSTS"]}')
+    log.debug(f'disconnect {request.sid} and updated HOSTS to {app.config["ROOM_HOSTS"]}')
 
 
 @app.route("/token/<token>")
@@ -77,7 +80,7 @@ def token(token):
 def join(token):
     # only used by pyclients that only connect via socket (no HTML)
     session["token"] = token
-    print(f"pyclient {request.sid} joined room {token}")
+    log.debug(f"pyclient {request.sid} joined room {token}")
     join_room(token)
     join_room("pyclients")
     if token == "default":
@@ -87,7 +90,7 @@ def join(token):
 @app.route("/exit")
 def exit_route():
     """Exit the session."""
-    print("Server shutting down...")
+    log.critical("Server shutting down...")
     io.stop()
     return "Server shutting down..."
 
@@ -249,7 +252,7 @@ def atoms_delete(data: dict):
 
 @io.on("atoms:length")
 def atoms_length(data: dict):
-    print(f"atoms:length for {data}")
+    log.debug(f"atoms:length for {data}")
     if "sid" in data:
         return call("atoms:length", to=data["sid"])
     else:
@@ -415,7 +418,7 @@ def insert_atoms(data):
 
 
 @io.on("message:log")
-def log(data):
+def message_log(data):
     sid = data.pop("sid", session["token"])
     emit("message:log", data["message"], to=sid)
 
@@ -436,7 +439,7 @@ def download_response(data):
 
 @io.on("scene:play")
 def scene_play(data):
-    print(f"scene:play {data}")
+    log.debug(f"scene:play {data}")
     if "sid" in data:
         emit("scene:play", to=data["sid"])
     else:
@@ -445,7 +448,7 @@ def scene_play(data):
 
 @io.on("scene:pause")
 def scene_pause(data):
-    print(f"scene:pause {data}")
+    log.debug(f"scene:pause {data}")
     if "sid" in data:
         emit("scene:pause", to=data["sid"])
     else:

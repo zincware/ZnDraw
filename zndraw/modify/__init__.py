@@ -83,7 +83,6 @@ class Explode(UpdateScene):
     delay: int = Field(0, le=60000, ge=0, description="Delay between each step in ms")
 
     def run(self, atom_ids: list[int], atoms: ase.Atoms, **kwargs) -> list[ase.Atoms]:
-        print(self)
         particles = []
         for _atom_id in atom_ids:
             for _ in range(self.particles):

@@ -16,7 +16,7 @@ except ImportError:
 # werkzeug_log = logging.getLogger("werkzeug")
 # werkzeug_log.setLevel(logging.ERROR)
 
-log = logging.getLogger("zndraw")
+log = logging.getLogger(__name__)
 log.setLevel(logging.INFO)
 
 
@@ -65,7 +65,7 @@ def view(
     )
     proc.start()
 
-    print(f"Starting ZnDraw server at {url}")
+    log.critical(f"Starting ZnDraw server at {url}")
 
     if wv is not None and webview:
         wv_proc = mp.Process(

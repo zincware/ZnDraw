@@ -5,6 +5,7 @@ import threading
 import time
 import typing as t
 from io import StringIO
+import logging
 
 import ase
 import ase.io
@@ -21,6 +22,7 @@ from zndraw.select import get_selection_class
 from zndraw.settings import GlobalConfig
 from zndraw.utils import ZnDrawLoggingHandler
 
+log = logging.getLogger(__name__)
 
 def _await_answer(socket, channel, data=None, timeout=5):
     """Wait for an answer from the server.
@@ -321,9 +323,9 @@ class ZnDrawDefault(ZnDrawBase):
             selection = self.selection
             self.selection = []
 
-            print(f"getting {self.step} from atoms with length {len(self)}")
+            log.debug(f"getting {self.step} from atoms with length {len(self)}")
             atoms = self[self.step]
-            print(f"Found {atoms = }")
+            log.debug(f"Found {atoms = }")
             points = self.points
             segments = self.segments
             json_data = atoms_to_json(atoms)
@@ -353,7 +355,7 @@ class ZnDrawDefault(ZnDrawBase):
                 selection = cls(**data["params"])
                 self.selection = selection.get_ids(atoms, self.selection)
             except ValueError as err:
-                print(err)
+                log.critical(err)
 
     def analysis_run(self, data):
         with self._set_sid(data["sid"]):
@@ -366,7 +368,7 @@ class ZnDrawDefault(ZnDrawBase):
                 data = {"figure": fig.to_json(), "sid": self._target_sid}
                 self.socket.emit("analysis:figure", data)
             except ValueError as err:
-                print(err)
+                log.critical(err)
 
     def upload_file(self, data):
         with self._set_sid(data["sid"]):
@@ -523,7 +525,7 @@ class ZnDraw(ZnDrawBase):
         except Exception:
             pass
         if hasattr(self, "_view_thread"):
-            print("Waiting for ZnDraw client to close")
+            log.debug("Waiting for ZnDraw client to close")
             # self._view_thread.terminate()
             self._view_thread.join()
             # raise ValueError("ZnDraw client closed")
