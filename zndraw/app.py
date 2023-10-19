@@ -112,7 +112,7 @@ def scene_schema():
 
     # create a class for the material, resolution, etc.
     class Scene(BaseModel):
-        fps: int = Field(60, ge=1, le=120, description="Frames per second")
+        fps: int = Field(60, ge=1, le=120, description="Maxiumm frames per second")
         material: Material = Field(Material.MeshPhongMaterial, description="Material")
         resolution: int = Field(10, ge=1, le=50, description="Resolution")
         particle_size: float = Field(1.0, ge=0.1, le=5, description="Particle Size")

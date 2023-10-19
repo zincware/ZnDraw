@@ -24,26 +24,6 @@ from zndraw.utils import ZnDrawLoggingHandler
 
 log = logging.getLogger(__name__)
 
-def _await_answer(socket, channel, data=None, timeout=5):
-    """Wait for an answer from the server.
-
-    I haven't used asyncio, so this should do..
-    """
-    event = threading.Event()
-
-    answer = None
-
-    def on_answer(data):
-        nonlocal answer
-        answer = data
-        event.set()
-
-    socket.on(channel, on_answer)
-    socket.emit(channel, data)
-
-    event.wait(timeout=timeout)
-    return answer
-
 
 def process_line_data(data) -> tuple[np.ndarray, np.ndarray]:
     """Get the points of the selected atoms"""
@@ -378,12 +358,6 @@ class ZnDrawDefault(ZnDrawBase):
 
             if format == "h5":
                 raise ValueError("H5MD format not supported for uploading yet")
-                # import znh5md
-                # stream = BytesIO(data["content"].encode("utf-8"))
-                # atoms = znh5md.ASEH5MD(stream).get_atoms_list()
-                # for idx, atoms in tqdm.tqdm(enumerate(atoms)):
-                #     atoms_dict = atoms_to_json(atoms)
-                #     io.emit("atoms:upload", {idx: atoms_dict})
             else:
                 stream = StringIO(data["content"])
                 del self[:]
@@ -448,68 +422,6 @@ class ZnDraw(ZnDrawBase):
             self.url = f"http://127.0.0.1:{port}"
 
         self._connect()
-        #     self._view_thread = None
-        #     if isinstance(self.socket, flask_socketio.SocketIO):
-        #         pass
-        #     else:
-        #         if self.url is None:
-        #             from zndraw.view import view
-
-        #             port = get_port()
-        #             self._view_thread = threading.Thread(
-        #                 target=view,
-        #                 kwargs={
-        #                     "filename": None,
-        #                     "port": port,
-        #                     "open_browser": not self.jupyter,
-        #                     "webview": False,
-        #                     "fullscreen": False,
-        #                     "start": 0,
-        #                     "stop": None,
-        #                     "step": 1,
-        #                     "compute_bonds": True,
-        #                     "multiprocessing": False,
-        #                 },
-        #                 daemon=True,
-        #             )
-        #             self._view_thread.start()
-        #             self.url = f"http://127.0.0.1:{port}"
-
-        #         self.socket.on(
-        #             "connect", lambda: self.socket.emit("join", {"uuid": self.token})
-        #         )
-
-        #         self.socket.on(
-        #             "join",
-        #             lambda *args: self.read(
-        #                 self.file.name, self.file.start, self.file.stop, self.file.step
-        #             ),
-        #         )
-        #         self.socket.on("modifier:run", self._run_modifier)
-        #         self.socket.on("selection:run", self._run_selection)
-        #         self.socket.on("analysis:run", self._run_analysis)
-        #         self.socket.on("download:request", self._download_file)
-        #         self.socket.on("upload", self._upload_file)
-        #         self.socket.on("scene:step", lambda step: setattr(self, "_step", step))
-        #         self.socket.on(
-        #             "scene:line",
-        #             lambda data: setattr(self, "_line", process_line_data(data)),
-        #         )
-
-        #         self.socket.on("disconnect", lambda: self.disconnect())
-
-        #         for _ in range(self._retries):
-        #             with contextlib.suppress(socketio.exceptions.ConnectionError):
-        #                 self.socket.connect(self.url)
-        #                 break
-        #             time.sleep(1)
-        #         else:
-        #             self.socket.connect(self.url)
-        #         if not self.jupyter:
-        #             self.socket.sleep(2)  # wait for the server to start
-
-        #     if self.wait:
-        #         self.socket.wait()
 
     def close(self):
         import time
@@ -546,38 +458,3 @@ class ZnDraw(ZnDrawBase):
         super().__setitem__(index, value)
         if self.display_new:
             self.step = index
-
-    # def _download_file(self, data):
-    #     atoms = list(self)
-    #     if "selection" in data:
-    #         atoms = [atoms[data["selection"]] for atoms in atoms]
-    #     import ase.io
-
-    #     file = StringIO()
-    #     ase.io.write(file, atoms, format="extxyz")
-    #     file.seek(0)
-
-    #     self.socket.emit("download:response", file.read())
-
-    # def _upload_file(self, data):
-    #     from io import StringIO
-
-    #     import ase.io
-    #     import tqdm
-
-    #     # tested with small files only
-
-    #     format = data["filename"].split(".")[-1]
-    #     if format == "h5":
-    #         print("H5MD format not supported for uploading yet")
-    #         # import znh5md
-    #         # stream = BytesIO(data["content"].encode("utf-8"))
-    #         # atoms = znh5md.ASEH5MD(stream).get_atoms_list()
-    #         # for idx, atoms in tqdm.tqdm(enumerate(atoms)):
-    #         #     atoms_dict = atoms_to_json(atoms)
-    #         #     io.emit("atoms:upload", {idx: atoms_dict})
-    #     else:
-    #         stream = StringIO(data["content"])
-    #         del self[:]
-    #         for atoms in tqdm.tqdm(ase.io.iread(stream, format=format)):
-    #             self.append(atoms)
