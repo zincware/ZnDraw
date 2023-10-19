@@ -45,7 +45,7 @@ class GlobalConfig(pydantic.BaseModel):
         save_path = pathlib.Path(path).expanduser()
         save_path.parent.mkdir(parents=True, exist_ok=True)
         with open(save_path, "w") as f:
-            f.write(self.json())
+            f.write(self.model_dump_json(indent=4))
 
     @classmethod
     def from_file(cls, path="~/.zincware/zndraw/config.json"):
