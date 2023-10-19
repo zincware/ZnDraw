@@ -77,8 +77,7 @@ def test_vis_points(vis, water):
 def test_multiple_instances(vis, ase_s22):
     vis2 = ZnDraw(url=vis.url, token=vis.token)
     vis2.extend(ase_s22)
-
-    assert len(vis) == 22
+    assert len(vis2) == len(vis) == 22
 
     vis2.close()
 
