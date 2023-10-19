@@ -48,20 +48,13 @@ def view(
     stop: int,
     step: int,
     compute_bonds: bool,
-    multiprocessing: bool,
     use_token: bool = False,
     upgrade_insecure_requests: bool = False,
 ):
-    # if filename is not None:
-    #     app.config["filename"] = filename
-    #     app.config["start"] = start
-    #     app.config["stop"] = stop
-    #     app.config["step"] = step
     if not use_token:
-        app.config["uuid"] = "default"
+        app.config["token"] = "notoken"
     app.config["upgrade_insecure_requests"] = upgrade_insecure_requests
     app.config["compute_bonds"] = compute_bonds
-    app.config["multiprocessing"] = multiprocessing
     url = f"http://127.0.0.1:{port}"
 
     file_io = FileIO(filename, start, stop, step)
@@ -75,9 +68,10 @@ def view(
     print(f"Starting ZnDraw server at {url}")
 
     if wv is not None and webview:
-        multiprocessing.Process(
+        wv_proc = mp.Process(
             target=_view_with_webview, args=(url, fullscreen), daemon=True
-        ).start()
+        )
+        wv_proc.start()
     elif open_browser:
         webbrowser.open(url)
 
@@ -95,4 +89,6 @@ def view(
 
     proc.terminate()
     proc.join()
-    # raise ValueError("ZnDraw server stopped unexpectedly")
+    if wv is not None and webview:
+        wv_proc.terminate()
+        wv_proc.join()

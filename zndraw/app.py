@@ -21,13 +21,16 @@ def index():
     try:
         token = session["token"]
     except KeyError:
-        token = uuid.uuid4().hex
+        if "token" in app.config:
+            token = app.config["token"]
+        else:
+            token = uuid.uuid4().hex
         session["token"] = token
 
     return render_template(
-        "index.html",
+        "index.jinja2",
         upgrade_insecure_requests=app.config["upgrade_insecure_requests"],
-        token=session["token"],
+        token=session["token"],   
     )
 
 

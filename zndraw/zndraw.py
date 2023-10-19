@@ -62,7 +62,7 @@ class FileIO:
 @dataclasses.dataclass
 class ZnDrawBase:  # collections.abc.MutableSequence
     url: str
-    token: str
+    token: str = "notoken"
 
     _target_sid: str = None
 
@@ -417,7 +417,6 @@ class ZnDraw(ZnDrawBase):
     """
 
     url: str = None
-    token: str = None
 
     jupyter: bool = False
     display_new: bool = True
@@ -441,7 +440,6 @@ class ZnDraw(ZnDrawBase):
                     "stop": None,
                     "step": 1,
                     "compute_bonds": True,
-                    "multiprocessing": False,
                 },
             )
             self._view_thread.start()
