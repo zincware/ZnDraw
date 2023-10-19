@@ -25,14 +25,6 @@ from zndraw.utils import ZnDrawLoggingHandler
 log = logging.getLogger(__name__)
 
 
-def process_line_data(data) -> tuple[np.ndarray, np.ndarray]:
-    """Get the points of the selected atoms"""
-    points = np.array([[val["x"], val["y"], val["z"]] for val in data["points"]])
-    segments = np.array(data["segments"])
-
-    return points, segments
-
-
 @dataclasses.dataclass
 class FileIO:
     name: str = None
