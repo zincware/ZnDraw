@@ -103,26 +103,22 @@ function analysis_editor(socket, cache, world) {
         socket.on("analysis:figure", (data) => {
           Plotly.newPlot("analysisPlot", JSON.parse(data));
 
-            function buildPlot() {
-              Plotly.newPlot("analysisPlot", JSON.parse(data));
-              const myplot = document.getElementById("analysisPlot");
-              myplot.on("plotly_click", (data) => {
-                const point = data.points[0];
-                const step = point.x;
-                world.setStep(step);
-              });
-            }
+          function buildPlot() {
+            Plotly.newPlot("analysisPlot", JSON.parse(data));
+            const myplot = document.getElementById("analysisPlot");
+            myplot.on("plotly_click", (data) => {
+              const point = data.points[0];
+              const step = point.x;
+              world.setStep(step);
+            });
+          }
 
-            buildPlot();
+          buildPlot();
         });
 
-
-        socket.emit(
-          "analysis:run",
-          {
-            params: value,
-          },
-        );
+        socket.emit("analysis:run", {
+          params: value,
+        });
 
         document.getElementById("analysis-json-editor-submit").disabled = true;
         // if there is an error in uploading, we still want to be able to submit again

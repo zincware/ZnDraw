@@ -174,6 +174,7 @@ def analysis_run(data):
         data["sid"] = request.sid
         emit("analysis:run", data, to=app.config["DEFAULT_PYCLIENT"])
 
+
 @io.on("analysis:figure")
 def analysis_figure(data):
     if "sid" in data:
@@ -181,6 +182,7 @@ def analysis_figure(data):
         emit("analysis:figure", data["figure"], to=sid)
     else:
         emit("analysis:figure", data["figure"], to=session["token"])
+
 
 @io.on("scene:set")
 def scene_set(data):
