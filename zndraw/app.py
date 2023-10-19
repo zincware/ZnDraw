@@ -33,7 +33,7 @@ def index():
     return render_template(
         "index.jinja2",
         upgrade_insecure_requests=app.config["upgrade_insecure_requests"],
-        token=session["token"],   
+        token=session["token"],
     )
 
 
