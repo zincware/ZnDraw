@@ -257,10 +257,15 @@ class ZnDrawDefault(ZnDrawBase):
 
         cls = get_analysis_class(config.get_analysis_methods())
 
+        try:
+            atoms = self[0]
+        except IndexError:
+            atoms = ase.Atoms()
+
         self.socket.emit(
             "analysis:schema",
             {
-                "schema": cls.model_json_schema_from_atoms(self[0]),
+                "schema": cls.model_json_schema_from_atoms(atoms),
                 "sid": self._target_sid,
             },
         )
