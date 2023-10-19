@@ -485,10 +485,10 @@ class ZnDraw(ZnDrawBase):
 
     def log(self, message: str) -> None:
         """Log a message to the console"""
-        self.socket.emit("message:log", message)
+        self.socket.emit("message:log", {"message": message, "sid": self.token})
 
     def get_logging_handler(self) -> ZnDrawLoggingHandler:
-        return ZnDrawLoggingHandler(self.socket)
+        return ZnDrawLoggingHandler(self)
 
     def __setitem__(self, index, value):
         super().__setitem__(index, value)

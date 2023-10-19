@@ -397,8 +397,8 @@ def insert_atoms(data):
 
 @io.on("message:log")
 def log(data):
-    raise NotImplementedError("This feature is not implemented yet.")
-
+    sid = data.pop("sid", session["token"])
+    emit("message:log", data["message"], to=sid)
 
 @io.on("download:request")
 def download_request(data):
