@@ -169,11 +169,18 @@ def analysis_run(data):
     if "sid" in data:
         sid = data.pop("sid")
         data["sid"] = request.sid
-        return call("analysis:run", data, to=sid)
+        emit("analysis:run", data, to=sid)
     else:
         data["sid"] = request.sid
-        return call("analysis:run", data, to=app.config["DEFAULT_PYCLIENT"])
+        emit("analysis:run", data, to=app.config["DEFAULT_PYCLIENT"])
 
+@io.on("analysis:figure")
+def analysis_figure(data):
+    if "sid" in data:
+        sid = data.pop("sid")
+        emit("analysis:figure", data["figure"], to=sid)
+    else:
+        emit("analysis:figure", data["figure"], to=session["token"])
 
 @io.on("scene:set")
 def scene_set(data):

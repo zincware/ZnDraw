@@ -100,17 +100,8 @@ function analysis_editor(socket, cache, world) {
         // Get the value from the editor
         const value = editor.getValue();
 
-        socket.emit(
-          "analysis:run",
-          {
-            params: value,
-            atoms: cache.get(world.getStep()),
-            selection: world.getSelection(),
-            step: world.getStep(),
-            atoms_list: cache.getAllAtoms(),
-          },
-          (data) => {
-            Plotly.newPlot("analysisPlot", JSON.parse(data));
+        socket.on("analysis:figure", (data) => {
+          Plotly.newPlot("analysisPlot", JSON.parse(data));
 
             function buildPlot() {
               Plotly.newPlot("analysisPlot", JSON.parse(data));
@@ -123,6 +114,13 @@ function analysis_editor(socket, cache, world) {
             }
 
             buildPlot();
+        });
+
+
+        socket.emit(
+          "analysis:run",
+          {
+            params: value,
           },
         );
 
