@@ -387,7 +387,10 @@ def selection_run(data: dict):
 
 @io.on("upload")
 def upload(data):
-    raise NotImplementedError("This feature is not implemented yet.")
+    if "sid" in data: # currently not expected to happen
+        raise ValueError("Uploading to specific pyclient currently not supported.")
+    else:
+        emit("upload", {"data": data, "sid": session["token"]}, to=app.config["DEFAULT_PYCLIENT"])
 
 
 @io.on("atoms:insert")

@@ -3,6 +3,7 @@ import dataclasses
 import pathlib
 import threading
 import time
+from io import StringIO
 import typing as t
 
 import ase
@@ -214,6 +215,7 @@ class ZnDrawDefault(ZnDrawBase):
         self.socket.on("modifier:run", self.modifier_run)
         self.socket.on("selection:run", self.selection_run)
         self.socket.on("analysis:run", self.analysis_run)
+        self.socket.on("upload", self.upload_file)
         self._connect()
         self.socket.wait()
 
@@ -351,6 +353,27 @@ class ZnDrawDefault(ZnDrawBase):
                 # self.socket.emit("analysis:figure", data)
             except ValueError as err:
                 print(err)
+    
+    def upload_file(self, data):
+        with self._set_sid(data["sid"]):
+            data = data["data"]
+
+            format = data["filename"].split(".")[-1]
+
+            if format == "h5":
+                raise ValueError("H5MD format not supported for uploading yet")
+                # import znh5md
+                # stream = BytesIO(data["content"].encode("utf-8"))
+                # atoms = znh5md.ASEH5MD(stream).get_atoms_list()
+                # for idx, atoms in tqdm.tqdm(enumerate(atoms)):
+                #     atoms_dict = atoms_to_json(atoms)
+                #     io.emit("atoms:upload", {idx: atoms_dict})
+            else:
+                stream = StringIO(data["content"])
+                del self[:]
+                for idx, atoms in tqdm.tqdm(enumerate(ase.io.iread(stream, format=format))):
+                    self.append(atoms)
+                    self.step = idx
 
 
 @dataclasses.dataclass

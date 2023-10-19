@@ -178,3 +178,13 @@ def test_delete_slice_middle(vis, ase_s22):
             assert len(vis) == 22 - idx - 1
             for jdx in range(len(vis)):
                 assert vis[jdx] == ase_s22[jdx] if jdx < 10 else ase_s22[jdx + 1]
+
+@pytest.mark.chrome
+def test_delete_all(vis, ase_s22):
+    vis.extend(ase_s22)
+
+    vis.step = 10
+    assert len(vis) == 22
+    del vis[:]
+    assert len(vis) == 0
+    assert vis.step == 0
