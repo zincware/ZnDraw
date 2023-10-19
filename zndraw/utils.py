@@ -1,15 +1,15 @@
 import contextlib
-import logging
-import socket
-import pathlib
-import tempfile
-import datamodel_code_generator
 import importlib.util
-import sys
 import json
+import logging
+import pathlib
+import socket
+import sys
+import tempfile
 import uuid
 
 import ase
+import datamodel_code_generator
 
 
 def get_port(default: int = 1234) -> int:
@@ -52,12 +52,13 @@ class ZnDrawLoggingHandler(logging.Handler):
         except Exception:
             self.handleError(record)
 
+
 def get_cls_from_json_schema(schema: dict, name: str):
     """Get a python class from a json schema."""
 
     with tempfile.TemporaryDirectory() as temporary_directory_name:
         temporary_directory = pathlib.Path(temporary_directory_name)
-        output = temporary_directory / 'model.py'
+        output = temporary_directory / "model.py"
         datamodel_code_generator.generate(
             json.dumps(schema),
             input_file_type=datamodel_code_generator.InputFileType.JsonSchema,

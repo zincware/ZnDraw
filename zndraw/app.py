@@ -463,12 +463,12 @@ def scene_pause(data):
     else:
         emit("scene:pause", to=session["token"])
 
+
 @io.on("modifier:register")
 def modifier_register(data):
     data["sid"] = request.sid
     data["token"] = session["token"]
 
     app.config["MODIFIER"][data["name"]] = request.sid
-
 
     emit("modifier:register", data, to=app.config["DEFAULT_PYCLIENT"])

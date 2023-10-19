@@ -134,36 +134,33 @@ function analysis_editor(socket, cache, world) {
 function modifier_editor(socket, cache, world) {
   const div = document.getElementById("interaction-json-editor");
   let editor = new JSONEditor(div, {
-    schema: { type: 'object', title: 'ZnDraw', properties: {} },
+    schema: { type: "object", title: "ZnDraw", properties: {} },
   });
 
   document
-  .getElementById("interaction-json-editor-submit")
-  .addEventListener("click", () => {
-    // Get the value from the editor
-    const value = editor.getValue();
-    console.log(value);
-    socket.emit("modifier:run", {
-      params: value,
-      url: window.location.href,
+    .getElementById("interaction-json-editor-submit")
+    .addEventListener("click", () => {
+      // Get the value from the editor
+      const value = editor.getValue();
+      console.log(value);
+      socket.emit("modifier:run", {
+        params: value,
+        url: window.location.href,
+      });
+      // world.particles.click(); // reset selection
+
+      document.getElementById("interaction-json-editor-submit").disabled = true;
+      // if there is an error in uploading, we still want to be able to submit again
+      setTimeout(() => {
+        document.getElementById(
+          "interaction-json-editor-submit",
+        ).disabled = false;
+      }, 1000);
     });
-    // world.particles.click(); // reset selection
-
-    document.getElementById(
-      "interaction-json-editor-submit",
-    ).disabled = true;
-    // if there is an error in uploading, we still want to be able to submit again
-    setTimeout(() => {
-      document.getElementById(
-        "interaction-json-editor-submit",
-      ).disabled = false;
-    }, 1000);
-  });
-
 
   socket.on("modifier:schema", (data) => {
     editor.destroy();
-    
+
     editor = new JSONEditor(div, {
       schema: data,
     });

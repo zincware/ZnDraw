@@ -18,7 +18,7 @@ from pydantic import ConfigDict
 from zndraw.analyse import get_analysis_class
 from zndraw.data import atoms_from_json, atoms_to_json
 from zndraw.draw import Geometry
-from zndraw.modify import get_modify_class, UpdateScene, hide_method
+from zndraw.modify import UpdateScene, get_modify_class, hide_method
 from zndraw.select import get_selection_class
 from zndraw.settings import GlobalConfig
 from zndraw.utils import ZnDrawLoggingHandler, get_cls_from_json_schema
@@ -373,7 +373,7 @@ class ZnDrawDefault(ZnDrawBase):
             self.socket.emit(
                 "download:response", {"data": file.read(), "sid": self._target_sid}
             )
-    
+
     def register_modifier(self, data):
         cls = get_cls_from_json_schema(data["schema"], data["name"])
         cls.model_config = ConfigDict(json_schema_extra=hide_method)
@@ -464,10 +464,13 @@ class ZnDraw(ZnDrawBase):
         super().__setitem__(index, value)
         if self.display_new:
             self.step = index
-    
+
     def register_modifier(self, cls: UpdateScene):
         """Register a modifier class"""
-        self.socket.emit("modifier:register", {"schema": cls.model_json_schema(), "name": cls.__name__})
+        self.socket.emit(
+            "modifier:register",
+            {"schema": cls.model_json_schema(), "name": cls.__name__},
+        )
         self._modifiers.append(cls)
 
     def _modifier_run(self, data):
