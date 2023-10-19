@@ -102,7 +102,8 @@ class ZnDrawBase:  # collections.abc.MutableSequence
             or isinstance(index, list)
         ):
             length = len(self)
-            if isinstance(index, slice):
+            is_slice = isinstance(index, slice)
+            if is_slice:
                 index = range(*index.indices(length))
 
             index = [index] if isinstance(index, int) else index
@@ -113,7 +114,7 @@ class ZnDrawBase:  # collections.abc.MutableSequence
                 data["sid"] = self._target_sid
 
             self.socket.emit("atoms:delete", data)
-            if index[0] >= length or index[-1] >= length:
+            if not is_slice and (index[0] >= length or index[-1] >= length):
                 raise IndexError("Index out of range")
         else:
             raise TypeError("Index must be an integer, slice or list[int]")
@@ -134,7 +135,8 @@ class ZnDrawBase:  # collections.abc.MutableSequence
     def __getitem__(self, index) -> t.Union[ase.Atoms, list[ase.Atoms]]:
         length = len(self)
         is_scalar = isinstance(index, int)
-        if isinstance(index, slice):
+        is_sclice = isinstance(index, slice)
+        if is_sclice:
             index = range(*index.indices(length))
 
         index = [index] if isinstance(index, int) else index
@@ -152,7 +154,7 @@ class ZnDrawBase:  # collections.abc.MutableSequence
             atoms_list.append(atoms_from_json(val))
 
         data = atoms_list[0] if is_scalar else atoms_list
-        if data == []:
+        if data == [] and not is_sclice:
             raise IndexError("Index out of range")
         return data
 
@@ -306,13 +308,20 @@ class ZnDrawDefault(ZnDrawBase):
             selection = self.selection
             self.selection = []
 
+            print(f"getting {self.step} from atoms with length {len(self)}")
+            atoms = self[self.step]
+            print(f"Found {atoms = }")
+            points = self.points
+            segments = self.segments
+            json_data = atoms_to_json(atoms)
+
             for idx, atoms in enumerate(
                 modifier.run(
                     atom_ids=selection,
-                    atoms=self[self.step],
-                    points=self.points,
-                    segments=self.segments,
-                    json_data=atoms_to_json(self[self.step]),
+                    atoms=atoms,
+                    points=points,
+                    segments=segments,
+                    json_data=json_data,
                     url=data["url"],
                 )
             ):
