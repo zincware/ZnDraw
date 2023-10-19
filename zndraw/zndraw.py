@@ -203,6 +203,12 @@ class ZnDrawBase:  # collections.abc.MutableSequence
             data["sid"] = self._target_sid
         self.socket.emit("selection:set", data)
 
+    def play(self):
+        self.socket.emit("scene:play", {"sid": self._target_sid if self._target_sid else self.token})
+
+    def pause(self):
+        self.socket.emit("scene:pause", {"sid": self._target_sid if self._target_sid else self.token})
+
 
 @dataclasses.dataclass
 class ZnDrawDefault(ZnDrawBase):
@@ -318,16 +324,18 @@ class ZnDrawDefault(ZnDrawBase):
             segments = self.segments
             json_data = atoms_to_json(atoms)
 
-            for atoms in modifier.run(
+            size = len(self)
+
+            for idx, atoms in enumerate(modifier.run(
                 atom_ids=selection,
                 atoms=atoms,
                 points=points,
                 segments=segments,
                 json_data=json_data,
                 url=data["url"],
-            ):
-                self.append(atoms)
-                self.step += 1
+            )):
+                self[size + idx] = atoms
+            self.play()
 
     def selection_run(self, data):
         with self._set_sid(data["sid"]):

@@ -37,9 +37,13 @@ class Player {
       this.world.setStep(index);
     });
 
-    socket.on("view:play", () => {
+    socket.on("scene:play", () => {
       this.playing = true;
       this.play();
+    });
+
+    socket.on("scene:pause", () => {
+      this.playing = false;
     });
 
     // detect playBtn click

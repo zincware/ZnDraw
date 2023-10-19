@@ -429,3 +429,19 @@ def download_request(data):
 @io.on("download:response")
 def download_response(data):
     emit("download:response", data["data"], to=data["sid"])
+
+@io.on("scene:play")
+def scene_play(data):
+    print(f"scene:play {data}")
+    if "sid" in data:
+        emit("scene:play", to=data["sid"])
+    else:
+        emit("scene:play", to=session["token"])
+
+@io.on("scene:pause")
+def scene_pause(data):
+    print(f"scene:pause {data}")
+    if "sid" in data:
+        emit("scene:pause", to=data["sid"])
+    else:
+        emit("scene:pause", to=session["token"])
