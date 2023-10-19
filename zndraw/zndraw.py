@@ -315,17 +315,15 @@ class ZnDrawDefault(ZnDrawBase):
             segments = self.segments
             json_data = atoms_to_json(atoms)
 
-            for idx, atoms in enumerate(
-                modifier.run(
+            for atoms in modifier.run(
                     atom_ids=selection,
                     atoms=atoms,
                     points=points,
                     segments=segments,
                     json_data=json_data,
                     url=data["url"],
-                )
             ):
-                self[self.step + idx + 1] = atoms
+                self.append(atoms)
                 self.step += 1
 
     def selection_run(self, data):
