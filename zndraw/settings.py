@@ -17,6 +17,7 @@ _MODIFY_FUNCTIONS = [
     "zndraw.modify.Duplicate",
     "zndraw.modify.AddLineParticles",
     "zndraw.modify.Rotate",
+    "zndraw.modify.ChangeType",
 ]
 
 _BONDS_FUNCTIONS = [
