@@ -1,8 +1,8 @@
 import itertools
+import logging
 import typing as t
 from typing import Any
 
-import logging
 import ase
 import numpy as np
 import pandas as pd

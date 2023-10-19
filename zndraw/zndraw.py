@@ -1,11 +1,11 @@
 import contextlib
 import dataclasses
+import logging
 import pathlib
 import threading
 import time
 import typing as t
 from io import StringIO
-import logging
 
 import ase
 import ase.io
