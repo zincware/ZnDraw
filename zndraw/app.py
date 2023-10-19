@@ -9,6 +9,7 @@ app = Flask(__name__)
 app.config["SECRET_KEY"] = str(uuid.uuid4())
 app.config["ROOM_HOSTS"] = {}
 app.config["DEFAULT_PYCLIENT"] = None
+app.config["MODIFIER"] = {}
 
 io = SocketIO(
     app, max_http_buffer_size=int(1e10), cors_allowed_origins="*"
@@ -163,6 +164,12 @@ def scene_schema():
 
 @io.on("modifier:run")
 def modifier_run(data):
+    name = data["params"]["method"]["method"]
+    if name in app.config["MODIFIER"]:
+        sid = app.config["MODIFIER"][name]
+        data["sid"] = request.sid
+        return emit("modifier:run", data, to=sid)
+
     if "sid" in data:
         sid = data.pop("sid")
         data["sid"] = request.sid
@@ -455,3 +462,13 @@ def scene_pause(data):
         emit("scene:pause", to=data["sid"])
     else:
         emit("scene:pause", to=session["token"])
+
+@io.on("modifier:register")
+def modifier_register(data):
+    data["sid"] = request.sid
+    data["token"] = session["token"]
+
+    app.config["MODIFIER"][data["name"]] = request.sid
+
+
+    emit("modifier:register", data, to=app.config["DEFAULT_PYCLIENT"])

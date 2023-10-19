@@ -84,8 +84,11 @@ class GlobalConfig(pydantic.BaseModel):
 
         return t.Union[tuple(classes)]
 
-    def get_modify_methods(self):
-        classes = []
+    def get_modify_methods(self, include: list = None):
+        if include is None:
+            classes = []
+        else:
+            classes = include
         for method in self.modify_functions:
             module_name, cls_name = method.rsplit(".", 1)
             try:

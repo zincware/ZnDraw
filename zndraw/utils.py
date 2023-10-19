@@ -1,6 +1,13 @@
 import contextlib
 import logging
 import socket
+import pathlib
+import tempfile
+import datamodel_code_generator
+import importlib.util
+import sys
+import json
+import uuid
 
 import ase
 
@@ -44,3 +51,27 @@ class ZnDrawLoggingHandler(logging.Handler):
             raise
         except Exception:
             self.handleError(record)
+
+def get_cls_from_json_schema(schema: dict, name: str):
+    """Get a python class from a json schema."""
+
+    with tempfile.TemporaryDirectory() as temporary_directory_name:
+        temporary_directory = pathlib.Path(temporary_directory_name)
+        output = temporary_directory / 'model.py'
+        datamodel_code_generator.generate(
+            json.dumps(schema),
+            input_file_type=datamodel_code_generator.InputFileType.JsonSchema,
+            input_filename="example.json",
+            output=output,
+            # set up the output model types
+            output_model_type=datamodel_code_generator.DataModelType.PydanticV2BaseModel,
+        )
+
+        ref_module = uuid.uuid4().hex
+
+        spec = importlib.util.spec_from_file_location(ref_module, output)
+        module = importlib.util.module_from_spec(spec)
+        sys.modules[ref_module] = module
+        spec.loader.exec_module(module)
+
+        return getattr(module, name)

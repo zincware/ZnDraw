@@ -13,14 +13,15 @@ import numpy as np
 import socketio
 import tqdm
 import znh5md
+from pydantic import ConfigDict
 
 from zndraw.analyse import get_analysis_class
 from zndraw.data import atoms_from_json, atoms_to_json
 from zndraw.draw import Geometry
-from zndraw.modify import get_modify_class
+from zndraw.modify import get_modify_class, UpdateScene, hide_method
 from zndraw.select import get_selection_class
 from zndraw.settings import GlobalConfig
-from zndraw.utils import ZnDrawLoggingHandler
+from zndraw.utils import ZnDrawLoggingHandler, get_cls_from_json_schema
 
 log = logging.getLogger(__name__)
 
@@ -201,6 +202,7 @@ class ZnDrawDefault(ZnDrawBase):
         self.socket.on("analysis:run", self.analysis_run)
         self.socket.on("upload", self.upload_file)
         self.socket.on("download:request", self.download_file)
+        self.socket.on("modifier:register", self.register_modifier)
         self._connect()
         self.socket.wait()
 
@@ -371,6 +373,14 @@ class ZnDrawDefault(ZnDrawBase):
             self.socket.emit(
                 "download:response", {"data": file.read(), "sid": self._target_sid}
             )
+    
+    def register_modifier(self, data):
+        cls = get_cls_from_json_schema(data["schema"], data["name"])
+        cls.model_config = ConfigDict(json_schema_extra=hide_method)
+        config = GlobalConfig.load()
+        cls = get_modify_class(config.get_modify_methods(include=[cls]))
+        data = {"schema": cls.model_json_schema(), "sid": data["token"]}
+        self.socket.emit("modifier:schema", data)
 
 
 @dataclasses.dataclass
@@ -388,6 +398,8 @@ class ZnDraw(ZnDrawBase):
 
     jupyter: bool = False
     display_new: bool = True
+
+    _modifiers: list = dataclasses.field(default_factory=list)
 
     def __post_init__(self):
         super().__post_init__()
@@ -412,6 +424,8 @@ class ZnDraw(ZnDrawBase):
             )
             self._view_thread.start()
             self.url = f"http://127.0.0.1:{port}"
+
+        self.socket.on("modifier:run", self._modifier_run)
 
         self._connect()
 
@@ -450,3 +464,41 @@ class ZnDraw(ZnDrawBase):
         super().__setitem__(index, value)
         if self.display_new:
             self.step = index
+    
+    def register_modifier(self, cls: UpdateScene):
+        """Register a modifier class"""
+        self.socket.emit("modifier:register", {"schema": cls.model_json_schema(), "name": cls.__name__})
+        self._modifiers.append(cls)
+
+    def _modifier_run(self, data):
+        config = GlobalConfig.load()
+        cls = get_modify_class(config.get_modify_methods(include=self._modifiers))
+        modifier = cls(**data["params"])
+
+        if len(self) > self.step + 1:
+            del self[self.step + 1 :]
+
+        selection = self.selection
+        self.selection = []
+
+        log.debug(f"getting {self.step} from atoms with length {len(self)}")
+        atoms = self[self.step]
+        log.debug(f"Found {atoms = }")
+        points = self.points
+        segments = self.segments
+        json_data = atoms_to_json(atoms)
+
+        size = len(self)
+
+        for idx, atoms in enumerate(
+            modifier.run(
+                atom_ids=selection,
+                atoms=atoms,
+                points=points,
+                segments=segments,
+                json_data=json_data,
+                url=data["url"],
+            )
+        ):
+            self[size + idx] = atoms
+        self.play()
