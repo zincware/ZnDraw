@@ -405,9 +405,9 @@ def log(data):
 
 @io.on("download:request")
 def download_request(data):
-    raise NotImplementedError("This feature is not implemented yet.")
+    emit("download:request", {"data": data, "sid": session["token"]}, to=app.config["DEFAULT_PYCLIENT"])
 
 
 @io.on("download:response")
 def download_response(data):
-    raise NotImplementedError("This feature is not implemented yet.")
+    emit("download:response", data["data"], to=data["sid"])

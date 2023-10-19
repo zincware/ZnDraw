@@ -216,6 +216,7 @@ class ZnDrawDefault(ZnDrawBase):
         self.socket.on("selection:run", self.selection_run)
         self.socket.on("analysis:run", self.analysis_run)
         self.socket.on("upload", self.upload_file)
+        self.socket.on("download:request", self.download_file)
         self._connect()
         self.socket.wait()
 
@@ -374,6 +375,17 @@ class ZnDrawDefault(ZnDrawBase):
                 for idx, atoms in tqdm.tqdm(enumerate(ase.io.iread(stream, format=format))):
                     self.append(atoms)
                     self.step = idx
+    
+    def download_file(self, data):
+        with self._set_sid(data["sid"]):
+            atoms_list = list(self)
+            if "selection" in data:
+                atoms_list = [atoms_list[data["selection"]] for atoms in atoms_list]
+            
+            file = StringIO()
+            ase.io.write(file, atoms_list, format="extxyz")
+            file.seek(0)
+            self.socket.emit("download:response", {"data": file.read(), "sid": self._target_sid})
 
 
 @dataclasses.dataclass
