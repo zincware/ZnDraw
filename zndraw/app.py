@@ -387,10 +387,14 @@ def selection_run(data: dict):
 
 @io.on("upload")
 def upload(data):
-    if "sid" in data: # currently not expected to happen
+    if "sid" in data:  # currently not expected to happen
         raise ValueError("Uploading to specific pyclient currently not supported.")
     else:
-        emit("upload", {"data": data, "sid": session["token"]}, to=app.config["DEFAULT_PYCLIENT"])
+        emit(
+            "upload",
+            {"data": data, "sid": session["token"]},
+            to=app.config["DEFAULT_PYCLIENT"],
+        )
 
 
 @io.on("atoms:insert")
@@ -403,9 +407,14 @@ def log(data):
     sid = data.pop("sid", session["token"])
     emit("message:log", data["message"], to=sid)
 
+
 @io.on("download:request")
 def download_request(data):
-    emit("download:request", {"data": data, "sid": session["token"]}, to=app.config["DEFAULT_PYCLIENT"])
+    emit(
+        "download:request",
+        {"data": data, "sid": session["token"]},
+        to=app.config["DEFAULT_PYCLIENT"],
+    )
 
 
 @io.on("download:response")

@@ -82,14 +82,14 @@ def test_multiple_instances(vis, ase_s22):
 
     vis2.close()
 
+
 @pytest.mark.chrome
 def test_delete_backwards(vis, ase_s22):
     vis.extend(ase_s22)
-    
+
     assert len(vis) == 22
     for idx in range(22):
         assert vis[idx] == ase_s22[idx]
-    
 
     for idx in range(22):
         del vis[len(vis) - 1]
@@ -97,14 +97,14 @@ def test_delete_backwards(vis, ase_s22):
         for jdx in range(len(vis)):
             assert vis[jdx] == ase_s22[jdx]
 
+
 @pytest.mark.chrome
 def test_delete_forwards(vis, ase_s22):
     vis.extend(ase_s22)
-    
+
     assert len(vis) == 22
     for idx in range(22):
         assert vis[idx] == ase_s22[idx]
-    
 
     for idx in range(22):
         del vis[0]
@@ -112,14 +112,15 @@ def test_delete_forwards(vis, ase_s22):
         for jdx in range(len(vis)):
             assert vis[jdx] == ase_s22[jdx + idx + 1]
 
+
 @pytest.mark.chrome
 def test_delete_middle(vis, ase_s22):
     vis.extend(ase_s22)
-    
+
     assert len(vis) == 22
     for idx in range(22):
         assert vis[idx] == ase_s22[idx]
-    
+
     for idx in range(0, 22):
         if len(vis) <= 10:
             with pytest.raises(IndexError):
@@ -130,29 +131,29 @@ def test_delete_middle(vis, ase_s22):
             for jdx in range(len(vis)):
                 assert vis[jdx] == ase_s22[jdx] if jdx < 10 else ase_s22[jdx + 1]
 
+
 @pytest.mark.chrome
 def test_delete_slice_backwards(vis, ase_s22):
     vis.extend(ase_s22)
-    
+
     assert len(vis) == 22
     for idx in range(22):
         assert vis[idx] == ase_s22[idx]
-    
 
     for idx in range(22):
-        del vis[len(vis) - 1:]
+        del vis[len(vis) - 1 :]
         assert len(vis) == 22 - idx - 1
         for jdx in range(len(vis)):
             assert vis[jdx] == ase_s22[jdx]
 
+
 @pytest.mark.chrome
 def test_delete_slice_forwards(vis, ase_s22):
     vis.extend(ase_s22)
-    
+
     assert len(vis) == 22
     for idx in range(22):
         assert vis[idx] == ase_s22[idx]
-    
 
     for idx in range(22):
         del vis[:1]
@@ -160,14 +161,15 @@ def test_delete_slice_forwards(vis, ase_s22):
         for jdx in range(len(vis)):
             assert vis[jdx] == ase_s22[jdx + idx + 1]
 
+
 @pytest.mark.chrome
 def test_delete_slice_middle(vis, ase_s22):
     vis.extend(ase_s22)
-    
+
     assert len(vis) == 22
     for idx in range(22):
         assert vis[idx] == ase_s22[idx]
-    
+
     for idx in range(0, 22):
         del vis[10:11]
         if len(vis) <= 10:
@@ -178,6 +180,7 @@ def test_delete_slice_middle(vis, ase_s22):
             assert len(vis) == 22 - idx - 1
             for jdx in range(len(vis)):
                 assert vis[jdx] == ase_s22[jdx] if jdx < 10 else ase_s22[jdx + 1]
+
 
 @pytest.mark.chrome
 def test_delete_all(vis, ase_s22):

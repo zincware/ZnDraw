@@ -3,8 +3,8 @@ import dataclasses
 import pathlib
 import threading
 import time
-from io import StringIO
 import typing as t
+from io import StringIO
 
 import ase
 import ase.io
@@ -319,12 +319,12 @@ class ZnDrawDefault(ZnDrawBase):
             json_data = atoms_to_json(atoms)
 
             for atoms in modifier.run(
-                    atom_ids=selection,
-                    atoms=atoms,
-                    points=points,
-                    segments=segments,
-                    json_data=json_data,
-                    url=data["url"],
+                atom_ids=selection,
+                atoms=atoms,
+                points=points,
+                segments=segments,
+                json_data=json_data,
+                url=data["url"],
             ):
                 self.append(atoms)
                 self.step += 1
@@ -354,7 +354,7 @@ class ZnDrawDefault(ZnDrawBase):
                 # self.socket.emit("analysis:figure", data)
             except ValueError as err:
                 print(err)
-    
+
     def upload_file(self, data):
         with self._set_sid(data["sid"]):
             data = data["data"]
@@ -372,20 +372,24 @@ class ZnDrawDefault(ZnDrawBase):
             else:
                 stream = StringIO(data["content"])
                 del self[:]
-                for idx, atoms in tqdm.tqdm(enumerate(ase.io.iread(stream, format=format))):
+                for idx, atoms in tqdm.tqdm(
+                    enumerate(ase.io.iread(stream, format=format))
+                ):
                     self.append(atoms)
                     self.step = idx
-    
+
     def download_file(self, data):
         with self._set_sid(data["sid"]):
             atoms_list = list(self)
             if "selection" in data:
                 atoms_list = [atoms_list[data["selection"]] for atoms in atoms_list]
-            
+
             file = StringIO()
             ase.io.write(file, atoms_list, format="extxyz")
             file.seek(0)
-            self.socket.emit("download:response", {"data": file.read(), "sid": self._target_sid})
+            self.socket.emit(
+                "download:response", {"data": file.read(), "sid": self._target_sid}
+            )
 
 
 @dataclasses.dataclass
