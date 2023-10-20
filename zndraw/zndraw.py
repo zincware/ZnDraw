@@ -465,9 +465,11 @@ class ZnDraw(ZnDrawBase):
         if self.display_new:
             self.step = index
 
-    def register_modifier(self, cls: UpdateScene, run_kwargs: dict = None, default: bool = False):
+    def register_modifier(
+        self, cls: UpdateScene, run_kwargs: dict = None, default: bool = False
+    ):
         """Register a modifier class.
-        
+
         Attributes
         ----------
         cls : UpdateScene
@@ -482,7 +484,11 @@ class ZnDraw(ZnDrawBase):
             run_kwargs = {}
         self.socket.emit(
             "modifier:register",
-            {"schema": cls.model_json_schema(), "name": cls.__name__, "default": default},
+            {
+                "schema": cls.model_json_schema(),
+                "name": cls.__name__,
+                "default": default,
+            },
         )
         self._modifiers.append(cls)
 
