@@ -465,11 +465,24 @@ class ZnDraw(ZnDrawBase):
         if self.display_new:
             self.step = index
 
-    def register_modifier(self, cls: UpdateScene):
-        """Register a modifier class"""
+    def register_modifier(self, cls: UpdateScene, run_kwargs: dict = None, default: bool = False):
+        """Register a modifier class.
+        
+        Attributes
+        ----------
+        cls : UpdateScene
+            The modifier class to register.
+        run_kwargs : dict, optional
+            Keyword arguments to pass to the run method of the modifier class.
+        default : bool, optional
+            Whether to enable the modifier for ALL sessions of the ZnDraw client,
+            or just the session for the given token.
+        """
+        if run_kwargs is None:
+            run_kwargs = {}
         self.socket.emit(
             "modifier:register",
-            {"schema": cls.model_json_schema(), "name": cls.__name__},
+            {"schema": cls.model_json_schema(), "name": cls.__name__, "default": default},
         )
         self._modifiers.append(cls)
 
