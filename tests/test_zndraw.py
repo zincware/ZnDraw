@@ -190,3 +190,69 @@ def test_delete_all(vis, ase_s22):
     del vis[:]
     assert len(vis) == 0
     assert vis.step == 0
+
+@pytest.mark.chrome
+def test_insert_before(vis, ase22):
+    vis.extend(ase22)
+    
+    vis.step = 10
+    assert len(vis) == 22
+    vis.insert(0, ase22[5])
+    assert len(vis) == 23
+    assert vis.step == 11
+    assert vis[0] == ase22[5]
+    assert vis[1] == ase22[0]
+    assert vis[2] == ase22[1]
+
+@pytest.mark.chrome
+def test_insert_after(vis, ase22):
+    vis.extend(ase22)
+    
+    vis.step = 10
+    assert len(vis) == 22
+    vis.insert(11, ase22[5])
+    assert len(vis) == 23
+    assert vis.step == 10
+    assert vis[10] == ase22[10]
+    assert vis[11] == ase22[5]
+    assert vis[12] == ase22[11]
+   
+@pytest.mark.chrome 
+def test_insert_to_empty_vis(vis, ase22):
+    vis.insert(0, ase22[0])
+    
+    assert len(vis) == 1
+    assert vis.step == 0
+    assert vis[0] == ase22[0]
+ 
+@pytest.mark.chrome   
+def test_append_to_empty_vis(vis, ase22):
+    assert len(vis) == 0
+    vis.step = 0
+    vis.append(ase22[0])
+    
+    assert len(vis) == 1
+    assert vis.step == 0
+    assert vis[0] == ase22[0]
+
+@pytest.mark.chrome    
+def test_append_to_nonempty_vis(vis, ase22):
+    vis.extend(ase22)
+    
+    vis.step = 22
+    assert len(vis) == 22
+    vis.append(ase22[0])
+    
+    assert len(vis) == 23
+    assert vis.step == 22
+    assert vis[22] == ase22[0]
+    
+@pytest.mark.chrome
+def test_extend(vis, ase22):
+    assert len(vis) == 0
+    vis.extend(ase22)
+    
+    assert len(vis) == 22
+    assert vis.step == 0
+    assert vis[0] == ase22[0]
+    assert vis[-1] == ase22[-1]
