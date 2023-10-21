@@ -47,3 +47,4 @@ select = ["I", "F"]
 # by default do not run pytest marked with "chrome"
 [tool.pytest.ini_options]
 addopts = "-m 'not chrome'"
+markers = "chrome: mark test to run with chrome"
