@@ -40,6 +40,9 @@ def index():
 
 @io.on("connect")
 def connect():
+    if app.config["DEFAULT_PYCLIENT"] is None and "token" in session:
+        # refuse connection if there is no default pyclient
+        return False
     with contextlib.suppress(KeyError):
         # If you connect through Python, you don't have a token.
 
@@ -93,7 +96,6 @@ def token(token):
 def join(token):
     # only used by pyclients that only connect via socket (no HTML)
     session["token"] = token
-    log.debug(f"pyclient {request.sid} joined room {token}")
     join_room(token)
     join_room("pyclients")
     if token == "default":

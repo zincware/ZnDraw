@@ -8,6 +8,19 @@ function setupSocket() {
   socket.on("connect", () => {
     console.log("connected to server");
   });
+
+  socket.on("connect_error", (err) => {
+    console.log("connection could not be established - trying again.");
+    // try to connect again
+    setTimeout(() => {
+      if (socket.connected) {
+        return;
+      }
+      socket.connect();
+    }, 100);
+
+  });
+  // if socket.on
   return socket;
 }
 
