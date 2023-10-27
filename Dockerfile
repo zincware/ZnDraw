@@ -1,7 +1,7 @@
 FROM continuumio/miniconda3
 WORKDIR /usr/src/app
 COPY ./ ./
-RUN conda create -n myenv python=3.10 nodejs
+RUN conda create -n myenv python=3.11 nodejs
 
 # Make RUN commands use the new environment:
 SHELL ["conda", "run", "--no-capture-output", "-n", "myenv", "/bin/bash", "-c"]
