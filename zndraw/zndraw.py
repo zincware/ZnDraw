@@ -55,7 +55,7 @@ class ZnDrawBase:  # collections.abc.MutableSequence
                 time.sleep(0.1)
         else:
             raise socketio.exceptions.ConnectionError
-    
+
     @contextlib.contextmanager
     def _set_sid(self, sid):
         self._target_sid = sid
