@@ -55,6 +55,12 @@ class ZnDrawBase:  # collections.abc.MutableSequence
                 time.sleep(0.1)
         else:
             raise socketio.exceptions.ConnectionError
+    
+    @contextlib.contextmanager
+    def _set_sid(self, sid):
+        self._target_sid = sid
+        yield
+        self._target_sid = None
 
     def __len__(self) -> int:
         if self._target_sid is not None:
@@ -212,12 +218,6 @@ class ZnDrawDefault(ZnDrawBase):
             self.analysis_schema()
             self.selection_schema()
             self.draw_schema()
-
-    @contextlib.contextmanager
-    def _set_sid(self, sid):
-        self._target_sid = sid
-        yield
-        self._target_sid = None
 
     def read_data(self):
         if self.file_io.name is None:
@@ -494,34 +494,35 @@ class ZnDraw(ZnDrawBase):
         self._modifiers.append(cls)
 
     def _modifier_run(self, data):
-        config = GlobalConfig.load()
-        cls = get_modify_class(config.get_modify_methods(include=self._modifiers))
-        modifier = cls(**data["params"])
+        with self._set_sid(data["sid"]):
+            config = GlobalConfig.load()
+            cls = get_modify_class(config.get_modify_methods(include=self._modifiers))
+            modifier = cls(**data["params"])
 
-        if len(self) > self.step + 1:
-            del self[self.step + 1 :]
+            if len(self) > self.step + 1:
+                del self[self.step + 1 :]
 
-        selection = self.selection
-        self.selection = []
+            selection = self.selection
+            self.selection = []
 
-        log.debug(f"getting {self.step} from atoms with length {len(self)}")
-        atoms = self[self.step]
-        log.debug(f"Found {atoms = }")
-        points = self.points
-        segments = self.segments
-        json_data = atoms_to_json(atoms)
+            log.debug(f"getting {self.step} from atoms with length {len(self)}")
+            atoms = self[self.step]
+            log.debug(f"Found {atoms = }")
+            points = self.points
+            segments = self.segments
+            json_data = atoms_to_json(atoms)
 
-        size = len(self)
+            size = len(self)
 
-        for idx, atoms in enumerate(
-            modifier.run(
-                atom_ids=selection,
-                atoms=atoms,
-                points=points,
-                segments=segments,
-                json_data=json_data,
-                url=data["url"],
-            )
-        ):
-            self[size + idx] = atoms
-        self.play()
+            for idx, atoms in enumerate(
+                modifier.run(
+                    atom_ids=selection,
+                    atoms=atoms,
+                    points=points,
+                    segments=segments,
+                    json_data=json_data,
+                    url=data["url"],
+                )
+            ):
+                self[size + idx] = atoms
+            self.play()
