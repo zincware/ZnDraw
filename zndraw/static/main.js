@@ -18,7 +18,6 @@ function setupSocket() {
       }
       socket.connect();
     }, 100);
-
   });
   // if socket.on
   return socket;
