@@ -210,7 +210,6 @@ class ZnDrawDefault(ZnDrawBase):
         with self._set_sid(sid):
             self.read_data()
             self.analysis_schema()
-            self.modifier_schema()
             self.selection_schema()
             self.draw_schema()
 
@@ -260,12 +259,6 @@ class ZnDrawDefault(ZnDrawBase):
                 "sid": self._target_sid,
             },
         )
-
-    def modifier_schema(self):
-        config = GlobalConfig.load()
-        cls = get_modify_class(config.get_modify_methods())
-        data = {"schema": cls.model_json_schema(), "sid": self._target_sid}
-        self.socket.emit("modifier:schema", data)
 
     def selection_schema(self):
         config = GlobalConfig.load()
@@ -375,11 +368,15 @@ class ZnDrawDefault(ZnDrawBase):
             )
 
     def register_modifier(self, data):
-        cls = get_cls_from_json_schema(data["schema"], data["name"])
-        cls.model_config = ConfigDict(json_schema_extra=hide_method)
+        include = []
+        for conf in data.get("modifiers", []):
+            cls = get_cls_from_json_schema(conf["schema"], conf["name"])
+            cls.model_config = ConfigDict(json_schema_extra=hide_method)
+            include.append(cls)
         config = GlobalConfig.load()
-        cls = get_modify_class(config.get_modify_methods(include=[cls]))
-        data = {"schema": cls.model_json_schema(), "sid": data["token"]}
+        cls = get_modify_class(config.get_modify_methods(include=include))
+        sid = self._target_sid if self._target_sid else data["token"]
+        data = {"schema": cls.model_json_schema(), "sid": sid}
         self.socket.emit("modifier:schema", data)
 
 
@@ -485,9 +482,13 @@ class ZnDraw(ZnDrawBase):
         self.socket.emit(
             "modifier:register",
             {
-                "schema": cls.model_json_schema(),
-                "name": cls.__name__,
-                "default": default,
+                "modifiers": [
+                    {
+                        "schema": cls.model_json_schema(),
+                        "name": cls.__name__,
+                        "default": default,
+                    }
+                ]
             },
         )
         self._modifiers.append(cls)

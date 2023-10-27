@@ -9,7 +9,7 @@ app = Flask(__name__)
 app.config["SECRET_KEY"] = str(uuid.uuid4())
 app.config["ROOM_HOSTS"] = {}
 app.config["DEFAULT_PYCLIENT"] = None
-app.config["MODIFIER"] = {}
+app.config["MODIFIER"] = {"default_schema": {}}
 
 io = SocketIO(
     app, max_http_buffer_size=int(1e10), cors_allowed_origins="*"
@@ -52,7 +52,17 @@ def connect():
         except KeyError:
             app.config["ROOM_HOSTS"][token] = [request.sid]
 
-        emit("webclient:available", request.sid, to="default")
+        emit(
+            "webclient:available", request.sid, to=app.config["DEFAULT_PYCLIENT"]
+        ) 
+
+        data = {"modifiers": []} # {schema: ..., name: ...}
+        for name, schema in app.config["MODIFIER"]["default_schema"].items():
+            data["modifiers"].append({"schema": schema, "name": name}) 
+
+        emit("modifier:register", data, to=app.config["DEFAULT_PYCLIENT"])
+
+        # TODO emit("modifier:register", _all modifiers_, to=app.config["DEFAULT_PYCLIENT"]')
 
         log.debug(
             f"connected {request.sid} and updated HOSTS to {app.config['ROOM_HOSTS']}"
@@ -469,6 +479,17 @@ def modifier_register(data):
     data["sid"] = request.sid
     data["token"] = session["token"]
 
-    app.config["MODIFIER"][data["name"]] = request.sid
+    try:
+        # we can only register one modifier at a time
+        name = data["modifiers"][0]["name"]
+        if name in app.config["MODIFIER"]:
+           # issue with the same modifier name on different webclients / tokens!
+           # only for default we need to ensure, there is only one.
+           raise ValueError(f"Modifier {name} is already registered.")
+        app.config["MODIFIER"][name] = request.sid
+        if data["modifiers"][0]["default"]:
+            app.config["MODIFIER"]["default_schema"][name] = data["modifiers"][0]["schema"]
+    except KeyError:
+        print("Could not identify the modifier name.")
 
     emit("modifier:register", data, to=app.config["DEFAULT_PYCLIENT"])
