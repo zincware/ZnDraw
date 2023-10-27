@@ -52,13 +52,11 @@ def connect():
         except KeyError:
             app.config["ROOM_HOSTS"][token] = [request.sid]
 
-        emit(
-            "webclient:available", request.sid, to=app.config["DEFAULT_PYCLIENT"]
-        ) 
+        emit("webclient:available", request.sid, to=app.config["DEFAULT_PYCLIENT"])
 
-        data = {"modifiers": []} # {schema: ..., name: ...}
+        data = {"modifiers": []}  # {schema: ..., name: ...}
         for name, schema in app.config["MODIFIER"]["default_schema"].items():
-            data["modifiers"].append({"schema": schema, "name": name}) 
+            data["modifiers"].append({"schema": schema, "name": name})
 
         emit("modifier:register", data, to=app.config["DEFAULT_PYCLIENT"])
 
@@ -483,12 +481,14 @@ def modifier_register(data):
         # we can only register one modifier at a time
         name = data["modifiers"][0]["name"]
         if name in app.config["MODIFIER"]:
-           # issue with the same modifier name on different webclients / tokens!
-           # only for default we need to ensure, there is only one.
-           raise ValueError(f"Modifier {name} is already registered.")
+            # issue with the same modifier name on different webclients / tokens!
+            # only for default we need to ensure, there is only one.
+            raise ValueError(f"Modifier {name} is already registered.")
         app.config["MODIFIER"][name] = request.sid
         if data["modifiers"][0]["default"]:
-            app.config["MODIFIER"]["default_schema"][name] = data["modifiers"][0]["schema"]
+            app.config["MODIFIER"]["default_schema"][name] = data["modifiers"][0][
+                "schema"
+            ]
     except KeyError:
         print("Could not identify the modifier name.")
 
