@@ -13,7 +13,6 @@ import numpy as np
 import socketio
 import tqdm
 import znh5md
-from pydantic import ConfigDict
 
 from zndraw.analyse import get_analysis_class
 from zndraw.data import atoms_from_json, atoms_to_json
@@ -372,7 +371,10 @@ class ZnDrawDefault(ZnDrawBase):
             )
 
     def register_modifier(self, data):
-        include = [get_cls_from_json_schema(conf["schema"], conf["name"]) for conf in data.get("modifiers", [])]
+        include = [
+            get_cls_from_json_schema(conf["schema"], conf["name"])
+            for conf in data.get("modifiers", [])
+        ]
         config = GlobalConfig.load()
         cls = get_modify_class(config.get_modify_methods(include=include))
         sid = self._target_sid if self._target_sid else data["token"]  #
