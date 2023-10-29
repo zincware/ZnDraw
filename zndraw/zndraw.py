@@ -18,7 +18,7 @@ from pydantic import ConfigDict
 from zndraw.analyse import get_analysis_class
 from zndraw.data import atoms_from_json, atoms_to_json
 from zndraw.draw import Geometry
-from zndraw.modify import UpdateScene, get_modify_class, hide_method
+from zndraw.modify import UpdateScene, get_modify_class
 from zndraw.select import get_selection_class
 from zndraw.settings import GlobalConfig
 from zndraw.utils import ZnDrawLoggingHandler, get_cls_from_json_schema, hide_discriminator_field
@@ -368,11 +368,7 @@ class ZnDrawDefault(ZnDrawBase):
             )
 
     def register_modifier(self, data):
-        include = []
-        for conf in data.get("modifiers", []):
-            cls = get_cls_from_json_schema(conf["schema"], conf["name"])
-            cls.model_config = ConfigDict(json_schema_extra=hide_method)
-            include.append(cls)
+        include = [get_cls_from_json_schema(conf["schema"], conf["name"]) for conf in data.get("modifiers", [])]
         config = GlobalConfig.load()
         cls = get_modify_class(config.get_modify_methods(include=include))
         sid = self._target_sid if self._target_sid else data["token"]#
