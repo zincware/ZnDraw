@@ -114,8 +114,9 @@ class ZnDrawBase:  # collections.abc.MutableSequence
 
     def extend(self, values: list[ase.Atoms]) -> None:
         """Extend the list by appending all the items in the given list"""
-        for value in values:
-            self.append(value)
+        size = len(self)
+        for idx, value in enumerate(values):
+            self[size + idx] = value
 
     def __getitem__(self, index) -> t.Union[ase.Atoms, list[ase.Atoms]]:
         length = len(self)
