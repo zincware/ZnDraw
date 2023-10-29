@@ -167,7 +167,7 @@ class Duplicate(UpdateScene):
         atoms = vis.atoms
         if len(vis) > vis.step + 1:
             del vis[vis.step + 1 :]
-    
+
         for atom_id in vis.selection:
             atom = ase.Atom(atoms[atom_id].symbol, atoms[atom_id].position)
             atom.position += np.array([self.x, self.y, self.z])

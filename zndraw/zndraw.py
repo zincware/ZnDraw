@@ -142,11 +142,17 @@ class ZnDrawBase:  # collections.abc.MutableSequence
         if data == [] and not is_sclice:
             raise IndexError("Index out of range")
         return data
-    
+
     def log(self, message: str) -> None:
         """Log a message to the console"""
         print(message)
-        self.socket.emit("message:log", {"message": message, "sid": self._target_sid if self._target_sid else self.token})
+        self.socket.emit(
+            "message:log",
+            {
+                "message": message,
+                "sid": self._target_sid if self._target_sid else self.token,
+            },
+        )
 
     @property
     def atoms(self) -> ase.Atoms:
