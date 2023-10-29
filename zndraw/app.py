@@ -174,7 +174,7 @@ def scene_schema():
 
 @io.on("modifier:run")
 def modifier_run(data):
-    name = data["params"]["method"]["method"]
+    name = data["params"]["method"]["discriminator"]
     if name in app.config["MODIFIER"]:
         sid = app.config["MODIFIER"][name]
         data["sid"] = request.sid
@@ -183,10 +183,10 @@ def modifier_run(data):
     if "sid" in data:
         sid = data.pop("sid")
         data["sid"] = request.sid
-        return call("modifier:run", data, to=sid)
+        return emit("modifier:run", data, to=sid)
     else:
         data["sid"] = request.sid
-        return call("modifier:run", data, to=app.config["DEFAULT_PYCLIENT"])
+        return emit("modifier:run", data, to=app.config["DEFAULT_PYCLIENT"])
 
 
 @io.on("analysis:run")

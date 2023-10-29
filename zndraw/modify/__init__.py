@@ -45,9 +45,14 @@ class Rotate(UpdateScene):
         30, ge=1, description="Number of steps to take to complete the rotation"
     )
 
-    def run(self, atom_ids: list[int], atoms: ase.Atoms, **kwargs) -> list[ase.Atoms]:
+    def run(self, vis) -> list[ase.Atoms]:
         # split atoms object into the selected from atoms_ids and the remaining
-        points = kwargs["points"]
+        if len(vis) > vis.step + 1:
+            del vis[vis.step + 1 :]
+
+        points = vis.points
+        atom_ids = vis.selection
+        atoms = vis.atoms
         assert len(points) == 2
 
         angle = self.angle if self.direction == "left" else -self.angle
@@ -61,7 +66,9 @@ class Rotate(UpdateScene):
             atoms_selected.rotate(angle, vector, center=points[0])
             # merge the selected and remaining atoms
             atoms = atoms_selected + atoms_remaining
-            yield atoms
+            vis.append(atoms)
+            vis.step += 1
+        vis.selection = []
 
 
 class Explode(UpdateScene):
@@ -71,7 +78,12 @@ class Explode(UpdateScene):
     particles: int = Field(10, le=20, ge=1)
     delay: int = Field(0, le=60000, ge=0, description="Delay between each step in ms")
 
-    def run(self, atom_ids: list[int], atoms: ase.Atoms, **kwargs) -> list[ase.Atoms]:
+    def run(self, vis) -> list[ase.Atoms]:
+        if len(vis) > vis.step + 1:
+            del vis[vis.step + 1 :]
+
+        atom_ids = vis.selection
+        atoms = vis.atoms
         particles = []
         for _atom_id in atom_ids:
             for _ in range(self.particles):
@@ -83,7 +95,9 @@ class Explode(UpdateScene):
                 particle.positions += np.random.normal(scale=0.1, size=(1, 3))
                 struct += particle
             time.sleep(self.delay / 1000)
-            yield struct
+            vis.append(struct)
+            vis.step += 1
+        vis.selection = []
 
 
 class Delete(UpdateScene):
@@ -91,12 +105,20 @@ class Delete(UpdateScene):
 
     discriminator: t.Literal["Delete"] = Field("Delete")
 
-    def run(self, atom_ids: list[int], atoms: ase.Atoms, **kwargs) -> list[ase.Atoms]:
-        log.info(f"Deleting atoms {atom_ids}")
+    def run(self, vis) -> list[ase.Atoms]:
+        atom_ids = vis.selection
+        atoms = vis.atoms
+
+        if len(vis) > vis.step + 1:
+            del vis[vis.step + 1 :]
+        print(f"Deleting atoms {atom_ids}")
+        vis.log(f"Deleting atoms {atom_ids}")
         for idx, atom_id in enumerate(sorted(atom_ids)):
             atoms.pop(atom_id - idx)  # we remove the atom and shift the index
         del atoms.connectivity
-        return [atoms]
+        vis.append(atoms)
+        vis.selection = []
+        vis.step += 1
 
 
 class Move(UpdateScene):
@@ -106,26 +128,31 @@ class Move(UpdateScene):
 
     steps: int = Field(10, ge=1)
 
-    def run(self, atom_ids: list[int], atoms: ase.Atoms, **kwargs) -> list[ase.Atoms]:
-        segments = kwargs["segments"]
-        atoms_selected, atoms_remaining = self.apply_selection(atom_ids, atoms)
+    def run(self, vis) -> list[ase.Atoms]:
+        if len(vis) > vis.step + 1:
+            del vis[vis.step + 1 :]
 
-        if self.steps > len(segments):
+        atoms = vis.atoms
+        atoms_selected, atoms_remaining = self.apply_selection(vis.selection, atoms)
+
+        if self.steps > len(vis.segments):
             raise ValueError(
                 "The number of steps must be less than the number of segments. You can add more points to increase the number of segments."
             )
 
         for idx in range(1, self.steps):
             # get the vector between the two points
-            start_idx = int((idx - 1) * len(segments) / self.steps)
-            end_idx = int(idx * len(segments) / self.steps)
+            start_idx = int((idx - 1) * len(vis.segments) / self.steps)
+            end_idx = int(idx * len(vis.segments) / self.steps)
 
-            vector = segments[end_idx] - segments[start_idx]
+            vector = vis.segments[end_idx] - vis.segments[start_idx]
             # move the selected atoms along the vector
             atoms_selected.positions += vector
             # merge the selected and remaining atoms
             atoms = atoms_selected + atoms_remaining
-            yield atoms
+            vis.append(atoms)
+            vis.step += 1
+        vis.selection = []
 
 
 class Duplicate(UpdateScene):
@@ -136,13 +163,19 @@ class Duplicate(UpdateScene):
     z: float = Field(0.5, le=5, ge=0)
     symbol: Symbols
 
-    def run(self, atom_ids: list[int], atoms: ase.Atoms, **kwargs) -> list[ase.Atoms]:
-        for atom_id in atom_ids:
+    def run(self, vis) -> list[ase.Atoms]:
+        atoms = vis.atoms
+        if len(vis) > vis.step + 1:
+            del vis[vis.step + 1 :]
+    
+        for atom_id in vis.selection:
             atom = ase.Atom(atoms[atom_id].symbol, atoms[atom_id].position)
             atom.position += np.array([self.x, self.y, self.z])
             atom.symbol = self.symbol.name if self.symbol.name != "X" else atom.symbol
             atoms += atom
-        return [atoms]
+        vis.append(atoms)
+        vis.step += 1
+        vis.selection = []
 
 
 class ChangeType(UpdateScene):
@@ -150,10 +183,16 @@ class ChangeType(UpdateScene):
 
     symbol: Symbols
 
-    def run(self, atom_ids: list[int], atoms: ase.Atoms, **kwargs) -> list[ase.Atoms]:
-        for atom_id in atom_ids:
+    def run(self, vis) -> list[ase.Atoms]:
+        if len(vis) > vis.step + 1:
+            del vis[vis.step + 1 :]
+
+        atoms = vis.atoms
+        for atom_id in vis.selection:
             atoms[atom_id].symbol = self.symbol.name
-        return [atoms]
+        vis.append(atoms)
+        vis.step += 1
+        vis.selection = []
 
 
 class AddLineParticles(UpdateScene):
@@ -162,12 +201,16 @@ class AddLineParticles(UpdateScene):
     symbol: Symbols
     steps: int = Field(10, le=100, ge=1)
 
-    def run(self, atom_ids: list[int], atoms: ase.Atoms, **kwargs) -> list[ase.Atoms]:
-        points = kwargs["points"]
-        for point in points:
+    def run(self, vis) -> list[ase.Atoms]:
+        if len(vis) > vis.step + 1:
+            del vis[vis.step + 1 :]
+
+        atoms = vis.atoms
+        for point in vis.points:
             atoms += ase.Atom(self.symbol.name, position=point)
         for _ in range(self.steps):
-            yield atoms
+            vis.append(atoms)
+            vis.step += 1
 
 
 # class CustomModifier(UpdateScene):
@@ -184,7 +227,7 @@ def get_modify_class(methods):
 
         model_config = ConfigDict(json_schema_extra=None)  # disable method hiding
 
-        def run(self, *args, **kwargs) -> list[ase.Atoms]:
-            yield from self.method.run(*args, **kwargs)
+        def run(self, vis) -> None:
+            self.method.run(vis)
 
     return Modifier

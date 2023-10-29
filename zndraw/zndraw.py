@@ -142,6 +142,16 @@ class ZnDrawBase:  # collections.abc.MutableSequence
         if data == [] and not is_sclice:
             raise IndexError("Index out of range")
         return data
+    
+    def log(self, message: str) -> None:
+        """Log a message to the console"""
+        print(message)
+        self.socket.emit("message:log", {"message": message, "sid": self._target_sid if self._target_sid else self.token})
+
+    @property
+    def atoms(self) -> ase.Atoms:
+        """Return the atoms at the current step."""
+        return self[self.step]
 
     @property
     def points(self) -> np.ndarray:
@@ -286,34 +296,7 @@ class ZnDrawDefault(ZnDrawBase):
             config = GlobalConfig.load()
             cls = get_modify_class(config.get_modify_methods())
             modifier = cls(**data["params"])
-
-            if len(self) > self.step + 1:
-                del self[self.step + 1 :]
-
-            selection = self.selection
-            self.selection = []
-
-            log.debug(f"getting {self.step} from atoms with length {len(self)}")
-            atoms = self[self.step]
-            log.debug(f"Found {atoms = }")
-            points = self.points
-            segments = self.segments
-            json_data = atoms_to_json(atoms)
-
-            size = len(self)
-
-            for idx, atoms in enumerate(
-                modifier.run(
-                    atom_ids=selection,
-                    atoms=atoms,
-                    points=points,
-                    segments=segments,
-                    json_data=json_data,
-                    url=data["url"],
-                )
-            ):
-                self[size + idx] = atoms
-            self.play()
+            modifier.run(self)
 
     def selection_run(self, data):
         with self._set_sid(data["sid"]):
@@ -457,10 +440,6 @@ class ZnDraw(ZnDrawBase):
 
         return IFrame(src=self.url, width="100%", height="600px")._repr_html_()
 
-    def log(self, message: str) -> None:
-        """Log a message to the console"""
-        self.socket.emit("message:log", {"message": message, "sid": self.token})
-
     def get_logging_handler(self) -> ZnDrawLoggingHandler:
         return ZnDrawLoggingHandler(self)
 
@@ -505,31 +484,4 @@ class ZnDraw(ZnDrawBase):
             config = GlobalConfig.load()
             cls = get_modify_class(config.get_modify_methods(include=self._modifiers))
             modifier = cls(**data["params"])
-
-            if len(self) > self.step + 1:
-                del self[self.step + 1 :]
-
-            selection = self.selection
-            self.selection = []
-
-            log.debug(f"getting {self.step} from atoms with length {len(self)}")
-            atoms = self[self.step]
-            log.debug(f"Found {atoms = }")
-            points = self.points
-            segments = self.segments
-            json_data = atoms_to_json(atoms)
-
-            size = len(self)
-
-            for idx, atoms in enumerate(
-                modifier.run(
-                    atom_ids=selection,
-                    atoms=atoms,
-                    points=points,
-                    segments=segments,
-                    json_data=json_data,
-                    url=data["url"],
-                )
-            ):
-                self[size + idx] = atoms
-            self.play()
+            modifier.run(self)

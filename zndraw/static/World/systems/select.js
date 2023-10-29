@@ -286,7 +286,7 @@ class Selection {
             const { points, segments } = this.world.getLineData();
             console.log(new Date().toISOString(), "running modifier");
             this.socket.emit("modifier:run", {
-              params: { method: { method: "Delete" } },
+              params: { method: { discriminator: "Delete" } },
               url: window.location.href,
             });
             // particlesGroup.click();
