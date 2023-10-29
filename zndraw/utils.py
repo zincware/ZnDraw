@@ -77,6 +77,7 @@ def get_cls_from_json_schema(schema: dict, name: str):
 
         return getattr(module, name)
 
+
 def hide_discriminator_field(d: dict) -> None:
     """Inplace method to set discriminator field to hidden."""
     for v in d.values():

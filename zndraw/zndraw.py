@@ -21,7 +21,11 @@ from zndraw.draw import Geometry
 from zndraw.modify import UpdateScene, get_modify_class, hide_method
 from zndraw.select import get_selection_class
 from zndraw.settings import GlobalConfig
-from zndraw.utils import ZnDrawLoggingHandler, get_cls_from_json_schema, hide_discriminator_field
+from zndraw.utils import (
+    ZnDrawLoggingHandler,
+    get_cls_from_json_schema,
+    hide_discriminator_field,
+)
 
 log = logging.getLogger(__name__)
 
@@ -375,7 +379,7 @@ class ZnDrawDefault(ZnDrawBase):
             include.append(cls)
         config = GlobalConfig.load()
         cls = get_modify_class(config.get_modify_methods(include=include))
-        sid = self._target_sid if self._target_sid else data["token"]#
+        sid = self._target_sid if self._target_sid else data["token"]  #
 
         schema = cls.model_json_schema()
 

@@ -14,7 +14,6 @@ log = logging.getLogger("zndraw")
 Symbols = enum.Enum("Symbols", {symbol: symbol for symbol in chemical_symbols})
 
 
-
 class UpdateScene(BaseModel, abc.ABC):
     @abc.abstractmethod
     def run(self, atom_ids: list[int], atoms: ase.Atoms, **kwargs) -> list[ase.Atoms]:
@@ -175,6 +174,7 @@ class AddLineParticles(UpdateScene):
 #     discriminator: t.Literal["CustomModifier"] = Field("CustomModifier")
 
 #     methods: t.Union[None, AddLineParticles, Rotate, Explode, Delete] = None
+
 
 def get_modify_class(methods):
     class Modifier(UpdateScene):
