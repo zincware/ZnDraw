@@ -14,18 +14,8 @@ log = logging.getLogger("zndraw")
 Symbols = enum.Enum("Symbols", {symbol: symbol for symbol in chemical_symbols})
 
 
-def hide_method(schema):
-    """Hide the method field in the schema used for the discriminator."""
-    if "method" in schema["properties"]:
-        schema["properties"]["method"]["description"] = "Modify method"
-        schema["properties"]["method"]["options"] = {"hidden": True}
-        schema["properties"]["method"]["type"] = "string"
-    return schema
-
 
 class UpdateScene(BaseModel, abc.ABC):
-    model_config = ConfigDict(json_schema_extra=hide_method)
-
     @abc.abstractmethod
     def run(self, atom_ids: list[int], atoms: ase.Atoms, **kwargs) -> list[ase.Atoms]:
         pass
@@ -46,7 +36,7 @@ class UpdateScene(BaseModel, abc.ABC):
 class Rotate(UpdateScene):
     """Rotate the selected atoms around a the line (2 points only)."""
 
-    method: t.Literal["Rotate"] = Field("Rotate")
+    discriminator: t.Literal["Rotate"] = Field("Rotate")
 
     angle: float = Field(90, le=360, ge=0, description="Angle in degrees")
     direction: t.Literal["left", "right"] = Field(
@@ -76,7 +66,7 @@ class Rotate(UpdateScene):
 
 
 class Explode(UpdateScene):
-    method: t.Literal["Explode"] = Field("Explode")
+    discriminator: t.Literal["Explode"] = Field("Explode")
 
     steps: int = Field(100, le=1000, ge=1)
     particles: int = Field(10, le=20, ge=1)
@@ -100,7 +90,7 @@ class Explode(UpdateScene):
 class Delete(UpdateScene):
     """Delete the selected atoms."""
 
-    method: t.Literal["Delete"] = Field("Delete")
+    discriminator: t.Literal["Delete"] = Field("Delete")
 
     def run(self, atom_ids: list[int], atoms: ase.Atoms, **kwargs) -> list[ase.Atoms]:
         log.info(f"Deleting atoms {atom_ids}")
@@ -113,7 +103,7 @@ class Delete(UpdateScene):
 class Move(UpdateScene):
     """Move the selected atoms along the line."""
 
-    method: t.Literal["Move"] = Field("Move")
+    discriminator: t.Literal["Move"] = Field("Move")
 
     steps: int = Field(10, ge=1)
 
@@ -140,7 +130,7 @@ class Move(UpdateScene):
 
 
 class Duplicate(UpdateScene):
-    method: t.Literal["Duplicate"] = Field("Duplicate")
+    discriminator: t.Literal["Duplicate"] = Field("Duplicate")
 
     x: float = Field(0.5, le=5, ge=0)
     y: float = Field(0.5, le=5, ge=0)
@@ -157,7 +147,7 @@ class Duplicate(UpdateScene):
 
 
 class ChangeType(UpdateScene):
-    method: t.Literal["ChangeType"] = Field("ChangeType")
+    discriminator: t.Literal["ChangeType"] = Field("ChangeType")
 
     symbol: Symbols
 
@@ -168,7 +158,7 @@ class ChangeType(UpdateScene):
 
 
 class AddLineParticles(UpdateScene):
-    method: t.Literal["AddLineParticles"] = Field("AddLineParticles")
+    discriminator: t.Literal["AddLineParticles"] = Field("AddLineParticles")
 
     symbol: Symbols
     steps: int = Field(10, le=100, ge=1)
@@ -181,10 +171,15 @@ class AddLineParticles(UpdateScene):
             yield atoms
 
 
+# class CustomModifier(UpdateScene):
+#     discriminator: t.Literal["CustomModifier"] = Field("CustomModifier")
+
+#     methods: t.Union[None, AddLineParticles, Rotate, Explode, Delete] = None
+
 def get_modify_class(methods):
     class Modifier(UpdateScene):
         method: methods = Field(
-            ..., description="Modify method", discriminator="method"
+            ..., description="Modify method", discriminator="discriminator"
         )
 
         model_config = ConfigDict(json_schema_extra=None)  # disable method hiding

@@ -76,3 +76,12 @@ def get_cls_from_json_schema(schema: dict, name: str):
         spec.loader.exec_module(module)
 
         return getattr(module, name)
+
+def hide_discriminator_field(d: dict) -> None:
+    """Inplace method to set discriminator field to hidden."""
+    for v in d.values():
+        if isinstance(v, dict):
+            if v.get("title") == "Discriminator":
+                v["options"] = {"hidden": True}
+                v["type"] = "string"
+            hide_discriminator_field(v)
