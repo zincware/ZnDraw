@@ -31,6 +31,8 @@ class FileIO:
     start: int = 0
     stop: int = None
     step: int = 1
+    remote: str = None
+    rev: str = None
 
 
 @dataclasses.dataclass
@@ -221,8 +223,19 @@ class ZnDrawDefault(ZnDrawBase):
     def read_data(self):
         if self.file_io.name is None:
             return
+        
+        if self.file_io.remote is not None:
+            node_name, attribute = self.file_io.name.split(".", 1)
+            try:
+                import zntrack
 
-        if pathlib.Path(self.file_io.name).suffix == ".h5":
+                node = zntrack.from_rev(node_name, remote=self.file_io.remote, rev=self.file_io.rev)
+                generator = getattr(node, attribute)
+            except ImportError as err:
+                raise ImportError(
+                    "You need to install ZnTrack to use the remote feature"
+                ) from err
+        elif pathlib.Path(self.file_io.name).suffix == ".h5":
             reader = znh5md.ASEH5MD(self.file_io.name)
             generator = reader.get_atoms_list()
         else:

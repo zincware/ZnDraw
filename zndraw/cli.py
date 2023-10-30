@@ -11,7 +11,7 @@ cli = typer.Typer()
 @cli.command()
 def main(
     filename: Optional[str] = typer.Argument(
-        None, help="Path to the file which should be visualized in ZnDraw."
+        None, help="Path to the file which should be visualized in ZnDraw. Can also be the name and attribute of a ZnTrack Node like 'MyNode.atoms' if at least '--remote .' is provided. "
     ),
     webview: bool = typer.Option(
         True,
@@ -55,6 +55,14 @@ def main(
         False,
         help="Use a token to authenticate the ZnDraw server.  This is useful if you are running ZnDraw as a server application.",
     ),
+    remote: str = typer.Option(
+        None,
+        help="URL to a ZnTrack repository to stream data from.",
+    ),
+    rev: str = typer.Option(
+        None,
+        help="Revision of the ZnTrack repository to stream data from.",
+    ),
 ):
     """Start the ZnDraw server.
 
@@ -75,4 +83,6 @@ def main(
         compute_bonds=compute_bonds,
         upgrade_insecure_requests=upgrade_insecure_requests,
         use_token=use_token,
+        remote=remote,
+        rev=rev,
     )
