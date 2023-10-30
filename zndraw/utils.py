@@ -53,8 +53,10 @@ class ZnDrawLoggingHandler(logging.Handler):
             self.handleError(record)
 
 
-def get_cls_from_json_schema(schema: dict, name: str):
+def get_cls_from_json_schema(schema: dict, name: str, **kwargs):
     """Get a python class from a json schema."""
+
+    kwargs["strict_nullable"] = True
 
     with tempfile.TemporaryDirectory() as temporary_directory_name:
         temporary_directory = pathlib.Path(temporary_directory_name)
@@ -66,6 +68,7 @@ def get_cls_from_json_schema(schema: dict, name: str):
             output=output,
             # set up the output model types
             output_model_type=datamodel_code_generator.DataModelType.PydanticV2BaseModel,
+            **kwargs,
         )
 
         ref_module = uuid.uuid4().hex
