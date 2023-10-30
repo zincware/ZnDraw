@@ -223,13 +223,15 @@ class ZnDrawDefault(ZnDrawBase):
     def read_data(self):
         if self.file_io.name is None:
             return
-        
+
         if self.file_io.remote is not None:
             node_name, attribute = self.file_io.name.split(".", 1)
             try:
                 import zntrack
 
-                node = zntrack.from_rev(node_name, remote=self.file_io.remote, rev=self.file_io.rev)
+                node = zntrack.from_rev(
+                    node_name, remote=self.file_io.remote, rev=self.file_io.rev
+                )
                 generator = getattr(node, attribute)
             except ImportError as err:
                 raise ImportError(

@@ -11,7 +11,8 @@ cli = typer.Typer()
 @cli.command()
 def main(
     filename: Optional[str] = typer.Argument(
-        None, help="Path to the file which should be visualized in ZnDraw. Can also be the name and attribute of a ZnTrack Node like 'MyNode.atoms' if at least '--remote .' is provided. "
+        None,
+        help="Path to the file which should be visualized in ZnDraw. Can also be the name and attribute of a ZnTrack Node like 'MyNode.atoms' if at least '--remote .' is provided. ",
     ),
     webview: bool = typer.Option(
         True,
