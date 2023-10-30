@@ -33,9 +33,12 @@ def atoms_to_json(atoms: ase.Atoms) -> dict:
     # remove info if available # currently not used
     atoms_dict.pop("info", None)
 
-    atoms_dict["colors"] = [
-        _rgb2hex(jmol_colors[number]) for number in atoms_dict["numbers"]
-    ]
+    if hasattr(atoms, "colors"):
+        atoms_dict["colors"] = atoms.colors
+    else:
+        atoms_dict["colors"] = [
+            _rgb2hex(jmol_colors[number]) for number in atoms_dict["numbers"]
+        ]
     atoms_dict["radii"] = [_get_radius(number) for number in atoms_dict["numbers"]]
 
     try:
