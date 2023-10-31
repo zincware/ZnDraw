@@ -222,6 +222,18 @@ class Selection {
       }
     });
 
+    // check if document.getElementById("drawingSwitch") is checked and update this._drawing
+    document.getElementById("drawingSwitch").addEventListener("change", () => {
+      this._drawing = document.getElementById("drawingSwitch").checked;
+      if (this._drawing) {
+        this.line3D.addPointer();
+        window.addEventListener("pointermove", onPointerMove);
+      } else {
+        this.line3D.removePointer();
+        window.removeEventListener("pointermove", onPointerMove);
+      }
+    });
+
     // use c keypress to center the camera on the selection
     document.addEventListener("keydown", (event) => {
       if (document.activeElement === document.body) {
@@ -234,11 +246,13 @@ class Selection {
             this._drawing = false;
             this.line3D.removePointer();
             window.removeEventListener("pointermove", onPointerMove);
+            document.getElementById("drawingSwitch").checked = false;
           } else {
             this._drawing = true;
             this.line3D.addPointer();
             this.transform_controls.detach();
             window.addEventListener("pointermove", onPointerMove);
+            document.getElementById("drawingSwitch").checked = true;
           }
         }
 
