@@ -13,10 +13,14 @@ log = logging.getLogger("zndraw")
 
 Symbols = enum.Enum("Symbols", {symbol: symbol for symbol in chemical_symbols})
 
+if t.TYPE_CHECKING:
+    from zndraw.zndraw import ZnDraw
+
 
 class UpdateScene(BaseModel, abc.ABC):
     @abc.abstractmethod
-    def run(self, atom_ids: list[int], atoms: ase.Atoms, **kwargs) -> list[ase.Atoms]:
+    def run(self, vis: "ZnDraw") -> None:
+        """Method called when running the modifier."""
         pass
 
     def apply_selection(
@@ -45,7 +49,7 @@ class Rotate(UpdateScene):
         30, ge=1, description="Number of steps to take to complete the rotation"
     )
 
-    def run(self, vis) -> list[ase.Atoms]:
+    def run(self, vis: "ZnDraw") -> None:
         # split atoms object into the selected from atoms_ids and the remaining
         if len(vis) > vis.step + 1:
             del vis[vis.step + 1 :]
@@ -78,7 +82,7 @@ class Explode(UpdateScene):
     particles: int = Field(10, le=20, ge=1)
     delay: int = Field(0, le=60000, ge=0, description="Delay between each step in ms")
 
-    def run(self, vis) -> list[ase.Atoms]:
+    def run(self, vis: "ZnDraw") -> None:
         if len(vis) > vis.step + 1:
             del vis[vis.step + 1 :]
 
@@ -105,7 +109,7 @@ class Delete(UpdateScene):
 
     discriminator: t.Literal["Delete"] = Field("Delete")
 
-    def run(self, vis) -> list[ase.Atoms]:
+    def run(self, vis: "ZnDraw") -> None:
         atom_ids = vis.selection
         atoms = vis.atoms
 
@@ -128,7 +132,7 @@ class Move(UpdateScene):
 
     steps: int = Field(10, ge=1)
 
-    def run(self, vis) -> list[ase.Atoms]:
+    def run(self, vis: "ZnDraw") -> None:
         if len(vis) > vis.step + 1:
             del vis[vis.step + 1 :]
 
@@ -163,7 +167,7 @@ class Duplicate(UpdateScene):
     z: float = Field(0.5, le=5, ge=0)
     symbol: Symbols
 
-    def run(self, vis) -> list[ase.Atoms]:
+    def run(self, vis: "ZnDraw") -> None:
         atoms = vis.atoms
         if len(vis) > vis.step + 1:
             del vis[vis.step + 1 :]
@@ -183,7 +187,7 @@ class ChangeType(UpdateScene):
 
     symbol: Symbols
 
-    def run(self, vis) -> list[ase.Atoms]:
+    def run(self, vis: "ZnDraw") -> None:
         if len(vis) > vis.step + 1:
             del vis[vis.step + 1 :]
 
@@ -201,7 +205,7 @@ class AddLineParticles(UpdateScene):
     symbol: Symbols
     steps: int = Field(10, le=100, ge=1)
 
-    def run(self, vis) -> list[ase.Atoms]:
+    def run(self, vis: "ZnDraw") -> None:
         if len(vis) > vis.step + 1:
             del vis[vis.step + 1 :]
 
