@@ -60,38 +60,58 @@
 
   <!-- Navigation -->
 
-  <nav class="navbar fixed-top navbar-expand-sm bg-light main-navbar">
+  <nav class="navbar navbar-expand-md fixed-top bg-light main-navbar">
     <div class="container-fluid">
-      <a class="navbar-brand" id="HelpBtn">
-        <!-- <img src="{{ url_for('static', filename='favion-192x192.png') }}" alt="ZnDraw Logo" width="30" height="24"> -->
-        ZnDraw
-      </a>
-      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNavDropdown"
-        aria-controls="navbarNavDropdown" aria-expanded="false" aria-label="Toggle navigation">
-        <span class="navbar-toggler-icon"></span>
-      </button>
-      <div class="collapse navbar-collapse" id="navbarNavDropdown"></div>
-      <div class="d-flex">
-        <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#codeModal">
-          <i class="fa-solid fa-code"></i>
-        </button>
+      <div class="navbar-brand" href="#">ZnDraw</div>
+      <div class="navbar-collapse collapse w-100 order-1 order-md-0 dual-collapse2">
+        <ul class="navbar-nav me-auto">
+          <li class="nav-item active">
+            <div class="btn-group" role="group" aria-label="Basic checkbox toggle button group">
+              <input type="checkbox" class="btn-check" id="drawingSwitch" autocomplete="off">
+              <label class="btn btn-outline-primary" for="drawingSwitch">Draw <i class="fa-solid fa-pencil"></i></label>
+            </div>
+          </li>
+        </ul>
+      </div>
+      <div class="mx-auto order-0">
+        {# Some Center Text #}
+      </div>
 
-        <form id="uploadForm" method="post" enctype="multipart/form-data">
-          <input type="file" name="file" id="fileInput" style="display: none" />
-          <input type="submit" value="Upload" id="uploadBtn" style="display: none" />
-          <label class="btn btn-outline-primary mx-1" for="fileInput"><i class="fas fa-upload"></i> Upload</label>
-        </form>
+      <div class="navbar-collapse collapse w-100 order-3 dual-collapse2">
+        <ul class="navbar-nav ms-auto">
+          <li class="nav-item">
+            <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#codeModal">
+              <i class="fa-solid fa-code"></i>
+            </button>
+          </li>
+          <li class="nav-item">
+            <button type="button" class="btn btn-outline-primary mx-1" id="downloadBtn">
+              <i class="fas fa-download"></i> Download
+            </button>
+          </li>
+          <li class="nav-item">
+            <form id="uploadForm" method="post" enctype="multipart/form-data">
+              <input type="file" name="file" id="fileInput" style="display: none" />
+              <input type="submit" value="Upload" id="uploadBtn" style="display: none" />
+              <label class="btn btn-outline-primary mx-1" for="fileInput"><i class="fas fa-upload"></i> Upload</label>
+            </form>
+          </li>
+          <li class="nav-item">
+            <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#helpModal">
+              <i class="fa-solid fa-circle-info"></i>
+            </button>
+          </li>
+          <li class="nav-item">
+            <a class="btn btn-outline-info mx-1" href="/" role="button"><i class="fa-solid fa-rotate-right"></i>
+              Reload</a>
+          </li>
+          <li class="nav-item">
 
-        <button type="button" class="btn btn-outline-primary mx-1" id="downloadBtn">
-          <i class="fas fa-download"></i> Download
-        </button>
-        <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#helpModal">
-          <i class="fa-solid fa-circle-info"></i>
-        </button>
-        <a class="btn btn-outline-info mx-1" href="/" role="button"><i class="fa-solid fa-rotate-right"></i> Reload</a>
-        <button class="btn btn-outline-danger mx-1" id="ExitBtn">
-          <i class="fa-solid fa-circle-xmark"></i> EXIT
-        </button>
+            <button class="btn btn-outline-danger mx-1" id="ExitBtn">
+              <i class="fa-solid fa-circle-xmark"></i> EXIT
+            </button>
+          </li>
+        </ul>
       </div>
     </div>
   </nav>
