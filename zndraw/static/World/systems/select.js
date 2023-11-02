@@ -259,14 +259,27 @@ class Selection {
                 .sub(transform_object.position)
                 .multiplyScalar(0.5)
                 .add(transform_object.position);
-            } else {
-              // No previous point, add the point at the same position
-              new_pos = transform_object.position.clone();
-            }
-
+              
             const point = this.line3D.addPoint(new_pos, index);
             this.transform_controls.detach();
             this.transform_controls.attach(point);
+            } else {
+              if (this.line3D.anchorPoints.children.length > 1) {
+                // Add the point between the current and the next point
+                const obj_after = this.line3D.anchorPoints.children[index + 1];
+                new_pos = obj_after.position
+                  .clone()
+                  .sub(transform_object.position)
+                  .multiplyScalar(0.5)
+                  .add(transform_object.position);
+
+            const point = this.line3D.addPoint(new_pos, index - 1);
+            this.transform_controls.detach();
+            this.transform_controls.attach(point);
+              }
+
+            }
+
           }
         }
 
