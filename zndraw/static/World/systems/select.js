@@ -259,10 +259,10 @@ class Selection {
                 .sub(transform_object.position)
                 .multiplyScalar(0.5)
                 .add(transform_object.position);
-              
-            const point = this.line3D.addPoint(new_pos, index);
-            this.transform_controls.detach();
-            this.transform_controls.attach(point);
+
+              const point = this.line3D.addPoint(new_pos, index);
+              this.transform_controls.detach();
+              this.transform_controls.attach(point);
             } else {
               if (this.line3D.anchorPoints.children.length > 1) {
                 // Add the point between the current and the next point
@@ -273,13 +273,11 @@ class Selection {
                   .multiplyScalar(0.5)
                   .add(transform_object.position);
 
-            const point = this.line3D.addPoint(new_pos, index - 1);
-            this.transform_controls.detach();
-            this.transform_controls.attach(point);
+                const point = this.line3D.addPoint(new_pos, index - 1);
+                this.transform_controls.detach();
+                this.transform_controls.attach(point);
               }
-
             }
-
           }
         }
 
