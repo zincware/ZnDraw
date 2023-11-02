@@ -128,14 +128,14 @@ class Selection {
       }
       const position = particleIntersects[0].point.clone();
       this.line3D.movePointer(position);
-    } else  if (canvasIntersects[0].object.name === "canvas3D") {
-        if (!this.line3D.pointer) {
-          this.line3D.pointer = this.line3D.addPointer();
-        }
-        const position = canvasIntersects[0].point.clone();
-        this.line3D.movePointer(position);
+    } else if (canvasIntersects[0].object.name === "canvas3D") {
+      if (!this.line3D.pointer) {
+        this.line3D.pointer = this.line3D.addPointer();
+      }
+      const position = canvasIntersects[0].point.clone();
+      this.line3D.movePointer(position);
     } else {
-      if (this.line3D.pointer){
+      if (this.line3D.pointer) {
         console.log("remove pointer");
         this.line3D.removePointer(this.line3D.pointer);
         this.line3D.pointer = undefined;
