@@ -23,6 +23,7 @@ class Selection {
       camera,
       renderer.domElement,
     );
+    this.transform_controls.size = 0.5;
 
     // change mode of transform_controls when pressing t, iterate between translate, rotate, scale
     document.addEventListener("keydown", (event) => {
