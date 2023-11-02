@@ -37,7 +37,7 @@ def atoms_to_json(atoms: ase.Atoms) -> dict:
         atoms_dict["colors"] = [
             _rgb2hex(jmol_colors[number]) for number in atoms_dict["numbers"]
         ]
-        
+
     atoms_dict["radii"] = [_get_radius(number) for number in atoms_dict["numbers"]]
 
     try:
@@ -69,7 +69,7 @@ def atoms_from_json(data: dict) -> ase.Atoms:
     )
 
     atoms.arrays["colors"] = data["colors"]
-    
+
     if "calc" in data:
         atoms.calc = SinglePointCalculator(atoms)
         atoms.calc.results = {
