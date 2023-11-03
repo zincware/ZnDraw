@@ -1,8 +1,15 @@
 import contextlib
+import importlib.util
+import json
 import logging
+import pathlib
 import socket
+import sys
+import tempfile
+import uuid
 
 import ase
+import datamodel_code_generator
 
 
 def get_port(default: int = 1234) -> int:
@@ -44,3 +51,41 @@ class ZnDrawLoggingHandler(logging.Handler):
             raise
         except Exception:
             self.handleError(record)
+
+
+def get_cls_from_json_schema(schema: dict, name: str, **kwargs):
+    """Get a python class from a json schema."""
+
+    kwargs["strict_nullable"] = True
+
+    with tempfile.TemporaryDirectory() as temporary_directory_name:
+        temporary_directory = pathlib.Path(temporary_directory_name)
+        output = temporary_directory / "model.py"
+        datamodel_code_generator.generate(
+            json.dumps(schema),
+            input_file_type=datamodel_code_generator.InputFileType.JsonSchema,
+            input_filename="example.json",
+            output=output,
+            # set up the output model types
+            output_model_type=datamodel_code_generator.DataModelType.PydanticV2BaseModel,
+            **kwargs,
+        )
+
+        ref_module = uuid.uuid4().hex
+
+        spec = importlib.util.spec_from_file_location(ref_module, output)
+        module = importlib.util.module_from_spec(spec)
+        sys.modules[ref_module] = module
+        spec.loader.exec_module(module)
+
+        return getattr(module, name)
+
+
+def hide_discriminator_field(d: dict) -> None:
+    """Inplace method to set discriminator field to hidden."""
+    for v in d.values():
+        if isinstance(v, dict):
+            if v.get("title") == "Discriminator":
+                v["options"] = {"hidden": True}
+                v["type"] = "string"
+            hide_discriminator_field(v)
