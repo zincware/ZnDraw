@@ -233,10 +233,12 @@ class Selection {
     document.getElementById("drawingSwitch").addEventListener("change", () => {
       this._drawing = document.getElementById("drawingSwitch").checked;
       if (this._drawing) {
-        this.line3D.addPointer();
         window.addEventListener("pointermove", onPointerMove);
       } else {
-        this.line3D.removePointer();
+        if (this.line3D.pointer) {
+          this.line3D.removePointer(this.line3D.pointer);
+          this.line3D.pointer = undefined;
+        }
         window.removeEventListener("pointermove", onPointerMove);
       }
     });
@@ -326,6 +328,7 @@ class Selection {
               this.line3D.pointer = undefined;
             }
             window.removeEventListener("pointermove", onPointerMove);
+            document.getElementById("drawingSwitch").checked = false;
           }
         }
       }
