@@ -17,10 +17,14 @@ import znh5md
 from zndraw.analyse import get_analysis_class
 from zndraw.data import atoms_from_json, atoms_to_json
 from zndraw.draw import Geometry
-from zndraw.modify import get_modify_class
+from zndraw.modify import UpdateScene, get_modify_class
 from zndraw.select import get_selection_class
 from zndraw.settings import GlobalConfig
-from zndraw.utils import ZnDrawLoggingHandler
+from zndraw.utils import (
+    ZnDrawLoggingHandler,
+    get_cls_from_json_schema,
+    hide_discriminator_field,
+)
 
 log = logging.getLogger(__name__)
 
@@ -56,6 +60,12 @@ class ZnDrawBase:  # collections.abc.MutableSequence
                 time.sleep(0.1)
         else:
             raise socketio.exceptions.ConnectionError
+
+    @contextlib.contextmanager
+    def _set_sid(self, sid):
+        self._target_sid = sid
+        yield
+        self._target_sid = None
 
     def __len__(self) -> int:
         if self._target_sid is not None:
@@ -106,8 +116,9 @@ class ZnDrawBase:  # collections.abc.MutableSequence
 
     def extend(self, values: list[ase.Atoms]) -> None:
         """Extend the list by appending all the items in the given list"""
-        for value in values:
-            self.append(value)
+        size = len(self)
+        for idx, value in enumerate(values):
+            self[size + idx] = value
 
     def __getitem__(self, index) -> t.Union[ase.Atoms, list[ase.Atoms]]:
         length = len(self)
@@ -134,6 +145,22 @@ class ZnDrawBase:  # collections.abc.MutableSequence
         if data == [] and not is_sclice:
             raise IndexError("Index out of range")
         return data
+
+    def log(self, message: str) -> None:
+        """Log a message to the console"""
+        print(message)
+        self.socket.emit(
+            "message:log",
+            {
+                "message": message,
+                "sid": self._target_sid if self._target_sid else self.token,
+            },
+        )
+
+    @property
+    def atoms(self) -> ase.Atoms:
+        """Return the atoms at the current step."""
+        return self[self.step]
 
     @property
     def points(self) -> np.ndarray:
@@ -203,6 +230,7 @@ class ZnDrawDefault(ZnDrawBase):
         self.socket.on("analysis:run", self.analysis_run)
         self.socket.on("upload", self.upload_file)
         self.socket.on("download:request", self.download_file)
+        self.socket.on("modifier:register", self.register_modifier)
         self._connect()
         self.socket.wait()
 
@@ -210,15 +238,8 @@ class ZnDrawDefault(ZnDrawBase):
         with self._set_sid(sid):
             self.read_data()
             self.analysis_schema()
-            self.modifier_schema()
             self.selection_schema()
             self.draw_schema()
-
-    @contextlib.contextmanager
-    def _set_sid(self, sid):
-        self._target_sid = sid
-        yield
-        self._target_sid = None
 
     def read_data(self):
         if self.file_io.name is None:
@@ -274,12 +295,6 @@ class ZnDrawDefault(ZnDrawBase):
             },
         )
 
-    def modifier_schema(self):
-        config = GlobalConfig.load()
-        cls = get_modify_class(config.get_modify_methods())
-        data = {"schema": cls.model_json_schema(), "sid": self._target_sid}
-        self.socket.emit("modifier:schema", data)
-
     def selection_schema(self):
         config = GlobalConfig.load()
         cls = get_selection_class(config.get_selection_methods())
@@ -303,34 +318,7 @@ class ZnDrawDefault(ZnDrawBase):
             config = GlobalConfig.load()
             cls = get_modify_class(config.get_modify_methods())
             modifier = cls(**data["params"])
-
-            if len(self) > self.step + 1:
-                del self[self.step + 1 :]
-
-            selection = self.selection
-            self.selection = []
-
-            log.debug(f"getting {self.step} from atoms with length {len(self)}")
-            atoms = self[self.step]
-            log.debug(f"Found {atoms = }")
-            points = self.points
-            segments = self.segments
-            json_data = atoms_to_json(atoms)
-
-            size = len(self)
-
-            for idx, atoms in enumerate(
-                modifier.run(
-                    atom_ids=selection,
-                    atoms=atoms,
-                    points=points,
-                    segments=segments,
-                    json_data=json_data,
-                    url=data["url"],
-                )
-            ):
-                self[size + idx] = atoms
-            self.play()
+            modifier.run(self)
 
     def selection_run(self, data):
         with self._set_sid(data["sid"]):
@@ -387,6 +375,22 @@ class ZnDrawDefault(ZnDrawBase):
                 "download:response", {"data": file.read(), "sid": self._target_sid}
             )
 
+    def register_modifier(self, data):
+        include = [
+            get_cls_from_json_schema(conf["schema"], conf["name"])
+            for conf in data.get("modifiers", [])
+        ]
+        config = GlobalConfig.load()
+        cls = get_modify_class(config.get_modify_methods(include=include))
+        sid = self._target_sid if self._target_sid else data["token"]  #
+
+        schema = cls.model_json_schema()
+
+        hide_discriminator_field(schema)
+
+        data = {"schema": schema, "sid": sid}
+        self.socket.emit("modifier:schema", data)
+
 
 @dataclasses.dataclass
 class ZnDraw(ZnDrawBase):
@@ -403,6 +407,8 @@ class ZnDraw(ZnDrawBase):
 
     jupyter: bool = False
     display_new: bool = True
+
+    _modifiers: list = dataclasses.field(default_factory=list)
 
     def __post_init__(self):
         super().__post_init__()
@@ -427,6 +433,8 @@ class ZnDraw(ZnDrawBase):
             )
             self._view_thread.start()
             self.url = f"http://127.0.0.1:{port}"
+
+        self.socket.on("modifier:run", self._modifier_run)
 
         self._connect()
 
@@ -454,10 +462,6 @@ class ZnDraw(ZnDrawBase):
 
         return IFrame(src=self.url, width="100%", height="600px")._repr_html_()
 
-    def log(self, message: str) -> None:
-        """Log a message to the console"""
-        self.socket.emit("message:log", {"message": message, "sid": self.token})
-
     def get_logging_handler(self) -> ZnDrawLoggingHandler:
         return ZnDrawLoggingHandler(self)
 
@@ -465,3 +469,41 @@ class ZnDraw(ZnDrawBase):
         super().__setitem__(index, value)
         if self.display_new:
             self.step = index
+
+    def register_modifier(
+        self, cls: UpdateScene, run_kwargs: dict = None, default: bool = False
+    ):
+        """Register a modifier class.
+
+        Attributes
+        ----------
+        cls : UpdateScene
+            The modifier class to register.
+        run_kwargs : dict, optional
+            Keyword arguments to pass to the run method of the modifier class.
+        default : bool, optional
+            Whether to enable the modifier for ALL sessions of the ZnDraw client,
+            or just the session for the given token.
+        """
+        if run_kwargs is None:
+            run_kwargs = {}
+        self.socket.emit(
+            "modifier:register",
+            {
+                "modifiers": [
+                    {
+                        "schema": cls.model_json_schema(),
+                        "name": cls.__name__,
+                        "default": default,
+                    }
+                ]
+            },
+        )
+        self._modifiers.append(cls)
+
+    def _modifier_run(self, data):
+        with self._set_sid(data["sid"]):
+            config = GlobalConfig.load()
+            cls = get_modify_class(config.get_modify_methods(include=self._modifiers))
+            modifier = cls(**data["params"])
+            modifier.run(self)

@@ -21,6 +21,7 @@ pydantic = "^2.2.0"
 python-socketio = {extras = ["client"], version = "^5.8.0"}
 plotly = "^5.16.1"
 pandas = "^2.0.3"
+datamodel-code-generator = "^0.22.1"
 
 [tool.poetry.group.dev.dependencies]
 pre-commit = "^3.3.3"
