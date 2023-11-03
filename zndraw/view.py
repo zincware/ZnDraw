@@ -50,6 +50,8 @@ def view(
     compute_bonds: bool,
     use_token: bool = False,
     upgrade_insecure_requests: bool = False,
+    remote: str = None,
+    rev: str = None,
 ):
     if not use_token:
         app.config["token"] = "notoken"
@@ -57,7 +59,7 @@ def view(
     app.config["compute_bonds"] = compute_bonds
     url = f"http://127.0.0.1:{port}"
 
-    file_io = FileIO(filename, start, stop, step)
+    file_io = FileIO(filename, start, stop, step, remote, rev)
 
     proc = mp.Process(
         target=ZnDrawDefault,
