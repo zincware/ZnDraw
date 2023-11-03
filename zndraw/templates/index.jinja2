@@ -374,10 +374,15 @@
 
   <!-- ZnDraw Console -->
 
-<div class="collapse" id="ZnDrawConsole" >
+<div class="collapse" id="ZnDrawConsole" style="transition: 0s;">
   <div class="card" id="ZnDrawConsoleCard">
   <div class="card-header">
-    Console
+    <div class="row">
+          <div class="col">Console</div>
+          <div class="col col-md-auto">
+            <button type="button" class="btn-close" id="ZnDrawConsoleExitBtn" onclick="document.getElementById('ZnDrawConsoleSwitch').click();"></button>
+          </div>
+        </div>
   </div>
     <div class="card-body overflow-y-auto" id="ZnDrawConsoleBody">
     </div>
