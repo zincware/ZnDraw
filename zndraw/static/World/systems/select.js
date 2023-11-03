@@ -307,7 +307,10 @@ class Selection {
           this.transform_controls.detach();
           if (this._drawing) {
             this._drawing = false;
-            this.line3D.removePointer();
+            if (this.line3D.pointer) {
+              this.line3D.removePointer(this.line3D.pointer);
+              this.line3D.pointer = undefined;
+            }
             window.removeEventListener("pointermove", onPointerMove);
           }
         }
