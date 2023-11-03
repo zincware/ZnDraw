@@ -42,6 +42,15 @@ function main() {
 
   socket.on("message:log", (msg) => {
     console.log(msg);
+    // add <p> to console body
+    const consoleBody = document.getElementById("ZnDrawConsoleBody")
+    const p = document.createElement("p");
+    // ISO 8601 format + msg
+    p.innerHTML = new Date().toISOString() + " " + msg;
+    consoleBody.appendChild(p);
+    // automatically scroll to bottom of consoleBody
+    consoleBody.scrollTop = consoleBody.scrollHeight;
+
   });
 
   document.getElementById("atom-spinner").style.display = "none";

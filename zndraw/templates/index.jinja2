@@ -79,21 +79,27 @@
 
       <div class="navbar-collapse collapse w-100 order-3 dual-collapse2">
         <ul class="navbar-nav ms-auto">
-          <li class="nav-item">
+          <li class="nav-item mx-1">
+             <div class="btn-group" role="group" aria-label="Basic checkbox toggle button group">
+              <input type="checkbox" class="btn-check" id="ZnDrawConsoleSwitch" autocomplete="off" data-bs-toggle="collapse" data-bs-target="#ZnDrawConsole" aria-controls="ZnDrawConsole" aria-expanded="false">
+              <label class="btn btn-outline-primary" for="ZnDrawConsoleSwitch"><i class="fa-solid fa-terminal"></i></i></label>
+            </div>
+          </li>
+          <li class="nav-item mx-1">
             <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#codeModal">
               <i class="fa-solid fa-code"></i>
             </button>
           </li>
-          <li class="nav-item">
-            <button type="button" class="btn btn-outline-primary mx-1" id="downloadBtn">
+          <li class="nav-item  mx-1">
+            <button type="button" class="btn btn-outline-primary" id="downloadBtn">
               <i class="fas fa-download"></i> Download
             </button>
           </li>
-          <li class="nav-item">
+          <li class="nav-item mx-1">
             <form id="uploadForm" method="post" enctype="multipart/form-data">
               <input type="file" name="file" id="fileInput" style="display: none" />
               <input type="submit" value="Upload" id="uploadBtn" style="display: none" />
-              <label class="btn btn-outline-primary mx-1" for="fileInput"><i class="fas fa-upload"></i> Upload</label>
+              <label class="btn btn-outline-primary " for="fileInput"><i class="fas fa-upload"></i> Upload</label>
             </form>
           </li>
           <li class="nav-item">
@@ -101,13 +107,12 @@
               <i class="fa-solid fa-circle-info"></i>
             </button>
           </li>
-          <li class="nav-item">
-            <a class="btn btn-outline-info mx-1" href="/" role="button"><i class="fa-solid fa-rotate-right"></i>
+          <li class="nav-item mx-1">
+            <a class="btn btn-outline-info " href="/" role="button"><i class="fa-solid fa-rotate-right"></i>
               Reload</a>
           </li>
-          <li class="nav-item">
-
-            <button class="btn btn-outline-danger mx-1" id="ExitBtn">
+          <li class="nav-item mx-1">
+            <button class="btn btn-outline-danger" id="ExitBtn">
               <i class="fa-solid fa-circle-xmark"></i> EXIT
             </button>
           </li>
@@ -351,66 +356,6 @@
     </div>
   </div>
 
-  <!-- Add Scene Modifier -->
-  <div class="modal" tabindex="-1" id="addModifierModal">
-    <div class="modal-dialog">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title">Add Scene Modifier</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-        </div>
-        <div class="modal-body">
-          <div class="mb-3">
-            <label for="addSceneModifierImport" class="form-label">Path to modifier <code>class</code></label>
-            <input type="email" class="form-control" id="addSceneModifierImport"
-              aria-describedby="addSceneModifierImportHelp" />
-            <div id="addSceneModifierImportHelp" class="form-text">
-              The input should be <code>module.cls</code> such that
-              <code> from module import cls</code> works.
-            </div>
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-            Close
-          </button>
-          <button type="button" class="btn btn-primary" id="addSceneModifierImportBtn">
-            Load
-          </button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Add Bonds -->
-  <div class="modal" tabindex="-1" id="addBondsModal">
-    <div class="modal-dialog">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title">Add Bonds</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-        </div>
-        <div class="modal-body">
-          <div class="mb-3">
-            <label for="addBondsImport" class="form-label">Path to bonds <code>class</code></label>
-            <input type="email" class="form-control" id="addBondsImport" aria-describedby="addBondsImportHelp" />
-            <div id="addBondsImportHelp" class="form-text">
-              The input should be <code>module.cls</code> such that
-              <code> from module import cls</code> works.
-            </div>
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-            Close
-          </button>
-          <button type="button" class="btn btn-primary" id="addBondsImportBtn">
-            Load
-          </button>
-        </div>
-      </div>
-    </div>
-  </div>
 
   <!-- Play / Pause Button -->
   <div id="playPauseCtrl">
@@ -426,6 +371,19 @@
       </button>
     </div>
   </div>
+  
+  <!-- ZnDraw Console -->
+
+<div class="collapse" id="ZnDrawConsole" >
+  <div class="card" id="ZnDrawConsoleCard">
+  <div class="card-header">
+    Console
+  </div>
+    <div class="card-body overflow-y-auto" id="ZnDrawConsoleBody">
+    </div>
+  </div>
+</div>
+
 
   <!-- Progress Bar -->
   <div id="info"></div>
