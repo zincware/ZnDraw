@@ -1,4 +1,5 @@
 import { Cache } from "./pycom/Cache.js";
+import { Bookmarks } from "./pycom/Bookmarks.js";
 import { World } from "./World/World.js";
 import { setUIEvents } from "./UI/UI.js";
 import { initJSONEditor } from "./UI/json_editor.js";
@@ -28,6 +29,7 @@ function main() {
   const cache = new Cache(socket);
   const container = document.querySelector("#scene-container");
   const world = new World(container, cache, socket);
+  const bookmarks = new Bookmarks(world, cache, socket);
 
   setUIEvents(socket, cache, world);
   initJSONEditor(socket, cache, world);

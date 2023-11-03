@@ -215,6 +215,20 @@ class ZnDrawBase:  # collections.abc.MutableSequence
         self.socket.emit(
             "scene:pause", {"sid": self._target_sid if self._target_sid else self.token}
         )
+    
+    @property
+    def bookmarks(self) -> dict:
+        if self._target_sid is not None:
+            return self.socket.call("bookmarks:get", {"sid": self._target_sid})
+        else:
+            return self.socket.call("bookmarks:get", {})
+    
+    @bookmarks.setter
+    def bookmarks(self, value: dict):
+        data = {"bookmarks": value}
+        if self._target_sid is not None:
+            data["sid"] = self._target_sid
+        self.socket.emit("bookmarks:set", data)
 
 
 @dataclasses.dataclass
