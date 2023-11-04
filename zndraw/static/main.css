@@ -340,3 +340,6 @@ body {
   right: 0;
   opacity: 95%;
 }
+.ManipulateElement {
+	position: absolute;
+}

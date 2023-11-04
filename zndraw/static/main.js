@@ -2,6 +2,7 @@ import { Cache } from "./pycom/Cache.js";
 import { World } from "./World/World.js";
 import { setUIEvents } from "./UI/UI.js";
 import { initJSONEditor } from "./UI/json_editor.js";
+import { ManipulateElement } from "./UI/ManipulateElement.js";
 
 function setupSocket() {
   const socket = io();
@@ -51,7 +52,7 @@ function main() {
     // automatically scroll to bottom of consoleBody
     consoleBody.scrollTop = consoleBody.scrollHeight;
   });
-
+  const zndraw_console_card_manipulator = new ManipulateElement("#ZnDrawConsoleCard");
   document.getElementById("atom-spinner").style.display = "none";
 }
 
