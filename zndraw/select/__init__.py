@@ -2,12 +2,11 @@ import random
 import typing as t
 from typing import Any
 
-import ase
 import networkx as nx
 from pydantic import BaseModel, Field
 
 try:
-    from zndraw.select import mda
+    from zndraw.select import mda  # noqa: F401
 except ImportError:
     # mdanalysis is not installed
     pass
@@ -34,7 +33,6 @@ class All(SelectionBase):
 
     def run(self, vis) -> None:
         atoms = vis[vis.step]
-        selected_ids = vis.selection
         vis.selection = list(range(len(atoms)))
 
 

@@ -1,8 +1,10 @@
-from pydantic import BaseModel, Field
-import ase.io
-import MDAnalysis as mda
 import io
 import typing as t
+
+import ase.io
+import MDAnalysis as mda
+from pydantic import BaseModel, Field
+
 
 class MDAnalysis(BaseModel):
     """Select Particles using MDAnalysis selection syntax."""
@@ -24,4 +26,5 @@ class MDAnalysis(BaseModel):
             vis.selection = selection      
 
 from zndraw.settings import _SELECTION_FUNCTIONS
+
 _SELECTION_FUNCTIONS.append("zndraw.select.mda.MDAnalysis")

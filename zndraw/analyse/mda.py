@@ -1,13 +1,13 @@
-from pydantic import BaseModel, Field
-import ase.io
-import MDAnalysis as mda
-from MDAnalysis.analysis import rdf
-from MDAnalysis.analysis import msd
+import enum
 import io
 import typing as t
+
+import ase.io
+import MDAnalysis as mda
 import numpy as np
 import plotly.express as px
-import enum
+from MDAnalysis.analysis import msd, rdf
+from pydantic import BaseModel, Field
 
 if t.TYPE_CHECKING:
     from zndraw import ZnDraw
@@ -85,5 +85,6 @@ class MDAEinsteinMSD(BaseModel):
 
 
 from zndraw.settings import _ANALYSIS_FUNCTIONS
+
 _ANALYSIS_FUNCTIONS.append("zndraw.analyse.mda.MDAInterRDF")
 _ANALYSIS_FUNCTIONS.append("zndraw.analyse.mda.MDAEinsteinMSD")

@@ -2,20 +2,20 @@ import itertools
 import logging
 import typing as t
 
-import ase
 import numpy as np
 import pandas as pd
 import plotly.express as px
 from pydantic import BaseModel, ConfigDict, Field
 
-from zndraw.utils import set_global_atoms
+from zndraw.utils import SHARED, set_global_atoms
+
 try:
-    from zndraw.analyse import mda
+    from zndraw.analyse import mda  # noqa: F401
 except ImportError:
     # mdanalysis is not installed
     pass
 
-from zndraw.utils import SHARED, set_global_atoms
+
 
 log = logging.getLogger(__name__)
 
@@ -86,7 +86,7 @@ class Properties2D(BaseModel):
         return schema
 
     def run(self, vis):
-        atoms_lst, ids = list(vis), vis.selection
+        atoms_lst = list(vis)
         log.info(f"run {self}")
 
         if self.x_data == "step":
@@ -151,7 +151,7 @@ class Properties1D(BaseModel):
         return schema
 
     def run(self, vis):
-        atoms_lst, ids = list(vis), vis.selection
+        atoms_lst = list(vis)
         data = np.array([x.calc.results[self.value] for x in atoms_lst])
 
         df = pd.DataFrame({"step": list(range(len(atoms_lst))), self.value: data})

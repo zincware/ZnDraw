@@ -53,3 +53,6 @@ select = ["I", "F"]
 # by default do not run pytest marked with "chrome"
 [tool.pytest.ini_options]
 addopts = "-m 'not chrome'"
+
+[tool.codespell]
+skip = "poetry.lock"
