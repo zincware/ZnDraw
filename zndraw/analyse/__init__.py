@@ -30,6 +30,7 @@ class Distance(BaseModel):
     smooth: bool = False
 
     def run(self, vis):
+        atoms_lst, ids = list(vis), vis.selection
         distances = {}
         for x in itertools.combinations(ids, 2):
             distances[f"{tuple(x)}"] = []
@@ -57,7 +58,7 @@ class Distance(BaseModel):
                     fig.add_scatter(
                         x=smooth_df["step"], y=smooth_df[col], name=f"smooth_{col}"
                     )
-        return fig
+        vis.figure = fig.to_json()
 
 
 class Properties2D(BaseModel):
@@ -85,6 +86,7 @@ class Properties2D(BaseModel):
         return schema
 
     def run(self, vis):
+        atoms_lst, ids = list(vis), vis.selection
         log.info(f"run {self}")
 
         if self.x_data == "step":
@@ -124,7 +126,7 @@ class Properties2D(BaseModel):
                 scaleanchor="x",
                 scaleratio=1,
             )
-        return fig
+        vis.figure = fig.to_json()
 
 
 class Properties1D(BaseModel):
@@ -149,6 +151,7 @@ class Properties1D(BaseModel):
         return schema
 
     def run(self, vis):
+        atoms_lst, ids = list(vis), vis.selection
         data = np.array([x.calc.results[self.value] for x in atoms_lst])
 
         df = pd.DataFrame({"step": list(range(len(atoms_lst))), self.value: data})
@@ -163,7 +166,7 @@ class Properties1D(BaseModel):
                         x=smooth_df["step"], y=smooth_df[col], name=f"smooth_{col}"
                     )
 
-        return fig
+        vis.figure = fig.to_json()
 
 
 def get_analysis_class(methods):

@@ -215,6 +215,17 @@ class ZnDrawBase:  # collections.abc.MutableSequence
         self.socket.emit(
             "scene:pause", {"sid": self._target_sid if self._target_sid else self.token}
         )
+    
+    @property
+    def figure(self):
+        raise NotImplementedError("Gathering figure from webclient not implemented yet")
+    
+    @figure.setter
+    def figure(self, fig: str):
+        data = {"figure": fig}
+        if self._target_sid is not None:
+            data["sid"] = self._target_sid
+        self.socket.emit("analysis:figure", data)
 
 
 @dataclasses.dataclass
@@ -342,9 +353,6 @@ class ZnDrawDefault(ZnDrawBase):
             try:
                 instance = cls(**data["params"])
                 instance.run(self)
-                # fig = instance.run(list(self), self.selection)
-                # data = {"figure": fig.to_json(), "sid": self._target_sid}
-                # self.socket.emit("analysis:figure", data)
             except ValueError as err:
                 log.critical(err)
 
