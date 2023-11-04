@@ -52,7 +52,9 @@ function main() {
     // automatically scroll to bottom of consoleBody
     consoleBody.scrollTop = consoleBody.scrollHeight;
   });
-  const zndraw_console_card_manipulator = new ManipulateElement("#ZnDrawConsoleCard");
+  const zndraw_console_card_manipulator = new ManipulateElement(
+    "#ZnDrawConsoleCard",
+  );
   document.getElementById("atom-spinner").style.display = "none";
 }
 
