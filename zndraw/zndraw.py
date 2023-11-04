@@ -215,11 +215,11 @@ class ZnDrawBase:  # collections.abc.MutableSequence
         self.socket.emit(
             "scene:pause", {"sid": self._target_sid if self._target_sid else self.token}
         )
-    
+
     @property
     def figure(self):
         raise NotImplementedError("Gathering figure from webclient not implemented yet")
-    
+
     @figure.setter
     def figure(self, fig: str):
         data = {"figure": fig}
@@ -338,7 +338,7 @@ class ZnDrawDefault(ZnDrawBase):
         with self._set_sid(data["sid"]):
             config = GlobalConfig.load()
             cls = get_selection_class(config.get_selection_methods())
-            
+
             try:
                 selection = cls(**data["params"])
                 selection.run(self)

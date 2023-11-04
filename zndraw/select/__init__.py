@@ -14,6 +14,7 @@ except ImportError:
 if t.TYPE_CHECKING:
     from zndraw import ZnDraw
 
+
 class SelectionBase(BaseModel):
     def run(self, vis: "ZnDraw") -> None:
         raise NotImplementedError()

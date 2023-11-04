@@ -15,15 +15,16 @@ class MDAnalysis(BaseModel):
 
     def run(self, vis) -> None:
         with io.StringIO() as f:
-            ase.io.write(f, vis[vis.step], format='xyz')
-            u = mda.Universe(f, format='XYZ', in_memory=True)
-        
+            ase.io.write(f, vis[vis.step], format="xyz")
+            u = mda.Universe(f, format="XYZ", in_memory=True)
+
         selection = u.select_atoms(self.selection).ids.tolist()
-        selection = [i-1 for i in selection]
+        selection = [i - 1 for i in selection]
         if self.append:
             vis.selection = list(set(vis.selection + selection))
         else:
-            vis.selection = selection      
+            vis.selection = selection
+
 
 from zndraw.settings import _SELECTION_FUNCTIONS
 
