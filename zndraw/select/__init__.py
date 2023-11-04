@@ -21,7 +21,7 @@ class SelectionBase(BaseModel):
 
 
 class NoneSelection(SelectionBase):
-    method: t.Literal["NoneSelection"] = Field("NoneSelection")
+    discriminator: t.Literal["NoneSelection"] = Field("NoneSelection")
 
     def run(self, vis) -> None:
         vis.selection = []
@@ -30,7 +30,7 @@ class NoneSelection(SelectionBase):
 class All(SelectionBase):
     """Select all atoms."""
 
-    method: t.Literal["All"] = Field("All")
+    discriminator: t.Literal["All"] = Field("All")
 
     def run(self, vis) -> None:
         atoms = vis[vis.step]
@@ -39,7 +39,7 @@ class All(SelectionBase):
 
 
 class Invert(SelectionBase):
-    method: t.Literal["Invert"] = Field("Invert")
+    discriminator: t.Literal["Invert"] = Field("Invert")
 
     def run(self, vis) -> None:
         atoms = vis[vis.step]
@@ -48,7 +48,7 @@ class Invert(SelectionBase):
 
 
 class Range(SelectionBase):
-    method: t.Literal["Range"] = Field("Range")
+    discriminator: t.Literal["Range"] = Field("Range")
 
     start: int = Field(..., description="Start index")
     end: int = Field(..., description="End index")
@@ -59,7 +59,7 @@ class Range(SelectionBase):
 
 
 class Random(SelectionBase):
-    method: t.Literal["Random"] = Field("Random")
+    discriminator: t.Literal["Random"] = Field("Random")
 
     count: int = Field(..., description="Number of atoms to select")
 
@@ -69,7 +69,7 @@ class Random(SelectionBase):
 
 
 class IdenticalSpecies(SelectionBase):
-    method: t.Literal["IdenticalSpecies"] = Field("IdenticalSpecies")
+    discriminator: t.Literal["IdenticalSpecies"] = Field("IdenticalSpecies")
 
     def run(self, vis) -> None:
         atoms = vis[vis.step]
@@ -84,7 +84,7 @@ class IdenticalSpecies(SelectionBase):
 
 
 class ConnectedParticles(SelectionBase):
-    method: t.Literal["ConnectedParticles"] = Field("ConnectedParticles")
+    discriminator: t.Literal["ConnectedParticles"] = Field("ConnectedParticles")
 
     def run(self, vis) -> None:
         atoms = vis[vis.step]
@@ -104,7 +104,7 @@ class ConnectedParticles(SelectionBase):
 class Neighbour(SelectionBase):
     """Select the nth order neighbours of the selected atoms."""
 
-    method: t.Literal["Neighbour"] = Field("Neighbour")
+    discriminator: t.Literal["Neighbour"] = Field("Neighbour")
 
     order: int = Field(1, description="Order of neighbour")
 
@@ -128,7 +128,7 @@ class Neighbour(SelectionBase):
 def get_selection_class(methods):
     class Selection(SelectionBase):
         method: methods = Field(
-            ..., description="Selection method", discriminator="method"
+            ..., description="Selection method", discriminator="discriminator"
         )
 
         def run(self, vis: "ZnDraw") -> None:
@@ -138,10 +138,10 @@ def get_selection_class(methods):
         def model_json_schema(cls, *args, **kwargs) -> dict[str, Any]:
             schema = super().model_json_schema(*args, **kwargs)
             for prop in [x.__name__ for x in t.get_args(methods)]:
-                schema["$defs"][prop]["properties"]["method"]["options"] = {
+                schema["$defs"][prop]["properties"]["discriminator"]["options"] = {
                     "hidden": True
                 }
-                schema["$defs"][prop]["properties"]["method"]["type"] = "string"
+                schema["$defs"][prop]["properties"]["discriminator"]["type"] = "string"
 
             return schema
 
