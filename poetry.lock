@@ -2736,6 +2736,23 @@ files = [
 ]
 
 [[package]]
+name = "tidynamics"
+version = "1.1.2"
+description = "Tiny package to compute dynamics correlations"
+optional = true
+python-versions = ">=3.7"
+files = [
+    {file = "tidynamics-1.1.2-py3-none-any.whl", hash = "sha256:3edd862271ef136e35129b303153e790914b66644b2641c92a72a7878a16a858"},
+    {file = "tidynamics-1.1.2.tar.gz", hash = "sha256:103874edd79dc64a0c7b765f51200926822e74df63703acb6c630a8167dbcfa2"},
+]
+
+[package.dependencies]
+numpy = "*"
+
+[package.extras]
+test = ["pytest"]
+
+[[package]]
 name = "toml"
 version = "0.10.2"
 description = "Python Library for Tom's Obvious, Minimal Language"
@@ -2981,7 +2998,10 @@ typer = {version = ">=0.7.0,<0.8.0", extras = ["all"]}
 [package.extras]
 dask = ["dask[array] (>=2022.11.1,<2023.0.0)"]
 
+[extras]
+all = ["mdanalysis"]
+
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.9"
-content-hash = "d446e5414951a08e241aba8fdcab3bec541787775e59f4adc9d92d0192e03fb5"
+content-hash = "a1ddec404e40eea3405f00f6b4c3440813bb2afe2b11d9aea67d31979ebe75b0"

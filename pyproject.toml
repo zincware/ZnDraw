@@ -23,6 +23,7 @@ plotly = "^5.16.1"
 pandas = "^2.0.3"
 datamodel-code-generator = "^0.22.1"
 mdanalysis = {version = "^2.6.1", optional = true}
+tidynamics = {version = "^1.1.2", optional = true}
 
 [tool.poetry.group.dev.dependencies]
 pre-commit = "^3.3.3"
@@ -31,7 +32,7 @@ coverage = "^7.3.1"
 selenium = "^4.14.0"
 
 [tool.poetry.extras]
-all = ["mdanalysis"]
+all = ["mdanalysis", "tidynamics"]
 
 [build-system]
 requires = ["poetry-core"]

@@ -2,11 +2,15 @@ from pydantic import BaseModel, Field
 import ase.io
 import MDAnalysis as mda
 from MDAnalysis.analysis import rdf
+from MDAnalysis.analysis import msd
 import io
 import typing as t
 import numpy as np
 import plotly.express as px
 import enum
+
+if t.TYPE_CHECKING:
+    from zndraw import ZnDraw
 
 class MDAInterRDFNorm(str, enum.Enum):
     """Normalization of RDF."""
@@ -49,6 +53,37 @@ class MDAInterRDF(BaseModel):
 
         vis.figure = fig.to_json()
 
+class MDAEinsteinMSD(BaseModel):
+    discriminator: t.Literal["MDAEinsteinMSD"] = Field("MDAEinsteinMSD")
+    selection: str = Field("all", description="MDAnalysis selection string")
+    delta_t: float = Field(0.1, description="Time step")
+
+    def run(self, vis: "ZnDraw") -> None:
+        vis.log("Running EinsteinMSD - Loading trajectory...")
+        with io.StringIO() as f:
+            ase.io.write(f, list(vis), format='xyz')
+            u = mda.Universe(f, format='XYZ', in_memory=True)
+        box = np.diag(vis[vis.step].cell)
+        u.dimensions = [box[0], box[1], box[2], 90, 90, 90]
+        # u.trajectory.dt = self.delta_t
+
+        vis.log("Running EinsteinMSD - Running analysis...")
+        MSD = msd.EinsteinMSD(u, select=self.selection, msd_type="xyz", fft=True)
+        MSD.run()
+        
+        nframes = MSD.n_frames
+        lagtimes = np.arange(nframes) * self.delta_t
+
+        fig = px.line(
+            x=lagtimes,
+            y=MSD.results.timeseries,
+            render_mode="svg"  # This is important, otherwise openGL will be used
+            # and there can/will be issues with three.js
+        )
+        vis.figure = fig.to_json()
+
+
 
 from zndraw.settings import _ANALYSIS_FUNCTIONS
 _ANALYSIS_FUNCTIONS.append("zndraw.analyse.mda.MDAInterRDF")
+_ANALYSIS_FUNCTIONS.append("zndraw.analyse.mda.MDAEinsteinMSD")
