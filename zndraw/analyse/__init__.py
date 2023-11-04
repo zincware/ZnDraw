@@ -2,13 +2,13 @@ import itertools
 import logging
 import typing as t
 
-import ase
 import numpy as np
 import pandas as pd
 import plotly.express as px
 from pydantic import BaseModel, ConfigDict, Field
 
 from zndraw.utils import set_global_atoms
+
 try:
     from zndraw.analyse import mda
 except ImportError:

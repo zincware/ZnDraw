@@ -2,7 +2,6 @@ import random
 import typing as t
 from typing import Any
 
-import ase
 import networkx as nx
 from pydantic import BaseModel, Field
 
@@ -14,6 +13,7 @@ except ImportError:
 
 if t.TYPE_CHECKING:
     from zndraw import ZnDraw
+
 
 class SelectionBase(BaseModel):
     def run(self, vis: "ZnDraw") -> None:
@@ -34,7 +34,6 @@ class All(SelectionBase):
 
     def run(self, vis) -> None:
         atoms = vis[vis.step]
-        selected_ids = vis.selection
         vis.selection = list(range(len(atoms)))
 
 
