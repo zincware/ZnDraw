@@ -22,11 +22,11 @@ log = logging.getLogger(__name__)
 
 
 class Distance(BaseModel):
-    method: t.Literal["Distance"] = "Distance"
+    discriminator: t.Literal["Distance"] = "Distance"
 
     smooth: bool = False
 
-    def run(self, atoms_lst, ids):
+    def run(self, vis):
         distances = {}
         for x in itertools.combinations(ids, 2):
             distances[f"{tuple(x)}"] = []
@@ -58,7 +58,7 @@ class Distance(BaseModel):
 
 
 class Properties2D(BaseModel):
-    method: t.Literal["Properties2D"] = "Properties2D"
+    discriminator: t.Literal["Properties2D"] = "Properties2D"
 
     x_data: str = "step"
     y_data: str = "energy"
@@ -80,7 +80,7 @@ class Properties2D(BaseModel):
             pass
         return schema
 
-    def run(self, atoms_lst, ids):
+    def run(self, vis):
         log.info(f"run {self}")
 
         if self.x_data == "step":
@@ -124,7 +124,7 @@ class Properties2D(BaseModel):
 
 
 class Properties1D(BaseModel):
-    method: t.Literal["Properties1D"] = "Properties1D"
+    discriminator: t.Literal["Properties1D"] = "Properties1D"
 
     value: str = "energy"
     smooth: bool = False
@@ -142,7 +142,7 @@ class Properties1D(BaseModel):
             pass
         return schema
 
-    def run(self, atoms_lst, ids):
+    def run(self, vis):
         data = np.array([x.calc.results[self.value] for x in atoms_lst])
 
         df = pd.DataFrame({"step": list(range(len(atoms_lst))), self.value: data})
@@ -163,10 +163,10 @@ class Properties1D(BaseModel):
 def get_analysis_class(methods):
     class Analysis(BaseModel):
         method: methods = Field(
-            ..., description="Analysis method", discriminator="method"
+            ..., description="Analysis method", discriminator="discriminator"
         )
 
-        def run(self, *args, **kwargs) -> list[ase.Atoms]:
+        def run(self, *args, **kwargs) -> None:
             return self.method.run(*args, **kwargs)
 
         @classmethod
@@ -177,15 +177,15 @@ def get_analysis_class(methods):
                 result = cls.model_json_schema(*args, **kwargs)
             return result
 
-        @classmethod
-        def model_json_schema(cls, *args, **kwargs) -> dict[str, t.Any]:
-            schema = super().model_json_schema(*args, **kwargs)
-            for prop in [x.__name__ for x in t.get_args(methods)]:
-                schema["$defs"][prop]["properties"]["method"]["options"] = {
-                    "hidden": True
-                }
-                schema["$defs"][prop]["properties"]["method"]["type"] = "string"
+        # @classmethod
+        # def model_json_schema(cls, *args, **kwargs) -> dict[str, t.Any]:
+        #     schema = super().model_json_schema(*args, **kwargs)
+        #     for prop in [x.__name__ for x in t.get_args(methods)]:
+        #         schema["$defs"][prop]["properties"]["method"]["options"] = {
+        #             "hidden": True
+        #         }
+        #         schema["$defs"][prop]["properties"]["method"]["type"] = "string"
 
-            return schema
+        #     return schema
 
     return Analysis

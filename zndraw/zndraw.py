@@ -338,9 +338,10 @@ class ZnDrawDefault(ZnDrawBase):
 
             try:
                 instance = cls(**data["params"])
-                fig = instance.run(list(self), self.selection)
-                data = {"figure": fig.to_json(), "sid": self._target_sid}
-                self.socket.emit("analysis:figure", data)
+                instance.run(self)
+                # fig = instance.run(list(self), self.selection)
+                # data = {"figure": fig.to_json(), "sid": self._target_sid}
+                # self.socket.emit("analysis:figure", data)
             except ValueError as err:
                 log.critical(err)
 
