@@ -6,17 +6,25 @@ import ase
 import networkx as nx
 from pydantic import BaseModel, Field
 
+try:
+    from zndraw.select import mda
+except ImportError:
+    # mdanalysis is not installed
+    pass
+
+if t.TYPE_CHECKING:
+    from zndraw import ZnDraw
 
 class SelectionBase(BaseModel):
-    def get_ids(self, atoms: ase.Atoms, selected_ids: list[int]) -> list[int]:
+    def run(self, vis: "ZnDraw") -> None:
         raise NotImplementedError()
 
 
 class NoneSelection(SelectionBase):
     method: t.Literal["NoneSelection"] = Field("NoneSelection")
 
-    def get_ids(self, atoms: ase.Atoms, selected_ids: list[int]) -> list[int]:
-        return []
+    def run(self, vis) -> None:
+        vis.selection = []
 
 
 class All(SelectionBase):
@@ -24,15 +32,19 @@ class All(SelectionBase):
 
     method: t.Literal["All"] = Field("All")
 
-    def get_ids(self, atoms: ase.Atoms, selected_ids: list[int]) -> list[int]:
-        return list(range(len(atoms)))
+    def run(self, vis) -> None:
+        atoms = vis[vis.step]
+        selected_ids = vis.selection
+        vis.selection = list(range(len(atoms)))
 
 
 class Invert(SelectionBase):
     method: t.Literal["Invert"] = Field("Invert")
 
-    def get_ids(self, atoms: ase.Atoms, selected_ids: list[int]) -> list[int]:
-        return list(set(range(len(atoms))) - set(selected_ids))
+    def run(self, vis) -> None:
+        atoms = vis[vis.step]
+        selected_ids = vis.selection
+        vis.selection = list(set(range(len(atoms))) - set(selected_ids))
 
 
 class Range(SelectionBase):
@@ -42,8 +54,8 @@ class Range(SelectionBase):
     end: int = Field(..., description="End index")
     step: int = Field(1, description="Step size")
 
-    def get_ids(self, atoms: ase.Atoms, selected_ids: list[int]) -> list[int]:
-        return list(range(self.start, self.end, self.step))
+    def run(self, vis) -> None:
+        vis.selection = list(range(self.start, self.end, self.step))
 
 
 class Random(SelectionBase):
@@ -51,27 +63,32 @@ class Random(SelectionBase):
 
     count: int = Field(..., description="Number of atoms to select")
 
-    def get_ids(self, atoms: ase.Atoms, selected_ids: list[int]) -> list[int]:
-        return random.sample(range(len(atoms)), self.count)
+    def run(self, vis) -> None:
+        atoms = vis[vis.step]
+        vis.selection = random.sample(range(len(atoms)), self.count)
 
 
 class IdenticalSpecies(SelectionBase):
     method: t.Literal["IdenticalSpecies"] = Field("IdenticalSpecies")
 
-    def get_ids(self, atoms: ase.Atoms, selected_ids: list[int]) -> list[int]:
+    def run(self, vis) -> None:
+        atoms = vis[vis.step]
+        selected_ids = vis.selection
         selected_ids = set(selected_ids)
         for idx in tuple(selected_ids):
             selected_symbol = atoms[idx].symbol
             selected_ids.update(
                 idx for idx, atom in enumerate(atoms) if atom.symbol == selected_symbol
             )
-        return list(selected_ids)
+        vis.selection = list(selected_ids)
 
 
 class ConnectedParticles(SelectionBase):
     method: t.Literal["ConnectedParticles"] = Field("ConnectedParticles")
 
-    def get_ids(self, atoms: ase.Atoms, selected_ids: list[int]) -> list[int]:
+    def run(self, vis) -> None:
+        atoms = vis[vis.step]
+        selected_ids = vis.selection
         total_ids = []
         try:
             graph = atoms.connectivity
@@ -81,7 +98,7 @@ class ConnectedParticles(SelectionBase):
         for node_id in selected_ids:
             total_ids += list(nx.node_connected_component(graph, node_id))
 
-        return list(set(total_ids))
+        vis.selection = list(set(total_ids))
 
 
 class Neighbour(SelectionBase):
@@ -91,8 +108,10 @@ class Neighbour(SelectionBase):
 
     order: int = Field(1, description="Order of neighbour")
 
-    def get_ids(self, atoms: ase.Atoms, selected_ids: list[int]) -> list[int]:
+    def run(self, vis) -> None:
         total_ids = []
+        atoms = vis[vis.step]
+        selected_ids = vis.selection
         try:
             graph = atoms.connectivity
         except AttributeError:
@@ -103,7 +122,7 @@ class Neighbour(SelectionBase):
                 nx.single_source_shortest_path_length(graph, node_id, self.order).keys()
             )
 
-        return list(set(total_ids))
+        vis.selection = list(set(total_ids))
 
 
 def get_selection_class(methods):
@@ -112,8 +131,8 @@ def get_selection_class(methods):
             ..., description="Selection method", discriminator="method"
         )
 
-        def get_ids(self, atoms: ase.Atoms, selected_ids: list[int]) -> list[int]:
-            return self.method.get_ids(atoms, selected_ids)
+        def run(self, vis: "ZnDraw") -> None:
+            self.method.run(vis)
 
         @classmethod
         def model_json_schema(cls, *args, **kwargs) -> dict[str, Any]:

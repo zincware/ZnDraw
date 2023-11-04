@@ -10,8 +10,15 @@ import plotly.express as px
 from pydantic import BaseModel, Field
 
 from zndraw.utils import set_global_atoms
+try:
+    from zndraw.analyse import mda
+except ImportError:
+    # mdanalysis is not installed
+    pass
+
 
 log = logging.getLogger(__name__)
+
 
 
 class Distance(BaseModel):

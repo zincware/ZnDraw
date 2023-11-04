@@ -324,11 +324,10 @@ class ZnDrawDefault(ZnDrawBase):
         with self._set_sid(data["sid"]):
             config = GlobalConfig.load()
             cls = get_selection_class(config.get_selection_methods())
-            atoms = self[self.step]
-
+            
             try:
                 selection = cls(**data["params"])
-                self.selection = selection.get_ids(atoms, self.selection)
+                selection.run(self)
             except ValueError as err:
                 log.critical(err)
 

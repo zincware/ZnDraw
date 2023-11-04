@@ -22,12 +22,16 @@ python-socketio = {extras = ["client"], version = "^5.8.0"}
 plotly = "^5.16.1"
 pandas = "^2.0.3"
 datamodel-code-generator = "^0.22.1"
+mdanalysis = {version = "^2.6.1", optional = true}
 
 [tool.poetry.group.dev.dependencies]
 pre-commit = "^3.3.3"
 pytest = "^7.4.2"
 coverage = "^7.3.1"
 selenium = "^4.14.0"
+
+[tool.poetry.extras]
+all = ["mdanalysis"]
 
 [build-system]
 requires = ["poetry-core"]
