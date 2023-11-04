@@ -1,13 +1,12 @@
 import itertools
 import logging
 import typing as t
-from typing import Any
 
 import ase
 import numpy as np
 import pandas as pd
 import plotly.express as px
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from zndraw.utils import set_global_atoms
 try:
@@ -16,13 +15,17 @@ except ImportError:
     # mdanalysis is not installed
     pass
 
+from zndraw.utils import SHARED, set_global_atoms
 
 log = logging.getLogger(__name__)
 
 
+def _schema_from_atoms(schema, cls):
+    return cls.model_json_schema_from_atoms(schema)
+
 
 class Distance(BaseModel):
-    discriminator: t.Literal["Distance"] = "Distance"
+    discriminator: t.Literal["Distance"] = Field("Distance")
 
     smooth: bool = False
 
@@ -58,20 +61,21 @@ class Distance(BaseModel):
 
 
 class Properties2D(BaseModel):
-    discriminator: t.Literal["Properties2D"] = "Properties2D"
-
+    discriminator: t.Literal["Properties2D"] = Field("Properties2D")
     x_data: str = "step"
     y_data: str = "energy"
     color: str = "energy"
     fix_aspect_ratio: bool = True
 
+    model_config = ConfigDict(json_schema_extra=_schema_from_atoms)
+
     @classmethod
-    def model_json_schema(cls, *args, **kwargs) -> dict[str, Any]:
-        schema = super().model_json_schema(*args, **kwargs)
-        log.debug(f"GATHERING PROPERTIES FROM {ATOMS=}")  # noqa: F821
+    def model_json_schema_from_atoms(cls, schema: dict) -> dict:
+        ATOMS = SHARED["atoms"]
+        log.debug(f"GATHERING PROPERTIES FROM {ATOMS=}")
         try:
-            available_properties = list(ATOMS.calc.results)  # noqa: F821
-            available_properties += list(ATOMS.arrays)  # noqa: F821
+            available_properties = list(ATOMS.calc.results)
+            available_properties += list(ATOMS.arrays)
             available_properties += ["step"]
             schema["properties"]["x_data"]["enum"] = available_properties
             schema["properties"]["y_data"]["enum"] = available_properties
@@ -124,22 +128,24 @@ class Properties2D(BaseModel):
 
 
 class Properties1D(BaseModel):
-    discriminator: t.Literal["Properties1D"] = "Properties1D"
+    discriminator: t.Literal["Properties1D"] = Field("Properties1D")
 
     value: str = "energy"
     smooth: bool = False
 
+    model_config = ConfigDict(json_schema_extra=_schema_from_atoms)
+
     @classmethod
-    def model_json_schema(cls, *args, **kwargs) -> dict[str, Any]:
-        schema = super().model_json_schema(*args, **kwargs)
+    def model_json_schema_from_atoms(cls, schema: dict) -> dict:
+        ATOMS = SHARED["atoms"]
         try:
             available_properties = list(
-                ATOMS.calc.results.keys()  # noqa: F821
+                ATOMS.calc.results.keys()
             )  # global ATOMS object
             log.debug(f"AVAILABLE PROPERTIES: {available_properties=}")
             schema["properties"]["value"]["enum"] = available_properties
         except AttributeError:
-            pass
+            print(f"{ATOMS=}")
         return schema
 
     def run(self, vis):
@@ -176,16 +182,5 @@ def get_analysis_class(methods):
             with set_global_atoms(atoms):
                 result = cls.model_json_schema(*args, **kwargs)
             return result
-
-        # @classmethod
-        # def model_json_schema(cls, *args, **kwargs) -> dict[str, t.Any]:
-        #     schema = super().model_json_schema(*args, **kwargs)
-        #     for prop in [x.__name__ for x in t.get_args(methods)]:
-        #         schema["$defs"][prop]["properties"]["method"]["options"] = {
-        #             "hidden": True
-        #         }
-        #         schema["$defs"][prop]["properties"]["method"]["type"] = "string"
-
-        #     return schema
 
     return Analysis
