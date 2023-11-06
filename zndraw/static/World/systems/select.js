@@ -123,17 +123,33 @@ class Selection {
     const canvasIntersects = this.getIntersections(canvas3D);
 
     if (particleIntersects.length > 0) {
+      if (!this.line3D.pointer) {
+        this.line3D.pointer = this.line3D.addPointer();
+      }
       const position = particleIntersects[0].point.clone();
       this.line3D.movePointer(position);
     } else if (canvasIntersects.length > 0) {
       if (canvasIntersects[0].object.name === "canvas3D") {
+        console.log("pointer on canvas");
+        if (!this.line3D.pointer) {
+          this.line3D.pointer = this.line3D.addPointer();
+        }
         const position = canvasIntersects[0].point.clone();
         this.line3D.movePointer(position);
+      } else {
+        if (this.line3D.pointer) {
+          console.log("remove pointer");
+          this.line3D.removePointer(this.line3D.pointer);
+          this.line3D.pointer = undefined;
+        }
+      }
+    } else {
+      if (this.line3D.pointer) {
+        console.log("remove pointer");
+        this.line3D.removePointer(this.line3D.pointer);
+        this.line3D.pointer = undefined;
       }
     }
-    // } else {
-    //   this.line3D.removePointer();
-    // }
     return false;
   }
 
@@ -149,11 +165,11 @@ class Selection {
     if (this._drawing) {
       if (particleIntersects.length > 0) {
         const position = particleIntersects[0].point.clone();
-        this.line3D.addPoint(position);
+        this.line3D.pointer = this.line3D.addPoint(position);
       } else if (canvasIntersects.length > 0) {
         if (canvasIntersects[0].object.name === "canvas3D") {
           const position = canvasIntersects[0].point.clone();
-          this.line3D.addPoint(position);
+          this.line3D.pointer = this.line3D.addPoint(position);
         }
       }
     } else {
@@ -226,10 +242,12 @@ class Selection {
     document.getElementById("drawingSwitch").addEventListener("change", () => {
       this._drawing = document.getElementById("drawingSwitch").checked;
       if (this._drawing) {
-        this.line3D.addPointer();
         window.addEventListener("pointermove", onPointerMove);
       } else {
-        this.line3D.removePointer();
+        if (this.line3D.pointer) {
+          this.line3D.removePointer(this.line3D.pointer);
+          this.line3D.pointer = undefined;
+        }
         window.removeEventListener("pointermove", onPointerMove);
       }
     });
@@ -244,12 +262,14 @@ class Selection {
         if (event.key === "x") {
           if (this._drawing) {
             this._drawing = false;
-            this.line3D.removePointer();
+            if (this.line3D.pointer) {
+              this.line3D.removePointer(this.line3D.pointer);
+              this.line3D.pointer = undefined;
+            }
             window.removeEventListener("pointermove", onPointerMove);
             document.getElementById("drawingSwitch").checked = false;
           } else {
             this._drawing = true;
-            this.line3D.addPointer();
             this.transform_controls.detach();
             window.addEventListener("pointermove", onPointerMove);
             document.getElementById("drawingSwitch").checked = true;
@@ -289,8 +309,12 @@ class Selection {
           this.transform_controls.detach();
           if (this._drawing) {
             this._drawing = false;
-            this.line3D.removePointer();
+            if (this.line3D.pointer) {
+              this.line3D.removePointer(this.line3D.pointer);
+              this.line3D.pointer = undefined;
+            }
             window.removeEventListener("pointermove", onPointerMove);
+            document.getElementById("drawingSwitch").checked = false;
           }
         }
       }
