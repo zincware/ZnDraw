@@ -66,6 +66,26 @@ class Bookmarks {
   step() {
     this.updateBookmarks();
   }
+
+  jumpNext() {
+    const step = this.world.getStep();
+    const bookmarks = Object.keys(this.bookmarks);
+    const next_bookmark = bookmarks.find((bookmark) => bookmark > step);
+    if (next_bookmark) {
+      this.world.setStep(next_bookmark);
+    }
+  }
+
+  jumpPrevious() {
+    const step = this.world.getStep();
+    const bookmarks = Object.keys(this.bookmarks);
+    const previous_bookmark = bookmarks
+      .reverse()
+      .find((bookmark) => bookmark < step);
+    if (previous_bookmark) {
+      this.world.setStep(previous_bookmark);
+    }
+  }
 }
 
 export { Bookmarks };
