@@ -3,7 +3,6 @@ import { createLights } from "./components/lights.js";
 import { createScene } from "./components/scene.js";
 import { Bookmarks } from "../pycom/Bookmarks.js";
 
-
 import { createControls } from "./systems/controls.js";
 import { createRenderer, create2DRenderer } from "./systems/renderer.js";
 import { Resizer } from "./systems/Resizer.js";
@@ -182,7 +181,6 @@ class World {
     this.index_grp = new ParticleIndexGroup(this.particles, camera);
     const bookmarks = new Bookmarks(this, cache, socket);
 
-
     this.cell_grp = new CellGroup(cache);
 
     this.selection = new Selection(
@@ -226,7 +224,12 @@ class World {
     });
 
     loop.tick_updatables.push(controls, this.index_grp);
-    loop.step_updatables.push(this.particles, this.index_grp, this.cell_grp, bookmarks);
+    loop.step_updatables.push(
+      this.particles,
+      this.index_grp,
+      this.cell_grp,
+      bookmarks,
+    );
 
     const resizer = new Resizer(container, camera, renderer, renderer2d);
 
