@@ -55,11 +55,16 @@ class Bookmarks {
       });
       // set the position of the button to be relative  index / this.cache.get_length()
       button.style.left = `${(index / this.cache.get_length()) * 100}%`;
+
       button.style.position = "absolute";
       button.style.bottom = "5px";
       console.log(button.style.left);
       bookmark_envelope.appendChild(button);
     }
+  }
+
+  step() {
+    this.updateBookmarks();
   }
 }
 
