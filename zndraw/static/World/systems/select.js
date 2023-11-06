@@ -136,8 +136,7 @@ class Selection {
         }
         const position = canvasIntersects[0].point.clone();
         this.line3D.movePointer(position);
-      }
-      else {
+      } else {
         if (this.line3D.pointer) {
           console.log("remove pointer");
           this.line3D.removePointer(this.line3D.pointer);
