@@ -165,10 +165,24 @@ class ZnDrawBase:  # collections.abc.MutableSequence
     @property
     def points(self) -> np.ndarray:
         if self._target_sid is not None:
-            data = self.socket.call("scene:points", {"sid": self._target_sid})
+            data = self.socket.call("points:get", {"sid": self._target_sid})
         else:
-            data = self.socket.call("scene:points", {})
+            data = self.socket.call("points:get", {})
         return np.array([[val["x"], val["y"], val["z"]] for val in data])
+    
+    @points.setter
+    def points(self, value: t.Union[np.ndarray, list]) -> None:
+        if isinstance(value, np.ndarray):
+            value = value.tolist()
+        if len(value) > 0:
+            try:
+                assert len(value[0]) == 3
+            except (TypeError, AssertionError):
+                raise ValueError("Points must be a list of 3D coordinates")
+        data = {"value": value}
+        if self._target_sid is not None:
+            data["sid"] = self._target_sid
+        self.socket.emit("points:set", data)
 
     @property
     def segments(self) -> np.ndarray:
