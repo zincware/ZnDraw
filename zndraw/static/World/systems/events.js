@@ -18,10 +18,9 @@ export function duplicateAnchorPoints() {
   // TODO shift added point a bit + insert at correct position
   const transform_object = this.transform_controls.object;
   if (transform_object.name === "AnchorPoint" && !this._drawing) {
-    const index =
-      this.line3D.anchorPoints.children.indexOf(transform_object);
+    const index = this.line3D.anchorPoints.children.indexOf(transform_object);
 
-    let point
+    let point;
     if (index > 0) {
       // Add the point between the current and the previous point
       const obj_before = this.line3D.anchorPoints.children[index - 1];
@@ -44,7 +43,6 @@ export function duplicateAnchorPoints() {
 
         point = this.line3D.addPoint(new_pos, index - 1);
       }
-
     }
     this.transform_controls.detach();
     this.transform_controls.attach(point);
