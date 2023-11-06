@@ -50,8 +50,15 @@ class Bookmarks {
       button.setAttribute("title", name);
       // set z-index to 100
       button.style.zIndex = "100";
-      button.addEventListener("click", () => {
-        this.world.setStep(index);
+      button.addEventListener("click", (event) => {
+        // check if shift key is being pressed
+        if (event.shiftKey) {
+          // delete the bookmark
+          delete this.bookmarks[index];
+          this.updateBookmarks();
+        } else {
+          this.world.setStep(index);
+        }
       });
       // set the position of the button to be relative  index / this.cache.get_length()
       button.style.left = `${(index / this.cache.get_length()) * 100}%`;
