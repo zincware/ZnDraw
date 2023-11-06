@@ -8,12 +8,10 @@ class Bookmarks {
     this.socket.on(
       "bookmarks:get",
       function (callback) {
-        console.log("bookmarks:get");
         callback(this.bookmarks);
       }.bind(this),
     );
     this.socket.on("bookmarks:set", (bookmarks) => {
-      console.log("bookmarks:set");
       this.bookmarks = bookmarks;
       this.updateBookmarks();
     });
@@ -37,7 +35,13 @@ class Bookmarks {
     while (bookmark_envelope.firstChild) {
       bookmark_envelope.removeChild(bookmark_envelope.firstChild);
     }
-    console.log("update bookmarks");
+
+    // remove all bookmarks for frames larger than the cache length
+    for (const [index, name] of Object.entries(this.bookmarks)) {
+      if (index > this.cache.get_length()) {
+        delete this.bookmarks[index];
+      }
+    }
 
     for (const [index, name] of Object.entries(this.bookmarks)) {
       const button = document.createElement("button");
@@ -65,7 +69,6 @@ class Bookmarks {
 
       button.style.position = "absolute";
       button.style.bottom = "5px";
-      console.log(button.style.left);
       bookmark_envelope.appendChild(button);
     }
   }
