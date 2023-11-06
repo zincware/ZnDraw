@@ -244,7 +244,6 @@ class World {
       }.bind(this),
     );
 
-
     this.socket.on(
       "scene:segments",
       function (callback) {

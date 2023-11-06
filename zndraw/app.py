@@ -353,9 +353,7 @@ def scene_points(data: dict):
     else:
         try:
             # emit to all webclients in the group, if no sid is provided
-            return call(
-                "points:get", to=app.config["ROOM_HOSTS"][session["token"]][0]
-            )
+            return call("points:get", to=app.config["ROOM_HOSTS"][session["token"]][0])
         except KeyError:
             return "No host found."
 

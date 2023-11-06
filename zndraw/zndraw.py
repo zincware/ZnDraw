@@ -169,7 +169,7 @@ class ZnDrawBase:  # collections.abc.MutableSequence
         else:
             data = self.socket.call("points:get", {})
         return np.array([[val["x"], val["y"], val["z"]] for val in data])
-    
+
     @points.setter
     def points(self, value: t.Union[np.ndarray, list]) -> None:
         if isinstance(value, np.ndarray):
