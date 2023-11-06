@@ -235,7 +235,6 @@ class ManipulateElement {
         }
       }
       const element = this;
-      console.log(changes);
       changes.forEach((change) => {
         this.element.style[change.prop] = `${change.value}px`;
       });
