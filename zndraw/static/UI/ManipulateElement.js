@@ -5,7 +5,7 @@ class ManipulateElement {
   borderTresholdMin = 2;
 
   constructor(selectorOrElement) {
-    this.allowNegative = true;
+    this.allowNegative = false;
     this.id = parseInt(Math.random() * 10e7 + new Date().getMilliseconds(), 10);
     this.element =
       typeof selectorOrElement === "string"
@@ -235,6 +235,7 @@ class ManipulateElement {
         }
       }
       const element = this;
+      console.log(changes);
       changes.forEach((change) => {
         this.element.style[change.prop] = `${change.value}px`;
       });

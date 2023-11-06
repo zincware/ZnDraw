@@ -333,11 +333,11 @@ body {
 }
 
 #ZnDrawConsoleCard {
-  width: 33%;
-  height: 50%;
+  width: 20%;
+  height: 33%;
   position: absolute;
-  bottom: 0;
-  right: 0;
+  left: calc(100% - 20%);
+  top: calc(100% - 33%);
   opacity: 95%;
 }
 .ManipulateElement {
