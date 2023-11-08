@@ -217,6 +217,85 @@ class AddLineParticles(UpdateScene):
             vis.step += 1
 
 
+class Wrap(UpdateScene):
+    """Wrap the atoms to the cell."""
+    discriminator: t.Literal["Wrap"] = Field("Wrap")
+    recompute_bonds: bool = True
+
+    def run(self, vis: "ZnDraw") -> None:
+        vis.log("Downloading atoms...")
+        atoms_list = list(vis)
+        vis.step = 0
+
+        del vis[1:]
+
+        for idx, atoms in enumerate(atoms_list):
+            atoms.wrap()
+            if self.recompute_bonds:
+                delattr(atoms, "connectivity")
+            vis[idx] = atoms
+            vis.step = idx
+
+class Center(UpdateScene):
+    """Move the atoms, such that the selected atom is in the center of the cell."""
+    discriminator: t.Literal["Center"] = Field("Center")
+    recompute_bonds: bool = True
+    dynamic: bool = Field(False, description="Move the atoms to the center of the cell at each step")
+    wrap: bool = Field(True, description="Wrap the atoms to the cell")
+
+    def run(self, vis: "ZnDraw") -> None:
+        selection = vis.selection
+        if len(selection) != 1:
+            vis.log("Please select exactly one atom to center on.")
+            return
+        
+
+        vis.log("Downloading atoms...")
+        atoms_list = list(vis)
+
+        if not self.dynamic:
+            center = atoms_list[vis.step][selection[0]].position
+        else:
+            center = None
+        
+        vis.step = 0
+
+        del vis[1:]
+
+        for idx, atoms in enumerate(atoms_list):
+            if self.dynamic:
+                center = atoms[selection[0]].position
+            atoms.positions -= center
+            atoms.positions += np.diag(atoms.cell) / 2
+            if self.wrap:
+                atoms.wrap()
+            if self.recompute_bonds:
+                delattr(atoms, "connectivity")
+
+            vis[idx] = atoms
+            vis.step = idx
+
+class Replicate(UpdateScene):
+    discriminator: t.Literal["Replicate"] = Field("Replicate")
+    x: int = Field(2, ge=1)
+    y: int = Field(2, ge=1)
+    z: int = Field(2, ge=1)
+
+    def run(self, vis: "ZnDraw") -> None:
+        vis.log("Downloading atoms...")
+        atoms_list = list(vis)
+        vis.step = 0
+
+        del vis[1:]
+
+        for idx, atoms in enumerate(atoms_list):
+            atoms = atoms.repeat((self.x, self.y, self.z))
+            vis[idx] = atoms
+            vis.step = idx
+
+
+
+
 # class CustomModifier(UpdateScene):
 #     discriminator: t.Literal["CustomModifier"] = Field("CustomModifier")
 
