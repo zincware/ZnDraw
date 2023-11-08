@@ -219,6 +219,7 @@ class AddLineParticles(UpdateScene):
 
 class Wrap(UpdateScene):
     """Wrap the atoms to the cell."""
+
     discriminator: t.Literal["Wrap"] = Field("Wrap")
     recompute_bonds: bool = True
 
@@ -236,11 +237,15 @@ class Wrap(UpdateScene):
             vis[idx] = atoms
             vis.step = idx
 
+
 class Center(UpdateScene):
     """Move the atoms, such that the selected atom is in the center of the cell."""
+
     discriminator: t.Literal["Center"] = Field("Center")
     recompute_bonds: bool = True
-    dynamic: bool = Field(False, description="Move the atoms to the center of the cell at each step")
+    dynamic: bool = Field(
+        False, description="Move the atoms to the center of the cell at each step"
+    )
     wrap: bool = Field(True, description="Wrap the atoms to the cell")
 
     def run(self, vis: "ZnDraw") -> None:
@@ -248,7 +253,6 @@ class Center(UpdateScene):
         if len(selection) != 1:
             vis.log("Please select exactly one atom to center on.")
             return
-        
 
         vis.log("Downloading atoms...")
         atoms_list = list(vis)
@@ -257,7 +261,7 @@ class Center(UpdateScene):
             center = atoms_list[vis.step][selection[0]].position
         else:
             center = None
-        
+
         vis.step = 0
 
         del vis[1:]
@@ -274,6 +278,7 @@ class Center(UpdateScene):
 
             vis[idx] = atoms
             vis.step = idx
+
 
 class Replicate(UpdateScene):
     discriminator: t.Literal["Replicate"] = Field("Replicate")
@@ -292,8 +297,6 @@ class Replicate(UpdateScene):
             atoms = atoms.repeat((self.x, self.y, self.z))
             vis[idx] = atoms
             vis.step = idx
-
-
 
 
 # class CustomModifier(UpdateScene):
