@@ -1,6 +1,7 @@
 import logging
 import multiprocessing as mp
 import webbrowser
+import time
 
 from zndraw.app import app, io
 from zndraw.utils import ZnDrawLoggingHandler
@@ -68,6 +69,8 @@ def view(
     proc.start()
 
     log.critical(f"Starting ZnDraw server at {url}")
+
+    time.sleep(0.5) # combats the webpage loading before the server is started
 
     if wv is not None and webview:
         wv_proc = mp.Process(
