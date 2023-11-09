@@ -2,13 +2,19 @@ import itertools
 import logging
 import typing as t
 
-import ase
 import numpy as np
 import pandas as pd
 import plotly.express as px
 from pydantic import BaseModel, ConfigDict, Field
 
 from zndraw.utils import SHARED, set_global_atoms
+
+try:
+    from zndraw.analyse import mda  # noqa: F401
+except ImportError:
+    # mdanalysis is not installed
+    pass
+
 
 log = logging.getLogger(__name__)
 
@@ -22,7 +28,8 @@ class Distance(BaseModel):
 
     smooth: bool = False
 
-    def run(self, atoms_lst, ids):
+    def run(self, vis):
+        atoms_lst, ids = list(vis), vis.selection
         distances = {}
         for x in itertools.combinations(ids, 2):
             distances[f"{tuple(x)}"] = []
@@ -50,7 +57,7 @@ class Distance(BaseModel):
                     fig.add_scatter(
                         x=smooth_df["step"], y=smooth_df[col], name=f"smooth_{col}"
                     )
-        return fig
+        vis.figure = fig.to_json()
 
 
 class Properties2D(BaseModel):
@@ -77,7 +84,8 @@ class Properties2D(BaseModel):
             pass
         return schema
 
-    def run(self, atoms_lst, ids):
+    def run(self, vis):
+        atoms_lst = list(vis)
         log.info(f"run {self}")
 
         if self.x_data == "step":
@@ -117,7 +125,7 @@ class Properties2D(BaseModel):
                 scaleanchor="x",
                 scaleratio=1,
             )
-        return fig
+        vis.figure = fig.to_json()
 
 
 class Properties1D(BaseModel):
@@ -141,7 +149,8 @@ class Properties1D(BaseModel):
             print(f"{ATOMS=}")
         return schema
 
-    def run(self, atoms_lst, ids):
+    def run(self, vis):
+        atoms_lst = list(vis)
         data = np.array([x.calc.results[self.value] for x in atoms_lst])
 
         df = pd.DataFrame({"step": list(range(len(atoms_lst))), self.value: data})
@@ -156,7 +165,7 @@ class Properties1D(BaseModel):
                         x=smooth_df["step"], y=smooth_df[col], name=f"smooth_{col}"
                     )
 
-        return fig
+        vis.figure = fig.to_json()
 
 
 def get_analysis_class(methods):
@@ -165,7 +174,7 @@ def get_analysis_class(methods):
             ..., description="Analysis method", discriminator="discriminator"
         )
 
-        def run(self, *args, **kwargs) -> list[ase.Atoms]:
+        def run(self, *args, **kwargs) -> None:
             return self.method.run(*args, **kwargs)
 
         @classmethod

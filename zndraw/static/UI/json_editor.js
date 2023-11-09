@@ -49,8 +49,6 @@ function selection_editor(socket, cache, world) {
 
         socket.emit("selection:run", {
           params: value,
-          atoms: cache.get(world.getStep()),
-          selection: world.getSelection(),
         });
       });
   });
