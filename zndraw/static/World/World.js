@@ -1,6 +1,7 @@
 import { createCamera } from "./components/camera.js";
 import { createLights } from "./components/lights.js";
 import { createScene } from "./components/scene.js";
+import { Bookmarks } from "../pycom/Bookmarks.js";
 
 import { createControls } from "./systems/controls.js";
 import { createRenderer, create2DRenderer } from "./systems/renderer.js";
@@ -26,12 +27,13 @@ let loop;
 let controls;
 
 class Player {
-  constructor(world, cache, socket) {
+  constructor(world, cache, socket, bookmarks) {
     this.world = world;
     this.playing = false;
     this.fps = 60;
     this.cache = cache;
     this.loop = false;
+    this.bookmarks = bookmarks;
 
     socket.on("scene:set", (index) => {
       this.world.setStep(index);
@@ -77,14 +79,22 @@ class Player {
         document.activeElement === document.body &&
         event.code === "ArrowRight"
       ) {
-        this.go_forward();
+        if (event.shiftKey) {
+          this.bookmarks.jumpNext();
+        } else {
+          this.go_forward();
+        }
       }
       // on arrow left go backward
       if (
         document.activeElement === document.body &&
         event.code === "ArrowLeft"
       ) {
-        this.go_backward();
+        if (event.shiftKey) {
+          this.bookmarks.jumpPrevious();
+        } else {
+          this.go_backward();
+        }
       }
       // on arrow up go forward 10 % of the length
       if (
@@ -170,8 +180,9 @@ class World {
 
     loop = new Loop(camera, scene, renderer, renderer2d);
     controls = createControls(camera, renderer.domElement);
+    const bookmarks = new Bookmarks(this, cache, socket);
 
-    this.player = new Player(this, cache, socket);
+    this.player = new Player(this, cache, socket, bookmarks);
 
     container.append(renderer.domElement);
 
@@ -222,7 +233,12 @@ class World {
     });
 
     loop.tick_updatables.push(controls, this.index_grp);
-    loop.step_updatables.push(this.particles, this.index_grp, this.cell_grp);
+    loop.step_updatables.push(
+      this.particles,
+      this.index_grp,
+      this.cell_grp,
+      bookmarks,
+    );
 
     const resizer = new Resizer(container, camera, renderer, renderer2d);
 

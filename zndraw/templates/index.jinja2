@@ -299,6 +299,12 @@
               <dd class="col-sm-9">
                 <code>keypress shift</code> + <code>mousewheel</code>
               </dd>
+              <dt class="col-sm-3">add bookmark at current step</dt>
+              <dd class="col-sm-9"><code>keypress B</code></dd>
+              <dt class="col-sm-3">jump between bookmarks</dt>
+              <dd class="col-sm-9"><code>shift + keypress &#9654;\&#9664; </code></dd>
+              <dt class="col-sm-3">remove bookmark</dt>
+              <dd class="col-sm-9"><code>shift + mouse click </code></dd>
             </dl>
           </div>
         </div>
@@ -393,6 +399,11 @@
   <!-- Progress Bar -->
   <div id="info"></div>
   <input id="frame-slider" class="frame-slider" type="range" value="0" min="0" max="100" />
+
+  <!-- Progress Bar Bookmarks -->
+  <div id="bookmarks">
+  {# <button type="button" class="btn btn-link"><i class="fa-regular fa-bookmark"></i></button> #}
+  </div>
 
   <!-- Additional info bars -->
   <div class="alert alert-secondary" role="alert" id="alertBoxDrawing">
