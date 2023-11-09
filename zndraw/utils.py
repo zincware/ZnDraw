@@ -11,6 +11,8 @@ import uuid
 import ase
 import datamodel_code_generator
 
+SHARED = {"atoms": None}
+
 
 def get_port(default: int = 1234) -> int:
     """Get an open port."""
@@ -29,11 +31,11 @@ def get_port(default: int = 1234) -> int:
 
 @contextlib.contextmanager
 def set_global_atoms(atoms: ase.Atoms):
-    """Temporarily create a global 'ATOMS' variable."""
-    global ATOMS
-    ATOMS = atoms
+    """Temporarily create a 'SHARED["atoms"]' variable."""
+    # TODO: I know this is bad, but I don't know how to do it better - send help!
+    SHARED["atoms"] = atoms
     yield
-    del ATOMS
+    SHARED["atoms"] = None
 
 
 class ZnDrawLoggingHandler(logging.Handler):
