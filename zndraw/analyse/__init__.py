@@ -7,7 +7,7 @@ import pandas as pd
 import plotly.express as px
 from pydantic import BaseModel, ConfigDict, Field
 
-from zndraw.utils import SHARED, SHARED, set_global_atoms
+from zndraw.utils import SHARED, set_global_atoms
 
 try:
     from zndraw.analyse import mda  # noqa: F401
