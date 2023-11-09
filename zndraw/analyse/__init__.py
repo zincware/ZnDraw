@@ -135,7 +135,10 @@ class Properties1D(BaseModel):
     smooth: bool = False
 
     model_config = ConfigDict(json_schema_extra=_schema_from_atoms)
-    aggregation: t.Literal["mean", "median", "max", ""] = Field("", description="For multidimensional data, aggregate over all dimensions, except the first one.")
+    aggregation: t.Literal["mean", "median", "max", ""] = Field(
+        "",
+        description="For multidimensional data, aggregate over all dimensions, except the first one.",
+    )
 
     @classmethod
     def model_json_schema_from_atoms(cls, schema: dict) -> dict:
