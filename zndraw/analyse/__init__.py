@@ -135,6 +135,7 @@ class Properties1D(BaseModel):
     smooth: bool = False
 
     model_config = ConfigDict(json_schema_extra=_schema_from_atoms)
+    aggregation: t.Literal["mean", "median", "max", ""] = Field("", description="For multidimensional data, aggregate over all dimensions, except the first one.")
 
     @classmethod
     def model_json_schema_from_atoms(cls, schema: dict) -> dict:
@@ -150,8 +151,18 @@ class Properties1D(BaseModel):
         return schema
 
     def run(self, vis):
+        vis.log("Downloading data...")
         atoms_lst = list(vis)
         data = np.array([x.calc.results[self.value] for x in atoms_lst])
+
+        if data.ndim > 1:
+            axis = tuple(range(1, data.ndim))
+            if self.aggregation == "mean":
+                data = np.mean(data, axis=axis)
+            elif self.aggregation == "median":
+                data = np.median(data, axis=axis)
+            elif self.aggregation == "max":
+                data = np.max(data, axis=axis)
 
         df = pd.DataFrame({"step": list(range(len(atoms_lst))), self.value: data})
 
