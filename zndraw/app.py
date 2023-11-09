@@ -68,6 +68,7 @@ def connect():
         log.debug(
             f"connected {request.sid} and updated HOSTS to {app.config['ROOM_HOSTS']}"
         )
+        emit("message:log", "Connection established", to=request.sid)
 
 
 @io.on("disconnect")

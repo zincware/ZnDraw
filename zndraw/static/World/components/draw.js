@@ -135,6 +135,7 @@ export class Line3D extends THREE.Group {
     const material = new THREE.LineBasicMaterial({ color: 0x000000 });
     this.line = new THREE.Line(geometry, material);
     this.curve = undefined;
+    this.pointer = undefined;
 
     this.add(this.line, this.anchorPoints);
   }
@@ -157,7 +158,6 @@ export class Line3D extends THREE.Group {
     } else {
       this.anchorPoints.add(sphere);
     }
-
     this.updateLine();
 
     this.ARC_SEGMENTS = this.anchorPoints.children.length * 20;
@@ -188,7 +188,7 @@ export class Line3D extends THREE.Group {
   }
 
   addPointer() {
-    this.addPoint(new THREE.Vector3(0, 0, 0));
+    return this.addPoint(new THREE.Vector3(0, 0, 0));
   }
 
   updateLine() {
