@@ -286,6 +286,8 @@ class Replicate(UpdateScene):
     y: int = Field(2, ge=1)
     z: int = Field(2, ge=1)
 
+    keep_box: bool = Field(False, description="Keep the original box size")
+
     def run(self, vis: "ZnDraw") -> None:
         vis.log("Downloading atoms...")
         atoms_list = list(vis)
@@ -295,6 +297,8 @@ class Replicate(UpdateScene):
 
         for idx, atoms in enumerate(atoms_list):
             atoms = atoms.repeat((self.x, self.y, self.z))
+            if self.keep_box:
+                atoms.cell = atoms_list[idx].cell
             vis[idx] = atoms
             vis.step = idx
 
