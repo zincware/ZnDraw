@@ -230,10 +230,17 @@ class World {
     this.socket = socket;
 
     this.socket.on(
-      "scene:points",
+      "points:get",
       function (callback) {
         const { points, segments } = this.getLineData();
         callback(points);
+      }.bind(this),
+    );
+
+    this.socket.on(
+      "points:set",
+      function (points) {
+        this.line3D.updateAllPoints(points);
       }.bind(this),
     );
 
