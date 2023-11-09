@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { TransformControls } from "three/examples/jsm/controls/TransformControls.js";
-import { centerCamera } from "./events.js";
+import { centerCamera, duplicateAnchorPoints } from "./events.js";
 
 let scroll_timer = null;
 
@@ -278,30 +278,7 @@ class Selection {
 
         // make a copy of the currently selected point when d is pressed
         if (event.key === "d") {
-          // TODO shift added point a bit + insert at correct position
-          const transform_object = this.transform_controls.object;
-          if (transform_object.name === "AnchorPoint" && !this._drawing) {
-            const index =
-              this.line3D.anchorPoints.children.indexOf(transform_object);
-
-            let new_pos;
-            if (index > 0) {
-              // Add the point between the current and the previous point
-              const obj_before = this.line3D.anchorPoints.children[index - 1];
-              new_pos = obj_before.position
-                .clone()
-                .sub(transform_object.position)
-                .multiplyScalar(0.5)
-                .add(transform_object.position);
-            } else {
-              // No previous point, add the point at the same position
-              new_pos = transform_object.position.clone();
-            }
-
-            const point = this.line3D.addPoint(new_pos, index);
-            this.transform_controls.detach();
-            this.transform_controls.attach(point);
-          }
+          duplicateAnchorPoints.bind(this)();
         }
 
         if (event.key === "Backspace") {
