@@ -26,6 +26,7 @@
   <script src="{{ url_for('static', filename='node_modules/socket.io/client-dist/socket.io.min.js') }}"></script>
   <script src="{{ url_for('static', filename='node_modules/bootstrap/dist/js/bootstrap.bundle.min.js') }}"></script>
   <script src="{{ url_for('static', filename='node_modules/plotly.js-dist-min/plotly.min.js') }}"></script>
+  <script src="{{ url_for('static', filename='node_modules/marked/marked.min.js') }}"></script>
 
   <script defer
     src="{{ url_for('static', filename='node_modules/@fortawesome/fontawesome-free/js/brands.min.js') }}"></script>
@@ -270,43 +271,7 @@
           <h1 class="modal-title fs-5" id="helpModalLabel">ZnDraw Help</h1>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
-        <div class="modal-body">
-          <div class="rounded-3 bg-white px-2 pt-2">
-            <dl class="row">
-              <dt class="col-sm-3">play / pause</dt>
-              <dd class="col-sm-9"><code>keypress space</code></dd>
-              <dt class="col-sm-3">frame forwards / backwards</dt>
-              <dd class="col-sm-9">
-                <code>keypress &#9654;\&#9664; </code>
-              </dd>
-              <dt class="col-sm-3">jump forwards / backwards</dt>
-              <dd class="col-sm-9">
-                <code>keypress &#9650;\&#9660; </code>
-              </dd>
-              <dt class="col-sm-3">center camera around selected particle</dt>
-              <dd class="col-sm-9"><code>keypress C</code></dd>
-              <dt class="col-sm-3">select multiple particles</dt>
-              <dd class="col-sm-9"><code>keydown shift</code></dd>
-              <dt class="col-sm-3">show particle index</dt>
-              <dd class="col-sm-9"><code>keydown I</code></dd>
-              <dt class="col-sm-3">toggle canvas movement</dt>
-              <dd class="col-sm-9"><code>keypress F</code></dd>
-              <dt class="col-sm-3">duplicate selected anchor point</dt>
-              <dd class="col-sm-9"><code>keypress D</code></dd>
-              <dt class="col-sm-3">switch transform control mode</dt>
-              <dd class="col-sm-9"><code>keypress T</code></dd>
-              <dt class="col-sm-3">select / scale drawing geometry</dt>
-              <dd class="col-sm-9">
-                <code>keypress shift</code> + <code>mousewheel</code>
-              </dd>
-              <dt class="col-sm-3">add bookmark at current step</dt>
-              <dd class="col-sm-9"><code>keypress B</code></dd>
-              <dt class="col-sm-3">jump between bookmarks</dt>
-              <dd class="col-sm-9"><code>shift + keypress &#9654;\&#9664; </code></dd>
-              <dt class="col-sm-3">remove bookmark</dt>
-              <dd class="col-sm-9"><code>shift + mouse click </code></dd>
-            </dl>
-          </div>
+        <div class="modal-body" id="helpModalBody">
         </div>
       </div>
     </div>

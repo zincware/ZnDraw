@@ -4,6 +4,7 @@ import { setUIEvents } from "./UI/UI.js";
 import { initJSONEditor } from "./UI/json_editor.js";
 import { ManipulateElement } from "./UI/ManipulateElement.js";
 
+
 function setupSocket() {
   const socket = io();
   socket.on("connect", () => {
@@ -22,6 +23,14 @@ function setupSocket() {
   });
   // if socket.on
   return socket;
+}
+
+function setupInfo() {
+  fetch("static/info.md")
+    .then((response) => response.text())
+    .then((text) => {
+      document.getElementById("helpModalBody").innerHTML = marked.parse(text);
+    });
 }
 
 function main() {
@@ -56,6 +65,7 @@ function main() {
     "#ZnDrawConsoleCard",
   );
   document.getElementById("atom-spinner").style.display = "none";
+  setupInfo();
 }
 
 main();
