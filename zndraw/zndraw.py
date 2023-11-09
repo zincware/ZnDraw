@@ -315,10 +315,13 @@ class ZnDrawDefault(ZnDrawBase):
         except IndexError:
             atoms = ase.Atoms()
 
+        schema = cls.model_json_schema_from_atoms(atoms)
+        hide_discriminator_field(schema)
+
         self.socket.emit(
             "analysis:schema",
             {
-                "schema": cls.model_json_schema_from_atoms(atoms),
+                "schema": schema,
                 "sid": self._target_sid,
             },
         )
