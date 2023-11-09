@@ -4,7 +4,6 @@ import { setUIEvents } from "./UI/UI.js";
 import { initJSONEditor } from "./UI/json_editor.js";
 import { ManipulateElement } from "./UI/ManipulateElement.js";
 
-
 function setupSocket() {
   const socket = io();
   socket.on("connect", () => {
