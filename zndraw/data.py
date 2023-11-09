@@ -68,7 +68,7 @@ def atoms_from_json(data: dict) -> ase.Atoms:
         positions=data["positions"],
     )
 
-    atoms.arrays["colors"] = data["colors"]
+    atoms.arrays["colors"] = np.array(data["colors"])
 
     if "calc" in data:
         atoms.calc = SinglePointCalculator(atoms)
