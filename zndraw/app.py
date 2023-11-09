@@ -347,16 +347,14 @@ def draw_schema(data: dict):
             return "No host found."
 
 
-@io.on("scene:points")
+@io.on("points:get")
 def scene_points(data: dict):
     if "sid" in data:
-        return call("scene:points", to=data["sid"])
+        return call("points:get", to=data["sid"])
     else:
         try:
             # emit to all webclients in the group, if no sid is provided
-            return call(
-                "scene:points", to=app.config["ROOM_HOSTS"][session["token"]][0]
-            )
+            return call("points:get", to=app.config["ROOM_HOSTS"][session["token"]][0])
         except KeyError:
             return "No host found."
 
@@ -522,6 +520,23 @@ def bookmarks_set(data: dict):
             emit(
                 "bookmarks:set",
                 data["bookmarks"],
+                include_self=False,
+                to=session["token"],
+            )
+        except KeyError:
+            return "No host found."
+
+
+@io.on("points:set")
+def points_set(data: dict):
+    if "sid" in data:
+        emit("points:set", data["value"], include_self=False, to=data["sid"])
+    else:
+        try:
+            # emit to all webclients in the group, if no sid is provided
+            emit(
+                "points:set",
+                data["value"],
                 include_self=False,
                 to=session["token"],
             )

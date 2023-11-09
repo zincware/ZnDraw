@@ -165,6 +165,15 @@ export class Line3D extends THREE.Group {
     return sphere;
   }
 
+  updateAllPoints(positions) {
+    console.log("updateAllPoints", positions);
+    this.anchorPoints.clear();
+    positions.forEach((position) => {
+      this.addPoint(new THREE.Vector3(...position));
+    });
+    this.updateLine();
+  }
+
   removePointer(object) {
     // remove last anchor point
     if (object) {
