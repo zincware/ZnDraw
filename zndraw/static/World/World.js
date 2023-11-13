@@ -116,9 +116,8 @@ class Player {
     slider.focus();
 
     slider.oninput = function () {
-      document.getElementById(
-        "info",
-      ).innerHTML = `${slider.value} / ${slider.max}`;
+      document.getElementById("info").innerHTML =
+        `${slider.value} / ${slider.max}`;
       world.setStep(this.value);
     };
   }
@@ -329,9 +328,8 @@ class World {
     loop.setStep(step);
     const slider = document.getElementById("frame-slider");
     slider.value = step;
-    document.getElementById(
-      "info",
-    ).innerHTML = `${slider.value} / ${slider.max}`;
+    document.getElementById("info").innerHTML =
+      `${slider.value} / ${slider.max}`;
   }
 
   getStep() {

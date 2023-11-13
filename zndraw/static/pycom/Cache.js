@@ -91,9 +91,8 @@ class Cache {
 
     this._socket.on("atoms:upload", (data) => {
       console.log(new Date().toISOString(), "Received atoms from Python");
-      document.getElementById(
-        "interaction-json-editor-submit",
-      ).disabled = false;
+      document.getElementById("interaction-json-editor-submit").disabled =
+        false;
       Object.keys(data).forEach((key) => {
         this._cache[key] = new Atoms({
           positions: data[key].positions,
@@ -108,9 +107,8 @@ class Cache {
       });
       const slider = document.getElementById("frame-slider");
       slider.max = Object.keys(this._cache).length - 1;
-      document.getElementById(
-        "info",
-      ).innerHTML = `${slider.value} / ${slider.max}`;
+      document.getElementById("info").innerHTML =
+        `${slider.value} / ${slider.max}`;
     });
 
     this._socket.on("atoms:delete", (ids) => {
@@ -144,9 +142,8 @@ class Cache {
       }
 
       slider.max = remainingKeys.length - 1;
-      document.getElementById(
-        "info",
-      ).innerHTML = `${slider.value} / ${slider.max}`;
+      document.getElementById("info").innerHTML =
+        `${slider.value} / ${slider.max}`;
     });
 
     this._socket.on("atoms:insert", (data) => {
@@ -173,9 +170,8 @@ class Cache {
       // update slider
       const slider = document.getElementById("frame-slider");
       slider.max = Object.keys(this._cache).length - 1;
-      document.getElementById(
-        "info",
-      ).innerHTML = `${slider.value} / ${slider.max}`;
+      document.getElementById("info").innerHTML =
+        `${slider.value} / ${slider.max}`;
     });
 
     this._socket.on(
