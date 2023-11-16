@@ -13,6 +13,7 @@ import numpy as np
 import socketio
 import tqdm
 import znh5md
+import datetime
 
 from zndraw.analyse import get_analysis_class
 from zndraw.data import atoms_from_json, atoms_to_json
@@ -41,8 +42,16 @@ class FileIO:
 
 @dataclasses.dataclass
 class ZnDrawBase:  # collections.abc.MutableSequence
+    """
+
+    Attributes
+    ----------
+    display_new : bool
+        Display new atoms in the webclient, when they are added.
+    """
     url: str
     token: str = "notoken"
+    display_new: bool = True
 
     _target_sid: str = None
 
@@ -76,7 +85,7 @@ class ZnDrawBase:  # collections.abc.MutableSequence
         assert isinstance(value, ase.Atoms), "Must be an ASE Atoms object"
         assert isinstance(index, int), "Index must be an integer"
 
-        data = {index: atoms_to_json(value)}
+        data = {index: atoms_to_json(value), "display_new": self.display_new}
         if self._target_sid is not None:
             data["sid"] = self._target_sid
 
@@ -274,11 +283,17 @@ class ZnDrawDefault(ZnDrawBase):
         self.socket.wait()
 
     def initialize_webclient(self, sid):
+        start_time = datetime.datetime.now()
         with self._set_sid(sid):
-            self.read_data()
-            self.analysis_schema()
-            self.selection_schema()
-            self.draw_schema()
+            for idx, atoms in enumerate(self.read_data()):
+                # TODO, what if lenght is zero!
+                if idx == 0:
+                    self.analysis_schema(atoms)
+                    self.selection_schema()
+                    self.draw_schema()
+                self[idx] = atoms
+                # self.step = idx # double the message count ..., replace with part of the setitem message, benchmark
+        log.warning(f"{datetime.datetime.now() - start_time} Finished sending data.")
 
     def read_data(self):
         if self.file_io.name is None:
@@ -312,19 +327,13 @@ class ZnDrawDefault(ZnDrawBase):
                 break
             if self.file_io.step and idx % self.file_io.step != 0:
                 continue
-            self[frame] = atoms
-            self.step = frame
+            yield atoms
             frame += 1
 
-    def analysis_schema(self):
+    def analysis_schema(self, atoms: ase.Atoms):
         config = GlobalConfig.load()
 
         cls = get_analysis_class(config.get_analysis_methods())
-
-        try:
-            atoms = self[0]
-        except IndexError:
-            atoms = ase.Atoms()
 
         schema = cls.model_json_schema_from_atoms(atoms)
         hide_discriminator_field(schema)
@@ -433,19 +442,11 @@ class ZnDrawDefault(ZnDrawBase):
 
 @dataclasses.dataclass
 class ZnDraw(ZnDrawBase):
-    """ZnDraw client.
-
-    Attributes
-    ----------
-    display_new : bool
-        Display new atoms in the webclient, when they are added.
-
-    """
+    """ZnDraw client."""
 
     url: str = None
 
     jupyter: bool = False
-    display_new: bool = True
 
     _modifiers: list = dataclasses.field(default_factory=list)
 
@@ -503,11 +504,6 @@ class ZnDraw(ZnDrawBase):
 
     def get_logging_handler(self) -> ZnDrawLoggingHandler:
         return ZnDrawLoggingHandler(self)
-
-    def __setitem__(self, index, value):
-        super().__setitem__(index, value)
-        if self.display_new:
-            self.step = index
 
     def register_modifier(
         self, cls: UpdateScene, run_kwargs: dict = None, default: bool = False

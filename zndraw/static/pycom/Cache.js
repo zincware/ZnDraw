@@ -89,10 +89,15 @@ class Cache {
     this._cache = {};
     this.world;
 
-    this._socket.on("atoms:upload", (data) => {
+    this._socket.on("atoms:upload", (all_data) => {
       console.log(new Date().toISOString(), "Received atoms from Python");
       document.getElementById("interaction-json-editor-submit").disabled =
         false;
+
+      // pop key from data dict
+      const {display_new, ...data} = all_data;
+      const slider = document.getElementById("frame-slider");
+ 
       Object.keys(data).forEach((key) => {
         this._cache[key] = new Atoms({
           positions: data[key].positions,
@@ -104,11 +109,11 @@ class Cache {
           calc: data[key].calc,
           pbc: data[key].pbc,
         });
+        if (display_new) {
+          slider.max = Object.keys(this._cache).length - 1;
+          this.world.setStep( key );
+        }
       });
-      const slider = document.getElementById("frame-slider");
-      slider.max = Object.keys(this._cache).length - 1;
-      document.getElementById("info").innerHTML =
-        `${slider.value} / ${slider.max}`;
     });
 
     this._socket.on("atoms:delete", (ids) => {
