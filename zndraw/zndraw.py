@@ -287,7 +287,6 @@ class ZnDrawDefault(ZnDrawBase):
         start_time = datetime.datetime.now()
         with self._set_sid(sid):
             for idx, atoms in enumerate(self.read_data()):
-                # TODO, what if length is zero!
                 if idx == 0:
                     self.analysis_schema(atoms)
                     self.selection_schema()
@@ -298,7 +297,8 @@ class ZnDrawDefault(ZnDrawBase):
 
     def read_data(self):
         if self.file_io.name is None:
-            return [ase.Atoms()]
+            yield ase.Atoms()
+            return
 
         if self.file_io.remote is not None:
             node_name, attribute = self.file_io.name.split(".", 1)

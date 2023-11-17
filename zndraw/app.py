@@ -60,6 +60,7 @@ def connect():
         data = {"modifiers": []}  # {schema: ..., name: ...}
         for name, schema in app.config["MODIFIER"]["default_schema"].items():
             data["modifiers"].append({"schema": schema, "name": name})
+        data["token"] = token
 
         emit("modifier:register", data, to=app.config["DEFAULT_PYCLIENT"])
 
