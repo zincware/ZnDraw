@@ -3,7 +3,6 @@ import multiprocessing as mp
 import webbrowser
 
 from zndraw.app import app, io
-from zndraw.utils import ZnDrawLoggingHandler
 from zndraw.zndraw import FileIO, ZnDrawDefault
 
 try:
@@ -76,16 +75,6 @@ def view(
         wv_proc.start()
     elif open_browser:
         webbrowser.open(url)
-
-    logging_handler = ZnDrawLoggingHandler(io)
-    logging_handler.setLevel(logging.INFO)
-    # attach ISO timestamp to log messages
-    formatter = logging.Formatter(
-        "%(asctime)s.%(msecs)03d %(message)s", "%Y-%m-%dT%H:%M:%S"
-    )
-    logging_handler.setFormatter(formatter)
-
-    logging.getLogger("zndraw").addHandler(logging_handler)
 
     io.run(app, port=port, host="0.0.0.0")
 
