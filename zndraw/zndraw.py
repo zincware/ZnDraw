@@ -287,7 +287,7 @@ class ZnDrawDefault(ZnDrawBase):
         start_time = datetime.datetime.now()
         with self._set_sid(sid):
             for idx, atoms in enumerate(self.read_data()):
-                # TODO, what if lenght is zero!
+                # TODO, what if length is zero!
                 if idx == 0:
                     self.analysis_schema(atoms)
                     self.selection_schema()
