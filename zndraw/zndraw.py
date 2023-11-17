@@ -298,7 +298,7 @@ class ZnDrawDefault(ZnDrawBase):
 
     def read_data(self):
         if self.file_io.name is None:
-            return
+            return [ase.Atoms()]
 
         if self.file_io.remote is not None:
             node_name, attribute = self.file_io.name.split(".", 1)
@@ -431,7 +431,7 @@ class ZnDrawDefault(ZnDrawBase):
         ]
         config = GlobalConfig.load()
         cls = get_modify_class(config.get_modify_methods(include=include))
-        sid = self._target_sid if self._target_sid else data["token"]  #
+        sid = self._target_sid if self._target_sid else data["token"]
 
         schema = cls.model_json_schema()
 
