@@ -95,9 +95,9 @@ class Cache {
         false;
 
       // pop key from data dict
-      const {display_new, ...data} = all_data;
+      const { display_new, ...data } = all_data;
       const slider = document.getElementById("frame-slider");
- 
+
       Object.keys(data).forEach((key) => {
         this._cache[key] = new Atoms({
           positions: data[key].positions,
@@ -111,7 +111,7 @@ class Cache {
         });
         if (display_new) {
           slider.max = Object.keys(this._cache).length - 1;
-          this.world.setStep( key );
+          this.world.setStep(key);
         }
       });
     });

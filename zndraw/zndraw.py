@@ -1,5 +1,6 @@
 import contextlib
 import dataclasses
+import datetime
 import logging
 import pathlib
 import threading
@@ -13,7 +14,6 @@ import numpy as np
 import socketio
 import tqdm
 import znh5md
-import datetime
 
 from zndraw.analyse import get_analysis_class
 from zndraw.data import atoms_from_json, atoms_to_json
@@ -49,6 +49,7 @@ class ZnDrawBase:  # collections.abc.MutableSequence
     display_new : bool
         Display new atoms in the webclient, when they are added.
     """
+
     url: str
     token: str = "notoken"
     display_new: bool = True

@@ -3,7 +3,6 @@ import multiprocessing as mp
 import webbrowser
 
 from zndraw.app import app, io
-from zndraw.utils import ZnDrawLoggingHandler
 from zndraw.zndraw import FileIO, ZnDrawDefault
 
 try:
