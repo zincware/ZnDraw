@@ -15,7 +15,7 @@ import tqdm
 import znh5md
 
 from zndraw.analyse import get_analysis_class
-from zndraw.data import atoms_from_json, atoms_to_json
+from zndraw.frame import Frame
 from zndraw.draw import Geometry
 from zndraw.modify import UpdateScene, get_modify_class
 from zndraw.select import get_selection_class
@@ -77,7 +77,11 @@ class ZnDrawBase:  # collections.abc.MutableSequence
         assert isinstance(value, ase.Atoms) or isinstance(value, Frame), "Must be an ASE Atoms object"
         assert isinstance(index, int), "Index must be an integer"
 
-        data = {index: atoms_to_json(value)}
+        if isinstance(value, ase.Atoms):
+            value = Frame.from_atoms(value)
+
+        data = {index: value.frame_to_json()}
+
         if self._target_sid is not None:
             data["sid"] = self._target_sid
 
@@ -109,19 +113,25 @@ class ZnDrawBase:  # collections.abc.MutableSequence
 
     def insert(self, index, value):
         """Insert atoms before index"""
-        self.socket.emit("atoms:insert", {index: atoms_to_json(value)})
+        if isinstance(value, ase.Atoms):
+            value = Frame.from_atoms(value)
+        self.socket.emit("atoms:insert", {index: value.frame_to_json()})
 
-    def append(self, value: t.Union[ase.Atoms, Frame]) -> None:
+    def append(self, value) -> None:
         """Append atoms to the end of the list"""
+        if isinstance(value, ase.Atoms):
+            value = Frame.from_atoms(value)
         self[len(self)] = value
 
-    def extend(self, values: t.Union[list[ase.Atoms], list[Frame]]) -> None:
+    def extend(self, values) -> None:
         """Extend the list by appending all the items in the given list"""
         size = len(self)
         for idx, value in enumerate(values):
+            if isinstance(value, ase.Atoms):
+                value = Frame.from_atoms(value)
             self[size + idx] = value
 
-    def __getitem__(self, index) -> t.Union[ase.Atoms, list[ase.Atoms], Frame, list[Frame]]:
+    def __getitem__(self, index):
         length = len(self)
         is_scalar = isinstance(index, int)
         is_sclice = isinstance(index, slice)
@@ -140,7 +150,7 @@ class ZnDrawBase:  # collections.abc.MutableSequence
         atoms_list = []
 
         for val in downloaded_data.values():
-            atoms_list.append(atoms_from_json(val))
+            atoms_list.append(Frame.frame_from_json(val))
 
         data = atoms_list[0] if is_scalar else atoms_list
         if data == [] and not is_sclice:

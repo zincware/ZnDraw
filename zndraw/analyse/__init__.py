@@ -1,25 +1,35 @@
 import itertools
 import logging
 import typing as t
-from typing import Any
 
-import ase
 import numpy as np
 import pandas as pd
 import plotly.express as px
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
-from zndraw.utils import set_global_atoms
+from zndraw.utils import SHARED, set_global_atoms
+
+try:
+    from zndraw.analyse import mda  # noqa: F401
+except ImportError:
+    # mdanalysis is not installed
+    pass
+
 
 log = logging.getLogger(__name__)
 
 
+def _schema_from_atoms(schema, cls):
+    return cls.model_json_schema_from_atoms(schema)
+
+
 class Distance(BaseModel):
-    method: t.Literal["Distance"] = "Distance"
+    discriminator: t.Literal["Distance"] = Field("Distance")
 
     smooth: bool = False
 
-    def run(self, atoms_lst, ids):
+    def run(self, vis):
+        atoms_lst, ids = list(vis), vis.selection
         distances = {}
         for x in itertools.combinations(ids, 2):
             distances[f"{tuple(x)}"] = []
@@ -47,24 +57,25 @@ class Distance(BaseModel):
                     fig.add_scatter(
                         x=smooth_df["step"], y=smooth_df[col], name=f"smooth_{col}"
                     )
-        return fig
+        vis.figure = fig.to_json()
 
 
 class Properties2D(BaseModel):
-    method: t.Literal["Properties2D"] = "Properties2D"
-
+    discriminator: t.Literal["Properties2D"] = Field("Properties2D")
     x_data: str = "step"
     y_data: str = "energy"
     color: str = "energy"
     fix_aspect_ratio: bool = True
 
+    model_config = ConfigDict(json_schema_extra=_schema_from_atoms)
+
     @classmethod
-    def model_json_schema(cls, *args, **kwargs) -> dict[str, Any]:
-        schema = super().model_json_schema(*args, **kwargs)
-        log.debug(f"GATHERING PROPERTIES FROM {ATOMS=}")  # noqa: F821
+    def model_json_schema_from_atoms(cls, schema: dict) -> dict:
+        ATOMS = SHARED["atoms"]
+        log.debug(f"GATHERING PROPERTIES FROM {ATOMS=}")
         try:
-            available_properties = list(ATOMS.calc.results)  # noqa: F821
-            available_properties += list(ATOMS.arrays)  # noqa: F821
+            available_properties = list(ATOMS.calc.results)
+            available_properties += list(ATOMS.arrays)
             available_properties += ["step"]
             schema["properties"]["x_data"]["enum"] = available_properties
             schema["properties"]["y_data"]["enum"] = available_properties
@@ -73,7 +84,8 @@ class Properties2D(BaseModel):
             pass
         return schema
 
-    def run(self, atoms_lst, ids):
+    def run(self, vis):
+        atoms_lst = list(vis)
         log.info(f"run {self}")
 
         if self.x_data == "step":
@@ -113,30 +125,47 @@ class Properties2D(BaseModel):
                 scaleanchor="x",
                 scaleratio=1,
             )
-        return fig
+        vis.figure = fig.to_json()
 
 
 class Properties1D(BaseModel):
-    method: t.Literal["Properties1D"] = "Properties1D"
+    discriminator: t.Literal["Properties1D"] = Field("Properties1D")
 
     value: str = "energy"
     smooth: bool = False
 
+    model_config = ConfigDict(json_schema_extra=_schema_from_atoms)
+    aggregation: t.Literal["mean", "median", "max", ""] = Field(
+        "",
+        description="For multidimensional data, aggregate over all dimensions, except the first one.",
+    )
+
     @classmethod
-    def model_json_schema(cls, *args, **kwargs) -> dict[str, Any]:
-        schema = super().model_json_schema(*args, **kwargs)
+    def model_json_schema_from_atoms(cls, schema: dict) -> dict:
+        ATOMS = SHARED["atoms"]
         try:
             available_properties = list(
-                ATOMS.calc.results.keys()  # noqa: F821
+                ATOMS.calc.results.keys()
             )  # global ATOMS object
             log.debug(f"AVAILABLE PROPERTIES: {available_properties=}")
             schema["properties"]["value"]["enum"] = available_properties
         except AttributeError:
-            pass
+            print(f"{ATOMS=}")
         return schema
 
-    def run(self, atoms_lst, ids):
+    def run(self, vis):
+        vis.log("Downloading data...")
+        atoms_lst = list(vis)
         data = np.array([x.calc.results[self.value] for x in atoms_lst])
+
+        if data.ndim > 1:
+            axis = tuple(range(1, data.ndim))
+            if self.aggregation == "mean":
+                data = np.mean(data, axis=axis)
+            elif self.aggregation == "median":
+                data = np.median(data, axis=axis)
+            elif self.aggregation == "max":
+                data = np.max(data, axis=axis)
 
         df = pd.DataFrame({"step": list(range(len(atoms_lst))), self.value: data})
 
@@ -150,16 +179,16 @@ class Properties1D(BaseModel):
                         x=smooth_df["step"], y=smooth_df[col], name=f"smooth_{col}"
                     )
 
-        return fig
+        vis.figure = fig.to_json()
 
 
 def get_analysis_class(methods):
     class Analysis(BaseModel):
         method: methods = Field(
-            ..., description="Analysis method", discriminator="method"
+            ..., description="Analysis method", discriminator="discriminator"
         )
 
-        def run(self, *args, **kwargs) -> list[ase.Atoms]:
+        def run(self, *args, **kwargs) -> None:
             return self.method.run(*args, **kwargs)
 
         @classmethod
@@ -169,16 +198,5 @@ def get_analysis_class(methods):
             with set_global_atoms(atoms):
                 result = cls.model_json_schema(*args, **kwargs)
             return result
-
-        @classmethod
-        def model_json_schema(cls, *args, **kwargs) -> dict[str, t.Any]:
-            schema = super().model_json_schema(*args, **kwargs)
-            for prop in [x.__name__ for x in t.get_args(methods)]:
-                schema["$defs"][prop]["properties"]["method"]["options"] = {
-                    "hidden": True
-                }
-                schema["$defs"][prop]["properties"]["method"]["type"] = "string"
-
-            return schema
 
     return Analysis

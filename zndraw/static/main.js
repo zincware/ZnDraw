@@ -2,12 +2,25 @@ import { Cache } from "./pycom/Cache.js";
 import { World } from "./World/World.js";
 import { setUIEvents } from "./UI/UI.js";
 import { initJSONEditor } from "./UI/json_editor.js";
+import { ManipulateElement } from "./UI/ManipulateElement.js";
 
 function setupSocket() {
   const socket = io();
   socket.on("connect", () => {
     console.log("connected to server");
   });
+
+  socket.on("connect_error", (err) => {
+    console.log("connection could not be established - trying again.");
+    // try to connect again
+    setTimeout(() => {
+      if (socket.connected) {
+        return;
+      }
+      socket.connect();
+    }, 100);
+  });
+  // if socket.on
   return socket;
 }
 
@@ -30,8 +43,18 @@ function main() {
 
   socket.on("message:log", (msg) => {
     console.log(msg);
+    // add <p> to console body
+    const consoleBody = document.getElementById("ZnDrawConsoleBody");
+    const p = document.createElement("p");
+    // ISO 8601 format + msg
+    p.innerHTML = new Date().toISOString() + " " + msg;
+    consoleBody.appendChild(p);
+    // automatically scroll to bottom of consoleBody
+    consoleBody.scrollTop = consoleBody.scrollHeight;
   });
-
+  const zndraw_console_card_manipulator = new ManipulateElement(
+    "#ZnDrawConsoleCard",
+  );
   document.getElementById("atom-spinner").style.display = "none";
 }
 

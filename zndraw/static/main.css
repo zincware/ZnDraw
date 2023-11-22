@@ -27,8 +27,8 @@ body {
   position: fixed;
   top: 50px;
   left: 50px;
-  height: 100%;
   overflow-y: auto;
+  height: calc(100% - 50px);
   min-width: 20%;
 }
 
@@ -330,4 +330,16 @@ body {
   justify-content: center;
   text-align: center;
   z-index: 1;
+}
+
+#ZnDrawConsoleCard {
+  width: 20%;
+  height: 33%;
+  position: absolute;
+  left: calc(100% - 20%);
+  top: calc(100% - 33%);
+  opacity: 95%;
+}
+.ManipulateElement {
+  position: absolute;
 }
