@@ -49,8 +49,6 @@ function selection_editor(socket, cache, world) {
 
         socket.emit("selection:run", {
           params: value,
-          atoms: cache.get(world.getStep()),
-          selection: world.getSelection(),
         });
       });
   });
@@ -123,9 +121,8 @@ function analysis_editor(socket, cache, world) {
         document.getElementById("analysis-json-editor-submit").disabled = true;
         // if there is an error in uploading, we still want to be able to submit again
         setTimeout(() => {
-          document.getElementById(
-            "analysis-json-editor-submit",
-          ).disabled = false;
+          document.getElementById("analysis-json-editor-submit").disabled =
+            false;
         }, 1000);
       });
   });
@@ -152,9 +149,8 @@ function modifier_editor(socket, cache, world) {
       document.getElementById("interaction-json-editor-submit").disabled = true;
       // if there is an error in uploading, we still want to be able to submit again
       setTimeout(() => {
-        document.getElementById(
-          "interaction-json-editor-submit",
-        ).disabled = false;
+        document.getElementById("interaction-json-editor-submit").disabled =
+          false;
       }, 1000);
     });
 

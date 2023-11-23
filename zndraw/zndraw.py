@@ -1,5 +1,6 @@
 import contextlib
 import dataclasses
+import datetime
 import logging
 import pathlib
 import threading
@@ -15,7 +16,6 @@ import tqdm
 import znh5md
 
 from zndraw.analyse import get_analysis_class
-from zndraw.frame import Frame
 from zndraw.draw import Geometry
 from zndraw.modify import UpdateScene, get_modify_class
 from zndraw.select import get_selection_class
@@ -42,8 +42,17 @@ class FileIO:
 
 @dataclasses.dataclass
 class ZnDrawBase:  # collections.abc.MutableSequence
+    """
+
+    Attributes
+    ----------
+    display_new : bool
+        Display new atoms in the webclient, when they are added.
+    """
+
     url: str
     token: str = "notoken"
+    display_new: bool = True
 
     _target_sid: str = None
 
@@ -79,9 +88,7 @@ class ZnDrawBase:  # collections.abc.MutableSequence
 
         if isinstance(value, ase.Atoms):
             value = Frame.from_atoms(value)
-
-        data = {index: value.frame_to_json()}
-
+        data = {index: value.frame_to_json(), "display_new": self.display_new}
         if self._target_sid is not None:
             data["sid"] = self._target_sid
 
@@ -171,15 +178,29 @@ class ZnDrawBase:  # collections.abc.MutableSequence
     @property
     def atoms(self) -> ase.Atoms:
         """Return the atoms at the current step."""
-        return self[self.step]
+        return self[self.step].to_atoms()
 
     @property
     def points(self) -> np.ndarray:
         if self._target_sid is not None:
-            data = self.socket.call("scene:points", {"sid": self._target_sid})
+            data = self.socket.call("points:get", {"sid": self._target_sid})
         else:
-            data = self.socket.call("scene:points", {})
+            data = self.socket.call("points:get", {})
         return np.array([[val["x"], val["y"], val["z"]] for val in data])
+
+    @points.setter
+    def points(self, value: t.Union[np.ndarray, list]) -> None:
+        if isinstance(value, np.ndarray):
+            value = value.tolist()
+        if len(value) > 0:
+            try:
+                assert len(value[0]) == 3
+            except (TypeError, AssertionError):
+                raise ValueError("Points must be a list of 3D coordinates")
+        data = {"value": value}
+        if self._target_sid is not None:
+            data["sid"] = self._target_sid
+        self.socket.emit("points:set", data)
 
     @property
     def segments(self) -> np.ndarray:
@@ -227,6 +248,31 @@ class ZnDrawBase:  # collections.abc.MutableSequence
             "scene:pause", {"sid": self._target_sid if self._target_sid else self.token}
         )
 
+    @property
+    def figure(self):
+        raise NotImplementedError("Gathering figure from webclient not implemented yet")
+
+    @figure.setter
+    def figure(self, fig: str):
+        data = {"figure": fig}
+        if self._target_sid is not None:
+            data["sid"] = self._target_sid
+        self.socket.emit("analysis:figure", data)
+
+    @property
+    def bookmarks(self) -> dict:
+        if self._target_sid is not None:
+            return self.socket.call("bookmarks:get", {"sid": self._target_sid})
+        else:
+            return self.socket.call("bookmarks:get", {})
+
+    @bookmarks.setter
+    def bookmarks(self, value: dict):
+        data = {"bookmarks": value}
+        if self._target_sid is not None:
+            data["sid"] = self._target_sid
+        self.socket.emit("bookmarks:set", data)
+
 
 @dataclasses.dataclass
 class ZnDrawDefault(ZnDrawBase):
@@ -246,14 +292,20 @@ class ZnDrawDefault(ZnDrawBase):
         self.socket.wait()
 
     def initialize_webclient(self, sid):
+        start_time = datetime.datetime.now()
         with self._set_sid(sid):
-            self.read_data()
-            self.analysis_schema()
-            self.selection_schema()
-            self.draw_schema()
+            for idx, frames in enumerate(self.read_data()):
+                if idx == 0:
+                    #self.analysis_schema(atoms)
+                    self.selection_schema()
+                    self.draw_schema()
+                self[idx] = frames
+                # self.step = idx # double the message count ..., replace with part of the setitem message, benchmark
+        log.warning(f"{datetime.datetime.now() - start_time} Finished sending data.")
 
     def read_data(self):
         if self.file_io.name is None:
+            yield ase.Atoms()
             return
 
         if self.file_io.remote is not None:
@@ -284,24 +336,21 @@ class ZnDrawDefault(ZnDrawBase):
                 break
             if self.file_io.step and idx % self.file_io.step != 0:
                 continue
-            self[frame] = atoms
-            self.step = frame
+            yield atoms
             frame += 1
 
-    def analysis_schema(self):
+    def analysis_schema(self, atoms: ase.Atoms):
         config = GlobalConfig.load()
 
         cls = get_analysis_class(config.get_analysis_methods())
 
-        try:
-            atoms = self[0]
-        except IndexError:
-            atoms = ase.Atoms()
+        schema = cls.model_json_schema_from_atoms(atoms)
+        hide_discriminator_field(schema)
 
         self.socket.emit(
             "analysis:schema",
             {
-                "schema": cls.model_json_schema_from_atoms(atoms),
+                "schema": schema,
                 "sid": self._target_sid,
             },
         )
@@ -335,11 +384,10 @@ class ZnDrawDefault(ZnDrawBase):
         with self._set_sid(data["sid"]):
             config = GlobalConfig.load()
             cls = get_selection_class(config.get_selection_methods())
-            atoms = self[self.step]
 
             try:
                 selection = cls(**data["params"])
-                self.selection = selection.get_ids(atoms, self.selection)
+                selection.run(self)
             except ValueError as err:
                 log.critical(err)
 
@@ -350,9 +398,7 @@ class ZnDrawDefault(ZnDrawBase):
 
             try:
                 instance = cls(**data["params"])
-                fig = instance.run(list(self), self.selection)
-                data = {"figure": fig.to_json(), "sid": self._target_sid}
-                self.socket.emit("analysis:figure", data)
+                instance.run(self)
             except ValueError as err:
                 log.critical(err)
 
@@ -370,7 +416,7 @@ class ZnDrawDefault(ZnDrawBase):
                 for idx, atoms in tqdm.tqdm(
                     enumerate(ase.io.iread(stream, format=format))
                 ):
-                    self.append(atoms)
+                    self.append(Frame.from_atoms(atoms))
                     self.step = idx
 
     def download_file(self, data):
@@ -393,7 +439,7 @@ class ZnDrawDefault(ZnDrawBase):
         ]
         config = GlobalConfig.load()
         cls = get_modify_class(config.get_modify_methods(include=include))
-        sid = self._target_sid if self._target_sid else data["token"]  #
+        sid = self._target_sid if self._target_sid else data["token"]
 
         schema = cls.model_json_schema()
 
@@ -405,19 +451,11 @@ class ZnDrawDefault(ZnDrawBase):
 
 @dataclasses.dataclass
 class ZnDraw(ZnDrawBase):
-    """ZnDraw client.
-
-    Attributes
-    ----------
-    display_new : bool
-        Display new atoms in the webclient, when they are added.
-
-    """
+    """ZnDraw client."""
 
     url: str = None
 
     jupyter: bool = False
-    display_new: bool = True
 
     _modifiers: list = dataclasses.field(default_factory=list)
 
@@ -475,11 +513,6 @@ class ZnDraw(ZnDrawBase):
 
     def get_logging_handler(self) -> ZnDrawLoggingHandler:
         return ZnDrawLoggingHandler(self)
-
-    def __setitem__(self, index, value):
-        super().__setitem__(index, value)
-        if self.display_new:
-            self.step = index
 
     def register_modifier(
         self, cls: UpdateScene, run_kwargs: dict = None, default: bool = False

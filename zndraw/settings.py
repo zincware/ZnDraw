@@ -21,6 +21,9 @@ _MODIFY_FUNCTIONS = [
     "zndraw.modify.AddLineParticles",
     "zndraw.modify.Rotate",
     "zndraw.modify.ChangeType",
+    "zndraw.modify.Wrap",
+    "zndraw.modify.Center",
+    "zndraw.modify.Replicate",
     # "zndraw.modify.CustomModifier",
 ]
 

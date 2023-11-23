@@ -24,6 +24,14 @@ function setupSocket() {
   return socket;
 }
 
+function setupInfo() {
+  fetch("static/info.md")
+    .then((response) => response.text())
+    .then((text) => {
+      document.getElementById("helpModalBody").innerHTML = marked.parse(text);
+    });
+}
+
 function main() {
   const socket = setupSocket();
   const cache = new Cache(socket);
@@ -56,6 +64,7 @@ function main() {
     "#ZnDrawConsoleCard",
   );
   document.getElementById("atom-spinner").style.display = "none";
+  setupInfo();
 }
 
 main();
