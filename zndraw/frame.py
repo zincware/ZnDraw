@@ -52,7 +52,7 @@ class Frame:
 
         frame.cell = atoms.cell
         frame.pbc = atoms.pbc
-        
+
         if hasattr(atoms, "connectivity"):
             frame.connectivity = atoms.connectivity
 
