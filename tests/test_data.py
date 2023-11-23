@@ -1,7 +1,7 @@
 import pytest
 from ase.build import bulk, molecule
 
-from zndraw.data import atoms_from_json, atoms_to_json
+from zndraw.frame import Frame
 
 
 @pytest.mark.parametrize(
@@ -9,4 +9,4 @@ from zndraw.data import atoms_from_json, atoms_to_json
 )
 def test_atoms_from_and_to_json_return_unchanged_atoms_object(atoms):
     atom_copy = atoms.copy()
-    assert atom_copy == atoms_from_json(atoms_to_json(atoms))
+    assert atom_copy == (Frame.from_atoms(atom_copy)).to_atoms()
