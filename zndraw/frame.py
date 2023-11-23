@@ -168,15 +168,19 @@ class Frame:
 
     @classmethod
     def frame_from_json(cls, data):
-        frame = cls(positions=np.array(data["positions"]),
-                    cell=np.array(data["cell"]),
-                    numbers=np.array(data["numbers"]),
-                    colors=np.array(data["colors"]),
-                    radii=np.array(data["radii"]),
-                    pbc=data["pbc"],
-                    calc = data["calc"])
+        frame = cls(
+            positions=np.array(data["positions"]),
+            cell=np.array(data["cell"]),
+            numbers=np.array(data["numbers"]),
+            colors=np.array(data["colors"]),
+            radii=np.array(data["radii"]),
+            pbc=data["pbc"],
+            calc=data["calc"],
+        )
 
-        if "vecField" in data: #currently there is the vecField part in js missing. So this is useless at the moment
+        if (
+            "vecField" in data
+        ):  # currently there is the vecField part in js missing. So this is useless at the moment
             frame.vecField = data["vecField"]
 
         if "connectivity" in data:
