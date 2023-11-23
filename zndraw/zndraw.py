@@ -17,11 +17,10 @@ import znh5md
 
 from zndraw.analyse import get_analysis_class
 from zndraw.draw import Geometry
+from zndraw.frame import Frame
 from zndraw.modify import UpdateScene, get_modify_class
 from zndraw.select import get_selection_class
 from zndraw.settings import GlobalConfig
-from zndraw.frame import Frame
-
 from zndraw.utils import (
     ZnDrawLoggingHandler,
     get_cls_from_json_schema,
@@ -84,7 +83,9 @@ class ZnDrawBase:  # collections.abc.MutableSequence
         return int(self.socket.call("atoms:length", {}))
 
     def __setitem__(self, index, value):
-        assert isinstance(value, ase.Atoms) or isinstance(value, Frame), "Must be an ASE Atoms object"
+        assert isinstance(value, ase.Atoms) or isinstance(
+            value, Frame
+        ), "Must be an ASE Atoms object"
         assert isinstance(index, int), "Index must be an integer"
 
         if isinstance(value, ase.Atoms):
@@ -181,7 +182,6 @@ class ZnDrawBase:  # collections.abc.MutableSequence
     def atoms(self) -> ase.Atoms:
         """Return the atoms at the current step."""
         return self[self.step].to_atoms()
-
 
     @property
     def points(self) -> np.ndarray:
