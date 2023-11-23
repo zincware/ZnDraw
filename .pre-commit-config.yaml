@@ -2,7 +2,7 @@ default_language_version:
   python: python3
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.4.0
+    rev: v4.5.0
     hooks:
       - id: check-added-large-files
       - id: check-case-conflict
@@ -20,7 +20,7 @@ repos:
       - id: sort-simple-yaml
       - id: trailing-whitespace
   - repo: https://github.com/pre-commit/mirrors-eslint
-    rev: v8.50.0
+    rev: v8.53.0
     hooks:
       - id: eslint
         args: [--fix]
@@ -28,13 +28,9 @@ repos:
           - eslint@latest
           - eslint-config-prettier
   - repo: https://github.com/psf/black
-    rev: 23.9.1
+    rev: 23.11.0
     hooks:
       - id: black
-  - repo: https://github.com/PyCQA/isort
-    rev: 5.12.0
-    hooks:
-      - id: isort
   - repo: https://github.com/codespell-project/codespell
     rev: v2.2.6
     hooks:
@@ -42,7 +38,7 @@ repos:
         additional_dependencies: ["tomli"]
   - repo: https://github.com/astral-sh/ruff-pre-commit
     # Ruff version.
-    rev: "v0.0.292"
+    rev: "v0.1.5"
     hooks:
       - id: ruff
         args: [--fix]
@@ -52,6 +48,6 @@ repos:
       - id: mdformat
         args: ["--wrap=80"]
   - repo: https://github.com/pre-commit/mirrors-prettier
-    rev: v3.0.3
+    rev: v3.1.0
     hooks:
       - id: prettier

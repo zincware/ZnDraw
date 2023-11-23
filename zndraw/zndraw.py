@@ -21,6 +21,7 @@ from zndraw.modify import UpdateScene, get_modify_class
 from zndraw.select import get_selection_class
 from zndraw.settings import GlobalConfig
 from zndraw.frame import Frame
+
 from zndraw.utils import (
     ZnDrawLoggingHandler,
     get_cls_from_json_schema,
@@ -89,6 +90,7 @@ class ZnDrawBase:  # collections.abc.MutableSequence
         if isinstance(value, ase.Atoms):
             value = Frame.from_atoms(value)
         data = {index: value.frame_to_json(), "display_new": self.display_new}
+
         if self._target_sid is not None:
             data["sid"] = self._target_sid
 
@@ -179,6 +181,7 @@ class ZnDrawBase:  # collections.abc.MutableSequence
     def atoms(self) -> ase.Atoms:
         """Return the atoms at the current step."""
         return self[self.step].to_atoms()
+
 
     @property
     def points(self) -> np.ndarray:
@@ -294,12 +297,12 @@ class ZnDrawDefault(ZnDrawBase):
     def initialize_webclient(self, sid):
         start_time = datetime.datetime.now()
         with self._set_sid(sid):
-            for idx, frames in enumerate(self.read_data()):
+            for idx, atoms in enumerate(self.read_data()):
                 if idx == 0:
-                    #self.analysis_schema(atoms)
+                    self.analysis_schema(atoms)
                     self.selection_schema()
                     self.draw_schema()
-                self[idx] = frames
+                self[idx] = atoms
                 # self.step = idx # double the message count ..., replace with part of the setitem message, benchmark
         log.warning(f"{datetime.datetime.now() - start_time} Finished sending data.")
 
