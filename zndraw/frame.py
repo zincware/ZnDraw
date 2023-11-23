@@ -50,6 +50,9 @@ class Frame:
     def from_atoms(cls, atoms: ase.Atoms):
         frame = cls(**atoms.arrays)
 
+        frame.cell = atoms.cell
+        frame.pbc = atoms.pbc
+        
         if hasattr(atoms, "connectivity"):
             frame.connectivity = atoms.connectivity
 
