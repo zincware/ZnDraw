@@ -182,6 +182,41 @@ class Properties1D(BaseModel):
         vis.figure = fig.to_json()
 
 
+class ColorSchema(BaseModel):
+    discriminator: t.Literal["ColorSchema"] = Field("ColorSchema")
+
+    def run(self, vis):
+        import networkx as nx
+        from ase.data.colors import jmol_colors
+        import matplotlib.colors as mcolors
+        import matplotlib.pyplot as plt
+
+        def _rgb2hex(value):
+            r, g, b = np.array(value * 255, dtype=int)
+            return "#%02x%02x%02x" % (r, g, b)
+        
+        cm = plt.get_cmap('plasma')
+
+        atoms = list(vis)
+        for idx, atom in enumerate(atoms):
+            connectivity: nx.Graph = atom.connectivity
+            # missing PBC
+            # color each Node based on the number of neighbors
+            # add possibility to customize the color scheme
+            # color by other properties as well
+            # colors = [connectivity.degree[x] for x in connectivity.nodes]
+            # colors = [_rgb2hex(np.array((number / 4, 0.0, 0.0))) for number in colors]
+            colors = []
+            for x in range(len(atom)):
+                try:
+                    colors.append(mcolors.to_hex(cm(connectivity.degree[x] / 4)))
+                except KeyError:
+                    colors.append("#000000")
+
+            atom.set_array("colors", np.array(colors))
+            vis[idx] = atom
+
+
 def get_analysis_class(methods):
     class Analysis(BaseModel):
         method: methods = Field(
