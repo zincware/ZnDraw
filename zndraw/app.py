@@ -4,7 +4,7 @@ import uuid
 
 socketio = SocketIO()
 
-def create_app(token, upgrade_insecure_requests, compute_bonds) -> Flask:
+def create_app(use_token, upgrade_insecure_requests, compute_bonds) -> Flask:
     """Create the Flask app."""
 
     app = Flask(__name__)
@@ -13,8 +13,8 @@ def create_app(token, upgrade_insecure_requests, compute_bonds) -> Flask:
     app.config["DEFAULT_PYCLIENT"] = None
     app.config["MODIFIER"] = {"default_schema": {}}
 
-    if token is not None:
-        app.config["token"] = token
+    if not use_token:  # TODO: handle this differently
+        app.config["token"] = "notoken"
     app.config["upgrade_insecure_requests"] = upgrade_insecure_requests
     app.config["compute_bonds"] = compute_bonds
 

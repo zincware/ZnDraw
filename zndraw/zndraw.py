@@ -296,7 +296,7 @@ class ZnDrawDefault(ZnDrawBase):
         log.warning(f"{datetime.datetime.now() - start_time} Finished sending data.")
 
     def read_data(self):
-        if self.file_io.name is None:
+        if self.file_io is None or self.file_io.name is None:
             yield ase.Atoms()
             return
 

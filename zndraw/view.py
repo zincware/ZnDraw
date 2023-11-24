@@ -55,7 +55,7 @@ def view(
     url = f"http://127.0.0.1:{port}"
 
     app = create_app(
-        token="notoken" if not use_token else None,
+        use_token=use_token,
         upgrade_insecure_requests=upgrade_insecure_requests,
         compute_bonds=compute_bonds,
     )
