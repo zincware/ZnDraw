@@ -1,9 +1,9 @@
-
-from flask import render_template, session, redirect
-from flask import current_app
-import uuid
-from . import main
 import logging
+import uuid
+
+from flask import current_app, redirect, render_template, session
+
+from . import main
 
 log = logging.getLogger(__name__)
 
@@ -32,11 +32,13 @@ def token(token):
     session["token"] = token
     return redirect("/")
 
+
 @main.route("/exit")
 def exit_route():
     """Exit the session."""
     log.critical("Server shutting down...")
 
     from ..app import socketio
+
     socketio.stop()
     return "Server shutting down..."

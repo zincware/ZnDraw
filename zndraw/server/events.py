@@ -1,9 +1,11 @@
-from ..app import socketio as io
-from flask import request, session
-from flask import current_app as app
-from flask_socketio import join_room, emit, call
 import contextlib
 import logging
+
+from flask import current_app as app
+from flask import request, session
+from flask_socketio import call, emit, join_room
+
+from ..app import socketio as io
 
 log = logging.getLogger(__name__)
 
@@ -56,8 +58,6 @@ def disconnect():
     )
 
 
-
-
 @io.on("join")
 def join(token):
     # only used by pyclients that only connect via socket (no HTML)
@@ -66,7 +66,6 @@ def join(token):
     join_room("pyclients")
     if token == "default":
         app.config["DEFAULT_PYCLIENT"] = request.sid
-
 
 
 @io.on("scene:schema")
