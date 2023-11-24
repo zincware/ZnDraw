@@ -186,16 +186,15 @@ class ColorSchema(BaseModel):
     discriminator: t.Literal["ColorSchema"] = Field("ColorSchema")
 
     def run(self, vis):
-        import networkx as nx
-        from ase.data.colors import jmol_colors
         import matplotlib.colors as mcolors
         import matplotlib.pyplot as plt
+        import networkx as nx
 
         def _rgb2hex(value):
             r, g, b = np.array(value * 255, dtype=int)
             return "#%02x%02x%02x" % (r, g, b)
-        
-        cm = plt.get_cmap('plasma')
+
+        cm = plt.get_cmap("plasma")
 
         atoms = list(vis)
         for idx, atom in enumerate(atoms):
