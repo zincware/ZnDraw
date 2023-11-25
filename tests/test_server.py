@@ -1,8 +1,8 @@
 import time
 
+import ase
 import pytest
 from ase.build import molecule
-import ase
 
 from zndraw import ZnDraw
 
