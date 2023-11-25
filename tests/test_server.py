@@ -3,11 +3,11 @@ import time
 import ase
 import pytest
 from ase.build import molecule
+import ase.collections
 
 from zndraw import ZnDraw
 
 
-# @pytest.mark.chrome
 @pytest.mark.usefixtures("setup")
 class TestZnDraw:
     def test_title(self, server):
@@ -31,3 +31,159 @@ class TestZnDraw:
         vis[0] = molecule("H2O")
         assert len(vis) == 1
         assert vis[0] == molecule("H2O")
+    
+    # def test_vis_selection(self, server):
+    # TODO: fix
+    #     self.driver.get(server)
+    #     time.sleep(1)
+    #     vis = ZnDraw(url=server)
+    #     vis[0] = molecule("H2O")
+    #     vis.selection = [1, 2]
+    #     assert vis.selection == [1, 2]
+
+    def test_delete_backwards(self, server):
+        self.driver.get(server)
+        time.sleep(1)
+        s22 = list(ase.collections.s22)
+        vis = ZnDraw(url=server)
+        # vis[:] = list(ase.collections.s22) # not supported
+        # vis.extend(ase.collections.s22) # not working, because first element is already there
+        for idx, atoms in enumerate(s22):
+            vis[idx] = atoms
+        
+        assert len(vis) == 22
+        for idx in range(22):
+            assert vis[idx] == s22[idx]
+
+        for idx in range(22):
+            del vis[len(vis) - 1]
+            assert len(vis) == 22 - idx - 1
+            for jdx in range(len(vis)):
+                assert vis[jdx] == s22[jdx]
+
+    def test_delete_forwards(self, server):
+        self.driver.get(server)
+        time.sleep(1)
+        s22 = list(ase.collections.s22)
+        vis = ZnDraw(url=server)
+        # vis[:] = list(ase.collections.s22) # not supported
+        # vis.extend(ase.collections.s22) # not working, because first element is already there
+        for idx, atoms in enumerate(s22):
+            vis[idx] = atoms
+        
+        assert len(vis) == 22
+        for idx in range(22):
+            assert vis[idx] == s22[idx]
+
+        for idx in range(22):
+            del vis[0]
+            assert len(vis) == 22 - idx - 1
+            for jdx in range(len(vis)):
+                assert vis[jdx] == s22[jdx + idx + 1]
+    
+    def test_delete_middle(self, server):
+        self.driver.get(server)
+        time.sleep(1)
+        s22 = list(ase.collections.s22)
+        vis = ZnDraw(url=server)
+        # vis[:] = list(ase.collections.s22) # not supported
+        # vis.extend(ase.collections.s22) # not working, because first element is already there
+        for idx, atoms in enumerate(s22):
+            vis[idx] = atoms
+        
+        assert len(vis) == 22
+        for idx in range(22):
+            assert vis[idx] == s22[idx]
+
+        for idx in range(0, 22):
+            if len(vis) <= 10:
+                with pytest.raises(IndexError):
+                    del vis[10]
+            else:
+                del vis[10]
+                assert len(vis) == 22 - idx - 1
+                for jdx in range(len(vis)):
+                    assert vis[jdx] == s22[jdx] if jdx < 10 else s22[jdx + 1]
+    
+    def test_delete_slice_backwards(self, server):
+        self.driver.get(server)
+        time.sleep(1)
+        s22 = list(ase.collections.s22)
+        vis = ZnDraw(url=server)
+        # vis[:] = list(ase.collections.s22) # not supported
+        # vis.extend(ase.collections.s22) # not working, because first element is already there
+        for idx, atoms in enumerate(s22):
+            vis[idx] = atoms
+        
+        assert len(vis) == 22
+        for idx in range(22):
+            assert vis[idx] == s22[idx]
+
+        for idx in range(22):
+            del vis[len(vis) - 1 :]
+            assert len(vis) == 22 - idx - 1
+            for jdx in range(len(vis)):
+                assert vis[jdx] == s22[jdx]
+    
+    def test_delete_slice_forwards(self, server):
+        self.driver.get(server)
+        time.sleep(1)
+        s22 = list(ase.collections.s22)
+        vis = ZnDraw(url=server)
+        # vis[:] = list(ase.collections.s22) # not supported
+        # vis.extend(ase.collections.s22) # not working, because first element is already there
+        for idx, atoms in enumerate(s22):
+            vis[idx] = atoms
+        
+        assert len(vis) == 22
+        for idx in range(22):
+            assert vis[idx] == s22[idx]
+
+        for idx in range(22):
+            del vis[:1]
+            assert len(vis) == 22 - idx - 1
+            for jdx in range(len(vis)):
+                assert vis[jdx] == s22[jdx + idx + 1]
+    
+    def test_delete_slice_middle(self, server):
+        self.driver.get(server)
+        time.sleep(1)
+        s22 = list(ase.collections.s22)
+        vis = ZnDraw(url=server)
+        # vis[:] = list(ase.collections.s22) # not supported
+        # vis.extend(ase.collections.s22) # not working, because first element is already there
+        for idx, atoms in enumerate(s22):
+            vis[idx] = atoms
+        
+        assert len(vis) == 22
+        for idx in range(22):
+            assert vis[idx] == s22[idx]
+
+        for idx in range(0, 22):
+            del vis[10:11]
+            if len(vis) <= 10:
+                assert len(vis) == 10
+                for jdx in range(len(vis)):
+                    assert vis[jdx] == s22[jdx] if jdx < 10 else s22[jdx + 1]
+            else:
+                assert len(vis) == 22 - idx - 1
+                for jdx in range(len(vis)):
+                    assert vis[jdx] == s22[jdx] if jdx < 10 else s22[jdx + 1]
+    
+    def test_delete_all(self, server):
+        self.driver.get(server)
+        time.sleep(1)
+        s22 = list(ase.collections.s22)
+        vis = ZnDraw(url=server)
+        # vis[:] = list(ase.collections.s22) # not supported
+        # vis.extend(ase.collections.s22) # not working, because first element is already there
+        for idx, atoms in enumerate(s22):
+            vis[idx] = atoms
+        
+        assert len(vis) == 22
+        for idx in range(22):
+            assert vis[idx] == s22[idx]
+
+        del vis[:]
+        assert len(vis) == 0
+        assert vis[:] == []
