@@ -1,9 +1,9 @@
 import time
 
 import ase
+import ase.collections
 import pytest
 from ase.build import molecule
-import ase.collections
 
 from zndraw import ZnDraw
 
@@ -31,7 +31,7 @@ class TestZnDraw:
         vis[0] = molecule("H2O")
         assert len(vis) == 1
         assert vis[0] == molecule("H2O")
-    
+
     # def test_vis_selection(self, server):
     # TODO: fix
     #     self.driver.get(server)
@@ -50,7 +50,7 @@ class TestZnDraw:
         # vis.extend(ase.collections.s22) # not working, because first element is already there
         for idx, atoms in enumerate(s22):
             vis[idx] = atoms
-        
+
         assert len(vis) == 22
         for idx in range(22):
             assert vis[idx] == s22[idx]
@@ -70,7 +70,7 @@ class TestZnDraw:
         # vis.extend(ase.collections.s22) # not working, because first element is already there
         for idx, atoms in enumerate(s22):
             vis[idx] = atoms
-        
+
         assert len(vis) == 22
         for idx in range(22):
             assert vis[idx] == s22[idx]
@@ -80,7 +80,7 @@ class TestZnDraw:
             assert len(vis) == 22 - idx - 1
             for jdx in range(len(vis)):
                 assert vis[jdx] == s22[jdx + idx + 1]
-    
+
     def test_delete_middle(self, server):
         self.driver.get(server)
         time.sleep(1)
@@ -90,7 +90,7 @@ class TestZnDraw:
         # vis.extend(ase.collections.s22) # not working, because first element is already there
         for idx, atoms in enumerate(s22):
             vis[idx] = atoms
-        
+
         assert len(vis) == 22
         for idx in range(22):
             assert vis[idx] == s22[idx]
@@ -104,7 +104,7 @@ class TestZnDraw:
                 assert len(vis) == 22 - idx - 1
                 for jdx in range(len(vis)):
                     assert vis[jdx] == s22[jdx] if jdx < 10 else s22[jdx + 1]
-    
+
     def test_delete_slice_backwards(self, server):
         self.driver.get(server)
         time.sleep(1)
@@ -114,7 +114,7 @@ class TestZnDraw:
         # vis.extend(ase.collections.s22) # not working, because first element is already there
         for idx, atoms in enumerate(s22):
             vis[idx] = atoms
-        
+
         assert len(vis) == 22
         for idx in range(22):
             assert vis[idx] == s22[idx]
@@ -124,7 +124,7 @@ class TestZnDraw:
             assert len(vis) == 22 - idx - 1
             for jdx in range(len(vis)):
                 assert vis[jdx] == s22[jdx]
-    
+
     def test_delete_slice_forwards(self, server):
         self.driver.get(server)
         time.sleep(1)
@@ -134,7 +134,7 @@ class TestZnDraw:
         # vis.extend(ase.collections.s22) # not working, because first element is already there
         for idx, atoms in enumerate(s22):
             vis[idx] = atoms
-        
+
         assert len(vis) == 22
         for idx in range(22):
             assert vis[idx] == s22[idx]
@@ -144,7 +144,7 @@ class TestZnDraw:
             assert len(vis) == 22 - idx - 1
             for jdx in range(len(vis)):
                 assert vis[jdx] == s22[jdx + idx + 1]
-    
+
     def test_delete_slice_middle(self, server):
         self.driver.get(server)
         time.sleep(1)
@@ -154,7 +154,7 @@ class TestZnDraw:
         # vis.extend(ase.collections.s22) # not working, because first element is already there
         for idx, atoms in enumerate(s22):
             vis[idx] = atoms
-        
+
         assert len(vis) == 22
         for idx in range(22):
             assert vis[idx] == s22[idx]
@@ -169,7 +169,7 @@ class TestZnDraw:
                 assert len(vis) == 22 - idx - 1
                 for jdx in range(len(vis)):
                     assert vis[jdx] == s22[jdx] if jdx < 10 else s22[jdx + 1]
-    
+
     def test_delete_all(self, server):
         self.driver.get(server)
         time.sleep(1)
@@ -179,7 +179,7 @@ class TestZnDraw:
         # vis.extend(ase.collections.s22) # not working, because first element is already there
         for idx, atoms in enumerate(s22):
             vis[idx] = atoms
-        
+
         assert len(vis) == 22
         for idx in range(22):
             assert vis[idx] == s22[idx]

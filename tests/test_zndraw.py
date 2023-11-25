@@ -80,7 +80,3 @@ def test_multiple_instances(vis, ase_s22):
     assert len(vis2) == len(vis) == 22
 
     vis2.close()
-
-
-
-
