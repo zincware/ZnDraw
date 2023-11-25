@@ -1,5 +1,3 @@
-import multiprocessing as mp
-import time
 
 import pytest
 from ase.build import molecule
