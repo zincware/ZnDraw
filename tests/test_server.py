@@ -1,6 +1,4 @@
-
 import pytest
-from ase.build import molecule
 
 from zndraw import ZnDraw
 
@@ -16,12 +14,11 @@ class TestZnDraw:
         self.driver.get(server)
         vis = ZnDraw(url=server)
         assert vis.socket.connected
-    
+
     def test_vis_len(self, server):
         self.driver.get(server)
-        time.sleep(1) 
+        time.sleep(1)
         # we need to wait for all the data to be loaded.
         # This includes jsonschemas and atoms.
         vis = ZnDraw(url=server)
         assert len(vis) == 1
-
