@@ -11,6 +11,7 @@ from webdriver_manager.chrome import ChromeDriverManager
 from zndraw import ZnDraw
 from zndraw.app import create_app, socketio
 from zndraw.utils import get_port
+from zndraw.zndraw import ZnDrawDefault
 
 
 @pytest.fixture
@@ -45,21 +46,22 @@ def server():
         socketio.run(
             app, port=port, debug=False, host="0.0.0.0"
         )  # NEVER EVER USE  DEBUG=TRUE HERE!!!
-
     server_proc = mp.Process(
         target=run_server,
     )
 
+    helper_proc = mp.Process(
+        target=ZnDrawDefault,
+        kwargs={"url": f"http://localhost:{port}", "token": "default"},
+    )
+
     server_proc.start()
-    time.sleep(5)
-    yield f"http://localhost:{port}"
-    server_proc.terminate()
-    server_proc.join()
-
-
-@pytest.fixture()
-def vis(server) -> ZnDraw:
-    vis = ZnDraw(url=server)
-    # vis = ZnDraw(url="https://zndraw.icp.uni-stuttgart.de/", token="18f6d530e74246a9b96cca91f7fc55bc")
-    yield vis
-    # vis.close()
+    helper_proc.start()
+    time.sleep(1)
+    try:
+        yield f"http://localhost:{port}"
+    finally:
+        server_proc.terminate()
+        server_proc.join()
+        helper_proc.terminate()
+        helper_proc.join()
