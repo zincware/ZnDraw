@@ -1,6 +1,8 @@
+import time
 
 import pytest
 from ase.build import molecule
+import ase
 
 from zndraw import ZnDraw
 
@@ -24,4 +26,8 @@ class TestZnDraw:
         # This includes jsonschemas and atoms.
         vis = ZnDraw(url=server)
         assert len(vis) == 1
+        assert vis[0] == ase.Atoms()
 
+        vis[0] = molecule("H2O")
+        assert len(vis) == 1
+        assert vis[0] == molecule("H2O")
