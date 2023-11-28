@@ -9,8 +9,7 @@ from zndraw.frame import Frame
 )
 def test_atoms_from_and_to_json_return_unchanged_atoms_object(atoms):
     frame = Frame.from_atoms(atoms)
-    assert frame == Frame(positions=atoms.positions,
-                          numbers=atoms.numbers,
-                          cell = atoms.cell,
-                          pbc = atoms.pbc)
+    assert frame == Frame(
+        positions=atoms.positions, numbers=atoms.numbers, cell=atoms.cell, pbc=atoms.pbc
+    )
     assert frame.to_atoms() == atoms

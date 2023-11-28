@@ -17,10 +17,10 @@ import znh5md
 
 from zndraw.analyse import get_analysis_class
 from zndraw.draw import Geometry
+from zndraw.frame import Frame
 from zndraw.modify import UpdateScene, get_modify_class
 from zndraw.select import get_selection_class
 from zndraw.settings import GlobalConfig
-from zndraw.frame import Frame
 from zndraw.utils import (
     ZnDrawLoggingHandler,
     get_cls_from_json_schema,
@@ -85,7 +85,7 @@ class ZnDrawBase:  # collections.abc.MutableSequence
     def __setitem__(self, index, value):
         if not isinstance(value, ase.Atoms) and not isinstance(value, Frame):
             raise ValueError("Must be an ase.Atoms or Frame object")
-        
+
         assert isinstance(index, int), "Index must be an integer"
 
         if isinstance(value, ase.Atoms):
@@ -132,7 +132,9 @@ class ZnDrawBase:  # collections.abc.MutableSequence
             value = Frame.from_atoms(value)
         self[len(self)] = value
 
-    def extend(self, values: t.Union[ase.Atoms, Frame, list[ase.Atoms], list[Frame]]) -> None:
+    def extend(
+        self, values: t.Union[ase.Atoms, Frame, list[ase.Atoms], list[Frame]]
+    ) -> None:
         """Extend the list by appending all the items in the given list"""
         size = len(self)
         for idx, value in enumerate(values):
@@ -298,7 +300,7 @@ class ZnDrawDefault(ZnDrawBase):
         with self._set_sid(sid):
             for idx, frames in enumerate(self.read_data()):
                 if idx == 0:
-                    #self.analysis_schema(atoms)
+                    # self.analysis_schema(atoms)
                     self.selection_schema()
                     self.draw_schema()
                 self[idx] = frames
