@@ -17,10 +17,10 @@ import znh5md
 
 from zndraw.analyse import get_analysis_class
 from zndraw.draw import Geometry
-from zndraw.frame import Frame
 from zndraw.modify import UpdateScene, get_modify_class
 from zndraw.select import get_selection_class
 from zndraw.settings import GlobalConfig
+from zndraw.frame import Frame
 from zndraw.utils import (
     ZnDrawLoggingHandler,
     get_cls_from_json_schema,
@@ -83,15 +83,14 @@ class ZnDrawBase:  # collections.abc.MutableSequence
         return int(self.socket.call("atoms:length", {}))
 
     def __setitem__(self, index, value):
-        assert isinstance(value, ase.Atoms) or isinstance(
-            value, Frame
-        ), "Must be an ASE Atoms object"
+        if not isinstance(value, ase.Atoms) and not isinstance(value, Frame):
+            raise ValueError("Must be an ase.Atoms or Frame object")
+        
         assert isinstance(index, int), "Index must be an integer"
 
         if isinstance(value, ase.Atoms):
             value = Frame.from_atoms(value)
-        data = {index: value.frame_to_json(), "display_new": self.display_new}
-
+        data = {index: value.to_dict(), "display_new": self.display_new}
         if self._target_sid is not None:
             data["sid"] = self._target_sid
 
@@ -121,19 +120,19 @@ class ZnDrawBase:  # collections.abc.MutableSequence
         else:
             raise TypeError("Index must be an integer, slice or list[int]")
 
-    def insert(self, index, value):
+    def insert(self, index, value: t.Union[ase.Atoms, Frame]):
         """Insert atoms before index"""
         if isinstance(value, ase.Atoms):
             value = Frame.from_atoms(value)
-        self.socket.emit("atoms:insert", {index: value.frame_to_json()})
+        self.socket.emit("atoms:insert", {index: value.to_dict()})
 
-    def append(self, value) -> None:
+    def append(self, value: t.Union[ase.Atoms, Frame]) -> None:
         """Append atoms to the end of the list"""
         if isinstance(value, ase.Atoms):
             value = Frame.from_atoms(value)
         self[len(self)] = value
 
-    def extend(self, values) -> None:
+    def extend(self, values: t.Union[ase.Atoms, Frame, list[ase.Atoms], list[Frame]]) -> None:
         """Extend the list by appending all the items in the given list"""
         size = len(self)
         for idx, value in enumerate(values):
@@ -141,7 +140,7 @@ class ZnDrawBase:  # collections.abc.MutableSequence
                 value = Frame.from_atoms(value)
             self[size + idx] = value
 
-    def __getitem__(self, index):
+    def __getitem__(self, index) -> Frame:
         length = len(self)
         is_scalar = isinstance(index, int)
         is_sclice = isinstance(index, slice)
@@ -160,7 +159,7 @@ class ZnDrawBase:  # collections.abc.MutableSequence
         atoms_list = []
 
         for val in downloaded_data.values():
-            atoms_list.append(Frame.frame_from_json(val))
+            atoms_list.append(Frame.from_dict(val))
 
         data = atoms_list[0] if is_scalar else atoms_list
         if data == [] and not is_sclice:
@@ -297,12 +296,12 @@ class ZnDrawDefault(ZnDrawBase):
     def initialize_webclient(self, sid):
         start_time = datetime.datetime.now()
         with self._set_sid(sid):
-            for idx, atoms in enumerate(self.read_data()):
+            for idx, frames in enumerate(self.read_data()):
                 if idx == 0:
-                    self.analysis_schema(atoms)
+                    #self.analysis_schema(atoms)
                     self.selection_schema()
                     self.draw_schema()
-                self[idx] = atoms
+                self[idx] = frames
                 # self.step = idx # double the message count ..., replace with part of the setitem message, benchmark
         log.warning(f"{datetime.datetime.now() - start_time} Finished sending data.")
 

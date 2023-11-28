@@ -1,56 +1,94 @@
-import copy
 import dataclasses
+import numpy as np
+import networkx as nx
 import typing as t
+import copy
 
 import ase
-import networkx as nx
-import numpy as np
 from ase.calculators.singlepoint import SinglePointCalculator
 from ase.data.colors import jmol_colors
+
 from ase.neighborlist import natural_cutoffs
-from pydantic import Field
+from networkx.exception import NetworkXError
+from pydantic import BaseModel, Field
 
 from zndraw.bonds import ASEComputeBonds
-from zndraw.data import _get_radius, _rgb2hex
-
+from zndraw.utils import get_radius, rgb2hex
 
 @dataclasses.dataclass
 class Frame:
-    # Main Attributes
+    """
+    Primary Attributes:
+    These attributes directly contain data of your frame
+    that will be displayed in the visualizer.
+    -------------
+    positions : t.Union[np.ndarray, list]
+        contains the positions of each particle in 3 dimensions
+    cell : t.Union[np.ndarray, list]
+        contains the cell size of the frame
+    numbers : t.Union[np.ndarray, list, int] #TODO update in case int gets removed
+        contains the number of each individual atom
+    colors : t.Union[np.ndarray, list]
+        contains the hexadecimal color representation of each atom.
+    radii : t.Union[np.ndarray, list]
+        contains the radius of each atom that is displayed in the visualizer.
+    pbc : bool
+        determines periodic boundary conditions
+    connectivity : nx.Graph()
+        contains the bonds between singular atoms
+    calc : dict
+        contains properties of the frame, such as energy,
+        that can be viewed using the analyze function.
+    vector_field : dict
+        WIP: contains a flowfield that will be displayed in the simulation box.
+        will contain box-length, numbers of vectors per dimension and the directional
+        vectors themself.#
+    -------------
+
+    Secondary Attributes:
+    These attributes influence the usage of the primary attributes, such as if 
+    bonds are displayed or in what way bonds are calculated.
+    -------------
+    bonds : bool
+        determines if bonds are drawn
+    auto_bonds : bool
+        if true uses module ase to calculate chemically accurate bonds of atoms
+        using the positions and numbers (e.g. number = 1 = Hydrogen)
+    """
+
     positions: t.Union[np.ndarray, list] = None
-    cell: t.Union[np.ndarray, list] = np.array([0.0, 0.0, 0.0])
+    cell: t.Union[np.ndarray, list, ase.cell.Cell] = np.array([0.0, 0.0, 0.0])
     numbers: t.Union[np.ndarray, list, int] = None
     colors: t.Union[np.ndarray, list] = None
     radii: t.Union[np.ndarray, list] = None
     pbc: bool = False
-    connectivity: nx.Graph() = nx.Graph()
-    calc: t.Any = None
-
-    vecField: t.Any = np.array(["TestArray", "0"])
-    # Secondary Attributes
-    # define calculations in this class
+    connectivity: nx.Graph() = nx.empty_graph()
+    calc: dict = None
+    vector_field: dict = None
+    
     bonds: bool = True
     auto_bonds: bool = True
 
     def __post_init__(self):
-        if isinstance(self.positions, list):
-            self.positions = np.array(self.positions)
-        if isinstance(self.positions, list):
+        """
+        Converts all lists to np.ndarray
+        """
+        for item in ["positions", "numbers", "colors", "radii"]:
+            if isinstance( getattr(self, item), list):
+                setattr(self, item, np.array(getattr(self, item)))
+
+        if not isinstance(self.cell, np.ndarray):
             self.cell = np.array(self.cell)
-        if isinstance(self.positions, list):
-            self.numbers = np.array(self.numbers)
-        if isinstance(self.positions, list):
-            self.colors = np.array(self.colors)
-        if isinstance(self.positions, list):
-            self.radii = np.array(self.radii)
-        # i know its ugly, but it works
-        # if i convert them without the check, the speed drops dramatically
+
 
     @classmethod
     def from_atoms(cls, atoms: ase.Atoms):
+        """
+        Creates an instance of the frame class from an ase.Atoms object
+        """
         frame = cls(**atoms.arrays)
 
-        frame.cell = atoms.cell
+        frame.cell = np.array(atoms.cell)
         frame.pbc = atoms.pbc
 
         if hasattr(atoms, "connectivity"):
@@ -58,31 +96,28 @@ class Frame:
 
         try:
             calc_data = {}
-            for key in atoms.calc.results:
-                value = atoms.calc.results[key]
+            for key, value in atoms.calc.results.items():
                 if isinstance(value, np.ndarray):
                     value = value.tolist()
                 calc_data[key] = value
-
             frame.calc = calc_data
-        except (RuntimeError, AttributeError):
+        except (RuntimeError, AttributeError): # This exception happens, when there is no calc-attribute given.
             pass
 
         return frame
 
     def to_atoms(self) -> ase.Atoms:
-        atoms = ase.Atoms(
-            positions=self.positions,
-            numbers=self.numbers,
-            cell=self.cell,  # self.cell funktioniert wieso auch immer nicht. TODO
-            pbc=self.pbc,
-        )
+        """
+        Creates an ase.Atoms object from a Frame instance
+        """
+        atoms = ase.Atoms(positions = self.positions, 
+                          numbers = self.numbers, 
+                          cell = self.cell,
+                          pbc = self.pbc)
+        
+        #atoms.arrays["colors"] = self.colors # TODO: see https://github.com/zincware/ZnDraw/issues/279
 
-        # atoms.arrays["colors"] = self.colors
-
-        atoms.connectivity = nx.Graph()
-        for edge in self.connectivity:
-            atoms.connectivity.add_edge(edge[0], edge[1], weight=edge[2])
+        atoms.connectivity = self.connectivity
 
         if self.calc is not None:
             atoms.calc = SinglePointCalculator(atoms)
@@ -92,6 +127,7 @@ class Frame:
             }
 
         return atoms
+        
 
     def calc_bonds(self):
         """
@@ -123,38 +159,58 @@ class Frame:
         matrix = np.zeros((len(self), len(self)))
         for i in range(1, len(self)):
             for j in range(i, len(self)):
-                matrix[i, j] = np.linalg.norm(self.positions[i] - self.positions[j])
+                matrix[i,j] = np.linalg.norm(self.positions[i] - self.positions[j])
         return matrix
-
-    def get_bonds(self):
+    
+    def get_bonds(self) -> list:
+        """
+        Returns a list than contains all bonds
+        """
         bonds = []
         for edge in self.connectivity.edges:
             bonds.append((edge[0], edge[1], self.connectivity.edges[edge]["weight"]))
         return bonds
-
+    
     def __len__(self):
         if isinstance(self.numbers, np.ndarray):
             return self.numbers.size
-        elif isinstance(self.numbers, list):
-            return len(self.numbers)
         elif isinstance(self.numbers, int):
             return 1
+        
+    def __eq__(self, other):
+        """
+        Check for identity of two frame objects.
+        """
+        try:
+            return (len(self) == len(other) and
+                    (self.positions == other.positions).all() and
+                    (self.numbers == other.numbers).all() and
+                    (self.cell == other.cell).all() and
+                    (self.pbc == other.pbc).all() and
+                    (self.connectivity == other.connectivity))
+        except AttributeError:
+            return NotImplemented    
+        
+    def to_dict(self) -> dict:
+        """
+        Creates a dictionary than contains all the relevant information of the Frame object
+        """
+        frame_dict = {}
 
-    def frame_to_json(self):
-        frame_dict = self.__dict__
-
+        for field in dataclasses.fields(self):
+            frame_dict[field.name] = getattr(self, field.name)
+  
         for key, value in frame_dict.items():
             if isinstance(value, np.ndarray):
                 frame_dict[key] = value.tolist()
-            elif isinstance(value, np.generic):
-                frame_dict[key] = value.item()
 
         if frame_dict["colors"] is None:
             frame_dict["colors"] = [
-                _rgb2hex(jmol_colors[number]) for number in frame_dict["numbers"]
+                rgb2hex(jmol_colors[number]) for number in frame_dict["numbers"]
             ]
-
-        frame_dict["radii"] = [_get_radius(number) for number in frame_dict["numbers"]]
+        
+        if frame_dict["radii"] is None:
+            frame_dict["radii"] = [get_radius(number) for number in frame_dict["numbers"]]
 
         if self.bonds:
             try:
@@ -164,27 +220,26 @@ class Frame:
                 frame_dict["connectivity"] = self.get_bonds()
             except AttributeError:
                 frame_dict["connectivity"] = []
-        else:
+        else:            
             frame_dict["connectivity"] = []
 
         return frame_dict
 
     @classmethod
-    def frame_from_json(cls, data):
-        frame = cls(
-            positions=np.array(data["positions"]),
-            cell=np.array(data["cell"]),
-            numbers=np.array(data["numbers"]),
-            colors=np.array(data["colors"]),
-            radii=np.array(data["radii"]),
-            pbc=data["pbc"],
-            calc=data["calc"],
-        )
+    def from_dict(cls, data):
+        """
+        Creates an instance of the Frame class from a dictionary
+        """
+        frame = cls(positions=np.array(data["positions"]),
+                    cell=np.array(data["cell"]),
+                    numbers=np.array(data["numbers"]),
+                    colors=np.array(data["colors"]),
+                    radii=np.array(data["radii"]),
+                    pbc=data["pbc"],
+                    calc = data["calc"])
 
-        if (
-            "vecField" in data
-        ):  # currently there is the vecField part in js missing. So this is useless at the moment
-            frame.vecField = data["vecField"]
+        if "vector_field" in data:  # currently there is the vector_field part in js missing. So this is useless at the moment
+            frame.vector_field = data["vector_field"]
 
         if "connectivity" in data:
             frame.connectivity = nx.Graph()
@@ -192,3 +247,5 @@ class Frame:
                 frame.connectivity.add_edge(edge[0], edge[1], weight=edge[2])
 
         return frame
+    
+    

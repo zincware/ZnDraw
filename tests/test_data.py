@@ -8,5 +8,9 @@ from zndraw.frame import Frame
     "atoms", [(molecule("C6H6")), (molecule("H2O")), (bulk("Cu", "fcc", a=3.6))]
 )
 def test_atoms_from_and_to_json_return_unchanged_atoms_object(atoms):
-    atom_copy = atoms.copy()
-    assert atom_copy == (Frame.from_atoms(atom_copy)).to_atoms()
+    frame = Frame.from_atoms(atoms)
+    assert frame == Frame(positions=atoms.positions,
+                          numbers=atoms.numbers,
+                          cell = atoms.cell,
+                          pbc = atoms.pbc)
+    assert frame.to_atoms() == atoms
