@@ -1,14 +1,10 @@
-import copy
 import dataclasses
-import typing as t
 
 import ase
 import networkx as nx
 import numpy as np
 from ase.calculators.singlepoint import SinglePointCalculator
 from ase.data.colors import jmol_colors
-from ase.neighborlist import natural_cutoffs
-from pydantic import Field
 
 from zndraw.bonds import ASEComputeBonds
 from zndraw.utils import get_radius, rgb2hex
