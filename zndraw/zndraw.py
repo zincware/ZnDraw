@@ -142,7 +142,7 @@ class ZnDrawBase:  # collections.abc.MutableSequence
                 value = Frame.from_atoms(value)
             self[size + idx] = value
 
-    def __getitem__(self, index) -> Frame:
+    def __getitem__(self, index) -> t.Union[ase.Atoms, list[ase.Atoms]]:
         length = len(self)
         is_scalar = isinstance(index, int)
         is_sclice = isinstance(index, slice)
@@ -161,7 +161,7 @@ class ZnDrawBase:  # collections.abc.MutableSequence
         atoms_list = []
 
         for val in downloaded_data.values():
-            atoms_list.append(Frame.from_dict(val))
+            atoms_list.append(Frame.from_dict(val).to_atoms())
 
         data = atoms_list[0] if is_scalar else atoms_list
         if data == [] and not is_sclice:
@@ -300,7 +300,7 @@ class ZnDrawDefault(ZnDrawBase):
         with self._set_sid(sid):
             for idx, frames in enumerate(self.read_data()):
                 if idx == 0:
-                    # self.analysis_schema(atoms)
+                    self.analysis_schema(frames)
                     self.selection_schema()
                     self.draw_schema()
                 self[idx] = frames
