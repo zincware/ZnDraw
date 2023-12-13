@@ -124,7 +124,14 @@ class ZnDrawBase:  # collections.abc.MutableSequence
         """Insert atoms before index"""
         if isinstance(value, ase.Atoms):
             value = Frame.from_atoms(value)
-        self.socket.emit("atoms:insert", {index: value.to_dict()})
+
+        data = list(self)
+        data.insert(index, value)
+        for idx, val in enumerate(data):
+            self[idx] = val
+
+        # TODO: why is this not working at the moment?
+        # self.socket.emit("atoms:insert", {index: value.to_dict()})
 
     def append(self, value: t.Union[ase.Atoms, Frame]) -> None:
         """Append atoms to the end of the list"""

@@ -41,6 +41,65 @@ class TestZnDraw:
     #     vis.selection = [1, 2]
     #     assert vis.selection == [1, 2]
 
+    def test_insert_before(self, server):
+        self.driver.get(server)
+        time.sleep(1)
+        s22 = list(ase.collections.s22)
+        vis = ZnDraw(url=server)
+        vis.extend(s22)
+        del vis[0]
+        assert len(vis) == 22
+        assert list(vis) == s22
+
+        vis.step = 10
+        assert len(vis) == 22
+        vis.insert(0, s22[5])
+        assert len(vis) == 23
+        # assert vis.step == 11 # TODO: fix vis.step assertion
+        assert vis[0] == s22[5]
+        assert vis[1] == s22[0]
+        assert vis[2] == s22[1]
+
+    def test_insert_after(self, server):
+        self.driver.get(server)
+        time.sleep(1)
+        s22 = list(ase.collections.s22)
+        vis = ZnDraw(url=server)
+        vis.extend(s22)
+        del vis[0]
+        assert len(vis) == 22
+        assert list(vis) == s22
+
+        vis.step = 10
+        assert len(vis) == 22
+        vis.insert(11, s22[5])
+        assert len(vis) == 23
+        # assert vis.step == 10
+        assert vis[10] == s22[10]
+        assert vis[11] == s22[5]
+        assert vis[12] == s22[11]
+
+    def test_append_to_non_empty(self, server):
+        self.driver.get(server)
+        time.sleep(1)
+        vis = ZnDraw(url=server)
+        vis.append(molecule("H2O"))
+        vis.append(molecule("H2O"))
+        assert len(vis) == 3
+        assert vis[0] == ase.Atoms()
+        assert vis[1] == molecule("H2O")
+        assert vis[2] == molecule("H2O")
+
+    def test_extend_to_non_empty(self, server):
+        self.driver.get(server)
+        time.sleep(1)
+        vis = ZnDraw(url=server)
+        vis.extend([molecule("H2O"), molecule("H2O")])
+        assert len(vis) == 3
+        assert vis[0] == ase.Atoms()
+        assert vis[1] == molecule("H2O")
+        assert vis[2] == molecule("H2O")
+
     def test_delete_backwards(self, server):
         self.driver.get(server)
         time.sleep(1)
