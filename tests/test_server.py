@@ -60,7 +60,6 @@ class TestZnDraw:
         assert vis[1] == s22[0]
         assert vis[2] == s22[1]
 
-    
     def test_insert_after(self, server):
         self.driver.get(server)
         time.sleep(1)
