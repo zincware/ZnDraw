@@ -30,6 +30,7 @@ pre-commit = "^3.3.3"
 pytest = "^7.4.2"
 coverage = "^7.3.1"
 selenium = "^4.14.0"
+webdriver-manager = "^4.0.1"
 
 [tool.poetry.extras]
 all = ["mdanalysis", "tidynamics"]

@@ -25,6 +25,7 @@ jobs:
 
     steps:
       - uses: actions/checkout@v3
+      - uses: actions/setup-node@v4
       - name: Install Poetry
         run: |
           pipx install poetry
@@ -36,10 +37,10 @@ jobs:
       - name: Install package
         run: |
           poetry install --no-interaction
-      # - name: Start XVFB
-      #   run: |
-      #     google-chrome --version
-      #     export DISPLAY=:99
+      - name: NPM install
+        run: |
+          cd zndraw/static
+          npm install
       - name: Pytest
         # env:
         #   DISPLAY: ":99"
