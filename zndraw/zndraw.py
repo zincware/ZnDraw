@@ -124,7 +124,7 @@ class ZnDrawBase:  # collections.abc.MutableSequence
         """Insert atoms before index"""
         if isinstance(value, ase.Atoms):
             value = Frame.from_atoms(value)
-        
+
         data = list(self)
         data.insert(index, value)
         for idx, val in enumerate(data):

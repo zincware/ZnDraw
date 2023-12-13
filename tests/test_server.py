@@ -4,7 +4,6 @@ import ase
 import ase.collections
 import pytest
 from ase.build import molecule
-from selenium.webdriver.support.ui import Select
 from selenium.webdriver.common.by import By
 
 from zndraw import ZnDraw
@@ -62,7 +61,6 @@ class TestZnDraw:
         assert vis[1] == s22[0]
         assert vis[2] == s22[1]
 
-    
     def test_insert_after(self, server):
         self.driver.get(server)
         time.sleep(1)
@@ -269,7 +267,7 @@ class TestAnalysis:
 
         analysis_json_editor = self.driver.find_element(By.ID, "analysis-json-editor")
         analysis_json_editor = self.driver.find_element(By.ID, "scene-container")
-        
+
         # print content of analysis_json_editor
         raise ValueError(analysis_json_editor.get_attribute("innerHTML"))
 
@@ -277,7 +275,6 @@ class TestAnalysis:
         # self.driver.find_element(By.CSS_SELECTOR, "select.form-control")
         # self.driver.find_element(By.ID, "analysis-json-editor-submit").click()
         # search inside form_select_elementid=""
-
 
         # dropdown = Select(form_select_element)
         # dropdown.select_by_visible_text("Distance")
