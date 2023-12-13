@@ -4,6 +4,8 @@ import ase
 import ase.collections
 import pytest
 from ase.build import molecule
+from selenium.webdriver.support.ui import Select
+from selenium.webdriver.common.by import By
 
 from zndraw import ZnDraw
 
@@ -247,3 +249,35 @@ class TestZnDraw:
         del vis[:]
         assert len(vis) == 0
         assert vis[:] == []
+
+
+@pytest.mark.usefixtures("setup")
+class TestAnalysis:
+    def test_distance(self, server):
+        self.driver.get(server)
+        time.sleep(1)
+        vis = ZnDraw(url=server)
+        vis[0] = molecule("H2O")
+        vis.selection = [0, 1]
+        # find a form-control that is labled Method and select "Distance"
+        # form_select_element = self.driver.find_element_by_css_selector('div.analysis-json-editor select.form-select')
+        # form_select_element = self.driver.find_element(By.CSS_SELECTOR, "button.btn-outline-primary")
+
+        # find button by id analysisMenuBtn
+        # button = self.driver.find_element(By.ID, "analysisMenuBtn")
+        # button.click()
+
+        analysis_json_editor = self.driver.find_element(By.ID, "analysis-json-editor")
+        analysis_json_editor = self.driver.find_element(By.ID, "scene-container")
+        
+        # print content of analysis_json_editor
+        raise ValueError(analysis_json_editor.get_attribute("innerHTML"))
+
+        # analysis_json_editor.find_element(By.CSS_SELECTOR, "select.form-control")
+        # self.driver.find_element(By.CSS_SELECTOR, "select.form-control")
+        # self.driver.find_element(By.ID, "analysis-json-editor-submit").click()
+        # search inside form_select_elementid=""
+
+
+        # dropdown = Select(form_select_element)
+        # dropdown.select_by_visible_text("Distance")
