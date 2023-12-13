@@ -298,16 +298,16 @@ class ZnDrawDefault(ZnDrawBase):
     def initialize_webclient(self, sid):
         start_time = datetime.datetime.now()
         with self._set_sid(sid):
-            for idx, frames in enumerate(self.read_data()):
+            for idx, atoms in enumerate(self.read_data()):
                 if idx == 0:
-                    self.analysis_schema(frames)
+                    self.analysis_schema(atoms)
                     self.selection_schema()
                     self.draw_schema()
-                self[idx] = frames
+                self[idx] = atoms
                 # self.step = idx # double the message count ..., replace with part of the setitem message, benchmark
         log.warning(f"{datetime.datetime.now() - start_time} Finished sending data.")
 
-    def read_data(self):
+    def read_data(self) -> t.Generator[ase.Atoms, None, None]:
         if self.file_io.name is None:
             yield ase.Atoms()
             return

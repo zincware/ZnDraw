@@ -21,15 +21,15 @@ class Frame:
     These attributes directly contain data of your frame
     that will be displayed in the visualizer.
     -------------
-    positions : t.Union[np.ndarray, list]
+    positions : np.ndarray
         contains the positions of each particle in 3 dimensions
-    cell : t.Union[np.ndarray, list]
+    cell : np.ndarray
         contains the cell size of the frame
     numbers : t.Union[np.ndarray, list, int] #TODO update in case int gets removed
         contains the number of each individual atom
-    colors : t.Union[np.ndarray, list]
+    colors : np.ndarray
         contains the hexadecimal color representation of each atom.
-    radii : t.Union[np.ndarray, list]
+    radii : np.ndarray
         contains the radius of each atom that is displayed in the visualizer.
     pbc : bool
         determines periodic boundary conditions
@@ -55,11 +55,11 @@ class Frame:
         using the positions and numbers (e.g. number = 1 = Hydrogen)
     """
 
-    positions: t.Union[np.ndarray, list] = None
-    cell: t.Union[np.ndarray, list, ase.cell.Cell] = np.array([0.0, 0.0, 0.0])
-    numbers: t.Union[np.ndarray, list, int] = None
-    colors: t.Union[np.ndarray, list] = None
-    radii: t.Union[np.ndarray, list] = None
+    positions: np.ndarray = None
+    cell: np.ndarray = np.array([0.0, 0.0, 0.0])
+    numbers: np.ndarray = None
+    colors: np.ndarray = None
+    radii: np.ndarray = None
     pbc: bool = False
     connectivity: nx.Graph() = nx.empty_graph()
     calc: dict = None
@@ -128,38 +128,39 @@ class Frame:
 
         return atoms
 
-    def calc_bonds(self):
-        """
-        Experimental Function, currently not in use
-        """
-        single_bond_multiplier: float = Field(1.2, le=2, ge=0)
-        double_bond_multiplier: float = Field(0.9, le=1, ge=0)
-        triple_bond_multiplier: float = Field(0.0, le=1, ge=0)
+    # TODO: use instead of ASEComputeBonds() in to_dict()
+    # def calc_bonds(self):
+    #     """
+    #     Experimental Function, currently not in use
+    #     """
+    #     single_bond_multiplier: float = Field(1.2, le=2, ge=0)
+    #     double_bond_multiplier: float = Field(0.9, le=1, ge=0)
+    #     triple_bond_multiplier: float = Field(0.0, le=1, ge=0)
 
-        cutoffs = [
-            single_bond_multiplier,
-            double_bond_multiplier,
-            triple_bond_multiplier,
-        ]
-        frame_copy = copy.deepcopy(self)
-        connectivity_matrix = np.zeros((len(self), len(self)), dtype=int)
-        distance_matrix = self.dist_matrix()
-        np.fill_diagonal(distance_matrix, np.inf)
-        for cutoff in cutoffs:
-            cutoffs = np.array(natural_cutoffs(frame_copy, mult=cutoff))
-            cutoffs = cutoffs[:, None] + cutoffs[None, :]
-            connectivity_matrix[distance_matrix <= cutoffs] += 1
-        self.connectivity = nx.from_numpy_array(connectivity_matrix)
+    #     cutoffs = [
+    #         single_bond_multiplier,
+    #         double_bond_multiplier,
+    #         triple_bond_multiplier,
+    #     ]
+    #     frame_copy = copy.deepcopy(self)
+    #     connectivity_matrix = np.zeros((len(self), len(self)), dtype=int)
+    #     distance_matrix = self.dist_matrix()
+    #     np.fill_diagonal(distance_matrix, np.inf)
+    #     for cutoff in cutoffs:
+    #         cutoffs = np.array(natural_cutoffs(frame_copy, mult=cutoff))
+    #         cutoffs = cutoffs[:, None] + cutoffs[None, :]
+    #         connectivity_matrix[distance_matrix <= cutoffs] += 1
+    #     self.connectivity = nx.from_numpy_array(connectivity_matrix)
 
-    def dist_matrix(self):
-        """
-        Experimental function, currently not in use
-        """
-        matrix = np.zeros((len(self), len(self)))
-        for i in range(1, len(self)):
-            for j in range(i, len(self)):
-                matrix[i, j] = np.linalg.norm(self.positions[i] - self.positions[j])
-        return matrix
+    # def dist_matrix(self):
+    #     """
+    #     Experimental function, currently not in use
+    #     """
+    #     matrix = np.zeros((len(self), len(self)))
+    #     for i in range(1, len(self)):
+    #         for j in range(i, len(self)):
+    #             matrix[i, j] = np.linalg.norm(self.positions[i] - self.positions[j])
+    #     return matrix
 
     def get_bonds(self) -> list:
         """
