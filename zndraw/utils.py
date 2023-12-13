@@ -10,8 +10,18 @@ import uuid
 
 import ase
 import datamodel_code_generator
+import numpy as np
 
 SHARED = {"atoms": None}
+
+
+def rgb2hex(value):
+    r, g, b = np.array(value * 255, dtype=int)
+    return "#%02x%02x%02x" % (r, g, b)
+
+
+def get_radius(value):
+    return (0.25 * (2 - np.exp(-0.2 * value)),)
 
 
 def get_port(default: int = 1234) -> int:
