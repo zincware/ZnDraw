@@ -57,6 +57,7 @@ class Frame:
     colors: np.ndarray = None
     radii: np.ndarray = None
     momenta: np.ndarray = None
+    forces: np.ndarray = None
     pbc: bool = False
     connectivity: nx.Graph() = nx.empty_graph()
     calc: dict = None
