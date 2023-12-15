@@ -82,7 +82,9 @@ class Frame:
         """
         Creates an instance of the frame class from an ase.Atoms object
         """
-        frame = cls(**atoms.arrays)
+        data = atoms.arrays
+
+        frame = cls(positions=data["positions"], numbers=data["numbers"])
 
         frame.cell = np.array(atoms.cell)
         frame.pbc = atoms.pbc
