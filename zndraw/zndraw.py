@@ -189,7 +189,7 @@ class ZnDrawBase:  # collections.abc.MutableSequence
     @property
     def atoms(self) -> ase.Atoms:
         """Return the atoms at the current step."""
-        return self[self.step].to_atoms()
+        return self[self.step]
 
     @property
     def points(self) -> np.ndarray:
