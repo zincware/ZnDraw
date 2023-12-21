@@ -56,6 +56,8 @@ class Frame:
     numbers: np.ndarray = None
     colors: np.ndarray = None
     radii: np.ndarray = None
+    momenta: np.ndarray = None
+    forces: np.ndarray = None
     pbc: bool = False
     connectivity: nx.Graph() = nx.empty_graph()
     calc: dict = None
@@ -80,7 +82,9 @@ class Frame:
         """
         Creates an instance of the frame class from an ase.Atoms object
         """
-        frame = cls(**atoms.arrays)
+        data = atoms.arrays
+
+        frame = cls(positions=data["positions"], numbers=data["numbers"])
 
         frame.cell = np.array(atoms.cell)
         frame.pbc = atoms.pbc
