@@ -1,14 +1,6 @@
 import * as THREE from "three";
+import { findClosestPoint } from "./utils.js";
 
-const findClosestPoint = (points, position) => {
-  const closestPoint = new THREE.Vector3();
-  points.forEach((point) => {
-    if (point.distanceTo(position) < closestPoint.distanceTo(position)) {
-      closestPoint.copy(point);
-    }
-  });
-  return closestPoint;
-};
 
 export class Canvas3D extends THREE.Group {
   constructor(particlesGroup) {
@@ -206,7 +198,7 @@ export class Line3D extends THREE.Group {
 
   updateLine() {
     this.virtualPoints.clear();
-    
+
     if (this.anchorPoints.children.length < 2) {
       // remove the line
       this.line.geometry = new THREE.BufferGeometry();
@@ -230,11 +222,9 @@ export class Line3D extends THREE.Group {
 
 
     if (this.anchorPoints.children.length > 1) {
-      // divide the number of points by the number of anchor points to get the points per segment
       const pointsPerSegment = Math.ceil(
         points.length / (this.anchorPoints.children.length - 1),
       );
-      console.log("pointsPerSegment", pointsPerSegment);
 
       // place a sphere between two anchor points
       for (let i = 0; i < this.anchorPoints.children.length - 1; i++) {
