@@ -213,10 +213,11 @@ export class Line3D extends THREE.Group {
     const geometry = new THREE.BufferGeometry().setFromPoints(points);
     this.line.geometry = geometry;
 
-    const geometry2 = new THREE.IcosahedronGeometry(0.05, 0);
-    const material2 = new THREE.MeshPhongMaterial({
-      color: "#000000",
-      shininess: 100,
+    const geometry2 = new THREE.IcosahedronGeometry(0.08, 0);
+    const material2 = new THREE.MeshBasicMaterial({
+      color: "#448FA3",
+      transparent: true,
+      opacity: 0.7,
     });
 
     if (this.anchorPoints.children.length > 1) {
