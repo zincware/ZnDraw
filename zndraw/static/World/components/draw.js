@@ -1,7 +1,6 @@
 import * as THREE from "three";
 import { findClosestPoint } from "./utils.js";
 
-
 export class Canvas3D extends THREE.Group {
   constructor(particlesGroup) {
     super();
