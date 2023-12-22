@@ -220,7 +220,6 @@ export class Line3D extends THREE.Group {
       shininess: 100,
     });
 
-
     if (this.anchorPoints.children.length > 1) {
       const pointsPerSegment = Math.ceil(
         points.length / (this.anchorPoints.children.length - 1),

@@ -174,7 +174,6 @@ class Selection {
       if (this._drawing) {
         document.getElementById("drawingSwitch").click();
       }
-      
     } else if (this._drawing) {
       if (particleIntersects.length > 0) {
         const position = particleIntersects[0].point.clone();
@@ -186,7 +185,7 @@ class Selection {
         }
       }
     } else {
-       if (anchorPointsIntersects.length > 0) {
+      if (anchorPointsIntersects.length > 0) {
         const object = anchorPointsIntersects[0].object;
         if (object.name === "AnchorPoint") {
           this.transform_controls.attach(object);
