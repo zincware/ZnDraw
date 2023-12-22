@@ -1,6 +1,5 @@
 import * as THREE from "three";
 
-
 const findClosestPoint = (points, position) => {
   const closestPoint = new THREE.Vector3();
   points.forEach((point) => {
@@ -228,20 +227,22 @@ export class Line3D extends THREE.Group {
     });
 
     this.virtualPoints.clear();
-    
+
     if (this.anchorPoints.children.length > 1) {
       // divide the number of points by the number of anchor points to get the points per segment
-      const pointsPerSegment = Math.ceil(points.length / (this.anchorPoints.children.length - 1));
-      console.log("pointsPerSegment", pointsPerSegment)
+      const pointsPerSegment = Math.ceil(
+        points.length / (this.anchorPoints.children.length - 1),
+      );
+      console.log("pointsPerSegment", pointsPerSegment);
 
       // place a sphere between two anchor points
       for (let i = 0; i < this.anchorPoints.children.length - 1; i++) {
         const sphere = new THREE.Mesh(geometry2, material2);
         sphere.index = i;
-        
+
         const position = this.anchorPoints.children[i].position.clone();
         position.lerp(this.anchorPoints.children[i + 1].position, 0.5);
-        
+
         // find the closes point on the curve to the position
         // TODO: only search in the correct segment
         const closestPoint = findClosestPoint(points, position);

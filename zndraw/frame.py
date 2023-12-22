@@ -52,7 +52,9 @@ class Frame:
     """
 
     positions: np.ndarray = None
-    cell: np.ndarray = dataclasses.field(default_factory=lambda: np.array([0.0, 0.0, 0.0]))
+    cell: np.ndarray = dataclasses.field(
+        default_factory=lambda: np.array([0.0, 0.0, 0.0])
+    )
     numbers: np.ndarray = None
     colors: np.ndarray = None
     radii: np.ndarray = None
