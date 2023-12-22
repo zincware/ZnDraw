@@ -164,7 +164,19 @@ class Selection {
     const canvasIntersects = this.getIntersections(canvas3D);
     const virtualPointsIntersects = this.getIntersections(virtualPoints);
 
-    if (this._drawing) {
+    if (virtualPointsIntersects.length > 0) {
+      const position = virtualPointsIntersects[0].point.clone();
+      console.log(virtualPointsIntersects[0]);
+      const point = this.line3D.addPoint(
+        position,
+        virtualPointsIntersects[0].object.index + 1,
+      );
+      this.transform_controls.attach(point);
+      if (this._drawing) {
+        document.getElementById("drawingSwitch").click();
+      }
+      
+    } else if (this._drawing) {
       if (particleIntersects.length > 0) {
         const position = particleIntersects[0].point.clone();
         this.line3D.pointer = this.line3D.addPoint(position);
@@ -175,15 +187,7 @@ class Selection {
         }
       }
     } else {
-      if (virtualPointsIntersects.length > 0) {
-        const position = virtualPointsIntersects[0].point.clone();
-        console.log(virtualPointsIntersects[0]);
-        this.line3D.pointer = this.line3D.addPoint(
-          position,
-          virtualPointsIntersects[0].object.index + 1,
-        );
-        this.transform_controls.attach(this.line3D.pointer);
-      } else if (anchorPointsIntersects.length > 0) {
+       if (anchorPointsIntersects.length > 0) {
         const object = anchorPointsIntersects[0].object;
         if (object.name === "AnchorPoint") {
           this.transform_controls.attach(object);

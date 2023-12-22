@@ -205,6 +205,8 @@ export class Line3D extends THREE.Group {
   }
 
   updateLine() {
+    this.virtualPoints.clear();
+    
     if (this.anchorPoints.children.length < 2) {
       // remove the line
       this.line.geometry = new THREE.BufferGeometry();
@@ -226,7 +228,6 @@ export class Line3D extends THREE.Group {
       shininess: 100,
     });
 
-    this.virtualPoints.clear();
 
     if (this.anchorPoints.children.length > 1) {
       // divide the number of points by the number of anchor points to get the points per segment
