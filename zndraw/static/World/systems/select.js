@@ -157,10 +157,12 @@ class Selection {
     const particlesGroup = this.scene.getObjectByName("particlesGroup");
     const anchorPoints = this.scene.getObjectByName("AnchorPoints");
     const canvas3D = this.scene.getObjectByName("canvas3D");
+    const virtualPoints = this.scene.getObjectByName("VirtualPoints");
     // const canvasIntersects = this.getIntersections(this
     const anchorPointsIntersects = this.getIntersections(anchorPoints);
     const particleIntersects = this.getIntersections(particlesGroup);
     const canvasIntersects = this.getIntersections(canvas3D);
+    const virtualPointsIntersects = this.getIntersections(virtualPoints);
 
     if (this._drawing) {
       if (particleIntersects.length > 0) {
@@ -173,7 +175,12 @@ class Selection {
         }
       }
     } else {
-      if (anchorPointsIntersects.length > 0) {
+      if (virtualPointsIntersects.length > 0) {
+        const position = virtualPointsIntersects[0].point.clone();
+        console.log(virtualPointsIntersects[0]);
+        this.line3D.pointer = this.line3D.addPoint(position, virtualPointsIntersects[0].object.index + 1);
+        this.transform_controls.attach(this.line3D.pointer);
+      } else if (anchorPointsIntersects.length > 0) {
         const object = anchorPointsIntersects[0].object;
         if (object.name === "AnchorPoint") {
           this.transform_controls.attach(object);
