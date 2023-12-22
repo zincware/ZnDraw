@@ -52,14 +52,14 @@ class Frame:
     """
 
     positions: np.ndarray = None
-    cell: np.ndarray = np.array([0.0, 0.0, 0.0])
+    cell: np.ndarray = dataclasses.field(default_factory=lambda: np.eye(3))
     numbers: np.ndarray = None
     colors: np.ndarray = None
     radii: np.ndarray = None
     momenta: np.ndarray = None
     forces: np.ndarray = None
     pbc: bool = False
-    connectivity: nx.Graph() = nx.empty_graph()
+    connectivity: nx.Graph() = dataclasses.field(default_factory=nx.empty_graph)
     calc: dict = None
     vector_field: dict = None
 
@@ -188,7 +188,7 @@ class Frame:
                 and (self.numbers == other.numbers).all()
                 and (self.cell == other.cell).all()
                 and (self.pbc == other.pbc).all()
-                and (self.connectivity == other.connectivity)
+                and nx.is_isomorphic(self.connectivity, other.connectivity)
             )
         except AttributeError:
             return NotImplemented
