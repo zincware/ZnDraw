@@ -293,7 +293,26 @@ class ZnDrawBase:  # collections.abc.MutableSequence
                 "token": self.token,
             },
         )
-        self._modifier_run(data)
+        try:
+            self._modifier_run(data)
+        except Exception as err:
+            pass
+            # log.exception(err)
+            # self.socket.emit(
+            #     "modifier:run:error",
+            #     {
+            #         "sid": data["sid"],
+            #         "token": self.token,
+            #         "error": str(err),
+            #     },
+            # )
+        self.socket.emit(
+            "modifier:run:finished",
+            {
+                "sid": data["sid"],
+                "token": self.token,
+            },
+        )
     
     def _modifier_run(self, data) -> None:
         raise NotImplementedError

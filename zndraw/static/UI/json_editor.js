@@ -151,21 +151,25 @@ function modifier_editor(socket, cache, world) {
       socket.on("modifier:run:available", () => {
         console.log(new Date().toISOString(), "modifier:run:available");
         responseReceived = true;
+        // rename running
+        document.getElementById("interaction-json-editor-submit").innerHTML = '<i class="fa-solid fa-spinner"></i> Running';
       });
+
+      socket.on("modifier:run:finished", (data) => {
+        console.log(new Date().toISOString(), "modifier:run:finished");
+        document.getElementById("interaction-json-editor-submit").innerHTML = '<i class="fa-solid fa-play"></i> Run Modifier';
+      });
+
+      document.getElementById("interaction-json-editor-submit").disabled = true;
 
       setTimeout(() => {
         if (!responseReceived) {
           console.warn("No response on 'modifier:run:available' within 1 second");
+          alert("No response from server. Please try again.");
         }
+        document.getElementById("interaction-json-editor-submit").disabled = false;
       }, 1000);
       // world.particles.click(); // reset selection
-
-      document.getElementById("interaction-json-editor-submit").disabled = true;
-      // if there is an error in uploading, we still want to be able to submit again
-      setTimeout(() => {
-        document.getElementById("interaction-json-editor-submit").disabled =
-          false;
-      }, 1000);
     });
 
   socket.on("modifier:schema", (data) => {
