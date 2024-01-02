@@ -60,7 +60,7 @@ class ZnDrawBase:  # collections.abc.MutableSequence
         self.socket = socketio.Client()
         self.socket.on("connect", lambda: self.socket.emit("join", self.token))
         self.socket.on("disconnect", lambda: self.socket.disconnect())
-        self.socket.on("modifier:run", self._modifier_run)
+        self.socket.on("modifier:run", self._pre_modifier_run)
 
     def _connect(self):
         for _ in range(100):
@@ -284,8 +284,18 @@ class ZnDrawBase:  # collections.abc.MutableSequence
         if self._target_sid is not None:
             data["sid"] = self._target_sid
         self.socket.emit("bookmarks:set", data)
+
+    def _pre_modifier_run(self, data) -> None:
+        self.socket.emit(
+            "modifier:run:available",
+            {
+                "sid": data["sid"],
+                "token": self.token,
+            },
+        )
+        self._modifier_run(data)
     
-    def _modifier_run(self, data):
+    def _modifier_run(self, data) -> None:
         raise NotImplementedError
 
 

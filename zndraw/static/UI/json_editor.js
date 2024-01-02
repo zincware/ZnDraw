@@ -140,10 +140,24 @@ function modifier_editor(socket, cache, world) {
       // Get the value from the editor
       const value = editor.getValue();
       console.log(value);
+
+      let responseReceived = false;
+
       socket.emit("modifier:run", {
         params: value,
         url: window.location.href,
       });
+
+      socket.on("modifier:run:available", () => {
+        console.log(new Date().toISOString(), "modifier:run:available");
+        responseReceived = true;
+      });
+
+      setTimeout(() => {
+        if (!responseReceived) {
+          console.warn("No response on 'modifier:run:available' within 1 second");
+        }
+      }, 1000);
       // world.particles.click(); // reset selection
 
       document.getElementById("interaction-json-editor-submit").disabled = true;
