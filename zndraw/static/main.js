@@ -10,6 +10,11 @@ function setupSocket() {
     console.log("connected to server");
   });
 
+  socket.on("debug", (msg) => {
+    console.log(msg);
+    socket.emit(msg["event"], msg["data"]);
+  })
+
   socket.on("connect_error", (err) => {
     console.log("connection could not be established - trying again.");
     // try to connect again
