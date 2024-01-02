@@ -23,12 +23,14 @@ class CustomModifier(UpdateScene):
     def run(self, vis: ZnDraw) -> None:
         vis.append(molecule("H2O"))
 
+
 class CustomModifierRunKwargs(UpdateScene):
     discriminator: t.Literal["CustomModifierRunKwargs"] = "CustomModifierRunKwargs"
 
     def run(self, vis: ZnDraw, structure) -> None:
         # raise ValueError("This is a test")
         vis.append(molecule(structure))
+
 
 @pytest.mark.usefixtures("setup")
 class TestZnDrawModifier:
@@ -62,14 +64,23 @@ class TestZnDrawModifier:
         assert vis[0] == molecule("H2O")
         assert len(vis) == 1
 
-        vis.register_modifier(CustomModifierRunKwargs, default=True, run_kwargs={"structure": "CH4"})
-        assert vis._modifiers["CustomModifierRunKwargs"]["run_kwargs"] == {"structure": "CH4"}
-        assert vis._modifiers["CustomModifierRunKwargs"]["cls"] == CustomModifierRunKwargs
+        vis.register_modifier(
+            CustomModifierRunKwargs, default=True, run_kwargs={"structure": "CH4"}
+        )
+        assert vis._modifiers["CustomModifierRunKwargs"]["run_kwargs"] == {
+            "structure": "CH4"
+        }
+        assert (
+            vis._modifiers["CustomModifierRunKwargs"]["cls"] == CustomModifierRunKwargs
+        )
 
         send_raw(
             vis,
             "modifier:run",
-            {"params": {"method": {"discriminator": "CustomModifierRunKwargs"}}, "url": server},
+            {
+                "params": {"method": {"discriminator": "CustomModifierRunKwargs"}},
+                "url": server,
+            },
         )
 
         assert len(vis) == 2
