@@ -522,6 +522,7 @@ def debug(data: dict):
         except KeyError:
             return "No host found."
 
+
 @io.on("modifier:run:running")
 def modifier_run_running(data: dict):
     if "sid" in data:
@@ -537,7 +538,8 @@ def modifier_run_running(data: dict):
             )
         except KeyError:
             return "No host found."
-        
+
+
 @io.on("modifier:run:finished")
 def modifier_run_finished(data: dict):
     if "sid" in data:

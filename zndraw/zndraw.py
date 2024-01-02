@@ -295,7 +295,7 @@ class ZnDrawBase:  # collections.abc.MutableSequence
         )
         try:
             self._modifier_run(data)
-        except Exception as err:
+        except Exception:
             pass
             # log.exception(err)
             # self.socket.emit(
@@ -313,7 +313,7 @@ class ZnDrawBase:  # collections.abc.MutableSequence
                 "token": self.token,
             },
         )
-    
+
     def _modifier_run(self, data) -> None:
         raise NotImplementedError
 

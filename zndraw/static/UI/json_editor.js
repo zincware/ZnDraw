@@ -154,14 +154,17 @@ function modifier_editor(socket, cache, world) {
       socket.on("modifier:run:running", () => {
         responseReceived = true;
         // rename running
-        document.getElementById("interaction-json-editor-submit").innerHTML = '<i class="fa-solid fa-spinner"></i> Running';
+        document.getElementById("interaction-json-editor-submit").innerHTML =
+          '<i class="fa-solid fa-spinner"></i> Running';
       });
 
       // Finished running
       socket.on("modifier:run:finished", (data) => {
         console.log(new Date().toISOString(), "modifier:run:finished");
-        document.getElementById("interaction-json-editor-submit").innerHTML = '<i class="fa-solid fa-play"></i> Run Modifier';
-        document.getElementById("interaction-json-editor-submit").disabled = false;
+        document.getElementById("interaction-json-editor-submit").innerHTML =
+          '<i class="fa-solid fa-play"></i> Run Modifier';
+        document.getElementById("interaction-json-editor-submit").disabled =
+          false;
       });
 
       // If no response is received within 1 second, warn the user / some error occurred
@@ -169,7 +172,8 @@ function modifier_editor(socket, cache, world) {
         if (!responseReceived) {
           console.warn("No response on 'modifier:run:running' within 1 second");
           alert("No response from server. Please try again.");
-          document.getElementById("interaction-json-editor-submit").disabled = false;
+          document.getElementById("interaction-json-editor-submit").disabled =
+            false;
         }
       }, 1000);
     });
