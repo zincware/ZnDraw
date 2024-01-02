@@ -562,7 +562,13 @@ class ZnDraw(ZnDrawBase):
         # that the modifier has not been received to the user
         with self._set_sid(data["sid"]):
             config = GlobalConfig.load()
-            cls = get_modify_class(config.get_modify_methods(include=[x["cls"] for x in self._modifiers.values()]))
+            cls = get_modify_class(
+                config.get_modify_methods(
+                    include=[x["cls"] for x in self._modifiers.values()]
+                )
+            )
             modifier = cls(**data["params"])
-            modifier.run(self, **self._modifiers[modifier.method.__class__.__name__]["run_kwargs"])
-
+            modifier.run(
+                self,
+                **self._modifiers[modifier.method.__class__.__name__]["run_kwargs"],
+            )
