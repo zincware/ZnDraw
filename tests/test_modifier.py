@@ -1,14 +1,12 @@
 import time
+import typing as t
 
-import ase
-import ase.collections
 import pytest
 from ase.build import molecule
 
 from zndraw import ZnDraw
 from zndraw.modify import UpdateScene
-from pydantic import Field
-import typing as t
+
 
 def send_raw(vis, event, data):
     msg = {
@@ -17,6 +15,7 @@ def send_raw(vis, event, data):
     }
     vis.socket.emit("debug", msg)
 
+
 class CustomModifier(UpdateScene):
     discriminator: t.Literal["CustomModifier"] = "CustomModifier"
 
@@ -24,9 +23,9 @@ class CustomModifier(UpdateScene):
         # raise ValueError("This is a test")
         vis.append(molecule("H2O"))
 
+
 @pytest.mark.usefixtures("setup")
 class TestZnDrawModifier:
-
     def test_vis_len(self, server):
         self.driver.get(server)
         time.sleep(1)
@@ -39,12 +38,12 @@ class TestZnDrawModifier:
 
         vis.register_modifier(CustomModifier, default=True)
 
-        send_raw(vis, "modifier:run", {"params": { "method": { "discriminator": "CustomModifier" }}, "url": server})
+        send_raw(
+            vis,
+            "modifier:run",
+            {"params": {"method": {"discriminator": "CustomModifier"}}, "url": server},
+        )
 
         vis.socket.sleep(1)
 
         assert len(vis) == 2
-
-
-
-        

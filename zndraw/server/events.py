@@ -53,7 +53,7 @@ def disconnect():
         try:
             app.config["ROOM_HOSTS"][token].remove(request.sid)
         except ValueError:
-            pass # SID not in the list
+            pass  # SID not in the list
         if not app.config["ROOM_HOSTS"][token]:
             del app.config["ROOM_HOSTS"][token]
     log.debug(
@@ -504,6 +504,7 @@ def points_set(data: dict):
             )
         except KeyError:
             return "No host found."
+
 
 @io.on("debug")
 def debug(data: dict):
