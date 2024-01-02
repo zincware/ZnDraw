@@ -148,28 +148,30 @@ function modifier_editor(socket, cache, world) {
         url: window.location.href,
       });
 
-      socket.on("modifier:run:available", () => {
-        console.log(new Date().toISOString(), "modifier:run:available");
+      document.getElementById("interaction-json-editor-submit").disabled = true;
+
+      // Check if a running response is received
+      socket.on("modifier:run:running", () => {
         responseReceived = true;
         // rename running
         document.getElementById("interaction-json-editor-submit").innerHTML = '<i class="fa-solid fa-spinner"></i> Running';
       });
 
+      // Finished running
       socket.on("modifier:run:finished", (data) => {
         console.log(new Date().toISOString(), "modifier:run:finished");
         document.getElementById("interaction-json-editor-submit").innerHTML = '<i class="fa-solid fa-play"></i> Run Modifier';
+        document.getElementById("interaction-json-editor-submit").disabled = false;
       });
 
-      document.getElementById("interaction-json-editor-submit").disabled = true;
-
+      // If no response is received within 1 second, warn the user / some error occurred
       setTimeout(() => {
         if (!responseReceived) {
-          console.warn("No response on 'modifier:run:available' within 1 second");
+          console.warn("No response on 'modifier:run:running' within 1 second");
           alert("No response from server. Please try again.");
+          document.getElementById("interaction-json-editor-submit").disabled = false;
         }
-        document.getElementById("interaction-json-editor-submit").disabled = false;
       }, 1000);
-      // world.particles.click(); // reset selection
     });
 
   socket.on("modifier:schema", (data) => {

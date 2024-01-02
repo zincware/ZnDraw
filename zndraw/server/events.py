@@ -522,15 +522,15 @@ def debug(data: dict):
         except KeyError:
             return "No host found."
 
-@io.on("modifier:run:available")
-def modifier_run_available(data: dict):
+@io.on("modifier:run:running")
+def modifier_run_running(data: dict):
     if "sid" in data:
-        emit("modifier:run:available", data, include_self=False, to=data["sid"])
+        emit("modifier:run:running", data, include_self=False, to=data["sid"])
     else:
         try:
             # emit to all webclients in the group, if no sid is provided
             emit(
-                "modifier:run:available",
+                "modifier:run:running",
                 data,
                 include_self=False,
                 to=session["token"],

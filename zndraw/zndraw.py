@@ -287,7 +287,7 @@ class ZnDrawBase:  # collections.abc.MutableSequence
 
     def _pre_modifier_run(self, data) -> None:
         self.socket.emit(
-            "modifier:run:available",
+            "modifier:run:running",
             {
                 "sid": data["sid"],
                 "token": self.token,
