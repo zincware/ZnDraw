@@ -14,14 +14,13 @@ def send_raw(vis, event, data):
         "data": data,
     }
     vis.socket.emit("debug", msg)
-    vis.socket.sleep(1.5)
+    vis.socket.sleep(0.5)
 
 
 class CustomModifier(UpdateScene):
     discriminator: t.Literal["CustomModifier"] = "CustomModifier"
 
     def run(self, vis: ZnDraw) -> None:
-        # raise ValueError("This is a test")
         vis.append(molecule("H2O"))
 
 class CustomModifierRunKwargs(UpdateScene):

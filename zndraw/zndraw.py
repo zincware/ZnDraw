@@ -554,11 +554,10 @@ class ZnDraw(ZnDrawBase):
                 ]
             },
         )
-        # self._modifiers.append(cls)
         self._modifiers[cls.__name__] = {"cls": cls, "run_kwargs": run_kwargs}
 
     def _modifier_run(self, data):
-        # send back a response that the modifier has been received, otherwise log a warning
+        # TODO: send back a response that the modifier has been received, otherwise log a warning
         # that the modifier has not been received to the user
         with self._set_sid(data["sid"]):
             config = GlobalConfig.load()
