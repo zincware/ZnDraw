@@ -16,6 +16,7 @@ def send_raw(vis, event, data):
         "data": data,
     }
     vis.socket.emit("debug", msg)
+    vis.socket.sleep(0.5)
 
 class CustomModifier(UpdateScene):
     discriminator: t.Literal["CustomModifier"] = "CustomModifier"
@@ -27,7 +28,7 @@ class CustomModifier(UpdateScene):
 @pytest.mark.usefixtures("setup")
 class TestZnDrawModifier:
 
-    def test_vis_len(self, server):
+    def test_register_custom_modifier(self, server):
         self.driver.get(server)
         time.sleep(1)
         # we need to wait for all the data to be loaded.
@@ -40,8 +41,6 @@ class TestZnDrawModifier:
         vis.register_modifier(CustomModifier, default=True)
 
         send_raw(vis, "modifier:run", {"params": { "method": { "discriminator": "CustomModifier" }}, "url": server})
-
-        vis.socket.sleep(1)
 
         assert len(vis) == 2
 
