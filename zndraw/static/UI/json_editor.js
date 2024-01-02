@@ -153,7 +153,6 @@ function modifier_editor(socket, cache, world) {
       // Check if a running response is received
       socket.on("modifier:run:running", () => {
         responseReceived = true;
-        // rename running
         document.getElementById("interaction-json-editor-submit").innerHTML =
           '<i class="fa-solid fa-spinner"></i> Running';
       });

@@ -295,8 +295,8 @@ class ZnDrawBase:  # collections.abc.MutableSequence
         )
         try:
             self._modifier_run(data)
-        except Exception:
-            pass
+        except Exception as err:
+            self.log(f"Modifier failed with error: {repr(err)}")
             # log.exception(err)
             # self.socket.emit(
             #     "modifier:run:error",
