@@ -36,19 +36,18 @@ def setup(request):
     request.cls.driver.close()
 
 
+def run_server(port):
+    app = create_app(None, False, True)
+    socketio.run(
+        app, port=port, debug=False, host="0.0.0.0"
+    )  # NEVER EVER USE  DEBUG=TRUE HERE!!!
+
+
 @pytest.fixture()
 def server():
     port = get_port()
 
-    def run_server():
-        app = create_app(None, False, True)
-        socketio.run(
-            app, port=port, debug=False, host="0.0.0.0"
-        )  # NEVER EVER USE  DEBUG=TRUE HERE!!!
-
-    server_proc = mp.Process(
-        target=run_server,
-    )
+    server_proc = mp.Process(target=run_server, args=(port,))
 
     helper_proc = mp.Process(
         target=ZnDrawDefault,
