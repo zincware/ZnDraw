@@ -60,6 +60,7 @@ class ZnDrawBase:  # collections.abc.MutableSequence
         self.socket = socketio.Client()
         self.socket.on("connect", lambda: self.socket.emit("join", self.token))
         self.socket.on("disconnect", lambda: self.socket.disconnect())
+        self.socket.on("modifier:run", self._modifier_run)
 
     def _connect(self):
         for _ in range(100):
@@ -283,6 +284,9 @@ class ZnDrawBase:  # collections.abc.MutableSequence
         if self._target_sid is not None:
             data["sid"] = self._target_sid
         self.socket.emit("bookmarks:set", data)
+    
+    def _modifier_run(self, data):
+        raise NotImplementedError
 
 
 @dataclasses.dataclass
@@ -293,7 +297,6 @@ class ZnDrawDefault(ZnDrawBase):
         super().__post_init__()
 
         self.socket.on("webclient:available", self.initialize_webclient)
-        self.socket.on("modifier:run", self.modifier_run)
         self.socket.on("selection:run", self.selection_run)
         self.socket.on("analysis:run", self.analysis_run)
         self.socket.on("upload", self.upload_file)
@@ -384,7 +387,7 @@ class ZnDrawDefault(ZnDrawBase):
             {"schema": Geometry.updated_schema(), "sid": self._target_sid},
         )
 
-    def modifier_run(self, data):
+    def _modifier_run(self, data):
         with self._set_sid(data["sid"]):
             config = GlobalConfig.load()
             cls = get_modify_class(config.get_modify_methods())
@@ -493,8 +496,6 @@ class ZnDraw(ZnDrawBase):
             )
             self._view_thread.start()
             self.url = f"http://127.0.0.1:{port}"
-
-        self.socket.on("modifier:run", self._modifier_run)
 
         self._connect()
 
