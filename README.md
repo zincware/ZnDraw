@@ -48,6 +48,29 @@ log.addHandler(vis.get_logging_handler())
 log.critical("Critical Message")
 ```
 
+## Modifier
+
+You can register `modifier` to change the scene via the interactions menu.
+```python
+import typing as t
+
+from zndraw import ZnDraw
+from zndraw.modify import UpdateScene
+import ase
+
+vis = ZnDraw()
+
+class MyModifier(UpdateScene):
+  discriminator: t.Literal["MyModifier"] = "MyModifier"
+
+  def run(self, vis: ZnDraw, **kwargs) -> None:
+    vis.append(molecule("H2O"))
+
+vis.register_modifier(
+  MyModifier, default=True, run_kwargs={}
+)
+```
+
 ## User Interface
 
 ![ZnDraw UI](https://raw.githubusercontent.com/zincware/ZnDraw/main/misc/zndraw_ui.png "ZnDraw UI")
