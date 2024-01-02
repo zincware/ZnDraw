@@ -51,6 +51,7 @@ log.critical("Critical Message")
 ## Modifier
 
 You can register `modifier` to change the scene via the interactions menu.
+
 ```python
 import typing as t
 
