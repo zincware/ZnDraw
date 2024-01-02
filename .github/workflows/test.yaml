@@ -29,6 +29,7 @@ jobs:
       - name: Install Poetry
         run: |
           pipx install poetry
+          poetry config virtualenvs.create false
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v3
         with:
