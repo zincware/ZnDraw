@@ -27,7 +27,6 @@ class CustomModifier(UpdateScene):
 
 @pytest.mark.usefixtures("setup")
 class TestZnDrawModifier:
-
     def test_register_custom_modifier(self, server):
         self.driver.get(server)
         time.sleep(1)
