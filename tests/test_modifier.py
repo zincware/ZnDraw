@@ -94,7 +94,10 @@ class TestZnDrawModifier:
         params = {
             "method": {
                 "discriminator": "NestedModifier",
-                "run_type": {"discriminator": "RunType1", "options": {"discriminator": "Option1"}},
+                "run_type": {
+                    "discriminator": "RunType1",
+                    "options": {"discriminator": "Option1"},
+                },
             }
         }
 
