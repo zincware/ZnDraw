@@ -557,8 +557,8 @@ class ZnDraw(ZnDrawBase):
             },
         )
         self._modifiers[cls.__name__] = {"cls": cls, "run_kwargs": run_kwargs}
-        
-    @staticmethod    
+
+    @staticmethod
     def _update_class_schema(cls_, config):
         schema = cls_.model_json_schema()
         name = cls_.__name__
@@ -571,9 +571,13 @@ class ZnDraw(ZnDrawBase):
                 for k, v in kwargs.items():
                     schema["properties"][k]["default"] = v
             except KeyError:
-                log.error(f"Couldn't apply default kwargs to schema while loading {name}")
+                log.error(
+                    f"Couldn't apply default kwargs to schema while loading {name}"
+                )
         elif sum(matches) > 1:
-            log.warning(f"Multiple matches for {name} in config.function_schema. Won't apply the values stored in the configuration.")
+            log.warning(
+                f"Multiple matches for {name} in config.function_schema. Won't apply the values stored in the configuration."
+            )
         else:
             pass
         return schema
