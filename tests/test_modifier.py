@@ -3,10 +3,10 @@ import typing as t
 
 import pytest
 from ase.build import molecule
+from pydantic import BaseModel, Field
 
 from zndraw import ZnDraw
 from zndraw.modify import UpdateScene
-from pydantic import BaseModel, Field
 
 
 def send_raw(vis, event, data):
@@ -29,22 +29,29 @@ class CustomModifier(UpdateScene):
 class Option1(BaseModel):
     discriminator: t.Literal["Option1"] = "Option1"
 
+
 class Option2(BaseModel):
     discriminator: t.Literal["Option2"] = "Option2"
+
 
 class RunType1(UpdateScene):
     discriminator: t.Literal["RunType1"] = Field("RunType1")
     options: t.Union[Option1, Option2] = Option1()
 
+
 class RunType2(UpdateScene):
     discriminator: t.Literal["RunType2"] = Field("RunType2")
+
 
 class RunType3(UpdateScene):
     discriminator: t.Literal["RunType3"] = Field("RunType3")
 
+
 class NestedModifier(UpdateScene):
     discriminator: t.Literal["NestedModifier"] = "NestedModifier"
-    run_type: t.Union[RunType1, RunType2, RunType3] = Field(discriminator="discriminator")
+    run_type: t.Union[RunType1, RunType2, RunType3] = Field(
+        discriminator="discriminator"
+    )
 
     def run(self, vis: ZnDraw) -> None:
         vis.append(molecule("H2O"))
