@@ -3,10 +3,10 @@ import typing as t
 
 import pytest
 from ase.build import molecule
+from pydantic import BaseModel, Field
 
 from zndraw import ZnDraw
 from zndraw.modify import UpdateScene
-from pydantic import BaseModel, Field
 
 
 def send_raw(vis, event, data):
@@ -35,11 +35,13 @@ class PerAngstrom(BaseModel):
         description="Num atoms added = atoms_per_angstrom * curve_length",
     )
 
+
 class FixedNumber(BaseModel):
     discriminator: t.Literal["FixedNumber"] = "FixedNumber"
     number_of_atoms: int = Field(
         5, ge=1, le=30, description="Number of atoms to generate"
     )
+
 
 class Generate(UpdateScene):
     discriminator: t.Literal["Generate"] = Field("Generate")
@@ -54,6 +56,7 @@ class Generate(UpdateScene):
         description="Multiplier for guiding force. Default value should be enough for simple geometries.",
     )
 
+
 class Relax(UpdateScene):
     discriminator: t.Literal["Relax"] = Field("Relax")
     max_steps: int = Field(50, ge=1)
@@ -62,6 +65,7 @@ class Relax(UpdateScene):
 class Hydrogenate(UpdateScene):
     discriminator: t.Literal["Hydrogenate"] = Field("Hydrogenate")
     max_steps: int = Field(30, ge=1)
+
 
 run_types = t.Union[Generate, Relax, Hydrogenate]
 
@@ -74,7 +78,6 @@ class DiffusionModelling(UpdateScene):
         "/home/rokas/Programming/MACE-Models",
         description="Path to the repo holding the required models",
     )
-
 
 
 @pytest.mark.usefixtures("setup")
