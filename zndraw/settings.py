@@ -94,10 +94,14 @@ class GlobalConfig(pydantic.BaseModel):
     def get_modify_methods(self, include: list = None):
         if include is None:
             classes = []
+            custom_modifier_names = []
         else:
             classes = include
+            custom_modifier_names = [cls.__name__ for cls in include]
         for method in self.modify_functions:
             module_name, cls_name = method.rsplit(".", 1)
+            if cls_name in custom_modifier_names:
+                continue
             try:
                 module = importlib.import_module(module_name)
                 cls = getattr(module, cls_name)
