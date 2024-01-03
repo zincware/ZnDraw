@@ -117,8 +117,7 @@ class TestZnDrawModifier:
         assert len(vis) == 2
         assert vis[0] == molecule("H2O")
         assert vis[1] == molecule("CH4")
-    
-    
+
     def test_register_nested_custom_modifier(self, server):
         self.driver.get(server)
         time.sleep(1)
@@ -148,4 +147,3 @@ class TestZnDrawModifier:
         )
 
         assert len(vis) == 2
-  
