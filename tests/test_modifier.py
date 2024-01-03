@@ -34,16 +34,16 @@ class Option2(BaseModel):
     discriminator: t.Literal["Option2"] = "Option2"
 
 
-class RunType1(UpdateScene):
+class RunType1(BaseModel):
     discriminator: t.Literal["RunType1"] = Field("RunType1")
     options: t.Union[Option1, Option2] = Option1()
 
 
-class RunType2(UpdateScene):
+class RunType2(BaseModel):
     discriminator: t.Literal["RunType2"] = Field("RunType2")
 
 
-class RunType3(UpdateScene):
+class RunType3(BaseModel):
     discriminator: t.Literal["RunType3"] = Field("RunType3")
 
 
