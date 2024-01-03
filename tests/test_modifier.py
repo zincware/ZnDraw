@@ -91,10 +91,17 @@ class TestZnDrawModifier:
 
         vis.register_modifier(NestedModifier, default=True)
 
+        params = {
+            "method": {
+                "discriminator": "NestedModifier",
+                "run_type": {"discriminator": "RunType2"},
+            }
+        }
+
         send_raw(
             vis,
             "modifier:run",
-            {"params": {"method": {"discriminator": "NestedModifier"}}, "url": server},
+            {"params": params, "url": server},
         )
 
         assert len(vis) == 2
