@@ -542,12 +542,14 @@ class ZnDraw(ZnDrawBase):
         """
         if run_kwargs is None:
             run_kwargs = {}
+        config = GlobalConfig.load()
+        schema = self._update_class_schema(cls, config)
         self.socket.emit(
             "modifier:register",
             {
                 "modifiers": [
                     {
-                        "schema": cls.model_json_schema(),
+                        "schema": schema,
                         "name": cls.__name__,
                         "default": default,
                     }
@@ -555,6 +557,26 @@ class ZnDraw(ZnDrawBase):
             },
         )
         self._modifiers[cls.__name__] = {"cls": cls, "run_kwargs": run_kwargs}
+        
+    @staticmethod    
+    def _update_class_schema(cls_, config):
+        schema = cls_.model_json_schema()
+        name = cls_.__name__
+        keys = list(config.function_schema.keys())
+        matches = [name in key for key in keys]
+        if sum(matches) == 1:
+            key = keys[matches.index(True)]
+            try:
+                kwargs = config.function_schema[key]
+                for k, v in kwargs.items():
+                    schema["properties"][k]["default"] = v
+            except KeyError:
+                log.error(f"Couldn't apply default kwargs to schema while loading {name}")
+        elif sum(matches) > 1:
+            log.warning(f"Multiple matches for {name} in config.function_schema. Won't apply the values stored in the configuration.")
+        else:
+            pass
+        return schema
 
     def _modifier_run(self, data):
         # TODO: send back a response that the modifier has been received, otherwise log a warning
