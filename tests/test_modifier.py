@@ -26,55 +26,28 @@ class CustomModifier(UpdateScene):
         vis.append(molecule("H2O"))
 
 
-class PerAngstrom(BaseModel):
-    discriminator: t.Literal["PerAngstrom"] = "PerAngstrom"
-    atoms_per_angstrom: float = Field(
-        1.2,
-        ge=0,
-        le=3.0,
-        description="Num atoms added = atoms_per_angstrom * curve_length",
-    )
+class Option1(BaseModel):
+    discriminator: t.Literal["Option1"] = "Option1"
 
-class FixedNumber(BaseModel):
-    discriminator: t.Literal["FixedNumber"] = "FixedNumber"
-    number_of_atoms: int = Field(
-        5, ge=1, le=30, description="Number of atoms to generate"
-    )
+class Option2(BaseModel):
+    discriminator: t.Literal["Option2"] = "Option2"
 
-class Generate(UpdateScene):
-    discriminator: t.Literal["Generate"] = Field("Generate")
-    num_steps: int = Field(
-        50, le=100, ge=20, description="Number of steps in the generation."
-    )
-    atom_number: t.Union[FixedNumber, PerAngstrom] = FixedNumber(number_of_atoms=5)
-    guiding_force_multiplier: float = Field(
-        1.0,
-        ge=1.0,
-        le=10.0,
-        description="Multiplier for guiding force. Default value should be enough for simple geometries.",
-    )
+class RunType1(UpdateScene):
+    discriminator: t.Literal["RunType1"] = Field("RunType1")
+    options: t.Union[Option1, Option2] = Option1()
 
-class Relax(UpdateScene):
-    discriminator: t.Literal["Relax"] = Field("Relax")
-    max_steps: int = Field(50, ge=1)
+class RunType2(UpdateScene):
+    discriminator: t.Literal["RunType2"] = Field("RunType2")
 
+class RunType3(UpdateScene):
+    discriminator: t.Literal["RunType3"] = Field("RunType3")
 
-class Hydrogenate(UpdateScene):
-    discriminator: t.Literal["Hydrogenate"] = Field("Hydrogenate")
-    max_steps: int = Field(30, ge=1)
+class NestedModifier(UpdateScene):
+    discriminator: t.Literal["NestedModifier"] = "NestedModifier"
+    run_type: t.Union[RunType1, RunType2, RunType3] = Field(discriminator="discriminator")
 
-run_types = t.Union[Generate, Relax, Hydrogenate]
-
-
-class DiffusionModelling(UpdateScene):
-    discriminator: t.Literal["DiffusionModelling"] = "DiffusionModelling"
-    run_type: run_types = Field(discriminator="discriminator")
-    client_address: str = Field("http://127.0.0.1:5000/run")
-    path: str = Field(
-        "/home/rokas/Programming/MACE-Models",
-        description="Path to the repo holding the required models",
-    )
-
+    def run(self, vis: ZnDraw) -> None:
+        vis.append(molecule("H2O"))
 
 
 @pytest.mark.usefixtures("setup")
@@ -109,4 +82,12 @@ class TestZnDrawModifier:
         assert vis[0] == molecule("H2O")
         assert len(vis) == 1
 
-        vis.register_modifier(DiffusionModelling, default=True)
+        vis.register_modifier(NestedModifier, default=True)
+
+        send_raw(
+            vis,
+            "modifier:run",
+            {"params": {"method": {"discriminator": "NestedModifier"}}, "url": server},
+        )
+
+        assert len(vis) == 2
