@@ -91,7 +91,10 @@ class ZnDrawBase:  # collections.abc.MutableSequence
 
         if isinstance(value, ase.Atoms):
             value = Frame.from_atoms(value)
-        data = {index: value.to_dict(built_in_types=False), "display_new": self.display_new}
+        data = {
+            index: value.to_dict(built_in_types=False),
+            "display_new": self.display_new,
+        }
         if self._target_sid is not None:
             data["sid"] = self._target_sid
 
