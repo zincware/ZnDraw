@@ -91,8 +91,6 @@ class Cache {
 
     this._socket.on("atoms:upload", (all_data) => {
       console.log(new Date().toISOString(), "Received atoms from Python");
-      document.getElementById("interaction-json-editor-submit").disabled =
-        false;
 
       // pop key from data dict
       const { display_new, ...data } = all_data;

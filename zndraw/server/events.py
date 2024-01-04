@@ -521,3 +521,37 @@ def debug(data: dict):
             )
         except KeyError:
             return "No host found."
+
+
+@io.on("modifier:run:running")
+def modifier_run_running(data: dict):
+    if "sid" in data:
+        emit("modifier:run:running", data, include_self=False, to=data["sid"])
+    else:
+        try:
+            # emit to all webclients in the group, if no sid is provided
+            emit(
+                "modifier:run:running",
+                data,
+                include_self=False,
+                to=session["token"],
+            )
+        except KeyError:
+            return "No host found."
+
+
+@io.on("modifier:run:finished")
+def modifier_run_finished(data: dict):
+    if "sid" in data:
+        emit("modifier:run:finished", data, include_self=False, to=data["sid"])
+    else:
+        try:
+            # emit to all webclients in the group, if no sid is provided
+            emit(
+                "modifier:run:finished",
+                data,
+                include_self=False,
+                to=session["token"],
+            )
+        except KeyError:
+            return "No host found."
