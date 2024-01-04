@@ -6,8 +6,8 @@ from ase.build import molecule
 from pydantic import BaseModel, Field
 
 from zndraw import ZnDraw
-from zndraw.settings import GlobalConfig
 from zndraw.modify import UpdateScene
+from zndraw.settings import GlobalConfig
 
 
 def send_raw(vis, event, data):
@@ -86,7 +86,7 @@ class TestZnDrawModifier:
         )
 
         assert len(vis) == 2
-        
+
     def test_register_custom_modifier_uses_defaults_in_config(self, server):
         self.driver.get(server)
         time.sleep(1)
@@ -96,9 +96,9 @@ class TestZnDrawModifier:
         vis[0] = molecule("H2O")
         assert vis[0] == molecule("H2O")
         assert len(vis) == 1
-        
+
         vis.register_modifier(CustomModifier, default=True)
-        
+
         config = GlobalConfig.load()
         config.function_schema["CustomModifier"] = {"default_structure": "CH4"}
         vis._update_class_schema(vis._modifiers[CustomModifier.__name__]["cls"], config)
