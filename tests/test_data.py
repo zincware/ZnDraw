@@ -1,7 +1,7 @@
 import pytest
 from ase.build import bulk, molecule
 
-from zndraw.frame import Frame
+from znframe.frame import Frame
 
 
 @pytest.mark.parametrize(
