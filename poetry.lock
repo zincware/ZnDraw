@@ -2915,7 +2915,7 @@ pydantic = "^2.5.3"
 type = "git"
 url = "https://github.com/zincware/znframe"
 reference = "HEAD"
-resolved_reference = "abaab1695f3d3bbaf653bb8d2ce8f2fac5a1a750"
+resolved_reference = "64d6391c352232a04114b85d0a68a7f345372707"
 
 [[package]]
 name = "znh5md"
