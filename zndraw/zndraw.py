@@ -468,7 +468,7 @@ class ZnDraw(ZnDrawBase):
 
     jupyter: bool = False
 
-    _modifiers: list = dataclasses.field(default_factory=list)
+    _modifiers: dict = dataclasses.field(default_factory=dict)
 
     def __post_init__(self):
         super().__post_init__()
@@ -554,11 +554,20 @@ class ZnDraw(ZnDrawBase):
                 ]
             },
         )
-        self._modifiers.append(cls)
+        self._modifiers[cls.__name__] = {"cls": cls, "run_kwargs": run_kwargs}
 
     def _modifier_run(self, data):
+        # TODO: send back a response that the modifier has been received, otherwise log a warning
+        # that the modifier has not been received to the user
         with self._set_sid(data["sid"]):
             config = GlobalConfig.load()
-            cls = get_modify_class(config.get_modify_methods(include=self._modifiers))
+            cls = get_modify_class(
+                config.get_modify_methods(
+                    include=[x["cls"] for x in self._modifiers.values()]
+                )
+            )
             modifier = cls(**data["params"])
-            modifier.run(self)
+            modifier.run(
+                self,
+                **self._modifiers[modifier.method.__class__.__name__]["run_kwargs"],
+            )
