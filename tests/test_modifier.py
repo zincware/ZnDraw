@@ -96,11 +96,12 @@ class TestZnDrawModifier:
         vis[0] = molecule("H2O")
         assert vis[0] == molecule("H2O")
         assert len(vis) == 1
-
-        with patch(
-            "zndraw.settings.GlobalConfig.function_schema", new_callable=dict
-        ) as mock_config:
-            mock_config["CustomModifier"] = {"default_structure": "CH4"}
+        
+        schema = CustomModifier.model_json_schema()
+        schema["properties"]["default_structure"]["default"] = "CH4"
+        
+        with patch("zndraw.zndraw.ZnDrawDefault._update_class_schema") as mock:
+            mock.return_value = schema
             vis.register_modifier(CustomModifier, default=True)
 
         send_raw(
