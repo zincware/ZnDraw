@@ -192,8 +192,7 @@ class Cache {
                 radii,
               },
             };
-          }
-          catch (error) {
+          } catch (error) {
             data[x] = undefined;
           }
         });
