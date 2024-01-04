@@ -99,9 +99,7 @@ class TestZnDrawModifier:
         original_config = GlobalConfig.load()
 
         config = GlobalConfig.load()
-        config.function_schema["CustomModifier"]["properties"] = {
-            "default_structure": "CH4"
-        }
+        config.function_schema["CustomModifier"] = {"default_structure": "CH4"}
         config.save()
         vis.register_modifier(CustomModifier, default=True)
 
