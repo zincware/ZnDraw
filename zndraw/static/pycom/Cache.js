@@ -183,14 +183,19 @@ class Cache {
         // send all atoms at once
         const data = {};
         ids.forEach((x) => {
-          const { colors, radii, length, ...rest } = this._cache[x];
-          data[x] = {
-            ...rest,
-            arrays: {
-              colors,
-              radii,
-            },
-          };
+          try {
+            const { colors, radii, length, ...rest } = this._cache[x];
+            data[x] = {
+              ...rest,
+              arrays: {
+                colors,
+                radii,
+              },
+            };
+          }
+          catch (error) {
+            data[x] = undefined;
+          }
         });
         callback(data);
       }.bind(this),
