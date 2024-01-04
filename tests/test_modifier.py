@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field
 
 from zndraw import ZnDraw
 from zndraw.modify import UpdateScene
+from zndraw.settings import GlobalConfig
 
 
 def send_raw(vis, event, data):
@@ -96,14 +97,13 @@ class TestZnDrawModifier:
         vis[0] = molecule("H2O")
         assert vis[0] == molecule("H2O")
         assert len(vis) == 1
+        original_config = GlobalConfig.load()
+        
+        config = GlobalConfig.load()
+        config.function_schema["CustomModifier"]["properties"] = {"default_structure": "CH4"}
+        config.save()
+        vis.register_modifier(CustomModifier, default=True)
 
-        schema = CustomModifier.model_json_schema()
-        schema["properties"]["default_structure"]["default"] = "CH4"
-
-        with patch("zndraw.zndraw.ZnDraw._update_class_schema") as mock:
-            mock.return_value = schema
-            vis.register_modifier(CustomModifier, default=True)
-            assert mock.called
 
         send_raw(
             vis,
@@ -114,6 +114,7 @@ class TestZnDrawModifier:
         assert len(vis) == 2
         assert vis[0] == molecule("H2O")
         assert vis[1] == molecule("CH4")
+        original_config.save()
 
     def test_register_custom_modifier_run_kwargs(self, server):
         self.driver.get(server)
