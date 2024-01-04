@@ -193,7 +193,6 @@ class Cache {
           };
         });
         callback(data);
-        console.log(data);
       }.bind(this),
     );
 
