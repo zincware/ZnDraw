@@ -1,6 +1,5 @@
 import time
 import typing as t
-from unittest.mock import patch
 
 import pytest
 from ase.build import molecule
@@ -98,12 +97,13 @@ class TestZnDrawModifier:
         assert vis[0] == molecule("H2O")
         assert len(vis) == 1
         original_config = GlobalConfig.load()
-        
+
         config = GlobalConfig.load()
-        config.function_schema["CustomModifier"]["properties"] = {"default_structure": "CH4"}
+        config.function_schema["CustomModifier"]["properties"] = {
+            "default_structure": "CH4"
+        }
         config.save()
         vis.register_modifier(CustomModifier, default=True)
-
 
         send_raw(
             vis,
