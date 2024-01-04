@@ -63,14 +63,6 @@ class NestedModifier(UpdateScene):
         vis.append(molecule("H2O"))
 
 
-class CustomModifierRunKwargs(UpdateScene):
-    discriminator: t.Literal["CustomModifierRunKwargs"] = "CustomModifierRunKwargs"
-
-    def run(self, vis: ZnDraw, structure) -> None:
-        # raise ValueError("This is a test")
-        vis.append(molecule(structure))
-
-
 @pytest.mark.usefixtures("setup")
 class TestZnDrawModifier:
     def test_register_custom_modifier(self, server):
