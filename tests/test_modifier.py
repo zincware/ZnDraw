@@ -103,6 +103,7 @@ class TestZnDrawModifier:
         with patch("zndraw.zndraw.ZnDrawDefault._update_class_schema") as mock:
             mock.return_value = schema
             vis.register_modifier(CustomModifier, default=True)
+            assert mock.called
 
         send_raw(
             vis,
