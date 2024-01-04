@@ -14,10 +14,10 @@ import numpy as np
 import socketio
 import tqdm
 import znh5md
+from znframe.frame import Frame
 
 from zndraw.analyse import get_analysis_class
 from zndraw.draw import Geometry
-from znframe.frame import Frame
 from zndraw.modify import UpdateScene, get_modify_class
 from zndraw.select import get_selection_class
 from zndraw.settings import GlobalConfig

@@ -1,6 +1,5 @@
 import pytest
 from ase.build import bulk, molecule
-
 from znframe.frame import Frame
 
 
