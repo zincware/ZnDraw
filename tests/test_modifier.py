@@ -100,7 +100,7 @@ class TestZnDrawModifier:
         schema = CustomModifier.model_json_schema()
         schema["properties"]["default_structure"]["default"] = "CH4"
 
-        with patch("zndraw.zndraw.ZnDrawDefault._update_class_schema") as mock:
+        with patch("zndraw.zndraw.ZnDraw._update_class_schema") as mock:
             mock.return_value = schema
             vis.register_modifier(CustomModifier, default=True)
             assert mock.called
