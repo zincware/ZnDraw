@@ -17,7 +17,7 @@ import znh5md
 
 from zndraw.analyse import get_analysis_class
 from zndraw.draw import Geometry
-from zndraw.frame import Frame
+from znframe.frame import Frame
 from zndraw.modify import UpdateScene, get_modify_class
 from zndraw.select import get_selection_class
 from zndraw.settings import GlobalConfig
