@@ -316,7 +316,7 @@ class ZnDrawBase:  # collections.abc.MutableSequence
 
     def _modifier_run(self, data) -> None:
         raise NotImplementedError
-    
+
     @staticmethod
     def _update_class_schema(cls_, config):
         schema = cls_.model_json_schema()
