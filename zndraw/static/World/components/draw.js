@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { findClosestPoint } from "./utils.js";
 
 export class Canvas3D extends THREE.Group {
   constructor(particlesGroup) {
@@ -129,6 +130,9 @@ export class Line3D extends THREE.Group {
     this.anchorPoints = new THREE.Group();
     this.anchorPoints.name = "AnchorPoints";
 
+    this.virtualPoints = new THREE.Group();
+    this.virtualPoints.name = "VirtualPoints";
+
     this.ARC_SEGMENTS = 200;
 
     const geometry = new THREE.BufferGeometry();
@@ -137,7 +141,7 @@ export class Line3D extends THREE.Group {
     this.curve = undefined;
     this.pointer = undefined;
 
-    this.add(this.line, this.anchorPoints);
+    this.add(this.line, this.anchorPoints, this.virtualPoints);
   }
 
   addPoint(position, index) {
@@ -192,6 +196,8 @@ export class Line3D extends THREE.Group {
   }
 
   updateLine() {
+    this.virtualPoints.clear();
+
     if (this.anchorPoints.children.length < 2) {
       // remove the line
       this.line.geometry = new THREE.BufferGeometry();
@@ -206,6 +212,34 @@ export class Line3D extends THREE.Group {
     const points = this.curve.getPoints(this.ARC_SEGMENTS);
     const geometry = new THREE.BufferGeometry().setFromPoints(points);
     this.line.geometry = geometry;
+
+    const geometry2 = new THREE.IcosahedronGeometry(0.08, 0);
+    const material2 = new THREE.MeshBasicMaterial({
+      color: "#448FA3",
+      transparent: true,
+      opacity: 0.7,
+    });
+
+    if (this.anchorPoints.children.length > 1) {
+      const pointsPerSegment = Math.ceil(
+        points.length / (this.anchorPoints.children.length - 1),
+      );
+
+      // place a sphere between two anchor points
+      for (let i = 0; i < this.anchorPoints.children.length - 1; i++) {
+        const sphere = new THREE.Mesh(geometry2, material2);
+        sphere.index = i;
+
+        const position = this.anchorPoints.children[i].position.clone();
+        position.lerp(this.anchorPoints.children[i + 1].position, 0.5);
+
+        // find the closes point on the curve to the position
+        // TODO: only search in the correct segment
+        const closestPoint = findClosestPoint(points, position);
+        sphere.position.copy(closestPoint);
+        this.virtualPoints.add(sphere);
+      }
+    }
   }
 
   movePointer(position) {

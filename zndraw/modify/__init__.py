@@ -317,7 +317,7 @@ def get_modify_class(methods):
 
         model_config = ConfigDict(json_schema_extra=None)  # disable method hiding
 
-        def run(self, vis) -> None:
-            self.method.run(vis)
+        def run(self, vis, **kwargs) -> None:
+            self.method.run(vis, **kwargs)
 
     return Modifier

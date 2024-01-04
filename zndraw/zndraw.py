@@ -60,6 +60,7 @@ class ZnDrawBase:  # collections.abc.MutableSequence
         self.socket = socketio.Client()
         self.socket.on("connect", lambda: self.socket.emit("join", self.token))
         self.socket.on("disconnect", lambda: self.socket.disconnect())
+        self.socket.on("modifier:run", self._pre_modifier_run)
 
     def _connect(self):
         for _ in range(100):
@@ -189,7 +190,7 @@ class ZnDrawBase:  # collections.abc.MutableSequence
     @property
     def atoms(self) -> ase.Atoms:
         """Return the atoms at the current step."""
-        return self[self.step].to_atoms()
+        return self[self.step]
 
     @property
     def points(self) -> np.ndarray:
@@ -284,6 +285,38 @@ class ZnDrawBase:  # collections.abc.MutableSequence
             data["sid"] = self._target_sid
         self.socket.emit("bookmarks:set", data)
 
+    def _pre_modifier_run(self, data) -> None:
+        self.socket.emit(
+            "modifier:run:running",
+            {
+                "sid": data["sid"],
+                "token": self.token,
+            },
+        )
+        try:
+            self._modifier_run(data)
+        except Exception as err:
+            self.log(f"Modifier failed with error: {repr(err)}")
+            # log.exception(err)
+            # self.socket.emit(
+            #     "modifier:run:error",
+            #     {
+            #         "sid": data["sid"],
+            #         "token": self.token,
+            #         "error": str(err),
+            #     },
+            # )
+        self.socket.emit(
+            "modifier:run:finished",
+            {
+                "sid": data["sid"],
+                "token": self.token,
+            },
+        )
+
+    def _modifier_run(self, data) -> None:
+        raise NotImplementedError
+
 
 @dataclasses.dataclass
 class ZnDrawDefault(ZnDrawBase):
@@ -293,7 +326,6 @@ class ZnDrawDefault(ZnDrawBase):
         super().__post_init__()
 
         self.socket.on("webclient:available", self.initialize_webclient)
-        self.socket.on("modifier:run", self.modifier_run)
         self.socket.on("selection:run", self.selection_run)
         self.socket.on("analysis:run", self.analysis_run)
         self.socket.on("upload", self.upload_file)
@@ -384,7 +416,7 @@ class ZnDrawDefault(ZnDrawBase):
             {"schema": Geometry.updated_schema(), "sid": self._target_sid},
         )
 
-    def modifier_run(self, data):
+    def _modifier_run(self, data):
         with self._set_sid(data["sid"]):
             config = GlobalConfig.load()
             cls = get_modify_class(config.get_modify_methods())
@@ -468,7 +500,7 @@ class ZnDraw(ZnDrawBase):
 
     jupyter: bool = False
 
-    _modifiers: list = dataclasses.field(default_factory=list)
+    _modifiers: dict = dataclasses.field(default_factory=dict)
 
     def __post_init__(self):
         super().__post_init__()
@@ -493,8 +525,6 @@ class ZnDraw(ZnDrawBase):
             )
             self._view_thread.start()
             self.url = f"http://127.0.0.1:{port}"
-
-        self.socket.on("modifier:run", self._modifier_run)
 
         self._connect()
 
@@ -554,11 +584,20 @@ class ZnDraw(ZnDrawBase):
                 ]
             },
         )
-        self._modifiers.append(cls)
+        self._modifiers[cls.__name__] = {"cls": cls, "run_kwargs": run_kwargs}
 
     def _modifier_run(self, data):
+        # TODO: send back a response that the modifier has been received, otherwise log a warning
+        # that the modifier has not been received to the user
         with self._set_sid(data["sid"]):
             config = GlobalConfig.load()
-            cls = get_modify_class(config.get_modify_methods(include=self._modifiers))
+            cls = get_modify_class(
+                config.get_modify_methods(
+                    include=[x["cls"] for x in self._modifiers.values()]
+                )
+            )
             modifier = cls(**data["params"])
-            modifier.run(self)
+            modifier.run(
+                self,
+                **self._modifiers[modifier.method.__class__.__name__]["run_kwargs"],
+            )

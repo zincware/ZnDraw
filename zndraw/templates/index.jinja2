@@ -136,7 +136,7 @@
           <div class="row py-1">
             <button class="btn btn-light" type="button" id="interactionMenuBtn" data-placement="right"
               data-bs-container="body" data-bs-content="Interaction" data-target="interactionMenu">
-              <i class="fas fa-retweet"></i>
+              <i class="fa-solid fa-circle-nodes"></i>
             </button>
           </div>
           <div class="row py-1">
@@ -294,7 +294,7 @@
           <h3>Share Link</h3>
           <code id="share-link-block"></code>
           <br />
-          <a class="btn btn-primary" href="{{ url_for('token', token=token) }}" role="button" id="btnShareLink">Copy
+          <a class="btn btn-primary" href="{{ url_for('main.token', token=token) }}" role="button" id="btnShareLink">Copy
             link to clipboard</a>
           {% endif %}
           <script>
@@ -304,7 +304,7 @@
             ).innerHTML = `from zndraw import ZnDraw <br>vis = ZnDraw(url="${window.location.href}", token="{{ token }}")`;
             // url but without trailing slash
             const url = window.location.href.replace(/\/$/, "");
-            const target_href = "{{ url_for('token', token=token) }}";
+            const target_href = "{{ url_for('main.token', token=token) }}";
             const full_url = url + target_href;
 
             document.getElementById("share-link-block").innerHTML = full_url;

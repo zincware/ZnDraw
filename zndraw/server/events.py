@@ -50,7 +50,10 @@ def disconnect():
         token = session["token"]
         # leave_room(token) # I guess if disconnect, it will automatically leave the room?
         # leave_room("webclients") # wrap in try..except?
-        app.config["ROOM_HOSTS"][token].remove(request.sid)
+        try:
+            app.config["ROOM_HOSTS"][token].remove(request.sid)
+        except ValueError:
+            pass  # SID not in the list
         if not app.config["ROOM_HOSTS"][token]:
             del app.config["ROOM_HOSTS"][token]
     log.debug(
@@ -496,6 +499,57 @@ def points_set(data: dict):
             emit(
                 "points:set",
                 data["value"],
+                include_self=False,
+                to=session["token"],
+            )
+        except KeyError:
+            return "No host found."
+
+
+@io.on("debug")
+def debug(data: dict):
+    if "sid" in data:
+        emit("debug", data, include_self=False, to=data["sid"])
+    else:
+        try:
+            # emit to all webclients in the group, if no sid is provided
+            emit(
+                "debug",
+                data,
+                include_self=False,
+                to=session["token"],
+            )
+        except KeyError:
+            return "No host found."
+
+
+@io.on("modifier:run:running")
+def modifier_run_running(data: dict):
+    if "sid" in data:
+        emit("modifier:run:running", data, include_self=False, to=data["sid"])
+    else:
+        try:
+            # emit to all webclients in the group, if no sid is provided
+            emit(
+                "modifier:run:running",
+                data,
+                include_self=False,
+                to=session["token"],
+            )
+        except KeyError:
+            return "No host found."
+
+
+@io.on("modifier:run:finished")
+def modifier_run_finished(data: dict):
+    if "sid" in data:
+        emit("modifier:run:finished", data, include_self=False, to=data["sid"])
+    else:
+        try:
+            # emit to all webclients in the group, if no sid is provided
+            emit(
+                "modifier:run:finished",
+                data,
                 include_self=False,
                 to=session["token"],
             )
