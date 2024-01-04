@@ -1,14 +1,13 @@
 import time
 import typing as t
+from unittest.mock import patch
 
 import pytest
-from unittest.mock import patch
 from ase.build import molecule
 from pydantic import BaseModel, Field
 
 from zndraw import ZnDraw
 from zndraw.modify import UpdateScene
-from zndraw.settings import GlobalConfig
 
 
 def send_raw(vis, event, data):
@@ -97,8 +96,10 @@ class TestZnDrawModifier:
         vis[0] = molecule("H2O")
         assert vis[0] == molecule("H2O")
         assert len(vis) == 1
-        
-        with patch("zndraw.settings.GlobalConfig.function_schema", new_callable=dict) as mock_config:
+
+        with patch(
+            "zndraw.settings.GlobalConfig.function_schema", new_callable=dict
+        ) as mock_config:
             mock_config["CustomModifier"] = {"default_structure": "CH4"}
             vis.register_modifier(CustomModifier, default=True)
 

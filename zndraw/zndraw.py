@@ -489,7 +489,7 @@ class ZnDrawDefault(ZnDrawBase):
 
         data = {"schema": schema, "sid": sid}
         self.socket.emit("modifier:schema", data)
-        
+
     @staticmethod
     def _update_class_schema(cls_, config):
         schema = cls_.model_json_schema()
