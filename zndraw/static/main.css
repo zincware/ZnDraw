@@ -32,6 +32,7 @@ body {
   min-width: 20%;
 }
 
+
 .main-navbar {
   height: 50px;
 }
@@ -47,6 +48,11 @@ body {
       background to prevent flashing on load
     */
   background-color: rgb(255, 255, 255);
+}
+
+
+#interactionMenu {
+  max-width: 450px;
 }
 
 .atom-spinner,
