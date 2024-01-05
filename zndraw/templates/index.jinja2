@@ -72,6 +72,10 @@
               <label class="btn btn-outline-primary" for="drawingSwitch">Draw <i class="fa-solid fa-pencil"></i></label>
             </div>
           </li>
+          <li class="nav-item mx-1">
+            <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal"
+              data-bs-target="#tutorialModal">Tutorial <i class="fa-solid fa-film"></i></button>
+          </li>
         </ul>
       </div>
       <div class="mx-auto order-0">
@@ -81,9 +85,12 @@
       <div class="navbar-collapse collapse w-100 order-3 dual-collapse2">
         <ul class="navbar-nav ms-auto">
           <li class="nav-item mx-1">
-             <div class="btn-group" role="group" aria-label="Basic checkbox toggle button group">
-              <input type="checkbox" class="btn-check" id="ZnDrawConsoleSwitch" autocomplete="off" data-bs-toggle="collapse" data-bs-target="#ZnDrawConsole" aria-controls="ZnDrawConsole" aria-expanded="false">
-              <label class="btn btn-outline-primary" for="ZnDrawConsoleSwitch"><i class="fa-solid fa-terminal"></i></i></label>
+            <div class="btn-group" role="group" aria-label="Basic checkbox toggle button group">
+              <input type="checkbox" class="btn-check" id="ZnDrawConsoleSwitch" autocomplete="off"
+                data-bs-toggle="collapse" data-bs-target="#ZnDrawConsole" aria-controls="ZnDrawConsole"
+                aria-expanded="false">
+              <label class="btn btn-outline-primary" for="ZnDrawConsoleSwitch"><i
+                  class="fa-solid fa-terminal"></i></i></label>
             </div>
           </li>
           <li class="nav-item mx-1">
@@ -277,6 +284,42 @@
     </div>
   </div>
 
+  <!-- Tutorial -->
+
+  <div class="modal fade" id="tutorialModal" tabindex="-1" aria-labelledby="tutorialModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h1 class="modal-title fs-5" id="tutorialModalLabel">ZnDraw Tutorial</h1>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body" id="tutorialModalBody">
+          <div id="carouselExample" class="carousel slide">
+            <div class="carousel-inner">
+              <div class="carousel-item active">
+                <img src="/static/img/tutorial01.png" class="d-block w-100" alt="...">
+              </div>
+              <div class="carousel-item">
+                <img src="/static/img/tutorial01.png" class="d-block w-100" alt="...">
+              </div>
+              <div class="carousel-item">
+                <img src="/static/img/tutorial01.png" class="d-block w-100" alt="...">
+              </div>
+            </div>
+            <button class="carousel-control-prev" type="button" data-bs-target="#carouselExample" data-bs-slide="prev">
+              <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+              <span class="visually-hidden">Previous</span>
+            </button>
+            <button class="carousel-control-next" type="button" data-bs-target="#carouselExample" data-bs-slide="next">
+              <span class="carousel-control-next-icon" aria-hidden="true"></span>
+              <span class="visually-hidden">Next</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div class="modal fade" id="codeModal" tabindex="-1" aria-labelledby="codeModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-xl">
       <div class="modal-content">
@@ -294,7 +337,8 @@
           <h3>Share Link</h3>
           <code id="share-link-block"></code>
           <br />
-          <a class="btn btn-primary" href="{{ url_for('main.token', token=token) }}" role="button" id="btnShareLink">Copy
+          <a class="btn btn-primary" href="{{ url_for('main.token', token=token) }}" role="button"
+            id="btnShareLink">Copy
             link to clipboard</a>
           {% endif %}
           <script>
@@ -345,20 +389,21 @@
 
   <!-- ZnDraw Console -->
 
-<div class="collapse" id="ZnDrawConsole" style="transition: 0s;">
-  <div class="card" id="ZnDrawConsoleCard">
-  <div class="card-header">
-    <div class="row">
+  <div class="collapse" id="ZnDrawConsole" style="transition: 0s;">
+    <div class="card" id="ZnDrawConsoleCard">
+      <div class="card-header">
+        <div class="row">
           <div class="col">Console</div>
           <div class="col col-md-auto">
-            <button type="button" class="btn-close" id="ZnDrawConsoleExitBtn" onclick="document.getElementById('ZnDrawConsoleSwitch').click();"></button>
+            <button type="button" class="btn-close" id="ZnDrawConsoleExitBtn"
+              onclick="document.getElementById('ZnDrawConsoleSwitch').click();"></button>
           </div>
         </div>
-  </div>
-    <div class="card-body overflow-y-auto" id="ZnDrawConsoleBody">
+      </div>
+      <div class="card-body overflow-y-auto" id="ZnDrawConsoleBody">
+      </div>
     </div>
   </div>
-</div>
 
 
   <!-- Progress Bar -->
@@ -367,7 +412,7 @@
 
   <!-- Progress Bar Bookmarks -->
   <div id="bookmarks">
-  {# <button type="button" class="btn btn-link"><i class="fa-regular fa-bookmark"></i></button> #}
+    {# <button type="button" class="btn btn-link"><i class="fa-regular fa-bookmark"></i></button> #}
   </div>
 
   <!-- Additional info bars -->
