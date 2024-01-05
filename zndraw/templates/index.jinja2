@@ -16,9 +16,6 @@
         }
       }
     </script>
-  <link rel="stylesheet" href="{{ url_for('static', filename='main.css') }}" />
-  <!-- Bootstrap -->
-  <link rel="stylesheet" href="{{ url_for('static', filename='node_modules/bootstrap/dist/css/bootstrap.min.css') }}" />
 </head>
 
 <body>
@@ -81,7 +78,7 @@
       <div class="navbar-collapse collapse w-100 order-3 dual-collapse2">
         <ul class="navbar-nav ms-auto">
           <li class="nav-item mx-1">
-             <div class="btn-group" role="group" aria-label="Basic checkbox toggle button group">
+            <div class="btn-group" role="group" aria-label="Basic checkbox toggle button group">
               <input type="checkbox" class="btn-check" id="ZnDrawConsoleSwitch" autocomplete="off" data-bs-toggle="collapse" data-bs-target="#ZnDrawConsole" aria-controls="ZnDrawConsole" aria-expanded="false">
               <label class="btn btn-outline-primary" for="ZnDrawConsoleSwitch"><i class="fa-solid fa-terminal"></i></i></label>
             </div>
@@ -345,20 +342,20 @@
 
   <!-- ZnDraw Console -->
 
-<div class="collapse" id="ZnDrawConsole" style="transition: 0s;">
-  <div class="card" id="ZnDrawConsoleCard">
-  <div class="card-header">
-    <div class="row">
+  <div class="collapse" id="ZnDrawConsole" style="transition: 0s;">
+    <div class="card" id="ZnDrawConsoleCard">
+      <div class="card-header">
+        <div class="row">
           <div class="col">Console</div>
           <div class="col col-md-auto">
             <button type="button" class="btn-close" id="ZnDrawConsoleExitBtn" onclick="document.getElementById('ZnDrawConsoleSwitch').click();"></button>
           </div>
         </div>
-  </div>
-    <div class="card-body overflow-y-auto" id="ZnDrawConsoleBody">
+      </div>
+      <div class="card-body overflow-y-auto" id="ZnDrawConsoleBody">
+      </div>
     </div>
   </div>
-</div>
 
 
   <!-- Progress Bar -->
@@ -367,7 +364,7 @@
 
   <!-- Progress Bar Bookmarks -->
   <div id="bookmarks">
-  {# <button type="button" class="btn btn-link"><i class="fa-regular fa-bookmark"></i></button> #}
+    {# <button type="button" class="btn btn-link"><i class="fa-regular fa-bookmark"></i></button> #}
   </div>
 
   <!-- Additional info bars -->
@@ -383,6 +380,9 @@
       <code>keypress c</code>.
     </p>
   </div>
+    <link rel="stylesheet" href="{{ url_for('static', filename='main.css') }}" />
+  <!-- Bootstrap -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='node_modules/bootstrap/dist/css/bootstrap.min.css') }}" />
 </body>
 
 </html>
