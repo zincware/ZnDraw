@@ -59,6 +59,8 @@ class Rotate(UpdateScene):
         atoms = vis.atoms
         assert len(points) == 2
 
+        del atoms.connectivity
+
         angle = self.angle if self.direction == "left" else -self.angle
         angle = angle / self.steps
 
@@ -89,6 +91,11 @@ class Explode(UpdateScene):
         atom_ids = vis.selection
         atoms = vis.atoms
         particles = []
+
+        del atoms.connectivity
+        del atoms.arrays["colors"]
+        del atoms.arrays["radii"]
+
         for _atom_id in atom_ids:
             for _ in range(self.particles):
                 particles.append(ase.Atoms("Na", positions=[atoms.positions[_atom_id]]))
@@ -138,7 +145,7 @@ class Move(UpdateScene):
 
         atoms = vis.atoms
         atoms_selected, atoms_remaining = self.apply_selection(vis.selection, atoms)
-
+        del atoms.connectivity
         if self.steps > len(vis.segments):
             raise ValueError(
                 "The number of steps must be less than the number of segments. You can add more points to increase the number of segments."
@@ -177,6 +184,11 @@ class Duplicate(UpdateScene):
             atom.position += np.array([self.x, self.y, self.z])
             atom.symbol = self.symbol.name if self.symbol.name != "X" else atom.symbol
             atoms += atom
+
+        del atoms.arrays["colors"]
+        del atoms.arrays["radii"]
+        del atoms.connectivity
+
         vis.append(atoms)
         vis.step += 1
         vis.selection = []
@@ -194,6 +206,11 @@ class ChangeType(UpdateScene):
         atoms = vis.atoms
         for atom_id in vis.selection:
             atoms[atom_id].symbol = self.symbol.name
+
+        del atoms.arrays["colors"]
+        del atoms.arrays["radii"]
+        del atoms.connectivity
+
         vis.append(atoms)
         vis.step += 1
         vis.selection = []
@@ -212,6 +229,11 @@ class AddLineParticles(UpdateScene):
         atoms = vis.atoms
         for point in vis.points:
             atoms += ase.Atom(self.symbol.name, position=point)
+
+        del atoms.arrays["colors"]
+        del atoms.arrays["radii"]
+        del atoms.connectivity
+
         for _ in range(self.steps):
             vis.append(atoms)
             vis.step += 1
