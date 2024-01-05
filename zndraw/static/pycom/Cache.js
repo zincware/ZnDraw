@@ -104,9 +104,10 @@ class Cache {
           colors: data[key].arrays.colors,
           radii: data[key].arrays.radii,
           connectivity: data[key].connectivity,
-          calc: data[key].calc,
+          calc: data[key].info.calc,
           pbc: data[key].pbc,
         });
+        console.log(data)
         if (display_new) {
           slider.max = Object.keys(this._cache).length - 1;
           this.world.setStep(key);
@@ -167,7 +168,7 @@ class Cache {
         colors: data[id].arrays.colors,
         radii: data[id].arrays.radii,
         connectivity: data[id].connectivity,
-        calc: data[id].calc,
+        calc: data[id].info.calc,
         pbc: data[id].pbc,
       });
       // update slider
@@ -184,12 +185,15 @@ class Cache {
         const data = {};
         ids.forEach((x) => {
           try {
-            const { colors, radii, length, ...rest } = this._cache[x];
+            const { colors, radii, calc, length, ...rest } = this._cache[x];
             data[x] = {
               ...rest,
               arrays: {
                 colors,
                 radii,
+              },
+              info: {
+                calc,
               },
             };
           } catch (error) {
