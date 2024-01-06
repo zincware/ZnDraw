@@ -12,6 +12,32 @@ body {
   min-height: 100vh;
 }
 
+.overlay{
+  opacity:0.8;
+  background-color:#ccc;
+  position:fixed;
+  width:100%;
+  height:100%;
+  top:0px;
+  left:0px;
+  z-index:10000;
+  display: none;
+  pointer-events: none;
+  /* https://angrytools.com/gradient/ to change */
+  background: radial-gradient(ellipse at 50% 50%, rgba(238, 130, 238, 0) 70%, rgba(255, 165, 0, 1) 100%);
+}
+
+
+.overlay-text{
+  position:fixed;
+  top:50%;
+  left:50%;
+  transform:translate(-50%,-50%);
+  color:#000;
+  font-weight:bold;
+  pointer-events: none;
+}
+
 .fixed-left-container {
   position: fixed;
   top: 50px;
