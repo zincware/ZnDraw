@@ -40,7 +40,7 @@ function setupInfo() {
       document.getElementById("helpModalBody").innerHTML = marked.parse(text);
     });
 
-  const tutorialIframe = document.getElementById("tutorialIframe")
+  const tutorialIframe = document.getElementById("tutorialIframe");
   if (tutorialIframe) {
     // set width and height of iframe to 100% of parent
     tutorialIframe.style.width = "100%";
