@@ -16,9 +16,6 @@
         }
       }
     </script>
-  <link rel="stylesheet" href="{{ url_for('static', filename='main.css') }}" />
-  <!-- Bootstrap -->
-  <link rel="stylesheet" href="{{ url_for('static', filename='node_modules/bootstrap/dist/css/bootstrap.min.css') }}" />
 </head>
 
 <body>
@@ -46,6 +43,9 @@
   </noscript>
 
   <div id="scene-container"></div>
+  <div class="overlay" id="overlay">
+    <h1 class="overlay-text">Upload File</h1>
+  </div>
 
   <!-- Loading Spinner -->
   <div class="atom-spinner" , id="atom-spinner">
@@ -88,11 +88,8 @@
         <ul class="navbar-nav ms-auto">
           <li class="nav-item mx-1">
             <div class="btn-group" role="group" aria-label="Basic checkbox toggle button group">
-              <input type="checkbox" class="btn-check" id="ZnDrawConsoleSwitch" autocomplete="off"
-                data-bs-toggle="collapse" data-bs-target="#ZnDrawConsole" aria-controls="ZnDrawConsole"
-                aria-expanded="false">
-              <label class="btn btn-outline-primary" for="ZnDrawConsoleSwitch"><i
-                  class="fa-solid fa-terminal"></i></i></label>
+              <input type="checkbox" class="btn-check" id="ZnDrawConsoleSwitch" autocomplete="off" data-bs-toggle="collapse" data-bs-target="#ZnDrawConsole" aria-controls="ZnDrawConsole" aria-expanded="false">
+              <label class="btn btn-outline-primary" for="ZnDrawConsoleSwitch"><i class="fa-solid fa-terminal"></i></i></label>
             </div>
           </li>
           <li class="nav-item mx-1">
@@ -415,6 +412,9 @@
       <code>keypress c</code>.
     </p>
   </div>
+    <link rel="stylesheet" href="{{ url_for('static', filename='main.css') }}" />
+  <!-- Bootstrap -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='node_modules/bootstrap/dist/css/bootstrap.min.css') }}" />
 </body>
 
 </html>

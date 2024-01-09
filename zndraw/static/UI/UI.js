@@ -180,11 +180,56 @@ function setupMobile() {
   }
 }
 
+function setupDragDrop(socket) {
+  const scene = document.getElementById("scene-container");
+
+  scene.addEventListener("dragover", (event) => {
+    event.preventDefault();
+    // show the overlay as long as the file is dragged over the scene
+    const overlay = document.getElementById("overlay");
+    overlay.style.display = "block";
+  });
+
+  scene.addEventListener("dragleave", (event) => {
+    event.preventDefault();
+    // hide the overlay when the file is dragged out of the scene
+    const overlay = document.getElementById("overlay");
+    overlay.style.display = "none";
+  });
+
+  scene.addEventListener("drop", (event) => {
+    event.preventDefault();
+    // hide the overlay when the file is dropped
+    const overlay = document.getElementById("overlay");
+    overlay.style.display = "none";
+
+    // read the file
+    const file = event.dataTransfer.files[0];
+    console.log(event);
+    if (!file) {
+      console.error("No file was dropped");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.readAsBinaryString(file);
+
+    // send the file to the server
+    reader.addEventListener("load", () => {
+      socket.emit("upload", {
+        content: reader.result,
+        filename: file.name,
+      });
+    });
+  });
+}
+
 export function setUIEvents(socket, cache, world) {
   // resizeOffcanvas();
   setupUpload(socket);
   setupNavbarLeft();
   setupMobile();
+  setupDragDrop(socket);
 
   document.getElementById("ExitBtn").addEventListener("click", () => {
     fetch("/exit", { method: "GET" });

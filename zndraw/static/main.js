@@ -15,6 +15,10 @@ function setupSocket() {
     socket.emit(msg["event"], msg["data"]);
   });
 
+  socket.on("message:alert", (msg) => {
+    alert(msg);
+  });
+
   socket.on("connect_error", (err) => {
     console.log("connection could not be established - trying again.");
     // try to connect again
