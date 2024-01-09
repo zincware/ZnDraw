@@ -6,7 +6,9 @@ from flask_socketio import SocketIO
 socketio = SocketIO()
 
 
-def create_app(use_token, upgrade_insecure_requests, compute_bonds, tutorial: str) -> Flask:
+def create_app(
+    use_token, upgrade_insecure_requests, compute_bonds, tutorial: str
+) -> Flask:
     """Create the Flask app."""
 
     app = Flask(__name__)
