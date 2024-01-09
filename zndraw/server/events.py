@@ -137,6 +137,17 @@ def scene_schema():
 
 @io.on("modifier:run")
 def modifier_run(data):
+    # if any modifier is running, print an alert message to try later
+    if app.config["MODIFIER"]["active"] is not None:
+        emit(
+            "message:alert",
+            "Another modifier is running, try again later.",
+            to=request.sid,
+        )
+        emit("modifier:run:running", to=request.sid)
+        emit("modifier:run:finished", to=request.sid)
+        return
+
     name = data["params"]["method"]["discriminator"]
     if name in app.config["MODIFIER"]:
         sid = app.config["MODIFIER"][name]
@@ -525,6 +536,7 @@ def debug(data: dict):
 
 @io.on("modifier:run:running")
 def modifier_run_running(data: dict):
+    app.config["MODIFIER"]["active"] = data["name"]
     if "sid" in data:
         emit("modifier:run:running", data, include_self=False, to=data["sid"])
     else:
@@ -542,6 +554,7 @@ def modifier_run_running(data: dict):
 
 @io.on("modifier:run:finished")
 def modifier_run_finished(data: dict):
+    app.config["MODIFIER"]["active"] = None
     if "sid" in data:
         emit("modifier:run:finished", data, include_self=False, to=data["sid"])
     else:
