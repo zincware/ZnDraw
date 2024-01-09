@@ -140,8 +140,14 @@ def modifier_run(data):
     name = data["params"]["method"]["discriminator"]
     if name in app.config["MODIFIER"]:
         sid = app.config["MODIFIER"][name]
-        data["sid"] = request.sid # should this really be the SID, I think it should be the token!
-        data["sid"] = "notoken"  # should this really be the SID, I think it should be the token!
+        data[
+            "sid"
+        ] = (
+            request.sid
+        )  # should this really be the SID, I think it should be the token!
+        data[
+            "sid"
+        ] = "notoken"  # should this really be the SID, I think it should be the token!
         return emit("modifier:run", data, to=sid)
 
     if "sid" in data:
