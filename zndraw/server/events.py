@@ -536,7 +536,7 @@ def debug(data: dict):
 
 @io.on("modifier:run:running")
 def modifier_run_running(data: dict):
-    app.config["MODIFIER"]["active"] = data["name"]
+    app.config["MODIFIER"]["active"] = data.get("name", "unknown")
     if "sid" in data:
         emit("modifier:run:running", data, include_self=False, to=data["sid"])
     else:
