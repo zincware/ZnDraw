@@ -139,7 +139,11 @@ def scene_schema():
 def modifier_run(data):
     # if any modifier is running, print an alert message to try later
     if app.config["MODIFIER"]["active"] is not None:
-        emit("message:alert", "Another modifier is running, try again later.", to=request.sid)
+        emit(
+            "message:alert",
+            "Another modifier is running, try again later.",
+            to=request.sid,
+        )
         emit("modifier:run:running", to=request.sid)
         emit("modifier:run:finished", to=request.sid)
         return
