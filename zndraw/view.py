@@ -51,6 +51,7 @@ def view(
     upgrade_insecure_requests: bool = False,
     remote: str = None,
     rev: str = None,
+    tutorial: str = None,
 ):
     url = f"http://127.0.0.1:{port}"
 
@@ -58,6 +59,7 @@ def view(
         use_token=use_token,
         upgrade_insecure_requests=upgrade_insecure_requests,
         compute_bonds=compute_bonds,
+        tutorial=tutorial,
     )
 
     file_io = FileIO(filename, start, stop, step, remote, rev)
