@@ -140,15 +140,18 @@ def modifier_run(data):
     name = data["params"]["method"]["discriminator"]
     if name in app.config["MODIFIER"]:
         sid = app.config["MODIFIER"][name]
-        data["sid"] = request.sid
+        data["sid"] = request.sid # should this really be the SID, I think it should be the token!
+        data["sid"] = "notoken"  # should this really be the SID, I think it should be the token!
         return emit("modifier:run", data, to=sid)
 
     if "sid" in data:
         sid = data.pop("sid")
         data["sid"] = request.sid
+        data["sid"] = "notoken"
         return emit("modifier:run", data, to=sid)
     else:
         data["sid"] = request.sid
+        data["sid"] = "notoken"
         return emit("modifier:run", data, to=app.config["DEFAULT_PYCLIENT"])
 
 
@@ -217,8 +220,10 @@ def atoms_upload(data: dict):
     if "sid" in data:
         # if the data is sent from the default pyclient, it will have a sid
         sid = data.pop("sid")
+        print(f"to {sid = }")
         emit("atoms:upload", data, include_self=False, to=sid)
     else:
+        print(f"to {session['token'] = }")
         emit("atoms:upload", data, include_self=False, to=session["token"])
 
 

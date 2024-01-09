@@ -17,6 +17,7 @@ def index():
         if "token" in current_app.config:
             token = current_app.config["token"]
         else:
+            print("Generating new token")
             token = uuid.uuid4().hex
         session["token"] = token
 

@@ -101,6 +101,7 @@ class Explode(UpdateScene):
             time.sleep(self.delay / 1000)
             vis.append(struct)
             vis.step += 1
+            # print(f"Uploading to {vis._target_sid}")
         vis.selection = []
 
 

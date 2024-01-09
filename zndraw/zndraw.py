@@ -590,6 +590,7 @@ class ZnDraw(ZnDrawBase):
         # TODO: send back a response that the modifier has been received, otherwise log a warning
         # that the modifier has not been received to the user
         with self._set_sid(data["sid"]):
+            print(f"promoting to {data['sid']}")
             config = GlobalConfig.load()
             cls = get_modify_class(
                 config.get_modify_methods(
