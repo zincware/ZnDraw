@@ -6,14 +6,17 @@ from flask_socketio import SocketIO
 socketio = SocketIO()
 
 
-def create_app(use_token, upgrade_insecure_requests, compute_bonds) -> Flask:
+def create_app(
+    use_token, upgrade_insecure_requests, compute_bonds, tutorial: str
+) -> Flask:
     """Create the Flask app."""
 
     app = Flask(__name__)
     app.config["SECRET_KEY"] = str(uuid.uuid4())
     app.config["ROOM_HOSTS"] = {}
     app.config["DEFAULT_PYCLIENT"] = None
-    app.config["MODIFIER"] = {"default_schema": {}}
+    app.config["TUTORIAL"] = tutorial
+    app.config["MODIFIER"] = {"default_schema": {}, "active": None}
 
     if not use_token:  # TODO: handle this differently
         app.config["token"] = "notoken"

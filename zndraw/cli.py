@@ -64,6 +64,10 @@ def main(
         None,
         help="Revision of the ZnTrack repository to stream data from.",
     ),
+    tutorial: str = typer.Option(
+        None,
+        help="Show the tutorial from the URL inside an IFrame.",
+    ),
 ):
     """Start the ZnDraw server.
 
@@ -86,4 +90,5 @@ def main(
         use_token=use_token,
         remote=remote,
         rev=rev,
+        tutorial=tutorial,
     )

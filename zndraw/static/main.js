@@ -15,6 +15,10 @@ function setupSocket() {
     socket.emit(msg["event"], msg["data"]);
   });
 
+  socket.on("message:alert", (msg) => {
+    alert(msg);
+  });
+
   socket.on("connect_error", (err) => {
     console.log("connection could not be established - trying again.");
     // try to connect again
@@ -35,6 +39,14 @@ function setupInfo() {
     .then((text) => {
       document.getElementById("helpModalBody").innerHTML = marked.parse(text);
     });
+
+  const tutorialIframe = document.getElementById("tutorialIframe");
+  if (tutorialIframe) {
+    // set width and height of iframe to 100% of parent
+    tutorialIframe.style.width = "100%";
+    // set height to 80% of screen height
+    tutorialIframe.style.height = window.innerHeight * 0.7 + "px";
+  }
 }
 
 function main() {
