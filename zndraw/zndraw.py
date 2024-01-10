@@ -291,6 +291,7 @@ class ZnDrawBase:  # collections.abc.MutableSequence
             {
                 "sid": data["sid"],
                 "token": self.token,
+                "name": data["params"]["method"]["discriminator"],
             },
         )
         try:

@@ -25,6 +25,7 @@ def index():
         "index.jinja2",
         upgrade_insecure_requests=current_app.config["upgrade_insecure_requests"],
         token=session["token"],
+        tutorial=current_app.config["TUTORIAL"],
     )
 
 
