@@ -184,10 +184,12 @@ function setupDragDrop(socket) {
   const scene = document.getElementById("scene-container");
 
   scene.addEventListener("dragover", (event) => {
-    event.preventDefault();
-    // show the overlay as long as the file is dragged over the scene
-    const overlay = document.getElementById("overlay");
-    overlay.style.display = "block";
+    if (event.dataTransfer.files > 1) {
+      event.preventDefault();
+      // show the overlay as long as the file is dragged over the scene
+      const overlay = document.getElementById("overlay");
+      overlay.style.display = "block";
+    }
   });
 
   scene.addEventListener("dragleave", (event) => {
