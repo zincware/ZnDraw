@@ -212,11 +212,6 @@ class Selection {
           this.shift_pressed,
           particleIntersects[0].object,
         );
-      } else {
-        // remove transform_controls
-        if (!this.transform_controls.dragging) {
-          this.transform_controls.detach();
-        }
       }
     }
   }
