@@ -72,6 +72,12 @@
               <label class="btn btn-outline-primary" for="drawingSwitch">Draw <i class="fa-solid fa-pencil"></i></label>
             </div>
           </li>
+          {% if tutorial %}
+          <li class="nav-item mx-1">
+            <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal"
+              data-bs-target="#tutorialModal">Tutorial <i class="fa-solid fa-film"></i></button>
+          </li>
+          {% endif %}
         </ul>
       </div>
       <div class="mx-auto order-0">
@@ -277,6 +283,27 @@
     </div>
   </div>
 
+  <!-- Tutorial -->
+
+  {% if tutorial %}
+  <div class="modal fade" id="tutorialModal" tabindex="-1" aria-labelledby="tutorialModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h1 class="modal-title fs-5" id="tutorialModalLabel">ZnDraw Tutorial</h1>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body" id="tutorialModalBody">
+          <iframe src="{{ tutorial }}" id="tutorialIframe" scrolling="no"
+            frameborder="0" webkitallowfullscreen mozallowfullscreen allowfullscreen></iframe>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+  </div>
+  {% endif %}
+
   <div class="modal fade" id="codeModal" tabindex="-1" aria-labelledby="codeModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-xl">
       <div class="modal-content">
@@ -294,7 +321,8 @@
           <h3>Share Link</h3>
           <code id="share-link-block"></code>
           <br />
-          <a class="btn btn-primary" href="{{ url_for('main.token', token=token) }}" role="button" id="btnShareLink">Copy
+          <a class="btn btn-primary" href="{{ url_for('main.token', token=token) }}" role="button"
+            id="btnShareLink">Copy
             link to clipboard</a>
           {% endif %}
           <script>
@@ -351,7 +379,8 @@
         <div class="row">
           <div class="col">Console</div>
           <div class="col col-md-auto">
-            <button type="button" class="btn-close" id="ZnDrawConsoleExitBtn" onclick="document.getElementById('ZnDrawConsoleSwitch').click();"></button>
+            <button type="button" class="btn-close" id="ZnDrawConsoleExitBtn"
+              onclick="document.getElementById('ZnDrawConsoleSwitch').click();"></button>
           </div>
         </div>
       </div>
