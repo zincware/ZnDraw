@@ -129,6 +129,8 @@ class Selection {
       }
       const position = particleIntersects[0].point.clone();
       this.line3D.movePointer(position);
+      this.line3D.changeLineColor(0x000000);
+      this.line3D.changeLastPointColor(0x000000);
     } else if ((canvasIntersects.length > 0) && (canvasIntersects[0].object.name === "canvas3D")) {
       console.log("pointer on canvas");
       if (!this.line3D.pointer) {
@@ -136,12 +138,25 @@ class Selection {
       }
       const position = canvasIntersects[0].point.clone();
       this.line3D.movePointer(position);
+      this.line3D.changeLineColor(0x000000);
+      this.line3D.changeLastPointColor(0x000000);
     } else {
-      if (this.line3D.pointer) {
-        console.log("remove pointer");
-        this.line3D.removePointer(this.line3D.pointer);
-        this.line3D.pointer = undefined;
-      }
+        if (!this.line3D.pointer) {
+          this.line3D.pointer = this.line3D.addPointer();
+        }
+      // if (this.line3D.pointer) {
+        // add a plane with the position of the pointer perpendicular to the camera
+        const plane = new THREE.Plane();
+        plane.setFromNormalAndCoplanarPoint(
+          this.camera.getWorldDirection(plane.normal),
+          this.line3D.pointer.position,
+        );
+        const position = new THREE.Vector3();
+        this.raycaster.ray.intersectPlane(plane, position);
+        this.line3D.movePointer(position);
+        this.line3D.changeLineColor(0xFF0000);
+        this.line3D.changeLastPointColor(0xFF0000);
+    // }
     }
     return false;
   }
@@ -171,11 +186,12 @@ class Selection {
       if (particleIntersects.length > 0) {
         const position = particleIntersects[0].point.clone();
         this.line3D.pointer = this.line3D.addPoint(position);
-      } else if (canvasIntersects.length > 0) {
-        if (canvasIntersects[0].object.name === "canvas3D") {
+      } else if ((canvasIntersects.length > 0) && (canvasIntersects[0].object.name === "canvas3D")) {
           const position = canvasIntersects[0].point.clone();
           this.line3D.pointer = this.line3D.addPoint(position);
-        }
+      } else {
+        // exit drawing mode
+        document.getElementById("drawingSwitch").click();
       }
     } else {
       if (anchorPointsIntersects.length > 0) {
