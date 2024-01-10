@@ -144,6 +144,15 @@ export class Line3D extends THREE.Group {
     this.add(this.line, this.anchorPoints, this.virtualPoints);
   }
 
+  changeLineColor(color) {
+    this.line.material.color.set(color);
+  }
+  changeLastPointColor(color) {
+    this.anchorPoints.children[
+      this.anchorPoints.children.length - 1
+    ].material.color.set(color);
+  }
+
   addPoint(position, index) {
     const geometry = new THREE.IcosahedronGeometry(0.1, 0);
     const material = new THREE.MeshPhongMaterial({
@@ -180,6 +189,7 @@ export class Line3D extends THREE.Group {
 
   removePointer(object) {
     // remove last anchor point
+    this.changeLineColor(0x000000);
     if (object) {
       this.anchorPoints.remove(object);
     } else {
