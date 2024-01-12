@@ -80,7 +80,7 @@ def view(
     elif open_browser:
         webbrowser.open(url)
 
-    socketio.run(app, port=port, host="0.0.0.0")
+    socketio.run(app, port=port, host="0.0.0.0", allow_unsafe_werkzeug=True)
 
     proc.terminate()
     proc.join()

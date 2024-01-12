@@ -112,7 +112,7 @@ def join(token):
     # only used by pyclients that only connect via socket (no HTML)
     session["token"] = token
     join_room(f"pyclients_{token}")
-    print(f"join {token} and {request.sid} with {list(app.config['MODIFIER'])}")
+    print(f"join '{token}' and '{request.sid}' with {list(app.config['MODIFIER'])}")
     if token == "default":
         # this would be very easy to exploit
         app.config["DEFAULT_PYCLIENT"] = request.sid
