@@ -111,6 +111,7 @@ def disconnect():
 # does not exist?
 #     log.critical(f"reconnect {request.sid}")
 
+
 @io.on("join")
 def join(token):
     # only used by pyclients that only connect via socket (no HTML)
