@@ -159,6 +159,7 @@ def modifier_run(data):
         data["sid"] = request.sid
         return emit("modifier:run", data, to=sid)
     else:
+        raise ValueError
         data["sid"] = request.sid
         return emit("modifier:run", data, to=app.config["DEFAULT_PYCLIENT"])
 
@@ -170,6 +171,7 @@ def analysis_run(data):
         data["sid"] = request.sid
         emit("analysis:run", data, to=sid)
     else:
+        raise ValueError
         data["sid"] = request.sid
         emit("analysis:run", data, to=app.config["DEFAULT_PYCLIENT"])
 
@@ -180,6 +182,7 @@ def analysis_figure(data):
         sid = data.pop("sid")
         emit("analysis:figure", data["figure"], to=sid)
     else:
+        raise ValueError
         emit("analysis:figure", data["figure"], to=session["token"])
 
 
@@ -188,6 +191,7 @@ def scene_set(data):
     if "sid" in data:
         emit("scene:set", data["index"], include_self=False, to=data["sid"])
     else:
+        raise ValueError
         try:
             # emit to all webclients in the group, if no sid is provided
             emit("scene:set", data["index"], include_self=False, to=session["token"])
@@ -200,6 +204,7 @@ def scene_step(data):
     if "sid" in data:
         return call("scene:step", to=data["sid"])
     else:
+        raise ValueError
         try:
             # emit to all webclients in the group, if no sid is provided
             return call("scene:step", to=app.config["ROOM_HOSTS"][session["token"]][0])
@@ -213,6 +218,7 @@ def atoms_download(data):
         sid = data.pop("sid")
         return call("atoms:download", data["indices"], to=sid)
     else:
+        raise ValueError
         try:
             return call(
                 "atoms:download",
@@ -230,6 +236,7 @@ def atoms_upload(data: dict):
         sid = data.pop("sid")
         emit("atoms:upload", data, include_self=False, to=sid)
     else:
+        raise ValueError
         emit("atoms:upload", data, include_self=False, to=session["token"])
 
 
@@ -240,6 +247,7 @@ def atoms_delete(data: dict):
         sid = data.pop("sid")
         emit("atoms:delete", data["index"], include_self=False, to=sid)
     else:
+        raise ValueError
         emit("atoms:delete", data["index"], include_self=False, to=session["token"])
 
 
@@ -249,6 +257,7 @@ def atoms_length(data: dict):
     if "sid" in data:
         return call("atoms:length", to=data["sid"])
     else:
+        raise ValueError
         try:
             return call(
                 "atoms:length", to=app.config["ROOM_HOSTS"][session["token"]][0]
@@ -262,6 +271,7 @@ def analysis_schema(data: dict):
     if "sid" in data:
         emit("analysis:schema", data["schema"], include_self=False, to=data["sid"])
     else:
+        raise ValueError
         try:
             # emit to all webclients in the group, if no sid is provided
             emit(
@@ -279,6 +289,7 @@ def modifier_schema(data: dict):
     if "sid" in data:
         emit("modifier:schema", data["schema"], include_self=False, to=data["sid"])
     else:
+        raise ValueError
         try:
             # emit to all webclients in the group, if no sid is provided
             emit(
@@ -296,6 +307,7 @@ def selection_schema(data: dict):
     if "sid" in data:
         emit("selection:schema", data["schema"], include_self=False, to=data["sid"])
     else:
+        raise ValueError
         try:
             # emit to all webclients in the group, if no sid is provided
             emit(
@@ -313,6 +325,7 @@ def draw_schema(data: dict):
     if "sid" in data:
         emit("draw:schema", data["schema"], include_self=False, to=data["sid"])
     else:
+        raise ValueError
         try:
             # emit to all webclients in the group, if no sid is provided
             emit("draw:schema", data["schema"], include_self=False, to=session["token"])
@@ -325,6 +338,7 @@ def scene_points(data: dict):
     if "sid" in data:
         return call("points:get", to=data["sid"])
     else:
+        raise ValueError
         try:
             # emit to all webclients in the group, if no sid is provided
             return call("points:get", to=app.config["ROOM_HOSTS"][session["token"]][0])
@@ -337,6 +351,7 @@ def scene_segments(data: dict):
     if "sid" in data:
         return call("scene:segments", to=data["sid"])
     else:
+        raise ValueError
         try:
             # emit to all webclients in the group, if no sid is provided
             return call(
@@ -351,6 +366,7 @@ def selection_get(data: dict):
     if "sid" in data:
         return call("selection:get", to=data["sid"])
     else:
+        raise ValueError
         try:
             # emit to all webclients in the group, if no sid is provided
             return call(
@@ -365,6 +381,7 @@ def selection_set(data: dict):
     if "sid" in data:
         emit("selection:set", data["selection"], include_self=False, to=data["sid"])
     else:
+        raise ValueError
         try:
             # emit to all webclients in the group, if no sid is provided
             emit(
@@ -384,6 +401,7 @@ def selection_run(data: dict):
     if sid is not None:
         emit("selection:run", data, to=sid)
     else:
+        raise ValueError
         try:
             # emit to all webclients in the group, if no sid is provided
             emit("selection:run", data, to=app.config["DEFAULT_PYCLIENT"])
@@ -396,6 +414,7 @@ def upload(data):
     if "sid" in data:  # currently not expected to happen
         raise ValueError("Uploading to specific pyclient currently not supported.")
     else:
+        raise ValueError
         emit(
             "upload",
             {"data": data, "sid": session["token"]},
@@ -434,6 +453,7 @@ def scene_play(data):
     if "sid" in data:
         emit("scene:play", to=data["sid"])
     else:
+        raise ValueError
         emit("scene:play", to=session["token"])
 
 
@@ -443,6 +463,7 @@ def scene_pause(data):
     if "sid" in data:
         emit("scene:pause", to=data["sid"])
     else:
+        raise ValueError
         emit("scene:pause", to=session["token"])
 
 
@@ -474,6 +495,7 @@ def bookmarks_get(data: dict):
     if "sid" in data:
         return call("bookmarks:get", to=data["sid"])
     else:
+        raise ValueError
         try:
             # emit to all webclients in the group, if no sid is provided
             return call(
@@ -488,6 +510,7 @@ def bookmarks_set(data: dict):
     if "sid" in data:
         emit("bookmarks:set", data["bookmarks"], include_self=False, to=data["sid"])
     else:
+        raise ValueError
         try:
             # emit to all webclients in the group, if no sid is provided
             emit(
@@ -505,6 +528,7 @@ def points_set(data: dict):
     if "sid" in data:
         emit("points:set", data["value"], include_self=False, to=data["sid"])
     else:
+        raise ValueError
         try:
             # emit to all webclients in the group, if no sid is provided
             emit(
@@ -522,6 +546,7 @@ def debug(data: dict):
     if "sid" in data:
         emit("debug", data, include_self=False, to=data["sid"])
     else:
+        raise ValueError
         try:
             # emit to all webclients in the group, if no sid is provided
             emit(
@@ -540,6 +565,7 @@ def modifier_run_running(data: dict):
     if "sid" in data:
         emit("modifier:run:running", data, include_self=False, to=data["sid"])
     else:
+        raise ValueError
         try:
             # emit to all webclients in the group, if no sid is provided
             emit(
@@ -558,6 +584,7 @@ def modifier_run_finished(data: dict):
     if "sid" in data:
         emit("modifier:run:finished", data, include_self=False, to=data["sid"])
     else:
+        raise ValueError
         try:
             # emit to all webclients in the group, if no sid is provided
             emit(
