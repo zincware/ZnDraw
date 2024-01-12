@@ -256,7 +256,9 @@ def analysis_schema(data: dict):
 @io.on("modifier:schema")
 def modifier_schema(data: dict):
     print(f"modifier:schema {data['token']}")
-    emit("modifier:schema", data["schema"], include_self=False, to=_webclients_room(data))
+    emit(
+        "modifier:schema", data["schema"], include_self=False, to=_webclients_room(data)
+    )
 
 
 @io.on("selection:schema")
