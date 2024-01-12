@@ -10,6 +10,15 @@ from ..app import socketio as io
 log = logging.getLogger(__name__)
 
 
+def _webclients_room(data: dict) -> str:
+    if "sid" in data:
+        return data['sid']
+    return f"webclients_{data['token']}"
+
+def _pyclients_room(data: dict) -> str:
+    return f"pyclients_{data['token']}"
+
+
 @io.on("connect")
 def connect():
     if app.config["DEFAULT_PYCLIENT"] is None and "token" in session:
@@ -19,8 +28,7 @@ def connect():
         # If you connect through Python, you don't have a token.
 
         token = session["token"]
-        join_room(token)
-        join_room("webclients")
+        join_room(f"webclients_{token}")
         # who ever connected latest is the HOST of the room
         try:
             app.config["ROOM_HOSTS"][token].append(request.sid)
@@ -65,8 +73,7 @@ def disconnect():
 def join(token):
     # only used by pyclients that only connect via socket (no HTML)
     session["token"] = token
-    join_room(token)
-    join_room("pyclients")
+    join_room(f"pyclients_{token}")
     if token == "default":
         app.config["DEFAULT_PYCLIENT"] = request.sid
 
@@ -201,16 +208,7 @@ def scene_set(data):
 
 @io.on("scene:step")
 def scene_step(data):
-    if "sid" in data:
-        return call("scene:step", to=data["sid"])
-    else:
-        raise ValueError
-        try:
-            # emit to all webclients in the group, if no sid is provided
-            return call("scene:step", to=app.config["ROOM_HOSTS"][session["token"]][0])
-        except KeyError:
-            return "No host found."
-
+    return call("scene:step", to=_webclients_room(data))
 
 @io.on("atoms:download")
 def atoms_download(data):
@@ -231,13 +229,7 @@ def atoms_download(data):
 
 @io.on("atoms:upload")
 def atoms_upload(data: dict):
-    if "sid" in data:
-        # if the data is sent from the default pyclient, it will have a sid
-        sid = data.pop("sid")
-        emit("atoms:upload", data, include_self=False, to=sid)
-    else:
-        raise ValueError
-        emit("atoms:upload", data, include_self=False, to=session["token"])
+    emit("atoms:upload", data, include_self=False, to=_webclients_room(data))
 
 
 @io.on("atoms:delete")
