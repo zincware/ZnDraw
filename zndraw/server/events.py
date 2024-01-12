@@ -226,13 +226,8 @@ def atoms_upload(data: dict):
 
 @io.on("atoms:delete")
 def atoms_delete(data: dict):
-    if "sid" in data:
-        # if the data is sent from the default pyclient, it will have a sid
-        sid = data.pop("sid")
-        emit("atoms:delete", data["index"], include_self=False, to=sid)
-    else:
-        raise ValueError
-        emit("atoms:delete", data["index"], include_self=False, to=session["token"])
+    emit("atoms:delete", data["index"], include_self=False, to=_webclients_room(data))
+
 
 
 @io.on("atoms:length")
