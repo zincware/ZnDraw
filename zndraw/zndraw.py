@@ -64,6 +64,17 @@ class ZnDrawBase:  # collections.abc.MutableSequence
         self.socket.on("disconnect", lambda: self.socket.disconnect())
         self.socket.on("modifier:run", self._pre_modifier_run)
 
+        def callx(*args, **kwargs):
+            from socketio.exceptions import TimeoutError
+            tries = 10
+            while tries > 0:
+                try:
+                    return self.socket.call(*args, **kwargs, timeout=2)
+                except TimeoutError:
+                    tries -= 1
+        
+        self.socket.callx = callx
+
     def _connect(self):
         for _ in range(100):
             try:
@@ -88,7 +99,7 @@ class ZnDrawBase:  # collections.abc.MutableSequence
         self.token = old_token
 
     def __len__(self) -> int:
-        return int(self.socket.call("atoms:length", {"token": self.token}))
+        return int(self.socket.callx("atoms:length", {"token": self.token}))
 
     def __setitem__(self, index, value):
         if not isinstance(value, ase.Atoms) and not isinstance(value, Frame):
@@ -170,7 +181,7 @@ class ZnDrawBase:  # collections.abc.MutableSequence
         index = [i if i >= 0 else length + i for i in index]
 
         data = {"indices": index, "token": self.token}
-        downloaded_data = self.socket.call("atoms:download", data)
+        downloaded_data = self.socket.callx("atoms:download", data)
 
         atoms_list = []
 
@@ -200,7 +211,7 @@ class ZnDrawBase:  # collections.abc.MutableSequence
 
     @property
     def points(self) -> np.ndarray:
-        data = self.socket.call("points:get", {"token": self.token})
+        data = self.socket.callx("points:get", {"token": self.token})
         return np.array([[val["x"], val["y"], val["z"]] for val in data])
 
     @points.setter
@@ -217,12 +228,12 @@ class ZnDrawBase:  # collections.abc.MutableSequence
 
     @property
     def segments(self) -> np.ndarray:
-        data = self.socket.call("scene:segments", {"token": self.token})
+        data = self.socket.callx("scene:segments", {"token": self.token})
         return np.array(data)
 
     @property
     def step(self) -> int:
-        step = int(self.socket.call("scene:step", {"token": self.token}))
+        step = int(self.socket.callx("scene:step", {"token": self.token}))
         return step
 
     @step.setter
@@ -234,7 +245,7 @@ class ZnDrawBase:  # collections.abc.MutableSequence
 
     @property
     def selection(self) -> list[int]:
-        return self.socket.call("selection:get", {"token": self.token})
+        return self.socket.callx("selection:get", {"token": self.token})
 
     @selection.setter
     def selection(self, value: list[int]):
@@ -258,7 +269,7 @@ class ZnDrawBase:  # collections.abc.MutableSequence
 
     @property
     def bookmarks(self) -> dict:
-        return self.socket.call("bookmarks:get", {"token": self.token})
+        return self.socket.callx("bookmarks:get", {"token": self.token})
 
     @bookmarks.setter
     def bookmarks(self, value: dict):
