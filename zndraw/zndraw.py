@@ -61,8 +61,12 @@ class ZnDrawBase:  # collections.abc.MutableSequence
     def __post_init__(self):
         self.socket = socketio.Client()
         self.socket.on("connect", lambda: self.socket.emit("join", self.token))
-        self.socket.on("disconnect", lambda: self.socket.disconnect())
+        self.socket.on("disconnect", disconnect)
         self.socket.on("modifier:run", self._pre_modifier_run)
+
+        def disconnect():
+            print(f"Disconnecting  from server {self.token}")
+            self.socket.disconnect()
 
         def callx(*args, **kwargs):
             from socketio.exceptions import TimeoutError
