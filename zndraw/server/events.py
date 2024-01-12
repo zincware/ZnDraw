@@ -206,16 +206,7 @@ def analysis_figure(data):
 
 @io.on("scene:set")
 def scene_set(data):
-    if "sid" in data:
-        emit("scene:set", data["index"], include_self=False, to=data["sid"])
-    else:
-        raise ValueError
-        try:
-            # emit to all webclients in the group, if no sid is provided
-            emit("scene:set", data["index"], include_self=False, to=session["token"])
-        except KeyError:
-            return "No host found."
-
+    emit("scene:set", data["index"], include_self=False, to=_webclients_room(data))
 
 @io.on("scene:step")
 def scene_step(data):
