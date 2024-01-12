@@ -103,7 +103,7 @@ def disconnect():
         if not app.config["ROOM_HOSTS"][token]:
             del app.config["ROOM_HOSTS"][token]
     log.critical(
-        f'disconnect {request.sid} and updated HOSTS to {app.config["ROOM_HOSTS"]}'
+        f'disconnect {request.sid} and updated HOSTS to {app.config["ROOM_HOSTS"]} and MODIFIER to {app.config["MODIFIER"]}"'
     )
 
 
