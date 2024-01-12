@@ -256,11 +256,7 @@ def atoms_delete(data: dict):
 
 @io.on("atoms:length")
 def atoms_length(data: dict):
-    log.debug(f"atoms:length for {data}")
-    answer = call("atoms:length", to=_webclients_default(data))
-    log.critical(f"atoms:length answer {answer} from {_webclients_default(data)}")
-    return answer
-
+    return call("atoms:length", to=_webclients_default(data))
 
 
 @io.on("analysis:schema")
@@ -332,46 +328,17 @@ def draw_schema(data: dict):
 
 @io.on("points:get")
 def scene_points(data: dict):
-    if "sid" in data:
-        return call("points:get", to=data["sid"])
-    else:
-        raise ValueError
-        try:
-            # emit to all webclients in the group, if no sid is provided
-            return call("points:get", to=app.config["ROOM_HOSTS"][session["token"]][0])
-        except KeyError:
-            return "No host found."
+    return call("points:get", to=_webclients_default(data))
 
 
 @io.on("scene:segments")
 def scene_segments(data: dict):
-    if "sid" in data:
-        return call("scene:segments", to=data["sid"])
-    else:
-        raise ValueError
-        try:
-            # emit to all webclients in the group, if no sid is provided
-            return call(
-                "scene:segments", to=app.config["ROOM_HOSTS"][session["token"]][0]
-            )
-        except KeyError:
-            return "No host found."
+    return call("scene:segments", to=_webclients_default(data))
 
 
 @io.on("selection:get")
 def selection_get(data: dict):
-    if "sid" in data:
-        return call("selection:get", to=data["sid"])
-    else:
-        raise ValueError
-        try:
-            # emit to all webclients in the group, if no sid is provided
-            return call(
-                "selection:get", to=app.config["ROOM_HOSTS"][session["token"]][0]
-            )
-        except KeyError:
-            return "No host found."
-
+    return call("selection:get", to=_webclients_default(data))
 
 @io.on("selection:set")
 def selection_set(data: dict):
