@@ -3,8 +3,10 @@ import dataclasses
 import datetime
 import logging
 import pathlib
+import sys
 import threading
 import time
+import traceback
 import typing as t
 from io import StringIO
 
@@ -14,8 +16,6 @@ import numpy as np
 import socketio
 import tqdm
 import znh5md
-import sys
-import traceback
 
 from zndraw.analyse import get_analysis_class
 from zndraw.draw import Geometry
