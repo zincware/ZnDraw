@@ -353,8 +353,7 @@ def insert_atoms(data):
 
 @io.on("message:log")
 def message_log(data):
-    sid = data.pop("sid", session["token"])
-    emit("message:log", data["message"], to=sid)
+    emit("message:log", data["message"], to=_webclients_room(data))
 
 
 @io.on("download:request")
