@@ -259,6 +259,7 @@ def atoms_delete(data: dict):
 def atoms_length(data: dict):
     return call("atoms:length", to=_webclients_default(data))
 
+
 @io.on("analysis:schema")
 def analysis_schema(data: dict):
     if "sid" in data:
@@ -339,6 +340,7 @@ def scene_segments(data: dict):
 @io.on("selection:get")
 def selection_get(data: dict):
     return call("selection:get", to=_webclients_default(data))
+
 
 @io.on("selection:set")
 def selection_set(data: dict):
