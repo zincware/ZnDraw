@@ -459,13 +459,13 @@ class ZnDrawDefault(ZnDrawBase):
         ]
         config = GlobalConfig.load()
         cls = get_modify_class(config.get_modify_methods(include=include))
-        sid = self._target_sid if self._target_sid else data["token"]
+        sid = data["token"]
 
         schema = cls.model_json_schema()
 
         hide_discriminator_field(schema)
 
-        data = {"schema": schema, "sid": sid}
+        data = {"schema": schema, "token": sid}
         self.socket.emit("modifier:schema", data)
 
 
@@ -566,7 +566,7 @@ class ZnDraw(ZnDrawBase):
     def _modifier_run(self, data):
         # TODO: send back a response that the modifier has been received, otherwise log a warning
         # that the modifier has not been received to the user
-        with self._set_sid(data["sid"]):
+        with self._set_token(data["target"]):
             config = GlobalConfig.load()
             cls = get_modify_class(
                 config.get_modify_methods(

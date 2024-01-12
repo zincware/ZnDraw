@@ -174,9 +174,7 @@ def modifier_run(data):
     # move this to _pyclients_default, maybe rename to _get_pyclient
     name = data["params"]["method"]["discriminator"]
     if name in app.config["MODIFIER"]:
-        sid = app.config["MODIFIER"][name]
-        data["sid"] = request.sid
-        return emit("modifier:run", data, to=sid)
+        data["sid"] = app.config["MODIFIER"][name]
 
     # need to set the target of the modifier to the webclients room
     data["target"] = session["token"]
@@ -257,20 +255,8 @@ def analysis_schema(data: dict):
 
 @io.on("modifier:schema")
 def modifier_schema(data: dict):
-    if "sid" in data:
-        emit("modifier:schema", data["schema"], include_self=False, to=data["sid"])
-    else:
-        raise ValueError
-        try:
-            # emit to all webclients in the group, if no sid is provided
-            emit(
-                "modifier:schema",
-                data["schema"],
-                include_self=False,
-                to=session["token"],
-            )
-        except KeyError:
-            return "No host found."
+    print(f"modifier:schema {data['token']}")
+    emit("modifier:schema", data["schema"], include_self=False, to=_webclients_room(data))
 
 
 @io.on("selection:schema")
@@ -386,7 +372,6 @@ def scene_pause(data):
 
 @io.on("modifier:register")
 def modifier_register(data):
-    data["sid"] = request.sid
     data["token"] = session["token"]
 
     try:
