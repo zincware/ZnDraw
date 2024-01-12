@@ -215,19 +215,7 @@ def scene_step(data):
 
 @io.on("atoms:download")
 def atoms_download(data):
-    if "sid" in data:
-        sid = data.pop("sid")
-        return call("atoms:download", data["indices"], to=sid)
-    else:
-        raise ValueError
-        try:
-            return call(
-                "atoms:download",
-                data["indices"],
-                to=app.config["ROOM_HOSTS"][session["token"]][0],
-            )
-        except KeyError:
-            return "No host found."
+    return call("atoms:download", data["indices"], to=_webclients_default(data))
 
 
 @io.on("atoms:upload")
