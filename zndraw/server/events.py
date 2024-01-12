@@ -345,17 +345,20 @@ def selection_set(data: dict):
 
 @io.on("selection:run")
 def selection_run(data: dict):
-    sid = data.pop("sid", None)
-    data["sid"] = request.sid
-    if sid is not None:
-        emit("selection:run", data, to=sid)
-    else:
-        raise ValueError
-        try:
-            # emit to all webclients in the group, if no sid is provided
-            emit("selection:run", data, to=app.config["DEFAULT_PYCLIENT"])
-        except KeyError:
-            return "No host found."
+    data["target"] = session['token']
+    print(f"selection:run {data}")
+    emit("selection:run", data, include_self=False, to=_pyclients_default(data))
+    # sid = data.pop("sid", None)
+    # data["sid"] = request.sid
+    # if sid is not None:
+    #     emit("selection:run", data, to=sid)
+    # else:
+    #     raise ValueError
+    #     try:
+    #         # emit to all webclients in the group, if no sid is provided
+    #         emit("selection:run", data, to=app.config["DEFAULT_PYCLIENT"])
+    #     except KeyError:
+    #         return "No host found."
 
 
 @io.on("upload")

@@ -401,7 +401,7 @@ class ZnDrawDefault(ZnDrawBase):
             modifier.run(self)
 
     def selection_run(self, data):
-        with self._set_sid(data["sid"]):
+        with self._set_token(data["target"]):
             config = GlobalConfig.load()
             cls = get_selection_class(config.get_selection_methods())
 
