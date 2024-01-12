@@ -375,21 +375,13 @@ def download_response(data):
 @io.on("scene:play")
 def scene_play(data):
     log.debug(f"scene:play {data}")
-    if "sid" in data:
-        emit("scene:play", to=data["sid"])
-    else:
-        raise ValueError
-        emit("scene:play", to=session["token"])
+    emit("scene:play", to=_webclients_room(data))
 
 
 @io.on("scene:pause")
 def scene_pause(data):
     log.debug(f"scene:pause {data}")
-    if "sid" in data:
-        emit("scene:pause", to=data["sid"])
-    else:
-        raise ValueError
-        emit("scene:pause", to=session["token"])
+    emit("scene:pause", to=_webclients_room(data))
 
 
 @io.on("modifier:register")
