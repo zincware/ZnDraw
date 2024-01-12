@@ -394,7 +394,6 @@ class ZnDrawDefault(ZnDrawBase):
 
     def _modifier_run(self, data):
         with self._set_token(data["target"]):
-            print(f"{self.token = } and {data['target'] = }")
             config = GlobalConfig.load()
             cls = get_modify_class(config.get_modify_methods())
             modifier = cls(**data["params"])

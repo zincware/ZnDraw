@@ -65,7 +65,7 @@ def connect():
 
         # TODO emit("modifier:register", _all modifiers_, to=app.config["DEFAULT_PYCLIENT"]')
 
-        log.critical(
+        log.debug(
             f"connected {request.sid} and updated HOSTS to {app.config['ROOM_HOSTS']}"
         )
         emit("message:log", "Connection established", to=request.sid)
@@ -83,7 +83,7 @@ def disconnect():
             pass  # SID not in the list
         if not app.config["ROOM_HOSTS"][token]:
             del app.config["ROOM_HOSTS"][token]
-    log.critical(
+    log.debug(
         f'disconnect {request.sid} and updated HOSTS to {app.config["ROOM_HOSTS"]}'
     )
 
@@ -179,17 +179,7 @@ def modifier_run(data):
     # need to set the target of the modifier to the webclients room
     data["target"] = session["token"]
 
-    print(f"modifer:run {data}")
     emit("modifier:run", data, to=_pyclients_default(data))
-
-    # if "sid" in data:
-    #     sid = data.pop("sid")
-    #     data["sid"] = request.sid
-    #     return emit("modifier:run", data, to=sid)
-    # else:
-    #     raise ValueError
-    #     data["sid"] = request.sid
-    #     return emit("modifier:run", data, to=app.config["DEFAULT_PYCLIENT"])
 
 
 @io.on("analysis:run")
@@ -241,21 +231,10 @@ def analysis_schema(data: dict):
         emit("analysis:schema", data["schema"], include_self=False, to=data["sid"])
     else:
         raise ValueError
-        try:
-            # emit to all webclients in the group, if no sid is provided
-            emit(
-                "analysis:schema",
-                data["schema"],
-                include_self=False,
-                to=session["token"],
-            )
-        except KeyError:
-            return "No host found."
 
 
 @io.on("modifier:schema")
 def modifier_schema(data: dict):
-    print(f"modifier:schema {data['token']}")
     emit(
         "modifier:schema", data["schema"], include_self=False, to=_webclients_room(data)
     )
@@ -267,16 +246,6 @@ def selection_schema(data: dict):
         emit("selection:schema", data["schema"], include_self=False, to=data["sid"])
     else:
         raise ValueError
-        try:
-            # emit to all webclients in the group, if no sid is provided
-            emit(
-                "selection:schema",
-                data["schema"],
-                include_self=False,
-                to=session["token"],
-            )
-        except KeyError:
-            return "No host found."
 
 
 @io.on("draw:schema")
@@ -285,11 +254,6 @@ def draw_schema(data: dict):
         emit("draw:schema", data["schema"], include_self=False, to=data["sid"])
     else:
         raise ValueError
-        try:
-            # emit to all webclients in the group, if no sid is provided
-            emit("draw:schema", data["schema"], include_self=False, to=session["token"])
-        except KeyError:
-            return "No host found."
 
 
 @io.on("points:get")
