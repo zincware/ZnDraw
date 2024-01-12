@@ -205,6 +205,7 @@ def scene_set(data):
 
 @io.on("scene:step")
 def scene_step(data):
+    print(f"scene:step {data}")
     return call("scene:step", to=_webclients_room(data))
 
 
