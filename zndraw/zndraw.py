@@ -285,6 +285,8 @@ class ZnDrawBase:  # collections.abc.MutableSequence
 
     @step.setter
     def step(self, index):
+        if index > len(self) - 1:
+            raise IndexError(f"Index {index} out of range for length {len(self)}")
         data = {"index": index, "token": self.token}
         self.socket.emit("scene:set", data)
 
