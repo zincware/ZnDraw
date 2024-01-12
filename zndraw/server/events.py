@@ -30,6 +30,7 @@ def _pyclients_room(data: dict) -> str:
     """All pyclients run via get, so this is not used."""
     return f"pyclients_{data['token']}"
 
+
 def _pyclients_default(data: dict) -> str:
     """Return the SID of the default pyclient."""
     if "sid" in data:
@@ -92,7 +93,7 @@ def join(token):
     # only used by pyclients that only connect via socket (no HTML)
     session["token"] = token
     join_room(f"pyclients_{token}")
-    if token == "default": 
+    if token == "default":
         # this would be very easy to exploit
         app.config["DEFAULT_PYCLIENT"] = request.sid
 
@@ -176,9 +177,9 @@ def modifier_run(data):
         sid = app.config["MODIFIER"][name]
         data["sid"] = request.sid
         return emit("modifier:run", data, to=sid)
-    
+
     # need to set the target of the modifier to the webclients room
-    data["target"] = session['token']
+    data["target"] = session["token"]
 
     print(f"modifer:run {data}")
     emit("modifier:run", data, to=_pyclients_default(data))
@@ -195,13 +196,15 @@ def modifier_run(data):
 
 @io.on("analysis:run")
 def analysis_run(data):
-    data["target"] = session['token']
+    data["target"] = session["token"]
     emit("analysis:run", data, include_self=False, to=_pyclients_default(data))
 
 
 @io.on("analysis:figure")
 def analysis_figure(data):
-    emit("analysis:figure", data["figure"], include_self=False, to=_webclients_room(data))
+    emit(
+        "analysis:figure", data["figure"], include_self=False, to=_webclients_room(data)
+    )
 
 
 @io.on("scene:set")
@@ -227,7 +230,6 @@ def atoms_upload(data: dict):
 @io.on("atoms:delete")
 def atoms_delete(data: dict):
     emit("atoms:delete", data["index"], include_self=False, to=_webclients_room(data))
-
 
 
 @io.on("atoms:length")
@@ -329,7 +331,7 @@ def selection_set(data: dict):
 
 @io.on("selection:run")
 def selection_run(data: dict):
-    data["target"] = session['token']
+    data["target"] = session["token"]
     emit("selection:run", data, include_self=False, to=_pyclients_default(data))
 
 
@@ -420,7 +422,13 @@ def bookmarks_get(data: dict):
 
 @io.on("bookmarks:set")
 def bookmarks_set(data: dict):
-    emit("bookmarks:set", data["bookmarks"], include_self=False, to=_webclients_room(data))
+    emit(
+        "bookmarks:set",
+        data["bookmarks"],
+        include_self=False,
+        to=_webclients_room(data),
+    )
+
 
 @io.on("points:set")
 def points_set(data: dict):
