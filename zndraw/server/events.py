@@ -23,7 +23,10 @@ def _webclients_default(data: dict) -> str:
         return data["sid"]
     # TODO: if there is a keyerror, it will not be properly handled and the
     #  python interface is doomed to wait for TimeoutError.
-    return app.config["ROOM_HOSTS"][data["token"]][0]
+    try:
+        return app.config["ROOM_HOSTS"][data["token"]][0]
+    except KeyError:
+        log.critical("No webclient connected.")
 
 
 def _pyclients_room(data: dict) -> str:
