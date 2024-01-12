@@ -208,6 +208,7 @@ def analysis_figure(data):
 def scene_set(data):
     emit("scene:set", data["index"], include_self=False, to=_webclients_room(data))
 
+
 @io.on("scene:step")
 def scene_step(data):
     return call("scene:step", to=_webclients_room(data))
