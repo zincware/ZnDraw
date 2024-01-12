@@ -66,6 +66,7 @@ class ZnDrawBase:  # collections.abc.MutableSequence
 
         def callx(*args, **kwargs):
             from socketio.exceptions import TimeoutError
+            print("Calling", args, kwargs)
 
             tries = 10
             while tries > 0:

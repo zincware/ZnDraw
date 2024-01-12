@@ -15,6 +15,8 @@ def call(*args, **kwargs):
     from flask_socketio import call
     from socketio.exceptions import TimeoutError
 
+    print(f"call {args} and {kwargs}")
+
     retries = 10
     while retries > 0:
         try:
