@@ -11,9 +11,18 @@ log = logging.getLogger(__name__)
 
 
 def _webclients_room(data: dict) -> str:
+    """Return the room name for the webclients."""
     if "sid" in data:
         return data["sid"]
     return f"webclients_{data['token']}"
+
+def _webclients_default(data: dict) -> str:
+    """Return the SID of the default webclient."""
+    if "sid" in data:
+        return data["sid"]
+    # TODO: if there is a keyerror, it will not be properly handled and the 
+    #  python interface is doomed to wait for TimeoutError.
+    return app.config["ROOM_HOSTS"][data["token"]][0]
 
 
 def _pyclients_room(data: dict) -> str:
@@ -47,7 +56,7 @@ def connect():
 
         # TODO emit("modifier:register", _all modifiers_, to=app.config["DEFAULT_PYCLIENT"]')
 
-        log.debug(
+        log.critical(
             f"connected {request.sid} and updated HOSTS to {app.config['ROOM_HOSTS']}"
         )
         emit("message:log", "Connection established", to=request.sid)
@@ -65,7 +74,7 @@ def disconnect():
             pass  # SID not in the list
         if not app.config["ROOM_HOSTS"][token]:
             del app.config["ROOM_HOSTS"][token]
-    log.debug(
+    log.critical(
         f'disconnect {request.sid} and updated HOSTS to {app.config["ROOM_HOSTS"]}'
     )
 
@@ -248,16 +257,10 @@ def atoms_delete(data: dict):
 @io.on("atoms:length")
 def atoms_length(data: dict):
     log.debug(f"atoms:length for {data}")
-    if "sid" in data:
-        return call("atoms:length", to=data["sid"])
-    else:
-        raise ValueError
-        try:
-            return call(
-                "atoms:length", to=app.config["ROOM_HOSTS"][session["token"]][0]
-            )
-        except KeyError:
-            return "No host found."
+    answer = call("atoms:length", to=_webclients_default(data))
+    log.critical(f"atoms:length answer {answer} from {_webclients_default(data)}")
+    return answer
+
 
 
 @io.on("analysis:schema")
