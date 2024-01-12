@@ -84,7 +84,7 @@ def connect():
 
         # TODO emit("modifier:register", _all modifiers_, to=app.config["DEFAULT_PYCLIENT"]')
 
-        log.debug(
+        log.critical(
             f"connected {request.sid} and updated HOSTS to {app.config['ROOM_HOSTS']}"
         )
         emit("message:log", "Connection established", to=request.sid)
@@ -102,7 +102,7 @@ def disconnect():
             pass  # SID not in the list
         if not app.config["ROOM_HOSTS"][token]:
             del app.config["ROOM_HOSTS"][token]
-    log.debug(
+    log.critical(
         f'disconnect {request.sid} and updated HOSTS to {app.config["ROOM_HOSTS"]}'
     )
 
