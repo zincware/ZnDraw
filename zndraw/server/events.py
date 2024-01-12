@@ -106,9 +106,10 @@ def disconnect():
         f'disconnect {request.sid} and updated HOSTS to {app.config["ROOM_HOSTS"]} and MODIFIER to {list(app.config["MODIFIER"])}"'
     )
 
-@io.on("reconnect")
-def reconnect():
-    log.critical(f"reconnect {request.sid}")
+# @io.on("reconnect")
+# def reconnect():
+# does not exist?
+#     log.critical(f"reconnect {request.sid}")
 
 @io.on("join")
 def join(token):
