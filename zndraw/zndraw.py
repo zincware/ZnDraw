@@ -62,7 +62,6 @@ class ZnDrawBase:  # collections.abc.MutableSequence
         print(f"Disconnecting  from server {self.token}")
         self.socket.disconnect()
 
-
     def __post_init__(self):
         self.socket = socketio.Client()
         self.socket.on("connect", lambda: self.socket.emit("join", self.token))
