@@ -232,7 +232,6 @@ def atoms_download(data):
 
 @io.on("atoms:upload")
 def atoms_upload(data: dict):
-    print(f"atoms:upload {data.keys()}")
     to = _webclients_default(data)
     # remove token and sid from the data, because JavaScript does not expect it
     data.pop("token", None)
