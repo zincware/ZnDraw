@@ -27,7 +27,14 @@ def _webclients_default(data: dict) -> str:
 
 
 def _pyclients_room(data: dict) -> str:
+    """All pyclients run via get, so this is not used."""
     return f"pyclients_{data['token']}"
+
+def _pyclients_default(data: dict) -> str:
+    """Return the SID of the default pyclient."""
+    if "sid" in data:
+        return data["sid"]
+    return app.config["DEFAULT_PYCLIENT"]
 
 
 @io.on("connect")
@@ -85,7 +92,8 @@ def join(token):
     # only used by pyclients that only connect via socket (no HTML)
     session["token"] = token
     join_room(f"pyclients_{token}")
-    if token == "default":
+    if token == "default": 
+        # this would be very easy to exploit
         app.config["DEFAULT_PYCLIENT"] = request.sid
 
 
@@ -146,10 +154,6 @@ def scene_schema():
     schema["properties"]["bonds_size"]["step"] = 0.1
     schema["properties"]["bonds"]["format"] = "checkbox"
 
-    # import json
-
-    # print(json.dumps(schema, indent=2))
-
     return schema
 
 
@@ -166,20 +170,27 @@ def modifier_run(data):
         emit("modifier:run:finished", to=request.sid)
         return
 
+    # move this to _pyclients_default, maybe rename to _get_pyclient
     name = data["params"]["method"]["discriminator"]
     if name in app.config["MODIFIER"]:
         sid = app.config["MODIFIER"][name]
         data["sid"] = request.sid
         return emit("modifier:run", data, to=sid)
+    
+    # need to set the target of the modifier to the webclients room
+    data["target"] = session['token']
 
-    if "sid" in data:
-        sid = data.pop("sid")
-        data["sid"] = request.sid
-        return emit("modifier:run", data, to=sid)
-    else:
-        raise ValueError
-        data["sid"] = request.sid
-        return emit("modifier:run", data, to=app.config["DEFAULT_PYCLIENT"])
+    print(f"modifer:run {data}")
+    emit("modifier:run", data, to=_pyclients_default(data))
+
+    # if "sid" in data:
+    #     sid = data.pop("sid")
+    #     data["sid"] = request.sid
+    #     return emit("modifier:run", data, to=sid)
+    # else:
+    #     raise ValueError
+    #     data["sid"] = request.sid
+    #     return emit("modifier:run", data, to=app.config["DEFAULT_PYCLIENT"])
 
 
 @io.on("analysis:run")
@@ -450,36 +461,10 @@ def debug(data: dict):
 @io.on("modifier:run:running")
 def modifier_run_running(data: dict):
     app.config["MODIFIER"]["active"] = data.get("name", "unknown")
-    if "sid" in data:
-        emit("modifier:run:running", data, include_self=False, to=data["sid"])
-    else:
-        raise ValueError
-        try:
-            # emit to all webclients in the group, if no sid is provided
-            emit(
-                "modifier:run:running",
-                data,
-                include_self=False,
-                to=session["token"],
-            )
-        except KeyError:
-            return "No host found."
+    emit("modifier:run:running", data, include_self=False, to=_webclients_room(data))
 
 
 @io.on("modifier:run:finished")
 def modifier_run_finished(data: dict):
     app.config["MODIFIER"]["active"] = None
-    if "sid" in data:
-        emit("modifier:run:finished", data, include_self=False, to=data["sid"])
-    else:
-        raise ValueError
-        try:
-            # emit to all webclients in the group, if no sid is provided
-            emit(
-                "modifier:run:finished",
-                data,
-                include_self=False,
-                to=session["token"],
-            )
-        except KeyError:
-            return "No host found."
+    emit("modifier:run:finished", data, include_self=False, to=_webclients_room(data))

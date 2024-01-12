@@ -78,6 +78,13 @@ class ZnDrawBase:  # collections.abc.MutableSequence
         yield
         self._target_sid = None
 
+    @contextlib.contextmanager
+    def _set_token(self, token):
+        old_token = self.token
+        self.token = token
+        yield
+        self.token = old_token
+
     def __len__(self) -> int:
         return int(self.socket.call("atoms:length", {"token": self.token}))
 
@@ -255,6 +262,7 @@ class ZnDrawBase:  # collections.abc.MutableSequence
         self.socket.emit("bookmarks:set", data)
 
     def _pre_modifier_run(self, data) -> None:
+        # TODO: this should be inside the _set_sid ?
         self.socket.emit(
             "modifier:run:running",
             {
@@ -385,7 +393,8 @@ class ZnDrawDefault(ZnDrawBase):
         )
 
     def _modifier_run(self, data):
-        with self._set_sid(data["sid"]):
+        with self._set_token(data["target"]):
+            print(f"{self.token = } and {data['target'] = }")
             config = GlobalConfig.load()
             cls = get_modify_class(config.get_modify_methods())
             modifier = cls(**data["params"])
