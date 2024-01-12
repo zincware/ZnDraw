@@ -323,8 +323,12 @@ def selection_get(data: dict):
 
 @io.on("selection:set")
 def selection_set(data: dict):
-    emit("selection:set", data["selection"], include_self=False, to=_webclients_room(data))
-
+    emit(
+        "selection:set",
+        data["selection"],
+        include_self=False,
+        to=_webclients_room(data),
+    )
 
 
 @io.on("selection:run")
