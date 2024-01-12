@@ -266,7 +266,7 @@ class ZnDrawBase:  # collections.abc.MutableSequence
         self.socket.emit(
             "modifier:run:running",
             {
-                "token": self.token,
+                "token": data["target"],
                 "name": data["params"]["method"]["discriminator"],
             },
         )
@@ -286,7 +286,7 @@ class ZnDrawBase:  # collections.abc.MutableSequence
         self.socket.emit(
             "modifier:run:finished",
             {
-                "token": self.token,
+                "token": data["target"],
             },
         )
 
