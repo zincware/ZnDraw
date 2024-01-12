@@ -479,38 +479,12 @@ def bookmarks_set(data: dict):
 
 @io.on("points:set")
 def points_set(data: dict):
-    if "sid" in data:
-        emit("points:set", data["value"], include_self=False, to=data["sid"])
-    else:
-        raise ValueError
-        try:
-            # emit to all webclients in the group, if no sid is provided
-            emit(
-                "points:set",
-                data["value"],
-                include_self=False,
-                to=session["token"],
-            )
-        except KeyError:
-            return "No host found."
+    emit("points:set", data["value"], include_self=False, to=_webclients_room(data))
 
 
 @io.on("debug")
 def debug(data: dict):
-    if "sid" in data:
-        emit("debug", data, include_self=False, to=data["sid"])
-    else:
-        raise ValueError
-        try:
-            # emit to all webclients in the group, if no sid is provided
-            emit(
-                "debug",
-                data,
-                include_self=False,
-                to=session["token"],
-            )
-        except KeyError:
-            return "No host found."
+    emit("debug", data, include_self=False, to=_webclients_room(data))
 
 
 @io.on("modifier:run:running")
