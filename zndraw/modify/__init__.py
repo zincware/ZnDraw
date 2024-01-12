@@ -70,7 +70,6 @@ class Rotate(UpdateScene):
             # merge the selected and remaining atoms
             atoms = atoms_selected + atoms_remaining
             vis.append(atoms)
-            vis.step += 1
         vis.selection = []
 
 
@@ -99,7 +98,6 @@ class Explode(UpdateScene):
                 struct += particle
             vis.socket.sleep(self.delay / 1000)
             vis.append(struct)
-            vis.step += 1
         vis.selection = []
 
 
@@ -120,7 +118,6 @@ class Delete(UpdateScene):
         del atoms.connectivity
         vis.append(atoms)
         vis.selection = []
-        vis.step += 1
 
 
 class Move(UpdateScene):
@@ -153,7 +150,6 @@ class Move(UpdateScene):
             # merge the selected and remaining atoms
             atoms = atoms_selected + atoms_remaining
             vis.append(atoms)
-            vis.step += 1
         vis.selection = []
 
 
@@ -176,7 +172,6 @@ class Duplicate(UpdateScene):
             atom.symbol = self.symbol.name if self.symbol.name != "X" else atom.symbol
             atoms += atom
         vis.append(atoms)
-        vis.step += 1
         vis.selection = []
 
 
@@ -193,7 +188,6 @@ class ChangeType(UpdateScene):
         for atom_id in vis.selection:
             atoms[atom_id].symbol = self.symbol.name
         vis.append(atoms)
-        vis.step += 1
         vis.selection = []
 
 
@@ -212,7 +206,6 @@ class AddLineParticles(UpdateScene):
             atoms += ase.Atom(self.symbol.name, position=point)
         for _ in range(self.steps):
             vis.append(atoms)
-            vis.step += 1
 
 
 class Wrap(UpdateScene):
@@ -233,7 +226,6 @@ class Wrap(UpdateScene):
             if self.recompute_bonds:
                 delattr(atoms, "connectivity")
             vis[idx] = atoms
-            vis.step = idx
 
 
 class Center(UpdateScene):
@@ -275,7 +267,6 @@ class Center(UpdateScene):
                 delattr(atoms, "connectivity")
 
             vis[idx] = atoms
-            vis.step = idx
 
 
 class Replicate(UpdateScene):
@@ -298,7 +289,6 @@ class Replicate(UpdateScene):
             if self.keep_box:
                 atoms.cell = atoms_list[idx].cell
             vis[idx] = atoms
-            vis.step = idx
 
 
 # class CustomModifier(UpdateScene):
