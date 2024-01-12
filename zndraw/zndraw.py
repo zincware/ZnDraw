@@ -14,6 +14,8 @@ import numpy as np
 import socketio
 import tqdm
 import znh5md
+import sys
+import traceback
 
 from zndraw.analyse import get_analysis_class
 from zndraw.draw import Geometry
@@ -276,6 +278,8 @@ class ZnDrawBase:  # collections.abc.MutableSequence
             self._modifier_run(data)
         except Exception as err:
             self.log(f"Modifier failed with error: {repr(err)}")
+            print(traceback.format_exc())
+            print(sys.exc_info()[2])
             # log.exception(err)
             # self.socket.emit(
             #     "modifier:run:error",
