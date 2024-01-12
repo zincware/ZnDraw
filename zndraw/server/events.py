@@ -16,11 +16,12 @@ def _webclients_room(data: dict) -> str:
         return data["sid"]
     return f"webclients_{data['token']}"
 
+
 def _webclients_default(data: dict) -> str:
     """Return the SID of the default webclient."""
     if "sid" in data:
         return data["sid"]
-    # TODO: if there is a keyerror, it will not be properly handled and the 
+    # TODO: if there is a keyerror, it will not be properly handled and the
     #  python interface is doomed to wait for TimeoutError.
     return app.config["ROOM_HOSTS"][data["token"]][0]
 
@@ -257,7 +258,6 @@ def atoms_delete(data: dict):
 @io.on("atoms:length")
 def atoms_length(data: dict):
     return call("atoms:length", to=_webclients_default(data))
-
 
 @io.on("analysis:schema")
 def analysis_schema(data: dict):
