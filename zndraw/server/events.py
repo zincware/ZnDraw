@@ -22,7 +22,7 @@ def call(*args, **kwargs):
         except TimeoutError:
             log.warning(f"TimeoutError: {args}")
             retries -= 1
-    
+
 
 def _webclients_room(data: dict) -> str:
     """Return the room name for the webclients."""
