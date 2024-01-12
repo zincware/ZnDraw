@@ -430,36 +430,12 @@ def modifier_register(data):
 
 @io.on("bookmarks:get")
 def bookmarks_get(data: dict):
-    if "sid" in data:
-        return call("bookmarks:get", to=data["sid"])
-    else:
-        raise ValueError
-        try:
-            # emit to all webclients in the group, if no sid is provided
-            return call(
-                "bookmarks:get", to=app.config["ROOM_HOSTS"][session["token"]][0]
-            )
-        except KeyError:
-            return "No host found."
+    return call("bookmarks:get", to=_webclients_default(data))
 
 
 @io.on("bookmarks:set")
 def bookmarks_set(data: dict):
-    if "sid" in data:
-        emit("bookmarks:set", data["bookmarks"], include_self=False, to=data["sid"])
-    else:
-        raise ValueError
-        try:
-            # emit to all webclients in the group, if no sid is provided
-            emit(
-                "bookmarks:set",
-                data["bookmarks"],
-                include_self=False,
-                to=session["token"],
-            )
-        except KeyError:
-            return "No host found."
-
+    emit("bookmarks:set", data["bookmarks"], include_self=False, to=_webclients_room(data))
 
 @io.on("points:set")
 def points_set(data: dict):
