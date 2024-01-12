@@ -423,7 +423,7 @@ class ZnDrawDefault(ZnDrawBase):
                 log.critical(err)
 
     def upload_file(self, data):
-        with self._set_sid(data["sid"]):
+        with self._set_token(data["target"]):
             data = data["data"]
 
             format = data["filename"].split(".")[-1]
