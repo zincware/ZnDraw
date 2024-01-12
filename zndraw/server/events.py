@@ -195,24 +195,13 @@ def modifier_run(data):
 
 @io.on("analysis:run")
 def analysis_run(data):
-    if "sid" in data:
-        sid = data.pop("sid")
-        data["sid"] = request.sid
-        emit("analysis:run", data, to=sid)
-    else:
-        raise ValueError
-        data["sid"] = request.sid
-        emit("analysis:run", data, to=app.config["DEFAULT_PYCLIENT"])
+    data["target"] = session['token']
+    emit("analysis:run", data, include_self=False, to=_pyclients_default(data))
 
 
 @io.on("analysis:figure")
 def analysis_figure(data):
-    if "sid" in data:
-        sid = data.pop("sid")
-        emit("analysis:figure", data["figure"], to=sid)
-    else:
-        raise ValueError
-        emit("analysis:figure", data["figure"], to=session["token"])
+    emit("analysis:figure", data["figure"], include_self=False, to=_webclients_room(data))
 
 
 @io.on("scene:set")
@@ -346,19 +335,7 @@ def selection_set(data: dict):
 @io.on("selection:run")
 def selection_run(data: dict):
     data["target"] = session['token']
-    print(f"selection:run {data}")
     emit("selection:run", data, include_self=False, to=_pyclients_default(data))
-    # sid = data.pop("sid", None)
-    # data["sid"] = request.sid
-    # if sid is not None:
-    #     emit("selection:run", data, to=sid)
-    # else:
-    #     raise ValueError
-    #     try:
-    #         # emit to all webclients in the group, if no sid is provided
-    #         emit("selection:run", data, to=app.config["DEFAULT_PYCLIENT"])
-    #     except KeyError:
-    #         return "No host found."
 
 
 @io.on("upload")

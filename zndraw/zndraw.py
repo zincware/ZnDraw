@@ -412,7 +412,7 @@ class ZnDrawDefault(ZnDrawBase):
                 log.critical(err)
 
     def analysis_run(self, data):
-        with self._set_sid(data["sid"]):
+        with self._set_token(data["target"]):
             config = GlobalConfig.load()
             cls = get_analysis_class(config.get_analysis_methods())
 
