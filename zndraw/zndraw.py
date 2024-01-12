@@ -89,7 +89,11 @@ class ZnDrawBase:  # collections.abc.MutableSequence
 
         if isinstance(value, ase.Atoms):
             value = Frame.from_atoms(value)
-        data = {index: value.to_dict(), "display_new": self.display_new, "token": self.token}
+        data = {
+            index: value.to_dict(),
+            "display_new": self.display_new,
+            "token": self.token,
+        }
         if self._target_sid is not None:
             # this only affects initial loading of data if a new webclient connects
             data["sid"] = self._target_sid
@@ -227,14 +231,10 @@ class ZnDrawBase:  # collections.abc.MutableSequence
         self.socket.emit("selection:set", data)
 
     def play(self):
-        self.socket.emit(
-            "scene:play", {"token": self.token}
-        )
+        self.socket.emit("scene:play", {"token": self.token})
 
     def pause(self):
-        self.socket.emit(
-            "scene:pause", {"token": self.token}
-        )
+        self.socket.emit("scene:pause", {"token": self.token})
 
     @property
     def figure(self):

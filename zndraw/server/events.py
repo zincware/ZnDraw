@@ -12,8 +12,9 @@ log = logging.getLogger(__name__)
 
 def _webclients_room(data: dict) -> str:
     if "sid" in data:
-        return data['sid']
+        return data["sid"]
     return f"webclients_{data['token']}"
+
 
 def _pyclients_room(data: dict) -> str:
     return f"pyclients_{data['token']}"
@@ -209,6 +210,7 @@ def scene_set(data):
 @io.on("scene:step")
 def scene_step(data):
     return call("scene:step", to=_webclients_room(data))
+
 
 @io.on("atoms:download")
 def atoms_download(data):
