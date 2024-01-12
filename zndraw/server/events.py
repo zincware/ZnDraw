@@ -106,6 +106,7 @@ def disconnect():
         f'disconnect {request.sid} and updated HOSTS to {app.config["ROOM_HOSTS"]} and MODIFIER to {list(app.config["MODIFIER"])}"'
     )
 
+
 # @io.on("reconnect")
 # def reconnect():
 # does not exist?
