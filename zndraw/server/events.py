@@ -15,7 +15,7 @@ def call(*args, **kwargs):
     from flask_socketio import call
     from socketio.exceptions import TimeoutError
 
-    print(f"call {args} and {kwargs}")
+    log.critical(f"call {args} and {kwargs}")
 
     retries = 10
     while retries > 0:
@@ -112,7 +112,7 @@ def join(token):
     # only used by pyclients that only connect via socket (no HTML)
     session["token"] = token
     join_room(f"pyclients_{token}")
-    print(f"join '{token}' and '{request.sid}' with {list(app.config['MODIFIER'])}")
+    log.critical(f"join '{token}' and '{request.sid}' with {list(app.config['MODIFIER'])}")
     if token == "default":
         # this would be very easy to exploit
         app.config["DEFAULT_PYCLIENT"] = request.sid
@@ -222,7 +222,7 @@ def scene_set(data):
 
 @io.on("scene:step")
 def scene_step(data):
-    print(f"scene:step {data}")
+    log.critical(f"scene:step {data}")
     return call("scene:step", to=_webclients_room(data))
 
 
@@ -371,7 +371,7 @@ def modifier_register(data):
                 "schema"
             ]
     except KeyError:
-        print("Could not identify the modifier name.")
+        log.critical("Could not identify the modifier name.")
 
     emit("modifier:register", data, to=app.config["DEFAULT_PYCLIENT"])
 
