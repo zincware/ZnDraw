@@ -74,7 +74,7 @@ class ZnDrawBase:  # collections.abc.MutableSequence
                 try:
                     return self.socket.call(*args, **kwargs, timeout=2)
                 except TimeoutError:
-                    print("Timeout, trying again")
+                    print(f"Timeout, trying again {tries} more times for {args} {kwargs}")
                     tries -= 1
 
         self.socket.callx = callx

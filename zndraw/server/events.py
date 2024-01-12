@@ -22,7 +22,7 @@ def call(*args, **kwargs):
         try:
             return call(*args, **kwargs, timeout=2)
         except TimeoutError:
-            log.warning(f"TimeoutError: {args}")
+            log.warning(f"TimeoutError: {args} and {kwargs}")
             retries -= 1
 
 
