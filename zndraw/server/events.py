@@ -3,12 +3,26 @@ import logging
 
 from flask import current_app as app
 from flask import request, session
-from flask_socketio import call, emit, join_room
+from flask_socketio import emit, join_room
 
 from ..app import socketio as io
 
 log = logging.getLogger(__name__)
 
+
+def call(*args, **kwargs):
+    """Execute call with retries and lower timeout"""
+    from flask_socketio import call
+    from socketio.exceptions import TimeoutError
+
+    retries = 10
+    while retries > 0:
+        try:
+            return call(*args, **kwargs, timeout=2)
+        except TimeoutError:
+            log.warning(f"TimeoutError: {args}")
+            retries -= 1
+    
 
 def _webclients_room(data: dict) -> str:
     """Return the room name for the webclients."""
