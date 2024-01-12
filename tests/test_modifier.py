@@ -13,6 +13,7 @@ def send_raw(vis, event, data):
     msg = {
         "event": event,
         "data": data,
+        "token": vis.token,
     }
     vis.socket.emit("debug", msg)
     vis.socket.sleep(0.5)
