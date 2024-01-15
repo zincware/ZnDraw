@@ -4,7 +4,6 @@ import datetime
 import logging
 import pathlib
 import threading
-import time
 import typing as t
 from io import StringIO
 import uuid
@@ -78,7 +77,7 @@ class ZnDrawBase:  # collections.abc.MutableSequence
                 self.socket.connect(self.url)
                 break
             except socketio.exceptions.ConnectionError:
-                time.sleep(0.1)
+                self.socket.sleep(0.1)
         else:
             raise socketio.exceptions.ConnectionError
 
