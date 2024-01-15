@@ -1,5 +1,6 @@
 import contextlib
 import logging
+from threading import Lock
 
 from flask import current_app as app
 from flask import request, session
@@ -9,6 +10,7 @@ from ..app import socketio as io
 
 log = logging.getLogger(__name__)
 
+modifier_lock = Lock()
 
 def _webclients_room(data: dict) -> str:
     """Return the room name for the webclients."""
@@ -163,19 +165,23 @@ def scene_schema():
 
 @io.on("modifier:run")
 def modifier_run(data):
-    # if any modifier is running, print an alert message to try later
-    if app.config["MODIFIER"]["active"] is not None:
-        emit(
-            "message:alert",
-            "Another modifier is running, try again later.",
-            to=request.sid,
-        )
-        emit("modifier:run:running", to=request.sid)
-        emit("modifier:run:finished", to=request.sid)
-        return
+    # emit entered the queue
+    running_jobs = app.config["MODIFIER"].get("num_jobs", 0)+1
+    app.config["MODIFIER"]["num_jobs"] = running_jobs
+    name = data["params"]["method"]["discriminator"]
+    emit("message:log", f"Modifier {name} enqueued. {running_jobs} running jobs.", to=request.sid)
+    emit("modifier:run:running", to=request.sid) # Without this the JavaScript part kills this because it has no response.
+    while True:
+        acquired = modifier_lock.acquire(blocking=False)
+        if acquired:
+            print("modifier_lock acquired")
+            break
+        else:
+            io.sleep(1)
+            print("waiting for modifier_lock")
+        
 
     # move this to _pyclients_default, maybe rename to _get_pyclient
-    name = data["params"]["method"]["discriminator"]
     if name in app.config["MODIFIER"]:
         data["sid"] = app.config["MODIFIER"][name]
 
@@ -393,4 +399,7 @@ def modifier_run_running(data: dict):
 @io.on("modifier:run:finished")
 def modifier_run_finished(data: dict):
     app.config["MODIFIER"]["active"] = None
+    app.config["MODIFIER"]["num_jobs"] -= 1
+    modifier_lock.release()
+    print("modifier_lock released")
     emit("modifier:run:finished", data, include_self=False, to=_webclients_room(data))
