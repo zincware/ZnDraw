@@ -98,7 +98,7 @@ class Explode(UpdateScene):
             for particle in particles:
                 particle.positions += np.random.normal(scale=0.1, size=(1, 3))
                 struct += particle
-            time.sleep(self.delay / 1000)
+            vis.socket.sleep(self.delay / 1000)
             vis.append(struct)
             vis.step += 1
         vis.selection = []
