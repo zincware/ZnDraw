@@ -368,7 +368,9 @@ def modifier_register(data):
         name = data["modifiers"][0]["name"]
         # get the key from the value request.sid by inverting the dict
         _tmp = {v: k for k, v in app.config["pyclients"].items()}
-        app.config["PER-TOKEN-DATA"][session["token"]]["modifier"][name] = _tmp[request.sid]
+        app.config["PER-TOKEN-DATA"][session["token"]]["modifier"][name] = _tmp[
+            request.sid
+        ]
         log.critical(f'{app.config["PER-TOKEN-DATA"] = }')
         log.critical(f'{app.config["pyclients"] = }')
 

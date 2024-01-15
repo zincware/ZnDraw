@@ -5,8 +5,8 @@ import logging
 import pathlib
 import threading
 import typing as t
-from io import StringIO
 import uuid
+from io import StringIO
 
 import ase
 import ase.io
@@ -48,7 +48,7 @@ class ZnDrawBase:  # collections.abc.MutableSequence
     ----------
     display_new : bool
         Display new atoms in the webclient, when they are added.
-    
+
     token : str
         Identifies the session this instances is being connected to.
         Tokens can be shared.
@@ -67,7 +67,10 @@ class ZnDrawBase:  # collections.abc.MutableSequence
     def __post_init__(self):
         self._uuid = str(self._uuid)
         self.socket = socketio.Client()
-        self.socket.on("connect", lambda: self.socket.emit("join", {"token": self.token, "uuid": self._uuid}))
+        self.socket.on(
+            "connect",
+            lambda: self.socket.emit("join", {"token": self.token, "uuid": self._uuid}),
+        )
         self.socket.on("disconnect", lambda: self.socket.disconnect())
         self.socket.on("modifier:run", self._pre_modifier_run)
 
@@ -567,7 +570,7 @@ class ZnDraw(ZnDrawBase):
                         "name": cls.__name__,
                         "default": default,
                     }
-                ]
+                ],
             },
         )
         self._modifiers[cls.__name__] = {"cls": cls, "run_kwargs": run_kwargs}
