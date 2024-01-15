@@ -4,7 +4,6 @@ import datetime
 import logging
 import pathlib
 import threading
-import time
 import typing as t
 from io import StringIO
 
