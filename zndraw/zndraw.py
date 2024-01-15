@@ -78,10 +78,15 @@ class ZnDrawBase:  # collections.abc.MutableSequence
         yield
         self._target_sid = None
 
+    @contextlib.contextmanager
+    def _set_token(self, token):
+        old_token = self.token
+        self.token = token
+        yield
+        self.token = old_token
+
     def __len__(self) -> int:
-        if self._target_sid is not None:
-            return int(self.socket.call("atoms:length", {"sid": self._target_sid}))
-        return int(self.socket.call("atoms:length", {}))
+        return int(self.socket.call("atoms:length", {"token": self.token}))
 
     def __setitem__(self, index, value):
         if not isinstance(value, ase.Atoms) and not isinstance(value, Frame):
@@ -91,10 +96,14 @@ class ZnDrawBase:  # collections.abc.MutableSequence
 
         if isinstance(value, ase.Atoms):
             value = Frame.from_atoms(value)
-        data = {index: value.to_dict(), "display_new": self.display_new}
+        data = {
+            index: value.to_dict(),
+            "display_new": self.display_new,
+            "token": self.token,
+        }
         if self._target_sid is not None:
+            # this only affects initial loading of data if a new webclient connects
             data["sid"] = self._target_sid
-
         self.socket.emit("atoms:upload", data)
 
     def __delitem__(self, index):
@@ -111,9 +120,7 @@ class ZnDrawBase:  # collections.abc.MutableSequence
             index = [index] if isinstance(index, int) else index
             index = [i if i >= 0 else length + i for i in index]
 
-            data = {"index": index}
-            if self._target_sid is not None:
-                data["sid"] = self._target_sid
+            data = {"index": index, "token": self.token}
 
             self.socket.emit("atoms:delete", data)
             if not is_slice and (index[0] >= length or index[-1] >= length):
@@ -160,10 +167,7 @@ class ZnDrawBase:  # collections.abc.MutableSequence
         index = [index] if isinstance(index, int) else index
         index = [i if i >= 0 else length + i for i in index]
 
-        data = {"indices": index}
-        if self._target_sid is not None:
-            data["sid"] = self._target_sid
-
+        data = {"indices": index, "token": self.token}
         downloaded_data = self.socket.call("atoms:download", data)
 
         atoms_list = []
@@ -183,7 +187,7 @@ class ZnDrawBase:  # collections.abc.MutableSequence
             "message:log",
             {
                 "message": message,
-                "sid": self._target_sid if self._target_sid else self.token,
+                "token": self.token,
             },
         )
 
@@ -194,10 +198,7 @@ class ZnDrawBase:  # collections.abc.MutableSequence
 
     @property
     def points(self) -> np.ndarray:
-        if self._target_sid is not None:
-            data = self.socket.call("points:get", {"sid": self._target_sid})
-        else:
-            data = self.socket.call("points:get", {})
+        data = self.socket.call("points:get", {"token": self.token})
         return np.array([[val["x"], val["y"], val["z"]] for val in data])
 
     @points.setter
@@ -209,56 +210,38 @@ class ZnDrawBase:  # collections.abc.MutableSequence
                 assert len(value[0]) == 3
             except (TypeError, AssertionError):
                 raise ValueError("Points must be a list of 3D coordinates")
-        data = {"value": value}
-        if self._target_sid is not None:
-            data["sid"] = self._target_sid
+        data = {"value": value, "token": self.token}
         self.socket.emit("points:set", data)
 
     @property
     def segments(self) -> np.ndarray:
-        if self._target_sid is not None:
-            data = self.socket.call("scene:segments", {"sid": self._target_sid})
-        else:
-            data = self.socket.call("scene:segments", {})
+        data = self.socket.call("scene:segments", {"token": self.token})
         return np.array(data)
 
     @property
     def step(self) -> int:
-        if self._target_sid is not None:
-            step = int(self.socket.call("scene:step", {"sid": self._target_sid}))
-        else:
-            step = int(self.socket.call("scene:step", {}))
+        step = int(self.socket.call("scene:step", {"token": self.token}))
         return step
 
     @step.setter
     def step(self, index):
-        data = {"index": index}
-        if self._target_sid is not None:
-            data["sid"] = self._target_sid
+        data = {"index": index, "token": self.token}
         self.socket.emit("scene:set", data)
 
     @property
     def selection(self) -> list[int]:
-        if self._target_sid is not None:
-            return self.socket.call("selection:get", {"sid": self._target_sid})
-        return self.socket.call("selection:get", {})
+        return self.socket.call("selection:get", {"token": self.token})
 
     @selection.setter
     def selection(self, value: list[int]):
-        data = {"selection": value}
-        if self._target_sid is not None:
-            data["sid"] = self._target_sid
+        data = {"selection": value, "token": self.token}
         self.socket.emit("selection:set", data)
 
     def play(self):
-        self.socket.emit(
-            "scene:play", {"sid": self._target_sid if self._target_sid else self.token}
-        )
+        self.socket.emit("scene:play", {"token": self.token})
 
     def pause(self):
-        self.socket.emit(
-            "scene:pause", {"sid": self._target_sid if self._target_sid else self.token}
-        )
+        self.socket.emit("scene:pause", {"token": self.token})
 
     @property
     def figure(self):
@@ -266,31 +249,24 @@ class ZnDrawBase:  # collections.abc.MutableSequence
 
     @figure.setter
     def figure(self, fig: str):
-        data = {"figure": fig}
-        if self._target_sid is not None:
-            data["sid"] = self._target_sid
+        data = {"figure": fig, "token": self.token}
         self.socket.emit("analysis:figure", data)
 
     @property
     def bookmarks(self) -> dict:
-        if self._target_sid is not None:
-            return self.socket.call("bookmarks:get", {"sid": self._target_sid})
-        else:
-            return self.socket.call("bookmarks:get", {})
+        return self.socket.call("bookmarks:get", {"token": self.token})
 
     @bookmarks.setter
     def bookmarks(self, value: dict):
-        data = {"bookmarks": value}
-        if self._target_sid is not None:
-            data["sid"] = self._target_sid
+        data = {"bookmarks": value, "token": self.token}
         self.socket.emit("bookmarks:set", data)
 
     def _pre_modifier_run(self, data) -> None:
+        # TODO: this should be inside the _set_sid ?
         self.socket.emit(
             "modifier:run:running",
             {
-                "sid": data["sid"],
-                "token": self.token,
+                "token": data["target"],
                 "name": data["params"]["method"]["discriminator"],
             },
         )
@@ -310,8 +286,7 @@ class ZnDrawBase:  # collections.abc.MutableSequence
         self.socket.emit(
             "modifier:run:finished",
             {
-                "sid": data["sid"],
-                "token": self.token,
+                "token": data["target"],
             },
         )
 
@@ -418,14 +393,14 @@ class ZnDrawDefault(ZnDrawBase):
         )
 
     def _modifier_run(self, data):
-        with self._set_sid(data["sid"]):
+        with self._set_token(data["target"]):
             config = GlobalConfig.load()
             cls = get_modify_class(config.get_modify_methods())
             modifier = cls(**data["params"])
             modifier.run(self)
 
     def selection_run(self, data):
-        with self._set_sid(data["sid"]):
+        with self._set_token(data["target"]):
             config = GlobalConfig.load()
             cls = get_selection_class(config.get_selection_methods())
 
@@ -436,7 +411,7 @@ class ZnDrawDefault(ZnDrawBase):
                 log.critical(err)
 
     def analysis_run(self, data):
-        with self._set_sid(data["sid"]):
+        with self._set_token(data["target"]):
             config = GlobalConfig.load()
             cls = get_analysis_class(config.get_analysis_methods())
 
@@ -447,7 +422,7 @@ class ZnDrawDefault(ZnDrawBase):
                 log.critical(err)
 
     def upload_file(self, data):
-        with self._set_sid(data["sid"]):
+        with self._set_token(data["target"]):
             data = data["data"]
 
             format = data["filename"].split(".")[-1]
@@ -483,13 +458,13 @@ class ZnDrawDefault(ZnDrawBase):
         ]
         config = GlobalConfig.load()
         cls = get_modify_class(config.get_modify_methods(include=include))
-        sid = self._target_sid if self._target_sid else data["token"]
+        sid = data["token"]
 
         schema = cls.model_json_schema()
 
         hide_discriminator_field(schema)
 
-        data = {"schema": schema, "sid": sid}
+        data = {"schema": schema, "token": sid}
         self.socket.emit("modifier:schema", data)
 
 
@@ -590,7 +565,7 @@ class ZnDraw(ZnDrawBase):
     def _modifier_run(self, data):
         # TODO: send back a response that the modifier has been received, otherwise log a warning
         # that the modifier has not been received to the user
-        with self._set_sid(data["sid"]):
+        with self._set_token(data["target"]):
             config = GlobalConfig.load()
             cls = get_modify_class(
                 config.get_modify_methods(

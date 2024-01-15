@@ -115,7 +115,6 @@ class Delete(UpdateScene):
 
         if len(vis) > vis.step + 1:
             del vis[vis.step + 1 :]
-        print(f"Deleting atoms {atom_ids}")
         vis.log(f"Deleting atoms {atom_ids}")
         for idx, atom_id in enumerate(sorted(atom_ids)):
             atoms.pop(atom_id - idx)  # we remove the atom and shift the index

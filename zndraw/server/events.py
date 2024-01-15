@@ -10,6 +10,37 @@ from ..app import socketio as io
 log = logging.getLogger(__name__)
 
 
+def _webclients_room(data: dict) -> str:
+    """Return the room name for the webclients."""
+    if "sid" in data:
+        return data["sid"]
+    return f"webclients_{data['token']}"
+
+
+def _webclients_default(data: dict) -> str:
+    """Return the SID of the default webclient."""
+    if "sid" in data:
+        return data["sid"]
+    # TODO: if there is a keyerror, it will not be properly handled and the
+    #  python interface is doomed to wait for TimeoutError.
+    try:
+        return app.config["ROOM_HOSTS"][data["token"]][0]
+    except KeyError:
+        log.critical("No webclient connected.")
+
+
+def _pyclients_room(data: dict) -> str:
+    """All pyclients run via get, so this is not used."""
+    return f"pyclients_{data['token']}"
+
+
+def _pyclients_default(data: dict) -> str:
+    """Return the SID of the default pyclient."""
+    if "sid" in data:
+        return data["sid"]
+    return app.config["DEFAULT_PYCLIENT"]
+
+
 @io.on("connect")
 def connect():
     if app.config["DEFAULT_PYCLIENT"] is None and "token" in session:
@@ -19,8 +50,7 @@ def connect():
         # If you connect through Python, you don't have a token.
 
         token = session["token"]
-        join_room(token)
-        join_room("webclients")
+        join_room(f"webclients_{token}")
         # who ever connected latest is the HOST of the room
         try:
             app.config["ROOM_HOSTS"][token].append(request.sid)
@@ -65,9 +95,9 @@ def disconnect():
 def join(token):
     # only used by pyclients that only connect via socket (no HTML)
     session["token"] = token
-    join_room(token)
-    join_room("pyclients")
+    join_room(f"pyclients_{token}")
     if token == "default":
+        # this would be very easy to exploit
         app.config["DEFAULT_PYCLIENT"] = request.sid
 
 
@@ -128,10 +158,6 @@ def scene_schema():
     schema["properties"]["bonds_size"]["step"] = 0.1
     schema["properties"]["bonds"]["format"] = "checkbox"
 
-    # import json
-
-    # print(json.dumps(schema, indent=2))
-
     return schema
 
 
@@ -148,113 +174,63 @@ def modifier_run(data):
         emit("modifier:run:finished", to=request.sid)
         return
 
+    # move this to _pyclients_default, maybe rename to _get_pyclient
     name = data["params"]["method"]["discriminator"]
     if name in app.config["MODIFIER"]:
-        sid = app.config["MODIFIER"][name]
-        data["sid"] = request.sid
-        return emit("modifier:run", data, to=sid)
+        data["sid"] = app.config["MODIFIER"][name]
 
-    if "sid" in data:
-        sid = data.pop("sid")
-        data["sid"] = request.sid
-        return emit("modifier:run", data, to=sid)
-    else:
-        data["sid"] = request.sid
-        return emit("modifier:run", data, to=app.config["DEFAULT_PYCLIENT"])
+    # need to set the target of the modifier to the webclients room
+    data["target"] = session["token"]
+
+    emit("modifier:run", data, to=_pyclients_default(data))
 
 
 @io.on("analysis:run")
 def analysis_run(data):
-    if "sid" in data:
-        sid = data.pop("sid")
-        data["sid"] = request.sid
-        emit("analysis:run", data, to=sid)
-    else:
-        data["sid"] = request.sid
-        emit("analysis:run", data, to=app.config["DEFAULT_PYCLIENT"])
+    data["target"] = session["token"]
+    emit("analysis:run", data, include_self=False, to=_pyclients_default(data))
 
 
 @io.on("analysis:figure")
 def analysis_figure(data):
-    if "sid" in data:
-        sid = data.pop("sid")
-        emit("analysis:figure", data["figure"], to=sid)
-    else:
-        emit("analysis:figure", data["figure"], to=session["token"])
+    emit(
+        "analysis:figure", data["figure"], include_self=False, to=_webclients_room(data)
+    )
 
 
 @io.on("scene:set")
 def scene_set(data):
-    if "sid" in data:
-        emit("scene:set", data["index"], include_self=False, to=data["sid"])
-    else:
-        try:
-            # emit to all webclients in the group, if no sid is provided
-            emit("scene:set", data["index"], include_self=False, to=session["token"])
-        except KeyError:
-            return "No host found."
+    emit("scene:set", data["index"], include_self=False, to=_webclients_room(data))
 
 
 @io.on("scene:step")
 def scene_step(data):
-    if "sid" in data:
-        return call("scene:step", to=data["sid"])
-    else:
-        try:
-            # emit to all webclients in the group, if no sid is provided
-            return call("scene:step", to=app.config["ROOM_HOSTS"][session["token"]][0])
-        except KeyError:
-            return "No host found."
+    return call("scene:step", to=_webclients_room(data))
 
 
 @io.on("atoms:download")
 def atoms_download(data):
-    if "sid" in data:
-        sid = data.pop("sid")
-        return call("atoms:download", data["indices"], to=sid)
-    else:
-        try:
-            return call(
-                "atoms:download",
-                data["indices"],
-                to=app.config["ROOM_HOSTS"][session["token"]][0],
-            )
-        except KeyError:
-            return "No host found."
+    return call("atoms:download", data["indices"], to=_webclients_default(data))
 
 
 @io.on("atoms:upload")
 def atoms_upload(data: dict):
-    if "sid" in data:
-        # if the data is sent from the default pyclient, it will have a sid
-        sid = data.pop("sid")
-        emit("atoms:upload", data, include_self=False, to=sid)
-    else:
-        emit("atoms:upload", data, include_self=False, to=session["token"])
+    print(f"atoms:upload {data.keys()}")
+    to = _webclients_default(data)
+    # remove token and sid from the data, because JavaScript does not expect it
+    data.pop("token", None)
+    data.pop("sid", None)
+    emit("atoms:upload", data, include_self=False, to=to)
 
 
 @io.on("atoms:delete")
 def atoms_delete(data: dict):
-    if "sid" in data:
-        # if the data is sent from the default pyclient, it will have a sid
-        sid = data.pop("sid")
-        emit("atoms:delete", data["index"], include_self=False, to=sid)
-    else:
-        emit("atoms:delete", data["index"], include_self=False, to=session["token"])
+    emit("atoms:delete", data["index"], include_self=False, to=_webclients_room(data))
 
 
 @io.on("atoms:length")
 def atoms_length(data: dict):
-    log.debug(f"atoms:length for {data}")
-    if "sid" in data:
-        return call("atoms:length", to=data["sid"])
-    else:
-        try:
-            return call(
-                "atoms:length", to=app.config["ROOM_HOSTS"][session["token"]][0]
-            )
-        except KeyError:
-            return "No host found."
+    return call("atoms:length", to=_webclients_default(data))
 
 
 @io.on("analysis:schema")
@@ -262,33 +238,14 @@ def analysis_schema(data: dict):
     if "sid" in data:
         emit("analysis:schema", data["schema"], include_self=False, to=data["sid"])
     else:
-        try:
-            # emit to all webclients in the group, if no sid is provided
-            emit(
-                "analysis:schema",
-                data["schema"],
-                include_self=False,
-                to=session["token"],
-            )
-        except KeyError:
-            return "No host found."
+        raise ValueError
 
 
 @io.on("modifier:schema")
 def modifier_schema(data: dict):
-    if "sid" in data:
-        emit("modifier:schema", data["schema"], include_self=False, to=data["sid"])
-    else:
-        try:
-            # emit to all webclients in the group, if no sid is provided
-            emit(
-                "modifier:schema",
-                data["schema"],
-                include_self=False,
-                to=session["token"],
-            )
-        except KeyError:
-            return "No host found."
+    emit(
+        "modifier:schema", data["schema"], include_self=False, to=_webclients_room(data)
+    )
 
 
 @io.on("selection:schema")
@@ -296,16 +253,7 @@ def selection_schema(data: dict):
     if "sid" in data:
         emit("selection:schema", data["schema"], include_self=False, to=data["sid"])
     else:
-        try:
-            # emit to all webclients in the group, if no sid is provided
-            emit(
-                "selection:schema",
-                data["schema"],
-                include_self=False,
-                to=session["token"],
-            )
-        except KeyError:
-            return "No host found."
+        raise ValueError
 
 
 @io.on("draw:schema")
@@ -313,94 +261,44 @@ def draw_schema(data: dict):
     if "sid" in data:
         emit("draw:schema", data["schema"], include_self=False, to=data["sid"])
     else:
-        try:
-            # emit to all webclients in the group, if no sid is provided
-            emit("draw:schema", data["schema"], include_self=False, to=session["token"])
-        except KeyError:
-            return "No host found."
+        raise ValueError
 
 
 @io.on("points:get")
 def scene_points(data: dict):
-    if "sid" in data:
-        return call("points:get", to=data["sid"])
-    else:
-        try:
-            # emit to all webclients in the group, if no sid is provided
-            return call("points:get", to=app.config["ROOM_HOSTS"][session["token"]][0])
-        except KeyError:
-            return "No host found."
+    return call("points:get", to=_webclients_default(data))
 
 
 @io.on("scene:segments")
 def scene_segments(data: dict):
-    if "sid" in data:
-        return call("scene:segments", to=data["sid"])
-    else:
-        try:
-            # emit to all webclients in the group, if no sid is provided
-            return call(
-                "scene:segments", to=app.config["ROOM_HOSTS"][session["token"]][0]
-            )
-        except KeyError:
-            return "No host found."
+    return call("scene:segments", to=_webclients_default(data))
 
 
 @io.on("selection:get")
 def selection_get(data: dict):
-    if "sid" in data:
-        return call("selection:get", to=data["sid"])
-    else:
-        try:
-            # emit to all webclients in the group, if no sid is provided
-            return call(
-                "selection:get", to=app.config["ROOM_HOSTS"][session["token"]][0]
-            )
-        except KeyError:
-            return "No host found."
+    return call("selection:get", to=_webclients_default(data))
 
 
 @io.on("selection:set")
 def selection_set(data: dict):
-    if "sid" in data:
-        emit("selection:set", data["selection"], include_self=False, to=data["sid"])
-    else:
-        try:
-            # emit to all webclients in the group, if no sid is provided
-            emit(
-                "selection:set",
-                data["selection"],
-                include_self=False,
-                to=session["token"],
-            )
-        except KeyError:
-            return "No host found."
+    emit(
+        "selection:set",
+        data["selection"],
+        include_self=False,
+        to=_webclients_room(data),
+    )
 
 
 @io.on("selection:run")
 def selection_run(data: dict):
-    sid = data.pop("sid", None)
-    data["sid"] = request.sid
-    if sid is not None:
-        emit("selection:run", data, to=sid)
-    else:
-        try:
-            # emit to all webclients in the group, if no sid is provided
-            emit("selection:run", data, to=app.config["DEFAULT_PYCLIENT"])
-        except KeyError:
-            return "No host found."
+    data["target"] = session["token"]
+    emit("selection:run", data, include_self=False, to=_pyclients_default(data))
 
 
 @io.on("upload")
 def upload(data):
-    if "sid" in data:  # currently not expected to happen
-        raise ValueError("Uploading to specific pyclient currently not supported.")
-    else:
-        emit(
-            "upload",
-            {"data": data, "sid": session["token"]},
-            to=app.config["DEFAULT_PYCLIENT"],
-        )
+    data = {"data": data, "target": session["token"]}
+    emit("upload", data, include_self=False, to=_pyclients_default(data))
 
 
 @io.on("atoms:insert")
@@ -410,8 +308,7 @@ def insert_atoms(data):
 
 @io.on("message:log")
 def message_log(data):
-    sid = data.pop("sid", session["token"])
-    emit("message:log", data["message"], to=sid)
+    emit("message:log", data["message"], to=_webclients_room(data))
 
 
 @io.on("download:request")
@@ -431,24 +328,17 @@ def download_response(data):
 @io.on("scene:play")
 def scene_play(data):
     log.debug(f"scene:play {data}")
-    if "sid" in data:
-        emit("scene:play", to=data["sid"])
-    else:
-        emit("scene:play", to=session["token"])
+    emit("scene:play", to=_webclients_room(data))
 
 
 @io.on("scene:pause")
 def scene_pause(data):
     log.debug(f"scene:pause {data}")
-    if "sid" in data:
-        emit("scene:pause", to=data["sid"])
-    else:
-        emit("scene:pause", to=session["token"])
+    emit("scene:pause", to=_webclients_room(data))
 
 
 @io.on("modifier:register")
 def modifier_register(data):
-    data["sid"] = request.sid
     data["token"] = session["token"]
 
     try:
@@ -471,100 +361,36 @@ def modifier_register(data):
 
 @io.on("bookmarks:get")
 def bookmarks_get(data: dict):
-    if "sid" in data:
-        return call("bookmarks:get", to=data["sid"])
-    else:
-        try:
-            # emit to all webclients in the group, if no sid is provided
-            return call(
-                "bookmarks:get", to=app.config["ROOM_HOSTS"][session["token"]][0]
-            )
-        except KeyError:
-            return "No host found."
+    return call("bookmarks:get", to=_webclients_default(data))
 
 
 @io.on("bookmarks:set")
 def bookmarks_set(data: dict):
-    if "sid" in data:
-        emit("bookmarks:set", data["bookmarks"], include_self=False, to=data["sid"])
-    else:
-        try:
-            # emit to all webclients in the group, if no sid is provided
-            emit(
-                "bookmarks:set",
-                data["bookmarks"],
-                include_self=False,
-                to=session["token"],
-            )
-        except KeyError:
-            return "No host found."
+    emit(
+        "bookmarks:set",
+        data["bookmarks"],
+        include_self=False,
+        to=_webclients_room(data),
+    )
 
 
 @io.on("points:set")
 def points_set(data: dict):
-    if "sid" in data:
-        emit("points:set", data["value"], include_self=False, to=data["sid"])
-    else:
-        try:
-            # emit to all webclients in the group, if no sid is provided
-            emit(
-                "points:set",
-                data["value"],
-                include_self=False,
-                to=session["token"],
-            )
-        except KeyError:
-            return "No host found."
+    emit("points:set", data["value"], include_self=False, to=_webclients_room(data))
 
 
 @io.on("debug")
 def debug(data: dict):
-    if "sid" in data:
-        emit("debug", data, include_self=False, to=data["sid"])
-    else:
-        try:
-            # emit to all webclients in the group, if no sid is provided
-            emit(
-                "debug",
-                data,
-                include_self=False,
-                to=session["token"],
-            )
-        except KeyError:
-            return "No host found."
+    emit("debug", data, include_self=False, to=_webclients_room(data))
 
 
 @io.on("modifier:run:running")
 def modifier_run_running(data: dict):
     app.config["MODIFIER"]["active"] = data.get("name", "unknown")
-    if "sid" in data:
-        emit("modifier:run:running", data, include_self=False, to=data["sid"])
-    else:
-        try:
-            # emit to all webclients in the group, if no sid is provided
-            emit(
-                "modifier:run:running",
-                data,
-                include_self=False,
-                to=session["token"],
-            )
-        except KeyError:
-            return "No host found."
+    emit("modifier:run:running", data, include_self=False, to=_webclients_room(data))
 
 
 @io.on("modifier:run:finished")
 def modifier_run_finished(data: dict):
     app.config["MODIFIER"]["active"] = None
-    if "sid" in data:
-        emit("modifier:run:finished", data, include_self=False, to=data["sid"])
-    else:
-        try:
-            # emit to all webclients in the group, if no sid is provided
-            emit(
-                "modifier:run:finished",
-                data,
-                include_self=False,
-                to=session["token"],
-            )
-        except KeyError:
-            return "No host found."
+    emit("modifier:run:finished", data, include_self=False, to=_webclients_room(data))
