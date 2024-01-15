@@ -17,6 +17,8 @@ def create_app(
     app.config["DEFAULT_PYCLIENT"] = None
     app.config["TUTORIAL"] = tutorial
     app.config["MODIFIER"] = {"default_schema": {}, "active": None}
+    # dict of {uuid: sid} for each client
+    app.config["pyclients"] = {} 
 
     if not use_token:  # TODO: handle this differently
         app.config["token"] = "notoken"

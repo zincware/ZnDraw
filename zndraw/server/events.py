@@ -92,8 +92,17 @@ def disconnect():
 
 
 @io.on("join")
-def join(token):
+def join(data: dict):
+    """
+    Arguments:
+        data: {"token": str, "uuid": str}
+    """
     # only used by pyclients that only connect via socket (no HTML)
+    token = data["token"]
+    uuid = data["uuid"]
+    if uuid in app.config["pyclients"]:
+        raise ValueError(f"UUID {uuid} is already registered.")
+    app.config["pyclients"][uuid] = request.sid
     session["token"] = token
     join_room(f"pyclients_{token}")
     if token == "default":
@@ -344,15 +353,21 @@ def modifier_register(data):
     try:
         # we can only register one modifier at a time
         name = data["modifiers"][0]["name"]
-        if name in app.config["MODIFIER"]:
-            # issue with the same modifier name on different webclients / tokens!
-            # only for default we need to ensure, there is only one.
-            raise ValueError(f"Modifier {name} is already registered.")
-        app.config["MODIFIER"][name] = request.sid
+        app.config["MODIFIER-MAPPING"][data] = name
+        # if name in app.config["MODIFIER"]:
+        #     # issue with the same modifier name on different webclients / tokens!
+        #     # only for default we need to ensure, there is only one.
+        #     raise ValueError(f"Modifier {name} is already registered.")
+        # app.config["MODIFIER"][name] = request.sid
         if data["modifiers"][0]["default"]:
-            app.config["MODIFIER"]["default_schema"][name] = data["modifiers"][0][
-                "schema"
-            ]
+            if name in app.config["MODIFIER"]:
+                raise ValueError(
+                    f"Modifier {data['modifiers'][0]['name']} is already registered."
+                )
+            else:
+                app.config["MODIFIER"]["default_schema"][name] = data["modifiers"][0][
+                    "schema"
+                ]
     except KeyError:
         print("Could not identify the modifier name.")
 

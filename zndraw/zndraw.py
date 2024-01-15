@@ -7,6 +7,7 @@ import threading
 import time
 import typing as t
 from io import StringIO
+import uuid
 
 import ase
 import ase.io
@@ -48,17 +49,25 @@ class ZnDrawBase:  # collections.abc.MutableSequence
     ----------
     display_new : bool
         Display new atoms in the webclient, when they are added.
+    
+    token : str
+        Identifies the session this instances is being connected to.
+        Tokens can be shared.
+    _uuid : uuid.UUID
+        Unique identifier for this instance. Can be set for reconnecting
+        but only ONE instance with the same uuid can be connected at the same time.
     """
 
     url: str
     token: str = "notoken"
     display_new: bool = True
+    _uuid: uuid.UUID = dataclasses.field(default_factory=uuid.uuid4)
 
     _target_sid: str = None
 
     def __post_init__(self):
         self.socket = socketio.Client()
-        self.socket.on("connect", lambda: self.socket.emit("join", self.token))
+        self.socket.on("connect", lambda: self.socket.emit("join", {"token": self.token, "uuid": str(self._uuid)}))
         self.socket.on("disconnect", lambda: self.socket.disconnect())
         self.socket.on("modifier:run", self._pre_modifier_run)
 
@@ -551,6 +560,7 @@ class ZnDraw(ZnDrawBase):
         self.socket.emit(
             "modifier:register",
             {
+                "uuid": self.uuid,
                 "modifiers": [
                     {
                         "schema": cls.model_json_schema(),
