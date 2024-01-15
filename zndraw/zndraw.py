@@ -66,8 +66,9 @@ class ZnDrawBase:  # collections.abc.MutableSequence
     _target_sid: str = None
 
     def __post_init__(self):
+        self._uuid = str(self._uuid)
         self.socket = socketio.Client()
-        self.socket.on("connect", lambda: self.socket.emit("join", {"token": self.token, "uuid": str(self._uuid)}))
+        self.socket.on("connect", lambda: self.socket.emit("join", {"token": self.token, "uuid": self._uuid}))
         self.socket.on("disconnect", lambda: self.socket.disconnect())
         self.socket.on("modifier:run", self._pre_modifier_run)
 
@@ -560,7 +561,7 @@ class ZnDraw(ZnDrawBase):
         self.socket.emit(
             "modifier:register",
             {
-                "uuid": self.uuid,
+                "uuid": self._uuid,
                 "modifiers": [
                     {
                         "schema": cls.model_json_schema(),

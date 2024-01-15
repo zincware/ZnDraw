@@ -1,5 +1,6 @@
 import contextlib
 import logging
+import traceback
 
 from flask import current_app as app
 from flask import request, session
@@ -72,6 +73,8 @@ def connect():
             f"connected {request.sid} and updated HOSTS to {app.config['ROOM_HOSTS']}"
         )
         emit("message:log", "Connection established", to=request.sid)
+        if token not in app.config["PER-TOKEN-DATA"]:
+            app.config["PER-TOKEN-DATA"][token] = {}
 
 
 @io.on("disconnect")
@@ -105,6 +108,8 @@ def join(data: dict):
     app.config["pyclients"][uuid] = request.sid
     session["token"] = token
     join_room(f"pyclients_{token}")
+    if token not in app.config["PER-TOKEN-DATA"]:
+        app.config["PER-TOKEN-DATA"][token] = {}
     if token == "default":
         # this would be very easy to exploit
         app.config["DEFAULT_PYCLIENT"] = request.sid
@@ -185,8 +190,13 @@ def modifier_run(data):
 
     # move this to _pyclients_default, maybe rename to _get_pyclient
     name = data["params"]["method"]["discriminator"]
-    if name in app.config["MODIFIER"]:
-        data["sid"] = app.config["MODIFIER"][name]
+    # if name in app.config["MODIFIER"]:
+    #     data["sid"] = app.config["MODIFIER"][name]
+    if name in app.config["PER-TOKEN-DATA"][session["token"]]["modifier"]:
+        print("found modifier in custom modifier dict")
+        token = app.config["PER-TOKEN-DATA"][session["token"]]["modifier"][name]
+        data["sid"] = app.config["pyclients"][token]
+        print(data["sid"])
 
     # need to set the target of the modifier to the webclients room
     data["target"] = session["token"]
@@ -349,11 +359,19 @@ def scene_pause(data):
 @io.on("modifier:register")
 def modifier_register(data):
     data["token"] = session["token"]
+    if "modifier" not in app.config["PER-TOKEN-DATA"][session["token"]]:
+        # this is a dict for the pyclient, but it has to be for every webclient ...
+        app.config["PER-TOKEN-DATA"][session["token"]]["modifier"] = {}
 
     try:
         # we can only register one modifier at a time
         name = data["modifiers"][0]["name"]
-        app.config["MODIFIER-MAPPING"][data] = name
+        # get the key from the value request.sid by inverting the dict
+        _tmp = {v: k for k, v in app.config["pyclients"].items()}
+        app.config["PER-TOKEN-DATA"][session["token"]]["modifier"][name] = _tmp[request.sid]
+        log.critical(f'{app.config["PER-TOKEN-DATA"] = }')
+        log.critical(f'{app.config["pyclients"] = }')
+
         # if name in app.config["MODIFIER"]:
         #     # issue with the same modifier name on different webclients / tokens!
         #     # only for default we need to ensure, there is only one.
@@ -370,6 +388,7 @@ def modifier_register(data):
                 ]
     except KeyError:
         print("Could not identify the modifier name.")
+        traceback.print_exc()
 
     emit("modifier:register", data, to=app.config["DEFAULT_PYCLIENT"])
 
