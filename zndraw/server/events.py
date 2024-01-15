@@ -12,6 +12,7 @@ log = logging.getLogger(__name__)
 
 modifier_lock = Lock()
 
+
 def _webclients_room(data: dict) -> str:
     """Return the room name for the webclients."""
     if "sid" in data:
@@ -166,11 +167,17 @@ def scene_schema():
 @io.on("modifier:run")
 def modifier_run(data):
     # emit entered the queue
-    running_jobs = app.config["MODIFIER"].get("num_jobs", 0)+1
+    running_jobs = app.config["MODIFIER"].get("num_jobs", 0) + 1
     app.config["MODIFIER"]["num_jobs"] = running_jobs
     name = data["params"]["method"]["discriminator"]
-    emit("message:log", f"Modifier {name} enqueued. {running_jobs} running jobs.", to=request.sid)
-    emit("modifier:run:running", to=request.sid) # Without this the JavaScript part kills this because it has no response.
+    emit(
+        "message:log",
+        f"Modifier {name} enqueued. {running_jobs} running jobs.",
+        to=request.sid,
+    )
+    emit(
+        "modifier:run:running", to=request.sid
+    )  # Without this the JavaScript part kills this because it has no response.
     while True:
         acquired = modifier_lock.acquire(blocking=False)
         if acquired:
@@ -179,7 +186,6 @@ def modifier_run(data):
         else:
             io.sleep(1)
             print("waiting for modifier_lock")
-        
 
     # move this to _pyclients_default, maybe rename to _get_pyclient
     if name in app.config["MODIFIER"]:
