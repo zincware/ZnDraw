@@ -200,9 +200,13 @@ def modifier_run(data):
 
     name = data["params"]["method"]["discriminator"]
 
+    # handle custom modifiers (not default)
     if name in app.config["PER-TOKEN-DATA"][session["token"]].get("modifier", {}):
         token = app.config["PER-TOKEN-DATA"][session["token"]]["modifier"][name]
         data["sid"] = app.config["pyclients"][token]
+    # handle custom modifiers (default)
+    elif name in app.config["MODIFIER"]:
+        data["sid"] = app.config["pyclients"][app.config["MODIFIER"][name]]
 
     # need to set the target of the modifier to the webclients room
     data["target"] = session["token"]
@@ -240,7 +244,6 @@ def atoms_download(data):
 
 @io.on("atoms:upload")
 def atoms_upload(data: dict):
-    print(f"atoms:upload {data.keys()}")
     to = _webclients_default(data)
     # remove token and sid from the data, because JavaScript does not expect it
     data.pop("token", None)
@@ -397,6 +400,7 @@ def modifier_register(data):
             app.config["MODIFIER"]["default_schema"][name] = data["modifiers"][0][
                 "schema"
             ]
+            app.config["MODIFIER"][name] = _tmp[request.sid]
     except KeyError:
         print("Could not identify the modifier name.")
         traceback.print_exc()
