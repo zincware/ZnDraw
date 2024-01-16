@@ -41,6 +41,7 @@ def _pyclients_default(data: dict) -> str:
         return data["sid"]
     return app.config["DEFAULT_PYCLIENT"]
 
+
 def _get_uuid_for_sid(sid) -> str:
     """Given a sid, return the UUID that is associated with it.
     The SID is given by flask, the UUID is defined by zndraw
@@ -392,7 +393,9 @@ def modifier_register(data):
             log.critical(msg)
             emit("message:log", msg, to=request.sid)
         # get the key from the value request.sid by inverting the dict
-        app.config["PER-TOKEN-DATA"][session["token"]]["modifier"][name] = _get_uuid_for_sid(request.sid)
+        app.config["PER-TOKEN-DATA"][session["token"]]["modifier"][
+            name
+        ] = _get_uuid_for_sid(request.sid)
         log.critical(f'{app.config["PER-TOKEN-DATA"] = }')
         log.critical(f'{app.config["pyclients"] = }')
 
