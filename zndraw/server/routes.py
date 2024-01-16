@@ -58,8 +58,14 @@ def file(file: str):
     """Open a file on the server."""
     # open a new connection, read the file, upload it to the server, and then close the connection
     import multiprocessing as mp
-
-    token = session["token"]
+    try:
+        token = session["token"]
+    except KeyError:
+        if "token" in current_app.config:
+            token = current_app.config["token"]
+        else:
+            token = uuid.uuid4().hex
+        session["token"] = token
     url = request.url_root
     print(f"URL: {url}")
 
