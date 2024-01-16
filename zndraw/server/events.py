@@ -3,6 +3,7 @@ import logging
 import traceback
 from threading import Lock
 from uuid import uuid4
+import datetime
 
 from flask import current_app as app
 from flask import request, session
@@ -72,7 +73,6 @@ def connect():
         return False
     with contextlib.suppress(KeyError):
         # If you connect through Python, you don't have a token.
-
         token = session["token"]
         join_room(f"webclients_{token}")
         # who ever connected latest is the HOST of the room
@@ -98,6 +98,10 @@ def connect():
         emit("message:log", "Connection established", to=request.sid)
         if token not in app.config["PER-TOKEN-DATA"]:
             app.config["PER-TOKEN-DATA"][token] = {}
+        
+        # append to zndraw.log a line isoformat() + " " + token
+        with open("zndraw.log", "a") as f:
+            f.write(datetime.datetime.now().isoformat() + " " + token + "\n")
 
 
 @io.on("disconnect")
