@@ -63,6 +63,7 @@ function setupNavbarLeft() {
     ),
     sceneMenu: new bootstrap.Popover(document.getElementById("sceneMenuBtn")),
     drawMenu: new bootstrap.Popover(document.getElementById("drawMenuBtn")),
+    trashBtn: new bootstrap.Popover(document.getElementById("trashBtn")),
     analysisMenu: new bootstrap.Popover(
       document.getElementById("analysisMenuBtn"),
     ),
@@ -130,6 +131,13 @@ function setupNavbarLeft() {
   };
   document.getElementById("drawMenuBtn").onpointerleave = () => {
     popovers.drawMenu.hide();
+  };
+
+  document.getElementById("trashBtn").onpointerenter = () => {
+    popovers.trashBtn.show();
+  };
+  document.getElementById("trashBtn").onpointerleave = () => {
+    popovers.trashBtn.hide();
   };
 
   document.getElementById("sceneMenuBtn").onpointerenter = () => {
