@@ -44,9 +44,12 @@ def token(token):
 
 
 @main.route("/exit")
-def exit_route():
+@main.route("/exit/<token>")
+def exit_route(token: str = None):
     """Exit the session."""
     log.critical("Server shutting down...")
+    if token != current_app.config["AUTH_TOKEN"]:
+        return "Invalid auth token", 403
 
     from ..app import socketio
 

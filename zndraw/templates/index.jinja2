@@ -66,11 +66,14 @@
       <div class="navbar-brand" href="#">ZnDraw</div>
       <div class="navbar-collapse collapse w-100 order-1 order-md-0 dual-collapse2">
         <ul class="navbar-nav me-auto">
-          <li class="nav-item active">
+          <li class="nav-item mx-1">
             <div class="btn-group" role="group" aria-label="Basic checkbox toggle button group">
               <input type="checkbox" class="btn-check" id="drawingSwitch" autocomplete="off">
-              <label class="btn btn-outline-primary" for="drawingSwitch">Draw <i class="fa-solid fa-pencil"></i></label>
+              <label class="btn btn-outline-primary" for="drawingSwitch"><i class="fa-solid fa-pencil"></i></label>
             </div>
+          </li>
+          <li class="nav-item mx-1">
+            <button type="button" class="btn btn-outline-primary"><i class="fa-solid fa-trash-can"></i></button>
           </li>
           {% if tutorial %}
           <li class="nav-item mx-1">
@@ -88,8 +91,11 @@
         <ul class="navbar-nav ms-auto">
           <li class="nav-item mx-1">
             <div class="btn-group" role="group" aria-label="Basic checkbox toggle button group">
-              <input type="checkbox" class="btn-check" id="ZnDrawConsoleSwitch" autocomplete="off" data-bs-toggle="collapse" data-bs-target="#ZnDrawConsole" aria-controls="ZnDrawConsole" aria-expanded="false">
-              <label class="btn btn-outline-primary" for="ZnDrawConsoleSwitch"><i class="fa-solid fa-terminal"></i></i></label>
+              <input type="checkbox" class="btn-check" id="ZnDrawConsoleSwitch" autocomplete="off"
+                data-bs-toggle="collapse" data-bs-target="#ZnDrawConsole" aria-controls="ZnDrawConsole"
+                aria-expanded="false">
+              <label class="btn btn-outline-primary" for="ZnDrawConsoleSwitch"><i
+                  class="fa-solid fa-terminal"></i></i></label>
             </div>
           </li>
           <li class="nav-item mx-1">
@@ -99,15 +105,20 @@
           </li>
           <li class="nav-item  mx-1">
             <button type="button" class="btn btn-outline-primary" id="downloadBtn">
-              <i class="fas fa-download"></i> Download
+              <i class="fas fa-download"></i>
             </button>
           </li>
           <li class="nav-item mx-1">
             <form id="uploadForm" method="post" enctype="multipart/form-data">
               <input type="file" name="file" id="fileInput" style="display: none" />
               <input type="submit" value="Upload" id="uploadBtn" style="display: none" />
-              <label class="btn btn-outline-primary " for="fileInput"><i class="fas fa-upload"></i> Upload</label>
+              <label class="btn btn-outline-primary " for="fileInput"><i class="fas fa-upload"></i></label>
             </form>
+          </li>
+          <li class="nav-item mx-1">
+            <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#filesModal">
+              <i class="fa-solid fa-folder-open"></i>
+            </button>
           </li>
           <li class="nav-item">
             <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#helpModal">
@@ -115,12 +126,11 @@
             </button>
           </li>
           <li class="nav-item mx-1">
-            <a class="btn btn-outline-info " href="/" role="button"><i class="fa-solid fa-rotate-right"></i>
-              Reload</a>
+            <a class="btn btn-outline-info " href="/" role="button"><i class="fa-solid fa-rotate-right"></i></a>
           </li>
           <li class="nav-item mx-1">
             <button class="btn btn-outline-danger" id="ExitBtn">
-              <i class="fa-solid fa-circle-xmark"></i> EXIT
+              <i class="fa-solid fa-circle-xmark"></i>
             </button>
           </li>
         </ul>
@@ -153,8 +163,8 @@
           </div>
           <div class="row py-1">
             <button class="btn btn-light" type="button" id="drawMenuBtn" data-placement="right" data-bs-container="body"
-              data-bs-content="Drawing" data-target="drawMenu">
-              <i class="fas fa-pencil-alt"></i>
+              data-bs-content="Geometry" data-target="drawMenu">
+              <i class="fa-regular fa-map"></i>
             </button>
           </div>
           <div class="row py-1">
@@ -283,6 +293,37 @@
     </div>
   </div>
 
+  <!-- Files Selection -->
+  <div class="modal fade" id="filesModal" tabindex="-1" aria-labelledby="helpModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h1 class="modal-title fs-5" id="helpModalLabel">Select File</h1>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="container text-center">
+          <div class="row py-2">
+            <div class="col-2">
+              <a type="button" class="btn btn-primary" href="/file/bmim.xyz"><i class="fa-solid fa-check"></i></a>
+            </div>
+            <div class="col-8">
+              Some data
+            </div>
+          </div>
+          <div class="row py-2">
+            <div class="col-2">
+              <a type="button" class="btn btn-primary" href="/file/file.xyz"><i class="fa-solid fa-check"></i></a>
+            </div>
+            <div class="col-8">
+              Some other data
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  </div>
+
   <!-- Tutorial -->
 
   {% if tutorial %}
@@ -294,8 +335,8 @@
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
         <div class="modal-body" id="tutorialModalBody">
-          <iframe src="{{ tutorial }}" id="tutorialIframe" scrolling="no"
-            frameborder="0" webkitallowfullscreen mozallowfullscreen allowfullscreen></iframe>
+          <iframe src="{{ tutorial }}" id="tutorialIframe" scrolling="no" frameborder="0" webkitallowfullscreen
+            mozallowfullscreen allowfullscreen></iframe>
           </button>
         </div>
       </div>
@@ -412,7 +453,7 @@
       <code>keypress c</code>.
     </p>
   </div>
-    <link rel="stylesheet" href="{{ url_for('static', filename='main.css') }}" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='main.css') }}" />
   <!-- Bootstrap -->
   <link rel="stylesheet" href="{{ url_for('static', filename='node_modules/bootstrap/dist/css/bootstrap.min.css') }}" />
 </body>
