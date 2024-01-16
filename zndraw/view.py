@@ -68,7 +68,12 @@ def view(
 
     proc = mp.Process(
         target=ZnDrawDefault,
-        kwargs={"url": url, "token": "default", "file_io": file_io, "auth_token": auth_token},
+        kwargs={
+            "url": url,
+            "token": "default",
+            "file_io": file_io,
+            "auth_token": auth_token,
+        },
     )
     proc.start()
 

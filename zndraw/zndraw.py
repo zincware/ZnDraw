@@ -70,7 +70,14 @@ class ZnDrawBase:  # collections.abc.MutableSequence
         self.socket = socketio.Client()
         self.socket.on(
             "connect",
-            lambda: self.socket.emit("join", {"token": self.token, "uuid": self._uuid, "auth_token": self.auth_token}),
+            lambda: self.socket.emit(
+                "join",
+                {
+                    "token": self.token,
+                    "uuid": self._uuid,
+                    "auth_token": self.auth_token,
+                },
+            ),
         )
         self.socket.on("disconnect", lambda: self.socket.disconnect())
         self.socket.on("modifier:run", self._pre_modifier_run)
@@ -84,7 +91,7 @@ class ZnDrawBase:  # collections.abc.MutableSequence
                 self.socket.sleep(0.1)
         else:
             raise socketio.exceptions.ConnectionError
-    
+
     def reconnect(self) -> None:
         """Reconnect to the server."""
         self.socket.disconnect()

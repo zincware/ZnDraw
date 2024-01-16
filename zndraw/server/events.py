@@ -115,7 +115,9 @@ def join(data: dict):
     session["authenticated"] = auth_token == app.config["AUTH_TOKEN"]
     log.critical(f"{session['authenticated'] = }")
     if uuid in app.config["pyclients"]:
-        raise ValueError(f"UUID {uuid} is already registered in {app.config['pyclients']}.")
+        raise ValueError(
+            f"UUID {uuid} is already registered in {app.config['pyclients']}."
+        )
     app.config["pyclients"][uuid] = request.sid
     session["token"] = token
     join_room(f"pyclients_{token}")
@@ -391,10 +393,12 @@ def modifier_register(data):
         ]
         log.critical(f'{app.config["PER-TOKEN-DATA"] = }')
         log.critical(f'{app.config["pyclients"] = }')
-        
+
         if data["modifiers"][0]["default"]:
             if not session["authenticated"]:
-                raise ValueError("Unauthenticated users cannot register default modifiers.")
+                raise ValueError(
+                    "Unauthenticated users cannot register default modifiers."
+                )
             log.critical(app.config["MODIFIER"])
             log.critical(f"{name = }")
             app.config["MODIFIER"]["default_schema"][name] = data["modifiers"][0][
