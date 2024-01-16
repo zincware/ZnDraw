@@ -105,9 +105,7 @@ def disconnect():
     with contextlib.suppress(KeyError):
         token = session["token"]
         try:
-            log.critical(f"Removing {request.sid} from {app.config['pyclients']}")
             del app.config["pyclients"][_get_uuid_for_sid(request.sid)]
-            log.critical(f"Removed {request.sid} from {app.config['pyclients']}")
         except KeyError:
             pass
         try:
