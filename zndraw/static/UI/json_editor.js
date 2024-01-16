@@ -134,6 +134,43 @@ function modifier_editor(socket, cache, world) {
     schema: { type: "object", title: "ZnDraw", properties: {} },
   });
 
+  let responseReceived = false;
+
+  socket.on("modifier:run:submitted", () => {
+    console.log(new Date().toISOString(), "modifier:run:submitted");
+    setTimeout(() => {
+      if (!responseReceived) {
+        console.warn("No response on 'modifier:run:running' within 1 second");
+        alert("No response from server. Please try again.");
+        document.getElementById("interaction-json-editor-submit").disabled =
+          false;
+      }
+    }, 1000);
+  });
+
+  socket.on("modifier:run:enqueue", (position) => {
+    console.log(new Date().toISOString(), "modifier:run:enqueue");
+    document.getElementById("interaction-json-editor-submit").disabled = true;
+    document.getElementById("interaction-json-editor-submit").innerHTML =
+      '<i class="fa-solid fa-hourglass-start"></i> Job queued at position ' + position;
+  });
+
+  // Check if a running response is received
+  socket.on("modifier:run:running", () => {
+    responseReceived = true;
+    document.getElementById("interaction-json-editor-submit").innerHTML =
+      '<i class="fa-solid fa-spinner"></i> Running';
+  });
+
+  // Finished running
+  socket.on("modifier:run:finished", (data) => {
+    console.log(new Date().toISOString(), "modifier:run:finished");
+    document.getElementById("interaction-json-editor-submit").innerHTML =
+      '<i class="fa-solid fa-play"></i> Run Modifier';
+    document.getElementById("interaction-json-editor-submit").disabled =
+      false;
+  });
+
   document
     .getElementById("interaction-json-editor-submit")
     .addEventListener("click", () => {
@@ -141,7 +178,7 @@ function modifier_editor(socket, cache, world) {
       const value = editor.getValue();
       console.log(value);
 
-      let responseReceived = false;
+      responseReceived = false;
 
       socket.emit("modifier:run", {
         params: value,
@@ -150,31 +187,11 @@ function modifier_editor(socket, cache, world) {
 
       document.getElementById("interaction-json-editor-submit").disabled = true;
 
-      // Check if a running response is received
-      socket.on("modifier:run:running", () => {
-        responseReceived = true;
-        document.getElementById("interaction-json-editor-submit").innerHTML =
-          '<i class="fa-solid fa-spinner"></i> Running';
-      });
+      // socket.on("modifier:run:submitted", () => {
+      //   console.log(new Date().toISOString(), "modifier:run:submitted");
+      // });
 
-      // Finished running
-      socket.on("modifier:run:finished", (data) => {
-        console.log(new Date().toISOString(), "modifier:run:finished");
-        document.getElementById("interaction-json-editor-submit").innerHTML =
-          '<i class="fa-solid fa-play"></i> Run Modifier';
-        document.getElementById("interaction-json-editor-submit").disabled =
-          false;
-      });
 
-      // If no response is received within 1 second, warn the user / some error occurred
-      setTimeout(() => {
-        if (!responseReceived) {
-          console.warn("No response on 'modifier:run:running' within 1 second");
-          alert("No response from server. Please try again.");
-          document.getElementById("interaction-json-editor-submit").disabled =
-            false;
-        }
-      }, 1000);
     });
 
   socket.on("modifier:schema", (data) => {
