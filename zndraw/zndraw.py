@@ -371,6 +371,7 @@ class ZnDrawDefault(ZnDrawBase):
         self.socket.on("upload", self.upload_file)
         self.socket.on("download:request", self.download_file)
         self.socket.on("modifier:register", self.register_modifier)
+        self.socket.on("scene:trash", self.trash_scene)
         self._connect()
         self.socket.wait()
 
@@ -530,6 +531,20 @@ class ZnDrawDefault(ZnDrawBase):
 
         data = {"schema": schema, "token": sid}
         self.socket.emit("modifier:schema", data)
+    
+    def trash_scene(self, data):
+        with self._set_token(data["target"]):
+            # remove everything after the current step
+            del self[self.step + 1 :]
+            if len(self.selection) == 0:
+                self.append(ase.Atoms())
+            else:
+                # remove the selected atoms
+                atoms = self.atoms
+                del atoms[self.selection]
+                self.append(atoms)
+            self.selection = []
+            self.points = []
 
 
 @dataclasses.dataclass

@@ -395,6 +395,11 @@ def scene_pause(data):
     log.debug(f"scene:pause {data}")
     emit("scene:pause", to=_webclients_room(data))
 
+@io.on("scene:trash")
+def scene_trash(data):
+    data["target"] = session["token"]
+    emit("scene:trash", data, to=_pyclients_default(data))
+
 
 @io.on("modifier:register")
 def modifier_register(data):

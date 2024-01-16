@@ -224,12 +224,19 @@ function setupDragDrop(socket) {
   });
 }
 
+function setupTrashClick(socket) {
+  document.getElementById("trashBtn").addEventListener("click", () => {
+    socket.emit("scene:trash", {});
+  });
+}
+
 export function setUIEvents(socket, cache, world) {
   // resizeOffcanvas();
   setupUpload(socket);
   setupNavbarLeft();
   setupMobile();
   setupDragDrop(socket);
+  setupTrashClick(socket);
 
   socket.on("download:response", (data) => {
     const blob = new Blob([data], { type: "text/csv" });
