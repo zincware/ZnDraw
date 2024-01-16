@@ -144,6 +144,7 @@ function modifier_editor(socket, cache, world) {
         alert("No response from server. Please try again.");
         document.getElementById("interaction-json-editor-submit").disabled =
           false;
+        socket.emit("modifier:run:failed");
       }
     }, 1000);
   });

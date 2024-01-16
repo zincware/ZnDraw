@@ -5,6 +5,7 @@ import logging
 import pathlib
 import threading
 import typing as t
+import uuid
 from io import StringIO
 
 import ase
@@ -30,6 +31,20 @@ log = logging.getLogger(__name__)
 
 
 @dataclasses.dataclass
+class Config:
+    """Configuration for ZnDraw client.
+
+    Attributes
+    ----------
+    call_timeout : int
+        Timeout for socket calls in seconds.
+        Set to a smaller value to fail faster.
+    """
+
+    call_timeout: int = 60
+
+
+@dataclasses.dataclass
 class FileIO:
     name: str = None
     start: int = 0
@@ -47,19 +62,44 @@ class ZnDrawBase:  # collections.abc.MutableSequence
     ----------
     display_new : bool
         Display new atoms in the webclient, when they are added.
+
+    token : str
+        Identifies the session this instances is being connected to.
+        Tokens can be shared.
+    _uuid : uuid.UUID
+        Unique identifier for this instance. Can be set for reconnecting
+        but only ONE instance with the same uuid can be connected at the same time.
+    auth_token : str
+        Authentication token, used e.g. for registering modifiers to all users and
+        not just the current session.
     """
 
     url: str
     token: str = "notoken"
     display_new: bool = True
+    _uuid: uuid.UUID = dataclasses.field(default_factory=uuid.uuid4)
+    auth_token: str = None
+    config: Config = dataclasses.field(default_factory=Config)
 
     _target_sid: str = None
 
     def __post_init__(self):
+        self._uuid = str(self._uuid)
         self.socket = socketio.Client()
-        self.socket.on("connect", lambda: self.socket.emit("join", self.token))
+        self.socket.on(
+            "connect",
+            lambda: self.socket.emit(
+                "join",
+                {
+                    "token": self.token,
+                    "uuid": self._uuid,
+                    "auth_token": self.auth_token,
+                },
+            ),
+        )
         self.socket.on("disconnect", lambda: self.socket.disconnect())
         self.socket.on("modifier:run", self._pre_modifier_run)
+        self.socket.on("message:log", lambda data: print(data))
 
     def _connect(self):
         for _ in range(100):
@@ -70,6 +110,11 @@ class ZnDrawBase:  # collections.abc.MutableSequence
                 self.socket.sleep(0.1)
         else:
             raise socketio.exceptions.ConnectionError
+
+    def reconnect(self) -> None:
+        """Reconnect to the server."""
+        self.socket.disconnect()
+        self._connect()
 
     @contextlib.contextmanager
     def _set_sid(self, sid):
@@ -85,7 +130,11 @@ class ZnDrawBase:  # collections.abc.MutableSequence
         self.token = old_token
 
     def __len__(self) -> int:
-        return int(self.socket.call("atoms:length", {"token": self.token}))
+        return int(
+            self.socket.call(
+                "atoms:length", {"token": self.token}, timeout=self.config.call_timeout
+            )
+        )
 
     def __setitem__(self, index, value):
         if not isinstance(value, ase.Atoms) and not isinstance(value, Frame):
@@ -167,7 +216,9 @@ class ZnDrawBase:  # collections.abc.MutableSequence
         index = [i if i >= 0 else length + i for i in index]
 
         data = {"indices": index, "token": self.token}
-        downloaded_data = self.socket.call("atoms:download", data)
+        downloaded_data = self.socket.call(
+            "atoms:download", data, timeout=self.config.call_timeout
+        )
 
         atoms_list = []
 
@@ -197,7 +248,9 @@ class ZnDrawBase:  # collections.abc.MutableSequence
 
     @property
     def points(self) -> np.ndarray:
-        data = self.socket.call("points:get", {"token": self.token})
+        data = self.socket.call(
+            "points:get", {"token": self.token}, timeout=self.config.call_timeout
+        )
         return np.array([[val["x"], val["y"], val["z"]] for val in data])
 
     @points.setter
@@ -214,12 +267,20 @@ class ZnDrawBase:  # collections.abc.MutableSequence
 
     @property
     def segments(self) -> np.ndarray:
-        data = self.socket.call("scene:segments", {"token": self.token})
+        data = self.socket.call(
+            "scene:segments", {"token": self.token}, timeout=self.config.call_timeout
+        )
         return np.array(data)
 
     @property
     def step(self) -> int:
-        step = int(self.socket.call("scene:step", {"token": self.token}))
+        step = int(
+            self.socket.call(
+                "scene:step",
+                {"token": self.token},
+                timeout=self.config.call_timeout,
+            )
+        )
         return step
 
     @step.setter
@@ -229,7 +290,9 @@ class ZnDrawBase:  # collections.abc.MutableSequence
 
     @property
     def selection(self) -> list[int]:
-        return self.socket.call("selection:get", {"token": self.token})
+        return self.socket.call(
+            "selection:get", {"token": self.token}, timeout=self.config.call_timeout
+        )
 
     @selection.setter
     def selection(self, value: list[int]):
@@ -253,7 +316,9 @@ class ZnDrawBase:  # collections.abc.MutableSequence
 
     @property
     def bookmarks(self) -> dict:
-        return self.socket.call("bookmarks:get", {"token": self.token})
+        return self.socket.call(
+            "bookmarks:get", {"token": self.token}, timeout=self.config.call_timeout
+        )
 
     @bookmarks.setter
     def bookmarks(self, value: dict):
@@ -550,13 +615,14 @@ class ZnDraw(ZnDrawBase):
         self.socket.emit(
             "modifier:register",
             {
+                "uuid": self._uuid,
                 "modifiers": [
                     {
                         "schema": cls.model_json_schema(),
                         "name": cls.__name__,
                         "default": default,
                     }
-                ]
+                ],
             },
         )
         self._modifiers[cls.__name__] = {"cls": cls, "run_kwargs": run_kwargs}
