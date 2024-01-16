@@ -16,7 +16,7 @@ def create_app(
     app.config["ROOM_HOSTS"] = {}
     app.config["DEFAULT_PYCLIENT"] = None
     app.config["TUTORIAL"] = tutorial
-    app.config["MODIFIER"] = {"default_schema": {}, "active": None}
+    app.config["MODIFIER"] = {"default_schema": {}, "active": None, "queue": []}
 
     if not use_token:  # TODO: handle this differently
         app.config["token"] = "notoken"
