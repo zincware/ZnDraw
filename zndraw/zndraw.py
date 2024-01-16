@@ -29,18 +29,19 @@ from zndraw.utils import (
 
 log = logging.getLogger(__name__)
 
+
 @dataclasses.dataclass
 class Config:
     """Configuration for ZnDraw client.
-    
+
     Attributes
     ----------
     call_timeout : int
         Timeout for socket calls in seconds.
         Set to a smaller value to fail faster.
     """
-    call_timeout: int = 60
 
+    call_timeout: int = 60
 
 
 @dataclasses.dataclass
@@ -78,7 +79,7 @@ class ZnDrawBase:  # collections.abc.MutableSequence
     display_new: bool = True
     _uuid: uuid.UUID = dataclasses.field(default_factory=uuid.uuid4)
     auth_token: str = None
-    config : Config = dataclasses.field(default_factory=Config)
+    config: Config = dataclasses.field(default_factory=Config)
 
     _target_sid: str = None
 
@@ -129,7 +130,11 @@ class ZnDrawBase:  # collections.abc.MutableSequence
         self.token = old_token
 
     def __len__(self) -> int:
-        return int(self.socket.call("atoms:length", {"token": self.token}, timeout=self.config.call_timeout))
+        return int(
+            self.socket.call(
+                "atoms:length", {"token": self.token}, timeout=self.config.call_timeout
+            )
+        )
 
     def __setitem__(self, index, value):
         if not isinstance(value, ase.Atoms) and not isinstance(value, Frame):
@@ -211,7 +216,9 @@ class ZnDrawBase:  # collections.abc.MutableSequence
         index = [i if i >= 0 else length + i for i in index]
 
         data = {"indices": index, "token": self.token}
-        downloaded_data = self.socket.call("atoms:download", data, timeout=self.config.call_timeout)
+        downloaded_data = self.socket.call(
+            "atoms:download", data, timeout=self.config.call_timeout
+        )
 
         atoms_list = []
 
@@ -241,7 +248,9 @@ class ZnDrawBase:  # collections.abc.MutableSequence
 
     @property
     def points(self) -> np.ndarray:
-        data = self.socket.call("points:get", {"token": self.token}, timeout=self.config.call_timeout)
+        data = self.socket.call(
+            "points:get", {"token": self.token}, timeout=self.config.call_timeout
+        )
         return np.array([[val["x"], val["y"], val["z"]] for val in data])
 
     @points.setter
@@ -258,12 +267,17 @@ class ZnDrawBase:  # collections.abc.MutableSequence
 
     @property
     def segments(self) -> np.ndarray:
-        data = self.socket.call("scene:segments", {"token": self.token}, timeout=self.config.call_timeout)
+        data = self.socket.call(
+            "scene:segments", {"token": self.token}, timeout=self.config.call_timeout
+        )
         return np.array(data)
 
     @property
     def step(self) -> int:
-        step = int(self.socket.call("scene:step", {"token": self.token}), timeout=self.config.call_timeout)
+        step = int(
+            self.socket.call("scene:step", {"token": self.token}),
+            timeout=self.config.call_timeout,
+        )
         return step
 
     @step.setter
@@ -273,7 +287,9 @@ class ZnDrawBase:  # collections.abc.MutableSequence
 
     @property
     def selection(self) -> list[int]:
-        return self.socket.call("selection:get", {"token": self.token}, timeout=self.config.call_timeout)
+        return self.socket.call(
+            "selection:get", {"token": self.token}, timeout=self.config.call_timeout
+        )
 
     @selection.setter
     def selection(self, value: list[int]):
@@ -297,7 +313,9 @@ class ZnDrawBase:  # collections.abc.MutableSequence
 
     @property
     def bookmarks(self) -> dict:
-        return self.socket.call("bookmarks:get", {"token": self.token}, timeout=self.config.call_timeout)
+        return self.socket.call(
+            "bookmarks:get", {"token": self.token}, timeout=self.config.call_timeout
+        )
 
     @bookmarks.setter
     def bookmarks(self, value: dict):
