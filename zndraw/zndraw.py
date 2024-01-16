@@ -84,6 +84,7 @@ class ZnDrawBase:  # collections.abc.MutableSequence
         )
         self.socket.on("disconnect", lambda: self.socket.disconnect())
         self.socket.on("modifier:run", self._pre_modifier_run)
+        self.socket.on("message:log", lambda data: print(data))
 
     def _connect(self):
         for _ in range(100):

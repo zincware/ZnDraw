@@ -91,10 +91,8 @@ def disconnect():
             del app.config["ROOM_HOSTS"][token]
         # remove the pyclient from the dict
         try:
-            log.critical(f'{app.config["pyclients"] = }')
             _tmp = {v: k for k, v in app.config["pyclients"].items()}
             del app.config["pyclients"][_tmp[request.sid]]
-            log.critical(f'{app.config["pyclients"] = }')
         except KeyError:
             pass
     log.debug(
@@ -113,11 +111,10 @@ def join(data: dict):
     uuid = data["uuid"]
     auth_token = data["auth_token"]
     session["authenticated"] = auth_token == app.config["AUTH_TOKEN"]
-    log.critical(f"{session['authenticated'] = }")
+    log.debug(f"Client {request.sid} is {session['authenticated'] = }")
     if uuid in app.config["pyclients"]:
-        raise ValueError(
-            f"UUID {uuid} is already registered in {app.config['pyclients']}."
-        )
+        log.critical(f"UUID {uuid} is already registered in {app.config['pyclients']}.")
+        emit("message:log", f"UUID {uuid} is already registered", to=request.sid)
     app.config["pyclients"][uuid] = request.sid
     session["token"] = token
     join_room(f"pyclients_{token}")
@@ -201,15 +198,11 @@ def modifier_run(data):
         emit("modifier:run:finished", to=request.sid)
         return
 
-    # move this to _pyclients_default, maybe rename to _get_pyclient
     name = data["params"]["method"]["discriminator"]
-    # if name in app.config["MODIFIER"]:
-    #     data["sid"] = app.config["MODIFIER"][name]
+
     if name in app.config["PER-TOKEN-DATA"][session["token"]].get("modifier", {}):
-        print("found modifier in custom modifier dict")
         token = app.config["PER-TOKEN-DATA"][session["token"]]["modifier"][name]
         data["sid"] = app.config["pyclients"][token]
-        print(data["sid"])
 
     # need to set the target of the modifier to the webclients room
     data["target"] = session["token"]
@@ -380,12 +373,16 @@ def modifier_register(data):
         # we can only register one modifier at a time
         name = data["modifiers"][0]["name"]
         if name in app.config["MODIFIER"]["default_schema"]:
-            raise ValueError(
-                f"Modifier {data['modifiers'][0]['name']} is already registered (default)."
+            msg = f"Modifier {name} is already registered (default)."
+            log.critical(
+                msg
             )
+            emit("message:log", msg, to=request.sid)
 
         if name in app.config["PER-TOKEN-DATA"][session["token"]]["modifier"]:
-            raise ValueError(f"Modifier {name} is already registered.")
+            msg = f"Modifier {name} is already registered."
+            log.critical(msg)
+            emit("message:log", msg, to=request.sid)
         # get the key from the value request.sid by inverting the dict
         _tmp = {v: k for k, v in app.config["pyclients"].items()}
         app.config["PER-TOKEN-DATA"][session["token"]]["modifier"][name] = _tmp[
