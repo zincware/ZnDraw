@@ -104,8 +104,12 @@ def connect():
 def disconnect():
     with contextlib.suppress(KeyError):
         token = session["token"]
-        # leave_room(token) # I guess if disconnect, it will automatically leave the room?
-        # leave_room("webclients") # wrap in try..except?
+        try:
+            log.critical(f"Removing {request.sid} from {app.config['pyclients']}")
+            del app.config["pyclients"][_get_uuid_for_sid(request.sid)]
+            log.critical(f"Removed {request.sid} from {app.config['pyclients']}")
+        except KeyError:
+            pass
         try:
             app.config["ROOM_HOSTS"][token].remove(request.sid)
         except ValueError:
@@ -113,10 +117,6 @@ def disconnect():
         if not app.config["ROOM_HOSTS"][token]:
             del app.config["ROOM_HOSTS"][token]
         # remove the pyclient from the dict
-        try:
-            del app.config["pyclients"][_get_uuid_for_sid(request.sid)]
-        except KeyError:
-            pass
     log.debug(
         f'disconnect {request.sid} and updated HOSTS to {app.config["ROOM_HOSTS"]}'
     )
