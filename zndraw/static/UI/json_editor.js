@@ -152,7 +152,8 @@ function modifier_editor(socket, cache, world) {
     console.log(new Date().toISOString(), "modifier:run:enqueue");
     document.getElementById("interaction-json-editor-submit").disabled = true;
     document.getElementById("interaction-json-editor-submit").innerHTML =
-      '<i class="fa-solid fa-hourglass-start"></i> Job queued at position ' + position;
+      '<i class="fa-solid fa-hourglass-start"></i> Job queued at position ' +
+      position;
   });
 
   // Check if a running response is received
@@ -167,8 +168,7 @@ function modifier_editor(socket, cache, world) {
     console.log(new Date().toISOString(), "modifier:run:finished");
     document.getElementById("interaction-json-editor-submit").innerHTML =
       '<i class="fa-solid fa-play"></i> Run Modifier';
-    document.getElementById("interaction-json-editor-submit").disabled =
-      false;
+    document.getElementById("interaction-json-editor-submit").disabled = false;
   });
 
   document

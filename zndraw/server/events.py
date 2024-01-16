@@ -44,10 +44,11 @@ def _pyclients_default(data: dict) -> str:
         return data["sid"]
     return app.config["DEFAULT_PYCLIENT"]
 
+
 def _get_queue_position(job_id) -> int:
     """Return the position of the job_id in the queue."""
     try:
-        # we add +1, because the job that is currently 
+        # we add +1, because the job that is currently
         # running is not in the queue anymore
         return app.config["MODIFIER"]["queue"].index(job_id) + 1
     except ValueError:
@@ -173,6 +174,7 @@ def scene_schema():
 
     return schema
 
+
 @io.on("modifier:run")
 def modifier_run(data):
     # emit entered the queue
@@ -194,7 +196,11 @@ def modifier_run(data):
             print("modifier_lock acquired")
             break
         else:
-            emit("modifier:run:enqueue", _get_queue_position(JOB_ID), to=_webclients_room({"token": session["token"]}))
+            emit(
+                "modifier:run:enqueue",
+                _get_queue_position(JOB_ID),
+                to=_webclients_room({"token": session["token"]}),
+            )
             print("waiting for modifier_lock")
             io.sleep(1)
     # move this to _pyclients_default, maybe rename to _get_pyclient
