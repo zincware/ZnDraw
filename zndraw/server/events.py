@@ -104,8 +104,10 @@ def connect():
 def disconnect():
     with contextlib.suppress(KeyError):
         token = session["token"]
-        # leave_room(token) # I guess if disconnect, it will automatically leave the room?
-        # leave_room("webclients") # wrap in try..except?
+        try:
+            del app.config["pyclients"][_get_uuid_for_sid(request.sid)]
+        except KeyError:
+            pass
         try:
             app.config["ROOM_HOSTS"][token].remove(request.sid)
         except ValueError:
@@ -113,10 +115,6 @@ def disconnect():
         if not app.config["ROOM_HOSTS"][token]:
             del app.config["ROOM_HOSTS"][token]
         # remove the pyclient from the dict
-        try:
-            del app.config["pyclients"][_get_uuid_for_sid(request.sid)]
-        except KeyError:
-            pass
     log.debug(
         f'disconnect {request.sid} and updated HOSTS to {app.config["ROOM_HOSTS"]}'
     )
@@ -477,3 +475,10 @@ def modifier_run_finished(data: dict):
     modifier_lock.release()
     print("modifier_lock released")
     emit("modifier:run:finished", data, include_self=False, to=_webclients_room(data))
+
+
+@io.on("modifier:run:failed")
+def modifier_run_failed():
+    app.config["MODIFIER"]["active"] = None
+    modifier_lock.release()
+    log.critical("Modifier failed - releasing lock.")
