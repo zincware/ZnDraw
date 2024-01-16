@@ -373,7 +373,7 @@ def modifier_register(data):
         # we can only register one modifier at a time
         name = data["modifiers"][0]["name"]
         if name in app.config["MODIFIER"]["default_schema"]:
-            msg = f"Modifier {name} is already registered (default)."
+            msg = f"'{name}' is already registered as a default modifier and therefore reserved. Choose another name for your modifier!"
             log.critical(msg)
             emit("message:log", msg, to=request.sid)
 
