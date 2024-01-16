@@ -7,7 +7,7 @@ socketio = SocketIO()
 
 
 def create_app(
-    use_token, upgrade_insecure_requests, compute_bonds, tutorial: str
+    use_token, upgrade_insecure_requests, compute_bonds, tutorial: str, auth_token: str
 ) -> Flask:
     """Create the Flask app."""
 
@@ -21,6 +21,7 @@ def create_app(
     app.config["pyclients"] = {}
     # dict of {token: dict}
     app.config["PER-TOKEN-DATA"] = {}
+    app.config["AUTH_TOKEN"] = auth_token
 
     if not use_token:  # TODO: handle this differently
         app.config["token"] = "notoken"

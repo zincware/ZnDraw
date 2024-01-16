@@ -61,6 +61,7 @@ class ZnDrawBase:  # collections.abc.MutableSequence
     token: str = "notoken"
     display_new: bool = True
     _uuid: uuid.UUID = dataclasses.field(default_factory=uuid.uuid4)
+    auth_token: str = None
 
     _target_sid: str = None
 
@@ -69,7 +70,7 @@ class ZnDrawBase:  # collections.abc.MutableSequence
         self.socket = socketio.Client()
         self.socket.on(
             "connect",
-            lambda: self.socket.emit("join", {"token": self.token, "uuid": self._uuid}),
+            lambda: self.socket.emit("join", {"token": self.token, "uuid": self._uuid, "auth_token": self.auth_token}),
         )
         self.socket.on("disconnect", lambda: self.socket.disconnect())
         self.socket.on("modifier:run", self._pre_modifier_run)

@@ -111,6 +111,9 @@ def join(data: dict):
     # only used by pyclients that only connect via socket (no HTML)
     token = data["token"]
     uuid = data["uuid"]
+    auth_token = data["auth_token"]
+    session["authenticated"] = auth_token == app.config["AUTH_TOKEN"]
+    log.critical(f"{session['authenticated'] = }")
     if uuid in app.config["pyclients"]:
         raise ValueError(f"UUID {uuid} is already registered in {app.config['pyclients']}.")
     app.config["pyclients"][uuid] = request.sid
@@ -200,7 +203,7 @@ def modifier_run(data):
     name = data["params"]["method"]["discriminator"]
     # if name in app.config["MODIFIER"]:
     #     data["sid"] = app.config["MODIFIER"][name]
-    if name in app.config["PER-TOKEN-DATA"][session["token"]]["modifier"]:
+    if name in app.config["PER-TOKEN-DATA"][session["token"]].get("modifier", {}):
         print("found modifier in custom modifier dict")
         token = app.config["PER-TOKEN-DATA"][session["token"]]["modifier"][name]
         data["sid"] = app.config["pyclients"][token]
@@ -390,6 +393,8 @@ def modifier_register(data):
         log.critical(f'{app.config["pyclients"] = }')
         
         if data["modifiers"][0]["default"]:
+            if not session["authenticated"]:
+                raise ValueError("Unauthenticated users cannot register default modifiers.")
             log.critical(app.config["MODIFIER"])
             log.critical(f"{name = }")
             app.config["MODIFIER"]["default_schema"][name] = data["modifiers"][0][
