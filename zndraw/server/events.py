@@ -394,8 +394,6 @@ def modifier_register(data):
                 msg = "Unauthenticated users cannot register default modifiers."
                 log.critical(msg)
                 emit("message:log", msg, to=request.sid)
-            log.critical(app.config["MODIFIER"])
-            log.critical(f"{name = }")
             app.config["MODIFIER"]["default_schema"][name] = data["modifiers"][0][
                 "schema"
             ]
