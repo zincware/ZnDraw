@@ -186,12 +186,6 @@ function modifier_editor(socket, cache, world) {
       });
 
       document.getElementById("interaction-json-editor-submit").disabled = true;
-
-      // socket.on("modifier:run:submitted", () => {
-      //   console.log(new Date().toISOString(), "modifier:run:submitted");
-      // });
-
-
     });
 
   socket.on("modifier:schema", (data) => {

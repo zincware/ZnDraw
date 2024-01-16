@@ -44,6 +44,15 @@ def _pyclients_default(data: dict) -> str:
         return data["sid"]
     return app.config["DEFAULT_PYCLIENT"]
 
+def _get_queue_position(job_id) -> int:
+    """Return the position of the job_id in the queue."""
+    try:
+        # we add +1, because the job that is currently 
+        # running is not in the queue anymore
+        return app.config["MODIFIER"]["queue"].index(job_id) + 1
+    except ValueError:
+        return -1
+
 
 @io.on("connect")
 def connect():
@@ -55,7 +64,6 @@ def connect():
 
         token = session["token"]
         join_room(f"webclients_{token}")
-        log.critical(f"joined webclients_{token}")
         # who ever connected latest is the HOST of the room
         try:
             app.config["ROOM_HOSTS"][token].append(request.sid)
@@ -164,15 +172,6 @@ def scene_schema():
     schema["properties"]["bonds"]["format"] = "checkbox"
 
     return schema
-
-def _get_queue_position(job_id) -> int:
-    """Return the position of the current job in the queue."""
-    try:
-        # we add +1, because the job that is currently 
-        # running is not in the queue anymore
-        return app.config["MODIFIER"]["queue"].index(job_id) + 1
-    except ValueError:
-        return -1
 
 @io.on("modifier:run")
 def modifier_run(data):
