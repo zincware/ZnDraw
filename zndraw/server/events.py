@@ -1,6 +1,7 @@
 import contextlib
 import logging
 from threading import Lock
+from uuid import uuid4
 
 from flask import current_app as app
 from flask import request, session
@@ -42,6 +43,16 @@ def _pyclients_default(data: dict) -> str:
     if "sid" in data:
         return data["sid"]
     return app.config["DEFAULT_PYCLIENT"]
+
+
+def _get_queue_position(job_id) -> int:
+    """Return the position of the job_id in the queue."""
+    try:
+        # we add +1, because the job that is currently
+        # running is not in the queue anymore
+        return app.config["MODIFIER"]["queue"].index(job_id) + 1
+    except ValueError:
+        return -1
 
 
 @io.on("connect")
@@ -167,34 +178,36 @@ def scene_schema():
 @io.on("modifier:run")
 def modifier_run(data):
     # emit entered the queue
-    running_jobs = app.config["MODIFIER"].get("num_jobs", 0) + 1
-    app.config["MODIFIER"]["num_jobs"] = running_jobs
+    JOB_ID = uuid4()
+    app.config["MODIFIER"]["queue"].append(JOB_ID)
+
     name = data["params"]["method"]["discriminator"]
-    emit(
-        "message:log",
-        f"Modifier {name} enqueued. {running_jobs} running jobs.",
-        to=request.sid,
-    )
-    emit(
-        "modifier:run:running", to=request.sid
-    )  # Without this the JavaScript part kills this because it has no response.
     while True:
-        acquired = modifier_lock.acquire(blocking=False)
+        if app.config["MODIFIER"]["queue"][0] == JOB_ID:
+            acquired = modifier_lock.acquire(blocking=False)
+        else:
+            acquired = False
         if acquired:
             print("modifier_lock acquired")
             break
         else:
-            io.sleep(1)
+            emit(
+                "modifier:run:enqueue",
+                _get_queue_position(JOB_ID),
+                to=_webclients_room({"token": session["token"]}),
+            )
             print("waiting for modifier_lock")
-
+            io.sleep(1)
     # move this to _pyclients_default, maybe rename to _get_pyclient
     if name in app.config["MODIFIER"]:
         data["sid"] = app.config["MODIFIER"][name]
 
     # need to set the target of the modifier to the webclients room
     data["target"] = session["token"]
-
+    # This should not go to request.sid but all webclients in the room
+    emit("modifier:run:submitted", {}, to=_webclients_room({"token": session["token"]}))
     emit("modifier:run", data, to=_pyclients_default(data))
+    app.config["MODIFIER"]["queue"].remove(JOB_ID)
 
 
 @io.on("analysis:run")
@@ -405,7 +418,6 @@ def modifier_run_running(data: dict):
 @io.on("modifier:run:finished")
 def modifier_run_finished(data: dict):
     app.config["MODIFIER"]["active"] = None
-    app.config["MODIFIER"]["num_jobs"] -= 1
     modifier_lock.release()
     print("modifier_lock released")
     emit("modifier:run:finished", data, include_self=False, to=_webclients_room(data))
