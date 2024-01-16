@@ -275,8 +275,11 @@ class ZnDrawBase:  # collections.abc.MutableSequence
     @property
     def step(self) -> int:
         step = int(
-            self.socket.call("scene:step", {"token": self.token}),
-            timeout=self.config.call_timeout,
+            self.socket.call(
+                "scene:step",
+                {"token": self.token},
+                timeout=self.config.call_timeout,
+            )
         )
         return step
 
