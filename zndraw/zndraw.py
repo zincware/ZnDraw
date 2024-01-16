@@ -55,6 +55,9 @@ class ZnDrawBase:  # collections.abc.MutableSequence
     _uuid : uuid.UUID
         Unique identifier for this instance. Can be set for reconnecting
         but only ONE instance with the same uuid can be connected at the same time.
+    auth_token : str
+        Authentication token, used e.g. for registering modifiers to all users and
+        not just the current session.
     """
 
     url: str
