@@ -125,14 +125,16 @@
               <i class="fa-solid fa-circle-info"></i>
             </button>
           </li>
+          {% if token == "notoken" %}
           <li class="nav-item mx-1">
             <a class="btn btn-outline-info " href="/" role="button"><i class="fa-solid fa-rotate-right"></i></a>
           </li>
           <li class="nav-item mx-1">
-            <button class="btn btn-outline-danger" id="ExitBtn">
+            <a class="btn btn-outline-danger" id="ExitBtn" href="/exit">
               <i class="fa-solid fa-circle-xmark"></i>
-            </button>
+            </a>
           </li>
+          {% endif %}
         </ul>
       </div>
     </div>

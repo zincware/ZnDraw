@@ -81,4 +81,3 @@ def file(file: str):
     proc.start()
 
     return redirect(url)
-    x

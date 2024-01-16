@@ -231,10 +231,6 @@ export function setUIEvents(socket, cache, world) {
   setupMobile();
   setupDragDrop(socket);
 
-  document.getElementById("ExitBtn").addEventListener("click", () => {
-    fetch("/exit", { method: "GET" });
-  });
-
   socket.on("download:response", (data) => {
     const blob = new Blob([data], { type: "text/csv" });
     const elem = window.document.createElement("a");
