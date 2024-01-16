@@ -1,6 +1,8 @@
 import contextlib
 import logging
 import traceback
+from threading import Lock
+from uuid import uuid4
 
 from flask import current_app as app
 from flask import request, session
@@ -9,6 +11,8 @@ from flask_socketio import call, emit, join_room
 from ..app import socketio as io
 
 log = logging.getLogger(__name__)
+
+modifier_lock = Lock()
 
 
 def _webclients_room(data: dict) -> str:
@@ -49,6 +53,15 @@ def _get_uuid_for_sid(sid) -> str:
     """
     inv_clients = {v: k for k, v in app.config["pyclients"].items()}
     return inv_clients[sid]
+
+def _get_queue_position(job_id) -> int:
+    """Return the position of the job_id in the queue."""
+    try:
+        # we add +1, because the job that is currently
+        # running is not in the queue anymore
+        return app.config["MODIFIER"]["queue"].index(job_id) + 1
+    except ValueError:
+        return -1
 
 
 @io.on("connect")
@@ -195,19 +208,28 @@ def scene_schema():
 
 @io.on("modifier:run")
 def modifier_run(data):
-    # if any modifier is running, print an alert message to try later
-    if app.config["MODIFIER"]["active"] is not None:
-        emit(
-            "message:alert",
-            "Another modifier is running, try again later.",
-            to=request.sid,
-        )
-        emit("modifier:run:running", to=request.sid)
-        emit("modifier:run:finished", to=request.sid)
-        return
+    # emit entered the queue
+    JOB_ID = uuid4()
+    app.config["MODIFIER"]["queue"].append(JOB_ID)
+    
+    while True:
+        if app.config["MODIFIER"]["queue"][0] == JOB_ID:
+            acquired = modifier_lock.acquire(blocking=False)
+        else:
+            acquired = False
+        if acquired:
+            print("modifier_lock acquired")
+            break
+        else:
+            emit(
+                "modifier:run:enqueue",
+                _get_queue_position(JOB_ID),
+                to=_webclients_room({"token": session["token"]}),
+            )
+            print("waiting for modifier_lock")
+            io.sleep(1)
 
     name = data["params"]["method"]["discriminator"]
-
     # handle custom modifiers (not default)
     if name in app.config["PER-TOKEN-DATA"][session["token"]].get("modifier", {}):
         token = app.config["PER-TOKEN-DATA"][session["token"]]["modifier"][name]
@@ -218,8 +240,10 @@ def modifier_run(data):
 
     # need to set the target of the modifier to the webclients room
     data["target"] = session["token"]
-
+    # This should not go to request.sid but all webclients in the room
+    emit("modifier:run:submitted", {}, to=_webclients_room({"token": session["token"]}))
     emit("modifier:run", data, to=_pyclients_default(data))
+    app.config["MODIFIER"]["queue"].remove(JOB_ID)
 
 
 @io.on("analysis:run")
@@ -449,4 +473,6 @@ def modifier_run_running(data: dict):
 @io.on("modifier:run:finished")
 def modifier_run_finished(data: dict):
     app.config["MODIFIER"]["active"] = None
+    modifier_lock.release()
+    print("modifier_lock released")
     emit("modifier:run:finished", data, include_self=False, to=_webclients_room(data))
