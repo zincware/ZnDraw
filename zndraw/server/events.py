@@ -477,3 +477,9 @@ def modifier_run_finished(data: dict):
     modifier_lock.release()
     print("modifier_lock released")
     emit("modifier:run:finished", data, include_self=False, to=_webclients_room(data))
+
+@io.on("modifier:run:failed")
+def modifier_run_failed():
+    app.config["MODIFIER"]["active"] = None
+    modifier_lock.release()
+    log.critical(f"Modifier failed - releasing lock.")
