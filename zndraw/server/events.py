@@ -54,6 +54,7 @@ def _get_uuid_for_sid(sid) -> str:
     inv_clients = {v: k for k, v in app.config["pyclients"].items()}
     return inv_clients[sid]
 
+
 def _get_queue_position(job_id) -> int:
     """Return the position of the job_id in the queue."""
     try:
@@ -211,7 +212,7 @@ def modifier_run(data):
     # emit entered the queue
     JOB_ID = uuid4()
     app.config["MODIFIER"]["queue"].append(JOB_ID)
-    
+
     while True:
         if app.config["MODIFIER"]["queue"][0] == JOB_ID:
             acquired = modifier_lock.acquire(blocking=False)
