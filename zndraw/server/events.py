@@ -41,6 +41,14 @@ def _pyclients_default(data: dict) -> str:
         return data["sid"]
     return app.config["DEFAULT_PYCLIENT"]
 
+def _get_uuid_for_sid(sid) -> str:
+    """Given a sid, return the UUID that is associated with it.
+    The SID is given by flask, the UUID is defined by zndraw
+    and can be used to reconnect.
+    """
+    inv_clients = {v: k for k, v in app.config["pyclients"].items()}
+    return inv_clients[sid]
+
 
 @io.on("connect")
 def connect():
@@ -91,8 +99,7 @@ def disconnect():
             del app.config["ROOM_HOSTS"][token]
         # remove the pyclient from the dict
         try:
-            _tmp = {v: k for k, v in app.config["pyclients"].items()}
-            del app.config["pyclients"][_tmp[request.sid]]
+            del app.config["pyclients"][_get_uuid_for_sid(request.sid)]
         except KeyError:
             pass
     log.debug(
@@ -385,10 +392,7 @@ def modifier_register(data):
             log.critical(msg)
             emit("message:log", msg, to=request.sid)
         # get the key from the value request.sid by inverting the dict
-        _tmp = {v: k for k, v in app.config["pyclients"].items()}
-        app.config["PER-TOKEN-DATA"][session["token"]]["modifier"][name] = _tmp[
-            request.sid
-        ]
+        app.config["PER-TOKEN-DATA"][session["token"]]["modifier"][name] = _get_uuid_for_sid(request.sid)
         log.critical(f'{app.config["PER-TOKEN-DATA"] = }')
         log.critical(f'{app.config["pyclients"] = }')
 
@@ -400,7 +404,7 @@ def modifier_register(data):
             app.config["MODIFIER"]["default_schema"][name] = data["modifiers"][0][
                 "schema"
             ]
-            app.config["MODIFIER"][name] = _tmp[request.sid]
+            app.config["MODIFIER"][name] = _get_uuid_for_sid(request.sid)
     except KeyError:
         print("Could not identify the modifier name.")
         traceback.print_exc()
