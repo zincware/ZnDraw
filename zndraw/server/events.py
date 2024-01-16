@@ -374,9 +374,7 @@ def modifier_register(data):
         name = data["modifiers"][0]["name"]
         if name in app.config["MODIFIER"]["default_schema"]:
             msg = f"Modifier {name} is already registered (default)."
-            log.critical(
-                msg
-            )
+            log.critical(msg)
             emit("message:log", msg, to=request.sid)
 
         if name in app.config["PER-TOKEN-DATA"][session["token"]]["modifier"]:
