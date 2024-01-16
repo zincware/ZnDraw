@@ -83,6 +83,11 @@ class ZnDrawBase:  # collections.abc.MutableSequence
                 self.socket.sleep(0.1)
         else:
             raise socketio.exceptions.ConnectionError
+    
+    def reconnect(self) -> None:
+        """Reconnect to the server."""
+        self.socket.disconnect()
+        self._connect()
 
     @contextlib.contextmanager
     def _set_sid(self, sid):

@@ -89,6 +89,14 @@ def disconnect():
             pass  # SID not in the list
         if not app.config["ROOM_HOSTS"][token]:
             del app.config["ROOM_HOSTS"][token]
+        # remove the pyclient from the dict
+        try:
+            log.critical(f'{app.config["pyclients"] = }')
+            _tmp = {v: k for k, v in app.config["pyclients"].items()}
+            del app.config["pyclients"][_tmp[request.sid]]
+            log.critical(f'{app.config["pyclients"] = }')
+        except KeyError:
+            pass
     log.debug(
         f'disconnect {request.sid} and updated HOSTS to {app.config["ROOM_HOSTS"]}'
     )
@@ -104,7 +112,7 @@ def join(data: dict):
     token = data["token"]
     uuid = data["uuid"]
     if uuid in app.config["pyclients"]:
-        raise ValueError(f"UUID {uuid} is already registered.")
+        raise ValueError(f"UUID {uuid} is already registered in {app.config['pyclients']}.")
     app.config["pyclients"][uuid] = request.sid
     session["token"] = token
     join_room(f"pyclients_{token}")
@@ -366,6 +374,13 @@ def modifier_register(data):
     try:
         # we can only register one modifier at a time
         name = data["modifiers"][0]["name"]
+        if name in app.config["MODIFIER"]["default_schema"]:
+            raise ValueError(
+                f"Modifier {data['modifiers'][0]['name']} is already registered (default)."
+            )
+
+        if name in app.config["PER-TOKEN-DATA"][session["token"]]["modifier"]:
+            raise ValueError(f"Modifier {name} is already registered.")
         # get the key from the value request.sid by inverting the dict
         _tmp = {v: k for k, v in app.config["pyclients"].items()}
         app.config["PER-TOKEN-DATA"][session["token"]]["modifier"][name] = _tmp[
@@ -373,21 +388,13 @@ def modifier_register(data):
         ]
         log.critical(f'{app.config["PER-TOKEN-DATA"] = }')
         log.critical(f'{app.config["pyclients"] = }')
-
-        # if name in app.config["MODIFIER"]:
-        #     # issue with the same modifier name on different webclients / tokens!
-        #     # only for default we need to ensure, there is only one.
-        #     raise ValueError(f"Modifier {name} is already registered.")
-        # app.config["MODIFIER"][name] = request.sid
+        
         if data["modifiers"][0]["default"]:
-            if name in app.config["MODIFIER"]:
-                raise ValueError(
-                    f"Modifier {data['modifiers'][0]['name']} is already registered."
-                )
-            else:
-                app.config["MODIFIER"]["default_schema"][name] = data["modifiers"][0][
-                    "schema"
-                ]
+            log.critical(app.config["MODIFIER"])
+            log.critical(f"{name = }")
+            app.config["MODIFIER"]["default_schema"][name] = data["modifiers"][0][
+                "schema"
+            ]
     except KeyError:
         print("Could not identify the modifier name.")
         traceback.print_exc()
