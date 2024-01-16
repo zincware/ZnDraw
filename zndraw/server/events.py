@@ -182,11 +182,6 @@ def modifier_run(data):
     app.config["MODIFIER"]["queue"].append(JOB_ID)
 
     name = data["params"]["method"]["discriminator"]
-    emit(
-        "message:log",
-        f"Modifier {name} enqueued. {_get_queue_position(JOB_ID)} running jobs.",
-        to=request.sid,
-    )
     while True:
         if app.config["MODIFIER"]["queue"][0] == JOB_ID:
             acquired = modifier_lock.acquire(blocking=False)
