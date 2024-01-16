@@ -531,7 +531,7 @@ class ZnDrawDefault(ZnDrawBase):
 
         data = {"schema": schema, "token": sid}
         self.socket.emit("modifier:schema", data)
-    
+
     def trash_scene(self, data):
         with self._set_token(data["target"]):
             # remove everything after the current step
