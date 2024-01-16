@@ -1,9 +1,9 @@
 import contextlib
+import datetime
 import logging
 import traceback
 from threading import Lock
 from uuid import uuid4
-import datetime
 
 from flask import current_app as app
 from flask import request, session
@@ -98,7 +98,7 @@ def connect():
         emit("message:log", "Connection established", to=request.sid)
         if token not in app.config["PER-TOKEN-DATA"]:
             app.config["PER-TOKEN-DATA"][token] = {}
-        
+
         # append to zndraw.log a line isoformat() + " " + token
         with open("zndraw.log", "a") as f:
             f.write(datetime.datetime.now().isoformat() + " " + token + "\n")
