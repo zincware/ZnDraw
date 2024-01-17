@@ -100,8 +100,9 @@ def connect():
             app.config["PER-TOKEN-DATA"][token] = {}
 
         # append to zndraw.log a line isoformat() + " " + token
-        with open("zndraw.log", "a") as f:
-            f.write(datetime.datetime.now().isoformat() + " " + token + "\n")
+        if "token" not in app.config:
+            with open("zndraw.log", "a") as f:
+                f.write(datetime.datetime.now().isoformat() + " " + token + " connected \n")
 
 
 @io.on("disconnect")
@@ -112,6 +113,9 @@ def disconnect():
             del app.config["pyclients"][_get_uuid_for_sid(request.sid)]
         except KeyError:
             pass
+        if "token" not in app.config:
+            with open("zndraw.log", "a") as f:
+                f.write(datetime.datetime.now().isoformat() + " " + token + " disconnected \n")
         try:
             app.config["ROOM_HOSTS"][token].remove(request.sid)
         except ValueError:
