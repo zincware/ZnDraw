@@ -128,7 +128,7 @@ class Selection {
         this.line3D.pointer = this.line3D.addPointer();
       }
       const position = particleIntersects[0].point.clone();
-      this.line3D.movePointer(position);
+      this.line3D.movePointer(position, event.clientX, event.clientY);
       this.line3D.changeLineColor(0x000000);
       this.line3D.changeLastPointColor(0x000000);
     } else if (
@@ -140,7 +140,7 @@ class Selection {
         this.line3D.pointer = this.line3D.addPointer();
       }
       const position = canvasIntersects[0].point.clone();
-      this.line3D.movePointer(position);
+      this.line3D.movePointer(position, event.clientX, event.clientY);
       this.line3D.changeLineColor(0x000000);
       this.line3D.changeLastPointColor(0x000000);
     } else {
@@ -156,7 +156,7 @@ class Selection {
       );
       const position = new THREE.Vector3();
       this.raycaster.ray.intersectPlane(plane, position);
-      this.line3D.movePointer(position);
+      this.line3D.movePointer(position, event.clientX, event.clientY);
       this.line3D.changeLineColor(0xff0000);
       this.line3D.changeLastPointColor(0xff0000);
       // }

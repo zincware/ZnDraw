@@ -196,6 +196,10 @@ def scene_schema():
             True,
             description="Show bonds.",
         )
+        line_label: bool = Field(
+            True,
+            description="Show the length of the line.",
+        )
         label_offset: int = Field(
             0,
             ge=-7,
@@ -216,6 +220,7 @@ def scene_schema():
     schema["properties"]["bonds_size"]["format"] = "range"
     schema["properties"]["bonds_size"]["step"] = 0.1
     schema["properties"]["bonds"]["format"] = "checkbox"
+    schema["properties"]["line_label"]["format"] = "checkbox"
 
     return schema
 
