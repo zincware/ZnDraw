@@ -45,16 +45,16 @@ function selection_editor(socket, cache, world) {
         console.log(new Date().toISOString(), "running selection");
         // Get the value from the editor
         const errors = editor.validate();
-      if (errors.length) {
-        console.log(errors);
-      }else{
-        const value = editor.getValue();
-        console.log(value);
+        if (errors.length) {
+          console.log(errors);
+        } else {
+          const value = editor.getValue();
+          console.log(value);
 
-        socket.emit("selection:run", {
-          params: value,
-        });
-      }
+          socket.emit("selection:run", {
+            params: value,
+          });
+        }
       });
   });
 }
@@ -102,38 +102,39 @@ function analysis_editor(socket, cache, world) {
       .addEventListener("click", () => {
         // Get the value from the editor
         const errors = editor.validate();
-      if (errors.length) {
-        console.log(errors);
-      }else{
-        const value = editor.getValue();
+        if (errors.length) {
+          console.log(errors);
+        } else {
+          const value = editor.getValue();
 
-        socket.on("analysis:figure", (data) => {
-          Plotly.newPlot("analysisPlot", JSON.parse(data));
-
-          function buildPlot() {
+          socket.on("analysis:figure", (data) => {
             Plotly.newPlot("analysisPlot", JSON.parse(data));
-            const myplot = document.getElementById("analysisPlot");
-            myplot.on("plotly_click", (data) => {
-              const point = data.points[0];
-              const step = point.x;
-              world.setStep(step);
-            });
-          }
 
-          buildPlot();
-        });
+            function buildPlot() {
+              Plotly.newPlot("analysisPlot", JSON.parse(data));
+              const myplot = document.getElementById("analysisPlot");
+              myplot.on("plotly_click", (data) => {
+                const point = data.points[0];
+                const step = point.x;
+                world.setStep(step);
+              });
+            }
 
-        socket.emit("analysis:run", {
-          params: value,
-        });
+            buildPlot();
+          });
 
-        document.getElementById("analysis-json-editor-submit").disabled = true;
-        // if there is an error in uploading, we still want to be able to submit again
-        setTimeout(() => {
+          socket.emit("analysis:run", {
+            params: value,
+          });
+
           document.getElementById("analysis-json-editor-submit").disabled =
-            false;
-        }, 1000);
-      }
+            true;
+          // if there is an error in uploading, we still want to be able to submit again
+          setTimeout(() => {
+            document.getElementById("analysis-json-editor-submit").disabled =
+              false;
+          }, 1000);
+        }
       });
   });
 }
@@ -189,18 +190,19 @@ function modifier_editor(socket, cache, world) {
       const errors = editor.validate();
       if (errors.length) {
         console.log(errors);
-      }else{
+      } else {
         const value = editor.getValue();
-      console.log(value);
+        console.log(value);
 
-      responseReceived = false;
+        responseReceived = false;
 
-      socket.emit("modifier:run", {
-        params: value,
-        url: window.location.href,
-      });
+        socket.emit("modifier:run", {
+          params: value,
+          url: window.location.href,
+        });
 
-      document.getElementById("interaction-json-editor-submit").disabled = true;
+        document.getElementById("interaction-json-editor-submit").disabled =
+          true;
       }
     });
 
