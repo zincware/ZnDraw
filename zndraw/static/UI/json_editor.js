@@ -44,12 +44,17 @@ function selection_editor(socket, cache, world) {
       .addEventListener("click", () => {
         console.log(new Date().toISOString(), "running selection");
         // Get the value from the editor
+        const errors = editor.validate();
+      if (errors.length) {
+        console.log(errors);
+      }else{
         const value = editor.getValue();
         console.log(value);
 
         socket.emit("selection:run", {
           params: value,
         });
+      }
       });
   });
 }
@@ -96,6 +101,10 @@ function analysis_editor(socket, cache, world) {
       .getElementById("analysis-json-editor-submit")
       .addEventListener("click", () => {
         // Get the value from the editor
+        const errors = editor.validate();
+      if (errors.length) {
+        console.log(errors);
+      }else{
         const value = editor.getValue();
 
         socket.on("analysis:figure", (data) => {
@@ -124,6 +133,7 @@ function analysis_editor(socket, cache, world) {
           document.getElementById("analysis-json-editor-submit").disabled =
             false;
         }, 1000);
+      }
       });
   });
 }
@@ -176,7 +186,11 @@ function modifier_editor(socket, cache, world) {
     .getElementById("interaction-json-editor-submit")
     .addEventListener("click", () => {
       // Get the value from the editor
-      const value = editor.getValue();
+      const errors = editor.validate();
+      if (errors.length) {
+        console.log(errors);
+      }else{
+        const value = editor.getValue();
       console.log(value);
 
       responseReceived = false;
@@ -187,6 +201,7 @@ function modifier_editor(socket, cache, world) {
       });
 
       document.getElementById("interaction-json-editor-submit").disabled = true;
+      }
     });
 
   socket.on("modifier:schema", (data) => {
