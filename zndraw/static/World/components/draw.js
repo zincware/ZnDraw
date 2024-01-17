@@ -265,7 +265,8 @@ export class Line3D extends THREE.Group {
     // log the length of the line
     if (x !== undefined && this.curve !== undefined && this.show_label) {
       const length = this.curve.getLength();
-      document.getElementById("pointerInfoBoxBody").innerHTML = `${length.toFixed(2)} Å`;
+      document.getElementById("pointerInfoBoxBody").innerHTML =
+        `${length.toFixed(2)} Å`;
       document.getElementById("pointerInfoBox").style.display = "block";
       document.getElementById("pointerInfoBox").style.left = `${x + 10}px`;
       document.getElementById("pointerInfoBox").style.top = `${y}px`;
