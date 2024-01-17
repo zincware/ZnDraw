@@ -264,14 +264,17 @@ def modifier_run(data):
 
     io.sleep(TIMEOUT)
     if JOB_ID in app.config["MODIFIER"]["queue"]:
-        # modifier failed 
+        # modifier failed
         app.config["MODIFIER"]["queue"].pop(0)
         app.config["MODIFIER"]["active"] = None
         modifier_lock.release()
         log.critical("Modifier failed - releasing lock.")
         # TODO: emit a error message that the modifier failed to the webclients
-        emit("modifier:run:criticalfail", {}, to=_webclients_room({"token": session["token"]}))
-        
+        emit(
+            "modifier:run:criticalfail",
+            {},
+            to=_webclients_room({"token": session["token"]}),
+        )
 
 
 @io.on("analysis:run")
