@@ -59,9 +59,7 @@ def _get_uuid_for_sid(sid) -> str:
 def _get_queue_position(job_id) -> int:
     """Return the position of the job_id in the queue."""
     try:
-        # we add +1, because the job that is currently
-        # running is not in the queue anymore
-        return app.config["MODIFIER"]["queue"].index(job_id) + 1
+        return app.config["MODIFIER"]["queue"].index(job_id)
     except ValueError:
         return -1
 
@@ -229,6 +227,7 @@ def scene_schema():
 def modifier_run(data):
     # emit entered the queue
     JOB_ID = uuid4()
+    TIMEOUT = 10
     app.config["MODIFIER"]["queue"].append(JOB_ID)
 
     while True:
@@ -262,7 +261,17 @@ def modifier_run(data):
     # This should not go to request.sid but all webclients in the room
     emit("modifier:run:submitted", {}, to=_webclients_room({"token": session["token"]}))
     emit("modifier:run", data, to=_pyclients_default(data))
-    app.config["MODIFIER"]["queue"].remove(JOB_ID)
+
+    io.sleep(TIMEOUT)
+    if JOB_ID in app.config["MODIFIER"]["queue"]:
+        # modifier failed 
+        app.config["MODIFIER"]["queue"].pop(0)
+        app.config["MODIFIER"]["active"] = None
+        modifier_lock.release()
+        log.critical("Modifier failed - releasing lock.")
+        # TODO: emit a error message that the modifier failed to the webclients
+        emit("modifier:run:criticalfail", {}, to=_webclients_room({"token": session["token"]}))
+        
 
 
 @io.on("analysis:run")
@@ -497,6 +506,8 @@ def modifier_run_running(data: dict):
 
 @io.on("modifier:run:finished")
 def modifier_run_finished(data: dict):
+    # remove 0th element from queue
+    app.config["MODIFIER"]["queue"].pop(0)
     app.config["MODIFIER"]["active"] = None
     modifier_lock.release()
     print("modifier_lock released")
@@ -505,6 +516,10 @@ def modifier_run_finished(data: dict):
 
 @io.on("modifier:run:failed")
 def modifier_run_failed():
+    """Take care if the modifier does not respond."""
+    # remove 0th element from queue
+    app.config["MODIFIER"]["queue"].pop(0)
+
     app.config["MODIFIER"]["active"] = None
     modifier_lock.release()
     log.critical("Modifier failed - releasing lock.")

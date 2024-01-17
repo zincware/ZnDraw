@@ -184,6 +184,14 @@ function modifier_editor(socket, cache, world) {
     document.getElementById("interaction-json-editor-submit").disabled = false;
   });
 
+  socket.on("modifier:run:criticalfail", (data) => {
+    console.log(new Date().toISOString(), "modifier:run:failed");
+    alert("Modifier failed. Please try again with different settings.");
+    document.getElementById("interaction-json-editor-submit").innerHTML =
+      '<i class="fa-solid fa-play"></i> Run Modifier';
+    document.getElementById("interaction-json-editor-submit").disabled = false;
+  });
+
   document
     .getElementById("interaction-json-editor-submit")
     .addEventListener("click", () => {
