@@ -227,7 +227,7 @@ def scene_schema():
 def modifier_run(data):
     # emit entered the queue
     JOB_ID = uuid4()
-    TIMEOUT = 10
+    TIMEOUT = 60
     app.config["MODIFIER"]["queue"].append(JOB_ID)
 
     while True:
