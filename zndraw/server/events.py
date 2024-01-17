@@ -30,7 +30,7 @@ def _webclients_default(data: dict) -> str:
     # TODO: if there is a keyerror, it will not be properly handled and the
     #  python interface is doomed to wait for TimeoutError.
     try:
-        return app.config["ROOM_HOSTS"][data["token"]][0]
+        return f"webclients_{data['token']}"
     except KeyError:
         log.critical("No webclient connected.")
 
