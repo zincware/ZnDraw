@@ -102,7 +102,9 @@ def connect():
         # append to zndraw.log a line isoformat() + " " + token
         if "token" not in app.config:
             with open("zndraw.log", "a") as f:
-                f.write(datetime.datetime.now().isoformat() + " " + token + " connected \n")
+                f.write(
+                    datetime.datetime.now().isoformat() + " " + token + " connected \n"
+                )
 
 
 @io.on("disconnect")
@@ -115,7 +117,12 @@ def disconnect():
             pass
         if "token" not in app.config:
             with open("zndraw.log", "a") as f:
-                f.write(datetime.datetime.now().isoformat() + " " + token + " disconnected \n")
+                f.write(
+                    datetime.datetime.now().isoformat()
+                    + " "
+                    + token
+                    + " disconnected \n"
+                )
         try:
             app.config["ROOM_HOSTS"][token].remove(request.sid)
         except ValueError:
