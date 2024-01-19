@@ -2900,13 +2900,18 @@ name = "znframe"
 version = "0.1.5"
 description = "ZnFrame - ASE-like Interface based on dataclasses"
 optional = false
-python-versions = "*"
-files = []
-develop = false
+python-versions = ">=3.9,<4.0"
+files = [
+    {file = "znframe-0.1.5-py3-none-any.whl", hash = "sha256:3645ee836b19f3d957686ba58f2fd4c142afef44df33764856848579e3af61f4"},
+    {file = "znframe-0.1.5.tar.gz", hash = "sha256:b5424e196af4df7fc8662c8ce6be5950a1307b763d4159bad69a0559448f6acf"},
+]
 
-[package.source]
-type = "directory"
-url = "../ZnFrame"
+[package.dependencies]
+ase = ">=3.22.1,<4.0.0"
+attrs = ">=23.1.0,<24.0.0"
+networkx = ">=3.2.1,<4.0.0"
+numpy = ">=1.26.2,<2.0.0"
+pydantic = ">=2.5.3,<3.0.0"
 
 [[package]]
 name = "znh5md"
