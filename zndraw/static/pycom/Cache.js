@@ -107,7 +107,7 @@ class Cache {
           calc: data[key].info.calc,
           pbc: data[key].pbc,
         });
-        console.log(data);
+        
         if (display_new) {
           slider.max = Object.keys(this._cache).length - 1;
           this.world.setStep(key);
