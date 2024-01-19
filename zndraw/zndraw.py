@@ -334,20 +334,10 @@ class ZnDrawBase:  # collections.abc.MutableSequence
                 "name": data["params"]["method"]["discriminator"],
             },
         )
-        # try:
-
-        self._modifier_run(data)
-        # except Exception as err:
-        #    self.log(f"Modifier failed with error: {repr(err)}")
-        # log.exception(err)
-        # self.socket.emit(
-        #     "modifier:run:error",
-        #     {
-        #         "sid": data["sid"],
-        #         "token": self.token,
-        #         "error": str(err),
-        #     },
-        # )
+        try:
+            self._modifier_run(data)
+        except Exception as err:
+           self.log(f"Modifier failed with error: {repr(err)}")
         self.socket.emit(
             "modifier:run:finished",
             {
