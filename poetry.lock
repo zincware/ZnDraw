@@ -2897,13 +2897,13 @@ testing = ["big-O", "jaraco.functools", "jaraco.itertools", "more-itertools", "p
 
 [[package]]
 name = "znframe"
-version = "0.1.3"
+version = "0.1.4"
 description = "ZnFrame - ASE-like Interface based on dataclasses"
 optional = false
 python-versions = ">=3.9,<4.0"
 files = [
-    {file = "znframe-0.1.3-py3-none-any.whl", hash = "sha256:778452c867f7681811f72b04b84b7cb23c44b10770ea6faa8a7f0f71f514a6cf"},
-    {file = "znframe-0.1.3.tar.gz", hash = "sha256:1408b6f22312b836c0827d031aa29e35ba420261eddff8c4abea46516c7081af"},
+    {file = "znframe-0.1.4-py3-none-any.whl", hash = "sha256:d5b7946d79801e49fe0c5b03b454a047ab9c3236a6816cb6d92fb3b1936bfe8c"},
+    {file = "znframe-0.1.4.tar.gz", hash = "sha256:fbd479d977df688a4af4aacc9f1627affe2d6f43e2ef2e40f792cde67cae5128"},
 ]
 
 [package.dependencies]
@@ -2940,4 +2940,4 @@ all = ["mdanalysis", "tidynamics"]
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.9"
-content-hash = "9b87d314248ff14eb6ce082428670e80e0795fa2f5608d343cf711e1007911df"
+content-hash = "99c1ac4cc913206efd3b1b564b6d8a54d6de590efeba8726126c81d6a947ae2e"
