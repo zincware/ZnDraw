@@ -7,7 +7,6 @@ import threading
 import typing as t
 import uuid
 from io import StringIO
-import traceback
 
 import ase
 import ase.io
