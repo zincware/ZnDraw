@@ -104,7 +104,7 @@ class Cache {
           colors: data[key].arrays.colors,
           radii: data[key].arrays.radii,
           connectivity: data[key].connectivity,
-          calc: data[key].info.calc,
+          calc: data[key].calc,
           pbc: data[key].pbc,
         });
 
@@ -168,7 +168,7 @@ class Cache {
         colors: data[id].arrays.colors,
         radii: data[id].arrays.radii,
         connectivity: data[id].connectivity,
-        calc: data[id].info.calc,
+        calc: data[id].calc,
         pbc: data[id].pbc,
       });
       // update slider
@@ -185,15 +185,12 @@ class Cache {
         const data = {};
         ids.forEach((x) => {
           try {
-            const { colors, radii, calc, length, ...rest } = this._cache[x];
+            const { colors, radii, length, ...rest } = this._cache[x];
             data[x] = {
               ...rest,
               arrays: {
                 colors,
                 radii,
-              },
-              info: {
-                calc,
               },
             };
           } catch (error) {
