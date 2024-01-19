@@ -58,8 +58,6 @@ class Rotate(UpdateScene):
         atoms = vis.atoms
         assert len(points) == 2
 
-        del atoms.connectivity
-
         angle = self.angle if self.direction == "left" else -self.angle
         angle = angle / self.steps
 
@@ -120,7 +118,6 @@ class Delete(UpdateScene):
         vis.log(f"Deleting atoms {atom_ids}")
         for idx, atom_id in enumerate(sorted(atom_ids)):
             atoms.pop(atom_id - idx)  # we remove the atom and shift the index
-        del atoms.connectivity
         vis.append(atoms)
         vis.selection = []
         vis.step += 1
@@ -139,7 +136,6 @@ class Move(UpdateScene):
 
         atoms = vis.atoms
         atoms_selected, atoms_remaining = self.apply_selection(vis.selection, atoms)
-        del atoms.connectivity
         if self.steps > len(vis.segments):
             raise ValueError(
                 "The number of steps must be less than the number of segments. You can add more points to increase the number of segments."
