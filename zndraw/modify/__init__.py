@@ -118,6 +118,7 @@ class Delete(UpdateScene):
         vis.log(f"Deleting atoms {atom_ids}")
         for idx, atom_id in enumerate(sorted(atom_ids)):
             atoms.pop(atom_id - idx)  # we remove the atom and shift the index
+        del atoms.connectivity
         vis.append(atoms)
         vis.selection = []
         vis.step += 1
