@@ -73,34 +73,6 @@ class Rotate(UpdateScene):
         vis.selection = []
 
 
-class Explode(UpdateScene):
-    discriminator: t.Literal["Explode"] = Field("Explode")
-
-    steps: int = Field(100, le=1000, ge=1)
-    particles: int = Field(10, le=20, ge=1)
-    delay: int = Field(0, le=60000, ge=0, description="Delay between each step in ms")
-
-    def run(self, vis: "ZnDraw") -> None:
-        if len(vis) > vis.step + 1:
-            del vis[vis.step + 1 :]
-
-        atom_ids = vis.selection
-        atoms = vis.atoms
-        particles = []
-        for _atom_id in atom_ids:
-            for _ in range(self.particles):
-                particles.append(ase.Atoms("Na", positions=[atoms.positions[_atom_id]]))
-
-        for _ in range(self.steps):
-            struct = atoms.copy()
-            for particle in particles:
-                particle.positions += np.random.normal(scale=0.1, size=(1, 3))
-                struct += particle
-            vis.socket.sleep(self.delay / 1000)
-            vis.append(struct)
-        vis.selection = []
-
-
 class Delete(UpdateScene):
     """Delete the selected atoms."""
 
