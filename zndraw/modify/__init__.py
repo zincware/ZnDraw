@@ -91,10 +91,6 @@ class Explode(UpdateScene):
         atoms = vis.atoms
         particles = []
 
-        del atoms.connectivity
-        del atoms.arrays["colors"]
-        del atoms.arrays["radii"]
-
         for _atom_id in atom_ids:
             for _ in range(self.particles):
                 particles.append(ase.Atoms("Na", positions=[atoms.positions[_atom_id]]))
@@ -183,10 +179,6 @@ class Duplicate(UpdateScene):
             atom.symbol = self.symbol.name if self.symbol.name != "X" else atom.symbol
             atoms += atom
 
-        del atoms.arrays["colors"]
-        del atoms.arrays["radii"]
-        del atoms.connectivity
-
         vis.append(atoms)
         vis.step += 1
         vis.selection = []
@@ -204,10 +196,6 @@ class ChangeType(UpdateScene):
         atoms = vis.atoms
         for atom_id in vis.selection:
             atoms[atom_id].symbol = self.symbol.name
-
-        del atoms.arrays["colors"]
-        del atoms.arrays["radii"]
-        del atoms.connectivity
 
         vis.append(atoms)
         vis.step += 1
@@ -227,10 +215,6 @@ class AddLineParticles(UpdateScene):
         atoms = vis.atoms
         for point in vis.points:
             atoms += ase.Atom(self.symbol.name, position=point)
-
-        del atoms.arrays["colors"]
-        del atoms.arrays["radii"]
-        del atoms.connectivity
 
         for _ in range(self.steps):
             vis.append(atoms)

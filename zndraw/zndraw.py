@@ -7,6 +7,7 @@ import threading
 import typing as t
 import uuid
 from io import StringIO
+import traceback
 
 import ase
 import ase.io
@@ -338,6 +339,7 @@ class ZnDrawBase:  # collections.abc.MutableSequence
             self._modifier_run(data)
         except Exception as err:
            self.log(f"Modifier failed with error: {repr(err)}")
+           traceback.print_exc()
         self.socket.emit(
             "modifier:run:finished",
             {
