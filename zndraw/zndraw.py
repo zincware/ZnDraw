@@ -547,12 +547,21 @@ class ZnDrawDefault(ZnDrawBase):
                 raise ValueError("H5MD format not supported for uploading yet")
             else:
                 stream = StringIO(data["content"])
-                del self[:]
                 for idx, atoms in tqdm.tqdm(
                     enumerate(ase.io.iread(stream, format=format))
                 ):
-                    self.append(Frame.from_atoms(atoms))
-                    self.step = idx
+                    if len(self.points) > 0:
+                        # add the new structure with its COM at each point.
+                        scene = self.atoms
+                        if hasattr(scene, "connectivity"):
+                            del scene.connectivity
+                        for point in self.points:
+                            # set atoms COM to point
+                            atoms.positions -= atoms.get_center_of_mass() - point
+                            scene += atoms
+                        self.append(scene)
+                    else:
+                        self.append(Frame.from_atoms(atoms))
 
     def download_file(self, data):
         with self._set_sid(data["sid"]):
