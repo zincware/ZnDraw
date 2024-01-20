@@ -105,7 +105,6 @@ class Move(UpdateScene):
 
         atoms = vis.atoms
         atoms_selected, atoms_remaining = self.apply_selection(vis.selection, atoms)
-
         if self.steps > len(vis.segments):
             raise ValueError(
                 "The number of steps must be less than the number of segments. You can add more points to increase the number of segments."
@@ -143,6 +142,7 @@ class Duplicate(UpdateScene):
             atom.position += np.array([self.x, self.y, self.z])
             atom.symbol = self.symbol.name if self.symbol.name != "X" else atom.symbol
             atoms += atom
+
         vis.append(atoms)
         vis.selection = []
 
@@ -159,6 +159,7 @@ class ChangeType(UpdateScene):
         atoms = vis.atoms
         for atom_id in vis.selection:
             atoms[atom_id].symbol = self.symbol.name
+
         vis.append(atoms)
         vis.selection = []
 
@@ -176,6 +177,7 @@ class AddLineParticles(UpdateScene):
         atoms = vis.atoms
         for point in vis.points:
             atoms += ase.Atom(self.symbol.name, position=point)
+
         for _ in range(self.steps):
             vis.append(atoms)
 

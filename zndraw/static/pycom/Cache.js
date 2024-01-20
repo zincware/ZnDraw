@@ -101,12 +101,13 @@ class Cache {
           positions: data[key].positions,
           cell: data[key].cell,
           numbers: data[key].numbers,
-          colors: data[key].colors,
-          radii: data[key].radii,
+          colors: data[key].arrays.colors,
+          radii: data[key].arrays.radii,
           connectivity: data[key].connectivity,
           calc: data[key].calc,
           pbc: data[key].pbc,
         });
+
         if (display_new) {
           slider.max = Object.keys(this._cache).length - 1;
           this.world.setStep(key);
@@ -164,8 +165,8 @@ class Cache {
         positions: data[id].positions,
         cell: data[id].cell,
         numbers: data[id].numbers,
-        colors: data[id].colors,
-        radii: data[id].radii,
+        colors: data[id].arrays.colors,
+        radii: data[id].arrays.radii,
         connectivity: data[id].connectivity,
         calc: data[id].calc,
         pbc: data[id].pbc,
@@ -183,7 +184,18 @@ class Cache {
         // send all atoms at once
         const data = {};
         ids.forEach((x) => {
-          data[x] = this._cache[x];
+          try {
+            const { colors, radii, length, ...rest } = this._cache[x];
+            data[x] = {
+              ...rest,
+              arrays: {
+                colors,
+                radii,
+              },
+            };
+          } catch (error) {
+            data[x] = undefined;
+          }
         });
         callback(data);
       }.bind(this),
