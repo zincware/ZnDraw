@@ -131,6 +131,17 @@ function switchColorScheme(world) {
   });
 }
 
+function setupPointerFrameChange(world) {
+  const progress = document.getElementById("frameProgress");
+
+  progress.addEventListener("pointerdown", (event) => {
+    // get the relative position of the pointer from left to right in 0..1
+    const relativePosition = event.offsetX / window.innerWidth;
+    const step = Math.round(relativePosition * progress.ariaValueMax);
+    world.setStep(step);
+  });
+}
+
 export function setUIEvents(socket, cache, world) {
   // resizeOffcanvas();
   setupUpload(socket);
@@ -138,6 +149,7 @@ export function setUIEvents(socket, cache, world) {
   setupMobile();
   setupDragDrop(socket);
   switchColorScheme(world);
+  setupPointerFrameChange(world);
 
   document.getElementById("ExitBtn").addEventListener("click", () => {
     fetch("/exit", { method: "GET" });
