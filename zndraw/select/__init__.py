@@ -3,6 +3,7 @@ import typing as t
 from typing import Any
 
 import networkx as nx
+import numpy as np
 from pydantic import BaseModel, Field
 
 try:
@@ -90,14 +91,19 @@ class ConnectedParticles(SelectionBase):
         selected_ids = vis.selection
         total_ids = []
         try:
-            graph = atoms.connectivity
+            edges = atoms.connectivity
+            graph = nx.Graph()
+            for edge in edges:
+                node_a, node_b, weight = edge
+                graph.add_edge(node_a, node_b, weight=weight)
         except AttributeError:
             return selected_ids
 
         for node_id in selected_ids:
             total_ids += list(nx.node_connected_component(graph, node_id))
+            total_ids = np.array(total_ids, dtype=int)
 
-        vis.selection = list(set(total_ids))
+        vis.selection = [x.item() for x in set(total_ids)]
 
 
 class Neighbour(SelectionBase):

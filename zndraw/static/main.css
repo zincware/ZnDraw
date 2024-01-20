@@ -47,18 +47,15 @@ body {
   left: 0;
   height: 100%;
   width: 50px;
-  /* Adjust the width as needed */
-  /* background-color: #f0f0f0;
-        padding: 15px;  */
 }
 
 .fixed-left-menu {
-  position: fixed;
-  top: 50px;
-  left: 50px;
+  margin-left: 50px;
+  margin-top: 50px;
+  padding-bottom: 100px;
   overflow-y: auto;
-  height: calc(100% - 50px);
   min-width: 20%;
+  max-width: 50%;
 }
 
 .main-navbar {
