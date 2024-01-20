@@ -7,10 +7,12 @@ import ase
 import ase.io
 import numpy as np
 import socketio
-from socketio import exceptions as socketio_exceptions
+import tqdm
+import znh5md
 from znframe.frame import Frame
 
-from zndraw.data import CeleryTaskData, ModifierRegisterData
+from zndraw.analyse import get_analysis_class
+from zndraw.draw import Geometry
 from zndraw.modify import UpdateScene, get_modify_class
 from zndraw.settings import GlobalConfig
 
@@ -147,11 +149,15 @@ class ZnDraw(ZnDrawBase):
         assert isinstance(index, int), "Index must be an integer"
         if isinstance(value, ase.Atoms):
             value = Frame.from_atoms(value)
-        self.set_data(
-            frames={index: value.to_dict(built_in_types=False)},
-            step=index,
-            update_database=True,
-        )
+        data = {
+            index: value.to_dict(built_in_types=False),
+            "display_new": self.display_new,
+            "token": self.token,
+        }
+        if self._target_sid is not None:
+            # this only affects initial loading of data if a new webclient connects
+            data["sid"] = self._target_sid
+        self.socket.emit("atoms:upload", data)
 
     def __delitem__(self, index: int | slice | list[int]):
         if (
@@ -338,10 +344,60 @@ class ZnDraw(ZnDrawBase):
 
         self.socket.emit("celery:task:emit", dataclasses.asdict(msg))
         try:
-            config = GlobalConfig.load()
-            cls = get_modify_class(
-                config.get_modify_methods(
-                    include=[x["cls"] for x in self._modifiers.values()]
+            self._modifier_run(data)
+        except Exception as err:
+            self.log(f"Modifier failed with error: {repr(err)}")
+        self.socket.emit(
+            "modifier:run:finished",
+            {
+                "token": data["target"],
+            },
+        )
+
+    def _modifier_run(self, data) -> None:
+        raise NotImplementedError
+
+
+@dataclasses.dataclass
+class ZnDrawDefault(ZnDrawBase):
+    file_io: FileIO = None
+
+    def __post_init__(self):
+        super().__post_init__()
+
+        self.socket.on("webclient:available", self.initialize_webclient)
+        self.socket.on("selection:run", self.selection_run)
+        self.socket.on("analysis:run", self.analysis_run)
+        self.socket.on("upload", self.upload_file)
+        self.socket.on("download:request", self.download_file)
+        self.socket.on("modifier:register", self.register_modifier)
+        self._connect()
+        self.socket.wait()
+
+    def initialize_webclient(self, sid):
+        start_time = datetime.datetime.now()
+        with self._set_sid(sid):
+            for idx, atoms in enumerate(self.read_data()):
+                if idx == 0:
+                    self.analysis_schema(atoms)
+                    self.selection_schema()
+                    self.draw_schema()
+                self[idx] = atoms
+                # self.step = idx # double the message count ..., replace with part of the setitem message, benchmark
+        log.warning(f"{datetime.datetime.now() - start_time} Finished sending data.")
+
+    def read_data(self) -> t.Generator[ase.Atoms, None, None]:
+        if self.file_io is None or self.file_io.name is None:
+            yield ase.Atoms()
+            return
+
+        if self.file_io.remote is not None:
+            node_name, attribute = self.file_io.name.split(".", 1)
+            try:
+                import zntrack
+
+                node = zntrack.from_rev(
+                    node_name, remote=self.file_io.remote, rev=self.file_io.rev
                 )
             )
             modifier = cls(**data["params"])
