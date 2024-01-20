@@ -120,6 +120,34 @@ function setupNavbarLeft() {
   });
 }
 
+function switchColorScheme(world) {
+  const switchBtn = document.getElementById("colorModeSwitch");
+
+  switchBtn.addEventListener("click", () => {
+    const theme = document.documentElement.getAttribute("data-bs-theme");
+    if (theme === "dark") {
+      document.documentElement.setAttribute("data-bs-theme", "light");
+      world.scene.background.set(0xffffff);
+      switchBtn.innerHTML = '<i class="fa-solid fa-sun"></i>';
+    } else {
+      document.documentElement.setAttribute("data-bs-theme", "dark");
+      world.scene.background.set(0x000000);
+      switchBtn.innerHTML = '<i class="fa-solid fa-moon"></i>';
+    }
+  });
+}
+
+function setupPointerFrameChange(world) {
+  const progress = document.getElementById("frameProgress");
+
+  progress.addEventListener("pointerdown", (event) => {
+    // get the relative position of the pointer from left to right in 0..1
+    const relativePosition = event.offsetX / window.innerWidth;
+    const step = Math.round(relativePosition * progress.ariaValueMax);
+    world.setStep(step);
+  });
+}
+
 export function setUIEvents(socket, cache, world) {
   // resizeOffcanvas();
   setupUpload(socket);
@@ -127,6 +155,8 @@ export function setUIEvents(socket, cache, world) {
   setupMobile();
   setupDragDrop(socket);
   setupTrashClick(socket);
+  switchColorScheme(world);
+  setupPointerFrameChange(world);
 
   socket.on("download:response", (data) => {
     const blob = new Blob([data], { type: "text/csv" });

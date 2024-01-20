@@ -94,7 +94,7 @@ class Cache {
 
       // pop key from data dict
       const { display_new, ...data } = all_data;
-      const slider = document.getElementById("frame-slider");
+      const slider = document.getElementById("frameProgress");
 
       Object.keys(data).forEach((key) => {
         this._cache[key] = new Atoms({
@@ -109,7 +109,7 @@ class Cache {
         });
 
         if (display_new) {
-          slider.max = Object.keys(this._cache).length - 1;
+          slider.ariaValueMax = Object.keys(this._cache).length - 1;
           this.world.setStep(key);
         }
       });
@@ -130,10 +130,10 @@ class Cache {
         }
       }
       // update slider
-      const slider = document.getElementById("frame-slider");
+      const slider = document.getElementById("frameProgress");
 
       // update world
-      if (this.world.getStep() >= slider.max) {
+      if (this.world.getStep() >= slider.ariaValueMax) {
         this.world.setStep(remainingKeys.length - 1);
       } else {
         let newStep = this.world.getStep();
@@ -145,9 +145,9 @@ class Cache {
         this.world.setStep(newStep);
       }
 
-      slider.max = remainingKeys.length - 1;
+      slider.ariaValueMax = remainingKeys.length - 1;
       document.getElementById("info").innerHTML =
-        `${slider.value} / ${slider.max}`;
+        `${slider.ariaValueNow} / ${slider.ariaValueMax}`;
     });
 
     this._socket.on("atoms:insert", (data) => {
@@ -172,10 +172,10 @@ class Cache {
         pbc: data[id].pbc,
       });
       // update slider
-      const slider = document.getElementById("frame-slider");
-      slider.max = Object.keys(this._cache).length - 1;
+      const slider = document.getElementById("frameProgress");
+      slider.ariaValueMax = Object.keys(this._cache).length - 1;
       document.getElementById("info").innerHTML =
-        `${slider.value} / ${slider.max}`;
+        `${slider.ariaValueNow} / ${slider.ariaValueMax}`;
     });
 
     this._socket.on(
