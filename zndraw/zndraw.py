@@ -366,7 +366,6 @@ class ZnDrawDefault(ZnDrawBase):
         if isinstance(self.file_io, dict):
             self.file_io = FileIO(**self.file_io)
 
-
         if self.register_socket_events:
             self.socket.on("webclient:available", self.initialize_webclient)
             self.socket.on("selection:run", self.selection_run)
@@ -378,7 +377,7 @@ class ZnDrawDefault(ZnDrawBase):
         self._connect()
         if self.register_socket_events:
             self.socket.wait()
-    
+
     def initialize_webclient(self, data):
         print("Initializing new pyclient for webclient")
         sid = data["sid"]
@@ -390,10 +389,10 @@ class ZnDrawDefault(ZnDrawBase):
         kwargs.pop("_uuid")
         kwargs["register_socket_events"] = False
         vis = ZnDrawDefault(**kwargs)
-        
+
         if host:
             start_time = datetime.datetime.now()
-            
+
             for idx, atoms in enumerate(vis.read_data()):
                 with vis._set_sid(sid):
                     if idx == 0:
@@ -423,7 +422,6 @@ class ZnDrawDefault(ZnDrawBase):
                             f"Failed to get atoms at index {idx} after {self.config.retries} retries"
                         )
 
-
                 with vis._set_sid(sid):
                     vis[idx] = atoms
 
@@ -431,13 +429,12 @@ class ZnDrawDefault(ZnDrawBase):
                         vis.analysis_schema(atoms)
                         vis.selection_schema()
                         vis.draw_schema()
-            
+
             # with vis._set_token(token):
             #     vis.selection = vis.selection
             #     vis.points = vis.points
             #     vis.step = vis.step
-                
-        
+
         # vis.socket.wait()
 
     def read_data(self) -> t.Generator[ase.Atoms, None, None]:
