@@ -376,7 +376,6 @@ def selection_get(data: dict):
 @io.on("selection:set")
 def selection_set(data: dict):
     if "token" not in data:
-        print(f"selection:set {data}")
         data["token"] = session["token"]
     emit(
         "selection:set",

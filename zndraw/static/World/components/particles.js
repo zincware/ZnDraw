@@ -53,7 +53,6 @@ class ParticlesGroup extends THREE.Group {
   tick() {}
 
   click(instanceId, shift, object) {
-    console.log("selecting particle", instanceId);
     if (instanceId !== undefined) {
       if (object === this.bonds_mesh) {
         const all_bonds = this._get_all_bonds(this.particle_cache.connectivity);
