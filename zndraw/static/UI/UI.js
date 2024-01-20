@@ -89,10 +89,9 @@ function setupDragDrop(socket) {
 function setupTrashClick(socket) {
   document.getElementById("trashBtn").addEventListener("click", () => {
     socket.emit("scene:trash", {});
-  
   });
 }
-  
+
 function setupNavbarLeft() {
   const tooltipTriggerList = document.querySelectorAll(
     '[data-bs-toggle="tooltip"]',
