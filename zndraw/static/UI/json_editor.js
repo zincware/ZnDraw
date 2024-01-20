@@ -7,7 +7,6 @@ JSONEditor.defaults.options.disable_collapse = true;
 JSONEditor.defaults.options.no_additional_properties = true;
 JSONEditor.defaults.options.keep_oneof_values = false;
 
-
 export function initJSONEditor(socket, cache, world) {
   modifier_editor(socket, cache, world);
   analysis_editor(socket, cache, world);

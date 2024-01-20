@@ -121,11 +121,11 @@ function switchColorScheme(world) {
     const theme = document.documentElement.getAttribute("data-bs-theme");
     if (theme === "dark") {
       document.documentElement.setAttribute("data-bs-theme", "light");
-      world.scene.background.set(0xffffff)
+      world.scene.background.set(0xffffff);
       switchBtn.innerHTML = '<i class="fa-solid fa-sun"></i>';
     } else {
       document.documentElement.setAttribute("data-bs-theme", "dark");
-      world.scene.background.set(0x000000)
+      world.scene.background.set(0x000000);
       switchBtn.innerHTML = '<i class="fa-solid fa-moon"></i>';
     }
   });
