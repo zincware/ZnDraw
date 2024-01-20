@@ -1,6 +1,6 @@
 JSONEditor.defaults.options.theme = "bootstrap5";
 JSONEditor.defaults.options.iconlib = "fontawesome5";
-JSONEditor.defaults.options.object_background = "bg-white";
+JSONEditor.defaults.options.object_background = "bg-body-color";
 JSONEditor.defaults.options.disable_edit_json = true;
 JSONEditor.defaults.options.disable_properties = true;
 JSONEditor.defaults.options.disable_collapse = true;

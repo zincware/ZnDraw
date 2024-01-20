@@ -112,12 +112,12 @@ class Player {
       }
     });
 
-    const slider = document.getElementById("frame-slider");
+    const slider = document.getElementById("frameProgress");
     slider.focus();
 
     slider.oninput = function () {
       document.getElementById("info").innerHTML =
-        `${slider.value} / ${slider.max}`;
+        `${slider.ariaValueNow} / ${slider.ariaValueMax}`;
       world.setStep(this.value);
     };
   }
@@ -171,6 +171,7 @@ class World {
   constructor(container, cache, socket) {
     camera = createCamera();
     scene = createScene();
+    this.scene = scene;
     renderer = createRenderer();
     renderer2d = create2DRenderer();
 
@@ -326,10 +327,14 @@ class World {
   setStep(step) {
     step = parseInt(step);
     loop.setStep(step);
-    const slider = document.getElementById("frame-slider");
-    slider.value = step;
+    const slider = document.getElementById("frameProgress");
+    slider.ariaValueNow = step;
+    // update slider.style with with the percentage of the slider.value
+    const percentage = (slider.ariaValueNow / slider.ariaValueMax) * 100;
+    const sliderprogress = document.getElementById("frameProgressBar");
+    sliderprogress.style.width = `${percentage}%`;
     document.getElementById("info").innerHTML =
-      `${slider.value} / ${slider.max}`;
+      `${slider.ariaValueNow} / ${slider.ariaValueMax}`;
   }
 
   getStep() {
