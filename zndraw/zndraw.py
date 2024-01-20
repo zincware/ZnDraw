@@ -484,6 +484,7 @@ class ZnDrawDefault(ZnDrawBase):
             data = data["data"]
 
             format = data["filename"].split(".")[-1]
+            format = format if format != "xyz" else "extxyz"
 
             if format == "h5":
                 raise ValueError("H5MD format not supported for uploading yet")
