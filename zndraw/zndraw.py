@@ -14,10 +14,10 @@ import numpy as np
 import socketio
 import tqdm
 import znh5md
+from znframe.frame import Frame
 
 from zndraw.analyse import get_analysis_class
 from zndraw.draw import Geometry
-from zndraw.frame import Frame
 from zndraw.modify import UpdateScene, get_modify_class
 from zndraw.select import get_selection_class
 from zndraw.settings import GlobalConfig
@@ -145,7 +145,7 @@ class ZnDrawBase:  # collections.abc.MutableSequence
         if isinstance(value, ase.Atoms):
             value = Frame.from_atoms(value)
         data = {
-            index: value.to_dict(),
+            index: value.to_dict(built_in_types=False),
             "display_new": self.display_new,
             "token": self.token,
         }
@@ -338,15 +338,6 @@ class ZnDrawBase:  # collections.abc.MutableSequence
             self._modifier_run(data)
         except Exception as err:
             self.log(f"Modifier failed with error: {repr(err)}")
-            # log.exception(err)
-            # self.socket.emit(
-            #     "modifier:run:error",
-            #     {
-            #         "sid": data["sid"],
-            #         "token": self.token,
-            #         "error": str(err),
-            #     },
-            # )
         self.socket.emit(
             "modifier:run:finished",
             {
