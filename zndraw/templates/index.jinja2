@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-bs-theme="light">
 
 <head>
   <meta charset="utf-8" />
@@ -61,7 +61,7 @@
 
   <!-- Navigation -->
 
-  <nav class="navbar navbar-expand-md fixed-top bg-light main-navbar">
+  <nav class="navbar navbar-expand-md fixed-top bg-body-tertiary main-navbar">
     <div class="container-fluid">
       <div class="navbar-brand" href="#">ZnDraw</div>
       <div class="navbar-collapse collapse w-100 order-1 order-md-0 dual-collapse2">
@@ -122,6 +122,9 @@
               Reload</a>
           </li>
           <li class="nav-item mx-1">
+            <button type="button" class="btn btn-outline-secondary" id="colorModeSwitch"><i class="fa-solid fa-sun"></i></button>
+          </li> 
+          <li class="nav-item mx-1">
             <button class="btn btn-outline-danger" id="ExitBtn">
               <i class="fa-solid fa-circle-xmark"></i> EXIT
             </button>
@@ -181,7 +184,7 @@
           </label>
         </div>
         <div class="py-1" data-bs-toggle="tooltip" data-bs-placement="right" data-bs-title="Source Code">
-          <a href="https://github.com/zincware/ZnDraw" class="btn btn-light" role="button" target="”_blank”"><i
+          <a href="https://github.com/zincware/ZnDraw" class="btn" role="button" target="”_blank”"><i
               class="fa-brands fa-github"></i></a>
         </div>
       </div>

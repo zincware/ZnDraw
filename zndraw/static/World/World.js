@@ -171,6 +171,7 @@ class World {
   constructor(container, cache, socket) {
     camera = createCamera();
     scene = createScene();
+    this.scene = scene;
     renderer = createRenderer();
     renderer2d = create2DRenderer();
 
