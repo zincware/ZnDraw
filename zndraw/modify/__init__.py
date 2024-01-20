@@ -221,15 +221,15 @@ class Center(UpdateScene):
 
     def run(self, vis: "ZnDraw") -> None:
         selection = vis.selection
-        if len(selection) != 1:
-            vis.log("Please select exactly one atom to center on.")
+        if len(selection) < 1:
+            vis.log("Please select at least one atom.")
             return
 
         vis.log("Downloading atoms...")
         atoms_list = list(vis)
 
         if not self.dynamic:
-            center = atoms_list[vis.step][selection[0]].position
+            center = atoms_list[vis.step][selection].get_center_of_mass()
         else:
             center = None
 
@@ -239,7 +239,7 @@ class Center(UpdateScene):
 
         for idx, atoms in enumerate(atoms_list):
             if self.dynamic:
-                center = atoms[selection[0]].position
+                center = atoms[selection].get_center_of_mass()
             atoms.positions -= center
             atoms.positions += np.diag(atoms.cell) / 2
             if self.wrap:
