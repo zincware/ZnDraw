@@ -2,8 +2,8 @@ import random
 import typing as t
 from typing import Any
 
-import numpy as np
 import networkx as nx
+import numpy as np
 from pydantic import BaseModel, Field
 
 try:
