@@ -14,7 +14,6 @@ _ANALYSIS_FUNCTIONS = [
     "zndraw.analyse.Distance",
 ]
 _MODIFY_FUNCTIONS = [
-    "zndraw.modify.Explode",
     "zndraw.modify.Delete",
     "zndraw.modify.Move",
     "zndraw.modify.Duplicate",

@@ -90,7 +90,7 @@ class Cache {
     this.world;
 
     this._socket.on("atoms:upload", (all_data) => {
-      console.log(new Date().toISOString(), "Received atoms from Python");
+      // console.log(new Date().toISOString(), "Received atoms from Python");
 
       // pop key from data dict
       const { display_new, ...data } = all_data;

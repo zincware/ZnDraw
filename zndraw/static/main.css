@@ -231,6 +231,12 @@ body {
   width: 80%;
 }
 
+#pointerInfoBox {
+  position: absolute;
+  display: none;
+  background-color: #ffffffb9;
+}
+
 .canvasControl {
   opacity: 0.95;
 }

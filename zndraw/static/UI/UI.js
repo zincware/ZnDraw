@@ -86,7 +86,13 @@ function setupDragDrop(socket) {
   });
 }
 
-function setupNavbarLeft2() {
+function setupTrashClick(socket) {
+  document.getElementById("trashBtn").addEventListener("click", () => {
+    socket.emit("scene:trash", {});
+  });
+}
+
+function setupNavbarLeft() {
   const tooltipTriggerList = document.querySelectorAll(
     '[data-bs-toggle="tooltip"]',
   );
@@ -145,15 +151,12 @@ function setupPointerFrameChange(world) {
 export function setUIEvents(socket, cache, world) {
   // resizeOffcanvas();
   setupUpload(socket);
-  setupNavbarLeft2();
+  setupNavbarLeft();
   setupMobile();
   setupDragDrop(socket);
+  setupTrashClick(socket);
   switchColorScheme(world);
   setupPointerFrameChange(world);
-
-  document.getElementById("ExitBtn").addEventListener("click", () => {
-    fetch("/exit", { method: "GET" });
-  });
 
   socket.on("download:response", (data) => {
     const blob = new Blob([data], { type: "text/csv" });

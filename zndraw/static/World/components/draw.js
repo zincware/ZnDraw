@@ -140,6 +140,7 @@ export class Line3D extends THREE.Group {
     this.line = new THREE.Line(geometry, material);
     this.curve = undefined;
     this.pointer = undefined;
+    this.show_label = false;
 
     this.add(this.line, this.anchorPoints, this.virtualPoints);
   }
@@ -199,6 +200,7 @@ export class Line3D extends THREE.Group {
     }
 
     this.updateLine();
+    document.getElementById("pointerInfoBox").style.display = "none";
   }
 
   addPointer() {
@@ -252,12 +254,22 @@ export class Line3D extends THREE.Group {
     }
   }
 
-  movePointer(position) {
+  movePointer(position, x, y) {
     // this.anchorPoints[this.anchorPoints.length - 1].copy(position);
     this.anchorPoints.children[
       this.anchorPoints.children.length - 1
     ].position.copy(position);
     // create red material
     this.updateLine();
+
+    // log the length of the line
+    if (x !== undefined && this.curve !== undefined && this.show_label) {
+      const length = this.curve.getLength();
+      document.getElementById("pointerInfoBoxBody").innerHTML =
+        `${length.toFixed(2)} Å`;
+      document.getElementById("pointerInfoBox").style.display = "block";
+      document.getElementById("pointerInfoBox").style.left = `${x + 10}px`;
+      document.getElementById("pointerInfoBox").style.top = `${y}px`;
+    }
   }
 }

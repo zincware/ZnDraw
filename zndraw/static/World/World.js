@@ -309,7 +309,9 @@ class World {
     particle_size,
     bonds_size,
     fps,
+    line_label,
   ) {
+    console.log("rebuilding scene");
     this.particles.rebuild(
       resolution,
       material,
@@ -322,6 +324,7 @@ class World {
     this.setStep(loop.step);
     this.index_grp.rebuild(label_offset);
     this.player.fps = fps;
+    this.line3D.show_label = line_label;
   }
 
   setStep(step) {

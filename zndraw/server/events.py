@@ -1,4 +1,5 @@
 import contextlib
+import datetime
 import logging
 import traceback
 from threading import Lock
@@ -29,7 +30,7 @@ def _webclients_default(data: dict) -> str:
     # TODO: if there is a keyerror, it will not be properly handled and the
     #  python interface is doomed to wait for TimeoutError.
     try:
-        return app.config["ROOM_HOSTS"][data["token"]][0]
+        return f"webclients_{data['token']}"
     except KeyError:
         log.critical("No webclient connected.")
 
@@ -58,9 +59,7 @@ def _get_uuid_for_sid(sid) -> str:
 def _get_queue_position(job_id) -> int:
     """Return the position of the job_id in the queue."""
     try:
-        # we add +1, because the job that is currently
-        # running is not in the queue anymore
-        return app.config["MODIFIER"]["queue"].index(job_id) + 1
+        return app.config["MODIFIER"]["queue"].index(job_id)
     except ValueError:
         return -1
 
@@ -72,7 +71,6 @@ def connect():
         return False
     with contextlib.suppress(KeyError):
         # If you connect through Python, you don't have a token.
-
         token = session["token"]
         join_room(f"webclients_{token}")
         # who ever connected latest is the HOST of the room
@@ -99,6 +97,13 @@ def connect():
         if token not in app.config["PER-TOKEN-DATA"]:
             app.config["PER-TOKEN-DATA"][token] = {}
 
+        # append to zndraw.log a line isoformat() + " " + token
+        if "token" not in app.config:
+            with open("zndraw.log", "a") as f:
+                f.write(
+                    datetime.datetime.now().isoformat() + " " + token + " connected \n"
+                )
+
 
 @io.on("disconnect")
 def disconnect():
@@ -108,6 +113,14 @@ def disconnect():
             del app.config["pyclients"][_get_uuid_for_sid(request.sid)]
         except KeyError:
             pass
+        if "token" not in app.config:
+            with open("zndraw.log", "a") as f:
+                f.write(
+                    datetime.datetime.now().isoformat()
+                    + " "
+                    + token
+                    + " disconnected \n"
+                )
         try:
             app.config["ROOM_HOSTS"][token].remove(request.sid)
         except ValueError:
@@ -181,6 +194,10 @@ def scene_schema():
             True,
             description="Show bonds.",
         )
+        line_label: bool = Field(
+            True,
+            description="Show the length of the line.",
+        )
         label_offset: int = Field(
             0,
             ge=-7,
@@ -201,6 +218,7 @@ def scene_schema():
     schema["properties"]["bonds_size"]["format"] = "range"
     schema["properties"]["bonds_size"]["step"] = 0.1
     schema["properties"]["bonds"]["format"] = "checkbox"
+    schema["properties"]["line_label"]["format"] = "checkbox"
 
     return schema
 
@@ -209,6 +227,7 @@ def scene_schema():
 def modifier_run(data):
     # emit entered the queue
     JOB_ID = uuid4()
+    TIMEOUT = 60
     app.config["MODIFIER"]["queue"].append(JOB_ID)
 
     while True:
@@ -242,7 +261,20 @@ def modifier_run(data):
     # This should not go to request.sid but all webclients in the room
     emit("modifier:run:submitted", {}, to=_webclients_room({"token": session["token"]}))
     emit("modifier:run", data, to=_pyclients_default(data))
-    app.config["MODIFIER"]["queue"].remove(JOB_ID)
+
+    io.sleep(TIMEOUT)
+    if JOB_ID in app.config["MODIFIER"]["queue"]:
+        # modifier failed
+        app.config["MODIFIER"]["queue"].pop(0)
+        app.config["MODIFIER"]["active"] = None
+        modifier_lock.release()
+        log.critical("Modifier failed - releasing lock.")
+        # TODO: emit a error message that the modifier failed to the webclients
+        emit(
+            "modifier:run:criticalfail",
+            {},
+            to=_webclients_room({"token": session["token"]}),
+        )
 
 
 @io.on("analysis:run")
@@ -396,6 +428,12 @@ def scene_pause(data):
     emit("scene:pause", to=_webclients_room(data))
 
 
+@io.on("scene:trash")
+def scene_trash(data):
+    data["target"] = session["token"]
+    emit("scene:trash", data, to=_pyclients_default(data))
+
+
 @io.on("modifier:register")
 def modifier_register(data):
     data["token"] = session["token"]
@@ -471,6 +509,8 @@ def modifier_run_running(data: dict):
 
 @io.on("modifier:run:finished")
 def modifier_run_finished(data: dict):
+    # remove 0th element from queue
+    app.config["MODIFIER"]["queue"].pop(0)
     app.config["MODIFIER"]["active"] = None
     modifier_lock.release()
     print("modifier_lock released")
@@ -479,6 +519,10 @@ def modifier_run_finished(data: dict):
 
 @io.on("modifier:run:failed")
 def modifier_run_failed():
+    """Take care if the modifier does not respond."""
+    # remove 0th element from queue
+    app.config["MODIFIER"]["queue"].pop(0)
+
     app.config["MODIFIER"]["active"] = None
     modifier_lock.release()
     log.critical("Modifier failed - releasing lock.")
