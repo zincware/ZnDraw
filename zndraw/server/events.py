@@ -78,7 +78,7 @@ def connect():
             app.config["ROOM_HOSTS"][token].append(request.sid)
         except KeyError:
             app.config["ROOM_HOSTS"][token] = [request.sid]
-        
+
         data = {"sid": request.sid, "token": token}
         data["host"] = app.config["ROOM_HOSTS"][token][0] == request.sid
 

@@ -383,7 +383,9 @@ class ZnDrawDefault(ZnDrawBase):
                         self.draw_schema()
                     self[idx] = atoms
                     # self.step = idx # double the message count ..., replace with part of the setitem message, benchmark
-            log.warning(f"{datetime.datetime.now() - start_time} Finished sending data.")
+            log.warning(
+                f"{datetime.datetime.now() - start_time} Finished sending data."
+            )
         else:
             # load the data from the room host webclient (e.g. token)
             with self._set_token(token):
