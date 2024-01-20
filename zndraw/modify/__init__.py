@@ -22,6 +22,7 @@ log = logging.getLogger("zndraw")
 
 Symbols = enum.Enum("Symbols", {symbol: symbol for symbol in chemical_symbols})
 
+
 class UpdateScene(BaseModel, abc.ABC):
     @abc.abstractmethod
     def run(self, vis: "ZnDraw") -> None:
