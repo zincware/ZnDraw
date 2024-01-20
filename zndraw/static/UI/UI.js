@@ -224,10 +224,32 @@ function setupDragDrop(socket) {
   });
 }
 
+function setupNavbarLeft2() {
+  let menu = document.querySelectorAll("[name=leftMenuInput]")
+  // for each one, remvoe the check if is was checked before click
+  const clickState = {}
+  menu.forEach((item) => {
+    clickState[item.id] = false
+    item.addEventListener("click", () => {
+      if (clickState[item.id]) {
+        item.checked = false
+        clickState[item.id] = false
+      } else {
+        menu.forEach((item) => {
+          clickState[item.id] = false
+        })
+
+        clickState[item.id] = true
+      }
+    })
+  })
+}
+
 export function setUIEvents(socket, cache, world) {
   // resizeOffcanvas();
   setupUpload(socket);
-  setupNavbarLeft();
+  // setupNavbarLeft();
+  setupNavbarLeft2();
   setupMobile();
   setupDragDrop(socket);
 

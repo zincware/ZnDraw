@@ -88,8 +88,11 @@
         <ul class="navbar-nav ms-auto">
           <li class="nav-item mx-1">
             <div class="btn-group" role="group" aria-label="Basic checkbox toggle button group">
-              <input type="checkbox" class="btn-check" id="ZnDrawConsoleSwitch" autocomplete="off" data-bs-toggle="collapse" data-bs-target="#ZnDrawConsole" aria-controls="ZnDrawConsole" aria-expanded="false">
-              <label class="btn btn-outline-primary" for="ZnDrawConsoleSwitch"><i class="fa-solid fa-terminal"></i></i></label>
+              <input type="checkbox" class="btn-check" id="ZnDrawConsoleSwitch" autocomplete="off"
+                data-bs-toggle="collapse" data-bs-target="#ZnDrawConsole" aria-controls="ZnDrawConsole"
+                aria-expanded="false">
+              <label class="btn btn-outline-primary" for="ZnDrawConsoleSwitch"><i
+                  class="fa-solid fa-terminal"></i></i></label>
             </div>
           </li>
           <li class="nav-item mx-1">
@@ -128,147 +131,131 @@
     </div>
   </nav>
 
+
+
   <div class="fixed-left-container">
     <!-- Content for the fixed left container -->
     <div class="card h-100 rounded-0">
-      <div class="card-body">
-        <div class="col">
-          <div class="row py-1">
-            <button class="btn btn-light" type="button" id="selectionMenuBtn" data-placement="right"
-              data-bs-container="body" data-bs-content="Selection" data-target="selectionMenu">
-              <i class="fa-regular fa-hand-pointer"></i>
-            </button>
-          </div>
-          <div class="row py-1">
-            <button class="btn btn-light" type="button" id="interactionMenuBtn" data-placement="right"
-              data-bs-container="body" data-bs-content="Interaction" data-target="interactionMenu">
-              <i class="fa-solid fa-circle-nodes"></i>
-            </button>
-          </div>
-          <div class="row py-1">
-            <button class="btn btn-light" type="button" id="sceneMenuBtn" data-placement="right"
-              data-bs-container="body" data-bs-content="Scene" data-target="sceneMenu">
-              <i class="fas fa-cube"></i>
-            </button>
-          </div>
-          <div class="row py-1">
-            <button class="btn btn-light" type="button" id="drawMenuBtn" data-placement="right" data-bs-container="body"
-              data-bs-content="Drawing" data-target="drawMenu">
-              <i class="fas fa-pencil-alt"></i>
-            </button>
-          </div>
-          <div class="row py-1">
-            <button class="btn btn-light" type="button" id="analysisMenuBtn" data-placement="right"
-              data-bs-container="body" data-bs-content="Analysis" data-target="analysisMenu">
-              <i class="fas fa-chart-bar"></i>
-            </button>
-          </div>
-          <div class="row py-1">
-            <a href="https://github.com/zincware/ZnDraw" class="btn btn-light" role="button" target="”_blank”"><i
-                class="fa-brands fa-github"></i></a>
-          </div>
+      <div class="card-body px-1">
+        <div class="py-1" data-bs-toggle="collapse" data-bs-target="#collapseSelectionCard" aria-expanded="false"
+          aria-controls="collapseSelectionCard">
+          <input type="radio" class="btn-check" name="leftMenuInput" id="option1" autocomplete="off"
+            value="collapseSelectionCard">
+          <label class="btn" for="option1"><i class="fa-regular fa-hand-pointer"></i></label>
+        </div>
+
+        <div class="py-1" data-bs-toggle="collapse" data-bs-target="#collapseInteractionCard" aria-expanded="false"
+          aria-controls="collapseInteractionCard">
+          <input type="radio" class="btn-check" name="leftMenuInput" id="option2" autocomplete="off"
+            value="collapseInteractionCard">
+          <label class="btn" for="option2"><i class="fa-solid fa-circle-nodes"></i></label>
+        </div>
+        <div class="py-1" data-bs-toggle="collapse" data-bs-target="#collapseSceneCard" aria-expanded="false"
+          aria-controls="collapseSceneCard">
+          <input type="radio" class="btn-check" name="leftMenuInput" id="option3" autocomplete="off"
+            value="collapseSceneCard">
+          <label class="btn" for="option3"><i class="fas fa-cube"></i></label>
+        </div>
+
+        <div class="py-1" data-bs-toggle="collapse" data-bs-target="#collapseDrawCard" aria-expanded="false"
+          aria-controls="collapseDrawCard">
+          <input type="radio" class="btn-check" name="leftMenuInput" id="option4" autocomplete="off"
+            value="collapseDrawCard">
+          <label class="btn" for="option4"><i class="fas fa-pencil-alt"></i></label>
+        </div>
+        <div class="py-1" data-bs-toggle="collapse" data-bs-target="#collapseAnalyseCard" aria-expanded="false"
+          aria-controls="collapseAnalyseCard">
+          <input type="radio" class="btn-check" name="leftMenuInput" id="option5" autocomplete="off"
+            value="collapseAnalyseCard">
+          <label class="btn" for="option5"><i class="fas fa-chart-bar"></i></label>
+        </div>
+        <div class="py-1">
+          <a href="https://github.com/zincware/ZnDraw" class="btn btn-light" role="button" target="”_blank”"><i
+              class="fa-brands fa-github"></i></a>
         </div>
       </div>
     </div>
   </div>
-  <div class="fixed-left-menu">
+
+  <div id="leftMenuCards">
     <!-- Selection -->
-    <div class="card h-100 rounded-0" id="selectionMenu" style="display: none">
-      <div class="card-body">
-        <div class="row">
-          <div class="col"></div>
-          <div class="col col-md-auto">
-            <button type="button" class="btn-close" aria-label="Close" id="selectionMenuClose"></button>
-          </div>
-        </div>
-        <div id="selection-json-editor"></div>
-        <div class="row my-3">
-          <div class="col">
-            <button type="button" id="selection-json-editor-submit" class="btn btn-primary w-100">
-              <i class="fa-solid fa-circle-check"></i> Apply
-            </button>
-          </div>
-          <div class="col">
-            <a class="btn btn-secondary w-100" role="button" id="downloadSelectedBtn"><i
-                class="fa-solid fa-download"></i> Download</a>
+    <div class="collapse" id="collapseSelectionCard" data-bs-parent="#leftMenuCards">
+      <div class="card h-100 rounded-0 position-fixed top-0 start-0 fixed-left-menu" id="selectionMenu">
+        <div class="card-body">
+          <div id="selection-json-editor"></div>
+          <div class="row my-3">
+            <div class="col">
+              <button type="button" id="selection-json-editor-submit" class="btn btn-primary w-100">
+                <i class="fa-solid fa-circle-check"></i> Apply
+              </button>
+            </div>
+            <div class="col">
+              <a class="btn btn-secondary w-100" role="button" id="downloadSelectedBtn"><i
+                  class="fa-solid fa-download"></i> Download</a>
+            </div>
           </div>
         </div>
       </div>
     </div>
 
     <!-- Interaction -->
-    <div class="card h-100 rounded-0" id="interactionMenu" style="display: none">
-      <div class="card-body">
-        <div class="row">
-          <div class="col"></div>
-          <div class="col col-md-auto">
-            <button type="button" class="btn-close" aria-label="Close" id="interactionMenuClose"></button>
-          </div>
+    <div class="collapse" id="collapseInteractionCard" data-bs-parent="#leftMenuCards">
+      <div class="card h-100 rounded-0 position-fixed top-0 start-0 fixed-left-menu" id="interactionMenu">
+        <div class="card-body">
+          <div id="interaction-json-editor"></div>
+          <button type="button" id="interaction-json-editor-submit" class="btn btn-primary w-100">
+            <i class="fa-solid fa-play"></i> Run Modifier
+          </button>
         </div>
-        <div id="interaction-json-editor"></div>
-        <button type="button" id="interaction-json-editor-submit" class="btn btn-primary w-100">
-          <i class="fa-solid fa-play"></i> Run Modifier
-        </button>
       </div>
     </div>
 
     <!-- Scene -->
-    <div class="card h-100 rounded-0" id="sceneMenu" style="display: none">
-      <div class="card-body">
-        <div class="row">
-          <div class="col"></div>
-          <div class="col col-md-auto">
-            <button type="button" class="btn-close" aria-label="Close" id="sceneMenuClose"></button>
-          </div>
+    <div class="collapse" id="collapseSceneCard" data-bs-parent="#leftMenuCards">
+      <div class="card h-100 rounded-0 position-fixed top-0 start-0 fixed-left-menu" id="sceneMenu">
+        <div class="card-body">
+          <div id="scene-json-editor"></div>
         </div>
-        <div id="scene-json-editor"></div>
       </div>
     </div>
 
     <!-- Draw -->
-    <div class="card h-100 rounded-0" id="drawMenu" style="display: none">
-      <div class="card-body">
-        <div class="row">
-          <div class="col"></div>
-          <div class="col col-md-auto">
-            <button type="button" class="btn-close" aria-label="Close" id="drawMenuClose"></button>
-          </div>
-        </div>
-        <div id="draw-json-editor"></div>
+    <div class="collapse" id="collapseDrawCard" data-bs-parent="#leftMenuCards">
+      <div class="card h-100 rounded-0 position-fixed top-0 start-0 fixed-left-menu" id="drawMenu">
+        <div class="card-body">
+          <div id="draw-json-editor"></div>
 
-        <div class="row my-3">
-          <div class="col">
-            <button type="button" class="btn btn-primary w-100" id="drawAddCanvas">
-              <i class="fa-solid fa-plus"></i> Add
-            </button>
-          </div>
-          <div class="col">
-            <button type="button" class="btn btn-danger w-100" id="drawRemoveCanvas">
-              <i class="fa-solid fa-trash"></i> Remove
-            </button>
+          <div class="row my-3">
+            <div class="col">
+              <button type="button" class="btn btn-primary w-100" id="drawAddCanvas">
+                <i class="fa-solid fa-plus"></i> Add
+              </button>
+            </div>
+            <div class="col">
+              <button type="button" class="btn btn-danger w-100" id="drawRemoveCanvas">
+                <i class="fa-solid fa-trash"></i> Remove
+              </button>
+            </div>
           </div>
         </div>
       </div>
     </div>
 
     <!-- Analyse -->
-    <div class="card h-100 rounded-0" id="analysisMenu" style="display: none">
-      <div class="card-body" style="width: 500px">
-        <div class="row">
-          <div class="col"></div>
-          <div class="col col-md-auto">
-            <button type="button" class="btn-close" aria-label="Close" id="analysisMenuClose"></button>
-          </div>
+    <div class="collapse" id="collapseAnalyseCard" data-bs-parent="#leftMenuCards">
+      <div class="card h-100 rounded-0 position-fixed top-0 start-0 fixed-left-menu " id="analysisMenu">
+        <div class="card-body" style="width: 500px">
+          <div id="analysis-json-editor"></div>
+          <button type="button" id="analysis-json-editor-submit" class="btn btn-primary w-100">
+            Analyse
+          </button>
+          <div id="analysisPlot"></div>
         </div>
-        <div id="analysis-json-editor"></div>
-        <button type="button" id="analysis-json-editor-submit" class="btn btn-primary w-100">
-          Analyse
-        </button>
-        <div id="analysisPlot"></div>
       </div>
     </div>
-  </div>
 
+
+  </div>
   <!-- Modal -->
   <div class="modal fade" id="helpModal" tabindex="-1" aria-labelledby="helpModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-xl">
@@ -294,8 +281,8 @@
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
         <div class="modal-body" id="tutorialModalBody">
-          <iframe src="{{ tutorial }}" id="tutorialIframe" scrolling="no"
-            frameborder="0" webkitallowfullscreen mozallowfullscreen allowfullscreen></iframe>
+          <iframe src="{{ tutorial }}" id="tutorialIframe" scrolling="no" frameborder="0" webkitallowfullscreen
+            mozallowfullscreen allowfullscreen></iframe>
           </button>
         </div>
       </div>
@@ -412,7 +399,7 @@
       <code>keypress c</code>.
     </p>
   </div>
-    <link rel="stylesheet" href="{{ url_for('static', filename='main.css') }}" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='main.css') }}" />
   <!-- Bootstrap -->
   <link rel="stylesheet" href="{{ url_for('static', filename='node_modules/bootstrap/dist/css/bootstrap.min.css') }}" />
 </body>

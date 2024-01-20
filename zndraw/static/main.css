@@ -47,18 +47,20 @@ body {
   left: 0;
   height: 100%;
   width: 50px;
+  z-index: 10;
   /* Adjust the width as needed */
   /* background-color: #f0f0f0;
         padding: 15px;  */
 }
 
 .fixed-left-menu {
-  position: fixed;
-  top: 50px;
-  left: 50px;
+  padding-left: 50px;
+  padding-top: 50px;
+  z-index: 1;
   overflow-y: auto;
-  height: calc(100% - 50px);
+  display: none;
   min-width: 20%;
+  max-width: 50%;
 }
 
 .main-navbar {
