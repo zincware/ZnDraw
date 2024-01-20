@@ -42,7 +42,7 @@ function selection_editor(socket, cache, world) {
     document
       .getElementById("selection-json-editor-submit")
       .addEventListener("click", () => {
-        console.log(new Date().toISOString(), "running selection");
+        // console.log(new Date().toISOString(), "running selection");
         // Get the value from the editor
         const errors = editor.validate();
         if (errors.length) {

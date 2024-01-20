@@ -311,6 +311,7 @@ class World {
     fps,
     line_label,
   ) {
+    console.log("rebuilding scene");
     this.particles.rebuild(
       resolution,
       material,

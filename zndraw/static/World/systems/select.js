@@ -106,7 +106,7 @@ class Selection {
       const params = document.getElementById(
         "selection-json-editor",
       ).parameters;
-      console.log(new Date().toISOString(), "running selection");
+      // console.log(new Date().toISOString(), "running selection");
       this.socket.emit("selection:run", {
         params: params,
       });
