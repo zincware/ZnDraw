@@ -16,7 +16,7 @@ class Selection {
 
     this.line3D = line3D;
 
-    // add a function tothe line3D callbacks that is trigged if the line is changed
+    // add a function to the line3D callbacks that is triggered if the line is changed
     this.line3D.onLineChange = () => {
       let points = this.line3D.anchorPoints.children.map((x) => x.position);
       // convert x, y, z to [x, y, z]
