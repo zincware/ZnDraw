@@ -69,12 +69,13 @@
           <li class="nav-item mx-1">
             <div class="btn-group" role="group" aria-label="Basic checkbox toggle button group">
               <input type="checkbox" class="btn-check" id="drawingSwitch" autocomplete="off">
-              <label class="btn btn-outline-primary" for="drawingSwitch"><i class="fa-solid fa-pencil"></i></label>
+              <label class="btn btn-outline-primary" for="drawingSwitch" data-bs-placement="bottom"
+              data-bs-toggle="tooltip" data-bs-title="Activate Drawing Tool"><i class="fa-solid fa-pencil"></i></label>
             </div>
           </li>
           <li class="nav-item mx-1">
-            <button type="button" class="btn btn-outline-primary" id="trashBtn" data-bs-placement="bottom" data-bs-toggle="tooltip"
-              data-bs-title="Clear Scene"><i class="fa-solid fa-trash-can"></i></button>
+            <button type="button" class="btn btn-outline-primary" id="trashBtn" data-bs-placement="bottom"
+              data-bs-toggle="tooltip" data-bs-title="Clear Scene"><i class="fa-solid fa-trash-can"></i></button>
           </li>
           {% if tutorial %}
           <li class="nav-item mx-1">
@@ -95,14 +96,16 @@
               <input type="checkbox" class="btn-check" id="ZnDrawConsoleSwitch" autocomplete="off"
                 data-bs-toggle="collapse" data-bs-target="#ZnDrawConsole" aria-controls="ZnDrawConsole"
                 aria-expanded="false">
-              <label class="btn btn-outline-primary" for="ZnDrawConsoleSwitch"><i
-                  class="fa-solid fa-terminal"></i></i></label>
+              <label class="btn btn-outline-primary" for="ZnDrawConsoleSwitch" data-bs-placement="bottom"
+                data-bs-toggle="tooltip" data-bs-title="Console"><i class="fa-solid fa-terminal"></i></i></label>
             </div>
           </li>
           <li class="nav-item mx-1">
-            <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#codeModal">
-              <i class="fa-solid fa-code"></i>
-            </button>
+            <div data-bs-placement="bottom" data-bs-toggle="tooltip" data-bs-title="Python Access">
+              <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#codeModal">
+                <i class="fa-solid fa-code"></i>
+              </button>
+            </div>
           </li>
           <li class="nav-item  mx-1">
             <button type="button" class="btn btn-outline-primary" id="downloadBtn">
