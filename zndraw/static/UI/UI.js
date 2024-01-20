@@ -87,28 +87,31 @@ function setupDragDrop(socket) {
 }
 
 function setupNavbarLeft2() {
+  const tooltipTriggerList = document.querySelectorAll(
+    '[data-bs-toggle="tooltip"]',
+  );
+  const tooltipList = [...tooltipTriggerList].map(
+    (tooltipTriggerEl) => new bootstrap.Tooltip(tooltipTriggerEl),
+  );
 
-  const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]')
-  const tooltipList = [...tooltipTriggerList].map(tooltipTriggerEl => new bootstrap.Tooltip(tooltipTriggerEl))
-
-  let menu = document.querySelectorAll("[name=leftMenuInput]")
+  let menu = document.querySelectorAll("[name=leftMenuInput]");
   // for each one, remvoe the check if is was checked before click
-  const clickState = {}
+  const clickState = {};
   menu.forEach((item) => {
-    clickState[item.id] = false
+    clickState[item.id] = false;
     item.addEventListener("click", () => {
       if (clickState[item.id]) {
-        item.checked = false
-        clickState[item.id] = false
+        item.checked = false;
+        clickState[item.id] = false;
       } else {
         menu.forEach((item) => {
-          clickState[item.id] = false
-        })
+          clickState[item.id] = false;
+        });
 
-        clickState[item.id] = true
+        clickState[item.id] = true;
       }
-    })
-  })
+    });
+  });
 }
 
 export function setUIEvents(socket, cache, world) {
