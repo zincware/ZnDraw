@@ -1,12 +1,12 @@
 FROM continuumio/miniconda3
 WORKDIR /usr/src/app
 COPY ./ ./
-RUN conda create -n myenv python=3.11 nodejs
+RUN conda create -n myenv python=3.11 nodejs packmol
 
 # Make RUN commands use the new environment:
 SHELL ["conda", "run", "--no-capture-output", "-n", "myenv", "/bin/bash", "-c"]
 RUN cd zndraw/static && npm install && cd ..
-RUN pip install .
+RUN pip install .[rdkit]
 
 
 EXPOSE 5003

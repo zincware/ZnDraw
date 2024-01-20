@@ -8,13 +8,19 @@ import numpy as np
 from ase.data import chemical_symbols
 from pydantic import BaseModel, ConfigDict, Field
 
-log = logging.getLogger("zndraw")
-
-Symbols = enum.Enum("Symbols", {symbol: symbol for symbol in chemical_symbols})
+try:
+    from zndraw.modify import extras  # noqa: F401
+except ImportError:
+    # mdanalysis is not installed
+    pass
 
 if t.TYPE_CHECKING:
     from zndraw.zndraw import ZnDraw
 
+
+log = logging.getLogger("zndraw")
+
+Symbols = enum.Enum("Symbols", {symbol: symbol for symbol in chemical_symbols})
 
 class UpdateScene(BaseModel, abc.ABC):
     @abc.abstractmethod
