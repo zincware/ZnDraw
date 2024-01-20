@@ -78,8 +78,11 @@ def connect():
             app.config["ROOM_HOSTS"][token].append(request.sid)
         except KeyError:
             app.config["ROOM_HOSTS"][token] = [request.sid]
+        
+        data = {"sid": request.sid, "token": token}
+        data["host"] = app.config["ROOM_HOSTS"][token][0] == request.sid
 
-        emit("webclient:available", request.sid, to=app.config["DEFAULT_PYCLIENT"])
+        emit("webclient:available", data, to=app.config["DEFAULT_PYCLIENT"])
 
         data = {"modifiers": []}  # {schema: ..., name: ...}
         for name, schema in app.config["MODIFIER"]["default_schema"].items():
@@ -372,6 +375,9 @@ def selection_get(data: dict):
 
 @io.on("selection:set")
 def selection_set(data: dict):
+    if "token" not in data:
+        print(f"selection:set {data}")
+        data["token"] = session["token"]
     emit(
         "selection:set",
         data["selection"],

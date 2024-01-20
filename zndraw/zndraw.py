@@ -368,17 +368,33 @@ class ZnDrawDefault(ZnDrawBase):
         self._connect()
         self.socket.wait()
 
-    def initialize_webclient(self, sid):
-        start_time = datetime.datetime.now()
-        with self._set_sid(sid):
-            for idx, atoms in enumerate(self.read_data()):
-                if idx == 0:
-                    self.analysis_schema(atoms)
-                    self.selection_schema()
-                    self.draw_schema()
-                self[idx] = atoms
-                # self.step = idx # double the message count ..., replace with part of the setitem message, benchmark
-        log.warning(f"{datetime.datetime.now() - start_time} Finished sending data.")
+    def initialize_webclient(self, data):
+        sid = data["sid"]
+        token = data["token"]
+        host = data["host"]
+        if host:
+            print(f"Initializing new webclient {sid}")
+            start_time = datetime.datetime.now()
+            with self._set_sid(sid):
+                for idx, atoms in enumerate(self.read_data()):
+                    if idx == 0:
+                        self.analysis_schema(atoms)
+                        self.selection_schema()
+                        self.draw_schema()
+                    self[idx] = atoms
+                    # self.step = idx # double the message count ..., replace with part of the setitem message, benchmark
+            log.warning(f"{datetime.datetime.now() - start_time} Finished sending data.")
+        else:
+            # load the data from the room host webclient (e.g. token)
+            with self._set_token(token):
+                atoms_list = list(self)
+            with self._set_sid(sid):
+                for idx, atoms in enumerate(atoms_list):
+                    if idx == 0:
+                        self.analysis_schema(atoms)
+                        self.selection_schema()
+                        self.draw_schema()
+                    self[idx] = atoms
 
     def read_data(self) -> t.Generator[ase.Atoms, None, None]:
         if self.file_io is None or self.file_io.name is None:
