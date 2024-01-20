@@ -498,6 +498,8 @@ def bookmarks_set(data: dict):
 
 @io.on("points:set")
 def points_set(data: dict):
+    if "token" not in data:
+        data["token"] = session["token"]
     emit("points:set", data["value"], include_self=False, to=_webclients_room(data))
 
 

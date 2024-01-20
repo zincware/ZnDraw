@@ -145,6 +145,8 @@ export class Line3D extends THREE.Group {
     this.add(this.line, this.anchorPoints, this.virtualPoints);
   }
 
+  onLineChange() {}
+
   changeLineColor(color) {
     this.line.material.color.set(color);
   }
@@ -154,7 +156,7 @@ export class Line3D extends THREE.Group {
     ].material.color.set(color);
   }
 
-  addPoint(position, index) {
+  addPoint(position, index, triggerLineChange = true) {
     const geometry = new THREE.IcosahedronGeometry(0.1, 0);
     const material = new THREE.MeshPhongMaterial({
       color: "#000000",
@@ -173,17 +175,19 @@ export class Line3D extends THREE.Group {
       this.anchorPoints.add(sphere);
     }
     this.updateLine();
+    if (triggerLineChange) {
+      this.onLineChange();
+    }
 
     this.ARC_SEGMENTS = this.anchorPoints.children.length * 20;
-
     return sphere;
   }
 
   updateAllPoints(positions) {
     console.log("updateAllPoints", positions);
     this.anchorPoints.clear();
-    positions.forEach((position) => {
-      this.addPoint(new THREE.Vector3(...position));
+    positions.forEach((position, index) => {
+      this.addPoint(new THREE.Vector3(...position), index, false);
     });
     this.updateLine();
   }
@@ -201,6 +205,7 @@ export class Line3D extends THREE.Group {
 
     this.updateLine();
     document.getElementById("pointerInfoBox").style.display = "none";
+    this.onLineChange();
   }
 
   addPointer() {
@@ -271,5 +276,6 @@ export class Line3D extends THREE.Group {
       document.getElementById("pointerInfoBox").style.left = `${x + 10}px`;
       document.getElementById("pointerInfoBox").style.top = `${y}px`;
     }
+    this.onLineChange();
   }
 }
