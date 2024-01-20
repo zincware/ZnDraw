@@ -95,7 +95,7 @@ function setupNavbarLeft2() {
   );
 
   let menu = document.querySelectorAll("[name=leftMenuInput]");
-  // for each one, remvoe the check if is was checked before click
+  // for each one, remove the check if is was checked before click
   const clickState = {};
   menu.forEach((item) => {
     clickState[item.id] = false;
