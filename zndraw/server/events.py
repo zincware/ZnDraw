@@ -98,7 +98,7 @@ def connect():
             app.config["PER-TOKEN-DATA"][token] = {}
 
         # append to zndraw.log a line isoformat() + " " + token
-        if "token" not in app.config:
+        if app.config["USE_TOKEN"]:
             with open("zndraw.log", "a") as f:
                 f.write(
                     datetime.datetime.now().isoformat() + " " + token + " connected \n"
@@ -113,7 +113,7 @@ def disconnect():
             del app.config["pyclients"][_get_uuid_for_sid(request.sid)]
         except KeyError:
             pass
-        if "token" not in app.config:
+        if app.config["USE_TOKEN"]:
             with open("zndraw.log", "a") as f:
                 f.write(
                     datetime.datetime.now().isoformat()

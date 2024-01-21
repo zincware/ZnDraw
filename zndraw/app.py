@@ -15,6 +15,7 @@ def create_app(
     app.config["SECRET_KEY"] = str(uuid.uuid4())
     app.config["ROOM_HOSTS"] = {}
     app.config["DEFAULT_PYCLIENT"] = None
+    app.config["USE_TOKEN"] = use_token
     app.config["TUTORIAL"] = tutorial
     # dict of {uuid: sid} for each client
     app.config["pyclients"] = {}
@@ -22,9 +23,7 @@ def create_app(
     app.config["PER-TOKEN-DATA"] = {}
     app.config["AUTH_TOKEN"] = auth_token
     app.config["MODIFIER"] = {"default_schema": {}, "active": None, "queue": []}
-
-    if not use_token:  # TODO: handle this differently
-        app.config["token"] = "notoken"
+    
     app.config["upgrade_insecure_requests"] = upgrade_insecure_requests
     app.config["compute_bonds"] = compute_bonds
 
