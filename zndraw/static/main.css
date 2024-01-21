@@ -175,7 +175,7 @@ body {
   text-align: center;
 }
 
-#info {
+/* #info {
   position: absolute;
   bottom: 10px;
   text-align: center;
@@ -183,7 +183,7 @@ body {
   z-index: 100;
   display: block;
   opacity: 0.5;
-}
+} */
 
 #playPauseCtrl {
   position: fixed;

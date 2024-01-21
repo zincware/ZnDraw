@@ -148,6 +148,29 @@ function setupPointerFrameChange(world) {
   });
 }
 
+function setupFrameInput(world) {
+  const frame_input = document.getElementById("frameInput");
+  const frame_input_modal = document.getElementById("frameInputModal");
+
+  frame_input_modal.addEventListener("shown.bs.modal", () => {
+    frame_input.focus();
+  });
+
+  frame_input.addEventListener("change", () => {
+    const modal = bootstrap.Modal.getInstance(frame_input_modal);
+    modal.hide();
+
+    if ((parseInt(frame_input.value) > document.getElementById("frameProgress").ariaValueMax) || (parseInt(frame_input.value) < 0)) {
+      alert("The frame you entered is out of range.");
+    } else {
+      const step = parseInt(frame_input.value);
+      world.setStep(step);
+    }
+
+    frame_input.value = "";
+  });
+}
+
 export function setUIEvents(socket, cache, world) {
   // resizeOffcanvas();
   setupUpload(socket);
@@ -157,6 +180,7 @@ export function setUIEvents(socket, cache, world) {
   setupTrashClick(socket);
   switchColorScheme(world);
   setupPointerFrameChange(world);
+  setupFrameInput(world);
 
   socket.on("download:response", (data) => {
     const blob = new Blob([data], { type: "text/csv" });
