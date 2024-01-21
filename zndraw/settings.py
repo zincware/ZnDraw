@@ -14,7 +14,6 @@ _ANALYSIS_FUNCTIONS = [
     "zndraw.analyse.Distance",
 ]
 _MODIFY_FUNCTIONS = [
-    "zndraw.modify.Explode",
     "zndraw.modify.Delete",
     "zndraw.modify.Move",
     "zndraw.modify.Duplicate",
@@ -31,13 +30,13 @@ _BONDS_FUNCTIONS = [
     "zndraw.tools.data.ASEComputeBonds",
 ]
 _SELECTION_FUNCTIONS = [
+    "zndraw.select.ConnectedParticles",
     "zndraw.select.NoneSelection",
     "zndraw.select.All",
     "zndraw.select.Invert",
     "zndraw.select.Range",
     "zndraw.select.Random",
     "zndraw.select.IdenticalSpecies",
-    "zndraw.select.ConnectedParticles",
     "zndraw.select.Neighbour",
 ]
 

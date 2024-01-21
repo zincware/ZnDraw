@@ -1,7 +1,6 @@
 import abc
 import enum
 import logging
-import time
 import typing as t
 
 import ase
@@ -9,12 +8,19 @@ import numpy as np
 from ase.data import chemical_symbols
 from pydantic import BaseModel, ConfigDict, Field
 
-log = logging.getLogger("zndraw")
-
-Symbols = enum.Enum("Symbols", {symbol: symbol for symbol in chemical_symbols})
+try:
+    from zndraw.modify import extras  # noqa: F401
+except ImportError:
+    # mdanalysis is not installed
+    pass
 
 if t.TYPE_CHECKING:
     from zndraw.zndraw import ZnDraw
+
+
+log = logging.getLogger("zndraw")
+
+Symbols = enum.Enum("Symbols", {symbol: symbol for symbol in chemical_symbols})
 
 
 class UpdateScene(BaseModel, abc.ABC):
@@ -71,36 +77,6 @@ class Rotate(UpdateScene):
             # merge the selected and remaining atoms
             atoms = atoms_selected + atoms_remaining
             vis.append(atoms)
-            vis.step += 1
-        vis.selection = []
-
-
-class Explode(UpdateScene):
-    discriminator: t.Literal["Explode"] = Field("Explode")
-
-    steps: int = Field(100, le=1000, ge=1)
-    particles: int = Field(10, le=20, ge=1)
-    delay: int = Field(0, le=60000, ge=0, description="Delay between each step in ms")
-
-    def run(self, vis: "ZnDraw") -> None:
-        if len(vis) > vis.step + 1:
-            del vis[vis.step + 1 :]
-
-        atom_ids = vis.selection
-        atoms = vis.atoms
-        particles = []
-        for _atom_id in atom_ids:
-            for _ in range(self.particles):
-                particles.append(ase.Atoms("Na", positions=[atoms.positions[_atom_id]]))
-
-        for _ in range(self.steps):
-            struct = atoms.copy()
-            for particle in particles:
-                particle.positions += np.random.normal(scale=0.1, size=(1, 3))
-                struct += particle
-            time.sleep(self.delay / 1000)
-            vis.append(struct)
-            vis.step += 1
         vis.selection = []
 
 
@@ -115,14 +91,12 @@ class Delete(UpdateScene):
 
         if len(vis) > vis.step + 1:
             del vis[vis.step + 1 :]
-        print(f"Deleting atoms {atom_ids}")
         vis.log(f"Deleting atoms {atom_ids}")
         for idx, atom_id in enumerate(sorted(atom_ids)):
             atoms.pop(atom_id - idx)  # we remove the atom and shift the index
         del atoms.connectivity
         vis.append(atoms)
         vis.selection = []
-        vis.step += 1
 
 
 class Move(UpdateScene):
@@ -138,7 +112,6 @@ class Move(UpdateScene):
 
         atoms = vis.atoms
         atoms_selected, atoms_remaining = self.apply_selection(vis.selection, atoms)
-
         if self.steps > len(vis.segments):
             raise ValueError(
                 "The number of steps must be less than the number of segments. You can add more points to increase the number of segments."
@@ -155,7 +128,6 @@ class Move(UpdateScene):
             # merge the selected and remaining atoms
             atoms = atoms_selected + atoms_remaining
             vis.append(atoms)
-            vis.step += 1
         vis.selection = []
 
 
@@ -177,8 +149,8 @@ class Duplicate(UpdateScene):
             atom.position += np.array([self.x, self.y, self.z])
             atom.symbol = self.symbol.name if self.symbol.name != "X" else atom.symbol
             atoms += atom
+
         vis.append(atoms)
-        vis.step += 1
         vis.selection = []
 
 
@@ -194,8 +166,8 @@ class ChangeType(UpdateScene):
         atoms = vis.atoms
         for atom_id in vis.selection:
             atoms[atom_id].symbol = self.symbol.name
+
         vis.append(atoms)
-        vis.step += 1
         vis.selection = []
 
 
@@ -212,9 +184,9 @@ class AddLineParticles(UpdateScene):
         atoms = vis.atoms
         for point in vis.points:
             atoms += ase.Atom(self.symbol.name, position=point)
+
         for _ in range(self.steps):
             vis.append(atoms)
-            vis.step += 1
 
 
 class Wrap(UpdateScene):
@@ -235,7 +207,6 @@ class Wrap(UpdateScene):
             if self.recompute_bonds:
                 delattr(atoms, "connectivity")
             vis[idx] = atoms
-            vis.step = idx
 
 
 class Center(UpdateScene):
@@ -250,15 +221,15 @@ class Center(UpdateScene):
 
     def run(self, vis: "ZnDraw") -> None:
         selection = vis.selection
-        if len(selection) != 1:
-            vis.log("Please select exactly one atom to center on.")
+        if len(selection) < 1:
+            vis.log("Please select at least one atom.")
             return
 
         vis.log("Downloading atoms...")
         atoms_list = list(vis)
 
         if not self.dynamic:
-            center = atoms_list[vis.step][selection[0]].position
+            center = atoms_list[vis.step][selection].get_center_of_mass()
         else:
             center = None
 
@@ -268,7 +239,7 @@ class Center(UpdateScene):
 
         for idx, atoms in enumerate(atoms_list):
             if self.dynamic:
-                center = atoms[selection[0]].position
+                center = atoms[selection].get_center_of_mass()
             atoms.positions -= center
             atoms.positions += np.diag(atoms.cell) / 2
             if self.wrap:
@@ -277,7 +248,6 @@ class Center(UpdateScene):
                 delattr(atoms, "connectivity")
 
             vis[idx] = atoms
-            vis.step = idx
 
 
 class Replicate(UpdateScene):
@@ -300,7 +270,6 @@ class Replicate(UpdateScene):
             if self.keep_box:
                 atoms.cell = atoms_list[idx].cell
             vis[idx] = atoms
-            vis.step = idx
 
 
 # class CustomModifier(UpdateScene):

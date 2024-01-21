@@ -90,25 +90,26 @@ class Cache {
     this.world;
 
     this._socket.on("atoms:upload", (all_data) => {
-      console.log(new Date().toISOString(), "Received atoms from Python");
+      // console.log(new Date().toISOString(), "Received atoms from Python");
 
       // pop key from data dict
       const { display_new, ...data } = all_data;
-      const slider = document.getElementById("frame-slider");
+      const slider = document.getElementById("frameProgress");
 
       Object.keys(data).forEach((key) => {
         this._cache[key] = new Atoms({
           positions: data[key].positions,
           cell: data[key].cell,
           numbers: data[key].numbers,
-          colors: data[key].colors,
-          radii: data[key].radii,
+          colors: data[key].arrays.colors,
+          radii: data[key].arrays.radii,
           connectivity: data[key].connectivity,
           calc: data[key].calc,
           pbc: data[key].pbc,
         });
+
         if (display_new) {
-          slider.max = Object.keys(this._cache).length - 1;
+          slider.ariaValueMax = Object.keys(this._cache).length - 1;
           this.world.setStep(key);
         }
       });
@@ -129,10 +130,10 @@ class Cache {
         }
       }
       // update slider
-      const slider = document.getElementById("frame-slider");
+      const slider = document.getElementById("frameProgress");
 
       // update world
-      if (this.world.getStep() >= slider.max) {
+      if (this.world.getStep() >= slider.ariaValueMax) {
         this.world.setStep(remainingKeys.length - 1);
       } else {
         let newStep = this.world.getStep();
@@ -144,9 +145,9 @@ class Cache {
         this.world.setStep(newStep);
       }
 
-      slider.max = remainingKeys.length - 1;
+      slider.ariaValueMax = remainingKeys.length - 1;
       document.getElementById("info").innerHTML =
-        `${slider.value} / ${slider.max}`;
+        `${slider.ariaValueNow} / ${slider.ariaValueMax}`;
     });
 
     this._socket.on("atoms:insert", (data) => {
@@ -164,17 +165,17 @@ class Cache {
         positions: data[id].positions,
         cell: data[id].cell,
         numbers: data[id].numbers,
-        colors: data[id].colors,
-        radii: data[id].radii,
+        colors: data[id].arrays.colors,
+        radii: data[id].arrays.radii,
         connectivity: data[id].connectivity,
         calc: data[id].calc,
         pbc: data[id].pbc,
       });
       // update slider
-      const slider = document.getElementById("frame-slider");
-      slider.max = Object.keys(this._cache).length - 1;
+      const slider = document.getElementById("frameProgress");
+      slider.ariaValueMax = Object.keys(this._cache).length - 1;
       document.getElementById("info").innerHTML =
-        `${slider.value} / ${slider.max}`;
+        `${slider.ariaValueNow} / ${slider.ariaValueMax}`;
     });
 
     this._socket.on(
@@ -183,7 +184,18 @@ class Cache {
         // send all atoms at once
         const data = {};
         ids.forEach((x) => {
-          data[x] = this._cache[x];
+          try {
+            const { colors, radii, length, ...rest } = this._cache[x];
+            data[x] = {
+              ...rest,
+              arrays: {
+                colors,
+                radii,
+              },
+            };
+          } catch (error) {
+            data[x] = undefined;
+          }
         });
         callback(data);
       }.bind(this),

@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-bs-theme="light">
 
 <head>
   <meta charset="utf-8" />
@@ -16,9 +16,6 @@
         }
       }
     </script>
-  <link rel="stylesheet" href="{{ url_for('static', filename='main.css') }}" />
-  <!-- Bootstrap -->
-  <link rel="stylesheet" href="{{ url_for('static', filename='node_modules/bootstrap/dist/css/bootstrap.min.css') }}" />
 </head>
 
 <body>
@@ -46,6 +43,9 @@
   </noscript>
 
   <div id="scene-container"></div>
+  <div class="overlay" id="overlay">
+    <h1 class="overlay-text">Upload File</h1>
+  </div>
 
   <!-- Loading Spinner -->
   <div class="atom-spinner" , id="atom-spinner">
@@ -61,17 +61,29 @@
 
   <!-- Navigation -->
 
-  <nav class="navbar navbar-expand-md fixed-top bg-light main-navbar">
+  <nav class="navbar navbar-expand-md fixed-top bg-body-tertiary main-navbar">
     <div class="container-fluid">
       <div class="navbar-brand" href="#">ZnDraw</div>
       <div class="navbar-collapse collapse w-100 order-1 order-md-0 dual-collapse2">
         <ul class="navbar-nav me-auto">
-          <li class="nav-item active">
+          <li class="nav-item mx-1">
             <div class="btn-group" role="group" aria-label="Basic checkbox toggle button group">
               <input type="checkbox" class="btn-check" id="drawingSwitch" autocomplete="off">
-              <label class="btn btn-outline-primary" for="drawingSwitch">Draw <i class="fa-solid fa-pencil"></i></label>
+              <label class="btn btn-outline-primary" for="drawingSwitch" data-bs-placement="bottom"
+                data-bs-toggle="tooltip" data-bs-title="Activate Drawing Tool"><i
+                  class="fa-solid fa-pencil"></i></label>
             </div>
           </li>
+          <li class="nav-item mx-1">
+            <button type="button" class="btn btn-outline-primary" id="trashBtn" data-bs-placement="bottom"
+              data-bs-toggle="tooltip" data-bs-title="Clear Scene"><i class="fa-solid fa-trash-can"></i></button>
+          </li>
+          {% if tutorial %}
+          <li class="nav-item mx-1">
+            <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal"
+              data-bs-target="#tutorialModal">Tutorial <i class="fa-solid fa-film"></i></button>
+          </li>
+          {% endif %}
         </ul>
       </div>
       <div class="mx-auto order-0">
@@ -81,188 +93,198 @@
       <div class="navbar-collapse collapse w-100 order-3 dual-collapse2">
         <ul class="navbar-nav ms-auto">
           <li class="nav-item mx-1">
-             <div class="btn-group" role="group" aria-label="Basic checkbox toggle button group">
-              <input type="checkbox" class="btn-check" id="ZnDrawConsoleSwitch" autocomplete="off" data-bs-toggle="collapse" data-bs-target="#ZnDrawConsole" aria-controls="ZnDrawConsole" aria-expanded="false">
-              <label class="btn btn-outline-primary" for="ZnDrawConsoleSwitch"><i class="fa-solid fa-terminal"></i></i></label>
+            <div class="btn-group" role="group" aria-label="Basic checkbox toggle button group">
+              <input type="checkbox" class="btn-check" id="ZnDrawConsoleSwitch" autocomplete="off"
+                data-bs-toggle="collapse" data-bs-target="#ZnDrawConsole" aria-controls="ZnDrawConsole"
+                aria-expanded="false">
+              <label class="btn btn-outline-primary" for="ZnDrawConsoleSwitch" data-bs-placement="bottom"
+                data-bs-toggle="tooltip" data-bs-title="Console"><i class="fa-solid fa-terminal"></i></i></label>
             </div>
           </li>
           <li class="nav-item mx-1">
-            <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#codeModal">
-              <i class="fa-solid fa-code"></i>
-            </button>
+            <div data-bs-placement="bottom" data-bs-toggle="tooltip" data-bs-title="Python Access">
+              <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#codeModal">
+                <i class="fa-solid fa-code"></i>
+              </button>
+            </div>
           </li>
           <li class="nav-item  mx-1">
             <button type="button" class="btn btn-outline-primary" id="downloadBtn">
-              <i class="fas fa-download"></i> Download
+              <i class="fas fa-download"></i>
             </button>
           </li>
           <li class="nav-item mx-1">
             <form id="uploadForm" method="post" enctype="multipart/form-data">
               <input type="file" name="file" id="fileInput" style="display: none" />
               <input type="submit" value="Upload" id="uploadBtn" style="display: none" />
-              <label class="btn btn-outline-primary " for="fileInput"><i class="fas fa-upload"></i> Upload</label>
+              <label class="btn btn-outline-primary " for="fileInput"><i class="fas fa-upload"></i></label>
             </form>
           </li>
-          <li class="nav-item">
+          <li class="nav-item mx-1">
+            <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#filesModal">
+              <i class="fa-solid fa-folder-open"></i>
+            </button>
+          </li>
+          <li class="nav-item mx-1">
             <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#helpModal">
               <i class="fa-solid fa-circle-info"></i>
             </button>
           </li>
           <li class="nav-item mx-1">
-            <a class="btn btn-outline-info " href="/" role="button"><i class="fa-solid fa-rotate-right"></i>
-              Reload</a>
+            <button type="button" class="btn btn-outline-secondary" id="colorModeSwitch"><i
+                class="fa-solid fa-sun"></i></button>
+          </li>
+          {% if token == "notoken" %}
+          <li class="nav-item mx-1">
+            <a class="btn btn-outline-info " href="/" role="button"><i class="fa-solid fa-rotate-right"></i></a>
           </li>
           <li class="nav-item mx-1">
-            <button class="btn btn-outline-danger" id="ExitBtn">
-              <i class="fa-solid fa-circle-xmark"></i> EXIT
-            </button>
+            <a class="btn btn-outline-danger" id="ExitBtn" href="/exit">
+              <i class="fa-solid fa-circle-xmark"></i>
+            </a>
           </li>
+          {% endif %}
         </ul>
       </div>
     </div>
   </nav>
 
+
+
   <div class="fixed-left-container">
     <!-- Content for the fixed left container -->
     <div class="card h-100 rounded-0">
-      <div class="card-body">
-        <div class="col">
-          <div class="row py-1">
-            <button class="btn btn-light" type="button" id="selectionMenuBtn" data-placement="right"
-              data-bs-container="body" data-bs-content="Selection" data-target="selectionMenu">
-              <i class="fa-regular fa-hand-pointer"></i>
-            </button>
-          </div>
-          <div class="row py-1">
-            <button class="btn btn-light" type="button" id="interactionMenuBtn" data-placement="right"
-              data-bs-container="body" data-bs-content="Interaction" data-target="interactionMenu">
-              <i class="fa-solid fa-circle-nodes"></i>
-            </button>
-          </div>
-          <div class="row py-1">
-            <button class="btn btn-light" type="button" id="sceneMenuBtn" data-placement="right"
-              data-bs-container="body" data-bs-content="Scene" data-target="sceneMenu">
-              <i class="fas fa-cube"></i>
-            </button>
-          </div>
-          <div class="row py-1">
-            <button class="btn btn-light" type="button" id="drawMenuBtn" data-placement="right" data-bs-container="body"
-              data-bs-content="Drawing" data-target="drawMenu">
-              <i class="fas fa-pencil-alt"></i>
-            </button>
-          </div>
-          <div class="row py-1">
-            <button class="btn btn-light" type="button" id="analysisMenuBtn" data-placement="right"
-              data-bs-container="body" data-bs-content="Analysis" data-target="analysisMenu">
-              <i class="fas fa-chart-bar"></i>
-            </button>
-          </div>
-          <div class="row py-1">
-            <a href="https://github.com/zincware/ZnDraw" class="btn btn-light" role="button" target="”_blank”"><i
-                class="fa-brands fa-github"></i></a>
-          </div>
+      <div class="card-body px-1">
+        <div class="py-1" data-bs-toggle="collapse" data-bs-target="#collapseSelectionCard" aria-expanded="false"
+          aria-controls="collapseSelectionCard">
+          <input type="radio" class="btn-check" name="leftMenuInput" id="option1" autocomplete="off"
+            value="collapseSelectionCard">
+          <label class="btn" for="option1" data-bs-toggle="tooltip" data-bs-placement="right" data-bs-title="Selection">
+            <i class="fa-regular fa-hand-pointer"></i>
+          </label>
+        </div>
+
+        <div class="py-1" data-bs-toggle="collapse" data-bs-target="#collapseInteractionCard" aria-expanded="false"
+          aria-controls="collapseInteractionCard">
+          <input type="radio" class="btn-check" name="leftMenuInput" id="option2" autocomplete="off"
+            value="collapseInteractionCard">
+          <label class="btn" for="option2" data-bs-toggle="tooltip" data-bs-placement="right"
+            data-bs-title="Interaction">
+            <i class="fa-solid fa-circle-nodes"></i>
+          </label>
+        </div>
+        <div class="py-1" data-bs-toggle="collapse" data-bs-target="#collapseSceneCard" aria-expanded="false"
+          aria-controls="collapseSceneCard">
+          <input type="radio" class="btn-check" name="leftMenuInput" id="option3" autocomplete="off"
+            value="collapseSceneCard">
+          <label class="btn" for="option3" data-bs-toggle="tooltip" data-bs-placement="right" data-bs-title="Scene">
+            <i class="fas fa-cube"></i>
+          </label>
+        </div>
+
+        <div class="py-1" data-bs-toggle="collapse" data-bs-target="#collapseDrawCard" aria-expanded="false"
+          aria-controls="collapseDrawCard">
+          <input type="radio" class="btn-check" name="leftMenuInput" id="option4" autocomplete="off"
+            value="collapseDrawCard">
+          <label class="btn" for="option4" data-bs-toggle="tooltip" data-bs-placement="right" data-bs-title="Geometry">
+            <i class="fa-regular fa-map"></i>
+          </label>
+        </div>
+        <div class="py-1" data-bs-toggle="collapse" data-bs-target="#collapseAnalyseCard" aria-expanded="false"
+          aria-controls="collapseAnalyseCard">
+          <input type="radio" class="btn-check" name="leftMenuInput" id="option5" autocomplete="off"
+            value="collapseAnalyseCard">
+          <label class="btn" for="option5" data-bs-toggle="tooltip" data-bs-placement="right" data-bs-title="Analyse">
+            <i class="fas fa-chart-bar"></i>
+          </label>
+        </div>
+        <div class="py-1" data-bs-toggle="tooltip" data-bs-placement="right" data-bs-title="Source Code">
+          <a href="https://github.com/zincware/ZnDraw" class="btn" role="button" target="”_blank”"><i
+              class="fa-brands fa-github"></i></a>
         </div>
       </div>
     </div>
   </div>
-  <div class="fixed-left-menu">
+
+  <div id="leftMenuCards">
     <!-- Selection -->
-    <div class="card h-100 rounded-0" id="selectionMenu" style="display: none">
-      <div class="card-body">
-        <div class="row">
-          <div class="col"></div>
-          <div class="col col-md-auto">
-            <button type="button" class="btn-close" aria-label="Close" id="selectionMenuClose"></button>
-          </div>
-        </div>
-        <div id="selection-json-editor"></div>
-        <div class="row my-3">
-          <div class="col">
-            <button type="button" id="selection-json-editor-submit" class="btn btn-primary w-100">
-              <i class="fa-solid fa-circle-check"></i> Apply
-            </button>
-          </div>
-          <div class="col">
-            <a class="btn btn-secondary w-100" role="button" id="downloadSelectedBtn"><i
-                class="fa-solid fa-download"></i> Download</a>
+    <div class="collapse" id="collapseSelectionCard" data-bs-parent="#leftMenuCards">
+      <div class="card h-100 rounded-0 position-fixed top-0 start-0 fixed-left-menu rounded-end" id="selectionMenu">
+        <div class="card-body">
+          <div id="selection-json-editor"></div>
+          <div class="row my-3">
+            <div class="col">
+              <button type="button" id="selection-json-editor-submit" class="btn btn-primary w-100">
+                <i class="fa-solid fa-circle-check"></i> Apply
+              </button>
+            </div>
+            <div class="col">
+              <a class="btn btn-secondary w-100" role="button" id="downloadSelectedBtn"><i
+                  class="fa-solid fa-download"></i> Download</a>
+            </div>
           </div>
         </div>
       </div>
     </div>
 
     <!-- Interaction -->
-    <div class="card h-100 rounded-0" id="interactionMenu" style="display: none">
-      <div class="card-body">
-        <div class="row">
-          <div class="col"></div>
-          <div class="col col-md-auto">
-            <button type="button" class="btn-close" aria-label="Close" id="interactionMenuClose"></button>
-          </div>
+    <div class="collapse" id="collapseInteractionCard" data-bs-parent="#leftMenuCards">
+      <div class="card h-100 rounded-0 position-fixed top-0 start-0 fixed-left-menu rounded-end" id="interactionMenu">
+        <div class="card-body">
+          <div id="interaction-json-editor"></div>
+          <button type="button" id="interaction-json-editor-submit" class="btn btn-primary w-100">
+            <i class="fa-solid fa-play"></i> Run Modifier
+          </button>
         </div>
-        <div id="interaction-json-editor"></div>
-        <button type="button" id="interaction-json-editor-submit" class="btn btn-primary w-100">
-          <i class="fa-solid fa-play"></i> Run Modifier
-        </button>
       </div>
     </div>
 
     <!-- Scene -->
-    <div class="card h-100 rounded-0" id="sceneMenu" style="display: none">
-      <div class="card-body">
-        <div class="row">
-          <div class="col"></div>
-          <div class="col col-md-auto">
-            <button type="button" class="btn-close" aria-label="Close" id="sceneMenuClose"></button>
-          </div>
+    <div class="collapse" id="collapseSceneCard" data-bs-parent="#leftMenuCards">
+      <div class="card h-100 rounded-0 position-fixed top-0 start-0 fixed-left-menu rounded-end" id="sceneMenu">
+        <div class="card-body">
+          <div id="scene-json-editor"></div>
         </div>
-        <div id="scene-json-editor"></div>
       </div>
     </div>
 
     <!-- Draw -->
-    <div class="card h-100 rounded-0" id="drawMenu" style="display: none">
-      <div class="card-body">
-        <div class="row">
-          <div class="col"></div>
-          <div class="col col-md-auto">
-            <button type="button" class="btn-close" aria-label="Close" id="drawMenuClose"></button>
-          </div>
-        </div>
-        <div id="draw-json-editor"></div>
+    <div class="collapse" id="collapseDrawCard" data-bs-parent="#leftMenuCards">
+      <div class="card h-100 rounded-0 position-fixed top-0 start-0 fixed-left-menu rounded-end" id="drawMenu">
+        <div class="card-body">
+          <div id="draw-json-editor"></div>
 
-        <div class="row my-3">
-          <div class="col">
-            <button type="button" class="btn btn-primary w-100" id="drawAddCanvas">
-              <i class="fa-solid fa-plus"></i> Add
-            </button>
-          </div>
-          <div class="col">
-            <button type="button" class="btn btn-danger w-100" id="drawRemoveCanvas">
-              <i class="fa-solid fa-trash"></i> Remove
-            </button>
+          <div class="row my-3">
+            <div class="col">
+              <button type="button" class="btn btn-primary w-100" id="drawAddCanvas">
+                <i class="fa-solid fa-plus"></i> Add
+              </button>
+            </div>
+            <div class="col">
+              <button type="button" class="btn btn-danger w-100" id="drawRemoveCanvas">
+                <i class="fa-solid fa-trash"></i> Remove
+              </button>
+            </div>
           </div>
         </div>
       </div>
     </div>
 
     <!-- Analyse -->
-    <div class="card h-100 rounded-0" id="analysisMenu" style="display: none">
-      <div class="card-body" style="width: 500px">
-        <div class="row">
-          <div class="col"></div>
-          <div class="col col-md-auto">
-            <button type="button" class="btn-close" aria-label="Close" id="analysisMenuClose"></button>
-          </div>
+    <div class="collapse" id="collapseAnalyseCard" data-bs-parent="#leftMenuCards">
+      <div class="card h-100 rounded-0 position-fixed top-0 start-0 fixed-left-menu rounded-end" id="analysisMenu">
+        <div class="card-body" style="width: 500px">
+          <div id="analysis-json-editor"></div>
+          <button type="button" id="analysis-json-editor-submit" class="btn btn-primary w-100">
+            Analyse
+          </button>
+          <div id="analysisPlot"></div>
         </div>
-        <div id="analysis-json-editor"></div>
-        <button type="button" id="analysis-json-editor-submit" class="btn btn-primary w-100">
-          Analyse
-        </button>
-        <div id="analysisPlot"></div>
       </div>
     </div>
-  </div>
 
+
+  </div>
   <!-- Modal -->
   <div class="modal fade" id="helpModal" tabindex="-1" aria-labelledby="helpModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-xl">
@@ -276,6 +298,43 @@
       </div>
     </div>
   </div>
+
+  <!-- Files Selection -->
+  <div class="modal fade" id="filesModal" tabindex="-1" aria-labelledby="helpModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h1 class="modal-title fs-5" id="helpModalLabel">Select File</h1>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="container text-center">
+          <h3>There are currently no files to select from.</h3>
+        </div>
+      </div>
+    </div>
+  </div>
+  </div>
+
+  <!-- Tutorial -->
+
+  {% if tutorial %}
+  <div class="modal fade" id="tutorialModal" tabindex="-1" aria-labelledby="tutorialModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h1 class="modal-title fs-5" id="tutorialModalLabel">ZnDraw Tutorial</h1>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body" id="tutorialModalBody">
+          <iframe src="{{ tutorial }}" id="tutorialIframe" scrolling="no" frameborder="0" webkitallowfullscreen
+            mozallowfullscreen allowfullscreen></iframe>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+  </div>
+  {% endif %}
 
   <div class="modal fade" id="codeModal" tabindex="-1" aria-labelledby="codeModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-xl">
@@ -294,7 +353,8 @@
           <h3>Share Link</h3>
           <code id="share-link-block"></code>
           <br />
-          <a class="btn btn-primary" href="{{ url_for('main.token', token=token) }}" role="button" id="btnShareLink">Copy
+          <a class="btn btn-primary" href="{{ url_for('main.token', token=token) }}" role="button"
+            id="btnShareLink">Copy
             link to clipboard</a>
           {% endif %}
           <script>
@@ -345,29 +405,59 @@
 
   <!-- ZnDraw Console -->
 
-<div class="collapse" id="ZnDrawConsole" style="transition: 0s;">
-  <div class="card" id="ZnDrawConsoleCard">
-  <div class="card-header">
-    <div class="row">
+  <div class="collapse" id="ZnDrawConsole" style="transition: 0s;">
+    <div class="card" id="ZnDrawConsoleCard">
+      <div class="card-header">
+        <div class="row">
           <div class="col">Console</div>
           <div class="col col-md-auto">
-            <button type="button" class="btn-close" id="ZnDrawConsoleExitBtn" onclick="document.getElementById('ZnDrawConsoleSwitch').click();"></button>
+            <button type="button" class="btn-close" id="ZnDrawConsoleExitBtn"
+              onclick="document.getElementById('ZnDrawConsoleSwitch').click();"></button>
           </div>
         </div>
-  </div>
-    <div class="card-body overflow-y-auto" id="ZnDrawConsoleBody">
+      </div>
+      <div class="card-body overflow-y-auto" id="ZnDrawConsoleBody">
+      </div>
     </div>
   </div>
-</div>
+
+  <!-- Pointer Info Box -->
+
+  <div class="card" id="pointerInfoBox">
+    <div class="card-body px-2 py-1" id="pointerInfoBoxBody">
+      This is some text within a card body.
+    </div>
+  </div>
 
 
   <!-- Progress Bar -->
-  <div id="info"></div>
-  <input id="frame-slider" class="frame-slider" type="range" value="0" min="0" max="100" />
+  <button id="info" type="button" class="btn position-absolute bottom-0 start-50 translate-middle-x my-1"
+    data-bs-toggle="modal" data-bs-target="#frameInputModal">0 / 0</button>
+
+  <div class="modal fade" id="frameInputModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h1 class="modal-title fs-5" >Change Frame</h1>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <input type="number" class="form-control" id="frameInput"/>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="fixed-bottom" style="width: 100%;">
+    <div class="progress" id="frameProgress" role="progressbar" aria-label="Basic example" aria-valuenow="50"
+      aria-valuemin="0" aria-valuemax="100" style="height: 8px">
+      <div class="progress-bar bg-secondary" id="frameProgressBar" style="width: 0%; transition: none;"></div>
+    </div>
+  </div>
 
   <!-- Progress Bar Bookmarks -->
   <div id="bookmarks">
-  {# <button type="button" class="btn btn-link"><i class="fa-regular fa-bookmark"></i></button> #}
+    {# <button type="button" class="btn btn-link"><i class="fa-regular fa-bookmark"></i></button> #}
   </div>
 
   <!-- Additional info bars -->
@@ -383,6 +473,9 @@
       <code>keypress c</code>.
     </p>
   </div>
+  <link rel="stylesheet" href="{{ url_for('static', filename='main.css') }}" />
+  <!-- Bootstrap -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='node_modules/bootstrap/dist/css/bootstrap.min.css') }}" />
 </body>
 
 </html>

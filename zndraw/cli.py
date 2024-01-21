@@ -64,6 +64,14 @@ def main(
         None,
         help="Revision of the ZnTrack repository to stream data from.",
     ),
+    tutorial: str = typer.Option(
+        None,
+        help="Show the tutorial from the URL inside an IFrame.",
+    ),
+    auth_token: str = typer.Option(
+        None,
+        help="Token to authenticate pyclient requests to the ZnDraw server, e.g., for adding defaults to all webclients.",
+    ),
 ):
     """Start the ZnDraw server.
 
@@ -86,4 +94,6 @@ def main(
         use_token=use_token,
         remote=remote,
         rev=rev,
+        tutorial=tutorial,
+        auth_token=auth_token,
     )

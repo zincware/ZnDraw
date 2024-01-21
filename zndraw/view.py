@@ -51,6 +51,8 @@ def view(
     upgrade_insecure_requests: bool = False,
     remote: str = None,
     rev: str = None,
+    tutorial: str = None,
+    auth_token: str = None,
 ):
     url = f"http://127.0.0.1:{port}"
 
@@ -58,13 +60,20 @@ def view(
         use_token=use_token,
         upgrade_insecure_requests=upgrade_insecure_requests,
         compute_bonds=compute_bonds,
+        tutorial=tutorial,
+        auth_token=auth_token,
     )
 
     file_io = FileIO(filename, start, stop, step, remote, rev)
 
     proc = mp.Process(
         target=ZnDrawDefault,
-        kwargs={"url": url, "token": "default", "file_io": file_io},
+        kwargs={
+            "url": url,
+            "token": "default",
+            "file_io": file_io,
+            "auth_token": auth_token,
+        },
     )
     proc.start()
 

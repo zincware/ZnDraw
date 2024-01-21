@@ -31,144 +31,6 @@ function setupUpload(socket) {
   });
 }
 
-function setupNavbarLeft() {
-  function showMenu(menu) {
-    const menus = [
-      "selectionMenu",
-      "interactionMenu",
-      "sceneMenu",
-      "drawMenu",
-      "analysisMenu",
-    ];
-    for (let i = 0; i < menus.length; i++) {
-      if (
-        menus[i] === menu &&
-        document.getElementById(menus[i]).style.display === "none"
-      ) {
-        document.getElementById(menus[i]).style.display = "block";
-        document.getElementById(`${menus[i]}Btn`).classList.add("active");
-      } else {
-        document.getElementById(menus[i]).style.display = "none";
-        document.getElementById(`${menus[i]}Btn`).classList.remove("active");
-      }
-    }
-  }
-
-  const popovers = {
-    selectionMenu: new bootstrap.Popover(
-      document.getElementById("selectionMenuBtn"),
-    ),
-    interactionMenu: new bootstrap.Popover(
-      document.getElementById("interactionMenuBtn"),
-    ),
-    sceneMenu: new bootstrap.Popover(document.getElementById("sceneMenuBtn")),
-    drawMenu: new bootstrap.Popover(document.getElementById("drawMenuBtn")),
-    analysisMenu: new bootstrap.Popover(
-      document.getElementById("analysisMenuBtn"),
-    ),
-  };
-
-  function closeMenu(menu) {
-    document.getElementById(menu).style.display = "none";
-    document.getElementById(`${menu}Btn`).classList.remove("active");
-  }
-
-  // close all popovers when clicking anywhere
-  document.addEventListener("click", () => {
-    popovers.selectionMenu.hide();
-    popovers.interactionMenu.hide();
-    popovers.sceneMenu.hide();
-    popovers.drawMenu.hide();
-    popovers.analysisMenu.hide();
-  });
-
-  document.getElementById("selectionMenuBtn").onclick = () => {
-    showMenu("selectionMenu");
-    popovers.selectionMenu.hide();
-  };
-
-  document.getElementById("selectionMenuClose").onclick = () => {
-    closeMenu("selectionMenu");
-  };
-
-  document.getElementById("interactionMenuBtn").onclick = () => {
-    showMenu("interactionMenu");
-    popovers.interactionMenu.hide();
-  };
-  document.getElementById("interactionMenuClose").onclick = () => {
-    closeMenu("interactionMenu");
-  };
-
-  document.getElementById("sceneMenuBtn").onclick = () => {
-    showMenu("sceneMenu");
-    popovers.sceneMenu.hide();
-  };
-  document.getElementById("sceneMenuClose").onclick = () => {
-    closeMenu("sceneMenu");
-  };
-
-  document.getElementById("drawMenuBtn").onclick = () => {
-    showMenu("drawMenu");
-    popovers.drawMenu.hide();
-  };
-  document.getElementById("drawMenuClose").onclick = () => {
-    closeMenu("drawMenu");
-  };
-
-  document.getElementById("analysisMenuBtn").onclick = () => {
-    showMenu("analysisMenu");
-    popovers.analysisMenu.hide();
-  };
-  document.getElementById("analysisMenuClose").onclick = () => {
-    closeMenu("analysisMenu");
-  };
-
-  document.getElementById("drawMenuBtn").onpointerenter = () => {
-    if (document.getElementById("drawMenu").style.display === "none") {
-      popovers.drawMenu.show();
-    }
-  };
-  document.getElementById("drawMenuBtn").onpointerleave = () => {
-    popovers.drawMenu.hide();
-  };
-
-  document.getElementById("sceneMenuBtn").onpointerenter = () => {
-    if (document.getElementById("sceneMenu").style.display === "none") {
-      popovers.sceneMenu.show();
-    }
-  };
-  document.getElementById("sceneMenuBtn").onpointerleave = () => {
-    popovers.sceneMenu.hide();
-  };
-
-  document.getElementById("selectionMenuBtn").onpointerenter = () => {
-    if (document.getElementById("selectionMenu").style.display === "none") {
-      popovers.selectionMenu.show();
-    }
-  };
-  document.getElementById("selectionMenuBtn").onpointerleave = () => {
-    popovers.selectionMenu.hide();
-  };
-
-  document.getElementById("interactionMenuBtn").onpointerenter = () => {
-    if (document.getElementById("interactionMenu").style.display === "none") {
-      popovers.interactionMenu.show();
-    }
-  };
-  document.getElementById("interactionMenuBtn").onpointerleave = () => {
-    popovers.interactionMenu.hide();
-  };
-
-  document.getElementById("analysisMenuBtn").onpointerenter = () => {
-    if (document.getElementById("analysisMenu").style.display === "none") {
-      popovers.analysisMenu.show();
-    }
-  };
-  document.getElementById("analysisMenuBtn").onpointerleave = () => {
-    popovers.analysisMenu.hide();
-  };
-}
-
 function setupMobile() {
   // set display style of .playPauseCtrl to block if on mobile
   if (
@@ -180,15 +42,149 @@ function setupMobile() {
   }
 }
 
+function setupDragDrop(socket) {
+  const scene = document.getElementById("scene-container");
+
+  scene.addEventListener("dragover", (event) => {
+    event.preventDefault();
+    // show the overlay as long as the file is dragged over the scene
+    const overlay = document.getElementById("overlay");
+    overlay.style.display = "block";
+  });
+
+  scene.addEventListener("dragleave", (event) => {
+    event.preventDefault();
+    // hide the overlay when the file is dragged out of the scene
+    const overlay = document.getElementById("overlay");
+    overlay.style.display = "none";
+  });
+
+  scene.addEventListener("drop", (event) => {
+    event.preventDefault();
+    // hide the overlay when the file is dropped
+    const overlay = document.getElementById("overlay");
+    overlay.style.display = "none";
+
+    // read the file
+    const file = event.dataTransfer.files[0];
+    console.log(event);
+    if (!file) {
+      console.error("No file was dropped");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.readAsBinaryString(file);
+
+    // send the file to the server
+    reader.addEventListener("load", () => {
+      socket.emit("upload", {
+        content: reader.result,
+        filename: file.name,
+      });
+    });
+  });
+}
+
+function setupTrashClick(socket) {
+  document.getElementById("trashBtn").addEventListener("click", () => {
+    socket.emit("scene:trash", {});
+  });
+}
+
+function setupNavbarLeft() {
+  const tooltipTriggerList = document.querySelectorAll(
+    '[data-bs-toggle="tooltip"]',
+  );
+  const tooltipList = [...tooltipTriggerList].map(
+    (tooltipTriggerEl) => new bootstrap.Tooltip(tooltipTriggerEl),
+  );
+
+  let menu = document.querySelectorAll("[name=leftMenuInput]");
+  // for each one, remove the check if is was checked before click
+  const clickState = {};
+  menu.forEach((item) => {
+    clickState[item.id] = false;
+    item.addEventListener("click", () => {
+      if (clickState[item.id]) {
+        item.checked = false;
+        clickState[item.id] = false;
+      } else {
+        menu.forEach((item) => {
+          clickState[item.id] = false;
+        });
+
+        clickState[item.id] = true;
+      }
+    });
+  });
+}
+
+function switchColorScheme(world) {
+  const switchBtn = document.getElementById("colorModeSwitch");
+
+  switchBtn.addEventListener("click", () => {
+    const theme = document.documentElement.getAttribute("data-bs-theme");
+    if (theme === "dark") {
+      document.documentElement.setAttribute("data-bs-theme", "light");
+      world.scene.background.set(0xffffff);
+      switchBtn.innerHTML = '<i class="fa-solid fa-sun"></i>';
+    } else {
+      document.documentElement.setAttribute("data-bs-theme", "dark");
+      world.scene.background.set(0x000000);
+      switchBtn.innerHTML = '<i class="fa-solid fa-moon"></i>';
+    }
+  });
+}
+
+function setupPointerFrameChange(world) {
+  const progress = document.getElementById("frameProgress");
+
+  progress.addEventListener("pointerdown", (event) => {
+    // get the relative position of the pointer from left to right in 0..1
+    const relativePosition = event.offsetX / window.innerWidth;
+    const step = Math.round(relativePosition * progress.ariaValueMax);
+    world.setStep(step);
+  });
+}
+
+function setupFrameInput(world) {
+  const frame_input = document.getElementById("frameInput");
+  const frame_input_modal = document.getElementById("frameInputModal");
+
+  frame_input_modal.addEventListener("shown.bs.modal", () => {
+    frame_input.focus();
+  });
+
+  frame_input.addEventListener("change", () => {
+    const modal = bootstrap.Modal.getInstance(frame_input_modal);
+    modal.hide();
+
+    if (
+      parseInt(frame_input.value) >
+        document.getElementById("frameProgress").ariaValueMax ||
+      parseInt(frame_input.value) < 0
+    ) {
+      alert("The frame you entered is out of range.");
+    } else {
+      const step = parseInt(frame_input.value);
+      world.setStep(step);
+    }
+
+    frame_input.value = "";
+  });
+}
+
 export function setUIEvents(socket, cache, world) {
   // resizeOffcanvas();
   setupUpload(socket);
   setupNavbarLeft();
   setupMobile();
-
-  document.getElementById("ExitBtn").addEventListener("click", () => {
-    fetch("/exit", { method: "GET" });
-  });
+  setupDragDrop(socket);
+  setupTrashClick(socket);
+  switchColorScheme(world);
+  setupPointerFrameChange(world);
+  setupFrameInput(world);
 
   socket.on("download:response", (data) => {
     const blob = new Blob([data], { type: "text/csv" });
