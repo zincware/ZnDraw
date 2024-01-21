@@ -70,7 +70,6 @@ def view(
         target=ZnDrawDefault,
         kwargs={
             "url": url,
-            "token": "default",
             "file_io": file_io,
             "auth_token": auth_token,
         },

@@ -98,7 +98,7 @@ def connect():
             app.config["PER-TOKEN-DATA"][token] = {}
 
         # append to zndraw.log a line isoformat() + " " + token
-        if "token" not in app.config:
+        if app.config["USE_TOKEN"]:
             with open("zndraw.log", "a") as f:
                 f.write(
                     datetime.datetime.now().isoformat() + " " + token + " connected \n"
@@ -113,7 +113,7 @@ def disconnect():
             del app.config["pyclients"][_get_uuid_for_sid(request.sid)]
         except KeyError:
             pass
-        if "token" not in app.config:
+        if app.config["USE_TOKEN"]:
             with open("zndraw.log", "a") as f:
                 f.write(
                     datetime.datetime.now().isoformat()
@@ -139,6 +139,10 @@ def join(data: dict):
     Arguments:
         data: {"token": str, "uuid": str}
     """
+    if app.config["DEFAULT_PYCLIENT"] is None:
+        # The first pyclient that connects is the default pyclient
+        # it should not be possible to connect faster.
+        app.config["DEFAULT_PYCLIENT"] = request.sid
     # only used by pyclients that only connect via socket (no HTML)
     token = data["token"]
     uuid = data["uuid"]
@@ -153,9 +157,6 @@ def join(data: dict):
     join_room(f"pyclients_{token}")
     if token not in app.config["PER-TOKEN-DATA"]:
         app.config["PER-TOKEN-DATA"][token] = {}
-    if token == "default":
-        # this would be very easy to exploit
-        app.config["DEFAULT_PYCLIENT"] = request.sid
 
 
 @io.on("scene:schema")

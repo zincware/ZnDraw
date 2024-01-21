@@ -26,11 +26,9 @@ def index():
     try:
         token = session["token"]
     except KeyError:
-        if "token" in current_app.config:
-            token = current_app.config["token"]
-        else:
-            token = uuid.uuid4().hex
+        token = uuid.uuid4().hex if current_app.config["USE_TOKEN"] else None
         session["token"] = token
+        print(f"Token: {token}")
 
     return render_template(
         "index.jinja2",
@@ -69,10 +67,7 @@ def file(file: str):
     try:
         token = session["token"]
     except KeyError:
-        if "token" in current_app.config:
-            token = current_app.config["token"]
-        else:
-            token = uuid.uuid4().hex
+        token = uuid.uuid4().hex if current_app.config["USE_TOKEN"] else None
         session["token"] = token
     url = request.url_root
     print(f"URL: {url}")

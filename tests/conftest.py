@@ -51,7 +51,7 @@ def server():
 
     helper_proc = mp.Process(
         target=ZnDrawDefault,
-        kwargs={"url": f"http://localhost:{port}", "token": "default"},
+        kwargs={"url": f"http://localhost:{port}"},
     )
 
     server_proc.start()

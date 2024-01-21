@@ -75,7 +75,7 @@ class ZnDrawBase:  # collections.abc.MutableSequence
     """
 
     url: str
-    token: str = "notoken"
+    token: str = None
     display_new: bool = True
     _uuid: uuid.UUID = dataclasses.field(default_factory=uuid.uuid4)
     auth_token: str = None
