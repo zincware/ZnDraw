@@ -160,7 +160,11 @@ function setupFrameInput(world) {
     const modal = bootstrap.Modal.getInstance(frame_input_modal);
     modal.hide();
 
-    if ((parseInt(frame_input.value) > document.getElementById("frameProgress").ariaValueMax) || (parseInt(frame_input.value) < 0)) {
+    if (
+      parseInt(frame_input.value) >
+        document.getElementById("frameProgress").ariaValueMax ||
+      parseInt(frame_input.value) < 0
+    ) {
       alert("The frame you entered is out of range.");
     } else {
       const step = parseInt(frame_input.value);
