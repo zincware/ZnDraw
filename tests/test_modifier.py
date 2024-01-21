@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field
 
 from zndraw import ZnDraw
 from zndraw.modify import UpdateScene
+from zndraw.settings import GlobalConfig
 
 
 def send_raw(vis, event, data):
@@ -21,9 +22,10 @@ def send_raw(vis, event, data):
 
 class CustomModifier(UpdateScene):
     discriminator: t.Literal["CustomModifier"] = "CustomModifier"
+    default_structure: str = "H2O"
 
     def run(self, vis: ZnDraw) -> None:
-        vis.append(molecule("H2O"))
+        vis.append(molecule(self.default_structure))
 
 
 class CustomModifierRunKwargs(UpdateScene):
@@ -85,6 +87,33 @@ class TestZnDrawModifier:
         )
 
         assert len(vis) == 2
+
+    def test_register_custom_modifier_uses_defaults_in_config(self, server):
+        self.driver.get(server)
+        time.sleep(1)
+        # we need to wait for all the data to be loaded.
+        # This includes jsonschemas and atoms.
+        vis = ZnDraw(url=server)
+        vis[0] = molecule("H2O")
+        assert vis[0] == molecule("H2O")
+        assert len(vis) == 1
+        original_config = GlobalConfig.load()
+
+        config = GlobalConfig.load()
+        config.function_schema["CustomModifier"] = {"default_structure": "CH4"}
+        config.save()
+        vis.register_modifier(CustomModifier, default=True)
+
+        send_raw(
+            vis,
+            "modifier:run",
+            {"params": {"method": {"discriminator": "CustomModifier"}}, "url": server},
+        )
+
+        assert len(vis) == 2
+        assert vis[0] == molecule("H2O")
+        assert vis[1] == molecule("CH4")
+        original_config.save()
 
     def test_register_custom_modifier_run_kwargs(self, server):
         self.driver.get(server)
