@@ -175,16 +175,6 @@ body {
   text-align: center;
 }
 
-/* #info {
-  position: absolute;
-  bottom: 10px;
-  text-align: center;
-  width: 100%;
-  z-index: 100;
-  display: block;
-  opacity: 0.5;
-} */
-
 #playPauseCtrl {
   position: fixed;
   bottom: 5%;
