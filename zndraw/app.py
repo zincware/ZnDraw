@@ -23,7 +23,7 @@ def create_app(
     app.config["PER-TOKEN-DATA"] = {}
     app.config["AUTH_TOKEN"] = auth_token
     app.config["MODIFIER"] = {"default_schema": {}, "active": None, "queue": []}
-    
+
     app.config["upgrade_insecure_requests"] = upgrade_insecure_requests
     app.config["compute_bonds"] = compute_bonds
 
