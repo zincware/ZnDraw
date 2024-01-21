@@ -431,7 +431,23 @@
 
 
   <!-- Progress Bar -->
-  <div id="info"></div>
+  <button id="info" type="button" class="btn position-absolute bottom-0 start-50 translate-middle-x my-1"
+    data-bs-toggle="modal" data-bs-target="#frameInputModal">0 / 0</button>
+
+  <div class="modal fade" id="frameInputModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h1 class="modal-title fs-5" >Change Frame</h1>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <input type="number" class="form-control" id="frameInput"/>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div class="fixed-bottom" style="width: 100%;">
     <div class="progress" id="frameProgress" role="progressbar" aria-label="Basic example" aria-valuenow="50"
       aria-valuemin="0" aria-valuemax="100" style="height: 8px">
