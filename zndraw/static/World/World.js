@@ -293,12 +293,12 @@ class World {
         camera.position.set(...data.camera.position);
         camera.quaternion.set(...data.camera.quaternion);
         controls.enabled = true;
-        // disable_camera_update = true;
+        disable_camera_update = true;
         // // enable camera update after 33 ms (1/30 s)
         // // increase this value if the camera is still moving after the update
-        // setTimeout(() => {
-        //   disable_camera_update = false;
-        // }, 33);
+        setTimeout(() => {
+          disable_camera_update = false;
+        }, 33);
       }
     });
 
