@@ -175,6 +175,91 @@ function setupFrameInput(world) {
   });
 }
 
+function setupConnectedUsers(socket) {
+  const dropdown = document.getElementById("connectedUsersDropdown");
+  // for each user connected user there is
+  // row > col py-1 d-grid > btn btn-outline-secondary
+  // row > col py-2 d-grid > form-check-input (step)
+  // row > col py-2 d-grid > form-check-label (camera)
+
+  let name
+
+  socket.on("connectedUsers", (data) => {
+    // remove all rows except the first one (header)
+    const rows = dropdown.querySelectorAll(".row");
+
+    const entries = []
+    rows.forEach((row, index) => {
+      if (index > 0) {
+        row.remove();
+      }
+    });
+    data.forEach((user, idx) => {
+      if (name === undefined) {
+        name = user.name
+      }
+      const row = document.createElement("div");
+      row.classList.add("row");
+      const col1 = document.createElement("div");
+      col1.classList.add("col-6");
+      col1.classList.add("py-1");
+      col1.classList.add("d-grid");
+      const btn = document.createElement("button");
+      btn.classList.add("btn");
+      btn.classList.add("btn-outline-secondary");
+      btn.disabled = true;
+      btn.innerHTML = user.name;
+      col1.appendChild(btn);
+      row.appendChild(col1);
+
+      const col2 = document.createElement("div");
+      col2.classList.add("col");
+      col2.classList.add("py-2");
+      const inputStep = document.createElement("input");
+      inputStep.classList.add("form-check-input");
+      inputStep.type = "radio";
+      inputStep.name = "sharedStep";
+      inputStep.id = inputStep.name + "-" + idx;
+      col2.appendChild(inputStep);
+      row.appendChild(col2);
+
+      const col3 = document.createElement("div");
+      col3.classList.add("col");
+      col3.classList.add("py-2");
+      const inputCamera = document.createElement("input");
+      inputCamera.classList.add("form-check-input");
+      inputCamera.type = "radio";
+      inputCamera.name = "sharedCamera";
+      inputCamera.id = inputCamera.name + "-" + idx;
+      col3.appendChild(inputCamera);
+      row.appendChild(col3);
+
+      if (user.name === name) {
+        inputStep.checked = true;
+        inputCamera.checked = true;
+        btn.innerHTML = user.name + " (you)";
+      }
+
+      entries.push({name: user.name, row: row});
+    });
+    // sort the entries such that the first is name==name
+    entries.sort((a, b) => {
+      if (a.name === name) {
+        return -1
+      }
+      if (b.name === name) {
+        return 1
+      }
+      return a.name.localeCompare(b.name)
+    })
+    entries.forEach((entry) => {
+      dropdown.appendChild(entry.row);
+    });
+
+});
+}
+
+
 export function setUIEvents(socket, cache, world) {
   // resizeOffcanvas();
   setupUpload(socket);
@@ -185,6 +270,7 @@ export function setUIEvents(socket, cache, world) {
   switchColorScheme(world);
   setupPointerFrameChange(world);
   setupFrameInput(world);
+  setupConnectedUsers(socket);
 
   socket.on("download:response", (data) => {
     const blob = new Blob([data], { type: "text/csv" });

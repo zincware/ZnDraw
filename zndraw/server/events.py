@@ -84,6 +84,10 @@ def connect():
 
         emit("webclient:available", data, to=app.config["DEFAULT_PYCLIENT"])
 
+        connected_users = [{"name": sid[:5]} for sid in app.config["ROOM_HOSTS"][token]]
+
+        emit("connectedUsers", list(reversed(connected_users)), to=_webclients_room({"token": token}))
+
         data = {"modifiers": []}  # {schema: ..., name: ...}
         for name, schema in app.config["MODIFIER"]["default_schema"].items():
             data["modifiers"].append({"schema": schema, "name": name})
