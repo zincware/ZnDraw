@@ -382,6 +382,8 @@ def cache_synchronize(data: dict):
 
 @io.on("atoms:delete")
 def atoms_delete(data: dict):
+    for idx in data["index"]:
+        cache.delete(f"PER-TOKEN-FRAMES:{data['token']}:{idx}")
     emit("atoms:delete", data["index"], include_self=False, to=_webclients_room(data))
 
 
