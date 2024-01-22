@@ -286,7 +286,7 @@ class World {
       if (data.step !== undefined) {
         this.setStep(data.step);
       }
-      if ((data.camera !== undefined)) {
+      if (data.camera !== undefined) {
         camera.position.set(...data.camera.position);
         camera.quaternion.set(...data.camera.quaternion);
       }
