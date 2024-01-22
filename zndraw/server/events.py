@@ -356,6 +356,7 @@ def atoms_upload(data: dict):
             # print(f"setting cache for {key}")
             cache.set(f"PER-TOKEN-FRAMES:{token}:{key}", value)
 
+
 @io.on("cache:available")
 def cache_available(data: dict) -> bool:
     """
@@ -364,6 +365,7 @@ def cache_available(data: dict) -> bool:
     print(f"{data = }")
     avail = cache.get(f"PER-TOKEN-FRAMES:{data['token']}:0") is not None
     return avail
+
 
 @io.on("cache:synchronize")
 def cache_synchronize(data: dict):
