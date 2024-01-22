@@ -384,14 +384,23 @@ class ZnDrawDefault(ZnDrawBase):
         token = data["token"]
         host = data["host"]
 
+        kwargs = dataclasses.asdict(self)
+        kwargs.pop("token")
+        kwargs.pop("_uuid")
+        kwargs["register_socket_events"] = False
+
         if self.socket.call("cache:available", {"sid": sid, "token": token}):
             self.socket.emit("cache:synchronize", {"sid": sid, "token": token})
+            vis = ZnDrawDefault(**kwargs)
+            with vis._set_token(token):
+                atoms = vis[0]
+            with vis._set_sid(sid):
+                print("Setting UI elements")
+                vis.selection_schema()
+                vis.draw_schema()
+                vis.analysis_schema(atoms)
         else:
             log.critical("No cache available, sending data")
-            kwargs = dataclasses.asdict(self)
-            kwargs.pop("token")
-            kwargs.pop("_uuid")
-            kwargs["register_socket_events"] = False
             vis = ZnDrawDefault(**kwargs)
 
             if host:
