@@ -86,10 +86,15 @@ def connect():
 
         data = {"sid": request.sid, "token": token}
         data["host"] = app.config["ROOM_HOSTS"][token][0] == request.sid
+        names = cache.get(f"PER-TOKEN-NAME:{session['token']}")
+        if names is None:
+            names = {}
+        names[request.sid] = uuid4().hex[:8].upper()
+        cache.set(f"PER-TOKEN-NAME:{session['token']}", names)
 
         emit("webclient:available", data, to=app.config["DEFAULT_PYCLIENT"])
 
-        connected_users = [{"name": sid} for sid in app.config["ROOM_HOSTS"][token]]
+        connected_users = [{"name": names[sid]} for sid in app.config["ROOM_HOSTS"][token]]
 
         emit("connectedUsers", list(reversed(connected_users)), to=_webclients_room({"token": token}))
 
@@ -140,6 +145,10 @@ def disconnect():
         if not app.config["ROOM_HOSTS"][token]:
             del app.config["ROOM_HOSTS"][token]
         # remove the pyclient from the dict
+        names = cache.get(f"PER-TOKEN-NAME:{session['token']}") or {}
+        connected_users = [{"name": names[sid]} for sid in app.config["ROOM_HOSTS"][token]]
+        emit("connectedUsers", list(reversed(connected_users)), to=_webclients_room({"token": token}))
+        
     log.debug(
         f'disconnect {request.sid} and updated HOSTS to {app.config["ROOM_HOSTS"]}'
     )
@@ -552,7 +561,16 @@ def connectedUsers_subscribe_step(data: dict):
     if per_token_step_subscriptions is None:
         per_token_step_subscriptions = {}
     
-    per_token_step_subscriptions[request.sid] = data["user"]
+
+    names = cache.get(f"PER-TOKEN-NAME:{session['token']}")
+    if names is None:
+        names = {}
+    # get the SID from data["user"] and add it to the list of subscribers
+    for sid, name in names.items():
+        if name == data["user"]:
+            per_token_step_subscriptions[request.sid] =  sid
+            break
+
     cache.set(f"PER-TOKEN-STEP-SUBSCRIPTIONS:{session['token']}", per_token_step_subscriptions)
 
 
@@ -565,7 +583,18 @@ def connectedUsers_subscribe_camera(data: dict):
     if per_token_camera_subscriptions is None:
         per_token_camera_subscriptions = {}
     
-    per_token_camera_subscriptions[request.sid] = data["user"]
+    names = cache.get(f"PER-TOKEN-NAME:{session['token']}")
+    if names is None:
+        names = {}
+    # get the SID from data["user"] and add it to the list of subscribers
+    for sid, name in names.items():
+        if name == data["user"]:
+            if per_token_camera_subscriptions.get(sid, None) == request.sid:
+                print("can not subscribe to a user that is subscribed to you")
+                return
+            per_token_camera_subscriptions[request.sid] =  sid
+            break
+
     cache.set(f"PER-TOKEN-CAMERA-SUBSCRIPTIONS:{session['token']}", per_token_camera_subscriptions)
 
 @io.on("scene:update")

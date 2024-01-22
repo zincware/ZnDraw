@@ -188,6 +188,14 @@ function setupConnectedUsers(socket) {
     // remove all rows except the first one (header)
     const rows = dropdown.querySelectorAll(".row");
 
+    // save the shared step and shared camera state
+    const stepConnectedUser = document.querySelector(
+      'input[name="sharedStep"]:checked',
+    );
+    const cameraConnectedUser = document.querySelector(
+      'input[name="sharedCamera"]:checked',
+    );
+
     const entries = [];
     rows.forEach((row, index) => {
       if (index > 0) {
@@ -254,6 +262,12 @@ function setupConnectedUsers(socket) {
         inputStep.checked = true;
         inputCamera.checked = true;
         btn.innerHTML = user.name + " (you)";
+      }
+      if (user.name === stepConnectedUser?.value) {
+        inputStep.checked = true;
+      }
+      if (user.name === cameraConnectedUser?.value) {
+        inputCamera.checked = true;
       }
 
       entries.push({ name: user.name, row: row });
