@@ -289,14 +289,16 @@ class World {
         this.setStep(data.step);
       }
       if ((data.camera !== undefined) & !disable_camera_update)  {
+        controls.enabled = false;
         camera.position.set(...data.camera.position);
         camera.quaternion.set(...data.camera.quaternion);
-        disable_camera_update = true;
-        // enable camera update after 33 ms (1/30 s)
-        // increase this value if the camera is still moving after the update
-        setTimeout(() => {
-          disable_camera_update = false;
-        }, 33);
+        controls.enabled = true;
+        // disable_camera_update = true;
+        // // enable camera update after 33 ms (1/30 s)
+        // // increase this value if the camera is still moving after the update
+        // setTimeout(() => {
+        //   disable_camera_update = false;
+        // }, 33);
       }
     });
 
