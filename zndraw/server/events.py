@@ -7,9 +7,10 @@ from uuid import uuid4
 
 from flask import current_app as app
 from flask import request, session
-from flask_socketio import call, emit, join_room
+from flask_socketio import call, emit, join_room, close_room
 
 from ..app import socketio as io
+from ..app import cache
 
 log = logging.getLogger(__name__)
 
@@ -45,6 +46,10 @@ def _pyclients_default(data: dict) -> str:
     if "sid" in data:
         return data["sid"]
     return app.config["DEFAULT_PYCLIENT"]
+
+def _step_subscribers(sid) -> str:
+    """Get the room name for the subscribers of the step from the given sid"""
+    return f"step_subscribers_{sid}"
 
 
 def _get_uuid_for_sid(sid) -> str:
@@ -84,7 +89,7 @@ def connect():
 
         emit("webclient:available", data, to=app.config["DEFAULT_PYCLIENT"])
 
-        connected_users = [{"name": sid[:5]} for sid in app.config["ROOM_HOSTS"][token]]
+        connected_users = [{"name": sid} for sid in app.config["ROOM_HOSTS"][token]]
 
         emit("connectedUsers", list(reversed(connected_users)), to=_webclients_room({"token": token}))
 
@@ -537,3 +542,54 @@ def modifier_run_failed():
     app.config["MODIFIER"]["active"] = None
     modifier_lock.release()
     log.critical("Modifier failed - releasing lock.")
+
+@io.on("connectedUsers:subscribe:step")
+def connectedUsers_subscribe_step(data: dict):
+    """
+        data: {step: str}
+    """
+    per_token_step_subscriptions = cache.get(f"PER-TOKEN-STEP-SUBSCRIPTIONS:{session['token']}")
+    if per_token_step_subscriptions is None:
+        per_token_step_subscriptions = {}
+    
+    per_token_step_subscriptions[request.sid] = data["user"]
+    cache.set(f"PER-TOKEN-STEP-SUBSCRIPTIONS:{session['token']}", per_token_step_subscriptions)
+
+
+@io.on("connectedUsers:subscribe:camera")
+def connectedUsers_subscribe_camera(data: dict):
+    """
+        data: {step: str}
+    """
+    per_token_camera_subscriptions = cache.get(f"PER-TOKEN-CAMERA-SUBSCRIPTIONS:{session['token']}")
+    if per_token_camera_subscriptions is None:
+        per_token_camera_subscriptions = {}
+    
+    per_token_camera_subscriptions[request.sid] = data["user"]
+    cache.set(f"PER-TOKEN-CAMERA-SUBSCRIPTIONS:{session['token']}", per_token_camera_subscriptions)
+
+@io.on("scene:update")
+def scene_update(data: dict):
+    """Update the scene.
+    
+    data: {step: int, camera: {position: [float, float, float], rotation: [float, float, float]}}
+    """
+    # check which webclients in the room are subscribed to the step of this request.sid
+    # emit the scene:update to them including the step
+    per_token_step_subscriptions = cache.get(f"PER-TOKEN-STEP-SUBSCRIPTIONS:{session['token']}")
+    if per_token_step_subscriptions is None:
+        per_token_step_subscriptions = {}
+    step_subscribers = []
+    for sid, this in per_token_step_subscriptions.items():
+        if this == request.sid:
+            step_subscribers.append(sid)
+
+    per_token_camera_subscriptions = cache.get(f"PER-TOKEN-CAMERA-SUBSCRIPTIONS:{session['token']}")
+    if per_token_camera_subscriptions is None:
+        per_token_camera_subscriptions = {}
+    camera_subscribers = []
+    for sid, this in per_token_camera_subscriptions.items():
+        if this == request.sid:
+            camera_subscribers.append(sid)
+
+    emit("scene:update", data, include_self=False, to=step_subscribers)

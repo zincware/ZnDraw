@@ -220,6 +220,14 @@ function setupConnectedUsers(socket) {
       inputStep.type = "radio";
       inputStep.name = "sharedStep";
       inputStep.id = inputStep.name + "-" + idx;
+      inputStep.value = user.name;
+
+      inputStep.addEventListener("change", () => {
+        socket.emit("connectedUsers:subscribe:step", {
+          user: user.name,
+        });
+      });
+
       col2.appendChild(inputStep);
       row.appendChild(col2);
 
@@ -231,6 +239,14 @@ function setupConnectedUsers(socket) {
       inputCamera.type = "radio";
       inputCamera.name = "sharedCamera";
       inputCamera.id = inputCamera.name + "-" + idx;
+      inputCamera.value = user.name;
+
+      inputCamera.addEventListener("change", () => {
+        socket.emit("connectedUsers:subscribe:camera", {
+          user: user.name,
+        });
+      });
+
       col3.appendChild(inputCamera);
       row.appendChild(col3);
 
@@ -255,7 +271,6 @@ function setupConnectedUsers(socket) {
     entries.forEach((entry) => {
       dropdown.appendChild(entry.row);
     });
-
 });
 }
 
