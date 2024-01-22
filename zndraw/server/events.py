@@ -668,6 +668,9 @@ def scene_update(data: dict):
             per_token_step_subscriptions = {}
         step_subscribers = []
         for sid, this in per_token_step_subscriptions.items():
+            if sid == request.sid:
+                # can not subscribe to yourself (step)
+                continue
             if this == request.sid:
                 step_subscribers.append(sid)
         emit("scene:update", data, include_self=False, to=step_subscribers)
@@ -680,6 +683,9 @@ def scene_update(data: dict):
             per_token_camera_subscriptions = {}
         camera_subscribers = []
         for sid, this in per_token_camera_subscriptions.items():
+            if sid == request.sid:
+                #  can not subscribe to yourself (camera)
+                continue
             if this == request.sid:
                 camera_subscribers.append(sid)
         emit("scene:update", data, include_self=False, to=camera_subscribers)
