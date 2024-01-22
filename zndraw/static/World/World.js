@@ -282,13 +282,21 @@ class World {
       }.bind(this),
     );
 
+    let disable_camera_update = false;
+
     this.socket.on("scene:update", (data) => {
       if (data.step !== undefined) {
         this.setStep(data.step);
       }
-      if (data.camera !== undefined) {
+      if ((data.camera !== undefined) & !disable_camera_update)  {
         camera.position.set(...data.camera.position);
         camera.quaternion.set(...data.camera.quaternion);
+        disable_camera_update = true;
+        // enable camera update after 33 ms (1/30 s)
+        // increase this value if the camera is still moving after the update
+        setTimeout(() => {
+          disable_camera_update = false;
+        }, 33);
       }
     });
 
