@@ -294,7 +294,6 @@ class World {
 
     // on camera move send the camera position to the server
     controls.addEventListener("change", () => {
-      // map camera.postion and camera.quaternion to an array
 
       this.socket.emit("scene:update", {
         camera: {
