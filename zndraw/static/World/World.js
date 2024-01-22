@@ -294,7 +294,6 @@ class World {
 
     // on camera move send the camera position to the server
     controls.addEventListener("change", () => {
-
       this.socket.emit("scene:update", {
         camera: {
           position: camera.position.toArray(),
