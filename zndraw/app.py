@@ -6,7 +6,7 @@ from flask_socketio import SocketIO
 
 socketio = SocketIO()
 cache = Cache(
-    config={"CACHE_TYPE": "SimpleCache", "CACHE_DEFAULT_TIMEOUT": 60 * 60 * 24}
+    config={"CACHE_TYPE": "SimpleCache", "CACHE_DEFAULT_TIMEOUT": 60 * 60} # 1 hour
 )
 
 

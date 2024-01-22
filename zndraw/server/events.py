@@ -341,11 +341,41 @@ def atoms_download(data):
 
 @io.on("atoms:upload")
 def atoms_upload(data: dict):
+    """
+    data: {"token": str, "sid": str, "display_new": bool} and int as keys
+        for all the steps
+    """
     to = _webclients_default(data)
     # remove token and sid from the data, because JavaScript does not expect it
-    data.pop("token", None)
+    token = data.pop("token", None)
     data.pop("sid", None)
     emit("atoms:upload", data, include_self=False, to=to)
+    # atoms_cache = cache.get(f"PER-TOKEN-FRAMES:{session['token']}") or {}
+    for key, value in data.items():
+        if key.isnumeric():
+            # print(f"setting cache for {key}")
+            cache.set(f"PER-TOKEN-FRAMES:{token}:{key}", value)
+
+@io.on("cache:available")
+def cache_available(data: dict) -> bool:
+    """
+    data: {sid: str, token: str}
+    """
+    print(f"{data = }")
+    avail = cache.get(f"PER-TOKEN-FRAMES:{data['token']}:0") is not None
+    return avail
+
+@io.on("cache:synchronize")
+def cache_synchronize(data: dict):
+    """
+    data: {sid: str, token: str}
+    """
+    log.critical(f"synchronizing cache with {data['sid']}")
+    for idx in range(999999999):
+        value = cache.get(f"PER-TOKEN-FRAMES:{data['token']}:{idx}")
+        if value is None:
+            break
+        emit("atoms:upload", {idx: value, "display_new": True}, to=data["sid"])
 
 
 @io.on("atoms:delete")

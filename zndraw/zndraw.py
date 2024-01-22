@@ -384,58 +384,56 @@ class ZnDrawDefault(ZnDrawBase):
         token = data["token"]
         host = data["host"]
 
-        kwargs = dataclasses.asdict(self)
-        kwargs.pop("token")
-        kwargs.pop("_uuid")
-        kwargs["register_socket_events"] = False
-        vis = ZnDrawDefault(**kwargs)
-
-        if host:
-            start_time = datetime.datetime.now()
-
-            for idx, atoms in enumerate(vis.read_data()):
-                with vis._set_sid(sid):
-                    if idx == 0:
-                        vis.analysis_schema(atoms)
-                        vis.selection_schema()
-                        vis.draw_schema()
-                    vis[idx] = atoms
-                    # self.step = idx # double the message count ..., replace with part of the setitem message, benchmark
-            log.warning(
-                f"{datetime.datetime.now() - start_time} Finished sending data."
-            )
+        if self.socket.call("cache:available", {"sid": sid, "token": token}):
+            self.socket.emit("cache:synchronize", {"sid": sid, "token": token})
         else:
-            # load the data from the room host webclient (e.g. token)
-            with vis._set_token(token):
-                n_atoms = len(vis)
+            log.critical("No cache available, sending data")
+            kwargs = dataclasses.asdict(self)
+            kwargs.pop("token")
+            kwargs.pop("_uuid")
+            kwargs["register_socket_events"] = False
+            vis = ZnDrawDefault(**kwargs)
 
-            for idx in tqdm.trange(n_atoms, ncols=100):
+            if host:
+                start_time = datetime.datetime.now()
+
+                for idx, atoms in enumerate(vis.read_data()):
+                    with vis._set_token(token):
+                        with vis._set_sid(sid):
+                            if idx == 0:
+                                vis.analysis_schema(atoms)
+                                vis.selection_schema()
+                                vis.draw_schema()
+                            vis[idx] = atoms
+                        # self.step = idx # double the message count ..., replace with part of the setitem message, benchmark
+                log.warning(
+                    f"{datetime.datetime.now() - start_time} Finished sending data."
+                )
+            else:
+                # load the data from the room host webclient (e.g. token)
                 with vis._set_token(token):
-                    for _ in range(self.config.retries):
-                        try:
-                            atoms = vis[idx]
-                            break
-                        except Exception:
-                            vis.reconnect()
-                    else:
-                        raise RuntimeError(
-                            f"Failed to get atoms at index {idx} after {self.config.retries} retries"
-                        )
+                    n_atoms = len(vis)
 
-                with vis._set_sid(sid):
-                    vis[idx] = atoms
+                for idx in tqdm.trange(n_atoms, ncols=100):
+                    with vis._set_token(token):
+                        for _ in range(self.config.retries):
+                            try:
+                                atoms = vis[idx]
+                                break
+                            except Exception:
+                                vis.reconnect()
+                        else:
+                            raise RuntimeError(
+                                f"Failed to get atoms at index {idx} after {self.config.retries} retries"
+                            )
 
-                    if idx == 0:
-                        vis.analysis_schema(atoms)
-                        vis.selection_schema()
-                        vis.draw_schema()
+                    with vis._set_sid(sid):
+                        vis[idx] = atoms
 
-            # with vis._set_token(token):
-            #     vis.selection = vis.selection
-            #     vis.points = vis.points
-            #     vis.step = vis.step
-
-        # vis.socket.wait()
+                        if idx == 0:
+                            vis.analysis_schema(atoms)
+                            vis.selection_schema()
+                            vis.draw_schema()
 
     def read_data(self) -> t.Generator[ase.Atoms, None, None]:
         if self.file_io is None or self.file_io.name is None:
