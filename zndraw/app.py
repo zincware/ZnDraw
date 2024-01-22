@@ -1,11 +1,13 @@
 import uuid
 
 from flask import Flask
-from flask_socketio import SocketIO
 from flask_caching import Cache
+from flask_socketio import SocketIO
 
 socketio = SocketIO()
-cache = Cache(config={'CACHE_TYPE': 'SimpleCache', 'CACHE_DEFAULT_TIMEOUT': 60 * 60 * 24})
+cache = Cache(
+    config={"CACHE_TYPE": "SimpleCache", "CACHE_DEFAULT_TIMEOUT": 60 * 60 * 24}
+)
 
 
 def create_app(

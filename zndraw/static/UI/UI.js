@@ -182,13 +182,13 @@ function setupConnectedUsers(socket) {
   // row > col py-2 d-grid > form-check-input (step)
   // row > col py-2 d-grid > form-check-label (camera)
 
-  let name
+  let name;
 
   socket.on("connectedUsers", (data) => {
     // remove all rows except the first one (header)
     const rows = dropdown.querySelectorAll(".row");
 
-    const entries = []
+    const entries = [];
     rows.forEach((row, index) => {
       if (index > 0) {
         row.remove();
@@ -196,7 +196,7 @@ function setupConnectedUsers(socket) {
     });
     data.forEach((user, idx) => {
       if (name === undefined) {
-        name = user.name
+        name = user.name;
       }
       const row = document.createElement("div");
       row.classList.add("row");
@@ -256,24 +256,23 @@ function setupConnectedUsers(socket) {
         btn.innerHTML = user.name + " (you)";
       }
 
-      entries.push({name: user.name, row: row});
+      entries.push({ name: user.name, row: row });
     });
     // sort the entries such that the first is name==name
     entries.sort((a, b) => {
       if (a.name === name) {
-        return -1
+        return -1;
       }
       if (b.name === name) {
-        return 1
+        return 1;
       }
-      return a.name.localeCompare(b.name)
-    })
+      return a.name.localeCompare(b.name);
+    });
     entries.forEach((entry) => {
       dropdown.appendChild(entry.row);
     });
-});
+  });
 }
-
 
 export function setUIEvents(socket, cache, world) {
   // resizeOffcanvas();
