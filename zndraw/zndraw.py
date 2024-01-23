@@ -377,7 +377,7 @@ class ZnDrawDefault(ZnDrawBase):
         self._connect()
         if self.register_socket_events:
             self.socket.wait()
-    
+
     @classmethod
     def from_self(cls, other):
         kwargs = dataclasses.asdict(other)
@@ -385,7 +385,6 @@ class ZnDrawDefault(ZnDrawBase):
         kwargs.pop("_uuid")
         kwargs["register_socket_events"] = False
         return cls(**kwargs)
-        
 
     def initialize_webclient(self, data):
         print("Initializing new pyclient for webclient")
