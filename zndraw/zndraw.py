@@ -377,6 +377,15 @@ class ZnDrawDefault(ZnDrawBase):
         self._connect()
         if self.register_socket_events:
             self.socket.wait()
+    
+    @classmethod
+    def from_self(cls, other):
+        kwargs = dataclasses.asdict(other)
+        kwargs.pop("token")
+        kwargs.pop("_uuid")
+        kwargs["register_socket_events"] = False
+        return cls(**kwargs)
+        
 
     def initialize_webclient(self, data):
         print("Initializing new pyclient for webclient")
@@ -384,11 +393,7 @@ class ZnDrawDefault(ZnDrawBase):
         token = data["token"]
         host = data["host"]
 
-        kwargs = dataclasses.asdict(self)
-        kwargs.pop("token")
-        kwargs.pop("_uuid")
-        kwargs["register_socket_events"] = False
-        vis = ZnDrawDefault(**kwargs)
+        vis = self.from_self(self)
 
         if host:
             start_time = datetime.datetime.now()
@@ -429,13 +434,6 @@ class ZnDrawDefault(ZnDrawBase):
                         vis.analysis_schema(atoms)
                         vis.selection_schema()
                         vis.draw_schema()
-
-            # with vis._set_token(token):
-            #     vis.selection = vis.selection
-            #     vis.points = vis.points
-            #     vis.step = vis.step
-
-        # vis.socket.wait()
 
     def read_data(self) -> t.Generator[ase.Atoms, None, None]:
         if self.file_io is None or self.file_io.name is None:
