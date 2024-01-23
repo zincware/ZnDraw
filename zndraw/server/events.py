@@ -63,7 +63,8 @@ def _get_queue_position(job_id) -> int:
         return app.config["MODIFIER"]["queue"].index(job_id)
     except ValueError:
         return -1
-    
+
+
 def _subscribe_user(data: dict, subscription_type: str):
     """
     Subscribe to user updates for a given subscription type.
@@ -71,7 +72,7 @@ def _subscribe_user(data: dict, subscription_type: str):
     data: {user: str}
     subscription_type: str (e.g., "STEP" or "CAMERA")
     """
-    token = session.get('token')
+    token = session.get("token")
     if token is None:
         return
 
@@ -83,7 +84,10 @@ def _subscribe_user(data: dict, subscription_type: str):
     # Get the SID from data["user"] and add it to the list of subscribers
     for sid, name in names.items():
         if name == data["user"]:
-            if subscription_type == "CAMERA" and per_token_subscriptions.get(sid) == request.sid:
+            if (
+                subscription_type == "CAMERA"
+                and per_token_subscriptions.get(sid) == request.sid
+            ):
                 print("Cannot subscribe to a user that is subscribed to you")
                 return
 
@@ -91,6 +95,7 @@ def _subscribe_user(data: dict, subscription_type: str):
             break
 
     cache.set(cache_key, per_token_subscriptions)
+
 
 def _get_subscribers(token: str, subscription_type: str):
     """
@@ -102,7 +107,9 @@ def _get_subscribers(token: str, subscription_type: str):
     cache_key = f"PER-TOKEN-{subscription_type}-SUBSCRIPTIONS:{token}"
     per_token_subscriptions = cache.get(cache_key) or {}
 
-    subscribers = [sid for sid, this in per_token_subscriptions.items() if this == request.sid]
+    subscribers = [
+        sid for sid, this in per_token_subscriptions.items() if this == request.sid
+    ]
 
     return subscribers
 
@@ -627,7 +634,7 @@ def scene_update(data: dict):
 
     data: {step: int, camera: {position: [float, float, float], rotation: [float, float, float]}}
     """
-    token = session.get('token')
+    token = session.get("token")
     if token is None:
         return
 
