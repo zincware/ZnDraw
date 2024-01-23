@@ -25,7 +25,8 @@ function setupCodeAccess() {
       // replace {{token}} with token
       text = text.replace("{{token}}", token);
       text = text.replace("{{url}}", url);
-      document.getElementById("codeModalContent").innerHTML = marked.parse(text);
+      document.getElementById("codeModalContent").innerHTML =
+        marked.parse(text);
     });
 }
 
@@ -215,14 +216,14 @@ function setupConnectedUsers(socket) {
   const copyTokenUrlBtn = document.getElementById("copyTokenUrlBtn");
   const token = document.getElementById("token").dataset.token;
   const url = window.location.href.replace(/\/$/, "");
-  const toastLiveExample = document.getElementById('liveToast')
-  const toast = new bootstrap.Toast(toastLiveExample)
-  const toastBody = document.getElementById('toastBody')
+  const toastLiveExample = document.getElementById("liveToast");
+  const toast = new bootstrap.Toast(toastLiveExample);
+  const toastBody = document.getElementById("toastBody");
   copyTokenUrlBtn.addEventListener("click", () => {
     navigator.clipboard.writeText(url + "/token/" + token);
     // show text including the URL that was copied
-    toastBody.innerHTML = "Copied URL to clipboard: " + url + "/token/" + token
-    toast.show()
+    toastBody.innerHTML = "Copied URL to clipboard: " + url + "/token/" + token;
+    toast.show();
   });
 
   let name;
