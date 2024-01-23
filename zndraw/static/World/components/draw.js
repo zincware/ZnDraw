@@ -145,6 +145,10 @@ export class Line3D extends THREE.Group {
     this.add(this.line, this.anchorPoints, this.virtualPoints);
   }
 
+  /*
+    * onLineChange is a callback function that is called when the line is changed
+    * this function is overriden in the select.js
+    */
   onLineChange() {}
 
   changeLineColor(color) {
