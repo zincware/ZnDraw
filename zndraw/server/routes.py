@@ -29,7 +29,7 @@ def index():
         if "token" in current_app.config:
             token = current_app.config["token"]
         else:
-            token = uuid.uuid4().hex
+            token = uuid.uuid4().hex[:8]
         session["token"] = token
 
     return render_template(
@@ -72,7 +72,7 @@ def file(file: str):
         if "token" in current_app.config:
             token = current_app.config["token"]
         else:
-            token = uuid.uuid4().hex
+            token = uuid.uuid4().hex[:8]
         session["token"] = token
     url = request.url_root
     print(f"URL: {url}")

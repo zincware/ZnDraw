@@ -2,6 +2,7 @@ import { createCamera } from "./components/camera.js";
 import { createLights } from "./components/lights.js";
 import { createScene } from "./components/scene.js";
 import { Bookmarks } from "../pycom/Bookmarks.js";
+import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 
 import { createControls } from "./systems/controls.js";
 import { createRenderer, create2DRenderer } from "./systems/renderer.js";
@@ -281,7 +282,54 @@ class World {
         callback(this.getSelection());
       }.bind(this),
     );
-    // renderer.render(scene, camera);
+
+    this.socket.on("scene:update", (data) => {
+      if (data.step !== undefined) {
+        this.setStep(data.step);
+      }
+      if (data.camera !== undefined) {
+        camera.position.set(...data.camera.position);
+        // camera.quaternion.set(...data.camera.quaternion);
+        controls.target.set(...data.camera.target);
+        controls.update();
+      }
+    });
+
+    // on camera move send the camera position to the server
+    controls.addEventListener("change", () => {
+      this.socket.emit("scene:update", {
+        camera: {
+          position: camera.position.toArray(),
+          // quaternion: camera.quaternion.toArray(),
+          target: controls.target.toArray(),
+        },
+      });
+    });
+  }
+
+  /**
+   * Drag and drop a glb file to the scene
+   */
+  dragStructure(file) {
+    const loader = new GLTFLoader();
+    const reader = new FileReader();
+
+    reader.onload = (event) => {
+      const dataURL = event.target.result;
+
+      loader.load(
+        dataURL,
+        (gltf) => {
+          this.scene.add(gltf.scene);
+        },
+        undefined,
+        (error) => {
+          console.error(error);
+        },
+      );
+    };
+
+    reader.readAsDataURL(file);
   }
 
   /**
@@ -338,6 +386,7 @@ class World {
     sliderprogress.style.width = `${percentage}%`;
     document.getElementById("info").innerHTML =
       `${slider.ariaValueNow} / ${slider.ariaValueMax}`;
+    this.socket.emit("scene:update", { step: step });
   }
 
   getStep() {

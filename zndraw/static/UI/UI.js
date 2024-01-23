@@ -1,3 +1,35 @@
+function setupInfo() {
+  fetch("static/info.md")
+    .then((response) => response.text())
+    .then((text) => {
+      document.getElementById("helpModalBody").innerHTML = marked.parse(text);
+    });
+
+  const tutorialIframe = document.getElementById("tutorialIframe");
+  if (tutorialIframe) {
+    // set width and height of iframe to 100% of parent
+    tutorialIframe.style.width = "100%";
+    // set height to 80% of screen height
+    tutorialIframe.style.height = window.innerHeight * 0.7 + "px";
+  }
+}
+
+function setupCodeAccess() {
+  // in data-token is the token
+  const token = document.getElementById("token").dataset.token;
+  const url = window.location.href.replace(/\/$/, "");
+
+  fetch("static/code.md")
+    .then((response) => response.text())
+    .then((text) => {
+      // replace {{token}} with token
+      text = text.replace("{{token}}", token);
+      text = text.replace("{{url}}", url);
+      document.getElementById("codeModalContent").innerHTML =
+        marked.parse(text);
+    });
+}
+
 function setupUpload(socket) {
   const file = {
     dom: document.getElementById("fileInput"),
@@ -42,7 +74,7 @@ function setupMobile() {
   }
 }
 
-function setupDragDrop(socket) {
+function setupDragDrop(socket, world) {
   const scene = document.getElementById("scene-container");
 
   scene.addEventListener("dragover", (event) => {
@@ -70,6 +102,16 @@ function setupDragDrop(socket) {
     console.log(event);
     if (!file) {
       console.error("No file was dropped");
+      return;
+    }
+    // if the filename ends with .glb pass to world.dragStructure
+    if (file.name.endsWith(".glb")) {
+      world.dragStructure(file);
+      // const reader = new FileReader();
+      // reader.readAsArrayBuffer(file);
+      // reader.addEventListener("load", () => {
+      //   world.dragStructure(reader.result, file.name);
+      // });
       return;
     }
 
@@ -175,16 +217,147 @@ function setupFrameInput(world) {
   });
 }
 
+function setupConnectedUsers(socket) {
+  const dropdown = document.getElementById("connectedUsersDropdown");
+  if (dropdown === null) {
+    return;
+  }
+  // for each user connected user there is
+  // row > col py-1 d-grid > btn btn-outline-secondary
+  // row > col py-2 d-grid > form-check-input (step)
+  // row > col py-2 d-grid > form-check-label (camera)
+  const copyTokenUrlBtn = document.getElementById("copyTokenUrlBtn");
+  const token = document.getElementById("token").dataset.token;
+  const url = window.location.href.replace(/\/$/, "");
+  const toastLiveExample = document.getElementById("liveToast");
+  const toast = new bootstrap.Toast(toastLiveExample);
+  const toastBody = document.getElementById("toastBody");
+  copyTokenUrlBtn.addEventListener("click", () => {
+    navigator.clipboard.writeText(url + "/token/" + token);
+    // show text including the URL that was copied
+    toastBody.innerHTML = "Copied URL to clipboard: " + url + "/token/" + token;
+    toast.show();
+  });
+
+  let name;
+
+  socket.on("connectedUsers", (data) => {
+    // remove all rows except the first one (header)
+    const rows = dropdown.querySelectorAll(".row");
+
+    // save the shared step and shared camera state
+    const stepConnectedUser = document.querySelector(
+      'input[name="sharedStep"]:checked',
+    );
+    const cameraConnectedUser = document.querySelector(
+      'input[name="sharedCamera"]:checked',
+    );
+
+    const entries = [];
+    rows.forEach((row, index) => {
+      if (index > 0) {
+        row.remove();
+      }
+    });
+    data.forEach((user, idx) => {
+      if (name === undefined) {
+        name = user.name;
+      }
+      const row = document.createElement("div");
+      row.classList.add("row");
+      const col1 = document.createElement("div");
+      col1.classList.add("col-6");
+      col1.classList.add("py-1");
+      col1.classList.add("d-grid");
+      const btn = document.createElement("button");
+      btn.classList.add("btn");
+      btn.classList.add("btn-outline-secondary");
+      btn.disabled = true;
+      btn.innerHTML = user.name;
+      col1.appendChild(btn);
+      row.appendChild(col1);
+
+      const col2 = document.createElement("div");
+      col2.classList.add("col");
+      col2.classList.add("py-2");
+      const inputStep = document.createElement("input");
+      inputStep.classList.add("form-check-input");
+      inputStep.type = "radio";
+      inputStep.name = "sharedStep";
+      inputStep.id = inputStep.name + "-" + idx;
+      inputStep.value = user.name;
+
+      inputStep.addEventListener("change", () => {
+        socket.emit("connectedUsers:subscribe:step", {
+          user: user.name,
+        });
+      });
+
+      col2.appendChild(inputStep);
+      row.appendChild(col2);
+
+      const col3 = document.createElement("div");
+      col3.classList.add("col");
+      col3.classList.add("py-2");
+      const inputCamera = document.createElement("input");
+      inputCamera.classList.add("form-check-input");
+      inputCamera.type = "radio";
+      inputCamera.name = "sharedCamera";
+      inputCamera.id = inputCamera.name + "-" + idx;
+      inputCamera.value = user.name;
+
+      inputCamera.addEventListener("change", () => {
+        socket.emit("connectedUsers:subscribe:camera", {
+          user: user.name,
+        });
+      });
+
+      col3.appendChild(inputCamera);
+      row.appendChild(col3);
+
+      if (user.name === name) {
+        inputStep.checked = true;
+        inputCamera.checked = true;
+        btn.innerHTML = user.name + " (you)";
+      }
+      if (user.name === stepConnectedUser?.value) {
+        inputStep.checked = true;
+      }
+      if (user.name === cameraConnectedUser?.value) {
+        inputCamera.checked = true;
+      }
+
+      entries.push({ name: user.name, row: row });
+    });
+    // sort the entries such that the first is name==name
+    entries.sort((a, b) => {
+      if (a.name === name) {
+        return -1;
+      }
+      if (b.name === name) {
+        return 1;
+      }
+      return a.name.localeCompare(b.name);
+    });
+    entries.forEach((entry) => {
+      dropdown.appendChild(entry.row);
+    });
+  });
+}
+
 export function setUIEvents(socket, cache, world) {
   // resizeOffcanvas();
   setupUpload(socket);
   setupNavbarLeft();
   setupMobile();
-  setupDragDrop(socket);
+  setupDragDrop(socket, world);
   setupTrashClick(socket);
   switchColorScheme(world);
   setupPointerFrameChange(world);
   setupFrameInput(world);
+  setupConnectedUsers(socket);
+  setupInfo();
+  setupCodeAccess();
 
   socket.on("download:response", (data) => {
     const blob = new Blob([data], { type: "text/csv" });
