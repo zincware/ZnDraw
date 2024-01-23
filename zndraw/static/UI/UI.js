@@ -74,7 +74,7 @@ function setupMobile() {
   }
 }
 
-function setupDragDrop(socket) {
+function setupDragDrop(socket, world) {
   const scene = document.getElementById("scene-container");
 
   scene.addEventListener("dragover", (event) => {
@@ -102,6 +102,16 @@ function setupDragDrop(socket) {
     console.log(event);
     if (!file) {
       console.error("No file was dropped");
+      return;
+    }
+    // if the filename ends with .glb pass to world.dragStructure
+    if (file.name.endsWith(".glb")) {
+      world.dragStructure(file);
+      // const reader = new FileReader();
+      // reader.readAsArrayBuffer(file);
+      // reader.addEventListener("load", () => {
+      //   world.dragStructure(reader.result, file.name);
+      // });
       return;
     }
 
@@ -209,6 +219,9 @@ function setupFrameInput(world) {
 
 function setupConnectedUsers(socket) {
   const dropdown = document.getElementById("connectedUsersDropdown");
+  if (dropdown === null) {
+    return;
+  }
   // for each user connected user there is
   // row > col py-1 d-grid > btn btn-outline-secondary
   // row > col py-2 d-grid > form-check-input (step)
@@ -337,7 +350,7 @@ export function setUIEvents(socket, cache, world) {
   setupUpload(socket);
   setupNavbarLeft();
   setupMobile();
-  setupDragDrop(socket);
+  setupDragDrop(socket, world);
   setupTrashClick(socket);
   switchColorScheme(world);
   setupPointerFrameChange(world);
