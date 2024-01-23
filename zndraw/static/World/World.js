@@ -2,7 +2,7 @@ import { createCamera } from "./components/camera.js";
 import { createLights } from "./components/lights.js";
 import { createScene } from "./components/scene.js";
 import { Bookmarks } from "../pycom/Bookmarks.js";
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 
 import { createControls } from "./systems/controls.js";
 import { createRenderer, create2DRenderer } from "./systems/renderer.js";
@@ -315,17 +315,22 @@ class World {
     const reader = new FileReader();
 
     reader.onload = (event) => {
-        const dataURL = event.target.result;
+      const dataURL = event.target.result;
 
-        loader.load(dataURL, (gltf) => {
-            this.scene.add(gltf.scene);
-        }, undefined, (error) => {
-            console.error(error);
-        });
+      loader.load(
+        dataURL,
+        (gltf) => {
+          this.scene.add(gltf.scene);
+        },
+        undefined,
+        (error) => {
+          console.error(error);
+        },
+      );
     };
 
     reader.readAsDataURL(file);
-}
+  }
 
   /**
    * Start the event loop
