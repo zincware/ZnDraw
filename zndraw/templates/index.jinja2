@@ -42,6 +42,7 @@
     </div>
   </noscript>
 
+  <div id="token" data-token="{{ token }}"></div>
   <div id="scene-container"></div>
   <div class="overlay" id="overlay">
     <h1 class="overlay-text">Upload File</h1>
@@ -146,8 +147,8 @@
           {% else %}
           <li class="nav-item mx-1">
             <div class="dropdown dropstart">
-              <button class="btn btn-outline-info dropdown-toggle" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside"
-                aria-expanded="false">
+              <button class="btn btn-outline-info dropdown-toggle" type="button" data-bs-toggle="dropdown"
+                data-bs-auto-close="outside" aria-expanded="false">
                 <i class="fa-solid fa-users"></i>
               </button>
               <ul class="dropdown-menu" style="width: 400px;">
@@ -164,84 +165,11 @@
                     </div>
                   </div>
                   <hr class="dropdown-divider">
-                  <div class="row">
-                    <div class="col py-1 d-grid">
-                      <button type="button" class="btn btn-outline-primary" disabled><b>You</b></button>
-                    </div>
-                    <div class="col py-2">
-                      <input class="form-check-input" type="radio" name="radioNoLabel" id="radioNoLabel1" value="" aria-label="..." checked>
-                    </div>
-                    <div class="col py-2">
-                      <input class="form-check-input" type="radio" name="radioNoLabelX" id="radioNoLabelX1" value="" aria-label="..." checked>
-                    </div>
-                  </div>
-                  <div class="row">
-                    <div class="col py-1 d-grid">
-                      <button type="button" class="btn btn-outline-secondary" disabled><b>User 2</b></button>
-                    </div>
-                    <div class="col py-2">
-                      <input class="form-check-input" type="radio" name="radioNoLabel" id="radioNoLabel2" value="" aria-label="...">
-                    </div>
-                    <div class="col py-2">
-                      <input class="form-check-input" type="radio" name="radioNoLabelX" id="radioNoLabelX2" value="" aria-label="...">
-                    </div>
-                  </div>
-                  <div class="row">
-                    <div class="col py-1 d-grid">
-                      <button type="button" class="btn btn-outline-secondary" disabled><b>User 3</b></button>
-                    </div>
-                    <div class="col py-2">
-                      <input class="form-check-input" type="radio" name="radioNoLabel" id="radioNoLabel3" value="" aria-label="...">
-                    </div>
-                    <div class="col py-2">
-                      <input class="form-check-input" type="radio" name="radioNoLabelX" id="radioNoLabelX3" value="" aria-label="...">
-                    </div>
-                  </div>
-
                 </div>
-                {# <div class="container text-center">
-                  <div class="row g-2">
-                    <div class="col-3">
-                      <div class="p-3">User</div>
-                    </div>
-                    <div class="col-3">
-                      <div class="p-3">Follow Step</div>
-                    </div>
-                    <div class="col-3">
-                      <div class="p-3">Follow Camera</div>
-                    </div>
-
-                    <div class="col-3">
-                      <div class="p-3 d-grid"><button type="button" class="btn btn-outline-primary"
-                          disabled>You</button></div>
-                    </div>
-                    <div class="col-3">
-                      <div class="p-3"><input class="form-check-input" type="radio" name="radioNoLabel"
-                          id="radioNoLabel1" value="" aria-label="..." checked>
-                      </div>
-                    </div>
-                    <div class="col-3">
-                      <div class="p-3"><input class="form-check-input" type="radio" name="radioNoLabelX"
-                          id="radioNoLabelX1" value="" aria-label="..." checked>
-                      </div>
-                    </div>
-                    <div class="col-3">
-                      <div class="p-3 d-grid"><button type="button" class="btn btn-outline-primary" disabled>User
-                          1</button>
-                      </div>
-                    </div>
-                    <div class="col-3">
-                      <div class="p-3"><input class="form-check-input" type="radio" name="radioNoLabel"
-                          id="radioNoLabel2" value="" aria-label="...">
-                      </div>
-                    </div>
-                    <div class="col-3">
-                      <div class="p-3"><input class="form-check-input" type="radio" name="radioNoLabelX"
-                          id="radioNoLabelX1" value="" aria-label="..." checked>
-                      </div>
-                    </div>
-                  </div>
-                </div> #}
+                <hr class="dropdown-divider">
+                <div class="d-grid gap-2 px-2">
+                  <button class="btn btn-outline-primary" type="button" id="copyTokenUrlBtn">Copy URL for sharing to clipboard</button>
+                </div>
               </ul>
             </div>
           </li>
@@ -448,42 +376,7 @@
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
         <div class="modal-body">
-          <h3>Python Code</h3>
-          <code id="python-code-block"> </code>
-          <br />
-          {% if token != "notoken" %}
-          <h3>Share Link</h3>
-          <code id="share-link-block"></code>
-          <br />
-          <a class="btn btn-primary" href="{{ url_for('main.token', token=token) }}" role="button"
-            id="btnShareLink">Copy
-            link to clipboard</a>
-          {% endif %}
-          <script>
-            {% if token != "notoken" %}
-            document.getElementById(
-              "python-code-block",
-            ).innerHTML = `from zndraw import ZnDraw <br>vis = ZnDraw(url="${window.location.href}", token="{{ token }}")`;
-            // url but without trailing slash
-            const url = window.location.href.replace(/\/$/, "");
-            const target_href = "{{ url_for('main.token', token=token) }}";
-            const full_url = url + target_href;
-
-            document.getElementById("share-link-block").innerHTML = full_url;
-
-            document.getElementById("btnShareLink").onclick = function (
-              event,
-            ) {
-              event.preventDefault();
-              navigator.clipboard.writeText(full_url);
-            };
-            {% else %}
-            document.getElementById(
-              "python-code-block",
-            ).innerHTML = `from zndraw import ZnDraw <br>vis = ZnDraw(url="${window.location.href}")`;
-            {% endif %}
-
-          </script>
+          <div id="codeModalContent"></div>
         </div>
       </div>
     </div>
@@ -560,6 +453,18 @@
   <!-- Progress Bar Bookmarks -->
   <div id="bookmarks">
     {# <button type="button" class="btn btn-link"><i class="fa-regular fa-bookmark"></i></button> #}
+  </div>
+
+  <!-- toast -->
+  <div class="toast-container position-fixed bottom-0 end-0 p-3">
+    <div id="liveToast" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+      <div class="toast-header">
+        <strong class="me-auto">INFO</strong>
+        <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+      </div>
+      <div class="toast-body" id="toastBody">
+      </div>
+    </div>
   </div>
 
   <!-- Additional info bars -->
