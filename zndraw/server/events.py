@@ -11,7 +11,7 @@ from flask_socketio import call, emit, join_room
 
 from ..app import cache
 from ..app import socketio as io
-from .data import JoinData, ModifierRunData, AnalysisRunData, AnalysisFigureData, SceneSetData
+from .data import JoinData, ModifierRunData, AnalysisRunData, AnalysisFigureData, SceneSetData, SceneStepData
 import dataclasses
 
 from zndraw.utils import typecast
@@ -387,7 +387,9 @@ def scene_set(data: SceneSetData):
 
 
 @io.on("scene:step")
-def scene_step(data):
+@typecast
+def scene_step(data: SceneStepData):
+    print(data)
     return call("scene:step", to=_webclients_room(data))
 
 

@@ -31,3 +31,7 @@ class AnalysisFigureData:
 class SceneSetData:
     index: int
     token: str
+
+@dataclasses.dataclass
+class SceneStepData:
+    token: str
