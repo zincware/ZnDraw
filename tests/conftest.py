@@ -37,11 +37,10 @@ def setup(request):
 
 
 def run_server(port):
-    app = create_app(None, False, True, None, None)
-    socketio.run(
-        app, port=port, debug=False, host="0.0.0.0"
-    )  # NEVER EVER USE  DEBUG=TRUE HERE!!!
-
+    with create_app(None, False, True, None, None) as app:
+        socketio.run(
+            app, port=port, debug=False, host="0.0.0.0"
+        )  # NEVER EVER USE  DEBUG=TRUE HERE!!!
 
 @pytest.fixture()
 def server():

@@ -1,4 +1,5 @@
 import uuid
+import contextlib
 
 from flask import Flask
 from flask_caching import Cache
@@ -22,7 +23,7 @@ def setup_cache():
     cache.set("PER-TOKEN-DATA", {})
     cache.set("MODIFIER", {"default_schema": {}, "active": None, "queue": []})
 
-
+@contextlib.contextmanager
 def create_app(
     use_token, upgrade_insecure_requests, compute_bonds, tutorial: str, auth_token: str
 ) -> Flask:
@@ -46,4 +47,4 @@ def create_app(
     cache.init_app(app)
     socketio.init_app(app, cors_allowed_origins="*")
     setup_cache()
-    return app
+    yield app
