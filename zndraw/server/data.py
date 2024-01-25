@@ -16,3 +16,8 @@ class ModifierRunData:
     @property
     def name(self) -> str:
         return self.params["method"]["discriminator"]
+
+@dataclasses.dataclass
+class AnalysisRunData:
+    params: dict
+    target: str = None

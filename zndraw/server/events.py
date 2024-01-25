@@ -11,7 +11,7 @@ from flask_socketio import call, emit, join_room
 
 from ..app import cache
 from ..app import socketio as io
-from .data import JoinData, ModifierRunData
+from .data import JoinData, ModifierRunData, AnalysisRunData
 import dataclasses
 
 from zndraw.utils import typecast
@@ -361,9 +361,10 @@ def modifier_run(data: ModifierRunData):
 
 
 @io.on("analysis:run")
-def analysis_run(data):
-    data["target"] = session["token"]
-    emit("analysis:run", data, include_self=False, to=_pyclients_default(data))
+@typecast
+def analysis_run(data: AnalysisRunData):
+    data.target = session["token"]
+    emit("analysis:run", dataclasses.asdict(data), include_self=False, to=_pyclients_default(data))
 
 
 @io.on("analysis:figure")
