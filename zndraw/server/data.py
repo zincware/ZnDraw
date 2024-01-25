@@ -21,3 +21,8 @@ class ModifierRunData:
 class AnalysisRunData:
     params: dict
     target: str = None
+
+@dataclasses.dataclass
+class AnalysisFigureData:
+    figure: dict
+    token: str

@@ -11,7 +11,7 @@ from flask_socketio import call, emit, join_room
 
 from ..app import cache
 from ..app import socketio as io
-from .data import JoinData, ModifierRunData, AnalysisRunData
+from .data import JoinData, ModifierRunData, AnalysisRunData, AnalysisFigureData
 import dataclasses
 
 from zndraw.utils import typecast
@@ -22,9 +22,14 @@ modifier_lock = Lock()
 
 def _webclients_room(data: dict) -> str:
     """Return the room name for the webclients."""
-    if "sid" in data:
-        return data["sid"]
-    return f"webclients_{data['token']}"
+    if isinstance(data, dict):
+        if "sid" in data:
+            return data["sid"]
+        return f"webclients_{data['token']}"
+    elif hasattr(data, "sid"):
+        if data.sid is not None:
+            return data.sid
+    return f"webclients_{data.token}"
 
 
 def _webclients_default(data: dict) -> str:
@@ -368,9 +373,10 @@ def analysis_run(data: AnalysisRunData):
 
 
 @io.on("analysis:figure")
-def analysis_figure(data):
+@typecast
+def analysis_figure(data: AnalysisFigureData):
     emit(
-        "analysis:figure", data["figure"], include_self=False, to=_webclients_room(data)
+        "analysis:figure", data.figure, include_self=False, to=_webclients_room(data)
     )
 
 
