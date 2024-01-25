@@ -45,3 +45,7 @@ class AtomsDownloadData:
 class DeleteAtomsData:
     index: list
     token: str
+
+@dataclasses.dataclass
+class AtomsLengthData:
+    token: str

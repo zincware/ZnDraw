@@ -11,7 +11,7 @@ from flask_socketio import call, emit, join_room
 
 from ..app import cache
 from ..app import socketio as io
-from .data import JoinData, DeleteAtomsData, AtomsDownloadData, ModifierRunData, AnalysisRunData, AnalysisFigureData, SceneSetData, SceneStepData
+from .data import JoinData, AtomsLengthData, DeleteAtomsData, AtomsDownloadData, ModifierRunData, AnalysisRunData, AnalysisFigureData, SceneSetData, SceneStepData
 import dataclasses
 
 from zndraw.utils import typecast
@@ -424,7 +424,8 @@ def atoms_delete(data: DeleteAtomsData):
 
 
 @io.on("atoms:length")
-def atoms_length(data: dict):
+@typecast
+def atoms_length(data: AtomsLengthData):
     return call("atoms:length", to=_webclients_default(data))
 
 
