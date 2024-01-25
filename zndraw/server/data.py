@@ -69,3 +69,8 @@ class SelectionSetData:
 class SelectionRunData:
     params: dict
     target: str = None
+
+@dataclasses.dataclass
+class MessageData:
+    message: str
+    token: str

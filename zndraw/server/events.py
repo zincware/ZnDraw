@@ -11,7 +11,7 @@ from flask_socketio import call, emit, join_room
 
 from ..app import cache
 from ..app import socketio as io
-from .data import JoinData,SelectionRunData,SelectionSetData,ModifierSchemaData,AnalysisSchemaData, AtomsLengthData, DeleteAtomsData, AtomsDownloadData, ModifierRunData, AnalysisRunData, AnalysisFigureData, SceneSetData, SceneStepData
+from .data import MessageData, JoinData,SelectionRunData,SelectionSetData,ModifierSchemaData,AnalysisSchemaData, AtomsLengthData, DeleteAtomsData, AtomsDownloadData, ModifierRunData, AnalysisRunData, AnalysisFigureData, SceneSetData, SceneStepData
 import dataclasses
 
 from zndraw.utils import typecast
@@ -496,7 +496,8 @@ def selection_run(data: SelectionRunData):
 
 
 @io.on("upload")
-def upload(data):
+def upload(data: dict):
+    # TODO: this has a bad structure and should be updates to fixed keys!
     data = {"data": data, "target": session["token"]}
     emit("upload", data, include_self=False, to=_pyclients_default(data))
 
@@ -507,8 +508,9 @@ def insert_atoms(data):
 
 
 @io.on("message:log")
-def message_log(data):
-    emit("message:log", data["message"], to=_webclients_room(data))
+@typecast
+def message_log(data: MessageData):
+    emit("message:log", data.message, to=_webclients_room(data))
 
 
 @io.on("download:request")
