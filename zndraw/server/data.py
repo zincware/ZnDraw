@@ -102,3 +102,8 @@ class ModifierRegisterData:
 class BookmarksSetData:
     bookmarks: dict
     token: str
+
+@dataclasses.dataclass
+class PointsSetData:
+    value: list[list[float]]
+    token: str = None

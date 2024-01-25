@@ -11,7 +11,7 @@ from flask_socketio import call, emit, join_room
 
 from ..app import cache
 from ..app import socketio as io
-from .data import BookmarksSetData,PlayData,ModifierRegisterData,  MessageData, JoinData,SelectionRunData,SelectionSetData,ModifierSchemaData,AnalysisSchemaData, AtomsLengthData, DeleteAtomsData, AtomsDownloadData, ModifierRunData, AnalysisRunData, AnalysisFigureData, SceneSetData, SceneStepData
+from .data import PointsSetData, BookmarksSetData,PlayData,ModifierRegisterData,  MessageData, JoinData,SelectionRunData,SelectionSetData,ModifierSchemaData,AnalysisSchemaData, AtomsLengthData, DeleteAtomsData, AtomsDownloadData, ModifierRunData, AnalysisRunData, AnalysisFigureData, SceneSetData, SceneStepData
 import dataclasses
 
 from zndraw.utils import typecast
@@ -608,10 +608,11 @@ def bookmarks_set(data: BookmarksSetData):
 
 
 @io.on("points:set")
-def points_set(data: dict):
-    if "token" not in data:
-        data["token"] = session["token"]
-    emit("points:set", data["value"], include_self=False, to=_webclients_room(data))
+@typecast
+def points_set(data: PointsSetData):
+    if data.token is None:
+        data.token = session["token"]
+    emit("points:set", data.value, include_self=False, to=_webclients_room(data))
 
 
 @io.on("debug")
