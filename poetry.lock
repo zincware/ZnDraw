@@ -576,6 +576,17 @@ toml = ">=0.10.0,<1.0.0"
 http = ["httpx"]
 
 [[package]]
+name = "decorator"
+version = "5.1.1"
+description = "Decorators for Humans"
+optional = false
+python-versions = ">=3.5"
+files = [
+    {file = "decorator-5.1.1-py3-none-any.whl", hash = "sha256:b8c3f85900b9dc423225913c5aace94729fe1fa9763b38939a95226f02d37186"},
+    {file = "decorator-5.1.1.tar.gz", hash = "sha256:637996211036b6385ef91435e4fae22989472f9d571faba8927ba8253acbc330"},
+]
+
+[[package]]
 name = "distlib"
 version = "0.3.8"
 description = "Distribution utilities"
@@ -3026,4 +3037,4 @@ rdkit = ["rdkit2ase"]
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.9"
-content-hash = "87185a4c9eb03710f443490287746edc0c80048133c0de49508e10d2628e3a0b"
+content-hash = "7f7e9114c9eee500b0cddbf1bd7ee77faf7edf0ed8ab1b47d12e8804651ec5b0"

@@ -11,7 +11,9 @@ from flask_socketio import call, emit, join_room
 
 from ..app import cache
 from ..app import socketio as io
+from .data import JoinData
 
+from zndraw.utils import typecast
 log = logging.getLogger(__name__)
 
 modifier_lock = Lock()
@@ -210,26 +212,24 @@ def disconnect():
 
 
 @io.on("join")
-def join(data: dict):
+@typecast
+def join(data: JoinData):
     """
     Arguments:
         data: {"token": str, "uuid": str}
     """
     # only used by pyclients that only connect via socket (no HTML)
-    token = data["token"]
-    uuid = data["uuid"]
-    auth_token = data["auth_token"]
-    session["authenticated"] = auth_token == app.config["AUTH_TOKEN"]
+    session["authenticated"] = data.auth_token == app.config["AUTH_TOKEN"]
     log.debug(f"Client {request.sid} is {session['authenticated'] = }")
-    if uuid in app.config["pyclients"]:
-        log.critical(f"UUID {uuid} is already registered in {app.config['pyclients']}.")
-        emit("message:log", f"UUID {uuid} is already registered", to=request.sid)
-    app.config["pyclients"][uuid] = request.sid
-    session["token"] = token
-    join_room(f"pyclients_{token}")
-    if token not in app.config["PER-TOKEN-DATA"]:
-        app.config["PER-TOKEN-DATA"][token] = {}
-    if token == "default":
+    if data.uuid in app.config["pyclients"]:
+        log.critical(f"UUID {data.uuid} is already registered in {app.config['pyclients']}.")
+        emit("message:log", f"UUID {data.uuid} is already registered", to=request.sid)
+    app.config["pyclients"][data.uuid] = request.sid
+    session["token"] = data.token
+    join_room(f"pyclients_{data.token}")
+    if data.token not in app.config["PER-TOKEN-DATA"]:
+        app.config["PER-TOKEN-DATA"][data.token] = {}
+    if data.token == "default":
         # this would be very easy to exploit
         app.config["DEFAULT_PYCLIENT"] = request.sid
 
