@@ -10,6 +10,19 @@ cache = Cache(
 )
 
 
+def setup_cache():
+    """Setup the cache."""
+    cache.set("ROOM_HOSTS", {})
+    cache.set("DEFAULT_PYCLIENT", None)
+
+    # dict of {uuid: sid} for each client
+    cache.set("pyclients", {})
+
+    # dict of {token: dict}
+    cache.set("PER-TOKEN-DATA", {})
+    cache.set("MODIFIER", {"default_schema": {}, "active": None, "queue": []})
+
+
 def create_app(
     use_token, upgrade_insecure_requests, compute_bonds, tutorial: str, auth_token: str
 ) -> Flask:
@@ -17,15 +30,9 @@ def create_app(
 
     app = Flask(__name__)
     app.config["SECRET_KEY"] = str(uuid.uuid4())
-    app.config["ROOM_HOSTS"] = {}
-    app.config["DEFAULT_PYCLIENT"] = None
+
     app.config["TUTORIAL"] = tutorial
-    # dict of {uuid: sid} for each client
-    app.config["pyclients"] = {}
-    # dict of {token: dict}
-    app.config["PER-TOKEN-DATA"] = {}
     app.config["AUTH_TOKEN"] = auth_token
-    app.config["MODIFIER"] = {"default_schema": {}, "active": None, "queue": []}
 
     if not use_token:  # TODO: handle this differently
         app.config["token"] = "notoken"
@@ -38,4 +45,5 @@ def create_app(
 
     cache.init_app(app)
     socketio.init_app(app, cors_allowed_origins="*")
+    setup_cache()
     return app
