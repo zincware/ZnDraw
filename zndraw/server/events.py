@@ -89,7 +89,7 @@ def _pyclients_default(data: dict) -> str:
     elif hasattr(data, "sid"):
         if data.sid is not None:
             return data.sid
-    return app.config["DEFAULT_PYCLIENT"]
+    return cache.get("DEFAULT_PYCLIENT")
 
 
 def _get_uuid_for_sid(sid) -> str:
@@ -97,14 +97,14 @@ def _get_uuid_for_sid(sid) -> str:
     The SID is given by flask, the UUID is defined by zndraw
     and can be used to reconnect.
     """
-    inv_clients = {v: k for k, v in app.config["pyclients"].items()}
+    inv_clients = {v: k for k, v in cache.get("pyclients").items()}
     return inv_clients[sid]
 
 
 def _get_queue_position(job_id) -> int:
     """Return the position of the job_id in the queue."""
     try:
-        return app.config["MODIFIER"]["queue"].index(job_id)
+        return cache.get("MODIFIER")["queue"].index(job_id)
     except ValueError:
         return -1
 
@@ -160,7 +160,8 @@ def _get_subscribers(token: str, subscription_type: str):
 
 @io.on("connect")
 def connect():
-    if app.config["DEFAULT_PYCLIENT"] is None and "token" in session:
+    DEFAULT_PYCLIENT = cache.get("DEFAULT_PYCLIENT")
+    if DEFAULT_PYCLIENT is None and "token" in session:
         # refuse connection if there is no default pyclient
         return False
     with contextlib.suppress(KeyError):
@@ -168,21 +169,23 @@ def connect():
         token = session["token"]
         join_room(f"webclients_{token}")
         # who ever connected latest is the HOST of the room
+        ROOM_HOSTS = cache.get("ROOM_HOSTS")
         try:
-            app.config["ROOM_HOSTS"][token].append(request.sid)
+            ROOM_HOSTS[token].append(request.sid)
         except KeyError:
-            app.config["ROOM_HOSTS"][token] = [request.sid]
+            ROOM_HOSTS[token] = [request.sid]
+        cache.set("ROOM_HOSTS", ROOM_HOSTS)
 
         data = {"sid": request.sid, "token": token}
-        data["host"] = app.config["ROOM_HOSTS"][token][0] == request.sid
+        data["host"] = ROOM_HOSTS[token][0] == request.sid
         names = cache.get(f"PER-TOKEN-NAME:{session['token']}") or {}
         names[request.sid] = uuid4().hex[:8].upper()
         cache.set(f"PER-TOKEN-NAME:{session['token']}", names)
 
-        emit("webclient:available", data, to=app.config["DEFAULT_PYCLIENT"])
+        emit("webclient:available", data, to=DEFAULT_PYCLIENT)
 
         connected_users = [
-            {"name": names[sid]} for sid in app.config["ROOM_HOSTS"][token]
+            {"name": names[sid]} for sid in ROOM_HOSTS[token]
         ]
 
         emit(
@@ -192,20 +195,23 @@ def connect():
         )
 
         data = {"modifiers": []}  # {schema: ..., name: ...}
-        for name, schema in app.config["MODIFIER"]["default_schema"].items():
+        MODIFIER = cache.get("MODIFIER")
+        for name, schema in MODIFIER["default_schema"].items():
             data["modifiers"].append({"schema": schema, "name": name})
         data["token"] = token
 
-        emit("modifier:register", data, to=app.config["DEFAULT_PYCLIENT"])
+        emit("modifier:register", data, to=DEFAULT_PYCLIENT)
 
         # TODO emit("modifier:register", _all modifiers_, to=app.config["DEFAULT_PYCLIENT"]')
 
         log.debug(
-            f"connected {request.sid} and updated HOSTS to {app.config['ROOM_HOSTS']}"
+            f"connected {request.sid} and updated HOSTS to {ROOM_HOSTS}"
         )
         emit("message:log", "Connection established", to=request.sid)
-        if token not in app.config["PER-TOKEN-DATA"]:
-            app.config["PER-TOKEN-DATA"][token] = {}
+        PER_TOKEN_DATA = cache.get("PER-TOKEN-DATA")
+        if token not in PER_TOKEN_DATA:
+            PER_TOKEN_DATA[token] = {}
+        cache.set("PER-TOKEN-DATA", PER_TOKEN_DATA)
 
         # append to zndraw.log a line isoformat() + " " + token
         if "token" not in app.config:
@@ -219,10 +225,12 @@ def connect():
 def disconnect():
     with contextlib.suppress(KeyError):
         token = session["token"]
+        PYCLIENTS = cache.get("pyclients")
         try:
-            del app.config["pyclients"][_get_uuid_for_sid(request.sid)]
+            del PYCLIENTS[_get_uuid_for_sid(request.sid)]
         except KeyError:
             pass
+        cache.set("pyclients", PYCLIENTS)
         if "token" not in app.config:
             with open("zndraw.log", "a") as f:
                 f.write(
@@ -231,16 +239,18 @@ def disconnect():
                     + token
                     + " disconnected \n"
                 )
+        ROOM_HOSTS = cache.get("ROOM_HOSTS")
         try:
-            app.config["ROOM_HOSTS"][token].remove(request.sid)
+            ROOM_HOSTS[token].remove(request.sid)
         except ValueError:
-            pass  # SID not in the list
-        if not app.config["ROOM_HOSTS"][token]:
-            del app.config["ROOM_HOSTS"][token]
+            pass
+        if not ROOM_HOSTS[token]:
+            del ROOM_HOSTS[token]
+        cache.set("ROOM_HOSTS", ROOM_HOSTS)
         # remove the pyclient from the dict
         names = cache.get(f"PER-TOKEN-NAME:{session['token']}") or {}
         connected_users = [
-            {"name": names[sid]} for sid in app.config["ROOM_HOSTS"][token]
+            {"name": names[sid]} for sid in ROOM_HOSTS[token]
         ]
         emit(
             "connectedUsers",
@@ -249,7 +259,7 @@ def disconnect():
         )
 
     log.debug(
-        f'disconnect {request.sid} and updated HOSTS to {app.config["ROOM_HOSTS"]}'
+        f'disconnect {request.sid} and updated HOSTS to {ROOM_HOSTS}'
     )
 
 
@@ -263,19 +273,23 @@ def join(data: JoinData):
     # only used by pyclients that only connect via socket (no HTML)
     session["authenticated"] = data.auth_token == app.config["AUTH_TOKEN"]
     log.debug(f"Client {request.sid} is {session['authenticated'] = }")
-    if data.uuid in app.config["pyclients"]:
+    PYCLIENTS = cache.get("pyclients")
+    if data.uuid in PYCLIENTS:
         log.critical(
             f"UUID {data.uuid} is already registered in {app.config['pyclients']}."
         )
         emit("message:log", f"UUID {data.uuid} is already registered", to=request.sid)
-    app.config["pyclients"][data.uuid] = request.sid
+    PYCLIENTS[data.uuid] = request.sid
+    cache.set("pyclients", PYCLIENTS)
     session["token"] = data.token
     join_room(f"pyclients_{data.token}")
-    if data.token not in app.config["PER-TOKEN-DATA"]:
-        app.config["PER-TOKEN-DATA"][data.token] = {}
+    PER_TOKEN_DATA = cache.get("PER-TOKEN-DATA")
+    if data.token not in PER_TOKEN_DATA:
+        PER_TOKEN_DATA[data.token] = {}
+    cache.set("PER-TOKEN-DATA", PER_TOKEN_DATA)
     if data.token == "default":
         # this would be very easy to exploit
-        app.config["DEFAULT_PYCLIENT"] = request.sid
+        cache.set("DEFAULT_PYCLIENT", request.sid)
 
 
 @io.on("scene:schema")
@@ -349,10 +363,12 @@ def modifier_run(data: ModifierRunData):
     # emit entered the queue
     JOB_ID = uuid4()
     TIMEOUT = 60
-    app.config["MODIFIER"]["queue"].append(JOB_ID)
+    MODIFIER = cache.get("MODIFIER")
+    MODIFIER["queue"].append(JOB_ID)
+    cache.set("MODIFIER", MODIFIER)
 
     while True:
-        if app.config["MODIFIER"]["queue"][0] == JOB_ID:
+        if cache.get("MODIFIER")["queue"][0] == JOB_ID:
             acquired = modifier_lock.acquire(blocking=False)
         else:
             acquired = False
@@ -370,12 +386,14 @@ def modifier_run(data: ModifierRunData):
 
     name = data.name
     # handle custom modifiers (not default)
-    if name in app.config["PER-TOKEN-DATA"][session["token"]].get("modifier", {}):
-        token = app.config["PER-TOKEN-DATA"][session["token"]]["modifier"][name]
-        data.sid = app.config["pyclients"][token]
+    PYCLIENTS = cache.get("pyclients")
+    PER_TOKEN_DATA = cache.get("PER-TOKEN-DATA")
+    if name in PER_TOKEN_DATA[session["token"]].get("modifier", {}):
+        token = PER_TOKEN_DATA[session["token"]]["modifier"][name]
+        data.sid = PYCLIENTS[token]
     # handle custom modifiers (default)
-    elif name in app.config["MODIFIER"]:
-        data.sid = app.config["pyclients"][app.config["MODIFIER"][name]]
+    elif name in MODIFIER:
+        data.sid = PYCLIENTS[MODIFIER[name]]
 
     # need to set the target of the modifier to the webclients room
     data.target = session["token"]
@@ -384,10 +402,12 @@ def modifier_run(data: ModifierRunData):
     emit("modifier:run", dataclasses.asdict(data), to=_pyclients_default(data))
 
     io.sleep(TIMEOUT)
-    if JOB_ID in app.config["MODIFIER"]["queue"]:
+    MODIFIER = cache.get("MODIFIER")
+    if JOB_ID in MODIFIER["queue"]:
         # modifier failed
-        app.config["MODIFIER"]["queue"].pop(0)
-        app.config["MODIFIER"]["active"] = None
+        MODIFIER["queue"].pop(0)
+        MODIFIER["active"] = None
+        cache.set("MODIFIER", MODIFIER)
         modifier_lock.release()
         log.critical("Modifier failed - releasing lock.")
         # TODO: emit a error message that the modifier failed to the webclients
@@ -548,7 +568,7 @@ def download_request(data: dict):
     emit(
         "download:request",
         {"data": data, "sid": session["token"]},
-        to=app.config["DEFAULT_PYCLIENT"],
+        to=cache.get("DEFAULT_PYCLIENT"),
     )
 
 
@@ -581,42 +601,48 @@ def scene_trash():
 @typecast
 def modifier_register(data: ModifierRegisterData):
     data.token = session["token"]
-    if "modifier" not in app.config["PER-TOKEN-DATA"][session["token"]]:
+    PER_TOKEN_DATA = cache.get("PER-TOKEN-DATA")
+    MODIFIER = cache.get("MODIFIER")
+    if "modifier" not in PER_TOKEN_DATA[session["token"]]:
         # this is a dict for the pyclient, but it has to be for every webclient ...
-        app.config["PER-TOKEN-DATA"][session["token"]]["modifier"] = {}
+        PER_TOKEN_DATA[session["token"]]["modifier"] = {}
 
     try:
         # we can only register one modifier at a time
         name = data.name
-        if name in app.config["MODIFIER"]["default_schema"]:
+        if name in MODIFIER["default_schema"]:
             msg = f"'{name}' is already registered as a default modifier and therefore reserved. Choose another name for your modifier!"
             log.critical(msg)
             emit("message:log", msg, to=request.sid)
 
-        if name in app.config["PER-TOKEN-DATA"][session["token"]]["modifier"]:
+        if name in PER_TOKEN_DATA[session["token"]]["modifier"]:
             msg = f"Modifier {name} is already registered."
             log.critical(msg)
             emit("message:log", msg, to=request.sid)
         # get the key from the value request.sid by inverting the dict
-        app.config["PER-TOKEN-DATA"][session["token"]]["modifier"][
+        PER_TOKEN_DATA[session["token"]]["modifier"][
             name
         ] = _get_uuid_for_sid(request.sid)
-        log.critical(f'{app.config["PER-TOKEN-DATA"] = }')
-        log.critical(f'{app.config["pyclients"] = }')
+        PYCLIENTS = cache.get("pyclients")
+        log.critical(f'{PER_TOKEN_DATA = }')
+        log.critical(f'{PYCLIENTS = }')
 
         if data.is_default:
             if not session["authenticated"]:
                 msg = "Unauthenticated users cannot register default modifiers."
                 log.critical(msg)
                 emit("message:log", msg, to=request.sid)
-            app.config["MODIFIER"]["default_schema"][name] = data.schema
-            app.config["MODIFIER"][name] = _get_uuid_for_sid(request.sid)
+            MODIFIER["default_schema"][name] = data.schema
+            MODIFIER[name] = _get_uuid_for_sid(request.sid)
     except KeyError:
         print("Could not identify the modifier name.")
         traceback.print_exc()
+    
+    cache.set("PER-TOKEN-DATA", PER_TOKEN_DATA)
+    cache.set("MODIFIER", MODIFIER)
 
     emit(
-        "modifier:register", dataclasses.asdict(data), to=app.config["DEFAULT_PYCLIENT"]
+        "modifier:register", dataclasses.asdict(data), to=cache.get("DEFAULT_PYCLIENT")
     )
 
 
@@ -653,7 +679,8 @@ def debug(data: dict):
 @io.on("modifier:run:running")
 @typecast
 def modifier_run_running(data: ModifierRunRunningData):
-    app.config["MODIFIER"]["active"] = data.name
+    MODIFIER = cache.get("MODIFIER")
+    MODIFIER["active"] = data.name
     emit(
         "modifier:run:running",
         dataclasses.asdict(data),
@@ -666,8 +693,10 @@ def modifier_run_running(data: ModifierRunRunningData):
 @typecast
 def modifier_run_finished(data: AtomsLengthData):
     # remove 0th element from queue
-    app.config["MODIFIER"]["queue"].pop(0)
-    app.config["MODIFIER"]["active"] = None
+    MODIFIER = cache.get("MODIFIER")
+    MODIFIER["queue"].pop(0)
+    MODIFIER["active"] = None
+    cache.set("MODIFIER", MODIFIER)
     modifier_lock.release()
     print("modifier_lock released")
     emit(
@@ -682,9 +711,10 @@ def modifier_run_finished(data: AtomsLengthData):
 def modifier_run_failed():
     """Take care if the modifier does not respond."""
     # remove 0th element from queue
-    app.config["MODIFIER"]["queue"].pop(0)
-
-    app.config["MODIFIER"]["active"] = None
+    MODIFIER = cache.get("MODIFIER")
+    MODIFIER["queue"].pop(0)
+    MODIFIER["active"] = None
+    cache.set("MODIFIER", MODIFIER)
     modifier_lock.release()
     log.critical("Modifier failed - releasing lock.")
 
