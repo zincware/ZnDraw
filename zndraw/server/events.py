@@ -11,7 +11,7 @@ from flask_socketio import call, emit, join_room
 
 from ..app import cache
 from ..app import socketio as io
-from .data import JoinData,ModifierSchemaData,AnalysisSchemaData, AtomsLengthData, DeleteAtomsData, AtomsDownloadData, ModifierRunData, AnalysisRunData, AnalysisFigureData, SceneSetData, SceneStepData
+from .data import JoinData,SelectionSetData,ModifierSchemaData,AnalysisSchemaData, AtomsLengthData, DeleteAtomsData, AtomsDownloadData, ModifierRunData, AnalysisRunData, AnalysisFigureData, SceneSetData, SceneStepData
 import dataclasses
 
 from zndraw.utils import typecast
@@ -476,12 +476,13 @@ def selection_get(data: AtomsLengthData):
 
 
 @io.on("selection:set")
-def selection_set(data: dict):
-    if "token" not in data:
-        data["token"] = session["token"]
+@typecast
+def selection_set(data: SelectionSetData):
+    if data.token is None:
+        data.token = session["token"]
     emit(
         "selection:set",
-        data["selection"],
+        data.selection,
         include_self=False,
         to=_webclients_room(data),
     )

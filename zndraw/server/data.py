@@ -59,3 +59,8 @@ class AnalysisSchemaData:
 class ModifierSchemaData:
     schema: dict
     token: str
+
+@dataclasses.dataclass
+class SelectionSetData:
+    selection: list[int]
+    token: str = None
