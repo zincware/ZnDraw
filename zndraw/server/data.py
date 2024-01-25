@@ -64,3 +64,8 @@ class ModifierSchemaData:
 class SelectionSetData:
     selection: list[int]
     token: str = None
+
+@dataclasses.dataclass
+class SelectionRunData:
+    params: dict
+    target: str = None

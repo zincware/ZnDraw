@@ -11,7 +11,7 @@ from flask_socketio import call, emit, join_room
 
 from ..app import cache
 from ..app import socketio as io
-from .data import JoinData,SelectionSetData,ModifierSchemaData,AnalysisSchemaData, AtomsLengthData, DeleteAtomsData, AtomsDownloadData, ModifierRunData, AnalysisRunData, AnalysisFigureData, SceneSetData, SceneStepData
+from .data import JoinData,SelectionRunData,SelectionSetData,ModifierSchemaData,AnalysisSchemaData, AtomsLengthData, DeleteAtomsData, AtomsDownloadData, ModifierRunData, AnalysisRunData, AnalysisFigureData, SceneSetData, SceneStepData
 import dataclasses
 
 from zndraw.utils import typecast
@@ -489,9 +489,10 @@ def selection_set(data: SelectionSetData):
 
 
 @io.on("selection:run")
-def selection_run(data: dict):
-    data["target"] = session["token"]
-    emit("selection:run", data, include_self=False, to=_pyclients_default(data))
+@typecast
+def selection_run(data: SelectionRunData):
+    data.target = session["token"]
+    emit("selection:run", dataclasses.asdict(data), include_self=False, to=_pyclients_default(data))
 
 
 @io.on("upload")
