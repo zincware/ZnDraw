@@ -11,7 +11,7 @@ from flask_socketio import call, emit, join_room
 
 from ..app import cache
 from ..app import socketio as io
-from .data import JoinData, AtomsDownloadData, ModifierRunData, AnalysisRunData, AnalysisFigureData, SceneSetData, SceneStepData
+from .data import JoinData, DeleteAtomsData, AtomsDownloadData, ModifierRunData, AnalysisRunData, AnalysisFigureData, SceneSetData, SceneStepData
 import dataclasses
 
 from zndraw.utils import typecast
@@ -409,6 +409,7 @@ def atoms_download(data: AtomsDownloadData):
 
 @io.on("atoms:upload")
 def atoms_upload(data: dict):
+    # TODO: this has a bad structure and should be updates to fixed keys!
     to = _webclients_default(data)
     # remove token and sid from the data, because JavaScript does not expect it
     data.pop("token", None)
@@ -417,8 +418,9 @@ def atoms_upload(data: dict):
 
 
 @io.on("atoms:delete")
-def atoms_delete(data: dict):
-    emit("atoms:delete", data["index"], include_self=False, to=_webclients_room(data))
+@typecast
+def atoms_delete(data: DeleteAtomsData):
+    emit("atoms:delete", data.index, include_self=False, to=_webclients_room(data))
 
 
 @io.on("atoms:length")

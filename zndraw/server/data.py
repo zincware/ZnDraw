@@ -40,3 +40,8 @@ class SceneStepData:
 class AtomsDownloadData:
     token: str
     indices: list[int]
+
+@dataclasses.dataclass
+class DeleteAtomsData:
+    index: list
+    token: str
