@@ -1,4 +1,5 @@
 import contextlib
+import dataclasses
 import datetime
 import logging
 import traceback
@@ -9,12 +10,34 @@ from flask import current_app as app
 from flask import request, session
 from flask_socketio import call, emit, join_room
 
+from zndraw.utils import typecast
+
 from ..app import cache
 from ..app import socketio as io
-from .data import SceneUpdateData, SubscribedUserData, ModifierRunRunningData, PointsSetData, BookmarksSetData,PlayData,ModifierRegisterData,  MessageData, JoinData,SelectionRunData,SelectionSetData,ModifierSchemaData,AnalysisSchemaData, AtomsLengthData, DeleteAtomsData, AtomsDownloadData, ModifierRunData, AnalysisRunData, AnalysisFigureData, SceneSetData, SceneStepData
-import dataclasses
+from .data import (
+    AnalysisFigureData,
+    AnalysisRunData,
+    AnalysisSchemaData,
+    AtomsDownloadData,
+    AtomsLengthData,
+    BookmarksSetData,
+    DeleteAtomsData,
+    JoinData,
+    MessageData,
+    ModifierRegisterData,
+    ModifierRunData,
+    ModifierRunRunningData,
+    ModifierSchemaData,
+    PlayData,
+    PointsSetData,
+    SceneSetData,
+    SceneStepData,
+    SceneUpdateData,
+    SelectionRunData,
+    SelectionSetData,
+    SubscribedUserData,
+)
 
-from zndraw.utils import typecast
 log = logging.getLogger(__name__)
 
 modifier_lock = Lock()
@@ -241,7 +264,9 @@ def join(data: JoinData):
     session["authenticated"] = data.auth_token == app.config["AUTH_TOKEN"]
     log.debug(f"Client {request.sid} is {session['authenticated'] = }")
     if data.uuid in app.config["pyclients"]:
-        log.critical(f"UUID {data.uuid} is already registered in {app.config['pyclients']}.")
+        log.critical(
+            f"UUID {data.uuid} is already registered in {app.config['pyclients']}."
+        )
         emit("message:log", f"UUID {data.uuid} is already registered", to=request.sid)
     app.config["pyclients"][data.uuid] = request.sid
     session["token"] = data.token
@@ -378,15 +403,18 @@ def modifier_run(data: ModifierRunData):
 @typecast
 def analysis_run(data: AnalysisRunData):
     data.target = session["token"]
-    emit("analysis:run", dataclasses.asdict(data), include_self=False, to=_pyclients_default(data))
+    emit(
+        "analysis:run",
+        dataclasses.asdict(data),
+        include_self=False,
+        to=_pyclients_default(data),
+    )
 
 
 @io.on("analysis:figure")
 @typecast
 def analysis_figure(data: AnalysisFigureData):
-    emit(
-        "analysis:figure", data.figure, include_self=False, to=_webclients_room(data)
-    )
+    emit("analysis:figure", data.figure, include_self=False, to=_webclients_room(data))
 
 
 @io.on("scene:set")
@@ -435,20 +463,16 @@ def analysis_schema(data: AnalysisSchemaData):
     emit("analysis:schema", data.schema, include_self=False, to=data.sid)
 
 
-
 @io.on("modifier:schema")
 @typecast
 def modifier_schema(data: ModifierSchemaData):
-    emit(
-        "modifier:schema", data.schema, include_self=False, to=_webclients_room(data)
-    )
+    emit("modifier:schema", data.schema, include_self=False, to=_webclients_room(data))
 
 
 @io.on("selection:schema")
 @typecast
 def selection_schema(data: AnalysisSchemaData):
     emit("selection:schema", data.schema, include_self=False, to=data.sid)
-
 
 
 @io.on("draw:schema")
@@ -492,7 +516,12 @@ def selection_set(data: SelectionSetData):
 @typecast
 def selection_run(data: SelectionRunData):
     data.target = session["token"]
-    emit("selection:run", dataclasses.asdict(data), include_self=False, to=_pyclients_default(data))
+    emit(
+        "selection:run",
+        dataclasses.asdict(data),
+        include_self=False,
+        to=_pyclients_default(data),
+    )
 
 
 @io.on("upload")
@@ -587,7 +616,9 @@ def modifier_register(data: ModifierRegisterData):
         print("Could not identify the modifier name.")
         traceback.print_exc()
 
-    emit("modifier:register", dataclasses.asdict(data), to=app.config["DEFAULT_PYCLIENT"])
+    emit(
+        "modifier:register", dataclasses.asdict(data), to=app.config["DEFAULT_PYCLIENT"]
+    )
 
 
 @io.on("bookmarks:get")
@@ -624,7 +655,12 @@ def debug(data: dict):
 @typecast
 def modifier_run_running(data: ModifierRunRunningData):
     app.config["MODIFIER"]["active"] = data.name
-    emit("modifier:run:running", dataclasses.asdict(data), include_self=False, to=_webclients_room(data))
+    emit(
+        "modifier:run:running",
+        dataclasses.asdict(data),
+        include_self=False,
+        to=_webclients_room(data),
+    )
 
 
 @io.on("modifier:run:finished")
@@ -635,7 +671,12 @@ def modifier_run_finished(data: AtomsLengthData):
     app.config["MODIFIER"]["active"] = None
     modifier_lock.release()
     print("modifier_lock released")
-    emit("modifier:run:finished", dataclasses.asdict(data), include_self=False, to=_webclients_room(data))
+    emit(
+        "modifier:run:finished",
+        dataclasses.asdict(data),
+        include_self=False,
+        to=_webclients_room(data),
+    )
 
 
 @io.on("modifier:run:failed")
@@ -685,8 +726,18 @@ def scene_update(data: SceneUpdateData):
 
     if data.step is not None:
         step_subscribers = _get_subscribers(token, "STEP")
-        emit("scene:update", dataclasses.asdict(data), include_self=False, to=step_subscribers)
+        emit(
+            "scene:update",
+            dataclasses.asdict(data),
+            include_self=False,
+            to=step_subscribers,
+        )
 
     if data.camera is not None:
         camera_subscribers = _get_subscribers(token, "CAMERA")
-        emit("scene:update", dataclasses.asdict(data), include_self=False, to=camera_subscribers)
+        emit(
+            "scene:update",
+            dataclasses.asdict(data),
+            include_self=False,
+            to=camera_subscribers,
+        )

@@ -7,12 +7,12 @@ import socket
 import sys
 import tempfile
 import uuid
+from typing import get_type_hints
 
 import ase
 import datamodel_code_generator
 import numpy as np
 from decorator import decorator
-from typing import get_type_hints
 
 SHARED = {"atoms": None}
 
@@ -103,6 +103,7 @@ def hide_discriminator_field(d: dict) -> None:
                 v["options"] = {"hidden": True}
                 v["type"] = "string"
             hide_discriminator_field(v)
+
 
 @decorator
 def typecast(func, *args, **kwargs):
