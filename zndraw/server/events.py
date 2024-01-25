@@ -11,7 +11,7 @@ from flask_socketio import call, emit, join_room
 
 from ..app import cache
 from ..app import socketio as io
-from .data import SubscribedUserData, ModifierRunRunningData, PointsSetData, BookmarksSetData,PlayData,ModifierRegisterData,  MessageData, JoinData,SelectionRunData,SelectionSetData,ModifierSchemaData,AnalysisSchemaData, AtomsLengthData, DeleteAtomsData, AtomsDownloadData, ModifierRunData, AnalysisRunData, AnalysisFigureData, SceneSetData, SceneStepData
+from .data import SceneUpdateData, SubscribedUserData, ModifierRunRunningData, PointsSetData, BookmarksSetData,PlayData,ModifierRegisterData,  MessageData, JoinData,SelectionRunData,SelectionSetData,ModifierSchemaData,AnalysisSchemaData, AtomsLengthData, DeleteAtomsData, AtomsDownloadData, ModifierRunData, AnalysisRunData, AnalysisFigureData, SceneSetData, SceneStepData
 import dataclasses
 
 from zndraw.utils import typecast
@@ -673,7 +673,8 @@ def connected_users_subscribe_camera(data: SubscribedUserData):
 
 
 @io.on("scene:update")
-def scene_update(data: dict):
+@typecast
+def scene_update(data: SceneUpdateData):
     """Update the scene.
 
     data: {step: int, camera: {position: [float, float, float], rotation: [float, float, float]}}
@@ -682,10 +683,10 @@ def scene_update(data: dict):
     if token is None:
         return
 
-    if "step" in data:
+    if data.step is not None:
         step_subscribers = _get_subscribers(token, "STEP")
-        emit("scene:update", data, include_self=False, to=step_subscribers)
+        emit("scene:update", dataclasses.asdict(data), include_self=False, to=step_subscribers)
 
-    if "camera" in data:
+    if data.camera is not None:
         camera_subscribers = _get_subscribers(token, "CAMERA")
-        emit("scene:update", data, include_self=False, to=camera_subscribers)
+        emit("scene:update", dataclasses.asdict(data), include_self=False, to=camera_subscribers)

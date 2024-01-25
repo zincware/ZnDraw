@@ -118,3 +118,12 @@ class ModifierRunRunningData:
 class SubscribedUserData:
     user: str
 
+@dataclasses.dataclass
+class SceneUpdateData:
+    """
+    Attributes:
+        camera: dict with {position: list[float], quaternion: list[float]}
+        step: int
+    """
+    camera: dict = None
+    step: int = None
