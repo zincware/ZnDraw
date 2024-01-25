@@ -1,10 +1,12 @@
 import dataclasses
 
+
 @dataclasses.dataclass
 class CeleryTaskData:
     target: str
     event: str
     data: dict
+
 
 @dataclasses.dataclass
 class JoinData:

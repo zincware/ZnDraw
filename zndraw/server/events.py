@@ -1,14 +1,8 @@
-import contextlib
-import dataclasses
-import datetime
 import logging
-import traceback
 from threading import Lock
-from uuid import uuid4
 
-from flask import current_app as app
 from flask import request, session
-from flask_socketio import call, emit, join_room
+from flask_socketio import emit
 
 from zndraw.server import tasks
 from zndraw.utils import typecast
@@ -17,26 +11,6 @@ from ..app import cache
 from ..app import socketio as io
 from .data import (
     CeleryTaskData,
-    AnalysisFigureData,
-    AnalysisRunData,
-    AnalysisSchemaData,
-    AtomsDownloadData,
-    AtomsLengthData,
-    BookmarksSetData,
-    DeleteAtomsData,
-    JoinData,
-    MessageData,
-    ModifierRegisterData,
-    ModifierRunData,
-    ModifierRunRunningData,
-    ModifierSchemaData,
-    PlayData,
-    PointsSetData,
-    SceneSetData,
-    SceneStepData,
-    SceneUpdateData,
-    SelectionRunData,
-    SelectionSetData,
     SubscribedUserData,
 )
 
@@ -170,13 +144,11 @@ def connect():
     except KeyError:
         pass
 
+
 @io.on("celery:task:results")
 @typecast
 def celery_task_results(msg: CeleryTaskData):
     emit(msg.event, msg.data, to=msg.target)
-
-
-
 
     # DEFAULT_PYCLIENT = cache.get("DEFAULT_PYCLIENT")
     # if DEFAULT_PYCLIENT is None and "token" in session:
