@@ -143,6 +143,31 @@
               <i class="fa-solid fa-circle-xmark"></i>
             </a>
           </li>
+          {% else %}
+          <li class="nav-item mx-1">
+            <div class="dropdown dropstart">
+              <button class="btn btn-outline-info dropdown-toggle" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside"
+                aria-expanded="false">
+                <i class="fa-solid fa-users"></i>
+              </button>
+              <ul class="dropdown-menu" style="width: 400px;">
+                <div class="container text-center" id="connectedUsersDropdown">
+                  <div class="row">
+                    <div class="col-6">
+                      User
+                    </div>
+                    <div class="col">
+                      Step
+                    </div>
+                    <div class="col">
+                      Camera
+                    </div>
+                  </div>
+                  <hr class="dropdown-divider">
+                </div>
+              </ul>
+            </div>
+          </li>
           {% endif %}
         </ul>
       </div>
@@ -438,11 +463,11 @@
     <div class="modal-dialog">
       <div class="modal-content">
         <div class="modal-header">
-          <h1 class="modal-title fs-5" >Change Frame</h1>
+          <h1 class="modal-title fs-5">Change Frame</h1>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
         <div class="modal-body">
-          <input type="number" class="form-control" id="frameInput"/>
+          <input type="number" class="form-control" id="frameInput" />
         </div>
       </div>
     </div>

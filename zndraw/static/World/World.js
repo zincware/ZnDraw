@@ -281,6 +281,26 @@ class World {
         callback(this.getSelection());
       }.bind(this),
     );
+
+    this.socket.on("scene:update", (data) => {
+      if (data.step !== undefined) {
+        this.setStep(data.step);
+      }
+      if (data.camera !== undefined) {
+        camera.position.set(...data.camera.position);
+        camera.quaternion.set(...data.camera.quaternion);
+      }
+    });
+
+    // on camera move send the camera position to the server
+    controls.addEventListener("change", () => {
+      this.socket.emit("scene:update", {
+        camera: {
+          position: camera.position.toArray(),
+          quaternion: camera.quaternion.toArray(),
+        },
+      });
+    });
     // renderer.render(scene, camera);
   }
 
@@ -338,6 +358,7 @@ class World {
     sliderprogress.style.width = `${percentage}%`;
     document.getElementById("info").innerHTML =
       `${slider.ariaValueNow} / ${slider.ariaValueMax}`;
+    this.socket.emit("scene:update", { step: step });
   }
 
   getStep() {

@@ -42,6 +42,7 @@ class Config:
     """
 
     call_timeout: int = 60
+    retries: int = 100
 
 
 @dataclasses.dataclass
@@ -86,6 +87,8 @@ class ZnDrawBase:  # collections.abc.MutableSequence
     def __post_init__(self):
         self._uuid = str(self._uuid)
         self.socket = socketio.Client()
+        if isinstance(self.config, dict):
+            self.config = Config(**self.config)
         self.socket.on(
             "connect",
             lambda: self.socket.emit(
@@ -113,8 +116,10 @@ class ZnDrawBase:  # collections.abc.MutableSequence
 
     def reconnect(self) -> None:
         """Reconnect to the server."""
+        log.critical("Reconnecting to server")
         self.socket.disconnect()
         self._connect()
+        self.socket.sleep(0.1)
 
     @contextlib.contextmanager
     def _set_sid(self, sid):
@@ -354,31 +359,80 @@ class ZnDrawBase:  # collections.abc.MutableSequence
 @dataclasses.dataclass
 class ZnDrawDefault(ZnDrawBase):
     file_io: FileIO = None
+    register_socket_events: bool = True
 
     def __post_init__(self):
         super().__post_init__()
+        if isinstance(self.file_io, dict):
+            self.file_io = FileIO(**self.file_io)
 
-        self.socket.on("webclient:available", self.initialize_webclient)
-        self.socket.on("selection:run", self.selection_run)
-        self.socket.on("analysis:run", self.analysis_run)
-        self.socket.on("upload", self.upload_file)
-        self.socket.on("download:request", self.download_file)
-        self.socket.on("modifier:register", self.register_modifier)
-        self.socket.on("scene:trash", self.trash_scene)
+        if self.register_socket_events:
+            self.socket.on("webclient:available", self.initialize_webclient)
+            self.socket.on("selection:run", self.selection_run)
+            self.socket.on("analysis:run", self.analysis_run)
+            self.socket.on("upload", self.upload_file)
+            self.socket.on("download:request", self.download_file)
+            self.socket.on("modifier:register", self.register_modifier)
+            self.socket.on("scene:trash", self.trash_scene)
         self._connect()
-        self.socket.wait()
+        if self.register_socket_events:
+            self.socket.wait()
 
-    def initialize_webclient(self, sid):
-        start_time = datetime.datetime.now()
-        with self._set_sid(sid):
-            for idx, atoms in enumerate(self.read_data()):
-                if idx == 0:
-                    self.analysis_schema(atoms)
-                    self.selection_schema()
-                    self.draw_schema()
-                self[idx] = atoms
-                # self.step = idx # double the message count ..., replace with part of the setitem message, benchmark
-        log.warning(f"{datetime.datetime.now() - start_time} Finished sending data.")
+    @classmethod
+    def from_self(cls, other):
+        kwargs = dataclasses.asdict(other)
+        kwargs.pop("token")
+        kwargs.pop("_uuid")
+        kwargs["register_socket_events"] = False
+        return cls(**kwargs)
+
+    def initialize_webclient(self, data):
+        print("Initializing new pyclient for webclient")
+        sid = data["sid"]
+        token = data["token"]
+        host = data["host"]
+
+        vis = self.from_self(self)
+
+        if host:
+            start_time = datetime.datetime.now()
+
+            for idx, atoms in enumerate(vis.read_data()):
+                with vis._set_sid(sid):
+                    if idx == 0:
+                        vis.analysis_schema(atoms)
+                        vis.selection_schema()
+                        vis.draw_schema()
+                    vis[idx] = atoms
+                    # self.step = idx # double the message count ..., replace with part of the setitem message, benchmark
+            log.warning(
+                f"{datetime.datetime.now() - start_time} Finished sending data."
+            )
+        else:
+            # load the data from the room host webclient (e.g. token)
+            with vis._set_token(token):
+                n_atoms = len(vis)
+
+            for idx in tqdm.trange(n_atoms, ncols=100):
+                with vis._set_token(token):
+                    for _ in range(self.config.retries):
+                        try:
+                            atoms = vis[idx]
+                            break
+                        except Exception:
+                            vis.reconnect()
+                    else:
+                        raise RuntimeError(
+                            f"Failed to get atoms at index {idx} after {self.config.retries} retries"
+                        )
+
+                with vis._set_sid(sid):
+                    vis[idx] = atoms
+
+                    if idx == 0:
+                        vis.analysis_schema(atoms)
+                        vis.selection_schema()
+                        vis.draw_schema()
 
     def read_data(self) -> t.Generator[ase.Atoms, None, None]:
         if self.file_io is None or self.file_io.name is None:

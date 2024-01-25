@@ -9,6 +9,7 @@ from flask import current_app as app
 from flask import request, session
 from flask_socketio import call, emit, join_room
 
+from ..app import cache
 from ..app import socketio as io
 
 log = logging.getLogger(__name__)
@@ -64,6 +65,55 @@ def _get_queue_position(job_id) -> int:
         return -1
 
 
+def _subscribe_user(data: dict, subscription_type: str):
+    """
+    Subscribe to user updates for a given subscription type.
+
+    data: {user: str}
+    subscription_type: str (e.g., "STEP" or "CAMERA")
+    """
+    token = session.get("token")
+    if token is None:
+        return
+
+    cache_key = f"PER-TOKEN-{subscription_type}-SUBSCRIPTIONS:{token}"
+    per_token_subscriptions = cache.get(cache_key) or {}
+
+    names = cache.get(f"PER-TOKEN-NAME:{token}") or {}
+
+    # Get the SID from data["user"] and add it to the list of subscribers
+    for sid, name in names.items():
+        if name == data["user"]:
+            if (
+                subscription_type == "CAMERA"
+                and per_token_subscriptions.get(sid) == request.sid
+            ):
+                print("Cannot subscribe to a user that is subscribed to you")
+                return
+
+            per_token_subscriptions[request.sid] = sid
+            break
+
+    cache.set(cache_key, per_token_subscriptions)
+
+
+def _get_subscribers(token: str, subscription_type: str):
+    """
+    Get subscribers for a given subscription type.
+
+    token: str
+    subscription_type: str (e.g., "STEP" or "CAMERA")
+    """
+    cache_key = f"PER-TOKEN-{subscription_type}-SUBSCRIPTIONS:{token}"
+    per_token_subscriptions = cache.get(cache_key) or {}
+
+    subscribers = [
+        sid for sid, this in per_token_subscriptions.items() if this == request.sid
+    ]
+
+    return subscribers
+
+
 @io.on("connect")
 def connect():
     if app.config["DEFAULT_PYCLIENT"] is None and "token" in session:
@@ -79,7 +129,23 @@ def connect():
         except KeyError:
             app.config["ROOM_HOSTS"][token] = [request.sid]
 
-        emit("webclient:available", request.sid, to=app.config["DEFAULT_PYCLIENT"])
+        data = {"sid": request.sid, "token": token}
+        data["host"] = app.config["ROOM_HOSTS"][token][0] == request.sid
+        names = cache.get(f"PER-TOKEN-NAME:{session['token']}") or {}
+        names[request.sid] = uuid4().hex[:8].upper()
+        cache.set(f"PER-TOKEN-NAME:{session['token']}", names)
+
+        emit("webclient:available", data, to=app.config["DEFAULT_PYCLIENT"])
+
+        connected_users = [
+            {"name": names[sid]} for sid in app.config["ROOM_HOSTS"][token]
+        ]
+
+        emit(
+            "connectedUsers",
+            list(reversed(connected_users)),
+            to=_webclients_room({"token": token}),
+        )
 
         data = {"modifiers": []}  # {schema: ..., name: ...}
         for name, schema in app.config["MODIFIER"]["default_schema"].items():
@@ -128,6 +194,16 @@ def disconnect():
         if not app.config["ROOM_HOSTS"][token]:
             del app.config["ROOM_HOSTS"][token]
         # remove the pyclient from the dict
+        names = cache.get(f"PER-TOKEN-NAME:{session['token']}") or {}
+        connected_users = [
+            {"name": names[sid]} for sid in app.config["ROOM_HOSTS"][token]
+        ]
+        emit(
+            "connectedUsers",
+            list(reversed(connected_users)),
+            to=_webclients_room({"token": token}),
+        )
+
     log.debug(
         f'disconnect {request.sid} and updated HOSTS to {app.config["ROOM_HOSTS"]}'
     )
@@ -372,6 +448,8 @@ def selection_get(data: dict):
 
 @io.on("selection:set")
 def selection_set(data: dict):
+    if "token" not in data:
+        data["token"] = session["token"]
     emit(
         "selection:set",
         data["selection"],
@@ -493,6 +571,8 @@ def bookmarks_set(data: dict):
 
 @io.on("points:set")
 def points_set(data: dict):
+    if "token" not in data:
+        data["token"] = session["token"]
     emit("points:set", data["value"], include_self=False, to=_webclients_room(data))
 
 
@@ -526,3 +606,42 @@ def modifier_run_failed():
     app.config["MODIFIER"]["active"] = None
     modifier_lock.release()
     log.critical("Modifier failed - releasing lock.")
+
+
+@io.on("connectedUsers:subscribe:step")
+def connected_users_subscribe_step(data: dict):
+    """
+    Subscribe to step updates for connected users.
+
+    data: {user: str}
+    """
+    _subscribe_user(data, "STEP")
+
+
+@io.on("connectedUsers:subscribe:camera")
+def connected_users_subscribe_camera(data: dict):
+    """
+    Subscribe to camera updates for connected users.
+
+    data: {user: str}
+    """
+    _subscribe_user(data, "CAMERA")
+
+
+@io.on("scene:update")
+def scene_update(data: dict):
+    """Update the scene.
+
+    data: {step: int, camera: {position: [float, float, float], rotation: [float, float, float]}}
+    """
+    token = session.get("token")
+    if token is None:
+        return
+
+    if "step" in data:
+        step_subscribers = _get_subscribers(token, "STEP")
+        emit("scene:update", data, include_self=False, to=step_subscribers)
+
+    if "camera" in data:
+        camera_subscribers = _get_subscribers(token, "CAMERA")
+        emit("scene:update", data, include_self=False, to=camera_subscribers)

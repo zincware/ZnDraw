@@ -1,9 +1,13 @@
 import uuid
 
 from flask import Flask
+from flask_caching import Cache
 from flask_socketio import SocketIO
 
 socketio = SocketIO()
+cache = Cache(
+    config={"CACHE_TYPE": "SimpleCache", "CACHE_DEFAULT_TIMEOUT": 60 * 60 * 24}
+)
 
 
 def create_app(
@@ -32,5 +36,6 @@ def create_app(
 
     app.register_blueprint(main_blueprint)
 
+    cache.init_app(app)
     socketio.init_app(app, cors_allowed_origins="*")
     return app

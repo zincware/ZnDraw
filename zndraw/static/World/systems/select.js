@@ -16,6 +16,14 @@ class Selection {
 
     this.line3D = line3D;
 
+    // add a function to the line3D callbacks that is triggered if the line is changed
+    this.line3D.onLineChange = () => {
+      let points = this.line3D.anchorPoints.children.map((x) => x.position);
+      // convert x, y, z to [x, y, z]
+      points = points.map((x) => [x.x, x.y, x.z]);
+      this.socket.emit("points:set", { value: points });
+    };
+
     this.raycaster = new THREE.Raycaster();
     this.pointer = new THREE.Vector2();
     this.selection = [];
@@ -73,6 +81,7 @@ class Selection {
       } else {
         // mesh -> anchorPoints -> Line3D
         this.transform_controls.object.parent.parent.updateLine();
+        this.line3D.onLineChange();
       }
     });
 
@@ -212,6 +221,9 @@ class Selection {
           this.shift_pressed,
           particleIntersects[0].object,
         );
+        this.socket.emit("selection:set", {
+          selection: particlesGroup.selection,
+        });
       }
     }
   }
