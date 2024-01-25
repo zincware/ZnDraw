@@ -147,7 +147,7 @@ export class Line3D extends THREE.Group {
 
   /*
    * onLineChange is a callback function that is called when the line is changed
-   * this function is overriden in the select.js
+   * this function is overridden in the select.js
    */
   onLineChange() {}
 
