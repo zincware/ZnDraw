@@ -11,7 +11,7 @@ from flask_socketio import call, emit, join_room
 
 from ..app import cache
 from ..app import socketio as io
-from .data import PointsSetData, BookmarksSetData,PlayData,ModifierRegisterData,  MessageData, JoinData,SelectionRunData,SelectionSetData,ModifierSchemaData,AnalysisSchemaData, AtomsLengthData, DeleteAtomsData, AtomsDownloadData, ModifierRunData, AnalysisRunData, AnalysisFigureData, SceneSetData, SceneStepData
+from .data import SubscribedUserData, ModifierRunRunningData, PointsSetData, BookmarksSetData,PlayData,ModifierRegisterData,  MessageData, JoinData,SelectionRunData,SelectionSetData,ModifierSchemaData,AnalysisSchemaData, AtomsLengthData, DeleteAtomsData, AtomsDownloadData, ModifierRunData, AnalysisRunData, AnalysisFigureData, SceneSetData, SceneStepData
 import dataclasses
 
 from zndraw.utils import typecast
@@ -86,7 +86,7 @@ def _get_queue_position(job_id) -> int:
         return -1
 
 
-def _subscribe_user(data: dict, subscription_type: str):
+def _subscribe_user(data: SubscribedUserData, subscription_type: str):
     """
     Subscribe to user updates for a given subscription type.
 
@@ -104,7 +104,7 @@ def _subscribe_user(data: dict, subscription_type: str):
 
     # Get the SID from data["user"] and add it to the list of subscribers
     for sid, name in names.items():
-        if name == data["user"]:
+        if name == data.user:
             if (
                 subscription_type == "CAMERA"
                 and per_token_subscriptions.get(sid) == request.sid
@@ -621,19 +621,21 @@ def debug(data: dict):
 
 
 @io.on("modifier:run:running")
-def modifier_run_running(data: dict):
-    app.config["MODIFIER"]["active"] = data.get("name", "unknown")
-    emit("modifier:run:running", data, include_self=False, to=_webclients_room(data))
+@typecast
+def modifier_run_running(data: ModifierRunRunningData):
+    app.config["MODIFIER"]["active"] = data.name
+    emit("modifier:run:running", dataclasses.asdict(data), include_self=False, to=_webclients_room(data))
 
 
 @io.on("modifier:run:finished")
-def modifier_run_finished(data: dict):
+@typecast
+def modifier_run_finished(data: AtomsLengthData):
     # remove 0th element from queue
     app.config["MODIFIER"]["queue"].pop(0)
     app.config["MODIFIER"]["active"] = None
     modifier_lock.release()
     print("modifier_lock released")
-    emit("modifier:run:finished", data, include_self=False, to=_webclients_room(data))
+    emit("modifier:run:finished", dataclasses.asdict(data), include_self=False, to=_webclients_room(data))
 
 
 @io.on("modifier:run:failed")
@@ -648,17 +650,20 @@ def modifier_run_failed():
 
 
 @io.on("connectedUsers:subscribe:step")
-def connected_users_subscribe_step(data: dict):
+@typecast
+def connected_users_subscribe_step(data: SubscribedUserData):
     """
     Subscribe to step updates for connected users.
 
     data: {user: str}
     """
+    print(data)
     _subscribe_user(data, "STEP")
 
 
 @io.on("connectedUsers:subscribe:camera")
-def connected_users_subscribe_camera(data: dict):
+@typecast
+def connected_users_subscribe_camera(data: SubscribedUserData):
     """
     Subscribe to camera updates for connected users.
 

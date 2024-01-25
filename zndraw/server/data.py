@@ -107,3 +107,14 @@ class BookmarksSetData:
 class PointsSetData:
     value: list[list[float]]
     token: str = None
+
+
+@dataclasses.dataclass
+class ModifierRunRunningData:
+    token: str
+    name: str
+
+@dataclasses.dataclass
+class SubscribedUserData:
+    user: str
+
