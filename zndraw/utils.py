@@ -7,10 +7,12 @@ import socket
 import sys
 import tempfile
 import uuid
+from typing import get_type_hints
 
 import ase
 import datamodel_code_generator
 import numpy as np
+from decorator import decorator
 
 SHARED = {"atoms": None}
 
@@ -101,3 +103,23 @@ def hide_discriminator_field(d: dict) -> None:
                 v["options"] = {"hidden": True}
                 v["type"] = "string"
             hide_discriminator_field(v)
+
+
+@decorator
+def typecast(func, *args, **kwargs):
+    annotations = get_type_hints(func)
+    updated_args = []
+    updated_kwargs = {}
+    for arg, arg_type in zip(args, annotations.values()):
+        if not isinstance(arg, arg_type):
+            updated_args.append(arg_type(**arg))
+        else:
+            updated_args.append(arg)
+
+    for kwarg, kwarg_type in annotations.items():
+        if kwarg in kwargs:
+            if not isinstance(kwargs[kwarg], kwarg_type):
+                updated_kwargs[kwarg] = kwarg_type(**kwargs[kwarg])
+            else:
+                updated_kwargs[kwarg] = kwargs[kwarg]
+    return func(*updated_args, **updated_kwargs)

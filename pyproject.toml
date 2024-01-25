@@ -27,6 +27,7 @@ tidynamics = {version = "^1.1.2", optional = true}
 rdkit2ase = {version = "^0.1.2", optional = true}
 znframe = "^0.1.5"
 flask-caching = "^2.1.0"
+decorator = "^5.1.1"
 
 
 [tool.poetry.group.dev.dependencies]
