@@ -346,7 +346,6 @@ def scene_schema():
 @io.on("modifier:run")
 @typecast
 def modifier_run(data: ModifierRunData):
-    print(data)
     # emit entered the queue
     JOB_ID = uuid4()
     TIMEOUT = 60
@@ -698,7 +697,6 @@ def connected_users_subscribe_step(data: SubscribedUserData):
 
     data: {user: str}
     """
-    print(data)
     _subscribe_user(data, "STEP")
 
 
