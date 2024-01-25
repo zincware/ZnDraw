@@ -11,7 +11,7 @@ from flask_socketio import call, emit, join_room
 
 from ..app import cache
 from ..app import socketio as io
-from .data import PlayData,ModifierRegisterData,  MessageData, JoinData,SelectionRunData,SelectionSetData,ModifierSchemaData,AnalysisSchemaData, AtomsLengthData, DeleteAtomsData, AtomsDownloadData, ModifierRunData, AnalysisRunData, AnalysisFigureData, SceneSetData, SceneStepData
+from .data import BookmarksSetData,PlayData,ModifierRegisterData,  MessageData, JoinData,SelectionRunData,SelectionSetData,ModifierSchemaData,AnalysisSchemaData, AtomsLengthData, DeleteAtomsData, AtomsDownloadData, ModifierRunData, AnalysisRunData, AnalysisFigureData, SceneSetData, SceneStepData
 import dataclasses
 
 from zndraw.utils import typecast
@@ -591,15 +591,17 @@ def modifier_register(data: ModifierRegisterData):
 
 
 @io.on("bookmarks:get")
-def bookmarks_get(data: dict):
+@typecast
+def bookmarks_get(data: AtomsLengthData):
     return call("bookmarks:get", to=_webclients_default(data))
 
 
 @io.on("bookmarks:set")
-def bookmarks_set(data: dict):
+@typecast
+def bookmarks_set(data: BookmarksSetData):
     emit(
         "bookmarks:set",
-        data["bookmarks"],
+        data.bookmarks,
         include_self=False,
         to=_webclients_room(data),
     )

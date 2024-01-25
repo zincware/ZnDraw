@@ -96,3 +96,9 @@ class ModifierRegisterData:
     @property
     def schema(self) -> dict:
         return self.modifiers[0]["schema"]
+    
+
+@dataclasses.dataclass
+class BookmarksSetData:
+    bookmarks: dict
+    token: str
