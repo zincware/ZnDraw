@@ -458,17 +458,20 @@ def draw_schema(data: AnalysisSchemaData):
 
 
 @io.on("points:get")
-def scene_points(data: dict):
+@typecast
+def scene_points(data: AtomsLengthData):
     return call("points:get", to=_webclients_default(data))
 
 
 @io.on("scene:segments")
-def scene_segments(data: dict):
+@typecast
+def scene_segments(data: AtomsLengthData):
     return call("scene:segments", to=_webclients_default(data))
 
 
 @io.on("selection:get")
-def selection_get(data: dict):
+@typecast
+def selection_get(data: AtomsLengthData):
     return call("selection:get", to=_webclients_default(data))
 
 
