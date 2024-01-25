@@ -4,11 +4,26 @@ import uuid
 from flask import Flask
 from flask_caching import Cache
 from flask_socketio import SocketIO
+from celery import Celery, Task
+import threading
 
 socketio = SocketIO()
 cache = Cache(
     config={"CACHE_TYPE": "SimpleCache", "CACHE_DEFAULT_TIMEOUT": 60 * 60 * 24}
 )
+
+
+def celery_init_app(app: Flask) -> Celery:
+    class FlaskTask(Task):
+        def __call__(self, *args: object, **kwargs: object) -> object:
+            with app.app_context():
+                return self.run(*args, **kwargs)
+
+    celery_app = Celery(app.name, task_cls=FlaskTask)
+    celery_app.config_from_object(app.config["CELERY"])
+    celery_app.set_default()
+    app.extensions["celery"] = celery_app
+    return celery_app
 
 
 def setup_cache():
@@ -48,4 +63,21 @@ def create_app(
     cache.init_app(app)
     socketio.init_app(app, cors_allowed_origins="*")
     setup_cache()
+
+    app.config.from_mapping(
+        CELERY=dict(
+            broker_url="memory://",
+            result_backend="cache",
+            cache_backend = 'memory',
+            task_ignore_result=True,
+        ),
+    )
+    app.config.from_prefixed_env()
+    celery_app = celery_init_app(app)
+
+    worker = threading.Thread(target=celery_app.worker_main, args=(["worker", f"--loglevel=info"], ))
+    worker.start()
+
     yield app
+    celery_app.control.shutdown()
+    worker.join()
