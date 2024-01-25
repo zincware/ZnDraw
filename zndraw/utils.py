@@ -109,7 +109,6 @@ def typecast(func, *args, **kwargs):
     annotations = get_type_hints(func)
     updated_args = []
     updated_kwargs = {}
-    print(f"casting {func.__name__} with {annotations}")
     for arg, arg_type in zip(args, annotations.values()):
         if not isinstance(arg, arg_type):
             updated_args.append(arg_type(**arg))
