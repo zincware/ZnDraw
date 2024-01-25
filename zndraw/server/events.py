@@ -11,7 +11,7 @@ from flask_socketio import call, emit, join_room
 
 from ..app import cache
 from ..app import socketio as io
-from .data import JoinData, ModifierRunData, AnalysisRunData, AnalysisFigureData, SceneSetData, SceneStepData
+from .data import JoinData, AtomsDownloadData, ModifierRunData, AnalysisRunData, AnalysisFigureData, SceneSetData, SceneStepData
 import dataclasses
 
 from zndraw.utils import typecast
@@ -34,14 +34,23 @@ def _webclients_room(data: dict) -> str:
 
 def _webclients_default(data: dict) -> str:
     """Return the SID of the default webclient."""
-    if "sid" in data:
-        return data["sid"]
-    # TODO: if there is a keyerror, it will not be properly handled and the
-    #  python interface is doomed to wait for TimeoutError.
-    try:
-        return f"webclients_{data['token']}"
-    except KeyError:
-        log.critical("No webclient connected.")
+    if isinstance(data, dict):
+        if "sid" in data:
+            return data["sid"]
+        # TODO: if there is a keyerror, it will not be properly handled and the
+        #  python interface is doomed to wait for TimeoutError.
+        try:
+            return f"webclients_{data['token']}"
+        except KeyError:
+            log.critical("No webclient connected.")
+    else:
+        if hasattr(data, "sid"):
+            if data.sid is not None:
+                return data.sid
+        try:
+            return f"webclients_{data.token}"
+        except KeyError:
+            log.critical("No webclient connected.")
 
 
 def _pyclients_room(data: dict) -> str:
@@ -389,13 +398,13 @@ def scene_set(data: SceneSetData):
 @io.on("scene:step")
 @typecast
 def scene_step(data: SceneStepData):
-    print(data)
     return call("scene:step", to=_webclients_room(data))
 
 
 @io.on("atoms:download")
-def atoms_download(data):
-    return call("atoms:download", data["indices"], to=_webclients_default(data))
+@typecast
+def atoms_download(data: AtomsDownloadData):
+    return call("atoms:download", data.indices, to=_webclients_default(data))
 
 
 @io.on("atoms:upload")
