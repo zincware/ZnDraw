@@ -42,6 +42,7 @@ def run_server(port):
             app, port=port, debug=False, host="0.0.0.0"
         )  # NEVER EVER USE  DEBUG=TRUE HERE!!!
 
+
 @pytest.fixture()
 def server():
     port = get_port()

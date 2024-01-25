@@ -63,7 +63,6 @@ def view(
         tutorial=tutorial,
         auth_token=auth_token,
     ) as app:
-
         file_io = FileIO(filename, start, stop, step, remote, rev)
 
         proc = mp.Process(

@@ -1,5 +1,5 @@
-import uuid
 import contextlib
+import uuid
 
 from flask import Flask
 from flask_caching import Cache
@@ -22,6 +22,7 @@ def setup_cache():
     # dict of {token: dict}
     cache.set("PER-TOKEN-DATA", {})
     cache.set("MODIFIER", {"default_schema": {}, "active": None, "queue": []})
+
 
 @contextlib.contextmanager
 def create_app(
