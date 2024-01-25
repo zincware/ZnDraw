@@ -88,7 +88,7 @@ function setupDragDrop(socket) {
 
 function setupTrashClick(socket) {
   document.getElementById("trashBtn").addEventListener("click", () => {
-    socket.emit("scene:trash", {});
+    socket.emit("scene:trash");
   });
 }
 

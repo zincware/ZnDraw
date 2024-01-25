@@ -74,3 +74,7 @@ class SelectionRunData:
 class MessageData:
     message: str
     token: str
+
+@dataclasses.dataclass
+class PlayData:
+    token: str

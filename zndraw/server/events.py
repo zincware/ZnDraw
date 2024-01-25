@@ -11,7 +11,7 @@ from flask_socketio import call, emit, join_room
 
 from ..app import cache
 from ..app import socketio as io
-from .data import MessageData, JoinData,SelectionRunData,SelectionSetData,ModifierSchemaData,AnalysisSchemaData, AtomsLengthData, DeleteAtomsData, AtomsDownloadData, ModifierRunData, AnalysisRunData, AnalysisFigureData, SceneSetData, SceneStepData
+from .data import PlayData, MessageData, JoinData,SelectionRunData,SelectionSetData,ModifierSchemaData,AnalysisSchemaData, AtomsLengthData, DeleteAtomsData, AtomsDownloadData, ModifierRunData, AnalysisRunData, AnalysisFigureData, SceneSetData, SceneStepData
 import dataclasses
 
 from zndraw.utils import typecast
@@ -514,7 +514,9 @@ def message_log(data: MessageData):
 
 
 @io.on("download:request")
-def download_request(data):
+@typecast
+def download_request(data: dict):
+    # TODO: this has an optional key "selection"
     emit(
         "download:request",
         {"data": data, "sid": session["token"]},
@@ -528,20 +530,22 @@ def download_response(data):
 
 
 @io.on("scene:play")
-def scene_play(data):
+@typecast
+def scene_play(data: PlayData):
     log.debug(f"scene:play {data}")
     emit("scene:play", to=_webclients_room(data))
 
 
 @io.on("scene:pause")
-def scene_pause(data):
+@typecast
+def scene_pause(data: PlayData):
     log.debug(f"scene:pause {data}")
     emit("scene:pause", to=_webclients_room(data))
 
 
 @io.on("scene:trash")
-def scene_trash(data):
-    data["target"] = session["token"]
+def scene_trash():
+    data = {"target": session["token"]}
     emit("scene:trash", data, to=_pyclients_default(data))
 
 
