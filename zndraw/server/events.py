@@ -11,7 +11,7 @@ from flask_socketio import call, emit, join_room
 
 from ..app import cache
 from ..app import socketio as io
-from .data import PlayData, MessageData, JoinData,SelectionRunData,SelectionSetData,ModifierSchemaData,AnalysisSchemaData, AtomsLengthData, DeleteAtomsData, AtomsDownloadData, ModifierRunData, AnalysisRunData, AnalysisFigureData, SceneSetData, SceneStepData
+from .data import PlayData,ModifierRegisterData,  MessageData, JoinData,SelectionRunData,SelectionSetData,ModifierSchemaData,AnalysisSchemaData, AtomsLengthData, DeleteAtomsData, AtomsDownloadData, ModifierRunData, AnalysisRunData, AnalysisFigureData, SceneSetData, SceneStepData
 import dataclasses
 
 from zndraw.utils import typecast
@@ -550,15 +550,16 @@ def scene_trash():
 
 
 @io.on("modifier:register")
-def modifier_register(data):
-    data["token"] = session["token"]
+@typecast
+def modifier_register(data: ModifierRegisterData):
+    data.token = session["token"]
     if "modifier" not in app.config["PER-TOKEN-DATA"][session["token"]]:
         # this is a dict for the pyclient, but it has to be for every webclient ...
         app.config["PER-TOKEN-DATA"][session["token"]]["modifier"] = {}
 
     try:
         # we can only register one modifier at a time
-        name = data["modifiers"][0]["name"]
+        name = data.name
         if name in app.config["MODIFIER"]["default_schema"]:
             msg = f"'{name}' is already registered as a default modifier and therefore reserved. Choose another name for your modifier!"
             log.critical(msg)
@@ -575,20 +576,18 @@ def modifier_register(data):
         log.critical(f'{app.config["PER-TOKEN-DATA"] = }')
         log.critical(f'{app.config["pyclients"] = }')
 
-        if data["modifiers"][0]["default"]:
+        if data.is_default:
             if not session["authenticated"]:
                 msg = "Unauthenticated users cannot register default modifiers."
                 log.critical(msg)
                 emit("message:log", msg, to=request.sid)
-            app.config["MODIFIER"]["default_schema"][name] = data["modifiers"][0][
-                "schema"
-            ]
+            app.config["MODIFIER"]["default_schema"][name] = data.schema
             app.config["MODIFIER"][name] = _get_uuid_for_sid(request.sid)
     except KeyError:
         print("Could not identify the modifier name.")
         traceback.print_exc()
 
-    emit("modifier:register", data, to=app.config["DEFAULT_PYCLIENT"])
+    emit("modifier:register", dataclasses.asdict(data), to=app.config["DEFAULT_PYCLIENT"])
 
 
 @io.on("bookmarks:get")
