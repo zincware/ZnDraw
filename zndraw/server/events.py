@@ -11,7 +11,7 @@ from flask_socketio import call, emit, join_room
 
 from ..app import cache
 from ..app import socketio as io
-from .data import JoinData,AnalysisSchemaData, AtomsLengthData, DeleteAtomsData, AtomsDownloadData, ModifierRunData, AnalysisRunData, AnalysisFigureData, SceneSetData, SceneStepData
+from .data import JoinData,ModifierSchemaData,AnalysisSchemaData, AtomsLengthData, DeleteAtomsData, AtomsDownloadData, ModifierRunData, AnalysisRunData, AnalysisFigureData, SceneSetData, SceneStepData
 import dataclasses
 
 from zndraw.utils import typecast
@@ -437,26 +437,24 @@ def analysis_schema(data: AnalysisSchemaData):
 
 
 @io.on("modifier:schema")
-def modifier_schema(data: dict):
+@typecast
+def modifier_schema(data: ModifierSchemaData):
     emit(
-        "modifier:schema", data["schema"], include_self=False, to=_webclients_room(data)
+        "modifier:schema", data.schema, include_self=False, to=_webclients_room(data)
     )
 
 
 @io.on("selection:schema")
-def selection_schema(data: dict):
-    if "sid" in data:
-        emit("selection:schema", data["schema"], include_self=False, to=data["sid"])
-    else:
-        raise ValueError
+@typecast
+def selection_schema(data: AnalysisSchemaData):
+    emit("selection:schema", data.schema, include_self=False, to=data.sid)
+
 
 
 @io.on("draw:schema")
-def draw_schema(data: dict):
-    if "sid" in data:
-        emit("draw:schema", data["schema"], include_self=False, to=data["sid"])
-    else:
-        raise ValueError
+@typecast
+def draw_schema(data: AnalysisSchemaData):
+    emit("draw:schema", data.schema, include_self=False, to=data.sid)
 
 
 @io.on("points:get")
