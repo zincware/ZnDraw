@@ -26,3 +26,8 @@ class AnalysisRunData:
 class AnalysisFigureData:
     figure: dict
     token: str
+
+@dataclasses.dataclass
+class SceneSetData:
+    index: int
+    token: str

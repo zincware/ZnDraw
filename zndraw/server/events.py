@@ -11,7 +11,7 @@ from flask_socketio import call, emit, join_room
 
 from ..app import cache
 from ..app import socketio as io
-from .data import JoinData, ModifierRunData, AnalysisRunData, AnalysisFigureData
+from .data import JoinData, ModifierRunData, AnalysisRunData, AnalysisFigureData, SceneSetData
 import dataclasses
 
 from zndraw.utils import typecast
@@ -381,8 +381,9 @@ def analysis_figure(data: AnalysisFigureData):
 
 
 @io.on("scene:set")
-def scene_set(data):
-    emit("scene:set", data["index"], include_self=False, to=_webclients_room(data))
+@typecast
+def scene_set(data: SceneSetData):
+    emit("scene:set", data.index, include_self=False, to=_webclients_room(data))
 
 
 @io.on("scene:step")
