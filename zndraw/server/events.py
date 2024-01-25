@@ -41,6 +41,20 @@ from .data import (
 log = logging.getLogger(__name__)
 
 modifier_lock = Lock()
+from celery import shared_task
+import time
+
+
+
+@shared_task(ignore_result=False, time_limit=60)
+def add_together(a: int, b: int, target: str = None) -> int:
+    from zndraw import ZnDraw
+    vis = ZnDraw(url="http://127.0.0.1:1235")
+    vis.log("start sleeping")
+    time.sleep(5)
+    vis.log("finished sleeping")
+    
+
 
 
 def _webclients_room(data: dict) -> str:
@@ -353,6 +367,14 @@ def scene_schema():
 @typecast
 def modifier_run(data: ModifierRunData):
     # emit entered the queue
+    add_together.apply_async((1, 2), queue='fast')
+
+    # get the celery app from flask app
+    # celery_app = app.extensions["celery"]
+    # i = celery_app.control.inspect()
+    # print(30*"--")
+    # print(f"{i.scheduled() = }")
+
     JOB_ID = uuid4()
     TIMEOUT = 60
     MODIFIER = cache.get("MODIFIER")
@@ -550,6 +572,7 @@ def insert_atoms(data):
 @io.on("message:log")
 @typecast
 def message_log(data: MessageData):
+    print(data)
     emit("message:log", data.message, to=_webclients_room(data))
 
 

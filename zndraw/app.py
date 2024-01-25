@@ -3,6 +3,10 @@ import uuid
 from flask import Flask
 from flask_caching import Cache
 from flask_socketio import SocketIO
+from .tasks import celery_init_app
+import threading
+import contextlib
+
 
 socketio = SocketIO()
 cache = Cache(
@@ -23,6 +27,7 @@ def setup_cache():
     cache.set("MODIFIER", {"default_schema": {}, "active": None, "queue": []})
 
 
+@contextlib.contextmanager
 def create_app(
     use_token, upgrade_insecure_requests, compute_bonds, tutorial: str, auth_token: str
 ) -> Flask:
@@ -46,4 +51,28 @@ def create_app(
     cache.init_app(app)
     socketio.init_app(app, cors_allowed_origins="*")
     setup_cache()
-    return app
+
+    app.config.from_mapping(
+        CELERY=dict(
+            broker_url="memory://",
+            result_backend="cache",
+            cache_backend = 'memory',
+            task_ignore_result=True,
+        ),
+    )
+    app.config.from_prefixed_env()
+    celery_app = celery_init_app(app)
+    
+    # Define worker function
+    def start_worker(queue_name):
+        worker = threading.Thread(target=celery_app.worker_main, args=(["worker", f"--loglevel=info", f"--concurrency=1", f"--hostname={queue_name}", f"--queues={queue_name}"], ))
+        worker.start()
+
+    # Start workers on different queues
+    queues = ["fast", "slow", "high_priority"]
+
+    for queue in queues:
+        start_worker(queue)
+
+    yield app
+    celery_app.control.shutdown()

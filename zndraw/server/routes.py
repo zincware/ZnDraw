@@ -4,6 +4,7 @@ import uuid
 from flask import current_app, redirect, render_template, request, session
 
 from . import main
+from ..app import cache
 
 log = logging.getLogger(__name__)
 
@@ -19,6 +20,10 @@ def _upload(file, url, token):
     for atoms in ase.io.iread(pathlib.Path("data", file)):
         vis.append(atoms)
 
+
+@main.route("/exec")
+def main_route():
+    return session["token"]
 
 @main.route("/")
 def index():

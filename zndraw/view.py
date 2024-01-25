@@ -56,41 +56,41 @@ def view(
 ):
     url = f"http://127.0.0.1:{port}"
 
-    app = create_app(
+    with create_app(
         use_token=use_token,
         upgrade_insecure_requests=upgrade_insecure_requests,
         compute_bonds=compute_bonds,
         tutorial=tutorial,
         auth_token=auth_token,
-    )
+    ) as app:
 
-    file_io = FileIO(filename, start, stop, step, remote, rev)
+        file_io = FileIO(filename, start, stop, step, remote, rev)
 
-    proc = mp.Process(
-        target=ZnDrawDefault,
-        kwargs={
-            "url": url,
-            "token": "default",
-            "file_io": file_io,
-            "auth_token": auth_token,
-        },
-    )
-    proc.start()
-
-    log.critical(f"Starting ZnDraw server at {url}")
-
-    if wv is not None and webview:
-        wv_proc = mp.Process(
-            target=_view_with_webview, args=(url, fullscreen), daemon=True
+        proc = mp.Process(
+            target=ZnDrawDefault,
+            kwargs={
+                "url": url,
+                "token": "default",
+                "file_io": file_io,
+                "auth_token": auth_token,
+            },
         )
-        wv_proc.start()
-    elif open_browser:
-        webbrowser.open(url)
+        proc.start()
 
-    socketio.run(app, port=port, host="0.0.0.0")
+        log.critical(f"Starting ZnDraw server at {url}")
 
-    proc.terminate()
-    proc.join()
-    if wv is not None and webview:
-        wv_proc.terminate()
-        wv_proc.join()
+        if wv is not None and webview:
+            wv_proc = mp.Process(
+                target=_view_with_webview, args=(url, fullscreen), daemon=True
+            )
+            wv_proc.start()
+        elif open_browser:
+            webbrowser.open(url)
+
+        socketio.run(app, port=port, host="0.0.0.0")
+
+        proc.terminate()
+        proc.join()
+        if wv is not None and webview:
+            wv_proc.terminate()
+            wv_proc.join()
