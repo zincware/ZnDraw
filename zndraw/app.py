@@ -1,11 +1,11 @@
 import contextlib
+import threading
 import uuid
 
+from celery import Celery, Task
 from flask import Flask
 from flask_caching import Cache
 from flask_socketio import SocketIO
-from celery import Celery, Task
-import threading
 
 socketio = SocketIO()
 cache = Cache(
@@ -68,14 +68,16 @@ def create_app(
         CELERY=dict(
             broker_url="memory://",
             result_backend="cache",
-            cache_backend = 'memory',
+            cache_backend="memory",
             task_ignore_result=True,
         ),
     )
     app.config.from_prefixed_env()
     celery_app = celery_init_app(app)
 
-    worker = threading.Thread(target=celery_app.worker_main, args=(["worker", f"--loglevel=info"], ))
+    worker = threading.Thread(
+        target=celery_app.worker_main, args=(["worker", "--loglevel=info"],)
+    )
     worker.start()
 
     yield app
