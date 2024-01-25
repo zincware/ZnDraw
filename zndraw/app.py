@@ -18,6 +18,7 @@ def setup_cache():
     cache.set("PER-TOKEN-DATA", {})
     cache.set("MODIFIER", {"default_schema": {}, "active": None, "queue": []})
 
+
 def create_app(
     use_token, upgrade_insecure_requests, compute_bonds, tutorial: str, auth_token: str
 ) -> Flask:

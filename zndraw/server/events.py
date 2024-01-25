@@ -184,9 +184,7 @@ def connect():
 
         emit("webclient:available", data, to=DEFAULT_PYCLIENT)
 
-        connected_users = [
-            {"name": names[sid]} for sid in ROOM_HOSTS[token]
-        ]
+        connected_users = [{"name": names[sid]} for sid in ROOM_HOSTS[token]]
 
         emit(
             "connectedUsers",
@@ -204,9 +202,7 @@ def connect():
 
         # TODO emit("modifier:register", _all modifiers_, to=app.config["DEFAULT_PYCLIENT"]')
 
-        log.debug(
-            f"connected {request.sid} and updated HOSTS to {ROOM_HOSTS}"
-        )
+        log.debug(f"connected {request.sid} and updated HOSTS to {ROOM_HOSTS}")
         emit("message:log", "Connection established", to=request.sid)
         PER_TOKEN_DATA = cache.get("PER-TOKEN-DATA")
         if token not in PER_TOKEN_DATA:
@@ -249,18 +245,14 @@ def disconnect():
         cache.set("ROOM_HOSTS", ROOM_HOSTS)
         # remove the pyclient from the dict
         names = cache.get(f"PER-TOKEN-NAME:{session['token']}") or {}
-        connected_users = [
-            {"name": names[sid]} for sid in ROOM_HOSTS[token]
-        ]
+        connected_users = [{"name": names[sid]} for sid in ROOM_HOSTS[token]]
         emit(
             "connectedUsers",
             list(reversed(connected_users)),
             to=_webclients_room({"token": token}),
         )
 
-    log.debug(
-        f'disconnect {request.sid} and updated HOSTS to {ROOM_HOSTS}'
-    )
+    log.debug(f"disconnect {request.sid} and updated HOSTS to {ROOM_HOSTS}")
 
 
 @io.on("join")
@@ -620,12 +612,12 @@ def modifier_register(data: ModifierRegisterData):
             log.critical(msg)
             emit("message:log", msg, to=request.sid)
         # get the key from the value request.sid by inverting the dict
-        PER_TOKEN_DATA[session["token"]]["modifier"][
-            name
-        ] = _get_uuid_for_sid(request.sid)
+        PER_TOKEN_DATA[session["token"]]["modifier"][name] = _get_uuid_for_sid(
+            request.sid
+        )
         PYCLIENTS = cache.get("pyclients")
-        log.critical(f'{PER_TOKEN_DATA = }')
-        log.critical(f'{PYCLIENTS = }')
+        log.critical(f"{PER_TOKEN_DATA = }")
+        log.critical(f"{PYCLIENTS = }")
 
         if data.is_default:
             if not session["authenticated"]:
@@ -637,7 +629,7 @@ def modifier_register(data: ModifierRegisterData):
     except KeyError:
         print("Could not identify the modifier name.")
         traceback.print_exc()
-    
+
     cache.set("PER-TOKEN-DATA", PER_TOKEN_DATA)
     cache.set("MODIFIER", MODIFIER)
 
