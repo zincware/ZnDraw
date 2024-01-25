@@ -49,3 +49,8 @@ class DeleteAtomsData:
 @dataclasses.dataclass
 class AtomsLengthData:
     token: str
+
+@dataclasses.dataclass
+class AnalysisSchemaData:
+    schema: dict
+    sid: str

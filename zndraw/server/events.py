@@ -11,7 +11,7 @@ from flask_socketio import call, emit, join_room
 
 from ..app import cache
 from ..app import socketio as io
-from .data import JoinData, AtomsLengthData, DeleteAtomsData, AtomsDownloadData, ModifierRunData, AnalysisRunData, AnalysisFigureData, SceneSetData, SceneStepData
+from .data import JoinData,AnalysisSchemaData, AtomsLengthData, DeleteAtomsData, AtomsDownloadData, ModifierRunData, AnalysisRunData, AnalysisFigureData, SceneSetData, SceneStepData
 import dataclasses
 
 from zndraw.utils import typecast
@@ -430,11 +430,10 @@ def atoms_length(data: AtomsLengthData):
 
 
 @io.on("analysis:schema")
-def analysis_schema(data: dict):
-    if "sid" in data:
-        emit("analysis:schema", data["schema"], include_self=False, to=data["sid"])
-    else:
-        raise ValueError
+@typecast
+def analysis_schema(data: AnalysisSchemaData):
+    emit("analysis:schema", data.schema, include_self=False, to=data.sid)
+
 
 
 @io.on("modifier:schema")
