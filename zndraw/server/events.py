@@ -11,7 +11,8 @@ from flask_socketio import call, emit, join_room
 
 from ..app import cache
 from ..app import socketio as io
-from .data import JoinData
+from .data import JoinData, ModifierRunData
+import dataclasses
 
 from zndraw.utils import typecast
 log = logging.getLogger(__name__)
@@ -45,8 +46,12 @@ def _pyclients_room(data: dict) -> str:
 
 def _pyclients_default(data: dict) -> str:
     """Return the SID of the default pyclient."""
-    if "sid" in data:
-        return data["sid"]
+    if isinstance(data, dict):
+        if "sid" in data:
+            return data["sid"]
+    elif hasattr(data, "sid"):
+        if data.sid is not None:
+            return data.sid
     return app.config["DEFAULT_PYCLIENT"]
 
 
@@ -300,7 +305,9 @@ def scene_schema():
 
 
 @io.on("modifier:run")
-def modifier_run(data):
+@typecast
+def modifier_run(data: ModifierRunData):
+    print(data)
     # emit entered the queue
     JOB_ID = uuid4()
     TIMEOUT = 60
@@ -323,20 +330,20 @@ def modifier_run(data):
             print("waiting for modifier_lock")
             io.sleep(1)
 
-    name = data["params"]["method"]["discriminator"]
+    name = data.name
     # handle custom modifiers (not default)
     if name in app.config["PER-TOKEN-DATA"][session["token"]].get("modifier", {}):
         token = app.config["PER-TOKEN-DATA"][session["token"]]["modifier"][name]
-        data["sid"] = app.config["pyclients"][token]
+        data.sid = app.config["pyclients"][token]
     # handle custom modifiers (default)
     elif name in app.config["MODIFIER"]:
-        data["sid"] = app.config["pyclients"][app.config["MODIFIER"][name]]
+        data.sid = app.config["pyclients"][app.config["MODIFIER"][name]]
 
     # need to set the target of the modifier to the webclients room
-    data["target"] = session["token"]
+    data.target = session["token"]
     # This should not go to request.sid but all webclients in the room
     emit("modifier:run:submitted", {}, to=_webclients_room({"token": session["token"]}))
-    emit("modifier:run", data, to=_pyclients_default(data))
+    emit("modifier:run", dataclasses.asdict(data), to=_pyclients_default(data))
 
     io.sleep(TIMEOUT)
     if JOB_ID in app.config["MODIFIER"]["queue"]:
