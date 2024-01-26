@@ -1,30 +1,19 @@
-import contextlib
 import dataclasses
-import datetime
 import logging
-import pathlib
 import threading
 import typing as t
 import uuid
-from io import StringIO
 
 import ase
 import ase.io
 import numpy as np
 import socketio
-import tqdm
-import znh5md
 from znframe.frame import Frame
 
-from zndraw.analyse import get_analysis_class
-from zndraw.draw import Geometry
 from zndraw.modify import UpdateScene, get_modify_class
-from zndraw.select import get_selection_class
 from zndraw.settings import GlobalConfig
 from zndraw.utils import (
     ZnDrawLoggingHandler,
-    get_cls_from_json_schema,
-    hide_discriminator_field,
 )
 
 log = logging.getLogger(__name__)
@@ -66,7 +55,7 @@ class ZnDrawBase:  # collections.abc.MutableSequence
     """
 
     url: str
-    token: str = "notoken"
+    token: str = None
     display_new: bool = True
     _uuid: uuid.UUID = dataclasses.field(default_factory=uuid.uuid4)
     auth_token: str = None
@@ -111,25 +100,8 @@ class ZnDrawBase:  # collections.abc.MutableSequence
         self._connect()
         self.socket.sleep(0.1)
 
-    @contextlib.contextmanager
-    def _set_sid(self, sid):
-        self._target_sid = sid
-        yield
-        self._target_sid = None
-
-    @contextlib.contextmanager
-    def _set_token(self, token):
-        old_token = self.token
-        self.token = token
-        yield
-        self.token = old_token
-
     def __len__(self) -> int:
-        return int(
-            self.socket.call(
-                "atoms:length", {"token": self.token}, timeout=self.config.call_timeout
-            )
-        )
+        return int(self.socket.call("atoms:length", timeout=self.config.call_timeout))
 
     def __setitem__(self, index, value):
         if not isinstance(value, ase.Atoms) and not isinstance(value, Frame):
@@ -344,254 +316,6 @@ class ZnDrawBase:  # collections.abc.MutableSequence
 
     def _modifier_run(self, data) -> None:
         raise NotImplementedError
-
-
-@dataclasses.dataclass
-class ZnDrawDefault(ZnDrawBase):
-    file_io: dict = None
-    register_socket_events: bool = True
-
-    def __post_init__(self):
-        super().__post_init__()
-        if isinstance(self.file_io, dict):
-            self.file_io = FileIO(**self.file_io)
-
-        if self.register_socket_events:
-            self.socket.on("webclient:available", self.initialize_webclient)
-            self.socket.on("selection:run", self.selection_run)
-            self.socket.on("analysis:run", self.analysis_run)
-            self.socket.on("upload", self.upload_file)
-            self.socket.on("download:request", self.download_file)
-            self.socket.on("modifier:register", self.register_modifier)
-            self.socket.on("scene:trash", self.trash_scene)
-        self._connect()
-        if self.register_socket_events:
-            self.socket.wait()
-
-    @classmethod
-    def from_self(cls, other):
-        kwargs = dataclasses.asdict(other)
-        kwargs.pop("token")
-        kwargs.pop("_uuid")
-        kwargs["register_socket_events"] = False
-        return cls(**kwargs)
-
-    def initialize_webclient(self, data):
-        print("Initializing new pyclient for webclient")
-        sid = data["sid"]
-        token = data["token"]
-        host = data["host"]
-
-        vis = self.from_self(self)
-
-        if host:
-            start_time = datetime.datetime.now()
-
-            for idx, atoms in enumerate(vis.read_data()):
-                with vis._set_sid(sid):
-                    if idx == 0:
-                        vis.analysis_schema(atoms)
-                        vis.selection_schema()
-                        vis.draw_schema()
-                    vis[idx] = atoms
-                    # self.step = idx # double the message count ..., replace with part of the setitem message, benchmark
-            log.warning(
-                f"{datetime.datetime.now() - start_time} Finished sending data."
-            )
-        else:
-            # load the data from the room host webclient (e.g. token)
-            with vis._set_token(token):
-                n_atoms = len(vis)
-
-            for idx in tqdm.trange(n_atoms, ncols=100):
-                with vis._set_token(token):
-                    for _ in range(self.config.retries):
-                        try:
-                            atoms = vis[idx]
-                            break
-                        except Exception:
-                            vis.reconnect()
-                    else:
-                        raise RuntimeError(
-                            f"Failed to get atoms at index {idx} after {self.config.retries} retries"
-                        )
-
-                with vis._set_sid(sid):
-                    vis[idx] = atoms
-
-                    if idx == 0:
-                        vis.analysis_schema(atoms)
-                        vis.selection_schema()
-                        vis.draw_schema()
-
-    def read_data(self) -> t.Generator[ase.Atoms, None, None]:
-        if self.file_io is None or self.file_io.name is None:
-            yield ase.Atoms()
-            return
-
-        if self.file_io.remote is not None:
-            node_name, attribute = self.file_io.name.split(".", 1)
-            try:
-                import zntrack
-
-                node = zntrack.from_rev(
-                    node_name, remote=self.file_io.remote, rev=self.file_io.rev
-                )
-                generator = getattr(node, attribute)
-            except ImportError as err:
-                raise ImportError(
-                    "You need to install ZnTrack to use the remote feature"
-                ) from err
-        elif pathlib.Path(self.file_io.name).suffix == ".h5":
-            reader = znh5md.ASEH5MD(self.file_io.name)
-            generator = reader.get_atoms_list()
-        else:
-            generator = ase.io.iread(self.file_io.name)
-
-        frame = 0
-
-        for idx, atoms in tqdm.tqdm(enumerate(generator), ncols=100):
-            if self.file_io.start and idx < self.file_io.start:
-                continue
-            if self.file_io.stop and idx >= self.file_io.stop:
-                break
-            if self.file_io.step and idx % self.file_io.step != 0:
-                continue
-            yield atoms
-            frame += 1
-
-    def analysis_schema(self, atoms: ase.Atoms):
-        config = GlobalConfig.load()
-
-        cls = get_analysis_class(config.get_analysis_methods())
-
-        schema = cls.model_json_schema_from_atoms(atoms)
-        hide_discriminator_field(schema)
-
-        self.socket.emit(
-            "analysis:schema",
-            {
-                "schema": schema,
-                "sid": self._target_sid,
-            },
-        )
-
-    def selection_schema(self):
-        config = GlobalConfig.load()
-        cls = get_selection_class(config.get_selection_methods())
-
-        self.socket.emit(
-            "selection:schema",
-            {
-                "schema": cls.model_json_schema(),
-                "sid": self._target_sid,
-            },
-        )
-
-    def draw_schema(self):
-        self.socket.emit(
-            "draw:schema",
-            {"schema": Geometry.updated_schema(), "sid": self._target_sid},
-        )
-
-    def _modifier_run(self, data):
-        with self._set_token(data["target"]):
-            config = GlobalConfig.load()
-            cls = get_modify_class(config.get_modify_methods())
-            modifier = cls(**data["params"])
-            modifier.run(self)
-
-    def selection_run(self, data):
-        with self._set_token(data["target"]):
-            config = GlobalConfig.load()
-            cls = get_selection_class(config.get_selection_methods())
-
-            try:
-                selection = cls(**data["params"])
-                selection.run(self)
-            except ValueError as err:
-                log.critical(err)
-
-    def analysis_run(self, data):
-        with self._set_token(data["target"]):
-            config = GlobalConfig.load()
-            cls = get_analysis_class(config.get_analysis_methods())
-
-            try:
-                instance = cls(**data["params"])
-                instance.run(self)
-            except ValueError as err:
-                log.critical(err)
-
-    def upload_file(self, data):
-        with self._set_token(data["target"]):
-            data = data["data"]
-
-            format = data["filename"].split(".")[-1]
-            format = format if format != "xyz" else "extxyz"
-
-            if format == "h5":
-                raise ValueError("H5MD format not supported for uploading yet")
-            else:
-                stream = StringIO(data["content"])
-                for idx, atoms in tqdm.tqdm(
-                    enumerate(ase.io.iread(stream, format=format))
-                ):
-                    if len(self.points) > 0:
-                        # add the new structure with its COM at each point.
-                        scene = self.atoms
-                        if hasattr(scene, "connectivity"):
-                            del scene.connectivity
-                        for point in self.points:
-                            # set atoms COM to point
-                            atoms.positions -= atoms.get_center_of_mass() - point
-                            scene += atoms
-                        self.append(scene)
-                    else:
-                        self.append(Frame.from_atoms(atoms))
-
-    def download_file(self, data):
-        with self._set_sid(data["sid"]):
-            atoms_list = list(self)
-            if "selection" in data:
-                atoms_list = [atoms_list[data["selection"]] for atoms in atoms_list]
-
-            file = StringIO()
-            ase.io.write(file, atoms_list, format="extxyz")
-            file.seek(0)
-            self.socket.emit(
-                "download:response", {"data": file.read(), "sid": self._target_sid}
-            )
-
-    def register_modifier(self, data):
-        include = [
-            get_cls_from_json_schema(conf["schema"], conf["name"])
-            for conf in data.get("modifiers", [])
-        ]
-        config = GlobalConfig.load()
-        cls = get_modify_class(config.get_modify_methods(include=include))
-        sid = data["token"]
-
-        schema = cls.model_json_schema()
-
-        hide_discriminator_field(schema)
-
-        data = {"schema": schema, "token": sid}
-        self.socket.emit("modifier:schema", data)
-
-    def trash_scene(self, data):
-        with self._set_token(data["target"]):
-            # remove everything after the current step
-            del self[self.step + 1 :]
-            if len(self.selection) == 0:
-                self.append(ase.Atoms())
-            else:
-                # remove the selected atoms
-                atoms = self.atoms
-                del atoms[self.selection]
-                self.append(atoms)
-            self.selection = []
-            self.points = []
 
 
 @dataclasses.dataclass

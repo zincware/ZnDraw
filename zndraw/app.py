@@ -49,7 +49,6 @@ def celery_init_app(app: Flask) -> Celery:
 def setup_cache():
     """Setup the cache."""
     cache.set("ROOM_HOSTS", {})
-    cache.set("DEFAULT_PYCLIENT", None)
     cache.set("TEST", "Hello World!")
 
     # dict of {uuid: sid} for each client
@@ -140,9 +139,8 @@ class ZnDrawServer:
 
         self.app.config["TUTORIAL"] = self.tutorial
         self.app.config["AUTH_TOKEN"] = self.auth_token
+        self.app.config["USE_TOKEN"] = self.use_token
 
-        if not self.use_token:  # TODO: handle this differently
-            self.app.config["token"] = "notoken"
         self.app.config["upgrade_insecure_requests"] = self.upgrade_insecure_requests
         self.app.config["compute_bonds"] = self.compute_bonds
 

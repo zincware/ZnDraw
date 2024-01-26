@@ -134,7 +134,7 @@
             <button type="button" class="btn btn-outline-secondary" id="colorModeSwitch"><i
                 class="fa-solid fa-sun"></i></button>
           </li>
-          {% if token == "notoken" %}
+          {% if token is none%}
           <li class="nav-item mx-1">
             <a class="btn btn-outline-info " href="/" role="button"><i class="fa-solid fa-rotate-right"></i></a>
           </li>
@@ -374,7 +374,7 @@
           <h3>Python Code</h3>
           <code id="python-code-block"> </code>
           <br />
-          {% if token != "notoken" %}
+          {% if token%}
           <h3>Share Link</h3>
           <code id="share-link-block"></code>
           <br />
@@ -383,7 +383,7 @@
             link to clipboard</a>
           {% endif %}
           <script>
-            {% if token != "notoken" %}
+            {% if token%}
             document.getElementById(
               "python-code-block",
             ).innerHTML = `from zndraw import ZnDraw <br>vis = ZnDraw(url="${window.location.href}", token="{{ token }}")`;
