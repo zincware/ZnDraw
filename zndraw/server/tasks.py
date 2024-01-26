@@ -43,17 +43,17 @@ def read_file(url: str, target: str):
     con = get_client(url)
     fileio = cache.get("FILEIO")
 
-    msg = CeleryTaskData(
-        target=target,
-        event="atoms:upload",
-        data=FrameData(
-            index=0,
-            data=znframe.Frame.from_atoms(ase.Atoms()).to_dict(built_in_types=False),
-            update=True,
-        ),
-    )
-    con.emit("celery:task:results", asdict(msg))
     if fileio.name is None:
+        msg = CeleryTaskData(
+            target=target,
+            event="atoms:upload",
+            data=FrameData(
+                index=0,
+                data=znframe.Frame.from_atoms(ase.Atoms()).to_dict(built_in_types=False),
+                update=True,
+            ),
+        )
+        con.emit("celery:task:results", asdict(msg))
         return
     
     if fileio.remote is not None:
