@@ -108,17 +108,14 @@ class ZnDrawBase:  # collections.abc.MutableSequence
             raise ValueError("Must be an ase.Atoms or Frame object")
 
         assert isinstance(index, int), "Index must be an integer"
-
         if isinstance(value, ase.Atoms):
             value = Frame.from_atoms(value)
-        data = {
-            index: value.to_dict(built_in_types=False),
-            "display_new": self.display_new,
-            "token": self.token,
-        }
-        if self._target_sid is not None:
-            # this only affects initial loading of data if a new webclient connects
-            data["sid"] = self._target_sid
+        data = dict(
+            index=index,
+            data=value.to_dict(built_in_types=False),
+            update=True,
+        )
+        data["sid"] = self._target_sid
         self.socket.emit("atoms:upload", data)
 
     def __delitem__(self, index):
