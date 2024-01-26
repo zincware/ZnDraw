@@ -1,13 +1,12 @@
+import pathlib
 from dataclasses import asdict
 
 import ase.io
-import znframe
-from celery import shared_task
-from flask import current_app
-from socketio import Client
-import pathlib
 import tqdm
+import znframe
 import znh5md
+from celery import shared_task
+from socketio import Client
 
 from zndraw.select import get_selection_class
 from zndraw.settings import GlobalConfig
@@ -55,15 +54,13 @@ def read_file(url: str, target: str):
     con.emit("celery:task:results", asdict(msg))
     if fileio.name is None:
         return
-    
+
     if fileio.remote is not None:
         node_name, attribute = fileio.name.split(".", 1)
         try:
             import zntrack
 
-            node = zntrack.from_rev(
-                node_name, remote=fileio.remote, rev=fileio.rev
-            )
+            node = zntrack.from_rev(node_name, remote=fileio.remote, rev=fileio.rev)
             generator = getattr(node, attribute)
         except ImportError as err:
             raise ImportError(
@@ -84,7 +81,7 @@ def read_file(url: str, target: str):
             break
         if fileio.step and idx % fileio.step != 0:
             continue
-        
+
         msg = CeleryTaskData(
             target=target,
             event="atoms:upload",

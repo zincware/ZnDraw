@@ -9,7 +9,6 @@ from flask_caching import Cache
 from flask_socketio import SocketIO
 
 from .settings import GlobalConfig
-from .utils import ensure_path
 
 socketio = SocketIO()
 

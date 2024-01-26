@@ -107,7 +107,7 @@ class Cache {
         pbc: data.data.pbc,
       });
 
-      console.log(this._cache)
+      console.log(this._cache);
 
       slider.ariaValueMax = Object.keys(this._cache).length - 1;
       if (data.update) {
