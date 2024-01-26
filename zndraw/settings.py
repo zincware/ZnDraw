@@ -6,6 +6,8 @@ import typing as t
 
 import pydantic
 
+from zndraw.utils import ensure_path
+
 log = logging.getLogger(__name__)
 
 _ANALYSIS_FUNCTIONS = [
@@ -55,6 +57,19 @@ class CeleryConfig(pydantic.BaseModel):
     result_backend: str = "cache"
     cache_backend: str = "memory"
     task_ignore_result: bool = True
+
+    def to_dict(self):
+        return dict(
+        broker_url=self.broker,
+        broker_transport_options=dict(
+            data_folder_in=ensure_path(self.data_folder),
+            data_folder_out=ensure_path(self.data_folder),
+            data_folder_processed=ensure_path(self.data_folder_processed),
+        ),
+        result_backend=self.result_backend,
+        cache_backend=self.cache_backend,
+        task_ignore_result=self.task_ignore_result,
+    )
 
 
 class GlobalConfig(pydantic.BaseModel):
