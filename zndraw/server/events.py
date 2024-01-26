@@ -82,17 +82,6 @@ def _pyclients_room(data: dict) -> str:
     return f"pyclients_{data['token']}"
 
 
-def _pyclients_default(data: dict) -> str:
-    """Return the SID of the default pyclient."""
-    if isinstance(data, dict):
-        if "sid" in data:
-            return data["sid"]
-    elif hasattr(data, "sid"):
-        if data.sid is not None:
-            return data.sid
-    return cache.get("DEFAULT_PYCLIENT")
-
-
 def _get_uuid_for_sid(sid) -> str:
     """Given a sid, return the UUID that is associated with it.
     The SID is given by flask, the UUID is defined by zndraw
@@ -210,7 +199,7 @@ def connect():
         cache.set("PER-TOKEN-DATA", PER_TOKEN_DATA)
 
         # append to zndraw.log a line isoformat() + " " + token
-        if "token" not in app.config:
+        if app.config["USE_TOKEN"]:
             with open("zndraw.log", "a") as f:
                 f.write(
                     datetime.datetime.now().isoformat() + " " + token + " connected \n"
@@ -276,9 +265,6 @@ def join(data: JoinData):
     if data.token not in PER_TOKEN_DATA:
         PER_TOKEN_DATA[data.token] = {}
     cache.set("PER-TOKEN-DATA", PER_TOKEN_DATA)
-    if data.token == "default":
-        # this would be very easy to exploit
-        cache.set("DEFAULT_PYCLIENT", request.sid)
 
 
 @io.on("analysis:figure")
