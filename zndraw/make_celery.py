@@ -1,4 +1,4 @@
 from zndraw.app import ZnDrawApp
 
-with ZnDrawApp(None, False, True, None, None) as flask_app:
-    celery_app = flask_app.extensions["celery"]
+with ZnDrawApp(None, False, True, None, None) as instance:
+    celery_app = instance.app.extensions["celery"]

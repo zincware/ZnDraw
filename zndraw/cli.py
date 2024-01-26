@@ -4,6 +4,7 @@ import typer
 
 from zndraw.utils import get_port
 from zndraw.view import view
+from zndraw.app import ZnDrawApp
 
 cli = typer.Typer()
 
@@ -80,20 +81,23 @@ def main(
     if port is None:
         port = get_port()
 
-    view(
-        filename,
-        port,
-        webview=webview,
-        fullscreen=fullscreen,
-        open_browser=browser,
-        start=start,
-        stop=stop,
-        step=step,
-        compute_bonds=compute_bonds,
-        upgrade_insecure_requests=upgrade_insecure_requests,
-        use_token=use_token,
-        remote=remote,
-        rev=rev,
-        tutorial=tutorial,
-        auth_token=auth_token,
-    )
+    with ZnDrawApp(use_token=use_token, upgrade_insecure_requests=upgrade_insecure_requests, compute_bonds=compute_bonds, tutorial=tutorial, auth_token=auth_token) as app:
+        app.run(browser=True)
+
+    # view(
+    #     filename,
+    #     port,
+    #     webview=webview,
+    #     fullscreen=fullscreen,
+    #     open_browser=browser,
+    #     start=start,
+    #     stop=stop,
+    #     step=step,
+    #     compute_bonds=compute_bonds,
+    #     upgrade_insecure_requests=upgrade_insecure_requests,
+    #     use_token=use_token,
+    #     remote=remote,
+    #     rev=rev,
+    #     tutorial=tutorial,
+    #     auth_token=auth_token,
+    # )

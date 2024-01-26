@@ -3,6 +3,7 @@ import pathlib
 import subprocess
 import uuid
 import dataclasses
+import webbrowser
 
 from celery import Celery, Task
 from flask import Flask
@@ -83,6 +84,7 @@ class ZnDrawApp:
     compute_bonds: bool
     tutorial: str
     auth_token: str
+    port: int = 1234
 
     workers: list = dataclasses.field(init=False, default_factory=setup_worker)
 
@@ -136,8 +138,9 @@ class ZnDrawApp:
         )
         app.config.from_prefixed_env()
         celery_app = celery_init_app(app)
+        self.app = app
 
-        return app
+        return self
 
     def __exit__(self, exc_type, exc_value, traceback): 
         for worker in self.workers:
@@ -146,5 +149,15 @@ class ZnDrawApp:
         for worker in self.workers:
             worker.wait()
 
+    
+    def run(self, browser=False):
+        if browser:
+            webbrowser.open(self.url_root)
+        socketio.run(self.app, port=self.port, host="0.0.0.0")
+
         # remove tmpdir, but only if this is the main thread
         # and not a worker thread of celery that e.g. has been restarted
+
+    @property
+    def url_root(self):
+        return f"http://127.0.0.1:{self.port}"
