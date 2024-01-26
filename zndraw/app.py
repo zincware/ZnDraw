@@ -1,5 +1,4 @@
 import dataclasses
-import pathlib
 import subprocess
 import uuid
 import webbrowser
@@ -9,16 +8,20 @@ from flask import Flask
 from flask_caching import Cache
 from flask_socketio import SocketIO
 
+from .settings import GlobalConfig
+from .utils import ensure_path
+
 socketio = SocketIO()
 
 
 def get_cache():
     # read config for cache from zndraw config
+    config = GlobalConfig.load()
     cache = Cache(
         config={
-            "CACHE_TYPE": "FileSystemCache",
-            "CACHE_DEFAULT_TIMEOUT": 60 * 60 * 24,
-            "CACHE_DIR": ".zndraw/cache",
+            "CACHE_TYPE": config.cache.backend,
+            "CACHE_DEFAULT_TIMEOUT": config.cache.timeout,
+            "CACHE_DIR": ensure_path(config.cache.dir),
         }
     )
     return cache
@@ -94,8 +97,45 @@ def setup_worker() -> list:
     return [fast_worker, slow_worker]
 
 
+def get_celery_settings(config: GlobalConfig) -> dict:
+    """
+    To make general, we want to take in the broker type and thee config to return
+    the correct settings for the celery app.
+    """
+    return dict(
+        broker_url=config.celery.broker,
+        broker_transport_options=dict(
+            data_folder_in=ensure_path(config.celery.data_folder_in),
+            data_folder_out=ensure_path(config.celery.data_folder_out),
+            data_folder_processed=ensure_path(config.celery.data_folder_processed),
+        ),
+        result_backend=config.celery.result_backend,
+        cache_backend=config.celery.cache_backend,
+        task_ignore_result=config.celery.task_ignore_result,
+    )
+
+
+def create_app() -> Flask:
+    """Create the Flask app."""
+
+    app = Flask(__name__)
+    from .server import main as main_blueprint
+
+    app.register_blueprint(main_blueprint)
+
+    cache.init_app(app)
+    socketio.init_app(app, cors_allowed_origins="*")
+
+    app.config.from_mapping(
+        CELERY=get_celery_settings(GlobalConfig.load()),
+    )
+    app.config.from_prefixed_env()
+    celery_init_app(app)
+    return app
+
+
 @dataclasses.dataclass
-class ZnDrawApp:
+class ZnDrawServer:
     use_token: bool
     upgrade_insecure_requests: bool
     compute_bonds: bool
@@ -105,51 +145,10 @@ class ZnDrawApp:
     fileio: FileIO = None
 
     _workers: list = None
+    app: Flask = None
 
     def __enter__(self):
-        """Create the Flask app."""
-        # with tempfile.TemporaryDirectory() as tmpdir:
-        tmpdir = pathlib.Path.cwd() / ".zndraw"
-        celery_data_folder_in = tmpdir / "celery" / "out"
-        celery_data_folder_in.mkdir(parents=True, exist_ok=True)
-
-        celery_data_folder_out = tmpdir / "celery" / "out"
-        celery_data_folder_out.mkdir(parents=True, exist_ok=True)
-
-        celery_data_folder_processed = tmpdir / "celery" / "processed"
-        celery_data_folder_processed.mkdir(parents=True, exist_ok=True)
-
-        cachdir = tmpdir / "cache"
-        cachdir.mkdir(parents=True, exist_ok=True)
-
-        app = Flask(__name__)
-
-        from .server import main as main_blueprint
-
-        app.register_blueprint(main_blueprint)
-
-        cache.init_app(app)
-        socketio.init_app(app, cors_allowed_origins="*")
-
-        app.config.from_mapping(
-            CELERY=dict(
-                broker_url="filesystem://",
-                broker_transport_options=dict(
-                    data_folder_in=celery_data_folder_in,
-                    data_folder_out=celery_data_folder_out,
-                    data_folder_processed=celery_data_folder_processed,
-                ),
-                result_backend="cache",
-                cache_backend="memory",
-                task_ignore_result=True,
-            ),
-        )
-        app.config.from_prefixed_env()
-        celery_app = celery_init_app(app)
-        self.app = app
-
-        print(f"file io from cache: {cache.get('FILEIO')}")
-
+        self.app = create_app()
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
@@ -160,9 +159,6 @@ class ZnDrawApp:
         cache.clear()
         for worker in self._workers:
             worker.wait()
-
-        # remove tmpdir, but only if this is the main thread
-        # and not a worker thread of celery that e.g. has been restarted
 
     def update_cache(self):
         self.app.config["SECRET_KEY"] = str(uuid.uuid4())

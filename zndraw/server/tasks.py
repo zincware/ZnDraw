@@ -39,7 +39,7 @@ def get_selection_schema(url: str, target: str):
 def read_file(url: str, target: str):
     fileio = cache.get("FILEIO")
     print(f"emitting {fileio} to {target}")
-    FILENAME = "/Users/fzills/tools/ZnDraw/tmp/BMIM_BF4_303_15K.extxyz"
+    FILENAME = "/home/rokas/Programming/data/zinc_fragments_difflinker.xyz"
     con = get_client(url)
     cache2 = next(iter(current_app.extensions["cache"]))
     print(cache2)
