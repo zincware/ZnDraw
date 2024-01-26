@@ -1,30 +1,19 @@
-import contextlib
 import dataclasses
-import datetime
 import logging
-import pathlib
 import threading
 import typing as t
 import uuid
-from io import StringIO
 
 import ase
 import ase.io
 import numpy as np
 import socketio
-import tqdm
-import znh5md
 from znframe.frame import Frame
 
-from zndraw.analyse import get_analysis_class
-from zndraw.draw import Geometry
 from zndraw.modify import UpdateScene, get_modify_class
-from zndraw.select import get_selection_class
 from zndraw.settings import GlobalConfig
 from zndraw.utils import (
     ZnDrawLoggingHandler,
-    get_cls_from_json_schema,
-    hide_discriminator_field,
 )
 
 log = logging.getLogger(__name__)
@@ -112,11 +101,7 @@ class ZnDrawBase:  # collections.abc.MutableSequence
         self.socket.sleep(0.1)
 
     def __len__(self) -> int:
-        return int(
-            self.socket.call(
-                "atoms:length", timeout=self.config.call_timeout
-            )
-        )
+        return int(self.socket.call("atoms:length", timeout=self.config.call_timeout))
 
     def __setitem__(self, index, value):
         if not isinstance(value, ase.Atoms) and not isinstance(value, Frame):
@@ -331,7 +316,6 @@ class ZnDrawBase:  # collections.abc.MutableSequence
 
     def _modifier_run(self, data) -> None:
         raise NotImplementedError
-
 
 
 @dataclasses.dataclass

@@ -1,13 +1,13 @@
 import contextlib
 import dataclasses
+import datetime
 import logging
 from threading import Lock
-
-from flask import request, session
-from flask import current_app as app
-from flask_socketio import call, emit, join_room
 from uuid import uuid4
-import datetime
+
+from flask import current_app as app
+from flask import request, session
+from flask_socketio import call, emit, join_room
 
 from zndraw.server import tasks
 from zndraw.utils import typecast
@@ -38,6 +38,7 @@ from .data import (
 log = logging.getLogger(__name__)
 
 modifier_lock = Lock()
+
 
 def get_main_room_host(token: str) -> str:
     ROOM_HOSTS = cache.get("ROOM_HOSTS")
