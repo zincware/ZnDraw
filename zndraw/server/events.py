@@ -157,6 +157,7 @@ def connect():
         # if you connect through Python, you don't have a token
         tasks.get_selection_schema.delay(request.url_root, request.sid)
         tasks.read_file.delay(request.url_root, request.sid)
+        tasks.scene_schema.delay(request.url_root, request.sid)
 
         join_room(f"webclients_{token}")
         # who ever connected latest is the HOST of the room
@@ -215,6 +216,7 @@ def connect():
 @io.on("celery:task:results")
 @typecast
 def celery_task_results(msg: CeleryTaskData):
+    print(f"celery_task_results {msg}")
     emit(msg.event, msg.data, to=msg.target)
 
 
