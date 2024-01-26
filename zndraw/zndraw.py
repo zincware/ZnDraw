@@ -10,12 +10,12 @@ import numpy as np
 import socketio
 from znframe.frame import Frame
 
+from zndraw.data import FrameData
 from zndraw.modify import UpdateScene, get_modify_class
 from zndraw.settings import GlobalConfig
 from zndraw.utils import (
     ZnDrawLoggingHandler,
 )
-from zndraw.data import FrameData
 
 log = logging.getLogger(__name__)
 
@@ -111,7 +111,14 @@ class ZnDrawBase:  # collections.abc.MutableSequence
         assert isinstance(index, int), "Index must be an integer"
         if isinstance(value, ase.Atoms):
             value = Frame.from_atoms(value)
-        self.socket.emit("atoms:upload", dataclasses.asdict(FrameData(index=index, data=value.to_dict(built_in_types=False), update=True)))
+        self.socket.emit(
+            "atoms:upload",
+            dataclasses.asdict(
+                FrameData(
+                    index=index, data=value.to_dict(built_in_types=False), update=True
+                )
+            ),
+        )
 
     def __delitem__(self, index):
         if (
