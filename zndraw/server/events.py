@@ -474,3 +474,7 @@ def scene_update(data: SceneUpdateData):
             include_self=False,
             to=camera_subscribers,
         )
+
+@io.on("scene:trash")
+def scene_trash():
+    tasks.scene_trash.delay(request.url_root, session["token"])
