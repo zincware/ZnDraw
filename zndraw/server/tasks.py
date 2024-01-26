@@ -17,7 +17,7 @@ from zndraw.utils import hide_discriminator_field
 from zndraw.zndraw import ZnDraw
 
 from ..app import cache
-from ..data import CeleryTaskData, FrameData, SelectionRunData
+from ..data import CeleryTaskData, FrameData
 
 
 def get_client(url) -> Client:

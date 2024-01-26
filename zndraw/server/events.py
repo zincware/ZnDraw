@@ -30,7 +30,6 @@ from ..data import (
     SceneStepData,
     SceneUpdateData,
     SchemaData,
-    SelectionRunData,
     SelectionSetData,
     SubscribedUserData,
 )
@@ -526,6 +525,7 @@ def selection_run(data: dict):
 @io.on("scene:trash")
 def scene_trash():
     tasks.scene_trash.delay(request.url_root, session["token"])
+
 
 @io.on("analysis:run")
 def analysis_run(data: dict):
