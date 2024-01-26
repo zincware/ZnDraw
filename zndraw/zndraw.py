@@ -263,9 +263,8 @@ class ZnDrawBase:  # collections.abc.MutableSequence
         )
 
     @selection.setter
-    def selection(self, value: list[int]):
-        data = {"selection": value, "token": self.token}
-        self.socket.emit("selection:set", data)
+    def selection(self, value: list[int]):        
+        self.socket.emit("selection:set", value)
 
     def play(self):
         self.socket.emit("scene:play", {"token": self.token})

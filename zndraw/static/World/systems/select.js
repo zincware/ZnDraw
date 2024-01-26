@@ -219,9 +219,8 @@ class Selection {
           this.shift_pressed,
           particleIntersects[0].object,
         );
-        this.socket.emit("selection:set", {
-          selection: particlesGroup.selection,
-        });
+        this.socket.emit("selection:set", particlesGroup.selection,
+        );
       }
     }
   }

@@ -362,15 +362,12 @@ def selection_get(data: AtomsLengthData):
 
 
 @io.on("selection:set")
-@typecast
-def selection_set(data: SelectionSetData):
-    if data.token is None:
-        data.token = session["token"]
+def selection_set(data: list[int]):
     emit(
         "selection:set",
-        data.selection,
+        data,
         include_self=False,
-        to=_webclients_room(data),
+        to=f"webclients_{session['token']}",
     )
 
 
