@@ -37,10 +37,12 @@ def get_selection_schema(url: str, target: str):
     )
     con = get_client(url)
     con.emit("celery:task:results", asdict(msg))
-    
+
+
 @shared_task
 def scene_schema(url: str, target: str):
     import enum
+
     from pydantic import BaseModel, Field
 
     class Material(str, enum.Enum):
@@ -107,8 +109,9 @@ def scene_schema(url: str, target: str):
     con = get_client(url)
     con.emit("celery:task:results", asdict(msg))
 
+
 @shared_task
-def scene_trash(url:str, token:str):
+def scene_trash(url: str, token: str):
     vis = ZnDraw(url=url, token=token)
     del vis[vis.step + 1 :]
     if len(vis.selection) == 0:
@@ -120,6 +123,7 @@ def scene_trash(url:str, token:str):
         vis.append(atoms)
     vis.selection = []
     vis.points = []
+
 
 @shared_task
 def read_file(url: str, target: str):
