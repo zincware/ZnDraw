@@ -31,9 +31,9 @@ from .data import (
     SceneSetData,
     SceneStepData,
     SceneUpdateData,
+    SelectionRunData,
     SelectionSetData,
     SubscribedUserData,
-    SelectionRunData,
 )
 
 log = logging.getLogger(__name__)
@@ -202,7 +202,11 @@ def connect():
         cache.set("PER-TOKEN-DATA", PER_TOKEN_DATA)
 
         # append to zndraw.log a line isoformat() + " " + token
-        log.info(datetime.datetime.now().isoformat() + " " + token if token else "client" + " connected")
+        log.info(
+            datetime.datetime.now().isoformat() + " " + token
+            if token
+            else "client" + " connected"
+        )
 
     except KeyError:
         pass
@@ -514,7 +518,6 @@ def scene_update(data: SceneUpdateData):
             include_self=False,
             to=camera_subscribers,
         )
-
 
 
 @io.on("selection:run")
