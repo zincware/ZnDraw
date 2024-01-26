@@ -2,8 +2,8 @@ from typing import Optional
 
 import typer
 
+from zndraw.app import FileIO, ZnDrawApp
 from zndraw.utils import get_port
-from zndraw.app import ZnDrawApp, FileIO
 
 cli = typer.Typer()
 

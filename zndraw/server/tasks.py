@@ -3,14 +3,14 @@ from dataclasses import asdict
 import ase.io
 import znframe
 from celery import shared_task
+from flask import current_app
 from socketio import Client
 
 from zndraw.select import get_selection_class
 from zndraw.settings import GlobalConfig
 
-from .data import CeleryTaskData
 from ..app import cache
-from flask import current_app
+from .data import CeleryTaskData
 
 
 def get_client(url) -> Client:

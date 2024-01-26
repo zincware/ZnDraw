@@ -45,7 +45,6 @@ class Config:
     retries: int = 100
 
 
-
 @dataclasses.dataclass
 class ZnDrawBase:  # collections.abc.MutableSequence
     """
@@ -151,7 +150,11 @@ class ZnDrawBase:  # collections.abc.MutableSequence
         self.socket.emit("atoms:upload", data)
 
     def __delitem__(self, index):
-        if isinstance(index, int) or isinstance(index, slice) or isinstance(index, list):
+        if (
+            isinstance(index, int)
+            or isinstance(index, slice)
+            or isinstance(index, list)
+        ):
             length = len(self)
             is_slice = isinstance(index, slice)
             if is_slice:
@@ -345,7 +348,7 @@ class ZnDrawBase:  # collections.abc.MutableSequence
 
 @dataclasses.dataclass
 class ZnDrawDefault(ZnDrawBase):
-    file_io: dict= None
+    file_io: dict = None
     register_socket_events: bool = True
 
     def __post_init__(self):
@@ -392,7 +395,9 @@ class ZnDrawDefault(ZnDrawBase):
                         vis.draw_schema()
                     vis[idx] = atoms
                     # self.step = idx # double the message count ..., replace with part of the setitem message, benchmark
-            log.warning(f"{datetime.datetime.now() - start_time} Finished sending data.")
+            log.warning(
+                f"{datetime.datetime.now() - start_time} Finished sending data."
+            )
         else:
             # load the data from the room host webclient (e.g. token)
             with vis._set_token(token):

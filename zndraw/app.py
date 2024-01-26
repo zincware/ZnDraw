@@ -1,8 +1,7 @@
-import contextlib
+import dataclasses
 import pathlib
 import subprocess
 import uuid
-import dataclasses
 import webbrowser
 
 from celery import Celery, Task
@@ -11,6 +10,7 @@ from flask_caching import Cache
 from flask_socketio import SocketIO
 
 socketio = SocketIO()
+
 
 def get_cache():
     # read config for cache from zndraw config
@@ -23,7 +23,9 @@ def get_cache():
     )
     return cache
 
+
 cache = get_cache()
+
 
 @dataclasses.dataclass
 class FileIO:
@@ -158,10 +160,10 @@ class ZnDrawApp:
         cache.clear()
         for worker in self._workers:
             worker.wait()
-        
+
         # remove tmpdir, but only if this is the main thread
         # and not a worker thread of celery that e.g. has been restarted
-            
+
     def update_cache(self):
         self.app.config["SECRET_KEY"] = str(uuid.uuid4())
 
@@ -176,7 +178,7 @@ class ZnDrawApp:
         setup_cache()
         self.fileio.name = "This is a test"
         cache.set("FILEIO", self.fileio)
-        
+
     def run(self, browser=False):
         self.update_cache()
         self._workers = setup_worker()

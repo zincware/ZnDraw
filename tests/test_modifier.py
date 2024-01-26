@@ -56,7 +56,9 @@ class RunType3(BaseModel):
 
 class NestedModifier(UpdateScene):
     discriminator: t.Literal["NestedModifier"] = "NestedModifier"
-    run_type: t.Union[RunType1, RunType2, RunType3] = Field(discriminator="discriminator")
+    run_type: t.Union[RunType1, RunType2, RunType3] = Field(
+        discriminator="discriminator"
+    )
 
     def run(self, vis: ZnDraw) -> None:
         vis.append(molecule("H2O"))
@@ -100,7 +102,9 @@ class TestZnDrawModifier:
         assert vis._modifiers["CustomModifierRunKwargs"]["run_kwargs"] == {
             "structure": "CH4"
         }
-        assert vis._modifiers["CustomModifierRunKwargs"]["cls"] == CustomModifierRunKwargs
+        assert (
+            vis._modifiers["CustomModifierRunKwargs"]["cls"] == CustomModifierRunKwargs
+        )
 
         send_raw(
             vis,

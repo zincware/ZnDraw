@@ -144,7 +144,9 @@ class Properties1D(BaseModel):
     def model_json_schema_from_atoms(cls, schema: dict) -> dict:
         ATOMS = SHARED["atoms"]
         try:
-            available_properties = list(ATOMS.calc.results.keys())  # global ATOMS object
+            available_properties = list(
+                ATOMS.calc.results.keys()
+            )  # global ATOMS object
             log.debug(f"AVAILABLE PROPERTIES: {available_properties=}")
             schema["properties"]["value"]["enum"] = available_properties
         except AttributeError:
@@ -190,7 +192,9 @@ def get_analysis_class(methods):
             return self.method.run(*args, **kwargs)
 
         @classmethod
-        def model_json_schema_from_atoms(cls, atoms, *args, **kwargs) -> dict[str, t.Any]:
+        def model_json_schema_from_atoms(
+            cls, atoms, *args, **kwargs
+        ) -> dict[str, t.Any]:
             with set_global_atoms(atoms):
                 result = cls.model_json_schema(*args, **kwargs)
             return result
