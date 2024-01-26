@@ -54,7 +54,9 @@ def exit_route(token: str = None):
     if token != current_app.config["AUTH_TOKEN"]:
         return "Invalid auth token", 403
 
-    from ..app import socketio
+    from ..app import socketio, cache
+
+    cache.clear()
 
     socketio.stop()
     return "Server shutting down..."

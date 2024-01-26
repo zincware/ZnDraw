@@ -162,3 +162,5 @@ cython_debug/
 tmp/
 .vscode
 data/
+.zndraw/
+control/

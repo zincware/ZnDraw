@@ -4,6 +4,9 @@ import ase.io
 import znframe
 from celery import shared_task
 from socketio import Client
+from flask_caching import Cache
+from zndraw.app import create_app, cache
+import tqdm
 
 from zndraw.select import get_selection_class
 from zndraw.settings import GlobalConfig
@@ -52,3 +55,5 @@ def read_file(url: str, target: str):
         )
 
         con.emit("celery:task:results", asdict(msg))
+        if idx > 10:
+            break
