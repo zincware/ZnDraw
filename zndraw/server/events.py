@@ -154,7 +154,6 @@ def connect():
     try:
         token = session["token"]
         # if you connect through Python, you don't have a token
-        print("Submitting jobs .....................")
         tasks.get_selection_schema.delay(request.url_root, request.sid)
         tasks.read_file.delay(request.url_root, request.sid)
 
