@@ -21,7 +21,7 @@ class Selection {
       let points = this.line3D.anchorPoints.children.map((x) => x.position);
       // convert x, y, z to [x, y, z]
       points = points.map((x) => [x.x, x.y, x.z]);
-      this.socket.emit("points:set", { value: points });
+      this.socket.emit("points:set", points);
     };
 
     this.raycaster = new THREE.Raycaster();

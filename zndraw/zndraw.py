@@ -228,8 +228,7 @@ class ZnDrawBase:  # collections.abc.MutableSequence
                 assert len(value[0]) == 3
             except (TypeError, AssertionError):
                 raise ValueError("Points must be a list of 3D coordinates")
-        data = {"value": value, "token": self.token}
-        self.socket.emit("points:set", data)
+        self.socket.emit("points:set", value)
 
     @property
     def segments(self) -> np.ndarray:
@@ -289,8 +288,7 @@ class ZnDrawBase:  # collections.abc.MutableSequence
 
     @bookmarks.setter
     def bookmarks(self, value: dict):
-        data = {"bookmarks": value, "token": self.token}
-        self.socket.emit("bookmarks:set", data)
+        self.socket.emit("bookmarks:set", value)
 
     def _pre_modifier_run(self, data) -> None:
         # TODO: this should be inside the _set_sid ?

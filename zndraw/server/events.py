@@ -374,7 +374,7 @@ def selection_set(data: list[int]):
 @io.on("message:log")
 @typecast
 def message_log(data: MessageData):
-    emit("message:log", data.message, to=_webclients_room(data))
+    emit("message:log", data.message, to=f"webclients_{session['token']}")
 
 
 @io.on("download:response")
@@ -386,14 +386,14 @@ def download_response(data):
 @typecast
 def scene_play(data: PlayData):
     log.debug(f"scene:play {data}")
-    emit("scene:play", to=_webclients_room(data))
+    emit("scene:play", to=f"webclients_{session['token']}")
 
 
 @io.on("scene:pause")
 @typecast
 def scene_pause(data: PlayData):
     log.debug(f"scene:pause {data}")
-    emit("scene:pause", to=_webclients_room(data))
+    emit("scene:pause", to=f"webclients_{session['token']}")
 
 
 @io.on("bookmarks:get")
@@ -404,21 +404,18 @@ def bookmarks_get(data: AtomsLengthData):
 
 @io.on("bookmarks:set")
 @typecast
-def bookmarks_set(data: BookmarksSetData):
+def bookmarks_set(data: dict):
     emit(
         "bookmarks:set",
-        data.bookmarks,
+        data,
         include_self=False,
-        to=_webclients_room(data),
+        to=f"webclients_{session['token']}",
     )
 
 
 @io.on("points:set")
-@typecast
-def points_set(data: PointsSetData):
-    if data.token is None:
-        data.token = session["token"]
-    emit("points:set", data.value, include_self=False, to=_webclients_room(data))
+def points_set(data: list[list[float]]):
+    emit("points:set", data, include_self=False, to=f"webclients_{session['token']}")
 
 
 @io.on("debug")
