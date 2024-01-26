@@ -10,6 +10,7 @@ import numpy as np
 import socketio
 from znframe.frame import Frame
 
+from zndraw.data import FrameData
 from zndraw.modify import UpdateScene, get_modify_class
 from zndraw.settings import GlobalConfig
 from zndraw.utils import (
@@ -108,18 +109,16 @@ class ZnDrawBase:  # collections.abc.MutableSequence
             raise ValueError("Must be an ase.Atoms or Frame object")
 
         assert isinstance(index, int), "Index must be an integer"
-
         if isinstance(value, ase.Atoms):
             value = Frame.from_atoms(value)
-        data = {
-            index: value.to_dict(built_in_types=False),
-            "display_new": self.display_new,
-            "token": self.token,
-        }
-        if self._target_sid is not None:
-            # this only affects initial loading of data if a new webclient connects
-            data["sid"] = self._target_sid
-        self.socket.emit("atoms:upload", data)
+        self.socket.emit(
+            "atoms:upload",
+            dataclasses.asdict(
+                FrameData(
+                    index=index, data=value.to_dict(built_in_types=False), update=True
+                )
+            ),
+        )
 
     def __delitem__(self, index):
         if (

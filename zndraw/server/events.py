@@ -14,7 +14,7 @@ from zndraw.utils import typecast
 
 from ..app import cache
 from ..app import socketio as io
-from .data import (
+from ..data import (
     AnalysisFigureData,
     AtomsDownloadData,
     AtomsLengthData,
@@ -241,7 +241,7 @@ def disconnect():
             list(reversed(connected_users)),
             to=_webclients_room({"token": token}),
         )
-    log.debug(f"disconnect {request.sid} and updated HOSTS to {ROOM_HOSTS}")
+    # log.debug(f"disconnect {request.sid} and updated HOSTS to {ROOM_HOSTS}")
 
 
 @io.on("join")
@@ -296,12 +296,7 @@ def atoms_download(data: AtomsDownloadData):
 
 @io.on("atoms:upload")
 def atoms_upload(data: dict):
-    # TODO: this has a bad structure and should be updates to fixed keys!
-    to = _webclients_default(data)
-    # remove token and sid from the data, because JavaScript does not expect it
-    data.pop("token", None)
-    data.pop("sid", None)
-    emit("atoms:upload", data, include_self=False, to=to)
+    emit("atoms:upload", data, include_self=False, to=f"webclients_{session['token']}")
 
 
 @io.on("atoms:delete")
