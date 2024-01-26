@@ -1,14 +1,12 @@
-import contextlib
 import dataclasses
 import datetime
 import logging
 from threading import Lock
 from uuid import uuid4
 
-from flask import current_app as app
+from celery import chain
 from flask import request, session
 from flask_socketio import call, emit, join_room
-from celery import chain
 
 from zndraw.server import tasks
 from zndraw.utils import typecast
@@ -163,8 +161,6 @@ def connect():
         tasks.scene_schema.delay(request.url_root, request.sid)
         tasks.geometries_schema.delay(request.url_root, request.sid)
 
-        
-
         join_room(f"webclients_{token}")
         # who ever connected latest is the HOST of the room
         ROOM_HOSTS = cache.get("ROOM_HOSTS")
@@ -235,17 +231,17 @@ def disconnect():
         return
     if request.sid in ROOM_HOSTS[token]:
         ROOM_HOSTS[token].remove(request.sid)
-    if  len(ROOM_HOSTS[token]) == 0:
+    if len(ROOM_HOSTS[token]) == 0:
         del ROOM_HOSTS[token]
     cache.set("ROOM_HOSTS", ROOM_HOSTS)
     # with contextlib.suppress(KeyError):
-        
+
     #     PYCLIENTS = cache.get("pyclients")
     #     PYCLIENTS.pop(_get_uuid_for_sid(request.sid), None)
 
     #     cache.set("pyclients", PYCLIENTS)
     #     log.info(f"disconnect {request.sid} and updated PYCLIENTS to {PYCLIENTS}")
-        
+
     #     # remove the pyclient from the dict
     #     names = cache.get(f"PER-TOKEN-NAME:{session['token']}") or {}
     #     connected_users = [{"name": names[sid]} for sid in ROOM_HOSTS[token]]
