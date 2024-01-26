@@ -282,25 +282,25 @@ def join(data: JoinData):
 @io.on("analysis:figure")
 @typecast
 def analysis_figure(data: AnalysisFigureData):
-    emit("analysis:figure", data.figure, include_self=False, to=_webclients_room(data))
+    emit("analysis:figure", data.figure, include_self=False, to=f"webclients_{session['token']}")
 
 
 @io.on("scene:set")
 @typecast
 def scene_set(data: SceneSetData):
-    emit("scene:set", data.index, include_self=False, to=_webclients_room(data))
+    emit("scene:set", data.index, include_self=False, to=f"webclients_{session['token']}")
 
 
 @io.on("scene:step")
 @typecast
-def scene_step(data: SceneStepData):
-    return call("scene:step", to=_webclients_room(data))
+def scene_step():
+    return call("scene:step", to=f"webclients_{session['token']}")
 
 
 @io.on("atoms:download")
 @typecast
 def atoms_download(data: AtomsDownloadData):
-    return call("atoms:download", data.indices, to=_webclients_default(data))
+    return call("atoms:download", data.indices, to=get_main_room_host(session["token"]))
 
 
 @io.on("atoms:upload")
@@ -311,7 +311,7 @@ def atoms_upload(data: dict):
 @io.on("atoms:delete")
 @typecast
 def atoms_delete(data: DeleteAtomsData):
-    emit("atoms:delete", data.index, include_self=False, to=_webclients_room(data))
+    emit("atoms:delete", data.index, include_self=False, to=f"webclients_{session['token']}")
 
 
 @io.on("atoms:length")
@@ -381,22 +381,20 @@ def download_response(data):
 
 @io.on("scene:play")
 @typecast
-def scene_play(data: PlayData):
-    log.debug(f"scene:play {data}")
+def scene_play():
     emit("scene:play", to=f"webclients_{session['token']}")
 
 
 @io.on("scene:pause")
 @typecast
-def scene_pause(data: PlayData):
-    log.debug(f"scene:pause {data}")
+def scene_pause():
     emit("scene:pause", to=f"webclients_{session['token']}")
 
 
 @io.on("bookmarks:get")
 @typecast
-def bookmarks_get(data: AtomsLengthData):
-    return call("bookmarks:get", to=_webclients_default(data))
+def bookmarks_get():
+    return call("bookmarks:get", to=get_main_room_host(session["token"]))
 
 
 @io.on("bookmarks:set")

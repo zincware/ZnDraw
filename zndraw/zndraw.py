@@ -242,7 +242,6 @@ class ZnDrawBase:  # collections.abc.MutableSequence
         step = int(
             self.socket.call(
                 "scene:step",
-                {"token": self.token},
                 timeout=self.config.call_timeout,
             )
         )
@@ -266,10 +265,10 @@ class ZnDrawBase:  # collections.abc.MutableSequence
         self.socket.emit("selection:set", value)
 
     def play(self):
-        self.socket.emit("scene:play", {"token": self.token})
+        self.socket.emit("scene:play")
 
     def pause(self):
-        self.socket.emit("scene:pause", {"token": self.token})
+        self.socket.emit("scene:pause")
 
     @property
     def figure(self):
@@ -283,7 +282,7 @@ class ZnDrawBase:  # collections.abc.MutableSequence
     @property
     def bookmarks(self) -> dict:
         return self.socket.call(
-            "bookmarks:get", {"token": self.token}, timeout=self.config.call_timeout
+            "bookmarks:get", timeout=self.config.call_timeout
         )
 
     @bookmarks.setter
