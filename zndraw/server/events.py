@@ -8,6 +8,7 @@ from uuid import uuid4
 from flask import current_app as app
 from flask import request, session
 from flask_socketio import call, emit, join_room
+from celery import chain
 
 from zndraw.server import tasks
 from zndraw.utils import typecast
@@ -153,11 +154,16 @@ def connect():
     try:
         token = session["token"]
         # if you connect through Python, you don't have a token
-        tasks.read_file.delay(request.url_root, request.sid)
+        read_file_chain = chain(
+            tasks.read_file.s(request.url_root, request.sid),
+            tasks.analysis_schema.si(request.url_root, token),
+        )
+        read_file_chain.delay()
         tasks.get_selection_schema.delay(request.url_root, request.sid)
         tasks.scene_schema.delay(request.url_root, request.sid)
         tasks.geometries_schema.delay(request.url_root, request.sid)
-        tasks.analysis_schema.apply_async((request.url_root, token), countdown=5)
+
+        
 
         join_room(f"webclients_{token}")
         # who ever connected latest is the HOST of the room
@@ -210,7 +216,9 @@ def connect():
         )
 
     except KeyError:
-        pass
+        # clients that connect directly via socketio do not call "join" to
+        # register their token
+        session["token"] = None
 
 
 @io.on("celery:task:results")
@@ -221,27 +229,31 @@ def celery_task_results(msg: CeleryTaskData):
 
 @io.on("disconnect")
 def disconnect():
-    with contextlib.suppress(KeyError):
-        token = session["token"]
-        PYCLIENTS = cache.get("pyclients")
-        PYCLIENTS.pop(_get_uuid_for_sid(request.sid), None)
+    token = session["token"]
+    ROOM_HOSTS = cache.get("ROOM_HOSTS")
+    if token not in ROOM_HOSTS:
+        return
+    if request.sid in ROOM_HOSTS[token]:
+        ROOM_HOSTS[token].remove(request.sid)
+    if  len(ROOM_HOSTS[token]) == 0:
+        del ROOM_HOSTS[token]
+    cache.set("ROOM_HOSTS", ROOM_HOSTS)
+    # with contextlib.suppress(KeyError):
+        
+    #     PYCLIENTS = cache.get("pyclients")
+    #     PYCLIENTS.pop(_get_uuid_for_sid(request.sid), None)
 
-        cache.set("pyclients", PYCLIENTS)
-        log.info(f"disconnect {request.sid} and updated PYCLIENTS to {PYCLIENTS}")
-        ROOM_HOSTS = cache.get("ROOM_HOSTS")
-        if request.sid in ROOM_HOSTS[token]:
-            ROOM_HOSTS[token].remove(request.sid)
-        if not ROOM_HOSTS[token]:
-            del ROOM_HOSTS[token]
-        cache.set("ROOM_HOSTS", ROOM_HOSTS)
-        # remove the pyclient from the dict
-        names = cache.get(f"PER-TOKEN-NAME:{session['token']}") or {}
-        connected_users = [{"name": names[sid]} for sid in ROOM_HOSTS[token]]
-        emit(
-            "connectedUsers",
-            list(reversed(connected_users)),
-            to=_webclients_room({"token": token}),
-        )
+    #     cache.set("pyclients", PYCLIENTS)
+    #     log.info(f"disconnect {request.sid} and updated PYCLIENTS to {PYCLIENTS}")
+        
+    #     # remove the pyclient from the dict
+    #     names = cache.get(f"PER-TOKEN-NAME:{session['token']}") or {}
+    #     connected_users = [{"name": names[sid]} for sid in ROOM_HOSTS[token]]
+    #     emit(
+    #         "connectedUsers",
+    #         list(reversed(connected_users)),
+    #         to=_webclients_room({"token": token}),
+    #     )
     # log.debug(f"disconnect {request.sid} and updated HOSTS to {ROOM_HOSTS}")
 
 
@@ -253,22 +265,22 @@ def join(data: JoinData):
         data: {"token": str, "uuid": str}
     """
     # only used by pyclients that only connect via socket (no HTML)
-    session["authenticated"] = data.auth_token == app.config["AUTH_TOKEN"]
-    log.debug(f"Client {request.sid} is {session['authenticated'] = }")
-    PYCLIENTS = cache.get("pyclients")
-    if data.uuid in PYCLIENTS:
-        log.critical(
-            f"UUID {data.uuid} is already registered in {app.config['pyclients']}."
-        )
-        emit("message:log", f"UUID {data.uuid} is already registered", to=request.sid)
-    PYCLIENTS[data.uuid] = request.sid
-    cache.set("pyclients", PYCLIENTS)
+    # session["authenticated"] = data.auth_token == app.config["AUTH_TOKEN"]
+    # log.debug(f"Client {request.sid} is {session['authenticated'] = }")
+    # PYCLIENTS = cache.get("pyclients")
+    # if data.uuid in PYCLIENTS:
+    #     log.critical(
+    #         f"UUID {data.uuid} is already registered in {app.config['pyclients']}."
+    #     )
+    #     emit("message:log", f"UUID {data.uuid} is already registered", to=request.sid)
+    # PYCLIENTS[data.uuid] = request.sid
+    # cache.set("pyclients", PYCLIENTS)
     session["token"] = data.token
-    join_room(f"pyclients_{data.token}")
-    PER_TOKEN_DATA = cache.get("PER-TOKEN-DATA")
-    if data.token not in PER_TOKEN_DATA:
-        PER_TOKEN_DATA[data.token] = {}
-    cache.set("PER-TOKEN-DATA", PER_TOKEN_DATA)
+    # join_room(f"pyclients_{data.token}")
+    # PER_TOKEN_DATA = cache.get("PER-TOKEN-DATA")
+    # if data.token not in PER_TOKEN_DATA:
+    #     PER_TOKEN_DATA[data.token] = {}
+    # cache.set("PER-TOKEN-DATA", PER_TOKEN_DATA)
 
 
 @io.on("analysis:figure")
