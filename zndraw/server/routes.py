@@ -69,7 +69,6 @@ def file(file: str):
         token = session["token"]
     except KeyError:
         token = uuid.uuid4().hex if current_app.config["USE_TOKEN"] else None
-        token = uuid.uuid4().hex
         session["token"] = token
     url = request.url_root
     print(f"URL: {url}")
