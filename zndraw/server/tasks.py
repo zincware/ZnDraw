@@ -1,3 +1,4 @@
+import datetime
 import pathlib
 from dataclasses import asdict
 
@@ -11,8 +12,9 @@ from socketio import Client
 from zndraw.select import get_selection_class
 from zndraw.settings import GlobalConfig
 from zndraw.zndraw import ZnDraw
+
 from ..app import cache
-from .data import CeleryTaskData, FrameData
+from .data import CeleryTaskData, FrameData, SelectionRunData
 
 
 def get_client(url) -> Client:
@@ -35,10 +37,12 @@ def get_selection_schema(url: str, target: str):
     )
     con = get_client(url)
     con.emit("celery:task:results", asdict(msg))
-    
+
+
 @shared_task
 def scene_schema(url: str, target: str):
     import enum
+
     from pydantic import BaseModel, Field
 
     class Material(str, enum.Enum):
@@ -105,8 +109,9 @@ def scene_schema(url: str, target: str):
     con = get_client(url)
     con.emit("celery:task:results", asdict(msg))
 
+
 @shared_task
-def scene_trash(url:str, token:str):
+def scene_trash(url: str, token: str):
     vis = ZnDraw(url=url, token=token)
     del vis[vis.step + 1 :]
     if len(vis.selection) == 0:
@@ -118,6 +123,7 @@ def scene_trash(url:str, token:str):
         vis.append(atoms)
     vis.selection = []
     vis.points = []
+
 
 @shared_task
 def read_file(url: str, target: str):
@@ -178,3 +184,21 @@ def read_file(url: str, target: str):
         con.emit("celery:task:results", asdict(msg))
 
         frame += 1
+
+
+@shared_task
+def run_selection(url: str, token: str, data: SelectionRunData):
+    data = SelectionRunData(**data)
+    print(datetime.datetime.now().isoformat())
+    vis = ZnDraw(url=url, token=token)
+
+    config = GlobalConfig.load()
+    cls = get_selection_class(config.get_selection_methods())
+
+    try:
+        selection = cls(**data.params)
+        selection.run(vis)
+    except ValueError as err:
+        vis.log.critical(err)
+
+    print(datetime.datetime.now().isoformat())
