@@ -160,10 +160,12 @@ def connect():
         join_room(f"webclients_{token}")
         # who ever connected latest is the HOST of the room
         ROOM_HOSTS = cache.get("ROOM_HOSTS")
-        try:
-            ROOM_HOSTS[token].append(request.sid)
-        except KeyError:
+        
+        if token not in ROOM_HOSTS:
             ROOM_HOSTS[token] = [request.sid]
+        else:
+            ROOM_HOSTS[token].append(request.sid)
+
         cache.set("ROOM_HOSTS", ROOM_HOSTS)
 
         data = {"sid": request.sid, "token": token}
