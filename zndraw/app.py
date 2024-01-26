@@ -46,6 +46,7 @@ def setup_cache():
     cache.set("PER-TOKEN-DATA", {})
     cache.set("MODIFIER", {"default_schema": {}, "active": None, "queue": []})
 
+
 def setup_worker() -> list:
     """Setup the worker."""
     fast_worker = subprocess.Popen(
@@ -74,7 +75,6 @@ def setup_worker() -> list:
         ]
     )
     return [fast_worker, slow_worker]
-
 
 
 @dataclasses.dataclass
@@ -142,14 +142,13 @@ class ZnDrawApp:
 
         return self
 
-    def __exit__(self, exc_type, exc_value, traceback): 
+    def __exit__(self, exc_type, exc_value, traceback):
         for worker in self.workers:
             worker.terminate()
         cache.clear()
         for worker in self.workers:
             worker.wait()
 
-    
     def run(self, browser=False):
         if browser:
             webbrowser.open(self.url_root)

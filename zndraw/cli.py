@@ -81,7 +81,13 @@ def main(
     if port is None:
         port = get_port()
 
-    with ZnDrawApp(use_token=use_token, upgrade_insecure_requests=upgrade_insecure_requests, compute_bonds=compute_bonds, tutorial=tutorial, auth_token=auth_token) as app:
+    with ZnDrawApp(
+        use_token=use_token,
+        upgrade_insecure_requests=upgrade_insecure_requests,
+        compute_bonds=compute_bonds,
+        tutorial=tutorial,
+        auth_token=auth_token,
+    ) as app:
         app.run(browser=True)
 
     # view(
