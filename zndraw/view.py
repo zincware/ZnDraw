@@ -2,7 +2,7 @@ import logging
 import multiprocessing as mp
 import webbrowser
 
-from zndraw.app import create_app, socketio
+from zndraw.app import ZnDrawApp, socketio
 from zndraw.zndraw import FileIO, ZnDrawDefault
 
 try:
@@ -56,7 +56,7 @@ def view(
 ):
     url = f"http://127.0.0.1:{port}"
 
-    with create_app(
+    with ZnDrawApp(
         use_token=use_token,
         upgrade_insecure_requests=upgrade_insecure_requests,
         compute_bonds=compute_bonds,
@@ -64,17 +64,6 @@ def view(
         auth_token=auth_token,
     ) as app:
         file_io = FileIO(filename, start, stop, step, remote, rev)
-
-        proc = mp.Process(
-            target=ZnDrawDefault,
-            kwargs={
-                "url": url,
-                "token": "default",
-                "file_io": file_io,
-                "auth_token": auth_token,
-            },
-        )
-        proc.start()
 
         log.critical(f"Starting ZnDraw server at {url}")
 
@@ -88,8 +77,6 @@ def view(
 
         socketio.run(app, port=port, host="0.0.0.0")
 
-        proc.terminate()
-        proc.join()
         if wv is not None and webview:
             wv_proc.terminate()
             wv_proc.join()

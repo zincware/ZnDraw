@@ -2,6 +2,7 @@ import contextlib
 import pathlib
 import subprocess
 import uuid
+import dataclasses
 
 from celery import Celery, Task
 from flask import Flask
@@ -44,61 +45,8 @@ def setup_cache():
     cache.set("PER-TOKEN-DATA", {})
     cache.set("MODIFIER", {"default_schema": {}, "active": None, "queue": []})
 
-
-@contextlib.contextmanager
-def create_app(
-    use_token, upgrade_insecure_requests, compute_bonds, tutorial: str, auth_token: str
-) -> Flask:
-    """Create the Flask app."""
-    # with tempfile.TemporaryDirectory() as tmpdir:
-    tmpdir = pathlib.Path.cwd() / ".zndraw"
-    celery_data_folder_in = tmpdir / "celery" / "out"
-    celery_data_folder_in.mkdir(parents=True, exist_ok=True)
-
-    celery_data_folder_out = tmpdir / "celery" / "out"
-    celery_data_folder_out.mkdir(parents=True, exist_ok=True)
-
-    celery_data_folder_processed = tmpdir / "celery" / "processed"
-    celery_data_folder_processed.mkdir(parents=True, exist_ok=True)
-
-    cachdir = tmpdir / "cache"
-    cachdir.mkdir(parents=True, exist_ok=True)
-
-    app = Flask(__name__)
-    app.config["SECRET_KEY"] = str(uuid.uuid4())
-
-    app.config["TUTORIAL"] = tutorial
-    app.config["AUTH_TOKEN"] = auth_token
-
-    if not use_token:  # TODO: handle this differently
-        app.config["token"] = "notoken"
-    app.config["upgrade_insecure_requests"] = upgrade_insecure_requests
-    app.config["compute_bonds"] = compute_bonds
-
-    from .server import main as main_blueprint
-
-    app.register_blueprint(main_blueprint)
-
-    cache.init_app(app)
-    socketio.init_app(app, cors_allowed_origins="*")
-    setup_cache()
-
-    app.config.from_mapping(
-        CELERY=dict(
-            broker_url="filesystem://",
-            broker_transport_options=dict(
-                data_folder_in=celery_data_folder_in,
-                data_folder_out=celery_data_folder_out,
-                data_folder_processed=celery_data_folder_processed,
-            ),
-            result_backend="cache",
-            cache_backend="memory",
-            task_ignore_result=True,
-        ),
-    )
-    app.config.from_prefixed_env()
-    celery_app = celery_init_app(app)
-
+def setup_worker() -> list:
+    """Setup the worker."""
     fast_worker = subprocess.Popen(
         [
             "celery",
@@ -124,14 +72,79 @@ def create_app(
             "--queues=slow",
         ]
     )
+    return [fast_worker, slow_worker]
 
-    yield app
 
-    fast_worker.terminate()
-    slow_worker.terminate()
-    cache.clear()
-    slow_worker.wait()
-    fast_worker.wait()
 
-    # remove tmpdir, but only if this is the main thread
-    # and not a worker thread of celery that e.g. has been restarted
+@dataclasses.dataclass
+class ZnDrawApp:
+    use_token: bool
+    upgrade_insecure_requests: bool
+    compute_bonds: bool
+    tutorial: str
+    auth_token: str
+
+    workers: list = dataclasses.field(init=False, default_factory=setup_worker)
+
+    def __enter__(self):
+        """Create the Flask app."""
+        # with tempfile.TemporaryDirectory() as tmpdir:
+        tmpdir = pathlib.Path.cwd() / ".zndraw"
+        celery_data_folder_in = tmpdir / "celery" / "out"
+        celery_data_folder_in.mkdir(parents=True, exist_ok=True)
+
+        celery_data_folder_out = tmpdir / "celery" / "out"
+        celery_data_folder_out.mkdir(parents=True, exist_ok=True)
+
+        celery_data_folder_processed = tmpdir / "celery" / "processed"
+        celery_data_folder_processed.mkdir(parents=True, exist_ok=True)
+
+        cachdir = tmpdir / "cache"
+        cachdir.mkdir(parents=True, exist_ok=True)
+
+        app = Flask(__name__)
+        app.config["SECRET_KEY"] = str(uuid.uuid4())
+
+        app.config["TUTORIAL"] = self.tutorial
+        app.config["AUTH_TOKEN"] = self.auth_token
+
+        if not self.use_token:  # TODO: handle this differently
+            app.config["token"] = "notoken"
+        app.config["upgrade_insecure_requests"] = self.upgrade_insecure_requests
+        app.config["compute_bonds"] = self.compute_bonds
+
+        from .server import main as main_blueprint
+
+        app.register_blueprint(main_blueprint)
+
+        cache.init_app(app)
+        socketio.init_app(app, cors_allowed_origins="*")
+        setup_cache()
+
+        app.config.from_mapping(
+            CELERY=dict(
+                broker_url="filesystem://",
+                broker_transport_options=dict(
+                    data_folder_in=celery_data_folder_in,
+                    data_folder_out=celery_data_folder_out,
+                    data_folder_processed=celery_data_folder_processed,
+                ),
+                result_backend="cache",
+                cache_backend="memory",
+                task_ignore_result=True,
+            ),
+        )
+        app.config.from_prefixed_env()
+        celery_app = celery_init_app(app)
+
+        return app
+
+    def __exit__(self, exc_type, exc_value, traceback): 
+        for worker in self.workers:
+            worker.terminate()
+        cache.clear()
+        for worker in self.workers:
+            worker.wait()
+
+        # remove tmpdir, but only if this is the main thread
+        # and not a worker thread of celery that e.g. has been restarted
