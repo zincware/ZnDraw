@@ -17,19 +17,14 @@ from ..data import (
     AnalysisFigureData,
     AtomsDownloadData,
     AtomsLengthData,
-    BookmarksSetData,
     CeleryTaskData,
     DeleteAtomsData,
     JoinData,
     MessageData,
     ModifierRunRunningData,
-    PlayData,
-    PointsSetData,
     SceneSetData,
-    SceneStepData,
     SceneUpdateData,
     SchemaData,
-    SelectionSetData,
     SubscribedUserData,
 )
 
@@ -282,13 +277,20 @@ def join(data: JoinData):
 @io.on("analysis:figure")
 @typecast
 def analysis_figure(data: AnalysisFigureData):
-    emit("analysis:figure", data.figure, include_self=False, to=f"webclients_{session['token']}")
+    emit(
+        "analysis:figure",
+        data.figure,
+        include_self=False,
+        to=f"webclients_{session['token']}",
+    )
 
 
 @io.on("scene:set")
 @typecast
 def scene_set(data: SceneSetData):
-    emit("scene:set", data.index, include_self=False, to=f"webclients_{session['token']}")
+    emit(
+        "scene:set", data.index, include_self=False, to=f"webclients_{session['token']}"
+    )
 
 
 @io.on("scene:step")
@@ -311,7 +313,12 @@ def atoms_upload(data: dict):
 @io.on("atoms:delete")
 @typecast
 def atoms_delete(data: DeleteAtomsData):
-    emit("atoms:delete", data.index, include_self=False, to=f"webclients_{session['token']}")
+    emit(
+        "atoms:delete",
+        data.index,
+        include_self=False,
+        to=f"webclients_{session['token']}",
+    )
 
 
 @io.on("atoms:length")

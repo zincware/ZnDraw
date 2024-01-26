@@ -214,9 +214,7 @@ class ZnDrawBase:  # collections.abc.MutableSequence
 
     @property
     def points(self) -> np.ndarray:
-        data = self.socket.call(
-            "points:get", timeout=self.config.call_timeout
-        )
+        data = self.socket.call("points:get", timeout=self.config.call_timeout)
         return np.array([[val["x"], val["y"], val["z"]] for val in data])
 
     @points.setter
@@ -232,9 +230,7 @@ class ZnDrawBase:  # collections.abc.MutableSequence
 
     @property
     def segments(self) -> np.ndarray:
-        data = self.socket.call(
-            "scene:segments", timeout=self.config.call_timeout
-        )
+        data = self.socket.call("scene:segments", timeout=self.config.call_timeout)
         return np.array(data)
 
     @property
@@ -256,12 +252,10 @@ class ZnDrawBase:  # collections.abc.MutableSequence
 
     @property
     def selection(self) -> list[int]:
-        return self.socket.call(
-            "selection:get", timeout=self.config.call_timeout
-        )
+        return self.socket.call("selection:get", timeout=self.config.call_timeout)
 
     @selection.setter
-    def selection(self, value: list[int]):        
+    def selection(self, value: list[int]):
         self.socket.emit("selection:set", value)
 
     def play(self):
@@ -281,9 +275,7 @@ class ZnDrawBase:  # collections.abc.MutableSequence
 
     @property
     def bookmarks(self) -> dict:
-        return self.socket.call(
-            "bookmarks:get", timeout=self.config.call_timeout
-        )
+        return self.socket.call("bookmarks:get", timeout=self.config.call_timeout)
 
     @bookmarks.setter
     def bookmarks(self, value: dict):
