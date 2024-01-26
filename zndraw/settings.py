@@ -40,12 +40,13 @@ _SELECTION_FUNCTIONS = [
     "zndraw.select.Neighbour",
 ]
 
+
 class CacheSettings(pydantic.BaseModel):
     backend: str = "FileSystemCache"
     backend_options: dict = {}
     timeout: int = 60 * 60 * 24
     dir: str = "~/.zincware/zndraw/cache"
-    
+
 
 class CeleryConfig(pydantic.BaseModel):
     data_folder_in: str = "~/.zincware/zndraw/celery/in"
@@ -58,9 +59,9 @@ class CeleryConfig(pydantic.BaseModel):
 
 
 class GlobalConfig(pydantic.BaseModel):
-    cache:CacheSettings = CacheSettings()
+    cache: CacheSettings = CacheSettings()
     celery: CeleryConfig = CeleryConfig()
-    
+
     analysis_functions: t.List[str] = _ANALYSIS_FUNCTIONS
     modify_functions: t.List[str] = _MODIFY_FUNCTIONS
     bonds_functions: t.List[str] = _BONDS_FUNCTIONS
@@ -124,4 +125,3 @@ class GlobalConfig(pydantic.BaseModel):
                 log.critical(f"Module {module_name} not found - skipping")
 
         return t.Union[tuple(classes)]
-

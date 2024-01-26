@@ -124,9 +124,9 @@ def typecast(func, *args, **kwargs):
                 updated_kwargs[kwarg] = kwargs[kwarg]
     return func(*updated_args, **updated_kwargs)
 
+
 def ensure_path(path: str):
     """Ensure that a path exists."""
     p = pathlib.Path(path).expanduser()
     p.mkdir(parents=True, exist_ok=True)
     return p.as_posix()
-    

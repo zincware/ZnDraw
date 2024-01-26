@@ -1,5 +1,4 @@
 import dataclasses
-import pathlib
 import subprocess
 import uuid
 import webbrowser
@@ -11,6 +10,7 @@ from flask_socketio import SocketIO
 
 from .settings import GlobalConfig
 from .utils import ensure_path
+
 socketio = SocketIO()
 
 
@@ -96,7 +96,8 @@ def setup_worker() -> list:
     )
     return [fast_worker, slow_worker]
 
-def get_celery_settings(config:GlobalConfig) -> dict:
+
+def get_celery_settings(config: GlobalConfig) -> dict:
     """
     To make general, we want to take in the broker type and thee config to return
     the correct settings for the celery app.
@@ -119,6 +120,7 @@ def create_app() -> Flask:
 
     app = Flask(__name__)
     from .server import main as main_blueprint
+
     app.register_blueprint(main_blueprint)
 
     cache.init_app(app)
@@ -130,6 +132,7 @@ def create_app() -> Flask:
     app.config.from_prefixed_env()
     celery_init_app(app)
     return app
+
 
 @dataclasses.dataclass
 class ZnDrawServer:
