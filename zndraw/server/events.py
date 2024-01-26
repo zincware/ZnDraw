@@ -344,21 +344,18 @@ def draw_schema(data: SchemaData):
 
 
 @io.on("points:get")
-@typecast
-def scene_points(data: AtomsLengthData):
-    return call("points:get", to=_webclients_default(data))
+def scene_points():
+    return call("points:get", to=get_main_room_host(session["token"]))
 
 
 @io.on("scene:segments")
-@typecast
-def scene_segments(data: AtomsLengthData):
-    return call("scene:segments", to=_webclients_default(data))
+def scene_segments():
+    return call("scene:segments", to=get_main_room_host(session["token"]))
 
 
 @io.on("selection:get")
-@typecast
-def selection_get(data: AtomsLengthData):
-    return call("selection:get", to=_webclients_default(data))
+def selection_get():
+    return call("selection:get", to=get_main_room_host(session["token"]))
 
 
 @io.on("selection:set")

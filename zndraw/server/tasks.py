@@ -155,6 +155,8 @@ def scene_trash(url: str, token: str):
         # remove the selected atoms
         atoms = vis.atoms
         del atoms[vis.selection]
+        if hasattr(atoms, "connectivity"):
+            del atoms.connectivity
         vis.append(atoms)
     vis.selection = []
     vis.points = []

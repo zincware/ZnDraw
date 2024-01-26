@@ -215,7 +215,7 @@ class ZnDrawBase:  # collections.abc.MutableSequence
     @property
     def points(self) -> np.ndarray:
         data = self.socket.call(
-            "points:get", {"token": self.token}, timeout=self.config.call_timeout
+            "points:get", timeout=self.config.call_timeout
         )
         return np.array([[val["x"], val["y"], val["z"]] for val in data])
 
@@ -233,7 +233,7 @@ class ZnDrawBase:  # collections.abc.MutableSequence
     @property
     def segments(self) -> np.ndarray:
         data = self.socket.call(
-            "scene:segments", {"token": self.token}, timeout=self.config.call_timeout
+            "scene:segments", timeout=self.config.call_timeout
         )
         return np.array(data)
 
@@ -258,7 +258,7 @@ class ZnDrawBase:  # collections.abc.MutableSequence
     @property
     def selection(self) -> list[int]:
         return self.socket.call(
-            "selection:get", {"token": self.token}, timeout=self.config.call_timeout
+            "selection:get", timeout=self.config.call_timeout
         )
 
     @selection.setter
