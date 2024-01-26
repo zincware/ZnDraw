@@ -99,7 +99,20 @@ def create_app(
     app.config.from_prefixed_env()
     celery_app = celery_init_app(app)
 
-    worker = subprocess.Popen(
+    fast_worker = subprocess.Popen(
+        [
+            "celery",
+            "-A",
+            "zndraw.make_celery",
+            "worker",
+            "--loglevel=info",
+            "--concurrency=16",
+            "--hostname=fast_worker",
+            "--queues=fast,celery",
+        ]
+    )
+
+    slow_worker = subprocess.Popen(
         [
             "celery",
             "-A",
@@ -107,12 +120,21 @@ def create_app(
             "worker",
             "--loglevel=info",
             "--concurrency=1",
+            "--hostname=slow_worker",
+            "--queues=slow",
         ]
     )
 
+
+
     yield app
 
-    worker.terminate()
+    fast_worker.terminate()
+    slow_worker.terminate()
+    cache.clear()
+    slow_worker.wait()
+    fast_worker.wait()
+    
 
     # remove tmpdir, but only if this is the main thread
     # and not a worker thread of celery that e.g. has been restarted
