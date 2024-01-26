@@ -9,13 +9,12 @@ import znh5md
 from celery import shared_task
 from socketio import Client
 
+from zndraw.analyse import get_analysis_class
+from zndraw.draw import Geometry
 from zndraw.select import get_selection_class
 from zndraw.settings import GlobalConfig
-from zndraw.zndraw import ZnDraw
-from zndraw.draw import Geometry
-from zndraw.analyse import get_analysis_class
 from zndraw.utils import hide_discriminator_field
-
+from zndraw.zndraw import ZnDraw
 
 from ..app import cache
 from ..data import CeleryTaskData, FrameData, SelectionRunData
@@ -115,7 +114,6 @@ def scene_schema(url: str, target: str):
     con.emit("celery:task:results", asdict(msg))
 
 
-
 @shared_task
 def geometries_schema(url: str, target: str):
     msg = CeleryTaskData(
@@ -126,6 +124,7 @@ def geometries_schema(url: str, target: str):
     con = get_client(url)
     print(f"emitting scene_schema to {target}")
     con.emit("celery:task:results", asdict(msg))
+
 
 @shared_task
 def analysis_schema(url: str, token: str):
@@ -139,13 +138,12 @@ def analysis_schema(url: str, token: str):
     hide_discriminator_field(schema)
 
     msg = CeleryTaskData(
-        target=f"webclients_{vis.token}",
-        event="analysis:schema",
-        data=schema
+        target=f"webclients_{vis.token}", event="analysis:schema", data=schema
     )
     con = get_client(url)
     print(f"emitting analysis_schema to {vis.token}")
     con.emit("celery:task:results", asdict(msg))
+
 
 @shared_task
 def scene_trash(url: str, token: str):
