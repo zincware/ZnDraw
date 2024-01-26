@@ -237,3 +237,17 @@ def run_selection(url: str, token: str, data: SelectionRunData):
         vis.log.critical(err)
 
     print(datetime.datetime.now().isoformat())
+
+
+@shared_task
+def run_analysis(url: str, token: str, data: dict):
+    vis = ZnDraw(url=url, token=token)
+
+    config = GlobalConfig.load()
+    cls = get_analysis_class(config.get_analysis_methods())
+
+    try:
+        analysis = cls(**data["params"])
+        analysis.run(vis)
+    except ValueError as err:
+        vis.log(err)

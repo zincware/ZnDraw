@@ -526,3 +526,8 @@ def selection_run(data: SelectionRunData):
 @io.on("scene:trash")
 def scene_trash():
     tasks.scene_trash.delay(request.url_root, session["token"])
+
+@io.on("analysis:run")
+def analysis_run(data: dict):
+    """Run the analysis."""
+    tasks.run_analysis.delay(request.url_root, session["token"], data)
