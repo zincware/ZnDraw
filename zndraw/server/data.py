@@ -18,9 +18,11 @@ class FrameData:
     update: bool
         Whether the UI should be updated.
     """
+
     index: int
     update: bool
     data: dict
+
 
 @dataclasses.dataclass
 class JoinData:
