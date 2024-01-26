@@ -524,3 +524,7 @@ def scene_update(data: SceneUpdateData):
 def selection_run(data: SelectionRunData):
     """Run the selection."""
     tasks.run_selection.delay(request.url_root, session["token"], data)
+
+@io.on("scene:trash")
+def scene_trash():
+    tasks.scene_trash.delay(request.url_root, session["token"])
