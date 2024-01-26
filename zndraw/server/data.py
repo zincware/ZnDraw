@@ -84,16 +84,9 @@ class AtomsLengthData:
 
 
 @dataclasses.dataclass
-class AnalysisSchemaData:
+class SchemaData:
     schema: dict
     sid: str
-
-
-@dataclasses.dataclass
-class ModifierSchemaData:
-    schema: dict
-    token: str
-
 
 @dataclasses.dataclass
 class SelectionSetData:

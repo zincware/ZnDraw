@@ -16,7 +16,7 @@ from ..app import cache
 from ..app import socketio as io
 from .data import (
     AnalysisFigureData,
-    AnalysisSchemaData,
+    SchemaData,
     AtomsDownloadData,
     AtomsLengthData,
     BookmarksSetData,
@@ -25,7 +25,6 @@ from .data import (
     JoinData,
     MessageData,
     ModifierRunRunningData,
-    ModifierSchemaData,
     PlayData,
     PointsSetData,
     SceneSetData,
@@ -216,7 +215,6 @@ def connect():
 @io.on("celery:task:results")
 @typecast
 def celery_task_results(msg: CeleryTaskData):
-    print(f"celery_task_results {msg}")
     emit(msg.event, msg.data, to=msg.target)
 
 
@@ -319,25 +317,30 @@ def atoms_length():
 
 @io.on("analysis:schema")
 @typecast
-def analysis_schema(data: AnalysisSchemaData):
+def analysis_schema(data: SchemaData):
     emit("analysis:schema", data.schema, include_self=False, to=data.sid)
 
 
 @io.on("modifier:schema")
 @typecast
-def modifier_schema(data: ModifierSchemaData):
+def modifier_schema(data: SchemaData):
     emit("modifier:schema", data.schema, include_self=False, to=_webclients_room(data))
 
 
 @io.on("selection:schema")
 @typecast
-def selection_schema(data: AnalysisSchemaData):
+def selection_schema(data: SchemaData):
     emit("selection:schema", data.schema, include_self=False, to=data.sid)
+    
+@io.on("scene:schema")
+@typecast
+def scene_schema(data: SchemaData):
+    emit("scene:schema", data.schema, include_self=False, to=data.sid)
 
 
 @io.on("draw:schema")
 @typecast
-def draw_schema(data: AnalysisSchemaData):
+def draw_schema(data: SchemaData):
     emit("draw:schema", data.schema, include_self=False, to=data.sid)
 
 
