@@ -16,7 +16,6 @@ from ..app import cache
 from ..app import socketio as io
 from .data import (
     AnalysisFigureData,
-    SchemaData,
     AtomsDownloadData,
     AtomsLengthData,
     BookmarksSetData,
@@ -30,6 +29,7 @@ from .data import (
     SceneSetData,
     SceneStepData,
     SceneUpdateData,
+    SchemaData,
     SelectionRunData,
     SelectionSetData,
     SubscribedUserData,
@@ -331,7 +331,8 @@ def modifier_schema(data: SchemaData):
 @typecast
 def selection_schema(data: SchemaData):
     emit("selection:schema", data.schema, include_self=False, to=data.sid)
-    
+
+
 @io.on("scene:schema")
 @typecast
 def scene_schema(data: SchemaData):

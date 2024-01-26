@@ -88,6 +88,7 @@ class SchemaData:
     schema: dict
     sid: str
 
+
 @dataclasses.dataclass
 class SelectionSetData:
     selection: list[int]
