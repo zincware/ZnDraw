@@ -201,8 +201,7 @@ def connect():
         cache.set("PER-TOKEN-DATA", PER_TOKEN_DATA)
 
         # append to zndraw.log a line isoformat() + " " + token
-
-        log.info(datetime.datetime.now().isoformat() + " " + token + " connected")
+        log.info(datetime.datetime.now().isoformat() + " " + token if token else "client" + " connected")
 
     except KeyError:
         pass
