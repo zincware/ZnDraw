@@ -523,4 +523,4 @@ def selection_run(data: SelectionRunData):
 
 @io.on("scene:trash")
 def scene_trash():
-    tasks.scene_trash.delay(request.url_root, session["token"], sid=request.sid)
+    tasks.scene_trash.delay(request.url_root, session["token"])

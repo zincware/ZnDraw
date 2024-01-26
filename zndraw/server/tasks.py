@@ -111,12 +111,10 @@ def scene_schema(url: str, target: str):
 
 
 @shared_task
-def scene_trash(url: str, token: str, sid: str):
-    vis = ZnDraw(url=url, token=token, _target_sid=sid)
+def scene_trash(url: str, token: str):
+    vis = ZnDraw(url=url, token=token)
     del vis[vis.step + 1 :]
-    print("AHOY!")
     if len(vis.selection) == 0:
-        print("here")
         vis.append(ase.Atoms())
     else:
         # remove the selected atoms
