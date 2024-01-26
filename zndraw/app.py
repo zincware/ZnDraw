@@ -148,7 +148,6 @@ class ZnDrawServer:
         self.app.config["compute_bonds"] = self.compute_bonds
 
         setup_cache()
-        self.fileio.name = "This is a test"
         cache.set("FILEIO", self.fileio)
 
     def run(self, browser=False):
