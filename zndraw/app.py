@@ -9,7 +9,6 @@ from flask_caching import Cache
 from flask_socketio import SocketIO
 
 from .settings import GlobalConfig
-from .utils import ensure_path
 
 socketio = SocketIO()
 
@@ -17,13 +16,7 @@ socketio = SocketIO()
 def get_cache():
     # read config for cache from zndraw config
     config = GlobalConfig.load()
-    cache = Cache(
-        config={
-            "CACHE_TYPE": config.cache.backend,
-            "CACHE_DEFAULT_TIMEOUT": config.cache.timeout,
-            "CACHE_DIR": ensure_path(config.cache.dir),
-        }
-    )
+    cache = Cache(config=config.cache.to_dict())
     return cache
 
 
@@ -97,26 +90,6 @@ def setup_worker() -> list:
     return [fast_worker, slow_worker]
 
 
-def get_celery_settings(config: GlobalConfig) -> dict:
-    """
-    To make general, we want to take in the broker type and thee config to return
-    the correct settings for the celery app.
-    """
-    setting =  dict(
-        broker_url=config.celery.broker,
-        broker_transport_options=dict(
-            data_folder_in=ensure_path(config.celery.data_folder),
-            data_folder_out=ensure_path(config.celery.data_folder),
-            data_folder_processed=ensure_path(config.celery.data_folder_processed),
-        ),
-        result_backend=config.celery.result_backend,
-        cache_backend=config.celery.cache_backend,
-        task_ignore_result=config.celery.task_ignore_result,
-    )
-    print(setting)
-    return setting
-
-
 def create_app() -> Flask:
     """Create the Flask app."""
 
@@ -129,7 +102,7 @@ def create_app() -> Flask:
     socketio.init_app(app, cors_allowed_origins="*")
 
     app.config.from_mapping(
-        CELERY=get_celery_settings(GlobalConfig.load()),
+        CELERY=GlobalConfig.load().celery.to_dict(),
     )
     app.config.from_prefixed_env()
     celery_init_app(app)
@@ -174,7 +147,6 @@ class ZnDrawServer:
         self.app.config["compute_bonds"] = self.compute_bonds
 
         setup_cache()
-        self.fileio.name = "This is a test"
         cache.set("FILEIO", self.fileio)
 
     def run(self, browser=False):

@@ -1,16 +1,18 @@
+import pathlib
 from dataclasses import asdict
 
 import ase.io
+import tqdm
 import znframe
+import znh5md
 from celery import shared_task
-from flask import current_app
 from socketio import Client
 
 from zndraw.select import get_selection_class
 from zndraw.settings import GlobalConfig
 
 from ..app import cache
-from .data import CeleryTaskData
+from .data import CeleryTaskData, FrameData
 
 
 def get_client(url) -> Client:
@@ -37,28 +39,60 @@ def get_selection_schema(url: str, target: str):
 
 @shared_task
 def read_file(url: str, target: str):
-    fileio = cache.get("FILEIO")
-    print(f"emitting {fileio} to {target}")
-    FILENAME = "/home/rokas/Programming/data/zinc_fragments_difflinker.xyz"
     con = get_client(url)
-    cache2 = next(iter(current_app.extensions["cache"]))
-    print(cache2)
-    print(f"file io from cache2: {cache2.get('FILEIO')}")
-    for idx, atoms in enumerate(ase.io.iread(FILENAME)):
-        frame = znframe.Frame.from_atoms(atoms)
+    fileio = cache.get("FILEIO")
 
-        data = {
-            idx: frame.to_dict(built_in_types=False),
-            "display_new": True,
-        }
+    if fileio.name is None:
+        msg = CeleryTaskData(
+            target=target,
+            event="atoms:upload",
+            data=FrameData(
+                index=0,
+                data=znframe.Frame.from_atoms(ase.Atoms()).to_dict(
+                    built_in_types=False
+                ),
+                update=True,
+            ),
+        )
+        con.emit("celery:task:results", asdict(msg))
+        return
+
+    if fileio.remote is not None:
+        node_name, attribute = fileio.name.split(".", 1)
+        try:
+            import zntrack
+
+            node = zntrack.from_rev(node_name, remote=fileio.remote, rev=fileio.rev)
+            generator = getattr(node, attribute)
+        except ImportError as err:
+            raise ImportError(
+                "You need to install ZnTrack to use the remote feature"
+            ) from err
+    elif pathlib.Path(fileio.name).suffix == ".h5":
+        reader = znh5md.ASEH5MD(fileio.name)
+        generator = reader.get_atoms_list()
+    else:
+        generator = ase.io.iread(fileio.name)
+
+    frame = 0
+
+    for idx, atoms in tqdm.tqdm(enumerate(generator), ncols=100):
+        if fileio.start and idx < fileio.start:
+            continue
+        if fileio.stop and idx >= fileio.stop:
+            break
+        if fileio.step and idx % fileio.step != 0:
+            continue
 
         msg = CeleryTaskData(
             target=target,
             event="atoms:upload",
-            data=data,
+            data=FrameData(
+                index=idx,
+                data=znframe.Frame.from_atoms(atoms).to_dict(built_in_types=False),
+                update=True,
+            ),
         )
-
         con.emit("celery:task:results", asdict(msg))
-        if idx > 10:
-            break
-    print("done")
+
+        frame += 1
