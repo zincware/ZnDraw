@@ -112,14 +112,20 @@ def typecast(func, *args, **kwargs):
     updated_kwargs = {}
     for arg, arg_type in zip(args, annotations.values()):
         if not isinstance(arg, arg_type):
-            updated_args.append(arg_type(**arg))
+            if isinstance(arg, dict):
+                updated_args.append(arg_type(**arg))
+            else:
+                updated_args.append(arg_type(arg))
         else:
             updated_args.append(arg)
 
     for kwarg, kwarg_type in annotations.items():
         if kwarg in kwargs:
             if not isinstance(kwargs[kwarg], kwarg_type):
-                updated_kwargs[kwarg] = kwarg_type(**kwargs[kwarg])
+                if isinstance(kwargs[kwarg], dict):
+                    updated_kwargs[kwarg] = kwarg_type(**kwargs[kwarg])
+                else:
+                    updated_kwargs[kwarg] = kwarg_type(kwargs[kwarg])
             else:
                 updated_kwargs[kwarg] = kwargs[kwarg]
     return func(*updated_args, **updated_kwargs)

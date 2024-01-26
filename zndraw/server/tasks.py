@@ -10,9 +10,12 @@ from socketio import Client
 
 from zndraw.select import get_selection_class
 from zndraw.settings import GlobalConfig
+from zndraw.utils import typecast
+from zndraw.zndraw import ZnDraw
+import datetime
 
 from ..app import cache
-from .data import CeleryTaskData, FrameData
+from .data import CeleryTaskData, FrameData, SelectionRunData
 
 
 def get_client(url) -> Client:
@@ -96,3 +99,20 @@ def read_file(url: str, target: str):
         con.emit("celery:task:results", asdict(msg))
 
         frame += 1
+
+@shared_task
+def run_selection(url: str, token: str, data: SelectionRunData):
+    data = SelectionRunData(**data)
+    print(datetime.datetime.now().isoformat())
+    vis = ZnDraw(url=url, token=token)
+
+    config = GlobalConfig.load()
+    cls = get_selection_class(config.get_selection_methods())
+
+    try:
+        selection = cls(**data.params)
+        selection.run(vis)
+    except ValueError as err:
+        vis.log.critical(err)
+    
+    print(datetime.datetime.now().isoformat())

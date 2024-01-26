@@ -33,6 +33,7 @@ from .data import (
     SceneUpdateData,
     SelectionSetData,
     SubscribedUserData,
+    SelectionRunData,
 )
 
 log = logging.getLogger(__name__)
@@ -513,3 +514,10 @@ def scene_update(data: SceneUpdateData):
             include_self=False,
             to=camera_subscribers,
         )
+
+
+
+@io.on("selection:run")
+def selection_run(data: SelectionRunData):
+    """Run the selection."""
+    tasks.run_selection.delay(request.url_root, session["token"], data)
