@@ -9,6 +9,22 @@ class CeleryTaskData:
 
 
 @dataclasses.dataclass
+class FrameData:
+    """
+    index: int
+        The index of the frame in the trajectory.
+    data: dict
+        The data of the frame.
+    update: bool
+        Whether the UI should be updated.
+    """
+
+    index: int
+    update: bool
+    data: dict
+
+
+@dataclasses.dataclass
 class JoinData:
     token: str
     uuid: str

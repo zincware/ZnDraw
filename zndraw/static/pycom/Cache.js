@@ -89,30 +89,30 @@ class Cache {
     this._cache = {};
     this.world;
 
-    this._socket.on("atoms:upload", (all_data) => {
+    this._socket.on("atoms:upload", (data) => {
       // console.log(new Date().toISOString(), "Received atoms from Python");
 
       // pop key from data dict
-      const { display_new, ...data } = all_data;
       const slider = document.getElementById("frameProgress");
+      console.log(data);
 
-      Object.keys(data).forEach((key) => {
-        this._cache[key] = new Atoms({
-          positions: data[key].positions,
-          cell: data[key].cell,
-          numbers: data[key].numbers,
-          colors: data[key].arrays.colors,
-          radii: data[key].arrays.radii,
-          connectivity: data[key].connectivity,
-          calc: data[key].calc,
-          pbc: data[key].pbc,
-        });
-
-        if (display_new) {
-          slider.ariaValueMax = Object.keys(this._cache).length - 1;
-          this.world.setStep(key);
-        }
+      this._cache[data.index] = new Atoms({
+        positions: data.data.positions,
+        cell: data.data.cell,
+        numbers: data.data.numbers,
+        colors: data.data.arrays.colors,
+        radii: data.data.arrays.radii,
+        connectivity: data.data.connectivity,
+        calc: data.data.calc,
+        pbc: data.data.pbc,
       });
+
+      console.log(this._cache);
+
+      slider.ariaValueMax = Object.keys(this._cache).length - 1;
+      if (data.update) {
+        this.world.setStep(data.index);
+      }
     });
 
     this._socket.on("atoms:delete", (ids) => {

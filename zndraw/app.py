@@ -9,7 +9,6 @@ from flask_caching import Cache
 from flask_socketio import SocketIO
 
 from .settings import GlobalConfig
-from .utils import ensure_path
 
 socketio = SocketIO()
 
@@ -17,13 +16,7 @@ socketio = SocketIO()
 def get_cache():
     # read config for cache from zndraw config
     config = GlobalConfig.load()
-    cache = Cache(
-        config={
-            "CACHE_TYPE": config.cache.backend,
-            "CACHE_DEFAULT_TIMEOUT": config.cache.timeout,
-            "CACHE_DIR": ensure_path(config.cache.dir),
-        }
-    )
+    cache = Cache(config=config.cache.to_dict())
     return cache
 
 
@@ -129,7 +122,7 @@ def create_app() -> Flask:
     socketio.init_app(app, cors_allowed_origins="*")
 
     app.config.from_mapping(
-        CELERY=get_celery_settings(GlobalConfig.load()),
+        CELERY=GlobalConfig.load().celery.to_dict(),
     )
     app.config.from_prefixed_env()
     celery_init_app(app)
@@ -174,7 +167,6 @@ class ZnDrawServer:
         self.app.config["compute_bonds"] = self.compute_bonds
 
         setup_cache()
-        self.fileio.name = "This is a test"
         cache.set("FILEIO", self.fileio)
 
     def run(self, browser=False):
