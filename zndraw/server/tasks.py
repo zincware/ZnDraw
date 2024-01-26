@@ -36,7 +36,6 @@ def get_selection_schema(url: str, target: str):
         data=schema,
     )
     con = get_client(url)
-    print(f"emitting selection_schema to {target}")
     con.emit("celery:task:results", asdict(msg))
 
 
