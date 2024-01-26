@@ -49,6 +49,13 @@ class CacheSettings(pydantic.BaseModel):
     timeout: int = 60 * 60 * 24
     dir: str = "~/.zincware/zndraw/cache"
 
+    def to_dict(self):
+        return dict(
+            CACHE_TYPE=self.backend,
+            CACHE_DEFAULT_TIMEOUT=self.timeout,
+            CACHE_DIR=ensure_path(self.dir),
+        )
+
 
 class CeleryConfig(pydantic.BaseModel):
     data_folder: str = "~/.zincware/zndraw/celery/out"

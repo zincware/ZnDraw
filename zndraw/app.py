@@ -17,13 +17,7 @@ socketio = SocketIO()
 def get_cache():
     # read config for cache from zndraw config
     config = GlobalConfig.load()
-    cache = Cache(
-        config={
-            "CACHE_TYPE": config.cache.backend,
-            "CACHE_DEFAULT_TIMEOUT": config.cache.timeout,
-            "CACHE_DIR": ensure_path(config.cache.dir),
-        }
-    )
+    cache = Cache(config=config.cache.to_dict())
     return cache
 
 
