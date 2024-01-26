@@ -154,9 +154,11 @@ def connect():
     try:
         token = session["token"]
         # if you connect through Python, you don't have a token
-        tasks.get_selection_schema.delay(request.url_root, request.sid)
         tasks.read_file.delay(request.url_root, request.sid)
+        tasks.get_selection_schema.delay(request.url_root, request.sid)
         tasks.scene_schema.delay(request.url_root, request.sid)
+        tasks.geometries_schema.delay(request.url_root, request.sid)
+        tasks.analysis_schema.apply_async((request.url_root, token), countdown=5)
 
         join_room(f"webclients_{token}")
         # who ever connected latest is the HOST of the room
@@ -308,12 +310,6 @@ def atoms_delete(data: DeleteAtomsData):
 @io.on("atoms:length")
 def atoms_length():
     return call("atoms:length", to=get_main_room_host(session["token"]))
-
-
-@io.on("analysis:schema")
-@typecast
-def analysis_schema(data: SchemaData):
-    emit("analysis:schema", data.schema, include_self=False, to=data.sid)
 
 
 @io.on("modifier:schema")
