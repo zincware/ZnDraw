@@ -105,8 +105,8 @@ def get_celery_settings(config: GlobalConfig) -> dict:
     setting =  dict(
         broker_url=config.celery.broker,
         broker_transport_options=dict(
-            data_folder_in=ensure_path(config.celery.data_folder_in),
-            data_folder_out=ensure_path(config.celery.data_folder_out),
+            data_folder_in=ensure_path(config.celery.data_folder),
+            data_folder_out=ensure_path(config.celery.data_folder),
             data_folder_processed=ensure_path(config.celery.data_folder_processed),
         ),
         result_backend=config.celery.result_backend,

@@ -49,8 +49,7 @@ class CacheSettings(pydantic.BaseModel):
 
 
 class CeleryConfig(pydantic.BaseModel):
-    data_folder_in: str = "~/.zincware/zndraw/celery/in"
-    data_folder_out: str = "~/.zincware/zndraw/celery/out"
+    data_folder: str = "~/.zincware/zndraw/celery/out"
     data_folder_processed: str = "~/.zincware/zndraw/celery/processed"
     broker: str = "filesystem://"
     result_backend: str = "cache"
