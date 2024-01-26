@@ -125,8 +125,6 @@ def create_app(
         ]
     )
 
-
-
     yield app
 
     fast_worker.terminate()
@@ -134,7 +132,6 @@ def create_app(
     cache.clear()
     slow_worker.wait()
     fast_worker.wait()
-    
 
     # remove tmpdir, but only if this is the main thread
     # and not a worker thread of celery that e.g. has been restarted
