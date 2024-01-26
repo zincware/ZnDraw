@@ -45,15 +45,6 @@ class Config:
     retries: int = 100
 
 
-@dataclasses.dataclass
-class FileIO:
-    name: str = None
-    start: int = 0
-    stop: int = None
-    step: int = 1
-    remote: str = None
-    rev: str = None
-
 
 @dataclasses.dataclass
 class ZnDrawBase:  # collections.abc.MutableSequence
@@ -354,7 +345,7 @@ class ZnDrawBase:  # collections.abc.MutableSequence
 
 @dataclasses.dataclass
 class ZnDrawDefault(ZnDrawBase):
-    file_io: FileIO = None
+    file_io: dict= None
     register_socket_events: bool = True
 
     def __post_init__(self):

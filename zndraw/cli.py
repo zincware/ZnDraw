@@ -3,8 +3,7 @@ from typing import Optional
 import typer
 
 from zndraw.utils import get_port
-from zndraw.view import view
-from zndraw.app import ZnDrawApp
+from zndraw.app import ZnDrawApp, FileIO
 
 cli = typer.Typer()
 
@@ -81,14 +80,25 @@ def main(
     if port is None:
         port = get_port()
 
+    fileio = FileIO(
+        name=filename,
+        remote=remote,
+        rev=rev,
+        start=start,
+        stop=stop,
+        step=step,
+    )
+
     with ZnDrawApp(
         use_token=use_token,
         upgrade_insecure_requests=upgrade_insecure_requests,
         compute_bonds=compute_bonds,
         tutorial=tutorial,
         auth_token=auth_token,
+        port=port,
+        fileio=fileio,
     ) as app:
-        app.run(browser=True)
+        app.run(browser=browser)
 
     # view(
     #     filename,

@@ -9,6 +9,8 @@ from zndraw.select import get_selection_class
 from zndraw.settings import GlobalConfig
 
 from .data import CeleryTaskData
+from ..app import cache
+from flask import current_app
 
 
 def get_client(url) -> Client:
@@ -35,8 +37,13 @@ def get_selection_schema(url: str, target: str):
 
 @shared_task
 def read_file(url: str, target: str):
+    fileio = cache.get("FILEIO")
+    print(f"emitting {fileio} to {target}")
     FILENAME = "/Users/fzills/tools/ZnDraw/tmp/BMIM_BF4_303_15K.extxyz"
     con = get_client(url)
+    cache2 = next(iter(current_app.extensions["cache"]))
+    print(cache2)
+    print(f"file io from cache2: {cache2.get('FILEIO')}")
     for idx, atoms in enumerate(ase.io.iread(FILENAME)):
         frame = znframe.Frame.from_atoms(atoms)
 
@@ -54,3 +61,4 @@ def read_file(url: str, target: str):
         con.emit("celery:task:results", asdict(msg))
         if idx > 10:
             break
+    print("done")

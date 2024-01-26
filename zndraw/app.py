@@ -11,13 +11,28 @@ from flask_caching import Cache
 from flask_socketio import SocketIO
 
 socketio = SocketIO()
-cache = Cache(
-    config={
-        "CACHE_TYPE": "FileSystemCache",
-        "CACHE_DEFAULT_TIMEOUT": 60 * 60 * 24,
-        "CACHE_DIR": ".zndraw/cache",
-    }
-)
+
+def get_cache():
+    # read config for cache from zndraw config
+    cache = Cache(
+        config={
+            "CACHE_TYPE": "FileSystemCache",
+            "CACHE_DEFAULT_TIMEOUT": 60 * 60 * 24,
+            "CACHE_DIR": ".zndraw/cache",
+        }
+    )
+    return cache
+
+cache = get_cache()
+
+@dataclasses.dataclass
+class FileIO:
+    name: str = None
+    start: int = 0
+    stop: int = None
+    step: int = 1
+    remote: str = None
+    rev: str = None
 
 
 def celery_init_app(app: Flask) -> Celery:
@@ -85,8 +100,9 @@ class ZnDrawApp:
     tutorial: str
     auth_token: str
     port: int = 1234
+    fileio: FileIO = None
 
-    workers: list = dataclasses.field(init=False, default_factory=setup_worker)
+    _workers: list = None
 
     def __enter__(self):
         """Create the Flask app."""
@@ -105,15 +121,6 @@ class ZnDrawApp:
         cachdir.mkdir(parents=True, exist_ok=True)
 
         app = Flask(__name__)
-        app.config["SECRET_KEY"] = str(uuid.uuid4())
-
-        app.config["TUTORIAL"] = self.tutorial
-        app.config["AUTH_TOKEN"] = self.auth_token
-
-        if not self.use_token:  # TODO: handle this differently
-            app.config["token"] = "notoken"
-        app.config["upgrade_insecure_requests"] = self.upgrade_insecure_requests
-        app.config["compute_bonds"] = self.compute_bonds
 
         from .server import main as main_blueprint
 
@@ -121,7 +128,6 @@ class ZnDrawApp:
 
         cache.init_app(app)
         socketio.init_app(app, cors_allowed_origins="*")
-        setup_cache()
 
         app.config.from_mapping(
             CELERY=dict(
@@ -140,22 +146,43 @@ class ZnDrawApp:
         celery_app = celery_init_app(app)
         self.app = app
 
+        print(f"file io from cache: {cache.get('FILEIO')}")
+
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
-        for worker in self.workers:
+        if self._workers is None:
+            return
+        for worker in self._workers:
             worker.terminate()
         cache.clear()
-        for worker in self.workers:
+        for worker in self._workers:
             worker.wait()
+        
+        # remove tmpdir, but only if this is the main thread
+        # and not a worker thread of celery that e.g. has been restarted
+            
+    def update_cache(self):
+        self.app.config["SECRET_KEY"] = str(uuid.uuid4())
 
+        self.app.config["TUTORIAL"] = self.tutorial
+        self.app.config["AUTH_TOKEN"] = self.auth_token
+
+        if not self.use_token:  # TODO: handle this differently
+            self.app.config["token"] = "notoken"
+        self.app.config["upgrade_insecure_requests"] = self.upgrade_insecure_requests
+        self.app.config["compute_bonds"] = self.compute_bonds
+
+        setup_cache()
+        self.fileio.name = "This is a test"
+        cache.set("FILEIO", self.fileio)
+        
     def run(self, browser=False):
+        self.update_cache()
+        self._workers = setup_worker()
         if browser:
             webbrowser.open(self.url_root)
         socketio.run(self.app, port=self.port, host="0.0.0.0")
-
-        # remove tmpdir, but only if this is the main thread
-        # and not a worker thread of celery that e.g. has been restarted
 
     @property
     def url_root(self):
