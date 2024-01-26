@@ -48,7 +48,9 @@ def read_file(url: str, target: str):
             event="atoms:upload",
             data=FrameData(
                 index=0,
-                data=znframe.Frame.from_atoms(ase.Atoms()).to_dict(built_in_types=False),
+                data=znframe.Frame.from_atoms(ase.Atoms()).to_dict(
+                    built_in_types=False
+                ),
                 update=True,
             ),
         )
