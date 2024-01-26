@@ -61,7 +61,6 @@ function selection_editor(socket, cache, world) {
 
 function scene_editor(socket, cache, world) {
   socket.on("scene:schema", (data) => {
-    console.log(data);
     const editor = new JSONEditor(
       document.getElementById("scene-json-editor"),
       {
