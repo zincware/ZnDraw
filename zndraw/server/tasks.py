@@ -14,7 +14,7 @@ from zndraw.settings import GlobalConfig
 from zndraw.zndraw import ZnDraw
 
 from ..app import cache
-from .data import CeleryTaskData, FrameData, SelectionRunData
+from ..data import CeleryTaskData, FrameData, SelectionRunData
 
 
 def get_client(url) -> Client:
