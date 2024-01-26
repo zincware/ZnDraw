@@ -103,10 +103,11 @@ def scene_schema(url: str, target: str):
 
     msg = CeleryTaskData(
         target=target,
-        event="selection:schema",
+        event="scene:schema",
         data=schema,
     )
     con = get_client(url)
+    print(f"emitting scene_schema to {target}")
     con.emit("celery:task:results", asdict(msg))
 
 
