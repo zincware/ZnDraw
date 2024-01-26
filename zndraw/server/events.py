@@ -1,7 +1,8 @@
-import logging
-from threading import Lock
 import contextlib
 import dataclasses
+import logging
+from threading import Lock
+
 from flask import request, session
 from flask_socketio import call, emit, join_room
 
@@ -11,19 +12,15 @@ from zndraw.utils import typecast
 from ..app import cache
 from ..app import socketio as io
 from .data import (
-    CeleryTaskData,
-    SubscribedUserData,
     AnalysisFigureData,
-    AnalysisRunData,
     AnalysisSchemaData,
     AtomsDownloadData,
     AtomsLengthData,
     BookmarksSetData,
+    CeleryTaskData,
     DeleteAtomsData,
     JoinData,
     MessageData,
-    ModifierRegisterData,
-    ModifierRunData,
     ModifierRunRunningData,
     ModifierSchemaData,
     PlayData,
@@ -31,8 +28,8 @@ from .data import (
     SceneSetData,
     SceneStepData,
     SceneUpdateData,
-    SelectionRunData,
     SelectionSetData,
+    SubscribedUserData,
 )
 
 log = logging.getLogger(__name__)
@@ -172,13 +169,14 @@ def connect():
 def celery_task_results(msg: CeleryTaskData):
     emit(msg.event, msg.data, to=msg.target)
 
+
 @io.on("disconnect")
 def disconnect():
     with contextlib.suppress(KeyError):
         token = session["token"]
         PYCLIENTS = cache.get("pyclients")
         PYCLIENTS.pop(_get_uuid_for_sid(request.sid), None)
-        
+
         cache.set("pyclients", PYCLIENTS)
         log.info(f"disconnect {request.sid} and updated PYCLIENTS to {PYCLIENTS}")
         ROOM_HOSTS = cache.get("ROOM_HOSTS")
@@ -196,7 +194,8 @@ def disconnect():
             to=_webclients_room({"token": token}),
         )
     log.debug(f"disconnect {request.sid} and updated HOSTS to {ROOM_HOSTS}")
-    
+
+
 @io.on("join")
 @typecast
 def join(data: JoinData):
@@ -224,7 +223,8 @@ def join(data: JoinData):
     if data.token == "default":
         # this would be very easy to exploit
         cache.set("DEFAULT_PYCLIENT", request.sid)
-        
+
+
 @io.on("analysis:figure")
 @typecast
 def analysis_figure(data: AnalysisFigureData):
@@ -324,12 +324,14 @@ def selection_set(data: SelectionSetData):
         include_self=False,
         to=_webclients_room(data),
     )
-    
+
+
 @io.on("message:log")
 @typecast
 def message_log(data: MessageData):
     emit("message:log", data.message, to=_webclients_room(data))
-         
+
+
 @io.on("download:response")
 def download_response(data):
     emit("download:response", data["data"], to=data["sid"])
@@ -347,11 +349,13 @@ def scene_play(data: PlayData):
 def scene_pause(data: PlayData):
     log.debug(f"scene:pause {data}")
     emit("scene:pause", to=_webclients_room(data))
-    
+
+
 @io.on("bookmarks:get")
 @typecast
 def bookmarks_get(data: AtomsLengthData):
     return call("bookmarks:get", to=_webclients_default(data))
+
 
 @io.on("bookmarks:set")
 @typecast
