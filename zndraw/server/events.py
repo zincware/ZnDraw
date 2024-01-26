@@ -160,7 +160,7 @@ def connect():
         join_room(f"webclients_{token}")
         # who ever connected latest is the HOST of the room
         ROOM_HOSTS = cache.get("ROOM_HOSTS")
-        
+
         if token not in ROOM_HOSTS:
             ROOM_HOSTS[token] = [request.sid]
         else:
@@ -201,11 +201,8 @@ def connect():
         cache.set("PER-TOKEN-DATA", PER_TOKEN_DATA)
 
         # append to zndraw.log a line isoformat() + " " + token
-        if app.config["USE_TOKEN"]:
-            with open("zndraw.log", "a") as f:
-                f.write(
-                    datetime.datetime.now().isoformat() + " " + token + " connected \n"
-                )
+
+        log.info(datetime.datetime.now().isoformat() + " " + token + " connected")
 
     except KeyError:
         pass
