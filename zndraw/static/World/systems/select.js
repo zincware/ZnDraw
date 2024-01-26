@@ -116,9 +116,7 @@ class Selection {
         "selection-json-editor",
       ).parameters;
       // console.log(new Date().toISOString(), "running selection");
-      this.socket.emit("selection:run", {
-        params: params,
-      });
+      this.socket.emit("selection:run", params);
     }
   }
 

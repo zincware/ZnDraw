@@ -518,7 +518,7 @@ def scene_update(data: SceneUpdateData):
 
 
 @io.on("selection:run")
-def selection_run(data: SelectionRunData):
+def selection_run(data: dict):
     """Run the selection."""
     tasks.run_selection.delay(request.url_root, session["token"], data)
 

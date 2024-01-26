@@ -51,9 +51,7 @@ function selection_editor(socket, cache, world) {
           const value = editor.getValue();
           console.log(value);
 
-          socket.emit("selection:run", {
-            params: value,
-          });
+          socket.emit("selection:run", value);
         }
       });
   });
@@ -124,9 +122,7 @@ function analysis_editor(socket, cache, world) {
             buildPlot();
           });
 
-          socket.emit("analysis:run", {
-            params: value,
-          });
+          socket.emit("analysis:run", value);
 
           document.getElementById("analysis-json-editor-submit").disabled =
             true;

@@ -222,8 +222,7 @@ def read_file(url: str, target: str):
 
 
 @shared_task
-def run_selection(url: str, token: str, data: SelectionRunData):
-    data = SelectionRunData(**data)
+def run_selection(url: str, token: str, data: dict):
     print(datetime.datetime.now().isoformat())
     vis = ZnDraw(url=url, token=token)
 
@@ -231,7 +230,7 @@ def run_selection(url: str, token: str, data: SelectionRunData):
     cls = get_selection_class(config.get_selection_methods())
 
     try:
-        selection = cls(**data.params)
+        selection = cls(**data)
         selection.run(vis)
     except ValueError as err:
         vis.log.critical(err)
@@ -247,7 +246,7 @@ def run_analysis(url: str, token: str, data: dict):
     cls = get_analysis_class(config.get_analysis_methods())
 
     try:
-        analysis = cls(**data["params"])
+        analysis = cls(**data)
         analysis.run(vis)
     except ValueError as err:
         vis.log(err)
