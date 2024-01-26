@@ -102,7 +102,7 @@ def get_celery_settings(config: GlobalConfig) -> dict:
     To make general, we want to take in the broker type and thee config to return
     the correct settings for the celery app.
     """
-    return dict(
+    setting =  dict(
         broker_url=config.celery.broker,
         broker_transport_options=dict(
             data_folder_in=ensure_path(config.celery.data_folder_in),
@@ -113,6 +113,8 @@ def get_celery_settings(config: GlobalConfig) -> dict:
         cache_backend=config.celery.cache_backend,
         task_ignore_result=config.celery.task_ignore_result,
     )
+    print(setting)
+    return setting
 
 
 def create_app() -> Flask:

@@ -2,7 +2,7 @@ from typing import Optional
 
 import typer
 
-from zndraw.app import FileIO, ZnDrawApp
+from zndraw.app import FileIO, ZnDrawServer
 from zndraw.utils import get_port
 
 cli = typer.Typer()
@@ -89,7 +89,7 @@ def main(
         step=step,
     )
 
-    with ZnDrawApp(
+    with ZnDrawServer(
         use_token=use_token,
         upgrade_insecure_requests=upgrade_insecure_requests,
         compute_bonds=compute_bonds,

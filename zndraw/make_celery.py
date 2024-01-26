@@ -1,4 +1,4 @@
-from zndraw.app import ZnDrawApp
+from zndraw.app import create_app
 
-with ZnDrawApp(None, False, True, None, None) as instance:
-    celery_app = instance.app.extensions["celery"]
+flask_app = create_app()
+celery_app = flask_app.extensions["celery"]
