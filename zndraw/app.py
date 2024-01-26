@@ -1,4 +1,5 @@
 import contextlib
+import pathlib
 import subprocess
 import uuid
 
@@ -6,13 +7,16 @@ from celery import Celery, Task
 from flask import Flask
 from flask_caching import Cache
 from flask_socketio import SocketIO
-import tempfile
-import pathlib
 
 socketio = SocketIO()
 cache = Cache(
-    config={"CACHE_TYPE": "FileSystemCache", "CACHE_DEFAULT_TIMEOUT": 60 * 60 * 24, "CACHE_DIR": ".zndraw/cache"}
+    config={
+        "CACHE_TYPE": "FileSystemCache",
+        "CACHE_DEFAULT_TIMEOUT": 60 * 60 * 24,
+        "CACHE_DIR": ".zndraw/cache",
+    }
 )
+
 
 def celery_init_app(app: Flask) -> Celery:
     class FlaskTask(Task):
@@ -90,14 +94,20 @@ def create_app(
             result_backend="cache",
             cache_backend="memory",
             task_ignore_result=True,
-            
         ),
     )
     app.config.from_prefixed_env()
     celery_app = celery_init_app(app)
 
     worker = subprocess.Popen(
-        ["celery", "-A", "zndraw.make_celery", "worker", "--loglevel=info", "--concurrency=1"]
+        [
+            "celery",
+            "-A",
+            "zndraw.make_celery",
+            "worker",
+            "--loglevel=info",
+            "--concurrency=1",
+        ]
     )
 
     yield app
