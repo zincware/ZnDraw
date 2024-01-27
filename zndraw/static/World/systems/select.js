@@ -331,9 +331,8 @@ class Selection {
           } else if (particlesGroup.selection.length > 0) {
             const { points, segments } = this.world.getLineData();
             console.log(new Date().toISOString(), "running modifier");
-            this.socket.emit("modifier:run", {
-              params: { method: { discriminator: "Delete" } },
-              url: window.location.href,
+            this.socket.emit("modifier:run",
+              { method: { discriminator: "Delete" },
             });
             // particlesGroup.click();
           } else {

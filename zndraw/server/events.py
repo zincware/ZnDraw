@@ -5,7 +5,7 @@ from threading import Lock
 from uuid import uuid4
 
 from celery import chain
-from flask import request, session
+from flask import request, session, current_app
 from flask_socketio import call, emit, join_room
 
 from zndraw.server import tasks
@@ -426,47 +426,47 @@ def debug(data: dict):
     emit("debug", data, include_self=False, to=_webclients_room(data))
 
 
-@io.on("modifier:run:running")
-@typecast
-def modifier_run_running(data: ModifierRunRunningData):
-    MODIFIER = cache.get("MODIFIER")
-    MODIFIER["active"] = data.name
-    emit(
-        "modifier:run:running",
-        dataclasses.asdict(data),
-        include_self=False,
-        to=_webclients_room(data),
-    )
+# @io.on("modifier:run:running")
+# @typecast
+# def modifier_run_running(data: ModifierRunRunningData):
+#     MODIFIER = cache.get("MODIFIER")
+#     MODIFIER["active"] = data.name
+#     emit(
+#         "modifier:run:running",
+#         dataclasses.asdict(data),
+#         include_self=False,
+#         to=_webclients_room(data),
+#     )
 
 
-@io.on("modifier:run:finished")
-@typecast
-def modifier_run_finished(data: AtomsLengthData):
-    # remove 0th element from queue
-    MODIFIER = cache.get("MODIFIER")
-    MODIFIER["queue"].pop(0)
-    MODIFIER["active"] = None
-    cache.set("MODIFIER", MODIFIER)
-    modifier_lock.release()
-    print("modifier_lock released")
-    emit(
-        "modifier:run:finished",
-        dataclasses.asdict(data),
-        include_self=False,
-        to=_webclients_room(data),
-    )
+# @io.on("modifier:run:finished")
+# @typecast
+# def modifier_run_finished(data: AtomsLengthData):
+#     # remove 0th element from queue
+#     MODIFIER = cache.get("MODIFIER")
+#     MODIFIER["queue"].pop(0)
+#     MODIFIER["active"] = None
+#     cache.set("MODIFIER", MODIFIER)
+#     modifier_lock.release()
+#     print("modifier_lock released")
+#     emit(
+#         "modifier:run:finished",
+#         dataclasses.asdict(data),
+#         include_self=False,
+#         to=_webclients_room(data),
+#     )
 
 
-@io.on("modifier:run:failed")
-def modifier_run_failed():
-    """Take care if the modifier does not respond."""
-    # remove 0th element from queue
-    MODIFIER = cache.get("MODIFIER")
-    MODIFIER["queue"].pop(0)
-    MODIFIER["active"] = None
-    cache.set("MODIFIER", MODIFIER)
-    modifier_lock.release()
-    log.critical("Modifier failed - releasing lock.")
+# @io.on("modifier:run:failed")
+# def modifier_run_failed():
+#     """Take care if the modifier does not respond."""
+#     # remove 0th element from queue
+#     MODIFIER = cache.get("MODIFIER")
+#     MODIFIER["queue"].pop(0)
+#     MODIFIER["active"] = None
+#     cache.set("MODIFIER", MODIFIER)
+#     modifier_lock.release()
+#     log.critical("Modifier failed - releasing lock.")
 
 
 @io.on("connectedUsers:subscribe:step")
@@ -536,3 +536,8 @@ def scene_trash():
 def analysis_run(data: dict):
     """Run the analysis."""
     tasks.run_analysis.delay(request.url_root, session["token"], data)
+
+@io.on("modifier:run")
+def modifier_run(data: dict):
+    """Run the modifier."""
+    tasks.run_modifier.delay(request.url_root, session["token"], data)

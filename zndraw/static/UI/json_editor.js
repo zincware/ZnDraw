@@ -142,28 +142,28 @@ function modifier_editor(socket, cache, world) {
     schema: { type: "object", title: "ZnDraw", properties: {} },
   });
 
-  let responseReceived = false;
+  // let responseReceived = false;
 
-  socket.on("modifier:run:submitted", () => {
-    console.log(new Date().toISOString(), "modifier:run:submitted");
-    setTimeout(() => {
-      if (!responseReceived) {
-        console.warn("No response on 'modifier:run:running' within 1 second");
-        alert("No response from server. Please try again.");
-        document.getElementById("interaction-json-editor-submit").disabled =
-          false;
-        socket.emit("modifier:run:failed");
-      }
-    }, 1000);
-  });
+  // socket.on("modifier:run:submitted", () => {
+  //   console.log(new Date().toISOString(), "modifier:run:submitted");
+  //   setTimeout(() => {
+  //     if (!responseReceived) {
+  //       console.warn("No response on 'modifier:run:running' within 1 second");
+  //       alert("No response from server. Please try again.");
+  //       document.getElementById("interaction-json-editor-submit").disabled =
+  //         false;
+  //       socket.emit("modifier:run:failed");
+  //     }
+  //   }, 1000);
+  // });
 
-  socket.on("modifier:run:enqueue", (position) => {
-    console.log(new Date().toISOString(), "modifier:run:enqueue");
-    document.getElementById("interaction-json-editor-submit").disabled = true;
-    document.getElementById("interaction-json-editor-submit").innerHTML =
-      '<i class="fa-solid fa-hourglass-start"></i> Job queued at position ' +
-      position;
-  });
+  // socket.on("modifier:run:enqueue", (position) => {
+  //   console.log(new Date().toISOString(), "modifier:run:enqueue");
+  //   document.getElementById("interaction-json-editor-submit").disabled = true;
+  //   document.getElementById("interaction-json-editor-submit").innerHTML =
+  //     '<i class="fa-solid fa-hourglass-start"></i> Job queued at position ' +
+  //     position;
+  // });
 
   // Check if a running response is received
   socket.on("modifier:run:running", () => {
@@ -180,13 +180,13 @@ function modifier_editor(socket, cache, world) {
     document.getElementById("interaction-json-editor-submit").disabled = false;
   });
 
-  socket.on("modifier:run:criticalfail", (data) => {
-    console.log(new Date().toISOString(), "modifier:run:failed");
-    alert("Modifier failed. Please try again with different settings.");
-    document.getElementById("interaction-json-editor-submit").innerHTML =
-      '<i class="fa-solid fa-play"></i> Run Modifier';
-    document.getElementById("interaction-json-editor-submit").disabled = false;
-  });
+  // socket.on("modifier:run:criticalfail", (data) => {
+  //   console.log(new Date().toISOString(), "modifier:run:failed");
+  //   alert("Modifier failed. Please try again with different settings.");
+  //   document.getElementById("interaction-json-editor-submit").innerHTML =
+  //     '<i class="fa-solid fa-play"></i> Run Modifier';
+  //   document.getElementById("interaction-json-editor-submit").disabled = false;
+  // });
 
   document
     .getElementById("interaction-json-editor-submit")
@@ -199,12 +199,9 @@ function modifier_editor(socket, cache, world) {
         const value = editor.getValue();
         console.log(value);
 
-        responseReceived = false;
+        // responseReceived = false;
 
-        socket.emit("modifier:run", {
-          params: value,
-          url: window.location.href,
-        });
+        socket.emit("modifier:run", value);
 
         document.getElementById("interaction-json-editor-submit").disabled =
           true;

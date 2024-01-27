@@ -266,3 +266,28 @@ def run_analysis(url: str, token: str, data: dict):
         analysis.run(vis)
     except ValueError as err:
         vis.log(err)
+
+@shared_task
+def run_modifier(url: str, token: str, data: dict):
+    vis = ZnDraw(url=url, token=token)
+
+    msg = CeleryTaskData(
+        target=f"webclients_{vis.token}", event="modifier:run:running", data=None
+    )
+
+    vis.socket.emit("celery:task:results", asdict(msg))
+
+    config = GlobalConfig.load()
+    cls = get_modify_class(config.get_modify_methods())
+
+    try:
+        modifier = cls(**data)
+        modifier.run(vis)
+    except ValueError as err:
+        vis.log(err)
+    
+    msg = CeleryTaskData(
+        target=f"webclients_{vis.token}", event="modifier:run:finished", data=None
+    )
+
+    vis.socket.emit("celery:task:results", asdict(msg))
