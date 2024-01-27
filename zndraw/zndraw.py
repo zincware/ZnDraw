@@ -10,7 +10,7 @@ import numpy as np
 import socketio
 from znframe.frame import Frame
 
-from zndraw.data import FrameData
+from zndraw.data import FrameData, ModifierRegisterData
 from zndraw.modify import UpdateScene, get_modify_class
 from zndraw.settings import GlobalConfig
 from zndraw.utils import (
@@ -385,18 +385,16 @@ class ZnDraw(ZnDrawBase):
         """
         if run_kwargs is None:
             run_kwargs = {}
+
+        msg = ModifierRegisterData(
+            schema=cls.model_json_schema(),
+            name=cls.__name__,
+            default=default,
+        )
+
         self.socket.emit(
             "modifier:register",
-            {
-                "uuid": self._uuid,
-                "modifiers": [
-                    {
-                        "schema": cls.model_json_schema(),
-                        "name": cls.__name__,
-                        "default": default,
-                    }
-                ],
-            },
+            dataclasses.asdict(msg),
         )
         self._modifiers[cls.__name__] = {"cls": cls, "run_kwargs": run_kwargs}
 

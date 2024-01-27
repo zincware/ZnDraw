@@ -24,6 +24,7 @@ from ..data import (
     SceneUpdateData,
     SchemaData,
     SubscribedUserData,
+    ModifierRegisterData
 )
 
 log = logging.getLogger(__name__)
@@ -221,13 +222,32 @@ def celery_task_results(msg: CeleryTaskData):
 def disconnect():
     token = session["token"]
     ROOM_HOSTS = cache.get("ROOM_HOSTS")
-    if token not in ROOM_HOSTS:
-        return
-    if request.sid in ROOM_HOSTS[token]:
-        ROOM_HOSTS[token].remove(request.sid)
-    if len(ROOM_HOSTS[token]) == 0:
-        del ROOM_HOSTS[token]
-    cache.set("ROOM_HOSTS", ROOM_HOSTS)
+    if token in ROOM_HOSTS:
+        if request.sid in ROOM_HOSTS[token]:
+            ROOM_HOSTS[token].remove(request.sid)
+        if len(ROOM_HOSTS[token]) == 0:
+            del ROOM_HOSTS[token]
+        cache.set("ROOM_HOSTS", ROOM_HOSTS)
+
+    # pyclients only
+    # check if the SID is in MODIFIER_HOSTS or ROOM_MODIFIER_HOSTS
+    MODIFIER_HOSTS = cache.get("MODIFIER_HOSTS")
+    for name, sids in MODIFIER_HOSTS.items():
+        while request.sid in sids:
+            MODIFIER_HOSTS[name].remove(request.sid)
+    cache.set("MODIFIER_HOSTS", MODIFIER_HOSTS)
+
+    ROOM_MODIFIER_HOSTS = cache.get("ROOM_MODIFIER_HOSTS")
+    if token in ROOM_MODIFIER_HOSTS:
+        for name, sids in ROOM_MODIFIER_HOSTS[token].items():
+            while request.sid in sids:
+                ROOM_MODIFIER_HOSTS[token][name].remove(request.sid)
+    
+    # !!!!!!!!!!!!!!
+    # TODO: remove schema if no more hosts are connected and send to webclients
+
+    cache.set("ROOM_MODIFIER_HOSTS", ROOM_MODIFIER_HOSTS)
+
     # with contextlib.suppress(KeyError):
 
     #     PYCLIENTS = cache.get("pyclients")
@@ -546,3 +566,41 @@ def modifier_run(data: dict):
         "modifier:run:enqueue", to=f"webclients_{session['token']}", include_self=False
     )
     tasks.run_modifier.apply_async((request.url_root, session["token"], data))
+
+@io.on("modifier:register")
+@typecast
+def modifier_register(data: ModifierRegisterData):
+    """Register the modifier."""
+
+    if data.default:
+        MODIFIER_HOSTS = cache.get("MODIFIER_HOSTS")
+        MODIFIER_SCHEMA = cache.get("MODIFIER_SCHEMA")
+    else:
+        MODIFIER_HOSTS = cache.get("ROOM_MODIFIER_HOSTS").get(session["token"], {})
+        MODIFIER_SCHEMA = cache.get("ROOM_MODIFIER_SCHEMA").get(session["token"], {})
+
+    if data.name in MODIFIER_HOSTS:
+        if MODIFIER_SCHEMA[data.name] != data.schema:
+            log.critical(
+                f"Modifier {data.name} is already registered with a different schema."
+            )
+            return
+        log.info(f"Register additional handlfer for already registered {data.name}.")
+        MODIFIER_HOSTS[data.name].append(request.sid)
+    else:
+        log.info(f"Register new handler for {data.name}.")
+        MODIFIER_HOSTS[data.name] = [request.sid]
+        MODIFIER_SCHEMA[data.name] = data.schema
+
+    if data.default:
+        cache.set("MODIFIER_HOSTS", MODIFIER_HOSTS)
+        cache.set("MODIFIER_SCHEMA", MODIFIER_SCHEMA)
+    else:
+        ROOM_MODIFIER_HOSTS = cache.get("ROOM_MODIFIER_HOSTS")
+        ROOM_MODIFIER_SCHEMA = cache.get("ROOM_MODIFIER_SCHEMA")
+
+        ROOM_MODIFIER_HOSTS[session["token"]] = MODIFIER_HOSTS
+        ROOM_MODIFIER_SCHEMA[session["token"]] = MODIFIER_SCHEMA
+
+        cache.set("ROOM_MODIFIER_HOSTS", ROOM_MODIFIER_HOSTS)
+        cache.set("ROOM_MODIFIER_SCHEMA", ROOM_MODIFIER_SCHEMA)

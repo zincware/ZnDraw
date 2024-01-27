@@ -146,6 +146,12 @@ class ZnDrawServer:
 
         setup_cache()
         cache.set("FILEIO", self.fileio)
+        # Mapping of modifier name f"name" to [request.sid, ...]
+        cache.set("ROOM_MODIFIER_HOSTS", {})
+        cache.set("MODIFIER_HOSTS", {})
+        # Mapping of modifier name f"name" to [dict, ...]
+        cache.set("ROOM_MODIFIER_SCHEMA", {})
+        cache.set("MODIFIER_SCHEMA", {})
 
     def run(self, browser=False):
         self.update_cache()

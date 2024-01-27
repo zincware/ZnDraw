@@ -114,21 +114,9 @@ class PlayData:
 
 @dataclasses.dataclass
 class ModifierRegisterData:
-    uuid: str
-    modifiers: list[dict]
-    token: str = None
-
-    @property
-    def name(self) -> str:
-        return self.modifiers[0]["name"]
-
-    @property
-    def is_default(self) -> bool:
-        return self.modifiers[0]["default"]
-
-    @property
-    def schema(self) -> dict:
-        return self.modifiers[0]["schema"]
+    schema: dict
+    name: str
+    default: bool
 
 
 @dataclasses.dataclass
