@@ -124,27 +124,25 @@ function analysis_editor(socket, cache, world) {
 
         socket.emit("analysis:run", value);
 
-        document.getElementById("analysis-json-editor-submit").disabled =
-          true;
+        document.getElementById("analysis-json-editor-submit").disabled = true;
       }
     });
 
-    socket.on("analysis:figure", (data) => {
+  socket.on("analysis:figure", (data) => {
+    Plotly.newPlot("analysisPlot", JSON.parse(data));
+
+    function buildPlot() {
       Plotly.newPlot("analysisPlot", JSON.parse(data));
+      const myplot = document.getElementById("analysisPlot");
+      myplot.on("plotly_click", (data) => {
+        const point = data.points[0];
+        const step = point.x;
+        world.setStep(step);
+      });
+    }
 
-      function buildPlot() {
-        Plotly.newPlot("analysisPlot", JSON.parse(data));
-        const myplot = document.getElementById("analysisPlot");
-        myplot.on("plotly_click", (data) => {
-          const point = data.points[0];
-          const step = point.x;
-          world.setStep(step);
-        });
-      }
-
-      buildPlot();
-    });
-
+    buildPlot();
+  });
 }
 
 function modifier_editor(socket, cache, world) {
