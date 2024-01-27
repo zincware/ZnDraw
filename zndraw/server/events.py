@@ -155,6 +155,7 @@ def connect():
         tasks.get_selection_schema.delay(request.url_root, request.sid)
         tasks.scene_schema.delay(request.url_root, request.sid)
         tasks.geometries_schema.delay(request.url_root, request.sid)
+        tasks.modifier_schema.delay(request.url_root, request.sid)
 
         join_room(f"webclients_{token}")
         # who ever connected latest is the HOST of the room

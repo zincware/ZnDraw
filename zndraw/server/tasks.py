@@ -12,6 +12,7 @@ from socketio import Client
 from zndraw.analyse import get_analysis_class
 from zndraw.draw import Geometry
 from zndraw.select import get_selection_class
+from zndraw.modify import get_modify_class
 from zndraw.settings import GlobalConfig
 from zndraw.utils import hide_discriminator_field
 from zndraw.zndraw import ZnDraw
@@ -142,6 +143,20 @@ def analysis_schema(url: str, token: str):
     )
     con = get_client(url)
     print(f"emitting analysis_schema to {vis.token}")
+    con.emit("celery:task:results", asdict(msg))
+
+@shared_task
+def modifier_schema(url: str, target: str):
+    config = GlobalConfig.load()
+    cls = get_modify_class(config.get_modify_methods()) # todo: include=include)
+    schema = cls.model_json_schema()
+
+    hide_discriminator_field(schema)
+    msg = CeleryTaskData(
+        target=target, event="modifier:schema", data=schema
+    )
+    con = get_client(url)
+    print(f"emitting modifier_schema to {target}")
     con.emit("celery:task:results", asdict(msg))
 
 
