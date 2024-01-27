@@ -338,7 +338,7 @@ def run_modifier(url: str, token: str, data: dict):
                         data=f"Modifier {NAME} did not finish in time.",
                     )
                     vis.socket.emit("celery:task:results", asdict(msg))
-                    
+
                     on_finished()
 
                     return
@@ -366,7 +366,7 @@ def run_modifier(url: str, token: str, data: dict):
                         data=f"Modifier {NAME} did not finish in time.",
                     )
                     vis.socket.emit("celery:task:results", asdict(msg))
-                    
+
                     on_finished()
                     return
 
