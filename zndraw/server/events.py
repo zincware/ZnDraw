@@ -218,6 +218,11 @@ def celery_task_results(msg: CeleryTaskData):
     emit(msg.event, msg.data, to=msg.target)
 
 
+@io.on("celery:task:call")
+@typecast
+def celery_task_call(msg: CeleryTaskData):
+    return call(msg.event, msg.data, to=msg.target)
+
 @io.on("disconnect")
 def disconnect():
     token = session["token"]

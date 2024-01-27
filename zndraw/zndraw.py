@@ -10,12 +10,13 @@ import numpy as np
 import socketio
 from znframe.frame import Frame
 
-from zndraw.data import FrameData, ModifierRegisterData
+from zndraw.data import FrameData, ModifierRegisterData, ModifierRunData
 from zndraw.modify import UpdateScene, get_modify_class
 from zndraw.settings import GlobalConfig
 from zndraw.utils import (
     ZnDrawLoggingHandler,
 )
+from zndraw.data import CeleryTaskData
 
 log = logging.getLogger(__name__)
 
@@ -29,10 +30,13 @@ class Config:
     call_timeout : int
         Timeout for socket calls in seconds.
         Set to a smaller value to fail faster.
+    modifier_timeout : int
+        Maximum runtime for modifiers in seconds.
     """
 
     call_timeout: int = 60
     retries: int = 100
+    modifier_timeout: int = 5
 
 
 @dataclasses.dataclass
@@ -61,6 +65,7 @@ class ZnDrawBase:  # collections.abc.MutableSequence
     _uuid: uuid.UUID = dataclasses.field(default_factory=uuid.uuid4)
     auth_token: str = None
     config: Config = dataclasses.field(default_factory=Config)
+    available: bool = True
 
     _target_sid: str = None
 
@@ -83,6 +88,10 @@ class ZnDrawBase:  # collections.abc.MutableSequence
         self.socket.on("disconnect", lambda: self.socket.disconnect())
         self.socket.on("modifier:run", self._pre_modifier_run)
         self.socket.on("message:log", lambda data: print(data))
+        self.socket.on("available", self._on_available)
+
+    def _on_available(self):
+        return {"available": self.available, "timeout": self.config.modifier_timeout}
 
     def _connect(self):
         for _ in range(100):
@@ -283,26 +292,35 @@ class ZnDrawBase:  # collections.abc.MutableSequence
 
     def _pre_modifier_run(self, data) -> None:
         # TODO: this should be inside the _set_sid ?
-        self.socket.emit(
-            "modifier:run:running",
-            {
-                "token": data["target"],
-                "name": data["params"]["method"]["discriminator"],
-            },
-        )
-        try:
-            self._modifier_run(data)
-        except Exception as err:
-            self.log(f"Modifier failed with error: {repr(err)}")
-        self.socket.emit(
-            "modifier:run:finished",
-            {
-                "token": data["target"],
-            },
+        self.token = data["token"]
+
+        msg = CeleryTaskData(
+            target=f"webclients_{self.token}", event="modifier:run:running", data=None
         )
 
-    def _modifier_run(self, data) -> None:
-        raise NotImplementedError
+        self.socket.emit("celery:task:results", dataclasses.asdict(msg))
+        try:
+            self._modifier_run(data['params'])
+        except Exception as err:
+            self.log(f"Modifier failed with error: {repr(err)}")
+        msg = CeleryTaskData(
+            target=f"webclients_{self.token}", event="modifier:run:finished", data=None
+        )
+
+        self.socket.emit("celery:task:results", dataclasses.asdict(msg))
+
+    def _modifier_run(self, data: dict) -> None:
+        config = GlobalConfig.load()
+        cls = get_modify_class(
+            config.get_modify_methods(
+                include=[x["cls"] for x in self._modifiers.values()]
+            )
+        )
+        modifier = cls(**data)
+        modifier.run(
+            self,
+            **self._modifiers[modifier.method.__class__.__name__]["run_kwargs"],
+        )
 
 
 @dataclasses.dataclass
@@ -398,18 +416,3 @@ class ZnDraw(ZnDrawBase):
         )
         self._modifiers[cls.__name__] = {"cls": cls, "run_kwargs": run_kwargs}
 
-    def _modifier_run(self, data):
-        # TODO: send back a response that the modifier has been received, otherwise log a warning
-        # that the modifier has not been received to the user
-        with self._set_token(data["target"]):
-            config = GlobalConfig.load()
-            cls = get_modify_class(
-                config.get_modify_methods(
-                    include=[x["cls"] for x in self._modifiers.values()]
-                )
-            )
-            modifier = cls(**data["params"])
-            modifier.run(
-                self,
-                **self._modifiers[modifier.method.__class__.__name__]["run_kwargs"],
-            )
