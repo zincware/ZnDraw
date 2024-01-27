@@ -108,6 +108,13 @@ function analysis_editor(socket, cache, world) {
       '<i class="fa-solid fa-play"></i> Analyse';
     document.getElementById("analysis-json-editor-submit").disabled = false;
   });
+  
+  // other client started process
+  socket.on("analysis:run:enqueue", () => {
+    document.getElementById("analysis-json-editor-submit").disabled = true;
+    document.getElementById("analysis-json-editor-submit").innerHTML =
+      '<i class="fa-solid fa-hourglass-start"></i> Job queued';
+  });
 
   document
     .getElementById("analysis-json-editor-submit")
@@ -176,17 +183,22 @@ function modifier_editor(socket, cache, world) {
 
   // Check if a running response is received
   socket.on("modifier:run:running", () => {
-    responseReceived = true;
     document.getElementById("interaction-json-editor-submit").innerHTML =
       '<i class="fa-solid fa-spinner"></i> Running';
   });
 
   // Finished running
   socket.on("modifier:run:finished", (data) => {
-    console.log(new Date().toISOString(), "modifier:run:finished");
     document.getElementById("interaction-json-editor-submit").innerHTML =
       '<i class="fa-solid fa-play"></i> Run Modifier';
     document.getElementById("interaction-json-editor-submit").disabled = false;
+  });
+  
+  // other client started process
+  socket.on("modifier:run:enqueue", () => {
+    document.getElementById("interaction-json-editor-submit").disabled = true;
+    document.getElementById("interaction-json-editor-submit").innerHTML =
+      '<i class="fa-solid fa-hourglass-start"></i> Job queued';
   });
 
   // socket.on("modifier:run:criticalfail", (data) => {

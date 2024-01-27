@@ -533,10 +533,12 @@ def scene_trash():
 @io.on("analysis:run")
 def analysis_run(data: dict):
     """Run the analysis."""
+    io.emit("analysis:run:enqueue", to=f"webclients_{session['token']}", include_self=False)
     tasks.run_analysis.delay(request.url_root, session["token"], data)
 
 
 @io.on("modifier:run")
 def modifier_run(data: dict):
     """Run the modifier."""
+    io.emit("modifier:run:enqueue", to=f"webclients_{session['token']}", include_self=False)
     tasks.run_modifier.delay(request.url_root, session["token"], data)
