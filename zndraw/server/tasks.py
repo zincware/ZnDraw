@@ -314,42 +314,59 @@ def run_modifier(url: str, token: str, data: dict):
     ROOM_MODIFIER_HOSTS = cache.get("ROOM_MODIFIER_HOSTS")
 
     if NAME in MODIFIER_HOSTS:
-        for pyclient in MODIFIER_HOSTS[NAME]:
-            msg = CeleryTaskData(target=pyclient, event="available", data=None)
-            avail = vis.socket.call("celery:task:call", asdict(msg))
-            print(f"Modifier {NAME} is available on {pyclient}: {avail}")
-            if avail["available"]:
-                print(f"Modifier is running on {pyclient}")
-                msg = CeleryTaskData(
-                    target=pyclient,
-                    event="modifier:run",
-                    data={"params": data, "token": token},
-                )
-                vis.socket.call("celery:task:call", asdict(msg))
-                # run the modifier, tell it to send a message here when it is done
-            vis.socket.sleep(avail["timeout"])
-            # TODO: alert that the modifier did not finish in time
-            on_finished()
+        while True:
+            for pyclient in MODIFIER_HOSTS[NAME]:
+                msg = CeleryTaskData(target=pyclient, event="available", data=None)
+                avail = vis.socket.call("celery:task:call", asdict(msg))
+                print(f"Modifier {NAME} is available on {pyclient}: {avail}")
+                if avail["available"]:
+                    print(f"Modifier is running on {pyclient}")
+                    msg = CeleryTaskData(
+                        target=pyclient,
+                        event="modifier:run",
+                        data={"params": data, "token": token},
+                    )
+                    vis.socket.emit("celery:task:results", asdict(msg))
+                    vis.socket.sleep(avail["timeout"])
+                    print("modifier timed out")
 
-        return
+                    msg = CeleryTaskData(
+                        target=f"webclients_{vis.token}",
+                        event="message:alert",
+                        data=f"Modifier {NAME} did not finish in time.",
+                    )
+                    vis.socket.emit("celery:task:results", asdict(msg))
+                    
+                    on_finished()
+
+                    return
 
     if NAME in ROOM_MODIFIER_HOSTS.get(vis.token, []):
-        for pyclient in ROOM_MODIFIER_HOSTS[vis.token][NAME]:
-            msg = CeleryTaskData(target=pyclient, event="available", data=None)
-            avail = vis.socket.call("celery:task:call", asdict(msg))
-            print(f"Modifier {NAME} is available on {pyclient}: {avail}")
-            if avail["available"]:
-                print(f"Modifier is running on {pyclient}")  #
-                msg = CeleryTaskData(
-                    target=pyclient,
-                    event="modifier:run",
-                    data={"params": data, "token": token},
-                )
-                vis.socket.call("celery:task:call", asdict(msg))
-            vis.socket.sleep(avail["timeout"])
-            # TODO: alert that the modifier did not finish in time
-            on_finished()
-        return
+        while True:
+            for pyclient in ROOM_MODIFIER_HOSTS[vis.token][NAME]:
+                msg = CeleryTaskData(target=pyclient, event="available", data=None)
+                avail = vis.socket.call("celery:task:call", asdict(msg))
+                print(f"Modifier {NAME} is available on {pyclient}: {avail}")
+                if avail["available"]:
+                    print(f"Modifier is running on {pyclient}")  #
+                    msg = CeleryTaskData(
+                        target=pyclient,
+                        event="modifier:run",
+                        data={"params": data, "token": token},
+                    )
+                    vis.socket.emit("celery:task:results", asdict(msg))
+                    vis.socket.sleep(avail["timeout"])
+                    print("modifier timed out")
+
+                    msg = CeleryTaskData(
+                        target=f"webclients_{vis.token}",
+                        event="message:alert",
+                        data=f"Modifier {NAME} did not finish in time.",
+                    )
+                    vis.socket.emit("celery:task:results", asdict(msg))
+                    
+                    on_finished()
+                    return
 
     msg = CeleryTaskData(
         target=f"webclients_{vis.token}", event="modifier:run:running", data=None
