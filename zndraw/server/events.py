@@ -154,7 +154,7 @@ def connect():
         tasks.get_selection_schema.delay(request.url_root, request.sid)
         tasks.scene_schema.delay(request.url_root, request.sid)
         tasks.geometries_schema.delay(request.url_root, request.sid)
-        tasks.modifier_schema.delay(request.url_root, request.sid)
+        tasks.modifier_schema.delay(request.url_root, token)
 
         join_room(f"webclients_{token}")
         # who ever connected latest is the HOST of the room
@@ -580,6 +580,7 @@ def modifier_register(data: ModifierRegisterData):
         MODIFIER_HOSTS = cache.get("ROOM_MODIFIER_HOSTS").get(session["token"], {})
         MODIFIER_SCHEMA = cache.get("ROOM_MODIFIER_SCHEMA").get(session["token"], {})
 
+    # TODO: do not allow modifiers that are already in defaults, handle duplicates better!
     if data.name in MODIFIER_HOSTS:
         if MODIFIER_SCHEMA[data.name] != data.schema:
             log.critical(
@@ -605,3 +606,6 @@ def modifier_register(data: ModifierRegisterData):
 
         cache.set("ROOM_MODIFIER_HOSTS", ROOM_MODIFIER_HOSTS)
         cache.set("ROOM_MODIFIER_SCHEMA", ROOM_MODIFIER_SCHEMA)
+
+        # emit new modifier schema to all webclients
+        tasks.modifier_schema.delay(request.url_root, session["token"])

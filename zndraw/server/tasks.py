@@ -14,11 +14,11 @@ from zndraw.draw import Geometry
 from zndraw.modify import get_modify_class
 from zndraw.select import get_selection_class
 from zndraw.settings import GlobalConfig
-from zndraw.utils import hide_discriminator_field
+from zndraw.utils import hide_discriminator_field, get_cls_from_json_schema
 from zndraw.zndraw import ZnDraw
 
 from ..app import cache
-from ..data import CeleryTaskData, FrameData
+from ..data import CeleryTaskData, FrameData, ModifierRunData
 
 
 def get_client(url) -> Client:
@@ -147,15 +147,26 @@ def analysis_schema(url: str, token: str):
 
 
 @shared_task
-def modifier_schema(url: str, target: str):
+def modifier_schema(url: str, token: str):
     config = GlobalConfig.load()
-    cls = get_modify_class(config.get_modify_methods())  # todo: include=include)
+    
+    MODIFIER_SCHEMA = cache.get("MODIFIER_SCHEMA")
+    ROOM_MODIFIER_SCHEMA = cache.get("ROOM_MODIFIER_SCHEMA").get(token, {})
+
+    include = []
+    for name, schema in MODIFIER_SCHEMA.items():
+        include.append(get_cls_from_json_schema(schema, name))
+    for name, schema in ROOM_MODIFIER_SCHEMA.items():
+        include.append(get_cls_from_json_schema(schema, name))
+
+
+    cls = get_modify_class(config.get_modify_methods(include=include))  # todo: include=include)
     schema = cls.model_json_schema()
 
     hide_discriminator_field(schema)
-    msg = CeleryTaskData(target=target, event="modifier:schema", data=schema)
+    msg = CeleryTaskData(target=f"webclients_{token}", event="modifier:schema", data=schema)
     con = get_client(url)
-    print(f"emitting modifier_schema to {target}")
+    print(f"emitting modifier_schema to {token}")
     con.emit("celery:task:results", asdict(msg))
 
 
@@ -283,6 +294,16 @@ def run_analysis(url: str, token: str, data: dict):
 @shared_task
 def run_modifier(url: str, token: str, data: dict):
     vis = ZnDraw(url=url, token=token)
+
+    NAME = data["method"]["discriminator"]
+
+    MODIFIER_HOSTS  = cache.get("MODIFIER_HOSTS")
+    ROOM_MODIFIER_HOSTS = cache.get("ROOM_MODIFIER_HOSTS")
+
+    if NAME in MODIFIER_HOSTS:
+        print("Running modifier on host for default modifiers")
+    if NAME in ROOM_MODIFIER_HOSTS.get(vis.token, []):
+        print("Running modifier on host for room modifiers")
 
     msg = CeleryTaskData(
         target=f"webclients_{vis.token}", event="modifier:run:running", data=None
