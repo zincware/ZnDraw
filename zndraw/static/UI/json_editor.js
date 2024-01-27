@@ -85,55 +85,66 @@ function scene_editor(socket, cache, world) {
 }
 
 function analysis_editor(socket, cache, world) {
+  const div = document.getElementById("analysis-json-editor");
+  let editor = new JSONEditor(div, {
+    schema: { type: "object", title: "Analysis", properties: {} },
+  });
+
   socket.on("analysis:schema", (data) => {
-    const div = document.getElementById("analysis-json-editor");
-    const editor = new JSONEditor(div, {
+    editor.destroy();
+    editor = new JSONEditor(div, {
       schema: data,
     });
+  });
 
-    editor.on("change", () => {
-      const value = editor.getValue();
-      div.parameters = value;
+  socket.on("analysis:run:running", () => {
+    document.getElementById("analysis-json-editor-submit").innerHTML =
+      '<i class="fa-solid fa-spinner"></i> Running';
+  });
+
+  // Finished running
+  socket.on("analysis:run:finished", (data) => {
+    document.getElementById("analysis-json-editor-submit").innerHTML =
+      '<i class="fa-solid fa-play"></i> Analyse';
+    document.getElementById("analysis-json-editor-submit").disabled = false;
+  });
+
+  document
+    .getElementById("analysis-json-editor-submit")
+    .addEventListener("click", () => {
+      // Get the value from the editor
+      const errors = editor.validate();
+      if (errors.length) {
+        console.log(errors);
+      } else {
+        const value = editor.getValue();
+        console.log(value);
+
+        // responseReceived = false;
+
+        socket.emit("analysis:run", value);
+
+        document.getElementById("analysis-json-editor-submit").disabled =
+          true;
+      }
     });
 
-    document
-      .getElementById("analysis-json-editor-submit")
-      .addEventListener("click", () => {
-        // Get the value from the editor
-        const errors = editor.validate();
-        if (errors.length) {
-          console.log(errors);
-        } else {
-          const value = editor.getValue();
+    socket.on("analysis:figure", (data) => {
+      Plotly.newPlot("analysisPlot", JSON.parse(data));
 
-          socket.on("analysis:figure", (data) => {
-            Plotly.newPlot("analysisPlot", JSON.parse(data));
+      function buildPlot() {
+        Plotly.newPlot("analysisPlot", JSON.parse(data));
+        const myplot = document.getElementById("analysisPlot");
+        myplot.on("plotly_click", (data) => {
+          const point = data.points[0];
+          const step = point.x;
+          world.setStep(step);
+        });
+      }
 
-            function buildPlot() {
-              Plotly.newPlot("analysisPlot", JSON.parse(data));
-              const myplot = document.getElementById("analysisPlot");
-              myplot.on("plotly_click", (data) => {
-                const point = data.points[0];
-                const step = point.x;
-                world.setStep(step);
-              });
-            }
+      buildPlot();
+    });
 
-            buildPlot();
-          });
-
-          socket.emit("analysis:run", value);
-
-          document.getElementById("analysis-json-editor-submit").disabled =
-            true;
-          // if there is an error in uploading, we still want to be able to submit again
-          setTimeout(() => {
-            document.getElementById("analysis-json-editor-submit").disabled =
-              false;
-          }, 1000);
-        }
-      });
-  });
 }
 
 function modifier_editor(socket, cache, world) {
@@ -213,11 +224,6 @@ function modifier_editor(socket, cache, world) {
 
     editor = new JSONEditor(div, {
       schema: data,
-    });
-
-    editor.on("change", () => {
-      const value = editor.getValue();
-      div.parameters = value;
     });
   });
 }

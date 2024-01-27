@@ -258,6 +258,12 @@ def run_selection(url: str, token: str, data: dict):
 def run_analysis(url: str, token: str, data: dict):
     vis = ZnDraw(url=url, token=token)
 
+    msg = CeleryTaskData(
+        target=f"webclients_{vis.token}", event="analysis:run:running", data=None
+    )
+
+    vis.socket.emit("celery:task:results", asdict(msg))
+
     config = GlobalConfig.load()
     cls = get_analysis_class(config.get_analysis_methods())
 
@@ -266,6 +272,12 @@ def run_analysis(url: str, token: str, data: dict):
         analysis.run(vis)
     except ValueError as err:
         vis.log(err)
+
+    msg = CeleryTaskData(
+        target=f"webclients_{vis.token}", event="analysis:run:finished", data=None
+    )
+
+    vis.socket.emit("celery:task:results", asdict(msg))
 
 
 @shared_task
