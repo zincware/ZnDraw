@@ -267,11 +267,11 @@ def run_analysis(url: str, token: str, data: dict):
     config = GlobalConfig.load()
     cls = get_analysis_class(config.get_analysis_methods())
 
+    analysis = cls(**data)
     try:
-        analysis = cls(**data)
         analysis.run(vis)
-    except ValueError as err:
-        vis.log(err)
+    except Exception as err:
+        vis.log(f"Error: {err}")
 
     msg = CeleryTaskData(
         target=f"webclients_{vis.token}", event="analysis:run:finished", data=None
@@ -293,11 +293,12 @@ def run_modifier(url: str, token: str, data: dict):
     config = GlobalConfig.load()
     cls = get_modify_class(config.get_modify_methods())
 
+    modifier = cls(**data)
+
     try:
-        modifier = cls(**data)
         modifier.run(vis)
-    except ValueError as err:
-        vis.log(err)
+    except Exception as err:
+        vis.log(f"Error: {err}")
 
     msg = CeleryTaskData(
         target=f"webclients_{vis.token}", event="modifier:run:finished", data=None

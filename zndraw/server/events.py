@@ -541,4 +541,4 @@ def analysis_run(data: dict):
 def modifier_run(data: dict):
     """Run the modifier."""
     io.emit("modifier:run:enqueue", to=f"webclients_{session['token']}", include_self=False)
-    tasks.run_modifier.delay(request.url_root, session["token"], data)
+    tasks.run_modifier.apply_async((request.url_root, session["token"], data))
