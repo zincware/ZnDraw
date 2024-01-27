@@ -290,23 +290,34 @@ class ZnDrawBase:  # collections.abc.MutableSequence
         self.socket.emit("bookmarks:set", value)
 
     def _pre_modifier_run(self, data) -> None:
-        # TODO: this should be inside the _set_sid ?
-        self.token = data["token"]
+        self.available = False
+        
+        vis = type(self)(self.url, data["token"])
 
         msg = CeleryTaskData(
-            target=f"webclients_{self.token}", event="modifier:run:running", data=None
+            target=f"webclients_{vis.token}", event="modifier:run:running", data=None
         )
 
-        self.socket.emit("celery:task:results", dataclasses.asdict(msg))
+        vis.socket.emit("celery:task:results", dataclasses.asdict(msg))
         try:
-            self._modifier_run(data["params"])
+            config = GlobalConfig.load()
+            cls = get_modify_class(
+                config.get_modify_methods(
+                    include=[x["cls"] for x in self._modifiers.values()]
+                )
+            )
+            modifier = cls(**data["params"])
+            modifier.run(
+                vis,
+                **self._modifiers[modifier.method.__class__.__name__]["run_kwargs"],
+            )
         except Exception as err:
-            self.log(f"Modifier failed with error: {repr(err)}")
+            vis.log(f"Modifier failed with error: {repr(err)}")
         msg = CeleryTaskData(
-            target=f"webclients_{self.token}", event="modifier:run:finished", data=None
+            target=f"webclients_{vis.token}", event="modifier:run:finished", data=None
         )
-
-        self.socket.emit("celery:task:results", dataclasses.asdict(msg))
+        vis.socket.emit("celery:task:results", dataclasses.asdict(msg))
+        self.available = True
 
     def _modifier_run(self, data: dict) -> None:
         config = GlobalConfig.load()

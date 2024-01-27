@@ -305,6 +305,8 @@ def run_modifier(url: str, token: str, data: dict):
         )
 
         vis.socket.emit("celery:task:results", asdict(msg))
+        # now we are done, disconnect the socket
+        vis.socket.disconnect()
 
     vis.socket.on("modifier:run:finished", on_finished)
 
