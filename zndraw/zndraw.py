@@ -291,7 +291,7 @@ class ZnDrawBase:  # collections.abc.MutableSequence
 
     def _pre_modifier_run(self, data) -> None:
         self.available = False
-        
+
         vis = type(self)(self.url, data["token"])
 
         msg = CeleryTaskData(
