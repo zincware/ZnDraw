@@ -10,13 +10,12 @@ import numpy as np
 import socketio
 from znframe.frame import Frame
 
-from zndraw.data import FrameData, ModifierRegisterData, ModifierRunData
+from zndraw.data import CeleryTaskData, FrameData, ModifierRegisterData
 from zndraw.modify import UpdateScene, get_modify_class
 from zndraw.settings import GlobalConfig
 from zndraw.utils import (
     ZnDrawLoggingHandler,
 )
-from zndraw.data import CeleryTaskData
 
 log = logging.getLogger(__name__)
 
@@ -300,7 +299,7 @@ class ZnDrawBase:  # collections.abc.MutableSequence
 
         self.socket.emit("celery:task:results", dataclasses.asdict(msg))
         try:
-            self._modifier_run(data['params'])
+            self._modifier_run(data["params"])
         except Exception as err:
             self.log(f"Modifier failed with error: {repr(err)}")
         msg = CeleryTaskData(
@@ -415,4 +414,3 @@ class ZnDraw(ZnDrawBase):
             dataclasses.asdict(msg),
         )
         self._modifiers[cls.__name__] = {"cls": cls, "run_kwargs": run_kwargs}
-
