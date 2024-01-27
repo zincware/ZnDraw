@@ -2,7 +2,6 @@ import abc
 import enum
 import logging
 import typing as t
-import time
 
 import ase
 import numpy as np

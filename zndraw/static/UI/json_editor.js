@@ -108,7 +108,7 @@ function analysis_editor(socket, cache, world) {
       '<i class="fa-solid fa-play"></i> Analyse';
     document.getElementById("analysis-json-editor-submit").disabled = false;
   });
-  
+
   // other client started process
   socket.on("analysis:run:enqueue", () => {
     document.getElementById("analysis-json-editor-submit").disabled = true;
@@ -193,7 +193,7 @@ function modifier_editor(socket, cache, world) {
       '<i class="fa-solid fa-play"></i> Run Modifier';
     document.getElementById("interaction-json-editor-submit").disabled = false;
   });
-  
+
   // other client started process
   socket.on("modifier:run:enqueue", () => {
     document.getElementById("interaction-json-editor-submit").disabled = true;
