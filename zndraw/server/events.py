@@ -5,7 +5,7 @@ from threading import Lock
 from uuid import uuid4
 
 from celery import chain
-from flask import request, session, current_app
+from flask import request, session
 from flask_socketio import call, emit, join_room
 
 from zndraw.server import tasks
@@ -16,12 +16,10 @@ from ..app import socketio as io
 from ..data import (
     AnalysisFigureData,
     AtomsDownloadData,
-    AtomsLengthData,
     CeleryTaskData,
     DeleteAtomsData,
     JoinData,
     MessageData,
-    ModifierRunRunningData,
     SceneSetData,
     SceneUpdateData,
     SchemaData,
@@ -536,6 +534,7 @@ def scene_trash():
 def analysis_run(data: dict):
     """Run the analysis."""
     tasks.run_analysis.delay(request.url_root, session["token"], data)
+
 
 @io.on("modifier:run")
 def modifier_run(data: dict):

@@ -267,6 +267,7 @@ def run_analysis(url: str, token: str, data: dict):
     except ValueError as err:
         vis.log(err)
 
+
 @shared_task
 def run_modifier(url: str, token: str, data: dict):
     vis = ZnDraw(url=url, token=token)
@@ -285,7 +286,7 @@ def run_modifier(url: str, token: str, data: dict):
         modifier.run(vis)
     except ValueError as err:
         vis.log(err)
-    
+
     msg = CeleryTaskData(
         target=f"webclients_{vis.token}", event="modifier:run:finished", data=None
     )
