@@ -297,16 +297,10 @@ def run_analysis(url: str, token: str, data: dict):
 @shared_task
 def run_modifier(url: str, token: str, data: dict):
     vis = ZnDraw(url=url, token=token)
+    vis.available = False
 
     def on_finished():
-        print("modifier finished")
-        msg = CeleryTaskData(
-            target=f"webclients_{vis.token}", event="modifier:run:finished", data=None
-        )
-
-        vis.socket.emit("celery:task:results", asdict(msg))
-        # now we are done, disconnect the socket
-        vis.socket.disconnect()
+        vis.available = True
 
     vis.socket.on("modifier:run:finished", on_finished)
 
@@ -330,16 +324,21 @@ def run_modifier(url: str, token: str, data: dict):
                     )
                     vis.socket.emit("celery:task:results", asdict(msg))
                     vis.socket.sleep(avail["timeout"])
-                    print("modifier timed out")
+                    if not vis.available:
+                        print("modifier timed out")
+                        vis.socket.sleep(1)
 
-                    msg = CeleryTaskData(
-                        target=f"webclients_{vis.token}",
-                        event="message:alert",
-                        data=f"Modifier {NAME} did not finish in time.",
-                    )
-                    vis.socket.emit("celery:task:results", asdict(msg))
-
-                    on_finished()
+                        msg = CeleryTaskData(
+                            target=f"webclients_{vis.token}",
+                            event="message:alert",
+                            data=f"Modifier {NAME} did not finish in time.",
+                        )
+                        vis.socket.emit("celery:task:results", asdict(msg))
+                    
+                        msg = CeleryTaskData(
+                            target=f"webclients_{vis.token}", event="modifier:run:finished", data=None
+                        )
+                        vis.socket.emit("celery:task:results", asdict(msg))
 
                     return
 
@@ -358,16 +357,21 @@ def run_modifier(url: str, token: str, data: dict):
                     )
                     vis.socket.emit("celery:task:results", asdict(msg))
                     vis.socket.sleep(avail["timeout"])
-                    print("modifier timed out")
+                    if not vis.available:
+                        print("modifier timed out")
+                        vis.socket.sleep(1)
 
-                    msg = CeleryTaskData(
-                        target=f"webclients_{vis.token}",
-                        event="message:alert",
-                        data=f"Modifier {NAME} did not finish in time.",
-                    )
-                    vis.socket.emit("celery:task:results", asdict(msg))
+                        msg = CeleryTaskData(
+                            target=f"webclients_{vis.token}",
+                            event="message:alert",
+                            data=f"Modifier {NAME} did not finish in time.",
+                        )
+                        vis.socket.emit("celery:task:results", asdict(msg))
 
-                    on_finished()
+                        msg = CeleryTaskData(
+                            target=f"webclients_{vis.token}", event="modifier:run:finished", data=None
+                        )
+                        vis.socket.emit("celery:task:results", asdict(msg))
                     return
 
     msg = CeleryTaskData(

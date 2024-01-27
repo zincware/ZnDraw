@@ -314,7 +314,7 @@ class ZnDrawBase:  # collections.abc.MutableSequence
         except Exception as err:
             vis.log(f"Modifier failed with error: {repr(err)}")
         msg = CeleryTaskData(
-            target=f"webclients_{vis.token}", event="modifier:run:finished", data=None
+            target=f"{vis.token}", event="modifier:run:finished", data=None
         )
         vis.socket.emit("celery:task:results", dataclasses.asdict(msg))
         self.available = True

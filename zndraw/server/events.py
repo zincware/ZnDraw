@@ -157,6 +157,7 @@ def connect():
         tasks.modifier_schema.delay(request.url_root, token)
 
         join_room(f"webclients_{token}")
+        join_room(f"{token}")
         # who ever connected latest is the HOST of the room
         ROOM_HOSTS = cache.get("ROOM_HOSTS")
 
@@ -292,6 +293,8 @@ def join(data: JoinData):
     # PYCLIENTS[data.uuid] = request.sid
     # cache.set("pyclients", PYCLIENTS)
     session["token"] = data.token
+    join_room(f"{data.token}")
+    join_room(f"pyclients_{data.token}")
     # join_room(f"pyclients_{data.token}")
     # PER_TOKEN_DATA = cache.get("PER-TOKEN-DATA")
     # if data.token not in PER_TOKEN_DATA:
@@ -348,7 +351,10 @@ def atoms_delete(data: DeleteAtomsData):
 
 @io.on("atoms:length")
 def atoms_length():
-    return call("atoms:length", to=get_main_room_host(session["token"]))
+    try:
+        return call("atoms:length", to=get_main_room_host(session["token"]))
+    except KeyError:
+        return 0
 
 
 @io.on("modifier:schema")
