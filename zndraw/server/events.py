@@ -20,11 +20,11 @@ from ..data import (
     DeleteAtomsData,
     JoinData,
     MessageData,
+    ModifierRegisterData,
     SceneSetData,
     SceneUpdateData,
     SchemaData,
     SubscribedUserData,
-    ModifierRegisterData
 )
 
 log = logging.getLogger(__name__)
@@ -242,7 +242,7 @@ def disconnect():
         for name, sids in ROOM_MODIFIER_HOSTS[token].items():
             while request.sid in sids:
                 ROOM_MODIFIER_HOSTS[token][name].remove(request.sid)
-    
+
     # !!!!!!!!!!!!!!
     # TODO: remove schema if no more hosts are connected and send to webclients
 
@@ -566,6 +566,7 @@ def modifier_run(data: dict):
         "modifier:run:enqueue", to=f"webclients_{session['token']}", include_self=False
     )
     tasks.run_modifier.apply_async((request.url_root, session["token"], data))
+
 
 @io.on("modifier:register")
 @typecast
