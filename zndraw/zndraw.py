@@ -290,6 +290,8 @@ class ZnDrawBase:  # collections.abc.MutableSequence
 
     def _pre_modifier_run(self, data) -> None:
         self.available = False
+        log.critical(f"Modifier running {self.available = }")
+
 
         vis = type(self)(self.url, data["token"])
 
@@ -317,6 +319,7 @@ class ZnDrawBase:  # collections.abc.MutableSequence
         )
         vis.socket.emit("celery:task:results", dataclasses.asdict(msg))
         self.available = True
+        log.critical(f"Modifier finished {self.available = }")
 
     def _modifier_run(self, data: dict) -> None:
         config = GlobalConfig.load()
