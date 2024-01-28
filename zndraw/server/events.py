@@ -7,6 +7,7 @@ from uuid import uuid4
 from celery import chain
 from flask import current_app, request, session
 from flask_socketio import call, emit, join_room
+from socketio.exceptions import TimeoutError
 
 from zndraw.server import tasks
 from zndraw.utils import typecast
@@ -222,7 +223,12 @@ def celery_task_results(msg: CeleryTaskData):
 @io.on("celery:task:call")
 @typecast
 def celery_task_call(msg: CeleryTaskData):
-    return call(msg.event, msg.data, to=msg.target)
+    try:
+        return call(msg.event, msg.data, to=msg.target)
+    except TimeoutError:
+        log.critical(f"TimeoutError for {msg.event} with {msg.data}")
+        return None
+
 
 
 @io.on("disconnect")
