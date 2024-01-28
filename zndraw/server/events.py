@@ -230,7 +230,6 @@ def celery_task_call(msg: CeleryTaskData):
         return None
 
 
-
 @io.on("disconnect")
 def disconnect():
     token = session["token"]
