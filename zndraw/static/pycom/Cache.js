@@ -178,28 +178,25 @@ class Cache {
         `${slider.ariaValueNow} / ${slider.ariaValueMax}`;
     });
 
-    this._socket.on(
-      "atoms:download",
-      function (ids, callback) {
-        // send all atoms at once
-        const data = {};
-        ids.forEach((x) => {
-          try {
-            const { colors, radii, length, ...rest } = this._cache[x];
-            data[x] = {
-              ...rest,
-              arrays: {
-                colors,
-                radii,
-              },
-            };
-          } catch (error) {
-            data[x] = undefined;
-          }
-        });
-        callback(data);
-      }.bind(this),
-    );
+    this._socket.on("atoms:download", (ids, callback) => {
+      // send all atoms at once
+      const data = {};
+      ids.forEach((x) => {
+        try {
+          const { colors, radii, length, ...rest } = this._cache[x];
+          data[x] = {
+            ...rest,
+            arrays: {
+              colors,
+              radii,
+            },
+          };
+        } catch (error) {
+          data[x] = undefined;
+        }
+      });
+      callback(data);
+    });
 
     this._socket.on("atoms:clear", (start_index) => {
       // remove everything from the cache starting from start_index

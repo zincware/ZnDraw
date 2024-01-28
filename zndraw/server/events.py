@@ -329,9 +329,8 @@ def scene_step():
 
 
 @io.on("atoms:download")
-@typecast
-def atoms_download(data: AtomsDownloadData):
-    return call("atoms:download", data.indices, to=get_main_room_host(session["token"]))
+def atoms_download(data: list[int]):
+    return call("atoms:download", data, to=get_main_room_host(session["token"]))
 
 
 @io.on("atoms:upload")
@@ -556,7 +555,7 @@ def scene_update(data: SceneUpdateData):
 def selection_run(data: dict):
     """Run the selection."""
     tasks.run_selection.delay(
-        "http://127.0.0.1:{current_app.config['PORT']}", session["token"], data
+        f"http://127.0.0.1:{current_app.config['PORT']}", session["token"], data
     )
 
 

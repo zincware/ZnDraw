@@ -189,9 +189,8 @@ class ZnDrawBase:  # collections.abc.MutableSequence
         index = [index] if isinstance(index, int) else index
         index = [i if i >= 0 else length + i for i in index]
 
-        data = {"indices": index, "token": self.token}
         downloaded_data = self.socket.call(
-            "atoms:download", data, timeout=self.config.call_timeout
+            "atoms:download", index, timeout=self.config.call_timeout
         )
 
         atoms_list = []
