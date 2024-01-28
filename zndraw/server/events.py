@@ -232,7 +232,7 @@ def celery_task_call(msg: CeleryTaskData):
 
 @io.on("disconnect")
 def disconnect():
-    print(f"-------------->>> disconnecting {request.sid}")
+    log.critical(f"-------------->>> disconnecting {request.sid}")
     token = session["token"]
     ROOM_HOSTS = cache.get("ROOM_HOSTS")
     if token in ROOM_HOSTS:
