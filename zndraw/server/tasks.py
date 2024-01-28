@@ -8,6 +8,7 @@ import znframe
 import znh5md
 from celery import shared_task
 from socketio import Client
+from socketio.exceptions import TimeoutError
 
 from zndraw.analyse import get_analysis_class
 from zndraw.draw import Geometry
@@ -313,7 +314,10 @@ def run_modifier(url: str, token: str, data: dict):
         while True:
             for pyclient in MODIFIER_HOSTS[NAME]:
                 msg = CeleryTaskData(target=pyclient, event="available", data=None)
-                avail = vis.socket.call("celery:task:call", asdict(msg))
+                try:
+                    avail = vis.socket.call("celery:task:call", asdict(msg))
+                except TimeoutError:
+                    avail = {"available": False, "timeout": 0}
                 print(f"Modifier {NAME} is available on {pyclient}: {avail}")
                 if avail["available"]:
                     print(f"Modifier is running on {pyclient}")
