@@ -5,7 +5,7 @@ from threading import Lock
 from uuid import uuid4
 
 from celery import chain
-from flask import request, session
+from flask import request, session, current_app
 from flask_socketio import call, emit, join_room
 
 from zndraw.server import tasks
@@ -145,16 +145,17 @@ def _get_subscribers(token: str, subscription_type: str):
 def connect():
     try:
         token = session["token"]
+        URL = f"http://127.0.0.1:{current_app.config['PORT']}"
         # if you connect through Python, you don't have a token
         read_file_chain = chain(
-            tasks.read_file.s(request.url_root, request.sid),
-            tasks.analysis_schema.si(request.url_root, token),
+            tasks.read_file.s(URL, request.sid),
+            tasks.analysis_schema.si(URL, token),
         )
         read_file_chain.delay()
-        tasks.get_selection_schema.delay(request.url_root, request.sid)
-        tasks.scene_schema.delay(request.url_root, request.sid)
-        tasks.geometries_schema.delay(request.url_root, request.sid)
-        tasks.modifier_schema.delay(request.url_root, token)
+        tasks.get_selection_schema.delay(URL, request.sid)
+        tasks.scene_schema.delay(URL, request.sid)
+        tasks.geometries_schema.delay(URL, request.sid)
+        tasks.modifier_schema.delay(URL, token)
 
         join_room(f"webclients_{token}")
         join_room(f"{token}")
@@ -554,12 +555,12 @@ def scene_update(data: SceneUpdateData):
 @io.on("selection:run")
 def selection_run(data: dict):
     """Run the selection."""
-    tasks.run_selection.delay(request.url_root, session["token"], data)
+    tasks.run_selection.delay("http://127.0.0.1:{current_app.config['PORT']}", session["token"], data)
 
 
 @io.on("scene:trash")
 def scene_trash():
-    tasks.scene_trash.delay(request.url_root, session["token"])
+    tasks.scene_trash.delay(f"http://127.0.0.1:{current_app.config['PORT']}", session["token"])
 
 
 @io.on("analysis:run")
@@ -568,7 +569,7 @@ def analysis_run(data: dict):
     io.emit(
         "analysis:run:enqueue", to=f"webclients_{session['token']}", include_self=False
     )
-    tasks.run_analysis.delay(request.url_root, session["token"], data)
+    tasks.run_analysis.delay(f"http://127.0.0.1:{current_app.config['PORT']}", session["token"], data)
 
 
 @io.on("modifier:run")
@@ -577,7 +578,7 @@ def modifier_run(data: dict):
     io.emit(
         "modifier:run:enqueue", to=f"webclients_{session['token']}", include_self=False
     )
-    tasks.run_modifier.apply_async((request.url_root, session["token"], data))
+    tasks.run_modifier.apply_async((f"http://127.0.0.1:{current_app.config['PORT']}", session["token"], data))
 
 
 @io.on("modifier:register")
@@ -620,4 +621,4 @@ def modifier_register(data: ModifierRegisterData):
         cache.set("ROOM_MODIFIER_SCHEMA", ROOM_MODIFIER_SCHEMA)
 
         # emit new modifier schema to all webclients
-        tasks.modifier_schema.delay(request.url_root, session["token"])
+        tasks.modifier_schema.delay(f"http://127.0.0.1:{current_app.config['PORT']}", session["token"])

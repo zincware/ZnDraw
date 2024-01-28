@@ -140,6 +140,7 @@ class ZnDrawServer:
         self.app.config["TUTORIAL"] = self.tutorial
         self.app.config["AUTH_TOKEN"] = self.auth_token
         self.app.config["USE_TOKEN"] = self.use_token
+        self.app.config["PORT"] = self.port
 
         self.app.config["upgrade_insecure_requests"] = self.upgrade_insecure_requests
         self.app.config["compute_bonds"] = self.compute_bonds
