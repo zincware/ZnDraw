@@ -94,7 +94,6 @@ class Cache {
 
       // pop key from data dict
       const slider = document.getElementById("frameProgress");
-      console.log(data);
 
       this._cache[data.index] = new Atoms({
         positions: data.data.positions,
@@ -106,8 +105,6 @@ class Cache {
         calc: data.data.calc,
         pbc: data.data.pbc,
       });
-
-      console.log(this._cache);
 
       slider.ariaValueMax = Object.keys(this._cache).length - 1;
       if (data.update) {

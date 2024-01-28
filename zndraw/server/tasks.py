@@ -241,7 +241,7 @@ def read_file(url: str, target: str):
             target=target,
             event="atoms:upload",
             data=FrameData(
-                index=idx,
+                index=frame,
                 data=znframe.Frame.from_atoms(atoms).to_dict(built_in_types=False),
                 update=True,
             ),
