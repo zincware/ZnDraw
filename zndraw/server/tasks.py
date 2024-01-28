@@ -348,6 +348,7 @@ def run_modifier(url: str, token: str, data: dict):
 
                     return
 
+            vis.socket.sleep(1)
     if NAME in ROOM_MODIFIER_HOSTS.get(vis.token, []):
         while True:
             for pyclient in ROOM_MODIFIER_HOSTS[vis.token][NAME]:
