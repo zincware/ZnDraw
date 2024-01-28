@@ -15,7 +15,6 @@ from ..app import cache
 from ..app import socketio as io
 from ..data import (
     AnalysisFigureData,
-    AtomsDownloadData,
     CeleryTaskData,
     DeleteAtomsData,
     JoinData,
