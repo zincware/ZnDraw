@@ -5,7 +5,7 @@ from threading import Lock
 from uuid import uuid4
 
 from celery import chain
-from flask import request, session, current_app
+from flask import current_app, request, session
 from flask_socketio import call, emit, join_room
 
 from zndraw.server import tasks
@@ -555,12 +555,16 @@ def scene_update(data: SceneUpdateData):
 @io.on("selection:run")
 def selection_run(data: dict):
     """Run the selection."""
-    tasks.run_selection.delay("http://127.0.0.1:{current_app.config['PORT']}", session["token"], data)
+    tasks.run_selection.delay(
+        "http://127.0.0.1:{current_app.config['PORT']}", session["token"], data
+    )
 
 
 @io.on("scene:trash")
 def scene_trash():
-    tasks.scene_trash.delay(f"http://127.0.0.1:{current_app.config['PORT']}", session["token"])
+    tasks.scene_trash.delay(
+        f"http://127.0.0.1:{current_app.config['PORT']}", session["token"]
+    )
 
 
 @io.on("analysis:run")
@@ -569,7 +573,9 @@ def analysis_run(data: dict):
     io.emit(
         "analysis:run:enqueue", to=f"webclients_{session['token']}", include_self=False
     )
-    tasks.run_analysis.delay(f"http://127.0.0.1:{current_app.config['PORT']}", session["token"], data)
+    tasks.run_analysis.delay(
+        f"http://127.0.0.1:{current_app.config['PORT']}", session["token"], data
+    )
 
 
 @io.on("modifier:run")
@@ -578,7 +584,9 @@ def modifier_run(data: dict):
     io.emit(
         "modifier:run:enqueue", to=f"webclients_{session['token']}", include_self=False
     )
-    tasks.run_modifier.apply_async((f"http://127.0.0.1:{current_app.config['PORT']}", session["token"], data))
+    tasks.run_modifier.apply_async(
+        (f"http://127.0.0.1:{current_app.config['PORT']}", session["token"], data)
+    )
 
 
 @io.on("modifier:register")
@@ -621,4 +629,6 @@ def modifier_register(data: ModifierRegisterData):
         cache.set("ROOM_MODIFIER_SCHEMA", ROOM_MODIFIER_SCHEMA)
 
         # emit new modifier schema to all webclients
-        tasks.modifier_schema.delay(f"http://127.0.0.1:{current_app.config['PORT']}", session["token"])
+        tasks.modifier_schema.delay(
+            f"http://127.0.0.1:{current_app.config['PORT']}", session["token"]
+        )
