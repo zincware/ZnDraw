@@ -317,21 +317,12 @@ class ZnDrawBase:  # collections.abc.MutableSequence
             target=f"{vis.token}", event="modifier:run:finished", data=None
         )
         vis.socket.emit("celery:task:results", dataclasses.asdict(msg))
+
+        vis.socket.sleep(2)
+        vis.socket.disconnect()
+
         self.available = True
         log.critical(f"Modifier finished {self.available = }")
-
-    def _modifier_run(self, data: dict) -> None:
-        config = GlobalConfig.load()
-        cls = get_modify_class(
-            config.get_modify_methods(
-                include=[x["cls"] for x in self._modifiers.values()]
-            )
-        )
-        modifier = cls(**data)
-        modifier.run(
-            self,
-            **self._modifiers[modifier.method.__class__.__name__]["run_kwargs"],
-        )
 
 
 @dataclasses.dataclass

@@ -42,6 +42,8 @@ def get_selection_schema(url: str, target: str):
     )
     con = get_client(url)
     con.emit("celery:task:results", asdict(msg))
+    con.sleep(10)
+    con.disconnect()
 
 
 @shared_task
@@ -114,6 +116,8 @@ def scene_schema(url: str, target: str):
     con = get_client(url)
     print(f"emitting scene_schema to {target}")
     con.emit("celery:task:results", asdict(msg))
+    con.sleep(10)
+    con.disconnect()
 
 
 @shared_task
@@ -126,6 +130,8 @@ def geometries_schema(url: str, target: str):
     con = get_client(url)
     print(f"emitting scene_schema to {target}")
     con.emit("celery:task:results", asdict(msg))
+    con.sleep(10)
+    con.disconnect()
 
 
 @shared_task
@@ -145,6 +151,9 @@ def analysis_schema(url: str, token: str):
     con = get_client(url)
     print(f"emitting analysis_schema to {vis.token}")
     con.emit("celery:task:results", asdict(msg))
+    con.sleep(10)
+    con.disconnect()
+    vis.socket.disconnect()
 
 
 @shared_task
@@ -172,6 +181,8 @@ def modifier_schema(url: str, token: str):
     con = get_client(url)
     print(f"emitting modifier_schema to {token}")
     con.emit("celery:task:results", asdict(msg))
+    con.sleep(10)
+    con.disconnect()
 
 
 @shared_task
@@ -189,6 +200,9 @@ def scene_trash(url: str, token: str):
         vis.append(atoms)
     vis.selection = []
     vis.points = []
+
+    vis.socket.sleep(10)
+    vis.socket.disconnect()
 
 
 @shared_task
@@ -250,6 +264,9 @@ def read_file(url: str, target: str):
         con.emit("celery:task:results", asdict(msg))
 
         frame += 1
+    
+    con.sleep(10)
+    con.disconnect()
 
 
 @shared_task
@@ -267,6 +284,9 @@ def run_selection(url: str, token: str, data: dict):
         vis.log.critical(err)
 
     print(datetime.datetime.now().isoformat())
+
+    vis.socket.sleep(10)
+    vis.socket.disconnect()
 
 
 @shared_task
@@ -294,6 +314,9 @@ def run_analysis(url: str, token: str, data: dict):
 
     vis.socket.emit("celery:task:results", asdict(msg))
 
+    vis.socket.sleep(10)
+    vis.socket.disconnect()
+
 
 @shared_task
 def run_modifier(url: str, token: str, data: dict):
@@ -314,9 +337,11 @@ def run_modifier(url: str, token: str, data: dict):
         while True:
             for pyclient in MODIFIER_HOSTS[NAME]:
                 # TODO: load every round from cache and check if still available
+                # TODO: replace cache.get with sqlite database
                 msg = CeleryTaskData(target=pyclient, event="available", data=None)
                 try:
                     avail = vis.socket.call("celery:task:call", asdict(msg), timeout=1)
+                    # TODO: do we need to pass the timeout?
                 except TimeoutError:
                     avail = {"available": False, "timeout": 0}
                 print(f"Modifier {NAME} is available on {pyclient}: {avail}")
@@ -347,6 +372,8 @@ def run_modifier(url: str, token: str, data: dict):
                         )
                         vis.socket.emit("celery:task:results", asdict(msg))
 
+                    vis.socket.sleep(10)
+                    vis.socket.disconnect()
                     return
 
             vis.socket.sleep(1)
@@ -382,6 +409,9 @@ def run_modifier(url: str, token: str, data: dict):
                             data=None,
                         )
                         vis.socket.emit("celery:task:results", asdict(msg))
+                    
+                    vis.socket.sleep(10)
+                    vis.socket.disconnect()
                     return
 
     msg = CeleryTaskData(
@@ -405,3 +435,6 @@ def run_modifier(url: str, token: str, data: dict):
     )
 
     vis.socket.emit("celery:task:results", asdict(msg))
+
+    vis.socket.sleep(10)
+    vis.socket.disconnect()
