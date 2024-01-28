@@ -313,9 +313,10 @@ def run_modifier(url: str, token: str, data: dict):
     if NAME in MODIFIER_HOSTS:
         while True:
             for pyclient in MODIFIER_HOSTS[NAME]:
+                # TODO: load every round from cache and check if still available
                 msg = CeleryTaskData(target=pyclient, event="available", data=None)
                 try:
-                    avail = vis.socket.call("celery:task:call", asdict(msg))
+                    avail = vis.socket.call("celery:task:call", asdict(msg), timeout=1)
                 except TimeoutError:
                     avail = {"available": False, "timeout": 0}
                 print(f"Modifier {NAME} is available on {pyclient}: {avail}")
