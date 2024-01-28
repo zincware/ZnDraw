@@ -35,7 +35,7 @@ class Config:
 
     call_timeout: int = 60
     retries: int = 100
-    modifier_timeout: int = 5
+    modifier_timeout: int = 60
 
 
 @dataclasses.dataclass
