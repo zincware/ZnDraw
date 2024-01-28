@@ -292,7 +292,6 @@ class ZnDrawBase:  # collections.abc.MutableSequence
         self.available = False
         log.critical(f"Modifier running {self.available = }")
 
-
         vis = type(self)(self.url, data["token"])
 
         msg = CeleryTaskData(
