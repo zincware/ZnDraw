@@ -264,7 +264,7 @@ def read_file(url: str, target: str):
         con.emit("celery:task:results", asdict(msg))
 
         frame += 1
-    
+
     con.sleep(10)
     con.disconnect()
 
@@ -409,7 +409,7 @@ def run_modifier(url: str, token: str, data: dict):
                             data=None,
                         )
                         vis.socket.emit("celery:task:results", asdict(msg))
-                    
+
                     vis.socket.sleep(10)
                     vis.socket.disconnect()
                     return
