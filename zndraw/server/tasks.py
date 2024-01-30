@@ -370,7 +370,7 @@ def run_modifier(url: str, token: str, data: dict):
             else:
                 vis.socket.sleep(1)
                 print("No modifier available")
-    
+
     if NAME in ROOM_MODIFIER_HOSTS.get(vis.token, []):
         _available = cache.get("MODIFIER_AVAILABLE")
         for pyclient in ROOM_MODIFIER_HOSTS[vis.token][NAME]:
@@ -411,7 +411,7 @@ def run_modifier(url: str, token: str, data: dict):
                 data=None,
             )
             vis.socket.emit("celery:task:emit", asdict(msg))
-            
+
             msg = CeleryTaskData(
                 target=f"webclients_{vis.token}",
                 event="message:alert",
@@ -453,12 +453,12 @@ def run_modifier(url: str, token: str, data: dict):
     #                     )
     #                     vis.socket.emit("celery:task:emit", asdict(msg))
 
-                        # msg = CeleryTaskData(
-                        #     target=f"webclients_{vis.token}",
-                        #     event="modifier:run:finished",
-                        #     data=None,
-                        # )
-                        # vis.socket.emit("celery:task:emit", asdict(msg))
+    # msg = CeleryTaskData(
+    #     target=f"webclients_{vis.token}",
+    #     event="modifier:run:finished",
+    #     data=None,
+    # )
+    # vis.socket.emit("celery:task:emit", asdict(msg))
 
     #                 vis.socket.sleep(10)
     #                 vis.socket.disconnect()
