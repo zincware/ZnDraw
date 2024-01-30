@@ -129,7 +129,7 @@ class ZnDrawServer:
         if self._workers is None:
             return
         for worker in self._workers:
-            worker.terminate()
+            worker.kill()
         cache.clear()
         for worker in self._workers:
             worker.wait()
