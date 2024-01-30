@@ -214,7 +214,7 @@ def connect():
         session["token"] = None
 
 
-@io.on("celery:task:results")
+@io.on("celery:task:emit")
 @typecast
 def celery_task_results(msg: CeleryTaskData):
     emit(msg.event, msg.data, to=msg.target)

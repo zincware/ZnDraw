@@ -298,7 +298,7 @@ class ZnDrawBase:  # collections.abc.MutableSequence
             target=f"webclients_{vis.token}", event="modifier:run:running", data=None
         )
 
-        vis.socket.emit("celery:task:results", dataclasses.asdict(msg))
+        vis.socket.emit("celery:task:emit", dataclasses.asdict(msg))
         try:
             config = GlobalConfig.load()
             cls = get_modify_class(
@@ -316,7 +316,7 @@ class ZnDrawBase:  # collections.abc.MutableSequence
         msg = CeleryTaskData(
             target=f"{vis.token}", event="modifier:run:finished", data=None
         )
-        vis.socket.emit("celery:task:results", dataclasses.asdict(msg))
+        vis.socket.emit("celery:task:emit", dataclasses.asdict(msg))
 
         vis.socket.sleep(2)
         vis.socket.disconnect()

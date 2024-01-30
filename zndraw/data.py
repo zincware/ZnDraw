@@ -3,9 +3,32 @@ import dataclasses
 
 @dataclasses.dataclass
 class CeleryTaskData:
+    """A message to emit a 'emit' or 'call' from the server.
+
+    Attributes
+    ----------
+    target: str
+        The target of the message, e.g. a room name or sid.
+    event: str
+        The event to emit or call, e.g. 'message:log'.
+    data: dict
+        The data to send with the message.
+    disconnect: bool
+        Whether to tell the server to  disconnect this client,
+        after it has received the message. Using 'disconnect' afer
+        'emit' on the client might loose the message.
+    timeout: int
+        The timeout in seconds, when using 'call'.
+    authentication: str
+        Authentication token, used for ensuring that not every client
+        can send arbitrary messages through the server.
+    """
     target: str
     event: str
     data: dict
+    disconnect: bool = False
+    timeout: int = 60
+    authentication: str = None
 
 
 @dataclasses.dataclass

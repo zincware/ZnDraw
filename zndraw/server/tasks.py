@@ -41,7 +41,7 @@ def get_selection_schema(url: str, target: str):
         data=schema,
     )
     con = get_client(url)
-    con.emit("celery:task:results", asdict(msg))
+    con.emit("celery:task:emit", asdict(msg))
     con.sleep(10)
     con.disconnect()
 
@@ -115,7 +115,7 @@ def scene_schema(url: str, target: str):
     )
     con = get_client(url)
     print(f"emitting scene_schema to {target}")
-    con.emit("celery:task:results", asdict(msg))
+    con.emit("celery:task:emit", asdict(msg))
     con.sleep(10)
     con.disconnect()
 
@@ -129,7 +129,7 @@ def geometries_schema(url: str, target: str):
     )
     con = get_client(url)
     print(f"emitting scene_schema to {target}")
-    con.emit("celery:task:results", asdict(msg))
+    con.emit("celery:task:emit", asdict(msg))
     con.sleep(10)
     con.disconnect()
 
@@ -150,7 +150,7 @@ def analysis_schema(url: str, token: str):
     )
     con = get_client(url)
     print(f"emitting analysis_schema to {vis.token}")
-    con.emit("celery:task:results", asdict(msg))
+    con.emit("celery:task:emit", asdict(msg))
     con.sleep(10)
     con.disconnect()
     vis.socket.disconnect()
@@ -180,7 +180,7 @@ def modifier_schema(url: str, token: str):
     )
     con = get_client(url)
     print(f"emitting modifier_schema to {token}")
-    con.emit("celery:task:results", asdict(msg))
+    con.emit("celery:task:emit", asdict(msg))
     con.sleep(10)
     con.disconnect()
 
@@ -222,7 +222,7 @@ def read_file(url: str, target: str):
                 update=True,
             ),
         )
-        con.emit("celery:task:results", asdict(msg))
+        con.emit("celery:task:emit", asdict(msg))
         return
 
     if fileio.remote is not None:
@@ -261,7 +261,7 @@ def read_file(url: str, target: str):
                 update=True,
             ),
         )
-        con.emit("celery:task:results", asdict(msg))
+        con.emit("celery:task:emit", asdict(msg))
 
         frame += 1
 
@@ -297,7 +297,7 @@ def run_analysis(url: str, token: str, data: dict):
         target=f"webclients_{vis.token}", event="analysis:run:running", data=None
     )
 
-    vis.socket.emit("celery:task:results", asdict(msg))
+    vis.socket.emit("celery:task:emit", asdict(msg))
 
     config = GlobalConfig.load()
     cls = get_analysis_class(config.get_analysis_methods())
@@ -312,7 +312,7 @@ def run_analysis(url: str, token: str, data: dict):
         target=f"webclients_{vis.token}", event="analysis:run:finished", data=None
     )
 
-    vis.socket.emit("celery:task:results", asdict(msg))
+    vis.socket.emit("celery:task:emit", asdict(msg))
 
     vis.socket.sleep(10)
     vis.socket.disconnect()
@@ -352,7 +352,7 @@ def run_modifier(url: str, token: str, data: dict):
                         event="modifier:run",
                         data={"params": data, "token": token},
                     )
-                    vis.socket.emit("celery:task:results", asdict(msg))
+                    vis.socket.emit("celery:task:emit", asdict(msg))
                     vis.socket.sleep(avail["timeout"])
                     if not vis.available:
                         print("modifier timed out")
@@ -363,14 +363,14 @@ def run_modifier(url: str, token: str, data: dict):
                             event="message:alert",
                             data=f"Modifier {NAME} did not finish in time.",
                         )
-                        vis.socket.emit("celery:task:results", asdict(msg))
+                        vis.socket.emit("celery:task:emit", asdict(msg))
 
                         msg = CeleryTaskData(
                             target=f"webclients_{vis.token}",
                             event="modifier:run:finished",
                             data=None,
                         )
-                        vis.socket.emit("celery:task:results", asdict(msg))
+                        vis.socket.emit("celery:task:emit", asdict(msg))
 
                     vis.socket.sleep(10)
                     vis.socket.disconnect()
@@ -390,7 +390,7 @@ def run_modifier(url: str, token: str, data: dict):
                         event="modifier:run",
                         data={"params": data, "token": token},
                     )
-                    vis.socket.emit("celery:task:results", asdict(msg))
+                    vis.socket.emit("celery:task:emit", asdict(msg))
                     vis.socket.sleep(avail["timeout"])
                     if not vis.available:
                         print("modifier timed out")
@@ -401,14 +401,14 @@ def run_modifier(url: str, token: str, data: dict):
                             event="message:alert",
                             data=f"Modifier {NAME} did not finish in time.",
                         )
-                        vis.socket.emit("celery:task:results", asdict(msg))
+                        vis.socket.emit("celery:task:emit", asdict(msg))
 
                         msg = CeleryTaskData(
                             target=f"webclients_{vis.token}",
                             event="modifier:run:finished",
                             data=None,
                         )
-                        vis.socket.emit("celery:task:results", asdict(msg))
+                        vis.socket.emit("celery:task:emit", asdict(msg))
 
                     vis.socket.sleep(10)
                     vis.socket.disconnect()
@@ -418,7 +418,7 @@ def run_modifier(url: str, token: str, data: dict):
         target=f"webclients_{vis.token}", event="modifier:run:running", data=None
     )
 
-    vis.socket.emit("celery:task:results", asdict(msg))
+    vis.socket.emit("celery:task:emit", asdict(msg))
 
     config = GlobalConfig.load()
     cls = get_modify_class(config.get_modify_methods())
@@ -434,7 +434,7 @@ def run_modifier(url: str, token: str, data: dict):
         target=f"webclients_{vis.token}", event="modifier:run:finished", data=None
     )
 
-    vis.socket.emit("celery:task:results", asdict(msg))
+    vis.socket.emit("celery:task:emit", asdict(msg))
 
     vis.socket.sleep(10)
     vis.socket.disconnect()
