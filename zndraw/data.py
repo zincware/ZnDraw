@@ -23,6 +23,7 @@ class CeleryTaskData:
         Authentication token, used for ensuring that not every client
         can send arbitrary messages through the server.
     """
+
     target: str
     event: str
     data: dict
