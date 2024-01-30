@@ -8,7 +8,6 @@ import znframe
 import znh5md
 from celery import shared_task
 from socketio import Client
-from socketio.exceptions import TimeoutError
 
 from zndraw.analyse import get_analysis_class
 from zndraw.draw import Geometry
@@ -351,7 +350,6 @@ def run_modifier(url: str, token: str, data: dict):
             else:
                 vis.socket.sleep(1)
                 print("No modifier available")
-
 
     # if NAME in MODIFIER_HOSTS:
     #     while True:

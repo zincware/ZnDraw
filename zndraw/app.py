@@ -153,7 +153,7 @@ class ZnDrawServer:
         # Mapping of modifier name f"name" to [dict, ...]
         cache.set("ROOM_MODIFIER_SCHEMA", {})
         cache.set("MODIFIER_SCHEMA", {})
-        # Keep track of available modifiers (bugfix for not being able to call("active")) due 
+        # Keep track of available modifiers (bugfix for not being able to call("active")) due
         # to connection timeouts. This is a mapping {sid: bool} where bool is True if the
         # modifier is available and False otherwise (running something at the moment).
         cache.set("MODIFIER_AVAILABLE", {})

@@ -315,6 +315,7 @@ class ZnDrawBase:  # collections.abc.MutableSequence
         vis.socket.emit("celery:task:emit", dataclasses.asdict(msg))
         self.socket.emit("modifier:available", True)
 
+
 @dataclasses.dataclass
 class ZnDraw(ZnDrawBase):
     """ZnDraw client."""

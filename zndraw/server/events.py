@@ -639,6 +639,7 @@ def modifier_register(data: ModifierRegisterData):
             f"http://127.0.0.1:{current_app.config['PORT']}", session["token"]
         )
 
+
 @io.on("modifier:available")
 def modifier_available(available: bool):
     """Update the modifier availability."""
