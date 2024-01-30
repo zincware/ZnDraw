@@ -263,24 +263,6 @@ def disconnect():
 
     cache.set("ROOM_MODIFIER_HOSTS", ROOM_MODIFIER_HOSTS)
 
-    # with contextlib.suppress(KeyError):
-
-    #     PYCLIENTS = cache.get("pyclients")
-    #     PYCLIENTS.pop(_get_uuid_for_sid(request.sid), None)
-
-    #     cache.set("pyclients", PYCLIENTS)
-    #     log.info(f"disconnect {request.sid} and updated PYCLIENTS to {PYCLIENTS}")
-
-    #     # remove the pyclient from the dict
-    #     names = cache.get(f"PER-TOKEN-NAME:{session['token']}") or {}
-    #     connected_users = [{"name": names[sid]} for sid in ROOM_HOSTS[token]]
-    #     emit(
-    #         "connectedUsers",
-    #         list(reversed(connected_users)),
-    #         to=_webclients_room({"token": token}),
-    #     )
-    # log.debug(f"disconnect {request.sid} and updated HOSTS to {ROOM_HOSTS}")
-
 
 @io.on("join")
 @typecast
@@ -462,48 +444,6 @@ def points_set(data: list[list[float]]):
 def debug(data: dict):
     emit("debug", data, include_self=False, to=_webclients_room(data))
 
-
-# @io.on("modifier:run:running")
-# @typecast
-# def modifier_run_running(data: ModifierRunRunningData):
-#     MODIFIER = cache.get("MODIFIER")
-#     MODIFIER["active"] = data.name
-#     emit(
-#         "modifier:run:running",
-#         dataclasses.asdict(data),
-#         include_self=False,
-#         to=_webclients_room(data),
-#     )
-
-
-# @io.on("modifier:run:finished")
-# @typecast
-# def modifier_run_finished(data: AtomsLengthData):
-#     # remove 0th element from queue
-#     MODIFIER = cache.get("MODIFIER")
-#     MODIFIER["queue"].pop(0)
-#     MODIFIER["active"] = None
-#     cache.set("MODIFIER", MODIFIER)
-#     modifier_lock.release()
-#     print("modifier_lock released")
-#     emit(
-#         "modifier:run:finished",
-#         dataclasses.asdict(data),
-#         include_self=False,
-#         to=_webclients_room(data),
-#     )
-
-
-# @io.on("modifier:run:failed")
-# def modifier_run_failed():
-#     """Take care if the modifier does not respond."""
-#     # remove 0th element from queue
-#     MODIFIER = cache.get("MODIFIER")
-#     MODIFIER["queue"].pop(0)
-#     MODIFIER["active"] = None
-#     cache.set("MODIFIER", MODIFIER)
-#     modifier_lock.release()
-#     log.critical("Modifier failed - releasing lock.")
 
 
 @io.on("connectedUsers:subscribe:step")

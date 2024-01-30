@@ -105,7 +105,6 @@ class Move(UpdateScene):
     discriminator: t.Literal["Move"] = Field("Move")
 
     steps: int = Field(10, ge=1)
-    delay: float = Field(0.0, ge=0, description="Delay between steps in seconds")
 
     def run(self, vis: "ZnDraw") -> None:
         if len(vis) > vis.step + 1:
@@ -129,7 +128,6 @@ class Move(UpdateScene):
             # merge the selected and remaining atoms
             atoms = atoms_selected + atoms_remaining
             vis.append(atoms)
-            vis.socket.sleep(self.delay)
         vis.selection = []
 
 
