@@ -370,6 +370,56 @@ def run_modifier(url: str, token: str, data: dict):
             else:
                 vis.socket.sleep(1)
                 print("No modifier available")
+    
+    if NAME in ROOM_MODIFIER_HOSTS.get(vis.token, []):
+        _available = cache.get("MODIFIER_AVAILABLE")
+        for pyclient in ROOM_MODIFIER_HOSTS[vis.token][NAME]:
+            if _available.get(pyclient, False):
+                # run the modifier
+                msg = CeleryTaskData(
+                    target=pyclient,
+                    event="modifier:run",
+                    data={"params": data, "token": token},
+                    disconnect=True,
+                )
+                vis.socket.emit("celery:task:emit", asdict(msg))
+                # TODO: do we want this?
+                # _timeout = cache.get("MODIFIER_TIMEOUT").get(pyclient, 0)
+                # vis.socket.sleep(_timeout)
+                # _available = cache.get("MODIFIER_AVAILABLE")
+                # if not _available.get(pyclient, False):
+                #     print("modifier timed out")
+                #     msg = CeleryTaskData(
+                #         target=f"webclients_{vis.token}",
+                #         event="message:alert",
+                #         data=f"Modifier {NAME} did not finish in time.",
+                #     )
+                #     vis.socket.emit("celery:task:emit", asdict(msg))
+
+                #     msg = CeleryTaskData(
+                #         target=f"webclients_{vis.token}",
+                #         event="modifier:run:finished",
+                #         data=None,
+                #         disconnect=True,
+                #     )
+                #     vis.socket.emit("celery:task:emit", asdict(msg))
+                # return
+        else:
+            msg = CeleryTaskData(
+                target=f"webclients_{vis.token}",
+                event="modifier:run:finished",
+                data=None,
+            )
+            vis.socket.emit("celery:task:emit", asdict(msg))
+            
+            msg = CeleryTaskData(
+                target=f"webclients_{vis.token}",
+                event="message:alert",
+                data=f"All modifiers registerd for {NAME} are busy - Please try again.",
+                disconnect=True,
+            )
+            vis.socket.emit("celery:task:emit", asdict(msg))
+            return
 
     # if NAME in MODIFIER_HOSTS:
     #     while True:
@@ -403,12 +453,12 @@ def run_modifier(url: str, token: str, data: dict):
     #                     )
     #                     vis.socket.emit("celery:task:emit", asdict(msg))
 
-    #                     msg = CeleryTaskData(
-    #                         target=f"webclients_{vis.token}",
-    #                         event="modifier:run:finished",
-    #                         data=None,
-    #                     )
-    #                     vis.socket.emit("celery:task:emit", asdict(msg))
+                        # msg = CeleryTaskData(
+                        #     target=f"webclients_{vis.token}",
+                        #     event="modifier:run:finished",
+                        #     data=None,
+                        # )
+                        # vis.socket.emit("celery:task:emit", asdict(msg))
 
     #                 vis.socket.sleep(10)
     #                 vis.socket.disconnect()
