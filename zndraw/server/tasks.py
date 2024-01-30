@@ -370,7 +370,7 @@ def run_modifier(url: str, token: str, data: dict):
             else:
                 vis.socket.sleep(1)
                 print("No modifier available")
-    
+
     elif NAME in ROOM_MODIFIER_HOSTS.get(vis.token, []):
         _available = cache.get("MODIFIER_AVAILABLE")
         for pyclient in ROOM_MODIFIER_HOSTS[vis.token][NAME]:

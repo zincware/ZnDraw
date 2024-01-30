@@ -445,7 +445,6 @@ def debug(data: dict):
     emit("debug", data, include_self=False, to=_webclients_room(data))
 
 
-
 @io.on("connectedUsers:subscribe:step")
 @typecast
 def connected_users_subscribe_step(data: SubscribedUserData):
