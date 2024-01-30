@@ -218,6 +218,8 @@ def connect():
 @typecast
 def celery_task_results(msg: CeleryTaskData):
     emit(msg.event, msg.data, to=msg.target)
+    if msg.disconnect:
+        io.server.disconnect(request.sid)
 
 
 @io.on("celery:task:call")

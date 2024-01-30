@@ -39,11 +39,10 @@ def get_selection_schema(url: str, target: str):
         target=target,
         event="selection:schema",
         data=schema,
+        disconnect=True,
     )
     con = get_client(url)
     con.emit("celery:task:emit", asdict(msg))
-    con.sleep(10)
-    con.disconnect()
 
 
 @shared_task
@@ -112,12 +111,11 @@ def scene_schema(url: str, target: str):
         target=target,
         event="scene:schema",
         data=schema,
+        disconnect=True,
     )
     con = get_client(url)
     print(f"emitting scene_schema to {target}")
     con.emit("celery:task:emit", asdict(msg))
-    con.sleep(10)
-    con.disconnect()
 
 
 @shared_task
@@ -126,12 +124,11 @@ def geometries_schema(url: str, target: str):
         target=target,
         event="draw:schema",
         data=Geometry.updated_schema(),
+        disconnect=True,
     )
     con = get_client(url)
     print(f"emitting scene_schema to {target}")
     con.emit("celery:task:emit", asdict(msg))
-    con.sleep(10)
-    con.disconnect()
 
 
 @shared_task
@@ -146,13 +143,11 @@ def analysis_schema(url: str, token: str):
     hide_discriminator_field(schema)
 
     msg = CeleryTaskData(
-        target=f"webclients_{vis.token}", event="analysis:schema", data=schema
+        target=f"webclients_{vis.token}", event="analysis:schema", data=schema, disconnect=True
     )
     con = get_client(url)
     print(f"emitting analysis_schema to {vis.token}")
     con.emit("celery:task:emit", asdict(msg))
-    con.sleep(10)
-    con.disconnect()
     vis.socket.disconnect()
 
 
@@ -176,13 +171,11 @@ def modifier_schema(url: str, token: str):
 
     hide_discriminator_field(schema)
     msg = CeleryTaskData(
-        target=f"webclients_{token}", event="modifier:schema", data=schema
+        target=f"webclients_{token}", event="modifier:schema", data=schema, disconnect=True
     )
     con = get_client(url)
     print(f"emitting modifier_schema to {token}")
     con.emit("celery:task:emit", asdict(msg))
-    con.sleep(10)
-    con.disconnect()
 
 
 @shared_task
@@ -221,6 +214,7 @@ def read_file(url: str, target: str):
                 ),
                 update=True,
             ),
+            disconnect=True,
         )
         con.emit("celery:task:emit", asdict(msg))
         return
@@ -265,7 +259,7 @@ def read_file(url: str, target: str):
 
         frame += 1
 
-    con.sleep(10)
+    con.sleep(1)
     con.disconnect()
 
 
@@ -309,13 +303,10 @@ def run_analysis(url: str, token: str, data: dict):
         vis.log(f"Error: {err}")
 
     msg = CeleryTaskData(
-        target=f"webclients_{vis.token}", event="analysis:run:finished", data=None
+        target=f"webclients_{vis.token}", event="analysis:run:finished", data=None, disconnect=True
     )
 
     vis.socket.emit("celery:task:emit", asdict(msg))
-
-    vis.socket.sleep(10)
-    vis.socket.disconnect()
 
 
 @shared_task
@@ -431,10 +422,7 @@ def run_modifier(url: str, token: str, data: dict):
         vis.log(f"Error: {err}")
 
     msg = CeleryTaskData(
-        target=f"webclients_{vis.token}", event="modifier:run:finished", data=None
+        target=f"webclients_{vis.token}", event="modifier:run:finished", data=None, disconnect=True
     )
 
     vis.socket.emit("celery:task:emit", asdict(msg))
-
-    vis.socket.sleep(10)
-    vis.socket.disconnect()
