@@ -417,3 +417,7 @@ class ZnDraw(ZnDrawBase):
             "modifier:available",
             True,
         )
+        self.socket.emit(
+            "modifier:timeout",
+            self.config.modifier_timeout,
+        )

@@ -334,6 +334,7 @@ def run_modifier(url: str, token: str, data: dict):
 
     if NAME in MODIFIER_HOSTS:
         while True:
+            # TODO: do not use while True but a finite amount of tries
             _hosts = cache.get("MODIFIER_HOSTS")
             _available = cache.get("MODIFIER_AVAILABLE")
             for pyclient in _hosts[NAME]:
@@ -345,7 +346,26 @@ def run_modifier(url: str, token: str, data: dict):
                         data={"params": data, "token": token},
                     )
                     vis.socket.emit("celery:task:emit", asdict(msg))
-                    # TODO: timeout
+                    _timeout = cache.get("MODIFIER_TIMEOUT").get(pyclient, 0)
+                    vis.socket.sleep(_timeout)
+                    _available = cache.get("MODIFIER_AVAILABLE")
+                    if not _available.get(pyclient, False):
+                        print("modifier timed out")
+                        msg = CeleryTaskData(
+                            target=f"webclients_{vis.token}",
+                            event="message:alert",
+                            data=f"Modifier {NAME} did not finish in time.",
+                        )
+                        vis.socket.emit("celery:task:emit", asdict(msg))
+
+                        msg = CeleryTaskData(
+                            target=f"webclients_{vis.token}",
+                            event="modifier:run:finished",
+                            data=None,
+                            disconnect=True,
+                        )
+                        vis.socket.emit("celery:task:emit", asdict(msg))
+
                     return
             else:
                 vis.socket.sleep(1)

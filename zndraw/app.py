@@ -157,6 +157,8 @@ class ZnDrawServer:
         # to connection timeouts. This is a mapping {sid: bool} where bool is True if the
         # modifier is available and False otherwise (running something at the moment).
         cache.set("MODIFIER_AVAILABLE", {})
+        # timeout per registered SID (not per modifier) in seconds
+        cache.set("MODIFIER_TIMEOUT", {})
 
     def run(self, browser=False):
         self.update_cache()
