@@ -333,11 +333,9 @@ def run_modifier(url: str, token: str, data: dict):
     ROOM_MODIFIER_HOSTS = cache.get("ROOM_MODIFIER_HOSTS")
 
     if NAME in MODIFIER_HOSTS:
-        while True:
-            # TODO: do not use while True but a finite amount of tries
-            _hosts = cache.get("MODIFIER_HOSTS")
+        while len(_hosts := cache.get("MODIFIER_HOSTS")[NAME]) > 0:
             _available = cache.get("MODIFIER_AVAILABLE")
-            for pyclient in _hosts[NAME]:
+            for pyclient in _hosts:
                 if _available.get(pyclient, False):
                     # run the modifier
                     msg = CeleryTaskData(
@@ -371,6 +369,19 @@ def run_modifier(url: str, token: str, data: dict):
                 vis.socket.sleep(1)
                 print("No modifier available")
 
+        msg = CeleryTaskData(
+            target=f"webclients_{vis.token}",
+            event="modifier:run:finished",
+            data=None,
+        )
+        vis.socket.emit("celery:task:emit", asdict(msg))
+        msg = CeleryTaskData(
+            target=f"webclients_{vis.token}",
+            event="message:alert",
+            data=f"Could not find any available modifier for {NAME}.",
+            disconnect=True,
+        )
+        vis.socket.emit("celery:task:emit", asdict(msg))
     elif NAME in ROOM_MODIFIER_HOSTS.get(vis.token, []):
         _available = cache.get("MODIFIER_AVAILABLE")
         for pyclient in ROOM_MODIFIER_HOSTS[vis.token][NAME]:
