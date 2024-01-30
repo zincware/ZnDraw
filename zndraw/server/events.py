@@ -647,6 +647,7 @@ def modifier_available(available: bool):
     MODIFIER_AVAILABLE[request.sid] = available
     cache.set("MODIFIER_AVAILABLE", MODIFIER_AVAILABLE)
 
+
 @io.on("modifier:timeout")
 def modifier_timeout(timeout: int):
     """Update the modifier timeout."""
