@@ -638,3 +638,10 @@ def modifier_register(data: ModifierRegisterData):
         tasks.modifier_schema.delay(
             f"http://127.0.0.1:{current_app.config['PORT']}", session["token"]
         )
+
+@io.on("modifier:available")
+def modifier_available(available: bool):
+    """Update the modifier availability."""
+    MODIFIER_AVAILABLE = cache.get("MODIFIER_AVAILABLE")
+    MODIFIER_AVAILABLE[request.sid] = available
+    cache.set("MODIFIER_AVAILABLE", MODIFIER_AVAILABLE)

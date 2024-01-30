@@ -64,7 +64,6 @@ class ZnDrawBase:  # collections.abc.MutableSequence
     _uuid: uuid.UUID = dataclasses.field(default_factory=uuid.uuid4)
     auth_token: str = None
     config: Config = dataclasses.field(default_factory=Config)
-    available: bool = True
 
     _target_sid: str = None
 
@@ -87,10 +86,6 @@ class ZnDrawBase:  # collections.abc.MutableSequence
         self.socket.on("disconnect", lambda: self.socket.disconnect())
         self.socket.on("modifier:run", self._pre_modifier_run)
         self.socket.on("message:log", lambda data: print(data))
-        self.socket.on("available", self._on_available)
-
-    def _on_available(self):
-        return {"available": self.available, "timeout": self.config.modifier_timeout}
 
     def _connect(self):
         for _ in range(100):
@@ -289,9 +284,7 @@ class ZnDrawBase:  # collections.abc.MutableSequence
         self.socket.emit("bookmarks:set", value)
 
     def _pre_modifier_run(self, data) -> None:
-        self.available = False
-        log.critical(f"Modifier running {self.available = }")
-
+        self.socket.emit("modifier:available", False)
         vis = type(self)(self.url, data["token"])
 
         msg = CeleryTaskData(
@@ -320,10 +313,7 @@ class ZnDrawBase:  # collections.abc.MutableSequence
             disconnect=True,
         )
         vis.socket.emit("celery:task:emit", dataclasses.asdict(msg))
-
-        self.available = True
-        log.critical(f"Modifier finished {self.available = }")
-
+        self.socket.emit("modifier:available", True)
 
 @dataclasses.dataclass
 class ZnDraw(ZnDrawBase):
@@ -405,6 +395,11 @@ class ZnDraw(ZnDrawBase):
         """
         if run_kwargs is None:
             run_kwargs = {}
+        if len(self._modifiers):
+            raise ValueError(
+                "Only one modifier can be registered at the moment. "
+                "This is a limitation of the current implementation."
+            )
 
         msg = ModifierRegisterData(
             schema=cls.model_json_schema(),
@@ -417,3 +412,7 @@ class ZnDraw(ZnDrawBase):
             dataclasses.asdict(msg),
         )
         self._modifiers[cls.__name__] = {"cls": cls, "run_kwargs": run_kwargs}
+        self.socket.emit(
+            "modifier:available",
+            True,
+        )
