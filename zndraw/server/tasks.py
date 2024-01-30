@@ -143,7 +143,10 @@ def analysis_schema(url: str, token: str):
     hide_discriminator_field(schema)
 
     msg = CeleryTaskData(
-        target=f"webclients_{vis.token}", event="analysis:schema", data=schema, disconnect=True
+        target=f"webclients_{vis.token}",
+        event="analysis:schema",
+        data=schema,
+        disconnect=True,
     )
     con = get_client(url)
     print(f"emitting analysis_schema to {vis.token}")
@@ -171,7 +174,10 @@ def modifier_schema(url: str, token: str):
 
     hide_discriminator_field(schema)
     msg = CeleryTaskData(
-        target=f"webclients_{token}", event="modifier:schema", data=schema, disconnect=True
+        target=f"webclients_{token}",
+        event="modifier:schema",
+        data=schema,
+        disconnect=True,
     )
     con = get_client(url)
     print(f"emitting modifier_schema to {token}")
@@ -303,7 +309,10 @@ def run_analysis(url: str, token: str, data: dict):
         vis.log(f"Error: {err}")
 
     msg = CeleryTaskData(
-        target=f"webclients_{vis.token}", event="analysis:run:finished", data=None, disconnect=True
+        target=f"webclients_{vis.token}",
+        event="analysis:run:finished",
+        data=None,
+        disconnect=True,
     )
 
     vis.socket.emit("celery:task:emit", asdict(msg))
@@ -422,7 +431,10 @@ def run_modifier(url: str, token: str, data: dict):
         vis.log(f"Error: {err}")
 
     msg = CeleryTaskData(
-        target=f"webclients_{vis.token}", event="modifier:run:finished", data=None, disconnect=True
+        target=f"webclients_{vis.token}",
+        event="modifier:run:finished",
+        data=None,
+        disconnect=True,
     )
 
     vis.socket.emit("celery:task:emit", asdict(msg))
