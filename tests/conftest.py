@@ -51,5 +51,5 @@ def server():
     try:
         yield f"http://127.0.0.1:{port}"
     finally:
-        server_proc.terminate()
         server_proc.join()
+        server_proc.close()
