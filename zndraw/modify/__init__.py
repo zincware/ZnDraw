@@ -55,7 +55,7 @@ class Rotate(UpdateScene):
         30, ge=1, description="Number of steps to take to complete the rotation"
     )
 
-    def run(self, vis: "ZnDraw") -> None:
+    def run(self, vis: "ZnDraw", **kwargs) -> None:
         # split atoms object into the selected from atoms_ids and the remaining
         if len(vis) > vis.step + 1:
             del vis[vis.step + 1 :]
@@ -85,7 +85,7 @@ class Delete(UpdateScene):
 
     discriminator: t.Literal["Delete"] = Field("Delete")
 
-    def run(self, vis: "ZnDraw") -> None:
+    def run(self, vis: "ZnDraw", **kwargs) -> None:
         atom_ids = vis.selection
         atoms = vis.atoms
 
@@ -106,7 +106,7 @@ class Move(UpdateScene):
 
     steps: int = Field(10, ge=1)
 
-    def run(self, vis: "ZnDraw") -> None:
+    def run(self, vis: "ZnDraw", **kwargs) -> None:
         if len(vis) > vis.step + 1:
             del vis[vis.step + 1 :]
 
@@ -139,7 +139,7 @@ class Duplicate(UpdateScene):
     z: float = Field(0.5, le=5, ge=0)
     symbol: Symbols
 
-    def run(self, vis: "ZnDraw") -> None:
+    def run(self, vis: "ZnDraw", **kwargs) -> None:
         atoms = vis.atoms
         if len(vis) > vis.step + 1:
             del vis[vis.step + 1 :]
@@ -159,7 +159,7 @@ class ChangeType(UpdateScene):
 
     symbol: Symbols
 
-    def run(self, vis: "ZnDraw") -> None:
+    def run(self, vis: "ZnDraw", **kwargs) -> None:
         if len(vis) > vis.step + 1:
             del vis[vis.step + 1 :]
 
@@ -177,7 +177,7 @@ class AddLineParticles(UpdateScene):
     symbol: Symbols
     steps: int = Field(10, le=100, ge=1)
 
-    def run(self, vis: "ZnDraw") -> None:
+    def run(self, vis: "ZnDraw", **kwargs) -> None:
         if len(vis) > vis.step + 1:
             del vis[vis.step + 1 :]
 
@@ -195,7 +195,7 @@ class Wrap(UpdateScene):
     discriminator: t.Literal["Wrap"] = Field("Wrap")
     recompute_bonds: bool = True
 
-    def run(self, vis: "ZnDraw") -> None:
+    def run(self, vis: "ZnDraw", **kwargs) -> None:
         vis.log("Downloading atoms...")
         atoms_list = list(vis)
         vis.step = 0
@@ -219,7 +219,7 @@ class Center(UpdateScene):
     )
     wrap: bool = Field(True, description="Wrap the atoms to the cell")
 
-    def run(self, vis: "ZnDraw") -> None:
+    def run(self, vis: "ZnDraw", **kwargs) -> None:
         selection = vis.selection
         if len(selection) < 1:
             vis.log("Please select at least one atom.")
@@ -258,7 +258,7 @@ class Replicate(UpdateScene):
 
     keep_box: bool = Field(False, description="Keep the original box size")
 
-    def run(self, vis: "ZnDraw") -> None:
+    def run(self, vis: "ZnDraw", **kwargs) -> None:
         vis.log("Downloading atoms...")
         atoms_list = list(vis)
         vis.step = 0
