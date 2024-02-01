@@ -167,6 +167,7 @@ class ZnDrawServer:
         self._workers = setup_worker()
 
         DB_PATH = GlobalConfig.load().database.get_path()
+        DB_PATH.unlink(missing_ok=True) # remove old database
         engine = create_engine(f"sqlite:///{DB_PATH}")
         Base.metadata.create_all(engine)
 

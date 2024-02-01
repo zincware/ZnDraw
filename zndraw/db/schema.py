@@ -19,7 +19,8 @@ class Room(Base):
 class Bookmark(Base):
     __tablename__ = 'bookmarks'
 
-    step = Column(Integer, primary_key=True)
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    step = Column(Integer)
     text = Column(String)
     room_token = Column(String, ForeignKey('rooms.token'))
     
@@ -37,7 +38,8 @@ class Client(Base):
 class Frame(Base):
     __tablename__ = 'frames'
 
-    index = Column(Integer, primary_key=True)
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    index = Column(Integer)
     data = Column(JSON)
     room_token = Column(String, ForeignKey('rooms.token'))
 
@@ -66,9 +68,10 @@ class RoomModifier(Base):
 
     name = Column(String, primary_key=True)
     schema = Column(JSON)
-
     room_token = Column(String, ForeignKey('rooms.token'))
+
     room = relationship('Room', back_populates='room_modifiers')
+    room_modifier_clients = relationship('RoomModifierClient', back_populates='room_modifier')
 
 class RoomModifierClient(Base):
     __tablename__ = 'room_modifier_clients'

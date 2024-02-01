@@ -152,18 +152,18 @@ def _get_subscribers(token: str, subscription_type: str):
 @io.on("connect")
 def connect():
     try:
-        token = session["token"]
+        token = str(session["token"])
         URL = f"http://127.0.0.1:{current_app.config['PORT']}"
         # if you connect through Python, you don't have a token
         read_file_chain = chain(
             tasks.read_file.s(URL, request.sid, token),
-            # tasks.analysis_schema.si(URL, token),
+            tasks.analysis_schema.si(URL, token),
         )
         read_file_chain.delay()
         tasks.get_selection_schema.delay(URL, request.sid)
         tasks.scene_schema.delay(URL, request.sid)
         tasks.geometries_schema.delay(URL, request.sid)
-        # tasks.modifier_schema.delay(URL, token)
+        tasks.modifier_schema.delay(URL, token)
 
         join_room(f"webclients_{token}")
         join_room(f"{token}")
@@ -178,10 +178,9 @@ def connect():
         with Session(engine) as ses:
             room = ses.query(db_schema.Room).filter_by(token=token).first()
             if room is None:
-                print("Creating new room")
-                # room = db_schema.Room(token=token)
-                # ses.add(room)
-                # ses.commit()
+                room = db_schema.Room(token=token, currentStep=0, points=[], selection=[])
+                ses.add(room)
+                ses.commit()
 
         ROOM_HOSTS = cache.get("ROOM_HOSTS")
 
@@ -240,9 +239,24 @@ def connect():
 @io.on("celery:task:emit")
 @typecast
 def celery_task_results(msg: CeleryTaskData):
+    token = str(session["token"])
     if msg.event == "atoms:upload":
-        key = f"ROOM-DATA:{session['token']}:index?{msg.data['index']}"
-        cache.set(key, msg.data["data"])
+        with Session(engine) as ses:
+            room = ses.query(db_schema.Room).filter_by(token=token).first()
+            # check if the index is already in the db
+            frame = ses.query(db_schema.Frame).filter_by(
+                index=msg.data["index"], room=room
+            ).first()
+            if frame is not None:
+                # if so, update the data
+                frame.data = msg.data["data"]
+            else:
+                # create a db_schema.Frame
+                frame = db_schema.Frame(
+                    index=msg.data["index"], data=msg.data["data"], room=room
+                )
+                ses.add(frame)
+            ses.commit()
     emit(msg.event, msg.data, to=msg.target)
     if msg.disconnect:
         io.server.disconnect(request.sid)
@@ -339,25 +353,55 @@ def scene_set(data: SceneSetData):
 
 @io.on("scene:step")
 def scene_step():
-    token = session["token"]
-    data = cache.get(f"PER-TOKEN-DATA:{token}:step")
-    return data or 0
+    token = str(session["token"])
+    with Session(engine) as ses:
+        room = ses.query(db_schema.Room).filter_by(token=token).first()
+        if room is None:
+            return 0
+        return room.currentStep
 
 
 @io.on("atoms:download")
 def atoms_download(indices: list[int]):
+    token = str(session["token"])
+
     data = {}
-    for index in indices:
-        key = f"ROOM-DATA:{session['token']}:index?{index}"
-        data[index] = cache.get(key)
+    # for index in indices:
+    #     key = f"ROOM-DATA:{session['token']}:index?{index}"
+    #     data[index] = cache.get(key)
+    with Session(engine) as ses:
+        room = ses.query(db_schema.Room).filter_by(token=token).first()
+        if room is None:
+            return
+        # get all db_schema.Frame with the given indices
+        frames = ses.query(db_schema.Frame).filter(
+            db_schema.Frame.index.in_(indices), db_schema.Frame.room == room
+        )
+        for frame in frames:
+            data[frame.index] = frame.data
+
     return data
 
 
 @io.on("atoms:upload")
 @typecast
 def atoms_upload(data: FrameData):
-    key = f"ROOM-DATA:{session['token']}:index?{data.index}"
-    cache.set(key, data.data)
+    token = str(session["token"])
+    with Session(engine) as ses:
+        room = ses.query(db_schema.Room).filter_by(token=token).first()
+        frame = ses.query(db_schema.Frame).filter_by(
+                index=data.index, room=room
+        ).first()
+        if frame is not None:
+            # if so, update the data
+            frame.data = data.data
+        else:
+            # create a db_schema.Frame
+            frame = db_schema.Frame(
+                index=data.index, data=data.data, room=room
+            )
+            ses.add(frame)
+        ses.commit()
     emit(
         "atoms:upload",
         dataclasses.asdict(data),
@@ -379,11 +423,10 @@ def atoms_delete(data: DeleteAtomsData):
 
 @io.on("atoms:length")
 def atoms_length():
-    token = session["token"]
-    index = 0
-    while cache.has(f"ROOM-DATA:{token}:index?{index}"):
-        index += 1
-    return index
+    token = str(session["token"])
+    with Session(engine) as ses:
+        room = ses.query(db_schema.Room).filter_by(token=token).first()
+        return ses.query(db_schema.Frame).filter_by(room=room).count()
 
 
 @io.on("modifier:schema")
@@ -520,7 +563,7 @@ def scene_update(data: SceneUpdateData):
 
     data: {step: int, camera: {position: [float, float, float], rotation: [float, float, float]}}
     """
-    token = session["token"]
+    token = str(session["token"])
 
     if data.step is not None:
         step_subscribers = _get_subscribers(token, "STEP")
@@ -530,7 +573,12 @@ def scene_update(data: SceneUpdateData):
             include_self=False,
             to=step_subscribers,
         )
-        cache.set(f"PER-TOKEN-DATA:{token}:step", data.step)
+        with Session(engine) as ses:
+            room = ses.query(db_schema.Room).filter_by(token=token).first()
+            if room is None:
+                return
+            room.currentStep = data.step
+            ses.commit()
 
     if data.camera is not None:
         camera_subscribers = _get_subscribers(token, "CAMERA")

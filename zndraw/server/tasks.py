@@ -17,11 +17,18 @@ from zndraw.select import get_selection_class
 from zndraw.settings import GlobalConfig
 from zndraw.utils import get_cls_from_json_schema, hide_discriminator_field
 from zndraw.zndraw import ZnDraw
+from zndraw.db import schema as db_schema
+
+from sqlalchemy import create_engine
+from sqlalchemy.orm import Session
 
 from ..app import cache
 from ..data import CeleryTaskData, FrameData
 
 log = logging.getLogger(__name__)
+
+DB_PATH = GlobalConfig.load().database.get_path()
+engine = create_engine(f"sqlite:///{DB_PATH}")
 
 
 def get_client(url) -> Client:
@@ -209,23 +216,29 @@ def scene_trash(url: str, token: str):
 @shared_task
 def read_file(url: str, target: str, token: str):
     con = get_client(url)
-    key = f"ROOM-DATA:{token}:index?0"
-    data = cache.get(key)
-    if data is not None:
-        index = 0
-        while (data := cache.get(f"ROOM-DATA:{token}:index?{index}")) is not None:
-            msg = CeleryTaskData(
-                target=target,
-                event="atoms:upload",
-                data=FrameData(
-                    index=index,
-                    data=data,
-                    update=True,
-                ),
-            )
-            con.emit("celery:task:emit", asdict(msg))
-            index += 1
-        return
+    
+    with Session(engine) as ses:
+        room = ses.query(db_schema.Room).filter_by(token=token).first()
+        # get all frames and iterate over them
+        frames = ses.query(db_schema.Frame).filter_by(room=room)
+        if frames.count() == 0:
+            pass
+        else:
+            for frame in frames.all():
+                msg = CeleryTaskData(
+                    target=target,
+                    event="atoms:upload",
+                    data=FrameData(
+                        index=frame.index,
+                        data=frame.data,
+                        update=True,
+                    ),
+                )
+                con.emit("celery:task:emit", asdict(msg))
+                con.sleep(0.01)
+                # it is too fast for the socket to handle otherwise
+            con.disconnect()
+            return
 
     fileio = cache.get("FILEIO")
 
