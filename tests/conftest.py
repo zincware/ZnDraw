@@ -8,7 +8,7 @@ from selenium import webdriver
 from selenium.webdriver.chrome.service import Service as ChromeService
 from webdriver_manager.chrome import ChromeDriverManager
 
-from zndraw.app import ZnDrawServer
+from zndraw.app import ZnDrawServer, socketio
 from zndraw.utils import get_port
 
 
@@ -47,9 +47,9 @@ def server():
     server_proc = mp.Process(target=run_server, args=(port,))
 
     server_proc.start()
-    time.sleep(1)
+    time.sleep(2)
     try:
         yield f"http://127.0.0.1:{port}"
     finally:
+        server_proc.terminate()
         server_proc.join()
-        server_proc.close()
