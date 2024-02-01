@@ -323,7 +323,7 @@ def run_analysis(url: str, token: str, data: dict):
 @shared_task
 def run_modifier(url: str, token: str, data: dict):
     vis = ZnDraw(url=url, token=token)
-    
+
     def on_finished():
         # TODO: disconnect the modifier, release the worker
         vis.socket.disconnect()
