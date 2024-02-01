@@ -7,10 +7,11 @@ from celery import Celery, Task
 from flask import Flask
 from flask_caching import Cache
 from flask_socketio import SocketIO
+from sqlalchemy import create_engine
+
+from zndraw.db.schema import Base
 
 from .settings import GlobalConfig
-from sqlalchemy import create_engine
-from zndraw.db.schema import Base
 
 socketio = SocketIO()
 
@@ -167,7 +168,7 @@ class ZnDrawServer:
         self._workers = setup_worker()
 
         DB_PATH = GlobalConfig.load().database.get_path()
-        DB_PATH.unlink(missing_ok=True) # remove old database
+        DB_PATH.unlink(missing_ok=True)  # remove old database
         engine = create_engine(f"sqlite:///{DB_PATH}")
         Base.metadata.create_all(engine)
 

@@ -8,13 +8,13 @@ from celery import chain
 from flask import current_app, request, session
 from flask_socketio import call, emit, join_room
 from socketio.exceptions import TimeoutError
-from sqlalchemy.orm import Session
 from sqlalchemy import create_engine
+from sqlalchemy.orm import Session
 
-from zndraw.server import tasks
-from zndraw.utils import typecast
-from zndraw.settings import GlobalConfig
 from zndraw.db import schema as db_schema
+from zndraw.server import tasks
+from zndraw.settings import GlobalConfig
+from zndraw.utils import typecast
 
 from ..app import cache
 from ..app import socketio as io
@@ -178,7 +178,9 @@ def connect():
         with Session(engine) as ses:
             room = ses.query(db_schema.Room).filter_by(token=token).first()
             if room is None:
-                room = db_schema.Room(token=token, currentStep=0, points=[], selection=[])
+                room = db_schema.Room(
+                    token=token, currentStep=0, points=[], selection=[]
+                )
                 ses.add(room)
                 ses.commit()
 
@@ -244,9 +246,11 @@ def celery_task_results(msg: CeleryTaskData):
         with Session(engine) as ses:
             room = ses.query(db_schema.Room).filter_by(token=token).first()
             # check if the index is already in the db
-            frame = ses.query(db_schema.Frame).filter_by(
-                index=msg.data["index"], room=room
-            ).first()
+            frame = (
+                ses.query(db_schema.Frame)
+                .filter_by(index=msg.data["index"], room=room)
+                .first()
+            )
             if frame is not None:
                 # if so, update the data
                 frame.data = msg.data["data"]
@@ -389,17 +393,15 @@ def atoms_upload(data: FrameData):
     token = str(session["token"])
     with Session(engine) as ses:
         room = ses.query(db_schema.Room).filter_by(token=token).first()
-        frame = ses.query(db_schema.Frame).filter_by(
-                index=data.index, room=room
-        ).first()
+        frame = (
+            ses.query(db_schema.Frame).filter_by(index=data.index, room=room).first()
+        )
         if frame is not None:
             # if so, update the data
             frame.data = data.data
         else:
             # create a db_schema.Frame
-            frame = db_schema.Frame(
-                index=data.index, data=data.data, room=room
-            )
+            frame = db_schema.Frame(index=data.index, data=data.data, room=room)
             ses.add(frame)
         ses.commit()
     emit(

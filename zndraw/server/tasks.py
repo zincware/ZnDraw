@@ -9,18 +9,17 @@ import znframe
 import znh5md
 from celery import shared_task
 from socketio import Client
+from sqlalchemy import create_engine
+from sqlalchemy.orm import Session
 
 from zndraw.analyse import get_analysis_class
+from zndraw.db import schema as db_schema
 from zndraw.draw import Geometry
 from zndraw.modify import get_modify_class
 from zndraw.select import get_selection_class
 from zndraw.settings import GlobalConfig
 from zndraw.utils import get_cls_from_json_schema, hide_discriminator_field
 from zndraw.zndraw import ZnDraw
-from zndraw.db import schema as db_schema
-
-from sqlalchemy import create_engine
-from sqlalchemy.orm import Session
 
 from ..app import cache
 from ..data import CeleryTaskData, FrameData
@@ -216,7 +215,7 @@ def scene_trash(url: str, token: str):
 @shared_task
 def read_file(url: str, target: str, token: str):
     con = get_client(url)
-    
+
     with Session(engine) as ses:
         room = ses.query(db_schema.Room).filter_by(token=token).first()
         # get all frames and iterate over them

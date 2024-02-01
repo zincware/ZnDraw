@@ -84,6 +84,7 @@ class CeleryConfig(pydantic.BaseModel):
             task_routes=self.task_routes,
         )
 
+
 class DatabaseConfig(pydantic.BaseModel):
     path: str = "~/.zincware/zndraw/database.sqlite"
 
@@ -91,6 +92,7 @@ class DatabaseConfig(pydantic.BaseModel):
         path = pathlib.Path(self.path).expanduser()
         path.parent.mkdir(parents=True, exist_ok=True)
         return path
+
 
 class GlobalConfig(pydantic.BaseModel):
     cache: CacheSettings = CacheSettings()
