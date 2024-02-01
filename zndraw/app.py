@@ -9,6 +9,8 @@ from flask_caching import Cache
 from flask_socketio import SocketIO
 
 from .settings import GlobalConfig
+from sqlalchemy import create_engine
+from zndraw.db.schema import Base
 
 socketio = SocketIO()
 
@@ -163,6 +165,11 @@ class ZnDrawServer:
     def run(self, browser=False):
         self.update_cache()
         self._workers = setup_worker()
+
+        DB_PATH = GlobalConfig.load().database.get_path()
+        engine = create_engine(f"sqlite:///{DB_PATH}")
+        Base.metadata.create_all(engine)
+
         if browser:
             webbrowser.open(self.url_root)
         socketio.run(self.app, port=self.port, host="0.0.0.0")

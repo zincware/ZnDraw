@@ -8,9 +8,13 @@ from celery import chain
 from flask import current_app, request, session
 from flask_socketio import call, emit, join_room
 from socketio.exceptions import TimeoutError
+from sqlalchemy.orm import Session
+from sqlalchemy import create_engine
 
 from zndraw.server import tasks
 from zndraw.utils import typecast
+from zndraw.settings import GlobalConfig
+from zndraw.db import schema as db_schema
 
 from ..app import cache
 from ..app import socketio as io
@@ -31,6 +35,9 @@ from ..data import (
 log = logging.getLogger(__name__)
 
 modifier_lock = Lock()
+
+DB_PATH = GlobalConfig.load().database.get_path()
+engine = create_engine(f"sqlite:///{DB_PATH}")
 
 
 def get_main_room_host(token: str) -> str:
@@ -161,6 +168,21 @@ def connect():
         join_room(f"webclients_{token}")
         join_room(f"{token}")
         # who ever connected latest is the HOST of the room
+
+        # with Session(engine) as session:
+        #     session.add(some_object)
+        #     session.add(some_other_object)
+        #     session.commit()
+
+        # check if there is a db_schema.Room with the given toke, if not create one
+        with Session(engine) as ses:
+            room = ses.query(db_schema.Room).filter_by(token=token).first()
+            if room is None:
+                print("Creating new room")
+                # room = db_schema.Room(token=token)
+                # ses.add(room)
+                # ses.commit()
+
         ROOM_HOSTS = cache.get("ROOM_HOSTS")
 
         if token not in ROOM_HOSTS:
