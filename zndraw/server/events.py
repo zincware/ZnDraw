@@ -218,10 +218,10 @@ def connect():
 @io.on("celery:task:emit")
 @typecast
 def celery_task_results(msg: CeleryTaskData):
-    emit(msg.event, msg.data, to=msg.target)
     if msg.event == "atoms:upload":
         key = f"ROOM-DATA:{session['token']}:index?{msg.data['index']}"
         cache.set(key, msg.data["data"])
+    emit(msg.event, msg.data, to=msg.target)
     if msg.disconnect:
         io.server.disconnect(request.sid)
 
@@ -334,14 +334,14 @@ def atoms_download(indices: list[int]):
 @io.on("atoms:upload")
 @typecast
 def atoms_upload(data: FrameData):
+    key = f"ROOM-DATA:{session['token']}:index?{data.index}"
+    cache.set(key, data.data)
     emit(
         "atoms:upload",
         dataclasses.asdict(data),
         include_self=False,
         to=f"webclients_{session['token']}",
     )
-    key = f"ROOM-DATA:{session['token']}:index?{data.index}"
-    cache.set(key, data.data)
 
 
 @io.on("atoms:delete")

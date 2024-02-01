@@ -26,7 +26,7 @@ log = logging.getLogger(__name__)
 
 def get_client(url) -> Client:
     client = Client()
-    client.connect(url)
+    client.connect(url, wait_timeout=10)
     return client
 
 
