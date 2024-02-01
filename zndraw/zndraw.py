@@ -61,7 +61,6 @@ class ZnDrawBase:  # collections.abc.MutableSequence
     auth_token: str = None
     config: Config = dataclasses.field(default_factory=Config)
     _modifiers: dict = dataclasses.field(default_factory=dict)
-    connected: bool = False
 
     _target_sid: str = None
 
@@ -70,30 +69,28 @@ class ZnDrawBase:  # collections.abc.MutableSequence
         self.socket = socketio.Client()
         if isinstance(self.config, dict):
             self.config = Config(**self.config)
-        self.socket.on(
-            "connect",
-            lambda: self.socket.emit(
-                "join",
-                {
-                    "token": self.token,
-                    "uuid": self._uuid,
-                    "auth_token": self.auth_token,
-                },
-            ),
-        )
         self.socket.on("disconnect", self._on_disconnect)
+        self.socket.on("connect", self._on_connect)
         self.socket.on("modifier:run", self._pre_modifier_run)
         self.socket.on("message:log", lambda data: print(data))
 
     def _on_disconnect(self):
         log.critical(f"Disconnected from server: {self._modifiers}")
-        self.connected = False
-
+    
+    def _on_connect(self):
+        log.critical(f"Connected to server: {self._modifiers}")
+        self.socket.emit(
+                "join",
+                {
+                    "token": self.token,
+                    "auth_token": self.auth_token,
+                },
+            )
+        
     def _connect(self):
         for _ in range(100):
             try:
                 self.socket.connect(self.url)
-                self.connected = True
                 break
             except socketio.exceptions.ConnectionError:
                 self.socket.sleep(0.1)
@@ -106,14 +103,6 @@ class ZnDrawBase:  # collections.abc.MutableSequence
         self.socket.disconnect()
         self._connect()
         self.socket.sleep(1)
-        self.socket.emit(
-            "join",
-            {
-                "token": self.token,
-                "uuid": self._uuid,
-                "auth_token": self.auth_token,
-            },
-        )
 
     def __len__(self) -> int:
         return int(self.socket.call("atoms:length", timeout=self.config.call_timeout))
