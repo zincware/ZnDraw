@@ -345,8 +345,8 @@ def run_modifier(url: str, token: str, data: dict):
                     )
                     vis.socket.emit("celery:task:emit", asdict(msg))
                     _timeout = cache.get("MODIFIER_TIMEOUT").get(pyclient, 0)
-                    # add additional 5 seconds for communication overhead 
-                    vis.socket.sleep(_timeout + 5) 
+                    # add additional 5 seconds for communication overhead
+                    vis.socket.sleep(_timeout + 5)
                     _available = cache.get("MODIFIER_AVAILABLE")
                     if not _available.get(pyclient, False):
                         print("modifier timed out")

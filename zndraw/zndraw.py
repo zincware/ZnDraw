@@ -33,6 +33,7 @@ class Config:
 
     call_timeout: int = 3
 
+
 @dataclasses.dataclass
 class ZnDrawBase:  # collections.abc.MutableSequence
     """
