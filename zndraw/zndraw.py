@@ -102,7 +102,8 @@ class ZnDrawBase:  # collections.abc.MutableSequence
         log.critical("Reconnecting to server")
         self.socket.disconnect()
         self._connect()
-        self.socket.sleep(5)
+        self._on_connect()
+        self.socket.sleep(0.1)
         log.critical("Reconnected to server")
 
     def __len__(self) -> int:
