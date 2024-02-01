@@ -323,11 +323,10 @@ def run_analysis(url: str, token: str, data: dict):
 @shared_task
 def run_modifier(url: str, token: str, data: dict):
     vis = ZnDraw(url=url, token=token)
-    vis.available = False
-
+    
     def on_finished():
         # TODO: disconnect the modifier, release the worker
-        pass
+        vis.socket.disconnect()
 
     vis.socket.on("modifier:run:finished", on_finished)
 
@@ -350,7 +349,13 @@ def run_modifier(url: str, token: str, data: dict):
                     vis.socket.emit("celery:task:emit", asdict(msg))
                     _timeout = cache.get("MODIFIER_TIMEOUT").get(pyclient, 0)
                     # add additional 5 seconds for communication overhead
-                    vis.socket.sleep(_timeout + 5)
+                    for _ in range(_timeout + 5):
+                        if vis.socket.connected:
+                            vis.socket.sleep(1)
+                        else:
+                            log.critical("Modifier finished")
+                            return
+                    # TODO: do we need this check?
                     _available = cache.get("MODIFIER_AVAILABLE")
                     if not _available.get(pyclient, False):
                         print("modifier timed out")
