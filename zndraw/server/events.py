@@ -290,6 +290,16 @@ def disconnect():
 
     # pyclients only
     # check if the SID is in MODIFIER_HOSTS or ROOM_MODIFIER_HOSTS
+    with Session(engine) as ses:
+        global_modifier_client = (
+            ses.query(db_schema.GlobalModifierClient)
+            .filter_by(sid=request.sid)
+            .all()
+        )
+        for gmc in global_modifier_client:
+            ses.delete(gmc)
+        ses.commit()
+
     MODIFIER_HOSTS = cache.get("MODIFIER_HOSTS")
     for name, sids in MODIFIER_HOSTS.items():
         while request.sid in sids:
@@ -681,18 +691,41 @@ def modifier_register(data: ModifierRegisterData):
         MODIFIER_SCHEMA = cache.get("ROOM_MODIFIER_SCHEMA").get(session["token"], {})
 
     # TODO: do not allow modifiers that are already in defaults, handle duplicates better!
-    if data.name in MODIFIER_HOSTS:
-        if MODIFIER_SCHEMA[data.name] != data.schema:
+
+    with Session(engine) as ses:
+        global_modifier = ses.query(db_schema.GlobalModifier).filter_by(
+            name=data.name
+        ).first()
+        if global_modifier is None:
+            global_modifier = db_schema.GlobalModifier(
+                name=data.name, schema=data.schema
+            )
+            ses.add(global_modifier)
+        elif global_modifier.schema != data.schema:
             log.critical(
                 f"Modifier {data.name} is already registered with a different schema."
             )
             return
-        log.info(f"Register additional handlfer for already registered {data.name}.")
-        MODIFIER_HOSTS[data.name].append(request.sid)
-    else:
-        log.info(f"Register new handler for {data.name}.")
-        MODIFIER_HOSTS[data.name] = [request.sid]
-        MODIFIER_SCHEMA[data.name] = data.schema
+        # attach GlobalModifierClient
+        global_modifier_client = db_schema.GlobalModifierClient(
+            sid=request.sid, timeout=data.timeout, available=False, global_modifier=global_modifier
+        )
+        ses.add(global_modifier_client)
+        ses.commit()    
+
+
+    # if data.name in MODIFIER_HOSTS:
+    #     if MODIFIER_SCHEMA[data.name] != data.schema:
+    #         log.critical(
+    #             f"Modifier {data.name} is already registered with a different schema."
+    #         )
+    #         return
+    #     log.info(f"Register additional handlfer for already registered {data.name}.")
+    #     MODIFIER_HOSTS[data.name].append(request.sid)
+    # else:
+    #     log.info(f"Register new handler for {data.name}.")
+    #     MODIFIER_HOSTS[data.name] = [request.sid]
+    #     MODIFIER_SCHEMA[data.name] = data.schema
 
     if data.default:
         cache.set("MODIFIER_HOSTS", MODIFIER_HOSTS)
@@ -716,9 +749,14 @@ def modifier_register(data: ModifierRegisterData):
 @io.on("modifier:available")
 def modifier_available(available: bool):
     """Update the modifier availability."""
-    MODIFIER_AVAILABLE = cache.get("MODIFIER_AVAILABLE")
-    MODIFIER_AVAILABLE[request.sid] = available
-    cache.set("MODIFIER_AVAILABLE", MODIFIER_AVAILABLE)
+    with Session(engine) as ses:
+        global_modifier_client = (
+            ses.query(db_schema.GlobalModifierClient)
+            .filter_by(sid=request.sid)
+            .first()
+        )
+        global_modifier_client.available = available
+        ses.commit()
 
 
 @io.on("modifier:timeout")

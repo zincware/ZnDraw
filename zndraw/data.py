@@ -140,6 +140,7 @@ class ModifierRegisterData:
     schema: dict
     name: str
     default: bool
+    timeout: float = 60
 
 
 @dataclasses.dataclass

@@ -165,13 +165,19 @@ def analysis_schema(url: str, token: str):
 @shared_task
 def modifier_schema(url: str, token: str):
     config = GlobalConfig.load()
+    include = []
 
-    MODIFIER_SCHEMA = cache.get("MODIFIER_SCHEMA")
+
+    with Session(engine) as ses:
+        room = ses.query(db_schema.Room).filter_by(token=token).first()
+        room_modifiers = ses.query(db_schema.RoomModifier).filter_by(room=room).all()
+        modifiers = ses.query(db_schema.GlobalModifier).all()
+    
+        for modifier in modifiers:
+            include.append(get_cls_from_json_schema(modifier.schema, modifier.name))
+    
     ROOM_MODIFIER_SCHEMA = cache.get("ROOM_MODIFIER_SCHEMA").get(token, {})
 
-    include = []
-    for name, schema in MODIFIER_SCHEMA.items():
-        include.append(get_cls_from_json_schema(schema, name))
     for name, schema in ROOM_MODIFIER_SCHEMA.items():
         include.append(get_cls_from_json_schema(schema, name))
 
@@ -363,52 +369,61 @@ def run_modifier(url: str, token: str, data: dict):
 
     NAME = data["method"]["discriminator"]
 
-    MODIFIER_HOSTS = cache.get("MODIFIER_HOSTS")
+    with Session(engine) as ses:
+        room = ses.query(db_schema.Room).filter_by(token=token).first()
+        room_modifiers = ses.query(db_schema.RoomModifier).filter_by(room=room).all()
+        modifiers = ses.query(db_schema.GlobalModifier).all()
+        names = [modifier.name for modifier in modifiers]
+
     ROOM_MODIFIER_HOSTS = cache.get("ROOM_MODIFIER_HOSTS")
 
-    if NAME in MODIFIER_HOSTS:
-        while len(_hosts := cache.get("MODIFIER_HOSTS")[NAME]) > 0:
-            _available = cache.get("MODIFIER_AVAILABLE")
-            for pyclient in _hosts:
-                if _available.get(pyclient, False):
-                    # run the modifier
-                    msg = CeleryTaskData(
-                        target=pyclient,
-                        event="modifier:run",
-                        data={"params": data, "token": token},
-                    )
-                    vis.socket.emit("celery:task:emit", asdict(msg))
-                    _timeout = cache.get("MODIFIER_TIMEOUT").get(pyclient, 0)
-                    # add additional 5 seconds for communication overhead
-                    for _ in range(_timeout + 5):
-                        if vis.socket.connected:
-                            vis.socket.sleep(1)
-                        else:
-                            log.critical("Modifier finished")
-                            return
-                    # TODO: do we need this check?
-                    _available = cache.get("MODIFIER_AVAILABLE")
-                    if not _available.get(pyclient, False):
-                        print("modifier timed out")
-                        msg = CeleryTaskData(
-                            target=f"webclients_{vis.token}",
-                            event="message:alert",
-                            data=f"Modifier {NAME} did not finish in time.",
-                        )
-                        vis.socket.emit("celery:task:emit", asdict(msg))
-
-                        msg = CeleryTaskData(
-                            target=f"webclients_{vis.token}",
-                            event="modifier:run:finished",
-                            data=None,
-                            disconnect=True,
-                        )
-                        vis.socket.emit("celery:task:emit", asdict(msg))
-
-                    return
-            else:
+    if NAME in names:
+        while True:
+            with Session(engine) as ses:
+                # get the available hosts for the modifier
+                modifier = ses.query(db_schema.GlobalModifier).filter_by(name=NAME).first()
+                hosts = ses.query(db_schema.GlobalModifierClient).filter_by(
+                    global_modifier=modifier, available=True
+                )
+                _hosts = [host.sid for host in hosts.all()]
+            if len(_hosts) == 0:
                 vis.socket.sleep(1)
                 log.critical("No modifier available")
+                continue
+
+            for pyclient in _hosts:
+                # run the modifier
+                msg = CeleryTaskData(
+                    target=pyclient,
+                    event="modifier:run",
+                    data={"params": data, "token": token},
+                )
+                vis.socket.emit("celery:task:emit", asdict(msg))
+                _timeout = cache.get("MODIFIER_TIMEOUT").get(pyclient, 0)
+                # add additional 5 seconds for communication overhead
+                for _ in range(_timeout + 5):
+                    if vis.socket.connected:
+                        vis.socket.sleep(1)
+                    else:
+                        log.critical("Modifier finished")
+                        return
+               
+                print("modifier timed out")
+                msg = CeleryTaskData(
+                    target=f"webclients_{vis.token}",
+                    event="message:alert",
+                    data=f"Modifier {NAME} did not finish in time.",
+                )
+                vis.socket.emit("celery:task:emit", asdict(msg))
+
+                msg = CeleryTaskData(
+                    target=f"webclients_{vis.token}",
+                    event="modifier:run:finished",
+                    data=None,
+                    disconnect=True,
+                )
+                vis.socket.emit("celery:task:emit", asdict(msg))
+                return
 
         msg = CeleryTaskData(
             target=f"webclients_{vis.token}",

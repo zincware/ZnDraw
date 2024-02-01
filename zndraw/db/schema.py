@@ -67,7 +67,8 @@ class Frame(Base):
 class GlobalModifier(Base):
     __tablename__ = "global_modifiers"
 
-    name = Column(String, primary_key=True)
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(String)
     schema = Column(JSON)
 
     global_modifier_clients = relationship(
@@ -82,7 +83,7 @@ class GlobalModifierClient(Base):
     timeout = Column(Float)
     available = Column(Boolean)
 
-    modifier_name = Column(String, ForeignKey("global_modifiers.name"))
+    modifier = Column(String, ForeignKey("global_modifiers.id"))
     global_modifier = relationship(
         "GlobalModifier", back_populates="global_modifier_clients"
     )
@@ -91,7 +92,9 @@ class GlobalModifierClient(Base):
 class RoomModifier(Base):
     __tablename__ = "room_modifiers"
 
-    name = Column(String, primary_key=True)
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(String)
     schema = Column(JSON)
     room_token = Column(String, ForeignKey("rooms.token"))
 
@@ -108,5 +111,5 @@ class RoomModifierClient(Base):
     timeout = Column(Float)
     available = Column(Boolean)
 
-    modifier_name = Column(String, ForeignKey("room_modifiers.name"))
+    modifier = Column(String, ForeignKey("room_modifiers.id"))
     room_modifier = relationship("RoomModifier", back_populates="room_modifier_clients")
