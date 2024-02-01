@@ -380,6 +380,7 @@ class ZnDraw(ZnDrawBase):
         super().reconnect()
 
         for k, v in self._modifiers.items():
+            log.critical(f"Re-registering modifier {k}")
             msg = ModifierRegisterData(
                 schema=v["cls"].model_json_schema(),
                 name=k,
