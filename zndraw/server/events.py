@@ -534,13 +534,10 @@ def bookmarks_set(data: dict):
         ses.query(db_schema.Bookmark).filter_by(room=room).delete()
         # add all bookmarks from the data
         for k, v in data.items():
-            bookmark = db_schema.Bookmark(
-                step=k, text=v, room=room
-            )
+            bookmark = db_schema.Bookmark(step=k, text=v, room=room)
             ses.add(bookmark)
 
         ses.commit()
-
 
 
 @io.on("points:set")
