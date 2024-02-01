@@ -150,13 +150,13 @@ def connect():
         # if you connect through Python, you don't have a token
         read_file_chain = chain(
             tasks.read_file.s(URL, request.sid, token),
-            tasks.analysis_schema.si(URL, token),
+            # tasks.analysis_schema.si(URL, token),
         )
         read_file_chain.delay()
         tasks.get_selection_schema.delay(URL, request.sid)
         tasks.scene_schema.delay(URL, request.sid)
         tasks.geometries_schema.delay(URL, request.sid)
-        tasks.modifier_schema.delay(URL, token)
+        # tasks.modifier_schema.delay(URL, token)
 
         join_room(f"webclients_{token}")
         join_room(f"{token}")
