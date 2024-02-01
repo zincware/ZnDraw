@@ -46,9 +46,6 @@ class ZnDrawBase:  # collections.abc.MutableSequence
     token : str
         Identifies the session this instances is being connected to.
         Tokens can be shared.
-    _uuid : uuid.UUID
-        Unique identifier for this instance. Can be set for reconnecting
-        but only ONE instance with the same uuid can be connected at the same time.
     auth_token : str
         Authentication token, used e.g. for registering modifiers to all users and
         not just the current session.
@@ -57,7 +54,6 @@ class ZnDrawBase:  # collections.abc.MutableSequence
     url: str
     token: str = None
     display_new: bool = True
-    _uuid: uuid.UUID = dataclasses.field(default_factory=uuid.uuid4)
     auth_token: str = None
     config: Config = dataclasses.field(default_factory=Config)
     _modifiers: dict = dataclasses.field(default_factory=dict)
@@ -65,7 +61,6 @@ class ZnDrawBase:  # collections.abc.MutableSequence
     _target_sid: str = None
 
     def __post_init__(self):
-        self._uuid = str(self._uuid)
         self.socket = socketio.Client()
         if isinstance(self.config, dict):
             self.config = Config(**self.config)

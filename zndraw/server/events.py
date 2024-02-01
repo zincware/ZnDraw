@@ -25,6 +25,7 @@ from ..data import (
     SceneUpdateData,
     SchemaData,
     SubscribedUserData,
+    FrameData
 )
 
 log = logging.getLogger(__name__)
@@ -148,7 +149,7 @@ def connect():
         URL = f"http://127.0.0.1:{current_app.config['PORT']}"
         # if you connect through Python, you don't have a token
         read_file_chain = chain(
-            tasks.read_file.s(URL, request.sid),
+            tasks.read_file.s(URL, request.sid, token),
             tasks.analysis_schema.si(URL, token),
         )
         read_file_chain.delay()
@@ -218,6 +219,9 @@ def connect():
 @typecast
 def celery_task_results(msg: CeleryTaskData):
     emit(msg.event, msg.data, to=msg.target)
+    if msg.event == "atoms:upload":
+        key = f"ROOM-DATA:{session['token']}:index?{msg.data['index']}"
+        cache.set(key, msg.data["data"])
     if msg.disconnect:
         io.server.disconnect(request.sid)
 
@@ -323,9 +327,11 @@ def atoms_download(data: list[int]):
 
 
 @io.on("atoms:upload")
-def atoms_upload(data: dict):
-    emit("atoms:upload", data, include_self=False, to=f"webclients_{session['token']}")
-
+@typecast
+def atoms_upload(data: FrameData):
+    emit("atoms:upload", dataclasses.asdict(data), include_self=False, to=f"webclients_{session['token']}")
+    key = f"ROOM-DATA:{session['token']}:index?{data.index}"
+    cache.set(key, data.data)
 
 @io.on("atoms:delete")
 @typecast
