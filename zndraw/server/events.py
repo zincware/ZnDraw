@@ -430,7 +430,6 @@ def atoms_delete(data: DeleteAtomsData):
         ses.commit()
 
 
-
 @io.on("atoms:length")
 def atoms_length():
     token = str(session["token"])
