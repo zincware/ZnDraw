@@ -25,7 +25,7 @@ Symbols = enum.Enum("Symbols", {symbol: symbol for symbol in chemical_symbols})
 
 class UpdateScene(BaseModel, abc.ABC):
     @abc.abstractmethod
-    def run(self, vis: "ZnDraw") -> None:
+    def run(self, vis: "ZnDraw", timeout: float, **kwargs) -> None:
         """Method called when running the modifier."""
         pass
 

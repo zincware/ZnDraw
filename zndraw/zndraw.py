@@ -29,13 +29,10 @@ class Config:
     call_timeout : int
         Timeout for socket calls in seconds.
         Set to a smaller value to fail faster.
-    modifier_timeout : int
-        Maximum runtime for modifiers in seconds.
     """
 
     call_timeout: int = 60
     retries: int = 100
-    modifier_timeout: int = 60
 
 
 @dataclasses.dataclass
@@ -286,7 +283,6 @@ class ZnDrawBase:  # collections.abc.MutableSequence
     def _pre_modifier_run(self, data) -> None:
         self.socket.emit("modifier:available", False)
         vis = type(self)(self.url, data["token"])
-
         msg = CeleryTaskData(
             target=f"webclients_{vis.token}", event="modifier:run:running", data=None
         )
@@ -380,7 +376,7 @@ class ZnDraw(ZnDrawBase):
         return ZnDrawLoggingHandler(self)
 
     def register_modifier(
-        self, cls: UpdateScene, run_kwargs: dict = None, default: bool = False
+        self, cls: UpdateScene, run_kwargs: dict = None, default: bool = False, timeout: float = 60
     ):
         """Register a modifier class.
 
@@ -393,9 +389,15 @@ class ZnDraw(ZnDrawBase):
         default : bool, optional
             Whether to enable the modifier for ALL sessions of the ZnDraw client,
             or just the session for the given token.
+        timeout : float, optional
+            Timeout for the modifier to run in seconds. The Webclient 
+            will alert the user if the modifier takes longer than this time and 
+            release the modify button (no further changes are expected, but they
+            can happen).
         """
         if run_kwargs is None:
             run_kwargs = {}
+        run_kwargs["timeout"] = timeout
         if len(self._modifiers):
             raise ValueError(
                 "Only one modifier can be registered at the moment. "
@@ -417,7 +419,8 @@ class ZnDraw(ZnDrawBase):
             "modifier:available",
             True,
         )
+        # TODO: this is per SID, the timeout above is per registered modifier
         self.socket.emit(
             "modifier:timeout",
-            self.config.modifier_timeout,
+            timeout,
         )
