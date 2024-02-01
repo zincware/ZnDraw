@@ -78,7 +78,7 @@ class ZnDrawBase:  # collections.abc.MutableSequence
         log.critical(f"Disconnected from server: {self._modifiers}")
 
     def _on_connect(self):
-        log.critical(f"Connected to server: {self._modifiers}")
+        log.critical(f"Connected to server: {self._modifiers} with token {self.token}")
         self.socket.emit(
             "join",
             {
