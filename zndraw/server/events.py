@@ -415,12 +415,20 @@ def atoms_upload(data: FrameData):
 @io.on("atoms:delete")
 @typecast
 def atoms_delete(data: DeleteAtomsData):
+    token = str(session["token"])
     emit(
         "atoms:delete",
         data.index,
         include_self=False,
         to=f"webclients_{session['token']}",
     )
+    with Session(engine) as ses:
+        room = ses.query(db_schema.Room).filter_by(token=token).first()
+        ses.query(db_schema.Frame).filter(
+            db_schema.Frame.index.in_(data.index), db_schema.Frame.room == room
+        ).delete(synchronize_session=False)
+        ses.commit()
+
 
 
 @io.on("atoms:length")
