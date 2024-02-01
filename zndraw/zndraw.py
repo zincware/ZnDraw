@@ -31,7 +31,7 @@ class Config:
         Set to a smaller value to fail faster.
     """
 
-    call_timeout: int = 60
+    call_timeout: int = 3
     retries: int = 100
 
 
