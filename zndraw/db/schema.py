@@ -25,6 +25,9 @@ class Room(Base):
     room_modifiers = relationship("RoomModifier", back_populates="room")
     bookmarks = relationship("Bookmark", back_populates="room")
 
+    def __repr__(self):
+        return f"<Room(token={self.token}, currentStep={self.currentStep})>"
+
 
 class Bookmark(Base):
     __tablename__ = "bookmarks"
@@ -56,6 +59,9 @@ class Frame(Base):
     room_token = Column(String, ForeignKey("rooms.token"))
 
     room = relationship("Room", back_populates="frames")
+
+    def __repr__(self):
+        return f"<Frame(id={self.id}, index={self.index}, room_token={self.room_token})>"
 
 
 class GlobalModifier(Base):
