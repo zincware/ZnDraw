@@ -60,6 +60,7 @@ class ZnDrawBase:  # collections.abc.MutableSequence
     _uuid: uuid.UUID = dataclasses.field(default_factory=uuid.uuid4)
     auth_token: str = None
     config: Config = dataclasses.field(default_factory=Config)
+    _modifiers: dict = dataclasses.field(default_factory=dict)
 
     _target_sid: str = None
 
@@ -79,9 +80,12 @@ class ZnDrawBase:  # collections.abc.MutableSequence
                 },
             ),
         )
-        self.socket.on("disconnect", lambda: self.socket.disconnect())
+        self.socket.on("disconnect", self._on_disconnect)
         self.socket.on("modifier:run", self._pre_modifier_run)
         self.socket.on("message:log", lambda data: print(data))
+
+    def _on_disconnect(self):
+        log.critical(f"Disconnected from server: {self._modifiers}")
 
     def _connect(self):
         for _ in range(100):
@@ -319,7 +323,6 @@ class ZnDraw(ZnDrawBase):
 
     jupyter: bool = False
 
-    _modifiers: dict = dataclasses.field(default_factory=dict)
 
     def __post_init__(self):
         super().__post_init__()
