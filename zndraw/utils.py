@@ -65,7 +65,7 @@ class ZnDrawLoggingHandler(logging.Handler):
             raise
         except Exception:
             print("Something went wrong")
-            # self.handleError(record)
+            self.handleError(record)
 
 
 def get_cls_from_json_schema(schema: dict, name: str, **kwargs):
