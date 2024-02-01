@@ -375,7 +375,7 @@ class ZnDraw(ZnDrawBase):
 
     def get_logging_handler(self) -> ZnDrawLoggingHandler:
         return ZnDrawLoggingHandler(self)
-    
+
     def reconnect(self) -> None:
         super().reconnect()
 
@@ -389,8 +389,7 @@ class ZnDraw(ZnDrawBase):
                 "modifier:register",
                 dataclasses.asdict(msg),
             )
-        
-        
+
             self.socket.emit(
                 "modifier:available",
                 True,
@@ -444,7 +443,11 @@ class ZnDraw(ZnDrawBase):
             "modifier:register",
             dataclasses.asdict(msg),
         )
-        self._modifiers[cls.__name__] = {"cls": cls, "run_kwargs": run_kwargs, "default": default}
+        self._modifiers[cls.__name__] = {
+            "cls": cls,
+            "run_kwargs": run_kwargs,
+            "default": default,
+        }
         self.socket.emit(
             "modifier:available",
             True,
