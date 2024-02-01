@@ -150,7 +150,7 @@ class ZnDrawBase:  # collections.abc.MutableSequence
         if isinstance(value, ase.Atoms):
             value = Frame.from_atoms(value)
         data = {
-            index: value.to_dict(built_in_types=False),
+            index: value.to_dict(built_in_types=False, json_serializable=True),
             "display_new": self.display_new,
             "token": self.token,
         }
