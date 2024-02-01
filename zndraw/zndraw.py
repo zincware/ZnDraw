@@ -188,6 +188,8 @@ class ZnDrawBase:  # collections.abc.MutableSequence
         atoms_list = []
 
         for val in downloaded_data.values():
+            if val is None:
+                raise IndexError("Index out of range")
             atoms_list.append(Frame.from_dict(val).to_atoms())
 
         data = atoms_list[0] if is_scalar else atoms_list
@@ -214,7 +216,7 @@ class ZnDrawBase:  # collections.abc.MutableSequence
     @property
     def points(self) -> np.ndarray:
         data = self.socket.call("points:get", timeout=self.config.call_timeout)
-        return np.array([[val["x"], val["y"], val["z"]] for val in data])
+        return np.array(data)
 
     @points.setter
     def points(self, value: t.Union[np.ndarray, list]) -> None:
