@@ -505,22 +505,40 @@ def scene_pause():
 
 
 @io.on("bookmarks:get")
-@typecast
 def bookmarks_get():
-    data = cache.get(f"ROOM-DATA:{session['token']}:bookmarks")
-    return data or {}
+    token = str(session["token"])
+    with Session(engine) as ses:
+        room = ses.query(db_schema.Room).filter_by(token=token).first()
+        if room is None:
+            return []
+        return {bm.step: bm.text for bm in room.bookmarks}
 
 
 @io.on("bookmarks:set")
 @typecast
 def bookmarks_set(data: dict):
+    token = str(session["token"])
     emit(
         "bookmarks:set",
         data,
         include_self=False,
-        to=f"webclients_{session['token']}",
+        to=f"webclients_{token}",
     )
-    cache.set(f"ROOM-DATA:{session['token']}:bookmarks", data)
+    with Session(engine) as ses:
+        room = ses.query(db_schema.Room).filter_by(token=token).first()
+        if room is None:
+            return
+        # remove all bookmarks for the given token
+        ses.query(db_schema.Bookmark).filter_by(room=room).delete()
+        # add all bookmarks from the data
+        for k, v in data.items():
+            bookmark = db_schema.Bookmark(
+                step=k, text=v, room=room
+            )
+            ses.add(bookmark)
+
+        ses.commit()
+
 
 
 @io.on("points:set")
