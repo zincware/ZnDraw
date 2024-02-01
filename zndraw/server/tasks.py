@@ -1,4 +1,5 @@
 import datetime
+import logging
 import pathlib
 from dataclasses import asdict
 
@@ -8,7 +9,6 @@ import znframe
 import znh5md
 from celery import shared_task
 from socketio import Client
-import logging
 
 from zndraw.analyse import get_analysis_class
 from zndraw.draw import Geometry
