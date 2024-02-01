@@ -61,7 +61,9 @@ class Frame(Base):
     room = relationship("Room", back_populates="frames")
 
     def __repr__(self):
-        return f"<Frame(id={self.id}, index={self.index}, room_token={self.room_token})>"
+        return (
+            f"<Frame(id={self.id}, index={self.index}, room_token={self.room_token})>"
+        )
 
 
 class GlobalModifier(Base):

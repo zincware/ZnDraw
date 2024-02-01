@@ -221,7 +221,7 @@ def scene_trash(url: str, token: str):
 @shared_task
 def read_file(url: str, target: str, token: str):
     vis = ZnDraw(url=url, token=token)
-    con = vis.socket    
+    con = vis.socket
 
     with Session(engine) as ses:
         room = ses.query(db_schema.Room).filter_by(token=token).first()
