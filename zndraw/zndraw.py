@@ -104,13 +104,13 @@ class ZnDrawBase:  # collections.abc.MutableSequence
         self._connect()
         self.socket.sleep(0.1)
         self.socket.emit(
-                "join",
-                {
-                    "token": self.token,
-                    "uuid": self._uuid,
-                    "auth_token": self.auth_token,
-                },
-            )
+            "join",
+            {
+                "token": self.token,
+                "uuid": self._uuid,
+                "auth_token": self.auth_token,
+            },
+        )
         self.socket.sleep(0.1)
 
     def __len__(self) -> int:
