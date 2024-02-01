@@ -323,7 +323,6 @@ class ZnDraw(ZnDrawBase):
 
     jupyter: bool = False
 
-
     def __post_init__(self):
         super().__post_init__()
         if self.url is None:
