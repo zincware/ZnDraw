@@ -8,6 +8,7 @@ import znframe
 import znh5md
 from celery import shared_task
 from socketio import Client
+import logging
 
 from zndraw.analyse import get_analysis_class
 from zndraw.draw import Geometry
@@ -19,6 +20,8 @@ from zndraw.zndraw import ZnDraw
 
 from ..app import cache
 from ..data import CeleryTaskData, FrameData
+
+log = logging.getLogger(__name__)
 
 
 def get_client(url) -> Client:
@@ -323,7 +326,8 @@ def run_modifier(url: str, token: str, data: dict):
     vis.available = False
 
     def on_finished():
-        vis.available = True
+        # TODO: disconnect the modifier, release the worker
+        pass
 
     vis.socket.on("modifier:run:finished", on_finished)
 
@@ -368,7 +372,7 @@ def run_modifier(url: str, token: str, data: dict):
                     return
             else:
                 vis.socket.sleep(1)
-                print("No modifier available")
+                log.critical("No modifier available")
 
         msg = CeleryTaskData(
             target=f"webclients_{vis.token}",
