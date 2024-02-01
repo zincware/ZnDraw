@@ -64,7 +64,8 @@ class ZnDrawLoggingHandler(logging.Handler):
         except RecursionError:  # See StreamHandler
             raise
         except Exception:
-            self.handleError(record)
+            print("Something went wrong")
+            # self.handleError(record)
 
 
 def get_cls_from_json_schema(schema: dict, name: str, **kwargs):
