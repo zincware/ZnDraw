@@ -457,8 +457,12 @@ def draw_schema(data: SchemaData):
 
 @io.on("points:get")
 def scene_points():
-    data = cache.get(f"ROOM-DATA:{session['token']}:points")
-    return data or []
+    token = str(session["token"])
+    with Session(engine) as ses:
+        room = ses.query(db_schema.Room).filter_by(token=token).first()
+        if room is None:
+            return []
+        return room.points
 
 
 @io.on("scene:segments")
@@ -468,19 +472,29 @@ def scene_segments():
 
 @io.on("selection:get")
 def selection_get():
-    data = cache.get(f"ROOM-DATA:{session['token']}:selection")
-    return data or []
+    token = str(session["token"])
+    with Session(engine) as ses:
+        room = ses.query(db_schema.Room).filter_by(token=token).first()
+        if room is None:
+            return []
+        return room.selection
 
 
 @io.on("selection:set")
 def selection_set(data: list[int]):
+    token = str(session["token"])
     emit(
         "selection:set",
         data,
         include_self=False,
-        to=f"webclients_{session['token']}",
+        to=f"webclients_{token}",
     )
-    cache.set(f"ROOM-DATA:{session['token']}:selection", data)
+    with Session(engine) as ses:
+        room = ses.query(db_schema.Room).filter_by(token=token).first()
+        if room is None:
+            return
+        room.selection = data
+        ses.commit()
 
 
 @io.on("message:log")
@@ -545,8 +559,14 @@ def bookmarks_set(data: dict):
 
 @io.on("points:set")
 def points_set(data: list[list[float]]):
-    emit("points:set", data, include_self=False, to=f"webclients_{session['token']}")
-    cache.set(f"ROOM-DATA:{session['token']}:points", data)
+    token = str(session["token"])
+    emit("points:set", data, include_self=False, to=f"webclients_{token}")
+    with Session(engine) as ses:
+        room = ses.query(db_schema.Room).filter_by(token=token).first()
+        if room is None:
+            return
+        room.points = data
+        ses.commit()
 
 
 @io.on("debug")
