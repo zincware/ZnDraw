@@ -755,4 +755,3 @@ def modifier_available(available: bool):
         )
         global_modifier_client.available = available
         ses.commit()
-
