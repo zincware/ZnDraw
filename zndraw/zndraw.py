@@ -61,6 +61,7 @@ class ZnDrawBase:  # collections.abc.MutableSequence
     auth_token: str = None
     config: Config = dataclasses.field(default_factory=Config)
     _modifiers: dict = dataclasses.field(default_factory=dict)
+    connected: bool = False
 
     _target_sid: str = None
 
@@ -86,11 +87,13 @@ class ZnDrawBase:  # collections.abc.MutableSequence
 
     def _on_disconnect(self):
         log.critical(f"Disconnected from server: {self._modifiers}")
+        self.connected = False
 
     def _connect(self):
         for _ in range(100):
             try:
                 self.socket.connect(self.url)
+                self.connected = True
                 break
             except socketio.exceptions.ConnectionError:
                 self.socket.sleep(0.1)
