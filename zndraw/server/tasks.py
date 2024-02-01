@@ -212,10 +212,8 @@ def read_file(url: str, target: str, token: str):
     key = f"ROOM-DATA:{token}:index?0"
     data = cache.get(key)
     if data is not None:
-        log.critical(f"Reading frame 0 from cache!!!!!!!!!!!!!!!")
         index = 0
         while (data := cache.get(f"ROOM-DATA:{token}:index?{index}")) is not None:
-            log.critical(f"Reading frame {index} from cache!!!!!!!!!!!!!!!")
             msg = CeleryTaskData(
                 target=target,
                 event="atoms:upload",
