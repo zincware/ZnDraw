@@ -370,9 +370,6 @@ def atoms_download(indices: list[int]):
     token = str(session["token"])
 
     data = {}
-    # for index in indices:
-    #     key = f"ROOM-DATA:{session['token']}:index?{index}"
-    #     data[index] = cache.get(key)
     with Session(engine) as ses:
         room = ses.query(db_schema.Room).filter_by(token=token).first()
         if room is None:
