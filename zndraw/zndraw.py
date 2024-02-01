@@ -375,6 +375,31 @@ class ZnDraw(ZnDrawBase):
 
     def get_logging_handler(self) -> ZnDrawLoggingHandler:
         return ZnDrawLoggingHandler(self)
+    
+    def reconnect(self) -> None:
+        super().reconnect()
+
+        for k, v in self._modifiers.items():
+            msg = ModifierRegisterData(
+                schema=v["cls"].model_json_schema(),
+                name=k,
+                default=v["default"],
+            )
+            self.socket.emit(
+                "modifier:register",
+                dataclasses.asdict(msg),
+            )
+        
+        
+            self.socket.emit(
+                "modifier:available",
+                True,
+            )
+            # TODO: this is per SID, the timeout above is per registered modifier
+            self.socket.emit(
+                "modifier:timeout",
+                v["run_kwargs"]["timeout"],
+            )
 
     def register_modifier(
         self,
@@ -419,7 +444,7 @@ class ZnDraw(ZnDrawBase):
             "modifier:register",
             dataclasses.asdict(msg),
         )
-        self._modifiers[cls.__name__] = {"cls": cls, "run_kwargs": run_kwargs}
+        self._modifiers[cls.__name__] = {"cls": cls, "run_kwargs": run_kwargs, "default": default}
         self.socket.emit(
             "modifier:available",
             True,
