@@ -20,6 +20,7 @@ class Atoms {
     connectivity,
     calc,
     pbc,
+    vector_field,
   }) {
     this.positions = positions;
     this.cell = cell;
@@ -29,8 +30,11 @@ class Atoms {
     this.connectivity = connectivity;
     this.calc = calc;
     this.pbc = pbc;
+    this.vector_field = vector_field;
 
     this.length = this.positions.length;
+
+    console.log(this)
   }
 
   [Symbol.iterator]() {
@@ -67,6 +71,7 @@ class Atoms {
       connectivity: this.connectivity,
       calc: this.calc,
       pbc: this.pbc,
+      vector_field: this.vector_field,
     });
     return selectedAtoms;
   }
@@ -106,6 +111,7 @@ class Cache {
           connectivity: data[key].connectivity,
           calc: data[key].calc,
           pbc: data[key].pbc,
+          vector_field: data[key].vector_field,
         });
 
         if (display_new) {
@@ -170,6 +176,7 @@ class Cache {
         connectivity: data[id].connectivity,
         calc: data[id].calc,
         pbc: data[id].pbc,
+        vector_field: data[id].vector_field,
       });
       // update slider
       const slider = document.getElementById("frameProgress");
