@@ -226,7 +226,7 @@ def celery_task_results(msg: CeleryTaskData):
 @typecast
 def celery_task_call(msg: CeleryTaskData):
     try:
-        return call(msg.event, msg.data, to=msg.target)
+        return call(msg.event, msg.data, to=msg.target, timeout=msg.timeout)
     except TimeoutError:
         log.critical(f"TimeoutError for {msg.event} with {msg.data}")
         return None
