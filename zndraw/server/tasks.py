@@ -383,9 +383,11 @@ def run_modifier(url: str, token: str, data: dict):
                 modifier = (
                     ses.query(db_schema.GlobalModifier).filter_by(name=NAME).first()
                 )
-                host = ses.query(db_schema.GlobalModifierClient).filter_by(
-                    global_modifier=modifier, available=True
-                ).first()
+                host = (
+                    ses.query(db_schema.GlobalModifierClient)
+                    .filter_by(global_modifier=modifier, available=True)
+                    .first()
+                )
             if host is None:
                 vis.socket.sleep(1)
                 log.critical("No modifier available")
