@@ -376,7 +376,11 @@ class ZnDraw(ZnDrawBase):
         return ZnDrawLoggingHandler(self)
 
     def register_modifier(
-        self, cls: UpdateScene, run_kwargs: dict = None, default: bool = False, timeout: float = 60
+        self,
+        cls: UpdateScene,
+        run_kwargs: dict = None,
+        default: bool = False,
+        timeout: float = 60,
     ):
         """Register a modifier class.
 
@@ -390,8 +394,8 @@ class ZnDraw(ZnDrawBase):
             Whether to enable the modifier for ALL sessions of the ZnDraw client,
             or just the session for the given token.
         timeout : float, optional
-            Timeout for the modifier to run in seconds. The Webclient 
-            will alert the user if the modifier takes longer than this time and 
+            Timeout for the modifier to run in seconds. The Webclient
+            will alert the user if the modifier takes longer than this time and
             release the modify button (no further changes are expected, but they
             can happen).
         """
