@@ -36,10 +36,8 @@ def setup(request):
 
 
 def run_server(port):
-    with ZnDrawServer(None, False, True, None, None) as app:
-        socketio.run(
-            app, port=port, debug=False, host="0.0.0.0"
-        )  # NEVER EVER USE  DEBUG=TRUE HERE!!!
+    with ZnDrawServer(None, False, True, None, None, port=port) as app:
+        app.run(browser=False)
 
 
 @pytest.fixture()
@@ -51,7 +49,7 @@ def server():
     server_proc.start()
     time.sleep(1)
     try:
-        yield f"http://localhost:{port}"
+        yield f"http://127.0.0.1:{port}"
     finally:
         server_proc.terminate()
         server_proc.join()
