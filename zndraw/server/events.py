@@ -18,6 +18,7 @@ from ..data import (
     AnalysisFigureData,
     CeleryTaskData,
     DeleteAtomsData,
+    FrameData,
     JoinData,
     MessageData,
     ModifierRegisterData,
@@ -25,7 +26,6 @@ from ..data import (
     SceneUpdateData,
     SchemaData,
     SubscribedUserData,
-    FrameData
 )
 
 log = logging.getLogger(__name__)
@@ -334,9 +334,15 @@ def atoms_download(indices: list[int]):
 @io.on("atoms:upload")
 @typecast
 def atoms_upload(data: FrameData):
-    emit("atoms:upload", dataclasses.asdict(data), include_self=False, to=f"webclients_{session['token']}")
+    emit(
+        "atoms:upload",
+        dataclasses.asdict(data),
+        include_self=False,
+        to=f"webclients_{session['token']}",
+    )
     key = f"ROOM-DATA:{session['token']}:index?{data.index}"
     cache.set(key, data.data)
+
 
 @io.on("atoms:delete")
 @typecast

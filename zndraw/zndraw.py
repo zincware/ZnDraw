@@ -2,7 +2,6 @@ import dataclasses
 import logging
 import threading
 import typing as t
-import uuid
 
 import ase
 import ase.io
