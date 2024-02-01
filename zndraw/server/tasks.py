@@ -167,15 +167,14 @@ def modifier_schema(url: str, token: str):
     config = GlobalConfig.load()
     include = []
 
-
     with Session(engine) as ses:
         room = ses.query(db_schema.Room).filter_by(token=token).first()
         room_modifiers = ses.query(db_schema.RoomModifier).filter_by(room=room).all()
         modifiers = ses.query(db_schema.GlobalModifier).all()
-    
+
         for modifier in modifiers:
             include.append(get_cls_from_json_schema(modifier.schema, modifier.name))
-    
+
     ROOM_MODIFIER_SCHEMA = cache.get("ROOM_MODIFIER_SCHEMA").get(token, {})
 
     for name, schema in ROOM_MODIFIER_SCHEMA.items():
@@ -381,7 +380,9 @@ def run_modifier(url: str, token: str, data: dict):
         while True:
             with Session(engine) as ses:
                 # get the available hosts for the modifier
-                modifier = ses.query(db_schema.GlobalModifier).filter_by(name=NAME).first()
+                modifier = (
+                    ses.query(db_schema.GlobalModifier).filter_by(name=NAME).first()
+                )
                 hosts = ses.query(db_schema.GlobalModifierClient).filter_by(
                     global_modifier=modifier, available=True
                 )
@@ -407,7 +408,7 @@ def run_modifier(url: str, token: str, data: dict):
                     else:
                         log.critical("Modifier finished")
                         return
-               
+
                 print("modifier timed out")
                 msg = CeleryTaskData(
                     target=f"webclients_{vis.token}",

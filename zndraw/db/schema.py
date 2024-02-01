@@ -94,7 +94,6 @@ class GlobalModifierClient(Base):
 class RoomModifier(Base):
     __tablename__ = "room_modifiers"
 
-
     id = Column(Integer, primary_key=True, autoincrement=True)
     name = Column(String)
     schema = Column(JSON)
