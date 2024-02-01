@@ -5,12 +5,6 @@ class Bookmarks {
     this.socket = socket;
     this.bookmarks = {};
 
-    this.socket.on(
-      "bookmarks:get",
-      function (callback) {
-        callback(this.bookmarks);
-      }.bind(this),
-    );
     this.socket.on("bookmarks:set", (bookmarks) => {
       this.bookmarks = bookmarks;
       this.updateBookmarks();
@@ -25,6 +19,7 @@ class Bookmarks {
         this.bookmarks[step] = `Bookmark ${step}`;
         // // update the bookmarks
         this.updateBookmarks();
+        this.socket.emit("bookmarks:set", this.bookmarks);
       }
     });
   }

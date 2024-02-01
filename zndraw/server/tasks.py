@@ -207,8 +207,26 @@ def scene_trash(url: str, token: str):
 
 
 @shared_task
-def read_file(url: str, target: str):
+def read_file(url: str, target: str, token: str):
     con = get_client(url)
+    key = f"ROOM-DATA:{token}:index?0"
+    data = cache.get(key)
+    if data is not None:
+        index = 0
+        while (data := cache.get(f"ROOM-DATA:{token}:index?{index}")) is not None:
+            msg = CeleryTaskData(
+                target=target,
+                event="atoms:upload",
+                data=FrameData(
+                    index=index,
+                    data=data,
+                    update=True,
+                ),
+            )
+            con.emit("celery:task:emit", asdict(msg))
+            index += 1
+        return
+
     fileio = cache.get("FILEIO")
 
     if fileio.name is None:

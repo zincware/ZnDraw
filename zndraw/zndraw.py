@@ -2,7 +2,6 @@ import dataclasses
 import logging
 import threading
 import typing as t
-import uuid
 
 import ase
 import ase.io
@@ -46,9 +45,6 @@ class ZnDrawBase:  # collections.abc.MutableSequence
     token : str
         Identifies the session this instances is being connected to.
         Tokens can be shared.
-    _uuid : uuid.UUID
-        Unique identifier for this instance. Can be set for reconnecting
-        but only ONE instance with the same uuid can be connected at the same time.
     auth_token : str
         Authentication token, used e.g. for registering modifiers to all users and
         not just the current session.
@@ -57,7 +53,6 @@ class ZnDrawBase:  # collections.abc.MutableSequence
     url: str
     token: str = None
     display_new: bool = True
-    _uuid: uuid.UUID = dataclasses.field(default_factory=uuid.uuid4)
     auth_token: str = None
     config: Config = dataclasses.field(default_factory=Config)
     _modifiers: dict = dataclasses.field(default_factory=dict)
@@ -65,7 +60,6 @@ class ZnDrawBase:  # collections.abc.MutableSequence
     _target_sid: str = None
 
     def __post_init__(self):
-        self._uuid = str(self._uuid)
         self.socket = socketio.Client()
         if isinstance(self.config, dict):
             self.config = Config(**self.config)
@@ -193,6 +187,8 @@ class ZnDrawBase:  # collections.abc.MutableSequence
         atoms_list = []
 
         for val in downloaded_data.values():
+            if val is None:
+                raise IndexError("Index out of range")
             atoms_list.append(Frame.from_dict(val).to_atoms())
 
         data = atoms_list[0] if is_scalar else atoms_list
@@ -219,7 +215,7 @@ class ZnDrawBase:  # collections.abc.MutableSequence
     @property
     def points(self) -> np.ndarray:
         data = self.socket.call("points:get", timeout=self.config.call_timeout)
-        return np.array([[val["x"], val["y"], val["z"]] for val in data])
+        return np.array(data)
 
     @points.setter
     def points(self, value: t.Union[np.ndarray, list]) -> None:

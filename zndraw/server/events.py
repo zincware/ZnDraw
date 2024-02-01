@@ -18,6 +18,7 @@ from ..data import (
     AnalysisFigureData,
     CeleryTaskData,
     DeleteAtomsData,
+    FrameData,
     JoinData,
     MessageData,
     ModifierRegisterData,
@@ -148,7 +149,7 @@ def connect():
         URL = f"http://127.0.0.1:{current_app.config['PORT']}"
         # if you connect through Python, you don't have a token
         read_file_chain = chain(
-            tasks.read_file.s(URL, request.sid),
+            tasks.read_file.s(URL, request.sid, token),
             tasks.analysis_schema.si(URL, token),
         )
         read_file_chain.delay()
@@ -218,6 +219,9 @@ def connect():
 @typecast
 def celery_task_results(msg: CeleryTaskData):
     emit(msg.event, msg.data, to=msg.target)
+    if msg.event == "atoms:upload":
+        key = f"ROOM-DATA:{session['token']}:index?{msg.data['index']}"
+        cache.set(key, msg.data["data"])
     if msg.disconnect:
         io.server.disconnect(request.sid)
 
@@ -312,19 +316,32 @@ def scene_set(data: SceneSetData):
 
 
 @io.on("scene:step")
-@typecast
 def scene_step():
-    return call("scene:step", to=f"webclients_{session['token']}")
+    token = session["token"]
+    data = cache.get(f"PER-TOKEN-DATA:{token}:step")
+    return data or 0
 
 
 @io.on("atoms:download")
-def atoms_download(data: list[int]):
-    return call("atoms:download", data, to=get_main_room_host(session["token"]))
+def atoms_download(indices: list[int]):
+    data = {}
+    for index in indices:
+        key = f"ROOM-DATA:{session['token']}:index?{index}"
+        data[index] = cache.get(key)
+    return data
 
 
 @io.on("atoms:upload")
-def atoms_upload(data: dict):
-    emit("atoms:upload", data, include_self=False, to=f"webclients_{session['token']}")
+@typecast
+def atoms_upload(data: FrameData):
+    emit(
+        "atoms:upload",
+        dataclasses.asdict(data),
+        include_self=False,
+        to=f"webclients_{session['token']}",
+    )
+    key = f"ROOM-DATA:{session['token']}:index?{data.index}"
+    cache.set(key, data.data)
 
 
 @io.on("atoms:delete")
@@ -340,10 +357,11 @@ def atoms_delete(data: DeleteAtomsData):
 
 @io.on("atoms:length")
 def atoms_length():
-    try:
-        return call("atoms:length", to=get_main_room_host(session["token"]))
-    except KeyError:
-        return 0
+    token = session["token"]
+    index = 0
+    while cache.has(f"ROOM-DATA:{token}:index?{index}"):
+        index += 1
+    return index
 
 
 @io.on("modifier:schema")
@@ -372,7 +390,8 @@ def draw_schema(data: SchemaData):
 
 @io.on("points:get")
 def scene_points():
-    return call("points:get", to=get_main_room_host(session["token"]))
+    data = cache.get(f"ROOM-DATA:{session['token']}:points")
+    return data or []
 
 
 @io.on("scene:segments")
@@ -382,7 +401,8 @@ def scene_segments():
 
 @io.on("selection:get")
 def selection_get():
-    return call("selection:get", to=get_main_room_host(session["token"]))
+    data = cache.get(f"ROOM-DATA:{session['token']}:selection")
+    return data or []
 
 
 @io.on("selection:set")
@@ -393,6 +413,7 @@ def selection_set(data: list[int]):
         include_self=False,
         to=f"webclients_{session['token']}",
     )
+    cache.set(f"ROOM-DATA:{session['token']}:selection", data)
 
 
 @io.on("message:log")
@@ -421,7 +442,8 @@ def scene_pause():
 @io.on("bookmarks:get")
 @typecast
 def bookmarks_get():
-    return call("bookmarks:get", to=get_main_room_host(session["token"]))
+    data = cache.get(f"ROOM-DATA:{session['token']}:bookmarks")
+    return data or {}
 
 
 @io.on("bookmarks:set")
@@ -433,11 +455,13 @@ def bookmarks_set(data: dict):
         include_self=False,
         to=f"webclients_{session['token']}",
     )
+    cache.set(f"ROOM-DATA:{session['token']}:bookmarks", data)
 
 
 @io.on("points:set")
 def points_set(data: list[list[float]]):
     emit("points:set", data, include_self=False, to=f"webclients_{session['token']}")
+    cache.set(f"ROOM-DATA:{session['token']}:points", data)
 
 
 @io.on("debug")
@@ -474,9 +498,7 @@ def scene_update(data: SceneUpdateData):
 
     data: {step: int, camera: {position: [float, float, float], rotation: [float, float, float]}}
     """
-    token = session.get("token")
-    if token is None:
-        return
+    token = session["token"]
 
     if data.step is not None:
         step_subscribers = _get_subscribers(token, "STEP")
@@ -486,6 +508,7 @@ def scene_update(data: SceneUpdateData):
             include_self=False,
             to=step_subscribers,
         )
+        cache.set(f"PER-TOKEN-DATA:{token}:step", data.step)
 
     if data.camera is not None:
         camera_subscribers = _get_subscribers(token, "CAMERA")

@@ -48,12 +48,14 @@ class CacheSettings(pydantic.BaseModel):
     backend_options: dict = {}
     timeout: int = 60 * 60 * 24
     dir: str = "~/.zincware/zndraw/cache"
+    threshold: int = 50000
 
     def to_dict(self):
         return dict(
             CACHE_TYPE=self.backend,
             CACHE_DEFAULT_TIMEOUT=self.timeout,
             CACHE_DIR=ensure_path(self.dir),
+            CACHE_THRESHOLD=self.threshold,
         )
 
 
