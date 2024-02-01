@@ -32,8 +32,6 @@ class Config:
     """
 
     call_timeout: int = 3
-    retries: int = 100
-
 
 @dataclasses.dataclass
 class ZnDrawBase:  # collections.abc.MutableSequence
