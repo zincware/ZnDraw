@@ -102,7 +102,7 @@ class ZnDrawBase:  # collections.abc.MutableSequence
         log.critical("Reconnecting to server")
         self.socket.disconnect()
         self._connect()
-        self.socket.sleep(1)
+        self.socket.sleep(5)
 
     def __len__(self) -> int:
         return int(self.socket.call("atoms:length", timeout=self.config.call_timeout))
