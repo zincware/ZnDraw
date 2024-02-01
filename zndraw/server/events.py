@@ -292,9 +292,7 @@ def disconnect():
     # check if the SID is in MODIFIER_HOSTS or ROOM_MODIFIER_HOSTS
     with Session(engine) as ses:
         global_modifier_client = (
-            ses.query(db_schema.GlobalModifierClient)
-            .filter_by(sid=request.sid)
-            .all()
+            ses.query(db_schema.GlobalModifierClient).filter_by(sid=request.sid).all()
         )
         for gmc in global_modifier_client:
             ses.delete(gmc)
@@ -693,9 +691,9 @@ def modifier_register(data: ModifierRegisterData):
     # TODO: do not allow modifiers that are already in defaults, handle duplicates better!
 
     with Session(engine) as ses:
-        global_modifier = ses.query(db_schema.GlobalModifier).filter_by(
-            name=data.name
-        ).first()
+        global_modifier = (
+            ses.query(db_schema.GlobalModifier).filter_by(name=data.name).first()
+        )
         if global_modifier is None:
             global_modifier = db_schema.GlobalModifier(
                 name=data.name, schema=data.schema
@@ -708,11 +706,13 @@ def modifier_register(data: ModifierRegisterData):
             return
         # attach GlobalModifierClient
         global_modifier_client = db_schema.GlobalModifierClient(
-            sid=request.sid, timeout=data.timeout, available=False, global_modifier=global_modifier
+            sid=request.sid,
+            timeout=data.timeout,
+            available=False,
+            global_modifier=global_modifier,
         )
         ses.add(global_modifier_client)
-        ses.commit()    
-
+        ses.commit()
 
     # if data.name in MODIFIER_HOSTS:
     #     if MODIFIER_SCHEMA[data.name] != data.schema:
@@ -751,9 +751,7 @@ def modifier_available(available: bool):
     """Update the modifier availability."""
     with Session(engine) as ses:
         global_modifier_client = (
-            ses.query(db_schema.GlobalModifierClient)
-            .filter_by(sid=request.sid)
-            .first()
+            ses.query(db_schema.GlobalModifierClient).filter_by(sid=request.sid).first()
         )
         global_modifier_client.available = available
         ses.commit()
