@@ -758,10 +758,3 @@ def modifier_available(available: bool):
         global_modifier_client.available = available
         ses.commit()
 
-
-@io.on("modifier:timeout")
-def modifier_timeout(timeout: int):
-    """Update the modifier timeout."""
-    MODIFIER_TIMEOUT = cache.get("MODIFIER_TIMEOUT")
-    MODIFIER_TIMEOUT[request.sid] = timeout
-    cache.set("MODIFIER_TIMEOUT", MODIFIER_TIMEOUT)

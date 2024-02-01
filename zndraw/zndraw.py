@@ -383,6 +383,7 @@ class ZnDraw(ZnDrawBase):
                 schema=v["cls"].model_json_schema(),
                 name=k,
                 default=v["default"],
+                timeout=v["run_kwargs"]["timeout"],
             )
             self.socket.emit(
                 "modifier:register",
@@ -392,11 +393,6 @@ class ZnDraw(ZnDrawBase):
             self.socket.emit(
                 "modifier:available",
                 True,
-            )
-            # TODO: this is per SID, the timeout above is per registered modifier
-            self.socket.emit(
-                "modifier:timeout",
-                v["run_kwargs"]["timeout"],
             )
 
     def register_modifier(
@@ -436,6 +432,7 @@ class ZnDraw(ZnDrawBase):
             schema=cls.model_json_schema(),
             name=cls.__name__,
             default=default,
+            timeout=timeout,
         )
 
         self.socket.emit(
@@ -450,9 +447,4 @@ class ZnDraw(ZnDrawBase):
         self.socket.emit(
             "modifier:available",
             True,
-        )
-        # TODO: this is per SID, the timeout above is per registered modifier
-        self.socket.emit(
-            "modifier:timeout",
-            timeout,
         )
