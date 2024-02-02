@@ -255,21 +255,32 @@ def read_file(url: str, target: str, token: str):
         if frames.count() == 0:
             pass
         else:
+            batch_size = GlobalConfig.load().read_batch_size
+            data_to_send = []
             for frame in frames.all():
-                msg = CeleryTaskData(
-                    target=target,
-                    event="atoms:upload",
-                    data=FrameData(
+                data_to_send.append(
+                    FrameData(
                         index=frame.index,
                         data=frame.data,
                         update=True,
                         update_database=False,
-                    ),
+                    )
                 )
-                con.emit("celery:task:emit", asdict(msg))
-                con.sleep(0.01)
-                # it is too fast for the socket to handle otherwise
-            con.disconnect()
+                if len(data_to_send) == batch_size:
+                    msg = CeleryTaskData(
+                        target=target,
+                        event="atoms:upload",
+                        data=data_to_send,
+                    )
+                    con.emit("celery:task:emit", asdict(msg))
+                    data_to_send = []
+            msg = CeleryTaskData(
+                target=target,
+                event="atoms:upload",
+                data=data_to_send,
+                disconnect=True,
+            )
+            con.emit("celery:task:emit", asdict(msg))
             return
 
     fileio = cache.get("FILEIO")
