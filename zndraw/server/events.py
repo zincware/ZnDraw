@@ -237,8 +237,10 @@ def disconnect():
         )
         for gmc in global_modifier_client:
             ses.delete(gmc)
-        
-        room_modifier_client = ses.query(db_schema.RoomModifierClient).filter_by(sid=request.sid).all()
+
+        room_modifier_client = (
+            ses.query(db_schema.RoomModifierClient).filter_by(sid=request.sid).all()
+        )
         for rmc in room_modifier_client:
             ses.delete(rmc)
         ses.commit()
