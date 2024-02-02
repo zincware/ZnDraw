@@ -650,12 +650,16 @@ def scene_update(data: SceneUpdateData):
             room = ses.query(db_schema.Room).filter_by(token=token).first()
             if room is None:
                 raise ValueError("No room found for token.")
-            current_client = ses.query(db_schema.Client).filter_by(sid=request.sid).first()
-            camera_subscribers = ses.query(db_schema.Client).filter_by(
-                camera_controller=current_client
-            ).all()
+            current_client = (
+                ses.query(db_schema.Client).filter_by(sid=request.sid).first()
+            )
+            camera_subscribers = (
+                ses.query(db_schema.Client)
+                .filter_by(camera_controller=current_client)
+                .all()
+            )
             camera_subscribers = [client.sid for client in camera_subscribers]
-        
+
         emit(
             "scene:update",
             dataclasses.asdict(data),
