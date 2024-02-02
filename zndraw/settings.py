@@ -67,7 +67,7 @@ class CeleryConfig(pydantic.BaseModel):
     cache_backend: str = "memory"
     task_ignore_result: bool = True
     task_routes: dict = {
-        "*.run_modifier": {"queue": "slow"},
+        "*._run_global_modifier": {"queue": "slow"},
     }
 
     def to_dict(self):
