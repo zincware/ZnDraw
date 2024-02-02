@@ -176,7 +176,10 @@ class ZnDrawBase:  # collections.abc.MutableSequence
             data = [
                 dataclasses.asdict(
                     FrameData(
-                        index=i, data=val.to_dict(built_in_types=False), update=True, update_database=True
+                        index=i,
+                        data=val.to_dict(built_in_types=False),
+                        update=True,
+                        update_database=True,
                     )
                 )
                 for i, val in zip(indices, values)
