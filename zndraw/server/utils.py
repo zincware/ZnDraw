@@ -24,7 +24,10 @@ def insert_into_queue(queue_name: str, job_id: str) -> None:
 def remove_job_from_queue(queue_name: str, job_id: str) -> None:
     with ses() as session:
         queue = get_queue(session, queue_name)
-        queue.jobs.filter_by(job_id=job_id).first().delete()
+        for job in queue.jobs:
+            if job.job_id == job_id:
+                queue.jobs.remove(job)
+
         session.commit()
 
 
