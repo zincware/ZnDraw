@@ -2,8 +2,8 @@ import dataclasses
 import datetime
 import logging
 from threading import Lock
-from uuid import uuid4
 from typing import List
+from uuid import uuid4
 
 from celery import chain
 from flask import current_app, request, session

@@ -328,7 +328,7 @@ def read_file(url: str, target: str, token: str):
             break
         if fileio.step and idx % fileio.step != 0:
             continue
-        
+
         data_to_send.append(
             FrameData(
                 index=frame,
@@ -346,7 +346,7 @@ def read_file(url: str, target: str, token: str):
             )
             con.emit("celery:task:emit", asdict(msg))
             data_to_send = []
-            
+
     msg = CeleryTaskData(
         target=target,
         event="atoms:upload",
@@ -354,7 +354,6 @@ def read_file(url: str, target: str, token: str):
         disconnect=True,
     )
     con.emit("celery:task:emit", asdict(msg))
-
 
 
 @shared_task

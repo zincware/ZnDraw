@@ -104,20 +104,21 @@ class ZnDrawBase:  # collections.abc.MutableSequence
         return int(self.socket.call("atoms:length", timeout=self.config.call_timeout))
 
     def __setitem__(self, index, value):
-
         assert isinstance(index, int), "Index must be an integer"
         if isinstance(value, ase.Atoms):
             value = Frame.from_atoms(value)
         self.socket.emit(
             "atoms:upload",
-            [dataclasses.asdict(
-                FrameData(
-                    index=index,
-                    data=value.to_dict(built_in_types=False),
-                    update=True,
-                    update_database=True,
+            [
+                dataclasses.asdict(
+                    FrameData(
+                        index=index,
+                        data=value.to_dict(built_in_types=False),
+                        update=True,
+                        update_database=True,
+                    )
                 )
-            )],
+            ],
         )
 
     def __delitem__(self, index):
@@ -182,7 +183,7 @@ class ZnDrawBase:  # collections.abc.MutableSequence
             ]
             self.socket.emit(
                 "atoms:upload",
-                 data,
+                data,
             )
 
     def __getitem__(self, index) -> t.Union[ase.Atoms, list[ase.Atoms]]:
