@@ -155,7 +155,7 @@ def celery_task_results(msg: CeleryTaskData):
     token = str(session["token"])
     if msg.event == "atoms:upload":
         if msg.data[0]["update_database"]:
-            tasks.update_atoms.delay(token, msg.data)
+            tasks.update_atoms(token, msg.data)
     emit(msg.event, msg.data, to=msg.target)
     if msg.disconnect:
         io.server.disconnect(request.sid)
@@ -320,7 +320,7 @@ def atoms_download(indices: list[int]):
 def atoms_upload(data: List[FrameData]):
     token = str(session["token"])
     if data[0]["update_database"]:
-        tasks.update_atoms.delay(token, data)
+        tasks.update_atoms(token, data)
     emit(
         "atoms:upload",
         data,

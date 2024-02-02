@@ -94,7 +94,8 @@ class Cache {
 
       // pop key from data dict
       const slider = document.getElementById("frameProgress");
-      data.forEach((x) => {
+      // iterate through data which is a list
+      for (const x of data) {
         this._cache[x.index] = new Atoms({
           positions: x.data.positions,
           cell: x.data.cell,
@@ -110,7 +111,7 @@ class Cache {
         if (x.update) {
           this.world.setStep(x.index);
         }
-      });
+      };
     });
 
     this._socket.on("atoms:delete", (ids) => {
