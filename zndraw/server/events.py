@@ -93,7 +93,7 @@ def connect():
         join_room(f"{token}")
         # who ever connected latest is the HOST of the room
 
-        # check if there is a db_schema.Room with the given toke, if not create one
+        # check if there is a db_schema.Room with the given token, if not create one
         with Session() as ses:
             room = ses.query(db_schema.Room).filter_by(token=token).first()
             if room is None:

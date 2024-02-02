@@ -15,7 +15,7 @@ class CeleryTaskData:
         The data to send with the message.
     disconnect: bool
         Whether to tell the server to  disconnect this client,
-        after it has received the message. Using 'disconnect' afer
+        after it has received the message. Using 'disconnect' after
         'emit' on the client might loose the message.
     timeout: int
         The timeout in seconds, when using 'call'.
