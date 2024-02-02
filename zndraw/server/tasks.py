@@ -234,6 +234,7 @@ def read_file(url: str, target: str, token: str):
                         index=frame.index,
                         data=frame.data,
                         update=True,
+                        update_database=False
                     ),
                 )
                 con.emit("celery:task:emit", asdict(msg))
@@ -254,6 +255,7 @@ def read_file(url: str, target: str, token: str):
                     built_in_types=False
                 ),
                 update=True,
+                update_database=True,
             ),
             disconnect=True,
         )
@@ -294,6 +296,7 @@ def read_file(url: str, target: str, token: str):
                 index=frame,
                 data=znframe.Frame.from_atoms(atoms).to_dict(built_in_types=False),
                 update=True,
+                update_database=True,
             ),
         )
         con.emit("celery:task:emit", asdict(msg))

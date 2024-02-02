@@ -114,7 +114,7 @@ class ZnDrawBase:  # collections.abc.MutableSequence
             "atoms:upload",
             dataclasses.asdict(
                 FrameData(
-                    index=index, data=value.to_dict(built_in_types=False), update=True
+                    index=index, data=value.to_dict(built_in_types=False), update=True, update_database=True
                 )
             ),
         )

@@ -41,11 +41,13 @@ class FrameData:
         The data of the frame.
     update: bool
         Whether the UI should be updated.
+    update_database: bool
+        Whether the configuration should be saved in the database
     """
-
     index: int
     update: bool
     data: dict
+    update_database: bool
 
 
 @dataclasses.dataclass

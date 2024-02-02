@@ -92,6 +92,7 @@ class DatabaseConfig(pydantic.BaseModel):
         path = pathlib.Path(self.path).expanduser()
         path.parent.mkdir(parents=True, exist_ok=True)
         return f"sqlite:///{path}"
+        # return f"sqlite:///{path}?check_same_thread=False"
 
 
 class GlobalConfig(pydantic.BaseModel):
