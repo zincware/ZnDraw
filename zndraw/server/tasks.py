@@ -34,7 +34,7 @@ def get_client(url) -> Client:
 
 
 @shared_task
-def update_atoms(token: str, index: int, data: dict) -> None:
+def update_atoms(token: str, data: list) -> None:
     """Update the atoms in the database.
 
     Attributes
@@ -49,14 +49,16 @@ def update_atoms(token: str, index: int, data: dict) -> None:
     with Session() as ses:
         room = ses.query(db_schema.Room).filter_by(token=token).first()
         # check if the index is already in the db
-        frame = ses.query(db_schema.Frame).filter_by(index=index, room=room).first()
-        if frame is not None:
-            # if so, update the data
-            frame.data = data
-        else:
-            # create a db_schema.Frame
-            frame = db_schema.Frame(index=index, data=data, room=room)
-            ses.add(frame)
+        for new_frame in data:
+            index = new_frame["index"]
+            frame = ses.query(db_schema.Frame).filter_by(index=index, room=room).first()
+            if frame is not None:
+                # if so, update the data
+                frame.data = new_frame["data"]
+            else:
+                # create a db_schema.Frame
+                frame = db_schema.Frame(index=index, data=new_frame["data"], room=room)
+                ses.add(frame)
         ses.commit()
 
 
@@ -271,7 +273,6 @@ def read_file(url: str, target: str, token: str):
             return
 
     fileio = cache.get("FILEIO")
-
     if fileio.name is None:
         msg = CeleryTaskData(
             target=target,
@@ -307,7 +308,8 @@ def read_file(url: str, target: str, token: str):
         generator = ase.io.iread(fileio.name)
 
     frame = 0
-
+    batch_size = GlobalConfig.load().read_batch_size
+    data_to_send = []
     for idx, atoms in tqdm.tqdm(enumerate(generator), ncols=100):
         if fileio.start and idx < fileio.start:
             continue
@@ -315,23 +317,33 @@ def read_file(url: str, target: str, token: str):
             break
         if fileio.step and idx % fileio.step != 0:
             continue
-
-        msg = CeleryTaskData(
-            target=target,
-            event="atoms:upload",
-            data=FrameData(
+        
+        data_to_send.append(
+            FrameData(
                 index=frame,
                 data=znframe.Frame.from_atoms(atoms).to_dict(built_in_types=False),
                 update=True,
                 update_database=True,
-            ),
+            )
         )
-        con.emit("celery:task:emit", asdict(msg))
-
         frame += 1
+        if len(data_to_send) == batch_size:
+            msg = CeleryTaskData(
+                target=target,
+                event="atoms:upload",
+                data=data_to_send,
+            )
+            con.emit("celery:task:emit", asdict(msg))
+            data_to_send = []
+            
+    msg = CeleryTaskData(
+        target=target,
+        event="atoms:upload",
+        data=data_to_send,
+        disconnect=True,
+    )
+    con.emit("celery:task:emit", asdict(msg))
 
-    con.sleep(1)
-    con.disconnect()
 
 
 @shared_task

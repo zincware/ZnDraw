@@ -104,22 +104,20 @@ class ZnDrawBase:  # collections.abc.MutableSequence
         return int(self.socket.call("atoms:length", timeout=self.config.call_timeout))
 
     def __setitem__(self, index, value):
-        if not isinstance(value, ase.Atoms) and not isinstance(value, Frame):
-            raise ValueError("Must be an ase.Atoms or Frame object")
 
         assert isinstance(index, int), "Index must be an integer"
         if isinstance(value, ase.Atoms):
             value = Frame.from_atoms(value)
         self.socket.emit(
             "atoms:upload",
-            dataclasses.asdict(
+            [dataclasses.asdict(
                 FrameData(
                     index=index,
                     data=value.to_dict(built_in_types=False),
                     update=True,
                     update_database=True,
                 )
-            ),
+            )],
         )
 
     def __delitem__(self, index):
@@ -168,10 +166,24 @@ class ZnDrawBase:  # collections.abc.MutableSequence
     ) -> None:
         """Extend the list by appending all the items in the given list"""
         size = len(self)
-        for idx, value in enumerate(values):
-            if isinstance(value, ase.Atoms):
-                value = Frame.from_atoms(value)
-            self[size + idx] = value
+        if not isinstance(values, list):
+            self[size] = values
+        else:
+            if isinstance(values[0], ase.Atoms):
+                values = [Frame.from_atoms(val) for val in values]
+            indices = list(range(size, size + len(values)))
+            data = [
+                dataclasses.asdict(
+                    FrameData(
+                        index=i, data=val.to_dict(), update=True, update_database=True
+                    )
+                )
+                for i, val in zip(indices, values)
+            ]
+            self.socket.emit(
+                "atoms:upload",
+                 data,
+            )
 
     def __getitem__(self, index) -> t.Union[ase.Atoms, list[ase.Atoms]]:
         length = len(self)

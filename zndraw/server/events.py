@@ -3,6 +3,7 @@ import datetime
 import logging
 from threading import Lock
 from uuid import uuid4
+from typing import List
 
 from celery import chain
 from flask import current_app, request, session
@@ -153,8 +154,8 @@ def connect():
 def celery_task_results(msg: CeleryTaskData):
     token = str(session["token"])
     if msg.event == "atoms:upload":
-        if msg.data["update_database"]:
-            tasks.update_atoms.delay(token, msg.data["index"], msg.data["data"])
+        if msg.data[0]["update_database"]:
+            tasks.update_atoms.delay(token, msg.data)
     emit(msg.event, msg.data, to=msg.target)
     if msg.disconnect:
         io.server.disconnect(request.sid)
@@ -317,13 +318,13 @@ def atoms_download(indices: list[int]):
 
 @io.on("atoms:upload")
 @typecast
-def atoms_upload(data: FrameData):
+def atoms_upload(data: List[FrameData]):
     token = str(session["token"])
-    if data.update_database:
-        tasks.update_atoms.delay(token, data.index, data.data)
+    if data[0].update_database:
+        tasks.update_atoms.delay(token, data)
     emit(
         "atoms:upload",
-        dataclasses.asdict(data),
+        data,
         include_self=False,
         to=f"webclients_{session['token']}",
     )

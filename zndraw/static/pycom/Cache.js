@@ -94,23 +94,24 @@ class Cache {
 
       // pop key from data dict
       const slider = document.getElementById("frameProgress");
-
-      this._cache[data.index] = new Atoms({
-        positions: data.data.positions,
-        cell: data.data.cell,
-        numbers: data.data.numbers,
-        colors: data.data.arrays.colors,
-        radii: data.data.arrays.radii,
-        connectivity: data.data.connectivity,
-        calc: data.data.calc,
-        pbc: data.data.pbc,
+      data.forEach((x) => {
+      this._cache[x.index] = new Atoms({
+        positions: x.data.positions,
+        cell: x.data.cell,
+        numbers: x.data.numbers,
+        colors: x.data.arrays.colors,
+        radii: x.data.arrays.radii,
+        connectivity: x.data.connectivity,
+        calc: x.data.calc,
+        pbc: x.data.pbc,
       });
-
+    
       slider.ariaValueMax = Object.keys(this._cache).length - 1;
-      if (data.update) {
-        this.world.setStep(data.index);
+      if (x.update) {
+        this.world.setStep(x.index);
       }
-    });
+     });
+     });
 
     this._socket.on("atoms:delete", (ids) => {
       for (const id of ids) {

@@ -105,6 +105,7 @@ class GlobalConfig(pydantic.BaseModel):
     bonds_functions: t.List[str] = _BONDS_FUNCTIONS
     selection_functions: t.List[str] = _SELECTION_FUNCTIONS
     function_schema: t.Dict[str, dict] = {}
+    read_batch_size: int = 64
 
     def save(self, path="~/.zincware/zndraw/config.json"):
         save_path = pathlib.Path(path).expanduser()
