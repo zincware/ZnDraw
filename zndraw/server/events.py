@@ -369,7 +369,7 @@ def scene_step():
     with Session(engine) as ses:
         room = ses.query(db_schema.Room).filter_by(token=token).first()
         if room is None:
-            return 0
+            raise ValueError("No room found for token.")
         return room.currentStep
 
 
@@ -381,7 +381,7 @@ def atoms_download(indices: list[int]):
     with Session(engine) as ses:
         room = ses.query(db_schema.Room).filter_by(token=token).first()
         if room is None:
-            return
+            raise ValueError("No room found for token.")
         # get all db_schema.Frame with the given indices
         frames = ses.query(db_schema.Frame).filter(
             db_schema.Frame.index.in_(indices), db_schema.Frame.room == room
@@ -473,7 +473,7 @@ def scene_points():
     with Session(engine) as ses:
         room = ses.query(db_schema.Room).filter_by(token=token).first()
         if room is None:
-            return []
+            raise ValueError("No room found for token.")
         return room.points
 
 
@@ -488,7 +488,7 @@ def selection_get():
     with Session(engine) as ses:
         room = ses.query(db_schema.Room).filter_by(token=token).first()
         if room is None:
-            return []
+            raise ValueError("No room found for token.")
         return room.selection
 
 
@@ -504,7 +504,7 @@ def selection_set(data: list[int]):
     with Session(engine) as ses:
         room = ses.query(db_schema.Room).filter_by(token=token).first()
         if room is None:
-            return
+            raise ValueError("No room found for token.")
         room.selection = data
         ses.commit()
 
@@ -538,7 +538,7 @@ def bookmarks_get():
     with Session(engine) as ses:
         room = ses.query(db_schema.Room).filter_by(token=token).first()
         if room is None:
-            return []
+            raise ValueError("No room found for token.")
         return {bm.step: bm.text for bm in room.bookmarks}
 
 
@@ -555,7 +555,7 @@ def bookmarks_set(data: dict):
     with Session(engine) as ses:
         room = ses.query(db_schema.Room).filter_by(token=token).first()
         if room is None:
-            return
+            raise ValueError("No room found for token.")
         # remove all bookmarks for the given token
         ses.query(db_schema.Bookmark).filter_by(room=room).delete()
         # add all bookmarks from the data
@@ -573,7 +573,7 @@ def points_set(data: list[list[float]]):
     with Session(engine) as ses:
         room = ses.query(db_schema.Room).filter_by(token=token).first()
         if room is None:
-            return
+            raise ValueError("No room found for token.")
         room.points = data
         ses.commit()
 
@@ -625,7 +625,7 @@ def scene_update(data: SceneUpdateData):
         with Session(engine) as ses:
             room = ses.query(db_schema.Room).filter_by(token=token).first()
             if room is None:
-                return
+                raise ValueError("No room found for token.")
             room.currentStep = data.step
             ses.commit()
 
