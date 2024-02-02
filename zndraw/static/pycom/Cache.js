@@ -111,7 +111,7 @@ class Cache {
         if (x.update) {
           this.world.setStep(x.index);
         }
-      };
+      }
     });
 
     this._socket.on("atoms:delete", (ids) => {
