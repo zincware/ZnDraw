@@ -186,7 +186,10 @@ def connect():
                 sid=request.sid, room=room, name=uuid4().hex[:8].upper()
             )
             # check if any client in the room is host
-            if ses.query(db_schema.Client).filter_by(room=room, host=True).first() is None:
+            if (
+                ses.query(db_schema.Client).filter_by(room=room, host=True).first()
+                is None
+            ):
                 client.host = True
             ses.add(client)
             ses.commit()
@@ -656,14 +659,20 @@ def scene_update(data: SceneUpdateData):
     if data.step is not None:
         with Session() as ses:
             room = ses.query(db_schema.Room).filter_by(token=token).first()
-            current_client = ses.query(db_schema.Client).filter_by(sid=request.sid).first()
+            current_client = (
+                ses.query(db_schema.Client).filter_by(sid=request.sid).first()
+            )
             if room is None:
                 raise ValueError("No room found for token.")
             if current_client.host:
                 room.currentStep = data.step
                 ses.commit()
-            
-            step_subscribers = ses.query(db_schema.Client).filter_by(step_controller=current_client).all()
+
+            step_subscribers = (
+                ses.query(db_schema.Client)
+                .filter_by(step_controller=current_client)
+                .all()
+            )
             step_subscribers = [client.sid for client in step_subscribers]
 
         emit(
