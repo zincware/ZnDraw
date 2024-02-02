@@ -44,10 +44,14 @@ class Client(Base):
     __tablename__ = "clients"
 
     sid = Column(String, primary_key=True)
+    name = Column(String)
     cameras = Column(JSON)
 
     room_token = Column(String, ForeignKey("rooms.token"))
     room = relationship("Room", back_populates="clients")
+
+    camera_controller_sid = Column(String, ForeignKey("clients.sid"), nullable=True)
+    camera_controller = relationship("Client", remote_side=[sid], uselist=False)
 
 
 class Frame(Base):

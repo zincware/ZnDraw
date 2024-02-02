@@ -104,23 +104,6 @@ def _pyclients_room(data: dict) -> str:
     return f"pyclients_{data['token']}"
 
 
-def _get_uuid_for_sid(sid) -> str:
-    """Given a sid, return the UUID that is associated with it.
-    The SID is given by flask, the UUID is defined by zndraw
-    and can be used to reconnect.
-    """
-    inv_clients = {v: k for k, v in cache.get("pyclients").items()}
-    return inv_clients[sid]
-
-
-def _get_queue_position(job_id) -> int:
-    """Return the position of the job_id in the queue."""
-    try:
-        return cache.get("MODIFIER")["queue"].index(job_id)
-    except ValueError:
-        return -1
-
-
 def _subscribe_user(data: SubscribedUserData, subscription_type: str):
     """
     Subscribe to user updates for a given subscription type.
@@ -198,7 +181,10 @@ def connect():
                     token=token, currentStep=0, points=[], selection=[]
                 )
                 ses.add(room)
-                ses.commit()
+            
+            client = db_schema.Client(sid=request.sid, room=room, name=uuid4().hex[:8].upper())
+            ses.add(client)
+            ses.commit()
 
         ROOM_HOSTS = cache.get("ROOM_HOSTS")
 
@@ -209,13 +195,21 @@ def connect():
 
         cache.set("ROOM_HOSTS", ROOM_HOSTS)
 
-        data = {"sid": request.sid, "token": token}
-        data["host"] = ROOM_HOSTS[token][0] == request.sid
+        # data = {"sid": request.sid, "token": token}
+        # data["host"] = ROOM_HOSTS[token][0] == request.sid
         names = cache.get(f"PER-TOKEN-NAME:{session['token']}") or {}
         names[request.sid] = uuid4().hex[:8].upper()
         cache.set(f"PER-TOKEN-NAME:{session['token']}", names)
 
-        connected_users = [{"name": names[sid]} for sid in ROOM_HOSTS[token]]
+        # connected_users = [{"name": names[sid]} for sid in ROOM_HOSTS[token]]
+
+        # get all clients in the room
+        with Session() as ses:
+            room = ses.query(db_schema.Room).filter_by(token=token).first()
+            clients = ses.query(db_schema.Client).filter_by(room=room).all()
+            connected_users = [
+                {"name": client.name} for client in clients
+            ]
 
         emit(
             "connectedUsers",
@@ -278,14 +272,34 @@ def celery_task_call(msg: CeleryTaskData):
 @io.on("disconnect")
 def disconnect():
     log.critical(f"-------------->>> disconnecting {request.sid}")
-    token = session["token"]
-    ROOM_HOSTS = cache.get("ROOM_HOSTS")
-    if token in ROOM_HOSTS:
-        if request.sid in ROOM_HOSTS[token]:
-            ROOM_HOSTS[token].remove(request.sid)
-        if len(ROOM_HOSTS[token]) == 0:
-            del ROOM_HOSTS[token]
-        cache.set("ROOM_HOSTS", ROOM_HOSTS)
+    token = str(session["token"])
+
+    with Session() as ses:
+        client = ses.query(db_schema.Client).filter_by(sid=request.sid).first()
+        if client is not None:
+            ses.delete(client)
+            ses.commit()
+
+    with Session() as ses:
+        room = ses.query(db_schema.Room).filter_by(token=token).first()
+        clients = ses.query(db_schema.Client).filter_by(room=room).all()
+        connected_users = [
+            {"name": client.name} for client in clients
+        ]
+
+    emit(
+        "connectedUsers",
+        list(reversed(connected_users)),
+        to=_webclients_room({"token": token}),
+    )
+
+    # ROOM_HOSTS = cache.get("ROOM_HOSTS")
+    # if token in ROOM_HOSTS:
+    #     if request.sid in ROOM_HOSTS[token]:
+    #         ROOM_HOSTS[token].remove(request.sid)
+    #     if len(ROOM_HOSTS[token]) == 0:
+    #         del ROOM_HOSTS[token]
+    #     cache.set("ROOM_HOSTS", ROOM_HOSTS)
 
     # pyclients only
     # check if the SID is in MODIFIER_HOSTS or ROOM_MODIFIER_HOSTS
@@ -297,22 +311,22 @@ def disconnect():
             ses.delete(gmc)
         ses.commit()
 
-    MODIFIER_HOSTS = cache.get("MODIFIER_HOSTS")
-    for name, sids in MODIFIER_HOSTS.items():
-        while request.sid in sids:
-            MODIFIER_HOSTS[name].remove(request.sid)
-    cache.set("MODIFIER_HOSTS", MODIFIER_HOSTS)
+    # MODIFIER_HOSTS = cache.get("MODIFIER_HOSTS")
+    # for name, sids in MODIFIER_HOSTS.items():
+    #     while request.sid in sids:
+    #         MODIFIER_HOSTS[name].remove(request.sid)
+    # cache.set("MODIFIER_HOSTS", MODIFIER_HOSTS)
 
-    ROOM_MODIFIER_HOSTS = cache.get("ROOM_MODIFIER_HOSTS")
-    if token in ROOM_MODIFIER_HOSTS:
-        for name, sids in ROOM_MODIFIER_HOSTS[token].items():
-            while request.sid in sids:
-                ROOM_MODIFIER_HOSTS[token][name].remove(request.sid)
+    # ROOM_MODIFIER_HOSTS = cache.get("ROOM_MODIFIER_HOSTS")
+    # if token in ROOM_MODIFIER_HOSTS:
+    #     for name, sids in ROOM_MODIFIER_HOSTS[token].items():
+    #         while request.sid in sids:
+    #             ROOM_MODIFIER_HOSTS[token][name].remove(request.sid)
 
-    # !!!!!!!!!!!!!!
-    # TODO: remove schema if no more hosts are connected and send to webclients
+    # # !!!!!!!!!!!!!!
+    # # TODO: remove schema if no more hosts are connected and send to webclients
 
-    cache.set("ROOM_MODIFIER_HOSTS", ROOM_MODIFIER_HOSTS)
+    # cache.set("ROOM_MODIFIER_HOSTS", ROOM_MODIFIER_HOSTS)
 
 
 @io.on("join")
@@ -578,8 +592,8 @@ def connected_users_subscribe_step(data: SubscribedUserData):
 
     data: {user: str}
     """
-    _subscribe_user(data, "STEP")
-
+    # TODO: step should always be in sync?
+    token = str(session["token"])
 
 @io.on("connectedUsers:subscribe:camera")
 @typecast
@@ -589,7 +603,18 @@ def connected_users_subscribe_camera(data: SubscribedUserData):
 
     data: {user: str}
     """
-    _subscribe_user(data, "CAMERA")
+    token = str(session["token"])
+    with Session() as ses:
+        room = ses.query(db_schema.Room).filter_by(token=token).first()
+        if room is None:
+            raise ValueError("No room found for token.")
+        current_client = ses.query(db_schema.Client).filter_by(sid=request.sid).first()
+        controller_client = ses.query(db_schema.Client).filter_by(name=data.user).first()
+        if controller_client.sid == request.sid or controller_client.camera_controller == current_client:
+            current_client.camera_controller = None
+        else:
+            current_client.camera_controller = controller_client
+        ses.commit()
 
 
 @io.on("scene:update")
