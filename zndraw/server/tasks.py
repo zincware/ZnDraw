@@ -423,15 +423,18 @@ def run_global_modifier(vis, name, data):
         vis.socket.emit("celery:task:emit", asdict(msg))
         return
 
+
 def _run_room_modifier(vis, name, data):
     with Session() as ses:
         room = ses.query(db_schema.Room).filter_by(token=vis.token).first()
         room_modifier = (
-            ses.query(db_schema.RoomModifier)
-            .filter_by(room=room, name=name)
+            ses.query(db_schema.RoomModifier).filter_by(room=room, name=name).first()
+        )
+        hosts = (
+            ses.query(db_schema.RoomModifierClient)
+            .filter_by(room_modifier=room_modifier)
             .first()
         )
-        hosts = ses.query(db_schema.RoomModifierClient).filter_by(room_modifier=room_modifier).first()
         if hosts is None:
             msg = CeleryTaskData(
                 target=f"webclients_{vis.token}",
@@ -456,6 +459,7 @@ def _run_room_modifier(vis, name, data):
             disconnect=True,
         )
         vis.socket.emit("celery:task:emit", asdict(msg))
+
 
 @shared_task
 def run_modifier(url: str, token: str, data: dict):
