@@ -32,6 +32,7 @@ def get_client(url) -> Client:
     client.connect(url, wait_timeout=10)
     return client
 
+
 @shared_task
 def update_atoms(token: str, index: int, data: dict) -> None:
     """Update the atoms in the database.
