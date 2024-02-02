@@ -8,15 +8,12 @@ from celery import chain
 from flask import current_app, request, session
 from flask_socketio import call, emit, join_room
 from socketio.exceptions import TimeoutError
-from sqlalchemy import create_engine
-from sqlalchemy.orm import Session
 
+from zndraw.db import Session
 from zndraw.db import schema as db_schema
 from zndraw.server import tasks
-from zndraw.settings import GlobalConfig
 from zndraw.utils import typecast
 
-from ..app import cache
 from ..app import socketio as io
 from ..data import (
     AnalysisFigureData,
@@ -36,13 +33,31 @@ log = logging.getLogger(__name__)
 
 modifier_lock = Lock()
 
-DB_PATH = GlobalConfig.load().database.get_path()
-engine = create_engine(f"sqlite:///{DB_PATH}")
 
+def _update_atoms(token: str, index: int, data: dict) -> None:
+    """Update the atoms in the database.
 
-def get_main_room_host(token: str) -> str:
-    ROOM_HOSTS = cache.get("ROOM_HOSTS")
-    return ROOM_HOSTS[token][0]
+    Attributes
+    ----------
+    token : str
+        The token of the room.
+    index : int
+        The index of the frame.
+    data : dict
+        The data of the frame.
+    """
+    with Session() as ses:
+        room = ses.query(db_schema.Room).filter_by(token=token).first()
+        # check if the index is already in the db
+        frame = ses.query(db_schema.Frame).filter_by(index=index, room=room).first()
+        if frame is not None:
+            # if so, update the data
+            frame.data = data
+        else:
+            # create a db_schema.Frame
+            frame = db_schema.Frame(index=index, data=data, room=room)
+            ses.add(frame)
+        ses.commit()
 
 
 def _webclients_room(data: dict) -> str:
@@ -55,98 +70,6 @@ def _webclients_room(data: dict) -> str:
         if data.sid is not None:
             return data.sid
     return f"webclients_{data.token}"
-
-
-def _webclients_default(data: dict) -> str:
-    """Return the SID of the default webclient."""
-    if isinstance(data, dict):
-        if "sid" in data:
-            return data["sid"]
-        # TODO: if there is a keyerror, it will not be properly handled and the
-        #  python interface is doomed to wait for TimeoutError.
-        try:
-            return f"webclients_{data['token']}"
-        except KeyError:
-            log.critical("No webclient connected.")
-    else:
-        if hasattr(data, "sid"):
-            if data.sid is not None:
-                return data.sid
-        try:
-            return f"webclients_{data.token}"
-        except KeyError:
-            log.critical("No webclient connected.")
-
-
-def _pyclients_room(data: dict) -> str:
-    """All pyclients run via get, so this is not used."""
-    return f"pyclients_{data['token']}"
-
-
-def _get_uuid_for_sid(sid) -> str:
-    """Given a sid, return the UUID that is associated with it.
-    The SID is given by flask, the UUID is defined by zndraw
-    and can be used to reconnect.
-    """
-    inv_clients = {v: k for k, v in cache.get("pyclients").items()}
-    return inv_clients[sid]
-
-
-def _get_queue_position(job_id) -> int:
-    """Return the position of the job_id in the queue."""
-    try:
-        return cache.get("MODIFIER")["queue"].index(job_id)
-    except ValueError:
-        return -1
-
-
-def _subscribe_user(data: SubscribedUserData, subscription_type: str):
-    """
-    Subscribe to user updates for a given subscription type.
-
-    data: {user: str}
-    subscription_type: str (e.g., "STEP" or "CAMERA")
-    """
-    token = session.get("token")
-    if token is None:
-        return
-
-    cache_key = f"PER-TOKEN-{subscription_type}-SUBSCRIPTIONS:{token}"
-    per_token_subscriptions = cache.get(cache_key) or {}
-
-    names = cache.get(f"PER-TOKEN-NAME:{token}") or {}
-
-    # Get the SID from data["user"] and add it to the list of subscribers
-    for sid, name in names.items():
-        if name == data.user:
-            if (
-                subscription_type == "CAMERA"
-                and per_token_subscriptions.get(sid) == request.sid
-            ):
-                print("Cannot subscribe to a user that is subscribed to you")
-                return
-
-            per_token_subscriptions[request.sid] = sid
-            break
-
-    cache.set(cache_key, per_token_subscriptions)
-
-
-def _get_subscribers(token: str, subscription_type: str):
-    """
-    Get subscribers for a given subscription type.
-
-    token: str
-    subscription_type: str (e.g., "STEP" or "CAMERA")
-    """
-    cache_key = f"PER-TOKEN-{subscription_type}-SUBSCRIPTIONS:{token}"
-    per_token_subscriptions = cache.get(cache_key) or {}
-
-    subscribers = [
-        sid for sid, this in per_token_subscriptions.items() if this == request.sid
-    ]
-
-    return subscribers
 
 
 @io.on("connect")
@@ -169,37 +92,49 @@ def connect():
         join_room(f"{token}")
         # who ever connected latest is the HOST of the room
 
-        # with Session(engine) as session:
-        #     session.add(some_object)
-        #     session.add(some_other_object)
-        #     session.commit()
-
         # check if there is a db_schema.Room with the given toke, if not create one
-        with Session(engine) as ses:
+        with Session() as ses:
             room = ses.query(db_schema.Room).filter_by(token=token).first()
             if room is None:
                 room = db_schema.Room(
                     token=token, currentStep=0, points=[], selection=[]
                 )
                 ses.add(room)
-                ses.commit()
 
-        ROOM_HOSTS = cache.get("ROOM_HOSTS")
+            client = db_schema.Client(
+                sid=request.sid, room=room, name=uuid4().hex[:8].upper()
+            )
+            # check if any client in the room is host
+            if (
+                ses.query(db_schema.Client).filter_by(room=room, host=True).first()
+                is None
+            ):
+                client.host = True
+            ses.add(client)
+            ses.commit()
 
-        if token not in ROOM_HOSTS:
-            ROOM_HOSTS[token] = [request.sid]
-        else:
-            ROOM_HOSTS[token].append(request.sid)
+        # ROOM_HOSTS = cache.get("ROOM_HOSTS")
 
-        cache.set("ROOM_HOSTS", ROOM_HOSTS)
+        # if token not in ROOM_HOSTS:
+        #     ROOM_HOSTS[token] = [request.sid]
+        # else:
+        #     ROOM_HOSTS[token].append(request.sid)
 
-        data = {"sid": request.sid, "token": token}
-        data["host"] = ROOM_HOSTS[token][0] == request.sid
-        names = cache.get(f"PER-TOKEN-NAME:{session['token']}") or {}
-        names[request.sid] = uuid4().hex[:8].upper()
-        cache.set(f"PER-TOKEN-NAME:{session['token']}", names)
+        # cache.set("ROOM_HOSTS", ROOM_HOSTS)
 
-        connected_users = [{"name": names[sid]} for sid in ROOM_HOSTS[token]]
+        # # data = {"sid": request.sid, "token": token}
+        # # data["host"] = ROOM_HOSTS[token][0] == request.sid
+        # names = cache.get(f"PER-TOKEN-NAME:{session['token']}") or {}
+        # names[request.sid] = uuid4().hex[:8].upper()
+        # cache.set(f"PER-TOKEN-NAME:{session['token']}", names)
+
+        # connected_users = [{"name": names[sid]} for sid in ROOM_HOSTS[token]]
+
+        # get all clients in the room
+        with Session() as ses:
+            room = ses.query(db_schema.Room).filter_by(token=token).first()
+            clients = ses.query(db_schema.Client).filter_by(room=room).all()
+            connected_users = [{"name": client.name} for client in clients]
 
         emit(
             "connectedUsers",
@@ -218,12 +153,12 @@ def connect():
 
         # TODO emit("modifier:register", _all modifiers_, to=app.config["DEFAULT_PYCLIENT"]')
 
-        log.debug(f"connected {request.sid} and updated HOSTS to {ROOM_HOSTS}")
-        emit("message:log", "Connection established", to=request.sid)
-        PER_TOKEN_DATA = cache.get("PER-TOKEN-DATA")
-        if token not in PER_TOKEN_DATA:
-            PER_TOKEN_DATA[token] = {}
-        cache.set("PER-TOKEN-DATA", PER_TOKEN_DATA)
+        # log.debug(f"connected {request.sid} and updated HOSTS to {ROOM_HOSTS}")
+        # emit("message:log", "Connection established", to=request.sid)
+        # PER_TOKEN_DATA = cache.get("PER-TOKEN-DATA")
+        # if token not in PER_TOKEN_DATA:
+        #     PER_TOKEN_DATA[token] = {}
+        # cache.set("PER-TOKEN-DATA", PER_TOKEN_DATA)
 
         # append to zndraw.log a line isoformat() + " " + token
         log.info(
@@ -243,24 +178,7 @@ def connect():
 def celery_task_results(msg: CeleryTaskData):
     token = str(session["token"])
     if msg.event == "atoms:upload":
-        with Session(engine) as ses:
-            room = ses.query(db_schema.Room).filter_by(token=token).first()
-            # check if the index is already in the db
-            frame = (
-                ses.query(db_schema.Frame)
-                .filter_by(index=msg.data["index"], room=room)
-                .first()
-            )
-            if frame is not None:
-                # if so, update the data
-                frame.data = msg.data["data"]
-            else:
-                # create a db_schema.Frame
-                frame = db_schema.Frame(
-                    index=msg.data["index"], data=msg.data["data"], room=room
-                )
-                ses.add(frame)
-            ses.commit()
+        _update_atoms(token, msg.data["index"], msg.data["data"])
     emit(msg.event, msg.data, to=msg.target)
     if msg.disconnect:
         io.server.disconnect(request.sid)
@@ -279,41 +197,70 @@ def celery_task_call(msg: CeleryTaskData):
 @io.on("disconnect")
 def disconnect():
     log.critical(f"-------------->>> disconnecting {request.sid}")
-    token = session["token"]
-    ROOM_HOSTS = cache.get("ROOM_HOSTS")
-    if token in ROOM_HOSTS:
-        if request.sid in ROOM_HOSTS[token]:
-            ROOM_HOSTS[token].remove(request.sid)
-        if len(ROOM_HOSTS[token]) == 0:
-            del ROOM_HOSTS[token]
-        cache.set("ROOM_HOSTS", ROOM_HOSTS)
+    token = str(session["token"])
+
+    with Session() as ses:
+        room = ses.query(db_schema.Room).filter_by(token=token).first()
+        client = ses.query(db_schema.Client).filter_by(sid=request.sid).first()
+        if client is not None:
+            ses.delete(client)
+            if client.host:
+                new_host = ses.query(db_schema.Client).filter_by(room=room).first()
+                if new_host is not None:
+                    new_host.host = True
+            ses.commit()
+
+    with Session() as ses:
+        room = ses.query(db_schema.Room).filter_by(token=token).first()
+        clients = ses.query(db_schema.Client).filter_by(room=room).all()
+        connected_users = [{"name": client.name} for client in clients]
+
+    emit(
+        "connectedUsers",
+        list(reversed(connected_users)),
+        to=_webclients_room({"token": token}),
+    )
+
+    # ROOM_HOSTS = cache.get("ROOM_HOSTS")
+    # if token in ROOM_HOSTS:
+    #     if request.sid in ROOM_HOSTS[token]:
+    #         ROOM_HOSTS[token].remove(request.sid)
+    #     if len(ROOM_HOSTS[token]) == 0:
+    #         del ROOM_HOSTS[token]
+    #     cache.set("ROOM_HOSTS", ROOM_HOSTS)
 
     # pyclients only
     # check if the SID is in MODIFIER_HOSTS or ROOM_MODIFIER_HOSTS
-    with Session(engine) as ses:
+    with Session() as ses:
         global_modifier_client = (
             ses.query(db_schema.GlobalModifierClient).filter_by(sid=request.sid).all()
         )
         for gmc in global_modifier_client:
             ses.delete(gmc)
+
+        room_modifier_client = (
+            ses.query(db_schema.RoomModifierClient).filter_by(sid=request.sid).all()
+        )
+        for rmc in room_modifier_client:
+            ses.delete(rmc)
         ses.commit()
 
-    MODIFIER_HOSTS = cache.get("MODIFIER_HOSTS")
-    for name, sids in MODIFIER_HOSTS.items():
-        while request.sid in sids:
-            MODIFIER_HOSTS[name].remove(request.sid)
-    cache.set("MODIFIER_HOSTS", MODIFIER_HOSTS)
+    # MODIFIER_HOSTS = cache.get("MODIFIER_HOSTS")
+    # for name, sids in MODIFIER_HOSTS.items():
+    #     while request.sid in sids:
+    #         MODIFIER_HOSTS[name].remove(request.sid)
+    # cache.set("MODIFIER_HOSTS", MODIFIER_HOSTS)
 
-    ROOM_MODIFIER_HOSTS = cache.get("ROOM_MODIFIER_HOSTS")
-    if token in ROOM_MODIFIER_HOSTS:
-        for name, sids in ROOM_MODIFIER_HOSTS[token].items():
-            while request.sid in sids:
-                ROOM_MODIFIER_HOSTS[token][name].remove(request.sid)
+    # ROOM_MODIFIER_HOSTS = cache.get("ROOM_MODIFIER_HOSTS")
+    # if token in ROOM_MODIFIER_HOSTS:
+    #     for name, sids in ROOM_MODIFIER_HOSTS[token].items():
+    #         while request.sid in sids:
+    #             ROOM_MODIFIER_HOSTS[token][name].remove(request.sid)
 
-    # !!!!!!!!!!!!!!
-    # TODO: remove schema if no more hosts are connected and send to webclients
+    # # !!!!!!!!!!!!!!
+    # # TODO: remove schema if no more hosts are connected and send to webclients
 
-    cache.set("ROOM_MODIFIER_HOSTS", ROOM_MODIFIER_HOSTS)
+    # cache.set("ROOM_MODIFIER_HOSTS", ROOM_MODIFIER_HOSTS)
 
 
 @io.on("join")
@@ -366,7 +313,7 @@ def scene_set(data: SceneSetData):
 @io.on("scene:step")
 def scene_step():
     token = str(session["token"])
-    with Session(engine) as ses:
+    with Session() as ses:
         room = ses.query(db_schema.Room).filter_by(token=token).first()
         if room is None:
             raise ValueError("No room found for token.")
@@ -378,7 +325,7 @@ def atoms_download(indices: list[int]):
     token = str(session["token"])
 
     data = {}
-    with Session(engine) as ses:
+    with Session() as ses:
         room = ses.query(db_schema.Room).filter_by(token=token).first()
         if room is None:
             raise ValueError("No room found for token.")
@@ -396,19 +343,7 @@ def atoms_download(indices: list[int]):
 @typecast
 def atoms_upload(data: FrameData):
     token = str(session["token"])
-    with Session(engine) as ses:
-        room = ses.query(db_schema.Room).filter_by(token=token).first()
-        frame = (
-            ses.query(db_schema.Frame).filter_by(index=data.index, room=room).first()
-        )
-        if frame is not None:
-            # if so, update the data
-            frame.data = data.data
-        else:
-            # create a db_schema.Frame
-            frame = db_schema.Frame(index=data.index, data=data.data, room=room)
-            ses.add(frame)
-        ses.commit()
+    _update_atoms(token, data.index, data.data)
     emit(
         "atoms:upload",
         dataclasses.asdict(data),
@@ -427,7 +362,7 @@ def atoms_delete(data: DeleteAtomsData):
         include_self=False,
         to=f"webclients_{session['token']}",
     )
-    with Session(engine) as ses:
+    with Session() as ses:
         room = ses.query(db_schema.Room).filter_by(token=token).first()
         ses.query(db_schema.Frame).filter(
             db_schema.Frame.index.in_(data.index), db_schema.Frame.room == room
@@ -438,7 +373,7 @@ def atoms_delete(data: DeleteAtomsData):
 @io.on("atoms:length")
 def atoms_length():
     token = str(session["token"])
-    with Session(engine) as ses:
+    with Session() as ses:
         room = ses.query(db_schema.Room).filter_by(token=token).first()
         return ses.query(db_schema.Frame).filter_by(room=room).count()
 
@@ -470,7 +405,7 @@ def draw_schema(data: SchemaData):
 @io.on("points:get")
 def scene_points():
     token = str(session["token"])
-    with Session(engine) as ses:
+    with Session() as ses:
         room = ses.query(db_schema.Room).filter_by(token=token).first()
         if room is None:
             raise ValueError("No room found for token.")
@@ -479,13 +414,19 @@ def scene_points():
 
 @io.on("scene:segments")
 def scene_segments():
-    return call("scene:segments", to=get_main_room_host(session["token"]))
+    token = str(session["token"])
+    with Session() as ses:
+        room = ses.query(db_schema.Room).filter_by(token=token).first()
+        if room is None:
+            raise ValueError("No room found for token.")
+        host = ses.query(db_schema.Client).filter_by(room=room, host=True).first()
+    return call("scene:segments", to=host.sid)
 
 
 @io.on("selection:get")
 def selection_get():
     token = str(session["token"])
-    with Session(engine) as ses:
+    with Session() as ses:
         room = ses.query(db_schema.Room).filter_by(token=token).first()
         if room is None:
             raise ValueError("No room found for token.")
@@ -501,7 +442,7 @@ def selection_set(data: list[int]):
         include_self=False,
         to=f"webclients_{token}",
     )
-    with Session(engine) as ses:
+    with Session() as ses:
         room = ses.query(db_schema.Room).filter_by(token=token).first()
         if room is None:
             raise ValueError("No room found for token.")
@@ -535,7 +476,7 @@ def scene_pause():
 @io.on("bookmarks:get")
 def bookmarks_get():
     token = str(session["token"])
-    with Session(engine) as ses:
+    with Session() as ses:
         room = ses.query(db_schema.Room).filter_by(token=token).first()
         if room is None:
             raise ValueError("No room found for token.")
@@ -552,7 +493,7 @@ def bookmarks_set(data: dict):
         include_self=False,
         to=f"webclients_{token}",
     )
-    with Session(engine) as ses:
+    with Session() as ses:
         room = ses.query(db_schema.Room).filter_by(token=token).first()
         if room is None:
             raise ValueError("No room found for token.")
@@ -570,7 +511,7 @@ def bookmarks_set(data: dict):
 def points_set(data: list[list[float]]):
     token = str(session["token"])
     emit("points:set", data, include_self=False, to=f"webclients_{token}")
-    with Session(engine) as ses:
+    with Session() as ses:
         room = ses.query(db_schema.Room).filter_by(token=token).first()
         if room is None:
             raise ValueError("No room found for token.")
@@ -591,7 +532,23 @@ def connected_users_subscribe_step(data: SubscribedUserData):
 
     data: {user: str}
     """
-    _subscribe_user(data, "STEP")
+    token = str(session["token"])
+    with Session() as ses:
+        room = ses.query(db_schema.Room).filter_by(token=token).first()
+        if room is None:
+            raise ValueError("No room found for token.")
+        current_client = ses.query(db_schema.Client).filter_by(sid=request.sid).first()
+        controller_client = (
+            ses.query(db_schema.Client).filter_by(name=data.user).first()
+        )
+        if (
+            controller_client.sid == request.sid
+            or controller_client.step_controller == current_client
+        ):
+            current_client.step_controller = None
+        else:
+            current_client.step_controller = controller_client
+        ses.commit()
 
 
 @io.on("connectedUsers:subscribe:camera")
@@ -602,7 +559,23 @@ def connected_users_subscribe_camera(data: SubscribedUserData):
 
     data: {user: str}
     """
-    _subscribe_user(data, "CAMERA")
+    token = str(session["token"])
+    with Session() as ses:
+        room = ses.query(db_schema.Room).filter_by(token=token).first()
+        if room is None:
+            raise ValueError("No room found for token.")
+        current_client = ses.query(db_schema.Client).filter_by(sid=request.sid).first()
+        controller_client = (
+            ses.query(db_schema.Client).filter_by(name=data.user).first()
+        )
+        if (
+            controller_client.sid == request.sid
+            or controller_client.camera_controller == current_client
+        ):
+            current_client.camera_controller = None
+        else:
+            current_client.camera_controller = controller_client
+        ses.commit()
 
 
 @io.on("scene:update")
@@ -615,22 +588,46 @@ def scene_update(data: SceneUpdateData):
     token = str(session["token"])
 
     if data.step is not None:
-        step_subscribers = _get_subscribers(token, "STEP")
+        with Session() as ses:
+            room = ses.query(db_schema.Room).filter_by(token=token).first()
+            current_client = (
+                ses.query(db_schema.Client).filter_by(sid=request.sid).first()
+            )
+            if room is None:
+                raise ValueError("No room found for token.")
+            if current_client.host:
+                room.currentStep = data.step
+                ses.commit()
+
+            step_subscribers = (
+                ses.query(db_schema.Client)
+                .filter_by(step_controller=current_client)
+                .all()
+            )
+            step_subscribers = [client.sid for client in step_subscribers]
+
         emit(
             "scene:update",
             dataclasses.asdict(data),
             include_self=False,
             to=step_subscribers,
         )
-        with Session(engine) as ses:
+
+    if data.camera is not None:
+        with Session() as ses:
             room = ses.query(db_schema.Room).filter_by(token=token).first()
             if room is None:
                 raise ValueError("No room found for token.")
-            room.currentStep = data.step
-            ses.commit()
+            current_client = (
+                ses.query(db_schema.Client).filter_by(sid=request.sid).first()
+            )
+            camera_subscribers = (
+                ses.query(db_schema.Client)
+                .filter_by(camera_controller=current_client)
+                .all()
+            )
+            camera_subscribers = [client.sid for client in camera_subscribers]
 
-    if data.camera is not None:
-        camera_subscribers = _get_subscribers(token, "CAMERA")
         emit(
             "scene:update",
             dataclasses.asdict(data),
@@ -677,21 +674,8 @@ def modifier_run(data: dict):
     )
 
 
-@io.on("modifier:register")
-@typecast
-def modifier_register(data: ModifierRegisterData):
-    """Register the modifier."""
-
-    if data.default:
-        MODIFIER_HOSTS = cache.get("MODIFIER_HOSTS")
-        MODIFIER_SCHEMA = cache.get("MODIFIER_SCHEMA")
-    else:
-        MODIFIER_HOSTS = cache.get("ROOM_MODIFIER_HOSTS").get(session["token"], {})
-        MODIFIER_SCHEMA = cache.get("ROOM_MODIFIER_SCHEMA").get(session["token"], {})
-
-    # TODO: do not allow modifiers that are already in defaults, handle duplicates better!
-
-    with Session(engine) as ses:
+def _register_global_modifier(data):
+    with Session() as ses:
         global_modifier = (
             ses.query(db_schema.GlobalModifier).filter_by(name=data.name).first()
         )
@@ -715,44 +699,66 @@ def modifier_register(data: ModifierRegisterData):
         ses.add(global_modifier_client)
         ses.commit()
 
-    # if data.name in MODIFIER_HOSTS:
-    #     if MODIFIER_SCHEMA[data.name] != data.schema:
-    #         log.critical(
-    #             f"Modifier {data.name} is already registered with a different schema."
-    #         )
-    #         return
-    #     log.info(f"Register additional handlfer for already registered {data.name}.")
-    #     MODIFIER_HOSTS[data.name].append(request.sid)
-    # else:
-    #     log.info(f"Register new handler for {data.name}.")
-    #     MODIFIER_HOSTS[data.name] = [request.sid]
-    #     MODIFIER_SCHEMA[data.name] = data.schema
 
-    if data.default:
-        cache.set("MODIFIER_HOSTS", MODIFIER_HOSTS)
-        cache.set("MODIFIER_SCHEMA", MODIFIER_SCHEMA)
-    else:
-        ROOM_MODIFIER_HOSTS = cache.get("ROOM_MODIFIER_HOSTS")
-        ROOM_MODIFIER_SCHEMA = cache.get("ROOM_MODIFIER_SCHEMA")
-
-        ROOM_MODIFIER_HOSTS[session["token"]] = MODIFIER_HOSTS
-        ROOM_MODIFIER_SCHEMA[session["token"]] = MODIFIER_SCHEMA
-
-        cache.set("ROOM_MODIFIER_HOSTS", ROOM_MODIFIER_HOSTS)
-        cache.set("ROOM_MODIFIER_SCHEMA", ROOM_MODIFIER_SCHEMA)
-
-        # emit new modifier schema to all webclients
-        tasks.modifier_schema.delay(
-            f"http://127.0.0.1:{current_app.config['PORT']}", session["token"]
+def _register_room_modifier(data):
+    # TODO: do we want one table for global and room modifiers?
+    token = str(session["token"])
+    with Session() as ses:
+        room = ses.query(db_schema.Room).filter_by(token=token).first()
+        if room is None:
+            raise ValueError("No room found for token.")
+        room_modifier = (
+            ses.query(db_schema.RoomModifier).filter_by(name=data.name).first()
         )
+        if room_modifier is None:
+            room_modifier = db_schema.RoomModifier(
+                name=data.name, schema=data.schema, room=room
+            )
+            ses.add(room_modifier)
+        elif room_modifier.schema != data.schema:
+            log.critical(
+                f"Modifier {data.name} is already registered with a different schema."
+            )
+            return
+        # attach RoomModifierClient
+        room_modifier_client = db_schema.RoomModifierClient(
+            sid=request.sid,
+            timeout=data.timeout,
+            available=False,
+            room_modifier=room_modifier,
+        )
+        ses.add(room_modifier_client)
+        ses.commit()
+
+
+@io.on("modifier:register")
+@typecast
+def modifier_register(data: ModifierRegisterData):
+    """Register the modifier."""
+    if data.default:
+        # TODO: authenticattion
+        _register_global_modifier(data)
+    else:
+        _register_room_modifier(data)
+
+    # emit new modifier schema to all webclients
+    tasks.modifier_schema.delay(
+        f"http://127.0.0.1:{current_app.config['PORT']}", session["token"]
+    )
 
 
 @io.on("modifier:available")
 def modifier_available(available: bool):
     """Update the modifier availability."""
-    with Session(engine) as ses:
+    with Session() as ses:
         global_modifier_client = (
             ses.query(db_schema.GlobalModifierClient).filter_by(sid=request.sid).first()
         )
-        global_modifier_client.available = available
+        room_modifier_client = (
+            ses.query(db_schema.RoomModifierClient).filter_by(sid=request.sid).first()
+        )
+        if global_modifier_client is not None:
+            global_modifier_client.available = available
+        elif room_modifier_client is not None:
+            room_modifier_client.available = available
         ses.commit()

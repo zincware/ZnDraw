@@ -288,7 +288,8 @@ class World {
       }
       if (data.camera !== undefined) {
         camera.position.set(...data.camera.position);
-        camera.quaternion.set(...data.camera.quaternion);
+        controls.target.set(...data.camera.target);
+        controls.update();
       }
     });
 
@@ -297,7 +298,7 @@ class World {
       this.socket.emit("scene:update", {
         camera: {
           position: camera.position.toArray(),
-          quaternion: camera.quaternion.toArray(),
+          target: controls.target.toArray(),
         },
       });
     });
