@@ -28,7 +28,7 @@ from ..data import (
     SchemaData,
     SubscribedUserData,
 )
-
+from .utils import get_queue_position
 log = logging.getLogger(__name__)
 
 modifier_lock = Lock()
@@ -762,3 +762,9 @@ def modifier_available(available: bool):
         elif room_modifier_client is not None:
             room_modifier_client.available = available
         ses.commit()
+
+@io.on("modifier:queue:update")
+def modifier_queue_update(data: dict):
+    """Update the modifier queue."""
+    queue_position = get_queue_position(data["queue_name"], data["job_id"])
+    emit("modifier:queue:update", queue_position, to=f"webclients_{session['token']}")

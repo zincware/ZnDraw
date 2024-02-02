@@ -130,6 +130,16 @@ class RoomModifierClient(Base):
 class Queue(Base):
     __tablename__ = "queues"
     
-    id = Column(Integer, primary_key=True, autoincrement=True)
+    id = Column(Integer, primary_key=True)
     name = Column(String)
-    jobs = Column(String)
+    
+    jobs = relationship("QueueItem", back_populates="queue")
+    
+class QueueItem(Base):
+    __tablename__ = "queue_items"
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    job_id = Column(String)
+    
+    queue_id = Column(Integer, ForeignKey("queues.id"))
+    queue = relationship("Queue", back_populates="jobs")

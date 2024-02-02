@@ -402,7 +402,7 @@ def _run_global_modifier(self, url:str, token:str, data):
             return
 
         if host is None:
-            vis.socket.emit("modifier:queue:update", {"queue": "slow", "job_id": self.request.id})
+            vis.socket.emit("modifier:queue:update", {"queue_name": "slow", "job_id": self.request.id})
             vis.socket.sleep(1)
             log.critical("No modifier available")
             continue
