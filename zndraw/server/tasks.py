@@ -3,7 +3,6 @@ import logging
 import pathlib
 from dataclasses import asdict
 
-from decorator import decorator
 import ase.io
 import tqdm
 import znframe
@@ -353,22 +352,36 @@ def run_analysis(url: str, token: str, data: dict):
 
     vis.socket.emit("celery:task:emit", asdict(msg))
 
-def get_vis_obj(url: str, token: str,queue_name:str, request_id:str, ):
+
+def get_vis_obj(
+    url: str,
+    token: str,
+    queue_name: str,
+    request_id: str,
+):
     """
     Return a celery task that runs the modifier. The decorator constructs complex python objects for the celery task
     """
     vis = ZnDraw(url=url, token=token)
     insert_into_queue(queue_name=queue_name, job_id=request_id)
+
     def on_finished():
         # TODO: disconnect the modifier, release the worker
         remove_job_from_queue(queue_name, request_id)
         vis.socket.disconnect()
+
     vis.socket.on("modifier:run:finished", on_finished)
     return vis
 
+
 @shared_task(bind=True)
-def _run_global_modifier(self, url:str, token:str, data):
-    vis = get_vis_obj(url, token, queue_name="slow", request_id=self.request.id, )
+def _run_global_modifier(self, url: str, token: str, data):
+    vis = get_vis_obj(
+        url,
+        token,
+        queue_name="slow",
+        request_id=self.request.id,
+    )
     name = data["method"]["discriminator"]
     while True:
         with Session() as ses:
@@ -402,7 +415,10 @@ def _run_global_modifier(self, url:str, token:str, data):
             return
 
         if host is None:
-            vis.socket.emit("modifier:queue:update", {"queue_name": "slow", "job_id": self.request.id})
+            vis.socket.emit(
+                "modifier:queue:update",
+                {"queue_name": "slow", "job_id": self.request.id},
+            )
             vis.socket.sleep(1)
             log.critical("No modifier available")
             continue
@@ -442,10 +458,16 @@ def _run_global_modifier(self, url:str, token:str, data):
         vis.socket.emit("celery:task:emit", asdict(msg))
         return
 
+
 @shared_task(bind=True)
-def _run_room_modifier(self, url:str, token:str, data):
+def _run_room_modifier(self, url: str, token: str, data):
     name = data["method"]["discriminator"]
-    vis = get_vis_obj(url, token, queue_name="custom", request_id=self.request.id, )
+    vis = get_vis_obj(
+        url,
+        token,
+        queue_name="custom",
+        request_id=self.request.id,
+    )
     with Session() as ses:
         room = ses.query(db_schema.Room).filter_by(token=vis.token).first()
         room_modifier = (
@@ -481,9 +503,15 @@ def _run_room_modifier(self, url:str, token:str, data):
         )
         vis.socket.emit("celery:task:emit", asdict(msg))
 
+
 @shared_task(bind=True)
-def _run_default_modifier(self, url:str, token:str, data):
-    vis = get_vis_obj(url, token, queue_name="fast", request_id=self.request.id, )
+def _run_default_modifier(self, url: str, token: str, data):
+    vis = get_vis_obj(
+        url,
+        token,
+        queue_name="fast",
+        request_id=self.request.id,
+    )
     config = GlobalConfig.load()
     cls = get_modify_class(config.get_modify_methods())
     modifier = cls(**data)
@@ -502,8 +530,8 @@ def _run_default_modifier(self, url:str, token:str, data):
 
     vis.socket.emit("celery:task:emit", asdict(msg))
 
+
 def run_modifier(url: str, token: str, data: dict):
-    
     name = data["method"]["discriminator"]
     with Session() as ses:
         room = ses.query(db_schema.Room).filter_by(token=token).first()
