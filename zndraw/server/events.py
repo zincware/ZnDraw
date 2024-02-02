@@ -61,11 +61,6 @@ def _update_atoms(token: str, index: int, data: dict) -> None:
         ses.commit()
 
 
-def get_main_room_host(token: str) -> str:
-    ROOM_HOSTS = cache.get("ROOM_HOSTS")
-    return ROOM_HOSTS[token][0]
-
-
 def _webclients_room(data: dict) -> str:
     """Return the room name for the webclients."""
     if isinstance(data, dict):
@@ -76,81 +71,6 @@ def _webclients_room(data: dict) -> str:
         if data.sid is not None:
             return data.sid
     return f"webclients_{data.token}"
-
-
-def _webclients_default(data: dict) -> str:
-    """Return the SID of the default webclient."""
-    if isinstance(data, dict):
-        if "sid" in data:
-            return data["sid"]
-        # TODO: if there is a keyerror, it will not be properly handled and the
-        #  python interface is doomed to wait for TimeoutError.
-        try:
-            return f"webclients_{data['token']}"
-        except KeyError:
-            log.critical("No webclient connected.")
-    else:
-        if hasattr(data, "sid"):
-            if data.sid is not None:
-                return data.sid
-        try:
-            return f"webclients_{data.token}"
-        except KeyError:
-            log.critical("No webclient connected.")
-
-
-def _pyclients_room(data: dict) -> str:
-    """All pyclients run via get, so this is not used."""
-    return f"pyclients_{data['token']}"
-
-
-def _subscribe_user(data: SubscribedUserData, subscription_type: str):
-    """
-    Subscribe to user updates for a given subscription type.
-
-    data: {user: str}
-    subscription_type: str (e.g., "STEP" or "CAMERA")
-    """
-    token = session.get("token")
-    if token is None:
-        return
-
-    cache_key = f"PER-TOKEN-{subscription_type}-SUBSCRIPTIONS:{token}"
-    per_token_subscriptions = cache.get(cache_key) or {}
-
-    names = cache.get(f"PER-TOKEN-NAME:{token}") or {}
-
-    # Get the SID from data["user"] and add it to the list of subscribers
-    for sid, name in names.items():
-        if name == data.user:
-            if (
-                subscription_type == "CAMERA"
-                and per_token_subscriptions.get(sid) == request.sid
-            ):
-                print("Cannot subscribe to a user that is subscribed to you")
-                return
-
-            per_token_subscriptions[request.sid] = sid
-            break
-
-    cache.set(cache_key, per_token_subscriptions)
-
-
-def _get_subscribers(token: str, subscription_type: str):
-    """
-    Get subscribers for a given subscription type.
-
-    token: str
-    subscription_type: str (e.g., "STEP" or "CAMERA")
-    """
-    cache_key = f"PER-TOKEN-{subscription_type}-SUBSCRIPTIONS:{token}"
-    per_token_subscriptions = cache.get(cache_key) or {}
-
-    subscribers = [
-        sid for sid, this in per_token_subscriptions.items() if this == request.sid
-    ]
-
-    return subscribers
 
 
 @io.on("connect")
@@ -191,20 +111,20 @@ def connect():
             ses.add(client)
             ses.commit()
 
-        ROOM_HOSTS = cache.get("ROOM_HOSTS")
+        # ROOM_HOSTS = cache.get("ROOM_HOSTS")
 
-        if token not in ROOM_HOSTS:
-            ROOM_HOSTS[token] = [request.sid]
-        else:
-            ROOM_HOSTS[token].append(request.sid)
+        # if token not in ROOM_HOSTS:
+        #     ROOM_HOSTS[token] = [request.sid]
+        # else:
+        #     ROOM_HOSTS[token].append(request.sid)
 
-        cache.set("ROOM_HOSTS", ROOM_HOSTS)
+        # cache.set("ROOM_HOSTS", ROOM_HOSTS)
 
-        # data = {"sid": request.sid, "token": token}
-        # data["host"] = ROOM_HOSTS[token][0] == request.sid
-        names = cache.get(f"PER-TOKEN-NAME:{session['token']}") or {}
-        names[request.sid] = uuid4().hex[:8].upper()
-        cache.set(f"PER-TOKEN-NAME:{session['token']}", names)
+        # # data = {"sid": request.sid, "token": token}
+        # # data["host"] = ROOM_HOSTS[token][0] == request.sid
+        # names = cache.get(f"PER-TOKEN-NAME:{session['token']}") or {}
+        # names[request.sid] = uuid4().hex[:8].upper()
+        # cache.set(f"PER-TOKEN-NAME:{session['token']}", names)
 
         # connected_users = [{"name": names[sid]} for sid in ROOM_HOSTS[token]]
 
@@ -231,12 +151,12 @@ def connect():
 
         # TODO emit("modifier:register", _all modifiers_, to=app.config["DEFAULT_PYCLIENT"]')
 
-        log.debug(f"connected {request.sid} and updated HOSTS to {ROOM_HOSTS}")
-        emit("message:log", "Connection established", to=request.sid)
-        PER_TOKEN_DATA = cache.get("PER-TOKEN-DATA")
-        if token not in PER_TOKEN_DATA:
-            PER_TOKEN_DATA[token] = {}
-        cache.set("PER-TOKEN-DATA", PER_TOKEN_DATA)
+        # log.debug(f"connected {request.sid} and updated HOSTS to {ROOM_HOSTS}")
+        # emit("message:log", "Connection established", to=request.sid)
+        # PER_TOKEN_DATA = cache.get("PER-TOKEN-DATA")
+        # if token not in PER_TOKEN_DATA:
+        #     PER_TOKEN_DATA[token] = {}
+        # cache.set("PER-TOKEN-DATA", PER_TOKEN_DATA)
 
         # append to zndraw.log a line isoformat() + " " + token
         log.info(
@@ -486,7 +406,13 @@ def scene_points():
 
 @io.on("scene:segments")
 def scene_segments():
-    return call("scene:segments", to=get_main_room_host(session["token"]))
+    token = str(session["token"])
+    with Session() as ses:
+        room = ses.query(db_schema.Room).filter_by(token=token).first()
+        if room is None:
+            raise ValueError("No room found for token.")
+        host = ses.query(db_schema.Client).filter_by(room=room, host=True).first()
+    return call("scene:segments", to=host.sid)
 
 
 @io.on("selection:get")
@@ -733,20 +659,7 @@ def modifier_run(data: dict):
     )
 
 
-@io.on("modifier:register")
-@typecast
-def modifier_register(data: ModifierRegisterData):
-    """Register the modifier."""
-
-    if data.default:
-        MODIFIER_HOSTS = cache.get("MODIFIER_HOSTS")
-        MODIFIER_SCHEMA = cache.get("MODIFIER_SCHEMA")
-    else:
-        MODIFIER_HOSTS = cache.get("ROOM_MODIFIER_HOSTS").get(session["token"], {})
-        MODIFIER_SCHEMA = cache.get("ROOM_MODIFIER_SCHEMA").get(session["token"], {})
-
-    # TODO: do not allow modifiers that are already in defaults, handle duplicates better!
-
+def _register_global_modifier(data):
     with Session() as ses:
         global_modifier = (
             ses.query(db_schema.GlobalModifier).filter_by(name=data.name).first()
@@ -771,36 +684,47 @@ def modifier_register(data: ModifierRegisterData):
         ses.add(global_modifier_client)
         ses.commit()
 
-    # if data.name in MODIFIER_HOSTS:
-    #     if MODIFIER_SCHEMA[data.name] != data.schema:
-    #         log.critical(
-    #             f"Modifier {data.name} is already registered with a different schema."
-    #         )
-    #         return
-    #     log.info(f"Register additional handlfer for already registered {data.name}.")
-    #     MODIFIER_HOSTS[data.name].append(request.sid)
-    # else:
-    #     log.info(f"Register new handler for {data.name}.")
-    #     MODIFIER_HOSTS[data.name] = [request.sid]
-    #     MODIFIER_SCHEMA[data.name] = data.schema
 
-    if data.default:
-        cache.set("MODIFIER_HOSTS", MODIFIER_HOSTS)
-        cache.set("MODIFIER_SCHEMA", MODIFIER_SCHEMA)
-    else:
-        ROOM_MODIFIER_HOSTS = cache.get("ROOM_MODIFIER_HOSTS")
-        ROOM_MODIFIER_SCHEMA = cache.get("ROOM_MODIFIER_SCHEMA")
-
-        ROOM_MODIFIER_HOSTS[session["token"]] = MODIFIER_HOSTS
-        ROOM_MODIFIER_SCHEMA[session["token"]] = MODIFIER_SCHEMA
-
-        cache.set("ROOM_MODIFIER_HOSTS", ROOM_MODIFIER_HOSTS)
-        cache.set("ROOM_MODIFIER_SCHEMA", ROOM_MODIFIER_SCHEMA)
-
-        # emit new modifier schema to all webclients
-        tasks.modifier_schema.delay(
-            f"http://127.0.0.1:{current_app.config['PORT']}", session["token"]
+def _register_room_modifier(data):
+    # TODO: do we want one table for global and room modifiers?
+    token = str(session["token"])
+    with Session() as ses:
+        room = ses.query(db_schema.Room).filter_by(token=token).first()
+        if room is None:
+            raise ValueError("No room found for token.")
+        room_modifier = ses.query(db_schema.RoomModifier).filter_by(name=data.name).first()
+        if room_modifier is None:
+            room_modifier = db_schema.RoomModifier(name=data.name, schema=data.schema, room=room)
+            ses.add(room_modifier)
+        elif room_modifier.schema != data.schema:
+            log.critical(
+                f"Modifier {data.name} is already registered with a different schema."
+            )
+            return
+        # attach RoomModifierClient
+        room_modifier_client = db_schema.RoomModifierClient(
+            sid=request.sid,
+            timeout=data.timeout,
+            available=False,
+            room_modifier=room_modifier,
         )
+        ses.add(room_modifier_client)
+        ses.commit()
+
+@io.on("modifier:register")
+@typecast
+def modifier_register(data: ModifierRegisterData):
+    """Register the modifier."""
+    if data.default:
+        # TODO: authenticattion
+        _register_global_modifier(data)
+    else:
+        _register_room_modifier(data)
+
+    # emit new modifier schema to all webclients
+    tasks.modifier_schema.delay(
+        f"http://127.0.0.1:{current_app.config['PORT']}", session["token"]
+    )
 
 
 @io.on("modifier:available")
@@ -810,5 +734,11 @@ def modifier_available(available: bool):
         global_modifier_client = (
             ses.query(db_schema.GlobalModifierClient).filter_by(sid=request.sid).first()
         )
-        global_modifier_client.available = available
+        room_modifier_client = (
+            ses.query(db_schema.RoomModifierClient).filter_by(sid=request.sid).first()
+        )
+        if global_modifier_client is not None:
+            global_modifier_client.available = available
+        elif room_modifier_client is not None:
+            room_modifier_client.available = available
         ses.commit()
