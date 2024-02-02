@@ -87,7 +87,7 @@ class ZnDrawBase:  # collections.abc.MutableSequence
                 self.socket.connect(self.url)
                 break
             except socketio.exceptions.ConnectionError:
-                self.socket.sleep(0.1) # this can't work?
+                self.socket.sleep(0.1)  # this can't work?
         else:
             raise socketio.exceptions.ConnectionError
 
