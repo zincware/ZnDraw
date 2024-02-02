@@ -671,8 +671,9 @@ def modifier_run(data: dict):
     io.emit(
         "modifier:run:enqueue", to=f"webclients_{session['token']}", include_self=False
     )
-    tasks.run_modifier.apply_async(
-        (f"http://127.0.0.1:{current_app.config['PORT']}", session["token"], data)
+    # split into separate streams based on the modifier name
+    tasks.run_modifier(
+        f"http://127.0.0.1:{current_app.config['PORT']}", session["token"], data
     )
 
 
