@@ -44,6 +44,7 @@ class FrameData:
     update_database: bool
         Whether the configuration should be saved in the database
     """
+
     index: int
     update: bool
     data: dict

@@ -234,7 +234,7 @@ def read_file(url: str, target: str, token: str):
                         index=frame.index,
                         data=frame.data,
                         update=True,
-                        update_database=False
+                        update_database=False,
                     ),
                 )
                 con.emit("celery:task:emit", asdict(msg))
