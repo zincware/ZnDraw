@@ -185,6 +185,9 @@ def connect():
             client = db_schema.Client(
                 sid=request.sid, room=room, name=uuid4().hex[:8].upper()
             )
+            # check if any client in the room is host
+            if ses.query(db_schema.Client).filter_by(room=room, host=True).first() is None:
+                client.host = True
             ses.add(client)
             ses.commit()
 
@@ -275,9 +278,14 @@ def disconnect():
     token = str(session["token"])
 
     with Session() as ses:
+        room = ses.query(db_schema.Room).filter_by(token=token).first()
         client = ses.query(db_schema.Client).filter_by(sid=request.sid).first()
         if client is not None:
             ses.delete(client)
+            if client.host:
+                new_host = ses.query(db_schema.Client).filter_by(room=room).first()
+                if new_host is not None:
+                    new_host.host = True
             ses.commit()
 
     with Session() as ses:
@@ -590,8 +598,23 @@ def connected_users_subscribe_step(data: SubscribedUserData):
 
     data: {user: str}
     """
-    # TODO: step should always be in sync?
     token = str(session["token"])
+    with Session() as ses:
+        room = ses.query(db_schema.Room).filter_by(token=token).first()
+        if room is None:
+            raise ValueError("No room found for token.")
+        current_client = ses.query(db_schema.Client).filter_by(sid=request.sid).first()
+        controller_client = (
+            ses.query(db_schema.Client).filter_by(name=data.user).first()
+        )
+        if (
+            controller_client.sid == request.sid
+            or controller_client.step_controller == current_client
+        ):
+            current_client.step_controller = None
+        else:
+            current_client.step_controller = controller_client
+        ses.commit()
 
 
 @io.on("connectedUsers:subscribe:camera")
@@ -631,19 +654,24 @@ def scene_update(data: SceneUpdateData):
     token = str(session["token"])
 
     if data.step is not None:
-        step_subscribers = _get_subscribers(token, "STEP")
+        with Session() as ses:
+            room = ses.query(db_schema.Room).filter_by(token=token).first()
+            current_client = ses.query(db_schema.Client).filter_by(sid=request.sid).first()
+            if room is None:
+                raise ValueError("No room found for token.")
+            if current_client.host:
+                room.currentStep = data.step
+                ses.commit()
+            
+            step_subscribers = ses.query(db_schema.Client).filter_by(step_controller=current_client).all()
+            step_subscribers = [client.sid for client in step_subscribers]
+
         emit(
             "scene:update",
             dataclasses.asdict(data),
             include_self=False,
             to=step_subscribers,
         )
-        with Session() as ses:
-            room = ses.query(db_schema.Room).filter_by(token=token).first()
-            if room is None:
-                raise ValueError("No room found for token.")
-            room.currentStep = data.step
-            ses.commit()
 
     if data.camera is not None:
         with Session() as ses:
