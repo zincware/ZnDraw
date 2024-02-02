@@ -317,10 +317,9 @@ def atoms_download(indices: list[int]):
 
 
 @io.on("atoms:upload")
-@typecast
 def atoms_upload(data: List[FrameData]):
     token = str(session["token"])
-    if data[0].update_database:
+    if data[0]["update_database"]:
         tasks.update_atoms.delay(token, data)
     emit(
         "atoms:upload",
