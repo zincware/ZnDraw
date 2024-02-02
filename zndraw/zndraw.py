@@ -16,6 +16,7 @@ from zndraw.utils import (
     ZnDrawLoggingHandler,
 )
 
+from .utils import split_list_into_chunks
 log = logging.getLogger(__name__)
 
 
@@ -184,10 +185,12 @@ class ZnDrawBase:  # collections.abc.MutableSequence
                 )
                 for i, val in zip(indices, values)
             ]
-            self.socket.emit(
-                "atoms:upload",
-                data,
-            )
+            batch_size = GlobalConfig.load().read_batch_size
+            for chunk in split_list_into_chunks(data, batch_size):
+                self.socket.emit(
+                    "atoms:upload",
+                    chunk,
+                )
 
     def __getitem__(self, index) -> t.Union[ase.Atoms, list[ase.Atoms]]:
         length = len(self)
