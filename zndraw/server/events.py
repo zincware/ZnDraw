@@ -28,6 +28,7 @@ from ..data import (
     SchemaData,
     SubscribedUserData,
 )
+from .utils import get_queue_position
 
 log = logging.getLogger(__name__)
 
@@ -92,7 +93,7 @@ def connect():
         join_room(f"{token}")
         # who ever connected latest is the HOST of the room
 
-        # check if there is a db_schema.Room with the given toke, if not create one
+        # check if there is a db_schema.Room with the given token, if not create one
         with Session() as ses:
             room = ses.query(db_schema.Room).filter_by(token=token).first()
             if room is None:
@@ -668,8 +669,9 @@ def modifier_run(data: dict):
     io.emit(
         "modifier:run:enqueue", to=f"webclients_{session['token']}", include_self=False
     )
-    tasks.run_modifier.apply_async(
-        (f"http://127.0.0.1:{current_app.config['PORT']}", session["token"], data)
+    # split into separate streams based on the modifier name
+    tasks.run_modifier(
+        f"http://127.0.0.1:{current_app.config['PORT']}", session["token"], data
     )
 
 
@@ -761,3 +763,10 @@ def modifier_available(available: bool):
         elif room_modifier_client is not None:
             room_modifier_client.available = available
         ses.commit()
+
+
+@io.on("modifier:queue:update")
+def modifier_queue_update(data: dict):
+    """Update the modifier queue."""
+    queue_position = get_queue_position(data["queue_name"], data["job_id"])
+    emit("modifier:queue:update", queue_position, to=f"webclients_{session['token']}")

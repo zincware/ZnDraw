@@ -22,6 +22,7 @@ from zndraw.zndraw import ZnDraw
 
 from ..app import cache
 from ..data import CeleryTaskData, FrameData
+from .utils import insert_into_queue, remove_job_from_queue
 
 log = logging.getLogger(__name__)
 
@@ -352,7 +353,36 @@ def run_analysis(url: str, token: str, data: dict):
     vis.socket.emit("celery:task:emit", asdict(msg))
 
 
-def run_global_modifier(vis, name, data):
+def get_vis_obj(
+    url: str,
+    token: str,
+    queue_name: str,
+    request_id: str,
+):
+    """
+    Return a celery task that runs the modifier. The decorator constructs complex python objects for the celery task
+    """
+    vis = ZnDraw(url=url, token=token)
+    insert_into_queue(queue_name=queue_name, job_id=request_id)
+
+    def on_finished():
+        # TODO: disconnect the modifier, release the worker
+        remove_job_from_queue(queue_name, request_id)
+        vis.socket.disconnect()
+
+    vis.socket.on("modifier:run:finished", on_finished)
+    return vis
+
+
+@shared_task(bind=True)
+def _run_global_modifier(self, url: str, token: str, data):
+    vis = get_vis_obj(
+        url,
+        token,
+        queue_name="slow",
+        request_id=self.request.id,
+    )
+    name = data["method"]["discriminator"]
     while True:
         with Session() as ses:
             # get the available hosts for the modifier
@@ -367,6 +397,7 @@ def run_global_modifier(vis, name, data):
                 .filter_by(global_modifier=modifier)
                 .count()
             )
+
         if assigned_hosts == 0:
             msg = CeleryTaskData(
                 target=f"webclients_{vis.token}",
@@ -384,6 +415,10 @@ def run_global_modifier(vis, name, data):
             return
 
         if host is None:
+            vis.socket.emit(
+                "modifier:queue:update",
+                {"queue_name": "slow", "job_id": self.request.id},
+            )
             vis.socket.sleep(1)
             log.critical("No modifier available")
             continue
@@ -424,7 +459,15 @@ def run_global_modifier(vis, name, data):
         return
 
 
-def _run_room_modifier(vis, name, data):
+@shared_task(bind=True)
+def _run_room_modifier(self, url: str, token: str, data):
+    name = data["method"]["discriminator"]
+    vis = get_vis_obj(
+        url,
+        token,
+        queue_name="custom",
+        request_id=self.request.id,
+    )
     with Session() as ses:
         room = ses.query(db_schema.Room).filter_by(token=vis.token).first()
         room_modifier = (
@@ -461,51 +504,45 @@ def _run_room_modifier(vis, name, data):
         vis.socket.emit("celery:task:emit", asdict(msg))
 
 
-@shared_task
+@shared_task(bind=True)
+def _run_default_modifier(self, url: str, token: str, data):
+    vis = get_vis_obj(
+        url,
+        token,
+        queue_name="fast",
+        request_id=self.request.id,
+    )
+    config = GlobalConfig.load()
+    cls = get_modify_class(config.get_modify_methods())
+    modifier = cls(**data)
+
+    try:
+        modifier.run(vis)
+    except Exception as err:
+        vis.log(f"Error: {err}")
+
+    msg = CeleryTaskData(
+        target=f"webclients_{vis.token}",
+        event="modifier:run:finished",
+        data=None,
+        disconnect=True,
+    )
+
+    vis.socket.emit("celery:task:emit", asdict(msg))
+
+
 def run_modifier(url: str, token: str, data: dict):
-    vis = ZnDraw(url=url, token=token)
-
-    def on_finished():
-        # TODO: disconnect the modifier, release the worker
-        vis.socket.disconnect()
-
-    vis.socket.on("modifier:run:finished", on_finished)
-
-    NAME = data["method"]["discriminator"]
-
+    name = data["method"]["discriminator"]
     with Session() as ses:
         room = ses.query(db_schema.Room).filter_by(token=token).first()
         room_modifiers = ses.query(db_schema.RoomModifier).filter_by(room=room).all()
         modifiers = ses.query(db_schema.GlobalModifier).all()
-        names = [modifier.name for modifier in modifiers]
-        room_modifiers = [modifier.name for modifier in room_modifiers]
+        custom_global_modifiers = [modifier.name for modifier in modifiers]
 
-    if NAME in names:
-        run_global_modifier(vis, NAME, data)
-    elif NAME in room_modifiers:
-        _run_room_modifier(vis, NAME, data)
+    if name in custom_global_modifiers:
+        _run_global_modifier.delay(url, token, data)
+    elif name in room_modifiers:
+        _run_room_modifier.delay(url, token, data)
     else:
-        msg = CeleryTaskData(
-            target=f"webclients_{vis.token}", event="modifier:run:running", data=None
-        )
-
-        vis.socket.emit("celery:task:emit", asdict(msg))
-
-        config = GlobalConfig.load()
-        cls = get_modify_class(config.get_modify_methods())
-
-        modifier = cls(**data)
-
-        try:
-            modifier.run(vis)
-        except Exception as err:
-            vis.log(f"Error: {err}")
-
-        msg = CeleryTaskData(
-            target=f"webclients_{vis.token}",
-            event="modifier:run:finished",
-            data=None,
-            disconnect=True,
-        )
-
-        vis.socket.emit("celery:task:emit", asdict(msg))
+        _run_default_modifier.delay(url, token, data)
+    return

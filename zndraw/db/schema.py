@@ -126,3 +126,21 @@ class RoomModifierClient(Base):
 
     modifier = Column(String, ForeignKey("room_modifiers.id"))
     room_modifier = relationship("RoomModifier", back_populates="room_modifier_clients")
+
+
+class Queue(Base):
+    __tablename__ = "queues"
+
+    name = Column(String, primary_key=True)
+
+    jobs = relationship("QueueItem", back_populates="queue")
+
+
+class QueueItem(Base):
+    __tablename__ = "queue_items"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    job_id = Column(String)
+
+    queue_name = Column(Integer, ForeignKey("queues.name"))
+    queue = relationship("Queue", back_populates="jobs")

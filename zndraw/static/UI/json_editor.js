@@ -173,13 +173,12 @@ function modifier_editor(socket, cache, world) {
   //   }, 1000);
   // });
 
-  // socket.on("modifier:run:enqueue", (position) => {
-  //   console.log(new Date().toISOString(), "modifier:run:enqueue");
-  //   document.getElementById("interaction-json-editor-submit").disabled = true;
-  //   document.getElementById("interaction-json-editor-submit").innerHTML =
-  //     '<i class="fa-solid fa-hourglass-start"></i> Job queued at position ' +
-  //     position;
-  // });
+  socket.on("modifier:queue:update", (position) => {
+    document.getElementById("interaction-json-editor-submit").disabled = true;
+    document.getElementById("interaction-json-editor-submit").innerHTML =
+      '<i class="fa-solid fa-hourglass-start"></i> Job queued at position ' +
+      position;
+  });
 
   // Check if a running response is received
   socket.on("modifier:run:running", () => {
