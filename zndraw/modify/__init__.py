@@ -2,6 +2,7 @@ import abc
 import enum
 import logging
 import typing as t
+import time
 
 import ase
 import numpy as np
@@ -54,6 +55,7 @@ class Rotate(UpdateScene):
     steps: int = Field(
         30, ge=1, description="Number of steps to take to complete the rotation"
     )
+    sleep: float = Field(0.1, ge=0, description="Sleep time between steps")
 
     def run(self, vis: "ZnDraw", **kwargs) -> None:
         # split atoms object into the selected from atoms_ids and the remaining
@@ -77,6 +79,7 @@ class Rotate(UpdateScene):
             # merge the selected and remaining atoms
             atoms = atoms_selected + atoms_remaining
             vis.append(atoms)
+            time.sleep(self.sleep)
         vis.selection = []
 
 

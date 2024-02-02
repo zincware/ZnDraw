@@ -519,6 +519,12 @@ def _run_default_modifier(self, url: str, token: str, data):
     cls = get_modify_class(config.get_modify_methods())
     modifier = cls(**data)
 
+    msg = CeleryTaskData(
+        target=f"webclients_{vis.token}", event="modifier:run:running", data=None
+    )
+
+    vis.socket.emit("celery:task:emit", asdict(msg))
+
     try:
         modifier.run(vis)
     except Exception as err:
