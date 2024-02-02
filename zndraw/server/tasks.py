@@ -9,11 +9,10 @@ import znframe
 import znh5md
 from celery import shared_task
 from socketio import Client
-from sqlalchemy import create_engine
-from sqlalchemy.orm import Session
 
 from zndraw.analyse import get_analysis_class
 from zndraw.db import schema as db_schema
+from zndraw.db import Session
 from zndraw.draw import Geometry
 from zndraw.modify import get_modify_class
 from zndraw.select import get_selection_class
@@ -25,9 +24,6 @@ from ..app import cache
 from ..data import CeleryTaskData, FrameData
 
 log = logging.getLogger(__name__)
-
-DB_PATH = GlobalConfig.load().database.get_path()
-engine = create_engine(f"sqlite:///{DB_PATH}")
 
 
 def get_client(url) -> Client:
@@ -167,7 +163,7 @@ def modifier_schema(url: str, token: str):
     config = GlobalConfig.load()
     include = []
 
-    with Session(engine) as ses:
+    with Session() as ses:
         room = ses.query(db_schema.Room).filter_by(token=token).first()
         room_modifiers = ses.query(db_schema.RoomModifier).filter_by(room=room).all()
         modifiers = ses.query(db_schema.GlobalModifier).all()
@@ -222,7 +218,7 @@ def read_file(url: str, target: str, token: str):
     vis = ZnDraw(url=url, token=token)
     con = vis.socket
 
-    with Session(engine) as ses:
+    with Session() as ses:
         room = ses.query(db_schema.Room).filter_by(token=token).first()
         # get all frames and iterate over them
         frames = ses.query(db_schema.Frame).filter_by(room=room)
@@ -356,11 +352,11 @@ def run_analysis(url: str, token: str, data: dict):
     vis.socket.emit("celery:task:emit", asdict(msg))
 
 
-def run_global_modifier(vis, NAME, data):
+def run_global_modifier(vis, name, data):
     while True:
-        with Session(engine) as ses:
+        with Session() as ses:
             # get the available hosts for the modifier
-            modifier = ses.query(db_schema.GlobalModifier).filter_by(name=NAME).first()
+            modifier = ses.query(db_schema.GlobalModifier).filter_by(name=name).first()
             host = (
                 ses.query(db_schema.GlobalModifierClient)
                 .filter_by(global_modifier=modifier, available=True)
@@ -381,7 +377,7 @@ def run_global_modifier(vis, NAME, data):
             msg = CeleryTaskData(
                 target=f"webclients_{vis.token}",
                 event="message:alert",
-                data=f"Could not find any available modifier for {NAME}.",
+                data=f"Could not find any available modifier for {name}.",
                 disconnect=True,
             )
             vis.socket.emit("celery:task:emit", asdict(msg))
@@ -403,6 +399,8 @@ def run_global_modifier(vis, NAME, data):
         # add additional 5 seconds for communication overhead
         for _ in range(int(host.timeout + 5)):
             if vis.socket.connected:
+                # We have seen that socket.connected is not always reliable
+                # if there are timeout issues, check here
                 vis.socket.sleep(1)
             else:
                 log.critical("Modifier finished")
@@ -412,7 +410,7 @@ def run_global_modifier(vis, NAME, data):
         msg = CeleryTaskData(
             target=f"webclients_{vis.token}",
             event="message:alert",
-            data=f"Modifier {NAME} did not finish in time.",
+            data=f"Modifier {name} did not finish in time.",
         )
         vis.socket.emit("celery:task:emit", asdict(msg))
 
@@ -438,7 +436,7 @@ def run_modifier(url: str, token: str, data: dict):
 
     NAME = data["method"]["discriminator"]
 
-    with Session(engine) as ses:
+    with Session() as ses:
         room = ses.query(db_schema.Room).filter_by(token=token).first()
         room_modifiers = ses.query(db_schema.RoomModifier).filter_by(room=room).all()
         modifiers = ses.query(db_schema.GlobalModifier).all()

@@ -8,10 +8,10 @@ from celery import chain
 from flask import current_app, request, session
 from flask_socketio import call, emit, join_room
 from socketio.exceptions import TimeoutError
-from sqlalchemy import create_engine
-from sqlalchemy.orm import Session
+
 
 from zndraw.db import schema as db_schema
+from zndraw.db import Session
 from zndraw.server import tasks
 from zndraw.settings import GlobalConfig
 from zndraw.utils import typecast
@@ -36,8 +36,37 @@ log = logging.getLogger(__name__)
 
 modifier_lock = Lock()
 
-DB_PATH = GlobalConfig.load().database.get_path()
-engine = create_engine(f"sqlite:///{DB_PATH}")
+def _update_atoms(token: str, index: int, data: dict) -> None:
+    """Update the atoms in the database.
+    
+    Attributes
+    ----------
+    token : str
+        The token of the room.
+    index : int
+        The index of the frame.
+    data : dict
+        The data of the frame.
+    """
+    with Session() as ses:
+        room = ses.query(db_schema.Room).filter_by(token=token).first()
+        # check if the index is already in the db
+        frame = (
+            ses.query(db_schema.Frame)
+            .filter_by(index=index, room=room)
+            .first()
+        )
+        if frame is not None:
+            # if so, update the data
+            frame.data = data
+        else:
+            # create a db_schema.Frame
+            frame = db_schema.Frame(
+                index=index, data=data, room=room
+            )
+            ses.add(frame)
+        ses.commit()
+    
 
 
 def get_main_room_host(token: str) -> str:
@@ -169,13 +198,8 @@ def connect():
         join_room(f"{token}")
         # who ever connected latest is the HOST of the room
 
-        # with Session(engine) as session:
-        #     session.add(some_object)
-        #     session.add(some_other_object)
-        #     session.commit()
-
         # check if there is a db_schema.Room with the given toke, if not create one
-        with Session(engine) as ses:
+        with Session() as ses:
             room = ses.query(db_schema.Room).filter_by(token=token).first()
             if room is None:
                 room = db_schema.Room(
@@ -243,24 +267,7 @@ def connect():
 def celery_task_results(msg: CeleryTaskData):
     token = str(session["token"])
     if msg.event == "atoms:upload":
-        with Session(engine) as ses:
-            room = ses.query(db_schema.Room).filter_by(token=token).first()
-            # check if the index is already in the db
-            frame = (
-                ses.query(db_schema.Frame)
-                .filter_by(index=msg.data["index"], room=room)
-                .first()
-            )
-            if frame is not None:
-                # if so, update the data
-                frame.data = msg.data["data"]
-            else:
-                # create a db_schema.Frame
-                frame = db_schema.Frame(
-                    index=msg.data["index"], data=msg.data["data"], room=room
-                )
-                ses.add(frame)
-            ses.commit()
+        _update_atoms(token, msg.data["index"], msg.data["data"])
     emit(msg.event, msg.data, to=msg.target)
     if msg.disconnect:
         io.server.disconnect(request.sid)
@@ -290,7 +297,7 @@ def disconnect():
 
     # pyclients only
     # check if the SID is in MODIFIER_HOSTS or ROOM_MODIFIER_HOSTS
-    with Session(engine) as ses:
+    with Session() as ses:
         global_modifier_client = (
             ses.query(db_schema.GlobalModifierClient).filter_by(sid=request.sid).all()
         )
@@ -366,7 +373,7 @@ def scene_set(data: SceneSetData):
 @io.on("scene:step")
 def scene_step():
     token = str(session["token"])
-    with Session(engine) as ses:
+    with Session() as ses:
         room = ses.query(db_schema.Room).filter_by(token=token).first()
         if room is None:
             raise ValueError("No room found for token.")
@@ -378,7 +385,7 @@ def atoms_download(indices: list[int]):
     token = str(session["token"])
 
     data = {}
-    with Session(engine) as ses:
+    with Session() as ses:
         room = ses.query(db_schema.Room).filter_by(token=token).first()
         if room is None:
             raise ValueError("No room found for token.")
@@ -396,19 +403,7 @@ def atoms_download(indices: list[int]):
 @typecast
 def atoms_upload(data: FrameData):
     token = str(session["token"])
-    with Session(engine) as ses:
-        room = ses.query(db_schema.Room).filter_by(token=token).first()
-        frame = (
-            ses.query(db_schema.Frame).filter_by(index=data.index, room=room).first()
-        )
-        if frame is not None:
-            # if so, update the data
-            frame.data = data.data
-        else:
-            # create a db_schema.Frame
-            frame = db_schema.Frame(index=data.index, data=data.data, room=room)
-            ses.add(frame)
-        ses.commit()
+    _update_atoms(token, data.index, data.data)
     emit(
         "atoms:upload",
         dataclasses.asdict(data),
@@ -427,7 +422,7 @@ def atoms_delete(data: DeleteAtomsData):
         include_self=False,
         to=f"webclients_{session['token']}",
     )
-    with Session(engine) as ses:
+    with Session() as ses:
         room = ses.query(db_schema.Room).filter_by(token=token).first()
         ses.query(db_schema.Frame).filter(
             db_schema.Frame.index.in_(data.index), db_schema.Frame.room == room
@@ -438,7 +433,7 @@ def atoms_delete(data: DeleteAtomsData):
 @io.on("atoms:length")
 def atoms_length():
     token = str(session["token"])
-    with Session(engine) as ses:
+    with Session() as ses:
         room = ses.query(db_schema.Room).filter_by(token=token).first()
         return ses.query(db_schema.Frame).filter_by(room=room).count()
 
@@ -470,7 +465,7 @@ def draw_schema(data: SchemaData):
 @io.on("points:get")
 def scene_points():
     token = str(session["token"])
-    with Session(engine) as ses:
+    with Session() as ses:
         room = ses.query(db_schema.Room).filter_by(token=token).first()
         if room is None:
             raise ValueError("No room found for token.")
@@ -485,7 +480,7 @@ def scene_segments():
 @io.on("selection:get")
 def selection_get():
     token = str(session["token"])
-    with Session(engine) as ses:
+    with Session() as ses:
         room = ses.query(db_schema.Room).filter_by(token=token).first()
         if room is None:
             raise ValueError("No room found for token.")
@@ -501,7 +496,7 @@ def selection_set(data: list[int]):
         include_self=False,
         to=f"webclients_{token}",
     )
-    with Session(engine) as ses:
+    with Session() as ses:
         room = ses.query(db_schema.Room).filter_by(token=token).first()
         if room is None:
             raise ValueError("No room found for token.")
@@ -535,7 +530,7 @@ def scene_pause():
 @io.on("bookmarks:get")
 def bookmarks_get():
     token = str(session["token"])
-    with Session(engine) as ses:
+    with Session() as ses:
         room = ses.query(db_schema.Room).filter_by(token=token).first()
         if room is None:
             raise ValueError("No room found for token.")
@@ -552,7 +547,7 @@ def bookmarks_set(data: dict):
         include_self=False,
         to=f"webclients_{token}",
     )
-    with Session(engine) as ses:
+    with Session() as ses:
         room = ses.query(db_schema.Room).filter_by(token=token).first()
         if room is None:
             raise ValueError("No room found for token.")
@@ -570,7 +565,7 @@ def bookmarks_set(data: dict):
 def points_set(data: list[list[float]]):
     token = str(session["token"])
     emit("points:set", data, include_self=False, to=f"webclients_{token}")
-    with Session(engine) as ses:
+    with Session() as ses:
         room = ses.query(db_schema.Room).filter_by(token=token).first()
         if room is None:
             raise ValueError("No room found for token.")
@@ -622,7 +617,7 @@ def scene_update(data: SceneUpdateData):
             include_self=False,
             to=step_subscribers,
         )
-        with Session(engine) as ses:
+        with Session() as ses:
             room = ses.query(db_schema.Room).filter_by(token=token).first()
             if room is None:
                 raise ValueError("No room found for token.")
@@ -690,7 +685,7 @@ def modifier_register(data: ModifierRegisterData):
 
     # TODO: do not allow modifiers that are already in defaults, handle duplicates better!
 
-    with Session(engine) as ses:
+    with Session() as ses:
         global_modifier = (
             ses.query(db_schema.GlobalModifier).filter_by(name=data.name).first()
         )
@@ -749,7 +744,7 @@ def modifier_register(data: ModifierRegisterData):
 @io.on("modifier:available")
 def modifier_available(available: bool):
     """Update the modifier availability."""
-    with Session(engine) as ses:
+    with Session() as ses:
         global_modifier_client = (
             ses.query(db_schema.GlobalModifierClient).filter_by(sid=request.sid).first()
         )

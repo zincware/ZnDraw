@@ -88,10 +88,10 @@ class CeleryConfig(pydantic.BaseModel):
 class DatabaseConfig(pydantic.BaseModel):
     path: str = "~/.zincware/zndraw/database.sqlite"
 
-    def get_path(self) -> pathlib.Path:
+    def get_path(self) -> str:
         path = pathlib.Path(self.path).expanduser()
         path.parent.mkdir(parents=True, exist_ok=True)
-        return path
+        return f"sqlite:///{path}"
 
 
 class GlobalConfig(pydantic.BaseModel):

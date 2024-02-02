@@ -8,6 +8,7 @@ from flask import Flask
 from flask_caching import Cache
 from flask_socketio import SocketIO
 from sqlalchemy import create_engine
+import pathlib
 
 from zndraw.db.schema import Base
 
@@ -167,9 +168,9 @@ class ZnDrawServer:
         self.update_cache()
         self._workers = setup_worker()
 
-        DB_PATH = GlobalConfig.load().database.get_path()
-        DB_PATH.unlink(missing_ok=True)  # remove old database
-        engine = create_engine(f"sqlite:///{DB_PATH}")
+        config = GlobalConfig.load()
+        pathlib.Path(config.database.path).expanduser().unlink(missing_ok=True)
+        engine = create_engine(config.database.get_path())
         Base.metadata.create_all(engine)
 
         if browser:
