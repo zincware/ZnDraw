@@ -35,32 +35,6 @@ log = logging.getLogger(__name__)
 modifier_lock = Lock()
 
 
-def _update_atoms(token: str, index: int, data: dict) -> None:
-    """Update the atoms in the database.
-
-    Attributes
-    ----------
-    token : str
-        The token of the room.
-    index : int
-        The index of the frame.
-    data : dict
-        The data of the frame.
-    """
-    with Session() as ses:
-        room = ses.query(db_schema.Room).filter_by(token=token).first()
-        # check if the index is already in the db
-        frame = ses.query(db_schema.Frame).filter_by(index=index, room=room).first()
-        if frame is not None:
-            # if so, update the data
-            frame.data = data
-        else:
-            # create a db_schema.Frame
-            frame = db_schema.Frame(index=index, data=data, room=room)
-            ses.add(frame)
-        ses.commit()
-
-
 def _webclients_room(data: dict) -> str:
     """Return the room name for the webclients."""
     if isinstance(data, dict):
@@ -180,7 +154,7 @@ def celery_task_results(msg: CeleryTaskData):
     token = str(session["token"])
     if msg.event == "atoms:upload":
         if msg.data["update_database"]:
-            _update_atoms(token, msg.data["index"], msg.data["data"])
+            tasks.update_atoms.delay(token, msg.data["index"], msg.data["data"])
     emit(msg.event, msg.data, to=msg.target)
     if msg.disconnect:
         io.server.disconnect(request.sid)
@@ -346,7 +320,7 @@ def atoms_download(indices: list[int]):
 def atoms_upload(data: FrameData):
     token = str(session["token"])
     if data.update_database:
-        _update_atoms(token, data.index, data.data)
+        tasks.update_atoms.delay(token, data.index, data.data)
     emit(
         "atoms:upload",
         dataclasses.asdict(data),

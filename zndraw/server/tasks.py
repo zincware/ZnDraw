@@ -32,6 +32,32 @@ def get_client(url) -> Client:
     client.connect(url, wait_timeout=10)
     return client
 
+@shared_task
+def update_atoms(token: str, index: int, data: dict) -> None:
+    """Update the atoms in the database.
+
+    Attributes
+    ----------
+    token : str
+        The token of the room.
+    index : int
+        The index of the frame.
+    data : dict
+        The data of the frame.
+    """
+    with Session() as ses:
+        room = ses.query(db_schema.Room).filter_by(token=token).first()
+        # check if the index is already in the db
+        frame = ses.query(db_schema.Frame).filter_by(index=index, room=room).first()
+        if frame is not None:
+            # if so, update the data
+            frame.data = data
+        else:
+            # create a db_schema.Frame
+            frame = db_schema.Frame(index=index, data=data, room=room)
+            ses.add(frame)
+        ses.commit()
+
 
 @shared_task
 def get_selection_schema(url: str, target: str):
