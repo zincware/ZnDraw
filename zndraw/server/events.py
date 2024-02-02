@@ -181,8 +181,10 @@ def connect():
                     token=token, currentStep=0, points=[], selection=[]
                 )
                 ses.add(room)
-            
-            client = db_schema.Client(sid=request.sid, room=room, name=uuid4().hex[:8].upper())
+
+            client = db_schema.Client(
+                sid=request.sid, room=room, name=uuid4().hex[:8].upper()
+            )
             ses.add(client)
             ses.commit()
 
@@ -207,9 +209,7 @@ def connect():
         with Session() as ses:
             room = ses.query(db_schema.Room).filter_by(token=token).first()
             clients = ses.query(db_schema.Client).filter_by(room=room).all()
-            connected_users = [
-                {"name": client.name} for client in clients
-            ]
+            connected_users = [{"name": client.name} for client in clients]
 
         emit(
             "connectedUsers",
@@ -283,9 +283,7 @@ def disconnect():
     with Session() as ses:
         room = ses.query(db_schema.Room).filter_by(token=token).first()
         clients = ses.query(db_schema.Client).filter_by(room=room).all()
-        connected_users = [
-            {"name": client.name} for client in clients
-        ]
+        connected_users = [{"name": client.name} for client in clients]
 
     emit(
         "connectedUsers",
@@ -595,6 +593,7 @@ def connected_users_subscribe_step(data: SubscribedUserData):
     # TODO: step should always be in sync?
     token = str(session["token"])
 
+
 @io.on("connectedUsers:subscribe:camera")
 @typecast
 def connected_users_subscribe_camera(data: SubscribedUserData):
@@ -609,8 +608,13 @@ def connected_users_subscribe_camera(data: SubscribedUserData):
         if room is None:
             raise ValueError("No room found for token.")
         current_client = ses.query(db_schema.Client).filter_by(sid=request.sid).first()
-        controller_client = ses.query(db_schema.Client).filter_by(name=data.user).first()
-        if controller_client.sid == request.sid or controller_client.camera_controller == current_client:
+        controller_client = (
+            ses.query(db_schema.Client).filter_by(name=data.user).first()
+        )
+        if (
+            controller_client.sid == request.sid
+            or controller_client.camera_controller == current_client
+        ):
             current_client.camera_controller = None
         else:
             current_client.camera_controller = controller_client
