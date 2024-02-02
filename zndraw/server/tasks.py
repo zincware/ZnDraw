@@ -170,9 +170,11 @@ def modifier_schema(url: str, token: str):
 
         for modifier in modifiers:
             include.append(get_cls_from_json_schema(modifier.schema, modifier.name))
-        
+
         for room_modifier in room_modifiers:
-            include.append(get_cls_from_json_schema(room_modifier.schema, room_modifier.name))
+            include.append(
+                get_cls_from_json_schema(room_modifier.schema, room_modifier.name)
+            )
 
     cls = get_modify_class(
         config.get_modify_methods(include=include)

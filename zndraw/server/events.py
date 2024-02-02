@@ -14,7 +14,6 @@ from zndraw.db import schema as db_schema
 from zndraw.server import tasks
 from zndraw.utils import typecast
 
-from ..app import cache
 from ..app import socketio as io
 from ..data import (
     AnalysisFigureData,
@@ -705,9 +704,13 @@ def _register_room_modifier(data):
         room = ses.query(db_schema.Room).filter_by(token=token).first()
         if room is None:
             raise ValueError("No room found for token.")
-        room_modifier = ses.query(db_schema.RoomModifier).filter_by(name=data.name).first()
+        room_modifier = (
+            ses.query(db_schema.RoomModifier).filter_by(name=data.name).first()
+        )
         if room_modifier is None:
-            room_modifier = db_schema.RoomModifier(name=data.name, schema=data.schema, room=room)
+            room_modifier = db_schema.RoomModifier(
+                name=data.name, schema=data.schema, room=room
+            )
             ses.add(room_modifier)
         elif room_modifier.schema != data.schema:
             log.critical(
@@ -723,6 +726,7 @@ def _register_room_modifier(data):
         )
         ses.add(room_modifier_client)
         ses.commit()
+
 
 @io.on("modifier:register")
 @typecast
