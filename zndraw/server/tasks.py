@@ -423,6 +423,39 @@ def run_global_modifier(vis, name, data):
         vis.socket.emit("celery:task:emit", asdict(msg))
         return
 
+def _run_room_modifier(vis, name, data):
+    with Session() as ses:
+        room = ses.query(db_schema.Room).filter_by(token=vis.token).first()
+        room_modifier = (
+            ses.query(db_schema.RoomModifier)
+            .filter_by(room=room, name=name)
+            .first()
+        )
+        hosts = ses.query(db_schema.RoomModifierClient).filter_by(room_modifier=room_modifier).first()
+        if hosts is None:
+            msg = CeleryTaskData(
+                target=f"webclients_{vis.token}",
+                event="modifier:run:finished",
+                data=None,
+            )
+            vis.socket.emit("celery:task:emit", asdict(msg))
+            msg = CeleryTaskData(
+                target=f"webclients_{vis.token}",
+                event="message:alert",
+                data=f"Could not find any available modifier for {name}.",
+                disconnect=True,
+            )
+            vis.socket.emit("celery:task:emit", asdict(msg))
+            return
+
+        # run the modifier
+        msg = CeleryTaskData(
+            target=hosts.sid,
+            event="modifier:run",
+            data={"params": data, "token": vis.token},
+            disconnect=True,
+        )
+        vis.socket.emit("celery:task:emit", asdict(msg))
 
 @shared_task
 def run_modifier(url: str, token: str, data: dict):
@@ -441,42 +474,12 @@ def run_modifier(url: str, token: str, data: dict):
         room_modifiers = ses.query(db_schema.RoomModifier).filter_by(room=room).all()
         modifiers = ses.query(db_schema.GlobalModifier).all()
         names = [modifier.name for modifier in modifiers]
-
-    ROOM_MODIFIER_HOSTS = cache.get("ROOM_MODIFIER_HOSTS")
+        room_modifiers = [modifier.name for modifier in room_modifiers]
 
     if NAME in names:
         run_global_modifier(vis, NAME, data)
-    elif NAME in ROOM_MODIFIER_HOSTS.get(vis.token, []):
-        # TODO!!!
-        _available = cache.get("MODIFIER_AVAILABLE")
-        for pyclient in ROOM_MODIFIER_HOSTS[vis.token][NAME]:
-            if _available.get(pyclient, False):
-                # run the modifier
-                msg = CeleryTaskData(
-                    target=pyclient,
-                    event="modifier:run",
-                    data={"params": data, "token": token},
-                    disconnect=True,
-                )
-                vis.socket.emit("celery:task:emit", asdict(msg))
-                # TODO: Do we want to support the timeout here?
-        else:
-            msg = CeleryTaskData(
-                target=f"webclients_{vis.token}",
-                event="modifier:run:finished",
-                data=None,
-            )
-            vis.socket.emit("celery:task:emit", asdict(msg))
-
-            msg = CeleryTaskData(
-                target=f"webclients_{vis.token}",
-                event="message:alert",
-                data=f"All modifiers registerd for {NAME} are busy - Please try again.",
-                disconnect=True,
-            )
-            vis.socket.emit("celery:task:emit", asdict(msg))
-            return
-
+    elif NAME in room_modifiers:
+        _run_room_modifier(vis, NAME, data)
     else:
         msg = CeleryTaskData(
             target=f"webclients_{vis.token}", event="modifier:run:running", data=None
