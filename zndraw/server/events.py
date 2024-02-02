@@ -9,11 +9,9 @@ from flask import current_app, request, session
 from flask_socketio import call, emit, join_room
 from socketio.exceptions import TimeoutError
 
-
-from zndraw.db import schema as db_schema
 from zndraw.db import Session
+from zndraw.db import schema as db_schema
 from zndraw.server import tasks
-from zndraw.settings import GlobalConfig
 from zndraw.utils import typecast
 
 from ..app import cache
@@ -36,9 +34,10 @@ log = logging.getLogger(__name__)
 
 modifier_lock = Lock()
 
+
 def _update_atoms(token: str, index: int, data: dict) -> None:
     """Update the atoms in the database.
-    
+
     Attributes
     ----------
     token : str
@@ -51,22 +50,15 @@ def _update_atoms(token: str, index: int, data: dict) -> None:
     with Session() as ses:
         room = ses.query(db_schema.Room).filter_by(token=token).first()
         # check if the index is already in the db
-        frame = (
-            ses.query(db_schema.Frame)
-            .filter_by(index=index, room=room)
-            .first()
-        )
+        frame = ses.query(db_schema.Frame).filter_by(index=index, room=room).first()
         if frame is not None:
             # if so, update the data
             frame.data = data
         else:
             # create a db_schema.Frame
-            frame = db_schema.Frame(
-                index=index, data=data, room=room
-            )
+            frame = db_schema.Frame(index=index, data=data, room=room)
             ses.add(frame)
         ses.commit()
-    
 
 
 def get_main_room_host(token: str) -> str:

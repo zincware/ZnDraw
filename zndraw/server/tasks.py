@@ -11,8 +11,8 @@ from celery import shared_task
 from socketio import Client
 
 from zndraw.analyse import get_analysis_class
-from zndraw.db import schema as db_schema
 from zndraw.db import Session
+from zndraw.db import schema as db_schema
 from zndraw.draw import Geometry
 from zndraw.modify import get_modify_class
 from zndraw.select import get_selection_class

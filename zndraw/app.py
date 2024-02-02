@@ -1,4 +1,5 @@
 import dataclasses
+import pathlib
 import subprocess
 import uuid
 import webbrowser
@@ -8,7 +9,6 @@ from flask import Flask
 from flask_caching import Cache
 from flask_socketio import SocketIO
 from sqlalchemy import create_engine
-import pathlib
 
 from zndraw.db.schema import Base
 
