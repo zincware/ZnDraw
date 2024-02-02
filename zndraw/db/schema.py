@@ -97,7 +97,7 @@ class GlobalModifierClient(Base):
     timeout = Column(Float)
     available = Column(Boolean)
 
-    modifier = Column(String, ForeignKey("global_modifiers.id"))
+    modifier = Column(Integer, ForeignKey("global_modifiers.id"))
     global_modifier = relationship(
         "GlobalModifier", back_populates="global_modifier_clients"
     )
@@ -124,7 +124,7 @@ class RoomModifierClient(Base):
     timeout = Column(Float)
     available = Column(Boolean)
 
-    modifier = Column(String, ForeignKey("room_modifiers.id"))
+    modifier = Column(Integer, ForeignKey("room_modifiers.id"))
     room_modifier = relationship("RoomModifier", back_populates="room_modifier_clients")
 
 
@@ -142,5 +142,5 @@ class QueueItem(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     job_id = Column(String)
 
-    queue_name = Column(Integer, ForeignKey("queues.name"))
+    queue_name = Column(String, ForeignKey("queues.name"))
     queue = relationship("Queue", back_populates="jobs")
