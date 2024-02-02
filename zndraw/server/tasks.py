@@ -360,22 +360,22 @@ def run_global_modifier(vis, NAME, data):
     while True:
         with Session(engine) as ses:
             # get the available hosts for the modifier
-            modifier = (
-                ses.query(db_schema.GlobalModifier).filter_by(name=NAME).first()
-            )
+            modifier = ses.query(db_schema.GlobalModifier).filter_by(name=NAME).first()
             host = (
                 ses.query(db_schema.GlobalModifierClient)
                 .filter_by(global_modifier=modifier, available=True)
                 .first()
             )
-            assigned_hosts = ses.query(db_schema.GlobalModifierClient).filter_by(
-                global_modifier=modifier
-            ).count()
+            assigned_hosts = (
+                ses.query(db_schema.GlobalModifierClient)
+                .filter_by(global_modifier=modifier)
+                .count()
+            )
         if assigned_hosts == 0:
             msg = CeleryTaskData(
-            target=f"webclients_{vis.token}",
-            event="modifier:run:finished",
-            data=None,
+                target=f"webclients_{vis.token}",
+                event="modifier:run:finished",
+                data=None,
             )
             vis.socket.emit("celery:task:emit", asdict(msg))
             msg = CeleryTaskData(
@@ -386,7 +386,7 @@ def run_global_modifier(vis, NAME, data):
             )
             vis.socket.emit("celery:task:emit", asdict(msg))
             return
-        
+
         if host is None:
             vis.socket.sleep(1)
             log.critical("No modifier available")
@@ -424,6 +424,7 @@ def run_global_modifier(vis, NAME, data):
         )
         vis.socket.emit("celery:task:emit", asdict(msg))
         return
+
 
 @shared_task
 def run_modifier(url: str, token: str, data: dict):
