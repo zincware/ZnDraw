@@ -4,12 +4,12 @@ import ase
 import numpy as np
 from znframe.frame import Frame as ZnFrame
 
+from zndraw.data import RoomSetData
+
 from .base import ZnDrawBase
 from .db import Session
 from .db.schema import Bookmark, Frame, Room
 from .server.utils import get_room_by_token
-from zndraw.data import RoomSetData
-from zndraw.utils import typecast_kwargs
 
 
 def _any_to_list(
@@ -157,7 +157,7 @@ class ZnDrawWorker(ZnDrawBase):
             room = get_room_by_token(session, self.token)
             room.currentStep = idx
             session.commit()
-        
+
         self.socket.emit("room:set", RoomSetData(step=idx).to_dict())
 
     @property
@@ -172,7 +172,7 @@ class ZnDrawWorker(ZnDrawBase):
             room = get_room_by_token(session, self.token)
             room.selection = value
             session.commit()
-        
+
         self.socket.emit("room:set", RoomSetData(selection=value).to_dict())
 
     @property
@@ -191,7 +191,7 @@ class ZnDrawWorker(ZnDrawBase):
                 bookmark = Bookmark(step=step, text=text, room=room)
                 session.add(bookmark)
             session.commit()
-        
+
         self.socket.emit("room:set", RoomSetData(bookmarks=value).to_dict())
 
     def insert(self, index: int, atoms: ase.Atoms | ZnFrame):

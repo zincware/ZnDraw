@@ -7,11 +7,11 @@ from ase.collections import s22
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
+from zndraw.data import RoomSetData
 from zndraw.db import schema
 from zndraw.db.schema import Base
-from zndraw.zndraw_worker import ZnDrawWorker
-from zndraw.data import RoomSetData
 from zndraw.utils import typecast
+from zndraw.zndraw_worker import ZnDrawWorker
 
 s22 = list(s22)
 
@@ -136,6 +136,7 @@ def test_zndraw_worker_set(room_session, sio_server):
         worker.bookmarks = {2: "bm-3", 3: "bm-4"}
         assert worker.bookmarks == {2: "bm-3", 3: "bm-4"}
 
+
 def test_set_bookmarks(room_session, sio_server):
     with mock.patch("zndraw.zndraw_worker.Session", room_session):
         worker = ZnDrawWorker(token="test_token", url=sio_server)
@@ -146,7 +147,7 @@ def test_set_bookmarks(room_session, sio_server):
         def on_answer(data: RoomSetData):
             global answer
             answer = data
-        
+
         worker.socket.on("room:set", on_answer)
 
         worker.bookmarks = {2: "bm-3", 3: "bm-4"}
@@ -154,6 +155,7 @@ def test_set_bookmarks(room_session, sio_server):
         # TODO: keys being converted to strings somewhere
         assert answer.bookmarks == {"2": "bm-3", "3": "bm-4"}
         assert worker.bookmarks == {2: "bm-3", 3: "bm-4"}
+
 
 def test_set_step(room_session, sio_server):
     with mock.patch("zndraw.zndraw_worker.Session", room_session):
@@ -165,13 +167,14 @@ def test_set_step(room_session, sio_server):
         def on_answer(data: RoomSetData):
             global answer
             answer = data
-        
+
         worker.socket.on("room:set", on_answer)
 
         worker.step = 6
         worker.socket.sleep(0.1)
         assert answer.step == 6
         assert worker.step == 6
+
 
 def test_set_selection(room_session, sio_server):
     with mock.patch("zndraw.zndraw_worker.Session", room_session):
@@ -183,13 +186,14 @@ def test_set_selection(room_session, sio_server):
         def on_answer(data: RoomSetData):
             global answer
             answer = data
-        
+
         worker.socket.on("room:set", on_answer)
 
         worker.selection = [2, 3]
         worker.socket.sleep(0.1)
         assert answer.selection == [2, 3]
         assert worker.selection == [2, 3]
+
 
 def test_set_points(room_session, sio_server):
     with mock.patch("zndraw.zndraw_worker.Session", room_session):
@@ -201,13 +205,14 @@ def test_set_points(room_session, sio_server):
         def on_answer(data: RoomSetData):
             global answer
             answer = data
-        
+
         worker.socket.on("room:set", on_answer)
 
         worker.points = [[1, 1, 1], [2, 2, 2]]
         worker.socket.sleep(0.1)
         npt.assert_array_equal(answer.points, [[1, 1, 1], [2, 2, 2]])
         npt.assert_array_equal(worker.points, [[1, 1, 1], [2, 2, 2]])
+
 
 def test_set_atoms(room_session, sio_server):
     with mock.patch("zndraw.zndraw_worker.Session", room_session):
@@ -238,3 +243,4 @@ def test_set_atoms(room_session, sio_server):
         assert answer.frames["23"] == znframe.Frame.from_atoms(s22[12]).to_dict(built_in_types=False)
         assert worker[22] == s22[11]
         assert worker[23] == s22[12]
+
