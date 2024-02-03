@@ -116,3 +116,20 @@ def test_zndraw_worker_set_atoms(room_session):
 
         with pytest.raises(IndexError):
             worker.insert(5, s22[0])
+
+def test_zndraw_worker_set(room_session):
+    with mock.patch("zndraw.zndraw_worker.Session", room_session):
+        worker = ZnDrawWorker(token="test_token", socket=None)
+        assert worker.step == 5
+        worker.step = 6
+        assert worker.step == 6
+        assert worker.selection == [1, 2]
+        worker.selection = [2, 3]
+        assert worker.selection == [2, 3]
+        npt.assert_array_equal(worker.points, [[0, 0, 0], [1, 1, 1]])
+        worker.points = [[1, 1, 1], [2, 2, 2]]
+        npt.assert_array_equal(worker.points, [[1, 1, 1], [2, 2, 2]])
+        assert worker.bookmarks == {1: "bm-1", 2: "bm-2"}
+        worker.bookmarks = {2: "bm-3", 3: "bm-4"}
+        assert worker.bookmarks == {2: "bm-3", 3: "bm-4"}
+

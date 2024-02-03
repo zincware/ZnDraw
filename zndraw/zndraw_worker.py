@@ -6,7 +6,7 @@ from znframe.frame import Frame as ZnFrame
 
 from .base import ZnDrawBase
 from .db import Session
-from .db.schema import Frame, Room
+from .db.schema import Frame, Room, Bookmark
 from .server.utils import get_room_by_token
 
 
@@ -131,7 +131,7 @@ class ZnDrawWorker(ZnDrawBase):
             room.points = value  # type: ignore
             session.commit()
 
-        self.socket.emit("points:set", value)
+        # self.socket.emit("points:set", value)
 
     @property
     def segments(self) -> np.ndarray:
@@ -151,10 +151,10 @@ class ZnDrawWorker(ZnDrawBase):
             raise IndexError(f"Index {idx} out of range")
         with Session() as session:
             room = get_room_by_token(session, self.token)
-            room.step = idx
+            room.currentStep = idx
             session.commit()
 
-        self.socket.emit("room:set", idx)
+        # self.socket.emit("room:set", idx)
 
     @property
     def selection(self) -> Union[List[int], List[None]]:
@@ -169,7 +169,7 @@ class ZnDrawWorker(ZnDrawBase):
             room.selection = value
             session.commit()
 
-        self.socket.emit("selection:set", value)
+        # self.socket.emit("selection:set", value)
 
     @property
     def bookmarks(self) -> dict:
@@ -178,13 +178,17 @@ class ZnDrawWorker(ZnDrawBase):
             return {bm.step: bm.text for bm in room.bookmarks}
 
     @bookmarks.setter
-    def bookmarks(self, value: dict):
+    def bookmarks(self, value: dict) -> None:
         with Session() as session:
             room = get_room_by_token(session, self.token)
-            room.bookmarks = value
+            # delete all bookmarks
+            session.query(Bookmark).filter_by(room=room).delete()
+            for step, text in value.items():
+                bookmark = Bookmark(step=step, text=text, room=room)
+                session.add(bookmark)
             session.commit()
 
-        self.socket.emit("bookmarks:set", value)
+        # self.socket.emit("bookmarks:set", value)
 
     def insert(self, index: int, atoms: ase.Atoms | ZnFrame):
         if index < 0 or index > len(self):
