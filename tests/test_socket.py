@@ -39,6 +39,7 @@ def sio_client(app):
 def runner(app):
     return app.test_cli_runner()
 
+
 def test_socket_connection_test_client(sio_client):
     assert sio_client.emit("ping", callback=True) == "pong"
 
@@ -47,6 +48,7 @@ def test_socket_connection(sio_server):
     client = Client()
     client.connect(sio_server)
     assert client.call("ping") == "pong"
+
 
 def test_zndraw_worker_log(sio_server):
     worker = ZnDrawWorker(token="test_token", url=sio_server)

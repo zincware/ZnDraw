@@ -1,16 +1,16 @@
 import multiprocessing as mp
+import threading
 import time
 
 import ase.build
 import ase.collections
+import eventlet
 import pytest
+import socketio
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service as ChromeService
 from webdriver_manager.chrome import ChromeDriverManager
-import threading
 
-import eventlet
-import socketio
 from zndraw.app import ZnDrawServer
 from zndraw.utils import get_port
 
@@ -60,7 +60,6 @@ def server():
 
 @pytest.fixture()
 def sio_server():
-
     port = get_port()
 
     def run_server(port):
@@ -68,10 +67,10 @@ def sio_server():
         app = socketio.WSGIApp(sio)
 
         # react on every event
-        @sio.on('*')
+        @sio.on("*")
         def push_back(event, sid, data):
             sio.emit(event, data, to=sid)
-        
+
         @sio.on("ping")
         def ping(sid):
             return "pong"

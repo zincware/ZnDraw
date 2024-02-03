@@ -10,7 +10,7 @@ import socketio
 class ZnDrawBase(collections.abc.MutableSequence):
     token: str
     url: str
-    
+
     socket: socketio.Client = dataclasses.field(default_factory=socketio.Client)
 
     def __post_init__(self):

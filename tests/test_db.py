@@ -133,4 +133,3 @@ def test_zndraw_worker_set(room_session):
         assert worker.bookmarks == {1: "bm-1", 2: "bm-2"}
         worker.bookmarks = {2: "bm-3", 3: "bm-4"}
         assert worker.bookmarks == {2: "bm-3", 3: "bm-4"}
-
