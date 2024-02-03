@@ -1,11 +1,13 @@
 import dataclasses
+
 import numpy as np
 import znframe
+
 
 @dataclasses.dataclass
 class RoomSetData:
     """Update the room with new data.
-    
+
     Attributes
     ----------
     frames: dict[int, znframe.Frame | None]
@@ -13,6 +15,7 @@ class RoomSetData:
     update_database: bool
         Whether to update the database with the new data.
     """
+
     points: np.ndarray | None = None
     bookmarks: dict[int, str] | None = None
     step: int | None = None
@@ -20,7 +23,8 @@ class RoomSetData:
     frames: dict[int, znframe.Frame | None] | None = None
 
     update_database: bool = False
-    
+
+
 @dataclasses.dataclass
 class RoomGetData:
     points: bool = False
