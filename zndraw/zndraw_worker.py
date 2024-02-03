@@ -199,4 +199,4 @@ class ZnDrawWorker(ZnDrawBase):
         self.extend(data_after)
 
     def log(self, message: str):
-        raise NotImplementedError
+        self.socket.emit("message:log", message)

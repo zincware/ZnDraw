@@ -8,8 +8,13 @@ import socketio
 
 @dataclasses.dataclass
 class ZnDrawBase(collections.abc.MutableSequence):
-    socket: socketio.Client
     token: str
+    url: str
+    
+    socket: socketio.Client = dataclasses.field(default_factory=socketio.Client)
+
+    def __post_init__(self):
+        self.socket.connect(self.url)
 
     @abstractmethod
     def log(self, message: str):
