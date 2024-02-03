@@ -113,3 +113,6 @@ def test_zndraw_worker_set_atoms(room_session):
         worker.insert(0, s22[0])
         assert len(worker) == 4
         assert worker[:] == s22[0:4]
+
+        with pytest.raises(IndexError):
+            worker.insert(5, s22[0])

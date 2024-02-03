@@ -187,8 +187,9 @@ class ZnDrawWorker(ZnDrawBase):
 
         self.socket.emit("bookmarks:set", value)
 
-    def insert(self, index: int, atoms: ase.Atoms):
-        # use self and len for the inser
+    def insert(self, index: int, atoms: ase.Atoms | ZnFrame):
+        if index < 0 or index > len(self):
+            raise IndexError(f"Index {index} out of range")
         data_after = self[index:]
         self[index] = atoms
         del self[index + 1 :]
