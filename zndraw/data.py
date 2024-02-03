@@ -1,4 +1,35 @@
 import dataclasses
+import numpy as np
+import znframe
+
+@dataclasses.dataclass
+class RoomSetData:
+    """Update the room with new data.
+    
+    Attributes
+    ----------
+    frames: dict[int, znframe.Frame | None]
+        If the frame is None, it is deleted from the room.
+    update_database: bool
+        Whether to update the database with the new data.
+    """
+    points: np.ndarray | None = None
+    bookmarks: dict[int, str] | None = None
+    step: int | None = None
+    selection: list[int] | None = None
+    frames: dict[int, znframe.Frame | None] | None = None
+
+    update_database: bool = False
+    
+@dataclasses.dataclass
+class RoomGetData:
+    points: bool = False
+    bookmarks: bool = False
+    step: bool = False
+    selection: bool = False
+    length: bool = False
+    segments: bool = False
+    frames: list[int] | None = None
 
 
 @dataclasses.dataclass
