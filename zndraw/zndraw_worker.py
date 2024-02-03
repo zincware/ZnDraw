@@ -7,7 +7,7 @@ from znframe.frame import Frame as ZnFrame
 from .base import ZnDrawBase
 from .db import Session
 from .db.schema import Frame, Room
-from .server.utils import add_frames_to_room, get_room_by_token
+from .server.utils import get_room_by_token
 
 def _any_to_list(value: ZnFrame | ase.Atoms | list[ase.Atoms] | list[ZnFrame]) -> list[ZnFrame]:
     if isinstance(value, ase.Atoms):
@@ -52,13 +52,24 @@ class ZnDrawWorker(ZnDrawBase):
                 frame.data = _value.to_dict(built_in_types=False)
             session.commit()
 
-    def __getitem__(self, index: int) -> ase.Atoms:
+    def __getitem__(self, index: int | list[int] | slice) -> ase.Atoms:
+        single_index = False
+        if isinstance(index, int):
+            index = [index]
+            single_index = True
+        if isinstance(index, slice):
+            index = list(range(len(self)))[index]
+
         with Session() as session:
             room = session.query(Room).get(self.token)
-            frame = session.query(Frame).filter_by(index=index, room=room).first()
-            if frame is None:
+            frames = session.query(Frame).filter_by(room=room).filter(Frame.index.in_(index)).all()
+            if frames is None:
                 raise IndexError(f"Index {index} not found")
-            return ZnFrame.from_dict(frame.data).to_atoms()
+            frames = sorted(frames, key=lambda f: f.index)
+            data = [ZnFrame.from_dict(frame.data).to_atoms() for frame in frames]
+            if single_index:
+                return data[0]
+            return data
 
     def __delitem__(self, index: int | list[int] | slice):
         if isinstance(index, int):
@@ -70,6 +81,10 @@ class ZnDrawWorker(ZnDrawBase):
             room = session.query(Room).get(self.token)
             for _index in index:
                 session.query(Frame).filter_by(index=_index, room=room).delete()
+            # ensure indices are contiguous
+            frames = session.query(Frame).filter_by(room=room).all()
+            for idx, frame in enumerate(frames):
+                frame.index = idx
             session.commit()
 
     def append(self, data: ase.Atoms | ZnFrame):
