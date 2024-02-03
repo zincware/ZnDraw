@@ -115,6 +115,7 @@ def hide_discriminator_field(d: dict) -> None:
 @decorator
 def typecast(func, *args, **kwargs):
     annotations = get_type_hints(func)
+    print(args, kwargs, annotations)
     updated_args = []
     updated_kwargs = {}
     for arg, arg_type in zip(args, annotations.values()):
@@ -136,6 +137,12 @@ def typecast(func, *args, **kwargs):
             else:
                 updated_kwargs[kwarg] = kwargs[kwarg]
     return func(*updated_args, **updated_kwargs)
+
+@decorator
+def typecast_kwargs(func, **kwargs):
+    annotations = get_type_hints(func)
+    arg_type = list(annotations.values())[0]
+    return arg_type(**kwargs)
 
 
 def ensure_path(path: str):
