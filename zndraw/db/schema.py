@@ -1,3 +1,4 @@
+import znframe
 from sqlalchemy import (
     JSON,
     Boolean,
@@ -8,7 +9,6 @@ from sqlalchemy import (
     String,
 )
 from sqlalchemy.orm import declarative_base, relationship
-import znframe
 
 Base = declarative_base()
 

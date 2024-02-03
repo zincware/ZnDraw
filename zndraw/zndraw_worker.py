@@ -6,13 +6,11 @@ from znframe.frame import Frame as ZnFrame
 
 from .base import ZnDrawBase
 from .db import Session
-from .db.schema import Room, Frame
+from .db.schema import Frame, Room
 from .server.utils import add_frames_to_room, get_room_by_token
 
 
 class ZnDrawWorker(ZnDrawBase):
-
-
     def __len__(self) -> int:
         with Session() as session:
             room = session.query(Room).get(self.token)
@@ -126,7 +124,6 @@ class ZnDrawWorker(ZnDrawBase):
 
     def insert(self, index: int, atoms: ase.Atoms):
         raise NotImplementedError
-    
+
     def log(self, message: str):
         raise NotImplementedError
-
