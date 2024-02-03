@@ -27,6 +27,7 @@ class RoomSetData:
     def to_dict(self) -> dict:
         return dataclasses.asdict(self)
 
+
 @dataclasses.dataclass
 class RoomGetData:
     points: bool = False
