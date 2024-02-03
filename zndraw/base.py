@@ -1,9 +1,10 @@
+import collections
 import dataclasses
 from abc import abstractmethod
-import collections
-import socketio
-import typing
+
 import numpy as np
+import socketio
+
 
 @dataclasses.dataclass
 class ZnDrawBase(collections.abc.MutableSequence):
@@ -58,8 +59,3 @@ class ZnDrawBase(collections.abc.MutableSequence):
     @abstractmethod
     def segments(self) -> np.ndarray:
         pass
-
-    
-
-
-    
