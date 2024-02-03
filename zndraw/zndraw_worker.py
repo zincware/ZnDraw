@@ -61,6 +61,8 @@ class ZnDrawWorker(ZnDrawBase):
                     session.add(frame)
                 frame.data = _value.to_dict(built_in_types=False)
             session.commit()
+        
+        self.socket.emit("room:set", RoomSetData(frames={idx: frame.to_dict(built_in_types=False) for idx, frame in zip(index, value)}).to_dict())
 
     def __getitem__(self, index: int | list[int] | slice) -> ase.Atoms:
         single_index = False

@@ -208,3 +208,33 @@ def test_set_points(room_session, sio_server):
         worker.socket.sleep(0.1)
         npt.assert_array_equal(answer.points, [[1, 1, 1], [2, 2, 2]])
         npt.assert_array_equal(worker.points, [[1, 1, 1], [2, 2, 2]])
+
+def test_set_atoms(room_session, sio_server):
+    with mock.patch("zndraw.zndraw_worker.Session", room_session):
+        worker = ZnDrawWorker(token="test_token", url=sio_server)
+        global answer
+        answer = None
+
+        @typecast
+        def on_answer(data: RoomSetData):
+            global answer
+            answer = data
+        
+        worker.socket.on("room:set", on_answer)
+
+        worker[0] = s22[10]
+        worker.socket.sleep(0.1)
+        # TODO: keys being converted to strings somewhere
+        assert answer.frames["0"] == znframe.Frame.from_atoms(s22[10]).to_dict(built_in_types=False)
+        assert len(answer.frames) == 1
+        assert worker[0] == s22[10]
+
+        worker.extend(s22[11:13])
+        worker.socket.sleep(0.1)
+        assert len(answer.frames) == 2
+        assert answer.frames.keys() == {str(len(worker) - 1), str(len(worker) - 2)}
+        assert len(worker) == 24
+        assert answer.frames["22"] == znframe.Frame.from_atoms(s22[11]).to_dict(built_in_types=False)
+        assert answer.frames["23"] == znframe.Frame.from_atoms(s22[12]).to_dict(built_in_types=False)
+        assert worker[22] == s22[11]
+        assert worker[23] == s22[12]
