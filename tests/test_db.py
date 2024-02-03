@@ -249,3 +249,35 @@ def test_set_atoms(room_session, sio_server):
         )
         assert worker[22] == s22[11]
         assert worker[23] == s22[12]
+
+
+
+def test_del_atoms(room_session, sio_server):
+    with mock.patch("zndraw.zndraw_worker.Session", room_session):
+        worker = ZnDrawWorker(token="test_token", url=sio_server)
+        global answer
+        answer = None
+
+        @typecast
+        def on_answer(data: RoomSetData):
+            global answer
+            answer = data
+
+        worker.socket.on("room:set", on_answer)
+
+        del worker[0]
+        worker.socket.sleep(0.1)
+        assert len(answer.frames) == 1
+        assert answer.frames.keys() == {"0"}
+        assert answer.frames["0"] == None
+        assert len(worker) == 21
+
+        del worker[4:7]
+        worker.socket.sleep(0.1)
+        assert len(answer.frames) == 3
+        assert answer.frames.keys() == {"4", "5", "6"}
+        assert answer.frames["4"] == None
+        assert answer.frames["5"] == None
+        assert answer.frames["6"] == None
+        assert len(worker) == 18
+
