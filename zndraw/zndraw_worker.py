@@ -111,8 +111,10 @@ class ZnDrawWorker(ZnDrawBase):
             for idx, frame in enumerate(frames):
                 frame.index = idx
             session.commit()
-        
-        self.socket.emit("room:set", RoomSetData(frames={idx: None for idx in index}).to_dict())
+
+        self.socket.emit(
+            "room:set", RoomSetData(frames={idx: None for idx in index}).to_dict()
+        )
 
     def append(self, data: ase.Atoms | ZnFrame):
         if isinstance(data, ase.Atoms):

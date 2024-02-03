@@ -251,7 +251,6 @@ def test_set_atoms(room_session, sio_server):
         assert worker[23] == s22[12]
 
 
-
 def test_del_atoms(room_session, sio_server):
     with mock.patch("zndraw.zndraw_worker.Session", room_session):
         worker = ZnDrawWorker(token="test_token", url=sio_server)
@@ -280,4 +279,3 @@ def test_del_atoms(room_session, sio_server):
         assert answer.frames["5"] == None
         assert answer.frames["6"] == None
         assert len(worker) == 18
-
