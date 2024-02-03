@@ -1,10 +1,8 @@
-from typing import Tuple
 
 from sqlalchemy.orm import Session
-from znframe import Frame as ZnFrame
 
 from ..db import Session as ses
-from ..db.schema import Frame, Queue, QueueItem, Room
+from ..db.schema import Queue, QueueItem, Room
 
 
 def get_queue(session: Session, queue_name: str) -> Queue:
@@ -45,4 +43,3 @@ def get_queue_position(queue_name: str, job_id: str) -> int:
 
 def get_room_by_token(session: Session, token: str):
     return session.query(Room).filter_by(token=token).one()
-

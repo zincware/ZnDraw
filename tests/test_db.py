@@ -83,7 +83,7 @@ def test_zndraw_worker_get(room_session):
 
         with pytest.raises(IndexError):
             worker[22]
-        
+
         # TODO: test slicing
 
 

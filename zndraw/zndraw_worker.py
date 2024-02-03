@@ -9,7 +9,10 @@ from .db import Session
 from .db.schema import Frame, Room
 from .server.utils import get_room_by_token
 
-def _any_to_list(value: ZnFrame | ase.Atoms | list[ase.Atoms] | list[ZnFrame]) -> list[ZnFrame]:
+
+def _any_to_list(
+    value: ZnFrame | ase.Atoms | list[ase.Atoms] | list[ZnFrame],
+) -> list[ZnFrame]:
     if isinstance(value, ase.Atoms):
         return [ZnFrame.from_atoms(value)]
     elif isinstance(value, ZnFrame):
@@ -26,13 +29,18 @@ def _any_to_list(value: ZnFrame | ase.Atoms | list[ase.Atoms] | list[ZnFrame]) -
         return data
     raise ValueError("Invalid type for value")
 
+
 class ZnDrawWorker(ZnDrawBase):
     def __len__(self) -> int:
         with Session() as session:
             room = session.query(Room).get(self.token)
             return len(room.frames)
 
-    def __setitem__(self, index: int | list[int] | slice, value: ZnFrame | ase.Atoms | list[ase.Atoms] | list[ZnFrame]):
+    def __setitem__(
+        self,
+        index: int | list[int] | slice,
+        value: ZnFrame | ase.Atoms | list[ase.Atoms] | list[ZnFrame],
+    ):
         value = _any_to_list(value)
         if isinstance(index, int):
             index = [index]
@@ -62,7 +70,12 @@ class ZnDrawWorker(ZnDrawBase):
 
         with Session() as session:
             room = session.query(Room).get(self.token)
-            frames = session.query(Frame).filter_by(room=room).filter(Frame.index.in_(index)).all()
+            frames = (
+                session.query(Frame)
+                .filter_by(room=room)
+                .filter(Frame.index.in_(index))
+                .all()
+            )
             if frames is None:
                 raise IndexError(f"Index {index} not found")
             frames = sorted(frames, key=lambda f: f.index)
@@ -91,14 +104,12 @@ class ZnDrawWorker(ZnDrawBase):
         if isinstance(data, ase.Atoms):
             data = ZnFrame.from_atoms(data)
         self[len(self)] = data
-        
 
     def extend(self, atoms_list: list[ase.Atoms] | list[ZnFrame]):
         indices = list(range(len(self), len(self) + len(atoms_list)))
         frames = _any_to_list(atoms_list)
         print(frames)
         self[indices] = frames
-        
 
     @property
     def points(self) -> np.ndarray:
