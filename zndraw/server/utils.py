@@ -1,9 +1,11 @@
-from sqlalchemy.orm import Session
 from typing import Tuple
 
-from ..db import Session as ses
-from ..db.schema import Queue, QueueItem, Room, Frame
+from sqlalchemy.orm import Session
 from znframe import Frame as ZnFrame
+
+from ..db import Session as ses
+from ..db.schema import Frame, Queue, QueueItem, Room
+
 
 def get_queue(session: Session, queue_name: str) -> Queue:
     queue = session.query(Queue).filter_by(name=queue_name).first()
@@ -40,17 +42,20 @@ def get_queue_position(queue_name: str, job_id: str) -> int:
                 return i
         return -1
 
-def get_room_by_token(session:Session, token:str):
+
+def get_room_by_token(session: Session, token: str):
     return session.query(Room).filter_by(token=token).one()
+
 
 # write custom type that corresponds to a tuple of (int, ZnFrame)
 frame_data = Tuple[int, ZnFrame]
 
-def add_frames_to_room(room_token:str, data: frame_data | list[frame_data]):
+
+def add_frames_to_room(room_token: str, data: frame_data | list[frame_data]):
     if isinstance(data, (int, ZnFrame)):
-        list_data:list[frame_data] = [data] # type: ignore
+        list_data: list[frame_data] = [data]  # type: ignore
     else:
-        list_data = data # type: ignore
+        list_data = data  # type: ignore
     with ses() as session:
         room = get_room_by_token(session, room_token)
         for idx, frame in list_data:
