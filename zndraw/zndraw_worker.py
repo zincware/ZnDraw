@@ -8,6 +8,8 @@ from .base import ZnDrawBase
 from .db import Session
 from .db.schema import Bookmark, Frame, Room
 from .server.utils import get_room_by_token
+from zndraw.data import RoomSetData
+from zndraw.utils import typecast_kwargs
 
 
 def _any_to_list(
@@ -131,7 +133,7 @@ class ZnDrawWorker(ZnDrawBase):
             room.points = value  # type: ignore
             session.commit()
 
-        # self.socket.emit("points:set", value)
+        self.socket.emit("room:set", RoomSetData(points=value).to_dict())
 
     @property
     def segments(self) -> np.ndarray:
@@ -153,8 +155,8 @@ class ZnDrawWorker(ZnDrawBase):
             room = get_room_by_token(session, self.token)
             room.currentStep = idx
             session.commit()
-
-        # self.socket.emit("room:set", idx)
+        
+        self.socket.emit("room:set", RoomSetData(step=idx).to_dict())
 
     @property
     def selection(self) -> Union[List[int], List[None]]:
@@ -168,8 +170,8 @@ class ZnDrawWorker(ZnDrawBase):
             room = get_room_by_token(session, self.token)
             room.selection = value
             session.commit()
-
-        # self.socket.emit("selection:set", value)
+        
+        self.socket.emit("room:set", RoomSetData(selection=value).to_dict())
 
     @property
     def bookmarks(self) -> dict:
@@ -187,8 +189,8 @@ class ZnDrawWorker(ZnDrawBase):
                 bookmark = Bookmark(step=step, text=text, room=room)
                 session.add(bookmark)
             session.commit()
-
-        # self.socket.emit("bookmarks:set", value)
+        
+        self.socket.emit("room:set", RoomSetData(bookmarks=value).to_dict())
 
     def insert(self, index: int, atoms: ase.Atoms | ZnFrame):
         if index < 0 or index > len(self):

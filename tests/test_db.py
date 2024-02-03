@@ -10,6 +10,8 @@ from sqlalchemy.orm import sessionmaker
 from zndraw.db import schema
 from zndraw.db.schema import Base
 from zndraw.zndraw_worker import ZnDrawWorker
+from zndraw.data import RoomSetData
+from zndraw.utils import typecast
 
 s22 = list(s22)
 
@@ -68,9 +70,9 @@ def test_frame(room_session):
             assert frame.index == idx
 
 
-def test_zndraw_worker_get(room_session):
+def test_zndraw_worker_get(room_session, sio_server):
     with mock.patch("zndraw.zndraw_worker.Session", room_session):
-        worker = ZnDrawWorker(token="test_token", socket=None)
+        worker = ZnDrawWorker(token="test_token", url=sio_server)
         assert len(worker) == 22
         for idx, atoms in enumerate(s22):
             assert worker[idx] == atoms
@@ -87,9 +89,9 @@ def test_zndraw_worker_get(room_session):
         # TODO: test slicing
 
 
-def test_zndraw_worker_set_atoms(room_session):
+def test_zndraw_worker_set_atoms(room_session, sio_server):
     with mock.patch("zndraw.zndraw_worker.Session", room_session):
-        worker = ZnDrawWorker(token="test_token", socket=None)
+        worker = ZnDrawWorker(token="test_token", url=sio_server)
         del worker[:]
         assert len(worker) == 0
         worker[0] = s22[0]
@@ -118,9 +120,9 @@ def test_zndraw_worker_set_atoms(room_session):
             worker.insert(5, s22[0])
 
 
-def test_zndraw_worker_set(room_session):
+def test_zndraw_worker_set(room_session, sio_server):
     with mock.patch("zndraw.zndraw_worker.Session", room_session):
-        worker = ZnDrawWorker(token="test_token", socket=None)
+        worker = ZnDrawWorker(token="test_token", url=sio_server)
         assert worker.step == 5
         worker.step = 6
         assert worker.step == 6
@@ -133,3 +135,76 @@ def test_zndraw_worker_set(room_session):
         assert worker.bookmarks == {1: "bm-1", 2: "bm-2"}
         worker.bookmarks = {2: "bm-3", 3: "bm-4"}
         assert worker.bookmarks == {2: "bm-3", 3: "bm-4"}
+
+def test_set_bookmarks(room_session, sio_server):
+    with mock.patch("zndraw.zndraw_worker.Session", room_session):
+        worker = ZnDrawWorker(token="test_token", url=sio_server)
+        global answer
+        answer = None
+
+        @typecast
+        def on_answer(data: RoomSetData):
+            global answer
+            answer = data
+        
+        worker.socket.on("room:set", on_answer)
+
+        worker.bookmarks = {2: "bm-3", 3: "bm-4"}
+        worker.socket.sleep(0.1)
+        # TODO: keys being converted to strings somewhere
+        assert answer.bookmarks == {"2": "bm-3", "3": "bm-4"}
+        assert worker.bookmarks == {2: "bm-3", 3: "bm-4"}
+
+def test_set_step(room_session, sio_server):
+    with mock.patch("zndraw.zndraw_worker.Session", room_session):
+        worker = ZnDrawWorker(token="test_token", url=sio_server)
+        global answer
+        answer = None
+
+        @typecast
+        def on_answer(data: RoomSetData):
+            global answer
+            answer = data
+        
+        worker.socket.on("room:set", on_answer)
+
+        worker.step = 6
+        worker.socket.sleep(0.1)
+        assert answer.step == 6
+        assert worker.step == 6
+
+def test_set_selection(room_session, sio_server):
+    with mock.patch("zndraw.zndraw_worker.Session", room_session):
+        worker = ZnDrawWorker(token="test_token", url=sio_server)
+        global answer
+        answer = None
+
+        @typecast
+        def on_answer(data: RoomSetData):
+            global answer
+            answer = data
+        
+        worker.socket.on("room:set", on_answer)
+
+        worker.selection = [2, 3]
+        worker.socket.sleep(0.1)
+        assert answer.selection == [2, 3]
+        assert worker.selection == [2, 3]
+
+def test_set_points(room_session, sio_server):
+    with mock.patch("zndraw.zndraw_worker.Session", room_session):
+        worker = ZnDrawWorker(token="test_token", url=sio_server)
+        global answer
+        answer = None
+
+        @typecast
+        def on_answer(data: RoomSetData):
+            global answer
+            answer = data
+        
+        worker.socket.on("room:set", on_answer)
+
+        worker.points = [[1, 1, 1], [2, 2, 2]]
+        worker.socket.sleep(0.1)
+        npt.assert_array_equal(answer.points, [[1, 1, 1], [2, 2, 2]])
+        npt.assert_array_equal(worker.points, [[1, 1, 1], [2, 2, 2]])
