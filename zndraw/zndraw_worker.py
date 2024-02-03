@@ -111,7 +111,7 @@ class ZnDrawWorker(ZnDrawBase):
     def bookmarks(self) -> dict:
         with Session() as session:
             room = get_room_by_token(session, self.token)
-            return room.bookmarks
+            return {bm.step: bm.text for bm in room.bookmarks}
 
     @bookmarks.setter
     def bookmarks(self, value: dict):

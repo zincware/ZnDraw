@@ -39,7 +39,14 @@ def room_session(session) -> sessionmaker:
                 room=room,
             )
             s.add(frame)
+
+        # add two bookmarks
+        bookmark1 = schema.Bookmark(step=1, text="bm-1", room=room)
+        s.add(bookmark1)
+        bookmark2 = schema.Bookmark(step=2, text="bm-2", room=room)
+        s.add(bookmark2)
         s.commit()
+
     return session
 
 
@@ -72,3 +79,4 @@ def test_zndraw_worker(room_session):
         assert worker.step == 5
         assert worker.selection == [1, 2]
         npt.assert_array_equal(worker.points, [[0, 0, 0], [1, 1, 1]])
+        assert worker.bookmarks == {1: "bm-1", 2: "bm-2"}
