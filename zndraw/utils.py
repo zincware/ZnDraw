@@ -138,6 +138,7 @@ def typecast(func, *args, **kwargs):
                 updated_kwargs[kwarg] = kwargs[kwarg]
     return func(*updated_args, **updated_kwargs)
 
+
 @decorator
 def typecast_kwargs(func, **kwargs):
     annotations = get_type_hints(func)
