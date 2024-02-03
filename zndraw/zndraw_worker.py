@@ -108,7 +108,6 @@ class ZnDrawWorker(ZnDrawBase):
     def extend(self, atoms_list: list[ase.Atoms] | list[ZnFrame]):
         indices = list(range(len(self), len(self) + len(atoms_list)))
         frames = _any_to_list(atoms_list)
-        print(frames)
         self[indices] = frames
 
     @property
