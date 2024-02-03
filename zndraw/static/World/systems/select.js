@@ -21,7 +21,7 @@ class Selection {
       let points = this.line3D.anchorPoints.children.map((x) => x.position);
       // convert x, y, z to [x, y, z]
       points = points.map((x) => [x.x, x.y, x.z]);
-      this.socket.emit("points:set", points);
+      this.socket.emit("room:set", {points: points});
     };
 
     this.raycaster = new THREE.Raycaster();
@@ -63,12 +63,6 @@ class Selection {
       const particlesGroup = this.scene.getObjectByName("particlesGroup");
       return particlesGroup.get_center(selection);
     };
-
-    this.socket.on("selection:set", (data) => {
-      const particlesGroup = this.scene.getObjectByName("particlesGroup");
-      particlesGroup.selection = data;
-      particlesGroup.step();
-    });
 
     window.addEventListener("wheel", this.onWheel.bind(this));
 
@@ -219,7 +213,7 @@ class Selection {
           this.shift_pressed,
           particleIntersects[0].object,
         );
-        this.socket.emit("selection:set", particlesGroup.selection);
+        this.socket.emit("room:set", {selection: particlesGroup.selection});
       }
     }
   }

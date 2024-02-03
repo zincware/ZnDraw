@@ -35,19 +35,6 @@ class Player {
     this.loop = false;
     this.bookmarks = bookmarks;
 
-    socket.on("scene:set", (index) => {
-      this.world.setStep(index);
-    });
-
-    socket.on("scene:play", () => {
-      this.playing = true;
-      this.play();
-    });
-
-    socket.on("scene:pause", () => {
-      this.playing = false;
-    });
-
     // detect playBtn click
     document.getElementById("playBtn").addEventListener("click", () => {
       this.toggle();
@@ -245,64 +232,37 @@ class World {
     this.step = loop.step;
     this.socket = socket;
 
-    this.socket.on(
-      "points:get",
-      function (callback) {
-        const { points, segments } = this.getLineData();
-        callback(points);
-      }.bind(this),
-    );
-
-    this.socket.on(
-      "points:set",
-      function (points) {
-        this.line3D.updateAllPoints(points);
-      }.bind(this),
-    );
-
-    this.socket.on(
-      "scene:segments",
-      function (callback) {
-        const { points, segments } = this.getLineData();
-        callback(segments);
-      }.bind(this),
-    );
-
-    this.socket.on(
-      "scene:step",
-      function (callback) {
-        callback(this.getStep());
-      }.bind(this),
-    );
-
-    this.socket.on(
-      "selection:get",
-      function (callback) {
-        callback(this.getSelection());
-      }.bind(this),
-    );
-
-    this.socket.on("scene:update", (data) => {
+    this.socket.on("room:set", (data) => {
       if (data.step !== undefined) {
         this.setStep(data.step);
       }
-      if (data.camera !== undefined) {
-        camera.position.set(...data.camera.position);
-        controls.target.set(...data.camera.target);
-        controls.update();
+      if (data.frames !== undefined) {
+        this.cache.setFrames(data.frames);
+      }
+      if (data.selection !== undefined) {
+        this.selection.set(data.selection);
+      }
+      if (data.bookmarks !== undefined) {
+        bookmarks.set(data.bookmarks);
+      }
+      if (data.points !== undefined) {
+        this.line3D.updateAllPoints(data.points);
       }
     });
 
-    // on camera move send the camera position to the server
+
+    this.socket.on("camera:update", (data) => {
+        camera.position.set(...data.position);
+        controls.target.set(...data.target);
+        controls.update();
+    });
+
     controls.addEventListener("change", () => {
-      this.socket.emit("scene:update", {
-        camera: {
+      this.socket.emit("camera:update", {
           position: camera.position.toArray(),
           target: controls.target.toArray(),
-        },
       });
     });
-    // renderer.render(scene, camera);
   }
 
   /**
@@ -359,7 +319,7 @@ class World {
     sliderprogress.style.width = `${percentage}%`;
     document.getElementById("info").innerHTML =
       `${slider.ariaValueNow} / ${slider.ariaValueMax}`;
-    this.socket.emit("scene:update", { step: step });
+    this.socket.emit("room:set", { step: step });
   }
 
   getStep() {

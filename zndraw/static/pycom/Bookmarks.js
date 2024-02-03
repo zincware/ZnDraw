@@ -5,11 +5,6 @@ class Bookmarks {
     this.socket = socket;
     this.bookmarks = {};
 
-    this.socket.on("bookmarks:set", (bookmarks) => {
-      this.bookmarks = bookmarks;
-      this.updateBookmarks();
-    });
-
     // on keypress b set the bookmark
     window.addEventListener("keypress", (event) => {
       if (document.activeElement === document.body && event.key === "b") {
@@ -19,7 +14,7 @@ class Bookmarks {
         this.bookmarks[step] = `Bookmark ${step}`;
         // // update the bookmarks
         this.updateBookmarks();
-        this.socket.emit("bookmarks:set", this.bookmarks);
+        this.socket.emit("room:set", {bookmarks: this.bookmarks});
       }
     });
   }
@@ -66,6 +61,11 @@ class Bookmarks {
       button.style.bottom = "5px";
       bookmark_envelope.appendChild(button);
     }
+  }
+
+  set(bookmarks) {
+    this.bookmarks = bookmarks;
+    this.updateBookmarks();
   }
 
   step() {

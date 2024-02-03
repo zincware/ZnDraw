@@ -158,21 +158,6 @@ function modifier_editor(socket, cache, world) {
     schema: { type: "object", title: "ZnDraw", properties: {} },
   });
 
-  // let responseReceived = false;
-
-  // socket.on("modifier:run:submitted", () => {
-  //   console.log(new Date().toISOString(), "modifier:run:submitted");
-  //   setTimeout(() => {
-  //     if (!responseReceived) {
-  //       console.warn("No response on 'modifier:run:running' within 1 second");
-  //       alert("No response from server. Please try again.");
-  //       document.getElementById("interaction-json-editor-submit").disabled =
-  //         false;
-  //       socket.emit("modifier:run:failed");
-  //     }
-  //   }, 1000);
-  // });
-
   socket.on("modifier:queue:update", (position) => {
     document.getElementById("interaction-json-editor-submit").disabled = true;
     document.getElementById("interaction-json-editor-submit").innerHTML =
@@ -199,14 +184,6 @@ function modifier_editor(socket, cache, world) {
     document.getElementById("interaction-json-editor-submit").innerHTML =
       '<i class="fa-solid fa-hourglass-start"></i> Job queued';
   });
-
-  // socket.on("modifier:run:criticalfail", (data) => {
-  //   console.log(new Date().toISOString(), "modifier:run:failed");
-  //   alert("Modifier failed. Please try again with different settings.");
-  //   document.getElementById("interaction-json-editor-submit").innerHTML =
-  //     '<i class="fa-solid fa-play"></i> Run Modifier';
-  //   document.getElementById("interaction-json-editor-submit").disabled = false;
-  // });
 
   document
     .getElementById("interaction-json-editor-submit")
