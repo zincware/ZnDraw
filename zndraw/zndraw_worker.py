@@ -1,13 +1,13 @@
 import ase
 import numpy as np
 from typing import Union, List
-from ..db import Session
-from ..db.schema import Frame, Room
+from .db import Session
+from .db.schema import Frame, Room
 from znframe.frame import Frame as ZnFrame
-from .utils import add_frames_to_room, get_room_by_token
+from .server.utils import add_frames_to_room, get_room_by_token
+from .base import ZnDrawBase
 
-
-class ZnDrawWorker:
+class ZnDrawWorker(ZnDrawBase):
     def __init__(self, room_token):
         self._check_room_exists(room_token)
         self.room_token = room_token
