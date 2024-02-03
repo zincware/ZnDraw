@@ -746,3 +746,8 @@ def modifier_queue_update(data: dict):
     """Update the modifier queue."""
     queue_position = get_queue_position(data["queue_name"], data["job_id"])
     emit("modifier:queue:update", queue_position, to=f"webclients_{session['token']}")
+
+
+@io.on("ping")
+def ping() -> str:
+    return "pong"
