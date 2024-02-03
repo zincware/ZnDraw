@@ -2,6 +2,7 @@
 import pytest
 
 from zndraw.app import create_app, socketio
+from socketio import Client
 
 
 @pytest.fixture()
@@ -38,6 +39,34 @@ def sio_client(app):
 def runner(app):
     return app.test_cli_runner()
 
+@pytest.fixture()
+def server():
+    import socketio
+    import eventlet
+    import threading
+    import time
+    import sys
 
-def test_socket_connection(sio_client):
+    def run_server():
+        sio = socketio.Server(cors_allowed_origins="*")
+        app = socketio.WSGIApp(sio)
+        @sio.on("ping")
+        def ping(sid):
+            return "pong"
+
+        eventlet.wsgi.server(eventlet.listen(('', 8000)), app)
+    
+    t = threading.Thread(target=run_server, daemon=True)
+    t.start()
+    return
+    
+
+
+def test_socket_connection_test_client(sio_client):
     assert sio_client.emit("ping", callback=True) == "pong"
+
+def test_socket_connection(server):
+    client = Client()
+    client.connect("http://localhost:8000")
+    assert client.call("ping") == "pong"
+
