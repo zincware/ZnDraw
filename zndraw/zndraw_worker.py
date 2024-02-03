@@ -188,7 +188,11 @@ class ZnDrawWorker(ZnDrawBase):
         self.socket.emit("bookmarks:set", value)
 
     def insert(self, index: int, atoms: ase.Atoms):
-        raise NotImplementedError
+        # use self and len for the inser
+        data_after = self[index:]
+        self[index] = atoms
+        del self[index + 1 :]
+        self.extend(data_after)
 
     def log(self, message: str):
         raise NotImplementedError

@@ -106,3 +106,10 @@ def test_zndraw_worker_set_atoms(room_session):
         del worker[1]
         assert len(worker) == 3
         assert worker[:] == [s22[0], s22[2], s22[3]]
+        worker[0] = s22[1]
+        assert len(worker) == 3
+        assert worker[:] == [s22[1], s22[2], s22[3]]
+
+        worker.insert(0, s22[0])
+        assert len(worker) == 4
+        assert worker[:] == s22[0:4]
