@@ -68,7 +68,7 @@ def test_frame(room_session):
             assert frame.index == idx
 
 
-def test_zndraw_worker(room_session):
+def test_zndraw_worker_get(room_session):
     with mock.patch("zndraw.zndraw_worker.Session", room_session):
         worker = ZnDrawWorker(token="test_token", socket=None)
         assert len(worker) == 22
@@ -80,3 +80,25 @@ def test_zndraw_worker(room_session):
         assert worker.selection == [1, 2]
         npt.assert_array_equal(worker.points, [[0, 0, 0], [1, 1, 1]])
         assert worker.bookmarks == {1: "bm-1", 2: "bm-2"}
+
+        with pytest.raises(IndexError):
+            worker[22]
+        
+        # TODO: test slicing
+
+
+def test_zndraw_worker_set_atoms(room_session):
+    with mock.patch("zndraw.zndraw_worker.Session", room_session):
+        worker = ZnDrawWorker(token="test_token", socket=None)
+        del worker[:]
+        assert len(worker) == 0
+        worker[0] = s22[0]
+        assert len(worker) == 1
+        assert worker[0] == s22[0]
+        worker.extend(s22[1:3])
+        assert len(worker) == 3
+        assert worker[1] == s22[1]
+        assert worker[2] == s22[2]
+        worker.append(s22[3])
+        assert len(worker) == 4
+        assert worker[3] == s22[3]

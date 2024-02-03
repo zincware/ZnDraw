@@ -9,6 +9,22 @@ from .db import Session
 from .db.schema import Frame, Room
 from .server.utils import add_frames_to_room, get_room_by_token
 
+def _any_to_list(value: ZnFrame | ase.Atoms | list[ase.Atoms] | list[ZnFrame]) -> list[ZnFrame]:
+    if isinstance(value, ase.Atoms):
+        return [ZnFrame.from_atoms(value)]
+    elif isinstance(value, ZnFrame):
+        return [value]
+    elif isinstance(value, list):
+        data = []
+        for v in value:
+            if isinstance(v, ase.Atoms):
+                data.append(ZnFrame.from_atoms(v))
+            elif isinstance(v, ZnFrame):
+                data.append(v)
+            else:
+                raise ValueError(f"Invalid type for value {v}")
+        return data
+    raise ValueError("Invalid type for value")
 
 class ZnDrawWorker(ZnDrawBase):
     def __len__(self) -> int:
@@ -16,8 +32,25 @@ class ZnDrawWorker(ZnDrawBase):
             room = session.query(Room).get(self.token)
             return len(room.frames)
 
-    def __setitem__(self, index: int, frame: ZnFrame):
-        add_frames_to_room(self.token, (index, frame))
+    def __setitem__(self, index: int | list[int] | slice, value: ZnFrame | ase.Atoms | list[ase.Atoms] | list[ZnFrame]):
+        value = _any_to_list(value)
+        if isinstance(index, int):
+            index = [index]
+        if isinstance(index, slice):
+            index = list(range(len(self)))[index]
+        if len(index) != len(value):
+            # TODO: support all the ways python lists can be slice set
+            raise ValueError("Length of index and value must match")
+        with Session() as session:
+            room = session.query(Room).get(self.token)
+            for _index, _value in zip(index, value):
+                frame = session.query(Frame).filter_by(index=_index, room=room).first()
+                if frame is None:
+                    # add new frame
+                    frame = Frame(index=_index, room=room)
+                    session.add(frame)
+                frame.data = _value.to_dict(built_in_types=False)
+            session.commit()
 
     def __getitem__(self, index: int) -> ase.Atoms:
         with Session() as session:
@@ -27,24 +60,30 @@ class ZnDrawWorker(ZnDrawBase):
                 raise IndexError(f"Index {index} not found")
             return ZnFrame.from_dict(frame.data).to_atoms()
 
-    def __delitem__(self, index: int):
+    def __delitem__(self, index: int | list[int] | slice):
+        if isinstance(index, int):
+            index = [index]
+        if isinstance(index, slice):
+            index = list(range(len(self)))[index]
+
         with Session() as session:
             room = session.query(Room).get(self.token)
-            frame = room.frames.filter_by(index=index).first()
-            if frame is None:
-                raise IndexError(f"Index {index} not found")
-            session.delete(frame)
+            for _index in index:
+                session.query(Frame).filter_by(index=_index, room=room).delete()
             session.commit()
 
-    def append(self, atoms: ase.Atoms):
-        frame = ZnFrame.from_atoms(atoms)
-        add_frames_to_room(self.token, (len(self), frame))
+    def append(self, data: ase.Atoms | ZnFrame):
+        if isinstance(data, ase.Atoms):
+            data = ZnFrame.from_atoms(data)
+        self[len(self)] = data
+        
 
-    def extend(self, atoms_list: list[ase.Atoms]):
-        frames = [ZnFrame.from_atoms(atoms) for atoms in atoms_list]
-        add_frames_to_room(
-            self.token, [(len(self) + i, frame) for i, frame in enumerate(frames)]
-        )
+    def extend(self, atoms_list: list[ase.Atoms] | list[ZnFrame]):
+        indices = list(range(len(self), len(self) + len(atoms_list)))
+        frames = _any_to_list(atoms_list)
+        print(frames)
+        self[indices] = frames
+        
 
     @property
     def points(self) -> np.ndarray:

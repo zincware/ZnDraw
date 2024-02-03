@@ -46,22 +46,3 @@ def get_queue_position(queue_name: str, job_id: str) -> int:
 def get_room_by_token(session: Session, token: str):
     return session.query(Room).filter_by(token=token).one()
 
-
-# write custom type that corresponds to a tuple of (int, ZnFrame)
-frame_data = Tuple[int, ZnFrame]
-
-
-def add_frames_to_room(room_token: str, data: frame_data | list[frame_data]):
-    if isinstance(data, (int, ZnFrame)):
-        list_data: list[frame_data] = [data]  # type: ignore
-    else:
-        list_data = data  # type: ignore
-    with ses() as session:
-        room = get_room_by_token(session, room_token)
-        for idx, frame in list_data:
-            old_frame = room.frames.filter_by(index=idx).first()
-            if old_frame is not None:
-                old_frame.data = frame.to_dict(built_in_types=False)
-            else:
-                new_frame = Frame(index=idx, data=frame.to_dict(built_in_types=False))
-                room.frames.append(new_frame)
