@@ -6,7 +6,7 @@ from znframe.frame import Frame as ZnFrame
 
 from .base import ZnDrawBase
 from .db import Session
-from .db.schema import Frame, Room, Bookmark
+from .db.schema import Bookmark, Frame, Room
 from .server.utils import get_room_by_token
 
 
