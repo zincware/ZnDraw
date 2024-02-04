@@ -28,6 +28,7 @@ from ..data import (
     SceneUpdateData,
     SchemaData,
     SubscribedUserData,
+    RoomGetData,
 )
 from .utils import get_queue_position
 
@@ -746,3 +747,12 @@ def modifier_queue_update(data: dict):
     """Update the modifier queue."""
     queue_position = get_queue_position(data["queue_name"], data["job_id"])
     emit("modifier:queue:update", queue_position, to=f"webclients_{session['token']}")
+
+
+@io.on("ping")
+def ping() -> str:
+    return "pong"
+
+@io.on("room:get")
+def room_get(data: RoomGetData):
+    tasks.handle_room_get.delay(data, session["token"], request.url_root, request.sid)

@@ -21,8 +21,9 @@ from zndraw.utils import get_cls_from_json_schema, hide_discriminator_field
 from zndraw.zndraw import ZnDraw
 
 from ..app import cache
-from ..data import CeleryTaskData, FrameData
+from ..data import CeleryTaskData, FrameData, RoomGetData, RoomSetData
 from .utils import insert_into_queue, remove_job_from_queue
+from ..utils import typecast
 
 log = logging.getLogger(__name__)
 
@@ -64,8 +65,6 @@ def update_atoms(token: str, data: list) -> None:
 
 @shared_task
 def get_selection_schema(url: str, target: str):
-    print(f"emitting selection_schema to {target}")
-
     config = GlobalConfig.load()
     cls = get_selection_class(config.get_selection_methods())
     schema = cls.model_json_schema()
@@ -148,7 +147,6 @@ def scene_schema(url: str, target: str):
         disconnect=True,
     )
     con = get_client(url)
-    print(f"emitting scene_schema to {target}")
     con.emit("celery:task:emit", asdict(msg))
 
 
@@ -161,7 +159,6 @@ def geometries_schema(url: str, target: str):
         disconnect=True,
     )
     con = get_client(url)
-    print(f"emitting scene_schema to {target}")
     con.emit("celery:task:emit", asdict(msg))
 
 
@@ -183,7 +180,6 @@ def analysis_schema(url: str, token: str):
         disconnect=True,
     )
     con = get_client(url)
-    print(f"emitting analysis_schema to {vis.token}")
     con.emit("celery:task:emit", asdict(msg))
     vis.socket.disconnect()
 
@@ -219,7 +215,6 @@ def modifier_schema(url: str, token: str):
         disconnect=True,
     )
     con = get_client(url)
-    print(f"emitting modifier_schema to {token}")
     con.emit("celery:task:emit", asdict(msg))
 
 
@@ -604,3 +599,32 @@ def run_modifier(url: str, token: str, data: dict):
     else:
         _run_default_modifier.delay(url, token, data)
     return
+
+@shared_task
+@typecast
+def handle_room_get(data: RoomGetData, token: str, url: str, target: str):
+    from zndraw.zndraw_worker import ZnDrawWorker
+    print("I AM RUNNING THE CELERY TASK")
+    print(50 * "-")
+    worker = ZnDrawWorker(token=token, url=url)
+    #  TODO: I think this should use `RoomGetData`
+    #  and we do unions bool | datatype there
+    answer = RoomSetData()
+    if data.step:
+        answer.step = worker.step
+    if data.points:
+        answer.points = worker.points.tolist()
+    if data.bookmarks:
+        answer.bookmarks = worker.bookmarks
+    if data.selection:
+        answer.selection = worker.selection
+    # if data.length:
+    #     answer.length = len(worker)
+    # if data.segments:
+    #     answer.segments = worker.segments.tolist()
+    if data.frames:
+        answer.frames = [znframe.Frame.from_atoms(x).to_dict(built_in_types=False) for x in worker[data.frames]]
+    msg = CeleryTaskData(
+        target=target, event="room:get", data=answer.to_dict(),
+    )
+    worker.socket.emit("celery:task:emit", msg.to_dict())

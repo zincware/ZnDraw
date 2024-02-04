@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 
 from ..db import Session as ses
-from ..db.schema import Queue, QueueItem
+from ..db.schema import Queue, QueueItem, Room
 
 
 def get_queue(session: Session, queue_name: str) -> Queue:
@@ -38,3 +38,7 @@ def get_queue_position(queue_name: str, job_id: str) -> int:
             if job.job_id == job_id:
                 return i
         return -1
+
+
+def get_room_by_token(session: Session, token: str):
+    return session.query(Room).filter_by(token=token).one()

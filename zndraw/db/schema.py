@@ -1,3 +1,4 @@
+import znframe
 from sqlalchemy import (
     JSON,
     Boolean,
@@ -71,6 +72,9 @@ class Frame(Base):
     room_token = Column(String, ForeignKey("rooms.token"))
 
     room = relationship("Room", back_populates="frames")
+
+    def to_frame(self):
+        return znframe.Frame.from_dict(self.data)
 
     def __repr__(self):
         return (

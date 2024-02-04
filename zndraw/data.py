@@ -24,6 +24,9 @@ class RoomSetData:
 
     update_database: bool = False
 
+    def to_dict(self) -> dict:
+        return dataclasses.asdict(self)
+
 
 @dataclasses.dataclass
 class RoomGetData:
@@ -34,6 +37,9 @@ class RoomGetData:
     length: bool = False
     segments: bool = False
     frames: list[int] | None = None
+
+    def to_dict(self) -> dict:
+        return dataclasses.asdict(self)
 
 
 @dataclasses.dataclass
@@ -65,6 +71,9 @@ class CeleryTaskData:
     disconnect: bool = False
     timeout: int = 60
     authentication: str = None
+
+    def to_dict(self) -> dict:
+        return dataclasses.asdict(self)
 
 
 @dataclasses.dataclass
