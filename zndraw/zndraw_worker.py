@@ -49,13 +49,15 @@ class ZnDrawWorker(ZnDrawBase):
         value: ZnFrame | ase.Atoms | list[ase.Atoms] | list[ZnFrame],
     ):
         value = _any_to_list(value)
+        if isinstance(index, str):
+            index = int(index)
         if isinstance(index, int):
             index = [index]
         if isinstance(index, slice):
             index = list(range(len(self)))[index]
         if len(index) != len(value):
             # TODO: support all the ways python lists can be slice set
-            raise ValueError("Length of index and value must match")
+            raise ValueError(f"Length of index ({len(index)}) and value ({len(value)}) must match")
 
         # we emit first, because sending the data takes longer, but emit is faster
         if self.emit:
