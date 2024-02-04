@@ -22,8 +22,8 @@ from zndraw.zndraw import ZnDraw
 
 from ..app import cache
 from ..data import CeleryTaskData, FrameData, RoomGetData, RoomSetData
-from .utils import insert_into_queue, remove_job_from_queue
 from ..utils import typecast
+from .utils import insert_into_queue, remove_job_from_queue
 
 log = logging.getLogger(__name__)
 
@@ -600,10 +600,12 @@ def run_modifier(url: str, token: str, data: dict):
         _run_default_modifier.delay(url, token, data)
     return
 
+
 @shared_task
 @typecast
 def handle_room_get(data: RoomGetData, token: str, url: str, target: str):
     from zndraw.zndraw_worker import ZnDrawWorker
+
     print("I AM RUNNING THE CELERY TASK")
     print(50 * "-")
     worker = ZnDrawWorker(token=token, url=url)
@@ -623,8 +625,13 @@ def handle_room_get(data: RoomGetData, token: str, url: str, target: str):
     # if data.segments:
     #     answer.segments = worker.segments.tolist()
     if data.frames:
-        answer.frames = [znframe.Frame.from_atoms(x).to_dict(built_in_types=False) for x in worker[data.frames]]
+        answer.frames = [
+            znframe.Frame.from_atoms(x).to_dict(built_in_types=False)
+            for x in worker[data.frames]
+        ]
     msg = CeleryTaskData(
-        target=target, event="room:get", data=answer.to_dict(),
+        target=target,
+        event="room:get",
+        data=answer.to_dict(),
     )
     worker.socket.emit("celery:task:emit", msg.to_dict())

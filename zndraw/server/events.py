@@ -24,11 +24,11 @@ from ..data import (
     JoinData,
     MessageData,
     ModifierRegisterData,
+    RoomGetData,
     SceneSetData,
     SceneUpdateData,
     SchemaData,
     SubscribedUserData,
-    RoomGetData,
 )
 from .utils import get_queue_position
 
@@ -752,6 +752,7 @@ def modifier_queue_update(data: dict):
 @io.on("ping")
 def ping() -> str:
     return "pong"
+
 
 @io.on("room:get")
 def room_get(data: RoomGetData):
