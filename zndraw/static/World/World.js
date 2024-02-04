@@ -235,7 +235,7 @@ class World {
     this.socket.on("room:set", (data) => {
       if (data.step !== undefined) {
         // small timeout to ensure the step is set after the cache is updated
-        setTimeout(() => this.setStep(data.step), 100);
+        setTimeout(() => this.setStep(data.step, false), 100);
       }
       if (data.frames !== undefined) {
         cache.setFrames(data.frames);
@@ -303,13 +303,13 @@ class World {
       bonds_size,
     );
     this.cell_grp.set_visibility(simulation_box);
-    this.setStep(loop.step);
+    this.setStep(loop.step, false);
     this.index_grp.rebuild(label_offset);
     this.player.fps = fps;
     this.line3D.show_label = line_label;
   }
 
-  setStep(step) {
+  setStep(step, emit = true) {
     step = parseInt(step);
     loop.setStep(step);
     const slider = document.getElementById("frameProgress");
@@ -320,7 +320,10 @@ class World {
     sliderprogress.style.width = `${percentage}%`;
     document.getElementById("info").innerHTML =
       `${slider.ariaValueNow} / ${slider.ariaValueMax}`;
-    this.socket.emit("room:set", { step: step });
+    if (emit) {
+      console.log("emitting room:set for step");
+      this.socket.emit("room:set", { step: step });
+    }
   }
 
   getStep() {

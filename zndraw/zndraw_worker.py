@@ -224,8 +224,7 @@ class ZnDrawWorker(ZnDrawBase):
 
     def upload(self, target: str):
         """Emit all frames to the target (webclient)."""
-        config = GlobalConfig.load()
-        
+        config = GlobalConfig.load()        
         frame_list = []
         for idx in range(len(self)):
             frame_list.append(self[idx])
@@ -238,31 +237,26 @@ class ZnDrawWorker(ZnDrawBase):
                             idx - jdx: ZnFrame.from_atoms(atoms).to_dict(built_in_types=False)
                             for jdx, atoms in enumerate(reversed(frame_list))
                         },
-                        selection=self.selection,
-                        points=self.points.tolist(),
-                        bookmarks=self.bookmarks,
-                        step=self.step,
+                        step=idx if idx < self.step else self.step,
                     ).to_dict(),
                 )
 
                 self.socket.emit("celery:task:emit", msg.to_dict())
                 frame_list = []
         
-        if frame_list:
-            msg = CeleryTaskData(
-                target=target,
-                event="room:set",
-                data=RoomSetData(
-                    frames={
-                        idx - jdx: ZnFrame.from_atoms(atoms).to_dict(built_in_types=False)
-                        for jdx, atoms in enumerate(reversed(frame_list))
-                    },
-                    selection=self.selection,
-                    points=self.points.tolist(),
-                    bookmarks=self.bookmarks,
-                    step=self.step,
-                ).to_dict(),
-            )
+        msg = CeleryTaskData(
+            target=target,
+            event="room:set",
+            data=RoomSetData(
+                frames={
+                    idx - jdx: ZnFrame.from_atoms(atoms).to_dict(built_in_types=False)
+                    for jdx, atoms in enumerate(reversed(frame_list))
+                },
+                selection=self.selection,
+                points=self.points.tolist(),
+                bookmarks=self.bookmarks,
+                step=self.step, # TODO: check if step is working correctly?
+            ).to_dict(),
+        )
 
-            self.socket.emit("celery:task:emit", msg.to_dict())
-            frame_list = []
+        self.socket.emit("celery:task:emit", msg.to_dict())
