@@ -741,7 +741,10 @@ def ping() -> str:
 
 @io.on("room:get")
 def room_get(data: RoomGetData):
-    tasks.handle_room_get.delay(data, session["token"], request.url_root, request.sid)
+    url = request.url_root
+    if current_app.config["upgrade_insecure_requests"]:
+        url = url.replace("http://", "https://")
+    tasks.handle_room_get.delay(data, session["token"], url, request.sid)
 
 
 @io.on("room:set")
@@ -753,9 +756,13 @@ def room_set(data: RoomSetData):
         include_self=False,
         to=f"webclients_{session['token']}",
     )
+    url = request.url_root
+    if current_app.config["upgrade_insecure_requests"]:
+        url = url.replace("http://", "https://")
+        
     if data.update_database:
         # TODO: we need to differentiate, if the data comes from a pyclient or a webclient
         # TODO: for fast updates, e.g. points, step during play this is not fast enough
         tasks.handle_room_set.delay(
-            data.to_dict(), session["token"], request.url_root, request.sid
+            data.to_dict(), session["token"], url, request.sid
         )
