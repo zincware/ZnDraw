@@ -759,10 +759,8 @@ def room_set(data: RoomSetData):
     url = request.url_root
     if current_app.config["upgrade_insecure_requests"] and not "127.0.0.1" in url:
         url = url.replace("http://", "https://")
-        
+
     if data.update_database:
         # TODO: we need to differentiate, if the data comes from a pyclient or a webclient
         # TODO: for fast updates, e.g. points, step during play this is not fast enough
-        tasks.handle_room_set.delay(
-            data.to_dict(), session["token"], url, request.sid
-        )
+        tasks.handle_room_set.delay(data.to_dict(), session["token"], url, request.sid)
