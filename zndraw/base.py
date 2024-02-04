@@ -19,6 +19,10 @@ class ZnDrawBase(MutableSequence):
         self.socket.connect(self.url)
         self.socket.emit("join", str(self.token))
 
+    def reconnect(self):
+        self.socket.connect(self.url)
+        self.socket.emit("join", str(self.token))
+
     @abstractmethod
     def log(self, message: str):
         pass
