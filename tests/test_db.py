@@ -4,52 +4,16 @@ import numpy.testing as npt
 import pytest
 import znframe
 from ase.collections import s22
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
+import functools
+import socketio
+
 
 from zndraw.data import RoomSetData
 from zndraw.db import schema
-from zndraw.db.schema import Base
 from zndraw.utils import typecast
 from zndraw.zndraw_worker import ZnDrawWorker
 
 s22 = list(s22)
-
-
-@pytest.fixture
-def session() -> sessionmaker:
-    """pytest fixture to setup the database"""
-    engine = create_engine("sqlite:///:memory:")
-    Base.metadata.create_all(engine)
-    return sessionmaker(bind=engine)
-
-
-@pytest.fixture
-def room_session(session) -> sessionmaker:
-    with session() as s:
-        room = schema.Room(
-            token="test_token",
-            currentStep=5,
-            selection=[1, 2],
-            points=[[0, 0, 0], [1, 1, 1]],
-        )
-        s.add(room)
-        for idx, atoms in enumerate(s22):
-            frame = schema.Frame(
-                data=znframe.Frame.from_atoms(atoms).to_dict(built_in_types=False),
-                index=idx,
-                room=room,
-            )
-            s.add(frame)
-
-        # add two bookmarks
-        bookmark1 = schema.Bookmark(step=1, text="bm-1", room=room)
-        s.add(bookmark1)
-        bookmark2 = schema.Bookmark(step=2, text="bm-2", room=room)
-        s.add(bookmark2)
-        s.commit()
-
-    return session
 
 
 def test_room(room_session):
@@ -139,22 +103,24 @@ def test_zndraw_worker_set(room_session, sio_server):
 
 def test_set_bookmarks(room_session, sio_server):
     with mock.patch("zndraw.zndraw_worker.Session", room_session):
-        worker = ZnDrawWorker(token="test_token", url=sio_server)
-        global answer
-        answer = None
-
-        @typecast
-        def on_answer(data: RoomSetData):
+        # patch Client.emit to use namespace /testing
+        with mock.patch("socketio.Client.emit", functools.partial(socketio.Client.emit, namespace="/testing")):
+            worker = ZnDrawWorker(token="test_token", url=sio_server)
             global answer
-            answer = data
+            answer = None
 
-        worker.socket.on("room:set", on_answer)
+            @typecast
+            def on_answer(data: RoomSetData):
+                global answer
+                answer = data
 
-        worker.bookmarks = {2: "bm-3", 3: "bm-4"}
-        worker.socket.sleep(0.1)
-        # TODO: keys being converted to strings somewhere
-        assert answer.bookmarks == {"2": "bm-3", "3": "bm-4"}
-        assert worker.bookmarks == {2: "bm-3", 3: "bm-4"}
+            worker.socket.on("room:set", on_answer)
+
+            worker.bookmarks = {2: "bm-3", 3: "bm-4"}
+            worker.socket.sleep(0.1)
+            # TODO: keys being converted to strings somewhere
+            assert answer.bookmarks == {"2": "bm-3", "3": "bm-4"}
+            assert worker.bookmarks == {2: "bm-3", 3: "bm-4"}
 
 
 def test_set_step(room_session, sio_server):
@@ -209,7 +175,7 @@ def test_set_points(room_session, sio_server):
         worker.socket.on("room:set", on_answer)
 
         worker.points = [[1, 1, 1], [2, 2, 2]]
-        worker.socket.sleep(0.1)
+        worker.socket.sleep(1.5)
         npt.assert_array_equal(answer.points, [[1, 1, 1], [2, 2, 2]])
         npt.assert_array_equal(worker.points, [[1, 1, 1], [2, 2, 2]])
 

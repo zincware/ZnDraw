@@ -21,8 +21,9 @@ from zndraw.utils import get_cls_from_json_schema, hide_discriminator_field
 from zndraw.zndraw import ZnDraw
 
 from ..app import cache
-from ..data import CeleryTaskData, FrameData
+from ..data import CeleryTaskData, FrameData, RoomGetData, RoomSetData
 from .utils import insert_into_queue, remove_job_from_queue
+from ..utils import typecast
 
 log = logging.getLogger(__name__)
 
@@ -604,3 +605,19 @@ def run_modifier(url: str, token: str, data: dict):
     else:
         _run_default_modifier.delay(url, token, data)
     return
+
+
+@shared_task
+@typecast
+def handle_room_get(data: RoomGetData, token: str, url: str, target: str):
+    from zndraw.zndraw_worker import ZnDrawWorker
+    print("I AM RUNNING THE CELERY TASK")
+    print(50 * "-")
+    worker = ZnDrawWorker(token=token, url=url)
+    answer = RoomSetData()
+    if data.step:
+        answer.step = worker.step
+    msg = CeleryTaskData(
+        target=target, event="room:get", data=answer.to_dict(),
+    )
+    worker.socket.emit("celery:task:emit", msg.to_dict())

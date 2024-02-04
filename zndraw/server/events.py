@@ -28,12 +28,15 @@ from ..data import (
     SceneUpdateData,
     SchemaData,
     SubscribedUserData,
+    RoomGetData,
+    RoomSetData,
 )
 from .utils import get_queue_position
 
 log = logging.getLogger(__name__)
 
 modifier_lock = Lock()
+
 
 
 def _webclients_room(data: dict) -> str:
@@ -46,7 +49,6 @@ def _webclients_room(data: dict) -> str:
         if data.sid is not None:
             return data.sid
     return f"webclients_{data.token}"
-
 
 @io.on("connect")
 def connect():
@@ -266,6 +268,10 @@ def join(data: JoinData):
     # if data.token not in PER_TOKEN_DATA:
     #     PER_TOKEN_DATA[data.token] = {}
     # cache.set("PER-TOKEN-DATA", PER_TOKEN_DATA)
+
+@io.on("room:get")
+def room_get(data: RoomGetData):
+    tasks.handle_room_get.delay(data, session["token"], request.url_root, request.sid)
 
 
 @io.on("analysis:figure")

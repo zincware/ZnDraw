@@ -69,6 +69,9 @@ class CeleryTaskData:
     timeout: int = 60
     authentication: str = None
 
+    def to_dict(self) -> dict:
+        return dataclasses.asdict(self)
+
 
 @dataclasses.dataclass
 class FrameData:

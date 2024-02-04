@@ -4,7 +4,8 @@ import ase
 import numpy as np
 from znframe.frame import Frame as ZnFrame
 
-from zndraw.data import RoomSetData
+from zndraw.data import RoomSetData, RoomGetData, CeleryTaskData
+from zndraw.utils import typecast
 
 from .base import ZnDrawBase
 from .db import Session
