@@ -366,12 +366,11 @@ def get_vis_obj(
 
 @shared_task(bind=True)
 def _run_global_modifier(self, url: str, token: str, data):
-    vis = get_vis_obj(
-        url,
-        token,
-        queue_name="slow",
-        request_id=self.request.id,
-    )
+    from zndraw.zndraw_worker import ZnDrawWorker
+    vis = ZnDrawWorker(token=str(token), url=url)
+
+    vis.socket.on("modifier:run:finished", lambda: vis.socket.disconnect())
+
     name = data["method"]["discriminator"]
     while True:
         with Session() as ses:
@@ -451,13 +450,10 @@ def _run_global_modifier(self, url: str, token: str, data):
 
 @shared_task(bind=True)
 def _run_room_modifier(self, url: str, token: str, data):
+    from zndraw.zndraw_worker import ZnDrawWorker
+    vis = ZnDrawWorker(token=str(token), url=url)
+
     name = data["method"]["discriminator"]
-    vis = get_vis_obj(
-        url,
-        token,
-        queue_name="custom",
-        request_id=self.request.id,
-    )
     with Session() as ses:
         room = ses.query(db_schema.Room).filter_by(token=vis.token).first()
         room_modifier = (

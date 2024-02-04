@@ -65,7 +65,7 @@ class ZnDraw(ZnDrawBase):
 
     _target_sid: str | None = None
 
-    _lock = Lock()
+    _lock: Lock = dataclasses.field(default_factory=Lock)
     _data = None
 
     def __post_init__(self):
@@ -104,12 +104,26 @@ class ZnDraw(ZnDrawBase):
 
     def reconnect(self) -> None:
         """Reconnect to the server."""
-        log.critical("Reconnecting to server")
-        self.socket.disconnect()
-        self._connect()
-        self._on_connect()
-        self.socket.sleep(0.1)
-        log.critical("Reconnected to server")
+        super().reconnect()
+
+        for k, v in self._modifiers.items():
+            log.critical(f"Re-registering modifier {k}")
+            msg = ModifierRegisterData(
+                schema=v["cls"].model_json_schema(),
+                name=k,
+                default=v["default"],
+                timeout=v["run_kwargs"]["timeout"],
+            )
+            self.socket.emit(
+                "modifier:register",
+                dataclasses.asdict(msg),
+            )
+
+            self.socket.emit(
+                "modifier:available",
+                True,
+            )
+
 
     def get_data(self, **data: dict) -> RoomGetData:
         data = RoomGetData(**data)
