@@ -545,7 +545,7 @@ def handle_room_get(data: RoomGetData, token: str, url: str, target: str):
     worker = ZnDrawWorker(token=token, url=url)
     #  TODO: I think this should use `RoomGetData`
     #  and we do unions bool | datatype there
-    answer = RoomSetData()
+    answer = RoomGetData()
     if data.step:
         answer.step = worker.step
     if data.points:
@@ -554,8 +554,8 @@ def handle_room_get(data: RoomGetData, token: str, url: str, target: str):
         answer.bookmarks = worker.bookmarks
     if data.selection:
         answer.selection = worker.selection
-    # if data.length:
-    #     answer.length = len(worker)
+    if data.length:
+        answer.length = len(worker)
     # if data.segments:
     #     answer.segments = worker.segments.tolist()
     if data.frames:
@@ -587,6 +587,8 @@ def handle_room_set(data: RoomSetData, token: str, url: str):
     if data.frames:
         for idx, frame in data.frames.items():
             worker[idx] = znframe.Frame.from_dict(frame).to_atoms()
+    
+    worker.socket.emit("room:set:finished")
 
     # worker.commit() and a mode, that waits for all updates before commiting
 

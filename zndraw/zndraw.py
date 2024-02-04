@@ -69,13 +69,16 @@ class ZnDraw(ZnDrawBase):
     _data = None
 
     def __post_init__(self):
-        self.socket = socketio.Client()
         if isinstance(self.config, dict):
             self.config = Config(**self.config)
         self.socket.on("disconnect", self._on_disconnect)
         self.socket.on("connect", self._on_connect)
         self.socket.on("modifier:run", self._pre_modifier_run)
         self.socket.on("message:log", lambda data: print(data))
+        self.socket.on("room:get", lambda data: setattr(self, "_data", data))
+        self.socket.on("room:set:finished", lambda *args: self._lock.release())
+        super().__post_init__()
+
 
     def _on_disconnect(self):
         log.critical(f"Disconnected from server: {self._modifiers}")
@@ -109,20 +112,21 @@ class ZnDraw(ZnDrawBase):
         self.socket.sleep(0.1)
         log.critical("Reconnected to server")
 
-    @typecast_kwargs
-    def get_data(self, **data: RoomGetData) -> RoomGetData:
+    def get_data(self, **data: dict) -> RoomGetData:
+        data = RoomGetData(**data)
         with self._lock:
             self._data = None
             self.socket.emit("room:get", data.to_dict())
             while self._data is None:
                 self.socket.sleep(seconds=1)
                 # generous timeout
+            # self._data.pop("update_database", None) # TODO: this should not happen
             data = RoomGetData(**self._data)
             self._data = None
             return data
 
-    @typecast_kwargs
-    def set_data(self, **data: RoomSetData):
+    def set_data(self, **data: dict) -> None:
+        data = RoomSetData(**data)
         self._lock.acquire(block=True)  # might need to have a while loop here
         self.socket.emit("room:set", data.to_dict())
 

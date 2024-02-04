@@ -15,7 +15,7 @@ import numpy as np
 import znframe
 from decorator import decorator
 
-from .settings import GlobalConfig
+
 
 SHARED = {"atoms": None}
 
@@ -27,6 +27,7 @@ def split_list_into_chunks(lst, n):
 
 
 def estimate_max_batch_size_for_socket(frames: list[znframe.Frame]):
+    from .settings import GlobalConfig
     max_size = GlobalConfig().max_socket_data_size
     sizes = [sys.getsizeof(frame) for frame in frames]
     largest_frame = max(sizes)
