@@ -2,7 +2,7 @@ import dataclasses
 import logging
 import threading
 import typing as t
-from multiprocessing import Lock
+from threading import Lock
 
 import ase
 import ase.io
@@ -125,7 +125,7 @@ class ZnDraw(ZnDrawBase):
 
     def set_data(self, **data: dict) -> None:
         data = RoomSetData(**data)
-        self._lock.acquire(block=True)  # might need to have a while loop here
+        self._lock.acquire(blocking=True)  # might need to have a while loop here
         self.socket.emit("room:set", data.to_dict())
 
     def __len__(self) -> int:

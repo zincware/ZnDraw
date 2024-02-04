@@ -593,7 +593,7 @@ def handle_room_set(data: RoomSetData, token: str, url: str, source: str):
         target=source,
         event="room:set:finished",
         data=None,
+        disconnect=True,
     )
     worker.socket.emit("celery:task:emit", msg.to_dict())
-
     # worker.commit() and a mode, that waits for all updates before commiting
