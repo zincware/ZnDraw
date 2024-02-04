@@ -606,8 +606,6 @@ def run_modifier(url: str, token: str, data: dict):
 def handle_room_get(data: RoomGetData, token: str, url: str, target: str):
     from zndraw.zndraw_worker import ZnDrawWorker
 
-    print("I AM RUNNING THE CELERY TASK")
-    print(50 * "-")
     worker = ZnDrawWorker(token=token, url=url)
     #  TODO: I think this should use `RoomGetData`
     #  and we do unions bool | datatype there

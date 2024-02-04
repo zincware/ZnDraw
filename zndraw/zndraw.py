@@ -58,8 +58,7 @@ class ZnDraw(ZnDrawBase):
         not just the current session.
     """
 
-    url: str
-    token: str | None = None
+
     display_new: bool = True
     auth_token: str | None = None
     config: Config = dataclasses.field(default_factory=Config)
@@ -117,7 +116,7 @@ class ZnDraw(ZnDrawBase):
             self._data = None
             self.socket.emit("room:get", data.to_dict())
             while self._data is None:
-                self.socket.sleep()
+                self.socket.sleep(seconds=1)
                 # generous timeout
             data = RoomGetData(**self._data)
             self._data = None

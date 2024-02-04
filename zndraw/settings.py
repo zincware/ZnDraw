@@ -99,13 +99,17 @@ class GlobalConfig(pydantic.BaseModel):
     cache: CacheSettings = CacheSettings()
     celery: CeleryConfig = CeleryConfig()
     database: DatabaseConfig = DatabaseConfig()
+    
+    # Socket settings
+    read_batch_size: int = 1
+    max_socket_data_size: int|float = 1e6
 
+    # Webclient Interface
     analysis_functions: t.List[str] = _ANALYSIS_FUNCTIONS
     modify_functions: t.List[str] = _MODIFY_FUNCTIONS
     bonds_functions: t.List[str] = _BONDS_FUNCTIONS
     selection_functions: t.List[str] = _SELECTION_FUNCTIONS
     function_schema: t.Dict[str, dict] = {}
-    read_batch_size: int = 1
 
     def save(self, path="~/.zincware/zndraw/config.json"):
         save_path = pathlib.Path(path).expanduser()
