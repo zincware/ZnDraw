@@ -713,19 +713,7 @@ def modifier_register(data: ModifierRegisterData):
 @io.on("modifier:available")
 def modifier_available(available: bool):
     """Update the modifier availability."""
-    log.critical(f"modifier:available {request.sid} {available}")
-    with Session() as ses:
-        global_modifier_client = (
-            ses.query(db_schema.GlobalModifierClient).filter_by(sid=request.sid).first()
-        )
-        room_modifier_client = (
-            ses.query(db_schema.RoomModifierClient).filter_by(sid=request.sid).first()
-        )
-        if global_modifier_client is not None:
-            global_modifier_client.available = available
-        elif room_modifier_client is not None:
-            room_modifier_client.available = available
-        ses.commit()
+    tasks.activate_modifier.delay(request.sid, available)
 
 
 @io.on("modifier:queue:update")

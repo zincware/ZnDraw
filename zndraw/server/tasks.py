@@ -601,3 +601,19 @@ def handle_room_set(data: RoomSetData, token: str, url: str, source: str):
     )
     worker.socket.emit("celery:task:emit", msg.to_dict())
     # worker.commit() and a mode, that waits for all updates before commiting
+
+@shared_task
+def activate_modifier(sid: str, available: bool):
+    log.critical(f"modifier:available {sid} {available}")
+    with Session() as ses:
+        global_modifier_client = (
+            ses.query(db_schema.GlobalModifierClient).filter_by(sid=sid).first()
+        )
+        room_modifier_client = (
+            ses.query(db_schema.RoomModifierClient).filter_by(sid=sid).first()
+        )
+        if global_modifier_client is not None:
+            global_modifier_client.available = available
+        elif room_modifier_client is not None:
+            room_modifier_client.available = available
+        ses.commit()
