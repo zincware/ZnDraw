@@ -136,7 +136,7 @@ class ZnDraw(ZnDrawBase):
         if isinstance(value, ase.Atoms):
             value = Frame.from_atoms(value)
         self.set_data(
-            {index: value.to_dict(built_in_types=False)}, update_database=True
+            frames={index: value.to_dict(built_in_types=False)}, update_database=True
         )
 
     def __delitem__(self, index: int | slice | list[int]):
@@ -147,7 +147,7 @@ class ZnDraw(ZnDrawBase):
         ):
             length = len(self)
             index = self.wrap_and_check_index(index, length)
-            self.set_data({i: None for i in index}, update_database=True)
+            self.set_data(frames={i: None for i in index}, update_database=True)
         else:
             raise TypeError("Index must be an integer, slice or list[int]")
 
