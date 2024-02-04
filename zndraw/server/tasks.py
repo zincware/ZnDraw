@@ -284,6 +284,9 @@ def read_file(url: str, target: str, token: str):
 
     else:
         vis.upload(target)
+    
+    vis.socket.sleep(1)
+    vis.socket.disconnect()
 
 
 @shared_task
@@ -566,6 +569,7 @@ def handle_room_get(data: RoomGetData, token: str, url: str, target: str):
         target=target,
         event="room:get",
         data=answer.to_dict(),
+        disconnect=True
     )
     worker.socket.emit("celery:task:emit", msg.to_dict())
 
