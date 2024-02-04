@@ -237,7 +237,7 @@ class World {
     this.socket.on("room:set", (data) => {
       if (data.step !== null) {
         // small timeout to ensure the step is set after the cache is updated
-        setTimeout(() => this.setStep(data.step,), 100);
+        setTimeout(() => this.setStep(data.step), 100);
       }
       if (data.frames !== null) {
         cache.setFrames(data.frames);
@@ -324,12 +324,12 @@ class World {
     sliderprogress.style.width = `${percentage}%`;
     document.getElementById("info").innerHTML =
       `${slider.ariaValueNow} / ${slider.ariaValueMax}`;
-      setTimeout(() => {
-        if (step === parseInt(slider.ariaValueNow)) {
-          // only update the database if the step was not changed in the last 500 ms
-          this.socket.emit("room:set", { step: step, update_database: true});
-        }
-      }, 500);
+    setTimeout(() => {
+      if (step === parseInt(slider.ariaValueNow)) {
+        // only update the database if the step was not changed in the last 500 ms
+        this.socket.emit("room:set", { step: step, update_database: true });
+      }
+    }, 500);
   }
 
   getStep() {
