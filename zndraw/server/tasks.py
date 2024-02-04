@@ -598,6 +598,7 @@ def handle_room_set(data: RoomSetData, token: str, url: str, source: str):
     worker.socket.emit("celery:task:emit", msg.to_dict())
     # worker.commit() and a mode, that waits for all updates before commiting
 
+
 @shared_task
 def activate_modifier(sid: str, available: bool):
     log.critical(f"modifier:available {sid} {available}")
