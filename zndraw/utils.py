@@ -12,7 +12,10 @@ from typing import get_type_hints
 import ase
 import datamodel_code_generator
 import numpy as np
+import znframe
 from decorator import decorator
+
+from .settings import GlobalConfig
 
 SHARED = {"atoms": None}
 
@@ -21,6 +24,13 @@ def split_list_into_chunks(lst, n):
     """Yield successive n-sized chunks from lst."""
     for i in range(0, len(lst), n):
         yield lst[i : i + n]
+
+
+def estimate_max_batch_size_for_socket(frames: list[znframe.Frame]):
+    max_size = GlobalConfig().max_socket_data_size
+    sizes = [sys.getsizeof(frame) for frame in frames]
+    largest_frame = max(sizes)
+    return int(max_size / largest_frame * 0.9)
 
 
 def rgb2hex(value):

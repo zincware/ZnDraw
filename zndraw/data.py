@@ -1,6 +1,5 @@
 import dataclasses
 
-import numpy as np
 import znframe
 
 
@@ -16,7 +15,7 @@ class RoomSetData:
         Whether to update the database with the new data.
     """
 
-    points: np.ndarray | None = None
+    points: list[list[float]] | None = None
     bookmarks: dict[int, str] | None = None
     step: int | None = None
     selection: list[int] | None = None
@@ -32,13 +31,13 @@ class RoomSetData:
 
 @dataclasses.dataclass
 class RoomGetData:
-    points: bool = False
-    bookmarks: bool = False
-    step: bool = False
-    selection: bool = False
-    length: bool = False
-    segments: bool = False
-    frames: list[int] | None = None
+    points: bool | list[list[float]] = False
+    bookmarks: bool | dict[str, str] = False
+    step: bool | int = False
+    selection: bool | list[int] = False
+    length: bool | int = False
+    segments: bool | list[list[float]] = False
+    frames: list[int] | None | list[dict] = None
 
     def to_dict(self) -> dict:
         return dataclasses.asdict(self)

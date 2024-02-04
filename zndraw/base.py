@@ -1,13 +1,13 @@
-import collections
 import dataclasses
 from abc import abstractmethod
+from collections.abc import MutableSequence
 
 import numpy as np
 import socketio
 
 
 @dataclasses.dataclass
-class ZnDrawBase(collections.abc.MutableSequence):
+class ZnDrawBase(MutableSequence):
     token: str
     url: str
 

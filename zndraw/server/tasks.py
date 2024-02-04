@@ -21,6 +21,7 @@ from zndraw.zndraw import ZnDraw
 
 from ..app import cache
 from ..data import CeleryTaskData, RoomGetData, RoomSetData
+from ..data import CeleryTaskData, FrameData, RoomGetData, RoomSetData
 from ..utils import typecast
 from .utils import insert_into_queue, remove_job_from_queue
 
@@ -541,8 +542,6 @@ def run_modifier(url: str, token: str, data: dict):
 def handle_room_get(data: RoomGetData, token: str, url: str, target: str):
     from zndraw.zndraw_worker import ZnDrawWorker
 
-    print("I AM RUNNING THE CELERY TASK")
-    print(50 * "-")
     worker = ZnDrawWorker(token=token, url=url)
     #  TODO: I think this should use `RoomGetData`
     #  and we do unions bool | datatype there
@@ -571,7 +570,6 @@ def handle_room_get(data: RoomGetData, token: str, url: str, target: str):
     )
     worker.socket.emit("celery:task:emit", msg.to_dict())
 
-
 @shared_task
 @typecast
 def handle_room_set(data: RoomSetData, token: str, url: str):
@@ -591,3 +589,4 @@ def handle_room_set(data: RoomSetData, token: str, url: str):
             worker[idx] = znframe.Frame.from_dict(frame).to_atoms()
 
     # worker.commit() and a mode, that waits for all updates before commiting
+

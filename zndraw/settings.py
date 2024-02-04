@@ -100,6 +100,11 @@ class GlobalConfig(pydantic.BaseModel):
     celery: CeleryConfig = CeleryConfig()
     database: DatabaseConfig = DatabaseConfig()
 
+    # Socket settings
+    read_batch_size: int = 1
+    max_socket_data_size: int | float = 1e6
+
+    # Webclient Interface
     analysis_functions: t.List[str] = _ANALYSIS_FUNCTIONS
     modify_functions: t.List[str] = _MODIFY_FUNCTIONS
     bonds_functions: t.List[str] = _BONDS_FUNCTIONS

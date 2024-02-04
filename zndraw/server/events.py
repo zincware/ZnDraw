@@ -774,3 +774,4 @@ def room_set(data: RoomSetData):
         print("room_set: update_database")
         # TODO: we need to differentiate, if the data comes from a pyclient or a webclient
         tasks.handle_room_set.delay(data.to_dict(), session["token"], request.url_root)
+
