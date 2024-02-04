@@ -284,7 +284,7 @@ def read_file(url: str, target: str, token: str):
 
     else:
         vis.upload(target)
-    
+
     vis.socket.sleep(1)
     vis.socket.disconnect()
 
@@ -292,6 +292,7 @@ def read_file(url: str, target: str, token: str):
 @shared_task
 def run_selection(url: str, token: str, data: dict):
     from zndraw.zndraw_worker import ZnDrawWorker
+
     vis = ZnDrawWorker(token=str(token), url=url)
     print(datetime.datetime.now().isoformat())
 
@@ -496,6 +497,7 @@ def _run_room_modifier(self, url: str, token: str, data):
 @shared_task(bind=True)
 def _run_default_modifier(self, url: str, token: str, data):
     from zndraw.zndraw_worker import ZnDrawWorker
+
     vis = ZnDrawWorker(token=str(token), url=url)
     config = GlobalConfig.load()
     cls = get_modify_class(config.get_modify_methods())
@@ -566,10 +568,7 @@ def handle_room_get(data: RoomGetData, token: str, url: str, target: str):
             for x in worker[data.frames]
         ]
     msg = CeleryTaskData(
-        target=target,
-        event="room:get",
-        data=answer.to_dict(),
-        disconnect=True
+        target=target, event="room:get", data=answer.to_dict(), disconnect=True
     )
     worker.socket.emit("celery:task:emit", msg.to_dict())
 
