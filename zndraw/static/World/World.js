@@ -252,17 +252,16 @@ class World {
       }
     });
 
-
     this.socket.on("camera:update", (data) => {
-        camera.position.set(...data.position);
-        controls.target.set(...data.target);
-        controls.update();
+      camera.position.set(...data.position);
+      controls.target.set(...data.target);
+      controls.update();
     });
 
     controls.addEventListener("change", () => {
       this.socket.emit("camera:update", {
-          position: camera.position.toArray(),
-          target: controls.target.toArray(),
+        position: camera.position.toArray(),
+        target: controls.target.toArray(),
       });
     });
   }

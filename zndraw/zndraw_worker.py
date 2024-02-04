@@ -4,7 +4,7 @@ import ase
 import numpy as np
 from znframe.frame import Frame as ZnFrame
 
-from zndraw.data import RoomSetData, CeleryTaskData
+from zndraw.data import CeleryTaskData, RoomSetData
 from zndraw.settings import GlobalConfig
 
 from .base import ZnDrawBase
@@ -75,7 +75,6 @@ class ZnDrawWorker(ZnDrawBase):
                     session.add(frame)
                 frame.data = _value.to_dict(built_in_types=False)
             session.commit()
-
 
     def __getitem__(self, index: int | list[int] | slice) -> ase.Atoms:
         single_index = False
@@ -224,7 +223,7 @@ class ZnDrawWorker(ZnDrawBase):
 
     def upload(self, target: str):
         """Emit all frames to the target (webclient)."""
-        config = GlobalConfig.load()        
+        config = GlobalConfig.load()
         frame_list = []
         for idx in range(len(self)):
             frame_list.append(self[idx])
@@ -234,7 +233,10 @@ class ZnDrawWorker(ZnDrawBase):
                     event="room:set",
                     data=RoomSetData(
                         frames={
-                            idx - jdx: ZnFrame.from_atoms(atoms).to_dict(built_in_types=False)
+                            idx
+                            - jdx: ZnFrame.from_atoms(atoms).to_dict(
+                                built_in_types=False
+                            )
                             for jdx, atoms in enumerate(reversed(frame_list))
                         },
                         step=idx if idx < self.step else self.step,
@@ -243,7 +245,7 @@ class ZnDrawWorker(ZnDrawBase):
 
                 self.socket.emit("celery:task:emit", msg.to_dict())
                 frame_list = []
-        
+
         msg = CeleryTaskData(
             target=target,
             event="room:set",

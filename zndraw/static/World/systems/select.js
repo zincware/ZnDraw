@@ -21,7 +21,7 @@ class Selection {
       let points = this.line3D.anchorPoints.children.map((x) => x.position);
       // convert x, y, z to [x, y, z]
       points = points.map((x) => [x.x, x.y, x.z]);
-      this.socket.emit("room:set", {points: points});
+      this.socket.emit("room:set", { points: points });
     };
 
     this.raycaster = new THREE.Raycaster();
@@ -213,7 +213,7 @@ class Selection {
           this.shift_pressed,
           particleIntersects[0].object,
         );
-        this.socket.emit("room:set", {selection: particlesGroup.selection});
+        this.socket.emit("room:set", { selection: particlesGroup.selection });
       }
     }
   }

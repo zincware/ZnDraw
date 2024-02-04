@@ -4,7 +4,6 @@ import pathlib
 from dataclasses import asdict
 
 import ase.io
-import tqdm
 import znframe
 import znh5md
 from celery import shared_task
@@ -21,9 +20,9 @@ from zndraw.utils import get_cls_from_json_schema, hide_discriminator_field
 from zndraw.zndraw import ZnDraw
 
 from ..app import cache
-from ..data import CeleryTaskData, FrameData, RoomGetData, RoomSetData
-from .utils import insert_into_queue, remove_job_from_queue
+from ..data import CeleryTaskData, RoomGetData, RoomSetData
 from ..utils import typecast
+from .utils import insert_into_queue, remove_job_from_queue
 
 log = logging.getLogger(__name__)
 
@@ -241,6 +240,7 @@ def scene_trash(url: str, token: str):
 @shared_task
 def read_file(url: str, target: str, token: str):
     from zndraw.zndraw_worker import ZnDrawWorker
+
     config = GlobalConfig.load()
 
     vis = ZnDrawWorker(token=token, url=url)
@@ -265,7 +265,7 @@ def read_file(url: str, target: str, token: str):
             generator = ase.io.iread(fileio.name)
 
         atoms_list = []
-        
+
         for idx, atoms in enumerate(generator):
             if fileio.start and idx < fileio.start:
                 continue
@@ -278,12 +278,13 @@ def read_file(url: str, target: str, token: str):
             if len(atoms_list) == config.read_batch_size:
                 vis.extend(atoms_list)
                 atoms_list = []
-            
+
         if len(atoms_list) > 0:
             vis.extend(atoms_list)
-    
+
     else:
         vis.upload(target)
+
 
 @shared_task
 def run_selection(url: str, token: str, data: dict):
@@ -534,10 +535,12 @@ def run_modifier(url: str, token: str, data: dict):
         _run_default_modifier.delay(url, token, data)
     return
 
+
 @shared_task
 @typecast
 def handle_room_get(data: RoomGetData, token: str, url: str, target: str):
     from zndraw.zndraw_worker import ZnDrawWorker
+
     print("I AM RUNNING THE CELERY TASK")
     print(50 * "-")
     worker = ZnDrawWorker(token=token, url=url)
@@ -557,8 +560,13 @@ def handle_room_get(data: RoomGetData, token: str, url: str, target: str):
     # if data.segments:
     #     answer.segments = worker.segments.tolist()
     if data.frames:
-        answer.frames = [znframe.Frame.from_atoms(x).to_dict(built_in_types=False) for x in worker[data.frames]]
+        answer.frames = [
+            znframe.Frame.from_atoms(x).to_dict(built_in_types=False)
+            for x in worker[data.frames]
+        ]
     msg = CeleryTaskData(
-        target=target, event="room:get", data=answer.to_dict(),
+        target=target,
+        event="room:get",
+        data=answer.to_dict(),
     )
     worker.socket.emit("celery:task:emit", msg.to_dict())
