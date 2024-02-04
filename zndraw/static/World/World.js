@@ -147,7 +147,7 @@ class Player {
   }
 
   play() {
-    // TODO: do not update the database upon play but only on stop, 
+    // TODO: do not update the database upon play but only on stop,
     //  because otherwise, the db will not keep up
     if (this.playing) {
       this.go_forward();

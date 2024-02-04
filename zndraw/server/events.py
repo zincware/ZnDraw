@@ -774,6 +774,7 @@ def room_set(data: RoomSetData):
         # TODO: for fast updates, e.g. points, step during play this is not fast enough
         tasks.handle_room_set.delay(data.to_dict(), session["token"], request.url_root)
 
+
 @io.on("room:set:finished")
 def room_set_finished():
     emit(

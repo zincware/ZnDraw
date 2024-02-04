@@ -21,7 +21,6 @@ from zndraw.zndraw import ZnDraw
 
 from ..app import cache
 from ..data import CeleryTaskData, RoomGetData, RoomSetData
-from ..data import CeleryTaskData, FrameData, RoomGetData, RoomSetData
 from ..utils import typecast
 from .utils import insert_into_queue, remove_job_from_queue
 
@@ -570,6 +569,7 @@ def handle_room_get(data: RoomGetData, token: str, url: str, target: str):
     )
     worker.socket.emit("celery:task:emit", msg.to_dict())
 
+
 @shared_task
 @typecast
 def handle_room_set(data: RoomSetData, token: str, url: str):
@@ -587,8 +587,7 @@ def handle_room_set(data: RoomSetData, token: str, url: str):
     if data.frames:
         for idx, frame in data.frames.items():
             worker[idx] = znframe.Frame.from_dict(frame).to_atoms()
-    
+
     worker.socket.emit("room:set:finished")
 
     # worker.commit() and a mode, that waits for all updates before commiting
-

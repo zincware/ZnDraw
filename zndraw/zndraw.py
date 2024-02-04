@@ -22,7 +22,6 @@ from .data import RoomGetData, RoomSetData
 from .utils import (
     estimate_max_batch_size_for_socket,
     split_list_into_chunks,
-    typecast_kwargs,
 )
 
 log = logging.getLogger(__name__)
@@ -78,7 +77,6 @@ class ZnDraw(ZnDrawBase):
         self.socket.on("room:get", lambda data: setattr(self, "_data", data))
         self.socket.on("room:set:finished", lambda *args: self._lock.release())
         super().__post_init__()
-
 
     def _on_disconnect(self):
         log.critical(f"Disconnected from server: {self._modifiers}")
