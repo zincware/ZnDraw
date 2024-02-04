@@ -21,7 +21,6 @@ from ..data import (
     CeleryTaskData,
     DeleteAtomsData,
     FrameData,
-    JoinData,
     MessageData,
     ModifierRegisterData,
     RoomGetData,
@@ -253,7 +252,6 @@ def join(token: str):
     session["token"] = token
     join_room(f"{token}")
     join_room(f"pyclients_{token}")
-
 
 
 @io.on("analysis:figure")

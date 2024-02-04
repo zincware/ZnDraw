@@ -40,6 +40,7 @@ class Config:
 
     call_timeout: int = 3
 
+
 @dataclasses.dataclass
 class ZnDraw(ZnDrawBase):
     """
@@ -329,7 +330,7 @@ class ZnDraw(ZnDrawBase):
             if i >= length:
                 raise IndexError(f"Index {i} out of range for length {length}")
         return index
-    
+
     def register_modifier(
         self,
         cls: UpdateScene,
@@ -383,7 +384,6 @@ class ZnDraw(ZnDrawBase):
             "modifier:available",
             True,
         )
-
 
 
 @dataclasses.dataclass
