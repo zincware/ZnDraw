@@ -367,6 +367,7 @@ def get_vis_obj(
 @shared_task(bind=True)
 def _run_global_modifier(self, url: str, token: str, data):
     from zndraw.zndraw_worker import ZnDrawWorker
+
     vis = ZnDrawWorker(token=str(token), url=url)
 
     vis.socket.on("modifier:run:finished", lambda: vis.socket.disconnect())
@@ -451,6 +452,7 @@ def _run_global_modifier(self, url: str, token: str, data):
 @shared_task(bind=True)
 def _run_room_modifier(self, url: str, token: str, data):
     from zndraw.zndraw_worker import ZnDrawWorker
+
     vis = ZnDrawWorker(token=str(token), url=url)
 
     name = data["method"]["discriminator"]
