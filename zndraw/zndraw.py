@@ -40,7 +40,7 @@ class Config:
 
     call_timeout: int = 3
 
-
+@dataclasses.dataclass
 class ZnDraw(ZnDrawBase):
     """
 
@@ -287,7 +287,7 @@ class ZnDraw(ZnDrawBase):
 
     def _pre_modifier_run(self, data) -> None:
         self.socket.emit("modifier:available", False)
-        vis = type(self)(self.url, data["token"])
+        vis = type(self)(url=self.url, token=data["token"])
         msg = CeleryTaskData(
             target=f"webclients_{vis.token}", event="modifier:run:running", data=None
         )
@@ -329,6 +329,61 @@ class ZnDraw(ZnDrawBase):
             if i >= length:
                 raise IndexError(f"Index {i} out of range for length {length}")
         return index
+    
+    def register_modifier(
+        self,
+        cls: UpdateScene,
+        run_kwargs: dict = None,
+        default: bool = False,
+        timeout: float = 60,
+    ):
+        """Register a modifier class.
+
+        Attributes
+        ----------
+        cls : UpdateScene
+            The modifier class to register.
+        run_kwargs : dict, optional
+            Keyword arguments to pass to the run method of the modifier class.
+        default : bool, optional
+            Whether to enable the modifier for ALL sessions of the ZnDraw client,
+            or just the session for the given token.
+        timeout : float, optional
+            Timeout for the modifier to run in seconds. The Webclient
+            will alert the user if the modifier takes longer than this time and
+            release the modify button (no further changes are expected, but they
+            can happen).
+        """
+        if run_kwargs is None:
+            run_kwargs = {}
+        run_kwargs["timeout"] = timeout
+        if len(self._modifiers):
+            raise ValueError(
+                "Only one modifier can be registered at the moment. "
+                "This is a limitation of the current implementation."
+            )
+
+        msg = ModifierRegisterData(
+            schema=cls.model_json_schema(),
+            name=cls.__name__,
+            default=default,
+            timeout=timeout,
+        )
+
+        self.socket.emit(
+            "modifier:register",
+            dataclasses.asdict(msg),
+        )
+        self._modifiers[cls.__name__] = {
+            "cls": cls,
+            "run_kwargs": run_kwargs,
+            "default": default,
+        }
+        self.socket.emit(
+            "modifier:available",
+            True,
+        )
+
 
 
 @dataclasses.dataclass
