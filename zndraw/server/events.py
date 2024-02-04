@@ -245,31 +245,15 @@ def disconnect():
 
 
 @io.on("join")
-@typecast
-def join(data: JoinData):
+def join(token: str):
     """
     Arguments:
         data: {"token": str, "uuid": str}
     """
-    # only used by pyclients that only connect via socket (no HTML)
-    # session["authenticated"] = data.auth_token == app.config["AUTH_TOKEN"]
-    # log.debug(f"Client {request.sid} is {session['authenticated'] = }")
-    # PYCLIENTS = cache.get("pyclients")
-    # if data.uuid in PYCLIENTS:
-    #     log.critical(
-    #         f"UUID {data.uuid} is already registered in {app.config['pyclients']}."
-    #     )
-    #     emit("message:log", f"UUID {data.uuid} is already registered", to=request.sid)
-    # PYCLIENTS[data.uuid] = request.sid
-    # cache.set("pyclients", PYCLIENTS)
-    session["token"] = data.token
-    join_room(f"{data.token}")
-    join_room(f"pyclients_{data.token}")
-    # join_room(f"pyclients_{data.token}")
-    # PER_TOKEN_DATA = cache.get("PER-TOKEN-DATA")
-    # if data.token not in PER_TOKEN_DATA:
-    #     PER_TOKEN_DATA[data.token] = {}
-    # cache.set("PER-TOKEN-DATA", PER_TOKEN_DATA)
+    session["token"] = token
+    join_room(f"{token}")
+    join_room(f"pyclients_{token}")
+
 
 
 @io.on("analysis:figure")
