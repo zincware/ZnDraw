@@ -713,6 +713,7 @@ def modifier_register(data: ModifierRegisterData):
 @io.on("modifier:available")
 def modifier_available(available: bool):
     """Update the modifier availability."""
+    log.critical(f"modifier:available {request.sid} {available}")
     with Session() as ses:
         global_modifier_client = (
             ses.query(db_schema.GlobalModifierClient).filter_by(sid=request.sid).first()
