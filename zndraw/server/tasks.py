@@ -617,6 +617,7 @@ def activate_modifier(sid: str, available: bool):
             room_modifier_client.available = available
         ses.commit()
 
+
 @shared_task
 def on_disconnect(token: str, sid: str, url: str):
     # from zndraw.zndraw_worker import ZnDrawWorker
@@ -646,7 +647,6 @@ def on_disconnect(token: str, sid: str, url: str):
         for rmc in room_modifier_client:
             ses.delete(rmc)
         ses.commit()
-
 
     with Session() as ses:
         room = ses.query(db_schema.Room).filter_by(token=token).first()

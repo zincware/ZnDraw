@@ -186,6 +186,7 @@ def disconnect():
 
     tasks.on_disconnect.delay(request.sid, token, url)
 
+
 @io.on("join")
 def join(token: str):
     """
