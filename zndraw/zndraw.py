@@ -1,7 +1,9 @@
 import dataclasses
 import logging
 import threading
+from multiprocessing import Lock
 import typing as t
+
 
 import ase
 import ase.io
@@ -16,7 +18,9 @@ from zndraw.utils import (
     ZnDrawLoggingHandler,
 )
 
-from .utils import split_list_into_chunks
+from .base import ZnDrawBase
+from .data import RoomGetData, RoomSetData
+from .utils import split_list_into_chunks, typecast_kwargs, estimate_max_batch_size_for_socket
 
 log = logging.getLogger(__name__)
 
@@ -35,8 +39,7 @@ class Config:
     call_timeout: int = 3
 
 
-@dataclasses.dataclass
-class ZnDrawBase:  # collections.abc.MutableSequence
+class ZnDraw(ZnDrawBase):
     """
 
     Attributes
@@ -53,13 +56,16 @@ class ZnDrawBase:  # collections.abc.MutableSequence
     """
 
     url: str
-    token: str = None
+    token: str | None = None
     display_new: bool = True
-    auth_token: str = None
+    auth_token: str | None = None
     config: Config = dataclasses.field(default_factory=Config)
     _modifiers: dict = dataclasses.field(default_factory=dict)
 
-    _target_sid: str = None
+    _target_sid: str | None = None
+
+    _lock = Lock()
+    _data = None
 
     def __post_init__(self):
         self.socket = socketio.Client()
@@ -102,46 +108,43 @@ class ZnDrawBase:  # collections.abc.MutableSequence
         self.socket.sleep(0.1)
         log.critical("Reconnected to server")
 
+    @typecast_kwargs
+    def get_data(self, **data: RoomGetData) -> RoomGetData:
+        with self._lock:
+            self._data = None
+            self.socket.emit("room:get", data.to_dict())
+            while self._data is None:
+                self.socket.sleep()
+                # generous timeout
+            data = RoomGetData(**self._data)
+            self._data = None
+            return data
+
+    @typecast_kwargs
+    def set_data(self, **data: RoomSetData):
+        self._lock.acquire(block=True)  # might need to have a while loop here
+        self.socket.emit("room:set", data.to_dict())
+
     def __len__(self) -> int:
-        return int(self.socket.call("atoms:length", timeout=self.config.call_timeout))
+        return self.get_data(length=True).length
 
     def __setitem__(self, index, value):
         assert isinstance(index, int), "Index must be an integer"
         if isinstance(value, ase.Atoms):
             value = Frame.from_atoms(value)
-        self.socket.emit(
-            "atoms:upload",
-            [
-                dataclasses.asdict(
-                    FrameData(
-                        index=index,
-                        data=value.to_dict(built_in_types=False),
-                        update=True,
-                        update_database=True,
-                    )
-                )
-            ],
+        self.set_data(
+            {index: value.to_dict(built_in_types=False)}, update_database=True
         )
 
-    def __delitem__(self, index):
+    def __delitem__(self, index: int | slice | list[int]):
         if (
             isinstance(index, int)
             or isinstance(index, slice)
             or isinstance(index, list)
         ):
             length = len(self)
-            is_slice = isinstance(index, slice)
-            if is_slice:
-                index = range(*index.indices(length))
-
-            index = [index] if isinstance(index, int) else index
-            index = [i if i >= 0 else length + i for i in index]
-
-            data = {"index": index, "token": self.token}
-
-            self.socket.emit("atoms:delete", data)
-            if not is_slice and (index[0] >= length or index[-1] >= length):
-                raise IndexError("Index out of range")
+            index = self.wrap_and_check_index(index, length)
+            self.set_data({i: None for i in index}, update_database=True)
         else:
             raise TypeError("Index must be an integer, slice or list[int]")
 
@@ -174,50 +177,28 @@ class ZnDrawBase:  # collections.abc.MutableSequence
         else:
             if isinstance(values[0], ase.Atoms):
                 values = [Frame.from_atoms(val) for val in values]
+            batch_size = estimate_max_batch_size_for_socket(values)
             indices = list(range(size, size + len(values)))
-            data = [
-                dataclasses.asdict(
-                    FrameData(
-                        index=i,
-                        data=val.to_dict(built_in_types=False),
-                        update=True,
-                        update_database=True,
-                    )
-                )
-                for i, val in zip(indices, values)
-            ]
-            batch_size = GlobalConfig.load().read_batch_size
-            for chunk in split_list_into_chunks(data, batch_size):
-                self.socket.emit(
-                    "atoms:upload",
-                    chunk,
-                )
+            all_data = [(i, val.to_dict(built_in_types=False)) for i, val in zip(indices, values)]
+            
+            for chunk in split_list_into_chunks(all_data, batch_size):
+                batch = {tup[0]: tup[1] for tup in chunk}
+                self.set_data(frames=batch, update_database=True)
+            
 
     def __getitem__(self, index) -> t.Union[ase.Atoms, list[ase.Atoms]]:
         length = len(self)
-        is_scalar = isinstance(index, int)
-        is_sclice = isinstance(index, slice)
-        if is_sclice:
-            index = range(*index.indices(length))
-
-        index = [index] if isinstance(index, int) else index
-        index = [i if i >= 0 else length + i for i in index]
-
-        downloaded_data = self.socket.call(
-            "atoms:download", index, timeout=self.config.call_timeout
-        )
+        index = self.wrap_and_check_index(index, length)
+        data = self.get_data(frames=index).frames
 
         atoms_list = []
-
-        for val in downloaded_data.values():
+        for idx, val in zip(index, data):
             if val is None:
-                raise IndexError("Index out of range")
+                raise IndexError(f"Index {idx} out of range")
             atoms_list.append(Frame.from_dict(val).to_atoms())
 
-        data = atoms_list[0] if is_scalar else atoms_list
-        if data == [] and not is_sclice:
-            raise IndexError("Index out of range")
-        return data
+        return_data = atoms_list[0] if len(index)==1 else atoms_list
+        return return_data
 
     def log(self, message: str) -> None:
         """Log a message to the console"""
@@ -233,11 +214,11 @@ class ZnDrawBase:  # collections.abc.MutableSequence
     @property
     def atoms(self) -> ase.Atoms:
         """Return the atoms at the current step."""
-        return self[self.step]
+        return self[self.step]  # type: ignore
 
     @property
     def points(self) -> np.ndarray:
-        data = self.socket.call("points:get", timeout=self.config.call_timeout)
+        data = self.get_data(points=True).points
         return np.array(data)
 
     @points.setter
@@ -249,37 +230,31 @@ class ZnDrawBase:  # collections.abc.MutableSequence
                 assert len(value[0]) == 3
             except (TypeError, AssertionError):
                 raise ValueError("Points must be a list of 3D coordinates")
-        self.socket.emit("points:set", value)
+        self.set_data(points=value, update_database=True)
 
     @property
     def segments(self) -> np.ndarray:
-        data = self.socket.call("scene:segments", timeout=self.config.call_timeout)
+        data = self.get_data(segments=True).segments
         return np.array(data)
 
     @property
     def step(self) -> int:
-        step = int(
-            self.socket.call(
-                "scene:step",
-                timeout=self.config.call_timeout,
-            )
-        )
+        step = self.get_data(step=True).step
         return step
 
     @step.setter
     def step(self, index):
-        if index > len(self) - 1:
-            raise IndexError(f"Index {index} out of range for length {len(self)}")
-        data = {"index": index, "token": self.token}
-        self.socket.emit("scene:set", data)
+        index = self.wrap_and_check_index(index, len(self))[0]
+        self.set_data(step=index, update_database=True)
+
 
     @property
     def selection(self) -> list[int]:
-        return self.socket.call("selection:get", timeout=self.config.call_timeout)
+        return self.get_data(selection=True).selection
 
     @selection.setter
     def selection(self, value: list[int]):
-        self.socket.emit("selection:set", value)
+        self.set_data(selection=value, update_database=True)
 
     def play(self):
         self.socket.emit("scene:play")
@@ -298,11 +273,11 @@ class ZnDrawBase:  # collections.abc.MutableSequence
 
     @property
     def bookmarks(self) -> dict:
-        return self.socket.call("bookmarks:get", timeout=self.config.call_timeout)
+        return self.get_data(bookmarks=True).bookmarks
 
     @bookmarks.setter
     def bookmarks(self, value: dict):
-        self.socket.emit("bookmarks:set", value)
+        self.set_data(bookmarks=value, update_database=True)
 
     def _pre_modifier_run(self, data) -> None:
         self.socket.emit("modifier:available", False)
@@ -335,10 +310,23 @@ class ZnDrawBase:  # collections.abc.MutableSequence
         vis.socket.emit("celery:task:emit", dataclasses.asdict(msg))
         self.socket.emit("modifier:available", True)
         print("Modifier finished!!!!!!!!")
+        
+    @staticmethod    
+    def wrap_and_check_index(index: int|slice|list[int], length: int) -> list[int]:
+        is_slice = isinstance(index, slice)
+        if is_slice:
+            index = list(range(*index.indices(length)))
+        index = [index] if isinstance(index, int) else index
+        index = [i if i >= 0 else length + i for i in index]
+        # check if index is out of range
+        for i in index:
+            if i >= length:
+                raise IndexError(f"Index {i} out of range for length {length}")
+        return index
 
 
 @dataclasses.dataclass
-class ZnDraw(ZnDrawBase):
+class ZnDrawOld(ZnDrawBase):
     """ZnDraw client."""
 
     url: str = None
