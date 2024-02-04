@@ -1,4 +1,5 @@
 from typing import List, Union
+import dataclasses
 
 import ase
 import numpy as np
@@ -32,8 +33,11 @@ def _any_to_list(
         return data
     raise ValueError("Invalid type for value")
 
-
+@dataclasses.dataclass
 class ZnDrawWorker(ZnDrawBase):
+
+    emit: bool = True
+
     def __len__(self) -> int:
         with Session() as session:
             room = session.query(Room).get(self.token)
@@ -54,16 +58,17 @@ class ZnDrawWorker(ZnDrawBase):
             raise ValueError("Length of index and value must match")
 
         # we emit first, because sending the data takes longer, but emit is faster
-        self.socket.emit(
-            "room:set",
-            RoomSetData(
-                frames={
-                    idx: frame.to_dict(built_in_types=False)
-                    for idx, frame in zip(index, value)
-                },
-                step=len(self) - 1 + len(index),
-            ).to_dict(),
-        )
+        if self.emit:
+            self.socket.emit(
+                "room:set",
+                RoomSetData(
+                    frames={
+                        idx: frame.to_dict(built_in_types=False)
+                        for idx, frame in zip(index, value)
+                    },
+                    step=len(self) - 1 + len(index),
+                ).to_dict(),
+            )
 
         with Session() as session:
             room = session.query(Room).get(self.token)
@@ -115,10 +120,10 @@ class ZnDrawWorker(ZnDrawBase):
             for idx, frame in enumerate(frames):
                 frame.index = idx
             session.commit()
-
-        self.socket.emit(
-            "room:set", RoomSetData(frames={idx: None for idx in index}).to_dict()
-        )
+        if self.emit:
+            self.socket.emit(
+                "room:set", RoomSetData(frames={idx: None for idx in index}).to_dict()
+            )
 
     def append(self, data: ase.Atoms | ZnFrame):
         if isinstance(data, ase.Atoms):
@@ -150,8 +155,8 @@ class ZnDrawWorker(ZnDrawBase):
             room = get_room_by_token(session, self.token)
             room.points = value  # type: ignore
             session.commit()
-
-        self.socket.emit("room:set", RoomSetData(points=value).to_dict())
+        if self.emit:
+            self.socket.emit("room:set", RoomSetData(points=value).to_dict())
 
     @property
     def segments(self) -> np.ndarray:
@@ -173,8 +178,8 @@ class ZnDrawWorker(ZnDrawBase):
             room = get_room_by_token(session, self.token)
             room.currentStep = idx
             session.commit()
-
-        self.socket.emit("room:set", RoomSetData(step=idx).to_dict())
+        if self.emit:
+            self.socket.emit("room:set", RoomSetData(step=idx).to_dict())
 
     @property
     def selection(self) -> Union[List[int], List[None]]:
@@ -188,8 +193,8 @@ class ZnDrawWorker(ZnDrawBase):
             room = get_room_by_token(session, self.token)
             room.selection = value
             session.commit()
-
-        self.socket.emit("room:set", RoomSetData(selection=value).to_dict())
+        if self.emit:
+            self.socket.emit("room:set", RoomSetData(selection=value).to_dict())
 
     @property
     def bookmarks(self) -> dict:
@@ -207,8 +212,8 @@ class ZnDrawWorker(ZnDrawBase):
                 bookmark = Bookmark(step=step, text=text, room=room)
                 session.add(bookmark)
             session.commit()
-
-        self.socket.emit("room:set", RoomSetData(bookmarks=value).to_dict())
+        if self.emit:
+            self.socket.emit("room:set", RoomSetData(bookmarks=value).to_dict())
 
     def insert(self, index: int, atoms: ase.Atoms | ZnFrame):
         if index < 0 or index > len(self):
@@ -223,6 +228,8 @@ class ZnDrawWorker(ZnDrawBase):
 
     def upload(self, target: str):
         """Emit all frames to the target (webclient)."""
+        if not self.emit:
+            raise ValueError("Emit is disabled")
         config = GlobalConfig.load()
         frame_list = []
         for idx in range(len(self)):

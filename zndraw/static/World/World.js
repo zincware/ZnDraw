@@ -241,7 +241,9 @@ class World {
         cache.setFrames(data.frames);
       }
       if (data.selection !== null) {
-        this.selection.set(data.selection);
+        const particlesGroup = this.scene.getObjectByName("particlesGroup");
+        particlesGroup.selection = data.selection;
+        particlesGroup.step();
       }
       if (data.bookmarks !== null) {
         console.log(data.bookmarks);

@@ -570,3 +570,23 @@ def handle_room_get(data: RoomGetData, token: str, url: str, target: str):
         data=answer.to_dict(),
     )
     worker.socket.emit("celery:task:emit", msg.to_dict())
+
+@shared_task
+@typecast
+def handle_room_set(data: RoomSetData, token: str, url: str):
+    from zndraw.zndraw_worker import ZnDrawWorker
+
+    worker = ZnDrawWorker(token=token, url=url, emit=False)
+    if data.step:
+        worker.step = data.step
+    if data.points:
+        worker.points = data.points
+    if data.bookmarks:
+        worker.bookmarks = data.bookmarks
+    if data.selection:
+        worker.selection = data.selection
+    if data.frames:
+        for idx, frame in data.frames.items():
+            worker[idx] = znframe.Frame.from_dict(frame).to_atoms()
+    
+    # worker.commit() and a mode, that waits for all updates before commiting
