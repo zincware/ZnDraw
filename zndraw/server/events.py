@@ -28,6 +28,7 @@ from ..data import (
     SceneUpdateData,
     SchemaData,
     SubscribedUserData,
+    RoomGetData,
 )
 from .utils import get_queue_position
 
@@ -751,3 +752,7 @@ def modifier_queue_update(data: dict):
 @io.on("ping")
 def ping() -> str:
     return "pong"
+
+@io.on("room:get")
+def room_get(data: RoomGetData):
+    tasks.handle_room_get.delay(data, session["token"], request.url_root, request.sid)
