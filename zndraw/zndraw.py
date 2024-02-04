@@ -155,7 +155,9 @@ class ZnDraw(ZnDrawBase):
         """Insert atoms before index"""
         if isinstance(value, ase.Atoms):
             value = Frame.from_atoms(value)
-        log.warning("Currently `insert` is very taxing on the server, use with caution!")
+        log.warning(
+            "Currently `insert` is very taxing on the server, use with caution!"
+        )
         index = self.wrap_and_check_index(index, len(self))[0]
         data_after = self[index:]
         self[index] = value
