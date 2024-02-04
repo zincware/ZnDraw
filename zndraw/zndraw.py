@@ -155,14 +155,12 @@ class ZnDraw(ZnDrawBase):
         """Insert atoms before index"""
         if isinstance(value, ase.Atoms):
             value = Frame.from_atoms(value)
-
-        data = list(self)
-        data.insert(index, value)
-        for idx, val in enumerate(data):
-            self[idx] = val
-
-        # TODO: why is this not working at the moment?
-        # self.socket.emit("atoms:insert", {index: value.to_dict()})
+        log.warning("Currently `insert` is very taxing on the server, use with caution!")
+        index = self.wrap_and_check_index(index, len(self))[0]
+        data_after = self[index:]
+        self[index] = value
+        del self[index + 1 :]
+        self.extend(data_after)
 
     def append(self, value: t.Union[ase.Atoms, Frame]) -> None:
         """Append atoms to the end of the list"""
