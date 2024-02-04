@@ -233,22 +233,23 @@ class World {
     this.socket = socket;
 
     this.socket.on("room:set", (data) => {
-      if (data.step !== undefined) {
+      if (data.step !== null) {
         // small timeout to ensure the step is set after the cache is updated
         setTimeout(() => this.setStep(data.step, false), 100);
       }
-      if (data.frames !== undefined) {
+      if (data.frames !== null) {
         cache.setFrames(data.frames);
       }
-      // if (data.selection !== undefined) {
-      //   this.selection.set(data.selection);
-      // }
-      // if (data.bookmarks !== undefined) {
-      //   bookmarks.set(data.bookmarks);
-      // }
-      // if (data.points !== undefined) {
-      //   this.line3D.updateAllPoints(data.points);
-      // }
+      if (data.selection !== null) {
+        this.selection.set(data.selection);
+      }
+      if (data.bookmarks !== null) {
+        console.log(data.bookmarks);
+        bookmarks.set(data.bookmarks);
+      }
+      if (data.points !== null) {
+        this.line3D.updateAllPoints(data.points);
+      }
     });
 
 
@@ -321,7 +322,6 @@ class World {
     document.getElementById("info").innerHTML =
       `${slider.ariaValueNow} / ${slider.ariaValueMax}`;
     if (emit) {
-      console.log("emitting room:set for step");
       this.socket.emit("room:set", { step: step });
     }
   }

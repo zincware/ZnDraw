@@ -255,7 +255,7 @@ class ZnDrawWorker(ZnDrawBase):
                 selection=self.selection,
                 points=self.points.tolist(),
                 bookmarks=self.bookmarks,
-                step=self.step, # TODO: check if step is working correctly?
+                step=self.step,
             ).to_dict(),
         )
 
