@@ -65,6 +65,12 @@ def setup_cache():
 
 def setup_worker() -> list:
     """Setup the worker."""
+    import os, platform
+    my_env = os.environ.copy()
+    if platform.system() == "Darwin" and platform.processor() == "arm":
+        # fix celery worker issue on apple silicon
+        my_env["OBJC_DISABLE_INITIALIZE_FORK_SAFETY"] = f"YES"
+
     fast_worker = subprocess.Popen(
         [
             "celery",
@@ -75,7 +81,8 @@ def setup_worker() -> list:
             "--concurrency=16",
             "--hostname=fast_worker",
             "--queues=fast,celery",
-        ]
+        ],
+        env=my_env
     )
 
     slow_worker = subprocess.Popen(
@@ -88,7 +95,8 @@ def setup_worker() -> list:
             "--concurrency=1",
             "--hostname=slow_worker",
             "--queues=slow",
-        ]
+        ],
+        env=my_env
     )
     return [fast_worker, slow_worker]
 

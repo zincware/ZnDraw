@@ -317,6 +317,7 @@ class World {
     step = parseInt(step);
     loop.setStep(step);
     const slider = document.getElementById("frameProgress");
+    const currentStep = parseInt(slider.ariaValueNow);
     slider.ariaValueNow = step;
     // update slider.style with with the percentage of the slider.value
     const percentage = (slider.ariaValueNow / slider.ariaValueMax) * 100;
@@ -324,12 +325,16 @@ class World {
     sliderprogress.style.width = `${percentage}%`;
     document.getElementById("info").innerHTML =
       `${slider.ariaValueNow} / ${slider.ariaValueMax}`;
+    if (step !== currentStep || currentStep === 0) {
+
     setTimeout(() => {
       if (step === parseInt(slider.ariaValueNow)) {
         // only update the database if the step was not changed in the last 500 ms
         this.socket.emit("room:set", { step: step, update_database: true });
       }
     }, 500);
+          
+  }
   }
 
   getStep() {
