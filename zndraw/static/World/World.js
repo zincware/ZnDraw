@@ -326,15 +326,13 @@ class World {
     document.getElementById("info").innerHTML =
       `${slider.ariaValueNow} / ${slider.ariaValueMax}`;
     if (step !== currentStep || currentStep === 0) {
-
-    setTimeout(() => {
-      if (step === parseInt(slider.ariaValueNow)) {
-        // only update the database if the step was not changed in the last 500 ms
-        this.socket.emit("room:set", { step: step, update_database: true });
-      }
-    }, 500);
-          
-  }
+      setTimeout(() => {
+        if (step === parseInt(slider.ariaValueNow)) {
+          // only update the database if the step was not changed in the last 500 ms
+          this.socket.emit("room:set", { step: step, update_database: true });
+        }
+      }, 500);
+    }
   }
 
   getStep() {
