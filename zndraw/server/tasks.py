@@ -491,12 +491,8 @@ def _run_room_modifier(self, url: str, token: str, data):
 
 @shared_task(bind=True)
 def _run_default_modifier(self, url: str, token: str, data):
-    vis = get_vis_obj(
-        url,
-        token,
-        queue_name="fast",
-        request_id=self.request.id,
-    )
+    from zndraw.zndraw_worker import ZnDrawWorker
+    vis = ZnDrawWorker(token=str(token), url=url)
     config = GlobalConfig.load()
     cls = get_modify_class(config.get_modify_methods())
     modifier = cls(**data)

@@ -73,3 +73,7 @@ class ZnDrawBase(MutableSequence):
     def figure(self, fig: str):
         data = {"figure": fig, "token": self.token}
         self.socket.emit("analysis:figure", data)
+
+    @property
+    def atoms(self):
+        return self[self.step]
