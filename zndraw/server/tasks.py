@@ -531,10 +531,11 @@ def run_modifier(url: str, token: str, data: dict):
         room_modifiers = ses.query(db_schema.RoomModifier).filter_by(room=room).all()
         modifiers = ses.query(db_schema.GlobalModifier).all()
         custom_global_modifiers = [modifier.name for modifier in modifiers]
+        custom_room_modifiers = [modifier.name for modifier in room_modifiers]
 
     if name in custom_global_modifiers:
         _run_global_modifier.delay(url, token, data)
-    elif name in room_modifiers:
+    elif name in custom_room_modifiers:
         _run_room_modifier.delay(url, token, data)
     else:
         _run_default_modifier.delay(url, token, data)
