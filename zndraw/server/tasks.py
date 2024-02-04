@@ -572,10 +572,14 @@ def handle_room_get(data: RoomGetData, token: str, url: str, target: str):
 
 @shared_task
 @typecast
-def handle_room_set(data: RoomSetData, token: str, url: str):
+def handle_room_set(data: RoomSetData, token: str, url: str, source: str):
     from zndraw.zndraw_worker import ZnDrawWorker
 
     worker = ZnDrawWorker(token=token, url=url, emit=False)
+    if data.frames:
+        # must be first, before step
+        for idx, frame in data.frames.items():
+            worker[idx] = znframe.Frame.from_dict(frame).to_atoms()
     if data.step:
         worker.step = data.step
     if data.points:
@@ -584,10 +588,13 @@ def handle_room_set(data: RoomSetData, token: str, url: str):
         worker.bookmarks = data.bookmarks
     if data.selection:
         worker.selection = data.selection
-    if data.frames:
-        for idx, frame in data.frames.items():
-            worker[idx] = znframe.Frame.from_dict(frame).to_atoms()
 
-    worker.socket.emit("room:set:finished")
+
+    msg = CeleryTaskData(
+        target=source,
+        event="room:set:finished",
+        data=None,
+    )
+    worker.socket.emit("celery:task:emit", msg.to_dict())
 
     # worker.commit() and a mode, that waits for all updates before commiting
