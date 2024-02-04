@@ -179,69 +179,12 @@ def disconnect():
     log.critical(f"-------------->>> disconnecting {request.sid}")
     token = str(session["token"])
 
-    with Session() as ses:
-        room = ses.query(db_schema.Room).filter_by(token=token).first()
-        client = ses.query(db_schema.Client).filter_by(sid=request.sid).first()
-        if client is not None:
-            ses.delete(client)
-            if client.host:
-                new_host = ses.query(db_schema.Client).filter_by(room=room).first()
-                if new_host is not None:
-                    new_host.host = True
-            ses.commit()
+    url = request.url_root
+    if current_app.config["upgrade_insecure_requests"] and not "127.0.0.1" in url:
+        url = url.replace("http://", "https://")
+    url = url.replace("http", "ws")
 
-    with Session() as ses:
-        room = ses.query(db_schema.Room).filter_by(token=token).first()
-        clients = ses.query(db_schema.Client).filter_by(room=room).all()
-        connected_users = [{"name": client.name} for client in clients]
-
-    emit(
-        "connectedUsers",
-        list(reversed(connected_users)),
-        to=_webclients_room({"token": token}),
-    )
-
-    # ROOM_HOSTS = cache.get("ROOM_HOSTS")
-    # if token in ROOM_HOSTS:
-    #     if request.sid in ROOM_HOSTS[token]:
-    #         ROOM_HOSTS[token].remove(request.sid)
-    #     if len(ROOM_HOSTS[token]) == 0:
-    #         del ROOM_HOSTS[token]
-    #     cache.set("ROOM_HOSTS", ROOM_HOSTS)
-
-    # pyclients only
-    # check if the SID is in MODIFIER_HOSTS or ROOM_MODIFIER_HOSTS
-    with Session() as ses:
-        global_modifier_client = (
-            ses.query(db_schema.GlobalModifierClient).filter_by(sid=request.sid).all()
-        )
-        for gmc in global_modifier_client:
-            ses.delete(gmc)
-
-        room_modifier_client = (
-            ses.query(db_schema.RoomModifierClient).filter_by(sid=request.sid).all()
-        )
-        for rmc in room_modifier_client:
-            ses.delete(rmc)
-        ses.commit()
-
-    # MODIFIER_HOSTS = cache.get("MODIFIER_HOSTS")
-    # for name, sids in MODIFIER_HOSTS.items():
-    #     while request.sid in sids:
-    #         MODIFIER_HOSTS[name].remove(request.sid)
-    # cache.set("MODIFIER_HOSTS", MODIFIER_HOSTS)
-
-    # ROOM_MODIFIER_HOSTS = cache.get("ROOM_MODIFIER_HOSTS")
-    # if token in ROOM_MODIFIER_HOSTS:
-    #     for name, sids in ROOM_MODIFIER_HOSTS[token].items():
-    #         while request.sid in sids:
-    #             ROOM_MODIFIER_HOSTS[token][name].remove(request.sid)
-
-    # # !!!!!!!!!!!!!!
-    # # TODO: remove schema if no more hosts are connected and send to webclients
-
-    # cache.set("ROOM_MODIFIER_HOSTS", ROOM_MODIFIER_HOSTS)
-
+    tasks.on_disconnect.delay(request.sid, token, url)
 
 @io.on("join")
 def join(token: str):

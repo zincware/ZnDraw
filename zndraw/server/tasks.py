@@ -614,3 +614,49 @@ def activate_modifier(sid: str, available: bool):
         elif room_modifier_client is not None:
             room_modifier_client.available = available
         ses.commit()
+
+@shared_task
+def on_disconnect(token: str, sid: str, url: str):
+    # from zndraw.zndraw_worker import ZnDrawWorker
+
+    # worker = ZnDrawWorker(token=token, url=url)
+    with Session() as ses:
+        room = ses.query(db_schema.Room).filter_by(token=token).first()
+        client = ses.query(db_schema.Client).filter_by(sid=sid).first()
+        if client is not None:
+            ses.delete(client)
+            if client.host:
+                new_host = ses.query(db_schema.Client).filter_by(room=room).first()
+                if new_host is not None:
+                    new_host.host = True
+            ses.commit()
+
+    with Session() as ses:
+        global_modifier_client = (
+            ses.query(db_schema.GlobalModifierClient).filter_by(sid=sid).all()
+        )
+        for gmc in global_modifier_client:
+            ses.delete(gmc)
+
+        room_modifier_client = (
+            ses.query(db_schema.RoomModifierClient).filter_by(sid=sid).all()
+        )
+        for rmc in room_modifier_client:
+            ses.delete(rmc)
+        ses.commit()
+
+
+    with Session() as ses:
+        room = ses.query(db_schema.Room).filter_by(token=token).first()
+        clients = ses.query(db_schema.Client).filter_by(room=room).all()
+        connected_users = [{"name": client.name} for client in clients]
+
+    # msg = CeleryTaskData(
+    #     target=f"webclients_{token}",
+    #     event="connectedUsers",
+    #     data=list(reversed(connected_users)),
+    #     disconnect=True,
+    # )
+    # # TODO this can not work, because it triggers itself
+
+    # worker.socket.emit("celery:task:emit", msg.to_dict())
