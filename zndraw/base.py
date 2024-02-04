@@ -64,3 +64,12 @@ class ZnDrawBase(MutableSequence):
     @abstractmethod
     def segments(self) -> np.ndarray:
         pass
+
+    @property
+    def figure(self):
+        raise NotImplementedError("Gathering figure from webclient not implemented yet")
+
+    @figure.setter
+    def figure(self, fig: str):
+        data = {"figure": fig, "token": self.token}
+        self.socket.emit("analysis:figure", data)

@@ -228,7 +228,7 @@ class ZnDrawWorker(ZnDrawBase):
         self.extend(data_after)
 
     def log(self, message: str):
-        self.socket.emit("message:log", message)
+        self.socket.emit("message:log", {"message": message, "token": self.token})
 
     def upload(self, target: str):
         """Emit all frames to the target (webclient)."""

@@ -308,7 +308,10 @@ def run_selection(url: str, token: str, data: dict):
 
 @shared_task
 def run_analysis(url: str, token: str, data: dict):
+    from zndraw.zndraw_worker import ZnDrawWorker
+
     vis = ZnDraw(url=url, token=token)
+    vis = ZnDrawWorker(token=str(token), url=url)
 
     msg = CeleryTaskData(
         target=f"webclients_{vis.token}", event="analysis:run:running", data=None
