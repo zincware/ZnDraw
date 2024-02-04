@@ -99,10 +99,10 @@ class GlobalConfig(pydantic.BaseModel):
     cache: CacheSettings = CacheSettings()
     celery: CeleryConfig = CeleryConfig()
     database: DatabaseConfig = DatabaseConfig()
-    
+
     # Socket settings
     read_batch_size: int = 1
-    max_socket_data_size: int|float = 1e6
+    max_socket_data_size: int | float = 1e6
 
     # Webclient Interface
     analysis_functions: t.List[str] = _ANALYSIS_FUNCTIONS

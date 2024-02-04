@@ -58,7 +58,6 @@ class ZnDraw(ZnDrawBase):
         not just the current session.
     """
 
-
     display_new: bool = True
     auth_token: str | None = None
     config: Config = dataclasses.field(default_factory=Config)
