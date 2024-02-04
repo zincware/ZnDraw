@@ -17,7 +17,6 @@ from zndraw.utils import typecast
 
 from ..app import socketio as io
 from ..data import (
-    RoomSetData,
     AnalysisFigureData,
     CeleryTaskData,
     DeleteAtomsData,
@@ -26,6 +25,7 @@ from ..data import (
     MessageData,
     ModifierRegisterData,
     RoomGetData,
+    RoomSetData,
     SceneSetData,
     SceneUpdateData,
     SchemaData,
@@ -763,9 +763,14 @@ def room_get(data: RoomGetData):
 @io.on("room:set")
 @typecast
 def room_set(data: RoomSetData):
-    emit("room:set", data.to_dict(), include_self=False, to=f"webclients_{session['token']}")
+    emit(
+        "room:set",
+        data.to_dict(),
+        include_self=False,
+        to=f"webclients_{session['token']}",
+    )
     print(f"room_set: {data}")
     if data.update_database:
-        print(f"room_set: update_database")
+        print("room_set: update_database")
         # TODO: we need to differentiate, if the data comes from a pyclient or a webclient
         tasks.handle_room_set.delay(data.to_dict(), session["token"], request.url_root)

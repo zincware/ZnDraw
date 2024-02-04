@@ -1,5 +1,5 @@
-from typing import List, Union
 import dataclasses
+from typing import List, Union
 
 import ase
 import numpy as np
@@ -33,9 +33,9 @@ def _any_to_list(
         return data
     raise ValueError("Invalid type for value")
 
+
 @dataclasses.dataclass
 class ZnDrawWorker(ZnDrawBase):
-
     emit: bool = True
 
     def __len__(self) -> int:

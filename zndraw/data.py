@@ -20,7 +20,9 @@ class RoomSetData:
     bookmarks: dict[int, str] | None = None
     step: int | None = None
     selection: list[int] | None = None
-    frames: dict[int, znframe.Frame | None] | None = dataclasses.field(default=None, repr=False)
+    frames: dict[int, znframe.Frame | None] | None = dataclasses.field(
+        default=None, repr=False
+    )
 
     update_database: bool = False
 
