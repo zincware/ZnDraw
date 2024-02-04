@@ -288,8 +288,9 @@ def read_file(url: str, target: str, token: str):
 
 @shared_task
 def run_selection(url: str, token: str, data: dict):
+    from zndraw.zndraw_worker import ZnDrawWorker
+    vis = ZnDrawWorker(token=str(token), url=url)
     print(datetime.datetime.now().isoformat())
-    vis = ZnDraw(url=url, token=token)
 
     config = GlobalConfig.load()
     cls = get_selection_class(config.get_selection_methods())
@@ -302,7 +303,7 @@ def run_selection(url: str, token: str, data: dict):
 
     print(datetime.datetime.now().isoformat())
 
-    vis.socket.sleep(10)
+    vis.socket.sleep(1)
     vis.socket.disconnect()
 
 
