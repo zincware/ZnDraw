@@ -124,7 +124,6 @@ class ZnDraw(ZnDrawBase):
                 True,
             )
 
-
     def get_data(self, **data: dict) -> RoomGetData:
         data = RoomGetData(**data)
         with self._lock:
