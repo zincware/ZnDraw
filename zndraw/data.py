@@ -1,6 +1,5 @@
 import dataclasses
 
-import numpy as np
 import znframe
 
 
@@ -30,12 +29,12 @@ class RoomSetData:
 
 @dataclasses.dataclass
 class RoomGetData:
-    points: bool|list[list[float]] = False
-    bookmarks: bool|dict[str,str] = False
-    step: bool|int = False
-    selection: bool|list[int] = False
-    length: bool|int = False
-    segments: bool|list[list[float]] = False
+    points: bool | list[list[float]] = False
+    bookmarks: bool | dict[str, str] = False
+    step: bool | int = False
+    selection: bool | list[int] = False
+    length: bool | int = False
+    segments: bool | list[list[float]] = False
     frames: list[int] | None | list[dict] = None
 
     def to_dict(self) -> dict:

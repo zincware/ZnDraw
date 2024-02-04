@@ -1,6 +1,6 @@
-from collections.abc import MutableSequence
 import dataclasses
 from abc import abstractmethod
+from collections.abc import MutableSequence
 
 import numpy as np
 import socketio

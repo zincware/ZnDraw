@@ -1,9 +1,8 @@
 import dataclasses
 import logging
 import threading
-from multiprocessing import Lock
 import typing as t
-
+from multiprocessing import Lock
 
 import ase
 import ase.io
@@ -11,7 +10,7 @@ import numpy as np
 import socketio
 from znframe.frame import Frame
 
-from zndraw.data import CeleryTaskData, FrameData, ModifierRegisterData
+from zndraw.data import CeleryTaskData, ModifierRegisterData
 from zndraw.modify import UpdateScene, get_modify_class
 from zndraw.settings import GlobalConfig
 from zndraw.utils import (
@@ -20,7 +19,11 @@ from zndraw.utils import (
 
 from .base import ZnDrawBase
 from .data import RoomGetData, RoomSetData
-from .utils import split_list_into_chunks, typecast_kwargs, estimate_max_batch_size_for_socket
+from .utils import (
+    estimate_max_batch_size_for_socket,
+    split_list_into_chunks,
+    typecast_kwargs,
+)
 
 log = logging.getLogger(__name__)
 
@@ -179,12 +182,14 @@ class ZnDraw(ZnDrawBase):
                 values = [Frame.from_atoms(val) for val in values]
             batch_size = estimate_max_batch_size_for_socket(values)
             indices = list(range(size, size + len(values)))
-            all_data = [(i, val.to_dict(built_in_types=False)) for i, val in zip(indices, values)]
-            
+            all_data = [
+                (i, val.to_dict(built_in_types=False))
+                for i, val in zip(indices, values)
+            ]
+
             for chunk in split_list_into_chunks(all_data, batch_size):
                 batch = {tup[0]: tup[1] for tup in chunk}
                 self.set_data(frames=batch, update_database=True)
-            
 
     def __getitem__(self, index) -> t.Union[ase.Atoms, list[ase.Atoms]]:
         length = len(self)
@@ -197,7 +202,7 @@ class ZnDraw(ZnDrawBase):
                 raise IndexError(f"Index {idx} out of range")
             atoms_list.append(Frame.from_dict(val).to_atoms())
 
-        return_data = atoms_list[0] if len(index)==1 else atoms_list
+        return_data = atoms_list[0] if len(index) == 1 else atoms_list
         return return_data
 
     def log(self, message: str) -> None:
@@ -246,7 +251,6 @@ class ZnDraw(ZnDrawBase):
     def step(self, index):
         index = self.wrap_and_check_index(index, len(self))[0]
         self.set_data(step=index, update_database=True)
-
 
     @property
     def selection(self) -> list[int]:
@@ -310,9 +314,9 @@ class ZnDraw(ZnDrawBase):
         vis.socket.emit("celery:task:emit", dataclasses.asdict(msg))
         self.socket.emit("modifier:available", True)
         print("Modifier finished!!!!!!!!")
-        
-    @staticmethod    
-    def wrap_and_check_index(index: int|slice|list[int], length: int) -> list[int]:
+
+    @staticmethod
+    def wrap_and_check_index(index: int | slice | list[int], length: int) -> list[int]:
         is_slice = isinstance(index, slice)
         if is_slice:
             index = list(range(*index.indices(length)))

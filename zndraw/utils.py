@@ -10,9 +10,9 @@ import uuid
 from typing import get_type_hints
 
 import ase
-import znframe
 import datamodel_code_generator
 import numpy as np
+import znframe
 from decorator import decorator
 
 SHARED = {"atoms": None}
@@ -22,11 +22,13 @@ def split_list_into_chunks(lst, n):
     """Yield successive n-sized chunks from lst."""
     for i in range(0, len(lst), n):
         yield lst[i : i + n]
-        
-def estimate_max_batch_size_for_socket(frames:list[znframe.Frame], max_size=1e6):
+
+
+def estimate_max_batch_size_for_socket(frames: list[znframe.Frame], max_size=1e6):
     sizes = [sys.getsizeof(frame) for frame in frames]
     largest_frame = max(sizes)
-    return int(max_size / largest_frame*0.9)
+    return int(max_size / largest_frame * 0.9)
+
 
 def rgb2hex(value):
     r, g, b = np.array(value * 255, dtype=int)
