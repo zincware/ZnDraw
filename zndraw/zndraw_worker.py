@@ -4,7 +4,8 @@ import ase
 import numpy as np
 from znframe.frame import Frame as ZnFrame
 
-from zndraw.data import RoomSetData
+from zndraw.data import RoomSetData, CeleryTaskData
+from zndraw.settings import GlobalConfig
 
 from .base import ZnDrawBase
 from .db import Session
@@ -51,6 +52,19 @@ class ZnDrawWorker(ZnDrawBase):
         if len(index) != len(value):
             # TODO: support all the ways python lists can be slice set
             raise ValueError("Length of index and value must match")
+
+        # we emit first, because sending the data takes longer, but emit is faster
+        self.socket.emit(
+            "room:set",
+            RoomSetData(
+                frames={
+                    idx: frame.to_dict(built_in_types=False)
+                    for idx, frame in zip(index, value)
+                },
+                step=len(self) - 1 + len(index),
+            ).to_dict(),
+        )
+
         with Session() as session:
             room = session.query(Room).get(self.token)
             for _index, _value in zip(index, value):
@@ -62,15 +76,6 @@ class ZnDrawWorker(ZnDrawBase):
                 frame.data = _value.to_dict(built_in_types=False)
             session.commit()
 
-        self.socket.emit(
-            "room:set",
-            RoomSetData(
-                frames={
-                    idx: frame.to_dict(built_in_types=False)
-                    for idx, frame in zip(index, value)
-                }
-            ).to_dict(),
-        )
 
     def __getitem__(self, index: int | list[int] | slice) -> ase.Atoms:
         single_index = False
@@ -216,3 +221,48 @@ class ZnDrawWorker(ZnDrawBase):
 
     def log(self, message: str):
         self.socket.emit("message:log", message)
+
+    def upload(self, target: str):
+        """Emit all frames to the target (webclient)."""
+        config = GlobalConfig.load()
+        
+        frame_list = []
+        for idx in range(len(self)):
+            frame_list.append(self[idx])
+            if len(frame_list) == config.read_batch_size:
+                msg = CeleryTaskData(
+                    target=target,
+                    event="room:set",
+                    data=RoomSetData(
+                        frames={
+                            idx - jdx: ZnFrame.from_atoms(atoms).to_dict(built_in_types=False)
+                            for jdx, atoms in enumerate(reversed(frame_list))
+                        },
+                        selection=self.selection,
+                        points=self.points.tolist(),
+                        bookmarks=self.bookmarks,
+                        step=self.step,
+                    ).to_dict(),
+                )
+
+                self.socket.emit("celery:task:emit", msg.to_dict())
+                frame_list = []
+        
+        if frame_list:
+            msg = CeleryTaskData(
+                target=target,
+                event="room:set",
+                data=RoomSetData(
+                    frames={
+                        idx - jdx: ZnFrame.from_atoms(atoms).to_dict(built_in_types=False)
+                        for jdx, atoms in enumerate(reversed(frame_list))
+                    },
+                    selection=self.selection,
+                    points=self.points.tolist(),
+                    bookmarks=self.bookmarks,
+                    step=self.step,
+                ).to_dict(),
+            )
+
+            self.socket.emit("celery:task:emit", msg.to_dict())
+            frame_list = []

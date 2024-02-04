@@ -240,116 +240,50 @@ def scene_trash(url: str, token: str):
 
 @shared_task
 def read_file(url: str, target: str, token: str):
-    vis = ZnDraw(url=url, token=token)
-    con = vis.socket
+    from zndraw.zndraw_worker import ZnDrawWorker
+    config = GlobalConfig.load()
 
-    with Session() as ses:
-        room = ses.query(db_schema.Room).filter_by(token=token).first()
-        # get all frames and iterate over them
-        frames = ses.query(db_schema.Frame).filter_by(room=room)
-        if frames.count() == 0:
-            pass
+    vis = ZnDrawWorker(token=token, url=url)
+
+    if len(vis) == 0:
+        fileio = cache.get("FILEIO")
+        if fileio.remote is not None:
+            node_name, attribute = fileio.name.split(".", 1)
+            try:
+                import zntrack
+
+                node = zntrack.from_rev(node_name, remote=fileio.remote, rev=fileio.rev)
+                generator = getattr(node, attribute)
+            except ImportError as err:
+                raise ImportError(
+                    "You need to install ZnTrack to use the remote feature"
+                ) from err
+        elif pathlib.Path(fileio.name).suffix == ".h5":
+            reader = znh5md.ASEH5MD(fileio.name)
+            generator = reader.get_atoms_list()
         else:
-            batch_size = GlobalConfig.load().read_batch_size
-            data_to_send = []
-            for frame in frames.all():
-                data_to_send.append(
-                    FrameData(
-                        index=frame.index,
-                        data=frame.data,
-                        update=True,
-                        update_database=False,
-                    )
-                )
-                if len(data_to_send) == batch_size:
-                    msg = CeleryTaskData(
-                        target=target,
-                        event="atoms:upload",
-                        data=data_to_send,
-                    )
-                    con.emit("celery:task:emit", asdict(msg))
-                    data_to_send = []
-            msg = CeleryTaskData(
-                target=target,
-                event="atoms:upload",
-                data=data_to_send,
-                disconnect=True,
-            )
-            con.emit("celery:task:emit", asdict(msg))
-            return
+            generator = ase.io.iread(fileio.name)
 
-    fileio = cache.get("FILEIO")
-    if fileio.name is None:
-        msg = CeleryTaskData(
-            target=target,
-            event="atoms:upload",
-            data=FrameData(
-                index=0,
-                data=znframe.Frame.from_atoms(ase.Atoms()).to_dict(
-                    built_in_types=False
-                ),
-                update=True,
-                update_database=True,
-            ),
-            disconnect=True,
-        )
-        con.emit("celery:task:emit", asdict(msg))
-        return
+        atoms_list = []
+        
+        for idx, atoms in enumerate(generator):
+            if fileio.start and idx < fileio.start:
+                continue
+            if fileio.stop and idx >= fileio.stop:
+                break
+            if fileio.step and idx % fileio.step != 0:
+                continue
+            atoms_list.append(atoms)
 
-    if fileio.remote is not None:
-        node_name, attribute = fileio.name.split(".", 1)
-        try:
-            import zntrack
-
-            node = zntrack.from_rev(node_name, remote=fileio.remote, rev=fileio.rev)
-            generator = getattr(node, attribute)
-        except ImportError as err:
-            raise ImportError(
-                "You need to install ZnTrack to use the remote feature"
-            ) from err
-    elif pathlib.Path(fileio.name).suffix == ".h5":
-        reader = znh5md.ASEH5MD(fileio.name)
-        generator = reader.get_atoms_list()
+            if len(atoms_list) == config.read_batch_size:
+                vis.extend(atoms_list)
+                atoms_list = []
+            
+        if len(atoms_list) > 0:
+            vis.extend(atoms_list)
+    
     else:
-        generator = ase.io.iread(fileio.name)
-
-    frame = 0
-    batch_size = GlobalConfig.load().read_batch_size
-    data_to_send = []
-    for idx, atoms in tqdm.tqdm(enumerate(generator), ncols=100):
-        if fileio.start and idx < fileio.start:
-            continue
-        if fileio.stop and idx >= fileio.stop:
-            break
-        if fileio.step and idx % fileio.step != 0:
-            continue
-
-        data_to_send.append(
-            FrameData(
-                index=frame,
-                data=znframe.Frame.from_atoms(atoms).to_dict(built_in_types=False),
-                update=True,
-                update_database=True,
-            )
-        )
-        frame += 1
-        if len(data_to_send) == batch_size:
-            msg = CeleryTaskData(
-                target=target,
-                event="atoms:upload",
-                data=data_to_send,
-            )
-            con.emit("celery:task:emit", asdict(msg))
-            data_to_send = []
-
-    msg = CeleryTaskData(
-        target=target,
-        event="atoms:upload",
-        data=data_to_send,
-        disconnect=True,
-    )
-    con.emit("celery:task:emit", asdict(msg))
-
+        vis.upload(target)
 
 @shared_task
 def run_selection(url: str, token: str, data: dict):

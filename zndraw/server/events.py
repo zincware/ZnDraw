@@ -756,3 +756,7 @@ def ping() -> str:
 @io.on("room:get")
 def room_get(data: RoomGetData):
     tasks.handle_room_get.delay(data, session["token"], request.url_root, request.sid)
+
+@io.on("room:set")
+def room_set(data: dict):
+    emit("room:set", data, include_self=False, to=f"webclients_{session['token']}")

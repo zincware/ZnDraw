@@ -115,14 +115,14 @@ class Cache {
         delete this._cache[index];
       } else {
         this._cache[index] = new Atoms({
-          positions: atoms.data.positions,
-          cell: atoms.data.cell,
-          numbers: atoms.data.numbers,
-          colors: atoms.data.arrays.colors,
-          radii: atoms.data.arrays.radii,
-          connectivity: atoms.data.connectivity,
-          calc: atoms.data.calc,
-          pbc: atoms.data.pbc,
+          positions: atoms.positions,
+          cell: atoms.cell,
+          numbers: atoms.numbers,
+          colors: atoms.arrays.colors,
+          radii: atoms.arrays.radii,
+          connectivity: atoms.connectivity,
+          calc: atoms.calc,
+          pbc: atoms.pbc,
         });
         slider.ariaValueMax = Object.keys(this._cache).length - 1;
         if (atoms.update) {

@@ -234,20 +234,21 @@ class World {
 
     this.socket.on("room:set", (data) => {
       if (data.step !== undefined) {
-        this.setStep(data.step);
+        // small timeout to ensure the step is set after the cache is updated
+        setTimeout(() => this.setStep(data.step), 100);
       }
       if (data.frames !== undefined) {
-        this.cache.setFrames(data.frames);
+        cache.setFrames(data.frames);
       }
-      if (data.selection !== undefined) {
-        this.selection.set(data.selection);
-      }
-      if (data.bookmarks !== undefined) {
-        bookmarks.set(data.bookmarks);
-      }
-      if (data.points !== undefined) {
-        this.line3D.updateAllPoints(data.points);
-      }
+      // if (data.selection !== undefined) {
+      //   this.selection.set(data.selection);
+      // }
+      // if (data.bookmarks !== undefined) {
+      //   bookmarks.set(data.bookmarks);
+      // }
+      // if (data.points !== undefined) {
+      //   this.line3D.updateAllPoints(data.points);
+      // }
     });
 
 
