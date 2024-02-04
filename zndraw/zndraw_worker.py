@@ -57,7 +57,9 @@ class ZnDrawWorker(ZnDrawBase):
             index = list(range(len(self)))[index]
         if len(index) != len(value):
             # TODO: support all the ways python lists can be slice set
-            raise ValueError(f"Length of index ({len(index)}) and value ({len(value)}) must match")
+            raise ValueError(
+                f"Length of index ({len(index)}) and value ({len(value)}) must match"
+            )
 
         # we emit first, because sending the data takes longer, but emit is faster
         if self.emit:

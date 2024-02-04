@@ -589,7 +589,6 @@ def handle_room_set(data: RoomSetData, token: str, url: str, source: str):
     if data.selection:
         worker.selection = data.selection
 
-
     msg = CeleryTaskData(
         target=source,
         event="room:set:finished",

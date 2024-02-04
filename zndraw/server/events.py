@@ -772,4 +772,6 @@ def room_set(data: RoomSetData):
     if data.update_database:
         # TODO: we need to differentiate, if the data comes from a pyclient or a webclient
         # TODO: for fast updates, e.g. points, step during play this is not fast enough
-        tasks.handle_room_set.delay(data.to_dict(), session["token"], request.url_root, request.sid)
+        tasks.handle_room_set.delay(
+            data.to_dict(), session["token"], request.url_root, request.sid
+        )

@@ -136,7 +136,9 @@ class ZnDraw(ZnDrawBase):
         if isinstance(value, ase.Atoms):
             value = Frame.from_atoms(value)
         self.set_data(
-            frames={index: value.to_dict(built_in_types=False)}, step=index, update_database=True
+            frames={index: value.to_dict(built_in_types=False)},
+            step=index,
+            update_database=True,
         )
 
     def __delitem__(self, index: int | slice | list[int]):
