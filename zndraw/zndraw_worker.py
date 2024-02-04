@@ -164,9 +164,14 @@ class ZnDrawWorker(ZnDrawBase):
 
     @property
     def segments(self) -> np.ndarray:
-        with Session() as session:
-            room = get_room_by_token(session, self.token)
-            return np.array(room.segments)
+        points = self.points
+        if len(points) < 2:
+            return np.array([])
+        n_segments = 100
+        segments = []
+        for idx in range(len(points) - 1):
+            segments.append(np.linspace(points[idx], points[idx + 1], n_segments))
+        return np.array(segments).reshape(-1, 3)
 
     @property
     def step(self) -> int:

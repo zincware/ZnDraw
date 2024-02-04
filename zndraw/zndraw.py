@@ -242,8 +242,14 @@ class ZnDraw(ZnDrawBase):
 
     @property
     def segments(self) -> np.ndarray:
-        data = self.get_data(segments=True).segments
-        return np.array(data)
+        points = self.points
+        if len(points) < 2:
+            return np.array([])
+        n_segments = 100
+        segments = []
+        for idx in range(len(points) - 1):
+            segments.append(np.linspace(points[idx], points[idx + 1], n_segments))
+        return np.array(segments).reshape(-1, 3)
 
     @property
     def step(self) -> int:
