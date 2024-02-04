@@ -321,7 +321,7 @@ class World {
     document.getElementById("info").innerHTML =
       `${slider.ariaValueNow} / ${slider.ariaValueMax}`;
     if (emit) {
-      this.socket.emit("room:set", { step: step });
+      this.socket.emit("room:set", { step: step, update_database: true});
     }
   }
 
