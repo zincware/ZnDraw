@@ -14,7 +14,7 @@ class ZnDrawBase(MutableSequence):
     socket: socketio.Client = dataclasses.field(default_factory=socketio.Client)
 
     def __post_init__(self):
-        self.url = self.url.replace("http", "ws").replace("https", "wss")
+        self.url = self.url.replace("http", "ws")
         print(f"Connecting to {self.url}")
         self.socket.connect(self.url)
         self.socket.emit("join", str(self.token))
