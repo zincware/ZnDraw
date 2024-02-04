@@ -125,7 +125,7 @@ class Cache {
           pbc: atoms.pbc,
         });
         slider.ariaValueMax = Object.keys(this._cache).length - 1;
-        this.world.setStep(this.world.getStep(), false);
+        this.world.setStep(this.world.getStep());
       }
     }
   }
