@@ -1,20 +1,19 @@
+import logging
+import typing as t
+
 import ase
 import numpy as np
 import socketio
-import dataclasses
 import splines
 from znframe import Frame as ZnFrame
-import typing as t
-import threading
+
 from .data import RoomSetData
 from .utils import (
     estimate_max_batch_size_for_socket,
     split_list_into_chunks,
 )
-import logging
 
 log = logging.getLogger(__name__)
-from .base import ZnDrawBase
 
 
 class FrozenZnDraw:
@@ -96,7 +95,7 @@ class FrozenZnDraw:
 
     def set_data(self, **data: dict) -> None:
         data = RoomSetData(**data)
-        log.critical(f"Trying to set data")
+        log.critical("Trying to set data")
         self.socket.emit("room:set", data.to_dict())
 
     @property

@@ -7,7 +7,7 @@ from ase.collections import s22
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from zndraw.data import RoomSetData, RoomGetData
+from zndraw.data import RoomGetData, RoomSetData
 from zndraw.db import schema
 from zndraw.db.schema import Base
 from zndraw.utils import typecast

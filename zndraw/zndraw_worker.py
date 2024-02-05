@@ -1,4 +1,5 @@
 import dataclasses
+import logging
 from typing import List, Union
 
 import ase
@@ -7,7 +8,6 @@ from znframe.frame import Frame as ZnFrame
 
 from zndraw.data import CeleryTaskData, RoomSetData
 from zndraw.settings import GlobalConfig
-import logging
 
 log = logging.getLogger(__name__)
 

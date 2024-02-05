@@ -1,6 +1,5 @@
 import dataclasses
 import logging
-import threading
 import typing as t
 from threading import Lock
 
@@ -9,21 +8,18 @@ import ase.io
 import numpy as np
 import socketio
 from znframe.frame import Frame
-import splines
+
 from zndraw.data import CeleryTaskData, ModifierRegisterData
 from zndraw.modify import UpdateScene, get_modify_class
 from zndraw.settings import GlobalConfig
-from zndraw.utils import (
-    ZnDrawLoggingHandler,
-)
 
 from .base import ZnDrawBase
-from .zndraw_frozen import FrozenZnDraw
 from .data import RoomGetData, RoomSetData
 from .utils import (
     estimate_max_batch_size_for_socket,
     split_list_into_chunks,
 )
+from .zndraw_frozen import FrozenZnDraw
 
 log = logging.getLogger(__name__)
 
