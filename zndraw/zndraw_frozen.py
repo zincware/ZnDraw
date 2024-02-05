@@ -82,10 +82,11 @@ class FrozenZnDraw:
                 batch = {tup[0]: tup[1] for tup in chunk}
                 if i == len(chunks) - 1:
                     # Only send the step if it's the last batch, otherwise it will be set to the last index of the batch
-                    self.set_data(frames=batch, update_database=True, step=len(self)-1)
+                    self.set_data(
+                        frames=batch, update_database=True, step=len(self) - 1
+                    )
                 else:
                     self.set_data(frames=batch, update_database=True)
-            
 
     def log(self, message: str) -> None:
         """Log a message to the console"""
