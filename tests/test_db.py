@@ -106,7 +106,7 @@ def test_zndraw_worker_get_multiple(room_session, sio_server):
         answer = worker.get_properties(**request.to_dict())
         assert len(answer["frames"]) == len(request_idx)
         for i, frame in enumerate(answer["frames"]):
-            atoms = frame.to_atoms()
+            atoms = znframe.Frame.from_dict(frame).to_atoms()
             assert atoms == s22[request_idx[i]]
 
 
