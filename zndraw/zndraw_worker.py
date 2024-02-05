@@ -237,8 +237,6 @@ class ZnDrawWorker(ZnDrawBase):
             for key, collect in kwargs.items():
                 if collect:
                     if key == "frames":
-                        # TODO: read only what's needed directly. use `self.wrap_and_check_index`
-                        # Need a special if for the `current`
                         indices = [
                             x if not x == "current" else room.currentStep
                             for x in kwargs["frames"]

@@ -78,7 +78,6 @@ def sio_server():
         eventlet.wsgi.server(eventlet.listen(("", port)), app)
 
     t = threading.Thread(target=run_server, args=(port,), daemon=True)
-    t.daemon = True
     t.start()
     time.sleep(1)
     yield f"http://localhost:{port}"
