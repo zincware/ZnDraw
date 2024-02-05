@@ -548,26 +548,9 @@ def handle_room_get(data: RoomGetData, token: str, url: str, target: str):
     worker = ZnDrawWorker(token=token, url=url)
     #  TODO: I think this should use `RoomGetData`
     #  and we do unions bool | datatype there
-    answer = RoomGetData()
-    if data.step:
-        answer.step = worker.step
-    if data.points:
-        answer.points = worker.points.tolist()
-    if data.bookmarks:
-        answer.bookmarks = worker.bookmarks
-    if data.selection:
-        answer.selection = worker.selection
-    if data.length:
-        answer.length = len(worker)
-    # if data.segments:
-    #     answer.segments = worker.segments.tolist()
-    if data.frames:
-        answer.frames = [
-            znframe.Frame.from_atoms(x).to_dict(built_in_types=False)
-            for x in worker[data.frames]
-        ]
+    answer = worker.get_properties(**data.to_dict())
     msg = CeleryTaskData(
-        target=target, event="room:get", data=answer.to_dict(), disconnect=True
+        target=target, event="room:get", data=answer, disconnect=True
     )
     worker.socket.emit("celery:task:emit", msg.to_dict())
 

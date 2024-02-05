@@ -16,7 +16,7 @@ class ZnDrawBase(MutableSequence):
     def __post_init__(self):
         self.url = self.url.replace("http", "ws")
         print(f"Connecting to {self.url}")
-        self.socket.connect(self.url)
+        self.socket.connect(self.url, wait_timeout=1)
         self.socket.emit("join", str(self.token))
 
     def reconnect(self):

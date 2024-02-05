@@ -58,7 +58,7 @@ def server():
         server_proc.join()
 
 
-@pytest.fixture()
+@pytest.fixture(scope="session")
 def sio_server():
     port = get_port()
 
@@ -78,5 +78,7 @@ def sio_server():
         eventlet.wsgi.server(eventlet.listen(("", port)), app)
 
     t = threading.Thread(target=run_server, args=(port,), daemon=True)
+    t.daemon = True
     t.start()
-    return f"http://localhost:{port}"
+    time.sleep(1)
+    yield f"http://localhost:{port}"
