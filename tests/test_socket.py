@@ -64,4 +64,4 @@ def test_zndraw_worker_log(sio_server):
     worker.log("test")
     while answer is None:
         worker.socket.sleep(0.1)
-    assert answer == {'message': 'test', 'token': 'test_token'}
+    assert answer == {"message": "test", "token": "test_token"}
