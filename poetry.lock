@@ -3022,6 +3022,20 @@ files = [
 ]
 
 [[package]]
+name = "splines"
+version = "0.3.1"
+description = "Splines in Euclidean Space and Beyond"
+optional = false
+python-versions = ">=3.7"
+files = [
+    {file = "splines-0.3.1-py3-none-any.whl", hash = "sha256:52945e8547257a545ce9caf3d628ea6f5552c1c560d6dd6857806405e023ff11"},
+    {file = "splines-0.3.1.tar.gz", hash = "sha256:8a5cf09709254b7872e8bbbfa03aad1dcfa19ec7a49575f3de987c3be17e8a7a"},
+]
+
+[package.dependencies]
+NumPy = "*"
+
+[[package]]
 name = "sqlalchemy"
 version = "2.0.25"
 description = "Database Abstraction Library"
@@ -3458,4 +3472,4 @@ rdkit = ["rdkit2ase"]
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.9"
-content-hash = "b63df3a0bb4cd550db7baafe3fa61fad1dde3c906bc5b60beec2fb6cc73a2c07"
+content-hash = "d38615ec635182a283d01346a7c2935a75d30065671d1a564e0b157d9466df52"

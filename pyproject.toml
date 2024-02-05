@@ -32,6 +32,7 @@ celery = "^5.3.6"
 sqlalchemy = "^2.0.25"
 psycopg2-binary = "^2.9.9"
 redis = "^5.0.1"
+splines = "^0.3.1"
 
 
 [tool.poetry.group.dev.dependencies]
