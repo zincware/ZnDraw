@@ -76,11 +76,16 @@ class FrozenZnDraw:
                 (i, val.to_dict(built_in_types=False))
                 for i, val in zip(indices, values)
             ]
-
-            for chunk in split_list_into_chunks(all_data, batch_size):
+            chunks = list(split_list_into_chunks(all_data, batch_size))
+            for i, chunk in enumerate(chunks):
+                self._cached_data["length"] += len(chunk)
                 batch = {tup[0]: tup[1] for tup in chunk}
-                self.set_data(frames=batch, update_database=True)
-            self._cached_data["length"] += len(values)
+                if i == len(chunks) - 1:
+                    # Only send the step if it's the last batch, otherwise it will be set to the last index of the batch
+                    self.set_data(frames=batch, update_database=True, step=len(self)-1)
+                else:
+                    self.set_data(frames=batch, update_database=True)
+            
 
     def log(self, message: str) -> None:
         """Log a message to the console"""

@@ -318,7 +318,6 @@ class ZnDraw(ZnDrawBase):
                 vis,
                 **self._modifiers[modifier.method.__class__.__name__]["run_kwargs"],
             )
-            vis.step = len(vis) - 1
         except Exception as err:
             vis.log(f"Modifier failed with error: {repr(err)}")
         msg = CeleryTaskData(
