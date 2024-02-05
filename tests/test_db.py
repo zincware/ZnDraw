@@ -87,7 +87,8 @@ def test_zndraw_worker_get(room_session, sio_server):
             worker[22]
 
         # TODO: test slicing
-        
+
+
 def test_zndraw_worker_get_multiple(room_session, sio_server):
     with mock.patch("zndraw.zndraw_worker.Session", room_session):
         worker = ZnDrawWorker(token="test_token", url=sio_server)
@@ -97,14 +98,17 @@ def test_zndraw_worker_get_multiple(room_session, sio_server):
         assert answer["bookmarks"] == {1: "bm-1", 2: "bm-2"}
         assert answer["selection"] == [1, 2]
         assert answer["step"] == 5
-        
+
         request_idx = [0, 1, 5]
-        request = RoomGetData(points=True, bookmarks=True, selection=True, step=True, frames=request_idx)
+        request = RoomGetData(
+            points=True, bookmarks=True, selection=True, step=True, frames=request_idx
+        )
         answer = worker.get_properties(**request.to_dict())
         assert len(answer["frames"]) == len(request_idx)
         for i, frame in enumerate(answer["frames"]):
             atoms = frame.to_atoms()
             assert atoms == s22[request_idx[i]]
+
 
 def test_zndraw_worker_set_atoms(room_session, sio_server):
     with mock.patch("zndraw.zndraw_worker.Session", room_session):
@@ -135,6 +139,7 @@ def test_zndraw_worker_set_atoms(room_session, sio_server):
 
         with pytest.raises(IndexError):
             worker.insert(5, s22[0])
+
 
 def test_zndraw_worker_set(room_session, sio_server):
     with mock.patch("zndraw.zndraw_worker.Session", room_session):

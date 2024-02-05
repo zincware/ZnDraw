@@ -7,6 +7,9 @@ from znframe.frame import Frame as ZnFrame
 
 from zndraw.data import CeleryTaskData, RoomSetData
 from zndraw.settings import GlobalConfig
+import logging
+
+log = logging.getLogger(__name__)
 
 from .base import ZnDrawBase
 from .db import Session
@@ -73,7 +76,6 @@ class ZnDrawWorker(ZnDrawBase):
                     step=len(self) - 1 + len(index),
                 ).to_dict(),
             )
-
         with Session() as session:
             room = session.query(Room).get(self.token)
             for _index, _value in zip(index, value):
@@ -226,31 +228,44 @@ class ZnDrawWorker(ZnDrawBase):
         self[index] = atoms
         del self[index + 1 :]
         self.extend(data_after)
-        
+
     def get_properties(self, **kwargs):
         with Session() as session:
             room = get_room_by_token(session, self.token)
-            
+
             answer = {}
             for key, collect in kwargs.items():
                 if collect:
                     if key == "frames":
-                        answer["frames"] = [ZnFrame.from_dict(frame.data) for frame in room.frames]
+                        # TODO: read only what's needed directly. use `self.wrap_and_check_index`
+                        # Need a special if for the `current`
+                        indices = [
+                            x if not x == "current" else room.currentStep
+                            for x in kwargs["frames"]
+                        ]
+                        indices = self.wrap_and_check_index(indices, len(room.frames))
+                        log.critical(f"Indices: {indices}")
+                        collected_frames = (
+                            session.query(Frame)
+                            .filter(Frame.index.in_(indices), Frame.room == room)
+                            .all()
+                        )
+                        answer["frames"] = [
+                            ZnFrame.from_dict(frame.data).to_dict(built_in_types=False)
+                            for frame in collected_frames
+                        ]
                     if key == "length":
                         answer["length"] = len(room.frames)
                     elif key == "points":
                         answer["points"] = room.points
-                    elif key == "segments":
-                        answer["segments"] = room.segments
                     elif key == "step":
                         answer["step"] = room.currentStep
                     elif key == "selection":
                         answer["selection"] = room.selection
                     elif key == "bookmarks":
-                        answer["bookmarks"] = {bm.step: bm.text for bm in room.bookmarks}
-        
-        if "frames" in answer:
-            answer["frames"] = [frame for i, frame in enumerate(answer["frames"]) if i in kwargs["frames"]] 
+                        answer["bookmarks"] = {
+                            bm.step: bm.text for bm in room.bookmarks
+                        }
         return answer
 
     def log(self, message: str):

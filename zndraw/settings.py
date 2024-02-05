@@ -68,6 +68,14 @@ class CeleryConfig(pydantic.BaseModel):
     task_ignore_result: bool = True
     task_routes: dict = {
         "*._run_global_modifier": {"queue": "slow"},
+        "*.update_atoms": {"queue": "io"},
+        "*.get_selection_schema": {"queue": "io"},
+        "*.scene_schema": {"queue": "io"},
+        "*.geometries_schema": {"queue": "io"},
+        "*.analysis_schema": {"queue": "io"},
+        "*.handle_room_get": {"queue": "io"},
+        "*.handle_room_set": {"queue": "io"},
+        "*.activate_modifier": {"queue": "io"},
     }
 
     def to_dict(self):
@@ -102,7 +110,7 @@ class GlobalConfig(pydantic.BaseModel):
 
     # Socket settings
     read_batch_size: int = 1
-    max_socket_data_size: int | float = 1e6
+    max_socket_data_size: int | float = 1024 * 8
 
     # Webclient Interface
     analysis_functions: t.List[str] = _ANALYSIS_FUNCTIONS

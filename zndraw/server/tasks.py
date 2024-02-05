@@ -219,7 +219,9 @@ def modifier_schema(url: str, token: str):
 
 @shared_task
 def scene_trash(url: str, token: str):
-    vis = ZnDraw(url=url, token=token)
+    from zndraw.zndraw_worker import ZnDrawWorker
+
+    vis = ZnDrawWorker(token=token, url=url)
     del vis[vis.step + 1 :]
     if len(vis.selection) == 0:
         vis.append(ase.Atoms())
@@ -233,7 +235,7 @@ def scene_trash(url: str, token: str):
     vis.selection = []
     vis.points = []
 
-    vis.socket.sleep(10)
+    vis.socket.sleep(1)
     vis.socket.disconnect()
 
 
@@ -414,10 +416,12 @@ def _run_global_modifier(self, url: str, token: str, data):
             continue
 
         # run the modifier
+        to_get = RoomGetData.get_current_state()
+        cache = vis.get_properties(**to_get.to_dict())
         msg = CeleryTaskData(
             target=host.sid,
             event="modifier:run",
-            data={"params": data, "token": vis.token},
+            data={"params": data, "token": vis.token, "cache": cache},
         )
         vis.socket.emit("celery:task:emit", asdict(msg))
 
@@ -546,12 +550,8 @@ def handle_room_get(data: RoomGetData, token: str, url: str, target: str):
     from zndraw.zndraw_worker import ZnDrawWorker
 
     worker = ZnDrawWorker(token=token, url=url)
-    #  TODO: I think this should use `RoomGetData`
-    #  and we do unions bool | datatype there
     answer = worker.get_properties(**data.to_dict())
-    msg = CeleryTaskData(
-        target=target, event="room:get", data=answer, disconnect=True
-    )
+    msg = CeleryTaskData(target=target, event="room:get", data=answer, disconnect=True)
     worker.socket.emit("celery:task:emit", msg.to_dict())
 
 
@@ -563,8 +563,19 @@ def handle_room_set(data: RoomSetData, token: str, url: str, source: str):
     worker = ZnDrawWorker(token=token, url=url, emit=False)
     if data.frames:
         # must be first, before step
-        for idx, frame in data.frames.items():
-            worker[idx] = znframe.Frame.from_dict(frame).to_atoms()
+        # frames should either all be None or all be not None
+        if any(frame is None for frame in data.frames.values()) and any(
+            frame is not None for frame in data.frames.values()
+        ):
+            raise ValueError("All frames must be None or not None")
+        is_removing = all(frame is None for frame in data.frames.values())
+        indices = list(data.frames.keys())
+        if is_removing:
+            log.critical(f"Removing frames {indices}")
+            del worker[indices]
+        else:
+            frames = [znframe.Frame.from_dict(frame) for frame in data.frames.values()]
+            worker[indices] = frames
     if data.step:
         worker.step = data.step
     if data.points:
