@@ -17,6 +17,7 @@ from .db.schema import Bookmark, Frame, Room
 from .server.utils import get_room_by_token
 from .utils import wrap_and_check_index
 
+
 def _any_to_list(
     value: ZnFrame | ase.Atoms | list[ase.Atoms] | list[ZnFrame],
 ) -> list[ZnFrame]:

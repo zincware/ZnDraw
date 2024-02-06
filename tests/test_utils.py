@@ -38,6 +38,7 @@ def test_typecast_kwargs_exception():
 def test_wrap_and_check_index(inp, expected):
     assert wrap_and_check_index(*inp) == expected
 
+
 @pytest.mark.parametrize(
     "inp",
     [

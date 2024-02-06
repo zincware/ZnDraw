@@ -161,16 +161,17 @@ def ensure_path(path: str):
     p.mkdir(parents=True, exist_ok=True)
     return p.as_posix()
 
+
 def wrap_and_check_index(index: int | slice | list[int], length: int) -> list[int]:
-        is_slice = isinstance(index, slice)
-        if is_slice:
-            index = list(range(*index.indices(length)))
-        index = [index] if isinstance(index, int) else index
-        index = [i if i >= 0 else length + i for i in index]
-        # check if index is out of range
-        for i in index:
-            if i >= length:
-                raise IndexError(f"Index {i} out of range for length {length}")
-            if i<0:
-                raise IndexError(f"Index {i-length} out of range for length {length}")
-        return index
+    is_slice = isinstance(index, slice)
+    if is_slice:
+        index = list(range(*index.indices(length)))
+    index = [index] if isinstance(index, int) else index
+    index = [i if i >= 0 else length + i for i in index]
+    # check if index is out of range
+    for i in index:
+        if i >= length:
+            raise IndexError(f"Index {i} out of range for length {length}")
+        if i < 0:
+            raise IndexError(f"Index {i-length} out of range for length {length}")
+    return index

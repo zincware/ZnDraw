@@ -11,7 +11,7 @@ from .data import RoomSetData
 from .utils import (
     estimate_max_batch_size_for_socket,
     split_list_into_chunks,
-    wrap_and_check_index
+    wrap_and_check_index,
 )
 
 log = logging.getLogger(__name__)

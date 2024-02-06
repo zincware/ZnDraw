@@ -84,4 +84,3 @@ class ZnDrawBase(MutableSequence):
     @property
     def atoms(self):
         return self[self.step]
-
