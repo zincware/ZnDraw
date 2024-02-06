@@ -8,6 +8,7 @@ from znframe.frame import Frame as ZnFrame
 
 from zndraw.data import CeleryTaskData, RoomSetData
 from zndraw.settings import GlobalConfig
+from zndraw import exceptions
 
 log = logging.getLogger(__name__)
 

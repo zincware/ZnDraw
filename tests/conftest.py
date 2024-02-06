@@ -13,6 +13,9 @@ from webdriver_manager.chrome import ChromeDriverManager
 
 from zndraw.app import ZnDrawServer, create_app
 from zndraw.utils import get_port
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from zndraw.db.schema import Base
 
 
 @pytest.fixture(scope="session")

@@ -197,6 +197,16 @@ def join(token: str):
     join_room(f"{token}")
     join_room(f"pyclients_{token}")
 
+    with Session() as ses:
+        room = ses.query(db_schema.Room).filter_by(token=token).first()
+        if room is None:
+            room = db_schema.Room(
+                token=token, currentStep=0, points=[], selection=[]
+            )
+            ses.add(room)
+        ses.commit()
+
+
 
 @io.on("analysis:figure")
 @typecast

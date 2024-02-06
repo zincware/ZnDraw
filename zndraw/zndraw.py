@@ -31,12 +31,12 @@ class Config:
 
     Attributes
     ----------
-    call_timeout : int
+    timeout : int
         Timeout for socket calls in seconds.
         Set to a smaller value to fail faster.
     """
 
-    call_timeout: int = 3
+    timeout: int = 3
 
 
 @dataclasses.dataclass
@@ -128,9 +128,12 @@ class ZnDraw(ZnDrawBase):
         with self._lock:
             self._data = None
             self.socket.emit("room:get", data.to_dict())
-            while self._data is None:
+            for _ in range(self.config.timeout):
+                if self._data is not None:
+                    break
                 self.socket.sleep(seconds=1)
-                # generous timeout
+            else:
+                raise TimeoutError("Timeout while waiting for data")
             # self._data.pop("update_database", None) # TODO: this should not happen
             data = RoomGetData(**self._data)
             self._data = None
