@@ -576,9 +576,13 @@ def modifier_run(data: dict):
         "modifier:run:enqueue", to=f"webclients_{session['token']}", include_self=False
     )
     # split into separate streams based on the modifier name
-    tasks.run_modifier(
+    queue_name = tasks.run_modifier(
         f"http://127.0.0.1:{current_app.config['PORT']}", session["token"], data
     )
+    if queue_name == "slow":
+        queue_positions = get_queue_position(queue_name)
+        for position, session_token in queue_positions:
+            emit("modifier:queue:update", position, to=f"webclients_{session_token}")
 
 
 def _register_global_modifier(data):

@@ -146,6 +146,7 @@ class QueueItem(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     job_name = Column(String)
+    job_id = Column(String)
     datetime = Column(String)
     status = Column(String, default="queued")
 

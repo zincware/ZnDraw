@@ -346,14 +346,10 @@ def run_analysis(url: str, token: str, data: dict):
 
 
 @shared_task(bind=True)
-def _run_global_modifier(self, url: str, token: str, data, job_id: str | int):
+def _run_global_modifier(self, url: str, token: str, data):
     from zndraw.zndraw_worker import ZnDrawWorker
 
     vis = ZnDrawWorker(token=str(token), url=url)
-    vis.socket.emit(
-        "modifier:queue:update",
-        {"queue_name": "slow"},
-    )
     vis.socket.on("modifier:run:finished", lambda: vis.socket.disconnect())
 
     name = data["method"]["discriminator"]
@@ -402,7 +398,7 @@ def _run_global_modifier(self, url: str, token: str, data, job_id: str | int):
             data={"params": data, "token": vis.token, "cache": cache},
         )
         vis.socket.emit("celery:task:emit", asdict(msg))
-
+        update_job_status(job_id=self.request.id, status="running")
         # add additional 5 seconds for communication overhead
         for _ in range(int(host.timeout + 5)):
             if vis.socket.connected:
@@ -412,11 +408,8 @@ def _run_global_modifier(self, url: str, token: str, data, job_id: str | int):
             else:
                 log.critical("Modifier finished")
                 status = "finished"
-                update_job_status(job_id=job_id, status=status)
-                vis.socket.emit(
-                    "modifier:queue:update",
-                    {"queue_name": "slow"},
-                )
+                log.critical(f"SETTING ")
+                update_job_status(job_id=self.request.id, status=status)
                 return
 
         print("modifier timed out")
@@ -434,7 +427,7 @@ def _run_global_modifier(self, url: str, token: str, data, job_id: str | int):
             disconnect=True,
         )
         vis.socket.emit("celery:task:emit", asdict(msg))
-        update_job_status(job_id=job_id, status="failed:timeout")
+        update_job_status(job_id=self.request.id, status="failed:timeout")
         vis.socket.emit(
             "modifier:queue:update",
             {"queue_name": "slow"},
@@ -486,7 +479,7 @@ def _run_room_modifier(self, url: str, token: str, data):
 
 
 @shared_task(bind=True)
-def _run_default_modifier(self, url: str, token: str, data: dict, job_id: str | int):
+def _run_default_modifier(self, url: str, token: str, data: dict):
     from zndraw.zndraw_worker import ZnDrawWorker
 
     vis = ZnDrawWorker(token=str(token), url=url)
@@ -517,7 +510,7 @@ def _run_default_modifier(self, url: str, token: str, data: dict, job_id: str | 
     )
 
     vis.socket.emit("celery:task:emit", asdict(msg))
-    update_job_status(job_id=job_id, status=status)
+    update_job_status(job_id=self.request.id, status=status)
     vis.socket.disconnect()
 
 
@@ -530,21 +523,20 @@ def run_modifier(url: str, token: str, data: dict):
         custom_global_modifiers = [modifier.name for modifier in modifiers]
         custom_room_modifiers = [modifier.name for modifier in room_modifiers]
     if name in custom_global_modifiers:
-        request_id = insert_into_queue(
-            queue_name="slow", job_name=name, room_token=token
-        )
-        _run_global_modifier.delay(url, token, data, request_id)
+        task = _run_global_modifier.delay(url, token, data)
+        queue_name = "slow"
+
     elif name in custom_room_modifiers:
-        request_id = insert_into_queue(
-            queue_name="custom", job_name=name, room_token=token
-        )
-        _run_room_modifier.delay(url, token, data, request_id)
+        task = _run_room_modifier.delay(url, token, data)
+        queue_name = "custom"
     else:
-        request_id = insert_into_queue(
-            queue_name="default", job_name=name, room_token=token
-        )
-        _run_default_modifier.delay(url, token, data, request_id)
-    return
+        task =_run_default_modifier.delay(url, token, data)
+        queue_name = "default"
+    log.critical(f"In queue {queue_name} with task id {task.id}")
+    insert_into_queue(
+    queue_name=queue_name, job_name=name, room_token=token, job_id=task.id
+    )
+    return queue_name
 
 
 @shared_task
