@@ -15,7 +15,7 @@ from .base import ZnDrawBase
 from .db import Session
 from .db.schema import Bookmark, Frame, Room
 from .server.utils import get_room_by_token
-
+from .utils import wrap_and_check_index
 
 def _any_to_list(
     value: ZnFrame | ase.Atoms | list[ase.Atoms] | list[ZnFrame],
@@ -241,7 +241,7 @@ class ZnDrawWorker(ZnDrawBase):
                             x if not x == "current" else room.currentStep
                             for x in kwargs["frames"]
                         ]
-                        indices = self.wrap_and_check_index(indices, len(room.frames))
+                        indices = wrap_and_check_index(indices, len(room.frames))
                         log.critical(f"Indices: {indices}")
                         collected_frames = (
                             session.query(Frame)

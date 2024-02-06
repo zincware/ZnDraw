@@ -18,6 +18,7 @@ from .data import RoomGetData, RoomSetData
 from .utils import (
     estimate_max_batch_size_for_socket,
     split_list_into_chunks,
+    wrap_and_check_index
 )
 from .zndraw_frozen import FrozenZnDraw
 
@@ -159,7 +160,7 @@ class ZnDraw(ZnDrawBase):
             or isinstance(index, list)
         ):
             length = len(self)
-            index = self.wrap_and_check_index(index, length)
+            index = wrap_and_check_index(index, length)
             self.set_data(frames={i: None for i in index}, update_database=True)
         else:
             raise TypeError("Index must be an integer, slice or list[int]")
@@ -171,7 +172,7 @@ class ZnDraw(ZnDrawBase):
         log.warning(
             "Currently `insert` is very taxing on the server, use with caution!"
         )
-        index = self.wrap_and_check_index(index, len(self))[0]
+        index = wrap_and_check_index(index, len(self))[0]
         data_after = self[index:]
         self[index] = value
         del self[index + 1 :]
@@ -206,7 +207,7 @@ class ZnDraw(ZnDrawBase):
 
     def __getitem__(self, index) -> t.Union[ase.Atoms, list[ase.Atoms]]:
         length = len(self)
-        index = self.wrap_and_check_index(index, length)
+        index = wrap_and_check_index(index, length)
         data = self.get_data(frames=index).frames
 
         atoms_list = []
@@ -262,7 +263,7 @@ class ZnDraw(ZnDrawBase):
 
     @step.setter
     def step(self, index):
-        index = self.wrap_and_check_index(index, len(self))[0]
+        index = wrap_and_check_index(index, len(self))[0]
         self.set_data(step=index, update_database=True)
 
     @property
