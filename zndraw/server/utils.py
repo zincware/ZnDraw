@@ -19,7 +19,7 @@ def get_room_by_token(session: Session, token: str):
     return session.query(Room).filter_by(token=token).one()
 
 
-def insert_into_queue(queue_name: str, job_name: str, room_token: str, job_id:str):
+def insert_into_queue(queue_name: str, job_name: str, room_token: str, job_id: str):
     with ses() as session:
         queue = get_queue(session, queue_name)
         room = get_room_by_token(session, room_token)

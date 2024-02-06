@@ -408,7 +408,7 @@ def _run_global_modifier(self, url: str, token: str, data):
             else:
                 log.critical("Modifier finished")
                 status = "finished"
-                log.critical(f"SETTING ")
+                log.critical("SETTING ")
                 update_job_status(job_id=self.request.id, status=status)
                 return
 
@@ -530,11 +530,11 @@ def run_modifier(url: str, token: str, data: dict):
         task = _run_room_modifier.delay(url, token, data)
         queue_name = "custom"
     else:
-        task =_run_default_modifier.delay(url, token, data)
+        task = _run_default_modifier.delay(url, token, data)
         queue_name = "default"
     log.critical(f"In queue {queue_name} with task id {task.id}")
     insert_into_queue(
-    queue_name=queue_name, job_name=name, room_token=token, job_id=task.id
+        queue_name=queue_name, job_name=name, room_token=token, job_id=task.id
     )
     return queue_name
 
