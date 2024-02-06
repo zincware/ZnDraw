@@ -351,9 +351,9 @@ def _run_global_modifier(self, url: str, token: str, data, job_id: str | int):
 
     vis = ZnDrawWorker(token=str(token), url=url)
     vis.socket.emit(
-            "modifier:queue:update",
-            {"queue_name": "slow"},
-        )
+        "modifier:queue:update",
+        {"queue_name": "slow"},
+    )
     vis.socket.on("modifier:run:finished", lambda: vis.socket.disconnect())
 
     name = data["method"]["discriminator"]
