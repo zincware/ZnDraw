@@ -65,7 +65,8 @@ class Rotate(UpdateScene):
         points = vis.points
         atom_ids = vis.selection
         atoms = vis.atoms
-        assert len(points) == 2
+        if len(points) != 2:
+            raise ValueError("Please draw exactly 2 points to rotate around.")
 
         angle = self.angle if self.direction == "left" else -self.angle
         angle = angle / self.steps

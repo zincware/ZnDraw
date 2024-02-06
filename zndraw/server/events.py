@@ -663,8 +663,9 @@ def modifier_available(available: bool):
 @io.on("modifier:queue:update")
 def modifier_queue_update(data: dict):
     """Update the modifier queue."""
-    queue_position = get_queue_position(data["queue_name"], data["job_id"])
-    emit("modifier:queue:update", queue_position, to=f"webclients_{session['token']}")
+    queue_positions = get_queue_position(data["queue_name"])
+    for position, session_token in queue_positions:
+        emit("modifier:queue:update", position, to=f"webclients_{session_token}")
 
 
 @io.on("ping")
