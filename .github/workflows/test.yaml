@@ -48,9 +48,4 @@ jobs:
         #   DISPLAY: ":99"
         run: |
           poetry run python --version
-          poetry run coverage run -m pytest -vv
-          poetry run coverage xml
-      - name: Upload coverage reports to Codecov
-        uses: codecov/codecov-action@v3
-        env:
-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+          poetry run pytest -vv
