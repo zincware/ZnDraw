@@ -8,8 +8,8 @@ import socketio
 
 @dataclasses.dataclass
 class ZnDrawBase(MutableSequence):
-    token: str
     url: str
+    token: str
 
     socket: socketio.Client = dataclasses.field(default_factory=socketio.Client)
 
