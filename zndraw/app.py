@@ -132,7 +132,7 @@ def create_app() -> Flask:
     app.config["TUTORIAL"] = ""
     app.config["AUTH_TOKEN"] = ""
     app.config["USE_TOKEN"] = True
-    app.config["PORT"] = 1234 
+    app.config["PORT"] = 1234
     # where is the port used?
 
     app.config["upgrade_insecure_requests"] = False

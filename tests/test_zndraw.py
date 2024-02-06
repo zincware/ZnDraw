@@ -1,11 +1,15 @@
-from zndraw import ZnDraw, exceptions
-from zndraw.zndraw_worker import ZnDrawWorker
-import pytest, subprocess, time
+import subprocess
+import time
+
+import pytest
 from ase.build import molecule
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+
+from zndraw import ZnDraw
 from zndraw.db.schema import Base
 from zndraw.settings import GlobalConfig
+
 
 @pytest.fixture
 def session() -> sessionmaker:
@@ -18,12 +22,23 @@ def session() -> sessionmaker:
     Base.metadata.create_all(engine)
     return sessionmaker(bind=engine)
 
+
 @pytest.fixture(scope="module")
 def run_celery_worker():
     # Start the celery worker subprocess
-    cmd = ["celery", "-A", "zndraw.make_celery", "worker", "--loglevel", "DEBUG", "--queues=io,fast,celery,slow"]
+    cmd = [
+        "celery",
+        "-A",
+        "zndraw.make_celery",
+        "worker",
+        "--loglevel",
+        "DEBUG",
+        "--queues=io,fast,celery,slow",
+    ]
     # proc = subprocess.Popen(cmd) # more verbose for testing
-    proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    proc = subprocess.Popen(
+        cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
+    )
 
     # Wait a bit for the subprocess to start up
     time.sleep(2)
@@ -33,6 +48,7 @@ def run_celery_worker():
     # Kill the subprocess after the test runs through
     proc.terminate()
     proc.wait()
+
 
 def test_zndraw(server, run_celery_worker, session):
     # create a room by calling "server/token/test-room"
@@ -46,7 +62,7 @@ def test_zndraw(server, run_celery_worker, session):
     # vis[0] = molecule("CH4")
 
     # there is only a room once the webclient connects properly
-    
+
     vis = ZnDraw(server, token="test-room")
     vis.socket.sleep(1)
     assert vis.socket.call("ping") == "pong"
