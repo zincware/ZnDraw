@@ -85,6 +85,7 @@ class ZnDrawWorker(ZnDrawBase):
             )
         with Session() as session:
             room = session.query(Room).get(self.token)
+            room.currentStep = index[-1]
             for _index, _value in zip(index, value):
                 frame = session.query(Frame).filter_by(index=_index, room=room).first()
                 if frame is None:
