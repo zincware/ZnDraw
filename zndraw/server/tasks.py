@@ -22,7 +22,7 @@ from zndraw.zndraw import ZnDraw
 from ..app import cache
 from ..data import CeleryTaskData, RoomGetData, RoomSetData
 from ..utils import typecast
-from .utils import insert_into_queue, update_job_status, get_queue_position
+from .utils import get_queue_position, insert_into_queue, update_job_status
 
 log = logging.getLogger(__name__)
 
@@ -343,10 +343,12 @@ def run_analysis(url: str, token: str, data: dict):
     )
 
     vis.socket.emit("celery:task:emit", asdict(msg))
-    
+
+
 @shared_task
 def update_queue_positions(queue_name, url):
     from zndraw.zndraw_worker import ZnDrawWorker
+
     if queue_name == "slow":
         queue_positions = get_queue_position(queue_name)
         worker = ZnDrawWorker(token="None", url=url)

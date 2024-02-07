@@ -80,7 +80,7 @@ class CeleryTaskData:
 
     target: str
     event: str
-    data: dict | None | str|int
+    data: dict | None | str | int
     disconnect: bool = False
     timeout: int = 60
     authentication: str = None

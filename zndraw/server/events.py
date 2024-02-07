@@ -30,7 +30,6 @@ from ..data import (
     SchemaData,
     SubscribedUserData,
 )
-from .utils import get_queue_position
 
 log = logging.getLogger(__name__)
 
@@ -577,9 +576,7 @@ def modifier_run(data: dict):
     )
     # split into separate streams based on the modifier name
     url = f"http://127.0.0.1:{current_app.config['PORT']}"
-    queue_name = tasks.run_modifier(
-        url, session["token"], data
-    )
+    queue_name = tasks.run_modifier(url, session["token"], data)
     tasks.update_queue_positions.delay(queue_name, url)
 
 
@@ -660,9 +657,6 @@ def modifier_register(data: ModifierRegisterData):
 def modifier_available(available: bool):
     """Update the modifier availability."""
     tasks.activate_modifier.delay(request.sid, available)
-
-
-
 
 
 @io.on("ping")
