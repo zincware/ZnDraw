@@ -19,6 +19,7 @@ from .utils import (
     estimate_max_batch_size_for_socket,
     split_list_into_chunks,
     wrap_and_check_index,
+    check_selection
 )
 from .zndraw_frozen import FrozenZnDraw
 
@@ -281,6 +282,7 @@ class ZnDraw(ZnDrawBase):
 
     @selection.setter
     def selection(self, value: list[int]):
+        check_selection(value)
         self.set_data(selection=value, update_database=True)
 
     def play(self):

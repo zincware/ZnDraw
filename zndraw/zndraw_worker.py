@@ -15,7 +15,7 @@ from .base import ZnDrawBase
 from .db import Session
 from .db.schema import Bookmark, Frame, Room
 from .server.utils import get_room_by_token
-from .utils import wrap_and_check_index
+from .utils import wrap_and_check_index, check_selection
 
 
 def _any_to_list(
@@ -195,7 +195,8 @@ class ZnDrawWorker(ZnDrawBase):
             return room.selection
 
     @selection.setter
-    def selection(self, value: Union[List[int], List[None]]):
+    def selection(self, value: list[int]):
+        check_selection(value)
         with Session() as session:
             room = get_room_by_token(session, self.token)
             room.selection = value

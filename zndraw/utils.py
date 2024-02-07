@@ -175,3 +175,13 @@ def wrap_and_check_index(index: int | slice | list[int], length: int) -> list[in
         if i < 0:
             raise IndexError(f"Index {i-length} out of range for length {length}")
     return index
+
+def check_selection(value: list[int]):
+    if not isinstance(value, list):
+        raise ValueError("Selection must be a list")
+    if any(not isinstance(i, int) for i in value):
+        raise ValueError("Selection must be a list of integers")
+    if len(value) != len(set(value)):
+        raise ValueError("Selection must be unique")
+    if any(i < 0 for i in value):
+        raise ValueError("Selection must be positive integers")
