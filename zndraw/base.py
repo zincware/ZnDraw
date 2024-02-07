@@ -3,8 +3,8 @@ from abc import abstractmethod
 from collections.abc import MutableSequence
 
 import numpy as np
-import splines
 import socketio
+import splines
 
 
 @dataclasses.dataclass
@@ -85,7 +85,7 @@ class ZnDrawBase(MutableSequence):
     @property
     def atoms(self):
         return self[self.step]
-    
+
     @staticmethod
     def calculate_segments(points: np.ndarray) -> np.ndarray:
         if points.shape[0] <= 1:
