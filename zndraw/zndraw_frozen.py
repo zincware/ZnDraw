@@ -5,9 +5,9 @@ import ase
 import numpy as np
 import socketio
 import splines
-from .base import ZnDrawBase
 from znframe import Frame as ZnFrame
 
+from .base import ZnDrawBase
 from .data import RoomSetData
 from .utils import (
     estimate_max_batch_size_for_socket,
@@ -40,9 +40,11 @@ class FrozenZnDraw(ZnDrawBase):
             step=index,
             update_database=True,
         )
-        
+
     def __getitem__(self, *args, **kwargs):
-        raise NotImplementedError("This method is not implemented on the frozen object. Please use the zndraw.ZnDraw object instead.")
+        raise NotImplementedError(
+            "This method is not implemented on the frozen object. Please use the zndraw.ZnDraw object instead."
+        )
 
     def insert(self, *args, **kwargs):
         raise NotImplementedError("Don't use inserts. Use append or extend instead.")
