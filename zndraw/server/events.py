@@ -4,7 +4,6 @@ import logging
 from threading import Lock
 from typing import List
 from uuid import uuid4
-import datetime
 
 from celery import chain
 from flask import current_app, request, session
@@ -484,6 +483,7 @@ def connected_users_subscribe_camera(data: SubscribedUserData):
             current_client.camera_controller = controller_client
         ses.commit()
 
+
 @io.on("camera:update")
 def camera_update(data: dict):
     token = str(session["token"])
@@ -492,9 +492,7 @@ def camera_update(data: dict):
         room = ses.query(db_schema.Room).filter_by(token=token).first()
         if room is None:
             raise ValueError("No room found for token.")
-        current_client = (
-            ses.query(db_schema.Client).filter_by(sid=request.sid).first()
-        )
+        current_client = ses.query(db_schema.Client).filter_by(sid=request.sid).first()
         camera_subscribers = (
             ses.query(db_schema.Client)
             .filter_by(camera_controller=current_client)
@@ -508,7 +506,6 @@ def camera_update(data: dict):
         include_self=False,
         to=camera_subscribers,
     )
-
 
 
 @io.on("scene:update")
@@ -723,6 +720,8 @@ def room_set(data: RoomSetData):
     if data.step is not None:
         io.sleep(1)
         if session["step-update"] == timestamp:
-            tasks.handle_room_set.delay(data.to_dict(), session["token"], url, request.sid)
+            tasks.handle_room_set.delay(
+                data.to_dict(), session["token"], url, request.sid
+            )
         else:
             pass
