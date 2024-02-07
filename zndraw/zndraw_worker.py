@@ -45,8 +45,12 @@ class ZnDrawWorker(ZnDrawBase):
 
     def __len__(self) -> int:
         with Session() as session:
-            max_idx = session.query(sql_func.max(Frame.index)).filter(Frame.room_token == self.token).scalar()
-            return max_idx+1 if max_idx is not None else 0
+            max_idx = (
+                session.query(sql_func.max(Frame.index))
+                .filter(Frame.room_token == self.token)
+                .scalar()
+            )
+            return max_idx + 1 if max_idx is not None else 0
 
     def __setitem__(
         self,
@@ -65,7 +69,7 @@ class ZnDrawWorker(ZnDrawBase):
             raise ValueError(
                 f"Length of index ({len(index)}) and value ({len(value)}) must match"
             )
-        log.critical(82*"-")
+        log.critical(82 * "-")
         log.critical(f"Index: {index}")
         # we emit first, because sending the data takes longer, but emit is faster
         if self.emit:
