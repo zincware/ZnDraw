@@ -131,8 +131,10 @@ class Neighbour(SelectionBase):
 
         vis.selection = list(set(total_ids))
 
+
 class UpdateSelection(SelectionBase):
     """Reload Selection."""
+
     discriminator: t.Literal["UpdateSelection"] = Field("UpdateSelection")
 
     def run(self, vis: ZnDraw) -> None:
