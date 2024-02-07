@@ -6,7 +6,7 @@ from dataclasses import asdict
 import ase.io
 import znframe
 import znh5md
-from celery import shared_task
+from celery import chain, shared_task
 from socketio import Client
 
 from zndraw.analyse import get_analysis_class
@@ -362,14 +362,14 @@ def update_queue_positions(queue_name, url):
                 disconnect=False,
             )
             worker.socket.emit("celery:task:emit", msg.to_dict())
-        worker.socket.sleep(1)
+        worker.socket.sleep(0.5)
         worker.socket.disconnect()
     else:
         return None
 
 
 @shared_task(bind=True)
-def _run_global_modifier(self, url: str, token: str, data):
+def _run_global_modifier(self, url: str, token: str, data, queue_job_id: str):
     from zndraw.zndraw_worker import ZnDrawWorker
 
     vis = ZnDrawWorker(token=str(token), url=url)
@@ -392,6 +392,7 @@ def _run_global_modifier(self, url: str, token: str, data):
             )
 
         if assigned_hosts == 0:
+            update_job_status(job_id=queue_job_id, status="failed:no_host")
             msg = CeleryTaskData(
                 target=f"webclients_{vis.token}",
                 event="modifier:run:finished",
@@ -421,7 +422,7 @@ def _run_global_modifier(self, url: str, token: str, data):
             data={"params": data, "token": vis.token, "cache": cache},
         )
         vis.socket.emit("celery:task:emit", asdict(msg))
-        update_job_status(job_id=self.request.id, status="running")
+        update_job_status(job_id=queue_job_id, status="running")
         # add additional 5 seconds for communication overhead
         for _ in range(int(host.timeout + 5)):
             if vis.socket.connected:
@@ -432,7 +433,7 @@ def _run_global_modifier(self, url: str, token: str, data):
                 log.critical("Modifier finished")
                 status = "finished"
                 log.critical("SETTING ")
-                update_job_status(job_id=self.request.id, status=status)
+                update_job_status(job_id=queue_job_id, status=status)
                 update_queue_positions(queue_name="slow", url=url)
                 return
 
@@ -451,13 +452,13 @@ def _run_global_modifier(self, url: str, token: str, data):
             disconnect=True,
         )
         vis.socket.emit("celery:task:emit", asdict(msg))
-        update_job_status(job_id=self.request.id, status="failed:timeout")
+        update_job_status(job_id=queue_job_id, status="failed:timeout")
         update_queue_positions(queue_name="slow", url=url)
         return
 
 
 @shared_task(bind=True)
-def _run_room_modifier(self, url: str, token: str, data):
+def _run_room_modifier(self, url: str, token: str, data, queue_job_id: str):
     from zndraw.zndraw_worker import ZnDrawWorker
 
     vis = ZnDrawWorker(token=str(token), url=url)
@@ -500,7 +501,7 @@ def _run_room_modifier(self, url: str, token: str, data):
 
 
 @shared_task(bind=True)
-def _run_default_modifier(self, url: str, token: str, data: dict):
+def _run_default_modifier(self, url: str, token: str, data: dict, queue_job_id: str):
     from zndraw.zndraw_worker import ZnDrawWorker
 
     vis = ZnDrawWorker(token=str(token), url=url)
@@ -531,12 +532,11 @@ def _run_default_modifier(self, url: str, token: str, data: dict):
     )
 
     vis.socket.emit("celery:task:emit", asdict(msg))
-    update_job_status(job_id=self.request.id, status=status)
+    update_job_status(job_id=queue_job_id, status=status)
     vis.socket.disconnect()
 
 
-def run_modifier(url: str, token: str, data: dict):
-    name = data["method"]["discriminator"]
+def route_modifier_to_queue(name: str, token: str) -> str:
     with Session() as ses:
         room = ses.query(db_schema.Room).filter_by(token=token).first()
         room_modifiers = ses.query(db_schema.RoomModifier).filter_by(room=room).all()
@@ -544,20 +544,36 @@ def run_modifier(url: str, token: str, data: dict):
         custom_global_modifiers = [modifier.name for modifier in modifiers]
         custom_room_modifiers = [modifier.name for modifier in room_modifiers]
     if name in custom_global_modifiers:
-        task = _run_global_modifier.delay(url, token, data)
         queue_name = "slow"
-
     elif name in custom_room_modifiers:
-        task = _run_room_modifier.delay(url, token, data)
         queue_name = "custom"
     else:
-        task = _run_default_modifier.delay(url, token, data)
         queue_name = "default"
-    log.critical(f"In queue {queue_name} with task id {task.id}")
-    insert_into_queue(
-        queue_name=queue_name, job_name=name, room_token=token, job_id=task.id
-    )
     return queue_name
+
+
+def run_modifier(url: str, token: str, data: dict):
+    name = data["method"]["discriminator"]
+    queue_name = route_modifier_to_queue(name, token)
+    queue_job_id = insert_into_queue(
+        queue_name=queue_name, job_name=name, room_token=token
+    )
+    if queue_name == "slow":
+        task_chain = chain(
+            update_queue_positions.si(queue_name, url),
+            _run_global_modifier.si(url, token, data, queue_job_id),
+        )
+    elif queue_name == "custom":
+        task_chain = chain(
+            update_queue_positions.si(queue_name, url),
+            _run_room_modifier.si(url, token, data, queue_job_id),
+        )
+    else:
+        task_chain = chain(
+            update_queue_positions.si(queue_name, url),
+            _run_default_modifier.si(url, token, data, queue_job_id),
+        )
+    task_chain.delay()
 
 
 @shared_task

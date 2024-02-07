@@ -16,20 +16,10 @@ from zndraw.server import tasks
 from zndraw.utils import typecast
 
 from ..app import socketio as io
-from ..data import (
-    AnalysisFigureData,
-    CeleryTaskData,
-    DeleteAtomsData,
-    FrameData,
-    MessageData,
-    ModifierRegisterData,
-    RoomGetData,
-    RoomSetData,
-    SceneSetData,
-    SceneUpdateData,
-    SchemaData,
-    SubscribedUserData,
-)
+from ..data import (AnalysisFigureData, CeleryTaskData, DeleteAtomsData,
+                    FrameData, MessageData, ModifierRegisterData, RoomGetData,
+                    RoomSetData, SceneSetData, SceneUpdateData, SchemaData,
+                    SubscribedUserData)
 
 log = logging.getLogger(__name__)
 
@@ -572,8 +562,7 @@ def modifier_run(data: dict):
     )
     # split into separate streams based on the modifier name
     url = f"http://127.0.0.1:{current_app.config['PORT']}"
-    queue_name = tasks.run_modifier(url, session["token"], data)
-    tasks.update_queue_positions.delay(queue_name, url)
+    tasks.run_modifier(url, session["token"], data)
 
 
 def _register_global_modifier(data):
