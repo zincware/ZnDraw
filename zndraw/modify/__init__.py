@@ -77,12 +77,10 @@ class Rotate(UpdateScene):
         for _ in range(self.steps):
             # rotate the selected atoms around the vector
             atoms_selected.rotate(angle, vector, center=points[0])
-            # merge the selected and remaining atoms
-            atoms = atoms_selected + atoms_remaining
+            # update the positions of the selected atoms 
+            atoms.positions[atom_ids] = atoms_selected.positions
             vis.append(atoms)
             time.sleep(self.sleep)
-        vis.selection = []
-
 
 class Delete(UpdateScene):
     """Delete the selected atoms."""
