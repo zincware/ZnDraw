@@ -4,7 +4,6 @@ import typing as t
 import ase
 import numpy as np
 import socketio
-import splines
 from znframe import Frame as ZnFrame
 
 from .data import RoomSetData
@@ -144,13 +143,6 @@ class FrozenZnDraw:
     @bookmarks.setter
     def bookmarks(self, value):
         self.set_data(bookmarks=value, update_database=True)
-
-    @staticmethod
-    def calculate_segments(points: np.ndarray) -> np.ndarray:
-        if points.shape[0] <= 1:
-            return points
-        t = np.linspace(0, len(points) - 1, len(points) * 50)
-        return splines.CatmullRom(points).evaluate(t)
 
     @staticmethod
     def cache_from_dict(data: dict):

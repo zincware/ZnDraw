@@ -3,6 +3,7 @@ from abc import abstractmethod
 from collections.abc import MutableSequence
 
 import numpy as np
+import splines
 import socketio
 
 
@@ -84,3 +85,10 @@ class ZnDrawBase(MutableSequence):
     @property
     def atoms(self):
         return self[self.step]
+    
+    @staticmethod
+    def calculate_segments(points: np.ndarray) -> np.ndarray:
+        if points.shape[0] <= 1:
+            return points
+        t = np.linspace(0, len(points) - 1, len(points) * 50)
+        return splines.CatmullRom(points).evaluate(t)

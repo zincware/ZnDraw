@@ -113,7 +113,8 @@ class Move(UpdateScene):
             del vis[vis.step + 1 :]
 
         atoms = vis.atoms
-        atoms_selected, atoms_remaining = self.apply_selection(vis.selection, atoms)
+        atoms_ids = vis.selection
+        atoms_selected, atoms_remaining = self.apply_selection(atoms_ids, atoms)
         if self.steps > len(vis.segments):
             raise ValueError(
                 "The number of steps must be less than the number of segments. You can add more points to increase the number of segments."
@@ -128,9 +129,8 @@ class Move(UpdateScene):
             # move the selected atoms along the vector
             atoms_selected.positions += vector
             # merge the selected and remaining atoms
-            atoms = atoms_selected + atoms_remaining
+            atoms.positions[atoms_ids] = atoms_selected.positions
             vis.append(atoms)
-        vis.selection = []
 
 
 class Duplicate(UpdateScene):

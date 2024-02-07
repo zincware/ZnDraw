@@ -253,8 +253,7 @@ class ZnDraw(ZnDrawBase):
 
     @property
     def segments(self) -> np.ndarray:
-        data = self.get_data(segments=True).segments
-        return np.array(data)
+        return self.calculate_segments(self.points)
 
     @property
     def step(self) -> int:

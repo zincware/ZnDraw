@@ -167,9 +167,7 @@ class ZnDrawWorker(ZnDrawBase):
 
     @property
     def segments(self) -> np.ndarray:
-        with Session() as session:
-            room = get_room_by_token(session, self.token)
-            return np.array(room.segments)
+        return self.calculate_segments(self.points)
 
     @property
     def step(self) -> int:
