@@ -430,32 +430,6 @@ def debug(data: dict):
     emit("debug", data, include_self=False, to=_webclients_room(data))
 
 
-# @io.on("connectedUsers:subscribe:step")
-# @typecast
-# def connected_users_subscribe_step(data: SubscribedUserData):
-#     """
-#     Subscribe to step updates for connected users.
-
-#     data: {user: str}
-#     """
-#     token = str(session["token"])
-#     with Session() as ses:
-#         room = ses.query(db_schema.Room).filter_by(token=token).first()
-#         if room is None:
-#             raise ValueError("No room found for token.")
-#         current_client = ses.query(db_schema.Client).filter_by(sid=request.sid).first()
-#         controller_client = (
-#             ses.query(db_schema.Client).filter_by(name=data.user).first()
-#         )
-#         if (
-#             controller_client.sid == request.sid
-#             or controller_client.step_controller == current_client
-#         ):
-#             current_client.step_controller = None
-#         else:
-#             current_client.step_controller = controller_client
-#         ses.commit()
-
 
 @io.on("connectedUsers:subscribe:camera")
 @typecast
