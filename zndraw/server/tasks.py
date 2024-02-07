@@ -288,7 +288,6 @@ def read_file(url: str, target: str, token: str):
         vis.step = 10
     else:
         vis.upload(target)
-    
 
     vis.socket.sleep(1)
     vis.socket.disconnect()
