@@ -95,7 +95,7 @@ class Selection {
   }
 
   onDoubleClick(event) {
-        const particlesGroup = this.scene.getObjectByName("particlesGroup");
+    const particlesGroup = this.scene.getObjectByName("particlesGroup");
 
     const particleIntersects = this.getIntersections(particlesGroup);
     if (particleIntersects.length > 0) {
@@ -211,7 +211,7 @@ class Selection {
           this.shift_pressed,
           particleIntersects[0].object,
         );
-                this.socket.emit("room:set", {
+        this.socket.emit("room:set", {
           selection: particlesGroup.selection,
           update_database: true,
         });
