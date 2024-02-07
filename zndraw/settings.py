@@ -98,21 +98,6 @@ class CeleryFileSystemConfig(CeleryBaseConfig):
     data_folder_processed: str = "~/.zincware/zndraw/celery/processed"
     task_ignore_result: bool = True
 
-    @property
-    def task_routes(self):
-        return {
-            "*._run_global_modifier": {"queue": "slow"},
-            "*.update_atoms": {"queue": "io"},
-            "*.get_selection_schema": {"queue": "io"},
-            "*.scene_schema": {"queue": "io"},
-            "*.geometries_schema": {"queue": "io"},
-            "*.analysis_schema": {"queue": "io"},
-            "*.handle_room_get": {"queue": "io"},
-            "*.handle_room_set": {"queue": "io"},
-            "*.activate_modifier": {"queue": "io"},
-            "*on_disconnect": {"queue": "io"},
-        }
-
     def to_dict(self):
         return dict(
             broker_url=self.broker,
