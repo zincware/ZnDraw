@@ -59,15 +59,48 @@ class CacheSettings(pydantic.BaseModel):
             CACHE_THRESHOLD=self.threshold,
         )
 
-
-class CeleryConfig(pydantic.BaseModel):
-    data_folder: str = "~/.zincware/zndraw/celery/out"
-    data_folder_processed: str = "~/.zincware/zndraw/celery/processed"
+class CeleryBaseConfig(pydantic.BaseModel):
+    name: t.Literal["CeleryBaseConfig"] = "CeleryBaseConfig"
     broker: str = "filesystem://"
     result_backend: str = "cache"
     cache_backend: str = "memory"
     task_ignore_result: bool = True
-    task_routes: dict = {
+
+    @property
+    def task_routes(self):
+        return {
+        "*._run_global_modifier": {"queue": "slow"},
+        "*.update_atoms": {"queue": "io"},
+        "*.get_selection_schema": {"queue": "io"},
+        "*.scene_schema": {"queue": "io"},
+        "*.geometries_schema": {"queue": "io"},
+        "*.analysis_schema": {"queue": "io"},
+        "*.handle_room_get": {"queue": "io"},
+        "*.handle_room_set": {"queue": "io"},
+        "*.activate_modifier": {"queue": "io"},
+        "*on_disconnect": {"queue": "io"},
+    }
+
+    def to_dict(self):
+        return dict(
+            broker_url=self.broker,
+            result_backend=self.result_backend,
+            cache_backend=self.cache_backend,
+            task_ignore_result=self.task_ignore_result,
+            task_routes=self.task_routes,
+        )
+
+
+
+class CeleryFileSystemConfig(CeleryBaseConfig):
+    name: t.Literal["CeleryFileSystemConfig"] = "CeleryFileSystemConfig"
+    data_folder: str = "~/.zincware/zndraw/celery/out"
+    data_folder_processed: str = "~/.zincware/zndraw/celery/processed"
+    task_ignore_result: bool = True
+
+    @property
+    def task_routes(self):
+        return {
         "*._run_global_modifier": {"queue": "slow"},
         "*.update_atoms": {"queue": "io"},
         "*.get_selection_schema": {"queue": "io"},
@@ -95,20 +128,33 @@ class CeleryConfig(pydantic.BaseModel):
         )
 
 
-class DatabaseConfig(pydantic.BaseModel):
+class DatabaseSQLiteConfig(pydantic.BaseModel):
+    name: t.Literal["DatabaseSQLiteConfig"] = "DatabaseSQLiteConfig"
+
     path: str = "~/.zincware/zndraw/database.sqlite"
 
     def get_path(self) -> str:
         path = pathlib.Path(self.path).expanduser()
         path.parent.mkdir(parents=True, exist_ok=True)
         return f"sqlite:///{path}"
-        # return f"sqlite:///{path}?check_same_thread=False"
+
+class DatabasePostgresConfig(pydantic.BaseModel):
+    name: t.Literal["DatabasePostgresConfig"] = "DatabasePostgresConfig"
+
+    host: str = "localhost"
+    port: int = 5432
+    database: str = "zndraw"
+    user: str = "zndraw"
+    password: str = "zndraw"
+
+    def get_path(self) -> str:
+        return f"postgresql://{self.user}:{self.password}@{self.host}:{self.port}/{self.database}"
 
 
 class GlobalConfig(pydantic.BaseModel):
-    cache: CacheSettings = CacheSettings()
-    celery: CeleryConfig = CeleryConfig()
-    database: DatabaseConfig = DatabaseConfig()
+    cache: CacheSettings = pydantic.Field(default_factory=CacheSettings)
+    celery: t.Union[CeleryBaseConfig, CeleryFileSystemConfig] = pydantic.Field(default_factory=CeleryFileSystemConfig, discriminator='name')
+    database: t.Union[DatabasePostgresConfig, DatabaseSQLiteConfig] = pydantic.Field(default_factory=DatabaseSQLiteConfig, discriminator='name')
 
     # Socket settings
     read_batch_size: int = 1
