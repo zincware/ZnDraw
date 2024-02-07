@@ -132,7 +132,7 @@ class Cache {
     const newCache = {};
     let i = 0;
     for (const key in this._cache) {
-      console.log(key)
+      console.log(key);
       newCache[i] = this._cache[key];
       i++;
     }
