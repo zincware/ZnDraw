@@ -137,7 +137,8 @@ class Cache {
       i++;
     }
     this._cache = newCache;
-    this.world.setStep(this.world.getStep());
+    // no longer required?
+    // this.world.setStep(this.world.getStep());
     slider.ariaValueMax = Object.keys(this._cache).length - 1;
   }
 }

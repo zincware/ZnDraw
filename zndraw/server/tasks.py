@@ -234,6 +234,7 @@ def scene_trash(url: str, token: str):
         vis.append(atoms)
     vis.selection = []
     vis.points = []
+    vis.step = len(vis) - 1
 
     vis.socket.sleep(1)
     vis.socket.disconnect()
@@ -284,6 +285,7 @@ def read_file(url: str, target: str, token: str):
         if len(atoms_list) > 0:
             vis.extend(atoms_list)
 
+        vis.step = len(vis) - 1
     else:
         vis.upload(target)
 
