@@ -175,7 +175,6 @@ def celery_task_call(msg: CeleryTaskData):
 
 @io.on("disconnect")
 def disconnect():
-    log.critical(f"-------------->>> disconnecting {request.sid}")
     token = str(session["token"])
 
     url = request.url_root
@@ -183,7 +182,7 @@ def disconnect():
         url = url.replace("http://", "https://")
     url = url.replace("http", "ws")
 
-    tasks.on_disconnect.delay(request.sid, token, url)
+    tasks.on_disconnect.delay(token=token, sid=request.sid, url=url)
 
 
 @io.on("join")
