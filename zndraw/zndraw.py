@@ -301,7 +301,7 @@ class ZnDraw(ZnDrawBase):
         self.socket.emit("modifier:available", False)
         vis = FrozenZnDraw(url=self.url, token=data["token"], cached_data=data["cache"])
         msg = CeleryTaskData(
-            target=f"webclients_{data['token']}",
+            target=f"webclients_{vis.token}",
             event="modifier:run:running",
             data=None,
         )
