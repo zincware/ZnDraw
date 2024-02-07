@@ -45,12 +45,16 @@ class ZnDrawWorker(ZnDrawBase):
 
     def __len__(self) -> int:
         with Session() as session:
-            max_idx = (
-                session.query(sql_func.max(Frame.index))
-                .filter(Frame.room_token == self.token)
-                .scalar()
-            )
-            return max_idx + 1 if max_idx is not None else 0
+            return self._get_len(session, self.token)
+
+    @staticmethod
+    def _get_len(session, token) -> int:
+        max_idx = (
+            session.query(sql_func.max(Frame.index))
+            .filter(Frame.room_token == token)
+            .scalar()
+        )
+        return max_idx + 1 if max_idx is not None else 0
 
     def __setitem__(
         self,
@@ -248,7 +252,9 @@ class ZnDrawWorker(ZnDrawBase):
                             x if not x == "current" else room.currentStep
                             for x in kwargs["frames"]
                         ]
-                        indices = wrap_and_check_index(indices, len(room.frames))
+                        indices = wrap_and_check_index(
+                            indices, self._get_len(session, self.token)
+                        )
                         log.critical(f"Indices: {indices}")
                         collected_frames = (
                             session.query(Frame)
