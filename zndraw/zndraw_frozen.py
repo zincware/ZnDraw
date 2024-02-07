@@ -5,6 +5,7 @@ import ase
 import numpy as np
 import socketio
 import splines
+from .base import ZnDrawBase
 from znframe import Frame as ZnFrame
 
 from .data import RoomSetData
@@ -17,7 +18,7 @@ from .utils import (
 log = logging.getLogger(__name__)
 
 
-class FrozenZnDraw:
+class FrozenZnDraw(ZnDrawBase):
     # TODO: take in _original instead and change the RoomSetData to accept token instead. Will remove a lot of the boilerplate for pushing data
     def __init__(self, token, url, cached_data: dict):
         self.socket = socketio.Client()
@@ -39,6 +40,12 @@ class FrozenZnDraw:
             step=index,
             update_database=True,
         )
+        
+    def __getitem__(self, *args, **kwargs):
+        raise NotImplementedError("This method is not implemented on the frozen object. Please use the zndraw.ZnDraw object instead.")
+
+    def insert(self, *args, **kwargs):
+        raise NotImplementedError("Don't use inserts. Use append or extend instead.")
 
     def __delitem__(self, index: int | slice | list[int]):
         if (
