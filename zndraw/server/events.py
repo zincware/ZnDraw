@@ -188,11 +188,13 @@ def disconnect():
 
 
 @io.on("join")
-def join(token: str):
+def join(data: dict):
     """
     Arguments:
-        data: {"token": str, "uuid": str}
+        data: {"token": str, "auth_token": str}
     """
+    token = data["token"]
+    auth_token = data["auth_token"]
     session["token"] = token
     join_room(f"{token}")
     join_room(f"pyclients_{token}")

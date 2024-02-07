@@ -22,7 +22,7 @@ class FrozenZnDraw:
     def __init__(self, token, url, cached_data: dict):
         self.socket = socketio.Client()
         self.socket.connect(url, wait_timeout=1)
-        self.socket.emit("join", str(token))
+        self.socket.emit("join", {"token": str(token), "auth_token": None})
         self.url = url
         self.token = token
         self._cached_data = self.cache_from_dict(cached_data)

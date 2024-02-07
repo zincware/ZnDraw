@@ -267,7 +267,12 @@ class ZnDraw(ZnDrawBase):
 
     @step.setter
     def step(self, index):
-        index = wrap_and_check_index(index, len(self))[0]
+        if not isinstance(index, int):
+            raise TypeError("Index must be an integer")
+        if index < 0:
+            raise IndexError(f"Index {index} out of range")
+        if index >= len(self):
+            raise IndexError(f"Index {index} out of range")
         self.set_data(step=index, update_database=True)
 
     @property

@@ -3,27 +3,18 @@ import time
 
 import pytest
 from ase.build import molecule
+from ase.collections import s22
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+import uuid
 
 from zndraw import ZnDraw
 from zndraw.db.schema import Base
 from zndraw.settings import GlobalConfig
 
 
-@pytest.fixture
-def session() -> sessionmaker:
-    """pytest fixture to setup the database"""
-    config = GlobalConfig.load()
-    # TODO: use a temporary path for the database
-    # has to be set in the workers somehow
 
-    engine = create_engine(config.database.get_path())
-    Base.metadata.create_all(engine)
-    return sessionmaker(bind=engine)
-
-
-@pytest.fixture(scope="module")
+@pytest.fixture()
 def run_celery_worker():
     # Start the celery worker subprocess
     cmd = [
@@ -40,8 +31,8 @@ def run_celery_worker():
         cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
     )
 
-    # Wait a bit for the subprocess to start up
-    time.sleep(2)
+    # # Wait a bit for the subprocess to start up
+    time.sleep(1)
 
     yield proc
 
@@ -50,26 +41,28 @@ def run_celery_worker():
     proc.wait()
 
 
-def test_zndraw(server, run_celery_worker, session):
-    # create a room by calling "server/token/test-room"
-    # import requests
-    # url = f"{server}/token/test-room"
-    # response = requests.get(url)
-    # assert response.status_code == 200
-    # assert "ZnDraw" in response.text
-
-    # vis = ZnDrawWorker(token="test-room", url=server)
-    # vis[0] = molecule("CH4")
-
-    # there is only a room once the webclient connects properly
-
-    vis = ZnDraw(server, token="test-room")
-    vis.socket.sleep(1)
+def test_zndraw(server):
+    vis = ZnDraw(server, token=str(uuid.uuid4()))
     assert vis.socket.call("ping") == "pong"
     assert len(vis) == 0
     vis[0] = molecule("CH4")
     assert len(vis) == 1
     assert vis[0] == molecule("CH4")
 
-    # with pytest.raises(exceptions.RoomNotFound):
-    #     assert len(vis) == 0
+def test_zndraw_step(server):
+    vis = ZnDraw(server, token=str(uuid.uuid4()))
+    assert len(vis) == 0
+
+    vis.extend(list(s22))
+    assert len(vis) == len(s22)
+
+    vis.step = 10
+    assert vis.step == 10
+    vis.step = 5
+    assert vis.step == 5
+
+    with pytest.raises(IndexError):
+        vis.step = -1
+    
+    with pytest.raises(IndexError):
+        vis.step = len(vis)

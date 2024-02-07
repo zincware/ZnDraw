@@ -17,11 +17,11 @@ class ZnDrawBase(MutableSequence):
         self.url = self.url.replace("http", "ws")
         print(f"Connecting to {self.url}")
         self.socket.connect(self.url, wait_timeout=1)
-        self.socket.emit("join", str(self.token))
+        self.socket.emit("join", {"token": str(self.token), "auth_token": None})
 
     def reconnect(self):
         self.socket.connect(self.url)
-        self.socket.emit("join", str(self.token))
+        self.socket.emit("join", {"token": str(self.token), "auth_token": None})
 
     @abstractmethod
     def log(self, message: str):
