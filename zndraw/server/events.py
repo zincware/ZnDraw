@@ -430,7 +430,6 @@ def debug(data: dict):
     emit("debug", data, include_self=False, to=_webclients_room(data))
 
 
-
 @io.on("connectedUsers:subscribe:camera")
 @typecast
 def connected_users_subscribe_camera(data: SubscribedUserData):
