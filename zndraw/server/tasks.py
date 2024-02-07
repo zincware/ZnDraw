@@ -285,7 +285,7 @@ def read_file(url: str, target: str, token: str):
         if len(atoms_list) > 0:
             vis.extend(atoms_list)
 
-        vis.step = 10
+        vis.step = len(vis) - 1
     else:
         vis.upload(target)
 
