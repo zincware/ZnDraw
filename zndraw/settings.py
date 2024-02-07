@@ -40,6 +40,7 @@ _SELECTION_FUNCTIONS = [
     "zndraw.select.Random",
     "zndraw.select.IdenticalSpecies",
     "zndraw.select.Neighbour",
+    "zndraw.select.UpdateSelection",
 ]
 
 

@@ -6,6 +6,8 @@ import networkx as nx
 import numpy as np
 from pydantic import BaseModel, Field
 
+from zndraw import ZnDraw
+
 try:
     from zndraw.select import mda  # noqa: F401
 except ImportError:
@@ -128,6 +130,13 @@ class Neighbour(SelectionBase):
             )
 
         vis.selection = list(set(total_ids))
+
+class UpdateSelection(SelectionBase):
+    """Reload Selection."""
+    discriminator: t.Literal["UpdateSelection"] = Field("UpdateSelection")
+
+    def run(self, vis: ZnDraw) -> None:
+        vis.selection = vis.selection
 
 
 def get_selection_class(methods):
