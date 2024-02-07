@@ -307,7 +307,7 @@ class World {
       bonds_size,
     );
     this.cell_grp.set_visibility(simulation_box);
-    this.setStep(loop.step);
+    this.setStep(loop.step, false);
     this.index_grp.rebuild(label_offset);
     this.player.fps = fps;
     this.line3D.show_label = line_label;
@@ -326,7 +326,7 @@ class World {
     document.getElementById("info").innerHTML =
       `${slider.ariaValueNow} / ${slider.ariaValueMax}`;
     if (emit) {
-      this.socket.emit("room:set", { step: step, update_database: false });
+      this.socket.emit("step:update", step);
     }
   }
 

@@ -699,9 +699,6 @@ def room_get(data: RoomGetData):
 @io.on("room:set")
 @typecast
 def room_set(data: RoomSetData):
-    if data.step is not None:
-        timestamp = datetime.datetime.utcnow().isoformat()
-        session["step-update"] = timestamp
     emit(
         "room:set",
         data.to_dict(),
@@ -717,11 +714,24 @@ def room_set(data: RoomSetData):
         # TODO: for fast updates, e.g. points, step during play this is not fast enough
         tasks.handle_room_set.delay(data.to_dict(), session["token"], url, request.sid)
 
-    if data.step is not None:
-        io.sleep(1)
-        if session["step-update"] == timestamp:
-            tasks.handle_room_set.delay(
-                data.to_dict(), session["token"], url, request.sid
-            )
-        else:
-            pass
+
+@io.on("step:update")
+def step_update(step: int):
+    timestamp = datetime.datetime.utcnow().isoformat()
+    session["step-update"] = timestamp
+
+    data = RoomSetData(step=step)
+
+    emit(
+        "room:set",
+        data.to_dict(),
+        include_self=False,
+        to=f"webclients_{session['token']}",
+    )
+    io.sleep(1)
+    if session["step-update"] == timestamp:
+        url = request.url_root
+        if current_app.config["upgrade_insecure_requests"] and not "127.0.0.1" in url:
+            url = url.replace("http://", "https://")
+        print(">:>:>:>:>:>:>:>:>:>:>:> Saving Step Update to Database")
+        tasks.handle_room_set.delay(data.to_dict(), session["token"], url, request.sid)
