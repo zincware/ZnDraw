@@ -4,6 +4,7 @@ import logging
 from threading import Lock
 from typing import List
 from uuid import uuid4
+import datetime
 
 from celery import chain
 from flask import current_app, request, session
@@ -430,31 +431,31 @@ def debug(data: dict):
     emit("debug", data, include_self=False, to=_webclients_room(data))
 
 
-@io.on("connectedUsers:subscribe:step")
-@typecast
-def connected_users_subscribe_step(data: SubscribedUserData):
-    """
-    Subscribe to step updates for connected users.
+# @io.on("connectedUsers:subscribe:step")
+# @typecast
+# def connected_users_subscribe_step(data: SubscribedUserData):
+#     """
+#     Subscribe to step updates for connected users.
 
-    data: {user: str}
-    """
-    token = str(session["token"])
-    with Session() as ses:
-        room = ses.query(db_schema.Room).filter_by(token=token).first()
-        if room is None:
-            raise ValueError("No room found for token.")
-        current_client = ses.query(db_schema.Client).filter_by(sid=request.sid).first()
-        controller_client = (
-            ses.query(db_schema.Client).filter_by(name=data.user).first()
-        )
-        if (
-            controller_client.sid == request.sid
-            or controller_client.step_controller == current_client
-        ):
-            current_client.step_controller = None
-        else:
-            current_client.step_controller = controller_client
-        ses.commit()
+#     data: {user: str}
+#     """
+#     token = str(session["token"])
+#     with Session() as ses:
+#         room = ses.query(db_schema.Room).filter_by(token=token).first()
+#         if room is None:
+#             raise ValueError("No room found for token.")
+#         current_client = ses.query(db_schema.Client).filter_by(sid=request.sid).first()
+#         controller_client = (
+#             ses.query(db_schema.Client).filter_by(name=data.user).first()
+#         )
+#         if (
+#             controller_client.sid == request.sid
+#             or controller_client.step_controller == current_client
+#         ):
+#             current_client.step_controller = None
+#         else:
+#             current_client.step_controller = controller_client
+#         ses.commit()
 
 
 @io.on("connectedUsers:subscribe:camera")
@@ -482,6 +483,32 @@ def connected_users_subscribe_camera(data: SubscribedUserData):
         else:
             current_client.camera_controller = controller_client
         ses.commit()
+
+@io.on("camera:update")
+def camera_update(data: dict):
+    token = str(session["token"])
+    # TODO: store this in the session
+    with Session() as ses:
+        room = ses.query(db_schema.Room).filter_by(token=token).first()
+        if room is None:
+            raise ValueError("No room found for token.")
+        current_client = (
+            ses.query(db_schema.Client).filter_by(sid=request.sid).first()
+        )
+        camera_subscribers = (
+            ses.query(db_schema.Client)
+            .filter_by(camera_controller=current_client)
+            .all()
+        )
+        camera_subscribers = [client.sid for client in camera_subscribers]
+
+    emit(
+        "camera:update",
+        data,
+        include_self=False,
+        to=camera_subscribers,
+    )
+
 
 
 @io.on("scene:update")
@@ -675,6 +702,9 @@ def room_get(data: RoomGetData):
 @io.on("room:set")
 @typecast
 def room_set(data: RoomSetData):
+    if data.step is not None:
+        timestamp = datetime.datetime.now().isoformat()
+        session["step-update"] = timestamp
     emit(
         "room:set",
         data.to_dict(),
@@ -689,3 +719,10 @@ def room_set(data: RoomSetData):
         # TODO: we need to differentiate, if the data comes from a pyclient or a webclient
         # TODO: for fast updates, e.g. points, step during play this is not fast enough
         tasks.handle_room_set.delay(data.to_dict(), session["token"], url, request.sid)
+
+    if data.step is not None:
+        io.sleep(1)
+        if session["step-update"] == timestamp:
+            tasks.handle_room_set.delay(data.to_dict(), session["token"], url, request.sid)
+        else:
+            pass
