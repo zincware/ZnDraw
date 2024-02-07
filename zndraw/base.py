@@ -1,12 +1,11 @@
 import dataclasses
+import logging
 from abc import abstractmethod
 from collections.abc import MutableSequence
 
 import numpy as np
 import socketio
 import splines
-
-import logging
 
 log = logging.getLogger(__name__)
 
