@@ -59,6 +59,7 @@ class CacheSettings(pydantic.BaseModel):
             CACHE_THRESHOLD=self.threshold,
         )
 
+
 class CeleryBaseConfig(pydantic.BaseModel):
     name: t.Literal["CeleryBaseConfig"] = "CeleryBaseConfig"
     broker: str = "filesystem://"
@@ -69,17 +70,17 @@ class CeleryBaseConfig(pydantic.BaseModel):
     @property
     def task_routes(self):
         return {
-        "*._run_global_modifier": {"queue": "slow"},
-        "*.update_atoms": {"queue": "io"},
-        "*.get_selection_schema": {"queue": "io"},
-        "*.scene_schema": {"queue": "io"},
-        "*.geometries_schema": {"queue": "io"},
-        "*.analysis_schema": {"queue": "io"},
-        "*.handle_room_get": {"queue": "io"},
-        "*.handle_room_set": {"queue": "io"},
-        "*.activate_modifier": {"queue": "io"},
-        "*on_disconnect": {"queue": "io"},
-    }
+            "*._run_global_modifier": {"queue": "slow"},
+            "*.update_atoms": {"queue": "io"},
+            "*.get_selection_schema": {"queue": "io"},
+            "*.scene_schema": {"queue": "io"},
+            "*.geometries_schema": {"queue": "io"},
+            "*.analysis_schema": {"queue": "io"},
+            "*.handle_room_get": {"queue": "io"},
+            "*.handle_room_set": {"queue": "io"},
+            "*.activate_modifier": {"queue": "io"},
+            "*on_disconnect": {"queue": "io"},
+        }
 
     def to_dict(self):
         return dict(
@@ -91,7 +92,6 @@ class CeleryBaseConfig(pydantic.BaseModel):
         )
 
 
-
 class CeleryFileSystemConfig(CeleryBaseConfig):
     name: t.Literal["CeleryFileSystemConfig"] = "CeleryFileSystemConfig"
     data_folder: str = "~/.zincware/zndraw/celery/out"
@@ -101,17 +101,17 @@ class CeleryFileSystemConfig(CeleryBaseConfig):
     @property
     def task_routes(self):
         return {
-        "*._run_global_modifier": {"queue": "slow"},
-        "*.update_atoms": {"queue": "io"},
-        "*.get_selection_schema": {"queue": "io"},
-        "*.scene_schema": {"queue": "io"},
-        "*.geometries_schema": {"queue": "io"},
-        "*.analysis_schema": {"queue": "io"},
-        "*.handle_room_get": {"queue": "io"},
-        "*.handle_room_set": {"queue": "io"},
-        "*.activate_modifier": {"queue": "io"},
-        "*on_disconnect": {"queue": "io"},
-    }
+            "*._run_global_modifier": {"queue": "slow"},
+            "*.update_atoms": {"queue": "io"},
+            "*.get_selection_schema": {"queue": "io"},
+            "*.scene_schema": {"queue": "io"},
+            "*.geometries_schema": {"queue": "io"},
+            "*.analysis_schema": {"queue": "io"},
+            "*.handle_room_get": {"queue": "io"},
+            "*.handle_room_set": {"queue": "io"},
+            "*.activate_modifier": {"queue": "io"},
+            "*on_disconnect": {"queue": "io"},
+        }
 
     def to_dict(self):
         return dict(
@@ -138,6 +138,7 @@ class DatabaseSQLiteConfig(pydantic.BaseModel):
         path.parent.mkdir(parents=True, exist_ok=True)
         return f"sqlite:///{path}"
 
+
 class DatabasePostgresConfig(pydantic.BaseModel):
     name: t.Literal["DatabasePostgresConfig"] = "DatabasePostgresConfig"
 
@@ -153,8 +154,12 @@ class DatabasePostgresConfig(pydantic.BaseModel):
 
 class GlobalConfig(pydantic.BaseModel):
     cache: CacheSettings = pydantic.Field(default_factory=CacheSettings)
-    celery: t.Union[CeleryBaseConfig, CeleryFileSystemConfig] = pydantic.Field(default_factory=CeleryFileSystemConfig, discriminator='name')
-    database: t.Union[DatabasePostgresConfig, DatabaseSQLiteConfig] = pydantic.Field(default_factory=DatabaseSQLiteConfig, discriminator='name')
+    celery: t.Union[CeleryBaseConfig, CeleryFileSystemConfig] = pydantic.Field(
+        default_factory=CeleryFileSystemConfig, discriminator="name"
+    )
+    database: t.Union[DatabasePostgresConfig, DatabaseSQLiteConfig] = pydantic.Field(
+        default_factory=DatabaseSQLiteConfig, discriminator="name"
+    )
 
     # Socket settings
     read_batch_size: int = 1
