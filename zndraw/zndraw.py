@@ -7,6 +7,7 @@ import ase
 import ase.io
 import numpy as np
 import socketio
+from socketio import exceptions as socketio_exceptions
 from znframe.frame import Frame
 
 from zndraw.data import CeleryTaskData, ModifierRegisterData
@@ -298,15 +299,15 @@ class ZnDraw(ZnDrawBase):
 
     def _pre_modifier_run(self, data) -> None:
         self.socket.emit("modifier:available", False)
-        vis = FrozenZnDraw(url=self.url, token=data["token"], cached_data=data["cache"])
         msg = CeleryTaskData(
-            target=f"webclients_{vis.token}",
+            target=f"webclients_{data['token']}",
             event="modifier:run:running",
             data=None,
         )
 
         self.socket.emit("celery:task:emit", dataclasses.asdict(msg))
         try:
+            vis = FrozenZnDraw(url=self.url, token=data["token"], cached_data=data["cache"])
             config = GlobalConfig.load()
             cls = get_modify_class(
                 config.get_modify_methods(
@@ -314,19 +315,32 @@ class ZnDraw(ZnDrawBase):
                 )
             )
             modifier = cls(**data["params"])
-            modifier.run(
-                vis,
-                **self._modifiers[modifier.method.__class__.__name__]["run_kwargs"],
+            try:
+                modifier.run(
+                    vis,
+                    **self._modifiers[modifier.method.__class__.__name__]["run_kwargs"],
+                )
+            except Exception as err:
+                vis.log(f"Modifier failed with error: {repr(err)}")
+
+            vis.socket.sleep(1)
+            vis.socket.disconnect()
+        except socketio_exceptions.ConnectionError as err:
+            msg = CeleryTaskData(
+                target=f"webclients_{data['token']}",
+                event="message:log",
+                data="Could not establish connection " + str(err),
+                disconnect=False,
             )
-        except Exception as err:
-            vis.log(f"Modifier failed with error: {repr(err)}")
+            self.socket.emit("celery:task:emit", dataclasses.asdict(msg))
+
         msg = CeleryTaskData(
-            target=f"{vis.token}",
+            target=f"{data['token']}",
             event="modifier:run:finished",
             data=None,
-            disconnect=True,
+            disconnect=False,
         )
-        vis.socket.emit("celery:task:emit", dataclasses.asdict(msg))
+        self.socket.emit("celery:task:emit", dataclasses.asdict(msg))
         self.socket.emit("modifier:available", True)
         print("Modifier finished!!!!!!!!")
 
