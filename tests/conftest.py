@@ -1,17 +1,16 @@
+import subprocess
 import threading
 import time
 
 import eventlet
 import pytest
 import socketio
+from sqlalchemy import create_engine
 
 from zndraw.app import create_app
 from zndraw.db.schema import Base
-from zndraw.utils import get_port
 from zndraw.settings import GlobalConfig
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-import subprocess
+from zndraw.utils import get_port
 
 
 @pytest.fixture(scope="session")

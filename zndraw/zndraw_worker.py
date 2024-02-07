@@ -15,7 +15,7 @@ from .base import ZnDrawBase
 from .db import Session
 from .db.schema import Bookmark, Frame, Room
 from .server.utils import get_room_by_token
-from .utils import wrap_and_check_index, check_selection
+from .utils import check_selection, wrap_and_check_index
 
 
 def _any_to_list(

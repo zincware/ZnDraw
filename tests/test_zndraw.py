@@ -1,17 +1,12 @@
 import subprocess
 import time
+import uuid
 
 import pytest
 from ase.build import molecule
 from ase.collections import s22
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-import uuid
 
 from zndraw import ZnDraw
-from zndraw.db.schema import Base
-from zndraw.settings import GlobalConfig
-
 
 
 @pytest.fixture()
@@ -49,6 +44,7 @@ def test_zndraw(server):
     assert len(vis) == 1
     assert vis[0] == molecule("CH4")
 
+
 def test_zndraw_step(server):
     vis = ZnDraw(server, token=str(uuid.uuid4()))
     assert len(vis) == 0
@@ -63,9 +59,10 @@ def test_zndraw_step(server):
 
     with pytest.raises(IndexError):
         vis.step = -1
-    
+
     with pytest.raises(IndexError):
         vis.step = len(vis)
+
 
 def test_zndraw_selection(server):
     vis = ZnDraw(server, token=str(uuid.uuid4()))
@@ -76,7 +73,7 @@ def test_zndraw_selection(server):
 
     vis.selection = [0, 1, 2]
     assert vis.selection == [0, 1, 2]
-    
+
     vis.step = 0
     vis[0] = molecule("H2O")
     vis.selection = [0, 1]

@@ -16,10 +16,10 @@ from zndraw.settings import GlobalConfig
 from .base import ZnDrawBase
 from .data import RoomGetData, RoomSetData
 from .utils import (
+    check_selection,
     estimate_max_batch_size_for_socket,
     split_list_into_chunks,
     wrap_and_check_index,
-    check_selection
 )
 from .zndraw_frozen import FrozenZnDraw
 

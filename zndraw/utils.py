@@ -176,6 +176,7 @@ def wrap_and_check_index(index: int | slice | list[int], length: int) -> list[in
             raise IndexError(f"Index {i-length} out of range for length {length}")
     return index
 
+
 def check_selection(value: list[int]):
     if not isinstance(value, list):
         raise ValueError("Selection must be a list")

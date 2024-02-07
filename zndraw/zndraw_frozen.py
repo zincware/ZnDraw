@@ -9,10 +9,10 @@ from znframe import Frame as ZnFrame
 
 from .data import RoomSetData
 from .utils import (
+    check_selection,
     estimate_max_batch_size_for_socket,
     split_list_into_chunks,
     wrap_and_check_index,
-    check_selection,
 )
 
 log = logging.getLogger(__name__)
