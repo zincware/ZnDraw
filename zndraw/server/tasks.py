@@ -22,7 +22,7 @@ from zndraw.zndraw import ZnDraw
 from ..app import cache
 from ..data import CeleryTaskData, RoomGetData, RoomSetData
 from ..utils import typecast
-from .utils import insert_into_queue, update_job_status
+from .utils import insert_into_queue, update_job_status, get_queue_position
 
 log = logging.getLogger(__name__)
 
@@ -343,6 +343,25 @@ def run_analysis(url: str, token: str, data: dict):
     )
 
     vis.socket.emit("celery:task:emit", asdict(msg))
+    
+@shared_task
+def update_queue_positions(queue_name, url):
+    from zndraw.zndraw_worker import ZnDrawWorker
+    if queue_name == "slow":
+        queue_positions = get_queue_position(queue_name)
+        worker = ZnDrawWorker(token="None", url=url)
+        for position, room_token in queue_positions:
+            msg = CeleryTaskData(
+                target=f"webclients_{room_token}",
+                event="modifier:queue:update",
+                data=position,
+                disconnect=False,
+            )
+            worker.socket.emit("celery:task:emit", msg.to_dict())
+        worker.socket.sleep(1)
+        worker.socket.disconnect()
+    else:
+        return None
 
 
 @shared_task(bind=True)
@@ -410,6 +429,7 @@ def _run_global_modifier(self, url: str, token: str, data):
                 status = "finished"
                 log.critical("SETTING ")
                 update_job_status(job_id=self.request.id, status=status)
+                update_queue_positions(queue_name="slow", url=url)
                 return
 
         print("modifier timed out")
@@ -428,10 +448,7 @@ def _run_global_modifier(self, url: str, token: str, data):
         )
         vis.socket.emit("celery:task:emit", asdict(msg))
         update_job_status(job_id=self.request.id, status="failed:timeout")
-        vis.socket.emit(
-            "modifier:queue:update",
-            {"queue_name": "slow"},
-        )
+        update_queue_positions(queue_name="slow", url=url)
         return
 
 

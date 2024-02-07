@@ -76,6 +76,7 @@ class CeleryConfig(pydantic.BaseModel):
         "*.handle_room_get": {"queue": "io"},
         "*.handle_room_set": {"queue": "io"},
         "*.activate_modifier": {"queue": "io"},
+        "*on_disconnect": {"queue": "io"},
     }
 
     def to_dict(self):
