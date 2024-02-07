@@ -700,7 +700,7 @@ def room_get(data: RoomGetData):
 @typecast
 def room_set(data: RoomSetData):
     if data.step is not None:
-        timestamp = datetime.datetime.now().isoformat()
+        timestamp = datetime.datetime.utcnow().isoformat()
         session["step-update"] = timestamp
     emit(
         "room:set",
