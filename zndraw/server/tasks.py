@@ -571,13 +571,13 @@ def handle_room_set(data: RoomSetData, token: str, url: str, source: str):
         else:
             frames = [znframe.Frame.from_dict(frame) for frame in data.frames.values()]
             worker[indices] = frames
-    if data.step:
+    if data.step is not None:
         worker.step = data.step
-    if data.points:
+    if data.points is not None:
         worker.points = data.points
-    if data.bookmarks:
+    if data.bookmarks is not None:
         worker.bookmarks = data.bookmarks
-    if data.selection:
+    if data.selection is not None:
         worker.selection = data.selection
 
     msg = CeleryTaskData(
