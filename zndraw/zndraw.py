@@ -307,7 +307,9 @@ class ZnDraw(ZnDrawBase):
 
         self.socket.emit("celery:task:emit", dataclasses.asdict(msg))
         try:
-            vis = FrozenZnDraw(url=self.url, token=data["token"], cached_data=data["cache"])
+            vis = FrozenZnDraw(
+                url=self.url, token=data["token"], cached_data=data["cache"]
+            )
             config = GlobalConfig.load()
             cls = get_modify_class(
                 config.get_modify_methods(
