@@ -16,10 +16,20 @@ from zndraw.server import tasks
 from zndraw.utils import typecast
 
 from ..app import socketio as io
-from ..data import (AnalysisFigureData, CeleryTaskData, DeleteAtomsData,
-                    FrameData, MessageData, ModifierRegisterData, RoomGetData,
-                    RoomSetData, SceneSetData, SceneUpdateData, SchemaData,
-                    SubscribedUserData)
+from ..data import (
+    AnalysisFigureData,
+    CeleryTaskData,
+    DeleteAtomsData,
+    FrameData,
+    MessageData,
+    ModifierRegisterData,
+    RoomGetData,
+    RoomSetData,
+    SceneSetData,
+    SceneUpdateData,
+    SchemaData,
+    SubscribedUserData,
+)
 
 log = logging.getLogger(__name__)
 
