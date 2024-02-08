@@ -18,7 +18,7 @@ flask-socketio = "^5"
 eventlet = "^0.35"
 networkx = "^3"
 pydantic = "^2"
-python-socketio = "^5.8.0"
+python-socketio = {extras = ["client"], version = "^5"}
 plotly = "^5"
 pandas = "^2"
 datamodel-code-generator = "^0.22"
