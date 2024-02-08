@@ -1,6 +1,7 @@
 import itertools
 import logging
 import typing as t
+import ase
 
 import numpy as np
 import pandas as pd
@@ -21,6 +22,28 @@ log = logging.getLogger(__name__)
 
 def _schema_from_atoms(schema, cls):
     return cls.model_json_schema_from_atoms(schema)
+
+class DihedralAngle(BaseModel):
+    discriminator: t.Literal["DihedralAngle"] = Field("DihedralAngle")
+
+    def run(self, vis):
+        atoms_lst = list(vis)
+        dihedral_angles = []
+
+        if len(vis.selection) != 4:
+            raise ValueError("Please select excactly 4 atoms")
+        for atoms in atoms_lst:
+            atoms: ase.Atoms
+            try:
+                dihedral_angles.append(
+                    atoms.get_dihedrals(indices=[vis.selection], mic=True)[0]
+                )
+            except AssertionError:
+                raise ValueError('Indices must be a Nx4 array')
+        df = pd.DataFrame({"step": list(range(len(atoms_lst))), "dihedral": dihedral_angles})
+        fig = px.line(df, x="step", y="dihedral", render_mode="svg")
+        vis.figure = fig.to_json()
+
 
 
 class Distance(BaseModel):
