@@ -298,8 +298,6 @@ def run_selection(url: str, token: str, data: dict):
     from zndraw.zndraw_worker import ZnDrawWorker
 
     vis = ZnDrawWorker(token=str(token), url=url)
-    print(datetime.datetime.now().isoformat())
-
     config = GlobalConfig.load()
     cls = get_selection_class(config.get_selection_methods())
 
@@ -308,8 +306,6 @@ def run_selection(url: str, token: str, data: dict):
         selection.run(vis)
     except ValueError as err:
         vis.log.critical(err)
-
-    print(datetime.datetime.now().isoformat())
 
     vis.socket.sleep(1)
     vis.socket.disconnect()
@@ -437,7 +433,6 @@ def _run_global_modifier(self, url: str, token: str, data, queue_job_id: str):
                 update_queue_positions(queue_name="slow", url=url)
                 return
 
-        print("modifier timed out")
         msg = CeleryTaskData(
             target=f"webclients_{vis.token}",
             event="message:alert",
@@ -603,7 +598,6 @@ def handle_room_set(data: RoomSetData, token: str, url: str, source: str):
         is_removing = all(frame is None for frame in data.frames.values())
         indices = list(data.frames.keys())
         if is_removing:
-            log.critical(f"Removing frames {indices}")
             del worker[indices]
         else:
             frames = [znframe.Frame.from_dict(frame) for frame in data.frames.values()]
