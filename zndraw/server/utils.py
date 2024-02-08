@@ -1,3 +1,4 @@
+import uuid
 from datetime import datetime
 
 from sqlalchemy.orm import Session
@@ -19,7 +20,8 @@ def get_room_by_token(session: Session, token: str):
     return session.query(Room).filter_by(token=token).one()
 
 
-def insert_into_queue(queue_name: str, job_name: str, room_token: str, job_id: str):
+def insert_into_queue(queue_name: str, job_name: str, room_token: str) -> str:
+    job_id = uuid.uuid4().hex
     with ses() as session:
         queue = get_queue(session, queue_name)
         room = get_room_by_token(session, room_token)
@@ -27,6 +29,7 @@ def insert_into_queue(queue_name: str, job_name: str, room_token: str, job_id: s
         queue.jobs.append(job)
         room.launched_jobs.append(job)
         session.commit()
+    return job_id
 
 
 def update_job_status(job_id: str | int, status: str) -> None:

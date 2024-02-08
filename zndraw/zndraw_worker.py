@@ -4,6 +4,7 @@ from typing import List, Union
 
 import ase
 import numpy as np
+from sqlalchemy import func as sql_func
 from znframe.frame import Frame as ZnFrame
 
 from zndraw.data import CeleryTaskData, RoomSetData
@@ -44,8 +45,16 @@ class ZnDrawWorker(ZnDrawBase):
 
     def __len__(self) -> int:
         with Session() as session:
-            room = session.query(Room).get(self.token)
-            return len(room.frames)
+            return self._get_len(session, self.token)
+
+    @staticmethod
+    def _get_len(session, token) -> int:
+        max_idx = (
+            session.query(sql_func.max(Frame.index))
+            .filter(Frame.room_token == token)
+            .scalar()
+        )
+        return max_idx + 1 if max_idx is not None else 0
 
     def __setitem__(
         self,
@@ -64,7 +73,8 @@ class ZnDrawWorker(ZnDrawBase):
             raise ValueError(
                 f"Length of index ({len(index)}) and value ({len(value)}) must match"
             )
-
+        log.critical(82 * "-")
+        log.critical(f"Index: {index}")
         # we emit first, because sending the data takes longer, but emit is faster
         if self.emit:
             self.socket.emit(
@@ -74,11 +84,12 @@ class ZnDrawWorker(ZnDrawBase):
                         idx: frame.to_dict(built_in_types=False)
                         for idx, frame in zip(index, value)
                     },
-                    step=len(self) - 1 + len(index),
+                    step=index[-1],
                 ).to_dict(),
             )
         with Session() as session:
             room = session.query(Room).get(self.token)
+            room.currentStep = index[-1]
             for _index, _value in zip(index, value):
                 frame = session.query(Frame).filter_by(index=_index, room=room).first()
                 if frame is None:
@@ -167,9 +178,7 @@ class ZnDrawWorker(ZnDrawBase):
 
     @property
     def segments(self) -> np.ndarray:
-        with Session() as session:
-            room = get_room_by_token(session, self.token)
-            return np.array(room.segments)
+        return self.calculate_segments(self.points)
 
     @property
     def step(self) -> int:
@@ -179,8 +188,9 @@ class ZnDrawWorker(ZnDrawBase):
 
     @step.setter
     def step(self, idx: int):
-        if idx < 0 or idx >= len(self):
-            raise IndexError(f"Index {idx} out of range")
+        length = len(self)
+        if idx < 0 or idx >= length:
+            raise IndexError(f"Index {idx} out of range for {length} frames")
         with Session() as session:
             room = get_room_by_token(session, self.token)
             room.currentStep = idx
@@ -243,7 +253,9 @@ class ZnDrawWorker(ZnDrawBase):
                             x if not x == "current" else room.currentStep
                             for x in kwargs["frames"]
                         ]
-                        indices = wrap_and_check_index(indices, len(room.frames))
+                        indices = wrap_and_check_index(
+                            indices, self._get_len(session, self.token)
+                        )
                         log.critical(f"Indices: {indices}")
                         collected_frames = (
                             session.query(Frame)

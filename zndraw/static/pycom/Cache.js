@@ -113,7 +113,7 @@ class Cache {
     const indicesToDelete = [];
     for (const [index, atoms] of Object.entries(data)) {
       if (atoms === null) {
-        indicesToDelete.push(index);
+        delete this._cache[index];
       } else {
         this._cache[index] = new Atoms({
           positions: atoms.positions,
@@ -126,14 +126,19 @@ class Cache {
           pbc: atoms.pbc,
         });
         slider.ariaValueMax = Object.keys(this._cache).length - 1;
-        this.world.setStep(this.world.getStep());
       }
     }
-    indicesToDelete.sort((a, b) => b - a);
-    for (const index of indicesToDelete) {
-      console.log("deleting", index);
-      delete this._cache[index];
+    // reset the keys of the cache to go from 0 to n
+    const newCache = {};
+    let i = 0;
+    for (const key in this._cache) {
+      console.log(key);
+      newCache[i] = this._cache[key];
+      i++;
     }
+    this._cache = newCache;
+    // no longer required?
+    // this.world.setStep(this.world.getStep());
     slider.ariaValueMax = Object.keys(this._cache).length - 1;
   }
 }

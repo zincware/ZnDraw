@@ -9,39 +9,40 @@ include = ["zndraw/static/node_modules/**/*"]
 
 [tool.poetry.dependencies]
 python = "^3.9"
-ase = "^3.22.1"
-typer = {extras = ["all"], version = "^0.7.0"}
-flask = "^2.2.3"
-tqdm = "^4.20.0"
-znh5md = "^0.1.6"
-flask-socketio = "^5.3.4"
-eventlet = "^0.33.3"
-networkx = "^3.1"
-pydantic = "^2.2.0"
-python-socketio = {extras = ["client"], version = "^5.8.0"}
-plotly = "^5.16.1"
-pandas = "^2.0.3"
-datamodel-code-generator = "^0.22.1"
-mdanalysis = {version = "^2.6.1", optional = true}
-tidynamics = {version = "^1.1.2", optional = true}
-rdkit2ase = {version = "^0.1.2", optional = true}
-znframe = "^0.1.5"
-flask-caching = "^2.1.0"
-decorator = "^5.1.1"
-celery = "^5.3.6"
-sqlalchemy = "^2.0.25"
-psycopg2-binary = "^2.9.9"
-redis = "^5.0.1"
-splines = "^0.3.1"
+ase = "^3"
+typer = {extras = ["all"], version = "^0.7"}
+flask = "^2"
+tqdm = "^4"
+znh5md = "^0.1"
+flask-socketio = "^5"
+eventlet = "^0.35"
+networkx = "^3"
+pydantic = "^2"
+python-socketio = {extras = ["client"], version = "^5"}
+plotly = "^5"
+pandas = "^2"
+datamodel-code-generator = "^0.22"
+mdanalysis = {version = "^2", optional = true}
+tidynamics = {version = "^1", optional = true}
+rdkit2ase = {version = "^0.1", optional = true}
+znframe = "^0.1"
+flask-caching = "^2"
+decorator = "^5"
+celery = "^5"
+sqlalchemy = "^2"
+psycopg2-binary = "^2"
+redis = "^5"
+splines = "^0.3"
 
 
 [tool.poetry.group.dev.dependencies]
-pre-commit = "^3.3.3"
-pytest = "^7.4.2"
-coverage = "^7.3.1"
-selenium = "^4.14.0"
-webdriver-manager = "^4.0.1"
-ruff = "^0.1.14"
+pre-commit = "^3"
+pytest = "^7"
+coverage = "^7"
+selenium = "^4"
+webdriver-manager = "^4"
+ruff = "^0.1"
+
 
 [tool.poetry.extras]
 all = ["mdanalysis", "tidynamics", "rdkit2ase"]

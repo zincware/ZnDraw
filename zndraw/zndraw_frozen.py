@@ -4,9 +4,9 @@ import typing as t
 import ase
 import numpy as np
 import socketio
-import splines
 from znframe import Frame as ZnFrame
 
+from .base import ZnDrawBase
 from .data import RoomSetData
 from .utils import (
     check_selection,
@@ -18,11 +18,11 @@ from .utils import (
 log = logging.getLogger(__name__)
 
 
-class FrozenZnDraw:
+class FrozenZnDraw(ZnDrawBase):
     # TODO: take in _original instead and change the RoomSetData to accept token instead. Will remove a lot of the boilerplate for pushing data
     def __init__(self, token, url, cached_data: dict):
         self.socket = socketio.Client()
-        self.socket.connect(url, wait_timeout=1)
+        self.socket.connect(url, wait_timeout=5)
         self.socket.emit("join", {"token": str(token), "auth_token": None})
         self.url = url
         self.token = token
@@ -40,6 +40,14 @@ class FrozenZnDraw:
             step=index,
             update_database=True,
         )
+
+    def __getitem__(self, *args, **kwargs):
+        raise NotImplementedError(
+            "This method is not implemented on the frozen object. Please use the zndraw.ZnDraw object instead."
+        )
+
+    def insert(self, *args, **kwargs):
+        raise NotImplementedError("Don't use inserts. Use append or extend instead.")
 
     def __delitem__(self, index: int | slice | list[int]):
         if (
@@ -146,13 +154,6 @@ class FrozenZnDraw:
     @bookmarks.setter
     def bookmarks(self, value):
         self.set_data(bookmarks=value, update_database=True)
-
-    @staticmethod
-    def calculate_segments(points: np.ndarray) -> np.ndarray:
-        if points.shape[0] <= 1:
-            return points
-        t = np.linspace(0, len(points) - 1, len(points) * 50)
-        return splines.CatmullRom(points).evaluate(t)
 
     @staticmethod
     def cache_from_dict(data: dict):

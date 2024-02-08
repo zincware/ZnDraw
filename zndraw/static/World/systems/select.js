@@ -21,7 +21,7 @@ class Selection {
       let points = this.line3D.anchorPoints.children.map((x) => x.position);
       // convert x, y, z to [x, y, z]
       points = points.map((x) => [x.x, x.y, x.z]);
-      this.socket.emit("room:set", { points: points, update_database: true });
+      this.socket.emit("points:update", points);
     };
 
     this.raycaster = new THREE.Raycaster();
@@ -79,8 +79,7 @@ class Selection {
       }
     });
 
-    window.addEventListener("pointerdown", this.onPointerDown.bind(this));
-    window.addEventListener("dblclick", this.onDoubleClick.bind(this));
+    window.addEventListener("click", this.onClick.bind(this));
   }
 
   getIntersections(object) {
@@ -100,12 +99,6 @@ class Selection {
 
     const particleIntersects = this.getIntersections(particlesGroup);
     if (particleIntersects.length > 0) {
-      const instanceId = particleIntersects[0].instanceId;
-      particlesGroup.click(
-        instanceId,
-        this.shift_pressed,
-        particleIntersects[0].object,
-      );
       const params = document.getElementById(
         "selection-json-editor",
       ).parameters;
@@ -165,7 +158,12 @@ class Selection {
     return false;
   }
 
-  onPointerDown(event) {
+  onClick(event) {
+    // detect double click
+    if (event.detail === 2) {
+      this.onDoubleClick(event);
+      return;
+    }
     const particlesGroup = this.scene.getObjectByName("particlesGroup");
     const anchorPoints = this.scene.getObjectByName("AnchorPoints");
     const canvas3D = this.scene.getObjectByName("canvas3D");
