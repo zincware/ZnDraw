@@ -705,3 +705,24 @@ def step_update(step: int):
         if current_app.config["upgrade_insecure_requests"] and not "127.0.0.1" in url:
             url = url.replace("http://", "https://")
         tasks.handle_room_set.delay(data.to_dict(), session["token"], url, request.sid)
+
+
+@io.on("points:update")
+def points_update(points: list[list[float]]):
+    timestamp = datetime.datetime.utcnow().isoformat()
+    session["points-update"] = timestamp
+
+    data = RoomSetData(points=points)
+
+    emit(
+        "room:set",
+        data.to_dict(),
+        include_self=False,
+        to=f"webclients_{session['token']}",
+    )
+    io.sleep(1)
+    if session["points-update"] == timestamp:
+        url = request.url_root
+        if current_app.config["upgrade_insecure_requests"] and not "127.0.0.1" in url:
+            url = url.replace("http://", "https://")
+        tasks.handle_room_set.delay(data.to_dict(), session["token"], url, request.sid)
