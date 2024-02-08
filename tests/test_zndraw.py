@@ -4,7 +4,6 @@ import uuid
 
 import pytest
 from ase.build import molecule
-from ase.collections import s22
 
 from zndraw import ZnDraw
 
