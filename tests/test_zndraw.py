@@ -10,6 +10,7 @@ from zndraw import ZnDraw
 
 s22 = list(s22)
 
+
 @pytest.fixture()
 def run_celery_worker():
     # Start the celery worker subprocess
