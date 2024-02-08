@@ -89,6 +89,7 @@ function setupDragDrop(socket) {
 function setupTrashClick(socket) {
   document.getElementById("trashBtn").addEventListener("click", () => {
     socket.emit("scene:trash");
+    // TODO: should this be a modifier?
   });
 }
 
@@ -177,6 +178,9 @@ function setupFrameInput(world) {
 
 function setupConnectedUsers(socket) {
   const dropdown = document.getElementById("connectedUsersDropdown");
+  if (dropdown === null) {
+    return;
+  }
   // for each user connected user there is
   // row > col py-1 d-grid > btn btn-outline-secondary
   // row > col py-2 d-grid > form-check-input (step)

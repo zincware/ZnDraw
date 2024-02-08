@@ -51,9 +51,7 @@ function selection_editor(socket, cache, world) {
           const value = editor.getValue();
           console.log(value);
 
-          socket.emit("selection:run", {
-            params: value,
-          });
+          socket.emit("selection:run", value);
         }
       });
   });
@@ -87,56 +85,70 @@ function scene_editor(socket, cache, world) {
 }
 
 function analysis_editor(socket, cache, world) {
+  const div = document.getElementById("analysis-json-editor");
+  let editor = new JSONEditor(div, {
+    schema: { type: "object", title: "Analysis", properties: {} },
+  });
+
   socket.on("analysis:schema", (data) => {
-    const div = document.getElementById("analysis-json-editor");
-    const editor = new JSONEditor(div, {
+    editor.destroy();
+    editor = new JSONEditor(div, {
       schema: data,
     });
+  });
 
-    editor.on("change", () => {
-      const value = editor.getValue();
-      div.parameters = value;
+  socket.on("analysis:run:running", () => {
+    document.getElementById("analysis-json-editor-submit").innerHTML =
+      '<i class="fa-solid fa-spinner"></i> Running';
+  });
+
+  // Finished running
+  socket.on("analysis:run:finished", (data) => {
+    document.getElementById("analysis-json-editor-submit").innerHTML =
+      '<i class="fa-solid fa-play"></i> Analyse';
+    document.getElementById("analysis-json-editor-submit").disabled = false;
+  });
+
+  // other client started process
+  socket.on("analysis:run:enqueue", () => {
+    document.getElementById("analysis-json-editor-submit").disabled = true;
+    document.getElementById("analysis-json-editor-submit").innerHTML =
+      '<i class="fa-solid fa-hourglass-start"></i> Job queued';
+  });
+
+  document
+    .getElementById("analysis-json-editor-submit")
+    .addEventListener("click", () => {
+      // Get the value from the editor
+      const errors = editor.validate();
+      if (errors.length) {
+        console.log(errors);
+      } else {
+        const value = editor.getValue();
+        console.log(value);
+
+        // responseReceived = false;
+
+        socket.emit("analysis:run", value);
+
+        document.getElementById("analysis-json-editor-submit").disabled = true;
+      }
     });
 
-    document
-      .getElementById("analysis-json-editor-submit")
-      .addEventListener("click", () => {
-        // Get the value from the editor
-        const errors = editor.validate();
-        if (errors.length) {
-          console.log(errors);
-        } else {
-          const value = editor.getValue();
+  socket.on("analysis:figure", (data) => {
+    Plotly.newPlot("analysisPlot", JSON.parse(data));
 
-          socket.on("analysis:figure", (data) => {
-            Plotly.newPlot("analysisPlot", JSON.parse(data));
-
-            function buildPlot() {
-              Plotly.newPlot("analysisPlot", JSON.parse(data));
-              const myplot = document.getElementById("analysisPlot");
-              myplot.on("plotly_click", (data) => {
-                const point = data.points[0];
-                const step = point.x;
-                world.setStep(step);
-              });
-            }
-
-            buildPlot();
-          });
-
-          socket.emit("analysis:run", {
-            params: value,
-          });
-
-          document.getElementById("analysis-json-editor-submit").disabled =
-            true;
-          // if there is an error in uploading, we still want to be able to submit again
-          setTimeout(() => {
-            document.getElementById("analysis-json-editor-submit").disabled =
-              false;
-          }, 1000);
-        }
+    function buildPlot() {
+      Plotly.newPlot("analysisPlot", JSON.parse(data));
+      const myplot = document.getElementById("analysisPlot");
+      myplot.on("plotly_click", (data) => {
+        const point = data.points[0];
+        const step = point.x;
+        world.setStep(step);
       });
+    }
+
+    buildPlot();
   });
 }
 
@@ -146,23 +158,7 @@ function modifier_editor(socket, cache, world) {
     schema: { type: "object", title: "ZnDraw", properties: {} },
   });
 
-  let responseReceived = false;
-
-  socket.on("modifier:run:submitted", () => {
-    console.log(new Date().toISOString(), "modifier:run:submitted");
-    setTimeout(() => {
-      if (!responseReceived) {
-        console.warn("No response on 'modifier:run:running' within 1 second");
-        alert("No response from server. Please try again.");
-        document.getElementById("interaction-json-editor-submit").disabled =
-          false;
-        socket.emit("modifier:run:failed");
-      }
-    }, 1000);
-  });
-
-  socket.on("modifier:run:enqueue", (position) => {
-    console.log(new Date().toISOString(), "modifier:run:enqueue");
+  socket.on("modifier:queue:update", (position) => {
     document.getElementById("interaction-json-editor-submit").disabled = true;
     document.getElementById("interaction-json-editor-submit").innerHTML =
       '<i class="fa-solid fa-hourglass-start"></i> Job queued at position ' +
@@ -171,25 +167,22 @@ function modifier_editor(socket, cache, world) {
 
   // Check if a running response is received
   socket.on("modifier:run:running", () => {
-    responseReceived = true;
     document.getElementById("interaction-json-editor-submit").innerHTML =
       '<i class="fa-solid fa-spinner"></i> Running';
   });
 
   // Finished running
   socket.on("modifier:run:finished", (data) => {
-    console.log(new Date().toISOString(), "modifier:run:finished");
     document.getElementById("interaction-json-editor-submit").innerHTML =
       '<i class="fa-solid fa-play"></i> Run Modifier';
     document.getElementById("interaction-json-editor-submit").disabled = false;
   });
 
-  socket.on("modifier:run:criticalfail", (data) => {
-    console.log(new Date().toISOString(), "modifier:run:failed");
-    alert("Modifier failed. Please try again with different settings.");
+  // other client started process
+  socket.on("modifier:run:enqueue", () => {
+    document.getElementById("interaction-json-editor-submit").disabled = true;
     document.getElementById("interaction-json-editor-submit").innerHTML =
-      '<i class="fa-solid fa-play"></i> Run Modifier';
-    document.getElementById("interaction-json-editor-submit").disabled = false;
+      '<i class="fa-solid fa-hourglass-start"></i> Job queued';
   });
 
   document
@@ -203,12 +196,9 @@ function modifier_editor(socket, cache, world) {
         const value = editor.getValue();
         console.log(value);
 
-        responseReceived = false;
+        // responseReceived = false;
 
-        socket.emit("modifier:run", {
-          params: value,
-          url: window.location.href,
-        });
+        socket.emit("modifier:run", value);
 
         document.getElementById("interaction-json-editor-submit").disabled =
           true;
@@ -220,11 +210,6 @@ function modifier_editor(socket, cache, world) {
 
     editor = new JSONEditor(div, {
       schema: data,
-    });
-
-    editor.on("change", () => {
-      const value = editor.getValue();
-      div.parameters = value;
     });
   });
 }

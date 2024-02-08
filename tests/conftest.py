@@ -1,16 +1,18 @@
 import multiprocessing as mp
+import threading
 import time
 
 import ase.build
 import ase.collections
+import eventlet
 import pytest
+import socketio
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service as ChromeService
 from webdriver_manager.chrome import ChromeDriverManager
 
-from zndraw.app import ZnDrawServer, socketio
+from zndraw.app import ZnDrawServer
 from zndraw.utils import get_port
-from zndraw.zndraw import ZnDrawDefault
 
 
 @pytest.fixture
@@ -37,10 +39,8 @@ def setup(request):
 
 
 def run_server(port):
-    with ZnDrawServer(None, False, True, None, None) as app:
-        socketio.run(
-            app, port=port, debug=False, host="0.0.0.0"
-        )  # NEVER EVER USE  DEBUG=TRUE HERE!!!
+    with ZnDrawServer(None, False, True, None, None, port=port) as app:
+        app.run(browser=False)
 
 
 @pytest.fixture()
@@ -49,18 +49,35 @@ def server():
 
     server_proc = mp.Process(target=run_server, args=(port,))
 
-    helper_proc = mp.Process(
-        target=ZnDrawDefault,
-        kwargs={"url": f"http://localhost:{port}"},
-    )
-
     server_proc.start()
-    helper_proc.start()
-    time.sleep(1)
+    time.sleep(2)
     try:
-        yield f"http://localhost:{port}"
+        yield f"http://127.0.0.1:{port}"
     finally:
         server_proc.terminate()
         server_proc.join()
-        helper_proc.terminate()
-        helper_proc.join()
+
+
+@pytest.fixture(scope="session")
+def sio_server():
+    port = get_port()
+
+    def run_server(port):
+        sio = socketio.Server(cors_allowed_origins="*")
+        app = socketio.WSGIApp(sio)
+
+        # react on every event
+        @sio.on("*")
+        def push_back(event, sid, data):
+            sio.emit(event, data, to=sid)
+
+        @sio.on("ping")
+        def ping(sid):
+            return "pong"
+
+        eventlet.wsgi.server(eventlet.listen(("", port)), app)
+
+    t = threading.Thread(target=run_server, args=(port,), daemon=True)
+    t.start()
+    time.sleep(1)
+    yield f"http://localhost:{port}"

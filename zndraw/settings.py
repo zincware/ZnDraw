@@ -40,6 +40,7 @@ _SELECTION_FUNCTIONS = [
     "zndraw.select.Random",
     "zndraw.select.IdenticalSpecies",
     "zndraw.select.Neighbour",
+    "zndraw.select.UpdateSelection",
 ]
 
 
@@ -48,21 +49,53 @@ class CacheSettings(pydantic.BaseModel):
     backend_options: dict = {}
     timeout: int = 60 * 60 * 24
     dir: str = "~/.zincware/zndraw/cache"
+    threshold: int = 50000
 
     def to_dict(self):
         return dict(
             CACHE_TYPE=self.backend,
             CACHE_DEFAULT_TIMEOUT=self.timeout,
             CACHE_DIR=ensure_path(self.dir),
+            CACHE_THRESHOLD=self.threshold,
         )
 
 
-class CeleryConfig(pydantic.BaseModel):
-    data_folder: str = "~/.zincware/zndraw/celery/out"
-    data_folder_processed: str = "~/.zincware/zndraw/celery/processed"
+class CeleryBaseConfig(pydantic.BaseModel):
+    name: t.Literal["CeleryBaseConfig"] = "CeleryBaseConfig"
     broker: str = "filesystem://"
     result_backend: str = "cache"
     cache_backend: str = "memory"
+    task_ignore_result: bool = True
+
+    @property
+    def task_routes(self):
+        return {
+            "*._run_global_modifier": {"queue": "slow"},
+            "*.update_atoms": {"queue": "io"},
+            "*.get_selection_schema": {"queue": "io"},
+            "*.scene_schema": {"queue": "io"},
+            "*.geometries_schema": {"queue": "io"},
+            "*.analysis_schema": {"queue": "io"},
+            "*.handle_room_get": {"queue": "io"},
+            "*.handle_room_set": {"queue": "io"},
+            "*.activate_modifier": {"queue": "io"},
+            "*on_disconnect": {"queue": "io"},
+        }
+
+    def to_dict(self):
+        return dict(
+            broker_url=self.broker,
+            result_backend=self.result_backend,
+            cache_backend=self.cache_backend,
+            task_ignore_result=self.task_ignore_result,
+            task_routes=self.task_routes,
+        )
+
+
+class CeleryFileSystemConfig(CeleryBaseConfig):
+    name: t.Literal["CeleryFileSystemConfig"] = "CeleryFileSystemConfig"
+    data_folder: str = "~/.zincware/zndraw/celery/out"
+    data_folder_processed: str = "~/.zincware/zndraw/celery/processed"
     task_ignore_result: bool = True
 
     def to_dict(self):
@@ -76,18 +109,54 @@ class CeleryConfig(pydantic.BaseModel):
             result_backend=self.result_backend,
             cache_backend=self.cache_backend,
             task_ignore_result=self.task_ignore_result,
+            task_routes=self.task_routes,
         )
 
 
-class GlobalConfig(pydantic.BaseModel):
-    cache: CacheSettings = CacheSettings()
-    celery: CeleryConfig = CeleryConfig()
+class DatabaseSQLiteConfig(pydantic.BaseModel):
+    name: t.Literal["DatabaseSQLiteConfig"] = "DatabaseSQLiteConfig"
 
+    path: str = "~/.zincware/zndraw/database.sqlite"
+
+    def get_path(self) -> str:
+        path = pathlib.Path(self.path).expanduser()
+        path.parent.mkdir(parents=True, exist_ok=True)
+        return f"sqlite:///{path}"
+
+
+class DatabasePostgresConfig(pydantic.BaseModel):
+    name: t.Literal["DatabasePostgresConfig"] = "DatabasePostgresConfig"
+
+    host: str = "localhost"
+    port: int = 5432
+    database: str = "zndraw"
+    user: str = "zndraw"
+    password: str = "zndraw"
+
+    def get_path(self) -> str:
+        return f"postgresql://{self.user}:{self.password}@{self.host}:{self.port}/{self.database}"
+
+
+class GlobalConfig(pydantic.BaseModel):
+    cache: CacheSettings = pydantic.Field(default_factory=CacheSettings)
+    celery: t.Union[CeleryBaseConfig, CeleryFileSystemConfig] = pydantic.Field(
+        default_factory=CeleryFileSystemConfig, discriminator="name"
+    )
+    database: t.Union[DatabasePostgresConfig, DatabaseSQLiteConfig] = pydantic.Field(
+        default_factory=DatabaseSQLiteConfig, discriminator="name"
+    )
+
+    # Socket settings
+    read_batch_size: int = 1
+    max_socket_data_size: int | float = 1024 * 8
+
+    # Webclient Interface
     analysis_functions: t.List[str] = _ANALYSIS_FUNCTIONS
     modify_functions: t.List[str] = _MODIFY_FUNCTIONS
     bonds_functions: t.List[str] = _BONDS_FUNCTIONS
     selection_functions: t.List[str] = _SELECTION_FUNCTIONS
     function_schema: t.Dict[str, dict] = {}
+    read_batch_size: int = 8
 
     def save(self, path="~/.zincware/zndraw/config.json"):
         save_path = pathlib.Path(path).expanduser()

@@ -19,7 +19,7 @@ class AddFromSMILES(BaseModel):
     discriminator: t.Literal["AddFromSMILES"] = Field("AddFromSMILES")
     SMILES: str = Field(..., description="SMILES string of the molecule to add")
 
-    def run(self, vis: "ZnDraw") -> None:
+    def run(self, vis: "ZnDraw", **kwargs) -> None:
         molecule = smiles2atoms(self.SMILES)
 
         scene = vis.atoms
@@ -51,7 +51,7 @@ class Solvate(BaseModel):
     pbc: bool = Field(True, description="Whether to use periodic boundary conditions")
     tolerance: float = Field(2.0, description="Tolerance for the solvent")
 
-    def run(self, vis: "ZnDraw") -> None:
+    def run(self, vis: "ZnDraw", **kwargs) -> None:
         scene = vis.atoms
         scene = pack(
             [(scene, 1), (self.solvent, self.count)],
