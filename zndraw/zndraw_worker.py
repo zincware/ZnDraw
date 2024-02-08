@@ -61,14 +61,6 @@ class ZnDrawWorker(ZnDrawBase):
         index: int | list[int] | slice,
         value: ZnFrame | ase.Atoms | list[ase.Atoms] | list[ZnFrame],
     ):
-        self._set_item(index, value, set_step=True)
-
-    def _set_item(
-        self,
-        index: int | list[int] | slice,
-        value: ZnFrame | ase.Atoms | list[ase.Atoms] | list[ZnFrame],
-        set_step: bool = False,
-    ):
         value = _any_to_list(value)
         if isinstance(index, str):
             index = int(index)
@@ -95,8 +87,7 @@ class ZnDrawWorker(ZnDrawBase):
             )
         with Session() as session:
             room = session.query(Room).get(self.token)
-            if set_step:
-                room.currentStep = index[-1]
+            room.currentStep = index[-1]
             self.write_frames_to_session(session, index, value, room)
             session.commit()
 
