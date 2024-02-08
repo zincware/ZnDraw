@@ -10,23 +10,21 @@ on:
 jobs:
   pytest:
     runs-on: ${{ matrix.os }}
-    # services:
-    #   selenium:
-    #     image: selenium/standalone-chrome
     strategy:
       fail-fast: false
       matrix:
         python-version:
           # - "3.12" # not supported yet
           - "3.11"
+          - "3.10"
         os:
           - ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v3
+        uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
       - name: Install Poetry
@@ -42,8 +40,6 @@ jobs:
           cd zndraw/static
           npm install
       - name: Pytest
-        # env:
-        #   DISPLAY: ":99"
         run: |
           poetry run python --version
           poetry run coverage run -m pytest -vv
