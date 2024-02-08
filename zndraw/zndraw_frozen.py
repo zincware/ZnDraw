@@ -150,7 +150,7 @@ class FrozenZnDraw(ZnDrawBase):
         self.set_data(selection=value, update_database=True)
 
     @property
-    def bookmarks(self) -> dict[int|str, str]:
+    def bookmarks(self) -> dict[int | str, str]:
         return self._cached_data["bookmarks"]
 
     @bookmarks.setter

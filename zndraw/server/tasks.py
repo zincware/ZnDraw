@@ -4,7 +4,6 @@ import pathlib
 from dataclasses import asdict
 
 import ase.io
-import znframe
 import znh5md
 from celery import chain, shared_task
 from socketio import Client
