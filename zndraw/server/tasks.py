@@ -593,29 +593,7 @@ def handle_room_set(data: RoomSetData, token: str, url: str, source: str):
     from zndraw.zndraw_worker import ZnDrawWorker
 
     worker = ZnDrawWorker(token=token, url=url, emit=False)
-    if data.frames:
-        # must be first, before step
-        # frames should either all be None or all be not None
-        if any(frame is None for frame in data.frames.values()) and any(
-            frame is not None for frame in data.frames.values()
-        ):
-            raise ValueError("All frames must be None or not None")
-        is_removing = all(frame is None for frame in data.frames.values())
-        indices = list(data.frames.keys())
-        if is_removing:
-            log.critical(f"Removing frames {indices}")
-            del worker[indices]
-        else:
-            frames = [znframe.Frame.from_dict(frame) for frame in data.frames.values()]
-            worker[indices] = frames
-    if data.step is not None:
-        worker.step = data.step
-    if data.points is not None:
-        worker.points = data.points
-    if data.bookmarks is not None:
-        worker.bookmarks = data.bookmarks
-    if data.selection is not None:
-        worker.selection = data.selection
+    worker.set_properties(**data.to_dict())
 
     msg = CeleryTaskData(
         target=source,
