@@ -187,6 +187,7 @@ class ZnDrawWorker(ZnDrawBase):
     @step.setter
     def step(self, idx: int):
         log.critical(f" ------>>>>  Writing step {idx} to database for {self.token}.")
+        self.log(f" ------>>>>  Writing step {idx} to database for {self.token}.")
         length = len(self)
         if idx < 0 or idx >= length:
             raise IndexError(f"Index {idx} out of range for {length} frames")
