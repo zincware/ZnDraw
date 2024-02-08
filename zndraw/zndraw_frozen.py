@@ -58,6 +58,10 @@ class FrozenZnDraw(ZnDrawBase):
             index = wrap_and_check_index(index, length)
             self.set_data(frames={i: None for i in index}, update_database=True)
             self._cached_data["length"] -= len(index)
+            log.critical(f"Bookmarks: {self.bookmarks}")
+            for idx in index:
+                self.bookmarks.pop(idx, None)
+                self.bookmarks.pop(str(idx), None)
         else:
             raise TypeError("Index must be an integer, slice or list[int]")
 
@@ -146,7 +150,7 @@ class FrozenZnDraw(ZnDrawBase):
         self.set_data(selection=value, update_database=True)
 
     @property
-    def bookmarks(self):
+    def bookmarks(self) -> dict[int | str, str]:
         return self._cached_data["bookmarks"]
 
     @bookmarks.setter
