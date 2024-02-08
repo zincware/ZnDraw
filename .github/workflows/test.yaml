@@ -19,7 +19,6 @@ jobs:
         python-version:
           # - "3.12" # not supported yet
           - "3.11"
-          - "3.10"
         os:
           - ubuntu-latest
 

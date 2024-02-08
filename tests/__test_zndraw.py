@@ -44,45 +44,45 @@ def test_zndraw(server):
     assert vis[0] == molecule("CH4")
 
 
-# def test_zndraw_step(server):
-#     vis = ZnDraw(server, token=str(uuid.uuid4()))
-#     assert len(vis) == 0
+def test_zndraw_step(server):
+    vis = ZnDraw(server, token=str(uuid.uuid4()))
+    assert len(vis) == 0
 
-#     vis.extend(list(s22))
-#     assert len(vis) == len(s22)
+    vis.extend(list(s22))
+    assert len(vis) == len(s22)
 
-#     vis.step = 10
-#     assert vis.step == 10
-#     vis.step = 5
-#     assert vis.step == 5
+    vis.step = 10
+    assert vis.step == 10
+    vis.step = 5
+    assert vis.step == 5
 
-#     with pytest.raises(IndexError):
-#         vis.step = -1
+    with pytest.raises(IndexError):
+        vis.step = -1
 
-#     with pytest.raises(IndexError):
-#         vis.step = len(vis)
+    with pytest.raises(IndexError):
+        vis.step = len(vis)
 
 
-# def test_zndraw_selection(server):
-#     vis = ZnDraw(server, token=str(uuid.uuid4()))
-#     assert len(vis) == 0
+def test_zndraw_selection(server):
+    vis = ZnDraw(server, token=str(uuid.uuid4()))
+    assert len(vis) == 0
 
-#     vis.extend(list(s22))
-#     assert len(vis) == len(s22)
+    vis.extend(list(s22))
+    assert len(vis) == len(s22)
 
-#     vis.selection = [0, 1, 2]
-#     assert vis.selection == [0, 1, 2]
+    vis.selection = [0, 1, 2]
+    assert vis.selection == [0, 1, 2]
 
-#     vis.step = 0
-#     vis[0] = molecule("H2O")
-#     vis.selection = [0, 1]
-#     assert vis.selection == [0, 1]
-#     assert vis[0] == molecule("H2O")
-#     assert vis.step == 0
-#     # should we raise en error, if selection is bigger than the structure?
-#     with pytest.raises(ValueError):
-#         vis.selection = [2, 2]
-#     with pytest.raises(ValueError):
-#         vis.selection = [-1]
-#     with pytest.raises(ValueError):
-#         vis.selection = ["data"]
+    vis.step = 0
+    vis[0] = molecule("H2O")
+    vis.selection = [0, 1]
+    assert vis.selection == [0, 1]
+    assert vis[0] == molecule("H2O")
+    assert vis.step == 0
+    # should we raise en error, if selection is bigger than the structure?
+    with pytest.raises(ValueError):
+        vis.selection = [2, 2]
+    with pytest.raises(ValueError):
+        vis.selection = [-1]
+    with pytest.raises(ValueError):
+        vis.selection = ["data"]
