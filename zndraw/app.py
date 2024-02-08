@@ -195,7 +195,10 @@ class ZnDrawServer:
         self._workers = setup_worker()
 
         config = GlobalConfig.load()
-        pathlib.Path(config.database.path).expanduser().unlink(missing_ok=True)
+        try:
+            pathlib.Path(config.database.path).expanduser().unlink(missing_ok=True)
+        except AttributeError:
+            pass  # only for sqlite config
         engine = create_engine(config.database.get_path())
         Base.metadata.create_all(engine)
 
