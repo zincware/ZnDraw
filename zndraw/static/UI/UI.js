@@ -89,6 +89,7 @@ function setupDragDrop(socket) {
 function setupTrashClick(socket) {
   document.getElementById("trashBtn").addEventListener("click", () => {
     socket.emit("scene:trash");
+    // TODO: should this be a modifier?
   });
 }
 

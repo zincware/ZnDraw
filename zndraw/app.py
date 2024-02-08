@@ -1,4 +1,5 @@
 import dataclasses
+import pathlib
 import subprocess
 import uuid
 import webbrowser
@@ -7,6 +8,9 @@ from celery import Celery, Task
 from flask import Flask
 from flask_caching import Cache
 from flask_socketio import SocketIO
+from sqlalchemy import create_engine
+
+from zndraw.db.schema import Base
 
 from .settings import GlobalConfig
 
@@ -61,6 +65,29 @@ def setup_cache():
 
 def setup_worker() -> list:
     """Setup the worker."""
+    import os
+    import platform
+
+    my_env = os.environ.copy()
+    if platform.system() == "Darwin" and platform.processor() == "arm":
+        # fix celery worker issue on apple silicon
+        my_env["OBJC_DISABLE_INITIALIZE_FORK_SAFETY"] = "YES"
+
+    io_worker = subprocess.Popen(
+        [
+            "celery",
+            "-A",
+            "zndraw.make_celery",
+            "worker",
+            "--loglevel=info",
+            "--concurrency=6",
+            "--hostname=io_worker",
+            "--queues=io",
+            "--prefetch-multiplier=10",
+        ],
+        env=my_env,
+    )
+
     fast_worker = subprocess.Popen(
         [
             "celery",
@@ -68,10 +95,12 @@ def setup_worker() -> list:
             "zndraw.make_celery",
             "worker",
             "--loglevel=info",
-            "--concurrency=16",
+            "--concurrency=6",
             "--hostname=fast_worker",
             "--queues=fast,celery",
-        ]
+            "--prefetch-multiplier=1",
+        ],
+        env=my_env,
     )
 
     slow_worker = subprocess.Popen(
@@ -84,9 +113,10 @@ def setup_worker() -> list:
             "--concurrency=1",
             "--hostname=slow_worker",
             "--queues=slow",
-        ]
+        ],
+        env=my_env,
     )
-    return [fast_worker, slow_worker]
+    return [io_worker, fast_worker, slow_worker]
 
 
 def create_app() -> Flask:
@@ -163,6 +193,15 @@ class ZnDrawServer:
     def run(self, browser=False):
         self.update_cache()
         self._workers = setup_worker()
+
+        config = GlobalConfig.load()
+        try:
+            pathlib.Path(config.database.path).expanduser().unlink(missing_ok=True)
+        except AttributeError:
+            pass  # only for sqlite config
+        engine = create_engine(config.database.get_path())
+        Base.metadata.create_all(engine)
+
         if browser:
             webbrowser.open(self.url_root)
         socketio.run(self.app, port=self.port, host="0.0.0.0")

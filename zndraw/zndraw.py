@@ -1,20 +1,27 @@
 import dataclasses
 import logging
-import threading
 import typing as t
+from threading import Lock
 
 import ase
 import ase.io
 import numpy as np
 import socketio
+from socketio import exceptions as socketio_exceptions
 from znframe.frame import Frame
 
-from zndraw.data import CeleryTaskData, FrameData, ModifierRegisterData
+from zndraw.data import CeleryTaskData, ModifierRegisterData
 from zndraw.modify import UpdateScene, get_modify_class
 from zndraw.settings import GlobalConfig
-from zndraw.utils import (
-    ZnDrawLoggingHandler,
+
+from .base import ZnDrawBase
+from .data import RoomGetData, RoomSetData
+from .utils import (
+    estimate_max_batch_size_for_socket,
+    split_list_into_chunks,
+    wrap_and_check_index,
 )
+from .zndraw_frozen import FrozenZnDraw
 
 log = logging.getLogger(__name__)
 
@@ -34,7 +41,7 @@ class Config:
 
 
 @dataclasses.dataclass
-class ZnDrawBase:  # collections.abc.MutableSequence
+class ZnDraw(ZnDrawBase):
     """
 
     Attributes
@@ -50,23 +57,26 @@ class ZnDrawBase:  # collections.abc.MutableSequence
         not just the current session.
     """
 
-    url: str
-    token: str = None
     display_new: bool = True
-    auth_token: str = None
+    auth_token: str | None = None
     config: Config = dataclasses.field(default_factory=Config)
     _modifiers: dict = dataclasses.field(default_factory=dict)
 
-    _target_sid: str = None
+    _target_sid: str | None = None
+
+    _lock: Lock = dataclasses.field(default_factory=Lock)
+    _data = None
 
     def __post_init__(self):
-        self.socket = socketio.Client()
         if isinstance(self.config, dict):
             self.config = Config(**self.config)
         self.socket.on("disconnect", self._on_disconnect)
         self.socket.on("connect", self._on_connect)
         self.socket.on("modifier:run", self._pre_modifier_run)
         self.socket.on("message:log", lambda data: print(data))
+        self.socket.on("room:get", lambda data: setattr(self, "_data", data))
+        self.socket.on("room:set:finished", lambda *args: self._lock.release())
+        super().__post_init__()
 
     def _on_disconnect(self):
         log.critical(f"Disconnected from server: {self._modifiers}")
@@ -87,57 +97,72 @@ class ZnDrawBase:  # collections.abc.MutableSequence
                 self.socket.connect(self.url)
                 break
             except socketio.exceptions.ConnectionError:
-                self.socket.sleep(0.1)
+                self.socket.sleep(0.1)  # this can't work?
         else:
             raise socketio.exceptions.ConnectionError
 
     def reconnect(self) -> None:
         """Reconnect to the server."""
-        log.critical("Reconnecting to server")
-        self.socket.disconnect()
-        self._connect()
-        self._on_connect()
-        self.socket.sleep(0.1)
-        log.critical("Reconnected to server")
+        super().reconnect()
+
+        for k, v in self._modifiers.items():
+            log.critical(f"Re-registering modifier {k}")
+            msg = ModifierRegisterData(
+                schema=v["cls"].model_json_schema(),
+                name=k,
+                default=v["default"],
+                timeout=v["run_kwargs"]["timeout"],
+            )
+            self.socket.emit(
+                "modifier:register",
+                dataclasses.asdict(msg),
+            )
+
+            self.socket.emit(
+                "modifier:available",
+                True,
+            )
+
+    def get_data(self, **data: dict) -> RoomGetData:
+        data = RoomGetData(**data)
+        with self._lock:
+            self._data = None
+            self.socket.emit("room:get", data.to_dict())
+            while self._data is None:
+                self.socket.sleep(seconds=1)
+                # generous timeout
+            # self._data.pop("update_database", None) # TODO: this should not happen
+            data = RoomGetData(**self._data)
+            self._data = None
+            return data
+
+    def set_data(self, **data: dict) -> None:
+        data = RoomSetData(**data)
+        self._lock.acquire(blocking=True)  # might need to have a while loop here
+        self.socket.emit("room:set", data.to_dict())
 
     def __len__(self) -> int:
-        return int(self.socket.call("atoms:length", timeout=self.config.call_timeout))
+        return self.get_data(length=True).length
 
     def __setitem__(self, index, value):
-        if not isinstance(value, ase.Atoms) and not isinstance(value, Frame):
-            raise ValueError("Must be an ase.Atoms or Frame object")
-
         assert isinstance(index, int), "Index must be an integer"
         if isinstance(value, ase.Atoms):
             value = Frame.from_atoms(value)
-        self.socket.emit(
-            "atoms:upload",
-            dataclasses.asdict(
-                FrameData(
-                    index=index, data=value.to_dict(built_in_types=False), update=True
-                )
-            ),
+        self.set_data(
+            frames={index: value.to_dict(built_in_types=False)},
+            step=index,
+            update_database=True,
         )
 
-    def __delitem__(self, index):
+    def __delitem__(self, index: int | slice | list[int]):
         if (
             isinstance(index, int)
             or isinstance(index, slice)
             or isinstance(index, list)
         ):
             length = len(self)
-            is_slice = isinstance(index, slice)
-            if is_slice:
-                index = range(*index.indices(length))
-
-            index = [index] if isinstance(index, int) else index
-            index = [i if i >= 0 else length + i for i in index]
-
-            data = {"index": index, "token": self.token}
-
-            self.socket.emit("atoms:delete", data)
-            if not is_slice and (index[0] >= length or index[-1] >= length):
-                raise IndexError("Index out of range")
+            index = wrap_and_check_index(index, length)
+            self.set_data(frames={i: None for i in index}, update_database=True)
         else:
             raise TypeError("Index must be an integer, slice or list[int]")
 
@@ -145,14 +170,14 @@ class ZnDrawBase:  # collections.abc.MutableSequence
         """Insert atoms before index"""
         if isinstance(value, ase.Atoms):
             value = Frame.from_atoms(value)
-
-        data = list(self)
-        data.insert(index, value)
-        for idx, val in enumerate(data):
-            self[idx] = val
-
-        # TODO: why is this not working at the moment?
-        # self.socket.emit("atoms:insert", {index: value.to_dict()})
+        log.warning(
+            "Currently `insert` is very taxing on the server, use with caution!"
+        )
+        index = wrap_and_check_index(index, len(self))[0]
+        data_after = self[index:]
+        self[index] = value
+        del self[index + 1 :]
+        self.extend(data_after)
 
     def append(self, value: t.Union[ase.Atoms, Frame]) -> None:
         """Append atoms to the end of the list"""
@@ -165,36 +190,35 @@ class ZnDrawBase:  # collections.abc.MutableSequence
     ) -> None:
         """Extend the list by appending all the items in the given list"""
         size = len(self)
-        for idx, value in enumerate(values):
-            if isinstance(value, ase.Atoms):
-                value = Frame.from_atoms(value)
-            self[size + idx] = value
+        if not isinstance(values, list):
+            self[size] = values
+        else:
+            if isinstance(values[0], ase.Atoms):
+                values = [Frame.from_atoms(val) for val in values]
+            batch_size = estimate_max_batch_size_for_socket(values)
+            indices = list(range(size, size + len(values)))
+            all_data = [
+                (i, val.to_dict(built_in_types=False))
+                for i, val in zip(indices, values)
+            ]
+
+            for chunk in split_list_into_chunks(all_data, batch_size):
+                batch = {tup[0]: tup[1] for tup in chunk}
+                self.set_data(frames=batch, update_database=True)
 
     def __getitem__(self, index) -> t.Union[ase.Atoms, list[ase.Atoms]]:
         length = len(self)
-        is_scalar = isinstance(index, int)
-        is_sclice = isinstance(index, slice)
-        if is_sclice:
-            index = range(*index.indices(length))
-
-        index = [index] if isinstance(index, int) else index
-        index = [i if i >= 0 else length + i for i in index]
-
-        downloaded_data = self.socket.call(
-            "atoms:download", index, timeout=self.config.call_timeout
-        )
+        index = wrap_and_check_index(index, length)
+        data = self.get_data(frames=index).frames
 
         atoms_list = []
-
-        for val in downloaded_data.values():
+        for idx, val in zip(index, data):
             if val is None:
-                raise IndexError("Index out of range")
+                raise IndexError(f"Index {idx} out of range")
             atoms_list.append(Frame.from_dict(val).to_atoms())
 
-        data = atoms_list[0] if is_scalar else atoms_list
-        if data == [] and not is_sclice:
-            raise IndexError("Index out of range")
-        return data
+        return_data = atoms_list[0] if len(index) == 1 else atoms_list
+        return return_data
 
     def log(self, message: str) -> None:
         """Log a message to the console"""
@@ -210,11 +234,11 @@ class ZnDrawBase:  # collections.abc.MutableSequence
     @property
     def atoms(self) -> ase.Atoms:
         """Return the atoms at the current step."""
-        return self[self.step]
+        return self[self.step]  # type: ignore
 
     @property
     def points(self) -> np.ndarray:
-        data = self.socket.call("points:get", timeout=self.config.call_timeout)
+        data = self.get_data(points=True).points
         return np.array(data)
 
     @points.setter
@@ -226,37 +250,29 @@ class ZnDrawBase:  # collections.abc.MutableSequence
                 assert len(value[0]) == 3
             except (TypeError, AssertionError):
                 raise ValueError("Points must be a list of 3D coordinates")
-        self.socket.emit("points:set", value)
+        self.set_data(points=value, update_database=True)
 
     @property
     def segments(self) -> np.ndarray:
-        data = self.socket.call("scene:segments", timeout=self.config.call_timeout)
-        return np.array(data)
+        return self.calculate_segments(self.points)
 
     @property
     def step(self) -> int:
-        step = int(
-            self.socket.call(
-                "scene:step",
-                timeout=self.config.call_timeout,
-            )
-        )
+        step = self.get_data(step=True).step
         return step
 
     @step.setter
     def step(self, index):
-        if index > len(self) - 1:
-            raise IndexError(f"Index {index} out of range for length {len(self)}")
-        data = {"index": index, "token": self.token}
-        self.socket.emit("scene:set", data)
+        index = wrap_and_check_index(index, len(self))[0]
+        self.set_data(step=index, update_database=True)
 
     @property
     def selection(self) -> list[int]:
-        return self.socket.call("selection:get", timeout=self.config.call_timeout)
+        return self.get_data(selection=True).selection
 
     @selection.setter
     def selection(self, value: list[int]):
-        self.socket.emit("selection:set", value)
+        self.set_data(selection=value, update_database=True)
 
     def play(self):
         self.socket.emit("scene:play")
@@ -275,21 +291,25 @@ class ZnDrawBase:  # collections.abc.MutableSequence
 
     @property
     def bookmarks(self) -> dict:
-        return self.socket.call("bookmarks:get", timeout=self.config.call_timeout)
+        return self.get_data(bookmarks=True).bookmarks
 
     @bookmarks.setter
     def bookmarks(self, value: dict):
-        self.socket.emit("bookmarks:set", value)
+        self.set_data(bookmarks=value, update_database=True)
 
     def _pre_modifier_run(self, data) -> None:
         self.socket.emit("modifier:available", False)
-        vis = type(self)(self.url, data["token"])
         msg = CeleryTaskData(
-            target=f"webclients_{vis.token}", event="modifier:run:running", data=None
+            target=f"webclients_{data['token']}",
+            event="modifier:run:running",
+            data=None,
         )
 
-        vis.socket.emit("celery:task:emit", dataclasses.asdict(msg))
+        self.socket.emit("celery:task:emit", dataclasses.asdict(msg))
         try:
+            vis = FrozenZnDraw(
+                url=self.url, token=data["token"], cached_data=data["cache"]
+            )
             config = GlobalConfig.load()
             cls = get_modify_class(
                 config.get_modify_methods(
@@ -297,107 +317,34 @@ class ZnDrawBase:  # collections.abc.MutableSequence
                 )
             )
             modifier = cls(**data["params"])
-            modifier.run(
-                vis,
-                **self._modifiers[modifier.method.__class__.__name__]["run_kwargs"],
+            try:
+                modifier.run(
+                    vis,
+                    **self._modifiers[modifier.method.__class__.__name__]["run_kwargs"],
+                )
+            except Exception as err:
+                vis.log(f"Modifier failed with error: {repr(err)}")
+
+            vis.socket.sleep(1)
+            vis.socket.disconnect()
+        except socketio_exceptions.ConnectionError as err:
+            msg = CeleryTaskData(
+                target=f"webclients_{data['token']}",
+                event="message:log",
+                data="Could not establish connection " + str(err),
+                disconnect=False,
             )
-        except Exception as err:
-            vis.log(f"Modifier failed with error: {repr(err)}")
+            self.socket.emit("celery:task:emit", dataclasses.asdict(msg))
+
         msg = CeleryTaskData(
-            target=f"{vis.token}",
+            target=f"{data['token']}",
             event="modifier:run:finished",
             data=None,
-            disconnect=True,
+            disconnect=False,
         )
-        vis.socket.emit("celery:task:emit", dataclasses.asdict(msg))
+        self.socket.emit("celery:task:emit", dataclasses.asdict(msg))
         self.socket.emit("modifier:available", True)
-
-
-@dataclasses.dataclass
-class ZnDraw(ZnDrawBase):
-    """ZnDraw client."""
-
-    url: str = None
-
-    jupyter: bool = False
-
-    def __post_init__(self):
-        super().__post_init__()
-        if self.url is None:
-            from zndraw.utils import get_port
-            from zndraw.view import view
-
-            port = get_port()
-            self._view_thread = threading.Thread(
-                target=view,
-                kwargs={
-                    "filename": None,
-                    "port": port,
-                    "open_browser": False,
-                    "webview": False,
-                    "fullscreen": False,
-                    "start": 0,
-                    "stop": None,
-                    "step": 1,
-                    "compute_bonds": True,
-                },
-            )
-            self._view_thread.start()
-            self.url = f"http://127.0.0.1:{port}"
-
-        self._connect()
-
-    def close(self):
-        import time
-        import urllib.request
-
-        self.socket.disconnect()
-
-        time.sleep(1)
-
-        # open self.url/exit
-        try:
-            urllib.request.urlopen(f"{self.url}/exit")
-        except Exception:
-            pass
-        if hasattr(self, "_view_thread"):
-            log.debug("Waiting for ZnDraw client to close")
-            # self._view_thread.terminate()
-            self._view_thread.join()
-            # raise ValueError("ZnDraw client closed")
-
-    def _repr_html_(self):
-        from IPython.display import IFrame
-
-        return IFrame(src=self.url, width="100%", height="600px")._repr_html_()
-
-    def get_logging_handler(self) -> ZnDrawLoggingHandler:
-        return ZnDrawLoggingHandler(self)
-
-    def reconnect(self) -> None:
-        super().reconnect()
-
-        for k, v in self._modifiers.items():
-            log.critical(f"Re-registering modifier {k}")
-            msg = ModifierRegisterData(
-                schema=v["cls"].model_json_schema(),
-                name=k,
-                default=v["default"],
-            )
-            self.socket.emit(
-                "modifier:register",
-                dataclasses.asdict(msg),
-            )
-
-            self.socket.emit(
-                "modifier:available",
-                True,
-            )
-            # TODO: this is per SID, the timeout above is per registered modifier
-            self.socket.emit(
-                "modifier:timeout",
-                v["run_kwargs"]["timeout"],
-            )
+        print("Modifier finished!!!!!!!!")
 
     def register_modifier(
         self,
@@ -436,6 +383,7 @@ class ZnDraw(ZnDrawBase):
             schema=cls.model_json_schema(),
             name=cls.__name__,
             default=default,
+            timeout=timeout,
         )
 
         self.socket.emit(
@@ -450,9 +398,4 @@ class ZnDraw(ZnDrawBase):
         self.socket.emit(
             "modifier:available",
             True,
-        )
-        # TODO: this is per SID, the timeout above is per registered modifier
-        self.socket.emit(
-            "modifier:timeout",
-            timeout,
         )

@@ -1,5 +1,59 @@
 import dataclasses
 
+import znframe
+
+
+@dataclasses.dataclass
+class RoomSetData:
+    """Update the room with new data.
+
+    Attributes
+    ----------
+    frames: dict[int, znframe.Frame | None]
+        If the frame is None, it is deleted from the room.
+    update_database: bool
+        Whether to update the database with the new data.
+    """
+
+    points: list[list[float]] | None = None
+    bookmarks: dict[int, str] | None = None
+    step: int | None = None
+    selection: list[int] | None = None
+    frames: dict[int, znframe.Frame | None] | None = dataclasses.field(
+        default=None, repr=False
+    )
+
+    update_database: bool = False
+
+    def to_dict(self) -> dict:
+        return dataclasses.asdict(self)
+
+
+@dataclasses.dataclass
+class RoomGetData:
+    points: bool | list[list[float]] = False
+    bookmarks: bool | dict[str, str] = False
+    step: bool | int = False
+    selection: bool | list[int] = False
+    length: bool | int = False
+    segments: bool | list[list[float]] = False
+    frames: list[int] | None | list[dict] = None
+
+    def to_dict(self) -> dict:
+        return dataclasses.asdict(self)
+
+    @classmethod
+    def get_current_state(cls):
+        return cls(
+            points=True,
+            bookmarks=True,
+            step=True,
+            selection=True,
+            length=True,
+            segments=True,
+            frames=["current"],
+        )
+
 
 @dataclasses.dataclass
 class CeleryTaskData:
@@ -15,7 +69,7 @@ class CeleryTaskData:
         The data to send with the message.
     disconnect: bool
         Whether to tell the server to  disconnect this client,
-        after it has received the message. Using 'disconnect' afer
+        after it has received the message. Using 'disconnect' after
         'emit' on the client might loose the message.
     timeout: int
         The timeout in seconds, when using 'call'.
@@ -26,10 +80,13 @@ class CeleryTaskData:
 
     target: str
     event: str
-    data: dict
+    data: dict | None | str | int
     disconnect: bool = False
     timeout: int = 60
     authentication: str = None
+
+    def to_dict(self) -> dict:
+        return dataclasses.asdict(self)
 
 
 @dataclasses.dataclass
@@ -41,11 +98,14 @@ class FrameData:
         The data of the frame.
     update: bool
         Whether the UI should be updated.
+    update_database: bool
+        Whether the configuration should be saved in the database
     """
 
     index: int
     update: bool
     data: dict
+    update_database: bool
 
 
 @dataclasses.dataclass
@@ -140,6 +200,7 @@ class ModifierRegisterData:
     schema: dict
     name: str
     default: bool
+    timeout: float = 60
 
 
 @dataclasses.dataclass
