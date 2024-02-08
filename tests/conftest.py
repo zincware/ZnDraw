@@ -1,9 +1,10 @@
 import subprocess
 import threading
 import time
-import requests
+
 import eventlet
 import pytest
+import requests
 import socketio
 from sqlalchemy import create_engine
 
@@ -29,13 +30,13 @@ def sio_server():
         @sio.on("ping")
         def ping(sid):
             return "pong"
-    
+
         @sio.on("exit")
         def exit(sid):
             sio.shutdown()
             import sys
+
             sys.exit(0)
-        
 
         eventlet.wsgi.server(eventlet.listen(("", port)), app)
 
