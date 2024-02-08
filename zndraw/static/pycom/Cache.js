@@ -110,8 +110,9 @@ class Cache {
 
   setFrames(data) {
     const slider = document.getElementById("frameProgress");
+    const indicesToDelete = [];
     for (const [index, atoms] of Object.entries(data)) {
-      if (atoms === undefined) {
+      if (atoms === null) {
         delete this._cache[index];
       } else {
         this._cache[index] = new Atoms({
@@ -127,6 +128,18 @@ class Cache {
         slider.ariaValueMax = Object.keys(this._cache).length - 1;
       }
     }
+    // reset the keys of the cache to go from 0 to n
+    const newCache = {};
+    let i = 0;
+    for (const key in this._cache) {
+      console.log(key);
+      newCache[i] = this._cache[key];
+      i++;
+    }
+    this._cache = newCache;
+    // no longer required?
+    // this.world.setStep(this.world.getStep());
+    slider.ariaValueMax = Object.keys(this._cache).length - 1;
   }
 }
 

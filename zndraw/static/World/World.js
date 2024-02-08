@@ -147,6 +147,8 @@ class Player {
   }
 
   play() {
+    // TODO: do not update the database upon play but only on stop,
+    //  because otherwise, the db will not keep up
     if (this.playing) {
       this.go_forward();
       setTimeout(() => this.play(), 1000 / this.fps);
@@ -315,6 +317,7 @@ class World {
     step = parseInt(step);
     loop.setStep(step);
     const slider = document.getElementById("frameProgress");
+    const currentStep = parseInt(slider.ariaValueNow);
     slider.ariaValueNow = step;
     // update slider.style with with the percentage of the slider.value
     const percentage = (slider.ariaValueNow / slider.ariaValueMax) * 100;
@@ -323,7 +326,7 @@ class World {
     document.getElementById("info").innerHTML =
       `${slider.ariaValueNow} / ${slider.ariaValueMax}`;
     if (emit) {
-      this.socket.emit("room:set", { step: step, update_database: true });
+      this.socket.emit("step:update", step);
     }
   }
 

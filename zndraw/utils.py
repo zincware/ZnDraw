@@ -12,6 +12,7 @@ from typing import get_type_hints
 import ase
 import datamodel_code_generator
 import numpy as np
+import znframe
 from decorator import decorator
 
 SHARED = {"atoms": None}
@@ -21,6 +22,15 @@ def split_list_into_chunks(lst, n):
     """Yield successive n-sized chunks from lst."""
     for i in range(0, len(lst), n):
         yield lst[i : i + n]
+
+
+def estimate_max_batch_size_for_socket(frames: list[znframe.Frame]):
+    from .settings import GlobalConfig
+
+    max_size = GlobalConfig().max_socket_data_size
+    sizes = [sys.getsizeof(frame) for frame in frames]
+    largest_frame = max(sizes)
+    return int(max_size / largest_frame * 0.9)
 
 
 def rgb2hex(value):
@@ -150,3 +160,18 @@ def ensure_path(path: str):
     p = pathlib.Path(path).expanduser()
     p.mkdir(parents=True, exist_ok=True)
     return p.as_posix()
+
+
+def wrap_and_check_index(index: int | slice | list[int], length: int) -> list[int]:
+    is_slice = isinstance(index, slice)
+    if is_slice:
+        index = list(range(*index.indices(length)))
+    index = [index] if isinstance(index, int) else index
+    index = [i if i >= 0 else length + i for i in index]
+    # check if index is out of range
+    for i in index:
+        if i >= length:
+            raise IndexError(f"Index {i} out of range for length {length}")
+        if i < 0:
+            raise IndexError(f"Index {i-length} out of range for length {length}")
+    return index

@@ -1,17 +1,22 @@
 import dataclasses
+import logging
 from typing import List, Union
 
 import ase
 import numpy as np
+from sqlalchemy import func as sql_func
 from znframe.frame import Frame as ZnFrame
 
 from zndraw.data import CeleryTaskData, RoomSetData
 from zndraw.settings import GlobalConfig
 
+log = logging.getLogger(__name__)
+
 from .base import ZnDrawBase
 from .db import Session
 from .db.schema import Bookmark, Frame, Room
 from .server.utils import get_room_by_token
+from .utils import wrap_and_check_index
 
 
 def _any_to_list(
@@ -40,8 +45,16 @@ class ZnDrawWorker(ZnDrawBase):
 
     def __len__(self) -> int:
         with Session() as session:
-            room = session.query(Room).get(self.token)
-            return len(room.frames)
+            return self._get_len(session, self.token)
+
+    @staticmethod
+    def _get_len(session, token) -> int:
+        max_idx = (
+            session.query(sql_func.max(Frame.index))
+            .filter(Frame.room_token == token)
+            .scalar()
+        )
+        return max_idx + 1 if max_idx is not None else 0
 
     def __setitem__(
         self,
@@ -49,14 +62,19 @@ class ZnDrawWorker(ZnDrawBase):
         value: ZnFrame | ase.Atoms | list[ase.Atoms] | list[ZnFrame],
     ):
         value = _any_to_list(value)
+        if isinstance(index, str):
+            index = int(index)
         if isinstance(index, int):
             index = [index]
         if isinstance(index, slice):
             index = list(range(len(self)))[index]
         if len(index) != len(value):
             # TODO: support all the ways python lists can be slice set
-            raise ValueError("Length of index and value must match")
-
+            raise ValueError(
+                f"Length of index ({len(index)}) and value ({len(value)}) must match"
+            )
+        log.critical(82 * "-")
+        log.critical(f"Index: {index}")
         # we emit first, because sending the data takes longer, but emit is faster
         if self.emit:
             self.socket.emit(
@@ -66,12 +84,12 @@ class ZnDrawWorker(ZnDrawBase):
                         idx: frame.to_dict(built_in_types=False)
                         for idx, frame in zip(index, value)
                     },
-                    step=len(self) - 1 + len(index),
+                    step=index[-1],
                 ).to_dict(),
             )
-
         with Session() as session:
             room = session.query(Room).get(self.token)
+            room.currentStep = index[-1]
             for _index, _value in zip(index, value):
                 frame = session.query(Frame).filter_by(index=_index, room=room).first()
                 if frame is None:
@@ -160,9 +178,7 @@ class ZnDrawWorker(ZnDrawBase):
 
     @property
     def segments(self) -> np.ndarray:
-        with Session() as session:
-            room = get_room_by_token(session, self.token)
-            return np.array(room.segments)
+        return self.calculate_segments(self.points)
 
     @property
     def step(self) -> int:
@@ -172,8 +188,9 @@ class ZnDrawWorker(ZnDrawBase):
 
     @step.setter
     def step(self, idx: int):
-        if idx < 0 or idx >= len(self):
-            raise IndexError(f"Index {idx} out of range")
+        length = len(self)
+        if idx < 0 or idx >= length:
+            raise IndexError(f"Index {idx} out of range for {length} frames")
         with Session() as session:
             room = get_room_by_token(session, self.token)
             room.currentStep = idx
@@ -223,8 +240,47 @@ class ZnDrawWorker(ZnDrawBase):
         del self[index + 1 :]
         self.extend(data_after)
 
+    def get_properties(self, **kwargs):
+        with Session() as session:
+            room = get_room_by_token(session, self.token)
+
+            answer = {}
+            for key, collect in kwargs.items():
+                if collect:
+                    if key == "frames":
+                        indices = [
+                            x if not x == "current" else room.currentStep
+                            for x in kwargs["frames"]
+                        ]
+                        indices = wrap_and_check_index(
+                            indices, self._get_len(session, self.token)
+                        )
+                        log.critical(f"Indices: {indices}")
+                        collected_frames = (
+                            session.query(Frame)
+                            .filter(Frame.index.in_(indices), Frame.room == room)
+                            .all()
+                        )
+                        answer["frames"] = [
+                            ZnFrame.from_dict(frame.data).to_dict(built_in_types=False)
+                            for frame in collected_frames
+                        ]
+                    if key == "length":
+                        answer["length"] = len(room.frames)
+                    elif key == "points":
+                        answer["points"] = room.points
+                    elif key == "step":
+                        answer["step"] = room.currentStep
+                    elif key == "selection":
+                        answer["selection"] = room.selection
+                    elif key == "bookmarks":
+                        answer["bookmarks"] = {
+                            bm.step: bm.text for bm in room.bookmarks
+                        }
+        return answer
+
     def log(self, message: str):
-        self.socket.emit("message:log", message)
+        self.socket.emit("message:log", {"message": message, "token": self.token})
 
     def upload(self, target: str):
         """Emit all frames to the target (webclient)."""
