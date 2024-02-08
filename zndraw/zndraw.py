@@ -118,7 +118,6 @@ class ZnDraw(ZnDrawBase):
         else:
             raise socketio.exceptions.ConnectionError
 
-
     def get_data(self, **data: dict) -> RoomGetData:
         data = RoomGetData(**data)
         with self._lock:
