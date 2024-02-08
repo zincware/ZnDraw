@@ -1,3 +1,4 @@
+import znframe
 from sqlalchemy import (
     JSON,
     Boolean,
@@ -24,6 +25,7 @@ class Room(Base):
     frames = relationship("Frame", back_populates="room")
     room_modifiers = relationship("RoomModifier", back_populates="room")
     bookmarks = relationship("Bookmark", back_populates="room")
+    launched_jobs = relationship("QueueItem", back_populates="room")
 
     def __repr__(self):
         return f"<Room(token={self.token}, currentStep={self.currentStep})>"
@@ -71,6 +73,9 @@ class Frame(Base):
     room_token = Column(String, ForeignKey("rooms.token"))
 
     room = relationship("Room", back_populates="frames")
+
+    def to_frame(self):
+        return znframe.Frame.from_dict(self.data)
 
     def __repr__(self):
         return (
@@ -140,7 +145,12 @@ class QueueItem(Base):
     __tablename__ = "queue_items"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
+    job_name = Column(String)
     job_id = Column(String)
+    datetime = Column(String)
+    status = Column(String, default="queued")
 
     queue_name = Column(String, ForeignKey("queues.name"))
     queue = relationship("Queue", back_populates="jobs")
+    room_token = Column(String, ForeignKey("rooms.token"))
+    room = relationship("Room", back_populates="launched_jobs")
