@@ -706,6 +706,7 @@ def step_update(step: int):
             url = url.replace("http://", "https://")
         tasks.handle_room_set.delay(data.to_dict(), session["token"], url, request.sid)
 
+
 @io.on("points:update")
 def points_update(points: list[list[float]]):
     timestamp = datetime.datetime.utcnow().isoformat()
