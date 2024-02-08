@@ -34,13 +34,9 @@ class DihedralAngle(BaseModel):
         if len(vis.selection) != 4:
             raise ValueError("Please select excactly 4 atoms")
         for atoms in atoms_lst:
-            atoms: ase.Atoms
-            try:
-                dihedral_angles.append(
-                    atoms.get_dihedrals(indices=[vis.selection], mic=True)[0]
-                )
-            except AssertionError:
-                raise ValueError("Indices must be a Nx4 array")
+            dihedral_angles.append(
+                atoms.get_dihedrals(indices=[vis.selection], mic=True)[0]
+            )
         df = pd.DataFrame(
             {"step": list(range(len(atoms_lst))), "dihedral": dihedral_angles}
         )
