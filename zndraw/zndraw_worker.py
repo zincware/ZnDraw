@@ -1,15 +1,22 @@
+import dataclasses
+import logging
 from typing import List, Union
 
 import ase
 import numpy as np
+from sqlalchemy import func as sql_func
 from znframe.frame import Frame as ZnFrame
 
-from zndraw.data import RoomSetData
+from zndraw.data import CeleryTaskData, RoomSetData
+from zndraw.settings import GlobalConfig
+
+log = logging.getLogger(__name__)
 
 from .base import ZnDrawBase
 from .db import Session
 from .db.schema import Bookmark, Frame, Room
 from .server.utils import get_room_by_token
+from .utils import wrap_and_check_index
 
 
 def _any_to_list(
@@ -32,11 +39,22 @@ def _any_to_list(
     raise ValueError("Invalid type for value")
 
 
+@dataclasses.dataclass
 class ZnDrawWorker(ZnDrawBase):
+    emit: bool = True
+
     def __len__(self) -> int:
         with Session() as session:
-            room = session.query(Room).get(self.token)
-            return len(room.frames)
+            return self._get_len(session, self.token)
+
+    @staticmethod
+    def _get_len(session, token) -> int:
+        max_idx = (
+            session.query(sql_func.max(Frame.index))
+            .filter(Frame.room_token == token)
+            .scalar()
+        )
+        return max_idx + 1 if max_idx is not None else 0
 
     def __setitem__(
         self,
@@ -44,15 +62,34 @@ class ZnDrawWorker(ZnDrawBase):
         value: ZnFrame | ase.Atoms | list[ase.Atoms] | list[ZnFrame],
     ):
         value = _any_to_list(value)
+        if isinstance(index, str):
+            index = int(index)
         if isinstance(index, int):
             index = [index]
         if isinstance(index, slice):
             index = list(range(len(self)))[index]
         if len(index) != len(value):
             # TODO: support all the ways python lists can be slice set
-            raise ValueError("Length of index and value must match")
+            raise ValueError(
+                f"Length of index ({len(index)}) and value ({len(value)}) must match"
+            )
+        log.critical(82 * "-")
+        log.critical(f"Index: {index}")
+        # we emit first, because sending the data takes longer, but emit is faster
+        if self.emit:
+            self.socket.emit(
+                "room:set",
+                RoomSetData(
+                    frames={
+                        idx: frame.to_dict(built_in_types=False)
+                        for idx, frame in zip(index, value)
+                    },
+                    step=index[-1],
+                ).to_dict(),
+            )
         with Session() as session:
             room = session.query(Room).get(self.token)
+            room.currentStep = index[-1]
             for _index, _value in zip(index, value):
                 frame = session.query(Frame).filter_by(index=_index, room=room).first()
                 if frame is None:
@@ -61,16 +98,6 @@ class ZnDrawWorker(ZnDrawBase):
                     session.add(frame)
                 frame.data = _value.to_dict(built_in_types=False)
             session.commit()
-
-        self.socket.emit(
-            "room:set",
-            RoomSetData(
-                frames={
-                    idx: frame.to_dict(built_in_types=False)
-                    for idx, frame in zip(index, value)
-                }
-            ).to_dict(),
-        )
 
     def __getitem__(self, index: int | list[int] | slice) -> ase.Atoms:
         single_index = False
@@ -111,10 +138,10 @@ class ZnDrawWorker(ZnDrawBase):
             for idx, frame in enumerate(frames):
                 frame.index = idx
             session.commit()
-
-        self.socket.emit(
-            "room:set", RoomSetData(frames={idx: None for idx in index}).to_dict()
-        )
+        if self.emit:
+            self.socket.emit(
+                "room:set", RoomSetData(frames={idx: None for idx in index}).to_dict()
+            )
 
     def append(self, data: ase.Atoms | ZnFrame):
         if isinstance(data, ase.Atoms):
@@ -146,14 +173,12 @@ class ZnDrawWorker(ZnDrawBase):
             room = get_room_by_token(session, self.token)
             room.points = value  # type: ignore
             session.commit()
-
-        self.socket.emit("room:set", RoomSetData(points=value).to_dict())
+        if self.emit:
+            self.socket.emit("room:set", RoomSetData(points=value).to_dict())
 
     @property
     def segments(self) -> np.ndarray:
-        with Session() as session:
-            room = get_room_by_token(session, self.token)
-            return np.array(room.segments)
+        return self.calculate_segments(self.points)
 
     @property
     def step(self) -> int:
@@ -163,14 +188,15 @@ class ZnDrawWorker(ZnDrawBase):
 
     @step.setter
     def step(self, idx: int):
-        if idx < 0 or idx >= len(self):
-            raise IndexError(f"Index {idx} out of range")
+        length = len(self)
+        if idx < 0 or idx >= length:
+            raise IndexError(f"Index {idx} out of range for {length} frames")
         with Session() as session:
             room = get_room_by_token(session, self.token)
             room.currentStep = idx
             session.commit()
-
-        self.socket.emit("room:set", RoomSetData(step=idx).to_dict())
+        if self.emit:
+            self.socket.emit("room:set", RoomSetData(step=idx).to_dict())
 
     @property
     def selection(self) -> Union[List[int], List[None]]:
@@ -184,8 +210,8 @@ class ZnDrawWorker(ZnDrawBase):
             room = get_room_by_token(session, self.token)
             room.selection = value
             session.commit()
-
-        self.socket.emit("room:set", RoomSetData(selection=value).to_dict())
+        if self.emit:
+            self.socket.emit("room:set", RoomSetData(selection=value).to_dict())
 
     @property
     def bookmarks(self) -> dict:
@@ -203,8 +229,8 @@ class ZnDrawWorker(ZnDrawBase):
                 bookmark = Bookmark(step=step, text=text, room=room)
                 session.add(bookmark)
             session.commit()
-
-        self.socket.emit("room:set", RoomSetData(bookmarks=value).to_dict())
+        if self.emit:
+            self.socket.emit("room:set", RoomSetData(bookmarks=value).to_dict())
 
     def insert(self, index: int, atoms: ase.Atoms | ZnFrame):
         if index < 0 or index > len(self):
@@ -214,5 +240,88 @@ class ZnDrawWorker(ZnDrawBase):
         del self[index + 1 :]
         self.extend(data_after)
 
+    def get_properties(self, **kwargs):
+        with Session() as session:
+            room = get_room_by_token(session, self.token)
+
+            answer = {}
+            for key, collect in kwargs.items():
+                if collect:
+                    if key == "frames":
+                        indices = [
+                            x if not x == "current" else room.currentStep
+                            for x in kwargs["frames"]
+                        ]
+                        indices = wrap_and_check_index(
+                            indices, self._get_len(session, self.token)
+                        )
+                        log.critical(f"Indices: {indices}")
+                        collected_frames = (
+                            session.query(Frame)
+                            .filter(Frame.index.in_(indices), Frame.room == room)
+                            .all()
+                        )
+                        answer["frames"] = [
+                            ZnFrame.from_dict(frame.data).to_dict(built_in_types=False)
+                            for frame in collected_frames
+                        ]
+                    if key == "length":
+                        answer["length"] = len(room.frames)
+                    elif key == "points":
+                        answer["points"] = room.points
+                    elif key == "step":
+                        answer["step"] = room.currentStep
+                    elif key == "selection":
+                        answer["selection"] = room.selection
+                    elif key == "bookmarks":
+                        answer["bookmarks"] = {
+                            bm.step: bm.text for bm in room.bookmarks
+                        }
+        return answer
+
     def log(self, message: str):
-        self.socket.emit("message:log", message)
+        self.socket.emit("message:log", {"message": message, "token": self.token})
+
+    def upload(self, target: str):
+        """Emit all frames to the target (webclient)."""
+        if not self.emit:
+            raise ValueError("Emit is disabled")
+        config = GlobalConfig.load()
+        frame_list = []
+        for idx in range(len(self)):
+            frame_list.append(self[idx])
+            if len(frame_list) == config.read_batch_size:
+                msg = CeleryTaskData(
+                    target=target,
+                    event="room:set",
+                    data=RoomSetData(
+                        frames={
+                            idx
+                            - jdx: ZnFrame.from_atoms(atoms).to_dict(
+                                built_in_types=False
+                            )
+                            for jdx, atoms in enumerate(reversed(frame_list))
+                        },
+                        step=idx if idx < self.step else self.step,
+                    ).to_dict(),
+                )
+
+                self.socket.emit("celery:task:emit", msg.to_dict())
+                frame_list = []
+
+        msg = CeleryTaskData(
+            target=target,
+            event="room:set",
+            data=RoomSetData(
+                frames={
+                    idx - jdx: ZnFrame.from_atoms(atoms).to_dict(built_in_types=False)
+                    for jdx, atoms in enumerate(reversed(frame_list))
+                },
+                selection=self.selection,
+                points=self.points.tolist(),
+                bookmarks=self.bookmarks,
+                step=self.step,
+            ).to_dict(),
+        )
+
+        self.socket.emit("celery:task:emit", msg.to_dict())

@@ -1,3 +1,6 @@
+import uuid
+from datetime import datetime
+
 from sqlalchemy.orm import Session
 
 from ..db import Session as ses
@@ -13,32 +16,40 @@ def get_queue(session: Session, queue_name: str) -> Queue:
     return queue
 
 
-def insert_into_queue(queue_name: str, job_id: str) -> None:
-    with ses() as session:
-        queue = get_queue(session, queue_name)
-        job = QueueItem(job_id=job_id)
-        queue.jobs.append(job)
-        session.commit()
-
-
-def remove_job_from_queue(queue_name: str, job_id: str) -> None:
-    with ses() as session:
-        queue = get_queue(session, queue_name)
-        for job in queue.jobs:
-            if job.job_id == job_id:
-                queue.jobs.remove(job)
-
-        session.commit()
-
-
-def get_queue_position(queue_name: str, job_id: str) -> int:
-    with ses() as session:
-        queue = get_queue(session, queue_name)
-        for i, job in enumerate(queue.jobs):
-            if job.job_id == job_id:
-                return i
-        return -1
-
-
 def get_room_by_token(session: Session, token: str):
     return session.query(Room).filter_by(token=token).one()
+
+
+def insert_into_queue(queue_name: str, job_name: str, room_token: str) -> str:
+    job_id = uuid.uuid4().hex
+    with ses() as session:
+        queue = get_queue(session, queue_name)
+        room = get_room_by_token(session, room_token)
+        job = QueueItem(job_name=job_name, job_id=job_id, datetime=datetime.utcnow())
+        queue.jobs.append(job)
+        room.launched_jobs.append(job)
+        session.commit()
+    return job_id
+
+
+def update_job_status(job_id: str | int, status: str) -> None:
+    with ses() as session:
+        session.query(QueueItem).filter_by(job_id=job_id).update(dict(status=status))
+        session.commit()
+
+
+def get_queue_position(queue_name: str) -> list[tuple[int, str]]:
+    results = []
+    with ses() as session:
+        queueing_jobs = (
+            session.query(QueueItem)
+            .filter_by(status="queued", queue_name=queue_name)
+            .all()
+        )
+        rooms = [job.room_token for job in queueing_jobs]
+        for room in rooms:
+            largest_idx = max(
+                [i + 1 for i, job in enumerate(queueing_jobs) if job.room_token == room]
+            )
+            results.append((largest_idx, room))
+    return results
