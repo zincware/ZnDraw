@@ -699,7 +699,6 @@ def step_update(step: int):
     )
     io.sleep(1)
     if session["step-update"] == timestamp:
-        log.critical(f" ------>>>>  Writing step {step} to database.")
         url = request.url_root
         if current_app.config["upgrade_insecure_requests"] and not "127.0.0.1" in url:
             url = url.replace("http://", "https://")
