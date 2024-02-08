@@ -322,7 +322,7 @@ class ZnDraw(ZnDrawBase):
 
             vis.socket.sleep(1)
             vis.socket.disconnect()
-        except socketio_exceptions.ConnectionError as err:
+        except (socketio_exceptions.ConnectionError, socketio_exceptions.BadNamespaceError) as err:
             msg = CeleryTaskData(
                 target=f"webclients_{data['token']}",
                 event="message:log",
