@@ -6,7 +6,7 @@ from dataclasses import asdict
 import ase.io
 import znframe
 import znh5md
-from celery import shared_task
+from celery import chain, shared_task
 from socketio import Client
 
 from zndraw.analyse import get_analysis_class
@@ -22,7 +22,7 @@ from zndraw.zndraw import ZnDraw
 from ..app import cache
 from ..data import CeleryTaskData, RoomGetData, RoomSetData
 from ..utils import typecast
-from .utils import insert_into_queue, remove_job_from_queue
+from .utils import get_queue_position, insert_into_queue, update_job_status
 
 log = logging.getLogger(__name__)
 
@@ -219,7 +219,9 @@ def modifier_schema(url: str, token: str):
 
 @shared_task
 def scene_trash(url: str, token: str):
-    vis = ZnDraw(url=url, token=token)
+    from zndraw.zndraw_worker import ZnDrawWorker
+
+    vis = ZnDrawWorker(token=token, url=url)
     del vis[vis.step + 1 :]
     if len(vis.selection) == 0:
         vis.append(ase.Atoms())
@@ -232,8 +234,9 @@ def scene_trash(url: str, token: str):
         vis.append(atoms)
     vis.selection = []
     vis.points = []
+    vis.step = len(vis) - 1
 
-    vis.socket.sleep(10)
+    vis.socket.sleep(1)
     vis.socket.disconnect()
 
 
@@ -282,6 +285,7 @@ def read_file(url: str, target: str, token: str):
         if len(atoms_list) > 0:
             vis.extend(atoms_list)
 
+        vis.step = len(vis) - 1
     else:
         vis.upload(target)
 
@@ -343,33 +347,32 @@ def run_analysis(url: str, token: str, data: dict):
     vis.socket.emit("celery:task:emit", asdict(msg))
 
 
-def get_vis_obj(
-    url: str,
-    token: str,
-    queue_name: str,
-    request_id: str,
-):
-    """
-    Return a celery task that runs the modifier. The decorator constructs complex python objects for the celery task
-    """
-    vis = ZnDraw(url=url, token=token)
-    insert_into_queue(queue_name=queue_name, job_id=request_id)
+@shared_task
+def update_queue_positions(queue_name, url):
+    from zndraw.zndraw_worker import ZnDrawWorker
 
-    def on_finished():
-        # TODO: disconnect the modifier, release the worker
-        remove_job_from_queue(queue_name, request_id)
-        vis.socket.disconnect()
-
-    vis.socket.on("modifier:run:finished", on_finished)
-    return vis
+    if queue_name == "slow":
+        queue_positions = get_queue_position(queue_name)
+        worker = ZnDrawWorker(token="None", url=url)
+        for position, room_token in queue_positions:
+            msg = CeleryTaskData(
+                target=f"webclients_{room_token}",
+                event="modifier:queue:update",
+                data=position,
+                disconnect=False,
+            )
+            worker.socket.emit("celery:task:emit", msg.to_dict())
+        worker.socket.sleep(0.5)
+        worker.socket.disconnect()
+    else:
+        return None
 
 
 @shared_task(bind=True)
-def _run_global_modifier(self, url: str, token: str, data):
+def _run_global_modifier(self, url: str, token: str, data, queue_job_id: str):
     from zndraw.zndraw_worker import ZnDrawWorker
 
     vis = ZnDrawWorker(token=str(token), url=url)
-
     vis.socket.on("modifier:run:finished", lambda: vis.socket.disconnect())
 
     name = data["method"]["discriminator"]
@@ -389,6 +392,7 @@ def _run_global_modifier(self, url: str, token: str, data):
             )
 
         if assigned_hosts == 0:
+            update_job_status(job_id=queue_job_id, status="failed:no_host")
             msg = CeleryTaskData(
                 target=f"webclients_{vis.token}",
                 event="modifier:run:finished",
@@ -405,22 +409,20 @@ def _run_global_modifier(self, url: str, token: str, data):
             return
 
         if host is None:
-            vis.socket.emit(
-                "modifier:queue:update",
-                {"queue_name": "slow", "job_id": self.request.id},
-            )
             vis.socket.sleep(1)
             log.critical("No modifier available")
             continue
 
         # run the modifier
+        to_get = RoomGetData.get_current_state()
+        cache = vis.get_properties(**to_get.to_dict())
         msg = CeleryTaskData(
             target=host.sid,
             event="modifier:run",
-            data={"params": data, "token": vis.token},
+            data={"params": data, "token": vis.token, "cache": cache},
         )
         vis.socket.emit("celery:task:emit", asdict(msg))
-
+        update_job_status(job_id=queue_job_id, status="running")
         # add additional 5 seconds for communication overhead
         for _ in range(int(host.timeout + 5)):
             if vis.socket.connected:
@@ -429,6 +431,10 @@ def _run_global_modifier(self, url: str, token: str, data):
                 vis.socket.sleep(1)
             else:
                 log.critical("Modifier finished")
+                status = "finished"
+                log.critical("SETTING ")
+                update_job_status(job_id=queue_job_id, status=status)
+                update_queue_positions(queue_name="slow", url=url)
                 return
 
         print("modifier timed out")
@@ -446,11 +452,13 @@ def _run_global_modifier(self, url: str, token: str, data):
             disconnect=True,
         )
         vis.socket.emit("celery:task:emit", asdict(msg))
+        update_job_status(job_id=queue_job_id, status="failed:timeout")
+        update_queue_positions(queue_name="slow", url=url)
         return
 
 
 @shared_task(bind=True)
-def _run_room_modifier(self, url: str, token: str, data):
+def _run_room_modifier(self, url: str, token: str, data, queue_job_id: str):
     from zndraw.zndraw_worker import ZnDrawWorker
 
     vis = ZnDrawWorker(token=str(token), url=url)
@@ -493,7 +501,7 @@ def _run_room_modifier(self, url: str, token: str, data):
 
 
 @shared_task(bind=True)
-def _run_default_modifier(self, url: str, token: str, data):
+def _run_default_modifier(self, url: str, token: str, data: dict, queue_job_id: str):
     from zndraw.zndraw_worker import ZnDrawWorker
 
     vis = ZnDrawWorker(token=str(token), url=url)
@@ -509,8 +517,12 @@ def _run_default_modifier(self, url: str, token: str, data):
 
     try:
         modifier.run(vis)
+        status = "finished"
     except Exception as err:
-        vis.log(f"Error: {err}")
+        # exception type
+        exception_type = type(err).__name__
+        vis.log(f"Error: {exception_type}:{err}")
+        status = f"failed: {exception_type}:{err}"
 
     msg = CeleryTaskData(
         target=f"webclients_{vis.token}",
@@ -520,24 +532,48 @@ def _run_default_modifier(self, url: str, token: str, data):
     )
 
     vis.socket.emit("celery:task:emit", asdict(msg))
+    update_job_status(job_id=queue_job_id, status=status)
+    vis.socket.disconnect()
 
 
-def run_modifier(url: str, token: str, data: dict):
-    name = data["method"]["discriminator"]
+def route_modifier_to_queue(name: str, token: str) -> str:
     with Session() as ses:
         room = ses.query(db_schema.Room).filter_by(token=token).first()
         room_modifiers = ses.query(db_schema.RoomModifier).filter_by(room=room).all()
         modifiers = ses.query(db_schema.GlobalModifier).all()
         custom_global_modifiers = [modifier.name for modifier in modifiers]
         custom_room_modifiers = [modifier.name for modifier in room_modifiers]
-
     if name in custom_global_modifiers:
-        _run_global_modifier.delay(url, token, data)
+        queue_name = "slow"
     elif name in custom_room_modifiers:
-        _run_room_modifier.delay(url, token, data)
+        queue_name = "custom"
     else:
-        _run_default_modifier.delay(url, token, data)
-    return
+        queue_name = "default"
+    return queue_name
+
+
+def run_modifier(url: str, token: str, data: dict):
+    name = data["method"]["discriminator"]
+    queue_name = route_modifier_to_queue(name, token)
+    queue_job_id = insert_into_queue(
+        queue_name=queue_name, job_name=name, room_token=token
+    )
+    if queue_name == "slow":
+        task_chain = chain(
+            update_queue_positions.si(queue_name, url),
+            _run_global_modifier.si(url, token, data, queue_job_id),
+        )
+    elif queue_name == "custom":
+        task_chain = chain(
+            update_queue_positions.si(queue_name, url),
+            _run_room_modifier.si(url, token, data, queue_job_id),
+        )
+    else:
+        task_chain = chain(
+            update_queue_positions.si(queue_name, url),
+            _run_default_modifier.si(url, token, data, queue_job_id),
+        )
+    task_chain.delay()
 
 
 @shared_task
@@ -546,29 +582,8 @@ def handle_room_get(data: RoomGetData, token: str, url: str, target: str):
     from zndraw.zndraw_worker import ZnDrawWorker
 
     worker = ZnDrawWorker(token=token, url=url)
-    #  TODO: I think this should use `RoomGetData`
-    #  and we do unions bool | datatype there
-    answer = RoomGetData()
-    if data.step:
-        answer.step = worker.step
-    if data.points:
-        answer.points = worker.points.tolist()
-    if data.bookmarks:
-        answer.bookmarks = worker.bookmarks
-    if data.selection:
-        answer.selection = worker.selection
-    if data.length:
-        answer.length = len(worker)
-    # if data.segments:
-    #     answer.segments = worker.segments.tolist()
-    if data.frames:
-        answer.frames = [
-            znframe.Frame.from_atoms(x).to_dict(built_in_types=False)
-            for x in worker[data.frames]
-        ]
-    msg = CeleryTaskData(
-        target=target, event="room:get", data=answer.to_dict(), disconnect=True
-    )
+    answer = worker.get_properties(**data.to_dict())
+    msg = CeleryTaskData(target=target, event="room:get", data=answer, disconnect=True)
     worker.socket.emit("celery:task:emit", msg.to_dict())
 
 
@@ -580,15 +595,26 @@ def handle_room_set(data: RoomSetData, token: str, url: str, source: str):
     worker = ZnDrawWorker(token=token, url=url, emit=False)
     if data.frames:
         # must be first, before step
-        for idx, frame in data.frames.items():
-            worker[idx] = znframe.Frame.from_dict(frame).to_atoms()
-    if data.step:
+        # frames should either all be None or all be not None
+        if any(frame is None for frame in data.frames.values()) and any(
+            frame is not None for frame in data.frames.values()
+        ):
+            raise ValueError("All frames must be None or not None")
+        is_removing = all(frame is None for frame in data.frames.values())
+        indices = list(data.frames.keys())
+        if is_removing:
+            log.critical(f"Removing frames {indices}")
+            del worker[indices]
+        else:
+            frames = [znframe.Frame.from_dict(frame) for frame in data.frames.values()]
+            worker[indices] = frames
+    if data.step is not None:
         worker.step = data.step
-    if data.points:
+    if data.points is not None:
         worker.points = data.points
-    if data.bookmarks:
+    if data.bookmarks is not None:
         worker.bookmarks = data.bookmarks
-    if data.selection:
+    if data.selection is not None:
         worker.selection = data.selection
 
     msg = CeleryTaskData(

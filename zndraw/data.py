@@ -42,6 +42,18 @@ class RoomGetData:
     def to_dict(self) -> dict:
         return dataclasses.asdict(self)
 
+    @classmethod
+    def get_current_state(cls):
+        return cls(
+            points=True,
+            bookmarks=True,
+            step=True,
+            selection=True,
+            length=True,
+            segments=True,
+            frames=["current"],
+        )
+
 
 @dataclasses.dataclass
 class CeleryTaskData:
@@ -68,7 +80,7 @@ class CeleryTaskData:
 
     target: str
     event: str
-    data: dict | None | str
+    data: dict | None | str | int
     disconnect: bool = False
     timeout: int = 60
     authentication: str = None

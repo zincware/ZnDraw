@@ -30,7 +30,6 @@ from ..data import (
     SchemaData,
     SubscribedUserData,
 )
-from .utils import get_queue_position
 
 log = logging.getLogger(__name__)
 
@@ -176,7 +175,6 @@ def celery_task_call(msg: CeleryTaskData):
 
 @io.on("disconnect")
 def disconnect():
-    log.critical(f"-------------->>> disconnecting {request.sid}")
     token = str(session["token"])
 
     url = request.url_root
@@ -184,7 +182,7 @@ def disconnect():
         url = url.replace("http://", "https://")
     url = url.replace("http", "ws")
 
-    tasks.on_disconnect.delay(request.sid, token, url)
+    tasks.on_disconnect.delay(token=token, sid=request.sid, url=url)
 
 
 @io.on("join")
@@ -431,33 +429,6 @@ def debug(data: dict):
     emit("debug", data, include_self=False, to=_webclients_room(data))
 
 
-@io.on("connectedUsers:subscribe:step")
-@typecast
-def connected_users_subscribe_step(data: SubscribedUserData):
-    """
-    Subscribe to step updates for connected users.
-
-    data: {user: str}
-    """
-    token = str(session["token"])
-    with Session() as ses:
-        room = ses.query(db_schema.Room).filter_by(token=token).first()
-        if room is None:
-            raise ValueError("No room found for token.")
-        current_client = ses.query(db_schema.Client).filter_by(sid=request.sid).first()
-        controller_client = (
-            ses.query(db_schema.Client).filter_by(name=data.user).first()
-        )
-        if (
-            controller_client.sid == request.sid
-            or controller_client.step_controller == current_client
-        ):
-            current_client.step_controller = None
-        else:
-            current_client.step_controller = controller_client
-        ses.commit()
-
-
 @io.on("connectedUsers:subscribe:camera")
 @typecast
 def connected_users_subscribe_camera(data: SubscribedUserData):
@@ -483,6 +454,30 @@ def connected_users_subscribe_camera(data: SubscribedUserData):
         else:
             current_client.camera_controller = controller_client
         ses.commit()
+
+
+@io.on("camera:update")
+def camera_update(data: dict):
+    token = str(session["token"])
+    # TODO: store this in the session
+    with Session() as ses:
+        room = ses.query(db_schema.Room).filter_by(token=token).first()
+        if room is None:
+            raise ValueError("No room found for token.")
+        current_client = ses.query(db_schema.Client).filter_by(sid=request.sid).first()
+        camera_subscribers = (
+            ses.query(db_schema.Client)
+            .filter_by(camera_controller=current_client)
+            .all()
+        )
+        camera_subscribers = [client.sid for client in camera_subscribers]
+
+    emit(
+        "camera:update",
+        data,
+        include_self=False,
+        to=camera_subscribers,
+    )
 
 
 @io.on("scene:update")
@@ -576,9 +571,8 @@ def modifier_run(data: dict):
         "modifier:run:enqueue", to=f"webclients_{session['token']}", include_self=False
     )
     # split into separate streams based on the modifier name
-    tasks.run_modifier(
-        f"http://127.0.0.1:{current_app.config['PORT']}", session["token"], data
-    )
+    url = f"http://127.0.0.1:{current_app.config['PORT']}"
+    tasks.run_modifier(url, session["token"], data)
 
 
 def _register_global_modifier(data):
@@ -660,13 +654,6 @@ def modifier_available(available: bool):
     tasks.activate_modifier.delay(request.sid, available)
 
 
-@io.on("modifier:queue:update")
-def modifier_queue_update(data: dict):
-    """Update the modifier queue."""
-    queue_position = get_queue_position(data["queue_name"], data["job_id"])
-    emit("modifier:queue:update", queue_position, to=f"webclients_{session['token']}")
-
-
 @io.on("ping")
 def ping() -> str:
     return "pong"
@@ -696,4 +683,25 @@ def room_set(data: RoomSetData):
     if data.update_database:
         # TODO: we need to differentiate, if the data comes from a pyclient or a webclient
         # TODO: for fast updates, e.g. points, step during play this is not fast enough
+        tasks.handle_room_set.delay(data.to_dict(), session["token"], url, request.sid)
+
+
+@io.on("step:update")
+def step_update(step: int):
+    timestamp = datetime.datetime.utcnow().isoformat()
+    session["step-update"] = timestamp
+
+    data = RoomSetData(step=step)
+
+    emit(
+        "room:set",
+        data.to_dict(),
+        include_self=False,
+        to=f"webclients_{session['token']}",
+    )
+    io.sleep(1)
+    if session["step-update"] == timestamp:
+        url = request.url_root
+        if current_app.config["upgrade_insecure_requests"] and not "127.0.0.1" in url:
+            url = url.replace("http://", "https://")
         tasks.handle_room_set.delay(data.to_dict(), session["token"], url, request.sid)

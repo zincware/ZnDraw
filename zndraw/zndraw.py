@@ -1,6 +1,5 @@
 import dataclasses
 import logging
-import threading
 import typing as t
 from threading import Lock
 
@@ -8,21 +7,21 @@ import ase
 import ase.io
 import numpy as np
 import socketio
+from socketio import exceptions as socketio_exceptions
 from znframe.frame import Frame
 
 from zndraw.data import CeleryTaskData, ModifierRegisterData
 from zndraw.modify import UpdateScene, get_modify_class
 from zndraw.settings import GlobalConfig
-from zndraw.utils import (
-    ZnDrawLoggingHandler,
-)
 
 from .base import ZnDrawBase
 from .data import RoomGetData, RoomSetData
 from .utils import (
     estimate_max_batch_size_for_socket,
     split_list_into_chunks,
+    wrap_and_check_index,
 )
+from .zndraw_frozen import FrozenZnDraw
 
 log = logging.getLogger(__name__)
 
@@ -162,7 +161,7 @@ class ZnDraw(ZnDrawBase):
             or isinstance(index, list)
         ):
             length = len(self)
-            index = self.wrap_and_check_index(index, length)
+            index = wrap_and_check_index(index, length)
             self.set_data(frames={i: None for i in index}, update_database=True)
         else:
             raise TypeError("Index must be an integer, slice or list[int]")
@@ -174,7 +173,7 @@ class ZnDraw(ZnDrawBase):
         log.warning(
             "Currently `insert` is very taxing on the server, use with caution!"
         )
-        index = self.wrap_and_check_index(index, len(self))[0]
+        index = wrap_and_check_index(index, len(self))[0]
         data_after = self[index:]
         self[index] = value
         del self[index + 1 :]
@@ -209,7 +208,7 @@ class ZnDraw(ZnDrawBase):
 
     def __getitem__(self, index) -> t.Union[ase.Atoms, list[ase.Atoms]]:
         length = len(self)
-        index = self.wrap_and_check_index(index, length)
+        index = wrap_and_check_index(index, length)
         data = self.get_data(frames=index).frames
 
         atoms_list = []
@@ -255,8 +254,7 @@ class ZnDraw(ZnDrawBase):
 
     @property
     def segments(self) -> np.ndarray:
-        data = self.get_data(segments=True).segments
-        return np.array(data)
+        return self.calculate_segments(self.points)
 
     @property
     def step(self) -> int:
@@ -265,7 +263,7 @@ class ZnDraw(ZnDrawBase):
 
     @step.setter
     def step(self, index):
-        index = self.wrap_and_check_index(index, len(self))[0]
+        index = wrap_and_check_index(index, len(self))[0]
         self.set_data(step=index, update_database=True)
 
     @property
@@ -301,13 +299,17 @@ class ZnDraw(ZnDrawBase):
 
     def _pre_modifier_run(self, data) -> None:
         self.socket.emit("modifier:available", False)
-        vis = type(self)(url=self.url, token=data["token"])
         msg = CeleryTaskData(
-            target=f"webclients_{vis.token}", event="modifier:run:running", data=None
+            target=f"webclients_{data['token']}",
+            event="modifier:run:running",
+            data=None,
         )
 
-        vis.socket.emit("celery:task:emit", dataclasses.asdict(msg))
+        self.socket.emit("celery:task:emit", dataclasses.asdict(msg))
         try:
+            vis = FrozenZnDraw(
+                url=self.url, token=data["token"], cached_data=data["cache"]
+            )
             config = GlobalConfig.load()
             cls = get_modify_class(
                 config.get_modify_methods(
@@ -315,171 +317,34 @@ class ZnDraw(ZnDrawBase):
                 )
             )
             modifier = cls(**data["params"])
-            modifier.run(
-                vis,
-                **self._modifiers[modifier.method.__class__.__name__]["run_kwargs"],
+            try:
+                modifier.run(
+                    vis,
+                    **self._modifiers[modifier.method.__class__.__name__]["run_kwargs"],
+                )
+            except Exception as err:
+                vis.log(f"Modifier failed with error: {repr(err)}")
+
+            vis.socket.sleep(1)
+            vis.socket.disconnect()
+        except socketio_exceptions.ConnectionError as err:
+            msg = CeleryTaskData(
+                target=f"webclients_{data['token']}",
+                event="message:log",
+                data="Could not establish connection " + str(err),
+                disconnect=False,
             )
-        except Exception as err:
-            vis.log(f"Modifier failed with error: {repr(err)}")
+            self.socket.emit("celery:task:emit", dataclasses.asdict(msg))
+
         msg = CeleryTaskData(
-            target=f"{vis.token}",
+            target=f"{data['token']}",
             event="modifier:run:finished",
             data=None,
-            disconnect=True,
+            disconnect=False,
         )
-        vis.socket.emit("celery:task:emit", dataclasses.asdict(msg))
+        self.socket.emit("celery:task:emit", dataclasses.asdict(msg))
         self.socket.emit("modifier:available", True)
         print("Modifier finished!!!!!!!!")
-
-    @staticmethod
-    def wrap_and_check_index(index: int | slice | list[int], length: int) -> list[int]:
-        is_slice = isinstance(index, slice)
-        if is_slice:
-            index = list(range(*index.indices(length)))
-        index = [index] if isinstance(index, int) else index
-        index = [i if i >= 0 else length + i for i in index]
-        # check if index is out of range
-        for i in index:
-            if i >= length:
-                raise IndexError(f"Index {i} out of range for length {length}")
-        return index
-
-    def register_modifier(
-        self,
-        cls: UpdateScene,
-        run_kwargs: dict = None,
-        default: bool = False,
-        timeout: float = 60,
-    ):
-        """Register a modifier class.
-
-        Attributes
-        ----------
-        cls : UpdateScene
-            The modifier class to register.
-        run_kwargs : dict, optional
-            Keyword arguments to pass to the run method of the modifier class.
-        default : bool, optional
-            Whether to enable the modifier for ALL sessions of the ZnDraw client,
-            or just the session for the given token.
-        timeout : float, optional
-            Timeout for the modifier to run in seconds. The Webclient
-            will alert the user if the modifier takes longer than this time and
-            release the modify button (no further changes are expected, but they
-            can happen).
-        """
-        if run_kwargs is None:
-            run_kwargs = {}
-        run_kwargs["timeout"] = timeout
-        if len(self._modifiers):
-            raise ValueError(
-                "Only one modifier can be registered at the moment. "
-                "This is a limitation of the current implementation."
-            )
-
-        msg = ModifierRegisterData(
-            schema=cls.model_json_schema(),
-            name=cls.__name__,
-            default=default,
-            timeout=timeout,
-        )
-
-        self.socket.emit(
-            "modifier:register",
-            dataclasses.asdict(msg),
-        )
-        self._modifiers[cls.__name__] = {
-            "cls": cls,
-            "run_kwargs": run_kwargs,
-            "default": default,
-        }
-        self.socket.emit(
-            "modifier:available",
-            True,
-        )
-
-
-@dataclasses.dataclass
-class ZnDrawOld(ZnDrawBase):
-    """ZnDraw client."""
-
-    url: str = None
-
-    jupyter: bool = False
-
-    def __post_init__(self):
-        super().__post_init__()
-        if self.url is None:
-            from zndraw.utils import get_port
-            from zndraw.view import view
-
-            port = get_port()
-            self._view_thread = threading.Thread(
-                target=view,
-                kwargs={
-                    "filename": None,
-                    "port": port,
-                    "open_browser": False,
-                    "webview": False,
-                    "fullscreen": False,
-                    "start": 0,
-                    "stop": None,
-                    "step": 1,
-                    "compute_bonds": True,
-                },
-            )
-            self._view_thread.start()
-            self.url = f"http://127.0.0.1:{port}"
-
-        self._connect()
-
-    def close(self):
-        import time
-        import urllib.request
-
-        self.socket.disconnect()
-
-        time.sleep(1)
-
-        # open self.url/exit
-        try:
-            urllib.request.urlopen(f"{self.url}/exit")
-        except Exception:
-            pass
-        if hasattr(self, "_view_thread"):
-            log.debug("Waiting for ZnDraw client to close")
-            # self._view_thread.terminate()
-            self._view_thread.join()
-            # raise ValueError("ZnDraw client closed")
-
-    def _repr_html_(self):
-        from IPython.display import IFrame
-
-        return IFrame(src=self.url, width="100%", height="600px")._repr_html_()
-
-    def get_logging_handler(self) -> ZnDrawLoggingHandler:
-        return ZnDrawLoggingHandler(self)
-
-    def reconnect(self) -> None:
-        super().reconnect()
-
-        for k, v in self._modifiers.items():
-            log.critical(f"Re-registering modifier {k}")
-            msg = ModifierRegisterData(
-                schema=v["cls"].model_json_schema(),
-                name=k,
-                default=v["default"],
-                timeout=v["run_kwargs"]["timeout"],
-            )
-            self.socket.emit(
-                "modifier:register",
-                dataclasses.asdict(msg),
-            )
-
-            self.socket.emit(
-                "modifier:available",
-                True,
-            )
 
     def register_modifier(
         self,

@@ -65,7 +65,8 @@ class Rotate(UpdateScene):
         points = vis.points
         atom_ids = vis.selection
         atoms = vis.atoms
-        assert len(points) == 2
+        if len(points) != 2:
+            raise ValueError("Please draw exactly 2 points to rotate around.")
 
         angle = self.angle if self.direction == "left" else -self.angle
         angle = angle / self.steps
@@ -76,11 +77,10 @@ class Rotate(UpdateScene):
         for _ in range(self.steps):
             # rotate the selected atoms around the vector
             atoms_selected.rotate(angle, vector, center=points[0])
-            # merge the selected and remaining atoms
-            atoms = atoms_selected + atoms_remaining
+            # update the positions of the selected atoms
+            atoms.positions[atom_ids] = atoms_selected.positions
             vis.append(atoms)
             time.sleep(self.sleep)
-        vis.selection = []
 
 
 class Delete(UpdateScene):
@@ -114,7 +114,8 @@ class Move(UpdateScene):
             del vis[vis.step + 1 :]
 
         atoms = vis.atoms
-        atoms_selected, atoms_remaining = self.apply_selection(vis.selection, atoms)
+        atoms_ids = vis.selection
+        atoms_selected, atoms_remaining = self.apply_selection(atoms_ids, atoms)
         if self.steps > len(vis.segments):
             raise ValueError(
                 "The number of steps must be less than the number of segments. You can add more points to increase the number of segments."
@@ -129,9 +130,8 @@ class Move(UpdateScene):
             # move the selected atoms along the vector
             atoms_selected.positions += vector
             # merge the selected and remaining atoms
-            atoms = atoms_selected + atoms_remaining
+            atoms.positions[atoms_ids] = atoms_selected.positions
             vis.append(atoms)
-        vis.selection = []
 
 
 class Duplicate(UpdateScene):
