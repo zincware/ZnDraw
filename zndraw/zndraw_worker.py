@@ -73,8 +73,6 @@ class ZnDrawWorker(ZnDrawBase):
             raise ValueError(
                 f"Length of index ({len(index)}) and value ({len(value)}) must match"
             )
-        log.critical(82 * "-")
-        log.critical(f"Index: {index}")
         # we emit first, because sending the data takes longer, but emit is faster
         if self.emit:
             self.socket.emit(
@@ -188,6 +186,8 @@ class ZnDrawWorker(ZnDrawBase):
 
     @step.setter
     def step(self, idx: int):
+        log.critical(f" ------>>>>  Writing step {idx} to database for {self.token}.")
+        self.log(f" ------>>>>  Writing step {idx} to database for {self.token}.")
         length = len(self)
         if idx < 0 or idx >= length:
             raise IndexError(f"Index {idx} out of range for {length} frames")
@@ -255,7 +255,6 @@ class ZnDrawWorker(ZnDrawBase):
                         indices = wrap_and_check_index(
                             indices, self._get_len(session, self.token)
                         )
-                        log.critical(f"Indices: {indices}")
                         collected_frames = (
                             session.query(Frame)
                             .filter(Frame.index.in_(indices), Frame.room == room)
