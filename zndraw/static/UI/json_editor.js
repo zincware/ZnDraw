@@ -205,6 +205,8 @@ function modifier_editor(socket, cache, world) {
         // responseReceived = false;
 
         socket.emit("modifier:run", value);
+        const event = new CustomEvent("modifier:run");
+        document.dispatchEvent(event);
 
         document.getElementById("interaction-json-editor-submit").disabled =
           true;

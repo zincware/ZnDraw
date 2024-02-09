@@ -69,6 +69,12 @@ const setupSiMGen = function (socket, world) {
       '<i class="fa-solid fa-hourglass-start"></i> Job queued';
   });
 
+  document.addEventListener("modifier:run", () => {
+    runButton.disabled = false;
+    linkButton.disabled = false;
+    canvasButton.disabled = false;
+  });
+
   document.addEventListener("modifier:run:finished", () => {
     if (clickedButton === runButton) {
       runButton.innerHTML = runButtonText;
