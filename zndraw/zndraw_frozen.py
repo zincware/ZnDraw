@@ -9,6 +9,7 @@ from znframe import Frame as ZnFrame
 from .base import ZnDrawBase
 from .data import RoomSetData
 from .utils import (
+    check_selection,
     estimate_max_batch_size_for_socket,
     split_list_into_chunks,
     wrap_and_check_index,
@@ -22,7 +23,7 @@ class FrozenZnDraw(ZnDrawBase):
     def __init__(self, token, url, cached_data: dict):
         self.socket = socketio.Client()
         self.socket.connect(url, wait_timeout=5)
-        self.socket.emit("join", str(token))
+        self.socket.emit("join", {"token": str(token), "auth_token": None})
         self.url = url
         self.token = token
         self._cached_data = self.cache_from_dict(cached_data)
@@ -147,6 +148,7 @@ class FrozenZnDraw(ZnDrawBase):
 
     @selection.setter
     def selection(self, value):
+        check_selection(value)
         self.set_data(selection=value, update_database=True)
 
     @property

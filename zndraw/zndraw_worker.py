@@ -17,6 +17,7 @@ from .db import Session
 from .db.schema import Bookmark, Frame, Room
 from .server.utils import get_room_by_token
 from .utils import (
+    check_selection,
     estimate_max_batch_size_for_socket,
     split_list_into_chunks,
     wrap_and_check_index,
@@ -80,17 +81,18 @@ class ZnDrawWorker(ZnDrawBase):
         # we emit first, because sending the data takes longer, but emit is faster
         # TODO: we need the batch size here!
         if self.emit:
-            frames = {
-                idx: frame.to_dict(built_in_types=False)
-                for idx, frame in zip(index, value)
-            }
+            frames = {idx: frame for idx, frame in zip(index, value)}
             chunk_size = estimate_max_batch_size_for_socket(list(frames.values()))
             for frame_ids in split_list_into_chunks(list(frames), chunk_size):
+                msg = RoomSetData(
+                    frames={
+                        idx: frames[idx].to_dict(built_in_types=False)
+                        for idx in frame_ids
+                    },
+                )
                 self.socket.emit(
                     "room:set",
-                    RoomSetData(
-                        frames={idx: frames[idx] for idx in frame_ids},
-                    ).to_dict(),
+                    msg.to_dict(),
                 )
             self.socket.emit(
                 "room:set",
@@ -225,7 +227,8 @@ class ZnDrawWorker(ZnDrawBase):
             return room.selection
 
     @selection.setter
-    def selection(self, value: Union[List[int], List[None]]):
+    def selection(self, value: list[int]):
+        check_selection(value)
         with Session() as session:
             room = get_room_by_token(session, self.token)
             room.selection = value

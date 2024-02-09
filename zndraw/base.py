@@ -12,8 +12,8 @@ log = logging.getLogger(__name__)
 
 @dataclasses.dataclass
 class ZnDrawBase(MutableSequence):
-    token: str
     url: str
+    token: str
 
     socket: socketio.Client = dataclasses.field(default_factory=socketio.Client)
 
@@ -21,11 +21,11 @@ class ZnDrawBase(MutableSequence):
         self.url = self.url.replace("http", "ws")
         log.critical(f"Connecting to {self.url}")
         self.socket.connect(self.url, wait_timeout=1)
-        self.socket.emit("join", str(self.token))
+        self.socket.emit("join", {"token": str(self.token), "auth_token": None})
 
     def reconnect(self):
         self.socket.connect(self.url)
-        self.socket.emit("join", str(self.token))
+        self.socket.emit("join", {"token": str(self.token), "auth_token": None})
 
     @abstractmethod
     def log(self, message: str):
