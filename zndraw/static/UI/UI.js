@@ -70,7 +70,6 @@ function setupDragDrop(socket) {
 
     // read the file
     const file = event.dataTransfer.files[0];
-    console.log(event);
     if (!file) {
       console.error("No file was dropped");
       return;

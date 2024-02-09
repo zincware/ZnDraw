@@ -102,7 +102,6 @@ class Selection {
       const params = document.getElementById(
         "selection-json-editor",
       ).parameters;
-      // console.log(new Date().toISOString(), "running selection");
       this.socket.emit("selection:run", params);
     }
   }
@@ -129,7 +128,6 @@ class Selection {
       canvasIntersects.length > 0 &&
       canvasIntersects[0].object.name === "canvas3D"
     ) {
-      console.log("pointer on canvas");
       if (!this.line3D.pointer) {
         this.line3D.pointer = this.line3D.addPointer();
       }
@@ -332,7 +330,6 @@ class Selection {
             }
           } else if (particlesGroup.selection.length > 0) {
             const { points, segments } = this.world.getLineData();
-            console.log(new Date().toISOString(), "running modifier");
             this.socket.emit("modifier:run", {
               method: { discriminator: "Delete" },
             });
