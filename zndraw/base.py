@@ -123,11 +123,11 @@ class ZnDrawBase(MutableSequence):
         self.socket.emit("celery:task:emit", msg.to_dict())
 
     def get_screenshot(self, filename):
-        
         def _receive_screenshot(data):
             data = data.replace("data:image/png;base64,", "")
             print(data)
             import base64
+
             with open(filename, "wb") as fh:
                 fh.write(base64.decodebytes(bytes(data, "utf-8")))
             self.socket.on("screenshot", lambda x: None)

@@ -749,6 +749,7 @@ def file_download():
         url = url.replace("http://", "https://")
     tasks.download_file.delay(url=url, token=str(session["token"]), sid=request.sid)
 
+
 @io.on("screenshot")
 def screenshot(data=None):
     if data is None:
