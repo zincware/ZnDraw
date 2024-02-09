@@ -67,6 +67,7 @@ class ClearScene(UpdateScene):
         vis.append(ase.Atoms())
         vis.selection = []
         vis.step = len(vis) - 1
+        vis.camera = {"position": [0, 0, 20], "target": [0, 0, 0]}
 
 
 class Rotate(UpdateScene):
