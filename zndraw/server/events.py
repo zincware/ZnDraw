@@ -748,3 +748,12 @@ def file_download():
     if current_app.config["upgrade_insecure_requests"] and not "127.0.0.1" in url:
         url = url.replace("http://", "https://")
     tasks.download_file.delay(url=url, token=str(session["token"]), sid=request.sid)
+
+@io.on("screenshot")
+def screenshot(data=None):
+    if data is None:
+        # comming from a pyclient
+        # send it to the room host?
+        emit("screenshot", to=f"webclients_{session['token']}")
+    else:
+        emit("screenshot", data, to=f"{session['token']}")
