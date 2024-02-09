@@ -2,6 +2,7 @@ import dataclasses
 import logging
 from abc import abstractmethod
 from collections.abc import MutableSequence
+from zndraw.data import CeleryTaskData
 
 import numpy as np
 import socketio
@@ -97,15 +98,15 @@ class ZnDrawBase(MutableSequence):
             return points
         t = np.linspace(0, len(points) - 1, len(points) * 50)
         return splines.CatmullRom(points).evaluate(t)
-
+    
     @property
     def camera(self):
         raise NotImplementedError("Getting camera from webclient not implemented yet")
-
+    
     @camera.setter
     def camera(self, camera: dict):
         """Set the camera position and orientation
-
+        
         camera: dict
             A dictionary with the following
             - position: list[float]
@@ -121,3 +122,4 @@ class ZnDrawBase(MutableSequence):
             data=camera,
         )
         self.socket.emit("celery:task:emit", msg.to_dict())
+            
