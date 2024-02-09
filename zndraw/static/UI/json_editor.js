@@ -49,8 +49,6 @@ function selection_editor(socket, cache, world) {
           console.log(errors);
         } else {
           const value = editor.getValue();
-          console.log(value);
-
           socket.emit("selection:run", value);
         }
       });
@@ -125,8 +123,6 @@ function analysis_editor(socket, cache, world) {
         console.log(errors);
       } else {
         const value = editor.getValue();
-        console.log(value);
-
         // responseReceived = false;
 
         socket.emit("analysis:run", value);
@@ -194,8 +190,6 @@ function modifier_editor(socket, cache, world) {
         console.log(errors);
       } else {
         const value = editor.getValue();
-        console.log(value);
-
         // responseReceived = false;
 
         socket.emit("modifier:run", value);
