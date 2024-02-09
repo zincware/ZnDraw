@@ -675,9 +675,9 @@ def on_disconnect(token: str, sid: str, url: str):
         ses.commit()
 
     # with Session() as ses:
-        # room = ses.query(db_schema.Room).filter_by(token=token).first()
-        # clients = ses.query(db_schema.Client).filter_by(room=room).all()
-        # connected_users = [{"name": client.name} for client in clients]
+    # room = ses.query(db_schema.Room).filter_by(token=token).first()
+    # clients = ses.query(db_schema.Client).filter_by(room=room).all()
+    # connected_users = [{"name": client.name} for client in clients]
 
     # msg = CeleryTaskData(
     #     target=f"webclients_{token}",
