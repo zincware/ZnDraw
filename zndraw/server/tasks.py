@@ -663,3 +663,39 @@ def on_disconnect(token: str, sid: str, url: str):
     # # TODO this can not work, because it triggers itself
 
     # worker.socket.emit("celery:task:emit", msg.to_dict())
+
+@shared_task
+def upload_file(url: str, token: str, filename: str, content: str):
+    from zndraw.zndraw_worker import ZnDrawWorker
+    import ase.io
+    from io import StringIO
+    
+
+    vis = ZnDrawWorker(token=token, url=url)
+    vis.log(f"Uploading {filename}")
+    # del vis[:]
+    atoms_cache = []
+
+    format = filename.split(".")[-1]
+    format = format if format != "xyz" else "extxyz"
+
+    if format == "h5":
+        raise ValueError("H5MD format not supported for uploading yet")
+
+    stream = StringIO(content)
+
+    atoms_list = list(ase.io.iread(stream, format=format))
+    if len(atoms_list) == 1 and len(vis.points) != 0:
+        scene = vis.atoms
+        atoms = atoms_list[0]
+        if hasattr(scene, "connectivity"):
+            del scene.connectivity
+        for point in vis.points:
+            atoms.positions -= atoms.get_center_of_mass() - point
+            scene += atoms
+        vis.append(scene)
+    else:
+        vis.extend(atoms_list)
+    
+    vis.socket.sleep(1)
+    vis.socket.disconnect()
