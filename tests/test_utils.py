@@ -1,10 +1,13 @@
 import pytest
-
 from ase.build import molecule
 from znframe import Frame
 
 from zndraw.data import RoomGetData
-from zndraw.utils import typecast_kwargs, wrap_and_check_index, estimate_max_batch_size_for_socket
+from zndraw.utils import (
+    estimate_max_batch_size_for_socket,
+    typecast_kwargs,
+    wrap_and_check_index,
+)
 
 
 def test_typecast_kwargs():
@@ -54,8 +57,13 @@ def test_wrap_and_check_index_raises_exceptions(inp):
     with pytest.raises(IndexError):
         wrap_and_check_index(*inp)
 
+
 def test_estimate_max_chunk_size():
     small = [Frame.from_atoms(molecule("H2O"))]
     big = [Frame.from_atoms(molecule("C60"))]
-    assert estimate_max_batch_size_for_socket(small) > estimate_max_batch_size_for_socket(big)
-    assert estimate_max_batch_size_for_socket(small+big) == estimate_max_batch_size_for_socket(big)
+    assert estimate_max_batch_size_for_socket(
+        small
+    ) > estimate_max_batch_size_for_socket(big)
+    assert estimate_max_batch_size_for_socket(
+        small + big
+    ) == estimate_max_batch_size_for_socket(big)
