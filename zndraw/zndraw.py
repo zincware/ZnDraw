@@ -298,6 +298,30 @@ class ZnDraw(ZnDrawBase):
     @property
     def bookmarks(self) -> dict:
         return self.get_data(bookmarks=True).bookmarks
+    
+    @property
+    def camera(self) -> dict:
+        return self.get_data(camera=True).camera
+    
+    @camera.setter
+    def camera(self, camera: dict):
+        """Set the camera position and orientation
+        
+        camera: dict
+            A dictionary with the following
+            - position: list[float]
+                The position of the camera
+            - target: list[float]
+                The target of the camera
+        """
+        if set(camera) != {"position", "target"}:
+            raise ValueError("camera must have keys 'position' and 'target'")
+        msg = CeleryTaskData(
+            target=str(self.token),
+            event="camera:update",
+            data=camera,
+        )
+        self.socket.emit("celery:task:emit", msg.to_dict())
 
     @bookmarks.setter
     def bookmarks(self, value: dict):

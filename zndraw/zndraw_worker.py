@@ -241,6 +241,12 @@ class ZnDrawWorker(ZnDrawBase):
         with Session() as session:
             room = get_room_by_token(session, self.token)
             return {bm.step: bm.text for bm in room.bookmarks}
+        
+    @property
+    def camera(self) -> dict:
+        with Session() as session:
+            room = get_room_by_token(session, self.token)
+            return room.camera
 
     @bookmarks.setter
     def bookmarks(self, value: dict) -> None:
@@ -300,6 +306,8 @@ class ZnDrawWorker(ZnDrawBase):
                         answer["step"] = room.currentStep
                     elif key == "selection":
                         answer["selection"] = room.selection
+                    elif key == "camera":
+                        answer["camera"] = room.camera
                     elif key == "bookmarks":
                         answer["bookmarks"] = {
                             bm.step: bm.text for bm in room.bookmarks
