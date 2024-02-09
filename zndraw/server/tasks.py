@@ -699,3 +699,24 @@ def upload_file(url: str, token: str, filename: str, content: str):
     
     vis.socket.sleep(1)
     vis.socket.disconnect()
+
+@shared_task
+def download_file(url: str, token: str, sid: str):
+    from zndraw.zndraw_worker import ZnDrawWorker
+    import ase.io
+    from io import StringIO
+
+    vis = ZnDrawWorker(token=token, url=url)
+    atoms = vis.atoms
+    if len(vis.selection) != 0:
+        atoms = atoms[vis.selection]
+    file = StringIO()
+    ase.io.write(file, atoms, format="extxyz")
+    file.seek(0)
+    msg = CeleryTaskData(
+        target=sid,
+        event="file:download",
+        data=file.read(),
+        disconnect=True,
+    )
+    vis.socket.emit("celery:task:emit", asdict(msg))

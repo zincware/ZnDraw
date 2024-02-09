@@ -10,7 +10,7 @@ function setupUpload(socket) {
   // result when it finishes reading the file
   reader.addEventListener("load", () => {
     file.binary = reader.result;
-    socket.emit("upload", {
+    socket.emit("file:upload", {
       content: reader.result,
       filename: file.dom.files[0].name,
     });
@@ -307,7 +307,7 @@ export function setUIEvents(socket, cache, world) {
   setupFrameInput(world);
   setupConnectedUsers(socket);
 
-  socket.on("download:response", (data) => {
+  socket.on("file:download", (data) => {
     const blob = new Blob([data], { type: "text/csv" });
     const elem = window.document.createElement("a");
     elem.href = window.URL.createObjectURL(blob);
@@ -318,14 +318,7 @@ export function setUIEvents(socket, cache, world) {
   });
 
   document.getElementById("downloadBtn").addEventListener("click", () => {
-    socket.emit("download:request", {});
+    socket.emit("file:download");
   });
 
-  document
-    .getElementById("downloadSelectedBtn")
-    .addEventListener("click", () => {
-      socket.emit("download:request", {
-        selection: world.getSelection(),
-      });
-    });
 }
