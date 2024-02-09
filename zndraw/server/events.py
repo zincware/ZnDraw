@@ -546,13 +546,6 @@ def selection_run(data: dict):
     )
 
 
-@io.on("scene:trash")
-def scene_trash():
-    tasks.scene_trash.delay(
-        f"http://127.0.0.1:{current_app.config['PORT']}", session["token"]
-    )
-
-
 @io.on("analysis:run")
 def analysis_run(data: dict):
     """Run the analysis."""

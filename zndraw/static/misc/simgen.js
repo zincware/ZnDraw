@@ -22,7 +22,7 @@ const setupSiMGen = function (socket, world) {
     linkButton.disabled = true;
     canvasButton.disabled = true;
     socket.emit("modifier:run", {
-      method: { discriminator: "Delete" },
+      method: { discriminator: "SiMGenDemo" },
     });
   });
 
@@ -33,7 +33,7 @@ const setupSiMGen = function (socket, world) {
     linkButton.disabled = true;
     canvasButton.disabled = true;
     socket.emit("modifier:run", {
-      method: { discriminator: "Delete" },
+      method: { discriminator: "Connect" },
     });
   });
 
@@ -42,8 +42,9 @@ const setupSiMGen = function (socket, world) {
     // runButton.disabled = true;
     // linkButton.disabled = true;
     // canvasButton.disabled = true;
-    // TODO: shouldn't trash just be another modifier?
-    socket.emit("scene:trash");
+    socket.emit("modifier:run", {
+      method: { discriminator: "ClearScene" },
+    });
     // clickt drawAddCanvas btn
     document.getElementById("drawAddCanvas").click();
     // click after some time, trash needs to be done first
