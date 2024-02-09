@@ -298,15 +298,15 @@ class ZnDraw(ZnDrawBase):
     @property
     def bookmarks(self) -> dict:
         return self.get_data(bookmarks=True).bookmarks
-    
+
     @property
     def camera(self) -> dict:
         return self.get_data(camera=True).camera
-    
+
     @camera.setter
     def camera(self, camera: dict):
         """Set the camera position and orientation
-        
+
         camera: dict
             A dictionary with the following
             - position: list[float]

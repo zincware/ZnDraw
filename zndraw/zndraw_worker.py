@@ -241,7 +241,7 @@ class ZnDrawWorker(ZnDrawBase):
         with Session() as session:
             room = get_room_by_token(session, self.token)
             return {bm.step: bm.text for bm in room.bookmarks}
-        
+
     @property
     def camera(self) -> dict:
         with Session() as session:
