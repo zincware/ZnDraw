@@ -159,6 +159,13 @@ class Selection {
   }
 
   onClick(event) {
+    const elements = document.elementsFromPoint(event.clientX, event.clientY);
+    // if neither first or second element is scene-container, then it's a UI element
+    // first one can be the canvas
+    if (elements[0].id !== "scene-container" && elements[1].id !== "scene-container") {
+      return;
+    }
+    
     // detect double click
     if (event.detail === 2) {
       this.onDoubleClick(event);
