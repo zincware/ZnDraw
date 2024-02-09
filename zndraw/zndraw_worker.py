@@ -23,6 +23,7 @@ from .utils import (
     wrap_and_check_index,
 )
 
+
 def _any_to_list(
     value: ZnFrame | ase.Atoms | list[ase.Atoms] | list[ZnFrame],
 ) -> list[ZnFrame]:
