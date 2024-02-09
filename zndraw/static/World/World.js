@@ -248,7 +248,6 @@ class World {
         particlesGroup.step();
       }
       if (data.bookmarks !== null) {
-        console.log(data.bookmarks);
         bookmarks.set(data.bookmarks);
       }
       if (data.points !== null) {

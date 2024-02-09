@@ -179,7 +179,6 @@ def analysis_schema(url: str, token: str):
     )
     con = get_client(url)
     con.emit("celery:task:emit", asdict(msg))
-    vis.socket.disconnect()
 
 
 @shared_task
@@ -532,7 +531,6 @@ def _run_default_modifier(self, url: str, token: str, data: dict, queue_job_id: 
 
     vis.socket.emit("celery:task:emit", asdict(msg))
     update_job_status(job_id=queue_job_id, status=status)
-    vis.socket.disconnect()
 
 
 def route_modifier_to_queue(name: str, token: str) -> str:
@@ -555,7 +553,7 @@ def run_modifier(url: str, token: str, data: dict):
     name = data["method"]["discriminator"]
     queue_name = route_modifier_to_queue(name, token)
     queue_job_id = insert_into_queue(
-        queue_name=queue_name, job_name=name, room_token=token
+        queue_name=queue_name, job_name=name, room_token=str(token)
     )
     if queue_name == "slow":
         task_chain = chain(
@@ -609,15 +607,15 @@ def activate_modifier(sid: str, available: bool):
     log.critical(f"modifier:available {sid} {available}")
     with Session() as ses:
         global_modifier_client = (
-            ses.query(db_schema.GlobalModifierClient).filter_by(sid=sid).first()
+            ses.query(db_schema.GlobalModifierClient).filter_by(sid=sid).all()
         )
         room_modifier_client = (
-            ses.query(db_schema.RoomModifierClient).filter_by(sid=sid).first()
+            ses.query(db_schema.RoomModifierClient).filter_by(sid=sid).all()
         )
-        if global_modifier_client is not None:
-            global_modifier_client.available = available
-        elif room_modifier_client is not None:
-            room_modifier_client.available = available
+        for gmc in global_modifier_client:
+            gmc.available = available
+        for rmc in room_modifier_client:
+            rmc.available = available
         ses.commit()
 
 
@@ -665,3 +663,65 @@ def on_disconnect(token: str, sid: str, url: str):
     # # TODO this can not work, because it triggers itself
 
     # worker.socket.emit("celery:task:emit", msg.to_dict())
+
+
+@shared_task
+def upload_file(url: str, token: str, filename: str, content: str):
+    from io import StringIO
+
+    import ase.io
+
+    from zndraw.zndraw_worker import ZnDrawWorker
+
+    vis = ZnDrawWorker(token=token, url=url)
+    vis.log(f"Uploading {filename}")
+    # del vis[:]
+    atoms_cache = []
+
+    format = filename.split(".")[-1]
+    format = format if format != "xyz" else "extxyz"
+
+    if format == "h5":
+        raise ValueError("H5MD format not supported for uploading yet")
+
+    stream = StringIO(content)
+
+    atoms_list = list(ase.io.iread(stream, format=format))
+    if len(atoms_list) == 1 and len(vis.points) != 0:
+        scene = vis.atoms
+        atoms = atoms_list[0]
+        if hasattr(scene, "connectivity"):
+            del scene.connectivity
+        for point in vis.points:
+            atoms.positions -= atoms.get_center_of_mass() - point
+            scene += atoms
+        vis.append(scene)
+    else:
+        vis.extend(atoms_list)
+
+    vis.socket.sleep(1)
+    vis.socket.disconnect()
+
+
+@shared_task
+def download_file(url: str, token: str, sid: str):
+    from io import StringIO
+
+    import ase.io
+
+    from zndraw.zndraw_worker import ZnDrawWorker
+
+    vis = ZnDrawWorker(token=token, url=url)
+    atoms = vis.atoms
+    if len(vis.selection) != 0:
+        atoms = atoms[vis.selection]
+    file = StringIO()
+    ase.io.write(file, atoms, format="extxyz")
+    file.seek(0)
+    msg = CeleryTaskData(
+        target=sid,
+        event="file:download",
+        data=file.read(),
+        disconnect=True,
+    )
+    vis.socket.emit("celery:task:emit", asdict(msg))

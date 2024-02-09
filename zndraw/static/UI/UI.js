@@ -10,7 +10,7 @@ function setupUpload(socket) {
   // result when it finishes reading the file
   reader.addEventListener("load", () => {
     file.binary = reader.result;
-    socket.emit("upload", {
+    socket.emit("file:upload", {
       content: reader.result,
       filename: file.dom.files[0].name,
     });
@@ -47,27 +47,29 @@ function setupDragDrop(socket) {
 
   scene.addEventListener("dragover", (event) => {
     event.preventDefault();
+    // Disabled, because not reliable in combination with three.js
+    // mouse movements.
+
     // show the overlay as long as the file is dragged over the scene
-    const overlay = document.getElementById("overlay");
-    overlay.style.display = "block";
+    // const overlay = document.getElementById("overlay");
+    // overlay.style.display = "block";
   });
 
   scene.addEventListener("dragleave", (event) => {
     event.preventDefault();
     // hide the overlay when the file is dragged out of the scene
-    const overlay = document.getElementById("overlay");
-    overlay.style.display = "none";
+    // const overlay = document.getElementById("overlay");
+    // overlay.style.display = "none";
   });
 
   scene.addEventListener("drop", (event) => {
     event.preventDefault();
-    // hide the overlay when the file is dropped
-    const overlay = document.getElementById("overlay");
-    overlay.style.display = "none";
+    // // hide the overlay when the file is dropped
+    // const overlay = document.getElementById("overlay");
+    // overlay.style.display = "none";
 
     // read the file
     const file = event.dataTransfer.files[0];
-    console.log(event);
     if (!file) {
       console.error("No file was dropped");
       return;
@@ -78,7 +80,7 @@ function setupDragDrop(socket) {
 
     // send the file to the server
     reader.addEventListener("load", () => {
-      socket.emit("upload", {
+      socket.emit("file:upload", {
         content: reader.result,
         filename: file.name,
       });
@@ -304,7 +306,7 @@ export function setUIEvents(socket, cache, world) {
   setupFrameInput(world);
   setupConnectedUsers(socket);
 
-  socket.on("download:response", (data) => {
+  socket.on("file:download", (data) => {
     const blob = new Blob([data], { type: "text/csv" });
     const elem = window.document.createElement("a");
     elem.href = window.URL.createObjectURL(blob);
@@ -315,14 +317,6 @@ export function setUIEvents(socket, cache, world) {
   });
 
   document.getElementById("downloadBtn").addEventListener("click", () => {
-    socket.emit("download:request", {});
+    socket.emit("file:download");
   });
-
-  document
-    .getElementById("downloadSelectedBtn")
-    .addEventListener("click", () => {
-      socket.emit("download:request", {
-        selection: world.getSelection(),
-      });
-    });
 }
