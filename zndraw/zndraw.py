@@ -66,6 +66,7 @@ class ZnDraw(ZnDrawBase):
 
     _lock: Lock = dataclasses.field(default_factory=Lock)
     _data = None
+    _available = True
 
     def __post_init__(self):
         if isinstance(self.config, dict):
@@ -102,10 +103,9 @@ class ZnDraw(ZnDrawBase):
                 "modifier:register",
                 dataclasses.asdict(msg),
             )
-
             self.socket.emit(
                 "modifier:available",
-                True,
+                self._available,
             )
 
     def _connect(self):
@@ -293,7 +293,8 @@ class ZnDraw(ZnDrawBase):
         self.set_data(bookmarks=value, update_database=True)
 
     def _pre_modifier_run(self, data) -> None:
-        self.socket.emit("modifier:available", False)
+        self._available = False
+        self.socket.emit("modifier:available", self._available)
         msg = CeleryTaskData(
             target=f"webclients_{data['token']}",
             event="modifier:run:running",
@@ -341,7 +342,8 @@ class ZnDraw(ZnDrawBase):
             disconnect=False,
         )
         self.socket.emit("celery:task:emit", dataclasses.asdict(msg))
-        self.socket.emit("modifier:available", True)
+        self._available = True
+        self.socket.emit("modifier:available", self._available)
         print("Modifier finished!!!!!!!!")
 
     def register_modifier(
@@ -371,11 +373,8 @@ class ZnDraw(ZnDrawBase):
         if run_kwargs is None:
             run_kwargs = {}
         run_kwargs["timeout"] = timeout
-        if len(self._modifiers):
-            raise ValueError(
-                "Only one modifier can be registered at the moment. "
-                "This is a limitation of the current implementation."
-            )
+        if cls.__name__ in self._modifiers:
+            raise ValueError(f"Modifier {cls.__name__} already registered")
 
         msg = ModifierRegisterData(
             schema=cls.model_json_schema(),
@@ -383,7 +382,6 @@ class ZnDraw(ZnDrawBase):
             default=default,
             timeout=timeout,
         )
-
         self.socket.emit(
             "modifier:register",
             dataclasses.asdict(msg),
@@ -395,5 +393,5 @@ class ZnDraw(ZnDrawBase):
         }
         self.socket.emit(
             "modifier:available",
-            True,
+            self._available,
         )
