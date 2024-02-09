@@ -73,8 +73,6 @@ class ZnDrawWorker(ZnDrawBase):
             raise ValueError(
                 f"Length of index ({len(index)}) and value ({len(value)}) must match"
             )
-        log.critical(82 * "-")
-        log.critical(f"Index: {index}")
         # we emit first, because sending the data takes longer, but emit is faster
         if self.emit:
             self.socket.emit(
@@ -90,14 +88,18 @@ class ZnDrawWorker(ZnDrawBase):
         with Session() as session:
             room = session.query(Room).get(self.token)
             room.currentStep = index[-1]
-            for _index, _value in zip(index, value):
-                frame = session.query(Frame).filter_by(index=_index, room=room).first()
-                if frame is None:
-                    # add new frame
-                    frame = Frame(index=_index, room=room)
-                    session.add(frame)
-                frame.data = _value.to_dict(built_in_types=False)
+            self.write_frames_to_session(session, index, value, room)
             session.commit()
+
+    @staticmethod
+    def write_frames_to_session(session, index, values, room):
+        for _index, _value in zip(index, values):
+            frame = session.query(Frame).filter_by(index=_index, room=room).first()
+            if frame is None:
+                # add new frame
+                frame = Frame(index=_index, room=room)
+                session.add(frame)
+            frame.data = _value.to_dict(built_in_types=False)
 
     def __getitem__(self, index: int | list[int] | slice) -> ase.Atoms:
         single_index = False
@@ -130,18 +132,23 @@ class ZnDrawWorker(ZnDrawBase):
             index = list(range(len(self)))[index]
 
         with Session() as session:
-            room = session.query(Room).get(self.token)
-            for _index in index:
-                session.query(Frame).filter_by(index=_index, room=room).delete()
-            # ensure indices are contiguous
-            frames = session.query(Frame).filter_by(room=room).all()
-            for idx, frame in enumerate(frames):
-                frame.index = idx
+            room = get_room_by_token(session, self.token)
+            self.delete_indices_from_session(session, index, room)
             session.commit()
         if self.emit:
             self.socket.emit(
                 "room:set", RoomSetData(frames={idx: None for idx in index}).to_dict()
             )
+
+    @staticmethod
+    def delete_indices_from_session(session, indices, room):
+        session.query(Frame).filter(
+            Frame.index.in_(indices), Frame.room == room
+        ).delete(synchronize_session=False)
+        # ensure indices are contiguous
+        frames = session.query(Frame).filter_by(room=room).all()
+        for idx, frame in enumerate(frames):
+            frame.index = idx
 
     def append(self, data: ase.Atoms | ZnFrame):
         if isinstance(data, ase.Atoms):
@@ -224,14 +231,18 @@ class ZnDrawWorker(ZnDrawBase):
     def bookmarks(self, value: dict) -> None:
         with Session() as session:
             room = get_room_by_token(session, self.token)
-            # delete all bookmarks
-            session.query(Bookmark).filter_by(room=room).delete()
-            for step, text in value.items():
-                bookmark = Bookmark(step=step, text=text, room=room)
-                session.add(bookmark)
+            self.write_bookmark_dictionary_to_db(session, room, value)
             session.commit()
         if self.emit:
             self.socket.emit("room:set", RoomSetData(bookmarks=value).to_dict())
+
+    @staticmethod
+    def write_bookmark_dictionary_to_db(session, room, value):
+        # delete all bookmarks
+        session.query(Bookmark).filter_by(room=room).delete()
+        for step, text in value.items():
+            bookmark = Bookmark(step=step, text=text, room=room)
+            session.add(bookmark)
 
     def insert(self, index: int, atoms: ase.Atoms | ZnFrame):
         if index < 0 or index > len(self):
@@ -279,6 +290,35 @@ class ZnDrawWorker(ZnDrawBase):
                             bm.step: bm.text for bm in room.bookmarks
                         }
         return answer
+
+    def set_properties(self, **kwargs):
+        with Session() as session:
+            room = get_room_by_token(session, self.token)
+            for key, payload in kwargs.items():
+                if payload:
+                    if key == "frames":
+                        # values: dict{int:Frame}
+                        if len({type(frame) for frame in payload.values()}) != 1:
+                            raise ValueError("All frames must be None or not None")
+                        is_removing = all(frame is None for frame in payload.values())
+                        indices = list(payload.keys())
+                        if is_removing:
+                            log.critical(f"Removing frames {indices}")
+                            self.delete_indices_from_session(session, indices, room)
+                        else:
+                            frames = [
+                                ZnFrame.from_dict(frame) for frame in payload.values()
+                            ]
+                            self.write_frames_to_session(session, indices, frames, room)
+                    elif key == "points":
+                        room.points = payload
+                    elif key == "step":
+                        room.currentStep = payload
+                    elif key == "selection":
+                        room.selection = payload
+                    elif key == "bookmarks":
+                        self.write_bookmark_dictionary_to_db(session, room, payload)
+            session.commit()
 
     def log(self, message: str):
         self.socket.emit("message:log", {"message": message, "token": self.token})

@@ -92,21 +92,6 @@ class ZnDraw(ZnDrawBase):
                 "auth_token": self.auth_token,
             },
         )
-
-    def _connect(self):
-        for _ in range(100):
-            try:
-                self.socket.connect(self.url)
-                break
-            except socketio.exceptions.ConnectionError:
-                self.socket.sleep(0.1)  # this can't work?
-        else:
-            raise socketio.exceptions.ConnectionError
-
-    def reconnect(self) -> None:
-        """Reconnect to the server."""
-        super().reconnect()
-
         for k, v in self._modifiers.items():
             log.critical(f"Re-registering modifier {k}")
             msg = ModifierRegisterData(
@@ -124,6 +109,16 @@ class ZnDraw(ZnDrawBase):
                 "modifier:available",
                 True,
             )
+
+    def _connect(self):
+        for _ in range(100):
+            try:
+                self.socket.connect(self.url)
+                break
+            except socketio.exceptions.ConnectionError:
+                self.socket.sleep(0.1)  # this can't work?
+        else:
+            raise socketio.exceptions.ConnectionError
 
     def get_data(self, **data: dict) -> RoomGetData:
         data = RoomGetData(**data)
@@ -338,7 +333,10 @@ class ZnDraw(ZnDrawBase):
 
             vis.socket.sleep(1)
             vis.socket.disconnect()
-        except socketio_exceptions.ConnectionError as err:
+        except (
+            socketio_exceptions.ConnectionError,
+            socketio_exceptions.BadNamespaceError,
+        ) as err:
             msg = CeleryTaskData(
                 target=f"webclients_{data['token']}",
                 event="message:log",
