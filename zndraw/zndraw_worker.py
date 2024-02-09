@@ -82,16 +82,17 @@ class ZnDrawWorker(ZnDrawBase):
         # TODO: we need the batch size here!
         if self.emit:
             frames = {
-                idx: frame.to_dict(built_in_types=False)
+                idx: frame
                 for idx, frame in zip(index, value)
             }
             chunk_size = estimate_max_batch_size_for_socket(list(frames.values()))
             for frame_ids in split_list_into_chunks(list(frames), chunk_size):
+                msg = RoomSetData(
+                        frames={idx: frames[idx].to_dict(built_in_types=False) for idx in frame_ids},
+                    )
                 self.socket.emit(
                     "room:set",
-                    RoomSetData(
-                        frames={idx: frames[idx] for idx in frame_ids},
-                    ).to_dict(),
+                    msg.to_dict(),
                 )
             self.socket.emit(
                 "room:set",
