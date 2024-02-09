@@ -147,6 +147,7 @@ class ZnDrawServer:
     auth_token: str
     port: int = 1234
     fileio: FileIO = None
+    simgen: bool = False
 
     _workers: list = None
     app: Flask = None
@@ -171,6 +172,7 @@ class ZnDrawServer:
         self.app.config["AUTH_TOKEN"] = self.auth_token
         self.app.config["USE_TOKEN"] = self.use_token
         self.app.config["PORT"] = self.port
+        self.app.config["SIMGEN"] = self.simgen
 
         self.app.config["upgrade_insecure_requests"] = self.upgrade_insecure_requests
         self.app.config["compute_bonds"] = self.compute_bonds

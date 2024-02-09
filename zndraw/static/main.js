@@ -3,6 +3,7 @@ import { World } from "./World/World.js";
 import { setUIEvents } from "./UI/UI.js";
 import { initJSONEditor } from "./UI/json_editor.js";
 import { ManipulateElement } from "./UI/ManipulateElement.js";
+import { setupSiMGen } from "./misc/simgen.js";
 
 function setupSocket() {
   const socket = io();
@@ -59,6 +60,8 @@ function main() {
 
   setUIEvents(socket, cache, world);
   initJSONEditor(socket, cache, world);
+
+  setupSiMGen(socket, world);
   world.start();
 
   // socket dicsconnect event

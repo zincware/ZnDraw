@@ -34,6 +34,7 @@ def index():
         upgrade_insecure_requests=current_app.config["upgrade_insecure_requests"],
         token=session["token"],
         tutorial=current_app.config["TUTORIAL"],
+        simgen=current_app.config["SIMGEN"],
     )
 
 

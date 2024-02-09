@@ -163,19 +163,29 @@ function modifier_editor(socket, cache, world) {
     document.getElementById("interaction-json-editor-submit").innerHTML =
       '<i class="fa-solid fa-hourglass-start"></i> Job queued at position ' +
       position;
+      // emit event "modifier:queue:update"
+      const event = new CustomEvent("modifier:queue:update", {
+        detail: { position: position },
+      });
+      document.dispatchEvent(event);
   });
 
   // Check if a running response is received
   socket.on("modifier:run:running", () => {
     document.getElementById("interaction-json-editor-submit").innerHTML =
       '<i class="fa-solid fa-spinner"></i> Running';
+    
+    const event = new CustomEvent("modifier:run:running");
+    document.dispatchEvent(event);
   });
 
   // Finished running
-  socket.on("modifier:run:finished", (data) => {
+  socket.on("modifier:run:finished", () => {
     document.getElementById("interaction-json-editor-submit").innerHTML =
       '<i class="fa-solid fa-play"></i> Run Modifier';
     document.getElementById("interaction-json-editor-submit").disabled = false;
+    const event = new CustomEvent("modifier:run:finished");
+    document.dispatchEvent(event);
   });
 
   // other client started process
@@ -183,6 +193,8 @@ function modifier_editor(socket, cache, world) {
     document.getElementById("interaction-json-editor-submit").disabled = true;
     document.getElementById("interaction-json-editor-submit").innerHTML =
       '<i class="fa-solid fa-hourglass-start"></i> Job queued';
+    const event = new CustomEvent("modifier:run:enqueue");
+    document.dispatchEvent(event);
   });
 
   document

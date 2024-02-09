@@ -84,15 +84,17 @@
               data-bs-target="#tutorialModal">Tutorial <i class="fa-solid fa-film"></i></button>
           </li>
           {% endif %}
+          {% if simgen %}
           <li class="nav-item mx-1">
-            <button type="button" class="btn btn-success"><i class="fa-solid fa-link"></i> <b>Connect</b></button>
+            <button type="button" class="btn btn-success" id="simgen-link-btn"><i class="fa-solid fa-link"></i> <b>Connect</b></button>
           </li>
           <li class="nav-item mx-1">
-            <button type="button" class="btn btn-success"><i class="fa-solid fa-rocket"></i> <b>SiMGen</b></button>
+            <button type="button" class="btn btn-success" id="simgen-run-btn"><i class="fa-solid fa-rocket"></i> <b>SiMGen</b></button>
           </li>
           <li class="nav-item mx-1">
-            <button type="button" class="btn btn-success"><i class="fa-solid fa-paintbrush"></i> <b>Draw on plane</b></button>
+            <button type="button" class="btn btn-success" id="simgen-canvas-btn"><i class="fa-solid fa-paintbrush"></i> <b>Draw on plane</b></button>
           </li>
+          {% endif %}
         </ul>
       </div>
       <div class="mx-auto order-0">

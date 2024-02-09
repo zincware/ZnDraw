@@ -532,7 +532,6 @@ def _run_default_modifier(self, url: str, token: str, data: dict, queue_job_id: 
 
     vis.socket.emit("celery:task:emit", asdict(msg))
     update_job_status(job_id=queue_job_id, status=status)
-    vis.socket.disconnect()
 
 
 def route_modifier_to_queue(name: str, token: str) -> str:
