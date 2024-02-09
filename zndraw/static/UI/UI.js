@@ -319,5 +319,4 @@ export function setUIEvents(socket, cache, world) {
   document.getElementById("downloadBtn").addEventListener("click", () => {
     socket.emit("file:download");
   });
-
 }
