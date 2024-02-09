@@ -251,7 +251,7 @@ def test_set_atoms(room_session, sio_server):
         worker[0] = s22[10]
         worker.socket.sleep(0.1)
         data = answer[0]
-        assert answer[1].step == 0 # The step is sent after the data
+        assert answer[1].step == 0  # The step is sent after the data
         answer = []
         # TODO: keys being converted to strings somewhere
         assert data.frames["0"] == znframe.Frame.from_atoms(s22[10]).to_dict(
@@ -264,7 +264,7 @@ def test_set_atoms(room_session, sio_server):
         worker.extend(s22[11:13])
         worker.socket.sleep(0.1)
         data = answer[0]
-        assert answer[1].step == 23 
+        assert answer[1].step == 23
         answer = []
         assert len(data.frames) == 2
         assert data.frames.keys() == {str(len(worker) - 1), str(len(worker) - 2)}
