@@ -38,17 +38,11 @@ const setupSiMGen = function (socket, world) {
   });
 
   canvasButton.addEventListener("click", () => {
-    // clickedButton = canvasButton;
-    // runButton.disabled = true;
-    // linkButton.disabled = true;
-    // canvasButton.disabled = true;
     socket.emit("modifier:run", {
       method: { discriminator: "ClearScene" },
     });
-    // clickt drawAddCanvas btn
-    document.getElementById("drawAddCanvas").click();
-    // click after some time, trash needs to be done first
     setTimeout(function () {
+      document.getElementById("drawAddCanvas").click();
       document.getElementById("drawingSwitch").click();
     }, 1000);
   });
