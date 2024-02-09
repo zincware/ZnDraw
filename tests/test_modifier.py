@@ -93,15 +93,17 @@ class TestZnDrawModifier:
         time.sleep(1)
         # we need to wait for all the data to be loaded.
         # This includes jsonschemas and atoms.
-        vis = ZnDraw(url=server)
-        vis[0] = molecule("H2O")
-        assert vis[0] == molecule("H2O")
-        assert len(vis) == 1
-        original_config = GlobalConfig.load()
+        original_config = GlobalConfig.load()  # TODO: make this a fixture
 
         config = GlobalConfig.load()
         config.function_schema["CustomModifier"] = {"default_structure": "CH4"}
         config.save()
+
+        vis = ZnDraw(url=server)
+        vis[0] = molecule("H2O")
+        assert vis[0] == molecule("H2O")
+        assert len(vis) == 1
+
         vis.register_modifier(CustomModifier, default=True)
 
         send_raw(
@@ -113,6 +115,7 @@ class TestZnDrawModifier:
         assert len(vis) == 2
         assert vis[0] == molecule("H2O")
         assert vis[1] == molecule("CH4")
+
         original_config.save()
 
     def test_register_custom_modifier_run_kwargs(self, server):
