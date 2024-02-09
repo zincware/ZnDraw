@@ -261,6 +261,14 @@ class World {
       controls.update();
     });
 
+    this.socket.on("screenshot", () => {
+      console.log("screenshot");
+      renderer.render(scene, camera);
+      const screenshot = renderer.domElement.toDataURL();
+      console.log(screenshot);
+      socket.emit("screenshot", screenshot);
+    });
+
     controls.addEventListener("change", () => {
       this.socket.emit("camera:update", {
         position: camera.position.toArray(),
