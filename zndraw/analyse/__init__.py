@@ -31,7 +31,7 @@ class DihedralAngle(BaseModel):
         dihedral_angles = []
 
         if len(vis.selection) != 4:
-            raise ValueError("Please select excactly 4 atoms")
+            raise ValueError("Please select exactly 4 atoms")
         for atoms in atoms_lst:
             dihedral_angles.append(
                 atoms.get_dihedrals(indices=[vis.selection], mic=True)[0]
