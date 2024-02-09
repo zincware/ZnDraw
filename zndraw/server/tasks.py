@@ -179,7 +179,6 @@ def analysis_schema(url: str, token: str):
     )
     con = get_client(url)
     con.emit("celery:task:emit", asdict(msg))
-    vis.socket.disconnect()
 
 
 @shared_task
@@ -532,7 +531,6 @@ def _run_default_modifier(self, url: str, token: str, data: dict, queue_job_id: 
 
     vis.socket.emit("celery:task:emit", asdict(msg))
     update_job_status(job_id=queue_job_id, status=status)
-    vis.socket.disconnect()
 
 
 def route_modifier_to_queue(name: str, token: str) -> str:
@@ -555,7 +553,7 @@ def run_modifier(url: str, token: str, data: dict):
     name = data["method"]["discriminator"]
     queue_name = route_modifier_to_queue(name, token)
     queue_job_id = insert_into_queue(
-        queue_name=queue_name, job_name=name, room_token=token
+        queue_name=queue_name, job_name=name, room_token=str(token)
     )
     if queue_name == "slow":
         task_chain = chain(
