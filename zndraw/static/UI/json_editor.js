@@ -163,18 +163,18 @@ function modifier_editor(socket, cache, world) {
     document.getElementById("interaction-json-editor-submit").innerHTML =
       '<i class="fa-solid fa-hourglass-start"></i> Job queued at position ' +
       position;
-      // emit event "modifier:queue:update"
-      const event = new CustomEvent("modifier:queue:update", {
-        detail: { position: position },
-      });
-      document.dispatchEvent(event);
+    // emit event "modifier:queue:update"
+    const event = new CustomEvent("modifier:queue:update", {
+      detail: { position: position },
+    });
+    document.dispatchEvent(event);
   });
 
   // Check if a running response is received
   socket.on("modifier:run:running", () => {
     document.getElementById("interaction-json-editor-submit").innerHTML =
       '<i class="fa-solid fa-spinner"></i> Running';
-    
+
     const event = new CustomEvent("modifier:run:running");
     document.dispatchEvent(event);
   });
