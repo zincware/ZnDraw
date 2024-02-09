@@ -53,6 +53,10 @@ const setupSiMGen = function (socket, world) {
     }, 1000);
   });
 
+  document.addEventListener("modifier:run:running", () => {
+    clickedButton.innerHTML = '<i class="fa-solid fa-spinner"></i> Running';
+  })
+
   // act on custom event "modifier:queue:update"
   document.addEventListener("modifier:queue:update", (event) => {
     clickedButton.innerHTML =
