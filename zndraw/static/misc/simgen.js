@@ -64,9 +64,9 @@ const setupSiMGen = function (socket, world) {
   });
 
   document.addEventListener("modifier:run", () => {
-    runButton.disabled = false;
-    linkButton.disabled = false;
-    canvasButton.disabled = false;
+    runButton.disabled = true;
+    linkButton.disabled = true;
+    canvasButton.disabled = true;
   });
 
   document.addEventListener("modifier:run:finished", () => {
