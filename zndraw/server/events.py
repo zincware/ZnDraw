@@ -467,6 +467,8 @@ def connected_users_subscribe_camera(data: SubscribedUserData):
 @io.on("camera:update")
 def camera_update(data: dict):
     token = str(session["token"])
+    timestamp = datetime.datetime.utcnow().isoformat()
+    session["camera-update"] = timestamp
     # TODO: store this in the session
     with Session() as ses:
         room = ses.query(db_schema.Room).filter_by(token=token).first()
@@ -486,6 +488,13 @@ def camera_update(data: dict):
         include_self=False,
         to=camera_subscribers,
     )
+    io.sleep(1)
+    if session["camera-update"] == timestamp:
+        data = RoomSetData(camera=data)
+        url = request.url_root
+        if current_app.config["upgrade_insecure_requests"] and not "127.0.0.1" in url:
+            url = url.replace("http://", "https://")
+        tasks.handle_room_set.delay(data.to_dict(), session["token"], url, request.sid)
 
 
 @io.on("scene:update")

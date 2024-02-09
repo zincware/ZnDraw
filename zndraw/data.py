@@ -24,6 +24,7 @@ class RoomSetData:
     )
 
     update_database: bool = False
+    camera: dict[str, list[float]] | None = None
 
     def to_dict(self) -> dict:
         return dataclasses.asdict(self)

@@ -331,6 +331,8 @@ class ZnDrawWorker(ZnDrawBase):
                         room.currentStep = payload
                     elif key == "selection":
                         room.selection = payload
+                    elif key == "camera":
+                        room.camera = payload
                     elif key == "bookmarks":
                         self.write_bookmark_dictionary_to_db(session, room, payload)
             session.commit()
