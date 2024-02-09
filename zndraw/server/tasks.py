@@ -675,8 +675,6 @@ def upload_file(url: str, token: str, filename: str, content: str):
 
     vis = ZnDrawWorker(token=token, url=url)
     vis.log(f"Uploading {filename}")
-    # del vis[:]
-    atoms_cache = []
 
     format = filename.split(".")[-1]
     format = format if format != "xyz" else "extxyz"
