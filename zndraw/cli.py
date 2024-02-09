@@ -73,7 +73,7 @@ def main(
         help="Token to authenticate pyclient requests to the ZnDraw server, e.g., for adding defaults to all webclients.",
     ),
     simgen: bool = typer.Option(
-        True,
+        False,
         help="Show the SiMGen demo UI.",
     ),
 ):
