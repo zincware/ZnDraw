@@ -641,12 +641,14 @@ def on_disconnect(token: str, sid: str, url: str):
 
     # worker.socket.emit("celery:task:emit", msg.to_dict())
 
+
 @shared_task
 def upload_file(url: str, token: str, filename: str, content: str):
-    from zndraw.zndraw_worker import ZnDrawWorker
-    import ase.io
     from io import StringIO
-    
+
+    import ase.io
+
+    from zndraw.zndraw_worker import ZnDrawWorker
 
     vis = ZnDrawWorker(token=token, url=url)
     vis.log(f"Uploading {filename}")
@@ -673,15 +675,18 @@ def upload_file(url: str, token: str, filename: str, content: str):
         vis.append(scene)
     else:
         vis.extend(atoms_list)
-    
+
     vis.socket.sleep(1)
     vis.socket.disconnect()
 
+
 @shared_task
 def download_file(url: str, token: str, sid: str):
-    from zndraw.zndraw_worker import ZnDrawWorker
-    import ase.io
     from io import StringIO
+
+    import ase.io
+
+    from zndraw.zndraw_worker import ZnDrawWorker
 
     vis = ZnDrawWorker(token=token, url=url)
     atoms = vis.atoms
