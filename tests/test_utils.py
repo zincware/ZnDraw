@@ -22,7 +22,7 @@ def test_typecast_kwargs_exception():
         return data
 
     with pytest.raises(TypeError):
-        data = func(text="Hello World", points=True, bookmarks=True)
+        func(text="Hello World", points=True, bookmarks=True)
 
 
 @pytest.mark.parametrize(

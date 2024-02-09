@@ -192,7 +192,6 @@ def join(data: dict):
         data: {"token": str, "auth_token": str}
     """
     token = data["token"]
-    auth_token = data["auth_token"]
     session["token"] = token
     join_room(f"{token}")
     join_room(f"pyclients_{token}")
