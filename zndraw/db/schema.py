@@ -98,7 +98,8 @@ class GlobalModifier(Base):
 class GlobalModifierClient(Base):
     __tablename__ = "global_modifier_clients"
 
-    sid = Column(String, primary_key=True)
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    sid = Column(String)
     timeout = Column(Float)
     available = Column(Boolean)
 
@@ -125,7 +126,8 @@ class RoomModifier(Base):
 class RoomModifierClient(Base):
     __tablename__ = "room_modifier_clients"
 
-    sid = Column(String, primary_key=True)
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    sid = Column(String)
     timeout = Column(Float)
     available = Column(Boolean)
 

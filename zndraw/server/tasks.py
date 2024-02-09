@@ -609,15 +609,15 @@ def activate_modifier(sid: str, available: bool):
     log.critical(f"modifier:available {sid} {available}")
     with Session() as ses:
         global_modifier_client = (
-            ses.query(db_schema.GlobalModifierClient).filter_by(sid=sid).first()
+            ses.query(db_schema.GlobalModifierClient).filter_by(sid=sid).all()
         )
         room_modifier_client = (
-            ses.query(db_schema.RoomModifierClient).filter_by(sid=sid).first()
+            ses.query(db_schema.RoomModifierClient).filter_by(sid=sid).all()
         )
-        if global_modifier_client is not None:
-            global_modifier_client.available = available
-        elif room_modifier_client is not None:
-            room_modifier_client.available = available
+        for gmc in global_modifier_client:
+            gmc.available = available
+        for rmc in room_modifier_client:
+            rmc.available = available
         ses.commit()
 
 
