@@ -81,6 +81,7 @@ class CeleryBaseConfig(pydantic.BaseModel):
             "*.handle_room_set": {"queue": "io"},
             "*.activate_modifier": {"queue": "io"},
             "*on_disconnect": {"queue": "io"},
+            "*upload_file": {"queue": "io"},
         }
 
     def to_dict(self):
@@ -149,7 +150,8 @@ class GlobalConfig(pydantic.BaseModel):
 
     # Socket settings
     read_batch_size: int = 1
-    max_socket_data_size: int | float = 1024 * 8
+    # data limit in bytes
+    max_socket_data_size: int | float = 10**6
 
     # Webclient Interface
     analysis_functions: t.List[str] = _ANALYSIS_FUNCTIONS

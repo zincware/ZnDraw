@@ -16,7 +16,11 @@ from .base import ZnDrawBase
 from .db import Session
 from .db.schema import Bookmark, Frame, Room
 from .server.utils import get_room_by_token
-from .utils import wrap_and_check_index
+from .utils import (
+    estimate_max_batch_size_for_socket,
+    split_list_into_chunks,
+    wrap_and_check_index,
+)
 
 
 def _any_to_list(
@@ -74,14 +78,23 @@ class ZnDrawWorker(ZnDrawBase):
                 f"Length of index ({len(index)}) and value ({len(value)}) must match"
             )
         # we emit first, because sending the data takes longer, but emit is faster
+        # TODO: we need the batch size here!
         if self.emit:
+            frames = {
+                idx: frame.to_dict(built_in_types=False)
+                for idx, frame in zip(index, value)
+            }
+            chunk_size = estimate_max_batch_size_for_socket(list(frames.values()))
+            for frame_ids in split_list_into_chunks(list(frames), chunk_size):
+                self.socket.emit(
+                    "room:set",
+                    RoomSetData(
+                        frames={idx: frames[idx] for idx in frame_ids},
+                    ).to_dict(),
+                )
             self.socket.emit(
                 "room:set",
                 RoomSetData(
-                    frames={
-                        idx: frame.to_dict(built_in_types=False)
-                        for idx, frame in zip(index, value)
-                    },
                     step=index[-1],
                 ).to_dict(),
             )
