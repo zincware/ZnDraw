@@ -6,6 +6,8 @@ const setupSiMGen = function (socket, world) {
     console.log("simgen buttons not found");
     return;
   }
+  const consoleBtn = document.getElementById("ZnDrawConsoleSwitch");
+  consoleBtn.click();
 
   const runButtonText = runButton.innerHTML;
   const linkButtonText = linkButton.innerHTML;
