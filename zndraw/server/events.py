@@ -719,3 +719,10 @@ def points_update(points: list[list[float]]):
         if current_app.config["upgrade_insecure_requests"] and not "127.0.0.1" in url:
             url = url.replace("http://", "https://")
         tasks.handle_room_set.delay(data.to_dict(), session["token"], url, request.sid)
+
+@io.on("file:upload")
+def file_upload(data: dict):
+    url = request.url_root
+    if current_app.config["upgrade_insecure_requests"] and not "127.0.0.1" in url:
+        url = url.replace("http://", "https://")
+    tasks.upload_file.delay(url=url, token=str(session["token"]), filename= data["filename"], content=data["content"])
