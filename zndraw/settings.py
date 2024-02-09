@@ -127,6 +127,10 @@ class DatabaseSQLiteConfig(pydantic.BaseModel):
         path.parent.mkdir(parents=True, exist_ok=True)
         return f"sqlite:///{path}"
 
+    def unlink(self):
+        path = pathlib.Path(self.path).expanduser()
+        path.unlink(missing_ok=True)
+
 
 class DatabasePostgresConfig(pydantic.BaseModel):
     name: t.Literal["DatabasePostgresConfig"] = "DatabasePostgresConfig"
@@ -139,6 +143,10 @@ class DatabasePostgresConfig(pydantic.BaseModel):
 
     def get_path(self) -> str:
         return f"postgresql://{self.user}:{self.password}@{self.host}:{self.port}/{self.database}"
+
+    def unlink(self):
+        path = pathlib.Path(self.path).expanduser()
+        path.unlink(missing_ok=True)
 
 
 class GlobalConfig(pydantic.BaseModel):

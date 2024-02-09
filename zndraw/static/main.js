@@ -13,7 +13,7 @@ function setupSocket() {
 
   socket.on("debug", (msg) => {
     // simulate sending a message from the client
-    // to the server, triggerd by the server itself
+    // to the server, triggered by the server itself
     console.log(msg);
     socket.emit(msg["event"], msg["data"]);
   });

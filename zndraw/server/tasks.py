@@ -576,7 +576,7 @@ def handle_room_set(data: RoomSetData, token: str, url: str, source: str):
         disconnect=True,
     )
     worker.socket.emit("celery:task:emit", msg.to_dict())
-    # worker.commit() and a mode, that waits for all updates before commiting
+    # worker.commit() and a mode, that waits for all updates before committing
 
 
 @shared_task
@@ -626,10 +626,10 @@ def on_disconnect(token: str, sid: str, url: str):
             ses.delete(rmc)
         ses.commit()
 
-    with Session() as ses:
-        room = ses.query(db_schema.Room).filter_by(token=token).first()
-        clients = ses.query(db_schema.Client).filter_by(room=room).all()
-        connected_users = [{"name": client.name} for client in clients]
+    # with Session() as ses:
+    # room = ses.query(db_schema.Room).filter_by(token=token).first()
+    # clients = ses.query(db_schema.Client).filter_by(room=room).all()
+    # connected_users = [{"name": client.name} for client in clients]
 
     # msg = CeleryTaskData(
     #     target=f"webclients_{token}",
@@ -652,8 +652,6 @@ def upload_file(url: str, token: str, filename: str, content: str):
 
     vis = ZnDrawWorker(token=token, url=url)
     vis.log(f"Uploading {filename}")
-    # del vis[:]
-    atoms_cache = []
 
     format = filename.split(".")[-1]
     format = format if format != "xyz" else "extxyz"

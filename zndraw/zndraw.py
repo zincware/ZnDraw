@@ -17,6 +17,7 @@ from zndraw.settings import GlobalConfig
 from .base import ZnDrawBase
 from .data import RoomGetData, RoomSetData
 from .utils import (
+    check_selection,
     estimate_max_batch_size_for_socket,
     split_list_into_chunks,
     wrap_and_check_index,
@@ -32,12 +33,12 @@ class Config:
 
     Attributes
     ----------
-    call_timeout : int
+    timeout : int
         Timeout for socket calls in seconds.
         Set to a smaller value to fail faster.
     """
 
-    call_timeout: int = 3
+    timeout: int = 3
 
 
 @dataclasses.dataclass
@@ -57,6 +58,7 @@ class ZnDraw(ZnDrawBase):
         not just the current session.
     """
 
+    token: str = None
     display_new: bool = True
     auth_token: str | None = None
     config: Config = dataclasses.field(default_factory=Config)
@@ -123,9 +125,12 @@ class ZnDraw(ZnDrawBase):
         with self._lock:
             self._data = None
             self.socket.emit("room:get", data.to_dict())
-            while self._data is None:
+            for _ in range(self.config.timeout):
+                if self._data is not None:
+                    break
                 self.socket.sleep(seconds=1)
-                # generous timeout
+            else:
+                raise TimeoutError("Timeout while waiting for data")
             # self._data.pop("update_database", None) # TODO: this should not happen
             data = RoomGetData(**self._data)
             self._data = None
@@ -258,7 +263,12 @@ class ZnDraw(ZnDrawBase):
 
     @step.setter
     def step(self, index):
-        index = wrap_and_check_index(index, len(self))[0]
+        if not isinstance(index, int):
+            raise TypeError("Index must be an integer")
+        if index < 0:
+            raise IndexError(f"Index {index} out of range")
+        if index >= len(self):
+            raise IndexError(f"Index {index} out of range")
         self.set_data(step=index, update_database=True)
 
     @property
@@ -267,6 +277,7 @@ class ZnDraw(ZnDrawBase):
 
     @selection.setter
     def selection(self, value: list[int]):
+        check_selection(value)
         self.set_data(selection=value, update_database=True)
 
     def play(self):
