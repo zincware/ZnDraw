@@ -26,6 +26,8 @@ _MODIFY_FUNCTIONS = [
     "zndraw.modify.Wrap",
     "zndraw.modify.Center",
     "zndraw.modify.Replicate",
+    "zndraw.modify.Connect",
+    "zndraw.modify.ClearScene",
     # "zndraw.modify.CustomModifier",
 ]
 

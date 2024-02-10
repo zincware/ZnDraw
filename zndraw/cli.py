@@ -72,6 +72,10 @@ def main(
         None,
         help="Token to authenticate pyclient requests to the ZnDraw server, e.g., for adding defaults to all webclients.",
     ),
+    simgen: bool = typer.Option(
+        False,
+        help="Show the SiMGen demo UI.",
+    ),
 ):
     """Start the ZnDraw server.
 
@@ -97,6 +101,7 @@ def main(
         auth_token=auth_token,
         port=port,
         fileio=fileio,
+        simgen=simgen,
     ) as app:
         app.run(browser=browser)
 

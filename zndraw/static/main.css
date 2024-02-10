@@ -31,6 +31,11 @@ body {
   );
 }
 
+.btn-single-row {
+  /* do not allow multi rows in the btn */
+  white-space: nowrap;
+}
+
 .overlay-text {
   position: fixed;
   top: 50%;

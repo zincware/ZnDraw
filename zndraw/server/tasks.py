@@ -216,29 +216,6 @@ def modifier_schema(url: str, token: str):
 
 
 @shared_task
-def scene_trash(url: str, token: str):
-    from zndraw.zndraw_worker import ZnDrawWorker
-
-    vis = ZnDrawWorker(token=token, url=url)
-    del vis[vis.step + 1 :]
-    if len(vis.selection) == 0:
-        vis.append(ase.Atoms())
-    else:
-        # remove the selected atoms
-        atoms = vis.atoms
-        del atoms[vis.selection]
-        if hasattr(atoms, "connectivity"):
-            del atoms.connectivity
-        vis.append(atoms)
-    vis.selection = []
-    vis.points = []
-    vis.step = len(vis) - 1
-
-    vis.socket.sleep(1)
-    vis.socket.disconnect()
-
-
-@shared_task
 def read_file(url: str, target: str, token: str):
     from zndraw.zndraw_worker import ZnDrawWorker
 

@@ -7,6 +7,8 @@ import numpy as np
 import socketio
 import splines
 
+from zndraw.data import CeleryTaskData
+
 log = logging.getLogger(__name__)
 
 
@@ -95,3 +97,27 @@ class ZnDrawBase(MutableSequence):
             return points
         t = np.linspace(0, len(points) - 1, len(points) * 50)
         return splines.CatmullRom(points).evaluate(t)
+
+    @property
+    def camera(self):
+        raise NotImplementedError("Getting camera from webclient not implemented yet")
+
+    @camera.setter
+    def camera(self, camera: dict):
+        """Set the camera position and orientation
+
+        camera: dict
+            A dictionary with the following
+            - position: list[float]
+                The position of the camera
+            - target: list[float]
+                The target of the camera
+        """
+        if set(camera) != {"position", "target"}:
+            raise ValueError("camera must have keys 'position' and 'target'")
+        msg = CeleryTaskData(
+            target=str(self.token),
+            event="camera:update",
+            data=camera,
+        )
+        self.socket.emit("celery:task:emit", msg.to_dict())

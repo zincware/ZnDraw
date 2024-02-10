@@ -43,6 +43,33 @@ class UpdateScene(BaseModel, abc.ABC):
         return atoms_selected, atoms_remaining
 
 
+class Connect(UpdateScene):
+    """Create guiding curve between selected atoms."""
+
+    discriminator: t.Literal["Connect"] = Field("Connect")
+
+    def run(self, vis: "ZnDraw", **kwargs) -> None:
+        atom_ids = vis.selection
+        atom_positions = vis.atoms.get_positions()
+        new_points = atom_positions[atom_ids]
+        vis.points = new_points
+        vis.selection = []
+
+
+class ClearScene(UpdateScene):
+    """Clear the scene, deleting all atoms and points."""
+
+    discriminator: t.Literal["ClearScene"] = Field("ClearScene")
+
+    def run(self, vis: "ZnDraw", **kwargs) -> None:
+        del vis[vis.step + 1 :]
+        vis.points = []
+        vis.append(ase.Atoms())
+        vis.selection = []
+        vis.step = len(vis) - 1
+        vis.camera = {"position": [0, 0, 20], "target": [0, 0, 0]}
+
+
 class Rotate(UpdateScene):
     """Rotate the selected atoms around a the line (2 points only)."""
 

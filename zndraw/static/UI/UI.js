@@ -90,7 +90,9 @@ function setupDragDrop(socket) {
 
 function setupTrashClick(socket) {
   document.getElementById("trashBtn").addEventListener("click", () => {
-    socket.emit("scene:trash");
+    socket.emit("modifier:run", {
+      method: { discriminator: "ClearScene" },
+    });
     // TODO: should this be a modifier?
   });
 }

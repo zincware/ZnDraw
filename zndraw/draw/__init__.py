@@ -78,8 +78,8 @@ class TorusKnotGeometry(BaseModel):
 
 
 methods = t.Union[
-    SphereGeometry,
     PlaneGeometry,
+    SphereGeometry,
     BoxGeometry,
     CircleGeometry,
     ConeGeometry,
