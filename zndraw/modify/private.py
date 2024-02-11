@@ -1,10 +1,13 @@
+import typing as t
+
 import ase
 from pydantic import Field
-import typing as t
+
 if t.TYPE_CHECKING:
     from zndraw.zndraw import ZnDraw
-    
+
 from . import UpdateScene
+
 
 class NewScene(UpdateScene):
     """Clear the scene, deleting all atoms and points."""
@@ -18,7 +21,8 @@ class NewScene(UpdateScene):
         vis.selection = []
         vis.step = len(vis) - 1
         vis.camera = {"position": [0, 0, 20], "target": [0, 0, 0]}
-        
+
+
 class ClearTools(UpdateScene):
     """Clear the tools, removing all guiding points and undoing any selection."""
 
