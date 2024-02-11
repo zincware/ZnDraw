@@ -253,13 +253,7 @@ def read_file(url: str, target: str, token: str):
                 continue
             atoms_list.append(atoms)
 
-            if len(atoms_list) == config.read_batch_size:
-                vis.extend(atoms_list)
-                atoms_list = []
-
-        if len(atoms_list) > 0:
-            vis.extend(atoms_list)
-
+        vis.extend(atoms_list)
         vis.step = len(vis) - 1
     else:
         vis.upload(target)
