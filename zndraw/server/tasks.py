@@ -481,7 +481,8 @@ def _run_default_modifier(self, url: str, token: str, data: dict, queue_job_id: 
 
     vis = ZnDrawWorker(token=str(token), url=url)
     config = GlobalConfig.load()
-    cls = get_modify_class(config.get_modify_methods())
+    cls = get_modify_class(config.get_modify_methods(include_private=True))
+    log.critical(f"Running {data} on {cls}")
     modifier = cls(**data)
 
     msg = CeleryTaskData(

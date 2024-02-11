@@ -27,8 +27,11 @@ _MODIFY_FUNCTIONS = [
     "zndraw.modify.Center",
     "zndraw.modify.Replicate",
     "zndraw.modify.Connect",
-    "zndraw.modify.ClearScene",
-    # "zndraw.modify.CustomModifier",
+]
+
+_PRIVATE_MODIFY_FUNCTIONS = [
+    "zndraw.modify.private.NewScene",
+    "zndraw.modify.private.ClearTools",
 ]
 
 _BONDS_FUNCTIONS = [
@@ -169,7 +172,9 @@ class GlobalConfig(pydantic.BaseModel):
     bonds_functions: t.List[str] = _BONDS_FUNCTIONS
     selection_functions: t.List[str] = _SELECTION_FUNCTIONS
     function_schema: t.Dict[str, dict] = {}
-    read_batch_size: int = 8
+
+    # Modifiers available only to the server
+    private_modify_functions: t.List[str] = _PRIVATE_MODIFY_FUNCTIONS
 
     def save(self, path="~/.zincware/zndraw/config.json"):
         save_path = pathlib.Path(path).expanduser()
@@ -213,12 +218,19 @@ class GlobalConfig(pydantic.BaseModel):
 
         return t.Union[tuple(classes)]
 
-    def get_modify_methods(self, include: list = None):
+    def get_modify_methods(
+        self, include: list | None = None, include_private: bool = False
+    ):
         if include is None:
             classes = []
         else:
             classes = include
-        for method in self.modify_functions:
+        modifiers = (
+            self.modify_functions + self.private_modify_functions
+            if include_private
+            else self.modify_functions
+        )
+        for method in modifiers:
             module_name, cls_name = method.rsplit(".", 1)
             try:
                 module = importlib.import_module(module_name)
@@ -226,5 +238,4 @@ class GlobalConfig(pydantic.BaseModel):
                 classes.append(cls)
             except ModuleNotFoundError:
                 log.critical(f"Module {module_name} not found - skipping")
-
         return t.Union[tuple(classes)]

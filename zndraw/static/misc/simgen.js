@@ -39,7 +39,7 @@ const setupSiMGen = function (socket, world) {
 
   canvasButton.addEventListener("click", () => {
     socket.emit("modifier:run", {
-      method: { discriminator: "ClearScene" },
+      method: { discriminator: "NewScene" },
     });
     setTimeout(function () {
       document.getElementById("drawAddCanvas").click();

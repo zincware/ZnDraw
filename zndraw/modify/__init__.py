@@ -56,20 +56,6 @@ class Connect(UpdateScene):
         vis.selection = []
 
 
-class ClearScene(UpdateScene):
-    """Clear the scene, deleting all atoms and points."""
-
-    discriminator: t.Literal["ClearScene"] = Field("ClearScene")
-
-    def run(self, vis: "ZnDraw", **kwargs) -> None:
-        del vis[vis.step + 1 :]
-        vis.points = []
-        vis.append(ase.Atoms())
-        vis.selection = []
-        vis.step = len(vis) - 1
-        vis.camera = {"position": [0, 0, 20], "target": [0, 0, 0]}
-
-
 class Rotate(UpdateScene):
     """Rotate the selected atoms around a the line (2 points only)."""
 
