@@ -73,21 +73,6 @@ def setup_worker() -> list:
         # fix celery worker issue on apple silicon
         my_env["OBJC_DISABLE_INITIALIZE_FORK_SAFETY"] = "YES"
 
-    io_worker = subprocess.Popen(
-        [
-            "celery",
-            "-A",
-            "zndraw.make_celery",
-            "worker",
-            "--loglevel=info",
-            "--concurrency=6",
-            "--hostname=io_worker",
-            "--queues=io",
-            "--prefetch-multiplier=10",
-        ],
-        env=my_env,
-    )
-
     fast_worker = subprocess.Popen(
         [
             "celery",
@@ -97,8 +82,23 @@ def setup_worker() -> list:
             "--loglevel=info",
             "--concurrency=6",
             "--hostname=fast_worker",
-            "--queues=fast,celery",
-            "--prefetch-multiplier=1",
+            "--queues=fast",
+            "--prefetch-multiplier=20",
+        ],
+        env=my_env,
+    )
+
+    default_worker = subprocess.Popen(
+        [
+            "celery",
+            "-A",
+            "zndraw.make_celery",
+            "worker",
+            "--loglevel=info",
+            "--concurrency=6",
+            "--hostname=default_worker",
+            "--queues=celery",
+            "--prefetch-multiplier=2",
         ],
         env=my_env,
     )
@@ -116,7 +116,7 @@ def setup_worker() -> list:
         ],
         env=my_env,
     )
-    return [io_worker, fast_worker, slow_worker]
+    return [fast_worker, default_worker, slow_worker]
 
 
 def create_app() -> Flask:
