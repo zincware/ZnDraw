@@ -219,8 +219,6 @@ def modifier_schema(url: str, token: str):
 def read_file(url: str, target: str, token: str):
     from zndraw.zndraw_worker import ZnDrawWorker
 
-    config = GlobalConfig.load()
-
     vis = ZnDrawWorker(token=token, url=url)
 
     if len(vis) == 0:
