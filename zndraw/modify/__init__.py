@@ -53,10 +53,10 @@ class Connect(UpdateScene):
         atom_ids = vis.selection
         atom_positions = vis.atoms.get_positions()
         atom_numbers = vis.atoms.numbers[atom_ids]
-        camera_position = np.array(vis.camera["position"])[None,:] # 1,3
+        camera_position = np.array(vis.camera["position"])[None, :]  # 1,3
 
-        new_points = atom_positions[atom_ids] # N, 3
-        radii:np.ndarray = get_radius(atom_numbers)[0][:, None] # N, 1
+        new_points = atom_positions[atom_ids]  # N, 3
+        radii: np.ndarray = get_radius(atom_numbers)[0][:, None]  # N, 1
         direction = camera_position - new_points
         direction /= np.linalg.norm(direction, axis=1, keepdims=True)
         new_points += direction * radii
