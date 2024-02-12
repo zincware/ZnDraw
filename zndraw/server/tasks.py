@@ -219,8 +219,6 @@ def modifier_schema(url: str, token: str):
 def read_file(url: str, target: str, token: str):
     from zndraw.zndraw_worker import ZnDrawWorker
 
-    config = GlobalConfig.load()
-
     vis = ZnDrawWorker(token=token, url=url)
 
     if len(vis) == 0:
@@ -253,13 +251,7 @@ def read_file(url: str, target: str, token: str):
                 continue
             atoms_list.append(atoms)
 
-            if len(atoms_list) == config.read_batch_size:
-                vis.extend(atoms_list)
-                atoms_list = []
-
-        if len(atoms_list) > 0:
-            vis.extend(atoms_list)
-
+        vis.extend(atoms_list)
         vis.step = len(vis) - 1
     else:
         vis.upload(target)
@@ -481,7 +473,7 @@ def _run_default_modifier(self, url: str, token: str, data: dict, queue_job_id: 
 
     vis = ZnDrawWorker(token=str(token), url=url)
     config = GlobalConfig.load()
-    cls = get_modify_class(config.get_modify_methods())
+    cls = get_modify_class(config.get_modify_methods(include_private=True))
     modifier = cls(**data)
 
     msg = CeleryTaskData(

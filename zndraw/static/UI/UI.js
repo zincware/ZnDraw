@@ -91,8 +91,11 @@ function setupDragDrop(socket) {
 function setupTrashClick(socket) {
   document.getElementById("trashBtn").addEventListener("click", () => {
     socket.emit("modifier:run", {
-      method: { discriminator: "ClearScene" },
+      method: { discriminator: "ClearTools" },
     });
+    setTimeout(function () {
+      document.getElementById("drawRemoveCanvas").click();
+    }, 1000);
     // TODO: should this be a modifier?
   });
 }
