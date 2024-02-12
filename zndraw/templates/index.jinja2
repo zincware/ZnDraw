@@ -89,16 +89,19 @@
           </li>
           {% if simgen %}
           <li class="nav-item mx-1">
-            <button type="button" class="btn btn-success btn-single-row" id="simgen-link-btn"><img
+            <button type="button" class="btn btn-success btn-single-row" id="simgen-link-btn" data-bs-placement="bottom"
+              data-bs-toggle="tooltip" data-bs-title="Connect selected atoms (shift click)"><img
                 src="{{ url_for('static', filename='misc/linking.svg') }}" alt="*" height="20px">
               <b>Connect</b></button>
           </li>
           <li class="nav-item mx-1">
-            <button type="button" class="btn btn-success btn-single-row" id="simgen-run-btn"><i
+            <button type="button" class="btn btn-success btn-single-row" id="simgen-run-btn" data-bs-placement="bottom"
+              data-bs-toggle="tooltip" data-bs-title="Run SiMGen molecule generation"><i
                 class="fa-solid fa-rocket"></i> <b>Generate</b></button>
           </li>
           <li class="nav-item mx-1">
-            <button type="button" class="btn btn-success btn-single-row" id="simgen-canvas-btn"><i class="fa-solid fa-file-circle-plus"></i> <b>New canvas</b></button>
+            <button type="button" class="btn btn-success btn-single-row" id="simgen-canvas-btn" data-bs-placement="bottom"
+              data-bs-toggle="tooltip" data-bs-title="Replace scene with empty canvas and enter drawing mode"><i class="fa-solid fa-file-circle-plus"></i> <b>New canvas</b></button>
           </li>
           {% endif %}
         </ul>
