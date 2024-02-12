@@ -34,8 +34,7 @@ const setupSiMGen = function (socket, world) {
       socket.emit("modifier:run", {
         method: { discriminator: "SiMGenDemo" },
       });
-    }
-    , timeout);
+    }, timeout);
   });
 
   linkButton.addEventListener("click", () => {
