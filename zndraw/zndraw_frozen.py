@@ -148,7 +148,7 @@ class FrozenZnDraw(ZnDrawBase):
 
     @selection.setter
     def selection(self, value):
-        check_selection(value)
+        check_selection(value, len(self.atoms))
         self.set_data(selection=value, update_database=True)
 
     @property

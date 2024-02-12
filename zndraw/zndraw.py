@@ -277,7 +277,7 @@ class ZnDraw(ZnDrawBase):
 
     @selection.setter
     def selection(self, value: list[int]):
-        check_selection(value)
+        check_selection(value, len(self.atoms))
         self.set_data(selection=value, update_database=True)
 
     def play(self):

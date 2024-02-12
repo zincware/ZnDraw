@@ -228,7 +228,7 @@ class ZnDrawWorker(ZnDrawBase):
 
     @selection.setter
     def selection(self, value: list[int]):
-        check_selection(value)
+        check_selection(value, len(self.atoms))
         with Session() as session:
             room = get_room_by_token(session, self.token)
             room.selection = value
