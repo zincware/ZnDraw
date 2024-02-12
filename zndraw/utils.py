@@ -181,7 +181,16 @@ def wrap_and_check_index(index: int | slice | list[int], length: int) -> list[in
     return index
 
 
-def check_selection(value: list[int]):
+def check_selection(value: list[int], maximum: int):
+    """Check if the selection is valid
+
+    Attributes
+    ----------
+        value: list[int]
+            the selected indices
+        maximum: int
+            len(vis.step), will be incremented by one, to account for
+    """
     if not isinstance(value, list):
         raise ValueError("Selection must be a list")
     if any(not isinstance(i, int) for i in value):
@@ -190,3 +199,7 @@ def check_selection(value: list[int]):
         raise ValueError("Selection must be unique")
     if any(i < 0 for i in value):
         raise ValueError("Selection must be positive integers")
+    if any(i >= maximum for i in value):
+        raise ValueError(
+            f"Can not select particles indices larger than size of the scene: {maximum }. Got {value}"
+        )

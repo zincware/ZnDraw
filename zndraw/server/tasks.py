@@ -274,7 +274,7 @@ def run_selection(url: str, token: str, data: dict):
         selection = cls(**data)
         selection.run(vis)
     except ValueError as err:
-        vis.log.critical(err)
+        vis.log(str(err))
 
     print(datetime.datetime.now().isoformat())
 
