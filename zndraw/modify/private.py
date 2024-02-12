@@ -19,7 +19,9 @@ class NewScene(UpdateScene):
         vis.points = []
         vis.append(ase.Atoms())
         vis.selection = []
-        vis.step = len(vis) - 1
+        step = len(vis) - 1
+        vis.step = step
+        vis.bookmarks = vis.bookmarks | {step: "New Scene"}
         vis.camera = {"position": [0, 0, 20], "target": [0, 0, 0]}
 
 
