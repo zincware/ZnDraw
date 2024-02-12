@@ -77,16 +77,15 @@ class CeleryBaseConfig(pydantic.BaseModel):
     def task_routes(self):
         return {
             "*._run_global_modifier": {"queue": "slow"},
-            "*.update_atoms": {"queue": "io"},
-            "*.get_selection_schema": {"queue": "io"},
-            "*.scene_schema": {"queue": "io"},
-            "*.geometries_schema": {"queue": "io"},
-            "*.analysis_schema": {"queue": "io"},
-            "*.handle_room_get": {"queue": "io"},
-            "*.handle_room_set": {"queue": "io"},
-            "*.activate_modifier": {"queue": "io"},
-            "*on_disconnect": {"queue": "io"},
-            "*upload_file": {"queue": "io"},
+            "*.update_atoms": {"queue": "fast"},
+            "*.get_selection_schema": {"queue": "fast"},
+            "*.scene_schema": {"queue": "fast"},
+            "*.geometries_schema": {"queue": "fast"},
+            "*.analysis_schema": {"queue": "fast"},
+            "*.handle_room_get": {"queue": "fast"},
+            "*.activate_modifier": {"queue": "fast"},
+            "*on_disconnect": {"queue": "fast"},
+            "*upload_file": {"queue": "fast"},
         }
 
     def to_dict(self):
