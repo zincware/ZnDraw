@@ -27,7 +27,11 @@ class Selection {
         this.transform_controls.object &&
         this.transform_controls.object.name === "AnchorPoint"
       ) {
-        if (!this.line3D.anchorPoints.children.includes(this.transform_controls.object)) {
+        if (
+          !this.line3D.anchorPoints.children.includes(
+            this.transform_controls.object,
+          )
+        ) {
           this.transform_controls.detach();
         }
       }
