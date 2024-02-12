@@ -247,9 +247,9 @@ class ZnDrawWorker(ZnDrawBase):
         with Session() as session:
             room = get_room_by_token(session, self.token)
             return room.camera
-        
+
     @camera.setter
-    def camera(self, payload:dict) -> None:
+    def camera(self, payload: dict) -> None:
         expected_keys = {"position", "target"}
         if set(payload) != expected_keys:
             raise ValueError("camera must have keys 'position' and 'target'")
@@ -257,14 +257,13 @@ class ZnDrawWorker(ZnDrawBase):
             v = payload[k]
             if isinstance(v, np.ndarray):
                 payload[k] = v.tolist()
-                
+
         self.socket.emit("camera:update", payload)
-                
+
         with Session() as session:
             room = get_room_by_token(session, self.token)
             room.camera = payload
             session.commit()
-        
 
     @bookmarks.setter
     def bookmarks(self, value: dict) -> None:
