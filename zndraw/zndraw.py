@@ -74,7 +74,6 @@ class ZnDraw(ZnDrawBase):
         if isinstance(self.config, dict):
             self.config = Config(**self.config)
         self.socket.on("disconnect", self._on_disconnect)
-        self.socket.on("connect", self._on_connect)
         self.socket.on("modifier:run", self._pre_modifier_run)
         self.socket.on("message:log", lambda data: print(data))
         self.socket.on("room:get", lambda data: setattr(self, "_data", data))
