@@ -24,6 +24,7 @@ class RoomSetData:
     )
 
     update_database: bool = False
+    camera: dict[str, list[float]] | None = None
 
     def to_dict(self) -> dict:
         return dataclasses.asdict(self)
@@ -38,6 +39,7 @@ class RoomGetData:
     length: bool | int = False
     segments: bool | list[list[float]] = False
     frames: list[int] | None | list[dict] = None
+    camera: bool | dict[str, list[float]] = False
 
     def to_dict(self) -> dict:
         return dataclasses.asdict(self)

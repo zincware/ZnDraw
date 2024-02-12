@@ -16,7 +16,7 @@ def get_queue(session: Session, queue_name: str) -> Queue:
     return queue
 
 
-def get_room_by_token(session: Session, token: str):
+def get_room_by_token(session: Session, token: str) -> Room:
     return session.query(Room).filter_by(token=token).one()
 
 

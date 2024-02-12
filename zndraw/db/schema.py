@@ -20,6 +20,7 @@ class Room(Base):
     currentStep = Column(Integer)
     points = Column(JSON)
     selection = Column(JSON)
+    camera = Column(JSON)
 
     clients = relationship("Client", back_populates="room")
     frames = relationship("Frame", back_populates="room")

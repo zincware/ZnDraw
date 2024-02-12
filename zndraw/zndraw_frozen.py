@@ -18,7 +18,7 @@ from .utils import (
 log = logging.getLogger(__name__)
 
 
-class FrozenZnDraw(ZnDrawBase):
+class ZnDrawFrozen(ZnDrawBase):
     # TODO: take in _original instead and change the RoomSetData to accept token instead. Will remove a lot of the boilerplate for pushing data
     def __init__(self, token, url, cached_data: dict):
         self.socket = socketio.Client()
