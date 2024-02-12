@@ -103,7 +103,6 @@ class ConnectedParticles(SelectionBase):
             total_ids = np.array(total_ids)
 
         vis.selection = [x.item() for x in set(total_ids)]
-        vis.log(f"{vis.selection} for {vis.atoms}")
 
 
 class Neighbour(SelectionBase):
