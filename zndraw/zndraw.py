@@ -81,10 +81,10 @@ class ZnDraw(ZnDrawBase):
         super().__post_init__()
 
     def _on_disconnect(self):
-        log.info(f"Disconnected from server")
+        log.info("Disconnected from server")
 
     def _on_connect(self):
-        log.info(f"Connected to server")
+        log.info("Connected to server")
         self.socket.emit(
             "join",
             {
