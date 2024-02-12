@@ -215,6 +215,49 @@ def modifier_schema(url: str, token: str):
     con.emit("celery:task:emit", asdict(msg))
 
 
+def get_atoms_from_fileio(fileio) -> list[ase.Atoms]:
+    if fileio.remote is not None:
+        node_name, attribute = fileio.name.split(".", 1)
+        try:
+            import zntrack
+
+            node = zntrack.from_rev(node_name, remote=fileio.remote, rev=fileio.rev)
+            generator = getattr(node, attribute)
+        except ImportError as err:
+            raise ImportError(
+                "You need to install ZnTrack to use the remote feature"
+            ) from err
+    elif pathlib.Path(fileio.name).suffix == ".h5":
+        reader = znh5md.ASEH5MD(fileio.name)
+        generator = reader.get_atoms_list()
+    else:
+        generator = ase.io.iread(fileio.name)
+
+    atoms_list = []
+
+    for idx, atoms in enumerate(generator):
+        if fileio.start and idx < fileio.start:
+            continue
+        if fileio.stop and idx >= fileio.stop:
+            break
+        if fileio.step and idx % fileio.step != 0:
+            continue
+        atoms_list.append(atoms)
+    return atoms_list
+
+
+@shared_task
+def reinitialize_room_atoms(url: str, token: str):
+    from zndraw.zndraw_worker import ZnDrawWorker
+
+    vis = ZnDrawWorker(token=token, url=url)
+    del vis[:]
+    atoms_list = get_atoms_from_fileio(cache.get("FILEIO"))
+    vis.extend(atoms_list)
+    vis.socket.sleep(1)
+    vis.socket.disconnect()
+
+
 @shared_task
 def read_file(url: str, target: str, token: str):
     from zndraw.zndraw_worker import ZnDrawWorker
@@ -223,33 +266,7 @@ def read_file(url: str, target: str, token: str):
 
     if len(vis) == 0:
         fileio = cache.get("FILEIO")
-        if fileio.remote is not None:
-            node_name, attribute = fileio.name.split(".", 1)
-            try:
-                import zntrack
-
-                node = zntrack.from_rev(node_name, remote=fileio.remote, rev=fileio.rev)
-                generator = getattr(node, attribute)
-            except ImportError as err:
-                raise ImportError(
-                    "You need to install ZnTrack to use the remote feature"
-                ) from err
-        elif pathlib.Path(fileio.name).suffix == ".h5":
-            reader = znh5md.ASEH5MD(fileio.name)
-            generator = reader.get_atoms_list()
-        else:
-            generator = ase.io.iread(fileio.name)
-
-        atoms_list = []
-
-        for idx, atoms in enumerate(generator):
-            if fileio.start and idx < fileio.start:
-                continue
-            if fileio.stop and idx >= fileio.stop:
-                break
-            if fileio.step and idx % fileio.step != 0:
-                continue
-            atoms_list.append(atoms)
+        atoms_list = get_atoms_from_fileio(fileio)
 
         vis.extend(atoms_list)
         vis.step = len(vis) - 1
