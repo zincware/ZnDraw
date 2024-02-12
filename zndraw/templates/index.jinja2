@@ -6,7 +6,7 @@
   {% if upgrade_insecure_requests %}
   <meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests" />
   {% endif %}
-  <title>ZnDraw</title>
+  <title>ZnDraw{% if simgen %} + SiMGen{% endif %}</title>
   <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favion-192x192.png') }}" />
   <script type="importmap">
       {
@@ -63,7 +63,7 @@
 
   <nav class="navbar navbar-expand-md fixed-top bg-body-tertiary main-navbar">
     <div class="container-fluid">
-      <div class="navbar-brand" href="#">ZnDraw</div>
+      <div class="navbar-brand" href="#">ZnDraw{% if simgen %} + SiMGen{% endif %}</div>
       <div class="navbar-collapse collapse w-100 order-1 order-md-0 dual-collapse2">
         <ul class="navbar-nav me-auto">
           <li class="nav-item mx-1">
