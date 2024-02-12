@@ -82,6 +82,16 @@ const setupSiMGen = function (socket, world) {
     canvasButton.disabled = false;
     clickedButton = null;
   });
+
+  document.addEventListener("selection:update", (event) => {
+    const btn = document.getElementById("simgen-link-btn");
+    // Check if points exist and its length is greater than or equal to 2
+    if (event.detail.selection && event.detail.selection.length >= 2) {
+      btn.disabled = false;
+    } else {
+      btn.disabled = true;
+    }
+  });
 };
 
 export { setupSiMGen };

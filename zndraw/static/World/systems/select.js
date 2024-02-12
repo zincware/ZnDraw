@@ -225,6 +225,8 @@ class Selection {
         });
       }
     }
+    const selectionUpdate = new CustomEvent('selection:update', { detail: {selection: particlesGroup.selection} });
+    document.dispatchEvent(selectionUpdate);
   }
 
   onWheel(event) {
