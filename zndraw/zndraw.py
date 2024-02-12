@@ -22,7 +22,7 @@ from .utils import (
     split_list_into_chunks,
     wrap_and_check_index,
 )
-from .zndraw_frozen import FrozenZnDraw
+from .zndraw_frozen import ZnDrawFrozen
 
 log = logging.getLogger(__name__)
 
@@ -338,7 +338,7 @@ class ZnDraw(ZnDrawBase):
 
         self.socket.emit("celery:task:emit", dataclasses.asdict(msg))
         try:
-            vis = FrozenZnDraw(
+            vis = ZnDrawFrozen(
                 url=self.url, token=data["token"], cached_data=data["cache"]
             )
             config = GlobalConfig.load()
