@@ -66,14 +66,6 @@
       <div class="navbar-brand" href="#">ZnDraw</div>
       <div class="navbar-collapse collapse w-100 order-1 order-md-0 dual-collapse2">
         <ul class="navbar-nav me-auto">
-          {% if simgen %}
-          <li class="nav-item mx-1">
-            <button type="button" class="btn btn-success btn-single-row" id="simgen-canvas-btn"><i
-                class="fa-solid fa-paintbrush"></i> <b>Draw on plane</b></button>
-          </li>
-          <li class="nav-item mx-4"></li>
-          {% endif %}
-
           <li class="nav-item mx-1">
             <div class="btn-group" role="group" aria-label="Basic checkbox toggle button group">
               <input type="checkbox" class="btn-check" id="drawingSwitch" autocomplete="off">
@@ -96,6 +88,9 @@
           <li class="nav-item mx-1">
             <button type="button" class="btn btn-success btn-single-row" id="simgen-run-btn"><i
                 class="fa-solid fa-rocket"></i> <b>Generate</b></button>
+          </li>
+          <li class="nav-item mx-1">
+            <button type="button" class="btn btn-success btn-single-row" id="simgen-canvas-btn"><i class="fa-solid fa-file-circle-plus"></i> <b>New canvas</b></button>
           </li>
           {% endif %}
         </ul>
@@ -134,7 +129,7 @@
               <i class="fas fa-download"></i>
             </button>
           </li>
-          <li class="nav-item mx-1">
+           <li class="nav-item mx-1">
             <form id="uploadForm" method="post" enctype="multipart/form-data">
               <input type="file" name="file" id="fileInput" style="display: none" />
               <input type="submit" value="Upload" id="uploadBtn" style="display: none" />
