@@ -43,6 +43,7 @@ def token(token):
     session["token"] = token
     return redirect("/")
 
+
 @main.route("/reset")
 def reset():
     session["token"] = uuid.uuid4().hex
