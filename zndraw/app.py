@@ -87,6 +87,8 @@ def setup_worker() -> list:
             "--prefetch-multiplier=20",
         ],
         env=my_env,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
     )
 
     default_worker = subprocess.Popen(
@@ -102,6 +104,8 @@ def setup_worker() -> list:
             "--prefetch-multiplier=2",
         ],
         env=my_env,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
     )
 
     slow_worker = subprocess.Popen(
@@ -116,6 +120,8 @@ def setup_worker() -> list:
             "--queues=slow",
         ],
         env=my_env,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
     )
     return [fast_worker, default_worker, slow_worker]
 
