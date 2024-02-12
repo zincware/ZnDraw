@@ -757,3 +757,10 @@ def file_download():
     if current_app.config["upgrade_insecure_requests"] and not "127.0.0.1" in url:
         url = url.replace("http://", "https://")
     tasks.download_file.delay(url=url, token=str(session["token"]), sid=request.sid)
+
+@io.on("room:reset")
+def reset_room():
+    url = request.url_root
+    if current_app.config["upgrade_insecure_requests"] and not "127.0.0.1" in url:
+        url = url.replace("http://", "https://")
+    tasks.reinitialize_room_atoms.delay(url=url, token=str(session["token"]))
