@@ -68,7 +68,8 @@
         <ul class="navbar-nav me-auto">
           {% if simgen %}
           <li class="nav-item mx-1">
-            <button type="button" class="btn btn-success btn-single-row" id="simgen-canvas-btn"><i class="fa-solid fa-paintbrush"></i> <b>Draw on plane</b></button>
+            <button type="button" class="btn btn-success btn-single-row" id="simgen-canvas-btn"><i
+                class="fa-solid fa-paintbrush"></i> <b>Draw on plane</b></button>
           </li>
           <li class="nav-item mx-4"></li>
           {% endif %}
@@ -83,14 +84,18 @@
           </li>
           <li class="nav-item mx-1">
             <button type="button" class="btn btn-outline-primary" id="trashBtn" data-bs-placement="bottom"
-              data-bs-toggle="tooltip" data-bs-title="Remove all guiding points and canvases."><i class="fa-solid fa-hand-sparkles"></i></button>
+              data-bs-toggle="tooltip" data-bs-title="Remove all guiding points and canvases."><i
+                class="fa-solid fa-hand-sparkles"></i></button>
           </li>
           {% if simgen %}
           <li class="nav-item mx-1">
-            <button type="button" class="btn btn-success btn-single-row" id="simgen-link-btn"><img src="{{ url_for('static', filename='misc/linking.svg') }}" alt="*" height="20px"> <b>Connect</b></button>
+            <button type="button" class="btn btn-success btn-single-row" id="simgen-link-btn"><img
+                src="{{ url_for('static', filename='misc/linking.svg') }}" alt="*" height="20px">
+              <b>Connect</b></button>
           </li>
           <li class="nav-item mx-1">
-            <button type="button" class="btn btn-success btn-single-row" id="simgen-run-btn"><i class="fa-solid fa-rocket"></i> <b>Generate</b></button>
+            <button type="button" class="btn btn-success btn-single-row" id="simgen-run-btn"><i
+                class="fa-solid fa-rocket"></i> <b>Generate</b></button>
           </li>
           {% endif %}
         </ul>
@@ -101,7 +106,7 @@
 
       <div class="navbar-collapse collapse w-100 order-3 dual-collapse2">
         <ul class="navbar-nav ms-auto">
-         {% if tutorial %}
+          {% if tutorial %}
           <li class="nav-item mx-1">
             <button type="button" class="btn btn-warning btn-single-row" data-bs-toggle="modal"
               data-bs-target="#tutorialModal">Tutorial <i class="fa-solid fa-film"></i></button>
@@ -124,7 +129,8 @@
             </div>
           </li>
           <li class="nav-item  mx-1">
-            <button type="button" class="btn btn-outline-primary" id="downloadBtn" data-bs-toggle="tooltip" data-bs-title="Download scene" data-bs-placement="bottom">
+            <button type="button" class="btn btn-outline-primary" id="downloadBtn" data-bs-toggle="tooltip"
+              data-bs-title="Download scene" data-bs-placement="bottom">
               <i class="fas fa-download"></i>
             </button>
           </li>
@@ -132,10 +138,12 @@
             <form id="uploadForm" method="post" enctype="multipart/form-data">
               <input type="file" name="file" id="fileInput" style="display: none" />
               <input type="submit" value="Upload" id="uploadBtn" style="display: none" />
-              <label class="btn btn-outline-primary " for="fileInput" data-bs-toggle="tooltip" data-bs-title="Upload file (max 1 MB)" data-bs-placement="bottom"><i class="fas fa-upload"></i></label>
+              <label class="btn btn-outline-primary " for="fileInput" data-bs-toggle="tooltip"
+                data-bs-title="Upload file (max 1 MB)" data-bs-placement="bottom"><i class="fas fa-upload"></i></label>
             </form>
           </li>
-          <li class="nav-item mx-1" data-bs-toggle="tooltip" data-bs-title="Open available files" data-bs-placement="bottom">
+          <li class="nav-item mx-1" data-bs-toggle="tooltip" data-bs-title="Open available files"
+            data-bs-placement="bottom">
             <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#filesModal">
               <i class="fa-solid fa-folder-open"></i>
             </button>
@@ -145,7 +153,8 @@
               <i class="fa-solid fa-circle-info"></i>
             </button>
           </li>
-          <li class="nav-item mx-1" data-bs-toggle="tooltip" data-bs-title="Change color mode" data-bs-placement="bottom">
+          <li class="nav-item mx-1" data-bs-toggle="tooltip" data-bs-title="Change color mode"
+            data-bs-placement="bottom">
             <button type="button" class="btn btn-outline-secondary" id="colorModeSwitch"><i
                 class="fa-solid fa-sun"></i></button>
           </li>
@@ -161,8 +170,8 @@
           {% else %}
           <li class="nav-item mx-1">
             <div class="dropdown dropstart">
-              <button class="btn btn-outline-info dropdown-toggle" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside"
-                aria-expanded="false">
+              <button class="btn btn-outline-info dropdown-toggle" type="button" data-bs-toggle="dropdown"
+                data-bs-auto-close="outside" aria-expanded="false">
                 <i class="fa-solid fa-users"></i>
               </button>
               <ul class="dropdown-menu" style="width: 400px;">
@@ -394,7 +403,7 @@
             link to clipboard</a>
           {% endif %}
           <script>
-            {% if token%}
+            {% if token %}
             document.getElementById(
               "python-code-block",
             ).innerHTML = `from zndraw import ZnDraw <br>vis = ZnDraw(url="${window.location.href}", token="{{ token }}")`;
