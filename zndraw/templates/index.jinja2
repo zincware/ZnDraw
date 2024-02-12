@@ -81,18 +81,18 @@
                   class="fa-solid fa-pencil"></i></label>
             </div>
           </li>
+          <li class="nav-item mx-1">
+            <button type="button" class="btn btn-outline-primary" id="trashBtn" data-bs-placement="bottom"
+              data-bs-toggle="tooltip" data-bs-title="Remove all guiding points and canvases."><i class="fa-solid fa-hand-sparkles"></i></button>
+          </li>
           {% if simgen %}
           <li class="nav-item mx-1">
             <button type="button" class="btn btn-success btn-single-row" id="simgen-link-btn"><img src="{{ url_for('static', filename='misc/linking.svg') }}" alt="*" height="20px"> <b>Connect</b></button>
           </li>
           <li class="nav-item mx-1">
-            <button type="button" class="btn btn-success btn-single-row" id="simgen-run-btn"><i class="fa-solid fa-rocket"></i> <b>SiMGen</b></button>
+            <button type="button" class="btn btn-success btn-single-row" id="simgen-run-btn"><i class="fa-solid fa-rocket"></i> <b>Generate</b></button>
           </li>
           {% endif %}
-          <li class="nav-item mx-1">
-            <button type="button" class="btn btn-outline-primary" id="trashBtn" data-bs-placement="bottom"
-              data-bs-toggle="tooltip" data-bs-title="Remove all guiding points and canvases."><i class="fa-solid fa-hand-sparkles"></i></button>
-          </li>
         </ul>
       </div>
       <div class="mx-auto order-0">
