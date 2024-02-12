@@ -293,7 +293,7 @@ class ZnDrawWorker(ZnDrawBase):
                             for frame in collected_frames
                         ]
                     if key == "length":
-                        answer["length"] = len(room.frames)
+                        answer["length"] = self._get_len(session, self.token)
                     elif key == "points":
                         answer["points"] = room.points
                     elif key == "step":
