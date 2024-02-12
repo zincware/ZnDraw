@@ -217,16 +217,16 @@ def modifier_schema(url: str, token: str):
 
 def get_atoms_from_fileio(fileio) -> list[ase.Atoms]:
     if fileio.remote is not None:
-            node_name, attribute = fileio.name.split(".", 1)
-            try:
-                import zntrack
+        node_name, attribute = fileio.name.split(".", 1)
+        try:
+            import zntrack
 
-                node = zntrack.from_rev(node_name, remote=fileio.remote, rev=fileio.rev)
-                generator = getattr(node, attribute)
-            except ImportError as err:
-                raise ImportError(
-                    "You need to install ZnTrack to use the remote feature"
-                ) from err
+            node = zntrack.from_rev(node_name, remote=fileio.remote, rev=fileio.rev)
+            generator = getattr(node, attribute)
+        except ImportError as err:
+            raise ImportError(
+                "You need to install ZnTrack to use the remote feature"
+            ) from err
     elif pathlib.Path(fileio.name).suffix == ".h5":
         reader = znh5md.ASEH5MD(fileio.name)
         generator = reader.get_atoms_list()
@@ -245,8 +245,9 @@ def get_atoms_from_fileio(fileio) -> list[ase.Atoms]:
         atoms_list.append(atoms)
     return atoms_list
 
+
 @shared_task
-def reinitialize_room_atoms(url: str, token:str):
+def reinitialize_room_atoms(url: str, token: str):
     from zndraw.zndraw_worker import ZnDrawWorker
 
     vis = ZnDrawWorker(token=token, url=url)
@@ -255,6 +256,7 @@ def reinitialize_room_atoms(url: str, token:str):
     vis.extend(atoms_list)
     vis.socket.sleep(1)
     vis.socket.disconnect()
+
 
 @shared_task
 def read_file(url: str, target: str, token: str):

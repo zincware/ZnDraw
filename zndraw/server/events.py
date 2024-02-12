@@ -758,6 +758,7 @@ def file_download():
         url = url.replace("http://", "https://")
     tasks.download_file.delay(url=url, token=str(session["token"]), sid=request.sid)
 
+
 @io.on("room:reset")
 def reset_room():
     url = request.url_root
