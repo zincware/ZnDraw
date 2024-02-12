@@ -195,7 +195,9 @@ def join(data: dict):
         session["authenticated"] = True
     else:
         print(data["auth_token"], current_app.config["AUTH_TOKEN"], request.sid)
-        session["authenticated"] = data["auth_token"] == current_app.config["AUTH_TOKEN"]
+        session["authenticated"] = (
+            data["auth_token"] == current_app.config["AUTH_TOKEN"]
+        )
     token = data["token"]
     session["token"] = token
     join_room(f"{token}")
@@ -653,7 +655,7 @@ def modifier_register(data: ModifierRegisterData):
     """Register the modifier."""
     if data.default and not session["authenticated"]:
         log.critical("Unauthenticated user tried to register a default modifier.")
-        return 
+        return
     if data.default:
         # TODO: authenticattion
         _register_global_modifier(data)

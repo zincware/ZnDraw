@@ -27,7 +27,7 @@ class ZnDrawBase(MutableSequence):
 
     def reconnect(self):
         self.socket.connect(self.url)
-    
+
     def _on_connect(self):
         self.socket.emit(
             "join",
