@@ -199,5 +199,7 @@ def check_selection(value: list[int], maximum: int):
         raise ValueError("Selection must be unique")
     if any(i < 0 for i in value):
         raise ValueError("Selection must be positive integers")
-    if any(i >= maximum  for i in value):
-        raise ValueError(f"Can not select particles indices larger than size of the scene: {maximum }. Got {value}")
+    if any(i >= maximum for i in value):
+        raise ValueError(
+            f"Can not select particles indices larger than size of the scene: {maximum }. Got {value}"
+        )
