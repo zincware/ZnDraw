@@ -223,7 +223,9 @@ def read_file(url: str, target: str, token: str):
 
     if len(vis) == 0:
         fileio = cache.get("FILEIO")
-        if fileio.remote is not None:
+        if fileio is None or fileio.name is None:
+            vis.append(ase.Atoms())
+        elif fileio.remote is not None:
             node_name, attribute = fileio.name.split(".", 1)
             try:
                 import zntrack
@@ -399,7 +401,6 @@ def _run_global_modifier(self, url: str, token: str, data, queue_job_id: str):
             else:
                 log.critical("Modifier finished")
                 status = "finished"
-                log.critical("SETTING ")
                 update_job_status(job_id=queue_job_id, status=status)
                 update_queue_positions(queue_name="slow", url=url)
                 return
@@ -573,7 +574,6 @@ def handle_room_set(data: RoomSetData, token: str, url: str, source: str):
 
 @shared_task
 def activate_modifier(sid: str, available: bool):
-    log.critical(f"modifier:available {sid} {available}")
     with Session() as ses:
         global_modifier_client = (
             ses.query(db_schema.GlobalModifierClient).filter_by(sid=sid).all()
