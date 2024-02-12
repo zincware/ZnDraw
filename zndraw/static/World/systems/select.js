@@ -22,6 +22,15 @@ class Selection {
       // convert x, y, z to [x, y, z]
       points = points.map((x) => [x.x, x.y, x.z]);
       this.socket.emit("points:update", points);
+      // if transform controls is not attached to a point, detach it
+      if (
+        this.transform_controls.object &&
+        this.transform_controls.object.name === "AnchorPoint"
+      ) {
+        if (!this.line3D.anchorPoints.children.includes(this.transform_controls.object)) {
+          this.transform_controls.detach();
+        }
+      }
     };
 
     this.raycaster = new THREE.Raycaster();

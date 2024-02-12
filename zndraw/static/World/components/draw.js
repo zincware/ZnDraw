@@ -193,6 +193,7 @@ export class Line3D extends THREE.Group {
       this.addPoint(new THREE.Vector3(...position), index, false);
     });
     this.updateLine();
+    this.onLineChange();
   }
 
   removePointer(object) {
