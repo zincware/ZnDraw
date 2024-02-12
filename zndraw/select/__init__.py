@@ -86,7 +86,7 @@ class ConnectedParticles(SelectionBase):
     discriminator: t.Literal["ConnectedParticles"] = Field("ConnectedParticles")
 
     def run(self, vis) -> None:
-        atoms = vis[vis.step]
+        atoms = vis.atoms
         selected_ids = vis.selection
         total_ids = []
         try:
@@ -100,9 +100,10 @@ class ConnectedParticles(SelectionBase):
 
         for node_id in selected_ids:
             total_ids += list(nx.node_connected_component(graph, node_id))
-            total_ids = np.array(total_ids, dtype=int)
+            total_ids = np.array(total_ids)
 
         vis.selection = [x.item() for x in set(total_ids)]
+        vis.log(f"{vis.selection} for {vis.atoms}")
 
 
 class Neighbour(SelectionBase):
