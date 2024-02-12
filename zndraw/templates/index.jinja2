@@ -67,11 +67,12 @@
       <div class="navbar-brand" href="#"><a class="btn fs-5 px-0" href="https://github.com/zincware/zndraw" target="_blank" rel="noopener noreferrer">ZnDraw</a>{% if simgen %} + <a class="btn fs-5 px-0" href="https://github.com/rokasel/simgen" target="_blank" rel="noopener noreferrer">SiMGen</a>{% endif %}</div>
       <div class="navbar-collapse collapse w-100 order-1 order-md-0 dual-collapse2">
         <ul class="navbar-nav me-auto">
-
+        {% if token is not none%}
         <li class="nav-item mx-1">
             <a type="button" class="btn btn-outline-danger btn-single-row" id="newTokenBtn" data-bs-placement="bottom" data-bs-toggle="tooltip" data-bs-title="Reset Scene" href="/reset">
             <i class="fa-solid fa-power-off"></i></a>
           </li>
+          {% endif %}
 
           <li class="nav-item mx-1">
             <div class="btn-group" role="group" aria-label="Basic checkbox toggle button group">
