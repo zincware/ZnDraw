@@ -194,7 +194,6 @@ def join(data: dict):
     if current_app.config["AUTH_TOKEN"] is None:
         session["authenticated"] = True
     else:
-        print(data["auth_token"], current_app.config["AUTH_TOKEN"], request.sid)
         session["authenticated"] = (
             data["auth_token"] == current_app.config["AUTH_TOKEN"]
         )
