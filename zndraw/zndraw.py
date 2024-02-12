@@ -81,10 +81,10 @@ class ZnDraw(ZnDrawBase):
         super().__post_init__()
 
     def _on_disconnect(self):
-        log.critical(f"Disconnected from server: {self._modifiers}")
+        log.info(f"Disconnected from server")
 
     def _on_connect(self):
-        log.critical(f"Connected to server: {self._modifiers} with token {self.token}")
+        log.info(f"Connected to server")
         self.socket.emit(
             "join",
             {
@@ -93,7 +93,7 @@ class ZnDraw(ZnDrawBase):
             },
         )
         for k, v in self._modifiers.items():
-            log.critical(f"Re-registering modifier {k}")
+            log.debug(f"Re-registering modifier {k}")
             msg = ModifierRegisterData(
                 schema=v["cls"].model_json_schema(),
                 name=k,

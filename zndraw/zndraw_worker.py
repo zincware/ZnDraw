@@ -305,7 +305,6 @@ class ZnDrawWorker(ZnDrawBase):
                         indices = wrap_and_check_index(
                             indices, self._get_len(session, self.token)
                         )
-                        log.critical(f"Indices: {indices}")
                         collected_frames = (
                             session.query(Frame)
                             .filter(Frame.index.in_(indices), Frame.room == room)
@@ -343,7 +342,6 @@ class ZnDrawWorker(ZnDrawBase):
                         is_removing = all(frame is None for frame in payload.values())
                         indices = list(payload.keys())
                         if is_removing:
-                            log.critical(f"Removing frames {indices}")
                             self.delete_indices_from_session(session, indices, room)
                         else:
                             frames = [

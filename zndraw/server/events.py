@@ -52,7 +52,7 @@ def _webclients_room(data: dict) -> str:
 def connect():
     try:
         token = str(session["token"])
-        log.critical(f"-------------->>> connecting (webclient) {request.sid}")
+        log.debug(f"connecting (webclient) {request.sid}")
         URL = f"http://127.0.0.1:{current_app.config['PORT']}"
         # if you connect through Python, you don't have a token
         read_file_chain = chain(
@@ -147,7 +147,7 @@ def connect():
     except KeyError:
         # clients that connect directly via socketio do not call "join" to
         # register their token
-        log.critical(f"-------------->>> connecting (pyclient) {request.sid}")
+        log.debu(f"connecting (pyclient) {request.sid}")
         session["token"] = None
 
 

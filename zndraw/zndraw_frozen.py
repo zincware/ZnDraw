@@ -59,7 +59,6 @@ class ZnDrawFrozen(ZnDrawBase):
             index = wrap_and_check_index(index, length)
             self.set_data(frames={i: None for i in index}, update_database=True)
             self._cached_data["length"] -= len(index)
-            log.critical(f"Bookmarks: {self.bookmarks}")
             for idx in index:
                 self.bookmarks.pop(idx, None)
                 self.bookmarks.pop(str(idx), None)
@@ -84,7 +83,7 @@ class ZnDrawFrozen(ZnDrawBase):
             if isinstance(values[0], ase.Atoms):
                 values = [ZnFrame.from_atoms(val) for val in values]
             batch_size = estimate_max_batch_size_for_socket(values)
-            log.critical(f"Batch size: {batch_size}")
+            log.debug(f"Batch size: {batch_size}")
             indices = list(range(size, size + len(values)))
             all_data = [
                 (i, val.to_dict(built_in_types=False))
@@ -115,7 +114,6 @@ class ZnDrawFrozen(ZnDrawBase):
 
     def set_data(self, **data: dict) -> None:
         data = RoomSetData(**data)
-        log.critical("Trying to set data")
         self.socket.emit("room:set", data.to_dict())
 
     @property
