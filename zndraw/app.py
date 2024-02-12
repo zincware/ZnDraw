@@ -64,7 +64,7 @@ def setup_cache():
     cache.set("MODIFIER", {"default_schema": {}, "active": None, "queue": []})
 
 
-def setup_worker() -> list:
+def setup_worker(silence: bool) -> list:
     """Setup the worker."""
     import os
     import platform
@@ -87,8 +87,8 @@ def setup_worker() -> list:
             "--prefetch-multiplier=20",
         ],
         env=my_env,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
+        stdout=subprocess.PIPE if silence else None,
+        stderr=subprocess.PIPE if silence else None,
     )
 
     default_worker = subprocess.Popen(
@@ -104,8 +104,8 @@ def setup_worker() -> list:
             "--prefetch-multiplier=2",
         ],
         env=my_env,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
+        stdout=subprocess.PIPE if silence else None,
+        stderr=subprocess.PIPE if silence else None,
     )
 
     slow_worker = subprocess.Popen(
@@ -120,8 +120,8 @@ def setup_worker() -> list:
             "--queues=slow",
         ],
         env=my_env,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
+        stdout=subprocess.PIPE if silence else None,
+        stderr=subprocess.PIPE if silence else None,
     )
     return [fast_worker, default_worker, slow_worker]
 
@@ -214,7 +214,7 @@ class ZnDrawServer:
 
     def run(self, browser=False):
         self.update_cache()
-        self._workers = setup_worker()
+        self._workers = setup_worker(silence=not self.use_token)
 
         config = GlobalConfig.load()
         try:
