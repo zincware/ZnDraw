@@ -204,6 +204,7 @@ class ZnDraw(ZnDrawBase):
             for chunk in split_list_into_chunks(all_data, batch_size):
                 batch = {tup[0]: tup[1] for tup in chunk}
                 self.set_data(frames=batch, update_database=True)
+            self.set_data(step=max(indices), update_database=True)
 
     def __getitem__(self, index) -> t.Union[ase.Atoms, list[ase.Atoms]]:
         length = len(self)
