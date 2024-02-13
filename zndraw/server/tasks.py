@@ -579,9 +579,7 @@ def handle_room_set(data: RoomSetData, token: str, url: str, source: str):
 @shared_task(soft_time_limit=60, time_limit=120)
 def activate_modifier(sid: str, available: bool):
     with Session() as ses:
-        modifier_client = (
-            ses.query(db_schema.ModifierClient).filter_by(sid=sid).all()
-        )
+        modifier_client = ses.query(db_schema.ModifierClient).filter_by(sid=sid).all()
         for mc in modifier_client:
             mc.available = available
         ses.commit()

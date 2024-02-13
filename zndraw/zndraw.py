@@ -420,7 +420,9 @@ class ZnDraw(ZnDrawBase):
         if timeout < 1:
             raise ValueError("Timeout must be at least 1 second")
         if timeout > 300:
-            log.critical("Timeout is set to more than 300 seconds. Modifiers might be killed automatically.")
+            log.critical(
+                "Timeout is set to more than 300 seconds. Modifiers might be killed automatically."
+            )
         if run_kwargs is None:
             run_kwargs = {}
         run_kwargs["timeout"] = timeout
