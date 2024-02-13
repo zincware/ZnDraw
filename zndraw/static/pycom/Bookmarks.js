@@ -41,10 +41,9 @@ class Bookmarks {
       button.type = "button";
       button.className = "btn btn-link";
       button.innerHTML = '<i class="fa-regular fa-bookmark"></i>';
-      // add data-bs-toggle="tooltip" data-bs-placement="top" title=name
-      button.setAttribute("data-bs-toggle", "tooltip");
+// add data-bs-toggle="tooltip" data-bs-placement="top" title=name
       button.setAttribute("data-bs-placement", "top");
-      button.setAttribute("title", name);
+      button.setAttribute("data-bs-title", name);
       // set z-index to 100
       button.style.zIndex = "100";
       button.addEventListener("click", (event) => {
@@ -63,6 +62,15 @@ class Bookmarks {
       button.style.position = "absolute";
       button.style.bottom = "5px";
       bookmark_envelope.appendChild(button);
+
+      // set the tooltip
+      const tooltip = new bootstrap.Tooltip(button, {
+        boundary: document.body,
+      });
+      // hide the tooltip on click
+      button.addEventListener("click", (event) => {
+        tooltip.hide();
+      });
     }
   }
 
