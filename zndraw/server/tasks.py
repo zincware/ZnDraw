@@ -188,8 +188,8 @@ def modifier_schema(url: str, token: str):
 
     with Session() as ses:
         room = ses.query(db_schema.Room).filter_by(token=token).first()
-        room_modifiers = ses.query(db_schema.RoomModifier).filter_by(room=room).all()
-        modifiers = ses.query(db_schema.GlobalModifier).all()
+        room_modifiers = ses.query(db_schema.Modifier).filter_by(room=room).all()
+        modifiers = ses.query(db_schema.Modifier).filter_by(room_token=None).all()
 
         for modifier in modifiers:
             include.append(get_cls_from_json_schema(modifier.schema, modifier.name))
@@ -348,16 +348,18 @@ def _run_global_modifier(self, url: str, token: str, data, queue_job_id: str):
     while True:
         with Session() as ses:
             # get the available hosts for the modifier
-            modifier = ses.query(db_schema.GlobalModifier).filter_by(name=name).first()
+            modifier = (
+                ses.query(db_schema.Modifier)
+                .filter_by(name=name, room_token=None)
+                .first()
+            )
             host = (
-                ses.query(db_schema.GlobalModifierClient)
-                .filter_by(global_modifier=modifier, available=True)
+                ses.query(db_schema.ModifierClient)
+                .filter_by(modifier=modifier, available=True)
                 .first()
             )
             assigned_hosts = (
-                ses.query(db_schema.GlobalModifierClient)
-                .filter_by(global_modifier=modifier)
-                .count()
+                ses.query(db_schema.ModifierClient).filter_by(modifier=modifier).count()
             )
 
         if assigned_hosts == 0:
@@ -435,11 +437,11 @@ def _run_room_modifier(self, url: str, token: str, data, queue_job_id: str):
     with Session() as ses:
         room = ses.query(db_schema.Room).filter_by(token=vis.token).first()
         room_modifier = (
-            ses.query(db_schema.RoomModifier).filter_by(room=room, name=name).first()
+            ses.query(db_schema.Modifier).filter_by(room=room, name=name).first()
         )
         hosts = (
-            ses.query(db_schema.RoomModifierClient)
-            .filter_by(room_modifier=room_modifier)
+            ses.query(db_schema.ModifierClient)
+            .filter_by(modifier=room_modifier)
             .first()
         )
         if hosts is None:
@@ -506,8 +508,8 @@ def _run_default_modifier(self, url: str, token: str, data: dict, queue_job_id: 
 def route_modifier_to_queue(name: str, token: str) -> str:
     with Session() as ses:
         room = ses.query(db_schema.Room).filter_by(token=token).first()
-        room_modifiers = ses.query(db_schema.RoomModifier).filter_by(room=room).all()
-        modifiers = ses.query(db_schema.GlobalModifier).all()
+        room_modifiers = ses.query(db_schema.Modifier).filter_by(room=room).all()
+        modifiers = ses.query(db_schema.Modifier).filter_by(room_token=None).all()
         custom_global_modifiers = [modifier.name for modifier in modifiers]
         custom_room_modifiers = [modifier.name for modifier in room_modifiers]
     if name in custom_global_modifiers:
@@ -523,7 +525,7 @@ def run_modifier(url: str, token: str, data: dict):
     name = data["method"]["discriminator"]
     queue_name = route_modifier_to_queue(name, token)
     queue_job_id = insert_into_queue(
-        queue_name=queue_name, job_name=name, room_token=str(token)
+        queue_name=queue_name, job_name=name, room_token=str(token), parameters=data
     )
     if queue_name == "slow":
         task_chain = chain(
@@ -576,10 +578,10 @@ def handle_room_set(data: RoomSetData, token: str, url: str, source: str):
 def activate_modifier(sid: str, available: bool):
     with Session() as ses:
         global_modifier_client = (
-            ses.query(db_schema.GlobalModifierClient).filter_by(sid=sid).all()
+            ses.query(db_schema.ModifierClient).filter_by(sid=sid).all()
         )
         room_modifier_client = (
-            ses.query(db_schema.RoomModifierClient).filter_by(sid=sid).all()
+            ses.query(db_schema.ModifierClient).filter_by(sid=sid).all()
         )
         for gmc in global_modifier_client:
             gmc.available = available
@@ -595,24 +597,24 @@ def on_disconnect(token: str, sid: str, url: str):
     # worker = ZnDrawWorker(token=token, url=url)
     with Session() as ses:
         room = ses.query(db_schema.Room).filter_by(token=token).first()
-        client = ses.query(db_schema.Client).filter_by(sid=sid).first()
+        client = ses.query(db_schema.WebClient).filter_by(sid=sid).first()
         if client is not None:
             ses.delete(client)
             if client.host:
-                new_host = ses.query(db_schema.Client).filter_by(room=room).first()
+                new_host = ses.query(db_schema.WebClient).filter_by(room=room).first()
                 if new_host is not None:
                     new_host.host = True
             ses.commit()
 
     with Session() as ses:
         global_modifier_client = (
-            ses.query(db_schema.GlobalModifierClient).filter_by(sid=sid).all()
+            ses.query(db_schema.ModifierClient).filter_by(sid=sid).all()
         )
         for gmc in global_modifier_client:
             ses.delete(gmc)
 
         room_modifier_client = (
-            ses.query(db_schema.RoomModifierClient).filter_by(sid=sid).all()
+            ses.query(db_schema.ModifierClient).filter_by(sid=sid).all()
         )
         for rmc in room_modifier_client:
             ses.delete(rmc)
