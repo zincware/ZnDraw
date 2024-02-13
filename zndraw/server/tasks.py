@@ -219,13 +219,13 @@ def modifier_schema(url: str, token: str):
 def read_file(url: str, target: str, token: str, fileio: dict):
     from zndraw.zndraw_worker import ZnDrawWorker
     fileio = FileIO(**fileio)
+    
 
     vis = ZnDrawWorker(token=token, url=url)
-
-    if len(vis) == 0:
-        if fileio.name is None:
-            vis.append(ase.Atoms())
-        elif fileio.remote is not None:
+    if fileio.name is None:
+        vis.append(ase.Atoms())
+    elif len(vis) == 0:
+        if fileio.remote is not None:
             node_name, attribute = fileio.name.split(".", 1)
             try:
                 import zntrack
