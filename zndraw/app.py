@@ -6,7 +6,6 @@ import webbrowser
 
 from celery import Celery, Task
 from flask import Flask
-from flask_caching import Cache
 from flask_socketio import SocketIO
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
@@ -18,16 +17,6 @@ from .settings import GlobalConfig
 socketio = SocketIO()
 
 
-def get_cache():
-    # read config for cache from zndraw config
-    config = GlobalConfig.load()
-    cache = Cache(config=config.cache.to_dict())
-    return cache
-
-
-cache = get_cache()
-
-
 @dataclasses.dataclass
 class FileIO:
     name: str = None
@@ -36,6 +25,9 @@ class FileIO:
     step: int = 1
     remote: str = None
     rev: str = None
+
+    def to_dict(self):
+        return dataclasses.asdict(self)
 
 
 def celery_init_app(app: Flask) -> Celery:
@@ -49,19 +41,6 @@ def celery_init_app(app: Flask) -> Celery:
     celery_app.set_default()
     app.extensions["celery"] = celery_app
     return celery_app
-
-
-def setup_cache():
-    """Setup the cache."""
-    cache.set("ROOM_HOSTS", {})
-    cache.set("TEST", "Hello World!")
-
-    # dict of {uuid: sid} for each client
-    cache.set("pyclients", {})
-
-    # dict of {token: dict}
-    cache.set("PER-TOKEN-DATA", {})
-    cache.set("MODIFIER", {"default_schema": {}, "active": None, "queue": []})
 
 
 def setup_worker(silence: bool) -> list:
@@ -147,7 +126,6 @@ def create_app() -> Flask:
 
     app.register_blueprint(main_blueprint)
 
-    cache.init_app(app)
     socketio.init_app(app, cors_allowed_origins="*")
 
     app.config.from_mapping(
@@ -181,7 +159,6 @@ class ZnDrawServer:
             return
         for worker in self._workers:
             worker.kill()
-        cache.clear()
         for worker in self._workers:
             worker.wait()
 
@@ -197,20 +174,7 @@ class ZnDrawServer:
         self.app.config["upgrade_insecure_requests"] = self.upgrade_insecure_requests
         self.app.config["compute_bonds"] = self.compute_bonds
 
-        setup_cache()
-        cache.set("FILEIO", self.fileio)
-        # Mapping of modifier name f"name" to [request.sid, ...]
-        cache.set("ROOM_MODIFIER_HOSTS", {})
-        cache.set("MODIFIER_HOSTS", {})
-        # Mapping of modifier name f"name" to [dict, ...]
-        cache.set("ROOM_MODIFIER_SCHEMA", {})
-        cache.set("MODIFIER_SCHEMA", {})
-        # Keep track of available modifiers (bugfix for not being able to call("active")) due
-        # to connection timeouts. This is a mapping {sid: bool} where bool is True if the
-        # modifier is available and False otherwise (running something at the moment).
-        cache.set("MODIFIER_AVAILABLE", {})
-        # timeout per registered SID (not per modifier) in seconds
-        cache.set("MODIFIER_TIMEOUT", {})
+        self.app.config["FileIO"] = self.fileio.to_dict() if self.fileio else {}
 
     def run(self, browser=False):
         self.update_cache()

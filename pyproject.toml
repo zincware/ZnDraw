@@ -26,7 +26,6 @@ mdanalysis = {version = "^2", optional = true}
 tidynamics = {version = "^1", optional = true}
 rdkit2ase = {version = "^0.1", optional = true}
 znframe = "^0.1"
-flask-caching = "^2"
 decorator = "^5"
 celery = "^5"
 sqlalchemy = "^2"
