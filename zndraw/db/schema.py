@@ -24,7 +24,7 @@ class Room(Base):
 
     web_clients = relationship("WebClient", back_populates="room")
     frames = relationship("Frame", back_populates="room")
-    room_modifiers = relationship("RoomModifier", back_populates="room")
+    modifiers = relationship("Modifier", back_populates="room")
     bookmarks = relationship("Bookmark", back_populates="room")
     launched_jobs = relationship("QueueItem", back_populates="room")
 
@@ -83,56 +83,31 @@ class Frame(Base):
         )
 
 
-class GlobalModifier(Base):
-    __tablename__ = "global_modifiers"
-
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    name = Column(String)
-    schema = Column(JSON)
-
-    global_modifier_clients = relationship(
-        "GlobalModifierClient", back_populates="global_modifier"
-    )
-
-
-class GlobalModifierClient(Base):
-    __tablename__ = "global_modifier_clients"
-
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    sid = Column(String)
-    timeout = Column(Float)
-    available = Column(Boolean)
-
-    modifier = Column(Integer, ForeignKey("global_modifiers.id"))
-    global_modifier = relationship(
-        "GlobalModifier", back_populates="global_modifier_clients"
-    )
-
-
-class RoomModifier(Base):
-    __tablename__ = "room_modifiers"
+class Modifier(Base):
+    __tablename__ = "modifiers"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     name = Column(String)
     schema = Column(JSON)
     room_token = Column(String, ForeignKey("rooms.token"))
+    room = relationship("Room", back_populates="modifiers")
 
-    room = relationship("Room", back_populates="room_modifiers")
-    room_modifier_clients = relationship(
-        "RoomModifierClient", back_populates="room_modifier"
+    modifier_clients = relationship(
+        "ModifierClient", back_populates="modifier"
     )
 
 
-class RoomModifierClient(Base):
-    __tablename__ = "room_modifier_clients"
+class ModifierClient(Base):
+    __tablename__ = "modifier_clients"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     sid = Column(String)
     timeout = Column(Float)
     available = Column(Boolean)
 
-    modifier = Column(Integer, ForeignKey("room_modifiers.id"))
-    room_modifier = relationship("RoomModifier", back_populates="room_modifier_clients")
+    modifier_id = Column(Integer, ForeignKey("modifiers.id"))
+    modifier = relationship("Modifier", back_populates="modifier_clients")
+
 
 
 class Queue(Base):

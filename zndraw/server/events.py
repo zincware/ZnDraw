@@ -594,11 +594,11 @@ def modifier_run(data: dict):
 def _register_global_modifier(data):
     with Session() as ses:
         global_modifier = (
-            ses.query(db_schema.GlobalModifier).filter_by(name=data.name).first()
+            ses.query(db_schema.Modifier).filter_by(name=data.name, room_token=None).first()
         )
         if global_modifier is None:
-            global_modifier = db_schema.GlobalModifier(
-                name=data.name, schema=data.schema
+            global_modifier = db_schema.Modifier(
+                name=data.name, schema=data.schema, room_token=None
             )
             ses.add(global_modifier)
         elif global_modifier.schema != data.schema:
@@ -607,11 +607,11 @@ def _register_global_modifier(data):
             )
             return
         # attach GlobalModifierClient
-        global_modifier_client = db_schema.GlobalModifierClient(
+        global_modifier_client = db_schema.ModifierClient(
             sid=request.sid,
             timeout=data.timeout,
             available=False,
-            global_modifier=global_modifier,
+            modifier=global_modifier,
         )
         ses.add(global_modifier_client)
         ses.commit()
@@ -625,10 +625,10 @@ def _register_room_modifier(data):
         if room is None:
             raise ValueError("No room found for token.")
         room_modifier = (
-            ses.query(db_schema.RoomModifier).filter_by(name=data.name).first()
+            ses.query(db_schema.Modifier).filter_by(name=data.name, room=room).first()
         )
         if room_modifier is None:
-            room_modifier = db_schema.RoomModifier(
+            room_modifier = db_schema.Modifier(
                 name=data.name, schema=data.schema, room=room
             )
             ses.add(room_modifier)
@@ -638,11 +638,11 @@ def _register_room_modifier(data):
             )
             return
         # attach RoomModifierClient
-        room_modifier_client = db_schema.RoomModifierClient(
+        room_modifier_client = db_schema.ModifierClient(
             sid=request.sid,
             timeout=data.timeout,
             available=False,
-            room_modifier=room_modifier,
+            modifier=room_modifier,
         )
         ses.add(room_modifier_client)
         ses.commit()
