@@ -1,3 +1,35 @@
+function setupInfo() {
+  fetch("static/info.md")
+    .then((response) => response.text())
+    .then((text) => {
+      document.getElementById("helpModalBody").innerHTML = marked.parse(text);
+    });
+
+  const tutorialIframe = document.getElementById("tutorialIframe");
+  if (tutorialIframe) {
+    // set width and height of iframe to 100% of parent
+    tutorialIframe.style.width = "100%";
+    // set height to 80% of screen height
+    tutorialIframe.style.height = window.innerHeight * 0.7 + "px";
+  }
+}
+
+function setupCodeAccess() {
+  // in data-token is the token
+  const token = document.getElementById("token").dataset.token;
+  const url = window.location.href.replace(/\/$/, "");
+
+  fetch("static/code.md")
+    .then((response) => response.text())
+    .then((text) => {
+      // replace {{token}} with token
+      text = text.replace("{{token}}", token);
+      text = text.replace("{{url}}", url);
+      document.getElementById("codeModalContent").innerHTML =
+        marked.parse(text);
+    });
+}
+
 function setupUpload(socket) {
   const file = {
     dom: document.getElementById("fileInput"),
@@ -192,6 +224,18 @@ function setupConnectedUsers(socket) {
   // row > col py-1 d-grid > btn btn-outline-secondary
   // row > col py-2 d-grid > form-check-input (step)
   // row > col py-2 d-grid > form-check-label (camera)
+  const copyTokenUrlBtn = document.getElementById("copyTokenUrlBtn");
+  const token = document.getElementById("token").dataset.token;
+  const url = window.location.href.replace(/\/$/, "");
+  const toastLiveExample = document.getElementById("liveToast");
+  const toast = new bootstrap.Toast(toastLiveExample);
+  const toastBody = document.getElementById("toastBody");
+  copyTokenUrlBtn.addEventListener("click", () => {
+    navigator.clipboard.writeText(url + "/token/" + token);
+    // show text including the URL that was copied
+    toastBody.innerHTML = "Copied URL to clipboard: " + url + "/token/" + token;
+    toast.show();
+  });
 
   let name;
 
@@ -310,6 +354,8 @@ export function setUIEvents(socket, cache, world) {
   setupPointerFrameChange(world);
   setupFrameInput(world);
   setupConnectedUsers(socket);
+  setupInfo();
+  setupCodeAccess();
 
   socket.on("file:download", (data) => {
     const blob = new Blob([data], { type: "text/csv" });

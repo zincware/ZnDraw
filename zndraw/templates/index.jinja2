@@ -41,7 +41,7 @@
       <h4 class="alert-heading">Please enable JavaScript to use ZnDraw.</h4>
     </div>
   </noscript>
-
+  <div id="token" data-token="{{ token }}"></div>
   <div id="scene-container"></div>
   <div class="overlay" id="overlay">
     <h1 class="overlay-text">Upload File</h1>
@@ -196,6 +196,10 @@
                     </div>
                   </div>
                   <hr class="dropdown-divider">
+                </div>
+                <hr class="dropdown-divider">
+                <div class="d-grid gap-2 px-2">
+                  <button class="btn btn-outline-primary" type="button" id="copyTokenUrlBtn">Share (copy URL to clipboard)</button>
                 </div>
               </ul>
             </div>
@@ -399,42 +403,7 @@
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
         <div class="modal-body">
-          <h3>Python Code</h3>
-          <code id="python-code-block"> </code>
-          <br />
-          {% if token%}
-          <h3>Share Link</h3>
-          <code id="share-link-block"></code>
-          <br />
-          <a class="btn btn-primary" href="{{ url_for('main.token', token=token) }}" role="button"
-            id="btnShareLink">Copy
-            link to clipboard</a>
-          {% endif %}
-          <script>
-            {% if token %}
-            document.getElementById(
-              "python-code-block",
-            ).innerHTML = `from zndraw import ZnDraw <br>vis = ZnDraw(url="${window.location.href}", token="{{ token }}")`;
-            // url but without trailing slash
-            const url = window.location.href.replace(/\/$/, "");
-            const target_href = "{{ url_for('main.token', token=token) }}";
-            const full_url = url + target_href;
-
-            document.getElementById("share-link-block").innerHTML = full_url;
-
-            document.getElementById("btnShareLink").onclick = function (
-              event,
-            ) {
-              event.preventDefault();
-              navigator.clipboard.writeText(full_url);
-            };
-            {% else %}
-            document.getElementById(
-              "python-code-block",
-            ).innerHTML = `from zndraw import ZnDraw <br>vis = ZnDraw(url="${window.location.href}")`;
-            {% endif %}
-
-          </script>
+          <div id="codeModalContent"></div>
         </div>
       </div>
     </div>
@@ -511,6 +480,18 @@
   <!-- Progress Bar Bookmarks -->
   <div id="bookmarks">
     {# <button type="button" class="btn btn-link"><i class="fa-regular fa-bookmark"></i></button> #}
+  </div>
+
+   <!-- toast -->
+  <div class="toast-container position-fixed bottom-0 end-0 p-3">
+    <div id="liveToast" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+      <div class="toast-header">
+        <strong class="me-auto">INFO</strong>
+        <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+      </div>
+      <div class="toast-body" id="toastBody">
+      </div>
+    </div>
   </div>
 
   <!-- Additional info bars -->
