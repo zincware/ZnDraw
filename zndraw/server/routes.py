@@ -26,7 +26,7 @@ def index():
     try:
         token = session["token"]
     except KeyError:
-        token = uuid.uuid4().hex if current_app.config["USE_TOKEN"] else None
+        token = uuid.uuid4().hex[:8] if current_app.config["USE_TOKEN"] else None
         session["token"] = token
 
     return render_template(
@@ -46,7 +46,7 @@ def token(token):
 
 @main.route("/reset")
 def reset():
-    session["token"] = uuid.uuid4().hex
+    session["token"] = uuid.uuid4().hex[:8]
     return redirect("/")
 
 
@@ -73,7 +73,7 @@ def file(file: str):
     try:
         token = session["token"]
     except KeyError:
-        token = uuid.uuid4().hex if current_app.config["USE_TOKEN"] else None
+        token = uuid.uuid4().hex[:8] if current_app.config["USE_TOKEN"] else None
         session["token"] = token
     url = request.url_root
     print(f"URL: {url}")
