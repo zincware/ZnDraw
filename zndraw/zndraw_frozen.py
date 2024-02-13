@@ -126,6 +126,9 @@ class ZnDrawFrozen(ZnDrawBase):
 
     @points.setter
     def points(self, value):
+        if isinstance(value, np.ndarray):
+            value = value.tolist()
+        # TODO: add extra checks for lengths of sublists
         self.set_data(points=value, update_database=True)
 
     @property
