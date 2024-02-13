@@ -348,16 +348,18 @@ def _run_global_modifier(self, url: str, token: str, data, queue_job_id: str):
     while True:
         with Session() as ses:
             # get the available hosts for the modifier
-            modifier = ses.query(db_schema.Modifier).filter_by(name=name, room_token=None).first()
+            modifier = (
+                ses.query(db_schema.Modifier)
+                .filter_by(name=name, room_token=None)
+                .first()
+            )
             host = (
                 ses.query(db_schema.ModifierClient)
                 .filter_by(modifier=modifier, available=True)
                 .first()
             )
             assigned_hosts = (
-                ses.query(db_schema.ModifierClient)
-                .filter_by(modifier=modifier)
-                .count()
+                ses.query(db_schema.ModifierClient).filter_by(modifier=modifier).count()
             )
 
         if assigned_hosts == 0:

@@ -98,9 +98,7 @@ class Modifier(Base):
     room_token = Column(String, ForeignKey("rooms.token"))
     room = relationship("Room", back_populates="modifiers")
 
-    modifier_clients = relationship(
-        "ModifierClient", back_populates="modifier"
-    )
+    modifier_clients = relationship("ModifierClient", back_populates="modifier")
 
 
 class ModifierClient(Base):
@@ -113,7 +111,6 @@ class ModifierClient(Base):
 
     modifier_id = Column(Integer, ForeignKey("modifiers.id"))
     modifier = relationship("Modifier", back_populates="modifier_clients")
-
 
 
 class Queue(Base):

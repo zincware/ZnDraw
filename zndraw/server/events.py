@@ -598,7 +598,9 @@ def modifier_run(data: dict):
 def _register_global_modifier(data):
     with Session() as ses:
         global_modifier = (
-            ses.query(db_schema.Modifier).filter_by(name=data.name, room_token=None).first()
+            ses.query(db_schema.Modifier)
+            .filter_by(name=data.name, room_token=None)
+            .first()
         )
         if global_modifier is None:
             global_modifier = db_schema.Modifier(
