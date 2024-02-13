@@ -461,10 +461,12 @@ def _run_room_modifier(self, url: str, token: str, data, queue_job_id: str):
             return
 
         # run the modifier
+        to_get = RoomGetData.get_current_state()
+        cache = vis.get_properties(**to_get.to_dict())
         msg = CeleryTaskData(
             target=hosts.sid,
             event="modifier:run",
-            data={"params": data, "token": vis.token},
+            data={"params": data, "token": vis.token, "cache": cache},
             disconnect=True,
         )
         vis.socket.emit("celery:task:emit", asdict(msg))
