@@ -223,7 +223,7 @@ def read_file(url: str, target: str, token: str, fileio: dict):
 
     vis = ZnDrawWorker(token=token, url=url)
     if fileio.name is None:
-        vis.append(ase.Atoms())
+        vis[0] = ase.Atoms()
     elif len(vis) == 0:
         if fileio.remote is not None:
             node_name, attribute = fileio.name.split(".", 1)
