@@ -167,3 +167,13 @@ class ZnDrawFrozen(ZnDrawBase):
             bookmarks=data["bookmarks"],
             length=data["length"],
         )
+    
+    @property
+    def camera(self):
+        return self._cached_data["camera"]
+    
+    @camera.setter
+    def camera(self, value):
+        if set(value) != {"position", "target"}:
+            raise ValueError("camera must have keys 'position' and 'target'")
+        self.set_data(camera=value, update_database=True)
