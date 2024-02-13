@@ -18,7 +18,7 @@ from zndraw.settings import GlobalConfig
 from zndraw.utils import get_cls_from_json_schema, hide_discriminator_field
 from zndraw.zndraw import ZnDraw
 
-from ..app import cache
+from ..app import FileIO
 from ..data import CeleryTaskData, RoomGetData, RoomSetData
 from ..utils import typecast
 from .utils import get_queue_position, insert_into_queue, update_job_status
@@ -216,16 +216,16 @@ def modifier_schema(url: str, token: str):
 
 
 @shared_task(soft_time_limit=300, time_limit=600)
-def read_file(url: str, target: str, token: str):
+def read_file(url: str, target: str, token: str, fileio: dict):
     from zndraw.zndraw_worker import ZnDrawWorker
 
-    vis = ZnDrawWorker(token=token, url=url)
+    fileio = FileIO(**fileio)
 
-    if len(vis) == 0:
-        fileio = cache.get("FILEIO")
-        if fileio is None or fileio.name is None:
-            vis.append(ase.Atoms())
-        elif fileio.remote is not None:
+    vis = ZnDrawWorker(token=token, url=url)
+    if fileio.name is None:
+        vis[0] = ase.Atoms()
+    elif len(vis) == 0:
+        if fileio.remote is not None:
             node_name, attribute = fileio.name.split(".", 1)
             try:
                 import zntrack

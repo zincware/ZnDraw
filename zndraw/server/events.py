@@ -56,7 +56,12 @@ def connect():
         URL = f"http://127.0.0.1:{current_app.config['PORT']}"
         # if you connect through Python, you don't have a token
         read_file_chain = chain(
-            tasks.read_file.s(URL, request.sid, token),
+            tasks.read_file.s(
+                url=URL,
+                target=request.sid,
+                token=token,
+                fileio=current_app.config["FileIO"],
+            ),
             tasks.analysis_schema.si(URL, token),
         )
         read_file_chain.delay()
@@ -90,23 +95,6 @@ def connect():
             ses.add(client)
             ses.commit()
 
-        # ROOM_HOSTS = cache.get("ROOM_HOSTS")
-
-        # if token not in ROOM_HOSTS:
-        #     ROOM_HOSTS[token] = [request.sid]
-        # else:
-        #     ROOM_HOSTS[token].append(request.sid)
-
-        # cache.set("ROOM_HOSTS", ROOM_HOSTS)
-
-        # # data = {"sid": request.sid, "token": token}
-        # # data["host"] = ROOM_HOSTS[token][0] == request.sid
-        # names = cache.get(f"PER-TOKEN-NAME:{session['token']}") or {}
-        # names[request.sid] = uuid4().hex[:8].upper()
-        # cache.set(f"PER-TOKEN-NAME:{session['token']}", names)
-
-        # connected_users = [{"name": names[sid]} for sid in ROOM_HOSTS[token]]
-
         # get all clients in the room
         with Session() as ses:
             room = ses.query(db_schema.Room).filter_by(token=token).first()
@@ -118,24 +106,6 @@ def connect():
             list(reversed(connected_users)),
             to=_webclients_room({"token": token}),
         )
-
-        # TODO: modifier registry
-        # data = {"modifiers": []}  # {schema: ..., name: ...}
-        # MODIFIER = cache.get("MODIFIER")
-        # for name, schema in MODIFIER["default_schema"].items():
-        #     data["modifiers"].append({"schema": schema, "name": name})
-        # data["token"] = token
-
-        # emit("modifier:register", data, to=DEFAULT_PYCLIENT)
-
-        # TODO emit("modifier:register", _all modifiers_, to=app.config["DEFAULT_PYCLIENT"]')
-
-        # log.debug(f"connected {request.sid} and updated HOSTS to {ROOM_HOSTS}")
-        # emit("message:log", "Connection established", to=request.sid)
-        # PER_TOKEN_DATA = cache.get("PER-TOKEN-DATA")
-        # if token not in PER_TOKEN_DATA:
-        #     PER_TOKEN_DATA[token] = {}
-        # cache.set("PER-TOKEN-DATA", PER_TOKEN_DATA)
 
         # append to zndraw.log a line isoformat() + " " + token
         log.info(
