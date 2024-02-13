@@ -337,9 +337,6 @@ class ZnDraw(ZnDrawBase):
 
         self.socket.emit("celery:task:emit", dataclasses.asdict(msg))
         try:
-            vis = ZnDrawFrozen(
-                url=self.url, token=data["token"], cached_data=data["cache"]
-            )
             config = GlobalConfig.load()
             cls = get_modify_class(
                 config.get_modify_methods(
@@ -347,6 +344,15 @@ class ZnDraw(ZnDrawBase):
                 )
             )
             modifier = cls(**data["params"])
+            use_frozen = self._modifiers[modifier.method.__class__.__name__]["frozen"]
+            if use_frozen:
+                vis = ZnDrawFrozen(
+                    url=self.url, token=data["token"], cached_data=data["cache"]
+                )
+            else:
+                vis = ZnDraw(
+                    url=self.url, token=data["token"]
+                )
             try:
                 modifier.run(
                     vis,
@@ -386,6 +392,7 @@ class ZnDraw(ZnDrawBase):
         run_kwargs: dict = None,
         default: bool = False,
         timeout: float = 60,
+        use_frozen: bool = True,
     ):
         """Register a modifier class.
 
@@ -403,6 +410,13 @@ class ZnDraw(ZnDrawBase):
             will alert the user if the modifier takes longer than this time and
             release the modify button (no further changes are expected, but they
             can happen).
+        use_frozen : bool, default=True
+            Whether to use the ZnDrawFrozen class to run the modifier.
+            The frozen class only allows provides cached data and
+            e.g. access to other steps than the current one is not possible.
+            If set to false, a full ZnDraw instance will be created for the modifier.
+            This can have a performance impact and may lead to timeouts.
+
         """
         if run_kwargs is None:
             run_kwargs = {}
@@ -424,6 +438,7 @@ class ZnDraw(ZnDrawBase):
             "cls": cls,
             "run_kwargs": run_kwargs,
             "default": default,
+            "frozen": use_frozen,
         }
         self.socket.emit(
             "modifier:available",
