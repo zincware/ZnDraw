@@ -166,6 +166,7 @@ class ZnDrawFrozen(ZnDrawBase):
             selection=data["selection"],
             bookmarks=data["bookmarks"],
             length=data["length"],
+            camera=data["camera"],
         )
 
     @property
