@@ -456,7 +456,9 @@ def connected_users_subscribe_camera(data: SubscribedUserData):
         room = ses.query(db_schema.Room).filter_by(token=token).first()
         if room is None:
             raise ValueError("No room found for token.")
-        current_client = ses.query(db_schema.WebClient).filter_by(sid=request.sid).first()
+        current_client = (
+            ses.query(db_schema.WebClient).filter_by(sid=request.sid).first()
+        )
         controller_client = (
             ses.query(db_schema.WebClient).filter_by(name=data.user).first()
         )
@@ -480,7 +482,9 @@ def camera_update(data: dict):
         room = ses.query(db_schema.Room).filter_by(token=token).first()
         if room is None:
             raise ValueError("No room found for token.")
-        current_client = ses.query(db_schema.WebClient).filter_by(sid=request.sid).first()
+        current_client = (
+            ses.query(db_schema.WebClient).filter_by(sid=request.sid).first()
+        )
         camera_subscribers = (
             ses.query(db_schema.WebClient)
             .filter_by(camera_controller=current_client)
