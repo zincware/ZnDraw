@@ -57,7 +57,7 @@ class MDAInterRDF(BaseModel):
             x=result.bins,
             y=result.rdf,
             # title="Distance between selected particles",
-            render_mode="svg"  # This is important, otherwise openGL will be used
+            render_mode="svg",  # This is important, otherwise openGL will be used
             # and there can/will be issues with three.js
         )
 
@@ -88,7 +88,7 @@ class MDAEinsteinMSD(BaseModel):
         fig = px.line(
             x=lagtimes,
             y=MSD.results.timeseries,
-            render_mode="svg"  # This is important, otherwise openGL will be used
+            render_mode="svg",  # This is important, otherwise openGL will be used
             # and there can/will be issues with three.js
         )
         vis.figure = fig.to_json()

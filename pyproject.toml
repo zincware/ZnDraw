@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "zndraw"
-version = "0.2.2"
+version = "0.3.0"
 description = "Display and Edit Molecular Structures and Trajectories in the Browser."
 authors = ["zincwarecode <zincwarecode@gmail.com>"]
 license = "Apache-2.0"
@@ -8,7 +8,7 @@ readme = "README.md"
 include = ["zndraw/static/node_modules/**/*"]
 
 [tool.poetry.dependencies]
-python = "^3.9"
+python = "^3.10"
 ase = "^3"
 typer = {extras = ["all"], version = "^0.7"}
 flask = "^2"
@@ -18,7 +18,7 @@ flask-socketio = "^5"
 eventlet = "^0.35"
 networkx = "^3"
 pydantic = "^2"
-python-socketio = "^5.8.0"
+python-socketio = {extras = ["client"], version = "^5"}
 plotly = "^5"
 pandas = "^2"
 datamodel-code-generator = "^0.22"
@@ -26,8 +26,12 @@ mdanalysis = {version = "^2", optional = true}
 tidynamics = {version = "^1", optional = true}
 rdkit2ase = {version = "^0.1", optional = true}
 znframe = "^0.1"
-flask-caching = "^2"
 decorator = "^5"
+celery = "^5"
+sqlalchemy = "^2"
+psycopg2-binary = "^2"
+redis = "^5"
+splines = "^0.3"
 
 
 [tool.poetry.group.dev.dependencies]
@@ -36,6 +40,8 @@ pytest = "^7"
 coverage = "^7"
 selenium = "^4"
 webdriver-manager = "^4"
+ruff = "^0.1"
+
 
 [tool.poetry.extras]
 all = ["mdanalysis", "tidynamics", "rdkit2ase"]

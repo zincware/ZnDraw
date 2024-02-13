@@ -6,7 +6,7 @@
   {% if upgrade_insecure_requests %}
   <meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests" />
   {% endif %}
-  <title>ZnDraw</title>
+  <title>ZnDraw{% if simgen %} + SiMGen{% endif %}</title>
   <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favion-192x192.png') }}" />
   <script type="importmap">
       {
@@ -41,7 +41,7 @@
       <h4 class="alert-heading">Please enable JavaScript to use ZnDraw.</h4>
     </div>
   </noscript>
-
+  <div id="token" data-token="{{ token }}"></div>
   <div id="scene-container"></div>
   <div class="overlay" id="overlay">
     <h1 class="overlay-text">Upload File</h1>
@@ -61,11 +61,19 @@
 
   <!-- Navigation -->
 
+
   <nav class="navbar navbar-expand-md fixed-top bg-body-tertiary main-navbar">
     <div class="container-fluid">
-      <div class="navbar-brand" href="#">ZnDraw</div>
+      <div class="navbar-brand" href="#"><a class="btn fs-5 px-0" href="https://github.com/zincware/zndraw" target="_blank" rel="noopener noreferrer">ZnDraw</a>{% if simgen %} + <a class="btn fs-5 px-0" href="https://github.com/rokasel/simgen" target="_blank" rel="noopener noreferrer">SiMGen</a>{% endif %}</div>
       <div class="navbar-collapse collapse w-100 order-1 order-md-0 dual-collapse2">
         <ul class="navbar-nav me-auto">
+        {% if token is not none%}
+        <li class="nav-item mx-1">
+            <a type="button" class="btn btn-outline-danger btn-single-row" id="newTokenBtn" data-bs-placement="bottom" data-bs-toggle="tooltip" data-bs-title="Reset Scene" href="/reset">
+            <i class="fa-solid fa-power-off"></i></a>
+          </li>
+          {% endif %}
+
           <li class="nav-item mx-1">
             <div class="btn-group" role="group" aria-label="Basic checkbox toggle button group">
               <input type="checkbox" class="btn-check" id="drawingSwitch" autocomplete="off">
@@ -76,12 +84,25 @@
           </li>
           <li class="nav-item mx-1">
             <button type="button" class="btn btn-outline-primary" id="trashBtn" data-bs-placement="bottom"
-              data-bs-toggle="tooltip" data-bs-title="Clear Scene"><i class="fa-solid fa-trash-can"></i></button>
+              data-bs-toggle="tooltip" data-bs-title="Remove all guiding points and canvases."><i
+                class="fa-solid fa-hand-sparkles"></i></button>
           </li>
-          {% if tutorial %}
+          {% if simgen %}
           <li class="nav-item mx-1">
-            <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal"
-              data-bs-target="#tutorialModal">Tutorial <i class="fa-solid fa-film"></i></button>
+            <div data-bs-placement="bottom" data-bs-toggle="tooltip" data-bs-title="Connect selected atoms (shift click)">
+            <button type="button" class="btn btn-success btn-single-row" id="simgen-link-btn" disabled><img
+                src="{{ url_for('static', filename='misc/linking.svg') }}" alt="*" height="20px">
+              <b>Connect</b></button>
+            </div>
+          </li>
+          <li class="nav-item mx-1">
+            <button type="button" class="btn btn-success btn-single-row" id="simgen-run-btn" data-bs-placement="bottom"
+              data-bs-toggle="tooltip" data-bs-title="Run SiMGen molecule generation"><i
+                class="fa-solid fa-rocket"></i> <b>Generate</b></button>
+          </li>
+          <li class="nav-item mx-1">
+            <button type="button" class="btn btn-success btn-single-row" id="simgen-canvas-btn" data-bs-placement="bottom"
+              data-bs-toggle="tooltip" data-bs-title="Replace scene with empty canvas and enter drawing mode"><i class="fa-solid fa-file-circle-plus"></i> <b>New canvas</b></button>
           </li>
           {% endif %}
         </ul>
@@ -92,6 +113,12 @@
 
       <div class="navbar-collapse collapse w-100 order-3 dual-collapse2">
         <ul class="navbar-nav ms-auto">
+          {% if tutorial %}
+          <li class="nav-item mx-1">
+            <button type="button" class="btn btn-warning btn-single-row" data-bs-toggle="modal"
+              data-bs-target="#tutorialModal">Tutorial <i class="fa-solid fa-film"></i></button>
+          </li>
+          {% endif %}
           <li class="nav-item mx-1">
             <div class="btn-group" role="group" aria-label="Basic checkbox toggle button group">
               <input type="checkbox" class="btn-check" id="ZnDrawConsoleSwitch" autocomplete="off"
@@ -109,32 +136,38 @@
             </div>
           </li>
           <li class="nav-item  mx-1">
-            <button type="button" class="btn btn-outline-primary" id="downloadBtn">
+            <button type="button" class="btn btn-outline-primary" id="downloadBtn" data-bs-toggle="tooltip"
+              data-bs-title="Download scene" data-bs-placement="bottom">
               <i class="fas fa-download"></i>
             </button>
           </li>
-          <li class="nav-item mx-1">
+           <li class="nav-item mx-1">
             <form id="uploadForm" method="post" enctype="multipart/form-data">
               <input type="file" name="file" id="fileInput" style="display: none" />
               <input type="submit" value="Upload" id="uploadBtn" style="display: none" />
-              <label class="btn btn-outline-primary " for="fileInput"><i class="fas fa-upload"></i></label>
+              <label class="btn btn-outline-primary " for="fileInput" data-bs-toggle="tooltip"
+                data-bs-title="Upload file (max 1 MB)" data-bs-placement="bottom"><i class="fas fa-upload"></i></label>
             </form>
           </li>
-          <li class="nav-item mx-1">
+
+          {# <li class="nav-item mx-1" data-bs-toggle="tooltip" data-bs-title="Open available files"
+            data-bs-placement="bottom">
             <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#filesModal">
               <i class="fa-solid fa-folder-open"></i>
             </button>
-          </li>
-          <li class="nav-item mx-1">
+          </li> #}
+
+          <li class="nav-item mx-1" data-bs-toggle="tooltip" data-bs-title="ZnDraw help" data-bs-placement="bottom">
             <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#helpModal">
               <i class="fa-solid fa-circle-info"></i>
             </button>
           </li>
-          <li class="nav-item mx-1">
+          <li class="nav-item mx-1" data-bs-toggle="tooltip" data-bs-title="Change color mode"
+            data-bs-placement="bottom">
             <button type="button" class="btn btn-outline-secondary" id="colorModeSwitch"><i
                 class="fa-solid fa-sun"></i></button>
           </li>
-          {% if token == "notoken" %}
+          {% if token is none%}
           <li class="nav-item mx-1">
             <a class="btn btn-outline-info " href="/" role="button"><i class="fa-solid fa-rotate-right"></i></a>
           </li>
@@ -146,8 +179,8 @@
           {% else %}
           <li class="nav-item mx-1">
             <div class="dropdown dropstart">
-              <button class="btn btn-outline-info dropdown-toggle" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside"
-                aria-expanded="false">
+              <button class="btn btn-outline-info dropdown-toggle" type="button" data-bs-toggle="dropdown"
+                data-bs-auto-close="outside" aria-expanded="false">
                 <i class="fa-solid fa-users"></i>
               </button>
               <ul class="dropdown-menu" style="width: 400px;">
@@ -157,13 +190,14 @@
                       User
                     </div>
                     <div class="col">
-                      Step
-                    </div>
-                    <div class="col">
                       Camera
                     </div>
                   </div>
                   <hr class="dropdown-divider">
+                </div>
+                <hr class="dropdown-divider">
+                <div class="d-grid gap-2 px-2">
+                  <button class="btn btn-outline-primary" type="button" id="copyTokenUrlBtn">Share (copy URL to clipboard)</button>
                 </div>
               </ul>
             </div>
@@ -243,10 +277,6 @@
                 <i class="fa-solid fa-circle-check"></i> Apply
               </button>
             </div>
-            <div class="col">
-              <a class="btn btn-secondary w-100" role="button" id="downloadSelectedBtn"><i
-                  class="fa-solid fa-download"></i> Download</a>
-            </div>
           </div>
         </div>
       </div>
@@ -301,7 +331,7 @@
         <div class="card-body" style="width: 500px">
           <div id="analysis-json-editor"></div>
           <button type="button" id="analysis-json-editor-submit" class="btn btn-primary w-100">
-            Analyse
+            <i class="fa-solid fa-play"></i> Analyse
           </button>
           <div id="analysisPlot"></div>
         </div>
@@ -371,42 +401,7 @@
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
         <div class="modal-body">
-          <h3>Python Code</h3>
-          <code id="python-code-block"> </code>
-          <br />
-          {% if token != "notoken" %}
-          <h3>Share Link</h3>
-          <code id="share-link-block"></code>
-          <br />
-          <a class="btn btn-primary" href="{{ url_for('main.token', token=token) }}" role="button"
-            id="btnShareLink">Copy
-            link to clipboard</a>
-          {% endif %}
-          <script>
-            {% if token != "notoken" %}
-            document.getElementById(
-              "python-code-block",
-            ).innerHTML = `from zndraw import ZnDraw <br>vis = ZnDraw(url="${window.location.href}", token="{{ token }}")`;
-            // url but without trailing slash
-            const url = window.location.href.replace(/\/$/, "");
-            const target_href = "{{ url_for('main.token', token=token) }}";
-            const full_url = url + target_href;
-
-            document.getElementById("share-link-block").innerHTML = full_url;
-
-            document.getElementById("btnShareLink").onclick = function (
-              event,
-            ) {
-              event.preventDefault();
-              navigator.clipboard.writeText(full_url);
-            };
-            {% else %}
-            document.getElementById(
-              "python-code-block",
-            ).innerHTML = `from zndraw import ZnDraw <br>vis = ZnDraw(url="${window.location.href}")`;
-            {% endif %}
-
-          </script>
+          <div id="codeModalContent"></div>
         </div>
       </div>
     </div>
@@ -475,14 +470,26 @@
 
   <div class="fixed-bottom" style="width: 100%;">
     <div class="progress" id="frameProgress" role="progressbar" aria-label="Basic example" aria-valuenow="50"
-      aria-valuemin="0" aria-valuemax="100" style="height: 8px">
-      <div class="progress-bar bg-secondary" id="frameProgressBar" style="width: 0%; transition: none;"></div>
+      aria-valuemin="0" aria-valuemax="100" style="height: 12px">
+      <div class="progress-bar bg-primary" id="frameProgressBar" style="width: 0%; transition: none;"></div>
     </div>
   </div>
 
   <!-- Progress Bar Bookmarks -->
   <div id="bookmarks">
     {# <button type="button" class="btn btn-link"><i class="fa-regular fa-bookmark"></i></button> #}
+  </div>
+
+   <!-- toast -->
+  <div class="toast-container position-fixed bottom-0 end-0 p-3">
+    <div id="liveToast" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+      <div class="toast-header">
+        <strong class="me-auto">INFO</strong>
+        <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+      </div>
+      <div class="toast-body" id="toastBody">
+      </div>
+    </div>
   </div>
 
   <!-- Additional info bars -->

@@ -12,9 +12,29 @@ from typing import get_type_hints
 import ase
 import datamodel_code_generator
 import numpy as np
+import znframe
 from decorator import decorator
 
 SHARED = {"atoms": None}
+
+
+def split_list_into_chunks(lst, n):
+    """Yield successive n-sized chunks from lst."""
+    for i in range(0, len(lst), n):
+        yield lst[i : i + n]
+
+
+def estimate_max_batch_size_for_socket(frames: list[znframe.Frame]):
+    from .settings import GlobalConfig
+
+    max_size = GlobalConfig().max_socket_data_size
+    sizes = [
+        sys.getsizeof(json.dumps(frame.to_dict(built_in_types=False)))
+        for frame in frames
+    ]
+    largest_frame = max(sizes)
+    chunk_size = int(max_size / largest_frame * 0.9)
+    return max(chunk_size, 1)
 
 
 def rgb2hex(value):
@@ -64,6 +84,7 @@ class ZnDrawLoggingHandler(logging.Handler):
         except RecursionError:  # See StreamHandler
             raise
         except Exception:
+            print("Something went wrong")
             self.handleError(record)
 
 
@@ -112,14 +133,73 @@ def typecast(func, *args, **kwargs):
     updated_kwargs = {}
     for arg, arg_type in zip(args, annotations.values()):
         if not isinstance(arg, arg_type):
-            updated_args.append(arg_type(**arg))
+            if isinstance(arg, dict):
+                updated_args.append(arg_type(**arg))
+            else:
+                updated_args.append(arg_type(arg))
         else:
             updated_args.append(arg)
 
     for kwarg, kwarg_type in annotations.items():
         if kwarg in kwargs:
             if not isinstance(kwargs[kwarg], kwarg_type):
-                updated_kwargs[kwarg] = kwarg_type(**kwargs[kwarg])
+                if isinstance(kwargs[kwarg], dict):
+                    updated_kwargs[kwarg] = kwarg_type(**kwargs[kwarg])
+                else:
+                    updated_kwargs[kwarg] = kwarg_type(kwargs[kwarg])
             else:
                 updated_kwargs[kwarg] = kwargs[kwarg]
     return func(*updated_args, **updated_kwargs)
+
+
+@decorator
+def typecast_kwargs(func, **kwargs):
+    annotations = get_type_hints(func)
+    arg_type = list(annotations.values())[0]
+    return arg_type(**kwargs)
+
+
+def ensure_path(path: str):
+    """Ensure that a path exists."""
+    p = pathlib.Path(path).expanduser()
+    p.mkdir(parents=True, exist_ok=True)
+    return p.as_posix()
+
+
+def wrap_and_check_index(index: int | slice | list[int], length: int) -> list[int]:
+    is_slice = isinstance(index, slice)
+    if is_slice:
+        index = list(range(*index.indices(length)))
+    index = [index] if isinstance(index, int) else index
+    index = [i if i >= 0 else length + i for i in index]
+    # check if index is out of range
+    for i in index:
+        if i >= length:
+            raise IndexError(f"Index {i} out of range for length {length}")
+        if i < 0:
+            raise IndexError(f"Index {i-length} out of range for length {length}")
+    return index
+
+
+def check_selection(value: list[int], maximum: int):
+    """Check if the selection is valid
+
+    Attributes
+    ----------
+        value: list[int]
+            the selected indices
+        maximum: int
+            len(vis.step), will be incremented by one, to account for
+    """
+    if not isinstance(value, list):
+        raise ValueError("Selection must be a list")
+    if any(not isinstance(i, int) for i in value):
+        raise ValueError("Selection must be a list of integers")
+    if len(value) != len(set(value)):
+        raise ValueError("Selection must be unique")
+    if any(i < 0 for i in value):
+        raise ValueError("Selection must be positive integers")
+    if any(i >= maximum for i in value):
+        raise ValueError(
+            f"Can not select particles indices larger than size of the scene: {maximum }. Got {value}"
+        )

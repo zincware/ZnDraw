@@ -1,3 +1,35 @@
+function setupInfo() {
+  fetch("static/info.md")
+    .then((response) => response.text())
+    .then((text) => {
+      document.getElementById("helpModalBody").innerHTML = marked.parse(text);
+    });
+
+  const tutorialIframe = document.getElementById("tutorialIframe");
+  if (tutorialIframe) {
+    // set width and height of iframe to 100% of parent
+    tutorialIframe.style.width = "100%";
+    // set height to 80% of screen height
+    tutorialIframe.style.height = window.innerHeight * 0.7 + "px";
+  }
+}
+
+function setupCodeAccess() {
+  // in data-token is the token
+  const token = document.getElementById("token").dataset.token;
+  const url = window.location.href.replace(/\/$/, "");
+
+  fetch("static/code.md")
+    .then((response) => response.text())
+    .then((text) => {
+      // replace {{token}} with token
+      text = text.replace("{{token}}", token);
+      text = text.replace("{{url}}", url);
+      document.getElementById("codeModalContent").innerHTML =
+        marked.parse(text);
+    });
+}
+
 function setupUpload(socket) {
   const file = {
     dom: document.getElementById("fileInput"),
@@ -10,7 +42,7 @@ function setupUpload(socket) {
   // result when it finishes reading the file
   reader.addEventListener("load", () => {
     file.binary = reader.result;
-    socket.emit("upload", {
+    socket.emit("file:upload", {
       content: reader.result,
       filename: file.dom.files[0].name,
     });
@@ -47,27 +79,29 @@ function setupDragDrop(socket) {
 
   scene.addEventListener("dragover", (event) => {
     event.preventDefault();
+    // Disabled, because not reliable in combination with three.js
+    // mouse movements.
+
     // show the overlay as long as the file is dragged over the scene
-    const overlay = document.getElementById("overlay");
-    overlay.style.display = "block";
+    // const overlay = document.getElementById("overlay");
+    // overlay.style.display = "block";
   });
 
   scene.addEventListener("dragleave", (event) => {
     event.preventDefault();
     // hide the overlay when the file is dragged out of the scene
-    const overlay = document.getElementById("overlay");
-    overlay.style.display = "none";
+    // const overlay = document.getElementById("overlay");
+    // overlay.style.display = "none";
   });
 
   scene.addEventListener("drop", (event) => {
     event.preventDefault();
-    // hide the overlay when the file is dropped
-    const overlay = document.getElementById("overlay");
-    overlay.style.display = "none";
+    // // hide the overlay when the file is dropped
+    // const overlay = document.getElementById("overlay");
+    // overlay.style.display = "none";
 
     // read the file
     const file = event.dataTransfer.files[0];
-    console.log(event);
     if (!file) {
       console.error("No file was dropped");
       return;
@@ -78,7 +112,7 @@ function setupDragDrop(socket) {
 
     // send the file to the server
     reader.addEventListener("load", () => {
-      socket.emit("upload", {
+      socket.emit("file:upload", {
         content: reader.result,
         filename: file.name,
       });
@@ -88,7 +122,13 @@ function setupDragDrop(socket) {
 
 function setupTrashClick(socket) {
   document.getElementById("trashBtn").addEventListener("click", () => {
-    socket.emit("scene:trash");
+    socket.emit("modifier:run", {
+      method: { discriminator: "ClearTools" },
+    });
+    setTimeout(function () {
+      document.getElementById("drawRemoveCanvas").click();
+    }, 1000);
+    // TODO: should this be a modifier?
   });
 }
 
@@ -177,10 +217,25 @@ function setupFrameInput(world) {
 
 function setupConnectedUsers(socket) {
   const dropdown = document.getElementById("connectedUsersDropdown");
+  if (dropdown === null) {
+    return;
+  }
   // for each user connected user there is
   // row > col py-1 d-grid > btn btn-outline-secondary
   // row > col py-2 d-grid > form-check-input (step)
   // row > col py-2 d-grid > form-check-label (camera)
+  const copyTokenUrlBtn = document.getElementById("copyTokenUrlBtn");
+  const token = document.getElementById("token").dataset.token;
+  const url = window.location.href.replace(/\/$/, "");
+  const toastLiveExample = document.getElementById("liveToast");
+  const toast = new bootstrap.Toast(toastLiveExample);
+  const toastBody = document.getElementById("toastBody");
+  copyTokenUrlBtn.addEventListener("click", () => {
+    navigator.clipboard.writeText(url + "/token/" + token);
+    // show text including the URL that was copied
+    toastBody.innerHTML = "Copied URL to clipboard: " + url + "/token/" + token;
+    toast.show();
+  });
 
   let name;
 
@@ -188,10 +243,7 @@ function setupConnectedUsers(socket) {
     // remove all rows except the first one (header)
     const rows = dropdown.querySelectorAll(".row");
 
-    // save the shared step and shared camera state
-    const stepConnectedUser = document.querySelector(
-      'input[name="sharedStep"]:checked',
-    );
+    // save the shared camera state
     const cameraConnectedUser = document.querySelector(
       'input[name="sharedCamera"]:checked',
     );
@@ -220,25 +272,6 @@ function setupConnectedUsers(socket) {
       col1.appendChild(btn);
       row.appendChild(col1);
 
-      const col2 = document.createElement("div");
-      col2.classList.add("col");
-      col2.classList.add("py-2");
-      const inputStep = document.createElement("input");
-      inputStep.classList.add("form-check-input");
-      inputStep.type = "radio";
-      inputStep.name = "sharedStep";
-      inputStep.id = inputStep.name + "-" + idx;
-      inputStep.value = user.name;
-
-      inputStep.addEventListener("change", () => {
-        socket.emit("connectedUsers:subscribe:step", {
-          user: user.name,
-        });
-      });
-
-      col2.appendChild(inputStep);
-      row.appendChild(col2);
-
       const col3 = document.createElement("div");
       col3.classList.add("col");
       col3.classList.add("py-2");
@@ -259,12 +292,8 @@ function setupConnectedUsers(socket) {
       row.appendChild(col3);
 
       if (user.name === name) {
-        inputStep.checked = true;
         inputCamera.checked = true;
         btn.innerHTML = user.name + " (you)";
-      }
-      if (user.name === stepConnectedUser?.value) {
-        inputStep.checked = true;
       }
       if (user.name === cameraConnectedUser?.value) {
         inputCamera.checked = true;
@@ -299,8 +328,10 @@ export function setUIEvents(socket, cache, world) {
   setupPointerFrameChange(world);
   setupFrameInput(world);
   setupConnectedUsers(socket);
+  setupInfo();
+  setupCodeAccess();
 
-  socket.on("download:response", (data) => {
+  socket.on("file:download", (data) => {
     const blob = new Blob([data], { type: "text/csv" });
     const elem = window.document.createElement("a");
     elem.href = window.URL.createObjectURL(blob);
@@ -311,14 +342,6 @@ export function setUIEvents(socket, cache, world) {
   });
 
   document.getElementById("downloadBtn").addEventListener("click", () => {
-    socket.emit("download:request", {});
+    socket.emit("file:download");
   });
-
-  document
-    .getElementById("downloadSelectedBtn")
-    .addEventListener("click", () => {
-      socket.emit("download:request", {
-        selection: world.getSelection(),
-      });
-    });
 }

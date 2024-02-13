@@ -88,134 +88,6 @@ class Cache {
     this._socket = socket;
     this._cache = {};
     this.world;
-
-    this._socket.on("atoms:upload", (all_data) => {
-      // console.log(new Date().toISOString(), "Received atoms from Python");
-
-      // pop key from data dict
-      const { display_new, ...data } = all_data;
-      const slider = document.getElementById("frameProgress");
-
-      Object.keys(data).forEach((key) => {
-        this._cache[key] = new Atoms({
-          positions: data[key].positions,
-          cell: data[key].cell,
-          numbers: data[key].numbers,
-          colors: data[key].arrays.colors,
-          radii: data[key].arrays.radii,
-          connectivity: data[key].connectivity,
-          calc: data[key].calc,
-          pbc: data[key].pbc,
-        });
-
-        if (display_new) {
-          slider.ariaValueMax = Object.keys(this._cache).length - 1;
-          this.world.setStep(key);
-        }
-      });
-    });
-
-    this._socket.on("atoms:delete", (ids) => {
-      for (const id of ids) {
-        delete this._cache[id];
-      }
-      // move all keys after id one step back
-      const remainingKeys = Object.keys(this._cache);
-      for (let i = ids[0]; i < remainingKeys.length; i++) {
-        const currentKey = remainingKeys[i];
-        const newIndex = i;
-        if (currentKey !== newIndex) {
-          this._cache[newIndex] = this._cache[currentKey];
-          delete this._cache[currentKey];
-        }
-      }
-      // update slider
-      const slider = document.getElementById("frameProgress");
-
-      // update world
-      if (this.world.getStep() >= slider.ariaValueMax) {
-        this.world.setStep(remainingKeys.length - 1);
-      } else {
-        let newStep = this.world.getStep();
-        ids.forEach((id) => {
-          if (this.world.getStep() > id) {
-            newStep = newStep - 1;
-          }
-        });
-        this.world.setStep(newStep);
-      }
-
-      slider.ariaValueMax = remainingKeys.length - 1;
-      document.getElementById("info").innerHTML =
-        `${slider.ariaValueNow} / ${slider.ariaValueMax}`;
-    });
-
-    this._socket.on("atoms:insert", (data) => {
-      // move all keys after id one step forward
-      const remainingKeys = Object.keys(this._cache);
-      const id = parseInt(Object.keys(data)[0]);
-      for (let i = remainingKeys.length - 1; i >= id; i--) {
-        const currentKey = remainingKeys[i];
-        const newIndex = i + 1;
-        this._cache[newIndex] = this._cache[currentKey];
-        delete this._cache[currentKey];
-      }
-      // insert new atoms
-      this._cache[id] = new Atoms({
-        positions: data[id].positions,
-        cell: data[id].cell,
-        numbers: data[id].numbers,
-        colors: data[id].arrays.colors,
-        radii: data[id].arrays.radii,
-        connectivity: data[id].connectivity,
-        calc: data[id].calc,
-        pbc: data[id].pbc,
-      });
-      // update slider
-      const slider = document.getElementById("frameProgress");
-      slider.ariaValueMax = Object.keys(this._cache).length - 1;
-      document.getElementById("info").innerHTML =
-        `${slider.ariaValueNow} / ${slider.ariaValueMax}`;
-    });
-
-    this._socket.on(
-      "atoms:download",
-      function (ids, callback) {
-        // send all atoms at once
-        const data = {};
-        ids.forEach((x) => {
-          try {
-            const { colors, radii, length, ...rest } = this._cache[x];
-            data[x] = {
-              ...rest,
-              arrays: {
-                colors,
-                radii,
-              },
-            };
-          } catch (error) {
-            data[x] = undefined;
-          }
-        });
-        callback(data);
-      }.bind(this),
-    );
-
-    this._socket.on("atoms:clear", (start_index) => {
-      // remove everything from the cache starting from start_index
-      Object.keys(this._cache).forEach((key) => {
-        if (parseInt(key) >= start_index) {
-          delete this._cache[key];
-        }
-      });
-    });
-
-    this._socket.on(
-      "atoms:length",
-      function (callback) {
-        callback(this.get_length());
-      }.bind(this),
-    );
   }
 
   get(id) {
@@ -234,6 +106,39 @@ class Cache {
 
   attachWorld(world) {
     this.world = world;
+  }
+
+  setFrames(data) {
+    const slider = document.getElementById("frameProgress");
+    const indicesToDelete = [];
+    for (const [index, atoms] of Object.entries(data)) {
+      if (atoms === null) {
+        delete this._cache[index];
+      } else {
+        this._cache[index] = new Atoms({
+          positions: atoms.positions,
+          cell: atoms.cell,
+          numbers: atoms.numbers,
+          colors: atoms.arrays.colors,
+          radii: atoms.arrays.radii,
+          connectivity: atoms.connectivity,
+          calc: atoms.calc,
+          pbc: atoms.pbc,
+        });
+        slider.ariaValueMax = Object.keys(this._cache).length - 1;
+      }
+    }
+    // reset the keys of the cache to go from 0 to n
+    const newCache = {};
+    let i = 0;
+    for (const key in this._cache) {
+      newCache[i] = this._cache[key];
+      i++;
+    }
+    this._cache = newCache;
+    // no longer required?
+    // this.world.setStep(this.world.getStep());
+    slider.ariaValueMax = Object.keys(this._cache).length - 1;
   }
 }
 
