@@ -41,7 +41,7 @@ class Bookmarks {
       button.type = "button";
       button.className = "btn btn-link";
       button.innerHTML = '<i class="fa-regular fa-bookmark"></i>';
-// add data-bs-toggle="tooltip" data-bs-placement="top" title=name
+      // add data-bs-toggle="tooltip" data-bs-placement="top" title=name
       button.setAttribute("data-bs-placement", "top");
       button.setAttribute("data-bs-title", name);
       // set z-index to 100
