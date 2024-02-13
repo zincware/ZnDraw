@@ -55,12 +55,18 @@ class WebClient(Base):
 
     camera_controller_sid = Column(String, ForeignKey("web_clients.sid"), nullable=True)
     camera_controller = relationship(
-        "WebClient", remote_side=[sid], uselist=False, foreign_keys=[camera_controller_sid]
+        "WebClient",
+        remote_side=[sid],
+        uselist=False,
+        foreign_keys=[camera_controller_sid],
     )
 
     step_controller_sid = Column(String, ForeignKey("web_clients.sid"), nullable=True)
     step_controller = relationship(
-        "WebClient", remote_side=[sid], uselist=False, foreign_keys=[step_controller_sid]
+        "WebClient",
+        remote_side=[sid],
+        uselist=False,
+        foreign_keys=[step_controller_sid],
     )
 
 
