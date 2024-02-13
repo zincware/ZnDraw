@@ -17,11 +17,13 @@ class Selection {
     this.line3D = line3D;
 
     // add a function to the line3D callbacks that is triggered if the line is changed
-    this.line3D.onLineChange = () => {
+    this.line3D.onLineChange = (emit = true) => {
       let points = this.line3D.anchorPoints.children.map((x) => x.position);
       // convert x, y, z to [x, y, z]
       points = points.map((x) => [x.x, x.y, x.z]);
-      this.socket.emit("points:update", points);
+      if (emit) {
+        this.socket.emit("points:update", points);
+      }
       // if transform controls is not attached to a point, detach it
       if (
         this.transform_controls.object &&

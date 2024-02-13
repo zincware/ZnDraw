@@ -20,14 +20,22 @@ def get_room_by_token(session: Session, token: str) -> Room:
     return session.query(Room).filter_by(token=token).one()
 
 
-def insert_into_queue(queue_name: str, job_name: str, room_token: str) -> str:
+def insert_into_queue(
+    queue_name: str, job_name: str, room_token: str, parameters: dict
+) -> str:
     job_id = uuid.uuid4().hex
     with ses() as session:
         queue = get_queue(session, queue_name)
         room = get_room_by_token(session, room_token)
-        job = QueueItem(job_name=job_name, job_id=job_id, datetime=datetime.utcnow())
-        queue.jobs.append(job)
-        room.launched_jobs.append(job)
+        job = QueueItem(
+            job_name=job_name,
+            job_id=job_id,
+            datetime=datetime.utcnow(),
+            parameters=parameters,
+            queue=queue,
+            room=room,
+        )
+        session.add(job)
         session.commit()
     return job_id
 
