@@ -78,12 +78,12 @@ def connect():
                 )
                 ses.add(room)
 
-            client = db_schema.Client(
+            client = db_schema.WebClient(
                 sid=request.sid, room=room, name=uuid4().hex[:8].upper()
             )
             # check if any client in the room is host
             if (
-                ses.query(db_schema.Client).filter_by(room=room, host=True).first()
+                ses.query(db_schema.WebClient).filter_by(room=room, host=True).first()
                 is None
             ):
                 client.host = True
@@ -110,7 +110,7 @@ def connect():
         # get all clients in the room
         with Session() as ses:
             room = ses.query(db_schema.Room).filter_by(token=token).first()
-            clients = ses.query(db_schema.Client).filter_by(room=room).all()
+            clients = ses.query(db_schema.WebClient).filter_by(room=room).all()
             connected_users = [{"name": client.name} for client in clients]
 
         emit(
@@ -338,7 +338,7 @@ def scene_segments():
         room = ses.query(db_schema.Room).filter_by(token=token).first()
         if room is None:
             raise ValueError("No room found for token.")
-        host = ses.query(db_schema.Client).filter_by(room=room, host=True).first()
+        host = ses.query(db_schema.WebClient).filter_by(room=room, host=True).first()
     return call("scene:segments", to=host.sid)
 
 
@@ -456,9 +456,9 @@ def connected_users_subscribe_camera(data: SubscribedUserData):
         room = ses.query(db_schema.Room).filter_by(token=token).first()
         if room is None:
             raise ValueError("No room found for token.")
-        current_client = ses.query(db_schema.Client).filter_by(sid=request.sid).first()
+        current_client = ses.query(db_schema.WebClient).filter_by(sid=request.sid).first()
         controller_client = (
-            ses.query(db_schema.Client).filter_by(name=data.user).first()
+            ses.query(db_schema.WebClient).filter_by(name=data.user).first()
         )
         if (
             controller_client.sid == request.sid
@@ -480,9 +480,9 @@ def camera_update(data: dict):
         room = ses.query(db_schema.Room).filter_by(token=token).first()
         if room is None:
             raise ValueError("No room found for token.")
-        current_client = ses.query(db_schema.Client).filter_by(sid=request.sid).first()
+        current_client = ses.query(db_schema.WebClient).filter_by(sid=request.sid).first()
         camera_subscribers = (
-            ses.query(db_schema.Client)
+            ses.query(db_schema.WebClient)
             .filter_by(camera_controller=current_client)
             .all()
         )
@@ -516,7 +516,7 @@ def scene_update(data: SceneUpdateData):
         with Session() as ses:
             room = ses.query(db_schema.Room).filter_by(token=token).first()
             current_client = (
-                ses.query(db_schema.Client).filter_by(sid=request.sid).first()
+                ses.query(db_schema.WebClient).filter_by(sid=request.sid).first()
             )
             if room is None:
                 raise ValueError("No room found for token.")
@@ -525,7 +525,7 @@ def scene_update(data: SceneUpdateData):
                 ses.commit()
 
             step_subscribers = (
-                ses.query(db_schema.Client)
+                ses.query(db_schema.WebClient)
                 .filter_by(step_controller=current_client)
                 .all()
             )
@@ -544,10 +544,10 @@ def scene_update(data: SceneUpdateData):
             if room is None:
                 raise ValueError("No room found for token.")
             current_client = (
-                ses.query(db_schema.Client).filter_by(sid=request.sid).first()
+                ses.query(db_schema.WebClient).filter_by(sid=request.sid).first()
             )
             camera_subscribers = (
-                ses.query(db_schema.Client)
+                ses.query(db_schema.WebClient)
                 .filter_by(camera_controller=current_client)
                 .all()
             )

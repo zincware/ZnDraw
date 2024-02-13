@@ -22,7 +22,7 @@ class Room(Base):
     selection = Column(JSON)
     camera = Column(JSON)
 
-    clients = relationship("Client", back_populates="room")
+    web_clients = relationship("WebClient", back_populates="room")
     frames = relationship("Frame", back_populates="room")
     room_modifiers = relationship("RoomModifier", back_populates="room")
     bookmarks = relationship("Bookmark", back_populates="room")
@@ -43,25 +43,24 @@ class Bookmark(Base):
     room = relationship("Room", back_populates="bookmarks")
 
 
-class Client(Base):
-    __tablename__ = "clients"
+class WebClient(Base):
+    __tablename__ = "web_clients"
 
     sid = Column(String, primary_key=True)
     name = Column(String)
-    cameras = Column(JSON)
     host = Column(Boolean, default=False)
 
     room_token = Column(String, ForeignKey("rooms.token"))
-    room = relationship("Room", back_populates="clients")
+    room = relationship("Room", back_populates="web_clients")
 
-    camera_controller_sid = Column(String, ForeignKey("clients.sid"), nullable=True)
+    camera_controller_sid = Column(String, ForeignKey("web_clients.sid"), nullable=True)
     camera_controller = relationship(
-        "Client", remote_side=[sid], uselist=False, foreign_keys=[camera_controller_sid]
+        "WebClient", remote_side=[sid], uselist=False, foreign_keys=[camera_controller_sid]
     )
 
-    step_controller_sid = Column(String, ForeignKey("clients.sid"), nullable=True)
+    step_controller_sid = Column(String, ForeignKey("web_clients.sid"), nullable=True)
     step_controller = relationship(
-        "Client", remote_side=[sid], uselist=False, foreign_keys=[step_controller_sid]
+        "WebClient", remote_side=[sid], uselist=False, foreign_keys=[step_controller_sid]
     )
 
 

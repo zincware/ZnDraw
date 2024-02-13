@@ -595,11 +595,11 @@ def on_disconnect(token: str, sid: str, url: str):
     # worker = ZnDrawWorker(token=token, url=url)
     with Session() as ses:
         room = ses.query(db_schema.Room).filter_by(token=token).first()
-        client = ses.query(db_schema.Client).filter_by(sid=sid).first()
+        client = ses.query(db_schema.WebClient).filter_by(sid=sid).first()
         if client is not None:
             ses.delete(client)
             if client.host:
-                new_host = ses.query(db_schema.Client).filter_by(room=room).first()
+                new_host = ses.query(db_schema.WebClient).filter_by(room=room).first()
                 if new_host is not None:
                     new_host.host = True
             ses.commit()
