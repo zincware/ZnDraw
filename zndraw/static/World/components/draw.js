@@ -188,9 +188,9 @@ export class Line3D extends THREE.Group {
   }
 
   /*
-    * updateAllPoints is used to update the line.
-    * only used, from pyclients, so no emit is needed
-    */
+   * updateAllPoints is used to update the line.
+   * only used, from pyclients, so no emit is needed
+   */
   updateAllPoints(positions) {
     this.anchorPoints.clear();
     positions.forEach((position, index) => {
