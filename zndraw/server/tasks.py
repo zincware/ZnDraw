@@ -218,8 +218,8 @@ def modifier_schema(url: str, token: str):
 @shared_task
 def read_file(url: str, target: str, token: str, fileio: dict):
     from zndraw.zndraw_worker import ZnDrawWorker
+
     fileio = FileIO(**fileio)
-    
 
     vis = ZnDrawWorker(token=token, url=url)
     if fileio.name is None:

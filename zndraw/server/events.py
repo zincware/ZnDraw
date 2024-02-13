@@ -56,7 +56,12 @@ def connect():
         URL = f"http://127.0.0.1:{current_app.config['PORT']}"
         # if you connect through Python, you don't have a token
         read_file_chain = chain(
-            tasks.read_file.s(url=URL, target=request.sid, token=token, fileio=current_app.config["FileIO"]),
+            tasks.read_file.s(
+                url=URL,
+                target=request.sid,
+                token=token,
+                fileio=current_app.config["FileIO"],
+            ),
             tasks.analysis_schema.si(URL, token),
         )
         read_file_chain.delay()
