@@ -3,6 +3,7 @@ import { World } from "./World/World.js";
 import { setUIEvents } from "./UI/UI.js";
 import { initJSONEditor } from "./UI/json_editor.js";
 import { ManipulateElement } from "./UI/ManipulateElement.js";
+import { setupSiMGen } from "./misc/simgen.js";
 
 function setupSocket() {
   const socket = io();
@@ -11,6 +12,8 @@ function setupSocket() {
   });
 
   socket.on("debug", (msg) => {
+    // simulate sending a message from the client
+    // to the server, triggered by the server itself
     console.log(msg);
     socket.emit(msg["event"], msg["data"]);
   });
@@ -57,6 +60,8 @@ function main() {
 
   setUIEvents(socket, cache, world);
   initJSONEditor(socket, cache, world);
+
+  setupSiMGen(socket, world);
   world.start();
 
   // socket dicsconnect event

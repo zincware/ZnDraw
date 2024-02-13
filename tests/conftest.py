@@ -1,66 +1,91 @@
-import multiprocessing as mp
+import subprocess
+import threading
 import time
 
-import ase.build
-import ase.collections
+import eventlet
 import pytest
-from selenium import webdriver
-from selenium.webdriver.chrome.service import Service as ChromeService
-from webdriver_manager.chrome import ChromeDriverManager
+import requests
+import socketio
+from sqlalchemy import create_engine
 
-from zndraw.app import create_app, socketio
+from zndraw.app import create_app
+from zndraw.db.schema import Base
+from zndraw.settings import GlobalConfig
 from zndraw.utils import get_port
-from zndraw.zndraw import ZnDrawDefault
 
 
-@pytest.fixture
-def water() -> ase.Atoms:
-    return ase.build.molecule("H2O")
+@pytest.fixture(scope="session")
+def sio_server():
+    port = get_port()
+
+    def run_server(port):
+        sio = socketio.Server(cors_allowed_origins="*")
+        app = socketio.WSGIApp(sio)
+
+        # react on every event
+        @sio.on("*")
+        def push_back(event, sid, data):
+            sio.emit(event, data, to=sid)
+
+        @sio.on("ping")
+        def ping(sid):
+            return "pong"
+
+        @sio.on("exit")
+        def exit(sid):
+            sio.shutdown()
+            import sys
+
+            sys.exit(0)
+
+        eventlet.wsgi.server(eventlet.listen(("", port)), app)
+
+    t = threading.Thread(target=run_server, args=(port,), daemon=True)
+    t.start()
+    time.sleep(1)
+    yield f"http://localhost:{port}"
+    client = socketio.Client()
+    client.connect(f"http://localhost:{port}")
+    client.emit("exit")
+    t.join()
 
 
-@pytest.fixture
-def ase_s22() -> list[ase.Atoms]:
-    return list(ase.collections.s22)
-
-
-@pytest.fixture()
-def setup(request):
-    options = webdriver.ChromeOptions()
-    options.add_argument("--headless")
-    options.add_argument("--disable-3d-apis")
-    driver = webdriver.Chrome(
-        service=ChromeService(ChromeDriverManager().install()), options=options
-    )
-    request.cls.driver = driver
-    yield request.cls.driver
-    request.cls.driver.close()
-
-
-def run_server(port):
-    app = create_app(None, False, True, None, None)
-    socketio.run(
-        app, port=port, debug=False, host="0.0.0.0"
-    )  # NEVER EVER USE  DEBUG=TRUE HERE!!!
-
-
-@pytest.fixture()
+@pytest.fixture(scope="session")
 def server():
     port = get_port()
 
-    server_proc = mp.Process(target=run_server, args=(port,))
-
-    helper_proc = mp.Process(
-        target=ZnDrawDefault,
-        kwargs={"url": f"http://localhost:{port}", "token": "default"},
+    cmd = [
+        "celery",
+        "-A",
+        "zndraw.make_celery",
+        "worker",
+        "--loglevel",
+        "DEBUG",
+        "--queues=io,fast,celery,slow",
+    ]
+    # proc = subprocess.Popen(cmd) # more verbose for testing
+    proc = subprocess.Popen(
+        cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
     )
 
-    server_proc.start()
-    helper_proc.start()
+    config = GlobalConfig.load()
+    # TODO: use a temporary path for the database
+    # has to be set in the workers somehow
+
+    engine = create_engine(config.database.get_path())
+    Base.metadata.create_all(engine)
+
+    def run_server(port):
+        app = create_app()
+
+        eventlet.wsgi.server(eventlet.listen(("", port)), app)
+
+    t = threading.Thread(target=run_server, args=(port,), daemon=True)
+    t.start()
     time.sleep(1)
-    try:
-        yield f"http://localhost:{port}"
-    finally:
-        server_proc.terminate()
-        server_proc.join()
-        helper_proc.terminate()
-        helper_proc.join()
+    yield f"http://localhost:{port}"
+    requests.get(f"http://localhost:{port}/exit")
+    config.database.unlink()
+    proc.terminate()
+    proc.wait()
+    t.join()

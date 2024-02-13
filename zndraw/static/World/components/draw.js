@@ -188,12 +188,12 @@ export class Line3D extends THREE.Group {
   }
 
   updateAllPoints(positions) {
-    console.log("updateAllPoints", positions);
     this.anchorPoints.clear();
     positions.forEach((position, index) => {
       this.addPoint(new THREE.Vector3(...position), index, false);
     });
     this.updateLine();
+    this.onLineChange();
   }
 
   removePointer(object) {

@@ -35,19 +35,6 @@ class Player {
     this.loop = false;
     this.bookmarks = bookmarks;
 
-    socket.on("scene:set", (index) => {
-      this.world.setStep(index);
-    });
-
-    socket.on("scene:play", () => {
-      this.playing = true;
-      this.play();
-    });
-
-    socket.on("scene:pause", () => {
-      this.playing = false;
-    });
-
     // detect playBtn click
     document.getElementById("playBtn").addEventListener("click", () => {
       this.toggle();
@@ -160,6 +147,8 @@ class Player {
   }
 
   play() {
+    // TODO: do not update the database upon play but only on stop,
+    //  because otherwise, the db will not keep up
     if (this.playing) {
       this.go_forward();
       setTimeout(() => this.play(), 1000 / this.fps);
@@ -245,63 +234,39 @@ class World {
     this.step = loop.step;
     this.socket = socket;
 
-    this.socket.on(
-      "points:get",
-      function (callback) {
-        const { points, segments } = this.getLineData();
-        callback(points);
-      }.bind(this),
-    );
-
-    this.socket.on(
-      "points:set",
-      function (points) {
-        this.line3D.updateAllPoints(points);
-      }.bind(this),
-    );
-
-    this.socket.on(
-      "scene:segments",
-      function (callback) {
-        const { points, segments } = this.getLineData();
-        callback(segments);
-      }.bind(this),
-    );
-
-    this.socket.on(
-      "scene:step",
-      function (callback) {
-        callback(this.getStep());
-      }.bind(this),
-    );
-
-    this.socket.on(
-      "selection:get",
-      function (callback) {
-        callback(this.getSelection());
-      }.bind(this),
-    );
-
-    this.socket.on("scene:update", (data) => {
-      if (data.step !== undefined) {
-        this.setStep(data.step);
+    this.socket.on("room:set", (data) => {
+      if (data.step !== null) {
+        // small timeout to ensure the step is set after the cache is updated
+        setTimeout(() => this.setStep(data.step, false), 100);
       }
-      if (data.camera !== undefined) {
-        camera.position.set(...data.camera.position);
-        camera.quaternion.set(...data.camera.quaternion);
+      if (data.frames !== null) {
+        cache.setFrames(data.frames);
+      }
+      if (data.selection !== null) {
+        const particlesGroup = this.scene.getObjectByName("particlesGroup");
+        particlesGroup.selection = data.selection;
+        particlesGroup.step();
+      }
+      if (data.bookmarks !== null) {
+        bookmarks.set(data.bookmarks);
+      }
+      if (data.points !== null) {
+        this.line3D.updateAllPoints(data.points);
       }
     });
 
-    // on camera move send the camera position to the server
+    this.socket.on("camera:update", (data) => {
+      camera.position.set(...data.position);
+      controls.target.set(...data.target);
+      controls.update();
+    });
+
     controls.addEventListener("change", () => {
-      this.socket.emit("scene:update", {
-        camera: {
-          position: camera.position.toArray(),
-          quaternion: camera.quaternion.toArray(),
-        },
+      this.socket.emit("camera:update", {
+        position: camera.position.toArray(),
+        target: controls.target.toArray(),
       });
     });
-    // renderer.render(scene, camera);
   }
 
   /**
@@ -341,16 +306,17 @@ class World {
       bonds_size,
     );
     this.cell_grp.set_visibility(simulation_box);
-    this.setStep(loop.step);
+    this.setStep(loop.step, false);
     this.index_grp.rebuild(label_offset);
     this.player.fps = fps;
     this.line3D.show_label = line_label;
   }
 
-  setStep(step) {
+  setStep(step, emit = true) {
     step = parseInt(step);
     loop.setStep(step);
     const slider = document.getElementById("frameProgress");
+    const currentStep = parseInt(slider.ariaValueNow);
     slider.ariaValueNow = step;
     // update slider.style with with the percentage of the slider.value
     const percentage = (slider.ariaValueNow / slider.ariaValueMax) * 100;
@@ -358,7 +324,9 @@ class World {
     sliderprogress.style.width = `${percentage}%`;
     document.getElementById("info").innerHTML =
       `${slider.ariaValueNow} / ${slider.ariaValueMax}`;
-    this.socket.emit("scene:update", { step: step });
+    if (emit) {
+      this.socket.emit("step:update", step);
+    }
   }
 
   getStep() {

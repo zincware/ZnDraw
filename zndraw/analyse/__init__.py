@@ -23,6 +23,26 @@ def _schema_from_atoms(schema, cls):
     return cls.model_json_schema_from_atoms(schema)
 
 
+class DihedralAngle(BaseModel):
+    discriminator: t.Literal["DihedralAngle"] = Field("DihedralAngle")
+
+    def run(self, vis):
+        atoms_lst = list(vis)
+        dihedral_angles = []
+
+        if len(vis.selection) != 4:
+            raise ValueError("Please select exactly 4 atoms")
+        for atoms in atoms_lst:
+            dihedral_angles.append(
+                atoms.get_dihedrals(indices=[vis.selection], mic=True)[0]
+            )
+        df = pd.DataFrame(
+            {"step": list(range(len(atoms_lst))), "dihedral": dihedral_angles}
+        )
+        fig = px.line(df, x="step", y="dihedral", render_mode="svg")
+        vis.figure = fig.to_json()
+
+
 class Distance(BaseModel):
     discriminator: t.Literal["Distance"] = Field("Distance")
 
@@ -47,7 +67,7 @@ class Distance(BaseModel):
             x="step",
             y=df.columns,
             title="Distance between selected particles",
-            render_mode="svg"  # This is important, otherwise openGL will be used
+            render_mode="svg",  # This is important, otherwise openGL will be used
             # and there can/will be issues with three.js
         )
         if self.smooth:

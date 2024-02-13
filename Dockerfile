@@ -7,7 +7,7 @@ RUN conda install conda-forge::packmol
 # Make RUN commands use the new environment:
 SHELL ["conda", "run", "--no-capture-output", "-n", "base", "/bin/bash", "-c"]
 RUN cd zndraw/static && npm install && cd ..
-RUN pip install .[rdkit]
+RUN pip install -e .[rdkit]
 
 
 EXPOSE 5003

@@ -26,10 +26,7 @@ def index():
     try:
         token = session["token"]
     except KeyError:
-        if "token" in current_app.config:
-            token = current_app.config["token"]
-        else:
-            token = uuid.uuid4().hex
+        token = uuid.uuid4().hex if current_app.config["USE_TOKEN"] else None
         session["token"] = token
 
     return render_template(
@@ -37,12 +34,19 @@ def index():
         upgrade_insecure_requests=current_app.config["upgrade_insecure_requests"],
         token=session["token"],
         tutorial=current_app.config["TUTORIAL"],
+        simgen=current_app.config["SIMGEN"],
     )
 
 
 @main.route("/token/<token>")
 def token(token):
     session["token"] = token
+    return redirect("/")
+
+
+@main.route("/reset")
+def reset():
+    session["token"] = uuid.uuid4().hex
     return redirect("/")
 
 
@@ -69,10 +73,7 @@ def file(file: str):
     try:
         token = session["token"]
     except KeyError:
-        if "token" in current_app.config:
-            token = current_app.config["token"]
-        else:
-            token = uuid.uuid4().hex
+        token = uuid.uuid4().hex if current_app.config["USE_TOKEN"] else None
         session["token"] = token
     url = request.url_root
     print(f"URL: {url}")

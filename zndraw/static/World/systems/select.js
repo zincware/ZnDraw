@@ -21,7 +21,20 @@ class Selection {
       let points = this.line3D.anchorPoints.children.map((x) => x.position);
       // convert x, y, z to [x, y, z]
       points = points.map((x) => [x.x, x.y, x.z]);
-      this.socket.emit("points:set", { value: points });
+      this.socket.emit("points:update", points);
+      // if transform controls is not attached to a point, detach it
+      if (
+        this.transform_controls.object &&
+        this.transform_controls.object.name === "AnchorPoint"
+      ) {
+        if (
+          !this.line3D.anchorPoints.children.includes(
+            this.transform_controls.object,
+          )
+        ) {
+          this.transform_controls.detach();
+        }
+      }
     };
 
     this.raycaster = new THREE.Raycaster();
@@ -64,12 +77,6 @@ class Selection {
       return particlesGroup.get_center(selection);
     };
 
-    this.socket.on("selection:set", (data) => {
-      const particlesGroup = this.scene.getObjectByName("particlesGroup");
-      particlesGroup.selection = data;
-      particlesGroup.step();
-    });
-
     window.addEventListener("wheel", this.onWheel.bind(this));
 
     this.transform_controls.addEventListener("dragging-changed", (event) => {
@@ -85,8 +92,7 @@ class Selection {
       }
     });
 
-    window.addEventListener("pointerdown", this.onPointerDown.bind(this));
-    window.addEventListener("dblclick", this.onDoubleClick.bind(this));
+    window.addEventListener("click", this.onClick.bind(this));
   }
 
   getIntersections(object) {
@@ -106,19 +112,10 @@ class Selection {
 
     const particleIntersects = this.getIntersections(particlesGroup);
     if (particleIntersects.length > 0) {
-      const instanceId = particleIntersects[0].instanceId;
-      particlesGroup.click(
-        instanceId,
-        this.shift_pressed,
-        particleIntersects[0].object,
-      );
       const params = document.getElementById(
         "selection-json-editor",
       ).parameters;
-      // console.log(new Date().toISOString(), "running selection");
-      this.socket.emit("selection:run", {
-        params: params,
-      });
+      this.socket.emit("selection:run", params);
     }
   }
 
@@ -144,7 +141,6 @@ class Selection {
       canvasIntersects.length > 0 &&
       canvasIntersects[0].object.name === "canvas3D"
     ) {
-      console.log("pointer on canvas");
       if (!this.line3D.pointer) {
         this.line3D.pointer = this.line3D.addPointer();
       }
@@ -173,7 +169,22 @@ class Selection {
     return false;
   }
 
-  onPointerDown(event) {
+  onClick(event) {
+    const elements = document.elementsFromPoint(event.clientX, event.clientY);
+    // if neither first or second element is scene-container, then it's a UI element
+    // first one can be the canvas
+    if (
+      elements[0].id !== "scene-container" &&
+      elements[1].id !== "scene-container"
+    ) {
+      return;
+    }
+
+    // detect double click
+    if (event.detail === 2) {
+      this.onDoubleClick(event);
+      return;
+    }
     const particlesGroup = this.scene.getObjectByName("particlesGroup");
     const anchorPoints = this.scene.getObjectByName("AnchorPoints");
     const canvas3D = this.scene.getObjectByName("canvas3D");
@@ -221,11 +232,16 @@ class Selection {
           this.shift_pressed,
           particleIntersects[0].object,
         );
-        this.socket.emit("selection:set", {
+        this.socket.emit("room:set", {
           selection: particlesGroup.selection,
+          update_database: true,
         });
       }
     }
+    const selectionUpdate = new CustomEvent("selection:update", {
+      detail: { selection: particlesGroup.selection },
+    });
+    document.dispatchEvent(selectionUpdate);
   }
 
   onWheel(event) {
@@ -334,10 +350,8 @@ class Selection {
             }
           } else if (particlesGroup.selection.length > 0) {
             const { points, segments } = this.world.getLineData();
-            console.log(new Date().toISOString(), "running modifier");
             this.socket.emit("modifier:run", {
-              params: { method: { discriminator: "Delete" } },
-              url: window.location.href,
+              method: { discriminator: "Delete" },
             });
             // particlesGroup.click();
           } else {
