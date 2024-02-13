@@ -27,7 +27,14 @@ def insert_into_queue(
     with ses() as session:
         queue = get_queue(session, queue_name)
         room = get_room_by_token(session, room_token)
-        job = QueueItem(job_name=job_name, job_id=job_id, datetime=datetime.utcnow(), parameters=parameters, queue=queue, room=room)
+        job = QueueItem(
+            job_name=job_name,
+            job_id=job_id,
+            datetime=datetime.utcnow(),
+            parameters=parameters,
+            queue=queue,
+            room=room,
+        )
         session.add(job)
         session.commit()
     return job_id
