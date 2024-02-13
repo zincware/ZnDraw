@@ -243,10 +243,7 @@ function setupConnectedUsers(socket) {
     // remove all rows except the first one (header)
     const rows = dropdown.querySelectorAll(".row");
 
-    // save the shared step and shared camera state
-    const stepConnectedUser = document.querySelector(
-      'input[name="sharedStep"]:checked',
-    );
+    // save the shared camera state
     const cameraConnectedUser = document.querySelector(
       'input[name="sharedCamera"]:checked',
     );
@@ -275,25 +272,6 @@ function setupConnectedUsers(socket) {
       col1.appendChild(btn);
       row.appendChild(col1);
 
-      const col2 = document.createElement("div");
-      col2.classList.add("col");
-      col2.classList.add("py-2");
-      const inputStep = document.createElement("input");
-      inputStep.classList.add("form-check-input");
-      inputStep.type = "radio";
-      inputStep.name = "sharedStep";
-      inputStep.id = inputStep.name + "-" + idx;
-      inputStep.value = user.name;
-
-      inputStep.addEventListener("change", () => {
-        socket.emit("connectedUsers:subscribe:step", {
-          user: user.name,
-        });
-      });
-
-      col2.appendChild(inputStep);
-      row.appendChild(col2);
-
       const col3 = document.createElement("div");
       col3.classList.add("col");
       col3.classList.add("py-2");
@@ -314,12 +292,8 @@ function setupConnectedUsers(socket) {
       row.appendChild(col3);
 
       if (user.name === name) {
-        inputStep.checked = true;
         inputCamera.checked = true;
         btn.innerHTML = user.name + " (you)";
-      }
-      if (user.name === stepConnectedUser?.value) {
-        inputStep.checked = true;
       }
       if (user.name === cameraConnectedUser?.value) {
         inputCamera.checked = true;
