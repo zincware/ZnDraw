@@ -9,6 +9,9 @@
 Install via `pip install zndraw`. If you have `pip install pywebview` installed,
 ZnDraw will open in a dedicated window.
 
+> [!IMPORTANT]
+> ZnDraw has undergone a major change with version 0.3.0. The current version is not fully compatible with Windows. We are investigating solutions to make it work again. Furthermore, if you encounter ZnDraw 0.3.0 to be slower at times, this issue will also be mitigated in future releases.
+
 ## CLI
 
 You can use ZnDraw to view a file using the CLI `zndraw traj.xyz`. Supported
