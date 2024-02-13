@@ -149,7 +149,7 @@ export class Line3D extends THREE.Group {
    * onLineChange is a callback function that is called when the line is changed
    * this function is overridden in the select.js
    */
-  onLineChange() {}
+  onLineChange(emit = true) {}
 
   changeLineColor(color) {
     this.line.material.color.set(color);
@@ -187,13 +187,17 @@ export class Line3D extends THREE.Group {
     return sphere;
   }
 
+  /*
+   * updateAllPoints is used to update the line.
+   * only used, from pyclients, so no emit is needed
+   */
   updateAllPoints(positions) {
     this.anchorPoints.clear();
     positions.forEach((position, index) => {
       this.addPoint(new THREE.Vector3(...position), index, false);
     });
     this.updateLine();
-    this.onLineChange();
+    this.onLineChange(false);
   }
 
   removePointer(object) {
