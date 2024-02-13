@@ -26,6 +26,11 @@ class RoomSetData:
     update_database: bool = False
     camera: dict[str, list[float]] | None = None
 
+    def __post_init__(self):
+        if self.camera is not None:
+            if set(self.camera) != {"position", "target"}:
+                raise ValueError("camera must have keys 'position' and 'target'")
+
     def to_dict(self) -> dict:
         return dataclasses.asdict(self)
 
@@ -53,6 +58,7 @@ class RoomGetData:
             selection=True,
             length=True,
             segments=True,
+            camera=True,
             frames=["current"],
         )
 

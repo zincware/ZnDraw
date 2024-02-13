@@ -21,20 +21,9 @@ const setupSiMGen = function (socket, world) {
     runButton.disabled = true;
     linkButton.disabled = true;
     canvasButton.disabled = true;
-    let timeout = 0;
-
-    if (world.getSelection().length >= 2) {
-      socket.emit("modifier:run", {
-        method: { discriminator: "Connect" },
-      });
-      timeout = 500;
-    } else {
-    }
-    setTimeout(function () {
-      socket.emit("modifier:run", {
-        method: { discriminator: "SiMGenDemo" },
-      });
-    }, timeout);
+    socket.emit("modifier:run", {
+      method: { discriminator: "SiMGenDemo" },
+    });
   });
 
   linkButton.addEventListener("click", () => {
