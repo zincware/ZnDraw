@@ -89,10 +89,11 @@
           </li>
           {% if simgen %}
           <li class="nav-item mx-1">
-            <button type="button" class="btn btn-success btn-single-row" id="simgen-link-btn" data-bs-placement="bottom"
-              data-bs-toggle="tooltip" data-bs-title="Connect selected atoms (shift click)"><img
+            <div data-bs-placement="bottom" data-bs-toggle="tooltip" data-bs-title="Connect selected atoms (shift click)">
+            <button type="button" class="btn btn-success btn-single-row" id="simgen-link-btn" disabled><img
                 src="{{ url_for('static', filename='misc/linking.svg') }}" alt="*" height="20px">
               <b>Connect</b></button>
+            </div>
           </li>
           <li class="nav-item mx-1">
             <button type="button" class="btn btn-success btn-single-row" id="simgen-run-btn" data-bs-placement="bottom"
