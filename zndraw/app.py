@@ -234,9 +234,8 @@ class ZnDrawServer:
         return f"http://127.0.0.1:{self.port}"
 
     def _purge_old_modifier_clients(self, engine):
-        from zndraw.db.schema import GlobalModifierClient, RoomModifierClient
+        from zndraw.db.schema import ModifierClient
 
         with Session(engine) as session:
-            session.query(GlobalModifierClient).delete()
-            session.query(RoomModifierClient).delete()
+            session.query(ModifierClient).delete()
             session.commit()

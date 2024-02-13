@@ -36,22 +36,6 @@ function setupSocket() {
   return socket;
 }
 
-function setupInfo() {
-  fetch("static/info.md")
-    .then((response) => response.text())
-    .then((text) => {
-      document.getElementById("helpModalBody").innerHTML = marked.parse(text);
-    });
-
-  const tutorialIframe = document.getElementById("tutorialIframe");
-  if (tutorialIframe) {
-    // set width and height of iframe to 100% of parent
-    tutorialIframe.style.width = "100%";
-    // set height to 80% of screen height
-    tutorialIframe.style.height = window.innerHeight * 0.7 + "px";
-  }
-}
-
 function main() {
   const socket = setupSocket();
   const cache = new Cache(socket);
@@ -86,7 +70,6 @@ function main() {
     "#ZnDrawConsoleCard",
   );
   document.getElementById("atom-spinner").style.display = "none";
-  setupInfo();
 }
 
 main();

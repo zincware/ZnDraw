@@ -334,7 +334,7 @@ class ZnDrawWorker(ZnDrawBase):
         with Session() as session:
             room = get_room_by_token(session, self.token)
             for key, payload in kwargs.items():
-                if payload:
+                if payload is not None:
                     if key == "frames":
                         # values: dict{int:Frame}
                         if len({type(frame) for frame in payload.values()}) != 1:
