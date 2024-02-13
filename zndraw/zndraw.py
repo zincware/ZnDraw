@@ -350,9 +350,7 @@ class ZnDraw(ZnDrawBase):
                     url=self.url, token=data["token"], cached_data=data["cache"]
                 )
             else:
-                vis = ZnDraw(
-                    url=self.url, token=data["token"]
-                )
+                vis = ZnDraw(url=self.url, token=data["token"])
             try:
                 modifier.run(
                     vis,
