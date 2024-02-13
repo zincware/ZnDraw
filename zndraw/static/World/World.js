@@ -267,6 +267,11 @@ class World {
         target: controls.target.toArray(),
       });
     });
+    // initial set of the camera
+    this.socket.emit("camera:update", {
+      position: camera.position.toArray(),
+      target: controls.target.toArray(),
+    });
   }
 
   /**
