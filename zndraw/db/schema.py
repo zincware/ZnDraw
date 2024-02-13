@@ -129,6 +129,7 @@ class QueueItem(Base):
     job_id = Column(String)
     datetime = Column(String)
     status = Column(String, default="queued")
+    parameters = Column(JSON)
 
     queue_name = Column(String, ForeignKey("queues.name"))
     queue = relationship("Queue", back_populates="jobs")

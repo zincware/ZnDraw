@@ -525,7 +525,7 @@ def run_modifier(url: str, token: str, data: dict):
     name = data["method"]["discriminator"]
     queue_name = route_modifier_to_queue(name, token)
     queue_job_id = insert_into_queue(
-        queue_name=queue_name, job_name=name, room_token=str(token)
+        queue_name=queue_name, job_name=name, room_token=str(token), parameters=data
     )
     if queue_name == "slow":
         task_chain = chain(
