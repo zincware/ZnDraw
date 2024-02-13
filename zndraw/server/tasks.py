@@ -32,7 +32,7 @@ def get_client(url) -> Client:
     return client
 
 
-@shared_task
+@shared_task(soft_time_limit=300, time_limit=600)
 def update_atoms(token: str, data: list) -> None:
     """Update the atoms in the database.
 
@@ -61,7 +61,7 @@ def update_atoms(token: str, data: list) -> None:
         ses.commit()
 
 
-@shared_task
+@shared_task(soft_time_limit=30, time_limit=60)
 def get_selection_schema(url: str, target: str):
     config = GlobalConfig.load()
     cls = get_selection_class(config.get_selection_methods())
@@ -76,7 +76,7 @@ def get_selection_schema(url: str, target: str):
     con.emit("celery:task:emit", asdict(msg))
 
 
-@shared_task
+@shared_task(soft_time_limit=30, time_limit=60)
 def scene_schema(url: str, target: str):
     import enum
 
@@ -148,7 +148,7 @@ def scene_schema(url: str, target: str):
     con.emit("celery:task:emit", asdict(msg))
 
 
-@shared_task
+@shared_task(soft_time_limit=30, time_limit=60)
 def geometries_schema(url: str, target: str):
     msg = CeleryTaskData(
         target=target,
@@ -160,7 +160,7 @@ def geometries_schema(url: str, target: str):
     con.emit("celery:task:emit", asdict(msg))
 
 
-@shared_task
+@shared_task(soft_time_limit=60, time_limit=120)
 def analysis_schema(url: str, token: str):
     vis = ZnDraw(url=url, token=token)
 
@@ -181,7 +181,7 @@ def analysis_schema(url: str, token: str):
     con.emit("celery:task:emit", asdict(msg))
 
 
-@shared_task
+@shared_task(soft_time_limit=60, time_limit=120)
 def modifier_schema(url: str, token: str):
     config = GlobalConfig.load()
     include = []
@@ -215,7 +215,7 @@ def modifier_schema(url: str, token: str):
     con.emit("celery:task:emit", asdict(msg))
 
 
-@shared_task
+@shared_task(soft_time_limit=300, time_limit=600)
 def read_file(url: str, target: str, token: str, fileio: dict):
     from zndraw.zndraw_worker import ZnDrawWorker
 
@@ -262,7 +262,7 @@ def read_file(url: str, target: str, token: str, fileio: dict):
     vis.socket.disconnect()
 
 
-@shared_task
+@shared_task(soft_time_limit=300, time_limit=600)
 def run_selection(url: str, token: str, data: dict):
     from zndraw.zndraw_worker import ZnDrawWorker
 
@@ -284,7 +284,7 @@ def run_selection(url: str, token: str, data: dict):
     vis.socket.disconnect()
 
 
-@shared_task
+@shared_task(soft_time_limit=300, time_limit=600)
 def run_analysis(url: str, token: str, data: dict):
     from zndraw.zndraw_worker import ZnDrawWorker
 
@@ -316,7 +316,7 @@ def run_analysis(url: str, token: str, data: dict):
     vis.socket.emit("celery:task:emit", asdict(msg))
 
 
-@shared_task
+@shared_task(soft_time_limit=30, time_limit=60)
 def update_queue_positions(queue_name, url):
     from zndraw.zndraw_worker import ZnDrawWorker
 
@@ -337,7 +337,7 @@ def update_queue_positions(queue_name, url):
         return None
 
 
-@shared_task(bind=True)
+@shared_task(bind=True, soft_time_limit=300, time_limit=600)
 def _run_global_modifier(self, url: str, token: str, data, queue_job_id: str):
     from zndraw.zndraw_worker import ZnDrawWorker
 
@@ -427,7 +427,7 @@ def _run_global_modifier(self, url: str, token: str, data, queue_job_id: str):
         return
 
 
-@shared_task(bind=True)
+@shared_task(bind=True, soft_time_limit=300, time_limit=600)
 def _run_room_modifier(self, url: str, token: str, data, queue_job_id: str):
     from zndraw.zndraw_worker import ZnDrawWorker
 
@@ -472,7 +472,7 @@ def _run_room_modifier(self, url: str, token: str, data, queue_job_id: str):
         vis.socket.emit("celery:task:emit", asdict(msg))
 
 
-@shared_task(bind=True)
+@shared_task(bind=True, soft_time_limit=300, time_limit=600)
 def _run_default_modifier(self, url: str, token: str, data: dict, queue_job_id: str):
     from zndraw.zndraw_worker import ZnDrawWorker
 
@@ -547,7 +547,7 @@ def run_modifier(url: str, token: str, data: dict):
     task_chain.delay()
 
 
-@shared_task
+@shared_task(soft_time_limit=30, time_limit=60)
 @typecast
 def handle_room_get(data: RoomGetData, token: str, url: str, target: str):
     from zndraw.zndraw_worker import ZnDrawWorker
@@ -558,7 +558,7 @@ def handle_room_get(data: RoomGetData, token: str, url: str, target: str):
     worker.socket.emit("celery:task:emit", msg.to_dict())
 
 
-@shared_task
+@shared_task(soft_time_limit=60, time_limit=120)
 @typecast
 def handle_room_set(data: RoomSetData, token: str, url: str, source: str):
     from zndraw.zndraw_worker import ZnDrawWorker
@@ -576,23 +576,16 @@ def handle_room_set(data: RoomSetData, token: str, url: str, source: str):
     # worker.commit() and a mode, that waits for all updates before committing
 
 
-@shared_task
+@shared_task(soft_time_limit=60, time_limit=120)
 def activate_modifier(sid: str, available: bool):
     with Session() as ses:
-        global_modifier_client = (
-            ses.query(db_schema.ModifierClient).filter_by(sid=sid).all()
-        )
-        room_modifier_client = (
-            ses.query(db_schema.ModifierClient).filter_by(sid=sid).all()
-        )
-        for gmc in global_modifier_client:
-            gmc.available = available
-        for rmc in room_modifier_client:
-            rmc.available = available
+        modifier_client = ses.query(db_schema.ModifierClient).filter_by(sid=sid).all()
+        for mc in modifier_client:
+            mc.available = available
         ses.commit()
 
 
-@shared_task
+@shared_task(soft_time_limit=60, time_limit=120)
 def on_disconnect(token: str, sid: str, url: str):
     # from zndraw.zndraw_worker import ZnDrawWorker
 
@@ -638,7 +631,7 @@ def on_disconnect(token: str, sid: str, url: str):
     # worker.socket.emit("celery:task:emit", msg.to_dict())
 
 
-@shared_task
+@shared_task(soft_time_limit=60, time_limit=120)
 def upload_file(url: str, token: str, filename: str, content: str):
     from io import StringIO
 
@@ -674,7 +667,7 @@ def upload_file(url: str, token: str, filename: str, content: str):
     vis.socket.disconnect()
 
 
-@shared_task
+@shared_task(soft_time_limit=60, time_limit=120)
 def download_file(url: str, token: str, sid: str):
     from io import StringIO
 
