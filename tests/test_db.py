@@ -12,6 +12,7 @@ from zndraw.db import schema
 from zndraw.db.schema import Base
 from zndraw.utils import typecast
 from zndraw.zndraw_worker import ZnDrawWorker
+from zndraw.app import ZnDrawServer
 
 s22 = list(s22)
 
@@ -47,6 +48,23 @@ def room_session(session) -> sessionmaker:
         s.add(bookmark1)
         bookmark2 = schema.Bookmark(step=2, text="bm-2", room=room)
         s.add(bookmark2)
+
+        # add two modifier clients
+        client1 = schema.ModifierClient(sid="sid1", timeout=55, available=True)
+        client2 = schema.ModifierClient(sid="sid2", timeout=66, available=False)
+        s.add(client1)
+        s.add(client2)
+
+        # add 3 queue items one running, one failed, one queued
+        queue = schema.Queue(name="test_queue")
+        s.add(queue)
+        item1 = schema.QueueItem(status="running", queue=queue)
+        item2 = schema.QueueItem(status="failed", queue=queue)
+        item3 = schema.QueueItem(status="queued", queue=queue)
+        s.add(item1)
+        s.add(item2)
+        s.add(item3)
+
         s.commit()
 
     return session
@@ -307,3 +325,30 @@ def test_del_atoms(room_session, sio_server):
         assert answer.frames["5"] == None
         assert answer.frames["6"] == None
         assert len(worker) == 18
+
+
+def test_app_startup_removes_modifier_clients(room_session):
+    with room_session() as s:
+        assert s.query(schema.ModifierClient).count() == 2
+    ZnDrawServer._purge_old_modifier_clients(room_session)
+    with room_session() as s:
+        assert s.query(schema.ModifierClient).count() == 0
+
+
+def test_app_startup_removes_queue_items(room_session):
+    with room_session() as s:
+        assert s.query(schema.QueueItem).count() == 3
+        assert s.query(schema.QueueItem).filter_by(status="running").count() == 1
+        assert s.query(schema.QueueItem).filter_by(status="failed").count() == 1
+        assert s.query(schema.QueueItem).filter_by(status="queued").count() == 1
+    ZnDrawServer._mark_old_queue_items_as_failed(room_session)
+    with room_session() as s:
+        assert s.query(schema.QueueItem).count() == 3
+        assert s.query(schema.QueueItem).filter_by(status="running").count() == 1
+        assert s.query(schema.QueueItem).filter_by(status="queued").count() == 0
+        assert (
+            s.query(schema.QueueItem)
+            .filter(schema.QueueItem.status.like("%failed%"))
+            .count()
+            == 2
+        )

@@ -8,7 +8,7 @@ from celery import Celery, Task
 from flask import Flask
 from flask_socketio import SocketIO
 from sqlalchemy import create_engine
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import sessionmaker
 
 from zndraw.db.schema import Base
 
@@ -187,8 +187,9 @@ class ZnDrawServer:
             pass  # only for sqlite config
         engine = create_engine(config.database.get_path())
         Base.metadata.create_all(engine)
-        self._purge_old_modifier_clients(engine)
-        self._mark_old_queue_items_as_failed(engine)
+        session = sessionmaker(bind=engine)
+        self._purge_old_modifier_clients(session)
+        self._mark_old_queue_items_as_failed(session)
         if browser:
             webbrowser.open(self.url_root)
         socketio.run(self.app, port=self.port, host="0.0.0.0")
@@ -197,18 +198,20 @@ class ZnDrawServer:
     def url_root(self):
         return f"http://127.0.0.1:{self.port}"
 
-    def _purge_old_modifier_clients(self, engine):
+    @staticmethod
+    def _purge_old_modifier_clients(session):
         from zndraw.db.schema import ModifierClient
 
-        with Session(engine) as session:
-            session.query(ModifierClient).delete()
-            session.commit()
-
-    def _mark_old_queue_items_as_failed(self, engine):
+        with session() as ses:
+            ses.query(ModifierClient).delete()
+            ses.commit()
+            
+    @staticmethod
+    def _mark_old_queue_items_as_failed(session):
         from zndraw.db.schema import QueueItem
 
-        with Session(engine) as session:
-            session.query(QueueItem).filter(QueueItem.status == "queued").update(
+        with session() as ses:
+            ses.query(QueueItem).filter(QueueItem.status == "queued").update(
                 dict(status="failed:server_restart")
             )
-            session.commit()
+            ses.commit()
