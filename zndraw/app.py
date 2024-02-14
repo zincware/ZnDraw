@@ -205,7 +205,7 @@ class ZnDrawServer:
         with session() as ses:
             ses.query(ModifierClient).delete()
             ses.commit()
-            
+
     @staticmethod
     def _mark_old_queue_items_as_failed(session):
         from zndraw.db.schema import QueueItem
