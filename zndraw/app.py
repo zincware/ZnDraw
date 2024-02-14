@@ -188,7 +188,7 @@ class ZnDrawServer:
         engine = create_engine(config.database.get_path())
         Base.metadata.create_all(engine)
         self._purge_old_modifier_clients(engine)
-
+        self._mark_old_queue_items_as_failed(engine)
         if browser:
             webbrowser.open(self.url_root)
         socketio.run(self.app, port=self.port, host="0.0.0.0")
@@ -202,4 +202,13 @@ class ZnDrawServer:
 
         with Session(engine) as session:
             session.query(ModifierClient).delete()
+            session.commit()
+
+    def _mark_old_queue_items_as_failed(self, engine):
+        from zndraw.db.schema import QueueItem
+
+        with Session(engine) as session:
+            session.query(QueueItem).filter(QueueItem.status == "queued").update(
+                dict(status="failed:server_restart")
+            )
             session.commit()
