@@ -237,6 +237,6 @@ class GlobalConfig(pydantic.BaseModel):
                 classes.append(cls)
             except ModuleNotFoundError:
                 log.critical(f"Module {module_name} not found - skipping")
-        # filter out dubliates via x.__name__
+        # filter out duplicates via x.__name__
         classes = list({cls.__name__: cls for cls in classes}.values())
         return t.Union[tuple(classes)]
