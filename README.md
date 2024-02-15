@@ -1,6 +1,6 @@
 [![zincware](https://img.shields.io/badge/Powered%20by-zincware-darkcyan)](https://github.com/zincware)
 [![PyPI version](https://badge.fury.io/py/zndraw.svg)](https://badge.fury.io/py/zndraw)
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.8304530.svg)](https://doi.org/10.5281/zenodo.8304530)
+[![DOI](https://img.shields.io/badge/arXiv-2402.08708-red)](https://arxiv.org/abs/2402.08708)
 [![codecov](https://codecov.io/gh/zincware/ZnDraw/graph/badge.svg?token=3GPCKH1BBX)](https://codecov.io/gh/zincware/ZnDraw)
 !['Threejs](https://img.shields.io/badge/threejs-black?style=for-the-badge&logo=three.js&logoColor=white)
 
@@ -90,3 +90,21 @@ javascript packages have to be installed using https://www.npmjs.com/.
 cd zndraw/static/
 npm install
 ```
+
+# References
+
+If you use ZnDraw in your research and find it helpful please cite us.
+
+```bibtex
+@misc{elijosiusZeroShotMolecular2024,
+  title = {Zero {{Shot Molecular Generation}} via {{Similarity Kernels}}},
+  author = {Elijo{\v s}ius, Rokas and Zills, Fabian and Batatia, Ilyes and Norwood, Sam Walton and Kov{\'a}cs, D{\'a}vid P{\'e}ter and Holm, Christian and Cs{\'a}nyi, G{\'a}bor},
+  year = {2024},
+  eprint = {2402.08708},
+  archiveprefix = {arxiv},
+}
+```
+
+# Acknowledgements
+
+The creation of ZnDraw was supported by the Deutsche Forschungsgemeinschaft (DFG, German Research Foundation) in the framework of the priority program SPP 2363, “Utilization and Development of Machine Learning for Molecular Applications - Molecular Machine Learning” Project No. 497249646. Further funding though the DFG under Germany's Excellence Strategy - EXC 2075 - 390740016 and the Stuttgart Center for Simulation Science (SimTech) was provided.
