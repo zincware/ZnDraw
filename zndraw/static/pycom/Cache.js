@@ -20,6 +20,7 @@ class Atoms {
     connectivity,
     calc,
     pbc,
+    vector_field,
   }) {
     this.positions = positions;
     this.cell = cell;
@@ -29,6 +30,7 @@ class Atoms {
     this.connectivity = connectivity;
     this.calc = calc;
     this.pbc = pbc;
+    this.vector_field = vector_field;
 
     this.length = this.positions.length;
   }
@@ -67,6 +69,7 @@ class Atoms {
       connectivity: this.connectivity,
       calc: this.calc,
       pbc: this.pbc,
+      vector_field: this.vector_field,
     });
     return selectedAtoms;
   }
@@ -124,6 +127,7 @@ class Cache {
           connectivity: atoms.connectivity,
           calc: atoms.calc,
           pbc: atoms.pbc,
+          vector_field: atoms.vector_field,
         });
         slider.ariaValueMax = Object.keys(this._cache).length - 1;
       }
