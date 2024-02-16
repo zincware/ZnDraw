@@ -35,6 +35,19 @@ class Player {
     this.loop = false;
     this.bookmarks = bookmarks;
 
+    socket.on("scene:set", (index) => {
+      this.world.setStep(index);
+    });
+
+    socket.on("scene:play", () => {
+      this.playing = true;
+      this.play();
+    });
+
+    socket.on("scene:pause", () => {
+      this.playing = false;
+    });
+
     // detect playBtn click
     document.getElementById("playBtn").addEventListener("click", () => {
       this.toggle();
@@ -99,12 +112,12 @@ class Player {
       }
     });
 
-    const slider = document.getElementById("frameProgress");
+    const slider = document.getElementById("frame-slider");
     slider.focus();
 
     slider.oninput = function () {
       document.getElementById("info").innerHTML =
-        `${slider.ariaValueNow} / ${slider.ariaValueMax}`;
+        `${slider.value} / ${slider.max}`;
       world.setStep(this.value);
     };
   }
@@ -147,8 +160,6 @@ class Player {
   }
 
   play() {
-    // TODO: do not update the database upon play but only on stop,
-    //  because otherwise, the db will not keep up
     if (this.playing) {
       this.go_forward();
       setTimeout(() => this.play(), 1000 / this.fps);
@@ -160,7 +171,6 @@ class World {
   constructor(container, cache, socket) {
     camera = createCamera();
     scene = createScene();
-    this.scene = scene;
     renderer = createRenderer();
     renderer2d = create2DRenderer();
 
@@ -234,44 +244,43 @@ class World {
     this.step = loop.step;
     this.socket = socket;
 
-    this.socket.on("room:set", (data) => {
-      if (data.step !== null) {
-        // small timeout to ensure the step is set after the cache is updated
-        setTimeout(() => this.setStep(data.step, false), 100);
-      }
-      if (data.frames !== null) {
-        cache.setFrames(data.frames);
-      }
-      if (data.selection !== null) {
-        const particlesGroup = this.scene.getObjectByName("particlesGroup");
-        particlesGroup.selection = data.selection;
-        particlesGroup.step();
-      }
-      if (data.bookmarks !== null) {
-        bookmarks.set(data.bookmarks);
-      }
-      if (data.points !== null) {
-        this.line3D.updateAllPoints(data.points);
-      }
-    });
+    this.socket.on(
+      "points:get",
+      function (callback) {
+        const { points, segments } = this.getLineData();
+        callback(points);
+      }.bind(this),
+    );
 
-    this.socket.on("camera:update", (data) => {
-      camera.position.set(...data.position);
-      controls.target.set(...data.target);
-      controls.update();
-    });
+    this.socket.on(
+      "points:set",
+      function (points) {
+        this.line3D.updateAllPoints(points);
+      }.bind(this),
+    );
 
-    controls.addEventListener("change", () => {
-      this.socket.emit("camera:update", {
-        position: camera.position.toArray(),
-        target: controls.target.toArray(),
-      });
-    });
-    // initial set of the camera
-    this.socket.emit("camera:update", {
-      position: camera.position.toArray(),
-      target: controls.target.toArray(),
-    });
+    this.socket.on(
+      "scene:segments",
+      function (callback) {
+        const { points, segments } = this.getLineData();
+        callback(segments);
+      }.bind(this),
+    );
+
+    this.socket.on(
+      "scene:step",
+      function (callback) {
+        callback(this.getStep());
+      }.bind(this),
+    );
+
+    this.socket.on(
+      "selection:get",
+      function (callback) {
+        callback(this.getSelection());
+      }.bind(this),
+    );
+    // renderer.render(scene, camera);
   }
 
   /**
@@ -299,9 +308,7 @@ class World {
     particle_size,
     bonds_size,
     fps,
-    line_label,
   ) {
-    console.log("rebuilding scene");
     this.particles.rebuild(
       resolution,
       material,
@@ -311,27 +318,18 @@ class World {
       bonds_size,
     );
     this.cell_grp.set_visibility(simulation_box);
-    this.setStep(loop.step, false);
+    this.setStep(loop.step);
     this.index_grp.rebuild(label_offset);
     this.player.fps = fps;
-    this.line3D.show_label = line_label;
   }
 
-  setStep(step, emit = true) {
+  setStep(step) {
     step = parseInt(step);
     loop.setStep(step);
-    const slider = document.getElementById("frameProgress");
-    const currentStep = parseInt(slider.ariaValueNow);
-    slider.ariaValueNow = step;
-    // update slider.style with with the percentage of the slider.value
-    const percentage = (slider.ariaValueNow / slider.ariaValueMax) * 100;
-    const sliderprogress = document.getElementById("frameProgressBar");
-    sliderprogress.style.width = `${percentage}%`;
+    const slider = document.getElementById("frame-slider");
+    slider.value = step;
     document.getElementById("info").innerHTML =
-      `${slider.ariaValueNow} / ${slider.ariaValueMax}`;
-    if (emit) {
-      this.socket.emit("step:update", step);
-    }
+      `${slider.value} / ${slider.max}`;
   }
 
   getStep() {

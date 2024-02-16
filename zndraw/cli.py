@@ -2,8 +2,8 @@ from typing import Optional
 
 import typer
 
-from zndraw.app import FileIO, ZnDrawServer
 from zndraw.utils import get_port
+from zndraw.view import view
 
 cli = typer.Typer()
 
@@ -72,10 +72,6 @@ def main(
         None,
         help="Token to authenticate pyclient requests to the ZnDraw server, e.g., for adding defaults to all webclients.",
     ),
-    simgen: bool = typer.Option(
-        False,
-        help="Show the SiMGen demo UI.",
-    ),
 ):
     """Start the ZnDraw server.
 
@@ -84,41 +80,20 @@ def main(
     if port is None:
         port = get_port()
 
-    fileio = FileIO(
-        name=filename,
-        remote=remote,
-        rev=rev,
+    view(
+        filename,
+        port,
+        webview=webview,
+        fullscreen=fullscreen,
+        open_browser=browser,
         start=start,
         stop=stop,
         step=step,
-    )
-
-    with ZnDrawServer(
-        use_token=use_token,
-        upgrade_insecure_requests=upgrade_insecure_requests,
         compute_bonds=compute_bonds,
+        upgrade_insecure_requests=upgrade_insecure_requests,
+        use_token=use_token,
+        remote=remote,
+        rev=rev,
         tutorial=tutorial,
         auth_token=auth_token,
-        port=port,
-        fileio=fileio,
-        simgen=simgen,
-    ) as app:
-        app.run(browser=browser)
-
-    # view(
-    #     filename,
-    #     port,
-    #     webview=webview,
-    #     fullscreen=fullscreen,
-    #     open_browser=browser,
-    #     start=start,
-    #     stop=stop,
-    #     step=step,
-    #     compute_bonds=compute_bonds,
-    #     upgrade_insecure_requests=upgrade_insecure_requests,
-    #     use_token=use_token,
-    #     remote=remote,
-    #     rev=rev,
-    #     tutorial=tutorial,
-    #     auth_token=auth_token,
-    # )
+    )

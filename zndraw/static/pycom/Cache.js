@@ -235,39 +235,6 @@ class Cache {
   attachWorld(world) {
     this.world = world;
   }
-
-  setFrames(data) {
-    const slider = document.getElementById("frameProgress");
-    const indicesToDelete = [];
-    for (const [index, atoms] of Object.entries(data)) {
-      if (atoms === null) {
-        delete this._cache[index];
-      } else {
-        this._cache[index] = new Atoms({
-          positions: atoms.positions,
-          cell: atoms.cell,
-          numbers: atoms.numbers,
-          colors: atoms.arrays.colors,
-          radii: atoms.arrays.radii,
-          connectivity: atoms.connectivity,
-          calc: atoms.calc,
-          pbc: atoms.pbc,
-        });
-        slider.ariaValueMax = Object.keys(this._cache).length - 1;
-      }
-    }
-    // reset the keys of the cache to go from 0 to n
-    const newCache = {};
-    let i = 0;
-    for (const key in this._cache) {
-      newCache[i] = this._cache[key];
-      i++;
-    }
-    this._cache = newCache;
-    // no longer required?
-    // this.world.setStep(this.world.getStep());
-    slider.ariaValueMax = Object.keys(this._cache).length - 1;
-  }
 }
 
 export { Cache };

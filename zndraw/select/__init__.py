@@ -3,16 +3,16 @@ import typing as t
 from typing import Any
 
 import networkx as nx
-import numpy as np
 from pydantic import BaseModel, Field
-
-from zndraw import ZnDraw
 
 try:
     from zndraw.select import mda  # noqa: F401
 except ImportError:
     # mdanalysis is not installed
     pass
+
+if t.TYPE_CHECKING:
+    from zndraw import ZnDraw
 
 
 class SelectionBase(BaseModel):
@@ -86,23 +86,18 @@ class ConnectedParticles(SelectionBase):
     discriminator: t.Literal["ConnectedParticles"] = Field("ConnectedParticles")
 
     def run(self, vis) -> None:
-        atoms = vis.atoms
+        atoms = vis[vis.step]
         selected_ids = vis.selection
         total_ids = []
         try:
-            edges = atoms.connectivity
-            graph = nx.Graph()
-            for edge in edges:
-                node_a, node_b, weight = edge
-                graph.add_edge(node_a, node_b, weight=weight)
+            graph = atoms.connectivity
         except AttributeError:
             return selected_ids
 
         for node_id in selected_ids:
             total_ids += list(nx.node_connected_component(graph, node_id))
-            total_ids = np.array(total_ids)
 
-        vis.selection = [x.item() for x in set(total_ids)]
+        vis.selection = list(set(total_ids))
 
 
 class Neighbour(SelectionBase):
@@ -127,15 +122,6 @@ class Neighbour(SelectionBase):
             )
 
         vis.selection = list(set(total_ids))
-
-
-class UpdateSelection(SelectionBase):
-    """Reload Selection."""
-
-    discriminator: t.Literal["UpdateSelection"] = Field("UpdateSelection")
-
-    def run(self, vis: ZnDraw) -> None:
-        vis.selection = vis.selection
 
 
 def get_selection_class(methods):

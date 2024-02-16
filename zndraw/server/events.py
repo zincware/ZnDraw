@@ -1,35 +1,14 @@
-import dataclasses
-import datetime
+import contextlib
 import logging
+import traceback
 from threading import Lock
-from typing import List
 from uuid import uuid4
 
-from celery import chain
-from flask import current_app, request, session
+from flask import current_app as app
+from flask import request, session
 from flask_socketio import call, emit, join_room
-from socketio.exceptions import TimeoutError
-
-from zndraw.db import Session
-from zndraw.db import schema as db_schema
-from zndraw.server import tasks
-from zndraw.utils import typecast
 
 from ..app import socketio as io
-from ..data import (
-    AnalysisFigureData,
-    CeleryTaskData,
-    DeleteAtomsData,
-    FrameData,
-    MessageData,
-    ModifierRegisterData,
-    RoomGetData,
-    RoomSetData,
-    SceneSetData,
-    SceneUpdateData,
-    SchemaData,
-    SubscribedUserData,
-)
 
 log = logging.getLogger(__name__)
 
@@ -38,311 +17,366 @@ modifier_lock = Lock()
 
 def _webclients_room(data: dict) -> str:
     """Return the room name for the webclients."""
-    if isinstance(data, dict):
-        if "sid" in data:
-            return data["sid"]
-        return f"webclients_{data['token']}"
-    elif hasattr(data, "sid"):
-        if data.sid is not None:
-            return data.sid
-    return f"webclients_{data.token}"
+    if "sid" in data:
+        return data["sid"]
+    return f"webclients_{data['token']}"
+
+
+def _webclients_default(data: dict) -> str:
+    """Return the SID of the default webclient."""
+    if "sid" in data:
+        return data["sid"]
+    # TODO: if there is a keyerror, it will not be properly handled and the
+    #  python interface is doomed to wait for TimeoutError.
+    try:
+        return app.config["ROOM_HOSTS"][data["token"]][0]
+    except KeyError:
+        log.critical("No webclient connected.")
+
+
+def _pyclients_room(data: dict) -> str:
+    """All pyclients run via get, so this is not used."""
+    return f"pyclients_{data['token']}"
+
+
+def _pyclients_default(data: dict) -> str:
+    """Return the SID of the default pyclient."""
+    if "sid" in data:
+        return data["sid"]
+    return app.config["DEFAULT_PYCLIENT"]
+
+
+def _get_uuid_for_sid(sid) -> str:
+    """Given a sid, return the UUID that is associated with it.
+    The SID is given by flask, the UUID is defined by zndraw
+    and can be used to reconnect.
+    """
+    inv_clients = {v: k for k, v in app.config["pyclients"].items()}
+    return inv_clients[sid]
+
+
+def _get_queue_position(job_id) -> int:
+    """Return the position of the job_id in the queue."""
+    try:
+        # we add +1, because the job that is currently
+        # running is not in the queue anymore
+        return app.config["MODIFIER"]["queue"].index(job_id) + 1
+    except ValueError:
+        return -1
 
 
 @io.on("connect")
 def connect():
-    try:
-        token = str(session["token"])
-        log.debug(f"connecting (webclient) {request.sid}")
-        URL = f"http://127.0.0.1:{current_app.config['PORT']}"
-        # if you connect through Python, you don't have a token
-        read_file_chain = chain(
-            tasks.read_file.s(
-                url=URL,
-                target=request.sid,
-                token=token,
-                fileio=current_app.config["FileIO"],
-            ),
-            tasks.analysis_schema.si(URL, token),
-        )
-        read_file_chain.delay()
-        tasks.get_selection_schema.delay(URL, request.sid)
-        tasks.scene_schema.delay(URL, request.sid)
-        tasks.geometries_schema.delay(URL, request.sid)
-        tasks.modifier_schema.delay(URL, token)
+    if app.config["DEFAULT_PYCLIENT"] is None and "token" in session:
+        # refuse connection if there is no default pyclient
+        return False
+    with contextlib.suppress(KeyError):
+        # If you connect through Python, you don't have a token.
 
+        token = session["token"]
         join_room(f"webclients_{token}")
-        join_room(f"{token}")
         # who ever connected latest is the HOST of the room
+        try:
+            app.config["ROOM_HOSTS"][token].append(request.sid)
+        except KeyError:
+            app.config["ROOM_HOSTS"][token] = [request.sid]
 
-        # check if there is a db_schema.Room with the given token, if not create one
-        with Session() as ses:
-            room = ses.query(db_schema.Room).filter_by(token=token).first()
-            if room is None:
-                room = db_schema.Room(
-                    token=token, currentStep=0, points=[], selection=[]
-                )
-                ses.add(room)
+        emit("webclient:available", request.sid, to=app.config["DEFAULT_PYCLIENT"])
 
-            client = db_schema.WebClient(
-                sid=request.sid, room=room, name=uuid4().hex[:8].upper()
-            )
-            # check if any client in the room is host
-            if (
-                ses.query(db_schema.WebClient).filter_by(room=room, host=True).first()
-                is None
-            ):
-                client.host = True
-            ses.add(client)
-            ses.commit()
+        data = {"modifiers": []}  # {schema: ..., name: ...}
+        for name, schema in app.config["MODIFIER"]["default_schema"].items():
+            data["modifiers"].append({"schema": schema, "name": name})
+        data["token"] = token
 
-        # get all clients in the room
-        with Session() as ses:
-            room = ses.query(db_schema.Room).filter_by(token=token).first()
-            clients = ses.query(db_schema.WebClient).filter_by(room=room).all()
-            connected_users = [{"name": client.name} for client in clients]
+        emit("modifier:register", data, to=app.config["DEFAULT_PYCLIENT"])
 
-        emit(
-            "connectedUsers",
-            list(reversed(connected_users)),
-            to=_webclients_room({"token": token}),
+        # TODO emit("modifier:register", _all modifiers_, to=app.config["DEFAULT_PYCLIENT"]')
+
+        log.debug(
+            f"connected {request.sid} and updated HOSTS to {app.config['ROOM_HOSTS']}"
         )
-
-        # append to zndraw.log a line isoformat() + " " + token
-        log.info(
-            datetime.datetime.now().isoformat() + " " + token
-            if token
-            else "client" + " connected"
-        )
-
-    except KeyError:
-        # clients that connect directly via socketio do not call "join" to
-        # register their token
-        log.debug(f"connecting (pyclient) {request.sid}")
-        session["token"] = None
-
-
-@io.on("celery:task:emit")
-@typecast
-def celery_task_results(msg: CeleryTaskData):
-    token = str(session["token"])
-    if msg.event == "atoms:upload":
-        if msg.data[0]["update_database"]:
-            tasks.update_atoms(token, msg.data)
-    emit(msg.event, msg.data, to=msg.target)
-    if msg.disconnect:
-        io.server.disconnect(request.sid)
-
-
-@io.on("celery:task:call")
-@typecast
-def celery_task_call(msg: CeleryTaskData):
-    try:
-        return call(msg.event, msg.data, to=msg.target, timeout=msg.timeout)
-    except TimeoutError:
-        log.critical(f"TimeoutError for {msg.event} with {msg.data}")
-        return None
+        emit("message:log", "Connection established", to=request.sid)
+        if token not in app.config["PER-TOKEN-DATA"]:
+            app.config["PER-TOKEN-DATA"][token] = {}
 
 
 @io.on("disconnect")
 def disconnect():
-    token = str(session.get("token"))
-
-    url = request.url_root
-    if current_app.config["upgrade_insecure_requests"] and not "127.0.0.1" in url:
-        url = url.replace("http://", "https://")
-    url = url.replace("http", "ws")
-
-    tasks.on_disconnect.delay(token=token, sid=request.sid, url=url)
+    with contextlib.suppress(KeyError):
+        token = session["token"]
+        try:
+            del app.config["pyclients"][_get_uuid_for_sid(request.sid)]
+        except KeyError:
+            pass
+        try:
+            app.config["ROOM_HOSTS"][token].remove(request.sid)
+        except ValueError:
+            pass  # SID not in the list
+        if not app.config["ROOM_HOSTS"][token]:
+            del app.config["ROOM_HOSTS"][token]
+        # remove the pyclient from the dict
+    log.debug(
+        f'disconnect {request.sid} and updated HOSTS to {app.config["ROOM_HOSTS"]}'
+    )
 
 
 @io.on("join")
 def join(data: dict):
     """
     Arguments:
-        data: {"token": str, "auth_token": str}
+        data: {"token": str, "uuid": str}
     """
-    if current_app.config["AUTH_TOKEN"] is None:
-        session["authenticated"] = True
-    else:
-        session["authenticated"] = (
-            data["auth_token"] == current_app.config["AUTH_TOKEN"]
-        )
+    # only used by pyclients that only connect via socket (no HTML)
     token = data["token"]
+    uuid = data["uuid"]
+    auth_token = data["auth_token"]
+    session["authenticated"] = auth_token == app.config["AUTH_TOKEN"]
+    log.debug(f"Client {request.sid} is {session['authenticated'] = }")
+    if uuid in app.config["pyclients"]:
+        log.critical(f"UUID {uuid} is already registered in {app.config['pyclients']}.")
+        emit("message:log", f"UUID {uuid} is already registered", to=request.sid)
+    app.config["pyclients"][uuid] = request.sid
     session["token"] = token
-    join_room(f"{token}")
     join_room(f"pyclients_{token}")
+    if token not in app.config["PER-TOKEN-DATA"]:
+        app.config["PER-TOKEN-DATA"][token] = {}
+    if token == "default":
+        # this would be very easy to exploit
+        app.config["DEFAULT_PYCLIENT"] = request.sid
 
-    with Session() as ses:
-        room = ses.query(db_schema.Room).filter_by(token=token).first()
-        if room is None:
-            room = db_schema.Room(token=token, currentStep=0, points=[], selection=[])
-            ses.add(room)
-        ses.commit()
+
+@io.on("scene:schema")
+def scene_schema():
+    import enum
+
+    from pydantic import BaseModel, Field
+
+    class Material(str, enum.Enum):
+        MeshBasicMaterial = "MeshBasicMaterial"
+        MeshLambertMaterial = "MeshLambertMaterial"
+        MeshMatcapMaterial = "MeshMatcapMaterial"
+        MeshPhongMaterial = "MeshPhongMaterial"
+        MeshPhysicalMaterial = "MeshPhysicalMaterial"
+        MeshStandardMaterial = "MeshStandardMaterial"
+        MeshToonMaterial = "MeshToonMaterial"
+
+    # create a class for the material, resolution, etc.
+    class Scene(BaseModel):
+        fps: int = Field(60, ge=1, le=120, description="Maxiumm frames per second")
+        material: Material = Field(Material.MeshPhongMaterial, description="Material")
+        resolution: int = Field(10, ge=1, le=50, description="Resolution")
+        particle_size: float = Field(1.0, ge=0.1, le=5, description="Particle Size")
+        bonds_size: float = Field(1.0, ge=0.1, le=5, description="Bonds Size")
+        wireframe: bool = Field(False, description="Wireframe")
+        loop: bool = Field(
+            False,
+            alias="Animation Loop",
+            description="Automatically restart animation when finished.",
+        )
+        simulation_box: bool = Field(
+            False,
+            description="Show the simulation box.",
+        )
+        bonds: bool = Field(
+            True,
+            description="Show bonds.",
+        )
+        label_offset: int = Field(
+            0,
+            ge=-7,
+            le=7,
+            description="Move the label to the left or right (keypress i).",
+        )
+
+    schema = Scene.model_json_schema()
+
+    schema["properties"]["wireframe"]["format"] = "checkbox"
+    schema["properties"]["Animation Loop"]["format"] = "checkbox"
+    schema["properties"]["simulation_box"]["format"] = "checkbox"
+    schema["properties"]["resolution"]["format"] = "range"
+    schema["properties"]["label_offset"]["format"] = "range"
+    schema["properties"]["particle_size"]["format"] = "range"
+    schema["properties"]["fps"]["format"] = "range"
+    schema["properties"]["particle_size"]["step"] = 0.1
+    schema["properties"]["bonds_size"]["format"] = "range"
+    schema["properties"]["bonds_size"]["step"] = 0.1
+    schema["properties"]["bonds"]["format"] = "checkbox"
+
+    return schema
+
+
+@io.on("modifier:run")
+def modifier_run(data):
+    # emit entered the queue
+    JOB_ID = uuid4()
+    app.config["MODIFIER"]["queue"].append(JOB_ID)
+
+    while True:
+        if app.config["MODIFIER"]["queue"][0] == JOB_ID:
+            acquired = modifier_lock.acquire(blocking=False)
+        else:
+            acquired = False
+        if acquired:
+            print("modifier_lock acquired")
+            break
+        else:
+            emit(
+                "modifier:run:enqueue",
+                _get_queue_position(JOB_ID),
+                to=_webclients_room({"token": session["token"]}),
+            )
+            print("waiting for modifier_lock")
+            io.sleep(1)
+
+    name = data["params"]["method"]["discriminator"]
+    # handle custom modifiers (not default)
+    if name in app.config["PER-TOKEN-DATA"][session["token"]].get("modifier", {}):
+        token = app.config["PER-TOKEN-DATA"][session["token"]]["modifier"][name]
+        data["sid"] = app.config["pyclients"][token]
+    # handle custom modifiers (default)
+    elif name in app.config["MODIFIER"]:
+        data["sid"] = app.config["pyclients"][app.config["MODIFIER"][name]]
+
+    # need to set the target of the modifier to the webclients room
+    data["target"] = session["token"]
+    # This should not go to request.sid but all webclients in the room
+    emit("modifier:run:submitted", {}, to=_webclients_room({"token": session["token"]}))
+    emit("modifier:run", data, to=_pyclients_default(data))
+    app.config["MODIFIER"]["queue"].remove(JOB_ID)
+
+
+@io.on("analysis:run")
+def analysis_run(data):
+    data["target"] = session["token"]
+    emit("analysis:run", data, include_self=False, to=_pyclients_default(data))
 
 
 @io.on("analysis:figure")
-@typecast
-def analysis_figure(data: AnalysisFigureData):
+def analysis_figure(data):
     emit(
-        "analysis:figure",
-        data.figure,
-        include_self=False,
-        to=f"webclients_{session['token']}",
+        "analysis:figure", data["figure"], include_self=False, to=_webclients_room(data)
     )
 
 
 @io.on("scene:set")
-@typecast
-def scene_set(data: SceneSetData):
-    emit(
-        "scene:set", data.index, include_self=False, to=f"webclients_{session['token']}"
-    )
+def scene_set(data):
+    emit("scene:set", data["index"], include_self=False, to=_webclients_room(data))
 
 
 @io.on("scene:step")
-def scene_step():
-    token = str(session["token"])
-    with Session() as ses:
-        room = ses.query(db_schema.Room).filter_by(token=token).first()
-        if room is None:
-            raise ValueError("No room found for token.")
-        return room.currentStep
+def scene_step(data):
+    return call("scene:step", to=_webclients_room(data))
 
 
 @io.on("atoms:download")
-def atoms_download(indices: list[int]):
-    token = str(session["token"])
-
-    data = {}
-    with Session() as ses:
-        room = ses.query(db_schema.Room).filter_by(token=token).first()
-        if room is None:
-            raise ValueError("No room found for token.")
-        # get all db_schema.Frame with the given indices
-        frames = ses.query(db_schema.Frame).filter(
-            db_schema.Frame.index.in_(indices), db_schema.Frame.room == room
-        )
-        for frame in frames:
-            data[frame.index] = frame.data
-
-    return data
+def atoms_download(data):
+    return call("atoms:download", data["indices"], to=_webclients_default(data))
 
 
 @io.on("atoms:upload")
-def atoms_upload(data: List[FrameData]):
-    token = str(session["token"])
-    if data[0]["update_database"]:
-        tasks.update_atoms(token, data)
-    emit(
-        "atoms:upload",
-        data,
-        include_self=False,
-        to=f"webclients_{session['token']}",
-    )
+def atoms_upload(data: dict):
+    to = _webclients_default(data)
+    # remove token and sid from the data, because JavaScript does not expect it
+    data.pop("token", None)
+    data.pop("sid", None)
+    emit("atoms:upload", data, include_self=False, to=to)
 
 
 @io.on("atoms:delete")
-@typecast
-def atoms_delete(data: DeleteAtomsData):
-    token = str(session["token"])
-    emit(
-        "atoms:delete",
-        data.index,
-        include_self=False,
-        to=f"webclients_{session['token']}",
-    )
-    with Session() as ses:
-        room = ses.query(db_schema.Room).filter_by(token=token).first()
-        ses.query(db_schema.Frame).filter(
-            db_schema.Frame.index.in_(data.index), db_schema.Frame.room == room
-        ).delete(synchronize_session=False)
-        ses.commit()
+def atoms_delete(data: dict):
+    emit("atoms:delete", data["index"], include_self=False, to=_webclients_room(data))
 
 
 @io.on("atoms:length")
-def atoms_length():
-    token = str(session["token"])
-    with Session() as ses:
-        room = ses.query(db_schema.Room).filter_by(token=token).first()
-        return ses.query(db_schema.Frame).filter_by(room=room).count()
+def atoms_length(data: dict):
+    return call("atoms:length", to=_webclients_default(data))
+
+
+@io.on("analysis:schema")
+def analysis_schema(data: dict):
+    if "sid" in data:
+        emit("analysis:schema", data["schema"], include_self=False, to=data["sid"])
+    else:
+        raise ValueError
 
 
 @io.on("modifier:schema")
-@typecast
-def modifier_schema(data: SchemaData):
-    emit("modifier:schema", data.schema, include_self=False, to=_webclients_room(data))
+def modifier_schema(data: dict):
+    emit(
+        "modifier:schema", data["schema"], include_self=False, to=_webclients_room(data)
+    )
 
 
 @io.on("selection:schema")
-@typecast
-def selection_schema(data: SchemaData):
-    emit("selection:schema", data.schema, include_self=False, to=data.sid)
-
-
-@io.on("scene:schema")
-@typecast
-def scene_schema(data: SchemaData):
-    emit("scene:schema", data.schema, include_self=False, to=data.sid)
+def selection_schema(data: dict):
+    if "sid" in data:
+        emit("selection:schema", data["schema"], include_self=False, to=data["sid"])
+    else:
+        raise ValueError
 
 
 @io.on("draw:schema")
-@typecast
-def draw_schema(data: SchemaData):
-    emit("draw:schema", data.schema, include_self=False, to=data.sid)
+def draw_schema(data: dict):
+    if "sid" in data:
+        emit("draw:schema", data["schema"], include_self=False, to=data["sid"])
+    else:
+        raise ValueError
 
 
 @io.on("points:get")
-def scene_points():
-    token = str(session["token"])
-    with Session() as ses:
-        room = ses.query(db_schema.Room).filter_by(token=token).first()
-        if room is None:
-            raise ValueError("No room found for token.")
-        return room.points
+def scene_points(data: dict):
+    return call("points:get", to=_webclients_default(data))
 
 
 @io.on("scene:segments")
-def scene_segments():
-    token = str(session["token"])
-    with Session() as ses:
-        room = ses.query(db_schema.Room).filter_by(token=token).first()
-        if room is None:
-            raise ValueError("No room found for token.")
-        host = ses.query(db_schema.WebClient).filter_by(room=room, host=True).first()
-    return call("scene:segments", to=host.sid)
+def scene_segments(data: dict):
+    return call("scene:segments", to=_webclients_default(data))
 
 
 @io.on("selection:get")
-def selection_get():
-    token = str(session["token"])
-    with Session() as ses:
-        room = ses.query(db_schema.Room).filter_by(token=token).first()
-        if room is None:
-            raise ValueError("No room found for token.")
-        return room.selection
+def selection_get(data: dict):
+    return call("selection:get", to=_webclients_default(data))
 
 
 @io.on("selection:set")
-def selection_set(data: list[int]):
-    token = str(session["token"])
+def selection_set(data: dict):
     emit(
         "selection:set",
-        data,
+        data["selection"],
         include_self=False,
-        to=f"webclients_{token}",
+        to=_webclients_room(data),
     )
-    with Session() as ses:
-        room = ses.query(db_schema.Room).filter_by(token=token).first()
-        if room is None:
-            raise ValueError("No room found for token.")
-        room.selection = data
-        ses.commit()
+
+
+@io.on("selection:run")
+def selection_run(data: dict):
+    data["target"] = session["token"]
+    emit("selection:run", data, include_self=False, to=_pyclients_default(data))
+
+
+@io.on("upload")
+def upload(data):
+    data = {"data": data, "target": session["token"]}
+    emit("upload", data, include_self=False, to=_pyclients_default(data))
+
+
+@io.on("atoms:insert")
+def insert_atoms(data):
+    raise NotImplementedError("This feature is not implemented yet.")
 
 
 @io.on("message:log")
-@typecast
-def message_log(data: MessageData):
-    emit("message:log", data.message, to=f"webclients_{session['token']}")
+def message_log(data):
+    emit("message:log", data["message"], to=_webclients_room(data))
+
+
+@io.on("download:request")
+def download_request(data):
+    emit(
+        "download:request",
+        {"data": data, "sid": session["token"]},
+        to=app.config["DEFAULT_PYCLIENT"],
+    )
 
 
 @io.on("download:response")
@@ -351,61 +385,77 @@ def download_response(data):
 
 
 @io.on("scene:play")
-@typecast
-def scene_play():
-    emit("scene:play", to=f"webclients_{session['token']}")
+def scene_play(data):
+    log.debug(f"scene:play {data}")
+    emit("scene:play", to=_webclients_room(data))
 
 
 @io.on("scene:pause")
-@typecast
-def scene_pause():
-    emit("scene:pause", to=f"webclients_{session['token']}")
+def scene_pause(data):
+    log.debug(f"scene:pause {data}")
+    emit("scene:pause", to=_webclients_room(data))
+
+
+@io.on("modifier:register")
+def modifier_register(data):
+    data["token"] = session["token"]
+    if "modifier" not in app.config["PER-TOKEN-DATA"][session["token"]]:
+        # this is a dict for the pyclient, but it has to be for every webclient ...
+        app.config["PER-TOKEN-DATA"][session["token"]]["modifier"] = {}
+
+    try:
+        # we can only register one modifier at a time
+        name = data["modifiers"][0]["name"]
+        if name in app.config["MODIFIER"]["default_schema"]:
+            msg = f"'{name}' is already registered as a default modifier and therefore reserved. Choose another name for your modifier!"
+            log.critical(msg)
+            emit("message:log", msg, to=request.sid)
+
+        if name in app.config["PER-TOKEN-DATA"][session["token"]]["modifier"]:
+            msg = f"Modifier {name} is already registered."
+            log.critical(msg)
+            emit("message:log", msg, to=request.sid)
+        # get the key from the value request.sid by inverting the dict
+        app.config["PER-TOKEN-DATA"][session["token"]]["modifier"][
+            name
+        ] = _get_uuid_for_sid(request.sid)
+        log.critical(f'{app.config["PER-TOKEN-DATA"] = }')
+        log.critical(f'{app.config["pyclients"] = }')
+
+        if data["modifiers"][0]["default"]:
+            if not session["authenticated"]:
+                msg = "Unauthenticated users cannot register default modifiers."
+                log.critical(msg)
+                emit("message:log", msg, to=request.sid)
+            app.config["MODIFIER"]["default_schema"][name] = data["modifiers"][0][
+                "schema"
+            ]
+            app.config["MODIFIER"][name] = _get_uuid_for_sid(request.sid)
+    except KeyError:
+        print("Could not identify the modifier name.")
+        traceback.print_exc()
+
+    emit("modifier:register", data, to=app.config["DEFAULT_PYCLIENT"])
 
 
 @io.on("bookmarks:get")
-def bookmarks_get():
-    token = str(session["token"])
-    with Session() as ses:
-        room = ses.query(db_schema.Room).filter_by(token=token).first()
-        if room is None:
-            raise ValueError("No room found for token.")
-        return {bm.step: bm.text for bm in room.bookmarks}
+def bookmarks_get(data: dict):
+    return call("bookmarks:get", to=_webclients_default(data))
 
 
 @io.on("bookmarks:set")
-@typecast
 def bookmarks_set(data: dict):
-    token = str(session["token"])
     emit(
         "bookmarks:set",
-        data,
+        data["bookmarks"],
         include_self=False,
-        to=f"webclients_{token}",
+        to=_webclients_room(data),
     )
-    with Session() as ses:
-        room = ses.query(db_schema.Room).filter_by(token=token).first()
-        if room is None:
-            raise ValueError("No room found for token.")
-        # remove all bookmarks for the given token
-        ses.query(db_schema.Bookmark).filter_by(room=room).delete()
-        # add all bookmarks from the data
-        for k, v in data.items():
-            bookmark = db_schema.Bookmark(step=k, text=v, room=room)
-            ses.add(bookmark)
-
-        ses.commit()
 
 
 @io.on("points:set")
-def points_set(data: list[list[float]]):
-    token = str(session["token"])
-    emit("points:set", data, include_self=False, to=f"webclients_{token}")
-    with Session() as ses:
-        room = ses.query(db_schema.Room).filter_by(token=token).first()
-        if room is None:
-            raise ValueError("No room found for token.")
-        room.points = data
-        ses.commit()
+def points_set(data: dict):
+    emit("points:set", data["value"], include_self=False, to=_webclients_room(data))
 
 
 @io.on("debug")
@@ -413,332 +463,22 @@ def debug(data: dict):
     emit("debug", data, include_self=False, to=_webclients_room(data))
 
 
-@io.on("connectedUsers:subscribe:camera")
-@typecast
-def connected_users_subscribe_camera(data: SubscribedUserData):
-    """
-    Subscribe to camera updates for connected users.
-
-    data: {user: str}
-    """
-    token = str(session["token"])
-    with Session() as ses:
-        room = ses.query(db_schema.Room).filter_by(token=token).first()
-        if room is None:
-            raise ValueError("No room found for token.")
-        current_client = (
-            ses.query(db_schema.WebClient).filter_by(sid=request.sid).first()
-        )
-        controller_client = (
-            ses.query(db_schema.WebClient).filter_by(name=data.user).first()
-        )
-        if (
-            controller_client.sid == request.sid
-            or controller_client.camera_controller == current_client
-        ):
-            current_client.camera_controller = None
-        else:
-            current_client.camera_controller = controller_client
-        ses.commit()
+@io.on("modifier:run:running")
+def modifier_run_running(data: dict):
+    app.config["MODIFIER"]["active"] = data.get("name", "unknown")
+    emit("modifier:run:running", data, include_self=False, to=_webclients_room(data))
 
 
-@io.on("camera:update")
-def camera_update(data: dict):
-    token = str(session["token"])
-    timestamp = datetime.datetime.utcnow().isoformat()
-    session["camera-update"] = timestamp
-    # TODO: store this in the session
-    with Session() as ses:
-        room = ses.query(db_schema.Room).filter_by(token=token).first()
-        if room is None:
-            raise ValueError("No room found for token.")
-        current_client = (
-            ses.query(db_schema.WebClient).filter_by(sid=request.sid).first()
-        )
-        camera_subscribers = (
-            ses.query(db_schema.WebClient)
-            .filter_by(camera_controller=current_client)
-            .all()
-        )
-        camera_subscribers = [client.sid for client in camera_subscribers]
-
-    emit(
-        "camera:update",
-        data,
-        include_self=False,
-        to=camera_subscribers,
-    )
-    io.sleep(1)
-    if session["camera-update"] == timestamp:
-        data = RoomSetData(camera=data)
-        url = request.url_root
-        if current_app.config["upgrade_insecure_requests"] and not "127.0.0.1" in url:
-            url = url.replace("http://", "https://")
-        tasks.handle_room_set.delay(data.to_dict(), session["token"], url, request.sid)
+@io.on("modifier:run:finished")
+def modifier_run_finished(data: dict):
+    app.config["MODIFIER"]["active"] = None
+    modifier_lock.release()
+    print("modifier_lock released")
+    emit("modifier:run:finished", data, include_self=False, to=_webclients_room(data))
 
 
-@io.on("scene:update")
-@typecast
-def scene_update(data: SceneUpdateData):
-    """Update the scene.
-
-    data: {step: int, camera: {position: [float, float, float], rotation: [float, float, float]}}
-    """
-    token = str(session["token"])
-
-    if data.step is not None:
-        with Session() as ses:
-            room = ses.query(db_schema.Room).filter_by(token=token).first()
-            current_client = (
-                ses.query(db_schema.WebClient).filter_by(sid=request.sid).first()
-            )
-            if room is None:
-                raise ValueError("No room found for token.")
-            if current_client.host:
-                room.currentStep = data.step
-                ses.commit()
-
-            step_subscribers = (
-                ses.query(db_schema.WebClient)
-                .filter_by(step_controller=current_client)
-                .all()
-            )
-            step_subscribers = [client.sid for client in step_subscribers]
-
-        emit(
-            "scene:update",
-            dataclasses.asdict(data),
-            include_self=False,
-            to=step_subscribers,
-        )
-
-    if data.camera is not None:
-        with Session() as ses:
-            room = ses.query(db_schema.Room).filter_by(token=token).first()
-            if room is None:
-                raise ValueError("No room found for token.")
-            current_client = (
-                ses.query(db_schema.WebClient).filter_by(sid=request.sid).first()
-            )
-            camera_subscribers = (
-                ses.query(db_schema.WebClient)
-                .filter_by(camera_controller=current_client)
-                .all()
-            )
-            camera_subscribers = [client.sid for client in camera_subscribers]
-
-        emit(
-            "scene:update",
-            dataclasses.asdict(data),
-            include_self=False,
-            to=camera_subscribers,
-        )
-
-
-@io.on("selection:run")
-def selection_run(data: dict):
-    """Run the selection."""
-    tasks.run_selection.delay(
-        f"http://127.0.0.1:{current_app.config['PORT']}", session["token"], data
-    )
-
-
-@io.on("analysis:run")
-def analysis_run(data: dict):
-    """Run the analysis."""
-    io.emit(
-        "analysis:run:enqueue", to=f"webclients_{session['token']}", include_self=False
-    )
-    tasks.run_analysis.delay(
-        f"http://127.0.0.1:{current_app.config['PORT']}", session["token"], data
-    )
-
-
-@io.on("modifier:run")
-def modifier_run(data: dict):
-    """Run the modifier."""
-    io.emit(
-        "modifier:run:enqueue", to=f"webclients_{session['token']}", include_self=False
-    )
-    # split into separate streams based on the modifier name
-    url = f"http://127.0.0.1:{current_app.config['PORT']}"
-    tasks.run_modifier(url, session["token"], data)
-
-
-def _register_global_modifier(data):
-    with Session() as ses:
-        global_modifier = (
-            ses.query(db_schema.Modifier)
-            .filter_by(name=data.name, room_token=None)
-            .first()
-        )
-        if global_modifier is None:
-            global_modifier = db_schema.Modifier(
-                name=data.name, schema=data.schema, room_token=None
-            )
-            ses.add(global_modifier)
-        elif global_modifier.schema != data.schema:
-            log.critical(
-                f"Modifier {data.name} is already registered with a different schema."
-            )
-            return
-        # attach GlobalModifierClient
-        global_modifier_client = db_schema.ModifierClient(
-            sid=request.sid,
-            timeout=data.timeout,
-            available=False,
-            modifier=global_modifier,
-        )
-        ses.add(global_modifier_client)
-        ses.commit()
-
-
-def _register_room_modifier(data):
-    # TODO: do we want one table for global and room modifiers?
-    token = str(session["token"])
-    with Session() as ses:
-        room = ses.query(db_schema.Room).filter_by(token=token).first()
-        if room is None:
-            raise ValueError("No room found for token.")
-        room_modifier = (
-            ses.query(db_schema.Modifier).filter_by(name=data.name, room=room).first()
-        )
-        if room_modifier is None:
-            room_modifier = db_schema.Modifier(
-                name=data.name, schema=data.schema, room=room
-            )
-            ses.add(room_modifier)
-        elif room_modifier.schema != data.schema:
-            log.critical(
-                f"Modifier {data.name} is already registered with a different schema."
-            )
-            return
-        # attach RoomModifierClient
-        room_modifier_client = db_schema.ModifierClient(
-            sid=request.sid,
-            timeout=data.timeout,
-            available=False,
-            modifier=room_modifier,
-        )
-        ses.add(room_modifier_client)
-        ses.commit()
-
-
-@io.on("modifier:register")
-@typecast
-def modifier_register(data: ModifierRegisterData):
-    """Register the modifier."""
-    if data.default and not session["authenticated"]:
-        log.critical("Unauthenticated user tried to register a default modifier.")
-        return
-    if data.default:
-        # TODO: authenticattion
-        _register_global_modifier(data)
-    else:
-        _register_room_modifier(data)
-
-    # emit new modifier schema to all webclients
-    tasks.modifier_schema.delay(
-        f"http://127.0.0.1:{current_app.config['PORT']}", session["token"]
-    )
-
-
-@io.on("modifier:available")
-def modifier_available(available: bool):
-    """Update the modifier availability."""
-    tasks.activate_modifier.delay(request.sid, available)
-
-
-@io.on("ping")
-def ping() -> str:
-    return "pong"
-
-
-@io.on("room:get")
-def room_get(data: RoomGetData):
-    url = request.url_root
-    if current_app.config["upgrade_insecure_requests"] and not "127.0.0.1" in url:
-        url = url.replace("http://", "https://")
-    tasks.handle_room_get.delay(data, session["token"], url, request.sid)
-
-
-@io.on("room:set")
-@typecast
-def room_set(data: RoomSetData):
-    emit(
-        "room:set",
-        data.to_dict(),
-        include_self=False,
-        to=f"webclients_{session['token']}",
-    )
-    url = request.url_root
-    if current_app.config["upgrade_insecure_requests"] and not "127.0.0.1" in url:
-        url = url.replace("http://", "https://")
-
-    if data.update_database:
-        # TODO: we need to differentiate, if the data comes from a pyclient or a webclient
-        # TODO: for fast updates, e.g. points, step during play this is not fast enough
-        tasks.handle_room_set.delay(data.to_dict(), session["token"], url, request.sid)
-
-
-@io.on("step:update")
-def step_update(step: int):
-    timestamp = datetime.datetime.utcnow().isoformat()
-    session["step-update"] = timestamp
-
-    data = RoomSetData(step=step)
-
-    emit(
-        "room:set",
-        data.to_dict(),
-        include_self=False,
-        to=f"webclients_{session['token']}",
-    )
-    io.sleep(1)
-    if session["step-update"] == timestamp:
-        url = request.url_root
-        if current_app.config["upgrade_insecure_requests"] and not "127.0.0.1" in url:
-            url = url.replace("http://", "https://")
-        tasks.handle_room_set.delay(data.to_dict(), session["token"], url, request.sid)
-
-
-@io.on("points:update")
-def points_update(points: list[list[float]]):
-    timestamp = datetime.datetime.utcnow().isoformat()
-    session["points-update"] = timestamp
-
-    data = RoomSetData(points=points)
-
-    emit(
-        "room:set",
-        data.to_dict(),
-        include_self=False,
-        to=f"webclients_{session['token']}",
-    )
-    io.sleep(1)
-    if session["points-update"] == timestamp:
-        url = request.url_root
-        if current_app.config["upgrade_insecure_requests"] and not "127.0.0.1" in url:
-            url = url.replace("http://", "https://")
-        tasks.handle_room_set.delay(data.to_dict(), session["token"], url, request.sid)
-
-
-@io.on("file:upload")
-def file_upload(data: dict):
-    url = request.url_root
-    if current_app.config["upgrade_insecure_requests"] and not "127.0.0.1" in url:
-        url = url.replace("http://", "https://")
-    tasks.upload_file.delay(
-        url=url,
-        token=str(session["token"]),
-        filename=data["filename"],
-        content=data["content"],
-    )
-
-
-@io.on("file:download")
-def file_download():
-    url = request.url_root
-    if current_app.config["upgrade_insecure_requests"] and not "127.0.0.1" in url:
-        url = url.replace("http://", "https://")
-    tasks.download_file.delay(url=url, token=str(session["token"]), sid=request.sid)
+@io.on("modifier:run:failed")
+def modifier_run_failed():
+    app.config["MODIFIER"]["active"] = None
+    modifier_lock.release()
+    log.critical("Modifier failed - releasing lock.")

@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "zndraw"
-version = "0.3.0"
+version = "0.2.2a4"
 description = "Display and Edit Molecular Structures and Trajectories in the Browser."
 authors = ["zincwarecode <zincwarecode@gmail.com>"]
 license = "Apache-2.0"
@@ -28,17 +28,14 @@ znframe = "^0.1.5"
 
 
 [tool.poetry.group.dev.dependencies]
-pre-commit = "^3"
-pytest = "^7"
-coverage = "^7"
-selenium = "^4"
-webdriver-manager = "^4"
-ruff = "^0.1"
-
+pre-commit = "^3.3.3"
+pytest = "^7.4.2"
+coverage = "^7.3.1"
+selenium = "^4.14.0"
+webdriver-manager = "^4.0.1"
 
 [tool.poetry.extras]
-all = ["mdanalysis", "tidynamics", "rdkit2ase"]
-rdkit = ["rdkit2ase"]
+all = ["mdanalysis", "tidynamics"]
 
 [build-system]
 requires = ["poetry-core"]

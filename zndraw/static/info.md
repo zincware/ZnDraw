@@ -13,4 +13,3 @@
 - **add bookmark at current step**: `keypress B`
 - **jump between bookmarks**: `shift + keypress ▶\◀`
 - **remove bookmark**: `shift + mouse click`
-- **toggle drawing mode**: `keypress X`

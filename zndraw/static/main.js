@@ -3,7 +3,6 @@ import { World } from "./World/World.js";
 import { setUIEvents } from "./UI/UI.js";
 import { initJSONEditor } from "./UI/json_editor.js";
 import { ManipulateElement } from "./UI/ManipulateElement.js";
-import { setupSiMGen } from "./misc/simgen.js";
 
 function setupSocket() {
   const socket = io();
@@ -12,8 +11,6 @@ function setupSocket() {
   });
 
   socket.on("debug", (msg) => {
-    // simulate sending a message from the client
-    // to the server, triggered by the server itself
     console.log(msg);
     socket.emit(msg["event"], msg["data"]);
   });
@@ -36,6 +33,22 @@ function setupSocket() {
   return socket;
 }
 
+function setupInfo() {
+  fetch("static/info.md")
+    .then((response) => response.text())
+    .then((text) => {
+      document.getElementById("helpModalBody").innerHTML = marked.parse(text);
+    });
+
+  const tutorialIframe = document.getElementById("tutorialIframe");
+  if (tutorialIframe) {
+    // set width and height of iframe to 100% of parent
+    tutorialIframe.style.width = "100%";
+    // set height to 80% of screen height
+    tutorialIframe.style.height = window.innerHeight * 0.7 + "px";
+  }
+}
+
 function main() {
   const socket = setupSocket();
   const cache = new Cache(socket);
@@ -44,8 +57,6 @@ function main() {
 
   setUIEvents(socket, cache, world);
   initJSONEditor(socket, cache, world);
-
-  setupSiMGen(socket, world);
   world.start();
 
   // socket dicsconnect event
@@ -70,6 +81,7 @@ function main() {
     "#ZnDrawConsoleCard",
   );
   document.getElementById("atom-spinner").style.display = "none";
+  setupInfo();
 }
 
 main();

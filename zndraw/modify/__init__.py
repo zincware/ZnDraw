@@ -1,33 +1,24 @@
 import abc
 import enum
 import logging
-import time
 import typing as t
 
 import ase
 import numpy as np
 from ase.data import chemical_symbols
 from pydantic import BaseModel, ConfigDict, Field
-from znframe.frame import get_radius
-
-try:
-    from zndraw.modify import extras  # noqa: F401
-except ImportError:
-    # mdanalysis is not installed
-    pass
-
-if t.TYPE_CHECKING:
-    from zndraw.zndraw import ZnDraw
-
 
 log = logging.getLogger("zndraw")
 
 Symbols = enum.Enum("Symbols", {symbol: symbol for symbol in chemical_symbols})
 
+if t.TYPE_CHECKING:
+    from zndraw.zndraw import ZnDraw
+
 
 class UpdateScene(BaseModel, abc.ABC):
     @abc.abstractmethod
-    def run(self, vis: "ZnDraw", timeout: float, **kwargs) -> None:
+    def run(self, vis: "ZnDraw") -> None:
         """Method called when running the modifier."""
         pass
 
@@ -44,27 +35,6 @@ class UpdateScene(BaseModel, abc.ABC):
         return atoms_selected, atoms_remaining
 
 
-class Connect(UpdateScene):
-    """Create guiding curve between selected atoms."""
-
-    discriminator: t.Literal["Connect"] = Field("Connect")
-
-    def run(self, vis: "ZnDraw", **kwargs) -> None:
-        atom_ids = vis.selection
-        atom_positions = vis.atoms.get_positions()
-        atom_numbers = vis.atoms.numbers[atom_ids]
-        camera_position = np.array(vis.camera["position"])[None, :]  # 1,3
-
-        new_points = atom_positions[atom_ids]  # N, 3
-        radii: np.ndarray = get_radius(atom_numbers)[0][:, None]  # N, 1
-        direction = camera_position - new_points
-        direction /= np.linalg.norm(direction, axis=1, keepdims=True)
-        new_points += direction * radii
-
-        vis.points = new_points
-        vis.selection = []
-
-
 class Rotate(UpdateScene):
     """Rotate the selected atoms around a the line (2 points only)."""
 
@@ -77,9 +47,8 @@ class Rotate(UpdateScene):
     steps: int = Field(
         30, ge=1, description="Number of steps to take to complete the rotation"
     )
-    sleep: float = Field(0.1, ge=0, description="Sleep time between steps")
 
-    def run(self, vis: "ZnDraw", **kwargs) -> None:
+    def run(self, vis: "ZnDraw") -> None:
         # split atoms object into the selected from atoms_ids and the remaining
         if len(vis) > vis.step + 1:
             del vis[vis.step + 1 :]
@@ -87,8 +56,7 @@ class Rotate(UpdateScene):
         points = vis.points
         atom_ids = vis.selection
         atoms = vis.atoms
-        if len(points) != 2:
-            raise ValueError("Please draw exactly 2 points to rotate around.")
+        assert len(points) == 2
 
         angle = self.angle if self.direction == "left" else -self.angle
         angle = angle / self.steps
@@ -99,8 +67,8 @@ class Rotate(UpdateScene):
         for _ in range(self.steps):
             # rotate the selected atoms around the vector
             atoms_selected.rotate(angle, vector, center=points[0])
-            # update the positions of the selected atoms
-            atoms.positions[atom_ids] = atoms_selected.positions
+            # merge the selected and remaining atoms
+            atoms = atoms_selected + atoms_remaining
             vis.append(atoms)
             vis.step += 1
         vis.selection = []
@@ -141,7 +109,7 @@ class Delete(UpdateScene):
 
     discriminator: t.Literal["Delete"] = Field("Delete")
 
-    def run(self, vis: "ZnDraw", **kwargs) -> None:
+    def run(self, vis: "ZnDraw") -> None:
         atom_ids = vis.selection
         atoms = vis.atoms
 
@@ -153,6 +121,7 @@ class Delete(UpdateScene):
         del atoms.connectivity
         vis.append(atoms)
         vis.selection = []
+        vis.step += 1
 
 
 class Move(UpdateScene):
@@ -162,7 +131,7 @@ class Move(UpdateScene):
 
     steps: int = Field(10, ge=1)
 
-    def run(self, vis: "ZnDraw", **kwargs) -> None:
+    def run(self, vis: "ZnDraw") -> None:
         if len(vis) > vis.step + 1:
             del vis[vis.step + 1 :]
 
@@ -182,8 +151,10 @@ class Move(UpdateScene):
             # move the selected atoms along the vector
             atoms_selected.positions += vector
             # merge the selected and remaining atoms
-            atoms.positions[atoms_ids] = atoms_selected.positions
+            atoms = atoms_selected + atoms_remaining
             vis.append(atoms)
+            vis.step += 1
+        vis.selection = []
 
 
 class Duplicate(UpdateScene):
@@ -194,7 +165,7 @@ class Duplicate(UpdateScene):
     z: float = Field(0.5, le=5, ge=0)
     symbol: Symbols
 
-    def run(self, vis: "ZnDraw", **kwargs) -> None:
+    def run(self, vis: "ZnDraw") -> None:
         atoms = vis.atoms
         if len(vis) > vis.step + 1:
             del vis[vis.step + 1 :]
@@ -206,6 +177,7 @@ class Duplicate(UpdateScene):
             atoms += atom
 
         vis.append(atoms)
+        vis.step += 1
         vis.selection = []
 
 
@@ -214,7 +186,7 @@ class ChangeType(UpdateScene):
 
     symbol: Symbols
 
-    def run(self, vis: "ZnDraw", **kwargs) -> None:
+    def run(self, vis: "ZnDraw") -> None:
         if len(vis) > vis.step + 1:
             del vis[vis.step + 1 :]
 
@@ -223,6 +195,7 @@ class ChangeType(UpdateScene):
             atoms[atom_id].symbol = self.symbol.name
 
         vis.append(atoms)
+        vis.step += 1
         vis.selection = []
 
 
@@ -232,7 +205,7 @@ class AddLineParticles(UpdateScene):
     symbol: Symbols
     steps: int = Field(10, le=100, ge=1)
 
-    def run(self, vis: "ZnDraw", **kwargs) -> None:
+    def run(self, vis: "ZnDraw") -> None:
         if len(vis) > vis.step + 1:
             del vis[vis.step + 1 :]
 
@@ -242,6 +215,7 @@ class AddLineParticles(UpdateScene):
 
         for _ in range(self.steps):
             vis.append(atoms)
+            vis.step += 1
 
 
 class Wrap(UpdateScene):
@@ -250,7 +224,7 @@ class Wrap(UpdateScene):
     discriminator: t.Literal["Wrap"] = Field("Wrap")
     recompute_bonds: bool = True
 
-    def run(self, vis: "ZnDraw", **kwargs) -> None:
+    def run(self, vis: "ZnDraw") -> None:
         vis.log("Downloading atoms...")
         atoms_list = list(vis)
         vis.step = 0
@@ -262,6 +236,7 @@ class Wrap(UpdateScene):
             if self.recompute_bonds:
                 delattr(atoms, "connectivity")
             vis[idx] = atoms
+            vis.step = idx
 
 
 class Center(UpdateScene):
@@ -274,17 +249,17 @@ class Center(UpdateScene):
     )
     wrap: bool = Field(True, description="Wrap the atoms to the cell")
 
-    def run(self, vis: "ZnDraw", **kwargs) -> None:
+    def run(self, vis: "ZnDraw") -> None:
         selection = vis.selection
-        if len(selection) < 1:
-            vis.log("Please select at least one atom.")
+        if len(selection) != 1:
+            vis.log("Please select exactly one atom to center on.")
             return
 
         vis.log("Downloading atoms...")
         atoms_list = list(vis)
 
         if not self.dynamic:
-            center = atoms_list[vis.step][selection].get_center_of_mass()
+            center = atoms_list[vis.step][selection[0]].position
         else:
             center = None
 
@@ -294,7 +269,7 @@ class Center(UpdateScene):
 
         for idx, atoms in enumerate(atoms_list):
             if self.dynamic:
-                center = atoms[selection].get_center_of_mass()
+                center = atoms[selection[0]].position
             atoms.positions -= center
             atoms.positions += np.diag(atoms.cell) / 2
             if self.wrap:
@@ -303,6 +278,7 @@ class Center(UpdateScene):
                 delattr(atoms, "connectivity")
 
             vis[idx] = atoms
+            vis.step = idx
 
 
 class Replicate(UpdateScene):
@@ -313,7 +289,7 @@ class Replicate(UpdateScene):
 
     keep_box: bool = Field(False, description="Keep the original box size")
 
-    def run(self, vis: "ZnDraw", **kwargs) -> None:
+    def run(self, vis: "ZnDraw") -> None:
         vis.log("Downloading atoms...")
         atoms_list = list(vis)
         vis.step = 0
@@ -325,6 +301,7 @@ class Replicate(UpdateScene):
             if self.keep_box:
                 atoms.cell = atoms_list[idx].cell
             vis[idx] = atoms
+            vis.step = idx
 
 
 # class CustomModifier(UpdateScene):

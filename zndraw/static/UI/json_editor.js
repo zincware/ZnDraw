@@ -1,6 +1,6 @@
 JSONEditor.defaults.options.theme = "bootstrap5";
 JSONEditor.defaults.options.iconlib = "fontawesome5";
-JSONEditor.defaults.options.object_background = "bg-body-color";
+JSONEditor.defaults.options.object_background = "bg-white";
 JSONEditor.defaults.options.disable_edit_json = true;
 JSONEditor.defaults.options.disable_properties = true;
 JSONEditor.defaults.options.disable_collapse = true;
@@ -42,21 +42,20 @@ function selection_editor(socket, cache, world) {
     document
       .getElementById("selection-json-editor-submit")
       .addEventListener("click", () => {
-        // console.log(new Date().toISOString(), "running selection");
+        console.log(new Date().toISOString(), "running selection");
         // Get the value from the editor
-        const errors = editor.validate();
-        if (errors.length) {
-          console.log(errors);
-        } else {
-          const value = editor.getValue();
-          socket.emit("selection:run", value);
-        }
+        const value = editor.getValue();
+        console.log(value);
+
+        socket.emit("selection:run", {
+          params: value,
+        });
       });
   });
 }
 
 function scene_editor(socket, cache, world) {
-  socket.on("scene:schema", (data) => {
+  socket.emit("scene:schema", (data) => {
     const editor = new JSONEditor(
       document.getElementById("scene-json-editor"),
       {
@@ -75,7 +74,6 @@ function scene_editor(socket, cache, world) {
         value.particle_size,
         value.bonds_size,
         value.fps,
-        value.line_label,
       );
       world.player.setLoop(value["Animation Loop"]);
     });
@@ -83,68 +81,50 @@ function scene_editor(socket, cache, world) {
 }
 
 function analysis_editor(socket, cache, world) {
-  const div = document.getElementById("analysis-json-editor");
-  let editor = new JSONEditor(div, {
-    schema: { type: "object", title: "Analysis", properties: {} },
-  });
-
   socket.on("analysis:schema", (data) => {
-    editor.destroy();
-    editor = new JSONEditor(div, {
+    const div = document.getElementById("analysis-json-editor");
+    const editor = new JSONEditor(div, {
       schema: data,
     });
-  });
 
-  socket.on("analysis:run:running", () => {
-    document.getElementById("analysis-json-editor-submit").innerHTML =
-      '<i class="fa-solid fa-spinner"></i> Running';
-  });
-
-  // Finished running
-  socket.on("analysis:run:finished", (data) => {
-    document.getElementById("analysis-json-editor-submit").innerHTML =
-      '<i class="fa-solid fa-play"></i> Analyse';
-    document.getElementById("analysis-json-editor-submit").disabled = false;
-  });
-
-  // other client started process
-  socket.on("analysis:run:enqueue", () => {
-    document.getElementById("analysis-json-editor-submit").disabled = true;
-    document.getElementById("analysis-json-editor-submit").innerHTML =
-      '<i class="fa-solid fa-hourglass-start"></i> Job queued';
-  });
-
-  document
-    .getElementById("analysis-json-editor-submit")
-    .addEventListener("click", () => {
-      // Get the value from the editor
-      const errors = editor.validate();
-      if (errors.length) {
-        console.log(errors);
-      } else {
-        const value = editor.getValue();
-        // responseReceived = false;
-
-        socket.emit("analysis:run", value);
-
-        document.getElementById("analysis-json-editor-submit").disabled = true;
-      }
+    editor.on("change", () => {
+      const value = editor.getValue();
+      div.parameters = value;
     });
 
-  socket.on("analysis:figure", (data) => {
-    Plotly.newPlot("analysisPlot", JSON.parse(data));
+    document
+      .getElementById("analysis-json-editor-submit")
+      .addEventListener("click", () => {
+        // Get the value from the editor
+        const value = editor.getValue();
 
-    function buildPlot() {
-      Plotly.newPlot("analysisPlot", JSON.parse(data));
-      const myplot = document.getElementById("analysisPlot");
-      myplot.on("plotly_click", (data) => {
-        const point = data.points[0];
-        const step = point.x;
-        world.setStep(step);
+        socket.on("analysis:figure", (data) => {
+          Plotly.newPlot("analysisPlot", JSON.parse(data));
+
+          function buildPlot() {
+            Plotly.newPlot("analysisPlot", JSON.parse(data));
+            const myplot = document.getElementById("analysisPlot");
+            myplot.on("plotly_click", (data) => {
+              const point = data.points[0];
+              const step = point.x;
+              world.setStep(step);
+            });
+          }
+
+          buildPlot();
+        });
+
+        socket.emit("analysis:run", {
+          params: value,
+        });
+
+        document.getElementById("analysis-json-editor-submit").disabled = true;
+        // if there is an error in uploading, we still want to be able to submit again
+        setTimeout(() => {
+          document.getElementById("analysis-json-editor-submit").disabled =
+            false;
+        }, 1000);
       });
-    }
-
-    buildPlot();
   });
 }
 
@@ -154,63 +134,59 @@ function modifier_editor(socket, cache, world) {
     schema: { type: "object", title: "ZnDraw", properties: {} },
   });
 
-  socket.on("modifier:queue:update", (position) => {
+  let responseReceived = false;
+
+  socket.on("modifier:run:submitted", () => {
+    console.log(new Date().toISOString(), "modifier:run:submitted");
+    setTimeout(() => {
+      if (!responseReceived) {
+        console.warn("No response on 'modifier:run:running' within 1 second");
+        alert("No response from server. Please try again.");
+        document.getElementById("interaction-json-editor-submit").disabled =
+          false;
+        socket.emit("modifier:run:failed");
+      }
+    }, 1000);
+  });
+
+  socket.on("modifier:run:enqueue", (position) => {
+    console.log(new Date().toISOString(), "modifier:run:enqueue");
     document.getElementById("interaction-json-editor-submit").disabled = true;
     document.getElementById("interaction-json-editor-submit").innerHTML =
       '<i class="fa-solid fa-hourglass-start"></i> Job queued at position ' +
       position;
-    // emit event "modifier:queue:update"
-    const event = new CustomEvent("modifier:queue:update", {
-      detail: { position: position },
-    });
-    document.dispatchEvent(event);
   });
 
   // Check if a running response is received
   socket.on("modifier:run:running", () => {
+    responseReceived = true;
     document.getElementById("interaction-json-editor-submit").innerHTML =
       '<i class="fa-solid fa-spinner"></i> Running';
-
-    const event = new CustomEvent("modifier:run:running");
-    document.dispatchEvent(event);
   });
 
   // Finished running
-  socket.on("modifier:run:finished", () => {
+  socket.on("modifier:run:finished", (data) => {
+    console.log(new Date().toISOString(), "modifier:run:finished");
     document.getElementById("interaction-json-editor-submit").innerHTML =
       '<i class="fa-solid fa-play"></i> Run Modifier';
     document.getElementById("interaction-json-editor-submit").disabled = false;
-    const event = new CustomEvent("modifier:run:finished");
-    document.dispatchEvent(event);
-  });
-
-  // other client started process
-  socket.on("modifier:run:enqueue", () => {
-    document.getElementById("interaction-json-editor-submit").disabled = true;
-    document.getElementById("interaction-json-editor-submit").innerHTML =
-      '<i class="fa-solid fa-hourglass-start"></i> Job queued';
-    const event = new CustomEvent("modifier:run:enqueue");
-    document.dispatchEvent(event);
   });
 
   document
     .getElementById("interaction-json-editor-submit")
     .addEventListener("click", () => {
       // Get the value from the editor
-      const errors = editor.validate();
-      if (errors.length) {
-        console.log(errors);
-      } else {
-        const value = editor.getValue();
-        // responseReceived = false;
+      const value = editor.getValue();
+      console.log(value);
 
-        socket.emit("modifier:run", value);
-        const event = new CustomEvent("modifier:run");
-        document.dispatchEvent(event);
+      responseReceived = false;
 
-        document.getElementById("interaction-json-editor-submit").disabled =
-          true;
-      }
+      socket.emit("modifier:run", {
+        params: value,
+        url: window.location.href,
+      });
+
+      document.getElementById("interaction-json-editor-submit").disabled = true;
     });
 
   socket.on("modifier:schema", (data) => {
@@ -218,6 +194,11 @@ function modifier_editor(socket, cache, world) {
 
     editor = new JSONEditor(div, {
       schema: data,
+    });
+
+    editor.on("change", () => {
+      const value = editor.getValue();
+      div.parameters = value;
     });
   });
 }
