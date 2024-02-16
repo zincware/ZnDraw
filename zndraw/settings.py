@@ -12,6 +12,7 @@ _ANALYSIS_FUNCTIONS = [
     "zndraw.analyse.Properties1D",
     "zndraw.analyse.Properties2D",
     "zndraw.analyse.Distance",
+    "zndraw.analyse.Trajectory",
 ]
 _MODIFY_FUNCTIONS = [
     "zndraw.modify.Delete",
