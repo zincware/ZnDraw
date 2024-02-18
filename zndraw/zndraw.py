@@ -329,6 +329,17 @@ class ZnDraw(ZnDrawBase):
 
     def _pre_modifier_run(self, data) -> None:
         self._available = False
+        try:
+            self._modifier_run(data)
+        except Exception as err:
+            self.log(f"Modifier failed with error: {repr(err)}")
+        finally:
+            self._available = (
+                True  # always execute this, even if an exception is raised
+            )
+        self.socket.emit("modifier:available", self._available)
+
+    def _modifier_run(self, data: dict) -> None:
         self.socket.emit("modifier:available", self._available)
         msg = CeleryTaskData(
             target=f"webclients_{data['token']}",
@@ -373,7 +384,6 @@ class ZnDraw(ZnDrawBase):
                 disconnect=False,
             )
             self.socket.emit("celery:task:emit", dataclasses.asdict(msg))
-
         msg = CeleryTaskData(
             target=f"{data['token']}",
             event="modifier:run:finished",
@@ -381,9 +391,6 @@ class ZnDraw(ZnDrawBase):
             disconnect=False,
         )
         self.socket.emit("celery:task:emit", dataclasses.asdict(msg))
-        self._available = True
-        self.socket.emit("modifier:available", self._available)
-        print("Modifier finished!!!!!!!!")
 
     def register_modifier(
         self,
