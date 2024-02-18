@@ -334,9 +334,11 @@ class ZnDraw(ZnDrawBase):
         except Exception as err:
             self.log(f"Modifier failed with error: {repr(err)}")
         finally:
-            self._available = True # always execute this, even if an exception is raised
+            self._available = (
+                True  # always execute this, even if an exception is raised
+            )
         self.socket.emit("modifier:available", self._available)
-        
+
     def _modifier_run(self, data: dict) -> None:
         self.socket.emit("modifier:available", self._available)
         msg = CeleryTaskData(
