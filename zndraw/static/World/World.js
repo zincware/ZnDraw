@@ -281,6 +281,17 @@ class World {
       }.bind(this),
     );
     // renderer.render(scene, camera);
+
+    this.socket.on("draw:obj", (data) => {
+      console.log("draw Obj");
+      canvas3D.drawObj(data.data);
+    });
+
+    this.socket.on("del:obj", (data) => {
+      console.log("del Obj");
+      if (data.locked === true) {
+        canvas3D.removeLockedCanvas();
+      } else { canvas3D.removeCanvas(); }});
   }
 
   /**

@@ -222,7 +222,10 @@ class Cache {
         callback(this.get_length());
       }.bind(this),
     );
+
+    
   }
+
 
   get(id) {
     // convert id to integer

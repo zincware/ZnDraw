@@ -7,6 +7,7 @@ import socket
 import sys
 import tempfile
 import uuid
+import dataclasses 
 
 import ase
 import datamodel_code_generator
@@ -101,3 +102,41 @@ def hide_discriminator_field(d: dict) -> None:
                 v["options"] = {"hidden": True}
                 v["type"] = "string"
             hide_discriminator_field(v)
+
+
+@dataclasses.dataclass
+class BaseGeometry:
+    position: list = dataclasses.field(default_factory=lambda: [0, 0, 0])
+    color: str = "#000000"
+    opacity: float = 0.2
+    locked: bool = False
+    wireframe: bool = True
+
+    def to_dict(self):
+        geometry_dict = dataclasses.asdict(self)
+        geometry_dict["method"] = self.__class__.__name__
+        return geometry_dict
+
+@dataclasses.dataclass
+class SphereGeometry(BaseGeometry):
+    radius: float = 1
+
+@dataclasses.dataclass
+class BoxGeometry(BaseGeometry):
+    width: float = 1
+    height: float = 1
+    depth: float = 1
+
+@dataclasses.dataclass
+class CylinderGeometry(BaseGeometry):
+    radius: float = 1
+    height: float = 1
+
+@dataclasses.dataclass
+class PlaneGeometry(BaseGeometry):
+    width: float = 1
+    height: float = 1
+
+@dataclasses.dataclass
+class CircleGeometry(BaseGeometry):
+    radius: float = 1
