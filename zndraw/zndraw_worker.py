@@ -88,17 +88,13 @@ class ZnDrawWorker(ZnDrawBase):
                         idx: frames[idx].to_dict(built_in_types=False)
                         for idx in frame_ids
                     },
+                    step=frame_ids[-1],
                 )
                 self.socket.emit(
                     "room:set",
                     msg.to_dict(),
                 )
-            self.socket.emit(
-                "room:set",
-                RoomSetData(
-                    step=index[-1],
-                ).to_dict(),
-            )
+                
         with Session() as session:
             room = session.query(Room).get(self.token)
             room.currentStep = index[-1]
