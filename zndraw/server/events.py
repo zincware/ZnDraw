@@ -88,7 +88,9 @@ def connect():
             )
             # check if any client in the room is host
             if (
-                ses.query(db_schema.WebClient).filter_by(room=room, host=True).first()
+                ses.query(db_schema.WebClient)
+                .filter_by(room=room, disconnected_at=None, host=True)
+                .first()
                 is None
             ):
                 client.host = True
@@ -152,7 +154,10 @@ def disconnect():
         url = url.replace("http://", "https://")
     url = url.replace("http", "ws")
 
-    tasks.on_disconnect.delay(token=token, sid=request.sid, url=url)
+    chain(
+        tasks.on_disconnect.s(token=token, sid=request.sid, url=url),
+        tasks.remove_empty_rooms.si(),
+    ).delay()
 
 
 @io.on("join")

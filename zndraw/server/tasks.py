@@ -594,9 +594,13 @@ def on_disconnect(token: str, sid: str, url: str):
         room = ses.query(db_schema.Room).filter_by(token=token).first()
         client = ses.query(db_schema.WebClient).filter_by(sid=sid).first()
         if client is not None:
-            ses.delete(client)
+            client.disconnected_at = datetime.datetime.now()
             if client.host:
-                new_host = ses.query(db_schema.WebClient).filter_by(room=room).first()
+                new_host = (
+                    ses.query(db_schema.WebClient)
+                    .filter_by(room=room, disconnected_at=None)
+                    .first()
+                )
                 if new_host is not None:
                     new_host.host = True
             ses.commit()
@@ -689,3 +693,27 @@ def download_file(url: str, token: str, sid: str):
         disconnect=True,
     )
     vis.socket.emit("celery:task:emit", asdict(msg))
+
+
+@shared_task(soft_time_limit=60, time_limit=120)
+def remove_empty_rooms():
+    """Remove rooms that are empty for more than 30 minutes"""
+    with Session() as ses:
+        rooms = ses.query(db_schema.Room).all()
+        for room in rooms:
+            clients = ses.query(db_schema.WebClient).filter_by(room=room).all()
+            # if all clients have disconnected_at set, remove the room
+            disconnceted_times = [client.disconnected_at for client in clients]
+            # if any in disconnceted_times is None, the room is not empty
+            if any([time is None for time in disconnceted_times]):
+                continue
+            if all(
+                [
+                    datetime.datetime.now() - client.disconnected_at
+                    > datetime.timedelta(minutes=30)
+                    for client in clients
+                ]
+            ):
+                ses.delete(room)
+
+        ses.commit()

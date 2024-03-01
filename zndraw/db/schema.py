@@ -1,8 +1,11 @@
+from datetime import datetime
+
 import znframe
 from sqlalchemy import (
     JSON,
     Boolean,
     Column,
+    DateTime,
     Float,
     ForeignKey,
     Integer,
@@ -23,9 +26,9 @@ class Room(Base):
     camera = Column(JSON)
 
     web_clients = relationship("WebClient", back_populates="room")
-    frames = relationship("Frame", back_populates="room")
+    frames = relationship("Frame", back_populates="room", cascade="all,delete")
     modifiers = relationship("Modifier", back_populates="room")
-    bookmarks = relationship("Bookmark", back_populates="room")
+    bookmarks = relationship("Bookmark", back_populates="room", cascade="all,delete")
     launched_jobs = relationship("QueueItem", back_populates="room")
 
     def __repr__(self):
@@ -49,6 +52,8 @@ class WebClient(Base):
     sid = Column(String, primary_key=True)
     name = Column(String)
     host = Column(Boolean, default=False)
+    connected_at = Column(DateTime, default=datetime.now)
+    disconnected_at = Column(DateTime, nullable=True, default=None)
 
     room_token = Column(String, ForeignKey("rooms.token"))
     room = relationship("Room", back_populates="web_clients")
