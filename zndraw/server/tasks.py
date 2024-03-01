@@ -619,7 +619,6 @@ def on_disconnect(token: str, sid: str, url: str):
             ses.delete(rmc)
         ses.commit()
 
-    remove_empty_rooms.delay()
 
     # with Session() as ses:
     # room = ses.query(db_schema.Room).filter_by(token=token).first()

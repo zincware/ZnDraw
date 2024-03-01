@@ -154,7 +154,10 @@ def disconnect():
         url = url.replace("http://", "https://")
     url = url.replace("http", "ws")
 
-    tasks.on_disconnect.delay(token=token, sid=request.sid, url=url)
+    chain(
+        tasks.on_disconnect.s(token=token, sid=request.sid, url=url),
+        tasks.remove_empty_rooms.si(),
+    ).delay()
 
 
 @io.on("join")
