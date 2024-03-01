@@ -26,9 +26,9 @@ class Room(Base):
     camera = Column(JSON)
 
     web_clients = relationship("WebClient", back_populates="room")
-    frames = relationship("Frame", back_populates="room")
+    frames = relationship("Frame", back_populates="room", cascade="all,delete")
     modifiers = relationship("Modifier", back_populates="room")
-    bookmarks = relationship("Bookmark", back_populates="room")
+    bookmarks = relationship("Bookmark", back_populates="room", cascade="all,delete")
     launched_jobs = relationship("QueueItem", back_populates="room")
 
     def __repr__(self):
