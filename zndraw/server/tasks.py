@@ -264,6 +264,7 @@ def read_file(url: str, target: str, token: str, fileio: dict):
         vis.bookmarks = vis.bookmarks
         vis.step = step
         vis.camera = camera
+        vis.points = vis.points
 
     vis.socket.sleep(1)
     vis.socket.disconnect()
