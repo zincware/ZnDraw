@@ -69,8 +69,11 @@
         <ul class="navbar-nav me-auto">
         {% if token is not none%}
         <li class="nav-item mx-1">
-            <a type="button" class="btn btn-outline-danger btn-single-row" id="newTokenBtn" data-bs-placement="bottom" data-bs-toggle="tooltip" data-bs-title="Reset Scene" href="/reset">
-            <i class="fa-solid fa-power-off"></i></a>
+            <div data-bs-placement="bottom" data-bs-toggle="tooltip" data-bs-title="Reset Scene">
+            <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#resetModal">
+              <i class="fa-solid fa-arrow-rotate-right"></i>
+            </button>
+            </div>
           </li>
           {% endif %}
 
@@ -197,7 +200,7 @@
                 </div>
                 <hr class="dropdown-divider">
                 <div class="d-grid gap-2 px-2">
-                  <button class="btn btn-outline-primary" type="button" id="copyTokenUrlBtn">Share (copy URL to clipboard)</button>
+                  <button class="btn btn-outline-primary copyTokenUrlBtn" type="button">Share (copy URL to clipboard)</button>
                 </div>
               </ul>
             </div>
@@ -368,6 +371,25 @@
       </div>
     </div>
   </div>
+  </div>
+
+  <!-- Reset Scene -->
+  <div class="modal fade" id="resetModal" tabindex="-1" aria-labelledby="resetModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h1 class="modal-title fs-5" id="resetModalLabel">Reload Scene</h1>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          You are about the reload the scene. The current scene will be available as long as some client is connected, otherwise the data will be deleted after 30 min.
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-outline-primary copyTokenUrlBtn" type="button">copy URL to clipboard</button>
+          <a type="button" class="btn btn-primary" href="/reset">Create new Scene</a>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- Tutorial -->
