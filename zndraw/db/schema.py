@@ -1,8 +1,11 @@
+from datetime import datetime
+
 import znframe
 from sqlalchemy import (
     JSON,
     Boolean,
     Column,
+    DateTime,
     Float,
     ForeignKey,
     Integer,
@@ -49,6 +52,8 @@ class WebClient(Base):
     sid = Column(String, primary_key=True)
     name = Column(String)
     host = Column(Boolean, default=False)
+    connected_at = Column(DateTime, default=datetime.now)
+    disconnected_at = Column(DateTime, nullable=True, default=None)
 
     room_token = Column(String, ForeignKey("rooms.token"))
     room = relationship("Room", back_populates="web_clients")
