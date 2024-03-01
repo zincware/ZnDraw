@@ -88,7 +88,9 @@ def connect():
             )
             # check if any client in the room is host
             if (
-                ses.query(db_schema.WebClient).filter_by(room=room, disconnected_at=None, host=True).first()
+                ses.query(db_schema.WebClient)
+                .filter_by(room=room, disconnected_at=None, host=True)
+                .first()
                 is None
             ):
                 client.host = True

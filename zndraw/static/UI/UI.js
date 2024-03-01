@@ -224,7 +224,7 @@ function setupConnectedUsers(socket) {
   // row > col py-1 d-grid > btn btn-outline-secondary
   // row > col py-2 d-grid > form-check-input (step)
   // row > col py-2 d-grid > form-check-label (camera)
-  
+
   const token = document.getElementById("token").dataset.token;
   const url = window.location.href.replace(/\/$/, "");
   const toastLiveExample = document.getElementById("liveToast");
@@ -236,7 +236,8 @@ function setupConnectedUsers(socket) {
     btn.addEventListener("click", () => {
       navigator.clipboard.writeText(url + "/token/" + token);
       // show text including the URL that was copied
-      toastBody.innerHTML = "Copied URL to clipboard: " + url + "/token/" + token;
+      toastBody.innerHTML =
+        "Copied URL to clipboard: " + url + "/token/" + token;
       toast.show();
     });
   });

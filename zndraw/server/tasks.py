@@ -596,7 +596,11 @@ def on_disconnect(token: str, sid: str, url: str):
         if client is not None:
             client.disconnected_at = datetime.datetime.now()
             if client.host:
-                new_host = ses.query(db_schema.WebClient).filter_by(room=room, disconnected_at=None).first()
+                new_host = (
+                    ses.query(db_schema.WebClient)
+                    .filter_by(room=room, disconnected_at=None)
+                    .first()
+                )
                 if new_host is not None:
                     new_host.host = True
             ses.commit()
