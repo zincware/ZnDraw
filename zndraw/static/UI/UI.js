@@ -224,17 +224,21 @@ function setupConnectedUsers(socket) {
   // row > col py-1 d-grid > btn btn-outline-secondary
   // row > col py-2 d-grid > form-check-input (step)
   // row > col py-2 d-grid > form-check-label (camera)
-  const copyTokenUrlBtn = document.getElementById("copyTokenUrlBtn");
+  
   const token = document.getElementById("token").dataset.token;
   const url = window.location.href.replace(/\/$/, "");
   const toastLiveExample = document.getElementById("liveToast");
   const toast = new bootstrap.Toast(toastLiveExample);
   const toastBody = document.getElementById("toastBody");
-  copyTokenUrlBtn.addEventListener("click", () => {
-    navigator.clipboard.writeText(url + "/token/" + token);
-    // show text including the URL that was copied
-    toastBody.innerHTML = "Copied URL to clipboard: " + url + "/token/" + token;
-    toast.show();
+
+  const copyTokenUrlBtns = document.getElementsByClassName("copyTokenUrlBtn");
+  Array.from(copyTokenUrlBtns).forEach((btn) => {
+    btn.addEventListener("click", () => {
+      navigator.clipboard.writeText(url + "/token/" + token);
+      // show text including the URL that was copied
+      toastBody.innerHTML = "Copied URL to clipboard: " + url + "/token/" + token;
+      toast.show();
+    });
   });
 
   let name;
