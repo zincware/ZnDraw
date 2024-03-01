@@ -259,7 +259,7 @@ def read_file(url: str, target: str, token: str, fileio: dict):
         # resend the current state, present in the database
         camera = vis.camera
         step = vis.step
-        vis[:] = list(vis)
+        vis[:] = vis[:len(vis)]
         vis.selection = vis.selection
         vis.bookmarks = vis.bookmarks
         vis.step = step

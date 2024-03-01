@@ -358,9 +358,4 @@ class ZnDrawWorker(ZnDrawBase):
     def log(self, message: str):
         self.socket.emit("message:log", {"message": message, "token": self.token})
 
-    def upload(self, target: str):
-        """Emit all frames to the target (webclient)."""
-        if not self.emit:
-            raise ValueError("Emit is disabled")
 
-        self.extend(list(self))
