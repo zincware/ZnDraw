@@ -367,42 +367,7 @@ class ZnDrawWorker(ZnDrawBase):
         """Emit all frames to the target (webclient)."""
         if not self.emit:
             raise ValueError("Emit is disabled")
-        config = GlobalConfig.load()
-        frame_list = []
-        for idx in range(len(self)):
-            frame_list.append(self[idx])
-            if len(frame_list) == config.read_batch_size:
-                msg = CeleryTaskData(
-                    target=target,
-                    event="room:set",
-                    data=RoomSetData(
-                        frames={
-                            idx
-                            - jdx: ZnFrame.from_atoms(atoms).to_dict(
-                                built_in_types=False
-                            )
-                            for jdx, atoms in enumerate(reversed(frame_list))
-                        },
-                        step=idx if idx < self.step else self.step,
-                    ).to_dict(),
-                )
 
-                self.socket.emit("celery:task:emit", msg.to_dict())
-                frame_list = []
+        self.extend(list(self))
 
-        msg = CeleryTaskData(
-            target=target,
-            event="room:set",
-            data=RoomSetData(
-                frames={
-                    idx - jdx: ZnFrame.from_atoms(atoms).to_dict(built_in_types=False)
-                    for jdx, atoms in enumerate(reversed(frame_list))
-                },
-                selection=self.selection,
-                points=self.points.tolist(),
-                bookmarks=self.bookmarks,
-                step=self.step,
-            ).to_dict(),
-        )
-
-        self.socket.emit("celery:task:emit", msg.to_dict())
+       
