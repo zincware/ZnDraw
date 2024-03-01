@@ -7,8 +7,7 @@ import numpy as np
 from sqlalchemy import func as sql_func
 from znframe.frame import Frame as ZnFrame
 
-from zndraw.data import CeleryTaskData, RoomSetData
-from zndraw.settings import GlobalConfig
+from zndraw.data import RoomSetData
 
 log = logging.getLogger(__name__)
 
@@ -369,5 +368,3 @@ class ZnDrawWorker(ZnDrawBase):
             raise ValueError("Emit is disabled")
 
         self.extend(list(self))
-
-       
