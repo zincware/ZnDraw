@@ -7,8 +7,7 @@ import numpy as np
 from sqlalchemy import func as sql_func
 from znframe.frame import Frame as ZnFrame
 
-from zndraw.data import CeleryTaskData, RoomSetData
-from zndraw.settings import GlobalConfig
+from zndraw.data import RoomSetData
 
 log = logging.getLogger(__name__)
 
@@ -89,17 +88,13 @@ class ZnDrawWorker(ZnDrawBase):
                         idx: frames[idx].to_dict(built_in_types=False)
                         for idx in frame_ids
                     },
+                    step=frame_ids[-1],
                 )
                 self.socket.emit(
                     "room:set",
                     msg.to_dict(),
                 )
-            self.socket.emit(
-                "room:set",
-                RoomSetData(
-                    step=index[-1],
-                ).to_dict(),
-            )
+
         with Session() as session:
             room = session.query(Room).get(self.token)
             room.currentStep = index[-1]
@@ -362,47 +357,3 @@ class ZnDrawWorker(ZnDrawBase):
 
     def log(self, message: str):
         self.socket.emit("message:log", {"message": message, "token": self.token})
-
-    def upload(self, target: str):
-        """Emit all frames to the target (webclient)."""
-        if not self.emit:
-            raise ValueError("Emit is disabled")
-        config = GlobalConfig.load()
-        frame_list = []
-        for idx in range(len(self)):
-            frame_list.append(self[idx])
-            if len(frame_list) == config.read_batch_size:
-                msg = CeleryTaskData(
-                    target=target,
-                    event="room:set",
-                    data=RoomSetData(
-                        frames={
-                            idx
-                            - jdx: ZnFrame.from_atoms(atoms).to_dict(
-                                built_in_types=False
-                            )
-                            for jdx, atoms in enumerate(reversed(frame_list))
-                        },
-                        step=idx if idx < self.step else self.step,
-                    ).to_dict(),
-                )
-
-                self.socket.emit("celery:task:emit", msg.to_dict())
-                frame_list = []
-
-        msg = CeleryTaskData(
-            target=target,
-            event="room:set",
-            data=RoomSetData(
-                frames={
-                    idx - jdx: ZnFrame.from_atoms(atoms).to_dict(built_in_types=False)
-                    for jdx, atoms in enumerate(reversed(frame_list))
-                },
-                selection=self.selection,
-                points=self.points.tolist(),
-                bookmarks=self.bookmarks,
-                step=self.step,
-            ).to_dict(),
-        )
-
-        self.socket.emit("celery:task:emit", msg.to_dict())

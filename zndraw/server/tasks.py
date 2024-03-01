@@ -256,7 +256,15 @@ def read_file(url: str, target: str, token: str, fileio: dict):
         vis.extend(atoms_list)
         vis.step = len(vis) - 1
     else:
-        vis.upload(target)
+        # resend the current state, present in the database
+        camera = vis.camera
+        step = vis.step
+        vis[:] = vis[: len(vis)]
+        vis.selection = vis.selection
+        vis.bookmarks = vis.bookmarks
+        vis.step = step
+        vis.camera = camera
+        vis.points = vis.points
 
     vis.socket.sleep(1)
     vis.socket.disconnect()
