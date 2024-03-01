@@ -94,7 +94,7 @@ class ZnDrawWorker(ZnDrawBase):
                     "room:set",
                     msg.to_dict(),
                 )
-                
+
         with Session() as session:
             room = session.query(Room).get(self.token)
             room.currentStep = index[-1]
@@ -357,5 +357,3 @@ class ZnDrawWorker(ZnDrawBase):
 
     def log(self, message: str):
         self.socket.emit("message:log", {"message": message, "token": self.token})
-
-
