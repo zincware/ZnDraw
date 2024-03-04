@@ -482,3 +482,14 @@ def modifier_run_failed():
     app.config["MODIFIER"]["active"] = None
     modifier_lock.release()
     log.critical("Modifier failed - releasing lock.")
+
+
+@io.on("draw:obj")
+def draw_obj(data):
+    emit("draw:obj", data, to=_webclients_room(data))
+    
+
+@io.on("del:obj")
+def del_obj(data):
+    emit("del:obj", data, to=_webclients_room(data))
+    

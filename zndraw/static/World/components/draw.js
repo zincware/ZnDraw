@@ -6,26 +6,64 @@ export class Canvas3D extends THREE.Group {
     super();
     this.name = "Canvas3DGroup";
 
-    let material;
-
-    let geometry;
-
     const drawAddCanvasBtn = document.getElementById("drawAddCanvas");
 
     drawAddCanvasBtn.addEventListener("click", () => {
-      this.removeCanvas();
+
+      const params = drawAddCanvasBtn.parameters.geometry;
+
+      params.direction = new THREE.Vector3(0, 0, 1);
+      params.color = drawAddCanvasBtn.parameters.color;
+      params.opacity = drawAddCanvasBtn.parameters.opacity;
+      params.wireframe = drawAddCanvasBtn.parameters.wireframe;
+
+      if (particlesGroup.selection.length > 0) {
+        const matrix = new THREE.Matrix4();
+        const dummy = new THREE.Object3D();
+        particlesGroup.particles_mesh.getMatrixAt(
+          particlesGroup.selection[0],
+          matrix,
+        );
+        matrix.decompose(dummy.position, dummy.quaternion, dummy.scale);
+        params.position = dummy.position.toArray();
+      }
+
+      this.drawObj(params);
+
+      // this has to be done to prevent some json validation errors
+      delete params.direction;
+      delete params.position;
+      delete params.color;
+      delete params.opacity;
+      delete params.wireframe;
+
+    });
+
+    document
+      .getElementById("drawRemoveCanvas")
+      .addEventListener("click", () => {
+        this.removeCanvas();
+      });
+  }
+
+  drawObj(parameters) {
+      if (parameters.locked !== true) {    
+        this.removeCanvas();
+      }
+
+      console.log("parameters", parameters);
+
+      let material;
+      let geometry;
 
       material = new THREE.MeshBasicMaterial({
-        color: drawAddCanvasBtn.parameters.color,
+        color: parameters.color,
         side: THREE.DoubleSide,
         transparent: true,
-        opacity: drawAddCanvasBtn.parameters.opacity,
+        opacity: parameters.opacity,
       });
 
-      // TODO use json-forms to create dynamic forms for each geometry
-
-      // const geometry_name = document.getElementById('drawCanvasSelect').value;
-      const params = drawAddCanvasBtn.parameters.geometry;
+      const params = parameters;
       const geometry_name = params.method;
 
       if (geometry_name === "PlaneGeometry") {
@@ -61,6 +99,7 @@ export class Canvas3D extends THREE.Group {
         );
       } else if (geometry_name === "SphereGeometry") {
         geometry = new THREE.SphereGeometry(params.radius, 32, 32);
+        
       } else if (geometry_name === "TetrahedronGeometry") {
         geometry = new THREE.TetrahedronGeometry(params.radius);
       } else if (geometry_name === "TorusGeometry") {
@@ -73,11 +112,14 @@ export class Canvas3D extends THREE.Group {
           16,
         );
       }
-
+      
       const plane = new THREE.Mesh(geometry, material);
+      if (parameters.locked === true) {
+        plane.name = "canvas3D-locked";
+      } else {
       plane.name = "canvas3D";
-
-      if (drawAddCanvasBtn.parameters.wireframe) {
+      }
+      if (parameters.wireframe) {
         let wireframeGeometry;
 
         if (true) {
@@ -95,32 +137,42 @@ export class Canvas3D extends THREE.Group {
           wireframeGeometry,
           wireframeMaterial,
         );
-        wireframe.name = "canvas3D-wireframe";
-        this.add(wireframe);
-      }
-      this.add(plane);
-      if (particlesGroup.selection.length > 0) {
-        const matrix = new THREE.Matrix4();
-        const dummy = new THREE.Object3D();
-        particlesGroup.particles_mesh.getMatrixAt(
-          particlesGroup.selection[0],
-          matrix,
-        );
-        matrix.decompose(dummy.position, dummy.quaternion, dummy.scale);
-        this.position.copy(dummy.position);
-      }
-    });
+        if (parameters.locked === true) {
+          wireframe.name = "canvas3D-locked-wireframe";
+        } else { wireframe.name = "canvas3D-wireframe"; }
 
-    document
-      .getElementById("drawRemoveCanvas")
-      .addEventListener("click", () => {
-        this.removeCanvas();
-      });
+        wireframe.position.set(...parameters.position);
+        var wireframePosition = new THREE.Vector3(...wireframe.position);
+        var direction = new THREE.Vector3(...parameters.direction);
+        var targetPosition = new THREE.Vector3().addVectors(wireframePosition, direction);
+        wireframe.lookAt(targetPosition);
+        this.add(wireframe);
+      } 
+
+      plane.position.set(...parameters.position);
+      var planePosition = new THREE.Vector3(...plane.position);
+      var direction = new THREE.Vector3(...parameters.direction);
+      var targetPosition = new THREE.Vector3().addVectors(planePosition, direction);
+      plane.lookAt(targetPosition);
+      this.add(plane);
   }
+
 
   removeCanvas() {
     this.remove(this.getObjectByName("canvas3D"));
     this.remove(this.getObjectByName("canvas3D-wireframe"));
+  }
+
+  removeLockedCanvas() {
+    let object;
+    while ((object = this.getObjectByName("canvas3D-locked")) !== undefined) {
+      this.remove(object);
+    }
+
+    let wireframe_object;
+    while ((wireframe_object = this.getObjectByName("canvas3D-locked-wireframe")) !== undefined) {
+      this.remove(wireframe_object);
+    }
   }
 }
 

@@ -348,6 +348,13 @@ class ZnDrawBase:  # collections.abc.MutableSequence
     def _modifier_run(self, data) -> None:
         raise NotImplementedError
 
+    def draw_obj(self, data):
+        self.socket.emit("draw:obj", {"data": data.to_dict(), "token": self.token})
+
+    def del_obj(self, locked: bool = False):
+        self.socket.emit("del:obj", {"locked": locked, "token": self.token})
+
+
 
 @dataclasses.dataclass
 class ZnDrawDefault(ZnDrawBase):
@@ -559,6 +566,8 @@ class ZnDraw(ZnDrawBase):
 
         self._connect()
 
+
+
     def close(self):
         import time
         import urllib.request
@@ -579,9 +588,9 @@ class ZnDraw(ZnDrawBase):
             # raise ValueError("ZnDraw client closed")
 
     def _repr_html_(self):
-        from IPython.display import IFrame
+        from IPython.display import IFrame, display
 
-        return IFrame(src=self.url, width="100%", height="600px")._repr_html_()
+        return display(IFrame(src=self.url, width="100%", height="600px"))
 
     def get_logging_handler(self) -> ZnDrawLoggingHandler:
         return ZnDrawLoggingHandler(self)

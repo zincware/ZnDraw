@@ -8,6 +8,8 @@ import plotly.express as px
 from pydantic import BaseModel, ConfigDict, Field
 
 from zndraw.utils import SHARED, set_global_atoms
+from znframe.frame import Frame
+from znframe.vec import OriginVecField
 
 try:
     from zndraw.analyse import mda  # noqa: F401
@@ -21,6 +23,35 @@ log = logging.getLogger(__name__)
 
 def _schema_from_atoms(schema, cls):
     return cls.model_json_schema_from_atoms(schema)
+
+class Trajectory(BaseModel):
+    discriminator: t.Literal["Trajectory"] = Field("Trajectory")
+
+    step_size: int = 1
+
+    def run(self, vis):
+        atoms_list, ids = list(vis), vis.selection
+        
+        atoms_length = len(atoms_list)
+
+        vectors = []
+        origins = []
+            
+        for id in ids:
+            for step in range(atoms_length - self.step_size - 1, 0, -1*self.step_size):
+                diff = atoms_list[step+self.step_size].positions[id] - atoms_list[step].positions[id]  
+                vectors.append(diff.tolist())
+                origins.append(atoms_list[step].positions[id].tolist())
+
+            diff = atoms_list[step].positions[id] - atoms_list[0].positions[id]  
+            vectors.append(diff.tolist())
+            origins.append(atoms_list[0].positions[id].tolist())   
+
+        new_frame = Frame.from_atoms(vis[atoms_length - 1])
+        vec = OriginVecField(vectors, origins) 
+        new_frame.vector_field = vec
+        vis.append(new_frame)
+
 
 
 class Distance(BaseModel):
