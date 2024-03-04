@@ -11,7 +11,8 @@ export class Canvas3D extends THREE.Group {
     drawAddCanvasBtn.addEventListener("click", () => {
 
       const params = drawAddCanvasBtn.parameters.geometry;
-      
+
+      params.direction = new THREE.Vector3(0, 0, 1);
       params.color = drawAddCanvasBtn.parameters.color;
       params.opacity = drawAddCanvasBtn.parameters.opacity;
       params.wireframe = drawAddCanvasBtn.parameters.wireframe;
@@ -30,6 +31,7 @@ export class Canvas3D extends THREE.Group {
       this.drawObj(params);
 
       // this has to be done to prevent some json validation errors
+      delete params.direction;
       delete params.position;
       delete params.color;
       delete params.opacity;
@@ -140,10 +142,18 @@ export class Canvas3D extends THREE.Group {
         } else { wireframe.name = "canvas3D-wireframe"; }
 
         wireframe.position.set(...parameters.position);
+        var wireframePosition = new THREE.Vector3(...wireframe.position);
+        var direction = new THREE.Vector3(...parameters.direction);
+        var targetPosition = new THREE.Vector3().addVectors(wireframePosition, direction);
+        wireframe.lookAt(targetPosition);
         this.add(wireframe);
       } 
 
       plane.position.set(...parameters.position);
+      var planePosition = new THREE.Vector3(...plane.position);
+      var direction = new THREE.Vector3(...parameters.direction);
+      var targetPosition = new THREE.Vector3().addVectors(planePosition, direction);
+      plane.lookAt(targetPosition);
       this.add(plane);
   }
 

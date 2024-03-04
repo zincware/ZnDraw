@@ -349,11 +349,9 @@ class ZnDrawBase:  # collections.abc.MutableSequence
         raise NotImplementedError
 
     def draw_obj(self, data):
-        print("drawObj")
         self.socket.emit("draw:obj", {"data": data.to_dict(), "token": self.token})
 
     def del_obj(self, locked: bool = False):
-        print("delObj")
         self.socket.emit("del:obj", {"locked": locked, "token": self.token})
 
 
@@ -590,9 +588,9 @@ class ZnDraw(ZnDrawBase):
             # raise ValueError("ZnDraw client closed")
 
     def _repr_html_(self):
-        from IPython.display import IFrame
+        from IPython.display import IFrame, display
 
-        return IFrame(src=self.url, width="100%", height="600px")
+        return display(IFrame(src=self.url, width="100%", height="600px"))
 
     def get_logging_handler(self) -> ZnDrawLoggingHandler:
         return ZnDrawLoggingHandler(self)
