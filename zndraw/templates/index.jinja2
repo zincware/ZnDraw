@@ -171,10 +171,10 @@
                 class="fa-solid fa-sun"></i></button>
           </li>
           {% if token is none%}
-          <li class="nav-item mx-1">
+          <li class="nav-item mx-1" data-bs-toggle="tooltip" data-bs-title="Reload" data-bs-placement="bottom">
             <a class="btn btn-outline-info " href="/" role="button"><i class="fa-solid fa-rotate-right"></i></a>
           </li>
-          <li class="nav-item mx-1">
+          <li class="nav-item mx-1" data-bs-toggle="tooltip" data-bs-title="EXIT" data-bs-placement="bottom">
             <a class="btn btn-outline-danger" id="ExitBtn" href="/exit">
               <i class="fa-solid fa-circle-xmark"></i>
             </a>
