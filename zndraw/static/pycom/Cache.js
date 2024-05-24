@@ -131,6 +131,7 @@ class Cache {
 
     // Check if atoms are not cached and the id has not been requested
     if ((atoms === undefined && !this._requested[id]) || request) {
+      this._requested[id] = true
       this.socket.emit("room:frames:get", [id], (data) => {
         this.setFrames(data);
       });

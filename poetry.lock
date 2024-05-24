@@ -3404,10 +3404,8 @@ sqlmodel = "^0.0"
 typer = "^0.12"
 
 [package.source]
-type = "git"
-url = "https://github.com/zincware/znsocket"
-reference = "HEAD"
-resolved_reference = "0284b1ea03214db853b1137566b395a39db1f81d"
+type = "directory"
+url = "../znsocket"
 
 [extras]
 all = ["mdanalysis", "rdkit2ase", "tidynamics"]
@@ -3416,4 +3414,4 @@ rdkit = ["rdkit2ase"]
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "311f41a187c1418f7516651ed780fdb716b8559edc8b7f293ee8da1fc5ee951d"
+content-hash = "ca6b36a4b2cf969e3b9d160850e0a8e44ee8508ab2a41e2a2b70de994d5c1e93"

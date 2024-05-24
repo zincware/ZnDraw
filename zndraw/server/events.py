@@ -97,10 +97,10 @@ def room_frames_get(frames: list[int]) -> dict[int, dict]:
     # check if f"room:{room}:frames" exists
 
     if not r.exists(f"room:{room}:frames"):
-        data = r.hmget("room:default:frames", frames)
+        data = r.hmget("room:default:frames", [f"{frame}" for frame in frames])
     else:
         # TODO can use this, but if a frame is removed it must be marked here
-        data = r.hmget(f"room:{room}:frames", frames)
+        data = r.hmget(f"room:{room}:frames", [f"{frame}" for frame in frames])
 
     response = {}
     for frame, d in zip(frames, data):

@@ -5,6 +5,7 @@ import tqdm
 import znframe
 from celery import shared_task
 from redis import Redis
+import znsocket
 
 from zndraw.base import FileIO
 
@@ -15,6 +16,7 @@ log = logging.getLogger(__name__)
 def read_file(data: dict) -> None:
     file_io = FileIO(**data)
     r = Redis(host="localhost", port=6379, db=0, decode_responses=True)
+    # r = znsocket.Client("http://127.0.0.1:5000")
     r.delete("room:default:frames")
 
     for i, atoms in tqdm.tqdm(enumerate(ase.io.iread(file_io.name))):
