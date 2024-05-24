@@ -1,18 +1,18 @@
 import dataclasses
-from .base import ZnDrawBase
+
 import socketio
 import znframe
-
-
 
 
 @dataclasses.dataclass
 class ZnDraw:
     url: str
-    token: str|None = None
-    auth_token: str|None = None
+    token: str | None = None
+    auth_token: str | None = None
 
-    socket: socketio.Client = dataclasses.field(default_factory=socketio.Client, repr=False)
+    socket: socketio.Client = dataclasses.field(
+        default_factory=socketio.Client, repr=False
+    )
 
     def __post_init__(self):
         self.url = self.url.replace("http", "ws")
@@ -34,7 +34,6 @@ class ZnDraw:
     def __getitem__(self, index):
         data: dict = self.socket.call("room:frames:get", index)
         return [znframe.Frame(**x).to_atoms() for x in data.values()]
-
 
 
 # import logging

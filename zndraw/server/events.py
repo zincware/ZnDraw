@@ -65,7 +65,6 @@ def connect():
         log.critical(f"connecting (pyclient) {request.sid}")
 
 
-
 @io.on("room:frames:get")
 def room_frames_get(frames: list[int]) -> dict[int, dict]:
     if len(frames) == 0:
