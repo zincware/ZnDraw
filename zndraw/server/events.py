@@ -21,6 +21,7 @@ from zndraw.modify import get_modify_class
 from zndraw.utils import get_cls_from_json_schema, hide_discriminator_field
 
 from ..app import socketio as io
+from ..tasks import run_modifier
 
 # from ..data import (
 #     AnalysisFigureData,
@@ -152,6 +153,8 @@ def modifier_register(data: dict):
     r: Redis = current_app.config["redis"]
     room = session.get("token")
 
+    data["room"] = room
+
     if data.pop("public"):
         r.hset("room:default:modifiers", data["name"], json.dumps(data))
     else:
@@ -177,6 +180,21 @@ def modifier_schema():
     hide_discriminator_field(schema)
     return schema
 
+@io.on("modifier:run")
+def modifier_run(data: dict):
+    room = session.get("token")
+    emit(
+        "modifier:run:enqueue", to=room
+    )
+    url = f"http://127.0.0.1:{current_app.config['PORT']}"
+    run_modifier.delay(url, room, data)
+
+@io.on("modifier:run:finished")
+def modifier_run_finished():
+    room = session.get("token")
+    emit(
+        "modifier:run:finished", to=room
+    )
 
 #     if data.default:
 #         # TODO: authenticattion
@@ -678,9 +696,9 @@ def modifier_schema():
 # @io.on("modifier:run")
 # def modifier_run(data: dict):
 #     """Run the modifier."""
-#     io.emit(
-#         "modifier:run:enqueue", to=f"webclients_{session['token']}", include_self=False
-#     )
+    # io.emit(
+    #     "modifier:run:enqueue", to=f"webclients_{session['token']}", include_self=False
+    # )
 #     # split into separate streams based on the modifier name
 #     url = f"http://127.0.0.1:{current_app.config['PORT']}"
 #     tasks.run_modifier(url, session["token"], data)

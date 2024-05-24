@@ -23,3 +23,22 @@ def read_file(data: dict) -> None:
             break
         frame = znframe.Frame.from_atoms(atoms)
         r.hset("room:default:frames", f"{i}", frame.to_json())
+
+
+@shared_task
+def run_modifier(url, room, data: dict) -> None:
+
+    from zndraw import ZnDraw
+    import ase.build
+    # from zndraw.utils import get_cls_from_json_schema
+
+    # cls = get_cls_from_json_schema(modifier["schema"], modifier["name"])
+    vis = ZnDraw(url=url, token=room)
+    vis[list(range(10))] = [ase.build.molecule("H2O") for _ in range(10)]
+    # TODO: why is everything after 10 configuration removed?
+    vis.socket.emit("modifier:run:finished")
+    
+
+        
+    # 1. run modifier and update redis
+    # 2. use to update frames in real time "room:frames:refresh"
