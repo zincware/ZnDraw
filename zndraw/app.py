@@ -11,6 +11,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from zndraw.db.schema import Base
+from redis import Redis
 
 from .settings import GlobalConfig
 
@@ -124,15 +125,22 @@ def create_app() -> Flask:
     app.config["upgrade_insecure_requests"] = False
     app.config["compute_bonds"] = True
 
+
+    import znsocket
+    app.config["redis"] = Redis(host='localhost', port=6379, db=0, decode_responses=True)
+    # app.config["redis"] = znsocket.Client(address="http://127.0.0.1:5000")
+
+
+
     app.register_blueprint(main_blueprint)
 
     socketio.init_app(app, cors_allowed_origins="*")
 
-    app.config.from_mapping(
-        CELERY=GlobalConfig.load().celery.to_dict(),
-    )
-    app.config.from_prefixed_env()
-    celery_init_app(app)
+    # app.config.from_mapping(
+    #     CELERY=GlobalConfig.load().celery.to_dict(),
+    # )
+    # app.config.from_prefixed_env()
+    # celery_init_app(app)
     return app
 
 
@@ -178,18 +186,18 @@ class ZnDrawServer:
 
     def run(self, browser=False):
         self.update_cache()
-        self._workers = setup_worker(silence=not self.use_token)
+        # self._workers = setup_worker(silence=not self.use_token)
 
         config = GlobalConfig.load()
         try:
             pathlib.Path(config.database.path).expanduser().unlink(missing_ok=True)
         except AttributeError:
             pass  # only for sqlite config
-        engine = create_engine(config.database.get_path())
-        Base.metadata.create_all(engine)
-        session = sessionmaker(bind=engine)
-        self._purge_old_modifier_clients(session)
-        self._mark_old_queue_items_as_failed(session)
+        # engine = create_engine(config.database.get_path())
+        # Base.metadata.create_all(engine)
+        # session = sessionmaker(bind=engine)
+        # self._purge_old_modifier_clients(session)
+        # self._mark_old_queue_items_as_failed(session)
         if browser:
             webbrowser.open(self.url_root)
         socketio.run(self.app, port=self.port, host="0.0.0.0")
@@ -198,20 +206,20 @@ class ZnDrawServer:
     def url_root(self):
         return f"http://127.0.0.1:{self.port}"
 
-    @staticmethod
-    def _purge_old_modifier_clients(session):
-        from zndraw.db.schema import ModifierClient
+    # @staticmethod
+    # def _purge_old_modifier_clients(session):
+    #     from zndraw.db.schema import ModifierClient
 
-        with session() as ses:
-            ses.query(ModifierClient).delete()
-            ses.commit()
+    #     with session() as ses:
+    #         ses.query(ModifierClient).delete()
+    #         ses.commit()
 
-    @staticmethod
-    def _mark_old_queue_items_as_failed(session):
-        from zndraw.db.schema import QueueItem
+    # @staticmethod
+    # def _mark_old_queue_items_as_failed(session):
+    #     from zndraw.db.schema import QueueItem
 
-        with session() as ses:
-            ses.query(QueueItem).filter(QueueItem.status == "queued").update(
-                dict(status="failed:server_restart")
-            )
-            ses.commit()
+    #     with session() as ses:
+    #         ses.query(QueueItem).filter(QueueItem.status == "queued").update(
+    #             dict(status="failed:server_restart")
+    #         )
+    #         ses.commit()

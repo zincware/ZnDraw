@@ -104,21 +104,3 @@ def main(
         simgen=simgen,
     ) as app:
         app.run(browser=browser)
-
-    # view(
-    #     filename,
-    #     port,
-    #     webview=webview,
-    #     fullscreen=fullscreen,
-    #     open_browser=browser,
-    #     start=start,
-    #     stop=stop,
-    #     step=step,
-    #     compute_bonds=compute_bonds,
-    #     upgrade_insecure_requests=upgrade_insecure_requests,
-    #     use_token=use_token,
-    #     remote=remote,
-    #     rev=rev,
-    #     tutorial=tutorial,
-    #     auth_token=auth_token,
-    # )

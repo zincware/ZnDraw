@@ -25,6 +25,7 @@ let renderer2d;
 let scene;
 let loop;
 let controls;
+let request_new = true;
 
 class Player {
   constructor(world, cache, socket, bookmarks) {
@@ -34,6 +35,7 @@ class Player {
     this.cache = cache;
     this.loop = false;
     this.bookmarks = bookmarks;
+    this.socket = socket;
 
     // detect playBtn click
     document.getElementById("playBtn").addEventListener("click", () => {
@@ -123,15 +125,28 @@ class Player {
 
   go_forward(step = 1) {
     let new_step = this.world.getStep() + step;
-    if (new_step >= this.cache.get_length()) {
-      if (this.loop) {
-        new_step = step - 1;
-      } else {
-        new_step = this.world.getStep();
-        this.playing = false;
+    if (new_step >= this.cache.get_length() - 10) {
+      // always start before reaching the end
+      // create a list [new_step, ..., new_step + 10]
+      if (request_new) {
+        request_new = false;
+        const new_steps = Array.from({length: 20}, (x, i) => i + new_step);
+        this.socket.emit("draw", new_steps, (ack) => {
+        });
       }
     }
-    this.world.setStep(new_step);
+    else {
+      request_new = true;
+    }
+    if (new_step < this.cache.get_length() - 1) {
+      // if (this.loop) {
+      //   new_step = step - 1;
+      // } else {
+      //   new_step = this.world.getStep();
+      //   this.playing = false;
+      // }
+      this.world.setStep(new_step);
+    }
   }
 
   go_backward(step = 1) {
@@ -233,6 +248,15 @@ class World {
 
     this.step = loop.step;
     this.socket = socket;
+
+    this.socket.on("room:size", (data) => {
+      const slider = document.getElementById("frameProgress");
+      slider.ariaValueMax = data;
+      slider.max = data;
+      document.getElementById("info").innerHTML =
+        `${slider.ariaValueNow} / ${slider.ariaValueMax}`;
+    });
+    
 
     this.socket.on("room:set", (data) => {
       if (data.step !== null) {
