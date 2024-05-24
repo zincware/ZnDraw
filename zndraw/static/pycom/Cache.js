@@ -106,6 +106,9 @@ class Cache {
     // Retrieve cached atoms
     const atoms = this._cache[id];
     const prefetch_shape = [-5, 15]
+    const request_shape = [-20, 20]
+    // TODO: adapt reuqest_shape and prefetch_shape based on if a step is requested or it is playing
+    // could also first request the frame and then +/-
 
     // Check if id +/- request_shape is in the cache or requested
     let request = false;
@@ -118,8 +121,7 @@ class Cache {
 
     // Check if atoms are not cached and the id has not been requested
     if ((atoms === undefined && !this._requested[id]) || (request)) {
-        const request_shape = [-20, 20]
-
+      this.socket.emit("room:frames", [id], (ack) => {});
         let new_steps = []
         for (let i = request_shape[0]; i <= request_shape[1]; i++) {
             new_steps.push(id + i);

@@ -77,6 +77,10 @@ def room_frames(frames: list[int]):
     else:
         raise NotImplementedError("room data not implemented yet")
     data = {k: json.loads(v) for k, v in zip(frames, data)}
+
+    # TODO when to do this, not every time but the db updates regularly
+    keys: list[str] = r.hkeys("room:default:frames")
+    emit("room:size", len(keys))
     # emit(
     #     "room:set",
     #     {
