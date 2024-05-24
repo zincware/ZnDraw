@@ -124,7 +124,12 @@ class Player {
 
   go_forward(step = 1) {
     let new_step = this.world.getStep() + step;
-    console.log("go forward", step, this.world.getStep(), this.cache.get_length());
+    console.log(
+      "go forward",
+      step,
+      this.world.getStep(),
+      this.cache.get_length(),
+    );
     if (new_step > this.cache.get_length()) {
       if (this.loop) {
         new_step = 0;
@@ -236,7 +241,6 @@ class World {
     this.step = loop.step;
     this.socket = socket;
 
-  
     this.socket.on("room:set", (data) => {
       if (data.step !== null) {
         // small timeout to ensure the step is set after the cache is updated
@@ -327,18 +331,16 @@ class World {
     // // log all keys in the cache
     // console.log(this.cache);
     // if (this.cache.get(step) === undefined) {
-      // const forward_steps = Array.from({length: 20}, (x, i) => i + step);
-      // const backward_steps = Array.from({length: 20}, (x, i) => step - i);
-      // const new_steps = [...backward_steps, ...forward_steps];
-      // // remove negative steps and duplicates
-      // const unique_steps = new Set(new_steps);
-      // const new_steps_unique = Array.from(unique_steps).filter(x => x >= 0);
+    // const forward_steps = Array.from({length: 20}, (x, i) => i + step);
+    // const backward_steps = Array.from({length: 20}, (x, i) => step - i);
+    // const new_steps = [...backward_steps, ...forward_steps];
+    // // remove negative steps and duplicates
+    // const unique_steps = new Set(new_steps);
+    // const new_steps_unique = Array.from(unique_steps).filter(x => x >= 0);
 
-      // this.socket.emit("room:frames", new_steps_unique, (ack) => {});
+    // this.socket.emit("room:frames", new_steps_unique, (ack) => {});
     //   return;
     // }
-
-
 
     step = parseInt(step);
     const success = loop.setStep(step);

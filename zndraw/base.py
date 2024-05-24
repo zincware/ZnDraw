@@ -11,7 +11,8 @@ from zndraw.data import CeleryTaskData
 
 log = logging.getLogger(__name__)
 
-@dataclasses.dataclass # TODO: move to a separate file, so it can be imported in other files
+
+@dataclasses.dataclass  # TODO: move to a separate file, so it can be imported in other files
 class FileIO:
     name: str = None
     start: int = 0
@@ -22,7 +23,7 @@ class FileIO:
 
     def to_dict(self):
         return dataclasses.asdict(self)
-    
+
 
 @dataclasses.dataclass
 class ZnDrawBase(MutableSequence):

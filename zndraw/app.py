@@ -1,5 +1,7 @@
 import dataclasses
+import os
 import pathlib
+import platform
 import subprocess
 import uuid
 import webbrowser
@@ -7,20 +9,13 @@ import webbrowser
 from celery import Celery, Task
 from flask import Flask
 from flask_socketio import SocketIO
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-
-from zndraw.db.schema import Base
 from redis import Redis
-import os
-import platform
 
+from .base import FileIO
 from .settings import GlobalConfig
 from .tasks import read_file
-from .base import FileIO
 
 socketio = SocketIO()
-
 
 
 def celery_init_app(app: Flask) -> Celery:
@@ -42,7 +37,6 @@ def setup_worker() -> list:
     if platform.system() == "Darwin" and platform.processor() == "arm":
         # fix celery worker issue on apple silicon
         my_env["OBJC_DISABLE_INITIALIZE_FORK_SAFETY"] = "YES"
-
 
     worker = subprocess.Popen(
         [
@@ -131,9 +125,10 @@ def create_app() -> Flask:
     app.config["upgrade_insecure_requests"] = False
     app.config["compute_bonds"] = True
 
-
     # import znsocket
-    app.config["redis"] = Redis(host='localhost', port=6379, db=0, decode_responses=True)
+    app.config["redis"] = Redis(
+        host="localhost", port=6379, db=0, decode_responses=True
+    )
     # app.config["redis"] = znsocket.Client(address="http://127.0.0.1:5000")
 
     app.register_blueprint(main_blueprint)
@@ -174,7 +169,7 @@ class ZnDrawServer:
             worker.kill()
         for worker in self._workers:
             worker.wait()
-        
+
         self.app.config["redis"].delete("room:default:frames")
 
     def update_cache(self):

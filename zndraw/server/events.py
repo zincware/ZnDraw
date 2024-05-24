@@ -1,25 +1,24 @@
 # import dataclasses
 # import datetime
+import json
 import logging
+
 # from threading import Lock
 # from typing import List
 # from uuid import uuid4
-
 # from celery import chain
 from flask import current_app, request, session
-from flask_socketio import call, emit, join_room
-# from socketio.exceptions import TimeoutError
+from flask_socketio import emit
 
+# from socketio.exceptions import TimeoutError
 # from zndraw.db import Session
 # from zndraw.db import schema as db_schema
 # from zndraw.server import tasks
 # from zndraw.utils import typecast
 from redis import Redis
-import json
-import contextlib
-
 
 from ..app import socketio as io
+
 # from ..data import (
 #     AnalysisFigureData,
 #     CeleryTaskData,
@@ -51,6 +50,7 @@ log = logging.getLogger(__name__)
 #             return data.sid
 #     return f"webclients_{data.token}"
 
+
 @io.on("connect")
 def connect():
     try:
@@ -73,7 +73,7 @@ def room_frames(frames: list[int]):
     room = session.get("room")
     # check if f"room:{room}:frames" exists
     if not r.exists(f"room:{room}:frames"):
-        data = r.hmget(f"room:default:frames", frames)
+        data = r.hmget("room:default:frames", frames)
     else:
         raise NotImplementedError("room data not implemented yet")
 
@@ -100,11 +100,12 @@ def room_frames(frames: list[int]):
     #     },
     # )
 
+
 # @io.on("connect")
 # def connect():
-    # try:
-    #     token = str(session["token"])
-    #     log.debug(f"connecting (webclient) {request.sid}")
+# try:
+#     token = str(session["token"])
+#     log.debug(f"connecting (webclient) {request.sid}")
 #         URL = f"http://127.0.0.1:{current_app.config['PORT']}"
 #         # if you connect through Python, you don't have a token
 #         read_file_chain = chain(

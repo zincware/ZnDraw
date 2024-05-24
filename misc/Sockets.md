@@ -2,7 +2,6 @@
 
 - `room:frames` is used to request the frames from the specific room. It will use `default` room if the room does not exist.
 
-
 ## Main
 
 ### connect

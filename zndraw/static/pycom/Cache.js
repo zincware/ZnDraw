@@ -89,14 +89,14 @@ class Cache {
     this.world;
     this.socket = socket;
     this._requested = {};
-    
+
     this._length = 0;
     this.socket.on("room:size", (data) => {
       this._length = data;
       console.log("Cache length is now", this._length);
     });
     this.socket.on("cache:frames", (data) => {
-      this.setFrames(data);      
+      this.setFrames(data);
     });
   }
 
@@ -105,45 +105,50 @@ class Cache {
     id = parseInt(id, 10);
     // Retrieve cached atoms
     const atoms = this._cache[id];
-    const prefetch_shape = [-5, 15]
-    const request_shape = [-20, 20]
+    const prefetch_shape = [-5, 15];
+    const request_shape = [-20, 20];
     // TODO: adapt reuqest_shape and prefetch_shape based on if a step is requested or it is playing
     // could also first request the frame and then +/-
 
     // Check if id +/- request_shape is in the cache or requested
     let request = false;
     for (let i = prefetch_shape[0]; i <= prefetch_shape[1]; i++) {
-        if (this._cache[id + i] === undefined && !this._requested[id + i] && id + i >= 0 && id + i < this._length) {
-            request = true;
-        }
+      if (
+        this._cache[id + i] === undefined &&
+        !this._requested[id + i] &&
+        id + i >= 0 &&
+        id + i < this._length
+      ) {
+        request = true;
+      }
     }
 
-
     // Check if atoms are not cached and the id has not been requested
-    if ((atoms === undefined && !this._requested[id]) || (request)) {
+    if ((atoms === undefined && !this._requested[id]) || request) {
       this.socket.emit("room:frames", [id], (ack) => {});
-        let new_steps = []
-        for (let i = request_shape[0]; i <= request_shape[1]; i++) {
-            new_steps.push(id + i);
-        }
+      let new_steps = [];
+      for (let i = request_shape[0]; i <= request_shape[1]; i++) {
+        new_steps.push(id + i);
+      }
 
+      new_steps = Array.from(new Set(new_steps));
+      // Filter out negative steps and those already in the cache
+      new_steps = new_steps.filter(
+        (x) => x >= 0 && this._cache[x] === undefined,
+      );
+      // Filter out steps larger than the length
+      new_steps = new_steps.filter((x) => x < this._length);
+      // Log the steps to request
+      console.log("Requesting", new_steps);
+      // add all requested steps to the requested id list
+      new_steps.forEach((step) => (this._requested[step] = true));
 
-        new_steps = Array.from(new Set(new_steps));
-        // Filter out negative steps and those already in the cache
-        new_steps = new_steps.filter(x => x >= 0 && this._cache[x] === undefined);
-        // Filter out steps larger than the length
-        new_steps = new_steps.filter(x => x < this._length);
-        // Log the steps to request
-        console.log("Requesting", new_steps);
-        // add all requested steps to the requested id list
-        new_steps.forEach(step => this._requested[step] = true);
-
-        // Emit request for the steps
-        this.socket.emit("room:frames", new_steps, (ack) => {});
+      // Emit request for the steps
+      this.socket.emit("room:frames", new_steps, (ack) => {});
     }
 
     return atoms;
-}
+  }
 
   get_length() {
     return this._length - 1;
