@@ -5,7 +5,6 @@ import tqdm
 import znframe
 from celery import shared_task
 from redis import Redis
-import znsocket
 
 from zndraw.base import FileIO
 

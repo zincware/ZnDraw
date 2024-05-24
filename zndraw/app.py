@@ -15,7 +15,6 @@ from .base import FileIO
 from .settings import GlobalConfig
 from .tasks import read_file
 
-import znsocket
 socketio = SocketIO()
 
 
