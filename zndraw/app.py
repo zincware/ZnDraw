@@ -174,6 +174,8 @@ class ZnDrawServer:
             worker.kill()
         for worker in self._workers:
             worker.wait()
+        
+        self.app.config["redis"].delete("room:default:frames")
 
     def update_cache(self):
         self.app.config["SECRET_KEY"] = str(uuid.uuid4())

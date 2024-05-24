@@ -16,6 +16,7 @@ from flask_socketio import call, emit, join_room
 # from zndraw.utils import typecast
 from redis import Redis
 import json
+import contextlib
 
 
 from ..app import socketio as io
@@ -66,7 +67,6 @@ def connect():
 
 @io.on("room:frames")
 def room_frames(frames: list[int]):
-    log.critical(f"room:frames {frames}")
     if len(frames) == 0:
         return
     r: Redis = current_app.config["redis"]
@@ -76,8 +76,15 @@ def room_frames(frames: list[int]):
         data = r.hmget(f"room:default:frames", frames)
     else:
         raise NotImplementedError("room data not implemented yet")
-    data = {k: json.loads(v) for k, v in zip(frames, data)}
 
+    response = {}
+    for frame, d in zip(frames, data):
+        try:
+            response[frame] = json.loads(d)
+        except TypeError:
+            # some data might be None
+            response[frame] = None
+    emit("cache:frames", response)
     # TODO when to do this, not every time but the db updates regularly
     keys: list[str] = r.hkeys("room:default:frames")
     emit("room:size", len(keys))
@@ -92,7 +99,6 @@ def room_frames(frames: list[int]):
     #         "points": None,
     #     },
     # )
-    emit("cache:frames", data)
 
 # @io.on("connect")
 # def connect():
