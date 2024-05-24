@@ -48,7 +48,7 @@ def token(token):
 
 @main.route("/reset")
 def reset():
-    session["token"] = uuid.uuid4().hex[:8] # TODO: how should reset work locally?
+    session["token"] = uuid.uuid4().hex[:8]  # TODO: how should reset work locally?
     return redirect("/")
 
 

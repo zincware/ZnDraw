@@ -86,6 +86,7 @@ def join(data: dict):
     join_room(f"{token}")
     # join_room(f"pyclients_{token}")
 
+
 @io.on("room:frames:get")
 def room_frames_get(frames: list[int]) -> dict[int, dict]:
     # print(f"requesting frames: {frames}")
@@ -110,6 +111,7 @@ def room_frames_get(frames: list[int]) -> dict[int, dict]:
             response[frame] = None
     return response
 
+
 @io.on("room:frames:set")
 def room_frames_set(data: dict[int, dict]):
     r: Redis = current_app.config["redis"]
@@ -119,7 +121,7 @@ def room_frames_set(data: dict[int, dict]):
         r.hmset(f"room:{room}:frames", data)
     else:
         raise NotImplementedError("room data not implemented yet")
-    
+
     emit("room:frames:refresh", list(data), to=room)
 
 
@@ -127,7 +129,11 @@ def room_frames_set(data: dict[int, dict]):
 def room_frames_length_get() -> int:
     room = session.get("token")
     r: Redis = current_app.config["redis"]
-    room_key = f"room:{room}:frames" if r.exists(f"room:{room}:frames") else "room:default:frames"
+    room_key = (
+        f"room:{room}:frames"
+        if r.exists(f"room:{room}:frames")
+        else "room:default:frames"
+    )
     keys: list[str] = r.hkeys(room_key)
     # print(f"room_key: {room_key} keys: {keys}")
     return len(keys)
@@ -243,7 +249,6 @@ def room_frames_length_get() -> int:
 #         tasks.on_disconnect.s(token=token, sid=request.sid, url=url),
 #         tasks.remove_empty_rooms.si(),
 #     ).delay()
-
 
 
 # @io.on("analysis:figure")

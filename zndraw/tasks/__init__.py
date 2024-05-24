@@ -22,4 +22,3 @@ def read_file(data: dict) -> None:
             break
         frame = znframe.Frame.from_atoms(atoms)
         r.hset("room:default:frames", f"{i}", frame.to_json())
-

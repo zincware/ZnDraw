@@ -1,8 +1,8 @@
 import dataclasses
 
+import ase
 import socketio
 import znframe
-import ase
 
 
 @dataclasses.dataclass
@@ -35,7 +35,7 @@ class ZnDraw:
     def __getitem__(self, index):
         data: dict = self.socket.call("room:frames:get", index)
         return [znframe.Frame(**x).to_atoms() for x in data.values()]
-    
+
     def __setitem__(self, index: list[int], value: list[ase.Atoms]):
         data = {i: znframe.Frame.from_atoms(x).to_json() for i, x in zip(index, value)}
 
