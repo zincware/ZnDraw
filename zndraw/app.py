@@ -10,6 +10,7 @@ from celery import Celery, Task
 from flask import Flask
 from flask_socketio import SocketIO
 from redis import Redis
+import json
 
 from .base import FileIO
 from .settings import GlobalConfig
@@ -188,8 +189,22 @@ class ZnDrawServer:
 
         self.app.config["FileIO"] = self.fileio.to_dict() if self.fileio else {}
 
+    def write_modifiers(self):
+        config = GlobalConfig.load()
+        classes: list = config.get_modify_methods()
+
+        r = self.app.config["redis"]
+        for cls in classes:
+            data = {
+                "schema": cls.model_json_schema(),
+                "name": cls.__name__,
+                "timeout": 9999999,
+            }
+            r.hset("room:default:modifiers", data["name"], json.dumps(data))
+
     def run(self, browser=False):
         self.update_cache()
+        self.write_modifiers()
 
         read_file.delay(data=self.fileio.to_dict())
 

@@ -150,6 +150,8 @@ function analysis_editor(socket, cache, world) {
 
 function modifier_editor(socket, cache, world) {
   const div = document.getElementById("interaction-json-editor");
+  const btn = document.getElementById("interactionCardBtn");
+
   let editor = new JSONEditor(div, {
     schema: { type: "object", title: "ZnDraw", properties: {} },
   });
@@ -213,11 +215,13 @@ function modifier_editor(socket, cache, world) {
       }
     });
 
-  socket.on("modifier:schema", (data) => {
-    editor.destroy();
-
-    editor = new JSONEditor(div, {
-      schema: data,
+  // create when btn is pressed
+  btn.addEventListener("click", () => {
+    socket.emit("modifier:schema", (data) => {
+      editor.destroy();
+      editor = new JSONEditor(div, {
+        schema: data,
+      });
     });
   });
 }

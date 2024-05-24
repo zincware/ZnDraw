@@ -156,17 +156,24 @@ def modifier_register(data: dict):
     else:
         r.hset(f"room:{room}:modifiers", data["name"], json.dumps(data))
 
-    cls = get_cls_from_json_schema(data["schema"], data["name"])
-    print(cls.model_json_schema())
-    print(cls.__annotations__)
+@io.on("modifier:schema")
+def modifier_schema():
+    r: Redis = current_app.config["redis"]
+    room = session.get("token")
 
-    cls = get_modify_class(
-        [get_cls_from_json_schema(data["schema"], data["name"])]
-    )  # todo: include=include)
-    print(cls)
+    modifiers: dict = r.hgetall(f"room:{room}:modifiers")
+    modifiers |= r.hgetall("room:default:modifiers")
+    # reconstruct them to get the schema
+    classes = []
+    for modifier in modifiers.values():
+        modifier = json.loads(modifier)
+        cls = get_cls_from_json_schema(modifier["schema"], modifier["name"])
+        classes.append(cls)
+    
+    cls = get_modify_class(classes)
     schema = cls.model_json_schema()
     hide_discriminator_field(schema)
-    emit("modifier:schema", schema, to=room)
+    return schema
         
 #     if data.default:
 #         # TODO: authenticattion
