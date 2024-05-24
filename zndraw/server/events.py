@@ -65,6 +65,29 @@ def connect():
         log.critical(f"connecting (pyclient) {request.sid}")
 
 
+
+@io.on("room:frames:get")
+def room_frames_get(frames: list[int]) -> dict[int, dict]:
+    if len(frames) == 0:
+        return {}
+    r: Redis = current_app.config["redis"]
+    room = session.get("room")
+    # check if f"room:{room}:frames" exists
+    if not r.exists(f"room:{room}:frames"):
+        data = r.hmget("room:default:frames", frames)
+    else:
+        raise NotImplementedError("room data not implemented yet")
+
+    response = {}
+    for frame, d in zip(frames, data):
+        try:
+            response[frame] = json.loads(d)
+        except TypeError:
+            # some data might be None
+            response[frame] = None
+    return response
+
+
 @io.on("room:frames")
 def room_frames(frames: list[int]):
     if len(frames) == 0:
@@ -213,29 +236,32 @@ def room_frames(frames: list[int]):
 #     ).delay()
 
 
-# @io.on("join")
-# def join(data: dict):
-#     """
-#     Arguments:
-#         data: {"token": str, "auth_token": str}
-#     """
-#     if current_app.config["AUTH_TOKEN"] is None:
-#         session["authenticated"] = True
-#     else:
-#         session["authenticated"] = (
-#             data["auth_token"] == current_app.config["AUTH_TOKEN"]
-#         )
-#     token = data["token"]
-#     session["token"] = token
-#     join_room(f"{token}")
-#     join_room(f"pyclients_{token}")
+@io.on("join")
+def join(data: dict):
+    """
+    Arguments:
+        data: {"token": str, "auth_token": str}
+    """
+    if current_app.config["AUTH_TOKEN"] is None:
+        session["authenticated"] = True
+    else:
+        session["authenticated"] = (
+            data["auth_token"] == current_app.config["AUTH_TOKEN"]
+        )
+    token = data["token"]
+    session["token"] = token
 
-#     with Session() as ses:
-#         room = ses.query(db_schema.Room).filter_by(token=token).first()
-#         if room is None:
-#             room = db_schema.Room(token=token, currentStep=0, points=[], selection=[])
-#             ses.add(room)
-#         ses.commit()
+    # TODO: push events come later because they are only required for e.g. analysis, modifiers, ...
+
+    # join_room(f"{token}")
+    # join_room(f"pyclients_{token}")
+
+    # with Session() as ses:
+    #     room = ses.query(db_schema.Room).filter_by(token=token).first()
+    #     if room is None:
+    #         room = db_schema.Room(token=token, currentStep=0, points=[], selection=[])
+    #         ses.add(room)
+    #     ses.commit()
 
 
 # @io.on("analysis:figure")
