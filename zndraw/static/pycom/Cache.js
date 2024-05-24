@@ -89,12 +89,9 @@ class Cache {
     this.world;
     this.socket = socket;
     this._requested = {};
+    this._size_timeout = false;
 
     this._length = 0;
-    this.socket.on("room:size", (data) => {
-      this._length = data;
-      console.log("Cache length is now", this._length);
-    });
     this.socket.on("cache:frames", (data) => {
       this.setFrames(data);
     });
@@ -125,7 +122,9 @@ class Cache {
 
     // Check if atoms are not cached and the id has not been requested
     if ((atoms === undefined && !this._requested[id]) || request) {
-      this.socket.emit("room:frames", [id], (ack) => {});
+      this.socket.emit("room:frames:get", [id], (data) => {
+        this.setFrames(data);
+      });
       let new_steps = [];
       for (let i = request_shape[0]; i <= request_shape[1]; i++) {
         new_steps.push(id + i);
@@ -144,13 +143,26 @@ class Cache {
       new_steps.forEach((step) => (this._requested[step] = true));
 
       // Emit request for the steps
-      this.socket.emit("room:frames", new_steps, (ack) => {});
+      // this.socket.emit("room:frames", new_steps, (ack) => {});
+      this.socket.emit("room:frames:get", new_steps, (data) => {
+        this.setFrames(data);
+      });
     }
 
     return atoms;
   }
 
   get_length() {
+    if (!this._size_timeout) {
+      this.socket.emit("room:length:get", (data) => {
+        this._length = data;
+        console.log("Cache length is now", this._length);
+      });
+      this._size_timeout = true;
+      setTimeout(() => {
+        this._size_timeout = false;
+      }, 1000);
+    }
     return this._length - 1;
     // return Object.keys(this._cache).length;
   }

@@ -67,6 +67,7 @@ def connect():
 
 @io.on("room:frames:get")
 def room_frames_get(frames: list[int]) -> dict[int, dict]:
+    print(f"requesting frames: {frames}")
     if len(frames) == 0:
         return {}
     r: Redis = current_app.config["redis"]
@@ -86,41 +87,11 @@ def room_frames_get(frames: list[int]) -> dict[int, dict]:
             response[frame] = None
     return response
 
-
-@io.on("room:frames")
-def room_frames(frames: list[int]):
-    if len(frames) == 0:
-        return
+@io.on("room:length:get")
+def room_frames_length_get() -> int:
     r: Redis = current_app.config["redis"]
-    room = session.get("room")
-    # check if f"room:{room}:frames" exists
-    if not r.exists(f"room:{room}:frames"):
-        data = r.hmget("room:default:frames", frames)
-    else:
-        raise NotImplementedError("room data not implemented yet")
-
-    response = {}
-    for frame, d in zip(frames, data):
-        try:
-            response[frame] = json.loads(d)
-        except TypeError:
-            # some data might be None
-            response[frame] = None
-    emit("cache:frames", response)
-    # TODO when to do this, not every time but the db updates regularly
     keys: list[str] = r.hkeys("room:default:frames")
-    emit("room:size", len(keys))
-    # emit(
-    #     "room:set",
-    #     {
-    #         "frames": data,
-    #         "bookmarks": None,
-    #         "step": None,
-    #         "selection": None,
-    #         "camera": None,
-    #         "points": None,
-    #     },
-    # )
+    return len(keys)
 
 
 # @io.on("connect")
