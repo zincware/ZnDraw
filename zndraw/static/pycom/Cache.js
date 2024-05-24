@@ -85,19 +85,67 @@ class Atoms {
 
 class Cache {
   constructor(socket) {
-    this._socket = socket;
     this._cache = {};
     this.world;
+    this.socket = socket;
+    this._requested = {};
+    
+    this._length = 0;
+    this.socket.on("room:size", (data) => {
+      this._length = data;
+      console.log("Cache length is now", this._length);
+    });
+    this.socket.on("cache:frames", (data) => {
+      this.setFrames(data);      
+    });
   }
 
   get(id) {
-    // convert id to integer
-    id = parseInt(id);
-    return this._cache[id];
-  }
+    // Convert id to an integer
+    id = parseInt(id, 10);
+    // Retrieve cached atoms
+    const atoms = this._cache[id];
+    const prefetch_shape = [-5, 15]
+
+    // Check if id +/- request_shape is in the cache or requested
+    let request = false;
+    for (let i = prefetch_shape[0]; i <= prefetch_shape[1]; i++) {
+        if (this._cache[id + i] === undefined && !this._requested[id + i] && id + i >= 0 && id + i < this._length) {
+            request = true;
+        }
+    }
+
+
+    // Check if atoms are not cached and the id has not been requested
+    if ((atoms === undefined && !this._requested[id]) || (request)) {
+        const request_shape = [-20, 20]
+
+        let new_steps = []
+        for (let i = request_shape[0]; i <= request_shape[1]; i++) {
+            new_steps.push(id + i);
+        }
+
+
+        new_steps = Array.from(new Set(new_steps));
+        // Filter out negative steps and those already in the cache
+        new_steps = new_steps.filter(x => x >= 0 && this._cache[x] === undefined);
+        // Filter out steps larger than the length
+        new_steps = new_steps.filter(x => x < this._length);
+        // Log the steps to request
+        console.log("Requesting", new_steps);
+        // add all requested steps to the requested id list
+        new_steps.forEach(step => this._requested[step] = true);
+
+        // Emit request for the steps
+        this.socket.emit("room:frames", new_steps, (ack) => {});
+    }
+
+    return atoms;
+}
 
   get_length() {
-    return Object.keys(this._cache).length;
+    return this._length - 1;
+    // return Object.keys(this._cache).length;
   }
 
   getAllAtoms() {
@@ -109,6 +157,7 @@ class Cache {
   }
 
   setFrames(data) {
+    console.log("Cache setFrames", Object.keys(data));
     const slider = document.getElementById("frameProgress");
     const indicesToDelete = [];
     for (const [index, atoms] of Object.entries(data)) {
@@ -125,20 +174,21 @@ class Cache {
           calc: atoms.calc,
           pbc: atoms.pbc,
         });
-        slider.ariaValueMax = Object.keys(this._cache).length - 1;
+        slider.ariaValueMax = this.get_length();
       }
+      delete this._requested[index];
     }
     // reset the keys of the cache to go from 0 to n
-    const newCache = {};
-    let i = 0;
-    for (const key in this._cache) {
-      newCache[i] = this._cache[key];
-      i++;
-    }
-    this._cache = newCache;
+    // const newCache = {};
+    // let i = 0;
+    // for (const key in this._cache) {
+    //   newCache[i] = this._cache[key];
+    //   i++;
+    // }
+    // this._cache = newCache;
     // no longer required?
     // this.world.setStep(this.world.getStep());
-    slider.ariaValueMax = Object.keys(this._cache).length - 1;
+    // slider.ariaValueMax = this.get_length();
   }
 }
 

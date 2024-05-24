@@ -57,28 +57,38 @@ def connect():
         log.critical(f"connecting (webclient) {request.sid}")
         r: Redis = current_app.config["redis"]
         # get all keys in "room:0:frames"
+        # TODO: handle default / room exists
         keys = r.hkeys("room:default:frames")
         emit("room:size", len(keys))
     except KeyError:
         log.critical(f"connecting (pyclient) {request.sid}")
 
 
-@io.on("draw")
-def draw(frames: list[int]):
+@io.on("room:frames")
+def room_frames(frames: list[int]):
+    log.critical(f"room:frames {frames}")
+    if len(frames) == 0:
+        return
     r: Redis = current_app.config["redis"]
-    data = r.hmget("room:default:frames", frames)
+    room = session.get("room")
+    # check if f"room:{room}:frames" exists
+    if not r.exists(f"room:{room}:frames"):
+        data = r.hmget(f"room:default:frames", frames)
+    else:
+        raise NotImplementedError("room data not implemented yet")
     data = {k: json.loads(v) for k, v in zip(frames, data)}
-    emit(
-        "room:set",
-        {
-            "frames": data,
-            "bookmarks": None,
-            "step": None,
-            "selection": None,
-            "camera": None,
-            "points": None,
-        },
-    )
+    # emit(
+    #     "room:set",
+    #     {
+    #         "frames": data,
+    #         "bookmarks": None,
+    #         "step": None,
+    #         "selection": None,
+    #         "camera": None,
+    #         "points": None,
+    #     },
+    # )
+    emit("cache:frames", data)
 
 # @io.on("connect")
 # def connect():

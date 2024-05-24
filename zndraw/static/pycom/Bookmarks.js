@@ -81,6 +81,7 @@ class Bookmarks {
 
   step() {
     this.updateBookmarks();
+    return true;
   }
 
   jumpNext() {

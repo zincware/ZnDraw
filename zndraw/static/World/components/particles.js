@@ -244,7 +244,7 @@ class ParticlesGroup extends THREE.Group {
       this.particle_cache = this.cache.get(frame);
     }
     if (this.particle_cache == null) {
-      // nothing to display
+      return false;
     } else {
       this._updateParticles(this.particle_cache);
 
@@ -252,6 +252,7 @@ class ParticlesGroup extends THREE.Group {
         this._updateBonds(this.particle_cache.connectivity);
       }
     }
+    return true;
   }
 
   get_center(selection) {
@@ -276,9 +277,12 @@ class CellGroup extends THREE.Group {
   step(frame) {
     if (!this.is_visible) {
       this.clear();
-      return;
+      return true;
     }
     const particles = this.cache.get(frame);
+    if (particles === undefined) {
+      return false;
+    }
     const cell = particles.cell;
 
     this.clear();
@@ -299,6 +303,7 @@ class CellGroup extends THREE.Group {
     );
     // this.cell_lines.set_selection = (selected) => { };
     this.add(this.cell_lines);
+    return true;
   }
 
   set_visibility(visible) {
@@ -341,6 +346,7 @@ class ParticleIndexGroup extends THREE.Group {
     if (this.show_labels) {
       this.clear();
     }
+    return true;
   }
 
   tick() {

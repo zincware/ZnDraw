@@ -22,10 +22,30 @@ class Loop {
   }
 
   setStep(step) {
+    const old_step = this.step;
     this.step = step;
+    let succeeded = [];
 
     for (const object of this.step_updatables) {
-      object.step(step);
+      const success = object.step(step);
+      if (success) {
+        // console.log("success", object);
+        succeeded.push(object);
+      } else {
+        // console.log("failed", object);
+        break;
+      }
+    }
+    if (succeeded.length == this.step_updatables.length) {
+      return true;
+    } else {
+      // undo changes if not all succeeded
+      // invesitgate if this is needed
+      for (const object of succeeded) {
+        object.step(step - 1);
+      }
+      this.step = old_step;
+      return false;
     }
   }
 

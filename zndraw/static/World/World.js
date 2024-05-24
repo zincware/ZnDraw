@@ -125,28 +125,41 @@ class Player {
 
   go_forward(step = 1) {
     let new_step = this.world.getStep() + step;
-    if (new_step >= this.cache.get_length() - 10) {
-      // always start before reaching the end
-      // create a list [new_step, ..., new_step + 10]
-      if (request_new) {
-        request_new = false;
-        const new_steps = Array.from({length: 20}, (x, i) => i + new_step);
-        this.socket.emit("draw", new_steps, (ack) => {
-        });
+    console.log("go forward", step, this.world.getStep(), this.cache.get_length());
+    if (new_step > this.cache.get_length()) {
+      if (this.loop) {
+        new_step = 0;
+      } else {
+        new_step = this.world.getStep();
+        this.playing = false;
       }
     }
-    else {
-      request_new = true;
-    }
-    if (new_step < this.cache.get_length() - 1) {
-      // if (this.loop) {
-      //   new_step = step - 1;
-      // } else {
-      //   new_step = this.world.getStep();
-      //   this.playing = false;
-      // }
-      this.world.setStep(new_step);
-    }
+    this.world.setStep(new_step);
+    // const success = this.world.setStep(new_step);
+
+    // let new_step = this.world.getStep() + step;
+    // if (new_step >= this.cache.get_length() - 10) {
+    //   // always start before reaching the end
+    //   // create a list [new_step, ..., new_step + 10]
+    //   // This should probably not be here 
+    //   if (request_new) {
+    //     request_new = false;
+    //     const new_steps = Array.from({length: 20}, (x, i) => i + new_step);
+    //     this.socket.emit("room:frames", new_steps, (ack) => {
+    //     });
+    //   }
+    // }
+    // else {
+    //   request_new = true;
+    // }
+    // if (new_step < this.cache.get_length() - 1) {
+    //   if (this.loop) {
+    //     new_step = 0;
+    //   } else {
+    //     new_step = this.world.getStep();
+    //     this.playing = false;
+    //   }
+    // }
   }
 
   go_backward(step = 1) {
@@ -179,7 +192,7 @@ class World {
     renderer = createRenderer();
     renderer2d = create2DRenderer();
 
-    cache = cache;
+    this.cache = cache;
     cache.attachWorld(this);
 
     loop = new Loop(camera, scene, renderer, renderer2d);
@@ -249,15 +262,7 @@ class World {
     this.step = loop.step;
     this.socket = socket;
 
-    this.socket.on("room:size", (data) => {
-      const slider = document.getElementById("frameProgress");
-      slider.ariaValueMax = data;
-      slider.max = data;
-      document.getElementById("info").innerHTML =
-        `${slider.ariaValueNow} / ${slider.ariaValueMax}`;
-    });
-    
-
+  
     this.socket.on("room:set", (data) => {
       if (data.step !== null) {
         // small timeout to ensure the step is set after the cache is updated
@@ -342,8 +347,31 @@ class World {
   }
 
   setStep(step, emit = true) {
+    // check if the step is available in the cache
+    // check if step is in the cache
+    // console.log("setStep", step);
+    // // log all keys in the cache
+    // console.log(this.cache);
+    // if (this.cache.get(step) === undefined) {
+      // const forward_steps = Array.from({length: 20}, (x, i) => i + step);
+      // const backward_steps = Array.from({length: 20}, (x, i) => step - i);
+      // const new_steps = [...backward_steps, ...forward_steps];
+      // // remove negative steps and duplicates
+      // const unique_steps = new Set(new_steps);
+      // const new_steps_unique = Array.from(unique_steps).filter(x => x >= 0);
+
+      // this.socket.emit("room:frames", new_steps_unique, (ack) => {});
+    //   return;
+    // }
+
+
+
     step = parseInt(step);
-    loop.setStep(step);
+    const success = loop.setStep(step);
+    if (!success) {
+      setTimeout(() => this.setStep(step), 100);
+      return false;
+    }
     const slider = document.getElementById("frameProgress");
     const currentStep = parseInt(slider.ariaValueNow);
     slider.ariaValueNow = step;
@@ -353,9 +381,10 @@ class World {
     sliderprogress.style.width = `${percentage}%`;
     document.getElementById("info").innerHTML =
       `${slider.ariaValueNow} / ${slider.ariaValueMax}`;
-    if (emit) {
-      this.socket.emit("step:update", step);
-    }
+    // if (emit) {
+    //   this.socket.emit("step:update", step);
+    // }
+    return true;
   }
 
   getStep() {
