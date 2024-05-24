@@ -1,4 +1,5 @@
 import dataclasses
+import json
 import os
 import pathlib
 import platform
@@ -10,7 +11,6 @@ from celery import Celery, Task
 from flask import Flask
 from flask_socketio import SocketIO
 from redis import Redis
-import json
 
 from .base import FileIO
 from .settings import GlobalConfig

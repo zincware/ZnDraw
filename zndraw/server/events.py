@@ -19,6 +19,7 @@ from redis import Redis
 
 from zndraw.modify import get_modify_class
 from zndraw.utils import get_cls_from_json_schema, hide_discriminator_field
+
 from ..app import socketio as io
 
 # from ..data import (
@@ -147,7 +148,7 @@ def modifier_register(data: dict):
     if data["public"] and not session["authenticated"]:
         log.critical("Unauthenticated user tried to register a default modifier.")
         return
-    
+
     r: Redis = current_app.config["redis"]
     room = session.get("token")
 
@@ -155,6 +156,7 @@ def modifier_register(data: dict):
         r.hset("room:default:modifiers", data["name"], json.dumps(data))
     else:
         r.hset(f"room:{room}:modifiers", data["name"], json.dumps(data))
+
 
 @io.on("modifier:schema")
 def modifier_schema():
@@ -169,12 +171,13 @@ def modifier_schema():
         modifier = json.loads(modifier)
         cls = get_cls_from_json_schema(modifier["schema"], modifier["name"])
         classes.append(cls)
-    
+
     cls = get_modify_class(classes)
     schema = cls.model_json_schema()
     hide_discriminator_field(schema)
     return schema
-        
+
+
 #     if data.default:
 #         # TODO: authenticattion
 #         _register_global_modifier(data)

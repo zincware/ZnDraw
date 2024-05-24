@@ -1,12 +1,12 @@
 import dataclasses
 import logging
+import typing as t
 
 import ase
 import socketio
 import znframe
-import typing as t
 
-from zndraw.modify import UpdateScene, get_modify_class
+from zndraw.modify import UpdateScene
 
 log = logging.getLogger(__name__)
 
@@ -94,15 +94,15 @@ class ZnDraw:
         run_kwargs["timeout"] = timeout
         if cls.__name__ in self._modifiers:
             raise ValueError(f"Modifier {cls.__name__} already registered")
-        
+
         self.socket.emit(
             "modifier:register",
             {
                 "schema": cls.model_json_schema(),
                 "name": cls.__name__,
                 "public": public,
-                "timeout": timeout
-            }
+                "timeout": timeout,
+            },
         )
         self._modifiers[cls.__name__] = {
             "cls": cls,
@@ -508,5 +508,3 @@ class ZnDraw:
 #             disconnect=False,
 #         )
 #         self.socket.emit("celery:task:emit", dataclasses.asdict(msg))
-
-  

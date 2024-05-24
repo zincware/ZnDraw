@@ -198,18 +198,18 @@ log = logging.getLogger(__name__)
 #                 get_cls_from_json_schema(room_modifier.schema, room_modifier.name)
 #             )
 
-    # cls = get_modify_class(
-    #     config.get_modify_methods(include=include)
-    # )  # todo: include=include)
-    # schema = cls.model_json_schema()
+# cls = get_modify_class(
+#     config.get_modify_methods(include=include)
+# )  # todo: include=include)
+# schema = cls.model_json_schema()
 
-    # hide_discriminator_field(schema)
-    # msg = CeleryTaskData(
-    #     target=f"webclients_{token}",
-    #     event="modifier:schema",
-    #     data=schema,
-    #     disconnect=True,
-    # )
+# hide_discriminator_field(schema)
+# msg = CeleryTaskData(
+#     target=f"webclients_{token}",
+#     event="modifier:schema",
+#     data=schema,
+#     disconnect=True,
+# )
 #     con = get_client(url)
 #     con.emit("celery:task:emit", asdict(msg))
 
