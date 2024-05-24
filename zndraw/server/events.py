@@ -87,6 +87,7 @@ def room_frames_get(frames: list[int]) -> dict[int, dict]:
             response[frame] = None
     return response
 
+
 @io.on("room:length:get")
 def room_frames_length_get() -> int:
     r: Redis = current_app.config["redis"]
