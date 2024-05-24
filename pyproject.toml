@@ -32,7 +32,7 @@ sqlalchemy = "^2"
 psycopg2-binary = "^2"
 redis = "^5"
 splines = "^0.3"
-znsocket = {path = "../znsocket"}
+znsocket = {git = "https://github.com/zincware/znsocket"}
 
 
 [tool.poetry.group.dev.dependencies]
