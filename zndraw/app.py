@@ -12,23 +12,15 @@ from sqlalchemy.orm import sessionmaker
 
 from zndraw.db.schema import Base
 from redis import Redis
+import os
+import platform
 
 from .settings import GlobalConfig
+from .tasks import read_file
+from .base import FileIO
 
 socketio = SocketIO()
 
-
-@dataclasses.dataclass
-class FileIO:
-    name: str = None
-    start: int = 0
-    stop: int = None
-    step: int = 1
-    remote: str = None
-    rev: str = None
-
-    def to_dict(self):
-        return dataclasses.asdict(self)
 
 
 def celery_init_app(app: Flask) -> Celery:
@@ -44,66 +36,80 @@ def celery_init_app(app: Flask) -> Celery:
     return celery_app
 
 
-def setup_worker(silence: bool) -> list:
+def setup_worker() -> list:
     """Setup the worker."""
-    import os
-    import platform
-
     my_env = os.environ.copy()
     if platform.system() == "Darwin" and platform.processor() == "arm":
         # fix celery worker issue on apple silicon
         my_env["OBJC_DISABLE_INITIALIZE_FORK_SAFETY"] = "YES"
 
-    fast_worker = subprocess.Popen(
-        [
-            "celery",
-            "-A",
-            "zndraw.make_celery",
-            "worker",
-            "--loglevel=info",
-            "--concurrency=6",
-            "--hostname=fast_worker",
-            "--queues=fast",
-            "--prefetch-multiplier=20",
-        ],
-        env=my_env,
-        stdout=subprocess.PIPE if silence else None,
-        stderr=subprocess.PIPE if silence else None,
-    )
 
-    default_worker = subprocess.Popen(
+    worker = subprocess.Popen(
         [
             "celery",
             "-A",
             "zndraw.make_celery",
             "worker",
             "--loglevel=info",
-            "--concurrency=6",
-            "--hostname=default_worker",
-            "--queues=celery",
-            "--prefetch-multiplier=2",
+            # "--concurrency=6",
+            # "--hostname=default_worker",
+            # "--queues=celery",
+            # "--prefetch-multiplier=2",
         ],
         env=my_env,
-        stdout=subprocess.PIPE if silence else None,
-        stderr=subprocess.PIPE if silence else None,
     )
+    return [worker]
 
-    slow_worker = subprocess.Popen(
-        [
-            "celery",
-            "-A",
-            "zndraw.make_celery",
-            "worker",
-            "--loglevel=info",
-            "--concurrency=1",
-            "--hostname=slow_worker",
-            "--queues=slow",
-        ],
-        env=my_env,
-        stdout=subprocess.PIPE if silence else None,
-        stderr=subprocess.PIPE if silence else None,
-    )
-    return [fast_worker, default_worker, slow_worker]
+    # fast_worker = subprocess.Popen(
+    #     [
+    #         "celery",
+    #         "-A",
+    #         "zndraw.make_celery",
+    #         "worker",
+    #         "--loglevel=info",
+    #         "--concurrency=6",
+    #         "--hostname=fast_worker",
+    #         "--queues=fast",
+    #         "--prefetch-multiplier=20",
+    #     ],
+    #     env=my_env,
+    #     stdout=subprocess.PIPE if silence else None,
+    #     stderr=subprocess.PIPE if silence else None,
+    # )
+
+    # default_worker = subprocess.Popen(
+    #     [
+    #         "celery",
+    #         "-A",
+    #         "zndraw.make_celery",
+    #         "worker",
+    #         "--loglevel=info",
+    #         "--concurrency=6",
+    #         "--hostname=default_worker",
+    #         "--queues=celery",
+    #         "--prefetch-multiplier=2",
+    #     ],
+    #     env=my_env,
+    #     stdout=subprocess.PIPE if silence else None,
+    #     stderr=subprocess.PIPE if silence else None,
+    # )
+
+    # slow_worker = subprocess.Popen(
+    #     [
+    #         "celery",
+    #         "-A",
+    #         "zndraw.make_celery",
+    #         "worker",
+    #         "--loglevel=info",
+    #         "--concurrency=1",
+    #         "--hostname=slow_worker",
+    #         "--queues=slow",
+    #     ],
+    #     env=my_env,
+    #     stdout=subprocess.PIPE if silence else None,
+    #     stderr=subprocess.PIPE if silence else None,
+    # )
+    # return [fast_worker, default_worker, slow_worker]
 
 
 def create_app() -> Flask:
@@ -126,21 +132,19 @@ def create_app() -> Flask:
     app.config["compute_bonds"] = True
 
 
-    import znsocket
+    # import znsocket
     app.config["redis"] = Redis(host='localhost', port=6379, db=0, decode_responses=True)
     # app.config["redis"] = znsocket.Client(address="http://127.0.0.1:5000")
-
-
 
     app.register_blueprint(main_blueprint)
 
     socketio.init_app(app, cors_allowed_origins="*")
 
-    # app.config.from_mapping(
-    #     CELERY=GlobalConfig.load().celery.to_dict(),
-    # )
-    # app.config.from_prefixed_env()
-    # celery_init_app(app)
+    app.config.from_mapping(
+        CELERY=GlobalConfig.load().celery.to_dict(),
+    )
+    app.config.from_prefixed_env()
+    celery_init_app(app)
     return app
 
 
@@ -154,6 +158,7 @@ class ZnDrawServer:
     port: int = 1234
     fileio: FileIO = None
     simgen: bool = False
+    celery_worker: bool = True
 
     _workers: list = None
     app: Flask = None
@@ -186,7 +191,11 @@ class ZnDrawServer:
 
     def run(self, browser=False):
         self.update_cache()
-        # self._workers = setup_worker(silence=not self.use_token)
+
+        read_file.delay(data=self.fileio.to_dict())
+
+        if self.celery_worker:
+            self._workers = setup_worker()
 
         config = GlobalConfig.load()
         try:

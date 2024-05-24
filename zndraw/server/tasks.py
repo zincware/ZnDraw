@@ -1,11 +1,11 @@
 # import datetime
-# import logging
+import logging
 # import pathlib
 # from dataclasses import asdict
 
 # import ase.io
 # import znh5md
-# from celery import chain, shared_task
+from celery import chain, shared_task
 # from socketio import Client
 
 # from zndraw.analyse import get_analysis_class
@@ -23,8 +23,7 @@
 # from ..utils import typecast
 # from .utils import get_queue_position, insert_into_queue, update_job_status
 
-# log = logging.getLogger(__name__)
-
+log = logging.getLogger(__name__)
 
 # def get_client(url) -> Client:
 #     client = Client()

@@ -57,7 +57,7 @@ def connect():
         log.critical(f"connecting (webclient) {request.sid}")
         r: Redis = current_app.config["redis"]
         # get all keys in "room:0:frames"
-        keys = r.hkeys("room:0:frames")
+        keys = r.hkeys("room:default:frames")
         emit("room:size", len(keys))
     except KeyError:
         log.critical(f"connecting (pyclient) {request.sid}")
@@ -66,7 +66,7 @@ def connect():
 @io.on("draw")
 def draw(frames: list[int]):
     r: Redis = current_app.config["redis"]
-    data = r.hmget("room:0:frames", frames)
+    data = r.hmget("room:default:frames", frames)
     data = {k: json.loads(v) for k, v in zip(frames, data)}
     emit(
         "room:set",

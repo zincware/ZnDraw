@@ -76,6 +76,10 @@ def main(
         False,
         help="Show the SiMGen demo UI.",
     ),
+    celery_worker: bool = typer.Option(
+        True,
+        help="Start ZnDraw with celery workers. If disabled, you must manage the workers yourself. This can be useful when hosting ZnDraw for multiple users.",
+    ),
 ):
     """Start the ZnDraw server.
 
@@ -102,5 +106,6 @@ def main(
         port=port,
         fileio=fileio,
         simgen=simgen,
+        celery_worker=celery_worker,
     ) as app:
         app.run(browser=browser)
