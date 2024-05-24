@@ -90,6 +90,7 @@ class Cache {
     this.socket = socket;
     this._requested = {};
     this._size_timeout = false;
+    this._received_data = false;
 
     this._length = 0;
     this.socket.on("room:frames:refresh", (ids) => {
@@ -184,7 +185,6 @@ class Cache {
   }
 
   setFrames(data) {
-    console.log("Cache setFrames", Object.keys(data));
     const indicesToDelete = [];
     for (const [index, atoms] of Object.entries(data)) {
       if (atoms === null) {
@@ -203,17 +203,10 @@ class Cache {
       }
       delete this._requested[index];
     }
-    // reset the keys of the cache to go from 0 to n
-    // const newCache = {};
-    // let i = 0;
-    // for (const key in this._cache) {
-    //   newCache[i] = this._cache[key];
-    //   i++;
-    // }
-    // this._cache = newCache;
-    // no longer required?
-    // this.world.setStep(this.world.getStep());
-    // slider.ariaValueMax = this.get_length();
+    if (!this._received_data) {
+      this._received_data = true;
+      this.world.setStep(this.world.getStep());
+    }
   }
 }
 
