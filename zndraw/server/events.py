@@ -180,21 +180,20 @@ def modifier_schema():
     hide_discriminator_field(schema)
     return schema
 
+
 @io.on("modifier:run")
 def modifier_run(data: dict):
     room = session.get("token")
-    emit(
-        "modifier:run:enqueue", to=room
-    )
+    emit("modifier:run:enqueue", to=room)
     url = f"http://127.0.0.1:{current_app.config['PORT']}"
     run_modifier.delay(url, room, data)
+
 
 @io.on("modifier:run:finished")
 def modifier_run_finished():
     room = session.get("token")
-    emit(
-        "modifier:run:finished", to=room
-    )
+    emit("modifier:run:finished", to=room)
+
 
 #     if data.default:
 #         # TODO: authenticattion
@@ -696,9 +695,9 @@ def modifier_run_finished():
 # @io.on("modifier:run")
 # def modifier_run(data: dict):
 #     """Run the modifier."""
-    # io.emit(
-    #     "modifier:run:enqueue", to=f"webclients_{session['token']}", include_self=False
-    # )
+# io.emit(
+#     "modifier:run:enqueue", to=f"webclients_{session['token']}", include_self=False
+# )
 #     # split into separate streams based on the modifier name
 #     url = f"http://127.0.0.1:{current_app.config['PORT']}"
 #     tasks.run_modifier(url, session["token"], data)

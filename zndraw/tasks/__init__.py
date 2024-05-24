@@ -27,9 +27,10 @@ def read_file(data: dict) -> None:
 
 @shared_task
 def run_modifier(url, room, data: dict) -> None:
+    import ase.build
 
     from zndraw import ZnDraw
-    import ase.build
+
     # from zndraw.utils import get_cls_from_json_schema
 
     # cls = get_cls_from_json_schema(modifier["schema"], modifier["name"])
@@ -37,8 +38,6 @@ def run_modifier(url, room, data: dict) -> None:
     vis[list(range(10))] = [ase.build.molecule("H2O") for _ in range(10)]
     # TODO: why is everything after 10 configuration removed?
     vis.socket.emit("modifier:run:finished")
-    
 
-        
     # 1. run modifier and update redis
     # 2. use to update frames in real time "room:frames:refresh"
