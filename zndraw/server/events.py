@@ -8,7 +8,7 @@ import logging
 # from uuid import uuid4
 # from celery import chain
 from flask import current_app, request, session
-from flask_socketio import emit
+from flask_socketio import emit, join_room
 
 # from socketio.exceptions import TimeoutError
 # from zndraw.db import Session
@@ -55,7 +55,8 @@ log = logging.getLogger(__name__)
 def connect():
     try:
         token = str(session["token"])
-        log.critical(f"connecting (webclient) {request.sid}")
+        join_room(f"{token}")
+        log.critical(f"connecting (webclient) {request.sid} with token {token}")
         r: Redis = current_app.config["redis"]
         # get all keys in "room:0:frames"
         # TODO: handle default / room exists
@@ -65,18 +66,40 @@ def connect():
         log.critical(f"connecting (pyclient) {request.sid}")
 
 
+@io.on("join")
+def join(data: dict):
+    """
+    Arguments:
+        data: {"token": str, "auth_token": str}
+    """
+    if current_app.config["AUTH_TOKEN"] is None:
+        session["authenticated"] = True
+    else:
+        session["authenticated"] = (
+            data["auth_token"] == current_app.config["AUTH_TOKEN"]
+        )
+    token = data["token"]
+    session["token"] = token
+
+    # TODO: push events come later because they are only required for e.g. analysis, modifiers, ...
+
+    join_room(f"{token}")
+    # join_room(f"pyclients_{token}")
+
 @io.on("room:frames:get")
 def room_frames_get(frames: list[int]) -> dict[int, dict]:
-    print(f"requesting frames: {frames}")
+    # print(f"requesting frames: {frames}")
     if len(frames) == 0:
         return {}
     r: Redis = current_app.config["redis"]
-    room = session.get("room")
+    room = session.get("token")
     # check if f"room:{room}:frames" exists
+
     if not r.exists(f"room:{room}:frames"):
         data = r.hmget("room:default:frames", frames)
     else:
-        raise NotImplementedError("room data not implemented yet")
+        # TODO can use this, but if a frame is removed it must be marked here
+        data = r.hmget(f"room:{room}:frames", frames)
 
     response = {}
     for frame, d in zip(frames, data):
@@ -87,11 +110,26 @@ def room_frames_get(frames: list[int]) -> dict[int, dict]:
             response[frame] = None
     return response
 
+@io.on("room:frames:set")
+def room_frames_set(data: dict[int, dict]):
+    r: Redis = current_app.config["redis"]
+    room = session.get("token")
+    # check if f"room:{room}:frames" exists
+    if not r.exists(f"room:{room}:frames"):
+        r.hmset(f"room:{room}:frames", data)
+    else:
+        raise NotImplementedError("room data not implemented yet")
+    
+    emit("room:frames:refresh", list(data), to=room)
+
 
 @io.on("room:length:get")
 def room_frames_length_get() -> int:
+    room = session.get("token")
     r: Redis = current_app.config["redis"]
-    keys: list[str] = r.hkeys("room:default:frames")
+    room_key = f"room:{room}:frames" if r.exists(f"room:{room}:frames") else "room:default:frames"
+    keys: list[str] = r.hkeys(room_key)
+    # print(f"room_key: {room_key} keys: {keys}")
     return len(keys)
 
 
@@ -206,33 +244,6 @@ def room_frames_length_get() -> int:
 #         tasks.remove_empty_rooms.si(),
 #     ).delay()
 
-
-@io.on("join")
-def join(data: dict):
-    """
-    Arguments:
-        data: {"token": str, "auth_token": str}
-    """
-    if current_app.config["AUTH_TOKEN"] is None:
-        session["authenticated"] = True
-    else:
-        session["authenticated"] = (
-            data["auth_token"] == current_app.config["AUTH_TOKEN"]
-        )
-    token = data["token"]
-    session["token"] = token
-
-    # TODO: push events come later because they are only required for e.g. analysis, modifiers, ...
-
-    # join_room(f"{token}")
-    # join_room(f"pyclients_{token}")
-
-    # with Session() as ses:
-    #     room = ses.query(db_schema.Room).filter_by(token=token).first()
-    #     if room is None:
-    #         room = db_schema.Room(token=token, currentStep=0, points=[], selection=[])
-    #         ses.add(room)
-    #     ses.commit()
 
 
 # @io.on("analysis:figure")

@@ -18,7 +18,8 @@ def read_file(data: dict) -> None:
     r.delete("room:default:frames")
 
     for i, atoms in tqdm.tqdm(enumerate(ase.io.iread(file_io.name))):
+        if file_io.stop is not None and i >= file_io.stop:
+            break
         frame = znframe.Frame.from_atoms(atoms)
         r.hset("room:default:frames", f"{i}", frame.to_json())
-        if file_io.stop is not None and i > file_io.stop:
-            break
+

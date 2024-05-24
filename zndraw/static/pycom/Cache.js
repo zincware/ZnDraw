@@ -92,8 +92,16 @@ class Cache {
     this._size_timeout = false;
 
     this._length = 0;
-    this.socket.on("cache:frames", (data) => {
-      this.setFrames(data);
+    this.socket.on("room:frames:refresh", (ids) => {
+      ids = ids.map((id) => parseInt(id));
+      console.log("Cache refresh", ids);
+      this.socket.emit("room:frames:get", ids, (data) => {
+        this.setFrames(data);
+        const currentStep = this.world.getStep();
+        if (ids.includes(currentStep)) {
+          this.world.setStep(currentStep);
+        }
+      });
     });
   }
 
@@ -129,8 +137,6 @@ class Cache {
       for (let i = request_shape[0]; i <= request_shape[1]; i++) {
         new_steps.push(id + i);
       }
-
-      new_steps = Array.from(new Set(new_steps));
       // Filter out negative steps and those already in the cache
       new_steps = new_steps.filter(
         (x) => x >= 0 && this._cache[x] === undefined,
@@ -156,6 +162,8 @@ class Cache {
     if (!this._size_timeout) {
       this.socket.emit("room:length:get", (data) => {
         this._length = data;
+        const slider = document.getElementById("frameProgress");
+        slider.ariaValueMax = this._length - 1;
         console.log("Cache length is now", this._length);
       });
       this._size_timeout = true;
@@ -177,7 +185,6 @@ class Cache {
 
   setFrames(data) {
     console.log("Cache setFrames", Object.keys(data));
-    const slider = document.getElementById("frameProgress");
     const indicesToDelete = [];
     for (const [index, atoms] of Object.entries(data)) {
       if (atoms === null) {
@@ -193,7 +200,6 @@ class Cache {
           calc: atoms.calc,
           pbc: atoms.pbc,
         });
-        slider.ariaValueMax = this.get_length();
       }
       delete this._requested[index];
     }

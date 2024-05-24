@@ -170,7 +170,9 @@ class ZnDrawServer:
         for worker in self._workers:
             worker.wait()
 
-        self.app.config["redis"].delete("room:default:frames")
+        # self.app.config["redis"].delete("room:default:frames")
+        # delete entire database
+        self.app.config["redis"].flushall()
 
     def update_cache(self):
         self.app.config["SECRET_KEY"] = str(uuid.uuid4())
