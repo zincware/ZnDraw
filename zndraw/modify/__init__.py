@@ -305,7 +305,7 @@ class Replicate(UpdateScene):
 
 def get_modify_class(methods):
     class Modifier(UpdateScene):
-        method: methods = Field(
+        method: t.Union[tuple(methods)] = Field(
             ..., description="Modify method", discriminator="discriminator"
         )
 

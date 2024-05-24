@@ -17,6 +17,8 @@ from flask_socketio import emit, join_room
 # from zndraw.utils import typecast
 from redis import Redis
 
+from zndraw.modify import get_modify_class
+from zndraw.utils import get_cls_from_json_schema, hide_discriminator_field
 from ..app import socketio as io
 
 # from ..data import (
@@ -138,6 +140,44 @@ def room_frames_length_get() -> int:
     # print(f"room_key: {room_key} keys: {keys}")
     return len(keys)
 
+
+@io.on("modifier:register")
+def modifier_register(data: dict):
+    """Register the modifier."""
+    if data["public"] and not session["authenticated"]:
+        log.critical("Unauthenticated user tried to register a default modifier.")
+        return
+    
+    r: Redis = current_app.config["redis"]
+    room = session.get("token")
+
+    if data.pop("public"):
+        r.hset("room:default:modifiers", data["name"], json.dumps(data))
+    else:
+        r.hset(f"room:{room}:modifiers", data["name"], json.dumps(data))
+
+    cls = get_cls_from_json_schema(data["schema"], data["name"])
+    print(cls.model_json_schema())
+    print(cls.__annotations__)
+
+    cls = get_modify_class(
+        [get_cls_from_json_schema(data["schema"], data["name"])]
+    )  # todo: include=include)
+    print(cls)
+    schema = cls.model_json_schema()
+    hide_discriminator_field(schema)
+    emit("modifier:schema", schema, to=room)
+        
+#     if data.default:
+#         # TODO: authenticattion
+#         _register_global_modifier(data)
+#     else:
+#         _register_room_modifier(data)
+
+#     # emit new modifier schema to all webclients
+#     tasks.modifier_schema.delay(
+#         f"http://127.0.0.1:{current_app.config['PORT']}", session["token"]
+#     )
 
 # @io.on("connect")
 # def connect():

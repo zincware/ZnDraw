@@ -1,8 +1,14 @@
 import dataclasses
+import logging
 
 import ase
 import socketio
 import znframe
+import typing as t
+
+from zndraw.modify import UpdateScene, get_modify_class
+
+log = logging.getLogger(__name__)
 
 
 @dataclasses.dataclass
@@ -14,6 +20,9 @@ class ZnDraw:
     socket: socketio.Client = dataclasses.field(
         default_factory=socketio.Client, repr=False
     )
+
+    _modifiers: dict = dataclasses.field(default_factory=dict)
+    _available: bool = True
 
     def __post_init__(self):
         self.url = self.url.replace("http", "ws")
@@ -37,9 +46,74 @@ class ZnDraw:
         return [znframe.Frame(**x).to_atoms() for x in data.values()]
 
     def __setitem__(self, index: list[int], value: list[ase.Atoms]):
+        # TODO: send in chunks
         data = {i: znframe.Frame.from_atoms(x).to_json() for i, x in zip(index, value)}
 
         self.socket.emit("room:frames:set", data)
+
+    def register_modifier(
+        self,
+        cls: t.Type[UpdateScene],
+        run_kwargs: dict = None,
+        public: bool = False,
+        timeout: float = 60,
+        use_frozen: bool = True,
+    ):
+        """Register a modifier class.
+
+        Attributes
+        ----------
+        cls : UpdateScene
+            The modifier class to register.
+        run_kwargs : dict, optional
+            Keyword arguments to pass to the run method of the modifier class.
+        public : bool, optional
+            Whether to enable the modifier for ALL sessions of the ZnDraw client,
+            or just the session for the given token.
+        timeout : float, optional
+            Timeout for the modifier to run in seconds. The Webclient
+            will alert the user if the modifier takes longer than this time and
+            release the modify button (no further changes are expected, but they
+            can happen).
+        use_frozen : bool, default=True
+            Whether to use the ZnDrawFrozen class to run the modifier.
+            The frozen class only allows provides cached data and
+            e.g. access to other steps than the current one is not possible.
+            If set to false, a full ZnDraw instance will be created for the modifier.
+            This can have a performance impact and may lead to timeouts.
+
+        """
+        if timeout < 1:
+            raise ValueError("Timeout must be at least 1 second")
+        if timeout > 300:
+            log.critical(
+                "Timeout is set to more than 300 seconds. Modifiers might be killed automatically."
+            )
+        if run_kwargs is None:
+            run_kwargs = {}
+        run_kwargs["timeout"] = timeout
+        if cls.__name__ in self._modifiers:
+            raise ValueError(f"Modifier {cls.__name__} already registered")
+        
+        self.socket.emit(
+            "modifier:register",
+            {
+                "schema": cls.model_json_schema(),
+                "name": cls.__name__,
+                "public": public,
+                "timeout": timeout
+            }
+        )
+        self._modifiers[cls.__name__] = {
+            "cls": cls,
+            "run_kwargs": run_kwargs,
+            "public": public,
+            "frozen": use_frozen,
+        }
+        self.socket.emit(
+            "modifier:available",
+            self._available,
+        )
 
 
 # import logging
@@ -435,67 +509,4 @@ class ZnDraw:
 #         )
 #         self.socket.emit("celery:task:emit", dataclasses.asdict(msg))
 
-#     def register_modifier(
-#         self,
-#         cls: UpdateScene,
-#         run_kwargs: dict = None,
-#         default: bool = False,
-#         timeout: float = 60,
-#         use_frozen: bool = True,
-#     ):
-#         """Register a modifier class.
-
-#         Attributes
-#         ----------
-#         cls : UpdateScene
-#             The modifier class to register.
-#         run_kwargs : dict, optional
-#             Keyword arguments to pass to the run method of the modifier class.
-#         default : bool, optional
-#             Whether to enable the modifier for ALL sessions of the ZnDraw client,
-#             or just the session for the given token.
-#         timeout : float, optional
-#             Timeout for the modifier to run in seconds. The Webclient
-#             will alert the user if the modifier takes longer than this time and
-#             release the modify button (no further changes are expected, but they
-#             can happen).
-#         use_frozen : bool, default=True
-#             Whether to use the ZnDrawFrozen class to run the modifier.
-#             The frozen class only allows provides cached data and
-#             e.g. access to other steps than the current one is not possible.
-#             If set to false, a full ZnDraw instance will be created for the modifier.
-#             This can have a performance impact and may lead to timeouts.
-
-#         """
-#         if timeout < 1:
-#             raise ValueError("Timeout must be at least 1 second")
-#         if timeout > 300:
-#             log.critical(
-#                 "Timeout is set to more than 300 seconds. Modifiers might be killed automatically."
-#             )
-#         if run_kwargs is None:
-#             run_kwargs = {}
-#         run_kwargs["timeout"] = timeout
-#         if cls.__name__ in self._modifiers:
-#             raise ValueError(f"Modifier {cls.__name__} already registered")
-
-#         msg = ModifierRegisterData(
-#             schema=cls.model_json_schema(),
-#             name=cls.__name__,
-#             default=default,
-#             timeout=timeout,
-#         )
-#         self.socket.emit(
-#             "modifier:register",
-#             dataclasses.asdict(msg),
-#         )
-#         self._modifiers[cls.__name__] = {
-#             "cls": cls,
-#             "run_kwargs": run_kwargs,
-#             "default": default,
-#             "frozen": use_frozen,
-#         }
-#         self.socket.emit(
-#             "modifier:available",
-#             self._available,
-#         )
+  

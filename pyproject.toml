@@ -17,11 +17,11 @@ znh5md = "^0"
 flask-socketio = "^5"
 eventlet = "^0"
 networkx = "^3"
-pydantic = "2.6.4"
+pydantic = "^2"
 python-socketio = {extras = ["client"], version = "^5"}
 plotly = "^5"
 pandas = "^2"
-datamodel-code-generator = "^0.22"
+datamodel-code-generator = "^0.25"
 mdanalysis = {version = "^2", optional = true}
 tidynamics = {version = "^1", optional = true}
 rdkit2ase = {version = "^0.1", optional = true}
