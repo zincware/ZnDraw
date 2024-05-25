@@ -194,6 +194,12 @@ def scene_schema():
 
 @io.on("selection:schema")
 def selection_schema():
+    # TODO update
+    return Scene.updated_schema()
+
+@io.on("analysis:schema")
+def analysis_schema():
+    # TODO update
     return Scene.updated_schema()
 
 
@@ -207,8 +213,35 @@ def modifier_run(data: dict):
 
 @io.on("modifier:run:finished")
 def modifier_run_finished():
+    """Forwarding finished message."""
     room = session.get("token")
     emit("modifier:run:finished", to=room)
+
+@io.on("modifier:run:running")
+def modifier_run_running():
+    """Forwarding running method."""
+    room = session.get("token")
+    emit("modifier:run:running", to=room)
+
+
+@io.on("analysis:run")
+def analysis_run(data: dict):
+    room = session.get("token")
+    emit("analysis:run:enqueue", to=room)
+    # url = f"http://127.0.0.1:{current_app.config['PORT']}"
+    # run_modifier.delay(url, room, data)
+
+@io.on("analysis:run:finished")
+def analysis_run_finished():
+    """Forwarding finished message."""
+    room = session.get("token")
+    emit("analysis:run:finished", to=room)
+
+@io.on("analysis:run:running")
+def analysis_run_running():
+    """Forwarding running method."""
+    room = session.get("token")
+    emit("analysis:run:running", to=room)
 
 
 #     if data.default:

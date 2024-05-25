@@ -35,6 +35,7 @@ def run_modifier(url, room, data: dict) -> None:
 
     # cls = get_cls_from_json_schema(modifier["schema"], modifier["name"])
     vis = ZnDraw(url=url, token=room)
+    vis.socket.emit("modifier:run:running")
     vis[list(range(10))] = [ase.build.molecule("H2O") for _ in range(10)]
     # TODO: why is everything after 10 configuration removed?
     vis.socket.emit("modifier:run:finished")

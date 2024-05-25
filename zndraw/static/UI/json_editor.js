@@ -37,6 +37,42 @@ function rebuildEditor(editor, localStorageKey, data, div) {
   return editor;
 }
 
+function setupBtnQueue(socket, btn, task) {
+  // document.getElementById("analysis-json-editor-submit")
+  const originalInnerHTML = btn.innerHTML
+
+  socket.on(`${task}:run:running`, () => {
+    btn.innerHTML =
+      '<i class="fa-solid fa-spinner"></i> Running';
+  });
+
+  // Finished running
+  socket.on(`${task}:run:finished`, (data) => {
+    btn.innerHTML = originalInnerHTML;
+    btn.disabled = false;
+  });
+
+  // other client started process
+  socket.on(`${task}:run:enqueue`, () => {
+    btn.disabled = true;
+    btn.innerHTML =
+      '<i class="fa-solid fa-hourglass-start"></i> Job queued';
+  });
+
+  // TODO: queue update
+  // socket.on("modifier:queue:update", (position) => {
+  //   document.getElementById("interaction-json-editor-submit").disabled = true;
+  //   document.getElementById("interaction-json-editor-submit").innerHTML =
+  //     '<i class="fa-solid fa-hourglass-start"></i> Job queued at position ' +
+  //     position;
+  //   // emit event "modifier:queue:update"
+  //   const event = new CustomEvent("modifier:queue:update", {
+  //     detail: { position: position },
+  //   });
+  //   document.dispatchEvent(event);
+  // });
+}
+
 function draw_editor(socket, cache, world) {
   let editor;
   const btn = document.getElementById("drawCardBtn");
@@ -115,35 +151,21 @@ function scene_editor(socket, cache, world) {
 
 function analysis_editor(socket, cache, world) {
   const div = document.getElementById("analysis-json-editor");
-  let editor = new JSONEditor(div, {
-    schema: { type: "object", title: "Analysis", properties: {} },
-  });
+  const btn = document.getElementById("analysisCardBtn");
+  let editor;
 
-  socket.on("analysis:schema", (data) => {
-    editor.destroy();
-    editor = new JSONEditor(div, {
-      schema: data,
+  btn.addEventListener("click", () => {
+    socket.emit("analysis:schema", (data) => {
+      editor = rebuildEditor(
+        editor,
+        "analysis-json-editor-input",
+        data,
+        div,
+      );
     });
   });
 
-  socket.on("analysis:run:running", () => {
-    document.getElementById("analysis-json-editor-submit").innerHTML =
-      '<i class="fa-solid fa-spinner"></i> Running';
-  });
-
-  // Finished running
-  socket.on("analysis:run:finished", (data) => {
-    document.getElementById("analysis-json-editor-submit").innerHTML =
-      '<i class="fa-solid fa-play"></i> Analyse';
-    document.getElementById("analysis-json-editor-submit").disabled = false;
-  });
-
-  // other client started process
-  socket.on("analysis:run:enqueue", () => {
-    document.getElementById("analysis-json-editor-submit").disabled = true;
-    document.getElementById("analysis-json-editor-submit").innerHTML =
-      '<i class="fa-solid fa-hourglass-start"></i> Job queued';
-  });
+  setupBtnQueue(socket, document.getElementById("analysis-json-editor-submit"), "analysis")
 
   document
     .getElementById("analysis-json-editor-submit")
@@ -199,32 +221,34 @@ function modifier_editor(socket, cache, world) {
     document.dispatchEvent(event);
   });
 
-  // Check if a running response is received
-  socket.on("modifier:run:running", () => {
-    document.getElementById("interaction-json-editor-submit").innerHTML =
-      '<i class="fa-solid fa-spinner"></i> Running';
+  setupBtnQueue(socket, document.getElementById("interaction-json-editor-submit"), "modifier")
 
-    const event = new CustomEvent("modifier:run:running");
-    document.dispatchEvent(event);
-  });
+  // // Check if a running response is received
+  // socket.on("modifier:run:running", () => {
+  //   document.getElementById("interaction-json-editor-submit").innerHTML =
+  //     '<i class="fa-solid fa-spinner"></i> Running';
 
-  // Finished running
-  socket.on("modifier:run:finished", () => {
-    document.getElementById("interaction-json-editor-submit").innerHTML =
-      '<i class="fa-solid fa-play"></i> Run Modifier';
-    document.getElementById("interaction-json-editor-submit").disabled = false;
-    const event = new CustomEvent("modifier:run:finished");
-    document.dispatchEvent(event);
-  });
+  //   const event = new CustomEvent("modifier:run:running");
+  //   document.dispatchEvent(event);
+  // });
 
-  // other client started process
-  socket.on("modifier:run:enqueue", () => {
-    document.getElementById("interaction-json-editor-submit").disabled = true;
-    document.getElementById("interaction-json-editor-submit").innerHTML =
-      '<i class="fa-solid fa-hourglass-start"></i> Job queued';
-    const event = new CustomEvent("modifier:run:enqueue");
-    document.dispatchEvent(event);
-  });
+  // // Finished running
+  // socket.on("modifier:run:finished", () => {
+  //   document.getElementById("interaction-json-editor-submit").innerHTML =
+  //     '<i class="fa-solid fa-play"></i> Run Modifier';
+  //   document.getElementById("interaction-json-editor-submit").disabled = false;
+  //   const event = new CustomEvent("modifier:run:finished");
+  //   document.dispatchEvent(event);
+  // });
+
+  // // other client started process
+  // socket.on("modifier:run:enqueue", () => {
+  //   document.getElementById("interaction-json-editor-submit").disabled = true;
+  //   document.getElementById("interaction-json-editor-submit").innerHTML =
+  //     '<i class="fa-solid fa-hourglass-start"></i> Job queued';
+  //   const event = new CustomEvent("modifier:run:enqueue");
+  //   document.dispatchEvent(event);
+  // });
 
   document
     .getElementById("interaction-json-editor-submit")
