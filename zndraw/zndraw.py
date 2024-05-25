@@ -61,6 +61,14 @@ class ZnDraw:
     def selection(self, value: list[int]):
         self.socket.emit("room:selection:set", {"0": value})
 
+    @property
+    def figure(self) -> str:
+        return self.socket.call("analysis:figure:get")
+
+    @figure.setter
+    def figure(self, fig: str) -> None:
+        self.socket.emit("analysis:figure:set", fig)
+
     def register_modifier(
         self,
         cls: t.Type[UpdateScene],

@@ -243,6 +243,24 @@ def analysis_run_running():
     room = session.get("token")
     emit("analysis:run:running", to=room)
 
+@io.on("analysis:figure:set")
+def analysis_figure_set(data: dict):
+    # This is currently using push and the figure is not stored
+    room = session.get("token")
+    r: Redis = current_app.config["redis"]
+    r.set(f"room:{room}:analysis:figure", json.dumps(data))
+    emit(
+        "analysis:figure:set",
+        data,
+        to=room,
+    )
+
+@io.on("analysis:figure:get")
+def analysis_figure_get() -> dict:
+    room = session.get("token")
+    r: Redis = current_app.config["redis"]
+    return json.loads(r.get(f"room:{room}:analysis:figure"))
+
 
 @io.on("selection:run")
 def selection_run(data: dict):

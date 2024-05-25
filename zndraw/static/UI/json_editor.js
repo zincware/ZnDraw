@@ -186,7 +186,8 @@ function analysis_editor(socket, cache, world) {
       }
     });
 
-  socket.on("analysis:figure", (data) => {
+  socket.on("analysis:figure:set", (data) => {
+    console.log(data);
     Plotly.newPlot("analysisPlot", JSON.parse(data));
 
     function buildPlot() {
