@@ -51,6 +51,14 @@ class ZnDraw:
 
         self.socket.emit("room:frames:set", data)
 
+    @property
+    def selection(self) -> list[int]:
+        pass
+
+    @selection.setter
+    def selection(self, value: list[int]):
+        pass
+
     def register_modifier(
         self,
         cls: t.Type[UpdateScene],

@@ -42,3 +42,20 @@ def run_modifier(url, room, data: dict) -> None:
 
     # 1. run modifier and update redis
     # 2. use to update frames in real time "room:frames:refresh"
+
+
+@shared_task
+def run_selection(url, room, data: dict) -> None:
+    from zndraw import ZnDraw
+
+    vis = ZnDraw(url=url, token=room)
+    vis.socket.emit("selection:run:running")
+    vis.socket.emit("selection:run:finished")
+
+@shared_task
+def run_analysis(url, room, data: dict) -> None:
+    from zndraw import ZnDraw
+
+    vis = ZnDraw(url=url, token=room)
+    vis.socket.emit("analysis:run:running")
+    vis.socket.emit("analysis:run:finished")

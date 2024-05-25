@@ -105,6 +105,8 @@ function selection_editor(socket, cache, world) {
     });
   });
 
+  setupBtnQueue(socket, document.getElementById("selection-json-editor-submit"), "selection")
+
   document
     .getElementById("selection-json-editor-submit")
     .addEventListener("click", () => {
