@@ -41,12 +41,6 @@ function draw_editor(socket, cache, world) {
   let editor;
   const btn = document.getElementById("drawCardBtn");
   const div = document.getElementById("draw-json-editor");
-  
-  // socket.on("draw:schema", (data) => {
-  //   editor = new JSONEditor(div, {
-  //     schema: data,
-  //   });
-  // });
 
   btn.addEventListener("click", () => {
     socket.emit("draw:schema", (data) => {
@@ -89,15 +83,16 @@ function selection_editor(socket, cache, world) {
 }
 
 function scene_editor(socket, cache, world) {
-  socket.on("scene:schema", (data) => {
-    const editor = new JSONEditor(
-      document.getElementById("scene-json-editor"),
-      {
-        schema: data,
-      },
-    );
-    editor.on("change", () => {
-      const value = editor.getValue();
+  const btn = document.getElementById("sceneCardBtn");
+  const div = document.getElementById("scene-json-editor");
+  let editor;
+
+  btn.addEventListener("click", () => {
+    socket.emit("scene:schema", (data) => {
+      editor = rebuildEditor(editor, "scene-json-editor-input", data, div);
+          // TODO: the button handling is all over the place - this should also be done through / with Python
+      editor.on("change", () => {
+        const value = editor.getValue();
       world.rebuild(
         value.resolution,
         value.material,
@@ -111,6 +106,7 @@ function scene_editor(socket, cache, world) {
         value.line_label,
       );
       world.player.setLoop(value["Animation Loop"]);
+      });
     });
   });
 }

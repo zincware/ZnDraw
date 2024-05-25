@@ -101,7 +101,7 @@ class Geometry(BaseModel):
     opacity: float = Field(0.2, ge=0.0, le=1.0)
 
     @classmethod
-    def updated_schema(cls):
+    def updated_schema(cls) -> dict:
         schema = cls.model_json_schema()
         for prop in [x.__name__ for x in t.get_args(methods)]:
             schema["$defs"][prop]["properties"]["method"]["options"] = {"hidden": True}

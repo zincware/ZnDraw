@@ -20,6 +20,7 @@ from redis import Redis
 from zndraw.modify import get_modify_class
 from zndraw.utils import get_cls_from_json_schema, hide_discriminator_field
 from zndraw.draw import Geometry
+from zndraw.scene import Scene
 
 from ..app import socketio as io
 from ..tasks import run_modifier
@@ -184,6 +185,10 @@ def modifier_schema():
 @io.on("draw:schema")
 def draw_schema():
     return Geometry.updated_schema()
+
+@io.on("scene:schema")
+def scene_schema():
+    return Scene.updated_schema()
 
 
 @io.on("modifier:run")
