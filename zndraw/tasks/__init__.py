@@ -1,13 +1,13 @@
 import logging
 
 import ase.io
+import numpy as np
+import pandas as pd
+import plotly.express as px
 import tqdm
 import znframe
 from celery import shared_task
 from redis import Redis
-import numpy as np
-import pandas as pd
-import plotly.express as px
 
 from zndraw.base import FileIO
 
@@ -56,10 +56,12 @@ def run_selection(url, room, data: dict) -> None:
     vis.selection = [0]
     vis.socket.emit("selection:run:finished")
 
+
 @shared_task
 def run_analysis(url, room, data: dict) -> None:
-    from zndraw import ZnDraw
     import time
+
+    from zndraw import ZnDraw
 
     vis = ZnDraw(url=url, token=room)
     vis.socket.emit("analysis:run:running")
@@ -68,10 +70,8 @@ def run_analysis(url, room, data: dict) -> None:
 
     # Seed the random number generator with the current time
     np.random.seed(current_time)
-    
-    df = pd.DataFrame(
-            {"step": list(range(100)), "dihedral": np.random.random(100)}
-        )
+
+    df = pd.DataFrame({"step": list(range(100)), "dihedral": np.random.random(100)})
     fig = px.line(df, x="step", y="dihedral", render_mode="svg")
     vis.figure = fig.to_json()
 

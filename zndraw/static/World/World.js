@@ -243,9 +243,9 @@ class World {
 
     this.socket.on("room:selection:set", (data) => {
       const particlesGroup = this.scene.getObjectByName("particlesGroup");
-        particlesGroup.selection = data["0"];
-        particlesGroup.step();
-    })
+      particlesGroup.selection = data["0"];
+      particlesGroup.step();
+    });
 
     this.socket.on("room:set", (data) => {
       if (data.step !== null) {

@@ -23,7 +23,7 @@ from zndraw.scene import Scene
 from zndraw.utils import get_cls_from_json_schema, hide_discriminator_field
 
 from ..app import socketio as io
-from ..tasks import run_modifier, run_analysis, run_selection
+from ..tasks import run_analysis, run_modifier, run_selection
 
 # from ..data import (
 #     AnalysisFigureData,
@@ -192,10 +192,12 @@ def draw_schema():
 def scene_schema():
     return Scene.updated_schema()
 
+
 @io.on("selection:schema")
 def selection_schema():
     # TODO update
     return Scene.updated_schema()
+
 
 @io.on("analysis:schema")
 def analysis_schema():
@@ -217,6 +219,7 @@ def modifier_run_finished():
     room = session.get("token")
     emit("modifier:run:finished", to=room)
 
+
 @io.on("modifier:run:running")
 def modifier_run_running():
     """Forwarding running method."""
@@ -231,17 +234,20 @@ def analysis_run(data: dict):
     url = f"http://127.0.0.1:{current_app.config['PORT']}"
     run_analysis.delay(url, room, data)
 
+
 @io.on("analysis:run:finished")
 def analysis_run_finished():
     """Forwarding finished message."""
     room = session.get("token")
     emit("analysis:run:finished", to=room)
 
+
 @io.on("analysis:run:running")
 def analysis_run_running():
     """Forwarding running method."""
     room = session.get("token")
     emit("analysis:run:running", to=room)
+
 
 @io.on("analysis:figure:set")
 def analysis_figure_set(data: dict):
@@ -254,6 +260,7 @@ def analysis_figure_set(data: dict):
         data,
         to=room,
     )
+
 
 @io.on("analysis:figure:get")
 def analysis_figure_get() -> dict:
@@ -269,17 +276,20 @@ def selection_run(data: dict):
     url = f"http://127.0.0.1:{current_app.config['PORT']}"
     run_selection.delay(url, room, data)
 
+
 @io.on("selection:run:finished")
 def selection_run_finished():
     """Forwarding finished message."""
     room = session.get("token")
     emit("selection:run:finished", to=room)
 
+
 @io.on("selection:run:running")
 def selection_run_running():
     """Forwarding running method."""
     room = session.get("token")
     emit("selection:run:running", to=room)
+
 
 @io.on("message:alert")
 def message_alert(msg: str):
@@ -303,7 +313,6 @@ def room_selection_get() -> dict[str, list[int]]:
     room = session.get("token")
     return r.hgetall(f"room:{room}:selection")
 
-
     # check if f"room:{room}:frames" exists
     # if not r.exists(f"room:{room}:frames"):
     #     r.hmset(f"room:{room}:frames", data)
@@ -311,6 +320,7 @@ def room_selection_get() -> dict[str, list[int]]:
     #     raise NotImplementedError("room data not implemented yet")
 
     # emit("room:frames:refresh", list(data), to=room)
+
 
 #     if data.default:
 #         # TODO: authenticattion

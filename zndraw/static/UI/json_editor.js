@@ -39,11 +39,10 @@ function rebuildEditor(editor, localStorageKey, data, div) {
 
 function setupBtnQueue(socket, btn, task) {
   // document.getElementById("analysis-json-editor-submit")
-  const originalInnerHTML = btn.innerHTML
+  const originalInnerHTML = btn.innerHTML;
 
   socket.on(`${task}:run:running`, () => {
-    btn.innerHTML =
-      '<i class="fa-solid fa-spinner"></i> Running';
+    btn.innerHTML = '<i class="fa-solid fa-spinner"></i> Running';
   });
 
   // Finished running
@@ -55,8 +54,7 @@ function setupBtnQueue(socket, btn, task) {
   // other client started process
   socket.on(`${task}:run:enqueue`, () => {
     btn.disabled = true;
-    btn.innerHTML =
-      '<i class="fa-solid fa-hourglass-start"></i> Job queued';
+    btn.innerHTML = '<i class="fa-solid fa-hourglass-start"></i> Job queued';
   });
 
   // TODO: queue update
@@ -105,7 +103,11 @@ function selection_editor(socket, cache, world) {
     });
   });
 
-  setupBtnQueue(socket, document.getElementById("selection-json-editor-submit"), "selection")
+  setupBtnQueue(
+    socket,
+    document.getElementById("selection-json-editor-submit"),
+    "selection",
+  );
 
   document
     .getElementById("selection-json-editor-submit")
@@ -158,16 +160,15 @@ function analysis_editor(socket, cache, world) {
 
   btn.addEventListener("click", () => {
     socket.emit("analysis:schema", (data) => {
-      editor = rebuildEditor(
-        editor,
-        "analysis-json-editor-input",
-        data,
-        div,
-      );
+      editor = rebuildEditor(editor, "analysis-json-editor-input", data, div);
     });
   });
 
-  setupBtnQueue(socket, document.getElementById("analysis-json-editor-submit"), "analysis")
+  setupBtnQueue(
+    socket,
+    document.getElementById("analysis-json-editor-submit"),
+    "analysis",
+  );
 
   document
     .getElementById("analysis-json-editor-submit")
@@ -224,7 +225,11 @@ function modifier_editor(socket, cache, world) {
     document.dispatchEvent(event);
   });
 
-  setupBtnQueue(socket, document.getElementById("interaction-json-editor-submit"), "modifier")
+  setupBtnQueue(
+    socket,
+    document.getElementById("interaction-json-editor-submit"),
+    "modifier",
+  );
 
   // // Check if a running response is received
   // socket.on("modifier:run:running", () => {

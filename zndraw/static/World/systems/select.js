@@ -235,9 +235,7 @@ class Selection {
           this.shift_pressed,
           particleIntersects[0].object,
         );
-        this.socket.emit("room:selection:set",
-          {"0": particlesGroup.selection}
-        )
+        this.socket.emit("room:selection:set", { 0: particlesGroup.selection });
       }
     }
     const selectionUpdate = new CustomEvent("selection:update", {

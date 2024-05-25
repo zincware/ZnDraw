@@ -1,11 +1,11 @@
 import dataclasses
+import json
 import logging
 import typing as t
 
 import ase
 import socketio
 import znframe
-import json
 
 from zndraw.modify import UpdateScene
 
