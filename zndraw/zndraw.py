@@ -26,13 +26,18 @@ class ZnDraw:
     _available: bool = True
 
     def __post_init__(self):
+
+        def on_wakeup():
+            if self._available:
+                self.socket.emit(
+                    "modifier:available", list(self._modifiers)
+                )
+
         self.url = self.url.replace("http", "ws")
         self.socket.on("connect", self._on_connect)
         self.socket.connect(self.url, wait_timeout=1)
         self.socket.on("modifier:run", self._run_modifier)
-
-    def reconnect(self):
-        self.socket.connect(self.url)
+        self.socket.on("modifier:wakeup", on_wakeup)
 
     def _on_connect(self):
         self.socket.emit(
@@ -129,20 +134,24 @@ class ZnDraw:
             "public": public,
             "frozen": use_frozen,
         }
-        self.socket.emit(
-            "modifier:available",
-            self._available,
-        )
+        if self._available:
+            self.socket.emit(
+                "modifier:available", list(self._modifiers)
+            )
 
     def _run_modifier(self, data: dict):
-        # TODO: for public modifiers the vis object must not be in the same room, create a new one!!!!!
-        self.socket.emit("modifier:run:running")
-        name = data["method"]["discriminator"]
+        self._available = False
+        try:
+            # TODO: for public modifiers the vis object must not be in the same room, create a new one!!!!!
+            self.socket.emit("modifier:run:running")
+            name = data["method"]["discriminator"]
 
-        instance = self._modifiers[name]["cls"](**data["method"])
-        instance.run(self, **self._modifiers[name]["run_kwargs"])
+            instance = self._modifiers[name]["cls"](**data["method"])
+            instance.run(self, **self._modifiers[name]["run_kwargs"])
 
-        self.socket.emit("modifier:run:finished")
+            self.socket.emit("modifier:run:finished")
+        finally:
+            self._available = True
 
 
 # import logging

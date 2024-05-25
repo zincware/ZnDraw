@@ -159,8 +159,10 @@ def modifier_register(data: dict):
 
     if data.pop("public"):
         r.hset("room:default:modifiers", data["name"], json.dumps(data))
+        r.sadd(f"room:default:modifiers:{data['name']}", request.sid)
     else:
         r.hset(f"room:{room}:modifiers", data["name"], json.dumps(data))
+        r.sadd(f"room:{room}:modifiers:{data['name']}", request.sid)
 
 
 @io.on("modifier:schema")
@@ -212,13 +214,28 @@ def modifier_run(data: dict):
     url = f"http://127.0.0.1:{current_app.config['PORT']}"
 
     r: Redis = current_app.config["redis"]
-    name = data["method"]["discriminator"]
-    public = r.hget("room:default:modifiers", name)
-    privat = r.hget(f"room:{room}:modifiers", name)
 
-    schema = json.loads(public or privat)  # server crashes if both are None
-    if sid := schema.pop("ZNDRAW_CLIENT_SID", None):
-        emit("modifier:run", data, to=sid)
+    name = data["method"]["discriminator"]
+
+    public = r.smembers(f"room:default:modifiers:{name}")
+    privat = r.smembers(f"room:{room}:modifiers:{name}")
+
+    # put the data in the queue
+    # r.rpush("modifier:queue", json.dumps(data))
+    # needs to load all and check sid
+    # r.rpush(f"modifier:queue:{request.sid}", json.dumps(data))
+    # also does not work because the data is not queued but put into the queue for a specific modifier
+    if len(public):
+        r.rpush(f"modifier:queue:{name}", json.dumps(data)) # if public
+    else:
+        assert len(privat), "The modifier was not found anywhere"
+        r.rpush(f"modifier:queue:{room}:{name}", json.dumps(data)) # if private
+
+    clients: set[str] = public | privat
+    if len(clients):
+        for sid in clients:
+            # kindly ask every client if they are available
+            emit("modifier:wakeup", to=sid)
     else:
         run_modifier.delay(url, room, data)
 
@@ -235,6 +252,48 @@ def modifier_run_running():
     """Forwarding running method."""
     room = session.get("token")
     emit("modifier:run:running", to=room)
+
+@io.on("modifier:available")
+def modifier_available(modifier_names: list[str]) -> None:
+    """Update state of registered modifier classes."""
+    r: Redis = current_app.config["redis"]
+    room = session.get("token") #TODO: Why use get, token should always be set
+
+    for name in modifier_names:
+        public = r.smembers(f"room:default:modifiers:{name}")
+        privat = r.smembers(f"room:{room}:modifiers:{name}")
+
+        if request.sid in public:
+            public_task = r.lpop(f"modifier:queue:{name}")
+            if public_task:
+                print(f"running public task {public_task} on {request.sid}")
+                emit("modifier:run", json.loads(public_task), to=request.sid)
+                return
+        
+        if request.sid in privat:
+            privat_task = r.lpop(f"modifier:queue:{room}:{name}")
+            if privat_task:
+                print(f"running private task {privat_task} on {request.sid}")
+                emit("modifier:run", json.loads(privat_task), to=request.sid)
+                return
+    
+    log.critical(f"No task available for {modifier_names}")
+
+        # if len(public):
+        #     r.rpush(f"modifier:queue:{name}", json.dumps(data)) # if public
+        # else:
+        #     assert len(privat), "The modifier was not found anywhere"
+        #     r.rpush(f"modifier:queue:{room}:{name}", json.dumps(data)) # if private
+
+    # if the modifier is public check in the public queue, if the modifier is privat check in the privat queue
+
+    # get any job that is dedicated to this request.sid from the queue and run it
+
+    # modifier can only pop those elements which it can run.
+    # data = json.loads(r.lpop("modifier:queue"))
+    
+    # emit("modifier:run", data, to=request.sid)
+
 
 
 @io.on("analysis:run")
