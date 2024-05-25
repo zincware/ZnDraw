@@ -23,7 +23,7 @@ class Selection {
       // convert x, y, z to [x, y, z]
       points = points.map((x) => [x.x, x.y, x.z]);
       if (emit) {
-        this.socket.emit("room:points:set", {"0": points});
+        this.socket.emit("room:points:set", { 0: points });
         // TODO: this can't work because it fixes the points in place
         // should only be done on click or not saved to redis.
       }

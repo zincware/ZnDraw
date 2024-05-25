@@ -2,9 +2,9 @@ import dataclasses
 import json
 import logging
 import typing as t
-import numpy as np
 
 import ase
+import numpy as np
 import socketio
 import znframe
 
@@ -103,7 +103,7 @@ class ZnDraw:
     @property
     def points(self) -> list[list[float]]:
         return np.array(json.loads(self.socket.call("room:points:get")["0"]))
-    
+
     @points.setter
     def points(self, points: np.ndarray) -> None:
         self.socket.emit("room:points:set", {"0": np.array(points).tolist()})
