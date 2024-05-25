@@ -45,7 +45,7 @@ class ZnDraw:
             },
         )
 
-    def __getitem__(self, index) -> ase.Atoms|list[ase.Atoms]:
+    def __getitem__(self, index) -> ase.Atoms | list[ase.Atoms]:
         single_item = isinstance(index, int)
         if single_item:
             index = [index]

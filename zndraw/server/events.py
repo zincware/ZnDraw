@@ -379,6 +379,7 @@ def room_step_set(step: int):
 
     emit("room:step:set", step, to=room)
 
+
 @io.on("room:step:get")
 def room_step_get() -> int:
     r: Redis = current_app.config["redis"]
