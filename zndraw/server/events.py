@@ -192,6 +192,10 @@ def draw_schema():
 def scene_schema():
     return Scene.updated_schema()
 
+@io.on("selection:schema")
+def selection_schema():
+    return Scene.updated_schema()
+
 
 @io.on("modifier:run")
 def modifier_run(data: dict):

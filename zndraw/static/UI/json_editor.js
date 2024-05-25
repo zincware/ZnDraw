@@ -54,31 +54,34 @@ function draw_editor(socket, cache, world) {
 }
 
 function selection_editor(socket, cache, world) {
-  socket.on("selection:schema", (data) => {
-    const div = document.getElementById("selection-json-editor");
-    const editor = new JSONEditor(div, {
-      schema: data,
-    });
+  let editor;
+  const btn = document.getElementById("selectionCardBtn");
+  const div = document.getElementById("selection-json-editor");
 
-    editor.on("change", () => {
-      const value = editor.getValue();
-      div.parameters = value;
-    });
-
-    document
-      .getElementById("selection-json-editor-submit")
-      .addEventListener("click", () => {
-        // console.log(new Date().toISOString(), "running selection");
-        // Get the value from the editor
-        const errors = editor.validate();
-        if (errors.length) {
-          console.log(errors);
-        } else {
-          const value = editor.getValue();
-          socket.emit("selection:run", value);
-        }
+  btn.addEventListener("click", () => {
+    socket.emit("selection:schema", (data) => {
+      editor = rebuildEditor(editor, "selection-json-editor-input", data, div);
+      // TODO: the button handling is all over the place - this should also be done through / with Python
+      editor.on("change", () => {
+        const value = editor.getValue();
+        div.parameters = value;
       });
+    });
   });
+
+  document
+    .getElementById("selection-json-editor-submit")
+    .addEventListener("click", () => {
+      // console.log(new Date().toISOString(), "running selection");
+      // Get the value from the editor
+      const errors = editor.validate();
+      if (errors.length) {
+        console.log(errors);
+      } else {
+        const value = editor.getValue();
+        socket.emit("selection:run", value);
+      }
+    });
 }
 
 function scene_editor(socket, cache, world) {
