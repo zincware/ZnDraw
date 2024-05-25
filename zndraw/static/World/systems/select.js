@@ -17,6 +17,7 @@ class Selection {
     this.line3D = line3D;
 
     // add a function to the line3D callbacks that is triggered if the line is changed
+    // why is this in selection?
     this.line3D.onLineChange = (emit = true) => {
       let points = this.line3D.anchorPoints.children.map((x) => x.position);
       // convert x, y, z to [x, y, z]
@@ -234,10 +235,9 @@ class Selection {
           this.shift_pressed,
           particleIntersects[0].object,
         );
-        this.socket.emit("room:set", {
-          selection: particlesGroup.selection,
-          update_database: true,
-        });
+        this.socket.emit("room:selection:set",
+          {"0": particlesGroup.selection}
+        )
       }
     }
     const selectionUpdate = new CustomEvent("selection:update", {

@@ -119,7 +119,7 @@ def room_frames_get(frames: list[int]) -> dict[int, dict]:
 
 
 @io.on("room:frames:set")
-def room_frames_set(data: dict[int, dict]):
+def room_frames_set(data: dict[str, str]):
     r: Redis = current_app.config["redis"]
     room = session.get("token")
     # check if f"room:{room}:frames" exists
@@ -271,6 +271,28 @@ def message_alert(msg: str):
     emit("message:alert", msg, to=room)
 
 
+@io.on("room:selection:set")
+def room_selection_set(data: dict[str, list[int]]):
+    r: Redis = current_app.config["redis"]
+    room = session.get("token")
+    r.hmset(f"room:{room}:selection", {k: json.dumps(v) for k, v in data.items()})
+    emit("room:selection:set", data, to=room)
+
+
+@io.on("room:selection:get")
+def room_selection_get() -> dict[str, list[int]]:
+    r: Redis = current_app.config["redis"]
+    room = session.get("token")
+    return r.hgetall(f"room:{room}:selection")
+
+
+    # check if f"room:{room}:frames" exists
+    # if not r.exists(f"room:{room}:frames"):
+    #     r.hmset(f"room:{room}:frames", data)
+    # else:
+    #     raise NotImplementedError("room data not implemented yet")
+
+    # emit("room:frames:refresh", list(data), to=room)
 
 #     if data.default:
 #         # TODO: authenticattion

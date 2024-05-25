@@ -5,6 +5,7 @@ import typing as t
 import ase
 import socketio
 import znframe
+import json
 
 from zndraw.modify import UpdateScene
 
@@ -53,11 +54,12 @@ class ZnDraw:
 
     @property
     def selection(self) -> list[int]:
-        pass
+        data: dict = self.socket.call("room:selection:get")
+        return json.loads(data["0"])
 
     @selection.setter
     def selection(self, value: list[int]):
-        pass
+        self.socket.emit("room:selection:set", {"0": value})
 
     def register_modifier(
         self,
