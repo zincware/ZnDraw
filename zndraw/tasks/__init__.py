@@ -50,10 +50,12 @@ def run_modifier(url, room, data: dict) -> None:
 @shared_task
 def run_selection(url, room, data: dict) -> None:
     from zndraw import ZnDraw
+    from zndraw.select import Selection
 
     vis = ZnDraw(url=url, token=room)
     vis.socket.emit("selection:run:running")
-    vis.selection = [0]
+    selection = Selection(**data)
+    selection.run(vis)
     vis.socket.emit("selection:run:finished")
 
 

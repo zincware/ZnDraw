@@ -49,8 +49,8 @@ class Invert(SelectionBase):
 class Range(SelectionBase):
     discriminator: t.Literal["Range"] = Field("Range")
 
-    start: int = Field(..., description="Start index")
-    end: int = Field(..., description="End index")
+    start: int = Field(0, description="Start index")
+    end: int = Field(5, description="End index")
     step: int = Field(1, description="Step size")
 
     def run(self, vis) -> None:
@@ -137,25 +137,23 @@ class UpdateSelection(SelectionBase):
     def run(self, vis: ZnDraw) -> None:
         vis.selection = vis.selection
 
+methods = t.Union[NoneSelection, All, Invert, Range, Random, IdenticalSpecies, ConnectedParticles, Neighbour]
 
-def get_selection_class(methods):
-    class Selection(SelectionBase):
-        method: methods = Field(
+
+class Selection(BaseModel):
+    method: methods = Field(
             ..., description="Selection method", discriminator="discriminator"
         )
 
-        def run(self, vis: "ZnDraw") -> None:
-            self.method.run(vis)
+    @classmethod
+    def updated_schema(cls) -> dict:
+        schema = cls.model_json_schema()
+        for prop in [x.__name__ for x in t.get_args(methods)]:
+            schema["$defs"][prop]["properties"]["discriminator"]["options"] = {"hidden": True}
+            schema["$defs"][prop]["properties"]["discriminator"]["type"] = "string"
 
-        @classmethod
-        def model_json_schema(cls, *args, **kwargs) -> dict[str, Any]:
-            schema = super().model_json_schema(*args, **kwargs)
-            for prop in [x.__name__ for x in t.get_args(methods)]:
-                schema["$defs"][prop]["properties"]["discriminator"]["options"] = {
-                    "hidden": True
-                }
-                schema["$defs"][prop]["properties"]["discriminator"]["type"] = "string"
+        return schema
+    
+    def run(self, vis: ZnDraw) -> None:
+        self.method.run(vis)
 
-            return schema
-
-    return Selection

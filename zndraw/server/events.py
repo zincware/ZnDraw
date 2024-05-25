@@ -20,6 +20,7 @@ from redis import Redis
 from zndraw.draw import Geometry
 from zndraw.modify import get_modify_class
 from zndraw.scene import Scene
+from zndraw.select import Selection
 from zndraw.utils import get_cls_from_json_schema, hide_discriminator_field
 
 from ..app import socketio as io
@@ -198,7 +199,7 @@ def scene_schema():
 @io.on("selection:schema")
 def selection_schema():
     # TODO update
-    return Scene.updated_schema()
+    return Selection.updated_schema()
 
 
 @io.on("analysis:schema")
