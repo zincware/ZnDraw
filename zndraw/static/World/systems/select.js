@@ -23,7 +23,9 @@ class Selection {
       // convert x, y, z to [x, y, z]
       points = points.map((x) => [x.x, x.y, x.z]);
       if (emit) {
-        this.socket.emit("points:update", points);
+        this.socket.emit("room:points:set", {"0": points});
+        // TODO: this can't work because it fixes the points in place
+        // should only be done on click or not saved to redis.
       }
       // if transform controls is not attached to a point, detach it
       if (

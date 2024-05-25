@@ -253,6 +253,10 @@ class World {
       this.setStep(data, false);
     });
 
+    this.socket.on("room:points:set", (data) => {
+      this.line3D.updateAllPoints(data["0"]);
+    });
+
     this.socket.on("room:set", (data) => {
       if (data.step !== null) {
         // small timeout to ensure the step is set after the cache is updated

@@ -386,6 +386,24 @@ def room_step_get() -> int:
     room = session.get("token")
     return r.get(f"room:{room}:step")
 
+
+@io.on("room:points:set")
+def room_points_set(data: dict):
+    # print(f"setting step to {step}")
+    r: Redis = current_app.config["redis"]
+    room = session.get("token")
+    r.hmset(f"room:{room}:points", {k: json.dumps(v) for k, v in data.items()})
+
+    emit("room:points:set", data, to=room)
+    # TODO: add rotation! save position and rotation and scale?
+
+
+@io.on("room:points:get")
+def room_points_get() -> dict[str, list[list]]:
+    r: Redis = current_app.config["redis"]
+    room = session.get("token")
+    return r.hgetall(f"room:{room}:points")
+
     # check if f"room:{room}:frames" exists
     # if not r.exists(f"room:{room}:frames"):
     #     r.hmset(f"room:{room}:frames", data)
