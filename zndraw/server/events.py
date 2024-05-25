@@ -369,6 +369,22 @@ def room_selection_get() -> dict[str, list[int]]:
     room = session.get("token")
     return r.hgetall(f"room:{room}:selection")
 
+
+@io.on("room:step:set")
+def room_step_set(step: int):
+    print(f"setting step to {step}")
+    r: Redis = current_app.config["redis"]
+    room = session.get("token")
+    r.set(f"room:{room}:step", step)
+
+    emit("room:step:set", step, to=room)
+
+@io.on("room:step:get")
+def room_step_get() -> int:
+    r: Redis = current_app.config["redis"]
+    room = session.get("token")
+    return r.get(f"room:{room}:step")
+
     # check if f"room:{room}:frames" exists
     # if not r.exists(f"room:{room}:frames"):
     #     r.hmset(f"room:{room}:frames", data)

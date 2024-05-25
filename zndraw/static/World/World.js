@@ -26,6 +26,8 @@ let scene;
 let loop;
 let controls;
 
+let _emitStep;
+
 class Player {
   constructor(world, cache, socket, bookmarks) {
     this.world = world;
@@ -247,6 +249,10 @@ class World {
       particlesGroup.step();
     });
 
+    this.socket.on("room:step:set", (data) => {
+      this.setStep(data, false);
+    });
+
     this.socket.on("room:set", (data) => {
       if (data.step !== null) {
         // small timeout to ensure the step is set after the cache is updated
@@ -331,22 +337,7 @@ class World {
   }
 
   setStep(step, emit = true) {
-    // check if the step is available in the cache
-    // check if step is in the cache
-    // console.log("setStep", step);
-    // // log all keys in the cache
-    // console.log(this.cache);
-    // if (this.cache.get(step) === undefined) {
-    // const forward_steps = Array.from({length: 20}, (x, i) => i + step);
-    // const backward_steps = Array.from({length: 20}, (x, i) => step - i);
-    // const new_steps = [...backward_steps, ...forward_steps];
-    // // remove negative steps and duplicates
-    // const unique_steps = new Set(new_steps);
-    // const new_steps_unique = Array.from(unique_steps).filter(x => x >= 0);
-
-    // this.socket.emit("room:frames", new_steps_unique, (ack) => {});
-    //   return;
-    // }
+    clearTimeout(_emitStep);
 
     step = parseInt(step);
     const success = loop.setStep(step);
@@ -363,9 +354,14 @@ class World {
     sliderprogress.style.width = `${percentage}%`;
     document.getElementById("info").innerHTML =
       `${slider.ariaValueNow} / ${slider.ariaValueMax}`;
-    // if (emit) {
-    //   this.socket.emit("step:update", step);
-    // }
+
+    if (emit) {
+      _emitStep = setTimeout(() => {
+        // TODO: if you want live step updates you can emit and have a "save" flag, if you don't want to handle it on the server
+        // altough handling serverside is probably better!
+        this.socket.emit("room:step:set", step);
+      }, 100);
+    }
     return true;
   }
 

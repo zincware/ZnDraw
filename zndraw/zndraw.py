@@ -45,9 +45,14 @@ class ZnDraw:
             },
         )
 
-    def __getitem__(self, index):
+    def __getitem__(self, index) -> ase.Atoms|list[ase.Atoms]:
+        single_item = isinstance(index, int)
+        if single_item:
+            index = [index]
+
         data: dict = self.socket.call("room:frames:get", index)
-        return [znframe.Frame(**x).to_atoms() for x in data.values()]
+        structures = [znframe.Frame(**x).to_atoms() for x in data.values()]
+        return structures[0] if single_item else structures
 
     def __setitem__(self, index: list[int], value: list[ase.Atoms]):
         # TODO: send in chunks
@@ -65,12 +70,34 @@ class ZnDraw:
         self.socket.emit("room:selection:set", {"0": value})
 
     @property
+    def step(self) -> int:
+        return int(self.socket.call("room:step:get"))
+
+    @step.setter
+    def step(self, value: int):
+        # Have only one step per room!
+        # shared rooms are rare anyhow and making per-client steps
+        # and room hosts is anoying
+        # what about the camera?
+        # or collect the steps of all clients in a dict
+        # and save the host and go from there, also fine and not too much worker.
+        self.socket.emit("room:step:set", value)
+
+    @property
     def figure(self) -> str:
         return self.socket.call("analysis:figure:get")
 
     @figure.setter
     def figure(self, fig: str) -> None:
         self.socket.emit("analysis:figure:set", fig)
+
+    @property
+    def atoms(self) -> ase.Atoms:
+        return self[self.step]
+
+    @atoms.setter
+    def atoms(self, atoms: ase.Atoms) -> None:
+        self[[self.step]] = [atoms]
 
     def register_modifier(
         self,
