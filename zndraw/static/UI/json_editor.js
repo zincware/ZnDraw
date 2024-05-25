@@ -15,16 +15,49 @@ export function initJSONEditor(socket, cache, world) {
   draw_editor(socket, cache, world);
 }
 
+function rebuildEditor(editor, localStorageKey, data, div) {    
+  if (editor) {
+    editor.destroy();
+  }  
+  editor = new JSONEditor(div, {
+    schema: data,
+  });
+  editor.on('change', () => {
+    const editorValue = editor.getValue();
+    editor.validate();
+    localStorage.setItem(localStorageKey, JSON.stringify(editorValue));
+  });
+
+  editor.on('ready',() => {
+    const userInput = localStorage.getItem(localStorageKey);
+    if (userInput) {
+      editor.setValue(JSON.parse(userInput));
+    };        
+  });
+  return editor;
+}
+
 function draw_editor(socket, cache, world) {
-  socket.on("draw:schema", (data) => {
-    const div = document.getElementById("draw-json-editor");
-    const editor = new JSONEditor(div, {
-      schema: data,
-    });
-    editor.on("change", () => {
-      document.getElementById("drawAddCanvas").parameters = editor.getValue();
+  let editor;
+  const btn = document.getElementById("drawCardBtn");
+  const div = document.getElementById("draw-json-editor");
+  
+  // socket.on("draw:schema", (data) => {
+  //   editor = new JSONEditor(div, {
+  //     schema: data,
+  //   });
+  // });
+
+  btn.addEventListener("click", () => {
+    socket.emit("draw:schema", (data) => {
+      editor = rebuildEditor(editor, "draw-json-editor-input", data, div);
+          // TODO: the button handling is all over the place - this should also be done through / with Python
+      editor.on("change", () => {
+        document.getElementById("drawAddCanvas").parameters = editor.getValue();
+      });
     });
   });
+
 }
 
 function selection_editor(socket, cache, world) {
@@ -218,24 +251,7 @@ function modifier_editor(socket, cache, world) {
   // create when btn is pressed
   btn.addEventListener("click", () => {
     socket.emit("modifier:schema", (data) => {
-      const localStorageKey = "interaction-json-editor-input"
-      
-      editor.destroy();
-      editor = new JSONEditor(div, {
-        schema: data,
-      });
-      editor.on('change', () => {
-        const editorValue = editor.getValue();
-        localStorage.setItem(localStorageKey, JSON.stringify(editorValue));
-      });
-
-      editor.on('ready',() => {
-        const userInput = localStorage.getItem(localStorageKey);
-        if (userInput) {
-          editor.setValue(JSON.parse(userInput));
-        };        
-      });
-      
+      editor = rebuildEditor(editor, "interaction-json-editor-input", data, div);
     });
   });
 }
