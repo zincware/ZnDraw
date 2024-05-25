@@ -29,6 +29,7 @@ class ZnDraw:
         self.url = self.url.replace("http", "ws")
         self.socket.on("connect", self._on_connect)
         self.socket.connect(self.url, wait_timeout=1)
+        self.socket.on("modifier:run", self._run_modifier)
 
     def reconnect(self):
         self.socket.connect(self.url)
@@ -133,6 +134,17 @@ class ZnDraw:
             self._available,
         )
 
+    def _run_modifier(self, data: dict):
+        print(f"running with {data}")
+        # TODO: for public modifiers the vis object must not be in the same room, create a new one!!!!!
+        self.socket.emit("modifier:run:running")
+        name = data["method"]["discriminator"]
+
+        instance = self._modifiers[name]["cls"](**data["method"])
+        instance.run(self, **self._modifiers[name]["run_kwargs"])
+
+        self.socket.emit("modifier:run:finished")
+        
 
 # import logging
 # import typing as t

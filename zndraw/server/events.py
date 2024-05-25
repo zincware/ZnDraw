@@ -155,7 +155,7 @@ def modifier_register(data: dict):
     r: Redis = current_app.config["redis"]
     room = session.get("token")
 
-    data["room"] = room
+    data["ZNDRAW_CLIENT_SID"] = request.sid
 
     if data.pop("public"):
         r.hset("room:default:modifiers", data["name"], json.dumps(data))
@@ -210,7 +210,18 @@ def modifier_run(data: dict):
     room = session.get("token")
     emit("modifier:run:enqueue", to=room)
     url = f"http://127.0.0.1:{current_app.config['PORT']}"
-    run_modifier.delay(url, room, data)
+        
+    r: Redis = current_app.config["redis"]
+    name = data["method"]["discriminator"]
+    public = r.hget("room:default:modifiers", name)
+    privat = r.hget(f"room:{room}:modifiers", name)
+
+    schema = json.loads(public or privat) # server crashes if both are None
+    if (sid := schema.pop("ZNDRAW_CLIENT_SID", None)):
+        emit("modifier:run", data, to=sid)
+    else:
+        run_modifier.delay(url, room, data)
+
 
 
 @io.on("modifier:run:finished")
