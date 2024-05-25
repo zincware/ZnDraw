@@ -220,6 +220,8 @@ def modifier_run(data: dict):
     public = r.smembers(f"room:default:modifiers:{name}")
     privat = r.smembers(f"room:{room}:modifiers:{name}")
 
+    data["ZNDRAW_CLIENT_ROOM"] = room
+
     # put the data in the queue
     # r.rpush("modifier:queue", json.dumps(data))
     # needs to load all and check sid

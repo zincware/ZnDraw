@@ -141,17 +141,23 @@ class ZnDraw:
 
     def _run_modifier(self, data: dict):
         self._available = False
+        room = data.pop("ZNDRAW_CLIENT_ROOM")
+        vis = type(self)(url=self.url, token=room)
+
         try:
             # TODO: for public modifiers the vis object must not be in the same room, create a new one!!!!!
-            self.socket.emit("modifier:run:running")
+            vis.socket.emit("modifier:run:running")
             name = data["method"]["discriminator"]
 
             instance = self._modifiers[name]["cls"](**data["method"])
-            instance.run(self, **self._modifiers[name]["run_kwargs"])
+            instance.run(vis, **self._modifiers[name]["run_kwargs"])
 
-            self.socket.emit("modifier:run:finished")
+            vis.socket.emit("modifier:run:finished")
         finally:
             self._available = True
+            self.socket.emit(
+                "modifier:available", list(self._modifiers)
+            )
 
 
 # import logging
