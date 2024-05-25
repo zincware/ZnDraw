@@ -135,7 +135,6 @@ class ZnDraw:
         )
 
     def _run_modifier(self, data: dict):
-        print(f"running with {data}")
         # TODO: for public modifiers the vis object must not be in the same room, create a new one!!!!!
         self.socket.emit("modifier:run:running")
         name = data["method"]["discriminator"]
