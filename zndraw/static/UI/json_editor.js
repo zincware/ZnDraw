@@ -15,24 +15,24 @@ export function initJSONEditor(socket, cache, world) {
   draw_editor(socket, cache, world);
 }
 
-function rebuildEditor(editor, localStorageKey, data, div) {    
+function rebuildEditor(editor, localStorageKey, data, div) {
   if (editor) {
     editor.destroy();
-  }  
+  }
   editor = new JSONEditor(div, {
     schema: data,
   });
-  editor.on('change', () => {
+  editor.on("change", () => {
     const editorValue = editor.getValue();
     editor.validate();
     localStorage.setItem(localStorageKey, JSON.stringify(editorValue));
   });
 
-  editor.on('ready',() => {
+  editor.on("ready", () => {
     const userInput = localStorage.getItem(localStorageKey);
     if (userInput) {
       editor.setValue(JSON.parse(userInput));
-    };        
+    }
   });
   return editor;
 }
@@ -45,13 +45,12 @@ function draw_editor(socket, cache, world) {
   btn.addEventListener("click", () => {
     socket.emit("draw:schema", (data) => {
       editor = rebuildEditor(editor, "draw-json-editor-input", data, div);
-          // TODO: the button handling is all over the place - this should also be done through / with Python
+      // TODO: the button handling is all over the place - this should also be done through / with Python
       editor.on("change", () => {
         document.getElementById("drawAddCanvas").parameters = editor.getValue();
       });
     });
   });
-
 }
 
 function selection_editor(socket, cache, world) {
@@ -90,22 +89,22 @@ function scene_editor(socket, cache, world) {
   btn.addEventListener("click", () => {
     socket.emit("scene:schema", (data) => {
       editor = rebuildEditor(editor, "scene-json-editor-input", data, div);
-          // TODO: the button handling is all over the place - this should also be done through / with Python
+      // TODO: the button handling is all over the place - this should also be done through / with Python
       editor.on("change", () => {
         const value = editor.getValue();
-      world.rebuild(
-        value.resolution,
-        value.material,
-        value.wireframe,
-        value.simulation_box,
-        value.bonds,
-        value.label_offset,
-        value.particle_size,
-        value.bonds_size,
-        value.fps,
-        value.line_label,
-      );
-      world.player.setLoop(value["Animation Loop"]);
+        world.rebuild(
+          value.resolution,
+          value.material,
+          value.wireframe,
+          value.simulation_box,
+          value.bonds,
+          value.label_offset,
+          value.particle_size,
+          value.bonds_size,
+          value.fps,
+          value.line_label,
+        );
+        world.player.setLoop(value["Animation Loop"]);
       });
     });
   });
@@ -247,7 +246,12 @@ function modifier_editor(socket, cache, world) {
   // create when btn is pressed
   btn.addEventListener("click", () => {
     socket.emit("modifier:schema", (data) => {
-      editor = rebuildEditor(editor, "interaction-json-editor-input", data, div);
+      editor = rebuildEditor(
+        editor,
+        "interaction-json-editor-input",
+        data,
+        div,
+      );
     });
   });
 }

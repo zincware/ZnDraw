@@ -17,10 +17,10 @@ from flask_socketio import emit, join_room
 # from zndraw.utils import typecast
 from redis import Redis
 
-from zndraw.modify import get_modify_class
-from zndraw.utils import get_cls_from_json_schema, hide_discriminator_field
 from zndraw.draw import Geometry
+from zndraw.modify import get_modify_class
 from zndraw.scene import Scene
+from zndraw.utils import get_cls_from_json_schema, hide_discriminator_field
 
 from ..app import socketio as io
 from ..tasks import run_modifier
@@ -182,9 +182,11 @@ def modifier_schema():
     hide_discriminator_field(schema)
     return schema
 
+
 @io.on("draw:schema")
 def draw_schema():
     return Geometry.updated_schema()
+
 
 @io.on("scene:schema")
 def scene_schema():

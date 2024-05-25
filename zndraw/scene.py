@@ -2,6 +2,7 @@ import enum
 
 from pydantic import BaseModel, Field
 
+
 class Material(str, enum.Enum):
     MeshBasicMaterial = "MeshBasicMaterial"
     MeshLambertMaterial = "MeshLambertMaterial"
@@ -10,6 +11,7 @@ class Material(str, enum.Enum):
     MeshPhysicalMaterial = "MeshPhysicalMaterial"
     MeshStandardMaterial = "MeshStandardMaterial"
     MeshToonMaterial = "MeshToonMaterial"
+
 
 # create a class for the material, resolution, etc.
 class Scene(BaseModel):
@@ -61,7 +63,3 @@ class Scene(BaseModel):
         schema["properties"]["line_label"]["format"] = "checkbox"
 
         return schema
-
-
-
-
