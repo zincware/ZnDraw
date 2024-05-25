@@ -144,7 +144,7 @@ class ZnDraw:
         instance.run(self, **self._modifiers[name]["run_kwargs"])
 
         self.socket.emit("modifier:run:finished")
-        
+
 
 # import logging
 # import typing as t
