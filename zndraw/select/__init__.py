@@ -1,6 +1,5 @@
 import random
 import typing as t
-from typing import Any
 
 import networkx as nx
 import numpy as np
@@ -137,23 +136,34 @@ class UpdateSelection(SelectionBase):
     def run(self, vis: ZnDraw) -> None:
         vis.selection = vis.selection
 
-methods = t.Union[NoneSelection, All, Invert, Range, Random, IdenticalSpecies, ConnectedParticles, Neighbour]
+
+methods = t.Union[
+    NoneSelection,
+    All,
+    Invert,
+    Range,
+    Random,
+    IdenticalSpecies,
+    ConnectedParticles,
+    Neighbour,
+]
 
 
 class Selection(BaseModel):
     method: methods = Field(
-            ..., description="Selection method", discriminator="discriminator"
-        )
+        ..., description="Selection method", discriminator="discriminator"
+    )
 
     @classmethod
     def updated_schema(cls) -> dict:
         schema = cls.model_json_schema()
         for prop in [x.__name__ for x in t.get_args(methods)]:
-            schema["$defs"][prop]["properties"]["discriminator"]["options"] = {"hidden": True}
+            schema["$defs"][prop]["properties"]["discriminator"]["options"] = {
+                "hidden": True
+            }
             schema["$defs"][prop]["properties"]["discriminator"]["type"] = "string"
 
         return schema
-    
+
     def run(self, vis: ZnDraw) -> None:
         self.method.run(vis)
-
