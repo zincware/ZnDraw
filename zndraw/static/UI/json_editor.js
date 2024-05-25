@@ -218,10 +218,24 @@ function modifier_editor(socket, cache, world) {
   // create when btn is pressed
   btn.addEventListener("click", () => {
     socket.emit("modifier:schema", (data) => {
+      const localStorageKey = "interaction-json-editor-input"
+      
       editor.destroy();
       editor = new JSONEditor(div, {
         schema: data,
       });
+      editor.on('change', () => {
+        const editorValue = editor.getValue();
+        localStorage.setItem(localStorageKey, JSON.stringify(editorValue));
+      });
+
+      editor.on('ready',() => {
+        const userInput = localStorage.getItem(localStorageKey);
+        if (userInput) {
+          editor.setValue(JSON.parse(userInput));
+        };        
+      });
+      
     });
   });
 }
