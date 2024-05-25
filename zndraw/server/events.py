@@ -228,10 +228,10 @@ def modifier_run(data: dict):
     # r.rpush(f"modifier:queue:{request.sid}", json.dumps(data))
     # also does not work because the data is not queued but put into the queue for a specific modifier
     if len(public):
-        r.rpush(f"modifier:queue:{name}", json.dumps(data)) # if public
+        r.rpush(f"modifier:queue:{name}", json.dumps(data))  # if public
     else:
         assert len(privat), "The modifier was not found anywhere"
-        r.rpush(f"modifier:queue:{room}:{name}", json.dumps(data)) # if private
+        r.rpush(f"modifier:queue:{room}:{name}", json.dumps(data))  # if private
 
     clients: set[str] = public | privat
     if len(clients):
@@ -255,11 +255,12 @@ def modifier_run_running():
     room = session.get("token")
     emit("modifier:run:running", to=room)
 
+
 @io.on("modifier:available")
 def modifier_available(modifier_names: list[str]) -> None:
     """Update state of registered modifier classes."""
     r: Redis = current_app.config["redis"]
-    room = session.get("token") #TODO: Why use get, token should always be set
+    room = session.get("token")  # TODO: Why use get, token should always be set
 
     for name in modifier_names:
         public = r.smembers(f"room:default:modifiers:{name}")
@@ -271,21 +272,21 @@ def modifier_available(modifier_names: list[str]) -> None:
                 print(f"running public task {public_task} on {request.sid}")
                 emit("modifier:run", json.loads(public_task), to=request.sid)
                 return
-        
+
         if request.sid in privat:
             privat_task = r.lpop(f"modifier:queue:{room}:{name}")
             if privat_task:
                 print(f"running private task {privat_task} on {request.sid}")
                 emit("modifier:run", json.loads(privat_task), to=request.sid)
                 return
-    
+
     log.critical(f"No task available for {modifier_names}")
 
-        # if len(public):
-        #     r.rpush(f"modifier:queue:{name}", json.dumps(data)) # if public
-        # else:
-        #     assert len(privat), "The modifier was not found anywhere"
-        #     r.rpush(f"modifier:queue:{room}:{name}", json.dumps(data)) # if private
+    # if len(public):
+    #     r.rpush(f"modifier:queue:{name}", json.dumps(data)) # if public
+    # else:
+    #     assert len(privat), "The modifier was not found anywhere"
+    #     r.rpush(f"modifier:queue:{room}:{name}", json.dumps(data)) # if private
 
     # if the modifier is public check in the public queue, if the modifier is privat check in the privat queue
 
@@ -293,9 +294,8 @@ def modifier_available(modifier_names: list[str]) -> None:
 
     # modifier can only pop those elements which it can run.
     # data = json.loads(r.lpop("modifier:queue"))
-    
-    # emit("modifier:run", data, to=request.sid)
 
+    # emit("modifier:run", data, to=request.sid)
 
 
 @io.on("analysis:run")

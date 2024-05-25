@@ -26,12 +26,9 @@ class ZnDraw:
     _available: bool = True
 
     def __post_init__(self):
-
         def on_wakeup():
             if self._available:
-                self.socket.emit(
-                    "modifier:available", list(self._modifiers)
-                )
+                self.socket.emit("modifier:available", list(self._modifiers))
 
         self.url = self.url.replace("http", "ws")
         self.socket.on("connect", self._on_connect)
@@ -135,9 +132,7 @@ class ZnDraw:
             "frozen": use_frozen,
         }
         if self._available:
-            self.socket.emit(
-                "modifier:available", list(self._modifiers)
-            )
+            self.socket.emit("modifier:available", list(self._modifiers))
 
     def _run_modifier(self, data: dict):
         self._available = False
@@ -155,9 +150,7 @@ class ZnDraw:
             vis.socket.emit("modifier:run:finished")
         finally:
             self._available = True
-            self.socket.emit(
-                "modifier:available", list(self._modifiers)
-            )
+            self.socket.emit("modifier:available", list(self._modifiers))
 
 
 # import logging
