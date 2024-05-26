@@ -226,10 +226,14 @@ def modifier_run(data: dict):
     if len(public):
         # The modifier was registered with public=True
         r.rpush(f"modifier:queue:{name}", json.dumps(data))
-    else:
+    elif len(privat):
         # The modifier was registered with public=False
-        assert len(privat), "The modifier was not found anywhere"
         r.rpush(f"modifier:queue:{room}:{name}", json.dumps(data))
+    else:
+        # This would be the queue for default modifiers.
+        # but they are queued using celery directly.
+        # so no need for redis queue.
+        pass
 
     clients: set[str] = public | privat
     if len(clients):
