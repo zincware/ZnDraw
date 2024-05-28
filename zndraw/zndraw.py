@@ -87,7 +87,7 @@ class ZnDraw(ZnDrawBase):
 
     def insert(self, index: int, value: ase.Atoms):
         self.socket.emit(
-            "room:frames:insert", index, znframe.Frame.from_atoms(value).to_json()
+            "room:frames:insert", {"index": index, "value": znframe.Frame.from_atoms(value).to_json()}
         )
 
     @property

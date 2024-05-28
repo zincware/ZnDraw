@@ -61,12 +61,16 @@ class RedisList(MutableSequence):
                 raise IndexError("list index out of range")
             self.redis.lset(self.key, i, v)
 
-    def __delitem__(self, index):
-        current_list = self.redis.lrange(self.key, 0, -1)
-        if index >= len(current_list) or index < -len(current_list):
-            raise IndexError("list index out of range")
-        self.redis.lset(self.key, index, "__DELETED__")
-        self.redis.lrem(self.key, 1, "__DELETED__")
+    def __delitem__(self, index: int | list | slice):
+        single_item = isinstance(index, int)
+        if single_item:
+            index = [index]
+        if isinstance(index, slice):
+            index = list(range(*index.indices(len(self))))
+        
+        for i in index:
+            self.redis.lset(self.key, i, "__DELETED__")
+        self.redis.lrem(self.key, 0, "__DELETED__")
 
     def insert(self, index, value):
         if index >= self.__len__():

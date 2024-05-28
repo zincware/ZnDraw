@@ -137,17 +137,27 @@ def room_frames_delete(frames: list[int]):
     r: Redis = current_app.config["redis"]
     room = session.get("token")
     lst = RedisList(r, f"room:{room}:frames")
+    if not r.exists(f"room:{room}:frames"):
+        default_lst = RedisList(r, "room:default:frames")
+        # TODO: using a redis copy action would be faster
+        lst.extend(default_lst)
     del lst[frames]
     # TODO what to update here?
     # emit("room:frames:refresh", frames, to=room)
 
 
 @io.on("room:frames:insert")
-def room_frames_insert(index: int, value: str):
+def room_frames_insert(data: dict):
+    index = data.pop("index")
+    value = data.pop("value")
     r: Redis = current_app.config["redis"]
     room = session.get("token")
 
     lst = RedisList(r, f"room:{room}:frames")
+    if not r.exists(f"room:{room}:frames"):
+        default_lst = RedisList(r, "room:default:frames")
+        # TODO: using a redis copy action would be faster
+        lst.extend(default_lst)
     lst.insert(index, value)
 
     # not sure how to update, insert requires everything to be updated after the insertion
@@ -164,7 +174,7 @@ def room_frames_length_get() -> int:
         if r.exists(f"room:{room}:frames")
         else "room:default:frames"
     )
-    return r.llen(room_key)
+    return len(RedisList(r, room_key))
 
 
 @io.on("modifier:register")
