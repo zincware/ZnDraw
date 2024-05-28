@@ -104,6 +104,10 @@ class Cache {
         }
       });
     });
+    // call get_length periodically
+    setInterval(() => {
+      this.get_length();
+    }, 1000);
   }
 
   get(id) {
@@ -165,7 +169,11 @@ class Cache {
       this.socket.emit("room:length:get", (data) => {
         this._length = data;
         const slider = document.getElementById("frameProgress");
-        slider.ariaValueMax = this._length - 1;
+        slider.ariaValueMax = Math.max(0, this._length - 1);
+        
+        document.getElementById("info").innerHTML =
+        `${slider.ariaValueNow} / ${slider.ariaValueMax}`;
+
         console.log("Cache length is now", this._length);
       });
       this._size_timeout = true;
@@ -173,8 +181,7 @@ class Cache {
         this._size_timeout = false;
       }, 1000);
     }
-    return this._length - 1;
-    // return Object.keys(this._cache).length;
+    return Math.max(0, this._length - 1);
   }
 
   getAllAtoms() {
