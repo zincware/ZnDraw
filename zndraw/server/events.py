@@ -429,7 +429,7 @@ def room_points_set(data: dict):
     room = session.get("token")
     r.hmset(f"room:{room}:points", {k: json.dumps(v) for k, v in data.items()})
 
-    emit("room:points:set", data, to=room)
+    emit("room:points:set", data, to=room, include_self=False)
     # TODO: add rotation! save position and rotation and scale?
 
 

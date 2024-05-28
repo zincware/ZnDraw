@@ -19,11 +19,12 @@ class Selection {
     // add a function to the line3D callbacks that is triggered if the line is changed
     // why is this in selection?
     this.line3D.onLineChange = (emit = true) => {
-      let points = this.line3D.anchorPoints.children.map((x) => x.position);
-      // convert x, y, z to [x, y, z]
-      points = points.map((x) => [x.x, x.y, x.z]);
+      // let points = this.line3D.anchorPoints.children.map((x) => x.position);
+      // // convert x, y, z to [x, y, z]
+      // points = points.map((x) => [x.x, x.y, x.z]);
+      // this.socket.emit("room:points:set", { 0: points });
       if (emit) {
-        this.socket.emit("room:points:set", { 0: points });
+        // 
         // TODO: this can't work because it fixes the points in place
         // should only be done on click or not saved to redis.
       }
@@ -244,6 +245,13 @@ class Selection {
       detail: { selection: particlesGroup.selection },
     });
     document.dispatchEvent(selectionUpdate);
+
+    // update the points
+    let points = this.line3D.anchorPoints.children.map((x) => x.position);
+    // convert x, y, z to [x, y, z]
+    points = points.map((x) => [x.x, x.y, x.z]);
+    this.socket.emit("room:points:set", { 0: points });
+
   }
 
   onWheel(event) {
