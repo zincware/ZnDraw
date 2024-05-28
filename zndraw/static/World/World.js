@@ -261,41 +261,20 @@ class World {
       bookmarks.set(data);
     });
 
-    // this.socket.on("room:set", (data) => {
-    //   if (data.step !== null) {
-    //     // small timeout to ensure the step is set after the cache is updated
-    //     setTimeout(() => this.setStep(data.step, false), 100);
-    //   }
-    //   if (data.frames !== null) {
-    //     cache.setFrames(data.frames);
-    //   }
-    //   if (data.selection !== null) {
-    //     const particlesGroup = this.scene.getObjectByName("particlesGroup");
-    //     particlesGroup.selection = data.selection;
-    //     particlesGroup.step();
-    //   }
-    //   if (data.bookmarks !== null) {
-    //     bookmarks.set(data.bookmarks);
-    //   }
-    //   if (data.points !== null) {
-    //     this.line3D.updateAllPoints(data.points);
-    //   }
-    // });
-
-    this.socket.on("camera:update", (data) => {
+    this.socket.on("room:camera:set", (data) => {
       camera.position.set(...data.position);
       controls.target.set(...data.target);
       controls.update();
     });
 
     controls.addEventListener("change", () => {
-      this.socket.emit("camera:update", {
+      this.socket.emit("room:camera:set", {
         position: camera.position.toArray(),
         target: controls.target.toArray(),
       });
     });
     // initial set of the camera
-    this.socket.emit("camera:update", {
+    this.socket.emit("room:camera:set", {
       position: camera.position.toArray(),
       target: controls.target.toArray(),
     });

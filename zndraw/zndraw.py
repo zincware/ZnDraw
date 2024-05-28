@@ -150,7 +150,7 @@ class ZnDraw(ZnDrawBase):
 
     @property
     def camera(self) -> dict:
-        return json.loads(self.socket.call("room:camera:get"))
+        return self.socket.call("room:camera:get")
 
     @camera.setter
     def camera(self, value: dict):

@@ -354,7 +354,7 @@ def room_selection_set(data: dict[str, list[int]]):
     r: Redis = current_app.config["redis"]
     room = session.get("token")
     r.hmset(f"room:{room}:selection", {k: json.dumps(v) for k, v in data.items()})
-    emit("room:selection:set", data, to=room)
+    emit("room:selection:set", data, to=room, include_self=False)
 
 
 @io.on("room:selection:get")
@@ -371,7 +371,7 @@ def room_step_set(step: int):
     room = session.get("token")
     r.set(f"room:{room}:step", step)
 
-    emit("room:step:set", step, to=room)
+    emit("room:step:set", step, to=room, include_self=False)
 
 
 @io.on("room:step:get")
@@ -404,7 +404,7 @@ def room_bookmarks_set(data: dict):
     r: Redis = current_app.config["redis"]
     room = session.get("token")
     r.hmset(f"room:{room}:bookmarks", data)
-    emit("room:bookmarks:set", data, to=room)
+    emit("room:bookmarks:set", data, to=room, include_self=False)
 
 
 @io.on("room:bookmarks:get")
@@ -419,7 +419,7 @@ def room_camera_set(data: dict):
     r: Redis = current_app.config["redis"]
     room = session.get("token")
     r.set(f"room:{room}:camera", json.dumps(data))
-    emit("room:camera:set", data, to=room)
+    emit("room:camera:set", data, to=room, include_self=False)
 
 
 @io.on("room:camera:get")
