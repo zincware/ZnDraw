@@ -261,6 +261,8 @@ class World {
       bookmarks.set(data);
     });
 
+    let _emitCamera;
+
     this.socket.on("room:camera:set", (data) => {
       camera.position.set(...data.position);
       controls.target.set(...data.target);
@@ -268,10 +270,13 @@ class World {
     });
 
     controls.addEventListener("change", () => {
-      this.socket.emit("room:camera:set", {
-        position: camera.position.toArray(),
-        target: controls.target.toArray(),
-      });
+      clearTimeout(_emitCamera);
+      _emitCamera = setTimeout(() => {
+        this.socket.emit("room:camera:set", {
+          position: camera.position.toArray(),
+          target: controls.target.toArray(),
+        });
+      }, 100);
     });
     // initial set of the camera
     this.socket.emit("room:camera:set", {
