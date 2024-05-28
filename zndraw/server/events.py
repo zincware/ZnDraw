@@ -17,11 +17,11 @@ from flask_socketio import emit, join_room
 # from zndraw.utils import typecast
 from redis import Redis
 
+from zndraw.analyse import Analysis
 from zndraw.draw import Geometry
 from zndraw.modify import Modifier
 from zndraw.scene import Scene
 from zndraw.select import Selection
-from zndraw.analyse import Analysis
 from zndraw.utils import get_cls_from_json_schema
 
 from ..app import socketio as io

@@ -7,8 +7,8 @@ import pandas as pd
 import plotly.express as px
 from pydantic import BaseModel, ConfigDict, Field
 
+from zndraw.base import Extension, MethodsCollection
 from zndraw.utils import SHARED, set_global_atoms
-from zndraw.base import MethodsCollection, Extension
 
 try:
     from zndraw.analyse import mda  # noqa: F401
@@ -25,7 +25,6 @@ def _schema_from_atoms(schema, cls):
 
 
 class DihedralAngle(Extension):
-
     def run(self, vis):
         atoms_lst = list(vis)
         dihedral_angles = []
@@ -44,7 +43,6 @@ class DihedralAngle(Extension):
 
 
 class Distance(Extension):
-
     smooth: bool = False
 
     def run(self, vis):
@@ -147,7 +145,6 @@ class Properties2D(Extension):
 
 
 class Properties1D(Extension):
-
     value: str = "energy"
     smooth: bool = False
 
@@ -199,13 +196,13 @@ class Properties1D(Extension):
         vis.figure = fig.to_json()
 
 
-
 methods = t.Union[
     DihedralAngle,
     Distance,
     Properties1D,
     Properties2D,
 ]
+
 
 class Analysis(MethodsCollection):
     method: methods = Field(

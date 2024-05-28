@@ -3,7 +3,7 @@ import typing as t
 
 import networkx as nx
 import numpy as np
-from pydantic import BaseModel, Field
+from pydantic import Field
 
 from zndraw import Extension, ZnDraw
 from zndraw.base import MethodsCollection
@@ -136,4 +136,3 @@ class Selection(MethodsCollection):
     method: methods = Field(
         ..., description="Selection method", discriminator="discriminator"
     )
-

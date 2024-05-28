@@ -7,7 +7,7 @@ import typing as t
 import ase
 import numpy as np
 from ase.data import chemical_symbols
-from pydantic import Field, create_model, BaseModel
+from pydantic import Field
 from znframe.frame import get_radius
 
 from zndraw.base import Extension, MethodsCollection
@@ -298,6 +298,7 @@ methods = t.Union[
 
 class Modifier(MethodsCollection):
     """Run modifications on the scene"""
+
     method: methods = Field(
         ..., description="Modify method", discriminator="discriminator"
     )

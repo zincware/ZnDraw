@@ -22,22 +22,21 @@ class Extension(BaseModel):
         # Automatically add the discriminator field
         cls.__annotations__["discriminator"] = t.Literal[cls.__name__]
         setattr(cls, "discriminator", cls.__name__)
-    
+
     def run(self, vis, **kwargs) -> None:
         raise NotImplementedError("run method must be implemented in subclass")
 
 
 class MethodsCollection(BaseModel):
     """Base class for collections of methods for modification, analysis, etc."""
-    method: t.Type[Extension] = Field(
-        ..., description="Select a method."
-    )
+
+    method: t.Type[Extension] = Field(..., description="Select a method.")
 
     def run(self, vis, **kwargs) -> None:
         self.method.run(vis, **kwargs)
 
     @classmethod
-    def updated_schema(cls, extensions: list[t.Type[Extension]]|None = None) -> dict:
+    def updated_schema(cls, extensions: list[t.Type[Extension]] | None = None) -> dict:
         methods = cls.__annotations__["method"]
         if extensions is not None:
             extensions_types = t.Union[tuple(extensions)]
@@ -46,14 +45,17 @@ class MethodsCollection(BaseModel):
             extended_methods = methods
 
         # get the description of the cls.method field
-        method_description = cls.model_fields['method'].description
+        method_description = cls.model_fields["method"].description
 
         extended_cls = create_model(
             cls.__name__,
             __base__=cls,
-            method=(extended_methods, Field(
-                ..., description=method_description, discriminator="discriminator"
-            ))
+            method=(
+                extended_methods,
+                Field(
+                    ..., description=method_description, discriminator="discriminator"
+                ),
+            ),
         )
         schema = extended_cls.model_json_schema()
         for prop in [x.__name__ for x in t.get_args(methods)]:
