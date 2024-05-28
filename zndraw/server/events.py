@@ -25,7 +25,7 @@ def connect():
         room = str(session["token"])
         join_room(room)
         log.critical(f"connecting (webclient) {request.sid} to room {room}")
-        
+
         r = current_app.config["redis"]
         r.sadd(f"room:{room}:webclients", session["name"])
 
@@ -33,6 +33,7 @@ def connect():
 
     except KeyError:
         log.critical(f"connecting (pyclient) {request.sid}")
+
 
 @io.on("disconnect")
 def disconnect():
@@ -42,6 +43,7 @@ def disconnect():
         r = current_app.config["redis"]
         r.srem(f"room:{room}:webclients", session["name"])
         emit("room:users:refresh", list(r.smembers(f"room:{room}:webclients")), to=room)
+
 
 @io.on("join")
 def join(data: dict):
@@ -359,6 +361,7 @@ def room_alert(msg: str):
     # TODO: identify the source client.
     room = session.get("token")
     emit("room:alert", msg, to=room)
+
 
 @io.on("room:log")
 def room_log(msg: str):

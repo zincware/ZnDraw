@@ -134,5 +134,7 @@ methods = t.Union[
 
 class Selection(MethodsCollection):
     method: methods = Field(
-        ConnectedParticles, description="Selection method", discriminator="discriminator"
+        ConnectedParticles,
+        description="Selection method",
+        discriminator="discriminator",
     )
