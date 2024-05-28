@@ -181,7 +181,7 @@ class Cache {
         this._size_timeout = false;
       }, 1000);
     }
-    return Math.max(0, this._length - 1);
+    return Math.max(0, this._length);
   }
 
   getAllAtoms() {

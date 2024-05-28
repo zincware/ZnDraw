@@ -126,13 +126,7 @@ class Player {
 
   go_forward(step = 1) {
     let new_step = this.world.getStep() + step;
-    console.log(
-      "go forward",
-      step,
-      this.world.getStep(),
-      this.cache.get_length(),
-    );
-    if (new_step > this.cache.get_length()) {
+    if (new_step >= this.cache.get_length()) {
       if (this.loop) {
         new_step = 0;
       } else {
