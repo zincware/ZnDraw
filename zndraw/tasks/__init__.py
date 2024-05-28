@@ -19,6 +19,10 @@ def read_file(data: dict) -> None:
     file_io = FileIO(**data)
     r = Redis(host="localhost", port=6379, db=0, decode_responses=True)
     # r = znsocket.Client("http://127.0.0.1:5000")
+
+    # TODO: make everyone join room main
+    # send update here to everyone in room, because this is only called once in the beginnig
+    # chain this with compute_bonds. So this will load much faster
     r.delete("room:default:frames")
 
     for i, atoms in tqdm.tqdm(enumerate(ase.io.iread(file_io.name))):

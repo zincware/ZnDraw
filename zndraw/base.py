@@ -3,6 +3,11 @@ import logging
 import typing as t
 from abc import abstractmethod
 from collections.abc import MutableSequence
+import ase
+from flask import current_app, session
+from redis import Redis
+import znframe
+
 
 import numpy as np
 import socketio
@@ -25,6 +30,19 @@ class Extension(BaseModel):
 
     def run(self, vis, **kwargs) -> None:
         raise NotImplementedError("run method must be implemented in subclass")
+    
+    @staticmethod
+    def get_atoms() -> ase.Atoms:
+        """Get the ase atoms object at the current position in the room"""
+        room = session["token"]
+        r: Redis = current_app.config["redis"]
+        step = r.get(f"room:{room}:step")
+        frame_json = r.hget(f"room:{room}:frames", f"{step}")
+        if frame_json is None:
+            # probably default room
+            frame_json = r.hget("room:default:frames", f"{step}")
+        frame = znframe.Frame.from_json(frame_json)
+        return frame.to_atoms()
 
 
 class MethodsCollection(BaseModel):

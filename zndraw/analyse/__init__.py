@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 import plotly.express as px
 from pydantic import BaseModel, ConfigDict, Field
+from flask import current_app, session
 
 from zndraw.base import Extension, MethodsCollection
 from zndraw.utils import SHARED, set_global_atoms
@@ -87,7 +88,7 @@ class Properties2D(Extension):
 
     @classmethod
     def model_json_schema_from_atoms(cls, schema: dict) -> dict:
-        ATOMS = SHARED["atoms"]
+        ATOMS = cls.get_atoms()
         log.debug(f"GATHERING PROPERTIES FROM {ATOMS=}")
         try:
             available_properties = list(ATOMS.calc.results)
@@ -156,7 +157,7 @@ class Properties1D(Extension):
 
     @classmethod
     def model_json_schema_from_atoms(cls, schema: dict) -> dict:
-        ATOMS = SHARED["atoms"]
+        ATOMS = cls.get_atoms()
         try:
             available_properties = list(
                 ATOMS.calc.results.keys()
@@ -209,22 +210,3 @@ class Analysis(MethodsCollection):
         ..., description="Analysis method", discriminator="discriminator"
     )
 
-
-def get_analysis_class(methods):
-    class Analysis(BaseModel):
-        method: methods = Field(
-            ..., description="Analysis method", discriminator="discriminator"
-        )
-
-        def run(self, *args, **kwargs) -> None:
-            return self.method.run(*args, **kwargs)
-
-        @classmethod
-        def model_json_schema_from_atoms(
-            cls, atoms, *args, **kwargs
-        ) -> dict[str, t.Any]:
-            with set_global_atoms(atoms):
-                result = cls.model_json_schema(*args, **kwargs)
-            return result
-
-    return Analysis
