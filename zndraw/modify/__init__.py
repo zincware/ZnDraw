@@ -7,7 +7,7 @@ import typing as t
 import ase
 import numpy as np
 from ase.data import chemical_symbols
-from pydantic import Field
+from pydantic import Field, create_model, BaseModel
 from znframe.frame import get_radius
 
 from zndraw.base import Extension
@@ -296,19 +296,34 @@ methods = t.Union[
 ]
 
 
-class Modifier(UpdateScene):
+class Modifier(BaseModel):
+    """Run modifications on the scene"""
     method: methods = Field(
         ..., description="Modify method", discriminator="discriminator"
     )
-
-    # model_config = ConfigDict(json_schema_extra=None)  # disable method hiding
 
     def run(self, vis, **kwargs) -> None:
         self.method.run(vis, **kwargs)
 
     @classmethod
-    def updated_schema(cls) -> dict:
-        schema = cls.model_json_schema()
+    def updated_schema(cls, extensions: list[t.Type[Extension]]|None = None) -> dict:
+        if extensions is not None:
+            extensions_types = t.Union[tuple(extensions)]
+            extended_methods = t.Union[methods, extensions_types]
+        else:
+            extended_methods = methods
+
+        # get the description of the cls.method field
+        method_description = cls.model_fields['method'].description
+
+        extended_cls = create_model(
+            cls.__name__,
+            __base__=cls,
+            method=(extended_methods, Field(
+                ..., description=method_description, discriminator="discriminator"
+            ))
+        )
+        schema = extended_cls.model_json_schema()
         for prop in [x.__name__ for x in t.get_args(methods)]:
             schema["$defs"][prop]["properties"]["discriminator"]["options"] = {
                 "hidden": True
