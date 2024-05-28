@@ -18,12 +18,12 @@ from flask_socketio import emit, join_room
 from redis import Redis
 
 from zndraw.analyse import Analysis
+from zndraw.base import RedisList
 from zndraw.draw import Geometry
 from zndraw.modify import Modifier
 from zndraw.scene import Scene
 from zndraw.select import Selection
 from zndraw.utils import get_cls_from_json_schema
-from zndraw.base import RedisList
 
 from ..app import socketio as io
 from ..tasks import run_analysis, run_modifier, run_selection
@@ -109,14 +109,15 @@ def room_frames_get(frames: list[int]) -> dict[int, dict]:
             data = RedisList(r, "room:default:frames")[frames]
         except IndexError:
             data = []
-    
+
     return {idx: json.loads(d) for idx, d in zip(frames, data) if d is not None}
+
 
 @io.on("room:frames:set")
 def room_frames_set(data: dict[int, str]):
     r: Redis = current_app.config["redis"]
     room = session.get("token")
-    
+
     # add = {}
     # remove = []
     lst = RedisList(r, f"room:{room}:frames")
@@ -129,6 +130,7 @@ def room_frames_set(data: dict[int, str]):
     lst[list(data)] = [d for d in data.values()]
 
     emit("room:frames:refresh", list(data), to=room)
+
 
 @io.on("room:frames:delete")
 def room_frames_delete(frames: list[int]):
@@ -144,14 +146,13 @@ def room_frames_delete(frames: list[int]):
 def room_frames_insert(index: int, value: str):
     r: Redis = current_app.config["redis"]
     room = session.get("token")
-    
+
     lst = RedisList(r, f"room:{room}:frames")
     lst.insert(index, value)
-            
+
     # not sure how to update, insert requires everything to be updated after the insertion
     # can be done custom on the client side to avoid resending everything
     # emit("room:frames:refresh", list(data), to=room)
-    
 
 
 @io.on("room:length:get")
@@ -426,6 +427,7 @@ def room_points_get() -> dict[str, list[list]]:
     room = session.get("token")
     return r.hgetall(f"room:{room}:points")
 
+
 @io.on("room:bookmarks:set")
 def room_bookmarks_set(data: dict):
     r: Redis = current_app.config["redis"]
@@ -448,15 +450,12 @@ def room_camera_set(data: dict):
     r.set(f"room:{room}:camera", json.dumps(data))
     emit("room:camera:set", data, to=room)
 
+
 @io.on("room:camera:get")
 def room_camera_get() -> dict:
     r: Redis = current_app.config["redis"]
     room = session.get("token")
     return json.loads(r.get(f"room:{room}:camera"))
-
-
-
-
 
     # check if f"room:{room}:frames" exists
     # if not r.exists(f"room:{room}:frames"):

@@ -8,8 +8,8 @@ import numpy as np
 import socketio
 import znframe
 
-from zndraw.modify import UpdateScene
 from zndraw.base import ZnDrawBase
+from zndraw.modify import UpdateScene
 
 log = logging.getLogger(__name__)
 
@@ -51,10 +51,10 @@ class ZnDraw(ZnDrawBase):
         single_item = isinstance(index, int)
         if single_item:
             index = [index]
-        
+
         if isinstance(index, slice):
             index = list(range(*index.indices(len(self))))
-        
+
         if any(x < 0 for x in index):
             raise IndexError("Index must be positive")
         if any(x >= len(self) for x in index):
@@ -64,28 +64,31 @@ class ZnDraw(ZnDrawBase):
         structures = [znframe.Frame(**x).to_atoms() for x in data.values()]
         return structures[0] if single_item else structures
 
-    def __setitem__(self, index: int|list[int], value: ase.Atoms|list[ase.Atoms]):
+    def __setitem__(self, index: int | list[int], value: ase.Atoms | list[ase.Atoms]):
         if isinstance(index, int):
-             data = {index: znframe.Frame.from_atoms(value).to_json()}
+            data = {index: znframe.Frame.from_atoms(value).to_json()}
         else:
-            data = {i: znframe.Frame.from_atoms(val).to_json() for i, val in zip(index, value)}
+            data = {
+                i: znframe.Frame.from_atoms(val).to_json()
+                for i, val in zip(index, value)
+            }
 
         self.socket.emit("room:frames:set", data)
 
-       
-
     def __len__(self) -> int:
         return int(self.socket.call("room:length:get"))
-    
+
     def __delitem__(self, index: int | slice | list[int]):
         if isinstance(index, int):
             index = [index]
         if isinstance(index, slice):
             index = list(range(*index.indices(len(self))))
         self.socket.emit("room:frames:delete", index)
-    
+
     def insert(self, index: int, value: ase.Atoms):
-        self.socket.emit("room:frames:insert", index, znframe.Frame.from_atoms(value).to_json())
+        self.socket.emit(
+            "room:frames:insert", index, znframe.Frame.from_atoms(value).to_json()
+        )
 
     @property
     def selection(self) -> list[int]:
@@ -140,7 +143,7 @@ class ZnDraw(ZnDrawBase):
     @property
     def bookmarks(self) -> dict:
         return json.loads(self.socket.call("room:bookmarks:get"))
-    
+
     @bookmarks.setter
     def bookmarks(self, value: dict):
         self.socket.emit("room:bookmarks:set", value)
@@ -148,11 +151,10 @@ class ZnDraw(ZnDrawBase):
     @property
     def camera(self) -> dict:
         return json.loads(self.socket.call("room:camera:get"))
-    
+
     @camera.setter
     def camera(self, value: dict):
         self.socket.emit("room:camera:set", value)
-    
 
     def register_modifier(
         self,
