@@ -125,9 +125,6 @@ def create_app() -> Flask:
     app.config["upgrade_insecure_requests"] = False
     app.config["compute_bonds"] = True
 
-    # import znsocket
-    # app.config["redis"] = znsocket.Client(address="http://127.0.0.1:5000")
-
     app.register_blueprint(main_blueprint)
 
     socketio.init_app(app, cors_allowed_origins="*")

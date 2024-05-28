@@ -20,7 +20,9 @@ def read_file(fileio: dict, io_port: int, storage: str) -> None:
     if storage.startswith("redis"):
         r = Redis.from_url(storage, decode_responses=True)
     elif storage.startswith("znsocket"):
-        raise NotImplementedError
+        import znsocket
+
+        self.app.config["redis"] = znsocket.Client.from_url(self.storage)
 
     io = SimpleClient()
 
