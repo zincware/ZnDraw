@@ -91,6 +91,9 @@ class ZnDrawLoggingHandler(logging.Handler):
 def get_cls_from_json_schema(schema: dict, name: str, **kwargs):
     """Get a python class from a json schema."""
 
+    # TODO: needs tests
+    # TODO: do not write file but use in-memory
+
     kwargs["strict_nullable"] = True
 
     with tempfile.TemporaryDirectory() as temporary_directory_name:
@@ -118,6 +121,7 @@ def get_cls_from_json_schema(schema: dict, name: str, **kwargs):
 
 def hide_discriminator_field(d: dict) -> None:
     """Inplace method to set discriminator field to hidden."""
+    raise ValueError("This method is not used anymore!")
     for v in d.values():
         if isinstance(v, dict):
             if v.get("title") == "Discriminator":

@@ -33,7 +33,7 @@ def run_modifier(url, room, data: dict) -> None:
     import ase.build
 
     from zndraw import ZnDraw
-    from zndraw.modify import get_cls_from_json_schema
+    # from zndraw.modify import get_cls_from_json_schema
 
     # from zndraw.utils import get_cls_from_json_schema
 

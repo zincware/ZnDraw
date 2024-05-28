@@ -143,8 +143,6 @@ class Selection(BaseModel):
             schema["$defs"][prop]["properties"]["discriminator"]["options"] = {
                 "hidden": True
             }
-            # schema["$defs"][prop]["properties"]["discriminator"]["type"] = "string"
-
         return schema
 
     def run(self, vis: ZnDraw) -> None:

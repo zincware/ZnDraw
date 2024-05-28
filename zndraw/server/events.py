@@ -18,7 +18,7 @@ from flask_socketio import emit, join_room
 from redis import Redis
 
 from zndraw.draw import Geometry
-from zndraw.modify import get_modify_class
+from zndraw.modify import Modifier
 from zndraw.scene import Scene
 from zndraw.select import Selection
 from zndraw.utils import get_cls_from_json_schema, hide_discriminator_field
@@ -180,10 +180,10 @@ def modifier_schema():
         cls = get_cls_from_json_schema(modifier["schema"], modifier["name"])
         classes.append(cls)
 
-    cls = get_modify_class(classes)
-    schema = cls.model_json_schema()
-    hide_discriminator_field(schema)
-    return schema
+    # cls = get_modify_class(classes)
+    # schema = cls.model_json_schema()
+    # hide_discriminator_field(schema)
+    return Modifier.updated_schema()
 
 
 @io.on("draw:schema")

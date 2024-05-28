@@ -16,6 +16,7 @@ log = logging.getLogger(__name__)
 
 
 class Extension(BaseModel):
+    # TODO: can I hide the discriminator field in the model json schema automatically here?
     @classmethod
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)

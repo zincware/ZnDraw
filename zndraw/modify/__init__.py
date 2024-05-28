@@ -9,6 +9,7 @@ import numpy as np
 from ase.data import chemical_symbols
 from pydantic import BaseModel, ConfigDict, Field
 from znframe.frame import get_radius
+from zndraw.base import Extension
 
 try:
     from zndraw.modify import extras  # noqa: F401
@@ -25,7 +26,7 @@ log = logging.getLogger("zndraw")
 Symbols = enum.Enum("Symbols", {symbol: symbol for symbol in chemical_symbols})
 
 
-class UpdateScene(BaseModel, abc.ABC):
+class UpdateScene(Extension, abc.ABC):
     @abc.abstractmethod
     def run(self, vis: "ZnDraw", timeout: float, **kwargs) -> None:
         """Method called when running the modifier."""
@@ -47,8 +48,6 @@ class UpdateScene(BaseModel, abc.ABC):
 class Connect(UpdateScene):
     """Create guiding curve between selected atoms."""
 
-    discriminator: t.Literal["Connect"] = Field("Connect")
-
     def run(self, vis: "ZnDraw", **kwargs) -> None:
         atom_ids = vis.selection
         atom_positions = vis.atoms.get_positions()
@@ -67,9 +66,6 @@ class Connect(UpdateScene):
 
 class Rotate(UpdateScene):
     """Rotate the selected atoms around a the line (2 points only)."""
-
-    discriminator: t.Literal["Rotate"] = Field("Rotate")
-
     angle: float = Field(90, le=360, ge=0, description="Angle in degrees")
     direction: t.Literal["left", "right"] = Field(
         "left", description="Direction of rotation"
@@ -107,9 +103,6 @@ class Rotate(UpdateScene):
 
 class Delete(UpdateScene):
     """Delete the selected atoms."""
-
-    discriminator: t.Literal["Delete"] = Field("Delete")
-
     def run(self, vis: "ZnDraw", **kwargs) -> None:
         atom_ids = vis.selection
         atoms = vis.atoms
@@ -126,9 +119,6 @@ class Delete(UpdateScene):
 
 class Move(UpdateScene):
     """Move the selected atoms along the line."""
-
-    discriminator: t.Literal["Move"] = Field("Move")
-
     steps: int = Field(10, ge=1)
 
     def run(self, vis: "ZnDraw", **kwargs) -> None:
@@ -157,8 +147,6 @@ class Move(UpdateScene):
 
 
 class Duplicate(UpdateScene):
-    discriminator: t.Literal["Duplicate"] = Field("Duplicate")
-
     x: float = Field(0.5, le=5, ge=0)
     y: float = Field(0.5, le=5, ge=0)
     z: float = Field(0.5, le=5, ge=0)
@@ -180,8 +168,6 @@ class Duplicate(UpdateScene):
 
 
 class ChangeType(UpdateScene):
-    discriminator: t.Literal["ChangeType"] = Field("ChangeType")
-
     symbol: Symbols
 
     def run(self, vis: "ZnDraw", **kwargs) -> None:
@@ -197,8 +183,6 @@ class ChangeType(UpdateScene):
 
 
 class AddLineParticles(UpdateScene):
-    discriminator: t.Literal["AddLineParticles"] = Field("AddLineParticles")
-
     symbol: Symbols
     steps: int = Field(10, le=100, ge=1)
 
@@ -216,8 +200,6 @@ class AddLineParticles(UpdateScene):
 
 class Wrap(UpdateScene):
     """Wrap the atoms to the cell."""
-
-    discriminator: t.Literal["Wrap"] = Field("Wrap")
     recompute_bonds: bool = True
 
     def run(self, vis: "ZnDraw", **kwargs) -> None:
@@ -236,8 +218,6 @@ class Wrap(UpdateScene):
 
 class Center(UpdateScene):
     """Move the atoms, such that the selected atom is in the center of the cell."""
-
-    discriminator: t.Literal["Center"] = Field("Center")
     recompute_bonds: bool = True
     dynamic: bool = Field(
         False, description="Move the atoms to the center of the cell at each step"
@@ -276,7 +256,6 @@ class Center(UpdateScene):
 
 
 class Replicate(UpdateScene):
-    discriminator: t.Literal["Replicate"] = Field("Replicate")
     x: int = Field(2, ge=1)
     y: int = Field(2, ge=1)
     z: int = Field(2, ge=1)
@@ -297,21 +276,41 @@ class Replicate(UpdateScene):
             vis[idx] = atoms
 
 
-# class CustomModifier(UpdateScene):
-#     discriminator: t.Literal["CustomModifier"] = Field("CustomModifier")
 
-#     methods: t.Union[None, AddLineParticles, Rotate, Explode, Delete] = None
+
+methods = t.Union[
+    Connect,
+    Rotate,
+    Delete,
+    Move,
+    Duplicate,
+    ChangeType,
+    AddLineParticles,
+    Wrap,
+    Center,
+    Replicate,
+]
+
+
+class Modifier(UpdateScene):
+    method: methods = Field(
+        ..., description="Modify method", discriminator="discriminator"
+    )
+
+    # model_config = ConfigDict(json_schema_extra=None)  # disable method hiding
+
+    def run(self, vis, **kwargs) -> None:
+        self.method.run(vis, **kwargs)
+
+    @classmethod
+    def updated_schema(cls) -> dict:
+        schema = cls.model_json_schema()
+        for prop in [x.__name__ for x in t.get_args(methods)]:
+            schema["$defs"][prop]["properties"]["discriminator"]["options"] = {
+                "hidden": True
+            }
+        return schema
 
 
 def get_modify_class(methods):
-    class Modifier(UpdateScene):
-        method: t.Union[tuple(methods)] = Field(
-            ..., description="Modify method", discriminator="discriminator"
-        )
-
-        model_config = ConfigDict(json_schema_extra=None)  # disable method hiding
-
-        def run(self, vis, **kwargs) -> None:
-            self.method.run(vis, **kwargs)
-
     return Modifier
