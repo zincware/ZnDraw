@@ -22,12 +22,26 @@ log = logging.getLogger(__name__)
 @io.on("connect")
 def connect():
     try:
-        token = str(session["token"])
-        join_room(f"{token}")
-        log.critical(f"connecting (webclient) {request.sid} with token {token}")
+        room = str(session["token"])
+        join_room(room)
+        log.critical(f"connecting (webclient) {request.sid} to room {room}")
+        
+        r = current_app.config["redis"]
+        r.sadd(f"room:{room}:webclients", session["name"])
+
+        emit("room:users:refresh", list(r.smembers(f"room:{room}:webclients")), to=room)
+
     except KeyError:
         log.critical(f"connecting (pyclient) {request.sid}")
 
+@io.on("disconnect")
+def disconnect():
+    if "name" in session:
+        room = str(session["token"])
+        log.critical(f"disconnecting (webclient) {request.sid} from room {room}")
+        r = current_app.config["redis"]
+        r.srem(f"room:{room}:webclients", session["name"])
+        emit("room:users:refresh", list(r.smembers(f"room:{room}:webclients")), to=room)
 
 @io.on("join")
 def join(data: dict):
@@ -45,8 +59,6 @@ def join(data: dict):
         )
     token = data["token"]
     session["token"] = token
-
-    # TODO: push events come later because they are only required for e.g. analysis, modifiers, ...
 
     join_room(f"{token}")
     # join_room(f"pyclients_{token}")

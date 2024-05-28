@@ -244,7 +244,7 @@ function setupConnectedUsers(socket) {
 
   let name;
 
-  socket.on("connectedUsers", (data) => {
+  socket.on("room:users:refresh", (data) => {
     // remove all rows except the first one (header)
     const rows = dropdown.querySelectorAll(".row");
 
@@ -259,9 +259,9 @@ function setupConnectedUsers(socket) {
         row.remove();
       }
     });
-    data.forEach((user, idx) => {
+    data.forEach((username, idx) => {
       if (name === undefined) {
-        name = user.name;
+        name = username;
       }
       const row = document.createElement("div");
       row.classList.add("row");
@@ -273,7 +273,7 @@ function setupConnectedUsers(socket) {
       btn.classList.add("btn");
       btn.classList.add("btn-outline-secondary");
       btn.disabled = true;
-      btn.innerHTML = user.name;
+      btn.innerHTML = username;
       col1.appendChild(btn);
       row.appendChild(col1);
 
@@ -285,26 +285,26 @@ function setupConnectedUsers(socket) {
       inputCamera.type = "radio";
       inputCamera.name = "sharedCamera";
       inputCamera.id = inputCamera.name + "-" + idx;
-      inputCamera.value = user.name;
+      inputCamera.value = username;
 
       inputCamera.addEventListener("change", () => {
         socket.emit("connectedUsers:subscribe:camera", {
-          user: user.name,
+          user: username,
         });
       });
 
       col3.appendChild(inputCamera);
       row.appendChild(col3);
 
-      if (user.name === name) {
+      if (username === name) {
         inputCamera.checked = true;
-        btn.innerHTML = user.name + " (you)";
+        btn.innerHTML = username + " (you)";
       }
-      if (user.name === cameraConnectedUser?.value) {
+      if (username === cameraConnectedUser?.value) {
         inputCamera.checked = true;
       }
 
-      entries.push({ name: user.name, row: row });
+      entries.push({ name: username, row: row });
     });
     // sort the entries such that the first is name==name
     entries.sort((a, b) => {

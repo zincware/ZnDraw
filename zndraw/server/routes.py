@@ -28,6 +28,8 @@ def index():
     except KeyError:
         token = uuid.uuid4().hex[:8] if current_app.config["USE_TOKEN"] else "main"
         session["token"] = token
+    
+    session["name"] = uuid.uuid4().hex[:8]
 
     return render_template(
         "index.jinja2",
