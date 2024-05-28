@@ -1,9 +1,6 @@
 import logging
 
 import ase.io
-import numpy as np
-import pandas as pd
-import plotly.express as px
 import tqdm
 import znframe
 from celery import shared_task
@@ -36,6 +33,7 @@ def read_file(data: dict) -> None:
 def run_modifier(url, room, data: dict) -> None:
     from zndraw import ZnDraw
     from zndraw.modify import Modifier
+
     # cls = get_cls_from_json_schema(modifier["schema"], modifier["name"])
     vis = ZnDraw(url=url, token=room)
     vis.socket.emit("modifier:run:running")
@@ -43,8 +41,8 @@ def run_modifier(url, room, data: dict) -> None:
         modifier = Modifier(**data)
         modifier.run(vis)
     finally:
-    # vis[list(range(10))] = [ase.build.molecule("H2O") for _ in range(10)]
-    # TODO: why is everything after 10 configuration removed?
+        # vis[list(range(10))] = [ase.build.molecule("H2O") for _ in range(10)]
+        # TODO: why is everything after 10 configuration removed?
         vis.socket.emit("modifier:run:finished")
 
     # 1. run modifier and update redis

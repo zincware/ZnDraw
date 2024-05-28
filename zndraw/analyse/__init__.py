@@ -5,11 +5,9 @@ import typing as t
 import numpy as np
 import pandas as pd
 import plotly.express as px
-from pydantic import BaseModel, ConfigDict, Field
-from flask import current_app, session
+from pydantic import ConfigDict, Field
 
 from zndraw.base import Extension, MethodsCollection
-from zndraw.utils import SHARED, set_global_atoms
 
 try:
     from zndraw.analyse import mda  # noqa: F401
@@ -209,4 +207,3 @@ class Analysis(MethodsCollection):
     method: methods = Field(
         ..., description="Analysis method", discriminator="discriminator"
     )
-

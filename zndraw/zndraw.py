@@ -60,7 +60,7 @@ class ZnDraw:
         data = {i: znframe.Frame.from_atoms(x).to_json() for i, x in zip(index, value)}
 
         self.socket.emit("room:frames:set", data)
-    
+
     def __len__(self) -> int:
         return int(self.socket.call("room:length:get"))
 

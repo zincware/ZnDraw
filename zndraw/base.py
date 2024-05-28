@@ -3,16 +3,15 @@ import logging
 import typing as t
 from abc import abstractmethod
 from collections.abc import MutableSequence
+
 import ase
-from flask import current_app, session
-from redis import Redis
-import znframe
-
-
 import numpy as np
 import socketio
 import splines
+import znframe
+from flask import current_app, session
 from pydantic import BaseModel, Field, create_model
+from redis import Redis
 
 from zndraw.data import CeleryTaskData
 
@@ -30,7 +29,7 @@ class Extension(BaseModel):
 
     def run(self, vis, **kwargs) -> None:
         raise NotImplementedError("run method must be implemented in subclass")
-    
+
     @staticmethod
     def get_atoms() -> ase.Atoms:
         """Get the ase atoms object at the current position in the room"""
