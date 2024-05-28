@@ -49,6 +49,8 @@ class RedisList(MutableSequence):
         if isinstance(index, slice):
             index = list(range(*index.indices(len(self))))
         
+        index = [int(i) for i in index]
+        
         if len(index) != len(value):
             raise ValueError(f"attempt to assign sequence of size {len(value)} to extended slice of size {len(index)}")
         
@@ -75,7 +77,7 @@ class RedisList(MutableSequence):
             self.redis.linsert(self.key, 'BEFORE', pivot, value)
     
     def __iter__(self):
-        return (item.decode('utf-8') for item in self.redis.lrange(self.key, 0, -1))
+        return (item for item in self.redis.lrange(self.key, 0, -1))
 
     def __repr__(self):
         return f"RedisList({self.redis.lrange(self.key, 0, -1)})"

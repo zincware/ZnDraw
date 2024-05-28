@@ -64,11 +64,15 @@ class ZnDraw(ZnDrawBase):
         structures = [znframe.Frame(**x).to_atoms() for x in data.values()]
         return structures[0] if single_item else structures
 
-    def __setitem__(self, index: list[int], value: list[ase.Atoms]):
-        # TODO: send in chunks
-        data = {i: znframe.Frame.from_atoms(x).to_json() for i, x in zip(index, value)}
+    def __setitem__(self, index: int|list[int], value: ase.Atoms|list[ase.Atoms]):
+        if isinstance(index, int):
+             data = {index: znframe.Frame.from_atoms(value).to_json()}
+        else:
+            data = {i: znframe.Frame.from_atoms(val).to_json() for i, val in zip(index, value)}
 
         self.socket.emit("room:frames:set", data)
+
+       
 
     def __len__(self) -> int:
         return int(self.socket.call("room:length:get"))
@@ -78,10 +82,10 @@ class ZnDraw(ZnDrawBase):
             index = [index]
         if isinstance(index, slice):
             index = list(range(*index.indices(len(self))))
-        self.socket.emit("room:frames:set", {i: None for i in index})
+        self.socket.emit("room:frames:delete", index)
     
     def insert(self, index: int, value: ase.Atoms):
-        self.socket.emit("room:frames:insert", {index: znframe.Frame.from_atoms(value).to_json()})
+        self.socket.emit("room:frames:insert", index, znframe.Frame.from_atoms(value).to_json())
 
     @property
     def selection(self) -> list[int]:

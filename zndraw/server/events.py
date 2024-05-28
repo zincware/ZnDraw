@@ -105,44 +105,48 @@ def room_frames_get(frames: list[int]) -> dict[int, dict]:
         data = RedisList(r, f"room:{room}:frames")[frames]
 
     else:
-        data = RedisList(r, "room:default:frames")[frames]
+        try:
+            data = RedisList(r, "room:default:frames")[frames]
+        except IndexError:
+            data = []
     
     return {idx: json.loads(d) for idx, d in zip(frames, data) if d is not None}
 
 @io.on("room:frames:set")
-def room_frames_set(data: dict[str, str]):
+def room_frames_set(data: dict[int, str]):
     r: Redis = current_app.config["redis"]
     room = session.get("token")
     
     # add = {}
     # remove = []
     lst = RedisList(r, f"room:{room}:frames")
-    for frame, d in data.items():
-        if d is None:
-            # TODO: The order might get messed up if delete / insert are mixed
-            del lst[frame]
-        else:
-            lst[int(frame)] = json.dumps(d)
-    
-    # if len(add):
-    #     for frame, d in add.items():
-    #         r.lset(f"room:{room}:frames", frame, json.dumps(d))
-    # if len(remove):
-    #     # r.hdel(f"room:{room}:frames", *remove)
-    #     for frame in remove:
-    #         r.lset(f"room:{room}:frames", frame, "DELETED")
-    #     r.lrem(f"room:{room}:frames", 0, "DELETED")
+
+    if not r.exists(f"room:{room}:frames"):
+        default_lst = RedisList(r, "room:default:frames")
+        # TODO: using a redis copy action would be faster
+        lst.extend(default_lst)
+
+    lst[list(data)] = [d for d in data.values()]
 
     emit("room:frames:refresh", list(data), to=room)
 
-
-@io.on("room:frames:insert")
-def room_frames_insert(data: dict[str, str]):
+@io.on("room:frames:delete")
+def room_frames_delete(frames: list[int]):
     r: Redis = current_app.config["redis"]
     room = session.get("token")
-    for frame, d in data.items():
-        print(f"inserting frame {frame}")
-        success = r.linsert(f"room:{room}:frames", "BEFORE", int(frame), json.dumps(d))
+    lst = RedisList(r, f"room:{room}:frames")
+    del lst[frames]
+    # TODO what to update here?
+    # emit("room:frames:refresh", frames, to=room)
+
+
+@io.on("room:frames:insert")
+def room_frames_insert(index: int, value: str):
+    r: Redis = current_app.config["redis"]
+    room = session.get("token")
+    
+    lst = RedisList(r, f"room:{room}:frames")
+    lst.insert(index, value)
             
     # not sure how to update, insert requires everything to be updated after the insertion
     # can be done custom on the client side to avoid resending everything
