@@ -1,10 +1,8 @@
-
 import json
 import logging
 
 from flask import current_app, request, session
 from flask_socketio import emit, join_room
-
 from redis import Redis
 
 from zndraw.analyse import Analysis
@@ -19,7 +17,6 @@ from ..app import socketio as io
 from ..tasks import run_analysis, run_modifier, run_selection
 
 log = logging.getLogger(__name__)
-
 
 
 @io.on("connect")

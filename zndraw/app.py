@@ -1,6 +1,5 @@
 import dataclasses
 import os
-import pathlib
 import platform
 import subprocess
 import uuid
@@ -10,6 +9,7 @@ from celery import Celery, Task
 from flask import Flask
 from flask_socketio import SocketIO
 from redis import Redis
+
 from zndraw.settings import CeleryFileSystemConfig
 
 from .base import FileIO

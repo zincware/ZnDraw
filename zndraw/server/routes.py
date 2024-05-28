@@ -3,7 +3,6 @@ import uuid
 
 from flask import current_app, redirect, render_template, request, session
 
-
 from . import main
 
 log = logging.getLogger(__name__)
@@ -83,4 +82,3 @@ def file(file: str):
     proc.start()
 
     return redirect(url)
-
