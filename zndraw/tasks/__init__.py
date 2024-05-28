@@ -13,9 +13,14 @@ log = logging.getLogger(__name__)
 
 
 @shared_task
-def read_file(fileio: dict, io_port: int) -> None:
+def read_file(fileio: dict, io_port: int, storage: str) -> None:
     file_io = FileIO(**fileio)
-    r = Redis(host="localhost", port=6379, db=0, decode_responses=True)
+    # r = Redis(host="localhost", port=6379, db=0, decode_responses=True)
+
+    if storage.startswith("redis"):
+        r = Redis.from_url(storage, decode_responses=True)
+    elif storage.startswith("znsocket"):
+        raise NotImplementedError
 
     io = SimpleClient()
 

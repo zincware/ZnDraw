@@ -147,6 +147,7 @@ class ZnDrawServer:
     compute_bonds: bool
     tutorial: str
     auth_token: str
+    storage: str
     port: int = 1234
     fileio: FileIO = None
     simgen: bool = False
@@ -174,9 +175,19 @@ class ZnDrawServer:
     def update_cache(self):
         self.app.config["SECRET_KEY"] = str(uuid.uuid4())
 
-        self.app.config["redis"] = Redis(
-            host="localhost", port=6379, db=0, decode_responses=True
-        )
+        if self.storage.startswith("redis"):
+            self.app.config["redis"] = Redis.from_url(self.storage, decode_responses=True)
+        elif self.storage.startswith("znsocket"):
+            import znsocket
+
+            self.app.config["redis"] = znsocket.Client.from_url(self.storage)
+
+        # self.app.config["redis"] = Redis(
+        #     host="localhost", port=6379, db=0, decode_responses=True
+        # )
+        # self.app.config["redis"] = znsocket.Client(
+        #     address="http://127.0.0.1:5000"
+        # )
 
         self.app.config["TUTORIAL"] = self.tutorial
         self.app.config["AUTH_TOKEN"] = self.auth_token
@@ -207,7 +218,7 @@ class ZnDrawServer:
         self.update_cache()
         self.write_modifiers()
 
-        read_file.delay(fileio=self.fileio.to_dict(), io_port=self.port)
+        read_file.delay(fileio=self.fileio.to_dict(), io_port=self.port, storage=self.storage)
 
         if self.celery_worker:
             self._workers = setup_worker()
