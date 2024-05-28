@@ -9,12 +9,13 @@ import socketio
 import znframe
 
 from zndraw.modify import UpdateScene
+from zndraw.base import ZnDrawBase
 
 log = logging.getLogger(__name__)
 
 
 @dataclasses.dataclass
-class ZnDraw:
+class ZnDraw(ZnDrawBase):
     url: str
     token: str | None = None
     auth_token: str | None = None
@@ -50,6 +51,14 @@ class ZnDraw:
         single_item = isinstance(index, int)
         if single_item:
             index = [index]
+        
+        if isinstance(index, slice):
+            index = list(range(*index.indices(len(self))))
+        
+        if any(x < 0 for x in index):
+            raise IndexError("Index must be positive")
+        if any(x >= len(self) for x in index):
+            raise IndexError("Index out of range")
 
         data: dict = self.socket.call("room:frames:get", index)
         structures = [znframe.Frame(**x).to_atoms() for x in data.values()]
@@ -63,6 +72,12 @@ class ZnDraw:
 
     def __len__(self) -> int:
         return int(self.socket.call("room:length:get"))
+    
+    def __delitem__(self, index: int | slice | list[int]):
+        raise NotImplementedError("Deletion of atoms is not supported")
+    
+    def insert(self, index: int, value: ase.Atoms):
+        raise NotImplementedError("Insertion of atoms is not supported")
 
     @property
     def selection(self) -> list[int]:
@@ -113,6 +128,23 @@ class ZnDraw:
     @points.setter
     def points(self, points: np.ndarray) -> None:
         self.socket.emit("room:points:set", {"0": np.array(points).tolist()})
+
+    @property
+    def bookmarks(self) -> dict:
+        return json.loads(self.socket.call("room:bookmarks:get"))
+    
+    @bookmarks.setter
+    def bookmarks(self, value: dict):
+        self.socket.emit("room:bookmarks:set", value)
+
+    @property
+    def camera(self) -> dict:
+        return json.loads(self.socket.call("room:camera:get"))
+    
+    @camera.setter
+    def camera(self, value: dict):
+        self.socket.emit("room:camera:set", value)
+    
 
     def register_modifier(
         self,

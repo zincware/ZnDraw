@@ -132,6 +132,28 @@ def room_frames_set(data: dict[str, str]):
 
     emit("room:frames:refresh", list(data), to=room)
 
+@io.on("room:frames:delete")
+def room_frames_delete(frames: list[int]):
+    pass # TODO!
+    # r: Redis = current_app.config["redis"]
+    # room = session.get("token")
+    # # check if f"room:{room}:frames" exists
+    # if not r.exists(f"room:{room}:frames"):
+    #     for frame in frames:
+    #         r.hdel("room:default:frames", f"{frame}")
+    # else:
+    #     for frame in frames:
+    #         r.hdel(f"room:{room}:frames", f"{frame}")
+
+    # emit("room:frames:refresh", frames, to=room)
+
+@io.on("room:frames:insert")
+def room_frames_insert(data: dict[str, str]):
+    r: Redis = current_app.config["redis"]
+    room = session.get("token")
+    # pass
+    
+
 
 @io.on("room:length:get")
 def room_frames_length_get() -> int:
@@ -406,6 +428,38 @@ def room_points_get() -> dict[str, list[list]]:
     r: Redis = current_app.config["redis"]
     room = session.get("token")
     return r.hgetall(f"room:{room}:points")
+
+@io.on("room:bookmarks:set")
+def room_bookmarks_set(data: dict):
+    r: Redis = current_app.config["redis"]
+    room = session.get("token")
+    r.hmset(f"room:{room}:bookmarks", data)
+    emit("room:bookmarks:set", data, to=room)
+
+
+@io.on("room:bookmarks:get")
+def room_bookmarks_get() -> dict:
+    r: Redis = current_app.config["redis"]
+    room = session.get("token")
+    return r.hgetall(f"room:{room}:bookmarks")
+
+
+@io.on("room:camera:set")
+def room_camera_set(data: dict):
+    r: Redis = current_app.config["redis"]
+    room = session.get("token")
+    r.set(f"room:{room}:camera", json.dumps(data))
+    emit("room:camera:set", data, to=room)
+
+@io.on("room:camera:get")
+def room_camera_get() -> dict:
+    r: Redis = current_app.config["redis"]
+    room = session.get("token")
+    return json.loads(r.get(f"room:{room}:camera"))
+
+
+
+
 
     # check if f"room:{room}:frames" exists
     # if not r.exists(f"room:{room}:frames"):
