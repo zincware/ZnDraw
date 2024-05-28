@@ -54,9 +54,11 @@ def run_selection(url, room, data: dict) -> None:
 
     vis = ZnDraw(url=url, token=room)
     vis.socket.emit("selection:run:running")
-    selection = Selection(**data)
-    selection.run(vis)
-    vis.socket.emit("selection:run:finished")
+    try:
+        selection = Selection(**data)
+        selection.run(vis)
+    finally:
+        vis.socket.emit("selection:run:finished")
 
 
 @shared_task
@@ -67,14 +69,15 @@ def run_analysis(url, room, data: dict) -> None:
 
     vis = ZnDraw(url=url, token=room)
     vis.socket.emit("analysis:run:running")
+    try:
 
-    current_time = int(time.time())
+        current_time = int(time.time())
 
-    # Seed the random number generator with the current time
-    np.random.seed(current_time)
+        # Seed the random number generator with the current time
+        np.random.seed(current_time)
 
-    df = pd.DataFrame({"step": list(range(100)), "dihedral": np.random.random(100)})
-    fig = px.line(df, x="step", y="dihedral", render_mode="svg")
-    vis.figure = fig.to_json()
-
-    vis.socket.emit("analysis:run:finished")
+        df = pd.DataFrame({"step": list(range(100)), "dihedral": np.random.random(100)})
+        fig = px.line(df, x="step", y="dihedral", render_mode="svg")
+        vis.figure = fig.to_json()
+    finally:
+        vis.socket.emit("analysis:run:finished")
