@@ -32,7 +32,7 @@ class Player {
   constructor(world, cache, socket, bookmarks) {
     this.world = world;
     this.playing = false;
-    this.fps = 60;
+    this.fps = 30;
     this.cache = cache;
     this.loop = false;
     this.bookmarks = bookmarks;
