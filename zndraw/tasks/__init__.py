@@ -5,6 +5,7 @@ import tqdm
 import znframe
 from celery import shared_task
 from redis import Redis
+from socketio import SimpleClient
 
 from zndraw.base import FileIO, RedisList
 
@@ -12,9 +13,12 @@ log = logging.getLogger(__name__)
 
 
 @shared_task
-def read_file(data: dict) -> None:
-    file_io = FileIO(**data)
+def read_file(fileio: dict, io_port: int) -> None:
+    file_io = FileIO(**fileio)
     r = Redis(host="localhost", port=6379, db=0, decode_responses=True)
+
+    io = SimpleClient()
+    
     # r = znsocket.Client("http://127.0.0.1:5000")
 
     # TODO: make everyone join room main
@@ -31,6 +35,9 @@ def read_file(data: dict) -> None:
         # r.hset("room:default:frames", f"{i}", frame.to_json())
         # r.rpush("room:default:frames", frame.to_json())
         lst.append(frame.to_json())
+        if i  == 0:
+            io.connect(f"http://127.0.0.1:{io_port}")
+            io.emit("room:all:frames:refresh", [0])
 
 
 @shared_task

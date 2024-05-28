@@ -131,6 +131,10 @@ def room_frames_set(data: dict[int, str]):
 
     emit("room:frames:refresh", list(data), to=room)
 
+@io.on("room:all:frames:refresh")
+def room_all_frames_refresh(indices: list[int]):
+    emit("room:frames:refresh", indices, broadcast=True)
+
 
 @io.on("room:frames:delete")
 def room_frames_delete(frames: list[int]):

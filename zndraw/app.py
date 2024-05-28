@@ -207,7 +207,7 @@ class ZnDrawServer:
         self.update_cache()
         self.write_modifiers()
 
-        read_file.delay(data=self.fileio.to_dict())
+        read_file.delay(fileio=self.fileio.to_dict(), io_port=self.port)
 
         if self.celery_worker:
             self._workers = setup_worker()
