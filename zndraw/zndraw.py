@@ -60,6 +60,9 @@ class ZnDraw:
         data = {i: znframe.Frame.from_atoms(x).to_json() for i, x in zip(index, value)}
 
         self.socket.emit("room:frames:set", data)
+    
+    def __len__(self) -> int:
+        return int(self.socket.call("room:length:get"))
 
     @property
     def selection(self) -> list[int]:
@@ -73,6 +76,9 @@ class ZnDraw:
     @property
     def step(self) -> int:
         return int(self.socket.call("room:step:get"))
+
+    def log(self, message: str) -> None:
+        self.socket.emit("message:log", message)
 
     @step.setter
     def step(self, value: int):

@@ -34,20 +34,18 @@ def read_file(data: dict) -> None:
 
 @shared_task
 def run_modifier(url, room, data: dict) -> None:
-    import ase.build
-
     from zndraw import ZnDraw
-
-    # from zndraw.modify import get_cls_from_json_schema
-
-    # from zndraw.utils import get_cls_from_json_schema
-
+    from zndraw.modify import Modifier
     # cls = get_cls_from_json_schema(modifier["schema"], modifier["name"])
     vis = ZnDraw(url=url, token=room)
     vis.socket.emit("modifier:run:running")
-    vis[list(range(10))] = [ase.build.molecule("H2O") for _ in range(10)]
+    try:
+        modifier = Modifier(**data)
+        modifier.run(vis)
+    finally:
+    # vis[list(range(10))] = [ase.build.molecule("H2O") for _ in range(10)]
     # TODO: why is everything after 10 configuration removed?
-    vis.socket.emit("modifier:run:finished")
+        vis.socket.emit("modifier:run:finished")
 
     # 1. run modifier and update redis
     # 2. use to update frames in real time "room:frames:refresh"
@@ -69,20 +67,13 @@ def run_selection(url, room, data: dict) -> None:
 
 @shared_task
 def run_analysis(url, room, data: dict) -> None:
-    import time
-
     from zndraw import ZnDraw
+    from zndraw.analyse import Analysis
 
     vis = ZnDraw(url=url, token=room)
     vis.socket.emit("analysis:run:running")
     try:
-        current_time = int(time.time())
-
-        # Seed the random number generator with the current time
-        np.random.seed(current_time)
-
-        df = pd.DataFrame({"step": list(range(100)), "dihedral": np.random.random(100)})
-        fig = px.line(df, x="step", y="dihedral", render_mode="svg")
-        vis.figure = fig.to_json()
+        analysis = Analysis(**data)
+        analysis.run(vis)
     finally:
         vis.socket.emit("analysis:run:finished")
