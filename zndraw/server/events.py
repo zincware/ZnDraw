@@ -147,8 +147,8 @@ def room_frames_delete(frames: list[int]):
         # TODO: using a redis copy action would be faster
         lst.extend(default_lst)
     del lst[frames]
-    # TODO what to update here?
-    # emit("room:frames:refresh", frames, to=room)
+    # TODO how to update here?
+    emit("room:frames:refresh", frames, to=room)
 
 
 @io.on("room:frames:insert")
@@ -167,7 +167,7 @@ def room_frames_insert(data: dict):
 
     # not sure how to update, insert requires everything to be updated after the insertion
     # can be done custom on the client side to avoid resending everything
-    # emit("room:frames:refresh", list(data), to=room)
+    emit("room:frames:refresh", list(data), to=room)
 
 
 @io.on("room:length:get")
