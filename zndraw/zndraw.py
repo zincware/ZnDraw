@@ -74,10 +74,14 @@ class ZnDraw(ZnDrawBase):
         return int(self.socket.call("room:length:get"))
     
     def __delitem__(self, index: int | slice | list[int]):
-        raise NotImplementedError("Deletion of atoms is not supported")
+        if isinstance(index, int):
+            index = [index]
+        if isinstance(index, slice):
+            index = list(range(*index.indices(len(self))))
+        self.socket.emit("room:frames:set", {i: None for i in index})
     
     def insert(self, index: int, value: ase.Atoms):
-        raise NotImplementedError("Insertion of atoms is not supported")
+        self.socket.emit("room:frames:insert", {index: znframe.Frame.from_atoms(value).to_json()})
 
     @property
     def selection(self) -> list[int]:

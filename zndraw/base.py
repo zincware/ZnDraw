@@ -16,6 +16,70 @@ from redis import Redis
 log = logging.getLogger(__name__)
 
 
+class RedisList(MutableSequence):
+    def __init__(self, redis: Redis, key: str):
+        self.redis = redis
+        self.key = key
+    
+    def __len__(self) -> int:
+        return int(self.redis.llen(self.key))
+    
+    def __getitem__(self, index: int|list|slice):
+        single_item = isinstance(index, int)
+        if single_item:
+            index = [index]
+        if isinstance(index, slice):
+            index = list(range(*index.indices(len(self))))
+
+        items = []
+        for i in index:
+            item = self.redis.lindex(self.key, i)
+            if item is None:
+                raise IndexError("list index out of range")
+            items.append(item)
+        return items[0] if single_item else items
+    
+    def __setitem__(self, index: int|list|slice, value: str|list[str]):
+        single_item = isinstance(index, int)
+        if single_item:
+            index = [index]
+            assert isinstance(value, str), "single index requires single value"
+            value = [value]
+        
+        if isinstance(index, slice):
+            index = list(range(*index.indices(len(self))))
+        
+        if len(index) != len(value):
+            raise ValueError(f"attempt to assign sequence of size {len(value)} to extended slice of size {len(index)}")
+        
+        for i, v in zip(index, value):
+            # TODO: this prohibits appending to the list, right?
+            if i >= self.__len__() or i < -self.__len__():
+                raise IndexError("list index out of range")
+            self.redis.lset(self.key, i, v)
+    
+    def __delitem__(self, index):
+        current_list = self.redis.lrange(self.key, 0, -1)
+        if index >= len(current_list) or index < -len(current_list):
+            raise IndexError("list index out of range")
+        self.redis.lset(self.key, index, "__DELETED__")
+        self.redis.lrem(self.key, 1, "__DELETED__")
+    
+    def insert(self, index, value):
+        if index >= self.__len__():
+            self.redis.rpush(self.key, value)
+        elif index == 0:
+            self.redis.lpush(self.key, value)
+        else:
+            pivot = self.redis.lindex(self.key, index)
+            self.redis.linsert(self.key, 'BEFORE', pivot, value)
+    
+    def __iter__(self):
+        return (item.decode('utf-8') for item in self.redis.lrange(self.key, 0, -1))
+
+    def __repr__(self):
+        return f"RedisList({self.redis.lrange(self.key, 0, -1)})"
+
 class Extension(BaseModel):
     # TODO: can I hide the discriminator field in the model json schema automatically here?
     @classmethod
@@ -34,7 +98,7 @@ class Extension(BaseModel):
         room = session["token"]
         r: Redis = current_app.config["redis"]
         step = r.get(f"room:{room}:step")
-        frame_json = r.hget(f"room:{room}:frames", f"{step}")
+        frame_json = r.lindex(f"room:{room}:frames", int(step))
         if frame_json is None:
             # probably default room
             frame_json = r.hget("room:default:frames", f"{step}")

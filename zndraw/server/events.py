@@ -23,6 +23,7 @@ from zndraw.modify import Modifier
 from zndraw.scene import Scene
 from zndraw.select import Selection
 from zndraw.utils import get_cls_from_json_schema
+from zndraw.base import RedisList
 
 from ..app import socketio as io
 from ..tasks import run_analysis, run_modifier, run_selection
@@ -65,11 +66,6 @@ def connect():
         token = str(session["token"])
         join_room(f"{token}")
         log.critical(f"connecting (webclient) {request.sid} with token {token}")
-        r: Redis = current_app.config["redis"]
-        # get all keys in "room:0:frames"
-        # TODO: handle default / room exists
-        keys = r.hkeys("room:default:frames")
-        emit("room:size", len(keys))
     except KeyError:
         log.critical(f"connecting (pyclient) {request.sid}")
 
@@ -80,6 +76,8 @@ def join(data: dict):
     Arguments:
         data: {"token": str, "auth_token": str}
     """
+    # TODO: prohibt "token" to be "default"
+
     if current_app.config["AUTH_TOKEN"] is None:
         session["authenticated"] = True
     else:
@@ -102,56 +100,53 @@ def room_frames_get(frames: list[int]) -> dict[int, dict]:
         return {}
     r: Redis = current_app.config["redis"]
     room = session.get("token")
-    # check if f"room:{room}:frames" exists
 
-    if not r.exists(f"room:{room}:frames"):
-        data = r.hmget("room:default:frames", [f"{frame}" for frame in frames])
+    if r.exists(f"room:{room}:frames"):
+        data = RedisList(r, f"room:{room}:frames")[frames]
+
     else:
-        # TODO can use this, but if a frame is removed it must be marked here
-        data = r.hmget(f"room:{room}:frames", [f"{frame}" for frame in frames])
-
-    response = {}
-    for frame, d in zip(frames, data):
-        try:
-            response[frame] = json.loads(d)
-        except TypeError:
-            # some data might be None
-            response[frame] = None
-    return response
-
+        data = RedisList(r, "room:default:frames")[frames]
+    
+    return {idx: json.loads(d) for idx, d in zip(frames, data) if d is not None}
 
 @io.on("room:frames:set")
 def room_frames_set(data: dict[str, str]):
     r: Redis = current_app.config["redis"]
     room = session.get("token")
-    # check if f"room:{room}:frames" exists
-    if not r.exists(f"room:{room}:frames"):
-        r.hmset(f"room:{room}:frames", data)
-    else:
-        raise NotImplementedError("room data not implemented yet")
+    
+    # add = {}
+    # remove = []
+    lst = RedisList(r, f"room:{room}:frames")
+    for frame, d in data.items():
+        if d is None:
+            # TODO: The order might get messed up if delete / insert are mixed
+            del lst[frame]
+        else:
+            lst[int(frame)] = json.dumps(d)
+    
+    # if len(add):
+    #     for frame, d in add.items():
+    #         r.lset(f"room:{room}:frames", frame, json.dumps(d))
+    # if len(remove):
+    #     # r.hdel(f"room:{room}:frames", *remove)
+    #     for frame in remove:
+    #         r.lset(f"room:{room}:frames", frame, "DELETED")
+    #     r.lrem(f"room:{room}:frames", 0, "DELETED")
 
     emit("room:frames:refresh", list(data), to=room)
 
-@io.on("room:frames:delete")
-def room_frames_delete(frames: list[int]):
-    pass # TODO!
-    # r: Redis = current_app.config["redis"]
-    # room = session.get("token")
-    # # check if f"room:{room}:frames" exists
-    # if not r.exists(f"room:{room}:frames"):
-    #     for frame in frames:
-    #         r.hdel("room:default:frames", f"{frame}")
-    # else:
-    #     for frame in frames:
-    #         r.hdel(f"room:{room}:frames", f"{frame}")
-
-    # emit("room:frames:refresh", frames, to=room)
 
 @io.on("room:frames:insert")
 def room_frames_insert(data: dict[str, str]):
     r: Redis = current_app.config["redis"]
     room = session.get("token")
-    # pass
+    for frame, d in data.items():
+        print(f"inserting frame {frame}")
+        success = r.linsert(f"room:{room}:frames", "BEFORE", int(frame), json.dumps(d))
+            
+    # not sure how to update, insert requires everything to be updated after the insertion
+    # can be done custom on the client side to avoid resending everything
+    # emit("room:frames:refresh", list(data), to=room)
     
 
 
@@ -164,9 +159,7 @@ def room_frames_length_get() -> int:
         if r.exists(f"room:{room}:frames")
         else "room:default:frames"
     )
-    keys: list[str] = r.hkeys(room_key)
-    # print(f"room_key: {room_key} keys: {keys}")
-    return len(keys)
+    return r.llen(room_key)
 
 
 @io.on("modifier:register")

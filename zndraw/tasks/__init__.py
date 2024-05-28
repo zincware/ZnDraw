@@ -6,7 +6,7 @@ import znframe
 from celery import shared_task
 from redis import Redis
 
-from zndraw.base import FileIO
+from zndraw.base import FileIO, RedisList
 
 log = logging.getLogger(__name__)
 
@@ -22,11 +22,15 @@ def read_file(data: dict) -> None:
     # chain this with compute_bonds. So this will load much faster
     r.delete("room:default:frames")
 
+    lst = RedisList(r, "room:default:frames")
+
     for i, atoms in tqdm.tqdm(enumerate(ase.io.iread(file_io.name))):
         if file_io.stop is not None and i >= file_io.stop:
             break
         frame = znframe.Frame.from_atoms(atoms)
-        r.hset("room:default:frames", f"{i}", frame.to_json())
+        # r.hset("room:default:frames", f"{i}", frame.to_json())
+        # r.rpush("room:default:frames", frame.to_json())
+        lst.append(frame.to_json())
 
 
 @shared_task
