@@ -3,7 +3,6 @@ import uuid
 
 from flask import current_app, redirect, render_template, request, session
 
-from zndraw.server import tasks
 
 from . import main
 
@@ -85,9 +84,3 @@ def file(file: str):
 
     return redirect(url)
 
-
-@main.route("/db/clear")
-def clear_db():
-    """Clear the database."""
-    tasks.remove_empty_rooms.delay()
-    return "Database cleared"
