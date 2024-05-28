@@ -191,17 +191,18 @@ class ZnDrawServer:
         self.app.config["FileIO"] = self.fileio.to_dict() if self.fileio else {}
 
     def write_modifiers(self):
-        config = GlobalConfig.load()
-        classes: list = config.get_modify_methods()
+        pass
+        # config = GlobalConfig.load()
+        # classes: list = config.get_modify_methods()
 
-        r = self.app.config["redis"]
-        for cls in classes:
-            data = {
-                "schema": cls.model_json_schema(),
-                "name": cls.__name__,
-                "timeout": 9999999,
-            }
-            r.hset("room:default:modifiers", data["name"], json.dumps(data))
+        # r = self.app.config["redis"]
+        # for cls in classes:
+        #     data = {
+        #         "schema": cls.model_json_schema(),
+        #         "name": cls.__name__,
+        #         "timeout": 9999999,
+        #     }
+        #     r.hset("room:default:modifiers", data["name"], json.dumps(data))
 
     def run(self, browser=False):
         self.update_cache()

@@ -211,10 +211,7 @@ def modifier_schema():
         cls = get_cls_from_json_schema(modifier["schema"], modifier["name"])
         classes.append(cls)
 
-    # cls = get_modify_class(classes)
-    # schema = cls.model_json_schema()
-    # hide_discriminator_field(schema)
-    return Modifier.updated_schema()
+    return Modifier.updated_schema(extensions=classes)
 
 
 @io.on("draw:schema")

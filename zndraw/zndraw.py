@@ -8,8 +8,7 @@ import numpy as np
 import socketio
 import znframe
 
-from zndraw.base import ZnDrawBase
-from zndraw.modify import UpdateScene
+from zndraw.base import ZnDrawBase, Extension
 
 log = logging.getLogger(__name__)
 
@@ -158,8 +157,8 @@ class ZnDraw(ZnDrawBase):
 
     def register_modifier(
         self,
-        cls: t.Type[UpdateScene],
-        run_kwargs: dict = None,
+        cls: t.Type[Extension],
+        run_kwargs: dict|None = None,
         public: bool = False,
         timeout: float = 60,
         use_frozen: bool = True,

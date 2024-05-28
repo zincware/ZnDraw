@@ -106,12 +106,10 @@ class Extension(BaseModel):
         room = session["token"]
         r: Redis = current_app.config["redis"]
         step = r.get(f"room:{room}:step")
-        frame_json = r.lindex(f"room:{room}:frames", int(step))
-        if frame_json is None:
-            # probably default room
-            frame_json = r.hget("room:default:frames", f"{step}")
-        frame = znframe.Frame.from_json(frame_json)
-        return frame.to_atoms()
+        key = f"room:{room}:frames" if r.exists(f"room:{room}:frames") else "room:default:frames"
+        lst = RedisList(r, key)
+        frame_json = lst[int(step)]
+        return znframe.Frame.from_json(frame_json).to_atoms()
 
 
 class MethodsCollection(BaseModel):
@@ -125,7 +123,7 @@ class MethodsCollection(BaseModel):
     @classmethod
     def updated_schema(cls, extensions: list[t.Type[Extension]] | None = None) -> dict:
         methods = cls.__annotations__["method"]
-        if extensions is not None:
+        if extensions is not None and len(extensions) > 0:
             extensions_types = t.Union[tuple(extensions)]
             extended_methods = t.Union[methods, extensions_types]
         else:
@@ -145,7 +143,7 @@ class MethodsCollection(BaseModel):
             ),
         )
         schema = extended_cls.model_json_schema()
-        for prop in [x.__name__ for x in t.get_args(methods)]:
+        for prop in [x.__name__ for x in t.get_args(extended_methods)]:
             schema["$defs"][prop]["properties"]["discriminator"]["options"] = {
                 "hidden": True
             }
