@@ -301,6 +301,3 @@ class Modifier(MethodsCollection):
     method: methods = Field(
         ..., description="Modify method", discriminator="discriminator"
     )
-
-def get_modify_class(methods):
-    return Modifier

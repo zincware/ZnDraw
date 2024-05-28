@@ -8,6 +8,7 @@ import plotly.express as px
 from pydantic import BaseModel, ConfigDict, Field
 
 from zndraw.utils import SHARED, set_global_atoms
+from zndraw.base import MethodsCollection, Extension
 
 try:
     from zndraw.analyse import mda  # noqa: F401
@@ -23,8 +24,7 @@ def _schema_from_atoms(schema, cls):
     return cls.model_json_schema_from_atoms(schema)
 
 
-class DihedralAngle(BaseModel):
-    discriminator: t.Literal["DihedralAngle"] = Field("DihedralAngle")
+class DihedralAngle(Extension):
 
     def run(self, vis):
         atoms_lst = list(vis)
@@ -43,8 +43,7 @@ class DihedralAngle(BaseModel):
         vis.figure = fig.to_json()
 
 
-class Distance(BaseModel):
-    discriminator: t.Literal["Distance"] = Field("Distance")
+class Distance(Extension):
 
     smooth: bool = False
 
@@ -80,8 +79,7 @@ class Distance(BaseModel):
         vis.figure = fig.to_json()
 
 
-class Properties2D(BaseModel):
-    discriminator: t.Literal["Properties2D"] = Field("Properties2D")
+class Properties2D(Extension):
     x_data: str = "step"
     y_data: str = "energy"
     color: str = "energy"
@@ -148,8 +146,7 @@ class Properties2D(BaseModel):
         vis.figure = fig.to_json()
 
 
-class Properties1D(BaseModel):
-    discriminator: t.Literal["Properties1D"] = Field("Properties1D")
+class Properties1D(Extension):
 
     value: str = "energy"
     smooth: bool = False
@@ -200,6 +197,20 @@ class Properties1D(BaseModel):
                     )
 
         vis.figure = fig.to_json()
+
+
+
+methods = t.Union[
+    DihedralAngle,
+    Distance,
+    Properties1D,
+    Properties2D,
+]
+
+class Analysis(MethodsCollection):
+    method: methods = Field(
+        ..., description="Analysis method", discriminator="discriminator"
+    )
 
 
 def get_analysis_class(methods):

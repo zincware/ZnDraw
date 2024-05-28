@@ -6,6 +6,7 @@ import numpy as np
 from pydantic import BaseModel, Field
 
 from zndraw import Extension, ZnDraw
+from zndraw.base import MethodsCollection
 
 try:
     from zndraw.select import mda  # noqa: F401
@@ -131,19 +132,8 @@ methods = t.Union[
 ]
 
 
-class Selection(BaseModel):
+class Selection(MethodsCollection):
     method: methods = Field(
         ..., description="Selection method", discriminator="discriminator"
     )
 
-    @classmethod
-    def updated_schema(cls) -> dict:
-        schema = cls.model_json_schema()
-        for prop in [x.__name__ for x in t.get_args(methods)]:
-            schema["$defs"][prop]["properties"]["discriminator"]["options"] = {
-                "hidden": True
-            }
-        return schema
-
-    def run(self, vis: ZnDraw) -> None:
-        self.method.run(vis)

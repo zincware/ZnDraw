@@ -28,9 +28,9 @@ class Extension(BaseModel):
 
 
 class MethodsCollection(BaseModel):
-    """Run modifications on the scene"""
+    """Base class for collections of methods for modification, analysis, etc."""
     method: t.Type[Extension] = Field(
-        ..., description="Modify method"
+        ..., description="Select a method."
     )
 
     def run(self, vis, **kwargs) -> None:

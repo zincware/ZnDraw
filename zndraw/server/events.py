@@ -21,6 +21,7 @@ from zndraw.draw import Geometry
 from zndraw.modify import Modifier
 from zndraw.scene import Scene
 from zndraw.select import Selection
+from zndraw.analyse import Analysis
 from zndraw.utils import get_cls_from_json_schema
 
 from ..app import socketio as io
@@ -198,14 +199,12 @@ def scene_schema():
 
 @io.on("selection:schema")
 def selection_schema():
-    # TODO update
     return Selection.updated_schema()
 
 
 @io.on("analysis:schema")
 def analysis_schema():
-    # TODO update
-    return Scene.updated_schema()
+    return Analysis.updated_schema()
 
 
 @io.on("modifier:run")
