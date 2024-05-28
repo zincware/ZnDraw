@@ -341,12 +341,18 @@ def selection_run_running():
     emit("selection:run:running", to=room)
 
 
-@io.on("message:alert")
-def message_alert(msg: str):
+@io.on("room:alert")
+def room_alert(msg: str):
     """Forward the alert message to every client in the room"""
     # TODO: identify the source client.
     room = session.get("token")
-    emit("message:alert", msg, to=room)
+    emit("room:alert", msg, to=room)
+
+@io.on("room:log")
+def room_log(msg: str):
+    """Forward the alert message to every client in the room"""
+    room = session.get("token")
+    emit("room:log", msg, to=room)
 
 
 @io.on("room:selection:set")

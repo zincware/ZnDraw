@@ -18,7 +18,7 @@ function setupSocket() {
     socket.emit(msg["event"], msg["data"]);
   });
 
-  socket.on("message:alert", (msg) => {
+  socket.on("room:alert", (msg) => {
     alert(msg);
   });
 
@@ -55,7 +55,7 @@ function main() {
 
   // creata a function displayIncomingAtoms that calls cache.get_length(), if larger 1 call world.setStep(0), else setTimerout(displayIncomingAtoms, 1000)
 
-  socket.on("message:log", (msg) => {
+  socket.on("room:log", (msg) => {
     console.log(msg);
     // add <p> to console body
     const consoleBody = document.getElementById("ZnDrawConsoleBody");

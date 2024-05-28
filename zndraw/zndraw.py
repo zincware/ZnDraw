@@ -36,6 +36,7 @@ class ZnDraw(ZnDrawBase):
         self.socket.connect(self.url, wait_timeout=1)
         self.socket.on("modifier:run", self._run_modifier)
         self.socket.on("modifier:wakeup", on_wakeup)
+        self.socket.on("room:log", lambda x: print(x))
 
     def _on_connect(self):
         self.socket.emit(
@@ -104,7 +105,7 @@ class ZnDraw(ZnDrawBase):
         return int(self.socket.call("room:step:get"))
 
     def log(self, message: str) -> None:
-        self.socket.emit("message:log", message)
+        self.socket.emit("room:log", message)
 
     @step.setter
     def step(self, value: int):
