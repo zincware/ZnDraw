@@ -142,7 +142,7 @@ class ZnDraw(ZnDrawBase):
 
     @property
     def bookmarks(self) -> dict:
-        return json.loads(self.socket.call("room:bookmarks:get"))
+        return {int(k): v for k, v in self.socket.call("room:bookmarks:get").items()}
 
     @bookmarks.setter
     def bookmarks(self, value: dict):

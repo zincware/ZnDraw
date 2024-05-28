@@ -14,10 +14,7 @@ class Bookmarks {
         this.bookmarks[step] = `Bookmark ${step}`;
         // // update the bookmarks
         this.updateBookmarks();
-        this.socket.emit("room:set", {
-          bookmarks: this.bookmarks,
-          update_database: true,
-        });
+        this.socket.emit("room:bookmarks:set", this.bookmarks);
       }
     });
   }

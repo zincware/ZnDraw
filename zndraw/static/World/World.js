@@ -257,26 +257,30 @@ class World {
       this.line3D.updateAllPoints(data["0"]);
     });
 
-    this.socket.on("room:set", (data) => {
-      if (data.step !== null) {
-        // small timeout to ensure the step is set after the cache is updated
-        setTimeout(() => this.setStep(data.step, false), 100);
-      }
-      if (data.frames !== null) {
-        cache.setFrames(data.frames);
-      }
-      if (data.selection !== null) {
-        const particlesGroup = this.scene.getObjectByName("particlesGroup");
-        particlesGroup.selection = data.selection;
-        particlesGroup.step();
-      }
-      if (data.bookmarks !== null) {
-        bookmarks.set(data.bookmarks);
-      }
-      if (data.points !== null) {
-        this.line3D.updateAllPoints(data.points);
-      }
+    this.socket.on("room:bookmarks:set", (data) => {
+      bookmarks.set(data);
     });
+
+    // this.socket.on("room:set", (data) => {
+    //   if (data.step !== null) {
+    //     // small timeout to ensure the step is set after the cache is updated
+    //     setTimeout(() => this.setStep(data.step, false), 100);
+    //   }
+    //   if (data.frames !== null) {
+    //     cache.setFrames(data.frames);
+    //   }
+    //   if (data.selection !== null) {
+    //     const particlesGroup = this.scene.getObjectByName("particlesGroup");
+    //     particlesGroup.selection = data.selection;
+    //     particlesGroup.step();
+    //   }
+    //   if (data.bookmarks !== null) {
+    //     bookmarks.set(data.bookmarks);
+    //   }
+    //   if (data.points !== null) {
+    //     this.line3D.updateAllPoints(data.points);
+    //   }
+    // });
 
     this.socket.on("camera:update", (data) => {
       camera.position.set(...data.position);
