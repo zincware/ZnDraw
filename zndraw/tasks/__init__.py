@@ -22,7 +22,7 @@ def read_file(fileio: dict, io_port: int, storage: str) -> None:
     elif storage.startswith("znsocket"):
         import znsocket
 
-        self.app.config["redis"] = znsocket.Client.from_url(self.storage)
+        r = znsocket.Client.from_url(storage)
 
     io = SimpleClient()
 
