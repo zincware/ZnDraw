@@ -8,12 +8,16 @@ import webbrowser
 from celery import Celery, Task
 from flask import Flask
 from flask_socketio import SocketIO
+from socketio.exceptions import ConnectionError
 from redis import Redis
 
 from zndraw.settings import CeleryFileSystemConfig
 
 from .base import FileIO
-from .tasks import read_file
+from .tasks import read_file, run_znsocket_server
+from zndraw.utils import get_port
+import time
+
 
 socketio = SocketIO()
 
@@ -100,6 +104,7 @@ class ZnDrawServer:
     celery_worker: bool = True
 
     _workers: list = None
+    _znsocket_server: subprocess.Popen|None = None
     app: Flask = None
 
     def __enter__(self):
@@ -113,6 +118,8 @@ class ZnDrawServer:
             worker.kill()
         for worker in self._workers:
             worker.wait()
+        
+        # I'm not certain this will really do anything to stop the workers
 
         self.app.config["redis"].flushall()
 
@@ -125,8 +132,13 @@ class ZnDrawServer:
             )
         elif self.storage.startswith("znsocket"):
             import znsocket
-
-            self.app.config["redis"] = znsocket.Client.from_url(self.storage)
+            for _ in range(100): # try to connect to znsocket for 10 s
+                # if we start znsocket via celery it will take some time to start
+                try:
+                    self.app.config["redis"] = znsocket.Client.from_url(self.storage)
+                    break
+                except ConnectionError:
+                    time.sleep(0.1)
 
         self.app.config["TUTORIAL"] = self.tutorial
         self.app.config["AUTH_TOKEN"] = self.auth_token
@@ -140,14 +152,19 @@ class ZnDrawServer:
         self.app.config["FileIO"] = self.fileio.to_dict() if self.fileio else {}
 
     def run(self, browser=False):
+        if self.celery_worker:
+            self._workers = setup_worker()
+        
+        if self.storage is None:
+            port = get_port(default=3018)
+            self.storage = f"znsocket://127.0.0.1:{port}"
+            run_znsocket_server.delay(port)
+        
         self.update_cache()
-
+        
         read_file.delay(
             fileio=self.fileio.to_dict(), io_port=self.port, storage=self.storage
         )
-
-        if self.celery_worker:
-            self._workers = setup_worker()
 
         if browser:
             webbrowser.open(self.url_root)

@@ -81,8 +81,8 @@ def main(
         help="Start ZnDraw with celery workers. If disabled, you must manage the workers yourself. This can be useful when hosting ZnDraw for multiple users.",
     ),
     storage: str = typer.Option(
-        "redis://localhost:6379/0",
-        help="URL to the redis `redis://localhost:6379/0` or znsocket `znsocket://localhost:6379` server.",
+        None,
+        help="URL to the redis `redis://localhost:6379/0` or znsocket `znsocket://127.0.0.1:6379` server. If None is provided, a local znsocket server will be started.",
     ),
 ):
     """Start the ZnDraw server.

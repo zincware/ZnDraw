@@ -82,5 +82,6 @@ def file(file: str):
 
     proc = mp.Process(target=_upload, args=(file, url, token), daemon=True)
     proc.start()
+    # TODO: why is this not using celery?
 
     return redirect(url)

@@ -6,10 +6,15 @@ import znframe
 from celery import shared_task
 from redis import Redis
 from socketio import SimpleClient
+import znsocket
 
 from zndraw.base import FileIO, RedisList
 
 log = logging.getLogger(__name__)
+
+@shared_task
+def run_znsocket_server(port: int) -> None:
+    znsocket.Server(port=port).run()
 
 
 @shared_task
@@ -20,8 +25,6 @@ def read_file(fileio: dict, io_port: int, storage: str) -> None:
     if storage.startswith("redis"):
         r = Redis.from_url(storage, decode_responses=True)
     elif storage.startswith("znsocket"):
-        import znsocket
-
         r = znsocket.Client.from_url(storage)
 
     io = SimpleClient()

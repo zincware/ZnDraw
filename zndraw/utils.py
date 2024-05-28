@@ -51,7 +51,7 @@ def get_port(default: int = 1234) -> int:
     try:
         sock = socket.socket()
         sock.bind(("", default))
-        port = 1234
+        port = default
     except OSError:
         sock = socket.socket()
         sock.bind(("", 0))
