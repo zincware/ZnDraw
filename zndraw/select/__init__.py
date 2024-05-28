@@ -5,7 +5,7 @@ import networkx as nx
 import numpy as np
 from pydantic import BaseModel, Field
 
-from zndraw import ZnDraw, Extension
+from zndraw import Extension, ZnDraw
 
 try:
     from zndraw.select import mda  # noqa: F401
@@ -20,13 +20,13 @@ class SelectionBase(Extension):
 
 
 class NoneSelection(SelectionBase):
-
     def run(self, vis) -> None:
         vis.selection = []
 
 
 class All(SelectionBase):
     """Select all atoms."""
+
     def run(self, vis) -> None:
         atoms = vis[vis.step]
         vis.selection = list(range(len(atoms)))
@@ -57,7 +57,6 @@ class Random(SelectionBase):
 
 
 class IdenticalSpecies(SelectionBase):
-
     def run(self, vis) -> None:
         atoms = vis[vis.step]
         selected_ids = vis.selection
@@ -71,7 +70,6 @@ class IdenticalSpecies(SelectionBase):
 
 
 class ConnectedParticles(SelectionBase):
-
     def run(self, vis) -> None:
         atoms = vis.atoms
         selected_ids = vis.selection
@@ -94,6 +92,7 @@ class ConnectedParticles(SelectionBase):
 
 class Neighbour(SelectionBase):
     """Select the nth order neighbours of the selected atoms."""
+
     order: int = Field(1, description="Order of neighbour")
 
     def run(self, vis) -> None:
@@ -115,6 +114,7 @@ class Neighbour(SelectionBase):
 
 class UpdateSelection(SelectionBase):
     """Reload Selection."""
+
     def run(self, vis: ZnDraw) -> None:
         vis.selection = vis.selection
 

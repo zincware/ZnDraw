@@ -33,6 +33,7 @@ def run_modifier(url, room, data: dict) -> None:
     import ase.build
 
     from zndraw import ZnDraw
+
     # from zndraw.modify import get_cls_from_json_schema
 
     # from zndraw.utils import get_cls_from_json_schema
@@ -71,7 +72,6 @@ def run_analysis(url, room, data: dict) -> None:
     vis = ZnDraw(url=url, token=room)
     vis.socket.emit("analysis:run:running")
     try:
-
         current_time = int(time.time())
 
         # Seed the random number generator with the current time

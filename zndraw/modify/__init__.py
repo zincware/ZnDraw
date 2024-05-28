@@ -7,8 +7,9 @@ import typing as t
 import ase
 import numpy as np
 from ase.data import chemical_symbols
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import Field
 from znframe.frame import get_radius
+
 from zndraw.base import Extension
 
 try:
@@ -66,6 +67,7 @@ class Connect(UpdateScene):
 
 class Rotate(UpdateScene):
     """Rotate the selected atoms around a the line (2 points only)."""
+
     angle: float = Field(90, le=360, ge=0, description="Angle in degrees")
     direction: t.Literal["left", "right"] = Field(
         "left", description="Direction of rotation"
@@ -103,6 +105,7 @@ class Rotate(UpdateScene):
 
 class Delete(UpdateScene):
     """Delete the selected atoms."""
+
     def run(self, vis: "ZnDraw", **kwargs) -> None:
         atom_ids = vis.selection
         atoms = vis.atoms
@@ -119,6 +122,7 @@ class Delete(UpdateScene):
 
 class Move(UpdateScene):
     """Move the selected atoms along the line."""
+
     steps: int = Field(10, ge=1)
 
     def run(self, vis: "ZnDraw", **kwargs) -> None:
@@ -200,6 +204,7 @@ class AddLineParticles(UpdateScene):
 
 class Wrap(UpdateScene):
     """Wrap the atoms to the cell."""
+
     recompute_bonds: bool = True
 
     def run(self, vis: "ZnDraw", **kwargs) -> None:
@@ -218,6 +223,7 @@ class Wrap(UpdateScene):
 
 class Center(UpdateScene):
     """Move the atoms, such that the selected atom is in the center of the cell."""
+
     recompute_bonds: bool = True
     dynamic: bool = Field(
         False, description="Move the atoms to the center of the cell at each step"
@@ -274,8 +280,6 @@ class Replicate(UpdateScene):
             if self.keep_box:
                 atoms.cell = atoms_list[idx].cell
             vis[idx] = atoms
-
-
 
 
 methods = t.Union[

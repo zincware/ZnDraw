@@ -1,7 +1,7 @@
 import importlib.metadata
 
-from zndraw.zndraw import ZnDraw
 from zndraw.base import Extension
+from zndraw.zndraw import ZnDraw
 
 __all__ = ["ZnDraw", "Extension"]
 

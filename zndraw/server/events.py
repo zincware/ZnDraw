@@ -21,7 +21,7 @@ from zndraw.draw import Geometry
 from zndraw.modify import Modifier
 from zndraw.scene import Scene
 from zndraw.select import Selection
-from zndraw.utils import get_cls_from_json_schema, hide_discriminator_field
+from zndraw.utils import get_cls_from_json_schema
 
 from ..app import socketio as io
 from ..tasks import run_analysis, run_modifier, run_selection

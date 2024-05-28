@@ -170,9 +170,9 @@ class Cache {
         this._length = data;
         const slider = document.getElementById("frameProgress");
         slider.ariaValueMax = Math.max(0, this._length - 1);
-        
+
         document.getElementById("info").innerHTML =
-        `${slider.ariaValueNow} / ${slider.ariaValueMax}`;
+          `${slider.ariaValueNow} / ${slider.ariaValueMax}`;
 
         console.log("Cache length is now", this._length);
       });
