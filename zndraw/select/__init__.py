@@ -5,7 +5,7 @@ import networkx as nx
 import numpy as np
 from pydantic import BaseModel, Field
 
-from zndraw import ZnDraw
+from zndraw import ZnDraw, Extension
 
 try:
     from zndraw.select import mda  # noqa: F401
@@ -14,13 +14,12 @@ except ImportError:
     pass
 
 
-class SelectionBase(BaseModel):
+class SelectionBase(Extension):
     def run(self, vis: "ZnDraw") -> None:
         raise NotImplementedError()
 
 
 class NoneSelection(SelectionBase):
-    discriminator: t.Literal["NoneSelection"] = Field("NoneSelection")
 
     def run(self, vis) -> None:
         vis.selection = []
@@ -28,17 +27,12 @@ class NoneSelection(SelectionBase):
 
 class All(SelectionBase):
     """Select all atoms."""
-
-    discriminator: t.Literal["All"] = Field("All")
-
     def run(self, vis) -> None:
         atoms = vis[vis.step]
         vis.selection = list(range(len(atoms)))
 
 
 class Invert(SelectionBase):
-    discriminator: t.Literal["Invert"] = Field("Invert")
-
     def run(self, vis) -> None:
         atoms = vis[vis.step]
         selected_ids = vis.selection
@@ -46,8 +40,6 @@ class Invert(SelectionBase):
 
 
 class Range(SelectionBase):
-    discriminator: t.Literal["Range"] = Field("Range")
-
     start: int = Field(0, description="Start index")
     end: int = Field(5, description="End index")
     step: int = Field(1, description="Step size")
@@ -57,8 +49,6 @@ class Range(SelectionBase):
 
 
 class Random(SelectionBase):
-    discriminator: t.Literal["Random"] = Field("Random")
-
     count: int = Field(..., description="Number of atoms to select")
 
     def run(self, vis) -> None:
@@ -67,7 +57,6 @@ class Random(SelectionBase):
 
 
 class IdenticalSpecies(SelectionBase):
-    discriminator: t.Literal["IdenticalSpecies"] = Field("IdenticalSpecies")
 
     def run(self, vis) -> None:
         atoms = vis[vis.step]
@@ -82,7 +71,6 @@ class IdenticalSpecies(SelectionBase):
 
 
 class ConnectedParticles(SelectionBase):
-    discriminator: t.Literal["ConnectedParticles"] = Field("ConnectedParticles")
 
     def run(self, vis) -> None:
         atoms = vis.atoms
@@ -106,9 +94,6 @@ class ConnectedParticles(SelectionBase):
 
 class Neighbour(SelectionBase):
     """Select the nth order neighbours of the selected atoms."""
-
-    discriminator: t.Literal["Neighbour"] = Field("Neighbour")
-
     order: int = Field(1, description="Order of neighbour")
 
     def run(self, vis) -> None:
@@ -130,9 +115,6 @@ class Neighbour(SelectionBase):
 
 class UpdateSelection(SelectionBase):
     """Reload Selection."""
-
-    discriminator: t.Literal["UpdateSelection"] = Field("UpdateSelection")
-
     def run(self, vis: ZnDraw) -> None:
         vis.selection = vis.selection
 
@@ -161,7 +143,7 @@ class Selection(BaseModel):
             schema["$defs"][prop]["properties"]["discriminator"]["options"] = {
                 "hidden": True
             }
-            schema["$defs"][prop]["properties"]["discriminator"]["type"] = "string"
+            # schema["$defs"][prop]["properties"]["discriminator"]["type"] = "string"
 
         return schema
 

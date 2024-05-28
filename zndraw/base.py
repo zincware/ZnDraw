@@ -9,7 +9,19 @@ import splines
 
 from zndraw.data import CeleryTaskData
 
+from pydantic import BaseModel
+import typing as t
+
 log = logging.getLogger(__name__)
+
+
+class Extension(BaseModel):
+    @classmethod
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+        # Automatically add the discriminator field
+        cls.__annotations__['discriminator'] = t.Literal[cls.__name__]
+        setattr(cls, 'discriminator', cls.__name__)
 
 
 @dataclasses.dataclass  # TODO: move to a separate file, so it can be imported in other files
