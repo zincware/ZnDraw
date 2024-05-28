@@ -173,7 +173,9 @@ class ZnDrawServer:
         self.app.config["SECRET_KEY"] = str(uuid.uuid4())
 
         if self.storage.startswith("redis"):
-            self.app.config["redis"] = Redis.from_url(self.storage, decode_responses=True)
+            self.app.config["redis"] = Redis.from_url(
+                self.storage, decode_responses=True
+            )
         elif self.storage.startswith("znsocket"):
             import znsocket
 
@@ -215,7 +217,9 @@ class ZnDrawServer:
         self.update_cache()
         self.write_modifiers()
 
-        read_file.delay(fileio=self.fileio.to_dict(), io_port=self.port, storage=self.storage)
+        read_file.delay(
+            fileio=self.fileio.to_dict(), io_port=self.port, storage=self.storage
+        )
 
         if self.celery_worker:
             self._workers = setup_worker()

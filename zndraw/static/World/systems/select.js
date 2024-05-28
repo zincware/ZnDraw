@@ -24,7 +24,7 @@ class Selection {
       // points = points.map((x) => [x.x, x.y, x.z]);
       // this.socket.emit("room:points:set", { 0: points });
       if (emit) {
-        // 
+        //
         // TODO: this can't work because it fixes the points in place
         // should only be done on click or not saved to redis.
       }
@@ -251,7 +251,6 @@ class Selection {
     // convert x, y, z to [x, y, z]
     points = points.map((x) => [x.x, x.y, x.z]);
     this.socket.emit("room:points:set", { 0: points });
-
   }
 
   onWheel(event) {
