@@ -67,7 +67,7 @@ class RedisList(MutableSequence):
             index = [index]
         if isinstance(index, slice):
             index = list(range(*index.indices(len(self))))
-        
+
         for i in index:
             self.redis.lset(self.key, i, "__DELETED__")
         self.redis.lrem(self.key, 0, "__DELETED__")
@@ -106,7 +106,11 @@ class Extension(BaseModel):
         room = session["token"]
         r: Redis = current_app.config["redis"]
         step = r.get(f"room:{room}:step")
-        key = f"room:{room}:frames" if r.exists(f"room:{room}:frames") else "room:default:frames"
+        key = (
+            f"room:{room}:frames"
+            if r.exists(f"room:{room}:frames")
+            else "room:default:frames"
+        )
         lst = RedisList(r, key)
         frame_json = lst[int(step)]
         return znframe.Frame.from_json(frame_json).to_atoms()

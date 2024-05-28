@@ -8,7 +8,7 @@ import numpy as np
 import socketio
 import znframe
 
-from zndraw.base import ZnDrawBase, Extension
+from zndraw.base import Extension, ZnDrawBase
 
 log = logging.getLogger(__name__)
 
@@ -86,7 +86,8 @@ class ZnDraw(ZnDrawBase):
 
     def insert(self, index: int, value: ase.Atoms):
         self.socket.emit(
-            "room:frames:insert", {"index": index, "value": znframe.Frame.from_atoms(value).to_json()}
+            "room:frames:insert",
+            {"index": index, "value": znframe.Frame.from_atoms(value).to_json()},
         )
 
     @property
@@ -158,7 +159,7 @@ class ZnDraw(ZnDrawBase):
     def register_modifier(
         self,
         cls: t.Type[Extension],
-        run_kwargs: dict|None = None,
+        run_kwargs: dict | None = None,
         public: bool = False,
         timeout: float = 60,
         use_frozen: bool = True,
