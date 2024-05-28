@@ -18,7 +18,7 @@ def read_file(fileio: dict, io_port: int) -> None:
     r = Redis(host="localhost", port=6379, db=0, decode_responses=True)
 
     io = SimpleClient()
-    
+
     # r = znsocket.Client("http://127.0.0.1:5000")
 
     # TODO: make everyone join room main
@@ -35,7 +35,7 @@ def read_file(fileio: dict, io_port: int) -> None:
         # r.hset("room:default:frames", f"{i}", frame.to_json())
         # r.rpush("room:default:frames", frame.to_json())
         lst.append(frame.to_json())
-        if i  == 0:
+        if i == 0:
             io.connect(f"http://127.0.0.1:{io_port}")
             io.emit("room:all:frames:refresh", [0])
 
