@@ -3,14 +3,15 @@ import logging
 import ase.io
 import tqdm
 import znframe
+import znsocket
 from celery import shared_task
 from redis import Redis
 from socketio import SimpleClient
-import znsocket
 
 from zndraw.base import FileIO, RedisList
 
 log = logging.getLogger(__name__)
+
 
 @shared_task
 def run_znsocket_server(port: int) -> None:

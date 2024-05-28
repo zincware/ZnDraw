@@ -245,7 +245,7 @@ class Center(UpdateScene):
             center = None
 
         vis.step = 0
-        
+
         for idx, atoms in enumerate(atoms_list):
             if self.dynamic:
                 center = atoms[selection].get_center_of_mass()
