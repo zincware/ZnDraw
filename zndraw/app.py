@@ -10,7 +10,7 @@ from celery import Celery, Task
 from flask import Flask
 from flask_socketio import SocketIO
 from redis import Redis
-from socketio.exceptions import ConnectionError
+from znsocket.exceptions import ConnectionError
 
 from zndraw.settings import CeleryFileSystemConfig
 from zndraw.utils import get_port

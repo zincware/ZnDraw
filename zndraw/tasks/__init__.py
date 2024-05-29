@@ -16,6 +16,7 @@ log = logging.getLogger(__name__)
 @shared_task
 def run_znsocket_server(port: int) -> None:
     znsocket.Server(port=port).run()
+    log.critical("ZnSocket server closed.")
 
 
 @shared_task
