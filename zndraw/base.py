@@ -8,10 +8,10 @@ import ase
 import numpy as np
 import splines
 import znframe
+import znsocket
 from flask import current_app, session
 from pydantic import BaseModel, Field, create_model
 from redis import Redis
-import znsocket
 
 log = logging.getLogger(__name__)
 
@@ -69,7 +69,9 @@ class MethodsCollection(BaseModel):
             __base__=cls,
             method=(
                 extended_methods,
-                Field(..., description=method_description, discriminator="discriminator"),
+                Field(
+                    ..., description=method_description, discriminator="discriminator"
+                ),
             ),
         )
         schema = extended_cls.model_json_schema()

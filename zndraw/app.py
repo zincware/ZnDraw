@@ -126,7 +126,9 @@ class ZnDrawServer:
         self.app.config["SECRET_KEY"] = str(uuid.uuid4())
 
         if self.storage.startswith("redis"):
-            self.app.config["redis"] = Redis.from_url(self.storage, decode_responses=True)
+            self.app.config["redis"] = Redis.from_url(
+                self.storage, decode_responses=True
+            )
         elif self.storage.startswith("znsocket"):
             import znsocket
 

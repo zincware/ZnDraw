@@ -69,7 +69,8 @@ class ZnDraw(ZnDrawBase):
             data = {index: znframe.Frame.from_atoms(value).to_json()}
         else:
             data = {
-                i: znframe.Frame.from_atoms(val).to_json() for i, val in zip(index, value)
+                i: znframe.Frame.from_atoms(val).to_json()
+                for i, val in zip(index, value)
             }
 
         self.socket.emit("room:frames:set", data)

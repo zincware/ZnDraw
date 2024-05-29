@@ -1,10 +1,10 @@
 import json
 import logging
 
+import znsocket
 from flask import current_app, request, session
 from flask_socketio import emit, join_room
 from redis import Redis
-import znsocket
 
 from zndraw.analyse import Analysis
 from zndraw.draw import Geometry
@@ -56,7 +56,9 @@ def join(data: dict):
     if current_app.config["AUTH_TOKEN"] is None:
         session["authenticated"] = True
     else:
-        session["authenticated"] = data["auth_token"] == current_app.config["AUTH_TOKEN"]
+        session["authenticated"] = (
+            data["auth_token"] == current_app.config["AUTH_TOKEN"]
+        )
     token = data["token"]
     session["token"] = token
 
