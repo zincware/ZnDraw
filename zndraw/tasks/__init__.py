@@ -8,7 +8,7 @@ from celery import shared_task
 from redis import Redis
 from socketio import SimpleClient
 
-from zndraw.base import FileIO, RedisList
+from zndraw.base import FileIO
 
 log = logging.getLogger(__name__)
 
@@ -37,7 +37,7 @@ def read_file(fileio: dict, io_port: int, storage: str) -> None:
     # chain this with compute_bonds. So this will load much faster
     r.delete("room:default:frames")
 
-    lst = RedisList(r, "room:default:frames")
+    lst = znsocket.List(r, "room:default:frames")
 
     for i, atoms in tqdm.tqdm(enumerate(ase.io.iread(file_io.name))):
         if file_io.stop is not None and i >= file_io.stop:

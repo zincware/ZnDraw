@@ -32,7 +32,7 @@ sqlalchemy = "^2"
 psycopg2-binary = "^2"
 redis = "^5"
 splines = "^0.3"
-znsocket = "^0.1.1"
+znsocket = "^0.1.2"
 
 
 [tool.poetry.group.dev.dependencies]

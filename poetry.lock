@@ -1634,17 +1634,14 @@ test = ["pytest (>=7.2)", "pytest-cov (>=4.0)"]
 
 [[package]]
 name = "nodeenv"
-version = "1.8.0"
+version = "1.9.0"
 description = "Node.js virtual environment builder"
 optional = false
-python-versions = ">=2.7,!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*,!=3.4.*,!=3.5.*,!=3.6.*"
+python-versions = "!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*,!=3.4.*,!=3.5.*,!=3.6.*,>=2.7"
 files = [
-    {file = "nodeenv-1.8.0-py2.py3-none-any.whl", hash = "sha256:df865724bb3c3adc86b3876fa209771517b0cfe596beff01a92700e0e8be4cec"},
-    {file = "nodeenv-1.8.0.tar.gz", hash = "sha256:d51e0c37e64fbf47d017feac3145cdbb58836d7eee8c6f6d3b6880c5456227d2"},
+    {file = "nodeenv-1.9.0-py2.py3-none-any.whl", hash = "sha256:508ecec98f9f3330b636d4448c0f1a56fc68017c68f1e7857ebc52acf0eb879a"},
+    {file = "nodeenv-1.9.0.tar.gz", hash = "sha256:07f144e90dae547bf0d4ee8da0ee42664a42a04e02ed68e06324348dafe4bdb1"},
 ]
-
-[package.dependencies]
-setuptools = "*"
 
 [[package]]
 name = "numpy"
@@ -2564,21 +2561,6 @@ typing_extensions = ">=4.9.0"
 urllib3 = {version = ">=1.26,<3", extras = ["socks"]}
 
 [[package]]
-name = "setuptools"
-version = "70.0.0"
-description = "Easily download, build, install, upgrade, and uninstall Python packages"
-optional = false
-python-versions = ">=3.8"
-files = [
-    {file = "setuptools-70.0.0-py3-none-any.whl", hash = "sha256:54faa7f2e8d2d11bcd2c07bed282eef1046b5c080d1c32add737d7b5817b1ad4"},
-    {file = "setuptools-70.0.0.tar.gz", hash = "sha256:f211a66637b8fa059bb28183da127d4e86396c991a942b028c6650d4319c3fd0"},
-]
-
-[package.extras]
-docs = ["furo", "jaraco.packaging (>=9.3)", "jaraco.tidelift (>=1.4)", "pygments-github-lexers (==0.0.5)", "pyproject-hooks (!=1.1)", "rst.linker (>=1.9)", "sphinx (>=3.5)", "sphinx-favicon", "sphinx-inline-tabs", "sphinx-lint", "sphinx-notfound-page (>=1,<2)", "sphinx-reredirects", "sphinxcontrib-towncrier"]
-testing = ["build[virtualenv] (>=1.0.3)", "filelock (>=3.4.0)", "importlib-metadata", "ini2toml[lite] (>=0.14)", "jaraco.develop (>=7.21)", "jaraco.envs (>=2.2)", "jaraco.path (>=3.2.0)", "mypy (==1.9)", "packaging (>=23.2)", "pip (>=19.1)", "pyproject-hooks (!=1.1)", "pytest (>=6,!=8.1.1)", "pytest-checkdocs (>=2.4)", "pytest-cov", "pytest-enabler (>=2.2)", "pytest-home (>=0.5)", "pytest-mypy", "pytest-perf", "pytest-ruff (>=0.2.1)", "pytest-subprocess", "pytest-timeout", "pytest-xdist (>=3)", "tomli", "tomli-w (>=1.0.0)", "virtualenv (>=13.0.0)", "wheel"]
-
-[[package]]
 name = "shellingham"
 version = "1.5.4"
 description = "Tool to Detect Surrounding Shell"
@@ -3066,13 +3048,13 @@ dask = ["dask[array] (>=2022,<2023)"]
 
 [[package]]
 name = "znsocket"
-version = "0.1.1"
-description = "Create objects with shared attributes through a socket connection."
+version = "0.1.2"
+description = "Python implementation of a Redis-compatible API using websockets."
 optional = false
 python-versions = "<4.0,>=3.10"
 files = [
-    {file = "znsocket-0.1.1-py3-none-any.whl", hash = "sha256:7074728d737633e5fdee3579d0ad7cdd6a3341c56854cd1913ee5c6773052d40"},
-    {file = "znsocket-0.1.1.tar.gz", hash = "sha256:fc35b903ea92e7fd045cc47e487d4c97a020e8aaaba82f046e8d7611502a36e9"},
+    {file = "znsocket-0.1.2-py3-none-any.whl", hash = "sha256:23e8e4ddaaefa0cd93f139ad36908327e9159c28318eaa8ce179db9abd99d137"},
+    {file = "znsocket-0.1.2.tar.gz", hash = "sha256:43f7eefc3ac96fb3cbf9400d12ac813da018b5c850bfed1a91fface4cff1e5d5"},
 ]
 
 [package.dependencies]
@@ -3087,4 +3069,4 @@ rdkit = ["rdkit2ase"]
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "3659368e40a365e1152a1ff939f5c7b56393e59f551af670c02f5843140b362e"
+content-hash = "0e869eff4f59348b19076c35f2b710ef56e155c919c2503880f5e7c5473314bd"

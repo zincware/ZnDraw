@@ -4,9 +4,9 @@ import logging
 from flask import current_app, request, session
 from flask_socketio import emit, join_room
 from redis import Redis
+import znsocket
 
 from zndraw.analyse import Analysis
-from zndraw.base import RedisList
 from zndraw.draw import Geometry
 from zndraw.modify import Modifier
 from zndraw.scene import Scene
@@ -56,9 +56,7 @@ def join(data: dict):
     if current_app.config["AUTH_TOKEN"] is None:
         session["authenticated"] = True
     else:
-        session["authenticated"] = (
-            data["auth_token"] == current_app.config["AUTH_TOKEN"]
-        )
+        session["authenticated"] = data["auth_token"] == current_app.config["AUTH_TOKEN"]
     token = data["token"]
     session["token"] = token
 
@@ -75,11 +73,11 @@ def room_frames_get(frames: list[int]) -> dict[int, dict]:
     room = session.get("token")
 
     if r.exists(f"room:{room}:frames"):
-        data = RedisList(r, f"room:{room}:frames")[frames]
+        data = znsocket.List(r, f"room:{room}:frames")[frames]
 
     else:
         try:
-            data = RedisList(r, "room:default:frames")[frames]
+            data = znsocket.List(r, "room:default:frames")[frames]
         except IndexError:
             data = []
 
@@ -93,10 +91,10 @@ def room_frames_set(data: dict[int, str]):
 
     # add = {}
     # remove = []
-    lst = RedisList(r, f"room:{room}:frames")
+    lst = znsocket.List(r, f"room:{room}:frames")
 
     if not r.exists(f"room:{room}:frames"):
-        default_lst = RedisList(r, "room:default:frames")
+        default_lst = znsocket.List(r, "room:default:frames")
         # TODO: using a redis copy action would be faster
         lst.extend(default_lst)
 
@@ -114,9 +112,9 @@ def room_all_frames_refresh(indices: list[int]):
 def room_frames_delete(frames: list[int]):
     r: Redis = current_app.config["redis"]
     room = session.get("token")
-    lst = RedisList(r, f"room:{room}:frames")
+    lst = znsocket.List(r, f"room:{room}:frames")
     if not r.exists(f"room:{room}:frames"):
-        default_lst = RedisList(r, "room:default:frames")
+        default_lst = znsocket.List(r, "room:default:frames")
         # TODO: using a redis copy action would be faster
         lst.extend(default_lst)
     del lst[frames]
@@ -131,9 +129,9 @@ def room_frames_insert(data: dict):
     r: Redis = current_app.config["redis"]
     room = session.get("token")
 
-    lst = RedisList(r, f"room:{room}:frames")
+    lst = znsocket.List(r, f"room:{room}:frames")
     if not r.exists(f"room:{room}:frames"):
-        default_lst = RedisList(r, "room:default:frames")
+        default_lst = znsocket.List(r, "room:default:frames")
         # TODO: using a redis copy action would be faster
         lst.extend(default_lst)
     lst.insert(index, value)
@@ -152,7 +150,7 @@ def room_frames_length_get() -> int:
         if r.exists(f"room:{room}:frames")
         else "room:default:frames"
     )
-    return len(RedisList(r, room_key))
+    return len(znsocket.List(r, room_key))
 
 
 @io.on("modifier:register")
