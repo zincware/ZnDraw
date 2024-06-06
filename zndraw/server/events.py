@@ -108,7 +108,9 @@ def join(data: dict):
     if current_app.config["AUTH_TOKEN"] is None:
         session["authenticated"] = True
     else:
-        session["authenticated"] = data["auth_token"] == current_app.config["AUTH_TOKEN"]
+        session["authenticated"] = (
+            data["auth_token"] == current_app.config["AUTH_TOKEN"]
+        )
     token = data["token"]
     session["token"] = token
     room = str(session["token"])

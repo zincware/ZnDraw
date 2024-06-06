@@ -5,8 +5,8 @@ import react from "@vitejs/plugin-react-swc";
 export default defineConfig({
   plugins: [react()],
   build: {
-    outDir: '../zndraw/templates',  // Output directory for templates
-    emptyOutDir: true,  // Clear the output directory before building
+    outDir: "../zndraw/templates", // Output directory for templates
+    emptyOutDir: true, // Clear the output directory before building
   },
-  publicDir: '../zndraw/static',  // Optional: directory for static assets
+  publicDir: "../zndraw/static", // Optional: directory for static assets
 });
