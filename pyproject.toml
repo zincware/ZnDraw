@@ -1,11 +1,11 @@
 [tool.poetry]
 name = "zndraw"
-version = "0.4.0a3"
+version = "0.4.0a4"
 description = "Display and Edit Molecular Structures and Trajectories in the Browser."
 authors = ["zincwarecode <zincwarecode@gmail.com>"]
 license = "License :: OSI Approved :: Eclipse Public License 2.0 (EPL-2.0)"
 readme = "README.md"
-include = ["zndraw/static/node_modules/**/*"]
+include = ["zndraw/templates/**/*"]
 
 [tool.poetry.dependencies]
 python = "^3.10"
@@ -32,7 +32,7 @@ sqlalchemy = "^2"
 psycopg2-binary = "^2"
 redis = "^5"
 splines = "^0.3"
-znsocket = "^0.1.3"
+znsocket = "^0.1.5"
 
 
 [tool.poetry.group.dev.dependencies]
