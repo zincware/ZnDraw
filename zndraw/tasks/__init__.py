@@ -59,14 +59,16 @@ def run_modifier(url, room, data: dict) -> None:
 
     # cls = get_cls_from_json_schema(modifier["schema"], modifier["name"])
     vis = ZnDraw(url=url, token=room)
-    vis.socket.emit("modifier:run:running")
+    vis.socket.emit("room:modifier:queue", 0)
     try:
         modifier = Modifier(**data)
         modifier.run(vis)
+    except Exception as e:
+        vis.log(str(e))
     finally:
         # vis[list(range(10))] = [ase.build.molecule("H2O") for _ in range(10)]
         # TODO: why is everything after 10 configuration removed?
-        vis.socket.emit("modifier:run:finished")
+        vis.socket.emit("room:modifier:queue", -1)
 
     # 1. run modifier and update redis
     # 2. use to update frames in real time "room:frames:refresh"
@@ -78,12 +80,12 @@ def run_selection(url, room, data: dict) -> None:
     from zndraw.select import Selection
 
     vis = ZnDraw(url=url, token=room)
-    vis.socket.emit("selection:run:running")
+    vis.socket.emit("room:selection:queue", 0)
     try:
         selection = Selection(**data)
         selection.run(vis)
     finally:
-        vis.socket.emit("selection:run:finished")
+        vis.socket.emit("room:selection:queue", -1)
 
 
 @shared_task
@@ -92,9 +94,26 @@ def run_analysis(url, room, data: dict) -> None:
     from zndraw.analyse import Analysis
 
     vis = ZnDraw(url=url, token=room)
-    vis.socket.emit("analysis:run:running")
+    vis.socket.emit("room:analysis:queue", 0)
     try:
         analysis = Analysis(**data)
         analysis.run(vis)
+    except Exception as e:
+        vis.log(str(e))
     finally:
-        vis.socket.emit("analysis:run:finished")
+        vis.socket.emit("room:analysis:queue", -1)
+
+
+@shared_task
+def run_geometry(url, room, data: dict) -> None:
+    from zndraw import ZnDraw
+    from zndraw.draw import Geometry
+
+    vis = ZnDraw(url=url, token=room)
+    vis.socket.emit("room:geometry:queue", 0)
+    try:
+        geom = Geometry(**data)
+        # TODO: set the position / rotation / scale
+        geom.run(vis)
+    finally:
+        vis.socket.emit("room:geometry:queue", -1)

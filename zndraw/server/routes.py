@@ -1,7 +1,13 @@
 import logging
 import uuid
 
-from flask import current_app, redirect, render_template, request, session
+from flask import (
+    current_app,
+    redirect,
+    request,
+    send_from_directory,
+    session,
+)
 
 from . import main
 
@@ -30,14 +36,26 @@ def index():
         session["token"] = token
 
     session["name"] = uuid.uuid4().hex[:8]
+    # just show templaces / index.html
+    return send_from_directory("templates", "index.html")
 
-    return render_template(
-        "index.jinja2",
-        upgrade_insecure_requests=current_app.config["upgrade_insecure_requests"],
-        token=session["token"],
-        tutorial=current_app.config["TUTORIAL"],
-        simgen=current_app.config["SIMGEN"],
-    )
+
+@main.route("/<path:filename>")
+def main_files(filename):
+    return send_from_directory("templates/", filename)
+
+
+@main.route("/assets/<path:filename>")
+def assets(filename):
+    return send_from_directory("templates/assets", filename)
+
+    # return render_template(
+    #     "index.jinja2",
+    #     upgrade_insecure_requests=current_app.config["upgrade_insecure_requests"],
+    #     token=session["token"],
+    #     tutorial=current_app.config["TUTORIAL"],
+    #     simgen=current_app.config["SIMGEN"],
+    # )
 
 
 @main.route("/token/<token>")

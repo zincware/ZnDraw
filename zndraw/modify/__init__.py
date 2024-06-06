@@ -118,6 +118,7 @@ class Delete(UpdateScene):
         del atoms.connectivity
         vis.append(atoms)
         vis.selection = []
+        vis.step += 1
 
 
 class Move(UpdateScene):
@@ -148,6 +149,7 @@ class Move(UpdateScene):
             # merge the selected and remaining atoms
             atoms.positions[atoms_ids] = atoms_selected.positions
             vis.append(atoms)
+            vis.step += 1
 
 
 class Duplicate(UpdateScene):

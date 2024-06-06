@@ -9,6 +9,7 @@ import socketio
 import znframe
 
 from zndraw.base import Extension, ZnDrawBase
+from zndraw.draw import Geometry, Object3D
 
 log = logging.getLogger(__name__)
 
@@ -69,8 +70,7 @@ class ZnDraw(ZnDrawBase):
             data = {index: znframe.Frame.from_atoms(value).to_json()}
         else:
             data = {
-                i: znframe.Frame.from_atoms(val).to_json()
-                for i, val in zip(index, value)
+                i: znframe.Frame.from_atoms(val).to_json() for i, val in zip(index, value)
             }
 
         self.socket.emit("room:frames:set", data)
@@ -109,6 +109,10 @@ class ZnDraw(ZnDrawBase):
 
     @step.setter
     def step(self, value: int):
+        if value < 0:
+            raise ValueError("Step must be positive")
+        if value >= len(self):
+            raise ValueError("Step out of range")
         # Have only one step per room!
         # shared rooms are rare anyhow and making per-client steps
         # and room hosts is anoying
@@ -155,7 +159,18 @@ class ZnDraw(ZnDrawBase):
 
     @camera.setter
     def camera(self, value: dict):
+        raise NotImplementedError("Changing camera position is currently not possible")
         self.socket.emit("room:camera:set", value)
+
+    @property
+    def geometries(self) -> list[Object3D]:
+        # return self.socket.call("room:geometry:get")
+
+        return [Geometry(method=x).method for x in self.socket.call("room:geometry:get")]
+
+    @geometries.setter
+    def geometries(self, value: list[Object3D]):
+        self.socket.emit("room:geometry:set", [x.model_dump() for x in value])
 
     def register_modifier(
         self,
@@ -226,13 +241,13 @@ class ZnDraw(ZnDrawBase):
 
         try:
             # TODO: for public modifiers the vis object must not be in the same room, create a new one!!!!!
-            vis.socket.emit("modifier:run:running")
+            vis.socket.emit("room:modifier:queue", 0)
             name = data["method"]["discriminator"]
 
             instance = self._modifiers[name]["cls"](**data["method"])
             instance.run(vis, **self._modifiers[name]["run_kwargs"])
 
-            vis.socket.emit("modifier:run:finished")
+            vis.socket.emit("room:modifier:queue", -1)
         finally:
             self._available = True
             self.socket.emit("modifier:available", list(self._modifiers))

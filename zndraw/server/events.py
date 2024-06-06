@@ -1,5 +1,6 @@
 import json
 import logging
+import uuid
 
 import znsocket
 from flask import current_app, request, session
@@ -14,38 +15,89 @@ from zndraw.select import Selection
 from zndraw.utils import get_cls_from_json_schema
 
 from ..app import socketio as io
-from ..tasks import run_analysis, run_modifier, run_selection
+from ..tasks import run_analysis, run_geometry, run_modifier, run_selection
 
 log = logging.getLogger(__name__)
 
 
 @io.on("connect")
 def connect():
-    try:
-        room = str(session["token"])
-        join_room(room)
-        log.critical(f"connecting (webclient) {request.sid} to room {room}")
+    pass
+    # try:
+    #     room = str(session["token"])
+    #     join_room(room)
+    #     log.critical(f"connecting (webclient) {request.sid} to room {room}")
 
-        r = current_app.config["redis"]
-        r.sadd(f"room:{room}:webclients", session["name"])
+    #     r = current_app.config["redis"]
+    #     r.sadd(f"room:{room}:webclients", session["name"])
 
-        emit("room:users:refresh", list(r.smembers(f"room:{room}:webclients")), to=room)
+    #     emit("room:users:refresh", list(r.smembers(f"room:{room}:webclients")), to=room)
+    #     # set step, camera, bookmarks, points
 
-    except KeyError:
-        log.critical(f"connecting (pyclient) {request.sid}")
+    # except KeyError:
+    #     log.critical(f"connecting (pyclient) {request.sid}")
 
 
 @io.on("disconnect")
 def disconnect():
+    room = str(session["token"])
+    r = current_app.config["redis"]
+
     if "name" in session:
-        room = str(session["token"])
         log.critical(f"disconnecting (webclient) {request.sid} from room {room}")
-        r = current_app.config["redis"]
         r.srem(f"room:{room}:webclients", session["name"])
         emit("room:users:refresh", list(r.smembers(f"room:{room}:webclients")), to=room)
+    else:
+        log.critical(f"disconnecting (pyclient) {request.sid}")
+
+        # Get all modifier names associated with the client from Redis
+        room_modifier_names = r.smembers(f"room:{room}:modifiers")
+        default_modifier_names = r.smembers("room:default:modifiers")
+
+        for modifier in room_modifier_names:
+            r.srem(f"room:{room}:modifiers:{modifier}", request.sid)
+            if r.scard(f"room:{room}:modifiers:{modifier}") == 0:
+                r.hdel(f"room:{room}:modifiers", modifier)
+        for modifier in default_modifier_names:
+            r.srem(f"room:default:modifiers:{modifier}", request.sid)
+            if r.scard(f"room:default:modifiers:{modifier}") == 0:
+                r.hdel("room:default:modifiers", modifier)
+
+        # Emit an event to refresh the modifier schema
+        emit("modifier:schema:refresh", broadcast=True)
 
 
-@io.on("join")
+@io.on("webclient:connect")
+def webclient_connect():
+    try:
+        token = session["token"]
+    except KeyError:
+        token = uuid.uuid4().hex[:8] if current_app.config["USE_TOKEN"] else "main"
+        session["token"] = token
+
+    room = str(session["token"])
+    join_room(room)  # rename token to room or room_token
+
+    session["name"] = uuid.uuid4().hex[:8]
+
+    r = current_app.config["redis"]
+    r.sadd(f"room:{room}:webclients", session["name"])
+
+    emit("room:users:refresh", list(r.smembers(f"room:{room}:webclients")), to=room)
+    # set step, camera, bookmarks, points
+
+    log.critical(f"connecting (webclient) {request.sid} to {room}")
+
+    emit("selection:schema", Selection.updated_schema())
+    emit("modifier:schema:refresh", to=request.sid)
+    emit("scene:schema", Scene.updated_schema())
+    emit("geometry:schema", Geometry.updated_schema())
+    emit("analysis:schema:refresh", to=request.sid)
+
+    return {"name": session["name"], "room": room}
+
+
+@io.on("join")  # rename pyclient:connect
 def join(data: dict):
     """
     Arguments:
@@ -56,13 +108,13 @@ def join(data: dict):
     if current_app.config["AUTH_TOKEN"] is None:
         session["authenticated"] = True
     else:
-        session["authenticated"] = (
-            data["auth_token"] == current_app.config["AUTH_TOKEN"]
-        )
+        session["authenticated"] = data["auth_token"] == current_app.config["AUTH_TOKEN"]
     token = data["token"]
     session["token"] = token
+    room = str(session["token"])
 
-    join_room(f"{token}")
+    join_room(room)
+    log.critical(f"connecting (pyclient) {request.sid} to {room}")
     # join_room(f"pyclients_{token}")
 
 
@@ -102,12 +154,12 @@ def room_frames_set(data: dict[int, str]):
 
     lst[list(data)] = [d for d in data.values()]
 
-    emit("room:frames:refresh", list(data), to=room)
+    emit("room:frames:refresh", [int(x) for x in data], to=room)
 
 
 @io.on("room:all:frames:refresh")
 def room_all_frames_refresh(indices: list[int]):
-    emit("room:frames:refresh", indices, broadcast=True)
+    emit("room:frames:refresh", [int(x) for x in indices], broadcast=True)
 
 
 @io.on("room:frames:delete")
@@ -121,7 +173,7 @@ def room_frames_delete(frames: list[int]):
         lst.extend(default_lst)
     del lst[frames]
     # TODO how to update here?
-    emit("room:frames:refresh", frames, to=room)
+    emit("room:frames:refresh", [int(x) for x in frames], to=room)
 
 
 @io.on("room:frames:insert")
@@ -140,7 +192,7 @@ def room_frames_insert(data: dict):
 
     # not sure how to update, insert requires everything to be updated after the insertion
     # can be done custom on the client side to avoid resending everything
-    emit("room:frames:refresh", list(data), to=room)
+    emit("room:frames:refresh", [int(x) for x in data], to=room)
 
 
 @io.on("room:length:get")
@@ -174,6 +226,9 @@ def modifier_register(data: dict):
         r.hset(f"room:{room}:modifiers", data["name"], json.dumps(data))
         r.sadd(f"room:{room}:modifiers:{data['name']}", request.sid)
 
+    # only if public this is required
+    emit("modifier:schema:refresh", broadcast=True)
+
 
 @io.on("modifier:schema")
 def modifier_schema():
@@ -189,7 +244,7 @@ def modifier_schema():
         cls = get_cls_from_json_schema(modifier["schema"], modifier["name"])
         classes.append(cls)
 
-    return Modifier.updated_schema(extensions=classes)
+    emit("modifier:schema", Modifier.updated_schema(extensions=classes), to=request.sid)
 
 
 @io.on("draw:schema")
@@ -199,23 +254,23 @@ def draw_schema():
 
 @io.on("scene:schema")
 def scene_schema():
-    return Scene.updated_schema()
+    emit("scene:schema", Scene.updated_schema(), to=request.sid)
 
 
 @io.on("selection:schema")
 def selection_schema():
-    return Selection.updated_schema()
+    emit("selection:schema", Selection.updated_schema(), to=request.sid)
 
 
 @io.on("analysis:schema")
 def analysis_schema():
-    return Analysis.updated_schema()
+    emit("analysis:schema", Analysis.updated_schema(), to=request.sid)
 
 
 @io.on("modifier:run")
 def modifier_run(data: dict):
     room = session.get("token")
-    emit("modifier:run:enqueue", to=room)
+    emit("room:modifier:queue", 1, to=room)  # TODO: find the correct queue position
     url = f"http://127.0.0.1:{current_app.config['PORT']}"
 
     r: Redis = current_app.config["redis"]
@@ -248,18 +303,11 @@ def modifier_run(data: dict):
         run_modifier.delay(url, room, data)
 
 
-@io.on("modifier:run:finished")
-def modifier_run_finished():
+@io.on("room:modifier:queue")
+def room_modifier_run(data: int):
     """Forwarding finished message."""
     room = session.get("token")
-    emit("modifier:run:finished", to=room)
-
-
-@io.on("modifier:run:running")
-def modifier_run_running():
-    """Forwarding running method."""
-    room = session.get("token")
-    emit("modifier:run:running", to=room)
+    emit("room:modifier:queue", data, to=room)
 
 
 @io.on("modifier:available")
@@ -294,23 +342,52 @@ def modifier_available(modifier_names: list[str]) -> None:
 @io.on("analysis:run")
 def analysis_run(data: dict):
     room = session.get("token")
-    emit("analysis:run:enqueue", to=room)
+    emit("room:analysis:queue", 1, to=room)  # TODO: find the correct queue position
     url = f"http://127.0.0.1:{current_app.config['PORT']}"
     run_analysis.delay(url, room, data)
 
 
-@io.on("analysis:run:finished")
-def analysis_run_finished():
+@io.on("room:analysis:queue")
+def room_analysis_run(data: int):
     """Forwarding finished message."""
     room = session.get("token")
-    emit("analysis:run:finished", to=room)
+    emit("room:analysis:queue", data, to=room)
 
 
-@io.on("analysis:run:running")
-def analysis_run_running():
-    """Forwarding running method."""
+@io.on("room:geometry:queue")
+def room_geometry_run(data: int):
+    """Forwarding finished message."""
     room = session.get("token")
-    emit("analysis:run:running", to=room)
+    emit("room:geometry:queue", data, to=room)
+
+
+@io.on("geometry:run")
+def geometry_run(data: dict):
+    room = session.get("token")
+    emit("geometry:run:enqueue", to=room)
+    url = f"http://127.0.0.1:{current_app.config['PORT']}"
+    run_geometry.delay(url, room, data)
+
+
+@io.on("room:geometry:set")
+def room_geometry_set(data: list):
+    r: Redis = current_app.config["redis"]
+    room = session.get("token")
+
+    # # add = {}
+    # # remove = []
+    lst = znsocket.List(r, f"room:{room}:geometries")
+    del lst[:]
+    lst.extend(data)
+    emit("room:geometry:set", data, to=room, include_self=False)
+
+
+@io.on("room:geometry:get")
+def room_geometry_get():
+    r: Redis = current_app.config["redis"]
+    room = session.get("token")
+
+    return list(znsocket.List(r, f"room:{room}:geometries"))
 
 
 @io.on("analysis:figure:set")
@@ -336,23 +413,30 @@ def analysis_figure_get() -> dict:
 @io.on("selection:run")
 def selection_run(data: dict):
     room = session.get("token")
-    emit("selection:run:enqueue", to=room)
+    emit("room:selection:queue", 1, to=room)  # TODO: find the correct queue position
     url = f"http://127.0.0.1:{current_app.config['PORT']}"
     run_selection.delay(url, room, data)
 
 
-@io.on("selection:run:finished")
-def selection_run_finished():
+# @io.on("selection:run:finished")
+# def selection_run_finished():
+#     """Forwarding finished message."""
+#     room = session.get("token")
+#     emit("selection:run:finished", to=room)
+
+
+# @io.on("selection:run:running")
+# def selection_run_running():
+#     """Forwarding running method."""
+#     room = session.get("token")
+#     emit("selection:run:running", to=room)
+
+
+@io.on("room:selection:queue")
+def room_selection_run(data: int):
     """Forwarding finished message."""
     room = session.get("token")
-    emit("selection:run:finished", to=room)
-
-
-@io.on("selection:run:running")
-def selection_run_running():
-    """Forwarding running method."""
-    room = session.get("token")
-    emit("selection:run:running", to=room)
+    emit("room:selection:queue", data, to=room)
 
 
 @io.on("room:alert")
@@ -399,7 +483,7 @@ def room_step_set(step: int):
 def room_step_get() -> int:
     r: Redis = current_app.config["redis"]
     room = session.get("token")
-    return r.get(f"room:{room}:step")
+    return r.get(f"room:{room}:step") or 0
 
 
 @io.on("room:points:set")

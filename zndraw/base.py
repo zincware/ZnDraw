@@ -40,8 +40,14 @@ class Extension(BaseModel):
             else "room:default:frames"
         )
         lst = znsocket.List(r, key)
-        frame_json = lst[int(step)]
-        return znframe.Frame.from_json(frame_json).to_atoms()
+        try:
+            frame_json = lst[int(step)]
+            return znframe.Frame.from_json(frame_json).to_atoms()
+        except TypeError:
+            # step is None
+            return ase.Atoms()
+        except IndexError:
+            return ase.Atoms()
 
 
 class MethodsCollection(BaseModel):
@@ -69,12 +75,11 @@ class MethodsCollection(BaseModel):
             __base__=cls,
             method=(
                 extended_methods,
-                Field(
-                    ..., description=method_description, discriminator="discriminator"
-                ),
+                Field(..., description=method_description, discriminator="discriminator"),
             ),
         )
         schema = extended_cls.model_json_schema()
+        # TODO: iterate through all fields that have the
         for prop in [x.__name__ for x in t.get_args(extended_methods)]:
             schema["$defs"][prop]["properties"]["discriminator"]["options"] = {
                 "hidden": True
