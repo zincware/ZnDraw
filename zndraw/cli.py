@@ -1,3 +1,4 @@
+import os
 from typing import Optional
 
 import typer
@@ -100,6 +101,8 @@ def main(
         stop=stop,
         step=step,
     )
+    if "ZNDRAW_STORAGE" in os.environ and storage is None:
+        storage = os.environ["ZNDRAW_STORAGE"]
 
     with ZnDrawServer(
         use_token=use_token,
