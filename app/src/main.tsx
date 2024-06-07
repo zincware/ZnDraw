@@ -10,6 +10,6 @@ import "bootstrap/dist/css/bootstrap.min.css";
 // and messages will be send through the socket, that should not be send
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    <App />,
+    <App />
   </React.StrictMode>,
 );
