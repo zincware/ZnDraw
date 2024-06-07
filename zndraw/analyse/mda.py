@@ -29,7 +29,9 @@ class MDAInterRDF(BaseModel):
     selection_b: str = Field(..., description="MDAnalysis selection string")
     nbins: int = Field(100, description="Number of bins")
     range: str = Field("0, 10", description="Range of histogram")
-    norm: MDAInterRDFNorm = Field(MDAInterRDFNorm.rdf, description="Normalization of RDF")
+    norm: MDAInterRDFNorm = Field(
+        MDAInterRDFNorm.rdf, description="Normalization of RDF"
+    )
 
     def run(self, vis) -> None:
         self.range = tuple(map(float, self.range.split(",")))
