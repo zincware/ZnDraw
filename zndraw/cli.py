@@ -44,10 +44,6 @@ def main(
         help="""Stepsize for the frames to be visualized. If set to 1, all frames will be visualized.
         If e.g. set to 2, every second frame will be visualized.""",
     ),
-    compute_bonds: bool = typer.Option(
-        True,
-        help="""Whether to compute bonds for the structure. If set to False, no bonds will be computed.""",
-    ),
     remote: str = typer.Option(
         None,
         help="URL to a ZnTrack repository to stream data from.",
@@ -101,7 +97,6 @@ def main(
         os.environ["ZNDRAW_STORAGE"] = storage
 
     with ZnDrawServer(
-        compute_bonds=compute_bonds,
         tutorial=tutorial,
         auth_token=auth_token,
         port=port,

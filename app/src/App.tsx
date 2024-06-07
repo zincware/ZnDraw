@@ -96,6 +96,10 @@ export default function App() {
   const cameraLightRef = useRef<THREE.PointLight>(null);
   const cameraRef = useRef<THREE.Camera>(null);
 
+  // extension UI elements
+  const [tutorialURL, setTutorialURL] = useState<string>("");
+  const [showSiMGen, setShowSiMGen] = useState<boolean>(false);
+
   // external useEffects, should be disabled when
   // the input is received via sockets
   sendStep(step, stepFromSocket);
@@ -246,6 +250,13 @@ export default function App() {
       socket.emit("analysis:schema");
     }
 
+    function onTutorialURL(data: string) {
+      setTutorialURL(data);
+    }
+    function onShowSiMGen(data: boolean) {
+      setShowSiMGen(data);
+    }
+
     socket.on("connect", onConnect);
     socket.on("selection:schema", onSelectionSchema);
     socket.on("modifier:schema", onModifierSchema);
@@ -263,6 +274,8 @@ export default function App() {
     socket.on("modifier:schema:refresh", onModifierRefresh);
     socket.on("analysis:schema:refresh", onAnalysisRefresh);
     socket.on("room:points:set", onPointsSet);
+    socket.on("tutorial:url", onTutorialURL);
+    socket.on("showSiMGen", onShowSiMGen);
 
     return () => {
       socket.off("connect", onConnect);
@@ -282,6 +295,8 @@ export default function App() {
       socket.off("modifier:schema:refresh", onModifierRefresh);
       socket.off("analysis:schema:refresh", onAnalysisRefresh);
       socket.off("room:points:set", onPointsSet);
+      socket.off("tutorial:url", onTutorialURL);
+      socket.off("showSiMGen", onShowSiMGen);
     };
   }, []);
 
@@ -459,6 +474,8 @@ export default function App() {
           setGeometries={setGeometries}
           setPoints={setPoints}
           isDrawing={isDrawing}
+          tutorialURL={tutorialURL}
+          showSiMGen={showSiMGen}
         />
         <Sidebar
           selectionSchema={selectionSchema}

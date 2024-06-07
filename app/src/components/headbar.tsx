@@ -1,4 +1,4 @@
-import { SetStateAction, useEffect, useState, useMemo } from "react";
+import React, { SetStateAction, useEffect, useState, useMemo } from "react";
 import {
   Navbar,
   Nav,
@@ -11,6 +11,7 @@ import {
 import {
   FaCode,
   FaDownload,
+  FaFilm,
   FaHandSparkles,
   FaMoon,
   FaRegClipboard,
@@ -188,6 +189,30 @@ function RefreshModal({ show, onHide, room }) {
   );
 }
 
+interface TutorialModalProps {
+  show: boolean;
+  onHide: () => void;
+  url: string;
+}
+
+const TutorialModal: React.FC<TutorialModalProps> = ({ show, onHide, url }) => {
+  return (
+    <Modal show={show} onHide={onHide} size="xl" dialogClassName="custom-modal">
+      <Modal.Header closeButton>
+        <Modal.Title>ZnDraw Tutorial</Modal.Title>
+      </Modal.Header>
+      <Modal.Body className="modal-body-custom">
+        <iframe
+          src={url}
+          id="tutorialIframe"
+          allowFullScreen
+          className="iframe-custom"
+        ></iframe>
+      </Modal.Body>
+    </Modal>
+  );
+};
+
 const HeadBar = ({
   room,
   colorMode,
@@ -196,6 +221,8 @@ const HeadBar = ({
   setGeometries,
   setPoints,
   isDrawing,
+  tutorialURL,
+  showSiMGen,
 }: {
   room: string;
   colorMode: string;
@@ -204,10 +231,13 @@ const HeadBar = ({
   setGeometries: any;
   setPoints: any;
   isDrawing: boolean;
+  tutorialURL: string;
+  showSiMGen: boolean;
 }) => {
   const [helpModalShow, setHelpModalShow] = useState(false);
   const [connectModalShow, setConnectModalShow] = useState(false);
   const [refreshModalShow, setRefreshModalShow] = useState(false);
+  const [tutorialModalShow, setTutorialModalShow] = useState(false);
   const [consoleShow, setConsoleShow] = useState(false);
   const [consoleText, setConsoleText] = useState<string[]>([]);
 
@@ -287,6 +317,17 @@ const HeadBar = ({
               </BtnTooltip>
             </Nav>
             <Nav className="ms-auto">
+              {tutorialURL && (
+                <BtnTooltip text="Tutorial">
+                  <Button
+                    variant="outline-primary"
+                    className="mx-1"
+                    onClick={() => setTutorialModalShow(true)}
+                  >
+                    Tutorial <FaFilm />
+                  </Button>
+                </BtnTooltip>
+              )}
               <BtnTooltip text="Access console">
                 <ToggleButton
                   variant="outline-primary"
@@ -355,6 +396,11 @@ const HeadBar = ({
         show={refreshModalShow}
         onHide={() => setRefreshModalShow(false)}
         room={room}
+      />
+      <TutorialModal
+        show={tutorialModalShow}
+        onHide={() => setTutorialModalShow(false)}
+        url={tutorialURL}
       />
       {consoleShow && <ConsoleWindow text={consoleText} />}
     </>

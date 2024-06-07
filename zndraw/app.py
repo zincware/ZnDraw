@@ -82,7 +82,6 @@ def create_app() -> Flask:
 
 @dataclasses.dataclass
 class ZnDrawServer:
-    compute_bonds: bool
     tutorial: str
     auth_token: str
     storage: str
@@ -92,7 +91,6 @@ class ZnDrawServer:
     celery_worker: bool = True
 
     _workers: list = None
-    _znsocket_server: subprocess.Popen | None = None
     app: Flask = None
 
     def __enter__(self):
@@ -115,6 +113,8 @@ class ZnDrawServer:
         self.app.config["SECRET_KEY"] = str(uuid.uuid4())
         self.app.config["AUTH_TOKEN"] = self.auth_token
         self.app.config["PORT"] = self.port
+        self.app.config["TUTORIAL"] = self.tutorial
+        self.app.config["SIMGEN"] = self.simgen
 
         if self.storage.startswith("redis"):
             self.app.config["redis"] = Redis.from_url(self.storage, decode_responses=True)

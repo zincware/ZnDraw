@@ -81,6 +81,11 @@ def webclient_connect():
     emit("geometry:schema", Geometry.updated_schema())
     emit("analysis:schema:refresh", to=request.sid)
 
+    if current_app.config["TUTORIAL"] is not None:
+        emit("tutorial:url", current_app.config["TUTORIAL"], to=request.sid)
+    if current_app.config["SIMGEN"]:
+        emit("showSiMGen", to=request.sid)
+
     return {"name": session["name"], "room": room}
 
 
