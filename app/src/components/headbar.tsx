@@ -456,7 +456,10 @@ const HeadBar = ({
                   <Button
                     variant="outline-danger"
                     className="mx-1"
-                    onClick={() => {socket.emit("shutdown"); close();}}
+                    onClick={() => {
+                      socket.emit("shutdown");
+                      close();
+                    }}
                   >
                     <MdExitToApp />
                   </Button>
