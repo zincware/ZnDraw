@@ -36,9 +36,8 @@ class ZnDraw(ZnDrawBase):
         self.socket.on("modifier:run", self._run_modifier)
         self.socket.on("modifier:wakeup", on_wakeup)
         self.socket.on("room:log", lambda x: print(x))
-        
-        self.socket.connect(self.url, wait_timeout=10)
 
+        self.socket.connect(self.url, wait_timeout=10)
 
     def _on_connect(self):
         self.socket.emit(
