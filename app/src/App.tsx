@@ -453,6 +453,7 @@ export default function App() {
           setIsDrawing={setIsDrawing}
           setGeometries={setGeometries}
           setPoints={setPoints}
+          isDrawing={isDrawing}
         />
         <Sidebar
           selectionSchema={selectionSchema}

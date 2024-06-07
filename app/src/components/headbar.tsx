@@ -1,5 +1,13 @@
 import { SetStateAction, useEffect, useState, useMemo } from "react";
-import { Navbar, Nav, Container, Button, Modal, Card } from "react-bootstrap";
+import {
+  Navbar,
+  Nav,
+  Container,
+  Button,
+  Modal,
+  Card,
+  ToggleButton,
+} from "react-bootstrap";
 import {
   FaCode,
   FaDownload,
@@ -187,6 +195,7 @@ const HeadBar = ({
   setIsDrawing,
   setGeometries,
   setPoints,
+  isDrawing,
 }: {
   room: string;
   colorMode: string;
@@ -194,6 +203,7 @@ const HeadBar = ({
   setIsDrawing: any;
   setGeometries: any;
   setPoints: any;
+  isDrawing: boolean;
 }) => {
   const [helpModalShow, setHelpModalShow] = useState(false);
   const [connectModalShow, setConnectModalShow] = useState(false);
@@ -253,15 +263,18 @@ const HeadBar = ({
                 </Button>
               </BtnTooltip>
               <BtnTooltip text="Activate Drawing Tool">
-                <Button
+                <ToggleButton
                   variant="outline-primary"
                   className="mx-1"
-                  onClick={() => {
+                  value="1"
+                  id="toggle-drawing"
+                  active={isDrawing}
+                  onClick={(e) => {
                     setIsDrawing((prev: boolean) => !prev);
                   }}
                 >
                   <FaPencil />
-                </Button>
+                </ToggleButton>
               </BtnTooltip>
               <BtnTooltip text="Remove all guiding points and geometries">
                 <Button
@@ -275,13 +288,18 @@ const HeadBar = ({
             </Nav>
             <Nav className="ms-auto">
               <BtnTooltip text="Access console">
-                <Button
+                <ToggleButton
                   variant="outline-primary"
                   className="mx-1"
-                  onClick={() => setConsoleShow(!consoleShow)}
+                  value="1"
+                  id="toggle-console"
+                  active={consoleShow}
+                  onClick={() => {
+                    setConsoleShow((prev: boolean) => !prev);
+                  }}
                 >
                   <FaTerminal />
-                </Button>
+                </ToggleButton>
               </BtnTooltip>
               <BtnTooltip text="Python access">
                 <Button
@@ -292,7 +310,7 @@ const HeadBar = ({
                   <FaCode />
                 </Button>
               </BtnTooltip>
-              <BtnTooltip text="Upload file (max 1 MB)">
+              {/* <BtnTooltip text="Upload file (max 1 MB)">
                 <Button variant="outline-primary" className="mx-1">
                   <FaUpload />
                 </Button>
@@ -301,7 +319,7 @@ const HeadBar = ({
                 <Button variant="outline-primary" className="mx-1">
                   <FaDownload />
                 </Button>
-              </BtnTooltip>
+              </BtnTooltip> */}
               <BtnTooltip text="Help">
                 <Button
                   variant="outline-primary"

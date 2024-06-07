@@ -13,7 +13,7 @@ ase = "^3"
 typer = {extras = ["all"], version = "^0"}
 flask = "^2"
 tqdm = "^4"
-znh5md = "^0"
+znh5md = {version = "^0", optional = true}
 flask-socketio = "^5"
 eventlet = "^0"
 networkx = "^3"
@@ -25,6 +25,7 @@ datamodel-code-generator = "^0.25"
 mdanalysis = {version = "^2", optional = true}
 tidynamics = {version = "^1", optional = true}
 rdkit2ase = {version = "^0.1", optional = true}
+zntrack = {version = "^0.7.3", optional = true}
 znframe = "^0.1"
 decorator = "^5"
 celery = "^5"
@@ -45,8 +46,10 @@ ruff = "^0.1"
 
 
 [tool.poetry.extras]
-all = ["mdanalysis", "tidynamics", "rdkit2ase"]
+all = ["mdanalysis", "tidynamics", "rdkit2ase", "zntrack", "znh5md"]
 rdkit = ["rdkit2ase"]
+io = ["zntrack", "znh5md"]
+
 
 [build-system]
 requires = ["poetry-core"]
