@@ -75,9 +75,7 @@ class MethodsCollection(BaseModel):
             __base__=cls,
             method=(
                 extended_methods,
-                Field(
-                    ..., description=method_description, discriminator="discriminator"
-                ),
+                Field(..., description=method_description, discriminator="discriminator"),
             ),
         )
         schema = extended_cls.model_json_schema()

@@ -157,9 +157,7 @@ class Properties1D(Extension):
     def model_json_schema_from_atoms(cls, schema: dict) -> dict:
         ATOMS = cls.get_atoms()
         try:
-            available_properties = list(
-                ATOMS.calc.results.keys()
-            )  # global ATOMS object
+            available_properties = list(ATOMS.calc.results.keys())  # global ATOMS object
             log.debug(f"AVAILABLE PROPERTIES: {available_properties=}")
             schema["properties"]["value"]["enum"] = available_properties
         except AttributeError:

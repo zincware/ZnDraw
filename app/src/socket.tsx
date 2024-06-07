@@ -86,14 +86,10 @@ export const sendPoints = (points: THREE.Vector3[], fromSockets: any) => {
     if (fromSockets.current) {
       fromSockets.current = false;
     } else {
-      socket.emit("room:points:set", {
-        0: points.map((point) => point.toArray()),
-      });
+      timeoutRef.current = setTimeout(() => {
+        const message = { 0: points.map((point) => point.toArray()) };
+        socket.emit("room:points:set", message);
+      }, 100);
     }
-    return () => {
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-      }
-    };
   }, [points]);
 };

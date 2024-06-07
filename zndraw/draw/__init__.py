@@ -135,9 +135,7 @@ methods = t.Union[
 
 
 class Geometry(MethodsCollection):
-    method: methods = Field(
-        default_factory=Box, description="Select a geometry method."
-    )
+    method: methods = Field(default_factory=Box, description="Select a geometry method.")
 
     # @classmethod
     # def updated_schema(cls) -> dict:

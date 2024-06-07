@@ -23,19 +23,6 @@ log = logging.getLogger(__name__)
 @io.on("connect")
 def connect():
     pass
-    # try:
-    #     room = str(session["token"])
-    #     join_room(room)
-    #     log.critical(f"connecting (webclient) {request.sid} to room {room}")
-
-    #     r = current_app.config["redis"]
-    #     r.sadd(f"room:{room}:webclients", session["name"])
-
-    #     emit("room:users:refresh", list(r.smembers(f"room:{room}:webclients")), to=room)
-    #     # set step, camera, bookmarks, points
-
-    # except KeyError:
-    #     log.critical(f"connecting (pyclient) {request.sid}")
 
 
 @io.on("disconnect")
@@ -108,9 +95,7 @@ def join(data: dict):
     if current_app.config["AUTH_TOKEN"] is None:
         session["authenticated"] = True
     else:
-        session["authenticated"] = (
-            data["auth_token"] == current_app.config["AUTH_TOKEN"]
-        )
+        session["authenticated"] = data["auth_token"] == current_app.config["AUTH_TOKEN"]
     token = data["token"]
     session["token"] = token
     room = str(session["token"])
@@ -490,7 +475,7 @@ def room_step_get() -> int:
 
 @io.on("room:points:set")
 def room_points_set(data: dict):
-    # print(f"setting step to {step}")
+    print(f"setting points to {data}")
     r: Redis = current_app.config["redis"]
     room = session.get("token")
     r.hmset(f"room:{room}:points", {k: json.dumps(v) for k, v in data.items()})
@@ -503,7 +488,12 @@ def room_points_set(data: dict):
 def room_points_get() -> dict[str, list[list]]:
     r: Redis = current_app.config["redis"]
     room = session.get("token")
-    return r.hgetall(f"room:{room}:points")
+    result: dict[int, list[list]] = r.hgetall(f"room:{room}:points")
+    # TODO: type consistency!!
+    result = {k: json.loads(v) for k, v in result.items()}
+    if "0" not in result:
+        return {"0": []}
+    return result
 
 
 @io.on("room:bookmarks:set")

@@ -58,14 +58,14 @@ export default function App() {
   });
   // updated via sockets
   const [step, setStep] = useState<number>(0);
-  const stepFromSocket = useRef<boolean>(false);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
-  const selectionFromSocket = useRef<boolean>(false);
   const [bookmarks, setBookmarks] = useState<any>({}); // {name: [step, ...]
-  const bookmarksFromSocket = useRef<boolean>(false);
   const [points, setPoints] = useState<THREE.Vector3[]>([]);
-  const pointsFromSocket = useRef<boolean>(false);
-  // should also include geometries
+
+  const stepFromSocket = useRef<boolean>(true); // true to avoid first render trigger
+  const bookmarksFromSocket = useRef<boolean>(true);
+  const selectionFromSocket = useRef<boolean>(true);
+  const pointsFromSocket = useRef<boolean>(true); 
 
   const [isDrawing, setIsDrawing] = useState<boolean>(false);
   const [selectedPoint, setSelectedPoint] = useState<THREE.Vector3 | null>(
@@ -144,13 +144,38 @@ export default function App() {
         (data: { name: string; room: string }) => {
           setRoomName(data["room"]);
         },
-      ); // ??
+      );
       console.log("connected");
-      // TODO: length should be updated more frequently
+      // get length
       socket.emit("room:length:get", (data: number) => {
         setLength(data);
         console.log("number of available frames", data);
       });
+      // get bookmarks
+      socket.emit("room:bookmarks:get", (data: any) => {
+        bookmarksFromSocket.current = true;
+        setBookmarks(data);
+      });
+      // // get points
+      socket.emit("room:points:get", (data: any) => {
+        pointsFromSocket.current = true;
+        setPoints(data["0"]);
+      });
+      // get geometries
+      socket.emit("room:geometry:get", (data: any) => {
+        setGeometries(data);
+      });
+      // get step
+      socket.emit("room:step:get", (data: number) => {
+        stepFromSocket.current = true;
+        setStep(data);
+      }); 
+      // get selection
+      socket.emit("room:selection:get", (data: any) => {
+        selectionFromSocket.current = true;
+        setSelectedIds(new Set(data));
+      });
+
     }
 
     function onSelectionSchema(receivedSchema: any) {

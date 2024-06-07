@@ -97,13 +97,12 @@ export const Line3D = ({
   }, [points]);
 
   useEffect(() => {
-    if (!isDrawing) {
-      // remove the last point if going from drawing -> not drawing
-      setPoints(points.slice(0, points.length - 1));
-    } else {
+    if (points.length > 0) {
       // add the moving point when going from not drawing -> drawing
-      if (points.length > 0) {
+      if (isDrawing) {
         setPoints([...points, points[points.length - 1].clone()]);
+      } else {
+        setPoints(points.slice(0, points.length - 1));
       }
     }
   }, [isDrawing]);
