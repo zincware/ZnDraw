@@ -65,7 +65,7 @@ class MethodsCollection(BaseModel):
         methods = cls.__annotations__["method"]
         if extensions is not None and len(extensions) > 0:
             extensions_types = t.Union[tuple(extensions)]
-            extended_methods = t.Union[methods, extensions_types]
+            extended_methods = t.Union[extensions_types, methods]
         else:
             extended_methods = methods
 

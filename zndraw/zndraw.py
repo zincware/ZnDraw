@@ -69,8 +69,7 @@ class ZnDraw(ZnDrawBase):
             data = {index: znframe.Frame.from_atoms(value).to_json()}
         else:
             data = {
-                i: znframe.Frame.from_atoms(val).to_json()
-                for i, val in zip(index, value)
+                i: znframe.Frame.from_atoms(val).to_json() for i, val in zip(index, value)
             }
 
         self.socket.emit("room:frames:set", data)
@@ -167,9 +166,7 @@ class ZnDraw(ZnDrawBase):
     def geometries(self) -> list[Object3D]:
         # return self.socket.call("room:geometry:get")
 
-        return [
-            Geometry(method=x).method for x in self.socket.call("room:geometry:get")
-        ]
+        return [Geometry(method=x).method for x in self.socket.call("room:geometry:get")]
 
     @geometries.setter
     def geometries(self, value: list[Object3D]):

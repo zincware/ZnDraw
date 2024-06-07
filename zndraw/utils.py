@@ -29,8 +29,7 @@ def estimate_max_batch_size_for_socket(frames: list[znframe.Frame]):
 
     max_size = GlobalConfig().max_socket_data_size
     sizes = [
-        sys.getsizeof(json.dumps(frame.to_dict(built_in_types=False)))
-        for frame in frames
+        sys.getsizeof(json.dumps(frame.to_dict(built_in_types=False))) for frame in frames
     ]
     largest_frame = max(sizes)
     chunk_size = int(max_size / largest_frame * 0.9)
