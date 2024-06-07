@@ -102,6 +102,9 @@ def main(
         step=step,
     )
     if "ZNDRAW_STORAGE" in os.environ and storage is None:
+        print(
+            f"Using storage from environment variable ZNDRAW_STORAGE: {os.environ['ZNDRAW_STORAGE']}"
+        )
         storage = os.environ["ZNDRAW_STORAGE"]
 
     with ZnDrawServer(
