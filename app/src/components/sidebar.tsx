@@ -28,10 +28,14 @@ function SidebarMenu({
   schema,
   onSubmit,
   queuePosition,
+  trigger,
+  setTrigger,
 }: {
   schema: any;
   onSubmit: any;
   queuePosition: number;
+  trigger: boolean;
+  setTrigger: any;
 }) {
   const editorRef = useRef<HTMLDivElement>(null);
   // the values that are currently in the editor, only used because
@@ -44,6 +48,13 @@ function SidebarMenu({
       onSubmit(currentEditorValue);
     }
   }
+
+  useEffect(() => {
+    if (trigger) {
+      submitEditor();
+    }
+    setTrigger(false);
+  }, [trigger]);
 
   useEffect(() => {
     if (editorRef.current) {
@@ -209,6 +220,8 @@ function SideBar({
   selectionQueue,
   analysisQueue,
   geometryQueue,
+  triggerSelection,
+  setTriggerSelection,
 }: {
   selectionSchema: any;
   modifierSchema: any;
@@ -221,6 +234,8 @@ function SideBar({
   selectionQueue: number;
   analysisQueue: number;
   geometryQueue: number;
+  triggerSelection: boolean;
+  setTriggerSelection: any;
 }) {
   const [visibleOption, setVisibleOption] = useState<string>("");
   const [plotData, setPlotData] = useState({
@@ -341,12 +356,15 @@ function SideBar({
         </Card>
       </Navbar>
       {visibleOption == "selection" && (
+        // TODO: trigger only work if visible, otherwise this component is unmounted
         <SidebarMenu
           schema={selectionSchema}
           onSubmit={(data: any) => {
             socket.emit("selection:run", data);
           }}
           queuePosition={selectionQueue}
+          trigger={triggerSelection}
+          setTrigger={setTriggerSelection}
         />
       )}
       {visibleOption == "interaction" && (

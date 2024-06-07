@@ -60,6 +60,7 @@ export const ParticleInstances = ({
   setOrbitControlsTarget,
   hoveredId,
   setHoveredId,
+  setTriggerSelection,
 }: {
   frame: Frame;
   selectedIds: Set<number>;
@@ -70,6 +71,7 @@ export const ParticleInstances = ({
   setOrbitControlsTarget: any;
   hoveredId: number | null;
   setHoveredId: any;
+  setTriggerSelection: any;
 }) => {
   const meshRef = useRef();
 
@@ -176,6 +178,7 @@ export const ParticleInstances = ({
   const handleClick = (event) => {
     // if not shift key, the selected particle is the only one selected, if already selected, no particle is selected
     // if shift key, the selected particle is added to the selected particles, if already selected, it is removed
+    if (event.detail !== 1) return; // prevent double click tirgger
     if (!event.shiftKey) {
       if (selectedIds.has(event.instanceId)) {
         setSelectedIds(new Set());
@@ -191,6 +194,12 @@ export const ParticleInstances = ({
         setSelectedIds(new Set(selectedIds));
       }
     }
+    event.stopPropagation();
+  };
+
+  const handleDoubleClick = (event) => {
+    console.log("double click");
+    setTriggerSelection(true);
     event.stopPropagation();
   };
 
@@ -234,6 +243,7 @@ export const ParticleInstances = ({
       onPointerOver={handlePointerOver}
       onPointerOut={handlePointerOut}
       onClick={handleClick}
+      onDoubleClick={handleDoubleClick}
       onPointerMove={handlePointerMove}
       castShadow
       receiveShadow

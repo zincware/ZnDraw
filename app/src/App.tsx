@@ -91,6 +91,8 @@ export default function App() {
   const [geometryQueue, setGeometryQueue] = useState<number>(-1);
   const [analysisQueue, setAnalysisQueue] = useState<number>(-1);
 
+  const [triggerSelection, setTriggerSelection] = useState<boolean>(false);
+
   const cameraLightRef = useRef<THREE.PointLight>(null);
   const cameraRef = useRef<THREE.Camera>(null);
 
@@ -195,6 +197,8 @@ export default function App() {
     }
     // data is {collection_id: [id1, id2, ...]}
     function onRoomSelectionSet(data: any) {
+      console.log("new selection");
+      console.log(data);
       selectionFromSocket.current = true;
       setSelectedIds(new Set(data[0]));
     }
@@ -381,6 +385,7 @@ export default function App() {
             setOrbitControlsTarget={setOrbitControlsTarget}
             hoveredId={hoveredId}
             setHoveredId={setHoveredId}
+            setTriggerSelection={setTriggerSelection}
           />
           <BondInstances
             frame={currentFrame}
@@ -467,6 +472,8 @@ export default function App() {
           selectionQueue={selectionQueue}
           geometryQueue={geometryQueue}
           analysisQueue={analysisQueue}
+          triggerSelection={triggerSelection}
+          setTriggerSelection={setTriggerSelection}
         />
         <FrameProgressBar
           length={length}
