@@ -33,10 +33,12 @@ class ZnDraw(ZnDrawBase):
 
         self.url = self.url.replace("http", "ws")
         self.socket.on("connect", self._on_connect)
-        self.socket.connect(self.url, wait_timeout=1)
         self.socket.on("modifier:run", self._run_modifier)
         self.socket.on("modifier:wakeup", on_wakeup)
         self.socket.on("room:log", lambda x: print(x))
+        
+        self.socket.connect(self.url, wait_timeout=10)
+
 
     def _on_connect(self):
         self.socket.emit(
