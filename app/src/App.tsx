@@ -476,6 +476,7 @@ export default function App() {
           isDrawing={isDrawing}
           tutorialURL={tutorialURL}
           showSiMGen={showSiMGen}
+          modifierQueue={modifierQueue}
         />
         <Sidebar
           selectionSchema={selectionSchema}

@@ -84,7 +84,7 @@ def webclient_connect():
     if current_app.config["TUTORIAL"] is not None:
         emit("tutorial:url", current_app.config["TUTORIAL"], to=request.sid)
     if current_app.config["SIMGEN"]:
-        emit("showSiMGen", to=request.sid)
+        emit("showSiMGen", True, to=request.sid)
 
     return {"name": session["name"], "room": room}
 

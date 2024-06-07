@@ -15,6 +15,7 @@ import {
   FaHandSparkles,
   FaMoon,
   FaRegClipboard,
+  FaRocket,
   FaSun,
   FaTerminal,
   FaUpload,
@@ -24,7 +25,13 @@ import { Rnd } from "react-rnd";
 import { BtnTooltip } from "./tooltips";
 import { socket } from "../socket";
 
-import { FaArrowRotateRight, FaCircleInfo, FaPencil } from "react-icons/fa6";
+import {
+  FaArrowRotateRight,
+  FaCircleInfo,
+  FaFileCirclePlus,
+  FaPencil,
+} from "react-icons/fa6";
+import { TbPlugConnected } from "react-icons/tb";
 
 function ConsoleWindow({ text }: { text: string[] }) {
   return (
@@ -213,6 +220,61 @@ const TutorialModal: React.FC<TutorialModalProps> = ({ show, onHide, url }) => {
   );
 };
 
+function SiMGenButtons({ queuePosition }: { queuePosition: number }) {
+  const runConnect = () => {
+    socket.emit("modifier:run", {
+      method: { discriminator: "Connect" },
+    });
+  };
+
+  const runGenerate = () => {
+    socket.emit("modifier:run", {
+      method: { discriminator: "SiMGenDemo" },
+    });
+  };
+
+  const createNewCanvas = () => {
+    socket.emit("modifier:run", {
+      method: { discriminator: "newCanvas" },
+    });
+  };
+
+  return (
+    <>
+      <BtnTooltip text="Connect selected atoms (shift click)">
+        <Button
+          variant="outline-primary"
+          className="mx-1"
+          onClick={runConnect}
+          disabled={queuePosition != -1}
+        >
+          <TbPlugConnected /> Connect
+        </Button>
+      </BtnTooltip>
+      <BtnTooltip text="Run SiMGen molecular generation">
+        <Button
+          variant="outline-primary"
+          className="mx-1"
+          onClick={runGenerate}
+          disabled={queuePosition != -1}
+        >
+          <FaRocket /> Generate
+        </Button>
+      </BtnTooltip>
+      <BtnTooltip text="Replace scene with empty canvas and enter drawing mode">
+        <Button
+          variant="outline-primary"
+          className="mx-1"
+          onClick={createNewCanvas}
+          disabled={queuePosition != -1}
+        >
+          <FaFileCirclePlus /> New Canvas
+        </Button>
+      </BtnTooltip>
+    </>
+  );
+}
+
 const HeadBar = ({
   room,
   colorMode,
@@ -223,6 +285,7 @@ const HeadBar = ({
   isDrawing,
   tutorialURL,
   showSiMGen,
+  modifierQueue,
 }: {
   room: string;
   colorMode: string;
@@ -233,6 +296,7 @@ const HeadBar = ({
   isDrawing: boolean;
   tutorialURL: string;
   showSiMGen: boolean;
+  modifierQueue: number;
 }) => {
   const [helpModalShow, setHelpModalShow] = useState(false);
   const [connectModalShow, setConnectModalShow] = useState(false);
@@ -315,6 +379,7 @@ const HeadBar = ({
                   <FaHandSparkles />
                 </Button>
               </BtnTooltip>
+              {showSiMGen && <SiMGenButtons queuePosition={modifierQueue} />}
             </Nav>
             <Nav className="ms-auto">
               {tutorialURL && (
