@@ -283,9 +283,8 @@ class Replicate(UpdateScene):
 
 
 methods = t.Union[
-    Connect,
-    Rotate,
     Delete,
+    Rotate,
     Move,
     Duplicate,
     ChangeType,
@@ -293,6 +292,7 @@ methods = t.Union[
     Wrap,
     Center,
     Replicate,
+    Connect,
 ]
 
 
