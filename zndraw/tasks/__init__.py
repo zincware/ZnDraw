@@ -102,12 +102,11 @@ def run_modifier(url, room, data: dict) -> None:
     except Exception as e:
         vis.log(str(e))
     finally:
-        # vis[list(range(10))] = [ase.build.molecule("H2O") for _ in range(10)]
-        # TODO: why is everything after 10 configuration removed?
         vis.socket.emit("room:modifier:queue", -1)
 
-    # 1. run modifier and update redis
-    # 2. use to update frames in real time "room:frames:refresh"
+    # wait and then disconnect
+    vis.socket.sleep(1)
+    vis.socket.disconnect()
 
 
 @shared_task
@@ -122,6 +121,10 @@ def run_selection(url, room, data: dict) -> None:
         selection.run(vis)
     finally:
         vis.socket.emit("room:selection:queue", -1)
+
+    # wait and then disconnect
+    vis.socket.sleep(1)
+    vis.socket.disconnect()
 
 
 @shared_task
@@ -139,6 +142,10 @@ def run_analysis(url, room, data: dict) -> None:
     finally:
         vis.socket.emit("room:analysis:queue", -1)
 
+    # wait and then disconnect
+    vis.socket.sleep(1)
+    vis.socket.disconnect()
+
 
 @shared_task
 def run_geometry(url, room, data: dict) -> None:
@@ -153,3 +160,7 @@ def run_geometry(url, room, data: dict) -> None:
         geom.run(vis)
     finally:
         vis.socket.emit("room:geometry:queue", -1)
+
+    # wait and then disconnect
+    vis.socket.sleep(1)
+    vis.socket.disconnect()

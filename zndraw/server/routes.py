@@ -25,6 +25,10 @@ def _upload(file, url, token):
     for atoms in ase.io.iread(pathlib.Path("data", file)):
         vis.append(atoms)
 
+    # wait and then disconnect
+    vis.socket.sleep(1)
+    vis.socket.disconnect()
+
 
 @main.route("/")
 def index():

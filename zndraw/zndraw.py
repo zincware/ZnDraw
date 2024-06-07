@@ -251,3 +251,7 @@ class ZnDraw(ZnDrawBase):
         finally:
             self._available = True
             self.socket.emit("modifier:available", list(self._modifiers))
+
+            # wait and then disconnect
+            vis.socket.sleep(1)
+            vis.socket.disconnect()
