@@ -1,4 +1,5 @@
 """Base class for all ZnDraw objects."""
+
 import dataclasses
 
 
