@@ -25,6 +25,15 @@ def connect():
     pass
 
 
+@io.on("shutdown")
+def shutdown():
+    if current_app.config["AUTH_TOKEN"] is None or session["authenticated"]:
+        log.critical("Shutting down server")
+        io.stop()
+    else:
+        log.critical("Unauthenticated user tried to shut down the server.")
+
+
 @io.on("disconnect")
 def disconnect():
     try:
