@@ -24,6 +24,7 @@ export const Line3D = ({
   colorMode,
   hoveredId, // if null, hover virtual canvas -> close line
   setIsDrawing,
+  setLineLength,
 }: {
   points: THREE.Vector3[];
   setPoints: any;
@@ -32,6 +33,7 @@ export const Line3D = ({
   colorMode: string;
   hoveredId: number | null;
   setIsDrawing: any;
+  setLineLength: (length: number) => void;
 }) => {
   //   a virtual point is between every two points in the points array on the line
   const [virtualPoints, setVirtualPoints] = useState<THREE.Vector3[]>([]);
@@ -81,9 +83,10 @@ export const Line3D = ({
     }
     // TODO: do not compute the curve twice
     // TODO: clean up types, reuse vector objects here
-    const curve = new THREE.CatmullRomCurve3(
-      points.map((point) => new THREE.Vector3(...point)),
-    );
+    const curve = new THREE.CatmullRomCurve3(points);
+
+    setLineLength(curve.getLength());
+
     const linePoints = curve.getPoints(points.length * 20);
     const position = new THREE.Vector3();
     let _newPoints: THREE.Vector3[] = [];
@@ -100,7 +103,7 @@ export const Line3D = ({
     if (points.length > 0) {
       // add the moving point when going from not drawing -> drawing
       if (isDrawing) {
-        setPoints([...points, points[points.length - 1].clone()]);
+        setPoints([...points, points[points.length - 1]]);
       } else {
         setPoints(points.slice(0, points.length - 1));
       }

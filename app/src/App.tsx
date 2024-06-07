@@ -29,6 +29,7 @@ import { Button, InputGroup, Form } from "react-bootstrap";
 import * as THREE from "three";
 import { Line3D, VirtualCanvas } from "./components/lines";
 import ControlsBuilder from "./components/transforms";
+import { ParticleInfoOverlay } from "./components/overlays";
 
 export default function App() {
   // const [isConnected, setIsConnected] = useState(socket.connected);
@@ -100,6 +101,10 @@ export default function App() {
   const [tutorialURL, setTutorialURL] = useState<string>("");
   const [showSiMGen, setShowSiMGen] = useState<boolean>(false);
 
+  const [cursorPosition, setCursorPosition] = useState({ x: 0, y: 0 });
+  const [lineLength, setLineLength] = useState<number>(0);
+  const [showParticleInfo, setShowParticleInfo] = useState<boolean>(false);
+
   // external useEffects, should be disabled when
   // the input is received via sockets
   sendStep(step, stepFromSocket);
@@ -163,9 +168,9 @@ export default function App() {
         setBookmarks(data);
       });
       // // get points
-      socket.emit("room:points:get", (data: any) => {
+      socket.emit("room:points:get", (data: { [key: string]: number[][] }) => {
         pointsFromSocket.current = true;
-        setPoints(data["0"]);
+        setPoints(data["0"].map((x) => new THREE.Vector3(...x)));
       });
       // get geometries
       socket.emit("room:geometry:get", (data: any) => {
@@ -358,6 +363,8 @@ export default function App() {
         }
       } else if (event.key == "x") {
         setIsDrawing((prev) => !prev);
+      } else if (event.key == "i") {
+        setShowParticleInfo((prev) => !prev);
       } else if (event.key == "b") {
         setBookmarks((prev) => {
           const newBookmarks = { ...prev };
@@ -375,6 +382,18 @@ export default function App() {
       window.removeEventListener("keydown", handleKeyDown);
     };
   }, [length, step]);
+
+  useEffect(() => {
+    const updateCursorPosition = (event) => {
+      setCursorPosition({ x: event.clientX, y: event.clientY });
+    };
+
+    window.addEventListener("mousemove", updateCursorPosition);
+
+    return () => {
+      window.removeEventListener("mousemove", updateCursorPosition);
+    };
+  }, []);
 
   return (
     <>
@@ -444,6 +463,7 @@ export default function App() {
             colorMode={colorMode}
             hoveredId={hoveredId}
             setIsDrawing={setIsDrawing}
+            setLineLength={setLineLength}
           />
           <ControlsBuilder
             points={points}
@@ -500,6 +520,16 @@ export default function App() {
           bookmarks={bookmarks}
           setBookmarks={setBookmarks}
         />
+        {showParticleInfo && (
+          <ParticleInfoOverlay
+            show={hoveredId !== null || isDrawing}
+            info={{
+              ...(hoveredId !== null && { "Particle ID": hoveredId }),
+              ...(isDrawing && { Line: `${lineLength.toFixed(2)} Å` }),
+            }}
+            position={cursorPosition}
+          />
+        )}
       </div>
     </>
   );
