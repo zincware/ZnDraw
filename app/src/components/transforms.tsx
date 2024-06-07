@@ -19,6 +19,9 @@ export default function ControlsBuilder({
   useEffect(() => {
     // event on pressing backspace
     const handleKeyDown = (event: KeyboardEvent) => {
+      if (document.activeElement !== document.body) {
+        return;
+      }
       if (event.key === "Backspace") {
         if (selectedPoint !== null) {
           const newPoints = points.filter(
