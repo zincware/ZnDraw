@@ -28,10 +28,12 @@ import { socket } from "../socket";
 import {
   FaArrowRotateRight,
   FaCircleInfo,
+  FaE,
   FaFileCirclePlus,
   FaPencil,
 } from "react-icons/fa6";
 import { TbPlugConnected } from "react-icons/tb";
+import { MdExitToApp } from "react-icons/md";
 
 function ConsoleWindow({ text }: { text: string[] }) {
   return (
@@ -286,6 +288,7 @@ const HeadBar = ({
   tutorialURL,
   showSiMGen,
   modifierQueue,
+  needsAuthentication,
 }: {
   room: string;
   colorMode: string;
@@ -297,6 +300,7 @@ const HeadBar = ({
   tutorialURL: string;
   showSiMGen: boolean;
   modifierQueue: number;
+  needsAuthentication: boolean;
 }) => {
   const [helpModalShow, setHelpModalShow] = useState(false);
   const [connectModalShow, setConnectModalShow] = useState(false);
@@ -447,6 +451,17 @@ const HeadBar = ({
               {/* <Button variant="outline-primary" className="mx-1">
                 <FaUsers />
               </Button> */}
+              {!needsAuthentication && (
+                <BtnTooltip text="Close ZnDraw">
+                  <Button
+                    variant="outline-danger"
+                    className="mx-1"
+                    href="/exit"
+                  >
+                    <MdExitToApp />
+                  </Button>
+                </BtnTooltip>
+              )}
             </Nav>
           </Navbar.Collapse>
         </Container>

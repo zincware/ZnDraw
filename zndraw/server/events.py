@@ -27,7 +27,11 @@ def connect():
 
 @io.on("disconnect")
 def disconnect():
-    room = str(session["token"])
+    try:
+        room = str(session["token"])
+    except KeyError:
+        log.critical(f"disconnecting {request.sid}")
+        return
     r = current_app.config["redis"]
 
     if "name" in session:
@@ -86,7 +90,11 @@ def webclient_connect():
     if current_app.config["SIMGEN"]:
         emit("showSiMGen", True, to=request.sid)
 
-    return {"name": session["name"], "room": room}
+    return {
+        "name": session["name"],
+        "room": room,
+        "needs_auth": current_app.config["AUTH_TOKEN"] is not None,
+    }
 
 
 @io.on("join")  # rename pyclient:connect

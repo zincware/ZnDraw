@@ -85,6 +85,7 @@ export default function App() {
   // todo give to particles and bonds
   const [colorMode, setColorMode] = useState<string>("light");
   const [hoveredId, setHoveredId] = useState<number>(null);
+  const [needsAuthentication, setNeedsAuthentication] = useState<boolean>(true);
 
   // QUEUES
   const [modifierQueue, setModifierQueue] = useState<number>(-1);
@@ -152,8 +153,9 @@ export default function App() {
     function onConnect() {
       socket.emit(
         "webclient:connect",
-        (data: { name: string; room: string }) => {
+        (data: { name: string; room: string; needs_auth: boolean }) => {
           setRoomName(data["room"]);
+          setNeedsAuthentication(data["needs_auth"]);
         },
       );
       console.log("connected");
@@ -498,6 +500,7 @@ export default function App() {
           tutorialURL={tutorialURL}
           showSiMGen={showSiMGen}
           modifierQueue={modifierQueue}
+          needsAuthentication={needsAuthentication}
         />
         <Sidebar
           selectionSchema={selectionSchema}
