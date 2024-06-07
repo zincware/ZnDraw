@@ -60,22 +60,10 @@ def setup_worker() -> list:
 
 def create_app() -> Flask:
     """Create the Flask app."""
-
     app = Flask(__name__)
     from .server import main as main_blueprint
 
-    # values to be overwritten by the server
-    # these are the default
     app.config["SECRET_KEY"] = str(uuid.uuid4())
-
-    # app.config["TUTORIAL"] = ""
-    # app.config["AUTH_TOKEN"] = ""
-    # app.config["USE_TOKEN"] = True
-    # app.config["PORT"] = 1234
-    # # where is the port used?
-
-    # app.config["upgrade_insecure_requests"] = False
-    # app.config["compute_bonds"] = True
 
     app.register_blueprint(main_blueprint)
 
@@ -94,8 +82,6 @@ def create_app() -> Flask:
 
 @dataclasses.dataclass
 class ZnDrawServer:
-    use_token: bool
-    upgrade_insecure_requests: bool
     compute_bonds: bool
     tutorial: str
     auth_token: str
@@ -127,6 +113,8 @@ class ZnDrawServer:
 
     def update_cache(self):
         self.app.config["SECRET_KEY"] = str(uuid.uuid4())
+        self.app.config["AUTH_TOKEN"] = self.auth_token
+        self.app.config["PORT"] = self.port
 
         if self.storage.startswith("redis"):
             self.app.config["redis"] = Redis.from_url(self.storage, decode_responses=True)
@@ -140,17 +128,6 @@ class ZnDrawServer:
                     break
                 except ConnectionError:
                     time.sleep(0.1)
-
-        self.app.config["TUTORIAL"] = self.tutorial
-        self.app.config["AUTH_TOKEN"] = self.auth_token
-        self.app.config["USE_TOKEN"] = self.use_token
-        self.app.config["PORT"] = self.port
-        self.app.config["SIMGEN"] = self.simgen
-
-        self.app.config["upgrade_insecure_requests"] = self.upgrade_insecure_requests
-        self.app.config["compute_bonds"] = self.compute_bonds
-
-        self.app.config["FileIO"] = self.fileio.to_dict() if self.fileio else {}
 
     def run(self, browser=False):
         if self.celery_worker:

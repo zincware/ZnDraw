@@ -36,7 +36,7 @@ def index():
     try:
         token = session["token"]
     except KeyError:
-        token = uuid.uuid4().hex[:8] if current_app.config["USE_TOKEN"] else "main"
+        token = uuid.uuid4().hex[:8]
         session["token"] = token
 
     session["name"] = uuid.uuid4().hex[:8]
@@ -52,14 +52,6 @@ def main_files(filename):
 @main.route("/assets/<path:filename>")
 def assets(filename):
     return send_from_directory("templates/assets", filename)
-
-    # return render_template(
-    #     "index.jinja2",
-    #     upgrade_insecure_requests=current_app.config["upgrade_insecure_requests"],
-    #     token=session["token"],
-    #     tutorial=current_app.config["TUTORIAL"],
-    #     simgen=current_app.config["SIMGEN"],
-    # )
 
 
 @main.route("/token/<token>")
@@ -97,7 +89,7 @@ def file(file: str):
     try:
         token = session["token"]
     except KeyError:
-        token = uuid.uuid4().hex[:8] if current_app.config["USE_TOKEN"] else "main"
+        token = uuid.uuid4().hex[:8]
         session["token"] = token
     url = request.url_root
     print(f"URL: {url}")

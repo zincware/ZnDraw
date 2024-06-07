@@ -48,15 +48,6 @@ def main(
         True,
         help="""Whether to compute bonds for the structure. If set to False, no bonds will be computed.""",
     ),
-    upgrade_insecure_requests: bool = typer.Option(
-        False,
-        hidden=True,
-        help="Set the html attribute upgrade-insecure-requests. If you are running ZnDraw behind a reverse proxy and encounter issues with insecure requests, you might want to set this to true.",
-    ),
-    use_token: bool = typer.Option(
-        True,
-        help="DEPRECATED!! Use a token to authenticate the ZnDraw server.  This is useful if you are running ZnDraw as a server application.",
-    ),
     remote: str = typer.Option(
         None,
         help="URL to a ZnTrack repository to stream data from.",
@@ -110,8 +101,6 @@ def main(
         os.environ["ZNDRAW_STORAGE"] = storage
 
     with ZnDrawServer(
-        use_token=use_token,
-        upgrade_insecure_requests=upgrade_insecure_requests,
         compute_bonds=compute_bonds,
         tutorial=tutorial,
         auth_token=auth_token,

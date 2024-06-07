@@ -59,7 +59,7 @@ def webclient_connect():
     try:
         token = session["token"]
     except KeyError:
-        token = uuid.uuid4().hex[:8] if current_app.config["USE_TOKEN"] else "main"
+        token = uuid.uuid4().hex[:8]
         session["token"] = token
 
     room = str(session["token"])
