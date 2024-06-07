@@ -1,5 +1,4 @@
 import dataclasses
-import json
 import logging
 import typing as t
 
@@ -93,8 +92,9 @@ class ZnDraw(ZnDrawBase):
 
     @property
     def selection(self) -> list[int]:
+        return self.socket.call("room:selection:get")["0"]
         data: dict = self.socket.call("room:selection:get")
-        return json.loads(data["0"])
+        return data["0"]
 
     @selection.setter
     def selection(self, value: list[int]):

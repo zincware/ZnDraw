@@ -453,7 +453,10 @@ def room_selection_set(data: dict[str, list[int]]):
 def room_selection_get() -> dict[str, list[int]]:
     r: Redis = current_app.config["redis"]
     room = session.get("token")
-    return r.hgetall(f"room:{room}:selection")
+    result = r.hgetall(f"room:{room}:selection")
+    if "0" in result:
+        return {k: json.loads(v) for k, v in result.items()}
+    return {"0": []}
 
 
 @io.on("room:step:set")

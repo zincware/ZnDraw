@@ -52,13 +52,28 @@ export const sendCamera = (data: { position: number[]; target: number[] }) => {
 };
 
 export const sendSelection = (selection: Set<number>, fromSockets: any) => {
-  // TODO: only sync if no change has happend for 100 milliseconds
+  const timeoutRef = useRef(null);
+
   useEffect(() => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
     if (fromSockets.current) {
+      console.log("skipt selection send from sockets");
       fromSockets.current = false;
     } else {
-      socket.emit("room:selection:set", { 0: Array.from(selection) });
+      timeoutRef.current = setTimeout(() => {
+        console.log("sending selection");
+        console.log(selection);
+        socket.emit("room:selection:set", { 0: Array.from(selection) });
+      }, 100);
     }
+
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
   }, [selection]);
 };
 

@@ -65,7 +65,7 @@ export default function App() {
   const stepFromSocket = useRef<boolean>(true); // true to avoid first render trigger
   const bookmarksFromSocket = useRef<boolean>(true);
   const selectionFromSocket = useRef<boolean>(true);
-  const pointsFromSocket = useRef<boolean>(true); 
+  const pointsFromSocket = useRef<boolean>(true);
 
   const [isDrawing, setIsDrawing] = useState<boolean>(false);
   const [selectedPoint, setSelectedPoint] = useState<THREE.Vector3 | null>(
@@ -169,13 +169,13 @@ export default function App() {
       socket.emit("room:step:get", (data: number) => {
         stepFromSocket.current = true;
         setStep(data);
-      }); 
+      });
       // get selection
       socket.emit("room:selection:get", (data: any) => {
         selectionFromSocket.current = true;
-        setSelectedIds(new Set(data));
+        console.log("new selection", data);
+        setSelectedIds(new Set(data[0]));
       });
-
     }
 
     function onSelectionSchema(receivedSchema: any) {
