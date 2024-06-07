@@ -61,9 +61,9 @@ def test_wrap_and_check_index_raises_exceptions(inp):
 def test_estimate_max_chunk_size():
     small = [Frame.from_atoms(molecule("H2O"))]
     big = [Frame.from_atoms(molecule("C60"))]
-    assert estimate_max_batch_size_for_socket(small) > estimate_max_batch_size_for_socket(
-        big
-    )
+    assert estimate_max_batch_size_for_socket(
+        small
+    ) > estimate_max_batch_size_for_socket(big)
     assert estimate_max_batch_size_for_socket(
         small + big
     ) == estimate_max_batch_size_for_socket(big)
