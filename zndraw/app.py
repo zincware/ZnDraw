@@ -68,22 +68,25 @@ def create_app() -> Flask:
     # these are the default
     app.config["SECRET_KEY"] = str(uuid.uuid4())
 
-    app.config["TUTORIAL"] = ""
-    app.config["AUTH_TOKEN"] = ""
-    app.config["USE_TOKEN"] = True
-    app.config["PORT"] = 1234
-    # where is the port used?
+    # app.config["TUTORIAL"] = ""
+    # app.config["AUTH_TOKEN"] = ""
+    # app.config["USE_TOKEN"] = True
+    # app.config["PORT"] = 1234
+    # # where is the port used?
 
-    app.config["upgrade_insecure_requests"] = False
-    app.config["compute_bonds"] = True
+    # app.config["upgrade_insecure_requests"] = False
+    # app.config["compute_bonds"] = True
 
     app.register_blueprint(main_blueprint)
 
     socketio.init_app(app, cors_allowed_origins="*")
+    if "ZNDRAW_STORAGE" in os.environ and os.environ["ZNDRAW_STORAGE"].startswith(
+        "redis"
+    ):
+        app.config["CELERY"] = {"broker_url": os.environ["ZNDRAW_STORAGE"]}
+    else:
+        app.config["CELERY"] = CeleryFileSystemConfig().to_dict()
 
-    app.config.from_mapping(
-        CELERY=CeleryFileSystemConfig().to_dict(),
-    )
     app.config.from_prefixed_env()
     celery_init_app(app)
     return app
