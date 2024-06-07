@@ -194,14 +194,12 @@ class Properties1D(Extension):
 
 
 methods = t.Union[
+    Properties1D,
     DihedralAngle,
     Distance,
-    Properties1D,
     Properties2D,
 ]
 
 
 class Analysis(MethodsCollection):
-    method: methods = Field(
-        ..., description="Analysis method", discriminator="discriminator"
-    )
+    method: methods = Field(description="Analysis method", discriminator="discriminator")

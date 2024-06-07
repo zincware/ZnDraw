@@ -59,7 +59,9 @@ class MethodsCollection(BaseModel):
         self.method.run(vis, **kwargs)
 
     @classmethod
-    def updated_schema(cls, extensions: list[t.Type[Extension]] | None = None) -> dict:
+    def updated_schema(
+        cls, extensions: t.Optional[t.List[t.Type[Extension]]] = None
+    ) -> dict:
         methods = cls.__annotations__["method"]
         if extensions is not None and len(extensions) > 0:
             extensions_types = t.Union[tuple(extensions)]
@@ -68,14 +70,21 @@ class MethodsCollection(BaseModel):
             extended_methods = methods
 
         # get the description of the cls.method field
-        method_description = cls.model_fields["method"].description
+        method_field = cls.model_fields["method"]
+
+        field_kwargs = {
+            "description": method_field.description,
+            "discriminator": "discriminator",
+        }
+        field_kwargs["default"] = method_field.default
+        field_kwargs["default_factory"] = method_field.default_factory
 
         extended_cls = create_model(
             cls.__name__,
             __base__=cls,
             method=(
                 extended_methods,
-                Field(..., description=method_description, discriminator="discriminator"),
+                Field(**field_kwargs),
             ),
         )
         schema = extended_cls.model_json_schema()
@@ -84,6 +93,7 @@ class MethodsCollection(BaseModel):
             schema["$defs"][prop]["properties"]["discriminator"]["options"] = {
                 "hidden": True
             }
+
         return schema
 
 

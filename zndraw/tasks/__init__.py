@@ -42,8 +42,10 @@ def read_file(fileio: dict, io_port: int, storage: str) -> None:
     lst = znsocket.List(r, "room:default:frames")
 
     if file_io.name is None:
+
         def _generator():
             yield ase.Atoms()
+
         generator = _generator()
     elif file_io.remote is not None:
         node_name, attribute = file_io.name.split(".", 1)

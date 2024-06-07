@@ -120,21 +120,21 @@ class UpdateSelection(SelectionBase):
         vis.selection = vis.selection
 
 
+# Order here matters
 methods = t.Union[
+    ConnectedParticles,
     NoneSelection,
     All,
     Invert,
     Range,
     Random,
     IdenticalSpecies,
-    ConnectedParticles,
     Neighbour,
 ]
 
 
 class Selection(MethodsCollection):
     method: methods = Field(
-        ConnectedParticles,
         description="Selection method",
         discriminator="discriminator",
     )
