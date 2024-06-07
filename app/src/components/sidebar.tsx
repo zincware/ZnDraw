@@ -24,22 +24,24 @@ JSONEditor.defaults.options.disable_collapse = true;
 JSONEditor.defaults.options.no_additional_properties = true;
 JSONEditor.defaults.options.keep_oneof_values = false;
 
-function SidebarMenu({
+interface SidebarMenuProps {
+  schema: any;
+  onSubmit: any;
+  queuePosition: number;
+  trigger?: boolean; // Mark trigger as optional
+  setTrigger?: (value: boolean) => void; // Mark setTrigger as optional
+  visible: boolean;
+}
+
+const SidebarMenu: React.FC<SidebarMenuProps> = ({
   schema,
   onSubmit,
   queuePosition,
   trigger,
   setTrigger,
-}: {
-  schema: any;
-  onSubmit: any;
-  queuePosition: number;
-  trigger: boolean;
-  setTrigger: any;
-}) {
+  visible,
+}) => {
   const editorRef = useRef<HTMLDivElement>(null);
-  // the values that are currently in the editor, only used because
-  // we don't have a reference to the editor object
   const [currentEditorValue, setCurrentEditorValue] = useState<any>({});
 
   function submitEditor() {
@@ -52,8 +54,10 @@ function SidebarMenu({
   useEffect(() => {
     if (trigger) {
       submitEditor();
+      if (setTrigger) {
+        setTrigger(false);
+      }
     }
-    setTrigger(false);
   }, [trigger]);
 
   useEffect(() => {
@@ -67,9 +71,6 @@ function SidebarMenu({
       editor.on("change", () => {
         editor.validate();
         setCurrentEditorValue(editor.getValue());
-        // if (onChange) {
-        //   onChange(editor.getValue());
-        // }
       });
 
       return () => {
@@ -78,7 +79,7 @@ function SidebarMenu({
         }
       };
     }
-  }, [schema]); // this does only trigger if selectionSchema changes
+  }, [schema]);
 
   return (
     <Card
@@ -88,8 +89,7 @@ function SidebarMenu({
         top: "50px",
         left: "50px",
         height: "100%",
-        // background: "rgba(255, 255, 255, 0.9)",
-        // backdropFilter: "blur(5px)",
+        display: visible ? "block" : "none",
       }}
     >
       <Card.Body className="pt-0 pb-5 my-0">
@@ -102,7 +102,7 @@ function SidebarMenu({
       </Card.Body>
     </Card>
   );
-}
+};
 
 function AnalysisMenu({
   selectionSchema,
@@ -110,12 +110,14 @@ function AnalysisMenu({
   plotData,
   setPlotData,
   queuePosition,
+  visible,
 }: {
   selectionSchema: any;
   onSubmit: any;
   plotData: any;
   setPlotData: any;
   queuePosition: number;
+  visible: boolean;
 }) {
   const editorRef = useRef<HTMLDivElement>(null);
   const figureRef = useRef<HTMLDivElement>(null);
@@ -181,6 +183,7 @@ function AnalysisMenu({
           left: "50px",
           height: "100%",
           width: "50%",
+          display: visible ? "block" : "none",
         }}
       >
         <Card.Body className="pt-0 pb-5 my-0">
@@ -355,54 +358,48 @@ function SideBar({
           </BtnTooltip>
         </Card>
       </Navbar>
-      {visibleOption == "selection" && (
-        // TODO: trigger only work if visible, otherwise this component is unmounted
-        <SidebarMenu
-          schema={selectionSchema}
-          onSubmit={(data: any) => {
-            socket.emit("selection:run", data);
-          }}
-          queuePosition={selectionQueue}
-          trigger={triggerSelection}
-          setTrigger={setTriggerSelection}
-        />
-      )}
-      {visibleOption == "interaction" && (
-        <SidebarMenu
-          schema={modifierSchema}
-          onSubmit={(data: any) => {
-            socket.emit("modifier:run", data);
-          }}
-          queuePosition={modifierQueue}
-        />
-      )}
-      {visibleOption == "scene" && (
-        <SidebarMenu
-          schema={sceneSchema}
-          onSubmit={setSceneSettings}
-          queuePosition={-1}
-        />
-      )}
-      {visibleOption == "geometry" && (
-        <SidebarMenu
-          schema={geometrySchema}
-          onSubmit={(data: any) => {
-            socket.emit("geometry:run", data);
-          }}
-          queuePosition={geometryQueue}
-        />
-      )}
-      {visibleOption == "analysis" && (
-        <AnalysisMenu
-          selectionSchema={analysisSchema}
-          onSubmit={(data: any) => {
-            socket.emit("analysis:run", data);
-          }}
-          plotData={plotData}
-          setPlotData={setPlotData}
-          queuePosition={analysisQueue}
-        />
-      )}
+      <SidebarMenu
+        schema={selectionSchema}
+        onSubmit={(data: any) => {
+          socket.emit("selection:run", data);
+        }}
+        queuePosition={selectionQueue}
+        trigger={triggerSelection}
+        setTrigger={setTriggerSelection}
+        visible={visibleOption == "selection"}
+      />
+      <SidebarMenu
+        schema={modifierSchema}
+        onSubmit={(data: any) => {
+          socket.emit("modifier:run", data);
+        }}
+        queuePosition={modifierQueue}
+        visible={visibleOption == "interaction"}
+      />
+      <SidebarMenu
+        schema={sceneSchema}
+        onSubmit={setSceneSettings}
+        queuePosition={-1}
+        visible={visibleOption == "scene"}
+      />
+      <SidebarMenu
+        schema={geometrySchema}
+        onSubmit={(data: any) => {
+          socket.emit("geometry:run", data);
+        }}
+        queuePosition={geometryQueue}
+        visible={visibleOption == "geometry"}
+      />
+      <AnalysisMenu
+        selectionSchema={analysisSchema}
+        onSubmit={(data: any) => {
+          socket.emit("analysis:run", data);
+        }}
+        plotData={plotData}
+        setPlotData={setPlotData}
+        queuePosition={analysisQueue}
+        visible={visibleOption == "analysis"}
+      />
     </>
   );
 }
