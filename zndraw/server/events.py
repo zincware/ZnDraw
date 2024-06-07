@@ -38,8 +38,8 @@ def disconnect():
         log.critical(f"disconnecting (pyclient) {request.sid}")
 
         # Get all modifier names associated with the client from Redis
-        room_modifier_names = r.smembers(f"room:{room}:modifiers")
-        default_modifier_names = r.smembers("room:default:modifiers")
+        room_modifier_names = r.hgetall(f"room:{room}:modifiers")
+        default_modifier_names = r.hgetall("room:default:modifiers")
 
         for modifier in room_modifier_names:
             r.srem(f"room:{room}:modifiers:{modifier}", request.sid)
