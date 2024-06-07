@@ -30,7 +30,6 @@ export const ParticleInfoOverlay = ({
                   <strong>{key}: </strong> {value}
                 </p>
               ))}
-              x
             </Card.Text>
           </Card.Body>
         </Card>

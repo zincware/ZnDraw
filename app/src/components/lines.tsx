@@ -153,9 +153,17 @@ export const VirtualCanvas = ({
   setPoints,
   points,
   hoveredId,
-}: any) => {
+  setHoveredId,
+}: {
+  isDrawing: boolean;
+  setPoints: any;
+  points: THREE.Vector3[];
+  hoveredId: number | null;
+  setHoveredId: (id: number | null) => void;
+}) => {
   const { camera, size } = useThree();
   const [distance, setDistance] = useState(10);
+  const [canvasVisible, setCanvasVisible] = useState(false);
   const canvasRef = useRef();
 
   // setDistance to camera <-> last point distance
@@ -177,7 +185,21 @@ export const VirtualCanvas = ({
 
   const onHover = (event: any) => {
     if (isDrawing && event.object.visible) {
-      console.log("updating points on virtual canvas");
+      if (!canvasRef.current) {
+        return;
+      }
+      if (event.shiftKey) {
+        setHoveredId(canvasRef.current);
+        // set opacity of the virtual canvas
+        setCanvasVisible(true);
+      } else {
+        setHoveredId(null);
+        console.log("virtual canvas");
+        setCanvasVisible(false);
+      }
+
+      // find the index of the closest visible point from the camera
+      // if nothing is being hovered, this is the virtual canvas
       let i = 0;
       while (
         i < event.intersections.length &&
@@ -199,7 +221,9 @@ export const VirtualCanvas = ({
     }
     if (canvasRef.current) {
       updatePlaneSize();
-      canvasRef.current.visible = hoveredId == null;
+      // if nothing is hovered, the canvas should be visible
+      canvasRef.current.visible =
+        hoveredId == null || hoveredId == canvasRef.current;
     }
 
     if (points.length >= 2) {
@@ -226,14 +250,14 @@ export const VirtualCanvas = ({
         <Plane
           ref={canvasRef}
           args={[
-            1, 1, 10, 10,
+            1, 1, 50, 50,
           ]} /* Initial size is [1, 1], will be scaled dynamically */
           onPointerMove={onHover}
         >
           <meshBasicMaterial
             attach="material"
             color="black"
-            opacity={0}
+            opacity={canvasVisible ? 0.5 : 0}
             transparent={true}
           />
         </Plane>

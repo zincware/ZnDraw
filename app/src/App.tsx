@@ -84,7 +84,7 @@ export default function App() {
   // TODO: initial values are wrong for orbitcontrolstarget and camperaPosition
   // todo give to particles and bonds
   const [colorMode, setColorMode] = useState<string>("light");
-  const [hoveredId, setHoveredId] = useState(null);
+  const [hoveredId, setHoveredId] = useState<number>(null);
 
   // QUEUES
   const [modifierQueue, setModifierQueue] = useState<number>(-1);
@@ -482,6 +482,7 @@ export default function App() {
             isDrawing={isDrawing}
             points={points}
             hoveredId={hoveredId}
+            setHoveredId={setHoveredId}
           />
         </Canvas>
       </div>
