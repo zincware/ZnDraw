@@ -13,6 +13,29 @@ from zndraw.draw import Geometry, Object3D
 log = logging.getLogger(__name__)
 
 
+class RegisterModifier(t.TypedDict):
+    cls: t.Type[Extension]
+    run_kwargs: dict
+    public: bool
+    frozen: bool
+    timeout: float
+
+
+def _register_modifier(vis: "ZnDraw", data: RegisterModifier) -> None:
+    log.debug(f"Registering modifier `{data['cls'].__name__}`")
+    vis.socket.emit(
+        "modifier:register",
+        {
+            "schema": data["cls"].model_json_schema(),
+            "name": data["cls"].__name__,
+            "public": data["public"],
+            "timeout": data["timeout"],
+        },
+    )
+    if vis._available:
+        vis.socket.emit("modifier:available", list(vis._modifiers))
+
+
 @dataclasses.dataclass
 class ZnDraw(ZnDrawBase):
     url: str
@@ -23,7 +46,7 @@ class ZnDraw(ZnDrawBase):
         default_factory=socketio.Client, repr=False
     )
 
-    _modifiers: dict = dataclasses.field(default_factory=dict)
+    _modifiers: dict[str, RegisterModifier] = dataclasses.field(default_factory=dict)
     _available: bool = True
 
     def __post_init__(self):
@@ -40,6 +63,7 @@ class ZnDraw(ZnDrawBase):
         self.socket.connect(self.url, wait_timeout=10)
 
     def _on_connect(self):
+        log.debug("Connected to ZnDraw server")
         self.socket.emit(
             "join",
             {
@@ -47,6 +71,8 @@ class ZnDraw(ZnDrawBase):
                 "auth_token": self.auth_token,
             },
         )
+        for data in self._modifiers.values():
+            _register_modifier(self, data)
 
     def __getitem__(self, index) -> ase.Atoms | list[ase.Atoms]:
         single_item = isinstance(index, int)
@@ -213,27 +239,18 @@ class ZnDraw(ZnDrawBase):
             )
         if run_kwargs is None:
             run_kwargs = {}
-        run_kwargs["timeout"] = timeout
         if cls.__name__ in self._modifiers:
             raise ValueError(f"Modifier {cls.__name__} already registered")
 
-        self.socket.emit(
-            "modifier:register",
-            {
-                "schema": cls.model_json_schema(),
-                "name": cls.__name__,
-                "public": public,
-                "timeout": timeout,
-            },
-        )
         self._modifiers[cls.__name__] = {
             "cls": cls,
             "run_kwargs": run_kwargs,
             "public": public,
             "frozen": use_frozen,
+            "timeout": timeout,
         }
-        if self._available:
-            self.socket.emit("modifier:available", list(self._modifiers))
+
+        _register_modifier(self, self._modifiers[cls.__name__])
 
     def _run_modifier(self, data: dict):
         self._available = False
@@ -246,13 +263,20 @@ class ZnDraw(ZnDrawBase):
             name = data["method"]["discriminator"]
 
             instance = self._modifiers[name]["cls"](**data["method"])
-            instance.run(vis, **self._modifiers[name]["run_kwargs"])
-
+            instance.run(
+                vis,
+                timeout=self._modifiers[name]["timeout"],
+                **self._modifiers[name]["run_kwargs"],
+            )
+        except Exception as e:
+            log.exception(e)
+            vis.log(f"Error: {e}")
             vis.socket.emit("room:modifier:queue", -1)
-        finally:
-            self._available = True
-            self.socket.emit("modifier:available", list(self._modifiers))
 
             # wait and then disconnect
             vis.socket.sleep(1)
             vis.socket.disconnect()
+
+        finally:
+            self._available = True
+            self.socket.emit("modifier:available", list(self._modifiers))
