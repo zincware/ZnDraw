@@ -23,6 +23,7 @@ import { Canvas, useThree } from "@react-three/fiber";
 import {
   OrbitControls,
   PerspectiveCamera,
+  TrackballControls,
   TransformControls,
 } from "@react-three/drei";
 import { Button, InputGroup, Form } from "react-bootstrap";
@@ -434,8 +435,12 @@ export default function App() {
           {sceneSettings["simulation_box"] && (
             <SimulationCell frame={currentFrame} colorMode={colorMode} />
           )}
-          <OrbitControls
-            enableDamping={false}
+          <TrackballControls
+            // enableDamping={false}
+            staticMoving={true}
+            panSpeed={5}
+            rotateSpeed={5}
+            zoomSpeed={20}
             target={orbitControlsTarget}
             onChange={(e) => {
               if (!e) return;
