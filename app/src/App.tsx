@@ -117,12 +117,19 @@ export default function App() {
 
   // if step changes
   useEffect(() => {
-    socket.emit("room:frames:get", [step], (data: Frames) => {
-      const key = Object.keys(data)[0];
-      if (key) {
-        setCurrentFrame(data[key]);
-        setNeedsUpdate(false);
-        // TODO: cache
+    socket.emit("room:frames:get", [step], (frames: Frames) => {
+      // map positions: numbers[][] to THREE.Vector3[]
+
+      for (const key in frames) {
+        if (frames.hasOwnProperty(key)) {
+          const frame = frames[key];
+          frame.positions = frame.positions.map(
+            (position) =>
+              new THREE.Vector3(position[0], position[1], position[2]),
+          ) as THREE.Vector3[];
+        }
+        setCurrentFrame(frames[step]);
+        setNeedsUpdate(false); // rename this to something more descriptive
       }
     });
   }, [step, needsUpdate]);
@@ -431,6 +438,7 @@ export default function App() {
             isDrawing={isDrawing}
             points={points}
             setPoints={setPoints}
+            hoveredId={hoveredId}
           />
           {sceneSettings["simulation_box"] && (
             <SimulationCell frame={currentFrame} colorMode={colorMode} />

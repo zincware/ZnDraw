@@ -12,7 +12,7 @@ export interface Frame {
   info: any;
   numbers: number[];
   pbc: boolean[];
-  positions: Array<[number, number, number]>;
+  positions: THREE.Vector3[]; // only number[][] | before beeing mapped immediatly
 }
 ``;
 
@@ -96,12 +96,12 @@ export const ParticleInstances = ({
         if (selectedIds.size === 0) {
           // get center from all particles
           frame.positions.forEach((position) => {
-            com.add(new THREE.Vector3(...position));
+            com.add(position);
           });
           com.divideScalar(frame.positions.length);
         } else {
           selectedIds.forEach((id) => {
-            com.add(new THREE.Vector3(...frame.positions[id]));
+            com.add(frame.positions[id]);
           });
           com.divideScalar(selectedIds.size);
         }
@@ -119,7 +119,7 @@ export const ParticleInstances = ({
       const color = new THREE.Color();
 
       frame.positions.forEach((position, i) => {
-        const matrix = new THREE.Matrix4().setPosition(...position);
+        const matrix = new THREE.Matrix4().setPosition(position);
         matrix.scale(
           new THREE.Vector3(
             frame.arrays.radii[i],
@@ -291,16 +291,9 @@ export const BondInstances = ({
       const scale = new THREE.Vector3(1, 1, 1);
 
       frame.connectivity.forEach(([a, b, order], i) => {
-        posA.set(
-          frame.positions[a][0],
-          frame.positions[a][1],
-          frame.positions[a][2],
-        );
-        posB.set(
-          frame.positions[b][0],
-          frame.positions[b][1],
-          frame.positions[b][2],
-        );
+        // TODO make this a function to construct the matrix for halfbond(a, b)
+        posA.copy(frame.positions[a]);
+        posB.copy(frame.positions[b]);
 
         direction.subVectors(posB, posA).normalize();
         const distance = posA.distanceTo(posB);
