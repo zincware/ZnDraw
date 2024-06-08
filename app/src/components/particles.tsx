@@ -274,58 +274,60 @@ export const BondInstances = ({
 
   const geometry = useMemo(() => {
     const _geometry = new THREE.CylinderGeometry(0.14, 0.14, 1, 30, 30);
-    _geometry.translate(0, 0.25, 0);
+    _geometry.translate(0, 0.5, 0);
     _geometry.rotateX(Math.PI / 2);
-    _geometry.scale(1, 1, 0.5);
+    _geometry.scale(1, 1, 0.25);
     return _geometry;
   }, []);
 
   useEffect(() => {
     if (meshRef.current && count > 0) {
       const color = new THREE.Color();
-      const posA = new THREE.Vector3();
-      const posB = new THREE.Vector3();
       const matrix = new THREE.Matrix4();
       const up = new THREE.Vector3(0, 1, 0);
       const direction = new THREE.Vector3();
       const scale = new THREE.Vector3(1, 1, 1);
 
-      frame.connectivity.forEach(([a, b, order], i) => {
-        // TODO make this a function to construct the matrix for halfbond(a, b)
-        posA.copy(frame.positions[a]);
-        posB.copy(frame.positions[b]);
-
+      const createTransformationMatrix = (
+        posA: THREE.Vector3,
+        posB: THREE.Vector3,
+      ) => {
         direction.subVectors(posB, posA).normalize();
         const distance = posA.distanceTo(posB);
         scale.set(1, 1, distance);
 
         matrix.lookAt(posA, posB, up);
         matrix.scale(scale);
-        matrix.setPosition(posA.lerp(posB, 0.5));
-        meshRef.current.setMatrixAt(i * 2, matrix);
-        if (selectedIds.has(a)) {
-          color.setHex(0xffa500);
-        } else {
-          color.set(frame.arrays.colors[a]);
-        }
-        meshRef.current.setColorAt(i * 2, color);
+        matrix.setPosition(posA.clone().lerp(posB, 0.5));
 
-        matrix.lookAt(posB, posA, up);
-        matrix.scale(scale);
-        matrix.setPosition(posB.lerp(posA, 0.5));
-        meshRef.current.setMatrixAt(i * 2 + 1, matrix);
-        if (selectedIds.has(b)) {
-          color.setHex(0xffa500);
-        } else {
-          color.set(frame.arrays.colors[b]);
-        }
-        meshRef.current.setColorAt(i * 2 + 1, color);
+        return matrix.clone(); // Clone to avoid overwriting
+      };
+
+      frame.connectivity.forEach(([a, b], i) => {
+        const posA = frame.positions[a] as THREE.Vector3;
+        const posB = frame.positions[b] as THREE.Vector3;
+
+        // Set matrix and color for the bond from A to B
+        meshRef.current!.setMatrixAt(
+          i * 2,
+          createTransformationMatrix(posA, posB),
+        );
+        color.set(selectedIds.has(a) ? 0xffa500 : frame.arrays.colors[a]);
+        meshRef.current!.setColorAt(i * 2, color);
+
+        // Set matrix and color for the bond from B to A
+        meshRef.current!.setMatrixAt(
+          i * 2 + 1,
+          createTransformationMatrix(posB, posA),
+        );
+        color.set(selectedIds.has(b) ? 0xffa500 : frame.arrays.colors[b]);
+        meshRef.current!.setColorAt(i * 2 + 1, color);
       });
 
       meshRef.current.instanceMatrix.needsUpdate = true;
       meshRef.current.instanceColor.needsUpdate = true;
     }
-  }, [frame]);
+  }, [frame, selectedIds, count]);
 
   // if selectedIds changes, update the color of the bonds corresponding to the selected particles
   useEffect(() => {
