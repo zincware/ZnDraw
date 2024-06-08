@@ -434,10 +434,6 @@ export default function App() {
           <BondInstances
             frame={currentFrame}
             selectedIds={selectedIds}
-            setSelectedIds={setSelectedIds}
-            isDrawing={isDrawing}
-            points={points}
-            setPoints={setPoints}
             hoveredId={hoveredId}
           />
           {sceneSettings["simulation_box"] && (

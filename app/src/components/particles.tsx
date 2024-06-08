@@ -262,11 +262,11 @@ export const ParticleInstances = ({
 export const BondInstances = ({
   frame,
   selectedIds,
-  setSelectedIds,
+  hoveredId,
 }: {
   frame: Frame;
   selectedIds: Set<number>;
-  setSelectedIds: any;
+  hoveredId: number;
 }) => {
   const meshRef = useRef<THREE.InstancedMesh | null>(null);
 
@@ -276,7 +276,7 @@ export const BondInstances = ({
     const _geometry = new THREE.CylinderGeometry(0.14, 0.14, 1, 30, 30);
     _geometry.translate(0, 0.5, 0);
     _geometry.rotateX(Math.PI / 2);
-    _geometry.scale(1, 1, 0.25);
+    _geometry.scale(1, 1, 0.5);
     return _geometry;
   }, []);
 
