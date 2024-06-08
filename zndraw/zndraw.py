@@ -6,6 +6,7 @@ import typing as t
 import ase
 import numpy as np
 import socketio
+import tqdm
 import znframe
 
 from zndraw.base import Extension, ZnDrawBase
@@ -122,14 +123,27 @@ class ZnDraw(ZnDrawBase):
 
     def extend(self, values: list[ase.Atoms]):
         msg = {}
-        for i, val in enumerate(values, start=self.step + 1):
+
+        # enable tbar if more than 10 messages are sent
+        # approximated by the size of the first frame
+        show_tbar = (
+            len(values)
+            * len(
+                json.dumps(znframe.Frame.from_atoms(values[0]).to_json()).encode("utf-8")
+            )
+        ) > (10 * self.maximum_message_size)
+        tbar = tqdm.tqdm(
+            values, desc="Sending frames", unit=" frame", disable=not show_tbar
+        )
+
+        for i, val in enumerate(tbar, start=len(self)):
             msg[i] = znframe.Frame.from_atoms(val).to_json()
             if len(json.dumps(msg).encode("utf-8")) > self.maximum_message_size:
-                log.critical(f" sending number of frames: {len(msg)}")
                 self.socket.emit("room:frames:set", msg)
                 msg = {}
+                # after each large message, wait a bit
+                self.socket.sleep(0.25)
         if msg:  # Only send the message if it's not empty
-            log.critical(f" sending number of frames: {len(msg)}")
             self.socket.emit("room:frames:set", msg)
 
     @property
