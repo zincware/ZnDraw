@@ -161,7 +161,15 @@ def room_frames_set(data: dict[int, str]):
         # TODO: using a redis copy action would be faster
         lst.extend(default_lst)
 
-    lst[list(data)] = [d for d in data.values()]
+    data = {int(k): v for k, v in sorted(data.items())}
+    for key, value in sorted(data.items()):
+        if int(key) == len(lst):
+            lst.append(value)
+        elif int(key) > len(lst):
+            log.critical(f"frame {key} is out of bounds and is being ignored.")
+            pass
+        else:
+            lst[int(key)] = value
 
     emit("room:frames:refresh", [int(x) for x in data], to=room)
 

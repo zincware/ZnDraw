@@ -1,4 +1,5 @@
 import dataclasses
+import json
 import logging
 import typing as t
 
@@ -45,6 +46,8 @@ class ZnDraw(ZnDrawBase):
     socket: socketio.Client = dataclasses.field(
         default_factory=socketio.Client, repr=False
     )
+    connect_timeout: float = dataclasses.field(default=10.0, repr=False)
+    maximum_message_size: int = dataclasses.field(default=1_000_000, repr=False)
 
     _modifiers: dict[str, RegisterModifier] = dataclasses.field(default_factory=dict)
     _available: bool = True
@@ -60,7 +63,7 @@ class ZnDraw(ZnDrawBase):
         self.socket.on("modifier:wakeup", on_wakeup)
         self.socket.on("room:log", lambda x: print(x))
 
-        self.socket.connect(self.url, wait_timeout=10)
+        self.socket.connect(self.url, wait_timeout=self.connect_timeout)
 
     def _on_connect(self):
         log.debug("Connected to ZnDraw server")
@@ -116,6 +119,18 @@ class ZnDraw(ZnDrawBase):
             "room:frames:insert",
             {"index": index, "value": znframe.Frame.from_atoms(value).to_json()},
         )
+
+    def extend(self, values: list[ase.Atoms]):
+        msg = {}
+        for i, val in enumerate(values, start=self.step + 1):
+            msg[i] = znframe.Frame.from_atoms(val).to_json()
+            if len(json.dumps(msg).encode("utf-8")) > self.maximum_message_size:
+                log.critical(f" sending number of frames: {len(msg)}")
+                self.socket.emit("room:frames:set", msg)
+                msg = {}
+        if msg:  # Only send the message if it's not empty
+            log.critical(f" sending number of frames: {len(msg)}")
+            self.socket.emit("room:frames:set", msg)
 
     @property
     def selection(self) -> list[int]:
@@ -255,7 +270,9 @@ class ZnDraw(ZnDrawBase):
     def _run_modifier(self, data: dict):
         self._available = False
         room = data.pop("ZNDRAW_CLIENT_ROOM")
-        vis = type(self)(url=self.url, token=room)
+        vis = type(self)(
+            url=self.url, token=room, maximum_message_size=self.maximum_message_size
+        )
 
         try:
             # TODO: for public modifiers the vis object must not be in the same room, create a new one!!!!!
@@ -271,12 +288,12 @@ class ZnDraw(ZnDrawBase):
         except Exception as e:
             log.exception(e)
             vis.log(f"Error: {e}")
+        finally:
             vis.socket.emit("room:modifier:queue", -1)
 
             # wait and then disconnect
             vis.socket.sleep(1)
             vis.socket.disconnect()
 
-        finally:
             self._available = True
             self.socket.emit("modifier:available", list(self._modifiers))
