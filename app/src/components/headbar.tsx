@@ -245,7 +245,7 @@ function SiMGenButtons({ queuePosition }: { queuePosition: number }) {
     <>
       <BtnTooltip text="Connect selected atoms (shift click)">
         <Button
-          variant="outline-primary"
+          variant="success"
           className="mx-1"
           onClick={runConnect}
           disabled={queuePosition != -1}
@@ -255,7 +255,7 @@ function SiMGenButtons({ queuePosition }: { queuePosition: number }) {
       </BtnTooltip>
       <BtnTooltip text="Run SiMGen molecular generation">
         <Button
-          variant="outline-primary"
+          variant="success"
           className="mx-1"
           onClick={runGenerate}
           disabled={queuePosition != -1}
@@ -265,7 +265,7 @@ function SiMGenButtons({ queuePosition }: { queuePosition: number }) {
       </BtnTooltip>
       <BtnTooltip text="Replace scene with empty canvas and enter drawing mode">
         <Button
-          variant="outline-primary"
+          variant="success"
           className="mx-1"
           onClick={createNewCanvas}
           disabled={queuePosition != -1}
@@ -389,7 +389,7 @@ const HeadBar = ({
               {tutorialURL && (
                 <BtnTooltip text="Tutorial">
                   <Button
-                    variant="outline-primary"
+                    variant="warning"
                     className="mx-1"
                     onClick={() => setTutorialModalShow(true)}
                   >
