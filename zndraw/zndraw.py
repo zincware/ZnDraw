@@ -23,6 +23,13 @@ class RegisterModifier(t.TypedDict):
     timeout: float
 
 
+class TimeoutConfig(t.TypedDict):
+    """Timeout configuration for the ZnDraw client."""
+
+    connection: int
+    modifier: float
+
+
 def _register_modifier(vis: "ZnDraw", data: RegisterModifier) -> None:
     log.debug(f"Registering modifier `{data['cls'].__name__}`")
     vis.socket.emit(
@@ -47,7 +54,9 @@ class ZnDraw(ZnDrawBase):
     socket: socketio.Client = dataclasses.field(
         default_factory=socketio.Client, repr=False
     )
-    connect_timeout: float = dataclasses.field(default=10.0, repr=False)
+    timeout: TimeoutConfig = dataclasses.field(
+        default_factory=lambda: {"connection": 10, "modifier": 0.25}
+    )
     maximum_message_size: int = dataclasses.field(default=1_000_000, repr=False)
 
     _modifiers: dict[str, RegisterModifier] = dataclasses.field(default_factory=dict)
@@ -64,7 +73,7 @@ class ZnDraw(ZnDrawBase):
         self.socket.on("modifier:wakeup", on_wakeup)
         self.socket.on("room:log", lambda x: print(x))
 
-        self.socket.connect(self.url, wait_timeout=self.connect_timeout)
+        self.socket.connect(self.url, wait_timeout=self.timeout["connection"])
 
     def _on_connect(self):
         log.debug("Connected to ZnDraw server")
@@ -142,7 +151,7 @@ class ZnDraw(ZnDrawBase):
                 self.socket.emit("room:frames:set", msg)
                 msg = {}
                 # after each large message, wait a bit
-                self.socket.sleep(0.25)
+                self.socket.sleep(self.timeout["modifier"])
         if msg:  # Only send the message if it's not empty
             self.socket.emit("room:frames:set", msg)
 
