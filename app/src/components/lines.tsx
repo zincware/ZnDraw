@@ -188,15 +188,16 @@ export const VirtualCanvas = ({
       if (!canvasRef.current) {
         return;
       }
-      if (event.shiftKey) {
-        setHoveredId(canvasRef.current);
-        // set opacity of the virtual canvas
-        setCanvasVisible(true);
-      } else {
-        setHoveredId(null);
-        console.log("virtual canvas");
-        setCanvasVisible(false);
-      }
+      // this feature is temporarily disabled
+      // if (event.shiftKey) {
+      // setHoveredId(canvasRef.current);
+      // // set opacity of the virtual canvas
+      // setCanvasVisible(true);
+      // } else {
+      //   setHoveredId(null);
+      //   console.log("virtual canvas");
+      //   setCanvasVisible(false);
+      // }
 
       // find the index of the closest visible point from the camera
       // if nothing is being hovered, this is the virtual canvas
