@@ -31,6 +31,7 @@ interface SidebarMenuProps {
   trigger?: boolean; // Mark trigger as optional
   setTrigger?: (value: boolean) => void; // Mark setTrigger as optional
   visible: boolean;
+  storageKey: string;
 }
 
 const SidebarMenu: React.FC<SidebarMenuProps> = ({
@@ -40,14 +41,16 @@ const SidebarMenu: React.FC<SidebarMenuProps> = ({
   trigger,
   setTrigger,
   visible,
+  storageKey,
 }) => {
   const editorRef = useRef<HTMLDivElement>(null);
+  const editor = useRef<JSONEditor>(null);
   const [currentEditorValue, setCurrentEditorValue] = useState<any>({});
 
   function submitEditor() {
     if (onSubmit) {
       console.log(currentEditorValue);
-      onSubmit(currentEditorValue);
+      // onSubmit(currentEditorValue);
     }
   }
 
@@ -61,24 +64,48 @@ const SidebarMenu: React.FC<SidebarMenuProps> = ({
   }, [trigger]);
 
   useEffect(() => {
-    if (editorRef.current) {
-      const editor = new JSONEditor(editorRef.current, {
+    let setNewEditor = false;
+    if (!editor.current) {
+      setNewEditor = true;
+    }
+    if (editor.current) {
+      // console.log("editor exists and ready: ", editor.current.ready);
+      setNewEditor = !editor.current.ready;
+    }
+
+    if (setNewEditor && editorRef.current) {
+      editor.current = new JSONEditor(editorRef.current, {
         schema: schema,
-        theme: "bootstrap5",
-        iconlib: "fontawesome5",
-        show_errors: "always",
       });
-      editor.on("change", () => {
-        editor.validate();
-        setCurrentEditorValue(editor.getValue());
+      setNewEditor = false;
+      let triggerChange = false;
+
+      editor.current.on("change", () => {
+        if (editor.current.ready && triggerChange) {
+          console.log("editor changed");
+          const editorValue = editor.current.getValue();
+          editor.current.validate();
+          localStorage.setItem(storageKey, JSON.stringify(editorValue));
+        }
       });
 
-      return () => {
-        if (editorRef.current) {
-          editorRef.current.innerHTML = "";
+      editor.current.on("ready", () => {
+        console.log("editor ready");
+        const userInput = localStorage.getItem(storageKey);
+        if (userInput) {
+          editor.current.setValue(JSON.parse(userInput));
         }
-      };
+        setTimeout(() => {
+          triggerChange = true;
+        }, 1000);
+      });
     }
+    return () => {
+      if (editor.current) {
+        editor.current.destroy();
+        // editor.current = null;
+      }
+    };
   }, [schema]);
 
   return (
@@ -111,6 +138,7 @@ function AnalysisMenu({
   setPlotData,
   queuePosition,
   visible,
+  storageKey,
 }: {
   selectionSchema: any;
   onSubmit: any;
@@ -118,6 +146,7 @@ function AnalysisMenu({
   setPlotData: any;
   queuePosition: number;
   visible: boolean;
+  storageKey: string;
 }) {
   const editorRef = useRef<HTMLDivElement>(null);
   const figureRef = useRef<HTMLDivElement>(null);
@@ -367,6 +396,7 @@ function SideBar({
         trigger={triggerSelection}
         setTrigger={setTriggerSelection}
         visible={visibleOption == "selection"}
+        storageKey="selection-menu"
       />
       <SidebarMenu
         schema={modifierSchema}
@@ -375,12 +405,14 @@ function SideBar({
         }}
         queuePosition={modifierQueue}
         visible={visibleOption == "interaction"}
+        storageKey="interaction-menu"
       />
       <SidebarMenu
         schema={sceneSchema}
         onSubmit={setSceneSettings}
         queuePosition={-1}
         visible={visibleOption == "scene"}
+        storageKey="scene-menu"
       />
       <SidebarMenu
         schema={geometrySchema}
@@ -389,6 +421,7 @@ function SideBar({
         }}
         queuePosition={geometryQueue}
         visible={visibleOption == "geometry"}
+        storageKey="geometry-menu"
       />
       <AnalysisMenu
         selectionSchema={analysisSchema}
@@ -399,6 +432,7 @@ function SideBar({
         setPlotData={setPlotData}
         queuePosition={analysisQueue}
         visible={visibleOption == "analysis"}
+        storageKey="analysis-menu"
       />
     </>
   );
