@@ -39,6 +39,7 @@ pre-commit = "^3"
 pytest = "^7"
 coverage = "^7"
 ruff = "^0.1"
+ipython = "^8.25.0"
 
 
 [tool.poetry.extras]
