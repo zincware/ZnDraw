@@ -1,9 +1,11 @@
 import ase.build
+
 from zndraw import ZnDraw
 
 
 def test_zndraw(server):
     """Test the server fixture."""
+
 
 def test_set_get(server):
     """Test the server fixture."""
