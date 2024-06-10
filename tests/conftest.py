@@ -2,11 +2,13 @@ import eventlet.wsgi
 
 eventlet.monkey_patch()  # MUST BE THERE FOR THE TESTS TO WORK
 
-import pytest
 import random
+
+import pytest
 import socketio.exceptions
 
-from zndraw.app import ZnDrawServer, FileIO
+from zndraw.app import FileIO, ZnDrawServer
+
 
 @pytest.fixture
 def server():
@@ -16,13 +18,13 @@ def server():
         fileio = FileIO()
 
         with ZnDrawServer(
-        tutorial=None,
-        auth_token=None,
-        port=port,
-        fileio=fileio,
-        simgen=False,
-        celery_worker=True,
-        storage=None,
+            tutorial=None,
+            auth_token=None,
+            port=port,
+            fileio=fileio,
+            simgen=False,
+            celery_worker=True,
+            storage=None,
         ) as app:
             app.run(browser=False)
 
