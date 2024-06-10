@@ -3,7 +3,6 @@ import { useEffect, useRef } from "react";
 
 import * as THREE from "three";
 
-// TODO: get the server url from the environment
 const serverUrl = window.location.origin;
 // const serverUrl = "http://localhost:1235"; // for local development
 export const socket = io(serverUrl);
@@ -59,7 +58,7 @@ export const sendSelection = (selection: Set<number>, fromSockets: any) => {
       clearTimeout(timeoutRef.current);
     }
     if (fromSockets.current) {
-      console.log("skipt selection send from sockets");
+      console.log("skip selection send from sockets");
       fromSockets.current = false;
     } else {
       timeoutRef.current = setTimeout(() => {

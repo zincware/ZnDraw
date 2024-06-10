@@ -45,12 +45,10 @@ const SidebarMenu: React.FC<SidebarMenuProps> = ({
 }) => {
   const editorRef = useRef<HTMLDivElement>(null);
   const editor = useRef<JSONEditor>(null);
-  const [currentEditorValue, setCurrentEditorValue] = useState<any>({});
 
   function submitEditor() {
     if (onSubmit) {
-      console.log(currentEditorValue);
-      // onSubmit(currentEditorValue);
+      onSubmit(editor.current.getValue());
     }
   }
 
@@ -64,6 +62,9 @@ const SidebarMenu: React.FC<SidebarMenuProps> = ({
   }, [trigger]);
 
   useEffect(() => {
+    if (Object.keys(schema).length === 0) {
+      return;
+    }
     let setNewEditor = false;
     if (!editor.current) {
       setNewEditor = true;
@@ -82,7 +83,6 @@ const SidebarMenu: React.FC<SidebarMenuProps> = ({
 
       editor.current.on("change", () => {
         if (editor.current.ready && triggerChange) {
-          console.log("editor changed");
           const editorValue = editor.current.getValue();
           editor.current.validate();
           localStorage.setItem(storageKey, JSON.stringify(editorValue));
@@ -90,10 +90,11 @@ const SidebarMenu: React.FC<SidebarMenuProps> = ({
       });
 
       editor.current.on("ready", () => {
-        console.log("editor ready");
         const userInput = localStorage.getItem(storageKey);
         if (userInput) {
-          editor.current.setValue(JSON.parse(userInput));
+          if (Object.keys(JSON.parse(userInput)).length > 0) {
+            editor.current.setValue(JSON.parse(userInput));
+          }
         }
         setTimeout(() => {
           triggerChange = true;
@@ -103,7 +104,6 @@ const SidebarMenu: React.FC<SidebarMenuProps> = ({
     return () => {
       if (editor.current) {
         editor.current.destroy();
-        // editor.current = null;
       }
     };
   }, [schema]);
