@@ -6,7 +6,7 @@ import typing as t
 
 import ase
 import numpy as np
-import socketio
+import socketio.exceptions
 import tqdm
 import znframe
 
@@ -30,6 +30,10 @@ class TimeoutConfig(t.TypedDict):
     connection: int
     modifier: float
     between_calls: float
+
+    emit_retries: int
+    call_retries: int
+    connect_retries: int
 
 
 def _register_modifier(vis: "ZnDraw", data: RegisterModifier) -> None:
@@ -57,7 +61,14 @@ class ZnDraw(ZnDrawBase):
         default_factory=socketio.Client, repr=False
     )
     timeout: TimeoutConfig = dataclasses.field(
-        default_factory=lambda: {"connection": 10, "modifier": 0.25, "between_calls": 0.1}
+        default_factory=lambda: TimeoutConfig(
+            connection=10,
+            modifier=0.25,
+            between_calls=0.1,
+            emit_retries=3,
+            call_retries=3,
+            connect_retries=3,
+        )
     )
     maximum_message_size: int = dataclasses.field(default=1_000_000, repr=False)
 
@@ -78,17 +89,32 @@ class ZnDraw(ZnDrawBase):
         self.socket.on("modifier:wakeup", on_wakeup)
         self.socket.on("room:log", lambda x: print(x))
 
-        self.socket.connect(self.url, wait_timeout=self.timeout["connection"])
+        for idx in range(self.timeout["connect_retries"] + 1):
+            try:
+                self.socket.connect(self.url, wait_timeout=self.timeout["connection"])
+                break
+            except socketio.exceptions.ConnectionError as err:
+                log.warning("Connection failed. Retrying...")
+                if idx == self.timeout["connect_retries"]:
+                    raise err
 
     def _on_connect(self):
         log.debug("Connected to ZnDraw server")
-        self.socket.emit(
-            "join",
-            {
-                "token": str(self.token),
-                "auth_token": self.auth_token,
-            },
-        )
+        for idx in range(self.timeout["emit_retries"] + 1):
+            try:
+                self.socket.emit(
+                    "join",
+                    {
+                        "token": str(self.token),
+                        "auth_token": self.auth_token,
+                    },
+                )
+                break
+            except socketio.exceptions.BadNamespaceError as err:
+                log.warning("Bad namespace. Retrying...")
+                if idx == self.timeout["emit_retries"]:
+                    raise err
+
         for data in self._modifiers.values():
             _register_modifier(self, data)
 
@@ -115,7 +141,15 @@ class ZnDraw(ZnDrawBase):
 
         self._delay_socket()
 
-        data: dict = self.socket.call("room:frames:get", index)
+        for idx in range(self.timeout["call_retries"] + 1):
+            try:
+                data: dict = self.socket.call("room:frames:get", index)
+                break
+            except socketio.exceptions.TimeoutError as err:
+                log.warning("Timeout error. Retrying...")
+                if idx == self.timeout["call_retries"]:
+                    raise err
+
         structures = [znframe.Frame(**x).to_atoms() for x in data.values()]
         return structures[0] if single_item else structures
 
@@ -127,24 +161,52 @@ class ZnDraw(ZnDrawBase):
                 i: znframe.Frame.from_atoms(val).to_json() for i, val in zip(index, value)
             }
 
-        self.socket.emit("room:frames:set", data)
+        for idx in range(self.timeout["emit_retries"] + 1):
+            try:
+                self.socket.emit("room:frames:set", data)
+                break
+            except socketio.exceptions.BadNamespaceError as err:
+                log.warning("Timeout error. Retrying...")
+                if idx == self.timeout["emit_retries"]:
+                    raise err
 
     def __len__(self) -> int:
         self._delay_socket()
-        return int(self.socket.call("room:length:get"))
+        for idx in range(self.timeout["call_retries"] + 1):
+            try:
+                return int(self.socket.call("room:length:get"))
+            except socketio.exceptions.TimeoutError as err:
+                log.warning("Timeout error. Retrying...")
+                if idx == self.timeout["call_retries"]:
+                    raise err
 
     def __delitem__(self, index: int | slice | list[int]):
         if isinstance(index, int):
             index = [index]
         if isinstance(index, slice):
             index = list(range(*index.indices(len(self))))
-        self.socket.emit("room:frames:delete", index)
+
+        for idx in range(self.timeout["emit_retries"] + 1):
+            try:
+                self.socket.emit("room:frames:delete", index)
+                break
+            except socketio.exceptions.BadNamespaceError as err:
+                log.warning("Timeout error. Retrying...")
+                if idx == self.timeout["emit_retries"]:
+                    raise err
 
     def insert(self, index: int, value: ase.Atoms):
-        self.socket.emit(
-            "room:frames:insert",
-            {"index": index, "value": znframe.Frame.from_atoms(value).to_json()},
-        )
+        for idx in range(self.timeout["emit_retries"] + 1):
+            try:
+                self.socket.emit(
+                    "room:frames:insert",
+                    {"index": index, "value": znframe.Frame.from_atoms(value).to_json()},
+                )
+                break
+            except socketio.exceptions.BadNamespaceError as err:
+                log.warning("Timeout error. Retrying...")
+                if idx == self.timeout["emit_retries"]:
+                    raise err
 
     def extend(self, values: list[ase.Atoms]):
         msg = {}
@@ -164,29 +226,69 @@ class ZnDraw(ZnDrawBase):
         for i, val in enumerate(tbar, start=len(self)):
             msg[i] = znframe.Frame.from_atoms(val).to_json()
             if len(json.dumps(msg).encode("utf-8")) > self.maximum_message_size:
-                self.socket.emit("room:frames:set", msg)
+                for idx in range(self.timeout["emit_retries"] + 1):
+                    try:
+                        self.socket.emit("room:frames:set", msg)
+                        break
+                    except socketio.exceptions.BadNamespaceError as err:
+                        log.warning("Timeout error. Retrying...")
+                        if idx == self.timeout["emit_retries"]:
+                            raise err
                 msg = {}
                 # after each large message, wait a bit
                 self.socket.sleep(self.timeout["modifier"])
         if msg:  # Only send the message if it's not empty
-            self.socket.emit("room:frames:set", msg)
+            for idx in range(self.timeout["emit_retries"] + 1):
+                try:
+                    self.socket.emit("room:frames:set", msg)
+                    break
+                except socketio.exceptions.BadNamespaceError as err:
+                    log.warning("Timeout error. Retrying...")
+                    if idx == self.timeout["emit_retries"]:
+                        raise err
 
     @property
     def selection(self) -> list[int]:
         self._delay_socket()
-        return self.socket.call("room:selection:get")["0"]
+        for idx in range(self.timeout["call_retries"] + 1):
+            try:
+                return self.socket.call("room:selection:get")["0"]
+            except socketio.exceptions.TimeoutError as err:
+                log.warning("Timeout error. Retrying...")
+                if idx == self.timeout["call_retries"]:
+                    raise err
 
     @selection.setter
     def selection(self, value: list[int]):
-        self.socket.emit("room:selection:set", {"0": value})
+        for idx in range(self.timeout["emit_retries"] + 1):
+            try:
+                self.socket.emit("room:selection:set", {"0": value})
+                break
+            except socketio.exceptions.BadNamespaceError as err:
+                log.warning("Timeout error. Retrying...")
+                if idx == self.timeout["emit_retries"]:
+                    raise err
 
     @property
     def step(self) -> int:
         self._delay_socket()
-        return int(self.socket.call("room:step:get"))
+        for idx in range(self.timeout["call_retries"] + 1):
+            try:
+                return int(self.socket.call("room:step:get"))
+            except socketio.exceptions.TimeoutError as err:
+                log.warning("Timeout error. Retrying...")
+                if idx == self.timeout["call_retries"]:
+                    raise err
 
     def log(self, message: str) -> None:
-        self.socket.emit("room:log", message)
+        for idx in range(self.timeout["emit_retries"] + 1):
+            try:
+                self.socket.emit("room:log", message)
+                break
+            except socketio.exceptions.BadNamespaceError as err:
+                log.warning("Timeout error. Retrying...")
+                if idx == self.timeout["emit_retries"]:
+                    raise err
 
     @step.setter
     def step(self, value: int):
@@ -200,16 +302,36 @@ class ZnDraw(ZnDrawBase):
         # what about the camera?
         # or collect the steps of all clients in a dict
         # and save the host and go from there, also fine and not too much worker.
-        self.socket.emit("room:step:set", value)
+        for idx in range(self.timeout["emit_retries"] + 1):
+            try:
+                self.socket.emit("room:step:set", value)
+                break
+            except socketio.exceptions.BadNamespaceError as err:
+                log.warning("Timeout error. Retrying...")
+                if idx == self.timeout["emit_retries"]:
+                    raise err
 
     @property
     def figure(self) -> str:
         self._delay_socket()
-        return self.socket.call("analysis:figure:get")
+        for idx in range(self.timeout["call_retries"] + 1):
+            try:
+                return self.socket.call("analysis:figure:get")
+            except socketio.exceptions.TimeoutError as err:
+                log.warning("Timeout error. Retrying...")
+                if idx == self.timeout["call_retries"]:
+                    raise err
 
     @figure.setter
     def figure(self, fig: str) -> None:
-        self.socket.emit("analysis:figure:set", fig)
+        for idx in range(self.timeout["emit_retries"] + 1):
+            try:
+                self.socket.emit("analysis:figure:set", fig)
+                break
+            except socketio.exceptions.BadNamespaceError as err:
+                log.warning("Timeout error. Retrying...")
+                if idx == self.timeout["emit_retries"]:
+                    raise err
 
     @property
     def atoms(self) -> ase.Atoms:
@@ -222,25 +344,59 @@ class ZnDraw(ZnDrawBase):
     @property
     def points(self) -> list[list[float]]:
         self._delay_socket()
-        return np.array(self.socket.call("room:points:get")["0"])
+        for idx in range(self.timeout["call_retries"] + 1):
+            try:
+                return self.socket.call("room:points:get")["0"]
+            except socketio.exceptions.TimeoutError as err:
+                log.warning("Timeout error. Retrying...")
+                if idx == self.timeout["call_retries"]:
+                    raise err
 
     @points.setter
     def points(self, points: np.ndarray) -> None:
-        self.socket.emit("room:points:set", {"0": np.array(points).tolist()})
+        for idx in range(self.timeout["emit_retries"] + 1):
+            try:
+                self.socket.emit("room:points:set", {"0": points.tolist()})
+                break
+            except socketio.exceptions.BadNamespaceError as err:
+                log.warning("Timeout error. Retrying...")
+                if idx == self.timeout["emit_retries"]:
+                    raise err
 
     @property
     def bookmarks(self) -> dict:
         self._delay_socket()
-        return {int(k): v for k, v in self.socket.call("room:bookmarks:get").items()}
+        for idx in range(self.timeout["call_retries"] + 1):
+            try:
+                return {
+                    int(k): v for k, v in self.socket.call("room:bookmarks:get").items()
+                }
+            except socketio.exceptions.TimeoutError as err:
+                log.warning("Timeout error. Retrying...")
+                if idx == self.timeout["call_retries"]:
+                    raise err
 
     @bookmarks.setter
     def bookmarks(self, value: dict):
-        self.socket.emit("room:bookmarks:set", value)
+        for idx in range(self.timeout["emit_retries"] + 1):
+            try:
+                self.socket.emit("room:bookmarks:set", value)
+                break
+            except socketio.exceptions.BadNamespaceError as err:
+                log.warning("Timeout error. Retrying...")
+                if idx == self.timeout["emit_retries"]:
+                    raise err
 
     @property
     def camera(self) -> dict:
         self._delay_socket()
-        return self.socket.call("room:camera:get")
+        for idx in range(self.timeout["call_retries"] + 1):
+            try:
+                return self.socket.call("room:camera:get")
+            except socketio.exceptions.TimeoutError as err:
+                log.warning("Timeout error. Retrying...")
+                if idx == self.timeout["call_retries"]:
+                    raise err
 
     @camera.setter
     def camera(self, value: dict):
@@ -250,11 +406,24 @@ class ZnDraw(ZnDrawBase):
     @property
     def geometries(self) -> list[Object3D]:
         self._delay_socket()
-        return [Geometry(method=x).method for x in self.socket.call("room:geometry:get")]
+        for idx in range(self.timeout["call_retries"] + 1):
+            try:
+                return [Geometry(method=x).method for x in self.socket.call("room:geometry:get")]
+            except socketio.exceptions.TimeoutError as err:
+                log.warning("Timeout error. Retrying...")
+                if idx == self.timeout["call_retries"]:
+                    raise err
 
     @geometries.setter
     def geometries(self, value: list[Object3D]):
-        self.socket.emit("room:geometry:set", [x.model_dump() for x in value])
+        for idx in range(self.timeout["emit_retries"] + 1):
+            try:
+                self.socket.emit("room:geometry:set", [x.model_dump() for x in value])
+                break
+            except socketio.exceptions.BadNamespaceError as err:
+                log.warning("Timeout error. Retrying...")
+                if idx == self.timeout["emit_retries"]:
+                    raise err
 
     def register_modifier(
         self,
