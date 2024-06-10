@@ -408,7 +408,10 @@ class ZnDraw(ZnDrawBase):
         self._delay_socket()
         for idx in range(self.timeout["call_retries"] + 1):
             try:
-                return [Geometry(method=x).method for x in self.socket.call("room:geometry:get")]
+                return [
+                    Geometry(method=x).method
+                    for x in self.socket.call("room:geometry:get")
+                ]
             except socketio.exceptions.TimeoutError as err:
                 log.warning("Timeout error. Retrying...")
                 if idx == self.timeout["call_retries"]:
