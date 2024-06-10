@@ -31,7 +31,7 @@ import { Button, InputGroup, Form } from "react-bootstrap";
 import * as THREE from "three";
 import { Line3D, VirtualCanvas } from "./components/lines";
 import ControlsBuilder from "./components/transforms";
-import { ParticleInfoOverlay } from "./components/overlays";
+import { ParticleInfoOverlay, SceneInfoOverlay } from "./components/overlays";
 
 export default function App() {
   // const [isConnected, setIsConnected] = useState(socket.connected);
@@ -544,14 +544,17 @@ export default function App() {
           setBookmarks={setBookmarks}
         />
         {showParticleInfo && (
-          <ParticleInfoOverlay
-            show={hoveredId !== null || isDrawing}
-            info={{
-              ...(hoveredId !== null && { "Particle ID": hoveredId }),
-              ...(isDrawing && { Line: `${lineLength.toFixed(2)} Å` }),
-            }}
-            position={cursorPosition}
-          />
+          <>
+            <ParticleInfoOverlay
+              show={hoveredId !== null || isDrawing}
+              info={{
+                ...(hoveredId !== null && { "Particle ID": hoveredId }),
+                ...(isDrawing && { Line: `${lineLength.toFixed(2)} Å` }),
+              }}
+              position={cursorPosition}
+            />
+            <SceneInfoOverlay frame={currentFrame} />
+          </>
         )}
       </div>
     </>
