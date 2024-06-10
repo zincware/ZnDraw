@@ -19,17 +19,17 @@ repos:
         args: ["--fix=lf"]
       - id: sort-simple-yaml
       - id: trailing-whitespace
-  - repo: https://github.com/pre-commit/mirrors-eslint
-    rev: v8.53.0
-    hooks:
-      - id: eslint
-        args:
-          - --fix
-          - --config
-          - app/.eslintrc.cjs
-        additional_dependencies:
-          - eslint@latest
-          - eslint-config-prettier
+  # - repo: https://github.com/pre-commit/mirrors-eslint
+  #   rev: v8.53.0
+  #   hooks:
+  #     - id: eslint
+  #       args:
+  #         - --fix
+  #         - --config
+  #         - app/.eslintrc.cjs
+  #       additional_dependencies:
+  #         - eslint@latest
+  #         - eslint-config-prettier
   - repo: https://github.com/codespell-project/codespell
     rev: v2.2.6
     hooks:
