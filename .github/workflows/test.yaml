@@ -34,7 +34,7 @@ jobs:
           virtualenvs-in-project: true
       - name: bun build install
         run: |
-          cd zndraw/app
+          cd app
           bun install
           bun vite build
       - name: Install package
