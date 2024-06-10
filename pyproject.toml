@@ -15,7 +15,6 @@ flask = "^2"
 tqdm = "^4"
 znh5md = {version = "^0", optional = true}
 flask-socketio = "^5"
-eventlet = "^0"
 networkx = "^3"
 pydantic = "^2"
 python-socketio = {extras = ["client"], version = "^5"}
@@ -27,21 +26,18 @@ tidynamics = {version = "^1", optional = true}
 rdkit2ase = {version = "^0.1", optional = true}
 zntrack = {version = "^0.7.3", optional = true}
 znframe = "^0.1"
-decorator = "^5"
 celery = "^5"
 sqlalchemy = "^2"
-psycopg2-binary = "^2"
 redis = "^5"
 splines = "^0.3"
 znsocket = "^0.1.5"
 
 
 [tool.poetry.group.dev.dependencies]
+eventlet = "^0"
 pre-commit = "^3"
 pytest = "^7"
 coverage = "^7"
-selenium = "^4"
-webdriver-manager = "^4"
 ruff = "^0.1"
 
 
