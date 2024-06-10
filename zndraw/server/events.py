@@ -112,7 +112,7 @@ def join(data: dict):
     Arguments:
         data: {"token": str, "auth_token": str}
     """
-    # TODO: prohibt "token" to be "default"
+    # TODO: prohibit "token" to be "default"
 
     if current_app.config["AUTH_TOKEN"] is None:
         session["authenticated"] = True

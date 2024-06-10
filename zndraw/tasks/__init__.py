@@ -35,7 +35,7 @@ def read_file(fileio: dict, io_port: int, storage: str) -> None:
     # r = znsocket.Client("http://127.0.0.1:5000")
 
     # TODO: make everyone join room main
-    # send update here to everyone in room, because this is only called once in the beginnig
+    # send update here to everyone in room, because this is only called once in the beginning
     # chain this with compute_bonds. So this will load much faster
     r.delete("room:default:frames")
 

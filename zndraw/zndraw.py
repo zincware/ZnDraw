@@ -180,7 +180,7 @@ class ZnDraw(ZnDrawBase):
             raise ValueError("Step out of range")
         # Have only one step per room!
         # shared rooms are rare anyhow and making per-client steps
-        # and room hosts is anoying
+        # and room hosts is annoying
         # what about the camera?
         # or collect the steps of all clients in a dict
         # and save the host and go from there, also fine and not too much worker.

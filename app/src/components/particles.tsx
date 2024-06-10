@@ -12,7 +12,7 @@ export interface Frame {
   info: any;
   numbers: number[];
   pbc: boolean[];
-  positions: THREE.Vector3[]; // only number[][] | before beeing mapped immediatly
+  positions: THREE.Vector3[]; // only number[][] | before being mapped immediately
 }
 ``;
 
