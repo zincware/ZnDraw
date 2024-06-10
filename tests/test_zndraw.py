@@ -1,16 +1,32 @@
-import ase.build
+import ase
+import ase.collections
+import pytest
 
 from zndraw import ZnDraw
+
+
+@pytest.fixture
+def s22() -> list[ase.Atoms]:
+    """S22 dataset."""
+    return list(ase.collections.s22)
 
 
 def test_zndraw(server):
     """Test the server fixture."""
 
 
-def test_set_get(server):
+def test_set_get(server, s22):
     """Test the server fixture."""
     zndraw = ZnDraw(url=server, token="test_token")
-    zndraw[0] = ase.build.molecule("H2O")
+    zndraw[0] = s22[0]
     zndraw.socket.sleep(0.5)
     assert len(zndraw) == 1
-    assert zndraw[0] == ase.build.molecule("H2O")
+    assert zndraw[0] == s22[0]
+
+
+def test_extend(server, s22):
+    """Test the server fixture."""
+    zndraw = ZnDraw(url=server, token="test_token")
+    zndraw.extend(s22)
+    zndraw.socket.sleep(0.5)
+    assert len(zndraw) == len(s22)
