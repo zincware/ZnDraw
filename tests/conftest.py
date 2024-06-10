@@ -1,91 +1,45 @@
-import subprocess
-import threading
-import time
+import eventlet.wsgi
 
-import eventlet
+eventlet.monkey_patch()  # MUST BE THERE FOR THE TESTS TO WORK
+
 import pytest
-import requests
-import socketio
-from sqlalchemy import create_engine
+import random
+import socketio.exceptions
 
-from zndraw.app import create_app
-from zndraw.db.schema import Base
-from zndraw.settings import GlobalConfig
-from zndraw.utils import get_port
+from zndraw.app import ZnDrawServer, FileIO
 
-
-@pytest.fixture(scope="session")
-def sio_server():
-    port = get_port()
-
-    def run_server(port):
-        sio = socketio.Server(cors_allowed_origins="*")
-        app = socketio.WSGIApp(sio)
-
-        # react on every event
-        @sio.on("*")
-        def push_back(event, sid, data):
-            sio.emit(event, data, to=sid)
-
-        @sio.on("ping")
-        def ping(sid):
-            return "pong"
-
-        @sio.on("exit")
-        def exit(sid):
-            sio.shutdown()
-            import sys
-
-            sys.exit(0)
-
-        eventlet.wsgi.server(eventlet.listen(("", port)), app)
-
-    t = threading.Thread(target=run_server, args=(port,), daemon=True)
-    t.start()
-    time.sleep(1)
-    yield f"http://localhost:{port}"
-    client = socketio.Client()
-    client.connect(f"http://localhost:{port}")
-    client.emit("exit")
-    t.join()
-
-
-@pytest.fixture(scope="session")
+@pytest.fixture
 def server():
-    port = get_port()
+    port = random.randint(10000, 20000)
 
-    cmd = [
-        "celery",
-        "-A",
-        "zndraw.make_celery",
-        "worker",
-        "--loglevel",
-        "DEBUG",
-        "--queues=io,fast,celery,slow",
-    ]
-    # proc = subprocess.Popen(cmd) # more verbose for testing
-    proc = subprocess.Popen(
-        cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
-    )
+    def start_server():
+        fileio = FileIO()
 
-    config = GlobalConfig.load()
-    # TODO: use a temporary path for the database
-    # has to be set in the workers somehow
+        with ZnDrawServer(
+        tutorial=None,
+        auth_token=None,
+        port=port,
+        fileio=fileio,
+        simgen=False,
+        celery_worker=True,
+        storage=None,
+        ) as app:
+            app.run(browser=False)
 
-    engine = create_engine(config.database.get_path())
-    Base.metadata.create_all(engine)
+    thread = eventlet.spawn(start_server)
 
-    def run_server(port):
-        app = create_app()
+    # wait for the server to be ready
+    for _ in range(100):
+        try:
+            with socketio.SimpleClient() as client:
+                client.connect(f"http://localhost:{port}")
+                client.disconnect()
+                break
+        except socketio.exceptions.ConnectionError:
+            eventlet.sleep(0.1)
+    else:
+        raise TimeoutError("Server did not start in time")
 
-        eventlet.wsgi.server(eventlet.listen(("", port)), app)
+    yield f"http://127.0.0.1:{port}"
 
-    t = threading.Thread(target=run_server, args=(port,), daemon=True)
-    t.start()
-    time.sleep(1)
-    yield f"http://localhost:{port}"
-    requests.get(f"http://localhost:{port}/exit")
-    config.database.unlink()
-    proc.terminate()
-    proc.wait()
-    t.join()
+    thread.kill()
