@@ -1,6 +1,11 @@
 import enum
 
+import ase
+import znframe
+import znsocket
+from flask import current_app, session
 from pydantic import BaseModel, Field
+from redis import Redis
 
 
 class Material(str, enum.Enum):
@@ -30,6 +35,8 @@ class Scene(BaseModel):
         False,
         description="Show the simulation box.",
     )
+
+    vectors: str = Field("", description="Visualize vectorial property")
     # bonds: bool = Field(
     #     True,
     #     description="Show bonds.",
@@ -45,9 +52,35 @@ class Scene(BaseModel):
     #     description="Move the label to the left or right (keypress i).",
     # )
 
+    @staticmethod
+    def _get_atoms() -> ase.Atoms:
+        # TODO: move into utils
+        room = session["token"]
+        r: Redis = current_app.config["redis"]
+        step = r.get(f"room:{room}:step")
+        key = (
+            f"room:{room}:frames"
+            if r.exists(f"room:{room}:frames")
+            else "room:default:frames"
+        )
+        lst = znsocket.List(r, key)
+        try:
+            frame_json = lst[int(step)]
+            return znframe.Frame.from_json(frame_json).to_atoms()
+        except TypeError:
+            # step is None
+            return ase.Atoms()
+        except IndexError:
+            return ase.Atoms()
+
     @classmethod
     def updated_schema(cls) -> dict:
         schema = cls.model_json_schema()
+
+        atoms = cls._get_atoms()
+        if atoms.calc is not None and "forces" in atoms.calc.results:
+            schema["properties"]["vectors"]["enum"] = ["", "forces"]
+            schema["properties"]["vectors"]["default"] = ""
 
         # schema["properties"]["wireframe"]["format"] = "checkbox"
         schema["properties"]["Animation Loop"]["format"] = "checkbox"

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import * as THREE from "three";
 
 import { useFrame, useThree } from "@react-three/fiber";
@@ -451,6 +451,62 @@ export const SimulationCell = ({
           <Line points={vertices[5]} color={lineColor} lineWidth={2} />
         </>
       )}
+    </>
+  );
+};
+
+interface PerParticleVectorsProps {
+  frame: Frame | undefined;
+  property: string;
+}
+
+export const PerParticleVectors: React.FC<PerParticleVectorsProps> = ({
+  frame,
+  property,
+}) => {
+  const [vectors, setVectors] = useState<
+    { start: THREE.Vector3; end: THREE.Vector3 }[]
+  >([]);
+
+  const LineColor = "black";
+  const LineWidth = 2;
+  const LineScale = 1;
+
+  useEffect(() => {
+    if (!frame || !frame.calc || !frame.calc[property]) {
+      console.log(`Property ${property} not found in frame.calc`);
+      console.log(frame);
+      setVectors([]);
+      return;
+    } else {
+      console.log(`Property ${property} found in frame.calc`);
+      const calculatedVectors = frame.calc[property].map((vector, i) => {
+        const start = frame.positions[i];
+        const end = start
+          .clone()
+          .add(
+            new THREE.Vector3(vector[0], vector[1], vector[2]).multiplyScalar(
+              LineScale,
+            ),
+          );
+        return { start, end };
+      });
+      console.log(calculatedVectors);
+      setVectors(calculatedVectors);
+    }
+  }, [frame, property]);
+
+  return (
+    <>
+      {vectors.map((vec, i) => (
+        <React.Fragment key={i}>
+          <Line
+            points={[vec.start, vec.end]}
+            color={LineColor} // Adjust the color as needed
+            lineWidth={LineWidth}
+          />
+        </React.Fragment>
+      ))}
     </>
   );
 };

@@ -14,6 +14,7 @@ import {
   ParticleInstances,
   BondInstances,
   SimulationCell,
+  PerParticleVectors,
 } from "./components/particles";
 import { Frames, Frame, Player } from "./components/particles";
 import { Geometries } from "./components/geometries";
@@ -57,6 +58,7 @@ export default function App() {
     fps: 60,
     "Animation Loop": false,
     simulation_box: false,
+    vectors: "",
   });
   // updated via sockets
   const [step, setStep] = useState<number>(0);
@@ -263,6 +265,8 @@ export default function App() {
     }
     function onAnalysisRefresh() {
       socket.emit("analysis:schema");
+      // scene provides visualisation of vectors, needs to know what is available
+      socket.emit("scene:schema");
     }
 
     function onTutorialURL(data: string) {
@@ -495,6 +499,12 @@ export default function App() {
             hoveredId={hoveredId}
             setHoveredId={setHoveredId}
           />
+          {sceneSettings.vectors != "" && (
+            <PerParticleVectors
+              frame={currentFrame}
+              property={sceneSettings.vectors}
+            ></PerParticleVectors>
+          )}
         </Canvas>
       </div>
       <div className="App">
