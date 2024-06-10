@@ -139,7 +139,7 @@ export default function App() {
   useEffect(() => {
     // TODO can't be here, because is dependent on the length
     function onFramesRefresh(updatedFrames: number[]) {
-      socket.emit("room:length:get", (data: number|string) => {
+      socket.emit("room:length:get", (data: number | string) => {
         // ensure that data is a number
         if (updatedFrames.includes(step)) {
           console.log("step is in updated frames", step);
