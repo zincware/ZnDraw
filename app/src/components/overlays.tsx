@@ -28,9 +28,10 @@ export const ParticleInfoOverlay = ({
           <Card.Body>
             <Card.Text className="text-start">
               {Object.entries(info).map(([key, value]) => (
-                <p key={key}>
+                <>
                   <strong>{key}: </strong> {value}
-                </p>
+                  <br />
+                </>
               ))}
             </Card.Text>
           </Card.Body>

@@ -548,7 +548,10 @@ export default function App() {
             <ParticleInfoOverlay
               show={hoveredId !== null || isDrawing}
               info={{
-                ...(hoveredId !== null && { "Particle ID": hoveredId }),
+                ...(hoveredId !== null && {
+                  "Particle ID": hoveredId,
+                  "Atomic Number": currentFrame.numbers[hoveredId],
+                }),
                 ...(isDrawing && { Line: `${lineLength.toFixed(2)} Å` }),
               }}
               position={cursorPosition}
