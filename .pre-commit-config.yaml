@@ -23,7 +23,10 @@ repos:
     rev: v8.53.0
     hooks:
       - id: eslint
-        args: [--fix]
+        args:
+          - --fix
+          - --config
+          - app/.eslintrc.cjs
         additional_dependencies:
           - eslint@latest
           - eslint-config-prettier

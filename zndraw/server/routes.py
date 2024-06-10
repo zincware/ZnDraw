@@ -40,7 +40,7 @@ def index():
         session["token"] = token
 
     session["name"] = uuid.uuid4().hex[:8]
-    # just show templaces / index.html
+    # just show templates / index.html
     return send_from_directory("templates", "index.html")
 
 
