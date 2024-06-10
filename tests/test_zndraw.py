@@ -1,5 +1,3 @@
-
-
 from zndraw import ZnDraw
 
 

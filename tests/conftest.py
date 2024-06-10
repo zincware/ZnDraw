@@ -4,12 +4,10 @@ eventlet.monkey_patch()  # MUST BE THERE FOR THE TESTS TO WORK
 
 import random
 
-import pytest
-import socketio.exceptions
-
 import ase
 import ase.collections
 import pytest
+import socketio.exceptions
 
 from zndraw.app import FileIO, ZnDrawServer
 
