@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "zndraw"
-version = "0.4.0a8"
+version = "0.4.0a9"
 description = "Display and Edit Molecular Structures and Trajectories in the Browser."
 authors = ["zincwarecode <zincwarecode@gmail.com>"]
 license = "License :: OSI Approved :: Eclipse Public License 2.0 (EPL-2.0)"
