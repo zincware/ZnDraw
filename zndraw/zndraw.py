@@ -1,4 +1,5 @@
 import dataclasses
+import datetime
 import json
 import logging
 import typing as t
@@ -28,6 +29,7 @@ class TimeoutConfig(t.TypedDict):
 
     connection: int
     modifier: float
+    between_calls: float
 
 
 def _register_modifier(vis: "ZnDraw", data: RegisterModifier) -> None:
@@ -55,12 +57,15 @@ class ZnDraw(ZnDrawBase):
         default_factory=socketio.Client, repr=False
     )
     timeout: TimeoutConfig = dataclasses.field(
-        default_factory=lambda: {"connection": 10, "modifier": 0.25}
+        default_factory=lambda: {"connection": 10, "modifier": 0.25, "between_calls": 0.1}
     )
     maximum_message_size: int = dataclasses.field(default=1_000_000, repr=False)
 
     _modifiers: dict[str, RegisterModifier] = dataclasses.field(default_factory=dict)
     _available: bool = True
+    _last_call: datetime.datetime = dataclasses.field(
+        default_factory=datetime.datetime.now
+    )
 
     def __post_init__(self):
         def on_wakeup():
@@ -87,6 +92,14 @@ class ZnDraw(ZnDrawBase):
         for data in self._modifiers.values():
             _register_modifier(self, data)
 
+    def _delay_socket(self):
+        """Delay if the last call was too recent."""
+        while (datetime.datetime.now() - self._last_call).total_seconds() < self.timeout[
+            "between_calls"
+        ]:
+            self.socket.sleep(self.timeout["between_calls"] / 10)
+        self._last_call = datetime.datetime.now()
+
     def __getitem__(self, index) -> ase.Atoms | list[ase.Atoms]:
         single_item = isinstance(index, int)
         if single_item:
@@ -99,6 +112,8 @@ class ZnDraw(ZnDrawBase):
             raise IndexError("Index must be positive")
         if any(x >= len(self) for x in index):
             raise IndexError("Index out of range")
+
+        self._delay_socket()
 
         data: dict = self.socket.call("room:frames:get", index)
         structures = [znframe.Frame(**x).to_atoms() for x in data.values()]
@@ -115,6 +130,7 @@ class ZnDraw(ZnDrawBase):
         self.socket.emit("room:frames:set", data)
 
     def __len__(self) -> int:
+        self._delay_socket()
         return int(self.socket.call("room:length:get"))
 
     def __delitem__(self, index: int | slice | list[int]):
@@ -157,9 +173,8 @@ class ZnDraw(ZnDrawBase):
 
     @property
     def selection(self) -> list[int]:
+        self._delay_socket()
         return self.socket.call("room:selection:get")["0"]
-        data: dict = self.socket.call("room:selection:get")
-        return data["0"]
 
     @selection.setter
     def selection(self, value: list[int]):
@@ -167,6 +182,7 @@ class ZnDraw(ZnDrawBase):
 
     @property
     def step(self) -> int:
+        self._delay_socket()
         return int(self.socket.call("room:step:get"))
 
     def log(self, message: str) -> None:
@@ -188,6 +204,7 @@ class ZnDraw(ZnDrawBase):
 
     @property
     def figure(self) -> str:
+        self._delay_socket()
         return self.socket.call("analysis:figure:get")
 
     @figure.setter
@@ -204,6 +221,7 @@ class ZnDraw(ZnDrawBase):
 
     @property
     def points(self) -> list[list[float]]:
+        self._delay_socket()
         return np.array(self.socket.call("room:points:get")["0"])
 
     @points.setter
@@ -212,6 +230,7 @@ class ZnDraw(ZnDrawBase):
 
     @property
     def bookmarks(self) -> dict:
+        self._delay_socket()
         return {int(k): v for k, v in self.socket.call("room:bookmarks:get").items()}
 
     @bookmarks.setter
@@ -220,6 +239,7 @@ class ZnDraw(ZnDrawBase):
 
     @property
     def camera(self) -> dict:
+        self._delay_socket()
         return self.socket.call("room:camera:get")
 
     @camera.setter
@@ -229,8 +249,7 @@ class ZnDraw(ZnDrawBase):
 
     @property
     def geometries(self) -> list[Object3D]:
-        # return self.socket.call("room:geometry:get")
-
+        self._delay_socket()
         return [Geometry(method=x).method for x in self.socket.call("room:geometry:get")]
 
     @geometries.setter
