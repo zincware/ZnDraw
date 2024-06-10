@@ -342,11 +342,11 @@ class ZnDraw(ZnDrawBase):
         self[[self.step]] = [atoms]
 
     @property
-    def points(self) -> list[list[float]]:
+    def points(self) -> np.ndarray:
         self._delay_socket()
         for idx in range(self.timeout["call_retries"] + 1):
             try:
-                return self.socket.call("room:points:get")["0"]
+                return np.array(self.socket.call("room:points:get")["0"])
             except socketio.exceptions.TimeoutError as err:
                 log.warning("Timeout error. Retrying...")
                 if idx == self.timeout["call_retries"]:

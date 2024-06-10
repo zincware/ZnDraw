@@ -7,6 +7,10 @@ import random
 import pytest
 import socketio.exceptions
 
+import ase
+import ase.collections
+import pytest
+
 from zndraw.app import FileIO, ZnDrawServer
 
 
@@ -45,3 +49,9 @@ def server():
     yield f"http://127.0.0.1:{port}"
 
     thread.kill()
+
+
+@pytest.fixture
+def s22() -> list[ase.Atoms]:
+    """S22 dataset."""
+    return list(ase.collections.s22)

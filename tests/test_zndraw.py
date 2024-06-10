@@ -1,14 +1,6 @@
-import ase
-import ase.collections
-import pytest
+
 
 from zndraw import ZnDraw
-
-
-@pytest.fixture
-def s22() -> list[ase.Atoms]:
-    """S22 dataset."""
-    return list(ase.collections.s22)
 
 
 def test_zndraw(server):
