@@ -96,6 +96,9 @@ def main(
     elif storage is not None:
         os.environ["ZNDRAW_STORAGE"] = storage
 
+    if "ZNDRAW_AUTH_TOKEN" in os.environ and auth_token is None:
+        auth_token = os.environ["ZNDRAW_AUTH_TOKEN"]
+
     with ZnDrawServer(
         tutorial=tutorial,
         auth_token=auth_token,
