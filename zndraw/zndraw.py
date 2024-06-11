@@ -95,6 +95,7 @@ class ZnDraw(ZnDrawBase):
                 break
             except socketio.exceptions.ConnectionError as err:
                 log.warning("Connection failed. Retrying...")
+                self._delay_socket()
                 if idx == self.timeout["connect_retries"]:
                     raise err
 
@@ -112,6 +113,7 @@ class ZnDraw(ZnDrawBase):
                 break
             except socketio.exceptions.BadNamespaceError as err:
                 log.warning("Bad namespace. Retrying...")
+                self._delay_socket()
                 if idx == self.timeout["emit_retries"]:
                     raise err
 
@@ -147,6 +149,7 @@ class ZnDraw(ZnDrawBase):
                 break
             except socketio.exceptions.TimeoutError as err:
                 log.warning("Timeout error. Retrying...")
+                self._delay_socket()
                 if idx == self.timeout["call_retries"]:
                     raise err
 
@@ -167,6 +170,7 @@ class ZnDraw(ZnDrawBase):
                 break
             except socketio.exceptions.BadNamespaceError as err:
                 log.warning("Timeout error. Retrying...")
+                self._delay_socket()
                 if idx == self.timeout["emit_retries"]:
                     raise err
 
@@ -177,6 +181,7 @@ class ZnDraw(ZnDrawBase):
                 return int(self.socket.call("room:length:get"))
             except socketio.exceptions.TimeoutError as err:
                 log.warning("Timeout error. Retrying...")
+                self._delay_socket()
                 if idx == self.timeout["call_retries"]:
                     raise err
 
@@ -192,6 +197,7 @@ class ZnDraw(ZnDrawBase):
                 break
             except socketio.exceptions.BadNamespaceError as err:
                 log.warning("Timeout error. Retrying...")
+                self._delay_socket()
                 if idx == self.timeout["emit_retries"]:
                     raise err
 
@@ -205,6 +211,7 @@ class ZnDraw(ZnDrawBase):
                 break
             except socketio.exceptions.BadNamespaceError as err:
                 log.warning("Timeout error. Retrying...")
+                self._delay_socket()
                 if idx == self.timeout["emit_retries"]:
                     raise err
 
@@ -232,6 +239,7 @@ class ZnDraw(ZnDrawBase):
                         break
                     except socketio.exceptions.BadNamespaceError as err:
                         log.warning("Timeout error. Retrying...")
+                        self._delay_socket()
                         if idx == self.timeout["emit_retries"]:
                             raise err
                 msg = {}
@@ -244,6 +252,7 @@ class ZnDraw(ZnDrawBase):
                     break
                 except socketio.exceptions.BadNamespaceError as err:
                     log.warning("Timeout error. Retrying...")
+                    self._delay_socket()
                     if idx == self.timeout["emit_retries"]:
                         raise err
 
@@ -255,6 +264,7 @@ class ZnDraw(ZnDrawBase):
                 return self.socket.call("room:selection:get")["0"]
             except socketio.exceptions.TimeoutError as err:
                 log.warning("Timeout error. Retrying...")
+                self._delay_socket()
                 if idx == self.timeout["call_retries"]:
                     raise err
 
@@ -266,6 +276,7 @@ class ZnDraw(ZnDrawBase):
                 break
             except socketio.exceptions.BadNamespaceError as err:
                 log.warning("Timeout error. Retrying...")
+                self._delay_socket()
                 if idx == self.timeout["emit_retries"]:
                     raise err
 
@@ -277,6 +288,7 @@ class ZnDraw(ZnDrawBase):
                 return int(self.socket.call("room:step:get"))
             except socketio.exceptions.TimeoutError as err:
                 log.warning("Timeout error. Retrying...")
+                self._delay_socket()
                 if idx == self.timeout["call_retries"]:
                     raise err
 
@@ -287,6 +299,7 @@ class ZnDraw(ZnDrawBase):
                 break
             except socketio.exceptions.BadNamespaceError as err:
                 log.warning("Timeout error. Retrying...")
+                self._delay_socket()
                 if idx == self.timeout["emit_retries"]:
                     raise err
 
@@ -308,6 +321,7 @@ class ZnDraw(ZnDrawBase):
                 break
             except socketio.exceptions.BadNamespaceError as err:
                 log.warning("Timeout error. Retrying...")
+                self._delay_socket()
                 if idx == self.timeout["emit_retries"]:
                     raise err
 
@@ -319,6 +333,7 @@ class ZnDraw(ZnDrawBase):
                 return self.socket.call("analysis:figure:get")
             except socketio.exceptions.TimeoutError as err:
                 log.warning("Timeout error. Retrying...")
+                self._delay_socket()
                 if idx == self.timeout["call_retries"]:
                     raise err
 
@@ -330,6 +345,7 @@ class ZnDraw(ZnDrawBase):
                 break
             except socketio.exceptions.BadNamespaceError as err:
                 log.warning("Timeout error. Retrying...")
+                self._delay_socket()
                 if idx == self.timeout["emit_retries"]:
                     raise err
 
@@ -349,6 +365,7 @@ class ZnDraw(ZnDrawBase):
                 return np.array(self.socket.call("room:points:get")["0"])
             except socketio.exceptions.TimeoutError as err:
                 log.warning("Timeout error. Retrying...")
+                self._delay_socket()
                 if idx == self.timeout["call_retries"]:
                     raise err
 
@@ -360,6 +377,7 @@ class ZnDraw(ZnDrawBase):
                 break
             except socketio.exceptions.BadNamespaceError as err:
                 log.warning("Timeout error. Retrying...")
+                self._delay_socket()
                 if idx == self.timeout["emit_retries"]:
                     raise err
 
@@ -373,6 +391,7 @@ class ZnDraw(ZnDrawBase):
                 }
             except socketio.exceptions.TimeoutError as err:
                 log.warning("Timeout error. Retrying...")
+                self._delay_socket()
                 if idx == self.timeout["call_retries"]:
                     raise err
 
@@ -384,6 +403,7 @@ class ZnDraw(ZnDrawBase):
                 break
             except socketio.exceptions.BadNamespaceError as err:
                 log.warning("Timeout error. Retrying...")
+                self._delay_socket()
                 if idx == self.timeout["emit_retries"]:
                     raise err
 
@@ -395,6 +415,7 @@ class ZnDraw(ZnDrawBase):
                 return self.socket.call("room:camera:get")
             except socketio.exceptions.TimeoutError as err:
                 log.warning("Timeout error. Retrying...")
+                self._delay_socket()
                 if idx == self.timeout["call_retries"]:
                     raise err
 
@@ -414,6 +435,7 @@ class ZnDraw(ZnDrawBase):
                 ]
             except socketio.exceptions.TimeoutError as err:
                 log.warning("Timeout error. Retrying...")
+                self._delay_socket()
                 if idx == self.timeout["call_retries"]:
                     raise err
 
@@ -425,6 +447,7 @@ class ZnDraw(ZnDrawBase):
                 break
             except socketio.exceptions.BadNamespaceError as err:
                 log.warning("Timeout error. Retrying...")
+                self._delay_socket()
                 if idx == self.timeout["emit_retries"]:
                     raise err
 

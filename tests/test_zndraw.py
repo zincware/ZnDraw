@@ -20,3 +20,4 @@ def test_extend(server, s22):
     zndraw.extend(s22)
     zndraw.socket.sleep(0.5)
     assert len(zndraw) == len(s22)
+    # TODO: when using extend, it should really be 23, should it not?
