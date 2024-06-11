@@ -174,7 +174,7 @@ def call_with_retry(
             socketio.exceptions.TimeoutError,
             socketio.exceptions.BadNamespaceError,
         ) as err:
-            log.error(f"Retrying {event} due to {err}")
+            log.error(f"Retrying {event} due to {err} ({idx} / {retries})")
             if idx == retries - 1:
                 raise err
             if reconnect:
