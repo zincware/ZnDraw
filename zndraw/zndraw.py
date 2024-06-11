@@ -252,10 +252,12 @@ class ZnDraw(ZnDrawBase):
     def step(self) -> int:
         self._delay_socket()
 
-        return call_with_retry(
-            self.socket,
-            "room:step:get",
-            retries=self.timeout["call_retries"],
+        return int(
+            call_with_retry(
+                self.socket,
+                "room:step:get",
+                retries=self.timeout["call_retries"],
+            )
         )
 
     def log(self, message: str) -> None:
