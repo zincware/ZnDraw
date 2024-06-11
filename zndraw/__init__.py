@@ -3,6 +3,8 @@ import os
 if "ZNDRAW_ENABLE_EVENTLET" in os.environ:
     import eventlet
 
+    print("ZnDraw running with eventlet `monkey_patch` enabled.")
+
     eventlet.monkey_patch()
 
 import importlib.metadata

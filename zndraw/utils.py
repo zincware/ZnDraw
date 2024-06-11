@@ -170,7 +170,10 @@ def call_with_retry(
             return socket.call(
                 event=event, data=data, namespace=namespace, timeout=timeout
             )
-        except socketio.exceptions.TimeoutError as err:
+        except (
+            socketio.exceptions.TimeoutError,
+            socketio.exceptions.BadNamespaceError,
+        ) as err:
             log.error(f"Retrying {event} due to {err}")
             if idx == retries - 1:
                 raise err
