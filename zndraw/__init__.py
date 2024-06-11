@@ -1,11 +1,13 @@
 import os
 
 if "ZNDRAW_ENABLE_EVENTLET" in os.environ:
-    import eventlet
-
     print("ZnDraw running with eventlet `monkey_patch` enabled.")
 
+    import eventlet
+
     eventlet.monkey_patch()
+    # remove "ZNDRAW_ENABLE_EVENTLET" from the environment
+    os.environ.pop("ZNDRAW_ENABLE_EVENTLET")
 
 import importlib.metadata
 
