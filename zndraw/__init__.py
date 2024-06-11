@@ -1,3 +1,10 @@
+import os
+
+if "ZNDRAW_ENABLE_EVENTLET" in os.environ:
+    import eventlet
+
+    eventlet.monkey_patch()
+
 import importlib.metadata
 
 from zndraw.base import Extension
