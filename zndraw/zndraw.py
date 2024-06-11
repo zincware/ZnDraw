@@ -451,6 +451,7 @@ class ZnDraw(ZnDrawBase):
         vis = type(self)(
             url=self.url, token=room, maximum_message_size=self.maximum_message_size
         )
+        vis.timeout = self.timeout
 
         try:
             # TODO: for public modifiers the vis object must not be in the same room, create a new one!!!!!
