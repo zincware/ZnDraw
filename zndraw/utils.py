@@ -5,9 +5,13 @@ import pathlib
 import socket
 import sys
 import tempfile
+import typing as t
 import uuid
 
 import datamodel_code_generator
+import socketio.exceptions
+
+log = logging.getLogger(__name__)
 
 
 def get_port(default: int = 1234) -> int:
@@ -118,3 +122,63 @@ def check_selection(value: list[int], maximum: int):
         raise ValueError(
             f"Can not select particles indices larger than size of the scene: {maximum }. Got {value}"
         )
+
+
+def emit_with_retry(
+    socket: socketio.Client,
+    event,
+    data=None,
+    namespace=None,
+    callback=None,
+    retries: int = 1,
+    delay: float = 0.1,
+    increase_delay: float = 0.1,
+    reconnect: bool = False,
+) -> None:
+    """Emit data to a socket with retries."""
+    for idx in range(retries):
+        try:
+            socket.emit(event=event, data=data, namespace=namespace, callback=callback)
+            break
+        except socketio.exceptions.BadNamespaceError as err:
+            log.error(f"Retrying {event} due to {err}")
+            if idx == retries - 1:
+                raise err
+            if reconnect:
+                raise ValueError("Reconnect not implemented yet")
+        except Exception as err:
+            if idx == retries - 1:
+                raise err
+        socket.sleep(delay)
+        delay += increase_delay
+
+
+def call_with_retry(
+    socket: socketio.Client,
+    event,
+    data=None,
+    namespace=None,
+    timeout=60,
+    retries: int = 1,
+    delay: float = 0.1,
+    increase_delay: float = 0.1,
+    reconnect: bool = False,
+) -> t.Any:
+    """Call a function with retries."""
+    for idx in range(retries):
+        try:
+            return socket.call(
+                event=event, data=data, namespace=namespace, timeout=timeout
+            )
+        except socketio.exceptions.TimeoutError as err:
+            log.error(f"Retrying {event} due to {err}")
+            if idx == retries - 1:
+                raise err
+            if reconnect:
+                raise ValueError("Reconnect not implemented yet")
+        except Exception as err:
+            if idx == retries - 1:
+                raise err
+        socket.sleep(delay)
+        delay += increase_delay
+    return None
