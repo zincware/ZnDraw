@@ -157,7 +157,6 @@ class ZnDraw(ZnDrawBase):
                 i: znframe.Frame.from_atoms(val).to_json() for i, val in zip(index, value)
             }
 
-        
         emit_with_retry(
             self.socket,
             "room:frames:set",
@@ -179,7 +178,6 @@ class ZnDraw(ZnDrawBase):
             index = [index]
         if isinstance(index, slice):
             index = list(range(*index.indices(len(self))))
-
 
         emit_with_retry(
             self.socket,
@@ -232,7 +230,6 @@ class ZnDraw(ZnDrawBase):
                     retries=self.timeout["emit_retries"],
                 )
 
-
     @property
     def selection(self) -> list[int]:
         self._delay_socket()
@@ -244,7 +241,6 @@ class ZnDraw(ZnDrawBase):
 
     @selection.setter
     def selection(self, value: list[int]):
-
         emit_with_retry(
             self.socket,
             "room:selection:set",
@@ -340,7 +336,8 @@ class ZnDraw(ZnDrawBase):
         self._delay_socket()
 
         return {
-            int(k): v for k, v in call_with_retry(
+            int(k): v
+            for k, v in call_with_retry(
                 self.socket,
                 "room:bookmarks:get",
                 retries=self.timeout["call_retries"],
