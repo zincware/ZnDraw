@@ -1,4 +1,9 @@
-import { CatmullRomLine, Cylinder, Dodecahedron, Line } from "@react-three/drei";
+import {
+  CatmullRomLine,
+  Cylinder,
+  Dodecahedron,
+  Line,
+} from "@react-three/drei";
 import { useEffect, useState } from "react";
 import { socket } from "../socket";
 import { useThree } from "@react-three/fiber";
@@ -158,7 +163,7 @@ export const Line3D = ({
             />
           ))}
           {lineOrientation.map((line, index) => (
-            <Line 
+            <Line
               key={index}
               points={[line.start, line.end]}
               color={"black"}
