@@ -1,7 +1,4 @@
-# example https://github.com/miguelgrinberg/Flask-SocketIO-Chat
+from zndraw.server.events import init_socketio_events
+from zndraw.server.routes import main as main_blueprint
 
-from flask import Blueprint
-
-main = Blueprint("main", __name__)
-
-from . import routes, events  # noqa: E402, F401, I001
+__all__ = ["init_socketio_events", "main_blueprint"]

@@ -1,9 +1,9 @@
 import logging
 import uuid
 
-from flask import current_app, redirect, render_template, request, session
+from flask import Blueprint, current_app, redirect, request, send_from_directory, session
 
-from . import main
+main = Blueprint("main", __name__)
 
 log = logging.getLogger(__name__)
 
@@ -19,6 +19,10 @@ def _upload(file, url, token):
     for atoms in ase.io.iread(pathlib.Path("data", file)):
         vis.append(atoms)
 
+    # wait and then disconnect
+    vis.socket.sleep(1)
+    vis.socket.disconnect()
+
 
 @main.route("/")
 def index():
@@ -26,18 +30,22 @@ def index():
     try:
         token = session["token"]
     except KeyError:
-        token = uuid.uuid4().hex[:8] if current_app.config["USE_TOKEN"] else "main"
+        token = uuid.uuid4().hex[:8]
         session["token"] = token
 
     session["name"] = uuid.uuid4().hex[:8]
+    # just show templates / index.html
+    return send_from_directory("templates", "index.html")
 
-    return render_template(
-        "index.jinja2",
-        upgrade_insecure_requests=current_app.config["upgrade_insecure_requests"],
-        token=session["token"],
-        tutorial=current_app.config["TUTORIAL"],
-        simgen=current_app.config["SIMGEN"],
-    )
+
+@main.route("/<path:filename>")
+def main_files(filename):
+    return send_from_directory("templates/", filename)
+
+
+@main.route("/assets/<path:filename>")
+def assets(filename):
+    return send_from_directory("templates/assets", filename)
 
 
 @main.route("/token/<token>")
@@ -54,15 +62,13 @@ def reset():
 
 @main.route("/exit")
 @main.route("/exit/<token>")
-def exit_route(token: str = None):
+def exit_route(token: str | None = None):
     """Exit the session."""
     log.critical("Server shutting down...")
-    if token != current_app.config["AUTH_TOKEN"]:
+    if "AUTH_TOKEN" in current_app.config and token != current_app.config["AUTH_TOKEN"]:
         return "Invalid auth token", 403
 
-    from ..app import socketio
-
-    socketio.stop()
+    current_app.extensions["socketio"].stop()
     return "Server shutting down..."
 
 
@@ -75,7 +81,7 @@ def file(file: str):
     try:
         token = session["token"]
     except KeyError:
-        token = uuid.uuid4().hex[:8] if current_app.config["USE_TOKEN"] else "main"
+        token = uuid.uuid4().hex[:8]
         session["token"] = token
     url = request.url_root
     print(f"URL: {url}")

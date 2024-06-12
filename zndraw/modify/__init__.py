@@ -118,6 +118,7 @@ class Delete(UpdateScene):
         del atoms.connectivity
         vis.append(atoms)
         vis.selection = []
+        vis.step += 1
 
 
 class Move(UpdateScene):
@@ -137,17 +138,21 @@ class Move(UpdateScene):
                 "The number of steps must be less than the number of segments. You can add more points to increase the number of segments."
             )
 
-        for idx in range(1, self.steps):
-            # get the vector between the two points
-            start_idx = int((idx - 1) * len(vis.segments) / self.steps)
-            end_idx = int(idx * len(vis.segments) / self.steps)
+        segments = vis.segments
+        steps = self.steps
 
-            vector = vis.segments[end_idx] - vis.segments[start_idx]
+        for idx in range(1, steps):
+            # get the vector between the two points
+            start_idx = int((idx - 1) * len(segments) / steps)
+            end_idx = int(idx * len(segments) / steps)
+
+            vector = segments[end_idx] - segments[start_idx]
             # move the selected atoms along the vector
             atoms_selected.positions += vector
             # merge the selected and remaining atoms
             atoms.positions[atoms_ids] = atoms_selected.positions
             vis.append(atoms)
+            vis.step += 1
 
 
 class Duplicate(UpdateScene):
@@ -281,9 +286,8 @@ class Replicate(UpdateScene):
 
 
 methods = t.Union[
-    Connect,
-    Rotate,
     Delete,
+    Rotate,
     Move,
     Duplicate,
     ChangeType,
@@ -291,6 +295,7 @@ methods = t.Union[
     Wrap,
     Center,
     Replicate,
+    Connect,
 ]
 
 

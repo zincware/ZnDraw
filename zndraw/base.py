@@ -32,7 +32,7 @@ class Extension(BaseModel):
     def get_atoms() -> ase.Atoms:
         """Get the ase atoms object at the current position in the room"""
         room = session["token"]
-        r: Redis = current_app.config["redis"]
+        r: Redis = current_app.extensions["redis"]
         step = r.get(f"room:{room}:step")
         key = (
             f"room:{room}:frames"
@@ -40,8 +40,14 @@ class Extension(BaseModel):
             else "room:default:frames"
         )
         lst = znsocket.List(r, key)
-        frame_json = lst[int(step)]
-        return znframe.Frame.from_json(frame_json).to_atoms()
+        try:
+            frame_json = lst[int(step)]
+            return znframe.Frame.from_json(frame_json).to_atoms()
+        except TypeError:
+            # step is None
+            return ase.Atoms()
+        except IndexError:
+            return ase.Atoms()
 
 
 class MethodsCollection(BaseModel):
@@ -53,32 +59,41 @@ class MethodsCollection(BaseModel):
         self.method.run(vis, **kwargs)
 
     @classmethod
-    def updated_schema(cls, extensions: list[t.Type[Extension]] | None = None) -> dict:
+    def updated_schema(
+        cls, extensions: t.Optional[t.List[t.Type[Extension]]] = None
+    ) -> dict:
         methods = cls.__annotations__["method"]
         if extensions is not None and len(extensions) > 0:
             extensions_types = t.Union[tuple(extensions)]
-            extended_methods = t.Union[methods, extensions_types]
+            extended_methods = t.Union[extensions_types, methods]
         else:
             extended_methods = methods
 
         # get the description of the cls.method field
-        method_description = cls.model_fields["method"].description
+        method_field = cls.model_fields["method"]
+
+        field_kwargs = {
+            "description": method_field.description,
+            "discriminator": "discriminator",
+        }
+        field_kwargs["default"] = method_field.default
+        field_kwargs["default_factory"] = method_field.default_factory
 
         extended_cls = create_model(
             cls.__name__,
             __base__=cls,
             method=(
                 extended_methods,
-                Field(
-                    ..., description=method_description, discriminator="discriminator"
-                ),
+                Field(**field_kwargs),
             ),
         )
         schema = extended_cls.model_json_schema()
+        # TODO: iterate through all fields that have the
         for prop in [x.__name__ for x in t.get_args(extended_methods)]:
             schema["$defs"][prop]["properties"]["discriminator"]["options"] = {
                 "hidden": True
             }
+
         return schema
 
 

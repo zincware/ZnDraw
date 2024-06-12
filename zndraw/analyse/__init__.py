@@ -77,9 +77,9 @@ class Distance(Extension):
 
 
 class Properties2D(Extension):
-    x_data: str = "step"
-    y_data: str = "energy"
-    color: str = "energy"
+    x_data: str
+    y_data: str
+    color: str
     fix_aspect_ratio: bool = True
 
     model_config = ConfigDict(json_schema_extra=_schema_from_atoms)
@@ -144,7 +144,7 @@ class Properties2D(Extension):
 
 
 class Properties1D(Extension):
-    value: str = "energy"
+    value: str
     smooth: bool = False
 
     model_config = ConfigDict(json_schema_extra=_schema_from_atoms)
@@ -157,9 +157,7 @@ class Properties1D(Extension):
     def model_json_schema_from_atoms(cls, schema: dict) -> dict:
         ATOMS = cls.get_atoms()
         try:
-            available_properties = list(
-                ATOMS.calc.results.keys()
-            )  # global ATOMS object
+            available_properties = list(ATOMS.calc.results.keys())  # global ATOMS object
             log.debug(f"AVAILABLE PROPERTIES: {available_properties=}")
             schema["properties"]["value"]["enum"] = available_properties
         except AttributeError:
@@ -196,14 +194,12 @@ class Properties1D(Extension):
 
 
 methods = t.Union[
+    Properties1D,
     DihedralAngle,
     Distance,
-    Properties1D,
     Properties2D,
 ]
 
 
 class Analysis(MethodsCollection):
-    method: methods = Field(
-        ..., description="Analysis method", discriminator="discriminator"
-    )
+    method: methods = Field(description="Analysis method", discriminator="discriminator")
