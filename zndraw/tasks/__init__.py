@@ -2,12 +2,12 @@ import logging
 import typing as t
 
 import ase.io
+import socketio.exceptions
 import tqdm
 import znframe
 import znsocket
 from celery import shared_task
 from flask import current_app
-import socketio.exceptions
 
 from zndraw.base import FileIO
 
@@ -85,18 +85,18 @@ def read_file(fileio: dict) -> None:
                 io.emit("room:all:frames:refresh", [0])
             except socketio.exceptions.ConnectionError:
                 pass
-    
+
     while True:
         try:
             if not io.connected:
                 io.connect(current_app.config["SERVER_URL"], wait_timeout=10)
-                
+
             # updates len after all frames are loaded
             io.emit("room:all:frames:refresh", [idx])
             break
         except socketio.exceptions.ConnectionError:
             pass
-    
+
     io.sleep(1)
     io.disconnect()
 
