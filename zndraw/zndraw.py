@@ -25,6 +25,24 @@ class RegisterModifier(t.TypedDict):
     timeout: float
 
 
+class PointsDict(t.TypedDict):
+    """Dictionary for points.
+
+    Attributes
+    ----------
+    positions : np.ndarray[None, 3]
+        The positions of the points.
+    rotations : np.ndarray[None]
+        The rotations of the points in radians along the line from one point to the next.
+    scales : np.ndarray[None]
+        The scaling of the points. Default is 1.
+    """
+
+    positions: np.ndarray
+    rotations: np.ndarray
+    scales: np.ndarray
+
+
 class TimeoutConfig(t.TypedDict):
     """Timeout configuration for the ZnDraw client."""
 
@@ -318,22 +336,26 @@ class ZnDraw(ZnDrawBase):
         self[[self.step]] = [atoms]
 
     @property
-    def points(self) -> np.ndarray:
+    def points(self) -> PointsDict:
         self._delay_socket()
-        return np.array(
-            call_with_retry(
-                self.socket,
-                "room:points:get",
-                retries=self.timeout["call_retries"],
-            )["0"]
-        )
+        return {
+            "positions": np.array(
+                call_with_retry(
+                    self.socket,
+                    "room:points:get",
+                    retries=self.timeout["call_retries"],
+                )["0"]
+            )
+        }
 
     @points.setter
-    def points(self, points: np.ndarray) -> None:
+    def points(self, points: PointsDict) -> None:
+        if "rotations" in points:
+            raise NotImplementedError("Rotations are not implemented yet")
         emit_with_retry(
             self.socket,
             "room:points:set",
-            {"0": points.tolist()},
+            {"0": points["positions"].tolist()},
             retries=self.timeout["emit_retries"],
         )
 
