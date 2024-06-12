@@ -18,6 +18,12 @@ class Material(str, enum.Enum):
     MeshToonMaterial = "MeshToonMaterial"
 
 
+class Controls(str, enum.Enum):
+    OrbitControls = "OrbitControls"
+    TrackballControls = "TrackballControls"
+
+
+
 # create a class for the material, resolution, etc.
 class Scene(BaseModel):
     fps: int = Field(30, ge=1, le=120, description="Maximum frames per second")
@@ -35,6 +41,8 @@ class Scene(BaseModel):
         False,
         description="Show the simulation box.",
     )
+
+    controls: Controls = Field(Controls.OrbitControls, description="Controls")
 
     vectors: str = Field("", description="Visualize vectorial property")
     # bonds: bool = Field(
