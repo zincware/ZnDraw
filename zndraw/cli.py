@@ -92,7 +92,6 @@ def main(
     # os.environ["FLASK_ENV"] = "development"
     os.environ["FLASK_PORT"] = str(port)
     os.environ["FLASK_STORAGE"] = storage or f"znsocket://localhost:{ZNSOCKET_PORT}"
-    os.environ["FLASK_STORAGE"] = "redis://localhost:6379/0"
     if auth_token is not None:
         os.environ["FLASK_AUTH_TOKEN"] = auth_token
     if tutorial is not None:
