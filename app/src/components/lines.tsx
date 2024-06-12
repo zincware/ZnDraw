@@ -1,4 +1,4 @@
-import { CatmullRomLine, Dodecahedron } from "@react-three/drei";
+import { CatmullRomLine, Cylinder, Dodecahedron, Line } from "@react-three/drei";
 import { useEffect, useState } from "react";
 import { socket } from "../socket";
 import { useThree } from "@react-three/fiber";
@@ -14,6 +14,11 @@ const findClosestPoint = (points: THREE.Vector3[], position: THREE.Vector3) => {
   });
   return closestPoint;
 };
+
+interface OrthogonalLine {
+  start: THREE.Vector3;
+  end: THREE.Vector3;
+}
 
 // TODO: ensure type consistency, every point/... should be THREE.Vector3
 export const Line3D = ({
@@ -37,6 +42,8 @@ export const Line3D = ({
 }) => {
   //   a virtual point is between every two points in the points array on the line
   const [virtualPoints, setVirtualPoints] = useState<THREE.Vector3[]>([]);
+  // can you make this a list [start: THREE.Vector3, end: THREE.Vector3]
+  const [lineOrientation, setLineOrientation] = useState<OrthogonalLine[]>([]);
   const [lineColor, setLineColor] = useState("black");
   const [pointColor, setPointColor] = useState("black");
   const [virtualPointColor, setVirtualPointColor] = useState("darkcyan");
@@ -96,6 +103,18 @@ export const Line3D = ({
 
       _newPoints = [..._newPoints, findClosestPoint(linePoints, position)];
     }
+
+    // create 100 orthogonal lines to the curve, iterate 0-1, 0.01 and use curve.getTangent
+
+    let _lineOrientation: OrthogonalLine[] = [];
+    for (let i = 0; i < 1; i += 0.01) {
+      const tangent = curve.getTangent(i);
+      const start = curve.getPoint(i);
+      const end = start.clone().add(tangent);
+      _lineOrientation.push({ start, end });
+    }
+    setLineOrientation(_lineOrientation);
+
     setVirtualPoints(_newPoints);
   }, [points]);
 
@@ -136,6 +155,14 @@ export const Line3D = ({
               position={new THREE.Vector3(...point)}
               material-color={virtualPointColor}
               onClick={(event) => handleVirtualClick(index, event)}
+            />
+          ))}
+          {lineOrientation.map((line, index) => (
+            <Line 
+              key={index}
+              points={[line.start, line.end]}
+              color={"black"}
+              linewidth={2}
             />
           ))}
         </>
