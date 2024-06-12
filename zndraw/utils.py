@@ -14,7 +14,7 @@ import socketio.exceptions
 log = logging.getLogger(__name__)
 
 
-def get_port(default: int = 1234) -> int:
+def get_port(default: int) -> int:
     """Get an open port."""
     try:
         sock = socket.socket()

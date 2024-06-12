@@ -1,15 +1,18 @@
+import os
+
 import eventlet.wsgi
 
 eventlet.monkey_patch()  # MUST BE THERE FOR THE TESTS TO WORK
 
 import random
 
-import ase
+import ase.build
 import ase.collections
 import pytest
 import socketio.exceptions
 
-from zndraw.app import FileIO, ZnDrawServer
+from zndraw.app import create_app
+from zndraw.standalone import run_celery_worker
 
 
 @pytest.fixture
@@ -17,18 +20,24 @@ def server():
     port = random.randint(10000, 20000)
 
     def start_server():
-        fileio = FileIO()
+        os.environ["FLASK_PORT"] = str(port)
+        os.environ["FLASK_STORAGE"] = "redis://localhost:6379/0"
 
-        with ZnDrawServer(
-            tutorial=None,
-            auth_token=None,
-            port=port,
-            fileio=fileio,
-            simgen=False,
-            celery_worker=True,
-            storage=None,
-        ) as app:
-            app.run(browser=False)
+        app = create_app()
+        app.config["TESTING"] = True
+
+        worker = run_celery_worker()
+
+        socketio = app.extensions["socketio"]
+        try:
+            socketio.run(
+                app,
+                host="0.0.0.0",
+                port=app.config["PORT"],
+            )
+        finally:
+            app.extensions["redis"].flushall()
+            worker.terminate()
 
     thread = eventlet.spawn(start_server)
 
@@ -37,7 +46,6 @@ def server():
         try:
             with socketio.SimpleClient() as client:
                 client.connect(f"http://localhost:{port}")
-                client.disconnect()
                 break
         except socketio.exceptions.ConnectionError:
             eventlet.sleep(0.1)
@@ -53,3 +61,9 @@ def server():
 def s22() -> list[ase.Atoms]:
     """S22 dataset."""
     return list(ase.collections.s22)
+
+
+@pytest.fixture
+def water() -> ase.Atoms:
+    """Water molecule."""
+    return ase.build.molecule("H2O")

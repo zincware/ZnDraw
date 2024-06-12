@@ -2,12 +2,12 @@ import logging
 import typing as t
 
 import ase.io
+import socketio.exceptions
 import tqdm
 import znframe
 import znsocket
 from celery import shared_task
-from redis import Redis
-from socketio import SimpleClient
+from flask import current_app
 
 from zndraw.base import FileIO
 
@@ -22,16 +22,12 @@ def run_znsocket_server(port: int) -> None:
 
 
 @shared_task
-def read_file(fileio: dict, io_port: int, storage: str) -> None:
+def read_file(fileio: dict) -> None:
     file_io = FileIO(**fileio)
     # r = Redis(host="localhost", port=6379, db=0, decode_responses=True)
+    r = current_app.extensions["redis"]
 
-    if storage.startswith("redis"):
-        r = Redis.from_url(storage, decode_responses=True)
-    elif storage.startswith("znsocket"):
-        r = znsocket.Client.from_url(storage)
-
-    io = SimpleClient()
+    io = socketio.Client()
 
     # r = znsocket.Client("http://127.0.0.1:5000")
 
@@ -84,18 +80,33 @@ def read_file(fileio: dict, io_port: int, storage: str) -> None:
         frame = znframe.Frame.from_atoms(atoms)
         lst.append(frame.to_json())
         if idx == 0:
-            io.connect(f"http://127.0.0.1:{io_port}")
-            io.emit("room:all:frames:refresh", [0])
-        # TODO: trigger length refresh
+            try:
+                io.connect(current_app.config["SERVER_URL"], wait_timeout=10)
+                io.emit("room:all:frames:refresh", [0])
+            except socketio.exceptions.ConnectionError:
+                pass
+
+    while True:
+        try:
+            if not io.connected:
+                io.connect(current_app.config["SERVER_URL"], wait_timeout=10)
+
+            # updates len after all frames are loaded
+            io.emit("room:all:frames:refresh", [idx])
+            break
+        except socketio.exceptions.ConnectionError:
+            pass
+
+    io.sleep(1)
+    io.disconnect()
 
 
 @shared_task
-def run_modifier(url, room, data: dict) -> None:
+def run_modifier(room, data: dict) -> None:
     from zndraw import ZnDraw
     from zndraw.modify import Modifier
 
-    # cls = get_cls_from_json_schema(modifier["schema"], modifier["name"])
-    vis = ZnDraw(url=url, token=room)
+    vis = ZnDraw(url=current_app.config["SERVER_URL"], token=room)
     vis.socket.emit("room:modifier:queue", 0)
     try:
         modifier = Modifier(**data)
@@ -111,11 +122,11 @@ def run_modifier(url, room, data: dict) -> None:
 
 
 @shared_task
-def run_selection(url, room, data: dict) -> None:
+def run_selection(room, data: dict) -> None:
     from zndraw import ZnDraw
-    from zndraw.select import Selection
+    from zndraw.selection import Selection
 
-    vis = ZnDraw(url=url, token=room)
+    vis = ZnDraw(url=current_app.config["SERVER_URL"], token=room)
     vis.socket.emit("room:selection:queue", 0)
     try:
         selection = Selection(**data)
@@ -129,11 +140,11 @@ def run_selection(url, room, data: dict) -> None:
 
 
 @shared_task
-def run_analysis(url, room, data: dict) -> None:
+def run_analysis(room, data: dict) -> None:
     from zndraw import ZnDraw
     from zndraw.analyse import Analysis
 
-    vis = ZnDraw(url=url, token=room)
+    vis = ZnDraw(url=current_app.config["SERVER_URL"], token=room)
     vis.socket.emit("room:analysis:queue", 0)
     try:
         analysis = Analysis(**data)
@@ -149,11 +160,11 @@ def run_analysis(url, room, data: dict) -> None:
 
 
 @shared_task
-def run_geometry(url, room, data: dict) -> None:
+def run_geometry(room, data: dict) -> None:
     from zndraw import ZnDraw
     from zndraw.draw import Geometry
 
-    vis = ZnDraw(url=url, token=room)
+    vis = ZnDraw(url=current_app.config["SERVER_URL"], token=room)
     vis.socket.emit("room:geometry:queue", 0)
     try:
         geom = Geometry(**data)

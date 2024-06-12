@@ -5,8 +5,8 @@ import networkx as nx
 import numpy as np
 from pydantic import Field
 
-from zndraw import Extension, ZnDraw
-from zndraw.base import MethodsCollection
+from zndraw.base import Extension, MethodsCollection
+from zndraw.zndraw import ZnDraw
 
 try:
     from zndraw.select import mda  # noqa: F401

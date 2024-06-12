@@ -32,7 +32,7 @@ class Extension(BaseModel):
     def get_atoms() -> ase.Atoms:
         """Get the ase atoms object at the current position in the room"""
         room = session["token"]
-        r: Redis = current_app.config["redis"]
+        r: Redis = current_app.extensions["redis"]
         step = r.get(f"room:{room}:step")
         key = (
             f"room:{room}:frames"

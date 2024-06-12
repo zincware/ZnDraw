@@ -31,6 +31,7 @@ sqlalchemy = "^2"
 redis = "^5"
 splines = "^0.3"
 znsocket = "^0.1.5"
+lazy-loader = "^0.4"
 
 
 [tool.poetry.group.dev.dependencies]

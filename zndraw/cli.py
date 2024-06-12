@@ -1,9 +1,16 @@
+import eventlet
+
+eventlet.monkey_patch()
+
 import os
-from typing import Optional
+import typing as t
 
 import typer
 
-from zndraw.app import FileIO, ZnDrawServer
+from zndraw.app import create_app
+from zndraw.base import FileIO
+from zndraw.standalone import run_celery_worker, run_znsocket
+from zndraw.tasks import read_file
 from zndraw.utils import get_port
 
 cli = typer.Typer()
@@ -11,7 +18,7 @@ cli = typer.Typer()
 
 @cli.command()
 def main(
-    filename: Optional[str] = typer.Argument(
+    filename: t.Optional[str] = typer.Argument(
         None,
         help="Path to the file which should be visualized in ZnDraw. Can also be the name and attribute of a ZnTrack Node like 'MyNode.atoms' if at least '--remote .' is provided. ",
     ),
@@ -32,7 +39,7 @@ def main(
         True, help="""Whether to open the ZnDraw GUI in the default web browser."""
     ),
     start: int = typer.Option(
-        0,
+        None,
         help="""First frame to be visualized. If set to 0, the first frame will be visualized.""",
     ),
     stop: int = typer.Option(
@@ -40,7 +47,7 @@ def main(
         help="""Last frame to be visualized. If set to None, the last frame will be visualized.""",
     ),
     step: int = typer.Option(
-        1,
+        None,
         help="""Stepsize for the frames to be visualized. If set to 1, all frames will be visualized.
         If e.g. set to 2, every second frame will be visualized.""",
     ),
@@ -64,21 +71,45 @@ def main(
         False,
         help="Show the SiMGen demo UI.",
     ),
-    celery_worker: bool = typer.Option(
-        True,
-        help="Start ZnDraw with celery workers. If disabled, you must manage the workers yourself. This can be useful when hosting ZnDraw for multiple users.",
-    ),
     storage: str = typer.Option(
         None,
         help="URL to the redis `redis://localhost:6379/0` or znsocket `znsocket://127.0.0.1:6379` server. If None is provided, a local znsocket server will be started.",
+    ),
+    standalone: bool = typer.Option(
+        True,
+        help="Run ZnDraw without additional tools. If disabled, redis and celery must be started manually.",
     ),
 ):
     """Start the ZnDraw server.
 
     Visualize Trajectories, Structures, and more in ZnDraw.
     """
-    if port is None:
-        port = get_port()
+    ZNSOCKET_PORT = 6374
+
+    # os.environ["FLASK_ENV"] = "development"
+    if port is not None:
+        os.environ["FLASK_PORT"] = str(port)
+    else:
+        if "FLASK_PORT" in os.environ:
+            port = int(os.environ["FLASK_PORT"])
+        else:
+            port = get_port(default=1234)
+            os.environ["FLASK_PORT"] = str(port)
+    if storage is not None:
+        os.environ["FLASK_STORAGE"] = storage
+    if auth_token is not None:
+        os.environ["FLASK_AUTH_TOKEN"] = auth_token
+    if tutorial is not None:
+        os.environ["FLASK_TUTORIAL"] = tutorial
+    if simgen:
+        os.environ["FLASK_SIMGEN"] = "TRUE"
+    os.environ["FLASK_SERVER_URL"] = f"http://localhost:{port}"
+
+    if standalone:
+        if storage is None:
+            os.environ["FLASK_STORAGE"] = f"znsocket://localhost:{ZNSOCKET_PORT}"
+        server = run_znsocket(ZNSOCKET_PORT)
+        worker = run_celery_worker()
 
     fileio = FileIO(
         name=filename,
@@ -88,24 +119,31 @@ def main(
         stop=stop,
         step=step,
     )
-    if "ZNDRAW_STORAGE" in os.environ and storage is None:
-        print(
-            f"Using storage from environment variable ZNDRAW_STORAGE: {os.environ['ZNDRAW_STORAGE']}"
+
+    app = create_app()
+
+    read_file.delay(fileio.to_dict())
+
+    if browser:
+        import webbrowser
+
+        webbrowser.open(f"http://localhost:{port}")
+
+    socketio = app.extensions["socketio"]
+    try:
+        socketio.run(
+            app,
+            host="0.0.0.0",
+            port=app.config["PORT"],
         )
-        storage = os.environ["ZNDRAW_STORAGE"]
-    elif storage is not None:
-        os.environ["ZNDRAW_STORAGE"] = storage
+    finally:
+        if standalone:
+            server.terminate()
+            server.wait()
+            print("znsocket server terminated.")
+            worker.terminate()
+            worker.wait()
+            print("celery worker terminated.")
 
-    if "ZNDRAW_AUTH_TOKEN" in os.environ and auth_token is None:
-        auth_token = os.environ["ZNDRAW_AUTH_TOKEN"]
-
-    with ZnDrawServer(
-        tutorial=tutorial,
-        auth_token=auth_token,
-        port=port,
-        fileio=fileio,
-        simgen=simgen,
-        celery_worker=celery_worker,
-        storage=storage,
-    ) as app:
-        app.run(browser=browser)
+        # app.extensions["redis"].flushall()
+        # socketio.stop()
