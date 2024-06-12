@@ -1,3 +1,7 @@
+import eventlet
+
+eventlet.monkey_patch()
+
 import os
 from typing import Optional
 
