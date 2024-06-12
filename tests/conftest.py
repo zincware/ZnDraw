@@ -1,7 +1,6 @@
 import os
 
 import eventlet.wsgi
-import redis
 
 eventlet.monkey_patch()  # MUST BE THERE FOR THE TESTS TO WORK
 
@@ -26,7 +25,7 @@ def server():
 
         app = create_app()
         app.config["TESTING"] = True
-        
+
         worker = run_celery_worker()
 
         socketio = app.extensions["socketio"]
