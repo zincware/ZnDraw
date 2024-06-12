@@ -415,7 +415,7 @@ export default function App() {
     event.preventDefault();
   };
 
-  const onDrop = (event) => {
+  const onDrop = async (event) => {
     event.preventDefault();
 
     const file = event.dataTransfer.files[0];
@@ -424,16 +424,18 @@ export default function App() {
       return;
     }
 
-    const reader = new FileReader();
-    reader.readAsBinaryString(file);
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const content = new Uint8Array(arrayBuffer);
 
-    // send the file to the server
-    reader.addEventListener("load", () => {
+      // send the file to the server
       socket.emit("room:upload:file", {
-        content: reader.result,
+        content: Array.from(content),
         filename: file.name,
       });
-    });
+    } catch (error) {
+      console.error("Error reading file:", error);
+    }
   };
 
   return (
