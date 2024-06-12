@@ -24,6 +24,8 @@ def server():
         os.environ["FLASK_STORAGE"] = "redis://localhost:6379/0"
 
         app = create_app()
+        app.config["TESTING"] = True
+        
         worker = run_celery_worker()
 
         socketio = app.extensions["socketio"]

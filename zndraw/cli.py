@@ -118,17 +118,20 @@ def main(
         webbrowser.open(f"http://localhost:{port}")
 
     socketio = app.extensions["socketio"]
-    socketio.run(
-        app,
-        host="0.0.0.0",
-        port=app.config["PORT"],
-    )
+    try:
+        socketio.run(
+            app,
+            host="0.0.0.0",
+            port=app.config["PORT"],
+        )
+    finally:
+        app.extensions["redis"].flushall()
+        socketio.stop()
+        if standalone:
+            server.terminate()
+            server.wait()
+            print("znsocket server terminated.")
 
-    if standalone:
-        server.terminate()
-        server.wait()
-        print("znsocket server terminated.")
-
-        worker.terminate()
-        worker.wait()
-        print("celery worker terminated.")
+            worker.terminate()
+            worker.wait()
+            print("celery worker terminated.")
