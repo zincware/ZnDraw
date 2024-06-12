@@ -12,7 +12,13 @@ from zndraw.draw import Geometry
 from zndraw.modify import Modifier
 from zndraw.scene import Scene
 from zndraw.selection import Selection
-from zndraw.tasks import run_analysis, run_geometry, run_modifier, run_selection
+from zndraw.tasks import (
+    run_analysis,
+    run_geometry,
+    run_modifier,
+    run_selection,
+    run_upload_file,
+)
 from zndraw.utils import get_cls_from_json_schema
 
 log = logging.getLogger(__name__)
@@ -536,3 +542,8 @@ def init_socketio_events(io: SocketIO):
         r: Redis = current_app.extensions["redis"]
         room = session.get("token")
         return json.loads(r.get(f"room:{room}:camera"))
+
+    @io.on("room:upload:file")
+    def room_upload_file(data: dict):
+        room = session.get("token")
+        run_upload_file.delay(room, data)

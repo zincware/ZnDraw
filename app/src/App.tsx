@@ -411,9 +411,34 @@ export default function App() {
     };
   }, []);
 
+  const onDragOver = (event) => {
+    event.preventDefault();
+  };
+
+  const onDrop = (event) => {
+    event.preventDefault();
+
+    const file = event.dataTransfer.files[0];
+    if (!file) {
+      console.error("No file was dropped");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.readAsBinaryString(file);
+
+    // send the file to the server
+    reader.addEventListener("load", () => {
+      socket.emit("room:upload:file", {
+        content: reader.result,
+        filename: file.name,
+      });
+    });
+  };
+
   return (
     <>
-      <div className="canvas-container">
+      <div className="canvas-container" onDragOver={onDragOver} onDrop={onDrop}>
         <Canvas onPointerMissed={() => setSelectedPoint(null)}>
           <PerspectiveCamera ref={cameraRef} />
           {/* <ambientLight intensity={Math.PI / 20}/> */}

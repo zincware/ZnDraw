@@ -176,3 +176,42 @@ def run_geometry(room, data: dict) -> None:
     # wait and then disconnect
     vis.socket.sleep(1)
     vis.socket.disconnect()
+
+
+@shared_task
+def run_upload_file(room, data: dict):
+    from io import StringIO
+
+    import ase.io
+
+    from zndraw import ZnDraw
+
+    vis = ZnDraw(url=current_app.config["SERVER_URL"], token=room)
+
+    vis.log(f"Uploading {data['filename']}")
+
+    format = data["filename"].split(".")[-1]
+    format = format if format != "xyz" else "extxyz"
+
+    if format == "h5":
+        raise ValueError("H5MD format not supported for uploading yet")
+
+    stream = StringIO(data["content"])
+
+    atoms_list = list(ase.io.iread(stream, format=format))
+    if len(atoms_list) == 1 and len(vis.points) != 0:
+        scene = vis.atoms
+        atoms = atoms_list[0]
+        if hasattr(scene, "connectivity"):
+            del scene.connectivity
+        for point in vis.points:
+            atoms.positions -= atoms.get_center_of_mass() - point
+            scene += atoms
+        vis.append(scene)
+    else:
+        vis.extend(atoms_list)
+
+    vis.step = len(vis) - 1
+
+    vis.socket.sleep(1)
+    vis.socket.disconnect()
