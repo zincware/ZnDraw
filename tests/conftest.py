@@ -27,13 +27,15 @@ def server():
         worker = run_celery_worker()
 
         socketio = app.extensions["socketio"]
-        socketio.run(
-            app,
-            host="0.0.0.0",
-            port=app.config["PORT"],
-        )
-
-        worker.terminate()
+        try:
+            socketio.run(
+                app,
+                host="0.0.0.0",
+                port=app.config["PORT"],
+            )
+        finally:
+            app.extensions["redis"].flushall()
+            worker.terminate()
 
 
     thread = eventlet.spawn(start_server)
@@ -43,7 +45,6 @@ def server():
         try:
             with socketio.SimpleClient() as client:
                 client.connect(f"http://localhost:{port}")
-                client.disconnect()
                 break
         except socketio.exceptions.ConnectionError:
             eventlet.sleep(0.1)
@@ -51,9 +52,6 @@ def server():
         raise TimeoutError("Server did not start in time")
 
     yield f"http://127.0.0.1:{port}"
-
-    r = redis.Redis.from_url("redis://localhost:6379/0")
-    r.flushall()
 
     thread.kill()
 
