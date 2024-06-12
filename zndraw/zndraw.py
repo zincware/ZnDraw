@@ -25,8 +25,20 @@ class RegisterModifier(t.TypedDict):
     timeout: float
 
 class PointsDict(t.TypedDict):
+    """Dictionary for points.
+    
+    Attributes
+    ----------
+    positions : np.ndarray[None, 3]
+        The positions of the points.
+    rotations : np.ndarray[None]
+        The rotations of the points in radians along the line from one point to the next.
+    scales : np.ndarray[None]
+        The scaling of the points. Default is 1.
+    """
     positions: np.ndarray
     rotations: np.ndarray
+    scales: np.ndarray
 
 
 class TimeoutConfig(t.TypedDict):
