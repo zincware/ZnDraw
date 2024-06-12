@@ -3,7 +3,9 @@ from typing import Optional
 
 import typer
 
-from zndraw.app import FileIO, ZnDrawServer
+from zndraw.app import create_app
+from zndraw.base import FileIO
+from zndraw.tasks import read_file
 from zndraw.utils import get_port
 
 cli = typer.Typer()
@@ -80,14 +82,6 @@ def main(
     if port is None:
         port = get_port()
 
-    fileio = FileIO(
-        name=filename,
-        remote=remote,
-        rev=rev,
-        start=start,
-        stop=stop,
-        step=step,
-    )
     if "ZNDRAW_STORAGE" in os.environ and storage is None:
         print(
             f"Using storage from environment variable ZNDRAW_STORAGE: {os.environ['ZNDRAW_STORAGE']}"
@@ -99,13 +93,25 @@ def main(
     if "ZNDRAW_AUTH_TOKEN" in os.environ and auth_token is None:
         auth_token = os.environ["ZNDRAW_AUTH_TOKEN"]
 
-    with ZnDrawServer(
-        tutorial=tutorial,
-        auth_token=auth_token,
-        port=port,
-        fileio=fileio,
-        simgen=simgen,
-        celery_worker=celery_worker,
-        storage=storage,
-    ) as app:
-        app.run(browser=browser)
+    # hard coded for dev!
+    port = 3141
+
+    fileio = FileIO(
+        name=filename,
+        remote=remote,
+        rev=rev,
+        start=start,
+        stop=stop,
+        step=step,
+    )
+
+    app = create_app()
+
+    read_file.delay(fileio.to_dict())
+
+    socketio = app.extensions["socketio"]
+    socketio.run(
+        app,
+        host="0.0.0.0",
+        port=app.config["PORT"],
+    )

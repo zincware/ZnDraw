@@ -1,15 +1,9 @@
 import logging
 import uuid
 
-from flask import (
-    current_app,
-    redirect,
-    request,
-    send_from_directory,
-    session,
-)
+from flask import Blueprint, current_app, redirect, request, send_from_directory, session
 
-from . import main
+main = Blueprint("main", __name__)
 
 log = logging.getLogger(__name__)
 

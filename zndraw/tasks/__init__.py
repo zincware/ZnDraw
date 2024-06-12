@@ -6,7 +6,7 @@ import tqdm
 import znframe
 import znsocket
 from celery import shared_task
-from redis import Redis
+from flask import current_app
 from socketio import SimpleClient
 
 from zndraw.base import FileIO
@@ -22,14 +22,15 @@ def run_znsocket_server(port: int) -> None:
 
 
 @shared_task
-def read_file(fileio: dict, io_port: int, storage: str) -> None:
+def read_file(fileio: dict) -> None:
     file_io = FileIO(**fileio)
     # r = Redis(host="localhost", port=6379, db=0, decode_responses=True)
+    r = current_app.extensions["redis"]
 
-    if storage.startswith("redis"):
-        r = Redis.from_url(storage, decode_responses=True)
-    elif storage.startswith("znsocket"):
-        r = znsocket.Client.from_url(storage)
+    # if storage.startswith("redis"):
+    #     r = Redis.from_url(storage, decode_responses=True)
+    # elif storage.startswith("znsocket"):
+    #     r = znsocket.Client.from_url(storage)
 
     io = SimpleClient()
 
@@ -84,7 +85,7 @@ def read_file(fileio: dict, io_port: int, storage: str) -> None:
         frame = znframe.Frame.from_atoms(atoms)
         lst.append(frame.to_json())
         if idx == 0:
-            io.connect(f"http://127.0.0.1:{io_port}")
+            io.connect(f"http://127.0.0.1:{current_app.config['PORT']}")
             io.emit("room:all:frames:refresh", [0])
         # TODO: trigger length refresh
 
@@ -94,7 +95,6 @@ def run_modifier(url, room, data: dict) -> None:
     from zndraw import ZnDraw
     from zndraw.modify import Modifier
 
-    # cls = get_cls_from_json_schema(modifier["schema"], modifier["name"])
     vis = ZnDraw(url=url, token=room)
     vis.socket.emit("room:modifier:queue", 0)
     try:
@@ -113,7 +113,7 @@ def run_modifier(url, room, data: dict) -> None:
 @shared_task
 def run_selection(url, room, data: dict) -> None:
     from zndraw import ZnDraw
-    from zndraw.select import Selection
+    from zndraw.selection import Selection
 
     vis = ZnDraw(url=url, token=room)
     vis.socket.emit("room:selection:queue", 0)

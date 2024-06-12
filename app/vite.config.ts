@@ -9,4 +9,15 @@ export default defineConfig({
     emptyOutDir: true, // Clear the output directory before building
   },
   publicDir: "../zndraw/static", // Optional: directory for static assets
+  server: {
+    proxy: {
+      // string shorthand: http://localhost:5173/foo -> http://localhost:4567/foo
+      '/hello': 'http://localhost:3141',
+      // // Proxying websockets or socket.io: ws://localhost:5173/socket.io -> ws://localhost:5174/socket.io
+      '/socket.io': {
+        target: 'ws://localhost:3141',
+        ws: true,
+      },
+    },
+  },
 });

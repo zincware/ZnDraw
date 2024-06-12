@@ -56,7 +56,7 @@ class Scene(BaseModel):
     def _get_atoms() -> ase.Atoms:
         # TODO: move into utils
         room = session["token"]
-        r: Redis = current_app.config["redis"]
+        r: Redis = current_app.extensions["redis"]
         step = r.get(f"room:{room}:step")
         key = (
             f"room:{room}:frames"
