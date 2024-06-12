@@ -54,9 +54,9 @@ def create_app() -> Flask:
             "task_ignore_result": True,
         },
     )
+    app.config["SECRET_KEY"] = "secret!"
     # loads all FLASK_ prefixed environment variables into the app config
     app.config.from_prefixed_env()
-    app.config["SECRET_KEY"] = "secret!"
 
     # Initialize SocketIO
     socketio = SocketIO(app, message_queue=app.config["CELERY"]["broker_url"])

@@ -6,7 +6,7 @@ import numpy as np
 from pydantic import Field
 
 from zndraw.base import Extension, MethodsCollection
-from zndraw.base import ZnDrawBase as ZnDraw
+from zndraw.zndraw import ZnDraw
 
 try:
     from zndraw.select import mda  # noqa: F401

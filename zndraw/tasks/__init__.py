@@ -27,11 +27,6 @@ def read_file(fileio: dict) -> None:
     # r = Redis(host="localhost", port=6379, db=0, decode_responses=True)
     r = current_app.extensions["redis"]
 
-    # if storage.startswith("redis"):
-    #     r = Redis.from_url(storage, decode_responses=True)
-    # elif storage.startswith("znsocket"):
-    #     r = znsocket.Client.from_url(storage)
-
     io = SimpleClient()
 
     # r = znsocket.Client("http://127.0.0.1:5000")

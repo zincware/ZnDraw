@@ -81,11 +81,7 @@ def main(
     Visualize Trajectories, Structures, and more in ZnDraw.
     """
     if port is None:
-        port = get_port()
-
-    # !!!! hard coded for dev !!!!
-    port = 3141
-    # !!!! ------------------ !!!!
+        port = get_port(default=1234)
 
     ZNSOCKET_PORT = 6374
 
