@@ -147,7 +147,7 @@ export default function App() {
           setNeedsUpdate(true);
         } else if (step >= data) {
           console.log("step is out of bounds", step);
-          setStep(data - 1);
+          setStep(parseInt(data) - 1);
           // reset selected ids
           setSelectedIds(new Set());
         }
@@ -191,9 +191,9 @@ export default function App() {
         setGeometries(data);
       });
       // get step
-      socket.emit("room:step:get", (data: number) => {
+      socket.emit("room:step:get", (data: string) => {
         stepFromSocket.current = true;
-        setStep(data);
+        setStep(parseInt(data));
       });
       // get selection
       socket.emit("room:selection:get", (data: any) => {
