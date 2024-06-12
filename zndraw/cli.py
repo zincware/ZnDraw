@@ -39,7 +39,7 @@ def main(
         True, help="""Whether to open the ZnDraw GUI in the default web browser."""
     ),
     start: int = typer.Option(
-        0,
+        None,
         help="""First frame to be visualized. If set to 0, the first frame will be visualized.""",
     ),
     stop: int = typer.Option(
@@ -47,7 +47,7 @@ def main(
         help="""Last frame to be visualized. If set to None, the last frame will be visualized.""",
     ),
     step: int = typer.Option(
-        1,
+        None,
         help="""Stepsize for the frames to be visualized. If set to 1, all frames will be visualized.
         If e.g. set to 2, every second frame will be visualized.""",
     ),

@@ -7,7 +7,7 @@ import znframe
 import znsocket
 from celery import shared_task
 from flask import current_app
-from socketio import SimpleClient
+import socketio.exceptions
 
 from zndraw.base import FileIO
 
@@ -27,7 +27,7 @@ def read_file(fileio: dict) -> None:
     # r = Redis(host="localhost", port=6379, db=0, decode_responses=True)
     r = current_app.extensions["redis"]
 
-    io = SimpleClient()
+    io = socketio.Client()
 
     # r = znsocket.Client("http://127.0.0.1:5000")
 
@@ -80,9 +80,25 @@ def read_file(fileio: dict) -> None:
         frame = znframe.Frame.from_atoms(atoms)
         lst.append(frame.to_json())
         if idx == 0:
-            io.connect(current_app.config["SERVER_URL"])
-            io.emit("room:all:frames:refresh", [0])
-        # TODO: trigger length refresh
+            try:
+                io.connect(current_app.config["SERVER_URL"], wait_timeout=10)
+                io.emit("room:all:frames:refresh", [0])
+            except socketio.exceptions.ConnectionError:
+                pass
+    
+    while True:
+        try:
+            if not io.connected:
+                io.connect(current_app.config["SERVER_URL"], wait_timeout=10)
+                
+            # updates len after all frames are loaded
+            io.emit("room:all:frames:refresh", [idx])
+            break
+        except socketio.exceptions.ConnectionError:
+            pass
+    
+    io.sleep(1)
+    io.disconnect()
 
 
 @shared_task

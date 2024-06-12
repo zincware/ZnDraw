@@ -62,8 +62,8 @@ def create_app() -> Flask:
         )
     else:
         # nothing else supported, using filesystem storage
-        data_folder = pathlib.Path("~/.zincware/zndraw/celery/out")
-        data_folder_processed = pathlib.Path("~/.zincware/zndraw/celery/processed")
+        data_folder = pathlib.Path("~/.zincware/zndraw/celery/out").expanduser()
+        data_folder_processed = pathlib.Path("~/.zincware/zndraw/celery/processed").expanduser()
         data_folder.mkdir(parents=True, exist_ok=True)
         data_folder_processed.mkdir(parents=True, exist_ok=True)
 
@@ -74,16 +74,18 @@ def create_app() -> Flask:
                 "cache_backend": "memory",
                 "task_ignore_result": True,
                 "broker_transport_options": {
-                    "data_folder_in": data_folder.expanduser().as_posix(),
-                    "data_folder_out": data_folder.expanduser().as_posix(),
-                    "data_folder_processed": data_folder_processed.expanduser().as_posix(),
+                    "data_folder_in": data_folder.as_posix(),
+                    "data_folder_out": data_folder.as_posix(),
+                    "data_folder_processed": data_folder_processed.as_posix(),
                 },
             },
         )
 
     # Initialize SocketIO
+    message_queue = app.config["CELERY"]["broker_url"] if app.config["STORAGE"].startswith("redis") else None
+
     socketio = SocketIO(
-        app, message_queue=app.config["CELERY"]["broker_url"], cors_allowed_origins="*"
+        app, message_queue=message_queue, cors_allowed_origins="*"
     )
 
     # Initialize Celery
