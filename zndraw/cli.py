@@ -99,6 +99,7 @@ def main(
         os.environ["FLASK_TUTORIAL"] = tutorial
     if simgen:
         os.environ["FLASK_SIMGEN"] = "TRUE"
+    os.environ["FLASK_SERVER_URL"] = f"http://localhost:{port}"
 
     if standalone:
         if storage is None:

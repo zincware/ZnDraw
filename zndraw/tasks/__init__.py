@@ -80,17 +80,17 @@ def read_file(fileio: dict) -> None:
         frame = znframe.Frame.from_atoms(atoms)
         lst.append(frame.to_json())
         if idx == 0:
-            io.connect(f"http://127.0.0.1:{current_app.config['PORT']}")
+            io.connect(current_app.config["SERVER_URL"])
             io.emit("room:all:frames:refresh", [0])
         # TODO: trigger length refresh
 
 
 @shared_task
-def run_modifier(url, room, data: dict) -> None:
+def run_modifier(room, data: dict) -> None:
     from zndraw import ZnDraw
     from zndraw.modify import Modifier
 
-    vis = ZnDraw(url=url, token=room)
+    vis = ZnDraw(url=current_app.config["SERVER_URL"], token=room)
     vis.socket.emit("room:modifier:queue", 0)
     try:
         modifier = Modifier(**data)
@@ -106,11 +106,11 @@ def run_modifier(url, room, data: dict) -> None:
 
 
 @shared_task
-def run_selection(url, room, data: dict) -> None:
+def run_selection(room, data: dict) -> None:
     from zndraw import ZnDraw
     from zndraw.selection import Selection
 
-    vis = ZnDraw(url=url, token=room)
+    vis = ZnDraw(url=current_app.config["SERVER_URL"], token=room)
     vis.socket.emit("room:selection:queue", 0)
     try:
         selection = Selection(**data)
@@ -124,11 +124,11 @@ def run_selection(url, room, data: dict) -> None:
 
 
 @shared_task
-def run_analysis(url, room, data: dict) -> None:
+def run_analysis(room, data: dict) -> None:
     from zndraw import ZnDraw
     from zndraw.analyse import Analysis
 
-    vis = ZnDraw(url=url, token=room)
+    vis = ZnDraw(url=current_app.config["SERVER_URL"], token=room)
     vis.socket.emit("room:analysis:queue", 0)
     try:
         analysis = Analysis(**data)
@@ -144,11 +144,11 @@ def run_analysis(url, room, data: dict) -> None:
 
 
 @shared_task
-def run_geometry(url, room, data: dict) -> None:
+def run_geometry(room, data: dict) -> None:
     from zndraw import ZnDraw
     from zndraw.draw import Geometry
 
-    vis = ZnDraw(url=url, token=room)
+    vis = ZnDraw(url=current_app.config["SERVER_URL"], token=room)
     vis.socket.emit("room:geometry:queue", 0)
     try:
         geom = Geometry(**data)

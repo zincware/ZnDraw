@@ -290,7 +290,6 @@ def init_socketio_events(io: SocketIO):
     def modifier_run(data: dict):
         room = session.get("token")
         emit("room:modifier:queue", 1, to=room)  # TODO: find the correct queue position
-        url = f"http://127.0.0.1:{current_app.config['PORT']}"
 
         r: Redis = current_app.extensions["redis"]
 
@@ -319,7 +318,7 @@ def init_socketio_events(io: SocketIO):
                 # kindly ask every client if they are available
                 emit("modifier:wakeup", to=sid)
         else:
-            run_modifier.delay(url, room, data)
+            run_modifier.delay(room, data)
 
     @io.on("room:modifier:queue")
     def room_modifier_run(data: int):
@@ -359,8 +358,7 @@ def init_socketio_events(io: SocketIO):
     def analysis_run(data: dict):
         room = session.get("token")
         emit("room:analysis:queue", 1, to=room)  # TODO: find the correct queue position
-        url = f"http://127.0.0.1:{current_app.config['PORT']}"
-        run_analysis.delay(url, room, data)
+        run_analysis.delay(room, data)
 
     @io.on("room:analysis:queue")
     def room_analysis_run(data: int):
@@ -378,8 +376,7 @@ def init_socketio_events(io: SocketIO):
     def geometry_run(data: dict):
         room = session.get("token")
         emit("geometry:run:enqueue", to=room)
-        url = f"http://127.0.0.1:{current_app.config['PORT']}"
-        run_geometry.delay(url, room, data)
+        run_geometry.delay(room, data)
 
     @io.on("room:geometry:set")
     def room_geometry_set(data: list):
@@ -422,8 +419,7 @@ def init_socketio_events(io: SocketIO):
     def selection_run(data: dict):
         room = session.get("token")
         emit("room:selection:queue", 1, to=room)  # TODO: find the correct queue position
-        url = f"http://127.0.0.1:{current_app.config['PORT']}"
-        run_selection.delay(url, room, data)
+        run_selection.delay(room, data)
 
     # @io.on("selection:run:finished")
     # def selection_run_finished():
