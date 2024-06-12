@@ -315,9 +315,8 @@ def init_socketio_events(io: SocketIO):
             # but they are queued using celery directly.
             # so no need for redis queue.
             pass
-            
-        emit("room:modifier:queue", queue_position, to=room)
 
+        emit("room:modifier:queue", queue_position, to=room)
 
         clients: set[str] = public | privat
         if len(clients):

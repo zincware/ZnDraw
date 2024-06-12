@@ -23,7 +23,6 @@ class Controls(str, enum.Enum):
     TrackballControls = "TrackballControls"
 
 
-
 # create a class for the material, resolution, etc.
 class Scene(BaseModel):
     fps: int = Field(30, ge=1, le=120, description="Maximum frames per second")
