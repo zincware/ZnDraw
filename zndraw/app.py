@@ -64,7 +64,7 @@ def create_app() -> Flask:
         raise ValueError(f"Unknown storage type: {app.config['STORAGE']}")
 
     # Initialize SocketIO
-    socketio = SocketIO(app, message_queue=app.config["CELERY"]["broker_url"])
+    socketio = SocketIO(app, message_queue=app.config["CELERY"]["broker_url"], cors_allowed_origins="*")
 
     # Initialize Celery
     celery_init_app(app)
