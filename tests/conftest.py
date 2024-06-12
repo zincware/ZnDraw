@@ -1,5 +1,6 @@
-import eventlet.wsgi
 import os
+
+import eventlet.wsgi
 import redis
 
 eventlet.monkey_patch()  # MUST BE THERE FOR THE TESTS TO WORK
@@ -12,7 +13,7 @@ import pytest
 import socketio.exceptions
 
 from zndraw.app import create_app
-from zndraw.standalone import run_celery_worker, run_znsocket
+from zndraw.standalone import run_celery_worker
 
 
 @pytest.fixture
@@ -34,7 +35,6 @@ def server():
         )
 
         worker.terminate()
-
 
     thread = eventlet.spawn(start_server)
 
