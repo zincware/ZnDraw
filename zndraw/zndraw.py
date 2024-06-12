@@ -226,14 +226,13 @@ class ZnDraw(ZnDrawBase):
                 msg = {}
                 # after each large message, wait a bit
                 self.socket.sleep(self.timeout["modifier"])
-        if msg:  # Only send the message if it's not empty
-            for idx in range(self.timeout["emit_retries"] + 1):
-                call_with_retry(
-                    self.socket,
-                    "room:frames:set",
-                    msg,
-                    retries=self.timeout["call_retries"],
-                )
+        if len(msg) > 0:  # Only send the message if it's not empty
+            call_with_retry(
+                self.socket,
+                "room:frames:set",
+                msg,
+                retries=self.timeout["call_retries"],
+            )
 
     @property
     def selection(self) -> list[int]:
