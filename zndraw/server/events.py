@@ -28,6 +28,10 @@ def init_socketio_events(io: SocketIO):
         if "AUTH_TOKEN" not in current_app.config or session["authenticated"]:
             log.critical("Shutting down server")
             current_app.extensions["redis"].flushall()
+
+            current_app.extensions["celery"].control.purge()
+            current_app.extensions["celery"].control.broadcast("shutdown")
+
             io.stop()
         else:
             log.critical("Unauthenticated user tried to shut down the server.")
