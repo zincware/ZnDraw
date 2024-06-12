@@ -6,7 +6,7 @@ eventlet.monkey_patch()  # MUST BE THERE FOR THE TESTS TO WORK
 
 import random
 
-import ase
+import ase.build
 import ase.collections
 import pytest
 import socketio.exceptions
@@ -61,3 +61,9 @@ def server():
 def s22() -> list[ase.Atoms]:
     """S22 dataset."""
     return list(ase.collections.s22)
+
+
+@pytest.fixture
+def water() -> ase.Atoms:
+    """Water molecule."""
+    return ase.build.molecule("H2O")

@@ -132,8 +132,9 @@ class ZnDraw(ZnDrawBase):
         if isinstance(index, slice):
             index = list(range(*index.indices(len(self))))
 
-        if any(x < 0 for x in index):
-            raise IndexError("Index must be positive")
+        # make negative indices count from the end
+        index = [i if i >= 0 else len(self) + i for i in index]
+
         if any(x >= len(self) for x in index):
             raise IndexError("Index out of range")
 
@@ -149,7 +150,11 @@ class ZnDraw(ZnDrawBase):
         structures = [znframe.Frame(**x).to_atoms() for x in data.values()]
         return structures[0] if single_item else structures
 
-    def __setitem__(self, index: int | list[int], value: ase.Atoms | list[ase.Atoms]):
+    def __setitem__(
+        self, index: int | list[int] | slice, value: ase.Atoms | list[ase.Atoms]
+    ):
+        if isinstance(index, slice):
+            index = list(range(*index.indices(len(self))))
         if isinstance(index, int):
             data = {index: znframe.Frame.from_atoms(value).to_json()}
         else:

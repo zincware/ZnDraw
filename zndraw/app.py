@@ -2,7 +2,7 @@ import eventlet
 
 eventlet.monkey_patch()
 
-
+import pathlib
 import time
 
 import redis
@@ -61,7 +61,25 @@ def create_app() -> Flask:
             },
         )
     else:
-        raise ValueError(f"Unknown storage type: {app.config['STORAGE']}")
+        # nothing else supported, using filesystem storage
+        data_folder = pathlib.Path("~/.zincware/zndraw/celery/out")
+        data_folder_processed = pathlib.Path("~/.zincware/zndraw/celery/processed")
+        data_folder.mkdir(parents=True, exist_ok=True)
+        data_folder_processed.mkdir(parents=True, exist_ok=True)
+
+        app.config.from_mapping(
+            CELERY={
+                "broker_url": "filesystem://",
+                "result_backend": "cache",
+                "cache_backend": "memory",
+                "task_ignore_result": True,
+                "broker_transport_options": {
+                    "data_folder_in": data_folder.expanduser().as_posix(),
+                    "data_folder_out": data_folder.expanduser().as_posix(),
+                    "data_folder_processed": data_folder_processed.expanduser().as_posix(),
+                },
+            },
+        )
 
     # Initialize SocketIO
     socketio = SocketIO(
