@@ -63,7 +63,9 @@ def create_app() -> Flask:
     else:
         # nothing else supported, using filesystem storage
         data_folder = pathlib.Path("~/.zincware/zndraw/celery/out").expanduser()
-        data_folder_processed = pathlib.Path("~/.zincware/zndraw/celery/processed").expanduser()
+        data_folder_processed = pathlib.Path(
+            "~/.zincware/zndraw/celery/processed"
+        ).expanduser()
         data_folder.mkdir(parents=True, exist_ok=True)
         data_folder_processed.mkdir(parents=True, exist_ok=True)
 
@@ -82,11 +84,13 @@ def create_app() -> Flask:
         )
 
     # Initialize SocketIO
-    message_queue = app.config["CELERY"]["broker_url"] if app.config["STORAGE"].startswith("redis") else None
-
-    socketio = SocketIO(
-        app, message_queue=message_queue, cors_allowed_origins="*"
+    message_queue = (
+        app.config["CELERY"]["broker_url"]
+        if app.config["STORAGE"].startswith("redis")
+        else None
     )
+
+    socketio = SocketIO(app, message_queue=message_queue, cors_allowed_origins="*")
 
     # Initialize Celery
     celery_init_app(app)
