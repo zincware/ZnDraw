@@ -1,4 +1,5 @@
 """Utils for running ZnDraw standalone, without redis or external celery worker."""
+
 import os
 import platform
 import subprocess
