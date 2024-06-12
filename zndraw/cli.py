@@ -80,14 +80,19 @@ def main(
 
     Visualize Trajectories, Structures, and more in ZnDraw.
     """
-    if port is None:
-        port = get_port(default=1234)
-
     ZNSOCKET_PORT = 6374
 
     # os.environ["FLASK_ENV"] = "development"
-    os.environ["FLASK_PORT"] = str(port)
-    os.environ["FLASK_STORAGE"] = storage or f"znsocket://localhost:{ZNSOCKET_PORT}"
+    if port is not None:
+        os.environ["FLASK_PORT"] = str(port)
+    else:
+        if "FLASK_PORT" in os.environ:
+            port = int(os.environ["FLASK_PORT"])
+        else:
+            port = get_port(default=1234)
+            os.environ["FLASK_PORT"] = str(port)
+    if storage is not None:
+        os.environ["FLASK_STORAGE"] = storage
     if auth_token is not None:
         os.environ["FLASK_AUTH_TOKEN"] = auth_token
     if tutorial is not None:
@@ -96,6 +101,8 @@ def main(
         os.environ["FLASK_SIMGEN"] = "TRUE"
 
     if standalone:
+        if storage is None:
+            os.environ["FLASK_STORAGE"] = f"znsocket://localhost:{ZNSOCKET_PORT}"
         server = run_znsocket(ZNSOCKET_PORT)
         worker = run_celery_worker()
 
