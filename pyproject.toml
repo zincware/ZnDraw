@@ -55,6 +55,7 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry.scripts]
 zndraw = 'zndraw.cli:cli'
+"zndraw-upload" = 'zndraw.upload:cli'
 
 
 [tool.poetry.urls]

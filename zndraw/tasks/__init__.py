@@ -196,7 +196,7 @@ def run_upload_file(room, data: dict):
     if format == "h5":
         raise ValueError("H5MD format not supported for uploading yet")
 
-    stream = StringIO(bytes(data["content"]).decode('utf-8'))
+    stream = StringIO(bytes(data["content"]).decode("utf-8"))
 
     atoms_list = list(ase.io.iread(stream, format=format))
     if len(atoms_list) == 1 and len(vis.points) != 0:

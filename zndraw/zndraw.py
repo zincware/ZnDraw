@@ -71,7 +71,7 @@ class ZnDraw(ZnDrawBase):
             connect_retries=3,
         )
     )
-    maximum_message_size: int = dataclasses.field(default=1_000_000, repr=False)
+    maximum_message_size: int = dataclasses.field(default=500_000, repr=False)
 
     _modifiers: dict[str, RegisterModifier] = dataclasses.field(default_factory=dict)
     _available: bool = True
