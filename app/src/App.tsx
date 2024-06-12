@@ -59,6 +59,7 @@ export default function App() {
     "Animation Loop": false,
     simulation_box: false,
     vectors: "",
+    controls: "OrbitControls",
   });
   // updated via sockets
   const [step, setStep] = useState<number>(0);
@@ -444,24 +445,38 @@ export default function App() {
           {sceneSettings["simulation_box"] && (
             <SimulationCell frame={currentFrame} colorMode={colorMode} />
           )}
-          <TrackballControls
-            // enableDamping={false}
-            staticMoving={true}
-            panSpeed={5}
-            rotateSpeed={5}
-            zoomSpeed={20}
-            target={orbitControlsTarget}
-            onChange={(e) => {
-              if (!e) return;
-              const camera = e.target.object;
-              if (cameraLightRef.current) {
-                cameraLightRef.current.position.set(2, 2, 0);
-                cameraLightRef.current.position.add(camera.position);
-              }
-              setCameraPosition(camera.position.toArray());
-            }}
-            makeDefault
-          />
+          {sceneSettings.controls === "OrbitControls" && (
+            <OrbitControls
+              enableDamping={false}
+              target={orbitControlsTarget}
+              onChange={(e) => {
+                if (!e) return;
+                const camera = e.target.object;
+                if (cameraLightRef.current) {
+                  cameraLightRef.current.position.set(2, 2, 0);
+                  cameraLightRef.current.position.add(camera.position);
+                }
+                setCameraPosition(camera.position.toArray());
+              }}
+              makeDefault
+            />
+          )}
+          {sceneSettings.controls === "TrackballControls" && (
+            <TrackballControls
+              target={orbitControlsTarget}
+              staticMoving={true}
+              onChange={(e) => {
+                if (!e) return;
+                const camera = e.target.object;
+                if (cameraLightRef.current) {
+                  cameraLightRef.current.position.set(2, 2, 0);
+                  cameraLightRef.current.position.add(camera.position);
+                }
+                setCameraPosition(camera.position.toArray());
+              }}
+              makeDefault
+            />
+          )}
           <Player
             playing={playing}
             togglePlaying={setPlaying}

@@ -458,7 +458,6 @@ class ZnDraw(ZnDrawBase):
         vis.timeout = self.timeout
 
         try:
-            # TODO: for public modifiers the vis object must not be in the same room, create a new one!!!!!
             vis.socket.emit("room:modifier:queue", 0)
             name = data["method"]["discriminator"]
 

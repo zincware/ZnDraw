@@ -293,8 +293,6 @@ def init_socketio_events(io: SocketIO):
     @io.on("modifier:run")
     def modifier_run(data: dict):
         room = session.get("token")
-        emit("room:modifier:queue", 1, to=room)  # TODO: find the correct queue position
-
         r: Redis = current_app.extensions["redis"]
 
         name = data["method"]["discriminator"]
@@ -304,17 +302,21 @@ def init_socketio_events(io: SocketIO):
 
         data["ZNDRAW_CLIENT_ROOM"] = room
 
+        queue_position = 1
+
         if len(public):
             # The modifier was registered with public=True
-            r.rpush(f"modifier:queue:{name}", json.dumps(data))
+            queue_position = r.rpush(f"modifier:queue:{name}", json.dumps(data))
         elif len(privat):
             # The modifier was registered with public=False
-            r.rpush(f"modifier:queue:{room}:{name}", json.dumps(data))
+            queue_position = r.rpush(f"modifier:queue:{room}:{name}", json.dumps(data))
         else:
             # This would be the queue for default modifiers.
             # but they are queued using celery directly.
             # so no need for redis queue.
             pass
+
+        emit("room:modifier:queue", queue_position, to=room)
 
         clients: set[str] = public | privat
         if len(clients):
