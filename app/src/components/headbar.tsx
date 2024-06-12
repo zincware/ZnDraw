@@ -39,10 +39,10 @@ function ConsoleWindow({ text }: { text: string[] }) {
   return (
     <Rnd
       default={{
-        x: window.innerWidth /2 - 400 - 10,
+        x: window.innerWidth / 2 - 400 - 10,
         y: window.innerHeight / 2 - 200,
         width: 400,
-        height: 0 // height is set by content
+        height: 0, // height is set by content
       }}
       style={{ zIndex: 1000, padding: 0, margin: 0 }}
     >
@@ -58,7 +58,7 @@ function ConsoleWindow({ text }: { text: string[] }) {
           <Card.Title>Console</Card.Title>
         </Card.Header>
         <Card.Body>
-          <div style={{ overflowY: "auto", height: 100}}>
+          <div style={{ overflowY: "auto", height: 100 }}>
             {text.map((line, idx) => (
               <p key={idx}>{line}</p>
             ))}
@@ -347,7 +347,31 @@ const HeadBar = ({
         style={{ height: 50 }}
       >
         <Container fluid>
-          <Navbar.Brand>ZnDraw</Navbar.Brand>
+          <Navbar.Brand>
+            <Button
+              className="px-0 py-0 btn-lg"
+              variant="tertiary"
+              href="https://github.com/zincware/zndraw"
+              target="_blank"
+            >
+              ZnDraw
+            </Button>
+            {showSiMGen && (
+              <>
+                <Button className="px-0 py-0 btn-lg" variant="tertiary">
+                  +
+                </Button>
+                <Button
+                  className="px-0 py-0 btn-lg"
+                  variant="tertiary"
+                  href="https://github.com/zincware/zndraw"
+                  target="_blank"
+                >
+                  SiMGen
+                </Button>
+              </>
+            )}
+          </Navbar.Brand>
           <Navbar.Toggle aria-controls="basic-navbar-nav" />
           <Navbar.Collapse id="basic-navbar-nav">
             <Nav className="me-auto">

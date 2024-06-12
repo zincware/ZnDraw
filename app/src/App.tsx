@@ -445,38 +445,38 @@ export default function App() {
           {sceneSettings["simulation_box"] && (
             <SimulationCell frame={currentFrame} colorMode={colorMode} />
           )}
-          {sceneSettings.controls === 'OrbitControls' &&
-          <OrbitControls
-            enableDamping={false}
-            target={orbitControlsTarget}
-            onChange={(e) => {
-              if (!e) return;
-              const camera = e.target.object;
-              if (cameraLightRef.current) {
-                cameraLightRef.current.position.set(2, 2, 0);
-                cameraLightRef.current.position.add(camera.position);
-              }
-              setCameraPosition(camera.position.toArray());
-            }}
-            makeDefault
-          />
-        }
-        {sceneSettings.controls === 'TrackballControls' &&
-          <TrackballControls
-            target={orbitControlsTarget}
-            staticMoving={true}
-            onChange={(e) => {
-              if (!e) return;
-              const camera = e.target.object;
-              if (cameraLightRef.current) {
-                cameraLightRef.current.position.set(2, 2, 0);
-                cameraLightRef.current.position.add(camera.position);
-              }
-              setCameraPosition(camera.position.toArray());
-            }}
-            makeDefault
-          />
-        }
+          {sceneSettings.controls === "OrbitControls" && (
+            <OrbitControls
+              enableDamping={false}
+              target={orbitControlsTarget}
+              onChange={(e) => {
+                if (!e) return;
+                const camera = e.target.object;
+                if (cameraLightRef.current) {
+                  cameraLightRef.current.position.set(2, 2, 0);
+                  cameraLightRef.current.position.add(camera.position);
+                }
+                setCameraPosition(camera.position.toArray());
+              }}
+              makeDefault
+            />
+          )}
+          {sceneSettings.controls === "TrackballControls" && (
+            <TrackballControls
+              target={orbitControlsTarget}
+              staticMoving={true}
+              onChange={(e) => {
+                if (!e) return;
+                const camera = e.target.object;
+                if (cameraLightRef.current) {
+                  cameraLightRef.current.position.set(2, 2, 0);
+                  cameraLightRef.current.position.add(camera.position);
+                }
+                setCameraPosition(camera.position.toArray());
+              }}
+              makeDefault
+            />
+          )}
           <Player
             playing={playing}
             togglePlaying={setPlaying}
