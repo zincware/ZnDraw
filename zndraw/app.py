@@ -47,16 +47,21 @@ def storage_init_app(app: Flask) -> None:
 
 def create_app() -> Flask:
     app = Flask(__name__)
-    app.config.from_mapping(
-        CELERY={
-            "broker_url": "redis://localhost:6379/0",
-            "result_backend": "redis://localhost:6379/0",
-            "task_ignore_result": True,
-        },
-    )
     app.config["SECRET_KEY"] = "secret!"
     # loads all FLASK_ prefixed environment variables into the app config
     app.config.from_prefixed_env()
+
+    # TODO: this will not work without redis!!!!
+    if app.config["STORAGE"].startswith("redis"):
+        app.config.from_mapping(
+            CELERY={
+                "broker_url": app.config["STORAGE"],
+                "result_backend": app.config["STORAGE"],
+                "task_ignore_result": True,
+            },
+        )
+    else:
+        raise ValueError(f"Unknown storage type: {app.config['STORAGE']}")
 
     # Initialize SocketIO
     socketio = SocketIO(app, message_queue=app.config["CELERY"]["broker_url"])
