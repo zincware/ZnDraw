@@ -24,9 +24,10 @@ class RegisterModifier(t.TypedDict):
     frozen: bool
     timeout: float
 
+
 class PointsDict(t.TypedDict):
     """Dictionary for points.
-    
+
     Attributes
     ----------
     positions : np.ndarray[None, 3]
@@ -36,6 +37,7 @@ class PointsDict(t.TypedDict):
     scales : np.ndarray[None]
         The scaling of the points. Default is 1.
     """
+
     positions: np.ndarray
     rotations: np.ndarray
     scales: np.ndarray
@@ -336,13 +338,15 @@ class ZnDraw(ZnDrawBase):
     @property
     def points(self) -> PointsDict:
         self._delay_socket()
-        return {"positions": np.array(
-            call_with_retry(
-                self.socket,
-                "room:points:get",
-                retries=self.timeout["call_retries"],
-            )["0"]
-        )}
+        return {
+            "positions": np.array(
+                call_with_retry(
+                    self.socket,
+                    "room:points:get",
+                    retries=self.timeout["call_retries"],
+                )["0"]
+            )
+        }
 
     @points.setter
     def points(self, points: PointsDict) -> None:
