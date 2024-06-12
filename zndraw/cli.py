@@ -137,13 +137,13 @@ def main(
             port=app.config["PORT"],
         )
     finally:
-        app.extensions["redis"].flushall()
-        socketio.stop()
         if standalone:
             server.terminate()
             server.wait()
             print("znsocket server terminated.")
-
             worker.terminate()
             worker.wait()
             print("celery worker terminated.")
+
+        # app.extensions["redis"].flushall()
+        # socketio.stop()
