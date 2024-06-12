@@ -1,3 +1,11 @@
+import os
+
+if "ZNDRAW_MONKEY_PATCH" in os.environ:
+    import eventlet
+
+    eventlet.monkey_patch()
+
+
 import importlib.metadata
 
 from zndraw.base import Extension
