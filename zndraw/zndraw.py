@@ -157,11 +157,11 @@ class ZnDraw(ZnDrawBase):
                 i: znframe.Frame.from_atoms(val).to_json() for i, val in zip(index, value)
             }
 
-        emit_with_retry(
+        call_with_retry(
             self.socket,
             "room:frames:set",
             data,
-            retries=self.timeout["emit_retries"],
+            retries=self.timeout["call_retries"],
         )
 
     def __len__(self) -> int:
@@ -179,19 +179,19 @@ class ZnDraw(ZnDrawBase):
         if isinstance(index, slice):
             index = list(range(*index.indices(len(self))))
 
-        emit_with_retry(
+        call_with_retry(
             self.socket,
             "room:frames:delete",
             index,
-            retries=self.timeout["emit_retries"],
+            retries=self.timeout["call_retries"],
         )
 
     def insert(self, index: int, value: ase.Atoms):
-        emit_with_retry(
+        call_with_retry(
             self.socket,
             "room:frames:insert",
             {"index": index, "value": znframe.Frame.from_atoms(value).to_json()},
-            retries=self.timeout["emit_retries"],
+            retries=self.timeout["call_retries"],
         )
 
     def extend(self, values: list[ase.Atoms]):
@@ -212,22 +212,22 @@ class ZnDraw(ZnDrawBase):
         for i, val in enumerate(tbar, start=len(self)):
             msg[i] = znframe.Frame.from_atoms(val).to_json()
             if len(json.dumps(msg).encode("utf-8")) > self.maximum_message_size:
-                emit_with_retry(
+                call_with_retry(
                     self.socket,
                     "room:frames:set",
                     msg,
-                    retries=self.timeout["emit_retries"],
+                    retries=self.timeout["call_retries"],
                 )
                 msg = {}
                 # after each large message, wait a bit
                 self.socket.sleep(self.timeout["modifier"])
         if msg:  # Only send the message if it's not empty
             for idx in range(self.timeout["emit_retries"] + 1):
-                emit_with_retry(
+                call_with_retry(
                     self.socket,
                     "room:frames:set",
                     msg,
-                    retries=self.timeout["emit_retries"],
+                    retries=self.timeout["call_retries"],
                 )
 
     @property

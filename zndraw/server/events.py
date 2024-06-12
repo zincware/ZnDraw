@@ -25,8 +25,9 @@ def init_socketio_events(io: SocketIO):
 
     @io.on("shutdown")
     def shutdown():
-        if current_app.config["AUTH_TOKEN"] is None or session["authenticated"]:
+        if "AUTH_TOKEN" not in current_app.config or session["authenticated"]:
             log.critical("Shutting down server")
+            current_app.extensions["redis"].flushall()
             io.stop()
         else:
             log.critical("Unauthenticated user tried to shut down the server.")
@@ -92,15 +93,15 @@ def init_socketio_events(io: SocketIO):
         emit("geometry:schema", Geometry.updated_schema())
         emit("analysis:schema:refresh", to=request.sid)
 
-        if current_app.config["TUTORIAL"] is not None:
+        if "TUTORIAL" in current_app.config:
             emit("tutorial:url", current_app.config["TUTORIAL"], to=request.sid)
-        if current_app.config["SIMGEN"]:
+        if "SIMGEN" in current_app.config:
             emit("showSiMGen", True, to=request.sid)
 
         return {
             "name": session["name"],
             "room": room,
-            "needs_auth": current_app.config["AUTH_TOKEN"] is not None,
+            "needs_auth": "AUTH_TOKEN" in current_app.config,
         }
 
     @io.on("join")  # rename pyclient:connect
@@ -111,7 +112,7 @@ def init_socketio_events(io: SocketIO):
         """
         # TODO: prohibit "token" to be "default"
 
-        if current_app.config["AUTH_TOKEN"] is None:
+        if "AUTH_TOKEN" not in current_app.config:
             session["authenticated"] = True
         else:
             session["authenticated"] = (
@@ -169,6 +170,10 @@ def init_socketio_events(io: SocketIO):
                 lst[int(key)] = value
 
         emit("room:frames:refresh", [int(x) for x in data], to=room)
+        # This method should be called, because it can move frames from the default
+        # room to the current room. Doing so in the background
+        # can cause issues with further operations on the frames.
+        return "OK"
 
     @io.on("room:all:frames:refresh")
     def room_all_frames_refresh(indices: list[int]):
@@ -187,6 +192,11 @@ def init_socketio_events(io: SocketIO):
         # TODO how to update here?
         emit("room:frames:refresh", [int(x) for x in frames], to=room)
 
+        # This method should be called, because it can move frames from the default
+        # room to the current room. Doing so in the background
+        # can cause issues with further operations on the frames. (see room frames set)
+        return "OK"
+
     @io.on("room:frames:insert")
     def room_frames_insert(data: dict):
         index = data.pop("index")
@@ -204,6 +214,10 @@ def init_socketio_events(io: SocketIO):
         # not sure how to update, insert requires everything to be updated after the insertion
         # can be done custom on the client side to avoid resending everything
         emit("room:frames:refresh", [int(x) for x in data], to=room)
+        # This method should be called, because it can move frames from the default
+        # room to the current room. Doing so in the background
+        # can cause issues with further operations on the frames. (see room frames set)
+        return "OK"
 
     @io.on("room:length:get")
     def room_frames_length_get() -> int:
