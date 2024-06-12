@@ -3,7 +3,7 @@ import eventlet
 eventlet.monkey_patch()
 
 import os
-from typing import Optional
+import typing as t
 
 import typer
 
@@ -18,7 +18,7 @@ cli = typer.Typer()
 
 @cli.command()
 def main(
-    filename: Optional[str] = typer.Argument(
+    filename: t.Optional[str] = typer.Argument(
         None,
         help="Path to the file which should be visualized in ZnDraw. Can also be the name and attribute of a ZnTrack Node like 'MyNode.atoms' if at least '--remote .' is provided. ",
     ),

@@ -1,16 +1,7 @@
-import os
-
-if "ZNDRAW_MONKEY_PATCH" in os.environ:
-    import eventlet
-
-    eventlet.monkey_patch()
-
-
 import importlib.metadata
 
-from zndraw.base import Extension
-from zndraw.zndraw import ZnDraw
+import lazy_loader as lazy
 
-__all__ = ["ZnDraw", "Extension"]
+__getattr__, __dir__, __all__ = lazy.attach_stub(__name__, __file__)
 
 __version__ = importlib.metadata.version("zndraw")
