@@ -315,9 +315,11 @@ const FileUpload = forwardRef((props, ref) => {
         onChange={handleFileChange}
         style={{ display: "none" }} // Hide the file input visually
       />
+      <BtnTooltip text="Upload">
       <Button variant="outline-primary" className="mx-1" onClick={handleClick}>
         <FaUpload />
       </Button>
+      </BtnTooltip>
     </div>
   );
 });
@@ -493,10 +495,8 @@ const HeadBar = ({
                   <FaCode />
                 </Button>
               </BtnTooltip>
-              <BtnTooltip text="Upload file (max 1 MB)">
                 <FileUpload />
-              </BtnTooltip>
-              <BtnTooltip text="Download scene">
+              <BtnTooltip text="Download">
                 <Button
                   variant="outline-primary"
                   className="mx-1"
