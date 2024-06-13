@@ -445,7 +445,10 @@ export default function App() {
           }
         }
       } else if (event.key == "o") {
-        const origin = { position: [-10, -10, -10], target: [0, 0, 0] };
+        const origin = {
+          position: [-10, -10, -10],
+          target: getCentroid(currentFrame.positions, new Set()),
+        };
         setOrbitControlsTarget(new THREE.Vector3(...origin.target));
         setCameraPosition(new THREE.Vector3(...origin.position));
         if (controlsRef.current && cameraRef.current) {
