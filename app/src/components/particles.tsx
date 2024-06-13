@@ -99,6 +99,8 @@ export const ParticleInstances = ({
   const meshRef = useRef();
 
   const count = Object.keys(frame.positions).length;
+  const originalScale = useRef<number>(1);
+  const sphereRef = useRef<THREE.InstancedMesh | null>(null);
 
   const { camera } = useThree();
 
@@ -232,6 +234,23 @@ export const ParticleInstances = ({
     }
   });
 
+  useEffect(() => {
+    if (sphereRef.current) {
+      console.log(sceneSettings);
+      sphereRef.current.scale(
+        1 / originalScale.current,
+        1 / originalScale.current,
+        1 / originalScale.current,
+      );
+      originalScale.current = sceneSettings.particle_size;
+      sphereRef.current.scale(
+        sceneSettings.particle_size,
+        sceneSettings.particle_size,
+        sceneSettings.particle_size,
+      );
+    }
+  }, [sceneSettings.particle_size]);
+
   return (
     <instancedMesh
       ref={meshRef}
@@ -244,7 +263,7 @@ export const ParticleInstances = ({
       castShadow
       receiveShadow
     >
-      <sphereGeometry args={[1, 30, 30]} />
+      <sphereGeometry args={[1, 30, 30]} ref={sphereRef} />
       {sceneSettings.material === "MeshPhysicalMaterial" && (
         <meshPhysicalMaterial
           attach="material"
@@ -279,6 +298,7 @@ export const BondInstances = ({
   const meshRef = useRef<THREE.InstancedMesh | null>(null);
 
   const count = Object.keys(frame.connectivity).length * 2;
+  const originalScale = useRef<number>(1);
 
   const geometry = useMemo(() => {
     const _geometry = new THREE.CylinderGeometry(0.14, 0.14, 1, 30, 30);
@@ -367,6 +387,15 @@ export const BondInstances = ({
       meshRef.current.instanceColor.needsUpdate = true;
     }
   }, [selectedIds, sceneSettings]);
+
+  useEffect(() => {
+    if (meshRef.current) {
+      console.log(sceneSettings);
+      geometry.scale(1 / originalScale.current, 1 / originalScale.current, 1);
+      originalScale.current = sceneSettings.bond_size;
+      geometry.scale(sceneSettings.bond_size, sceneSettings.bond_size, 1);
+    }
+  }, [sceneSettings.bond_size]);
 
   return (
     <instancedMesh

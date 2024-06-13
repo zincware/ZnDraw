@@ -28,8 +28,8 @@ class Scene(BaseModel):
     fps: int = Field(30, ge=1, le=120, description="Maximum frames per second")
     material: Material = Field(Material.MeshPhysicalMaterial, description="Material")
     # resolution: int = Field(10, ge=1, le=50, description="Resolution")
-    # particle_size: float = Field(1.0, ge=0.1, le=5, description="Particle Size")
-    # bonds_size: float = Field(1.0, ge=0.1, le=5, description="Bonds Size")
+    particle_size: float = Field(1.0, ge=0.1, le=5, description="Particle Size")
+    bond_size: float = Field(1.0, ge=0.1, le=5, description="Bonds Size")
     # wireframe: bool = Field(False, description="Wireframe")
     loop: bool = Field(
         False,
@@ -95,12 +95,12 @@ class Scene(BaseModel):
         schema["properties"]["simulation_box"]["format"] = "checkbox"
         # schema["properties"]["resolution"]["format"] = "range"
         # schema["properties"]["label_offset"]["format"] = "range"
-        # schema["properties"]["particle_size"]["format"] = "range"
+        schema["properties"]["particle_size"]["format"] = "range"
         schema["properties"]["fps"]["format"] = "range"
         schema["properties"]["selection_color"]["format"] = "color"
-        # schema["properties"]["particle_size"]["step"] = 0.1
-        # schema["properties"]["bonds_size"]["format"] = "range"
-        # schema["properties"]["bonds_size"]["step"] = 0.1
+        schema["properties"]["particle_size"]["step"] = 0.1
+        schema["properties"]["bond_size"]["format"] = "range"
+        schema["properties"]["bond_size"]["step"] = 0.1
         # schema["properties"]["bonds"]["format"] = "checkbox"
         # schema["properties"]["line_label"]["format"] = "checkbox"
 

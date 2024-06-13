@@ -63,6 +63,8 @@ export default function App() {
     controls: "OrbitControls",
     selection_color: "#ffa500",
     material: "MeshPhysicalMaterial",
+    particle_size: 1.0,
+    bond_size: 1.0,
   });
   // updated via sockets
   const [step, setStep] = useState<number>(0);
