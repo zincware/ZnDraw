@@ -10,7 +10,7 @@ Welcome to ZnDraw, a powerful tool for visualizing and interacting with your tra
 
 ## Installation
 
-It is recommeded to install ZnDraw from PyPi via:
+It is recommended to install ZnDraw from PyPi via:
 
 ```bash
 pip install zndraw
