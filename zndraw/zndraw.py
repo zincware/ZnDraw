@@ -366,7 +366,14 @@ class ZnDraw(ZnDrawBase):
         }
 
     @bookmarks.setter
-    def bookmarks(self, value: dict):
+    def bookmarks(self, value: dict[int, str]):
+        if not isinstance(value, dict):
+            raise ValueError("Bookmarks must be a dictionary")
+        if not all(isinstance(x, int) for x in value.keys()):
+            raise ValueError("Bookmark keys must be integers")
+        if not all(isinstance(x, str) for x in value.values()):
+            raise ValueError("Bookmark values must be strings")
+
         emit_with_retry(
             self.socket,
             "room:bookmarks:set",
