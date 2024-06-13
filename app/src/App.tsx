@@ -202,7 +202,7 @@ export default function App() {
       // get step
       socket.emit("room:step:get", (data: string) => {
         // this happens only once, we can afford sending the step back.
-        // bugfix for missing out modifiying the step first in the UI
+        // bugfix for missing out modifying the step first in the UI
         // stepFromSocket.current = true;
         setStep(parseInt(data));
       });
