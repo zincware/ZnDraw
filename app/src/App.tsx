@@ -76,6 +76,7 @@ export default function App() {
   const bookmarksFromSocket = useRef<boolean>(true);
   const selectionFromSocket = useRef<boolean>(true);
   const pointsFromSocket = useRef<boolean>(true);
+  const cameraFromSocket = useRef<boolean>(true);
 
   const [isDrawing, setIsDrawing] = useState<boolean>(false);
   const [selectedPoint, setSelectedPoint] = useState<THREE.Vector3 | null>(
@@ -121,10 +122,13 @@ export default function App() {
   sendStep(step, stepFromSocket);
   sendSelection(selectedIds, selectionFromSocket);
   sendBookmarks(bookmarks, bookmarksFromSocket);
-  sendCamera({
-    position: cameraPosition.toArray(),
-    target: orbitControlsTarget.toArray(),
-  });
+  sendCamera(
+    {
+      position: cameraPosition.toArray(),
+      target: orbitControlsTarget.toArray(),
+    },
+    cameraFromSocket,
+  );
   sendPoints(points, pointsFromSocket);
 
   // if step changes
@@ -290,6 +294,7 @@ export default function App() {
     }
 
     function onCameraSet(data: { position: number[]; target: number[] }) {
+      cameraFromSocket.current = true;
       setOrbitControlsTarget(new THREE.Vector3(...data.target));
       setCameraPosition(new THREE.Vector3(...data.position));
       if (controlsRef.current && cameraRef.current) {

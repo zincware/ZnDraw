@@ -30,17 +30,26 @@ export const sendStep = (step: number, fromSockets: any) => {
   }, [step]);
 };
 
-export const sendCamera = (data: { position: number[]; target: number[] }) => {
+export const sendCamera = (
+  data: {
+    position: number[];
+    target: number[];
+  },
+  fromSockets: any,
+) => {
   const timeoutRef = useRef(null);
 
   useEffect(() => {
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
     }
-
-    timeoutRef.current = setTimeout(() => {
-      socket.emit("room:camera:set", data);
-    }, 100);
+    if (fromSockets.current) {
+      fromSockets.current = false;
+    } else {
+      timeoutRef.current = setTimeout(() => {
+        socket.emit("room:camera:set", { content: data });
+      }, 100);
+    }
 
     return () => {
       if (timeoutRef.current) {
