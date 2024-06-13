@@ -19,8 +19,8 @@ def test_selection(server, s22):
     with pytest.raises(IndexError):
         vis.selection = [0, 1, 2, -10]
 
-    vis.selection = [0, 1, 2, 3]
-    assert vis.selection == [0, 1, 2, 3]
+    vis.selection = [0, 7, 6, 5, 4]
+    assert vis.selection == [0, 7, 6, 5, 4]
 
 
 # TODO: worker is probably not running
