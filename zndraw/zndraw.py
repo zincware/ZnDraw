@@ -329,7 +329,7 @@ class ZnDraw(ZnDrawBase):
         )
 
     @points.setter
-    def points(self, points: np.ndarray|list) -> None:
+    def points(self, points: np.ndarray | list) -> None:
         if isinstance(points, list):
             points = np.array(points)
         emit_with_retry(
@@ -373,7 +373,8 @@ class ZnDraw(ZnDrawBase):
 
     @camera.setter
     def camera(self, value: dict):
-        raise NotImplementedError("Changing camera position is currently not possible")
+        if set(value.keys()) != {"position", "target"}:
+            raise ValueError("Camera must have 'position' and 'target' keys")
         self.socket.emit("room:camera:set", value)
 
     @property

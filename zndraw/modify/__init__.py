@@ -287,11 +287,13 @@ class Replicate(UpdateScene):
                 atoms.cell = atoms_list[idx].cell
             vis[idx] = atoms
 
+
 class NewCanvas(UpdateScene):
     """Clear the scene, deleting all atoms and points."""
 
     def run(self, vis: "ZnDraw", **kwargs) -> None:
         from zndraw.draw import Plane
+
         del vis[vis.step + 1 :]
         vis.points = []
         vis.append(ase.Atoms())
@@ -299,11 +301,16 @@ class NewCanvas(UpdateScene):
         step = len(vis) - 1
         vis.step = step
         vis.bookmarks = vis.bookmarks | {step: "New Scene"}
-        # vis.camera = {"position": [0, 0, 20], "target": [0, 0, 0]}
+        vis.camera = {"position": [0, 0, -15], "target": [0, 0, 0]}
         vis.geometries = [
-            Plane(position=[0, 0, 0], rotation=[0, 0, 0], scale=[1, 1, 1], width=10, height=10)]
-        
-
+            Plane(
+                position=[0, 0, 0],
+                rotation=[0, 0, 0],
+                scale=[1, 1, 1],
+                width=10,
+                height=10,
+            )
+        ]
 
 
 methods = t.Union[

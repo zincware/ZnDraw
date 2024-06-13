@@ -50,7 +50,10 @@ export const Player = ({
   return null;
 };
 
-export const getCentroid = (positions: THREE.Vector3[], selection: Set<number>) => {
+export const getCentroid = (
+  positions: THREE.Vector3[],
+  selection: Set<number>,
+) => {
   if (selection.size > 0) {
     const centroid = new THREE.Vector3();
     selection.forEach((i) => {
@@ -66,7 +69,7 @@ export const getCentroid = (positions: THREE.Vector3[], selection: Set<number>) 
     centroid.divideScalar(positions.length);
     return centroid;
   }
-}
+};
 
 export const ParticleInstances = ({
   frame,

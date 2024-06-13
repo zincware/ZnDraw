@@ -101,6 +101,7 @@ export default function App() {
   const [triggerSelection, setTriggerSelection] = useState<boolean>(false);
 
   const cameraLightRef = useRef<THREE.PointLight>(null);
+  const controlsRef = useRef<TransformControls>(null);
   const cameraRef = useRef<THREE.Camera>(null);
 
   // extension UI elements
@@ -282,6 +283,17 @@ export default function App() {
       setShowSiMGen(data);
     }
 
+    function onCameraSet(data: { position: number[]; target: number[] }) {
+      setOrbitControlsTarget(new THREE.Vector3(...data.target));
+      setCameraPosition(new THREE.Vector3(...data.position));
+      if (controlsRef.current && cameraRef.current) {
+        controlsRef.current.enabled = false;
+        cameraRef.current.position.set(...data.position);
+        controlsRef.current.update();
+        controlsRef.current.enabled = true;
+      }
+    }
+
     socket.on("connect", onConnect);
     socket.on("selection:schema", onSelectionSchema);
     socket.on("modifier:schema", onModifierSchema);
@@ -301,6 +313,7 @@ export default function App() {
     socket.on("room:points:set", onPointsSet);
     socket.on("tutorial:url", onTutorialURL);
     socket.on("showSiMGen", onShowSiMGen);
+    socket.on("room:camera:set", onCameraSet);
 
     return () => {
       socket.off("connect", onConnect);
@@ -322,6 +335,7 @@ export default function App() {
       socket.off("room:points:set", onPointsSet);
       socket.off("tutorial:url", onTutorialURL);
       socket.off("showSiMGen", onShowSiMGen);
+      socket.off("room:camera:set", onCameraSet);
     };
   }, []);
 
@@ -421,7 +435,7 @@ export default function App() {
             method: { discriminator: "Delete" },
           });
         }
-      } else if (event.key =="c"){
+      } else if (event.key == "c") {
         if (selectedPoint !== null) {
           setOrbitControlsTarget(selectedPoint);
         } else {
@@ -440,7 +454,15 @@ export default function App() {
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [length, step, points, selectedPoint, bookmarks, currentFrame, selectedIds]);
+  }, [
+    length,
+    step,
+    points,
+    selectedPoint,
+    bookmarks,
+    currentFrame,
+    selectedIds,
+  ]);
 
   useEffect(() => {
     const updateCursorPosition = (event) => {
@@ -490,13 +512,11 @@ export default function App() {
     <>
       <div className="canvas-container" onDragOver={onDragOver} onDrop={onDrop}>
         <Canvas onPointerMissed={onPointerMissed}>
-          <PerspectiveCamera ref={cameraRef} />
+          <PerspectiveCamera ref={cameraRef} makeDefault />
           {/* <ambientLight intensity={Math.PI / 20}/> */}
           <pointLight
             ref={cameraLightRef}
-            position={
-              [0, 0, 0]
-            }
+            position={[0, 0, 0]}
             decay={0}
             intensity={Math.PI}
             castShadow
@@ -524,6 +544,7 @@ export default function App() {
           )}
           {sceneSettings.controls === "OrbitControls" && (
             <OrbitControls
+              ref={controlsRef}
               enableDamping={false}
               target={orbitControlsTarget}
               onChange={(e) => {
@@ -543,6 +564,7 @@ export default function App() {
           )}
           {sceneSettings.controls === "TrackballControls" && (
             <TrackballControls
+              ref={controlsRef}
               target={orbitControlsTarget}
               staticMoving={true}
               onChange={(e) => {
