@@ -543,7 +543,10 @@ def init_socketio_events(io: SocketIO):
     def room_camera_get() -> dict:
         r: Redis = current_app.extensions["redis"]
         room = session.get("token")
-        return json.loads(r.get(f"room:{room}:camera"))
+        camera = r.get(f"room:{room}:camera")
+        if camera:
+            return json.loads(camera)
+        return {"position": [-10, -10, -10], "target": [0, 0, 0]}
 
     @io.on("room:upload:file")
     def room_upload_file(data: dict):

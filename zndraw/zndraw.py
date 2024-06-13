@@ -37,6 +37,11 @@ class TimeoutConfig(t.TypedDict):
     connect_retries: int
 
 
+class CameraData(t.TypedDict):
+    position: list[float]
+    target: list[float]
+
+
 def _register_modifier(vis: "ZnDraw", data: RegisterModifier) -> None:
     log.debug(f"Registering modifier `{data['cls'].__name__}`")
     vis.socket.emit(
@@ -370,7 +375,7 @@ class ZnDraw(ZnDrawBase):
         )
 
     @property
-    def camera(self) -> dict:
+    def camera(self) -> CameraData:
         self._delay_socket()
 
         return call_with_retry(
@@ -380,7 +385,7 @@ class ZnDraw(ZnDrawBase):
         )
 
     @camera.setter
-    def camera(self, value: dict):
+    def camera(self, value: CameraData):
         if set(value.keys()) != {"position", "target"}:
             raise ValueError("Camera must have 'position' and 'target' keys")
         self.socket.emit("room:camera:set", {"content": value, "emit": True})
