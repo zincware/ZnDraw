@@ -50,6 +50,7 @@ vis.extend(list(s22))
 ## Additional Features
 
 You can modify various aspects of the visualization:
+
 - `vis.camera`
 - `vis.points`
 - `vis.selection`
@@ -87,7 +88,6 @@ vis.socket.wait()  # This can be ignored when using Jupyter
 
 The `AddMolecule` extension will appear for all `tokens` and can be used by any client.
 
-
 # Hosted Version
 
 A hosted version of ZnDraw is available at https://zndraw.icp.uni-stuttgart.de . To upload data, use:
@@ -101,7 +101,7 @@ zndraw-upload <file> --url https://zndraw.icp.uni-stuttgart.de
 To host your own version of ZnDraw, use the following `docker-compose.yaml` setup:
 
 ```yaml
-version: '3.9'
+version: "3.9"
 
 services:
   zndraw:
@@ -138,7 +138,6 @@ services:
     environment:
       - REDIS_PORT=6379
 ```
-
 
 # References
 
