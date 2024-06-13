@@ -422,8 +422,14 @@ export default function App() {
           });
         }
       } else if (event.key =="c"){
-        const center = getCentroid(currentFrame.positions, selectedIds);
-        setOrbitControlsTarget(center);
+        if (selectedPoint !== null) {
+          setOrbitControlsTarget(selectedPoint);
+        } else {
+          if (currentFrame.positions.length > 0) {
+            const center = getCentroid(currentFrame.positions, selectedIds);
+            setOrbitControlsTarget(center);
+          }
+        }
       }
     };
 
