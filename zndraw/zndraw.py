@@ -414,6 +414,10 @@ class ZnDraw(ZnDrawBase):
 
     @geometries.setter
     def geometries(self, value: list[Object3D]):
+        if not isinstance(value, list):
+            raise ValueError("Geometries must be a list")
+        if not all(isinstance(x, Object3D) for x in value):
+            raise ValueError("Geometries must be a list of Object3D instances")
         emit_with_retry(
             self.socket,
             "room:geometry:set",
