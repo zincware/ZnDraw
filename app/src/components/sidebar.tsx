@@ -31,8 +31,54 @@ interface SidebarMenuProps {
   trigger?: boolean; // Mark trigger as optional
   setTrigger?: (value: boolean) => void; // Mark setTrigger as optional
   visible: boolean;
-  storageKey: string;
 }
+
+interface AnalysisMenuProps extends SidebarMenuProps {
+  plotData: any;
+  setPlotData: (data: any) => void;
+}
+
+const useJSONEditor = (
+  schema: any,
+  userInput: any,
+  setUserInput: (value: any) => void,
+) => {
+  const editorRef = useRef<HTMLDivElement>(null);
+  const JSONEditorRef = useRef<JSONEditor | null>(null);
+
+  useEffect(() => {
+    if (Object.keys(schema).length === 0) {
+      return;
+    }
+
+    if (editorRef.current) {
+      JSONEditorRef.current = new JSONEditor(editorRef.current, {
+        schema: schema,
+      });
+
+      JSONEditorRef.current.on("change", () => {
+        if (JSONEditorRef.current.ready) {
+          const editorValue = JSONEditorRef.current.getValue();
+          JSONEditorRef.current.validate();
+          setUserInput(editorValue);
+        }
+      });
+
+      JSONEditorRef.current.on("ready", () => {
+        if (userInput) {
+          JSONEditorRef.current.setValue(userInput);
+        }
+      });
+    }
+    return () => {
+      if (JSONEditorRef.current) {
+        JSONEditorRef.current.destroy();
+      }
+    };
+  }, [schema]);
+
+  return editorRef;
+};
 
 const SidebarMenu: React.FC<SidebarMenuProps> = ({
   schema,
@@ -41,15 +87,12 @@ const SidebarMenu: React.FC<SidebarMenuProps> = ({
   trigger,
   setTrigger,
   visible,
-  storageKey,
 }) => {
-  const editorRef = useRef<HTMLDivElement>(null);
-  const editor = useRef<JSONEditor>(null);
   const [userInput, setUserInput] = useState<any>(null);
 
   function submitEditor() {
     if (onSubmit) {
-      onSubmit(editor.current.getValue());
+      onSubmit(userInput);
     }
   }
 
@@ -62,56 +105,7 @@ const SidebarMenu: React.FC<SidebarMenuProps> = ({
     }
   }, [trigger]);
 
-  useEffect(() => {
-    if (Object.keys(schema).length === 0) {
-      return;
-    }
-    let setNewEditor = false;
-    if (!editor.current) {
-      setNewEditor = true;
-    }
-    if (editor.current) {
-      // console.log("editor exists and ready: ", editor.current.ready);
-      setNewEditor = !editor.current.ready;
-    }
-
-    if (setNewEditor && editorRef.current) {
-      editor.current = new JSONEditor(editorRef.current, {
-        schema: schema,
-      });
-      setNewEditor = false;
-      let triggerChange = false;
-
-      editor.current.on("change", () => {
-        if (editor.current.ready && triggerChange) {
-          const editorValue = editor.current.getValue();
-          editor.current.validate();
-          setUserInput(editorValue);
-          // localStorage.setItem(storageKey, JSON.stringify(editorValue));
-        }
-      });
-
-      editor.current.on("ready", () => {
-        // const userInput = localStorage.getItem(storageKey);
-        // if (userInput) {
-        if (userInput) {
-          editor.current.setValue(userInput);
-        }
-        // if (Object.keys(JSON.parse(userInput)).length > 0) {
-        //   editor.current.setValue(JSON.parse(userInput));
-        // }
-        // }
-        setTimeout(() => {
-          triggerChange = true;
-        }, 1000);
-      });
-    }
-    return () => {
-      if (editor.current) {
-        editor.current.destroy();
-      }
-    };
-  }, [schema]);
+  const editorRef = useJSONEditor(schema, userInput, setUserInput);
 
   return (
     <Card
@@ -136,29 +130,17 @@ const SidebarMenu: React.FC<SidebarMenuProps> = ({
   );
 };
 
-function AnalysisMenu({
-  selectionSchema,
+const AnalysisMenu: React.FC<AnalysisMenuProps> = ({
+  schema,
   onSubmit,
   plotData,
   setPlotData,
   queuePosition,
   visible,
-  storageKey,
-}: {
-  selectionSchema: any;
-  onSubmit: any;
-  plotData: any;
-  setPlotData: any;
-  queuePosition: number;
-  visible: boolean;
-  storageKey: string;
-}) {
-  const editorRef = useRef<HTMLDivElement>(null);
+}) => {
   const figureRef = useRef<HTMLDivElement>(null);
-  // the values that are currently in the editor, only used because
-  // we don't have a reference to the editor object
-  const [currentEditorValue, setCurrentEditorValue] = useState<any>({});
-  // TODO: these are lost when the component is unmounted
+  const [userInput, setUserInput] = useState<any>(null);
+  const editorRef = useJSONEditor(schema, userInput, setUserInput);
 
   useEffect(() => {
     const handleFigure = (data) => {
@@ -179,33 +161,9 @@ function AnalysisMenu({
 
   function submitEditor() {
     if (onSubmit) {
-      onSubmit(currentEditorValue);
+      onSubmit(userInput);
     }
   }
-
-  useEffect(() => {
-    if (editorRef.current) {
-      const editor = new JSONEditor(editorRef.current, {
-        schema: selectionSchema,
-        theme: "bootstrap5",
-        iconlib: "fontawesome5",
-        show_errors: "always",
-      });
-      editor.on("change", () => {
-        editor.validate();
-        setCurrentEditorValue(editor.getValue());
-        // if (onChange) {
-        //   onChange(editor.getValue());
-        // }
-      });
-
-      return () => {
-        if (editorRef.current) {
-          editorRef.current.innerHTML = "";
-        }
-      };
-    }
-  }, [selectionSchema]); // this does only trigger if selectionSchema changes
 
   return (
     <>
@@ -243,7 +201,7 @@ function AnalysisMenu({
       </Card>
     </>
   );
-}
+};
 
 function SideBar({
   selectionSchema,
@@ -401,7 +359,6 @@ function SideBar({
         trigger={triggerSelection}
         setTrigger={setTriggerSelection}
         visible={visibleOption == "selection"}
-        storageKey="selection-menu"
       />
       <SidebarMenu
         schema={modifierSchema}
@@ -410,14 +367,12 @@ function SideBar({
         }}
         queuePosition={modifierQueue}
         visible={visibleOption == "interaction"}
-        storageKey="interaction-menu"
       />
       <SidebarMenu
         schema={sceneSchema}
         onSubmit={setSceneSettings}
         queuePosition={-1}
         visible={visibleOption == "scene"}
-        storageKey="scene-menu"
       />
       <SidebarMenu
         schema={geometrySchema}
@@ -426,10 +381,9 @@ function SideBar({
         }}
         queuePosition={geometryQueue}
         visible={visibleOption == "geometry"}
-        storageKey="geometry-menu"
       />
       <AnalysisMenu
-        selectionSchema={analysisSchema}
+        schema={analysisSchema}
         onSubmit={(data: any) => {
           socket.emit("analysis:run", data);
         }}
@@ -437,7 +391,6 @@ function SideBar({
         setPlotData={setPlotData}
         queuePosition={analysisQueue}
         visible={visibleOption == "analysis"}
-        storageKey="analysis-menu"
       />
     </>
   );
