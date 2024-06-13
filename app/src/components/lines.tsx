@@ -112,10 +112,12 @@ export const Line3D = ({
     // create 100 orthogonal lines to the curve, iterate 0-1, 0.01 and use curve.getTangent
 
     let _lineOrientation: OrthogonalLine[] = [];
-    for (let i = 0; i < 1; i += 0.01) {
-      const tangent = curve.getTangent(i);
+    for (let i = 0; i < 1; i += 0.05) {
+      const tangent = curve.getTangentAt(i);
       const start = curve.getPoint(i);
-      const end = start.clone().add(tangent);
+      const reference_direction = new THREE.Vector3(0, 0, -1);
+      const end = reference_direction.cross(tangent).normalize().add(start);
+      // const end = start.clone().add(tangent);
       _lineOrientation.push({ start, end });
     }
     setLineOrientation(_lineOrientation);
