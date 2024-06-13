@@ -62,6 +62,7 @@ export default function App() {
     vectors: "",
     controls: "OrbitControls",
     selection_color: "#ffa500",
+    material: "MeshPhysicalMaterial",
   });
   // updated via sockets
   const [step, setStep] = useState<number>(0);

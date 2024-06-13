@@ -215,20 +215,20 @@ export const ParticleInstances = ({
   // useFrame to change color if hovered
   useFrame(() => {
     if (meshRef.current && count > 0) {
-    const color = new THREE.Color();
-    frame.positions.forEach((_, i) => {
-      if (i === hoveredId) {
-        color.setHex(0xf05000);
+      const color = new THREE.Color();
+      frame.positions.forEach((_, i) => {
+        if (i === hoveredId) {
+          color.setHex(0xf05000);
           meshRef.current.setColorAt(i, color);
-      } else if (selectedIds.has(i)) {
+        } else if (selectedIds.has(i)) {
           color.setStyle(sceneSettings.selection_color);
           meshRef.current.setColorAt(i, color);
-      } else {
-        color.set(frame.arrays.colors[i]);
-      meshRef.current.setColorAt(i, color);
+        } else {
+          color.set(frame.arrays.colors[i]);
+          meshRef.current.setColorAt(i, color);
         }
-    });
-    meshRef.current.instanceColor.needsUpdate = true;
+      });
+      meshRef.current.instanceColor.needsUpdate = true;
     }
   });
 
@@ -245,12 +245,22 @@ export const ParticleInstances = ({
       receiveShadow
     >
       <sphereGeometry args={[1, 30, 30]} />
-      {/* <meshPhongMaterial attach="material" shininess={100} /> */}
-      <meshPhysicalMaterial
-        attach="material"
-        roughness={0.3}
-        reflectivity={0.4}
-      />
+      {sceneSettings.material === "MeshPhysicalMaterial" && (
+        <meshPhysicalMaterial
+          attach="material"
+          roughness={0.3}
+          reflectivity={0.4}
+        />
+      )}
+      {sceneSettings.material === "MeshToonMaterial" && (
+        <meshToonMaterial attach="material" />
+      )}
+      {sceneSettings.material === "MeshStandardMaterial" && (
+        <meshStandardMaterial attach="material" />
+      )}
+      {sceneSettings.material === "MeshBasicMaterial" && (
+        <meshBasicMaterial attach="material" />
+      )}
     </instancedMesh>
   );
 };
@@ -310,7 +320,11 @@ export const BondInstances = ({
           i * 2,
           createTransformationMatrix(posA, posB),
         );
-        color.setStyle(selectedIds.has(a) ? sceneSettings.selection_color : frame.arrays.colors[a]);
+        color.setStyle(
+          selectedIds.has(a)
+            ? sceneSettings.selection_color
+            : frame.arrays.colors[a],
+        );
         meshRef.current!.setColorAt(i * 2, color);
 
         // Set matrix and color for the bond from B to A
@@ -318,7 +332,11 @@ export const BondInstances = ({
           i * 2 + 1,
           createTransformationMatrix(posB, posA),
         );
-        color.setStyle(selectedIds.has(b) ? sceneSettings.selection_color : frame.arrays.colors[b]);
+        color.setStyle(
+          selectedIds.has(b)
+            ? sceneSettings.selection_color
+            : frame.arrays.colors[b],
+        );
         meshRef.current!.setColorAt(i * 2 + 1, color);
       });
 
@@ -357,12 +375,22 @@ export const BondInstances = ({
       castShadow
       receiveShadow
     >
-      {/* <meshPhongMaterial attach="material" shininess={100} /> */}
-      <meshPhysicalMaterial
-        attach="material"
-        roughness={0.3}
-        reflectivity={0.4}
-      />
+      {sceneSettings.material === "MeshPhysicalMaterial" && (
+        <meshPhysicalMaterial
+          attach="material"
+          roughness={0.3}
+          reflectivity={0.4}
+        />
+      )}
+      {sceneSettings.material === "MeshToonMaterial" && (
+        <meshToonMaterial attach="material" />
+      )}
+      {sceneSettings.material === "MeshStandardMaterial" && (
+        <meshStandardMaterial attach="material" />
+      )}
+      {sceneSettings.material === "MeshBasicMaterial" && (
+        <meshBasicMaterial attach="material" />
+      )}
     </instancedMesh>
   );
 };
