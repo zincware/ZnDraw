@@ -3,7 +3,7 @@ import pytest
 from zndraw import ZnDraw
 
 
-def test_camera(server, s22):
+def test_bookmarks(server, s22):
     """Test the server fixture."""
     vis = ZnDraw(url=server, token="test_token")
     vis.extend(s22)

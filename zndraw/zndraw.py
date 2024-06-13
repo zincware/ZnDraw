@@ -287,10 +287,12 @@ class ZnDraw(ZnDrawBase):
 
     @step.setter
     def step(self, value: int):
+        if not isinstance(value, int):
+            raise ValueError("Step must be an integer")
         if value < 0:
             raise ValueError("Step must be positive")
         if value >= len(self):
-            raise ValueError("Step out of range")
+            raise IndexError("Step out of range")
         # Have only one step per room!
         # shared rooms are rare anyhow and making per-client steps
         # and room hosts is annoying
