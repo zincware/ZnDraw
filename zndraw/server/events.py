@@ -535,8 +535,9 @@ def init_socketio_events(io: SocketIO):
     def room_camera_set(data: dict):
         r: Redis = current_app.extensions["redis"]
         room = session.get("token")
-        r.set(f"room:{room}:camera", json.dumps(data))
-        emit("room:camera:set", data, to=room, include_self=False)
+        r.set(f"room:{room}:camera", json.dumps(data["content"]))
+        if data.get("emit", False):
+            emit("room:camera:set", data["content"], to=room, include_self=False)
 
     @io.on("room:camera:get")
     def room_camera_get() -> dict:

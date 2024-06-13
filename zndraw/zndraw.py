@@ -383,7 +383,7 @@ class ZnDraw(ZnDrawBase):
     def camera(self, value: dict):
         if set(value.keys()) != {"position", "target"}:
             raise ValueError("Camera must have 'position' and 'target' keys")
-        self.socket.emit("room:camera:set", value)
+        self.socket.emit("room:camera:set", {"content": value, "emit": True})
 
     @property
     def geometries(self) -> list[Object3D]:
