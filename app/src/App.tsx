@@ -353,35 +353,37 @@ export default function App() {
       if (document.activeElement !== document.body) {
         return;
       }
-      if (event.key == "ArrowRight") {
+      if (event.key === "ArrowRight") {
         if (event.shiftKey) {
-          // jump to the bookmark after the current step
-          const keys = Object.keys(bookmarks).map((x) => parseInt(x));
-          keys.sort((a, b) => a - b);
-          const next_bookmark = keys.find((x) => x > step);
-          if (next_bookmark) {
-            setStep(next_bookmark);
+          // Jump to the bookmark after the current step
+          const bookmarkKeys = Object.keys(bookmarks)
+            .map(Number)
+            .sort((a, b) => a - b);
+          const nextBookmark = bookmarkKeys.find((key) => key > step);
+
+          if (nextBookmark !== undefined) {
+            setStep(nextBookmark);
           }
-        } else if (step + 1 < length) {
-          setStep((prev) => prev + 1);
         } else {
-          setStep(0);
+          // Move to the next step, or wrap around to the start
+          setStep((prevStep) => (prevStep + 1 < length ? prevStep + 1 : 0));
         }
-      } else if (event.key == "ArrowLeft") {
+      } else if (event.key === "ArrowLeft") {
         if (event.shiftKey) {
-          // jump to the bookmark before the current step
-          const keys = Object.keys(bookmarks).map((x) => parseInt(x));
-          keys.sort((a, b) => b - a);
-          const next_bookmark = keys.find((x) => x < step);
-          if (next_bookmark) {
-            setStep(next_bookmark);
+          // Jump to the bookmark before the current step
+          const bookmarkKeys = Object.keys(bookmarks)
+            .map(Number)
+            .sort((a, b) => b - a);
+          const previousBookmark = bookmarkKeys.find((key) => key < step);
+
+          if (previousBookmark !== undefined) {
+            setStep(previousBookmark);
           }
         } else {
-          if (step - 1 >= 0) {
-            setStep((prev) => prev - 1);
-          } else {
-            setStep(length - 1);
-          }
+          // Move to the previous step, or wrap around to the end
+          setStep((prevStep) =>
+            prevStep - 1 >= 0 ? prevStep - 1 : length - 1,
+          );
         }
       } else if (event.key == "ArrowUp") {
         // jump 10 percent, or to the end
