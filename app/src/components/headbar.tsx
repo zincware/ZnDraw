@@ -145,7 +145,7 @@ ${pythonCode}
     >
       <Modal.Header closeButton>
         <Modal.Title id="contained-modal-title-vcenter">
-          ZnDraw Help
+          Python Client
         </Modal.Title>
       </Modal.Header>
       <Modal.Body>

@@ -27,6 +27,8 @@ zndraw <file>
 > [!NOTE]
 > ZnDraw's webapp-based approach allows you to use port forwarding to work with trajectories on remote systems.
 
+![ZnDraw UI](https://raw.githubusercontent.com/zincware/ZnDraw/main/misc/darkmode/overview.png "ZnDraw UI")
+
 ## Multi-User and Multi-Client Support
 
 ZnDraw supports multiple users and clients. Connect one or more Python clients to your ZnDraw instance:
@@ -39,6 +41,8 @@ from zndraw import ZnDraw
 
 vis = ZnDraw(url="http://localhost:1234", token="<your-token>")
 ```
+
+![ZnDraw UI](https://raw.githubusercontent.com/zincware/ZnDraw/main/misc/darkmode/python.png "ZnDraw Python Client")
 
 The `vis` object provides direct access to your visualized scene. It inherits from `abc.MutableSequence`, so any changes you make are reflected for all connected clients.
 
@@ -66,6 +70,8 @@ from zndraw import Box
 
 vis.geometries = [Box(position=[0, 1, 2])]
 ```
+
+![ZnDraw UI](https://raw.githubusercontent.com/zincware/ZnDraw/main/misc/darkmode/box.png "ZnDraw Geometries")
 
 ## Writing Extensions
 
