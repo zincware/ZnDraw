@@ -28,7 +28,7 @@ zndraw <file>
 > ZnDraw's webapp-based approach allows you to use port forwarding to work with trajectories on remote systems.
 
 ![ZnDraw UI](https://raw.githubusercontent.com/zincware/ZnDraw/v04-readme/misc/darkmode/overview.png#gh-dark-mode-only "ZnDraw UI")
-![ZnDraw UI](https://raw.githubusercontent.com/zincware/ZnDraw/v04-readme/misc/darkmode/overview.png#gh-light-mode-only "ZnDraw UI")
+![ZnDraw UI](https://raw.githubusercontent.com/zincware/ZnDraw/v04-readme/misc/lightmode/overview.png#gh-light-mode-only "ZnDraw UI")
 
 ## Multi-User and Multi-Client Support
 
@@ -44,7 +44,7 @@ vis = ZnDraw(url="http://localhost:1234", token="<your-token>")
 ```
 
 ![ZnDraw UI](https://raw.githubusercontent.com/zincware/ZnDraw/v04-readme/misc/darkmode/python.png#gh-dark-mode-only "ZnDraw Python Client")
-![ZnDraw UI](https://raw.githubusercontent.com/zincware/ZnDraw/v04-readme/misc/darkmode/python.png#gh-light-mode-only "ZnDraw Python Client")
+![ZnDraw UI](https://raw.githubusercontent.com/zincware/ZnDraw/v04-readme/misc/lightmode/python.png#gh-light-mode-only "ZnDraw Python Client")
 
 The `vis` object provides direct access to your visualized scene. It inherits from `abc.MutableSequence`, so any changes you make are reflected for all connected clients.
 
@@ -74,7 +74,7 @@ vis.geometries = [Box(position=[0, 1, 2])]
 ```
 
 ![ZnDraw UI](https://raw.githubusercontent.com/zincware/ZnDraw/v04-readme/misc/darkmode/box.png#gh-dark-mode-only "ZnDraw Geometries")
-![ZnDraw UI](https://raw.githubusercontent.com/zincware/ZnDraw/v04-readme/misc/darkmode/box.png#gh-light-mode-only "ZnDraw Geometries")
+![ZnDraw UI](https://raw.githubusercontent.com/zincware/ZnDraw/v04-readme/misc/lightmode/box.png#gh-light-mode-only "ZnDraw Geometries")
 
 ## Writing Extensions
 
