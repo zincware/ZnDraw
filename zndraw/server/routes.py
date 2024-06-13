@@ -2,26 +2,13 @@ import logging
 import uuid
 
 from flask import Blueprint, current_app, redirect, request, send_from_directory, session
+from io import StringIO
 
 main = Blueprint("main", __name__)
 
 log = logging.getLogger(__name__)
 
 
-def _upload(file, url, token):
-    import pathlib
-
-    import ase.io
-
-    from zndraw.zndraw import ZnDraw
-
-    vis = ZnDraw(url=url, token=token)
-    for atoms in ase.io.iread(pathlib.Path("data", file)):
-        vis.append(atoms)
-
-    # wait and then disconnect
-    vis.socket.sleep(1)
-    vis.socket.disconnect()
 
 
 @main.route("/")
@@ -72,22 +59,31 @@ def exit_route(token: str | None = None):
     return "Server shutting down..."
 
 
-@main.route("/file/<file>")
-def file(file: str):
-    """Open a file on the server."""
-    # open a new connection, read the file, upload it to the server, and then close the connection
-    import multiprocessing as mp
+@main.route("/upload", methods=["POST"])
+def upload():
+    """Upload a file to the server."""
+    from zndraw import ZnDraw
+    import ase.io
+    file = request.files["file"]
+    token = session.get("token")
+
+    if not token:
+        return "Unauthorized", 401
 
     try:
-        token = session["token"]
-    except KeyError:
-        token = uuid.uuid4().hex[:8]
-        session["token"] = token
-    url = request.url_root
-    print(f"URL: {url}")
+        # Extract the file format from the filename
+        file_format = file.filename.split(".")[-1]
+        file_content = file.read()
+        
+        stream = StringIO(file_content.decode("utf-8"))
 
-    proc = mp.Process(target=_upload, args=(file, url, token), daemon=True)
-    proc.start()
-    # TODO: why is this not using celery?
+        vis = ZnDraw(url=request.url_root, token=token)
+        structures = list(ase.io.iread(stream, format=file_format))
+        vis.extend(structures)
+        vis.socket.disconnect()
 
-    return redirect(url)
+        return "File uploaded", 200
+
+    except Exception as e:
+        log.error(f"Error uploading file: {e}")
+        return str(e), 500

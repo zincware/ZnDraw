@@ -1,4 +1,10 @@
-import React, { SetStateAction, useEffect, useState, useMemo } from "react";
+import React, {
+  SetStateAction,
+  useEffect,
+  useState,
+  useMemo,
+  useRef,
+} from "react";
 import {
   Navbar,
   Nav,
@@ -275,6 +281,50 @@ function SiMGenButtons({ queuePosition }: { queuePosition: number }) {
   );
 }
 
+// import React, { useRef } from 'react';
+import { forwardRef } from 'react'; // Import forwardRef
+
+const FileUpload = forwardRef((props, ref) => {
+  const fileInputRef = useRef(null);
+
+  const handleClick = () => {
+    fileInputRef.current.click();
+  };
+
+  const handleFileChange = (event) => {
+    const file = event.target.files[0];
+    const formData = new FormData();
+    formData.append("file", file);
+
+    console.log("Selected file:", file);
+    console.log(formData);
+    fetch("/upload", {
+      method: "POST",
+      body: formData,
+    });
+
+    if (ref) { // Check if ref is provided
+      ref.current = fileInputRef.current; // Forward the ref to the underlying DOM element
+    }
+  };
+
+  return (
+    <div>
+      <input
+        type="file"
+        ref={fileInputRef}
+        onChange={handleFileChange}
+        style={{ display: "none" }} // Hide the file input visually
+      />
+      <Button variant="outline-primary" className="mx-1" onClick={handleClick}>
+        <FaUpload />
+      </Button>
+    </div>
+  );
+});
+
+
+
 const HeadBar = ({
   room,
   colorMode,
@@ -446,16 +496,14 @@ const HeadBar = ({
                   <FaCode />
                 </Button>
               </BtnTooltip>
-              {/* <BtnTooltip text="Upload file (max 1 MB)">
-                <Button variant="outline-primary" className="mx-1">
-                  <FaUpload />
-                </Button>
+              <BtnTooltip text="Upload file (max 1 MB)">
+                <FileUpload />
               </BtnTooltip>
               <BtnTooltip text="Download scene">
                 <Button variant="outline-primary" className="mx-1">
                   <FaDownload />
                 </Button>
-              </BtnTooltip> */}
+              </BtnTooltip>
               <BtnTooltip text="Help">
                 <Button
                   variant="outline-primary"
