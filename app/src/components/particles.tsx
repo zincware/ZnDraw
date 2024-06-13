@@ -105,7 +105,7 @@ export const ParticleInstances = ({
           });
           com.divideScalar(selectedIds.size);
         }
-        setOrbitControlsTarget([com.x, com.y, com.z]);
+        setOrbitControlsTarget(com);
       }
     };
     window.addEventListener("keydown", handleKeyDown);

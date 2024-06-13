@@ -79,12 +79,12 @@ export default function App() {
   const [needsUpdate, setNeedsUpdate] = useState<boolean>(false);
   const [roomName, setRoomName] = useState<string>("");
   const [geometries, setGeometries] = useState<any>([]);
-  const [orbitControlsTarget, setOrbitControlsTarget] = useState<
-    [number, number, number]
-  >([0, 0, 0]);
-  const [cameraPosition, setCameraPosition] = useState<
-    [number, number, number]
-  >([0, 0, 0]);
+  const [orbitControlsTarget, setOrbitControlsTarget] = useState<THREE.Vector3>(
+    new THREE.Vector3(0, 0, 0),
+  );
+  const [cameraPosition, setCameraPosition] = useState<THREE.Vector3>(
+    new THREE.Vector3(0, 0, 0),
+  );
   // TODO: initial values are wrong for orbitcontrolstarget and camperaPosition
   // todo give to particles and bonds
   const [colorMode, setColorMode] = useState<string>("light");
@@ -115,7 +115,10 @@ export default function App() {
   sendStep(step, stepFromSocket);
   sendSelection(selectedIds, selectionFromSocket);
   sendBookmarks(bookmarks, bookmarksFromSocket);
-  sendCamera({ position: cameraPosition, target: orbitControlsTarget });
+  sendCamera({
+    position: cameraPosition.toArray(),
+    target: orbitControlsTarget.toArray(),
+  });
   sendPoints(points, pointsFromSocket);
 
   // if step changes
@@ -387,6 +390,17 @@ export default function App() {
           newBookmarks[step] = `Frame ${step}`;
           return newBookmarks;
         });
+      } else if (event.key == "a") {
+        if (event.ctrlKey) {
+          setSelectedIds(
+            new Set([
+              ...Array.from(
+                { length: currentFrame.positions.length },
+                (_, i) => i,
+              ),
+            ]),
+          );
+        }
       }
     };
 
@@ -438,15 +452,23 @@ export default function App() {
     }
   };
 
+  const onPointerMissed = () => {
+    setSelectedPoint(null);
+    setSelectedIds(new Set());
+  };
+
   return (
     <>
       <div className="canvas-container" onDragOver={onDragOver} onDrop={onDrop}>
-        <Canvas onPointerMissed={() => setSelectedPoint(null)}>
+        <Canvas onPointerMissed={onPointerMissed}>
           <PerspectiveCamera ref={cameraRef} />
           {/* <ambientLight intensity={Math.PI / 20}/> */}
           <pointLight
             ref={cameraLightRef}
-            position={[2, 2, -10]} // camera position is [0, 0, 5]
+            position={
+              [0, 0, 0]
+              // position should be cameraPosition + (cameraPosition - orbitControlsTarget)
+            }
             decay={0}
             intensity={Math.PI}
             castShadow
@@ -480,10 +502,13 @@ export default function App() {
                 if (!e) return;
                 const camera = e.target.object;
                 if (cameraLightRef.current) {
-                  cameraLightRef.current.position.set(2, 2, 0);
-                  cameraLightRef.current.position.add(camera.position);
+                  cameraLightRef.current.position
+                    .copy(camera.position)
+                    .sub(orbitControlsTarget)
+                    .normalize()
+                    .add(camera.position);
                 }
-                setCameraPosition(camera.position.toArray());
+                setCameraPosition(camera.position);
               }}
               makeDefault
             />
@@ -496,10 +521,13 @@ export default function App() {
                 if (!e) return;
                 const camera = e.target.object;
                 if (cameraLightRef.current) {
-                  cameraLightRef.current.position.set(2, 2, 0);
-                  cameraLightRef.current.position.add(camera.position);
+                  cameraLightRef.current.position
+                    .copy(camera.position)
+                    .sub(orbitControlsTarget)
+                    .normalize()
+                    .add(camera.position);
                 }
-                setCameraPosition(camera.position.toArray());
+                setCameraPosition(camera.position);
               }}
               makeDefault
             />

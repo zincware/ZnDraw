@@ -27,6 +27,7 @@ def main(
         token = str(uuid.uuid4())
     vis = ZnDraw(url=url, token=token)
     typer.echo(f"Reading {filename} ...")
+    # TODO: use task.read_file in eager mode
 
     structures = []
     for i, structure in enumerate(ase.io.iread(filename)):
@@ -38,5 +39,5 @@ def main(
             continue
         structures.append(structure)
 
+    typer.echo(f"Uploading to: {url}/token/{vis.token}")
     vis.extend(structures)
-    typer.echo(f"Finished upload: {url}/token/{vis.token}")
