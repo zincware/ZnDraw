@@ -84,6 +84,7 @@ function HelpModel(props: any) {
 - **select all particles**: \`ctrl + A\`
 - **remove selected particles**: \`backspace\`
 - **remove line point**: \`shift + backspace\`
+- **reset camera to original position**: \`keypress O\`
 `;
 
   return (

@@ -444,6 +444,16 @@ export default function App() {
             setOrbitControlsTarget(center);
           }
         }
+      } else if (event.key == "o") {
+        const origin = { position: [-10, -10, -10], target: [0, 0, 0] };
+        setOrbitControlsTarget(new THREE.Vector3(...origin.target));
+        setCameraPosition(new THREE.Vector3(...origin.position));
+        if (controlsRef.current && cameraRef.current) {
+          controlsRef.current.enabled = false;
+          cameraRef.current.position.set(...origin.position);
+          controlsRef.current.update();
+          controlsRef.current.enabled = true;
+        }
       }
     };
 
