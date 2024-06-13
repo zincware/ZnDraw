@@ -401,6 +401,10 @@ export default function App() {
             ]),
           );
         }
+      } else if (event.key == "Backspace" || event.key == "Delete") {
+        socket.emit("modifier:run", {
+          method: { discriminator: "Delete" },
+        });
       }
     };
 
