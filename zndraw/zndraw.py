@@ -37,6 +37,11 @@ class TimeoutConfig(t.TypedDict):
     connect_retries: int
 
 
+class CameraData(t.TypedDict):
+    position: list[float]
+    target: list[float]
+
+
 def _register_modifier(vis: "ZnDraw", data: RegisterModifier) -> None:
     log.debug(f"Registering modifier `{data['cls'].__name__}`")
     vis.socket.emit(
@@ -282,10 +287,12 @@ class ZnDraw(ZnDrawBase):
 
     @step.setter
     def step(self, value: int):
+        if not isinstance(value, int):
+            raise ValueError("Step must be an integer")
         if value < 0:
             raise ValueError("Step must be positive")
         if value >= len(self):
-            raise ValueError("Step out of range")
+            raise IndexError("Step out of range")
         # Have only one step per room!
         # shared rooms are rare anyhow and making per-client steps
         # and room hosts is annoying
@@ -361,7 +368,14 @@ class ZnDraw(ZnDrawBase):
         }
 
     @bookmarks.setter
-    def bookmarks(self, value: dict):
+    def bookmarks(self, value: dict[int, str]):
+        if not isinstance(value, dict):
+            raise ValueError("Bookmarks must be a dictionary")
+        if not all(isinstance(x, int) for x in value.keys()):
+            raise ValueError("Bookmark keys must be integers")
+        if not all(isinstance(x, str) for x in value.values()):
+            raise ValueError("Bookmark values must be strings")
+
         emit_with_retry(
             self.socket,
             "room:bookmarks:set",
@@ -370,7 +384,7 @@ class ZnDraw(ZnDrawBase):
         )
 
     @property
-    def camera(self) -> dict:
+    def camera(self) -> CameraData:
         self._delay_socket()
 
         return call_with_retry(
@@ -380,10 +394,10 @@ class ZnDraw(ZnDrawBase):
         )
 
     @camera.setter
-    def camera(self, value: dict):
+    def camera(self, value: CameraData):
         if set(value.keys()) != {"position", "target"}:
             raise ValueError("Camera must have 'position' and 'target' keys")
-        self.socket.emit("room:camera:set", value)
+        self.socket.emit("room:camera:set", {"content": value, "emit": True})
 
     @property
     def geometries(self) -> list[Object3D]:
@@ -400,6 +414,10 @@ class ZnDraw(ZnDrawBase):
 
     @geometries.setter
     def geometries(self, value: list[Object3D]):
+        if not isinstance(value, list):
+            raise ValueError("Geometries must be a list")
+        if not all(isinstance(x, Object3D) for x in value):
+            raise ValueError("Geometries must be a list of Object3D instances")
         emit_with_retry(
             self.socket,
             "room:geometry:set",
