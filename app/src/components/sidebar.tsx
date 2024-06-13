@@ -45,6 +45,7 @@ const SidebarMenu: React.FC<SidebarMenuProps> = ({
 }) => {
   const editorRef = useRef<HTMLDivElement>(null);
   const editor = useRef<JSONEditor>(null);
+  const [userInput, setUserInput] = useState<any>(null);
 
   function submitEditor() {
     if (onSubmit) {
@@ -85,17 +86,21 @@ const SidebarMenu: React.FC<SidebarMenuProps> = ({
         if (editor.current.ready && triggerChange) {
           const editorValue = editor.current.getValue();
           editor.current.validate();
-          localStorage.setItem(storageKey, JSON.stringify(editorValue));
+          setUserInput(editorValue);
+          // localStorage.setItem(storageKey, JSON.stringify(editorValue));
         }
       });
 
       editor.current.on("ready", () => {
-        const userInput = localStorage.getItem(storageKey);
+        // const userInput = localStorage.getItem(storageKey);
+        // if (userInput) {
         if (userInput) {
-          if (Object.keys(JSON.parse(userInput)).length > 0) {
-            editor.current.setValue(JSON.parse(userInput));
-          }
+          editor.current.setValue(userInput);
         }
+        // if (Object.keys(JSON.parse(userInput)).length > 0) {
+        //   editor.current.setValue(JSON.parse(userInput));
+        // }
+        // }
         setTimeout(() => {
           triggerChange = true;
         }, 1000);
