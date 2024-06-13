@@ -402,9 +402,24 @@ export default function App() {
           );
         }
       } else if (event.key == "Backspace" || event.key == "Delete") {
-        socket.emit("modifier:run", {
-          method: { discriminator: "Delete" },
-        });
+        // check if shift is pressed
+        if (event.shiftKey) {
+          if (selectedPoint !== null) {
+            const newPoints = points.filter(
+              (point) => point.distanceTo(selectedPoint) > 0.1,
+            );
+            setSelectedPoint(null);
+            setPoints(newPoints);
+          } else if (points.length > 0) {
+            // pop last point from points
+            setSelectedPoint(null);
+            setPoints(points.slice(0, points.length - 1));
+          }
+        } else {
+          socket.emit("modifier:run", {
+            method: { discriminator: "Delete" },
+          });
+        }
       }
     };
 
@@ -415,7 +430,7 @@ export default function App() {
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [length, step]);
+  }, [length, step, points, selectedPoint, bookmarks, currentFrame]);
 
   useEffect(() => {
     const updateCursorPosition = (event) => {

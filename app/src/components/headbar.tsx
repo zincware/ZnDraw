@@ -82,6 +82,8 @@ function HelpModel(props: any) {
 - **remove bookmark**: \`shift + mouse click\`
 - **toggle drawing mode**: \`keypress X\`
 - **select all particles**: \`ctrl + A\`
+- **remove selected particles**: \`backspace\`
+- **remove line point**: \`shift + backspace\`
 `;
 
   return (

@@ -17,33 +17,6 @@ export default function ControlsBuilder({
   const controls = useRef<THREE.TransformControls>(null);
 
   useEffect(() => {
-    // event on pressing backspace
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (document.activeElement !== document.body) {
-        return;
-      }
-      if (event.key === "Backspace") {
-        if (selectedPoint !== null) {
-          const newPoints = points.filter(
-            (point) => point.distanceTo(selectedPoint) > 0.1,
-          );
-          setSelectedPoint(null);
-          setPoints(newPoints);
-        } else if (points.length > 0) {
-          // pop last point from points
-          setSelectedPoint(null);
-          setPoints(points.slice(0, points.length - 1));
-        }
-      }
-    };
-
-    document.addEventListener("keydown", handleKeyDown);
-    return () => {
-      document.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [points, selectedPoint]);
-
-  useEffect(() => {
     if (selectedPoint == null) {
       return;
     }
