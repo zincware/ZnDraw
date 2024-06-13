@@ -6,94 +6,139 @@
 
 # ZnDraw
 
-Install via `pip install zndraw`. If you have `pip install pywebview` installed,
-ZnDraw will open in a dedicated window instead of your default browser.
+Welcome to ZnDraw, a powerful tool for visualizing and interacting with your trajectories.
 
-## CLI
+## Installation
 
-You can use ZnDraw to view a file using the CLI `zndraw traj.xyz`. Supported
-file formats include everything that `ase.io` can read and additionally `h5`
-files in the H5MD standard.
+It is recommeded to install ZnDraw from PyPi via:
 
-If you want to view the frames while they are added to the scene you can use
-`zndraw -mp traj.xyz`. See `zndraw --help` for more CLI options.
+```bash
+pip install zndraw
+```
 
-## Python
+## Quick Start
 
-ZnDraw provides a Python interface. The `zndraw.ZnDraw` object offers `append`,
-`extend` as well as assignment operations. More information is available in the
-example notebook.
+Visualize your trajectories with a single command:
+
+```bash
+zndraw <file>
+```
+
+> [!NOTE]
+> ZnDraw's webapp-based approach allows you to use port forwarding to work with trajectories on remote systems.
+
+## Multi-User and Multi-Client Support
+
+ZnDraw supports multiple users and clients. Connect one or more Python clients to your ZnDraw instance:
+
+1. Click on `Python access` in the ZnDraw UI.
+2. Connect using the following code:
 
 ```python
 from zndraw import ZnDraw
-import ase
 
-vis = ZnDraw()
-
-vis.socket.sleep(2) # give it some time to fully connect
-vis[0] = ase.Atoms(
-  "H2O", positions=[[0.75, -0.75, 0], [0.75, 0.75, 0], [0, 0, 0]]
-  )
+vis = ZnDraw(url="http://localhost:1234", token="<your-token>")
 ```
 
-ZnDraw also provides an interface to the Python
-[logging](https://docs.python.org/3/library/logging.html) library, including
-support for formatters and different logging levels.
+The `vis` object provides direct access to your visualized scene. It inherits from `abc.MutableSequence`, so any changes you make are reflected for all connected clients.
 
 ```python
-import logging
-
-log = logging.getLogger(__name__)
-log.addHandler(vis.get_logging_handler())
-log.critical("Critical Message")
+from ase.collections import s22
+vis.extend(list(s22))
 ```
 
-## Modifier
+## Additional Features
 
-You can register `modifier` to change the scene via the interactions menu.
+You can modify various aspects of the visualization:
+- `vis.camera`
+- `vis.points`
+- `vis.selection`
+- `vis.step`
+- `vis.figure`
+- `vis.bookmarks`
+- `vis.geometries`
+
+For example, to add a geometry:
 
 ```python
-import typing as t
+from zndraw import Box
 
-from zndraw import ZnDraw, Extension
-import ase
-
-vis = ZnDraw()
-
-class MyModifier(UpdateScene):
-  name: str = "H2O"
-
-  def run(self, vis: ZnDraw, **kwargs) -> None:
-    vis.append(molecule(self.name))
-
-vis.register_modifier(
-  MyModifier, public=True, run_kwargs={}
-)
+vis.geometries = [Box(position=[0, 1, 2])]
 ```
 
-## User Interface
+## Writing Extensions
 
-![ZnDraw UI](https://raw.githubusercontent.com/zincware/ZnDraw/main/misc/zndraw_ui.png "ZnDraw UI")
+Make your tools accessible via the ZnDraw UI by writing an extension:
 
-![ZnDraw UI3](https://raw.githubusercontent.com/zincware/ZnDraw/main/misc/zndraw_draw.png "ZnDraw UI3")
+```python
+from zndraw import Extension
 
-# Development
+class AddMolecule(Extension):
+    name: str
 
-ZnDraw is developed using https://python-poetry.org/. Furthermore, the
-javascript packages have to be installed using https://www.npmjs.com/.
+    def run(self, vis, **kwargs) -> None:
+        structures = kwargs["structures"]
+        vis.append(structures[self.name])
+        vis.step = len(vis) - 1
+
+vis.register(AddMolecule, run_kwargs={"structures": s22}, public=True)
+vis.socket.wait()  # This can be ignored when using Jupyter
+```
+
+The `AddMolecule` extension will appear for all `tokens` and can be used by any client.
+
+
+# Hosted Version
+
+A hosted version of ZnDraw is available at https://zndraw.icp.uni-stuttgart.de . To upload data, use:
 
 ```bash
-cd zndraw/static/
-npm install
+zndraw-upload <file> --url https://zndraw.icp.uni-stuttgart.de
 ```
 
-# Docker
+## Self-Hosting
 
-This package is available as a docker container and can be used via
+To host your own version of ZnDraw, use the following `docker-compose.yaml` setup:
 
-```bash
-docker run -pythonf/zndraw
+```yaml
+version: '3.9'
+
+services:
+  zndraw:
+    image: zndraw:dev
+    command: --no-standalone /src/file.xyz
+    volumes:
+      - /path/to/files:/src
+    restart: unless-stopped
+    ports:
+      - 5003:5003
+    depends_on:
+      - redis
+      - worker
+    environment:
+      - FLASK_STORAGE=redis://redis:6379/0
+      - FLASK_AUTH_TOKEN=super-secret-token
+
+  worker:
+    image: zndraw:dev
+    entrypoint: celery -A zndraw.make_celery worker --loglevel=info -P eventlet
+    volumes:
+      - /path/to/files:/src
+    restart: unless-stopped
+    depends_on:
+      - redis
+    environment:
+      - FLASK_STORAGE=redis://redis:6379/0
+      - FLASK_SERVER_URL="http://zndraw:5003"
+      - FLASK_AUTH_TOKEN=super-secret-token
+
+  redis:
+    image: redis:latest
+    restart: always
+    environment:
+      - REDIS_PORT=6379
 ```
+
 
 # References
 
