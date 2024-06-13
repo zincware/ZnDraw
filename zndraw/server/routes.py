@@ -1,14 +1,21 @@
 import logging
 import uuid
+from io import BytesIO, StringIO
 
-from flask import Blueprint, current_app, redirect, request, send_from_directory, session
-from io import StringIO
+import ase.io
+from flask import (
+    Blueprint,
+    current_app,
+    redirect,
+    request,
+    send_file,
+    send_from_directory,
+    session,
+)
 
 main = Blueprint("main", __name__)
 
 log = logging.getLogger(__name__)
-
-
 
 
 @main.route("/")
@@ -63,7 +70,7 @@ def exit_route(token: str | None = None):
 def upload():
     """Upload a file to the server."""
     from zndraw import ZnDraw
-    import ase.io
+
     file = request.files["file"]
     token = session.get("token")
 
@@ -74,7 +81,7 @@ def upload():
         # Extract the file format from the filename
         file_format = file.filename.split(".")[-1]
         file_content = file.read()
-        
+
         stream = StringIO(file_content.decode("utf-8"))
 
         vis = ZnDraw(url=request.url_root, token=token)
@@ -86,4 +93,29 @@ def upload():
 
     except Exception as e:
         log.error(f"Error uploading file: {e}")
+        return str(e), 500
+
+
+@main.route("/download", methods=["GET"])
+def download():
+    """Download a file to the client."""
+    from zndraw import ZnDraw
+
+    token = session.get("token")
+    url = request.url_root
+
+    file = StringIO()
+    vis = ZnDraw(url=url, token=token)
+    try:
+        for atoms in vis:
+            ase.io.write(file, atoms, format="xyz", append=True)
+    except Exception as e:
+        log.error(f"Error downloading file: {e}")
+
+    # convert StringIO to BytesIO
+    file = BytesIO(file.getvalue().encode("utf-8"))
+    try:
+        return send_file(file, as_attachment=True, download_name="trajectory.xyz")
+    except Exception as e:
+        log.error(f"Error downloading file: {e}")
         return str(e), 500

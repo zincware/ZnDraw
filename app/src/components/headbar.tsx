@@ -4,6 +4,7 @@ import React, {
   useState,
   useMemo,
   useRef,
+  forwardRef,
 } from "react";
 import {
   Navbar,
@@ -281,9 +282,6 @@ function SiMGenButtons({ queuePosition }: { queuePosition: number }) {
   );
 }
 
-// import React, { useRef } from 'react';
-import { forwardRef } from 'react'; // Import forwardRef
-
 const FileUpload = forwardRef((props, ref) => {
   const fileInputRef = useRef(null);
 
@@ -303,7 +301,8 @@ const FileUpload = forwardRef((props, ref) => {
       body: formData,
     });
 
-    if (ref) { // Check if ref is provided
+    if (ref) {
+      // Check if ref is provided
       ref.current = fileInputRef.current; // Forward the ref to the underlying DOM element
     }
   };
@@ -322,8 +321,6 @@ const FileUpload = forwardRef((props, ref) => {
     </div>
   );
 });
-
-
 
 const HeadBar = ({
   room,
@@ -500,7 +497,12 @@ const HeadBar = ({
                 <FileUpload />
               </BtnTooltip>
               <BtnTooltip text="Download scene">
-                <Button variant="outline-primary" className="mx-1">
+                <Button
+                  variant="outline-primary"
+                  className="mx-1"
+                  href="/download"
+                  target="_blank"
+                >
                   <FaDownload />
                 </Button>
               </BtnTooltip>

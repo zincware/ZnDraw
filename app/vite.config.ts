@@ -14,6 +14,7 @@ export default defineConfig({
       "/reset": "http://localhost:1234",
       "/token": "http://localhost:1234",
       "/upload": "http://localhost:1234",
+      "/download": "http://localhost:1234",
       "/socket.io": {
         target: "ws://localhost:1234",
         ws: true,
