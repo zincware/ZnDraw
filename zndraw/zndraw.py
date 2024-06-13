@@ -247,7 +247,7 @@ class ZnDraw(ZnDrawBase):
     def selection(self, value: list[int]):
         if not all(isinstance(x, int) for x in value):
             raise ValueError("Selection must be a list of integers")
-        
+
         max_index = len(self.atoms) - 1
         if any(x >= max_index for x in value):
             raise IndexError("Selection out of range")
