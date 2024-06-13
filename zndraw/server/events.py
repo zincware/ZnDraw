@@ -493,7 +493,8 @@ def init_socketio_events(io: SocketIO):
     def room_step_get() -> int:
         r: Redis = current_app.extensions["redis"]
         room = session.get("token")
-        return r.get(f"room:{room}:step") or 0
+        step = r.get(f"room:{room}:step")
+        return int(step) if step else 0
 
     @io.on("room:points:set")
     def room_points_set(data: dict):

@@ -68,7 +68,7 @@ export default function App() {
   const [bookmarks, setBookmarks] = useState<any>({}); // {name: [step, ...]
   const [points, setPoints] = useState<THREE.Vector3[]>([]);
 
-  const stepFromSocket = useRef<boolean>(true); // true to avoid first render trigger
+  const stepFromSocket = useRef<boolean>(false);
   const bookmarksFromSocket = useRef<boolean>(true);
   const selectionFromSocket = useRef<boolean>(true);
   const pointsFromSocket = useRef<boolean>(true);
@@ -197,7 +197,9 @@ export default function App() {
       });
       // get step
       socket.emit("room:step:get", (data: string) => {
-        stepFromSocket.current = true;
+        // this happens only once, we can afford sending the step back.
+        // bugfix for missing out modifiying the step first in the UI
+        // stepFromSocket.current = true;
         setStep(parseInt(data));
       });
       // get selection

@@ -12,7 +12,8 @@ export default defineConfig({
   server: {
     proxy: {
       // string shorthand: http://localhost:5173/foo -> http://localhost:4567/foo
-      "/reset": "http://localhost:12134",
+      "/reset": "http://localhost:1234",
+      "/token": "http://localhost:1234",
       // // Proxying websockets or socket.io: ws://localhost:5173/socket.io -> ws://localhost:5174/socket.io
       "/socket.io": {
         target: "ws://localhost:1234",
