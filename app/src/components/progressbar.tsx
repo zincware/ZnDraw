@@ -85,13 +85,13 @@ const Bookmarks = ({
           const position = (parseInt(number) / length) * 100;
           return (
             <OverlayTrigger
+              key={`bookmark-${number}`}
               placement="top"
               delay={{ show: 0, hide: 100 }}
               overlay={<Tooltip>{name}</Tooltip>}
             >
               <Col
                 xs="auto"
-                key={number}
                 style={{
                   position: "absolute",
                   left: `${position}%`,
