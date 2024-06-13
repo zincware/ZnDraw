@@ -5,7 +5,6 @@ import eventlet.wsgi
 eventlet.monkey_patch()  # MUST BE THERE FOR THE TESTS TO WORK
 
 import random
-import subprocess
 
 import ase.build
 import ase.collections
@@ -13,6 +12,7 @@ import pytest
 import socketio.exceptions
 
 from zndraw.app import create_app
+from zndraw.standalone import run_celery_worker
 
 
 @pytest.fixture
@@ -23,22 +23,9 @@ def server():
     os.environ["FLASK_STORAGE"] = "redis://localhost:6379/0"
     os.environ["FLASK_SERVER_URL"] = f"http://localhost:{port}"
 
-    proc = subprocess.Popen(
-        [
-            "celery",
-            "-A",
-            "zndraw.make_celery.celery_app",
-            "worker",
-            "--loglevel=info",
-            "-P",
-            "eventlet",
-        ]
-    )
+    proc = run_celery_worker()
 
     def start_server():
-        os.environ["FLASK_PORT"] = str(port)
-        os.environ["FLASK_STORAGE"] = "redis://localhost:6379/0"
-
         app = create_app()
         app.config["TESTING"] = True
 

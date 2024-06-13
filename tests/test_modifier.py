@@ -31,5 +31,5 @@ def test_run_selection(server, s22):
     vis.selection = [0]
 
     vis.socket.emit("selection:run", {"method": {"discriminator": "ConnectedParticles"}})
-    vis.socket.sleep(3)
+    vis.socket.sleep(5)
     assert vis.selection == [0, 1, 2, 3]
