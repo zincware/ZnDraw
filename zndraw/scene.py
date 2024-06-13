@@ -44,6 +44,7 @@ class Scene(BaseModel):
     controls: Controls = Field(Controls.OrbitControls, description="Controls")
 
     vectors: str = Field("", description="Visualize vectorial property")
+    selection_color: str = Field("#ffa500", description="Selection color")
     # bonds: bool = Field(
     #     True,
     #     description="Show bonds.",
@@ -96,6 +97,7 @@ class Scene(BaseModel):
         # schema["properties"]["label_offset"]["format"] = "range"
         # schema["properties"]["particle_size"]["format"] = "range"
         schema["properties"]["fps"]["format"] = "range"
+        schema["properties"]["selection_color"]["format"] = "color"
         # schema["properties"]["particle_size"]["step"] = 0.1
         # schema["properties"]["bonds_size"]["format"] = "range"
         # schema["properties"]["bonds_size"]["step"] = 0.1

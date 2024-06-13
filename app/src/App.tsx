@@ -61,6 +61,7 @@ export default function App() {
     simulation_box: false,
     vectors: "",
     controls: "OrbitControls",
+    selection_color: "#ffa500",
   });
   // updated via sockets
   const [step, setStep] = useState<number>(0);
@@ -550,11 +551,13 @@ export default function App() {
             hoveredId={hoveredId}
             setHoveredId={setHoveredId}
             setTriggerSelection={setTriggerSelection}
+            sceneSettings={sceneSettings}
           />
           <BondInstances
             frame={currentFrame}
             selectedIds={selectedIds}
             hoveredId={hoveredId}
+            sceneSettings={sceneSettings}
           />
           {sceneSettings["simulation_box"] && (
             <SimulationCell frame={currentFrame} colorMode={colorMode} />

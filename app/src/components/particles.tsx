@@ -82,6 +82,7 @@ export const ParticleInstances = ({
   hoveredId,
   setHoveredId,
   setTriggerSelection,
+  sceneSettings,
 }: {
   frame: Frame;
   selectedIds: Set<number>;
@@ -93,6 +94,7 @@ export const ParticleInstances = ({
   hoveredId: number | null;
   setHoveredId: any;
   setTriggerSelection: any;
+  sceneSettings: any;
 }) => {
   const meshRef = useRef();
 
@@ -124,7 +126,7 @@ export const ParticleInstances = ({
         meshRef.current.setMatrixAt(i, matrix);
         // update color
         if (selectedIds.has(i)) {
-          color.setHex(0xffa500);
+          color.setStyle(sceneSettings.selection_color);
         } else {
           color.set(frame.arrays.colors[i]);
         }
@@ -202,7 +204,7 @@ export const ParticleInstances = ({
       const color = new THREE.Color();
       frame.positions.forEach((_, i) => {
         if (selectedIds.has(i)) {
-          color.setHex(0xffa500);
+          color.setStyle(sceneSettings.selection_color);
           meshRef.current.setColorAt(i, color);
         }
       });
@@ -213,20 +215,20 @@ export const ParticleInstances = ({
   // useFrame to change color if hovered
   useFrame(() => {
     if (meshRef.current && count > 0) {
-      const color = new THREE.Color();
-      frame.positions.forEach((_, i) => {
-        if (i === hoveredId) {
-          color.setHex(0xf05000);
+    const color = new THREE.Color();
+    frame.positions.forEach((_, i) => {
+      if (i === hoveredId) {
+        color.setHex(0xf05000);
           meshRef.current.setColorAt(i, color);
-        } else if (selectedIds.has(i)) {
-          color.setHex(0xffa500);
+      } else if (selectedIds.has(i)) {
+          color.setStyle(sceneSettings.selection_color);
           meshRef.current.setColorAt(i, color);
-        } else {
-          color.set(frame.arrays.colors[i]);
-          meshRef.current.setColorAt(i, color);
+      } else {
+        color.set(frame.arrays.colors[i]);
+      meshRef.current.setColorAt(i, color);
         }
-      });
-      meshRef.current.instanceColor.needsUpdate = true;
+    });
+    meshRef.current.instanceColor.needsUpdate = true;
     }
   });
 
@@ -257,10 +259,12 @@ export const BondInstances = ({
   frame,
   selectedIds,
   hoveredId,
+  sceneSettings,
 }: {
   frame: Frame;
   selectedIds: Set<number>;
   hoveredId: number;
+  sceneSettings: any;
 }) => {
   const meshRef = useRef<THREE.InstancedMesh | null>(null);
 
@@ -306,7 +310,7 @@ export const BondInstances = ({
           i * 2,
           createTransformationMatrix(posA, posB),
         );
-        color.set(selectedIds.has(a) ? 0xffa500 : frame.arrays.colors[a]);
+        color.setStyle(selectedIds.has(a) ? sceneSettings.selection_color : frame.arrays.colors[a]);
         meshRef.current!.setColorAt(i * 2, color);
 
         // Set matrix and color for the bond from B to A
@@ -314,7 +318,7 @@ export const BondInstances = ({
           i * 2 + 1,
           createTransformationMatrix(posB, posA),
         );
-        color.set(selectedIds.has(b) ? 0xffa500 : frame.arrays.colors[b]);
+        color.setStyle(selectedIds.has(b) ? sceneSettings.selection_color : frame.arrays.colors[b]);
         meshRef.current!.setColorAt(i * 2 + 1, color);
       });
 
@@ -329,10 +333,11 @@ export const BondInstances = ({
       const color = new THREE.Color();
       frame.connectivity.forEach(([a, b], i) => {
         if (selectedIds.has(a)) {
-          color.setHex(0xffa500);
+          color.setStyle(sceneSettings.selection_color);
           meshRef.current.setColorAt(i * 2, color);
         } else if (selectedIds.has(b)) {
-          color.setHex(0xffa500);
+          // TODO: check if this is required?
+          color.setStyle(sceneSettings.selection_color);
           meshRef.current.setColorAt(i * 2 + 1, color);
         } else {
           color.set(frame.arrays.colors[a]);
@@ -343,7 +348,7 @@ export const BondInstances = ({
       });
       meshRef.current.instanceColor.needsUpdate = true;
     }
-  }, [selectedIds]);
+  }, [selectedIds, sceneSettings]);
 
   return (
     <instancedMesh
