@@ -1,91 +1,71 @@
-import subprocess
-import threading
-import time
+import os
 
-import eventlet
+import eventlet.wsgi
+
+eventlet.monkey_patch()  # MUST BE THERE FOR THE TESTS TO WORK
+
+import random
+
+import ase.build
+import ase.collections
 import pytest
-import requests
-import socketio
-from sqlalchemy import create_engine
+import socketio.exceptions
 
 from zndraw.app import create_app
-from zndraw.db.schema import Base
-from zndraw.settings import GlobalConfig
-from zndraw.utils import get_port
+from zndraw.standalone import run_celery_worker
 
 
-@pytest.fixture(scope="session")
-def sio_server():
-    port = get_port()
-
-    def run_server(port):
-        sio = socketio.Server(cors_allowed_origins="*")
-        app = socketio.WSGIApp(sio)
-
-        # react on every event
-        @sio.on("*")
-        def push_back(event, sid, data):
-            sio.emit(event, data, to=sid)
-
-        @sio.on("ping")
-        def ping(sid):
-            return "pong"
-
-        @sio.on("exit")
-        def exit(sid):
-            sio.shutdown()
-            import sys
-
-            sys.exit(0)
-
-        eventlet.wsgi.server(eventlet.listen(("", port)), app)
-
-    t = threading.Thread(target=run_server, args=(port,), daemon=True)
-    t.start()
-    time.sleep(1)
-    yield f"http://localhost:{port}"
-    client = socketio.Client()
-    client.connect(f"http://localhost:{port}")
-    client.emit("exit")
-    t.join()
-
-
-@pytest.fixture(scope="session")
+@pytest.fixture
 def server():
-    port = get_port()
+    port = random.randint(10000, 20000)
 
-    cmd = [
-        "celery",
-        "-A",
-        "zndraw.make_celery",
-        "worker",
-        "--loglevel",
-        "DEBUG",
-        "--queues=io,fast,celery,slow",
-    ]
-    # proc = subprocess.Popen(cmd) # more verbose for testing
-    proc = subprocess.Popen(
-        cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
-    )
+    os.environ["FLASK_PORT"] = str(port)
+    os.environ["FLASK_STORAGE"] = "redis://localhost:6379/0"
+    os.environ["FLASK_SERVER_URL"] = f"http://localhost:{port}"
 
-    config = GlobalConfig.load()
-    # TODO: use a temporary path for the database
-    # has to be set in the workers somehow
+    proc = run_celery_worker()
 
-    engine = create_engine(config.database.get_path())
-    Base.metadata.create_all(engine)
-
-    def run_server(port):
+    def start_server():
         app = create_app()
+        app.config["TESTING"] = True
 
-        eventlet.wsgi.server(eventlet.listen(("", port)), app)
+        socketio = app.extensions["socketio"]
+        try:
+            socketio.run(
+                app,
+                host="0.0.0.0",
+                port=app.config["PORT"],
+            )
+        finally:
+            app.extensions["redis"].flushall()
 
-    t = threading.Thread(target=run_server, args=(port,), daemon=True)
-    t.start()
-    time.sleep(1)
-    yield f"http://localhost:{port}"
-    requests.get(f"http://localhost:{port}/exit")
-    config.database.unlink()
-    proc.terminate()
+    thread = eventlet.spawn(start_server)
+
+    # wait for the server to be ready
+    for _ in range(100):
+        try:
+            with socketio.SimpleClient() as client:
+                client.connect(f"http://localhost:{port}")
+                break
+        except socketio.exceptions.ConnectionError:
+            eventlet.sleep(0.1)
+    else:
+        raise TimeoutError("Server did not start in time")
+
+    yield f"http://127.0.0.1:{port}"
+
+    thread.kill()
+    proc.kill()
     proc.wait()
-    t.join()
+
+
+@pytest.fixture
+def s22() -> list[ase.Atoms]:
+    """S22 dataset."""
+    return list(ase.collections.s22)
+
+
+@pytest.fixture
+def water() -> ase.Atoms:
+    """Water molecule."""
+    return ase.build.molecule("H2O")

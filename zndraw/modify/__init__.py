@@ -7,8 +7,10 @@ import typing as t
 import ase
 import numpy as np
 from ase.data import chemical_symbols
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import Field
 from znframe.frame import get_radius
+
+from zndraw.base import Extension, MethodsCollection
 
 try:
     from zndraw.modify import extras  # noqa: F401
@@ -25,7 +27,7 @@ log = logging.getLogger("zndraw")
 Symbols = enum.Enum("Symbols", {symbol: symbol for symbol in chemical_symbols})
 
 
-class UpdateScene(BaseModel, abc.ABC):
+class UpdateScene(Extension, abc.ABC):
     @abc.abstractmethod
     def run(self, vis: "ZnDraw", timeout: float, **kwargs) -> None:
         """Method called when running the modifier."""
@@ -47,8 +49,6 @@ class UpdateScene(BaseModel, abc.ABC):
 class Connect(UpdateScene):
     """Create guiding curve between selected atoms."""
 
-    discriminator: t.Literal["Connect"] = Field("Connect")
-
     def run(self, vis: "ZnDraw", **kwargs) -> None:
         atom_ids = vis.selection
         atom_positions = vis.atoms.get_positions()
@@ -67,8 +67,6 @@ class Connect(UpdateScene):
 
 class Rotate(UpdateScene):
     """Rotate the selected atoms around a the line (2 points only)."""
-
-    discriminator: t.Literal["Rotate"] = Field("Rotate")
 
     angle: float = Field(90, le=360, ge=0, description="Angle in degrees")
     direction: t.Literal["left", "right"] = Field(
@@ -108,8 +106,6 @@ class Rotate(UpdateScene):
 class Delete(UpdateScene):
     """Delete the selected atoms."""
 
-    discriminator: t.Literal["Delete"] = Field("Delete")
-
     def run(self, vis: "ZnDraw", **kwargs) -> None:
         atom_ids = vis.selection
         atoms = vis.atoms
@@ -117,17 +113,19 @@ class Delete(UpdateScene):
         if len(vis) > vis.step + 1:
             del vis[vis.step + 1 :]
         vis.log(f"Deleting atoms {atom_ids}")
-        for idx, atom_id in enumerate(sorted(atom_ids)):
-            atoms.pop(atom_id - idx)  # we remove the atom and shift the index
-        del atoms.connectivity
+        if len(atom_ids) == len(atoms):
+            vis.append(ase.Atoms())
+        else:
+            for idx, atom_id in enumerate(sorted(atom_ids)):
+                atoms.pop(atom_id - idx)  # we remove the atom and shift the index
+            del atoms.connectivity
         vis.append(atoms)
         vis.selection = []
+        vis.step += 1
 
 
 class Move(UpdateScene):
     """Move the selected atoms along the line."""
-
-    discriminator: t.Literal["Move"] = Field("Move")
 
     steps: int = Field(10, ge=1)
 
@@ -143,22 +141,24 @@ class Move(UpdateScene):
                 "The number of steps must be less than the number of segments. You can add more points to increase the number of segments."
             )
 
-        for idx in range(1, self.steps):
-            # get the vector between the two points
-            start_idx = int((idx - 1) * len(vis.segments) / self.steps)
-            end_idx = int(idx * len(vis.segments) / self.steps)
+        segments = vis.segments
+        steps = self.steps
 
-            vector = vis.segments[end_idx] - vis.segments[start_idx]
+        for idx in range(1, steps):
+            # get the vector between the two points
+            start_idx = int((idx - 1) * len(segments) / steps)
+            end_idx = int(idx * len(segments) / steps)
+
+            vector = segments[end_idx] - segments[start_idx]
             # move the selected atoms along the vector
             atoms_selected.positions += vector
             # merge the selected and remaining atoms
             atoms.positions[atoms_ids] = atoms_selected.positions
             vis.append(atoms)
+            vis.step += 1
 
 
 class Duplicate(UpdateScene):
-    discriminator: t.Literal["Duplicate"] = Field("Duplicate")
-
     x: float = Field(0.5, le=5, ge=0)
     y: float = Field(0.5, le=5, ge=0)
     z: float = Field(0.5, le=5, ge=0)
@@ -180,8 +180,6 @@ class Duplicate(UpdateScene):
 
 
 class ChangeType(UpdateScene):
-    discriminator: t.Literal["ChangeType"] = Field("ChangeType")
-
     symbol: Symbols
 
     def run(self, vis: "ZnDraw", **kwargs) -> None:
@@ -197,8 +195,6 @@ class ChangeType(UpdateScene):
 
 
 class AddLineParticles(UpdateScene):
-    discriminator: t.Literal["AddLineParticles"] = Field("AddLineParticles")
-
     symbol: Symbols
     steps: int = Field(10, le=100, ge=1)
 
@@ -217,7 +213,6 @@ class AddLineParticles(UpdateScene):
 class Wrap(UpdateScene):
     """Wrap the atoms to the cell."""
 
-    discriminator: t.Literal["Wrap"] = Field("Wrap")
     recompute_bonds: bool = True
 
     def run(self, vis: "ZnDraw", **kwargs) -> None:
@@ -237,7 +232,6 @@ class Wrap(UpdateScene):
 class Center(UpdateScene):
     """Move the atoms, such that the selected atom is in the center of the cell."""
 
-    discriminator: t.Literal["Center"] = Field("Center")
     recompute_bonds: bool = True
     dynamic: bool = Field(
         False, description="Move the atoms to the center of the cell at each step"
@@ -260,8 +254,6 @@ class Center(UpdateScene):
 
         vis.step = 0
 
-        del vis[1:]
-
         for idx, atoms in enumerate(atoms_list):
             if self.dynamic:
                 center = atoms[selection].get_center_of_mass()
@@ -276,7 +268,6 @@ class Center(UpdateScene):
 
 
 class Replicate(UpdateScene):
-    discriminator: t.Literal["Replicate"] = Field("Replicate")
     x: int = Field(2, ge=1)
     y: int = Field(2, ge=1)
     z: int = Field(2, ge=1)
@@ -297,21 +288,49 @@ class Replicate(UpdateScene):
             vis[idx] = atoms
 
 
-# class CustomModifier(UpdateScene):
-#     discriminator: t.Literal["CustomModifier"] = Field("CustomModifier")
+class NewCanvas(UpdateScene):
+    """Clear the scene, deleting all atoms and points."""
 
-#     methods: t.Union[None, AddLineParticles, Rotate, Explode, Delete] = None
+    def run(self, vis: "ZnDraw", **kwargs) -> None:
+        from zndraw.draw import Plane
+
+        del vis[vis.step + 1 :]
+        vis.points = []
+        vis.append(ase.Atoms())
+        vis.selection = []
+        step = len(vis) - 1
+        vis.step = step
+        vis.bookmarks = vis.bookmarks | {step: "New Scene"}
+        vis.camera = {"position": [0, 0, -15], "target": [0, 0, 0]}
+        vis.geometries = [
+            Plane(
+                position=[0, 0, 0],
+                rotation=[0, 0, 0],
+                scale=[1, 1, 1],
+                width=10,
+                height=10,
+            )
+        ]
 
 
-def get_modify_class(methods):
-    class Modifier(UpdateScene):
-        method: methods = Field(
-            ..., description="Modify method", discriminator="discriminator"
-        )
+methods = t.Union[
+    Delete,
+    Rotate,
+    Move,
+    Duplicate,
+    ChangeType,
+    AddLineParticles,
+    Wrap,
+    Center,
+    Replicate,
+    Connect,
+    NewCanvas,
+]
 
-        model_config = ConfigDict(json_schema_extra=None)  # disable method hiding
 
-        def run(self, vis, **kwargs) -> None:
-            self.method.run(vis, **kwargs)
+class Modifier(MethodsCollection):
+    """Run modifications on the scene"""
 
-    return Modifier
+    method: methods = Field(
+        ..., description="Modify method", discriminator="discriminator"
+    )

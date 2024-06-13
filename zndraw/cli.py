@@ -1,8 +1,16 @@
-from typing import Optional
+import eventlet
+
+eventlet.monkey_patch()
+
+import os
+import typing as t
 
 import typer
 
-from zndraw.app import FileIO, ZnDrawServer
+from zndraw.app import create_app
+from zndraw.base import FileIO
+from zndraw.standalone import run_celery_worker, run_znsocket
+from zndraw.tasks import read_file
 from zndraw.utils import get_port
 
 cli = typer.Typer()
@@ -10,7 +18,7 @@ cli = typer.Typer()
 
 @cli.command()
 def main(
-    filename: Optional[str] = typer.Argument(
+    filename: t.Optional[str] = typer.Argument(
         None,
         help="Path to the file which should be visualized in ZnDraw. Can also be the name and attribute of a ZnTrack Node like 'MyNode.atoms' if at least '--remote .' is provided. ",
     ),
@@ -31,7 +39,7 @@ def main(
         True, help="""Whether to open the ZnDraw GUI in the default web browser."""
     ),
     start: int = typer.Option(
-        0,
+        None,
         help="""First frame to be visualized. If set to 0, the first frame will be visualized.""",
     ),
     stop: int = typer.Option(
@@ -39,22 +47,9 @@ def main(
         help="""Last frame to be visualized. If set to None, the last frame will be visualized.""",
     ),
     step: int = typer.Option(
-        1,
+        None,
         help="""Stepsize for the frames to be visualized. If set to 1, all frames will be visualized.
         If e.g. set to 2, every second frame will be visualized.""",
-    ),
-    compute_bonds: bool = typer.Option(
-        True,
-        help="""Whether to compute bonds for the structure. If set to False, no bonds will be computed.""",
-    ),
-    upgrade_insecure_requests: bool = typer.Option(
-        False,
-        hidden=True,
-        help="Set the html attribute upgrade-insecure-requests. If you are running ZnDraw behind a reverse proxy and encounter issues with insecure requests, you might want to set this to true.",
-    ),
-    use_token: bool = typer.Option(
-        False,
-        help="Use a token to authenticate the ZnDraw server.  This is useful if you are running ZnDraw as a server application.",
     ),
     remote: str = typer.Option(
         None,
@@ -76,13 +71,45 @@ def main(
         False,
         help="Show the SiMGen demo UI.",
     ),
+    storage: str = typer.Option(
+        None,
+        help="URL to the redis `redis://localhost:6379/0` or znsocket `znsocket://127.0.0.1:6379` server. If None is provided, a local znsocket server will be started.",
+    ),
+    standalone: bool = typer.Option(
+        True,
+        help="Run ZnDraw without additional tools. If disabled, redis and celery must be started manually.",
+    ),
 ):
     """Start the ZnDraw server.
 
     Visualize Trajectories, Structures, and more in ZnDraw.
     """
-    if port is None:
-        port = get_port()
+    ZNSOCKET_PORT = 6374
+
+    # os.environ["FLASK_ENV"] = "development"
+    if port is not None:
+        os.environ["FLASK_PORT"] = str(port)
+    else:
+        if "FLASK_PORT" in os.environ:
+            port = int(os.environ["FLASK_PORT"])
+        else:
+            port = get_port(default=1234)
+            os.environ["FLASK_PORT"] = str(port)
+    if storage is not None:
+        os.environ["FLASK_STORAGE"] = storage
+    if auth_token is not None:
+        os.environ["FLASK_AUTH_TOKEN"] = auth_token
+    if tutorial is not None:
+        os.environ["FLASK_TUTORIAL"] = tutorial
+    if simgen:
+        os.environ["FLASK_SIMGEN"] = "TRUE"
+    os.environ["FLASK_SERVER_URL"] = f"http://localhost:{port}"
+
+    if standalone:
+        if storage is None:
+            os.environ["FLASK_STORAGE"] = f"znsocket://localhost:{ZNSOCKET_PORT}"
+        server = run_znsocket(ZNSOCKET_PORT)
+        worker = run_celery_worker()
 
     fileio = FileIO(
         name=filename,
@@ -93,32 +120,30 @@ def main(
         step=step,
     )
 
-    with ZnDrawServer(
-        use_token=use_token,
-        upgrade_insecure_requests=upgrade_insecure_requests,
-        compute_bonds=compute_bonds,
-        tutorial=tutorial,
-        auth_token=auth_token,
-        port=port,
-        fileio=fileio,
-        simgen=simgen,
-    ) as app:
-        app.run(browser=browser)
+    app = create_app()
 
-    # view(
-    #     filename,
-    #     port,
-    #     webview=webview,
-    #     fullscreen=fullscreen,
-    #     open_browser=browser,
-    #     start=start,
-    #     stop=stop,
-    #     step=step,
-    #     compute_bonds=compute_bonds,
-    #     upgrade_insecure_requests=upgrade_insecure_requests,
-    #     use_token=use_token,
-    #     remote=remote,
-    #     rev=rev,
-    #     tutorial=tutorial,
-    #     auth_token=auth_token,
-    # )
+    read_file.delay(fileio.to_dict())
+
+    if browser:
+        import webbrowser
+
+        webbrowser.open(f"http://localhost:{port}")
+
+    socketio = app.extensions["socketio"]
+    try:
+        socketio.run(
+            app,
+            host="0.0.0.0",
+            port=app.config["PORT"],
+        )
+    finally:
+        if standalone:
+            server.terminate()
+            server.wait()
+            print("znsocket server terminated.")
+            worker.terminate()
+            worker.wait()
+            print("celery worker terminated.")
+
+        # app.extensions["redis"].flushall()
+        # socketio.stop()

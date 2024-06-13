@@ -7,10 +7,7 @@
 # ZnDraw
 
 Install via `pip install zndraw`. If you have `pip install pywebview` installed,
-ZnDraw will open in a dedicated window.
-
-> [!IMPORTANT]
-> ZnDraw has undergone a major change with version 0.3.0. The current version is not fully compatible with Windows. We are investigating solutions to make it work again. Furthermore, if you encounter ZnDraw 0.3.0 to be slower at times, this issue will also be mitigated in future releases.
+ZnDraw will open in a dedicated window instead of your default browser.
 
 ## CLI
 
@@ -58,20 +55,19 @@ You can register `modifier` to change the scene via the interactions menu.
 ```python
 import typing as t
 
-from zndraw import ZnDraw
-from zndraw.modify import UpdateScene
+from zndraw import ZnDraw, Extension
 import ase
 
 vis = ZnDraw()
 
 class MyModifier(UpdateScene):
-  discriminator: t.Literal["MyModifier"] = "MyModifier"
+  name: str = "H2O"
 
   def run(self, vis: ZnDraw, **kwargs) -> None:
-    vis.append(molecule("H2O"))
+    vis.append(molecule(self.name))
 
 vis.register_modifier(
-  MyModifier, default=True, run_kwargs={}
+  MyModifier, public=True, run_kwargs={}
 )
 ```
 
@@ -89,6 +85,14 @@ javascript packages have to be installed using https://www.npmjs.com/.
 ```bash
 cd zndraw/static/
 npm install
+```
+
+# Docker
+
+This package is available as a docker container and can be used via
+
+```bash
+docker run -pythonf/zndraw
 ```
 
 # References

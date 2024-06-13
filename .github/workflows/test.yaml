@@ -20,9 +20,24 @@ jobs:
         os:
           - ubuntu-latest
 
+    services:
+      # Label used to access the service container
+      redis:
+        # Docker Hub image
+        image: redis
+        # Set health checks to wait until redis has started
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          # Maps port 6379 on service container to the host
+          - 6379:6379
+
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      # - uses: oven-sh/setup-bun@v1
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v4
         with:
@@ -32,13 +47,14 @@ jobs:
         with:
           virtualenvs-create: true
           virtualenvs-in-project: true
+      # - name: bun build install
+      #   run: |
+      #     cd app
+      #     bun install
+      #     bun vite build
       - name: Install package
         run: |
           poetry install --no-interaction
-      - name: NPM install
-        run: |
-          cd zndraw/static
-          npm install
       - name: Pytest
         run: |
           poetry run python --version

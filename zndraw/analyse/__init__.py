@@ -5,9 +5,9 @@ import typing as t
 import numpy as np
 import pandas as pd
 import plotly.express as px
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import ConfigDict, Field
 
-from zndraw.utils import SHARED, set_global_atoms
+from zndraw.base import Extension, MethodsCollection
 
 try:
     from zndraw.analyse import mda  # noqa: F401
@@ -23,9 +23,7 @@ def _schema_from_atoms(schema, cls):
     return cls.model_json_schema_from_atoms(schema)
 
 
-class DihedralAngle(BaseModel):
-    discriminator: t.Literal["DihedralAngle"] = Field("DihedralAngle")
-
+class DihedralAngle(Extension):
     def run(self, vis):
         atoms_lst = list(vis)
         dihedral_angles = []
@@ -43,9 +41,7 @@ class DihedralAngle(BaseModel):
         vis.figure = fig.to_json()
 
 
-class Distance(BaseModel):
-    discriminator: t.Literal["Distance"] = Field("Distance")
-
+class Distance(Extension):
     smooth: bool = False
 
     def run(self, vis):
@@ -80,18 +76,17 @@ class Distance(BaseModel):
         vis.figure = fig.to_json()
 
 
-class Properties2D(BaseModel):
-    discriminator: t.Literal["Properties2D"] = Field("Properties2D")
-    x_data: str = "step"
-    y_data: str = "energy"
-    color: str = "energy"
+class Properties2D(Extension):
+    x_data: str
+    y_data: str
+    color: str
     fix_aspect_ratio: bool = True
 
     model_config = ConfigDict(json_schema_extra=_schema_from_atoms)
 
     @classmethod
     def model_json_schema_from_atoms(cls, schema: dict) -> dict:
-        ATOMS = SHARED["atoms"]
+        ATOMS = cls.get_atoms()
         log.debug(f"GATHERING PROPERTIES FROM {ATOMS=}")
         try:
             available_properties = list(ATOMS.calc.results)
@@ -148,10 +143,8 @@ class Properties2D(BaseModel):
         vis.figure = fig.to_json()
 
 
-class Properties1D(BaseModel):
-    discriminator: t.Literal["Properties1D"] = Field("Properties1D")
-
-    value: str = "energy"
+class Properties1D(Extension):
+    value: str
     smooth: bool = False
 
     model_config = ConfigDict(json_schema_extra=_schema_from_atoms)
@@ -162,11 +155,9 @@ class Properties1D(BaseModel):
 
     @classmethod
     def model_json_schema_from_atoms(cls, schema: dict) -> dict:
-        ATOMS = SHARED["atoms"]
+        ATOMS = cls.get_atoms()
         try:
-            available_properties = list(
-                ATOMS.calc.results.keys()
-            )  # global ATOMS object
+            available_properties = list(ATOMS.calc.results.keys())  # global ATOMS object
             log.debug(f"AVAILABLE PROPERTIES: {available_properties=}")
             schema["properties"]["value"]["enum"] = available_properties
         except AttributeError:
@@ -202,21 +193,13 @@ class Properties1D(BaseModel):
         vis.figure = fig.to_json()
 
 
-def get_analysis_class(methods):
-    class Analysis(BaseModel):
-        method: methods = Field(
-            ..., description="Analysis method", discriminator="discriminator"
-        )
+methods = t.Union[
+    Properties1D,
+    DihedralAngle,
+    Distance,
+    Properties2D,
+]
 
-        def run(self, *args, **kwargs) -> None:
-            return self.method.run(*args, **kwargs)
 
-        @classmethod
-        def model_json_schema_from_atoms(
-            cls, atoms, *args, **kwargs
-        ) -> dict[str, t.Any]:
-            with set_global_atoms(atoms):
-                result = cls.model_json_schema(*args, **kwargs)
-            return result
-
-    return Analysis
+class Analysis(MethodsCollection):
+    method: methods = Field(description="Analysis method", discriminator="discriminator")

@@ -1,33 +1,17 @@
-import dataclasses
-import pathlib
-import subprocess
-import uuid
-import webbrowser
+import eventlet
 
+eventlet.monkey_patch()
+
+import pathlib
+import time
+
+import redis
+import znsocket.exceptions
 from celery import Celery, Task
 from flask import Flask
 from flask_socketio import SocketIO
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
 
-from zndraw.db.schema import Base
-
-from .settings import GlobalConfig
-
-socketio = SocketIO()
-
-
-@dataclasses.dataclass
-class FileIO:
-    name: str = None
-    start: int = 0
-    stop: int = None
-    step: int = 1
-    remote: str = None
-    rev: str = None
-
-    def to_dict(self):
-        return dataclasses.asdict(self)
+from zndraw.server import init_socketio_events, main_blueprint
 
 
 def celery_init_app(app: Flask) -> Celery:
@@ -43,175 +27,82 @@ def celery_init_app(app: Flask) -> Celery:
     return celery_app
 
 
-def setup_worker(silence: bool) -> list:
-    """Setup the worker."""
-    import os
-    import platform
-
-    my_env = os.environ.copy()
-    if platform.system() == "Darwin" and platform.processor() == "arm":
-        # fix celery worker issue on apple silicon
-        my_env["OBJC_DISABLE_INITIALIZE_FORK_SAFETY"] = "YES"
-
-    fast_worker = subprocess.Popen(
-        [
-            "celery",
-            "-A",
-            "zndraw.make_celery",
-            "worker",
-            "--loglevel=info",
-            "--concurrency=6",
-            "--hostname=fast_worker",
-            "--queues=fast",
-            "--prefetch-multiplier=20",
-        ],
-        env=my_env,
-        stdout=subprocess.PIPE if silence else None,
-        stderr=subprocess.PIPE if silence else None,
-    )
-
-    default_worker = subprocess.Popen(
-        [
-            "celery",
-            "-A",
-            "zndraw.make_celery",
-            "worker",
-            "--loglevel=info",
-            "--concurrency=6",
-            "--hostname=default_worker",
-            "--queues=celery",
-            "--prefetch-multiplier=2",
-        ],
-        env=my_env,
-        stdout=subprocess.PIPE if silence else None,
-        stderr=subprocess.PIPE if silence else None,
-    )
-
-    slow_worker = subprocess.Popen(
-        [
-            "celery",
-            "-A",
-            "zndraw.make_celery",
-            "worker",
-            "--loglevel=info",
-            "--concurrency=1",
-            "--hostname=slow_worker",
-            "--queues=slow",
-        ],
-        env=my_env,
-        stdout=subprocess.PIPE if silence else None,
-        stderr=subprocess.PIPE if silence else None,
-    )
-    return [fast_worker, default_worker, slow_worker]
+def storage_init_app(app: Flask) -> None:
+    if app.config["STORAGE"].startswith("redis"):
+        app.extensions["redis"] = redis.Redis.from_url(
+            app.config["STORAGE"], decode_responses=True
+        )
+    elif app.config["STORAGE"].startswith("znsocket"):
+        for _ in range(100):  # try to connect to znsocket for 10 s
+            # if we start znsocket via celery it will take some time to start
+            try:
+                app.extensions["redis"] = znsocket.Client.from_url(app.config["STORAGE"])
+                break
+            except ConnectionError:
+                # wait for znsocket to start, if started together with the server
+                time.sleep(0.1)
+    else:
+        raise ValueError(f"Unknown storage type: {app.config['STORAGE']}")
 
 
 def create_app() -> Flask:
-    """Create the Flask app."""
-
     app = Flask(__name__)
-    from .server import main as main_blueprint
-
-    # values to be overwritten by the server
-    # these are the default
-    app.config["SECRET_KEY"] = str(uuid.uuid4())
-
-    app.config["TUTORIAL"] = ""
-    app.config["AUTH_TOKEN"] = ""
-    app.config["USE_TOKEN"] = True
-    app.config["PORT"] = 1234
-    # where is the port used?
-
-    app.config["upgrade_insecure_requests"] = False
-    app.config["compute_bonds"] = True
-
-    app.register_blueprint(main_blueprint)
-
-    socketio.init_app(app, cors_allowed_origins="*")
-
-    app.config.from_mapping(
-        CELERY=GlobalConfig.load().celery.to_dict(),
-    )
+    app.config["SECRET_KEY"] = "secret!"
+    # loads all FLASK_ prefixed environment variables into the app config
     app.config.from_prefixed_env()
+
+    # TODO: this will not work without redis!!!!
+    if app.config["STORAGE"].startswith("redis"):
+        app.config.from_mapping(
+            CELERY={
+                "broker_url": app.config["STORAGE"],
+                "result_backend": app.config["STORAGE"],
+                "task_ignore_result": True,
+            },
+        )
+    else:
+        # nothing else supported, using filesystem storage
+        data_folder = pathlib.Path("~/.zincware/zndraw/celery/out").expanduser()
+        data_folder_processed = pathlib.Path(
+            "~/.zincware/zndraw/celery/processed"
+        ).expanduser()
+        data_folder.mkdir(parents=True, exist_ok=True)
+        data_folder_processed.mkdir(parents=True, exist_ok=True)
+
+        app.config.from_mapping(
+            CELERY={
+                "broker_url": "filesystem://",
+                "result_backend": "cache",
+                "cache_backend": "memory",
+                "task_ignore_result": True,
+                "broker_transport_options": {
+                    "data_folder_in": data_folder.as_posix(),
+                    "data_folder_out": data_folder.as_posix(),
+                    "data_folder_processed": data_folder_processed.as_posix(),
+                },
+            },
+        )
+
+    # Initialize SocketIO
+    message_queue = (
+        app.config["CELERY"]["broker_url"]
+        if app.config["STORAGE"].startswith("redis")
+        else None
+    )
+
+    socketio = SocketIO(app, message_queue=message_queue, cors_allowed_origins="*")
+
+    # Initialize Celery
     celery_init_app(app)
+
+    # Initialize storage
+    storage_init_app(app)
+
+    # Register routes and socketio events
+    app.register_blueprint(main_blueprint)
+    init_socketio_events(socketio)
+
+    # Add socketio to app extensions for easy access
+    app.extensions["socketio"] = socketio
+
     return app
-
-
-@dataclasses.dataclass
-class ZnDrawServer:
-    use_token: bool
-    upgrade_insecure_requests: bool
-    compute_bonds: bool
-    tutorial: str
-    auth_token: str
-    port: int = 1234
-    fileio: FileIO = None
-    simgen: bool = False
-
-    _workers: list = None
-    app: Flask = None
-
-    def __enter__(self):
-        self.app = create_app()
-        return self
-
-    def __exit__(self, exc_type, exc_value, traceback):
-        if self._workers is None:
-            return
-        for worker in self._workers:
-            worker.kill()
-        for worker in self._workers:
-            worker.wait()
-
-    def update_cache(self):
-        self.app.config["SECRET_KEY"] = str(uuid.uuid4())
-
-        self.app.config["TUTORIAL"] = self.tutorial
-        self.app.config["AUTH_TOKEN"] = self.auth_token
-        self.app.config["USE_TOKEN"] = self.use_token
-        self.app.config["PORT"] = self.port
-        self.app.config["SIMGEN"] = self.simgen
-
-        self.app.config["upgrade_insecure_requests"] = self.upgrade_insecure_requests
-        self.app.config["compute_bonds"] = self.compute_bonds
-
-        self.app.config["FileIO"] = self.fileio.to_dict() if self.fileio else {}
-
-    def run(self, browser=False):
-        self.update_cache()
-        self._workers = setup_worker(silence=not self.use_token)
-
-        config = GlobalConfig.load()
-        try:
-            pathlib.Path(config.database.path).expanduser().unlink(missing_ok=True)
-        except AttributeError:
-            pass  # only for sqlite config
-        engine = create_engine(config.database.get_path())
-        Base.metadata.create_all(engine)
-        session = sessionmaker(bind=engine)
-        self._purge_old_modifier_clients(session)
-        self._mark_old_queue_items_as_failed(session)
-        if browser:
-            webbrowser.open(self.url_root)
-        socketio.run(self.app, port=self.port, host="0.0.0.0")
-
-    @property
-    def url_root(self):
-        return f"http://127.0.0.1:{self.port}"
-
-    @staticmethod
-    def _purge_old_modifier_clients(session):
-        from zndraw.db.schema import ModifierClient
-
-        with session() as ses:
-            ses.query(ModifierClient).delete()
-            ses.commit()
-
-    @staticmethod
-    def _mark_old_queue_items_as_failed(session):
-        from zndraw.db.schema import QueueItem
-
-        with session() as ses:
-            ses.query(QueueItem).filter(QueueItem.status == "queued").update(
-                dict(status="failed:server_restart")
-            )
-            ses.commit()
