@@ -234,7 +234,7 @@ function SiMGenButtons({ queuePosition }: { queuePosition: number }) {
 
   const createNewCanvas = () => {
     socket.emit("modifier:run", {
-      method: { discriminator: "newCanvas" },
+      method: { discriminator: "NewCanvas" },
     });
   };
 

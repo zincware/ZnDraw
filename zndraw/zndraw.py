@@ -329,7 +329,9 @@ class ZnDraw(ZnDrawBase):
         )
 
     @points.setter
-    def points(self, points: np.ndarray) -> None:
+    def points(self, points: np.ndarray|list) -> None:
+        if isinstance(points, list):
+            points = np.array(points)
         emit_with_retry(
             self.socket,
             "room:points:set",

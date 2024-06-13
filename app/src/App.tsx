@@ -15,6 +15,7 @@ import {
   BondInstances,
   SimulationCell,
   PerParticleVectors,
+  getCentroid,
 } from "./components/particles";
 import { Frames, Frame, Player } from "./components/particles";
 import { Geometries } from "./components/geometries";
@@ -420,6 +421,9 @@ export default function App() {
             method: { discriminator: "Delete" },
           });
         }
+      } else if (event.key =="c"){
+        const center = getCentroid(currentFrame.positions, selectedIds);
+        setOrbitControlsTarget(center);
       }
     };
 
@@ -430,7 +434,7 @@ export default function App() {
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [length, step, points, selectedPoint, bookmarks, currentFrame]);
+  }, [length, step, points, selectedPoint, bookmarks, currentFrame, selectedIds]);
 
   useEffect(() => {
     const updateCursorPosition = (event) => {
@@ -486,7 +490,6 @@ export default function App() {
             ref={cameraLightRef}
             position={
               [0, 0, 0]
-              // position should be cameraPosition + (cameraPosition - orbitControlsTarget)
             }
             decay={0}
             intensity={Math.PI}

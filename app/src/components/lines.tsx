@@ -260,6 +260,7 @@ export const VirtualCanvas = ({
             color="black"
             opacity={canvasVisible ? 0.5 : 0}
             transparent={true}
+            side={THREE.DoubleSide}
           />
         </Plane>
       )}

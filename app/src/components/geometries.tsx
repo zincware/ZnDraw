@@ -367,6 +367,7 @@ function GeometryComponent({
             opacity={geometry.material.opacity}
             wireframe={geometry.material.wireframe}
             transparent={geometry.material.opacity < 1.0}
+            side={THREE.DoubleSide}
           />
           {geometry.material.outlines && (
             <Outlines

@@ -50,6 +50,24 @@ export const Player = ({
   return null;
 };
 
+export const getCentroid = (positions: THREE.Vector3[], selection: Set<number>) => {
+  if (selection.size > 0) {
+    const centroid = new THREE.Vector3();
+    selection.forEach((i) => {
+      centroid.add(positions[i]);
+    });
+    centroid.divideScalar(selection.size);
+    return centroid;
+  } else {
+    const centroid = new THREE.Vector3();
+    positions.forEach((position) => {
+      centroid.add(position);
+    });
+    centroid.divideScalar(positions.length);
+    return centroid;
+  }
+}
+
 export const ParticleInstances = ({
   frame,
   selectedIds,
@@ -86,33 +104,6 @@ export const ParticleInstances = ({
       // camera.lookAt(0, 0, 0); // Make the camera look at (5, 5, 5)
     }
   }, [camera]);
-
-  // attach key handler on press "c"
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "c") {
-        // get the center of mass of the selected particles
-        const com = new THREE.Vector3();
-        if (selectedIds.size === 0) {
-          // get center from all particles
-          frame.positions.forEach((position) => {
-            com.add(position);
-          });
-          com.divideScalar(frame.positions.length);
-        } else {
-          selectedIds.forEach((id) => {
-            com.add(frame.positions[id]);
-          });
-          com.divideScalar(selectedIds.size);
-        }
-        setOrbitControlsTarget(com);
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [selectedIds, frame.positions, camera]);
 
   useEffect(() => {
     if (meshRef.current && count > 0) {
