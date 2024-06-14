@@ -189,7 +189,11 @@ const AnalysisMenu: React.FC<AnalysisMenuProps> = ({
       >
         <Card.Body className="pt-0 pb-5 my-0">
           <div ref={editorRef}></div>
-          <Button onClick={submitEditor} disabled={queuePosition >= 0} className="mx-2">
+          <Button
+            onClick={submitEditor}
+            disabled={queuePosition >= 0}
+            className="mx-2"
+          >
             {queuePosition > 0 && `Queue position: ${queuePosition}`}
             {queuePosition == 0 && `Running`}
             {queuePosition < 0 && `Submit`}
@@ -197,15 +201,15 @@ const AnalysisMenu: React.FC<AnalysisMenuProps> = ({
           <Button
             onClick={() => {
               setShowPlotsCard(!showPlotsCard);
-            }}>
+            }}
+          >
             {showPlotsCard ? "Hide Figure" : "Show Figure"}
-            </Button>
+          </Button>
         </Card.Body>
       </Card>
     </>
   );
 };
-
 
 const PlotsCard = ({
   plotData,
@@ -230,11 +234,13 @@ const PlotsCard = ({
   useEffect(() => {
     if (plotData) {
       const newPlotData = { ...plotData };
-      newPlotData.layout.paper_bgcolor = colorMode === "dark" ? "rgba(0,0,0, 0)" : "rgba(255,255,255, 0)";
+      newPlotData.layout.paper_bgcolor =
+        colorMode === "dark" ? "rgba(0,0,0, 0)" : "rgba(255,255,255, 0)";
       setPlotData(newPlotData);
     }
     const newPlotStyle = { ...plotStyle };
-    newPlotStyle.filter = colorMode === "dark" ? "invert(75%) hue-rotate(180deg)" : "";
+    newPlotStyle.filter =
+      colorMode === "dark" ? "invert(75%) hue-rotate(180deg)" : "";
     setPlotStyle(newPlotStyle);
   }, [colorMode]);
 
@@ -256,7 +262,12 @@ const PlotsCard = ({
         width: 400,
         height: 400,
       }}
-      style={{ zIndex: 1000, padding: 0, margin: 0, display: showPlotsCard ? "block" : "none" }}
+      style={{
+        zIndex: 1000,
+        padding: 0,
+        margin: 0,
+        display: showPlotsCard ? "block" : "none",
+      }}
       onResize={onResize}
     >
       <Card
