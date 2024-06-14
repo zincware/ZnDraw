@@ -141,10 +141,14 @@ def run_selection(room, data: dict) -> None:
 
 @shared_task
 def run_analysis(room, data: dict) -> None:
-    from zndraw import ZnDraw
     from zndraw.analyse import Analysis
+    from zndraw.zndraw import ZnDrawLocal
 
-    vis = ZnDraw(url=current_app.config["SERVER_URL"], token=room)
+    vis = ZnDrawLocal(
+        r=current_app.extensions["redis"],
+        url=current_app.config["SERVER_URL"],
+        token=room,
+    )
     vis.socket.emit("room:analysis:queue", 0)
     try:
         analysis = Analysis(**data)
