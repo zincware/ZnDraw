@@ -14,6 +14,7 @@ import { useEffect } from "react";
 
 import { JSONEditor } from "@json-editor/json-editor";
 import Plot from "react-plotly.js";
+import { Rnd } from "react-rnd";
 
 JSONEditor.defaults.options.theme = "bootstrap5";
 JSONEditor.defaults.options.iconlib = "fontawesome5";
@@ -34,8 +35,10 @@ interface SidebarMenuProps {
 }
 
 interface AnalysisMenuProps extends SidebarMenuProps {
-  plotData: any;
+  showPlotsCard: boolean;
   setPlotData: (data: any) => void;
+  colorMode: string;
+  setShowPlotsCard: (value: boolean) => void;
 }
 
 const useJSONEditor = (
@@ -133,13 +136,18 @@ const SidebarMenu: React.FC<SidebarMenuProps> = ({
 const AnalysisMenu: React.FC<AnalysisMenuProps> = ({
   schema,
   onSubmit,
-  plotData,
   setPlotData,
   queuePosition,
   visible,
+  colorMode,
+  showPlotsCard,
+  setShowPlotsCard,
 }) => {
-  const figureRef = useRef<HTMLDivElement>(null);
   const [userInput, setUserInput] = useState<any>(null);
+  const [plotStyle, setPlotStyle] = useState<any>({
+    width: "100%",
+    height: "100%",
+  });
   const editorRef = useJSONEditor(schema, userInput, setUserInput);
 
   useEffect(() => {
@@ -147,6 +155,7 @@ const AnalysisMenu: React.FC<AnalysisMenuProps> = ({
       try {
         const parsedData = JSON.parse(data);
         setPlotData(parsedData);
+        setShowPlotsCard(true);
       } catch (error) {
         console.error("Error parsing JSON data: ", error);
       }
@@ -180,26 +189,114 @@ const AnalysisMenu: React.FC<AnalysisMenuProps> = ({
       >
         <Card.Body className="pt-0 pb-5 my-0">
           <div ref={editorRef}></div>
-          <Button onClick={submitEditor} disabled={queuePosition >= 0}>
+          <Button
+            onClick={submitEditor}
+            disabled={queuePosition >= 0}
+            className="mx-2"
+          >
             {queuePosition > 0 && `Queue position: ${queuePosition}`}
             {queuePosition == 0 && `Running`}
             {queuePosition < 0 && `Submit`}
           </Button>
+          <Button
+            onClick={() => {
+              setShowPlotsCard(!showPlotsCard);
+            }}
+          >
+            {showPlotsCard ? "Hide Figure" : "Show Figure"}
+          </Button>
         </Card.Body>
-        <Card.Footer>
+      </Card>
+    </>
+  );
+};
+
+const PlotsCard = ({
+  plotData,
+  setPlotData,
+  colorMode,
+  showPlotsCard,
+  setShowPlotsCard,
+}: {
+  plotData: any;
+  setPlotData: any;
+  colorMode: string;
+  showPlotsCard: boolean;
+  setShowPlotsCard: any;
+}) => {
+  const [plotStyle, setPlotStyle] = useState<any>({
+    width: "100%",
+    height: "100%",
+  });
+  const [renderKey, setRenderKey] = useState<number>(0);
+  const cardRef = useRef<any>(null);
+
+  useEffect(() => {
+    if (plotData) {
+      const newPlotData = { ...plotData };
+      newPlotData.layout.paper_bgcolor =
+        colorMode === "dark" ? "rgba(0,0,0, 0)" : "rgba(255,255,255, 0)";
+      setPlotData(newPlotData);
+    }
+    const newPlotStyle = { ...plotStyle };
+    newPlotStyle.filter =
+      colorMode === "dark" ? "invert(75%) hue-rotate(180deg)" : "";
+    setPlotStyle(newPlotStyle);
+  }, [colorMode]);
+
+  const onResize = () => {
+    if (cardRef.current) {
+      const newPlotData = { ...plotData };
+      newPlotData.layout.width = cardRef.current.clientWidth;
+      newPlotData.layout.height = cardRef.current.clientHeight - 50;
+      setPlotData(newPlotData);
+      setRenderKey((prevKey) => prevKey + 1);
+    }
+  };
+
+  return (
+    <Rnd
+      default={{
+        x: 100,
+        y: -100,
+        width: 400,
+        height: 400,
+      }}
+      style={{
+        zIndex: 1000,
+        padding: 0,
+        margin: 0,
+        display: showPlotsCard ? "block" : "none",
+      }}
+      onResize={onResize}
+    >
+      <Card
+        style={{
+          margin: 0,
+          padding: 0,
+          width: "100%",
+          height: "100%",
+        }}
+        ref={cardRef}
+      >
+        <Card.Header className="d-flex justify-content-between align-items-center">
+          <Card.Title>Analysis Figure</Card.Title>
+          <Button variant="close" onClick={() => setShowPlotsCard(false)} />
+        </Card.Header>
+        <Card.Body>
           {plotData.data.length > 0 && (
             <Plot
-              ref={figureRef}
+              key={renderKey}
               data={plotData.data}
               layout={plotData.layout}
               frames={plotData.frames}
               config={plotData.config}
-              style={{ width: "100%", height: "100%" }}
+              style={plotStyle}
             />
           )}
-        </Card.Footer>
+        </Card.Body>
       </Card>
-    </>
+    </Rnd>
   );
 };
 
@@ -217,6 +314,7 @@ function SideBar({
   geometryQueue,
   triggerSelection,
   setTriggerSelection,
+  colorMode,
 }: {
   selectionSchema: any;
   modifierSchema: any;
@@ -231,6 +329,7 @@ function SideBar({
   geometryQueue: number;
   triggerSelection: boolean;
   setTriggerSelection: any;
+  colorMode: string;
 }) {
   const [visibleOption, setVisibleOption] = useState<string>("");
   const [plotData, setPlotData] = useState({
@@ -239,6 +338,7 @@ function SideBar({
     frames: [],
     config: {},
   });
+  const [showPlotsCard, setShowPlotsCard] = useState<boolean>(false);
 
   // if any menu is open and you click escape, close it
   useEffect(() => {
@@ -387,10 +487,19 @@ function SideBar({
         onSubmit={(data: any) => {
           socket.emit("analysis:run", data);
         }}
-        plotData={plotData}
         setPlotData={setPlotData}
         queuePosition={analysisQueue}
         visible={visibleOption == "analysis"}
+        colorMode={colorMode}
+        showPlotsCard={showPlotsCard}
+        setShowPlotsCard={setShowPlotsCard}
+      />
+      <PlotsCard
+        setPlotData={setPlotData}
+        plotData={plotData}
+        colorMode={colorMode}
+        showPlotsCard={showPlotsCard}
+        setShowPlotsCard={setShowPlotsCard}
       />
     </>
   );

@@ -684,6 +684,7 @@ export default function App() {
           analysisQueue={analysisQueue}
           triggerSelection={triggerSelection}
           setTriggerSelection={setTriggerSelection}
+          colorMode={colorMode}
         />
         <FrameProgressBar
           length={length}

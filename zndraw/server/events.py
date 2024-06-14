@@ -143,6 +143,7 @@ def init_socketio_events(io: SocketIO):
             return {}
         r: Redis = current_app.extensions["redis"]
         room = session.get("token")
+        # TODO: use ZnDrawLocal ?
 
         if r.exists(f"room:{room}:frames"):
             data = znsocket.List(r, f"room:{room}:frames")[frames]
