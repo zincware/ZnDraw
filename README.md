@@ -76,6 +76,13 @@ vis.geometries = [Box(position=[0, 1, 2])]
 ![ZnDraw UI](https://raw.githubusercontent.com/zincware/ZnDraw/v04-readme/misc/darkmode/box.png#gh-dark-mode-only "ZnDraw Geometries")
 ![ZnDraw UI](https://raw.githubusercontent.com/zincware/ZnDraw/v04-readme/misc/lightmode/box.png#gh-light-mode-only "ZnDraw Geometries")
 
+## Analyzing Data
+
+ZnDraw enables you to analyze your data and generate plots using [Plotly](https://plotly.com/). It automatically detects available properties and offers a convenient drop-down menu for selection.
+
+![ZnDraw UI](https://raw.githubusercontent.com/zincware/ZnDraw/v04-readme/misc/darkmode/analysis.png#gh-dark-mode-only "ZnDraw Analysis")
+![ZnDraw UI](https://raw.githubusercontent.com/zincware/ZnDraw/v04-readme/misc/lightmode/analysis.png#gh-light-mode-only "ZnDraw Analysis")
+
 ## Writing Extensions
 
 Make your tools accessible via the ZnDraw UI by writing an extension:
