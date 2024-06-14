@@ -142,7 +142,10 @@ const AnalysisMenu: React.FC<AnalysisMenuProps> = ({
 }) => {
   const figureRef = useRef<HTMLDivElement>(null);
   const [userInput, setUserInput] = useState<any>(null);
-  const [plotStyle, setPlotStyle] = useState<any>({ width: "100%", height: "100%" });
+  const [plotStyle, setPlotStyle] = useState<any>({
+    width: "100%",
+    height: "100%",
+  });
   const editorRef = useJSONEditor(schema, userInput, setUserInput);
 
   useEffect(() => {
@@ -150,9 +153,8 @@ const AnalysisMenu: React.FC<AnalysisMenuProps> = ({
       try {
         const parsedData = JSON.parse(data);
 
-        parsedData.layout.paper_bgcolor = 'rgba(255,255,255, 0)',
-
-        setPlotData(parsedData);
+        (parsedData.layout.paper_bgcolor = "rgba(255,255,255, 0)"),
+          setPlotData(parsedData);
       } catch (error) {
         console.error("Error parsing JSON data: ", error);
       }
@@ -169,13 +171,14 @@ const AnalysisMenu: React.FC<AnalysisMenuProps> = ({
   useEffect(() => {
     if (plotData) {
       const newPlotData = { ...plotData };
-      newPlotData.layout.paper_bgcolor = colorMode === "dark" ? 'rgba(0,0,0, 0)' : 'rgba(255,255,255, 0)';
+      newPlotData.layout.paper_bgcolor =
+        colorMode === "dark" ? "rgba(0,0,0, 0)" : "rgba(255,255,255, 0)";
       setPlotData(newPlotData);
     }
     const newPlotStyle = { ...plotStyle };
-    newPlotStyle.filter = colorMode === "dark" ? "invert(75%) hue-rotate(180deg)" : "";
+    newPlotStyle.filter =
+      colorMode === "dark" ? "invert(75%) hue-rotate(180deg)" : "";
     setPlotStyle(newPlotStyle);
-
   }, [colorMode]);
 
   function submitEditor() {
