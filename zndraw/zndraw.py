@@ -9,6 +9,8 @@ import numpy as np
 import socketio.exceptions
 import tqdm
 import znframe
+import znsocket
+from redis import Redis
 
 from zndraw.base import Extension, ZnDrawBase
 from zndraw.draw import Geometry, Object3D
@@ -508,3 +510,32 @@ class ZnDraw(ZnDrawBase):
 
             self._available = True
             self.socket.emit("modifier:available", list(self._modifiers))
+
+
+@dataclasses.dataclass(kw_only=True)
+class ZnDrawLocal(ZnDraw):
+    """Access database directly.
+
+    This client can / should be used if the database can be accessed directly.
+    Data will not be loaded via sockets but modified directly in the database.
+    """
+
+    r: Redis
+
+    def __getitem__(self, index: int | list | slice) -> ase.Atoms | list[ase.Atoms]:
+        single_item = isinstance(index, int)
+        if single_item:
+            index = [index]
+        if self.r.exists(f"room:{self.token}:frames"):
+            data = znsocket.List(self.r, f"room:{self.token}:frames")[index]
+
+        else:
+            try:
+                data = znsocket.List(self.r, "room:default:frames")[index]
+            except IndexError:
+                data = []
+
+        structures = [znframe.Frame.from_json(x).to_atoms() for x in data]
+        if single_item:
+            return structures[0]
+        return structures

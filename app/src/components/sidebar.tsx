@@ -36,6 +36,7 @@ interface SidebarMenuProps {
 interface AnalysisMenuProps extends SidebarMenuProps {
   plotData: any;
   setPlotData: (data: any) => void;
+  colorMode: string;
 }
 
 const useJSONEditor = (
@@ -137,16 +138,23 @@ const AnalysisMenu: React.FC<AnalysisMenuProps> = ({
   setPlotData,
   queuePosition,
   visible,
+  colorMode,
 }) => {
   const figureRef = useRef<HTMLDivElement>(null);
   const [userInput, setUserInput] = useState<any>(null);
+  const [plotStyle, setPlotStyle] = useState<any>({
+    width: "100%",
+    height: "100%",
+  });
   const editorRef = useJSONEditor(schema, userInput, setUserInput);
 
   useEffect(() => {
     const handleFigure = (data) => {
       try {
         const parsedData = JSON.parse(data);
-        setPlotData(parsedData);
+
+        (parsedData.layout.paper_bgcolor = "rgba(255,255,255, 0)"),
+          setPlotData(parsedData);
       } catch (error) {
         console.error("Error parsing JSON data: ", error);
       }
@@ -158,6 +166,20 @@ const AnalysisMenu: React.FC<AnalysisMenuProps> = ({
       socket.off("analysis:figure:set", handleFigure);
     };
   }, []);
+
+  // update setPlotData when colorMode changes
+  useEffect(() => {
+    if (plotData) {
+      const newPlotData = { ...plotData };
+      newPlotData.layout.paper_bgcolor =
+        colorMode === "dark" ? "rgba(0,0,0, 0)" : "rgba(255,255,255, 0)";
+      setPlotData(newPlotData);
+    }
+    const newPlotStyle = { ...plotStyle };
+    newPlotStyle.filter =
+      colorMode === "dark" ? "invert(75%) hue-rotate(180deg)" : "";
+    setPlotStyle(newPlotStyle);
+  }, [colorMode]);
 
   function submitEditor() {
     if (onSubmit) {
@@ -194,7 +216,7 @@ const AnalysisMenu: React.FC<AnalysisMenuProps> = ({
               layout={plotData.layout}
               frames={plotData.frames}
               config={plotData.config}
-              style={{ width: "100%", height: "100%" }}
+              style={plotStyle}
             />
           )}
         </Card.Footer>
@@ -217,6 +239,7 @@ function SideBar({
   geometryQueue,
   triggerSelection,
   setTriggerSelection,
+  colorMode,
 }: {
   selectionSchema: any;
   modifierSchema: any;
@@ -231,6 +254,7 @@ function SideBar({
   geometryQueue: number;
   triggerSelection: boolean;
   setTriggerSelection: any;
+  colorMode: string;
 }) {
   const [visibleOption, setVisibleOption] = useState<string>("");
   const [plotData, setPlotData] = useState({
@@ -391,6 +415,7 @@ function SideBar({
         setPlotData={setPlotData}
         queuePosition={analysisQueue}
         visible={visibleOption == "analysis"}
+        colorMode={colorMode}
       />
     </>
   );

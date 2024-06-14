@@ -103,10 +103,14 @@ def read_file(fileio: dict) -> None:
 
 @shared_task
 def run_modifier(room, data: dict) -> None:
-    from zndraw import ZnDraw
     from zndraw.modify import Modifier
+    from zndraw.zndraw import ZnDrawLocal
 
-    vis = ZnDraw(url=current_app.config["SERVER_URL"], token=room)
+    vis = ZnDrawLocal(
+        r=current_app.extensions["redis"],
+        url=current_app.config["SERVER_URL"],
+        token=room,
+    )
     vis.socket.emit("room:modifier:queue", 0)
     try:
         modifier = Modifier(**data)
@@ -123,10 +127,14 @@ def run_modifier(room, data: dict) -> None:
 
 @shared_task
 def run_selection(room, data: dict) -> None:
-    from zndraw import ZnDraw
     from zndraw.selection import Selection
+    from zndraw.zndraw import ZnDrawLocal
 
-    vis = ZnDraw(url=current_app.config["SERVER_URL"], token=room)
+    vis = ZnDrawLocal(
+        r=current_app.extensions["redis"],
+        url=current_app.config["SERVER_URL"],
+        token=room,
+    )
     vis.socket.emit("room:selection:queue", 0)
     try:
         selection = Selection(**data)
@@ -141,10 +149,14 @@ def run_selection(room, data: dict) -> None:
 
 @shared_task
 def run_analysis(room, data: dict) -> None:
-    from zndraw import ZnDraw
     from zndraw.analyse import Analysis
+    from zndraw.zndraw import ZnDrawLocal
 
-    vis = ZnDraw(url=current_app.config["SERVER_URL"], token=room)
+    vis = ZnDrawLocal(
+        r=current_app.extensions["redis"],
+        url=current_app.config["SERVER_URL"],
+        token=room,
+    )
     vis.socket.emit("room:analysis:queue", 0)
     try:
         analysis = Analysis(**data)
@@ -161,10 +173,14 @@ def run_analysis(room, data: dict) -> None:
 
 @shared_task
 def run_geometry(room, data: dict) -> None:
-    from zndraw import ZnDraw
     from zndraw.draw import Geometry
+    from zndraw.zndraw import ZnDrawLocal
 
-    vis = ZnDraw(url=current_app.config["SERVER_URL"], token=room)
+    vis = ZnDrawLocal(
+        r=current_app.extensions["redis"],
+        url=current_app.config["SERVER_URL"],
+        token=room,
+    )
     vis.socket.emit("room:geometry:queue", 0)
     try:
         geom = Geometry(**data)
@@ -184,9 +200,13 @@ def run_upload_file(room, data: dict):
 
     import ase.io
 
-    from zndraw import ZnDraw
+    from zndraw.zndraw import ZnDrawLocal
 
-    vis = ZnDraw(url=current_app.config["SERVER_URL"], token=room)
+    vis = ZnDrawLocal(
+        r=current_app.extensions["redis"],
+        url=current_app.config["SERVER_URL"],
+        token=room,
+    )
 
     vis.log(f"Uploading {data['filename']}")
 
