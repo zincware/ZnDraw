@@ -1,8 +1,8 @@
+import ase
 import numpy.testing as npt
 import pytest
 import znjson
 from ase.calculators.singlepoint import SinglePointCalculator
-import ase
 
 from zndraw.utils import ASEConverter
 
@@ -40,5 +40,5 @@ def test_exotic_atoms():
         znjson.dumps(atoms, cls=znjson.ZnEncoder.from_converters([ASEConverter])),
         cls=znjson.ZnDecoder.from_converters([ASEConverter]),
     )
-    npt.assert_array_equal(new_atoms.arrays["colors"], ['#ff0000'])
+    npt.assert_array_equal(new_atoms.arrays["colors"], ["#ff0000"])
     npt.assert_array_equal(new_atoms.arrays["radii"], [0.2])

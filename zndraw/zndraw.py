@@ -13,9 +13,9 @@ import znsocket
 from redis import Redis
 
 from zndraw.base import Extension, ZnDrawBase
+from zndraw.bonds import ASEComputeBonds
 from zndraw.draw import Geometry, Object3D
 from zndraw.utils import ASEConverter, call_with_retry, emit_with_retry
-from zndraw.bonds import ASEComputeBonds
 
 log = logging.getLogger(__name__)
 
@@ -87,7 +87,7 @@ class ZnDraw(ZnDrawBase):
         default_factory=datetime.datetime.now
     )
 
-    bond_calculator: ASEComputeBonds|None = dataclasses.field(
+    bond_calculator: ASEComputeBonds | None = dataclasses.field(
         default_factory=ASEComputeBonds, repr=False
     )
 
@@ -180,7 +180,9 @@ class ZnDraw(ZnDrawBase):
         for i, val in zip(index, value):
             if not hasattr(val, "connectivity") and self.bond_calculator is not None:
                 val.connectivity = self.bond_calculator.get_bonds(val)
-            data[i] = znjson.dumps(val, cls=znjson.ZnEncoder.from_converters([ASEConverter]))
+            data[i] = znjson.dumps(
+                val, cls=znjson.ZnEncoder.from_converters([ASEConverter])
+            )
 
         call_with_retry(
             self.socket,
