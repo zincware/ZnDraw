@@ -10,6 +10,7 @@ from celery import shared_task
 from flask import current_app
 
 from zndraw.base import FileIO
+from zndraw.bonds import ASEComputeBonds
 from zndraw.utils import ASEConverter
 
 log = logging.getLogger(__name__)
@@ -101,6 +102,25 @@ def read_file(fileio: dict) -> None:
 
     io.sleep(1)
     io.disconnect()
+
+
+@shared_task
+def compute_bonds(room=None) -> None:
+    from zndraw.zndraw import ZnDrawLocal
+
+    vis = ZnDrawLocal(
+        r=current_app.extensions["redis"],
+        url=current_app.config["SERVER_URL"],
+        token="default" if room is None else room,
+    )
+
+    bonds_calculator = ASEComputeBonds()
+    for idx, atoms in enumerate(vis):
+        try:
+            atoms.connectivity = bonds_calculator.get_bonds(atoms)
+            vis[idx] = atoms
+        except Exception as e:
+            vis.log(str(e))
 
 
 @shared_task

@@ -137,7 +137,8 @@ class ASEConverter(ConverterBase):
             cell=value["cell"],
         )
         if connectivity := value.get("connectivity"):
-            atoms.connectivity = connectivity
+            # or do we want this to be nx.Graph?
+            atoms.connectivity = np.array(connectivity)
         if "colors" in value["arrays"]:
             atoms.arrays["colors"] = np.array(value["arrays"]["colors"])
         if "radii" in value["arrays"]:
