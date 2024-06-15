@@ -13,8 +13,8 @@ import datamodel_code_generator
 import numpy as np
 import socketio.exceptions
 from ase.calculators.singlepoint import SinglePointCalculator
+from ase.data import covalent_radii
 from ase.data.colors import jmol_colors
-from ase.data.vdw import vdw_radii
 from znjson import ConverterBase
 
 log = logging.getLogger(__name__)
@@ -99,7 +99,7 @@ class ASEConverter(ConverterBase):
             )
 
         if "radii" not in obj.arrays:
-            arrays["radii"] = [vdw_radii[number] for number in numbers]
+            arrays["radii"] = [covalent_radii[number] for number in numbers]
         else:
             arrays["radii"] = (
                 obj.arrays["radii"].tolist()
@@ -138,7 +138,10 @@ class ASEConverter(ConverterBase):
         )
         if connectivity := value.get("connectivity"):
             atoms.connectivity = connectivity
-        atoms.arrays.update(value["arrays"])
+        if "colors" in value["arrays"]:
+            atoms.arrays["colors"] = np.array(value["arrays"]["colors"])
+        if "radii" in value["arrays"]:
+            atoms.arrays["radii"] = np.array(value["arrays"]["radii"])
         if calc := value.get("calc"):
             atoms.calc = SinglePointCalculator(atoms)
             atoms.calc.results.update(calc)

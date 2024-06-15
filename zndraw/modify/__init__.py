@@ -55,7 +55,7 @@ class Connect(UpdateScene):
         camera_position = np.array(vis.camera["position"])[None, :]  # 1,3
 
         new_points = atom_positions[atom_ids]  # N, 3
-        radii: np.ndarray = atoms.arrays["radii"][atom_ids]
+        radii: np.ndarray = atoms.arrays["radii"][atom_ids][:, None]
         direction = camera_position - new_points
         direction /= np.linalg.norm(direction, axis=1, keepdims=True)
         new_points += direction * radii
@@ -117,7 +117,8 @@ class Delete(UpdateScene):
         else:
             for idx, atom_id in enumerate(sorted(atom_ids)):
                 atoms.pop(atom_id - idx)  # we remove the atom and shift the index
-            del atoms.connectivity
+            if hasattr(atoms, "connectivity"):
+                del atoms.connectivity
         vis.append(atoms)
         vis.selection = []
         vis.step += 1

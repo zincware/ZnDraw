@@ -155,7 +155,9 @@ class ZnDraw(ZnDrawBase):
         )
 
         structures = [
-            znjson.loads(x, cls=znjson.ZnDecoder.from_converters([ASEConverter]))
+            znjson.loads(
+                json.dumps(x), cls=znjson.ZnDecoder.from_converters([ASEConverter])
+            )
             for x in data.values()
         ]
         return structures[0] if single_item else structures
