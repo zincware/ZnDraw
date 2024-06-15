@@ -212,6 +212,9 @@ class ZnDraw(ZnDrawBase):
         )
 
     def insert(self, index: int, value: ase.Atoms):
+        if hasattr(value, "connectivity") and self.bond_calculator is not None:
+            value.connectivity = self.bond_calculator.get_bonds(value)
+
         call_with_retry(
             self.socket,
             "room:frames:insert",
