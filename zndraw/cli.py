@@ -6,12 +6,11 @@ import os
 import typing as t
 
 import typer
-from celery import chain
 
 from zndraw.app import create_app
 from zndraw.base import FileIO
 from zndraw.standalone import run_celery_worker, run_znsocket
-from zndraw.tasks import compute_bonds, read_file
+from zndraw.tasks import read_file
 from zndraw.utils import get_port
 
 cli = typer.Typer()
@@ -123,10 +122,7 @@ def main(
 
     app = create_app()
 
-    # read_file.delay(fileio.to_dict())
-    # compute_bonds.delay()
-
-    chain(read_file.s(fileio.to_dict()), compute_bonds.s()).apply_async()
+    read_file.delay(fileio.to_dict())
 
     if browser:
         import webbrowser
