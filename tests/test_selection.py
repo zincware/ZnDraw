@@ -24,7 +24,6 @@ def test_selection(server, s22):
 
     with pytest.raises(ValueError):
         vis.selection = [0, 0, 2]
-    
+
     with pytest.raises(ValueError):
         vis.selection = "Hello"
-
