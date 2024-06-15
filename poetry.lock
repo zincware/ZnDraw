@@ -284,7 +284,7 @@ files = [
 name = "attrs"
 version = "23.2.0"
 description = "Classes Without Boilerplate"
-optional = false
+optional = true
 python-versions = ">=3.7"
 files = [
     {file = "attrs-23.2.0-py3-none-any.whl", hash = "sha256:99b87a485a5820b23b879f04c2305b44b951b502fd64be915879d77a7e8fc6f1"},
@@ -972,9 +972,9 @@ isort = ">=4.3.21,<6.0"
 jinja2 = ">=2.10.1,<4.0"
 packaging = "*"
 pydantic = [
-    {version = ">=1.10.0,<2.0.0 || >2.0.0,<2.0.1 || >2.0.1,<2.4.0 || >2.4.0,<3.0", extras = ["email"], markers = "python_version >= \"3.12\" and python_version < \"4.0\""},
-    {version = ">=1.10.0,<2.4.0 || >2.4.0,<3.0", extras = ["email"], markers = "python_version >= \"3.11\" and python_version < \"3.12\""},
     {version = ">=1.9.0,<2.4.0 || >2.4.0,<3.0", extras = ["email"], markers = "python_version >= \"3.10\" and python_version < \"3.11\""},
+    {version = ">=1.10.0,<2.4.0 || >2.4.0,<3.0", extras = ["email"], markers = "python_version >= \"3.11\" and python_version < \"3.12\""},
+    {version = ">=1.10.0,<2.0.0 || >2.0.0,<2.0.1 || >2.0.1,<2.4.0 || >2.4.0,<3.0", extras = ["email"], markers = "python_version >= \"3.12\" and python_version < \"4.0\""},
 ]
 pyyaml = ">=6.0.1"
 toml = {version = ">=0.10.0,<1.0.0", markers = "python_version < \"3.11\""}
@@ -3021,9 +3021,9 @@ files = [
 
 [package.dependencies]
 numpy = [
-    {version = ">=1.26.0", markers = "python_version >= \"3.12\""},
-    {version = ">=1.23.2", markers = "python_version == \"3.11\""},
     {version = ">=1.22.4", markers = "python_version < \"3.11\""},
+    {version = ">=1.23.2", markers = "python_version == \"3.11\""},
+    {version = ">=1.26.0", markers = "python_version >= \"3.12\""},
 ]
 python-dateutil = ">=2.8.2"
 pytz = ">=2020.1"
@@ -4791,32 +4791,14 @@ networkx = ">=3.0,<4.0"
 dask = ["bokeh (>=2.4.2,<3.0.0)", "dask (>=2022.12.1,<2023.0.0)", "dask-jobqueue (>=0.8.1,<0.9.0)", "distributed (>=2022.12.1,<2023.0.0)"]
 
 [[package]]
-name = "znframe"
-version = "0.1.5"
-description = "ZnFrame - ASE-like Interface based on dataclasses"
-optional = false
-python-versions = ">=3.9,<4.0"
-files = [
-    {file = "znframe-0.1.5-py3-none-any.whl", hash = "sha256:3645ee836b19f3d957686ba58f2fd4c142afef44df33764856848579e3af61f4"},
-    {file = "znframe-0.1.5.tar.gz", hash = "sha256:b5424e196af4df7fc8662c8ce6be5950a1307b763d4159bad69a0559448f6acf"},
-]
-
-[package.dependencies]
-ase = ">=3.22.1,<4.0.0"
-attrs = ">=23.1.0,<24.0.0"
-networkx = ">=3.2.1,<4.0.0"
-numpy = ">=1.26.2,<2.0.0"
-pydantic = ">=2.5.3,<3.0.0"
-
-[[package]]
 name = "znh5md"
-version = "0.2.0"
+version = "0.2.1"
 description = "High Performance Interface for H5MD Trajectories"
 optional = true
 python-versions = "<4.0,>=3.9"
 files = [
-    {file = "znh5md-0.2.0-py3-none-any.whl", hash = "sha256:563e5c9b6a1e29864d31c4731416eb4b79f7acfee23cbe8cc53730b247d1125b"},
-    {file = "znh5md-0.2.0.tar.gz", hash = "sha256:da60ca2e53f2d74cdc3a5954dbadae912973e4a29456329d2e6406f8d5e794bf"},
+    {file = "znh5md-0.2.1-py3-none-any.whl", hash = "sha256:73a4393544ed791d6aaa3850a30e14dd4f04e820c3cf5ea5f0aa74eab1be52d0"},
+    {file = "znh5md-0.2.1.tar.gz", hash = "sha256:aa10de0219f0abc0ab685c1e3d91b556ea9e03cca8e08c8d491e50dcd511cb0b"},
 ]
 
 [package.dependencies]
@@ -4903,4 +4885,4 @@ rdkit = ["rdkit2ase"]
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "28904682037b0f015c31ee09e1451c0db226f8a83e92dfe0a028323deba93ff1"
+content-hash = "76d89fb129c3dfe3da2cc64d4f88c05e1c1722008287e4dafa40207f16aa06f6"
