@@ -1,3 +1,4 @@
+import functools
 import importlib.util
 import json
 import logging
@@ -16,7 +17,6 @@ from ase.calculators.singlepoint import SinglePointCalculator
 from ase.data import covalent_radii
 from ase.data.colors import jmol_colors
 from znjson import ConverterBase
-import functools
 
 log = logging.getLogger(__name__)
 
@@ -36,6 +36,7 @@ def rgb2hex(value):
     r, g, b = np.array(value * 255, dtype=int)
     return "#%02x%02x%02x" % (r, g, b)
 
+
 @functools.lru_cache(maxsize=128)
 def get_scaled_radii() -> np.ndarray:
     """Scale down the covalent radii to visualize bonds better."""
@@ -45,6 +46,7 @@ def get_scaled_radii() -> np.ndarray:
     radii = radii / np.max(radii)
     radii = radii + 0.3
     return radii
+
 
 class ASEConverter(ConverterBase):
     """Encode/Decode datetime objects
