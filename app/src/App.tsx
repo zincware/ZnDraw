@@ -134,9 +134,6 @@ export default function App() {
   // if step changes
   useEffect(() => {
     socket.emit("room:frames:get", [step], (frames: Frames) => {
-      console.log(frames);
-      // map positions: numbers[][] to THREE.Vector3[]
-
       for (const key in frames) {
         if (frames.hasOwnProperty(key)) {
           const frame: Frame = frames[key]["value"];
