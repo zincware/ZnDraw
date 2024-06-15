@@ -217,12 +217,14 @@ const PlotsCard = ({
   colorMode,
   showPlotsCard,
   setShowPlotsCard,
+  setStep,
 }: {
   plotData: any;
   setPlotData: any;
   colorMode: string;
   showPlotsCard: boolean;
   setShowPlotsCard: any;
+  setStep: any;
 }) => {
   const [plotStyle, setPlotStyle] = useState<any>({
     width: "100%",
@@ -252,6 +254,17 @@ const PlotsCard = ({
       setPlotData(newPlotData);
       setRenderKey((prevKey) => prevKey + 1);
     }
+  };
+
+  const onPlotClick = ({
+    event,
+    points,
+  }: {
+    event: MouseEvent;
+    points: any[];
+  }) => {
+    console.log(points[0].pointIndex);
+    setStep(points[0].pointIndex);
   };
 
   return (
@@ -292,6 +305,7 @@ const PlotsCard = ({
               frames={plotData.frames}
               config={plotData.config}
               style={plotStyle}
+              onClick={onPlotClick}
             />
           )}
         </Card.Body>
@@ -315,6 +329,7 @@ function SideBar({
   triggerSelection,
   setTriggerSelection,
   colorMode,
+  setStep,
 }: {
   selectionSchema: any;
   modifierSchema: any;
@@ -330,6 +345,7 @@ function SideBar({
   triggerSelection: boolean;
   setTriggerSelection: any;
   colorMode: string;
+  setStep: any;
 }) {
   const [visibleOption, setVisibleOption] = useState<string>("");
   const [plotData, setPlotData] = useState({
@@ -500,6 +516,7 @@ function SideBar({
         colorMode={colorMode}
         showPlotsCard={showPlotsCard}
         setShowPlotsCard={setShowPlotsCard}
+        setStep={setStep}
       />
     </>
   );
