@@ -8,13 +8,13 @@ import ase
 import numpy as np
 import socketio.exceptions
 import tqdm
-import znframe
+import znjson
 import znsocket
 from redis import Redis
 
 from zndraw.base import Extension, ZnDrawBase
 from zndraw.draw import Geometry, Object3D
-from zndraw.utils import call_with_retry, emit_with_retry
+from zndraw.utils import ASEConverter, call_with_retry, emit_with_retry
 
 log = logging.getLogger(__name__)
 
@@ -154,7 +154,10 @@ class ZnDraw(ZnDrawBase):
             retries=self.timeout["call_retries"],
         )
 
-        structures = [znframe.Frame(**x).to_atoms() for x in data.values()]
+        structures = [
+            znjson.loads(x, cls=znjson.ZnDecoder.from_converters([ASEConverter]))
+            for x in data.values()
+        ]
         return structures[0] if single_item else structures
 
     def __setitem__(
@@ -163,10 +166,15 @@ class ZnDraw(ZnDrawBase):
         if isinstance(index, slice):
             index = list(range(*index.indices(len(self))))
         if isinstance(index, int):
-            data = {index: znframe.Frame.from_atoms(value).to_json()}
+            data = {
+                index: znjson.dumps(
+                    value, cls=znjson.ZnEncoder.from_converters([ASEConverter])
+                )
+            }
         else:
             data = {
-                i: znframe.Frame.from_atoms(val).to_json() for i, val in zip(index, value)
+                i: znjson.dumps(val, cls=znjson.ZnEncoder.from_converters([ASEConverter]))
+                for i, val in zip(index, value)
             }
 
         call_with_retry(
@@ -202,7 +210,12 @@ class ZnDraw(ZnDrawBase):
         call_with_retry(
             self.socket,
             "room:frames:insert",
-            {"index": index, "value": znframe.Frame.from_atoms(value).to_json()},
+            {
+                "index": index,
+                "value": znjson.dumps(
+                    value, cls=znjson.ZnEncoder.from_converters([ASEConverter])
+                ),
+            },
             retries=self.timeout["call_retries"],
         )
 
@@ -211,10 +224,13 @@ class ZnDraw(ZnDrawBase):
 
         # enable tbar if more than 10 messages are sent
         # approximated by the size of the first frame
+
         show_tbar = (
             len(values)
             * len(
-                json.dumps(znframe.Frame.from_atoms(values[0]).to_json()).encode("utf-8")
+                znjson.dumps(
+                    values[0], cls=znjson.ZnEncoder.from_converters([ASEConverter])
+                ).encode("utf-8")
             )
         ) > (10 * self.maximum_message_size)
         tbar = tqdm.tqdm(
@@ -222,7 +238,9 @@ class ZnDraw(ZnDrawBase):
         )
 
         for i, val in enumerate(tbar, start=len(self)):
-            msg[i] = znframe.Frame.from_atoms(val).to_json()
+            msg[i] = znjson.dumps(
+                val, cls=znjson.ZnEncoder.from_converters([ASEConverter])
+            )
             if len(json.dumps(msg).encode("utf-8")) > self.maximum_message_size:
                 call_with_retry(
                     self.socket,
@@ -535,7 +553,10 @@ class ZnDrawLocal(ZnDraw):
             except IndexError:
                 data = []
 
-        structures = [znframe.Frame.from_json(x).to_atoms() for x in data]
+        structures = [
+            znjson.loads(x, cls=znjson.ZnDecoder.from_converters([ASEConverter]))
+            for x in data
+        ]
         if single_item:
             return structures[0]
         return structures

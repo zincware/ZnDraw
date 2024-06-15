@@ -1,5 +1,3 @@
-import json
-
 import pytest
 import znjson
 from ase.calculators.singlepoint import SinglePointCalculator
@@ -13,10 +11,10 @@ def test_ase_converter(s22):
     s22[3].calc.results = {"energy": 0.0, "predicted_energy": 1.0}
     s22[4].info = {"key": "value"}
 
-    structures_json = json.dumps(
+    structures_json = znjson.dumps(
         s22, cls=znjson.ZnEncoder.from_converters([ASEConverter])
     )
-    structures = json.loads(
+    structures = znjson.loads(
         structures_json, cls=znjson.ZnDecoder.from_converters([ASEConverter])
     )
     for s1, s2 in zip(s22, structures):

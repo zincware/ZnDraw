@@ -8,7 +8,6 @@ import ase
 import numpy as np
 from ase.data import chemical_symbols
 from pydantic import Field
-from znframe.frame import get_radius
 
 from zndraw.base import Extension, MethodsCollection
 
@@ -50,13 +49,13 @@ class Connect(UpdateScene):
     """Create guiding curve between selected atoms."""
 
     def run(self, vis: "ZnDraw", **kwargs) -> None:
+        atoms = vis.atoms
         atom_ids = vis.selection
         atom_positions = vis.atoms.get_positions()
-        atom_numbers = vis.atoms.numbers[atom_ids]
         camera_position = np.array(vis.camera["position"])[None, :]  # 1,3
 
         new_points = atom_positions[atom_ids]  # N, 3
-        radii: np.ndarray = get_radius(atom_numbers)[0][:, None]  # N, 1
+        radii: np.ndarray = atoms.arrays["radii"][atom_ids]
         direction = camera_position - new_points
         direction /= np.linalg.norm(direction, axis=1, keepdims=True)
         new_points += direction * radii

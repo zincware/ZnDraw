@@ -86,6 +86,8 @@ class ASEConverter(ConverterBase):
         else:
             calc = {}
 
+        # All additional information should be stored in calc.results
+        # and not in calc.arrays, thus we will not convert it here!
         arrays = {}
         if "colors" not in obj.arrays:
             arrays["colors"] = [rgb2hex(jmol_colors[number]) for number in numbers]

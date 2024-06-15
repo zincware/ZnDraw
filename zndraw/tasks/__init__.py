@@ -4,12 +4,13 @@ import typing as t
 import ase.io
 import socketio.exceptions
 import tqdm
-import znframe
+import znjson
 import znsocket
 from celery import shared_task
 from flask import current_app
 
 from zndraw.base import FileIO
+from zndraw.utils import ASEConverter
 
 log = logging.getLogger(__name__)
 
@@ -77,8 +78,9 @@ def read_file(fileio: dict) -> None:
             break
         if file_io.step and idx % file_io.step != 0:
             continue
-        frame = znframe.Frame.from_atoms(atoms)
-        lst.append(frame.to_json())
+        lst.append(
+            znjson.dumps(atoms, cls=znjson.ZnEncoder.from_converters([ASEConverter]))
+        )
         if idx == 0:
             try:
                 io.connect(current_app.config["SERVER_URL"], wait_timeout=10)
