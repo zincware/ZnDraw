@@ -87,7 +87,7 @@ class ZnDraw(ZnDrawBase):
         default_factory=datetime.datetime.now
     )
 
-    bond_calculator: ASEComputeBonds = dataclasses.field(
+    bond_calculator: ASEComputeBonds|None = dataclasses.field(
         default_factory=ASEComputeBonds, repr=False
     )
 
@@ -178,7 +178,7 @@ class ZnDraw(ZnDrawBase):
 
         data = {}
         for i, val in zip(index, value):
-            if not hasattr(val, "connectivity"):
+            if not hasattr(val, "connectivity") and self.bond_calculator is not None:
                 val.connectivity = self.bond_calculator.get_bonds(val)
             data[i] = znjson.dumps(val, cls=znjson.ZnEncoder.from_converters([ASEConverter]))
 
@@ -243,7 +243,7 @@ class ZnDraw(ZnDrawBase):
         )
 
         for i, val in enumerate(tbar, start=len(self)):
-            if not hasattr(val, "connectivity"):
+            if not hasattr(val, "connectivity") and self.bond_calculator is not None:
                 val.connectivity = self.bond_calculator.get_bonds(val)
 
             msg[i] = znjson.dumps(
