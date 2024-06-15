@@ -21,3 +21,10 @@ def test_selection(server, s22):
 
     vis.selection = [0, 7, 6, 5, 4]
     assert vis.selection == [0, 7, 6, 5, 4]
+
+    with pytest.raises(ValueError):
+        vis.selection = [0, 0, 2]
+    
+    with pytest.raises(ValueError):
+        vis.selection = "Hello"
+
