@@ -10,7 +10,11 @@ import uuid
 
 import ase
 import datamodel_code_generator
+import numpy as np
 import socketio.exceptions
+from ase.calculators.singlepoint import SinglePointCalculator
+from ase.data.colors import jmol_colors
+from ase.data.vdw import vdw_radii
 from znjson import ConverterBase
 
 log = logging.getLogger(__name__)
@@ -25,6 +29,11 @@ class ASEDict(t.TypedDict):
     # calc: dict[str, float|int|np.ndarray] # should this be split into arrays and info?
     pbc: list[bool]
     cell: list[list[float]]
+
+
+def rgb2hex(value):
+    r, g, b = np.array(value * 255, dtype=int)
+    return "#%02x%02x%02x" % (r, g, b)
 
 
 class ASEConverter(ConverterBase):
@@ -50,29 +59,88 @@ class ASEConverter(ConverterBase):
 
     def encode(self, obj: ase.Atoms) -> ASEDict:
         """Convert the datetime object to str / isoformat"""
+
+        numbers = obj.numbers.tolist()
+        positions = obj.positions.tolist()
+        pbc = obj.pbc.tolist()
+        cell = obj.cell.tolist()
+
+        info = {
+            k: v
+            for k, v in obj.info.items()
+            if isinstance(v, (float, int, str, bool, list))
+        }
+        info |= {k: v.tolist() for k, v in obj.info.items() if isinstance(v, np.ndarray)}
+
+        if obj.calc is not None:
+            calc = {
+                k: v
+                for k, v in obj.calc.results.items()
+                if isinstance(v, (float, int, str, bool, list))
+            }
+            calc |= {
+                k: v.tolist()
+                for k, v in obj.calc.results.items()
+                if isinstance(v, np.ndarray)
+            }
+        else:
+            calc = {}
+
+        arrays = {}
+        if "colors" not in obj.arrays:
+            arrays["colors"] = [rgb2hex(jmol_colors[number]) for number in numbers]
+        else:
+            arrays["colors"] = (
+                obj.arrays["colors"].tolist()
+                if isinstance(obj.arrays["colors"], np.ndarray)
+                else obj.arrays["colors"]
+            )
+
+        if "radii" not in obj.arrays:
+            arrays["radii"] = [vdw_radii[number] for number in numbers]
+        else:
+            arrays["radii"] = (
+                obj.arrays["radii"].tolist()
+                if isinstance(obj.arrays["radii"], np.ndarray)
+                else obj.arrays["radii"]
+            )
+
+        if hasattr(obj, "connectivity") and obj.connectivity is not None:
+            connectivity = (
+                obj.connectivity.tolist()
+                if isinstance(obj.connectivity, np.ndarray)
+                else obj.connectivity
+            )
+        else:
+            connectivity = []
+
         return ASEDict(
-            numbers=obj.numbers.tolist(),
-            positions=obj.positions.tolist(),
-            connectivity=None,
-            arrays={},
-            info={},
-            # calc=obj.calc.results,
-            pbc=obj.pbc.tolist(),
-            cell=obj.cell.tolist(),
+            numbers=numbers,
+            positions=positions,
+            connectivity=connectivity,
+            arrays=arrays,
+            info=info,
+            calc=calc,
+            pbc=pbc,
+            cell=cell,
         )
 
     def decode(self, value: ASEDict) -> ase.Atoms:
         """Create datetime object from str / isoformat"""
-        return ase.Atoms(
+        atoms = ase.Atoms(
             numbers=value["numbers"],
             positions=value["positions"],
-            # connectivity=value["connectivity"],
-            # arrays=value["arrays"],
             info=value["info"],
-            # calc=value["calc"],
             pbc=value["pbc"],
             cell=value["cell"],
         )
+        if connectivity := value.get("connectivity"):
+            atoms.connectivity = connectivity
+        atoms.arrays.update(value["arrays"])
+        if calc := value.get("calc"):
+            atoms.calc = SinglePointCalculator(atoms)
+            atoms.calc.results.update(calc)
+        return atoms
 
 
 def get_port(default: int) -> int:
