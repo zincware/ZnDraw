@@ -196,7 +196,6 @@ export const ParticleInstances = ({
   };
 
   const handleDoubleClick = (event) => {
-    console.log("double click");
     setTriggerSelection(true);
     event.stopPropagation();
   };
@@ -236,7 +235,6 @@ export const ParticleInstances = ({
 
   useEffect(() => {
     if (sphereRef.current) {
-      console.log(sceneSettings);
       sphereRef.current.scale(
         1 / originalScale.current,
         1 / originalScale.current,
@@ -390,7 +388,6 @@ export const BondInstances = ({
 
   useEffect(() => {
     if (meshRef.current) {
-      console.log(sceneSettings);
       geometry.scale(1 / originalScale.current, 1 / originalScale.current, 1);
       originalScale.current = sceneSettings.bond_size;
       geometry.scale(sceneSettings.bond_size, sceneSettings.bond_size, 1);
@@ -531,7 +528,6 @@ export const PerParticleVectors: React.FC<PerParticleVectorsProps> = ({
   useEffect(() => {
     if (!frame || !frame.calc || !frame.calc[property]) {
       console.log(`Property ${property} not found in frame.calc`);
-      console.log(frame);
       setVectors([]);
       return;
     } else {
@@ -547,7 +543,6 @@ export const PerParticleVectors: React.FC<PerParticleVectorsProps> = ({
           );
         return { start, end };
       });
-      console.log(calculatedVectors);
       setVectors(calculatedVectors);
     }
   }, [frame, property]);

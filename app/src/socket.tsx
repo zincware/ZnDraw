@@ -67,12 +67,9 @@ export const sendSelection = (selection: Set<number>, fromSockets: any) => {
       clearTimeout(timeoutRef.current);
     }
     if (fromSockets.current) {
-      console.log("skip selection send from sockets");
       fromSockets.current = false;
     } else {
       timeoutRef.current = setTimeout(() => {
-        console.log("sending selection");
-        console.log(selection);
         socket.emit("room:selection:set", { 0: Array.from(selection) });
       }, 100);
     }
