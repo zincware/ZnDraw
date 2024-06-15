@@ -1,3 +1,4 @@
+import numpy.testing as npt
 import pytest
 import znjson
 from ase.calculators.singlepoint import SinglePointCalculator
@@ -20,7 +21,7 @@ def test_ase_converter(s22):
     for s1, s2 in zip(s22, structures):
         assert s1 == s2
 
-    assert structures[0].connectivity == [[0, 1, 1], [1, 2, 1], [2, 3, 1]]
+    npt.assert_array_equal(structures[0].connectivity, [[0, 1, 1], [1, 2, 1], [2, 3, 1]])
     with pytest.raises(AttributeError):
         _ = structures[1].connectivity
 
