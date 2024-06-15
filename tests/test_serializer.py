@@ -41,4 +41,4 @@ def test_exotic_atoms():
         cls=znjson.ZnDecoder.from_converters([ASEConverter]),
     )
     npt.assert_array_equal(new_atoms.arrays["colors"], ["#ff0000"])
-    npt.assert_array_equal(new_atoms.arrays["radii"], [0.2])
+    npt.assert_array_equal(new_atoms.arrays["radii"], [0.3])
