@@ -32,6 +32,7 @@ redis = "^5"
 splines = "^0.3"
 znsocket = "^0.1.6"
 lazy-loader = "^0.4"
+znjson = "^0.2.3"
 
 
 [tool.poetry.group.dev.dependencies]

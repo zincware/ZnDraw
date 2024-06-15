@@ -8,10 +8,71 @@ import tempfile
 import typing as t
 import uuid
 
+import ase
 import datamodel_code_generator
 import socketio.exceptions
+from znjson import ConverterBase
 
 log = logging.getLogger(__name__)
+
+
+class ASEDict(t.TypedDict):
+    numbers: list[int]
+    positions: list[list[float]]
+    connectivity: list[tuple[int, int, int]]
+    arrays: dict[str, list[float | int | list[float | int]]]
+    info: dict[str, float | int]
+    # calc: dict[str, float|int|np.ndarray] # should this be split into arrays and info?
+    pbc: list[bool]
+    cell: list[list[float]]
+
+
+class ASEConverter(ConverterBase):
+    """Encode/Decode datetime objects
+
+    Attributes
+    ----------
+    level: int
+        Priority of this converter over others.
+        A higher level will be used first, if there
+        are multiple converters available
+    representation: str
+        An unique identifier for this converter.
+    instance:
+        Used to select the correct converter.
+        This should fulfill isinstance(other, self.instance)
+        or __eq__ should be overwritten.
+    """
+
+    level = 100
+    representation = "ase.Atoms"
+    instance = ase.Atoms
+
+    def encode(self, obj: ase.Atoms) -> ASEDict:
+        """Convert the datetime object to str / isoformat"""
+        return ASEDict(
+            numbers=obj.numbers.tolist(),
+            positions=obj.positions.tolist(),
+            connectivity=None,
+            arrays={},
+            info={},
+            # calc=obj.calc.results,
+            pbc=obj.pbc.tolist(),
+            cell=obj.cell.tolist(),
+        )
+
+    def decode(self, value: ASEDict) -> ase.Atoms:
+        """Create datetime object from str / isoformat"""
+        return ase.Atoms(
+            numbers=value["numbers"],
+            positions=value["positions"],
+            # connectivity=value["connectivity"],
+            # arrays=value["arrays"],
+            info=value["info"],
+            # calc=value["calc"],
+            pbc=value["pbc"],
+            cell=value["cell"],
+        )
 
 
 def get_port(default: int) -> int:
@@ -76,52 +137,6 @@ def get_cls_from_json_schema(schema: dict, name: str, **kwargs):
         spec.loader.exec_module(module)
 
         return getattr(module, name)
-
-
-def ensure_path(path: str):
-    """Ensure that a path exists."""
-    p = pathlib.Path(path).expanduser()
-    p.mkdir(parents=True, exist_ok=True)
-    return p.as_posix()
-
-
-def wrap_and_check_index(index: int | slice | list[int], length: int) -> list[int]:
-    is_slice = isinstance(index, slice)
-    if is_slice:
-        index = list(range(*index.indices(length)))
-    index = [index] if isinstance(index, int) else index
-    index = [i if i >= 0 else length + i for i in index]
-    # check if index is out of range
-    for i in index:
-        if i >= length:
-            raise IndexError(f"Index {i} out of range for length {length}")
-        if i < 0:
-            raise IndexError(f"Index {i-length} out of range for length {length}")
-    return index
-
-
-def check_selection(value: list[int], maximum: int):
-    """Check if the selection is valid
-
-    Attributes
-    ----------
-        value: list[int]
-            the selected indices
-        maximum: int
-            len(vis.step), will be incremented by one, to account for
-    """
-    if not isinstance(value, list):
-        raise ValueError("Selection must be a list")
-    if any(not isinstance(i, int) for i in value):
-        raise ValueError("Selection must be a list of integers")
-    if len(value) != len(set(value)):
-        raise ValueError("Selection must be unique")
-    if any(i < 0 for i in value):
-        raise ValueError("Selection must be positive integers")
-    if any(i >= maximum for i in value):
-        raise ValueError(
-            f"Can not select particles indices larger than size of the scene: {maximum }. Got {value}"
-        )
 
 
 def emit_with_retry(
