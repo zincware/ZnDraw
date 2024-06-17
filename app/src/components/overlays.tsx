@@ -51,30 +51,34 @@ export const SceneInfoOverlay = ({ frame }: { frame: Frame }) => {
         width: 280,
         height: "100px",
       }}
-      style={{ zIndex: 1000, padding: 0, margin: 0 }}
-      i
+      minHeight={150}
+      minWidth={150}
+      style={{
+        zIndex: 1000,
+        padding: 0,
+        margin: 0,
+      }}
     >
       <Card
         style={{
           margin: 0,
           padding: 0,
-          // background: "rgba(255, 255, 255, 0.85)",
-          // backdropFilter: "blur(5px)",
+          width: "100%",
+          height: "100%",
         }}
       >
-        <Card.Header>
+        <Card.Header className="d-flex justify-content-between align-items-center">
           <Card.Title>Info</Card.Title>
+          {/* <Button variant="close" onClick={() => setShowPlotsCard(false)} /> */}
         </Card.Header>
-        <Card.Body>
-          <Card.Text className="text-start text-nowrap">
-            {frame.calc["energy"] && (
-              <>
-                Energy: {frame.calc["energy"]} eV
-                <br />
-              </>
-            )}
-            Particles: {frame.positions.length}
-          </Card.Text>
+        <Card.Body className="text-start overflow-y-auto">
+          {frame.calc["energy"] && (
+            <>
+              Energy: {frame.calc["energy"]} eV
+              <br />
+            </>
+          )}
+          Particles: {frame.positions.length}
         </Card.Body>
       </Card>
     </Rnd>
