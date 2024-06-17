@@ -252,8 +252,12 @@ class ZnDraw(ZnDrawBase):
 
     @selection.setter
     def selection(self, value: list[int]):
+        if not isinstance(value, list):
+            raise ValueError("Selection must be a list")
         if not all(isinstance(x, int) for x in value):
             raise ValueError("Selection must be a list of integers")
+        if len(value) != len(set(value)):
+            raise ValueError("Selection must not contain duplicates")
 
         max_index = len(self.atoms)
         if any(x >= max_index for x in value):
