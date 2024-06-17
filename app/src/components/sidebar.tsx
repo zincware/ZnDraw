@@ -263,7 +263,6 @@ const PlotsCard = ({
     event: MouseEvent;
     points: any[];
   }) => {
-    console.log(points[0].pointIndex);
     setStep(points[0].pointIndex);
   };
 
