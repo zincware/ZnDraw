@@ -121,7 +121,7 @@ version: "3.9"
 
 services:
   zndraw:
-    image: zndraw:dev
+    image: zndraw:latest
     command: --no-standalone /src/file.xyz
     volumes:
       - /path/to/files:/src
@@ -136,7 +136,7 @@ services:
       - FLASK_AUTH_TOKEN=super-secret-token
 
   worker:
-    image: zndraw:dev
+    image: zndraw:latest
     entrypoint: celery -A zndraw.make_celery worker --loglevel=info -P eventlet
     volumes:
       - /path/to/files:/src
