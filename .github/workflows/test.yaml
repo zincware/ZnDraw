@@ -19,6 +19,8 @@ jobs:
           - "3.10"
         os:
           - ubuntu-latest
+          - windows-latest
+          - macos-latest
 
     services:
       # Label used to access the service container
