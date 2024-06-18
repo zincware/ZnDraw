@@ -5,14 +5,15 @@ import eventlet
 eventlet.monkey_patch()
 import typing as t
 import uuid
-from .tasks import get_generator_from_filename, FileIO
 
-import ase.io
 import typer
 
 from zndraw import ZnDraw
 
+from .tasks import FileIO, get_generator_from_filename
+
 cli = typer.Typer()
+
 
 def upload(
     filename: str,
