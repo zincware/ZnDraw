@@ -1,4 +1,4 @@
-import { Card } from "react-bootstrap";
+import { Card, Button } from "react-bootstrap";
 import { Frame } from "./particles";
 import { Rnd } from "react-rnd";
 
@@ -41,7 +41,7 @@ export const ParticleInfoOverlay = ({
   );
 };
 
-export const SceneInfoOverlay = ({ frame }: { frame: Frame }) => {
+export const SceneInfoOverlay = ({ frame, setShowParticleInfo }: { frame: Frame, setShowParticleInfo: any }) => {
   console.log(frame);
   return (
     <Rnd
@@ -69,7 +69,7 @@ export const SceneInfoOverlay = ({ frame }: { frame: Frame }) => {
       >
         <Card.Header className="d-flex justify-content-between align-items-center">
           <Card.Title>Info</Card.Title>
-          {/* <Button variant="close" onClick={() => setShowPlotsCard(false)} /> */}
+          <Button variant="close" onClick={() => setShowParticleInfo(false)} />
         </Card.Header>
         <Card.Body className="text-start overflow-y-auto">
           {frame.calc["energy"] && (

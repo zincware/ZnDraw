@@ -42,7 +42,7 @@ import {
 import { TbPlugConnected } from "react-icons/tb";
 import { MdExitToApp } from "react-icons/md";
 
-function ConsoleWindow({ text }: { text: string[] }) {
+function ConsoleWindow({ text, setConsoleShow }: { text: string[], setConsoleShow: any }) {
   return (
     <Rnd
       default={{
@@ -70,7 +70,7 @@ function ConsoleWindow({ text }: { text: string[] }) {
       >
         <Card.Header className="d-flex justify-content-between align-items-center">
           <Card.Title>Console</Card.Title>
-          {/* <Button variant="close" onClick={() => setShowPlotsCard(false)} /> */}
+          <Button variant="close" onClick={() => setConsoleShow(false)} />
         </Card.Header>
         <Card.Body className="text-start overflow-y-auto">
           {text.map((line, idx) => (
@@ -571,7 +571,7 @@ const HeadBar = ({
         onHide={() => setTutorialModalShow(false)}
         url={tutorialURL}
       />
-      {consoleShow && <ConsoleWindow text={consoleText} />}
+      {consoleShow && <ConsoleWindow text={consoleText} setConsoleShow={setConsoleShow} />}
     </>
   );
 };

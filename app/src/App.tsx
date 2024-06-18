@@ -706,7 +706,7 @@ export default function App() {
               }}
               position={cursorPosition}
             />
-            <SceneInfoOverlay frame={currentFrame} />
+            <SceneInfoOverlay frame={currentFrame} setShowParticleInfo={setShowParticleInfo} />
           </>
         )}
       </div>
