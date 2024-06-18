@@ -262,6 +262,8 @@ const PlotsCard = ({
         width: 400,
         height: 400,
       }}
+      minHeight={200}
+      minWidth={220}
       style={{
         zIndex: 1000,
         padding: 0,
