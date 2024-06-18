@@ -41,7 +41,13 @@ export const ParticleInfoOverlay = ({
   );
 };
 
-export const SceneInfoOverlay = ({ frame, setShowParticleInfo }: { frame: Frame, setShowParticleInfo: any }) => {
+export const SceneInfoOverlay = ({
+  frame,
+  setShowParticleInfo,
+}: {
+  frame: Frame;
+  setShowParticleInfo: any;
+}) => {
   console.log(frame);
   return (
     <Rnd

@@ -42,7 +42,13 @@ import {
 import { TbPlugConnected } from "react-icons/tb";
 import { MdExitToApp } from "react-icons/md";
 
-function ConsoleWindow({ text, setConsoleShow }: { text: string[], setConsoleShow: any }) {
+function ConsoleWindow({
+  text,
+  setConsoleShow,
+}: {
+  text: string[];
+  setConsoleShow: any;
+}) {
   return (
     <Rnd
       default={{
@@ -571,7 +577,9 @@ const HeadBar = ({
         onHide={() => setTutorialModalShow(false)}
         url={tutorialURL}
       />
-      {consoleShow && <ConsoleWindow text={consoleText} setConsoleShow={setConsoleShow} />}
+      {consoleShow && (
+        <ConsoleWindow text={consoleText} setConsoleShow={setConsoleShow} />
+      )}
     </>
   );
 };
