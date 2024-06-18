@@ -25,13 +25,13 @@ mdanalysis = {version = "^2", optional = true}
 tidynamics = {version = "^1", optional = true}
 rdkit2ase = {version = "^0.1", optional = true}
 zntrack = {version = "^0.7.3", optional = true}
-znframe = "^0.1"
 celery = "^5"
 sqlalchemy = "^2"
 redis = "^5"
 splines = "^0.3"
 znsocket = "^0.1.6"
 lazy-loader = "^0.4"
+znjson = "^0.2.3"
 
 
 [tool.poetry.group.dev.dependencies]

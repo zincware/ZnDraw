@@ -1,3 +1,4 @@
+import functools
 import importlib.util
 import json
 import logging
@@ -8,10 +9,157 @@ import tempfile
 import typing as t
 import uuid
 
+import ase
 import datamodel_code_generator
+import numpy as np
 import socketio.exceptions
+from ase.calculators.singlepoint import SinglePointCalculator
+from ase.data import covalent_radii
+from ase.data.colors import jmol_colors
+from znjson import ConverterBase
 
 log = logging.getLogger(__name__)
+
+
+class ASEDict(t.TypedDict):
+    numbers: list[int]
+    positions: list[list[float]]
+    connectivity: list[tuple[int, int, int]]
+    arrays: dict[str, list[float | int | list[float | int]]]
+    info: dict[str, float | int]
+    # calc: dict[str, float|int|np.ndarray] # should this be split into arrays and info?
+    pbc: list[bool]
+    cell: list[list[float]]
+
+
+def rgb2hex(value):
+    r, g, b = np.array(value * 255, dtype=int)
+    return "#%02x%02x%02x" % (r, g, b)
+
+
+@functools.lru_cache(maxsize=128)
+def get_scaled_radii() -> np.ndarray:
+    """Scale down the covalent radii to visualize bonds better."""
+    radii = covalent_radii
+    # shift the values such that they are in [0.3, 1.3]
+    radii = radii - np.min(radii)
+    radii = radii / np.max(radii)
+    radii = radii + 0.3
+    return radii
+
+
+class ASEConverter(ConverterBase):
+    """Encode/Decode datetime objects
+
+    Attributes
+    ----------
+    level: int
+        Priority of this converter over others.
+        A higher level will be used first, if there
+        are multiple converters available
+    representation: str
+        An unique identifier for this converter.
+    instance:
+        Used to select the correct converter.
+        This should fulfill isinstance(other, self.instance)
+        or __eq__ should be overwritten.
+    """
+
+    level = 100
+    representation = "ase.Atoms"
+    instance = ase.Atoms
+
+    def encode(self, obj: ase.Atoms) -> ASEDict:
+        """Convert the datetime object to str / isoformat"""
+
+        numbers = obj.numbers.tolist()
+        positions = obj.positions.tolist()
+        pbc = obj.pbc.tolist()
+        cell = obj.cell.tolist()
+
+        info = {
+            k: v
+            for k, v in obj.info.items()
+            if isinstance(v, (float, int, str, bool, list))
+        }
+        info |= {k: v.tolist() for k, v in obj.info.items() if isinstance(v, np.ndarray)}
+
+        if obj.calc is not None:
+            calc = {
+                k: v
+                for k, v in obj.calc.results.items()
+                if isinstance(v, (float, int, str, bool, list))
+            }
+            calc |= {
+                k: v.tolist()
+                for k, v in obj.calc.results.items()
+                if isinstance(v, np.ndarray)
+            }
+        else:
+            calc = {}
+
+        # All additional information should be stored in calc.results
+        # and not in calc.arrays, thus we will not convert it here!
+        arrays = {}
+        if "colors" not in obj.arrays:
+            arrays["colors"] = [rgb2hex(jmol_colors[number]) for number in numbers]
+        else:
+            arrays["colors"] = (
+                obj.arrays["colors"].tolist()
+                if isinstance(obj.arrays["colors"], np.ndarray)
+                else obj.arrays["colors"]
+            )
+
+        if "radii" not in obj.arrays:
+            # arrays["radii"] = [covalent_radii[number] for number in numbers]
+            arrays["radii"] = [get_scaled_radii()[number] for number in numbers]
+        else:
+            arrays["radii"] = (
+                obj.arrays["radii"].tolist()
+                if isinstance(obj.arrays["radii"], np.ndarray)
+                else obj.arrays["radii"]
+            )
+
+        if hasattr(obj, "connectivity") and obj.connectivity is not None:
+            connectivity = (
+                obj.connectivity.tolist()
+                if isinstance(obj.connectivity, np.ndarray)
+                else obj.connectivity
+            )
+        else:
+            connectivity = []
+
+        return ASEDict(
+            numbers=numbers,
+            positions=positions,
+            connectivity=connectivity,
+            arrays=arrays,
+            info=info,
+            calc=calc,
+            pbc=pbc,
+            cell=cell,
+        )
+
+    def decode(self, value: ASEDict) -> ase.Atoms:
+        """Create datetime object from str / isoformat"""
+        atoms = ase.Atoms(
+            numbers=value["numbers"],
+            positions=value["positions"],
+            info=value["info"],
+            pbc=value["pbc"],
+            cell=value["cell"],
+        )
+        if connectivity := value.get("connectivity"):
+            # or do we want this to be nx.Graph?
+            atoms.connectivity = np.array(connectivity)
+        if "colors" in value["arrays"]:
+            atoms.arrays["colors"] = np.array(value["arrays"]["colors"])
+        if "radii" in value["arrays"]:
+            atoms.arrays["radii"] = np.array(value["arrays"]["radii"])
+        if calc := value.get("calc"):
+            atoms.calc = SinglePointCalculator(atoms)
+            atoms.calc.results.update(calc)
+        return atoms
 
 
 def get_port(default: int) -> int:
@@ -76,52 +224,6 @@ def get_cls_from_json_schema(schema: dict, name: str, **kwargs):
         spec.loader.exec_module(module)
 
         return getattr(module, name)
-
-
-def ensure_path(path: str):
-    """Ensure that a path exists."""
-    p = pathlib.Path(path).expanduser()
-    p.mkdir(parents=True, exist_ok=True)
-    return p.as_posix()
-
-
-def wrap_and_check_index(index: int | slice | list[int], length: int) -> list[int]:
-    is_slice = isinstance(index, slice)
-    if is_slice:
-        index = list(range(*index.indices(length)))
-    index = [index] if isinstance(index, int) else index
-    index = [i if i >= 0 else length + i for i in index]
-    # check if index is out of range
-    for i in index:
-        if i >= length:
-            raise IndexError(f"Index {i} out of range for length {length}")
-        if i < 0:
-            raise IndexError(f"Index {i-length} out of range for length {length}")
-    return index
-
-
-def check_selection(value: list[int], maximum: int):
-    """Check if the selection is valid
-
-    Attributes
-    ----------
-        value: list[int]
-            the selected indices
-        maximum: int
-            len(vis.step), will be incremented by one, to account for
-    """
-    if not isinstance(value, list):
-        raise ValueError("Selection must be a list")
-    if any(not isinstance(i, int) for i in value):
-        raise ValueError("Selection must be a list of integers")
-    if len(value) != len(set(value)):
-        raise ValueError("Selection must be unique")
-    if any(i < 0 for i in value):
-        raise ValueError("Selection must be positive integers")
-    if any(i >= maximum for i in value):
-        raise ValueError(
-            f"Can not select particles indices larger than size of the scene: {maximum }. Got {value}"
-        )
 
 
 def emit_with_retry(
