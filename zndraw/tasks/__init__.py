@@ -80,8 +80,9 @@ def read_file(fileio: dict) -> None:
             break
         if file_io.step and idx % file_io.step != 0:
             continue
-        if not hasattr(atoms, "connectivity"):
-            atoms.connectivity = bonds_calculator.get_bonds(atoms)
+        if current_app.config.get("COMPUTE_BONDS", False):
+            if not hasattr(atoms, "connectivity"):
+                atoms.connectivity = bonds_calculator.get_bonds(atoms)
         lst.append(
             znjson.dumps(atoms, cls=znjson.ZnEncoder.from_converters([ASEConverter]))
         )

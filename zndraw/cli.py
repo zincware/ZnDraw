@@ -79,6 +79,10 @@ def main(
         True,
         help="Run ZnDraw without additional tools. If disabled, redis and celery must be started manually.",
     ),
+    bonds: bool = typer.Option(
+        True,
+        help="Compute bonds based on covalent distances. This can be slow for large structures.",
+    ),
 ):
     """Start the ZnDraw server.
 
@@ -103,6 +107,8 @@ def main(
         os.environ["FLASK_TUTORIAL"] = tutorial
     if simgen:
         os.environ["FLASK_SIMGEN"] = "TRUE"
+    if bonds:
+        os.environ["FLASK_COMPUTE_BONDS"] = "TRUE"
     os.environ["FLASK_SERVER_URL"] = f"http://localhost:{port}"
 
     if standalone:
