@@ -7,11 +7,13 @@ from collections.abc import MutableSequence
 import ase
 import numpy as np
 import splines
-import znframe
+import znjson
 import znsocket
 from flask import current_app, session
 from pydantic import BaseModel, Field, create_model
 from redis import Redis
+
+from zndraw.utils import ASEConverter
 
 log = logging.getLogger(__name__)
 
@@ -42,7 +44,9 @@ class Extension(BaseModel):
         lst = znsocket.List(r, key)
         try:
             frame_json = lst[int(step)]
-            return znframe.Frame.from_json(frame_json).to_atoms()
+            return znjson.loads(
+                frame_json, cls=znjson.ZnDecoder.from_converters([ASEConverter])
+            )
         except TypeError:
             # step is None
             return ase.Atoms()
