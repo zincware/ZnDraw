@@ -134,17 +134,15 @@ export default function App() {
   // if step changes
   useEffect(() => {
     socket.emit("room:frames:get", [step], (frames: Frames) => {
-      // map positions: numbers[][] to THREE.Vector3[]
-
       for (const key in frames) {
         if (frames.hasOwnProperty(key)) {
-          const frame = frames[key];
+          const frame: Frame = frames[key]["value"];
           frame.positions = frame.positions.map(
             (position) =>
               new THREE.Vector3(position[0], position[1], position[2]),
           ) as THREE.Vector3[];
         }
-        setCurrentFrame(frames[step]);
+        setCurrentFrame(frames[step]["value"]);
         setNeedsUpdate(false); // rename this to something more descriptive
       }
     });

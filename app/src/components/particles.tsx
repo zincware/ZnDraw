@@ -17,7 +17,7 @@ export interface Frame {
 ``;
 
 export interface Frames {
-  [key: number]: Frame;
+  [key: number]: { _type: string; value: Frame };
 }
 
 export const Player = ({
