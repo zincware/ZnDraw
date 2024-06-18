@@ -12,6 +12,7 @@ from zndraw.base import FileIO
 from zndraw.standalone import run_celery_worker, run_znsocket
 from zndraw.tasks import read_file
 from zndraw.utils import get_port
+from zndraw.upload import upload
 
 cli = typer.Typer()
 
@@ -22,16 +23,12 @@ def main(
         None,
         help="Path to the file which should be visualized in ZnDraw. Can also be the name and attribute of a ZnTrack Node like 'MyNode.atoms' if at least '--remote .' is provided. ",
     ),
-    webview: bool = typer.Option(
-        True,
-        help="""Whether to use the webview library to open the ZnDraw GUI.
-        If `pip install pywebview` is available, webview will be used.
-        Otherwise, the GUI will be opened in the default web browser.""",
-    ),
-    fullscreen: bool = typer.Option(
-        False,
-        help="Use fullscreen mode for the ZnDraw GUI. (only with webview)",
-    ),
+    url: t.Optional[str] = typer.Option(
+        None,
+        help="URL to a running ZnDraw server. Use this server instead of starting a new one."),
+    token: t.Optional[str] = typer.Option(
+        None,
+        help="Only valid if 'url' is provided. Room token to upload the file to."),
     port: int = typer.Option(
         None, help="""Port to use for the ZnDraw server. Default port is 1234"""
     ),
@@ -88,6 +85,11 @@ def main(
 
     Visualize Trajectories, Structures, and more in ZnDraw.
     """
+    if token is not None and url is None:
+        raise ValueError("You need to provide a URL to use the token feature.")
+    if url is not None and port is not None:
+        raise ValueError("You cannot provide a URL and a port at the same time. Use something like '--url http://localhost:1234' instead.")
+
     ZNSOCKET_PORT = 6374
 
     # os.environ["FLASK_ENV"] = "development"
@@ -111,12 +113,6 @@ def main(
         os.environ["FLASK_COMPUTE_BONDS"] = "TRUE"
     os.environ["FLASK_SERVER_URL"] = f"http://localhost:{port}"
 
-    if standalone:
-        if storage is None:
-            os.environ["FLASK_STORAGE"] = f"znsocket://localhost:{ZNSOCKET_PORT}"
-        server = run_znsocket(ZNSOCKET_PORT)
-        worker = run_celery_worker()
-
     fileio = FileIO(
         name=filename,
         remote=remote,
@@ -125,6 +121,16 @@ def main(
         stop=stop,
         step=step,
     )
+
+    if url is not None:
+        upload(filename, url, token, fileio)
+        return
+    
+    if standalone:
+        if storage is None:
+            os.environ["FLASK_STORAGE"] = f"znsocket://localhost:{ZNSOCKET_PORT}"
+        server = run_znsocket(ZNSOCKET_PORT)
+        worker = run_celery_worker()
 
     app = create_app()
 

@@ -23,24 +23,7 @@ def run_znsocket_server(port: int) -> None:
     log.critical("ZnSocket server closed.")
 
 
-@shared_task
-def read_file(fileio: dict) -> None:
-    file_io = FileIO(**fileio)
-    # r = Redis(host="localhost", port=6379, db=0, decode_responses=True)
-    r = current_app.extensions["redis"]
-
-    io = socketio.Client()
-
-    # r = znsocket.Client("http://127.0.0.1:5000")
-
-    # TODO: make everyone join room main
-    # send update here to everyone in room, because this is only called once in the beginning
-    # chain this with compute_bonds. So this will load much faster
-    r.delete("room:default:frames")
-
-    lst = znsocket.List(r, "room:default:frames")
-    bonds_calculator = ASEComputeBonds()
-
+def get_generator_from_filename(file_io: FileIO) -> t.Iterable[ase.Atoms]:
     if file_io.name is None:
 
         def _generator():
@@ -71,7 +54,28 @@ def read_file(fileio: dict) -> None:
     else:
         generator = ase.io.iread(file_io.name)
 
-    generator: t.Iterable[ase.Atoms]
+    return generator
+
+
+@shared_task
+def read_file(fileio: dict) -> None:
+    file_io = FileIO(**fileio)
+    # r = Redis(host="localhost", port=6379, db=0, decode_responses=True)
+    r = current_app.extensions["redis"]
+
+    io = socketio.Client()
+
+    # r = znsocket.Client("http://127.0.0.1:5000")
+
+    # TODO: make everyone join room main
+    # send update here to everyone in room, because this is only called once in the beginning
+    # chain this with compute_bonds. So this will load much faster
+    r.delete("room:default:frames")
+
+    lst = znsocket.List(r, "room:default:frames")
+    bonds_calculator = ASEComputeBonds()
+
+    generator = get_generator_from_filename(file_io)
 
     for idx, atoms in tqdm.tqdm(enumerate(generator)):
         if file_io.start and idx < file_io.start:
