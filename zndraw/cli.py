@@ -4,6 +4,7 @@ eventlet.monkey_patch()
 
 import os
 import typing as t
+import datetime
 
 import typer
 
@@ -111,6 +112,11 @@ def main(
         server = run_znsocket(ZNSOCKET_PORT)
         worker = run_celery_worker()
 
+    typer.echo(
+        f"{datetime.datetime.now().isoformat()}: Starting zndraw server on port {port}"
+    )
+
+
     fileio = FileIO(
         name=filename,
         remote=remote,
@@ -123,6 +129,7 @@ def main(
     app = create_app()
 
     read_file.delay(fileio.to_dict())
+
 
     if browser:
         import webbrowser
