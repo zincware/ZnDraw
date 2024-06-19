@@ -1,6 +1,7 @@
 import pytest
 
 from zndraw import ZnDraw
+import socketio.exceptions
 
 
 @pytest.fixture
@@ -18,6 +19,10 @@ def test_zndraw(ref, request):
     """Test the server fixture."""
     obj = request.getfixturevalue(ref)
     assert len(obj) == 0
+
+def test_zndraw_no_connection():
+    with pytest.raises(socketio.exceptions.ConnectionError, match="Unable to connect to ZnDraw server at 'ws://localhost:8080'"):
+        ZnDraw(url="http://localhost:8080", token="test_token")
 
 
 @pytest.mark.parametrize("ref", ["lst", "vis"])
