@@ -351,9 +351,8 @@ const HeadBar = ({
   tutorialURL,
   showSiMGen,
   modifierQueue,
-  needsAuthentication,
+  isAuthenticated,
   roomLock,
-  setRoomLock,
 }: {
   room: string;
   colorMode: string;
@@ -365,9 +364,8 @@ const HeadBar = ({
   tutorialURL: string;
   showSiMGen: boolean;
   modifierQueue: number;
-  needsAuthentication: boolean;
+  isAuthenticated: boolean;
   roomLock: boolean;
-  setRoomLock: any;
 }) => {
   const [helpModalShow, setHelpModalShow] = useState(false);
   const [connectModalShow, setConnectModalShow] = useState(false);
@@ -544,7 +542,7 @@ const HeadBar = ({
                   {colorMode === "light" ? <FaSun /> : <FaMoon />}
                 </Button>
               </BtnTooltip>
-              {needsAuthentication && (
+              {isAuthenticated && (
                 <>
                   <BtnTooltip
                     text={roomLock ? "Unlock this room" : "Lock this room"}
@@ -562,21 +560,19 @@ const HeadBar = ({
                   {/* <Button variant="outline-primary" className="mx-1">
                 <FaUsers />
               </Button> */}
+                  <BtnTooltip text="Close ZnDraw">
+                    <Button
+                      variant="outline-danger"
+                      className="mx-1"
+                      onClick={() => {
+                        socket.emit("shutdown");
+                        close();
+                      }}
+                    >
+                      <MdExitToApp />
+                    </Button>
+                  </BtnTooltip>
                 </>
-              )}
-              {!needsAuthentication && (
-                <BtnTooltip text="Close ZnDraw">
-                  <Button
-                    variant="outline-danger"
-                    className="mx-1"
-                    onClick={() => {
-                      socket.emit("shutdown");
-                      close();
-                    }}
-                  >
-                    <MdExitToApp />
-                  </Button>
-                </BtnTooltip>
               )}
             </Nav>
           </Navbar.Collapse>

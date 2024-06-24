@@ -96,7 +96,7 @@ export default function App() {
   const [colorMode, setColorMode] = useState<string>("light");
   const [hoveredId, setHoveredId] = useState<number>(null);
   // TODO: update to: setAuthentication (which will be double checked on the server, so no need to try to hack it ;)
-  const [needsAuthentication, setNeedsAuthentication] = useState<boolean>(true);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(true);
   const [roomLock, setRoomLock] = useState<boolean>(false);
 
   // QUEUES
@@ -176,9 +176,9 @@ export default function App() {
     function onConnect() {
       socket.emit(
         "webclient:connect",
-        (data: { name: string; room: string; needs_auth: boolean }) => {
+        (data: { name: string; room: string; authenticated: boolean }) => {
           setRoomName(data["room"]);
-          setNeedsAuthentication(data["needs_auth"]);
+          setIsAuthenticated(data["authenticated"]);
         },
       );
       console.log("connected");
@@ -680,9 +680,8 @@ export default function App() {
           tutorialURL={tutorialURL}
           showSiMGen={showSiMGen}
           modifierQueue={modifierQueue}
-          needsAuthentication={needsAuthentication}
+          isAuthenticated={isAuthenticated}
           roomLock={roomLock}
-          setRoomLock={setRoomLock}
         />
         <Sidebar
           selectionSchema={selectionSchema}

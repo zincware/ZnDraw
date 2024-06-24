@@ -84,6 +84,12 @@ def init_socketio_events(io: SocketIO):
             token = uuid.uuid4().hex[:8]
             session["token"] = token
 
+        if "AUTH_TOKEN" not in current_app.config:
+            session["authenticated"] = True
+        else:
+            if "authenticated" not in session:
+                session["authenticated"] = False
+
         room = str(session["token"])
         join_room(room)  # rename token to room or room_token
 
@@ -112,7 +118,7 @@ def init_socketio_events(io: SocketIO):
         return {
             "name": session["name"],
             "room": room,
-            "needs_auth": "AUTH_TOKEN" in current_app.config,
+            "authenticated": session["authenticated"],
         }
 
     @io.on("join")  # rename pyclient:connect
