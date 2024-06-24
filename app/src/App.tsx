@@ -213,6 +213,11 @@ export default function App() {
         selectionFromSocket.current = true;
         setSelectedIds(new Set(data[0]));
       });
+
+      // get lock state
+      socket.emit("room:lock:get", (data: boolean) => {
+        setRoomLock(data);
+      });
     }
 
     function onSelectionSchema(receivedSchema: any) {
