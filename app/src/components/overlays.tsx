@@ -48,7 +48,6 @@ export const SceneInfoOverlay = ({
   frame: Frame;
   setShowParticleInfo: any;
 }) => {
-  console.log(frame);
   return (
     <Rnd
       default={{
