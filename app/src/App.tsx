@@ -355,6 +355,7 @@ export default function App() {
         return;
       }
       if (event.key === "ArrowRight") {
+        setPlaying(false);
         if (event.shiftKey) {
           // Jump to the bookmark after the current step
           const bookmarkKeys = Object.keys(bookmarks)
@@ -370,6 +371,7 @@ export default function App() {
           setStep((prevStep) => (prevStep + 1 < length ? prevStep + 1 : 0));
         }
       } else if (event.key === "ArrowLeft") {
+        setPlaying(false);
         if (event.shiftKey) {
           // Jump to the bookmark before the current step
           const bookmarkKeys = Object.keys(bookmarks)
@@ -388,10 +390,12 @@ export default function App() {
         }
       } else if (event.key == "ArrowUp") {
         // jump 10 percent, or to the end
+        setPlaying(false);
         const newStep = Math.min(step + Math.floor(length / 10), length - 1);
         setStep(newStep);
       } else if (event.key == "ArrowDown") {
         // jump 10 percent, or to the beginning
+        setPlaying(false);
         const newStep = Math.max(step - Math.floor(length / 10), 0);
         setStep(newStep);
       } else if (event.key == " ") {
