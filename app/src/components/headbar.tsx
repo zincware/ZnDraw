@@ -294,8 +294,6 @@ const FileUpload = forwardRef((props, ref) => {
     const formData = new FormData();
     formData.append("file", file);
 
-    console.log("Selected file:", file);
-    console.log(formData);
     fetch("/upload", {
       method: "POST",
       body: formData,

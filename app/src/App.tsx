@@ -154,10 +154,8 @@ export default function App() {
       socket.emit("room:length:get", (data: number | string) => {
         // ensure that data is a number
         if (updatedFrames.includes(step)) {
-          console.log("step is in updated frames", step);
           setNeedsUpdate(true);
         } else if (step >= data) {
-          console.log("step is out of bounds", step);
           setStep(parseInt(data) - 1);
           // reset selected ids
           setSelectedIds(new Set());
@@ -211,7 +209,6 @@ export default function App() {
       // get selection
       socket.emit("room:selection:get", (data: any) => {
         selectionFromSocket.current = true;
-        console.log("new selection", data);
         setSelectedIds(new Set(data[0]));
       });
     }
@@ -233,8 +230,6 @@ export default function App() {
     }
     // data is {collection_id: [id1, id2, ...]}
     function onRoomSelectionSet(data: any) {
-      console.log("new selection");
-      console.log(data);
       selectionFromSocket.current = true;
       setSelectedIds(new Set(data[0]));
     }
@@ -245,7 +240,6 @@ export default function App() {
     }
 
     function onGeometries(data: any) {
-      console.log("geometries", data);
       setGeometries(data);
     }
 
@@ -683,6 +677,7 @@ export default function App() {
           triggerSelection={triggerSelection}
           setTriggerSelection={setTriggerSelection}
           colorMode={colorMode}
+          setStep={setStep}
         />
         <FrameProgressBar
           length={length}
