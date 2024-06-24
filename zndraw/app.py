@@ -71,7 +71,6 @@ def create_app() -> Flask:
         data_folder.mkdir(parents=True, exist_ok=True)
         data_folder_processed.mkdir(parents=True, exist_ok=True)
         control_folder.mkdir(parents=True, exist_ok=True)
-        
 
         app.config.from_mapping(
             CELERY={

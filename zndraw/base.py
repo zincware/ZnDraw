@@ -103,12 +103,12 @@ class MethodsCollection(BaseModel):
 
 @dataclasses.dataclass  # TODO: move to a separate file, so it can be imported in other files
 class FileIO:
-    name: str|None = None
+    name: str | None = None
     start: int = 0
-    stop: int|None = None
+    stop: int | None = None
     step: int = 1
-    remote: str|None = None
-    rev: str|None = None
+    remote: str | None = None
+    rev: str | None = None
 
     def to_dict(self):
         return dataclasses.asdict(self)
