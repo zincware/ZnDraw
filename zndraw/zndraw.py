@@ -462,6 +462,14 @@ class ZnDraw(ZnDrawBase):
             retries=self.timeout["emit_retries"],
         )
 
+    @property
+    def locked(self) -> bool:
+        return call_with_retry(self.socket, "room:lock:get") is True
+
+    @locked.setter
+    def locked(self, value: bool) -> None:
+        emit_with_retry(self.socket, "room:lock:set", value)
+
     def register_modifier(
         self,
         cls: t.Type[Extension],

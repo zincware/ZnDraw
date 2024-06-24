@@ -92,21 +92,22 @@ def init_socketio_events(io: SocketIO):
         r = current_app.extensions["redis"]
         r.sadd(f"room:{room}:webclients", session["name"])
 
+        # TODO: this is currently not used afaik
         emit("room:users:refresh", list(r.smembers(f"room:{room}:webclients")), to=room)
         # set step, camera, bookmarks, points
 
         log.critical(f"connecting (webclient) {request.sid} to {room}")
 
         emit("selection:schema", Selection.updated_schema())
-        emit("modifier:schema:refresh", to=request.sid)
+        emit("modifier:schema:refresh")
         emit("scene:schema", Scene.updated_schema())
         emit("geometry:schema", Geometry.updated_schema())
-        emit("analysis:schema:refresh", to=request.sid)
+        emit("analysis:schema:refresh")
 
         if "TUTORIAL" in current_app.config:
-            emit("tutorial:url", current_app.config["TUTORIAL"], to=request.sid)
+            emit("tutorial:url", current_app.config["TUTORIAL"])
         if "SIMGEN" in current_app.config:
-            emit("showSiMGen", True, to=request.sid)
+            emit("showSiMGen", True)
 
         return {
             "name": session["name"],
@@ -553,3 +554,19 @@ def init_socketio_events(io: SocketIO):
     def room_upload_file(data: dict):
         room = session.get("token")
         run_upload_file.delay(room, data)
+
+    @io.on("room:lock:set")
+    def room_lock_set(locked: bool):
+        print(f"setting room to locked: {locked = }")
+        room = session.get("token")
+        r: Redis = current_app.extensions["redis"]
+        r.set(f"room:{room}:locked", str(locked))
+        emit("room:lock:set", locked, to=room)
+
+    @io.on("room:lock:get")
+    def room_lock_get() -> bool:
+        room = session.get("token")
+        r: Redis = current_app.extensions["redis"]
+        locked = r.get(f"room:{room}:locked")
+        print(f"getting room to locked: {locked = }")
+        return locked == "True"

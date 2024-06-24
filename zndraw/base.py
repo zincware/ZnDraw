@@ -190,3 +190,13 @@ class ZnDrawBase(MutableSequence):
     @abstractmethod
     def camera(self, camera: dict):
         pass
+
+    @property
+    @abstractmethod
+    def locked(self) -> bool:
+        pass
+
+    @locked.setter
+    @abstractmethod
+    def locked(self, value: bool) -> None:
+        pass

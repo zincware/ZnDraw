@@ -20,6 +20,8 @@ import {
   FaDownload,
   FaFilm,
   FaHandSparkles,
+  FaLock,
+  FaLockOpen,
   FaMoon,
   FaRegClipboard,
   FaRocket,
@@ -350,6 +352,8 @@ const HeadBar = ({
   showSiMGen,
   modifierQueue,
   needsAuthentication,
+  roomLock,
+  setRoomLock,
 }: {
   room: string;
   colorMode: string;
@@ -362,6 +366,8 @@ const HeadBar = ({
   showSiMGen: boolean;
   modifierQueue: number;
   needsAuthentication: boolean;
+  roomLock: boolean;
+  setRoomLock: any;
 }) => {
   const [helpModalShow, setHelpModalShow] = useState(false);
   const [connectModalShow, setConnectModalShow] = useState(false);
@@ -538,9 +544,26 @@ const HeadBar = ({
                   {colorMode === "light" ? <FaSun /> : <FaMoon />}
                 </Button>
               </BtnTooltip>
-              {/* <Button variant="outline-primary" className="mx-1">
+              {needsAuthentication && (
+                <>
+                  <BtnTooltip
+                    text={roomLock ? "Unlock this room" : "Lock this room"}
+                  >
+                    <Button
+                      variant="outline-danger"
+                      className="mx-1"
+                      onClick={() => {
+                        socket.emit("room:lock:set", !roomLock);
+                      }}
+                    >
+                      {roomLock ? <FaLock /> : <FaLockOpen />}
+                    </Button>
+                  </BtnTooltip>
+                  {/* <Button variant="outline-primary" className="mx-1">
                 <FaUsers />
               </Button> */}
+                </>
+              )}
               {!needsAuthentication && (
                 <BtnTooltip text="Close ZnDraw">
                   <Button

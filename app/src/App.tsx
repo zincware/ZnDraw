@@ -95,7 +95,9 @@ export default function App() {
   // todo give to particles and bonds
   const [colorMode, setColorMode] = useState<string>("light");
   const [hoveredId, setHoveredId] = useState<number>(null);
+  // TODO: update to: setAuthentication (which will be double checked on the server, so no need to try to hack it ;)
   const [needsAuthentication, setNeedsAuthentication] = useState<boolean>(true);
+  const [roomLock, setRoomLock] = useState<boolean>(false);
 
   // QUEUES
   const [modifierQueue, setModifierQueue] = useState<number>(-1);
@@ -297,6 +299,11 @@ export default function App() {
       }
     }
 
+    function onRoomLockSet(locked: boolean) {
+      console.log("room is locked: " + locked);
+      setRoomLock(locked);
+    }
+
     socket.on("connect", onConnect);
     socket.on("selection:schema", onSelectionSchema);
     socket.on("modifier:schema", onModifierSchema);
@@ -317,6 +324,7 @@ export default function App() {
     socket.on("tutorial:url", onTutorialURL);
     socket.on("showSiMGen", onShowSiMGen);
     socket.on("room:camera:set", onCameraSet);
+    socket.on("room:lock:set", onRoomLockSet);
 
     return () => {
       socket.off("connect", onConnect);
@@ -339,6 +347,7 @@ export default function App() {
       socket.off("tutorial:url", onTutorialURL);
       socket.off("showSiMGen", onShowSiMGen);
       socket.off("room:camera:set", onCameraSet);
+      socket.off("room:lock:set", onRoomLockSet);
     };
   }, []);
 
@@ -440,7 +449,7 @@ export default function App() {
             setPoints(points.slice(0, points.length - 1));
           }
         } else {
-          if (selectedIds.size > 0){
+          if (selectedIds.size > 0) {
             socket.emit("modifier:run", {
               method: { discriminator: "Delete" },
             });
@@ -667,6 +676,8 @@ export default function App() {
           showSiMGen={showSiMGen}
           modifierQueue={modifierQueue}
           needsAuthentication={needsAuthentication}
+          roomLock={roomLock}
+          setRoomLock={setRoomLock}
         />
         <Sidebar
           selectionSchema={selectionSchema}
