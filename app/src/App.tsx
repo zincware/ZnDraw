@@ -62,7 +62,7 @@ export default function App() {
     vectors: "",
     controls: "OrbitControls",
     selection_color: "#ffa500",
-    material: "MeshPhysicalMaterial",
+    material: "MeshStandardMaterial",
     particle_size: 1.0,
     bond_size: 1.0,
   });
