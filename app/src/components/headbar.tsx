@@ -42,34 +42,46 @@ import {
 import { TbPlugConnected } from "react-icons/tb";
 import { MdExitToApp } from "react-icons/md";
 
-function ConsoleWindow({ text }: { text: string[] }) {
+function ConsoleWindow({
+  text,
+  setConsoleShow,
+}: {
+  text: string[];
+  setConsoleShow: any;
+}) {
   return (
     <Rnd
       default={{
-        x: window.innerWidth / 2 - 400 - 10,
-        y: window.innerHeight / 2 - 200,
-        width: 400,
-        height: 0, // height is set by content
+        x: window.innerWidth / 2 - 400,
+        y: window.innerHeight / 2 - 300,
+        width: 380,
+        height: 280,
       }}
-      style={{ zIndex: 1000, padding: 0, margin: 0 }}
+      minHeight={200}
+      minWidth={200}
+      style={{
+        zIndex: 1000,
+        padding: 0,
+        margin: 0,
+      }}
     >
       <Card
         style={{
           margin: 0,
           padding: 0,
-          // background: "rgba(255, 255, 255, 0.85)",
-          // backdropFilter: "blur(5px)",
+          width: "100%",
+          height: "100%",
         }}
+        // ref={cardRef}
       >
-        <Card.Header>
+        <Card.Header className="d-flex justify-content-between align-items-center">
           <Card.Title>Console</Card.Title>
+          <Button variant="close" onClick={() => setConsoleShow(false)} />
         </Card.Header>
-        <Card.Body>
-          <div style={{ overflowY: "auto", height: 100 }}>
-            {text.map((line, idx) => (
-              <p key={idx}>{line}</p>
-            ))}
-          </div>
+        <Card.Body className="text-start overflow-y-auto">
+          {text.map((line, idx) => (
+            <p key={idx}>{line}</p>
+          ))}
         </Card.Body>
       </Card>
     </Rnd>
@@ -563,7 +575,9 @@ const HeadBar = ({
         onHide={() => setTutorialModalShow(false)}
         url={tutorialURL}
       />
-      {consoleShow && <ConsoleWindow text={consoleText} />}
+      {consoleShow && (
+        <ConsoleWindow text={consoleText} setConsoleShow={setConsoleShow} />
+      )}
     </>
   );
 };
