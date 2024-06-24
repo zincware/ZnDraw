@@ -440,9 +440,11 @@ export default function App() {
             setPoints(points.slice(0, points.length - 1));
           }
         } else {
-          socket.emit("modifier:run", {
-            method: { discriminator: "Delete" },
-          });
+          if (selectedIds.size > 0){
+            socket.emit("modifier:run", {
+              method: { discriminator: "Delete" },
+            });
+          }
         }
       } else if (event.key == "c") {
         if (selectedPoint !== null) {
