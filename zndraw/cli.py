@@ -108,7 +108,9 @@ def main(
     if standalone:
         if storage is None:
             os.environ["FLASK_STORAGE"] = f"znsocket://localhost:{ZNSOCKET_PORT}"
-        server = run_znsocket(ZNSOCKET_PORT)
+        if os.environ["FLASK_STORAGE"].startswith("znsocket"):
+            # standalone with redis would assume a running instance of redis
+            server = run_znsocket(ZNSOCKET_PORT)
         worker = run_celery_worker()
 
     fileio = FileIO(
