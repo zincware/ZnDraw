@@ -17,13 +17,6 @@ log = logging.getLogger(__name__)
 
 
 @shared_task
-def run_znsocket_server(port: int) -> None:
-    # Does not work with eventlet enabled!
-    znsocket.Server(port=port).run()
-    log.critical("ZnSocket server closed.")
-
-
-@shared_task
 def read_file(fileio: dict) -> None:
     file_io = FileIO(**fileio)
     # r = Redis(host="localhost", port=6379, db=0, decode_responses=True)
