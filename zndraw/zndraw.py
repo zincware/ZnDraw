@@ -108,7 +108,7 @@ class ZnDraw(ZnDrawBase):
                 break
             except socketio.exceptions.ConnectionError as err:
                 log.warning("Connection failed. Retrying...")
-                self._delay_socket()
+                self.socket.sleep(self.timeout["connection"])
                 if idx == self.timeout["connect_retries"]:
                     raise err
 
@@ -128,14 +128,6 @@ class ZnDraw(ZnDrawBase):
         for data in self._modifiers.values():
             _register_modifier(self, data)
 
-    def _delay_socket(self):
-        """Delay if the last call was too recent."""
-        while (datetime.datetime.now() - self._last_call).total_seconds() < self.timeout[
-            "between_calls"
-        ]:
-            self.socket.sleep(self.timeout["between_calls"] / 10)
-        self._last_call = datetime.datetime.now()
-
     def __getitem__(self, index) -> ase.Atoms | list[ase.Atoms]:
         single_item = isinstance(index, int)
         if single_item:
@@ -149,8 +141,6 @@ class ZnDraw(ZnDrawBase):
 
         if any(x >= len(self) for x in index):
             raise IndexError("Index out of range")
-
-        self._delay_socket()
 
         data = call_with_retry(
             self.socket,
@@ -192,8 +182,6 @@ class ZnDraw(ZnDrawBase):
         )
 
     def __len__(self) -> int:
-        self._delay_socket()
-
         return call_with_retry(
             self.socket,
             "room:length:get",
@@ -274,7 +262,6 @@ class ZnDraw(ZnDrawBase):
 
     @property
     def selection(self) -> list[int]:
-        self._delay_socket()
         return call_with_retry(
             self.socket,
             "room:selection:get",
@@ -304,8 +291,6 @@ class ZnDraw(ZnDrawBase):
 
     @property
     def step(self) -> int:
-        self._delay_socket()
-
         return int(
             call_with_retry(
                 self.socket,
@@ -345,7 +330,6 @@ class ZnDraw(ZnDrawBase):
 
     @property
     def figure(self) -> str:
-        self._delay_socket()
         return call_with_retry(
             self.socket,
             "analysis:figure:get",
@@ -371,7 +355,6 @@ class ZnDraw(ZnDrawBase):
 
     @property
     def points(self) -> np.ndarray:
-        self._delay_socket()
         return np.array(
             call_with_retry(
                 self.socket,
@@ -393,8 +376,6 @@ class ZnDraw(ZnDrawBase):
 
     @property
     def bookmarks(self) -> dict[int, str]:
-        self._delay_socket()
-
         return {
             int(k): v
             for k, v in call_with_retry(
@@ -422,8 +403,6 @@ class ZnDraw(ZnDrawBase):
 
     @property
     def camera(self) -> CameraData:
-        self._delay_socket()
-
         return call_with_retry(
             self.socket,
             "room:camera:get",
@@ -438,8 +417,6 @@ class ZnDraw(ZnDrawBase):
 
     @property
     def geometries(self) -> list[Object3D]:
-        self._delay_socket()
-
         return [
             Geometry(method=x).method
             for x in call_with_retry(

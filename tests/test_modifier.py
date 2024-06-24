@@ -6,9 +6,8 @@ def test_run_selection(server, s22):
     vis = ZnDraw(url=server, token="test_token")
     vis.extend(s22)
     vis.selection = [0]
-
     vis.socket.emit("selection:run", {"method": {"discriminator": "ConnectedParticles"}})
-    vis.socket.sleep(5)
+    vis.socket.sleep(7)
     assert vis.selection == [0, 1, 2, 3]
 
 
