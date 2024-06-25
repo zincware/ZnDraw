@@ -11,16 +11,10 @@ from flask import current_app
 
 from zndraw.base import FileIO
 from zndraw.bonds import ASEComputeBonds
+from zndraw.exceptions import RoomLockedError
 from zndraw.utils import ASEConverter
 
 log = logging.getLogger(__name__)
-
-
-@shared_task
-def run_znsocket_server(port: int) -> None:
-    # Does not work with eventlet enabled!
-    znsocket.Server(port=port).run()
-    log.critical("ZnSocket server closed.")
 
 
 def get_generator_from_filename(file_io: FileIO) -> t.Iterable[ase.Atoms]:
@@ -60,16 +54,9 @@ def get_generator_from_filename(file_io: FileIO) -> t.Iterable[ase.Atoms]:
 @shared_task
 def read_file(fileio: dict) -> None:
     file_io = FileIO(**fileio)
-    # r = Redis(host="localhost", port=6379, db=0, decode_responses=True)
     r = current_app.extensions["redis"]
 
     io = socketio.Client()
-
-    # r = znsocket.Client("http://127.0.0.1:5000")
-
-    # TODO: make everyone join room main
-    # send update here to everyone in room, because this is only called once in the beginning
-    # chain this with compute_bonds. So this will load much faster
     r.delete("room:default:frames")
 
     lst = znsocket.List(r, "room:default:frames")
@@ -124,6 +111,8 @@ def run_modifier(room, data: dict) -> None:
     )
     vis.socket.emit("room:modifier:queue", 0)
     try:
+        if vis.locked:
+            raise RoomLockedError("The room you are trying to modify is locked.")
         modifier = Modifier(**data)
         modifier.run(vis)
     except Exception as e:

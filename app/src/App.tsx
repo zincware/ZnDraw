@@ -62,7 +62,7 @@ export default function App() {
     vectors: "",
     controls: "OrbitControls",
     selection_color: "#ffa500",
-    material: "MeshPhysicalMaterial",
+    material: "MeshStandardMaterial",
     particle_size: 1.0,
     bond_size: 1.0,
   });
@@ -95,7 +95,9 @@ export default function App() {
   // todo give to particles and bonds
   const [colorMode, setColorMode] = useState<string>("light");
   const [hoveredId, setHoveredId] = useState<number>(null);
-  const [needsAuthentication, setNeedsAuthentication] = useState<boolean>(true);
+
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(true);
+  const [roomLock, setRoomLock] = useState<boolean>(false);
 
   // QUEUES
   const [modifierQueue, setModifierQueue] = useState<number>(-1);
@@ -174,9 +176,9 @@ export default function App() {
     function onConnect() {
       socket.emit(
         "webclient:connect",
-        (data: { name: string; room: string; needs_auth: boolean }) => {
+        (data: { name: string; room: string; authenticated: boolean }) => {
           setRoomName(data["room"]);
-          setNeedsAuthentication(data["needs_auth"]);
+          setIsAuthenticated(data["authenticated"]);
         },
       );
       console.log("connected");
@@ -210,6 +212,11 @@ export default function App() {
       socket.emit("room:selection:get", (data: any) => {
         selectionFromSocket.current = true;
         setSelectedIds(new Set(data[0]));
+      });
+
+      // get lock state
+      socket.emit("room:lock:get", (data: boolean) => {
+        setRoomLock(data);
       });
     }
 
@@ -297,6 +304,10 @@ export default function App() {
       }
     }
 
+    function onRoomLockSet(locked: boolean) {
+      setRoomLock(locked);
+    }
+
     socket.on("connect", onConnect);
     socket.on("selection:schema", onSelectionSchema);
     socket.on("modifier:schema", onModifierSchema);
@@ -317,6 +328,7 @@ export default function App() {
     socket.on("tutorial:url", onTutorialURL);
     socket.on("showSiMGen", onShowSiMGen);
     socket.on("room:camera:set", onCameraSet);
+    socket.on("room:lock:set", onRoomLockSet);
 
     return () => {
       socket.off("connect", onConnect);
@@ -339,6 +351,7 @@ export default function App() {
       socket.off("tutorial:url", onTutorialURL);
       socket.off("showSiMGen", onShowSiMGen);
       socket.off("room:camera:set", onCameraSet);
+      socket.off("room:lock:set", onRoomLockSet);
     };
   }, []);
 
@@ -355,6 +368,7 @@ export default function App() {
         return;
       }
       if (event.key === "ArrowRight") {
+        setPlaying(false);
         if (event.shiftKey) {
           // Jump to the bookmark after the current step
           const bookmarkKeys = Object.keys(bookmarks)
@@ -370,6 +384,7 @@ export default function App() {
           setStep((prevStep) => (prevStep + 1 < length ? prevStep + 1 : 0));
         }
       } else if (event.key === "ArrowLeft") {
+        setPlaying(false);
         if (event.shiftKey) {
           // Jump to the bookmark before the current step
           const bookmarkKeys = Object.keys(bookmarks)
@@ -388,10 +403,12 @@ export default function App() {
         }
       } else if (event.key == "ArrowUp") {
         // jump 10 percent, or to the end
+        setPlaying(false);
         const newStep = Math.min(step + Math.floor(length / 10), length - 1);
         setStep(newStep);
       } else if (event.key == "ArrowDown") {
         // jump 10 percent, or to the beginning
+        setPlaying(false);
         const newStep = Math.max(step - Math.floor(length / 10), 0);
         setStep(newStep);
       } else if (event.key == " ") {
@@ -436,9 +453,11 @@ export default function App() {
             setPoints(points.slice(0, points.length - 1));
           }
         } else {
-          socket.emit("modifier:run", {
-            method: { discriminator: "Delete" },
-          });
+          if (selectedIds.size > 0) {
+            socket.emit("modifier:run", {
+              method: { discriminator: "Delete" },
+            });
+          }
         }
       } else if (event.key == "c") {
         if (selectedPoint !== null) {
@@ -660,7 +679,8 @@ export default function App() {
           tutorialURL={tutorialURL}
           showSiMGen={showSiMGen}
           modifierQueue={modifierQueue}
-          needsAuthentication={needsAuthentication}
+          isAuthenticated={isAuthenticated}
+          roomLock={roomLock}
         />
         <Sidebar
           selectionSchema={selectionSchema}

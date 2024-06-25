@@ -66,8 +66,11 @@ def create_app() -> Flask:
         data_folder_processed = pathlib.Path(
             "~/.zincware/zndraw/celery/processed"
         ).expanduser()
+        control_folder = pathlib.Path("~/.zincware/zndraw/celery/ctrl").expanduser()
+
         data_folder.mkdir(parents=True, exist_ok=True)
         data_folder_processed.mkdir(parents=True, exist_ok=True)
+        control_folder.mkdir(parents=True, exist_ok=True)
 
         app.config.from_mapping(
             CELERY={
@@ -79,6 +82,7 @@ def create_app() -> Flask:
                     "data_folder_in": data_folder.as_posix(),
                     "data_folder_out": data_folder.as_posix(),
                     "data_folder_processed": data_folder_processed.as_posix(),
+                    "control_folder": control_folder.as_posix(),
                 },
             },
         )

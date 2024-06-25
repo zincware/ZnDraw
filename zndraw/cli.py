@@ -2,6 +2,8 @@ import eventlet
 
 eventlet.monkey_patch()
 
+import dataclasses
+import datetime
 import os
 import typing as t
 
@@ -15,6 +17,33 @@ from zndraw.upload import upload
 from zndraw.utils import get_port
 
 cli = typer.Typer()
+
+
+@dataclasses.dataclass
+class EnvOptions:
+    FLASK_PORT: str | None = None
+    FLASK_STORAGE: str | None = None
+    FLASK_AUTH_TOKEN: str | None = None
+    FLASK_TUTORIAL: str | None = None
+    FLASK_SIMGEN: str | None = None
+    FLASK_SERVER_URL: str | None = None
+    FLASK_STORAGE_PORT: str | None = None
+    FLASK_COMPUTE_BONDS: str | None = None
+
+    @classmethod
+    def from_env(cls):
+        return cls(
+            **{
+                field.name: os.environ.get(field.name)
+                for field in dataclasses.fields(cls)
+            }
+        )
+
+    def save_to_env(self):
+        for field in dataclasses.fields(self):
+            value = getattr(self, field.name)
+            if value is not None:
+                os.environ[field.name] = value
 
 
 @cli.command()
@@ -92,29 +121,43 @@ def main(
         raise ValueError(
             "You cannot provide a URL and a port at the same time. Use something like '--url http://localhost:1234' instead."
         )
+        
+    env_config = EnvOptions.from_env()
 
-    ZNSOCKET_PORT = 6374
+    if env_config.FLASK_STORAGE_PORT is None:
+        env_config.FLASK_STORAGE_PORT = str(get_port(default=6374))
 
-    # os.environ["FLASK_ENV"] = "development"
     if port is not None:
-        os.environ["FLASK_PORT"] = str(port)
-    else:
-        if "FLASK_PORT" in os.environ:
-            port = int(os.environ["FLASK_PORT"])
-        else:
-            port = get_port(default=1234)
-            os.environ["FLASK_PORT"] = str(port)
+        env_config.FLASK_PORT = str(port)
+    elif env_config.FLASK_PORT is None:
+        env_config.FLASK_PORT = str(get_port(default=1234))
     if storage is not None:
-        os.environ["FLASK_STORAGE"] = storage
+        env_config.FLASK_STORAGE = storage
     if auth_token is not None:
-        os.environ["FLASK_AUTH_TOKEN"] = auth_token
+        env_config.FLASK_AUTH_TOKEN = auth_token
     if tutorial is not None:
-        os.environ["FLASK_TUTORIAL"] = tutorial
+        env_config.FLASK_TUTORIAL = tutorial
     if simgen:
-        os.environ["FLASK_SIMGEN"] = "TRUE"
+        env_config.FLASK_SIMGEN = "TRUE"
     if bonds:
-        os.environ["FLASK_COMPUTE_BONDS"] = "TRUE"
-    os.environ["FLASK_SERVER_URL"] = f"http://localhost:{port}"
+        env_config.FLASK_COMPUTE_BONDS = "TRUE"
+        
+    env_config.FLASK_SERVER_URL = f"http://localhost:{env_config.FLASK_PORT}"
+
+    if standalone and storage is None:
+        env_config.FLASK_STORAGE = f"znsocket://localhost:{env_config.FLASK_STORAGE_PORT}"
+
+    env_config.save_to_env()
+
+    if standalone:
+        if env_config.FLASK_STORAGE.startswith("znsocket"):
+            # standalone with redis would assume a running instance of redis
+            server = run_znsocket(env_config.FLASK_STORAGE_PORT)
+        worker = run_celery_worker()
+
+    typer.echo(
+        f"{datetime.datetime.now().isoformat()}: Starting zndraw server on port {port}"
+    )
 
     fileio = FileIO(
         name=filename,
@@ -142,7 +185,7 @@ def main(
     if browser:
         import webbrowser
 
-        webbrowser.open(f"http://localhost:{port}")
+        webbrowser.open(f"http://localhost:{env_config.FLASK_PORT}")
 
     socketio = app.extensions["socketio"]
     try:
@@ -159,6 +202,3 @@ def main(
             worker.terminate()
             worker.wait()
             print("celery worker terminated.")
-
-        # app.extensions["redis"].flushall()
-        # socketio.stop()
