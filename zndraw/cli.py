@@ -121,7 +121,7 @@ def main(
         raise ValueError(
             "You cannot provide a URL and a port at the same time. Use something like '--url http://localhost:1234' instead."
         )
-        
+
     env_config = EnvOptions.from_env()
 
     if env_config.FLASK_STORAGE_PORT is None:
@@ -141,7 +141,7 @@ def main(
         env_config.FLASK_SIMGEN = "TRUE"
     if bonds:
         env_config.FLASK_COMPUTE_BONDS = "TRUE"
-        
+
     env_config.FLASK_SERVER_URL = f"http://localhost:{env_config.FLASK_PORT}"
 
     if standalone and storage is None:
