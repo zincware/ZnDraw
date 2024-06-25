@@ -17,9 +17,6 @@ from zndraw.utils import get_port
 cli = typer.Typer()
 
 
-import os
-import dataclasses
-
 @dataclasses.dataclass
 class EnvOptions:
     FLASK_PORT: str | None = None
@@ -32,7 +29,12 @@ class EnvOptions:
 
     @classmethod
     def from_env(cls):
-        return cls(**{field.name: os.environ.get(field.name) for field in dataclasses.fields(cls)})
+        return cls(
+            **{
+                field.name: os.environ.get(field.name)
+                for field in dataclasses.fields(cls)
+            }
+        )
 
     def save_to_env(self):
         for field in dataclasses.fields(self):
