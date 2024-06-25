@@ -1,5 +1,7 @@
 import logging
 import typing as t
+import urllib.request
+from io import StringIO
 
 import ase.io
 import socketio.exceptions
@@ -8,8 +10,6 @@ import znjson
 import znsocket
 from celery import shared_task
 from flask import current_app
-import urllib.request
-from io import StringIO
 
 from zndraw.base import FileIO
 from zndraw.bonds import ASEComputeBonds
@@ -52,7 +52,7 @@ def get_generator_from_filename(file_io: FileIO) -> t.Iterable[ase.Atoms]:
         format = format if format != "xyz" else "extxyz"
         content = urllib.request.urlopen(file_io.name).read().decode("utf-8")
         stream = StringIO(content)
-        
+
         generator = ase.io.iread(stream, format=format)
 
     else:
