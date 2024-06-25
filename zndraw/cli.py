@@ -172,12 +172,6 @@ def main(
         upload(filename, url, token, fileio)
         return
 
-    if standalone:
-        if storage is None:
-            os.environ["FLASK_STORAGE"] = f"znsocket://localhost:{ZNSOCKET_PORT}"
-        server = run_znsocket(ZNSOCKET_PORT)
-        worker = run_celery_worker()
-
     app = create_app()
 
     read_file.delay(fileio.to_dict())
