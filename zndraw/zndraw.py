@@ -1,5 +1,4 @@
 import dataclasses
-import datetime
 import json
 import logging
 import typing as t
@@ -83,9 +82,6 @@ class ZnDraw(ZnDrawBase):
 
     _modifiers: dict[str, RegisterModifier] = dataclasses.field(default_factory=dict)
     _available: bool = True
-    _last_call: datetime.datetime = dataclasses.field(
-        default_factory=datetime.datetime.now
-    )
 
     bond_calculator: ASEComputeBonds | None = dataclasses.field(
         default_factory=ASEComputeBonds, repr=False
@@ -108,9 +104,11 @@ class ZnDraw(ZnDrawBase):
                 break
             except socketio.exceptions.ConnectionError as err:
                 log.warning("Connection failed. Retrying...")
-                self._delay_socket()
+                self.socket.sleep(self.timeout["connection"])
                 if idx == self.timeout["connect_retries"]:
-                    raise err
+                    raise socketio.exceptions.ConnectionError(
+                        f"Unable to connect to ZnDraw server at '{self.url}'. Is the server running?"
+                    ) from err
 
     def _on_connect(self):
         log.debug("Connected to ZnDraw server")
@@ -128,14 +126,6 @@ class ZnDraw(ZnDrawBase):
         for data in self._modifiers.values():
             _register_modifier(self, data)
 
-    def _delay_socket(self):
-        """Delay if the last call was too recent."""
-        while (datetime.datetime.now() - self._last_call).total_seconds() < self.timeout[
-            "between_calls"
-        ]:
-            self.socket.sleep(self.timeout["between_calls"] / 10)
-        self._last_call = datetime.datetime.now()
-
     def __getitem__(self, index) -> ase.Atoms | list[ase.Atoms]:
         single_item = isinstance(index, int)
         if single_item:
@@ -149,8 +139,6 @@ class ZnDraw(ZnDrawBase):
 
         if any(x >= len(self) for x in index):
             raise IndexError("Index out of range")
-
-        self._delay_socket()
 
         data = call_with_retry(
             self.socket,
@@ -192,8 +180,6 @@ class ZnDraw(ZnDrawBase):
         )
 
     def __len__(self) -> int:
-        self._delay_socket()
-
         return call_with_retry(
             self.socket,
             "room:length:get",
@@ -214,7 +200,7 @@ class ZnDraw(ZnDrawBase):
         )
 
     def insert(self, index: int, value: ase.Atoms):
-        if hasattr(value, "connectivity") and self.bond_calculator is not None:
+        if not hasattr(value, "connectivity") and self.bond_calculator is not None:
             value.connectivity = self.bond_calculator.get_bonds(value)
 
         call_with_retry(
@@ -274,7 +260,6 @@ class ZnDraw(ZnDrawBase):
 
     @property
     def selection(self) -> list[int]:
-        self._delay_socket()
         return call_with_retry(
             self.socket,
             "room:selection:get",
@@ -304,8 +289,6 @@ class ZnDraw(ZnDrawBase):
 
     @property
     def step(self) -> int:
-        self._delay_socket()
-
         return int(
             call_with_retry(
                 self.socket,
@@ -345,7 +328,6 @@ class ZnDraw(ZnDrawBase):
 
     @property
     def figure(self) -> str:
-        self._delay_socket()
         return call_with_retry(
             self.socket,
             "analysis:figure:get",
@@ -371,7 +353,6 @@ class ZnDraw(ZnDrawBase):
 
     @property
     def points(self) -> np.ndarray:
-        self._delay_socket()
         return np.array(
             call_with_retry(
                 self.socket,
@@ -393,8 +374,6 @@ class ZnDraw(ZnDrawBase):
 
     @property
     def bookmarks(self) -> dict[int, str]:
-        self._delay_socket()
-
         return {
             int(k): v
             for k, v in call_with_retry(
@@ -422,8 +401,6 @@ class ZnDraw(ZnDrawBase):
 
     @property
     def camera(self) -> CameraData:
-        self._delay_socket()
-
         return call_with_retry(
             self.socket,
             "room:camera:get",
@@ -438,8 +415,6 @@ class ZnDraw(ZnDrawBase):
 
     @property
     def geometries(self) -> list[Object3D]:
-        self._delay_socket()
-
         return [
             Geometry(method=x).method
             for x in call_with_retry(
@@ -461,6 +436,14 @@ class ZnDraw(ZnDrawBase):
             [x.model_dump() for x in value],
             retries=self.timeout["emit_retries"],
         )
+
+    @property
+    def locked(self) -> bool:
+        return call_with_retry(self.socket, "room:lock:get")
+
+    @locked.setter
+    def locked(self, value: bool) -> None:
+        emit_with_retry(self.socket, "room:lock:set", value)
 
     def register_modifier(
         self,

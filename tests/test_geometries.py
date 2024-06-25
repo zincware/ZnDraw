@@ -10,6 +10,7 @@ def test_geometries(server, s22):
 
     assert vis.geometries == []
     vis.geometries = [Box(position=[1, 2, 3]), Sphere()]
+    vis.socket.sleep(0.1)
 
     assert len(vis.geometries) == 2
     assert isinstance(vis.geometries[0], Box)

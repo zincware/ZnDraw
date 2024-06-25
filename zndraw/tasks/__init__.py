@@ -1,5 +1,7 @@
 import logging
 import typing as t
+import urllib.request
+from io import StringIO
 
 import ase.io
 import socketio.exceptions
@@ -11,36 +13,13 @@ from flask import current_app
 
 from zndraw.base import FileIO
 from zndraw.bonds import ASEComputeBonds
+from zndraw.exceptions import RoomLockedError
 from zndraw.utils import ASEConverter
 
 log = logging.getLogger(__name__)
 
 
-@shared_task
-def run_znsocket_server(port: int) -> None:
-    # Does not work with eventlet enabled!
-    znsocket.Server(port=port).run()
-    log.critical("ZnSocket server closed.")
-
-
-@shared_task
-def read_file(fileio: dict) -> None:
-    file_io = FileIO(**fileio)
-    # r = Redis(host="localhost", port=6379, db=0, decode_responses=True)
-    r = current_app.extensions["redis"]
-
-    io = socketio.Client()
-
-    # r = znsocket.Client("http://127.0.0.1:5000")
-
-    # TODO: make everyone join room main
-    # send update here to everyone in room, because this is only called once in the beginning
-    # chain this with compute_bonds. So this will load much faster
-    r.delete("room:default:frames")
-
-    lst = znsocket.List(r, "room:default:frames")
-    bonds_calculator = ASEComputeBonds()
-
+def get_generator_from_filename(file_io: FileIO) -> t.Iterable[ase.Atoms]:
     if file_io.name is None:
 
         def _generator():
@@ -68,10 +47,32 @@ def read_file(fileio: dict) -> None:
             raise ImportError(
                 "You need to install ZnH5MD to use the remote feature (or `pip install zndraw[all]`)."
             ) from err
+    elif file_io.name.startswith(("http", "https")):
+        format = file_io.name.split(".")[-1]
+        format = format if format != "xyz" else "extxyz"
+        content = urllib.request.urlopen(file_io.name).read().decode("utf-8")
+        stream = StringIO(content)
+
+        generator = ase.io.iread(stream, format=format)
+
     else:
         generator = ase.io.iread(file_io.name)
 
-    generator: t.Iterable[ase.Atoms]
+    return generator
+
+
+@shared_task
+def read_file(fileio: dict) -> None:
+    file_io = FileIO(**fileio)
+    r = current_app.extensions["redis"]
+
+    io = socketio.Client()
+    r.delete("room:default:frames")
+
+    lst = znsocket.List(r, "room:default:frames")
+    bonds_calculator = ASEComputeBonds()
+
+    generator = get_generator_from_filename(file_io)
 
     for idx, atoms in tqdm.tqdm(enumerate(generator)):
         if file_io.start and idx < file_io.start:
@@ -80,8 +81,9 @@ def read_file(fileio: dict) -> None:
             break
         if file_io.step and idx % file_io.step != 0:
             continue
-        if not hasattr(atoms, "connectivity"):
-            atoms.connectivity = bonds_calculator.get_bonds(atoms)
+        if current_app.config.get("COMPUTE_BONDS", False):
+            if not hasattr(atoms, "connectivity"):
+                atoms.connectivity = bonds_calculator.get_bonds(atoms)
         lst.append(
             znjson.dumps(atoms, cls=znjson.ZnEncoder.from_converters([ASEConverter]))
         )
@@ -117,8 +119,12 @@ def run_modifier(room, data: dict) -> None:
         url=current_app.config["SERVER_URL"],
         token=room,
     )
+    if not current_app.config.get("COMPUTE_BONDS", False):
+        vis.bond_calculator = None
     vis.socket.emit("room:modifier:queue", 0)
     try:
+        if vis.locked:
+            raise RoomLockedError("The room you are trying to modify is locked.")
         modifier = Modifier(**data)
         modifier.run(vis)
     except Exception as e:
