@@ -2,8 +2,8 @@ import eventlet
 
 eventlet.monkey_patch()
 
-import datetime
 import dataclasses
+import datetime
 import os
 import typing as t
 
@@ -170,4 +170,3 @@ def main(
             worker.terminate()
             worker.wait()
             print("celery worker terminated.")
- 
