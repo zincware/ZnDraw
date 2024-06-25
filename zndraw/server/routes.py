@@ -59,11 +59,30 @@ def reset():
 def exit_route(token: str | None = None):
     """Exit the session."""
     log.critical("Server shutting down...")
-    if "AUTH_TOKEN" in current_app.config and token != current_app.config["AUTH_TOKEN"]:
+    if not session.get("authenticated", False) and token != current_app.config.get(
+        "AUTH_TOKEN"
+    ):
         return "Invalid auth token", 403
 
     current_app.extensions["socketio"].stop()
     return "Server shutting down..."
+
+
+@main.route("/login/<auth_token>")
+def login_route(auth_token: str | None = None):
+    """Create an authenticated session."""
+    session["authenticated"] = auth_token == current_app.config.get("AUTH_TOKEN", "NONE")
+    if session["authenticated"]:
+        return redirect("/")
+    return "Invalid auth token", 403
+
+
+@main.route("/logout")
+def logout_route():
+    if not session.get("authenticated", False):
+        return "Can only log out, if you logged in before.", 403
+    session["authenticated"] = False
+    return redirect("/")
 
 
 @main.route("/upload", methods=["POST"])

@@ -20,6 +20,8 @@ import {
   FaDownload,
   FaFilm,
   FaHandSparkles,
+  FaLock,
+  FaLockOpen,
   FaMoon,
   FaRegClipboard,
   FaRocket,
@@ -349,7 +351,8 @@ const HeadBar = ({
   tutorialURL,
   showSiMGen,
   modifierQueue,
-  needsAuthentication,
+  isAuthenticated,
+  roomLock,
 }: {
   room: string;
   colorMode: string;
@@ -361,7 +364,8 @@ const HeadBar = ({
   tutorialURL: string;
   showSiMGen: boolean;
   modifierQueue: number;
-  needsAuthentication: boolean;
+  isAuthenticated: boolean;
+  roomLock: boolean;
 }) => {
   const [helpModalShow, setHelpModalShow] = useState(false);
   const [connectModalShow, setConnectModalShow] = useState(false);
@@ -538,22 +542,37 @@ const HeadBar = ({
                   {colorMode === "light" ? <FaSun /> : <FaMoon />}
                 </Button>
               </BtnTooltip>
-              {/* <Button variant="outline-primary" className="mx-1">
+              {isAuthenticated && (
+                <>
+                  <BtnTooltip
+                    text={roomLock ? "Unlock this room" : "Lock this room"}
+                  >
+                    <Button
+                      variant="outline-danger"
+                      className="mx-1"
+                      onClick={() => {
+                        socket.emit("room:lock:set", !roomLock);
+                      }}
+                    >
+                      {roomLock ? <FaLock /> : <FaLockOpen />}
+                    </Button>
+                  </BtnTooltip>
+                  {/* <Button variant="outline-primary" className="mx-1">
                 <FaUsers />
               </Button> */}
-              {!needsAuthentication && (
-                <BtnTooltip text="Close ZnDraw">
-                  <Button
-                    variant="outline-danger"
-                    className="mx-1"
-                    onClick={() => {
-                      socket.emit("shutdown");
-                      close();
-                    }}
-                  >
-                    <MdExitToApp />
-                  </Button>
-                </BtnTooltip>
+                  <BtnTooltip text="Close ZnDraw">
+                    <Button
+                      variant="outline-danger"
+                      className="mx-1"
+                      onClick={() => {
+                        socket.emit("shutdown");
+                        close();
+                      }}
+                    >
+                      <MdExitToApp />
+                    </Button>
+                  </BtnTooltip>
+                </>
               )}
             </Nav>
           </Navbar.Collapse>

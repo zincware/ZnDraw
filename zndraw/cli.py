@@ -2,6 +2,7 @@ import eventlet
 
 eventlet.monkey_patch()
 
+import dataclasses
 import os
 import typing as t
 
@@ -16,21 +17,37 @@ from zndraw.utils import get_port
 cli = typer.Typer()
 
 
+@dataclasses.dataclass
+class EnvOptions:
+    FLASK_PORT: str | None = None
+    FLASK_STORAGE: str | None = None
+    FLASK_AUTH_TOKEN: str | None = None
+    FLASK_TUTORIAL: str | None = None
+    FLASK_SIMGEN: str | None = None
+    FLASK_SERVER_URL: str | None = None
+    FLASK_STORAGE_PORT: str | None = None
+
+    @classmethod
+    def from_env(cls):
+        return cls(
+            **{
+                field.name: os.environ.get(field.name)
+                for field in dataclasses.fields(cls)
+            }
+        )
+
+    def save_to_env(self):
+        for field in dataclasses.fields(self):
+            value = getattr(self, field.name)
+            if value is not None:
+                os.environ[field.name] = value
+
+
 @cli.command()
 def main(
     filename: t.Optional[str] = typer.Argument(
         None,
         help="Path to the file which should be visualized in ZnDraw. Can also be the name and attribute of a ZnTrack Node like 'MyNode.atoms' if at least '--remote .' is provided. ",
-    ),
-    webview: bool = typer.Option(
-        True,
-        help="""Whether to use the webview library to open the ZnDraw GUI.
-        If `pip install pywebview` is available, webview will be used.
-        Otherwise, the GUI will be opened in the default web browser.""",
-    ),
-    fullscreen: bool = typer.Option(
-        False,
-        help="Use fullscreen mode for the ZnDraw GUI. (only with webview)",
     ),
     port: int = typer.Option(
         None, help="""Port to use for the ZnDraw server. Default port is 1234"""
@@ -84,31 +101,35 @@ def main(
 
     Visualize Trajectories, Structures, and more in ZnDraw.
     """
-    ZNSOCKET_PORT = 6374
+    env_config = EnvOptions.from_env()
+
+    if env_config.FLASK_STORAGE_PORT is None:
+        env_config.FLASK_STORAGE_PORT = str(get_port(default=6374))
 
     # os.environ["FLASK_ENV"] = "development"
     if port is not None:
-        os.environ["FLASK_PORT"] = str(port)
-    else:
-        if "FLASK_PORT" in os.environ:
-            port = int(os.environ["FLASK_PORT"])
-        else:
-            port = get_port(default=1234)
-            os.environ["FLASK_PORT"] = str(port)
+        env_config.FLASK_PORT = str(port)
+    elif env_config.FLASK_PORT is None:
+        env_config.FLASK_PORT = str(get_port(default=1234))
     if storage is not None:
-        os.environ["FLASK_STORAGE"] = storage
+        env_config.FLASK_STORAGE = storage
     if auth_token is not None:
-        os.environ["FLASK_AUTH_TOKEN"] = auth_token
+        env_config.FLASK_AUTH_TOKEN = auth_token
     if tutorial is not None:
-        os.environ["FLASK_TUTORIAL"] = tutorial
+        env_config.FLASK_TUTORIAL = tutorial
     if simgen:
-        os.environ["FLASK_SIMGEN"] = "TRUE"
-    os.environ["FLASK_SERVER_URL"] = f"http://localhost:{port}"
+        env_config.FLASK_SIMGEN = "TRUE"
+    env_config.FLASK_SERVER_URL = f"http://localhost:{env_config.FLASK_PORT}"
+
+    if standalone and storage is None:
+        env_config.FLASK_STORAGE = f"znsocket://localhost:{env_config.FLASK_STORAGE_PORT}"
+
+    env_config.save_to_env()
 
     if standalone:
-        if storage is None:
-            os.environ["FLASK_STORAGE"] = f"znsocket://localhost:{ZNSOCKET_PORT}"
-        server = run_znsocket(ZNSOCKET_PORT)
+        if env_config.FLASK_STORAGE.startswith("znsocket"):
+            # standalone with redis would assume a running instance of redis
+            server = run_znsocket(env_config.FLASK_STORAGE_PORT)
         worker = run_celery_worker()
 
     fileio = FileIO(
@@ -127,7 +148,7 @@ def main(
     if browser:
         import webbrowser
 
-        webbrowser.open(f"http://localhost:{port}")
+        webbrowser.open(f"http://localhost:{env_config.FLASK_PORT}")
 
     socketio = app.extensions["socketio"]
     try:
