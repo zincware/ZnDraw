@@ -17,6 +17,9 @@ from zndraw.utils import get_port
 cli = typer.Typer()
 
 
+import os
+import dataclasses
+
 @dataclasses.dataclass
 class EnvOptions:
     FLASK_PORT: str | None = None
@@ -29,31 +32,13 @@ class EnvOptions:
 
     @classmethod
     def from_env(cls):
-        return cls(
-            FLASK_PORT=os.environ.get("FLASK_PORT"),
-            FLASK_STORAGE=os.environ.get("FLASK_STORAGE"),
-            FLASK_AUTH_TOKEN=os.environ.get("FLASK_AUTH_TOKEN"),
-            FLASK_TUTORIAL=os.environ.get("FLASK_TUTORIAL"),
-            FLASK_SIMGEN=os.environ.get("FLASK_SIMGEN"),
-            FLASK_SERVER_URL=os.environ.get("FLASK_SERVER_URL"),
-            FLASK_STORAGE_PORT=os.environ.get("FLASK_STORAGE_PORT"),
-        )
+        return cls(**{field.name: os.environ.get(field.name) for field in dataclasses.fields(cls)})
 
     def save_to_env(self):
-        if self.FLASK_PORT is not None:
-            os.environ["FLASK_PORT"] = self.FLASK_PORT
-        if self.FLASK_STORAGE is not None:
-            os.environ["FLASK_STORAGE"] = self.FLASK_STORAGE
-        if self.FLASK_AUTH_TOKEN is not None:
-            os.environ["FLASK_AUTH_TOKEN"] = self.FLASK_AUTH_TOKEN
-        if self.FLASK_SIMGEN is not None:
-            os.environ["FLASK_SIMGEN"] = self.FLASK_SIMGEN
-        if self.FLASK_TUTORIAL is not None:
-            os.environ["FLASK_TUTORIAL"] = self.FLASK_TUTORIAL
-        if self.FLASK_SERVER_URL is not None:
-            os.environ["FLASK_SERVER_URL"] = self.FLASK_SERVER_URL
-        if self.FLASK_STORAGE_PORT is not None:
-            os.environ["FLASK_STORAGE_PORT"] = self.FLASK_STORAGE_PORT
+        for field in dataclasses.fields(self):
+            value = getattr(self, field.name)
+            if value is not None:
+                os.environ[field.name] = value
 
 
 @cli.command()

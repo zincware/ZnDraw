@@ -95,7 +95,7 @@ export default function App() {
   // todo give to particles and bonds
   const [colorMode, setColorMode] = useState<string>("light");
   const [hoveredId, setHoveredId] = useState<number>(null);
-  // TODO: update to: setAuthentication (which will be double checked on the server, so no need to try to hack it ;)
+
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(true);
   const [roomLock, setRoomLock] = useState<boolean>(false);
 
@@ -305,7 +305,6 @@ export default function App() {
     }
 
     function onRoomLockSet(locked: boolean) {
-      console.log("room is locked: " + locked);
       setRoomLock(locked);
     }
 

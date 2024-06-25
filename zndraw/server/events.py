@@ -563,7 +563,6 @@ def init_socketio_events(io: SocketIO):
 
     @io.on("room:lock:set")
     def room_lock_set(locked: bool):
-        print(f"setting room to locked: {locked = }")
         room = session.get("token")
         r: Redis = current_app.extensions["redis"]
         r.set(f"room:{room}:locked", str(locked))
@@ -574,5 +573,4 @@ def init_socketio_events(io: SocketIO):
         room = session.get("token")
         r: Redis = current_app.extensions["redis"]
         locked = r.get(f"room:{room}:locked")
-        print(f"getting room to locked: {locked = }")
         return locked == "True"

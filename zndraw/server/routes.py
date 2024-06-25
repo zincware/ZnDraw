@@ -78,7 +78,7 @@ def login_route(auth_token: str | None = None):
 
 
 @main.route("/logout")
-def is_auth():
+def logout_route():
     if not session.get("authenticated", False):
         return "Can only log out, if you logged in before.", 403
     session["authenticated"] = False

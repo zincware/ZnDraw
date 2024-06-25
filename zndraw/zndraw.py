@@ -1,5 +1,4 @@
 import dataclasses
-import datetime
 import json
 import logging
 import typing as t
@@ -83,9 +82,6 @@ class ZnDraw(ZnDrawBase):
 
     _modifiers: dict[str, RegisterModifier] = dataclasses.field(default_factory=dict)
     _available: bool = True
-    _last_call: datetime.datetime = dataclasses.field(
-        default_factory=datetime.datetime.now
-    )
 
     bond_calculator: ASEComputeBonds | None = dataclasses.field(
         default_factory=ASEComputeBonds, repr=False
@@ -441,7 +437,7 @@ class ZnDraw(ZnDrawBase):
 
     @property
     def locked(self) -> bool:
-        return call_with_retry(self.socket, "room:lock:get") is True
+        return call_with_retry(self.socket, "room:lock:get")
 
     @locked.setter
     def locked(self, value: bool) -> None:
