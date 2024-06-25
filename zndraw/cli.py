@@ -3,6 +3,7 @@ import eventlet
 eventlet.monkey_patch()
 
 import dataclasses
+import datetime
 import os
 import typing as t
 
@@ -132,6 +133,10 @@ def main(
             server = run_znsocket(env_config.FLASK_STORAGE_PORT)
         worker = run_celery_worker()
 
+    typer.echo(
+        f"{datetime.datetime.now().isoformat()}: Starting zndraw server on port {port}"
+    )
+
     fileio = FileIO(
         name=filename,
         remote=remote,
@@ -165,6 +170,3 @@ def main(
             worker.terminate()
             worker.wait()
             print("celery worker terminated.")
-
-        # app.extensions["redis"].flushall()
-        # socketio.stop()

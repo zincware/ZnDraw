@@ -106,7 +106,9 @@ class ZnDraw(ZnDrawBase):
                 log.warning("Connection failed. Retrying...")
                 self.socket.sleep(self.timeout["connection"])
                 if idx == self.timeout["connect_retries"]:
-                    raise err
+                    raise socketio.exceptions.ConnectionError(
+                        f"Unable to connect to ZnDraw server at '{self.url}'. Is the server running?"
+                    ) from err
 
     def _on_connect(self):
         log.debug("Connected to ZnDraw server")
