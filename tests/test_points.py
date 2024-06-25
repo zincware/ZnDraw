@@ -15,7 +15,6 @@ def test_points_segments(server):
     npt.assert_array_equal(zndraw.segments, [])
 
     zndraw.points = np.array([[0, 0, 0], [1, 1, 1]])
-    zndraw.socket.sleep(0.5)
     assert zndraw.points.shape == (2, 3)
     assert zndraw.segments.shape == (100, 3)
 

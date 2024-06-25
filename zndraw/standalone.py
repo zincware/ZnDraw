@@ -13,13 +13,16 @@ def run_znsocket(port) -> subprocess.Popen:
 
     server = subprocess.Popen(["znsocket", str(port)])
 
-    while True:
+    for trial in range(1000):
         try:
             znsocket.Client.from_url(f"znsocket://localhost:{port}")
             break
         except znsocket.exceptions.ConnectionError:
-            print("Waiting for znsocket to start...")
             time.sleep(0.1)
+            if trial % 10 == 0:
+                print("Waiting for znsocket to start...")
+    else:
+        raise RuntimeError("Unable to start ZnSocket server!")
 
     return server
 

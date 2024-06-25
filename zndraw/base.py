@@ -103,12 +103,12 @@ class MethodsCollection(BaseModel):
 
 @dataclasses.dataclass  # TODO: move to a separate file, so it can be imported in other files
 class FileIO:
-    name: str = None
+    name: str | None = None
     start: int = 0
-    stop: int = None
+    stop: int | None = None
     step: int = 1
-    remote: str = None
-    rev: str = None
+    remote: str | None = None
+    rev: str | None = None
 
     def to_dict(self):
         return dataclasses.asdict(self)
@@ -189,4 +189,14 @@ class ZnDrawBase(MutableSequence):
     @camera.setter
     @abstractmethod
     def camera(self, camera: dict):
+        pass
+
+    @property
+    @abstractmethod
+    def locked(self) -> bool:
+        pass
+
+    @locked.setter
+    @abstractmethod
+    def locked(self, value: bool) -> None:
         pass

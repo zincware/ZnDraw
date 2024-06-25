@@ -11,16 +11,10 @@ from flask import current_app
 
 from zndraw.base import FileIO
 from zndraw.bonds import ASEComputeBonds
+from zndraw.exceptions import RoomLockedError
 from zndraw.utils import ASEConverter
 
 log = logging.getLogger(__name__)
-
-
-@shared_task
-def run_znsocket_server(port: int) -> None:
-    # Does not work with eventlet enabled!
-    znsocket.Server(port=port).run()
-    log.critical("ZnSocket server closed.")
 
 
 @shared_task
@@ -119,6 +113,8 @@ def run_modifier(room, data: dict) -> None:
     )
     vis.socket.emit("room:modifier:queue", 0)
     try:
+        if vis.locked:
+            raise RoomLockedError("The room you are trying to modify is locked.")
         modifier = Modifier(**data)
         modifier.run(vis)
     except Exception as e:
