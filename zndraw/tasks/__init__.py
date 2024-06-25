@@ -109,6 +109,8 @@ def run_modifier(room, data: dict) -> None:
         url=current_app.config["SERVER_URL"],
         token=room,
     )
+    if not current_app.config.get("COMPUTE_BONDS", False):
+        vis.bond_calculator = None
     vis.socket.emit("room:modifier:queue", 0)
     try:
         if vis.locked:
