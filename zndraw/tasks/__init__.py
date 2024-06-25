@@ -1,5 +1,7 @@
 import logging
 import typing as t
+import urllib.request
+from io import StringIO
 
 import ase.io
 import socketio.exceptions
@@ -45,6 +47,14 @@ def get_generator_from_filename(file_io: FileIO) -> t.Iterable[ase.Atoms]:
             raise ImportError(
                 "You need to install ZnH5MD to use the remote feature (or `pip install zndraw[all]`)."
             ) from err
+    elif file_io.name.startswith(("http", "https")):
+        format = file_io.name.split(".")[-1]
+        format = format if format != "xyz" else "extxyz"
+        content = urllib.request.urlopen(file_io.name).read().decode("utf-8")
+        stream = StringIO(content)
+
+        generator = ase.io.iread(stream, format=format)
+
     else:
         generator = ase.io.iread(file_io.name)
 
