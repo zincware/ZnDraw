@@ -13,6 +13,7 @@ from zndraw.app import create_app
 from zndraw.base import FileIO
 from zndraw.standalone import run_celery_worker, run_znsocket
 from zndraw.tasks import read_file
+from zndraw.upload import upload
 from zndraw.utils import get_port
 
 cli = typer.Typer()
@@ -27,6 +28,7 @@ class EnvOptions:
     FLASK_SIMGEN: str | None = None
     FLASK_SERVER_URL: str | None = None
     FLASK_STORAGE_PORT: str | None = None
+    FLASK_COMPUTE_BONDS: str | None = None
 
     @classmethod
     def from_env(cls):
@@ -49,6 +51,13 @@ def main(
     filename: t.Optional[str] = typer.Argument(
         None,
         help="Path to the file which should be visualized in ZnDraw. Can also be the name and attribute of a ZnTrack Node like 'MyNode.atoms' if at least '--remote .' is provided. ",
+    ),
+    url: t.Optional[str] = typer.Option(
+        None,
+        help="URL to a running ZnDraw server. Use this server instead of starting a new one.",
+    ),
+    token: t.Optional[str] = typer.Option(
+        None, help="Only valid if 'url' is provided. Room token to upload the file to."
     ),
     port: int = typer.Option(
         None, help="""Port to use for the ZnDraw server. Default port is 1234"""
@@ -97,17 +106,27 @@ def main(
         True,
         help="Run ZnDraw without additional tools. If disabled, redis and celery must be started manually.",
     ),
+    bonds: bool = typer.Option(
+        True,
+        help="Compute bonds based on covalent distances. This can be slow for large structures.",
+    ),
 ):
     """Start the ZnDraw server.
 
     Visualize Trajectories, Structures, and more in ZnDraw.
     """
+    if token is not None and url is None:
+        raise ValueError("You need to provide a URL to use the token feature.")
+    if url is not None and port is not None:
+        raise ValueError(
+            "You cannot provide a URL and a port at the same time. Use something like '--url http://localhost:1234' instead."
+        )
+
     env_config = EnvOptions.from_env()
 
     if env_config.FLASK_STORAGE_PORT is None:
         env_config.FLASK_STORAGE_PORT = str(get_port(default=6374))
 
-    # os.environ["FLASK_ENV"] = "development"
     if port is not None:
         env_config.FLASK_PORT = str(port)
     elif env_config.FLASK_PORT is None:
@@ -120,6 +139,9 @@ def main(
         env_config.FLASK_TUTORIAL = tutorial
     if simgen:
         env_config.FLASK_SIMGEN = "TRUE"
+    if bonds:
+        env_config.FLASK_COMPUTE_BONDS = "TRUE"
+
     env_config.FLASK_SERVER_URL = f"http://localhost:{env_config.FLASK_PORT}"
 
     if standalone and storage is None:
@@ -145,6 +167,10 @@ def main(
         stop=stop,
         step=step,
     )
+
+    if url is not None:
+        upload(filename, url, token, fileio)
+        return
 
     app = create_app()
 
