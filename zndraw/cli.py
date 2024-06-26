@@ -112,10 +112,8 @@ def main(
         help="Compute bonds based on covalent distances. This can be slow for large structures.",
     ),
     max_http_buffer_size: int = typer.Option(
-        None,
-        help="Maximum size of the HTTP buffer in bytes. Default is 1MB."
+        None, help="Maximum size of the HTTP buffer in bytes. Default is 1MB."
     ),
-
 ):
     """Start the ZnDraw server.
 
