@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "zndraw"
-version = "0.4.1"
+version = "0.4.2"
 description = "Display and Edit Molecular Structures and Trajectories in the Browser."
 authors = ["zincwarecode <zincwarecode@gmail.com>"]
 license = "License :: OSI Approved :: Eclipse Public License 2.0 (EPL-2.0)"
@@ -13,7 +13,6 @@ ase = "^3"
 typer = {extras = ["all"], version = "^0"}
 flask = "^2"
 tqdm = "^4"
-znh5md = {version = "^0", optional = true}
 flask-socketio = "^5"
 networkx = "^3"
 pydantic = "^2"
@@ -21,10 +20,6 @@ python-socketio = {extras = ["client"], version = "^5.11"}
 plotly = "^5"
 pandas = "^2"
 datamodel-code-generator = "^0.25"
-mdanalysis = {version = "^2", optional = true}
-tidynamics = {version = "^1", optional = true}
-rdkit2ase = {version = "^0.1", optional = true}
-zntrack = {version = "^0.7.3", optional = true}
 celery = "^5"
 sqlalchemy = "^2"
 redis = "^5"
@@ -41,12 +36,12 @@ pytest = "^7"
 coverage = "^7"
 ruff = "^0.1"
 ipykernel = "^6.29.4"
+mdanalysis = {version = "^2"}
+tidynamics = {version = "^1"}
+rdkit2ase = {version = "^0.1"}
+zntrack = {version = "^0.7.3"}
+znh5md = {version = "^0"}
 
-
-[tool.poetry.extras]
-all = ["mdanalysis", "tidynamics", "rdkit2ase", "zntrack", "znh5md"]
-rdkit = ["rdkit2ase"]
-io = ["zntrack", "znh5md"]
 
 
 [build-system]
