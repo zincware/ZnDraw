@@ -53,7 +53,7 @@ def test_modified_atoms():
     npt.assert_array_equal(new_atoms.arrays["colors"], ["#ffffff", "#ffffff"])
     npt.assert_almost_equal(new_atoms.arrays["radii"], [0.3458333, 0.3458333])
 
-    # substract
+    # subtract
     atoms = new_atoms[:1]
     new_atoms = znjson.loads(
         znjson.dumps(atoms, cls=znjson.ZnEncoder.from_converters([ASEConverter])),
