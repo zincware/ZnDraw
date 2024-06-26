@@ -93,8 +93,15 @@ def create_app() -> Flask:
         if app.config["STORAGE"].startswith("redis")
         else None
     )
+    max_http_buffer_size = app.config.get("MAX_HTTP_BUFFER_SIZE")
+    kwargs = {
+        "message_queue": message_queue,
+        "cors_allowed_origins": "*",
+    }
+    if max_http_buffer_size is not None:
+        kwargs["max_http_buffer_size"] = int(max_http_buffer_size)
 
-    socketio = SocketIO(app, message_queue=message_queue, cors_allowed_origins="*")
+    socketio = SocketIO(app, **kwargs)
 
     # Initialize Celery
     celery_init_app(app)
