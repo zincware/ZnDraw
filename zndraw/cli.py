@@ -29,6 +29,7 @@ class EnvOptions:
     FLASK_SERVER_URL: str | None = None
     FLASK_STORAGE_PORT: str | None = None
     FLASK_COMPUTE_BONDS: str | None = None
+    FLASK_MAX_HTTP_BUFFER_SIZE: str | None = None
 
     @classmethod
     def from_env(cls):
@@ -110,6 +111,9 @@ def main(
         True,
         help="Compute bonds based on covalent distances. This can be slow for large structures.",
     ),
+    max_http_buffer_size: int = typer.Option(
+        None, help="Maximum size of the HTTP buffer in bytes. Default is 1MB."
+    ),
 ):
     """Start the ZnDraw server.
 
@@ -141,6 +145,8 @@ def main(
         env_config.FLASK_SIMGEN = "TRUE"
     if bonds:
         env_config.FLASK_COMPUTE_BONDS = "TRUE"
+    if max_http_buffer_size is not None:
+        env_config.FLASK_MAX_HTTP_BUFFER_SIZE = str(int(max_http_buffer_size))
 
     env_config.FLASK_SERVER_URL = f"http://localhost:{env_config.FLASK_PORT}"
 
