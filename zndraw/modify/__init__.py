@@ -190,6 +190,9 @@ class ChangeType(UpdateScene):
         for atom_id in vis.selection:
             atoms[atom_id].symbol = self.symbol.name
 
+        del atoms.arrays["colors"]
+        del atoms.arrays["radii"]
+
         vis.append(atoms)
         vis.selection = []
 

@@ -42,3 +42,35 @@ def test_exotic_atoms():
     )
     npt.assert_array_equal(new_atoms.arrays["colors"], ["#ff0000"])
     npt.assert_array_equal(new_atoms.arrays["radii"], [0.3])
+
+
+def test_modified_atoms():
+    atoms = ase.Atoms("H2", positions=[[0, 0, 0], [0, 0, 1]])
+    new_atoms = znjson.loads(
+        znjson.dumps(atoms, cls=znjson.ZnEncoder.from_converters([ASEConverter])),
+        cls=znjson.ZnDecoder.from_converters([ASEConverter]),
+    )
+    npt.assert_array_equal(new_atoms.arrays["colors"], ["#ffffff", "#ffffff"])
+    npt.assert_almost_equal(new_atoms.arrays["radii"], [0.3458333, 0.3458333])
+
+    # subtract
+    atoms = new_atoms[:1]
+    new_atoms = znjson.loads(
+        znjson.dumps(atoms, cls=znjson.ZnEncoder.from_converters([ASEConverter])),
+        cls=znjson.ZnDecoder.from_converters([ASEConverter]),
+    )
+
+    npt.assert_array_equal(new_atoms.arrays["colors"], ["#ffffff"])
+    npt.assert_almost_equal(new_atoms.arrays["radii"], [0.3458333])
+
+    # add
+    atoms = new_atoms + ase.Atoms("H", positions=[[0, 0, 1]])
+
+    new_atoms = znjson.loads(
+        znjson.dumps(atoms, cls=znjson.ZnEncoder.from_converters([ASEConverter])),
+        cls=znjson.ZnDecoder.from_converters([ASEConverter]),
+    )
+
+    npt.assert_array_equal(new_atoms.get_atomic_numbers(), [1, 1])
+    npt.assert_array_equal(new_atoms.arrays["colors"], ["#ffffff", "#ffffff"])
+    npt.assert_almost_equal(new_atoms.arrays["radii"], [0.3458333, 0.3458333])
