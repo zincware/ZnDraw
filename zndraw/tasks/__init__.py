@@ -18,8 +18,10 @@ from zndraw.utils import ASEConverter
 
 log = logging.getLogger(__name__)
 
+
 def _get_default_generator(file_io: FileIO) -> t.Iterable[ase.Atoms]:
     return [ase.Atoms()]
+
 
 def _get_zntrack_generator(file_io: FileIO) -> t.Iterable[ase.Atoms]:
     node_name, attribute = file_io.name.split(".", 1)
@@ -33,7 +35,8 @@ def _get_zntrack_generator(file_io: FileIO) -> t.Iterable[ase.Atoms]:
             "You need to install ZnTrack to use the remote feature (or `pip install zndraw[all]`)."
         ) from err
 
-    return images[file_io.start:file_io.stop:file_io.step]
+    return images[file_io.start : file_io.stop : file_io.step]
+
 
 def _get_znh5md_generator(file_io: FileIO) -> t.Iterable[ase.Atoms]:
     try:
@@ -45,7 +48,8 @@ def _get_znh5md_generator(file_io: FileIO) -> t.Iterable[ase.Atoms]:
             "You need to install ZnH5MD to use the remote feature (or `pip install zndraw[all]`)."
         ) from err
     log.critical(file_io)
-    return io[file_io.start:file_io.stop:file_io.step]
+    return io[file_io.start : file_io.stop : file_io.step]
+
 
 def _get_http_generator(file_io: FileIO) -> t.Iterable[ase.Atoms]:
     format = file_io.name.split(".")[-1]
@@ -53,14 +57,20 @@ def _get_http_generator(file_io: FileIO) -> t.Iterable[ase.Atoms]:
     content = urllib.request.urlopen(file_io.name).read().decode("utf-8")
     stream = StringIO(content)
 
-    generator = ase.io.iread(stream, format=format, index=slice(file_io.start, file_io.stop, file_io.step))
+    generator = ase.io.iread(
+        stream, format=format, index=slice(file_io.start, file_io.stop, file_io.step)
+    )
 
     return generator
+
 
 def _get_ase_generator(file_io: FileIO) -> t.Iterable[ase.Atoms]:
-    generator = ase.io.iread(file_io.name, index=slice(file_io.start, file_io.stop, file_io.step))
+    generator = ase.io.iread(
+        file_io.name, index=slice(file_io.start, file_io.stop, file_io.step)
+    )
 
     return generator
+
 
 def get_generator_from_filename(file_io: FileIO) -> t.Iterable[ase.Atoms]:
     if file_io.name is None:
@@ -73,6 +83,7 @@ def get_generator_from_filename(file_io: FileIO) -> t.Iterable[ase.Atoms]:
         return _get_http_generator(file_io)
     else:
         return _get_ase_generator(file_io)
+
 
 @shared_task
 def read_file(fileio: dict) -> None:
