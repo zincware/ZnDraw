@@ -39,6 +39,11 @@ class TimeoutConfig(t.TypedDict):
     connect_retries: int
 
 
+class JupyterConfig(t.TypedDict):
+    width: str | int
+    height: str | int
+
+
 class CameraData(t.TypedDict):
     position: list[float]
     target: list[float]
@@ -78,6 +83,13 @@ class ZnDraw(ZnDrawBase):
             connect_retries=3,
         )
     )
+    jupyter_config: JupyterConfig = dataclasses.field(
+        default_factory=lambda: JupyterConfig(
+            width="70%",
+            height=600,
+        )
+    )
+
     maximum_message_size: int = dataclasses.field(default=500_000, repr=False)
 
     _modifiers: dict[str, RegisterModifier] = dataclasses.field(default_factory=dict)
@@ -198,6 +210,19 @@ class ZnDraw(ZnDrawBase):
             index,
             retries=self.timeout["call_retries"],
         )
+
+    def _repr_html_(self):
+        from IPython.display import IFrame
+
+        address = f"{self.url}/token/{self.token}"
+        # TODO: save address and do not replace in post_init
+        address = address.replace("ws", "http")
+        log.info(f"Opening ZnDraw at {address}")
+        return IFrame(
+            address,
+            width=self.jupyter_config["width"],
+            height=self.jupyter_config["height"],
+        )._repr_html_()
 
     def insert(self, index: int, value: ase.Atoms):
         if not hasattr(value, "connectivity") and self.bond_calculator is not None:
@@ -560,3 +585,19 @@ class ZnDrawLocal(ZnDraw):
         if single_item:
             return structures[0]
         return structures
+
+    def insert(self, index: int, value: dict):
+        lst = znsocket.List(self.r, f"room:{self.token}:frames")
+        if not self.r.exists(f"room:{self.token}:frames"):
+            default_lst = znsocket.List(self.r, "room:default:frames")
+            # TODO: using a redis copy action would be faster
+            lst.extend(default_lst)
+        lst.insert(index, value)
+
+    def append(self, value: dict):
+        lst = znsocket.List(self.r, f"room:{self.token}:frames")
+        if not self.r.exists(f"room:{self.token}:frames"):
+            default_lst = znsocket.List(self.r, "room:default:frames")
+            # TODO: using a redis copy action would be faster
+            lst.extend(default_lst)
+        lst.append(value)
