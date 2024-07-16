@@ -992,8 +992,8 @@ jinja2 = ">=2.10.1,<4.0"
 packaging = "*"
 pydantic = [
     {version = ">=1.10.0,<2.0.0 || >2.0.0,<2.0.1 || >2.0.1,<2.4.0 || >2.4.0,<3.0", extras = ["email"], markers = "python_version >= \"3.12\" and python_version < \"4.0\""},
-    {version = ">=1.9.0,<2.4.0 || >2.4.0,<3.0", extras = ["email"], markers = "python_version >= \"3.10\" and python_version < \"3.11\""},
     {version = ">=1.10.0,<2.4.0 || >2.4.0,<3.0", extras = ["email"], markers = "python_version >= \"3.11\" and python_version < \"3.12\""},
+    {version = ">=1.9.0,<2.4.0 || >2.4.0,<3.0", extras = ["email"], markers = "python_version >= \"3.10\" and python_version < \"3.11\""},
 ]
 pyyaml = ">=6.0.1"
 toml = {version = ">=0.10.0,<1.0.0", markers = "python_version < \"3.11\""}
@@ -3067,8 +3067,8 @@ files = [
 [package.dependencies]
 numpy = [
     {version = ">=1.26.0", markers = "python_version >= \"3.12\""},
-    {version = ">=1.22.4", markers = "python_version < \"3.11\""},
     {version = ">=1.23.2", markers = "python_version == \"3.11\""},
+    {version = ">=1.22.4", markers = "python_version < \"3.11\""},
 ]
 python-dateutil = ">=2.8.2"
 pytz = ">=2020.1"
@@ -4862,13 +4862,13 @@ dask = ["bokeh (>=2.4.2,<3.0.0)", "dask (>=2022.12.1,<2023.0.0)", "dask-jobqueue
 
 [[package]]
 name = "znh5md"
-version = "0.3.0a3"
+version = "0.3.0"
 description = "ASE Interface for the H5MD format."
 optional = false
 python-versions = "<4.0,>=3.10"
 files = [
-    {file = "znh5md-0.3.0a3-py3-none-any.whl", hash = "sha256:2473a051817bb6cda8d628d70ac833da3912b0689247260dbc171be116c218a6"},
-    {file = "znh5md-0.3.0a3.tar.gz", hash = "sha256:322a19e5367f1fc21f50448c1a7a984b5892b1452d90f5d58e1ad8fd2078e0cd"},
+    {file = "znh5md-0.3.0-py3-none-any.whl", hash = "sha256:155685c084eb1a3395287df58ae1276d745480fdb065ca4319d2025c746c040e"},
+    {file = "znh5md-0.3.0.tar.gz", hash = "sha256:a3e7037c91aae0e23cc29195761f3ca2ff94b15cf08ab00f6a1929b81faa196a"},
 ]
 
 [package.dependencies]
@@ -4947,4 +4947,4 @@ znjson = ">=0.2,<0.3"
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "37b75319d7b8c20ff7c074d5cc535c4f94105f20caa26ed7862f333c08098a08"
+content-hash = "dfe34e49abb95f365956771f593119ff7ed359449679a489059a7132fc8c013a"

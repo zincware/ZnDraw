@@ -40,7 +40,7 @@ mdanalysis = {version = "^2"}
 tidynamics = {version = "^1"}
 rdkit2ase = {version = "^0.1"}
 zntrack = {version = "^0.7.3"}
-znh5md = {version = "0.3.0a3"}
+znh5md = {version = "^0.3"}
 
 
 
