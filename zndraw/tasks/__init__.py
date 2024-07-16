@@ -32,7 +32,7 @@ def _get_zntrack_generator(file_io: FileIO) -> t.Iterable[ase.Atoms]:
         images = getattr(node, attribute)
     except ImportError as err:
         raise ImportError(
-            "You need to install ZnTrack to use the remote feature (or `pip install zndraw[all]`)."
+            "You need to install ZnTrack to use the remote feature."
         ) from err
 
     return images[file_io.start : file_io.stop : file_io.step]
@@ -45,7 +45,7 @@ def _get_znh5md_generator(file_io: FileIO) -> t.Iterable[ase.Atoms]:
         io = znh5md.IO(file_io.name)
     except ImportError as err:
         raise ImportError(
-            "You need to install ZnH5MD to use the remote feature (or `pip install zndraw[all]`)."
+            "You need to install ZnH5MD>=0.3 to use the remote feature."
         ) from err
     log.critical(file_io)
     return io[file_io.start : file_io.stop : file_io.step]
