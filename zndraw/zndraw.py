@@ -205,8 +205,8 @@ class ZnDraw(ZnDrawBase):
         address = f"{self.url}/token/{self.token}"
         # TODO: save address and do not replace in post_init
         address = address.replace("ws", "http")
-        print(f"Opening ZnDraw at {address}")
-        return IFrame(address, 1200, 600)._repr_html_()
+        log.info(f"Opening ZnDraw at {address}")
+        return IFrame(address, width="70%", height=600)._repr_html_()
 
     def insert(self, index: int, value: ase.Atoms):
         if not hasattr(value, "connectivity") and self.bond_calculator is not None:
@@ -570,7 +570,7 @@ class ZnDrawLocal(ZnDraw):
             return structures[0]
         return structures
 
-    def insert_local(self, index: int, value: dict):
+    def insert(self, index: int, value: dict):
         lst = znsocket.List(self.r, f"room:{self.token}:frames")
         if not self.r.exists(f"room:{self.token}:frames"):
             default_lst = znsocket.List(self.r, "room:default:frames")
@@ -578,7 +578,7 @@ class ZnDrawLocal(ZnDraw):
             lst.extend(default_lst)
         lst.insert(index, value)
 
-    def append_local(self, value: dict):
+    def append(self, value: dict):
         lst = znsocket.List(self.r, f"room:{self.token}:frames")
         if not self.r.exists(f"room:{self.token}:frames"):
             default_lst = znsocket.List(self.r, "room:default:frames")
