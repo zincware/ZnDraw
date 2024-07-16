@@ -38,9 +38,11 @@ class TimeoutConfig(t.TypedDict):
     call_retries: int
     connect_retries: int
 
-class JupyterConfig(t.TypedDict):  
-    width: str|int
-    height: str|int
+
+class JupyterConfig(t.TypedDict):
+    width: str | int
+    height: str | int
+
 
 class CameraData(t.TypedDict):
     position: list[float]
@@ -216,7 +218,11 @@ class ZnDraw(ZnDrawBase):
         # TODO: save address and do not replace in post_init
         address = address.replace("ws", "http")
         log.info(f"Opening ZnDraw at {address}")
-        return IFrame(address, width=self.jupyter_config["width"], height=self.jupyter_config["height"])._repr_html_()
+        return IFrame(
+            address,
+            width=self.jupyter_config["width"],
+            height=self.jupyter_config["height"],
+        )._repr_html_()
 
     def insert(self, index: int, value: ase.Atoms):
         if not hasattr(value, "connectivity") and self.bond_calculator is not None:
