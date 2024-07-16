@@ -199,6 +199,14 @@ class ZnDraw(ZnDrawBase):
             retries=self.timeout["call_retries"],
         )
 
+    def _repr_html_(self):
+        from IPython.display import IFrame
+        address = f"{self.url}/token/{self.token}"
+        # TODO: save address and do not replace in post_init
+        address = address.replace("ws", "http")
+        print(f"Opening ZnDraw at {address}")
+        return IFrame(address, 1200,600)._repr_html_()
+
     def insert(self, index: int, value: ase.Atoms):
         if not hasattr(value, "connectivity") and self.bond_calculator is not None:
             value.connectivity = self.bond_calculator.get_bonds(value)
@@ -560,3 +568,21 @@ class ZnDrawLocal(ZnDraw):
         if single_item:
             return structures[0]
         return structures
+
+    def insert_local(self, index: int, value: dict):
+
+        lst = znsocket.List(self.r, f"room:{self.token}:frames")
+        if not self.r.exists(f"room:{self.token}:frames"):
+            default_lst = znsocket.List(self.r, "room:default:frames")
+            #TODO: using a redis copy action would be faster
+            lst.extend(default_lst)
+        lst.insert(index, value)
+
+    def append_local(self, value: dict):
+
+        lst = znsocket.List(self.r, f"room:{self.token}:frames")
+        if not self.r.exists(f"room:{self.token}:frames"):
+            default_lst = znsocket.List(self.r, "room:default:frames")
+            #TODO: using a redis copy action would be faster
+            lst.extend(default_lst)
+        lst.append(value)
