@@ -19,46 +19,70 @@ from zndraw.utils import ASEConverter
 log = logging.getLogger(__name__)
 
 
-def get_generator_from_filename(file_io: FileIO) -> t.Iterable[ase.Atoms]:
-    if file_io.name is None:
+def _get_default_generator(file_io: FileIO) -> t.Iterable[ase.Atoms]:
+    return [ase.Atoms()]
 
-        def _generator():
-            yield ase.Atoms()
 
-        generator = _generator()
-    elif file_io.remote is not None:
-        node_name, attribute = file_io.name.split(".", 1)
-        try:
-            import zntrack
+def _get_zntrack_generator(file_io: FileIO) -> t.Iterable[ase.Atoms]:
+    node_name, attribute = file_io.name.split(".", 1)
+    try:
+        import zntrack
 
-            node = zntrack.from_rev(node_name, remote=file_io.remote, rev=file_io.rev)
-            generator = getattr(node, attribute)
-        except ImportError as err:
-            raise ImportError(
-                "You need to install ZnTrack to use the remote feature (or `pip install zndraw[all]`)."
-            ) from err
-    elif file_io.name.endswith((".h5", ".hdf5", ".h5md")):
-        try:
-            import znh5md
+        node = zntrack.from_rev(node_name, remote=file_io.remote, rev=file_io.rev)
+        images = getattr(node, attribute)
+    except ImportError as err:
+        raise ImportError(
+            "You need to install ZnTrack to use the remote feature."
+        ) from err
 
-            reader = znh5md.ASEH5MD(file_io.name)
-            generator = reader.get_atoms_list()
-        except ImportError as err:
-            raise ImportError(
-                "You need to install ZnH5MD to use the remote feature (or `pip install zndraw[all]`)."
-            ) from err
-    elif file_io.name.startswith(("http", "https")):
-        format = file_io.name.split(".")[-1]
-        format = format if format != "xyz" else "extxyz"
-        content = urllib.request.urlopen(file_io.name).read().decode("utf-8")
-        stream = StringIO(content)
+    return images[file_io.start : file_io.stop : file_io.step]
 
-        generator = ase.io.iread(stream, format=format)
 
-    else:
-        generator = ase.io.iread(file_io.name)
+def _get_znh5md_generator(file_io: FileIO) -> t.Iterable[ase.Atoms]:
+    try:
+        import znh5md
+
+        io = znh5md.IO(file_io.name)
+    except ImportError as err:
+        raise ImportError(
+            "You need to install ZnH5MD>=0.3 to use the remote feature."
+        ) from err
+    log.critical(file_io)
+    return io[file_io.start : file_io.stop : file_io.step]
+
+
+def _get_http_generator(file_io: FileIO) -> t.Iterable[ase.Atoms]:
+    format = file_io.name.split(".")[-1]
+    format = format if format != "xyz" else "extxyz"
+    content = urllib.request.urlopen(file_io.name).read().decode("utf-8")
+    stream = StringIO(content)
+
+    generator = ase.io.iread(
+        stream, format=format, index=slice(file_io.start, file_io.stop, file_io.step)
+    )
 
     return generator
+
+
+def _get_ase_generator(file_io: FileIO) -> t.Iterable[ase.Atoms]:
+    generator = ase.io.iread(
+        file_io.name, index=slice(file_io.start, file_io.stop, file_io.step)
+    )
+
+    return generator
+
+
+def get_generator_from_filename(file_io: FileIO) -> t.Iterable[ase.Atoms]:
+    if file_io.name is None:
+        return _get_default_generator(file_io)
+    elif file_io.remote is not None:
+        return _get_zntrack_generator(file_io)
+    elif file_io.name.endswith((".h5", ".hdf5", ".h5md")):
+        return _get_znh5md_generator(file_io)
+    elif file_io.name.startswith(("http", "https")):
+        return _get_http_generator(file_io)
+    else:
+        return _get_ase_generator(file_io)
 
 
 @shared_task
@@ -75,12 +99,6 @@ def read_file(fileio: dict) -> None:
     generator = get_generator_from_filename(file_io)
 
     for idx, atoms in tqdm.tqdm(enumerate(generator)):
-        if file_io.start and idx < file_io.start:
-            continue
-        if file_io.stop and idx >= file_io.stop:
-            break
-        if file_io.step and idx % file_io.step != 0:
-            continue
         if current_app.config.get("COMPUTE_BONDS", False):
             if not hasattr(atoms, "connectivity"):
                 atoms.connectivity = bonds_calculator.get_bonds(atoms)
