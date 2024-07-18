@@ -397,6 +397,11 @@ const HeadBar = ({
       "data-bs-theme",
       colorMode === "light" ? "dark" : "light",
     );
+    // set a cookie to remember the color mode
+    localStorage.setItem(
+      "theme",
+      colorMode === "light" ? "dark" : "light",
+    );
   };
 
   const handleRemovePointsGeometries = () => {

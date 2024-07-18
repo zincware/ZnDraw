@@ -33,6 +33,7 @@ import * as THREE from "three";
 import { Line3D, VirtualCanvas } from "./components/lines";
 import ControlsBuilder from "./components/transforms";
 import { ParticleInfoOverlay, SceneInfoOverlay } from "./components/overlays";
+import { setTheme } from "./components/utils";
 
 export default function App() {
   // const [isConnected, setIsConnected] = useState(socket.connected);
@@ -356,6 +357,9 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    // page initialization
+    setTheme(setColorMode);
+
     const updateLength = () => {
       socket.emit("room:length:get", (data: number) => {
         setLength(data);
