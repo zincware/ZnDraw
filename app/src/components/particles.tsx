@@ -511,17 +511,19 @@ export const SimulationCell = ({
 interface PerParticleVectorsProps {
   frame: Frame | undefined;
   property: string;
+  colorMode: string;
 }
 
 export const PerParticleVectors: React.FC<PerParticleVectorsProps> = ({
   frame,
   property,
+  colorMode,
 }) => {
   const [vectors, setVectors] = useState<
     { start: THREE.Vector3; end: THREE.Vector3 }[]
   >([]);
 
-  const LineColor = "black";
+  const LineColor = colorMode === "light" ? "#454b66" : "#f5fdc6";
   const LineWidth = 2;
   const LineScale = 1;
 

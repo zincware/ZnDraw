@@ -33,6 +33,7 @@ import * as THREE from "three";
 import { Line3D, VirtualCanvas } from "./components/lines";
 import ControlsBuilder from "./components/transforms";
 import { ParticleInfoOverlay, SceneInfoOverlay } from "./components/overlays";
+import { useColorMode } from "./components/utils";
 
 export default function App() {
   // const [isConnected, setIsConnected] = useState(socket.connected);
@@ -93,7 +94,7 @@ export default function App() {
   );
   // TODO: initial values are wrong for orbitcontrolstarget and camperaPosition
   // todo give to particles and bonds
-  const [colorMode, setColorMode] = useState<string>("light");
+  const [colorMode, handleColorMode] = useColorMode();
   const [hoveredId, setHoveredId] = useState<number>(null);
 
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(true);
@@ -356,6 +357,7 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    // page initialization
     const updateLength = () => {
       socket.emit("room:length:get", (data: number) => {
         setLength(data);
@@ -663,6 +665,7 @@ export default function App() {
             <PerParticleVectors
               frame={currentFrame}
               property={sceneSettings.vectors}
+              colorMode={colorMode}
             ></PerParticleVectors>
           )}
         </Canvas>
@@ -671,7 +674,7 @@ export default function App() {
         <HeadBar
           room={roomName}
           colorMode={colorMode}
-          setColorMode={setColorMode}
+          handleColorMode={handleColorMode}
           setIsDrawing={setIsDrawing}
           setGeometries={setGeometries}
           setPoints={setPoints}
