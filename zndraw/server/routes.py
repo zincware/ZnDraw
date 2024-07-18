@@ -26,10 +26,8 @@ def index():
     except KeyError:
         token = uuid.uuid4().hex[:8]
         session["token"] = token
-
-    session["name"] = uuid.uuid4().hex[:8]
-    # just show templates / index.html
-    return send_from_directory("templates", "index.html")
+    
+    return redirect(f"/token/{token}")
 
 
 @main.route("/<path:filename>")
@@ -45,13 +43,13 @@ def assets(filename):
 @main.route("/token/<token>")
 def token(token):
     session["token"] = token
-    return redirect("/")
+    return send_from_directory("templates", "index.html")
 
 
 @main.route("/reset")
 def reset():
     session["token"] = uuid.uuid4().hex[:8]  # TODO: how should reset work locally?
-    return redirect("/")
+    return redirect(f"/token/{session['token']}")
 
 
 @main.route("/exit")
