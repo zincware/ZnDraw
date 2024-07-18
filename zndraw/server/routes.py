@@ -26,7 +26,7 @@ def index():
     except KeyError:
         token = uuid.uuid4().hex[:8]
         session["token"] = token
-    
+
     return redirect(f"/token/{token}")
 
 
