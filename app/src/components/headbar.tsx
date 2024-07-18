@@ -178,8 +178,9 @@ ${pythonCode}
 }
 
 function RefreshModal({ show, onHide, room }) {
-  const urlWithRoom =
-    window.location.href.replace(/\/$/, "") + `/token/${room}`;
+  const serverUrl = window.location.origin;
+  const urlWithRoom = `${serverUrl}/token/${room}`;
+  const resetURL = `${serverUrl}/reset`;
 
   return (
     <Modal
@@ -211,7 +212,7 @@ function RefreshModal({ show, onHide, room }) {
       </Modal.Body>
       <Modal.Footer>
         <Button onClick={onHide}>Cancel</Button>
-        <Button href={`${window.location.href}reset`}>Create new Scene</Button>
+        <Button href={resetURL}>Create new Scene</Button>
       </Modal.Footer>
     </Modal>
   );

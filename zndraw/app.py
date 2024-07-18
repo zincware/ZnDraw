@@ -47,6 +47,7 @@ def storage_init_app(app: Flask) -> None:
 
 def create_app() -> Flask:
     app = Flask(__name__)
+    app.config.update(SESSION_COOKIE_SAMESITE="None", SESSION_COOKIE_SECURE=True)
     app.config["SECRET_KEY"] = "secret!"
     # loads all FLASK_ prefixed environment variables into the app config
     app.config.from_prefixed_env()
