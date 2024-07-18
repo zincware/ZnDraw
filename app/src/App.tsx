@@ -665,6 +665,7 @@ export default function App() {
             <PerParticleVectors
               frame={currentFrame}
               property={sceneSettings.vectors}
+              colorMode={colorMode}
             ></PerParticleVectors>
           )}
         </Canvas>
