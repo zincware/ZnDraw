@@ -1,13 +1,23 @@
-export function setTheme(setColorMode: any): void {
-    // check if there is a cookie
-    const theme = localStorage.getItem("theme");
-    if (theme) {
-      document.documentElement.setAttribute("data-bs-theme", theme);
-      setColorMode(theme);
-    } else {
-      const prefersDarkScheme = window.matchMedia("(prefers-color-scheme: dark)");
-      const theme = prefersDarkScheme.matches ? "dark" : "light";
-      document.documentElement.setAttribute("data-bs-theme", theme);
-    setColorMode(theme);
-    }
-}
+import { useEffect, useState } from 'react';
+
+export const useColorMode = (): [string, () => void] => {
+  const [colorMode, setColorMode] = useState<string>('light');
+
+  useEffect(() => {
+    const theme = localStorage.getItem('theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    setTheme(theme, setColorMode);
+  }, []);
+
+  const handleColorMode = () => {
+    const newColorMode = colorMode === 'light' ? 'dark' : 'light';
+    setTheme(newColorMode, setColorMode);
+    localStorage.setItem('theme', newColorMode);
+  };
+
+  return [colorMode, handleColorMode];
+};
+
+const setTheme = (theme: string, setColorMode: (mode: string) => void): void => {
+  document.documentElement.setAttribute('data-bs-theme', theme);
+  setColorMode(theme);
+};

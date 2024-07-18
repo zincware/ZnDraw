@@ -344,7 +344,7 @@ const FileUpload = forwardRef((props, ref) => {
 const HeadBar = ({
   room,
   colorMode,
-  setColorMode,
+  handleColorMode,
   setIsDrawing,
   setGeometries,
   setPoints,
@@ -357,7 +357,7 @@ const HeadBar = ({
 }: {
   room: string;
   colorMode: string;
-  setColorMode: any;
+  handleColorMode: any;
   setIsDrawing: any;
   setGeometries: any;
   setPoints: any;
@@ -390,19 +390,6 @@ const HeadBar = ({
   useEffect(() => {
     setConsoleShow(showSiMGen);
   }, [showSiMGen]);
-
-  const handleColorMode = () => {
-    setColorMode(colorMode === "light" ? "dark" : "light");
-    document.documentElement.setAttribute(
-      "data-bs-theme",
-      colorMode === "light" ? "dark" : "light",
-    );
-    // set a cookie to remember the color mode
-    localStorage.setItem(
-      "theme",
-      colorMode === "light" ? "dark" : "light",
-    );
-  };
 
   const handleRemovePointsGeometries = () => {
     console.log("remove points and geometries");
