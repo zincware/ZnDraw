@@ -517,7 +517,7 @@ interface PerParticleVectorsProps {
 export const PerParticleVectors: React.FC<PerParticleVectorsProps> = ({
   frame,
   property,
-  colorMode
+  colorMode,
 }) => {
   const [vectors, setVectors] = useState<
     { start: THREE.Vector3; end: THREE.Vector3 }[]
