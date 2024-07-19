@@ -33,6 +33,7 @@ import * as THREE from "three";
 import { Line3D, VirtualCanvas } from "./components/lines";
 import ControlsBuilder from "./components/transforms";
 import { ParticleInfoOverlay, SceneInfoOverlay } from "./components/overlays";
+import VectorField from "./components/vectorfield";
 
 export default function App() {
   // const [isConnected, setIsConnected] = useState(socket.connected);
@@ -52,6 +53,7 @@ export default function App() {
     numbers: [],
     pbc: [],
     positions: [],
+    vectors: [],
   });
   const [playing, setPlaying] = useState<boolean>(false);
   const [length, setLength] = useState<number>(0);
@@ -558,6 +560,7 @@ export default function App() {
             intensity={Math.PI}
             castShadow
           />
+          <VectorField vectors={currentFrame.vectors} />
 
           <ParticleInstances
             frame={currentFrame}

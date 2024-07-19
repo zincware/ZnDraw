@@ -30,6 +30,7 @@ class ASEDict(t.TypedDict):
     # calc: dict[str, float|int|np.ndarray] # should this be split into arrays and info?
     pbc: list[bool]
     cell: list[list[float]]
+    vectors: list[list[list[float]]]
 
 
 def rgb2hex(value):
@@ -83,6 +84,7 @@ class ASEConverter(ConverterBase):
             if isinstance(v, (float, int, str, bool, list))
         }
         info |= {k: v.tolist() for k, v in obj.info.items() if isinstance(v, np.ndarray)}
+        vectors = info.pop("vectors", [])
 
         if obj.calc is not None:
             calc = {
@@ -138,6 +140,7 @@ class ASEConverter(ConverterBase):
             calc=calc,
             pbc=pbc,
             cell=cell,
+            vectors=vectors,
         )
 
     def decode(self, value: ASEDict) -> ase.Atoms:
@@ -159,6 +162,8 @@ class ASEConverter(ConverterBase):
         if calc := value.get("calc"):
             atoms.calc = SinglePointCalculator(atoms)
             atoms.calc.results.update(calc)
+        if vectors := value.get("vectors"):
+            atoms.info["vectors"] = vectors
         return atoms
 
 
