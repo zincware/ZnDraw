@@ -45,11 +45,18 @@ const ArrowHelper: React.FC<ArrowHelperProps> = ({ start, end }) => {
     end[1] - start[1],
     end[2] - start[2],
   ).length();
+  
+  // Scale head size based on the length of the vector
+  const headLength = length * 0.3;
+  const headWidth = length * 0.2;
+
   const arrowHelper = new THREE.ArrowHelper(
     dir,
     new THREE.Vector3(...start),
     length,
     0x0000ff,
+    headLength,
+    headWidth,
   );
 
   return <primitive object={arrowHelper} />;
