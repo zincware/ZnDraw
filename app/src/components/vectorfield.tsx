@@ -45,7 +45,7 @@ const ArrowHelper: React.FC<ArrowHelperProps> = ({ start, end }) => {
     end[1] - start[1],
     end[2] - start[2],
   ).length();
-  
+
   // Scale head size based on the length of the vector
   const headLength = length * 0.3;
   const headWidth = length * 0.2;
