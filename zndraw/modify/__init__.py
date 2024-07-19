@@ -315,6 +315,7 @@ class NewCanvas(UpdateScene):
             )
         ]
 
+
 class ShowTrajectory(UpdateScene):
     steps: int = Field(-1, description="Show the trajectory for the last n steps")
 
@@ -324,7 +325,7 @@ class ShowTrajectory(UpdateScene):
         vis.log("Downloading atoms...")
         step = vis.step
         if self.steps == -1:
-            images = vis[: step]
+            images = vis[:step]
         else:
             images = vis[step - self.steps : step]
         vis.log(f"Showing trajectory for the last {len(images)} steps.")
@@ -338,6 +339,7 @@ class ShowTrajectory(UpdateScene):
         atoms = vis.atoms
         atoms.info["vectors"] = vectors
         vis.atoms = atoms
+
 
 methods = t.Union[
     Delete,
