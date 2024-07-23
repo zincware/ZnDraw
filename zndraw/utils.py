@@ -85,6 +85,17 @@ class ASEConverter(ConverterBase):
         }
         info |= {k: v.tolist() for k, v in obj.info.items() if isinstance(v, np.ndarray)}
         vectors = info.pop("vectors", [])
+        if isinstance(vectors, np.ndarray):
+            vectors = vectors.tolist()
+        for idx, vector in enumerate(vectors):
+            if isinstance(vector, np.ndarray):
+                vectors[idx] = vector.tolist()
+        
+        if len(vectors) != 0:
+            if not isinstance(vectors[0], list):
+                raise ValueError("Vectors must be of shape (n, m, 3)")
+            if len(vectors[0][0]) != 3:
+                raise ValueError("Vectors must be of shape (n, m, 3)")
 
         if obj.calc is not None:
             calc = {
