@@ -94,6 +94,8 @@ class ASEConverter(ConverterBase):
         if len(vectors) != 0:
             if not isinstance(vectors[0], list):
                 raise ValueError("Vectors must be of shape (n, m, 3)")
+            if not isinstance(vectors[0][0], list):
+                raise ValueError("Vectors must be of shape (n, m, 3)")
             if len(vectors[0][0]) != 3:
                 raise ValueError("Vectors must be of shape (n, m, 3)")
 
