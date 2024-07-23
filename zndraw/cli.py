@@ -103,6 +103,9 @@ def main(
         None,
         help="URL to the redis `redis://localhost:6379/0` or znsocket `znsocket://127.0.0.1:6379` server. If None is provided, a local znsocket server will be started.",
     ),
+    storage_port: int = typer.Option(
+        None, help="Port to use for the storage server. Default port is 6374"
+    ),
     standalone: bool = typer.Option(
         True,
         help="Run ZnDraw without additional tools. If disabled, redis and celery must be started manually.",
@@ -128,7 +131,9 @@ def main(
 
     env_config = EnvOptions.from_env()
 
-    if env_config.FLASK_STORAGE_PORT is None:
+    if storage_port is not None:
+        env_config.FLASK_STORAGE_PORT = str(storage_port)
+    elif env_config.FLASK_STORAGE_PORT is None:
         env_config.FLASK_STORAGE_PORT = str(get_port(default=6374))
 
     if port is not None:
