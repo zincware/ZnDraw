@@ -316,29 +316,29 @@ class NewCanvas(UpdateScene):
         ]
 
 
-class ShowTrajectory(UpdateScene):
-    steps: int = Field(-1, description="Show the trajectory for the last n steps")
+# class ShowTrajectory(UpdateScene):
+#     steps: int = Field(-1, description="Show the trajectory for the last n steps")
 
-    def run(self, vis: "ZnDraw", **kwargs) -> None:
-        # TODO: add the trace vectors to all previouse vectors
-        # TODO: check why the vector positions are wrong?
-        vis.log("Downloading atoms...")
-        step = vis.step
-        if self.steps == -1:
-            images = vis[:step]
-        else:
-            images = vis[step - self.steps : step]
-        vis.log(f"Showing trajectory for the last {len(images)} steps.")
-        selection = vis.selection
-        vectors = []
-        for idx in selection:
-            trace = []
-            for atoms in images:
-                trace.append(atoms.positions[idx].tolist())
-            vectors.append(trace)
-        atoms = vis.atoms
-        atoms.info["vectors"] = vectors
-        vis.atoms = atoms
+#     def run(self, vis: "ZnDraw", **kwargs) -> None:
+#         # TODO: add the trace vectors to all previous vectors
+#         # TODO: check why the vector positions are wrong?
+#         vis.log("Downloading atoms...")
+#         step = vis.step
+#         if self.steps == -1:
+#             images = vis[:step]
+#         else:
+#             images = vis[step - self.steps : step]
+#         vis.log(f"Showing trajectory for the last {len(images)} steps.")
+#         selection = vis.selection
+#         vectors = []
+#         for idx in selection:
+#             trace = []
+#             for atoms in images:
+#                 trace.append(atoms.positions[idx].tolist())
+#             vectors.append(trace)
+#         atoms = vis.atoms
+#         atoms.info["vectors"] = vectors
+#         vis.atoms = atoms
 
 
 methods = t.Union[
@@ -353,7 +353,7 @@ methods = t.Union[
     Replicate,
     Connect,
     NewCanvas,
-    ShowTrajectory,
+    # ShowTrajectory,
 ]
 
 
