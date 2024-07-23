@@ -90,7 +90,7 @@ class ASEConverter(ConverterBase):
         for idx, vector in enumerate(vectors):
             if isinstance(vector, np.ndarray):
                 vectors[idx] = vector.tolist()
-        
+
         if len(vectors) != 0:
             if not isinstance(vectors[0], list):
                 raise ValueError("Vectors must be of shape (n, m, 3)")
