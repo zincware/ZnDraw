@@ -104,8 +104,7 @@ def main(
         help="URL to the redis `redis://localhost:6379/0` or znsocket `znsocket://127.0.0.1:6379` server. If None is provided, a local znsocket server will be started.",
     ),
     storage_port: int = typer.Option(
-        None,
-        help="Port to use for the storage server. Default port is 6374"
+        None, help="Port to use for the storage server. Default port is 6374"
     ),
     standalone: bool = typer.Option(
         True,
