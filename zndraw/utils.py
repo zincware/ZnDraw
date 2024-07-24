@@ -287,3 +287,43 @@ def call_with_retry(
         socket.sleep(delay)
         delay += increase_delay
     return None
+
+
+def direction_to_euler(direction, roll=0):
+    """
+    Convert a direction vector to euler angles.
+
+    You get an increased degree of freedom by setting the roll angle.
+    """
+    direction = np.array(direction)
+    direction = direction / np.linalg.norm(direction)
+
+    x, y, z = direction
+
+    if x == 0 and y == 0:
+        if z > 0:
+            yaw = 0
+            pitch = 0
+        else:
+            yaw = 0
+            pitch = 180
+    else:
+        yaw = np.arctan2(y, x)
+        pitch = np.arctan2(z, np.sqrt(x**2 + y**2))
+
+    return np.array([yaw, pitch, roll])
+
+
+def euler_to_direction(angles):
+    """
+    Convert euler angles to a direction vector.
+
+    Roll gets discarded as this is a reduction in degrees of freedom.
+    """
+    yaw, pitch, roll = angles
+
+    x = np.cos(yaw) * np.cos(pitch)
+    y = np.sin(yaw) * np.cos(pitch)
+    z = np.sin(pitch)
+
+    return np.array([x, y, z])
