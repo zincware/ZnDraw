@@ -1,6 +1,9 @@
+import numpy as np
+import numpy.testing as npt
 import pytest
 
 from zndraw import Box, Sphere, ZnDraw
+from zndraw.utils import direction_to_euler, euler_to_direction
 
 
 def test_geometries(server, s22):
@@ -24,3 +27,14 @@ def test_geometries(server, s22):
 
     with pytest.raises(ValueError):
         vis.geometries = "Geometries are not string!"
+
+
+def test_conversion_utils():
+    """Test conversion functions"""
+    direction = np.array([1, 2, 3])
+    direction = direction / np.linalg.norm(direction)
+
+    euler = direction_to_euler(direction)
+    new_direction = euler_to_direction(euler)
+
+    npt.assert_allclose(direction, new_direction, atol=1e-6)
