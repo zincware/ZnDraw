@@ -22,16 +22,18 @@ const Arrow: React.FC<ArrowProps> = ({ start, end}) => {
   );
 
   const scale = new THREE.Vector3(start[0] - end[0], start[1] - end[1], start[2] - end[2]).length();
+  const color = new THREE.Color();
+  color.setHSL((scale / 8) - 0.6, 1.0, 0.5);
 
   return (
     <group position={start} rotation={rotation} scale={scale}>
       <mesh>
         <cylinderGeometry args={[cylinderRadius, cylinderRadius, cylinderHeight]} />
-        <meshStandardMaterial color={'hotpink'} />
+        <meshStandardMaterial color={color}/>
       </mesh>
       <mesh position={[0, (cylinderHeight + coneHeight ) / 2, 0]}>
         <coneGeometry args={[coneRadius, coneHeight, 32]} />
-        <meshStandardMaterial color={'hotpink'} />
+        <meshStandardMaterial color={color}/>
       </mesh>
     </group>
   );
