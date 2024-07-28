@@ -32,6 +32,7 @@ interface SidebarMenuProps {
   trigger?: boolean; // Mark trigger as optional
   setTrigger?: (value: boolean) => void; // Mark setTrigger as optional
   visible: boolean;
+  useSubmit?: boolean; // provide a submit button or trigger on change
 }
 
 interface AnalysisMenuProps extends SidebarMenuProps {
@@ -90,6 +91,7 @@ const SidebarMenu: React.FC<SidebarMenuProps> = ({
   trigger,
   setTrigger,
   visible,
+  useSubmit,
 }) => {
   const [userInput, setUserInput] = useState<any>(null);
 
@@ -110,6 +112,12 @@ const SidebarMenu: React.FC<SidebarMenuProps> = ({
 
   const editorRef = useJSONEditor(schema, userInput, setUserInput);
 
+  useEffect(() => {
+    if (!useSubmit && userInput !== null) {
+      submitEditor();
+    }
+  }, [userInput, useSubmit]);
+
   return (
     <Card
       className="rounded-0 border-start-0 overflow-y-auto rounded-end"
@@ -123,11 +131,13 @@ const SidebarMenu: React.FC<SidebarMenuProps> = ({
     >
       <Card.Body className="pt-0 pb-5 my-0">
         <div ref={editorRef}></div>
-        <Button onClick={submitEditor} disabled={queuePosition >= 0}>
-          {queuePosition > 0 && `Queue position: ${queuePosition}`}
-          {queuePosition == 0 && `Running`}
-          {queuePosition < 0 && `Submit`}
-        </Button>
+        {useSubmit && (
+          <Button onClick={submitEditor} disabled={queuePosition >= 0}>
+            {queuePosition > 0 && `Queue position: ${queuePosition}`}
+            {queuePosition == 0 && `Running`}
+            {queuePosition < 0 && `Submit`}
+          </Button>
+        )}
       </Card.Body>
     </Card>
   );
@@ -476,6 +486,7 @@ function SideBar({
         trigger={triggerSelection}
         setTrigger={setTriggerSelection}
         visible={visibleOption == "selection"}
+        useSubmit={true}
       />
       <SidebarMenu
         schema={modifierSchema}
@@ -484,12 +495,14 @@ function SideBar({
         }}
         queuePosition={modifierQueue}
         visible={visibleOption == "interaction"}
+        useSubmit={true}
       />
       <SidebarMenu
         schema={sceneSchema}
         onSubmit={setSceneSettings}
         queuePosition={-1}
         visible={visibleOption == "scene"}
+        useSubmit={false}
       />
       <SidebarMenu
         schema={geometrySchema}
@@ -498,6 +511,7 @@ function SideBar({
         }}
         queuePosition={geometryQueue}
         visible={visibleOption == "geometry"}
+        useSubmit={true}
       />
       <AnalysisMenu
         schema={analysisSchema}
