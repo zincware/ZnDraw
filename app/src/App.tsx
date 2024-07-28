@@ -563,7 +563,9 @@ export default function App() {
             intensity={Math.PI}
             castShadow
           />
-          {sceneSettings["vectorfield"]  && (<VectorField vectors={currentFrame.vectors} />)}
+          {sceneSettings["vectorfield"] && (
+            <VectorField vectors={currentFrame.vectors} />
+          )}
           <ParticleInstances
             frame={currentFrame}
             selectedIds={selectedIds}

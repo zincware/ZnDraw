@@ -42,10 +42,7 @@ class Scene(BaseModel):
         False,
         description="Show the simulation box.",
     )
-    vectorfield: bool = Field(
-        True,
-        description="Show vectorfield."
-    )
+    vectorfield: bool = Field(True, description="Show vectorfield.")
 
     controls: Controls = Field(Controls.OrbitControls, description="Controls")
 

@@ -20,9 +20,9 @@ const Arrow: React.FC<ArrowProps> = ({ start, end }) => {
 
     const quaternion = new THREE.Quaternion().setFromUnitVectors(
       new THREE.Vector3(0, 1, 0),
-      direction.clone().normalize()
+      direction.clone().normalize(),
     );
-    
+
     const eulerRotation = new THREE.Euler().setFromQuaternion(quaternion);
     const color = new THREE.Color().setHSL(length / 8 - 0.6, 1.0, 0.5);
 
@@ -37,7 +37,9 @@ const Arrow: React.FC<ArrowProps> = ({ start, end }) => {
   return (
     <group position={position} rotation={rotation} scale={scale}>
       <mesh>
-        <cylinderGeometry args={[cylinderRadius, cylinderRadius, cylinderHeight]} />
+        <cylinderGeometry
+          args={[cylinderRadius, cylinderRadius, cylinderHeight]}
+        />
         <meshStandardMaterial color={color} />
       </mesh>
       <mesh position={[0, (cylinderHeight + coneHeight) / 2, 0]}>
