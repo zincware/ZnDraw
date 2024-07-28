@@ -62,6 +62,7 @@ export default function App() {
     fps: 60,
     "Animation Loop": false,
     simulation_box: false,
+    vectorfield: true,
     vectors: "",
     controls: "OrbitControls",
     selection_color: "#ffa500",
@@ -562,8 +563,7 @@ export default function App() {
             intensity={Math.PI}
             castShadow
           />
-          <VectorField vectors={currentFrame.vectors} />
-
+          {sceneSettings["vectorfield"]  && (<VectorField vectors={currentFrame.vectors} />)}
           <ParticleInstances
             frame={currentFrame}
             selectedIds={selectedIds}
