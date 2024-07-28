@@ -3,6 +3,7 @@ import * as THREE from "three";
 
 import { useFrame, useThree } from "@react-three/fiber";
 import { Line } from "@react-three/drei";
+import Arrow from "./meshes";
 
 export interface Frame {
   arrays: { colors: Array<string>; radii: Array<number> };
@@ -554,11 +555,10 @@ export const PerParticleVectors: React.FC<PerParticleVectorsProps> = ({
     <>
       {vectors.map((vec, i) => (
         <React.Fragment key={i}>
-          <Line
-            points={[vec.start, vec.end]}
-            color={LineColor} // Adjust the color as needed
-            lineWidth={LineWidth}
-          />
+            <Arrow
+              start={vec.start}
+              end={vec.end}
+            />
         </React.Fragment>
       ))}
     </>
