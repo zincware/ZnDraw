@@ -48,15 +48,15 @@ const Arrow: React.FC<ArrowProps> = ({ start, end, scale_vector_thickness }) => 
 
   return (
     <group position={position} rotation={rotation} scale={scale}>
-      <mesh>
+      <mesh position={[0, cylinderHeight / 2, 0]}>
         <cylinderGeometry
           args={[cylinderRadius, cylinderRadius, cylinderHeight]}
         />
-        <meshStandardMaterial color={color} />
+        <meshStandardMaterial color={color}/>
       </mesh>
-      <mesh position={[0, (cylinderHeight + coneHeight) / 2, 0]}>
+      <mesh position={[0, cylinderHeight + (coneHeight / 2), 0]}>
         <coneGeometry args={[coneRadius, coneHeight, 32]} />
-        <meshStandardMaterial color={color} />
+        <meshStandardMaterial color={color}/>
       </mesh>
     </group>
   );
