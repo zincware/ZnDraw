@@ -39,7 +39,7 @@ class Scene(BaseModel):
         description="Automatically restart animation when finished.",
     )
     simulation_box: bool = Field(
-        False,
+        True,
         description="Show the simulation box.",
     )
     vectorfield: bool = Field(True, description="Show vectorfield.")
