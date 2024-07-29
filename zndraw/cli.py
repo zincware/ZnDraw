@@ -160,15 +160,11 @@ def main(
 
     env_config.save_to_env()
 
-    if standalone:
+    if standalone and url is None:
         if env_config.FLASK_STORAGE.startswith("znsocket"):
             # standalone with redis would assume a running instance of redis
             server = run_znsocket(env_config.FLASK_STORAGE_PORT)
         worker = run_celery_worker()
-
-    typer.echo(
-        f"{datetime.datetime.now().isoformat()}: Starting zndraw server on port {port}"
-    )
 
     fileio = FileIO(
         name=filename,
@@ -182,6 +178,10 @@ def main(
     if url is not None:
         upload(filename, url, token, fileio)
         return
+
+    typer.echo(
+            f"{datetime.datetime.now().isoformat()}: Starting zndraw server on port {port}"
+        )
 
     app = create_app()
 
