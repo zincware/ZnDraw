@@ -71,6 +71,7 @@ export default function App() {
     bond_size: 1.0,
     camera_near: 0.1,
     camera_far: 1000,
+    scale_vector_thickness: false,
   });
   // updated via sockets
   const [step, setStep] = useState<number>(0);
@@ -571,7 +572,7 @@ export default function App() {
             castShadow
           />
           {sceneSettings["vectorfield"] && (
-            <VectorField vectors={currentFrame.vectors} />
+            <VectorField vectors={currentFrame.vectors} scale_vector_thickness={sceneSettings["scale_vector_thickness"]}/>
           )}
           <ParticleInstances
             frame={currentFrame}
@@ -678,6 +679,7 @@ export default function App() {
               frame={currentFrame}
               property={sceneSettings.vectors}
               colorMode={colorMode}
+              scale_vector_thickness={sceneSettings["scale_vector_thickness"]}
             ></PerParticleVectors>
           )}
         </Canvas>

@@ -515,12 +515,14 @@ interface PerParticleVectorsProps {
   frame: Frame | undefined;
   property: string;
   colorMode: string;
+  scale_vector_thickness: boolean;
 }
 
 export const PerParticleVectors: React.FC<PerParticleVectorsProps> = ({
   frame,
   property,
   colorMode,
+  scale_vector_thickness,
 }) => {
   const [vectors, setVectors] = useState<
     { start: THREE.Vector3; end: THREE.Vector3 }[]
@@ -556,7 +558,7 @@ export const PerParticleVectors: React.FC<PerParticleVectorsProps> = ({
     <>
       {vectors.map((vec, i) => (
         <React.Fragment key={i}>
-          <Arrow start={vec.start} end={vec.end} />
+          <Arrow start={vec.start} end={vec.end} scale_vector_thickness={scale_vector_thickness}/>
         </React.Fragment>
       ))}
     </>

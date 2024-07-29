@@ -54,6 +54,10 @@ class Scene(BaseModel):
     camera_far: float = Field(
         1000, ge=1, le=10000, description="Camera far rendering plane"
     )
+    scale_vector_thickness: bool = Field(
+        False,
+        description="Scale vector thickness with the magnitude of the vector.",
+    )
     # bonds: bool = Field(
     #     True,
     #     description="Show bonds.",
@@ -105,6 +109,7 @@ class Scene(BaseModel):
         schema["properties"]["Animation Loop"]["format"] = "checkbox"
         schema["properties"]["simulation_box"]["format"] = "checkbox"
         schema["properties"]["vectorfield"]["format"] = "checkbox"
+        schema["properties"]["scale_vector_thickness"]["format"] = "checkbox"
         # schema["properties"]["resolution"]["format"] = "range"
         # schema["properties"]["label_offset"]["format"] = "range"
         schema["properties"]["particle_size"]["format"] = "range"

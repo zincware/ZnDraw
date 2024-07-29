@@ -4,6 +4,7 @@ import * as THREE from "three";
 interface ArrowProps {
   start: [number, number, number];
   end: [number, number, number];
+  scale_vector_thickness?: boolean;
 }
 
 // TODO: fix start and end
@@ -11,7 +12,7 @@ interface ArrowProps {
 // TODO: find a good solution for scaling?
 // TODO: provide an instanced arrow mesh version like: Arrows(start: list, end: list, colormap)
 //   which does the color handling automatically and only use that one
-const Arrow: React.FC<ArrowProps> = ({ start, end }) => {
+const Arrow: React.FC<ArrowProps> = ({ start, end, scale_vector_thickness }) => {
   const cylinderRadius = 0.04;
   const cylinderHeight = 0.6;
   const coneRadius = 0.1;
@@ -22,6 +23,12 @@ const Arrow: React.FC<ArrowProps> = ({ start, end }) => {
     const endVector = new THREE.Vector3(...end);
     const direction = new THREE.Vector3().subVectors(endVector, startVector);
     const length = direction.length();
+    let scale;
+    if (scale_vector_thickness) {
+      scale = new THREE.Vector3(length, length, length);
+    } else {
+      scale = new THREE.Vector3(1, length, 1);
+    }
 
     const quaternion = new THREE.Quaternion().setFromUnitVectors(
       new THREE.Vector3(0, 1, 0),
@@ -34,10 +41,10 @@ const Arrow: React.FC<ArrowProps> = ({ start, end }) => {
     return {
       position: startVector,
       rotation: eulerRotation,
-      scale: new THREE.Vector3(1, length, 1),
+      scale: scale,
       color,
     };
-  }, [start, end]);
+  }, [start, end, scale_vector_thickness]);
 
   return (
     <group position={position} rotation={rotation} scale={scale}>
