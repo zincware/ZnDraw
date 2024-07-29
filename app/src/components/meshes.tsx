@@ -14,7 +14,7 @@ interface ArrowProps {
 const Arrow: React.FC<ArrowProps> = ({ start, end }) => {
   const cylinderRadius = 0.04;
   const cylinderHeight = 0.6;
-  const coneRadius = 0.10;
+  const coneRadius = 0.1;
   const coneHeight = 0.4;
 
   const { position, rotation, scale, color } = useMemo(() => {
