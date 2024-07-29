@@ -180,8 +180,8 @@ def main(
         return
 
     typer.echo(
-            f"{datetime.datetime.now().isoformat()}: Starting zndraw server on port {port}"
-        )
+        f"{datetime.datetime.now().isoformat()}: Starting zndraw server on port {port}"
+    )
 
     app = create_app()
 
