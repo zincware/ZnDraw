@@ -107,7 +107,7 @@ export default function App() {
       [0.5, 2, 0.5],
     ],
     colorrange: [0, 1],
-    normalize: false,
+    normalize: true,
     scale_vector_thickness: true,
   });
 
