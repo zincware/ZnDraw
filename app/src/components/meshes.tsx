@@ -7,7 +7,7 @@ interface ArrowProps {
 }
 
 // TODO: fix start and end
-// TODO: fix color 
+// TODO: fix color
 // TODO: find a good solution for scaling?
 // TODO: provide an instanced arrow mesh version like: Arrows(start: list, end: list, colormap)
 //   which does the color handling automatically and only use that one
