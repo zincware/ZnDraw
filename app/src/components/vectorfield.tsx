@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
-import * as THREE from 'three';
-import Arrow from './meshes';
+import React, { useEffect, useState } from "react";
+import * as THREE from "three";
+import Arrow from "./meshes";
 
 interface VectorFieldProps {
   vectors: [number, number, number][][];
@@ -19,11 +19,19 @@ export const VectorField: React.FC<VectorFieldProps> = ({
   scale_vector_thickness = false,
   arrowsConfig,
 }) => {
-  const [colorRange, setColorRange] = useState<[number, number]>(arrowsConfig.colorrange);
+  const [colorRange, setColorRange] = useState<[number, number]>(
+    arrowsConfig.colorrange,
+  );
 
   useEffect(() => {
     if (arrowsConfig.normalize) {
-      const max = Math.max(...vectors.map((vector) => new THREE.Vector3(...vector[0]).distanceTo(new THREE.Vector3(...vector[1]))));
+      const max = Math.max(
+        ...vectors.map((vector) =>
+          new THREE.Vector3(...vector[0]).distanceTo(
+            new THREE.Vector3(...vector[1]),
+          ),
+        ),
+      );
       setColorRange([0, max]);
     } else {
       setColorRange(arrowsConfig.colorrange);

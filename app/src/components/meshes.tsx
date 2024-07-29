@@ -1,6 +1,6 @@
 import React, { useMemo } from "react";
 import * as THREE from "three";
-import {interpolateColor, HSVColor, ColorRange} from "./utils";
+import { interpolateColor, HSVColor, ColorRange } from "./utils";
 
 interface ArrowProps {
   start: [number, number, number];
@@ -15,7 +15,13 @@ interface ArrowProps {
 // TODO: find a good solution for scaling?
 // TODO: provide an instanced arrow mesh version like: Arrows(start: list, end: list, colormap)
 //   which does the color handling automatically and only use that one
-const Arrow: React.FC<ArrowProps> = ({ start, end, scale_vector_thickness, colormap, colorrange }) => {
+const Arrow: React.FC<ArrowProps> = ({
+  start,
+  end,
+  scale_vector_thickness,
+  colormap,
+  colorrange,
+}) => {
   const cylinderRadius = 0.04;
   const cylinderHeight = 0.6;
   const coneRadius = 0.1;
@@ -40,7 +46,14 @@ const Arrow: React.FC<ArrowProps> = ({ start, end, scale_vector_thickness, color
 
     const eulerRotation = new THREE.Euler().setFromQuaternion(quaternion);
     const color = interpolateColor(colormap, colorrange, length);
-    console.log("using color range", colorrange, "for length", length, "resulting in color", color);
+    console.log(
+      "using color range",
+      colorrange,
+      "for length",
+      length,
+      "resulting in color",
+      color,
+    );
 
     return {
       position: startVector,
@@ -56,11 +69,11 @@ const Arrow: React.FC<ArrowProps> = ({ start, end, scale_vector_thickness, color
         <cylinderGeometry
           args={[cylinderRadius, cylinderRadius, cylinderHeight]}
         />
-        <meshStandardMaterial color={color}/>
+        <meshStandardMaterial color={color} />
       </mesh>
-      <mesh position={[0, cylinderHeight + (coneHeight / 2), 0]}>
+      <mesh position={[0, cylinderHeight + coneHeight / 2, 0]}>
         <coneGeometry args={[coneRadius, coneHeight, 32]} />
-        <meshStandardMaterial color={color}/>
+        <meshStandardMaterial color={color} />
       </mesh>
     </group>
   );

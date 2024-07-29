@@ -48,7 +48,9 @@ class CameraData(t.TypedDict):
     position: list[float]
     target: list[float]
 
+
 HSLColor = t.Tuple[float, float, float]
+
 
 class ArrowsConfig(t.TypedDict):
     colormap: list[HSLColor]
@@ -480,7 +482,9 @@ class ZnDraw(ZnDrawBase):
     @arrows_config.setter
     def arrows_config(self, value: ArrowsConfig):
         if set(value.keys()) != {"colormap", "normalize", "colorrange"}:
-            raise ValueError("Arrows config must have 'colormap', 'normalize', and 'colorrange' keys")
+            raise ValueError(
+                "Arrows config must have 'colormap', 'normalize', and 'colorrange' keys"
+            )
         emit_with_retry(
             self.socket,
             "room:arrows_config:set",

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-import * as THREE from 'three';
+import * as THREE from "three";
 
 export const useColorMode = (): [string, () => void] => {
   const [colorMode, setColorMode] = useState<string>("light");
@@ -31,12 +31,14 @@ const setTheme = (
   setColorMode(theme);
 };
 
-
-
 export type HSVColor = [number, number, number];
 export type ColorRange = [number, number];
 
-export const interpolateColor = (colors: HSVColor[], range: ColorRange, value: number): THREE.Color => {
+export const interpolateColor = (
+  colors: HSVColor[],
+  range: ColorRange,
+  value: number,
+): THREE.Color => {
   const [min, max] = range;
 
   // Clamp the value to the range
@@ -67,4 +69,4 @@ export const interpolateColor = (colors: HSVColor[], range: ColorRange, value: n
   console.log(color);
 
   return color;
-}
+};

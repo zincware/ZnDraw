@@ -103,7 +103,10 @@ export default function App() {
   const [colorMode, handleColorMode] = useColorMode();
   const [hoveredId, setHoveredId] = useState<number>(null);
   const [arrowsConfig, setArrowsConfig] = useState({
-    colormap: [[0, 1, 0.5], [0.5, 2, 0.5]],
+    colormap: [
+      [0, 1, 0.5],
+      [0.5, 2, 0.5],
+    ],
     colorrange: [0, 1],
     normalize: false,
   });
@@ -584,7 +587,11 @@ export default function App() {
             castShadow
           />
           {sceneSettings["vectorfield"] && (
-            <VectorField vectors={currentFrame.vectors} scale_vector_thickness={sceneSettings["scale_vector_thickness"]} arrowsConfig={arrowsConfig}/>
+            <VectorField
+              vectors={currentFrame.vectors}
+              scale_vector_thickness={sceneSettings["scale_vector_thickness"]}
+              arrowsConfig={arrowsConfig}
+            />
           )}
           <ParticleInstances
             frame={currentFrame}
