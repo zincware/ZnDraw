@@ -515,7 +515,6 @@ interface PerParticleVectorsProps {
   frame: Frame | undefined;
   property: string;
   colorMode: string;
-  scale_vector_thickness: boolean;
   arrowsConfig: any;
 }
 
@@ -523,7 +522,6 @@ export const PerParticleVectors: React.FC<PerParticleVectorsProps> = ({
   frame,
   property,
   colorMode,
-  scale_vector_thickness,
   arrowsConfig,
 }) => {
   const [vectors, setVectors] = useState<
@@ -578,7 +576,7 @@ export const PerParticleVectors: React.FC<PerParticleVectorsProps> = ({
           <Arrow
             start={vec.start}
             end={vec.end}
-            scale_vector_thickness={scale_vector_thickness}
+            scale_vector_thickness={arrowsConfig.scale_vector_thickness}
             colormap={arrowsConfig.colormap}
             colorrange={colorRange}
           />

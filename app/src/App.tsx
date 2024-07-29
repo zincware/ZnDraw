@@ -71,7 +71,6 @@ export default function App() {
     bond_size: 1.0,
     camera_near: 0.1,
     camera_far: 1000,
-    scale_vector_thickness: false,
   });
   // updated via sockets
   const [step, setStep] = useState<number>(0);
@@ -109,6 +108,7 @@ export default function App() {
     ],
     colorrange: [0, 1],
     normalize: false,
+    scale_vector_thickness: true,
   });
 
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(true);
@@ -589,7 +589,6 @@ export default function App() {
           {sceneSettings["vectorfield"] && (
             <VectorField
               vectors={currentFrame.vectors}
-              scale_vector_thickness={sceneSettings["scale_vector_thickness"]}
               arrowsConfig={arrowsConfig}
             />
           )}
@@ -698,7 +697,6 @@ export default function App() {
               frame={currentFrame}
               property={sceneSettings.vectors}
               colorMode={colorMode}
-              scale_vector_thickness={sceneSettings["scale_vector_thickness"]}
               arrowsConfig={arrowsConfig}
             ></PerParticleVectors>
           )}

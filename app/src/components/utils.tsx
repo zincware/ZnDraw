@@ -31,11 +31,11 @@ const setTheme = (
   setColorMode(theme);
 };
 
-export type HSVColor = [number, number, number];
+export type HSLColor = [number, number, number];
 export type ColorRange = [number, number];
 
 export const interpolateColor = (
-  colors: HSVColor[],
+  colors: HSLColor[],
   range: ColorRange,
   value: number,
 ): THREE.Color => {

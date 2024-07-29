@@ -5,7 +5,6 @@ import Arrow from "./meshes";
 interface VectorFieldProps {
   vectors: [number, number, number][][];
   showArrows?: boolean;
-  scale_vector_thickness?: boolean;
   arrowsConfig: {
     normalize: boolean;
     colormap: Array<[number, number, number]>;
@@ -16,7 +15,6 @@ interface VectorFieldProps {
 export const VectorField: React.FC<VectorFieldProps> = ({
   vectors,
   showArrows = true,
-  scale_vector_thickness = false,
   arrowsConfig,
 }) => {
   const [colorRange, setColorRange] = useState<[number, number]>(
@@ -47,7 +45,7 @@ export const VectorField: React.FC<VectorFieldProps> = ({
             <Arrow
               start={vector[0]}
               end={vector[1]}
-              scale_vector_thickness={scale_vector_thickness}
+              scale_vector_thickness={arrowsConfig.scale_vector_thickness}
               colormap={arrowsConfig.colormap}
               colorrange={colorRange}
             />

@@ -1,12 +1,12 @@
 import React, { useMemo } from "react";
 import * as THREE from "three";
-import { interpolateColor, HSVColor, ColorRange } from "./utils";
+import { interpolateColor, HSLColor, ColorRange } from "./utils";
 
 interface ArrowProps {
   start: [number, number, number];
   end: [number, number, number];
   scale_vector_thickness?: boolean;
-  colormap: HSVColor[];
+  colormap: HSLColor[];
   colorrange: ColorRange;
 }
 

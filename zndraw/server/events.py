@@ -119,6 +119,7 @@ def init_socketio_events(io: SocketIO):
                         "colormap": [[0, 1, 0.5], [0.5, 1, 0.5]],
                         "normalize": False,
                         "colorrange": [0, 1],
+                        "scale_vector_thickness": True
                     }
                 ),
             )

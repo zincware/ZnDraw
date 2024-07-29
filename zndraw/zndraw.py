@@ -56,6 +56,7 @@ class ArrowsConfig(t.TypedDict):
     colormap: list[HSLColor]
     normalize: bool
     colorrange: tuple[float, float]
+    scale_vector_thickness: bool
 
 
 def _register_modifier(vis: "ZnDraw", data: RegisterModifier) -> None:
@@ -481,9 +482,9 @@ class ZnDraw(ZnDrawBase):
 
     @arrows_config.setter
     def arrows_config(self, value: ArrowsConfig):
-        if set(value.keys()) != {"colormap", "normalize", "colorrange"}:
+        if set(value.keys()) != {"colormap", "normalize", "colorrange", "scale_vector_thickness"}:
             raise ValueError(
-                "Arrows config must have 'colormap', 'normalize', and 'colorrange' keys"
+                "Arrows config must have 'colormap', 'normalize', 'scale_vector_thickness' and 'colorrange' keys"
             )
         emit_with_retry(
             self.socket,
