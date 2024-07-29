@@ -262,6 +262,7 @@ export const ParticleInstances = ({
       onPointerMove={handlePointerMove}
       castShadow
       receiveShadow
+      frustumCulled={false}
     >
       <sphereGeometry args={[1, 30, 30]} ref={sphereRef} />
       {sceneSettings.material === "MeshPhysicalMaterial" && (

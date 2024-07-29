@@ -12,9 +12,9 @@ interface ArrowProps {
 // TODO: provide an instanced arrow mesh version like: Arrows(start: list, end: list, colormap)
 //   which does the color handling automatically and only use that one
 const Arrow: React.FC<ArrowProps> = ({ start, end }) => {
-  const cylinderRadius = 0.07;
+  const cylinderRadius = 0.04;
   const cylinderHeight = 0.6;
-  const coneRadius = 0.14;
+  const coneRadius = 0.10;
   const coneHeight = 0.4;
 
   const { position, rotation, scale, color } = useMemo(() => {
