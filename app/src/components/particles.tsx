@@ -3,6 +3,7 @@ import * as THREE from "three";
 
 import { useFrame, useThree } from "@react-three/fiber";
 import { Line } from "@react-three/drei";
+import Arrow from "./meshes";
 
 export interface Frame {
   arrays: { colors: Array<string>; radii: Array<number> };
@@ -13,6 +14,7 @@ export interface Frame {
   numbers: number[];
   pbc: boolean[];
   positions: THREE.Vector3[]; // only number[][] | before being mapped immediately
+  vectors: [number, number, number][][];
 }
 ``;
 
@@ -260,6 +262,7 @@ export const ParticleInstances = ({
       onPointerMove={handlePointerMove}
       castShadow
       receiveShadow
+      frustumCulled={false}
     >
       <sphereGeometry args={[1, 30, 30]} ref={sphereRef} />
       {sceneSettings.material === "MeshPhysicalMaterial" && (
@@ -512,12 +515,14 @@ interface PerParticleVectorsProps {
   frame: Frame | undefined;
   property: string;
   colorMode: string;
+  arrowsConfig: any;
 }
 
 export const PerParticleVectors: React.FC<PerParticleVectorsProps> = ({
   frame,
   property,
   colorMode,
+  arrowsConfig,
 }) => {
   const [vectors, setVectors] = useState<
     { start: THREE.Vector3; end: THREE.Vector3 }[]
@@ -526,6 +531,21 @@ export const PerParticleVectors: React.FC<PerParticleVectorsProps> = ({
   const LineColor = colorMode === "light" ? "#454b66" : "#f5fdc6";
   const LineWidth = 2;
   const LineScale = 1;
+
+  const [colorRange, setColorRange] = useState<[number, number]>(
+    arrowsConfig.colorrange,
+  );
+
+  useEffect(() => {
+    if (arrowsConfig.normalize) {
+      const max = Math.max(
+        ...vectors.map((vector) => vector.start.distanceTo(vector.end)),
+      );
+      setColorRange([0, max]);
+    } else {
+      setColorRange(arrowsConfig.colorrange);
+    }
+  }, [vectors, arrowsConfig.normalize, arrowsConfig.colorrange]);
 
   useEffect(() => {
     if (!frame || !frame.calc || !frame.calc[property]) {
@@ -553,10 +573,13 @@ export const PerParticleVectors: React.FC<PerParticleVectorsProps> = ({
     <>
       {vectors.map((vec, i) => (
         <React.Fragment key={i}>
-          <Line
-            points={[vec.start, vec.end]}
-            color={LineColor} // Adjust the color as needed
-            lineWidth={LineWidth}
+          <Arrow
+            start={vec.start}
+            end={vec.end}
+            scale_vector_thickness={arrowsConfig.scale_vector_thickness}
+            colormap={arrowsConfig.colormap}
+            colorrange={colorRange}
+            opacity={arrowsConfig.opacity}
           />
         </React.Fragment>
       ))}

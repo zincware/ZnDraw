@@ -42,6 +42,7 @@ class Scene(BaseModel):
         False,
         description="Show the simulation box.",
     )
+    vectorfield: bool = Field(True, description="Show vectorfield.")
 
     controls: Controls = Field(Controls.OrbitControls, description="Controls")
 
@@ -103,6 +104,7 @@ class Scene(BaseModel):
         # schema["properties"]["wireframe"]["format"] = "checkbox"
         schema["properties"]["Animation Loop"]["format"] = "checkbox"
         schema["properties"]["simulation_box"]["format"] = "checkbox"
+        schema["properties"]["vectorfield"]["format"] = "checkbox"
         # schema["properties"]["resolution"]["format"] = "range"
         # schema["properties"]["label_offset"]["format"] = "range"
         schema["properties"]["particle_size"]["format"] = "range"

@@ -30,6 +30,7 @@ class ASEDict(t.TypedDict):
     # calc: dict[str, float|int|np.ndarray] # should this be split into arrays and info?
     pbc: list[bool]
     cell: list[list[float]]
+    vectors: list[list[list[float]]]
 
 
 def rgb2hex(value):
@@ -83,6 +84,29 @@ class ASEConverter(ConverterBase):
             if isinstance(v, (float, int, str, bool, list))
         }
         info |= {k: v.tolist() for k, v in obj.info.items() if isinstance(v, np.ndarray)}
+        vectors = info.pop("vectors", [])
+        if isinstance(vectors, np.ndarray):
+            vectors = vectors.tolist()
+        for idx, vector in enumerate(vectors):
+            if isinstance(vector, np.ndarray):
+                vectors[idx] = vector.tolist()
+
+        if len(vectors) != 0:
+            vectors = np.array(vectors)
+            if vectors.ndim != 3:
+                raise ValueError(
+                    f"Vectors must be of shape (n, 2, 3), found '{vectors.shape}'"
+                )
+            if vectors.shape[1] != 2:
+                raise ValueError(
+                    f"Vectors must be of shape (n, 2, 3), found '{vectors.shape}'"
+                )
+            if vectors.shape[2] != 3:
+                raise ValueError(
+                    f"Vectors must be of shape (n, 2, 3), found '{vectors.shape}'"
+                )
+
+            vectors = vectors.tolist()
 
         if obj.calc is not None:
             calc = {
@@ -138,6 +162,7 @@ class ASEConverter(ConverterBase):
             calc=calc,
             pbc=pbc,
             cell=cell,
+            vectors=vectors,
         )
 
     def decode(self, value: ASEDict) -> ase.Atoms:
@@ -159,6 +184,8 @@ class ASEConverter(ConverterBase):
         if calc := value.get("calc"):
             atoms.calc = SinglePointCalculator(atoms)
             atoms.calc.results.update(calc)
+        if vectors := value.get("vectors"):
+            atoms.info["vectors"] = vectors
         return atoms
 
 
