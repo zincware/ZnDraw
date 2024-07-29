@@ -102,6 +102,11 @@ export default function App() {
   // todo give to particles and bonds
   const [colorMode, handleColorMode] = useColorMode();
   const [hoveredId, setHoveredId] = useState<number>(null);
+  const [arrowsConfig, setArrowsConfig] = useState({
+    colormap: [[0, 1, 0.5], [0.5, 2, 0.5]],
+    colorrange: [0, 1],
+    normalize: false,
+  });
 
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(true);
   const [roomLock, setRoomLock] = useState<boolean>(false);
@@ -299,6 +304,11 @@ export default function App() {
       setShowSiMGen(data);
     }
 
+    function onArrowConfig(data: any) {
+      console.log("received arrows config", data);
+      setArrowsConfig(data);
+    }
+
     function onCameraSet(data: { position: number[]; target: number[] }) {
       cameraFromSocket.current = true;
       setOrbitControlsTarget(new THREE.Vector3(...data.target));
@@ -336,6 +346,7 @@ export default function App() {
     socket.on("showSiMGen", onShowSiMGen);
     socket.on("room:camera:set", onCameraSet);
     socket.on("room:lock:set", onRoomLockSet);
+    socket.on("room:arrows_config:set", onArrowConfig);
 
     return () => {
       socket.off("connect", onConnect);
@@ -359,6 +370,7 @@ export default function App() {
       socket.off("showSiMGen", onShowSiMGen);
       socket.off("room:camera:set", onCameraSet);
       socket.off("room:lock:set", onRoomLockSet);
+      socket.off("room:arrows_config:set", onArrowConfig);
     };
   }, []);
 
@@ -572,7 +584,7 @@ export default function App() {
             castShadow
           />
           {sceneSettings["vectorfield"] && (
-            <VectorField vectors={currentFrame.vectors} scale_vector_thickness={sceneSettings["scale_vector_thickness"]}/>
+            <VectorField vectors={currentFrame.vectors} scale_vector_thickness={sceneSettings["scale_vector_thickness"]} arrowsConfig={arrowsConfig}/>
           )}
           <ParticleInstances
             frame={currentFrame}
@@ -680,6 +692,7 @@ export default function App() {
               property={sceneSettings.vectors}
               colorMode={colorMode}
               scale_vector_thickness={sceneSettings["scale_vector_thickness"]}
+              arrowsConfig={arrowsConfig}
             ></PerParticleVectors>
           )}
         </Canvas>

@@ -1,10 +1,13 @@
 import React, { useMemo } from "react";
 import * as THREE from "three";
+import {interpolateColor, HSVColor, ColorRange} from "./utils";
 
 interface ArrowProps {
   start: [number, number, number];
   end: [number, number, number];
   scale_vector_thickness?: boolean;
+  colormap: HSVColor[];
+  colorrange: ColorRange;
 }
 
 // TODO: fix start and end
@@ -12,7 +15,7 @@ interface ArrowProps {
 // TODO: find a good solution for scaling?
 // TODO: provide an instanced arrow mesh version like: Arrows(start: list, end: list, colormap)
 //   which does the color handling automatically and only use that one
-const Arrow: React.FC<ArrowProps> = ({ start, end, scale_vector_thickness }) => {
+const Arrow: React.FC<ArrowProps> = ({ start, end, scale_vector_thickness, colormap, colorrange }) => {
   const cylinderRadius = 0.04;
   const cylinderHeight = 0.6;
   const coneRadius = 0.1;
@@ -36,7 +39,8 @@ const Arrow: React.FC<ArrowProps> = ({ start, end, scale_vector_thickness }) => 
     );
 
     const eulerRotation = new THREE.Euler().setFromQuaternion(quaternion);
-    const color = new THREE.Color().setHSL(length / 8 - 0.6, 1.0, 0.5);
+    const color = interpolateColor(colormap, colorrange, length);
+    console.log("using color range", colorrange, "for length", length, "resulting in color", color);
 
     return {
       position: startVector,
@@ -44,7 +48,7 @@ const Arrow: React.FC<ArrowProps> = ({ start, end, scale_vector_thickness }) => 
       scale: scale,
       color,
     };
-  }, [start, end, scale_vector_thickness]);
+  }, [start, end, scale_vector_thickness, colormap, colorrange]);
 
   return (
     <group position={position} rotation={rotation} scale={scale}>

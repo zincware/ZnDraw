@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 
+import * as THREE from 'three';
+
 export const useColorMode = (): [string, () => void] => {
   const [colorMode, setColorMode] = useState<string>("light");
 
@@ -28,3 +30,41 @@ const setTheme = (
   document.documentElement.setAttribute("data-bs-theme", theme);
   setColorMode(theme);
 };
+
+
+
+export type HSVColor = [number, number, number];
+export type ColorRange = [number, number];
+
+export const interpolateColor = (colors: HSVColor[], range: ColorRange, value: number): THREE.Color => {
+  const [min, max] = range;
+
+  // Clamp the value to the range
+  if (value <= min) {
+    return new THREE.Color().setHSL(...colors[0]);
+  }
+  if (value >= max) {
+    return new THREE.Color().setHSL(...colors[colors.length - 1]);
+  }
+
+  // Normalize the value within the range
+  const normalizedValue = (value - min) / (max - min);
+
+  // Calculate the exact position within the colors array
+  const scaledValue = normalizedValue * (colors.length - 1);
+  const lowerIndex = Math.floor(scaledValue);
+  const upperIndex = Math.ceil(scaledValue);
+
+  const lowerColor = colors[lowerIndex];
+  const upperColor = colors[upperIndex];
+  const t = scaledValue - lowerIndex;
+
+  // Interpolate between lowerColor and upperColor
+  const h = THREE.MathUtils.lerp(lowerColor[0], upperColor[0], t);
+  const s = THREE.MathUtils.lerp(lowerColor[1], upperColor[1], t);
+  const v = THREE.MathUtils.lerp(lowerColor[2], upperColor[2], t);
+  const color = new THREE.Color().setHSL(h, s, v);
+  console.log(color);
+
+  return color;
+}
