@@ -69,6 +69,8 @@ export default function App() {
     material: "MeshStandardMaterial",
     particle_size: 1.0,
     bond_size: 1.0,
+    camera_near: 0.1,
+    camera_far: 1000,
   });
   // updated via sockets
   const [step, setStep] = useState<number>(0);
@@ -554,7 +556,12 @@ export default function App() {
     <>
       <div className="canvas-container" onDragOver={onDragOver} onDrop={onDrop}>
         <Canvas onPointerMissed={onPointerMissed}>
-          <PerspectiveCamera ref={cameraRef} makeDefault />
+          <PerspectiveCamera
+            ref={cameraRef}
+            makeDefault
+            near={sceneSettings["camera_near"]}
+            far={sceneSettings["camera_far"]}
+          />
           {/* <ambientLight intensity={Math.PI / 20}/> */}
           <pointLight
             ref={cameraLightRef}
