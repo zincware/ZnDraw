@@ -94,14 +94,19 @@ class ASEConverter(ConverterBase):
         if len(vectors) != 0:
             vectors = np.array(vectors)
             if vectors.ndim != 3:
-                raise ValueError(f"Vectors must be of shape (n, 2, 3), found '{vectors.shape}'")
+                raise ValueError(
+                    f"Vectors must be of shape (n, 2, 3), found '{vectors.shape}'"
+                )
             if vectors.shape[1] != 2:
-                raise ValueError(f"Vectors must be of shape (n, 2, 3), found '{vectors.shape}'")
+                raise ValueError(
+                    f"Vectors must be of shape (n, 2, 3), found '{vectors.shape}'"
+                )
             if vectors.shape[2] != 3:
-                raise ValueError(f"Vectors must be of shape (n, 2, 3), found '{vectors.shape}'")
+                raise ValueError(
+                    f"Vectors must be of shape (n, 2, 3), found '{vectors.shape}'"
+                )
 
             vectors = vectors.tolist()
-
 
         if obj.calc is not None:
             calc = {

@@ -555,10 +555,7 @@ export const PerParticleVectors: React.FC<PerParticleVectorsProps> = ({
     <>
       {vectors.map((vec, i) => (
         <React.Fragment key={i}>
-            <Arrow
-              start={vec.start}
-              end={vec.end}
-            />
+          <Arrow start={vec.start} end={vec.end} />
         </React.Fragment>
       ))}
     </>
