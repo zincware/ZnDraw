@@ -8,6 +8,7 @@ interface ArrowProps {
   scale_vector_thickness?: boolean;
   colormap: HSLColor[];
   colorrange: ColorRange;
+  opacity?: number;
 }
 
 // TODO: fix start and end
@@ -21,6 +22,7 @@ const Arrow: React.FC<ArrowProps> = ({
   scale_vector_thickness,
   colormap,
   colorrange,
+  opacity,
 }) => {
   const cylinderRadius = 0.04;
   const cylinderHeight = 0.6;
@@ -46,14 +48,6 @@ const Arrow: React.FC<ArrowProps> = ({
 
     const eulerRotation = new THREE.Euler().setFromQuaternion(quaternion);
     const color = interpolateColor(colormap, colorrange, length);
-    console.log(
-      "using color range",
-      colorrange,
-      "for length",
-      length,
-      "resulting in color",
-      color,
-    );
 
     return {
       position: startVector,
@@ -69,11 +63,13 @@ const Arrow: React.FC<ArrowProps> = ({
         <cylinderGeometry
           args={[cylinderRadius, cylinderRadius, cylinderHeight]}
         />
-        <meshStandardMaterial color={color} />
+        {/* TODO: should we use the selected material from settings here? */}
+        {/* NOTE: if the performance with 'transparent' is really bad, we disable this feature */}
+        <meshStandardMaterial color={color} transparent opacity={opacity} />
       </mesh>
       <mesh position={[0, cylinderHeight + coneHeight / 2, 0]}>
         <coneGeometry args={[coneRadius, coneHeight, 32]} />
-        <meshStandardMaterial color={color} />
+        <meshStandardMaterial color={color} transparent opacity={opacity} />
       </mesh>
     </group>
   );

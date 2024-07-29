@@ -64,9 +64,7 @@ export const interpolateColor = (
   // Interpolate between lowerColor and upperColor
   const h = THREE.MathUtils.lerp(lowerColor[0], upperColor[0], t);
   const s = THREE.MathUtils.lerp(lowerColor[1], upperColor[1], t);
-  const v = THREE.MathUtils.lerp(lowerColor[2], upperColor[2], t);
-  const color = new THREE.Color().setHSL(h, s, v);
-  console.log(color);
+  const l = THREE.MathUtils.lerp(lowerColor[2], upperColor[2], t);
 
-  return color;
+  return new THREE.Color().setHSL(h, s, l);
 };

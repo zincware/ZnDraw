@@ -1,14 +1,16 @@
 import React, { useEffect, useState } from "react";
 import * as THREE from "three";
 import Arrow from "./meshes";
+import { HSLColor } from "./utils";
 
 interface VectorFieldProps {
   vectors: [number, number, number][][];
   showArrows?: boolean;
   arrowsConfig: {
     normalize: boolean;
-    colormap: Array<[number, number, number]>;
+    colormap: HSLColor[];
     colorrange: [number, number];
+    opacity: number;
   };
 }
 
@@ -40,7 +42,6 @@ export const VectorField: React.FC<VectorFieldProps> = ({
     <>
       {vectors.map((vector, index) => (
         <React.Fragment key={index}>
-          {/* <Line points={vector} color="blue" lineWidth={2} /> */}
           {showArrows && vector.length > 1 && (
             <Arrow
               start={vector[0]}
@@ -48,6 +49,7 @@ export const VectorField: React.FC<VectorFieldProps> = ({
               scale_vector_thickness={arrowsConfig.scale_vector_thickness}
               colormap={arrowsConfig.colormap}
               colorrange={colorRange}
+              opacity={arrowsConfig.opacity}
             />
           )}
         </React.Fragment>

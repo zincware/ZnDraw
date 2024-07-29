@@ -109,6 +109,7 @@ export default function App() {
     colorrange: [0, 1],
     normalize: true,
     scale_vector_thickness: true,
+    opacity: 1.0,
   });
 
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(true);
@@ -308,7 +309,6 @@ export default function App() {
     }
 
     function onArrowConfig(data: any) {
-      console.log("received arrows config", data);
       setArrowsConfig(data);
     }
 

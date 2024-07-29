@@ -579,6 +579,7 @@ export const PerParticleVectors: React.FC<PerParticleVectorsProps> = ({
             scale_vector_thickness={arrowsConfig.scale_vector_thickness}
             colormap={arrowsConfig.colormap}
             colorrange={colorRange}
+            opacity={arrowsConfig.opacity}
           />
         </React.Fragment>
       ))}
