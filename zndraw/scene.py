@@ -47,8 +47,12 @@ class Scene(BaseModel):
 
     vectors: str = Field("", description="Visualize vectorial property")
     selection_color: str = Field("#ffa500", description="Selection color")
-    camera_near: float = Field(0.1, ge=0.1, le=100, description="Camera near rendering plane")
-    camera_far: float = Field(1000, ge=1, le=10000, description="Camera far rendering plane")
+    camera_near: float = Field(
+        0.1, ge=0.1, le=100, description="Camera near rendering plane"
+    )
+    camera_far: float = Field(
+        1000, ge=1, le=10000, description="Camera far rendering plane"
+    )
     # bonds: bool = Field(
     #     True,
     #     description="Show bonds.",

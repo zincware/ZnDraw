@@ -553,7 +553,12 @@ export default function App() {
     <>
       <div className="canvas-container" onDragOver={onDragOver} onDrop={onDrop}>
         <Canvas onPointerMissed={onPointerMissed}>
-          <PerspectiveCamera ref={cameraRef} makeDefault near={sceneSettings['camera_near']} far={sceneSettings['camera_far']}/>
+          <PerspectiveCamera
+            ref={cameraRef}
+            makeDefault
+            near={sceneSettings["camera_near"]}
+            far={sceneSettings["camera_far"]}
+          />
           {/* <ambientLight intensity={Math.PI / 20}/> */}
           <pointLight
             ref={cameraLightRef}
