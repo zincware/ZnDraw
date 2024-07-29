@@ -49,6 +49,17 @@ class CameraData(t.TypedDict):
     target: list[float]
 
 
+HSLColor = t.Tuple[float, float, float]
+
+
+class ArrowsConfig(t.TypedDict):
+    colormap: list[HSLColor]
+    normalize: bool
+    colorrange: tuple[float, float]
+    scale_vector_thickness: bool
+    opacity: float
+
+
 def _register_modifier(vis: "ZnDraw", data: RegisterModifier) -> None:
     log.debug(f"Registering modifier `{data['cls'].__name__}`")
     vis.socket.emit(
@@ -459,6 +470,33 @@ class ZnDraw(ZnDrawBase):
             self.socket,
             "room:geometry:set",
             [x.model_dump() for x in value],
+            retries=self.timeout["emit_retries"],
+        )
+
+    @property
+    def arrows_config(self) -> ArrowsConfig:
+        return call_with_retry(
+            self.socket,
+            "room:arrows_config:get",
+            retries=self.timeout["call_retries"],
+        )
+
+    @arrows_config.setter
+    def arrows_config(self, value: ArrowsConfig):
+        if set(value.keys()) != {
+            "colormap",
+            "normalize",
+            "colorrange",
+            "scale_vector_thickness",
+            "opacity",
+        }:
+            raise ValueError(
+                "Arrows config must have 'colormap', 'normalize', 'scale_vector_thickness', 'opacity' and 'colorrange' keys"
+            )
+        emit_with_retry(
+            self.socket,
+            "room:arrows_config:set",
+            value,
             retries=self.timeout["emit_retries"],
         )
 

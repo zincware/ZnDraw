@@ -110,6 +110,27 @@ def init_socketio_events(io: SocketIO):
         emit("geometry:schema", Geometry.updated_schema())
         emit("analysis:schema:refresh")
 
+        # set default arrows config
+        if not r.exists(f"room:{room}:arrows_config"):
+            r.set(
+                f"room:{room}:arrows_config",
+                json.dumps(
+                    {
+                        "colormap": [[-0.5, 0.9, 0.5], [0.0, 0.9, 0.5]],
+                        "normalize": True,
+                        "colorrange": [0, 1],
+                        "scale_vector_thickness": True,
+                        "opacity": 1.0,
+                    }
+                ),
+            )
+
+        emit(
+            "room:arrows_config:set",
+            json.loads(r.get(f"room:{room}:arrows_config")),
+            to=room,
+        )
+
         if "TUTORIAL" in current_app.config:
             emit("tutorial:url", current_app.config["TUTORIAL"])
         if "SIMGEN" in current_app.config:
@@ -416,6 +437,19 @@ def init_socketio_events(io: SocketIO):
         room = session.get("token")
 
         return list(znsocket.List(r, f"room:{room}:geometries"))
+
+    @io.on("room:arrows_config:get")
+    def room_arrows_config_get():
+        r: Redis = current_app.extensions["redis"]
+        room = session.get("token")
+        return json.loads(r.get(f"room:{room}:arrows_config"))
+
+    @io.on("room:arrows_config:set")
+    def room_arrows_config_set(data: dict):
+        r: Redis = current_app.extensions["redis"]
+        room = session.get("token")
+        r.set(f"room:{room}:arrows_config", json.dumps(data))
+        emit("room:arrows_config:set", data, to=room, include_self=False)
 
     @io.on("analysis:figure:set")
     def analysis_figure_set(data: dict):

@@ -515,12 +515,14 @@ interface PerParticleVectorsProps {
   frame: Frame | undefined;
   property: string;
   colorMode: string;
+  arrowsConfig: any;
 }
 
 export const PerParticleVectors: React.FC<PerParticleVectorsProps> = ({
   frame,
   property,
   colorMode,
+  arrowsConfig,
 }) => {
   const [vectors, setVectors] = useState<
     { start: THREE.Vector3; end: THREE.Vector3 }[]
@@ -529,6 +531,21 @@ export const PerParticleVectors: React.FC<PerParticleVectorsProps> = ({
   const LineColor = colorMode === "light" ? "#454b66" : "#f5fdc6";
   const LineWidth = 2;
   const LineScale = 1;
+
+  const [colorRange, setColorRange] = useState<[number, number]>(
+    arrowsConfig.colorrange,
+  );
+
+  useEffect(() => {
+    if (arrowsConfig.normalize) {
+      const max = Math.max(
+        ...vectors.map((vector) => vector.start.distanceTo(vector.end)),
+      );
+      setColorRange([0, max]);
+    } else {
+      setColorRange(arrowsConfig.colorrange);
+    }
+  }, [vectors, arrowsConfig.normalize, arrowsConfig.colorrange]);
 
   useEffect(() => {
     if (!frame || !frame.calc || !frame.calc[property]) {
@@ -556,7 +573,14 @@ export const PerParticleVectors: React.FC<PerParticleVectorsProps> = ({
     <>
       {vectors.map((vec, i) => (
         <React.Fragment key={i}>
-          <Arrow start={vec.start} end={vec.end} />
+          <Arrow
+            start={vec.start}
+            end={vec.end}
+            scale_vector_thickness={arrowsConfig.scale_vector_thickness}
+            colormap={arrowsConfig.colormap}
+            colorrange={colorRange}
+            opacity={arrowsConfig.opacity}
+          />
         </React.Fragment>
       ))}
     </>
