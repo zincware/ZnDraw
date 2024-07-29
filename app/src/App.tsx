@@ -103,8 +103,7 @@ export default function App() {
   const [hoveredId, setHoveredId] = useState<number>(null);
   const [arrowsConfig, setArrowsConfig] = useState({
     colormap: [
-      [0, 1, 0.5],
-      [0.5, 2, 0.5],
+      [0, 0, 0.5],
     ],
     colorrange: [0, 1],
     normalize: true,

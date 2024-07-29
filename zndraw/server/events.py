@@ -116,7 +116,7 @@ def init_socketio_events(io: SocketIO):
                 f"room:{room}:arrows_config",
                 json.dumps(
                     {
-                        "colormap": [[0, 1, 0.5], [0.5, 1, 0.5]],
+                        "colormap": [[-0.5, 0.9, 0.5], [0.0, 0.9, 0.5]],
                         "normalize": True,
                         "colorrange": [0, 1],
                         "scale_vector_thickness": True,
