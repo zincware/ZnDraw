@@ -14,6 +14,8 @@ from .draw import (
     Tetrahedron,
     Torus,
     TorusKnot,
+    Rhomboid,
+    Ellipsoid,
 )
 from .zndraw import ZnDraw
 
@@ -33,5 +35,7 @@ __all__ = [
     "Tetrahedron",
     "Torus",
     "TorusKnot",
+    "Rhomboid",
+    "Ellipsoid",
     "Material",
 ]
