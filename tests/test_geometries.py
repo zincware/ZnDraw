@@ -50,4 +50,3 @@ def test_conversion_utils():
     new_direction = euler_to_direction(euler)
 
     npt.assert_allclose(direction, new_direction, atol=1e-6)
-

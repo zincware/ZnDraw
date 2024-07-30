@@ -316,9 +316,9 @@ def call_with_retry(
     return None
 
 
-def direction_to_euler(direction, roll = 0):
+def direction_to_euler(direction, roll=0):
     """
-    Convert a direction vector to euler angles. 
+    Convert a direction vector to euler angles.
 
     You get an increased degree of freedom by setting the roll angle.
     """
