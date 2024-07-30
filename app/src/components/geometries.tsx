@@ -560,12 +560,12 @@ function GeometryComponent({
       const positions = new Float32Array(vertices.flatMap((v) => [v.x, v.y, v.z]));
   
       const indices = [
-        0, 1, 2, 1, 2, 3, // Bottom face
-        4, 6, 5, 5, 6, 7, // Top face
-        0, 4, 1, 1, 4, 5, // Front face
-        1, 5, 3, 3, 5, 7, // Right face
-        3, 7, 2, 2, 7, 6, // Back face
-        2, 6, 0, 0, 6, 4, // Left face
+        0, 2, 1, 1, 2, 3, // Bottom face
+        4, 5, 6, 5, 7, 6, // Top face
+        0, 1, 4, 1, 5, 4, // Front face
+        1, 3, 5, 3, 7, 5, // Right face
+        3, 2, 7, 2, 6, 7, // Back face
+        2, 0, 6, 0, 4, 6, // Left face
       ];
   
       const newRhomboidGeometry = new THREE.BufferGeometry();
