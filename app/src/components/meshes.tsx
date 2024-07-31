@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { BufferGeometryUtils } from "three/examples/jsm/Addons.js";
 import { interpolateColor, HSLColor, ColorRange } from "./utils";
@@ -46,39 +46,46 @@ const Arrows: React.FC<ArrowsProps> = ({
   opacity = 1.0,
 }) => {
   const geometry = useMemo(() => createArrowMesh(), []);
+  const meshRef = useRef();
+
+  useEffect(() => {
+    if (!meshRef.current) return;
+    for (let i = 0; i < start.length; i++) {
+      const startVector = new THREE.Vector3(...start[i]);
+      const endVector = new THREE.Vector3(...end[i]);
+      const direction = new THREE.Vector3().subVectors(endVector, startVector);
+      const length = direction.length();
+      const up = new THREE.Vector3(0, 0, 1); // TODO!
+      const color = interpolateColor(colormap, colorrange, length);
+
+      const scale = scale_vector_thickness
+        ? new THREE.Vector3(length, length, length)
+        : new THREE.Vector3(1, length, 1);
+
+      const matrix = new THREE.Matrix4().setPosition(startVector);
+      matrix.lookAt(endVector, startVector, up);
+      matrix.scale(scale);
+
+      meshRef.current.setColorAt(i, color);
+
+      meshRef.current.setMatrixAt(i, matrix);
+      meshRef.current.instanceMatrix.needsUpdate = true;
+      meshRef.current.instanceColor.needsUpdate = true;
+    }
+  }, [start, end, colormap, colorrange]);
+
   return (
-    <>
-      {start.map((s, i) => {
-        const startVector = new THREE.Vector3(...s);
-        const endVector = new THREE.Vector3(...end[i]);
-        const direction = new THREE.Vector3().subVectors(
-          endVector,
-          startVector,
-        );
-        const length = direction.length();
-
-        const scale = scale_vector_thickness
-          ? new THREE.Vector3(length, length, length)
-          : new THREE.Vector3(1, length, 1);
-        const quaternion = new THREE.Quaternion().setFromUnitVectors(
-          new THREE.Vector3(0, 1, 0),
-          direction.clone().normalize(),
-        );
-        const eulerRotation = new THREE.Euler().setFromQuaternion(quaternion);
-        const color = interpolateColor(colormap, colorrange, length);
-
-        return (
-          <mesh
-            geometry={geometry}
-            position={startVector}
-            rotation={eulerRotation}
-            scale={scale}
-          >
-            <meshStandardMaterial color={color} transparent opacity={opacity} />
-          </mesh>
-        );
-      })}
-    </>
+    <instancedMesh
+      ref={meshRef}
+      args={[null, null, start.length]}
+    >
+      <bufferGeometry attach="geometry" {...geometry} />
+      <meshStandardMaterial
+        attach="material"
+        transparent
+        opacity={opacity}
+      />
+    </instancedMesh>
   );
 };
 
