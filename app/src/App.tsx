@@ -101,12 +101,14 @@ export default function App() {
   // todo give to particles and bonds
   const [colorMode, handleColorMode] = useColorMode();
   const [hoveredId, setHoveredId] = useState<number>(null);
-  const [arrowsConfig, setArrowsConfig] = useState({
-    colormap: [[0, 0, 0.5]],
-    colorrange: [0, 1],
-    normalize: true,
-    scale_vector_thickness: true,
-    opacity: 1.0,
+  const [roomConfig, setRoomConfig] = useState({
+    arrows: {
+      colormap: [[0, 0, 0.5]],
+      colorrange: [0, 1],
+      normalize: true,
+      scale_vector_thickness: false,
+      opacity: 1.0,
+    },
   });
 
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(true);
@@ -305,8 +307,8 @@ export default function App() {
       setShowSiMGen(data);
     }
 
-    function onArrowConfig(data: any) {
-      setArrowsConfig(data);
+    function onRoomConfig(data: any) {
+      setRoomConfig(data);
     }
 
     function onCameraSet(data: { position: number[]; target: number[] }) {
@@ -346,7 +348,7 @@ export default function App() {
     socket.on("showSiMGen", onShowSiMGen);
     socket.on("room:camera:set", onCameraSet);
     socket.on("room:lock:set", onRoomLockSet);
-    socket.on("room:arrows_config:set", onArrowConfig);
+    socket.on("room:config:set", onRoomConfig);
 
     return () => {
       socket.off("connect", onConnect);
@@ -370,7 +372,7 @@ export default function App() {
       socket.off("showSiMGen", onShowSiMGen);
       socket.off("room:camera:set", onCameraSet);
       socket.off("room:lock:set", onRoomLockSet);
-      socket.off("room:arrows_config:set", onArrowConfig);
+      socket.off("room:config:set", onRoomConfig);
     };
   }, []);
 
@@ -583,12 +585,13 @@ export default function App() {
             intensity={Math.PI}
             castShadow
           />
-          {sceneSettings["vectorfield"] && (
-            <VectorField
-              vectors={currentFrame.vectors}
-              arrowsConfig={arrowsConfig}
-            />
-          )}
+          {sceneSettings["vectorfield"] &&
+            currentFrame.vectors !== undefined && (
+              <VectorField
+                vectors={currentFrame.vectors}
+                arrowsConfig={roomConfig.arrows}
+              />
+            )}
           <ParticleInstances
             frame={currentFrame}
             selectedIds={selectedIds}
@@ -694,7 +697,7 @@ export default function App() {
               frame={currentFrame}
               property={sceneSettings.vectors}
               colorMode={colorMode}
-              arrowsConfig={arrowsConfig}
+              arrowsConfig={roomConfig.arrows}
             ></PerParticleVectors>
           )}
         </Canvas>

@@ -13,6 +13,7 @@ from redis import Redis
 
 from zndraw.base import Extension, ZnDrawBase
 from zndraw.bonds import ASEComputeBonds
+from zndraw.config import ArrowsConfig, ZnDrawConfig
 from zndraw.draw import Geometry, Object3D
 from zndraw.utils import ASEConverter, call_with_retry, emit_with_retry
 
@@ -47,17 +48,6 @@ class JupyterConfig(t.TypedDict):
 class CameraData(t.TypedDict):
     position: list[float]
     target: list[float]
-
-
-HSLColor = t.Tuple[float, float, float]
-
-
-class ArrowsConfig(t.TypedDict):
-    colormap: list[HSLColor]
-    normalize: bool
-    colorrange: tuple[float, float]
-    scale_vector_thickness: bool
-    opacity: float
 
 
 def _register_modifier(vis: "ZnDraw", data: RegisterModifier) -> None:
@@ -474,31 +464,13 @@ class ZnDraw(ZnDrawBase):
         )
 
     @property
-    def arrows_config(self) -> ArrowsConfig:
-        return call_with_retry(
+    def config(self) -> ZnDrawConfig:
+        config: dict = call_with_retry(
             self.socket,
-            "room:arrows_config:get",
+            "room:config:get",
             retries=self.timeout["call_retries"],
         )
-
-    @arrows_config.setter
-    def arrows_config(self, value: ArrowsConfig):
-        if set(value.keys()) != {
-            "colormap",
-            "normalize",
-            "colorrange",
-            "scale_vector_thickness",
-            "opacity",
-        }:
-            raise ValueError(
-                "Arrows config must have 'colormap', 'normalize', 'scale_vector_thickness', 'opacity' and 'colorrange' keys"
-            )
-        emit_with_retry(
-            self.socket,
-            "room:arrows_config:set",
-            value,
-            retries=self.timeout["emit_retries"],
-        )
+        return ZnDrawConfig(vis=self, arrows=ArrowsConfig(**config["arrows"]))
 
     @property
     def locked(self) -> bool:
