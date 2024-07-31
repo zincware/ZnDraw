@@ -32,7 +32,7 @@ class ArrowsConfig:
                     data,
                     retries=self._vis.timeout["emit_retries"],
                 )
-                self._vis.socket.sleep(0.1) # maybe use call?
+                self._vis.socket.sleep(0.1)  # maybe use call?
 
     def set_vis(self, vis: "ZnDraw") -> None:
         self._vis = vis
