@@ -2,6 +2,41 @@ import React, { useMemo } from "react";
 import * as THREE from "three";
 import { interpolateColor, HSLColor, ColorRange } from "./utils";
 
+interface ArrowsProps {
+  start: number[][];
+  end: number[][];
+  scale_vector_thickness?: boolean;
+  colormap: HSLColor[];
+  colorrange: ColorRange;
+  opacity?: number;
+}
+
+const Arrows: React.FC<ArrowsProps> = ({
+  start,
+  end,
+  scale_vector_thickness,
+  colormap,
+  colorrange,
+  opacity,
+}) => {
+  return (
+    <>
+      {start.map((s, i) => (
+        <Arrow
+          key={i}
+          start={s}
+          end={end[i]}
+          scale_vector_thickness={scale_vector_thickness}
+          colormap={colormap}
+          colorrange={colorrange}
+          opacity={opacity}
+        />
+      ))}
+    </>
+  );
+}
+
+
 interface ArrowProps {
   start: [number, number, number];
   end: [number, number, number];
@@ -72,4 +107,4 @@ const Arrow: React.FC<ArrowProps> = ({
   );
 };
 
-export default Arrow;
+export default Arrows;
