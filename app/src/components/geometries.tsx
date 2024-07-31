@@ -17,7 +17,7 @@ import {
 
 import * as THREE from "three";
 
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useState } from "react";
 
 export interface BaseGeometry {
   material: {
@@ -106,6 +106,20 @@ export interface TorusKnotGeometry extends BaseGeometry {
   tube: number;
 }
 
+export interface RhomboidGeometry extends BaseGeometry {
+  discriminator: "Rhomboid";
+  vectorA: [number, number, number];
+  vectorB: [number, number, number];
+  vectorC: [number, number, number];
+}
+
+export interface EllipsoidGeometry extends BaseGeometry {
+  discriminator: "Ellipsoid";
+  a: number;
+  b: number;
+  c: number;
+}
+
 export type Geometry =
   | BoxGeometry
   | CircleGeometry
@@ -119,7 +133,9 @@ export type Geometry =
   | TetrahedronGeometry
   | TorusKnotGeometry
   | OctahedronGeometry
-  | TorusGeometry;
+  | TorusGeometry
+  | RhomboidGeometry
+  | EllipsoidGeometry;
 
 function GeometryComponent({
   geometry,
@@ -491,11 +507,122 @@ function GeometryComponent({
           )}
         </Torus>
       );
+    case "Ellipsoid":
+      return (
+        <Sphere
+          args={[1, 32, 32]} // Adjust the segments as needed
+          position={geometry.position}
+          rotation={geometry.rotation}
+          scale={[
+            geometry.scale[0] * geometry.a,
+            geometry.scale[1] * geometry.b,
+            geometry.scale[2] * geometry.c,
+          ]}
+          onPointerMove={onPointerMove}
+          onPointerOver={onPointerOver}
+          onPointerOut={onPointerOut}
+        >
+          <meshStandardMaterial
+            attach="material"
+            color={geometry.material.color}
+            opacity={geometry.material.opacity}
+            wireframe={geometry.material.wireframe}
+            transparent={geometry.material.opacity < 1.0}
+          />
+          {geometry.material.outlines && (
+            <Outlines
+              thickness={0.05}
+              color={geometry.material.color}
+              opacity={geometry.material.opacity}
+            />
+          )}
+        </Sphere>
+      );
+    case "Rhomboid": {
+      const [rhomboidGeometry, setRhomboidGeometry] =
+        useState<THREE.BufferGeometry | null>(null);
+
+      useEffect(() => {
+        const vectorA = geometry.vectorA;
+        const vectorB = geometry.vectorB;
+        const vectorC = geometry.vectorC;
+
+        const vertices = [
+          new THREE.Vector3(0, 0, 0),
+          new THREE.Vector3(...vectorA),
+          new THREE.Vector3(...vectorB),
+          new THREE.Vector3(...vectorA).add(new THREE.Vector3(...vectorB)),
+          new THREE.Vector3(...vectorC),
+          new THREE.Vector3(...vectorA).add(new THREE.Vector3(...vectorC)),
+          new THREE.Vector3(...vectorB).add(new THREE.Vector3(...vectorC)),
+          new THREE.Vector3(...vectorA)
+            .add(new THREE.Vector3(...vectorB))
+            .add(new THREE.Vector3(...vectorC)),
+        ];
+
+        const positions = new Float32Array(
+          vertices.flatMap((v) => [v.x, v.y, v.z]),
+        );
+
+        const faceIndices = [
+          [0, 2, 1, 1, 2, 3], // Bottom face
+          [4, 5, 6, 5, 7, 6], // Top face
+          [0, 1, 4, 1, 5, 4], // Front face
+          [1, 3, 5, 3, 7, 5], // Right face
+          [3, 2, 7, 2, 6, 7], // Back face
+          [2, 0, 6, 0, 4, 6], // Left face
+        ];
+
+        // Flatten the 2D array
+        const indices = faceIndices.flat();
+
+        const newRhomboidGeometry = new THREE.BufferGeometry();
+        newRhomboidGeometry.setAttribute(
+          "position",
+          new THREE.BufferAttribute(positions, 3),
+        );
+        newRhomboidGeometry.setIndex(indices);
+        newRhomboidGeometry.computeVertexNormals();
+
+        setRhomboidGeometry(newRhomboidGeometry);
+      }, [geometry]);
+
+      return (
+        <>
+          {rhomboidGeometry && (
+            <mesh
+              geometry={rhomboidGeometry}
+              position={geometry.position}
+              rotation={geometry.rotation}
+              scale={geometry.scale}
+              onPointerMove={onPointerMove}
+              onPointerOver={onPointerOver}
+              onPointerOut={onPointerOut}
+            >
+              <meshStandardMaterial
+                attach="material"
+                color={geometry.material.color}
+                opacity={geometry.material.opacity}
+                wireframe={geometry.material.wireframe}
+                transparent={geometry.material.opacity < 1.0}
+              />
+              {geometry.material.outlines && (
+                <Outlines
+                  thickness={0.05}
+                  color={geometry.material.color}
+                  opacity={geometry.material.opacity}
+                />
+              )}
+            </mesh>
+          )}
+        </>
+      );
+    }
+
     default:
       return null;
   }
 }
-
 export function Geometries({
   geometries,
   isDrawing,

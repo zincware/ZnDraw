@@ -117,6 +117,18 @@ class TorusKnot(Object3D):
     tube: float = 1.0
 
 
+class Rhomboid(Object3D):
+    vectorA: t.Tuple[float, float, float] | list[float] = (10, 0, 0)
+    vectorB: t.Tuple[float, float, float] | list[float] = (0, 10, 0)
+    vectorC: t.Tuple[float, float, float] | list[float] = (0, 0, 10)
+
+
+class Ellipsoid(Object3D):
+    a: float = 10.0
+    b: float = 5.0
+    c: float = 5.0
+
+
 methods = t.Union[
     Plane,
     Sphere,
@@ -131,6 +143,8 @@ methods = t.Union[
     Tetrahedron,
     Torus,
     TorusKnot,
+    Rhomboid,
+    Ellipsoid,
 ]
 
 
