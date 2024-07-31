@@ -103,11 +103,11 @@ export default function App() {
   const [hoveredId, setHoveredId] = useState<number>(null);
   const [roomConfig, setRoomConfig] = useState({
     arrows: {
-    colormap: [[0, 0, 0.5]],
-    colorrange: [0, 1],
-    normalize: true,
-    scale_vector_thickness: false,
-    opacity: 1.0,
+      colormap: [[0, 0, 0.5]],
+      colorrange: [0, 1],
+      normalize: true,
+      scale_vector_thickness: false,
+      opacity: 1.0,
     },
   });
 

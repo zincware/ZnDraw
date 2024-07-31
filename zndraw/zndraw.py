@@ -13,9 +13,9 @@ from redis import Redis
 
 from zndraw.base import Extension, ZnDrawBase
 from zndraw.bonds import ASEComputeBonds
+from zndraw.config import ArrowsConfig, ZnDrawConfig
 from zndraw.draw import Geometry, Object3D
 from zndraw.utils import ASEConverter, call_with_retry, emit_with_retry
-from zndraw.config import ZnDrawConfig, ArrowsConfig
 
 log = logging.getLogger(__name__)
 
@@ -471,7 +471,6 @@ class ZnDraw(ZnDrawBase):
             retries=self.timeout["call_retries"],
         )
         return ZnDrawConfig(vis=self, arrows=ArrowsConfig(**config["arrows"]))
-
 
     @property
     def locked(self) -> bool:

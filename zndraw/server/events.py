@@ -116,13 +116,15 @@ def init_socketio_events(io: SocketIO):
                 f"room:{room}:config",
                 # TODO: use the default function from config
                 json.dumps(
-                    {"arrows":{
-                        "colormap": [[-0.5, 0.9, 0.5], [0.0, 0.9, 0.5]],
-                        "normalize": True,
-                        "colorrange": [0, 1],
-                        "scale_vector_thickness": False,
-                        "opacity": 1.0,
-                    },}
+                    {
+                        "arrows": {
+                            "colormap": [[-0.5, 0.9, 0.5], [0.0, 0.9, 0.5]],
+                            "normalize": True,
+                            "colorrange": [0, 1],
+                            "scale_vector_thickness": False,
+                            "opacity": 1.0,
+                        },
+                    }
                 ),
             )
 

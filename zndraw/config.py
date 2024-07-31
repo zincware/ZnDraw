@@ -1,11 +1,13 @@
 import dataclasses
 import typing as t
+
 from zndraw.utils import emit_with_retry
 
 if t.TYPE_CHECKING:
     from zndraw import ZnDraw
 
 HSLColor = t.Tuple[float, float, float]
+
 
 @dataclasses.dataclass
 class ArrowsConfig:
@@ -15,8 +17,7 @@ class ArrowsConfig:
     scale_vector_thickness: bool
     opacity: float
 
-    _vis = None # not a dataclass field
-
+    _vis = None  # not a dataclass field
 
     def __setattr__(self, name: str, value) -> None:
         super().__setattr__(name, value)
@@ -30,10 +31,11 @@ class ArrowsConfig:
                     "room:config:set",
                     data,
                     retries=self._vis.timeout["emit_retries"],
-            )
-    
+                )
+
     def set_vis(self, vis: "ZnDraw") -> None:
         self._vis = vis
+
 
 def _create_arrows_config() -> ArrowsConfig:
     return ArrowsConfig(
@@ -41,9 +43,8 @@ def _create_arrows_config() -> ArrowsConfig:
         normalize=True,
         colorrange=[0, 1],
         scale_vector_thickness=False,
-        opacity=1.0
+        opacity=1.0,
     )
-
 
 
 @dataclasses.dataclass
