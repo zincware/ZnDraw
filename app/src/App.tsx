@@ -582,8 +582,8 @@ export default function App() {
             decay={0}
             intensity={Math.PI}
             castShadow
-          />
-          {sceneSettings["vectorfield"] && (
+          /> 
+          {sceneSettings["vectorfield"] && currentFrame.vectors !== undefined && (
             <VectorField
               vectors={currentFrame.vectors}
               arrowsConfig={arrowsConfig}
