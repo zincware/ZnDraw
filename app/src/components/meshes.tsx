@@ -13,7 +13,7 @@ function createArrowMesh() {
     cylinderRadius,
     cylinderRadius,
     cylinderHeight,
-    32,
+    32
   );
   const coneGeometry = new THREE.ConeGeometry(coneRadius, coneHeight, 32);
 
@@ -46,7 +46,8 @@ const Arrows: React.FC<ArrowsProps> = ({
   opacity = 1.0,
 }) => {
   const geometry = useMemo(() => createArrowMesh(), []);
-  const meshRef = useRef();
+  const meshRef = useRef<THREE.InstancedMesh>(null);
+  const materialRef = useRef<THREE.MeshStandardMaterial>(null);
 
   useEffect(() => {
     if (!meshRef.current) return;
@@ -55,24 +56,31 @@ const Arrows: React.FC<ArrowsProps> = ({
       const endVector = new THREE.Vector3(...end[i]);
       const direction = new THREE.Vector3().subVectors(endVector, startVector);
       const length = direction.length();
-      const up = new THREE.Vector3(0, 0, 1); // TODO!
+      const up = new THREE.Vector3(0,1,0); // TODO: fix rotation
       const color = interpolateColor(colormap, colorrange, length);
 
       const scale = scale_vector_thickness
         ? new THREE.Vector3(length, length, length)
         : new THREE.Vector3(1, length, 1);
 
-      const matrix = new THREE.Matrix4().setPosition(startVector);
-      matrix.lookAt(endVector, startVector, up);
+      const matrix = new THREE.Matrix4();
+      matrix.lookAt(startVector, endVector, up);
+      matrix.setPosition(startVector);
       matrix.scale(scale);
 
       meshRef.current.setColorAt(i, color);
-
       meshRef.current.setMatrixAt(i, matrix);
-      meshRef.current.instanceMatrix.needsUpdate = true;
-      meshRef.current.instanceColor.needsUpdate = true;
     }
-  }, [start, end, colormap, colorrange]);
+    meshRef.current.instanceMatrix.needsUpdate = true;
+  }, [start, end, scale_vector_thickness]);
+
+  useEffect(() => {
+    if (!materialRef.current) return;
+    materialRef.current.needsUpdate = true; // TODO: check for particles as well
+    if (!meshRef.current) return;
+    if (!meshRef.current.instanceColor) return;
+    meshRef.current.instanceColor.needsUpdate = true;
+  }, [colormap, colorrange]);
 
   return (
     <instancedMesh
@@ -81,6 +89,7 @@ const Arrows: React.FC<ArrowsProps> = ({
     >
       <bufferGeometry attach="geometry" {...geometry} />
       <meshStandardMaterial
+        ref={materialRef}
         attach="material"
         transparent
         opacity={opacity}
