@@ -70,10 +70,7 @@ const Arrows: React.FC<ArrowsProps> = ({
         ? new THREE.Vector3(length, length, length)
         : new THREE.Vector3(1, length, 1);
 
-      quaternion.setFromUnitVectors(
-        up,
-        direction.clone().normalize(),
-      );
+      quaternion.setFromUnitVectors(up, direction.clone().normalize());
       matrix.makeRotationFromQuaternion(quaternion);
       matrix.setPosition(startVector);
       matrix.scale(scale);
