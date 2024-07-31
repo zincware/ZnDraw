@@ -538,81 +538,116 @@ function GeometryComponent({
           )}
         </Sphere>
       );
-    case "Rhomboid":
-  {const [rhomboidGeometry, setRhomboidGeometry] = useState<THREE.BufferGeometry | null>(null);
+    case "Rhomboid": {
+      const [rhomboidGeometry, setRhomboidGeometry] =
+        useState<THREE.BufferGeometry | null>(null);
 
-    useEffect(() => {
-      const vectorA = geometry.vectorA;
-      const vectorB = geometry.vectorB;
-      const vectorC = geometry.vectorC;
-  
-      const vertices = [
-        new THREE.Vector3(0, 0, 0),
-        new THREE.Vector3(...vectorA),
-        new THREE.Vector3(...vectorB),
-        new THREE.Vector3(...vectorA).add(new THREE.Vector3(...vectorB)),
-        new THREE.Vector3(...vectorC),
-        new THREE.Vector3(...vectorA).add(new THREE.Vector3(...vectorC)),
-        new THREE.Vector3(...vectorB).add(new THREE.Vector3(...vectorC)),
-        new THREE.Vector3(...vectorA).add(new THREE.Vector3(...vectorB)).add(new THREE.Vector3(...vectorC)),
-      ];
-  
-      const positions = new Float32Array(vertices.flatMap((v) => [v.x, v.y, v.z]));
-  
-      const indices = [
-        0, 2, 1, 1, 2, 3, // Bottom face
-        4, 5, 6, 5, 7, 6, // Top face
-        0, 1, 4, 1, 5, 4, // Front face
-        1, 3, 5, 3, 7, 5, // Right face
-        3, 2, 7, 2, 6, 7, // Back face
-        2, 0, 6, 0, 4, 6, // Left face
-      ];
-  
-      const newRhomboidGeometry = new THREE.BufferGeometry();
-      newRhomboidGeometry.setAttribute(
-        "position",
-        new THREE.BufferAttribute(positions, 3)
-      );
-      newRhomboidGeometry.setIndex(indices);
-      newRhomboidGeometry.computeVertexNormals();
-  
-      setRhomboidGeometry(newRhomboidGeometry);
-    }, [geometry]);
+      useEffect(() => {
+        const vectorA = geometry.vectorA;
+        const vectorB = geometry.vectorB;
+        const vectorC = geometry.vectorC;
 
-    if (!rhomboidGeometry) return null;
+        const vertices = [
+          new THREE.Vector3(0, 0, 0),
+          new THREE.Vector3(...vectorA),
+          new THREE.Vector3(...vectorB),
+          new THREE.Vector3(...vectorA).add(new THREE.Vector3(...vectorB)),
+          new THREE.Vector3(...vectorC),
+          new THREE.Vector3(...vectorA).add(new THREE.Vector3(...vectorC)),
+          new THREE.Vector3(...vectorB).add(new THREE.Vector3(...vectorC)),
+          new THREE.Vector3(...vectorA)
+            .add(new THREE.Vector3(...vectorB))
+            .add(new THREE.Vector3(...vectorC)),
+        ];
 
-    return (
-      <mesh
-        geometry={rhomboidGeometry}
-        position={geometry.position}
-        rotation={geometry.rotation}
-        scale={geometry.scale}
-        onPointerMove={onPointerMove}
-        onPointerOver={onPointerOver}
-        onPointerOut={onPointerOut}
-      >
-        <meshStandardMaterial
-          attach="material"
-          color={geometry.material.color}
-          opacity={geometry.material.opacity}
-          wireframe={geometry.material.wireframe}
-          transparent={geometry.material.opacity < 1.0}
-        />
-        {geometry.material.outlines && (
-          <Outlines
-            thickness={0.05}
+        const positions = new Float32Array(
+          vertices.flatMap((v) => [v.x, v.y, v.z]),
+        );
+
+        const indices = [
+          0,
+          2,
+          1,
+          1,
+          2,
+          3, // Bottom face
+          4,
+          5,
+          6,
+          5,
+          7,
+          6, // Top face
+          0,
+          1,
+          4,
+          1,
+          5,
+          4, // Front face
+          1,
+          3,
+          5,
+          3,
+          7,
+          5, // Right face
+          3,
+          2,
+          7,
+          2,
+          6,
+          7, // Back face
+          2,
+          0,
+          6,
+          0,
+          4,
+          6, // Left face
+        ];
+
+        const newRhomboidGeometry = new THREE.BufferGeometry();
+        newRhomboidGeometry.setAttribute(
+          "position",
+          new THREE.BufferAttribute(positions, 3),
+        );
+        newRhomboidGeometry.setIndex(indices);
+        newRhomboidGeometry.computeVertexNormals();
+
+        setRhomboidGeometry(newRhomboidGeometry);
+      }, [geometry]);
+
+      if (!rhomboidGeometry) return null;
+
+      return (
+        <mesh
+          geometry={rhomboidGeometry}
+          position={geometry.position}
+          rotation={geometry.rotation}
+          scale={geometry.scale}
+          onPointerMove={onPointerMove}
+          onPointerOver={onPointerOver}
+          onPointerOut={onPointerOut}
+        >
+          <meshStandardMaterial
+            attach="material"
             color={geometry.material.color}
             opacity={geometry.material.opacity}
+            wireframe={geometry.material.wireframe}
+            transparent={geometry.material.opacity < 1.0}
           />
-        )}
-      </mesh>
-    );
+          {geometry.material.outlines && (
+            <Outlines
+              thickness={0.05}
+              color={geometry.material.color}
+              opacity={geometry.material.opacity}
+            />
+          )}
+        </mesh>
+      );
+    }
+
+    default:
+      return null;
   }
-      
-      default:
-        return null;
-      }
-    }   
+}
 export function Geometries({
   geometries,
   isDrawing,

@@ -5,17 +5,17 @@ from .draw import (
     Cone,
     Cylinder,
     Dodecahedron,
+    Ellipsoid,
     Icosahedron,
     Material,
     Octahedron,
     Plane,
+    Rhomboid,
     Ring,
     Sphere,
     Tetrahedron,
     Torus,
     TorusKnot,
-    Rhomboid,
-    Ellipsoid,
 )
 from .zndraw import ZnDraw
 
