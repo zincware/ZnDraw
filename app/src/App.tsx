@@ -582,13 +582,14 @@ export default function App() {
             decay={0}
             intensity={Math.PI}
             castShadow
-          /> 
-          {sceneSettings["vectorfield"] && currentFrame.vectors !== undefined && (
-            <VectorField
-              vectors={currentFrame.vectors}
-              arrowsConfig={arrowsConfig}
-            />
-          )}
+          />
+          {sceneSettings["vectorfield"] &&
+            currentFrame.vectors !== undefined && (
+              <VectorField
+                vectors={currentFrame.vectors}
+                arrowsConfig={arrowsConfig}
+              />
+            )}
           <ParticleInstances
             frame={currentFrame}
             selectedIds={selectedIds}
