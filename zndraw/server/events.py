@@ -111,23 +111,26 @@ def init_socketio_events(io: SocketIO):
         emit("analysis:schema:refresh")
 
         # set default arrows config
-        if not r.exists(f"room:{room}:arrows_config"):
+        if not r.exists(f"room:{room}:config"):
             r.set(
-                f"room:{room}:arrows_config",
+                f"room:{room}:config",
+                # TODO: use the default function from config
                 json.dumps(
                     {
-                        "colormap": [[-0.5, 0.9, 0.5], [0.0, 0.9, 0.5]],
-                        "normalize": True,
-                        "colorrange": [0, 1],
-                        "scale_vector_thickness": False,
-                        "opacity": 1.0,
+                        "arrows": {
+                            "colormap": [[-0.5, 0.9, 0.5], [0.0, 0.9, 0.5]],
+                            "normalize": True,
+                            "colorrange": [0, 1],
+                            "scale_vector_thickness": False,
+                            "opacity": 1.0,
+                        },
                     }
                 ),
             )
 
         emit(
-            "room:arrows_config:set",
-            json.loads(r.get(f"room:{room}:arrows_config")),
+            "room:config:set",
+            json.loads(r.get(f"room:{room}:config")),
             to=room,
         )
 
@@ -438,18 +441,20 @@ def init_socketio_events(io: SocketIO):
 
         return list(znsocket.List(r, f"room:{room}:geometries"))
 
-    @io.on("room:arrows_config:get")
-    def room_arrows_config_get():
+    @io.on("room:config:get")
+    def room_config_get():
         r: Redis = current_app.extensions["redis"]
         room = session.get("token")
-        return json.loads(r.get(f"room:{room}:arrows_config"))
+        return json.loads(r.get(f"room:{room}:config"))
 
-    @io.on("room:arrows_config:set")
-    def room_arrows_config_set(data: dict):
+    @io.on("room:config:set")
+    def room_config_set(data: dict):
         r: Redis = current_app.extensions["redis"]
         room = session.get("token")
-        r.set(f"room:{room}:arrows_config", json.dumps(data))
-        emit("room:arrows_config:set", data, to=room, include_self=False)
+        config = json.loads(r.get(f"room:{room}:config"))
+        config.update(data)
+        r.set(f"room:{room}:config", json.dumps(config))
+        emit("room:config:set", data, to=room, include_self=False)
 
     @io.on("analysis:figure:set")
     def analysis_figure_set(data: dict):
@@ -524,7 +529,6 @@ def init_socketio_events(io: SocketIO):
 
     @io.on("room:step:set")
     def room_step_set(step: int):
-        print(f"setting step to {step}")
         r: Redis = current_app.extensions["redis"]
         room = session.get("token")
         r.set(f"room:{room}:step", step)
@@ -540,7 +544,6 @@ def init_socketio_events(io: SocketIO):
 
     @io.on("room:points:set")
     def room_points_set(data: dict):
-        print(f"setting points to {data}")
         r: Redis = current_app.extensions["redis"]
         room = session.get("token")
         r.hmset(f"room:{room}:points", {k: json.dumps(v) for k, v in data.items()})
