@@ -59,7 +59,6 @@ const Arrows: React.FC<ArrowsProps> = ({
     const quaternion = new THREE.Quaternion();
 
     for (let i = 0; i < start.length; i++) {
-      // const startVector = new THREE.Vector3(...start[i]);
       startVector.fromArray(start[i]);
       endVector.fromArray(end[i]);
       direction.subVectors(endVector, startVector);
