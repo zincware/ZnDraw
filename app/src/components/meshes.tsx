@@ -57,14 +57,17 @@ const Arrows: React.FC<ArrowsProps> = ({
       const direction = new THREE.Vector3().subVectors(endVector, startVector);
       const length = direction.length();
       const color = interpolateColor(colormap, colorrange, length);
-    
+
       const scale = scale_vector_thickness
         ? new THREE.Vector3(length, length, length)
         : new THREE.Vector3(1, length, 1);
-    
+
       const matrix = new THREE.Matrix4();
       const quaternion = new THREE.Quaternion();
-      quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), direction.clone().normalize());
+      quaternion.setFromUnitVectors(
+        new THREE.Vector3(0, 1, 0),
+        direction.clone().normalize(),
+      );
       matrix.makeRotationFromQuaternion(quaternion);
       matrix.setPosition(startVector);
       matrix.scale(scale);
