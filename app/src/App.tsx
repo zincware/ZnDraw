@@ -105,7 +105,7 @@ export default function App() {
     colormap: [[0, 0, 0.5]],
     colorrange: [0, 1],
     normalize: true,
-    scale_vector_thickness: true,
+    scale_vector_thickness: false,
     opacity: 1.0,
   });
 
