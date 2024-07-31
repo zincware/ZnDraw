@@ -570,9 +570,9 @@ function GeometryComponent({
           [0, 1, 4, 1, 5, 4], // Front face
           [1, 3, 5, 3, 7, 5], // Right face
           [3, 2, 7, 2, 6, 7], // Back face
-          [2, 0, 6, 0, 4, 6]  // Left face
+          [2, 0, 6, 0, 4, 6], // Left face
         ];
-    
+
         // Flatten the 2D array
         const indices = faceIndices.flat();
 
