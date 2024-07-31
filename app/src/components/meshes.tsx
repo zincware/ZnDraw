@@ -13,7 +13,7 @@ function createArrowMesh() {
     cylinderRadius,
     cylinderRadius,
     cylinderHeight,
-    32
+    32,
   );
   const coneGeometry = new THREE.ConeGeometry(coneRadius, coneHeight, 32);
 
@@ -56,7 +56,7 @@ const Arrows: React.FC<ArrowsProps> = ({
       const endVector = new THREE.Vector3(...end[i]);
       const direction = new THREE.Vector3().subVectors(endVector, startVector);
       const length = direction.length();
-      const up = new THREE.Vector3(0,1,0); // TODO: fix rotation
+      const up = new THREE.Vector3(0, 1, 0); // TODO: fix rotation
       const color = interpolateColor(colormap, colorrange, length);
 
       const scale = scale_vector_thickness
@@ -83,10 +83,7 @@ const Arrows: React.FC<ArrowsProps> = ({
   }, [colormap, colorrange]);
 
   return (
-    <instancedMesh
-      ref={meshRef}
-      args={[null, null, start.length]}
-    >
+    <instancedMesh ref={meshRef} args={[null, null, start.length]}>
       <bufferGeometry attach="geometry" {...geometry} />
       <meshStandardMaterial
         ref={materialRef}
