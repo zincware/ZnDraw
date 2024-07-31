@@ -51,10 +51,18 @@ const Arrows: React.FC<ArrowsProps> = ({
 
   useEffect(() => {
     if (!meshRef.current) return;
+    const matrix = new THREE.Matrix4();
+    const up = new THREE.Vector3(0, 1, 0);
+    const startVector = new THREE.Vector3();
+    const endVector = new THREE.Vector3();
+    const direction = new THREE.Vector3();
+    const quaternion = new THREE.Quaternion();
+
     for (let i = 0; i < start.length; i++) {
-      const startVector = new THREE.Vector3(...start[i]);
-      const endVector = new THREE.Vector3(...end[i]);
-      const direction = new THREE.Vector3().subVectors(endVector, startVector);
+      // const startVector = new THREE.Vector3(...start[i]);
+      startVector.fromArray(start[i]);
+      endVector.fromArray(end[i]);
+      direction.subVectors(endVector, startVector);
       const length = direction.length();
       const color = interpolateColor(colormap, colorrange, length);
 
@@ -62,10 +70,8 @@ const Arrows: React.FC<ArrowsProps> = ({
         ? new THREE.Vector3(length, length, length)
         : new THREE.Vector3(1, length, 1);
 
-      const matrix = new THREE.Matrix4();
-      const quaternion = new THREE.Quaternion();
       quaternion.setFromUnitVectors(
-        new THREE.Vector3(0, 1, 0),
+        up,
         direction.clone().normalize(),
       );
       matrix.makeRotationFromQuaternion(quaternion);
@@ -87,7 +93,7 @@ const Arrows: React.FC<ArrowsProps> = ({
   }, [colormap, colorrange]);
 
   return (
-    <instancedMesh ref={meshRef} args={[null, null, start.length]}>
+    <instancedMesh ref={meshRef} args={[undefined, undefined, start.length]}>
       <bufferGeometry attach="geometry" {...geometry} />
       <meshStandardMaterial
         ref={materialRef}
