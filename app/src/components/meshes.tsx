@@ -34,8 +34,7 @@ const Arrows: React.FC<ArrowsProps> = ({
       ))}
     </>
   );
-}
-
+};
 
 interface ArrowProps {
   start: [number, number, number];
