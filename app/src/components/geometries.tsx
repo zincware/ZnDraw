@@ -564,44 +564,17 @@ function GeometryComponent({
           vertices.flatMap((v) => [v.x, v.y, v.z]),
         );
 
-        const indices = [
-          0,
-          2,
-          1,
-          1,
-          2,
-          3, // Bottom face
-          4,
-          5,
-          6,
-          5,
-          7,
-          6, // Top face
-          0,
-          1,
-          4,
-          1,
-          5,
-          4, // Front face
-          1,
-          3,
-          5,
-          3,
-          7,
-          5, // Right face
-          3,
-          2,
-          7,
-          2,
-          6,
-          7, // Back face
-          2,
-          0,
-          6,
-          0,
-          4,
-          6, // Left face
+        const faceIndices = [
+          [0, 2, 1, 1, 2, 3], // Bottom face
+          [4, 5, 6, 5, 7, 6], // Top face
+          [0, 1, 4, 1, 5, 4], // Front face
+          [1, 3, 5, 3, 7, 5], // Right face
+          [3, 2, 7, 2, 6, 7], // Back face
+          [2, 0, 6, 0, 4, 6]  // Left face
         ];
+    
+        // Flatten the 2D array
+        const indices = faceIndices.flat();
 
         const newRhomboidGeometry = new THREE.BufferGeometry();
         newRhomboidGeometry.setAttribute(
@@ -614,33 +587,35 @@ function GeometryComponent({
         setRhomboidGeometry(newRhomboidGeometry);
       }, [geometry]);
 
-      if (!rhomboidGeometry) return null;
-
       return (
-        <mesh
-          geometry={rhomboidGeometry}
-          position={geometry.position}
-          rotation={geometry.rotation}
-          scale={geometry.scale}
-          onPointerMove={onPointerMove}
-          onPointerOver={onPointerOver}
-          onPointerOut={onPointerOut}
-        >
-          <meshStandardMaterial
-            attach="material"
-            color={geometry.material.color}
-            opacity={geometry.material.opacity}
-            wireframe={geometry.material.wireframe}
-            transparent={geometry.material.opacity < 1.0}
-          />
-          {geometry.material.outlines && (
-            <Outlines
-              thickness={0.05}
-              color={geometry.material.color}
-              opacity={geometry.material.opacity}
-            />
+        <>
+          {rhomboidGeometry && (
+            <mesh
+              geometry={rhomboidGeometry}
+              position={geometry.position}
+              rotation={geometry.rotation}
+              scale={geometry.scale}
+              onPointerMove={onPointerMove}
+              onPointerOver={onPointerOver}
+              onPointerOut={onPointerOut}
+            >
+              <meshStandardMaterial
+                attach="material"
+                color={geometry.material.color}
+                opacity={geometry.material.opacity}
+                wireframe={geometry.material.wireframe}
+                transparent={geometry.material.opacity < 1.0}
+              />
+              {geometry.material.outlines && (
+                <Outlines
+                  thickness={0.05}
+                  color={geometry.material.color}
+                  opacity={geometry.material.opacity}
+                />
+              )}
+            </mesh>
           )}
-        </mesh>
+        </>
       );
     }
 
