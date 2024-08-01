@@ -49,6 +49,8 @@ def test_append_faulty(ref, request):
     data = ASEConverter().encode(water)
     with pytest.raises(ValueError, match="Unable to parse provided data object"):
         vis.append(data)
+    with pytest.raises(ValueError, match="Unable to parse provided data object"):
+        vis.extend(3.14)
 
 
 @pytest.mark.parametrize("ref", ["full", "local"])
@@ -87,3 +89,41 @@ def test_setitem_faulty(ref, request, s22):
     data = ASEConverter().encode(water)
     with pytest.raises(ValueError, match="Unable to parse provided data object"):
         vis[0] = data
+    with pytest.raises(ValueError, match="Unable to parse provided data object"):
+        vis.extend(3.14)
+
+
+@pytest.mark.parametrize("ref", ["full", "local"])
+def test_extend_atoms(ref, request, s22):
+    """Test the server fixture."""
+    vis = request.getfixturevalue(ref)
+    vis.extend(s22)
+    assert vis[:] == s22
+
+
+@pytest.mark.parametrize("ref", ["local", "full"])
+def test_extend_dump(ref, request, s22):
+    """Test the server fixture."""
+    vis = request.getfixturevalue(ref)
+
+    data = [znjson.dumps(s, cls=znjson.ZnEncoder.from_converters(ASEConverter)) for s in s22]
+    vis.extend(data)
+    assert vis[:] == s22
+
+
+@pytest.mark.parametrize("ref", ["full", "local"])
+def test_extend_faulty(ref, request, s22):
+    """Test the server fixture."""
+    vis = request.getfixturevalue(ref)
+    vis.extend(s22)
+
+    with pytest.raises(ValueError, match="Unable to parse provided data object"):
+        vis.extend(znjson.dumps(s22, cls=znjson.ZnEncoder.from_converters(ASEConverter)))
+    
+    data = [ASEConverter().encode(s) for s in s22]
+
+    with pytest.raises(ValueError, match="Unable to parse provided data object"):
+        vis.extend(data)
+
+    with pytest.raises(ValueError, match="Unable to parse provided data object"):
+        vis.extend(3.14)

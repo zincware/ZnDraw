@@ -234,6 +234,9 @@ class ZnDraw(ZnDrawBase):
         # enable tbar if more than 10 messages are sent
         # approximated by the size of the first frame
 
+        if not isinstance(values, list):
+            raise ValueError("Unable to parse provided data object")
+
         show_tbar = (
             len(values)
             * len(
@@ -247,12 +250,17 @@ class ZnDraw(ZnDrawBase):
         )
 
         for i, val in enumerate(tbar, start=len(self)):
-            if not hasattr(val, "connectivity") and self.bond_calculator is not None:
-                val.connectivity = self.bond_calculator.get_bonds(val)
+            if isinstance(val, ase.Atoms):
+                if not hasattr(val, "connectivity") and self.bond_calculator is not None:
+                    val.connectivity = self.bond_calculator.get_bonds(val)
 
-            msg[i] = znjson.dumps(
-                val, cls=znjson.ZnEncoder.from_converters([ASEConverter])
-            )
+                msg[i] = znjson.dumps(
+                    val, cls=znjson.ZnEncoder.from_converters([ASEConverter])
+                )
+            else:
+                msg[i] = val
+            if '"_type": "ase.Atoms"' not in msg[i]:
+                raise ValueError("Unable to parse provided data object")
             if len(json.dumps(msg).encode("utf-8")) > self.maximum_message_size:
                 call_with_retry(
                     self.socket,
