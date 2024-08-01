@@ -15,7 +15,13 @@ from zndraw.base import Extension, ZnDrawBase
 from zndraw.bonds import ASEComputeBonds
 from zndraw.config import ArrowsConfig, ZnDrawConfig
 from zndraw.draw import Geometry, Object3D
-from zndraw.type_defs import CameraData, JupyterConfig, RegisterModifier, TimeoutConfig, ATOMS_LIKE
+from zndraw.type_defs import (
+    ATOMS_LIKE,
+    CameraData,
+    JupyterConfig,
+    RegisterModifier,
+    TimeoutConfig,
+)
 from zndraw.utils import ASEConverter, call_with_retry, emit_with_retry
 
 log = logging.getLogger(__name__)
@@ -201,11 +207,10 @@ class ZnDraw(ZnDrawBase):
             if not hasattr(value, "connectivity") and self.bond_calculator is not None:
                 value.connectivity = self.bond_calculator.get_bonds(value)
 
-        
             value = znjson.dumps(
                 value, cls=znjson.ZnEncoder.from_converters([ASEConverter])
             )
-        
+
         if '"_type": "ase.Atoms"' not in value:
             raise ValueError("Unable to parse provided data object")
 
@@ -584,12 +589,14 @@ class ZnDrawLocal(ZnDraw):
         if isinstance(value, ase.Atoms):
             if not hasattr(value, "connectivity") and self.bond_calculator is not None:
                 value.connectivity = self.bond_calculator.get_bonds(value)
-            
-            value = znjson.dumps(value, cls=znjson.ZnEncoder.from_converters([ASEConverter]))
+
+            value = znjson.dumps(
+                value, cls=znjson.ZnEncoder.from_converters([ASEConverter])
+            )
 
         if '"_type": "ase.Atoms"' not in value:
             raise ValueError("Unable to parse provided data object")
-        
+
         lst.insert(index, value)
 
     def __setitem__(

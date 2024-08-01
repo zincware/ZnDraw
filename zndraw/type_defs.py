@@ -45,9 +45,11 @@ class ASEDict(t.TypedDict):
     cell: list[list[float]]
     vectors: list[list[list[float]]]
 
+
 class ASEJson(t.TypedDict):
     _type: t.Literal["ase.Atoms"]
     value: ASEDict
+
 
 # Type hint is string, but correctly it is 'json.dumps(ASEJson)'
 ATOMS_LIKE = t.Union[ASEDict, str]
