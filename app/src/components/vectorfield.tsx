@@ -8,6 +8,7 @@ interface VectorFieldProps {
   showArrows?: boolean;
   arrowsConfig: {
     normalize: boolean;
+    scale_vector_thickness: boolean;
     colormap: HSLColor[];
     colorrange: [number, number];
     opacity: number;
@@ -42,7 +43,7 @@ export const VectorField: React.FC<VectorFieldProps> = ({
     <Arrows
       start={vectors.map((vector) => vector[0])}
       end={vectors.map((vector) => vector[1])}
-      scale_vector_thickness={arrowsConfig.normalize}
+      scale_vector_thickness={arrowsConfig.scale_vector_thickness}
       colormap={arrowsConfig.colormap}
       colorrange={colorRange}
       opacity={arrowsConfig.opacity}
