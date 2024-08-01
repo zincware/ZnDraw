@@ -49,3 +49,41 @@ def test_append_faulty(ref, request):
     data = ASEConverter().encode(water)
     with pytest.raises(ValueError, match="Unable to parse provided data object"):
         vis.append(data)
+
+
+@pytest.mark.parametrize("ref", ["full", "local"])
+def test_setitem_atoms(ref, request, s22):
+    """Test the server fixture."""
+    vis = request.getfixturevalue(ref)
+    vis.extend(s22)
+    water = molecule("H2O")
+    vis[0] = water
+    assert vis[0] == water
+
+    vis[[1, 2]] = [water, water]
+    assert vis[[0, 1, 2]] == [water, water, water]
+
+
+@pytest.mark.parametrize("ref", ["local", "full"])
+def test_setitem_dump(ref, request, s22):
+    """Test the server fixture."""
+    vis = request.getfixturevalue(ref)
+    vis.extend(s22)
+    water = molecule("H2O")
+    vis[0] = znjson.dumps(water, cls=znjson.ZnEncoder.from_converters(ASEConverter))
+    assert vis[0] == molecule("H2O")
+
+    vis[[1, 2]] = [water, water]
+    assert vis[[0, 1, 2]] == [water, water, water]
+
+
+@pytest.mark.parametrize("ref", ["full", "local"])
+def test_setitem_faulty(ref, request, s22):
+    """Test the server fixture."""
+    vis = request.getfixturevalue(ref)
+    vis.extend(s22)
+
+    water = molecule("H2O")
+    data = ASEConverter().encode(water)
+    with pytest.raises(ValueError, match="Unable to parse provided data object"):
+        vis[0] = data

@@ -146,7 +146,7 @@ class ZnDraw(ZnDrawBase):
         return structures[0] if single_item else structures
 
     def __setitem__(
-        self, index: int | list[int] | slice, value: ase.Atoms | list[ase.Atoms]
+        self, index: int | list[int] | slice, value: ATOMS_LIKE | list[ATOMS_LIKE]
     ):
         if isinstance(index, slice):
             index = list(range(*index.indices(len(self))))
@@ -156,12 +156,16 @@ class ZnDraw(ZnDrawBase):
 
         data = {}
         for i, val in zip(index, value):
-            if not hasattr(val, "connectivity") and self.bond_calculator is not None:
-                val.connectivity = self.bond_calculator.get_bonds(val)
-            data[i] = znjson.dumps(
-                val, cls=znjson.ZnEncoder.from_converters([ASEConverter])
-            )
-
+            if isinstance(val, ase.Atoms):
+                if not hasattr(val, "connectivity") and self.bond_calculator is not None:
+                    val.connectivity = self.bond_calculator.get_bonds(val)
+                data[i] = znjson.dumps(
+                    val, cls=znjson.ZnEncoder.from_converters([ASEConverter])
+                )
+            else:
+                data[i] = val
+            if '"_type": "ase.Atoms"' not in data[i]:
+                raise ValueError("Unable to parse provided data object")
         call_with_retry(
             self.socket,
             "room:frames:set",
@@ -224,7 +228,7 @@ class ZnDraw(ZnDrawBase):
             retries=self.timeout["call_retries"],
         )
 
-    def extend(self, values: list[ase.Atoms]):
+    def extend(self, values: list[ATOMS_LIKE]):
         msg = {}
 
         # enable tbar if more than 10 messages are sent
@@ -357,7 +361,7 @@ class ZnDraw(ZnDrawBase):
         return self[self.step]
 
     @atoms.setter
-    def atoms(self, atoms: ase.Atoms) -> None:
+    def atoms(self, atoms: ATOMS_LIKE) -> None:
         self[[self.step]] = [atoms]
 
     @property
@@ -596,13 +600,12 @@ class ZnDrawLocal(ZnDraw):
 
         if '"_type": "ase.Atoms"' not in value:
             raise ValueError("Unable to parse provided data object")
-
         lst.insert(index, value)
 
     def __setitem__(
         self,
         index: int | list | slice,
-        value: ase.Atoms | list[ase.Atoms] | dict | list[dict],
+        value: ATOMS_LIKE | list[ATOMS_LIKE],
     ):
         lst = znsocket.List(self.r, f"room:{self.token}:frames")
         if not self.r.exists(f"room:{self.token}:frames"):
@@ -616,15 +619,16 @@ class ZnDrawLocal(ZnDraw):
             index = [index]
             value = [value]
 
-        for index, value in zip(index, value):
-            if isinstance(value, ase.Atoms):
+        for i, val in zip(index, value):
+            if isinstance(val, ase.Atoms):
                 if (
-                    not hasattr(value, "connectivity")
+                    not hasattr(val, "connectivity")
                     and self.bond_calculator is not None
                 ):
-                    value.connectivity = self.bond_calculator.get_bonds(value)
-                lst[index] = znjson.dumps(
-                    value, cls=znjson.ZnEncoder.from_converters([ASEConverter])
+                    val.connectivity = self.bond_calculator.get_bonds(val)
+                val = znjson.dumps(
+                    val, cls=znjson.ZnEncoder.from_converters([ASEConverter])
                 )
-            else:
-                lst[index] = value
+            if '"_type": "ase.Atoms"' not in val:
+                raise ValueError("Unable to parse provided data object")
+            lst[i] = val
