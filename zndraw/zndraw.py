@@ -15,7 +15,7 @@ from zndraw.base import Extension, ZnDrawBase
 from zndraw.bonds import ASEComputeBonds
 from zndraw.config import ArrowsConfig, ZnDrawConfig
 from zndraw.draw import Geometry, Object3D
-from zndraw.type_defs import CameraData, JupyterConfig, RegisterModifier, TimeoutConfig
+from zndraw.type_defs import CameraData, JupyterConfig, RegisterModifier, TimeoutConfig, ATOMS_LIKE
 from zndraw.utils import ASEConverter, call_with_retry, emit_with_retry
 
 log = logging.getLogger(__name__)
@@ -196,18 +196,25 @@ class ZnDraw(ZnDrawBase):
             height=self.jupyter_config["height"],
         )._repr_html_()
 
-    def insert(self, index: int, value: ase.Atoms):
-        if not hasattr(value, "connectivity") and self.bond_calculator is not None:
-            value.connectivity = self.bond_calculator.get_bonds(value)
+    def insert(self, index: int, value: ATOMS_LIKE):
+        if isinstance(value, ase.Atoms):
+            if not hasattr(value, "connectivity") and self.bond_calculator is not None:
+                value.connectivity = self.bond_calculator.get_bonds(value)
+
+        
+            value = znjson.dumps(
+                value, cls=znjson.ZnEncoder.from_converters([ASEConverter])
+            )
+        
+        if '"_type": "ase.Atoms"' not in value:
+            raise ValueError("Unable to parse provided data object")
 
         call_with_retry(
             self.socket,
             "room:frames:insert",
             {
                 "index": index,
-                "value": znjson.dumps(
-                    value, cls=znjson.ZnEncoder.from_converters([ASEConverter])
-                ),
+                "value": value,
             },
             retries=self.timeout["call_retries"],
         )
@@ -567,36 +574,23 @@ class ZnDrawLocal(ZnDraw):
             return structures[0]
         return structures
 
-    def insert(self, index: int, value: ase.Atoms | dict):
+    def insert(self, index: int, value: ATOMS_LIKE):
         lst = znsocket.List(self.r, f"room:{self.token}:frames")
         if not self.r.exists(f"room:{self.token}:frames"):
             default_lst = znsocket.List(self.r, "room:default:frames")
             # TODO: using a redis copy action would be faster
             lst.extend(default_lst)
-        if isinstance(value, ase.Atoms):
-            if not hasattr(value, "connectivity") and self.bond_calculator is not None:
-                value.connectivity = self.bond_calculator.get_bonds(value)
-            lst.insert(
-                index,
-                znjson.dumps(value, cls=znjson.ZnEncoder.from_converters([ASEConverter])),
-            )
-        else:
-            lst.insert(index, value)
 
-    def append(self, value: ase.Atoms | dict):
-        lst = znsocket.List(self.r, f"room:{self.token}:frames")
-        if not self.r.exists(f"room:{self.token}:frames"):
-            default_lst = znsocket.List(self.r, "room:default:frames")
-            # TODO: using a redis copy action would be faster
-            lst.extend(default_lst)
         if isinstance(value, ase.Atoms):
             if not hasattr(value, "connectivity") and self.bond_calculator is not None:
                 value.connectivity = self.bond_calculator.get_bonds(value)
-            lst.append(
-                znjson.dumps(value, cls=znjson.ZnEncoder.from_converters([ASEConverter]))
-            )
-        else:
-            lst.append(value)
+            
+            value = znjson.dumps(value, cls=znjson.ZnEncoder.from_converters([ASEConverter]))
+
+        if '"_type": "ase.Atoms"' not in value:
+            raise ValueError("Unable to parse provided data object")
+        
+        lst.insert(index, value)
 
     def __setitem__(
         self,
