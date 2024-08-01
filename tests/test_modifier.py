@@ -1,4 +1,5 @@
 from zndraw import Extension, ZnDraw
+from ase.build import molecule
 
 
 def test_run_selection(server, s22):
@@ -9,6 +10,17 @@ def test_run_selection(server, s22):
     vis.socket.emit("selection:run", {"method": {"discriminator": "ConnectedParticles"}})
     vis.socket.sleep(7)
     assert vis.selection == [0, 1, 2, 3]
+
+def test_run_modifier(server):
+    vis = ZnDraw(url=server, token="test_token")
+    vis.append(molecule("H2O"))
+    vis.selection = [0]
+    assert len(vis) == 2
+    assert len(vis[-1]) == 3
+    vis.socket.emit("modifier:run", {"method": {"discriminator": "Delete"}})
+    vis.socket.sleep(1)
+    assert len(vis) == 3
+    assert len(vis[-1]) == 2
 
 
 def test_register_modifier(server, s22, water):
