@@ -335,6 +335,10 @@ export const BondInstances = ({
       frame.connectivity.forEach(([a, b], i) => {
         const posA = frame.positions[a] as THREE.Vector3;
         const posB = frame.positions[b] as THREE.Vector3;
+        if (!posA || !posB) {
+          console.error("Connected particles not found");
+          return;
+        }
 
         // Set matrix and color for the bond from A to B
         meshRef.current!.setMatrixAt(
