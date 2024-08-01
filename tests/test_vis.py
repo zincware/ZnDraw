@@ -106,7 +106,9 @@ def test_extend_dump(ref, request, s22):
     """Test the server fixture."""
     vis = request.getfixturevalue(ref)
 
-    data = [znjson.dumps(s, cls=znjson.ZnEncoder.from_converters(ASEConverter)) for s in s22]
+    data = [
+        znjson.dumps(s, cls=znjson.ZnEncoder.from_converters(ASEConverter)) for s in s22
+    ]
     vis.extend(data)
     assert vis[:] == s22
 
@@ -119,7 +121,7 @@ def test_extend_faulty(ref, request, s22):
 
     with pytest.raises(ValueError, match="Unable to parse provided data object"):
         vis.extend(znjson.dumps(s22, cls=znjson.ZnEncoder.from_converters(ASEConverter)))
-    
+
     data = [ASEConverter().encode(s) for s in s22]
 
     with pytest.raises(ValueError, match="Unable to parse provided data object"):

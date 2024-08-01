@@ -629,10 +629,7 @@ class ZnDrawLocal(ZnDraw):
 
         for i, val in zip(index, value):
             if isinstance(val, ase.Atoms):
-                if (
-                    not hasattr(val, "connectivity")
-                    and self.bond_calculator is not None
-                ):
+                if not hasattr(val, "connectivity") and self.bond_calculator is not None:
                     val.connectivity = self.bond_calculator.get_bonds(val)
                 val = znjson.dumps(
                     val, cls=znjson.ZnEncoder.from_converters([ASEConverter])
