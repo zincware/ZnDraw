@@ -15,7 +15,7 @@ from zndraw.base import Extension, ZnDrawBase
 from zndraw.bonds import ASEComputeBonds
 from zndraw.config import ArrowsConfig, ZnDrawConfig
 from zndraw.draw import Geometry, Object3D
-from zndraw.utils import ASEConverter, ASEDict, call_with_retry, emit_with_retry
+from zndraw.utils import ASEConverter, call_with_retry, emit_with_retry
 
 log = logging.getLogger(__name__)
 
@@ -618,30 +618,37 @@ class ZnDrawLocal(ZnDraw):
             lst.extend(default_lst)
         if isinstance(value, ase.Atoms):
             lst.append(
-            znjson.dumps(value, cls=znjson.ZnEncoder.from_converters([ASEConverter]))
+                znjson.dumps(value, cls=znjson.ZnEncoder.from_converters([ASEConverter]))
             )
         else:
             lst.append(value)
 
     def __setitem__(
-        self, index: int | list | slice, value: ase.Atoms | list[ase.Atoms] | dict | list[dict]
+        self,
+        index: int | list | slice,
+        value: ase.Atoms | list[ase.Atoms] | dict | list[dict],
     ):
         lst = znsocket.List(self.r, f"room:{self.token}:frames")
         if not self.r.exists(f"room:{self.token}:frames"):
             default_lst = znsocket.List(self.r, "room:default:frames")
             # TODO: using a redis copy action would be faster
             lst.extend(default_lst)
-        
+
         if isinstance(index, slice):
             index = list(range(*index.indices(len(self))))
         if isinstance(index, int):
             index = [index]
             value = [value]
 
-        for index, value in zip(index, value):    
+        for index, value in zip(index, value):
             if isinstance(value, ase.Atoms):
-                if not hasattr(value, "connectivity") and self.bond_calculator is not None:
+                if (
+                    not hasattr(value, "connectivity")
+                    and self.bond_calculator is not None
+                ):
                     value.connectivity = self.bond_calculator.get_bonds(value)
-                lst[index] = znjson.dumps(value, cls=znjson.ZnEncoder.from_converters([ASEConverter]))
+                lst[index] = znjson.dumps(
+                    value, cls=znjson.ZnEncoder.from_converters([ASEConverter])
+                )
             else:
                 lst[index] = value
