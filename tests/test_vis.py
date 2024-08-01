@@ -1,16 +1,16 @@
+import pytest
+import redis
+import znjson
 from ase.build import molecule
 
 from zndraw import ZnDraw, ZnDrawLocal
 from zndraw.utils import ASEConverter
-from zndraw.type_defs import ASEDict
-import znjson
-import redis
-import pytest
 
 
 @pytest.fixture
 def full(server):
     return ZnDraw(url=server, token="test_token")
+
 
 @pytest.fixture
 def local(server):
