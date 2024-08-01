@@ -596,18 +596,18 @@ class ZnDrawLocal(ZnDraw):
             return structures[0]
         return structures
 
-    # def insert(self, index: int, value: dict):
-    #     lst = znsocket.List(self.r, f"room:{self.token}:frames")
-    #     if not self.r.exists(f"room:{self.token}:frames"):
-    #         default_lst = znsocket.List(self.r, "room:default:frames")
-    #         # TODO: using a redis copy action would be faster
-    #         lst.extend(default_lst)
-    #     lst.insert(index, value)
+    def insert(self, index: int, value: dict):
+        lst = znsocket.List(self.r, f"room:{self.token}:frames")
+        if not self.r.exists(f"room:{self.token}:frames"):
+            default_lst = znsocket.List(self.r, "room:default:frames")
+            # TODO: using a redis copy action would be faster
+            lst.extend(default_lst)
+        lst.insert(index, value)
 
-    # def append(self, value: dict):
-    #     lst = znsocket.List(self.r, f"room:{self.token}:frames")
-    #     if not self.r.exists(f"room:{self.token}:frames"):
-    #         default_lst = znsocket.List(self.r, "room:default:frames")
-    #         # TODO: using a redis copy action would be faster
-    #         lst.extend(default_lst)
-    #     lst.append(value)
+    def append(self, value: dict):
+        lst = znsocket.List(self.r, f"room:{self.token}:frames")
+        if not self.r.exists(f"room:{self.token}:frames"):
+            default_lst = znsocket.List(self.r, "room:default:frames")
+            # TODO: using a redis copy action would be faster
+            lst.extend(default_lst)
+        lst.append(value)
