@@ -15,39 +15,10 @@ from zndraw.base import Extension, ZnDrawBase
 from zndraw.bonds import ASEComputeBonds
 from zndraw.config import ArrowsConfig, ZnDrawConfig
 from zndraw.draw import Geometry, Object3D
+from zndraw.type_defs import CameraData, JupyterConfig, RegisterModifier, TimeoutConfig
 from zndraw.utils import ASEConverter, call_with_retry, emit_with_retry
 
 log = logging.getLogger(__name__)
-
-
-class RegisterModifier(t.TypedDict):
-    cls: t.Type[Extension]
-    run_kwargs: dict
-    public: bool
-    frozen: bool
-    timeout: float
-
-
-class TimeoutConfig(t.TypedDict):
-    """Timeout configuration for the ZnDraw client."""
-
-    connection: int
-    modifier: float
-    between_calls: float
-
-    emit_retries: int
-    call_retries: int
-    connect_retries: int
-
-
-class JupyterConfig(t.TypedDict):
-    width: str | int
-    height: str | int
-
-
-class CameraData(t.TypedDict):
-    position: list[float]
-    target: list[float]
 
 
 def _register_modifier(vis: "ZnDraw", data: RegisterModifier) -> None:

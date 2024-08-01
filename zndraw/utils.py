@@ -18,19 +18,9 @@ from ase.data import covalent_radii
 from ase.data.colors import jmol_colors
 from znjson import ConverterBase
 
+from zndraw.type_defs import ASEDict
+
 log = logging.getLogger(__name__)
-
-
-class ASEDict(t.TypedDict):
-    numbers: list[int]
-    positions: list[list[float]]
-    connectivity: list[tuple[int, int, int]]
-    arrays: dict[str, list[float | int | list[float | int]]]
-    info: dict[str, float | int]
-    # calc: dict[str, float|int|np.ndarray] # should this be split into arrays and info?
-    pbc: list[bool]
-    cell: list[list[float]]
-    vectors: list[list[list[float]]]
 
 
 def rgb2hex(value):
