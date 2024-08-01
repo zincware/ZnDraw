@@ -3,6 +3,7 @@ import typing as t
 if t.TYPE_CHECKING:
     from zndraw.base import Extension
 
+
 class RegisterModifier(t.TypedDict):
     cls: t.Type["Extension"]
     run_kwargs: dict
@@ -21,6 +22,7 @@ class TimeoutConfig(t.TypedDict):
     emit_retries: int
     call_retries: int
     connect_retries: int
+
 
 class JupyterConfig(t.TypedDict):
     width: str | int

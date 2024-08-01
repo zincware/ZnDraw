@@ -17,6 +17,7 @@ from ase.calculators.singlepoint import SinglePointCalculator
 from ase.data import covalent_radii
 from ase.data.colors import jmol_colors
 from znjson import ConverterBase
+
 from zndraw.type_defs import ASEDict
 
 log = logging.getLogger(__name__)

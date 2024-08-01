@@ -55,4 +55,3 @@ class ZnDrawConfig:
 
     def __post_init__(self) -> None:
         self.arrows.set_vis(self.vis)
-

@@ -15,20 +15,10 @@ from zndraw.base import Extension, ZnDrawBase
 from zndraw.bonds import ASEComputeBonds
 from zndraw.config import ArrowsConfig, ZnDrawConfig
 from zndraw.draw import Geometry, Object3D
+from zndraw.type_defs import CameraData, JupyterConfig, RegisterModifier, TimeoutConfig
 from zndraw.utils import ASEConverter, call_with_retry, emit_with_retry
-from zndraw.type_defs import RegisterModifier, TimeoutConfig, JupyterConfig, CameraData
 
 log = logging.getLogger(__name__)
-
-
-
-
-
-
-
-
-
-
 
 
 def _register_modifier(vis: "ZnDraw", data: RegisterModifier) -> None:
