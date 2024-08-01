@@ -610,6 +610,45 @@ class ZnDrawLocal(ZnDraw):
             raise ValueError("Unable to parse provided data object")
         lst.insert(index, value)
 
+    def extend(self, values: list[ATOMS_LIKE]):
+        if not isinstance(values, list):
+            raise ValueError("Unable to parse provided data object")
+        
+        # enable tbar if more than 10 messages are sent
+        # approximated by the size of the first frame
+        lst = znsocket.List(self.r, f"room:{self.token}:frames")
+        show_tbar = (
+            len(values)
+            * len(
+                znjson.dumps(
+                    values[0], cls=znjson.ZnEncoder.from_converters([ASEConverter])
+                ).encode("utf-8")
+            )
+        ) > (10 * self.maximum_message_size)
+        tbar = tqdm.tqdm(
+            values, desc="Sending frames", unit=" frame", disable=not show_tbar
+        )
+
+        msg = []
+
+        for val in tbar:
+            if isinstance(val, ase.Atoms):
+                if not hasattr(val, "connectivity") and self.bond_calculator is not None:
+                    val.connectivity = self.bond_calculator.get_bonds(val)
+
+                msg.append(znjson.dumps(
+                    val, cls=znjson.ZnEncoder.from_converters([ASEConverter])
+                ))
+            else:
+                msg.append(val)
+            if '"_type": "ase.Atoms"' not in msg[-1]:
+                raise ValueError("Unable to parse provided data object")
+            if len(json.dumps(msg).encode("utf-8")) > self.maximum_message_size:
+                lst.extend(msg)
+                msg = []
+        if len(msg) > 0:  # Only send the message if it's not empty
+            lst.extend(msg)
+
     def __setitem__(
         self,
         index: int | list | slice,
