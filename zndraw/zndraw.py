@@ -596,23 +596,63 @@ class ZnDrawLocal(ZnDraw):
             return structures[0]
         return structures
 
-    def insert(self, index: int, value: ase.Atoms):
+    def insert(self, index: int, value: ase.Atoms | dict):
         lst = znsocket.List(self.r, f"room:{self.token}:frames")
         if not self.r.exists(f"room:{self.token}:frames"):
             default_lst = znsocket.List(self.r, "room:default:frames")
             # TODO: using a redis copy action would be faster
             lst.extend(default_lst)
-        lst.insert(
-            index,
-            znjson.dumps(value, cls=znjson.ZnEncoder.from_converters([ASEConverter])),
-        )
+        if isinstance(value, ase.Atoms):
+            if not hasattr(value, "connectivity") and self.bond_calculator is not None:
+                value.connectivity = self.bond_calculator.get_bonds(value)
+            lst.insert(
+                index,
+                znjson.dumps(value, cls=znjson.ZnEncoder.from_converters([ASEConverter])),
+            )
+        else:
+            lst.insert(index, value)
 
-    def append(self, value: ase.Atoms):
+    def append(self, value: ase.Atoms | dict):
         lst = znsocket.List(self.r, f"room:{self.token}:frames")
         if not self.r.exists(f"room:{self.token}:frames"):
             default_lst = znsocket.List(self.r, "room:default:frames")
             # TODO: using a redis copy action would be faster
             lst.extend(default_lst)
-        lst.append(
-            znjson.dumps(value, cls=znjson.ZnEncoder.from_converters([ASEConverter]))
-        )
+        if isinstance(value, ase.Atoms):
+            if not hasattr(value, "connectivity") and self.bond_calculator is not None:
+                value.connectivity = self.bond_calculator.get_bonds(value)
+            lst.append(
+                znjson.dumps(value, cls=znjson.ZnEncoder.from_converters([ASEConverter]))
+            )
+        else:
+            lst.append(value)
+
+    def __setitem__(
+        self,
+        index: int | list | slice,
+        value: ase.Atoms | list[ase.Atoms] | dict | list[dict],
+    ):
+        lst = znsocket.List(self.r, f"room:{self.token}:frames")
+        if not self.r.exists(f"room:{self.token}:frames"):
+            default_lst = znsocket.List(self.r, "room:default:frames")
+            # TODO: using a redis copy action would be faster
+            lst.extend(default_lst)
+
+        if isinstance(index, slice):
+            index = list(range(*index.indices(len(self))))
+        if isinstance(index, int):
+            index = [index]
+            value = [value]
+
+        for index, value in zip(index, value):
+            if isinstance(value, ase.Atoms):
+                if (
+                    not hasattr(value, "connectivity")
+                    and self.bond_calculator is not None
+                ):
+                    value.connectivity = self.bond_calculator.get_bonds(value)
+                lst[index] = znjson.dumps(
+                    value, cls=znjson.ZnEncoder.from_converters([ASEConverter])
+                )
+            else:
+                lst[index] = value
