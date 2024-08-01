@@ -613,7 +613,7 @@ class ZnDrawLocal(ZnDraw):
     def extend(self, values: list[ATOMS_LIKE]):
         if not isinstance(values, list):
             raise ValueError("Unable to parse provided data object")
-        
+
         # enable tbar if more than 10 messages are sent
         # approximated by the size of the first frame
         lst = znsocket.List(self.r, f"room:{self.token}:frames")
@@ -636,9 +636,11 @@ class ZnDrawLocal(ZnDraw):
                 if not hasattr(val, "connectivity") and self.bond_calculator is not None:
                     val.connectivity = self.bond_calculator.get_bonds(val)
 
-                msg.append(znjson.dumps(
-                    val, cls=znjson.ZnEncoder.from_converters([ASEConverter])
-                ))
+                msg.append(
+                    znjson.dumps(
+                        val, cls=znjson.ZnEncoder.from_converters([ASEConverter])
+                    )
+                )
             else:
                 msg.append(val)
             if '"_type": "ase.Atoms"' not in msg[-1]:
