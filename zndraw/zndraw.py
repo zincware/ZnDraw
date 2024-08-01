@@ -596,18 +596,23 @@ class ZnDrawLocal(ZnDraw):
             return structures[0]
         return structures
 
-    def insert(self, index: int, value: dict):
+    def insert(self, index: int, value: ase.Atoms):
         lst = znsocket.List(self.r, f"room:{self.token}:frames")
         if not self.r.exists(f"room:{self.token}:frames"):
             default_lst = znsocket.List(self.r, "room:default:frames")
             # TODO: using a redis copy action would be faster
             lst.extend(default_lst)
-        lst.insert(index, value)
+        lst.insert(
+            index,
+            znjson.dumps(value, cls=znjson.ZnEncoder.from_converters([ASEConverter])),
+        )
 
-    def append(self, value: dict):
+    def append(self, value: ase.Atoms):
         lst = znsocket.List(self.r, f"room:{self.token}:frames")
         if not self.r.exists(f"room:{self.token}:frames"):
             default_lst = znsocket.List(self.r, "room:default:frames")
             # TODO: using a redis copy action would be faster
             lst.extend(default_lst)
-        lst.append(value)
+        lst.append(
+            znjson.dumps(value, cls=znjson.ZnEncoder.from_converters([ASEConverter]))
+        )
