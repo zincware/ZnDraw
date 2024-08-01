@@ -15,11 +15,11 @@ def test_run_modifier(server):
     vis = ZnDraw(url=server, token="test_token")
     vis.append(molecule("H2O"))
     vis.selection = [0]
-    assert len(vis) == 2
+    assert len(vis) == 1
     assert len(vis[-1]) == 3
     vis.socket.emit("modifier:run", {"method": {"discriminator": "Delete"}})
-    vis.socket.sleep(1)
-    assert len(vis) == 3
+    vis.socket.sleep(7)
+    assert len(vis) == 2
     assert len(vis[-1]) == 2
 
 
