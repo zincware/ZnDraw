@@ -602,7 +602,10 @@ class ZnDrawLocal(ZnDraw):
             default_lst = znsocket.List(self.r, "room:default:frames")
             # TODO: using a redis copy action would be faster
             lst.extend(default_lst)
-        lst.insert(index, znjson.dumps(value, cls=znjson.ZnEncoder.from_converters([ASEConverter])))
+        lst.insert(
+            index,
+            znjson.dumps(value, cls=znjson.ZnEncoder.from_converters([ASEConverter])),
+        )
 
     def append(self, value: ase.Atoms):
         lst = znsocket.List(self.r, f"room:{self.token}:frames")
@@ -610,4 +613,6 @@ class ZnDrawLocal(ZnDraw):
             default_lst = znsocket.List(self.r, "room:default:frames")
             # TODO: using a redis copy action would be faster
             lst.extend(default_lst)
-        lst.append(znjson.dumps(value, cls=znjson.ZnEncoder.from_converters([ASEConverter])))
+        lst.append(
+            znjson.dumps(value, cls=znjson.ZnEncoder.from_converters([ASEConverter]))
+        )
