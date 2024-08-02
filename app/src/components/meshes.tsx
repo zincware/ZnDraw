@@ -78,7 +78,7 @@ const Arrows: React.FC<ArrowsProps> = ({
       meshRef.current.setMatrixAt(i, matrix);
     }
     meshRef.current.instanceMatrix.needsUpdate = true;
-  }, [start, end, scale_vector_thickness]);
+  }, [start, end]);
 
   useEffect(() => {
     if (!materialRef.current) return;
@@ -86,7 +86,7 @@ const Arrows: React.FC<ArrowsProps> = ({
     if (!meshRef.current) return;
     if (!meshRef.current.instanceColor) return;
     meshRef.current.instanceColor.needsUpdate = true;
-  }, [colormap, colorrange]);
+  }, [start, end]);
 
   return (
     <instancedMesh ref={meshRef} args={[undefined, undefined, start.length]}>
