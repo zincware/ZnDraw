@@ -17,10 +17,11 @@ from .draw import (
     Torus,
     TorusKnot,
 )
-from .zndraw import ZnDraw
+from .zndraw import ZnDraw, ZnDrawLocal
 
 __all__ = [
     "ZnDraw",
+    "ZnDrawLocal",
     "Extension",
     "Plane",
     "Sphere",

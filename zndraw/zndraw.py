@@ -15,7 +15,13 @@ from zndraw.base import Extension, ZnDrawBase
 from zndraw.bonds import ASEComputeBonds
 from zndraw.config import ArrowsConfig, ZnDrawConfig
 from zndraw.draw import Geometry, Object3D
-from zndraw.type_defs import CameraData, JupyterConfig, RegisterModifier, TimeoutConfig
+from zndraw.type_defs import (
+    ATOMS_LIKE,
+    CameraData,
+    JupyterConfig,
+    RegisterModifier,
+    TimeoutConfig,
+)
 from zndraw.utils import ASEConverter, call_with_retry, emit_with_retry
 
 log = logging.getLogger(__name__)
@@ -140,7 +146,7 @@ class ZnDraw(ZnDrawBase):
         return structures[0] if single_item else structures
 
     def __setitem__(
-        self, index: int | list[int] | slice, value: ase.Atoms | list[ase.Atoms]
+        self, index: int | list[int] | slice, value: ATOMS_LIKE | list[ATOMS_LIKE]
     ):
         if isinstance(index, slice):
             index = list(range(*index.indices(len(self))))
@@ -150,12 +156,16 @@ class ZnDraw(ZnDrawBase):
 
         data = {}
         for i, val in zip(index, value):
-            if not hasattr(val, "connectivity") and self.bond_calculator is not None:
-                val.connectivity = self.bond_calculator.get_bonds(val)
-            data[i] = znjson.dumps(
-                val, cls=znjson.ZnEncoder.from_converters([ASEConverter])
-            )
-
+            if isinstance(val, ase.Atoms):
+                if not hasattr(val, "connectivity") and self.bond_calculator is not None:
+                    val.connectivity = self.bond_calculator.get_bonds(val)
+                data[i] = znjson.dumps(
+                    val, cls=znjson.ZnEncoder.from_converters([ASEConverter])
+                )
+            else:
+                data[i] = val
+            if '"_type": "ase.Atoms"' not in data[i]:
+                raise ValueError("Unable to parse provided data object")
         call_with_retry(
             self.socket,
             "room:frames:set",
@@ -196,27 +206,36 @@ class ZnDraw(ZnDrawBase):
             height=self.jupyter_config["height"],
         )._repr_html_()
 
-    def insert(self, index: int, value: ase.Atoms):
-        if not hasattr(value, "connectivity") and self.bond_calculator is not None:
-            value.connectivity = self.bond_calculator.get_bonds(value)
+    def insert(self, index: int, value: ATOMS_LIKE):
+        if isinstance(value, ase.Atoms):
+            if not hasattr(value, "connectivity") and self.bond_calculator is not None:
+                value.connectivity = self.bond_calculator.get_bonds(value)
+
+            value = znjson.dumps(
+                value, cls=znjson.ZnEncoder.from_converters([ASEConverter])
+            )
+
+        if '"_type": "ase.Atoms"' not in value:
+            raise ValueError("Unable to parse provided data object")
 
         call_with_retry(
             self.socket,
             "room:frames:insert",
             {
                 "index": index,
-                "value": znjson.dumps(
-                    value, cls=znjson.ZnEncoder.from_converters([ASEConverter])
-                ),
+                "value": value,
             },
             retries=self.timeout["call_retries"],
         )
 
-    def extend(self, values: list[ase.Atoms]):
+    def extend(self, values: list[ATOMS_LIKE]):
         msg = {}
 
         # enable tbar if more than 10 messages are sent
         # approximated by the size of the first frame
+
+        if not isinstance(values, list):
+            raise ValueError("Unable to parse provided data object")
 
         show_tbar = (
             len(values)
@@ -231,12 +250,17 @@ class ZnDraw(ZnDrawBase):
         )
 
         for i, val in enumerate(tbar, start=len(self)):
-            if not hasattr(val, "connectivity") and self.bond_calculator is not None:
-                val.connectivity = self.bond_calculator.get_bonds(val)
+            if isinstance(val, ase.Atoms):
+                if not hasattr(val, "connectivity") and self.bond_calculator is not None:
+                    val.connectivity = self.bond_calculator.get_bonds(val)
 
-            msg[i] = znjson.dumps(
-                val, cls=znjson.ZnEncoder.from_converters([ASEConverter])
-            )
+                msg[i] = znjson.dumps(
+                    val, cls=znjson.ZnEncoder.from_converters([ASEConverter])
+                )
+            else:
+                msg[i] = val
+            if '"_type": "ase.Atoms"' not in msg[i]:
+                raise ValueError("Unable to parse provided data object")
             if len(json.dumps(msg).encode("utf-8")) > self.maximum_message_size:
                 call_with_retry(
                     self.socket,
@@ -345,7 +369,7 @@ class ZnDraw(ZnDrawBase):
         return self[self.step]
 
     @atoms.setter
-    def atoms(self, atoms: ase.Atoms) -> None:
+    def atoms(self, atoms: ATOMS_LIKE) -> None:
         self[[self.step]] = [atoms]
 
     @property
@@ -567,41 +591,70 @@ class ZnDrawLocal(ZnDraw):
             return structures[0]
         return structures
 
-    def insert(self, index: int, value: ase.Atoms | dict):
+    def insert(self, index: int, value: ATOMS_LIKE):
         lst = znsocket.List(self.r, f"room:{self.token}:frames")
         if not self.r.exists(f"room:{self.token}:frames"):
             default_lst = znsocket.List(self.r, "room:default:frames")
             # TODO: using a redis copy action would be faster
             lst.extend(default_lst)
-        if isinstance(value, ase.Atoms):
-            if not hasattr(value, "connectivity") and self.bond_calculator is not None:
-                value.connectivity = self.bond_calculator.get_bonds(value)
-            lst.insert(
-                index,
-                znjson.dumps(value, cls=znjson.ZnEncoder.from_converters([ASEConverter])),
-            )
-        else:
-            lst.insert(index, value)
 
-    def append(self, value: ase.Atoms | dict):
-        lst = znsocket.List(self.r, f"room:{self.token}:frames")
-        if not self.r.exists(f"room:{self.token}:frames"):
-            default_lst = znsocket.List(self.r, "room:default:frames")
-            # TODO: using a redis copy action would be faster
-            lst.extend(default_lst)
         if isinstance(value, ase.Atoms):
             if not hasattr(value, "connectivity") and self.bond_calculator is not None:
                 value.connectivity = self.bond_calculator.get_bonds(value)
-            lst.append(
-                znjson.dumps(value, cls=znjson.ZnEncoder.from_converters([ASEConverter]))
+
+            value = znjson.dumps(
+                value, cls=znjson.ZnEncoder.from_converters([ASEConverter])
             )
-        else:
-            lst.append(value)
+
+        if '"_type": "ase.Atoms"' not in value:
+            raise ValueError("Unable to parse provided data object")
+        lst.insert(index, value)
+
+    def extend(self, values: list[ATOMS_LIKE]):
+        if not isinstance(values, list):
+            raise ValueError("Unable to parse provided data object")
+
+        # enable tbar if more than 10 messages are sent
+        # approximated by the size of the first frame
+        lst = znsocket.List(self.r, f"room:{self.token}:frames")
+        show_tbar = (
+            len(values)
+            * len(
+                znjson.dumps(
+                    values[0], cls=znjson.ZnEncoder.from_converters([ASEConverter])
+                ).encode("utf-8")
+            )
+        ) > (10 * self.maximum_message_size)
+        tbar = tqdm.tqdm(
+            values, desc="Sending frames", unit=" frame", disable=not show_tbar
+        )
+
+        msg = []
+
+        for val in tbar:
+            if isinstance(val, ase.Atoms):
+                if not hasattr(val, "connectivity") and self.bond_calculator is not None:
+                    val.connectivity = self.bond_calculator.get_bonds(val)
+
+                msg.append(
+                    znjson.dumps(
+                        val, cls=znjson.ZnEncoder.from_converters([ASEConverter])
+                    )
+                )
+            else:
+                msg.append(val)
+            if '"_type": "ase.Atoms"' not in msg[-1]:
+                raise ValueError("Unable to parse provided data object")
+            if len(json.dumps(msg).encode("utf-8")) > self.maximum_message_size:
+                lst.extend(msg)
+                msg = []
+        if len(msg) > 0:  # Only send the message if it's not empty
+            lst.extend(msg)
 
     def __setitem__(
         self,
         index: int | list | slice,
-        value: ase.Atoms | list[ase.Atoms] | dict | list[dict],
+        value: ATOMS_LIKE | list[ATOMS_LIKE],
     ):
         lst = znsocket.List(self.r, f"room:{self.token}:frames")
         if not self.r.exists(f"room:{self.token}:frames"):
@@ -615,15 +668,13 @@ class ZnDrawLocal(ZnDraw):
             index = [index]
             value = [value]
 
-        for index, value in zip(index, value):
-            if isinstance(value, ase.Atoms):
-                if (
-                    not hasattr(value, "connectivity")
-                    and self.bond_calculator is not None
-                ):
-                    value.connectivity = self.bond_calculator.get_bonds(value)
-                lst[index] = znjson.dumps(
-                    value, cls=znjson.ZnEncoder.from_converters([ASEConverter])
+        for i, val in zip(index, value):
+            if isinstance(val, ase.Atoms):
+                if not hasattr(val, "connectivity") and self.bond_calculator is not None:
+                    val.connectivity = self.bond_calculator.get_bonds(val)
+                val = znjson.dumps(
+                    val, cls=znjson.ZnEncoder.from_converters([ASEConverter])
                 )
-            else:
-                lst[index] = value
+            if '"_type": "ase.Atoms"' not in val:
+                raise ValueError("Unable to parse provided data object")
+            lst[i] = val
