@@ -9,6 +9,7 @@ import socketio.exceptions
 import tqdm
 import znjson
 import znsocket
+import urllib.parse
 from redis import Redis
 
 from zndraw.base import Extension, ZnDrawBase
@@ -196,9 +197,9 @@ class ZnDraw(ZnDrawBase):
     def _repr_html_(self):
         from IPython.display import IFrame
 
-        address = f"{self.url}/token/{self.token}"
         # TODO: save address and do not replace in post_init
-        address = address.replace("ws", "http")
+        parsed_url = urllib.parse.urlparse(f"{self.url}/token/{self.token}")
+        address = parsed_url._replace(scheme="http").geturl()
         log.info(f"Opening ZnDraw at {address}")
         return IFrame(
             address,
