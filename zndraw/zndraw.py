@@ -2,6 +2,7 @@ import dataclasses
 import json
 import logging
 import typing as t
+import urllib.parse
 
 import ase
 import numpy as np
@@ -9,7 +10,6 @@ import socketio.exceptions
 import tqdm
 import znjson
 import znsocket
-import urllib.parse
 from redis import Redis
 
 from zndraw.base import Extension, ZnDrawBase
