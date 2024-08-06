@@ -1,8 +1,8 @@
-from ase.build import molecule, bulk
-
-from zndraw import Extension, ZnDraw
 import numpy as np
 import numpy.testing as npt
+from ase.build import bulk, molecule
+
+from zndraw import Extension, ZnDraw
 
 
 def test_run_selection(server, s22):
@@ -51,7 +51,9 @@ def test_locked(server):
     vis.locked = True
     assert vis.locked is True
 
+
 ##### Tests for each available modifier #####
+
 
 def test_modify_delete(server):
     vis = ZnDraw(url=server, token="test_token")
@@ -64,6 +66,7 @@ def test_modify_delete(server):
     assert len(vis) == 2
     assert len(vis[-1]) == 2
 
+
 def test_modify_rotate(server):
     vis = ZnDraw(url=server, token="test_token")
     vis.append(molecule("H2O"))
@@ -74,17 +77,21 @@ def test_modify_rotate(server):
     assert len(vis) == 11
     # TODO: test that the atoms rotated correctly
 
+
 def test_modify_translate(server):
     vis = ZnDraw(url=server, token="test_token")
     vis.append(molecule("H2O"))
     vis.selection = [0, 1]
     vis.points = [[0, 0, 0], [1, 0, 0]]
-    vis.socket.emit("modifier:run", {"method": {"discriminator": "Translate", "steps": 10}})
+    vis.socket.emit(
+        "modifier:run", {"method": {"discriminator": "Translate", "steps": 10}}
+    )
     vis.socket.sleep(7)
     assert len(vis) == 11
-    
+
     # TODO: this is not correct!
     npt.assert_almost_equal(vis[0].positions, vis[-1].positions)
+
 
 def test_modify_duplicate(server):
     vis = ZnDraw(url=server, token="test_token")
@@ -94,22 +101,26 @@ def test_modify_duplicate(server):
     vis.socket.sleep(5)
     assert len(vis) == 2
     assert len(vis[0]) == 3
-    assert len(vis[1]) == 4 # one duplicated atom
+    assert len(vis[1]) == 4  # one duplicated atom
+
 
 def test_modify_change_type(server):
     vis = ZnDraw(url=server, token="test_token")
     vis.append(molecule("H2O"))
     vis.selection = [0]
-    vis.socket.emit("modifier:run", {"method": {"discriminator": "ChangeType", "symbol": "He"}})
+    vis.socket.emit(
+        "modifier:run", {"method": {"discriminator": "ChangeType", "symbol": "He"}}
+    )
     vis.socket.sleep(5)
     assert vis[1].symbols[0] == "He"
+
 
 def test_modify_wrap(server):
     vis = ZnDraw(url=server, token="test_token")
     copper = bulk("Cu", cubic=True)
-    copper.positions += 5 # shift, so wrapped is recognizable
+    copper.positions += 5  # shift, so wrapped is recognizable
     vis.extend([copper, copper])
-    
+
     vis.socket.emit("modifier:run", {"method": {"discriminator": "Wrap"}})
     vis.socket.sleep(5)
 
@@ -126,10 +137,11 @@ def test_modify_replicate(server):
     vis = ZnDraw(url=server, token="test_token")
     copper = bulk("Cu", cubic=True)
     vis.extend([copper, copper])
-    vis.socket.emit("modifier:run", {"method": {"discriminator": "Replicate", "x": 2, "y": 2, "z": 2}})
+    vis.socket.emit(
+        "modifier:run", {"method": {"discriminator": "Replicate", "x": 2, "y": 2, "z": 2}}
+    )
     vis.socket.sleep(5)
     # Replicate is an inplace modifier
     assert len(vis) == 2
     for idx in range(2):
         assert len(vis[idx]) == 8 * len(copper)
-
