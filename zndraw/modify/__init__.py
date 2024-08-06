@@ -246,17 +246,14 @@ class Center(UpdateScene):
             vis.log("Please select at least one atom.")
             return
 
-        vis.log("Downloading atoms...")
-        atoms_list = list(vis)
-
         if not self.dynamic:
-            center = atoms_list[vis.step][selection].get_center_of_mass()
+            center = vis.atoms[selection].get_center_of_mass()
         else:
             center = None
 
         vis.step = 0
 
-        for idx, atoms in enumerate(atoms_list):
+        for idx, atoms in enumerate(vis):
             if self.dynamic:
                 center = atoms[selection].get_center_of_mass()
             atoms.positions -= center

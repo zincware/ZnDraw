@@ -145,3 +145,38 @@ def test_modify_replicate(server):
     assert len(vis) == 2
     for idx in range(2):
         assert len(vis[idx]) == 8 * len(copper)
+
+
+def test_modify_AddLineParticles(server):
+    vis = ZnDraw(url=server, token="test_token")
+    vis.append(molecule("H2O"))
+    vis.points = [[0, 0, 0], [1, 0, 0]]
+    vis.socket.emit(
+        "modifier:run",
+        {"method": {"discriminator": "AddLineParticles", "steps": 10, "symbol": "He"}},
+    )
+    vis.socket.sleep(5)
+    assert len(vis[0]) == 3
+    assert len(vis[1]) == 5
+    npt.assert_allclose(vis[1].positions[3], [0, 0, 0])
+    npt.assert_allclose(vis[1].positions[4], [1, 0, 0])
+    assert vis[1].symbols[4] == "He"
+    assert vis[1].symbols[3] == "He"
+
+# def test_modify_connect(server):
+#     Camera is not available without a webclient
+#     vis = ZnDraw(url=server, token="test_token")
+#     vis.append(molecule("H2O"))
+#     vis.selection = [0, 1]
+#     vis.socket.emit("modifier:run", {"method": {"discriminator": "Connect"}})
+
+
+def test_modify_center(server):
+    vis = ZnDraw(url=server, token="test_token")
+    copper = bulk("Cu", cubic=True)
+    vis.append(copper)
+    vis.selection = [0]
+    vis.socket.emit("modifier:run", {"method": {"discriminator": "Center"}})
+    vis.socket.sleep(5)
+    assert np.allclose(vis[0][0].position, np.diag(vis[0].cell) / 2)
+    assert not np.allclose(vis[0].positions, copper.positions)
