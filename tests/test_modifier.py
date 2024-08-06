@@ -77,6 +77,7 @@ def test_modify_rotate(server):
     assert len(vis) == 11
     # TODO: test that the atoms rotated correctly
 
+
 def test_modify_translate(server):
     vis = ZnDraw(url=server, token="test_token")
     vis.append(molecule("H2O"))
@@ -92,7 +93,7 @@ def test_modify_translate(server):
     orig_pos = vis[0].positions
     npt.assert_allclose(vis[10].positions, orig_pos - np.array([1, 0, 0]))
     # spline interpolation is not an exact line
-    npt.assert_allclose(vis[5].positions, orig_pos - np.array([0.5, 0, 0]), rtol=0.015) 
+    npt.assert_allclose(vis[5].positions, orig_pos - np.array([0.5, 0, 0]), rtol=0.015)
 
     assert len(vis.points) == 2
 
