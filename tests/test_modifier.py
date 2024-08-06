@@ -163,6 +163,7 @@ def test_modify_AddLineParticles(server):
     assert vis[1].symbols[4] == "He"
     assert vis[1].symbols[3] == "He"
 
+
 # def test_modify_connect(server):
 #     Camera is not available without a webclient
 #     vis = ZnDraw(url=server, token="test_token")
