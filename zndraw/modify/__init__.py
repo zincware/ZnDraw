@@ -133,7 +133,6 @@ class Translate(UpdateScene):
         if len(vis) > vis.step + 1:
             del vis[vis.step + 1 :]
 
-        # atoms_selected, atoms_remaining = self.apply_selection(vis.selection, vis.atoms)
         if self.steps > len(vis.segments):
             raise ValueError(
                 "The number of steps must be less than the number of segments. You can add more points to increase the number of segments."
@@ -144,9 +143,9 @@ class Translate(UpdateScene):
         selection = np.array(vis.selection)
 
         for idx in range(self.steps):
-            start_idx = int((idx + 1) * (len(segments) - 1) / self.steps)
+            end_idx = int((idx + 1) * (len(segments) - 1) / self.steps)
             tmp_atoms = atoms.copy()
-            vector = segments[start_idx] - segments[0]
+            vector = segments[end_idx] - segments[0]
             positions = tmp_atoms.positions
             positions[selection] += vector
             tmp_atoms.positions = positions
