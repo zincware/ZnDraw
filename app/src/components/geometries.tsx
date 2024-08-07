@@ -625,8 +625,9 @@ function GeometryComponent({
       );
     }
     case "Custom2DShape": {
-      const [customGeometry, setCustomGeometry] = useState<THREE.BufferGeometry | null>(null);
-    
+      const [customGeometry, setCustomGeometry] =
+        useState<THREE.BufferGeometry | null>(null);
+
       useEffect(() => {
         const points = geometry.points;
     
