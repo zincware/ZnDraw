@@ -22,6 +22,7 @@ from zndraw.type_defs import (
     JupyterConfig,
     RegisterModifier,
     TimeoutConfig,
+    SocketConfig,
 )
 from zndraw.utils import ASEConverter, call_with_retry, emit_with_retry
 
@@ -49,8 +50,8 @@ class ZnDraw(ZnDrawBase):
     token: str | None = None
     auth_token: str | None = None
 
-    socket: socketio.Client = dataclasses.field(
-        default_factory=socketio.Client, repr=False
+    socket: socketio.Client|None = dataclasses.field(
+        default=None, repr=False
     )
     timeout: TimeoutConfig = dataclasses.field(
         default_factory=lambda: TimeoutConfig(
@@ -68,6 +69,9 @@ class ZnDraw(ZnDrawBase):
             height=600,
         )
     )
+    socket_config: SocketConfig|dict = dataclasses.field(
+        default_factory=dict
+    )
 
     maximum_message_size: int = dataclasses.field(default=500_000, repr=False)
 
@@ -79,6 +83,8 @@ class ZnDraw(ZnDrawBase):
     )
 
     def __post_init__(self):
+        if self.socket is None:
+            self.socket = socketio.Client(**self.socket_config)
         def on_wakeup():
             if self._available:
                 self.socket.emit("modifier:available", list(self._modifiers))
