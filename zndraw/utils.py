@@ -341,5 +341,9 @@ def euler_to_direction(angles):
 def convert_url_to_http(url: str) -> str:
     """Convert a URL to a local file path."""
     url = urllib.parse.urlparse(url)
-    url = url._replace(scheme="http")
+    if url.scheme == "wss":            
+        url = url._replace(scheme="https")
+    elif url.scheme == "ws":
+        url = url._replace(scheme="http")
+
     return urllib.parse.urlunparse(url)
