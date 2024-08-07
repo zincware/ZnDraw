@@ -219,7 +219,8 @@ class Wrap(UpdateScene):
 
     recompute_bonds: bool = True
     all: bool = Field(
-        False, description="Apply to the full trajectory",
+        False,
+        description="Apply to the full trajectory",
     )
 
     def run(self, vis: "ZnDraw", **kwargs) -> None:
@@ -246,7 +247,8 @@ class Center(UpdateScene):
     )
     wrap: bool = Field(True, description="Wrap the atoms to the cell")
     all: bool = Field(
-        False, description="Apply to the full trajectory",
+        False,
+        description="Apply to the full trajectory",
     )
 
     def run(self, vis: "ZnDraw", **kwargs) -> None:
@@ -259,7 +261,6 @@ class Center(UpdateScene):
             center = vis.atoms[selection].get_center_of_mass()
         else:
             center = None
-
 
         if self.all:
             for idx, atoms in enumerate(vis):
@@ -293,7 +294,8 @@ class Replicate(UpdateScene):
 
     keep_box: bool = Field(False, description="Keep the original box size")
     all: bool = Field(
-        False, description="Apply to the full trajectory",
+        False,
+        description="Apply to the full trajectory",
     )
 
     def run(self, vis: "ZnDraw", **kwargs) -> None:

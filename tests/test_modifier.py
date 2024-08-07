@@ -143,7 +143,8 @@ def test_modify_replicate(server):
     copper = bulk("Cu", cubic=True)
     vis.extend([copper, copper])
     vis.socket.emit(
-        "modifier:run", {"method": {"discriminator": "Replicate", "x": 2, "y": 2, "z": 2, "all": True}}
+        "modifier:run",
+        {"method": {"discriminator": "Replicate", "x": 2, "y": 2, "z": 2, "all": True}},
     )
     vis.socket.sleep(5)
     # Replicate is an inplace modifier
