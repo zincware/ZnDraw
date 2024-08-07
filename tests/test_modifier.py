@@ -126,7 +126,7 @@ def test_modify_wrap(server):
     copper.positions += 5  # shift, so wrapped is recognizable
     vis.extend([copper, copper])
 
-    vis.socket.emit("modifier:run", {"method": {"discriminator": "Wrap"}})
+    vis.socket.emit("modifier:run", {"method": {"discriminator": "Wrap", "all": True}})
     vis.socket.sleep(5)
 
     # Wrap is an inplace modifier
@@ -143,7 +143,8 @@ def test_modify_replicate(server):
     wurtzite = bulk("ZnO", "wurtzite", a=3.25, c=5.2)
     vis.extend([wurtzite, wurtzite])
     vis.socket.emit(
-        "modifier:run", {"method": {"discriminator": "Replicate", "x": 2, "y": 2, "z": 2}}
+        "modifier:run",
+        {"method": {"discriminator": "Replicate", "x": 2, "y": 2, "z": 2, "all": True}},
     )
     vis.socket.sleep(5)
     # Replicate is an inplace modifier
@@ -182,7 +183,7 @@ def test_modify_center(server):
     copper = bulk("Cu", cubic=True)
     vis.append(copper)
     vis.selection = [0]
-    vis.socket.emit("modifier:run", {"method": {"discriminator": "Center"}})
+    vis.socket.emit("modifier:run", {"method": {"discriminator": "Center", "all": True}})
     vis.socket.sleep(5)
     assert np.allclose(vis[0][0].position, np.diag(vis[0].cell) / 2)
     assert not np.allclose(vis[0].positions, copper.positions)
