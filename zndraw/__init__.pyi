@@ -16,6 +16,7 @@ from .draw import (
     Tetrahedron,
     Torus,
     TorusKnot,
+    Custom2DShape,
 )
 from .zndraw import ZnDraw, ZnDrawLocal
 
@@ -39,4 +40,5 @@ __all__ = [
     "Rhomboid",
     "Ellipsoid",
     "Material",
+    "Custom2DShape",
 ]

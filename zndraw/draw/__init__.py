@@ -122,6 +122,8 @@ class Rhomboid(Object3D):
     vectorB: t.Tuple[float, float, float] | list[float] = (0, 10, 0)
     vectorC: t.Tuple[float, float, float] | list[float] = (0, 0, 10)
 
+class Custom2DShape(Object3D):
+    points: t.Tuple[t.Tuple[float, float], ...] | list[t.Tuple[float, float]] | list[list[float]] | t.Tuple[list[float], ...]
 
 class Ellipsoid(Object3D):
     a: float = 10.0
