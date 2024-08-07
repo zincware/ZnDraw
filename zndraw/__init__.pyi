@@ -3,6 +3,7 @@ from .draw import (
     Box,
     Circle,
     Cone,
+    Custom2DShape,
     Cylinder,
     Dodecahedron,
     Ellipsoid,
@@ -39,4 +40,5 @@ __all__ = [
     "Rhomboid",
     "Ellipsoid",
     "Material",
+    "Custom2DShape",
 ]
