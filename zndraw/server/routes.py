@@ -26,7 +26,7 @@ def index():
     except KeyError:
         token = uuid.uuid4().hex[:8]
         session["token"] = token
-    
+
     if "APPLICATION_ROOT" in current_app.config:
         return redirect(f"{current_app.config['APPLICATION_ROOT']}/token/{token}")
     return redirect(f"/token/{token}")
@@ -52,7 +52,9 @@ def token(token):
 def reset():
     session["token"] = uuid.uuid4().hex[:8]  # TODO: how should reset work locally?
     if "APPLICATION_ROOT" in current_app.config:
-        return redirect(f"{current_app.config['APPLICATION_ROOT']}/token/{session['token']}")
+        return redirect(
+            f"{current_app.config['APPLICATION_ROOT']}/token/{session['token']}"
+        )
     return redirect(f"/token/{session['token']}")
 
 
