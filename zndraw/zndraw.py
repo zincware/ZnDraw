@@ -67,7 +67,9 @@ class ZnDraw(ZnDrawBase):
             height=600,
         )
     )
-    socket_config: SocketConfig | dict = dataclasses.field(default_factory=dict)
+    socket_config: SocketConfig = dataclasses.field(
+        default_factory=lambda: SocketConfig(ssl_verify=False)
+    )
 
     maximum_message_size: int = dataclasses.field(default=500_000, repr=False)
 
