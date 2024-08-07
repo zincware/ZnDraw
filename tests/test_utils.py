@@ -1,7 +1,8 @@
-import pytest
 import numpy as np
 import numpy.testing as npt
-from zndraw.utils import direction_to_euler, euler_to_direction, convert_url_to_http
+
+from zndraw.utils import convert_url_to_http, direction_to_euler, euler_to_direction
+
 
 def test_conversion_utils():
     """Test conversion functions"""
