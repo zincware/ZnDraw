@@ -28,7 +28,7 @@ def index():
         session["token"] = token
 
     if "APPLICATION_ROOT" in current_app.config:
-        return redirect(f"{current_app.config['APPLICATION_ROOT']}/token/{token}")
+        return redirect(f"{current_app.config['APPLICATION_ROOT']}token/{token}")
     return redirect(f"/token/{token}")
 
 
@@ -53,7 +53,7 @@ def reset():
     session["token"] = uuid.uuid4().hex[:8]  # TODO: how should reset work locally?
     if "APPLICATION_ROOT" in current_app.config:
         return redirect(
-            f"{current_app.config['APPLICATION_ROOT']}/token/{session['token']}"
+            f"{current_app.config['APPLICATION_ROOT']}token/{session['token']}"
         )
     return redirect(f"/token/{session['token']}")
 
@@ -78,7 +78,7 @@ def login_route(auth_token: str | None = None):
     session["authenticated"] = auth_token == current_app.config.get("AUTH_TOKEN", "NONE")
     if session["authenticated"]:
         if "APPLICATION_ROOT" in current_app.config:
-            return redirect(f"{current_app.config['APPLICATION_ROOT']}/")
+            return redirect(f"{current_app.config['APPLICATION_ROOT']}")
         return redirect("/")
     return "Invalid auth token", 403
 
@@ -89,7 +89,7 @@ def logout_route():
         return "Can only log out, if you logged in before.", 403
     session["authenticated"] = False
     if "APPLICATION_ROOT" in current_app.config:
-        return redirect(f"{current_app.config['APPLICATION_ROOT']}/")
+        return redirect(f"{current_app.config['APPLICATION_ROOT']}")
     return redirect("/")
 
 
