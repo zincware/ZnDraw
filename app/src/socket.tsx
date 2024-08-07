@@ -4,22 +4,13 @@ import { useEffect, useRef } from "react";
 import * as THREE from "three";
 
 function setupIO() {
-  const { protocol, host } = window.location;
   const basePath = import.meta.env.BASE_URL || "/";
-  const socketPath = `${protocol}//${host}${basePath}`;
-  // const socketPath = "http://localhost:1235"; // for local development
 
   if (basePath === "/") {
-    console.log("Connecting to socket.io at", socketPath);
-    return io(socketPath);
+    // return io("http://localhost:1235"); // for local development
+    return io(window.location.origin);
   } else {
-    console.log(
-      "Connecting to socket.io at",
-      socketPath,
-      "using path",
-      `${basePath}socket.io`,
-    );
-    return io(socketPath, { path: `${basePath}socket.io` });
+    return io(window.location.origin, { path: `${basePath}socket.io` });
   }
 }
 export const socket = setupIO();
