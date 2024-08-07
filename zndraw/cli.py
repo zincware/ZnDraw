@@ -57,6 +57,9 @@ def main(
         None,
         help="URL to a running ZnDraw server. Use this server instead of starting a new one.",
     ),
+    append: bool = typer.Option(
+        False, help="Append the file to the existing data on the server."
+    ),
     token: t.Optional[str] = typer.Option(
         None, help="Only valid if 'url' is provided. Room token to upload the file to."
     ),
@@ -176,7 +179,7 @@ def main(
     )
 
     if url is not None:
-        upload(filename, url, token, fileio)
+        upload(url, token, fileio, append)
         return
 
     typer.echo(
