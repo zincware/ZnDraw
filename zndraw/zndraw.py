@@ -15,6 +15,7 @@ from zndraw.base import Extension, ZnDrawBase
 from zndraw.bonds import ASEComputeBonds
 from zndraw.config import ArrowsConfig, ZnDrawConfig
 from zndraw.draw import Geometry, Object3D
+from zndraw.exceptions import RoomLockedError
 from zndraw.type_defs import (
     ATOMS_LIKE,
     CameraData,
@@ -236,6 +237,8 @@ class ZnDraw(ZnDrawBase):
 
         if not isinstance(values, list):
             raise ValueError("Unable to parse provided data object")
+        if self.locked:
+            raise RoomLockedError("The room you are trying to modify is locked.")
 
         show_tbar = (
             len(values)
