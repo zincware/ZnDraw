@@ -630,14 +630,14 @@ function GeometryComponent({
 
       useEffect(() => {
         const points = geometry.points;
-    
+
         const shape = new THREE.Shape();
 
-        points.forEach(point => {
+        points.forEach((point) => {
           const [x, y, z] = point;
           shape.lineTo(x, y);
         });
-    
+
         const shapeGeometry = new THREE.ShapeGeometry(shape);
         setCustomGeometry(shapeGeometry);
       }, [geometry]);
