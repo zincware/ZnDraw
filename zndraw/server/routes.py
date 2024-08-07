@@ -11,7 +11,6 @@ from flask import (
     send_file,
     send_from_directory,
     session,
-    url_for,
 )
 
 main = Blueprint("main", __name__)
@@ -27,8 +26,10 @@ def index():
     except KeyError:
         token = uuid.uuid4().hex[:8]
         session["token"] = token
-
-    return redirect(url_for("main.token", token=token, _external=True))
+    
+    if "APPLICATION_ROOT" in current_app.config:
+        return redirect(f"{current_app.config['APPLICATION_ROOT']}/token/{token}")
+    return redirect(f"/token/{token}")
 
 
 @main.route("/<path:filename>")
@@ -50,8 +51,9 @@ def token(token):
 @main.route("/reset")
 def reset():
     session["token"] = uuid.uuid4().hex[:8]  # TODO: how should reset work locally?
-    # return redirect(f"/token/{session['token']}")
-    return redirect(url_for("main.token", token=session["token"], _external=True))
+    if "APPLICATION_ROOT" in current_app.config:
+        return redirect(f"{current_app.config['APPLICATION_ROOT']}/token/{session['token']}")
+    return redirect(f"/token/{session['token']}")
 
 
 @main.route("/exit")
@@ -73,7 +75,9 @@ def login_route(auth_token: str | None = None):
     """Create an authenticated session."""
     session["authenticated"] = auth_token == current_app.config.get("AUTH_TOKEN", "NONE")
     if session["authenticated"]:
-        return redirect(url_for("main.index", _external=True))
+        if "APPLICATION_ROOT" in current_app.config:
+            return redirect(f"{current_app.config['APPLICATION_ROOT']}/")
+        return redirect("/")
     return "Invalid auth token", 403
 
 
@@ -82,7 +86,9 @@ def logout_route():
     if not session.get("authenticated", False):
         return "Can only log out, if you logged in before.", 403
     session["authenticated"] = False
-    return redirect(url_for("main.index", _external=True))
+    if "APPLICATION_ROOT" in current_app.config:
+        return redirect(f"{current_app.config['APPLICATION_ROOT']}/")
+    return redirect("/")
 
 
 @main.route("/upload", methods=["POST"])
