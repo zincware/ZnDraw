@@ -1,5 +1,3 @@
-import numpy as np
-import numpy.testing as npt
 import pytest
 
 from zndraw import Box, Sphere, ZnDraw
@@ -26,5 +24,3 @@ def test_geometries(server, s22):
 
     with pytest.raises(ValueError):
         vis.geometries = "Geometries are not string!"
-
-

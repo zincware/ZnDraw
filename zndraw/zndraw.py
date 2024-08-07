@@ -15,7 +15,7 @@ from zndraw.base import Extension, ZnDrawBase
 from zndraw.bonds import ASEComputeBonds
 from zndraw.config import ArrowsConfig, ZnDrawConfig
 from zndraw.draw import Geometry, Object3D
-from zndraw.utils import convert_url_to_http
+from zndraw.exceptions import RoomLockedError
 from zndraw.type_defs import (
     ATOMS_LIKE,
     CameraData,
@@ -23,7 +23,12 @@ from zndraw.type_defs import (
     RegisterModifier,
     TimeoutConfig,
 )
-from zndraw.utils import ASEConverter, call_with_retry, emit_with_retry
+from zndraw.utils import (
+    ASEConverter,
+    call_with_retry,
+    convert_url_to_http,
+    emit_with_retry,
+)
 
 log = logging.getLogger(__name__)
 
@@ -236,6 +241,8 @@ class ZnDraw(ZnDrawBase):
 
         if not isinstance(values, list):
             raise ValueError("Unable to parse provided data object")
+        if self.locked:
+            raise RoomLockedError("The room you are trying to modify is locked.")
 
         show_tbar = (
             len(values)

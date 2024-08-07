@@ -1,7 +1,8 @@
-import pytest
 import numpy as np
 import numpy.testing as npt
-from zndraw.utils import direction_to_euler, euler_to_direction, convert_url_to_http
+
+from zndraw.utils import convert_url_to_http, direction_to_euler, euler_to_direction
+
 
 def test_conversion_utils():
     """Test conversion functions"""
@@ -36,3 +37,13 @@ def test_url():
     before_url = "ws://localhost:8000/token/eNwsdW5k"
     url = convert_url_to_http(before_url)
     assert url == "http://localhost:8000/token/eNwsdW5k"
+
+    # Now with https
+    before_url = "wss://localhost:8000/token/1234"
+    url = convert_url_to_http(before_url)
+    assert url == "https://localhost:8000/token/1234"
+
+    # unsafe url containing ws in token
+    before_url = "wss://localhost:8000/token/eNwsdW5k"
+    url = convert_url_to_http(before_url)
+    assert url == "https://localhost:8000/token/eNwsdW5k"

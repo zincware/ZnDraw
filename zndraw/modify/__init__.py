@@ -124,7 +124,7 @@ class Delete(UpdateScene):
         vis.step += 1
 
 
-class Move(UpdateScene):
+class Translate(UpdateScene):
     """Move the selected atoms along the line."""
 
     steps: int = Field(10, ge=1)
@@ -133,36 +133,30 @@ class Move(UpdateScene):
         if len(vis) > vis.step + 1:
             del vis[vis.step + 1 :]
 
-        atoms = vis.atoms
-        atoms_ids = vis.selection
-        atoms_selected, atoms_remaining = self.apply_selection(atoms_ids, atoms)
         if self.steps > len(vis.segments):
             raise ValueError(
                 "The number of steps must be less than the number of segments. You can add more points to increase the number of segments."
             )
 
         segments = vis.segments
-        steps = self.steps
+        atoms = vis.atoms
+        selection = np.array(vis.selection)
 
-        for idx in range(1, steps):
-            # get the vector between the two points
-            start_idx = int((idx - 1) * len(segments) / steps)
-            end_idx = int(idx * len(segments) / steps)
-
-            vector = segments[end_idx] - segments[start_idx]
-            # move the selected atoms along the vector
-            atoms_selected.positions += vector
-            # merge the selected and remaining atoms
-            atoms.positions[atoms_ids] = atoms_selected.positions
-            vis.append(atoms)
-            vis.step += 1
+        for idx in range(self.steps):
+            end_idx = int((idx + 1) * (len(segments) - 1) / self.steps)
+            tmp_atoms = atoms.copy()
+            vector = segments[end_idx] - segments[0]
+            positions = tmp_atoms.positions
+            positions[selection] += vector
+            tmp_atoms.positions = positions
+            vis.append(tmp_atoms)
 
 
 class Duplicate(UpdateScene):
     x: float = Field(0.5, le=5, ge=0)
     y: float = Field(0.5, le=5, ge=0)
     z: float = Field(0.5, le=5, ge=0)
-    symbol: Symbols
+    symbol: Symbols = Field(Symbols.X, description="Symbol of the new atoms")
 
     def run(self, vis: "ZnDraw", **kwargs) -> None:
         atoms = vis.atoms
@@ -174,6 +168,10 @@ class Duplicate(UpdateScene):
             atom.position += np.array([self.x, self.y, self.z])
             atom.symbol = self.symbol.name if self.symbol.name != "X" else atom.symbol
             atoms += atom
+            del atoms.arrays["colors"]
+            del atoms.arrays["radii"]
+            if hasattr(atoms, "connectivity"):
+                del atoms.connectivity
 
         vis.append(atoms)
         vis.selection = []
@@ -192,6 +190,9 @@ class ChangeType(UpdateScene):
 
         del atoms.arrays["colors"]
         del atoms.arrays["radii"]
+        if hasattr(atoms, "connectivity"):
+            # vdW radii might change
+            del atoms.connectivity
 
         vis.append(atoms)
         vis.selection = []
@@ -217,19 +218,24 @@ class Wrap(UpdateScene):
     """Wrap the atoms to the cell."""
 
     recompute_bonds: bool = True
+    all: bool = Field(
+        False,
+        description="Apply to the full trajectory",
+    )
 
     def run(self, vis: "ZnDraw", **kwargs) -> None:
-        vis.log("Downloading atoms...")
-        atoms_list = list(vis)
-        vis.step = 0
-
-        del vis[1:]
-
-        for idx, atoms in enumerate(atoms_list):
+        if self.all:
+            for idx, atoms in enumerate(vis):
+                atoms.wrap()
+                if self.recompute_bonds:
+                    delattr(atoms, "connectivity")
+                vis[idx] = atoms
+        else:
+            atoms = vis.atoms
             atoms.wrap()
             if self.recompute_bonds:
                 delattr(atoms, "connectivity")
-            vis[idx] = atoms
+            vis[vis.step] = atoms
 
 
 class Center(UpdateScene):
@@ -240,6 +246,10 @@ class Center(UpdateScene):
         False, description="Move the atoms to the center of the cell at each step"
     )
     wrap: bool = Field(True, description="Wrap the atoms to the cell")
+    all: bool = Field(
+        False,
+        description="Apply to the full trajectory",
+    )
 
     def run(self, vis: "ZnDraw", **kwargs) -> None:
         selection = vis.selection
@@ -247,19 +257,26 @@ class Center(UpdateScene):
             vis.log("Please select at least one atom.")
             return
 
-        vis.log("Downloading atoms...")
-        atoms_list = list(vis)
-
         if not self.dynamic:
-            center = atoms_list[vis.step][selection].get_center_of_mass()
+            center = vis.atoms[selection].get_center_of_mass()
         else:
             center = None
 
-        vis.step = 0
+        if self.all:
+            for idx, atoms in enumerate(vis):
+                if self.dynamic:
+                    center = atoms[selection].get_center_of_mass()
+                atoms.positions -= center
+                atoms.positions += np.diag(atoms.cell) / 2
+                if self.wrap:
+                    atoms.wrap()
+                if self.recompute_bonds:
+                    delattr(atoms, "connectivity")
 
-        for idx, atoms in enumerate(atoms_list):
-            if self.dynamic:
-                center = atoms[selection].get_center_of_mass()
+                vis[idx] = atoms
+        else:
+            atoms = vis.atoms
+            center = atoms[selection].get_center_of_mass()
             atoms.positions -= center
             atoms.positions += np.diag(atoms.cell) / 2
             if self.wrap:
@@ -267,7 +284,7 @@ class Center(UpdateScene):
             if self.recompute_bonds:
                 delattr(atoms, "connectivity")
 
-            vis[idx] = atoms
+            vis[vis.step] = atoms
 
 
 class Replicate(UpdateScene):
@@ -276,19 +293,24 @@ class Replicate(UpdateScene):
     z: int = Field(2, ge=1)
 
     keep_box: bool = Field(False, description="Keep the original box size")
+    all: bool = Field(
+        False,
+        description="Apply to the full trajectory",
+    )
 
     def run(self, vis: "ZnDraw", **kwargs) -> None:
-        vis.log("Downloading atoms...")
-        atoms_list = list(vis)
-        vis.step = 0
-
-        del vis[1:]
-
-        for idx, atoms in enumerate(atoms_list):
+        if self.all:
+            for idx, atoms in enumerate(vis):
+                atoms = atoms.repeat((self.x, self.y, self.z))
+                if self.keep_box:
+                    atoms.cell = vis[idx].cell
+                vis[idx] = atoms
+        else:
+            atoms = vis.atoms
             atoms = atoms.repeat((self.x, self.y, self.z))
             if self.keep_box:
-                atoms.cell = atoms_list[idx].cell
-            vis[idx] = atoms
+                atoms.cell = vis.atoms.cell
+            vis[vis.step] = atoms
 
 
 class NewCanvas(UpdateScene):
@@ -319,7 +341,7 @@ class NewCanvas(UpdateScene):
 methods = t.Union[
     Delete,
     Rotate,
-    Move,
+    Translate,
     Duplicate,
     ChangeType,
     AddLineParticles,
