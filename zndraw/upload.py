@@ -15,12 +15,7 @@ from .tasks import FileIO, get_generator_from_filename
 cli = typer.Typer()
 
 
-def upload(
-    url: str,
-    token: t.Optional[str],
-    fileio: FileIO,
-    append: bool = False
-):
+def upload(url: str, token: t.Optional[str], fileio: FileIO, append: bool = False):
     """Upload a file to ZnDraw."""
     if token is None:
         token = str(uuid.uuid4())
