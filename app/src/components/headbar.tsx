@@ -45,7 +45,7 @@ import { MdExitToApp } from "react-icons/md";
 
 function getServerUrl() {
   const { protocol, host } = window.location;
-  const basePath = import.meta.env.BASE_URL || '/';
+  const basePath = import.meta.env.BASE_URL || "/";
   return `${protocol}//${host}${basePath}`;
 }
 
