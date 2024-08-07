@@ -28,6 +28,7 @@ class JupyterConfig(t.TypedDict):
     width: str | int
     height: str | int
 
+
 class SocketConfig(t.TypedDict):
     ssl_verify: bool
 

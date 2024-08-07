@@ -8,6 +8,7 @@ import sys
 import tempfile
 import typing as t
 import uuid
+from urllib.parse import urlparse
 
 import ase
 import datamodel_code_generator
@@ -19,8 +20,6 @@ from ase.data.colors import jmol_colors
 from znjson import ConverterBase
 
 from zndraw.type_defs import ASEDict
-from urllib.parse import urlparse
-
 
 log = logging.getLogger(__name__)
 
@@ -29,10 +28,7 @@ def parse_url(input_url):
     parsed = urlparse(input_url)
     base_url = f"{parsed.scheme}://{parsed.netloc}"
     path = parsed.path.strip("/") if parsed.path else None
-    return {
-        "url": base_url,
-        "path": path if path else None
-    }
+    return {"url": base_url, "path": path if path else None}
 
 
 def rgb2hex(value):
