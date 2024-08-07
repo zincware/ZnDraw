@@ -3,8 +3,8 @@ import eventlet
 eventlet.monkey_patch()
 
 import pathlib
-import time
 import pprint
+import time
 
 import redis
 import znsocket.exceptions
