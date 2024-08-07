@@ -153,7 +153,8 @@ def main(
     if max_http_buffer_size is not None:
         env_config.FLASK_MAX_HTTP_BUFFER_SIZE = str(int(max_http_buffer_size))
 
-    env_config.FLASK_SERVER_URL = f"http://localhost:{env_config.FLASK_PORT}"
+    if env_config.FLASK_SERVER_URL is None:
+        env_config.FLASK_SERVER_URL = f"http://localhost:{env_config.FLASK_PORT}"
 
     if standalone and storage is None:
         env_config.FLASK_STORAGE = f"znsocket://localhost:{env_config.FLASK_STORAGE_PORT}"
