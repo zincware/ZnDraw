@@ -37,12 +37,17 @@ import { socket } from "../socket";
 import {
   FaArrowRotateRight,
   FaCircleInfo,
-  FaE,
   FaFileCirclePlus,
   FaPencil,
 } from "react-icons/fa6";
 import { TbPlugConnected } from "react-icons/tb";
 import { MdExitToApp } from "react-icons/md";
+
+function getServerUrl() {
+  const { protocol, host } = window.location;
+  const basePath = import.meta.env.BASE_URL || '/';
+  return `${protocol}//${host}${basePath}`;
+}
 
 function ConsoleWindow({
   text,
@@ -130,7 +135,7 @@ function HelpModel(props: any) {
 function ConnectModal({ show, onHide, room }) {
   // const url = window.location.href.replace(/\/$/, "");
   // for testing the socketio url is different and hard coded
-  const serverUrl = window.location.origin;
+  const serverUrl = getServerUrl();
   // const serverUrl = "http://localhost:1235";
 
   const pythonCode = `from zndraw import ZnDraw
@@ -178,9 +183,9 @@ ${pythonCode}
 }
 
 function RefreshModal({ show, onHide, room }) {
-  const serverUrl = window.location.origin;
-  const urlWithRoom = `${serverUrl}/token/${room}`;
-  const resetURL = `${serverUrl}/reset`;
+  const serverUrl = getServerUrl();
+  const urlWithRoom = `${serverUrl}token/${room}`;
+  const resetURL = `${serverUrl}reset`;
 
   return (
     <Modal
