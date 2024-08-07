@@ -625,31 +625,32 @@ function GeometryComponent({
       );
     }
     case "Custom2DShape": {
-      const [customGeometry, setCustomGeometry] = useState<THREE.BufferGeometry | null>(null);
-    
+      const [customGeometry, setCustomGeometry] =
+        useState<THREE.BufferGeometry | null>(null);
+
       useEffect(() => {
         const points = geometry.points;
-    
+
         console.log(points);
         // Create a new THREE.Shape
         const shape = new THREE.Shape();
-    
+
         // Iterate over each point and add it to the shape
-        points.forEach(point => {
+        points.forEach((point) => {
           const [x, y, z] = point;
           shape.lineTo(x, y);
         });
-    
+
         // Create a ShapeGeometry from the shape
         const shapeGeometry = new THREE.ShapeGeometry(shape);
         console.log("shape");
-    
+
         // Set the custom geometry
         setCustomGeometry(shapeGeometry);
       }, [geometry]);
-    
+
       // Create a material with DoubleSide
-      
+
       return (
         <>
           {customGeometry && (

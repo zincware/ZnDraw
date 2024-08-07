@@ -3,6 +3,7 @@ from .draw import (
     Box,
     Circle,
     Cone,
+    Custom2DShape,
     Cylinder,
     Dodecahedron,
     Ellipsoid,
@@ -16,7 +17,6 @@ from .draw import (
     Tetrahedron,
     Torus,
     TorusKnot,
-    Custom2DShape,
 )
 from .zndraw import ZnDraw, ZnDrawLocal
 
