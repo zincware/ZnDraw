@@ -218,13 +218,23 @@ class Wrap(UpdateScene):
     """Wrap the atoms to the cell."""
 
     recompute_bonds: bool = True
+    all: bool = Field(
+        False, description="Apply to the full trajectory",
+    )
 
     def run(self, vis: "ZnDraw", **kwargs) -> None:
-        for idx, atoms in enumerate(vis):
+        if self.all:
+            for idx, atoms in enumerate(vis):
+                atoms.wrap()
+                if self.recompute_bonds:
+                    delattr(atoms, "connectivity")
+                vis[idx] = atoms
+        else:
+            atoms = vis.atoms
             atoms.wrap()
             if self.recompute_bonds:
                 delattr(atoms, "connectivity")
-            vis[idx] = atoms
+            vis[vis.step] = atoms
 
 
 class Center(UpdateScene):
@@ -235,6 +245,9 @@ class Center(UpdateScene):
         False, description="Move the atoms to the center of the cell at each step"
     )
     wrap: bool = Field(True, description="Wrap the atoms to the cell")
+    all: bool = Field(
+        False, description="Apply to the full trajectory",
+    )
 
     def run(self, vis: "ZnDraw", **kwargs) -> None:
         selection = vis.selection
@@ -247,11 +260,22 @@ class Center(UpdateScene):
         else:
             center = None
 
-        vis.step = 0
 
-        for idx, atoms in enumerate(vis):
-            if self.dynamic:
-                center = atoms[selection].get_center_of_mass()
+        if self.all:
+            for idx, atoms in enumerate(vis):
+                if self.dynamic:
+                    center = atoms[selection].get_center_of_mass()
+                atoms.positions -= center
+                atoms.positions += np.diag(atoms.cell) / 2
+                if self.wrap:
+                    atoms.wrap()
+                if self.recompute_bonds:
+                    delattr(atoms, "connectivity")
+
+                vis[idx] = atoms
+        else:
+            atoms = vis.atoms
+            center = atoms[selection].get_center_of_mass()
             atoms.positions -= center
             atoms.positions += np.diag(atoms.cell) / 2
             if self.wrap:
@@ -259,7 +283,7 @@ class Center(UpdateScene):
             if self.recompute_bonds:
                 delattr(atoms, "connectivity")
 
-            vis[idx] = atoms
+            vis[vis.step] = atoms
 
 
 class Replicate(UpdateScene):
@@ -268,13 +292,23 @@ class Replicate(UpdateScene):
     z: int = Field(2, ge=1)
 
     keep_box: bool = Field(False, description="Keep the original box size")
+    all: bool = Field(
+        False, description="Apply to the full trajectory",
+    )
 
     def run(self, vis: "ZnDraw", **kwargs) -> None:
-        for idx, atoms in enumerate(vis):
+        if self.all:
+            for idx, atoms in enumerate(vis):
+                atoms = atoms.repeat((self.x, self.y, self.z))
+                if self.keep_box:
+                    atoms.cell = vis[idx].cell
+                vis[idx] = atoms
+        else:
+            atoms = vis.atoms
             atoms = atoms.repeat((self.x, self.y, self.z))
             if self.keep_box:
-                atoms.cell = vis[idx].cell
-            vis[idx] = atoms
+                atoms.cell = vis.atoms.cell
+            vis[vis.step] = atoms
 
 
 class NewCanvas(UpdateScene):
