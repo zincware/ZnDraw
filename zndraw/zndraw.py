@@ -97,7 +97,7 @@ class ZnDraw(ZnDrawBase):
                 _url, _path = parse_url(self.url)
                 if _path:
                     self.socket.connect(
-                        _url, wait_timeout=self.timeout["connection"], socketio_path=_path
+                        _url, wait_timeout=self.timeout["connection"], socketio_path=f"/{_path}/socket.io"
                     )
                 else:
                     self.socket.connect(_url, wait_timeout=self.timeout["connection"])
