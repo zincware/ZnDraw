@@ -37,3 +37,13 @@ def test_url():
     before_url = "ws://localhost:8000/token/eNwsdW5k"
     url = convert_url_to_http(before_url)
     assert url == "http://localhost:8000/token/eNwsdW5k"
+
+    # Now with https
+    before_url = "wss://localhost:8000/token/1234"
+    url = convert_url_to_http(before_url)
+    assert url == "https://localhost:8000/token/1234"
+
+    # unsafe url containing ws in token
+    before_url = "wss://localhost:8000/token/eNwsdW5k"
+    url = convert_url_to_http(before_url)
+    assert url == "https://localhost:8000/token/eNwsdW5k"
