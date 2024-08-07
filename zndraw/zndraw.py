@@ -2,7 +2,6 @@ import dataclasses
 import json
 import logging
 import typing as t
-import urllib.parse
 
 import ase
 import numpy as np
@@ -16,6 +15,7 @@ from zndraw.base import Extension, ZnDrawBase
 from zndraw.bonds import ASEComputeBonds
 from zndraw.config import ArrowsConfig, ZnDrawConfig
 from zndraw.draw import Geometry, Object3D
+from zndraw.utils import convert_url_to_http
 from zndraw.type_defs import (
     ATOMS_LIKE,
     CameraData,
@@ -198,8 +198,7 @@ class ZnDraw(ZnDrawBase):
         from IPython.display import IFrame
 
         # TODO: save address and do not replace in post_init
-        parsed_url = urllib.parse.urlparse(f"{self.url}/token/{self.token}")
-        address = parsed_url._replace(scheme="http").geturl()
+        address = convert_url_to_http(f"{self.url}/token/{self.token}")
         log.info(f"Opening ZnDraw at {address}")
         return IFrame(
             address,

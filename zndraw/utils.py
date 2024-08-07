@@ -8,6 +8,7 @@ import sys
 import tempfile
 import typing as t
 import uuid
+import urllib.parse
 
 import ase
 import datamodel_code_generator
@@ -336,3 +337,9 @@ def euler_to_direction(angles):
     z = np.sin(pitch)
 
     return np.array([x, y, z])
+
+def convert_url_to_http(url: str) -> str:
+    """Convert a URL to a local file path."""
+    url = urllib.parse.urlparse(url)
+    url = url._replace(scheme="http")
+    return urllib.parse.urlunparse(url)
