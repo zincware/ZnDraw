@@ -24,7 +24,7 @@ from zndraw.type_defs import (
     TimeoutConfig,
     SocketConfig,
 )
-from zndraw.utils import ASEConverter, call_with_retry, emit_with_retry
+from zndraw.utils import ASEConverter, call_with_retry, emit_with_retry, parse_url
 
 log = logging.getLogger(__name__)
 
@@ -97,7 +97,11 @@ class ZnDraw(ZnDrawBase):
 
         for idx in range(self.timeout["connect_retries"] + 1):
             try:
-                self.socket.connect(self.url, wait_timeout=self.timeout["connection"])
+                _url, _path = parse_url(self.url)
+                if _path:
+                    self.socket.connect(_url, wait_timeout=self.timeout["connection"], socketio_path=_path)
+                else:
+                    self.socket.connect(_url, wait_timeout=self.timeout["connection"])
                 break
             except socketio.exceptions.ConnectionError as err:
                 log.warning("Connection failed. Retrying...")
