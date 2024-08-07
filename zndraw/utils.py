@@ -24,11 +24,11 @@ from zndraw.type_defs import ASEDict
 log = logging.getLogger(__name__)
 
 
-def parse_url(input_url):
+def parse_url(input_url) -> t.Tuple[str, t.Optional[str]]:
     parsed = urlparse(input_url)
     base_url = f"{parsed.scheme}://{parsed.netloc}"
     path = parsed.path.strip("/") if parsed.path else None
-    return {"url": base_url, "path": path if path else None}
+    return base_url, path if path else None
 
 
 def rgb2hex(value):
