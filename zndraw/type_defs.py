@@ -29,10 +29,6 @@ class JupyterConfig(t.TypedDict):
     height: str | int
 
 
-class SocketConfig(t.TypedDict):
-    ssl_verify: bool
-
-
 class CameraData(t.TypedDict):
     position: list[float]
     target: list[float]

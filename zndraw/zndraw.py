@@ -10,6 +10,7 @@ import tqdm
 import znjson
 import znsocket
 from redis import Redis
+import requests
 
 from zndraw.base import Extension, ZnDrawBase
 from zndraw.bonds import ASEComputeBonds
@@ -21,7 +22,6 @@ from zndraw.type_defs import (
     CameraData,
     JupyterConfig,
     RegisterModifier,
-    SocketConfig,
     TimeoutConfig,
 )
 from zndraw.utils import ASEConverter, call_with_retry, emit_with_retry, parse_url
@@ -67,9 +67,7 @@ class ZnDraw(ZnDrawBase):
             height=600,
         )
     )
-    socket_config: SocketConfig = dataclasses.field(
-        default_factory=lambda: SocketConfig(ssl_verify=False)
-    )
+    verify: bool|str = True 
 
     maximum_message_size: int = dataclasses.field(default=500_000, repr=False)
 
@@ -82,7 +80,9 @@ class ZnDraw(ZnDrawBase):
 
     def __post_init__(self):
         if self.socket is None:
-            self.socket = socketio.Client(**self.socket_config)
+            http_session = requests.Session()
+            http_session.verify = self.verify
+            self.socket = socketio.Client(http_session=http_session)
 
         def on_wakeup():
             if self._available:
