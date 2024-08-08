@@ -616,6 +616,7 @@ class ZnDrawLocal(ZnDraw):
         if '"_type": "ase.Atoms"' not in value:
             raise ValueError("Unable to parse provided data object")
         lst.insert(index, value)
+        self.socket.emit("room:frames:refresh", [self.step])
 
     def extend(self, values: list[ATOMS_LIKE]):
         if not isinstance(values, list):
@@ -657,6 +658,8 @@ class ZnDrawLocal(ZnDraw):
                 msg = []
         if len(msg) > 0:  # Only send the message if it's not empty
             lst.extend(msg)
+        
+        self.socket.emit("room:frames:refresh", [self.step])
 
     def __setitem__(
         self,
@@ -685,3 +688,4 @@ class ZnDrawLocal(ZnDraw):
             if '"_type": "ase.Atoms"' not in val:
                 raise ValueError("Unable to parse provided data object")
             lst[i] = val
+        self.socket.emit("room:frames:refresh", [self.step])

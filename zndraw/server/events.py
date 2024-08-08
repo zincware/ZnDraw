@@ -611,3 +611,8 @@ def init_socketio_events(io: SocketIO):
         r: Redis = current_app.extensions["redis"]
         locked = r.get(f"room:{room}:locked")
         return locked == "True"
+    
+    @io.on("room:frames:refresh")
+    def room_frames_refresh(frames: list[int]):
+        room = session.get("token")
+        emit("room:frames:refresh", frames, to=room)
