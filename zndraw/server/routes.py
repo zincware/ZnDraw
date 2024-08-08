@@ -136,10 +136,10 @@ def download():
 
     file = StringIO()
     vis = ZnDrawLocal(
-            r=current_app.extensions["redis"],
-            url=current_app.config["SERVER_URL"],
-            token=token,
-        )
+        r=current_app.extensions["redis"],
+        url=current_app.config["SERVER_URL"],
+        token=token,
+    )
     try:
         for atoms in vis:
             ase.io.write(file, atoms, format="xyz", append=True)
