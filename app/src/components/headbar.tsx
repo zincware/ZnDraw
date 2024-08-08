@@ -314,7 +314,9 @@ const FileUpload = forwardRef((props, ref) => {
     const formData = new FormData();
     formData.append("file", file);
 
-    fetch("/upload", {
+
+    const basePath = import.meta.env.BASE_URL || "/";
+    fetch(`${basePath}upload`, {
       method: "POST",
       body: formData,
     });
@@ -403,6 +405,7 @@ const HeadBar = ({
     setGeometries([]);
     setPoints([]);
   };
+  const basePath = useMemo(() => import.meta.env.BASE_URL || "/", []);
 
   return (
     <>
@@ -516,7 +519,7 @@ const HeadBar = ({
                 <Button
                   variant="outline-primary"
                   className="mx-1"
-                  href="/download"
+                  href={`${basePath}download`}
                   target="_blank"
                 >
                   <FaDownload />
