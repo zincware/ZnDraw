@@ -658,7 +658,7 @@ class ZnDrawLocal(ZnDraw):
                 msg = []
         if len(msg) > 0:  # Only send the message if it's not empty
             lst.extend(msg)
-        
+
         self.socket.emit("room:frames:refresh", [self.step])
 
     def __setitem__(
