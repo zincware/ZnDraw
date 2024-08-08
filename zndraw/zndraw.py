@@ -23,7 +23,12 @@ from zndraw.type_defs import (
     RegisterModifier,
     TimeoutConfig,
 )
-from zndraw.utils import ASEConverter, call_with_retry, emit_with_retry
+from zndraw.utils import (
+    ASEConverter,
+    call_with_retry,
+    convert_url_to_http,
+    emit_with_retry,
+)
 
 log = logging.getLogger(__name__)
 
@@ -197,9 +202,8 @@ class ZnDraw(ZnDrawBase):
     def _repr_html_(self):
         from IPython.display import IFrame
 
-        address = f"{self.url}/token/{self.token}"
         # TODO: save address and do not replace in post_init
-        address = address.replace("ws", "http")
+        address = convert_url_to_http(f"{self.url}/token/{self.token}")
         log.info(f"Opening ZnDraw at {address}")
         return IFrame(
             address,
