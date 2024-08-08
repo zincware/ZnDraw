@@ -120,6 +120,11 @@ export interface EllipsoidGeometry extends BaseGeometry {
   c: number;
 }
 
+export interface Custom2DShape extends BaseGeometry {
+  discriminator: "Custom2DShape";
+  points: [number, number][];
+}
+
 export type Geometry =
   | BoxGeometry
   | CircleGeometry
@@ -135,7 +140,8 @@ export type Geometry =
   | OctahedronGeometry
   | TorusGeometry
   | RhomboidGeometry
-  | EllipsoidGeometry;
+  | EllipsoidGeometry
+  | Custom2DShape;
 
 function GeometryComponent({
   geometry,
@@ -618,7 +624,55 @@ function GeometryComponent({
         </>
       );
     }
+    case "Custom2DShape": {
+      const [customGeometry, setCustomGeometry] =
+        useState<THREE.BufferGeometry | null>(null);
 
+      useEffect(() => {
+        const points = geometry.points;
+
+        const shape = new THREE.Shape();
+
+        points.forEach((point) => {
+          const [x, y, z] = point;
+          shape.lineTo(x, y);
+        });
+
+        const shapeGeometry = new THREE.ShapeGeometry(shape);
+        setCustomGeometry(shapeGeometry);
+      }, [geometry]);
+      return (
+        <>
+          {customGeometry && (
+            <mesh
+              geometry={customGeometry}
+              position={geometry.position}
+              rotation={geometry.rotation}
+              scale={geometry.scale}
+              onPointerMove={onPointerMove}
+              onPointerOver={onPointerOver}
+              onPointerOut={onPointerOut}
+            >
+              <meshStandardMaterial
+                attach="material"
+                color={geometry.material.color}
+                opacity={geometry.material.opacity}
+                wireframe={geometry.material.wireframe}
+                side={THREE.DoubleSide}
+                transparent={geometry.material.opacity < 1.0}
+              />
+              {geometry.material.outlines && (
+                <Outlines
+                  thickness={0.05}
+                  color={geometry.material.color}
+                  opacity={geometry.material.opacity}
+                />
+              )}
+            </mesh>
+          )}
+        </>
+      );
+    }
     default:
       return null;
   }
