@@ -314,7 +314,6 @@ const FileUpload = forwardRef((props, ref) => {
     const formData = new FormData();
     formData.append("file", file);
 
-
     const basePath = import.meta.env.BASE_URL || "/";
     fetch(`${basePath}upload`, {
       method: "POST",
