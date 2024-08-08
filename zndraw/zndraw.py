@@ -5,12 +5,12 @@ import typing as t
 
 import ase
 import numpy as np
+import requests
 import socketio.exceptions
 import tqdm
 import znjson
 import znsocket
 from redis import Redis
-import requests
 
 from zndraw.base import Extension, ZnDrawBase
 from zndraw.bonds import ASEComputeBonds
@@ -24,12 +24,12 @@ from zndraw.type_defs import (
     RegisterModifier,
     TimeoutConfig,
 )
-from zndraw.utils import ASEConverter, call_with_retry, emit_with_retry, parse_url
 from zndraw.utils import (
     ASEConverter,
     call_with_retry,
     convert_url_to_http,
     emit_with_retry,
+    parse_url,
 )
 
 log = logging.getLogger(__name__)
@@ -73,7 +73,7 @@ class ZnDraw(ZnDrawBase):
             height=600,
         )
     )
-    verify: bool|str = True 
+    verify: bool | str = True
 
     maximum_message_size: int = dataclasses.field(default=500_000, repr=False)
 

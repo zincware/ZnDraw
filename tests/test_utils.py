@@ -1,8 +1,12 @@
-from zndraw.utils import parse_url
 import numpy as np
 import numpy.testing as npt
 
-from zndraw.utils import convert_url_to_http, direction_to_euler, euler_to_direction
+from zndraw.utils import (
+    convert_url_to_http,
+    direction_to_euler,
+    euler_to_direction,
+    parse_url,
+)
 
 
 def test_parse_url():
@@ -11,6 +15,7 @@ def test_parse_url():
     assert parse_url("http://localhost:5000") == ("http://localhost:5000", None)
     assert parse_url("http://localhost:5000/path") == ("http://localhost:5000", "path")
     assert parse_url("http://localhost:5000/path/") == ("http://localhost:5000", "path")
+
 
 def test_conversion_utils():
     """Test conversion functions"""
