@@ -155,6 +155,8 @@ services:
       - REDIS_PORT=6379
 ```
 
+If you want to host zndraw as subdirectory `domain.com/zndraw` you need to adjust the environmental variables as well as update `base: "/",` in the `app/vite.config.ts` before building the ap..
+
 # References
 
 If you use ZnDraw in your research and find it helpful please cite us.
