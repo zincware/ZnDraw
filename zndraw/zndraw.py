@@ -5,6 +5,7 @@ import typing as t
 
 import ase
 import numpy as np
+import requests
 import socketio.exceptions
 import tqdm
 import znjson
@@ -23,7 +24,13 @@ from zndraw.type_defs import (
     RegisterModifier,
     TimeoutConfig,
 )
-from zndraw.utils import ASEConverter, call_with_retry, emit_with_retry
+from zndraw.utils import (
+    ASEConverter,
+    call_with_retry,
+    convert_url_to_http,
+    emit_with_retry,
+    parse_url,
+)
 
 log = logging.getLogger(__name__)
 
@@ -49,9 +56,7 @@ class ZnDraw(ZnDrawBase):
     token: str | None = None
     auth_token: str | None = None
 
-    socket: socketio.Client = dataclasses.field(
-        default_factory=socketio.Client, repr=False
-    )
+    socket: socketio.Client | None = dataclasses.field(default=None, repr=False)
     timeout: TimeoutConfig = dataclasses.field(
         default_factory=lambda: TimeoutConfig(
             connection=10,
@@ -68,6 +73,7 @@ class ZnDraw(ZnDrawBase):
             height=600,
         )
     )
+    verify: bool | str = True
 
     maximum_message_size: int = dataclasses.field(default=500_000, repr=False)
 
@@ -79,6 +85,11 @@ class ZnDraw(ZnDrawBase):
     )
 
     def __post_init__(self):
+        if self.socket is None:
+            http_session = requests.Session()
+            http_session.verify = self.verify
+            self.socket = socketio.Client(http_session=http_session)
+
         def on_wakeup():
             if self._available:
                 self.socket.emit("modifier:available", list(self._modifiers))
@@ -91,7 +102,15 @@ class ZnDraw(ZnDrawBase):
 
         for idx in range(self.timeout["connect_retries"] + 1):
             try:
-                self.socket.connect(self.url, wait_timeout=self.timeout["connection"])
+                _url, _path = parse_url(self.url)
+                if _path:
+                    self.socket.connect(
+                        _url,
+                        wait_timeout=self.timeout["connection"],
+                        socketio_path=f"/{_path}/socket.io",
+                    )
+                else:
+                    self.socket.connect(_url, wait_timeout=self.timeout["connection"])
                 break
             except socketio.exceptions.ConnectionError as err:
                 log.warning("Connection failed. Retrying...")
@@ -197,9 +216,8 @@ class ZnDraw(ZnDrawBase):
     def _repr_html_(self):
         from IPython.display import IFrame
 
-        address = f"{self.url}/token/{self.token}"
         # TODO: save address and do not replace in post_init
-        address = address.replace("ws", "http")
+        address = convert_url_to_http(f"{self.url}/token/{self.token}")
         log.info(f"Opening ZnDraw at {address}")
         return IFrame(
             address,

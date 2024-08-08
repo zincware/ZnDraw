@@ -109,7 +109,7 @@ The `AddMolecule` extension will appear for all `tokens` and can be used by any 
 A hosted version of ZnDraw is available at https://zndraw.icp.uni-stuttgart.de . To upload data, use:
 
 ```bash
-zndraw-upload <file> --url https://zndraw.icp.uni-stuttgart.de
+zndraw <file> --url https://zndraw.icp.uni-stuttgart.de
 ```
 
 ## Self-Hosting

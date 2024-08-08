@@ -7,7 +7,9 @@ import socket
 import sys
 import tempfile
 import typing as t
+import urllib.parse
 import uuid
+from urllib.parse import urlparse
 
 import ase
 import datamodel_code_generator
@@ -21,6 +23,13 @@ from znjson import ConverterBase
 from zndraw.type_defs import ASEDict
 
 log = logging.getLogger(__name__)
+
+
+def parse_url(input_url) -> t.Tuple[str, t.Optional[str]]:
+    parsed = urlparse(input_url)
+    base_url = f"{parsed.scheme}://{parsed.netloc}"
+    path = parsed.path.strip("/") if parsed.path else None
+    return base_url, path if path else None
 
 
 def rgb2hex(value):
@@ -336,3 +345,14 @@ def euler_to_direction(angles):
     z = np.sin(pitch)
 
     return np.array([x, y, z])
+
+
+def convert_url_to_http(url: str) -> str:
+    """Convert a URL to a local file path."""
+    url = urllib.parse.urlparse(url)
+    if url.scheme == "wss":
+        url = url._replace(scheme="https")
+    elif url.scheme == "ws":
+        url = url._replace(scheme="http")
+
+    return urllib.parse.urlunparse(url)
