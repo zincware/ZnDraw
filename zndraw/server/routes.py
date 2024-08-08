@@ -96,7 +96,7 @@ def logout_route():
 @main.route("/upload", methods=["POST"])
 def upload():
     """Upload a file to the server."""
-    from zndraw import ZnDraw
+    from zndraw import ZnDrawLocal
 
     file = request.files["file"]
     token = session.get("token")
@@ -111,7 +111,11 @@ def upload():
 
         stream = StringIO(file_content.decode("utf-8"))
 
-        vis = ZnDraw(url=request.url_root, token=token)
+        vis = ZnDrawLocal(
+            r=current_app.extensions["redis"],
+            url=current_app.config["SERVER_URL"],
+            token=token,
+        )
         structures = list(ase.io.iread(stream, format=file_format))
         vis.extend(structures)
         vis.socket.disconnect()
@@ -126,13 +130,16 @@ def upload():
 @main.route("/download", methods=["GET"])
 def download():
     """Download a file to the client."""
-    from zndraw import ZnDraw
+    from zndraw import ZnDrawLocal
 
     token = session.get("token")
-    url = request.url_root
 
     file = StringIO()
-    vis = ZnDraw(url=url, token=token)
+    vis = ZnDrawLocal(
+            r=current_app.extensions["redis"],
+            url=current_app.config["SERVER_URL"],
+            token=token,
+        )
     try:
         for atoms in vis:
             ase.io.write(file, atoms, format="xyz", append=True)
