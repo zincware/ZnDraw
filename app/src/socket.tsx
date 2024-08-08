@@ -3,9 +3,17 @@ import { useEffect, useRef } from "react";
 
 import * as THREE from "three";
 
-const serverUrl = window.location.origin;
-// const serverUrl = "http://localhost:1235"; // for local development
-export const socket = io(serverUrl);
+function setupIO() {
+  const basePath = import.meta.env.BASE_URL || "/";
+
+  if (basePath === "/") {
+    // return io("http://localhost:1235"); // for local development
+    return io(window.location.origin);
+  } else {
+    return io(window.location.origin, { path: `${basePath}socket.io` });
+  }
+}
+export const socket = setupIO();
 
 export const sendStep = (step: number, fromSockets: any) => {
   const timeoutRef = useRef(null);
