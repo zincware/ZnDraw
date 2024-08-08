@@ -27,6 +27,8 @@ def index():
         token = uuid.uuid4().hex[:8]
         session["token"] = token
 
+    if "APPLICATION_ROOT" in current_app.config:
+        return redirect(f"{current_app.config['APPLICATION_ROOT']}token/{token}")
     return redirect(f"/token/{token}")
 
 
@@ -49,6 +51,10 @@ def token(token):
 @main.route("/reset")
 def reset():
     session["token"] = uuid.uuid4().hex[:8]  # TODO: how should reset work locally?
+    if "APPLICATION_ROOT" in current_app.config:
+        return redirect(
+            f"{current_app.config['APPLICATION_ROOT']}token/{session['token']}"
+        )
     return redirect(f"/token/{session['token']}")
 
 
@@ -71,6 +77,8 @@ def login_route(auth_token: str | None = None):
     """Create an authenticated session."""
     session["authenticated"] = auth_token == current_app.config.get("AUTH_TOKEN", "NONE")
     if session["authenticated"]:
+        if "APPLICATION_ROOT" in current_app.config:
+            return redirect(f"{current_app.config['APPLICATION_ROOT']}")
         return redirect("/")
     return "Invalid auth token", 403
 
@@ -80,13 +88,15 @@ def logout_route():
     if not session.get("authenticated", False):
         return "Can only log out, if you logged in before.", 403
     session["authenticated"] = False
+    if "APPLICATION_ROOT" in current_app.config:
+        return redirect(f"{current_app.config['APPLICATION_ROOT']}")
     return redirect("/")
 
 
 @main.route("/upload", methods=["POST"])
 def upload():
     """Upload a file to the server."""
-    from zndraw import ZnDraw
+    from zndraw import ZnDrawLocal
 
     file = request.files["file"]
     token = session.get("token")
@@ -101,7 +111,11 @@ def upload():
 
         stream = StringIO(file_content.decode("utf-8"))
 
-        vis = ZnDraw(url=request.url_root, token=token)
+        vis = ZnDrawLocal(
+            r=current_app.extensions["redis"],
+            url=current_app.config["SERVER_URL"],
+            token=token,
+        )
         structures = list(ase.io.iread(stream, format=file_format))
         vis.extend(structures)
         vis.socket.disconnect()
@@ -116,13 +130,16 @@ def upload():
 @main.route("/download", methods=["GET"])
 def download():
     """Download a file to the client."""
-    from zndraw import ZnDraw
+    from zndraw import ZnDrawLocal
 
     token = session.get("token")
-    url = request.url_root
 
     file = StringIO()
-    vis = ZnDraw(url=url, token=token)
+    vis = ZnDrawLocal(
+        r=current_app.extensions["redis"],
+        url=current_app.config["SERVER_URL"],
+        token=token,
+    )
     try:
         for atoms in vis:
             ase.io.write(file, atoms, format="xyz", append=True)

@@ -140,8 +140,8 @@ def test_modify_wrap(server):
 
 def test_modify_replicate(server):
     vis = ZnDraw(url=server, token="test_token")
-    copper = bulk("Cu", cubic=True)
-    vis.extend([copper, copper])
+    wurtzite = bulk("ZnO", "wurtzite", a=3.25, c=5.2)
+    vis.extend([wurtzite, wurtzite])
     vis.socket.emit(
         "modifier:run",
         {"method": {"discriminator": "Replicate", "x": 2, "y": 2, "z": 2, "all": True}},
@@ -150,7 +150,7 @@ def test_modify_replicate(server):
     # Replicate is an inplace modifier
     assert len(vis) == 2
     for idx in range(2):
-        assert len(vis[idx]) == 8 * len(copper)
+        assert len(vis[idx]) == 8 * len(wurtzite)
 
 
 def test_modify_AddLineParticles(server):
