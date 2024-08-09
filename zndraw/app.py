@@ -3,7 +3,6 @@ import eventlet
 eventlet.monkey_patch()
 
 import pathlib
-import pprint
 import time
 
 import redis
@@ -117,10 +116,5 @@ def create_app() -> Flask:
 
     # Add socketio to app extensions for easy access
     app.extensions["socketio"] = socketio
-
-    # Print the app config
-    # TODO: remove
-    print("#### App config ####")
-    pprint.pprint(dict(app.config))
 
     return app
