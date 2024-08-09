@@ -1,5 +1,8 @@
 from zndraw import ZnDraw
 from zndraw.config import ZnDrawConfig
+import znsocket
+import os
+import redis
 
 
 def test_config_defaults(server):
@@ -19,6 +22,11 @@ def test_config_modify_arrows(server):
     vis.config.arrows.normalize = True
     assert vis.config.arrows.normalize is True
 
+    r = redis.Redis.from_url(os.environ["FLASK_STORAGE"])
+    key = f"room:{room}:config"
+    config = znsocket.Dict(r, key)
+    assert config["arrows"]["normalize"] is True
+
 
 def test_config_modify_scene(server):
     room = "test_config_scene"
@@ -28,3 +36,9 @@ def test_config_modify_scene(server):
     assert vis.config.scene.fps == 30
     vis.config.scene.fps = 60
     assert vis.config.scene.fps == 60
+
+    r = redis.Redis.from_url(os.environ["FLASK_STORAGE"])
+    key = f"room:{room}:config"
+    config = znsocket.Dict(r, key)
+    assert config["scene"]["fps"] == 60
+    assert config["scene"]["material"] == "MeshStandardMaterial"
