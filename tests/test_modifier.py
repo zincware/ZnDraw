@@ -187,3 +187,13 @@ def test_modify_center(server):
     vis.socket.sleep(5)
     assert np.allclose(vis[0][0].position, np.diag(vis[0].cell) / 2)
     assert not np.allclose(vis[0].positions, copper.positions)
+
+def test_modify_RemoveAtoms(server):
+    vis = ZnDraw(url=server, token="test_token")
+    vis.append(molecule("H2O"))
+    vis.append(molecule("H2O"))
+    assert len(vis) == 2
+    vis.step = 0
+    vis.socket.emit("modifier:run", {"method": {"discriminator": "RemoveAtoms"}})
+    vis.socket.sleep(5)
+    assert len(vis) == 1

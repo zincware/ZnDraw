@@ -337,6 +337,11 @@ class NewCanvas(UpdateScene):
             )
         ]
 
+class RemoveAtoms(UpdateScene):
+    """Remove the current scene."""
+
+    def run(self, vis: "ZnDraw", **kwargs) -> None:
+        del vis[vis.step]
 
 methods = t.Union[
     Delete,
@@ -350,6 +355,7 @@ methods = t.Union[
     Replicate,
     Connect,
     NewCanvas,
+    RemoveAtoms,
 ]
 
 
