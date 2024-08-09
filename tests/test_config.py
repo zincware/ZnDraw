@@ -1,8 +1,10 @@
+import os
+
+import redis
+import znsocket
+
 from zndraw import ZnDraw
 from zndraw.config import ZnDrawConfig
-import znsocket
-import os
-import redis
 
 
 def test_config_defaults(server):
