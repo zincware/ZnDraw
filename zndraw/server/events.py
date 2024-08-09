@@ -423,10 +423,15 @@ def init_socketio_events(io: SocketIO):
     def room_config_get():
         r: Redis = current_app.extensions["redis"]
         room = session.get("token")
-        return dict(znsocket.Dict(r, f"room:{room}:config"))
+        data = znsocket.Dict(r, f"room:{room}:config")       
+        if set(data.keys()) != {"arrows", "scene"}:
+            from zndraw.config import ZnDrawConfig
+            data.update(ZnDrawConfig(vis=None).to_dict())
+        return dict(data)
 
     @io.on("room:config:set")
     def room_config_set(data: dict):
+        print(f"room:config:set: {data}")
         r: Redis = current_app.extensions["redis"]
         room = session.get("token")
         config = znsocket.Dict(r, f"room:{room}:config")

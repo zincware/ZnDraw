@@ -9,8 +9,7 @@ def test_config_defaults(server):
     vis = ZnDraw(url=server, token="test_token")
     ref_config = ZnDrawConfig(vis=None)
 
-    assert vis.config.arrows == ref_config.arrows
-    assert vis.config.scene == ref_config.scene
+    vis.config.to_dict() == ref_config.to_dict()
 
 
 def test_config_modify_arrows(server):

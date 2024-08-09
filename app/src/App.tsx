@@ -219,6 +219,12 @@ export default function App() {
       socket.emit("room:lock:get", (data: boolean) => {
         setRoomLock(data);
       });
+
+      // get the config
+      socket.emit("room:config:get", (data: any) => {
+        console.log("room config", data);
+        setRoomConfig(data);
+      });
     }
 
     function onSelectionSchema(receivedSchema: any) {

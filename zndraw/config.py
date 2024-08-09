@@ -49,3 +49,9 @@ class ZnDrawConfig:
         if self.vis is not None:
             self.arrows.set_vis(self.vis)
             self.scene.set_vis(self.vis)
+
+    def to_dict(self) -> dict:
+        return {
+            "arrows": dataclasses.asdict(self.arrows),
+            "scene": self.scene.model_dump(),
+        }

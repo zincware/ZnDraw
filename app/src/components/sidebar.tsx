@@ -117,12 +117,12 @@ const SidebarMenu: React.FC<SidebarMenuProps> = ({
 
   const editorRef = useJSONEditor(schema, userInput, setUserInput);
 
-  useEffect(() => {
-    // somehow avoid first trigger when editor is getting ready?
-    if (!useSubmit && userInput !== null) {
-      submitEditor();
-    }
-  }, [userInput, useSubmit]);
+  // useEffect(() => {
+  //   // somehow avoid first trigger when editor is getting ready?
+  //   if (!useSubmit && userInput !== null) {
+  //     submitEditor();
+  //   }
+  // }, [userInput, useSubmit]);
 
   return (
     <Card
