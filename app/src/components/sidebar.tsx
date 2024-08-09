@@ -230,7 +230,12 @@ const PlotsCard = ({
     event: MouseEvent;
     points: any[];
   }) => {
-    setStep(points[0].pointIndex);
+    console.log(points[0]);
+    if (points[0].customdata) {
+      setStep(points[0].customdata[0]);
+    } else {
+      setStep(points[0].pointIndex);
+    }
   };
 
   return (
