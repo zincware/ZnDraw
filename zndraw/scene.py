@@ -47,6 +47,7 @@ class Scene(BaseModel):
     controls: Controls = Field(Controls.OrbitControls, description="Controls")
 
     vectors: str = Field("", description="Visualize vectorial property")
+    vector_scale: float = Field(1.0, ge=0.1, le=5, description="Rescale Vectors")
     selection_color: str = Field("#ffa500", description="Selection color")
     camera_near: float = Field(
         0.1, ge=0.1, le=100, description="Camera near rendering plane"
@@ -113,6 +114,8 @@ class Scene(BaseModel):
         schema["properties"]["particle_size"]["step"] = 0.1
         schema["properties"]["bond_size"]["format"] = "range"
         schema["properties"]["bond_size"]["step"] = 0.1
+        schema["properties"]["vector_scale"]["format"] = "range"
+        schema["properties"]["vector_scale"]["step"] = 0.05
 
         schema["properties"]["camera_near"]["format"] = "range"
         schema["properties"]["camera_near"]["step"] = 0.1
