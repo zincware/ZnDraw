@@ -35,8 +35,7 @@ interface SidebarMenuProps {
   useSubmit?: boolean; // provide a submit button or trigger on change
 }
 
-interface AnalysisMenuProps extends SidebarMenuProps {
-  showPlotsCard: boolean;
+interface handleFigureDataProps {
   setPlotData: (data: any) => void;
   setShowPlotsCard: (value: boolean) => void;
 }
@@ -143,18 +142,7 @@ const SidebarMenu: React.FC<SidebarMenuProps> = ({
   );
 };
 
-const AnalysisMenu: React.FC<AnalysisMenuProps> = ({
-  schema,
-  onSubmit,
-  setPlotData,
-  queuePosition,
-  visible,
-  showPlotsCard,
-  setShowPlotsCard,
-}) => {
-  const [userInput, setUserInput] = useState<any>(null);
-  const editorRef = useJSONEditor(schema, userInput, setUserInput);
-
+const handleFigureData = ({setPlotData, setShowPlotsCard}: handleFigureDataProps) => {
   useEffect(() => {
     const handleFigure = (data) => {
       try {
@@ -167,53 +155,10 @@ const AnalysisMenu: React.FC<AnalysisMenuProps> = ({
     };
 
     socket.on("analysis:figure:set", handleFigure);
-
     return () => {
       socket.off("analysis:figure:set", handleFigure);
     };
   }, []);
-
-  function submitEditor() {
-    if (onSubmit) {
-      onSubmit(userInput);
-    }
-  }
-
-  return (
-    <>
-      <Card
-        className="rounded-0 border-start-0 overflow-y-auto rounded-end"
-        style={{
-          position: "fixed",
-          top: "50px",
-          left: "50px",
-          height: "100%",
-          maxWidth: "35%",
-          display: visible ? "block" : "none",
-        }}
-      >
-        <Card.Body className="pt-0 pb-5 my-0">
-          <div ref={editorRef}></div>
-          <Button
-            onClick={submitEditor}
-            disabled={queuePosition >= 0}
-            className="mx-2"
-          >
-            {queuePosition > 0 && `Queue position: ${queuePosition}`}
-            {queuePosition == 0 && `Running`}
-            {queuePosition < 0 && `Submit`}
-          </Button>
-          <Button
-            onClick={() => {
-              setShowPlotsCard(!showPlotsCard);
-            }}
-          >
-            {showPlotsCard ? "Hide Figure" : "Show Figure"}
-          </Button>
-        </Card.Body>
-      </Card>
-    </>
-  );
 };
 
 const PlotsCard = ({
@@ -362,6 +307,8 @@ function SideBar({
   });
   const [showPlotsCard, setShowPlotsCard] = useState<boolean>(false);
 
+  handleFigureData({setPlotData, setShowPlotsCard});
+
   // if any menu is open and you click escape, close it
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
@@ -508,16 +455,14 @@ function SideBar({
         visible={visibleOption == "geometry"}
         useSubmit={true}
       />
-      <AnalysisMenu
+      <SidebarMenu
         schema={analysisSchema}
         onSubmit={(data: any) => {
           socket.emit("analysis:run", data);
         }}
-        setPlotData={setPlotData}
         queuePosition={analysisQueue}
         visible={visibleOption == "analysis"}
-        showPlotsCard={showPlotsCard}
-        setShowPlotsCard={setShowPlotsCard}
+        useSubmit={true}
       />
       <PlotsCard
         setPlotData={setPlotData}
