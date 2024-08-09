@@ -35,6 +35,7 @@ interface ArrowsProps {
   colormap: HSLColor[];
   colorrange: ColorRange;
   opacity?: number;
+  rescale?: number;
 }
 
 const Arrows: React.FC<ArrowsProps> = ({
@@ -44,6 +45,7 @@ const Arrows: React.FC<ArrowsProps> = ({
   colormap,
   colorrange,
   opacity = 1.0,
+  rescale = 1.0,
 }) => {
   const geometry = useMemo(() => createArrowMesh(), []);
   const meshRef = useRef<THREE.InstancedMesh>(null);
@@ -62,8 +64,10 @@ const Arrows: React.FC<ArrowsProps> = ({
       startVector.fromArray(start[i]);
       endVector.fromArray(end[i]);
       direction.subVectors(endVector, startVector);
-      const length = direction.length();
+      let length = direction.length();
       const color = interpolateColor(colormap, colorrange, length);
+      // rescale after the color interpolation
+      length *= rescale;
 
       const scale = scale_vector_thickness
         ? new THREE.Vector3(length, length, length)
