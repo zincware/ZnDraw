@@ -24,6 +24,8 @@ JSONEditor.defaults.options.disable_properties = true;
 JSONEditor.defaults.options.disable_collapse = true;
 JSONEditor.defaults.options.no_additional_properties = true;
 JSONEditor.defaults.options.keep_oneof_values = false;
+// JSONEditor.defaults.options.titleHidden = true;
+JSONEditor.defaults.editors.object.options.titleHidden = true;
 
 interface SidebarMenuProps {
   schema: any;
@@ -33,6 +35,7 @@ interface SidebarMenuProps {
   setTrigger?: (value: boolean) => void; // Mark setTrigger as optional
   visible: boolean;
   useSubmit?: boolean; // provide a submit button or trigger on change
+  closeMenu?: () => void;
 }
 
 interface handleFigureDataProps {
@@ -90,6 +93,7 @@ const SidebarMenu: React.FC<SidebarMenuProps> = ({
   setTrigger,
   visible,
   useSubmit,
+  closeMenu,
 }) => {
   const [userInput, setUserInput] = useState<any>(null);
 
@@ -118,27 +122,38 @@ const SidebarMenu: React.FC<SidebarMenuProps> = ({
 
   return (
     <Card
-      className="rounded-0 border-start-0 overflow-y-auto rounded-end"
+    className="rounded-0 border-start-0 overflow-y-auto rounded-end"
+    style={{
+      position: "fixed",
+      top: "50px",
+      left: "50px",
+      height: "100%",
+      maxWidth: "35%",
+      margin: 0,
+      padding: 0,
+      display: visible ? "block" : "none",
+    }}
+  >
+    <Card.Header
+      className="d-flex justify-content-between align-items-center"
       style={{
-        position: "fixed",
-        top: "50px",
-        left: "50px",
-        height: "100%",
-        maxWidth: "35%",
-        display: visible ? "block" : "none",
+        backgroundColor: "inherit", // Use the same background color as the rest of the card
       }}
     >
-      <Card.Body className="pt-0 pb-5 my-0">
-        <div ref={editorRef}></div>
-        {useSubmit && (
-          <Button onClick={submitEditor} disabled={queuePosition >= 0}>
-            {queuePosition > 0 && `Queue position: ${queuePosition}`}
-            {queuePosition == 0 && `Running`}
-            {queuePosition < 0 && `Submit`}
-          </Button>
-        )}
-      </Card.Body>
-    </Card>
+      <Card.Title>{schema.title}</Card.Title>
+      <Button variant="close" className="ms-auto" onClick={closeMenu} />
+    </Card.Header>
+    <Card.Body style={{marginTop: -30, paddingBottom: 80}}>
+      <div ref={editorRef}></div>
+      {useSubmit && (
+        <Button onClick={submitEditor} disabled={queuePosition >= 0}>
+          {queuePosition > 0 && `Queue position: ${queuePosition}`}
+          {queuePosition == 0 && `Running`}
+          {queuePosition < 0 && `Submit`}
+        </Button>
+      )}
+    </Card.Body>
+  </Card>
   );
 };
 
@@ -429,6 +444,7 @@ function SideBar({
         setTrigger={setTriggerSelection}
         visible={visibleOption == "selection"}
         useSubmit={true}
+        closeMenu={() => setVisibleOption("")}
       />
       <SidebarMenu
         schema={modifierSchema}
@@ -438,6 +454,7 @@ function SideBar({
         queuePosition={modifierQueue}
         visible={visibleOption == "interaction"}
         useSubmit={true}
+        closeMenu={() => setVisibleOption("")}
       />
       <SidebarMenu
         schema={sceneSchema}
@@ -445,6 +462,7 @@ function SideBar({
         queuePosition={-1}
         visible={visibleOption == "scene"}
         useSubmit={false}
+        closeMenu={() => setVisibleOption("")}
       />
       <SidebarMenu
         schema={geometrySchema}
@@ -454,6 +472,7 @@ function SideBar({
         queuePosition={geometryQueue}
         visible={visibleOption == "geometry"}
         useSubmit={true}
+        closeMenu={() => setVisibleOption("")}
       />
       <SidebarMenu
         schema={analysisSchema}
@@ -463,6 +482,7 @@ function SideBar({
         queuePosition={analysisQueue}
         visible={visibleOption == "analysis"}
         useSubmit={true}
+        closeMenu={() => setVisibleOption("")}
       />
       <PlotsCard
         setPlotData={setPlotData}
