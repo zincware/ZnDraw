@@ -1,8 +1,8 @@
 import dataclasses
 import typing as t
 
-from zndraw.utils import emit_with_retry
 from zndraw.scene import Scene
+from zndraw.utils import emit_with_retry
 
 if t.TYPE_CHECKING:
     from zndraw import ZnDraw

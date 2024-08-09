@@ -65,7 +65,7 @@ const useJSONEditor = (
           const editorValue = JSONEditorRef.current.getValue();
           JSONEditorRef.current.validate();
           setUserInput(editorValue);
-          const fps = JSONEditorRef.current.getEditor('root.material');
+          const fps = JSONEditorRef.current.getEditor("root.material");
           if (fps) {
             fps.setValue("MeshStandardMaterial");
           }

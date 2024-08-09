@@ -6,14 +6,12 @@ import znsocket
 from flask import current_app, request, session
 from flask_socketio import SocketIO, emit, join_room
 from redis import Redis
-import dataclasses
 
 from zndraw.analyse import Analysis
 from zndraw.draw import Geometry
 from zndraw.modify import Modifier
 from zndraw.scene import Scene
 from zndraw.selection import Selection
-from zndraw.config import ArrowsConfig, ZnDrawConfig
 from zndraw.tasks import (
     run_analysis,
     run_geometry,
@@ -108,7 +106,9 @@ def init_socketio_events(io: SocketIO):
 
         emit("selection:schema", Selection.updated_schema())
         emit("modifier:schema:refresh")
-        emit("scene:schema", Scene.updated_schema()) # ideally the settings would be parsed here!
+        emit(
+            "scene:schema", Scene.updated_schema()
+        )  # ideally the settings would be parsed here!
         emit("geometry:schema", Geometry.updated_schema())
         emit("analysis:schema:refresh")
 
@@ -425,9 +425,9 @@ def init_socketio_events(io: SocketIO):
         room = session.get("token")
         try:
             data = json.loads(r.get(f"room:{room}:config"))
-        except TypeError: # json.loads(None)
+        except TypeError:  # json.loads(None)
             data = {"scene": {}, "arrows": {}}
-        
+
         print(f"room:config:get {data}")
         return data
 
@@ -437,8 +437,8 @@ def init_socketio_events(io: SocketIO):
         room = session.get("token")
         try:
             config = json.loads(r.get(f"room:{room}:config"))
-        except TypeError: # json.loads(None)
-            config = {"scene": {}, "arrows": {}} # need defaults?
+        except TypeError:  # json.loads(None)
+            config = {"scene": {}, "arrows": {}}  # need defaults?
         config.update(data)
         r.set(f"room:{room}:config", json.dumps(config))
         print(f"room:config:set {config}")

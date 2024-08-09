@@ -89,7 +89,7 @@ export default function App() {
   const [hoveredId, setHoveredId] = useState<number>(null);
   const [roomConfig, setRoomConfig] = useState({
     arrows: {},
-    scene: {}
+    scene: {},
   });
 
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(true);
@@ -295,10 +295,10 @@ export default function App() {
 
     function onRoomConfig(data: any) {
       setRoomConfig((prevConfig: any) => ({
-          ...prevConfig,
-          ...data
+        ...prevConfig,
+        ...data,
       }));
-  }
+    }
 
     function onCameraSet(data: { position: number[]; target: number[] }) {
       cameraFromSocket.current = true;
@@ -563,143 +563,143 @@ export default function App() {
     }));
     // This is emmiting when the sidebar is created as well
     socket.emit("room:config:set", { scene: data });
-  }
+  };
 
   return (
     <>
       <div className="canvas-container" onDragOver={onDragOver} onDrop={onDrop}>
         {roomConfig.scene.controls !== undefined && (
-        <Canvas onPointerMissed={onPointerMissed}>
-          <PerspectiveCamera
-            ref={cameraRef}
-            makeDefault
-            near={roomConfig["scene"]["camera_near"]}
-            far={roomConfig["scene"]["camera_far"]}
-          />
-          {/* <ambientLight intensity={Math.PI / 20}/> */}
-          <pointLight
-            ref={cameraLightRef}
-            position={[0, 0, 0]}
-            decay={0}
-            intensity={Math.PI}
-            castShadow
-          />
-          {roomConfig["scene"]["vectorfield"] &&
-            currentFrame.vectors !== undefined && (
-              <VectorField
-                vectors={currentFrame.vectors}
-                arrowsConfig={roomConfig.arrows}
+          <Canvas onPointerMissed={onPointerMissed}>
+            <PerspectiveCamera
+              ref={cameraRef}
+              makeDefault
+              near={roomConfig["scene"]["camera_near"]}
+              far={roomConfig["scene"]["camera_far"]}
+            />
+            {/* <ambientLight intensity={Math.PI / 20}/> */}
+            <pointLight
+              ref={cameraLightRef}
+              position={[0, 0, 0]}
+              decay={0}
+              intensity={Math.PI}
+              castShadow
+            />
+            {roomConfig["scene"]["vectorfield"] &&
+              currentFrame.vectors !== undefined && (
+                <VectorField
+                  vectors={currentFrame.vectors}
+                  arrowsConfig={roomConfig.arrows}
+                />
+              )}
+            <ParticleInstances
+              frame={currentFrame}
+              selectedIds={selectedIds}
+              setSelectedIds={setSelectedIds}
+              isDrawing={isDrawing}
+              points={points}
+              setPoints={setPoints}
+              setOrbitControlsTarget={setOrbitControlsTarget}
+              hoveredId={hoveredId}
+              setHoveredId={setHoveredId}
+              setTriggerSelection={setTriggerSelection}
+              sceneSettings={roomConfig["scene"]}
+            />
+            <BondInstances
+              frame={currentFrame}
+              selectedIds={selectedIds}
+              hoveredId={hoveredId}
+              sceneSettings={roomConfig["scene"]}
+            />
+            {roomConfig["scene"]["simulation_box"] && (
+              <SimulationCell frame={currentFrame} colorMode={colorMode} />
+            )}
+            {roomConfig["scene"].controls === "OrbitControls" && (
+              <OrbitControls
+                ref={controlsRef}
+                enableDamping={false}
+                target={orbitControlsTarget}
+                onChange={(e) => {
+                  if (!e) return;
+                  const camera = e.target.object;
+                  if (cameraLightRef.current) {
+                    cameraLightRef.current.position
+                      .copy(camera.position)
+                      .sub(orbitControlsTarget)
+                      .normalize()
+                      .add(camera.position);
+                  }
+                  setCameraPosition(camera.position);
+                }}
+                makeDefault
               />
             )}
-          <ParticleInstances
-            frame={currentFrame}
-            selectedIds={selectedIds}
-            setSelectedIds={setSelectedIds}
-            isDrawing={isDrawing}
-            points={points}
-            setPoints={setPoints}
-            setOrbitControlsTarget={setOrbitControlsTarget}
-            hoveredId={hoveredId}
-            setHoveredId={setHoveredId}
-            setTriggerSelection={setTriggerSelection}
-            sceneSettings={roomConfig["scene"]}
-          />
-          <BondInstances
-            frame={currentFrame}
-            selectedIds={selectedIds}
-            hoveredId={hoveredId}
-            sceneSettings={roomConfig["scene"]}
-          />
-          {roomConfig["scene"]["simulation_box"] && (
-            <SimulationCell frame={currentFrame} colorMode={colorMode} />
-          )}
-          {roomConfig["scene"].controls === "OrbitControls" && (
-            <OrbitControls
-              ref={controlsRef}
-              enableDamping={false}
-              target={orbitControlsTarget}
-              onChange={(e) => {
-                if (!e) return;
-                const camera = e.target.object;
-                if (cameraLightRef.current) {
-                  cameraLightRef.current.position
-                    .copy(camera.position)
-                    .sub(orbitControlsTarget)
-                    .normalize()
-                    .add(camera.position);
-                }
-                setCameraPosition(camera.position);
-              }}
-              makeDefault
+            {roomConfig["scene"].controls === "TrackballControls" && (
+              <TrackballControls
+                ref={controlsRef}
+                target={orbitControlsTarget}
+                staticMoving={true}
+                onChange={(e) => {
+                  if (!e) return;
+                  const camera = e.target.object;
+                  if (cameraLightRef.current) {
+                    cameraLightRef.current.position
+                      .copy(camera.position)
+                      .sub(orbitControlsTarget)
+                      .normalize()
+                      .add(camera.position);
+                  }
+                  setCameraPosition(camera.position);
+                }}
+                makeDefault
+              />
+            )}
+            <Player
+              playing={playing}
+              togglePlaying={setPlaying}
+              step={step}
+              setStep={setStep}
+              fps={roomConfig["scene"].fps}
+              loop={roomConfig["scene"]["Animation Loop"]}
+              length={length}
             />
-          )}
-          {roomConfig["scene"].controls === "TrackballControls" && (
-            <TrackballControls
-              ref={controlsRef}
-              target={orbitControlsTarget}
-              staticMoving={true}
-              onChange={(e) => {
-                if (!e) return;
-                const camera = e.target.object;
-                if (cameraLightRef.current) {
-                  cameraLightRef.current.position
-                    .copy(camera.position)
-                    .sub(orbitControlsTarget)
-                    .normalize()
-                    .add(camera.position);
-                }
-                setCameraPosition(camera.position);
-              }}
-              makeDefault
-            />
-          )}
-          <Player
-            playing={playing}
-            togglePlaying={setPlaying}
-            step={step}
-            setStep={setStep}
-            fps={roomConfig["scene"].fps}
-            loop={roomConfig["scene"]["Animation Loop"]}
-            length={length}
-          />
-          <Line3D
-            points={points}
-            setPoints={setPoints}
-            setSelectedPoint={setSelectedPoint}
-            isDrawing={isDrawing}
-            colorMode={colorMode}
-            hoveredId={hoveredId}
-            setIsDrawing={setIsDrawing}
-            setLineLength={setLineLength}
-          />
-          <ControlsBuilder
-            points={points}
-            setPoints={setPoints}
-            selectedPoint={selectedPoint}
-            setSelectedPoint={setSelectedPoint}
-          />
-          <Geometries
-            geometries={geometries}
-            isDrawing={isDrawing}
-            setHoveredId={setHoveredId}
-            setPoints={setPoints}
-          />
-          <VirtualCanvas
-            setPoints={setPoints}
-            isDrawing={isDrawing}
-            points={points}
-            hoveredId={hoveredId}
-            setHoveredId={setHoveredId}
-          />
-          {roomConfig["scene"].vectors != "" && (
-            <PerParticleVectors
-              frame={currentFrame}
-              property={roomConfig["scene"].vectors}
+            <Line3D
+              points={points}
+              setPoints={setPoints}
+              setSelectedPoint={setSelectedPoint}
+              isDrawing={isDrawing}
               colorMode={colorMode}
-              arrowsConfig={roomConfig.arrows}
-            ></PerParticleVectors>
-          )}
-        </Canvas>
+              hoveredId={hoveredId}
+              setIsDrawing={setIsDrawing}
+              setLineLength={setLineLength}
+            />
+            <ControlsBuilder
+              points={points}
+              setPoints={setPoints}
+              selectedPoint={selectedPoint}
+              setSelectedPoint={setSelectedPoint}
+            />
+            <Geometries
+              geometries={geometries}
+              isDrawing={isDrawing}
+              setHoveredId={setHoveredId}
+              setPoints={setPoints}
+            />
+            <VirtualCanvas
+              setPoints={setPoints}
+              isDrawing={isDrawing}
+              points={points}
+              hoveredId={hoveredId}
+              setHoveredId={setHoveredId}
+            />
+            {roomConfig["scene"].vectors != "" && (
+              <PerParticleVectors
+                frame={currentFrame}
+                property={roomConfig["scene"].vectors}
+                colorMode={colorMode}
+                arrowsConfig={roomConfig.arrows}
+              ></PerParticleVectors>
+            )}
+          </Canvas>
         )}
       </div>
       <div className="App">

@@ -17,6 +17,7 @@ from zndraw.bonds import ASEComputeBonds
 from zndraw.config import ArrowsConfig, ZnDrawConfig
 from zndraw.draw import Geometry, Object3D
 from zndraw.exceptions import RoomLockedError
+from zndraw.scene import Scene
 from zndraw.type_defs import (
     ATOMS_LIKE,
     CameraData,
@@ -24,7 +25,6 @@ from zndraw.type_defs import (
     RegisterModifier,
     TimeoutConfig,
 )
-from zndraw.scene import Scene
 from zndraw.utils import (
     ASEConverter,
     call_with_retry,
@@ -487,7 +487,11 @@ class ZnDraw(ZnDrawBase):
             "room:config:get",
             retries=self.timeout["call_retries"],
         )
-        return ZnDrawConfig(vis=self, arrows=ArrowsConfig(**config["arrows"]), scene=Scene(**config["scene"]))
+        return ZnDrawConfig(
+            vis=self,
+            arrows=ArrowsConfig(**config["arrows"]),
+            scene=Scene(**config["scene"]),
+        )
 
     @property
     def locked(self) -> bool:

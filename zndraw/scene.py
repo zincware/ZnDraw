@@ -7,8 +7,7 @@ from flask import current_app, session
 from pydantic import BaseModel, Field
 from redis import Redis
 
-from zndraw.utils import ASEConverter
-from zndraw.utils import emit_with_retry
+from zndraw.utils import ASEConverter, emit_with_retry
 
 
 class Material(str, enum.Enum):
@@ -126,7 +125,7 @@ class Scene(BaseModel):
         # schema["properties"]["line_label"]["format"] = "checkbox"
 
         return schema
-    
+
     def __setattr__(self, name: str, value) -> None:
         super().__setattr__(name, value)
         if hasattr(self, "_vis") and self._vis is not None:
