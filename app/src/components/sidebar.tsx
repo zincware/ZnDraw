@@ -38,7 +38,6 @@ interface SidebarMenuProps {
 interface AnalysisMenuProps extends SidebarMenuProps {
   showPlotsCard: boolean;
   setPlotData: (data: any) => void;
-  colorMode: string;
   setShowPlotsCard: (value: boolean) => void;
 }
 
@@ -126,6 +125,7 @@ const SidebarMenu: React.FC<SidebarMenuProps> = ({
         top: "50px",
         left: "50px",
         height: "100%",
+        maxWidth: "35%",
         display: visible ? "block" : "none",
       }}
     >
@@ -149,15 +149,10 @@ const AnalysisMenu: React.FC<AnalysisMenuProps> = ({
   setPlotData,
   queuePosition,
   visible,
-  colorMode,
   showPlotsCard,
   setShowPlotsCard,
 }) => {
   const [userInput, setUserInput] = useState<any>(null);
-  const [plotStyle, setPlotStyle] = useState<any>({
-    width: "100%",
-    height: "100%",
-  });
   const editorRef = useJSONEditor(schema, userInput, setUserInput);
 
   useEffect(() => {
@@ -193,7 +188,7 @@ const AnalysisMenu: React.FC<AnalysisMenuProps> = ({
           top: "50px",
           left: "50px",
           height: "100%",
-          width: "50%",
+          maxWidth: "35%",
           display: visible ? "block" : "none",
         }}
       >
@@ -521,7 +516,6 @@ function SideBar({
         setPlotData={setPlotData}
         queuePosition={analysisQueue}
         visible={visibleOption == "analysis"}
-        colorMode={colorMode}
         showPlotsCard={showPlotsCard}
         setShowPlotsCard={setShowPlotsCard}
       />
