@@ -24,6 +24,7 @@ from zndraw.type_defs import (
     RegisterModifier,
     TimeoutConfig,
 )
+from zndraw.scene import Scene
 from zndraw.utils import (
     ASEConverter,
     call_with_retry,
@@ -486,7 +487,7 @@ class ZnDraw(ZnDrawBase):
             "room:config:get",
             retries=self.timeout["call_retries"],
         )
-        return ZnDrawConfig(vis=self, arrows=ArrowsConfig(**config["arrows"]))
+        return ZnDrawConfig(vis=self, arrows=ArrowsConfig(**config["arrows"]), scene=Scene(**config["scene"]))
 
     @property
     def locked(self) -> bool:

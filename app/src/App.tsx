@@ -58,20 +58,6 @@ export default function App() {
   });
   const [playing, setPlaying] = useState<boolean>(false);
   const [length, setLength] = useState<number>(0);
-  const [sceneSettings, setSceneSettings] = useState({
-    fps: 60,
-    "Animation Loop": false,
-    simulation_box: false,
-    vectorfield: true,
-    vectors: "",
-    controls: "OrbitControls",
-    selection_color: "#ffa500",
-    material: "MeshStandardMaterial",
-    particle_size: 1.0,
-    bond_size: 1.0,
-    camera_near: 0.1,
-    camera_far: 1000,
-  });
   // updated via sockets
   const [step, setStep] = useState<number>(0);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
@@ -109,6 +95,20 @@ export default function App() {
       scale_vector_thickness: false,
       opacity: 1.0,
     },
+    scene: {
+      fps: 60,
+      "Animation Loop": false,
+      simulation_box: false,
+      vectorfield: true,
+      vectors: "",
+      controls: "OrbitControls",
+      selection_color: "#ffa500",
+      material: "MeshStandardMaterial",
+      particle_size: 1.0,
+      bond_size: 1.0,
+      camera_near: 0.1,
+      camera_far: 1000,
+    }
   });
 
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(true);
@@ -164,6 +164,10 @@ export default function App() {
       }
     });
   }, [step, needsUpdate]);
+
+  useEffect(() => {
+    socket.emit("room:config:set", roomConfig);
+  }, [roomConfig]);
 
   useEffect(() => {
     // TODO can't be here, because is dependent on the length
@@ -308,8 +312,11 @@ export default function App() {
     }
 
     function onRoomConfig(data: any) {
-      setRoomConfig(data);
-    }
+      setRoomConfig((prevConfig: any) => ({
+          ...prevConfig,
+          ...data
+      }));
+  }
 
     function onCameraSet(data: { position: number[]; target: number[] }) {
       cameraFromSocket.current = true;
@@ -574,8 +581,8 @@ export default function App() {
           <PerspectiveCamera
             ref={cameraRef}
             makeDefault
-            near={sceneSettings["camera_near"]}
-            far={sceneSettings["camera_far"]}
+            near={roomConfig["scene"]["camera_near"]}
+            far={roomConfig["scene"]["camera_far"]}
           />
           {/* <ambientLight intensity={Math.PI / 20}/> */}
           <pointLight
@@ -585,7 +592,7 @@ export default function App() {
             intensity={Math.PI}
             castShadow
           />
-          {sceneSettings["vectorfield"] &&
+          {roomConfig["scene"]["vectorfield"] &&
             currentFrame.vectors !== undefined && (
               <VectorField
                 vectors={currentFrame.vectors}
@@ -603,18 +610,18 @@ export default function App() {
             hoveredId={hoveredId}
             setHoveredId={setHoveredId}
             setTriggerSelection={setTriggerSelection}
-            sceneSettings={sceneSettings}
+            sceneSettings={roomConfig["scene"]}
           />
           <BondInstances
             frame={currentFrame}
             selectedIds={selectedIds}
             hoveredId={hoveredId}
-            sceneSettings={sceneSettings}
+            sceneSettings={roomConfig["scene"]}
           />
-          {sceneSettings["simulation_box"] && (
+          {roomConfig["scene"]["simulation_box"] && (
             <SimulationCell frame={currentFrame} colorMode={colorMode} />
           )}
-          {sceneSettings.controls === "OrbitControls" && (
+          {roomConfig["scene"].controls === "OrbitControls" && (
             <OrbitControls
               ref={controlsRef}
               enableDamping={false}
@@ -634,7 +641,7 @@ export default function App() {
               makeDefault
             />
           )}
-          {sceneSettings.controls === "TrackballControls" && (
+          {roomConfig["scene"].controls === "TrackballControls" && (
             <TrackballControls
               ref={controlsRef}
               target={orbitControlsTarget}
@@ -659,8 +666,8 @@ export default function App() {
             togglePlaying={setPlaying}
             step={step}
             setStep={setStep}
-            fps={sceneSettings.fps}
-            loop={sceneSettings["Animation Loop"]}
+            fps={roomConfig["scene"].fps}
+            loop={roomConfig["scene"]["Animation Loop"]}
             length={length}
           />
           <Line3D
@@ -692,10 +699,10 @@ export default function App() {
             hoveredId={hoveredId}
             setHoveredId={setHoveredId}
           />
-          {sceneSettings.vectors != "" && (
+          {roomConfig["scene"].vectors != "" && (
             <PerParticleVectors
               frame={currentFrame}
-              property={sceneSettings.vectors}
+              property={roomConfig["scene"].vectors}
               colorMode={colorMode}
               arrowsConfig={roomConfig.arrows}
             ></PerParticleVectors>
@@ -723,8 +730,8 @@ export default function App() {
           sceneSchema={sceneSchema}
           geometrySchema={geometrySchema}
           analysisSchema={analysisSchema}
-          sceneSettings={sceneSettings}
-          setSceneSettings={setSceneSettings}
+          sceneSettings={roomConfig["scene"]}
+          setSceneSettings={(data) => setRoomConfig(prev => ({ ...prev, scene: data }))}
           modifierQueue={modifierQueue}
           selectionQueue={selectionQueue}
           geometryQueue={geometryQueue}

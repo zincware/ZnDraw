@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field
 from redis import Redis
 
 from zndraw.utils import ASEConverter
+from zndraw.utils import emit_with_retry
 
 
 class Material(str, enum.Enum):
@@ -125,3 +126,22 @@ class Scene(BaseModel):
         # schema["properties"]["line_label"]["format"] = "checkbox"
 
         return schema
+    
+    def __setattr__(self, name: str, value) -> None:
+        super().__setattr__(name, value)
+        if hasattr(self, "_vis") and self._vis is not None:
+            # do we still need to check for `vis` ?
+            if name != "vis" and name in self.model_fields:
+                data = {
+                    "scene": self.model_dump(),
+                }
+                emit_with_retry(
+                    self._vis.socket,
+                    "room:config:set",
+                    data,
+                    retries=self._vis.timeout["emit_retries"],
+                )
+                self._vis.socket.sleep(0.1)  # maybe use call?
+
+    def set_vis(self, vis: "ZnDraw") -> None:
+        self._vis = vis
