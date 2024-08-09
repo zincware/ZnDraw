@@ -41,10 +41,11 @@ class ArrowsConfig:
 
 @dataclasses.dataclass
 class ZnDrawConfig:
-    vis: "ZnDraw" = dataclasses.field(repr=False)
+    vis: "ZnDraw|None" = dataclasses.field(repr=False)
     arrows: ArrowsConfig = dataclasses.field(default_factory=ArrowsConfig)
     scene: Scene = dataclasses.field(default_factory=Scene)
 
     def __post_init__(self) -> None:
-        self.arrows.set_vis(self.vis)
-        self.scene.set_vis(self.vis)
+        if self.vis:
+            self.arrows.set_vis(self.vis)
+            self.scene.set_vis(self.vis)

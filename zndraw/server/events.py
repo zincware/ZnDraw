@@ -6,12 +6,14 @@ import znsocket
 from flask import current_app, request, session
 from flask_socketio import SocketIO, emit, join_room
 from redis import Redis
+import dataclasses
 
 from zndraw.analyse import Analysis
 from zndraw.draw import Geometry
 from zndraw.modify import Modifier
 from zndraw.scene import Scene
 from zndraw.selection import Selection
+from zndraw.config import ArrowsConfig, ZnDrawConfig
 from zndraw.tasks import (
     run_analysis,
     run_geometry,
@@ -106,33 +108,9 @@ def init_socketio_events(io: SocketIO):
 
         emit("selection:schema", Selection.updated_schema())
         emit("modifier:schema:refresh")
-        emit("scene:schema", Scene.updated_schema())
+        emit("scene:schema", Scene.updated_schema()) # ideally the settings would be parsed here!
         emit("geometry:schema", Geometry.updated_schema())
         emit("analysis:schema:refresh")
-
-        # set default arrows config
-        if not r.exists(f"room:{room}:config"):
-            r.set(
-                f"room:{room}:config",
-                # TODO: use the default function from config
-                json.dumps(
-                    {
-                        "arrows": {
-                            "colormap": [[-0.5, 0.9, 0.5], [0.0, 0.9, 0.5]],
-                            "normalize": True,
-                            "colorrange": [0, 1],
-                            "scale_vector_thickness": False,
-                            "opacity": 1.0,
-                        },
-                    }
-                ),
-            )
-
-        emit(
-            "room:config:set",
-            json.loads(r.get(f"room:{room}:config")),
-            to=room,
-        )
 
         if "TUTORIAL" in current_app.config:
             emit("tutorial:url", current_app.config["TUTORIAL"])
@@ -445,15 +423,25 @@ def init_socketio_events(io: SocketIO):
     def room_config_get():
         r: Redis = current_app.extensions["redis"]
         room = session.get("token")
-        return json.loads(r.get(f"room:{room}:config"))
+        try:
+            data = json.loads(r.get(f"room:{room}:config"))
+        except TypeError: # json.loads(None)
+            data = {"scene": {}, "arrows": {}}
+        
+        print(f"room:config:get {data}")
+        return data
 
     @io.on("room:config:set")
     def room_config_set(data: dict):
         r: Redis = current_app.extensions["redis"]
         room = session.get("token")
-        config = json.loads(r.get(f"room:{room}:config"))
+        try:
+            config = json.loads(r.get(f"room:{room}:config"))
+        except TypeError: # json.loads(None)
+            config = {"scene": {}, "arrows": {}} # need defaults?
         config.update(data)
         r.set(f"room:{room}:config", json.dumps(config))
+        print(f"room:config:set {config}")
         emit("room:config:set", data, to=room, include_self=False)
 
     @io.on("analysis:figure:set")

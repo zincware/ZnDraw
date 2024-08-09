@@ -88,27 +88,8 @@ export default function App() {
   const [colorMode, handleColorMode] = useColorMode();
   const [hoveredId, setHoveredId] = useState<number>(null);
   const [roomConfig, setRoomConfig] = useState({
-    arrows: {
-      colormap: [[0, 0, 0.5]],
-      colorrange: [0, 1],
-      normalize: true,
-      scale_vector_thickness: false,
-      opacity: 1.0,
-    },
-    scene: {
-      fps: 60,
-      "Animation Loop": false,
-      simulation_box: false,
-      vectorfield: true,
-      vectors: "",
-      controls: "OrbitControls",
-      selection_color: "#ffa500",
-      material: "MeshStandardMaterial",
-      particle_size: 1.0,
-      bond_size: 1.0,
-      camera_near: 0.1,
-      camera_far: 1000,
-    }
+    arrows: {},
+    scene: {}
   });
 
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(true);
@@ -165,9 +146,10 @@ export default function App() {
     });
   }, [step, needsUpdate]);
 
-  useEffect(() => {
-    socket.emit("room:config:set", roomConfig);
-  }, [roomConfig]);
+  // useEffect(() => {
+  //   console.log("roomConfig", roomConfig);
+  //   socket.emit("room:config:set", roomConfig);
+  // }, [roomConfig]);
 
   useEffect(() => {
     // TODO can't be here, because is dependent on the length
@@ -574,9 +556,19 @@ export default function App() {
     setSelectedIds(new Set());
   };
 
+  const setSceneSettings = (data: any) => {
+    setRoomConfig((prev) => ({
+      ...prev,
+      scene: data,
+    }));
+    // This is emmiting when the sidebar is created as well
+    socket.emit("room:config:set", { scene: data });
+  }
+
   return (
     <>
       <div className="canvas-container" onDragOver={onDragOver} onDrop={onDrop}>
+        {roomConfig.scene.controls !== undefined && (
         <Canvas onPointerMissed={onPointerMissed}>
           <PerspectiveCamera
             ref={cameraRef}
@@ -708,6 +700,7 @@ export default function App() {
             ></PerParticleVectors>
           )}
         </Canvas>
+        )}
       </div>
       <div className="App">
         <HeadBar
@@ -731,7 +724,7 @@ export default function App() {
           geometrySchema={geometrySchema}
           analysisSchema={analysisSchema}
           sceneSettings={roomConfig["scene"]}
-          setSceneSettings={(data) => setRoomConfig(prev => ({ ...prev, scene: data }))}
+          setSceneSettings={setSceneSettings}
           modifierQueue={modifierQueue}
           selectionQueue={selectionQueue}
           geometryQueue={geometryQueue}
