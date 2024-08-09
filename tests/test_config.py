@@ -1,8 +1,5 @@
 from zndraw import ZnDraw
 from zndraw.config import ZnDrawConfig
-import os
-import redis
-
 
 
 def test_config_defaults(server):
@@ -11,6 +8,7 @@ def test_config_defaults(server):
 
     assert vis.config.arrows == ref_config.arrows
     assert vis.config.scene == ref_config.scene
+
 
 def test_config_modify_arrows(server):
     room = "test_config_arrows"
