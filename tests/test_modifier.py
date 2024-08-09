@@ -188,6 +188,7 @@ def test_modify_center(server):
     assert np.allclose(vis[0][0].position, np.diag(vis[0].cell) / 2)
     assert not np.allclose(vis[0].positions, copper.positions)
 
+
 def test_modify_RemoveAtoms(server):
     vis = ZnDraw(url=server, token="test_token")
     vis.append(molecule("H2O"))

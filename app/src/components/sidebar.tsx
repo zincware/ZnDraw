@@ -122,42 +122,45 @@ const SidebarMenu: React.FC<SidebarMenuProps> = ({
 
   return (
     <Card
-    className="rounded-0 border-start-0 overflow-y-auto rounded-end"
-    style={{
-      position: "fixed",
-      top: "50px",
-      left: "50px",
-      height: "100%",
-      maxWidth: "35%",
-      margin: 0,
-      padding: 0,
-      display: visible ? "block" : "none",
-    }}
-  >
-    <Card.Header
-      className="d-flex justify-content-between align-items-center"
+      className="rounded-0 border-start-0 overflow-y-auto rounded-end"
       style={{
-        backgroundColor: "inherit", // Use the same background color as the rest of the card
+        position: "fixed",
+        top: "50px",
+        left: "50px",
+        height: "100%",
+        maxWidth: "35%",
+        margin: 0,
+        padding: 0,
+        display: visible ? "block" : "none",
       }}
     >
-      <Card.Title>{schema.title}</Card.Title>
-      <Button variant="close" className="ms-auto" onClick={closeMenu} />
-    </Card.Header>
-    <Card.Body style={{marginTop: -30, paddingBottom: 80}}>
-      <div ref={editorRef}></div>
-      {useSubmit && (
-        <Button onClick={submitEditor} disabled={queuePosition >= 0}>
-          {queuePosition > 0 && `Queue position: ${queuePosition}`}
-          {queuePosition == 0 && `Running`}
-          {queuePosition < 0 && `Submit`}
-        </Button>
-      )}
-    </Card.Body>
-  </Card>
+      <Card.Header
+        className="d-flex justify-content-between align-items-center"
+        style={{
+          backgroundColor: "inherit", // Use the same background color as the rest of the card
+        }}
+      >
+        <Card.Title>{schema.title}</Card.Title>
+        <Button variant="close" className="ms-auto" onClick={closeMenu} />
+      </Card.Header>
+      <Card.Body style={{ marginTop: -30, paddingBottom: 80 }}>
+        <div ref={editorRef}></div>
+        {useSubmit && (
+          <Button onClick={submitEditor} disabled={queuePosition >= 0}>
+            {queuePosition > 0 && `Queue position: ${queuePosition}`}
+            {queuePosition == 0 && `Running`}
+            {queuePosition < 0 && `Submit`}
+          </Button>
+        )}
+      </Card.Body>
+    </Card>
   );
 };
 
-const handleFigureData = ({setPlotData, setShowPlotsCard}: handleFigureDataProps) => {
+const handleFigureData = ({
+  setPlotData,
+  setShowPlotsCard,
+}: handleFigureDataProps) => {
   useEffect(() => {
     const handleFigure = (data) => {
       try {
@@ -322,7 +325,7 @@ function SideBar({
   });
   const [showPlotsCard, setShowPlotsCard] = useState<boolean>(false);
 
-  handleFigureData({setPlotData, setShowPlotsCard});
+  handleFigureData({ setPlotData, setShowPlotsCard });
 
   // if any menu is open and you click escape, close it
   useEffect(() => {
