@@ -423,25 +423,14 @@ def init_socketio_events(io: SocketIO):
     def room_config_get():
         r: Redis = current_app.extensions["redis"]
         room = session.get("token")
-        try:
-            data = json.loads(r.get(f"room:{room}:config"))
-        except TypeError:  # json.loads(None)
-            data = {"scene": {}, "arrows": {}}
-
-        print(f"room:config:get {data}")
-        return data
+        return dict(znsocket.Dict(r, f"room:{room}:config"))
 
     @io.on("room:config:set")
     def room_config_set(data: dict):
         r: Redis = current_app.extensions["redis"]
         room = session.get("token")
-        try:
-            config = json.loads(r.get(f"room:{room}:config"))
-        except TypeError:  # json.loads(None)
-            config = {"scene": {}, "arrows": {}}  # need defaults?
+        config = znsocket.Dict(r, f"room:{room}:config")
         config.update(data)
-        r.set(f"room:{room}:config", json.dumps(config))
-        print(f"room:config:set {config}")
         emit("room:config:set", data, to=room, include_self=False)
 
     @io.on("analysis:figure:set")

@@ -489,8 +489,8 @@ class ZnDraw(ZnDrawBase):
         )
         return ZnDrawConfig(
             vis=self,
-            arrows=ArrowsConfig(**config["arrows"]),
-            scene=Scene(**config["scene"]),
+            arrows=ArrowsConfig(**config.get("arrows", {})),
+            scene=Scene(**config.get("scene", {})),
         )
 
     @property

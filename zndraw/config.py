@@ -46,6 +46,6 @@ class ZnDrawConfig:
     scene: Scene = dataclasses.field(default_factory=Scene)
 
     def __post_init__(self) -> None:
-        if self.vis:
+        if self.vis is not None:
             self.arrows.set_vis(self.vis)
             self.scene.set_vis(self.vis)
