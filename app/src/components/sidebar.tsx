@@ -24,7 +24,6 @@ JSONEditor.defaults.options.disable_properties = true;
 JSONEditor.defaults.options.disable_collapse = true;
 JSONEditor.defaults.options.no_additional_properties = true;
 JSONEditor.defaults.options.keep_oneof_values = false;
-// JSONEditor.defaults.options.titleHidden = true;
 JSONEditor.defaults.editors.object.options.titleHidden = true;
 
 interface SidebarMenuProps {
