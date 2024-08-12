@@ -279,7 +279,9 @@ def init_socketio_events(io: SocketIO):
             classes.append(cls)
 
         emit(
-            "modifier:schema", Modifier.get_updated_schema(extensions=classes), to=request.sid
+            "modifier:schema",
+            Modifier.get_updated_schema(extensions=classes),
+            to=request.sid,
         )
 
     @io.on("draw:schema")
@@ -304,7 +306,7 @@ def init_socketio_events(io: SocketIO):
     @io.on("analysis:schema")
     def analysis_schema():
         emit("analysis:schema", Analysis.get_updated_schema(), to=request.sid)
-    
+
     @io.on("geometry:schema")
     def geometry_schema():
         emit("geometry:schema", Geometry.get_updated_schema(), to=request.sid)

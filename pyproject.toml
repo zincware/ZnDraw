@@ -58,6 +58,7 @@ repository = "https://github.com/zincware/ZnDraw"
 [tool.ruff]
 line-length = 90
 
+[tool.ruff.lint]
 select = ["I", "F"]
 
 # by default do not run pytest marked with "chrome"

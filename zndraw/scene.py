@@ -1,4 +1,5 @@
 import enum
+import typing as t
 
 import ase
 import znjson
@@ -8,6 +9,9 @@ from pydantic import BaseModel, Field
 from redis import Redis
 
 from zndraw.utils import ASEConverter, emit_with_retry
+
+if t.TYPE_CHECKING:
+    from zndraw import ZnDraw
 
 
 class Material(str, enum.Enum):

@@ -567,7 +567,7 @@ export default function App() {
       ...prev,
       scene: data,
     }));
-    // This is emmiting when the sidebar is created as well
+    // This is emitting when the sidebar is created as well
     socket.emit("room:config:set", { scene: data });
   };
 
