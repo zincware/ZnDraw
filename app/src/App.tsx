@@ -586,7 +586,10 @@ export default function App() {
               currentFrame.vectors !== undefined && (
                 <VectorField
                   vectors={currentFrame.vectors}
-                  arrowsConfig={{"rescale": roomConfig["scene"].vector_scale, ...roomConfig.arrows}}
+                  arrowsConfig={{
+                    rescale: roomConfig["scene"].vector_scale,
+                    ...roomConfig.arrows,
+                  }}
                 />
               )}
             <ParticleInstances
@@ -694,7 +697,10 @@ export default function App() {
                 frame={currentFrame}
                 property={roomConfig["scene"].vectors}
                 colorMode={colorMode}
-                arrowsConfig={{"rescale": roomConfig["scene"].vector_scale, ...roomConfig.arrows}}
+                arrowsConfig={{
+                  rescale: roomConfig["scene"].vector_scale,
+                  ...roomConfig.arrows,
+                }}
               ></PerParticleVectors>
             )}
           </Canvas>
