@@ -1,17 +1,17 @@
+from unittest.mock import patch
+
+import ase
 import numpy as np
 import numpy.testing as npt
 
+from zndraw.scene import Scene
 from zndraw.utils import (
     convert_url_to_http,
     direction_to_euler,
     euler_to_direction,
-    parse_url,
     get_schema_with_instance_defaults,
+    parse_url,
 )
-import ase
-from unittest.mock import patch
-
-from zndraw.scene import Scene
 
 
 def test_parse_url():

@@ -42,10 +42,7 @@ interface handleFigureDataProps {
   setShowPlotsCard: (value: boolean) => void;
 }
 
-const useJSONEditor = (
-  schema: any,
-  setUserInput: (value: any) => void,
-) => {
+const useJSONEditor = (schema: any, setUserInput: (value: any) => void) => {
   const editorRef = useRef<HTMLDivElement>(null);
   const JSONEditorRef = useRef<JSONEditor | null>(null);
 
@@ -53,7 +50,7 @@ const useJSONEditor = (
     if (Object.keys(schema).length === 0) {
       return;
     }
-    
+
     if (editorRef.current) {
       JSONEditorRef.current = new JSONEditor(editorRef.current, {
         schema: schema,
@@ -331,7 +328,7 @@ function SideBar({
 
   useEffect(() => {
     if (visibleOption !== "") {
-      // emit room:visibleOption:schema:get 
+      // emit room:visibleOption:schema:get
       socket.emit(`${visibleOption}:schema`);
     }
   }, [visibleOption]);
