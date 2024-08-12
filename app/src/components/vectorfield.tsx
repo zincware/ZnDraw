@@ -47,6 +47,7 @@ export const VectorField: React.FC<VectorFieldProps> = ({
       colormap={arrowsConfig.colormap}
       colorrange={colorRange}
       opacity={arrowsConfig.opacity}
+      rescale={arrowsConfig.rescale}
     />
   );
 };

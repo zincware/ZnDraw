@@ -1,4 +1,5 @@
 import enum
+import typing as t
 
 import ase
 import znjson
@@ -7,7 +8,10 @@ from flask import current_app, session
 from pydantic import BaseModel, Field
 from redis import Redis
 
-from zndraw.utils import ASEConverter
+from zndraw.utils import ASEConverter, emit_with_retry
+
+if t.TYPE_CHECKING:
+    from zndraw import ZnDraw
 
 
 class Material(str, enum.Enum):
@@ -47,6 +51,7 @@ class Scene(BaseModel):
     controls: Controls = Field(Controls.OrbitControls, description="Controls")
 
     vectors: str = Field("", description="Visualize vectorial property")
+    vector_scale: float = Field(1.0, ge=0.1, le=5, description="Rescale Vectors")
     selection_color: str = Field("#ffa500", description="Selection color")
     camera_near: float = Field(
         0.1, ge=0.1, le=100, description="Camera near rendering plane"
@@ -93,7 +98,7 @@ class Scene(BaseModel):
             return ase.Atoms()
 
     @classmethod
-    def updated_schema(cls) -> dict:
+    def get_updated_schema(cls) -> dict:
         schema = cls.model_json_schema()
 
         atoms = cls._get_atoms()
@@ -113,6 +118,8 @@ class Scene(BaseModel):
         schema["properties"]["particle_size"]["step"] = 0.1
         schema["properties"]["bond_size"]["format"] = "range"
         schema["properties"]["bond_size"]["step"] = 0.1
+        schema["properties"]["vector_scale"]["format"] = "range"
+        schema["properties"]["vector_scale"]["step"] = 0.05
 
         schema["properties"]["camera_near"]["format"] = "range"
         schema["properties"]["camera_near"]["step"] = 0.1
@@ -122,3 +129,22 @@ class Scene(BaseModel):
         # schema["properties"]["line_label"]["format"] = "checkbox"
 
         return schema
+
+    def __setattr__(self, name: str, value) -> None:
+        super().__setattr__(name, value)
+        if hasattr(self, "_vis") and self._vis is not None:
+            # do we still need to check for `vis` ?
+            if name != "vis" and name in self.model_fields:
+                data = {
+                    "scene": self.model_dump(),
+                }
+                emit_with_retry(
+                    self._vis.socket,
+                    "room:config:set",
+                    data,
+                    retries=self._vis.timeout["emit_retries"],
+                )
+                self._vis.socket.sleep(0.1)  # maybe use call?
+
+    def set_vis(self, vis: "ZnDraw") -> None:
+        self._vis = vis

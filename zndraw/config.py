@@ -1,6 +1,7 @@
 import dataclasses
 import typing as t
 
+from zndraw.scene import Scene
 from zndraw.utils import emit_with_retry
 
 if t.TYPE_CHECKING:
@@ -11,11 +12,11 @@ HSLColor = t.Tuple[float, float, float]
 
 @dataclasses.dataclass
 class ArrowsConfig:
-    colormap: list[HSLColor]
-    normalize: bool
-    colorrange: tuple[float, float]
-    scale_vector_thickness: bool
-    opacity: float
+    colormap: list[HSLColor] = ((-0.5, 0.9, 0.5), (0.0, 0.9, 0.5))
+    normalize: bool = True
+    colorrange: tuple[float, float] = (0, 1.0)
+    scale_vector_thickness: bool = False
+    opacity: float = 1.0
 
     _vis = None  # not a dataclass field
 
@@ -38,20 +39,19 @@ class ArrowsConfig:
         self._vis = vis
 
 
-def _create_arrows_config() -> ArrowsConfig:
-    return ArrowsConfig(
-        colormap=[[-0.5, 0.9, 0.5], [0.0, 0.9, 0.5]],
-        normalize=True,
-        colorrange=[0, 1],
-        scale_vector_thickness=False,
-        opacity=1.0,
-    )
-
-
 @dataclasses.dataclass
 class ZnDrawConfig:
-    vis: "ZnDraw" = dataclasses.field(repr=False)
-    arrows: ArrowsConfig = dataclasses.field(default_factory=_create_arrows_config)
+    vis: "ZnDraw|None" = dataclasses.field(repr=False)
+    arrows: ArrowsConfig = dataclasses.field(default_factory=ArrowsConfig)
+    scene: Scene = dataclasses.field(default_factory=Scene)
 
     def __post_init__(self) -> None:
-        self.arrows.set_vis(self.vis)
+        if self.vis is not None:
+            self.arrows.set_vis(self.vis)
+            self.scene.set_vis(self.vis)
+
+    def to_dict(self) -> dict:
+        return {
+            "arrows": dataclasses.asdict(self.arrows),
+            "scene": self.scene.model_dump(),
+        }

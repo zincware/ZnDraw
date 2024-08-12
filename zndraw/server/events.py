@@ -19,7 +19,7 @@ from zndraw.tasks import (
     run_selection,
     run_upload_file,
 )
-from zndraw.utils import get_cls_from_json_schema
+from zndraw.utils import get_cls_from_json_schema, get_schema_with_instance_defaults
 
 log = logging.getLogger(__name__)
 
@@ -103,36 +103,6 @@ def init_socketio_events(io: SocketIO):
         # set step, camera, bookmarks, points
 
         log.critical(f"connecting (webclient) {request.sid} to {room}")
-
-        emit("selection:schema", Selection.updated_schema())
-        emit("modifier:schema:refresh")
-        emit("scene:schema", Scene.updated_schema())
-        emit("geometry:schema", Geometry.updated_schema())
-        emit("analysis:schema:refresh")
-
-        # set default arrows config
-        if not r.exists(f"room:{room}:config"):
-            r.set(
-                f"room:{room}:config",
-                # TODO: use the default function from config
-                json.dumps(
-                    {
-                        "arrows": {
-                            "colormap": [[-0.5, 0.9, 0.5], [0.0, 0.9, 0.5]],
-                            "normalize": True,
-                            "colorrange": [0, 1],
-                            "scale_vector_thickness": False,
-                            "opacity": 1.0,
-                        },
-                    }
-                ),
-            )
-
-        emit(
-            "room:config:set",
-            json.loads(r.get(f"room:{room}:config")),
-            to=room,
-        )
 
         if "TUTORIAL" in current_app.config:
             emit("tutorial:url", current_app.config["TUTORIAL"])
@@ -309,24 +279,37 @@ def init_socketio_events(io: SocketIO):
             classes.append(cls)
 
         emit(
-            "modifier:schema", Modifier.updated_schema(extensions=classes), to=request.sid
+            "modifier:schema",
+            Modifier.get_updated_schema(extensions=classes),
+            to=request.sid,
         )
 
     @io.on("draw:schema")
     def draw_schema():
-        return Geometry.updated_schema()
+        return Geometry.get_updated_schema()
 
     @io.on("scene:schema")
     def scene_schema():
-        emit("scene:schema", Scene.updated_schema(), to=request.sid)
+        r: Redis = current_app.extensions["redis"]
+        room = session.get("token")
+        config = znsocket.Dict(r, f"room:{room}:config")
+        try:
+            scene = Scene(**config["scene"])
+            emit("scene:schema", get_schema_with_instance_defaults(scene), to=room)
+        except KeyError:
+            emit("scene:schema", Scene.get_updated_schema(), to=request.sid)
 
     @io.on("selection:schema")
     def selection_schema():
-        emit("selection:schema", Selection.updated_schema(), to=request.sid)
+        emit("selection:schema", Selection.get_updated_schema(), to=request.sid)
 
     @io.on("analysis:schema")
     def analysis_schema():
-        emit("analysis:schema", Analysis.updated_schema(), to=request.sid)
+        emit("analysis:schema", Analysis.get_updated_schema(), to=request.sid)
+
+    @io.on("geometry:schema")
+    def geometry_schema():
+        emit("geometry:schema", Geometry.get_updated_schema(), to=request.sid)
 
     @io.on("modifier:run")
     def modifier_run(data: dict):
@@ -445,16 +428,23 @@ def init_socketio_events(io: SocketIO):
     def room_config_get():
         r: Redis = current_app.extensions["redis"]
         room = session.get("token")
-        return json.loads(r.get(f"room:{room}:config"))
+        data = znsocket.Dict(r, f"room:{room}:config")
+        if set(data.keys()) != {"arrows", "scene"}:
+            from zndraw.config import ZnDrawConfig
+
+            data.update(ZnDrawConfig(vis=None).to_dict())
+        return dict(data)
 
     @io.on("room:config:set")
     def room_config_set(data: dict):
+        print(f"room:config:set: {data}")
         r: Redis = current_app.extensions["redis"]
         room = session.get("token")
-        config = json.loads(r.get(f"room:{room}:config"))
+        config = znsocket.Dict(r, f"room:{room}:config")
         config.update(data)
-        r.set(f"room:{room}:config", json.dumps(config))
         emit("room:config:set", data, to=room, include_self=False)
+        scene = Scene(**config["scene"])
+        emit("scene:schema", get_schema_with_instance_defaults(scene), to=room)
 
     @io.on("analysis:figure:set")
     def analysis_figure_set(data: dict):

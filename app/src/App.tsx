@@ -58,20 +58,6 @@ export default function App() {
   });
   const [playing, setPlaying] = useState<boolean>(false);
   const [length, setLength] = useState<number>(0);
-  const [sceneSettings, setSceneSettings] = useState({
-    fps: 60,
-    "Animation Loop": false,
-    simulation_box: false,
-    vectorfield: true,
-    vectors: "",
-    controls: "OrbitControls",
-    selection_color: "#ffa500",
-    material: "MeshStandardMaterial",
-    particle_size: 1.0,
-    bond_size: 1.0,
-    camera_near: 0.1,
-    camera_far: 1000,
-  });
   // updated via sockets
   const [step, setStep] = useState<number>(0);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
@@ -102,13 +88,8 @@ export default function App() {
   const [colorMode, handleColorMode] = useColorMode();
   const [hoveredId, setHoveredId] = useState<number>(null);
   const [roomConfig, setRoomConfig] = useState({
-    arrows: {
-      colormap: [[0, 0, 0.5]],
-      colorrange: [0, 1],
-      normalize: true,
-      scale_vector_thickness: false,
-      opacity: 1.0,
-    },
+    arrows: {},
+    scene: {},
   });
 
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(true);
@@ -233,6 +214,11 @@ export default function App() {
       socket.emit("room:lock:get", (data: boolean) => {
         setRoomLock(data);
       });
+
+      // get the config
+      socket.emit("room:config:get", (data: any) => {
+        setRoomConfig(data);
+      });
     }
 
     function onSelectionSchema(receivedSchema: any) {
@@ -308,7 +294,10 @@ export default function App() {
     }
 
     function onRoomConfig(data: any) {
-      setRoomConfig(data);
+      setRoomConfig((prevConfig: any) => ({
+        ...prevConfig,
+        ...data,
+      }));
     }
 
     function onCameraSet(data: { position: number[]; target: number[] }) {
@@ -567,140 +556,155 @@ export default function App() {
     setSelectedIds(new Set());
   };
 
+  const setSceneSettings = (data: any) => {
+    setRoomConfig((prev) => ({
+      ...prev,
+      scene: data,
+    }));
+    socket.emit("room:config:set", { scene: data });
+  };
+
   return (
     <>
       <div className="canvas-container" onDragOver={onDragOver} onDrop={onDrop}>
-        <Canvas onPointerMissed={onPointerMissed}>
-          <PerspectiveCamera
-            ref={cameraRef}
-            makeDefault
-            near={sceneSettings["camera_near"]}
-            far={sceneSettings["camera_far"]}
-          />
-          {/* <ambientLight intensity={Math.PI / 20}/> */}
-          <pointLight
-            ref={cameraLightRef}
-            position={[0, 0, 0]}
-            decay={0}
-            intensity={Math.PI}
-            castShadow
-          />
-          {sceneSettings["vectorfield"] &&
-            currentFrame.vectors !== undefined && (
-              <VectorField
-                vectors={currentFrame.vectors}
-                arrowsConfig={roomConfig.arrows}
+        {roomConfig.scene.controls !== undefined && (
+          <Canvas onPointerMissed={onPointerMissed}>
+            <PerspectiveCamera
+              ref={cameraRef}
+              makeDefault
+              near={roomConfig["scene"]["camera_near"]}
+              far={roomConfig["scene"]["camera_far"]}
+            />
+            <pointLight
+              ref={cameraLightRef}
+              position={[0, 0, 0]}
+              decay={0}
+              intensity={Math.PI}
+              castShadow
+            />
+            {roomConfig["scene"]["vectorfield"] &&
+              currentFrame.vectors !== undefined && (
+                <VectorField
+                  vectors={currentFrame.vectors}
+                  arrowsConfig={{
+                    rescale: roomConfig["scene"].vector_scale,
+                    ...roomConfig.arrows,
+                  }}
+                />
+              )}
+            <ParticleInstances
+              frame={currentFrame}
+              selectedIds={selectedIds}
+              setSelectedIds={setSelectedIds}
+              isDrawing={isDrawing}
+              points={points}
+              setPoints={setPoints}
+              setOrbitControlsTarget={setOrbitControlsTarget}
+              hoveredId={hoveredId}
+              setHoveredId={setHoveredId}
+              setTriggerSelection={setTriggerSelection}
+              sceneSettings={roomConfig["scene"]}
+            />
+            <BondInstances
+              frame={currentFrame}
+              selectedIds={selectedIds}
+              hoveredId={hoveredId}
+              sceneSettings={roomConfig["scene"]}
+            />
+            {roomConfig["scene"]["simulation_box"] && (
+              <SimulationCell frame={currentFrame} colorMode={colorMode} />
+            )}
+            {roomConfig["scene"].controls === "OrbitControls" && (
+              <OrbitControls
+                ref={controlsRef}
+                enableDamping={false}
+                target={orbitControlsTarget}
+                onChange={(e) => {
+                  if (!e) return;
+                  const camera = e.target.object;
+                  if (cameraLightRef.current) {
+                    cameraLightRef.current.position
+                      .copy(camera.position)
+                      .sub(orbitControlsTarget)
+                      .normalize()
+                      .add(camera.position);
+                  }
+                  setCameraPosition(camera.position);
+                }}
+                makeDefault
               />
             )}
-          <ParticleInstances
-            frame={currentFrame}
-            selectedIds={selectedIds}
-            setSelectedIds={setSelectedIds}
-            isDrawing={isDrawing}
-            points={points}
-            setPoints={setPoints}
-            setOrbitControlsTarget={setOrbitControlsTarget}
-            hoveredId={hoveredId}
-            setHoveredId={setHoveredId}
-            setTriggerSelection={setTriggerSelection}
-            sceneSettings={sceneSettings}
-          />
-          <BondInstances
-            frame={currentFrame}
-            selectedIds={selectedIds}
-            hoveredId={hoveredId}
-            sceneSettings={sceneSettings}
-          />
-          {sceneSettings["simulation_box"] && (
-            <SimulationCell frame={currentFrame} colorMode={colorMode} />
-          )}
-          {sceneSettings.controls === "OrbitControls" && (
-            <OrbitControls
-              ref={controlsRef}
-              enableDamping={false}
-              target={orbitControlsTarget}
-              onChange={(e) => {
-                if (!e) return;
-                const camera = e.target.object;
-                if (cameraLightRef.current) {
-                  cameraLightRef.current.position
-                    .copy(camera.position)
-                    .sub(orbitControlsTarget)
-                    .normalize()
-                    .add(camera.position);
-                }
-                setCameraPosition(camera.position);
-              }}
-              makeDefault
+            {roomConfig["scene"].controls === "TrackballControls" && (
+              <TrackballControls
+                ref={controlsRef}
+                target={orbitControlsTarget}
+                staticMoving={true}
+                onChange={(e) => {
+                  if (!e) return;
+                  const camera = e.target.object;
+                  if (cameraLightRef.current) {
+                    cameraLightRef.current.position
+                      .copy(camera.position)
+                      .sub(orbitControlsTarget)
+                      .normalize()
+                      .add(camera.position);
+                  }
+                  setCameraPosition(camera.position);
+                }}
+                makeDefault
+              />
+            )}
+            <Player
+              playing={playing}
+              togglePlaying={setPlaying}
+              step={step}
+              setStep={setStep}
+              fps={roomConfig["scene"].fps}
+              loop={roomConfig["scene"]["Animation Loop"]}
+              length={length}
             />
-          )}
-          {sceneSettings.controls === "TrackballControls" && (
-            <TrackballControls
-              ref={controlsRef}
-              target={orbitControlsTarget}
-              staticMoving={true}
-              onChange={(e) => {
-                if (!e) return;
-                const camera = e.target.object;
-                if (cameraLightRef.current) {
-                  cameraLightRef.current.position
-                    .copy(camera.position)
-                    .sub(orbitControlsTarget)
-                    .normalize()
-                    .add(camera.position);
-                }
-                setCameraPosition(camera.position);
-              }}
-              makeDefault
-            />
-          )}
-          <Player
-            playing={playing}
-            togglePlaying={setPlaying}
-            step={step}
-            setStep={setStep}
-            fps={sceneSettings.fps}
-            loop={sceneSettings["Animation Loop"]}
-            length={length}
-          />
-          <Line3D
-            points={points}
-            setPoints={setPoints}
-            setSelectedPoint={setSelectedPoint}
-            isDrawing={isDrawing}
-            colorMode={colorMode}
-            hoveredId={hoveredId}
-            setIsDrawing={setIsDrawing}
-            setLineLength={setLineLength}
-          />
-          <ControlsBuilder
-            points={points}
-            setPoints={setPoints}
-            selectedPoint={selectedPoint}
-            setSelectedPoint={setSelectedPoint}
-          />
-          <Geometries
-            geometries={geometries}
-            isDrawing={isDrawing}
-            setHoveredId={setHoveredId}
-            setPoints={setPoints}
-          />
-          <VirtualCanvas
-            setPoints={setPoints}
-            isDrawing={isDrawing}
-            points={points}
-            hoveredId={hoveredId}
-            setHoveredId={setHoveredId}
-          />
-          {sceneSettings.vectors != "" && (
-            <PerParticleVectors
-              frame={currentFrame}
-              property={sceneSettings.vectors}
+            <Line3D
+              points={points}
+              setPoints={setPoints}
+              setSelectedPoint={setSelectedPoint}
+              isDrawing={isDrawing}
               colorMode={colorMode}
-              arrowsConfig={roomConfig.arrows}
-            ></PerParticleVectors>
-          )}
-        </Canvas>
+              hoveredId={hoveredId}
+              setIsDrawing={setIsDrawing}
+              setLineLength={setLineLength}
+            />
+            <ControlsBuilder
+              points={points}
+              setPoints={setPoints}
+              selectedPoint={selectedPoint}
+              setSelectedPoint={setSelectedPoint}
+            />
+            <Geometries
+              geometries={geometries}
+              isDrawing={isDrawing}
+              setHoveredId={setHoveredId}
+              setPoints={setPoints}
+            />
+            <VirtualCanvas
+              setPoints={setPoints}
+              isDrawing={isDrawing}
+              points={points}
+              hoveredId={hoveredId}
+              setHoveredId={setHoveredId}
+            />
+            {roomConfig["scene"].vectors != "" && (
+              <PerParticleVectors
+                frame={currentFrame}
+                property={roomConfig["scene"].vectors}
+                colorMode={colorMode}
+                arrowsConfig={{
+                  rescale: roomConfig["scene"].vector_scale,
+                  ...roomConfig.arrows,
+                }}
+              ></PerParticleVectors>
+            )}
+          </Canvas>
+        )}
       </div>
       <div className="App">
         <HeadBar
@@ -723,7 +727,7 @@ export default function App() {
           sceneSchema={sceneSchema}
           geometrySchema={geometrySchema}
           analysisSchema={analysisSchema}
-          sceneSettings={sceneSettings}
+          sceneSettings={roomConfig["scene"]}
           setSceneSettings={setSceneSettings}
           modifierQueue={modifierQueue}
           selectionQueue={selectionQueue}

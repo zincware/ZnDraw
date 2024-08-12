@@ -42,11 +42,7 @@ interface handleFigureDataProps {
   setShowPlotsCard: (value: boolean) => void;
 }
 
-const useJSONEditor = (
-  schema: any,
-  userInput: any,
-  setUserInput: (value: any) => void,
-) => {
+const useJSONEditor = (schema: any, setUserInput: (value: any) => void) => {
   const editorRef = useRef<HTMLDivElement>(null);
   const JSONEditorRef = useRef<JSONEditor | null>(null);
 
@@ -59,18 +55,19 @@ const useJSONEditor = (
       JSONEditorRef.current = new JSONEditor(editorRef.current, {
         schema: schema,
       });
+      let created_trigger = false;
 
       JSONEditorRef.current.on("change", () => {
         if (JSONEditorRef.current.ready) {
-          const editorValue = JSONEditorRef.current.getValue();
-          JSONEditorRef.current.validate();
-          setUserInput(editorValue);
-        }
-      });
-
-      JSONEditorRef.current.on("ready", () => {
-        if (userInput) {
-          JSONEditorRef.current.setValue(userInput);
+          if (created_trigger) {
+            if (JSONEditorRef.current.validate()) {
+              const editorValue = JSONEditorRef.current.getValue();
+              setUserInput(editorValue);
+            }
+          } else {
+            // skip first trigger
+            created_trigger = true;
+          }
         }
       });
     }
@@ -101,7 +98,6 @@ const SidebarMenu: React.FC<SidebarMenuProps> = ({
       onSubmit(userInput);
     }
   }
-
   useEffect(() => {
     if (trigger) {
       submitEditor();
@@ -111,7 +107,7 @@ const SidebarMenu: React.FC<SidebarMenuProps> = ({
     }
   }, [trigger]);
 
-  const editorRef = useJSONEditor(schema, userInput, setUserInput);
+  const editorRef = useJSONEditor(schema, setUserInput);
 
   useEffect(() => {
     if (!useSubmit && userInput !== null) {
@@ -328,6 +324,13 @@ function SideBar({
   });
   const [showPlotsCard, setShowPlotsCard] = useState<boolean>(false);
 
+  useEffect(() => {
+    if (visibleOption !== "") {
+      // emit visibleOption:schema e.g. selection:schema
+      socket.emit(`${visibleOption}:schema`);
+    }
+  }, [visibleOption]);
+
   handleFigureData({ setPlotData, setShowPlotsCard });
 
   // if any menu is open and you click escape, close it
@@ -379,7 +382,7 @@ function SideBar({
                 variant="outline-tertiary"
                 onClick={() =>
                   setVisibleOption(
-                    visibleOption != "interaction" ? "interaction" : "",
+                    visibleOption != "modifier" ? "modifier" : "",
                   )
                 }
               >
@@ -458,7 +461,7 @@ function SideBar({
           socket.emit("modifier:run", data);
         }}
         queuePosition={modifierQueue}
-        visible={visibleOption == "interaction"}
+        visible={visibleOption == "modifier"}
         useSubmit={true}
         closeMenu={() => setVisibleOption("")}
       />

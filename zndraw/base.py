@@ -33,6 +33,7 @@ class Extension(BaseModel):
     @staticmethod
     def get_atoms() -> ase.Atoms:
         """Get the ase atoms object at the current position in the room"""
+        # TODO: use ZnDraw obj instead?
         room = session["token"]
         r: Redis = current_app.extensions["redis"]
         step = r.get(f"room:{room}:step")
@@ -63,7 +64,7 @@ class MethodsCollection(BaseModel):
         self.method.run(vis, **kwargs)
 
     @classmethod
-    def updated_schema(
+    def get_updated_schema(
         cls, extensions: t.Optional[t.List[t.Type[Extension]]] = None
     ) -> dict:
         methods = cls.__annotations__["method"]
