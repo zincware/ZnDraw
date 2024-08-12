@@ -6,7 +6,12 @@ from zndraw.utils import (
     direction_to_euler,
     euler_to_direction,
     parse_url,
+    get_schema_with_instance_defaults,
 )
+import ase
+from unittest.mock import patch
+
+from zndraw.scene import Scene
 
 
 def test_parse_url():
@@ -60,3 +65,13 @@ def test_url():
     before_url = "wss://localhost:8000/token/eNwsdW5k"
     url = convert_url_to_http(before_url)
     assert url == "https://localhost:8000/token/eNwsdW5k"
+
+
+def test_get_schema_with_instance_defaults():
+    scene = Scene(fps=33)
+    # patch Scene._get_atoms() to return a dummy Atoms object
+    with patch("zndraw.scene.Scene._get_atoms") as mock_get_atoms:
+        mock_get_atoms.return_value = ase.Atoms()
+        schema = get_schema_with_instance_defaults(scene)
+
+    assert schema["properties"]["fps"]["default"] == 33
