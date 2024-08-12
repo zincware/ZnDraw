@@ -146,11 +146,6 @@ export default function App() {
     });
   }, [step, needsUpdate]);
 
-  // useEffect(() => {
-  //   console.log("roomConfig", roomConfig);
-  //   socket.emit("room:config:set", roomConfig);
-  // }, [roomConfig]);
-
   useEffect(() => {
     // TODO can't be here, because is dependent on the length
     function onFramesRefresh(updatedFrames: number[]) {
@@ -222,7 +217,6 @@ export default function App() {
 
       // get the config
       socket.emit("room:config:get", (data: any) => {
-        console.log("room config", data);
         setRoomConfig(data);
       });
     }
@@ -567,7 +561,6 @@ export default function App() {
       ...prev,
       scene: data,
     }));
-    // This is emitting when the sidebar is created as well
     socket.emit("room:config:set", { scene: data });
   };
 
@@ -582,7 +575,6 @@ export default function App() {
               near={roomConfig["scene"]["camera_near"]}
               far={roomConfig["scene"]["camera_far"]}
             />
-            {/* <ambientLight intensity={Math.PI / 20}/> */}
             <pointLight
               ref={cameraLightRef}
               position={[0, 0, 0]}
@@ -594,7 +586,7 @@ export default function App() {
               currentFrame.vectors !== undefined && (
                 <VectorField
                   vectors={currentFrame.vectors}
-                  arrowsConfig={roomConfig.arrows}
+                  arrowsConfig={{"rescale": roomConfig["scene"].vector_scale, ...roomConfig.arrows}}
                 />
               )}
             <ParticleInstances
@@ -702,7 +694,7 @@ export default function App() {
                 frame={currentFrame}
                 property={roomConfig["scene"].vectors}
                 colorMode={colorMode}
-                arrowsConfig={roomConfig.arrows}
+                arrowsConfig={{"rescale": roomConfig["scene"].vector_scale, ...roomConfig.arrows}}
               ></PerParticleVectors>
             )}
           </Canvas>

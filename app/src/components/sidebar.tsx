@@ -98,7 +98,6 @@ const SidebarMenu: React.FC<SidebarMenuProps> = ({
       onSubmit(userInput);
     }
   }
-  // TODO give an update trigger here to update the editor
   useEffect(() => {
     if (trigger) {
       submitEditor();
@@ -111,7 +110,6 @@ const SidebarMenu: React.FC<SidebarMenuProps> = ({
   const editorRef = useJSONEditor(schema, setUserInput);
 
   useEffect(() => {
-    // somehow avoid first trigger when editor is getting ready?
     if (!useSubmit && userInput !== null) {
       submitEditor();
     }
@@ -328,7 +326,7 @@ function SideBar({
 
   useEffect(() => {
     if (visibleOption !== "") {
-      // emit room:visibleOption:schema:get
+      // emit visibleOption:schema e.g. selection:schema
       socket.emit(`${visibleOption}:schema`);
     }
   }, [visibleOption]);
