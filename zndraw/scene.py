@@ -94,7 +94,7 @@ class Scene(BaseModel):
             return ase.Atoms()
 
     @classmethod
-    def updated_schema(cls) -> dict:
+    def get_updated_schema(cls) -> dict:
         schema = cls.model_json_schema()
 
         atoms = cls._get_atoms()

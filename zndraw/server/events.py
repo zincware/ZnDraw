@@ -19,7 +19,7 @@ from zndraw.tasks import (
     run_selection,
     run_upload_file,
 )
-from zndraw.utils import get_cls_from_json_schema
+from zndraw.utils import get_cls_from_json_schema, get_schema_with_instance_defaults
 
 log = logging.getLogger(__name__)
 
@@ -103,14 +103,6 @@ def init_socketio_events(io: SocketIO):
         # set step, camera, bookmarks, points
 
         log.critical(f"connecting (webclient) {request.sid} to {room}")
-
-        emit("selection:schema", Selection.updated_schema())
-        emit("modifier:schema:refresh")
-        emit(
-            "scene:schema", Scene.updated_schema()
-        )  # ideally the settings would be parsed here!
-        emit("geometry:schema", Geometry.updated_schema())
-        emit("analysis:schema:refresh")
 
         if "TUTORIAL" in current_app.config:
             emit("tutorial:url", current_app.config["TUTORIAL"])
@@ -287,24 +279,35 @@ def init_socketio_events(io: SocketIO):
             classes.append(cls)
 
         emit(
-            "modifier:schema", Modifier.updated_schema(extensions=classes), to=request.sid
+            "modifier:schema", Modifier.get_updated_schema(extensions=classes), to=request.sid
         )
 
     @io.on("draw:schema")
     def draw_schema():
-        return Geometry.updated_schema()
+        return Geometry.get_updated_schema()
 
     @io.on("scene:schema")
     def scene_schema():
-        emit("scene:schema", Scene.updated_schema(), to=request.sid)
+        r: Redis = current_app.extensions["redis"]
+        room = session.get("token")
+        config = znsocket.Dict(r, f"room:{room}:config")
+        try:
+            scene = Scene(**config["scene"])
+            emit("scene:schema", get_schema_with_instance_defaults(scene), to=room)
+        except KeyError:
+            emit("scene:schema", Scene.get_updated_schema(), to=request.sid)
 
     @io.on("selection:schema")
     def selection_schema():
-        emit("selection:schema", Selection.updated_schema(), to=request.sid)
+        emit("selection:schema", Selection.get_updated_schema(), to=request.sid)
 
     @io.on("analysis:schema")
     def analysis_schema():
-        emit("analysis:schema", Analysis.updated_schema(), to=request.sid)
+        emit("analysis:schema", Analysis.get_updated_schema(), to=request.sid)
+    
+    @io.on("geometry:schema")
+    def geometry_schema():
+        emit("geometry:schema", Geometry.get_updated_schema(), to=request.sid)
 
     @io.on("modifier:run")
     def modifier_run(data: dict):
@@ -438,6 +441,8 @@ def init_socketio_events(io: SocketIO):
         config = znsocket.Dict(r, f"room:{room}:config")
         config.update(data)
         emit("room:config:set", data, to=room, include_self=False)
+        scene = Scene(**config["scene"])
+        emit("scene:schema", get_schema_with_instance_defaults(scene), to=room)
 
     @io.on("analysis:figure:set")
     def analysis_figure_set(data: dict):

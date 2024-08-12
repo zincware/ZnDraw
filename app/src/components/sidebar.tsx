@@ -44,7 +44,6 @@ interface handleFigureDataProps {
 
 const useJSONEditor = (
   schema: any,
-  userInput: any,
   setUserInput: (value: any) => void,
 ) => {
   const editorRef = useRef<HTMLDivElement>(null);
@@ -54,27 +53,24 @@ const useJSONEditor = (
     if (Object.keys(schema).length === 0) {
       return;
     }
-
+    
     if (editorRef.current) {
       JSONEditorRef.current = new JSONEditor(editorRef.current, {
         schema: schema,
       });
+      let created_trigger = false;
 
       JSONEditorRef.current.on("change", () => {
         if (JSONEditorRef.current.ready) {
-          const editorValue = JSONEditorRef.current.getValue();
-          JSONEditorRef.current.validate();
-          setUserInput(editorValue);
-          const fps = JSONEditorRef.current.getEditor("root.material");
-          if (fps) {
-            fps.setValue("MeshStandardMaterial");
+          if (created_trigger) {
+            if (JSONEditorRef.current.validate()) {
+              const editorValue = JSONEditorRef.current.getValue();
+              setUserInput(editorValue);
+            }
+          } else {
+            // skip first trigger
+            created_trigger = true;
           }
-        }
-      });
-
-      JSONEditorRef.current.on("ready", () => {
-        if (userInput) {
-          JSONEditorRef.current.setValue(userInput);
         }
       });
     }
@@ -115,14 +111,14 @@ const SidebarMenu: React.FC<SidebarMenuProps> = ({
     }
   }, [trigger]);
 
-  const editorRef = useJSONEditor(schema, userInput, setUserInput);
+  const editorRef = useJSONEditor(schema, setUserInput);
 
-  // useEffect(() => {
-  //   // somehow avoid first trigger when editor is getting ready?
-  //   if (!useSubmit && userInput !== null) {
-  //     submitEditor();
-  //   }
-  // }, [userInput, useSubmit]);
+  useEffect(() => {
+    // somehow avoid first trigger when editor is getting ready?
+    if (!useSubmit && userInput !== null) {
+      submitEditor();
+    }
+  }, [userInput, useSubmit]);
 
   return (
     <Card
@@ -333,6 +329,13 @@ function SideBar({
   });
   const [showPlotsCard, setShowPlotsCard] = useState<boolean>(false);
 
+  useEffect(() => {
+    if (visibleOption !== "") {
+      // emit room:visibleOption:schema:get 
+      socket.emit(`${visibleOption}:schema`);
+    }
+  }, [visibleOption]);
+
   handleFigureData({ setPlotData, setShowPlotsCard });
 
   // if any menu is open and you click escape, close it
@@ -384,7 +387,7 @@ function SideBar({
                 variant="outline-tertiary"
                 onClick={() =>
                   setVisibleOption(
-                    visibleOption != "interaction" ? "interaction" : "",
+                    visibleOption != "modifier" ? "modifier" : "",
                   )
                 }
               >
@@ -463,7 +466,7 @@ function SideBar({
           socket.emit("modifier:run", data);
         }}
         queuePosition={modifierQueue}
-        visible={visibleOption == "interaction"}
+        visible={visibleOption == "modifier"}
         useSubmit={true}
         closeMenu={() => setVisibleOption("")}
       />

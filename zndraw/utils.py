@@ -360,7 +360,10 @@ def convert_url_to_http(url: str) -> str:
 
 def get_schema_with_instance_defaults(self) -> dict:
     """Update the schema defaults from the instance."""
-    schema = self.model_json_schema()
+    try:
+        schema = self.get_updated_schema()
+    except AttributeError:
+        schema = self.model_json_schema()
     for key, value in self.__dict__.items():
         if key in schema["properties"]:
             schema["properties"][key]["default"] = value
