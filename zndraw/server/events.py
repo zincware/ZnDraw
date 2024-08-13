@@ -459,10 +459,13 @@ def init_socketio_events(io: SocketIO):
         )
 
     @io.on("analysis:figure:get")
-    def analysis_figure_get() -> dict:
+    def analysis_figure_get() -> dict | None:
         room = session.get("token")
         r: Redis = current_app.extensions["redis"]
-        return json.loads(r.get(f"room:{room}:analysis:figure"))
+        try:
+            return json.loads(r.get(f"room:{room}:analysis:figure"))
+        except TypeError:
+            return None
 
     @io.on("selection:run")
     def selection_run(data: dict):
