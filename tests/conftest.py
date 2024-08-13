@@ -13,6 +13,8 @@ import socketio.exceptions
 
 from zndraw.app import create_app
 from zndraw.standalone import run_celery_worker
+import numpy as np
+from ase.calculators.singlepoint import SinglePointCalculator
 
 
 @pytest.fixture
@@ -69,3 +71,15 @@ def s22() -> list[ase.Atoms]:
 def water() -> ase.Atoms:
     """Water molecule."""
     return ase.build.molecule("H2O")
+
+
+@pytest.fixture
+def s22_energy_forces() -> list[ase.Atoms]:
+    images = []
+    for atoms in ase.collections.s22:
+        calc = SinglePointCalculator(
+            atoms, energy=np.random.rand(), forces=np.random.rand(len(atoms), 3)
+        )
+        atoms.calc = calc
+        images.append(atoms)
+    return images
