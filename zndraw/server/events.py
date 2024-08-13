@@ -459,7 +459,7 @@ def init_socketio_events(io: SocketIO):
         )
 
     @io.on("analysis:figure:get")
-    def analysis_figure_get() -> dict|None:
+    def analysis_figure_get() -> dict | None:
         room = session.get("token")
         r: Redis = current_app.extensions["redis"]
         try:

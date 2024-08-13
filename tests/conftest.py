@@ -8,13 +8,13 @@ import random
 
 import ase.build
 import ase.collections
+import numpy as np
 import pytest
 import socketio.exceptions
+from ase.calculators.singlepoint import SinglePointCalculator
 
 from zndraw.app import create_app
 from zndraw.standalone import run_celery_worker
-import numpy as np
-from ase.calculators.singlepoint import SinglePointCalculator
 
 
 @pytest.fixture
