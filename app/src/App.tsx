@@ -157,6 +157,8 @@ export default function App() {
           setStep(parseInt(data) - 1);
           // reset selected ids
           setSelectedIds(new Set());
+        } else if (roomConfig.scene.frame_update) {
+          setStep(parseInt(data) - 1);
         }
         setLength(data);
       });
@@ -166,7 +168,7 @@ export default function App() {
     return () => {
       socket.off("room:frames:refresh", onFramesRefresh);
     };
-  }, [step]);
+  }, [step, roomConfig.scene]);
 
   useEffect(() => {
     function onConnect() {

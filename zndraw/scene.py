@@ -59,6 +59,10 @@ class Scene(BaseModel):
     camera_far: float = Field(
         1000, ge=1, le=10000, description="Camera far rendering plane"
     )
+    frame_update: bool = Field(
+        True,
+        help="Jump to updated frames.",
+    )
     # bonds: bool = Field(
     #     True,
     #     description="Show bonds.",
