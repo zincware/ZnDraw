@@ -5,6 +5,7 @@ import { socket } from "../socket";
 import { Rnd, RndResizeCallback } from "react-rnd";
 import Plot from "react-plotly.js";
 import { all } from "three/examples/jsm/nodes/Nodes.js";
+import { IoDuplicate } from "react-icons/io5";
 
 export const Plotting = () => {
   useEffect(() => {
@@ -50,11 +51,16 @@ const handleFigureData = ({
 
 const PlotsCard = () => {
   const cardRef = useRef<any>(null);
+  const [selectedOption, setSelectedOption] = useState<string>("1");
   const [allowDrag, setAllowDrag] = useState<boolean>(true);
   const [plotLayout, setPlotLayout] = useState<any>({
     width: 220 - 20,
     height: 200 - 60,
   });
+
+  const handleSelectChange = (event: any) => {
+    setSelectedOption(event.target.value);
+  };
 
   const onResize: RndResizeCallback = () => {
     if (cardRef.current) {
@@ -72,6 +78,8 @@ const PlotsCard = () => {
       minWidth={220}
       onResize={onResize}
       disableDragging={!allowDrag}
+      dragGrid={[50, 50]}
+      resizeGrid={[50, 50]}
     >
       <Card
         style={{
@@ -86,30 +94,64 @@ const PlotsCard = () => {
           style={{ height: 50 }}
         >
           {/* <Card.Title className="p-2">Analysis</Card.Title> */}
-          <Form.Select aria-label="Default select example" className="p-2">
-            <option>Distance</option>
-            <option value="1">plotting/histogram.json</option>
-            {/* <option value="2">Two</option>
-            <option value="3">Three</option> */}
+          <Form.Select onChange={handleSelectChange}>
+            <option value="1">Distance</option>
+            <option value="2">plotting/histogram.json</option>
           </Form.Select>
-          <Button variant="close" className="p-2" />
+          <Button
+            variant="tertiary"
+            className=" mx-2 btn btn-outline-secondary"
+          >
+            <IoDuplicate />
+          </Button>
+          {/* TODO: tooltip */}
+          <Button variant="close" className="mx-2" />
         </Card.Header>
         <Card.Body style={{ padding: 0 }}>
-          <Plot
-            data={[
-              {
-                x: [1, 2, 3],
-                y: [2, 6, 3],
-                type: "scatter",
-                mode: "lines+markers",
-                marker: { color: "red" },
-              },
-              { type: "bar", x: [1, 2, 3], y: [2, 5, 3] },
-            ]}
-            layout={plotLayout}
-            onBeforeHover={() => setAllowDrag(false)}
-            onUnhover={() => setAllowDrag(true)}
-          />
+          {selectedOption === "1" && (
+            <Plot
+              data={[
+                {
+                  x: [1, 2, 3],
+                  y: [2.5, 6.5, 3.5],
+                  type: "scatter",
+                  mode: "lines+markers",
+                  marker: { color: "red" },
+                },
+                { type: "bar", x: [1, 2, 3], y: [2, 5, 3] },
+              ]}
+              layout={plotLayout}
+              onBeforeHover={() => setAllowDrag(false)}
+              onUnhover={() => setAllowDrag(true)}
+            />
+          )}
+          {selectedOption === "2" && (
+            <Plot
+              data={[
+                {
+                  x: [1, 2, 3, 4],
+                  y: [10, 15, 13, 17],
+                  mode: "markers",
+                  type: "scatter",
+                },
+                {
+                  x: [2, 3, 4, 5],
+                  y: [16, 5, 11, 9],
+                  mode: "lines",
+                  type: "scatter",
+                },
+                {
+                  x: [1, 2, 3, 4],
+                  y: [12, 9, 15, 12],
+                  mode: "lines+markers",
+                  type: "scatter",
+                },
+              ]}
+              layout={plotLayout}
+              onBeforeHover={() => setAllowDrag(false)}
+              onUnhover={() => setAllowDrag(true)}
+            />
+          )}
         </Card.Body>
       </Card>
     </Rnd>
