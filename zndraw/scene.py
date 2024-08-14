@@ -61,7 +61,7 @@ class Scene(BaseModel):
     )
     frame_update: bool = Field(
         True,
-        help="Jump to updated frames.",
+        description="Jump to updated frames.",
     )
     # bonds: bool = Field(
     #     True,
@@ -114,6 +114,7 @@ class Scene(BaseModel):
         schema["properties"]["Animation Loop"]["format"] = "checkbox"
         schema["properties"]["simulation_box"]["format"] = "checkbox"
         schema["properties"]["vectorfield"]["format"] = "checkbox"
+        schema["properties"]["frame_update"]["format"] = "checkbox"
         # schema["properties"]["resolution"]["format"] = "range"
         # schema["properties"]["label_offset"]["format"] = "range"
         schema["properties"]["particle_size"]["format"] = "range"
