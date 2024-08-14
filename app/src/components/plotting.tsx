@@ -92,7 +92,7 @@ const PlotsCard = () => {
             {/* <option value="2">Two</option>
             <option value="3">Three</option> */}
           </Form.Select>
-          <Button variant="close" className="p-2"/>
+          <Button variant="close" className="p-2" />
         </Card.Header>
         <Card.Body style={{ padding: 0 }}>
           <Plot
