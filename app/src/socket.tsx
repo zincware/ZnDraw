@@ -7,8 +7,8 @@ function setupIO() {
   const basePath = import.meta.env.BASE_URL || "/";
 
   if (basePath === "/") {
-    // return io("http://localhost:1235"); // for local development
-    return io(window.location.origin);
+    return io("http://localhost:1235"); // for local development
+    // return io(window.location.origin);
   } else {
     return io(window.location.origin, { path: `${basePath}socket.io` });
   }

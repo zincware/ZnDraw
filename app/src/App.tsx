@@ -20,6 +20,7 @@ import {
 import { Frames, Frame, Player } from "./components/particles";
 import { Geometries } from "./components/geometries";
 import "./App.css";
+import { Plotting } from "./components/plotting";
 
 import { Canvas, useThree } from "@react-three/fiber";
 import {
@@ -745,6 +746,7 @@ export default function App() {
           bookmarks={bookmarks}
           setBookmarks={setBookmarks}
         />
+        <Plotting />
         {showParticleInfo && (
           <>
             <ParticleInfoOverlay

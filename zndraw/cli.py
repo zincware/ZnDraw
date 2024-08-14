@@ -120,6 +120,9 @@ def main(
     max_http_buffer_size: int = typer.Option(
         None, help="Maximum size of the HTTP buffer in bytes. Default is 1MB."
     ),
+    plots: list[str] = typer.Option(
+        None, help="List of plots to be shown in the ZnDraw GUI."
+    ),
 ):
     """Start the ZnDraw server.
 
