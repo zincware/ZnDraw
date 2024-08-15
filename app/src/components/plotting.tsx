@@ -121,7 +121,7 @@ const PlotsCard = ({
       }
     });
     setSelectedFrames(selectedFrames);
-  }
+  };
 
   const handleSelectClick = () => {
     // call 'analysis:figure:keys' to get the available plots

@@ -407,8 +407,8 @@ export default function App() {
               );
             }
           } else {
-          // Move to the next step, or wrap around to the start
-          setStep((prevStep) => (prevStep + 1 < length ? prevStep + 1 : 0));
+            // Move to the next step, or wrap around to the start
+            setStep((prevStep) => (prevStep + 1 < length ? prevStep + 1 : 0));
           }
         }
       } else if (event.key === "ArrowLeft") {
@@ -439,10 +439,10 @@ export default function App() {
               );
             }
           } else {
-          setStep((prevStep) =>
-            prevStep - 1 >= 0 ? prevStep - 1 : length - 1,
-          );
-        }
+            setStep((prevStep) =>
+              prevStep - 1 >= 0 ? prevStep - 1 : length - 1,
+            );
+          }
         }
       } else if (event.key == "ArrowUp") {
         // jump 10 percent, or to the end
@@ -777,7 +777,7 @@ export default function App() {
           bookmarks={bookmarks}
           setBookmarks={setBookmarks}
         />
-        <Plotting setStep={setStep} setSelectedFrames={setSelectedFrames}/>
+        <Plotting setStep={setStep} setSelectedFrames={setSelectedFrames} />
         {showParticleInfo && (
           <>
             <ParticleInfoOverlay
