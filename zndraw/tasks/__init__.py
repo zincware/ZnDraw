@@ -276,7 +276,6 @@ def read_plots(paths: list[str]) -> None:
         url=current_app.config["SERVER_URL"],
         token="default",
     )
-    
 
     vis.figures = load_plots_to_json(paths)
 

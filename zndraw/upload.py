@@ -16,7 +16,9 @@ from .utils import load_plots_to_json
 cli = typer.Typer()
 
 
-def upload(url: str, token: t.Optional[str], fileio: FileIO, append: bool, plots: list[str]):
+def upload(
+    url: str, token: t.Optional[str], fileio: FileIO, append: bool, plots: list[str]
+):
     """Upload a file to ZnDraw."""
     if token is None:
         token = str(uuid.uuid4())

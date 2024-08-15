@@ -11,12 +11,12 @@ import urllib.parse
 import uuid
 from urllib.parse import urlparse
 
-import plotly.graph_objs
-import znjson
 import ase
 import datamodel_code_generator
 import numpy as np
+import plotly.graph_objs
 import socketio.exceptions
+import znjson
 from ase.calculators.singlepoint import SinglePointCalculator
 from ase.data import covalent_radii
 from ase.data.colors import jmol_colors
@@ -388,5 +388,5 @@ def load_plots_to_json(paths: list[str]):
             data.update({f"{path}_{i}": v.to_json() for i, v in enumerate(plots)})
         else:
             raise ValueError("The plots must be a dict, list or Figure")
-        
+
     return data
