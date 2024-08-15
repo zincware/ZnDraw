@@ -1,8 +1,8 @@
 import logging
+import pathlib
 import typing as t
 import urllib.request
 from io import StringIO
-import pathlib
 
 import ase.io
 import socketio.exceptions
@@ -270,8 +270,9 @@ def run_upload_file(room, data: dict):
 
 @shared_task
 def read_plots(paths: list[str]) -> None:
-    from zndraw.zndraw import ZnDrawLocal
     from plotly.graph_objs import Figure
+
+    from zndraw.zndraw import ZnDrawLocal
 
     r = current_app.extensions["redis"]
     vis = ZnDrawLocal(
@@ -281,9 +282,7 @@ def read_plots(paths: list[str]) -> None:
     )
     data = {}
     for path in paths:
-        plots = znjson.loads(
-            pathlib.Path(path).read_text()
-        )
+        plots = znjson.loads(pathlib.Path(path).read_text())
         if isinstance(plots, Figure):
             data[path] = plots.to_json()
         elif isinstance(plots, dict):
@@ -296,9 +295,8 @@ def read_plots(paths: list[str]) -> None:
             data.update({f"{path}_{i}": v.to_json() for i, v in enumerate(plots)})
         else:
             raise ValueError("The plots must be a dict, list or Figure")
-    
-    vis.figures = data
 
+    vis.figures = data
 
     # for plot in plots:
     #     if plot["type"] == "line":

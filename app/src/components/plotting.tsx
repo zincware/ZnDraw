@@ -7,7 +7,6 @@ import Plot from "react-plotly.js";
 import { IoDuplicate } from "react-icons/io5";
 
 export const Plotting = () => {
-
   const [availablePlots, setAvailablePlots] = useState<string[]>([]);
   const [plotData, setPlotData] = useState<object>({}); // dict[string| dict]
   const [displayedCards, setDisplayedCards] = useState<number[]>([1]);
@@ -42,7 +41,7 @@ export const Plotting = () => {
         />
       ))}
 
-      {/* <PlotsCard 
+      {/* <PlotsCard
       availablePlots={availablePlots}
       setAvailablePlots={setAvailablePlots}
       plotData={plotData}
@@ -81,7 +80,13 @@ const handleFigureData = ({
   }, []);
 };
 
-const PlotsCard = ({identifier, availablePlots, setAvailablePlots, plotData, setDisplayedCards}: any) => {
+const PlotsCard = ({
+  identifier,
+  availablePlots,
+  setAvailablePlots,
+  plotData,
+  setDisplayedCards,
+}: any) => {
   const cardRef = useRef<any>(null);
   const [selectedOption, setSelectedOption] = useState<string>("1");
   const [allowDrag, setAllowDrag] = useState<boolean>(true);
@@ -101,21 +106,21 @@ const PlotsCard = ({identifier, availablePlots, setAvailablePlots, plotData, set
     socket.emit("analysis:figure:keys", (data: string[]) => {
       setAvailablePlots(data);
     });
-  }
+  };
 
   const closeThisCard = () => {
     // remove this card from the displayed cards
     setDisplayedCards((prevCards: number[]) => {
       return prevCards.filter((card: number) => card !== identifier);
     });
-  }
+  };
 
   const addAnotherCard = () => {
     // add another card to the displayed cards
     setDisplayedCards((prevCards: number[]) => {
       return [...prevCards, prevCards[prevCards.length - 1] + 1];
     });
-  }
+  };
 
   useEffect(() => {
     console.log("selected option: ", selectedOption);
@@ -154,7 +159,10 @@ const PlotsCard = ({identifier, availablePlots, setAvailablePlots, plotData, set
           style={{ height: 50 }}
         >
           {/* <Card.Title className="p-2">Analysis</Card.Title> */}
-          <Form.Select onChange={handleSelectChange} onClick={handleSelectClick}>
+          <Form.Select
+            onChange={handleSelectChange}
+            onClick={handleSelectClick}
+          >
             {availablePlots.map((plot, index) => (
               <option key={index} value={plot}>
                 {plot}
@@ -169,19 +177,19 @@ const PlotsCard = ({identifier, availablePlots, setAvailablePlots, plotData, set
             <IoDuplicate />
           </Button>
           {/* TODO: tooltip */}
-          <Button variant="close" className="mx-2" onClick={closeThisCard}/>
+          <Button variant="close" className="mx-2" onClick={closeThisCard} />
         </Card.Header>
         <Card.Body style={{ padding: 0 }}>
-        {plotData[selectedOption] && (
-              <Plot
-                data={plotData[selectedOption].data}
-                frames={plotData[selectedOption].frames}
-                config={plotData[selectedOption].config}
-                layout={plotLayout} // todo: merge
-                onBeforeHover={() => setAllowDrag(false)}
-                onUnhover={() => setAllowDrag(true)}
-              />
-            )}
+          {plotData[selectedOption] && (
+            <Plot
+              data={plotData[selectedOption].data}
+              frames={plotData[selectedOption].frames}
+              config={plotData[selectedOption].config}
+              layout={plotLayout} // todo: merge
+              onBeforeHover={() => setAllowDrag(false)}
+              onUnhover={() => setAllowDrag(true)}
+            />
+          )}
           {/* {selectedOption === "1" && (
             <Plot
               data={[

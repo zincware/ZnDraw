@@ -471,7 +471,7 @@ def init_socketio_events(io: SocketIO):
         )
 
     @io.on("analysis:figure:get")
-    def analysis_figure_get(key: str|None = None) -> dict | None:
+    def analysis_figure_get(key: str | None = None) -> dict | None:
         room = session.get("token")
         r: Redis = current_app.extensions["redis"]
         # check if room exists, else copy from default
@@ -484,7 +484,7 @@ def init_socketio_events(io: SocketIO):
         if key is None:
             return dict(figures)
         return figures.get(key)
-        
+
     @io.on("analysis:figure:keys")
     def analysis_figure_keys() -> list[str]:
         room = session.get("token")
