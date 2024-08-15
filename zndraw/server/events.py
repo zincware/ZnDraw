@@ -451,7 +451,12 @@ def init_socketio_events(io: SocketIO):
         # This is currently using push and the figure is not stored
         room = session.get("token")
         r: Redis = current_app.extensions["redis"]
-        figures = znsocket.Dict(r, f"room:{room}:analysis:figures")
+        if not r.exists(f"room:{room}:analysis:figures"):
+            default_figures = znsocket.Dict(r, "room:default:analysis:figures")
+            figures = znsocket.Dict(r, f"room:{room}:analysis:figures")
+            figures.update(default_figures)
+        else:
+            figures = znsocket.Dict(r, f"room:{room}:analysis:figures")
         # remove all keys that are not in data
         for key in list(figures.keys()):
             if key not in data:
@@ -469,7 +474,13 @@ def init_socketio_events(io: SocketIO):
     def analysis_figure_get(key: str|None = None) -> dict | None:
         room = session.get("token")
         r: Redis = current_app.extensions["redis"]
-        figures = znsocket.Dict(r, f"room:{room}:analysis:figures")
+        # check if room exists, else copy from default
+        if not r.exists(f"room:{room}:analysis:figures"):
+            default_figures = znsocket.Dict(r, "room:default:analysis:figures")
+            figures = znsocket.Dict(r, f"room:{room}:analysis:figures")
+            figures.update(default_figures)
+        else:
+            figures = znsocket.Dict(r, f"room:{room}:analysis:figures")
         if key is None:
             return dict(figures)
         return figures.get(key)
@@ -478,8 +489,10 @@ def init_socketio_events(io: SocketIO):
     def analysis_figure_keys() -> list[str]:
         room = session.get("token")
         r: Redis = current_app.extensions["redis"]
-        figures = znsocket.Dict(r, f"room:{room}:analysis:figures")
-        return list(figures.keys())
+        if not r.exists(f"room:{room}:analysis:figures"):
+            return znsocket.Dict(r, "room:default:analysis:figures").keys()
+        else:
+            return znsocket.Dict(r, f"room:{room}:analysis:figures").keys()
 
     @io.on("selection:run")
     def selection_run(data: dict):

@@ -12,7 +12,7 @@ import typer
 from zndraw.app import create_app
 from zndraw.base import FileIO
 from zndraw.standalone import run_celery_worker, run_znsocket
-from zndraw.tasks import read_file
+from zndraw.tasks import read_file, read_plots
 from zndraw.upload import upload
 from zndraw.utils import get_port
 
@@ -121,7 +121,7 @@ def main(
         None, help="Maximum size of the HTTP buffer in bytes. Default is 1MB."
     ),
     plots: list[str] = typer.Option(
-        None, help="List of plots to be shown in the ZnDraw GUI."
+        None, "--plots", "-p", help="List of plots to be shown in the ZnDraw GUI."
     ),
 ):
     """Start the ZnDraw server.
@@ -192,6 +192,7 @@ def main(
     app = create_app()
 
     read_file.delay(fileio.to_dict())
+    read_plots.delay(plots)
 
     if browser:
         import webbrowser

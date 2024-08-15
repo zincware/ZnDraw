@@ -2,6 +2,7 @@ import logging
 import typing as t
 import urllib.request
 from io import StringIO
+import pathlib
 
 import ase.io
 import socketio.exceptions
@@ -265,3 +266,55 @@ def run_upload_file(room, data: dict):
 
     vis.socket.sleep(1)
     vis.socket.disconnect()
+
+
+@shared_task
+def read_plots(paths: list[str]) -> None:
+    from zndraw.zndraw import ZnDrawLocal
+    from plotly.graph_objs import Figure
+
+    r = current_app.extensions["redis"]
+    vis = ZnDrawLocal(
+        r=current_app.extensions["redis"],
+        url=current_app.config["SERVER_URL"],
+        token="default",
+    )
+    data = {}
+    for path in paths:
+        plots = znjson.loads(
+            pathlib.Path(path).read_text()
+        )
+        if isinstance(plots, Figure):
+            data[path] = plots.to_json()
+        elif isinstance(plots, dict):
+            if not all(isinstance(v, Figure) for v in plots.values()):
+                raise ValueError("All values in the plots dict must be plotly.graph_objs")
+            data.update({f"{path}_{k}": v.to_json() for k, v in plots.items()})
+        elif isinstance(plots, list):
+            if not all(isinstance(v, Figure) for v in plots):
+                raise ValueError("All values in the plots list must be plotly.graph_objs")
+            data.update({f"{path}_{i}": v.to_json() for i, v in enumerate(plots)})
+        else:
+            raise ValueError("The plots must be a dict, list or Figure")
+    
+    vis.figures = data
+
+
+    # for plot in plots:
+    #     if plot["type"] == "line":
+    #         data = znsocket.List(r, f"room:default:plots:{plot['id']}")
+    #         data.clear()
+    #         data.extend(plot["data"])
+    #     elif plot["type"] == "image":
+    #         data = znsocket.Dict(r, f"room:default:plots:{plot['id']}")
+    #         data.clear()
+    #         data.update(plot["data"])
+
+    # try:
+    #     io.connect(current_app.config["SERVER_URL"], wait_timeout=10)
+    #     io.emit("room:all:plots:refresh", [plot["id"] for plot in plots])
+    # except socketio.exceptions.ConnectionError:
+    #     pass
+
+    # io.sleep(1)
+    # io.disconnect()
