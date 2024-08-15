@@ -8,9 +8,10 @@ import { IoDuplicate } from "react-icons/io5";
 
 interface PlottingProps {
   setStep: (step: number) => void;
+  setSelectedFrames: (selectedFrames: number[]) => void;
 }
 
-export const Plotting = ({ setStep }: PlottingProps) => {
+export const Plotting = ({ setStep, setSelectedFrames }: PlottingProps) => {
   const [availablePlots, setAvailablePlots] = useState<string[]>([]);
   const [plotData, setPlotData] = useState<object>({}); // dict[string| dict]
   const [displayedCards, setDisplayedCards] = useState<number[]>([1]);
@@ -43,6 +44,7 @@ export const Plotting = ({ setStep }: PlottingProps) => {
           plotData={plotData}
           setDisplayedCards={setDisplayedCards}
           setStep={setStep}
+          setSelectedFrames={setSelectedFrames}
         />
       ))}
     </>
@@ -69,6 +71,7 @@ interface PlotsCardProps {
   plotData: object;
   setDisplayedCards: (displayedCards: number[]) => void;
   setStep: (step: number) => void;
+  setSelectedFrames: (selectedFrames: number[]) => void;
 }
 
 const PlotsCard = ({
@@ -78,6 +81,7 @@ const PlotsCard = ({
   plotData,
   setDisplayedCards,
   setStep,
+  setSelectedFrames,
 }: PlotsCardProps) => {
   const cardRef = useRef<any>(null);
   const [selectedOption, setSelectedOption] = useState<string>("");
@@ -106,6 +110,18 @@ const PlotsCard = ({
       setStep(points[0].pointIndex);
     }
   };
+
+  const onPlotSelected = (event: any) => {
+    let selectedFrames: number[] = [];
+    event.points.forEach((point: any) => {
+      if (point.customdata) {
+        selectedFrames.push(point.customdata[0]);
+      } else {
+        selectedFrames.push(point.pointIndex);
+      }
+    });
+    setSelectedFrames(selectedFrames);
+  }
 
   const handleSelectClick = () => {
     // call 'analysis:figure:keys' to get the available plots
@@ -200,6 +216,7 @@ const PlotsCard = ({
               onBeforeHover={() => setAllowDrag(false)}
               onUnhover={() => setAllowDrag(true)}
               onClick={onPlotClick}
+              onSelected={onPlotSelected}
             />
           ) : (
             <h3 className="text-secondary m-3">No data available</h3>

@@ -61,6 +61,7 @@ export default function App() {
   const [length, setLength] = useState<number>(0);
   // updated via sockets
   const [step, setStep] = useState<number>(0);
+  const [selectedFrames, setSelectedFrames] = useState<number[]>([]);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [bookmarks, setBookmarks] = useState<any>({}); // {name: [step, ...]
   const [points, setPoints] = useState<THREE.Vector3[]>([]);
@@ -394,8 +395,21 @@ export default function App() {
             setStep(nextBookmark);
           }
         } else {
+          if (selectedFrames.length > 0) {
+            const index = selectedFrames.indexOf(step);
+            if (index == -1) {
+              setStep(selectedFrames[0]);
+            } else {
+              setStep(
+                selectedFrames[
+                  index + 1 < selectedFrames.length ? index + 1 : 0
+                ],
+              );
+            }
+          } else {
           // Move to the next step, or wrap around to the start
           setStep((prevStep) => (prevStep + 1 < length ? prevStep + 1 : 0));
+          }
         }
       } else if (event.key === "ArrowLeft") {
         setPlaying(false);
@@ -411,9 +425,24 @@ export default function App() {
           }
         } else {
           // Move to the previous step, or wrap around to the end
+          // check if selectedFrames length is greater than 0, then only jump
+          // between selectedFrames
+          if (selectedFrames.length > 0) {
+            const index = selectedFrames.indexOf(step);
+            if (index == -1) {
+              setStep(selectedFrames[0]);
+            } else {
+              setStep(
+                selectedFrames[
+                  index - 1 >= 0 ? index - 1 : selectedFrames.length - 1
+                ],
+              );
+            }
+          } else {
           setStep((prevStep) =>
             prevStep - 1 >= 0 ? prevStep - 1 : length - 1,
           );
+        }
         }
       } else if (event.key == "ArrowUp") {
         // jump 10 percent, or to the end
@@ -748,7 +777,7 @@ export default function App() {
           bookmarks={bookmarks}
           setBookmarks={setBookmarks}
         />
-        <Plotting setStep={setStep} />
+        <Plotting setStep={setStep} setSelectedFrames={setSelectedFrames}/>
         {showParticleInfo && (
           <>
             <ParticleInfoOverlay
