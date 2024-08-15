@@ -120,6 +120,8 @@ const PlotsCard = ({
         selectedFrames.push(point.pointIndex);
       }
     });
+    selectedFrames = Array.from(new Set(selectedFrames));
+    console.log("selected frames: ", selectedFrames);
     setSelectedFrames(selectedFrames);
   };
 
