@@ -182,7 +182,7 @@ def main(
     )
 
     if url is not None:
-        upload(url, token, fileio, append)
+        upload(url, token, fileio, append, plots)
         return
 
     typer.echo(

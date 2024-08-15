@@ -1,5 +1,4 @@
 import logging
-import pathlib
 import typing as t
 import urllib.request
 from io import StringIO
@@ -15,7 +14,7 @@ from flask import current_app
 from zndraw.base import FileIO
 from zndraw.bonds import ASEComputeBonds
 from zndraw.exceptions import RoomLockedError
-from zndraw.utils import ASEConverter
+from zndraw.utils import ASEConverter, load_plots_to_json
 
 log = logging.getLogger(__name__)
 
@@ -270,33 +269,16 @@ def run_upload_file(room, data: dict):
 
 @shared_task
 def read_plots(paths: list[str]) -> None:
-    from plotly.graph_objs import Figure
-
     from zndraw.zndraw import ZnDrawLocal
 
-    r = current_app.extensions["redis"]
     vis = ZnDrawLocal(
         r=current_app.extensions["redis"],
         url=current_app.config["SERVER_URL"],
         token="default",
     )
-    data = {}
-    for path in paths:
-        plots = znjson.loads(pathlib.Path(path).read_text())
-        if isinstance(plots, Figure):
-            data[path] = plots.to_json()
-        elif isinstance(plots, dict):
-            if not all(isinstance(v, Figure) for v in plots.values()):
-                raise ValueError("All values in the plots dict must be plotly.graph_objs")
-            data.update({f"{path}_{k}": v.to_json() for k, v in plots.items()})
-        elif isinstance(plots, list):
-            if not all(isinstance(v, Figure) for v in plots):
-                raise ValueError("All values in the plots list must be plotly.graph_objs")
-            data.update({f"{path}_{i}": v.to_json() for i, v in enumerate(plots)})
-        else:
-            raise ValueError("The plots must be a dict, list or Figure")
+    
 
-    vis.figures = data
+    vis.figures = load_plots_to_json(paths)
 
     # for plot in plots:
     #     if plot["type"] == "line":

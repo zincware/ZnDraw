@@ -11,11 +11,12 @@ import typer
 from zndraw import ZnDraw
 
 from .tasks import FileIO, get_generator_from_filename
+from .utils import load_plots_to_json
 
 cli = typer.Typer()
 
 
-def upload(url: str, token: t.Optional[str], fileio: FileIO, append: bool = False):
+def upload(url: str, token: t.Optional[str], fileio: FileIO, append: bool, plots: list[str]):
     """Upload a file to ZnDraw."""
     if token is None:
         token = str(uuid.uuid4())
@@ -28,3 +29,6 @@ def upload(url: str, token: t.Optional[str], fileio: FileIO, append: bool = Fals
 
     typer.echo(f"Uploading to: {url}/token/{vis.token}")
     vis.extend(list(generator))
+
+    figures = vis.figures
+    vis.figures = load_plots_to_json(plots) | figures
