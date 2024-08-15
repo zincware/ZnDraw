@@ -59,6 +59,10 @@ class Scene(BaseModel):
     camera_far: float = Field(
         1000, ge=1, le=10000, description="Camera far rendering plane"
     )
+    frame_update: bool = Field(
+        True,
+        description="Jump to updated frames.",
+    )
     # bonds: bool = Field(
     #     True,
     #     description="Show bonds.",
@@ -110,6 +114,7 @@ class Scene(BaseModel):
         schema["properties"]["Animation Loop"]["format"] = "checkbox"
         schema["properties"]["simulation_box"]["format"] = "checkbox"
         schema["properties"]["vectorfield"]["format"] = "checkbox"
+        schema["properties"]["frame_update"]["format"] = "checkbox"
         # schema["properties"]["resolution"]["format"] = "range"
         # schema["properties"]["label_offset"]["format"] = "range"
         schema["properties"]["particle_size"]["format"] = "range"
