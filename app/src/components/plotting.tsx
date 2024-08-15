@@ -4,18 +4,50 @@ import { useState, useRef, useEffect } from "react";
 import { socket } from "../socket";
 import { Rnd, RndResizeCallback } from "react-rnd";
 import Plot from "react-plotly.js";
-import { all } from "three/examples/jsm/nodes/Nodes.js";
 import { IoDuplicate } from "react-icons/io5";
 
 export const Plotting = () => {
+
+  const [availablePlots, setAvailablePlots] = useState<string[]>([]);
+  const [plotData, setPlotData] = useState<object>({}); // dict[string| dict]
+  const [displayedCards, setDisplayedCards] = useState<number[]>([1]);
+
   useEffect(() => {
-    console.log("Setting up plots");
-  }, []);
+    // when availablePlots is updated, update all the plotData
+    availablePlots.forEach((plot) => {
+      socket.emit("analysis:figure:get", plot, (data: any) => {
+        setPlotData((prevData: object) => {
+          return {
+            ...prevData,
+            [plot]: JSON.parse(data),
+          };
+        });
+      });
+    });
+    console.log("availablePlots: ", availablePlots);
+    // log the keys of the plotData
+    console.log("plotData keys: ", Object.keys(plotData));
+  }, [availablePlots]);
 
   return (
     <>
-      <PlotsCard />
-      <PlotsCard />
+      {displayedCards.map((cardIndex) => (
+        <PlotsCard
+          key={cardIndex}
+          identifier={cardIndex}
+          availablePlots={availablePlots}
+          setAvailablePlots={setAvailablePlots}
+          plotData={plotData}
+          setDisplayedCards={setDisplayedCards}
+        />
+      ))}
+
+      {/* <PlotsCard 
+      availablePlots={availablePlots}
+      setAvailablePlots={setAvailablePlots}
+      plotData={plotData}
+      /> */}
+      {/* <PlotsCard /> */}
       {/* <PlotsCard />
       <PlotsCard /> */}
     </>
@@ -49,7 +81,7 @@ const handleFigureData = ({
   }, []);
 };
 
-const PlotsCard = () => {
+const PlotsCard = ({identifier, availablePlots, setAvailablePlots, plotData, setDisplayedCards}: any) => {
   const cardRef = useRef<any>(null);
   const [selectedOption, setSelectedOption] = useState<string>("1");
   const [allowDrag, setAllowDrag] = useState<boolean>(true);
@@ -59,8 +91,36 @@ const PlotsCard = () => {
   });
 
   const handleSelectChange = (event: any) => {
+    // update the selected plot via 'analysis:figure:get' with event.target.value
+    console.log("selected option: ", event.target.value);
     setSelectedOption(event.target.value);
   };
+
+  const handleSelectClick = () => {
+    // call 'analysis:figure:keys' to get the available plots
+    socket.emit("analysis:figure:keys", (data: string[]) => {
+      setAvailablePlots(data);
+    });
+  }
+
+  const closeThisCard = () => {
+    // remove this card from the displayed cards
+    setDisplayedCards((prevCards: number[]) => {
+      return prevCards.filter((card: number) => card !== identifier);
+    });
+  }
+
+  const addAnotherCard = () => {
+    // add another card to the displayed cards
+    setDisplayedCards((prevCards: number[]) => {
+      return [...prevCards, prevCards[prevCards.length - 1] + 1];
+    });
+  }
+
+  useEffect(() => {
+    console.log("selected option: ", selectedOption);
+    console.log("plotData: ", plotData[selectedOption]);
+  }, [selectedOption]);
 
   const onResize: RndResizeCallback = () => {
     if (cardRef.current) {
@@ -94,21 +154,35 @@ const PlotsCard = () => {
           style={{ height: 50 }}
         >
           {/* <Card.Title className="p-2">Analysis</Card.Title> */}
-          <Form.Select onChange={handleSelectChange}>
-            <option value="1">Distance</option>
-            <option value="2">plotting/histogram.json</option>
+          <Form.Select onChange={handleSelectChange} onClick={handleSelectClick}>
+            {availablePlots.map((plot, index) => (
+              <option key={index} value={plot}>
+                {plot}
+              </option>
+            ))}
           </Form.Select>
           <Button
             variant="tertiary"
             className=" mx-2 btn btn-outline-secondary"
+            onClick={addAnotherCard}
           >
             <IoDuplicate />
           </Button>
           {/* TODO: tooltip */}
-          <Button variant="close" className="mx-2" />
+          <Button variant="close" className="mx-2" onClick={closeThisCard}/>
         </Card.Header>
         <Card.Body style={{ padding: 0 }}>
-          {selectedOption === "1" && (
+        {plotData[selectedOption] && (
+              <Plot
+                data={plotData[selectedOption].data}
+                frames={plotData[selectedOption].frames}
+                config={plotData[selectedOption].config}
+                layout={plotLayout} // todo: merge
+                onBeforeHover={() => setAllowDrag(false)}
+                onUnhover={() => setAllowDrag(true)}
+              />
+            )}
+          {/* {selectedOption === "1" && (
             <Plot
               data={[
                 {
@@ -124,34 +198,7 @@ const PlotsCard = () => {
               onBeforeHover={() => setAllowDrag(false)}
               onUnhover={() => setAllowDrag(true)}
             />
-          )}
-          {selectedOption === "2" && (
-            <Plot
-              data={[
-                {
-                  x: [1, 2, 3, 4],
-                  y: [10, 15, 13, 17],
-                  mode: "markers",
-                  type: "scatter",
-                },
-                {
-                  x: [2, 3, 4, 5],
-                  y: [16, 5, 11, 9],
-                  mode: "lines",
-                  type: "scatter",
-                },
-                {
-                  x: [1, 2, 3, 4],
-                  y: [12, 9, 15, 12],
-                  mode: "lines+markers",
-                  type: "scatter",
-                },
-              ]}
-              layout={plotLayout}
-              onBeforeHover={() => setAllowDrag(false)}
-              onUnhover={() => setAllowDrag(true)}
-            />
-          )}
+          )} */}
         </Card.Body>
       </Card>
     </Rnd>
