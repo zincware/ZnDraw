@@ -6,7 +6,6 @@ import { Rnd, RndResizeCallback } from "react-rnd";
 import Plot from "react-plotly.js";
 import { IoDuplicate } from "react-icons/io5";
 
-
 interface PlottingProps {
   setStep: (step: number) => void;
 }
@@ -192,19 +191,19 @@ const PlotsCard = ({
           <Button variant="close" className="mx-2" onClick={closeThisCard} />
         </Card.Header>
         <Card.Body style={{ padding: 0 }}>
-        {plotData[selectedOption] ? (
-  <Plot
-    data={plotData[selectedOption].data}
-    frames={plotData[selectedOption].frames}
-    config={plotData[selectedOption].config}
-    layout={plotLayout} // todo: merge
-    onBeforeHover={() => setAllowDrag(false)}
-    onUnhover={() => setAllowDrag(true)}
-    onClick={onPlotClick}
-  />
-) : (
-  <h3 className="text-secondary m-3">No data available</h3>
-)}
+          {plotData[selectedOption] ? (
+            <Plot
+              data={plotData[selectedOption].data}
+              frames={plotData[selectedOption].frames}
+              config={plotData[selectedOption].config}
+              layout={plotLayout} // todo: merge
+              onBeforeHover={() => setAllowDrag(false)}
+              onUnhover={() => setAllowDrag(true)}
+              onClick={onPlotClick}
+            />
+          ) : (
+            <h3 className="text-secondary m-3">No data available</h3>
+          )}
         </Card.Body>
       </Card>
     </Rnd>

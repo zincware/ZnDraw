@@ -37,7 +37,11 @@ interface SidebarMenuProps {
   closeMenu?: () => void;
 }
 
-const useJSONEditor = (schema: any, setUserInput: (value: any) => void, useSubmit: boolean) => {
+const useJSONEditor = (
+  schema: any,
+  setUserInput: (value: any) => void,
+  useSubmit: boolean,
+) => {
   const editorRef = useRef<HTMLDivElement>(null);
   const JSONEditorRef = useRef<JSONEditor | null>(null);
 
@@ -54,7 +58,8 @@ const useJSONEditor = (schema: any, setUserInput: (value: any) => void, useSubmi
 
       // on ready, validate and set user input
       JSONEditorRef.current.on("ready", () => {
-        if (useSubmit){ // when using the submit button, we need to set the user input on ready
+        if (useSubmit) {
+          // when using the submit button, we need to set the user input on ready
           // otherwise, it could be None.
           console.log("Setting user input on ready");
           if (JSONEditorRef.current.validate()) {

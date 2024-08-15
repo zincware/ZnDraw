@@ -746,7 +746,7 @@ export default function App() {
           bookmarks={bookmarks}
           setBookmarks={setBookmarks}
         />
-        <Plotting setStep={setStep}/>
+        <Plotting setStep={setStep} />
         {showParticleInfo && (
           <>
             <ParticleInfoOverlay
