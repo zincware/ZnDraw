@@ -6,7 +6,12 @@ import { Rnd, RndResizeCallback } from "react-rnd";
 import Plot from "react-plotly.js";
 import { IoDuplicate } from "react-icons/io5";
 
-export const Plotting = () => {
+
+interface PlottingProps {
+  setStep: (step: number) => void;
+}
+
+export const Plotting = ({ setStep }: PlottingProps) => {
   const [availablePlots, setAvailablePlots] = useState<string[]>([]);
   const [plotData, setPlotData] = useState<object>({}); // dict[string| dict]
   const [displayedCards, setDisplayedCards] = useState<number[]>([1]);
@@ -38,47 +43,34 @@ export const Plotting = () => {
           setAvailablePlots={setAvailablePlots}
           plotData={plotData}
           setDisplayedCards={setDisplayedCards}
+          setStep={setStep}
         />
       ))}
-
-      {/* <PlotsCard
-      availablePlots={availablePlots}
-      setAvailablePlots={setAvailablePlots}
-      plotData={plotData}
-      /> */}
-      {/* <PlotsCard /> */}
-      {/* <PlotsCard />
-      <PlotsCard /> */}
     </>
   );
 };
 
-interface handleFigureDataProps {
-  setPlotData: (data: any) => void;
-  setShowPlotsCard: (value: boolean) => void;
+//     useEffect(() => {
+//       if (plotData) {
+//         const newPlotData = { ...plotData };
+//         newPlotData.layout.paper_bgcolor =
+//           colorMode === "dark" ? "rgba(0,0,0, 0)" : "rgba(255,255,255, 0)";
+//         setPlotData(newPlotData);
+//       }
+//       const newPlotStyle = { ...plotStyle };
+//       newPlotStyle.filter =
+//         colorMode === "dark" ? "invert(75%) hue-rotate(180deg)" : "";
+//       setPlotStyle(newPlotStyle);
+//     }, [colorMode]);
+
+interface PlotsCardProps {
+  identifier: number;
+  availablePlots: string[];
+  setAvailablePlots: (availablePlots: string[]) => void;
+  plotData: object;
+  setDisplayedCards: (displayedCards: number[]) => void;
+  setStep: (step: number) => void;
 }
-
-const handleFigureData = ({
-  setPlotData,
-  setShowPlotsCard,
-}: handleFigureDataProps) => {
-  useEffect(() => {
-    const handleFigure = (data) => {
-      try {
-        const parsedData = JSON.parse(data);
-        setPlotData(parsedData);
-        setShowPlotsCard(true);
-      } catch (error) {
-        console.error("Error parsing JSON data: ", error);
-      }
-    };
-
-    socket.on("analysis:figure:set", handleFigure);
-    return () => {
-      socket.off("analysis:figure:set", handleFigure);
-    };
-  }, []);
-};
 
 const PlotsCard = ({
   identifier,
@@ -86,9 +78,10 @@ const PlotsCard = ({
   setAvailablePlots,
   plotData,
   setDisplayedCards,
-}: any) => {
+  setStep,
+}: PlotsCardProps) => {
   const cardRef = useRef<any>(null);
-  const [selectedOption, setSelectedOption] = useState<string>("1");
+  const [selectedOption, setSelectedOption] = useState<string>("");
   const [allowDrag, setAllowDrag] = useState<boolean>(true);
   const [plotLayout, setPlotLayout] = useState<any>({
     width: 220 - 20,
@@ -99,6 +92,20 @@ const PlotsCard = ({
     // update the selected plot via 'analysis:figure:get' with event.target.value
     console.log("selected option: ", event.target.value);
     setSelectedOption(event.target.value);
+  };
+
+  const onPlotClick = ({
+    event,
+    points,
+  }: {
+    event: MouseEvent;
+    points: any[];
+  }) => {
+    if (points[0].customdata) {
+      setStep(points[0].customdata[0]);
+    } else {
+      setStep(points[0].pointIndex);
+    }
   };
 
   const handleSelectClick = () => {
@@ -158,11 +165,16 @@ const PlotsCard = ({
           className="d-flex justify-content-between align-items-center flex-nowrap"
           style={{ height: 50 }}
         >
-          {/* <Card.Title className="p-2">Analysis</Card.Title> */}
           <Form.Select
             onChange={handleSelectChange}
             onClick={handleSelectClick}
+            defaultValue=""
           >
+            {selectedOption === "" && (
+              <option value="" disabled>
+                Select plot
+              </option>
+            )}
             {availablePlots.map((plot, index) => (
               <option key={index} value={plot}>
                 {plot}
@@ -180,143 +192,21 @@ const PlotsCard = ({
           <Button variant="close" className="mx-2" onClick={closeThisCard} />
         </Card.Header>
         <Card.Body style={{ padding: 0 }}>
-          {plotData[selectedOption] && (
-            <Plot
-              data={plotData[selectedOption].data}
-              frames={plotData[selectedOption].frames}
-              config={plotData[selectedOption].config}
-              layout={plotLayout} // todo: merge
-              onBeforeHover={() => setAllowDrag(false)}
-              onUnhover={() => setAllowDrag(true)}
-            />
-          )}
-          {/* {selectedOption === "1" && (
-            <Plot
-              data={[
-                {
-                  x: [1, 2, 3],
-                  y: [2.5, 6.5, 3.5],
-                  type: "scatter",
-                  mode: "lines+markers",
-                  marker: { color: "red" },
-                },
-                { type: "bar", x: [1, 2, 3], y: [2, 5, 3] },
-              ]}
-              layout={plotLayout}
-              onBeforeHover={() => setAllowDrag(false)}
-              onUnhover={() => setAllowDrag(true)}
-            />
-          )} */}
+        {plotData[selectedOption] ? (
+  <Plot
+    data={plotData[selectedOption].data}
+    frames={plotData[selectedOption].frames}
+    config={plotData[selectedOption].config}
+    layout={plotLayout} // todo: merge
+    onBeforeHover={() => setAllowDrag(false)}
+    onUnhover={() => setAllowDrag(true)}
+    onClick={onPlotClick}
+  />
+) : (
+  <h3 className="text-secondary m-3">No data available</h3>
+)}
         </Card.Body>
       </Card>
     </Rnd>
   );
 };
-
-//   const PlotsCard = ({
-//     plotData,
-//     setPlotData,
-//     colorMode,
-//     showPlotsCard,
-//     setShowPlotsCard,
-//     setStep,
-//   }: {
-//     plotData: any;
-//     setPlotData: any;
-//     colorMode: string;
-//     showPlotsCard: boolean;
-//     setShowPlotsCard: any;
-//     setStep: any;
-//   }) => {
-//     const [plotStyle, setPlotStyle] = useState<any>({
-//       width: "100%",
-//       height: "100%",
-//     });
-//     const [renderKey, setRenderKey] = useState<number>(0);
-//     const cardRef = useRef<any>(null);
-
-//     useEffect(() => {
-//       if (plotData) {
-//         const newPlotData = { ...plotData };
-//         newPlotData.layout.paper_bgcolor =
-//           colorMode === "dark" ? "rgba(0,0,0, 0)" : "rgba(255,255,255, 0)";
-//         setPlotData(newPlotData);
-//       }
-//       const newPlotStyle = { ...plotStyle };
-//       newPlotStyle.filter =
-//         colorMode === "dark" ? "invert(75%) hue-rotate(180deg)" : "";
-//       setPlotStyle(newPlotStyle);
-//     }, [colorMode]);
-
-//     const onResize = () => {
-//       if (cardRef.current) {
-//         const newPlotData = { ...plotData };
-//         newPlotData.layout.width = cardRef.current.clientWidth;
-//         newPlotData.layout.height = cardRef.current.clientHeight - 50;
-//         setPlotData(newPlotData);
-//         setRenderKey((prevKey) => prevKey + 1);
-//       }
-//     };
-
-//     const onPlotClick = ({
-//       event,
-//       points,
-//     }: {
-//       event: MouseEvent;
-//       points: any[];
-//     }) => {
-//       if (points[0].customdata) {
-//         setStep(points[0].customdata[0]);
-//       } else {
-//         setStep(points[0].pointIndex);
-//       }
-//     };
-
-//     return (
-//       <Rnd
-//         default={{
-//           x: 100,
-//           y: -100,
-//           width: 400,
-//           height: 400,
-//         }}
-//         minHeight={200}
-//         minWidth={220}
-//         style={{
-//           zIndex: 1000,
-//           padding: 0,
-//           margin: 0,
-//           display: showPlotsCard ? "block" : "none",
-//         }}
-//         onResize={onResize}
-//       >
-//         <Card
-//           style={{
-//             margin: 0,
-//             padding: 0,
-//             width: "100%",
-//             height: "100%",
-//           }}
-//           ref={cardRef}
-//         >
-//           <Card.Header className="d-flex justify-content-between align-items-center">
-//             <Card.Title>Analysis Figure</Card.Title>
-//             <Button variant="close" onClick={() => setShowPlotsCard(false)} />
-//           </Card.Header>
-//           <Card.Body>
-//             {plotData.data.length > 0 && (
-//               <Plot
-//                 key={renderKey}
-//                 data={plotData.data}
-//                 layout={plotData.layout}
-//                 frames={plotData.frames}
-//                 config={plotData.config}
-//                 style={plotStyle}
-//                 onClick={onPlotClick}
-//               />
-//             )}
-//           </Card.Body>
-//         </Card>
-//       </Rnd>
-//     );
-//   };

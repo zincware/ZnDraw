@@ -37,7 +37,7 @@ interface SidebarMenuProps {
   closeMenu?: () => void;
 }
 
-const useJSONEditor = (schema: any, setUserInput: (value: any) => void) => {
+const useJSONEditor = (schema: any, setUserInput: (value: any) => void, useSubmit: boolean) => {
   const editorRef = useRef<HTMLDivElement>(null);
   const JSONEditorRef = useRef<JSONEditor | null>(null);
 
@@ -51,6 +51,18 @@ const useJSONEditor = (schema: any, setUserInput: (value: any) => void) => {
         schema: schema,
       });
       let created_trigger = false;
+
+      // on ready, validate and set user input
+      JSONEditorRef.current.on("ready", () => {
+        if (useSubmit){ // when using the submit button, we need to set the user input on ready
+          // otherwise, it could be None.
+          console.log("Setting user input on ready");
+          if (JSONEditorRef.current.validate()) {
+            const editorValue = JSONEditorRef.current.getValue();
+            setUserInput(editorValue);
+          }
+        }
+      });
 
       JSONEditorRef.current.on("change", () => {
         if (JSONEditorRef.current.ready) {
@@ -90,6 +102,7 @@ const SidebarMenu: React.FC<SidebarMenuProps> = ({
 
   function submitEditor() {
     if (onSubmit) {
+      console.log("Submitting editor data: ", userInput);
       onSubmit(userInput);
     }
   }
@@ -102,7 +115,7 @@ const SidebarMenu: React.FC<SidebarMenuProps> = ({
     }
   }, [trigger]);
 
-  const editorRef = useJSONEditor(schema, setUserInput);
+  const editorRef = useJSONEditor(schema, setUserInput, useSubmit);
 
   useEffect(() => {
     if (!useSubmit && userInput !== null) {

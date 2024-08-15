@@ -181,7 +181,6 @@ def run_selection(room, data: dict) -> None:
 def run_analysis(room, data: dict) -> None:
     from zndraw.analyse import Analysis
     from zndraw.zndraw import ZnDrawLocal
-
     vis = ZnDrawLocal(
         r=current_app.extensions["redis"],
         url=current_app.config["SERVER_URL"],
