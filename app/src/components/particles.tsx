@@ -42,6 +42,8 @@ export const Player = ({
             setStep(0);
           }
         } else {
+          // TODO: handle selectedFrames
+
           setStep(step + 1);
         }
       }

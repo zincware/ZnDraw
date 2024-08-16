@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import {
   ProgressBar,
   InputGroup,
@@ -6,9 +6,10 @@ import {
   Container,
   Row,
   Col,
+  Card,
 } from "react-bootstrap";
 
-import { FaRegBookmark } from "react-icons/fa";
+import { FaEye, FaLock, FaRegBookmark } from "react-icons/fa";
 import { OverlayTrigger, Tooltip } from "react-bootstrap";
 
 interface JumpFrameProps {
@@ -117,60 +118,98 @@ interface FrameProgressBarProps {
   length: number;
   step: number;
   setStep: (step: number) => void;
-  bookmarks: { number: string };
-  setBookmarks: any;
+  selectedFrames: number[];
+  bookmarks: any[]; // Replace with actual type if known
+  setBookmarks: (bookmarks: any[]) => void; // Replace with actual type if known
 }
 
 const FrameProgressBar: React.FC<FrameProgressBarProps> = ({
   length,
   step,
   setStep,
+  selectedFrames,
   bookmarks,
   setBookmarks,
 }) => {
-  const handleClick = (event: React.MouseEvent<HTMLDivElement, MouseEvent>) => {
-    const percentage = event.clientX / window.innerWidth;
-    const newStep = Math.floor(percentage * length);
-    setStep(newStep);
-  };
+  const [linePosition, setLinePosition] = useState<number>(0);
+  const [disabledFrames, setDisabledFrames] = useState<number[]>([]);
+
+  useEffect(() => {
+    // disable frames are the frames that are not selected, if the selectedFrames is not empty
+    if (selectedFrames.length > 0) {
+      const disabledFrames = [...Array(length).keys()].filter(
+        (frame) => !selectedFrames.includes(frame),
+      );
+      setDisabledFrames(disabledFrames);
+    }
+  }, [selectedFrames, length]);
+
+  useEffect(() => {
+    // Calculate the linePosition based on the step, length, and window width
+    setLinePosition((step / (length)) * 100);
+  }, [step, length]);
 
   return (
-    <>
-      <Container
-        fluid
-        className="fixed-bottom py-0"
-        style={{ pointerEvents: "none" }}
-      >
-        <Row
-          className="justify-content-center"
-          style={{ pointerEvents: "none" }}
-        >
-          <Col xs="auto" style={{ pointerEvents: "auto" }}>
-            <JumpFrame step={step} setStep={setStep} length={length} />
-          </Col>
-        </Row>
-        <Row
-          className="justify-content-center"
-          style={{ pointerEvents: "auto" }}
-        >
-          <Col xs={12} className="px-0 py-0">
-            <ProgressBar
-              now={step}
-              className="frame-progress-bar"
-              onClick={handleClick}
-              max={length - 1}
-              style={{ margin: "0 auto", padding: 0, cursor: "pointer" }}
-            />
-          </Col>
-        </Row>
-      </Container>
-      <Bookmarks
-        bookmarks={bookmarks}
-        length={length}
-        setStep={setStep}
-        setBookmarks={setBookmarks}
-      />
-    </>
+    <Container fluid className="fixed-bottom px-0 py-0">
+      <Row>
+        <Col xs="1">
+          <Row>
+            <Col
+              className="d-flex bg-info justify-content-center align-items-center"
+              style={{ height: 25 }}
+            >
+              <FaLock />
+            </Col>
+          </Row>
+        </Col>
+        <Col>
+          <Row className="position-relative">
+            <Col className="d-flex justify-content-center">
+              <div className="handle" style={{ left: `${linePosition}%` }}>
+                <div className="square"></div>
+                <div className="triangle"></div>
+              </div>
+            </Col>
+          </Row>
+
+          <Row className="position-relative">
+            {/* we add the last frame to click on */}
+            {[...Array(length).keys()].map((position) =>
+              disabledFrames.includes(position) ? (
+                <div
+                  key={position}
+                  className="bg-secondary position-absolute" // A different class for disabled frames
+                  style={{
+                    left: `${(position / (length)) * 100}%`,
+                    height: 25,
+                  }}
+                />
+              ) : (
+                <div
+                  key={position}
+                  className="bg-primary position-absolute"
+                  style={{
+                    left: `${(position / (length)) * 100}%`,
+                    height: 25,
+                  }}
+                  onClick={() => setStep(position)}
+                />
+              ),
+            )}
+          </Row>
+        </Col>
+        {/* <Col xs="1">
+          <Row>
+            <Col
+              className="d-flex bg-dark justify-content-center align-items-center"
+              style={{ height: 25 }}
+            >
+              <FaEye />
+            </Col>
+          </Row>
+        </Col> */}
+      </Row>
+    </Container>
   );
 };
 

@@ -121,6 +121,8 @@ const PlotsCard = ({
       }
     });
     selectedFrames = Array.from(new Set(selectedFrames));
+    // sort the selected frames
+    selectedFrames.sort((a, b) => a - b);
     console.log("selected frames: ", selectedFrames);
     setSelectedFrames(selectedFrames);
   };
