@@ -146,7 +146,7 @@ const FrameProgressBar: React.FC<FrameProgressBarProps> = ({
 
   useEffect(() => {
     // Calculate the linePosition based on the step, length, and window width
-    setLinePosition((step / (length)) * 100);
+    setLinePosition((step / length) * 100);
   }, [step, length]);
 
   return (
@@ -180,7 +180,7 @@ const FrameProgressBar: React.FC<FrameProgressBarProps> = ({
                   key={position}
                   className="bg-secondary position-absolute" // A different class for disabled frames
                   style={{
-                    left: `${(position / (length)) * 100}%`,
+                    left: `${(position / length) * 100}%`,
                     height: 25,
                   }}
                 />
@@ -189,7 +189,7 @@ const FrameProgressBar: React.FC<FrameProgressBarProps> = ({
                   key={position}
                   className="bg-primary position-absolute"
                   style={{
-                    left: `${(position / (length)) * 100}%`,
+                    left: `${(position / length) * 100}%`,
                     height: 25,
                   }}
                   onClick={() => setStep(position)}

@@ -454,7 +454,7 @@ export default function App() {
         setPlaying(false);
         const newStep = Math.max(step - Math.floor(length / 10), 0);
         setStep(newStep);
-      } else if (event.key == " ") { 
+      } else if (event.key == " ") {
         // backspace
         updateLength();
         setPlaying((prev) => !prev);
