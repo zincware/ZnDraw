@@ -8,7 +8,7 @@ import { IoDuplicate } from "react-icons/io5";
 
 interface PlottingProps {
   setStep: (step: number) => void;
-  setSelectedFrames: (selectedFrames: number[]) => void;
+  setSelectedFrames: (selectedFrames: Set<number>) => void;
 }
 
 export const Plotting = ({ setStep, setSelectedFrames }: PlottingProps) => {
@@ -71,7 +71,7 @@ interface PlotsCardProps {
   plotData: object;
   setDisplayedCards: (displayedCards: number[]) => void;
   setStep: (step: number) => void;
-  setSelectedFrames: (selectedFrames: number[]) => void;
+  setSelectedFrames: (selectedFrames: Set<number>) => void;
 }
 
 const PlotsCard = ({
@@ -120,11 +120,7 @@ const PlotsCard = ({
         selectedFrames.push(point.pointIndex);
       }
     });
-    selectedFrames = Array.from(new Set(selectedFrames));
-    // sort the selected frames
-    selectedFrames.sort((a, b) => a - b);
-    console.log("selected frames: ", selectedFrames);
-    setSelectedFrames(selectedFrames);
+    setSelectedFrames(new Set(selectedFrames));
   };
 
   const handleSelectClick = () => {

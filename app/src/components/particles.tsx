@@ -22,6 +22,17 @@ export interface Frames {
   [key: number]: { _type: string; value: Frame };
 }
 
+interface PlayerProps {
+  playing: boolean;
+  step: number;
+  setStep: (step: number) => void;
+  fps: number;
+  length: number;
+  loop: boolean;
+  togglePlaying: (playing: boolean) => void;
+  selectedFrames: Set<number>;
+}
+
 export const Player = ({
   playing,
   step,
@@ -30,7 +41,8 @@ export const Player = ({
   length,
   loop,
   togglePlaying: setPlaying,
-}: any) => {
+  selectedFrames,
+}: PlayerProps) => {
   useFrame(({ clock }) => {
     const a = clock.getElapsedTime();
     if (a > 1 / fps) {
@@ -39,12 +51,26 @@ export const Player = ({
           if (!loop) {
             setPlaying(!playing);
           } else {
-            setStep(0);
+            if (selectedFrames.size > 0) {
+              setStep(Math.min(...selectedFrames));
+            } else {
+              setStep(0);
+            }
           }
         } else {
           // TODO: handle selectedFrames
-
-          setStep(step + 1);
+          if (selectedFrames.size > 0) {
+            const nextFrame = Array.from(selectedFrames).find(
+              (frame) => frame > step,
+            );
+            if (nextFrame) {
+              setStep(nextFrame);
+            } else {
+              setStep(Math.min(...selectedFrames));
+            }
+          } else {
+            setStep(step + 1);
+          }
         }
       }
       // reset the clock

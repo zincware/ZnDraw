@@ -61,7 +61,7 @@ export default function App() {
   const [length, setLength] = useState<number>(0);
   // updated via sockets
   const [step, setStep] = useState<number>(0);
-  const [selectedFrames, setSelectedFrames] = useState<number[]>([]);
+  const [selectedFrames, setSelectedFrames] = useState<Set<number>>(new Set());
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [bookmarks, setBookmarks] = useState<any>({}); // {name: [step, ...]
   const [points, setPoints] = useState<THREE.Vector3[]>([]);
@@ -395,19 +395,16 @@ export default function App() {
             setStep(nextBookmark);
           }
         } else {
-          if (selectedFrames.length > 0) {
-            const index = selectedFrames.indexOf(step);
-            if (index == -1) {
-              setStep(selectedFrames[0]);
+          if (selectedFrames.size > 0) {
+            const nextFrame = Array.from(selectedFrames).find(
+              (frame) => frame > step,
+            );
+            if (nextFrame) {
+              setStep(nextFrame);
             } else {
-              setStep(
-                selectedFrames[
-                  index + 1 < selectedFrames.length ? index + 1 : 0
-                ],
-              );
+              setStep(Math.min(...selectedFrames));
             }
           } else {
-            // Move to the next step, or wrap around to the start
             setStep((prevStep) => (prevStep + 1 < length ? prevStep + 1 : 0));
           }
         }
@@ -427,21 +424,17 @@ export default function App() {
           // Move to the previous step, or wrap around to the end
           // check if selectedFrames length is greater than 0, then only jump
           // between selectedFrames
-          if (selectedFrames.length > 0) {
-            const index = selectedFrames.indexOf(step);
-            if (index == -1) {
-              setStep(selectedFrames[0]);
+          if (selectedFrames.size > 0) {
+            const previousFrame = Array.from(selectedFrames).reverse().find(
+              (frame) => frame < step,
+            );
+            if (previousFrame) {
+              setStep(previousFrame);
             } else {
-              setStep(
-                selectedFrames[
-                  index - 1 >= 0 ? index - 1 : selectedFrames.length - 1
-                ],
-              );
+              setStep(Math.max(...selectedFrames));
             }
           } else {
-            setStep((prevStep) =>
-              prevStep - 1 >= 0 ? prevStep - 1 : length - 1,
-            );
+            setStep((prevStep) => (prevStep - 1 >= 0 ? prevStep - 1 : length));
           }
         }
       } else if (event.key == "ArrowUp") {
@@ -695,6 +688,7 @@ export default function App() {
               fps={roomConfig["scene"].fps}
               loop={roomConfig["scene"]["Animation Loop"]}
               length={length}
+              selectedFrames={selectedFrames}
             />
             <Line3D
               points={points}

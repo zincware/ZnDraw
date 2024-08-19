@@ -118,7 +118,7 @@ interface FrameProgressBarProps {
   length: number;
   step: number;
   setStep: (step: number) => void;
-  selectedFrames: number[];
+  selectedFrames: Set<number>;
   bookmarks: any[]; // Replace with actual type if known
   setBookmarks: (bookmarks: any[]) => void; // Replace with actual type if known
 }
@@ -136,9 +136,9 @@ const FrameProgressBar: React.FC<FrameProgressBarProps> = ({
 
   useEffect(() => {
     // disable frames are the frames that are not selected, if the selectedFrames is not empty
-    if (selectedFrames.length > 0) {
+    if (selectedFrames.size > 0) {
       const disabledFrames = [...Array(length).keys()].filter(
-        (frame) => !selectedFrames.includes(frame),
+        (frame) => !selectedFrames.has(frame),
       );
       setDisabledFrames(disabledFrames);
     }
