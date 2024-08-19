@@ -425,9 +425,9 @@ export default function App() {
           // check if selectedFrames length is greater than 0, then only jump
           // between selectedFrames
           if (selectedFrames.size > 0) {
-            const previousFrame = Array.from(selectedFrames).reverse().find(
-              (frame) => frame < step,
-            );
+            const previousFrame = Array.from(selectedFrames)
+              .reverse()
+              .find((frame) => frame < step);
             if (previousFrame) {
               setStep(previousFrame);
             } else {

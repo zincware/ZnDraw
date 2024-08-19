@@ -1,12 +1,5 @@
 import React, { useState, useEffect } from "react";
-import {
-  InputGroup,
-  Form,
-  Container,
-  Row,
-  Col,
-  Card,
-} from "react-bootstrap";
+import { InputGroup, Form, Container, Row, Col, Card } from "react-bootstrap";
 
 import { FaEye, FaLock, FaRegBookmark } from "react-icons/fa";
 import { OverlayTrigger, Tooltip } from "react-bootstrap";
@@ -42,7 +35,7 @@ const JumpFrame: React.FC<JumpFrameProps> = ({ step, setStep, length }) => {
   };
 
   return (
-    <InputGroup >
+    <InputGroup>
       <Form.Control
         className="text-center"
         placeholder={`${step}/${length - 1}`}
@@ -67,8 +60,14 @@ interface ProgressBarProps {
   setStep: (step: number) => void;
 }
 
-
-const ProgressBar = ({ length, disabledFrames, bookmarks, setBookmarks, step, setStep }: ProgressBarProps) => {
+const ProgressBar = ({
+  length,
+  disabledFrames,
+  bookmarks,
+  setBookmarks,
+  step,
+  setStep,
+}: ProgressBarProps) => {
   const handleBookmarkClick = (event: any, number: number) => {
     if (event.shiftKey) {
       const newBookmarks = { ...bookmarks };
@@ -91,26 +90,28 @@ const ProgressBar = ({ length, disabledFrames, bookmarks, setBookmarks, step, se
         return (
           <div
             key={position}
-            className={`position-absolute bg-gradient ${isDisabled ? 'bg-primary-subtle' : 'bg-primary'}`}
+            className={`position-absolute bg-gradient ${isDisabled ? "bg-primary-subtle" : "bg-primary"}`}
             style={commonStyles}
             onClick={isDisabled ? undefined : () => setStep(position)}
           >
             {bookmarks[position] && (
               <OverlayTrigger
-              placement="top"
-              delay={{ show: 0, hide: 100 }}
-              overlay={<Tooltip>{bookmarks[position]}</Tooltip>}
-            >
-              {/* overlay trigger requires the div wrapped around the icon */}
-              <div className="progress-bar-bookmark" >
-              <FaRegBookmark size={"0.75em"} className="progress-bar-bookmark" onClick={(e) => handleBookmarkClick(e, position)} />
-              </div>
+                placement="top"
+                delay={{ show: 0, hide: 100 }}
+                overlay={<Tooltip>{bookmarks[position]}</Tooltip>}
+              >
+                {/* overlay trigger requires the div wrapped around the icon */}
+                <div className="progress-bar-bookmark">
+                  <FaRegBookmark
+                    size={"0.75em"}
+                    className="progress-bar-bookmark"
+                    onClick={(e) => handleBookmarkClick(e, position)}
+                  />
+                </div>
               </OverlayTrigger>
             )}
             <div className="progress-bar-tick-line bg-dark"></div>
-            {position === step && (
-              <div className="progress-bar-v-line"></div>
-            )}
+            {position === step && <div className="progress-bar-v-line"></div>}
           </div>
         );
       })}
@@ -155,7 +156,7 @@ const FrameProgressBar: React.FC<FrameProgressBarProps> = ({
   const handleSelectionReset = () => {
     console.log("Resetting selection");
     setSelectedFrames(new Set());
-  }
+  };
 
   useEffect(() => {
     // Calculate the linePosition based on the step, length, and window width
@@ -166,12 +167,11 @@ const FrameProgressBar: React.FC<FrameProgressBarProps> = ({
     <Container fluid className="fixed-bottom px-0 py-0">
       <Row>
         <Col xs="1">
-        <Row>
+          <Row>
             <Col
               className="d-flex bg-dark bg-gradient justify-content-center align-items-center"
               style={{ height: 1 }}
-            >
-            </Col>
+            ></Col>
           </Row>
           <Row>
             <Col
@@ -196,11 +196,17 @@ const FrameProgressBar: React.FC<FrameProgressBarProps> = ({
             <Col
               className="d-flex bg-dark bg-gradient justify-content-center align-items-center"
               style={{ height: 1 }}
-            >
-            </Col>
+            ></Col>
           </Row>
 
-          <ProgressBar length={length} disabledFrames={disabledFrames} bookmarks={bookmarks} step={step} setStep={setStep} setBookmarks={setBookmarks}/>
+          <ProgressBar
+            length={length}
+            disabledFrames={disabledFrames}
+            bookmarks={bookmarks}
+            step={step}
+            setStep={setStep}
+            setBookmarks={setBookmarks}
+          />
         </Col>
       </Row>
     </Container>
