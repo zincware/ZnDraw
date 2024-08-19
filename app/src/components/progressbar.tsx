@@ -68,6 +68,12 @@ const ProgressBar = ({
   step,
   setStep,
 }: ProgressBarProps) => {
+  const [tickInterval, setTickInterval] = useState<number>(1);
+
+  useEffect(() => {
+    setTickInterval(Math.floor(length / 100) + 1);
+  }, [length]);
+
   const handleBookmarkClick = (event: any, number: number) => {
     if (event.shiftKey) {
       const newBookmarks = { ...bookmarks };
@@ -84,6 +90,7 @@ const ProgressBar = ({
         const isDisabled = disabledFrames.includes(position);
         const commonStyles = {
           left: `${(position / length) * 100}%`,
+          width: `${100 / length}%`,
           height: 25,
         };
 
@@ -110,7 +117,9 @@ const ProgressBar = ({
                 </div>
               </OverlayTrigger>
             )}
-            <div className="progress-bar-tick-line bg-dark"></div>
+            {position % tickInterval === 0 && (
+              <div className="progress-bar-tick-line bg-dark"></div>
+            )}
             {position === step && <div className="progress-bar-v-line"></div>}
           </div>
         );
@@ -166,7 +175,7 @@ const FrameProgressBar: React.FC<FrameProgressBarProps> = ({
   return (
     <Container fluid className="fixed-bottom px-0 py-0">
       <Row>
-        <Col xs="1">
+        <Col xs="2">
           <Row>
             <Col
               className="d-flex bg-dark bg-gradient justify-content-center align-items-center"
@@ -217,6 +226,7 @@ const FrameProgressBar: React.FC<FrameProgressBarProps> = ({
             setBookmarks={setBookmarks}
           />
         </Col>
+        
       </Row>
     </Container>
   );

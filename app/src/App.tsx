@@ -434,7 +434,7 @@ export default function App() {
               setStep(Math.max(...selectedFrames));
             }
           } else {
-            setStep((prevStep) => (prevStep - 1 >= 0 ? prevStep - 1 : length));
+            setStep((prevStep) => (prevStep - 1 >= 0 ? prevStep - 1 : length - 1));
           }
         }
       } else if (event.key == "ArrowUp") {
