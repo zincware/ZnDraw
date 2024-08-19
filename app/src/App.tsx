@@ -772,6 +772,7 @@ export default function App() {
           bookmarks={bookmarks}
           setBookmarks={setBookmarks}
           selectedFrames={selectedFrames}
+          setSelectedFrames={setSelectedFrames}
         />
         <Plotting setStep={setStep} setSelectedFrames={setSelectedFrames} />
         {showParticleInfo && (

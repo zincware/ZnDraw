@@ -11,6 +11,7 @@ import {
 
 import { FaEye, FaLock, FaRegBookmark } from "react-icons/fa";
 import { OverlayTrigger, Tooltip } from "react-bootstrap";
+import { PiSelectionSlash } from "react-icons/pi";
 
 interface JumpFrameProps {
   step: number;
@@ -121,6 +122,7 @@ interface FrameProgressBarProps {
   selectedFrames: Set<number>;
   bookmarks: any[]; // Replace with actual type if known
   setBookmarks: (bookmarks: any[]) => void; // Replace with actual type if known
+  setSelectedFrames: (selectedFrames: Set<number>) => void;
 }
 
 const FrameProgressBar: React.FC<FrameProgressBarProps> = ({
@@ -130,6 +132,7 @@ const FrameProgressBar: React.FC<FrameProgressBarProps> = ({
   selectedFrames,
   bookmarks,
   setBookmarks,
+  setSelectedFrames,
 }) => {
   const [linePosition, setLinePosition] = useState<number>(0);
   const [disabledFrames, setDisabledFrames] = useState<number[]>([]);
@@ -141,8 +144,15 @@ const FrameProgressBar: React.FC<FrameProgressBarProps> = ({
         (frame) => !selectedFrames.has(frame),
       );
       setDisabledFrames(disabledFrames);
+    } else {
+      setDisabledFrames([]);
     }
   }, [selectedFrames, length]);
+
+  const handleSelectionReset = () => {
+    console.log("Resetting selection");
+    setSelectedFrames(new Set());
+  }
 
   useEffect(() => {
     // Calculate the linePosition based on the step, length, and window width
@@ -166,6 +176,7 @@ const FrameProgressBar: React.FC<FrameProgressBarProps> = ({
               style={{ height: 25 }}
             >
               <JumpFrame step={step} setStep={setStep} length={length} />
+              <PiSelectionSlash onClick={handleSelectionReset} />
             </Col>
           </Row>
         </Col>
