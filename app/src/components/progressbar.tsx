@@ -42,7 +42,7 @@ const JumpFrame: React.FC<JumpFrameProps> = ({ step, setStep, length }) => {
   };
 
   return (
-    <InputGroup className="mb-1">
+    <InputGroup >
       <Form.Control
         className="text-center"
         placeholder={`${step}/${length - 1}`}
@@ -153,12 +153,19 @@ const FrameProgressBar: React.FC<FrameProgressBarProps> = ({
     <Container fluid className="fixed-bottom px-0 py-0">
       <Row>
         <Col xs="1">
+        <Row>
+            <Col
+              className="d-flex bg-dark bg-gradient justify-content-center align-items-center"
+              style={{ height: 1 }}
+            >
+            </Col>
+          </Row>
           <Row>
             <Col
-              className="d-flex bg-info justify-content-center align-items-center"
+              className="d-flex bg-secondary-subtle bg-gradient justify-content-center align-items-center"
               style={{ height: 25 }}
             >
-              <FaLock />
+              <JumpFrame step={step} setStep={setStep} length={length} />
             </Col>
           </Row>
         </Col>
@@ -171,6 +178,13 @@ const FrameProgressBar: React.FC<FrameProgressBarProps> = ({
               </div>
             </Col>
           </Row>
+          <Row>
+            <Col
+              className="d-flex bg-dark bg-gradient justify-content-center align-items-center"
+              style={{ height: 1 }}
+            >
+            </Col>
+          </Row>
 
           <Row className="position-relative">
             {/* we add the last frame to click on */}
@@ -178,22 +192,33 @@ const FrameProgressBar: React.FC<FrameProgressBarProps> = ({
               disabledFrames.includes(position) ? (
                 <div
                   key={position}
-                  className="bg-secondary position-absolute" // A different class for disabled frames
+                  className="bg-primary-subtle bg-gradient position-absolute" // A different class for disabled frames
                   style={{
                     left: `${(position / length) * 100}%`,
                     height: 25,
                   }}
-                />
+                >
+                  <div className="progress-bar-tick-line bg-dark"></div>
+                  {position === step && (
+                  <div className="progress-bar-v-line"></div>
+                  )}
+                </div>
+                
               ) : (
                 <div
                   key={position}
-                  className="bg-primary position-absolute"
+                  className="bg-primary bg-gradient position-absolute"
                   style={{
                     left: `${(position / length) * 100}%`,
                     height: 25,
                   }}
                   onClick={() => setStep(position)}
-                />
+                >
+                  <div className="progress-bar-tick-line bg-dark"></div>
+                  {position === step && (
+                  <div className="progress-bar-v-line"></div>
+                  )}
+                </div>
               ),
             )}
           </Row>

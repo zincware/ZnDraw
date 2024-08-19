@@ -112,12 +112,23 @@
   z-index: 2;
 }
 
-.vertical-line {
+.progress-bar-v-line {
   position: absolute;
   top: 0;
+  left: 0;
   transform: translateX(-50%);
   width: 2px; /* Thickness of the line */
   height: 100%; /* Full height of the column */
   background-color: var(--handle-color); /* Color of the line */
+  z-index: 1;
+}
+
+.progress-bar-tick-line {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform: translateX(-50%) translateY(-100%);
+  width: 1px; /* Thickness of the line */
+  height: 14%; /* Size of the tick */
   z-index: 1;
 }
