@@ -193,11 +193,10 @@ class Properties1D(Extension):
         vis.figures = vis.figures | {"Properties1D": fig.to_json()}
 
 
-
 class ShowPlotsWindow(Extension):
-
     def run(self, vis):
         vis.figures = vis.figures
+
 
 methods = t.Union[
     Properties1D,

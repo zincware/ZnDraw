@@ -20,7 +20,8 @@ export const Plotting = ({ setStep, setSelectedFrames }: PlottingProps) => {
   useEffect(() => {
     const handleFigureRefresh = () => {
       setDisplayedCards((prevCards) => {
-        const newCardIndex = prevCards.length > 0 ? prevCards[prevCards.length - 1] + 1 : 0;
+        const newCardIndex =
+          prevCards.length > 0 ? prevCards[prevCards.length - 1] + 1 : 0;
         return [...prevCards, newCardIndex];
       });
     };
@@ -118,7 +119,7 @@ const PlotsCard = ({
 
   const onPlotSelected = (event: any) => {
     const selectedFrames = event.points.map((point: any) =>
-      point.customdata ? point.customdata[0] : point.pointIndex
+      point.customdata ? point.customdata[0] : point.pointIndex,
     );
     setSelectedFrames(new Set(selectedFrames));
   };
@@ -130,12 +131,15 @@ const PlotsCard = ({
   };
 
   const closeThisCard = () => {
-    setDisplayedCards((prevCards) => prevCards.filter((card) => card !== identifier));
+    setDisplayedCards((prevCards) =>
+      prevCards.filter((card) => card !== identifier),
+    );
   };
 
   const addAnotherCard = () => {
     setDisplayedCards((prevCards) => {
-      const newCardIndex = prevCards.length > 0 ? prevCards[prevCards.length - 1] + 1 : 0;
+      const newCardIndex =
+        prevCards.length > 0 ? prevCards[prevCards.length - 1] + 1 : 0;
       return [...prevCards, newCardIndex];
     });
   };
