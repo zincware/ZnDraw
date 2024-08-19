@@ -226,7 +226,6 @@ const FrameProgressBar: React.FC<FrameProgressBarProps> = ({
             setBookmarks={setBookmarks}
           />
         </Col>
-        
       </Row>
     </Container>
   );

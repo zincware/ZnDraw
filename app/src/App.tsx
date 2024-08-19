@@ -38,8 +38,10 @@ import { ParticleInfoOverlay, SceneInfoOverlay } from "./components/overlays";
 import VectorField from "./components/vectorfield";
 import { useColorMode } from "./components/utils";
 
-
-const MoveCameraTarget = ({ controlsRef, colorMode }: {
+const MoveCameraTarget = ({
+  controlsRef,
+  colorMode,
+}: {
   controlsRef: any;
   colorMode: string;
 }) => {
@@ -60,17 +62,23 @@ const MoveCameraTarget = ({ controlsRef, colorMode }: {
     <group ref={controlsCrosshairRef}>
       {/* X axis box */}
       <Box scale={[longDimension, shortDimension, shortDimension]}>
-        <meshStandardMaterial color={colorMode == "light" ? "#454b66" : "#f5fdc6"} />
+        <meshStandardMaterial
+          color={colorMode == "light" ? "#454b66" : "#f5fdc6"}
+        />
       </Box>
 
       {/* Y axis box */}
       <Box scale={[shortDimension, longDimension, shortDimension]}>
-      <meshStandardMaterial color={colorMode == "light" ? "#454b66" : "#f5fdc6"} />
+        <meshStandardMaterial
+          color={colorMode == "light" ? "#454b66" : "#f5fdc6"}
+        />
       </Box>
 
       {/* Z axis box */}
       <Box scale={[shortDimension, shortDimension, longDimension]}>
-      <meshStandardMaterial color={colorMode == "light" ? "#454b66" : "#f5fdc6"} />
+        <meshStandardMaterial
+          color={colorMode == "light" ? "#454b66" : "#f5fdc6"}
+        />
       </Box>
     </group>
   );
@@ -473,7 +481,9 @@ export default function App() {
               setStep(Math.max(...selectedFrames));
             }
           } else {
-            setStep((prevStep) => (prevStep - 1 >= 0 ? prevStep - 1 : length - 1));
+            setStep((prevStep) =>
+              prevStep - 1 >= 0 ? prevStep - 1 : length - 1,
+            );
           }
         }
       } else if (event.key == "ArrowUp") {
@@ -720,7 +730,10 @@ export default function App() {
               />
             )}
             {roomConfig["scene"].crosshair && (
-            <MoveCameraTarget controlsRef={controlsRef} colorMode={colorMode}/>
+              <MoveCameraTarget
+                controlsRef={controlsRef}
+                colorMode={colorMode}
+              />
             )}
             <Player
               playing={playing}
