@@ -87,6 +87,21 @@ const PlotsCard = ({
     setSelectedOption(event.target.value);
   };
 
+  // set initial data if availablePlots is not empty
+  useEffect(() => {
+    socket.emit("analysis:figure:keys", (data: string[]) => {
+      setAvailablePlots(data);
+    });
+  }, []);
+
+  // once plot data updates and selectedOption == "" set selectedOption to first available plot
+  // TODO: this part is still very buggy!
+  useEffect(() => {
+    if (availablePlots.length > 0 && selectedOption === "") {
+      setSelectedOption(availablePlots[0]);
+    }
+  }, [availablePlots, selectedOption]);
+
   useEffect(() => {
     if (plotData[selectedOption]) {
       setPlotLayout(plotData[selectedOption].layout);
