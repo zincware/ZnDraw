@@ -179,9 +179,15 @@ const FrameProgressBar: React.FC<FrameProgressBarProps> = ({
               style={{ height: 25 }}
             >
               <JumpFrame step={step} setStep={setStep} length={length} />
-              <OverlayTrigger placement="top" delay={{ show: 0, hide: 100 }} overlay={<Tooltip>reset selection</Tooltip>}>
-              <div>                <PiSelectionSlash onClick={handleSelectionReset} />
-              </div>
+              <OverlayTrigger
+                placement="top"
+                delay={{ show: 0, hide: 100 }}
+                overlay={<Tooltip>reset selection</Tooltip>}
+              >
+                <div>
+                  {" "}
+                  <PiSelectionSlash onClick={handleSelectionReset} />
+                </div>
               </OverlayTrigger>
             </Col>
           </Row>
