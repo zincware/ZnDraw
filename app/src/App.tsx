@@ -22,12 +22,13 @@ import { Geometries } from "./components/geometries";
 import "./App.css";
 import { Plotting } from "./components/plotting";
 
-import { Canvas, useThree } from "@react-three/fiber";
+import { Canvas, useThree, useFrame } from "@react-three/fiber";
 import {
   OrbitControls,
   PerspectiveCamera,
   TrackballControls,
   TransformControls,
+  Box,
 } from "@react-three/drei";
 import { Button, InputGroup, Form } from "react-bootstrap";
 import * as THREE from "three";
@@ -36,6 +37,44 @@ import ControlsBuilder from "./components/transforms";
 import { ParticleInfoOverlay, SceneInfoOverlay } from "./components/overlays";
 import VectorField from "./components/vectorfield";
 import { useColorMode } from "./components/utils";
+
+
+const MoveCameraTarget = ({ controlsRef, colorMode }: {
+  controlsRef: any;
+  colorMode: string;
+}) => {
+  const controlsCrosshairRef = useRef<THREE.Object3D>(null);
+  const shortDimension = 0.05;
+  const longDimension = 0.5;
+
+  // Update the controlsCrosshair position to match the orbit controls target
+  useFrame(() => {
+    if (controlsCrosshairRef.current && controlsRef.current) {
+      const crosshair = controlsCrosshairRef.current;
+      const target = controlsRef.current.target;
+      crosshair.position.copy(target);
+    }
+  });
+
+  return (
+    <group ref={controlsCrosshairRef}>
+      {/* X axis box */}
+      <Box scale={[longDimension, shortDimension, shortDimension]}>
+        <meshStandardMaterial color={colorMode == "light" ? "#454b66" : "#f5fdc6"} />
+      </Box>
+
+      {/* Y axis box */}
+      <Box scale={[shortDimension, longDimension, shortDimension]}>
+      <meshStandardMaterial color={colorMode == "light" ? "#454b66" : "#f5fdc6"} />
+      </Box>
+
+      {/* Z axis box */}
+      <Box scale={[shortDimension, shortDimension, longDimension]}>
+      <meshStandardMaterial color={colorMode == "light" ? "#454b66" : "#f5fdc6"} />
+      </Box>
+    </group>
+  );
+};
 
 export default function App() {
   // const [isConnected, setIsConnected] = useState(socket.connected);
@@ -679,6 +718,9 @@ export default function App() {
                 }}
                 makeDefault
               />
+            )}
+            {roomConfig["scene"].crosshair && (
+            <MoveCameraTarget controlsRef={controlsRef} colorMode={colorMode}/>
             )}
             <Player
               playing={playing}
