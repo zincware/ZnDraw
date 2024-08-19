@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
 import {
-  ProgressBar,
   InputGroup,
   Form,
   Container,
@@ -59,17 +58,17 @@ const JumpFrame: React.FC<JumpFrameProps> = ({ step, setStep, length }) => {
   );
 };
 
-const Bookmarks = ({
-  setBookmarks,
-  bookmarks,
-  length,
-  setStep,
-}: {
-  setBookmarks: any;
-  bookmarks: { [number: string]: string };
+interface ProgressBarProps {
   length: number;
+  disabledFrames: number[];
+  bookmarks: any;
+  setBookmarks: any;
+  step: number;
   setStep: (step: number) => void;
-}) => {
+}
+
+
+const ProgressBar = ({ length, disabledFrames, bookmarks, setBookmarks, step, setStep }: ProgressBarProps) => {
   const handleBookmarkClick = (event: any, number: number) => {
     if (event.shiftKey) {
       const newBookmarks = { ...bookmarks };
@@ -81,37 +80,41 @@ const Bookmarks = ({
   };
 
   return (
-    <Container fluid className="fixed-bottom py-0">
-      <Row className="justify-content-center position-relative">
-        {Object.entries(bookmarks).map(([number, name]) => {
-          const position = (parseInt(number) / length) * 100;
-          return (
-            <OverlayTrigger
-              key={`bookmark-${number}`}
+    <Row className="position-relative">
+      {[...Array(length).keys()].map((position) => {
+        const isDisabled = disabledFrames.includes(position);
+        const commonStyles = {
+          left: `${(position / length) * 100}%`,
+          height: 25,
+        };
+
+        return (
+          <div
+            key={position}
+            className={`position-absolute bg-gradient ${isDisabled ? 'bg-primary-subtle' : 'bg-primary'}`}
+            style={commonStyles}
+            onClick={isDisabled ? undefined : () => setStep(position)}
+          >
+            {bookmarks[position] && (
+              <OverlayTrigger
               placement="top"
               delay={{ show: 0, hide: 100 }}
-              overlay={<Tooltip>{name}</Tooltip>}
+              overlay={<Tooltip>{bookmarks[position]}</Tooltip>}
             >
-              <Col
-                xs="auto"
-                style={{
-                  position: "absolute",
-                  left: `${position}%`,
-                  bottom: "14px",
-                  transform: "translateX(-50%)",
-                }}
-              >
-                <FaRegBookmark
-                  title={name}
-                  color="grey"
-                  onClick={(e) => handleBookmarkClick(e, parseInt(number))}
-                />
-              </Col>
-            </OverlayTrigger>
-          );
-        })}
-      </Row>
-    </Container>
+              {/* overlay trigger requires the div wrapped around the icon */}
+              <div className="progress-bar-bookmark" >
+              <FaRegBookmark size={"0.75em"} className="progress-bar-bookmark" onClick={(e) => handleBookmarkClick(e, position)} />
+              </div>
+              </OverlayTrigger>
+            )}
+            <div className="progress-bar-tick-line bg-dark"></div>
+            {position === step && (
+              <div className="progress-bar-v-line"></div>
+            )}
+          </div>
+        );
+      })}
+    </Row>
   );
 };
 
@@ -197,53 +200,8 @@ const FrameProgressBar: React.FC<FrameProgressBarProps> = ({
             </Col>
           </Row>
 
-          <Row className="position-relative">
-            {/* we add the last frame to click on */}
-            {[...Array(length).keys()].map((position) =>
-              disabledFrames.includes(position) ? (
-                <div
-                  key={position}
-                  className="bg-primary-subtle bg-gradient position-absolute" // A different class for disabled frames
-                  style={{
-                    left: `${(position / length) * 100}%`,
-                    height: 25,
-                  }}
-                >
-                  <div className="progress-bar-tick-line bg-dark"></div>
-                  {position === step && (
-                  <div className="progress-bar-v-line"></div>
-                  )}
-                </div>
-                
-              ) : (
-                <div
-                  key={position}
-                  className="bg-primary bg-gradient position-absolute"
-                  style={{
-                    left: `${(position / length) * 100}%`,
-                    height: 25,
-                  }}
-                  onClick={() => setStep(position)}
-                >
-                  <div className="progress-bar-tick-line bg-dark"></div>
-                  {position === step && (
-                  <div className="progress-bar-v-line"></div>
-                  )}
-                </div>
-              ),
-            )}
-          </Row>
+          <ProgressBar length={length} disabledFrames={disabledFrames} bookmarks={bookmarks} step={step} setStep={setStep} setBookmarks={setBookmarks}/>
         </Col>
-        {/* <Col xs="1">
-          <Row>
-            <Col
-              className="d-flex bg-dark justify-content-center align-items-center"
-              style={{ height: 25 }}
-            >
-              <FaEye />
-            </Col>
-          </Row>
-        </Col> */}
       </Row>
     </Container>
   );
