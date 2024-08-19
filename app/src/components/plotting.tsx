@@ -213,10 +213,11 @@ const PlotsCard = ({
               frames={plotData[selectedOption].frames}
               config={plotData[selectedOption].config}
               layout={plotLayout} // todo: merge
-              onBeforeHover={() => setAllowDrag(false)}
+              onHover={() => setAllowDrag(false)}
               onUnhover={() => setAllowDrag(true)}
               onClick={onPlotClick}
               onSelected={onPlotSelected}
+              onDeselect={() => setSelectedFrames(new Set())}
             />
           ) : (
             <h3 className="text-secondary m-3">No data available</h3>
