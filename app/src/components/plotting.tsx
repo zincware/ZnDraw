@@ -13,24 +13,32 @@ interface PlottingProps {
 
 export const Plotting = ({ setStep, setSelectedFrames }: PlottingProps) => {
   const [availablePlots, setAvailablePlots] = useState<string[]>([]);
-  const [plotData, setPlotData] = useState<object>({}); // dict[string| dict]
-  const [displayedCards, setDisplayedCards] = useState<number[]>([1]);
+  const [plotData, setPlotData] = useState<{ [key: string]: any }>({});
+  const [displayedCards, setDisplayedCards] = useState<number[]>([]);
+
+  // on analysis:figure:refresh add another card
+  useEffect(() => {
+    const handleFigureRefresh = () => {
+      setDisplayedCards((prevCards) => {
+        const newCardIndex = prevCards.length > 0 ? prevCards[prevCards.length - 1] + 1 : 0;
+        return [...prevCards, newCardIndex];
+      });
+    };
+    socket.on("analysis:figure:refresh", handleFigureRefresh);
+    return () => {
+      socket.off("analysis:figure:refresh", handleFigureRefresh);
+    };
+  }, []); // Removed displayedCards from dependencies
 
   useEffect(() => {
-    // when availablePlots is updated, update all the plotData
     availablePlots.forEach((plot) => {
       socket.emit("analysis:figure:get", plot, (data: any) => {
-        setPlotData((prevData: object) => {
-          return {
-            ...prevData,
-            [plot]: JSON.parse(data),
-          };
-        });
+        setPlotData((prevData) => ({
+          ...prevData,
+          [plot]: JSON.parse(data),
+        }));
       });
     });
-    console.log("availablePlots: ", availablePlots);
-    // log the keys of the plotData
-    console.log("plotData keys: ", Object.keys(plotData));
   }, [availablePlots]);
 
   return (
@@ -51,24 +59,11 @@ export const Plotting = ({ setStep, setSelectedFrames }: PlottingProps) => {
   );
 };
 
-//     useEffect(() => {
-//       if (plotData) {
-//         const newPlotData = { ...plotData };
-//         newPlotData.layout.paper_bgcolor =
-//           colorMode === "dark" ? "rgba(0,0,0, 0)" : "rgba(255,255,255, 0)";
-//         setPlotData(newPlotData);
-//       }
-//       const newPlotStyle = { ...plotStyle };
-//       newPlotStyle.filter =
-//         colorMode === "dark" ? "invert(75%) hue-rotate(180deg)" : "";
-//       setPlotStyle(newPlotStyle);
-//     }, [colorMode]);
-
 interface PlotsCardProps {
   identifier: number;
   availablePlots: string[];
   setAvailablePlots: (availablePlots: string[]) => void;
-  plotData: object;
+  plotData: { [key: string]: any };
   setDisplayedCards: (displayedCards: number[]) => void;
   setStep: (step: number) => void;
   setSelectedFrames: (selectedFrames: Set<number>) => void;
@@ -88,27 +83,18 @@ const PlotsCard = ({
   const [allowDrag, setAllowDrag] = useState<boolean>(true);
   const [plotLayout, setPlotLayout] = useState<any>({});
 
-  const handleSelectChange = (event: any) => {
-    // update the selected plot via 'analysis:figure:get' with event.target.value
-    console.log("selected option: ", event.target.value);
+  const handleSelectChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
     setSelectedOption(event.target.value);
   };
 
-  // update the plot layout when plotData changes or selectedOption changes
   useEffect(() => {
     if (plotData[selectedOption]) {
       setPlotLayout(plotData[selectedOption].layout);
     }
   }, [plotData, selectedOption]);
 
-  const onPlotClick = ({
-    event,
-    points,
-  }: {
-    event: MouseEvent;
-    points: any[];
-  }) => {
-    if (points[0].customdata) {
+  const onPlotClick = ({ points }: { points: any[] }) => {
+    if (points[0]?.customdata) {
       setStep(points[0].customdata[0]);
     } else {
       setStep(points[0].pointIndex);
@@ -116,55 +102,36 @@ const PlotsCard = ({
   };
 
   const onPlotSelected = (event: any) => {
-    let selectedFrames: number[] = [];
-    event.points.forEach((point: any) => {
-      if (point.customdata) {
-        selectedFrames.push(point.customdata[0]);
-      } else {
-        selectedFrames.push(point.pointIndex);
-      }
-    });
+    const selectedFrames = event.points.map((point: any) =>
+      point.customdata ? point.customdata[0] : point.pointIndex
+    );
     setSelectedFrames(new Set(selectedFrames));
   };
 
   const handleSelectClick = () => {
-    // call 'analysis:figure:keys' to get the available plots
     socket.emit("analysis:figure:keys", (data: string[]) => {
       setAvailablePlots(data);
     });
   };
 
   const closeThisCard = () => {
-    // remove this card from the displayed cards
-    setDisplayedCards((prevCards: number[]) => {
-      return prevCards.filter((card: number) => card !== identifier);
-    });
+    setDisplayedCards((prevCards) => prevCards.filter((card) => card !== identifier));
   };
 
   const addAnotherCard = () => {
-    // add another card to the displayed cards
-    setDisplayedCards((prevCards: number[]) => {
-      return [...prevCards, prevCards[prevCards.length - 1] + 1];
+    setDisplayedCards((prevCards) => {
+      const newCardIndex = prevCards.length > 0 ? prevCards[prevCards.length - 1] + 1 : 0;
+      return [...prevCards, newCardIndex];
     });
   };
 
-  useEffect(() => {
-    console.log("selected option: ", selectedOption);
-    console.log("plotData: ", plotData[selectedOption]);
-    console.log("plotLayout: ", plotLayout);
-  }, [selectedOption, plotData, plotLayout]);
-
   const onResize: RndResizeCallback = () => {
     if (cardRef.current) {
-      // update only the width and height of the plotLayout
-      setPlotLayout((prev: any) => {
-        return {
-          ...prev,
-          width: cardRef.current.clientWidth - 20,
-          height: cardRef.current.clientHeight - 60,
-        };
-      }
-      );
+      setPlotLayout((prev) => ({
+        ...prev,
+        width: cardRef.current.clientWidth - 20,
+        height: cardRef.current.clientHeight - 60,
+      }));
     }
   };
 
@@ -207,12 +174,11 @@ const PlotsCard = ({
           </Form.Select>
           <Button
             variant="tertiary"
-            className=" mx-2 btn btn-outline-secondary"
+            className="mx-2 btn btn-outline-secondary"
             onClick={addAnotherCard}
           >
             <IoDuplicate />
           </Button>
-          {/* TODO: tooltip */}
           <Button variant="close" className="mx-2" onClick={closeThisCard} />
         </Card.Header>
         <Card.Body style={{ padding: 0 }}>
