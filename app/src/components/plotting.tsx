@@ -86,16 +86,20 @@ const PlotsCard = ({
   const cardRef = useRef<any>(null);
   const [selectedOption, setSelectedOption] = useState<string>("");
   const [allowDrag, setAllowDrag] = useState<boolean>(true);
-  const [plotLayout, setPlotLayout] = useState<any>({
-    width: 220 - 20,
-    height: 200 - 60,
-  });
+  const [plotLayout, setPlotLayout] = useState<any>({});
 
   const handleSelectChange = (event: any) => {
     // update the selected plot via 'analysis:figure:get' with event.target.value
     console.log("selected option: ", event.target.value);
     setSelectedOption(event.target.value);
   };
+
+  // update the plot layout when plotData changes or selectedOption changes
+  useEffect(() => {
+    if (plotData[selectedOption]) {
+      setPlotLayout(plotData[selectedOption].layout);
+    }
+  }, [plotData, selectedOption]);
 
   const onPlotClick = ({
     event,
@@ -147,15 +151,20 @@ const PlotsCard = ({
   useEffect(() => {
     console.log("selected option: ", selectedOption);
     console.log("plotData: ", plotData[selectedOption]);
-  }, [selectedOption]);
+    console.log("plotLayout: ", plotLayout);
+  }, [selectedOption, plotData, plotLayout]);
 
   const onResize: RndResizeCallback = () => {
     if (cardRef.current) {
-      setPlotLayout({
-        width: cardRef.current.clientWidth - 20,
-        height: cardRef.current.clientHeight - 60,
-        // margin of 10px on bottom and sides
-      });
+      // update only the width and height of the plotLayout
+      setPlotLayout((prev: any) => {
+        return {
+          ...prev,
+          width: cardRef.current.clientWidth - 20,
+          height: cardRef.current.clientHeight - 60,
+        };
+      }
+      );
     }
   };
 
@@ -212,7 +221,7 @@ const PlotsCard = ({
               data={plotData[selectedOption].data}
               frames={plotData[selectedOption].frames}
               config={plotData[selectedOption].config}
-              layout={plotLayout} // todo: merge
+              layout={plotLayout}
               onHover={() => setAllowDrag(false)}
               onUnhover={() => setAllowDrag(true)}
               onClick={onPlotClick}
