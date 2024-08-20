@@ -60,32 +60,19 @@ interface ProgressBarProps {
   setStep: (step: number) => void;
 }
 
-const ProgressBar = ({
+const ColoredTiles = ({
   length,
   disabledFrames,
-  bookmarks,
-  setBookmarks,
-  step,
   setStep,
-}: ProgressBarProps) => {
-  const [tickInterval, setTickInterval] = useState<number>(1);
-
-  useEffect(() => {
-    setTickInterval(Math.floor(length / 100) + 1);
-  }, [length]);
-
-  const handleBookmarkClick = (event: any, number: number) => {
-    if (event.shiftKey) {
-      const newBookmarks = { ...bookmarks };
-      delete newBookmarks[number];
-      setBookmarks(newBookmarks);
-    } else {
-      setStep(number);
-    }
-  };
-
+  tickInterval,
+}: {
+  length: number;
+  disabledFrames: number[];
+  setStep: (step: number) => void;
+  tickInterval: number;
+}) => {
   return (
-    <Row className="position-relative">
+    <>
       {[...Array(length).keys()].map((position) => {
         const isDisabled = disabledFrames.includes(position);
         const commonStyles = {
@@ -101,32 +88,116 @@ const ProgressBar = ({
             style={commonStyles}
             onClick={isDisabled ? undefined : () => setStep(position)}
           >
-            {bookmarks[position] && (
-              <OverlayTrigger
-                placement="top"
-                delay={{ show: 0, hide: 100 }}
-                overlay={<Tooltip>{bookmarks[position]}</Tooltip>}
-              >
-                {/* overlay trigger requires the div wrapped around the icon */}
-                <div className="progress-bar-bookmark">
-                  <FaRegBookmark
-                    size={"0.75em"}
-                    className="progress-bar-bookmark"
-                    onClick={(e) => handleBookmarkClick(e, position)}
-                  />
-                </div>
-              </OverlayTrigger>
-            )}
             {position % tickInterval === 0 && (
               <div className="progress-bar-tick-line bg-dark"></div>
             )}
-            {position === step && <div className="progress-bar-v-line"></div>}
           </div>
         );
       })}
+    </>
+  );
+};
+
+
+const Bookmarks = ({
+  length,
+  bookmarks,
+  setBookmarks,
+  setStep,
+}: {
+  length: number;
+  bookmarks: { [key: number]: string };
+  setBookmarks: (bookmarks: { [key: number]: string }) => void;
+  setStep: (step: number) => void;
+}) => {
+  const handleBookmarkClick = (event: any, number: number) => {
+    if (event.shiftKey) {
+      const newBookmarks = { ...bookmarks };
+      delete newBookmarks[number];
+      setBookmarks(newBookmarks);
+    } else {
+      setStep(number);
+    }
+  };
+
+  return (
+    <>
+      {[...Array(length).keys()].map((position) => (
+        bookmarks[position] && (
+          <OverlayTrigger
+            key={position}
+            placement="top"
+            delay={{ show: 0, hide: 100 }}
+            overlay={<Tooltip style={{marginLeft: "0.375em"}}>{bookmarks[position]}</Tooltip>}
+          >
+            <div
+              className="position-absolute progress-bar-bookmark"
+              style={{ left: `${(position / length ) * 100}%`, top: 7, marginLeft: "-0.375em" }}
+            >
+              <FaRegBookmark
+                 className="position-absolute"
+                size={"0.75em"}
+                onClick={(e) => handleBookmarkClick(e, position)}
+              />
+            </div>
+          </OverlayTrigger>
+        )
+      ))}
+    </>
+  );
+};
+
+
+const VLine = ({
+  length,
+  step,
+}: {
+  length: number;
+  step: number;
+}) => {
+  return (
+    <div
+      className="position-absolute p-0 progress-bar-v-line"
+      style={{ left: `${(step / length) * 100}%`, height: 25, width: "2px"}}
+      // why do I need to overwrite the height and width here?
+    ></div>
+  );
+};
+
+
+const ProgressBar = ({
+  length,
+  disabledFrames,
+  bookmarks,
+  setBookmarks,
+  step,
+  setStep,
+}: ProgressBarProps) => {
+  const [tickInterval, setTickInterval] = useState<number>(1);
+
+  useEffect(() => {
+    setTickInterval(Math.floor(length / 100) + 1);
+  }, [length]);
+
+  return (
+    <Row className="position-relative">
+      <ColoredTiles
+        length={length}
+        disabledFrames={disabledFrames}
+        setStep={setStep}
+        tickInterval={tickInterval}
+      />
+      <Bookmarks
+        length={length}
+        bookmarks={bookmarks}
+        setBookmarks={setBookmarks}
+        setStep={setStep}
+      />
+      <VLine length={length} step={step} />
     </Row>
   );
 };
+
 
 interface FrameProgressBarProps {
   length: number;
