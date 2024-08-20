@@ -71,7 +71,7 @@ const ColoredTiles = ({
   setStep: (step: number) => void;
   tickInterval: number;
 }) => {
-    useEffect(() => {
+  useEffect(() => {
     console.log("component rerendered");
   }, [length, disabledFrames, setStep, tickInterval]);
 
@@ -79,8 +79,8 @@ const ColoredTiles = ({
   const [ticks, setTicks] = useState<number[]>([]);
 
   useEffect(() => {
-    const disabledPositions = [...Array(length).keys()].filter(
-      (position) => disabledFrames.includes(position),
+    const disabledPositions = [...Array(length).keys()].filter((position) =>
+      disabledFrames.includes(position),
     );
     setdisabledPositions(disabledPositions);
   }, [length, disabledFrames]);
@@ -97,53 +97,47 @@ const ColoredTiles = ({
     const x = event.clientX - rect.left;
     const position = Math.floor((x / rect.width) * length);
     setStep(position);
-  }
+  };
   return (
     <>
+      {ticks.map((position) => {
+        const commonStyles = {
+          left: `${(position / length) * 100}%`,
+          height: 25,
+        };
+        return (
+          <div
+            key={position}
+            className={`position-absolute`}
+            style={commonStyles}
+          >
+            <div className="progress-bar-tick-line bg-dark"></div>
+          </div>
+        );
+      })}
+      <div
+        className={`position-absolute bg-gradient bg-primary`}
+        style={{ width: "100%", height: 25 }}
+        onClick={(e) => onTileClick(e)}
+      ></div>
 
-{ticks.map((position) => {
-            const commonStyles = {
-                left: `${(position / length) * 100}%`,
-                height: 25,
-            };
-            return (
-                <div
-                    key={position}
-                    className={`position-absolute`}
-                    style={commonStyles}
-                >
-                  <div className="progress-bar-tick-line bg-dark"></div>
-                </div>
-            );
-        }
-        )}
-        <div 
-            className={`position-absolute bg-gradient bg-primary`}
-            style={{width: "100%", height: 25}}
-            onClick={(e) => onTileClick(e)}>
-        </div>
-
-
-
-        {disabledPositions.map((position) => {
-            const commonStyles = {
-                left: `${(position / length) * 100}%`,
-                width: `${100 / (length - 1)}%`,
-                height: 25,
-            };
-            return (
-                <div
-                    key={position}
-                    className={`position-absolute p-0 bg-gradient bg-primary-subtle`}
-                    style={commonStyles}
-                ></div>
-            );
-        }
-        )}
+      {disabledPositions.map((position) => {
+        const commonStyles = {
+          left: `${(position / length) * 100}%`,
+          width: `${100 / (length - 1)}%`,
+          height: 25,
+        };
+        return (
+          <div
+            key={position}
+            className={`position-absolute p-0 bg-gradient bg-primary-subtle`}
+            style={commonStyles}
+          ></div>
+        );
+      })}
     </>
-  )
+  );
 };
-
 
 const Bookmarks = ({
   length,
@@ -175,11 +169,19 @@ const Bookmarks = ({
             key={position}
             placement="top"
             delay={{ show: 0, hide: 100 }}
-            overlay={<Tooltip style={{ marginLeft: "0.375em" }}>{bookmarks[position]}</Tooltip>}
+            overlay={
+              <Tooltip style={{ marginLeft: "0.375em" }}>
+                {bookmarks[position]}
+              </Tooltip>
+            }
           >
             <div
               className="position-absolute progress-bar-bookmark"
-              style={{ left: `${(position / length) * 100}%`, top: 7, marginLeft: "-0.375em" }}
+              style={{
+                left: `${(position / length) * 100}%`,
+                top: 7,
+                marginLeft: "-0.375em",
+              }}
             >
               <FaRegBookmark
                 className="position-absolute"
@@ -194,23 +196,15 @@ const Bookmarks = ({
   );
 };
 
-
-const VLine = ({
-  length,
-  step,
-}: {
-  length: number;
-  step: number;
-}) => {
+const VLine = ({ length, step }: { length: number; step: number }) => {
   return (
     <div
       className="position-absolute p-0 progress-bar-v-line"
-      style={{ left: `${(step / length) * 100}%`, height: 25, width: "2px"}}
+      style={{ left: `${(step / length) * 100}%`, height: 25, width: "2px" }}
       // why do I need to overwrite the height and width here?
     ></div>
   );
 };
-
 
 const ProgressBar = ({
   length,
@@ -244,7 +238,6 @@ const ProgressBar = ({
     </Row>
   );
 };
-
 
 interface FrameProgressBarProps {
   length: number;
