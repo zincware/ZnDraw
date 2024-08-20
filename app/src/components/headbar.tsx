@@ -347,8 +347,6 @@ const FileUpload = forwardRef((props, ref) => {
   );
 });
 
-
-
 interface HeadBarProps {
   room: string;
   colorMode: string;
@@ -525,7 +523,7 @@ const HeadBar = ({
                   className="mx-1"
                   onClick={() => setAddPlotsWindow((prev: number) => prev + 1)}
                 >
-                  <MdAddChart/>
+                  <MdAddChart />
                 </Button>
               </BtnTooltip>
               <FileUpload />

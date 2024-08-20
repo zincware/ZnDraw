@@ -831,7 +831,11 @@ export default function App() {
           selectedFrames={selectedFrames}
           setSelectedFrames={setSelectedFrames}
         />
-        <Plotting setStep={setStep} setSelectedFrames={setSelectedFrames} addPlotsWindow={addPlotsWindow}/>
+        <Plotting
+          setStep={setStep}
+          setSelectedFrames={setSelectedFrames}
+          addPlotsWindow={addPlotsWindow}
+        />
         {showParticleInfo && (
           <>
             <ParticleInfoOverlay

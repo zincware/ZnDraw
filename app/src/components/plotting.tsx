@@ -12,7 +12,11 @@ interface PlottingProps {
   addPlotsWindow: number;
 }
 
-export const Plotting = ({ setStep, setSelectedFrames, addPlotsWindow }: PlottingProps) => {
+export const Plotting = ({
+  setStep,
+  setSelectedFrames,
+  addPlotsWindow,
+}: PlottingProps) => {
   const [availablePlots, setAvailablePlots] = useState<string[]>([]);
   const [plotData, setPlotData] = useState<{ [key: string]: any }>({});
   const [displayedCards, setDisplayedCards] = useState<number[]>([]);
