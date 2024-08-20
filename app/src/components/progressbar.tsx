@@ -260,6 +260,7 @@ const FrameProgressBar: React.FC<FrameProgressBarProps> = ({
 }) => {
   const [linePosition, setLinePosition] = useState<number>(0);
   const [disabledFrames, setDisabledFrames] = useState<number[]>([]);
+  const progressHandleParentRef = React.createRef<HTMLDivElement>();
 
   useEffect(() => {
     // disable frames are the frames that are not selected, if the selectedFrames is not empty
@@ -282,6 +283,34 @@ const FrameProgressBar: React.FC<FrameProgressBarProps> = ({
     // Calculate the linePosition based on the step, length, and window width
     setLinePosition((step / length) * 100);
   }, [step, length]);
+
+  const handleMouseDown = (e) => {
+    e.preventDefault();
+    if (!progressHandleParentRef.current) {
+      console.error("progressHandleParentRef is not set - dragging will not work");
+      return;
+    }
+    // we need to store the parent rect in a variable because
+    // once we move the mouse, the parent rect will change
+    const parentRect = progressHandleParentRef.current.getBoundingClientRect();
+
+    const handleMouseMove = (e) => {
+      // compute the lineposition based on the mouse position and the length
+      const x = e.clientX - parentRect.left;
+      const position = Math.floor((x / parentRect.width) * length);
+      setStep(Math.max(0, position));
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+
+    document.addEventListener(
+      'mouseup',
+      () => {
+        document.removeEventListener('mousemove', handleMouseMove);
+      },
+      { once: true }
+    );
+  };
 
   return (
     <Container fluid className="fixed-bottom px-0 py-0">
@@ -313,9 +342,9 @@ const FrameProgressBar: React.FC<FrameProgressBarProps> = ({
           </Row>
         </Col>
         <Col>
-          <Row className="position-relative">
-            <Col className="d-flex justify-content-center">
-              <div className="handle" style={{ left: `${linePosition}%` }}>
+          <Row className="position-relative" >
+            <Col className="d-flex justify-content-center" ref={progressHandleParentRef}>
+              <div className="handle" style={{ left: `${linePosition}%` }} onMouseDown={(e) => handleMouseDown(e)}>
                 <div className="square"></div>
                 <div className="triangle"></div>
               </div>
