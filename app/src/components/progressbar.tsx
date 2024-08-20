@@ -287,7 +287,9 @@ const FrameProgressBar: React.FC<FrameProgressBarProps> = ({
   const handleMouseDown = (e) => {
     e.preventDefault();
     if (!progressHandleParentRef.current) {
-      console.error("progressHandleParentRef is not set - dragging will not work");
+      console.error(
+        "progressHandleParentRef is not set - dragging will not work",
+      );
       return;
     }
     // we need to store the parent rect in a variable because
@@ -301,14 +303,14 @@ const FrameProgressBar: React.FC<FrameProgressBarProps> = ({
       setStep(Math.max(0, position));
     };
 
-    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener("mousemove", handleMouseMove);
 
     document.addEventListener(
-      'mouseup',
+      "mouseup",
       () => {
-        document.removeEventListener('mousemove', handleMouseMove);
+        document.removeEventListener("mousemove", handleMouseMove);
       },
-      { once: true }
+      { once: true },
     );
   };
 
@@ -342,9 +344,16 @@ const FrameProgressBar: React.FC<FrameProgressBarProps> = ({
           </Row>
         </Col>
         <Col>
-          <Row className="position-relative" >
-            <Col className="d-flex justify-content-center" ref={progressHandleParentRef}>
-              <div className="handle" style={{ left: `${linePosition}%` }} onMouseDown={(e) => handleMouseDown(e)}>
+          <Row className="position-relative">
+            <Col
+              className="d-flex justify-content-center"
+              ref={progressHandleParentRef}
+            >
+              <div
+                className="handle"
+                style={{ left: `${linePosition}%` }}
+                onMouseDown={(e) => handleMouseDown(e)}
+              >
                 <div className="square"></div>
                 <div className="triangle"></div>
               </div>
