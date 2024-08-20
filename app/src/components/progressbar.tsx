@@ -300,7 +300,7 @@ const FrameProgressBar: React.FC<FrameProgressBarProps> = ({
       // compute the lineposition based on the mouse position and the length
       const x = e.clientX - parentRect.left;
       const position = Math.floor((x / parentRect.width) * length);
-      setStep(Math.max(0, position));
+      setStep(Math.min(Math.max(position, 0), length - 1));
     };
 
     document.addEventListener("mousemove", handleMouseMove);
