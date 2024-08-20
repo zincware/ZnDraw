@@ -122,27 +122,28 @@ const Bookmarks = ({
 
   return (
     <>
-      {[...Array(length).keys()].map((position) => (
-        bookmarks[position] && (
+      {Object.keys(bookmarks).map((key) => {
+        const position = parseInt(key);
+        return (
           <OverlayTrigger
             key={position}
             placement="top"
             delay={{ show: 0, hide: 100 }}
-            overlay={<Tooltip style={{marginLeft: "0.375em"}}>{bookmarks[position]}</Tooltip>}
+            overlay={<Tooltip style={{ marginLeft: "0.375em" }}>{bookmarks[position]}</Tooltip>}
           >
             <div
               className="position-absolute progress-bar-bookmark"
-              style={{ left: `${(position / length ) * 100}%`, top: 7, marginLeft: "-0.375em" }}
+              style={{ left: `${(position / length) * 100}%`, top: 7, marginLeft: "-0.375em" }}
             >
               <FaRegBookmark
-                 className="position-absolute"
+                className="position-absolute"
                 size={"0.75em"}
                 onClick={(e) => handleBookmarkClick(e, position)}
               />
             </div>
           </OverlayTrigger>
-        )
-      ))}
+        );
+      })}
     </>
   );
 };
