@@ -71,31 +71,77 @@ const ColoredTiles = ({
   setStep: (step: number) => void;
   tickInterval: number;
 }) => {
+    useEffect(() => {
+    console.log("component rerendered");
+  }, [length, disabledFrames, setStep, tickInterval]);
+
+  const [disabledPositions, setdisabledPositions] = useState<number[]>([]);
+  const [ticks, setTicks] = useState<number[]>([]);
+
+  useEffect(() => {
+    const disabledPositions = [...Array(length).keys()].filter(
+      (position) => disabledFrames.includes(position),
+    );
+    setdisabledPositions(disabledPositions);
+  }, [length, disabledFrames]);
+
+  useEffect(() => {
+    const ticks = [...Array(length).keys()].filter(
+      (position) => position % tickInterval === 0,
+    );
+    setTicks(ticks);
+  }, [length, tickInterval]);
+
+  const onTileClick = (event: any) => {
+    const rect = event.target.getBoundingClientRect();
+    const x = event.clientX - rect.left;
+    const position = Math.floor((x / rect.width) * length);
+    setStep(position);
+  }
   return (
     <>
-      {[...Array(length).keys()].map((position) => {
-        const isDisabled = disabledFrames.includes(position);
-        const commonStyles = {
-          left: `${(position / length) * 100}%`,
-          width: `${100 / length}%`,
-          height: 25,
-        };
 
-        return (
-          <div
-            key={position}
-            className={`position-absolute bg-gradient ${isDisabled ? "bg-primary-subtle" : "bg-primary"}`}
-            style={commonStyles}
-            onClick={isDisabled ? undefined : () => setStep(position)}
-          >
-            {position % tickInterval === 0 && (
-              <div className="progress-bar-tick-line bg-dark"></div>
-            )}
-          </div>
-        );
-      })}
+{ticks.map((position) => {
+            const commonStyles = {
+                left: `${(position / length) * 100}%`,
+                height: 25,
+            };
+            return (
+                <div
+                    key={position}
+                    className={`position-absolute`}
+                    style={commonStyles}
+                >
+                  <div className="progress-bar-tick-line bg-dark"></div>
+                </div>
+            );
+        }
+        )}
+        <div 
+            className={`position-absolute bg-gradient bg-primary`}
+            style={{width: "100%", height: 25}}
+            onClick={(e) => onTileClick(e)}>
+        </div>
+
+
+
+        {disabledPositions.map((position) => {
+            const commonStyles = {
+                left: `${(position / length) * 100}%`,
+                width: `${100 / (length - 1)}%`,
+                height: 25,
+            };
+            return (
+                <div
+                    key={position}
+                    className={`position-absolute p-0 bg-gradient bg-primary-subtle`}
+                    style={commonStyles}
+                ></div>
+            );
+        }
+        )}
     </>
-  );
+  )
 };
 
 
