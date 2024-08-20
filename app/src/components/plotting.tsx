@@ -9,12 +9,23 @@ import { IoDuplicate } from "react-icons/io5";
 interface PlottingProps {
   setStep: (step: number) => void;
   setSelectedFrames: (selectedFrames: Set<number>) => void;
+  addPlotsWindow: number;
 }
 
-export const Plotting = ({ setStep, setSelectedFrames }: PlottingProps) => {
+export const Plotting = ({ setStep, setSelectedFrames, addPlotsWindow }: PlottingProps) => {
   const [availablePlots, setAvailablePlots] = useState<string[]>([]);
   const [plotData, setPlotData] = useState<{ [key: string]: any }>({});
   const [displayedCards, setDisplayedCards] = useState<number[]>([]);
+
+  useEffect(() => {
+    if (addPlotsWindow > 0) {
+      setDisplayedCards((prevCards) => {
+        const newCardIndex =
+          prevCards.length > 0 ? prevCards[prevCards.length - 1] + 1 : 0;
+        return [...prevCards, newCardIndex];
+      });
+    }
+  }, [addPlotsWindow]);
 
   // on analysis:figure:refresh add another card
   useEffect(() => {

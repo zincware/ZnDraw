@@ -163,6 +163,7 @@ export default function App() {
   const [cursorPosition, setCursorPosition] = useState({ x: 0, y: 0 });
   const [lineLength, setLineLength] = useState<number>(0);
   const [showParticleInfo, setShowParticleInfo] = useState<boolean>(false);
+  const [addPlotsWindow, setAddPlotsWindow] = useState<number>(0);
 
   // external useEffects, should be disabled when
   // the input is received via sockets
@@ -802,6 +803,7 @@ export default function App() {
           modifierQueue={modifierQueue}
           isAuthenticated={isAuthenticated}
           roomLock={roomLock}
+          setAddPlotsWindow={setAddPlotsWindow}
         />
         <Sidebar
           selectionSchema={selectionSchema}
@@ -829,7 +831,7 @@ export default function App() {
           selectedFrames={selectedFrames}
           setSelectedFrames={setSelectedFrames}
         />
-        <Plotting setStep={setStep} setSelectedFrames={setSelectedFrames} />
+        <Plotting setStep={setStep} setSelectedFrames={setSelectedFrames} addPlotsWindow={addPlotsWindow}/>
         {showParticleInfo && (
           <>
             <ParticleInfoOverlay

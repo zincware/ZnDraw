@@ -351,7 +351,7 @@ const FrameProgressBar: React.FC<FrameProgressBarProps> = ({
             >
               <div
                 className="handle"
-                style={{ left: `${linePosition}%` }}
+                style={{ left: `${linePosition}%`, cursor: "pointer" }}
                 onMouseDown={(e) => handleMouseDown(e)}
               >
                 <div className="square"></div>
