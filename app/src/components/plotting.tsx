@@ -5,6 +5,8 @@ import { socket } from "../socket";
 import { Rnd, RndResizeCallback } from "react-rnd";
 import Plot from "react-plotly.js";
 import { IoDuplicate } from "react-icons/io5";
+import { FaLock, FaLockOpen } from "react-icons/fa";
+import { BtnTooltip } from "./tooltips";
 
 interface PlottingProps {
   setStep: (step: number) => void;
@@ -133,11 +135,16 @@ const PlotsCard = ({
   };
 
   const onPlotSelected = (event: any) => {
+    setAllowDrag(false);
     const selectedFrames = event.points.map((point: any) =>
       point.customdata ? point.customdata[0] : point.pointIndex,
     );
     setSelectedFrames(new Set(selectedFrames));
   };
+  
+  const onPlotDeselect = () => {
+    setSelectedFrames(new Set());
+  }
 
   const handleSelectClick = () => {
     socket.emit("analysis:figure:keys", (data: string[]) => {
@@ -206,6 +213,20 @@ const PlotsCard = ({
               </option>
             ))}
           </Form.Select>
+          <BtnTooltip
+          text={allowDrag ? "Lock card movement": "Unlock card movement"}
+          > 
+          <Button
+            variant="outline-secondary"
+            className="mx-1"
+            onClick={
+              () => setAllowDrag(!allowDrag)
+            }
+          >
+            {allowDrag ? <FaLockOpen />: <FaLock /> }
+          </Button>
+          </BtnTooltip>
+          <BtnTooltip text="Add another card">
           <Button
             variant="tertiary"
             className="mx-2 btn btn-outline-secondary"
@@ -213,6 +234,7 @@ const PlotsCard = ({
           >
             <IoDuplicate />
           </Button>
+          </BtnTooltip>
           <Button variant="close" className="mx-2" onClick={closeThisCard} />
         </Card.Header>
         <Card.Body style={{ padding: 0 }}>
@@ -223,10 +245,10 @@ const PlotsCard = ({
               config={plotData[selectedOption].config}
               layout={plotLayout}
               onHover={() => setAllowDrag(false)}
-              onUnhover={() => setAllowDrag(true)}
+              // onUnhover={() => setAllowDrag(true)}
               onClick={onPlotClick}
               onSelected={onPlotSelected}
-              onDeselect={() => setSelectedFrames(new Set())}
+              onDeselect={onPlotDeselect}
             />
           ) : (
             <h3 className="text-secondary m-3">No data available</h3>
