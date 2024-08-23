@@ -103,6 +103,7 @@ const ColoredTiles = ({
       {ticks.map((position) => {
         const commonStyles = {
           left: `${(position / length) * 100}%`,
+          width: `${100 / (length - 1)}%`,
           height: 25,
         };
         return (
@@ -116,7 +117,7 @@ const ColoredTiles = ({
         );
       })}
       <div
-        className={`position-absolute bg-gradient bg-primary`}
+        className={`position-absolute ${disabledPositions.length === 0 ? 'bg-body' : 'bg-success'}`}
         style={{ width: "100%", height: 25 }}
         onClick={(e) => onTileClick(e)}
       ></div>
@@ -130,7 +131,7 @@ const ColoredTiles = ({
         return (
           <div
             key={position}
-            className={`position-absolute p-0 bg-gradient bg-primary-subtle`}
+            className={`position-absolute p-0 bg-body`}
             style={commonStyles}
           ></div>
         );
@@ -326,7 +327,7 @@ const FrameProgressBar: React.FC<FrameProgressBarProps> = ({
           </Row>
           <Row>
             <Col
-              className="d-flex bg-secondary-subtle bg-gradient justify-content-center align-items-center"
+              className="d-flex bg-body justify-content-center align-items-center"
               style={{ height: 25 }}
             >
               <JumpFrame step={step} setStep={setStep} length={length} />
@@ -374,6 +375,22 @@ const FrameProgressBar: React.FC<FrameProgressBarProps> = ({
             setStep={setStep}
             setBookmarks={setBookmarks}
           />
+        </Col>
+        <Col xs="1">
+          <Row>
+            <Col
+              className="d-flex bg-dark bg-gradient justify-content-center align-items-center"
+              style={{ height: 1 }}
+            ></Col>
+          </Row>
+          <Row>
+            <Col
+              className="d-flex bg-body justify-content-center align-items-center"
+              style={{ height: 25 }}
+            >
+              1
+            </Col>
+          </Row>
         </Col>
       </Row>
     </Container>
