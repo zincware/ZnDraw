@@ -141,10 +141,10 @@ const PlotsCard = ({
     );
     setSelectedFrames(new Set(selectedFrames));
   };
-  
+
   const onPlotDeselect = () => {
     setSelectedFrames(new Set());
-  }
+  };
 
   const handleSelectClick = () => {
     socket.emit("analysis:figure:keys", (data: string[]) => {
@@ -214,26 +214,24 @@ const PlotsCard = ({
             ))}
           </Form.Select>
           <BtnTooltip
-          text={allowDrag ? "Lock card movement": "Unlock card movement"}
-          > 
-          <Button
-            variant="outline-secondary"
-            className="mx-1"
-            onClick={
-              () => setAllowDrag(!allowDrag)
-            }
+            text={allowDrag ? "Lock card movement" : "Unlock card movement"}
           >
-            {allowDrag ? <FaLockOpen />: <FaLock /> }
-          </Button>
+            <Button
+              variant="outline-secondary"
+              className="mx-1"
+              onClick={() => setAllowDrag(!allowDrag)}
+            >
+              {allowDrag ? <FaLockOpen /> : <FaLock />}
+            </Button>
           </BtnTooltip>
           <BtnTooltip text="Add another card">
-          <Button
-            variant="tertiary"
-            className="mx-2 btn btn-outline-secondary"
-            onClick={addAnotherCard}
-          >
-            <IoDuplicate />
-          </Button>
+            <Button
+              variant="tertiary"
+              className="mx-2 btn btn-outline-secondary"
+              onClick={addAnotherCard}
+            >
+              <IoDuplicate />
+            </Button>
           </BtnTooltip>
           <Button variant="close" className="mx-2" onClick={closeThisCard} />
         </Card.Header>

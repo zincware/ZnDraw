@@ -117,7 +117,7 @@ const ColoredTiles = ({
         );
       })}
       <div
-        className={`position-absolute ${disabledPositions.length === 0 ? 'bg-body' : 'bg-success'}`}
+        className={`position-absolute ${disabledPositions.length === 0 ? "bg-body" : "bg-success"}`}
         style={{ width: "100%", height: 25 }}
         onClick={(e) => onTileClick(e)}
       ></div>
