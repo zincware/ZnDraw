@@ -112,7 +112,7 @@ const ColoredTiles = ({
             className={`position-absolute`}
             style={commonStyles}
           >
-            <div className="progress-bar-tick-line bg-dark"></div>
+            <div className="progress-bar-tick-line bg-secondary"></div>
           </div>
         );
       })}
@@ -321,7 +321,7 @@ const FrameProgressBar: React.FC<FrameProgressBarProps> = ({
         <Col xs="2">
           <Row>
             <Col
-              className="d-flex bg-dark bg-gradient justify-content-center align-items-center"
+              className="d-flex bg-secondary justify-content-center align-items-center"
               style={{ height: 1 }}
             ></Col>
           </Row>
@@ -362,7 +362,7 @@ const FrameProgressBar: React.FC<FrameProgressBarProps> = ({
           </Row>
           <Row>
             <Col
-              className="d-flex bg-dark bg-gradient justify-content-center align-items-center"
+              className="d-flex bg-secondary justify-content-center align-items-center"
               style={{ height: 1 }}
             ></Col>
           </Row>
@@ -379,7 +379,7 @@ const FrameProgressBar: React.FC<FrameProgressBarProps> = ({
         <Col xs="1">
           <Row>
             <Col
-              className="d-flex bg-dark bg-gradient justify-content-center align-items-center"
+              className="d-flex bg-secondary justify-content-center align-items-center"
               style={{ height: 1 }}
             ></Col>
           </Row>
