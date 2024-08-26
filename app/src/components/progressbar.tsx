@@ -38,7 +38,7 @@ const JumpFrame: React.FC<JumpFrameProps> = ({ step, setStep, length }) => {
   return (
     <InputGroup>
       <Form.Control
-        className="text-center"
+        className="text-center user-select-none"
         placeholder={`${step}/${length - 1}`}
         onBlur={handleBlur}
         onKeyDown={handleKeyDown}
@@ -393,7 +393,7 @@ const FrameProgressBar: React.FC<FrameProgressBarProps> = ({
           </Row>
           <Row>
             <Col
-              className="d-flex bg-body justify-content-center align-items-center"
+              className="d-flex bg-body justify-content-center align-items-center user-select-none"
               style={{ height: 25 }}
             >
               1
