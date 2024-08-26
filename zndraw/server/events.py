@@ -1,9 +1,9 @@
+import importlib.metadata
 import json
 import logging
 import uuid
 
 import znsocket
-import importlib.metadata
 from flask import current_app, request, session
 from flask_socketio import SocketIO, emit, join_room
 from redis import Redis
@@ -30,7 +30,6 @@ def init_socketio_events(io: SocketIO):
     @io.on("connect")
     def connect():
         emit("version", __version__)
-
 
     @io.on("shutdown")
     def shutdown():

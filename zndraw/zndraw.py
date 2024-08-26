@@ -1,4 +1,5 @@
 import dataclasses
+import importlib.metadata
 import json
 import logging
 import typing as t
@@ -11,7 +12,6 @@ import tqdm
 import znjson
 import znsocket
 from redis import Redis
-import importlib.metadata
 
 from zndraw.base import Extension, ZnDrawBase
 from zndraw.bonds import ASEComputeBonds
@@ -38,7 +38,6 @@ log = logging.getLogger(__name__)
 __version__ = importlib.metadata.version("zndraw")
 
 
-
 def _register_modifier(vis: "ZnDraw", data: RegisterModifier) -> None:
     log.debug(f"Registering modifier `{data['cls'].__name__}`")
     vis.socket.emit(
@@ -60,6 +59,7 @@ def _check_version_compatibility(server_version: str) -> None:
             f"Server version ({server_version}) and client version ({__version__}) are not the same. "
             "This may lead to unexpected behavior."
         )
+
 
 @dataclasses.dataclass
 class ZnDraw(ZnDrawBase):
