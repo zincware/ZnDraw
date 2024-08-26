@@ -4,7 +4,6 @@ import eventlet
 
 eventlet.monkey_patch()
 import typing as t
-import ase
 import uuid
 
 import typer
@@ -29,11 +28,11 @@ def upload(
     if not append:
         size = len(vis)
         print(f"Deleting {size} existing figures ...")
-        del vis[:size - 1]
+        del vis[: size - 1]
     typer.echo(f"Reading {fileio.name} ...")
 
     generator = get_generator_from_filename(fileio)
-    
+
     frames = list(generator)
     vis.append(frames[0])
 
