@@ -37,6 +37,7 @@ import ControlsBuilder from "./components/transforms";
 import { ParticleInfoOverlay, SceneInfoOverlay } from "./components/overlays";
 import VectorField from "./components/vectorfield";
 import { useColorMode } from "./components/utils";
+import { IndicesState } from "./components/utils";
 
 const MoveCameraTarget = ({
   controlsRef,
@@ -108,7 +109,10 @@ export default function App() {
   const [length, setLength] = useState<number>(0);
   // updated via sockets
   const [step, setStep] = useState<number>(0);
-  const [selectedFrames, setSelectedFrames] = useState<Set<number>>(new Set());
+  const [selectedFrames, setSelectedFrames] = useState<IndicesState>({
+    active: true,
+    indices: new Set<number>(),
+  });
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [bookmarks, setBookmarks] = useState<any>({}); // {name: [step, ...]
   const [points, setPoints] = useState<THREE.Vector3[]>([]);
@@ -443,14 +447,14 @@ export default function App() {
             setStep(nextBookmark);
           }
         } else {
-          if (selectedFrames.size > 0) {
-            const nextFrame = Array.from(selectedFrames).find(
+          if ((selectedFrames.indices.size > 0) && selectedFrames.active) {
+            const nextFrame = Array.from(selectedFrames.indices).find(
               (frame) => frame > step,
             );
             if (nextFrame) {
               setStep(nextFrame);
             } else {
-              setStep(Math.min(...selectedFrames));
+              setStep(Math.min(...selectedFrames.indices));
             }
           } else {
             setStep((prevStep) => (prevStep + 1 < length ? prevStep + 1 : 0));
@@ -472,14 +476,14 @@ export default function App() {
           // Move to the previous step, or wrap around to the end
           // check if selectedFrames length is greater than 0, then only jump
           // between selectedFrames
-          if (selectedFrames.size > 0) {
-            const previousFrame = Array.from(selectedFrames)
+          if ((selectedFrames.indices.size > 0) && selectedFrames.active) {
+            const previousFrame = Array.from(selectedFrames.indices)
               .reverse()
               .find((frame) => frame < step);
             if (previousFrame) {
               setStep(previousFrame);
             } else {
-              setStep(Math.max(...selectedFrames));
+              setStep(Math.max(...selectedFrames.indices));
             }
           } else {
             setStep((prevStep) =>

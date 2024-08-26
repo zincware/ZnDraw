@@ -68,3 +68,9 @@ export const interpolateColor = (
 
   return new THREE.Color().setHSL(h, s, l);
 };
+
+// Define the type for your state
+export type IndicesState = {
+  active: boolean;
+  indices: Set<number>; // or Set<string> if you have string indices
+};

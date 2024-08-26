@@ -4,6 +4,7 @@ import * as THREE from "three";
 import { useFrame, useThree } from "@react-three/fiber";
 import { Line } from "@react-three/drei";
 import Arrows from "./meshes";
+import { IndicesState } from "./utils";
 
 export interface Frame {
   arrays: { colors: Array<string>; radii: Array<number> };
@@ -30,7 +31,7 @@ interface PlayerProps {
   length: number;
   loop: boolean;
   togglePlaying: (playing: boolean) => void;
-  selectedFrames: Set<number>;
+  selectedFrames: IndicesState;
 }
 
 export const Player = ({
@@ -51,22 +52,22 @@ export const Player = ({
           if (!loop) {
             setPlaying(!playing);
           } else {
-            if (selectedFrames.size > 0) {
-              setStep(Math.min(...selectedFrames));
+            if ((selectedFrames.indices.size > 0) && selectedFrames.active) {
+              setStep(Math.min(...selectedFrames.indices));
             } else {
               setStep(0);
             }
           }
         } else {
           // TODO: handle selectedFrames
-          if (selectedFrames.size > 0) {
-            const nextFrame = Array.from(selectedFrames).find(
+          if ((selectedFrames.indices.size > 0) && selectedFrames.active) {
+            const nextFrame = Array.from(selectedFrames.indices).find(
               (frame) => frame > step,
             );
             if (nextFrame) {
               setStep(nextFrame);
             } else {
-              setStep(Math.min(...selectedFrames));
+              setStep(Math.min(...selectedFrames.indices));
             }
           } else {
             setStep(step + 1);

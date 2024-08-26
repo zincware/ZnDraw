@@ -7,10 +7,11 @@ import Plot from "react-plotly.js";
 import { IoDuplicate } from "react-icons/io5";
 import { FaLock, FaLockOpen } from "react-icons/fa";
 import { BtnTooltip } from "./tooltips";
+import { IndicesState } from "./utils";
 
 interface PlottingProps {
   setStep: (step: number) => void;
-  setSelectedFrames: (selectedFrames: Set<number>) => void;
+  setSelectedFrames:  (selectedFrames: IndicesState) => void;
   addPlotsWindow: number;
 }
 
@@ -84,7 +85,7 @@ interface PlotsCardProps {
   plotData: { [key: string]: any };
   setDisplayedCards: (displayedCards: number[]) => void;
   setStep: (step: number) => void;
-  setSelectedFrames: (selectedFrames: Set<number>) => void;
+  setSelectedFrames: (selectedFrames: IndicesState) => void;
 }
 
 const PlotsCard = ({
@@ -139,11 +140,17 @@ const PlotsCard = ({
     const selectedFrames = event.points.map((point: any) =>
       point.customdata ? point.customdata[0] : point.pointIndex,
     );
-    setSelectedFrames(new Set(selectedFrames));
+    setSelectedFrames({
+      active: true,
+      indices: new Set(selectedFrames),
+    });
   };
 
   const onPlotDeselect = () => {
-    setSelectedFrames(new Set());
+    setSelectedFrames({
+      active: true,
+      indices: new Set(),
+    });
   };
 
   const handleSelectClick = () => {

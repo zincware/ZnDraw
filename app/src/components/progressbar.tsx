@@ -3,7 +3,8 @@ import { InputGroup, Form, Container, Row, Col, Card } from "react-bootstrap";
 
 import { FaEye, FaLock, FaRegBookmark } from "react-icons/fa";
 import { OverlayTrigger, Tooltip } from "react-bootstrap";
-import { PiSelectionSlash } from "react-icons/pi";
+import { PiSelection, PiSelectionSlash } from "react-icons/pi";
+import { IndicesState } from "./utils";
 
 interface JumpFrameProps {
   step: number;
@@ -244,10 +245,10 @@ interface FrameProgressBarProps {
   length: number;
   step: number;
   setStep: (step: number) => void;
-  selectedFrames: Set<number>;
+  selectedFrames: IndicesState;
   bookmarks: any[]; // Replace with actual type if known
   setBookmarks: (bookmarks: any[]) => void; // Replace with actual type if known
-  setSelectedFrames: (selectedFrames: Set<number>) => void;
+  setSelectedFrames: (selectedFrames: IndicesState) => void;
 }
 
 const FrameProgressBar: React.FC<FrameProgressBarProps> = ({
@@ -265,9 +266,9 @@ const FrameProgressBar: React.FC<FrameProgressBarProps> = ({
 
   useEffect(() => {
     // disable frames are the frames that are not selected, if the selectedFrames is not empty
-    if (selectedFrames.size > 0) {
+    if ((selectedFrames.indices.size > 0) && selectedFrames.active) {
       const disabledFrames = [...Array(length).keys()].filter(
-        (frame) => !selectedFrames.has(frame),
+        (frame) => !selectedFrames.indices.has(frame),
       );
       setDisabledFrames(disabledFrames);
     } else {
@@ -276,8 +277,8 @@ const FrameProgressBar: React.FC<FrameProgressBarProps> = ({
   }, [selectedFrames, length]);
 
   const handleSelectionReset = () => {
-    console.log("Resetting selection");
-    setSelectedFrames(new Set());
+    console.log("toggle selection");
+    setSelectedFrames((prev) => ({indices: prev.indices, active: !prev.active}));
   };
 
   useEffect(() => {
@@ -334,11 +335,15 @@ const FrameProgressBar: React.FC<FrameProgressBarProps> = ({
               <OverlayTrigger
                 placement="top"
                 delay={{ show: 0, hide: 100 }}
-                overlay={<Tooltip>reset selection</Tooltip>}
+                overlay={<Tooltip>toggle selection</Tooltip>}
               >
                 <div>
                   {" "}
-                  <PiSelectionSlash onClick={handleSelectionReset} />
+                  {selectedFrames.active ? (
+                    <PiSelection onClick={handleSelectionReset} />
+                  ) : (
+                    <PiSelectionSlash onClick={handleSelectionReset} />
+                  )}
                 </div>
               </OverlayTrigger>
             </Col>
