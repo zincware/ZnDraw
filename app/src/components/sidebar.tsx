@@ -1,4 +1,4 @@
-import { Button, Navbar, Nav, Card, Collapse } from "react-bootstrap";
+import { Button, Navbar, Nav, Card } from "react-bootstrap";
 import { BtnTooltip } from "./tooltips";
 import {
   FaRegChartBar,
@@ -13,8 +13,6 @@ import { socket } from "../socket";
 import { useEffect } from "react";
 
 import { JSONEditor } from "@json-editor/json-editor";
-import Plot from "react-plotly.js";
-import { Rnd } from "react-rnd";
 
 JSONEditor.defaults.options.theme = "bootstrap5";
 JSONEditor.defaults.options.iconlib = "fontawesome5";
@@ -107,7 +105,6 @@ const SidebarMenu: React.FC<SidebarMenuProps> = ({
 
   function submitEditor() {
     if (onSubmit) {
-      console.log("Submitting editor data: ", userInput);
       onSubmit(userInput);
     }
   }
@@ -199,22 +196,12 @@ function SideBar({
   setStep: any;
 }) {
   const [visibleOption, setVisibleOption] = useState<string>("");
-  const [plotData, setPlotData] = useState({
-    data: [],
-    layout: {},
-    frames: [],
-    config: {},
-  });
-  const [showPlotsCard, setShowPlotsCard] = useState<boolean>(false);
-
   useEffect(() => {
     if (visibleOption !== "") {
       // emit visibleOption:schema e.g. selection:schema
       socket.emit(`${visibleOption}:schema`);
     }
   }, [visibleOption]);
-
-  // handleFigureData({ setPlotData, setShowPlotsCard });
 
   // if any menu is open and you click escape, close it
   useEffect(() => {
@@ -376,14 +363,6 @@ function SideBar({
         useSubmit={true}
         closeMenu={() => setVisibleOption("")}
       />
-      {/* <PlotsCard
-        setPlotData={setPlotData}
-        plotData={plotData}
-        colorMode={colorMode}
-        showPlotsCard={showPlotsCard}
-        setShowPlotsCard={setShowPlotsCard}
-        setStep={setStep}
-      /> */}
     </>
   );
 }

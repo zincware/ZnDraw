@@ -17,7 +17,6 @@ export interface Frame {
   positions: THREE.Vector3[]; // only number[][] | before being mapped immediately
   vectors: [number, number, number][][];
 }
-``;
 
 export interface Frames {
   [key: number]: { _type: string; value: Frame };
@@ -59,7 +58,6 @@ export const Player = ({
             }
           }
         } else {
-          // TODO: handle selectedFrames
           if ((selectedFrames.indices.size > 0) && selectedFrames.active) {
             const nextFrame = Array.from(selectedFrames.indices).find(
               (frame) => frame > step,

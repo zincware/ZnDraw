@@ -279,21 +279,5 @@ def read_plots(paths: list[str]) -> None:
 
     vis.figures = load_plots_to_json(paths)
 
-    # for plot in plots:
-    #     if plot["type"] == "line":
-    #         data = znsocket.List(r, f"room:default:plots:{plot['id']}")
-    #         data.clear()
-    #         data.extend(plot["data"])
-    #     elif plot["type"] == "image":
-    #         data = znsocket.Dict(r, f"room:default:plots:{plot['id']}")
-    #         data.clear()
-    #         data.update(plot["data"])
-
-    # try:
-    #     io.connect(current_app.config["SERVER_URL"], wait_timeout=10)
-    #     io.emit("room:all:plots:refresh", [plot["id"] for plot in plots])
-    # except socketio.exceptions.ConnectionError:
-    #     pass
-
-    # io.sleep(1)
-    # io.disconnect()
+    vis.socket.sleep(1)
+    vis.socket.disconnect()
