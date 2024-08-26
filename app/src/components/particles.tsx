@@ -58,7 +58,7 @@ export const Player = ({
             }
           }
         } else {
-          if ((selectedFrames.indices.size > 0) && selectedFrames.active) {
+          if (selectedFrames.indices.size > 0 && selectedFrames.active) {
             const nextFrame = Array.from(selectedFrames.indices).find(
               (frame) => frame > step,
             );
