@@ -402,15 +402,22 @@ const FrameProgressBar: React.FC<FrameProgressBarProps> = ({
             </Col>
             {!connected && (
               <Col
-              className="d-flex bg-body justify-content-center align-items-center user-select-none"
-              style={{ height: 25 }}
-            >
-              <OverlayTrigger placement="top" delay={{ show: 0, hide: 100 }} overlay={<Tooltip>Not connected to server</Tooltip>}>
-                <div className="spinner-border spinner-border-sm text-primary" role="status">
-                  <span className="visually-hidden">Loading...</span>
-                </div>
-              </OverlayTrigger>
-            </Col>
+                className="d-flex bg-body justify-content-center align-items-center user-select-none"
+                style={{ height: 25 }}
+              >
+                <OverlayTrigger
+                  placement="top"
+                  delay={{ show: 0, hide: 100 }}
+                  overlay={<Tooltip>Not connected to server</Tooltip>}
+                >
+                  <div
+                    className="spinner-border spinner-border-sm text-primary"
+                    role="status"
+                  >
+                    <span className="visually-hidden">Loading...</span>
+                  </div>
+                </OverlayTrigger>
+              </Col>
             )}
           </Row>
         </Col>

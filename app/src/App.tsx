@@ -378,7 +378,6 @@ export default function App() {
       setRoomLock(locked);
     }
 
-
     socket.on("connect", onConnect);
     socket.on("disconnect", onDisconnect);
     socket.on("selection:schema", onSelectionSchema);
