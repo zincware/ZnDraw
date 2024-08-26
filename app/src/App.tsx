@@ -89,6 +89,7 @@ export default function App() {
   // const [isConnected, setIsConnected] = useState(socket.connected);
   // const [fooEvents, setFooEvents] = useState([]);
 
+  const [connected, setConnected] = useState<boolean>(false);
   const [selectionSchema, setSelectionSchema] = useState({});
   const [modifierSchema, setModifierSchema] = useState({});
   const [sceneSchema, setSceneSchema] = useState({});
@@ -226,6 +227,7 @@ export default function App() {
 
   useEffect(() => {
     function onConnect() {
+      setConnected(true);
       socket.emit(
         "webclient:connect",
         (data: { name: string; room: string; authenticated: boolean }) => {
@@ -275,6 +277,10 @@ export default function App() {
       socket.emit("room:config:get", (data: any) => {
         setRoomConfig(data);
       });
+    }
+
+    function onDisconnect() {
+      setConnected(false);
     }
 
     function onSelectionSchema(receivedSchema: any) {
@@ -373,6 +379,7 @@ export default function App() {
     }
 
     socket.on("connect", onConnect);
+    socket.on("disconnect", onDisconnect);
     socket.on("selection:schema", onSelectionSchema);
     socket.on("modifier:schema", onModifierSchema);
     socket.on("scene:schema", onSceneSchema);
@@ -397,6 +404,7 @@ export default function App() {
 
     return () => {
       socket.off("connect", onConnect);
+      socket.off("disconnect", onDisconnect);
       socket.off("selection:schema", onSelectionSchema);
       socket.off("modifier:schema", onModifierSchema);
       socket.off("scene:schema", onSceneSchema);
@@ -834,6 +842,7 @@ export default function App() {
           setBookmarks={setBookmarks}
           selectedFrames={selectedFrames}
           setSelectedFrames={setSelectedFrames}
+          connected={connected}
         />
         <Plotting
           setStep={setStep}

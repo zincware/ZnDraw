@@ -249,6 +249,7 @@ interface FrameProgressBarProps {
   bookmarks: any[]; // Replace with actual type if known
   setBookmarks: (bookmarks: any[]) => void; // Replace with actual type if known
   setSelectedFrames: (selectedFrames: IndicesState) => void;
+  connected: boolean;
 }
 
 const FrameProgressBar: React.FC<FrameProgressBarProps> = ({
@@ -259,6 +260,7 @@ const FrameProgressBar: React.FC<FrameProgressBarProps> = ({
   bookmarks,
   setBookmarks,
   setSelectedFrames,
+  connected,
 }) => {
   const [linePosition, setLinePosition] = useState<number>(0);
   const [disabledFrames, setDisabledFrames] = useState<number[]>([]);
@@ -398,6 +400,25 @@ const FrameProgressBar: React.FC<FrameProgressBarProps> = ({
             >
               1
             </Col>
+            {!connected && (
+              <Col
+                className="d-flex bg-body justify-content-center align-items-center user-select-none"
+                style={{ height: 25 }}
+              >
+                <OverlayTrigger
+                  placement="top"
+                  delay={{ show: 0, hide: 100 }}
+                  overlay={<Tooltip>Not connected to server</Tooltip>}
+                >
+                  <div
+                    className="spinner-border spinner-border-sm text-primary"
+                    role="status"
+                  >
+                    <span className="visually-hidden">Loading...</span>
+                  </div>
+                </OverlayTrigger>
+              </Col>
+            )}
           </Row>
         </Col>
       </Row>
