@@ -6,9 +6,8 @@ import dataclasses
 import datetime
 import os
 import pathlib
-import webbrowser
-
 import typing as t
+import webbrowser
 
 import typer
 
@@ -203,7 +202,6 @@ def main(
     read_plots.delay(plots)
 
     if browser:
-
         webbrowser.open(f"http://localhost:{env_config.FLASK_PORT}")
 
     socketio = app.extensions["socketio"]
