@@ -11,7 +11,7 @@ import { IndicesState } from "./utils";
 
 interface PlottingProps {
   setStep: (step: number) => void;
-  setSelectedFrames:  (selectedFrames: IndicesState) => void;
+  setSelectedFrames: (selectedFrames: IndicesState) => void;
   addPlotsWindow: number;
 }
 

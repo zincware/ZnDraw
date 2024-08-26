@@ -447,7 +447,7 @@ export default function App() {
             setStep(nextBookmark);
           }
         } else {
-          if ((selectedFrames.indices.size > 0) && selectedFrames.active) {
+          if (selectedFrames.indices.size > 0 && selectedFrames.active) {
             const nextFrame = Array.from(selectedFrames.indices).find(
               (frame) => frame > step,
             );
@@ -476,7 +476,7 @@ export default function App() {
           // Move to the previous step, or wrap around to the end
           // check if selectedFrames length is greater than 0, then only jump
           // between selectedFrames
-          if ((selectedFrames.indices.size > 0) && selectedFrames.active) {
+          if (selectedFrames.indices.size > 0 && selectedFrames.active) {
             const previousFrame = Array.from(selectedFrames.indices)
               .reverse()
               .find((frame) => frame < step);

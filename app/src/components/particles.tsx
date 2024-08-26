@@ -51,7 +51,7 @@ export const Player = ({
           if (!loop) {
             setPlaying(!playing);
           } else {
-            if ((selectedFrames.indices.size > 0) && selectedFrames.active) {
+            if (selectedFrames.indices.size > 0 && selectedFrames.active) {
               setStep(Math.min(...selectedFrames.indices));
             } else {
               setStep(0);
