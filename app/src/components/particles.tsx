@@ -52,7 +52,7 @@ export const Player = ({
           if (!loop) {
             setPlaying(!playing);
           } else {
-            if ((selectedFrames.indices.size > 0) && selectedFrames.active) {
+            if (selectedFrames.indices.size > 0 && selectedFrames.active) {
               setStep(Math.min(...selectedFrames.indices));
             } else {
               setStep(0);
@@ -60,7 +60,7 @@ export const Player = ({
           }
         } else {
           // TODO: handle selectedFrames
-          if ((selectedFrames.indices.size > 0) && selectedFrames.active) {
+          if (selectedFrames.indices.size > 0 && selectedFrames.active) {
             const nextFrame = Array.from(selectedFrames.indices).find(
               (frame) => frame > step,
             );

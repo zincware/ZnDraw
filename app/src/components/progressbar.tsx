@@ -266,7 +266,7 @@ const FrameProgressBar: React.FC<FrameProgressBarProps> = ({
 
   useEffect(() => {
     // disable frames are the frames that are not selected, if the selectedFrames is not empty
-    if ((selectedFrames.indices.size > 0) && selectedFrames.active) {
+    if (selectedFrames.indices.size > 0 && selectedFrames.active) {
       const disabledFrames = [...Array(length).keys()].filter(
         (frame) => !selectedFrames.indices.has(frame),
       );
@@ -278,7 +278,10 @@ const FrameProgressBar: React.FC<FrameProgressBarProps> = ({
 
   const handleSelectionReset = () => {
     console.log("toggle selection");
-    setSelectedFrames((prev) => ({indices: prev.indices, active: !prev.active}));
+    setSelectedFrames((prev) => ({
+      indices: prev.indices,
+      active: !prev.active,
+    }));
   };
 
   useEffect(() => {
