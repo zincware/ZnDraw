@@ -4,6 +4,7 @@ import eventlet
 
 eventlet.monkey_patch()
 import typing as t
+import ase
 import uuid
 
 import typer
@@ -23,14 +24,23 @@ def upload(
     if token is None:
         token = str(uuid.uuid4())
     vis = ZnDraw(url=url, token=token)
+    typer.echo(f"Uploading to: {url}/token/{vis.token}")
+
     if not append:
-        del vis[:]
+        size = len(vis)
+        print(f"Deleting {size} existing figures ...")
+        del vis[:size - 1]
     typer.echo(f"Reading {fileio.name} ...")
 
     generator = get_generator_from_filename(fileio)
+    
+    frames = list(generator)
+    vis.append(frames[0])
 
-    typer.echo(f"Uploading to: {url}/token/{vis.token}")
-    vis.extend(list(generator))
+    if not append:
+        # There must be a frame otherwise removing everything currently doesn't work
+        del vis[0]
+    vis.extend(frames[1:])
 
     figures = vis.figures
     vis.figures = load_plots_to_json(plots) | figures
