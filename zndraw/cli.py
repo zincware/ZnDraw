@@ -168,7 +168,7 @@ def main(
 
     env_config.save_to_env()
 
-    if remote is None and rev is None:
+    if remote is None and rev is None and filename is not None:
         if not pathlib.Path(filename).exists():
             typer.echo(f"File {filename} does not exist.")
             raise typer.Exit(code=1)
