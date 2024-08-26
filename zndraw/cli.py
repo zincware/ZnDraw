@@ -6,6 +6,7 @@ import dataclasses
 import datetime
 import os
 import typing as t
+import pathlib
 
 import typer
 
@@ -165,6 +166,11 @@ def main(
         env_config.FLASK_STORAGE = f"znsocket://localhost:{env_config.FLASK_STORAGE_PORT}"
 
     env_config.save_to_env()
+
+    if remote is None and rev is None:
+        if not pathlib.Path(filename).exists():
+            typer.echo(f"File {filename} does not exist.")
+            raise typer.Exit(code=1)
 
     if standalone and url is None:
         if env_config.FLASK_STORAGE.startswith("znsocket"):
