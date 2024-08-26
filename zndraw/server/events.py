@@ -1,3 +1,4 @@
+import importlib.metadata
 import json
 import logging
 import uuid
@@ -22,12 +23,13 @@ from zndraw.tasks import (
 from zndraw.utils import get_cls_from_json_schema, get_schema_with_instance_defaults
 
 log = logging.getLogger(__name__)
+__version__ = importlib.metadata.version("zndraw")
 
 
 def init_socketio_events(io: SocketIO):
     @io.on("connect")
     def connect():
-        pass
+        emit("version", __version__)
 
     @io.on("shutdown")
     def shutdown():

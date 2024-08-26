@@ -1,4 +1,5 @@
 import dataclasses
+import importlib.metadata
 import json
 import logging
 import typing as t
@@ -34,6 +35,7 @@ from zndraw.utils import (
 )
 
 log = logging.getLogger(__name__)
+__version__ = importlib.metadata.version("zndraw")
 
 
 def _register_modifier(vis: "ZnDraw", data: RegisterModifier) -> None:
@@ -49,6 +51,14 @@ def _register_modifier(vis: "ZnDraw", data: RegisterModifier) -> None:
     )
     if vis._available:
         vis.socket.emit("modifier:available", list(vis._modifiers))
+
+
+def _check_version_compatibility(server_version: str) -> None:
+    if server_version != __version__:
+        log.warning(
+            f"Server version ({server_version}) and client version ({__version__}) are not the same. "
+            "This may lead to unexpected behavior."
+        )
 
 
 @dataclasses.dataclass
@@ -100,6 +110,7 @@ class ZnDraw(ZnDrawBase):
         self.socket.on("modifier:run", self._run_modifier)
         self.socket.on("modifier:wakeup", on_wakeup)
         self.socket.on("room:log", lambda x: print(x))
+        self.socket.on("version", _check_version_compatibility)
 
         for idx in range(self.timeout["connect_retries"] + 1):
             try:
