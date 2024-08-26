@@ -4,6 +4,7 @@ import * as THREE from "three";
 import { useFrame, useThree } from "@react-three/fiber";
 import { Line } from "@react-three/drei";
 import Arrows from "./meshes";
+import { IndicesState } from "./utils";
 
 export interface Frame {
   arrays: { colors: Array<string>; radii: Array<number> };
@@ -16,10 +17,20 @@ export interface Frame {
   positions: THREE.Vector3[]; // only number[][] | before being mapped immediately
   vectors: [number, number, number][][];
 }
-``;
 
 export interface Frames {
   [key: number]: { _type: string; value: Frame };
+}
+
+interface PlayerProps {
+  playing: boolean;
+  step: number;
+  setStep: (step: number) => void;
+  fps: number;
+  length: number;
+  loop: boolean;
+  togglePlaying: (playing: boolean) => void;
+  selectedFrames: IndicesState;
 }
 
 export const Player = ({
@@ -30,7 +41,8 @@ export const Player = ({
   length,
   loop,
   togglePlaying: setPlaying,
-}: any) => {
+  selectedFrames,
+}: PlayerProps) => {
   useFrame(({ clock }) => {
     const a = clock.getElapsedTime();
     if (a > 1 / fps) {
@@ -39,10 +51,25 @@ export const Player = ({
           if (!loop) {
             setPlaying(!playing);
           } else {
-            setStep(0);
+            if (selectedFrames.indices.size > 0 && selectedFrames.active) {
+              setStep(Math.min(...selectedFrames.indices));
+            } else {
+              setStep(0);
+            }
           }
         } else {
-          setStep(step + 1);
+          if (selectedFrames.indices.size > 0 && selectedFrames.active) {
+            const nextFrame = Array.from(selectedFrames.indices).find(
+              (frame) => frame > step,
+            );
+            if (nextFrame) {
+              setStep(nextFrame);
+            } else {
+              setStep(Math.min(...selectedFrames.indices));
+            }
+          } else {
+            setStep(step + 1);
+          }
         }
       }
       // reset the clock

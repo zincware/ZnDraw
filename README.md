@@ -61,7 +61,7 @@ You can modify various aspects of the visualization:
 - `vis.points`
 - `vis.selection`
 - `vis.step`
-- `vis.figure`
+- `vis.figures`
 - `vis.bookmarks`
 - `vis.geometries`
 

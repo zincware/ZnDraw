@@ -38,7 +38,7 @@ class DihedralAngle(Extension):
             {"step": list(range(len(atoms_lst))), "dihedral": dihedral_angles}
         )
         fig = px.line(df, x="step", y="dihedral", render_mode="svg")
-        vis.figure = fig.to_json()
+        vis.figures = vis.figures | {"DihedralAngle": fig.to_json()}
 
 
 class Distance(Extension):
@@ -73,7 +73,7 @@ class Distance(Extension):
                     fig.add_scatter(
                         x=smooth_df["step"], y=smooth_df[col], name=f"smooth_{col}"
                     )
-        vis.figure = fig.to_json()
+        vis.figures = vis.figures | {"Distance": fig.to_json()}
 
 
 class Properties2D(Extension):
@@ -140,7 +140,7 @@ class Properties2D(Extension):
                 scaleanchor="x",
                 scaleratio=1,
             )
-        vis.figure = fig.to_json()
+        vis.figures = vis.figures | {"Properties2D": fig.to_json()}
 
 
 class Properties1D(Extension):
@@ -190,7 +190,7 @@ class Properties1D(Extension):
                         x=smooth_df["step"], y=smooth_df[col], name=f"smooth_{col}"
                     )
 
-        vis.figure = fig.to_json()
+        vis.figures = vis.figures | {"Properties1D": fig.to_json()}
 
 
 methods = t.Union[

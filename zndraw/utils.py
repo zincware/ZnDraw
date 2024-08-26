@@ -14,7 +14,9 @@ from urllib.parse import urlparse
 import ase
 import datamodel_code_generator
 import numpy as np
+import plotly.graph_objs
 import socketio.exceptions
+import znjson
 from ase.calculators.singlepoint import SinglePointCalculator
 from ase.data import covalent_radii
 from ase.data.colors import jmol_colors
@@ -368,3 +370,23 @@ def get_schema_with_instance_defaults(self) -> dict:
         if key in schema["properties"]:
             schema["properties"][key]["default"] = value
     return schema
+
+
+def load_plots_to_json(paths: list[str]):
+    data = {}
+    for path in paths:
+        plots = znjson.loads(pathlib.Path(path).read_text())
+        if isinstance(plots, plotly.graph_objs.Figure):
+            data[path] = plots.to_json()
+        elif isinstance(plots, dict):
+            if not all(isinstance(v, plotly.graph_objs.Figure) for v in plots.values()):
+                raise ValueError("All values in the plots dict must be plotly.graph_objs")
+            data.update({f"{path}_{k}": v.to_json() for k, v in plots.items()})
+        elif isinstance(plots, list):
+            if not all(isinstance(v, plotly.graph_objs.Figure) for v in plots):
+                raise ValueError("All values in the plots list must be plotly.graph_objs")
+            data.update({f"{path}_{i}": v.to_json() for i, v in enumerate(plots)})
+        else:
+            raise ValueError("The plots must be a dict, list or Figure")
+
+    return data

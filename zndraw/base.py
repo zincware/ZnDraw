@@ -170,12 +170,12 @@ class ZnDrawBase(MutableSequence):
 
     @property
     @abstractmethod
-    def figure(self):
+    def figures(self):
         pass
 
-    @figure.setter
+    @figures.setter
     @abstractmethod
-    def figure(self, fig: str):
+    def figures(self, fig: str):
         pass
 
     @property

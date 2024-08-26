@@ -81,3 +81,62 @@
   height: 100%;
   border: none;
 }
+:root {
+  --handle-size: 12px; /* Base size for the handle */
+  --handle-color: rgb(48, 75, 183); /* Color of the handle */
+}
+
+.square {
+  width: var(--handle-size);
+  height: var(--handle-size);
+  background-color: var(--handle-color); /* Color of the square */
+  border-left: calc(var(--handle-size) / 2) solid transparent;
+  border-right: calc(var(--handle-size) / 2) solid transparent;
+}
+
+.triangle {
+  width: 0;
+  height: 0;
+  border-left: calc(var(--handle-size) / 2) solid transparent;
+  border-right: calc(var(--handle-size) / 2) solid transparent;
+  border-top: calc(var(--handle-size) / 2) solid var(--handle-color); /* Color of the triangle */
+}
+
+.handle {
+  position: absolute;
+  top: -15px; /* Adjust this value based on your design */
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  z-index: 2; /* Ensure it is above other elements */
+}
+
+.progress-bar-v-line {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform: translateX(-50%);
+  width: 2px; /* Thickness of the line */
+  height: 100%; /* Full height of the column */
+  background-color: var(--handle-color); /* Color of the line */
+  z-index: 1; /* Ensure it is above tiles but below the bookmark */
+}
+
+.progress-bar-tick-line {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform: translateX(-50%) translateY(-100%);
+  width: 1px; /* Thickness of the line */
+  height: 14%; /* Size of the tick */
+  z-index: 1; /* Ensure it is visible */
+}
+
+.progress-bar-bookmark {
+  position: absolute;
+  top: 0;
+  left: 0;
+  /* z-index: 1; */
+  transform: translateX(-50%);
+}

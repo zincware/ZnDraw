@@ -63,6 +63,10 @@ class Scene(BaseModel):
         True,
         description="Jump to updated frames.",
     )
+    crosshair: bool = Field(
+        False,
+        description="Show camera controls target.",
+    )
     # bonds: bool = Field(
     #     True,
     #     description="Show bonds.",
@@ -115,6 +119,7 @@ class Scene(BaseModel):
         schema["properties"]["simulation_box"]["format"] = "checkbox"
         schema["properties"]["vectorfield"]["format"] = "checkbox"
         schema["properties"]["frame_update"]["format"] = "checkbox"
+        schema["properties"]["crosshair"]["format"] = "checkbox"
         # schema["properties"]["resolution"]["format"] = "range"
         # schema["properties"]["label_offset"]["format"] = "range"
         schema["properties"]["particle_size"]["format"] = "range"

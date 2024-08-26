@@ -370,15 +370,20 @@ class ZnDraw(ZnDrawBase):
         )
 
     @property
-    def figure(self) -> str:
+    def figures(self) -> dict[str, dict | t.Any]:
+        # TODO: znjson.loads
         return call_with_retry(
             self.socket,
             "analysis:figure:get",
             retries=self.timeout["call_retries"],
         )
 
-    @figure.setter
-    def figure(self, fig: str) -> None:
+    @figures.setter
+    def figures(self, fig: dict[str, dict | t.Any]) -> None:
+        """Update the figures on the remote."""
+        # TODO: can you use znsocket.Dict
+        # to update the data an avoid
+        # sending duplicates?
         emit_with_retry(
             self.socket,
             "analysis:figure:set",

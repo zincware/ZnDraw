@@ -20,13 +20,15 @@ import {
 import { Frames, Frame, Player } from "./components/particles";
 import { Geometries } from "./components/geometries";
 import "./App.css";
+import { Plotting } from "./components/plotting";
 
-import { Canvas, useThree } from "@react-three/fiber";
+import { Canvas, useThree, useFrame } from "@react-three/fiber";
 import {
   OrbitControls,
   PerspectiveCamera,
   TrackballControls,
   TransformControls,
+  Box,
 } from "@react-three/drei";
 import { Button, InputGroup, Form } from "react-bootstrap";
 import * as THREE from "three";
@@ -35,6 +37,53 @@ import ControlsBuilder from "./components/transforms";
 import { ParticleInfoOverlay, SceneInfoOverlay } from "./components/overlays";
 import VectorField from "./components/vectorfield";
 import { useColorMode } from "./components/utils";
+import { IndicesState } from "./components/utils";
+
+const MoveCameraTarget = ({
+  controlsRef,
+  colorMode,
+}: {
+  controlsRef: any;
+  colorMode: string;
+}) => {
+  const controlsCrosshairRef = useRef<THREE.Object3D>(null);
+  const shortDimension = 0.05;
+  const longDimension = 0.5;
+
+  // Update the controlsCrosshair position to match the orbit controls target
+  useFrame(() => {
+    if (controlsCrosshairRef.current && controlsRef.current) {
+      const crosshair = controlsCrosshairRef.current;
+      const target = controlsRef.current.target;
+      crosshair.position.copy(target);
+    }
+  });
+
+  return (
+    <group ref={controlsCrosshairRef}>
+      {/* X axis box */}
+      <Box scale={[longDimension, shortDimension, shortDimension]}>
+        <meshStandardMaterial
+          color={colorMode == "light" ? "#454b66" : "#f5fdc6"}
+        />
+      </Box>
+
+      {/* Y axis box */}
+      <Box scale={[shortDimension, longDimension, shortDimension]}>
+        <meshStandardMaterial
+          color={colorMode == "light" ? "#454b66" : "#f5fdc6"}
+        />
+      </Box>
+
+      {/* Z axis box */}
+      <Box scale={[shortDimension, shortDimension, longDimension]}>
+        <meshStandardMaterial
+          color={colorMode == "light" ? "#454b66" : "#f5fdc6"}
+        />
+      </Box>
+    </group>
+  );
+};
 
 export default function App() {
   // const [isConnected, setIsConnected] = useState(socket.connected);
@@ -60,6 +109,10 @@ export default function App() {
   const [length, setLength] = useState<number>(0);
   // updated via sockets
   const [step, setStep] = useState<number>(0);
+  const [selectedFrames, setSelectedFrames] = useState<IndicesState>({
+    active: true,
+    indices: new Set<number>(),
+  });
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [bookmarks, setBookmarks] = useState<any>({}); // {name: [step, ...]
   const [points, setPoints] = useState<THREE.Vector3[]>([]);
@@ -114,6 +167,7 @@ export default function App() {
   const [cursorPosition, setCursorPosition] = useState({ x: 0, y: 0 });
   const [lineLength, setLineLength] = useState<number>(0);
   const [showParticleInfo, setShowParticleInfo] = useState<boolean>(false);
+  const [addPlotsWindow, setAddPlotsWindow] = useState<number>(0);
 
   // external useEffects, should be disabled when
   // the input is received via sockets
@@ -393,8 +447,18 @@ export default function App() {
             setStep(nextBookmark);
           }
         } else {
-          // Move to the next step, or wrap around to the start
-          setStep((prevStep) => (prevStep + 1 < length ? prevStep + 1 : 0));
+          if (selectedFrames.indices.size > 0 && selectedFrames.active) {
+            const nextFrame = Array.from(selectedFrames.indices).find(
+              (frame) => frame > step,
+            );
+            if (nextFrame) {
+              setStep(nextFrame);
+            } else {
+              setStep(Math.min(...selectedFrames.indices));
+            }
+          } else {
+            setStep((prevStep) => (prevStep + 1 < length ? prevStep + 1 : 0));
+          }
         }
       } else if (event.key === "ArrowLeft") {
         setPlaying(false);
@@ -410,9 +474,22 @@ export default function App() {
           }
         } else {
           // Move to the previous step, or wrap around to the end
-          setStep((prevStep) =>
-            prevStep - 1 >= 0 ? prevStep - 1 : length - 1,
-          );
+          // check if selectedFrames length is greater than 0, then only jump
+          // between selectedFrames
+          if (selectedFrames.indices.size > 0 && selectedFrames.active) {
+            const previousFrame = Array.from(selectedFrames.indices)
+              .reverse()
+              .find((frame) => frame < step);
+            if (previousFrame) {
+              setStep(previousFrame);
+            } else {
+              setStep(Math.max(...selectedFrames.indices));
+            }
+          } else {
+            setStep((prevStep) =>
+              prevStep - 1 >= 0 ? prevStep - 1 : length - 1,
+            );
+          }
         }
       } else if (event.key == "ArrowUp") {
         // jump 10 percent, or to the end
@@ -425,6 +502,7 @@ export default function App() {
         const newStep = Math.max(step - Math.floor(length / 10), 0);
         setStep(newStep);
       } else if (event.key == " ") {
+        // backspace
         updateLength();
         setPlaying((prev) => !prev);
         if (step == length - 1) {
@@ -656,6 +734,12 @@ export default function App() {
                 makeDefault
               />
             )}
+            {roomConfig["scene"].crosshair && (
+              <MoveCameraTarget
+                controlsRef={controlsRef}
+                colorMode={colorMode}
+              />
+            )}
             <Player
               playing={playing}
               togglePlaying={setPlaying}
@@ -664,6 +748,7 @@ export default function App() {
               fps={roomConfig["scene"].fps}
               loop={roomConfig["scene"]["Animation Loop"]}
               length={length}
+              selectedFrames={selectedFrames}
             />
             <Line3D
               points={points}
@@ -722,6 +807,7 @@ export default function App() {
           modifierQueue={modifierQueue}
           isAuthenticated={isAuthenticated}
           roomLock={roomLock}
+          setAddPlotsWindow={setAddPlotsWindow}
         />
         <Sidebar
           selectionSchema={selectionSchema}
@@ -746,6 +832,13 @@ export default function App() {
           setStep={setStep}
           bookmarks={bookmarks}
           setBookmarks={setBookmarks}
+          selectedFrames={selectedFrames}
+          setSelectedFrames={setSelectedFrames}
+        />
+        <Plotting
+          setStep={setStep}
+          setSelectedFrames={setSelectedFrames}
+          addPlotsWindow={addPlotsWindow}
         />
         {showParticleInfo && (
           <>

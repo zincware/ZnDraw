@@ -14,7 +14,7 @@ from flask import current_app
 from zndraw.base import FileIO
 from zndraw.bonds import ASEComputeBonds
 from zndraw.exceptions import RoomLockedError
-from zndraw.utils import ASEConverter
+from zndraw.utils import ASEConverter, load_plots_to_json
 
 log = logging.getLogger(__name__)
 
@@ -262,6 +262,22 @@ def run_upload_file(room, data: dict):
         vis.extend(atoms_list)
 
     vis.step = len(vis) - 1
+
+    vis.socket.sleep(1)
+    vis.socket.disconnect()
+
+
+@shared_task
+def read_plots(paths: list[str]) -> None:
+    from zndraw.zndraw import ZnDrawLocal
+
+    vis = ZnDrawLocal(
+        r=current_app.extensions["redis"],
+        url=current_app.config["SERVER_URL"],
+        token="default",
+    )
+
+    vis.figures = load_plots_to_json(paths)
 
     vis.socket.sleep(1)
     vis.socket.disconnect()

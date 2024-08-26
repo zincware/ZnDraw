@@ -41,7 +41,7 @@ import {
   FaPencil,
 } from "react-icons/fa6";
 import { TbPlugConnected } from "react-icons/tb";
-import { MdExitToApp } from "react-icons/md";
+import { MdAddChart, MdExitToApp } from "react-icons/md";
 
 function getServerUrl() {
   const { protocol, host } = window.location;
@@ -347,6 +347,22 @@ const FileUpload = forwardRef((props, ref) => {
   );
 });
 
+interface HeadBarProps {
+  room: string;
+  colorMode: string;
+  handleColorMode: any;
+  setIsDrawing: any;
+  setGeometries: any;
+  setPoints: any;
+  isDrawing: boolean;
+  tutorialURL: string;
+  showSiMGen: boolean;
+  modifierQueue: number;
+  isAuthenticated: boolean;
+  roomLock: boolean;
+  setAddPlotsWindow: any;
+}
+
 const HeadBar = ({
   room,
   colorMode,
@@ -360,20 +376,8 @@ const HeadBar = ({
   modifierQueue,
   isAuthenticated,
   roomLock,
-}: {
-  room: string;
-  colorMode: string;
-  handleColorMode: any;
-  setIsDrawing: any;
-  setGeometries: any;
-  setPoints: any;
-  isDrawing: boolean;
-  tutorialURL: string;
-  showSiMGen: boolean;
-  modifierQueue: number;
-  isAuthenticated: boolean;
-  roomLock: boolean;
-}) => {
+  setAddPlotsWindow,
+}: HeadBarProps) => {
   const [helpModalShow, setHelpModalShow] = useState(false);
   const [connectModalShow, setConnectModalShow] = useState(false);
   const [refreshModalShow, setRefreshModalShow] = useState(false);
@@ -511,6 +515,15 @@ const HeadBar = ({
                   onClick={() => setConnectModalShow(true)}
                 >
                   <FaCode />
+                </Button>
+              </BtnTooltip>
+              <BtnTooltip text="Add plots window">
+                <Button
+                  variant="outline-primary"
+                  className="mx-1"
+                  onClick={() => setAddPlotsWindow((prev: number) => prev + 1)}
+                >
+                  <MdAddChart />
                 </Button>
               </BtnTooltip>
               <FileUpload />
