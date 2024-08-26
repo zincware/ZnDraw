@@ -36,6 +36,8 @@ def upload(
 
     frames = list(generator)
     vis.append(frames[0])
+    if browser:
+        webbrowser.open(f"{url}/token/{vis.token}")
 
     if not append:
         # There must be a frame otherwise removing everything currently doesn't work
@@ -44,6 +46,3 @@ def upload(
 
     figures = vis.figures
     vis.figures = load_plots_to_json(plots) | figures
-
-    if browser:
-        webbrowser.open(f"{url}/token/{vis.token}")
