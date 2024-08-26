@@ -5,6 +5,7 @@ import eventlet
 eventlet.monkey_patch()
 import typing as t
 import uuid
+import webbrowser
 
 import typer
 
@@ -17,7 +18,12 @@ cli = typer.Typer()
 
 
 def upload(
-    url: str, token: t.Optional[str], fileio: FileIO, append: bool, plots: list[str]
+    url: str,
+    token: t.Optional[str],
+    fileio: FileIO,
+    append: bool,
+    plots: list[str],
+    browser: bool,
 ):
     """Upload a file to ZnDraw."""
     if token is None:
@@ -35,6 +41,8 @@ def upload(
 
     frames = list(generator)
     vis.append(frames[0])
+    if browser:
+        webbrowser.open(f"{url}/token/{vis.token}")
 
     if not append:
         # There must be a frame otherwise removing everything currently doesn't work

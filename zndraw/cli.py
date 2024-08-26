@@ -7,6 +7,7 @@ import datetime
 import os
 import pathlib
 import typing as t
+import webbrowser
 
 import typer
 
@@ -188,7 +189,7 @@ def main(
     )
 
     if url is not None:
-        upload(url, token, fileio, append, plots)
+        upload(url, token, fileio, append, plots, browser)
         return
 
     typer.echo(
@@ -201,8 +202,6 @@ def main(
     read_plots.delay(plots)
 
     if browser:
-        import webbrowser
-
         webbrowser.open(f"http://localhost:{env_config.FLASK_PORT}")
 
     socketio = app.extensions["socketio"]
