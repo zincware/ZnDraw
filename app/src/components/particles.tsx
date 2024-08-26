@@ -329,7 +329,7 @@ export const BondInstances = ({
   const originalScale = useRef<number>(1);
 
   const geometry = useMemo(() => {
-    const _geometry = new THREE.CylinderGeometry(0.14, 0.14, 1, 30, 30);
+    const _geometry = new THREE.CylinderGeometry(0.14, 0.14, 1, 32, 1, true);
     _geometry.translate(0, 0.5, 0);
     _geometry.rotateX(Math.PI / 2);
     _geometry.scale(1, 1, 0.5);
