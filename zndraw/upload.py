@@ -9,6 +9,7 @@ import uuid
 import typer
 
 from zndraw import ZnDraw
+import webbrowser
 
 from .tasks import FileIO, get_generator_from_filename
 from .utils import load_plots_to_json
@@ -17,7 +18,7 @@ cli = typer.Typer()
 
 
 def upload(
-    url: str, token: t.Optional[str], fileio: FileIO, append: bool, plots: list[str]
+    url: str, token: t.Optional[str], fileio: FileIO, append: bool, plots: list[str], browser: bool
 ):
     """Upload a file to ZnDraw."""
     if token is None:
@@ -43,3 +44,6 @@ def upload(
 
     figures = vis.figures
     vis.figures = load_plots_to_json(plots) | figures
+
+    if browser:
+        webbrowser.open(f"{url}/token/{vis.token}")
