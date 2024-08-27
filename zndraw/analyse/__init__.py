@@ -1,8 +1,8 @@
 import itertools
 import logging
 import typing as t
-import ase
 
+import ase
 import numpy as np
 import pandas as pd
 import plotly.express as px
@@ -23,6 +23,7 @@ log = logging.getLogger(__name__)
 def _schema_from_atoms(schema, cls):
     return cls.model_json_schema_from_atoms(schema)
 
+
 def _get_data_from_frames(key, frames: list[ase.Atoms]):
     if frames[0].calc is not None and key in frames[0].calc.results:
         data = np.array([x.calc.results[key] for x in frames])
@@ -32,7 +33,7 @@ def _get_data_from_frames(key, frames: list[ase.Atoms]):
         data = np.array([x.info[key] for x in frames])
     else:
         raise ValueError(f"Property '{key}' not found in atoms")
-    
+
     return data
 
 
@@ -105,8 +106,10 @@ class Properties2D(Extension):
             available_properties = list(ATOMS.arrays.keys())
             available_properties += list(ATOMS.info.keys())
             if ATOMS.calc is not None:
-                available_properties += list(ATOMS.calc.results.keys())  # global ATOMS object
-            
+                available_properties += list(
+                    ATOMS.calc.results.keys()
+                )  # global ATOMS object
+
             available_properties += ["step"]
             schema["properties"]["x_data"]["enum"] = available_properties
             schema["properties"]["y_data"]["enum"] = available_properties

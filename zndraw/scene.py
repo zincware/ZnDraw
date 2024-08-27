@@ -2,9 +2,9 @@ import enum
 import typing as t
 
 import ase
+import numpy as np
 import znjson
 import znsocket
-import numpy as np
 from flask import current_app, session
 from pydantic import BaseModel, Field
 from redis import Redis
@@ -113,10 +113,16 @@ class Scene(BaseModel):
         atoms = cls._get_atoms()
         array_props = [""]
         for key in atoms.calc.results.keys():
-            if np.array(atoms.calc.results[key]).ndim == 2 and np.array(atoms.calc.results[key]).shape[1] == 3:
+            if (
+                np.array(atoms.calc.results[key]).ndim == 2
+                and np.array(atoms.calc.results[key]).shape[1] == 3
+            ):
                 array_props.append(key)
         for key in atoms.arrays.keys():
-            if np.array(atoms.arrays[key]).ndim == 2 and np.array(atoms.arrays[key]).shape[1] == 3:
+            if (
+                np.array(atoms.arrays[key]).ndim == 2
+                and np.array(atoms.arrays[key]).shape[1] == 3
+            ):
                 array_props.append(key)
         schema["properties"]["vectors"]["enum"] = array_props
         schema["properties"]["vectors"]["default"] = ""

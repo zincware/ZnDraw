@@ -144,7 +144,7 @@ class ASEConverter(ConverterBase):
                 if isinstance(obj.arrays["radii"], np.ndarray)
                 else obj.arrays["radii"]
             )
-        
+
         for key in obj.arrays:
             if key in ["colors", "radii"]:
                 continue

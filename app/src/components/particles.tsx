@@ -583,7 +583,6 @@ export const PerParticleVectors: React.FC<PerParticleVectorsProps> = ({
       setVectors([]);
       return;
     } else {
-
       let frameData;
       if (property in frame.calc) {
         frameData = frame.calc[property];
