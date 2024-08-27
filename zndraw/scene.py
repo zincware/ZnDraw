@@ -4,6 +4,7 @@ import typing as t
 import ase
 import znjson
 import znsocket
+import numpy as np
 from flask import current_app, session
 from pydantic import BaseModel, Field
 from redis import Redis
@@ -110,9 +111,15 @@ class Scene(BaseModel):
         schema = cls.model_json_schema()
 
         atoms = cls._get_atoms()
-        if atoms.calc is not None and "forces" in atoms.calc.results:
-            schema["properties"]["vectors"]["enum"] = ["", "forces"]
-            schema["properties"]["vectors"]["default"] = ""
+        array_props = [""]
+        for key in atoms.calc.results.keys():
+            if np.array(atoms.calc.results[key]).ndim == 2 and np.array(atoms.calc.results[key]).shape[1] == 3:
+                array_props.append(key)
+        for key in atoms.arrays.keys():
+            if np.array(atoms.arrays[key]).ndim == 2 and np.array(atoms.arrays[key]).shape[1] == 3:
+                array_props.append(key)
+        schema["properties"]["vectors"]["enum"] = array_props
+        schema["properties"]["vectors"]["default"] = ""
 
         # schema["properties"]["wireframe"]["format"] = "checkbox"
         schema["properties"]["Animation Loop"]["format"] = "checkbox"

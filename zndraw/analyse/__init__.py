@@ -1,6 +1,7 @@
 import itertools
 import logging
 import typing as t
+import ase
 
 import numpy as np
 import pandas as pd
@@ -21,6 +22,18 @@ log = logging.getLogger(__name__)
 
 def _schema_from_atoms(schema, cls):
     return cls.model_json_schema_from_atoms(schema)
+
+def _get_data_from_frames(key, frames: list[ase.Atoms]):
+    if frames[0].calc is not None and key in frames[0].calc.results:
+        data = np.array([x.calc.results[key] for x in frames])
+    elif key in frames[0].arrays:
+        data = np.array([x.arrays[key] for x in frames])
+    elif key in frames[0].info:
+        data = np.array([x.info[key] for x in frames])
+    else:
+        raise ValueError(f"Property '{key}' not found in atoms")
+    
+    return data
 
 
 class DihedralAngle(Extension):
@@ -89,8 +102,11 @@ class Properties2D(Extension):
         ATOMS = cls.get_atoms()
         log.debug(f"GATHERING PROPERTIES FROM {ATOMS=}")
         try:
-            available_properties = list(ATOMS.calc.results)
-            available_properties += list(ATOMS.arrays)
+            available_properties = list(ATOMS.arrays.keys())
+            available_properties += list(ATOMS.info.keys())
+            if ATOMS.calc is not None:
+                available_properties += list(ATOMS.calc.results.keys())  # global ATOMS object
+            
             available_properties += ["step"]
             schema["properties"]["x_data"]["enum"] = available_properties
             schema["properties"]["y_data"]["enum"] = available_properties
@@ -106,26 +122,17 @@ class Properties2D(Extension):
         if self.x_data == "step":
             x_data = list(range(len(atoms_lst)))
         else:
-            try:
-                x_data = [x.calc.results[self.x_data] for x in atoms_lst]
-            except KeyError:
-                x_data = [x.arrays[self.x_data] for x in atoms_lst]
+            x_data = _get_data_from_frames(self.x_data, atoms_lst)
 
         if self.y_data == "step":
             y_data = list(range(len(atoms_lst)))
         else:
-            try:
-                y_data = [x.calc.results[self.y_data] for x in atoms_lst]
-            except KeyError:
-                y_data = [x.arrays[self.y_data] for x in atoms_lst]
+            y_data = _get_data_from_frames(self.y_data, atoms_lst)
 
         if self.color == "step":
             color = list(range(len(atoms_lst)))
         else:
-            try:
-                color = [x.calc.results[self.color] for x in atoms_lst]
-            except KeyError:
-                color = [x.arrays[self.color] for x in atoms_lst]
+            color = _get_data_from_frames(self.color, atoms_lst)
 
         y_data = np.array(y_data).reshape(-1)
         x_data = np.array(x_data).reshape(-1)
@@ -157,8 +164,11 @@ class Properties1D(Extension):
     def model_json_schema_from_atoms(cls, schema: dict) -> dict:
         ATOMS = cls.get_atoms()
         try:
-            available_properties = list(ATOMS.calc.results.keys())  # global ATOMS object
-            log.debug(f"AVAILABLE PROPERTIES: {available_properties=}")
+            available_properties = list(ATOMS.arrays.keys())
+            available_properties += list(ATOMS.info.keys())
+            if ATOMS.calc is not None:
+                available_properties += list(ATOMS.calc.results.keys())
+            log.critical(f"AVAILABLE PROPERTIES: {available_properties=}")
             schema["properties"]["value"]["enum"] = available_properties
         except AttributeError:
             print(f"{ATOMS=}")
@@ -167,7 +177,7 @@ class Properties1D(Extension):
     def run(self, vis):
         vis.log("Downloading data...")
         atoms_lst = list(vis)
-        data = np.array([x.calc.results[self.value] for x in atoms_lst])
+        data = _get_data_from_frames(self.value, atoms_lst)
 
         if data.ndim > 1:
             axis = tuple(range(1, data.ndim))

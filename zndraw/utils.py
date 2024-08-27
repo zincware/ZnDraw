@@ -144,6 +144,14 @@ class ASEConverter(ConverterBase):
                 if isinstance(obj.arrays["radii"], np.ndarray)
                 else obj.arrays["radii"]
             )
+        
+        for key in obj.arrays:
+            if key in ["colors", "radii"]:
+                continue
+            if isinstance(obj.arrays[key], np.ndarray):
+                arrays[key] = obj.arrays[key].tolist()
+            else:
+                arrays[key] = obj.arrays[key]
 
         if hasattr(obj, "connectivity") and obj.connectivity is not None:
             connectivity = (
@@ -178,10 +186,8 @@ class ASEConverter(ConverterBase):
         if connectivity := value.get("connectivity"):
             # or do we want this to be nx.Graph?
             atoms.connectivity = np.array(connectivity)
-        if "colors" in value["arrays"]:
-            atoms.arrays["colors"] = np.array(value["arrays"]["colors"])
-        if "radii" in value["arrays"]:
-            atoms.arrays["radii"] = np.array(value["arrays"]["radii"])
+        for key, val in value["arrays"].items():
+            atoms.arrays[key] = np.array(val)
         if calc := value.get("calc"):
             atoms.calc = SinglePointCalculator(atoms)
             atoms.calc.results.update(calc)
