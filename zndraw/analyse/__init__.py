@@ -143,7 +143,7 @@ class Properties2D(Extension):
 
         df = pd.DataFrame({self.x_data: x_data, self.y_data: y_data, self.color: color})
         fig = px.scatter(
-            df, x=self.x_data, y=self.y_data, color=self.color, render_mode="svg"
+            df, x=self.x_data, y=self.y_data, color=self.color
         )
         if self.fix_aspect_ratio:
             fig.update_yaxes(
@@ -152,6 +152,58 @@ class Properties2D(Extension):
             )
         vis.figures = vis.figures | {"Properties2D": fig.to_json()}
 
+
+class ForceCorrelation(Extension):
+    x_data: str
+    y_data: str
+
+    model_config = ConfigDict(json_schema_extra=_schema_from_atoms)
+
+    @classmethod
+    def model_json_schema_from_atoms(cls, schema: dict) -> dict:
+        ATOMS = cls.get_atoms()
+        try:
+            available_properties = list(ATOMS.arrays.keys())
+            available_properties += list(ATOMS.info.keys())
+            if ATOMS.calc is not None:
+                available_properties += list(ATOMS.calc.results.keys())
+            schema["properties"]["x_data"]["enum"] = available_properties
+            schema["properties"]["y_data"]["enum"] = available_properties
+        except AttributeError:
+            pass
+        return schema
+
+
+    def run(self, vis):
+        atoms = vis.atoms
+        x_data = _get_data_from_frames(self.x_data, [atoms])
+        y_data = _get_data_from_frames(self.y_data, [atoms])
+
+        x_data = np.linalg.norm(x_data, axis=-1)
+        y_data = np.linalg.norm(y_data, axis=-1)
+
+        vis.log(f"x_data: {x_data.shape}, y_data: {y_data.shape}")
+
+        x_data = x_data.reshape(-1)
+        y_data = y_data.reshape(-1)
+
+        meta_step = [vis.step for _ in range(len(x_data))]
+        meta_idx = list(range(len(x_data)))
+
+        df = pd.DataFrame(
+            {
+                self.x_data: x_data,
+                self.y_data: y_data,
+            }
+        )
+
+        fig = px.scatter(
+            df, x=self.x_data, y=self.y_data, render_mode="svg"
+        )
+        fig.update_traces(customdata=np.stack([meta_step, meta_idx], axis=-1))
+
+
+        vis.figures = vis.figures | {"ForceCorrelation": fig.to_json()}
 
 class Properties1D(Extension):
     value: str
@@ -211,6 +263,7 @@ methods = t.Union[
     DihedralAngle,
     Distance,
     Properties2D,
+    ForceCorrelation,
 ]
 
 

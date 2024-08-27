@@ -848,6 +848,8 @@ export default function App() {
           setStep={setStep}
           setSelectedFrames={setSelectedFrames}
           addPlotsWindow={addPlotsWindow}
+          setSelectedIds={setSelectedIds}
+          step={step}
         />
         {showParticleInfo && (
           <>
