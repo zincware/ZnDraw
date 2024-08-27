@@ -372,16 +372,18 @@ def get_schema_with_instance_defaults(self) -> dict:
     return schema
 
 
-def get_plots_from_zntrack(path: str, remote: str|None, rev: str|None):
+def get_plots_from_zntrack(path: str, remote: str | None, rev: str | None):
     node_name, attribute = path.split(".", 1)
     try:
-        import zntrack
-        ## FIX for zntrack bug https://github.com/zincware/ZnTrack/issues/806
-        import sys
         import os
 
+        ## FIX for zntrack bug https://github.com/zincware/ZnTrack/issues/806
+        import sys
+
+        import zntrack
+
         sys.path.insert(0, os.getcwd())
-        ## 
+        ##
 
         node = zntrack.from_rev(node_name, remote=remote, rev=rev)
         return getattr(node, attribute)
@@ -391,7 +393,7 @@ def get_plots_from_zntrack(path: str, remote: str|None, rev: str|None):
         ) from err
 
 
-def load_plots_to_json(paths: list[str], remote: str|None, rev: str|None):
+def load_plots_to_json(paths: list[str], remote: str | None, rev: str | None):
     data = {}
     for path in paths:
         if not pathlib.Path(path).exists():
