@@ -142,9 +142,7 @@ class Properties2D(Extension):
         color = np.array(color).reshape(-1)
 
         df = pd.DataFrame({self.x_data: x_data, self.y_data: y_data, self.color: color})
-        fig = px.scatter(
-            df, x=self.x_data, y=self.y_data, color=self.color
-        )
+        fig = px.scatter(df, x=self.x_data, y=self.y_data, color=self.color)
         if self.fix_aspect_ratio:
             fig.update_yaxes(
                 scaleanchor="x",
@@ -173,7 +171,6 @@ class ForceCorrelation(Extension):
             pass
         return schema
 
-
     def run(self, vis):
         atoms = vis.atoms
         x_data = _get_data_from_frames(self.x_data, [atoms])
@@ -197,13 +194,11 @@ class ForceCorrelation(Extension):
             }
         )
 
-        fig = px.scatter(
-            df, x=self.x_data, y=self.y_data, render_mode="svg"
-        )
+        fig = px.scatter(df, x=self.x_data, y=self.y_data, render_mode="svg")
         fig.update_traces(customdata=np.stack([meta_step, meta_idx], axis=-1))
 
-
         vis.figures = vis.figures | {"ForceCorrelation": fig.to_json()}
+
 
 class Properties1D(Extension):
     value: str

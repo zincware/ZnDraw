@@ -157,7 +157,9 @@ const PlotsCard = ({
         .filter((point: any) => point.customdata && point.customdata[1])
         .map((point: any) => point.customdata[1]),
     );
-    if (selectedIds.size > 0) {setSelectedIds(selectedIds)};
+    if (selectedIds.size > 0) {
+      setSelectedIds(selectedIds);
+    }
 
     setSelectedFrames({
       active: true,
