@@ -199,7 +199,7 @@ def main(
     app = create_app()
 
     read_file.delay(fileio.to_dict())
-    read_plots.delay(plots)
+    read_plots.delay(plots, fileio.remote, fileio.rev)
 
     if browser:
         webbrowser.open(f"http://localhost:{env_config.FLASK_PORT}")
