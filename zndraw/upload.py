@@ -50,4 +50,4 @@ def upload(
     vis.extend(frames[1:])
 
     figures = vis.figures
-    vis.figures = load_plots_to_json(plots) | figures
+    vis.figures = load_plots_to_json(plots, fileio.remote, fileio.rev) | figures
