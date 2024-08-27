@@ -372,10 +372,37 @@ def get_schema_with_instance_defaults(self) -> dict:
     return schema
 
 
-def load_plots_to_json(paths: list[str]):
+def get_plots_from_zntrack(path: str, remote: str | None, rev: str | None):
+    node_name, attribute = path.split(".", 1)
+    try:
+        import os
+
+        ## FIX for zntrack bug https://github.com/zincware/ZnTrack/issues/806
+        import sys
+
+        import zntrack
+
+        sys.path.insert(0, os.getcwd())
+        ##
+
+        node = zntrack.from_rev(node_name, remote=remote, rev=rev)
+        return getattr(node, attribute)
+    except ImportError as err:
+        raise ImportError(
+            "You need to install ZnTrack to use the remote feature."
+        ) from err
+
+
+def load_plots_to_json(paths: list[str], remote: str | None, rev: str | None):
     data = {}
     for path in paths:
-        plots = znjson.loads(pathlib.Path(path).read_text())
+        if not pathlib.Path(path).exists():
+            if remote is not None or rev is not None:
+                plots = get_plots_from_zntrack(path, remote, rev)
+            else:
+                raise FileNotFoundError(f"File {path} does not")
+        else:
+            plots = znjson.loads(pathlib.Path(path).read_text())
         if isinstance(plots, plotly.graph_objs.Figure):
             data[path] = plots.to_json()
         elif isinstance(plots, dict):

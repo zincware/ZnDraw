@@ -26,7 +26,15 @@ def _get_default_generator(file_io: FileIO) -> t.Iterable[ase.Atoms]:
 def _get_zntrack_generator(file_io: FileIO) -> t.Iterable[ase.Atoms]:
     node_name, attribute = file_io.name.split(".", 1)
     try:
+        import os
+
+        ## FIX for zntrack bug https://github.com/zincware/ZnTrack/issues/806
+        import sys
+
         import zntrack
+
+        sys.path.insert(0, os.getcwd())
+        ##
 
         node = zntrack.from_rev(node_name, remote=file_io.remote, rev=file_io.rev)
         images = getattr(node, attribute)
@@ -268,7 +276,7 @@ def run_upload_file(room, data: dict):
 
 
 @shared_task
-def read_plots(paths: list[str]) -> None:
+def read_plots(paths: list[str], remote, rev) -> None:
     from zndraw.zndraw import ZnDrawLocal
 
     vis = ZnDrawLocal(
@@ -277,7 +285,7 @@ def read_plots(paths: list[str]) -> None:
         token="default",
     )
 
-    vis.figures = load_plots_to_json(paths)
+    vis.figures = load_plots_to_json(paths, remote, rev)
 
     vis.socket.sleep(1)
     vis.socket.disconnect()
