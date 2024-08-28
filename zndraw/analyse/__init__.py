@@ -52,6 +52,14 @@ class DihedralAngle(Extension):
             {"step": list(range(len(atoms_lst))), "dihedral": dihedral_angles}
         )
         fig = px.line(df, x="step", y="dihedral", render_mode="svg")
+
+        meta_step = np.arange(len(atoms_lst))
+        # meta_idx = np.full_like(meta_step, np.nan)
+        
+        fig.update_traces(
+            customdata=np.stack([meta_step], axis=-1),
+        )
+
         vis.figures = vis.figures | {"DihedralAngle": fig.to_json()}
 
 
@@ -87,6 +95,13 @@ class Distance(Extension):
                     fig.add_scatter(
                         x=smooth_df["step"], y=smooth_df[col], name=f"smooth_{col}"
                     )
+        meta_step = np.arange(len(atoms_lst))
+        # meta_idx = np.full_like(meta_step, np.nan)
+        
+        fig.update_traces(
+            customdata=np.stack([meta_step], axis=-1),
+        )
+        
         vis.figures = vis.figures | {"Distance": fig.to_json()}
 
 
@@ -148,6 +163,14 @@ class Properties2D(Extension):
                 scaleanchor="x",
                 scaleratio=1,
             )
+
+        meta_step = np.arange(len(atoms_lst))
+        # meta_idx = np.full_like(meta_step, np.nan)
+        
+        fig.update_traces(
+            customdata=np.stack([meta_step], axis=-1),
+        )
+
         vis.figures = vis.figures | {"Properties2D": fig.to_json()}
 
 
@@ -184,7 +207,8 @@ class ForceCorrelation(Extension):
         x_data = x_data.reshape(-1)
         y_data = y_data.reshape(-1)
 
-        meta_step = [vis.step for _ in range(len(x_data))]
+        current_step = vis.step
+        meta_step = [current_step for _ in range(len(x_data))]
         meta_idx = list(range(len(x_data)))
 
         df = pd.DataFrame(
@@ -249,6 +273,13 @@ class Properties1D(Extension):
                     fig.add_scatter(
                         x=smooth_df["step"], y=smooth_df[col], name=f"smooth_{col}"
                     )
+
+        meta_step = np.arange(len(atoms_lst))
+        # meta_idx = np.full_like(meta_step, np.nan)
+        
+        fig.update_traces(
+            customdata=np.stack([meta_step], axis=-1),
+        )
 
         vis.figures = vis.figures | {"Properties1D": fig.to_json()}
 
