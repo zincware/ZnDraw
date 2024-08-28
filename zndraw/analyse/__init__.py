@@ -65,6 +65,17 @@ class DihedralAngle(Extension):
 
 class Distance(Extension):
     smooth: bool = False
+    mic: bool = True
+
+
+    model_config = ConfigDict(json_schema_extra=_schema_from_atoms)
+
+    @staticmethod
+    def model_json_schema_from_atoms(schema: dict) -> dict:
+        schema["properties"]["smooth"]["format"] = "checkbox"
+        schema["properties"]["mic"]["format"] = "checkbox"
+
+        return schema
 
     def run(self, vis):
         atoms_lst, ids = list(vis), vis.selection
@@ -72,10 +83,9 @@ class Distance(Extension):
         for x in itertools.combinations(ids, 2):
             distances[f"{tuple(x)}"] = []
         for atoms in atoms_lst:
-            positions = atoms.get_positions()
             for x in itertools.combinations(ids, 2):
                 distances[f"{tuple(x)}"].append(
-                    np.linalg.norm(positions[x[0]] - positions[x[1]])
+                    atoms.get_distance(x[0], x[1], mic=self.mic)
                 )
 
         df = pd.DataFrame({"step": list(range(len(atoms_lst)))} | distances)
@@ -129,6 +139,8 @@ class Properties2D(Extension):
             schema["properties"]["x_data"]["enum"] = available_properties
             schema["properties"]["y_data"]["enum"] = available_properties
             schema["properties"]["color"]["enum"] = available_properties
+            schema["properties"]["fix_aspect_ratio"]["format"] = "checkbox"
+
         except AttributeError:
             pass
         return schema
@@ -175,6 +187,7 @@ class Properties2D(Extension):
 
 
 class ForceCorrelation(Extension):
+    """Compute the correlation between two properties for the current frame."""
     x_data: str
     y_data: str
 
