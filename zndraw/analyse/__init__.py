@@ -55,7 +55,7 @@ class DihedralAngle(Extension):
 
         meta_step = np.arange(len(atoms_lst))
         # meta_idx = np.full_like(meta_step, np.nan)
-        
+
         fig.update_traces(
             customdata=np.stack([meta_step], axis=-1),
         )
@@ -66,7 +66,6 @@ class DihedralAngle(Extension):
 class Distance(Extension):
     smooth: bool = False
     mic: bool = True
-
 
     model_config = ConfigDict(json_schema_extra=_schema_from_atoms)
 
@@ -107,11 +106,11 @@ class Distance(Extension):
                     )
         meta_step = np.arange(len(atoms_lst))
         # meta_idx = np.full_like(meta_step, np.nan)
-        
+
         fig.update_traces(
             customdata=np.stack([meta_step], axis=-1),
         )
-        
+
         vis.figures = vis.figures | {"Distance": fig.to_json()}
 
 
@@ -178,7 +177,7 @@ class Properties2D(Extension):
 
         meta_step = np.arange(len(atoms_lst))
         # meta_idx = np.full_like(meta_step, np.nan)
-        
+
         fig.update_traces(
             customdata=np.stack([meta_step], axis=-1),
         )
@@ -188,6 +187,7 @@ class Properties2D(Extension):
 
 class ForceCorrelation(Extension):
     """Compute the correlation between two properties for the current frame."""
+
     x_data: str
     y_data: str
 
@@ -289,7 +289,7 @@ class Properties1D(Extension):
 
         meta_step = np.arange(len(atoms_lst))
         # meta_idx = np.full_like(meta_step, np.nan)
-        
+
         fig.update_traces(
             customdata=np.stack([meta_step], axis=-1),
         )
