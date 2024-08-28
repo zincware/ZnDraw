@@ -579,13 +579,30 @@ export const PerParticleVectors: React.FC<PerParticleVectorsProps> = ({
   }, [vectors, arrowsConfig.normalize, arrowsConfig.colorrange]);
 
   useEffect(() => {
-    if (!frame || !frame.calc || !frame.calc[property]) {
-      console.log(`Property ${property} not found in frame.calc`);
+    if (!frame) {
       setVectors([]);
       return;
     } else {
+      let frameData;
+      if (property in frame.calc) {
+        frameData = frame.calc[property];
+      } else if (property in frame.arrays) {
+        frameData = frame.arrays[property];
+      } else {
+        console.error(`Property ${property} not found in frame`);
+        setVectors([]);
+        return;
+      }
+      if (frameData.length !== frame.positions.length) {
+        console.error(
+          `Length of property ${property} does not match the number of particles`,
+        );
+        setVectors([]);
+        return;
+      }
+
       console.log(`Property ${property} found in frame.calc`);
-      const calculatedVectors = frame.calc[property].map((vector, i) => {
+      const calculatedVectors = frameData.map((vector, i) => {
         const start = frame.positions[i];
         const end = start
           .clone()

@@ -11,14 +11,18 @@ import { IndicesState } from "./utils";
 
 interface PlottingProps {
   setStep: (step: number) => void;
+  step: number;
   setSelectedFrames: (selectedFrames: IndicesState) => void;
   addPlotsWindow: number;
+  setSelectedIds: (selectedIds: Set<number>) => void;
 }
 
 export const Plotting = ({
   setStep,
+  step,
   setSelectedFrames,
   addPlotsWindow,
+  setSelectedIds,
 }: PlottingProps) => {
   const [availablePlots, setAvailablePlots] = useState<string[]>([]);
   const [plotData, setPlotData] = useState<{ [key: string]: any }>({});
@@ -72,6 +76,8 @@ export const Plotting = ({
           setDisplayedCards={setDisplayedCards}
           setStep={setStep}
           setSelectedFrames={setSelectedFrames}
+          setSelectedIds={setSelectedIds}
+          step={step}
         />
       ))}
     </>
@@ -85,7 +91,9 @@ interface PlotsCardProps {
   plotData: { [key: string]: any };
   setDisplayedCards: (displayedCards: number[]) => void;
   setStep: (step: number) => void;
+  step: number;
   setSelectedFrames: (selectedFrames: IndicesState) => void;
+  setSelectedIds: (selectedIds: Set<number>) => void;
 }
 
 const PlotsCard = ({
@@ -95,7 +103,9 @@ const PlotsCard = ({
   plotData,
   setDisplayedCards,
   setStep,
+  step,
   setSelectedFrames,
+  setSelectedIds,
 }: PlotsCardProps) => {
   const cardRef = useRef<any>(null);
   const [selectedOption, setSelectedOption] = useState<string>("");
@@ -130,8 +140,9 @@ const PlotsCard = ({
   const onPlotClick = ({ points }: { points: any[] }) => {
     if (points[0]?.customdata) {
       setStep(points[0].customdata[0]);
-    } else {
-      setStep(points[0].pointIndex);
+      if (points[0].customdata[1]) {
+        setSelectedIds(new Set([points[0].customdata[1]]));
+      }
     }
   };
 
@@ -140,6 +151,16 @@ const PlotsCard = ({
     const selectedFrames = event.points.map((point: any) =>
       point.customdata ? point.customdata[0] : point.pointIndex,
     );
+    // for all points.customdata[0] == step collect the points.customdata[1] and set selectedIds if customdata[1] is available
+    const selectedIds = new Set<number>(
+      event.points
+        .filter((point: any) => point.customdata && point.customdata[1])
+        .map((point: any) => point.customdata[1]),
+    );
+    if (selectedIds.size > 0) {
+      setSelectedIds(selectedIds);
+    }
+
     setSelectedFrames({
       active: true,
       indices: new Set(selectedFrames),

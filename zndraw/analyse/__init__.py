@@ -2,6 +2,7 @@ import itertools
 import logging
 import typing as t
 
+import ase
 import numpy as np
 import pandas as pd
 import plotly.express as px
@@ -23,6 +24,19 @@ def _schema_from_atoms(schema, cls):
     return cls.model_json_schema_from_atoms(schema)
 
 
+def _get_data_from_frames(key, frames: list[ase.Atoms]):
+    if frames[0].calc is not None and key in frames[0].calc.results:
+        data = np.array([x.calc.results[key] for x in frames])
+    elif key in frames[0].arrays:
+        data = np.array([x.arrays[key] for x in frames])
+    elif key in frames[0].info:
+        data = np.array([x.info[key] for x in frames])
+    else:
+        raise ValueError(f"Property '{key}' not found in atoms")
+
+    return data
+
+
 class DihedralAngle(Extension):
     def run(self, vis):
         atoms_lst = list(vis)
@@ -38,11 +52,29 @@ class DihedralAngle(Extension):
             {"step": list(range(len(atoms_lst))), "dihedral": dihedral_angles}
         )
         fig = px.line(df, x="step", y="dihedral", render_mode="svg")
+
+        meta_step = np.arange(len(atoms_lst))
+        # meta_idx = np.full_like(meta_step, np.nan)
+
+        fig.update_traces(
+            customdata=np.stack([meta_step], axis=-1),
+        )
+
         vis.figures = vis.figures | {"DihedralAngle": fig.to_json()}
 
 
 class Distance(Extension):
     smooth: bool = False
+    mic: bool = True
+
+    model_config = ConfigDict(json_schema_extra=_schema_from_atoms)
+
+    @staticmethod
+    def model_json_schema_from_atoms(schema: dict) -> dict:
+        schema["properties"]["smooth"]["format"] = "checkbox"
+        schema["properties"]["mic"]["format"] = "checkbox"
+
+        return schema
 
     def run(self, vis):
         atoms_lst, ids = list(vis), vis.selection
@@ -50,10 +82,9 @@ class Distance(Extension):
         for x in itertools.combinations(ids, 2):
             distances[f"{tuple(x)}"] = []
         for atoms in atoms_lst:
-            positions = atoms.get_positions()
             for x in itertools.combinations(ids, 2):
                 distances[f"{tuple(x)}"].append(
-                    np.linalg.norm(positions[x[0]] - positions[x[1]])
+                    atoms.get_distance(x[0], x[1], mic=self.mic)
                 )
 
         df = pd.DataFrame({"step": list(range(len(atoms_lst)))} | distances)
@@ -73,6 +104,13 @@ class Distance(Extension):
                     fig.add_scatter(
                         x=smooth_df["step"], y=smooth_df[col], name=f"smooth_{col}"
                     )
+        meta_step = np.arange(len(atoms_lst))
+        # meta_idx = np.full_like(meta_step, np.nan)
+
+        fig.update_traces(
+            customdata=np.stack([meta_step], axis=-1),
+        )
+
         vis.figures = vis.figures | {"Distance": fig.to_json()}
 
 
@@ -89,12 +127,19 @@ class Properties2D(Extension):
         ATOMS = cls.get_atoms()
         log.debug(f"GATHERING PROPERTIES FROM {ATOMS=}")
         try:
-            available_properties = list(ATOMS.calc.results)
-            available_properties += list(ATOMS.arrays)
+            available_properties = list(ATOMS.arrays.keys())
+            available_properties += list(ATOMS.info.keys())
+            if ATOMS.calc is not None:
+                available_properties += list(
+                    ATOMS.calc.results.keys()
+                )  # global ATOMS object
+
             available_properties += ["step"]
             schema["properties"]["x_data"]["enum"] = available_properties
             schema["properties"]["y_data"]["enum"] = available_properties
             schema["properties"]["color"]["enum"] = available_properties
+            schema["properties"]["fix_aspect_ratio"]["format"] = "checkbox"
+
         except AttributeError:
             pass
         return schema
@@ -106,41 +151,90 @@ class Properties2D(Extension):
         if self.x_data == "step":
             x_data = list(range(len(atoms_lst)))
         else:
-            try:
-                x_data = [x.calc.results[self.x_data] for x in atoms_lst]
-            except KeyError:
-                x_data = [x.arrays[self.x_data] for x in atoms_lst]
+            x_data = _get_data_from_frames(self.x_data, atoms_lst)
 
         if self.y_data == "step":
             y_data = list(range(len(atoms_lst)))
         else:
-            try:
-                y_data = [x.calc.results[self.y_data] for x in atoms_lst]
-            except KeyError:
-                y_data = [x.arrays[self.y_data] for x in atoms_lst]
+            y_data = _get_data_from_frames(self.y_data, atoms_lst)
 
         if self.color == "step":
             color = list(range(len(atoms_lst)))
         else:
-            try:
-                color = [x.calc.results[self.color] for x in atoms_lst]
-            except KeyError:
-                color = [x.arrays[self.color] for x in atoms_lst]
+            color = _get_data_from_frames(self.color, atoms_lst)
 
         y_data = np.array(y_data).reshape(-1)
         x_data = np.array(x_data).reshape(-1)
         color = np.array(color).reshape(-1)
 
         df = pd.DataFrame({self.x_data: x_data, self.y_data: y_data, self.color: color})
-        fig = px.scatter(
-            df, x=self.x_data, y=self.y_data, color=self.color, render_mode="svg"
-        )
+        fig = px.scatter(df, x=self.x_data, y=self.y_data, color=self.color)
         if self.fix_aspect_ratio:
             fig.update_yaxes(
                 scaleanchor="x",
                 scaleratio=1,
             )
+
+        meta_step = np.arange(len(atoms_lst))
+        # meta_idx = np.full_like(meta_step, np.nan)
+
+        fig.update_traces(
+            customdata=np.stack([meta_step], axis=-1),
+        )
+
         vis.figures = vis.figures | {"Properties2D": fig.to_json()}
+
+
+class ForceCorrelation(Extension):
+    """Compute the correlation between two properties for the current frame."""
+
+    x_data: str
+    y_data: str
+
+    model_config = ConfigDict(json_schema_extra=_schema_from_atoms)
+
+    @classmethod
+    def model_json_schema_from_atoms(cls, schema: dict) -> dict:
+        ATOMS = cls.get_atoms()
+        try:
+            available_properties = list(ATOMS.arrays.keys())
+            available_properties += list(ATOMS.info.keys())
+            if ATOMS.calc is not None:
+                available_properties += list(ATOMS.calc.results.keys())
+            schema["properties"]["x_data"]["enum"] = available_properties
+            schema["properties"]["y_data"]["enum"] = available_properties
+        except AttributeError:
+            pass
+        return schema
+
+    def run(self, vis):
+        atoms = vis.atoms
+        x_data = _get_data_from_frames(self.x_data, [atoms])
+        y_data = _get_data_from_frames(self.y_data, [atoms])
+
+        x_data = np.linalg.norm(x_data, axis=-1)
+        y_data = np.linalg.norm(y_data, axis=-1)
+
+        vis.log(f"x_data: {x_data.shape}, y_data: {y_data.shape}")
+
+        x_data = x_data.reshape(-1)
+        y_data = y_data.reshape(-1)
+
+        current_step = vis.step
+        meta_step = [current_step for _ in range(len(x_data))]
+        meta_idx = list(range(len(x_data)))
+
+        df = pd.DataFrame(
+            {
+                self.x_data: x_data,
+                self.y_data: y_data,
+            }
+        )
+
+        fig = px.scatter(df, x=self.x_data, y=self.y_data, render_mode="svg")
+        fig.update_traces(customdata=np.stack([meta_step, meta_idx], axis=-1))
+
+        vis.figures = vis.figures | {"ForceCorrelation": fig.to_json()}
 
 
 class Properties1D(Extension):
@@ -157,8 +251,11 @@ class Properties1D(Extension):
     def model_json_schema_from_atoms(cls, schema: dict) -> dict:
         ATOMS = cls.get_atoms()
         try:
-            available_properties = list(ATOMS.calc.results.keys())  # global ATOMS object
-            log.debug(f"AVAILABLE PROPERTIES: {available_properties=}")
+            available_properties = list(ATOMS.arrays.keys())
+            available_properties += list(ATOMS.info.keys())
+            if ATOMS.calc is not None:
+                available_properties += list(ATOMS.calc.results.keys())
+            log.critical(f"AVAILABLE PROPERTIES: {available_properties=}")
             schema["properties"]["value"]["enum"] = available_properties
         except AttributeError:
             print(f"{ATOMS=}")
@@ -167,7 +264,7 @@ class Properties1D(Extension):
     def run(self, vis):
         vis.log("Downloading data...")
         atoms_lst = list(vis)
-        data = np.array([x.calc.results[self.value] for x in atoms_lst])
+        data = _get_data_from_frames(self.value, atoms_lst)
 
         if data.ndim > 1:
             axis = tuple(range(1, data.ndim))
@@ -190,6 +287,13 @@ class Properties1D(Extension):
                         x=smooth_df["step"], y=smooth_df[col], name=f"smooth_{col}"
                     )
 
+        meta_step = np.arange(len(atoms_lst))
+        # meta_idx = np.full_like(meta_step, np.nan)
+
+        fig.update_traces(
+            customdata=np.stack([meta_step], axis=-1),
+        )
+
         vis.figures = vis.figures | {"Properties1D": fig.to_json()}
 
 
@@ -198,6 +302,7 @@ methods = t.Union[
     DihedralAngle,
     Distance,
     Properties2D,
+    ForceCorrelation,
 ]
 
 

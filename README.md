@@ -83,6 +83,8 @@ ZnDraw enables you to analyze your data and generate plots using [Plotly](https:
 ![ZnDraw UI](https://raw.githubusercontent.com/zincware/ZnDraw/main/misc/darkmode/analysis.png#gh-dark-mode-only "ZnDraw Analysis")
 ![ZnDraw UI](https://raw.githubusercontent.com/zincware/ZnDraw/main/misc/lightmode/analysis.png#gh-light-mode-only "ZnDraw Analysis")
 
+ZnDraw will look for the `step` and `atom` index in the [customdata](https://plotly.com/python/reference/scatter/#scatter-customdata)`[0]` and `[1]` respectively to highlight the steps and atoms.
+
 ## Writing Extensions
 
 Make your tools accessible via the ZnDraw UI by writing an extension:
