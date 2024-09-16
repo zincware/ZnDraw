@@ -132,6 +132,7 @@ const PlotsCard = ({
   }, [availablePlots, selectedOption]);
 
   useEffect(() => {
+    console.log(plotData);
     if (plotData[selectedOption]) {
       setPlotLayout(plotData[selectedOption].layout);
     }

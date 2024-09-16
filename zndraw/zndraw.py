@@ -33,6 +33,8 @@ from zndraw.utils import (
     emit_with_retry,
     parse_url,
 )
+import plotly.graph_objects as go
+from plotly.io import from_json as ploty_from_json
 
 log = logging.getLogger(__name__)
 __version__ = importlib.metadata.version("zndraw")
@@ -381,24 +383,26 @@ class ZnDraw(ZnDrawBase):
         )
 
     @property
-    def figures(self) -> dict[str, dict | t.Any]:
+    def figures(self) -> dict[str, go.Figure]:
         # TODO: znjson.loads
-        return call_with_retry(
+        data = call_with_retry(
             self.socket,
             "analysis:figure:get",
             retries=self.timeout["call_retries"],
         )
+        return {k: ploty_from_json(v) for k, v in data.items()}
 
     @figures.setter
-    def figures(self, fig: dict[str, dict | t.Any]) -> None:
+    def figures(self, data: dict[str, go.Figure]) -> None:
         """Update the figures on the remote."""
         # TODO: can you use znsocket.Dict
         # to update the data an avoid
         # sending duplicates?
+        data = {k: v.to_json() for k, v in data.items()}
         emit_with_retry(
             self.socket,
             "analysis:figure:set",
-            fig,
+            data,
             retries=self.timeout["emit_retries"],
         )
 
