@@ -14,7 +14,7 @@ from flask import current_app
 from zndraw.base import FileIO
 from zndraw.bonds import ASEComputeBonds
 from zndraw.exceptions import RoomLockedError
-from zndraw.utils import ASEConverter, load_plots_to_json
+from zndraw.utils import ASEConverter, load_plots_to_dict
 
 log = logging.getLogger(__name__)
 
@@ -285,7 +285,7 @@ def read_plots(paths: list[str], remote, rev) -> None:
         token="default",
     )
 
-    vis.figures = load_plots_to_json(paths, remote, rev)
+    vis.figures = load_plots_to_dict(paths, remote, rev)
 
     vis.socket.sleep(1)
     vis.socket.disconnect()

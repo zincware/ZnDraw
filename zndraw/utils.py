@@ -14,6 +14,7 @@ from urllib.parse import urlparse
 import ase
 import datamodel_code_generator
 import numpy as np
+import plotly.graph_objects as go
 import plotly.graph_objs
 import socketio.exceptions
 import znjson
@@ -399,7 +400,9 @@ def get_plots_from_zntrack(path: str, remote: str | None, rev: str | None):
         ) from err
 
 
-def load_plots_to_json(paths: list[str], remote: str | None, rev: str | None):
+def load_plots_to_dict(
+    paths: list[str], remote: str | None, rev: str | None
+) -> dict[str, go.Figure]:
     data = {}
     for path in paths:
         if not pathlib.Path(path).exists():
@@ -410,15 +413,15 @@ def load_plots_to_json(paths: list[str], remote: str | None, rev: str | None):
         else:
             plots = znjson.loads(pathlib.Path(path).read_text())
         if isinstance(plots, plotly.graph_objs.Figure):
-            data[path] = plots.to_json()
+            data[path] = plots
         elif isinstance(plots, dict):
             if not all(isinstance(v, plotly.graph_objs.Figure) for v in plots.values()):
                 raise ValueError("All values in the plots dict must be plotly.graph_objs")
-            data.update({f"{path}_{k}": v.to_json() for k, v in plots.items()})
+            data.update({f"{path}_{k}": v for k, v in plots.items()})
         elif isinstance(plots, list):
             if not all(isinstance(v, plotly.graph_objs.Figure) for v in plots):
                 raise ValueError("All values in the plots list must be plotly.graph_objs")
-            data.update({f"{path}_{i}": v.to_json() for i, v in enumerate(plots)})
+            data.update({f"{path}_{i}": v for i, v in enumerate(plots)})
         else:
             raise ValueError("The plots must be a dict, list or Figure")
 

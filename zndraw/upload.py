@@ -12,7 +12,7 @@ import typer
 from zndraw import ZnDraw
 
 from .tasks import FileIO, get_generator_from_filename
-from .utils import load_plots_to_json
+from .utils import load_plots_to_dict
 
 cli = typer.Typer()
 
@@ -50,4 +50,4 @@ def upload(
     vis.extend(frames[1:])
 
     figures = vis.figures
-    vis.figures = load_plots_to_json(plots, fileio.remote, fileio.rev) | figures
+    vis.figures = load_plots_to_dict(plots, fileio.remote, fileio.rev) | figures

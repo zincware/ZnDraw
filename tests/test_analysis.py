@@ -1,5 +1,3 @@
-import plotly.io as pio
-
 from zndraw import ZnDraw
 
 
@@ -11,7 +9,7 @@ def test_run_analysis_distance(server, s22_energy_forces):
 
     vis.socket.emit("analysis:run", {"method": {"discriminator": "Distance"}})
     vis.socket.sleep(7)
-    fig = pio.from_json(vis.figures["Distance"])
+    fig = vis.figures["Distance"]
     # assert that the x-axis label is "step"
     assert fig.layout.xaxis.title.text == "step"
 
@@ -24,7 +22,7 @@ def test_run_analysis_Properties1D(server, s22_energy_forces):
         "analysis:run", {"method": {"discriminator": "Properties1D", "value": "energy"}}
     )
     vis.socket.sleep(7)
-    fig = pio.from_json(vis.figures["Properties1D"])
+    fig = vis.figures["Properties1D"]
     # assert that the x-axis label is "step"
     assert fig.layout.xaxis.title.text == "step"
     assert fig.layout.yaxis.title.text == "energy"
@@ -46,7 +44,7 @@ def test_run_analysis_Properties2D(server, s22_energy_forces):
         },
     )
     vis.socket.sleep(7)
-    fig = pio.from_json(vis.figures["Properties2D"])
+    fig = vis.figures["Properties2D"]
     # assert that the x-axis label is "step"
     assert fig.layout.yaxis.title.text == "step"
     assert fig.layout.xaxis.title.text == "energy"
@@ -60,6 +58,6 @@ def test_run_analysis_DihedralAngle(server, s22_energy_forces):
 
     vis.socket.emit("analysis:run", {"method": {"discriminator": "DihedralAngle"}})
     vis.socket.sleep(7)
-    fig = pio.from_json(vis.figures["DihedralAngle"])
+    fig = vis.figures["DihedralAngle"]
     # assert that the x-axis label is "step"
     assert fig.layout.xaxis.title.text == "step"
