@@ -14,6 +14,7 @@ from urllib.parse import urlparse
 import ase
 import datamodel_code_generator
 import numpy as np
+import plotly.graph_objects as go
 import plotly.graph_objs
 import socketio.exceptions
 import znjson
@@ -21,7 +22,6 @@ from ase.calculators.singlepoint import SinglePointCalculator
 from ase.data import covalent_radii
 from ase.data.colors import jmol_colors
 from znjson import ConverterBase
-import plotly.graph_objects as go
 
 from zndraw.type_defs import ASEDict
 
@@ -400,7 +400,9 @@ def get_plots_from_zntrack(path: str, remote: str | None, rev: str | None):
         ) from err
 
 
-def load_plots_to_dict(paths: list[str], remote: str | None, rev: str | None) -> dict[str, go.Figure]:
+def load_plots_to_dict(
+    paths: list[str], remote: str | None, rev: str | None
+) -> dict[str, go.Figure]:
     data = {}
     for path in paths:
         if not pathlib.Path(path).exists():

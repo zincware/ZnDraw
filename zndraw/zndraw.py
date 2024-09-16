@@ -6,11 +6,13 @@ import typing as t
 
 import ase
 import numpy as np
+import plotly.graph_objects as go
 import requests
 import socketio.exceptions
 import tqdm
 import znjson
 import znsocket
+from plotly.io import from_json as ploty_from_json
 from redis import Redis
 
 from zndraw.base import Extension, ZnDrawBase
@@ -33,8 +35,6 @@ from zndraw.utils import (
     emit_with_retry,
     parse_url,
 )
-import plotly.graph_objects as go
-from plotly.io import from_json as ploty_from_json
 
 log = logging.getLogger(__name__)
 __version__ = importlib.metadata.version("zndraw")
