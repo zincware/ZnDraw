@@ -73,6 +73,7 @@ export const Plotting = ({
           availablePlots={availablePlots}
           setAvailablePlots={setAvailablePlots}
           plotData={plotData}
+          // current plot data
           setDisplayedCards={setDisplayedCards}
           setStep={setStep}
           setSelectedFrames={setSelectedFrames}
@@ -125,14 +126,13 @@ const PlotsCard = ({
 
   // once plot data updates and selectedOption == "" set selectedOption to first available plot
   // TODO: this part is still very buggy!
-  useEffect(() => {
-    if (availablePlots.length > 0 && selectedOption === "") {
-      setSelectedOption(availablePlots[0]);
-    }
-  }, [availablePlots, selectedOption]);
+  // useEffect(() => {
+  //   if (availablePlots.length > 0 && selectedOption === "") {
+  //     setSelectedOption(availablePlots[0]);
+  //   }
+  // }, [availablePlots, selectedOption]);
 
   useEffect(() => {
-    console.log(plotData);
     if (plotData[selectedOption]) {
       setPlotLayout(plotData[selectedOption].layout);
     }
