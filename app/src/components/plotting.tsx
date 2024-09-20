@@ -137,28 +137,30 @@ const PlotsCard = ({
     if (plotData[selectedOption]) {
       if (plotData[selectedOption].layout) {
         // Deep copy the layout and data to prevent mutating the original
-        const layout = JSON.parse(JSON.stringify(plotData[selectedOption].layout));
+        const layout = JSON.parse(
+          JSON.stringify(plotData[selectedOption].layout),
+        );
         const data = JSON.parse(JSON.stringify(plotData[selectedOption].data));
-  
+
         // Modify the data array to include the marker trace
         data.push({
-          type: 'scatter',
-          mode: 'markers',
-          name: 'Step',
-          showlegend: false,  // Hide marker trace from the legend
-          x: [],              // x-values for the marker
-          y: [],              // y-values for the marker
+          type: "scatter",
+          mode: "markers",
+          name: "Step",
+          showlegend: false, // Hide marker trace from the legend
+          x: [], // x-values for the marker
+          y: [], // y-values for the marker
           marker: {
-            color: 'red',
-            size: 10,         // Customize marker size
-            symbol: 'circle', // Customize marker symbol
+            color: "red",
+            size: 10, // Customize marker size
+            symbol: "circle", // Customize marker symbol
             line: {
-              color: 'black',
-              width: 2,        // Customize marker outline
+              color: "black",
+              width: 2, // Customize marker outline
             },
           },
         });
-  
+
         // Add markers at the matching step in the data
         plotData[selectedOption].data.forEach((dataItem) => {
           if (dataItem.customdata) {
@@ -167,7 +169,7 @@ const PlotsCard = ({
               if (customdata[0] === step) {
                 const xPosition = dataItem.x[index];
                 const yPosition = dataItem.y[index];
-  
+
                 // Add the (xPosition, yPosition) to the marker trace
                 data[data.length - 1].x.push(xPosition);
                 data[data.length - 1].y.push(yPosition);
@@ -175,7 +177,7 @@ const PlotsCard = ({
             });
           }
         });
-  
+
         // Set the updated layout and data
         setPlotLayout(layout);
         setActualPlotData(data);
