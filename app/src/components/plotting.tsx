@@ -142,24 +142,7 @@ const PlotsCard = ({
         );
         const data = JSON.parse(JSON.stringify(plotData[selectedOption].data));
 
-        // Modify the data array to include the marker trace
-        data.push({
-          type: "scatter",
-          mode: "markers",
-          name: "Step",
-          showlegend: false, // Hide marker trace from the legend
-          x: [], // x-values for the marker
-          y: [], // y-values for the marker
-          marker: {
-            color: "red",
-            size: 10, // Customize marker size
-            symbol: "circle", // Customize marker symbol
-            line: {
-              color: "black",
-              width: 2, // Customize marker outline
-            },
-          },
-        });
+        const markerList: [number, number, string][] = [];
 
         // Add markers at the matching step in the data
         plotData[selectedOption].data.forEach((dataItem) => {
@@ -169,13 +152,36 @@ const PlotsCard = ({
               if (customdata[0] === step) {
                 const xPosition = dataItem.x[index];
                 const yPosition = dataItem.y[index];
-
-                // Add the (xPosition, yPosition) to the marker trace
-                data[data.length - 1].x.push(xPosition);
-                data[data.length - 1].y.push(yPosition);
+                // check if dataItem.line.color is available
+                let color = "red";
+                if (dataItem.line) {
+                  if (dataItem.line.color) {
+                    color = dataItem.line.color;
+                  }
+                }
+                markerList.push([xPosition, yPosition, color]);
               }
             });
           }
+        });
+
+        // Add the markers to the data array
+        data.push({
+          type: "scatter",
+          mode: "markers",
+          name: "Step",
+          showlegend: false,
+          x: markerList.map((marker) => marker[0]),
+          y: markerList.map((marker) => marker[1]),
+          marker: {
+            color: markerList.map((marker) => marker[2]),
+            size: 10,
+            symbol: "circle",
+            line: {
+              color: "black",
+              width: 2,
+            },
+          },
         });
 
         // Set the updated layout and data
