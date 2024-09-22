@@ -537,7 +537,7 @@ def init_socketio_events(io: SocketIO):
     def room_selection_set(data: dict[str, list[int]]):
         r: Redis = current_app.extensions["redis"]
         room = session.get("token")
-        r.hmset(f"room:{room}:selection", {k: json.dumps(v) for k, v in data.items()})
+        r.hset(f"room:{room}:selection", mapping={k: json.dumps(v) for k, v in data.items()})
         emit("room:selection:set", data, to=room, include_self=False)
 
     @io.on("room:selection:get")
@@ -568,7 +568,7 @@ def init_socketio_events(io: SocketIO):
     def room_points_set(data: dict):
         r: Redis = current_app.extensions["redis"]
         room = session.get("token")
-        r.hmset(f"room:{room}:points", {k: json.dumps(v) for k, v in data.items()})
+        r.hset(f"room:{room}:points", mapping={k: json.dumps(v) for k, v in data.items()})
 
         emit("room:points:set", data, to=room, include_self=False)
         # TODO: add rotation! save position and rotation and scale?
@@ -589,7 +589,7 @@ def init_socketio_events(io: SocketIO):
         r: Redis = current_app.extensions["redis"]
         room = session.get("token")
         if len(data):
-            r.hmset(f"room:{room}:bookmarks", data)
+            r.hset(f"room:{room}:bookmarks", mapping=data)
         emit("room:bookmarks:set", data, to=room, include_self=False)
 
     @io.on("room:bookmarks:get")
