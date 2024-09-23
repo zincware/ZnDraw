@@ -6,6 +6,7 @@ import ase
 import numpy as np
 import pandas as pd
 import plotly.express as px
+import plotly.graph_objects as go
 from pydantic import ConfigDict, Field
 
 from zndraw.base import Extension, MethodsCollection
@@ -277,7 +278,14 @@ class Properties1D(Extension):
 
         df = pd.DataFrame({"step": list(range(len(atoms_lst))), self.value: data})
 
-        fig = px.line(df, x="step", y=self.value, render_mode="svg")
+        fig = go.Figure()
+        fig.add_trace(
+            go.Scatter(
+                x=df["step"],
+                y=df[self.value],
+                mode="lines+markers",
+            )
+        )
 
         if self.smooth:
             smooth_df = df.rolling(window=100).mean().dropna()
