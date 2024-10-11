@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import {
   socket,
+  client,
   sendStep,
   sendSelection,
   sendBookmarks,
@@ -8,6 +9,7 @@ import {
   sendPoints,
 } from "./socket";
 import HeadBar from "./components/headbar";
+import * as znsocket from "znsocket";
 import Sidebar from "./components/sidebar";
 import FrameProgressBar from "./components/progressbar";
 import {
@@ -170,6 +172,8 @@ export default function App() {
   const [showParticleInfo, setShowParticleInfo] = useState<boolean>(false);
   const [addPlotsWindow, setAddPlotsWindow] = useState<number>(0);
 
+  const [token, setToken] = useState<string>("");
+
   // external useEffects, should be disabled when
   // the input is received via sockets
   sendStep(step, stepFromSocket);
@@ -276,6 +280,10 @@ export default function App() {
       // get the config
       socket.emit("room:config:get", (data: any) => {
         setRoomConfig(data);
+      });
+
+      socket.emit("room:token:get", (data: string) => {
+        setToken(data);
       });
     }
 
@@ -428,6 +436,20 @@ export default function App() {
       socket.off("room:config:set", onRoomConfig);
     };
   }, []);
+
+
+  // token dependent
+  useEffect(() => {
+        // connect to room:`token`:frames
+        const lst = new znsocket.List({client: client, key: "room:" + token + ":frames"});
+        lst.len().then((x: any) => console.log("length: " + x));
+    
+        lst.getitem(0).then((x: any) => console.log(x));
+        lst.onRefresh((x: any) => console.log("refreshed: " + x));
+        return () => {
+            lst.offRefresh();
+        }
+  }, [token]);
 
   useEffect(() => {
     // page initialization

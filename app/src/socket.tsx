@@ -1,19 +1,26 @@
-import { io } from "socket.io-client";
+import { Manager } from "socket.io-client";
 import { useEffect, useRef } from "react";
-
+import { createClient } from "znsocket";
+ 
 import * as THREE from "three";
 
 function setupIO() {
   const basePath = import.meta.env.BASE_URL || "/";
+  let manager
 
   if (basePath === "/") {
-    // return io("http://localhost:1235"); // for local development
-    return io(window.location.origin);
+    manager = new Manager("http://localhost:1235"); // for local development
+    // return io(window.location.origin);
   } else {
-    return io(window.location.origin, { path: `${basePath}socket.io` });
+    manager = new Manager(window.location.origin, { path: `${basePath}socket.io` })
   }
+  console.log("manager", manager)
+  return {
+    socket: manager.socket("/"),
+    client: createClient({socket: manager.socket("/znsocket")}),
+  };
 }
-export const socket = setupIO();
+export const { socket, client } = setupIO();
 
 export const sendStep = (step: number, fromSockets: any) => {
   const timeoutRef = useRef(null);

@@ -9,6 +9,7 @@ import numpy as np
 import splines
 import znjson
 import znsocket
+import json
 from flask import current_app, session
 from pydantic import BaseModel, Field, create_model
 from redis import Redis
@@ -42,12 +43,9 @@ class Extension(BaseModel):
             if r.exists(f"room:{room}:frames")
             else "room:default:frames"
         )
-        lst = znsocket.List(r, key)
+        lst = znsocket.List(r, key, converter=[ASEConverter])
         try:
-            frame_json = lst[int(step)]
-            return znjson.loads(
-                frame_json, cls=znjson.ZnDecoder.from_converters([ASEConverter])
-            )
+            return lst[int(step)]
         except TypeError:
             # step is None
             return ase.Atoms()

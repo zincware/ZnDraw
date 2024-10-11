@@ -212,10 +212,11 @@ def main(
             port=app.config["PORT"],
         )
     finally:
-        if standalone:
-            server.terminate()
-            server.wait()
-            print("znsocket server terminated.")
+        if standalone and url is None:
+            if env_config.FLASK_STORAGE.startswith("znsocket"):
+                server.terminate()
+                server.wait()
+                print("znsocket server terminated.")
             worker.terminate()
             worker.wait()
             print("celery worker terminated.")

@@ -8,6 +8,7 @@ import socketio.exceptions
 import tqdm
 import znjson
 import znsocket
+import json
 from celery import shared_task
 from flask import current_app
 
@@ -110,8 +111,9 @@ def read_file(fileio: dict) -> None:
         if current_app.config.get("COMPUTE_BONDS", False):
             if not hasattr(atoms, "connectivity"):
                 atoms.connectivity = bonds_calculator.get_bonds(atoms)
+
         lst.append(
-            znjson.dumps(atoms, cls=znjson.ZnEncoder.from_converters([ASEConverter]))
+            json.loads(znjson.dumps(atoms, cls=znjson.ZnEncoder.from_converters([ASEConverter])))
         )
         if idx == 0:
             try:

@@ -157,7 +157,7 @@ def init_socketio_events(io: SocketIO):
             except IndexError:
                 data = []
 
-        return {idx: json.loads(d) for idx, d in zip(frames, data) if d is not None}
+        return {idx: d for idx, d in zip(frames, data) if d is not None}
 
     @io.on("room:frames:set")
     def room_frames_set(data: dict[int, str]):
@@ -408,23 +408,25 @@ def init_socketio_events(io: SocketIO):
         run_geometry.delay(room, data)
 
     @io.on("room:geometry:set")
-    def room_geometry_set(data: list):
+    def room_geometry_set(data: list|None = None):
         r: Redis = current_app.extensions["redis"]
         room = session.get("token")
 
-        # # add = {}
-        # # remove = []
         lst = znsocket.List(r, f"room:{room}:geometries")
-        del lst[:]
-        lst.extend(data)
-        emit("room:geometry:set", data, to=room, include_self=False)
+
+        if data is not None:
+            del lst[:]
+            lst.extend(data)
+        print(f"room:geometry:set: {lst}")
+
+        emit("room:geometry:set", [x.model_dump() for x in lst], to=room, include_self=False)
 
     @io.on("room:geometry:get")
     def room_geometry_get():
         r: Redis = current_app.extensions["redis"]
         room = session.get("token")
-
-        return list(znsocket.List(r, f"room:{room}:geometries"))
+        # TODO: do not send the data but request it on the JS side
+        return [x.model_dump() for x in znsocket.List(r, f"room:{room}:geometries")]
 
     @io.on("room:config:get")
     def room_config_get():
@@ -638,3 +640,7 @@ def init_socketio_events(io: SocketIO):
     def room_frames_refresh(frames: list[int]):
         room = session.get("token")
         emit("room:frames:refresh", frames, to=room)
+
+    @io.on("room:token:get")
+    def room_token_get() -> str:
+        return session.get("token")
