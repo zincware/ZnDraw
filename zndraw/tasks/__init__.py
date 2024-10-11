@@ -37,14 +37,15 @@ def _get_zntrack_generator(file_io: FileIO) -> t.Iterable[ase.Atoms]:
         ##
 
         node = zntrack.from_rev(node_name, remote=file_io.remote, rev=file_io.rev)
-        for key in attribute.split("."):
-            if isinstance(node, list):
-                node = node[int(key)]
-                if not isinstance(node, list):
-                    node = [node]
-            else:
-                node = getattr(node, key)
         images = node
+        for key in attribute.split("."):
+            if isinstance(images, list):
+                images = images[int(key)]
+                if not isinstance(images, list):
+                    images = [images]
+            else:
+                images = getattr(images, key)
+        
     except ImportError as err:
         raise ImportError(
             "You need to install ZnTrack to use the remote feature."
