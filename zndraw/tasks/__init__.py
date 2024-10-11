@@ -45,7 +45,7 @@ def _get_zntrack_generator(file_io: FileIO) -> t.Iterable[ase.Atoms]:
                     images = [images]
             else:
                 images = getattr(images, key)
-        
+
     except ImportError as err:
         raise ImportError(
             "You need to install ZnTrack to use the remote feature."
