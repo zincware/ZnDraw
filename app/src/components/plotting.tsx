@@ -112,6 +112,7 @@ const PlotsCard = ({
   const [selectedOption, setSelectedOption] = useState<string>("");
   const [allowDrag, setAllowDrag] = useState<boolean>(true);
   const [plotLayout, setPlotLayout] = useState<any>({});
+  const [actualPlotData, setActualPlotData] = useState<any>(null);
 
   const handleSelectChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
     setSelectedOption(event.target.value);
@@ -134,9 +135,63 @@ const PlotsCard = ({
 
   useEffect(() => {
     if (plotData[selectedOption]) {
-      setPlotLayout(plotData[selectedOption].layout);
+      if (plotData[selectedOption].layout) {
+        // Deep copy the layout and data to prevent mutating the original
+        const layout = JSON.parse(
+          JSON.stringify(plotData[selectedOption].layout),
+        );
+        const data = JSON.parse(JSON.stringify(plotData[selectedOption].data));
+
+        const markerList: [number, number, string][] = [];
+
+        // Add markers at the matching step in the data
+        plotData[selectedOption].data.forEach((dataItem) => {
+          if (dataItem.customdata) {
+            dataItem.customdata.forEach((customdata, index) => {
+              // Check if customdata[0] matches the step
+              if (customdata[0] === step) {
+                const xPosition = dataItem.x[index];
+                const yPosition = dataItem.y[index];
+                // check if dataItem.line.color is available
+                let color = "red";
+                if (dataItem.line) {
+                  if (dataItem.line.color) {
+                    color = dataItem.line.color;
+                  }
+                }
+                markerList.push([xPosition, yPosition, color]);
+              }
+            });
+          }
+        });
+
+        // Add the markers to the data array
+        data.push({
+          type: "scatter",
+          mode: "markers",
+          name: "Step",
+          showlegend: false,
+          x: markerList.map((marker) => marker[0]),
+          y: markerList.map((marker) => marker[1]),
+          marker: {
+            color: markerList.map((marker) => marker[2]),
+            size: 10,
+            symbol: "circle",
+            line: {
+              color: "black",
+              width: 2,
+            },
+          },
+        });
+
+        // Set the updated layout and data
+        setPlotLayout(layout);
+        setActualPlotData(data);
+      }
+    } else {
+      setActualPlotData(null);
     }
-  }, [plotData, selectedOption]);
+  }, [plotData, selectedOption, step]);
 
   const onPlotClick = ({ points }: { points: any[] }) => {
     if (points[0]?.customdata) {
@@ -265,9 +320,9 @@ const PlotsCard = ({
           <Button variant="close" className="mx-2" onClick={closeThisCard} />
         </Card.Header>
         <Card.Body style={{ padding: 0 }}>
-          {plotData[selectedOption] ? (
+          {plotData[selectedOption] && actualPlotData ? (
             <Plot
-              data={plotData[selectedOption].data}
+              data={actualPlotData}
               frames={plotData[selectedOption].frames}
               config={plotData[selectedOption].config}
               layout={plotLayout}
