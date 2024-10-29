@@ -593,20 +593,6 @@ def init_socketio_events(io: SocketIO):
             return {"0": []}
         return result
 
-    @io.on("room:bookmarks:set")
-    def room_bookmarks_set(data: dict):
-        r: Redis = current_app.extensions["redis"]
-        room = session.get("token")
-        if len(data):
-            r.hset(f"room:{room}:bookmarks", mapping=data)
-        emit("room:bookmarks:set", data, to=room, include_self=False)
-
-    @io.on("room:bookmarks:get")
-    def room_bookmarks_get() -> dict:
-        r: Redis = current_app.extensions["redis"]
-        room = session.get("token")
-        return r.hgetall(f"room:{room}:bookmarks")
-
     @io.on("room:camera:set")
     def room_camera_set(data: dict):
         r: Redis = current_app.extensions["redis"]

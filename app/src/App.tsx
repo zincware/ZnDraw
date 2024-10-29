@@ -321,10 +321,6 @@ export default function App() {
       setGeometries(data);
     }
 
-    function onBookmarks(data: any) {
-      bookmarksFromSocket.current = true;
-      setBookmarks(data);
-    }
 
     function onPointsSet(points: { 0: number[][] }) {
       pointsFromSocket.current = true;
@@ -396,7 +392,6 @@ export default function App() {
     socket.on("room:selection:set", onRoomSelectionSet);
     socket.on("room:step:set", onSetStep);
     socket.on("room:geometry:set", onGeometries);
-    socket.on("room:bookmarks:set", onBookmarks);
     socket.on("room:modifier:queue", onModifierQueue);
     socket.on("room:analysis:queue", onAnalysisQueue);
     socket.on("room:geometry:queue", onGeometryQueue);
@@ -421,7 +416,6 @@ export default function App() {
       socket.off("room:selection:set", onRoomSelectionSet);
       socket.off("room:step:set", onSetStep);
       socket.off("room:geometry:set", onGeometries);
-      socket.off("room:bookmarks:set", onBookmarks);
       socket.off("room:modifier:queue", onModifierQueue);
       socket.off("room:analysis:queue", onAnalysisQueue);
       socket.off("room:geometry:queue", onGeometryQueue);
@@ -445,11 +439,25 @@ export default function App() {
       key: "room:" + token + ":frames",
     });
     lst.len().then((x: any) => console.log("length: " + x));
-
-    lst.getitem(0).then((x: any) => console.log(x));
     lst.onRefresh((x: any) => console.log("refreshed: " + x));
+
+    // bookmarks
+    const bookmarksDict = new znsocket.Dict({
+      client: client,
+      key: "room:" + token + ":bookmarks",
+    });
+
+    bookmarksDict.onRefresh(async (x: any) => {
+      
+      const items = await bookmarksDict.items();
+      const result = Object.fromEntries(items);
+      setBookmarks(result);
+    });
+
+
     return () => {
       lst.offRefresh();
+      bookmarksDict.offRefresh();
     };
   }, [token]);
 

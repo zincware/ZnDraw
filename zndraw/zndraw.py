@@ -409,14 +409,7 @@ class ZnDraw(ZnDrawBase):
 
     @property
     def bookmarks(self) -> dict[int, str]:
-        return {
-            int(k): v
-            for k, v in call_with_retry(
-                self.socket,
-                "room:bookmarks:get",
-                retries=self.timeout["call_retries"],
-            ).items()
-        }
+        return znsocket.Dict(self.r, f"room:{self.token}:bookmarks", repr_type="full")
 
     @bookmarks.setter
     def bookmarks(self, value: dict[int, str]):
@@ -427,12 +420,9 @@ class ZnDraw(ZnDrawBase):
         if not all(isinstance(x, str) for x in value.values()):
             raise ValueError("Bookmark values must be strings")
 
-        emit_with_retry(
-            self.socket,
-            "room:bookmarks:set",
-            value,
-            retries=self.timeout["emit_retries"],
-        )
+        bookmarks = znsocket.Dict(self.r, f"room:{self.token}:bookmarks")
+        bookmarks.clear() 
+        bookmarks.update(value)
 
     @property
     def camera(self) -> CameraData:
