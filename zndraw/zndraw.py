@@ -402,7 +402,7 @@ class ZnDraw(ZnDrawBase):
             raise ValueError("Bookmark values must be strings")
 
         bookmarks = znsocket.Dict(self.r, f"room:{self.token}:bookmarks")
-        bookmarks.clear() 
+        bookmarks.clear()
         bookmarks.update(value)
 
     @property

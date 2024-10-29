@@ -3,12 +3,10 @@ import typing as t
 
 import ase
 import numpy as np
-import znsocket
 from flask import current_app, session
 from pydantic import BaseModel, Field
-from redis import Redis
 
-from zndraw.utils import ASEConverter, emit_with_retry
+from zndraw.utils import emit_with_retry
 
 if t.TYPE_CHECKING:
     from zndraw import ZnDraw

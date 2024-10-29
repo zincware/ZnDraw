@@ -7,12 +7,8 @@ from collections.abc import MutableSequence
 import ase
 import numpy as np
 import splines
-import znsocket
 from flask import current_app, session
 from pydantic import BaseModel, Field, create_model
-from redis import Redis
-
-from zndraw.utils import ASEConverter
 
 log = logging.getLogger(__name__)
 

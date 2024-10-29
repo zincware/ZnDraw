@@ -23,4 +23,3 @@ function setupIO() {
   };
 }
 export const { socket, client } = setupIO();
-

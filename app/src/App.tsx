@@ -1,9 +1,12 @@
 import React, { useState, useEffect, useRef } from "react";
+import { socket, client } from "./socket";
 import {
-  socket,
-  client,
-} from "./socket";
-import { setupBookmarks, setupPoints, setupSelection, setupStep, setupCamera } from "./components/api";
+  setupBookmarks,
+  setupPoints,
+  setupSelection,
+  setupStep,
+  setupCamera,
+} from "./components/api";
 import HeadBar from "./components/headbar";
 import * as znsocket from "znsocket";
 import Sidebar from "./components/sidebar";
@@ -167,11 +170,18 @@ export default function App() {
   setupPoints(token, setPoints, points);
   setupSelection(token, setSelectedIds, selectedIds);
   setupStep(token, setStep, step);
-  setupCamera(token, cameraPosition, orbitControlsTarget, setCameraPosition, setOrbitControlsTarget, controlsRef, cameraRef);
+  setupCamera(
+    token,
+    cameraPosition,
+    orbitControlsTarget,
+    setCameraPosition,
+    setOrbitControlsTarget,
+    controlsRef,
+    cameraRef,
+  );
 
   // external useEffects, should be disabled when
   // the input is received via sockets
-
 
   // if step changes
   useEffect(() => {
@@ -313,8 +323,6 @@ export default function App() {
       }));
     }
 
-
-
     function onRoomLockSet(locked: boolean) {
       setRoomLock(locked);
     }
@@ -369,14 +377,12 @@ export default function App() {
       key: "room:" + token + ":frames",
     });
     lst.len().then((x: any) => console.log("length: " + x));
-    lst.onRefresh((x: any) => console.log("refreshed: " + x))
+    lst.onRefresh((x: any) => console.log("refreshed: " + x));
 
     return () => {
       lst.offRefresh();
     };
   }, [token]);
-
-
 
   useEffect(() => {
     // page initialization
