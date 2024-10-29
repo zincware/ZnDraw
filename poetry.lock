@@ -5215,18 +5215,19 @@ files = [
 
 [[package]]
 name = "znsocket"
-version = "0.1.10"
+version = "0.2.0"
 description = "Python implementation of a Redis-compatible API using websockets."
 optional = false
 python-versions = "<4.0,>=3.10"
 files = [
-    {file = "znsocket-0.1.10-py3-none-any.whl", hash = "sha256:87bd657af2b6402aa80160e4291d4d26fc5ad5913cedf82968c6c584b8c70c24"},
-    {file = "znsocket-0.1.10.tar.gz", hash = "sha256:e88a97bf4fdb3b42109cd21fa3b45c9933fab947d4fa306e6def0fdb1464730c"},
+    {file = "znsocket-0.2.0-py3-none-any.whl", hash = "sha256:9fc3fade403b9219d5afc61604e05b9250a25c49e53764fa9bb61350aea3e465"},
+    {file = "znsocket-0.2.0.tar.gz", hash = "sha256:00246f245a36baf3f67d2d9503e28b5d9d8558931450e658cd4a10a3f29b2bdb"},
 ]
 
 [package.dependencies]
 eventlet = ">=0,<1"
 python-socketio = {version = ">=5.11,<6.0", extras = ["client"]}
+redis = ">=5,<6"
 typer = ">=0,<1"
 znjson = ">=0.2.3,<0.3.0"
 
@@ -5257,4 +5258,4 @@ znjson = ">=0.2,<0.3"
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "8589f69f8585b8c7c81a04c8b91faf8f71feec5743022b5faf5f3b5527c7e168"
+content-hash = "846f9e5eefcc9756eb28248f0c892d10b698e2885fcb8aaccafba8c936a362a6"
