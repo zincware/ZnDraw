@@ -138,56 +138,6 @@ def init_socketio_events(io: SocketIO):
         log.critical(f"connecting (pyclient) {request.sid} to {room}")
         # join_room(f"pyclients_{token}")
 
-    @io.on("room:frames:get")
-    def room_frames_get(frames: list[int]) -> dict[int, dict]:
-        # print(f"requesting frames: {frames}")
-        if len(frames) == 0:
-            return {}
-        r: Redis = current_app.extensions["redis"]
-        room = session.get("token")
-        # TODO: use ZnDrawLocal ?
-
-        if r.exists(f"room:{room}:frames"):
-            data = znsocket.List(r, f"room:{room}:frames")[frames]
-
-        else:
-            try:
-                data = znsocket.List(r, "room:default:frames")[frames]
-            except IndexError:
-                data = []
-
-        return {idx: d for idx, d in zip(frames, data) if d is not None}
-
-    @io.on("room:frames:set")
-    def room_frames_set(data: dict[int, str]):
-        r: Redis = current_app.extensions["redis"]
-        room = session.get("token")
-
-        # add = {}
-        # remove = []
-        lst = znsocket.List(r, f"room:{room}:frames")
-
-        if not r.exists(f"room:{room}:frames"):
-            default_lst = znsocket.List(r, "room:default:frames")
-            # TODO: using a redis copy action would be faster
-            lst.extend(default_lst)
-
-        data = {int(k): v for k, v in sorted(data.items())}
-        for key, value in sorted(data.items()):
-            if int(key) == len(lst):
-                lst.append(value)
-            elif int(key) > len(lst):
-                log.critical(f"frame {key} is out of bounds and is being ignored.")
-                pass
-            else:
-                lst[int(key)] = value
-
-        emit("room:frames:refresh", [int(x) for x in data], to=room)
-        # This method should be called, because it can move frames from the default
-        # room to the current room. Doing so in the background
-        # can cause issues with further operations on the frames.
-        return "OK"
-
     @io.on("room:all:frames:refresh")
     def room_all_frames_refresh(indices: list[int]):
         emit("room:frames:refresh", [int(x) for x in indices], broadcast=True)

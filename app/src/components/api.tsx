@@ -148,7 +148,6 @@ export function setupStep(token: string, setStep: any, step: any) {
       if (conInterface === undefined) {
         return;
       }
-      console.log("setting step to", step);
       conInterface.setitem(0, step);
     };
     // Set a delay of 100ms before calling `updateCon`
@@ -212,3 +211,75 @@ export function setupCamera(
     return () => clearTimeout(debounceTimeout);
   }, [cameraPosition, orbitControlsTarget, conInterface]);
 }
+
+export const setupFrames = (token: string, step: any, setCurrentFrame: any, setLength: any) => {
+  let [conInterface, setConInterface]: any = useState(undefined);
+  let [useDefaultRoom, setUseDefaultRoom] = useState(true);
+
+  useEffect(() => {
+    const con = new znsocket.List({
+      client: client,
+      key: "room:" + token + ":frames",
+    });
+    // initially check if the room exists
+    con.getitem(parseInt(step)).then((frame: any) => {
+      if (frame === null) {
+        setUseDefaultRoom(true);
+      }
+    });
+
+    con.onRefresh(async (x: any) => {
+      setUseDefaultRoom(false);
+
+      con.len().then((length: any) => {setLength(length)});
+
+      if (x["start"] && x["stop"]) {
+        if (parseInt(step) > x["start"] || parseInt(step) < x["stop"]) {
+          // update in place, also stop might not be defined
+        }
+      } else if (x["indices"]) {
+        if (x["indices"].includes(parseInt(step))) {
+          // update in place
+        }
+      }
+    });
+
+    setConInterface(con);
+    if (useDefaultRoom){
+      const defaultCon = new znsocket.List({
+        client: client,
+        key: "room:default:frames",
+      });
+      defaultCon.len().then((length: any) => {setLength(length)});
+    } else {
+      con.len().then((length: any) => {setLength(length)});
+    }
+
+    return () => {
+      con.offRefresh();
+    };
+  }, [token]);
+
+  useEffect(() => {
+    if (conInterface === undefined) {
+      return;
+    }
+    let currentInterface = conInterface;
+    if (useDefaultRoom) {
+      currentInterface = new znsocket.List({
+        client: client,
+        key: "room:default:frames",
+      });
+    }
+
+    currentInterface.getitem(parseInt(step)).then((frame: any) => {
+      frame = frame["value"];
+      frame.positions = frame.positions.map(
+        (position: [number, number, number]) =>
+          new THREE.Vector3(position[0], position[1], position[2]),
+      ) as THREE.Vector3[];
+      setCurrentFrame(frame);
+    });
+
+  }, [conInterface, step, useDefaultRoom]);
+};

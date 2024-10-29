@@ -6,9 +6,9 @@ import {
   setupSelection,
   setupStep,
   setupCamera,
+  setupFrames,
 } from "./components/api";
 import HeadBar from "./components/headbar";
-import * as znsocket from "znsocket";
 import Sidebar from "./components/sidebar";
 import FrameProgressBar from "./components/progressbar";
 import {
@@ -123,7 +123,6 @@ export default function App() {
   const [selectedPoint, setSelectedPoint] = useState<THREE.Vector3 | null>(
     null,
   );
-  const [needsUpdate, setNeedsUpdate] = useState<boolean>(false);
   const [roomName, setRoomName] = useState<string>("");
   const [geometries, setGeometries] = useState<any>([]);
   const [orbitControlsTarget, setOrbitControlsTarget] = useState<THREE.Vector3>(
@@ -179,50 +178,31 @@ export default function App() {
     controlsRef,
     cameraRef,
   );
+  setupFrames(token, step, setCurrentFrame, setLength);
 
-  // external useEffects, should be disabled when
-  // the input is received via sockets
+  // useEffect(() => {
+  //   // TODO can't be here, because is dependent on the length
+  //   function onFramesRefresh(updatedFrames: number[]) {
+  //     socket.emit("room:length:get", (data: number | string) => {
+  //       // ensure that data is a number
+  //       if (updatedFrames.includes(step)) {
+  //         setNeedsUpdate(true);
+  //       } else if (step >= data) {
+  //         setStep(parseInt(data) - 1);
+  //         // reset selected ids
+  //         setSelectedIds(new Set());
+  //       } else if (roomConfig.scene.frame_update) {
+  //         setStep(parseInt(data) - 1);
+  //       }
+  //       setLength(data);
+  //     });
+  //   }
+  //   socket.on("room:frames:refresh", onFramesRefresh);
 
-  // if step changes
-  useEffect(() => {
-    socket.emit("room:frames:get", [step], (frames: Frames) => {
-      for (const key in frames) {
-        if (frames.hasOwnProperty(key)) {
-          const frame: Frame = frames[key]["value"];
-          frame.positions = frame.positions.map(
-            (position) =>
-              new THREE.Vector3(position[0], position[1], position[2]),
-          ) as THREE.Vector3[];
-        }
-        setCurrentFrame(frames[step]["value"]);
-        setNeedsUpdate(false); // rename this to something more descriptive
-      }
-    });
-  }, [step, needsUpdate]);
-
-  useEffect(() => {
-    // TODO can't be here, because is dependent on the length
-    function onFramesRefresh(updatedFrames: number[]) {
-      socket.emit("room:length:get", (data: number | string) => {
-        // ensure that data is a number
-        if (updatedFrames.includes(step)) {
-          setNeedsUpdate(true);
-        } else if (step >= data) {
-          setStep(parseInt(data) - 1);
-          // reset selected ids
-          setSelectedIds(new Set());
-        } else if (roomConfig.scene.frame_update) {
-          setStep(parseInt(data) - 1);
-        }
-        setLength(data);
-      });
-    }
-    socket.on("room:frames:refresh", onFramesRefresh);
-
-    return () => {
-      socket.off("room:frames:refresh", onFramesRefresh);
-    };
-  }, [step, roomConfig.scene]);
+  //   return () => {
+  //     socket.off("room:frames:refresh", onFramesRefresh);
+  //   };
+  // }, [step, roomConfig.scene]);
 
   useEffect(() => {
     function onConnect() {
@@ -236,10 +216,10 @@ export default function App() {
       );
       console.log("connected");
       // get length
-      socket.emit("room:length:get", (data: number) => {
-        setLength(data);
-        console.log("number of available frames", data);
-      });
+      // socket.emit("room:length:get", (data: number) => {
+      //   setLength(data);
+      //   console.log("number of available frames", data);
+      // });
       // get geometries
       socket.emit("room:geometry:get", (data: any) => {
         setGeometries(data);
@@ -369,28 +349,28 @@ export default function App() {
   }, []);
 
   // token dependent
-  useEffect(() => {
-    // TODO: this should all go into API
-    // connect to room:`token`:frames
-    const lst = new znsocket.List({
-      client: client,
-      key: "room:" + token + ":frames",
-    });
-    lst.len().then((x: any) => console.log("length: " + x));
-    lst.onRefresh((x: any) => console.log("refreshed: " + x));
+  // useEffect(() => {
+  //   // TODO: this should all go into API
+  //   // connect to room:`token`:frames
+  //   const lst = new znsocket.List({
+  //     client: client,
+  //     key: "room:" + token + ":frames",
+  //   });
+  //   lst.len().then((x: any) => console.log("length: " + x));
+  //   lst.onRefresh((x: any) => console.log("refreshed: " + x));
 
-    return () => {
-      lst.offRefresh();
-    };
-  }, [token]);
+  //   return () => {
+  //     lst.offRefresh();
+  //   };
+  // }, [token]);
 
   useEffect(() => {
     // page initialization
-    const updateLength = () => {
-      socket.emit("room:length:get", (data: number) => {
-        setLength(data);
-      });
-    };
+    // const updateLength = () => {
+    //   socket.emit("room:length:get", (data: number) => {
+    //     setLength(data);
+    //   });
+    // };
 
     const handleKeyDown = (event: KeyboardEvent) => {
       // if canvas is not focused, don't do anything
@@ -466,7 +446,7 @@ export default function App() {
         setStep(newStep);
       } else if (event.key == " ") {
         // backspace
-        updateLength();
+        // updateLength();
         setPlaying((prev) => !prev);
         if (step == length - 1) {
           setStep(0);
