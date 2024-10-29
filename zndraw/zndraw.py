@@ -200,6 +200,8 @@ class ZnDraw(ZnDrawBase):
 
     def __len__(self) -> int:
         # TODO: what if the room does not exist yet?
+        if not self.r.exists(f"room:{self.token}:frames"):
+            return len(znsocket.List(self.r, "room:default:frames"))
         return len(znsocket.List(self.r, f"room:{self.token}:frames"))
 
     def __delitem__(self, index: int | slice | list[int]):
@@ -288,11 +290,10 @@ class ZnDraw(ZnDrawBase):
 
     @property
     def selection(self) -> list[int]:
-        return call_with_retry(
-            self.socket,
-            "room:selection:get",
-            retries=self.timeout["call_retries"],
-        )["0"]
+        try:
+            return znsocket.Dict(self.r, f"room:{self.token}:selection")[0]
+        except KeyError:
+            return []
 
     @selection.setter
     def selection(self, value: list[int]):
@@ -308,22 +309,14 @@ class ZnDraw(ZnDrawBase):
             raise IndexError("Selection out of range")
         if any(x < 0 for x in value):
             raise IndexError("Selection must be positive")
-        emit_with_retry(
-            self.socket,
-            "room:selection:set",
-            {"0": value},
-            retries=self.timeout["emit_retries"],
-        )
+        znsocket.Dict(self.r, f"room:{self.token}:selection")[0] = value
 
     @property
     def step(self) -> int:
-        return int(
-            call_with_retry(
-                self.socket,
-                "room:step:get",
-                retries=self.timeout["call_retries"],
-            )
-        )
+        try:
+            return znsocket.Dict(self.r, f"room:{self.token}:step")[0]
+        except KeyError:
+            return 0
 
     def log(self, message: str) -> None:
         emit_with_retry(
@@ -347,12 +340,7 @@ class ZnDraw(ZnDrawBase):
         # what about the camera?
         # or collect the steps of all clients in a dict
         # and save the host and go from there, also fine and not too much worker.
-        emit_with_retry(
-            self.socket,
-            "room:step:set",
-            value,
-            retries=self.timeout["emit_retries"],
-        )
+        znsocket.Dict(self.r, f"room:{self.token}:step")[0] = value
 
     @property
     def figures(self) -> dict[str, go.Figure]:
@@ -387,25 +375,18 @@ class ZnDraw(ZnDrawBase):
         self[[self.step]] = [atoms]
 
     @property
-    def points(self) -> np.ndarray:
-        return np.array(
-            call_with_retry(
-                self.socket,
-                "room:points:get",
-                retries=self.timeout["call_retries"],
-            )["0"]
-        )
+    def points(self) -> list:
+        # TODO: use znsocket.List inside znsocket.Dict here
+        try:
+            return znsocket.Dict(self.r, f"room:{self.token}:points")[0]
+        except KeyError:
+            return []
 
     @points.setter
     def points(self, points: np.ndarray | list) -> None:
-        if isinstance(points, list):
-            points = np.array(points)
-        emit_with_retry(
-            self.socket,
-            "room:points:set",
-            {"0": points.tolist()},
-            retries=self.timeout["emit_retries"],
-        )
+        if isinstance(points, np.ndarray):
+            points = points.tolist()
+        znsocket.Dict(self.r, f"room:{self.token}:points")[0] = points
 
     @property
     def bookmarks(self) -> dict[int, str]:
@@ -426,17 +407,13 @@ class ZnDraw(ZnDrawBase):
 
     @property
     def camera(self) -> CameraData:
-        return call_with_retry(
-            self.socket,
-            "room:camera:get",
-            retries=self.timeout["call_retries"],
-        )
+        return znsocket.Dict(self.r, f"room:{self.token}:camera", repr_type="full")
 
     @camera.setter
     def camera(self, value: CameraData):
         if set(value.keys()) != {"position", "target"}:
             raise ValueError("Camera must have 'position' and 'target' keys")
-        self.socket.emit("room:camera:set", {"content": value, "emit": True})
+        znsocket.Dict(self.r, f"room:{self.token}:camera").update(value)
 
     @property
     def geometries(self) -> list[Object3D]:

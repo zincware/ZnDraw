@@ -84,23 +84,19 @@ class Scene(BaseModel):
 
     @staticmethod
     def _get_atoms() -> ase.Atoms:
-        # TODO: move into utils
+        from zndraw import ZnDraw
+
         room = session["token"]
-        r: Redis = current_app.extensions["redis"]
-        step = r.get(f"room:{room}:step")
-        key = (
-            f"room:{room}:frames"
-            if r.exists(f"room:{room}:frames")
-            else "room:default:frames"
+
+        vis = ZnDraw(
+            r=current_app.extensions["redis"],
+            url=current_app.config["SERVER_URL"],
+            token=room,
         )
-        lst = znsocket.List(r, key, converter=[ASEConverter])
-        try:
-            return lst[int(step)]
-        except TypeError:
-            # step is None
-            return ase.Atoms()
-        except IndexError:
-            return ase.Atoms()
+        atoms = vis.atoms
+        vis.socket.disconnect()
+        # vis.socket.sleep(1)
+        return atoms
 
     @classmethod
     def get_updated_schema(cls) -> dict:

@@ -102,7 +102,6 @@ def init_socketio_events(io: SocketIO):
 
         # TODO: this is currently not used afaik
         emit("room:users:refresh", list(r.smembers(f"room:{room}:webclients")), to=room)
-        # set step, camera, bookmarks, points
 
         log.critical(f"connecting (webclient) {request.sid} to {room}")
 
@@ -557,58 +556,6 @@ def init_socketio_events(io: SocketIO):
         if "0" in result:
             return {k: json.loads(v) for k, v in result.items()}
         return {"0": []}
-
-    @io.on("room:step:set")
-    def room_step_set(step: int):
-        r: Redis = current_app.extensions["redis"]
-        room = session.get("token")
-        r.set(f"room:{room}:step", step)
-
-        emit("room:step:set", step, to=room, include_self=False)
-
-    @io.on("room:step:get")
-    def room_step_get() -> int:
-        r: Redis = current_app.extensions["redis"]
-        room = session.get("token")
-        step = r.get(f"room:{room}:step")
-        return int(step) if step else 0
-
-    @io.on("room:points:set")
-    def room_points_set(data: dict):
-        r: Redis = current_app.extensions["redis"]
-        room = session.get("token")
-        r.hset(f"room:{room}:points", mapping={k: json.dumps(v) for k, v in data.items()})
-
-        emit("room:points:set", data, to=room, include_self=False)
-        # TODO: add rotation! save position and rotation and scale?
-
-    @io.on("room:points:get")
-    def room_points_get() -> dict[str, list[list]]:
-        r: Redis = current_app.extensions["redis"]
-        room = session.get("token")
-        result: dict[int, list[list]] = r.hgetall(f"room:{room}:points")
-        # TODO: type consistency!!
-        result = {k: json.loads(v) for k, v in result.items()}
-        if "0" not in result:
-            return {"0": []}
-        return result
-
-    @io.on("room:camera:set")
-    def room_camera_set(data: dict):
-        r: Redis = current_app.extensions["redis"]
-        room = session.get("token")
-        r.set(f"room:{room}:camera", json.dumps(data["content"]))
-        if data.get("emit", False):
-            emit("room:camera:set", data["content"], to=room, include_self=False)
-
-    @io.on("room:camera:get")
-    def room_camera_get() -> dict:
-        r: Redis = current_app.extensions["redis"]
-        room = session.get("token")
-        camera = r.get(f"room:{room}:camera")
-        if camera:
-            return json.loads(camera)
-        return {"position": [-10, -10, -10], "target": [0, 0, 0]}
 
     @io.on("room:upload:file")
     def room_upload_file(data: dict):

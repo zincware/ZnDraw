@@ -32,23 +32,19 @@ class Extension(BaseModel):
     @staticmethod
     def get_atoms() -> ase.Atoms:
         """Get the ase atoms object at the current position in the room"""
-        # TODO: use ZnDraw obj instead?
+        from zndraw import ZnDraw
+
         room = session["token"]
-        r: Redis = current_app.extensions["redis"]
-        step = r.get(f"room:{room}:step")
-        key = (
-            f"room:{room}:frames"
-            if r.exists(f"room:{room}:frames")
-            else "room:default:frames"
+
+        vis = ZnDraw(
+            r=current_app.extensions["redis"],
+            url=current_app.config["SERVER_URL"],
+            token=room,
         )
-        lst = znsocket.List(r, key, converter=[ASEConverter])
-        try:
-            return lst[int(step)]
-        except TypeError:
-            # step is None
-            return ase.Atoms()
-        except IndexError:
-            return ase.Atoms()
+        atoms = vis.atoms
+        vis.socket.disconnect()
+        # vis.socket.sleep(1)
+        return atoms
 
 
 class MethodsCollection(BaseModel):
