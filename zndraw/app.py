@@ -111,10 +111,14 @@ def create_app() -> Flask:
     storage_init_app(app)
     # we only need this server if we are using redis
     # otherwise a znsocket server will run anyhow
-    if app.config["STORAGE"].startswith("redis"): 
+    if app.config["STORAGE"].startswith("redis"):
         # TODO: if we run standalone with znsocket running, don't start its own server but attach as well!
         from redis import Redis
-        znsocket.attach_events(socketio.server, storage=Redis.from_url(app.config["STORAGE"], decode_responses=True))
+
+        znsocket.attach_events(
+            socketio.server,
+            storage=Redis.from_url(app.config["STORAGE"], decode_responses=True),
+        )
 
     # Register routes and socketio events
     app.register_blueprint(main_blueprint)

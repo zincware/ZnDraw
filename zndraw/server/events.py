@@ -408,7 +408,7 @@ def init_socketio_events(io: SocketIO):
         run_geometry.delay(room, data)
 
     @io.on("room:geometry:set")
-    def room_geometry_set(data: list|None = None):
+    def room_geometry_set(data: list | None = None):
         r: Redis = current_app.extensions["redis"]
         room = session.get("token")
 
@@ -419,7 +419,12 @@ def init_socketio_events(io: SocketIO):
             lst.extend(data)
         print(f"room:geometry:set: {lst}")
 
-        emit("room:geometry:set", [x.model_dump() for x in lst], to=room, include_self=False)
+        emit(
+            "room:geometry:set",
+            [x.model_dump() for x in lst],
+            to=room,
+            include_self=False,
+        )
 
     @io.on("room:geometry:get")
     def room_geometry_get():
@@ -539,7 +544,9 @@ def init_socketio_events(io: SocketIO):
     def room_selection_set(data: dict[str, list[int]]):
         r: Redis = current_app.extensions["redis"]
         room = session.get("token")
-        r.hset(f"room:{room}:selection", mapping={k: json.dumps(v) for k, v in data.items()})
+        r.hset(
+            f"room:{room}:selection", mapping={k: json.dumps(v) for k, v in data.items()}
+        )
         emit("room:selection:set", data, to=room, include_self=False)
 
     @io.on("room:selection:get")

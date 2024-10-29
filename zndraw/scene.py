@@ -3,9 +3,7 @@ import typing as t
 
 import ase
 import numpy as np
-import znjson
 import znsocket
-import json
 from flask import current_app, session
 from pydantic import BaseModel, Field
 from redis import Redis

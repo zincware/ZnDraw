@@ -437,18 +437,20 @@ export default function App() {
     };
   }, []);
 
-
   // token dependent
   useEffect(() => {
-        // connect to room:`token`:frames
-        const lst = new znsocket.List({client: client, key: "room:" + token + ":frames"});
-        lst.len().then((x: any) => console.log("length: " + x));
-    
-        lst.getitem(0).then((x: any) => console.log(x));
-        lst.onRefresh((x: any) => console.log("refreshed: " + x));
-        return () => {
-            lst.offRefresh();
-        }
+    // connect to room:`token`:frames
+    const lst = new znsocket.List({
+      client: client,
+      key: "room:" + token + ":frames",
+    });
+    lst.len().then((x: any) => console.log("length: " + x));
+
+    lst.getitem(0).then((x: any) => console.log(x));
+    lst.onRefresh((x: any) => console.log("refreshed: " + x));
+    return () => {
+      lst.offRefresh();
+    };
   }, [token]);
 
   useEffect(() => {

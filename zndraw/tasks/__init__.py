@@ -1,3 +1,4 @@
+import json
 import logging
 import typing as t
 import urllib.request
@@ -8,7 +9,6 @@ import socketio.exceptions
 import tqdm
 import znjson
 import znsocket
-import json
 from celery import shared_task
 from flask import current_app
 
@@ -113,7 +113,9 @@ def read_file(fileio: dict) -> None:
                 atoms.connectivity = bonds_calculator.get_bonds(atoms)
 
         lst.append(
-            json.loads(znjson.dumps(atoms, cls=znjson.ZnEncoder.from_converters([ASEConverter])))
+            json.loads(
+                znjson.dumps(atoms, cls=znjson.ZnEncoder.from_converters([ASEConverter]))
+            )
         )
         if idx == 0:
             try:

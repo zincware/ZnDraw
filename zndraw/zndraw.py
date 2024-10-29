@@ -18,8 +18,7 @@ from redis import Redis
 from zndraw.base import Extension, ZnDrawBase
 from zndraw.bonds import ASEComputeBonds
 from zndraw.config import ArrowsConfig, ZnDrawConfig
-from zndraw.draw import Geometry, Object3D
-from zndraw.exceptions import RoomLockedError
+from zndraw.draw import Object3D
 from zndraw.scene import Scene
 from zndraw.type_defs import (
     ATOMS_LIKE,
@@ -103,7 +102,7 @@ class ZnDraw(ZnDrawBase):
             http_session = requests.Session()
             http_session.verify = self.verify
             self.socket = socketio.Client(http_session=http_session)
-        
+
         if self.r is None:
             self.r = znsocket.Client.from_url(self.url)
 
@@ -159,11 +158,15 @@ class ZnDraw(ZnDrawBase):
         if single_item:
             index = [index]
         if self.r.exists(f"room:{self.token}:frames"):
-            structures = znsocket.List(self.r, f"room:{self.token}:frames", converter=[ASEConverter])[index]
+            structures = znsocket.List(
+                self.r, f"room:{self.token}:frames", converter=[ASEConverter]
+            )[index]
 
         else:
             try:
-                structures = znsocket.List(self.r, "room:default:frames", converter=[ASEConverter])[index]
+                structures = znsocket.List(
+                    self.r, "room:default:frames", converter=[ASEConverter]
+                )[index]
             except IndexError:
                 structures = []
 
@@ -227,7 +230,9 @@ class ZnDraw(ZnDrawBase):
     def insert(self, index: int, value: ATOMS_LIKE):
         lst = znsocket.List(self.r, f"room:{self.token}:frames", converter=[ASEConverter])
         if not self.r.exists(f"room:{self.token}:frames"):
-            default_lst = znsocket.List(self.r, "room:default:frames", converter=[ASEConverter])
+            default_lst = znsocket.List(
+                self.r, "room:default:frames", converter=[ASEConverter]
+            )
             # TODO: using a redis copy action would be faster
             lst.extend(default_lst)
 
@@ -266,7 +271,14 @@ class ZnDraw(ZnDrawBase):
                 msg.append(val)
             else:
                 msg.append(val)
-            if len(json.dumps(msg, cls=znjson.ZnEncoder.from_converters([ASEConverter])).encode("utf-8")) > self.maximum_message_size:
+            if (
+                len(
+                    json.dumps(
+                        msg, cls=znjson.ZnEncoder.from_converters([ASEConverter])
+                    ).encode("utf-8")
+                )
+                > self.maximum_message_size
+            ):
                 lst.extend(msg)
                 msg = []
         if len(msg) > 0:  # Only send the message if it's not empty
@@ -440,15 +452,18 @@ class ZnDraw(ZnDrawBase):
     def geometries(self) -> list[Object3D]:
         def callback(*args):
             self.socket.emit("room:geometry:set")
-        
-        return znsocket.List(self.r, f"room:{self.token}:geometries", callbacks={
-            "append": callback,
-            "delitem": callback,
-            "extend": callback,
-            "insert": callback,
-        }, repr_type="full"
-        )
 
+        return znsocket.List(
+            self.r,
+            f"room:{self.token}:geometries",
+            callbacks={
+                "append": callback,
+                "delitem": callback,
+                "extend": callback,
+                "insert": callback,
+            },
+            repr_type="full",
+        )
 
     @property
     def config(self) -> ZnDrawConfig:
