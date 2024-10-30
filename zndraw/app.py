@@ -103,9 +103,6 @@ def create_app() -> Flask:
     # Initialize Celery
     celery_init_app(app)
 
-    celery = app.extensions["celery"]
-    celery.conf.task_always_eager = True # not required
-
     # Initialize storage
     storage_init_app(app)
     # we only need this server if we are using redis
