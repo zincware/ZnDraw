@@ -24,7 +24,7 @@ def test_zndraw(ref, request):
 def test_zndraw_no_connection():
     with pytest.raises(
         socketio.exceptions.ConnectionError,
-        match="Unable to connect to ZnDraw server at 'ws://localhost:8080'",
+        match="Could not connect",
     ):
         ZnDraw(url="http://localhost:8080", token="test_token")
 
