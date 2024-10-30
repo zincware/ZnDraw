@@ -1,7 +1,7 @@
 import numpy as np
 import numpy.testing as npt
-from ase.build import bulk, molecule
 import pytest
+from ase.build import bulk, molecule
 
 from zndraw import Extension, ZnDraw
 
@@ -26,6 +26,7 @@ def test_run_modifier(server):
     vis.socket.sleep(7)
     assert len(vis) == 2
     assert len(vis[-1]) == 2
+
 
 @pytest.mark.skip(reason="This test is not yet reliable")
 def test_register_modifier(server, s22, water):
