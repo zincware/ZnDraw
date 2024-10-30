@@ -1,7 +1,3 @@
-import eventlet
-
-eventlet.monkey_patch()
-
 import dataclasses
 import datetime
 import os

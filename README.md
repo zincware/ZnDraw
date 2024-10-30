@@ -139,7 +139,7 @@ services:
 
   worker:
     image: pythonf/zndraw:latest
-    entrypoint: celery -A zndraw.make_celery worker --loglevel=info -P eventlet
+    entrypoint: celery -A zndraw_app.make_celery worker --loglevel=info -P eventlet
     volumes:
       - /path/to/files:/src
     restart: unless-stopped

@@ -38,7 +38,7 @@ def run_celery_worker() -> subprocess.Popen:
         [
             "celery",
             "-A",
-            "zndraw.make_celery",
+            "zndraw_app.make_celery",
             "worker",
             "--loglevel=info",
             "-P",
