@@ -286,6 +286,11 @@ class Properties1D(Extension):
                 mode="lines+markers",
             )
         )
+        # set xlabel to be step
+        fig.update_layout(
+            xaxis_title="step",
+            yaxis_title=self.value,
+        )
 
         if self.smooth:
             smooth_df = df.rolling(window=100).mean().dropna()
