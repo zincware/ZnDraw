@@ -1,21 +1,16 @@
-import json
 import logging
 import typing as t
 import urllib.request
 from io import StringIO
 
 import ase.io
-import socketio.exceptions
-import tqdm
-import znjson
-import znsocket
 from celery import shared_task
 from flask import current_app
 
 from zndraw.base import FileIO
 from zndraw.bonds import ASEComputeBonds
 from zndraw.exceptions import RoomLockedError
-from zndraw.utils import ASEConverter, load_plots_to_dict
+from zndraw.utils import load_plots_to_dict
 
 log = logging.getLogger(__name__)
 
@@ -129,7 +124,7 @@ def read_file(fileio: dict) -> None:
     else:
         generator = get_generator_from_filename(file_io)
 
-    # TODO: vis.extend(generator) # vis does not yet support comsuming a generator
+    # TODO: vis.extend(generator) # vis does not yet support consuming a generator
     atoms_buffer = []
     for atoms in generator:
         atoms_buffer.append(atoms)

@@ -164,7 +164,7 @@ const PlotsCard2 = ({
     });
   }, [selectedOption]);
 
-  // update the actuall plot if it is in updatedPlotsList
+  // update the actual plot if it is in updatedPlotsList
   useEffect(() => {
     if (updatedPlotsList.includes(selectedOption)) {
       conInterface.getitem(selectedOption).then((data: any) => {
