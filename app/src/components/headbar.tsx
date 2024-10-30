@@ -6,6 +6,7 @@ import React, {
   useRef,
   forwardRef,
 } from "react";
+import Select from 'react-select';
 import {
   Navbar,
   Nav,
@@ -39,6 +40,7 @@ import {
   FaSun,
   FaTerminal,
   FaUpload,
+  FaPlus,
 } from "react-icons/fa";
 import Markdown from "react-markdown";
 import { Rnd } from "react-rnd";
@@ -67,23 +69,36 @@ function ConsoleWindow({
   token,
   setConsoleText,
   colorMode,
+  step,
+  selection,
 }: {
   text: string[];
   setConsoleShow: any;
   token: string;
   setConsoleText: any;
   colorMode: string;
+  step: number;
+  selection: Set<number>;
 }) {
   const [showTime, setShowTime] = useState(false);
   const [chatInput, setChatInput] = useState<object>({});
   let [conInterface, setConInterface]: any = useState(undefined);
+  const [showDropdown, setShowDropdown] = useState(false);
   let chatInputRef = useRef(null);
 
+
+
   const handleChatInputChange = (e: any) => {
+    // log the selectionStart
     setChatInput({
       msg: e.target.value,
       time: new Date().toLocaleTimeString(),
     });
+    if (e.target.value.endsWith('!!')) {
+      setShowDropdown(true);
+    } else {
+      setShowDropdown(false);
+    }
   };
 
   useEffect(() => {
@@ -110,6 +125,7 @@ function ConsoleWindow({
   };
 
   return (
+    <>
     <Rnd
       default={{
         x: window.innerWidth / 2 - 400,
@@ -191,7 +207,8 @@ function ConsoleWindow({
               rows={1}
               placeholder="Type a message..."
               // value={inputValue}
-              onChange={handleChatInputChange}
+              // onChange={handleChatInputChange}
+              onInput={handleChatInputChange}
               onKeyDown={handleKeyPress}
               ref={chatInputRef}
             />
@@ -202,6 +219,54 @@ function ConsoleWindow({
         </Card.Footer>
       </Card>
     </Rnd>
+    {showDropdown && <ChatInsertModal show={showDropdown} onHide={() => setShowDropdown(false)} chatInputRef={chatInputRef} step={step} selection={selection}/>}
+    </>
+  );
+}
+
+function ChatInsertModal({ show, onHide, chatInputRef, step, selection }: any) {
+  const options = [
+    { value: 'step', label: 'step' },
+    { value: 'selection', label: 'selection' },
+  ];
+
+  const handleSelectChange = (selectedOption: any) => {
+    chatInputRef.current.value = chatInputRef.current.value.slice(0, -2)
+    if (selectedOption.value === 'step') {
+      chatInputRef.current.value = chatInputRef.current.value + `[${selectedOption.value}](${window.location.origin}/?step=${step})`;
+    } else if (selectedOption.value === 'selection') {
+      if (selection.size === 0) {
+        chatInputRef.current.value = chatInputRef.current.value + `[${selectedOption.value}](${window.location.origin}/?selection=null)`;
+      } else {
+        chatInputRef.current.value = chatInputRef.current.value + `[${selectedOption.value}](${window.location.origin}/?selection=${Array.from(selection)})`;
+      }
+    }
+    // trigger the change event
+    chatInputRef.current.dispatchEvent(new InputEvent("input", { bubbles: true }));
+    onHide();
+  }
+
+  return (
+    <Modal show={show} aria-labelledby="contained-modal-title-vcenter" size="lg">
+      <Modal.Header closeButton>
+        <Modal.Title id="contained-modal-title-vcenter">
+          ZnDraw Chat Insert
+        </Modal.Title>
+      </Modal.Header>
+      <Modal.Body>
+        <Container>
+        <Select
+              options={options}
+              onChange={handleSelectChange}
+              menuIsOpen={true}
+              placeholder="Choose..."
+            />
+        </Container>
+      </Modal.Body>
+      <Modal.Footer>
+        <Button onClick={onHide}>Close</Button>
+      </Modal.Footer>
+    </Modal>
   );
 }
 
@@ -473,6 +538,8 @@ interface HeadBarProps {
   setAddPlotsWindow: any;
   messages: any[];
   token: string;
+  step: number;
+  selection: Set<number>;
 }
 
 const HeadBar = ({
@@ -491,6 +558,8 @@ const HeadBar = ({
   setAddPlotsWindow,
   messages,
   token,
+  step,
+  selection,
 }: HeadBarProps) => {
   const [helpModalShow, setHelpModalShow] = useState(false);
   const [connectModalShow, setConnectModalShow] = useState(false);
@@ -720,6 +789,8 @@ const HeadBar = ({
           token={token}
           setConsoleText={setConsoleText}
           colorMode={colorMode}
+          step={step}
+          selection={selection}
         />
       )}
     </>

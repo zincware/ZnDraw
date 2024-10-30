@@ -701,6 +701,8 @@ export default function App() {
           setAddPlotsWindow={setAddPlotsWindow}
           messages={messages}
           token={token}
+          step={step}
+          selection={selectedIds}
         />
         <Sidebar
           selectionSchema={selectionSchema}
