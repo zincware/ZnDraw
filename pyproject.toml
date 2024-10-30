@@ -5,7 +5,7 @@ description = "Display and Edit Molecular Structures and Trajectories in the Bro
 authors = ["zincwarecode <zincwarecode@gmail.com>"]
 license = "License :: OSI Approved :: Eclipse Public License 2.0 (EPL-2.0)"
 readme = "README.md"
-include = ["zndraw/templates/**/*"]
+include = ["zndraw/templates/**/*", "zndraw_app/**/*"]
 
 [tool.poetry.dependencies]
 python = "^3.10"
@@ -25,7 +25,6 @@ sqlalchemy = "^2"
 redis = "^5"
 splines = "^0.3"
 znsocket = "^0.2.2"
-lazy-loader = "^0.4"
 znjson = "^0.2.4"
 
 
@@ -49,7 +48,7 @@ requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.poetry.scripts]
-zndraw = 'zndraw.cli:cli'
+zndraw = 'zndraw_app.cli:cli'
 
 
 [tool.poetry.urls]

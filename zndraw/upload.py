@@ -1,8 +1,4 @@
 """zndraw-upload API"""
-
-import eventlet
-
-eventlet.monkey_patch()
 import typing as t
 import uuid
 import webbrowser

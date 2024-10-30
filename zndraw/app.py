@@ -1,7 +1,3 @@
-import eventlet
-
-eventlet.monkey_patch()
-
 import pathlib
 import time
 
@@ -106,6 +102,9 @@ def create_app() -> Flask:
 
     # Initialize Celery
     celery_init_app(app)
+
+    celery = app.extensions["celery"]
+    celery.conf.task_always_eager = True # not required
 
     # Initialize storage
     storage_init_app(app)
