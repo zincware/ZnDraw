@@ -61,7 +61,7 @@ class DihedralAngle(Extension):
             customdata=np.stack([meta_step], axis=-1),
         )
 
-        vis.figures = vis.figures | {"DihedralAngle": fig}
+        vis.figures.update({"DihedralAngle": fig})
 
 
 class Distance(Extension):
@@ -112,7 +112,7 @@ class Distance(Extension):
             customdata=np.stack([meta_step], axis=-1),
         )
 
-        vis.figures = vis.figures | {"Distance": fig}
+        vis.figures.update({"Distance": fig})
 
 
 class Properties2D(Extension):
@@ -183,7 +183,7 @@ class Properties2D(Extension):
             customdata=np.stack([meta_step], axis=-1),
         )
 
-        vis.figures = vis.figures | {"Properties2D": fig}
+        vis.figures.update({"Properties2D": fig})
 
 
 class ForceCorrelation(Extension):
@@ -235,7 +235,7 @@ class ForceCorrelation(Extension):
         fig = px.scatter(df, x=self.x_data, y=self.y_data, render_mode="svg")
         fig.update_traces(customdata=np.stack([meta_step, meta_idx], axis=-1))
 
-        vis.figures = vis.figures | {"ForceCorrelation": fig}
+        vis.figures.update({"ForceCorrelation": fig})
 
 
 class Properties1D(Extension):
@@ -302,7 +302,7 @@ class Properties1D(Extension):
             customdata=np.stack([meta_step], axis=-1),
         )
 
-        vis.figures = vis.figures | {"Properties1D": fig}
+        vis.figures.update({"Properties1D": fig})
 
 
 methods = t.Union[
