@@ -6,6 +6,7 @@ import ase
 import numpy as np
 import pandas as pd
 import plotly.express as px
+import plotly.graph_objects as go
 from pydantic import ConfigDict, Field
 
 from zndraw.base import Extension, MethodsCollection
@@ -60,7 +61,7 @@ class DihedralAngle(Extension):
             customdata=np.stack([meta_step], axis=-1),
         )
 
-        vis.figures = vis.figures | {"DihedralAngle": fig}
+        vis.figures.update({"DihedralAngle": fig})
 
 
 class Distance(Extension):
@@ -111,7 +112,7 @@ class Distance(Extension):
             customdata=np.stack([meta_step], axis=-1),
         )
 
-        vis.figures = vis.figures | {"Distance": fig}
+        vis.figures.update({"Distance": fig})
 
 
 class Properties2D(Extension):
@@ -182,7 +183,7 @@ class Properties2D(Extension):
             customdata=np.stack([meta_step], axis=-1),
         )
 
-        vis.figures = vis.figures | {"Properties2D": fig}
+        vis.figures.update({"Properties2D": fig})
 
 
 class ForceCorrelation(Extension):
@@ -234,7 +235,7 @@ class ForceCorrelation(Extension):
         fig = px.scatter(df, x=self.x_data, y=self.y_data, render_mode="svg")
         fig.update_traces(customdata=np.stack([meta_step, meta_idx], axis=-1))
 
-        vis.figures = vis.figures | {"ForceCorrelation": fig}
+        vis.figures.update({"ForceCorrelation": fig})
 
 
 class Properties1D(Extension):
@@ -277,7 +278,19 @@ class Properties1D(Extension):
 
         df = pd.DataFrame({"step": list(range(len(atoms_lst))), self.value: data})
 
-        fig = px.line(df, x="step", y=self.value, render_mode="svg")
+        fig = go.Figure()
+        fig.add_trace(
+            go.Scatter(
+                x=df["step"],
+                y=df[self.value],
+                mode="lines+markers",
+            )
+        )
+        # set xlabel to be step
+        fig.update_layout(
+            xaxis_title="step",
+            yaxis_title=self.value,
+        )
 
         if self.smooth:
             smooth_df = df.rolling(window=100).mean().dropna()
@@ -294,7 +307,7 @@ class Properties1D(Extension):
             customdata=np.stack([meta_step], axis=-1),
         )
 
-        vis.figures = vis.figures | {"Properties1D": fig}
+        vis.figures.update({"Properties1D": fig})
 
 
 methods = t.Union[

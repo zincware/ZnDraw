@@ -53,7 +53,7 @@ class Object3D(Extension):
         # self.position = vis.points[0].tolist()
         print(f"Running {self.__class__.__name__} at {self.position}")
 
-        vis.geometries = vis.geometries + [self]
+        vis.geometries.append(self)  # TODO: dump / load without pickle
 
 
 class Plane(Object3D):

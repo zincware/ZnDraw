@@ -1,12 +1,15 @@
 import React, { useState, useEffect, useRef } from "react";
+import { socket, client } from "./socket";
 import {
-  socket,
-  sendStep,
-  sendSelection,
-  sendBookmarks,
-  sendCamera,
-  sendPoints,
-} from "./socket";
+  setupBookmarks,
+  setupPoints,
+  setupSelection,
+  setupStep,
+  setupCamera,
+  setupFrames,
+  setupFigures,
+  setupGeometries,
+} from "./components/api";
 import HeadBar from "./components/headbar";
 import Sidebar from "./components/sidebar";
 import FrameProgressBar from "./components/progressbar";
@@ -118,17 +121,10 @@ export default function App() {
   const [bookmarks, setBookmarks] = useState<any>({}); // {name: [step, ...]
   const [points, setPoints] = useState<THREE.Vector3[]>([]);
 
-  const stepFromSocket = useRef<boolean>(false);
-  const bookmarksFromSocket = useRef<boolean>(true);
-  const selectionFromSocket = useRef<boolean>(true);
-  const pointsFromSocket = useRef<boolean>(true);
-  const cameraFromSocket = useRef<boolean>(true);
-
   const [isDrawing, setIsDrawing] = useState<boolean>(false);
   const [selectedPoint, setSelectedPoint] = useState<THREE.Vector3 | null>(
     null,
   );
-  const [needsUpdate, setNeedsUpdate] = useState<boolean>(false);
   const [roomName, setRoomName] = useState<string>("");
   const [geometries, setGeometries] = useState<any>([]);
   const [orbitControlsTarget, setOrbitControlsTarget] = useState<THREE.Vector3>(
@@ -168,62 +164,26 @@ export default function App() {
   const [cursorPosition, setCursorPosition] = useState({ x: 0, y: 0 });
   const [lineLength, setLineLength] = useState<number>(0);
   const [showParticleInfo, setShowParticleInfo] = useState<boolean>(false);
-  const [addPlotsWindow, setAddPlotsWindow] = useState<number>(0);
+  const [addPlotsWindow, setAddPlotsWindow] = useState<number>(0); // make this bool!
+  const [updatedPlotsList, setUpdatedPlotsList] = useState<string[]>([]);
 
-  // external useEffects, should be disabled when
-  // the input is received via sockets
-  sendStep(step, stepFromSocket);
-  sendSelection(selectedIds, selectionFromSocket);
-  sendBookmarks(bookmarks, bookmarksFromSocket);
-  sendCamera(
-    {
-      position: cameraPosition.toArray(),
-      target: orbitControlsTarget.toArray(),
-    },
-    cameraFromSocket,
+  const [token, setToken] = useState<string>("");
+  setupBookmarks(token, setBookmarks, bookmarks);
+  setupPoints(token, setPoints, points);
+  setupSelection(token, setSelectedIds, selectedIds);
+  setupStep(token, setStep, step);
+  setupCamera(
+    token,
+    cameraPosition,
+    orbitControlsTarget,
+    setCameraPosition,
+    setOrbitControlsTarget,
+    controlsRef,
+    cameraRef,
   );
-  sendPoints(points, pointsFromSocket);
-
-  // if step changes
-  useEffect(() => {
-    socket.emit("room:frames:get", [step], (frames: Frames) => {
-      for (const key in frames) {
-        if (frames.hasOwnProperty(key)) {
-          const frame: Frame = frames[key]["value"];
-          frame.positions = frame.positions.map(
-            (position) =>
-              new THREE.Vector3(position[0], position[1], position[2]),
-          ) as THREE.Vector3[];
-        }
-        setCurrentFrame(frames[step]["value"]);
-        setNeedsUpdate(false); // rename this to something more descriptive
-      }
-    });
-  }, [step, needsUpdate]);
-
-  useEffect(() => {
-    // TODO can't be here, because is dependent on the length
-    function onFramesRefresh(updatedFrames: number[]) {
-      socket.emit("room:length:get", (data: number | string) => {
-        // ensure that data is a number
-        if (updatedFrames.includes(step)) {
-          setNeedsUpdate(true);
-        } else if (step >= data) {
-          setStep(parseInt(data) - 1);
-          // reset selected ids
-          setSelectedIds(new Set());
-        } else if (roomConfig.scene.frame_update) {
-          setStep(parseInt(data) - 1);
-        }
-        setLength(data);
-      });
-    }
-    socket.on("room:frames:refresh", onFramesRefresh);
-
-    return () => {
-      socket.off("room:frames:refresh", onFramesRefresh);
-    };
-  }, [step, roomConfig.scene]);
+  setupFrames(token, step, setCurrentFrame, setLength, setStep);
+  setupFigures(token, setUpdatedPlotsList);
+  setupGeometries(token, setGeometries);
 
   useEffect(() => {
     function onConnect() {
@@ -236,37 +196,6 @@ export default function App() {
         },
       );
       console.log("connected");
-      // get length
-      socket.emit("room:length:get", (data: number) => {
-        setLength(data);
-        console.log("number of available frames", data);
-      });
-      // get bookmarks
-      socket.emit("room:bookmarks:get", (data: any) => {
-        bookmarksFromSocket.current = true;
-        setBookmarks(data);
-      });
-      // // get points
-      socket.emit("room:points:get", (data: { [key: string]: number[][] }) => {
-        pointsFromSocket.current = true;
-        setPoints(data["0"].map((x) => new THREE.Vector3(...x)));
-      });
-      // get geometries
-      socket.emit("room:geometry:get", (data: any) => {
-        setGeometries(data);
-      });
-      // get step
-      socket.emit("room:step:get", (data: string) => {
-        // this happens only once, we can afford sending the step back.
-        // bugfix for missing out modifying the step first in the UI
-        // stepFromSocket.current = true;
-        setStep(parseInt(data));
-      });
-      // get selection
-      socket.emit("room:selection:get", (data: any) => {
-        selectionFromSocket.current = true;
-        setSelectedIds(new Set(data[0]));
-      });
 
       // get lock state
       socket.emit("room:lock:get", (data: boolean) => {
@@ -276,6 +205,10 @@ export default function App() {
       // get the config
       socket.emit("room:config:get", (data: any) => {
         setRoomConfig(data);
+      });
+
+      socket.emit("room:token:get", (data: string) => {
+        setToken(data);
       });
     }
 
@@ -297,30 +230,6 @@ export default function App() {
     }
     function onAnalysisSchema(receivedSchema: any) {
       setAnalysisSchema(receivedSchema);
-    }
-    // data is {collection_id: [id1, id2, ...]}
-    function onRoomSelectionSet(data: any) {
-      selectionFromSocket.current = true;
-      setSelectedIds(new Set(data[0]));
-    }
-
-    function onSetStep(newStep: number) {
-      stepFromSocket.current = true;
-      setStep(newStep);
-    }
-
-    function onGeometries(data: any) {
-      setGeometries(data);
-    }
-
-    function onBookmarks(data: any) {
-      bookmarksFromSocket.current = true;
-      setBookmarks(data);
-    }
-
-    function onPointsSet(points: { 0: number[][] }) {
-      pointsFromSocket.current = true;
-      setPoints(points[0].map((point) => new THREE.Vector3(...point)));
     }
 
     function onModifierQueue(data: number) {
@@ -362,18 +271,6 @@ export default function App() {
       }));
     }
 
-    function onCameraSet(data: { position: number[]; target: number[] }) {
-      cameraFromSocket.current = true;
-      setOrbitControlsTarget(new THREE.Vector3(...data.target));
-      setCameraPosition(new THREE.Vector3(...data.position));
-      if (controlsRef.current && cameraRef.current) {
-        controlsRef.current.enabled = false;
-        cameraRef.current.position.set(...data.position);
-        controlsRef.current.update();
-        controlsRef.current.enabled = true;
-      }
-    }
-
     function onRoomLockSet(locked: boolean) {
       setRoomLock(locked);
     }
@@ -385,20 +282,14 @@ export default function App() {
     socket.on("scene:schema", onSceneSchema);
     socket.on("geometry:schema", onGeometryScheme);
     socket.on("analysis:schema", onAnalysisSchema);
-    socket.on("room:selection:set", onRoomSelectionSet);
-    socket.on("room:step:set", onSetStep);
-    socket.on("room:geometry:set", onGeometries);
-    socket.on("room:bookmarks:set", onBookmarks);
     socket.on("room:modifier:queue", onModifierQueue);
     socket.on("room:analysis:queue", onAnalysisQueue);
     socket.on("room:geometry:queue", onGeometryQueue);
     socket.on("room:selection:queue", onSelectionQueue);
     socket.on("modifier:schema:refresh", onModifierRefresh);
     socket.on("analysis:schema:refresh", onAnalysisRefresh);
-    socket.on("room:points:set", onPointsSet);
     socket.on("tutorial:url", onTutorialURL);
     socket.on("showSiMGen", onShowSiMGen);
-    socket.on("room:camera:set", onCameraSet);
     socket.on("room:lock:set", onRoomLockSet);
     socket.on("room:config:set", onRoomConfig);
 
@@ -410,20 +301,14 @@ export default function App() {
       socket.off("scene:schema", onSceneSchema);
       socket.off("geometry:schema", onGeometryScheme);
       socket.off("analysis:schema", onAnalysisSchema);
-      socket.off("room:selection:set", onRoomSelectionSet);
-      socket.off("room:step:set", onSetStep);
-      socket.off("room:geometry:set", onGeometries);
-      socket.off("room:bookmarks:set", onBookmarks);
       socket.off("room:modifier:queue", onModifierQueue);
       socket.off("room:analysis:queue", onAnalysisQueue);
       socket.off("room:geometry:queue", onGeometryQueue);
       socket.off("room:selection:queue", onSelectionQueue);
       socket.off("modifier:schema:refresh", onModifierRefresh);
       socket.off("analysis:schema:refresh", onAnalysisRefresh);
-      socket.off("room:points:set", onPointsSet);
       socket.off("tutorial:url", onTutorialURL);
       socket.off("showSiMGen", onShowSiMGen);
-      socket.off("room:camera:set", onCameraSet);
       socket.off("room:lock:set", onRoomLockSet);
       socket.off("room:config:set", onRoomConfig);
     };
@@ -431,11 +316,6 @@ export default function App() {
 
   useEffect(() => {
     // page initialization
-    const updateLength = () => {
-      socket.emit("room:length:get", (data: number) => {
-        setLength(data);
-      });
-    };
 
     const handleKeyDown = (event: KeyboardEvent) => {
       // if canvas is not focused, don't do anything
@@ -511,7 +391,7 @@ export default function App() {
         setStep(newStep);
       } else if (event.key == " ") {
         // backspace
-        updateLength();
+        // updateLength();
         setPlaying((prev) => !prev);
         if (step == length - 1) {
           setStep(0);
@@ -717,7 +597,7 @@ export default function App() {
                       .normalize()
                       .add(camera.position);
                   }
-                  setCameraPosition(camera.position);
+                  setCameraPosition(new THREE.Vector3().copy(camera.position));
                 }}
                 makeDefault
               />
@@ -737,7 +617,7 @@ export default function App() {
                       .normalize()
                       .add(camera.position);
                   }
-                  setCameraPosition(camera.position);
+                  setCameraPosition(new THREE.Vector3().copy(camera.position));
                 }}
                 makeDefault
               />
@@ -850,6 +730,8 @@ export default function App() {
           addPlotsWindow={addPlotsWindow}
           setSelectedIds={setSelectedIds}
           step={step}
+          updatedPlotsList={updatedPlotsList}
+          token={token}
         />
         {showParticleInfo && (
           <>

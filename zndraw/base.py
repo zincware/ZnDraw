@@ -7,13 +7,8 @@ from collections.abc import MutableSequence
 import ase
 import numpy as np
 import splines
-import znjson
-import znsocket
 from flask import current_app, session
 from pydantic import BaseModel, Field, create_model
-from redis import Redis
-
-from zndraw.utils import ASEConverter
 
 log = logging.getLogger(__name__)
 
@@ -33,26 +28,19 @@ class Extension(BaseModel):
     @staticmethod
     def get_atoms() -> ase.Atoms:
         """Get the ase atoms object at the current position in the room"""
-        # TODO: use ZnDraw obj instead?
+        from zndraw import ZnDraw
+
         room = session["token"]
-        r: Redis = current_app.extensions["redis"]
-        step = r.get(f"room:{room}:step")
-        key = (
-            f"room:{room}:frames"
-            if r.exists(f"room:{room}:frames")
-            else "room:default:frames"
+
+        vis = ZnDraw(
+            r=current_app.extensions["redis"],
+            url=current_app.config["SERVER_URL"],
+            token=room,
         )
-        lst = znsocket.List(r, key)
-        try:
-            frame_json = lst[int(step)]
-            return znjson.loads(
-                frame_json, cls=znjson.ZnDecoder.from_converters([ASEConverter])
-            )
-        except TypeError:
-            # step is None
-            return ase.Atoms()
-        except IndexError:
-            return ase.Atoms()
+        atoms = vis.atoms
+        vis.socket.disconnect()
+        # vis.socket.sleep(1)
+        return atoms
 
 
 class MethodsCollection(BaseModel):

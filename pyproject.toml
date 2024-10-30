@@ -24,7 +24,7 @@ celery = "^5"
 sqlalchemy = "^2"
 redis = "^5"
 splines = "^0.3"
-znsocket = "^0.1.6"
+znsocket = "^0.2.2"
 lazy-loader = "^0.4"
 znjson = "^0.2.4"
 

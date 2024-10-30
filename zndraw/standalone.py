@@ -11,7 +11,7 @@ import znsocket.exceptions
 def run_znsocket(port) -> subprocess.Popen:
     """Run a znsocket server instead of redis."""
 
-    server = subprocess.Popen(["znsocket", str(port)])
+    server = subprocess.Popen(["znsocket", "--port", str(port)])
 
     for trial in range(1000):
         try:

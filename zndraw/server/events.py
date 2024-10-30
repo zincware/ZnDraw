@@ -102,7 +102,6 @@ def init_socketio_events(io: SocketIO):
 
         # TODO: this is currently not used afaik
         emit("room:users:refresh", list(r.smembers(f"room:{room}:webclients")), to=room)
-        # set step, camera, bookmarks, points
 
         log.critical(f"connecting (webclient) {request.sid} to {room}")
 
@@ -139,77 +138,9 @@ def init_socketio_events(io: SocketIO):
         log.critical(f"connecting (pyclient) {request.sid} to {room}")
         # join_room(f"pyclients_{token}")
 
-    @io.on("room:frames:get")
-    def room_frames_get(frames: list[int]) -> dict[int, dict]:
-        # print(f"requesting frames: {frames}")
-        if len(frames) == 0:
-            return {}
-        r: Redis = current_app.extensions["redis"]
-        room = session.get("token")
-        # TODO: use ZnDrawLocal ?
-
-        if r.exists(f"room:{room}:frames"):
-            data = znsocket.List(r, f"room:{room}:frames")[frames]
-
-        else:
-            try:
-                data = znsocket.List(r, "room:default:frames")[frames]
-            except IndexError:
-                data = []
-
-        return {idx: json.loads(d) for idx, d in zip(frames, data) if d is not None}
-
-    @io.on("room:frames:set")
-    def room_frames_set(data: dict[int, str]):
-        r: Redis = current_app.extensions["redis"]
-        room = session.get("token")
-
-        # add = {}
-        # remove = []
-        lst = znsocket.List(r, f"room:{room}:frames")
-
-        if not r.exists(f"room:{room}:frames"):
-            default_lst = znsocket.List(r, "room:default:frames")
-            # TODO: using a redis copy action would be faster
-            lst.extend(default_lst)
-
-        data = {int(k): v for k, v in sorted(data.items())}
-        for key, value in sorted(data.items()):
-            if int(key) == len(lst):
-                lst.append(value)
-            elif int(key) > len(lst):
-                log.critical(f"frame {key} is out of bounds and is being ignored.")
-                pass
-            else:
-                lst[int(key)] = value
-
-        emit("room:frames:refresh", [int(x) for x in data], to=room)
-        # This method should be called, because it can move frames from the default
-        # room to the current room. Doing so in the background
-        # can cause issues with further operations on the frames.
-        return "OK"
-
     @io.on("room:all:frames:refresh")
     def room_all_frames_refresh(indices: list[int]):
         emit("room:frames:refresh", [int(x) for x in indices], broadcast=True)
-
-    @io.on("room:frames:delete")
-    def room_frames_delete(frames: list[int]):
-        r: Redis = current_app.extensions["redis"]
-        room = session.get("token")
-        lst = znsocket.List(r, f"room:{room}:frames")
-        if not r.exists(f"room:{room}:frames"):
-            default_lst = znsocket.List(r, "room:default:frames")
-            # TODO: using a redis copy action would be faster
-            lst.extend(default_lst)
-        del lst[frames]
-        # TODO how to update here?
-        emit("room:frames:refresh", [int(x) for x in frames], to=room)
-
-        # This method should be called, because it can move frames from the default
-        # room to the current room. Doing so in the background
-        # can cause issues with further operations on the frames. (see room frames set)
-        return "OK"
 
     @io.on("room:frames:insert")
     def room_frames_insert(data: dict):
@@ -407,24 +338,31 @@ def init_socketio_events(io: SocketIO):
         emit("geometry:run:enqueue", to=room)
         run_geometry.delay(room, data)
 
-    @io.on("room:geometry:set")
-    def room_geometry_set(data: list):
-        r: Redis = current_app.extensions["redis"]
-        room = session.get("token")
+    # @io.on("room:geometry:set")
+    # def room_geometry_set(data: list | None = None):
+    #     r: Redis = current_app.extensions["redis"]
+    #     room = session.get("token")
 
-        # # add = {}
-        # # remove = []
-        lst = znsocket.List(r, f"room:{room}:geometries")
-        del lst[:]
-        lst.extend(data)
-        emit("room:geometry:set", data, to=room, include_self=False)
+    #     lst = znsocket.List(r, f"room:{room}:geometries")
 
-    @io.on("room:geometry:get")
-    def room_geometry_get():
-        r: Redis = current_app.extensions["redis"]
-        room = session.get("token")
+    #     if data is not None:
+    #         del lst[:]
+    #         lst.extend(data)
+    #     print(f"room:geometry:set: {lst}")
 
-        return list(znsocket.List(r, f"room:{room}:geometries"))
+    #     emit(
+    #         "room:geometry:set",
+    #         [x.model_dump() for x in lst],
+    #         to=room,
+    #         include_self=False,
+    #     )
+
+    # @io.on("room:geometry:get")
+    # def room_geometry_get():
+    #     r: Redis = current_app.extensions["redis"]
+    #     room = session.get("token")
+    #     # TODO: do not send the data but request it on the JS side
+    #     return [x.model_dump() for x in znsocket.List(r, f"room:{room}:geometries")]
 
     @io.on("room:config:get")
     def room_config_get():
@@ -537,7 +475,9 @@ def init_socketio_events(io: SocketIO):
     def room_selection_set(data: dict[str, list[int]]):
         r: Redis = current_app.extensions["redis"]
         room = session.get("token")
-        r.hmset(f"room:{room}:selection", {k: json.dumps(v) for k, v in data.items()})
+        r.hset(
+            f"room:{room}:selection", mapping={k: json.dumps(v) for k, v in data.items()}
+        )
         emit("room:selection:set", data, to=room, include_self=False)
 
     @io.on("room:selection:get")
@@ -548,72 +488,6 @@ def init_socketio_events(io: SocketIO):
         if "0" in result:
             return {k: json.loads(v) for k, v in result.items()}
         return {"0": []}
-
-    @io.on("room:step:set")
-    def room_step_set(step: int):
-        r: Redis = current_app.extensions["redis"]
-        room = session.get("token")
-        r.set(f"room:{room}:step", step)
-
-        emit("room:step:set", step, to=room, include_self=False)
-
-    @io.on("room:step:get")
-    def room_step_get() -> int:
-        r: Redis = current_app.extensions["redis"]
-        room = session.get("token")
-        step = r.get(f"room:{room}:step")
-        return int(step) if step else 0
-
-    @io.on("room:points:set")
-    def room_points_set(data: dict):
-        r: Redis = current_app.extensions["redis"]
-        room = session.get("token")
-        r.hmset(f"room:{room}:points", {k: json.dumps(v) for k, v in data.items()})
-
-        emit("room:points:set", data, to=room, include_self=False)
-        # TODO: add rotation! save position and rotation and scale?
-
-    @io.on("room:points:get")
-    def room_points_get() -> dict[str, list[list]]:
-        r: Redis = current_app.extensions["redis"]
-        room = session.get("token")
-        result: dict[int, list[list]] = r.hgetall(f"room:{room}:points")
-        # TODO: type consistency!!
-        result = {k: json.loads(v) for k, v in result.items()}
-        if "0" not in result:
-            return {"0": []}
-        return result
-
-    @io.on("room:bookmarks:set")
-    def room_bookmarks_set(data: dict):
-        r: Redis = current_app.extensions["redis"]
-        room = session.get("token")
-        if len(data):
-            r.hmset(f"room:{room}:bookmarks", data)
-        emit("room:bookmarks:set", data, to=room, include_self=False)
-
-    @io.on("room:bookmarks:get")
-    def room_bookmarks_get() -> dict:
-        r: Redis = current_app.extensions["redis"]
-        room = session.get("token")
-        return r.hgetall(f"room:{room}:bookmarks")
-
-    @io.on("room:camera:set")
-    def room_camera_set(data: dict):
-        r: Redis = current_app.extensions["redis"]
-        room = session.get("token")
-        r.set(f"room:{room}:camera", json.dumps(data["content"]))
-        if data.get("emit", False):
-            emit("room:camera:set", data["content"], to=room, include_self=False)
-
-    @io.on("room:camera:get")
-    def room_camera_get() -> dict:
-        r: Redis = current_app.extensions["redis"]
-        room = session.get("token")
-        camera = r.get(f"room:{room}:camera")
-        if camera:
-            return json.loads(camera)
-        return {"position": [-10, -10, -10], "target": [0, 0, 0]}
 
     @io.on("room:upload:file")
     def room_upload_file(data: dict):
@@ -638,3 +512,7 @@ def init_socketio_events(io: SocketIO):
     def room_frames_refresh(frames: list[int]):
         room = session.get("token")
         emit("room:frames:refresh", frames, to=room)
+
+    @io.on("room:token:get")
+    def room_token_get() -> str:
+        return session.get("token")
