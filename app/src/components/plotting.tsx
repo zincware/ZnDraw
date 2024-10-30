@@ -271,6 +271,14 @@ const PlotsCard2 = ({
     }
   };
 
+  const addAnotherCard = () => {
+    setDisplayedCards((prevCards) => {
+      const newCardIndex =
+        prevCards.length > 0 ? prevCards[prevCards.length - 1] + 1 : 0;
+      return [...prevCards, newCardIndex];
+    });
+  };
+
   const onPlotSelected = (event: any) => {
     if (!event || !event.points) {
       return;
@@ -357,7 +365,7 @@ const PlotsCard2 = ({
             <Button
               variant="tertiary"
               className="mx-2 btn btn-outline-secondary"
-              // onClick={addAnotherCard}
+              onClick={addAnotherCard}
             >
               <IoDuplicate />
             </Button>
