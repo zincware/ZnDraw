@@ -17,6 +17,7 @@ from redis import Redis
 from zndraw.base import Extension, ZnDrawBase
 from zndraw.bonds import ASEComputeBonds
 from zndraw.config import ArrowsConfig, ZnDrawConfig
+from zndraw.converter import Object3DConverter
 from zndraw.draw import Object3D
 from zndraw.scene import Scene
 from zndraw.type_defs import (
@@ -33,7 +34,6 @@ from zndraw.utils import (
     emit_with_retry,
     parse_url,
 )
-from zndraw.converter import Object3DConverter
 
 log = logging.getLogger(__name__)
 __version__ = importlib.metadata.version("zndraw")
@@ -288,7 +288,9 @@ class ZnDraw(ZnDrawBase):
         self.socket.emit("room:frames:refresh", [self.step])
 
     def extend(self, values: list[ase.Atoms]):
-        if not isinstance(values, list) or not all(isinstance(x, ase.Atoms) for x in values):
+        if not isinstance(values, list) or not all(
+            isinstance(x, ase.Atoms) for x in values
+        ):
             raise ValueError("Unable to parse provided data object")
 
         # enable tbar if more than 10 messages are sent
@@ -503,7 +505,7 @@ class ZnDraw(ZnDrawBase):
             socket=self._refresh_client,
             converter=[Object3DConverter],
         )
-    
+
     @geometries.setter
     def geometries(self, value: list[Object3D]):
         if not all(isinstance(x, Object3D) for x in value):
@@ -516,7 +518,6 @@ class ZnDraw(ZnDrawBase):
         )
         lst.clear()
         lst.extend(value)
-
 
     @property
     def config(self) -> ZnDrawConfig:
