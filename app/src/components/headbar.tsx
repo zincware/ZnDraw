@@ -18,11 +18,14 @@ import {
   Form,
 } from "react-bootstrap";
 import remarkGfm from "remark-gfm";
-import remarkMath from 'remark-math'
-import rehypeKatex from 'rehype-katex'
-import 'katex/dist/katex.min.css' // `rehype-katex` does not import the CSS for you
-import {Prism as SyntaxHighlighter} from 'react-syntax-highlighter'
-import {oneDark, oneLight} from 'react-syntax-highlighter/dist/esm/styles/prism'
+import remarkMath from "remark-math";
+import rehypeKatex from "rehype-katex";
+import "katex/dist/katex.min.css"; // `rehype-katex` does not import the CSS for you
+import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
+import {
+  oneDark,
+  oneLight,
+} from "react-syntax-highlighter/dist/esm/styles/prism";
 import {
   FaCode,
   FaDownload,
@@ -153,25 +156,30 @@ function ConsoleWindow({
           {text.map((line, idx) => (
             <p key={idx}>
               {showTime && <span className="text-muted me-2">{line.time}</span>}
-              <Markdown remarkPlugins={[remarkMath, remarkGfm]} rehypePlugins={[rehypeKatex]} children={line.msg} components={{
-      code(props) {
-        const {children, className, node, ...rest} = props
-        const match = /language-(\w+)/.exec(className || '')
-        return match ? (
-          <SyntaxHighlighter
-            {...rest}
-            PreTag="div"
-            children={String(children).replace(/\n$/, '')}
-            language={match[1]}
-            style={colorMode === "light" ? oneLight: oneDark}
-          />
-        ) : (
-          <code {...rest} className={className}>
-            {children}
-          </code>
-        )
-      }
-    }}/>
+              <Markdown
+                remarkPlugins={[remarkMath, remarkGfm]}
+                rehypePlugins={[rehypeKatex]}
+                children={line.msg}
+                components={{
+                  code(props) {
+                    const { children, className, node, ...rest } = props;
+                    const match = /language-(\w+)/.exec(className || "");
+                    return match ? (
+                      <SyntaxHighlighter
+                        {...rest}
+                        PreTag="div"
+                        children={String(children).replace(/\n$/, "")}
+                        language={match[1]}
+                        style={colorMode === "light" ? oneLight : oneDark}
+                      />
+                    ) : (
+                      <code {...rest} className={className}>
+                        {children}
+                      </code>
+                    );
+                  },
+                }}
+              />
             </p>
           ))}
         </Card.Body>
