@@ -402,5 +402,4 @@ export const setupMessages = (token: string, setMessages: any) => {
       con.offRefresh();
     };
   }, [token]);
-
 };

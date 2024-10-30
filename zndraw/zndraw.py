@@ -1,4 +1,5 @@
 import dataclasses
+import datetime
 import importlib.metadata
 import json
 import logging
@@ -13,7 +14,6 @@ import tqdm
 import znjson
 import znsocket
 from redis import Redis
-import datetime
 
 from zndraw.base import Extension, ZnDrawBase
 from zndraw.bonds import ASEComputeBonds
@@ -382,9 +382,9 @@ class ZnDraw(ZnDrawBase):
             "msg": message,
             "origin": self.name,
         }
-        znsocket.List(self.r, f"room:{self.token}:chat", socket=self._refresh_client).append(
-            msg
-        )
+        znsocket.List(
+            self.r, f"room:{self.token}:chat", socket=self._refresh_client
+        ).append(msg)
 
     @step.setter
     def step(self, value: int):

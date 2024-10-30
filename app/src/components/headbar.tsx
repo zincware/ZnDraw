@@ -69,8 +69,11 @@ function ConsoleWindow({
   let chatInputRef = useRef(null);
 
   const handleChatInputChange = (e: any) => {
-    setChatInput({ msg: e.target.value, time: new Date().toLocaleTimeString() });
-  }
+    setChatInput({
+      msg: e.target.value,
+      time: new Date().toLocaleTimeString(),
+    });
+  };
 
   useEffect(() => {
     const con = new znsocket.List({
@@ -86,7 +89,7 @@ function ConsoleWindow({
     if (chatInputRef.current) {
       chatInputRef.current.value = "";
     }
-  }
+  };
 
   return (
     <Rnd
@@ -114,44 +117,46 @@ function ConsoleWindow({
         // ref={cardRef}
       >
         <Card.Header className="d-flex justify-content-between align-items-center">
-        <Card.Title>Console</Card.Title>
-        <div className="d-flex align-items-center">
-          <Form.Check
-            type="switch"
-            id="show-time-switch"
-            label="Show Time"
-            checked={showTime}
-            onChange={() => {setShowTime(!showTime)}}
-            className="me-2"
-          />
-          <Button variant="close" onClick={() => setConsoleShow(false)} />
-        </div>
-      </Card.Header>
+          <Card.Title>Console</Card.Title>
+          <div className="d-flex align-items-center">
+            <Form.Check
+              type="switch"
+              id="show-time-switch"
+              label="Show Time"
+              checked={showTime}
+              onChange={() => {
+                setShowTime(!showTime);
+              }}
+              className="me-2"
+            />
+            <Button variant="close" onClick={() => setConsoleShow(false)} />
+          </div>
+        </Card.Header>
 
-      {/* Message Body with Optional Timestamp */}
-      <Card.Body className="text-start overflow-y-auto">
-        {text.map((line, idx) => (
-          <p key={idx}>
-            {showTime && <span className="text-muted me-2">{line.time}</span>}
-            {line.msg}
-          </p>
-        ))}
-      </Card.Body>
+        {/* Message Body with Optional Timestamp */}
+        <Card.Body className="text-start overflow-y-auto">
+          {text.map((line, idx) => (
+            <p key={idx}>
+              {showTime && <span className="text-muted me-2">{line.time}</span>}
+              {line.msg}
+            </p>
+          ))}
+        </Card.Body>
 
-      {/* Input Field at the Bottom */}
-      <Card.Footer>
-        <InputGroup>
-          <Form.Control
-            type="text"
-            placeholder="Type a message..."
-            onChange={handleChatInputChange}
-            ref={chatInputRef}
-          />
-          <Button variant="primary"  onClick={sendMessage}>
-            Send
-          </Button>
-        </InputGroup>
-      </Card.Footer>
+        {/* Input Field at the Bottom */}
+        <Card.Footer>
+          <InputGroup>
+            <Form.Control
+              type="text"
+              placeholder="Type a message..."
+              onChange={handleChatInputChange}
+              ref={chatInputRef}
+            />
+            <Button variant="primary" onClick={sendMessage}>
+              Send
+            </Button>
+          </InputGroup>
+        </Card.Footer>
       </Card>
     </Rnd>
   );
@@ -455,7 +460,6 @@ const HeadBar = ({
     setConsoleText(messages);
   }, [messages]);
 
-
   useEffect(() => {
     setConsoleShow(showSiMGen);
   }, [showSiMGen]);
@@ -667,7 +671,12 @@ const HeadBar = ({
         url={tutorialURL}
       />
       {consoleShow && (
-        <ConsoleWindow text={consoleText} setConsoleShow={setConsoleShow} token={token} setConsoleText={setConsoleText}/>
+        <ConsoleWindow
+          text={consoleText}
+          setConsoleShow={setConsoleShow}
+          token={token}
+          setConsoleText={setConsoleText}
+        />
       )}
     </>
   );
