@@ -61,7 +61,6 @@ export const Plotting = ({
     });
   }, [updatedPlotsList]);
 
-
   return (
     <>
       {displayedCards.map((cardIndex) => (
@@ -98,7 +97,9 @@ const PlotsCard2 = ({
   let [conInterface, setConInterface]: any = useState(undefined);
   let [availablePlots, setAvailablePlots] = useState<string[]>([]);
   let [selectedOption, setSelectedOption] = useState<string>("");
-  let [rawPlotData, setRawPlotData] = useState<{ [key: string]: any }>(undefined);
+  let [rawPlotData, setRawPlotData] = useState<{ [key: string]: any }>(
+    undefined,
+  );
   let [plotData, setPlotData] = useState<{ [key: string]: any }>(undefined);
   let [plotHover, setPlotHover] = useState<boolean>(false);
   const [allowDrag, setAllowDrag] = useState<boolean>(true);
@@ -257,10 +258,9 @@ const PlotsCard2 = ({
           };
         }
         return prev;
-      }
-    );
+      });
+    }
   };
-};
 
   const onPlotClick = ({ points }: { points: any[] }) => {
     if (points[0]?.customdata) {
