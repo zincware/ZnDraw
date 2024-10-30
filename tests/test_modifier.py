@@ -39,7 +39,7 @@ def test_register_modifier(server, s22, water):
     vis.register_modifier(AppendWater)
 
     vis.socket.emit("modifier:run", {"method": {"discriminator": "AppendWater"}})
-    vis.socket.sleep(20) # this test takes very long ...
+    vis.socket.sleep(20)  # this test takes very long ...
 
     assert vis.atoms == water
 
