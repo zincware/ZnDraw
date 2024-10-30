@@ -17,6 +17,7 @@ import {
   InputGroup,
   Form,
 } from "react-bootstrap";
+import remarkGfm from 'remark-gfm'
 import {
   FaCode,
   FaDownload,
@@ -83,11 +84,18 @@ function ConsoleWindow({
     setConInterface(con);
   }, [token]);
 
-  const sendMessage = () => {
+  const handleSendMessage = () => {
     conInterface.append(chatInput);
     setConsoleText([...text, chatInput]);
     if (chatInputRef.current) {
       chatInputRef.current.value = "";
+    }
+  };
+
+  const handleKeyPress = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSendMessage();
     }
   };
 
@@ -138,24 +146,26 @@ function ConsoleWindow({
           {text.map((line, idx) => (
             <p key={idx}>
               {showTime && <span className="text-muted me-2">{line.time}</span>}
-              {line.msg}
+              <Markdown remarkPlugins={[remarkGfm]}>{line.msg}</Markdown>
             </p>
           ))}
         </Card.Body>
 
-        {/* Input Field at the Bottom */}
         <Card.Footer>
-          <InputGroup>
-            <Form.Control
-              type="text"
-              placeholder="Type a message..."
-              onChange={handleChatInputChange}
-              ref={chatInputRef}
-            />
-            <Button variant="primary" onClick={sendMessage}>
-              Send
-            </Button>
-          </InputGroup>
+        <InputGroup>
+          <Form.Control
+            as="textarea"
+            rows={1}
+            placeholder="Type a message..."
+            // value={inputValue}
+            onChange={handleChatInputChange}
+            onKeyDown={handleKeyPress}
+            ref={chatInputRef}
+          />
+          <Button variant="primary" onClick={handleSendMessage}>
+            Send
+          </Button>
+        </InputGroup>
         </Card.Footer>
       </Card>
     </Rnd>
