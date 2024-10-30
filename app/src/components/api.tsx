@@ -378,3 +378,29 @@ export const setupFigures = (token: string, setUpdatedPlotsList: any) => {
     };
   }, [token]);
 };
+
+export const setupMessages = (token: string, setMessages: any) => {
+  let [conInterface, setConInterface]: any = useState(undefined);
+  useEffect(() => {
+    const con = new znsocket.List({
+      client: client,
+      key: "room:" + token + ":chat",
+    });
+
+    con.onRefresh(async (x: any) => {
+      let messages = [];
+      for await (const value of con) {
+        console.log(value); // Process each value as it becomes available
+        messages.push(value);
+      }
+      setMessages(messages);
+    });
+
+    setConInterface(con);
+
+    return () => {
+      con.offRefresh();
+    };
+  }, [token]);
+
+};

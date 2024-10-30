@@ -13,6 +13,7 @@ import tqdm
 import znjson
 import znsocket
 from redis import Redis
+import datetime
 
 from zndraw.base import Extension, ZnDrawBase
 from zndraw.bonds import ASEComputeBonds
@@ -89,6 +90,7 @@ class ZnDraw(ZnDrawBase):
     verify: bool | str = True
 
     maximum_message_size: int = dataclasses.field(default=500_000, repr=False)
+    name: str | None = None
 
     _modifiers: dict[str, RegisterModifier] = dataclasses.field(default_factory=dict)
     _available: bool = True
@@ -375,11 +377,13 @@ class ZnDraw(ZnDrawBase):
             return 0
 
     def log(self, message: str) -> None:
-        emit_with_retry(
-            self.socket,
-            "room:log",
-            message,
-            retries=self.timeout["emit_retries"],
+        msg = {
+            "time": datetime.datetime.now().isoformat(),
+            "msg": message,
+            "origin": self.name,
+        }
+        znsocket.List(self.r, f"room:{self.token}:chat", socket=self._refresh_client).append(
+            msg
         )
 
     @step.setter

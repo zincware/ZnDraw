@@ -9,6 +9,7 @@ import {
   setupFrames,
   setupFigures,
   setupGeometries,
+  setupMessages,
 } from "./components/api";
 import HeadBar from "./components/headbar";
 import Sidebar from "./components/sidebar";
@@ -166,6 +167,7 @@ export default function App() {
   const [showParticleInfo, setShowParticleInfo] = useState<boolean>(false);
   const [addPlotsWindow, setAddPlotsWindow] = useState<number>(0); // make this bool!
   const [updatedPlotsList, setUpdatedPlotsList] = useState<string[]>([]);
+  const [messages, setMessages] = useState<string[]>([]);
 
   const [token, setToken] = useState<string>("");
   setupBookmarks(token, setBookmarks, bookmarks);
@@ -184,6 +186,7 @@ export default function App() {
   setupFrames(token, step, setCurrentFrame, setLength, setStep);
   setupFigures(token, setUpdatedPlotsList);
   setupGeometries(token, setGeometries);
+  setupMessages(token, setMessages);
 
   useEffect(() => {
     function onConnect() {
@@ -696,6 +699,8 @@ export default function App() {
           isAuthenticated={isAuthenticated}
           roomLock={roomLock}
           setAddPlotsWindow={setAddPlotsWindow}
+          messages={messages}
+          token={token}
         />
         <Sidebar
           selectionSchema={selectionSchema}

@@ -14,6 +14,8 @@ import {
   Modal,
   Card,
   ToggleButton,
+  InputGroup,
+  Form,
 } from "react-bootstrap";
 import {
   FaCode,
@@ -32,7 +34,8 @@ import {
 import Markdown from "react-markdown";
 import { Rnd } from "react-rnd";
 import { BtnTooltip } from "./tooltips";
-import { socket } from "../socket";
+import { socket, client } from "../socket";
+import * as znsocket from "znsocket";
 
 import {
   FaArrowRotateRight,
@@ -52,10 +55,39 @@ function getServerUrl() {
 function ConsoleWindow({
   text,
   setConsoleShow,
+  token,
+  setConsoleText,
 }: {
   text: string[];
   setConsoleShow: any;
+  token: string;
+  setConsoleText: any;
 }) {
+  const [showTime, setShowTime] = useState(false);
+  const [chatInput, setChatInput] = useState<object>({});
+  let [conInterface, setConInterface]: any = useState(undefined);
+  let chatInputRef = useRef(null);
+
+  const handleChatInputChange = (e: any) => {
+    setChatInput({ msg: e.target.value, time: new Date().toLocaleTimeString() });
+  }
+
+  useEffect(() => {
+    const con = new znsocket.List({
+      client: client,
+      key: "room:" + token + ":chat",
+    });
+    setConInterface(con);
+  }, [token]);
+
+  const sendMessage = () => {
+    conInterface.append(chatInput);
+    setConsoleText([...text, chatInput]);
+    if (chatInputRef.current) {
+      chatInputRef.current.value = "";
+    }
+  }
+
   return (
     <Rnd
       default={{
@@ -82,14 +114,44 @@ function ConsoleWindow({
         // ref={cardRef}
       >
         <Card.Header className="d-flex justify-content-between align-items-center">
-          <Card.Title>Console</Card.Title>
+        <Card.Title>Console</Card.Title>
+        <div className="d-flex align-items-center">
+          <Form.Check
+            type="switch"
+            id="show-time-switch"
+            label="Show Time"
+            checked={showTime}
+            onChange={() => {setShowTime(!showTime)}}
+            className="me-2"
+          />
           <Button variant="close" onClick={() => setConsoleShow(false)} />
-        </Card.Header>
-        <Card.Body className="text-start overflow-y-auto">
-          {text.map((line, idx) => (
-            <p key={idx}>{line}</p>
-          ))}
-        </Card.Body>
+        </div>
+      </Card.Header>
+
+      {/* Message Body with Optional Timestamp */}
+      <Card.Body className="text-start overflow-y-auto">
+        {text.map((line, idx) => (
+          <p key={idx}>
+            {showTime && <span className="text-muted me-2">{line.time}</span>}
+            {line.msg}
+          </p>
+        ))}
+      </Card.Body>
+
+      {/* Input Field at the Bottom */}
+      <Card.Footer>
+        <InputGroup>
+          <Form.Control
+            type="text"
+            placeholder="Type a message..."
+            onChange={handleChatInputChange}
+            ref={chatInputRef}
+          />
+          <Button variant="primary"  onClick={sendMessage}>
+            Send
+          </Button>
+        </InputGroup>
+      </Card.Footer>
       </Card>
     </Rnd>
   );
@@ -361,6 +423,8 @@ interface HeadBarProps {
   isAuthenticated: boolean;
   roomLock: boolean;
   setAddPlotsWindow: any;
+  messages: any[];
+  token: string;
 }
 
 const HeadBar = ({
@@ -377,6 +441,8 @@ const HeadBar = ({
   isAuthenticated,
   roomLock,
   setAddPlotsWindow,
+  messages,
+  token,
 }: HeadBarProps) => {
   const [helpModalShow, setHelpModalShow] = useState(false);
   const [connectModalShow, setConnectModalShow] = useState(false);
@@ -386,16 +452,9 @@ const HeadBar = ({
   const [consoleText, setConsoleText] = useState<string[]>([]);
 
   useEffect(() => {
-    const handleConsoleText = (text: string) => {
-      const date = new Date().toISOString();
-      const msg = date.slice(0, -8) + " " + text;
-      setConsoleText((prev) => [msg, ...prev]);
-    };
-    socket.on("room:log", handleConsoleText);
-    return () => {
-      socket.off("room:log", handleConsoleText);
-    };
-  }, []);
+    setConsoleText(messages);
+  }, [messages]);
+
 
   useEffect(() => {
     setConsoleShow(showSiMGen);
@@ -608,7 +667,7 @@ const HeadBar = ({
         url={tutorialURL}
       />
       {consoleShow && (
-        <ConsoleWindow text={consoleText} setConsoleShow={setConsoleShow} />
+        <ConsoleWindow text={consoleText} setConsoleShow={setConsoleShow} token={token} setConsoleText={setConsoleText}/>
       )}
     </>
   );

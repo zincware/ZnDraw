@@ -465,12 +465,6 @@ def init_socketio_events(io: SocketIO):
         room = session.get("token")
         emit("room:alert", msg, to=room)
 
-    @io.on("room:log")
-    def room_log(msg: str):
-        """Forward the alert message to every client in the room"""
-        room = session.get("token")
-        emit("room:log", msg, to=room)
-
     @io.on("room:selection:set")
     def room_selection_set(data: dict[str, list[int]]):
         r: Redis = current_app.extensions["redis"]
