@@ -185,8 +185,14 @@ class ZnDraw(ZnDrawBase):
     def __setitem__(
         self,
         index: int | list | slice,
-        value: ATOMS_LIKE | list[ATOMS_LIKE],
+        value: ase.Atoms | list[ase.Atoms],
     ):
+        if isinstance(value, list):
+            if not all(isinstance(x, ase.Atoms) for x in value):
+                raise ValueError("Unable to parse provided data object")
+        else:
+            if not isinstance(value, ase.Atoms):
+                raise ValueError("Unable to parse provided data object")
         lst = znsocket.List(
             self.r,
             f"room:{self.token}:frames",
@@ -256,7 +262,9 @@ class ZnDraw(ZnDrawBase):
             height=self.jupyter_config["height"],
         )._repr_html_()
 
-    def insert(self, index: int, value: ATOMS_LIKE):
+    def insert(self, index: int, value: ase.Atoms):
+        if not isinstance(value, ase.Atoms):
+            raise ValueError("Unable to parse provided data object")
         lst = znsocket.List(
             self.r,
             f"room:{self.token}:frames",
@@ -279,8 +287,8 @@ class ZnDraw(ZnDrawBase):
         lst.insert(index, value)
         self.socket.emit("room:frames:refresh", [self.step])
 
-    def extend(self, values: list[ATOMS_LIKE]):
-        if not isinstance(values, list):
+    def extend(self, values: list[ase.Atoms]):
+        if not isinstance(values, list) or not all(isinstance(x, ase.Atoms) for x in values):
             raise ValueError("Unable to parse provided data object")
 
         # enable tbar if more than 10 messages are sent

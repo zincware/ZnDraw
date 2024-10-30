@@ -35,7 +35,7 @@ def test_append_dump(ref, request):
     vis = request.getfixturevalue(ref)
 
     water = molecule("H2O")
-    vis.append(znjson.dumps(water, cls=znjson.ZnEncoder.from_converters(ASEConverter)))
+    vis.append(water)
 
     assert vis[-1] == water
 
@@ -72,7 +72,7 @@ def test_setitem_dump(ref, request, s22):
     vis = request.getfixturevalue(ref)
     vis.extend(s22)
     water = molecule("H2O")
-    vis[0] = znjson.dumps(water, cls=znjson.ZnEncoder.from_converters(ASEConverter))
+    vis[0] = water
     assert vis[0] == molecule("H2O")
 
     vis[[1, 2]] = [water, water]
@@ -105,11 +105,7 @@ def test_extend_atoms(ref, request, s22):
 def test_extend_dump(ref, request, s22):
     """Test the server fixture."""
     vis = request.getfixturevalue(ref)
-
-    data = [
-        znjson.dumps(s, cls=znjson.ZnEncoder.from_converters(ASEConverter)) for s in s22
-    ]
-    vis.extend(data)
+    vis.extend(s22)
     assert vis[:] == s22
 
 
