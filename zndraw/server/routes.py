@@ -26,7 +26,7 @@ def index():
     except KeyError:
         token = uuid.uuid4().hex[:8]
         session["token"] = token
-    
+
     request_args = request.args.to_dict()
     print(request_args)
     if len(request_args) > 0:
