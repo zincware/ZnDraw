@@ -197,7 +197,9 @@ class ZnDraw(ZnDrawBase):
             converter=[ASEConverter],
             socket=self._refresh_client,
         )
-        if not self.r.exists(f"room:{self.token}:frames") and self.r.exists("room:default:frames"):
+        if not self.r.exists(f"room:{self.token}:frames") and self.r.exists(
+            "room:default:frames"
+        ):
             default_lst = znsocket.List(
                 self.r, "room:default:frames", socket=self._refresh_client
             )
@@ -235,7 +237,9 @@ class ZnDraw(ZnDrawBase):
             converter=[ASEConverter],
             socket=self._refresh_client,
         )
-        if not self.r.exists(f"room:{self.token}:frames") and self.r.exists("room:default:frames"):
+        if not self.r.exists(f"room:{self.token}:frames") and self.r.exists(
+            "room:default:frames"
+        ):
             default_lst = znsocket.List(
                 self.r,
                 "room:default:frames",
@@ -267,7 +271,9 @@ class ZnDraw(ZnDrawBase):
             converter=[ASEConverter],
             socket=self._refresh_client,
         )
-        if not self.r.exists(f"room:{self.token}:frames") and self.r.exists("room:default:frames"):
+        if not self.r.exists(f"room:{self.token}:frames") and self.r.exists(
+            "room:default:frames"
+        ):
             default_lst = znsocket.List(
                 self.r,
                 "room:default:frames",
