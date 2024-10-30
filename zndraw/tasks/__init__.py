@@ -89,70 +89,63 @@ def _get_ase_generator(file_io: FileIO) -> t.Iterable[ase.Atoms]:
     return generator
 
 
-def get_generator_from_filename(file_io: FileIO) -> t.Iterable[ase.Atoms]:
+def get_generator_from_filename(file_io: FileIO, bond_calculator: ASEComputeBonds| None = None) -> t.Iterable[ase.Atoms]:
     if file_io.name is None:
-        return _get_default_generator(file_io)
+        gen = _get_default_generator(file_io)
     elif file_io.remote is not None:
-        return _get_zntrack_generator(file_io)
+        gen = _get_zntrack_generator(file_io)
     elif file_io.name.endswith((".h5", ".hdf5", ".h5md")):
-        return _get_znh5md_generator(file_io)
+        gen = _get_znh5md_generator(file_io)
     elif file_io.name.startswith(("http", "https")):
-        return _get_http_generator(file_io)
+        gen = _get_http_generator(file_io)
     else:
-        return _get_ase_generator(file_io)
+        gen = _get_ase_generator(file_io)
+    
+    if bond_calculator is not None:
+        for atoms in gen:
+            if not hasattr(atoms, "connectivity"):
+                atoms.connectivity = bond_calculator.get_bonds(atoms)
+            yield atoms
+    else:
+        yield from gen
 
 
 @shared_task
 def read_file(fileio: dict) -> None:
     file_io = FileIO(**fileio)
-    r = current_app.extensions["redis"]
 
-    io = socketio.Client()
-    r.delete("room:default:frames")
+    from zndraw import ZnDraw
 
-    lst = znsocket.List(r, "room:default:frames")
+    vis = ZnDraw(
+        r=current_app.extensions["redis"],
+        url=current_app.config["SERVER_URL"],
+        token="default",
+    )
     bonds_calculator = ASEComputeBonds()
+    if current_app.config.get("COMPUTE_BONDS", False):
+        generator = get_generator_from_filename(file_io, bonds_calculator)
+    else:
+        generator = get_generator_from_filename(file_io)
+    
+    # TODO: vis.extend(generator) # vis does not yet support comsuming a generator
+    atoms_buffer = []
+    for atoms in generator:
+        atoms_buffer.append(atoms)
+        if len(atoms_buffer) > 10:
+            vis.extend(atoms_buffer)
+            atoms_buffer = []
+    vis.extend(atoms_buffer)
 
-    generator = get_generator_from_filename(file_io)
-
-    for idx, atoms in tqdm.tqdm(enumerate(generator)):
-        if current_app.config.get("COMPUTE_BONDS", False):
-            if not hasattr(atoms, "connectivity"):
-                atoms.connectivity = bonds_calculator.get_bonds(atoms)
-
-        lst.append(
-            json.loads(
-                znjson.dumps(atoms, cls=znjson.ZnEncoder.from_converters([ASEConverter]))
-            )
-        )
-        if idx == 0:
-            try:
-                io.connect(current_app.config["SERVER_URL"], wait_timeout=10)
-                io.emit("room:all:frames:refresh", [0])
-            except socketio.exceptions.ConnectionError:
-                pass
-
-    while True:
-        try:
-            if not io.connected:
-                io.connect(current_app.config["SERVER_URL"], wait_timeout=10)
-
-            # updates len after all frames are loaded
-            io.emit("room:all:frames:refresh", [idx])
-            break
-        except socketio.exceptions.ConnectionError:
-            pass
-
-    io.sleep(1)
-    io.disconnect()
+    vis.socket.sleep(1)
+    vis.socket.disconnect()
 
 
 @shared_task
 def run_modifier(room, data: dict) -> None:
     from zndraw.modify import Modifier
-    from zndraw.zndraw import ZnDrawLocal
+    from zndraw import ZnDraw
 
-    vis = ZnDrawLocal(
+    vis = ZnDraw(
         r=current_app.extensions["redis"],
         url=current_app.config["SERVER_URL"],
         token=room,

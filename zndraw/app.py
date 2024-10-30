@@ -119,6 +119,11 @@ def create_app() -> Flask:
             socketio.server,
             storage=Redis.from_url(app.config["STORAGE"], decode_responses=True),
         )
+    else:
+        znsocket.attach_events(
+            socketio.server,
+            storage=znsocket.Client.from_url(app.config["STORAGE"], decode_responses=True),
+        )
 
     # Register routes and socketio events
     app.register_blueprint(main_blueprint)

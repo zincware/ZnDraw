@@ -3,6 +3,7 @@ import importlib.metadata
 import json
 import logging
 import typing as t
+import types
 
 import ase
 import numpy as np
@@ -67,7 +68,7 @@ class ZnDraw(ZnDrawBase):
     url: str
     token: str | None = None
     auth_token: str | None = None
-    r: Redis | None = None
+    r: Redis | znsocket.Client | None = None
 
     socket: socketio.Client | None = dataclasses.field(default=None, repr=False)
     timeout: TimeoutConfig = dataclasses.field(
@@ -92,6 +93,7 @@ class ZnDraw(ZnDrawBase):
 
     _modifiers: dict[str, RegisterModifier] = dataclasses.field(default_factory=dict)
     _available: bool = True
+    _refresh_client: znsocket.Client| None = None
 
     bond_calculator: ASEComputeBonds | None = dataclasses.field(
         default_factory=ASEComputeBonds, repr=False
@@ -103,8 +105,9 @@ class ZnDraw(ZnDrawBase):
             http_session.verify = self.verify
             self.socket = socketio.Client(http_session=http_session)
 
+        self._refresh_client = znsocket.Client.from_url(self.url)
         if self.r is None:
-            self.r = znsocket.Client.from_url(self.url)
+            self.r = self._refresh_client
 
         def on_wakeup():
             if self._available:
@@ -159,13 +162,13 @@ class ZnDraw(ZnDrawBase):
             index = [index]
         if self.r.exists(f"room:{self.token}:frames"):
             structures = znsocket.List(
-                self.r, f"room:{self.token}:frames", converter=[ASEConverter]
+                self.r, f"room:{self.token}:frames", converter=[ASEConverter], socket=self._refresh_client
             )[index]
 
         else:
             try:
                 structures = znsocket.List(
-                    self.r, "room:default:frames", converter=[ASEConverter]
+                    self.r, "room:default:frames", converter=[ASEConverter], socket=self._refresh_client
                 )[index]
             except IndexError:
                 structures = []
@@ -179,9 +182,9 @@ class ZnDraw(ZnDrawBase):
         index: int | list | slice,
         value: ATOMS_LIKE | list[ATOMS_LIKE],
     ):
-        lst = znsocket.List(self.r, f"room:{self.token}:frames", converter=[ASEConverter])
+        lst = znsocket.List(self.r, f"room:{self.token}:frames", converter=[ASEConverter], socket=self._refresh_client)
         if not self.r.exists(f"room:{self.token}:frames"):
-            default_lst = znsocket.List(self.r, "room:default:frames")
+            default_lst = znsocket.List(self.r, "room:default:frames", socket=self._refresh_client)
             # TODO: using a redis copy action would be faster
             lst.extend(default_lst)
 
@@ -201,21 +204,19 @@ class ZnDraw(ZnDrawBase):
     def __len__(self) -> int:
         # TODO: what if the room does not exist yet?
         if not self.r.exists(f"room:{self.token}:frames"):
-            return len(znsocket.List(self.r, "room:default:frames"))
-        return len(znsocket.List(self.r, f"room:{self.token}:frames"))
+            return len(znsocket.List(self.r, "room:default:frames", socket=self._refresh_client))
+        return len(znsocket.List(self.r, f"room:{self.token}:frames", socket=self._refresh_client))
 
     def __delitem__(self, index: int | slice | list[int]):
-        if isinstance(index, int):
-            index = [index]
-        if isinstance(index, slice):
-            index = list(range(*index.indices(len(self))))
-
-        call_with_retry(
-            self.socket,
-            "room:frames:delete",
-            index,
-            retries=self.timeout["call_retries"],
-        )
+        lst = znsocket.List(self.r, f"room:{self.token}:frames", converter=[ASEConverter], socket=self._refresh_client)
+        if not self.r.exists(f"room:{self.token}:frames"):
+            default_lst = znsocket.List(
+                self.r, "room:default:frames", converter=[ASEConverter], socket=self._refresh_client
+            )
+            # TODO: using a redis copy action would be faster
+            lst.extend(default_lst)
+        
+        del lst[index]
 
     def _repr_html_(self):
         from IPython.display import IFrame
@@ -230,10 +231,10 @@ class ZnDraw(ZnDrawBase):
         )._repr_html_()
 
     def insert(self, index: int, value: ATOMS_LIKE):
-        lst = znsocket.List(self.r, f"room:{self.token}:frames", converter=[ASEConverter])
+        lst = znsocket.List(self.r, f"room:{self.token}:frames", converter=[ASEConverter], socket=self._refresh_client)
         if not self.r.exists(f"room:{self.token}:frames"):
             default_lst = znsocket.List(
-                self.r, "room:default:frames", converter=[ASEConverter]
+                self.r, "room:default:frames", converter=[ASEConverter], socket=self._refresh_client
             )
             # TODO: using a redis copy action would be faster
             lst.extend(default_lst)
@@ -250,7 +251,7 @@ class ZnDraw(ZnDrawBase):
 
         # enable tbar if more than 10 messages are sent
         # approximated by the size of the first frame
-        lst = znsocket.List(self.r, f"room:{self.token}:frames", converter=[ASEConverter])
+        lst = znsocket.List(self.r, f"room:{self.token}:frames", converter=[ASEConverter], socket=self._refresh_client)
         show_tbar = (
             len(values)
             * len(
@@ -291,7 +292,7 @@ class ZnDraw(ZnDrawBase):
     @property
     def selection(self) -> list[int]:
         try:
-            return znsocket.Dict(self.r, f"room:{self.token}:selection")[0]
+            return znsocket.Dict(self.r, f"room:{self.token}:selection", socket=self._refresh_client)[0]
         except KeyError:
             return []
 
@@ -309,12 +310,12 @@ class ZnDraw(ZnDrawBase):
             raise IndexError("Selection out of range")
         if any(x < 0 for x in value):
             raise IndexError("Selection must be positive")
-        znsocket.Dict(self.r, f"room:{self.token}:selection")[0] = value
+        znsocket.Dict(self.r, f"room:{self.token}:selection", socket=self._refresh_client)[0] = value
 
     @property
     def step(self) -> int:
         try:
-            return znsocket.Dict(self.r, f"room:{self.token}:step")[0]
+            return znsocket.Dict(self.r, f"room:{self.token}:step", socket=self._refresh_client)[0]
         except KeyError:
             return 0
 
@@ -340,31 +341,18 @@ class ZnDraw(ZnDrawBase):
         # what about the camera?
         # or collect the steps of all clients in a dict
         # and save the host and go from there, also fine and not too much worker.
-        znsocket.Dict(self.r, f"room:{self.token}:step")[0] = value
+        znsocket.Dict(self.r, f"room:{self.token}:step", socket=self._refresh_client)[0] = value
 
     @property
     def figures(self) -> dict[str, go.Figure]:
-        # TODO: znjson.loads
-        data = call_with_retry(
-            self.socket,
-            "analysis:figure:get",
-            retries=self.timeout["call_retries"],
-        )
-        return {k: ploty_from_json(v) for k, v in data.items()}
+        return znsocket.Dict(self.r, f"room:{self.token}:figures", repr_type="full", socket=self._refresh_client, converter=[znjson.converter.PlotlyConverter])
 
     @figures.setter
     def figures(self, data: dict[str, go.Figure]) -> None:
         """Update the figures on the remote."""
-        # TODO: can you use znsocket.Dict
-        # to update the data an avoid
-        # sending duplicates?
-        data = {k: v.to_json() for k, v in data.items()}
-        emit_with_retry(
-            self.socket,
-            "analysis:figure:set",
-            data,
-            retries=self.timeout["emit_retries"],
-        )
+        figures_dict = znsocket.Dict(self.r, f"room:{self.token}:figures", socket=self._refresh_client, converter=[znjson.converter.PlotlyConverter])
+        figures_dict.clear()
+        figures_dict.update(data)
 
     @property
     def atoms(self) -> ase.Atoms:
@@ -375,22 +363,22 @@ class ZnDraw(ZnDrawBase):
         self[[self.step]] = [atoms]
 
     @property
-    def points(self) -> list:
+    def points(self) -> np.ndarray:
         # TODO: use znsocket.List inside znsocket.Dict here
         try:
-            return znsocket.Dict(self.r, f"room:{self.token}:points")[0]
+            return np.array(znsocket.Dict(self.r, f"room:{self.token}:points", socket=self._refresh_client)[0])
         except KeyError:
-            return []
+            return np.array([])
 
     @points.setter
     def points(self, points: np.ndarray | list) -> None:
         if isinstance(points, np.ndarray):
             points = points.tolist()
-        znsocket.Dict(self.r, f"room:{self.token}:points")[0] = points
+        znsocket.Dict(self.r, f"room:{self.token}:points", socket=self._refresh_client)[0] = points
 
     @property
     def bookmarks(self) -> dict[int, str]:
-        return znsocket.Dict(self.r, f"room:{self.token}:bookmarks", repr_type="full")
+        return znsocket.Dict(self.r, f"room:{self.token}:bookmarks", repr_type="full", socket=self._refresh_client)
 
     @bookmarks.setter
     def bookmarks(self, value: dict[int, str]):
@@ -401,19 +389,19 @@ class ZnDraw(ZnDrawBase):
         if not all(isinstance(x, str) for x in value.values()):
             raise ValueError("Bookmark values must be strings")
 
-        bookmarks = znsocket.Dict(self.r, f"room:{self.token}:bookmarks")
+        bookmarks = znsocket.Dict(self.r, f"room:{self.token}:bookmarks", socket=self._refresh_client)
         bookmarks.clear()
         bookmarks.update(value)
 
     @property
     def camera(self) -> CameraData:
-        return znsocket.Dict(self.r, f"room:{self.token}:camera", repr_type="full")
+        return znsocket.Dict(self.r, f"room:{self.token}:camera", repr_type="full", socket=self._refresh_client)
 
     @camera.setter
     def camera(self, value: CameraData):
         if set(value.keys()) != {"position", "target"}:
             raise ValueError("Camera must have 'position' and 'target' keys")
-        znsocket.Dict(self.r, f"room:{self.token}:camera").update(value)
+        znsocket.Dict(self.r, f"room:{self.token}:camera", socket=self._refresh_client).update(value)
 
     @property
     def geometries(self) -> list[Object3D]:
@@ -430,6 +418,7 @@ class ZnDraw(ZnDrawBase):
                 "insert": callback,
             },
             repr_type="full",
+            socket=self._refresh_client
         )
 
     @property

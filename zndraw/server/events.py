@@ -142,24 +142,6 @@ def init_socketio_events(io: SocketIO):
     def room_all_frames_refresh(indices: list[int]):
         emit("room:frames:refresh", [int(x) for x in indices], broadcast=True)
 
-    @io.on("room:frames:delete")
-    def room_frames_delete(frames: list[int]):
-        r: Redis = current_app.extensions["redis"]
-        room = session.get("token")
-        lst = znsocket.List(r, f"room:{room}:frames")
-        if not r.exists(f"room:{room}:frames"):
-            default_lst = znsocket.List(r, "room:default:frames")
-            # TODO: using a redis copy action would be faster
-            lst.extend(default_lst)
-        del lst[frames]
-        # TODO how to update here?
-        emit("room:frames:refresh", [int(x) for x in frames], to=room)
-
-        # This method should be called, because it can move frames from the default
-        # room to the current room. Doing so in the background
-        # can cause issues with further operations on the frames. (see room frames set)
-        return "OK"
-
     @io.on("room:frames:insert")
     def room_frames_insert(data: dict):
         index = data.pop("index")

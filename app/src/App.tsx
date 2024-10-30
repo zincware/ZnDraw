@@ -7,6 +7,7 @@ import {
   setupStep,
   setupCamera,
   setupFrames,
+  setupFigures,
 } from "./components/api";
 import HeadBar from "./components/headbar";
 import Sidebar from "./components/sidebar";
@@ -162,7 +163,8 @@ export default function App() {
   const [cursorPosition, setCursorPosition] = useState({ x: 0, y: 0 });
   const [lineLength, setLineLength] = useState<number>(0);
   const [showParticleInfo, setShowParticleInfo] = useState<boolean>(false);
-  const [addPlotsWindow, setAddPlotsWindow] = useState<number>(0);
+  const [addPlotsWindow, setAddPlotsWindow] = useState<number>(0); // make this bool!
+  const [updatedPlotsList, setUpdatedPlotsList] = useState<string[]>([]);
 
   const [token, setToken] = useState<string>("");
   setupBookmarks(token, setBookmarks, bookmarks);
@@ -178,31 +180,8 @@ export default function App() {
     controlsRef,
     cameraRef,
   );
-  setupFrames(token, step, setCurrentFrame, setLength);
-
-  // useEffect(() => {
-  //   // TODO can't be here, because is dependent on the length
-  //   function onFramesRefresh(updatedFrames: number[]) {
-  //     socket.emit("room:length:get", (data: number | string) => {
-  //       // ensure that data is a number
-  //       if (updatedFrames.includes(step)) {
-  //         setNeedsUpdate(true);
-  //       } else if (step >= data) {
-  //         setStep(parseInt(data) - 1);
-  //         // reset selected ids
-  //         setSelectedIds(new Set());
-  //       } else if (roomConfig.scene.frame_update) {
-  //         setStep(parseInt(data) - 1);
-  //       }
-  //       setLength(data);
-  //     });
-  //   }
-  //   socket.on("room:frames:refresh", onFramesRefresh);
-
-  //   return () => {
-  //     socket.off("room:frames:refresh", onFramesRefresh);
-  //   };
-  // }, [step, roomConfig.scene]);
+  setupFrames(token, step, setCurrentFrame, setLength, setStep);
+  setupFigures(token, setUpdatedPlotsList);
 
   useEffect(() => {
     function onConnect() {
@@ -215,11 +194,6 @@ export default function App() {
         },
       );
       console.log("connected");
-      // get length
-      // socket.emit("room:length:get", (data: number) => {
-      //   setLength(data);
-      //   console.log("number of available frames", data);
-      // });
       // get geometries
       socket.emit("room:geometry:get", (data: any) => {
         setGeometries(data);
@@ -348,29 +322,8 @@ export default function App() {
     };
   }, []);
 
-  // token dependent
-  // useEffect(() => {
-  //   // TODO: this should all go into API
-  //   // connect to room:`token`:frames
-  //   const lst = new znsocket.List({
-  //     client: client,
-  //     key: "room:" + token + ":frames",
-  //   });
-  //   lst.len().then((x: any) => console.log("length: " + x));
-  //   lst.onRefresh((x: any) => console.log("refreshed: " + x));
-
-  //   return () => {
-  //     lst.offRefresh();
-  //   };
-  // }, [token]);
-
   useEffect(() => {
     // page initialization
-    // const updateLength = () => {
-    //   socket.emit("room:length:get", (data: number) => {
-    //     setLength(data);
-    //   });
-    // };
 
     const handleKeyDown = (event: KeyboardEvent) => {
       // if canvas is not focused, don't do anything
@@ -785,6 +738,8 @@ export default function App() {
           addPlotsWindow={addPlotsWindow}
           setSelectedIds={setSelectedIds}
           step={step}
+          updatedPlotsList={updatedPlotsList}
+          token={token}
         />
         {showParticleInfo && (
           <>

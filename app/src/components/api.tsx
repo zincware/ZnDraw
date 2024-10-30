@@ -212,74 +212,120 @@ export function setupCamera(
   }, [cameraPosition, orbitControlsTarget, conInterface]);
 }
 
-export const setupFrames = (token: string, step: any, setCurrentFrame: any, setLength: any) => {
+export const setupFrames = (token: string, step: any, setCurrentFrame: any, setLength: any, setStep: any) => {
   let [conInterface, setConInterface]: any = useState(undefined);
+  let [defaultConInterface, setDefaultConInterface]: any = useState(undefined);
   let [useDefaultRoom, setUseDefaultRoom] = useState(true);
+  let [framesRequiringUpdate, setFramesRequiringUpdate] = useState(undefined);
+
+  const setCurrentFrameFromObject = (frame: any) => {
+    frame = frame["value"];
+    frame.positions = frame.positions.map(
+      (position: [number, number, number]) =>
+        new THREE.Vector3(position[0], position[1], position[2]),
+    ) as THREE.Vector3[];
+    setCurrentFrame(frame);
+  }
 
   useEffect(() => {
     const con = new znsocket.List({
       client: client,
       key: "room:" + token + ":frames",
     });
+
+    const defaultCon = new znsocket.List({
+      client: client,
+      key: "room:default:frames",
+    });
+
     // initially check if the room exists
     con.getitem(parseInt(step)).then((frame: any) => {
-      if (frame === null) {
+      if (frame !== null) {
+        setUseDefaultRoom(false);
+        con.len().then((length: any) => {setLength(length)});
+      } else {
         setUseDefaultRoom(true);
+        defaultCon.len().then((length: any) => {setLength(length)});
       }
     });
 
     con.onRefresh(async (x: any) => {
       setUseDefaultRoom(false);
-
       con.len().then((length: any) => {setLength(length)});
+      setFramesRequiringUpdate(x);
+    });
 
-      if (x["start"] && x["stop"]) {
-        if (parseInt(step) > x["start"] || parseInt(step) < x["stop"]) {
-          // update in place, also stop might not be defined
-        }
-      } else if (x["indices"]) {
-        if (x["indices"].includes(parseInt(step))) {
-          // update in place
-        }
-      }
+    defaultCon.onRefresh(async (x: any) => {
+      setFramesRequiringUpdate(x);
+
+      defaultCon.len().then((length: any) => {setLength(length)});
     });
 
     setConInterface(con);
-    if (useDefaultRoom){
-      const defaultCon = new znsocket.List({
-        client: client,
-        key: "room:default:frames",
-      });
-      defaultCon.len().then((length: any) => {setLength(length)});
-    } else {
-      con.len().then((length: any) => {setLength(length)});
+    setDefaultConInterface(defaultCon);
+
+    return () => {
+      con.offRefresh();
+      defaultCon.offRefresh();
+    };
+  }, [token]);
+
+
+  useEffect(() => {
+    if (conInterface === undefined && defaultConInterface === undefined) {
+      return;
     }
+    let currentInterface = useDefaultRoom ? defaultConInterface : conInterface;
+    if (framesRequiringUpdate !== undefined) {
+      // cheap way out - we just update the current frame no matter what.
+      currentInterface.len().then((length: any) => {setLength(length)});
+      currentInterface.getitem(parseInt(step)).then((frame: any) => {
+        console.log(frame);
+        if (frame === null) {
+          currentInterface.len().then((length: any) => {setStep(length - 1)});
+        } else {
+          setCurrentFrameFromObject(frame);
+        }
+      });
+      setFramesRequiringUpdate(undefined);
+    }
+
+  }, [conInterface, step, useDefaultRoom, defaultConInterface, framesRequiringUpdate]);
+
+
+  useEffect(() => {
+    if (conInterface === undefined && defaultConInterface === undefined) {
+      return;
+    }
+    let currentInterface = useDefaultRoom ? defaultConInterface : conInterface;
+
+    currentInterface.getitem(parseInt(step)).then((frame: any) => {
+      if (frame === null) {
+        currentInterface.len().then((length: any) => {setStep(length - 1)});
+      } else {
+        setCurrentFrameFromObject(frame);
+      }
+    });
+
+  }, [conInterface, step, useDefaultRoom, defaultConInterface]);
+};
+
+export const setupFigures = (token: string, setUpdatedPlotsList: any) => {
+  let [conInterface, setConInterface]: any = useState(undefined);
+  useEffect(() => {
+    const con = new znsocket.Dict({
+      client: client,
+      key: "room:" + token + ":figures",
+    });
+
+    con.onRefresh(async (x: any) => {
+      setUpdatedPlotsList(x["keys"]);
+    });
+
+    setConInterface(con);
 
     return () => {
       con.offRefresh();
     };
   }, [token]);
-
-  useEffect(() => {
-    if (conInterface === undefined) {
-      return;
-    }
-    let currentInterface = conInterface;
-    if (useDefaultRoom) {
-      currentInterface = new znsocket.List({
-        client: client,
-        key: "room:default:frames",
-      });
-    }
-
-    currentInterface.getitem(parseInt(step)).then((frame: any) => {
-      frame = frame["value"];
-      frame.positions = frame.positions.map(
-        (position: [number, number, number]) =>
-          new THREE.Vector3(position[0], position[1], position[2]),
-      ) as THREE.Vector3[];
-      setCurrentFrame(frame);
-    });
-
-  }, [conInterface, step, useDefaultRoom]);
 };
