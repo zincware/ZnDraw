@@ -122,7 +122,9 @@ def create_app() -> Flask:
     else:
         znsocket.attach_events(
             socketio.server,
-            storage=znsocket.Client.from_url(app.config["STORAGE"], decode_responses=True),
+            storage=znsocket.Client.from_url(
+                app.config["STORAGE"], decode_responses=True
+            ),
         )
 
     # Register routes and socketio events

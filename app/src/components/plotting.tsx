@@ -32,7 +32,9 @@ export const Plotting = ({
   // const [availablePlots, setAvailablePlots] = useState<string[]>([]);
   // const [plotData, setPlotData] = useState<{ [key: string]: any }>({});
   const [displayedCards, setDisplayedCards] = useState<number[]>([]);
-  const [visiblePlots, setVisiblePlots] = useState<{ [key: number]: string }>({});
+  const [visiblePlots, setVisiblePlots] = useState<{ [key: number]: string }>(
+    {},
+  );
 
   // TODO: if the displayedCards is closed, visiblePlots is not beeing removed properly
 
@@ -56,7 +58,7 @@ export const Plotting = ({
             prevCards.length > 0 ? prevCards[prevCards.length - 1] + 1 : 0;
           // use visiblePlots to set the default value of the plot
           setVisiblePlots((prev: any) => {
-            return {...prev, [newCardIndex]: plot};
+            return { ...prev, [newCardIndex]: plot };
           });
           return [...prevCards, newCardIndex];
         });
@@ -94,9 +96,21 @@ export const Plotting = ({
 
   return (
     <>
-    {displayedCards.map((cardIndex) => (
-      <PlotsCard2 key={cardIndex} identifier={cardIndex} updatedPlotsList={updatedPlotsList} token={token} setVisiblePlots={setVisiblePlots} setDisplayedCards={setDisplayedCards} visiblePlots={visiblePlots} setStep={setStep} setSelectedIds={setSelectedIds} setSelectedFrames={setSelectedFrames} step={step}/>
-    ))}
+      {displayedCards.map((cardIndex) => (
+        <PlotsCard2
+          key={cardIndex}
+          identifier={cardIndex}
+          updatedPlotsList={updatedPlotsList}
+          token={token}
+          setVisiblePlots={setVisiblePlots}
+          setDisplayedCards={setDisplayedCards}
+          visiblePlots={visiblePlots}
+          setStep={setStep}
+          setSelectedIds={setSelectedIds}
+          setSelectedFrames={setSelectedFrames}
+          step={step}
+        />
+      ))}
 
       {/* {displayedCards.map((cardIndex) => (
         <PlotsCard
@@ -117,8 +131,18 @@ export const Plotting = ({
   );
 };
 
-
-const PlotsCard2 = ({updatedPlotsList, token, setVisiblePlots, identifier, setDisplayedCards, visiblePlots, setStep, setSelectedIds, setSelectedFrames, step}: any) => {
+const PlotsCard2 = ({
+  updatedPlotsList,
+  token,
+  setVisiblePlots,
+  identifier,
+  setDisplayedCards,
+  visiblePlots,
+  setStep,
+  setSelectedIds,
+  setSelectedFrames,
+  step,
+}: any) => {
   let [conInterface, setConInterface]: any = useState(undefined);
   let [availablePlots, setAvailablePlots] = useState<string[]>([]);
   let [selectedOption, setSelectedOption] = useState<string>("");
@@ -169,10 +193,10 @@ const PlotsCard2 = ({updatedPlotsList, token, setVisiblePlots, identifier, setDi
 
   useEffect(() => {
     setVisiblePlots((prev: any) => {
-      return {...prev, [identifier]: selectedOption};
+      return { ...prev, [identifier]: selectedOption };
     });
   }, [selectedOption]);
-  
+
   // update the actuall plot if it is in updatedPlotsList
   useEffect(() => {
     if (updatedPlotsList.includes(selectedOption)) {
@@ -255,7 +279,7 @@ const PlotsCard2 = ({updatedPlotsList, token, setVisiblePlots, identifier, setDi
     );
     // also remove from visiblePlots
     setVisiblePlots((prev: any) => {
-      const copy = {...prev};
+      const copy = { ...prev };
       delete copy[identifier];
       return copy;
     });
@@ -379,7 +403,6 @@ const PlotsCard2 = ({updatedPlotsList, token, setVisiblePlots, identifier, setDi
   );
 };
 
-
 interface PlotsCardProps {
   identifier: number;
   availablePlots: string[];
@@ -412,7 +435,6 @@ const PlotsCard = ({
   const handleSelectChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
     setSelectedOption(event.target.value);
   };
-
 
   useEffect(() => {
     if (plotData[selectedOption]) {

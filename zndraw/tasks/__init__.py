@@ -89,7 +89,9 @@ def _get_ase_generator(file_io: FileIO) -> t.Iterable[ase.Atoms]:
     return generator
 
 
-def get_generator_from_filename(file_io: FileIO, bond_calculator: ASEComputeBonds| None = None) -> t.Iterable[ase.Atoms]:
+def get_generator_from_filename(
+    file_io: FileIO, bond_calculator: ASEComputeBonds | None = None
+) -> t.Iterable[ase.Atoms]:
     if file_io.name is None:
         gen = _get_default_generator(file_io)
     elif file_io.remote is not None:
@@ -100,7 +102,7 @@ def get_generator_from_filename(file_io: FileIO, bond_calculator: ASEComputeBond
         gen = _get_http_generator(file_io)
     else:
         gen = _get_ase_generator(file_io)
-    
+
     if bond_calculator is not None:
         for atoms in gen:
             if not hasattr(atoms, "connectivity"):
@@ -126,7 +128,7 @@ def read_file(fileio: dict) -> None:
         generator = get_generator_from_filename(file_io, bonds_calculator)
     else:
         generator = get_generator_from_filename(file_io)
-    
+
     # TODO: vis.extend(generator) # vis does not yet support comsuming a generator
     atoms_buffer = []
     for atoms in generator:
@@ -142,8 +144,8 @@ def read_file(fileio: dict) -> None:
 
 @shared_task
 def run_modifier(room, data: dict) -> None:
-    from zndraw.modify import Modifier
     from zndraw import ZnDraw
+    from zndraw.modify import Modifier
 
     vis = ZnDraw(
         r=current_app.extensions["redis"],
