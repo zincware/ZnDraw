@@ -1,4 +1,5 @@
 """zndraw-upload API"""
+
 import typing as t
 import uuid
 import webbrowser
