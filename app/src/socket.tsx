@@ -9,8 +9,8 @@ function setupIO() {
   let manager;
 
   if (basePath === "/") {
-    manager = new Manager("http://localhost:1235"); // for local development
-    // manager = new Manager(window.location.origin); // for production
+    // manager = new Manager("http://localhost:1235"); // for local development
+    manager = new Manager(window.location.origin); // for production
   } else {
     manager = new Manager(window.location.origin, {
       path: `${basePath}socket.io`,
