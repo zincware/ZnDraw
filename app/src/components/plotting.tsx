@@ -272,7 +272,13 @@ const PlotsCard2 = ({
   };
 
   const onPlotSelected = (event: any) => {
-    setAllowDrag(false);
+    if (!event || !event.points) {
+      return;
+    }
+    if (event.points.length === 0) {
+      // This is triggered once the plot is re-rendered. We want to keep the selection here.
+      return;
+    }
     const selectedFrames = event.points.map((point: any) =>
       point.customdata ? point.customdata[0] : point.pointIndex,
     );
