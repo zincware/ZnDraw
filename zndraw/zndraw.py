@@ -1,6 +1,5 @@
 import dataclasses
 import importlib.metadata
-import typing_extensions as tyex
 import json
 import logging
 import typing as t
@@ -11,6 +10,7 @@ import plotly.graph_objects as go
 import requests
 import socketio.exceptions
 import tqdm
+import typing_extensions as tyex
 import znjson
 import znsocket
 from redis import Redis
@@ -332,7 +332,7 @@ class ZnDraw(ZnDrawBase):
         if len(msg) > 0:  # Only send the message if it's not empty
             lst.extend(msg)
 
-        self.socket.emit("room:frames:refresh", [self.step]) # TODO: remove
+        self.socket.emit("room:frames:refresh", [self.step])  # TODO: remove
 
     @property
     def selection(self) -> list[int]:
