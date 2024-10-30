@@ -8,6 +8,7 @@ import {
   setupCamera,
   setupFrames,
   setupFigures,
+  setupGeometries,
 } from "./components/api";
 import HeadBar from "./components/headbar";
 import Sidebar from "./components/sidebar";
@@ -182,6 +183,7 @@ export default function App() {
   );
   setupFrames(token, step, setCurrentFrame, setLength, setStep);
   setupFigures(token, setUpdatedPlotsList);
+  setupGeometries(token, setGeometries);
 
   useEffect(() => {
     function onConnect() {
@@ -194,10 +196,6 @@ export default function App() {
         },
       );
       console.log("connected");
-      // get geometries
-      socket.emit("room:geometry:get", (data: any) => {
-        setGeometries(data);
-      });
 
       // get lock state
       socket.emit("room:lock:get", (data: boolean) => {
@@ -232,10 +230,6 @@ export default function App() {
     }
     function onAnalysisSchema(receivedSchema: any) {
       setAnalysisSchema(receivedSchema);
-    }
-
-    function onGeometries(data: any) {
-      setGeometries(data);
     }
 
     function onModifierQueue(data: number) {
@@ -288,7 +282,6 @@ export default function App() {
     socket.on("scene:schema", onSceneSchema);
     socket.on("geometry:schema", onGeometryScheme);
     socket.on("analysis:schema", onAnalysisSchema);
-    socket.on("room:geometry:set", onGeometries);
     socket.on("room:modifier:queue", onModifierQueue);
     socket.on("room:analysis:queue", onAnalysisQueue);
     socket.on("room:geometry:queue", onGeometryQueue);
@@ -308,7 +301,6 @@ export default function App() {
       socket.off("scene:schema", onSceneSchema);
       socket.off("geometry:schema", onGeometryScheme);
       socket.off("analysis:schema", onAnalysisSchema);
-      socket.off("room:geometry:set", onGeometries);
       socket.off("room:modifier:queue", onModifierQueue);
       socket.off("room:analysis:queue", onAnalysisQueue);
       socket.off("room:geometry:queue", onGeometryQueue);

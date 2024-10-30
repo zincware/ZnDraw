@@ -332,6 +332,33 @@ export const setupFrames = (
   }, [conInterface, step, useDefaultRoom, defaultConInterface]);
 };
 
+export const setupGeometries = (token: string, setGeometries: any) => {
+  let [conInterface, setConInterface]: any = useState(undefined);
+  useEffect(() => {
+    const con = new znsocket.List({
+      client: client,
+      key: "room:" + token + ":geometries",
+    });
+
+    con.onRefresh(async (x: any) => {
+      // console.log(x); one could only update the indices or simply all. We go for all
+      // async iterate the conInterface
+      let geometries = [];
+      for await (const value of con) {
+        // console.log(value["value"]["data"]); // Process each value as it becomes available
+        geometries.push(value["value"]["data"]);
+      }
+      setGeometries(geometries);
+    });
+
+    setConInterface(con);
+
+    return () => {
+      con.offRefresh();
+    };
+  }, [token]);
+};
+
 export const setupFigures = (token: string, setUpdatedPlotsList: any) => {
   let [conInterface, setConInterface]: any = useState(undefined);
   useEffect(() => {

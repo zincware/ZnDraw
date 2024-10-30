@@ -33,6 +33,7 @@ from zndraw.utils import (
     emit_with_retry,
     parse_url,
 )
+from zndraw.converter import Object3DConverter
 
 log = logging.getLogger(__name__)
 __version__ = importlib.metadata.version("zndraw")
@@ -482,21 +483,27 @@ class ZnDraw(ZnDrawBase):
 
     @property
     def geometries(self) -> list[Object3D]:
-        def callback(*args):
-            self.socket.emit("room:geometry:set")
-
         return znsocket.List(
             self.r,
             f"room:{self.token}:geometries",
-            callbacks={
-                "append": callback,
-                "delitem": callback,
-                "extend": callback,
-                "insert": callback,
-            },
             repr_type="full",
             socket=self._refresh_client,
+            converter=[Object3DConverter],
         )
+    
+    @geometries.setter
+    def geometries(self, value: list[Object3D]):
+        if not all(isinstance(x, Object3D) for x in value):
+            raise ValueError("Geometries must be a list of Object3D instances")
+        lst = znsocket.List(
+            self.r,
+            f"room:{self.token}:geometries",
+            socket=self._refresh_client,
+            converter=[Object3DConverter],
+        )
+        lst.clear()
+        lst.extend(value)
+
 
     @property
     def config(self) -> ZnDrawConfig:

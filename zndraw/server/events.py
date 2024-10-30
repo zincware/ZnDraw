@@ -338,31 +338,31 @@ def init_socketio_events(io: SocketIO):
         emit("geometry:run:enqueue", to=room)
         run_geometry.delay(room, data)
 
-    @io.on("room:geometry:set")
-    def room_geometry_set(data: list | None = None):
-        r: Redis = current_app.extensions["redis"]
-        room = session.get("token")
+    # @io.on("room:geometry:set")
+    # def room_geometry_set(data: list | None = None):
+    #     r: Redis = current_app.extensions["redis"]
+    #     room = session.get("token")
 
-        lst = znsocket.List(r, f"room:{room}:geometries")
+    #     lst = znsocket.List(r, f"room:{room}:geometries")
 
-        if data is not None:
-            del lst[:]
-            lst.extend(data)
-        print(f"room:geometry:set: {lst}")
+    #     if data is not None:
+    #         del lst[:]
+    #         lst.extend(data)
+    #     print(f"room:geometry:set: {lst}")
 
-        emit(
-            "room:geometry:set",
-            [x.model_dump() for x in lst],
-            to=room,
-            include_self=False,
-        )
+    #     emit(
+    #         "room:geometry:set",
+    #         [x.model_dump() for x in lst],
+    #         to=room,
+    #         include_self=False,
+    #     )
 
-    @io.on("room:geometry:get")
-    def room_geometry_get():
-        r: Redis = current_app.extensions["redis"]
-        room = session.get("token")
-        # TODO: do not send the data but request it on the JS side
-        return [x.model_dump() for x in znsocket.List(r, f"room:{room}:geometries")]
+    # @io.on("room:geometry:get")
+    # def room_geometry_get():
+    #     r: Redis = current_app.extensions["redis"]
+    #     room = session.get("token")
+    #     # TODO: do not send the data but request it on the JS side
+    #     return [x.model_dump() for x in znsocket.List(r, f"room:{room}:geometries")]
 
     @io.on("room:config:get")
     def room_config_get():
