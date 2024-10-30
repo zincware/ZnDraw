@@ -277,7 +277,7 @@ const PlotsCard2 = ({
         prevCards.length > 0 ? prevCards[prevCards.length - 1] + 1 : 0;
       return [...prevCards, newCardIndex];
     });
-  }
+  };
 
   const onPlotSelected = (event: any) => {
     if (!event || !event.points) {
