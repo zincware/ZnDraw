@@ -255,10 +255,11 @@ function ChatInsertModal({ show, onHide, chatInputRef, step, selection }: any) {
       </Modal.Header>
       <Modal.Body>
         <Container>
+          Share your current view:
         <Select
               options={options}
               onChange={handleSelectChange}
-              menuIsOpen={true}
+              // menuIsOpen={true}
               placeholder="Choose..."
             />
         </Container>
