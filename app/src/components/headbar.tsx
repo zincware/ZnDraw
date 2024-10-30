@@ -17,7 +17,7 @@ import {
   InputGroup,
   Form,
 } from "react-bootstrap";
-import remarkGfm from 'remark-gfm'
+import remarkGfm from "remark-gfm";
 import {
   FaCode,
   FaDownload,
@@ -93,7 +93,7 @@ function ConsoleWindow({
   };
 
   const handleKeyPress = (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSendMessage();
     }
@@ -152,20 +152,20 @@ function ConsoleWindow({
         </Card.Body>
 
         <Card.Footer>
-        <InputGroup>
-          <Form.Control
-            as="textarea"
-            rows={1}
-            placeholder="Type a message..."
-            // value={inputValue}
-            onChange={handleChatInputChange}
-            onKeyDown={handleKeyPress}
-            ref={chatInputRef}
-          />
-          <Button variant="primary" onClick={handleSendMessage}>
-            Send
-          </Button>
-        </InputGroup>
+          <InputGroup>
+            <Form.Control
+              as="textarea"
+              rows={1}
+              placeholder="Type a message..."
+              // value={inputValue}
+              onChange={handleChatInputChange}
+              onKeyDown={handleKeyPress}
+              ref={chatInputRef}
+            />
+            <Button variant="primary" onClick={handleSendMessage}>
+              Send
+            </Button>
+          </InputGroup>
         </Card.Footer>
       </Card>
     </Rnd>
