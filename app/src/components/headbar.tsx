@@ -84,7 +84,6 @@ function ConsoleWindow({
   const [showTime, setShowTime] = useState(false);
   const [chatInput, setChatInput] = useState<object>({});
   const [showDropdown, setShowDropdown] = useState(false);
-  const [allowDrag, setAllowDrag] = useState(true);
   let chatInputRef = useRef(null);
   const scrollRef = useRef(null);
 
@@ -147,7 +146,6 @@ function ConsoleWindow({
           width: 380,
           height: 280,
         }}
-        disableDragging={!allowDrag}
         minHeight={200}
         minWidth={200}
         style={{
