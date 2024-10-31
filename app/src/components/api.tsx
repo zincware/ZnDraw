@@ -358,10 +358,15 @@ export const setupFrames = (
   }, [token]);
 
   useEffect(() => {
-    if (conInterfaceRef.current === undefined && defaultConInterfaceRef.current === undefined) {
+    if (
+      conInterfaceRef.current === undefined &&
+      defaultConInterfaceRef.current === undefined
+    ) {
       return;
     }
-    let currentInterface = useDefaultRoomRef.current ? defaultConInterfaceRef.current : conInterfaceRef.current;
+    let currentInterface = useDefaultRoomRef.current
+      ? defaultConInterfaceRef.current
+      : conInterfaceRef.current;
     if (framesRequiringUpdate !== undefined) {
       // cheap way out - we just update the current frame no matter what.
       currentInterface.len().then((length: any) => {
@@ -380,16 +385,18 @@ export const setupFrames = (
       });
       setFramesRequiringUpdate(undefined);
     }
-  }, [
-    step,
-    framesRequiringUpdate,
-  ]);
+  }, [step, framesRequiringUpdate]);
 
   useEffect(() => {
-    if (conInterfaceRef.current === undefined && defaultConInterfaceRef.current === undefined) {
+    if (
+      conInterfaceRef.current === undefined &&
+      defaultConInterfaceRef.current === undefined
+    ) {
       return;
     }
-    let currentInterface = useDefaultRoomRef.current ? defaultConInterfaceRef.current : conInterfaceRef.current;
+    let currentInterface = useDefaultRoomRef.current
+      ? defaultConInterfaceRef.current
+      : conInterfaceRef.current;
 
     currentInterface.getitem(parseInt(step) || 0).then((frame: any) => {
       if (frame === null) {

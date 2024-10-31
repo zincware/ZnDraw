@@ -34,10 +34,13 @@ def run_celery_worker() -> threading.Thread:
     if platform.system() == "Darwin" and platform.processor() == "arm":
         # fix celery worker issue on apple silicon
         my_env["OBJC_DISABLE_INITIALIZE_FORK_SAFETY"] = "YES"
-    
+
     def run_celery_worker():
         from zndraw_app.make_celery import celery_app
-        celery_app.worker_main(argv = ['worker', '--loglevel=info', '--without-gossip', '--pool=eventlet'])
+
+        celery_app.worker_main(
+            argv=["worker", "--loglevel=info", "--without-gossip", "--pool=eventlet"]
+        )
 
     worker = threading.Thread(target=run_celery_worker)
     worker.start()

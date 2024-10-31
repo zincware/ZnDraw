@@ -2,11 +2,10 @@ import dataclasses
 import datetime
 import os
 import pathlib
+import shutil
+import signal
 import typing as t
 import webbrowser
-import signal
-import shutil
-
 
 import typer
 
@@ -202,7 +201,6 @@ def main(
 
     if browser:
         webbrowser.open(f"http://localhost:{env_config.FLASK_PORT}")
-        
 
     socketio = app.extensions["socketio"]
 
@@ -210,7 +208,7 @@ def main(
         if standalone and url is None:
             print("---------------------- SHUTDOWN CELERY ----------------------")
             celery_app = app.extensions["celery"]
-            celery_app.control.broadcast('shutdown')
+            celery_app.control.broadcast("shutdown")
             print("---------------------- SHUTDOWN ZNSOCKET ----------------------")
             if env_config.FLASK_STORAGE.startswith("znsocket"):
                 server.terminate()
@@ -219,17 +217,19 @@ def main(
             socketio.stop()
             worker.join()
 
-    signal.signal(signal.SIGINT, signal_handler) # need to have the signal handler to avoid stalling the celery worker
+    signal.signal(
+        signal.SIGINT, signal_handler
+    )  # need to have the signal handler to avoid stalling the celery worker
 
     read_file.s(fileio.to_dict()).apply_async()
     read_plots.s(plots, fileio.remote, fileio.rev).apply_async()
 
     try:
         socketio.run(
-                app,
-                host="0.0.0.0",
-                port=app.config["PORT"],
-            )
+            app,
+            host="0.0.0.0",
+            port=app.config["PORT"],
+        )
     finally:
         # get the celery broker config
         if app.config["CELERY"]["broker_url"] == "filesystem://":

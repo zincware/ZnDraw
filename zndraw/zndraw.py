@@ -339,7 +339,6 @@ class ZnDraw(ZnDrawBase):
         if len(msg) > 0:  # Only send the message if it's not empty
             lst.extend(msg)
 
-
     @property
     def selection(self) -> list[int]:
         try:
