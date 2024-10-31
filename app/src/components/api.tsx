@@ -60,20 +60,34 @@ export function setupBookmarks(
 }
 
 export function setupPoints(token: string, setPoints: any, points: any) {
-  let [conInterface, setConInterface]: any = useState(undefined);
+  const conInterfaceRef = useRef<any>(undefined);
+  const updateByRefreshRef = useRef(true); // somewhere in the code the points are set initially
   useEffect(() => {
     const con = new znsocket.Dict({
       client: client,
       key: "room:" + token + ":points",
     });
 
-    con.onRefresh(async (x: any) => {
-      const items = await con.getitem("0");
-      const result = Object.fromEntries(items);
-      setPoints(result["0"].map((x: number[]) => new THREE.Vector3(...x)));
+    // initial load
+    con.getitem(0).then((items: any) => {
+      if (items === null) {
+        return;
+      }
+      updateByRefreshRef.current = true;
+      setPoints(items.map((x: number[]) => new THREE.Vector3(...x)));
     });
 
-    setConInterface(con);
+    con.onRefresh(async (x: any) => {
+      const items = await con.getitem(0);
+      console.log("points updated externally");
+      if (items === null) {
+        return;
+      }
+      updateByRefreshRef.current = true;
+      setPoints(items.map((x: number[]) => new THREE.Vector3(...x)));
+    });
+
+    conInterfaceRef.current = con;
 
     return () => {
       con.offRefresh();
@@ -82,23 +96,24 @@ export function setupPoints(token: string, setPoints: any, points: any) {
 
   useEffect(() => {
     const updateCon = async () => {
-      if (conInterface === undefined) {
+      if (conInterfaceRef.current === undefined) {
         return;
       }
-      conInterface.clear();
-      await conInterface.setitem(
+      conInterfaceRef.current.clear();
+      await conInterfaceRef.current.setitem(
         0,
         points.map((vec: THREE.Vector3) => [vec.x, vec.y, vec.z]),
       );
-      // TODO: set segments
     };
-
-    // Set a delay of 100ms before calling `updateCon`
-    const debounceTimeout = setTimeout(updateCon, 100);
-
-    // Clear the timeout if `points` changes within the 100ms
-    return () => clearTimeout(debounceTimeout);
-  }, [points, conInterface]);
+    if (updateByRefreshRef.current) {
+      updateByRefreshRef.current = false;
+    } else {
+      // Set a delay of 100ms before calling `updateCon`
+      const debounceTimeout = setTimeout(updateCon, 100);
+      // Clear the timeout if `points` changes within the 100ms
+      return () => clearTimeout(debounceTimeout);
+    }
+  }, [points]);
 }
 
 export function setupSelection(
