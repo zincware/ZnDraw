@@ -504,11 +504,9 @@ export default function App() {
         if (controlsRef.current && cameraRef.current) {
           controlsRef.current.enabled = false;
           cameraRef.current.position.set(...origin.position);
-          // cameraRef.current.up.set(0, 1, 0); // original up vector
           setCameraRoll(null);
           controlsRef.current.update();
           controlsRef.current.enabled = true;
-          cameraRef.current.updateProjectionMatrix();
         }
       } else if (event.key == "r") {
         const roll = Math.PI / 100;
