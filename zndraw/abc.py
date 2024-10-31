@@ -6,4 +6,4 @@ class Message(t.TypedDict):
 
     time: str
     msg: str
-    origin: str|None
+    origin: str | None

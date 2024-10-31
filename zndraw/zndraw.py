@@ -16,6 +16,7 @@ import znjson
 import znsocket
 from redis import Redis
 
+from zndraw.abc import Message
 from zndraw.base import Extension, ZnDrawBase
 from zndraw.bonds import ASEComputeBonds
 from zndraw.config import ArrowsConfig, ZnDrawConfig
@@ -29,7 +30,6 @@ from zndraw.type_defs import (
     RegisterModifier,
     TimeoutConfig,
 )
-from zndraw.abc import Message
 from zndraw.utils import (
     ASEConverter,
     call_with_retry,

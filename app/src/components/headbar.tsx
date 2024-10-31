@@ -20,7 +20,7 @@ import {
 } from "react-bootstrap";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
-import remarkBreaks from 'remark-breaks'
+import remarkBreaks from "remark-breaks";
 import rehypeKatex from "rehype-katex";
 import "katex/dist/katex.min.css"; // `rehype-katex` does not import the CSS for you
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
@@ -141,7 +141,7 @@ function ConsoleWindow({
   const handleEditKeyPress = (e, idx) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault(); // Prevents adding a new line
-      handleSave(idx);    // Calls the save function
+      handleSave(idx); // Calls the save function
     }
   };
 
@@ -190,72 +190,72 @@ function ConsoleWindow({
 
           {/* Message Body with Optional Timestamp */}
           <Card.Body className="text-start overflow-y-auto" ref={scrollRef}>
-  {messages.map((line, idx) => (
-    <div key={idx} className="mb-2">
-      {/* Row for timestamp and edit icons */}
-      <div className="d-flex justify-content-between align-items-center">
-        {showTime && (
-          <div className="d-flex align-items-center">
-            <span className="text-muted">{line.time}</span>
-            {isEditing === idx ? (
-              <FaSave
-                onClick={() => handleSave(idx)}
-                className="text-muted ms-2"
-                style={{ cursor: 'pointer' }}
-              />
-            ) : (
-              <FaPencil
-                onClick={() => handleEdit(idx, line.msg)}
-                className="text-muted ms-2"
-                style={{ cursor: 'pointer' }}
-              />
-            )}
-          </div>
-        )}
-      </div>
+            {messages.map((line, idx) => (
+              <div key={idx} className="mb-2">
+                {/* Row for timestamp and edit icons */}
+                <div className="d-flex justify-content-between align-items-center">
+                  {showTime && (
+                    <div className="d-flex align-items-center">
+                      <span className="text-muted">{line.time}</span>
+                      {isEditing === idx ? (
+                        <FaSave
+                          onClick={() => handleSave(idx)}
+                          className="text-muted ms-2"
+                          style={{ cursor: "pointer" }}
+                        />
+                      ) : (
+                        <FaPencil
+                          onClick={() => handleEdit(idx, line.msg)}
+                          className="text-muted ms-2"
+                          style={{ cursor: "pointer" }}
+                        />
+                      )}
+                    </div>
+                  )}
+                </div>
 
-      {/* Row for message content or editable input */}
-      <div>
-        {isEditing !== idx ? (
-          <Markdown
-            remarkPlugins={[remarkMath, remarkGfm, remarkBreaks]}
-            rehypePlugins={[rehypeKatex]}
-            children={line.msg}
-            components={{
-              code(props) {
-                const { children, className, ...rest } = props;
-                const match = /language-(\w+)/.exec(className || "");
-                return match ? (
-                  <SyntaxHighlighter
-                    {...rest}
-                    PreTag="div"
-                    children={String(children).replace(/\n$/, "")}
-                    language={match[1]}
-                    style={colorMode === "light" ? oneLight : oneDark}
-                  />
-                ) : (
-                  <code {...rest} className={className}>
-                    {children}
-                  </code>
-                );
-              },
-            }}
-          />
-        ) : (
-          <InputGroup>
-          <Form.Control
-            as="textarea"
-            value={tempMsg}
-            rows={4}
-            onChange={(e) => setTempMsg(e.target.value)}
-            onKeyDown={(e) => handleEditKeyPress(e, idx)}
-          />
-        </InputGroup>
-        )}
-      </div>
-    </div>
-  ))}
-</Card.Body>
+                {/* Row for message content or editable input */}
+                <div>
+                  {isEditing !== idx ? (
+                    <Markdown
+                      remarkPlugins={[remarkMath, remarkGfm, remarkBreaks]}
+                      rehypePlugins={[rehypeKatex]}
+                      children={line.msg}
+                      components={{
+                        code(props) {
+                          const { children, className, ...rest } = props;
+                          const match = /language-(\w+)/.exec(className || "");
+                          return match ? (
+                            <SyntaxHighlighter
+                              {...rest}
+                              PreTag="div"
+                              children={String(children).replace(/\n$/, "")}
+                              language={match[1]}
+                              style={colorMode === "light" ? oneLight : oneDark}
+                            />
+                          ) : (
+                            <code {...rest} className={className}>
+                              {children}
+                            </code>
+                          );
+                        },
+                      }}
+                    />
+                  ) : (
+                    <InputGroup>
+                      <Form.Control
+                        as="textarea"
+                        value={tempMsg}
+                        rows={4}
+                        onChange={(e) => setTempMsg(e.target.value)}
+                        onKeyDown={(e) => handleEditKeyPress(e, idx)}
+                      />
+                    </InputGroup>
+                  )}
+                </div>
+              </div>
+            ))}
+          </Card.Body>
 
           <Card.Footer>
             <InputGroup>
@@ -297,7 +297,11 @@ function ChatInsertModal({ show, onHide, chatInputRef, step, selection }: any) {
 
   const handleSelectChange = (selectedOption: any) => {
     chatInputRef.current.value = chatInputRef.current.value.slice(0, -2);
-    const basePath = `${window.location.origin}${window.location.pathname}`.replace(/\/+$/, "");
+    const basePath =
+      `${window.location.origin}${window.location.pathname}`.replace(
+        /\/+$/,
+        "",
+      );
 
     if (selectedOption.value === "step") {
       chatInputRef.current.value =
