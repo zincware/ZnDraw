@@ -180,7 +180,6 @@ const PlotsCard2 = ({
   }, [updatedPlotsList]);
 
   useEffect(() => {
-    if (rawPlotData) {
       if (rawPlotData) {
         const markerList: [number, number, string][] = [];
 
@@ -227,7 +226,6 @@ const PlotsCard2 = ({
         });
         setPlotData(plotDataCopy);
       }
-    }
   }, [rawPlotData, step]); // does this self-trigger? If so use raw
 
   const handleSelectChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
