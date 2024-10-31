@@ -326,38 +326,40 @@ export default function App() {
   useEffect(() => {
     if (controlsRef.current && cameraRef.current) {
       const camera = cameraRef.current;
-        if (camera) {
-          controlsRef.current.enabled = false;
-          // y direction
-          var yDir = new THREE.Vector3 ( 0, 1, 0 );
-          if (cameraRoll === null) {
-            camera.up.copy ( yDir );
-          } else {
+      if (camera) {
+        controlsRef.current.enabled = false;
+        // y direction
+        var yDir = new THREE.Vector3(0, 1, 0);
+        if (cameraRoll === null) {
+          camera.up.copy(yDir);
+        } else {
           // test case to roll the camera normal to screen
 
           // direction camera is looking to
-          var looksTo = new THREE.Vector3 ( ) ;
-          camera.getWorldDirection ( looksTo  ) ;
+          var looksTo = new THREE.Vector3();
+          camera.getWorldDirection(looksTo);
 
           // direction perpendicular to both yDir and looksTo
-          var b = new THREE.Vector3 ( ) ;
-          b.crossVectors ( yDir, looksTo ).normalize();
+          var b = new THREE.Vector3();
+          b.crossVectors(yDir, looksTo).normalize();
 
           // direction perpendicular to both looksTo and b
-          var n = new THREE.Vector3 ( ) ;
-          n.crossVectors ( looksTo, b ).normalize();
+          var n = new THREE.Vector3();
+          n.crossVectors(looksTo, b).normalize();
 
           // make a circle in the plane with vectors b and n
-          n.multiplyScalar( Math.cos(cameraRoll) ).add( b.multiplyScalar( Math.sin(cameraRoll) ) );
+          n.multiplyScalar(Math.cos(cameraRoll)).add(
+            b.multiplyScalar(Math.sin(cameraRoll)),
+          );
 
           // set camera up
-          camera.up.set ( n.x , n.y, n.z );
-          }
-
-          controlsRef.current.update();
-          controlsRef.current.enabled = true;
-          cameraRef.current.updateProjectionMatrix();
+          camera.up.set(n.x, n.y, n.z);
         }
+
+        controlsRef.current.update();
+        controlsRef.current.enabled = true;
+        cameraRef.current.updateProjectionMatrix();
+      }
     }
   }, [cameraRoll]);
 
