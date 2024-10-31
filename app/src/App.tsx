@@ -185,8 +185,8 @@ export default function App() {
   );
   setupFrames(token, step, setCurrentFrame, setLength, setStep);
   setupFigures(token, setUpdatedPlotsList);
-  setupGeometries(token, setGeometries);
-  setupMessages(token, setMessages);
+  setupGeometries(token, setGeometries, geometries);
+  setupMessages(token, setMessages, messages);
 
   useEffect(() => {
     function onConnect() {
@@ -700,6 +700,7 @@ export default function App() {
           roomLock={roomLock}
           setAddPlotsWindow={setAddPlotsWindow}
           messages={messages}
+          setMessages={setMessages}
           token={token}
           step={step}
           selection={selectedIds}

@@ -31,7 +31,7 @@
     "remark-math": "^6.0.0",
     "socket.io-client": "^4.8.1",
     "three": "^0.165.0",
-    "znsocket": "^0.2.2"
+    "znsocket": "^0.2.3"
   },
   "devDependencies": {
     "@types/react": "^18.3.12",

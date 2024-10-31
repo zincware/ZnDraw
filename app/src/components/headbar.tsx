@@ -64,27 +64,33 @@ function getServerUrl() {
 }
 
 function ConsoleWindow({
-  text,
+  messages,
   setConsoleShow,
   token,
-  setConsoleText,
+  setMessages,
   colorMode,
   step,
   selection,
 }: {
-  text: string[];
+  messages: string[];
   setConsoleShow: any;
   token: string;
-  setConsoleText: any;
+  setMessages: any;
   colorMode: string;
   step: number;
   selection: Set<number>;
 }) {
   const [showTime, setShowTime] = useState(false);
   const [chatInput, setChatInput] = useState<object>({});
-  let [conInterface, setConInterface]: any = useState(undefined);
   const [showDropdown, setShowDropdown] = useState(false);
   let chatInputRef = useRef(null);
+  const scrollRef = useRef(null);
+
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [messages]);
 
   const handleChatInputChange = (e: any) => {
     // log the selectionStart
@@ -99,17 +105,8 @@ function ConsoleWindow({
     }
   };
 
-  useEffect(() => {
-    const con = new znsocket.List({
-      client: client,
-      key: "room:" + token + ":chat",
-    });
-    setConInterface(con);
-  }, [token]);
-
   const handleSendMessage = () => {
-    conInterface.append(chatInput);
-    setConsoleText([...text, chatInput]);
+    setMessages([...messages, chatInput]);
     if (chatInputRef.current) {
       chatInputRef.current.value = "";
     }
@@ -149,7 +146,7 @@ function ConsoleWindow({
           // ref={cardRef}
         >
           <Card.Header className="d-flex justify-content-between align-items-center">
-            <Card.Title>Console</Card.Title>
+            <Card.Title>Chat</Card.Title>
             <div className="d-flex align-items-center">
               <Form.Check
                 type="switch"
@@ -166,8 +163,8 @@ function ConsoleWindow({
           </Card.Header>
 
           {/* Message Body with Optional Timestamp */}
-          <Card.Body className="text-start overflow-y-auto">
-            {text.map((line, idx) => (
+          <Card.Body className="text-start overflow-y-auto" ref={scrollRef}>
+            {messages.map((line, idx) => (
               <p key={idx}>
                 {showTime && (
                   <span className="text-muted me-2">{line.time}</span>
@@ -238,12 +235,14 @@ function ChatInsertModal({ show, onHide, chatInputRef, step, selection }: any) {
     { value: "selection", label: "selection" },
   ];
 
+  // TODO: support in new / unconnected room here
+
   const handleSelectChange = (selectedOption: any) => {
     chatInputRef.current.value = chatInputRef.current.value.slice(0, -2);
     if (selectedOption.value === "step") {
       chatInputRef.current.value =
         chatInputRef.current.value +
-        `[${selectedOption.value}](${window.location.origin}/?step=${step})`;
+        `[step ${step}](${window.location.origin}/?step=${step})`;
     } else if (selectedOption.value === "selection") {
       if (selection.size === 0) {
         chatInputRef.current.value =
@@ -558,6 +557,7 @@ interface HeadBarProps {
   roomLock: boolean;
   setAddPlotsWindow: any;
   messages: any[];
+  setMessages: any;
   token: string;
   step: number;
   selection: Set<number>;
@@ -578,6 +578,7 @@ const HeadBar = ({
   roomLock,
   setAddPlotsWindow,
   messages,
+  setMessages,
   token,
   step,
   selection,
@@ -587,11 +588,6 @@ const HeadBar = ({
   const [refreshModalShow, setRefreshModalShow] = useState(false);
   const [tutorialModalShow, setTutorialModalShow] = useState(false);
   const [consoleShow, setConsoleShow] = useState(false);
-  const [consoleText, setConsoleText] = useState<string[]>([]);
-
-  useEffect(() => {
-    setConsoleText(messages);
-  }, [messages]);
 
   useEffect(() => {
     setConsoleShow(showSiMGen);
@@ -805,10 +801,10 @@ const HeadBar = ({
       />
       {consoleShow && (
         <ConsoleWindow
-          text={consoleText}
+          messages={messages}
           setConsoleShow={setConsoleShow}
           token={token}
-          setConsoleText={setConsoleText}
+          setMessages={setMessages}
           colorMode={colorMode}
           step={step}
           selection={selection}
