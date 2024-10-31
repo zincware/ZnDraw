@@ -371,6 +371,7 @@ function HelpModel(props: any) {
 - **remove selected particles**: \`backspace\`
 - **remove line point**: \`shift + backspace\`
 - **reset camera to original position**: \`keypress O\`
+- **rotate camera perpendicular to the screen **: \`keypress R\` or \`keypress ctrl + R\`
 `;
 
   return (
