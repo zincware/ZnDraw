@@ -131,16 +131,6 @@ export const ParticleInstances = ({
   const originalScale = useRef<number>(1);
   const sphereRef = useRef<THREE.InstancedMesh | null>(null);
 
-  const { camera } = useThree();
-
-  // TODO: look at the COM of the particles
-  useEffect(() => {
-    if (camera) {
-      camera.position.set(-10, -10, -10); // Set initial position
-      // camera.lookAt(0, 0, 0); // Make the camera look at (5, 5, 5)
-    }
-  }, [camera]);
-
   useEffect(() => {
     if (meshRef.current && count > 0) {
       const color = new THREE.Color();

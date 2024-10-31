@@ -101,6 +101,7 @@ const PlotsCard2 = ({
     undefined,
   );
   let [plotData, setPlotData] = useState<{ [key: string]: any }>(undefined);
+  let [plotLayout, setPlotLayout] = useState<{ [key: string]: any }>(undefined);
   let [plotHover, setPlotHover] = useState<boolean>(false);
   const [allowDrag, setAllowDrag] = useState<boolean>(true);
   let selectFormRef = useRef<HTMLSelectElement>(null);
@@ -154,7 +155,8 @@ const PlotsCard2 = ({
       if (data === null) {
         return;
       }
-      setRawPlotData(JSON.parse(data["value"]));
+      setRawPlotData(JSON.parse(data["value"]).data);
+      setPlotLayout(JSON.parse(data["value"]).layout);
     });
   }, [conInterface, selectedOption]);
 
@@ -171,62 +173,60 @@ const PlotsCard2 = ({
         if (data === null) {
           return;
         }
-        setRawPlotData(JSON.parse(data["value"]));
+        setRawPlotData(JSON.parse(data["value"]).data);
+        setPlotLayout(JSON.parse(data["value"]).layout);
       });
     }
   }, [updatedPlotsList]);
 
   useEffect(() => {
     if (rawPlotData) {
-      if (rawPlotData.layout) {
-        const markerList: [number, number, string][] = [];
+      const markerList: [number, number, string][] = [];
 
-        // Add markers at the matching step in the data
-        rawPlotData.data.forEach((dataItem) => {
-          if (dataItem.customdata) {
-            dataItem.customdata.forEach((customdata, index) => {
-              // Check if customdata[0] matches the step
-              if (customdata[0] === step) {
-                const xPosition = dataItem.x[index];
-                const yPosition = dataItem.y[index];
-                // check if dataItem.line.color is available
-                let color = "red";
-                if (dataItem.line) {
-                  if (dataItem.line.color) {
-                    color = dataItem.line.color;
-                  }
+      // Add markers at the matching step in the data
+      rawPlotData.forEach((dataItem) => {
+        if (dataItem.customdata) {
+          dataItem.customdata.forEach((customdata, index) => {
+            // Check if customdata[0] matches the step
+            if (customdata[0] === step) {
+              const xPosition = dataItem.x[index];
+              const yPosition = dataItem.y[index];
+              // check if dataItem.line.color is available
+              let color = "red";
+              if (dataItem.line) {
+                if (dataItem.line.color) {
+                  color = dataItem.line.color;
                 }
-                markerList.push([xPosition, yPosition, color]);
               }
-            });
-          }
-        });
+              markerList.push([xPosition, yPosition, color]);
+            }
+          });
+        }
+      });
 
-        const plotDataCopy = JSON.parse(JSON.stringify(rawPlotData));
+      const plotDataCopy = JSON.parse(JSON.stringify(rawPlotData));
 
-        // Add the markers to the data array
-        plotDataCopy.data.push({
-          type: "scatter",
-          mode: "markers",
-          name: "Step",
-          showlegend: false,
-          x: markerList.map((marker) => marker[0]),
-          y: markerList.map((marker) => marker[1]),
-          marker: {
-            color: markerList.map((marker) => marker[2]),
-            size: 10,
-            symbol: "circle",
-            line: {
-              color: "black",
-              width: 2,
-            },
+      // Add the markers to the data array
+      plotDataCopy.push({
+        type: "scatter",
+        mode: "markers",
+        name: "Step",
+        showlegend: false,
+        x: markerList.map((marker) => marker[0]),
+        y: markerList.map((marker) => marker[1]),
+        marker: {
+          color: markerList.map((marker) => marker[2]),
+          size: 10,
+          symbol: "circle",
+          line: {
+            color: "black",
+            width: 2,
           },
-        });
-        console.log("rawPlotData - step", step);
-        setPlotData(plotDataCopy);
-      }
+        },
+      });
+      setPlotData(plotDataCopy);
     }
-  }, [rawPlotData, step]);
+  }, [rawPlotData, step]); // does this self-trigger? If so use raw
 
   const handleSelectChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
     setSelectedOption(event.target.value);
@@ -246,15 +246,12 @@ const PlotsCard2 = ({
 
   const onResize: RndResizeCallback = () => {
     if (cardRef.current) {
-      setPlotData((prev) => {
+      setPlotLayout((prev) => {
         if (prev) {
           return {
             ...prev,
-            layout: {
-              ...prev.layout,
-              width: cardRef.current.clientWidth - 20,
-              height: cardRef.current.clientHeight - 60,
-            },
+            width: cardRef.current.clientWidth - 20,
+            height: cardRef.current.clientHeight - 60,
           };
         }
         return prev;
@@ -375,10 +372,10 @@ const PlotsCard2 = ({
         <Card.Body style={{ padding: 0 }}>
           {plotData ? (
             <Plot
-              data={plotData.data}
+              data={plotData}
               // frames={plotData[selectedOption].frames}
               // config={plotData[selectedOption].config}
-              layout={plotData.layout}
+              layout={plotLayout}
               onHover={() => setPlotHover(true)}
               onSelecting={() => setPlotHover(true)}
               onBeforeHover={() => setPlotHover(true)}

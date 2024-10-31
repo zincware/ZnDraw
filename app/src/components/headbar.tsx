@@ -22,6 +22,7 @@ import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
 import remarkBreaks from "remark-breaks";
 import rehypeKatex from "rehype-katex";
+import rehypeRaw from "rehype-raw";
 import "katex/dist/katex.min.css"; // `rehype-katex` does not import the CSS for you
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import {
@@ -219,7 +220,7 @@ function ConsoleWindow({
                   {isEditing !== idx ? (
                     <Markdown
                       remarkPlugins={[remarkMath, remarkGfm, remarkBreaks]}
-                      rehypePlugins={[rehypeKatex]}
+                      rehypePlugins={[rehypeKatex, rehypeRaw]} // security risk with rehypeRaw?
                       children={line.msg}
                       components={{
                         code(props) {
@@ -370,6 +371,7 @@ function HelpModel(props: any) {
 - **remove selected particles**: \`backspace\`
 - **remove line point**: \`shift + backspace\`
 - **reset camera to original position**: \`keypress O\`
+- **rotate camera perpendicular to the screen **: \`keypress R\` or \`keypress ctrl + R\`
 `;
 
   return (

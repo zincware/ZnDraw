@@ -30,9 +30,11 @@ import { Canvas, useThree, useFrame } from "@react-three/fiber";
 import {
   OrbitControls,
   PerspectiveCamera,
+  OrthographicCamera,
   TrackballControls,
   TransformControls,
   Box,
+  CameraControls,
 } from "@react-three/drei";
 import { Button, InputGroup, Form } from "react-bootstrap";
 import * as THREE from "three";
@@ -157,6 +159,8 @@ export default function App() {
   const cameraLightRef = useRef<THREE.PointLight>(null);
   const controlsRef = useRef<TransformControls>(null);
   const cameraRef = useRef<THREE.Camera>(null);
+
+  const [cameraRoll, setCameraRoll] = useState<number>(0); // or undefined
 
   // extension UI elements
   const [tutorialURL, setTutorialURL] = useState<string>("");
@@ -317,6 +321,48 @@ export default function App() {
     };
   }, []);
 
+  // camera roll
+
+  useEffect(() => {
+    if (controlsRef.current && cameraRef.current) {
+      const camera = cameraRef.current;
+      if (camera) {
+        controlsRef.current.enabled = false;
+        // y direction
+        var yDir = new THREE.Vector3(0, 1, 0);
+        if (cameraRoll === null) {
+          camera.up.copy(yDir);
+        } else {
+          // test case to roll the camera normal to screen
+
+          // direction camera is looking to
+          var looksTo = new THREE.Vector3();
+          camera.getWorldDirection(looksTo);
+
+          // direction perpendicular to both yDir and looksTo
+          var b = new THREE.Vector3();
+          b.crossVectors(yDir, looksTo).normalize();
+
+          // direction perpendicular to both looksTo and b
+          var n = new THREE.Vector3();
+          n.crossVectors(looksTo, b).normalize();
+
+          // make a circle in the plane with vectors b and n
+          n.multiplyScalar(Math.cos(cameraRoll)).add(
+            b.multiplyScalar(Math.sin(cameraRoll)),
+          );
+
+          // set camera up
+          camera.up.set(n.x, n.y, n.z);
+        }
+
+        controlsRef.current.update();
+        controlsRef.current.enabled = true;
+        cameraRef.current.updateProjectionMatrix();
+      }
+    }
+  }, [cameraRoll]);
+
   useEffect(() => {
     // page initialization
 
@@ -460,8 +506,16 @@ export default function App() {
         if (controlsRef.current && cameraRef.current) {
           controlsRef.current.enabled = false;
           cameraRef.current.position.set(...origin.position);
+          setCameraRoll(null);
           controlsRef.current.update();
           controlsRef.current.enabled = true;
+        }
+      } else if (event.key == "r") {
+        const roll = Math.PI / 100;
+        if (event.ctrlKey) {
+          setCameraRoll((prev) => prev - roll);
+        } else {
+          setCameraRoll((prev) => prev + roll);
         }
       }
     };
@@ -540,15 +594,28 @@ export default function App() {
       <div className="canvas-container" onDragOver={onDragOver} onDrop={onDrop}>
         {roomConfig.scene.controls !== undefined && (
           <Canvas onPointerMissed={onPointerMissed}>
-            <PerspectiveCamera
-              ref={cameraRef}
-              makeDefault
-              near={roomConfig["scene"]["camera_near"]}
-              far={roomConfig["scene"]["camera_far"]}
-            />
+            {roomConfig["scene"].camera === "PerspectiveCamera" && (
+              <PerspectiveCamera
+                ref={cameraRef}
+                makeDefault
+                near={roomConfig["scene"]["camera_near"]}
+                far={roomConfig["scene"]["camera_far"]}
+                position={[-10, -10, -10]}
+              />
+            )}
+            {roomConfig["scene"].camera === "OrthographicCamera" && (
+              <OrthographicCamera
+                ref={cameraRef}
+                makeDefault
+                near={roomConfig["scene"]["camera_near"]}
+                far={roomConfig["scene"]["camera_far"]}
+                position={[-10, -10, -10]}
+                zoom={10}
+              />
+            )}
             <pointLight
               ref={cameraLightRef}
-              position={[0, 0, 0]}
+              position={[-11, -11, -11]}
               decay={0}
               intensity={Math.PI}
               castShadow
