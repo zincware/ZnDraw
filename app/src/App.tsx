@@ -541,25 +541,25 @@ export default function App() {
       <div className="canvas-container" onDragOver={onDragOver} onDrop={onDrop}>
         {roomConfig.scene.controls !== undefined && (
           <Canvas onPointerMissed={onPointerMissed}>
-            { roomConfig["scene"].camera === "PerspectiveCamera" && (
-            <PerspectiveCamera
-            ref={cameraRef}
-            makeDefault
-            near={roomConfig["scene"]["camera_near"]}
-            far={roomConfig["scene"]["camera_far"]}
-            position={[-10, -10, -10]}
-          />
-            ) }
-            { roomConfig["scene"].camera === "OrthographicCamera" && (
-            <OrthographicCamera
-            ref={cameraRef}
-            makeDefault
-            near={roomConfig["scene"]["camera_near"]}
-            far={roomConfig["scene"]["camera_far"]}
-            position={[-10, -10, -10]}
-            zoom={10}
-          />
-            ) }
+            {roomConfig["scene"].camera === "PerspectiveCamera" && (
+              <PerspectiveCamera
+                ref={cameraRef}
+                makeDefault
+                near={roomConfig["scene"]["camera_near"]}
+                far={roomConfig["scene"]["camera_far"]}
+                position={[-10, -10, -10]}
+              />
+            )}
+            {roomConfig["scene"].camera === "OrthographicCamera" && (
+              <OrthographicCamera
+                ref={cameraRef}
+                makeDefault
+                near={roomConfig["scene"]["camera_near"]}
+                far={roomConfig["scene"]["camera_far"]}
+                position={[-10, -10, -10]}
+                zoom={10}
+              />
+            )}
             <pointLight
               ref={cameraLightRef}
               position={[-11, -11, -11]}

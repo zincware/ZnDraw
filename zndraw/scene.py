@@ -26,6 +26,7 @@ class Controls(str, enum.Enum):
     OrbitControls = "OrbitControls"
     TrackballControls = "TrackballControls"
 
+
 class Camera(str, enum.Enum):
     PerspectiveCamera = "PerspectiveCamera"
     OrthographicCamera = "OrthographicCamera"

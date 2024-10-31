@@ -131,7 +131,6 @@ export const ParticleInstances = ({
   const originalScale = useRef<number>(1);
   const sphereRef = useRef<THREE.InstancedMesh | null>(null);
 
-
   useEffect(() => {
     if (meshRef.current && count > 0) {
       const color = new THREE.Color();
