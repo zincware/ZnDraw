@@ -29,6 +29,7 @@ from zndraw.type_defs import (
     RegisterModifier,
     TimeoutConfig,
 )
+from zndraw.abc import Message
 from zndraw.utils import (
     ASEConverter,
     call_with_retry,
@@ -379,7 +380,7 @@ class ZnDraw(ZnDrawBase):
             return 0
 
     def log(self, message: str) -> None:
-        msg = {
+        msg: Message = {
             "time": datetime.datetime.now().isoformat(),
             "msg": message,
             "origin": self.name,
@@ -387,6 +388,15 @@ class ZnDraw(ZnDrawBase):
         znsocket.List(
             self.r, f"room:{self.token}:chat", socket=self._refresh_client
         ).append(msg)
+
+    @property
+    def messages(self) -> list[Message]:
+        return znsocket.List(
+            self.r,
+            f"room:{self.token}:chat",
+            repr_type="length",
+            socket=self._refresh_client,
+        )
 
     @step.setter
     def step(self, value: int):

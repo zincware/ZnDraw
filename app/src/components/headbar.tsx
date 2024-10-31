@@ -167,8 +167,11 @@ function ConsoleWindow({
             {messages.map((line, idx) => (
               <p key={idx}>
                 {showTime && (
-                  <span className="text-muted me-2">{line.time}</span>
-                )}
+                    <div className="d-flex justify-content-between align-items-center">
+                      <span className="text-muted">{line.time}</span>
+                      <FaPencil className="text-muted" />
+                    </div>
+                  )}
                 <Markdown
                   remarkPlugins={[remarkMath, remarkGfm]}
                   rehypePlugins={[rehypeKatex]}

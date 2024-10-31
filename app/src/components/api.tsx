@@ -293,6 +293,7 @@ export const setupFrames = (
   let [framesRequiringUpdate, setFramesRequiringUpdate] = useState(undefined);
 
   const setCurrentFrameFromObject = (frame: any) => {
+    console.log("setting current frame");
     frame = frame["value"];
     frame.positions = frame.positions.map(
       (position: [number, number, number]) =>
