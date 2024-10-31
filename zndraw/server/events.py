@@ -138,43 +138,6 @@ def init_socketio_events(io: SocketIO):
         log.critical(f"connecting (pyclient) {request.sid} to {room}")
         # join_room(f"pyclients_{token}")
 
-    @io.on("room:all:frames:refresh")
-    def room_all_frames_refresh(indices: list[int]):
-        emit("room:frames:refresh", [int(x) for x in indices], broadcast=True)
-
-    @io.on("room:frames:insert")
-    def room_frames_insert(data: dict):
-        index = data.pop("index")
-        value = data.pop("value")
-        r: Redis = current_app.extensions["redis"]
-        room = session.get("token")
-
-        lst = znsocket.List(r, f"room:{room}:frames")
-        if not r.exists(f"room:{room}:frames"):
-            default_lst = znsocket.List(r, "room:default:frames")
-            # TODO: using a redis copy action would be faster
-            lst.extend(default_lst)
-        lst.insert(index, value)
-
-        # not sure how to update, insert requires everything to be updated after the insertion
-        # can be done custom on the client side to avoid resending everything
-        emit("room:frames:refresh", [int(x) for x in data], to=room)
-        # This method should be called, because it can move frames from the default
-        # room to the current room. Doing so in the background
-        # can cause issues with further operations on the frames. (see room frames set)
-        return "OK"
-
-    @io.on("room:length:get")
-    def room_frames_length_get() -> int:
-        room = session.get("token")
-        r: Redis = current_app.extensions["redis"]
-        room_key = (
-            f"room:{room}:frames"
-            if r.exists(f"room:{room}:frames")
-            else "room:default:frames"
-        )
-        return len(znsocket.List(r, room_key))
-
     @io.on("modifier:register")
     def modifier_register(data: dict):
         """Register the modifier."""
@@ -386,54 +349,6 @@ def init_socketio_events(io: SocketIO):
         scene = Scene(**config["scene"])
         emit("scene:schema", get_schema_with_instance_defaults(scene), to=room)
 
-    @io.on("analysis:figure:set")
-    def analysis_figure_set(data: dict):
-        # This is currently using push and the figure is not stored
-        room = session.get("token")
-        r: Redis = current_app.extensions["redis"]
-        if not r.exists(f"room:{room}:analysis:figures"):
-            default_figures = znsocket.Dict(r, "room:default:analysis:figures")
-            figures = znsocket.Dict(r, f"room:{room}:analysis:figures")
-            figures.update(default_figures)
-        else:
-            figures = znsocket.Dict(r, f"room:{room}:analysis:figures")
-        # remove all keys that are not in data
-        for key in list(figures.keys()):
-            if key not in data:
-                del figures[key]
-        # add all keys that are in data
-        for key, value in data.items():
-            figures[key] = value
-        emit(
-            "analysis:figure:refresh",
-            list(data.keys()),
-            to=room,
-        )
-
-    @io.on("analysis:figure:get")
-    def analysis_figure_get(key: str | None = None) -> dict | None:
-        room = session.get("token")
-        r: Redis = current_app.extensions["redis"]
-        # check if room exists, else copy from default
-        if not r.exists(f"room:{room}:analysis:figures"):
-            default_figures = znsocket.Dict(r, "room:default:analysis:figures")
-            figures = znsocket.Dict(r, f"room:{room}:analysis:figures")
-            figures.update(default_figures)
-        else:
-            figures = znsocket.Dict(r, f"room:{room}:analysis:figures")
-        if key is None:
-            return dict(figures)
-        return figures.get(key)
-
-    @io.on("analysis:figure:keys")
-    def analysis_figure_keys() -> list[str]:
-        room = session.get("token")
-        r: Redis = current_app.extensions["redis"]
-        if not r.exists(f"room:{room}:analysis:figures"):
-            return znsocket.Dict(r, "room:default:analysis:figures").keys()
-        else:
-            return znsocket.Dict(r, f"room:{room}:analysis:figures").keys()
-
     @io.on("selection:run")
     def selection_run(data: dict):
         room = session.get("token")
@@ -465,24 +380,6 @@ def init_socketio_events(io: SocketIO):
         room = session.get("token")
         emit("room:alert", msg, to=room)
 
-    @io.on("room:selection:set")
-    def room_selection_set(data: dict[str, list[int]]):
-        r: Redis = current_app.extensions["redis"]
-        room = session.get("token")
-        r.hset(
-            f"room:{room}:selection", mapping={k: json.dumps(v) for k, v in data.items()}
-        )
-        emit("room:selection:set", data, to=room, include_self=False)
-
-    @io.on("room:selection:get")
-    def room_selection_get() -> dict[str, list[int]]:
-        r: Redis = current_app.extensions["redis"]
-        room = session.get("token")
-        result = r.hgetall(f"room:{room}:selection")
-        if "0" in result:
-            return {k: json.loads(v) for k, v in result.items()}
-        return {"0": []}
-
     @io.on("room:upload:file")
     def room_upload_file(data: dict):
         room = session.get("token")
@@ -501,11 +398,6 @@ def init_socketio_events(io: SocketIO):
         r: Redis = current_app.extensions["redis"]
         locked = r.get(f"room:{room}:locked")
         return locked == "True"
-
-    @io.on("room:frames:refresh")
-    def room_frames_refresh(frames: list[int]):
-        room = session.get("token")
-        emit("room:frames:refresh", frames, to=room)
 
     @io.on("room:token:get")
     def room_token_get() -> str:
