@@ -3,6 +3,7 @@
 import os
 import platform
 import subprocess
+import threading
 import time
 
 import znsocket.exceptions
@@ -27,23 +28,17 @@ def run_znsocket(port) -> subprocess.Popen:
     return server
 
 
-def run_celery_worker() -> subprocess.Popen:
+def run_celery_worker() -> threading.Thread:
     """Run a celery worker."""
     my_env = os.environ.copy()
     if platform.system() == "Darwin" and platform.processor() == "arm":
         # fix celery worker issue on apple silicon
         my_env["OBJC_DISABLE_INITIALIZE_FORK_SAFETY"] = "YES"
+    
+    def run_celery_worker():
+        from zndraw_app.make_celery import celery_app
+        celery_app.worker_main(argv = ['worker', '--loglevel=info', '--without-gossip', '--pool=eventlet'])
 
-    worker = subprocess.Popen(
-        [
-            "celery",
-            "-A",
-            "zndraw_app.make_celery",
-            "worker",
-            "--loglevel=info",
-            "-P",
-            "eventlet",
-        ],
-        env=my_env,
-    )
+    worker = threading.Thread(target=run_celery_worker)
+    worker.start()
     return worker

@@ -11,6 +11,9 @@ export function setupBookmarks(
   const conInterfaceRef = useRef(undefined);
   const updateByRefreshRef = useRef(false);
   useEffect(() => {
+    if (token === "") {
+      return;
+    }
     const con = new znsocket.Dict({
       client: client,
       key: "room:" + token + ":bookmarks",
@@ -314,7 +317,7 @@ export const setupFrames = (
     });
 
     // initially check if the room exists
-    con.getitem(parseInt(step)).then((frame: any) => {
+    con.getitem(parseInt(step) || 0).then((frame: any) => {
       if (frame !== null) {
         setUseDefaultRoom(false);
         con.len().then((length: any) => {
@@ -363,7 +366,7 @@ export const setupFrames = (
       currentInterface.len().then((length: any) => {
         setLength(length);
       });
-      currentInterface.getitem(parseInt(step)).then((frame: any) => {
+      currentInterface.getitem(parseInt(step) || 0).then((frame: any) => {
         console.log(frame);
         if (frame === null) {
           currentInterface.len().then((length: any) => {
@@ -389,7 +392,7 @@ export const setupFrames = (
     }
     let currentInterface = useDefaultRoom ? defaultConInterface : conInterface;
 
-    currentInterface.getitem(parseInt(step)).then((frame: any) => {
+    currentInterface.getitem(parseInt(step) || 0).then((frame: any) => {
       if (frame === null) {
         currentInterface.len().then((length: any) => {
           setStep(length - 1);
