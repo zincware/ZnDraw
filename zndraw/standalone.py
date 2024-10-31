@@ -46,6 +46,7 @@ def run_celery_thread_worker() -> threading.Thread:
     worker.start()
     return worker
 
+
 # We use this for running tests for now
 def run_celery_worker() -> subprocess.Popen:
     """Run a celery worker."""
