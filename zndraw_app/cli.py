@@ -2,6 +2,8 @@ import dataclasses
 import datetime
 import os
 import pathlib
+import shutil
+import signal
 import typing as t
 import webbrowser
 
@@ -9,7 +11,7 @@ import typer
 
 from zndraw.app import create_app
 from zndraw.base import FileIO
-from zndraw.standalone import run_celery_worker, run_znsocket
+from zndraw.standalone import run_celery_thread_worker, run_znsocket
 from zndraw.tasks import read_file, read_plots
 from zndraw.upload import upload
 from zndraw.utils import get_port
@@ -54,6 +56,7 @@ def main(
     url: t.Optional[str] = typer.Option(
         None,
         help="URL to a running ZnDraw server. Use this server instead of starting a new one.",
+        envvar="ZNDRAW_URL",
     ),
     append: bool = typer.Option(
         False, help="Append the file to the existing data on the server."
@@ -175,7 +178,7 @@ def main(
         if env_config.FLASK_STORAGE.startswith("znsocket"):
             # standalone with redis would assume a running instance of redis
             server = run_znsocket(env_config.FLASK_STORAGE_PORT)
-        worker = run_celery_worker()
+        worker = run_celery_thread_worker()
 
     fileio = FileIO(
         name=filename,
@@ -196,13 +199,31 @@ def main(
 
     app = create_app()
 
-    read_file.delay(fileio.to_dict())
-    read_plots.delay(plots, fileio.remote, fileio.rev)
-
     if browser:
         webbrowser.open(f"http://localhost:{env_config.FLASK_PORT}")
 
     socketio = app.extensions["socketio"]
+
+    def signal_handler(sig, frame):
+        if standalone and url is None:
+            print("---------------------- SHUTDOWN CELERY ----------------------")
+            celery_app = app.extensions["celery"]
+            celery_app.control.broadcast("shutdown")
+            print("---------------------- SHUTDOWN ZNSOCKET ----------------------")
+            if env_config.FLASK_STORAGE.startswith("znsocket"):
+                server.terminate()
+                server.wait()
+                print("znsocket server terminated.")
+            socketio.stop()
+            worker.join()
+
+    signal.signal(
+        signal.SIGINT, signal_handler
+    )  # need to have the signal handler to avoid stalling the celery worker
+
+    read_file.s(fileio.to_dict()).apply_async()
+    read_plots.s(plots, fileio.remote, fileio.rev).apply_async()
+
     try:
         socketio.run(
             app,
@@ -210,11 +231,9 @@ def main(
             port=app.config["PORT"],
         )
     finally:
-        if standalone and url is None:
-            if env_config.FLASK_STORAGE.startswith("znsocket"):
-                server.terminate()
-                server.wait()
-                print("znsocket server terminated.")
-            worker.terminate()
-            worker.wait()
-            print("celery worker terminated.")
+        # get the celery broker config
+        if app.config["CELERY"]["broker_url"] == "filesystem://":
+            print("---------------------- REMOVE CELERY CTRL ----------------------")
+            for path in app.config["CELERY"]["broker_transport_options"].values():
+                if os.path.exists(path):
+                    shutil.rmtree(path)

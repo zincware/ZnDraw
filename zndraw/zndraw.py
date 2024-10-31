@@ -219,7 +219,6 @@ class ZnDraw(ZnDrawBase):
                 if not hasattr(val, "connectivity") and self.bond_calculator is not None:
                     val.connectivity = self.bond_calculator.get_bonds(val)
             lst[i] = val
-        self.socket.emit("room:frames:refresh", [self.step])
 
     def __len__(self) -> int:
         # TODO: what if the room does not exist yet?
@@ -289,7 +288,6 @@ class ZnDraw(ZnDrawBase):
             if not hasattr(value, "connectivity") and self.bond_calculator is not None:
                 value.connectivity = self.bond_calculator.get_bonds(value)
         lst.insert(index, value)
-        self.socket.emit("room:frames:refresh", [self.step])
 
     def extend(self, values: list[ase.Atoms]):
         if not isinstance(values, list) or not all(
@@ -340,8 +338,6 @@ class ZnDraw(ZnDrawBase):
                 msg = []
         if len(msg) > 0:  # Only send the message if it's not empty
             lst.extend(msg)
-
-        self.socket.emit("room:frames:refresh", [self.step])  # TODO: remove
 
     @property
     def selection(self) -> list[int]:

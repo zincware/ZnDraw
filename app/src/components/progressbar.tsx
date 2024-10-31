@@ -39,7 +39,7 @@ const JumpFrame: React.FC<JumpFrameProps> = ({ step, setStep, length }) => {
     <InputGroup>
       <Form.Control
         className="text-center user-select-none"
-        placeholder={`${step}/${length - 1}`}
+        placeholder={`${step == -1 ? length - 1 : step}/${length - 1}`}
         onBlur={handleBlur}
         onKeyDown={handleKeyDown}
         style={{
@@ -202,7 +202,11 @@ const VLine = ({ length, step }: { length: number; step: number }) => {
   return (
     <div
       className="position-absolute p-0 progress-bar-v-line"
-      style={{ left: `${(step / length) * 100}%`, height: 25, width: "2px" }}
+      style={{
+        left: `${step == -1 ? ((length - 1) / length) * 100 : (step / length) * 100}%`,
+        height: 25,
+        width: "2px",
+      }}
       // why do I need to overwrite the height and width here?
     ></div>
   );
@@ -288,7 +292,9 @@ const FrameProgressBar: React.FC<FrameProgressBarProps> = ({
 
   useEffect(() => {
     // Calculate the linePosition based on the step, length, and window width
-    setLinePosition((step / length) * 100);
+    setLinePosition(
+      step == -1 ? ((length - 1) / length) * 100 : (step / length) * 100,
+    );
   }, [step, length]);
 
   const handleMouseDown = (e) => {
