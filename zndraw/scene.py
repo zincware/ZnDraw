@@ -26,6 +26,10 @@ class Controls(str, enum.Enum):
     OrbitControls = "OrbitControls"
     TrackballControls = "TrackballControls"
 
+class Camera(str, enum.Enum):
+    PerspectiveCamera = "PerspectiveCamera"
+    OrthographicCamera = "OrthographicCamera"
+
 
 # create a class for the material, resolution, etc.
 class Scene(BaseModel):
@@ -51,6 +55,7 @@ class Scene(BaseModel):
     vectors: str = Field("", description="Visualize vectorial property")
     vector_scale: float = Field(1.0, ge=0.1, le=5, description="Rescale Vectors")
     selection_color: str = Field("#ffa500", description="Selection color")
+    camera: Camera = Field(Camera.PerspectiveCamera, description="Camera")
     camera_near: float = Field(
         0.1, ge=0.1, le=100, description="Camera near rendering plane"
     )
