@@ -20,7 +20,7 @@ export function setupBookmarks(
     // initial load
     con.items().then((items: any) => {
       const result = Object.fromEntries(items);
-      updateByRefreshRef.current = true
+      updateByRefreshRef.current = true;
       setBookmarks(result);
     });
 
@@ -28,7 +28,7 @@ export function setupBookmarks(
       const items = await con.items();
       const result = Object.fromEntries(items);
       console.log("bookmarks updated externally");
-      updateByRefreshRef.current = true
+      updateByRefreshRef.current = true;
       setBookmarks(result);
     });
     conInterfaceRef.current = con;
@@ -52,9 +52,9 @@ export function setupBookmarks(
       }
     };
     if (updateByRefreshRef.current) {
-      updateByRefreshRef.current = false
+      updateByRefreshRef.current = false;
     } else {
-    updateCon();
+      updateCon();
     }
   }, [bookmarks]);
 }
@@ -119,7 +119,7 @@ export function setupPoints(token: string, setPoints: any, points: any) {
 export function setupSelection(
   token: string,
   setSelectedIds: (ids: Set<number>) => void,
-  selectedIds: Set<number>
+  selectedIds: Set<number>,
 ) {
   const conInterfaceRef = useRef<any>(undefined);
   const updateByRefreshRef = useRef(false);
@@ -207,15 +207,15 @@ export function setupStep(token: string, setStep: any, step: any) {
       }
       conInterfaceRef.current.setitem(0, step);
     };
-    
+
     if (updateByRefreshRef.current) {
       updateByRefreshRef.current = false;
     } else {
-    // Set a delay of 100ms before calling `updateCon`
-    const debounceTimeout = setTimeout(updateCon, 100);
+      // Set a delay of 100ms before calling `updateCon`
+      const debounceTimeout = setTimeout(updateCon, 100);
 
-    // Clear the timeout if `points` changes within the 100ms
-    return () => clearTimeout(debounceTimeout);
+      // Clear the timeout if `points` changes within the 100ms
+      return () => clearTimeout(debounceTimeout);
     }
   }, [step]);
 }
@@ -275,7 +275,7 @@ export function setupCamera(
       conInterface.setitem("position", cameraPosition.toArray());
       conInterface.setitem("target", orbitControlsTarget.toArray());
     };
-    
+
     // Set a delay of 100ms before calling `updateCon`
     const debounceTimeout = setTimeout(updateCon, 100);
 
@@ -404,7 +404,11 @@ export const setupFrames = (
   }, [conInterface, step, useDefaultRoom, defaultConInterface]);
 };
 
-export const setupGeometries = (token: string, setGeometries: any, geometries: any) => {
+export const setupGeometries = (
+  token: string,
+  setGeometries: any,
+  geometries: any,
+) => {
   const conInterfaceRef = useRef<typeof znsocket.List>(undefined);
   const updateByRefreshRef = useRef<boolean>(false);
 
@@ -422,7 +426,7 @@ export const setupGeometries = (token: string, setGeometries: any, geometries: a
       }
       updateByRefreshRef.current = true;
       setGeometries(geometries);
-    }
+    };
     loadGeometries();
 
     con.onRefresh(async (x: any) => {
@@ -463,7 +467,6 @@ export const setupGeometries = (token: string, setGeometries: any, geometries: a
       updateCon();
     }
   }, [geometries]);
-
 };
 
 export const setupFigures = (token: string, setUpdatedPlotsList: any) => {
@@ -486,7 +489,11 @@ export const setupFigures = (token: string, setUpdatedPlotsList: any) => {
   }, [token]);
 };
 
-export const setupMessages = (token: string, setMessages: any, messages: any[]) => {
+export const setupMessages = (
+  token: string,
+  setMessages: any,
+  messages: any[],
+) => {
   const conInterfaceRef = useRef<typeof znsocket.List>(undefined);
   const updateByRefreshRef = useRef<boolean>(false);
 
@@ -504,7 +511,7 @@ export const setupMessages = (token: string, setMessages: any, messages: any[]) 
       }
       updateByRefreshRef.current = true;
       setMessages(messages);
-    }
+    };
     loadMessages();
 
     con.onRefresh(async (x: any) => {
@@ -541,5 +548,4 @@ export const setupMessages = (token: string, setMessages: any, messages: any[]) 
       updateCon();
     }
   }, [messages]);
-
 };
