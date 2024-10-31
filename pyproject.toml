@@ -11,7 +11,7 @@ include = ["zndraw/templates/**/*", "zndraw_app/**/*"]
 python = "^3.10"
 ase = "^3"
 typer = {extras = ["all"], version = "^0"}
-flask = "^2"
+flask = "^3"
 tqdm = "^4"
 flask-socketio = "^5"
 networkx = "^3"
