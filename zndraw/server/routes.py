@@ -27,6 +27,23 @@ def index():
         token = uuid.uuid4().hex[:8]
         session["token"] = token
 
+    request_args = request.args.to_dict()
+    if len(request_args) > 0:
+        from zndraw import ZnDraw
+
+        vis = ZnDraw(
+            r=current_app.extensions["redis"],
+            url=current_app.config["SERVER_URL"],
+            token=session.get("token"),
+        )
+        if "step" in request_args:
+            vis.step = int(request_args["step"])
+        if "selection" in request_args:
+            if request_args["selection"] == "null":
+                vis.selection = []
+            else:
+                vis.selection = [int(i) for i in request_args["selection"].split(",")]
+
     if "APPLICATION_ROOT" in current_app.config:
         return redirect(f"{current_app.config['APPLICATION_ROOT']}token/{token}")
     return redirect(f"/token/{token}")

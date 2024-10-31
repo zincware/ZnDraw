@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { client } from "../socket";
 import * as znsocket from "znsocket";
 import * as THREE from "three";
@@ -8,21 +8,30 @@ export function setupBookmarks(
   setBookmarks: any,
   bookmarks: any,
 ) {
-  let [conInterface, setConInterface]: any = useState(undefined);
+  const conInterfaceRef = useRef(undefined);
+  const updateByRefreshRef = useRef(false);
   useEffect(() => {
     const con = new znsocket.Dict({
       client: client,
       key: "room:" + token + ":bookmarks",
     });
 
+    // initial load
+    con.items().then((items: any) => {
+      const result = Object.fromEntries(items);
+      updateByRefreshRef.current = true;
+      setBookmarks(result);
+    });
+
     con.onRefresh(async (x: any) => {
       const items = await con.items();
       const result = Object.fromEntries(items);
       console.log("bookmarks updated externally");
+      updateByRefreshRef.current = true;
       setBookmarks(result);
     });
-
-    setConInterface(con);
+    conInterfaceRef.current = con;
+    // setConInterface(con);
 
     return () => {
       con.offRefresh();
@@ -31,34 +40,50 @@ export function setupBookmarks(
 
   useEffect(() => {
     const updateCon = async () => {
-      if (conInterface === undefined) {
+      if (conInterfaceRef.current === undefined) {
         return;
       }
-      // TODO use bookmarksInterface.update
-      conInterface.clear();
-      for (let key in bookmarks) {
-        await conInterface.setitem(parseInt(key), bookmarks[key]);
-      }
+      console.log("updating bookmarks");
+      conInterfaceRef.current.clear();
+      await conInterfaceRef.current.update(bookmarks);
     };
-    updateCon();
-  }, [bookmarks, conInterface]);
+    if (updateByRefreshRef.current) {
+      updateByRefreshRef.current = false;
+    } else {
+      updateCon();
+    }
+  }, [bookmarks]);
 }
 
 export function setupPoints(token: string, setPoints: any, points: any) {
-  let [conInterface, setConInterface]: any = useState(undefined);
+  const conInterfaceRef = useRef<any>(undefined);
+  const updateByRefreshRef = useRef(true); // somewhere in the code the points are set initially
   useEffect(() => {
     const con = new znsocket.Dict({
       client: client,
       key: "room:" + token + ":points",
     });
 
-    con.onRefresh(async (x: any) => {
-      const items = await con.getitem("0");
-      const result = Object.fromEntries(items);
-      setPoints(result["0"].map((x: number[]) => new THREE.Vector3(...x)));
+    // initial load
+    con.getitem(0).then((items: any) => {
+      if (items === null) {
+        return;
+      }
+      updateByRefreshRef.current = true;
+      setPoints(items.map((x: number[]) => new THREE.Vector3(...x)));
     });
 
-    setConInterface(con);
+    con.onRefresh(async (x: any) => {
+      const items = await con.getitem(0);
+      console.log("points updated externally");
+      if (items === null) {
+        return;
+      }
+      updateByRefreshRef.current = true;
+      setPoints(items.map((x: number[]) => new THREE.Vector3(...x)));
+    });
+
+    conInterfaceRef.current = con;
 
     return () => {
       con.offRefresh();
@@ -67,44 +92,57 @@ export function setupPoints(token: string, setPoints: any, points: any) {
 
   useEffect(() => {
     const updateCon = async () => {
-      if (conInterface === undefined) {
+      if (conInterfaceRef.current === undefined) {
         return;
       }
-      conInterface.clear();
-      await conInterface.setitem(
+      conInterfaceRef.current.clear();
+      await conInterfaceRef.current.setitem(
         0,
         points.map((vec: THREE.Vector3) => [vec.x, vec.y, vec.z]),
       );
-      // TODO: set segments
     };
-
-    // Set a delay of 100ms before calling `updateCon`
-    const debounceTimeout = setTimeout(updateCon, 100);
-
-    // Clear the timeout if `points` changes within the 100ms
-    return () => clearTimeout(debounceTimeout);
-  }, [points, conInterface]);
+    if (updateByRefreshRef.current) {
+      updateByRefreshRef.current = false;
+    } else {
+      // Set a delay of 100ms before calling `updateCon`
+      const debounceTimeout = setTimeout(updateCon, 100);
+      // Clear the timeout if `points` changes within the 100ms
+      return () => clearTimeout(debounceTimeout);
+    }
+  }, [points]);
 }
 
 export function setupSelection(
   token: string,
-  setSelection: any,
-  selection: any,
+  setSelectedIds: (ids: Set<number>) => void,
+  selectedIds: Set<number>,
 ) {
-  let [conInterface, setConInterface]: any = useState(undefined);
+  const conInterfaceRef = useRef<any>(undefined);
+  const updateByRefreshRef = useRef(false);
+
   useEffect(() => {
+    console.log("setting up selection");
     const con = new znsocket.Dict({
       client: client,
       key: "room:" + token + ":selection",
     });
 
-    con.onRefresh(async (x: any) => {
-      const items = await con.getitem(0);
-      console.log("selection updated externally");
-      setSelection(new Set(items));
+    // Initial load
+    con.getitem(0).then((items: any) => {
+      updateByRefreshRef.current = true;
+      setSelectedIds(new Set(items));
     });
 
-    setConInterface(con);
+    // External updates handler
+    con.onRefresh(async () => {
+      const items = await con.getitem(0);
+      console.log("selection updated externally");
+      updateByRefreshRef.current = true;
+      setSelectedIds(new Set(items));
+    });
+
+    // Assign to ref instead of using useState
+    conInterfaceRef.current = con;
 
     return () => {
       con.offRefresh();
@@ -113,30 +151,45 @@ export function setupSelection(
 
   useEffect(() => {
     const updateCon = async () => {
-      if (conInterface === undefined) {
-        return;
-      }
-      conInterface.setitem(0, Array.from(selection));
+      if (!conInterfaceRef.current) return;
+
+      // Update remote selection if change wasn't from external source
+      console.log("updating selection");
+      conInterfaceRef.current.setitem(0, Array.from(selectedIds));
     };
-    updateCon();
-  }, [selection, conInterface]);
+
+    if (updateByRefreshRef.current) {
+      updateByRefreshRef.current = false;
+    } else {
+      updateCon();
+    }
+  }, [selectedIds]);
 }
 
 export function setupStep(token: string, setStep: any, step: any) {
-  let [conInterface, setConInterface]: any = useState(undefined);
+  const conInterfaceRef = useRef<any>(undefined);
+  const updateByRefreshRef = useRef(false);
+
   useEffect(() => {
     const con = new znsocket.Dict({
       client: client,
       key: "room:" + token + ":step",
     });
 
-    con.onRefresh(async (x: any) => {
-      const items = await con.getitem(0);
-      console.log("step updated externally");
+    // Initial load
+    con.getitem(0).then((items: any) => {
+      updateByRefreshRef.current = true;
       setStep(items);
     });
 
-    setConInterface(con);
+    con.onRefresh(async (x: any) => {
+      const items = await con.getitem(0);
+      console.log("step updated externally");
+      updateByRefreshRef.current = true;
+      setStep(items);
+    });
+
+    conInterfaceRef.current = con;
 
     return () => {
       con.offRefresh();
@@ -145,17 +198,22 @@ export function setupStep(token: string, setStep: any, step: any) {
 
   useEffect(() => {
     const updateCon = async () => {
-      if (conInterface === undefined) {
+      if (conInterfaceRef.current === undefined) {
         return;
       }
-      conInterface.setitem(0, step);
+      conInterfaceRef.current.setitem(0, step);
     };
-    // Set a delay of 100ms before calling `updateCon`
-    const debounceTimeout = setTimeout(updateCon, 100);
 
-    // Clear the timeout if `points` changes within the 100ms
-    return () => clearTimeout(debounceTimeout);
-  }, [step, conInterface]);
+    if (updateByRefreshRef.current) {
+      updateByRefreshRef.current = false;
+    } else {
+      // Set a delay of 100ms before calling `updateCon`
+      const debounceTimeout = setTimeout(updateCon, 100);
+
+      // Clear the timeout if `points` changes within the 100ms
+      return () => clearTimeout(debounceTimeout);
+    }
+  }, [step]);
 }
 
 export function setupCamera(
@@ -168,6 +226,7 @@ export function setupCamera(
   cameraRef: any,
 ) {
   let [conInterface, setConInterface]: any = useState(undefined);
+  const updateByRefreshRef = useRef(0);
   useEffect(() => {
     const con = new znsocket.Dict({
       client: client,
@@ -176,9 +235,11 @@ export function setupCamera(
 
     con.onRefresh(async (x: any) => {
       const items = Object.fromEntries(await con.items());
-      console.log(items);
+      console.log("camera updated externally");
       setCameraPosition(new THREE.Vector3(...items.position));
       setOrbitControlsTarget(new THREE.Vector3(...items.target));
+
+      updateByRefreshRef.current = 2;
 
       if (controlsRef.current && cameraRef.current) {
         controlsRef.current.enabled = false;
@@ -200,10 +261,17 @@ export function setupCamera(
       if (conInterface === undefined) {
         return;
       }
+      if (updateByRefreshRef.current > 0) {
+        // this is triggered twice because of camera and orbit target
+        // TODO: this is not reliable yet!
+        updateByRefreshRef.current -= 1;
+        return;
+      }
       // TODO: use conInterface.update
       conInterface.setitem("position", cameraPosition.toArray());
       conInterface.setitem("target", orbitControlsTarget.toArray());
     };
+
     // Set a delay of 100ms before calling `updateCon`
     const debounceTimeout = setTimeout(updateCon, 100);
 
@@ -219,9 +287,9 @@ export const setupFrames = (
   setLength: any,
   setStep: any,
 ) => {
-  let [conInterface, setConInterface]: any = useState(undefined);
-  let [defaultConInterface, setDefaultConInterface]: any = useState(undefined);
-  let [useDefaultRoom, setUseDefaultRoom] = useState(true);
+  let [conInterface, setConInterface]: any = useState(undefined); // TODO: useRef instead
+  let [defaultConInterface, setDefaultConInterface]: any = useState(undefined); // TODO: useRef instead
+  let [useDefaultRoom, setUseDefaultRoom] = useState(true); // TODO: useRef instead?
   let [framesRequiringUpdate, setFramesRequiringUpdate] = useState(undefined);
 
   const setCurrentFrameFromObject = (frame: any) => {
@@ -332,35 +400,71 @@ export const setupFrames = (
   }, [conInterface, step, useDefaultRoom, defaultConInterface]);
 };
 
-export const setupGeometries = (token: string, setGeometries: any) => {
-  let [conInterface, setConInterface]: any = useState(undefined);
+export const setupGeometries = (
+  token: string,
+  setGeometries: any,
+  geometries: any,
+) => {
+  const conInterfaceRef = useRef<typeof znsocket.List>(undefined);
+  const updateByRefreshRef = useRef<boolean>(false);
+
   useEffect(() => {
     const con = new znsocket.List({
       client: client,
       key: "room:" + token + ":geometries",
     });
 
+    // initial load
+    const loadGeometries = async () => {
+      let geometries = [];
+      for await (const value of con) {
+        geometries.push(value["value"]["data"]);
+      }
+      updateByRefreshRef.current = true;
+      setGeometries(geometries);
+    };
+    loadGeometries();
+
     con.onRefresh(async (x: any) => {
       // console.log(x); one could only update the indices or simply all. We go for all
       // async iterate the conInterface
       let geometries = [];
+      console.log("geometries updated externally");
       for await (const value of con) {
         // console.log(value["value"]["data"]); // Process each value as it becomes available
         geometries.push(value["value"]["data"]);
       }
+      updateByRefreshRef.current = true;
       setGeometries(geometries);
     });
 
-    setConInterface(con);
+    conInterfaceRef.current = con;
 
     return () => {
       con.offRefresh();
     };
   }, [token]);
+
+  useEffect(() => {
+    const updateCon = async () => {
+      if (conInterfaceRef.current === undefined) {
+        return;
+      }
+      conInterfaceRef.current.clear();
+      for (let i = 0; i < geometries.length; i++) {
+        await conInterfaceRef.current.append({ data: geometries[i] });
+      }
+    };
+
+    if (updateByRefreshRef.current) {
+      updateByRefreshRef.current = false;
+    } else {
+      updateCon();
+    }
+  }, [geometries]);
 };
 
 export const setupFigures = (token: string, setUpdatedPlotsList: any) => {
-  let [conInterface, setConInterface]: any = useState(undefined);
   useEffect(() => {
     const con = new znsocket.Dict({
       client: client,
@@ -370,11 +474,68 @@ export const setupFigures = (token: string, setUpdatedPlotsList: any) => {
     con.onRefresh(async (x: any) => {
       setUpdatedPlotsList(x["keys"]);
     });
+    return () => {
+      con.offRefresh();
+    };
+  }, [token]);
+};
 
-    setConInterface(con);
+export const setupMessages = (
+  token: string,
+  setMessages: any,
+  messages: any[],
+) => {
+  const conInterfaceRef = useRef<typeof znsocket.List>(undefined);
+  const updateByRefreshRef = useRef<boolean>(false);
+
+  useEffect(() => {
+    const con = new znsocket.List({
+      client: client,
+      key: "room:" + token + ":chat",
+    });
+
+    // initial load
+    const loadMessages = async () => {
+      let messages = [];
+      for await (const value of con) {
+        messages.push(value);
+      }
+      updateByRefreshRef.current = true;
+      setMessages(messages);
+    };
+    loadMessages();
+
+    con.onRefresh(async (x: any) => {
+      let messages = [];
+      for await (const value of con) {
+        messages.push(value);
+      }
+      updateByRefreshRef.current = true;
+      setMessages(messages);
+    });
+
+    conInterfaceRef.current = con;
 
     return () => {
       con.offRefresh();
     };
   }, [token]);
+
+  useEffect(() => {
+    const updateCon = async () => {
+      if (conInterfaceRef.current === undefined) {
+        return;
+      }
+      conInterfaceRef.current.clear();
+      for (let i = 0; i < messages.length; i++) {
+        await conInterfaceRef.current.append(messages[i]);
+      }
+    };
+
+    if (updateByRefreshRef.current) {
+      updateByRefreshRef.current = false;
+    } else {
+      updateCon();
+    }
+  }, [messages]);
 };

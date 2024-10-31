@@ -6,6 +6,7 @@ import React, {
   useRef,
   forwardRef,
 } from "react";
+import Select from "react-select";
 import {
   Navbar,
   Nav,
@@ -14,7 +15,18 @@ import {
   Modal,
   Card,
   ToggleButton,
+  InputGroup,
+  Form,
 } from "react-bootstrap";
+import remarkGfm from "remark-gfm";
+import remarkMath from "remark-math";
+import rehypeKatex from "rehype-katex";
+import "katex/dist/katex.min.css"; // `rehype-katex` does not import the CSS for you
+import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
+import {
+  oneDark,
+  oneLight,
+} from "react-syntax-highlighter/dist/esm/styles/prism";
 import {
   FaCode,
   FaDownload,
@@ -28,11 +40,13 @@ import {
   FaSun,
   FaTerminal,
   FaUpload,
+  FaPlus,
 } from "react-icons/fa";
 import Markdown from "react-markdown";
 import { Rnd } from "react-rnd";
 import { BtnTooltip } from "./tooltips";
-import { socket } from "../socket";
+import { socket, client } from "../socket";
+import * as znsocket from "znsocket";
 
 import {
   FaArrowRotateRight,
@@ -50,48 +64,229 @@ function getServerUrl() {
 }
 
 function ConsoleWindow({
-  text,
+  messages,
   setConsoleShow,
+  token,
+  setMessages,
+  colorMode,
+  step,
+  selection,
 }: {
-  text: string[];
+  messages: string[];
   setConsoleShow: any;
+  token: string;
+  setMessages: any;
+  colorMode: string;
+  step: number;
+  selection: Set<number>;
 }) {
+  const [showTime, setShowTime] = useState(false);
+  const [chatInput, setChatInput] = useState<object>({});
+  const [showDropdown, setShowDropdown] = useState(false);
+  let chatInputRef = useRef(null);
+  const scrollRef = useRef(null);
+
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [messages]);
+
+  const handleChatInputChange = (e: any) => {
+    // log the selectionStart
+    setChatInput({
+      msg: e.target.value,
+      time: new Date().toLocaleTimeString(),
+    });
+    if (e.target.value.endsWith("!!")) {
+      setShowDropdown(true);
+    } else {
+      setShowDropdown(false);
+    }
+  };
+
+  const handleSendMessage = () => {
+    setMessages([...messages, chatInput]);
+    if (chatInputRef.current) {
+      chatInputRef.current.value = "";
+    }
+  };
+
+  const handleKeyPress = (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSendMessage();
+    }
+  };
+
   return (
-    <Rnd
-      default={{
-        x: window.innerWidth / 2 - 400,
-        y: window.innerHeight / 2 - 300,
-        width: 380,
-        height: 280,
-      }}
-      minHeight={200}
-      minWidth={200}
-      style={{
-        zIndex: 1000,
-        padding: 0,
-        margin: 0,
-      }}
-    >
-      <Card
-        style={{
-          margin: 0,
-          padding: 0,
-          width: "100%",
-          height: "100%",
+    <>
+      <Rnd
+        default={{
+          x: window.innerWidth / 2 - 400,
+          y: window.innerHeight / 2 - 300,
+          width: 380,
+          height: 280,
         }}
-        // ref={cardRef}
+        minHeight={200}
+        minWidth={200}
+        style={{
+          zIndex: 1000,
+          padding: 0,
+          margin: 0,
+        }}
       >
-        <Card.Header className="d-flex justify-content-between align-items-center">
-          <Card.Title>Console</Card.Title>
-          <Button variant="close" onClick={() => setConsoleShow(false)} />
-        </Card.Header>
-        <Card.Body className="text-start overflow-y-auto">
-          {text.map((line, idx) => (
-            <p key={idx}>{line}</p>
-          ))}
-        </Card.Body>
-      </Card>
-    </Rnd>
+        <Card
+          style={{
+            margin: 0,
+            padding: 0,
+            width: "100%",
+            height: "100%",
+          }}
+          // ref={cardRef}
+        >
+          <Card.Header className="d-flex justify-content-between align-items-center">
+            <Card.Title>Chat</Card.Title>
+            <div className="d-flex align-items-center">
+              <Form.Check
+                type="switch"
+                id="show-time-switch"
+                label="Show Time"
+                checked={showTime}
+                onChange={() => {
+                  setShowTime(!showTime);
+                }}
+                className="me-2"
+              />
+              <Button variant="close" onClick={() => setConsoleShow(false)} />
+            </div>
+          </Card.Header>
+
+          {/* Message Body with Optional Timestamp */}
+          <Card.Body className="text-start overflow-y-auto" ref={scrollRef}>
+            {messages.map((line, idx) => (
+              <p key={idx}>
+                {showTime && (
+                  <span className="text-muted me-2">{line.time}</span>
+                )}
+                <Markdown
+                  remarkPlugins={[remarkMath, remarkGfm]}
+                  rehypePlugins={[rehypeKatex]}
+                  children={line.msg}
+                  components={{
+                    code(props) {
+                      const { children, className, node, ...rest } = props;
+                      const match = /language-(\w+)/.exec(className || "");
+                      return match ? (
+                        <SyntaxHighlighter
+                          {...rest}
+                          PreTag="div"
+                          children={String(children).replace(/\n$/, "")}
+                          language={match[1]}
+                          style={colorMode === "light" ? oneLight : oneDark}
+                        />
+                      ) : (
+                        <code {...rest} className={className}>
+                          {children}
+                        </code>
+                      );
+                    },
+                  }}
+                />
+              </p>
+            ))}
+          </Card.Body>
+
+          <Card.Footer>
+            <InputGroup>
+              <Form.Control
+                as="textarea"
+                rows={1}
+                placeholder="Type a message..."
+                // value={inputValue}
+                // onChange={handleChatInputChange}
+                onInput={handleChatInputChange}
+                onKeyDown={handleKeyPress}
+                ref={chatInputRef}
+              />
+              <Button variant="primary" onClick={handleSendMessage}>
+                Send
+              </Button>
+            </InputGroup>
+          </Card.Footer>
+        </Card>
+      </Rnd>
+      {showDropdown && (
+        <ChatInsertModal
+          show={showDropdown}
+          onHide={() => setShowDropdown(false)}
+          chatInputRef={chatInputRef}
+          step={step}
+          selection={selection}
+        />
+      )}
+    </>
+  );
+}
+
+function ChatInsertModal({ show, onHide, chatInputRef, step, selection }: any) {
+  const options = [
+    { value: "step", label: "step" },
+    { value: "selection", label: "selection" },
+  ];
+
+  // TODO: support in new / unconnected room here
+
+  const handleSelectChange = (selectedOption: any) => {
+    chatInputRef.current.value = chatInputRef.current.value.slice(0, -2);
+    if (selectedOption.value === "step") {
+      chatInputRef.current.value =
+        chatInputRef.current.value +
+        `[step ${step}](${window.location.origin}/?step=${step})`;
+    } else if (selectedOption.value === "selection") {
+      if (selection.size === 0) {
+        chatInputRef.current.value =
+          chatInputRef.current.value +
+          `[${selectedOption.value}](${window.location.origin}/?selection=null)`;
+      } else {
+        chatInputRef.current.value =
+          chatInputRef.current.value +
+          `[${selectedOption.value}](${window.location.origin}/?selection=${Array.from(selection)})`;
+      }
+    }
+    // trigger the change event
+    chatInputRef.current.dispatchEvent(
+      new InputEvent("input", { bubbles: true }),
+    );
+    onHide();
+  };
+
+  return (
+    <Modal
+      show={show}
+      aria-labelledby="contained-modal-title-vcenter"
+      size="lg"
+    >
+      <Modal.Header closeButton>
+        <Modal.Title id="contained-modal-title-vcenter">
+          ZnDraw Chat Insert
+        </Modal.Title>
+      </Modal.Header>
+      <Modal.Body>
+        <Container>
+          Share your current view:
+          <Select
+            options={options}
+            onChange={handleSelectChange}
+            // menuIsOpen={true}
+            placeholder="Choose..."
+          />
+        </Container>
+      </Modal.Body>
+      <Modal.Footer>
+        <Button onClick={onHide}>Close</Button>
+      </Modal.Footer>
+    </Modal>
   );
 }
 
@@ -361,6 +556,11 @@ interface HeadBarProps {
   isAuthenticated: boolean;
   roomLock: boolean;
   setAddPlotsWindow: any;
+  messages: any[];
+  setMessages: any;
+  token: string;
+  step: number;
+  selection: Set<number>;
 }
 
 const HeadBar = ({
@@ -377,25 +577,17 @@ const HeadBar = ({
   isAuthenticated,
   roomLock,
   setAddPlotsWindow,
+  messages,
+  setMessages,
+  token,
+  step,
+  selection,
 }: HeadBarProps) => {
   const [helpModalShow, setHelpModalShow] = useState(false);
   const [connectModalShow, setConnectModalShow] = useState(false);
   const [refreshModalShow, setRefreshModalShow] = useState(false);
   const [tutorialModalShow, setTutorialModalShow] = useState(false);
   const [consoleShow, setConsoleShow] = useState(false);
-  const [consoleText, setConsoleText] = useState<string[]>([]);
-
-  useEffect(() => {
-    const handleConsoleText = (text: string) => {
-      const date = new Date().toISOString();
-      const msg = date.slice(0, -8) + " " + text;
-      setConsoleText((prev) => [msg, ...prev]);
-    };
-    socket.on("room:log", handleConsoleText);
-    return () => {
-      socket.off("room:log", handleConsoleText);
-    };
-  }, []);
 
   useEffect(() => {
     setConsoleShow(showSiMGen);
@@ -608,7 +800,15 @@ const HeadBar = ({
         url={tutorialURL}
       />
       {consoleShow && (
-        <ConsoleWindow text={consoleText} setConsoleShow={setConsoleShow} />
+        <ConsoleWindow
+          messages={messages}
+          setConsoleShow={setConsoleShow}
+          token={token}
+          setMessages={setMessages}
+          colorMode={colorMode}
+          step={step}
+          selection={selection}
+        />
       )}
     </>
   );

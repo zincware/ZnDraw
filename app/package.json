@@ -24,9 +24,14 @@
     "react-markdown": "^9.0.1",
     "react-plotly.js": "^2.6.0",
     "react-rnd": "^10.4.13",
+    "react-select": "^5.8.2",
+    "react-syntax-highlighter": "^15.6.1",
+    "rehype-katex": "^7.0.1",
+    "remark-gfm": "^4.0.0",
+    "remark-math": "^6.0.0",
     "socket.io-client": "^4.8.1",
     "three": "^0.165.0",
-    "znsocket": "^0.2.2"
+    "znsocket": "^0.2.3"
   },
   "devDependencies": {
     "@types/react": "^18.3.12",
