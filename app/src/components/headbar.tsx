@@ -20,6 +20,7 @@ import {
 } from "react-bootstrap";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
+import remarkBreaks from "remark-breaks";
 import rehypeKatex from "rehype-katex";
 import "katex/dist/katex.min.css"; // `rehype-katex` does not import the CSS for you
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
@@ -41,6 +42,7 @@ import {
   FaTerminal,
   FaUpload,
   FaPlus,
+  FaSave,
 } from "react-icons/fa";
 import Markdown from "react-markdown";
 import { Rnd } from "react-rnd";
@@ -119,6 +121,30 @@ function ConsoleWindow({
     }
   };
 
+  const [isEditing, setIsEditing] = useState(null);
+  const [tempMsg, setTempMsg] = useState("");
+
+  const handleEdit = (key, msg) => {
+    setIsEditing(key);
+    setTempMsg(msg);
+  };
+
+  const handleSave = (key: number) => {
+    // TODO: do we want to have an edited state?
+    const newMessages = messages.map((line, idx) =>
+      idx === key ? { ...line, msg: tempMsg } : line,
+    );
+    setMessages(newMessages);
+    setIsEditing(null); // Exit editing mode
+  };
+
+  const handleEditKeyPress = (e, idx) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault(); // Prevents adding a new line
+      handleSave(idx); // Calls the save function
+    }
+  };
+
   return (
     <>
       <Rnd
@@ -165,35 +191,69 @@ function ConsoleWindow({
           {/* Message Body with Optional Timestamp */}
           <Card.Body className="text-start overflow-y-auto" ref={scrollRef}>
             {messages.map((line, idx) => (
-              <p key={idx}>
-                {showTime && (
-                  <span className="text-muted me-2">{line.time}</span>
-                )}
-                <Markdown
-                  remarkPlugins={[remarkMath, remarkGfm]}
-                  rehypePlugins={[rehypeKatex]}
-                  children={line.msg}
-                  components={{
-                    code(props) {
-                      const { children, className, node, ...rest } = props;
-                      const match = /language-(\w+)/.exec(className || "");
-                      return match ? (
-                        <SyntaxHighlighter
-                          {...rest}
-                          PreTag="div"
-                          children={String(children).replace(/\n$/, "")}
-                          language={match[1]}
-                          style={colorMode === "light" ? oneLight : oneDark}
+              <div key={idx} className="mb-2">
+                {/* Row for timestamp and edit icons */}
+                <div className="d-flex justify-content-between align-items-center">
+                  {showTime && (
+                    <div className="d-flex align-items-center">
+                      <span className="text-muted">{line.time}</span>
+                      {isEditing === idx ? (
+                        <FaSave
+                          onClick={() => handleSave(idx)}
+                          className="text-muted ms-2"
+                          style={{ cursor: "pointer" }}
                         />
                       ) : (
-                        <code {...rest} className={className}>
-                          {children}
-                        </code>
-                      );
-                    },
-                  }}
-                />
-              </p>
+                        <FaPencil
+                          onClick={() => handleEdit(idx, line.msg)}
+                          className="text-muted ms-2"
+                          style={{ cursor: "pointer" }}
+                        />
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Row for message content or editable input */}
+                <div>
+                  {isEditing !== idx ? (
+                    <Markdown
+                      remarkPlugins={[remarkMath, remarkGfm, remarkBreaks]}
+                      rehypePlugins={[rehypeKatex]}
+                      children={line.msg}
+                      components={{
+                        code(props) {
+                          const { children, className, ...rest } = props;
+                          const match = /language-(\w+)/.exec(className || "");
+                          return match ? (
+                            <SyntaxHighlighter
+                              {...rest}
+                              PreTag="div"
+                              children={String(children).replace(/\n$/, "")}
+                              language={match[1]}
+                              style={colorMode === "light" ? oneLight : oneDark}
+                            />
+                          ) : (
+                            <code {...rest} className={className}>
+                              {children}
+                            </code>
+                          );
+                        },
+                      }}
+                    />
+                  ) : (
+                    <InputGroup>
+                      <Form.Control
+                        as="textarea"
+                        value={tempMsg}
+                        rows={4}
+                        onChange={(e) => setTempMsg(e.target.value)}
+                        onKeyDown={(e) => handleEditKeyPress(e, idx)}
+                      />
+                    </InputGroup>
+                  )}
+                </div>
+              </div>
             ))}
           </Card.Body>
 
@@ -203,8 +263,6 @@ function ConsoleWindow({
                 as="textarea"
                 rows={1}
                 placeholder="Type a message..."
-                // value={inputValue}
-                // onChange={handleChatInputChange}
                 onInput={handleChatInputChange}
                 onKeyDown={handleKeyPress}
                 ref={chatInputRef}
@@ -239,19 +297,25 @@ function ChatInsertModal({ show, onHide, chatInputRef, step, selection }: any) {
 
   const handleSelectChange = (selectedOption: any) => {
     chatInputRef.current.value = chatInputRef.current.value.slice(0, -2);
+    const basePath =
+      `${window.location.origin}${window.location.pathname}`.replace(
+        /\/+$/,
+        "",
+      );
+
     if (selectedOption.value === "step") {
       chatInputRef.current.value =
         chatInputRef.current.value +
-        `[step ${step}](${window.location.origin}/?step=${step})`;
+        `[step ${step}](${basePath}/?step=${step})`;
     } else if (selectedOption.value === "selection") {
       if (selection.size === 0) {
         chatInputRef.current.value =
           chatInputRef.current.value +
-          `[${selectedOption.value}](${window.location.origin}/?selection=null)`;
+          `[${selectedOption.value}](${basePath}/?selection=null)`;
       } else {
         chatInputRef.current.value =
           chatInputRef.current.value +
-          `[${selectedOption.value}](${window.location.origin}/?selection=${Array.from(selection)})`;
+          `[${selectedOption.value}](${basePath}/?selection=${Array.from(selection)})`;
       }
     }
     // trigger the change event

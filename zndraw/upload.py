@@ -46,5 +46,4 @@ def upload(
         del vis[0]
     vis.extend(frames[1:])
 
-    figures = vis.figures
-    vis.figures = load_plots_to_dict(plots, fileio.remote, fileio.rev) | figures
+    vis.figures.update(load_plots_to_dict(plots, fileio.remote, fileio.rev))

@@ -16,6 +16,7 @@ import znjson
 import znsocket
 from redis import Redis
 
+from zndraw.abc import Message
 from zndraw.base import Extension, ZnDrawBase
 from zndraw.bonds import ASEComputeBonds
 from zndraw.config import ArrowsConfig, ZnDrawConfig
@@ -379,7 +380,7 @@ class ZnDraw(ZnDrawBase):
             return 0
 
     def log(self, message: str) -> None:
-        msg = {
+        msg: Message = {
             "time": datetime.datetime.now().isoformat(),
             "msg": message,
             "origin": self.name,
@@ -387,6 +388,15 @@ class ZnDraw(ZnDrawBase):
         znsocket.List(
             self.r, f"room:{self.token}:chat", socket=self._refresh_client
         ).append(msg)
+
+    @property
+    def messages(self) -> list[Message]:
+        return znsocket.List(
+            self.r,
+            f"room:{self.token}:chat",
+            repr_type="length",
+            socket=self._refresh_client,
+        )
 
     @step.setter
     def step(self, value: int):
