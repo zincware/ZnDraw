@@ -41,6 +41,7 @@ import {
   FaTerminal,
   FaUpload,
   FaPlus,
+  FaSave,
 } from "react-icons/fa";
 import Markdown from "react-markdown";
 import { Rnd } from "react-rnd";
@@ -83,6 +84,7 @@ function ConsoleWindow({
   const [showTime, setShowTime] = useState(false);
   const [chatInput, setChatInput] = useState<object>({});
   const [showDropdown, setShowDropdown] = useState(false);
+  const [allowDrag, setAllowDrag] = useState(true);
   let chatInputRef = useRef(null);
   const scrollRef = useRef(null);
 
@@ -119,6 +121,23 @@ function ConsoleWindow({
     }
   };
 
+  const [isEditing, setIsEditing] = useState(null);
+  const [tempMsg, setTempMsg] = useState("");
+
+  const handleEdit = (key, msg) => {
+    setIsEditing(key);
+    setTempMsg(msg);
+  };
+
+  const handleSave = (key: number) => {
+    // TODO: do we want to have an edited state?
+    const newMessages = messages.map((line, idx) =>
+      idx === key ? { ...line, msg: tempMsg } : line,
+    );
+    setMessages(newMessages);
+    setIsEditing(null); // Exit editing mode
+  };
+
   return (
     <>
       <Rnd
@@ -128,6 +147,7 @@ function ConsoleWindow({
           width: 380,
           height: 280,
         }}
+        disableDragging={!allowDrag}
         minHeight={200}
         minWidth={200}
         style={{
@@ -164,41 +184,71 @@ function ConsoleWindow({
 
           {/* Message Body with Optional Timestamp */}
           <Card.Body className="text-start overflow-y-auto" ref={scrollRef}>
-            {messages.map((line, idx) => (
-              <p key={idx}>
-                {showTime && (
-                    <div className="d-flex justify-content-between align-items-center">
-                      <span className="text-muted">{line.time}</span>
-                      <FaPencil className="text-muted" />
-                    </div>
-                  )}
-                <Markdown
-                  remarkPlugins={[remarkMath, remarkGfm]}
-                  rehypePlugins={[rehypeKatex]}
-                  children={line.msg}
-                  components={{
-                    code(props) {
-                      const { children, className, node, ...rest } = props;
-                      const match = /language-(\w+)/.exec(className || "");
-                      return match ? (
-                        <SyntaxHighlighter
-                          {...rest}
-                          PreTag="div"
-                          children={String(children).replace(/\n$/, "")}
-                          language={match[1]}
-                          style={colorMode === "light" ? oneLight : oneDark}
-                        />
-                      ) : (
-                        <code {...rest} className={className}>
-                          {children}
-                        </code>
-                      );
-                    },
-                  }}
-                />
-              </p>
-            ))}
-          </Card.Body>
+  {messages.map((line, idx) => (
+    <div key={idx} className="mb-2">
+      {/* Row for timestamp and edit icons */}
+      <div className="d-flex justify-content-between align-items-center">
+        {showTime && (
+          <div className="d-flex align-items-center">
+            <span className="text-muted">{line.time}</span>
+            {isEditing === idx ? (
+              <FaSave
+                onClick={() => handleSave(idx)}
+                className="text-muted ms-2"
+                style={{ cursor: 'pointer' }}
+              />
+            ) : (
+              <FaPencil
+                onClick={() => handleEdit(idx, line.msg)}
+                className="text-muted ms-2"
+                style={{ cursor: 'pointer' }}
+              />
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Row for message content or editable input */}
+      <div className="d-flex justify-content-between align-items-center">
+        {isEditing !== idx ? (
+          <Markdown
+            remarkPlugins={[remarkMath, remarkGfm]}
+            rehypePlugins={[rehypeKatex]}
+            children={line.msg}
+            components={{
+              code(props) {
+                const { children, className, ...rest } = props;
+                const match = /language-(\w+)/.exec(className || "");
+                return match ? (
+                  <SyntaxHighlighter
+                    {...rest}
+                    PreTag="div"
+                    children={String(children).replace(/\n$/, "")}
+                    language={match[1]}
+                    style={colorMode === "light" ? oneLight : oneDark}
+                  />
+                ) : (
+                  <code {...rest} className={className}>
+                    {children}
+                  </code>
+                );
+              },
+            }}
+          />
+        ) : (
+          <InputGroup>
+          <Form.Control
+            as="textarea"
+            value={tempMsg}
+            rows={1}
+            onChange={(e) => setTempMsg(e.target.value)}
+          />
+        </InputGroup>
+        )}
+      </div>
+    </div>
+  ))}
+</Card.Body>
 
           <Card.Footer>
             <InputGroup>
@@ -206,8 +256,6 @@ function ConsoleWindow({
                 as="textarea"
                 rows={1}
                 placeholder="Type a message..."
-                // value={inputValue}
-                // onChange={handleChatInputChange}
                 onInput={handleChatInputChange}
                 onKeyDown={handleKeyPress}
                 ref={chatInputRef}
