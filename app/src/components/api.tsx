@@ -293,7 +293,6 @@ export const setupFrames = (
   const conInterfaceRef = useRef<typeof znsocket.List>(undefined);
   const defaultConInterfaceRef = useRef<typeof znsocket.List>(undefined);
   const useDefaultRoomRef = useRef(true);
-  // let [useDefaultRoom, setUseDefaultRoom] = useState(true); // TODO: useRef instead?
   let [framesRequiringUpdate, setFramesRequiringUpdate] = useState(undefined);
 
   const setCurrentFrameFromObject = (frame: any) => {
@@ -372,7 +371,7 @@ export const setupFrames = (
       currentInterface.len().then((length: any) => {
         setLength(length);
       });
-      // step is -1!!!
+      // the initial step is -1 so it queries the last frame
       currentInterface.getitem(parseInt(step) || 0).then((frame: any) => {
         console.log(frame);
         if (frame === null) {
