@@ -11,7 +11,7 @@ import typer
 
 from zndraw.app import create_app
 from zndraw.base import FileIO
-from zndraw.standalone import run_celery_worker, run_znsocket
+from zndraw.standalone import run_celery_thread_worker, run_znsocket
 from zndraw.tasks import read_file, read_plots
 from zndraw.upload import upload
 from zndraw.utils import get_port
@@ -178,7 +178,7 @@ def main(
         if env_config.FLASK_STORAGE.startswith("znsocket"):
             # standalone with redis would assume a running instance of redis
             server = run_znsocket(env_config.FLASK_STORAGE_PORT)
-        worker = run_celery_worker()
+        worker = run_celery_thread_worker()
 
     fileio = FileIO(
         name=filename,

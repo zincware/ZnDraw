@@ -28,7 +28,7 @@ def run_znsocket(port) -> subprocess.Popen:
     return server
 
 
-def run_celery_worker() -> threading.Thread:
+def run_celery_thread_worker() -> threading.Thread:
     """Run a celery worker."""
     my_env = os.environ.copy()
     if platform.system() == "Darwin" and platform.processor() == "arm":
@@ -44,4 +44,26 @@ def run_celery_worker() -> threading.Thread:
 
     worker = threading.Thread(target=run_celery_worker)
     worker.start()
+    return worker
+
+# We use this for running tests for now
+def run_celery_worker() -> subprocess.Popen:
+    """Run a celery worker."""
+    my_env = os.environ.copy()
+    if platform.system() == "Darwin" and platform.processor() == "arm":
+        # fix celery worker issue on apple silicon
+        my_env["OBJC_DISABLE_INITIALIZE_FORK_SAFETY"] = "YES"
+
+    worker = subprocess.Popen(
+        [
+            "celery",
+            "-A",
+            "zndraw_app.make_celery",
+            "worker",
+            "--loglevel=info",
+            "-P",
+            "eventlet",
+        ],
+        env=my_env,
+    )
     return worker
