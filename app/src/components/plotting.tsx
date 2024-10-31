@@ -180,52 +180,52 @@ const PlotsCard2 = ({
   }, [updatedPlotsList]);
 
   useEffect(() => {
-      if (rawPlotData) {
-        const markerList: [number, number, string][] = [];
+    if (rawPlotData) {
+      const markerList: [number, number, string][] = [];
 
-        // Add markers at the matching step in the data
-        rawPlotData.forEach((dataItem) => {
-          if (dataItem.customdata) {
-            dataItem.customdata.forEach((customdata, index) => {
-              // Check if customdata[0] matches the step
-              if (customdata[0] === step) {
-                const xPosition = dataItem.x[index];
-                const yPosition = dataItem.y[index];
-                // check if dataItem.line.color is available
-                let color = "red";
-                if (dataItem.line) {
-                  if (dataItem.line.color) {
-                    color = dataItem.line.color;
-                  }
+      // Add markers at the matching step in the data
+      rawPlotData.forEach((dataItem) => {
+        if (dataItem.customdata) {
+          dataItem.customdata.forEach((customdata, index) => {
+            // Check if customdata[0] matches the step
+            if (customdata[0] === step) {
+              const xPosition = dataItem.x[index];
+              const yPosition = dataItem.y[index];
+              // check if dataItem.line.color is available
+              let color = "red";
+              if (dataItem.line) {
+                if (dataItem.line.color) {
+                  color = dataItem.line.color;
                 }
-                markerList.push([xPosition, yPosition, color]);
               }
-            });
-          }
-        });
+              markerList.push([xPosition, yPosition, color]);
+            }
+          });
+        }
+      });
 
-        const plotDataCopy = JSON.parse(JSON.stringify(rawPlotData));
+      const plotDataCopy = JSON.parse(JSON.stringify(rawPlotData));
 
-        // Add the markers to the data array
-        plotDataCopy.push({
-          type: "scatter",
-          mode: "markers",
-          name: "Step",
-          showlegend: false,
-          x: markerList.map((marker) => marker[0]),
-          y: markerList.map((marker) => marker[1]),
-          marker: {
-            color: markerList.map((marker) => marker[2]),
-            size: 10,
-            symbol: "circle",
-            line: {
-              color: "black",
-              width: 2,
-            },
+      // Add the markers to the data array
+      plotDataCopy.push({
+        type: "scatter",
+        mode: "markers",
+        name: "Step",
+        showlegend: false,
+        x: markerList.map((marker) => marker[0]),
+        y: markerList.map((marker) => marker[1]),
+        marker: {
+          color: markerList.map((marker) => marker[2]),
+          size: 10,
+          symbol: "circle",
+          line: {
+            color: "black",
+            width: 2,
           },
-        });
-        setPlotData(plotDataCopy);
-      }
+        },
+      });
+      setPlotData(plotDataCopy);
+    }
   }, [rawPlotData, step]); // does this self-trigger? If so use raw
 
   const handleSelectChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
