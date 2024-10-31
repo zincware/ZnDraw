@@ -8,7 +8,6 @@ export function setupBookmarks(
   setBookmarks: any,
   bookmarks: any,
 ) {
-  // let [conInterface, setConInterface]: any = useState(undefined);
   const conInterfaceRef = useRef(undefined);
   const updateByRefreshRef = useRef(false);
   useEffect(() => {
@@ -44,12 +43,9 @@ export function setupBookmarks(
       if (conInterfaceRef.current === undefined) {
         return;
       }
-      // TODO use bookmarksInterface.update
       console.log("updating bookmarks");
       conInterfaceRef.current.clear();
-      for (let key in bookmarks) {
-        await conInterfaceRef.current.setitem(parseInt(key), bookmarks[key]);
-      }
+      await conInterfaceRef.current.update(bookmarks);
     };
     if (updateByRefreshRef.current) {
       updateByRefreshRef.current = false;
@@ -291,9 +287,9 @@ export const setupFrames = (
   setLength: any,
   setStep: any,
 ) => {
-  let [conInterface, setConInterface]: any = useState(undefined);
-  let [defaultConInterface, setDefaultConInterface]: any = useState(undefined);
-  let [useDefaultRoom, setUseDefaultRoom] = useState(true);
+  let [conInterface, setConInterface]: any = useState(undefined); // TODO: useRef instead
+  let [defaultConInterface, setDefaultConInterface]: any = useState(undefined); // TODO: useRef instead
+  let [useDefaultRoom, setUseDefaultRoom] = useState(true); // TODO: useRef instead?
   let [framesRequiringUpdate, setFramesRequiringUpdate] = useState(undefined);
 
   const setCurrentFrameFromObject = (frame: any) => {
@@ -456,7 +452,6 @@ export const setupGeometries = (
       }
       conInterfaceRef.current.clear();
       for (let i = 0; i < geometries.length; i++) {
-        // TODO: need to check if this works on the Python side!
         await conInterfaceRef.current.append({ data: geometries[i] });
       }
     };
@@ -470,7 +465,6 @@ export const setupGeometries = (
 };
 
 export const setupFigures = (token: string, setUpdatedPlotsList: any) => {
-  let [conInterface, setConInterface]: any = useState(undefined);
   useEffect(() => {
     const con = new znsocket.Dict({
       client: client,
@@ -480,9 +474,6 @@ export const setupFigures = (token: string, setUpdatedPlotsList: any) => {
     con.onRefresh(async (x: any) => {
       setUpdatedPlotsList(x["keys"]);
     });
-
-    setConInterface(con);
-
     return () => {
       con.offRefresh();
     };
@@ -517,7 +508,6 @@ export const setupMessages = (
     con.onRefresh(async (x: any) => {
       let messages = [];
       for await (const value of con) {
-        console.log(value); // Process each value as it becomes available
         messages.push(value);
       }
       updateByRefreshRef.current = true;

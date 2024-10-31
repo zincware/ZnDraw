@@ -28,7 +28,6 @@ def index():
         session["token"] = token
 
     request_args = request.args.to_dict()
-    print(request_args)
     if len(request_args) > 0:
         from zndraw import ZnDraw
 
