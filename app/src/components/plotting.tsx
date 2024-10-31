@@ -101,6 +101,7 @@ const PlotsCard2 = ({
     undefined,
   );
   let [plotData, setPlotData] = useState<{ [key: string]: any }>(undefined);
+  let [plotLayout, setPlotLayout] = useState<{ [key: string]: any }>(undefined);
   let [plotHover, setPlotHover] = useState<boolean>(false);
   const [allowDrag, setAllowDrag] = useState<boolean>(true);
   let selectFormRef = useRef<HTMLSelectElement>(null);
@@ -154,7 +155,8 @@ const PlotsCard2 = ({
       if (data === null) {
         return;
       }
-      setRawPlotData(JSON.parse(data["value"]));
+      setRawPlotData(JSON.parse(data["value"]).data);
+      setPlotLayout(JSON.parse(data["value"]).layout);
     });
   }, [conInterface, selectedOption]);
 
@@ -171,18 +173,19 @@ const PlotsCard2 = ({
         if (data === null) {
           return;
         }
-        setRawPlotData(JSON.parse(data["value"]));
+        setRawPlotData(JSON.parse(data["value"]).data);
+        setPlotLayout(JSON.parse(data["value"]).layout);
       });
     }
   }, [updatedPlotsList]);
 
   useEffect(() => {
     if (rawPlotData) {
-      if (rawPlotData.layout) {
+      if (rawPlotData) {
         const markerList: [number, number, string][] = [];
 
         // Add markers at the matching step in the data
-        rawPlotData.data.forEach((dataItem) => {
+        rawPlotData.forEach((dataItem) => {
           if (dataItem.customdata) {
             dataItem.customdata.forEach((customdata, index) => {
               // Check if customdata[0] matches the step
@@ -205,7 +208,7 @@ const PlotsCard2 = ({
         const plotDataCopy = JSON.parse(JSON.stringify(rawPlotData));
 
         // Add the markers to the data array
-        plotDataCopy.data.push({
+        plotDataCopy.push({
           type: "scatter",
           mode: "markers",
           name: "Step",
@@ -222,11 +225,10 @@ const PlotsCard2 = ({
             },
           },
         });
-        console.log("rawPlotData - step", step);
         setPlotData(plotDataCopy);
       }
     }
-  }, [rawPlotData, step]);
+  }, [rawPlotData, step]); // does this self-trigger? If so use raw
 
   const handleSelectChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
     setSelectedOption(event.target.value);
@@ -246,15 +248,12 @@ const PlotsCard2 = ({
 
   const onResize: RndResizeCallback = () => {
     if (cardRef.current) {
-      setPlotData((prev) => {
+      setPlotLayout((prev) => {
         if (prev) {
           return {
             ...prev,
-            layout: {
-              ...prev.layout,
-              width: cardRef.current.clientWidth - 20,
-              height: cardRef.current.clientHeight - 60,
-            },
+            width: cardRef.current.clientWidth - 20,
+            height: cardRef.current.clientHeight - 60,
           };
         }
         return prev;
@@ -375,10 +374,10 @@ const PlotsCard2 = ({
         <Card.Body style={{ padding: 0 }}>
           {plotData ? (
             <Plot
-              data={plotData.data}
+              data={plotData}
               // frames={plotData[selectedOption].frames}
               // config={plotData[selectedOption].config}
-              layout={plotData.layout}
+              layout={plotLayout}
               onHover={() => setPlotHover(true)}
               onSelecting={() => setPlotHover(true)}
               onBeforeHover={() => setPlotHover(true)}
