@@ -20,14 +20,14 @@ export function setupBookmarks(
     });
 
     // initial load
-    con.items().then((items: any) => {
+    con.entries().then((items: any) => {
       const result = Object.fromEntries(items);
       updateByRefreshRef.current = true;
       setBookmarks(result);
     });
 
     con.onRefresh(async (x: any) => {
-      const items = await con.items();
+      const items = await con.entries();
       const result = Object.fromEntries(items);
       console.log("bookmarks updated externally");
       updateByRefreshRef.current = true;
@@ -68,7 +68,7 @@ export function setupPoints(token: string, setPoints: any, points: any) {
     });
 
     // initial load
-    con.getitem(0).then((items: any) => {
+    con.get("0").then((items: any) => {
       if (items === null) {
         return;
       }
@@ -77,7 +77,7 @@ export function setupPoints(token: string, setPoints: any, points: any) {
     });
 
     con.onRefresh(async (x: any) => {
-      const items = await con.getitem(0);
+      const items = await con.get("0");
       console.log("points updated externally");
       if (items === null) {
         return;
@@ -99,7 +99,7 @@ export function setupPoints(token: string, setPoints: any, points: any) {
         return;
       }
       conInterfaceRef.current.clear();
-      await conInterfaceRef.current.setitem(
+      await conInterfaceRef.current.set(
         0,
         points.map((vec: THREE.Vector3) => [vec.x, vec.y, vec.z]),
       );
@@ -131,14 +131,14 @@ export function setupSelection(
     });
 
     // Initial load
-    con.getitem(0).then((items: any) => {
+    con.get("0").then((items: any) => {
       updateByRefreshRef.current = true;
       setSelectedIds(new Set(items));
     });
 
     // External updates handler
     con.onRefresh(async () => {
-      const items = await con.getitem(0);
+      const items = await con.get("0");
       console.log("selection updated externally");
       updateByRefreshRef.current = true;
       setSelectedIds(new Set(items));
@@ -158,7 +158,7 @@ export function setupSelection(
 
       // Update remote selection if change wasn't from external source
       console.log("updating selection");
-      conInterfaceRef.current.setitem(0, Array.from(selectedIds));
+      conInterfaceRef.current.set(0, Array.from(selectedIds));
     };
 
     if (updateByRefreshRef.current) {
@@ -180,13 +180,13 @@ export function setupStep(token: string, setStep: any, step: any) {
     });
 
     // Initial load
-    con.getitem(0).then((items: any) => {
+    con.get("0").then((items: any) => {
       updateByRefreshRef.current = true;
       setStep(items);
     });
 
     con.onRefresh(async (x: any) => {
-      const items = await con.getitem(0);
+      const items = await con.get("0");
       console.log("step updated externally");
       updateByRefreshRef.current = true;
       setStep(items);
@@ -204,7 +204,7 @@ export function setupStep(token: string, setStep: any, step: any) {
       if (conInterfaceRef.current === undefined) {
         return;
       }
-      conInterfaceRef.current.setitem(0, step);
+      conInterfaceRef.current.set(0, step);
     };
 
     if (updateByRefreshRef.current) {
@@ -237,7 +237,7 @@ export function setupCamera(
     });
 
     con.onRefresh(async (x: any) => {
-      const items = Object.fromEntries(await con.items());
+      const items = Object.fromEntries(await con.entries());
       console.log("camera updated externally");
       setCameraPosition(new THREE.Vector3(...items.position));
       setOrbitControlsTarget(new THREE.Vector3(...items.target));
@@ -271,8 +271,8 @@ export function setupCamera(
         return;
       }
       // TODO: use conInterface.update
-      conInterface.setitem("position", cameraPosition.toArray());
-      conInterface.setitem("target", orbitControlsTarget.toArray());
+      conInterface.set("position", cameraPosition.toArray());
+      conInterface.set("target", orbitControlsTarget.toArray());
     };
 
     // Set a delay of 100ms before calling `updateCon`
@@ -317,15 +317,15 @@ export const setupFrames = (
     });
 
     // initially check if the room exists
-    con.getitem(parseInt(step) || 0).then((frame: any) => {
+    con.get(parseInt(step) || 0).then((frame: any) => {
       if (frame !== null) {
         useDefaultRoomRef.current = false;
-        con.len().then((length: any) => {
+        con.length().then((length: any) => {
           setLength(length);
         });
       } else {
         useDefaultRoomRef.current = true;
-        defaultCon.len().then((length: any) => {
+        defaultCon.length().then((length: any) => {
           setLength(length);
         });
       }
@@ -333,7 +333,7 @@ export const setupFrames = (
 
     con.onRefresh(async (x: any) => {
       useDefaultRoomRef.current = false;
-      con.len().then((length: any) => {
+      con.length().then((length: any) => {
         setLength(length);
       });
       setFramesRequiringUpdate(x);
@@ -342,7 +342,7 @@ export const setupFrames = (
     defaultCon.onRefresh(async (x: any) => {
       setFramesRequiringUpdate(x);
 
-      defaultCon.len().then((length: any) => {
+      defaultCon.length().then((length: any) => {
         setLength(length);
       });
     });
@@ -363,19 +363,19 @@ export const setupFrames = (
     ) {
       return;
     }
-    let currentInterface = useDefaultRoomRef.current
+    let currentInterface: znsocket.List = useDefaultRoomRef.current
       ? defaultConInterfaceRef.current
       : conInterfaceRef.current;
     if (framesRequiringUpdate !== undefined) {
       // cheap way out - we just update the current frame no matter what.
-      currentInterface.len().then((length: any) => {
+      currentInterface.length().then((length: any) => {
         setLength(length);
       });
       // the initial step is -1 so it queries the last frame
-      currentInterface.getitem(parseInt(step) || 0).then((frame: any) => {
+      currentInterface.get(parseInt(step) || 0).then((frame: any) => {
         console.log(frame);
         if (frame === null) {
-          currentInterface.len().then((length: any) => {
+          currentInterface.length().then((length: any) => {
             setStep(length - 1);
           });
         } else {
@@ -397,9 +397,9 @@ export const setupFrames = (
       ? defaultConInterfaceRef.current
       : conInterfaceRef.current;
 
-    currentInterface.getitem(parseInt(step) || 0).then((frame: any) => {
+    currentInterface.get(parseInt(step) || 0).then((frame: any) => {
       if (frame === null) {
-        currentInterface.len().then((length: any) => {
+        currentInterface.length().then((length: any) => {
           setStep(length - 1);
         });
       } else {
