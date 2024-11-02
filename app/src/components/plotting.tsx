@@ -94,7 +94,7 @@ const PlotsCard2 = ({
   setSelectedFrames,
   step,
 }: any) => {
-  let [conInterface, setConInterface]: any = useState(undefined);
+  let [conInterface, setConInterface]: any = useState<znsocket.Dict>(undefined);
   let [availablePlots, setAvailablePlots] = useState<string[]>([]);
   let [selectedOption, setSelectedOption] = useState<string>("");
   let [rawPlotData, setRawPlotData] = useState<{ [key: string]: any }>(
@@ -151,7 +151,7 @@ const PlotsCard2 = ({
     if (conInterface === undefined) {
       return;
     }
-    conInterface.getitem(selectedOption).then((data: any) => {
+    conInterface.get(selectedOption).then((data: any) => {
       if (data === null) {
         return;
       }
@@ -169,7 +169,7 @@ const PlotsCard2 = ({
   // update the actual plot if it is in updatedPlotsList
   useEffect(() => {
     if (updatedPlotsList.includes(selectedOption)) {
-      conInterface.getitem(selectedOption).then((data: any) => {
+      conInterface.get(selectedOption).then((data: any) => {
         if (data === null) {
           return;
         }
