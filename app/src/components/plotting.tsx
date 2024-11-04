@@ -156,7 +156,6 @@ const PlotsCard2 = ({
       if (data === null) {
         return;
       }
-      console.log(data);
       if (data["_type"] === "plotly.graph_objs.Figure") {
         setPlotType("plotly");
         setRawPlotData(JSON.parse(data["value"]).data);
@@ -322,8 +321,6 @@ const PlotsCard2 = ({
     <Rnd
       minHeight={200}
       minWidth={220}
-      maxWidth={800}
-      maxHeight={800}
       onResize={onResize}
       disableDragging={!allowDrag}
       dragGrid={[50, 50]}
