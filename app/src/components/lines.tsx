@@ -109,7 +109,7 @@ export const Line3D = ({
     if (points.length > 0) {
       // add the moving point when going from not drawing -> drawing
       // this removes a point when triggered initially
-      // This should not trigger initially, so the initialTriggeRef is 
+      // This should not trigger initially, so the initialTriggeRef is
       // a strange workaround
       if (isDrawing) {
         setPoints([...points, points[points.length - 1]]);

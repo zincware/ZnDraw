@@ -165,7 +165,6 @@ const PlotsCard2 = ({
         setPlotType("zndraw.Figure");
         setPlotData(data["value"]["base64"]);
       }
-
     });
   }, [conInterface, selectedOption]);
 
@@ -381,7 +380,7 @@ const PlotsCard2 = ({
           <Button variant="close" className="mx-2" onClick={closeThisCard} />
         </Card.Header>
         <Card.Body style={{ padding: 0 }}>
-          {(plotType == "plotly") && (
+          {plotType == "plotly" && (
             <Plot
               data={plotData}
               layout={plotLayout}
@@ -393,12 +392,17 @@ const PlotsCard2 = ({
               onSelected={onPlotSelected}
               onDeselect={onPlotDeselect}
             />
-           )}
-           {(plotType == "zndraw.Figure") && 
-            (
-            <img src={`data:image/png;base64, ${plotData}`} alt="plot" className="img-fluid" />   
           )}
-          {(plotType == "") && <h3 className="text-secondary m-3">No data available</h3> }
+          {plotType == "zndraw.Figure" && (
+            <img
+              src={`data:image/png;base64, ${plotData}`}
+              alt="plot"
+              className="img-fluid"
+            />
+          )}
+          {plotType == "" && (
+            <h3 className="text-secondary m-3">No data available</h3>
+          )}
         </Card.Body>
       </Card>
     </Rnd>

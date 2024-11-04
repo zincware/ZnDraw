@@ -1,7 +1,6 @@
-import pytest
-
-from zndraw import ZnDraw, Figure
 import matplotlib.pyplot as plt
+
+from zndraw import ZnDraw
 
 
 def test_figures(server, s22):
@@ -13,4 +12,3 @@ def test_figures(server, s22):
     vis.figures["mtpl"] = figure
 
     assert len(vis.figures) == 1
-
