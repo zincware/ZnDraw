@@ -278,7 +278,7 @@ export const ParticleInstances = ({
       onDoubleClick={handleDoubleClick}
       onPointerMove={handlePointerMove}
       castShadow
-      receiveShadow
+      // receiveShadow
       frustumCulled={false}
     >
       <sphereGeometry args={[1, 30, 30]} ref={sphereRef} />
@@ -423,7 +423,7 @@ export const BondInstances = ({
       ref={meshRef}
       args={[geometry, null, count]}
       castShadow
-      receiveShadow
+      // receiveShadow
     >
       {sceneSettings.material === "MeshPhysicalMaterial" && (
         <meshPhysicalMaterial

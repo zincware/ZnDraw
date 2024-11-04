@@ -61,7 +61,7 @@ class Scene(BaseModel):
         0.1, ge=0.1, le=100, description="Camera near rendering plane"
     )
     camera_far: float = Field(
-        1000, ge=1, le=10000, description="Camera far rendering plane"
+        500, ge=1, le=1000, description="Camera far rendering plane"
     )
     frame_update: bool = Field(
         True,
@@ -70,6 +70,10 @@ class Scene(BaseModel):
     crosshair: bool = Field(
         False,
         description="Show camera controls target.",
+    )
+    floor: bool = Field(
+        False,
+        description="Show the floor.",
     )
     # bonds: bool = Field(
     #     True,
@@ -129,6 +133,7 @@ class Scene(BaseModel):
         schema["properties"]["vectorfield"]["format"] = "checkbox"
         schema["properties"]["frame_update"]["format"] = "checkbox"
         schema["properties"]["crosshair"]["format"] = "checkbox"
+        schema["properties"]["floor"]["format"] = "checkbox"
         # schema["properties"]["resolution"]["format"] = "range"
         # schema["properties"]["label_offset"]["format"] = "range"
         schema["properties"]["particle_size"]["format"] = "range"
