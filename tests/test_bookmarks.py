@@ -10,7 +10,10 @@ def test_bookmarks(server, s22):
 
     assert vis.bookmarks == {}
     vis.bookmarks = {5: "Hey there!"}
-    assert vis.bookmarks == {5: "Hey there!"}
+    assert vis.bookmarks == {"5": "Hey there!"}
+
+    vis.bookmarks[5] = "Hello!"
+    assert vis.bookmarks[5] == "Hello!"
 
     with pytest.raises(ValueError):
         vis.bookmarks = ["Bookmarks are not a list!"]
