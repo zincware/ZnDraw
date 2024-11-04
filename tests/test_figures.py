@@ -9,8 +9,10 @@ def test_figures(server, s22):
     vis = ZnDraw(url=server, token="test_token")
     vis.extend(s22)
 
-    figure = plt.plot([1, 2, 3], [1, 2, 3])
-    vis.figures["mtpl"] = figure
+    fig, ax = plt.subplots()
+    ax.plot([1, 2, 3], [1, 2, 3])
+    
+    vis.figures["mtpl"] = Figure(figure=fig)
 
     assert len(vis.figures) == 1
 
