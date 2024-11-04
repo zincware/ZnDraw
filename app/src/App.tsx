@@ -499,7 +499,7 @@ export default function App() {
         }
       } else if (event.key == "o") {
         const origin = {
-          position: [-10, -10, -10],
+          position: [10, 10, 10],
           target: getCentroid(currentFrame.positions, new Set()),
         };
         setOrbitControlsTarget(new THREE.Vector3(...origin.target));
@@ -627,7 +627,7 @@ export default function App() {
                 makeDefault
                 near={roomConfig["scene"]["camera_near"]}
                 far={roomConfig["scene"]["camera_far"]}
-                position={[-10, -10, -10]}
+                position={[10, 10, 10]}
               />
             )}
             {roomConfig["scene"].camera === "OrthographicCamera" && (
@@ -636,13 +636,13 @@ export default function App() {
                 makeDefault
                 near={roomConfig["scene"]["camera_near"]}
                 far={roomConfig["scene"]["camera_far"]}
-                position={[-10, -10, -10]}
+                position={[10, 10, 10]}
                 zoom={10}
               />
             )}
             <pointLight
               ref={cameraLightRef}
-              position={[-11, -11, -11]}
+              position={[11, 11, 11]}
               decay={0}
               intensity={Math.PI / 2}
             />            
