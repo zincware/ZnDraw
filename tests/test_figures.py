@@ -1,6 +1,6 @@
 import matplotlib.pyplot as plt
 
-from zndraw import ZnDraw
+from zndraw import ZnDraw, Figure
 
 
 def test_figures(server, s22):
