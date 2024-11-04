@@ -15,6 +15,7 @@ import typing_extensions as tyex
 import znjson
 import znsocket
 from redis import Redis
+from zndraw.figure import Figure
 
 from zndraw.abc import Message
 from zndraw.base import Extension, ZnDrawBase
@@ -414,7 +415,7 @@ class ZnDraw(ZnDrawBase):
         ] = value
 
     @property
-    def figures(self) -> dict[str, go.Figure]:
+    def figures(self) -> dict[str, go.Figure|Figure]:
         return znsocket.Dict(
             self.r,
             f"room:{self.token}:figures",
