@@ -23,6 +23,7 @@ from zndraw.config import ArrowsConfig, ZnDrawConfig
 from zndraw.converter import Object3DConverter
 from zndraw.draw import Object3D
 from zndraw.scene import Scene
+from zndraw.figure import FigureConverter
 from zndraw.type_defs import (
     ATOMS_LIKE,
     CameraData,
@@ -419,7 +420,7 @@ class ZnDraw(ZnDrawBase):
             f"room:{self.token}:figures",
             repr_type="full",
             socket=self._refresh_client,
-            converter=[znjson.converter.PlotlyConverter],
+            converter=[znjson.converter.PlotlyConverter, FigureConverter],
         )
 
     @figures.setter
@@ -429,7 +430,7 @@ class ZnDraw(ZnDrawBase):
             self.r,
             f"room:{self.token}:figures",
             socket=self._refresh_client,
-            converter=[znjson.converter.PlotlyConverter],
+            converter=[znjson.converter.PlotlyConverter, FigureConverter],
         )
         figures_dict.clear()
         figures_dict.update(data)

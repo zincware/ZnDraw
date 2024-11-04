@@ -19,6 +19,7 @@ from .draw import (
     TorusKnot,
 )
 from .zndraw import ZnDraw, ZnDrawLocal
+from zndraw.figure import Figure
 
 __all__ = [
     "ZnDraw",
@@ -41,4 +42,5 @@ __all__ = [
     "Ellipsoid",
     "Material",
     "Custom2DShape",
+    "Figure",
 ]
