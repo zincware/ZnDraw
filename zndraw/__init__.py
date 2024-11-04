@@ -1,3 +1,5 @@
+from zndraw.figure import Figure
+
 from .base import Extension
 from .draw import (
     Box,
@@ -19,7 +21,6 @@ from .draw import (
     TorusKnot,
 )
 from .zndraw import ZnDraw, ZnDrawLocal
-from zndraw.figure import Figure
 
 __all__ = [
     "ZnDraw",

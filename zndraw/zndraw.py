@@ -15,7 +15,6 @@ import typing_extensions as tyex
 import znjson
 import znsocket
 from redis import Redis
-from zndraw.figure import Figure
 
 from zndraw.abc import Message
 from zndraw.base import Extension, ZnDrawBase
@@ -23,8 +22,8 @@ from zndraw.bonds import ASEComputeBonds
 from zndraw.config import ArrowsConfig, ZnDrawConfig
 from zndraw.converter import Object3DConverter
 from zndraw.draw import Object3D
+from zndraw.figure import Figure, FigureConverter
 from zndraw.scene import Scene
-from zndraw.figure import FigureConverter
 from zndraw.type_defs import (
     ATOMS_LIKE,
     CameraData,
@@ -415,7 +414,7 @@ class ZnDraw(ZnDrawBase):
         ] = value
 
     @property
-    def figures(self) -> dict[str, go.Figure|Figure]:
+    def figures(self) -> dict[str, go.Figure | Figure]:
         return znsocket.Dict(
             self.r,
             f"room:{self.token}:figures",
