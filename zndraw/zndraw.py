@@ -344,7 +344,7 @@ class ZnDraw(ZnDrawBase):
         try:
             return znsocket.Dict(
                 self.r, f"room:{self.token}:selection", socket=self._refresh_client
-            )[0]
+            )["grp-0"]
         except KeyError:
             return []
 
@@ -364,14 +364,14 @@ class ZnDraw(ZnDrawBase):
             raise IndexError("Selection must be positive")
         znsocket.Dict(
             self.r, f"room:{self.token}:selection", socket=self._refresh_client
-        )[0] = value
+        )["grp-0"] = value
 
     @property
     def step(self) -> int:
         try:
             return znsocket.Dict(
                 self.r, f"room:{self.token}:step", socket=self._refresh_client
-            )[0]
+            )["grp-0"]
         except KeyError:
             return 0
 
@@ -409,7 +409,7 @@ class ZnDraw(ZnDrawBase):
         # or collect the steps of all clients in a dict
         # and save the host and go from there, also fine and not too much worker.
         znsocket.Dict(self.r, f"room:{self.token}:step", socket=self._refresh_client)[
-            0
+            "grp-0"
         ] = value
 
     @property
@@ -449,7 +449,7 @@ class ZnDraw(ZnDrawBase):
             return np.array(
                 znsocket.Dict(
                     self.r, f"room:{self.token}:points", socket=self._refresh_client
-                )[0]
+                )["grp-0"]
             )
         except KeyError:
             return np.array([])
@@ -459,7 +459,7 @@ class ZnDraw(ZnDrawBase):
         if isinstance(points, np.ndarray):
             points = points.tolist()
         znsocket.Dict(self.r, f"room:{self.token}:points", socket=self._refresh_client)[
-            0
+            "grp-0"
         ] = points
 
     @property
