@@ -68,7 +68,7 @@ export function setupPoints(token: string, setPoints: any, points: any) {
     });
 
     // initial load
-    con.get("0").then((items: any) => {
+    con.get("grp-0").then((items: any) => {
       if (items === null) {
         return;
       }
@@ -77,7 +77,7 @@ export function setupPoints(token: string, setPoints: any, points: any) {
     });
 
     con.onRefresh(async (x: any) => {
-      const items = await con.get("0");
+      const items = await con.get("grp-0");
       console.log("points updated externally");
       if (items === null) {
         return;
@@ -100,7 +100,7 @@ export function setupPoints(token: string, setPoints: any, points: any) {
       }
       conInterfaceRef.current.clear();
       await conInterfaceRef.current.set(
-        0,
+        "grp-0",
         points.map((vec: THREE.Vector3) => [vec.x, vec.y, vec.z]),
       );
     };
@@ -131,14 +131,14 @@ export function setupSelection(
     });
 
     // Initial load
-    con.get("0").then((items: any) => {
+    con.get("grp-0").then((items: any) => {
       updateByRefreshRef.current = true;
       setSelectedIds(new Set(items));
     });
 
     // External updates handler
     con.onRefresh(async () => {
-      const items = await con.get("0");
+      const items = await con.get("grp-0");
       console.log("selection updated externally");
       updateByRefreshRef.current = true;
       setSelectedIds(new Set(items));
@@ -158,7 +158,7 @@ export function setupSelection(
 
       // Update remote selection if change wasn't from external source
       console.log("updating selection");
-      conInterfaceRef.current.set(0, Array.from(selectedIds));
+      conInterfaceRef.current.set("grp-0", Array.from(selectedIds));
     };
 
     if (updateByRefreshRef.current) {
@@ -180,13 +180,13 @@ export function setupStep(token: string, setStep: any, step: any) {
     });
 
     // Initial load
-    con.get("0").then((items: any) => {
+    con.get("grp-0").then((items: any) => {
       updateByRefreshRef.current = true;
       setStep(items);
     });
 
     con.onRefresh(async (x: any) => {
-      const items = await con.get("0");
+      const items = await con.get("grp-0");
       console.log("step updated externally");
       updateByRefreshRef.current = true;
       setStep(items);
@@ -204,7 +204,7 @@ export function setupStep(token: string, setStep: any, step: any) {
       if (conInterfaceRef.current === undefined) {
         return;
       }
-      conInterfaceRef.current.set(0, step);
+      conInterfaceRef.current.set("grp-0", step);
     };
 
     if (updateByRefreshRef.current) {
