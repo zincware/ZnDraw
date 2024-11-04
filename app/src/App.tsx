@@ -143,7 +143,7 @@ export default function App() {
   const [hoveredId, setHoveredId] = useState<number>(null);
   const [roomConfig, setRoomConfig] = useState({
     arrows: {},
-    scene: {floor: false},
+    scene: { floor: false },
   });
 
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(true);
@@ -595,31 +595,26 @@ export default function App() {
       <div className="canvas-container" onDragOver={onDragOver} onDrop={onDrop}>
         {roomConfig.scene.controls !== undefined && (
           <Canvas onPointerMissed={onPointerMissed} shadows>
-            
             {roomConfig["scene"].floor ? (
               <>
-                <Floor colorMode={colorMode} roomConfig={roomConfig}/>
+                <Floor colorMode={colorMode} roomConfig={roomConfig} />
                 <directionalLight
-                position={[0, 100, 0]}
-                intensity={1.0}
-                castShadow
-                shadow-mapSize-width={8192} // Adjust the width of the shadow map
-                shadow-mapSize-height={8192} // Adjust the height of the shadow map
-                shadow-camera-near={10} // Adjust the near clipping plane of the shadow camera
-                shadow-camera-far={800} // Adjust the far clipping plane of the shadow camera
-                shadow-camera-left={-400} // Set the left boundary for the shadow camera frustum
-                shadow-camera-right={400} // Set the right boundary for the shadow camera frustum
-                shadow-camera-top={400} // Set the top boundary for the shadow camera frustum
-                shadow-camera-bottom={-400} // Set the bottom boundary for the shadow camera frustum
-            />
-            </>
-            ) :(
-              <directionalLight
-              position={[0, 100, 0]}
-              intensity={1.0}
-              />
+                  position={[0, 100, 0]}
+                  intensity={1.0}
+                  castShadow
+                  shadow-mapSize-width={8192} // Adjust the width of the shadow map
+                  shadow-mapSize-height={8192} // Adjust the height of the shadow map
+                  shadow-camera-near={10} // Adjust the near clipping plane of the shadow camera
+                  shadow-camera-far={800} // Adjust the far clipping plane of the shadow camera
+                  shadow-camera-left={-400} // Set the left boundary for the shadow camera frustum
+                  shadow-camera-right={400} // Set the right boundary for the shadow camera frustum
+                  shadow-camera-top={400} // Set the top boundary for the shadow camera frustum
+                  shadow-camera-bottom={-400} // Set the bottom boundary for the shadow camera frustum
+                />
+              </>
+            ) : (
+              <directionalLight position={[0, 100, 0]} intensity={1.0} />
             )}
-
 
             {roomConfig["scene"].camera === "PerspectiveCamera" && (
               <PerspectiveCamera
@@ -645,7 +640,7 @@ export default function App() {
               position={[11, 11, 11]}
               decay={0}
               intensity={Math.PI / 2}
-            />            
+            />
             {roomConfig["scene"]["vectorfield"] &&
               currentFrame.vectors !== undefined && (
                 <VectorField
