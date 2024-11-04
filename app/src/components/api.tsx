@@ -461,7 +461,7 @@ export const setupGeometries = (
       }
       conInterfaceRef.current.clear();
       for (let i = 0; i < geometries.length; i++) {
-        await conInterfaceRef.current.append({ data: geometries[i] });
+        await conInterfaceRef.current.push({ data: geometries[i] });
       }
     };
 
@@ -537,7 +537,7 @@ export const setupMessages = (
       }
       conInterfaceRef.current.clear();
       for (let i = 0; i < messages.length; i++) {
-        await conInterfaceRef.current.append(messages[i]);
+        await conInterfaceRef.current.push(messages[i]);
       }
     };
 

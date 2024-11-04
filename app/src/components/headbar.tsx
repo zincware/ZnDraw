@@ -298,11 +298,9 @@ function ChatInsertModal({ show, onHide, chatInputRef, step, selection }: any) {
 
   const handleSelectChange = (selectedOption: any) => {
     chatInputRef.current.value = chatInputRef.current.value.slice(0, -2);
-    const basePath =
-      `${window.location.origin}${window.location.pathname}`.replace(
-        /\/+$/,
-        "",
-      );
+    const basePath = `${window.location.origin}${window.location.pathname}`
+      .replace(/\/+$/, "")
+      .replace(/\/token\/.*/, ""); // replace everything after /token/
 
     if (selectedOption.value === "step") {
       chatInputRef.current.value =
