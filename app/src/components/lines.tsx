@@ -40,6 +40,7 @@ export const Line3D = ({
   const [lineColor, setLineColor] = useState("black");
   const [pointColor, setPointColor] = useState("black");
   const [virtualPointColor, setVirtualPointColor] = useState("darkcyan");
+  const initalTriggerRef = useRef(true);
 
   useEffect(() => {
     // TODO: use bootstrap colors
@@ -101,8 +102,15 @@ export const Line3D = ({
   }, [points]);
 
   useEffect(() => {
+    if (initalTriggerRef.current) {
+      initalTriggerRef.current = false;
+      return;
+    }
     if (points.length > 0) {
       // add the moving point when going from not drawing -> drawing
+      // this removes a point when triggered initially
+      // This should not trigger initially, so the initialTriggeRef is
+      // a strange workaround
       if (isDrawing) {
         setPoints([...points, points[points.length - 1]]);
       } else {

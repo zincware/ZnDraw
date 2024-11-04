@@ -1,3 +1,5 @@
+from zndraw.figure import Figure
+
 from .base import Extension
 from .draw import (
     Box,
@@ -41,4 +43,5 @@ __all__ = [
     "Ellipsoid",
     "Material",
     "Custom2DShape",
+    "Figure",
 ]

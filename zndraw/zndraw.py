@@ -22,6 +22,7 @@ from zndraw.bonds import ASEComputeBonds
 from zndraw.config import ArrowsConfig, ZnDrawConfig
 from zndraw.converter import Object3DConverter
 from zndraw.draw import Object3D
+from zndraw.figure import Figure, FigureConverter
 from zndraw.scene import Scene
 from zndraw.type_defs import (
     ATOMS_LIKE,
@@ -413,13 +414,13 @@ class ZnDraw(ZnDrawBase):
         ] = value
 
     @property
-    def figures(self) -> dict[str, go.Figure]:
+    def figures(self) -> dict[str, go.Figure | Figure]:
         return znsocket.Dict(
             self.r,
             f"room:{self.token}:figures",
             repr_type="full",
             socket=self._refresh_client,
-            converter=[znjson.converter.PlotlyConverter],
+            converter=[znjson.converter.PlotlyConverter, FigureConverter],
         )
 
     @figures.setter
@@ -429,7 +430,7 @@ class ZnDraw(ZnDrawBase):
             self.r,
             f"room:{self.token}:figures",
             socket=self._refresh_client,
-            converter=[znjson.converter.PlotlyConverter],
+            converter=[znjson.converter.PlotlyConverter, FigureConverter],
         )
         figures_dict.clear()
         figures_dict.update(data)

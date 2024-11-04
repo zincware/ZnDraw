@@ -101,6 +101,7 @@ const PlotsCard2 = ({
     undefined,
   );
   let [plotData, setPlotData] = useState<{ [key: string]: any }>(undefined);
+  let [plotType, setPlotType] = useState<string>("");
   let [plotLayout, setPlotLayout] = useState<{ [key: string]: any }>(undefined);
   let [plotHover, setPlotHover] = useState<boolean>(false);
   const [allowDrag, setAllowDrag] = useState<boolean>(true);
@@ -155,8 +156,14 @@ const PlotsCard2 = ({
       if (data === null) {
         return;
       }
-      setRawPlotData(JSON.parse(data["value"]).data);
-      setPlotLayout(JSON.parse(data["value"]).layout);
+      if (data["_type"] === "plotly.graph_objs.Figure") {
+        setPlotType("plotly");
+        setRawPlotData(JSON.parse(data["value"]).data);
+        setPlotLayout(JSON.parse(data["value"]).layout);
+      } else if (data["_type"] === "zndraw.Figure") {
+        setPlotType("zndraw.Figure");
+        setPlotData(data["value"]["base64"]);
+      }
     });
   }, [conInterface, selectedOption]);
 
@@ -180,7 +187,7 @@ const PlotsCard2 = ({
   }, [updatedPlotsList]);
 
   useEffect(() => {
-    if (rawPlotData) {
+    if (rawPlotData && plotType === "plotly") {
       const markerList: [number, number, string][] = [];
 
       // Add markers at the matching step in the data
@@ -226,7 +233,7 @@ const PlotsCard2 = ({
       });
       setPlotData(plotDataCopy);
     }
-  }, [rawPlotData, step]); // does this self-trigger? If so use raw
+  }, [rawPlotData, step, plotType]); // does this self-trigger? If so use raw
 
   const handleSelectChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
     setSelectedOption(event.target.value);
@@ -370,11 +377,9 @@ const PlotsCard2 = ({
           <Button variant="close" className="mx-2" onClick={closeThisCard} />
         </Card.Header>
         <Card.Body style={{ padding: 0 }}>
-          {plotData ? (
+          {plotType == "plotly" && (
             <Plot
               data={plotData}
-              // frames={plotData[selectedOption].frames}
-              // config={plotData[selectedOption].config}
               layout={plotLayout}
               onHover={() => setPlotHover(true)}
               onSelecting={() => setPlotHover(true)}
@@ -384,7 +389,15 @@ const PlotsCard2 = ({
               onSelected={onPlotSelected}
               onDeselect={onPlotDeselect}
             />
-          ) : (
+          )}
+          {plotType == "zndraw.Figure" && (
+            <img
+              src={`data:image/png;base64, ${plotData}`}
+              alt="plot"
+              className="img-fluid"
+            />
+          )}
+          {plotType == "" && (
             <h3 className="text-secondary m-3">No data available</h3>
           )}
         </Card.Body>
