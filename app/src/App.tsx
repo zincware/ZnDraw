@@ -44,6 +44,7 @@ import { ParticleInfoOverlay, SceneInfoOverlay } from "./components/overlays";
 import VectorField from "./components/vectorfield";
 import { useColorMode } from "./components/utils";
 import { IndicesState } from "./components/utils";
+import { Floor } from "./components/floor";
 
 const MoveCameraTarget = ({
   controlsRef,
@@ -142,7 +143,7 @@ export default function App() {
   const [hoveredId, setHoveredId] = useState<number>(null);
   const [roomConfig, setRoomConfig] = useState({
     arrows: {},
-    scene: {},
+    scene: { floor: false },
   });
 
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(true);
@@ -498,7 +499,7 @@ export default function App() {
         }
       } else if (event.key == "o") {
         const origin = {
-          position: [-10, -10, -10],
+          position: [10, 10, 10],
           target: getCentroid(currentFrame.positions, new Set()),
         };
         setOrbitControlsTarget(new THREE.Vector3(...origin.target));
@@ -593,14 +594,35 @@ export default function App() {
     <>
       <div className="canvas-container" onDragOver={onDragOver} onDrop={onDrop}>
         {roomConfig.scene.controls !== undefined && (
-          <Canvas onPointerMissed={onPointerMissed}>
+          <Canvas onPointerMissed={onPointerMissed} shadows>
+            {roomConfig["scene"].floor ? (
+              <>
+                <Floor colorMode={colorMode} roomConfig={roomConfig} />
+                <directionalLight
+                  position={[0, 100, 0]}
+                  intensity={1.0}
+                  castShadow
+                  shadow-mapSize-width={8192} // Adjust the width of the shadow map
+                  shadow-mapSize-height={8192} // Adjust the height of the shadow map
+                  shadow-camera-near={10} // Adjust the near clipping plane of the shadow camera
+                  shadow-camera-far={800} // Adjust the far clipping plane of the shadow camera
+                  shadow-camera-left={-400} // Set the left boundary for the shadow camera frustum
+                  shadow-camera-right={400} // Set the right boundary for the shadow camera frustum
+                  shadow-camera-top={400} // Set the top boundary for the shadow camera frustum
+                  shadow-camera-bottom={-400} // Set the bottom boundary for the shadow camera frustum
+                />
+              </>
+            ) : (
+              <directionalLight position={[0, 100, 0]} intensity={1.0} />
+            )}
+
             {roomConfig["scene"].camera === "PerspectiveCamera" && (
               <PerspectiveCamera
                 ref={cameraRef}
                 makeDefault
                 near={roomConfig["scene"]["camera_near"]}
                 far={roomConfig["scene"]["camera_far"]}
-                position={[-10, -10, -10]}
+                position={[10, 10, 10]}
               />
             )}
             {roomConfig["scene"].camera === "OrthographicCamera" && (
@@ -609,16 +631,15 @@ export default function App() {
                 makeDefault
                 near={roomConfig["scene"]["camera_near"]}
                 far={roomConfig["scene"]["camera_far"]}
-                position={[-10, -10, -10]}
+                position={[10, 10, 10]}
                 zoom={10}
               />
             )}
             <pointLight
               ref={cameraLightRef}
-              position={[-11, -11, -11]}
+              position={[11, 11, 11]}
               decay={0}
-              intensity={Math.PI}
-              castShadow
+              intensity={Math.PI / 2}
             />
             {roomConfig["scene"]["vectorfield"] &&
               currentFrame.vectors !== undefined && (

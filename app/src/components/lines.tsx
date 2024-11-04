@@ -42,6 +42,7 @@ export const Line3D = ({
   const [virtualPointColor, setVirtualPointColor] = useState("darkcyan");
 
   useEffect(() => {
+    // TODO: use bootstrap colors
     if (hoveredId == null && isDrawing) {
       setLineColor("#f01d23");
       setPointColor("#710000");
