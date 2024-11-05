@@ -499,31 +499,52 @@ function RemoteFileModal({ show, onHide, colorMode }: any) {
 
   function fetchAvailableNodes() {
     setLoading(true);
-    socket.emit("zntrack:list-stages", {"remote": remoteRepoRef.current, "rev": remoteRevRef.current}, (data: string[]) => {
-      setAvailableNodes(data);
-      console.log(data);
-      setLoading(false);
-    });
+    socket.emit(
+      "zntrack:list-stages",
+      { remote: remoteRepoRef.current, rev: remoteRevRef.current },
+      (data: string[]) => {
+        setAvailableNodes(data);
+        console.log(data);
+        setLoading(false);
+      },
+    );
   }
 
   useEffect(() => {
     if (selectedNode) {
       setLoading(true);
-      socket.emit("zntrack:inspect-stage", {"remote": remoteRepoRef.current, "rev": remoteRevRef.current, "name": selectedNode}, (data: string[][]) => {
-        console.log(data);
-        setLoading(false);
-        setSelectedNodeAttributes(data);
-      });
+      socket.emit(
+        "zntrack:inspect-stage",
+        {
+          remote: remoteRepoRef.current,
+          rev: remoteRevRef.current,
+          name: selectedNode,
+        },
+        (data: string[][]) => {
+          console.log(data);
+          setLoading(false);
+          setSelectedNodeAttributes(data);
+        },
+      );
     }
   }, [selectedNode]);
 
-
   function loadFrames(attribute: string) {
-    socket.emit("zntrack:load-frames", {"remote": remoteRepoRef.current, "rev": remoteRevRef.current, "name": selectedNode, "attribute": attribute});
+    socket.emit("zntrack:load-frames", {
+      remote: remoteRepoRef.current,
+      rev: remoteRevRef.current,
+      name: selectedNode,
+      attribute: attribute,
+    });
     onHide();
   }
   function loadFigure(attribute: string) {
-    socket.emit("zntrack:load-figure", {"remote": remoteRepoRef.current, "rev": remoteRevRef.current, "name": selectedNode, "attribute": attribute});
+    socket.emit("zntrack:load-figure", {
+      remote: remoteRepoRef.current,
+      rev: remoteRevRef.current,
+      name: selectedNode,
+      attribute: attribute,
+    });
     onHide();
   }
 
@@ -547,7 +568,9 @@ function RemoteFileModal({ show, onHide, colorMode }: any) {
               placeholder="Repository path"
               aria-label="repositoryPath"
               aria-describedby="basic-addon1"
-              onChange={(e) => {remoteRepoRef.current = e.target.value}}
+              onChange={(e) => {
+                remoteRepoRef.current = e.target.value;
+              }}
             />
           </InputGroup>
           <InputGroup className="mb-3">
@@ -557,7 +580,9 @@ function RemoteFileModal({ show, onHide, colorMode }: any) {
               placeholder="Revision"
               aria-label="repository"
               aria-describedby="basic-addon1"
-              onChange={(e) => {remoteRevRef.current = e.target.value}}
+              onChange={(e) => {
+                remoteRevRef.current = e.target.value;
+              }}
             />
           </InputGroup>
           <Button onClick={fetchAvailableNodes}>Show available data</Button>
@@ -571,7 +596,9 @@ function RemoteFileModal({ show, onHide, colorMode }: any) {
                   value: node,
                   label: node,
                 }))}
-                onChange={(selectedOption: any) => {setSelectedNode(selectedOption.value)}}              
+                onChange={(selectedOption: any) => {
+                  setSelectedNode(selectedOption.value);
+                }}
                 // menuIsOpen={true}
                 placeholder="Choose..."
               />
@@ -610,12 +637,18 @@ ${attr.join(": ")}`}
                     />{" "}
                   </Col>
                   <Col md="auto">
-                    <Button variant="primary" onClick={() => loadFrames(attr[0])}>
+                    <Button
+                      variant="primary"
+                      onClick={() => loadFrames(attr[0])}
+                    >
                       <SiMoleculer /> Load Frames
                     </Button>
                   </Col>
                   <Col md="auto">
-                    <Button variant="primary" onClick={() => loadFigure(attr[0])}>
+                    <Button
+                      variant="primary"
+                      onClick={() => loadFigure(attr[0])}
+                    >
                       <MdOutlineAutoGraph /> Load Figure
                     </Button>
                   </Col>
