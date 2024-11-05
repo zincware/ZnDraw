@@ -317,6 +317,8 @@ def load_zntrack_frames(room: str, remote: str, rev: str, attribute: str, name: 
 
 @shared_task
 def load_zntrack_figures(room: str, remote: str, rev: str, attribute: str, name: str):
+    if len(rev) == 0:
+        rev = None
     import zntrack
 
     from zndraw import ZnDraw

@@ -428,7 +428,6 @@ def init_socketio_events(io: SocketIO):
 
     @io.on("zntrack:load-frames")
     def zntrack_load_frames(data: dict):
-        print(data)
         load_zntrack_frames.delay(room=session.get("token"), **data)
 
     @io.on("zntrack:load-figure")
