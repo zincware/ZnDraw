@@ -16,9 +16,9 @@ from zndraw.modify import Modifier
 from zndraw.scene import Scene
 from zndraw.selection import Selection
 from zndraw.tasks import (
+    inspect_zntrack_node,
     load_zntrack_figures,
     load_zntrack_frames,
-    inspect_zntrack_node,
     run_analysis,
     run_geometry,
     run_modifier,
@@ -407,7 +407,7 @@ def init_socketio_events(io: SocketIO):
     @io.on("room:token:get")
     def room_token_get() -> str:
         return session.get("token")
-    
+
     @io.on("zntrack:available")
     def check_zntrack_available() -> bool:
         return importlib.util.find_spec("zntrack") is not None
@@ -419,7 +419,7 @@ def init_socketio_events(io: SocketIO):
 
             fs = dvc.api.DVCFileSystem(url=data.get("remote"), rev=data.get("rev"))
             return [x.name for x in fs.repo.stage.collect() if hasattr(x, "name")]
-        except Exception as e:
+        except Exception:
             return []
 
     @io.on("zntrack:inspect-stage")

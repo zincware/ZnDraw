@@ -327,12 +327,15 @@ def load_zntrack_figures(room: str, remote: str, rev: str, attribute: str, name:
         token=room,
     )
     try:
-        vis.figures.update(getattr(zntrack.from_rev(name, remote=remote, rev=rev), attribute))
+        vis.figures.update(
+            getattr(zntrack.from_rev(name, remote=remote, rev=rev), attribute)
+        )
     except Exception as e:
         vis.log(str(e))
 
     vis.socket.sleep(1)
     vis.socket.disconnect()
+
 
 @shared_task
 def inspect_zntrack_node(name, rev, remote):
@@ -341,9 +344,7 @@ def inspect_zntrack_node(name, rev, remote):
     import zntrack
     from zntrack.config import ZNTRACK_OPTION, ZnTrackOptionEnum
 
-    node = zntrack.from_rev(
-        name=name, remote=remote, rev=rev
-    )
+    node = zntrack.from_rev(name=name, remote=remote, rev=rev)
 
     # find all @property decorated methods
     def find_properties(cls):

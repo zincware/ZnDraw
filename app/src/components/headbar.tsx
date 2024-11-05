@@ -985,17 +985,17 @@ const HeadBar = ({
                 </Button>
               </BtnTooltip>
               {zntrackAvailable && (
-              <BtnTooltip text="Open File via DVC">
-                <Button
-                  variant="outline-primary"
-                  className="mx-1"
-                  onClick={() => {
-                    setRemoteFileModalShow(true);
-                  }}
-                >
-                  <FaCloudDownloadAlt />
-                </Button>
-              </BtnTooltip>
+                <BtnTooltip text="Open File via DVC">
+                  <Button
+                    variant="outline-primary"
+                    className="mx-1"
+                    onClick={() => {
+                      setRemoteFileModalShow(true);
+                    }}
+                  >
+                    <FaCloudDownloadAlt />
+                  </Button>
+                </BtnTooltip>
               )}
               <BtnTooltip text="Help">
                 <Button
@@ -1067,11 +1067,11 @@ const HeadBar = ({
         onHide={() => setTutorialModalShow(false)}
         url={tutorialURL}
       />
-        <RemoteFileModal
-          show={remoteFileModalShow}
-          onHide={() => setRemoteFileModalShow(false)}
-          colorMode={colorMode}
-        />
+      <RemoteFileModal
+        show={remoteFileModalShow}
+        onHide={() => setRemoteFileModalShow(false)}
+        colorMode={colorMode}
+      />
       {consoleShow && (
         <ConsoleWindow
           messages={messages}
