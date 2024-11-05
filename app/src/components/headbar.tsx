@@ -17,7 +17,11 @@ import {
   ToggleButton,
   InputGroup,
   Form,
+  Row,
+  Col,
 } from "react-bootstrap";
+import { SiMoleculer } from "react-icons/si";
+import { MdOutlineAutoGraph } from "react-icons/md";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
 import remarkBreaks from "remark-breaks";
@@ -44,6 +48,7 @@ import {
   FaUpload,
   FaPlus,
   FaSave,
+  FaCloudDownloadAlt,
 } from "react-icons/fa";
 import { GrHelpBook } from "react-icons/gr";
 import Markdown from "react-markdown";
@@ -369,7 +374,7 @@ function HelpModel(props: any) {
 - **remove selected particles**: \`backspace\`
 - **remove line point**: \`shift + backspace\`
 - **reset camera to original position**: \`keypress O\`
-- **rotate camera perpendicular to the screen **: \`keypress R\` or \`keypress ctrl + R\`
+- **rotate camera perpendicular to the screen**: \`keypress R\` or \`keypress ctrl + R\`
 `;
 
   return (
@@ -477,6 +482,183 @@ function RefreshModal({ show, onHide, room }) {
       <Modal.Footer>
         <Button onClick={onHide}>Cancel</Button>
         <Button href={resetURL}>Create new Scene</Button>
+      </Modal.Footer>
+    </Modal>
+  );
+}
+
+function RemoteFileModal({ show, onHide, colorMode }: any) {
+  const [availableNodes, setAvailableNodes] = useState<string[]>([]);
+  const [selectedNodeAttributes, setSelectedNodeAttributes] = useState<
+    string[][]
+  >([]);
+  const [loading, setLoading] = useState(false);
+  const [selectedNode, setSelectedNode] = useState("");
+  const remoteRepoRef = useRef("");
+  const remoteRevRef = useRef("");
+
+  function fetchAvailableNodes() {
+    setLoading(true);
+    socket.emit(
+      "zntrack:list-stages",
+      { remote: remoteRepoRef.current, rev: remoteRevRef.current },
+      (data: string[]) => {
+        setAvailableNodes(data);
+        console.log(data);
+        setLoading(false);
+      },
+    );
+  }
+
+  useEffect(() => {
+    if (selectedNode) {
+      setLoading(true);
+      socket.emit(
+        "zntrack:inspect-stage",
+        {
+          remote: remoteRepoRef.current,
+          rev: remoteRevRef.current,
+          name: selectedNode,
+        },
+        (data: string[][]) => {
+          console.log(data);
+          setLoading(false);
+          setSelectedNodeAttributes(data);
+        },
+      );
+    }
+  }, [selectedNode]);
+
+  function loadFrames(attribute: string) {
+    socket.emit("zntrack:load-frames", {
+      remote: remoteRepoRef.current,
+      rev: remoteRevRef.current,
+      name: selectedNode,
+      attribute: attribute,
+    });
+    onHide();
+  }
+  function loadFigure(attribute: string) {
+    socket.emit("zntrack:load-figure", {
+      remote: remoteRepoRef.current,
+      rev: remoteRevRef.current,
+      name: selectedNode,
+      attribute: attribute,
+    });
+    onHide();
+  }
+
+  return (
+    <Modal
+      show={show}
+      onHide={onHide}
+      aria-labelledby="contained-modal-title-vcenter"
+      size="lg"
+    >
+      <Modal.Header closeButton>
+        <Modal.Title id="contained-modal-title-vcenter">
+          Load Data via DVC and ZnTrack
+        </Modal.Title>
+      </Modal.Header>
+      <Modal.Body>
+        <Container>
+          <InputGroup className="mb-3">
+            <InputGroup.Text id="basic-addon1">Repo</InputGroup.Text>
+            <Form.Control
+              placeholder="Repository path"
+              aria-label="repositoryPath"
+              aria-describedby="basic-addon1"
+              onChange={(e) => {
+                remoteRepoRef.current = e.target.value;
+              }}
+            />
+          </InputGroup>
+          <InputGroup className="mb-3">
+            <InputGroup.Text id="basic-addon1">Rev</InputGroup.Text>
+            <Form.Control
+              // defaultValue={"HEAD"}
+              placeholder="Revision"
+              aria-label="repository"
+              aria-describedby="basic-addon1"
+              onChange={(e) => {
+                remoteRevRef.current = e.target.value;
+              }}
+            />
+          </InputGroup>
+          <Button onClick={fetchAvailableNodes}>Show available data</Button>
+          <hr />
+          {loading && <p>Loading...</p>}
+
+          {availableNodes.length > 0 && (
+            <ul>
+              <Select
+                options={availableNodes.map((node) => ({
+                  value: node,
+                  label: node,
+                }))}
+                onChange={(selectedOption: any) => {
+                  setSelectedNode(selectedOption.value);
+                }}
+                // menuIsOpen={true}
+                placeholder="Choose..."
+              />
+            </ul>
+          )}
+
+          {selectedNodeAttributes.length > 0 && (
+            <>
+              {selectedNodeAttributes.map((attr, index) => (
+                <Row key={index} className="justify-content-center">
+                  <Col>
+                    {" "}
+                    <Markdown
+                      children={`~~~python\n${attr.join(": ")}`}
+                      components={{
+                        code(props) {
+                          const { children, className, node, ...rest } = props;
+                          const match = /language-(\w+)/.exec(className || "");
+                          return match ? (
+                            <SyntaxHighlighter
+                              {...rest}
+                              PreTag="div"
+                              language={match[1]}
+                              style={colorMode === "light" ? oneLight : oneDark}
+                            >
+                              {String(children).replace(/\n$/, "")}
+                            </SyntaxHighlighter>
+                          ) : (
+                            <code {...rest} className={className}>
+                              {children}
+                            </code>
+                          );
+                        },
+                      }}
+                    />{" "}
+                  </Col>
+                  <Col md="auto">
+                    <Button
+                      variant="primary"
+                      onClick={() => loadFrames(attr[0])}
+                    >
+                      <SiMoleculer /> Load Frames
+                    </Button>
+                  </Col>
+                  <Col md="auto">
+                    <Button
+                      variant="primary"
+                      onClick={() => loadFigure(attr[0])}
+                    >
+                      <MdOutlineAutoGraph /> Load Figure
+                    </Button>
+                  </Col>
+                </Row>
+              ))}
+            </>
+          )}
+        </Container>
+      </Modal.Body>
+      <Modal.Footer>
+        <Button onClick={onHide}>Cancel</Button>
       </Modal.Footer>
     </Modal>
   );
@@ -652,6 +834,14 @@ const HeadBar = ({
   const [refreshModalShow, setRefreshModalShow] = useState(false);
   const [tutorialModalShow, setTutorialModalShow] = useState(false);
   const [consoleShow, setConsoleShow] = useState(false);
+  const [remoteFileModalShow, setRemoteFileModalShow] = useState(false);
+  const [zntrackAvailable, setZntrackAvailable] = useState(false);
+
+  useEffect(() => {
+    socket.emit("zntrack:available", (available: boolean) => {
+      setZntrackAvailable(available);
+    });
+  }, []);
 
   useEffect(() => {
     setConsoleShow(showSiMGen);
@@ -793,6 +983,19 @@ const HeadBar = ({
                   <FaDownload />
                 </Button>
               </BtnTooltip>
+              {zntrackAvailable && (
+                <BtnTooltip text="Open File via DVC">
+                  <Button
+                    variant="outline-primary"
+                    className="mx-1"
+                    onClick={() => {
+                      setRemoteFileModalShow(true);
+                    }}
+                  >
+                    <FaCloudDownloadAlt />
+                  </Button>
+                </BtnTooltip>
+              )}
               <BtnTooltip text="Help">
                 <Button
                   variant="outline-primary"
@@ -862,6 +1065,11 @@ const HeadBar = ({
         show={tutorialModalShow}
         onHide={() => setTutorialModalShow(false)}
         url={tutorialURL}
+      />
+      <RemoteFileModal
+        show={remoteFileModalShow}
+        onHide={() => setRemoteFileModalShow(false)}
+        colorMode={colorMode}
       />
       {consoleShow && (
         <ConsoleWindow

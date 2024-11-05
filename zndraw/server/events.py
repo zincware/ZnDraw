@@ -1,4 +1,6 @@
+import importlib
 import importlib.metadata
+import importlib.util
 import json
 import logging
 import uuid
@@ -14,6 +16,9 @@ from zndraw.modify import Modifier
 from zndraw.scene import Scene
 from zndraw.selection import Selection
 from zndraw.tasks import (
+    inspect_zntrack_node,
+    load_zntrack_figures,
+    load_zntrack_frames,
     run_analysis,
     run_geometry,
     run_modifier,
@@ -402,3 +407,29 @@ def init_socketio_events(io: SocketIO):
     @io.on("room:token:get")
     def room_token_get() -> str:
         return session.get("token")
+
+    @io.on("zntrack:available")
+    def check_zntrack_available() -> bool:
+        return importlib.util.find_spec("zntrack") is not None
+
+    @io.on("zntrack:list-stages")
+    def zntrack_list_stages(data: dict):
+        try:
+            import dvc.api
+
+            fs = dvc.api.DVCFileSystem(url=data.get("remote"), rev=data.get("rev"))
+            return [x.name for x in fs.repo.stage.collect() if hasattr(x, "name")]
+        except Exception:
+            return []
+
+    @io.on("zntrack:inspect-stage")
+    def zntrack_inspect_stage(data: dict):
+        return inspect_zntrack_node(**data)
+
+    @io.on("zntrack:load-frames")
+    def zntrack_load_frames(data: dict):
+        load_zntrack_frames.delay(room=session.get("token"), **data)
+
+    @io.on("zntrack:load-figure")
+    def zntrack_load_figure(data: dict):
+        load_zntrack_figures.delay(room=session.get("token"), **data)
