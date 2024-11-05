@@ -612,8 +612,7 @@ function RemoteFileModal({ show, onHide, colorMode }: any) {
                   <Col>
                     {" "}
                     <Markdown
-                      children={`~~~python
-${attr.join(": ")}`}
+                      children={`~~~python\n${attr.join(": ")}`}
                       components={{
                         code(props) {
                           const { children, className, node, ...rest } = props;
