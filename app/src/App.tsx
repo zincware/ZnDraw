@@ -602,14 +602,14 @@ export default function App() {
                   position={[0, 100, 0]}
                   intensity={1.0}
                   castShadow
-                  shadow-mapSize-width={8192} // Adjust the width of the shadow map
-                  shadow-mapSize-height={8192} // Adjust the height of the shadow map
+                  shadow-mapSize-width={roomConfig["scene"]["camera_far"] * 10} // Adjust the width of the shadow map
+                  shadow-mapSize-height={roomConfig["scene"]["camera_far"] * 10} // Adjust the height of the shadow map
                   shadow-camera-near={10} // Adjust the near clipping plane of the shadow camera
                   shadow-camera-far={800} // Adjust the far clipping plane of the shadow camera
-                  shadow-camera-left={-400} // Set the left boundary for the shadow camera frustum
-                  shadow-camera-right={400} // Set the right boundary for the shadow camera frustum
-                  shadow-camera-top={400} // Set the top boundary for the shadow camera frustum
-                  shadow-camera-bottom={-400} // Set the bottom boundary for the shadow camera frustum
+                  shadow-camera-left={-1 * roomConfig["scene"]["camera_far"]} // Set the left boundary for the shadow camera frustum
+                  shadow-camera-right={roomConfig["scene"]["camera_far"]} // Set the right boundary for the shadow camera frustum
+                  shadow-camera-top={roomConfig["scene"]["camera_far"]} // Set the top boundary for the shadow camera frustum
+                  shadow-camera-bottom={-1 * roomConfig["scene"]["camera_far"]} // Set the bottom boundary for the shadow camera frustum
                 />
               </>
             ) : (

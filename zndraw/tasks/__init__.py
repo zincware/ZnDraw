@@ -291,3 +291,38 @@ def read_plots(paths: list[str], remote, rev) -> None:
 
     vis.socket.sleep(1)
     vis.socket.disconnect()
+
+@shared_task
+def load_zntrack_frames(room: str, remote: str, rev: str, attribute: str, name: str):
+    if len(rev) == 0:
+        rev = None
+    from zndraw import ZnDraw
+    import zntrack
+
+    vis = ZnDraw(
+        r=current_app.extensions["redis"],
+        url=current_app.config["SERVER_URL"],
+        token=room,
+    )
+    vis.extend(
+        getattr(zntrack.from_rev(name, remote=remote, rev=rev), attribute)
+    )
+
+    vis.socket.sleep(1)
+    vis.socket.disconnect()
+
+@shared_task
+def load_zntrack_figures(room: str, remote: str, rev: str, attribute: str):
+    from zndraw import ZnDraw
+    import zntrack
+
+    vis = ZnDraw(
+        r=current_app.extensions["redis"],
+        url=current_app.config["SERVER_URL"],
+        token=room,
+    )
+    vis.figures["success"] = "ABC"
+    # vis.figures = zntrack.from_rev("Packmol", remote="/Users/fzills/tools/zntrack/tmp/repo").figures
+
+    vis.socket.sleep(1)
+    vis.socket.disconnect()

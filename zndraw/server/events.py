@@ -19,6 +19,8 @@ from zndraw.tasks import (
     run_modifier,
     run_selection,
     run_upload_file,
+    load_zntrack_figures,
+    load_zntrack_frames,
 )
 from zndraw.utils import get_cls_from_json_schema, get_schema_with_instance_defaults
 
@@ -402,3 +404,53 @@ def init_socketio_events(io: SocketIO):
     @io.on("room:token:get")
     def room_token_get() -> str:
         return session.get("token")
+    
+    @io.on("zntrack:list-stages")
+    def zntrack_list_stages(data: dict):
+        # room = session.get("token")
+        # emit("remote-file:fetch:enqueue", to=room)
+        # run_remote_file_fetch.delay(room, data)
+        # return ["NodeA", "NodeB", "NodeC"]
+        import dvc.api
+
+        fs = dvc.api.DVCFileSystem(url=data.get("remote"), rev=data.get("rev"))
+        return [x.name for x in fs.repo.stage.collect() if hasattr(x, "name")]
+
+    @io.on("zntrack:inspect-stage")
+    def zntrack_inspect_stage(data: dict):
+        import zntrack, dataclasses
+        from zntrack.config import ZNTRACK_OPTION, ZnTrackOptionEnum
+        node = zntrack.from_rev(name=data.get("name"), rev=data.get("rev"), remote=data.get("remote"))
+
+        # find all @property decorated methods
+        def find_properties(cls):
+            exclude = set(['_init_descriptors_', '_init_subclass_basecls_', '_use_repr_', 'nwd', 'state', 'uuid'])
+            names = []
+            for name in dir(cls):
+                if name not in exclude:
+                    attr = getattr(cls, name)
+                    if isinstance(attr, property):
+                        # get the type hint of the property
+                        hint = attr.fget.__annotations__.get('return', None)
+                        names.append((name, str(hint)))
+            return names
+        
+        def find_deps_outs(cls):
+            names = []
+            for field in dataclasses.fields(cls):
+                if field.metadata.get(ZNTRACK_OPTION) in [ZnTrackOptionEnum.OUTS, ZnTrackOptionEnum.DEPS]:
+                    # names.append(field.name)
+                    # append a tuple with the name and the type
+                    names.append((field.name, str(field.type)))
+            return names
+
+        return find_deps_outs(node) + find_properties(node.__class__)
+    
+    @io.on("zntrack:load-frames")
+    def zntrack_load_frames(data: dict):
+        print(data)
+        load_zntrack_frames.delay(room=session.get("token"), **data)
+
+    @io.on("zntrack:load-figure")
+    def zntrack_load_figure(data: dict):
+        load_zntrack_figures.delay(room=session.get("token"))
