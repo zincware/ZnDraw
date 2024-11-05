@@ -45,6 +45,7 @@ import {
   FaPlus,
   FaSave,
 } from "react-icons/fa";
+import { GrHelpBook } from "react-icons/gr";
 import Markdown from "react-markdown";
 import { Rnd } from "react-rnd";
 import { BtnTooltip } from "./tooltips";
@@ -53,7 +54,6 @@ import * as znsocket from "znsocket";
 
 import {
   FaArrowRotateRight,
-  FaCircleInfo,
   FaFileCirclePlus,
   FaPencil,
 } from "react-icons/fa6";
@@ -799,7 +799,7 @@ const HeadBar = ({
                   className="mx-1"
                   onClick={() => setHelpModalShow(true)}
                 >
-                  <FaCircleInfo />
+                  <GrHelpBook />
                 </Button>
               </BtnTooltip>
               <BtnTooltip text="Switch Colormode">
