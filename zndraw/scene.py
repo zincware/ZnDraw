@@ -61,7 +61,7 @@ class Scene(BaseModel):
         0.1, ge=0.1, le=100, description="Camera near rendering plane"
     )
     camera_far: float = Field(
-        500, ge=1, le=1000, description="Camera far rendering plane"
+        300, ge=1, le=1000, description="Camera far rendering plane"
     )
     frame_update: bool = Field(
         True,
