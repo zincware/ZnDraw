@@ -1,7 +1,9 @@
 import importlib.metadata
+import importlib.util
 import json
 import logging
 import uuid
+import importlib
 
 import znsocket
 from flask import current_app, request, session
@@ -408,12 +410,7 @@ def init_socketio_events(io: SocketIO):
     
     @io.on("zntrack:available")
     def check_zntrack_available() -> bool:
-        try:
-            import zntrack
-            return True
-        except ImportError:
-            return False
-
+        return importlib.util.find_spec("zntrack") is not None
 
     @io.on("zntrack:list-stages")
     def zntrack_list_stages(data: dict):
