@@ -306,14 +306,17 @@ def load_zntrack_frames(room: str, remote: str, rev: str, attribute: str, name: 
         url=current_app.config["SERVER_URL"],
         token=room,
     )
-    vis.extend(getattr(zntrack.from_rev(name, remote=remote, rev=rev), attribute))
+    try:
+        vis.extend(getattr(zntrack.from_rev(name, remote=remote, rev=rev), attribute))
+    except Exception as e:
+        vis.log(str(e))
 
     vis.socket.sleep(1)
     vis.socket.disconnect()
 
 
 @shared_task
-def load_zntrack_figures(room: str, remote: str, rev: str, attribute: str):
+def load_zntrack_figures(room: str, remote: str, rev: str, attribute: str, name: str):
     import zntrack
 
     from zndraw import ZnDraw
@@ -323,8 +326,57 @@ def load_zntrack_figures(room: str, remote: str, rev: str, attribute: str):
         url=current_app.config["SERVER_URL"],
         token=room,
     )
-    vis.figures["success"] = "ABC"
-    # vis.figures = zntrack.from_rev("Packmol", remote="/Users/fzills/tools/zntrack/tmp/repo").figures
+    try:
+        vis.figures.update(getattr(zntrack.from_rev(name, remote=remote, rev=rev), attribute))
+    except Exception as e:
+        vis.log(str(e))
 
     vis.socket.sleep(1)
     vis.socket.disconnect()
+
+@shared_task
+def inspect_zntrack_node(name, rev, remote):
+    import dataclasses
+
+    import zntrack
+    from zntrack.config import ZNTRACK_OPTION, ZnTrackOptionEnum
+
+    node = zntrack.from_rev(
+        name=name, remote=remote, rev=rev
+    )
+
+    # find all @property decorated methods
+    def find_properties(cls):
+        exclude = set(
+            [
+                "_init_descriptors_",
+                "_init_subclass_basecls_",
+                "_use_repr_",
+                "nwd",
+                "state",
+                "uuid",
+            ]
+        )
+        names = []
+        for name in dir(cls):
+            if name not in exclude:
+                attr = getattr(cls, name)
+                if isinstance(attr, property):
+                    # get the type hint of the property
+                    hint = attr.fget.__annotations__.get("return", None)
+                    names.append((name, str(hint)))
+        return names
+
+    def find_deps_outs(cls):
+        names = []
+        for field in dataclasses.fields(cls):
+            if field.metadata.get(ZNTRACK_OPTION) in [
+                ZnTrackOptionEnum.OUTS,
+                ZnTrackOptionEnum.DEPS,
+            ]:
+                # names.append(field.name)
+                # append a tuple with the name and the type
+                names.append((field.name, str(field.type)))
+        return names
+
+    return find_deps_outs(node) + find_properties(node.__class__)

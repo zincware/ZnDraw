@@ -836,6 +836,13 @@ const HeadBar = ({
   const [tutorialModalShow, setTutorialModalShow] = useState(false);
   const [consoleShow, setConsoleShow] = useState(false);
   const [remoteFileModalShow, setRemoteFileModalShow] = useState(false);
+  const [zntrackAvailable, setZntrackAvailable] = useState(false);
+
+  useEffect(() => {
+    socket.emit("zntrack:available", (available: boolean) => {
+      setZntrackAvailable(available);
+    });
+  }, []);
 
   useEffect(() => {
     setConsoleShow(showSiMGen);
@@ -977,6 +984,7 @@ const HeadBar = ({
                   <FaDownload />
                 </Button>
               </BtnTooltip>
+              {zntrackAvailable && (
               <BtnTooltip text="Open File via DVC">
                 <Button
                   variant="outline-primary"
@@ -988,6 +996,7 @@ const HeadBar = ({
                   <FaCloudDownloadAlt />
                 </Button>
               </BtnTooltip>
+              )}
               <BtnTooltip text="Help">
                 <Button
                   variant="outline-primary"
@@ -1058,11 +1067,11 @@ const HeadBar = ({
         onHide={() => setTutorialModalShow(false)}
         url={tutorialURL}
       />
-      <RemoteFileModal
-        show={remoteFileModalShow}
-        onHide={() => setRemoteFileModalShow(false)}
-        colorMode={colorMode}
-      />
+        <RemoteFileModal
+          show={remoteFileModalShow}
+          onHide={() => setRemoteFileModalShow(false)}
+          colorMode={colorMode}
+        />
       {consoleShow && (
         <ConsoleWindow
           messages={messages}
