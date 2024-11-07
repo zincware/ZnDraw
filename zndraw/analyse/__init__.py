@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
-from pydantic import ConfigDict, Field, BaseModel
+from pydantic import BaseModel, ConfigDict, Field
 
 from zndraw.base import Extension, MethodsCollection
 
@@ -35,11 +35,10 @@ def _get_data_from_frames(key, frames: list[ase.Atoms]):
 
 
 class AnaylsisMethod(BaseModel):
-
     @classmethod
     def model_json_schema_from_atoms(cls, atoms: ase.Atoms) -> dict:
         return cls.model_json_schema()
-    
+
     def run(self, vis):
         raise NotImplementedError()
 
@@ -134,9 +133,7 @@ class Properties2D(AnaylsisMethod):
         available_properties = list(atoms.arrays.keys())
         available_properties += list(atoms.info.keys())
         if atoms.calc is not None:
-            available_properties += list(
-                atoms.calc.results.keys()
-            )  # global ATOMS object
+            available_properties += list(atoms.calc.results.keys())  # global ATOMS object
 
         available_properties += ["step"]
         schema["properties"]["x_data"]["enum"] = available_properties

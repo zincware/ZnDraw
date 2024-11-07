@@ -8,10 +8,10 @@ import znsocket
 from celery import shared_task
 from flask import current_app
 
+from zndraw.analyse import analyses
 from zndraw.base import FileIO
 from zndraw.bonds import ASEComputeBonds
 from zndraw.draw import geometries
-from zndraw.analyse import analyses
 from zndraw.exceptions import RoomLockedError
 from zndraw.selection import selections
 from zndraw.utils import load_plots_to_dict
@@ -478,7 +478,6 @@ def run_room_worker(room):
                 sel(**data[selection]).run(vis)
     except IndexError:
         pass
-
 
     analysis_queue = znsocket.List(
         r=current_app.extensions["redis"],
