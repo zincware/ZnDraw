@@ -10,15 +10,14 @@ from flask import current_app, request, session
 from flask_socketio import SocketIO, emit, join_room
 from redis import Redis
 
-from zndraw.analyse import Analysis
 from zndraw.modify import Modifier
 from zndraw.scene import Scene
 from zndraw.tasks import (
     inspect_zntrack_node,
     load_zntrack_figures,
     load_zntrack_frames,
-    run_analysis,
     run_geometry_schema,
+    run_analysis_schema,
     run_modifier,
     run_room_worker,
     run_selection_schema,
@@ -102,6 +101,7 @@ def init_socketio_events(io: SocketIO):
         # submit schema jobs
         run_geometry_schema.delay(room)
         run_selection_schema.delay(room)
+        run_analysis_schema.delay(room)
 
         session["name"] = uuid.uuid4().hex[:8]
 
@@ -199,10 +199,6 @@ def init_socketio_events(io: SocketIO):
         except KeyError:
             emit("scene:schema", Scene.get_updated_schema(), to=request.sid)
 
-    @io.on("analysis:schema")
-    def analysis_schema():
-        emit("analysis:schema", Analysis.get_updated_schema(), to=request.sid)
-
     @io.on("modifier:run")
     def modifier_run(data: dict):
         room = session.get("token")
@@ -272,18 +268,6 @@ def init_socketio_events(io: SocketIO):
                     return
 
         log.debug(f"No task available for {modifier_names}")
-
-    @io.on("analysis:run")
-    def analysis_run(data: dict):
-        room = session.get("token")
-        emit("room:analysis:queue", 1, to=room)  # TODO: find the correct queue position
-        run_analysis.delay(room, data)
-
-    @io.on("room:analysis:queue")
-    def room_analysis_run(data: int):
-        """Forwarding finished message."""
-        room = session.get("token")
-        emit("room:analysis:queue", data, to=room)
 
     @io.on("room:worker:run")
     def room_worker_run():

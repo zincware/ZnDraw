@@ -504,14 +504,10 @@ function SideBar({
         token={token}
         closeMenu={() => setVisibleOption("")}
       />
-      <SidebarMenu
-        schema={analysisSchema}
-        onSubmit={(data: any) => {
-          socket.emit("analysis:run", data);
-        }}
-        queuePosition={analysisQueue}
-        visible={visibleOption == "analysis"}
-        useSubmit={true}
+      <SidebarMenu2
+        name="analysis"
+        visible={visibleOption == "analysis"} // remove
+        token={token}
         closeMenu={() => setVisibleOption("")}
       />
     </>

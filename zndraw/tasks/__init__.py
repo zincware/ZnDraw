@@ -11,6 +11,7 @@ from flask import current_app
 from zndraw.base import FileIO
 from zndraw.bonds import ASEComputeBonds
 from zndraw.draw import geometries
+from zndraw.analyse import analyses
 from zndraw.exceptions import RoomLockedError
 from zndraw.selection import selections
 from zndraw.utils import load_plots_to_dict
@@ -388,6 +389,27 @@ def run_geometry_schema(room) -> None:
 
 
 @shared_task
+def run_analysis_schema(room) -> None:
+    from zndraw import ZnDraw
+
+    vis = ZnDraw(
+        r=current_app.extensions["redis"],
+        url=current_app.config["SERVER_URL"],
+        token=room,
+    )
+
+    dct = znsocket.Dict(
+        r=current_app.extensions["redis"],
+        socket=vis._refresh_client,
+        key=f"schema:{room}:analysis",
+    )
+    for analy in analyses:
+        dct[analy.__name__] = analy.model_json_schema_from_atoms(vis.atoms)
+    vis.socket.sleep(1)
+    vis.socket.disconnect()
+
+
+@shared_task
 def run_selection_schema(room) -> None:
     from zndraw import ZnDraw
     from zndraw.selection import selections
@@ -454,6 +476,26 @@ def run_room_worker(room):
                 vis.log(f"Selection {selection} not found.")
             else:
                 sel(**data[selection]).run(vis)
+    except IndexError:
+        pass
+
+
+    analysis_queue = znsocket.List(
+        r=current_app.extensions["redis"],
+        socket=vis._refresh_client,
+        key=f"queue:{room}:analysis",
+    )
+
+    try:
+        data = analysis_queue.pop()
+        for analysis in data:
+            analy = next(
+                (entry for entry in analyses if entry.__name__ == analysis), None
+            )
+            if analy is None:
+                vis.log(f"Analysis {analysis} not found.")
+            else:
+                analy(**data[analysis]).run(vis)
     except IndexError:
         pass
 
