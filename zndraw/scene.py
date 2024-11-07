@@ -3,7 +3,6 @@ import typing as t
 
 import ase
 import numpy as np
-from flask import current_app, session
 from pydantic import BaseModel, Field
 
 from zndraw.utils import emit_with_retry

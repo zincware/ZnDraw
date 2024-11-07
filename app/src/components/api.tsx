@@ -556,11 +556,7 @@ export const setupMessages = (
   }, [messages]);
 };
 
-export const setupConfig = (
-  token: string,
-  setConfig: any,
-) => {
-
+export const setupConfig = (token: string, setConfig: any) => {
   useEffect(() => {
     const con = new znsocket.Dict({
       client: client,
@@ -590,4 +586,4 @@ export const setupConfig = (
       con.offRefresh();
     };
   }, [token]);
-}
+};

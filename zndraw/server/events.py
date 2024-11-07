@@ -5,7 +5,6 @@ import json
 import logging
 import uuid
 
-import znsocket
 from flask import current_app, request, session
 from flask_socketio import SocketIO, emit, join_room
 from redis import Redis
@@ -17,13 +16,13 @@ from zndraw.tasks import (
     load_zntrack_frames,
     run_analysis_schema,
     run_geometry_schema,
-    run_scene_schema,
     run_modifier,
     run_room_worker,
+    run_scene_schema,
     run_selection_schema,
     run_upload_file,
 )
-from zndraw.utils import get_cls_from_json_schema, get_schema_with_instance_defaults
+from zndraw.utils import get_cls_from_json_schema
 
 log = logging.getLogger(__name__)
 __version__ = importlib.metadata.version("zndraw")

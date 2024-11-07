@@ -13,9 +13,9 @@ from zndraw.base import FileIO
 from zndraw.bonds import ASEComputeBonds
 from zndraw.draw import geometries
 from zndraw.exceptions import RoomLockedError
+from zndraw.scene import Scene
 from zndraw.selection import selections
 from zndraw.utils import load_plots_to_dict
-from zndraw.scene import Scene
 
 log = logging.getLogger(__name__)
 
@@ -409,7 +409,7 @@ def run_scene_schema(room) -> None:
     # we also want to initialize the `vis.config`
     # calling the config will set the default values
     # but not overwrite the existing ones, if they are set
-    _ = vis.config 
+    _ = vis.config
 
     vis.socket.sleep(1)
     vis.socket.disconnect()
@@ -533,7 +533,7 @@ def run_room_worker(room):
 
     try:
         data = scene_queue.pop()
-        data["scene"] = data.pop("Scene") # hotfix!
+        data["scene"] = data.pop("Scene")  # hotfix!
         vis.config.update(data)
     except IndexError:
         pass

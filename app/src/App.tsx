@@ -564,7 +564,6 @@ export default function App() {
     setSelectedIds(new Set());
   };
 
-
   return (
     <>
       <div className="canvas-container" onDragOver={onDragOver} onDrop={onDrop}>

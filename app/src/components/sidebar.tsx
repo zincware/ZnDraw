@@ -164,7 +164,13 @@ const SidebarMenu: React.FC<SidebarMenuProps> = ({
   );
 };
 
-const SidebarMenu2: any = ({ visible, closeMenu, token, name, sendImmediately }) => {
+const SidebarMenu2: any = ({
+  visible,
+  closeMenu,
+  token,
+  name,
+  sendImmediately,
+}) => {
   const [userInput, setUserInput] = useState<string>("");
   const [schema, setSchema] = useState<any>({});
   const [editorValue, setEditorValue] = useState<any>(null);
@@ -292,15 +298,16 @@ const SidebarMenu2: any = ({ visible, closeMenu, token, name, sendImmediately })
               </option>
             ))}
           </Form.Select>
-          { !sendImmediately && <Button
-            variant="primary"
-            onClick={submitEditor}
-            className="ms-2" // Adds some spacing between select and button
-            disabled={disabledBtn}
-          >
-            Submit
-          </Button>
-          }
+          {!sendImmediately && (
+            <Button
+              variant="primary"
+              onClick={submitEditor}
+              className="ms-2" // Adds some spacing between select and button
+              disabled={disabledBtn}
+            >
+              Submit
+            </Button>
+          )}
         </Form.Group>
         <div ref={editorRef}></div>
         {/* {useSubmit && (
