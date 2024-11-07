@@ -208,7 +208,10 @@ class ZnDraw(ZnDrawBase):
             "room:default:frames"
         ):
             default_lst = znsocket.List(
-                self.r, "room:default:frames", socket=self._refresh_client, max_commands_per_call=100,
+                self.r,
+                "room:default:frames",
+                socket=self._refresh_client,
+                max_commands_per_call=100,
             )
             lst.copy(key=default_lst.key)
 
@@ -228,11 +231,19 @@ class ZnDraw(ZnDrawBase):
         # TODO: what if the room does not exist yet?
         if not self.r.exists(f"room:{self.token}:frames"):
             return len(
-                znsocket.List(self.r, "room:default:frames", socket=self._refresh_client, max_commands_per_call=100,)
+                znsocket.List(
+                    self.r,
+                    "room:default:frames",
+                    socket=self._refresh_client,
+                    max_commands_per_call=100,
+                )
             )
         return len(
             znsocket.List(
-                self.r, f"room:{self.token}:frames", socket=self._refresh_client, max_commands_per_call=100,
+                self.r,
+                f"room:{self.token}:frames",
+                socket=self._refresh_client,
+                max_commands_per_call=100,
             )
         )
 
@@ -302,7 +313,7 @@ class ZnDraw(ZnDrawBase):
             isinstance(x, ase.Atoms) for x in values
         ):
             raise ValueError("Unable to parse provided data object")
-        
+
         # TODO: what about the default room check?!
 
         # enable tbar if more than 10 messages are sent
@@ -393,7 +404,10 @@ class ZnDraw(ZnDrawBase):
             "origin": self.name,
         }
         znsocket.List(
-            self.r, f"room:{self.token}:chat", socket=self._refresh_client,max_commands_per_call=100,
+            self.r,
+            f"room:{self.token}:chat",
+            socket=self._refresh_client,
+            max_commands_per_call=100,
         ).append(msg)
 
     @property
