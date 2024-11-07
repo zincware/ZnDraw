@@ -11,8 +11,8 @@ from flask import current_app
 from zndraw.base import FileIO
 from zndraw.bonds import ASEComputeBonds
 from zndraw.draw import geometries
-from zndraw.selection import selections
 from zndraw.exceptions import RoomLockedError
+from zndraw.selection import selections
 from zndraw.utils import load_plots_to_dict
 
 log = logging.getLogger(__name__)
@@ -437,7 +437,6 @@ def run_room_worker(room):
 
     except IndexError:
         pass
-
 
     selection_queue = znsocket.List(
         r=current_app.extensions["redis"],

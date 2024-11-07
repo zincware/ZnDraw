@@ -19,9 +19,9 @@ from zndraw.tasks import (
     load_zntrack_frames,
     run_analysis,
     run_geometry_schema,
-    run_selection_schema,
     run_modifier,
     run_room_worker,
+    run_selection_schema,
     run_upload_file,
 )
 from zndraw.utils import get_cls_from_json_schema, get_schema_with_instance_defaults
@@ -98,7 +98,7 @@ def init_socketio_events(io: SocketIO):
 
         room = str(session["token"])
         join_room(room)  # rename token to room or room_token
-        
+
         # submit schema jobs
         run_geometry_schema.delay(room)
         run_selection_schema.delay(room)
@@ -312,7 +312,6 @@ def init_socketio_events(io: SocketIO):
         emit("room:config:set", data, to=room, include_self=False)
         scene = Scene(**config["scene"])
         emit("scene:schema", get_schema_with_instance_defaults(scene), to=room)
-
 
     @io.on("room:alert")
     def room_alert(msg: str):
