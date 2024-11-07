@@ -23,7 +23,6 @@ def _update_object3d_schema(schema: dict) -> dict:
 
 
 class Material(BaseModel):
-
     color: str = "#62929E"
     opacity: float = Field(default=0.2, ge=0.0, le=1.0)
     wireframe: bool = False

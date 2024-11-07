@@ -164,11 +164,7 @@ const SidebarMenu: React.FC<SidebarMenuProps> = ({
   );
 };
 
-const SidebarMenu2: any = ({
-  visible,
-  closeMenu,
-  token,
-}) => {
+const SidebarMenu2: any = ({ visible, closeMenu, token }) => {
   const [userInput, setUserInput] = useState<string>("");
   const [schema, setSchema] = useState<any>({});
   const [editorValue, setEditorValue] = useState<any>(null);
@@ -215,7 +211,6 @@ const SidebarMenu2: any = ({
       con.offRefresh();
       queue.offRefresh();
     };
-
   }, [token]);
 
   useEffect(() => {
@@ -241,7 +236,6 @@ const SidebarMenu2: any = ({
           }
         }
       });
-
     }
     return () => {
       if (editor) {
@@ -254,7 +248,7 @@ const SidebarMenu2: any = ({
   function submitEditor() {
     if (editorValue && userInput && queueRef.current) {
       setDisabledBtn(true);
-      queueRef.current.push({[userInput]: editorValue});
+      queueRef.current.push({ [userInput]: editorValue });
       socket.emit("room:worker:run");
     }
   }
@@ -280,32 +274,32 @@ const SidebarMenu2: any = ({
         }}
       >
         <Card.Title>Geometries</Card.Title>
-        <Button variant="close" className="ms-auto" onClick={closeMenu}/>
+        <Button variant="close" className="ms-auto" onClick={closeMenu} />
       </Card.Header>
       <Card.Body style={{ paddingBottom: 80 }}>
-      <Form.Group className="d-flex align-items-center">
-      <Form.Select
-        aria-label="Default select example"
-        onChange={(e) => setUserInput(e.target.value)}
-      >
-        <option></option>
-        {Object.keys(schema).map((key) => (
-          <option key={key} value={key}>
-            {key}
-          </option>
-        ))}
-      </Form.Select>
-      <Button
-        variant="primary"
-        onClick={submitEditor}
-        className="ms-2" // Adds some spacing between select and button
-        disabled={disabledBtn}
-      >
-        Submit
-      </Button>
-    </Form.Group>
-      <div ref={editorRef}></div>
-         {/* {useSubmit && (
+        <Form.Group className="d-flex align-items-center">
+          <Form.Select
+            aria-label="Default select example"
+            onChange={(e) => setUserInput(e.target.value)}
+          >
+            <option></option>
+            {Object.keys(schema).map((key) => (
+              <option key={key} value={key}>
+                {key}
+              </option>
+            ))}
+          </Form.Select>
+          <Button
+            variant="primary"
+            onClick={submitEditor}
+            className="ms-2" // Adds some spacing between select and button
+            disabled={disabledBtn}
+          >
+            Submit
+          </Button>
+        </Form.Group>
+        <div ref={editorRef}></div>
+        {/* {useSubmit && (
           <Button onClick={submitEditor} disabled={queuePosition >= 0}>
             {queuePosition > 0 && `Queue position: ${queuePosition}`}
             {queuePosition == 0 && `Running`}

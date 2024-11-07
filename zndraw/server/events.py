@@ -11,7 +11,6 @@ from flask_socketio import SocketIO, emit, join_room
 from redis import Redis
 
 from zndraw.analyse import Analysis
-from zndraw.draw import geometries
 from zndraw.modify import Modifier
 from zndraw.scene import Scene
 from zndraw.selection import Selection
@@ -20,11 +19,11 @@ from zndraw.tasks import (
     load_zntrack_figures,
     load_zntrack_frames,
     run_analysis,
+    run_geometry_schema,
     run_modifier,
+    run_room_worker,
     run_selection,
     run_upload_file,
-    run_geometry_schema,
-    run_room_worker,
 )
 from zndraw.utils import get_cls_from_json_schema, get_schema_with_instance_defaults
 

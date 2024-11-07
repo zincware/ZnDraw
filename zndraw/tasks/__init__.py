@@ -4,17 +4,15 @@ import urllib.request
 from io import StringIO
 
 import ase.io
+import znsocket
 from celery import shared_task
 from flask import current_app
 
 from zndraw.base import FileIO
 from zndraw.bonds import ASEComputeBonds
+from zndraw.draw import geometries
 from zndraw.exceptions import RoomLockedError
 from zndraw.utils import load_plots_to_dict
-
-from zndraw.draw import geometries
-
-import znsocket
 
 log = logging.getLogger(__name__)
 
@@ -171,8 +169,8 @@ def run_modifier(room, data: dict) -> None:
 
 @shared_task
 def run_selection(room, data: dict) -> None:
-    from zndraw.selection import Selection
     from zndraw import ZnDraw
+    from zndraw.selection import Selection
 
     vis = ZnDraw(
         r=current_app.extensions["redis"],
@@ -377,11 +375,16 @@ def run_geometry_schema(room) -> None:
         token=room,
     )
 
-    dct = znsocket.Dict(r=current_app.extensions["redis"], socket=vis._refresh_client, key=f"schema:{room}:geometry")
+    dct = znsocket.Dict(
+        r=current_app.extensions["redis"],
+        socket=vis._refresh_client,
+        key=f"schema:{room}:geometry",
+    )
     for geom in geometries:
         dct[geom.__name__] = geom.model_json_schema()
     vis.socket.sleep(1)
     vis.socket.disconnect()
+
 
 @shared_task
 def run_room_worker(room):
@@ -393,11 +396,17 @@ def run_room_worker(room):
         token=room,
     )
 
-    geometry_queue = znsocket.List(r=current_app.extensions["redis"], socket=vis._refresh_client, key=f"queue:{room}:geometry")
+    geometry_queue = znsocket.List(
+        r=current_app.extensions["redis"],
+        socket=vis._refresh_client,
+        key=f"queue:{room}:geometry",
+    )
     try:
         data = geometry_queue.pop()
         for geometry in data:
-            geom = next((entry for entry in geometries if entry.__name__ == geometry), None)
+            geom = next(
+                (entry for entry in geometries if entry.__name__ == geometry), None
+            )
             if geom is None:
                 vis.log(f"Geometry {geometry} not found.")
             else:
