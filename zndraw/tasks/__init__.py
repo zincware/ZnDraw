@@ -449,10 +449,37 @@ def run_modify_schema(room) -> None:
     dct = znsocket.Dict(
         r=current_app.extensions["redis"],
         socket=vis._refresh_client,
-        key=f"schema:{room}:modifier",
+        key=f"schema:default:modifier",
     )
     for key, val in modifier.items():
         dct[key] = val.model_json_schema()
+
+    vis.socket.sleep(1)
+    vis.socket.disconnect()
+
+@shared_task
+def setup_public_modifier(room):
+    from zndraw import ZnDraw
+
+    vis = ZnDraw(
+        r=current_app.extensions["redis"],
+        url=current_app.config["SERVER_URL"],
+        token=room,
+    )
+
+    room_modifier_queue = znsocket.Dict(
+        r=current_app.extensions["redis"],
+        socket=vis._refresh_client,
+        key=f"queue:{room}:modifier",
+    )
+
+    default_modifier_queue = znsocket.Dict(
+        r=current_app.extensions["redis"],
+        socket=vis._refresh_client,
+        key=f"queue:default:modifier",
+    )
+
+    default_modifier_queue[room] = room_modifier_queue
 
     vis.socket.sleep(1)
     vis.socket.disconnect()

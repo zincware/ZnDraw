@@ -19,6 +19,7 @@ from zndraw.tasks import (
     run_geometry_schema,
     run_modifier,
     run_modify_schema,
+    setup_public_modifier,
     run_room_worker,
     run_scene_schema,
     run_selection_schema,
@@ -91,7 +92,7 @@ def init_socketio_events(io: SocketIO):
                         break
                 else:
                     log.debug(f"Remove {modifier} from room {room}")
-                    modifier_schema.pop(modifier)
+                    modifier_schema.pop(modifier) # TODO this does not work well with public yet.
 
     @io.on("webclient:connect")
     def webclient_connect():
@@ -116,6 +117,7 @@ def init_socketio_events(io: SocketIO):
         run_analysis_schema.delay(room)
         run_scene_schema.delay(room)
         run_modify_schema.delay(room)
+        setup_public_modifier.delay(room)
 
         session["name"] = uuid.uuid4().hex[:8]
 

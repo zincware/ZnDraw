@@ -52,6 +52,7 @@ class ExtensionType(str, enum.Enum):
 
 
 def check_queue(vis: "ZnDraw") -> None:
+    # TODO: if there if a public modifier, iterate the queue:default:modifier
     while True:
         modifier_queue = znsocket.Dict(
             r=vis.r,
@@ -68,6 +69,25 @@ def check_queue(vis: "ZnDraw") -> None:
                     )
                 except IndexError:
                     pass
+
+        # TODO: this now does not differentiate between public and private modifiers
+        public_queue = znsocket.Dict(
+            r=vis.r,
+            socket=vis._refresh_client,
+            key="queue:default:modifier",
+        )
+
+        for room in public_queue:
+            for key in public_queue[room]:
+                if key in vis._modifiers:
+                    new_vis = ZnDraw(url=vis.url, token=room, r=vis.r)
+                    try:
+                        task = public_queue[room].pop(key)
+                        vis._modifiers[key]["cls"](**task).run(
+                            new_vis, **vis._modifiers[key]["run_kwargs"]
+                        )
+                    except IndexError:
+                        pass
         vis.socket.sleep(1)  # wakeup timeout
 
 
@@ -142,14 +162,8 @@ class ZnDraw(ZnDrawBase):
         if self.r is None:
             self.r = self._refresh_client
 
-        def on_wakeup():
-            if self._available:
-                self.socket.emit("modifier:available", list(self._modifiers))
-
         self.url = self.url.replace("http", "ws")
         self.socket.on("connect", self._on_connect)
-        self.socket.on("modifier:run", self._run_modifier)
-        self.socket.on("modifier:wakeup", on_wakeup)
         self.socket.on("room:log", lambda x: print(x))
         self.socket.on("version", _check_version_compatibility)
 
@@ -623,12 +637,21 @@ class ZnDraw(ZnDrawBase):
 
         if variant == ExtensionType.MODIFIER:
             # TODO: need to create a custom vis object for the room!
-            modifier_schema = znsocket.Dict(
-                self.r,
-                f"schema:{self.token}:modifier",
-                socket=self._refresh_client,
-            )
+            if public:
+                modifier_schema = znsocket.Dict(
+                    self.r,
+                    "schema:default:modifier",
+                    socket=self._refresh_client,
+                )
+            else:
+                modifier_schema = znsocket.Dict(
+                    self.r,
+                    f"schema:{self.token}:modifier",
+                    socket=self._refresh_client,
+                )
             # TODO: check if the key exists and if it is different?
+            # TODO: also check in the default schema room.
+            # TODO: can not register the same modifier twice!
             modifier_schema[cls.__name__] = cls.model_json_schema()
 
             modifier_registry = znsocket.Dict(
@@ -680,57 +703,19 @@ class ZnDraw(ZnDrawBase):
             This can have a performance impact and may lead to timeouts.
 
         """
-        if timeout < 1:
-            raise ValueError("Timeout must be at least 1 second")
-        if timeout > 300:
-            log.critical(
-                "Timeout is set to more than 300 seconds. Modifiers might be killed automatically."
-            )
         if run_kwargs is None:
             run_kwargs = {}
-        if cls.__name__ in self._modifiers:
-            raise ValueError(f"Modifier {cls.__name__} already registered")
 
-        self._modifiers[cls.__name__] = {
-            "cls": cls,
-            "run_kwargs": run_kwargs,
-            "public": public,
-            "frozen": use_frozen,
-            "timeout": timeout,
-        }
+        # if use_frozen:
+        #     cls = cls.frozen()
 
-        _register_modifier(self, self._modifiers[cls.__name__])
-
-    def _run_modifier(self, data: dict):
-        self._available = False
-        room = data.pop("ZNDRAW_CLIENT_ROOM")
-        vis = type(self)(
-            url=self.url, token=room, maximum_message_size=self.maximum_message_size
+        self.register(
+            cls=cls,
+            run_kwargs=run_kwargs,
+            public=public,
+            variant=ExtensionType.MODIFIER,
         )
-        vis.timeout = self.timeout
 
-        try:
-            vis.socket.emit("room:modifier:queue", 0)
-            name = data["method"]["discriminator"]
-
-            instance = self._modifiers[name]["cls"](**data["method"])
-            instance.run(
-                vis,
-                timeout=self._modifiers[name]["timeout"],
-                **self._modifiers[name]["run_kwargs"],
-            )
-        except Exception as e:
-            log.exception(e)
-            vis.log(f"Error: {e}")
-        finally:
-            vis.socket.emit("room:modifier:queue", -1)
-
-            # wait and then disconnect
-            vis.socket.sleep(1)
-            vis.socket.disconnect()
-
-            self._available = True
-            self.socket.emit("modifier:available", list(self._modifiers))
 
 
 @tyex.deprecated("Use ZnDraw instead.")

@@ -174,6 +174,7 @@ const SidebarMenu2: any = ({
 }) => {
   const [userInput, setUserInput] = useState<string>("");
   const [schema, setSchema] = useState<any>({});
+  const [sharedSchema, setSharedSchema] = useState<any>({});
   const [editorValue, setEditorValue] = useState<any>(null);
   const [disabledBtn, setDisabledBtn] = useState<boolean>(false);
   const editorRef = useRef<HTMLDivElement>(null);
@@ -184,6 +185,12 @@ const SidebarMenu2: any = ({
       client: client,
       key: "schema:" + token + ":" + name,
     });
+
+    const sharedCon = new znsocket.Dict({
+      client: client,
+      key: "schema:default:" + name,
+    });
+    
 
     const queue = new znsocket.Dict({
       client: client,
@@ -196,6 +203,11 @@ const SidebarMenu2: any = ({
       const result = Object.fromEntries(items);
       setSchema(result);
     });
+    sharedCon.entries().then((items: any) => {
+      const result = Object.fromEntries(items);
+      setSharedSchema(result);
+    });
+
     queue.length().then((length: any) => {
       setDisabledBtn(length > 0);
     });
@@ -210,18 +222,25 @@ const SidebarMenu2: any = ({
       setSchema(result);
     });
 
+    sharedCon.onRefresh(async (x: any) => {
+      const items = await sharedCon.entries();
+      const result = Object.fromEntries(items);
+      setSharedSchema(result);
+    });
+
     return () => {
       con.offRefresh();
+      sharedCon.offRefresh();
       queue.offRefresh();
     };
   }, [token]);
 
   useEffect(() => {
-    console.log("userInput", userInput);
     let editor: any;
-    if (editorRef.current && schema[userInput]) {
+    const fullSchema = { ...sharedSchema, ...schema };
+    if (editorRef.current && fullSchema[userInput]) {
       editor = new JSONEditor(editorRef.current, {
-        schema: schema[userInput],
+        schema: fullSchema[userInput],
       });
 
       editor.on("ready", () => {
@@ -246,7 +265,7 @@ const SidebarMenu2: any = ({
         setEditorValue(null);
       }
     };
-  }, [userInput, schema]);
+  }, [userInput, schema, sharedSchema]);
 
   function submitEditor() {
     if (editorValue && userInput && queueRef.current) {
@@ -301,7 +320,7 @@ const SidebarMenu2: any = ({
             onChange={(e) => setUserInput(e.target.value)}
           >
             <option></option>
-            {Object.keys(schema).map((key) => (
+            {Object.keys({ ...sharedSchema, ...schema }).map((key) => (
               <option key={key} value={key}>
                 {key}
               </option>
