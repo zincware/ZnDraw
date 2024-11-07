@@ -13,16 +13,15 @@ from redis import Redis
 from zndraw.analyse import Analysis
 from zndraw.modify import Modifier
 from zndraw.scene import Scene
-from zndraw.selection import Selection
 from zndraw.tasks import (
     inspect_zntrack_node,
     load_zntrack_figures,
     load_zntrack_frames,
     run_analysis,
     run_geometry_schema,
+    run_selection_schema,
     run_modifier,
     run_room_worker,
-    run_selection,
     run_upload_file,
 )
 from zndraw.utils import get_cls_from_json_schema, get_schema_with_instance_defaults
@@ -98,8 +97,11 @@ def init_socketio_events(io: SocketIO):
                 session["authenticated"] = False
 
         room = str(session["token"])
-        run_geometry_schema.delay(room)
         join_room(room)  # rename token to room or room_token
+        
+        # submit schema jobs
+        run_geometry_schema.delay(room)
+        run_selection_schema.delay(room)
 
         session["name"] = uuid.uuid4().hex[:8]
 
@@ -196,10 +198,6 @@ def init_socketio_events(io: SocketIO):
             emit("scene:schema", get_schema_with_instance_defaults(scene), to=room)
         except KeyError:
             emit("scene:schema", Scene.get_updated_schema(), to=request.sid)
-
-    @io.on("selection:schema")
-    def selection_schema():
-        emit("selection:schema", Selection.get_updated_schema(), to=request.sid)
 
     @io.on("analysis:schema")
     def analysis_schema():
@@ -315,29 +313,6 @@ def init_socketio_events(io: SocketIO):
         scene = Scene(**config["scene"])
         emit("scene:schema", get_schema_with_instance_defaults(scene), to=room)
 
-    @io.on("selection:run")
-    def selection_run(data: dict):
-        room = session.get("token")
-        emit("room:selection:queue", 1, to=room)  # TODO: find the correct queue position
-        run_selection.delay(room, data)
-
-    # @io.on("selection:run:finished")
-    # def selection_run_finished():
-    #     """Forwarding finished message."""
-    #     room = session.get("token")
-    #     emit("selection:run:finished", to=room)
-
-    # @io.on("selection:run:running")
-    # def selection_run_running():
-    #     """Forwarding running method."""
-    #     room = session.get("token")
-    #     emit("selection:run:running", to=room)
-
-    @io.on("room:selection:queue")
-    def room_selection_run(data: int):
-        """Forwarding finished message."""
-        room = session.get("token")
-        emit("room:selection:queue", data, to=room)
 
     @io.on("room:alert")
     def room_alert(msg: str):

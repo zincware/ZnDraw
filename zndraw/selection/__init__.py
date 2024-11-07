@@ -3,7 +3,7 @@ import typing as t
 
 import networkx as nx
 import numpy as np
-from pydantic import Field
+from pydantic import Field, BaseModel
 
 from zndraw.base import Extension, MethodsCollection
 from zndraw.zndraw import ZnDraw
@@ -15,7 +15,7 @@ except ImportError:
     pass
 
 
-class SelectionBase(Extension):
+class SelectionBase(BaseModel):
     def run(self, vis: "ZnDraw") -> None:
         raise NotImplementedError()
 
@@ -120,8 +120,7 @@ class UpdateSelection(SelectionBase):
         vis.selection = vis.selection
 
 
-# Order here matters
-methods = t.Union[
+selections: list[t.Type[SelectionBase]] = [
     ConnectedParticles,
     NoneSelection,
     All,
@@ -131,10 +130,3 @@ methods = t.Union[
     IdenticalSpecies,
     Neighbour,
 ]
-
-
-class Selection(MethodsCollection):
-    method: methods = Field(
-        description="Selection method",
-        discriminator="discriminator",
-    )

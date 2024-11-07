@@ -164,7 +164,7 @@ const SidebarMenu: React.FC<SidebarMenuProps> = ({
   );
 };
 
-const SidebarMenu2: any = ({ visible, closeMenu, token }) => {
+const SidebarMenu2: any = ({ visible, closeMenu, token, name }) => {
   const [userInput, setUserInput] = useState<string>("");
   const [schema, setSchema] = useState<any>({});
   const [editorValue, setEditorValue] = useState<any>(null);
@@ -179,12 +179,12 @@ const SidebarMenu2: any = ({ visible, closeMenu, token }) => {
   useEffect(() => {
     const con = new znsocket.Dict({
       client: client,
-      key: "schema:" + token + ":geometry",
+      key: "schema:" + token + ":" + name,
     });
 
     const queue = new znsocket.List({
       client: client,
-      key: "queue:" + token + ":geometry",
+      key: "queue:" + token + ":" + name,
     });
     queueRef.current = queue;
 
@@ -273,7 +273,7 @@ const SidebarMenu2: any = ({ visible, closeMenu, token }) => {
           backgroundColor: "inherit", // Use the same background color as the rest of the card
         }}
       >
-        <Card.Title>Geometries</Card.Title>
+        <Card.Title>{name}</Card.Title>
         <Button variant="close" className="ms-auto" onClick={closeMenu} />
       </Card.Header>
       <Card.Body style={{ paddingBottom: 80 }}>
@@ -462,7 +462,7 @@ function SideBar({
           </BtnTooltip>
         </Card>
       </Navbar>
-      <SidebarMenu
+      {/* <SidebarMenu
         schema={selectionSchema}
         onSubmit={(data: any) => {
           socket.emit("selection:run", data);
@@ -472,6 +472,12 @@ function SideBar({
         setTrigger={setTriggerSelection}
         visible={visibleOption == "selection"}
         useSubmit={true}
+        closeMenu={() => setVisibleOption("")}
+      /> */}
+      <SidebarMenu2
+        name="selection"
+        visible={visibleOption == "selection"} // remove
+        token={token}
         closeMenu={() => setVisibleOption("")}
       />
       <SidebarMenu
@@ -493,13 +499,8 @@ function SideBar({
         closeMenu={() => setVisibleOption("")}
       />
       <SidebarMenu2
-        // schema={geometrySchema}
-        // onSubmit={(data: any) => {
-        //   socket.emit("geometry:run", data);
-        // }}
-        // queuePosition={geometryQueue}
+        name="geometry"
         visible={visibleOption == "geometry"}
-        // useSubmit={true}
         token={token}
         closeMenu={() => setVisibleOption("")}
       />
