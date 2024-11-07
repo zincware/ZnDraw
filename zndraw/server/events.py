@@ -32,6 +32,7 @@ __version__ = importlib.metadata.version("zndraw")
 
 
 def init_socketio_events(io: SocketIO):
+
     @io.on("connect")
     def connect():
         emit("version", __version__)

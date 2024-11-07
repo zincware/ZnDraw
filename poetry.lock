@@ -125,13 +125,13 @@ speedups = ["Brotli", "aiodns (>=3.2.0)", "brotlicffi"]
 
 [[package]]
 name = "aiohttp-retry"
-version = "2.9.0"
+version = "2.9.1"
 description = "Simple retry client for aiohttp"
 optional = false
 python-versions = ">=3.7"
 files = [
-    {file = "aiohttp_retry-2.9.0-py3-none-any.whl", hash = "sha256:7661af92471e9a96c69d9b8f32021360272073397e6a15bc44c1726b12f46056"},
-    {file = "aiohttp_retry-2.9.0.tar.gz", hash = "sha256:92c47f1580040208bac95d9a8389a87227ef22758530f2e3f4683395e42c41b5"},
+    {file = "aiohttp_retry-2.9.1-py3-none-any.whl", hash = "sha256:66d2759d1921838256a05a3f80ad7e724936f083e35be5abb5e16eed6be6dc54"},
+    {file = "aiohttp_retry-2.9.1.tar.gz", hash = "sha256:8eb75e904ed4ee5c2ec242fefe85bf04240f685391c4879d8f541d6028ff01f1"},
 ]
 
 [package.dependencies]
@@ -4818,13 +4818,13 @@ files = [
 
 [[package]]
 name = "tqdm"
-version = "4.66.6"
+version = "4.67.0"
 description = "Fast, Extensible Progress Meter"
 optional = false
 python-versions = ">=3.7"
 files = [
-    {file = "tqdm-4.66.6-py3-none-any.whl", hash = "sha256:223e8b5359c2efc4b30555531f09e9f2f3589bcd7fdd389271191031b49b7a63"},
-    {file = "tqdm-4.66.6.tar.gz", hash = "sha256:4bdd694238bef1485ce839d67967ab50af8f9272aab687c0d7702a01da0be090"},
+    {file = "tqdm-4.67.0-py3-none-any.whl", hash = "sha256:0cd8af9d56911acab92182e88d763100d4788bdf421d251616040cc4d44863be"},
+    {file = "tqdm-4.67.0.tar.gz", hash = "sha256:fe5a6f95e6fe0b9755e9469b77b9c3cf850048224ecaa8293d7d2d31f97d869a"},
 ]
 
 [package.dependencies]
@@ -4832,6 +4832,7 @@ colorama = {version = "*", markers = "platform_system == \"Windows\""}
 
 [package.extras]
 dev = ["pytest (>=6)", "pytest-cov", "pytest-timeout", "pytest-xdist"]
+discord = ["requests"]
 notebook = ["ipywidgets (>=6)"]
 slack = ["slack-sdk"]
 telegram = ["requests"]
@@ -5205,13 +5206,13 @@ files = [
 
 [[package]]
 name = "znsocket"
-version = "0.2.4"
+version = "0.2.5"
 description = "Python implementation of a Redis-compatible API using websockets."
 optional = false
 python-versions = "<4.0,>=3.10"
 files = [
-    {file = "znsocket-0.2.4-py3-none-any.whl", hash = "sha256:ab373215fc8e7e1ab2860194da45f3e72396a14e4d82116c74eb299f363a369c"},
-    {file = "znsocket-0.2.4.tar.gz", hash = "sha256:ea8b41aad3c0cc9ce569fb08e69351d7c2e02ffeb9f04e7b08c603ba7b4d8cbd"},
+    {file = "znsocket-0.2.5-py3-none-any.whl", hash = "sha256:d4682ea0ee4ff872502b1a6ad5ecd8050e53918329a261307fd88a0e3feefec5"},
+    {file = "znsocket-0.2.5.tar.gz", hash = "sha256:c6181237638bb2e087d09ad9e73e9d0c8099348fca788b89c26bb923257cf2a8"},
 ]
 
 [package.dependencies]
@@ -5248,4 +5249,4 @@ znjson = ">=0.2,<0.3"
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "507d0506779ab94056a693c964a69b496ce9fb21695342dbb183b8959a6f5421"
+content-hash = "6ea141e0f292f2685cb95b011d917e89b3dc9df9ad870be8590c7d5ab7189896"
