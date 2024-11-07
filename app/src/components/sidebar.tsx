@@ -180,13 +180,6 @@ const SidebarMenu2: any = ({
   const queueRef = useRef<any>(null);
 
   useEffect(() => {
-    if (sendImmediately && editorValue && userInput && queueRef.current) {
-      queueRef.current[userInput] = editorValue;
-      socket.emit("room:worker:run");
-    }
-  }, [editorValue]);
-
-  useEffect(() => {
     const con = new znsocket.Dict({
       client: client,
       key: "schema:" + token + ":" + name,
@@ -263,6 +256,12 @@ const SidebarMenu2: any = ({
       socket.emit("room:worker:run");
     }
   }
+
+  useEffect(() => {
+    if (sendImmediately && editorValue && userInput && queueRef.current) {
+      submitEditor();
+    }
+  }, [editorValue]);
 
   function cancelTask() {
     if (queueRef.current) {
