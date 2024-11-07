@@ -560,17 +560,16 @@ class ZnDraw(ZnDrawBase):
         lst.extend(value)
 
     @property
-    def config(self) -> ZnDrawConfig:
-        config: dict = call_with_retry(
-            self.socket,
-            "room:config:get",
-            retries=self.timeout["call_retries"],
+    def config(self) -> znsocket.Dict:
+        conf = znsocket.Dict(
+            self.r,
+            f"room:{self.token}:config",
+            repr_type="full",
+            socket=self._refresh_client,
         )
-        return ZnDrawConfig(
-            vis=self,
-            arrows=ArrowsConfig(**config.get("arrows", {})),
-            scene=Scene(**config.get("scene", {})),
-        )
+        if len(conf) == 0:
+            conf.update(ZnDrawConfig(vis=self).to_dict())
+        return conf
 
     @property
     def locked(self) -> bool:

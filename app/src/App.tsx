@@ -10,6 +10,7 @@ import {
   setupFigures,
   setupGeometries,
   setupMessages,
+  setupConfig,
 } from "./components/api";
 import HeadBar from "./components/headbar";
 import Sidebar from "./components/sidebar";
@@ -174,6 +175,7 @@ export default function App() {
   const [messages, setMessages] = useState<string[]>([]);
 
   const [token, setToken] = useState<string>("");
+  setupConfig(token, setRoomConfig);
   setupBookmarks(token, setBookmarks, bookmarks);
   setupPoints(token, setPoints, points);
   setupSelection(token, setSelectedIds, selectedIds);
@@ -207,11 +209,6 @@ export default function App() {
       // get lock state
       socket.emit("room:lock:get", (data: boolean) => {
         setRoomLock(data);
-      });
-
-      // get the config
-      socket.emit("room:config:get", (data: any) => {
-        setRoomConfig(data);
       });
 
       socket.emit("room:token:get", (data: string) => {
@@ -268,13 +265,6 @@ export default function App() {
       setShowSiMGen(data);
     }
 
-    function onRoomConfig(data: any) {
-      setRoomConfig((prevConfig: any) => ({
-        ...prevConfig,
-        ...data,
-      }));
-    }
-
     function onRoomLockSet(locked: boolean) {
       setRoomLock(locked);
     }
@@ -294,7 +284,6 @@ export default function App() {
     socket.on("tutorial:url", onTutorialURL);
     socket.on("showSiMGen", onShowSiMGen);
     socket.on("room:lock:set", onRoomLockSet);
-    socket.on("room:config:set", onRoomConfig);
 
     return () => {
       socket.off("connect", onConnect);
@@ -312,7 +301,6 @@ export default function App() {
       socket.off("tutorial:url", onTutorialURL);
       socket.off("showSiMGen", onShowSiMGen);
       socket.off("room:lock:set", onRoomLockSet);
-      socket.off("room:config:set", onRoomConfig);
     };
   }, []);
 
@@ -576,13 +564,6 @@ export default function App() {
     setSelectedIds(new Set());
   };
 
-  const setSceneSettings = (data: any) => {
-    setRoomConfig((prev) => ({
-      ...prev,
-      scene: data,
-    }));
-    socket.emit("room:config:set", { scene: data });
-  };
 
   return (
     <>
@@ -793,7 +774,6 @@ export default function App() {
           sceneSchema={sceneSchema}
           analysisSchema={analysisSchema}
           sceneSettings={roomConfig["scene"]}
-          setSceneSettings={setSceneSettings}
           modifierQueue={modifierQueue}
           selectionQueue={selectionQueue}
           geometryQueue={geometryQueue}

@@ -555,3 +555,39 @@ export const setupMessages = (
     }
   }, [messages]);
 };
+
+export const setupConfig = (
+  token: string,
+  setConfig: any,
+) => {
+
+  useEffect(() => {
+    const con = new znsocket.Dict({
+      client: client,
+      key: "room:" + token + ":config",
+    });
+
+    // initial load
+    con.entries().then((items: any) => {
+      const result = Object.fromEntries(items);
+      console.log(result);
+      // check if len result > 0
+      if (Object.keys(result).length > 0) {
+        setConfig(result);
+      }
+    });
+
+    con.onRefresh(async (x: any) => {
+      const result = Object.fromEntries(await con.entries());
+      console.log("config updated externally");
+      console.log(result);
+      if (Object.keys(result).length > 0) {
+        setConfig(result);
+      }
+    });
+
+    return () => {
+      con.offRefresh();
+    };
+  }, [token]);
+}

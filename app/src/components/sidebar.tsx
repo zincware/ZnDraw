@@ -164,7 +164,7 @@ const SidebarMenu: React.FC<SidebarMenuProps> = ({
   );
 };
 
-const SidebarMenu2: any = ({ visible, closeMenu, token, name }) => {
+const SidebarMenu2: any = ({ visible, closeMenu, token, name, sendImmediately }) => {
   const [userInput, setUserInput] = useState<string>("");
   const [schema, setSchema] = useState<any>({});
   const [editorValue, setEditorValue] = useState<any>(null);
@@ -173,7 +173,10 @@ const SidebarMenu2: any = ({ visible, closeMenu, token, name }) => {
   const queueRef = useRef<any>(null);
 
   useEffect(() => {
-    console.log(editorValue);
+    if (sendImmediately && editorValue && userInput && queueRef.current) {
+      queueRef.current.push({ [userInput]: editorValue });
+      socket.emit("room:worker:run");
+    }
   }, [editorValue]);
 
   useEffect(() => {
@@ -289,7 +292,7 @@ const SidebarMenu2: any = ({ visible, closeMenu, token, name }) => {
               </option>
             ))}
           </Form.Select>
-          <Button
+          { !sendImmediately && <Button
             variant="primary"
             onClick={submitEditor}
             className="ms-2" // Adds some spacing between select and button
@@ -297,6 +300,7 @@ const SidebarMenu2: any = ({ visible, closeMenu, token, name }) => {
           >
             Submit
           </Button>
+          }
         </Form.Group>
         <div ref={editorRef}></div>
         {/* {useSubmit && (
@@ -317,7 +321,6 @@ function SideBar({
   sceneSchema,
   analysisSchema,
   sceneSettings,
-  setSceneSettings,
   modifierQueue,
   selectionQueue,
   analysisQueue,
@@ -333,7 +336,6 @@ function SideBar({
   sceneSchema: any;
   analysisSchema: any;
   sceneSettings: any;
-  setSceneSettings: any;
   modifierQueue: number;
   selectionQueue: number;
   analysisQueue: number;
@@ -479,6 +481,7 @@ function SideBar({
         visible={visibleOption == "selection"} // remove
         token={token}
         closeMenu={() => setVisibleOption("")}
+        sendImmediately={false}
       />
       <SidebarMenu
         schema={modifierSchema}
@@ -490,25 +493,26 @@ function SideBar({
         useSubmit={true}
         closeMenu={() => setVisibleOption("")}
       />
-      <SidebarMenu
-        schema={sceneSchema}
-        onSubmit={setSceneSettings}
-        queuePosition={-1}
+      <SidebarMenu2
+        name="scene"
         visible={visibleOption == "scene"}
-        useSubmit={false}
+        token={token}
         closeMenu={() => setVisibleOption("")}
+        sendImmediately={true}
       />
       <SidebarMenu2
         name="geometry"
         visible={visibleOption == "geometry"}
         token={token}
         closeMenu={() => setVisibleOption("")}
+        sendImmediately={false}
       />
       <SidebarMenu2
         name="analysis"
-        visible={visibleOption == "analysis"} // remove
+        visible={visibleOption == "analysis"}
         token={token}
         closeMenu={() => setVisibleOption("")}
+        sendImmediately={false}
       />
     </>
   );

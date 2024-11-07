@@ -90,34 +90,17 @@ class Scene(BaseModel):
     #     description="Move the label to the left or right (keypress i).",
     # )
 
-    @staticmethod
-    def _get_atoms() -> ase.Atoms:
-        from zndraw import ZnDraw
-
-        room = session["token"]
-
-        vis = ZnDraw(
-            r=current_app.extensions["redis"],
-            url=current_app.config["SERVER_URL"],
-            token=room,
-        )
-        atoms = vis.atoms
-        vis.socket.disconnect()
-        # vis.socket.sleep(1)
-        return atoms
-
     @classmethod
-    def get_updated_schema(cls) -> dict:
+    def model_json_schema_from_atoms(cls, atoms: ase.Atoms) -> dict:
         schema = cls.model_json_schema()
-
-        atoms = cls._get_atoms()
         array_props = [""]
-        for key in atoms.calc.results.keys():
-            if (
-                np.array(atoms.calc.results[key]).ndim == 2
-                and np.array(atoms.calc.results[key]).shape[1] == 3
-            ):
-                array_props.append(key)
+        if atoms.calc is not None:
+            for key in atoms.calc.results.keys():
+                if (
+                    np.array(atoms.calc.results[key]).ndim == 2
+                    and np.array(atoms.calc.results[key]).shape[1] == 3
+                ):
+                    array_props.append(key)
         for key in atoms.arrays.keys():
             if (
                 np.array(atoms.arrays[key]).ndim == 2

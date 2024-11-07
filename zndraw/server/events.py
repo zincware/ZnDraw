@@ -11,13 +11,13 @@ from flask_socketio import SocketIO, emit, join_room
 from redis import Redis
 
 from zndraw.modify import Modifier
-from zndraw.scene import Scene
 from zndraw.tasks import (
     inspect_zntrack_node,
     load_zntrack_figures,
     load_zntrack_frames,
     run_analysis_schema,
     run_geometry_schema,
+    run_scene_schema,
     run_modifier,
     run_room_worker,
     run_selection_schema,
@@ -102,6 +102,7 @@ def init_socketio_events(io: SocketIO):
         run_geometry_schema.delay(room)
         run_selection_schema.delay(room)
         run_analysis_schema.delay(room)
+        run_scene_schema.delay(room)
 
         session["name"] = uuid.uuid4().hex[:8]
 
@@ -188,17 +189,6 @@ def init_socketio_events(io: SocketIO):
             to=request.sid,
         )
 
-    @io.on("scene:schema")
-    def scene_schema():
-        r: Redis = current_app.extensions["redis"]
-        room = session.get("token")
-        config = znsocket.Dict(r, f"room:{room}:config")
-        try:
-            scene = Scene(**config["scene"])
-            emit("scene:schema", get_schema_with_instance_defaults(scene), to=room)
-        except KeyError:
-            emit("scene:schema", Scene.get_updated_schema(), to=request.sid)
-
     @io.on("modifier:run")
     def modifier_run(data: dict):
         room = session.get("token")
@@ -274,28 +264,6 @@ def init_socketio_events(io: SocketIO):
         """Start a worker to process all (available) queued tasks."""
         room = session.get("token")
         run_room_worker.delay(room)
-
-    @io.on("room:config:get")
-    def room_config_get():
-        r: Redis = current_app.extensions["redis"]
-        room = session.get("token")
-        data = znsocket.Dict(r, f"room:{room}:config")
-        if set(data.keys()) != {"arrows", "scene"}:
-            from zndraw.config import ZnDrawConfig
-
-            data.update(ZnDrawConfig(vis=None).to_dict())
-        return dict(data)
-
-    @io.on("room:config:set")
-    def room_config_set(data: dict):
-        print(f"room:config:set: {data}")
-        r: Redis = current_app.extensions["redis"]
-        room = session.get("token")
-        config = znsocket.Dict(r, f"room:{room}:config")
-        config.update(data)
-        emit("room:config:set", data, to=room, include_self=False)
-        scene = Scene(**config["scene"])
-        emit("scene:schema", get_schema_with_instance_defaults(scene), to=room)
 
     @io.on("room:alert")
     def room_alert(msg: str):

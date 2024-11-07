@@ -15,6 +15,7 @@ from zndraw.draw import geometries
 from zndraw.exceptions import RoomLockedError
 from zndraw.selection import selections
 from zndraw.utils import load_plots_to_dict
+from zndraw.scene import Scene
 
 log = logging.getLogger(__name__)
 
@@ -389,6 +390,32 @@ def run_geometry_schema(room) -> None:
 
 
 @shared_task
+def run_scene_schema(room) -> None:
+    from zndraw import ZnDraw
+
+    vis = ZnDraw(
+        r=current_app.extensions["redis"],
+        url=current_app.config["SERVER_URL"],
+        token=room,
+    )
+
+    dct = znsocket.Dict(
+        r=current_app.extensions["redis"],
+        socket=vis._refresh_client,
+        key=f"schema:{room}:scene",
+    )
+    dct["Scene"] = Scene.model_json_schema_from_atoms(vis.atoms)
+
+    # we also want to initialize the `vis.config`
+    # calling the config will set the default values
+    # but not overwrite the existing ones, if they are set
+    _ = vis.config 
+
+    vis.socket.sleep(1)
+    vis.socket.disconnect()
+
+
+@shared_task
 def run_analysis_schema(room) -> None:
     from zndraw import ZnDraw
 
@@ -495,6 +522,19 @@ def run_room_worker(room):
                 vis.log(f"Analysis {analysis} not found.")
             else:
                 analy(**data[analysis]).run(vis)
+    except IndexError:
+        pass
+
+    scene_queue = znsocket.List(
+        r=current_app.extensions["redis"],
+        socket=vis._refresh_client,
+        key=f"queue:{room}:scene",
+    )
+
+    try:
+        data = scene_queue.pop()
+        data["scene"] = data.pop("Scene") # hotfix!
+        vis.config.update(data)
     except IndexError:
         pass
 
