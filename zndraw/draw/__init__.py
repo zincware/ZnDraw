@@ -23,21 +23,19 @@ def _update_object3d_schema(schema: dict) -> dict:
 
 
 class Material(BaseModel):
-    """Base class for the Object3D material."""
 
-    # TODO, reuse / combine with scene materials
     color: str = "#62929E"
-    opacity: float = Field(0.2, ge=0.0, le=1.0)
+    opacity: float = Field(default=0.2, ge=0.0, le=1.0)
     wireframe: bool = False
     outlines: bool = False
 
     model_config = ConfigDict(json_schema_extra=_update_material_schema)
 
 
-class Object3D(Extension):
+class Object3D(BaseModel):
     """Base class for all 3D objects."""
 
-    material: Material = Field(default_factory=Material)
+    material: Material = Material()
 
     position: t.Tuple[float, float, float] | list[float] = (0, 0, 0)
     rotation: t.Tuple[float, float, float] | list[float] = (0, 0, 0)
@@ -132,6 +130,24 @@ class Ellipsoid(Object3D):
     b: float = 5.0
     c: float = 5.0
 
+
+geometries: list[t.Type[Object3D]] = [
+    Plane,
+    Sphere,
+    Box,
+    Circle,
+    Cone,
+    Cylinder,
+    Dodecahedron,
+    Icosahedron,
+    Octahedron,
+    Ring,
+    Tetrahedron,
+    Torus,
+    TorusKnot,
+    Rhomboid,
+    Ellipsoid,
+]
 
 methods = t.Union[
     Plane,

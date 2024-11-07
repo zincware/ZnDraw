@@ -1,4 +1,5 @@
-import { Button, Navbar, Nav, Card } from "react-bootstrap";
+import { Button, Navbar, Nav, Card, Form } from "react-bootstrap";
+import Select from "react-select";
 import { BtnTooltip } from "./tooltips";
 import {
   FaRegChartBar,
@@ -9,8 +10,9 @@ import {
 } from "react-icons/fa";
 import { FaCircleNodes } from "react-icons/fa6";
 import { useState, useRef } from "react";
-import { socket } from "../socket";
+import { socket, client } from "../socket";
 import { useEffect } from "react";
+import * as znsocket from "znsocket";
 
 import { JSONEditor } from "@json-editor/json-editor";
 
@@ -162,11 +164,163 @@ const SidebarMenu: React.FC<SidebarMenuProps> = ({
   );
 };
 
+const SidebarMenu2: any = ({
+  visible,
+  closeMenu,
+  token,
+}) => {
+  const [userInput, setUserInput] = useState<string>("");
+  const [schema, setSchema] = useState<any>({});
+  const [editorValue, setEditorValue] = useState<any>(null);
+  const [disabledBtn, setDisabledBtn] = useState<boolean>(false);
+  const editorRef = useRef<HTMLDivElement>(null);
+  const queueRef = useRef<any>(null);
+
+  useEffect(() => {
+    console.log(editorValue);
+  }, [editorValue]);
+
+  useEffect(() => {
+    const con = new znsocket.Dict({
+      client: client,
+      key: "schema:" + token + ":geometry",
+    });
+
+    const queue = new znsocket.List({
+      client: client,
+      key: "queue:" + token + ":geometry",
+    });
+    queueRef.current = queue;
+
+    // initial load
+    con.entries().then((items: any) => {
+      const result = Object.fromEntries(items);
+      setSchema(result);
+    });
+    queue.length().then((length: any) => {
+      setDisabledBtn(length > 0);
+    });
+    queue.onRefresh(async (x: any) => {
+      const length = await queue.length();
+      setDisabledBtn(length > 0);
+    });
+
+    con.onRefresh(async (x: any) => {
+      const items = await con.entries();
+      const result = Object.fromEntries(items);
+      setSchema(result);
+    });
+
+    return () => {
+      con.offRefresh();
+      queue.offRefresh();
+    };
+
+  }, [token]);
+
+  useEffect(() => {
+    console.log("userInput", userInput);
+    let editor: any;
+    if (editorRef.current && schema[userInput]) {
+      editor = new JSONEditor(editorRef.current, {
+        schema: schema[userInput],
+      });
+
+      editor.on("ready", () => {
+        if (editor.validate()) {
+          const editorValue = editor.getValue();
+          setEditorValue(editorValue);
+        }
+      });
+
+      editor.on("change", () => {
+        if (editor.ready) {
+          if (editor.validate()) {
+            const editorValue = editor.getValue();
+            setEditorValue(editorValue);
+          }
+        }
+      });
+
+    }
+    return () => {
+      if (editor) {
+        editor.destroy();
+        setEditorValue(null);
+      }
+    };
+  }, [userInput, schema]);
+
+  function submitEditor() {
+    if (editorValue && userInput && queueRef.current) {
+      setDisabledBtn(true);
+      queueRef.current.push({[userInput]: editorValue});
+      socket.emit("room:worker:run");
+    }
+  }
+
+  return (
+    <Card
+      className="rounded-0 border-start-0 overflow-y-auto rounded-end"
+      style={{
+        position: "fixed",
+        top: "50px",
+        left: "50px",
+        height: "100%",
+        maxWidth: "35%",
+        margin: 0,
+        padding: 0,
+        display: visible ? "block" : "none",
+      }}
+    >
+      <Card.Header
+        className="d-flex justify-content-between align-items-center"
+        style={{
+          backgroundColor: "inherit", // Use the same background color as the rest of the card
+        }}
+      >
+        <Card.Title>Geometries</Card.Title>
+        <Button variant="close" className="ms-auto" onClick={closeMenu}/>
+      </Card.Header>
+      <Card.Body style={{ paddingBottom: 80 }}>
+      <Form.Group className="d-flex align-items-center">
+      <Form.Select
+        aria-label="Default select example"
+        onChange={(e) => setUserInput(e.target.value)}
+      >
+        <option></option>
+        {Object.keys(schema).map((key) => (
+          <option key={key} value={key}>
+            {key}
+          </option>
+        ))}
+      </Form.Select>
+      <Button
+        variant="primary"
+        onClick={submitEditor}
+        className="ms-2" // Adds some spacing between select and button
+        disabled={disabledBtn}
+      >
+        Submit
+      </Button>
+    </Form.Group>
+      <div ref={editorRef}></div>
+         {/* {useSubmit && (
+          <Button onClick={submitEditor} disabled={queuePosition >= 0}>
+            {queuePosition > 0 && `Queue position: ${queuePosition}`}
+            {queuePosition == 0 && `Running`}
+            {queuePosition < 0 && `Submit`}
+          </Button>
+        )} */}
+      </Card.Body>
+    </Card>
+  );
+};
+
 function SideBar({
   selectionSchema,
   modifierSchema,
   sceneSchema,
-  geometrySchema,
   analysisSchema,
   sceneSettings,
   setSceneSettings,
@@ -178,11 +332,11 @@ function SideBar({
   setTriggerSelection,
   colorMode,
   setStep,
+  token,
 }: {
   selectionSchema: any;
   modifierSchema: any;
   sceneSchema: any;
-  geometrySchema: any;
   analysisSchema: any;
   sceneSettings: any;
   setSceneSettings: any;
@@ -194,6 +348,7 @@ function SideBar({
   setTriggerSelection: any;
   colorMode: string;
   setStep: any;
+  token: string;
 }) {
   const [visibleOption, setVisibleOption] = useState<string>("");
   useEffect(() => {
@@ -343,14 +498,15 @@ function SideBar({
         useSubmit={false}
         closeMenu={() => setVisibleOption("")}
       />
-      <SidebarMenu
-        schema={geometrySchema}
-        onSubmit={(data: any) => {
-          socket.emit("geometry:run", data);
-        }}
-        queuePosition={geometryQueue}
+      <SidebarMenu2
+        // schema={geometrySchema}
+        // onSubmit={(data: any) => {
+        //   socket.emit("geometry:run", data);
+        // }}
+        // queuePosition={geometryQueue}
         visible={visibleOption == "geometry"}
-        useSubmit={true}
+        // useSubmit={true}
+        token={token}
         closeMenu={() => setVisibleOption("")}
       />
       <SidebarMenu

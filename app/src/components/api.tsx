@@ -427,7 +427,7 @@ export const setupGeometries = (
     const loadGeometries = async () => {
       let geometries = [];
       for await (const value of con) {
-        geometries.push(value["value"]["data"]);
+        geometries.push({...value["value"]["data"], discriminator: value["value"]["class"]} );
       }
       updateByRefreshRef.current = true;
       setGeometries(geometries);
@@ -441,9 +441,10 @@ export const setupGeometries = (
       console.log("geometries updated externally");
       for await (const value of con) {
         // console.log(value["value"]["data"]); // Process each value as it becomes available
-        geometries.push(value["value"]["data"]);
+        geometries.push({...value["value"]["data"], discriminator: value["value"]["class"]} );
       }
       updateByRefreshRef.current = true;
+      console.log(geometries);
       setGeometries(geometries);
     });
 

@@ -11,7 +11,7 @@ from flask_socketio import SocketIO, emit, join_room
 from redis import Redis
 
 from zndraw.analyse import Analysis
-from zndraw.draw import Geometry
+from zndraw.draw import geometries
 from zndraw.modify import Modifier
 from zndraw.scene import Scene
 from zndraw.selection import Selection
@@ -20,10 +20,11 @@ from zndraw.tasks import (
     load_zntrack_figures,
     load_zntrack_frames,
     run_analysis,
-    run_geometry,
     run_modifier,
     run_selection,
     run_upload_file,
+    run_geometry_schema,
+    run_room_worker,
 )
 from zndraw.utils import get_cls_from_json_schema, get_schema_with_instance_defaults
 
@@ -98,6 +99,7 @@ def init_socketio_events(io: SocketIO):
                 session["authenticated"] = False
 
         room = str(session["token"])
+        run_geometry_schema.delay(room)
         join_room(room)  # rename token to room or room_token
 
         session["name"] = uuid.uuid4().hex[:8]
@@ -185,10 +187,6 @@ def init_socketio_events(io: SocketIO):
             to=request.sid,
         )
 
-    @io.on("draw:schema")
-    def draw_schema():
-        return Geometry.get_updated_schema()
-
     @io.on("scene:schema")
     def scene_schema():
         r: Redis = current_app.extensions["redis"]
@@ -207,10 +205,6 @@ def init_socketio_events(io: SocketIO):
     @io.on("analysis:schema")
     def analysis_schema():
         emit("analysis:schema", Analysis.get_updated_schema(), to=request.sid)
-
-    @io.on("geometry:schema")
-    def geometry_schema():
-        emit("geometry:schema", Geometry.get_updated_schema(), to=request.sid)
 
     @io.on("modifier:run")
     def modifier_run(data: dict):
@@ -294,43 +288,11 @@ def init_socketio_events(io: SocketIO):
         room = session.get("token")
         emit("room:analysis:queue", data, to=room)
 
-    @io.on("room:geometry:queue")
-    def room_geometry_run(data: int):
-        """Forwarding finished message."""
+    @io.on("room:worker:run")
+    def room_worker_run():
+        """Start a worker to process all (available) queued tasks."""
         room = session.get("token")
-        emit("room:geometry:queue", data, to=room)
-
-    @io.on("geometry:run")
-    def geometry_run(data: dict):
-        room = session.get("token")
-        emit("geometry:run:enqueue", to=room)
-        run_geometry.delay(room, data)
-
-    # @io.on("room:geometry:set")
-    # def room_geometry_set(data: list | None = None):
-    #     r: Redis = current_app.extensions["redis"]
-    #     room = session.get("token")
-
-    #     lst = znsocket.List(r, f"room:{room}:geometries")
-
-    #     if data is not None:
-    #         del lst[:]
-    #         lst.extend(data)
-    #     print(f"room:geometry:set: {lst}")
-
-    #     emit(
-    #         "room:geometry:set",
-    #         [x.model_dump() for x in lst],
-    #         to=room,
-    #         include_self=False,
-    #     )
-
-    # @io.on("room:geometry:get")
-    # def room_geometry_get():
-    #     r: Redis = current_app.extensions["redis"]
-    #     room = session.get("token")
-    #     # TODO: do not send the data but request it on the JS side
-    #     return [x.model_dump() for x in znsocket.List(r, f"room:{room}:geometries")]
+        run_room_worker.delay(room)
 
     @io.on("room:config:get")
     def room_config_get():

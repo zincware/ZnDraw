@@ -100,7 +100,6 @@ export default function App() {
   const [selectionSchema, setSelectionSchema] = useState({});
   const [modifierSchema, setModifierSchema] = useState({});
   const [sceneSchema, setSceneSchema] = useState({});
-  const [geometrySchema, setGeometrySchema] = useState({});
   const [analysisSchema, setAnalysisSchema] = useState({});
   const [currentFrame, setCurrentFrame] = useState<Frame>({
     arrays: { colors: [], radii: [] },
@@ -233,9 +232,6 @@ export default function App() {
     function onSceneSchema(receivedSchema: any) {
       setSceneSchema(receivedSchema);
     }
-    function onGeometryScheme(receivedSchema: any) {
-      setGeometrySchema(receivedSchema);
-    }
     function onAnalysisSchema(receivedSchema: any) {
       setAnalysisSchema(receivedSchema);
     }
@@ -288,7 +284,6 @@ export default function App() {
     socket.on("selection:schema", onSelectionSchema);
     socket.on("modifier:schema", onModifierSchema);
     socket.on("scene:schema", onSceneSchema);
-    socket.on("geometry:schema", onGeometryScheme);
     socket.on("analysis:schema", onAnalysisSchema);
     socket.on("room:modifier:queue", onModifierQueue);
     socket.on("room:analysis:queue", onAnalysisQueue);
@@ -307,7 +302,6 @@ export default function App() {
       socket.off("selection:schema", onSelectionSchema);
       socket.off("modifier:schema", onModifierSchema);
       socket.off("scene:schema", onSceneSchema);
-      socket.off("geometry:schema", onGeometryScheme);
       socket.off("analysis:schema", onAnalysisSchema);
       socket.off("room:modifier:queue", onModifierQueue);
       socket.off("room:analysis:queue", onAnalysisQueue);
@@ -797,7 +791,6 @@ export default function App() {
           selectionSchema={selectionSchema}
           modifierSchema={modifierSchema}
           sceneSchema={sceneSchema}
-          geometrySchema={geometrySchema}
           analysisSchema={analysisSchema}
           sceneSettings={roomConfig["scene"]}
           setSceneSettings={setSceneSettings}
@@ -809,6 +802,7 @@ export default function App() {
           setTriggerSelection={setTriggerSelection}
           colorMode={colorMode}
           setStep={setStep}
+          token={token}
         />
         <FrameProgressBar
           length={length}
