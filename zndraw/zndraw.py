@@ -1,10 +1,10 @@
 import dataclasses
 import datetime
+import enum
 import importlib.metadata
 import json
 import logging
 import typing as t
-import enum
 
 import ase
 import numpy as np
@@ -42,6 +42,7 @@ from zndraw.utils import (
 log = logging.getLogger(__name__)
 __version__ = importlib.metadata.version("zndraw")
 
+
 class ExtensionType(str, enum.Enum):
     """The type of the extension."""
 
@@ -52,7 +53,6 @@ class ExtensionType(str, enum.Enum):
 
 def check_queue(vis: "ZnDraw") -> None:
     while True:
-
         modifier_queue = znsocket.Dict(
             r=vis.r,
             socket=vis._refresh_client,
@@ -63,10 +63,12 @@ def check_queue(vis: "ZnDraw") -> None:
             if key in vis._modifiers:
                 try:
                     task = modifier_queue.pop(key)
-                    vis._modifiers[key]["cls"](**task).run(vis, **vis._modifiers[key]["run_kwargs"])
+                    vis._modifiers[key]["cls"](**task).run(
+                        vis, **vis._modifiers[key]["run_kwargs"]
+                    )
                 except IndexError:
                     pass
-        vis.socket.sleep(1) # wakeup timeout
+        vis.socket.sleep(1)  # wakeup timeout
 
 
 def _register_modifier(vis: "ZnDraw", data: RegisterModifier) -> None:
@@ -170,7 +172,7 @@ class ZnDraw(ZnDrawBase):
                     raise socketio.exceptions.ConnectionError(
                         f"Unable to connect to ZnDraw server at '{self.url}'. Is the server running?"
                     ) from err
-                
+
         self.socket.start_background_task(check_queue, self)
 
     def _on_connect(self):
@@ -608,8 +610,13 @@ class ZnDraw(ZnDrawBase):
     def locked(self, value: bool) -> None:
         emit_with_retry(self.socket, "room:lock:set", value)
 
-    
-    def register(self, cls: t.Type[Extension], run_kwargs: dict | None = None, public: bool = False, variant: ExtensionType = ExtensionType.MODIFIER):
+    def register(
+        self,
+        cls: t.Type[Extension],
+        run_kwargs: dict | None = None,
+        public: bool = False,
+        variant: ExtensionType = ExtensionType.MODIFIER,
+    ):
         """Register an extension class."""
         if run_kwargs is None:
             run_kwargs = {}
@@ -632,13 +639,14 @@ class ZnDraw(ZnDrawBase):
             if self.socket.get_sid() not in modifier_registry:
                 modifier_registry[self.socket.get_sid()] = [cls.__name__]
             else:
-                modifier_registry[self.socket.get_sid()] = modifier_registry[self.socket.get_sid()] + [cls.__name__]
+                modifier_registry[self.socket.get_sid()] = modifier_registry[
+                    self.socket.get_sid()
+                ] + [cls.__name__]
 
             self._modifiers[cls.__name__] = {"cls": cls, "run_kwargs": run_kwargs}
 
         else:
             raise NotImplementedError(f"Variant {variant} is not implemented")
-
 
     def register_modifier(
         self,

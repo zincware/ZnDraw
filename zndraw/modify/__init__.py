@@ -7,7 +7,7 @@ import typing as t
 import ase
 import numpy as np
 from ase.data import chemical_symbols
-from pydantic import Field, BaseModel
+from pydantic import BaseModel, Field
 
 from zndraw.base import Extension, MethodsCollection
 
@@ -372,5 +372,5 @@ modifier: dict[str, t.Type[UpdateScene]] = {
     Replicate.__name__: Replicate,
     Connect.__name__: Connect,
     NewCanvas.__name__: NewCanvas,
-   RemoveAtoms.__name__: RemoveAtoms,
+    RemoveAtoms.__name__: RemoveAtoms,
 }

@@ -13,10 +13,10 @@ from zndraw.base import FileIO
 from zndraw.bonds import ASEComputeBonds
 from zndraw.draw import geometries
 from zndraw.exceptions import RoomLockedError
+from zndraw.modify import modifier
 from zndraw.scene import Scene
 from zndraw.selection import selections
 from zndraw.utils import load_plots_to_dict
-from zndraw.modify import modifier
 
 log = logging.getLogger(__name__)
 
@@ -516,7 +516,6 @@ def run_room_worker(room):
                 selections[key](**task).run(vis)
             except IndexError:
                 pass
-                
 
     analysis_queue = znsocket.Dict(
         r=current_app.extensions["redis"],
@@ -539,7 +538,7 @@ def run_room_worker(room):
     )
 
     for key, val in scene_queue.items():
-        if key == "Scene": # hotfix
+        if key == "Scene":  # hotfix
             vis.config["scene"] = val
         else:
             vis.config[key] = val
