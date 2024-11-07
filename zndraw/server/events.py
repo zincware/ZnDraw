@@ -1,12 +1,12 @@
+import dataclasses
 import importlib
 import importlib.metadata
 import importlib.util
 import json
 import logging
 import uuid
-import znsocket
 
-import dataclasses
+import znsocket
 from flask import current_app, request, session
 from flask_socketio import SocketIO, emit, join_room
 from redis import Redis
@@ -17,14 +17,13 @@ from zndraw.tasks import (
     load_zntrack_frames,
     run_analysis_schema,
     run_geometry_schema,
-    run_modify_schema,
     run_modifier,
+    run_modify_schema,
     run_room_worker,
     run_scene_schema,
     run_selection_schema,
     run_upload_file,
 )
-from zndraw.utils import get_cls_from_json_schema
 
 log = logging.getLogger(__name__)
 __version__ = importlib.metadata.version("zndraw")
@@ -33,6 +32,7 @@ __version__ = importlib.metadata.version("zndraw")
 @dataclasses.dataclass
 class DummyClient:
     """Dummy replacement for znsocket.Client."""
+
     sio: SocketIO
     refresh_callbacks: list = dataclasses.field(default_factory=list)
 
@@ -74,18 +74,16 @@ def init_socketio_events(io: SocketIO):
             log.critical(f"disconnecting (pyclient) {request.sid}")
 
             modifier_registry = znsocket.Dict(
-                r=r,
-                key=f"registry:{room}:modifier",
-                repr_type="full"
+                r=r, key=f"registry:{room}:modifier", repr_type="full"
             )
 
             modifier_schema = znsocket.Dict(
                 r=r,
                 key=f"schema:{room}:modifier",
                 repr_type="full",
-                socket=DummyClient(sio=io)
+                socket=DummyClient(sio=io),
             )
-            
+
             # TODO: default room modifier
             for modifier in modifier_registry.pop(request.sid, []):
                 for other in modifier_registry.values():
@@ -94,7 +92,6 @@ def init_socketio_events(io: SocketIO):
                 else:
                     log.debug(f"Remove {modifier} from room {room}")
                     modifier_schema.pop(modifier)
-
 
     @io.on("webclient:connect")
     def webclient_connect():
@@ -185,7 +182,6 @@ def init_socketio_events(io: SocketIO):
         # only if public this is required
         emit("modifier:schema:refresh", broadcast=True)
 
-
         room = session.get("token")
         r: Redis = current_app.extensions["redis"]
 
@@ -219,7 +215,6 @@ def init_socketio_events(io: SocketIO):
                 emit("modifier:wakeup", to=sid)
         else:
             run_modifier.delay(room, data)
-
 
     @io.on("room:worker:run")
     def room_worker_run():

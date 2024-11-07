@@ -9,7 +9,6 @@ class RegisterModifier(t.TypedDict):
     run_kwargs: dict
 
 
-
 class TimeoutConfig(t.TypedDict):
     """Timeout configuration for the ZnDraw client."""
 

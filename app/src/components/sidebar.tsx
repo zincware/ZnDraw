@@ -8,7 +8,7 @@ import {
   FaRegMap,
   FaGithub,
 } from "react-icons/fa";
-import { IoStop } from "react-icons/io5"; 
+import { IoStop } from "react-icons/io5";
 import { FaCircleNodes } from "react-icons/fa6";
 import { useState, useRef } from "react";
 import { socket, client } from "../socket";
@@ -311,16 +311,17 @@ const SidebarMenu2: any = ({
           {!sendImmediately && (
             <ButtonGroup aria-label="Basic example">
               <Button
-              variant="primary"
-              onClick={submitEditor}
-              className="ms-2" // Adds some spacing between select and button
-              disabled={disabledBtn}
-            >
-              Submit
-            </Button>
-            <Button variant="danger" onClick={cancelTask}><IoStop/></Button>
+                variant="primary"
+                onClick={submitEditor}
+                className="ms-2" // Adds some spacing between select and button
+                disabled={disabledBtn}
+              >
+                Submit
+              </Button>
+              <Button variant="danger" onClick={cancelTask}>
+                <IoStop />
+              </Button>
             </ButtonGroup>
-            
           )}
         </Form.Group>
         <div ref={editorRef}></div>
