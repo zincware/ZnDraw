@@ -303,10 +303,10 @@ class Properties1D(AnaylsisMethod):
         vis.figures.update({"Properties1D": fig})
 
 
-analyses: list[t.Type[AnaylsisMethod]] = [
-    Properties1D,
-    DihedralAngle,
-    Distance,
-    Properties2D,
-    ForceCorrelation,
-]
+analyses: dict[str, t.Type[AnaylsisMethod]] = {
+    Properties1D.__name__: Properties1D,
+    DihedralAngle.__name__: DihedralAngle,
+    Distance.__name__: Distance,
+    Properties2D.__name__: Properties2D,
+    ForceCorrelation.__name__: ForceCorrelation,
+}

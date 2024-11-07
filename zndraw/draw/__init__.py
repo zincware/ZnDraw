@@ -130,23 +130,24 @@ class Ellipsoid(Object3D):
     c: float = 5.0
 
 
-geometries: list[t.Type[Object3D]] = [
-    Plane,
-    Sphere,
-    Box,
-    Circle,
-    Cone,
-    Cylinder,
-    Dodecahedron,
-    Icosahedron,
-    Octahedron,
-    Ring,
-    Tetrahedron,
-    Torus,
-    TorusKnot,
-    Rhomboid,
-    Ellipsoid,
-]
+geometries: dict[str, t.Type[Object3D]] = {
+    Plane.__name__: Plane,
+    Box.__name__: Box,
+    Circle.__name__: Circle,
+    Cone.__name__: Cone,
+    Cylinder.__name__: Cylinder,
+    Dodecahedron.__name__: Dodecahedron,
+    Icosahedron.__name__: Icosahedron,
+    Octahedron.__name__: Octahedron,
+    Ring.__name__: Ring,
+    Sphere.__name__: Sphere,
+    Tetrahedron.__name__: Tetrahedron,
+    Torus.__name__: Torus,
+    TorusKnot.__name__: TorusKnot,
+    Rhomboid.__name__: Rhomboid,
+    Ellipsoid.__name__: Ellipsoid,
+}
+
 
 methods = t.Union[
     Plane,

@@ -4,6 +4,7 @@ import importlib.metadata
 import json
 import logging
 import typing as t
+import enum
 
 import ase
 import numpy as np
@@ -40,6 +41,32 @@ from zndraw.utils import (
 
 log = logging.getLogger(__name__)
 __version__ = importlib.metadata.version("zndraw")
+
+class ExtensionType(str, enum.Enum):
+    """The type of the extension."""
+
+    MODIFIER = "modifier"
+    SELECTION = "selection"
+    ANALYSIS = "analysis"
+
+
+def check_queue(vis: "ZnDraw") -> None:
+    for _ in range(10):
+
+        modifier_queue = znsocket.Dict(
+            r=vis.r,
+            socket=vis._refresh_client,
+            key=f"queue:{vis.token}:modifier",
+        )
+
+        for key in modifier_queue:
+            if key in vis._modifiers:
+                try:
+                    task = modifier_queue.pop(key)
+                    vis._modifiers[key]["cls"](**task).run(vis, **vis._modifiers[key]["run_kwargs"])
+                except IndexError:
+                    pass
+        vis.socket.sleep(10)
 
 
 def _register_modifier(vis: "ZnDraw", data: RegisterModifier) -> None:
@@ -109,6 +136,7 @@ class ZnDraw(ZnDrawBase):
             self.socket = socketio.Client(http_session=http_session)
 
         self._refresh_client = znsocket.Client.from_url(self.url)
+        # TODO: the refresh_client should be able to use the same socket connection!
         if self.r is None:
             self.r = self._refresh_client
 
@@ -142,6 +170,8 @@ class ZnDraw(ZnDrawBase):
                     raise socketio.exceptions.ConnectionError(
                         f"Unable to connect to ZnDraw server at '{self.url}'. Is the server running?"
                     ) from err
+                
+        self.socket.start_background_task(check_queue, self)
 
     def _on_connect(self):
         log.debug("Connected to ZnDraw server")
@@ -577,6 +607,38 @@ class ZnDraw(ZnDrawBase):
     @locked.setter
     def locked(self, value: bool) -> None:
         emit_with_retry(self.socket, "room:lock:set", value)
+
+    
+    def register(self, cls: t.Type[Extension], run_kwargs: dict | None = None, public: bool = False, variant: ExtensionType = ExtensionType.MODIFIER):
+        """Register an extension class."""
+        if run_kwargs is None:
+            run_kwargs = {}
+
+        if variant == ExtensionType.MODIFIER:
+            # TODO: need to create a custom vis object for the room!
+            modifier_schema = znsocket.Dict(
+                self.r,
+                f"schema:{self.token}:modifier",
+                socket=self._refresh_client,
+            )
+            # TODO: check if the key exists and if it is different?
+            modifier_schema[cls.__name__] = cls.model_json_schema()
+
+            modifier_registry = znsocket.Dict(
+                self.r,
+                f"registry:{self.token}:modifier",
+                socket=self._refresh_client,
+            )
+            if self.socket.get_sid() not in modifier_registry:
+                modifier_registry[self.socket.get_sid()] = [cls.__name__]
+            else:
+                modifier_registry[self.socket.get_sid()] = modifier_registry[self.socket.get_sid()] + [cls.__name__]
+
+            self._modifiers[cls.__name__] = {"cls": cls, "run_kwargs": run_kwargs}
+
+        else:
+            raise NotImplementedError(f"Variant {variant} is not implemented")
+
 
     def register_modifier(
         self,

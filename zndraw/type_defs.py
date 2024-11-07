@@ -7,9 +7,7 @@ if t.TYPE_CHECKING:
 class RegisterModifier(t.TypedDict):
     cls: t.Type["Extension"]
     run_kwargs: dict
-    public: bool
-    frozen: bool
-    timeout: float
+
 
 
 class TimeoutConfig(t.TypedDict):

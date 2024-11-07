@@ -1,4 +1,4 @@
-import { Button, Navbar, Nav, Card, Form } from "react-bootstrap";
+import { Button, Navbar, Nav, Card, Form, ButtonGroup } from "react-bootstrap";
 import Select from "react-select";
 import { BtnTooltip } from "./tooltips";
 import {
@@ -8,6 +8,7 @@ import {
   FaRegMap,
   FaGithub,
 } from "react-icons/fa";
+import { IoStop } from "react-icons/io5"; 
 import { FaCircleNodes } from "react-icons/fa6";
 import { useState, useRef } from "react";
 import { socket, client } from "../socket";
@@ -180,7 +181,7 @@ const SidebarMenu2: any = ({
 
   useEffect(() => {
     if (sendImmediately && editorValue && userInput && queueRef.current) {
-      queueRef.current.push({ [userInput]: editorValue });
+      queueRef.current[userInput] = editorValue;
       socket.emit("room:worker:run");
     }
   }, [editorValue]);
@@ -191,7 +192,7 @@ const SidebarMenu2: any = ({
       key: "schema:" + token + ":" + name,
     });
 
-    const queue = new znsocket.List({
+    const queue = new znsocket.Dict({
       client: client,
       key: "queue:" + token + ":" + name,
     });
@@ -257,7 +258,8 @@ const SidebarMenu2: any = ({
   function submitEditor() {
     if (editorValue && userInput && queueRef.current) {
       setDisabledBtn(true);
-      queueRef.current.push({ [userInput]: editorValue });
+      // queueRef.current.push({ [userInput]: editorValue });
+      queueRef.current[userInput] = editorValue;
       socket.emit("room:worker:run");
     }
   }
@@ -299,7 +301,8 @@ const SidebarMenu2: any = ({
             ))}
           </Form.Select>
           {!sendImmediately && (
-            <Button
+            <ButtonGroup aria-label="Basic example">
+              <Button
               variant="primary"
               onClick={submitEditor}
               className="ms-2" // Adds some spacing between select and button
@@ -307,6 +310,9 @@ const SidebarMenu2: any = ({
             >
               Submit
             </Button>
+            <Button variant="danger"><IoStop/></Button>
+            </ButtonGroup>
+            
           )}
         </Form.Group>
         <div ref={editorRef}></div>
@@ -490,7 +496,7 @@ function SideBar({
         closeMenu={() => setVisibleOption("")}
         sendImmediately={false}
       />
-      <SidebarMenu
+      {/* <SidebarMenu
         schema={modifierSchema}
         onSubmit={(data: any) => {
           socket.emit("modifier:run", data);
@@ -499,6 +505,13 @@ function SideBar({
         visible={visibleOption == "modifier"}
         useSubmit={true}
         closeMenu={() => setVisibleOption("")}
+      /> */}
+      <SidebarMenu2
+        name="modifier"
+        visible={visibleOption == "modifier"}
+        token={token}
+        closeMenu={() => setVisibleOption("")}
+        sendImmediately={false}
       />
       <SidebarMenu2
         name="scene"

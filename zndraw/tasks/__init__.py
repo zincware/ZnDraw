@@ -16,6 +16,7 @@ from zndraw.exceptions import RoomLockedError
 from zndraw.scene import Scene
 from zndraw.selection import selections
 from zndraw.utils import load_plots_to_dict
+from zndraw.modify import modifier
 
 log = logging.getLogger(__name__)
 
@@ -370,7 +371,6 @@ def inspect_zntrack_node(name, rev, remote):
 @shared_task
 def run_geometry_schema(room) -> None:
     from zndraw import ZnDraw
-    from zndraw.draw import geometries
 
     vis = ZnDraw(
         r=current_app.extensions["redis"],
@@ -383,8 +383,8 @@ def run_geometry_schema(room) -> None:
         socket=vis._refresh_client,
         key=f"schema:{room}:geometry",
     )
-    for geom in geometries:
-        dct[geom.__name__] = geom.model_json_schema()
+    for key, val in geometries.items():
+        dct[key] = val.model_json_schema()
     vis.socket.sleep(1)
     vis.socket.disconnect()
 
@@ -430,8 +430,30 @@ def run_analysis_schema(room) -> None:
         socket=vis._refresh_client,
         key=f"schema:{room}:analysis",
     )
-    for analy in analyses:
-        dct[analy.__name__] = analy.model_json_schema_from_atoms(vis.atoms)
+    for key, val in analyses.items():
+        dct[key] = val.model_json_schema_from_atoms(vis.atoms)
+    vis.socket.sleep(1)
+    vis.socket.disconnect()
+
+
+@shared_task
+def run_modify_schema(room) -> None:
+    from zndraw import ZnDraw
+
+    vis = ZnDraw(
+        r=current_app.extensions["redis"],
+        url=current_app.config["SERVER_URL"],
+        token=room,
+    )
+
+    dct = znsocket.Dict(
+        r=current_app.extensions["redis"],
+        socket=vis._refresh_client,
+        key=f"schema:{room}:modifier",
+    )
+    for key, val in modifier.items():
+        dct[key] = val.model_json_schema()
+
     vis.socket.sleep(1)
     vis.socket.disconnect()
 
@@ -452,8 +474,8 @@ def run_selection_schema(room) -> None:
         socket=vis._refresh_client,
         key=f"schema:{room}:selection",
     )
-    for sel in selections:
-        dct[sel.__name__] = sel.model_json_schema()
+    for key, val in selections.items():
+        dct[key] = val.model_json_schema()
     vis.socket.sleep(1)
     vis.socket.disconnect()
 
@@ -468,75 +490,73 @@ def run_room_worker(room):
         token=room,
     )
 
-    geometry_queue = znsocket.List(
+    geometry_queue = znsocket.Dict(
         r=current_app.extensions["redis"],
         socket=vis._refresh_client,
         key=f"queue:{room}:geometry",
     )
-    try:
-        data = geometry_queue.pop()
-        for geometry in data:
-            geom = next(
-                (entry for entry in geometries if entry.__name__ == geometry), None
-            )
-            if geom is None:
-                vis.log(f"Geometry {geometry} not found.")
-            else:
-                vis.geometries.append(geom(**data[geometry]))
+    for key in geometry_queue:
+        if key in geometries:
+            try:
+                task = geometry_queue.pop(key)
+                vis.geometries.append(geometries[key](**task))
+            except IndexError:
+                pass
 
-    except IndexError:
-        pass
-
-    selection_queue = znsocket.List(
+    selection_queue = znsocket.Dict(
         r=current_app.extensions["redis"],
         socket=vis._refresh_client,
         key=f"queue:{room}:selection",
     )
 
-    try:
-        data = selection_queue.pop()
-        for selection in data:
-            sel = next(
-                (entry for entry in selections if entry.__name__ == selection), None
-            )
-            if sel is None:
-                vis.log(f"Selection {selection} not found.")
-            else:
-                sel(**data[selection]).run(vis)
-    except IndexError:
-        pass
+    for key in selection_queue:
+        if key in selections:
+            try:
+                task = selection_queue.pop(key)
+                selections[key](**task).run(vis)
+            except IndexError:
+                pass
+                
 
-    analysis_queue = znsocket.List(
+    analysis_queue = znsocket.Dict(
         r=current_app.extensions["redis"],
         socket=vis._refresh_client,
         key=f"queue:{room}:analysis",
     )
 
-    try:
-        data = analysis_queue.pop()
-        for analysis in data:
-            analy = next(
-                (entry for entry in analyses if entry.__name__ == analysis), None
-            )
-            if analy is None:
-                vis.log(f"Analysis {analysis} not found.")
-            else:
-                analy(**data[analysis]).run(vis)
-    except IndexError:
-        pass
+    for key in analysis_queue:
+        if key in analyses:
+            try:
+                task = analysis_queue.pop(key)
+                analyses[key](**task).run(vis)
+            except IndexError:
+                pass
 
-    scene_queue = znsocket.List(
+    scene_queue = znsocket.Dict(
         r=current_app.extensions["redis"],
         socket=vis._refresh_client,
         key=f"queue:{room}:scene",
     )
 
-    try:
-        data = scene_queue.pop()
-        data["scene"] = data.pop("Scene")  # hotfix!
-        vis.config.update(data)
-    except IndexError:
-        pass
+    for key, val in scene_queue.items():
+        if key == "Scene": # hotfix
+            vis.config["scene"] = val
+        else:
+            vis.config[key] = val
+
+    modifier_queue = znsocket.Dict(
+        r=current_app.extensions["redis"],
+        socket=vis._refresh_client,
+        key=f"queue:{room}:modifier",
+    )
+
+    for key in modifier_queue:
+        if key in modifier:
+            try:
+                task = modifier_queue.pop(key)
+                modifier[key](**task).run(vis)
+            except IndexError:
+                pass
 
     # wait and then disconnect
     vis.socket.sleep(1)

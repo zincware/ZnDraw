@@ -7,7 +7,7 @@ import typing as t
 import ase
 import numpy as np
 from ase.data import chemical_symbols
-from pydantic import Field
+from pydantic import Field, BaseModel
 
 from zndraw.base import Extension, MethodsCollection
 
@@ -26,7 +26,7 @@ log = logging.getLogger("zndraw")
 Symbols = enum.Enum("Symbols", {symbol: symbol for symbol in chemical_symbols})
 
 
-class UpdateScene(Extension, abc.ABC):
+class UpdateScene(BaseModel, abc.ABC):
     @abc.abstractmethod
     def run(self, vis: "ZnDraw", timeout: float, **kwargs) -> None:
         """Method called when running the modifier."""
@@ -360,10 +360,17 @@ methods = t.Union[
     RemoveAtoms,
 ]
 
-
-class Modifier(MethodsCollection):
-    """Run modifications on the scene"""
-
-    method: methods = Field(
-        ..., description="Modify method", discriminator="discriminator"
-    )
+modifier: dict[str, t.Type[UpdateScene]] = {
+    Delete.__name__: Delete,
+    Rotate.__name__: Rotate,
+    Translate.__name__: Translate,
+    Duplicate.__name__: Duplicate,
+    ChangeType.__name__: ChangeType,
+    AddLineParticles.__name__: AddLineParticles,
+    Wrap.__name__: Wrap,
+    Center.__name__: Center,
+    Replicate.__name__: Replicate,
+    Connect.__name__: Connect,
+    NewCanvas.__name__: NewCanvas,
+   RemoveAtoms.__name__: RemoveAtoms,
+}

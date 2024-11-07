@@ -120,13 +120,13 @@ class UpdateSelection(SelectionBase):
         vis.selection = vis.selection
 
 
-selections: list[t.Type[SelectionBase]] = [
-    ConnectedParticles,
-    NoneSelection,
-    All,
-    Invert,
-    Range,
-    Random,
-    IdenticalSpecies,
-    Neighbour,
-]
+selections: dict[str, t.Type[SelectionBase]] = {
+    ConnectedParticles.__name__: ConnectedParticles,
+    NoneSelection.__name__: NoneSelection,
+    All.__name__: All,
+    Invert.__name__: Invert,
+    Range.__name__: Range,
+    Random.__name__: Random,
+    IdenticalSpecies.__name__: IdenticalSpecies,
+    Neighbour.__name__: Neighbour,
+}

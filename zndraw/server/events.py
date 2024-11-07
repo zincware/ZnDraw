@@ -4,18 +4,20 @@ import importlib.util
 import json
 import logging
 import uuid
+import znsocket
 
+import dataclasses
 from flask import current_app, request, session
 from flask_socketio import SocketIO, emit, join_room
 from redis import Redis
 
-from zndraw.modify import Modifier
 from zndraw.tasks import (
     inspect_zntrack_node,
     load_zntrack_figures,
     load_zntrack_frames,
     run_analysis_schema,
     run_geometry_schema,
+    run_modify_schema,
     run_modifier,
     run_room_worker,
     run_scene_schema,
@@ -26,6 +28,13 @@ from zndraw.utils import get_cls_from_json_schema
 
 log = logging.getLogger(__name__)
 __version__ = importlib.metadata.version("zndraw")
+
+
+@dataclasses.dataclass
+class DummyClient:
+    """Dummy replacement for znsocket.Client."""
+    sio: SocketIO
+    refresh_callbacks: list = dataclasses.field(default_factory=list)
 
 
 def init_socketio_events(io: SocketIO):
@@ -64,21 +73,28 @@ def init_socketio_events(io: SocketIO):
         else:
             log.critical(f"disconnecting (pyclient) {request.sid}")
 
-            # Get all modifier names associated with the client from Redis
-            room_modifier_names = r.hgetall(f"room:{room}:modifiers")
-            default_modifier_names = r.hgetall("room:default:modifiers")
+            modifier_registry = znsocket.Dict(
+                r=r,
+                key=f"registry:{room}:modifier",
+                repr_type="full"
+            )
 
-            for modifier in room_modifier_names:
-                r.srem(f"room:{room}:modifiers:{modifier}", request.sid)
-                if r.scard(f"room:{room}:modifiers:{modifier}") == 0:
-                    r.hdel(f"room:{room}:modifiers", modifier)
-            for modifier in default_modifier_names:
-                r.srem(f"room:default:modifiers:{modifier}", request.sid)
-                if r.scard(f"room:default:modifiers:{modifier}") == 0:
-                    r.hdel("room:default:modifiers", modifier)
+            modifier_schema = znsocket.Dict(
+                r=r,
+                key=f"schema:{room}:modifier",
+                repr_type="full",
+                socket=DummyClient(sio=io)
+            )
+            
+            # TODO: default room modifier
+            for modifier in modifier_registry.pop(request.sid, []):
+                for other in modifier_registry.values():
+                    if modifier in other:
+                        break
+                else:
+                    log.debug(f"Remove {modifier} from room {room}")
+                    modifier_schema.pop(modifier)
 
-            # Emit an event to refresh the modifier schema
-            emit("modifier:schema:refresh", broadcast=True)
 
     @io.on("webclient:connect")
     def webclient_connect():
@@ -102,6 +118,7 @@ def init_socketio_events(io: SocketIO):
         run_selection_schema.delay(room)
         run_analysis_schema.delay(room)
         run_scene_schema.delay(room)
+        run_modify_schema.delay(room)
 
         session["name"] = uuid.uuid4().hex[:8]
 
@@ -168,28 +185,7 @@ def init_socketio_events(io: SocketIO):
         # only if public this is required
         emit("modifier:schema:refresh", broadcast=True)
 
-    @io.on("modifier:schema")
-    def modifier_schema():
-        r: Redis = current_app.extensions["redis"]
-        room = session.get("token")
 
-        modifiers: dict = r.hgetall(f"room:{room}:modifiers")
-        modifiers |= r.hgetall("room:default:modifiers")
-        # reconstruct them to get the schema
-        classes = []
-        for modifier in modifiers.values():
-            modifier = json.loads(modifier)
-            cls = get_cls_from_json_schema(modifier["schema"], modifier["name"])
-            classes.append(cls)
-
-        emit(
-            "modifier:schema",
-            Modifier.get_updated_schema(extensions=classes),
-            to=request.sid,
-        )
-
-    @io.on("modifier:run")
-    def modifier_run(data: dict):
         room = session.get("token")
         r: Redis = current_app.extensions["redis"]
 
@@ -224,39 +220,6 @@ def init_socketio_events(io: SocketIO):
         else:
             run_modifier.delay(room, data)
 
-    @io.on("room:modifier:queue")
-    def room_modifier_run(data: int):
-        """Forwarding finished message."""
-        room = session.get("token")
-        emit("room:modifier:queue", data, to=room)
-
-    @io.on("modifier:available")
-    def modifier_available(modifier_names: list[str]) -> None:
-        """Update state of registered modifier classes."""
-        r: Redis = current_app.extensions["redis"]
-        room = session.get("token")  # TODO: Why use get, token should always be set
-
-        for name in modifier_names:
-            public = r.smembers(f"room:default:modifiers:{name}")
-            privat = r.smembers(f"room:{room}:modifiers:{name}")
-
-            if request.sid in public:
-                # TODO: !!! there will be an issue if you register a privat modifier "a"
-                # and then someone else registers a public modifier "a"
-                public_task = r.lpop(f"modifier:queue:{name}")
-                if public_task:
-                    log.debug(f"running public task {public_task} on {request.sid}")
-                    emit("modifier:run", json.loads(public_task), to=request.sid)
-                    return
-
-            if request.sid in privat:
-                privat_task = r.lpop(f"modifier:queue:{room}:{name}")
-                if privat_task:
-                    log.debug(f"running private task {privat_task} on {request.sid}")
-                    emit("modifier:run", json.loads(privat_task), to=request.sid)
-                    return
-
-        log.debug(f"No task available for {modifier_names}")
 
     @io.on("room:worker:run")
     def room_worker_run():
