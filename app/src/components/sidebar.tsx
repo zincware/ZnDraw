@@ -264,6 +264,14 @@ const SidebarMenu2: any = ({
     }
   }
 
+  function cancelTask() {
+    if (queueRef.current) {
+      queueRef.current.clear().then(() => {
+        setDisabledBtn(false);
+      });
+    }
+  }
+
   return (
     <Card
       className="rounded-0 border-start-0 overflow-y-auto rounded-end"
@@ -310,7 +318,7 @@ const SidebarMenu2: any = ({
             >
               Submit
             </Button>
-            <Button variant="danger"><IoStop/></Button>
+            <Button variant="danger" onClick={cancelTask}><IoStop/></Button>
             </ButtonGroup>
             
           )}

@@ -51,7 +51,7 @@ class ExtensionType(str, enum.Enum):
 
 
 def check_queue(vis: "ZnDraw") -> None:
-    for _ in range(10):
+    while True:
 
         modifier_queue = znsocket.Dict(
             r=vis.r,
@@ -66,7 +66,7 @@ def check_queue(vis: "ZnDraw") -> None:
                     vis._modifiers[key]["cls"](**task).run(vis, **vis._modifiers[key]["run_kwargs"])
                 except IndexError:
                     pass
-        vis.socket.sleep(10)
+        vis.socket.sleep(1) # wakeup timeout
 
 
 def _register_modifier(vis: "ZnDraw", data: RegisterModifier) -> None:
