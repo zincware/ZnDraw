@@ -19,6 +19,8 @@ from zndraw.utils import load_plots_to_dict
 
 log = logging.getLogger(__name__)
 
+TASK_RUNNING = "ZNDRAW TASK IS RUNNING"
+
 
 def _get_default_generator(file_io: FileIO) -> t.Iterable[ase.Atoms]:
     return [ase.Atoms()]
@@ -403,7 +405,12 @@ def run_room_worker(room):
         if key in modifier:
             try:
                 task = modifier_queue.pop(key)
-                modifier[key](**task).run(vis)
+                try:
+                    modifier_queue[TASK_RUNNING] = True
+                    modifier[key](**task).run(vis)
+                    modifier_queue.pop(TASK_RUNNING)
+                except Exception as e:
+                    vis.log(f"Error running modifier `{key}`: {err}")
             except IndexError:
                 pass
 
