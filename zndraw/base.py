@@ -98,6 +98,7 @@ class FileIO:
     step: int = 1
     remote: str | None = None
     rev: str | None = None
+    convert_nan: bool = False
 
     def to_dict(self):
         return dataclasses.asdict(self)

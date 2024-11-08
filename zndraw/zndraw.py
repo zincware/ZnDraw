@@ -146,6 +146,7 @@ class ZnDraw(ZnDrawBase):
         )
     )
     verify: bool | str = True
+    convert_nan: bool = False
 
     max_atoms_per_call: int = dataclasses.field(default=1000, repr=False)
     # number of `ase.Atom` to send per call
@@ -256,6 +257,7 @@ class ZnDraw(ZnDrawBase):
             converter=[ASEConverter],
             socket=self._refresh_client,
             max_commands_per_call=100,
+            convert_nan=self.convert_nan,
         )
         if not self.r.exists(f"room:{self.token}:frames") and self.r.exists(
             "room:default:frames"
@@ -345,6 +347,7 @@ class ZnDraw(ZnDrawBase):
             f"room:{self.token}:frames",
             converter=[ASEConverter],
             socket=self._refresh_client,
+            convert_nan=self.convert_nan,
         )
         if not self.r.exists(f"room:{self.token}:frames") and self.r.exists(
             "room:default:frames"
@@ -392,6 +395,7 @@ class ZnDraw(ZnDrawBase):
             converter=[ASEConverter],
             socket=self._refresh_client,
             max_commands_per_call=100,
+            convert_nan=self.convert_nan,
         )
         # TODO: why is there no copy action here?
         show_tbar = (len(values[0]) * len(values)) > self.max_atoms_per_call
@@ -463,6 +467,7 @@ class ZnDraw(ZnDrawBase):
             f"room:{self.token}:chat",
             socket=self._refresh_client,
             max_commands_per_call=100,
+            convert_nan=self.convert_nan,
         ).append(msg)
 
     @property

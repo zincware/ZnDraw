@@ -23,7 +23,7 @@ celery = "^5"
 sqlalchemy = "^2"
 redis = "^5"
 splines = "^0.3"
-znsocket = "^0.2.6"
+znsocket = "^0.2.7"
 znjson = "^0.2.4"
 
 

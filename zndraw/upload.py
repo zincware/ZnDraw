@@ -25,7 +25,7 @@ def upload(
     """Upload a file to ZnDraw."""
     if token is None:
         token = str(uuid.uuid4())
-    vis = ZnDraw(url=url, token=token)
+    vis = ZnDraw(url=url, token=token, convert_nan=fileio.convert_nan)
     typer.echo(f"Uploading to: {url}/token/{vis.token}")
 
     if not append:

@@ -122,6 +122,7 @@ def read_file(fileio: dict) -> None:
         r=current_app.extensions["redis"],
         url=current_app.config["SERVER_URL"],
         token="default",
+        convert_nan=file_io.convert_nan,
     )
     bonds_calculator = ASEComputeBonds()
     if current_app.config.get("COMPUTE_BONDS", False):

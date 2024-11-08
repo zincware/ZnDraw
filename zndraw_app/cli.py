@@ -124,6 +124,11 @@ def main(
     plots: list[str] = typer.Option(
         None, "--plots", "-p", help="List of plots to be shown in the ZnDraw GUI."
     ),
+    convert_nan: bool = typer.Option(
+        False,
+        help="Convert NaN values to None. This is slow and experimental, but if your file contains NaN/inf values, it is required.",
+        envvar="ZNDRAW_CONVERT_NAN",
+    ),
 ):
     """Start the ZnDraw server.
 
@@ -187,6 +192,7 @@ def main(
         start=start,
         stop=stop,
         step=step,
+        convert_nan=convert_nan,
     )
 
     if url is not None:
