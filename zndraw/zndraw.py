@@ -370,8 +370,6 @@ class ZnDraw(ZnDrawBase):
         ):
             raise ValueError("Unable to parse provided data object")
 
-        # TODO: what about the default room check?!
-
         if not self.r.exists(f"room:{self.token}:frames") and self.r.exists(
             "room:default:frames"
         ):
