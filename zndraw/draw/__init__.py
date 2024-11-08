@@ -145,22 +145,3 @@ geometries: dict[str, t.Type[Object3D]] = {
     Rhomboid.__name__: Rhomboid,
     Ellipsoid.__name__: Ellipsoid,
 }
-
-
-methods = t.Union[
-    Plane,
-    Sphere,
-    Box,
-    Circle,
-    Cone,
-    Cylinder,
-    Dodecahedron,
-    Icosahedron,
-    Octahedron,
-    Ring,
-    Tetrahedron,
-    Torus,
-    TorusKnot,
-    Rhomboid,
-    Ellipsoid,
-]

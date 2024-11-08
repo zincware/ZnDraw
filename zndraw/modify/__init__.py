@@ -343,21 +343,6 @@ class RemoveAtoms(UpdateScene):
         del vis[vis.step]
 
 
-methods = t.Union[
-    Delete,
-    Rotate,
-    Translate,
-    Duplicate,
-    ChangeType,
-    AddLineParticles,
-    Wrap,
-    Center,
-    Replicate,
-    Connect,
-    NewCanvas,
-    RemoveAtoms,
-]
-
 modifier: dict[str, t.Type[UpdateScene]] = {
     Delete.__name__: Delete,
     Rotate.__name__: Rotate,

@@ -1,7 +1,6 @@
 import typing as t
 
 import ase
-from pydantic import Field
 
 if t.TYPE_CHECKING:
     from zndraw.zndraw import ZnDraw

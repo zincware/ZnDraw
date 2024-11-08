@@ -1,20 +1,16 @@
 import dataclasses
 import logging
-import typing as t
 from abc import abstractmethod
 from collections.abc import MutableSequence
 
-import ase
 import numpy as np
 import splines
-from flask import current_app, session
-from pydantic import BaseModel, Field, create_model
+from pydantic import BaseModel
 
 log = logging.getLogger(__name__)
 
 
 class Extension(BaseModel):
-
     def run(self, vis, **kwargs) -> None:
         raise NotImplementedError("run method must be implemented in subclass")
 
