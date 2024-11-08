@@ -336,7 +336,7 @@ def run_scene_schema(room) -> None:
     # we also want to initialize the `vis.config`
     # calling the config will set the default values
     # but not overwrite the existing ones, if they are set
-    orig_scene_config = vis.config["scene"]
+    orig_scene_config = dict(vis.config["scene"])
 
     for key, val in scene_schema["properties"].items():
         try:

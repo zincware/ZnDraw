@@ -228,7 +228,6 @@ const SidebarMenu2: any = ({
         initialTrigger.current = false;
         return;
       }
-      console.log("Sending immediately");
       submitEditor();
     }
   }, [editorValue]);
