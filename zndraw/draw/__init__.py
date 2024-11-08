@@ -2,7 +2,7 @@ import typing as t
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from zndraw.base import Extension, MethodsCollection
+from zndraw.base import MethodsCollection
 
 
 def _update_material_schema(schema: dict) -> dict:

@@ -13,7 +13,6 @@ from zndraw.base import FileIO
 from zndraw.bonds import ASEComputeBonds
 from zndraw.config import Scene
 from zndraw.draw import geometries
-from zndraw.exceptions import RoomLockedError
 from zndraw.modify import modifier
 from zndraw.selection import selections
 from zndraw.utils import load_plots_to_dict

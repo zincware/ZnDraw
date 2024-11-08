@@ -5,7 +5,6 @@ import networkx as nx
 import numpy as np
 from pydantic import BaseModel, Field
 
-from zndraw.base import Extension, MethodsCollection
 from zndraw.zndraw import ZnDraw
 
 try:

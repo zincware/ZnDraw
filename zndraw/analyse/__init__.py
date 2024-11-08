@@ -7,9 +7,7 @@ import numpy as np
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
-from pydantic import BaseModel, ConfigDict, Field
-
-from zndraw.base import Extension, MethodsCollection
+from pydantic import BaseModel, Field
 
 try:
     from zndraw.analyse import mda  # noqa: F401

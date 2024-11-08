@@ -9,8 +9,6 @@ import numpy as np
 from ase.data import chemical_symbols
 from pydantic import BaseModel, Field
 
-from zndraw.base import Extension, MethodsCollection
-
 try:
     from zndraw.modify import extras  # noqa: F401
 except ImportError:
