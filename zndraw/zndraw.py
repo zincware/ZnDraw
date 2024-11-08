@@ -74,7 +74,7 @@ def check_queue(vis: "ZnDraw") -> None:
 
         # TODO: closing a room does not remove the room from this list, so it is ever growing
         # TODO: only run if there are actually public modifiers
-        # TODO: access to this should only be given to authenticated users, needs to addted to znsocket
+        # TODO: access to this should only be given to authenticated users, needs to added to znsocket
         # TODO: add running state?
         if any(vis._modifiers[key]["public"] for key in vis._modifiers):
             public_queue = znsocket.Dict(
