@@ -409,7 +409,7 @@ def run_room_worker(room):
                     modifier_queue[TASK_RUNNING] = True
                     modifier[key](**task).run(vis)
                     modifier_queue.pop(TASK_RUNNING)
-                except Exception as e:
+                except Exception as err:
                     vis.log(f"Error running modifier `{key}`: {err}")
             except IndexError:
                 pass
