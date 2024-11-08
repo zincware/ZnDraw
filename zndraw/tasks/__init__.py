@@ -332,7 +332,7 @@ def run_scene_schema(room) -> None:
     )
 
     scene_schema = Scene.model_json_schema_from_atoms(vis.atoms)
-    
+
     # we also want to initialize the `vis.config`
     # calling the config will set the default values
     # but not overwrite the existing ones, if they are set
@@ -345,8 +345,6 @@ def run_scene_schema(room) -> None:
             vis.log(f"KeyError: {key}")
 
     dct["Scene"] = scene_schema
-
-
 
     vis.socket.sleep(1)
     vis.socket.disconnect()
