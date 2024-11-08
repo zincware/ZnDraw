@@ -15,9 +15,9 @@ from zndraw.tasks import (
     load_zntrack_figures,
     load_zntrack_frames,
     run_room_worker,
-    run_upload_file,
     run_scene_dependent_schema,
     run_schema,
+    run_upload_file,
 )
 
 log = logging.getLogger(__name__)
@@ -110,7 +110,6 @@ def init_socketio_events(io: SocketIO):
 
         run_schema.delay(room)
         run_scene_dependent_schema.delay(room)
-
 
         session["name"] = uuid.uuid4().hex[:8]
 

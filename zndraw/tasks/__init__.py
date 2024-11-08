@@ -469,7 +469,6 @@ def run_schema(room) -> None:
     vis.socket.disconnect()
 
 
-
 @shared_task
 def run_scene_dependent_schema(room) -> None:
     from zndraw import ZnDraw
