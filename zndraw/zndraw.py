@@ -266,9 +266,9 @@ class ZnDraw(ZnDrawBase):
                 socket=self._refresh_client,
                 max_commands_per_call=100,
             )
-            if not (len(default_lst) == 1 and len(default_lst[0])) == 0:
+            if not (len(default_lst) == 1 and len(default_lst[0]) == 0):
                 # prevent copying empty default room
-                lst.copy(key=default_lst.key)
+                default_lst.copy(key=lst.key)
 
         if isinstance(index, slice):
             index = list(range(*index.indices(len(self))))
@@ -310,6 +310,7 @@ class ZnDraw(ZnDrawBase):
             socket=self._refresh_client,
             max_commands_per_call=100,
         )
+        
         if not self.r.exists(f"room:{self.token}:frames") and self.r.exists(
             "room:default:frames"
         ):
@@ -320,7 +321,7 @@ class ZnDraw(ZnDrawBase):
                 socket=self._refresh_client,
                 max_commands_per_call=100,
             )
-            if not (len(default_lst) == 1 and len(default_lst[0])) == 0:
+            if not (len(default_lst) == 1 and len(default_lst[0]) == 0):
                 # prevent copying empty default room
                 default_lst.copy(key=lst.key)
 
@@ -358,7 +359,7 @@ class ZnDraw(ZnDrawBase):
                 socket=self._refresh_client,
                 max_commands_per_call=100,
             )
-            if not (len(default_lst) == 1 and len(default_lst[0])) == 0:
+            if not (len(default_lst) == 1 and len(default_lst[0]) == 0):
                 # prevent copying empty default room
                 default_lst.copy(key=lst.key)
 
@@ -385,7 +386,7 @@ class ZnDraw(ZnDrawBase):
                 socket=self._refresh_client,
                 max_commands_per_call=100,
             )
-            if not (len(default_lst) == 1 and len(default_lst[0])) == 0:
+            if not (len(default_lst) == 1 and len(default_lst[0]) == 0):
                 # prevent copying empty default room
                 default_lst.copy(key=f"room:{self.token}:frames")
 
