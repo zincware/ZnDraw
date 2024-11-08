@@ -14,7 +14,7 @@ def run_queue(vis, key, msg: dict):
     )
     modifier_queue.update(msg)
     vis.socket.emit("room:worker:run")
-    vis.socket.sleep(2)
+    vis.socket.sleep(5)
 
 
 def test_run_selection(server, s22):
