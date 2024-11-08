@@ -702,9 +702,7 @@ export default function App() {
           step={step}
           selection={selectedIds}
         />
-        <Sidebar
-          token={token}
-        />
+        <Sidebar token={token} />
         <FrameProgressBar
           length={length}
           step={step}
