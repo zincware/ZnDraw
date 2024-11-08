@@ -1,6 +1,5 @@
 from zndraw import ZnDraw
 
-
 # def test_config_defaults(server):
 #     vis = ZnDraw(url=server, token="test_token")
 #     ref_config = ZnDrawConfig(vis=None)
@@ -22,7 +21,6 @@ def test_config_modify_arrows(server):
     assert vis.config["arrows"]["opacity"] == 1.0
 
 
-
 def test_config_modify_scene(server):
     room = "test_config_scene"
     vis = ZnDraw(url=server, token=room)
@@ -34,4 +32,3 @@ def test_config_modify_scene(server):
 
     # check other defaults
     assert vis.config["scene"]["material"] == "MeshStandardMaterial"
-

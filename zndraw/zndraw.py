@@ -19,7 +19,7 @@ from redis import Redis
 from zndraw.abc import Message
 from zndraw.base import Extension, ZnDrawBase
 from zndraw.bonds import ASEComputeBonds
-from zndraw.config import Scene, Arrows
+from zndraw.config import Arrows, Scene
 from zndraw.converter import Object3DConverter
 from zndraw.draw import Object3D
 from zndraw.figure import Figure, FigureConverter

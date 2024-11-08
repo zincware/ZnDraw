@@ -564,16 +564,17 @@ export const setupConfig = (token: string, setConfig: any) => {
     });
 
     // initial load
-    con.entries()
-    .then((items: any) => con.toObject())
-    .then((result) => {
-      if (Object.keys(result).length > 0) {
-        setConfig(result);
-      }
-    })
-    .catch((error) => {
-      console.error("Failed to load config:", error);
-    });
+    con
+      .entries()
+      .then((items: any) => con.toObject())
+      .then((result) => {
+        if (Object.keys(result).length > 0) {
+          setConfig(result);
+        }
+      })
+      .catch((error) => {
+        console.error("Failed to load config:", error);
+      });
 
     con.onRefresh(async (x: any) => {
       const result = await con.toObject();

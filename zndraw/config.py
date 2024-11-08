@@ -1,9 +1,3 @@
-import dataclasses
-import typing as t
-
-from zndraw.utils import emit_with_retry
-from pydantic import BaseModel
-
 import enum
 import typing as t
 
@@ -11,13 +5,12 @@ import ase
 import numpy as np
 from pydantic import BaseModel, Field
 
-from zndraw.utils import emit_with_retry
-
 if t.TYPE_CHECKING:
-    from zndraw import ZnDraw
+    pass
 
 
 HSLColor = t.Tuple[float, float, float]
+
 
 class Material(str, enum.Enum):
     MeshBasicMaterial = "MeshBasicMaterial"
@@ -145,11 +138,9 @@ class Scene(BaseModel):
         return schema
 
 
-
 class Arrows(BaseModel):
     colormap: list[HSLColor] = ((-0.5, 0.9, 0.5), (0.0, 0.9, 0.5))
     normalize: bool = True
     colorrange: tuple[float, float] = (0, 1.0)
     scale_vector_thickness: bool = False
     opacity: float = 1.0
-

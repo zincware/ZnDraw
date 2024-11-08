@@ -60,4 +60,3 @@ def test_url():
     before_url = "wss://localhost:8000/token/eNwsdW5k"
     url = convert_url_to_http(before_url)
     assert url == "https://localhost:8000/token/eNwsdW5k"
-

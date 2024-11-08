@@ -11,10 +11,10 @@ from flask import current_app
 from zndraw.analyse import analyses
 from zndraw.base import FileIO
 from zndraw.bonds import ASEComputeBonds
+from zndraw.config import Scene
 from zndraw.draw import geometries
 from zndraw.exceptions import RoomLockedError
 from zndraw.modify import modifier
-from zndraw.config import Scene
 from zndraw.selection import selections
 from zndraw.utils import load_plots_to_dict
 
