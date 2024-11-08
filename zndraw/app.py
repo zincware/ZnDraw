@@ -98,7 +98,7 @@ def create_app() -> Flask:
     if max_http_buffer_size is not None:
         kwargs["max_http_buffer_size"] = int(max_http_buffer_size)
 
-    socketio = SocketIO(app, **kwargs)
+    socketio = SocketIO(app, **kwargs, logger=False, engineio_logger=False)
 
     # Initialize Celery
     celery_init_app(app)

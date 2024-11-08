@@ -2,7 +2,7 @@ import typing as t
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from zndraw.base import Extension, MethodsCollection
+from zndraw.base import MethodsCollection
 
 
 def _update_material_schema(schema: dict) -> dict:
@@ -23,21 +23,18 @@ def _update_object3d_schema(schema: dict) -> dict:
 
 
 class Material(BaseModel):
-    """Base class for the Object3D material."""
-
-    # TODO, reuse / combine with scene materials
     color: str = "#62929E"
-    opacity: float = Field(0.2, ge=0.0, le=1.0)
+    opacity: float = Field(default=0.2, ge=0.0, le=1.0)
     wireframe: bool = False
     outlines: bool = False
 
     model_config = ConfigDict(json_schema_extra=_update_material_schema)
 
 
-class Object3D(Extension):
+class Object3D(BaseModel):
     """Base class for all 3D objects."""
 
-    material: Material = Field(default_factory=Material)
+    material: Material = Material()
 
     position: t.Tuple[float, float, float] | list[float] = (0, 0, 0)
     rotation: t.Tuple[float, float, float] | list[float] = (0, 0, 0)
@@ -131,6 +128,25 @@ class Ellipsoid(Object3D):
     a: float = 10.0
     b: float = 5.0
     c: float = 5.0
+
+
+geometries: dict[str, t.Type[Object3D]] = {
+    Plane.__name__: Plane,
+    Box.__name__: Box,
+    Circle.__name__: Circle,
+    Cone.__name__: Cone,
+    Cylinder.__name__: Cylinder,
+    Dodecahedron.__name__: Dodecahedron,
+    Icosahedron.__name__: Icosahedron,
+    Octahedron.__name__: Octahedron,
+    Ring.__name__: Ring,
+    Sphere.__name__: Sphere,
+    Tetrahedron.__name__: Tetrahedron,
+    Torus.__name__: Torus,
+    TorusKnot.__name__: TorusKnot,
+    Rhomboid.__name__: Rhomboid,
+    Ellipsoid.__name__: Ellipsoid,
+}
 
 
 methods = t.Union[

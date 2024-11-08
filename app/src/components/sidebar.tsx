@@ -1,4 +1,5 @@
-import { Button, Navbar, Nav, Card } from "react-bootstrap";
+import { Button, Navbar, Nav, Card, Form, ButtonGroup } from "react-bootstrap";
+import Select from "react-select";
 import { BtnTooltip } from "./tooltips";
 import {
   FaRegChartBar,
@@ -6,11 +7,14 @@ import {
   FaRegHandPointer,
   FaRegMap,
   FaGithub,
+  FaPlay,
 } from "react-icons/fa";
+import { IoStop } from "react-icons/io5";
 import { FaCircleNodes } from "react-icons/fa6";
 import { useState, useRef } from "react";
-import { socket } from "../socket";
+import { socket, client } from "../socket";
 import { useEffect } from "react";
+import * as znsocket from "znsocket";
 
 import { JSONEditor } from "@json-editor/json-editor";
 
@@ -59,7 +63,6 @@ const useJSONEditor = (
         if (useSubmit) {
           // when using the submit button, we need to set the user input on ready
           // otherwise, it could be None.
-          console.log("Setting user input on ready");
           if (JSONEditorRef.current.validate()) {
             const editorValue = JSONEditorRef.current.getValue();
             setUserInput(editorValue);
@@ -91,39 +94,156 @@ const useJSONEditor = (
   return editorRef;
 };
 
-const SidebarMenu: React.FC<SidebarMenuProps> = ({
-  schema,
-  onSubmit,
-  queuePosition,
-  trigger,
-  setTrigger,
+const SidebarMenu2: any = ({
   visible,
-  useSubmit,
   closeMenu,
+  token,
+  name,
+  sendImmediately,
 }) => {
-  const [userInput, setUserInput] = useState<any>(null);
+  const [userInput, setUserInput] = useState<string>(undefined);
+  const [schema, setSchema] = useState<any>({});
+  const [sharedSchema, setSharedSchema] = useState<any>({});
+  const [editorValue, setEditorValue] = useState<any>(null);
+  const [disabledBtn, setDisabledBtn] = useState<boolean>(false);
+  const initialTrigger = useRef<boolean>(true);
+  const editorRef = useRef<HTMLDivElement>(null);
+  const queueRef = useRef<any>(null);
+
+  useEffect(() => {
+    if (visible) {
+      socket.emit("schema:refresh");
+      initialTrigger.current = true;
+    }
+  }, [visible]);
+
+  useEffect(() => {
+    const con = new znsocket.Dict({
+      client: client,
+      key: "schema:" + token + ":" + name,
+    });
+
+    const sharedCon = new znsocket.Dict({
+      client: client,
+      key: "schema:default:" + name,
+    });
+
+    const queue = new znsocket.Dict({
+      client: client,
+      key: "queue:" + token + ":" + name,
+    });
+    queueRef.current = queue;
+
+    // initial load
+    con.entries().then((items: any) => {
+      const result = Object.fromEntries(items);
+      setSchema(result);
+    });
+    sharedCon.entries().then((items: any) => {
+      const result = Object.fromEntries(items);
+      setSharedSchema(result);
+    });
+
+    queue.length().then((length: any) => {
+      setDisabledBtn(length > 0);
+    });
+    queue.onRefresh(async (x: any) => {
+      const length = await queue.length();
+      setDisabledBtn(length > 0);
+    });
+
+    con.onRefresh(async (x: any) => {
+      const items = await con.entries();
+      const result = Object.fromEntries(items);
+      setSchema(result);
+    });
+
+    sharedCon.onRefresh(async (x: any) => {
+      const items = await sharedCon.entries();
+      const result = Object.fromEntries(items);
+      setSharedSchema(result);
+    });
+
+    return () => {
+      con.offRefresh();
+      sharedCon.offRefresh();
+      queue.offRefresh();
+    };
+  }, [token]);
+
+  // set the default userInput to the first key in the schema, if userInput is empty
+  useEffect(() => {
+    if (
+      userInput === undefined &&
+      Object.keys({ ...sharedSchema, ...schema }).length > 0
+    ) {
+      setUserInput(Object.keys({ ...sharedSchema, ...schema })[0]);
+    }
+  }, [schema, sharedSchema, userInput]);
+
+  useEffect(() => {
+    let editor: any;
+    const fullSchema = { ...sharedSchema, ...schema };
+    if (editorRef.current && fullSchema[userInput]) {
+      editor = new JSONEditor(editorRef.current, {
+        schema: fullSchema[userInput],
+      });
+
+      editor.on("ready", () => {
+        if (editor.validate()) {
+          const editorValue = editor.getValue();
+          setEditorValue(editorValue);
+        }
+      });
+
+      editor.on("change", () => {
+        if (editor.ready) {
+          if (editor.validate()) {
+            const editorValue = editor.getValue();
+            setEditorValue(editorValue);
+          }
+        }
+      });
+    }
+    return () => {
+      if (editor) {
+        editor.destroy();
+        setEditorValue(null);
+      }
+    };
+  }, [userInput, schema, sharedSchema]);
 
   function submitEditor() {
-    if (onSubmit) {
-      onSubmit(userInput);
+    if (editorValue && userInput && queueRef.current) {
+      setDisabledBtn(true);
+      // queueRef.current.push({ [userInput]: editorValue });
+      queueRef.current[userInput] = editorValue;
+      socket.emit("room:worker:run");
     }
   }
+
   useEffect(() => {
-    if (trigger) {
-      submitEditor();
-      if (setTrigger) {
-        setTrigger(false);
+    if (sendImmediately && editorValue && userInput && queueRef.current) {
+      if (initialTrigger.current) {
+        initialTrigger.current = false;
+        return;
       }
-    }
-  }, [trigger]);
-
-  const editorRef = useJSONEditor(schema, setUserInput, useSubmit);
-
-  useEffect(() => {
-    if (!useSubmit && userInput !== null) {
       submitEditor();
     }
-  }, [userInput, useSubmit]);
+  }, [editorValue]);
+
+  function cancelTask() {
+    if (queueRef.current) {
+      queueRef.current.clear().then(() => {
+        setDisabledBtn(false);
+      });
+    }
+  }
+
+  function capitalizeFirstLetter(text: string) {
+    if (!text) return ""; // Handle empty or undefined text
+    return text.charAt(0).toUpperCase() + text.slice(1);
+  }
 
   return (
     <Card
@@ -145,56 +265,46 @@ const SidebarMenu: React.FC<SidebarMenuProps> = ({
           backgroundColor: "inherit", // Use the same background color as the rest of the card
         }}
       >
-        <Card.Title>{schema.title}</Card.Title>
+        <Card.Title>{capitalizeFirstLetter(name)}</Card.Title>
         <Button variant="close" className="ms-auto" onClick={closeMenu} />
       </Card.Header>
-      <Card.Body style={{ marginTop: -30, paddingBottom: 80 }}>
+      <Card.Body style={{ paddingBottom: 80 }}>
+        <Form.Group className="d-flex align-items-center">
+          <Form.Select
+            aria-label="Default select example"
+            onChange={(e) => setUserInput(e.target.value)}
+            value={userInput}
+          >
+            <option></option>
+            {Object.keys({ ...sharedSchema, ...schema }).map((key) => (
+              <option key={key} value={key}>
+                {key}
+              </option>
+            ))}
+          </Form.Select>
+          {!sendImmediately && (
+            <ButtonGroup aria-label="Basic example">
+              <Button
+                variant="outline-primary"
+                onClick={submitEditor}
+                className="ms-2 d-flex align-items-center"
+                disabled={disabledBtn}
+              >
+                <FaPlay className="me-1" /> Submit
+              </Button>
+              <Button variant="outline-danger" onClick={cancelTask}>
+                <IoStop />
+              </Button>
+            </ButtonGroup>
+          )}
+        </Form.Group>
         <div ref={editorRef}></div>
-        {useSubmit && (
-          <Button onClick={submitEditor} disabled={queuePosition >= 0}>
-            {queuePosition > 0 && `Queue position: ${queuePosition}`}
-            {queuePosition == 0 && `Running`}
-            {queuePosition < 0 && `Submit`}
-          </Button>
-        )}
       </Card.Body>
     </Card>
   );
 };
 
-function SideBar({
-  selectionSchema,
-  modifierSchema,
-  sceneSchema,
-  geometrySchema,
-  analysisSchema,
-  sceneSettings,
-  setSceneSettings,
-  modifierQueue,
-  selectionQueue,
-  analysisQueue,
-  geometryQueue,
-  triggerSelection,
-  setTriggerSelection,
-  colorMode,
-  setStep,
-}: {
-  selectionSchema: any;
-  modifierSchema: any;
-  sceneSchema: any;
-  geometrySchema: any;
-  analysisSchema: any;
-  sceneSettings: any;
-  setSceneSettings: any;
-  modifierQueue: number;
-  selectionQueue: number;
-  analysisQueue: number;
-  geometryQueue: number;
-  triggerSelection: boolean;
-  setTriggerSelection: any;
-  colorMode: string;
-  setStep: any;
-}) {
+function SideBar({ token }: { token: string }) {
   const [visibleOption, setVisibleOption] = useState<string>("");
   useEffect(() => {
     if (visibleOption !== "") {
@@ -313,55 +423,40 @@ function SideBar({
           </BtnTooltip>
         </Card>
       </Navbar>
-      <SidebarMenu
-        schema={selectionSchema}
-        onSubmit={(data: any) => {
-          socket.emit("selection:run", data);
-        }}
-        queuePosition={selectionQueue}
-        trigger={triggerSelection}
-        setTrigger={setTriggerSelection}
-        visible={visibleOption == "selection"}
-        useSubmit={true}
+      <SidebarMenu2
+        name="selection"
+        visible={visibleOption == "selection"} // remove
+        token={token}
         closeMenu={() => setVisibleOption("")}
+        sendImmediately={false}
       />
-      <SidebarMenu
-        schema={modifierSchema}
-        onSubmit={(data: any) => {
-          socket.emit("modifier:run", data);
-        }}
-        queuePosition={modifierQueue}
+      <SidebarMenu2
+        name="modifier"
         visible={visibleOption == "modifier"}
-        useSubmit={true}
+        token={token}
         closeMenu={() => setVisibleOption("")}
+        sendImmediately={false}
       />
-      <SidebarMenu
-        schema={sceneSchema}
-        onSubmit={setSceneSettings}
-        queuePosition={-1}
+      <SidebarMenu2
+        name="scene"
         visible={visibleOption == "scene"}
-        useSubmit={false}
+        token={token}
         closeMenu={() => setVisibleOption("")}
+        sendImmediately={true}
       />
-      <SidebarMenu
-        schema={geometrySchema}
-        onSubmit={(data: any) => {
-          socket.emit("geometry:run", data);
-        }}
-        queuePosition={geometryQueue}
+      <SidebarMenu2
+        name="geometry"
         visible={visibleOption == "geometry"}
-        useSubmit={true}
+        token={token}
         closeMenu={() => setVisibleOption("")}
+        sendImmediately={false}
       />
-      <SidebarMenu
-        schema={analysisSchema}
-        onSubmit={(data: any) => {
-          socket.emit("analysis:run", data);
-        }}
-        queuePosition={analysisQueue}
+      <SidebarMenu2
+        name="analysis"
         visible={visibleOption == "analysis"}
-        useSubmit={true}
+        token={token}
         closeMenu={() => setVisibleOption("")}
+        sendImmediately={false}
       />
     </>
   );

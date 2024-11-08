@@ -1,9 +1,20 @@
 import numpy as np
 import numpy.testing as npt
-import pytest
+import znsocket
 from ase.build import bulk, molecule
 
 from zndraw import Extension, ZnDraw
+
+
+def run_queue(vis, key, msg: dict):
+    modifier_queue = znsocket.Dict(
+        r=vis.r,
+        socket=vis._refresh_client,
+        key=f"queue:{vis.token}:{key}",
+    )
+    modifier_queue.update(msg)
+    vis.socket.emit("room:worker:run")
+    vis.socket.sleep(5)
 
 
 def test_run_selection(server, s22):
@@ -11,8 +22,9 @@ def test_run_selection(server, s22):
     vis = ZnDraw(url=server, token="test_token")
     vis.extend(s22)
     vis.selection = [0]
-    vis.socket.emit("selection:run", {"method": {"discriminator": "ConnectedParticles"}})
-    vis.socket.sleep(7)
+
+    run_queue(vis, "selection", {"ConnectedParticles": {}})
+
     assert vis.selection == [0, 1, 2, 3]
 
 
@@ -22,13 +34,13 @@ def test_run_modifier(server):
     vis.selection = [0]
     assert len(vis) == 1
     assert len(vis[-1]) == 3
-    vis.socket.emit("modifier:run", {"method": {"discriminator": "Delete"}})
-    vis.socket.sleep(7)
+
+    run_queue(vis, "modifier", {"Delete": {}})
+
     assert len(vis) == 2
     assert len(vis[-1]) == 2
 
 
-@pytest.mark.skip(reason="This test is not yet reliable")
 def test_register_modifier(server, s22, water):
     vis = ZnDraw(url=server, token="test_token")
     vis.extend(s22)
@@ -39,8 +51,8 @@ def test_register_modifier(server, s22, water):
             vis.step = len(vis) - 1
 
     vis.register_modifier(AppendWater)
-    vis.socket.emit("modifier:run", {"method": {"discriminator": "AppendWater"}})
-    vis.socket.sleep(3)
+
+    run_queue(vis, "modifier", {"AppendWater": {}})
 
     assert vis.atoms == water
 
@@ -62,8 +74,9 @@ def test_modify_delete(server):
     vis.selection = [0]
     assert len(vis) == 1
     assert len(vis[-1]) == 3
-    vis.socket.emit("modifier:run", {"method": {"discriminator": "Delete"}})
-    vis.socket.sleep(5)
+
+    run_queue(vis, "modifier", {"Delete": {}})
+
     assert len(vis) == 2
     assert len(vis[-1]) == 2
 
@@ -73,8 +86,10 @@ def test_modify_rotate(server):
     vis.append(molecule("H2O"))
     vis.selection = [0, 1]
     vis.points = [[0, 0, 0], [1, 0, 0]]
-    vis.socket.emit("modifier:run", {"method": {"discriminator": "Rotate", "steps": 10}})
+
+    run_queue(vis, "modifier", {"Rotate": {"steps": 10}})
     vis.socket.sleep(5)
+
     assert len(vis) == 11
     # TODO: test that the atoms rotated correctly
 
@@ -84,11 +99,9 @@ def test_modify_translate(server):
     vis.append(molecule("H2O"))
     vis.selection = [0, 1, 2]
     vis.points = [[1, 0, 0], [0, 0, 0]]
-    vis.socket.sleep(1)
-    vis.socket.emit(
-        "modifier:run", {"method": {"discriminator": "Translate", "steps": 10}}
-    )
-    vis.socket.sleep(7)
+
+    run_queue(vis, "modifier", {"Translate": {"steps": 10}})
+
     assert len(vis) == 11
 
     orig_pos = vis[0].positions
@@ -103,8 +116,9 @@ def test_modify_duplicate(server):
     vis = ZnDraw(url=server, token="test_token")
     vis.append(molecule("H2O"))
     vis.selection = [0]
-    vis.socket.emit("modifier:run", {"method": {"discriminator": "Duplicate"}})
-    vis.socket.sleep(5)
+
+    run_queue(vis, "modifier", {"Duplicate": {}})
+
     assert len(vis) == 2
     assert len(vis[0]) == 3
     assert len(vis[1]) == 4  # one duplicated atom
@@ -114,10 +128,9 @@ def test_modify_change_type(server):
     vis = ZnDraw(url=server, token="test_token")
     vis.append(molecule("H2O"))
     vis.selection = [0]
-    vis.socket.emit(
-        "modifier:run", {"method": {"discriminator": "ChangeType", "symbol": "He"}}
-    )
-    vis.socket.sleep(5)
+
+    run_queue(vis, "modifier", {"ChangeType": {"symbol": "He"}})
+
     assert vis[1].symbols[0] == "He"
 
 
@@ -127,8 +140,7 @@ def test_modify_wrap(server):
     copper.positions += 5  # shift, so wrapped is recognizable
     vis.extend([copper, copper])
 
-    vis.socket.emit("modifier:run", {"method": {"discriminator": "Wrap", "all": True}})
-    vis.socket.sleep(5)
+    run_queue(vis, "modifier", {"Wrap": {"all": True}})
 
     # Wrap is an inplace modifier
     assert len(vis) == 2
@@ -143,11 +155,10 @@ def test_modify_replicate(server):
     vis = ZnDraw(url=server, token="test_token")
     wurtzite = bulk("ZnO", "wurtzite", a=3.25, c=5.2)
     vis.extend([wurtzite, wurtzite])
-    vis.socket.emit(
-        "modifier:run",
-        {"method": {"discriminator": "Replicate", "x": 2, "y": 2, "z": 2, "all": True}},
-    )
+
+    run_queue(vis, "modifier", {"Replicate": {"x": 2, "y": 2, "z": 2, "all": True}})
     vis.socket.sleep(5)
+
     # Replicate is an inplace modifier
     assert len(vis) == 2
     for idx in range(2):
@@ -158,11 +169,9 @@ def test_modify_AddLineParticles(server):
     vis = ZnDraw(url=server, token="test_token")
     vis.append(molecule("H2O"))
     vis.points = [[0, 0, 0], [1, 0, 0]]
-    vis.socket.emit(
-        "modifier:run",
-        {"method": {"discriminator": "AddLineParticles", "steps": 10, "symbol": "He"}},
-    )
-    vis.socket.sleep(5)
+
+    run_queue(vis, "modifier", {"AddLineParticles": {"steps": 10, "symbol": "He"}})
+
     assert len(vis[0]) == 3
     assert len(vis[1]) == 5
     npt.assert_allclose(vis[1].positions[3], [0, 0, 0])
@@ -184,8 +193,9 @@ def test_modify_center(server):
     copper = bulk("Cu", cubic=True)
     vis.append(copper)
     vis.selection = [0]
-    vis.socket.emit("modifier:run", {"method": {"discriminator": "Center", "all": True}})
-    vis.socket.sleep(5)
+
+    run_queue(vis, "modifier", {"Center": {"all": True}})
+
     assert np.allclose(vis[0][0].position, np.diag(vis[0].cell) / 2)
     assert not np.allclose(vis[0].positions, copper.positions)
 
@@ -196,6 +206,7 @@ def test_modify_RemoveAtoms(server):
     vis.append(molecule("H2O"))
     assert len(vis) == 2
     vis.step = 0
-    vis.socket.emit("modifier:run", {"method": {"discriminator": "RemoveAtoms"}})
-    vis.socket.sleep(5)
+
+    run_queue(vis, "modifier", {"RemoveAtoms": {}})
+
     assert len(vis) == 1

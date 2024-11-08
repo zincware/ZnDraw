@@ -427,7 +427,10 @@ export const setupGeometries = (
     const loadGeometries = async () => {
       let geometries = [];
       for await (const value of con) {
-        geometries.push(value["value"]["data"]);
+        geometries.push({
+          ...value["value"]["data"],
+          discriminator: value["value"]["class"],
+        });
       }
       updateByRefreshRef.current = true;
       setGeometries(geometries);
@@ -441,9 +444,13 @@ export const setupGeometries = (
       console.log("geometries updated externally");
       for await (const value of con) {
         // console.log(value["value"]["data"]); // Process each value as it becomes available
-        geometries.push(value["value"]["data"]);
+        geometries.push({
+          ...value["value"]["data"],
+          discriminator: value["value"]["class"],
+        });
       }
       updateByRefreshRef.current = true;
+      console.log(geometries);
       setGeometries(geometries);
     });
 
@@ -547,4 +554,37 @@ export const setupMessages = (
       updateCon();
     }
   }, [messages]);
+};
+
+export const setupConfig = (token: string, setConfig: any) => {
+  useEffect(() => {
+    const con = new znsocket.Dict({
+      client: client,
+      key: "room:" + token + ":config",
+    });
+
+    // initial load
+    con
+      .entries()
+      .then((items: any) => con.toObject())
+      .then((result) => {
+        if (Object.keys(result).length > 0) {
+          setConfig(result);
+        }
+      })
+      .catch((error) => {
+        console.error("Failed to load config:", error);
+      });
+
+    con.onRefresh(async (x: any) => {
+      const result = await con.toObject();
+      if (Object.keys(result).length > 0) {
+        setConfig(result);
+      }
+    });
+
+    return () => {
+      con.offRefresh();
+    };
+  }, [token]);
 };

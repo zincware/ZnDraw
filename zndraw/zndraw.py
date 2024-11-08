@@ -1,7 +1,7 @@
 import dataclasses
 import datetime
+import enum
 import importlib.metadata
-import json
 import logging
 import typing as t
 
@@ -19,11 +19,10 @@ from redis import Redis
 from zndraw.abc import Message
 from zndraw.base import Extension, ZnDrawBase
 from zndraw.bonds import ASEComputeBonds
-from zndraw.config import ArrowsConfig, ZnDrawConfig
+from zndraw.config import Arrows, Scene
 from zndraw.converter import Object3DConverter
 from zndraw.draw import Object3D
 from zndraw.figure import Figure, FigureConverter
-from zndraw.scene import Scene
 from zndraw.type_defs import (
     ATOMS_LIKE,
     CameraData,
@@ -41,6 +40,62 @@ from zndraw.utils import (
 
 log = logging.getLogger(__name__)
 __version__ = importlib.metadata.version("zndraw")
+
+
+class ExtensionType(str, enum.Enum):
+    """The type of the extension."""
+
+    MODIFIER = "modifier"
+    SELECTION = "selection"
+    ANALYSIS = "analysis"
+
+
+def check_queue(vis: "ZnDraw") -> None:
+    # TODO: if there if a public modifier, iterate the queue:default:modifier
+    while True:
+        if len(vis._modifiers) == 0:
+            vis.socket.sleep(1)
+            continue
+        modifier_queue = znsocket.Dict(
+            r=vis.r,
+            socket=vis._refresh_client,
+            key=f"queue:{vis.token}:modifier",
+        )
+
+        for key in modifier_queue:
+            if key in vis._modifiers:
+                try:
+                    task = modifier_queue.pop(key)
+                    vis._modifiers[key]["cls"](**task).run(
+                        vis, **vis._modifiers[key]["run_kwargs"]
+                    )
+                except IndexError:
+                    pass
+
+        # TODO: closing a room does not remove the room from this list, so it is ever growing
+        # TODO: only run if there are actually public modifiers
+        # TODO: access to this should only be given to authenticated users, needs to added to znsocket
+        # TODO: add running state?
+        if any(vis._modifiers[key]["public"] for key in vis._modifiers):
+            public_queue = znsocket.Dict(
+                r=vis.r,
+                socket=vis._refresh_client,
+                key="queue:default:modifier",
+            )
+
+            for room in public_queue:
+                for key in public_queue[room]:
+                    if key in vis._modifiers:
+                        if vis._modifiers[key]["public"]:
+                            new_vis = ZnDraw(url=vis.url, token=room, r=vis.r)
+                            try:
+                                task = public_queue[room].pop(key)
+                                vis._modifiers[key]["cls"](**task).run(
+                                    new_vis, **vis._modifiers[key]["run_kwargs"]
+                                )
+                            except IndexError:
+                                pass
+        vis.socket.sleep(1)  # wakeup timeout
 
 
 def _register_modifier(vis: "ZnDraw", data: RegisterModifier) -> None:
@@ -92,7 +147,8 @@ class ZnDraw(ZnDrawBase):
     )
     verify: bool | str = True
 
-    maximum_message_size: int = dataclasses.field(default=500_000, repr=False)
+    max_atoms_per_call: int = dataclasses.field(default=1000, repr=False)
+    # number of `ase.Atom` to send per call
     name: str | None = None
 
     _modifiers: dict[str, RegisterModifier] = dataclasses.field(default_factory=dict)
@@ -110,17 +166,12 @@ class ZnDraw(ZnDrawBase):
             self.socket = socketio.Client(http_session=http_session)
 
         self._refresh_client = znsocket.Client.from_url(self.url)
+        # TODO: the refresh_client should be able to use the same socket connection!
         if self.r is None:
             self.r = self._refresh_client
 
-        def on_wakeup():
-            if self._available:
-                self.socket.emit("modifier:available", list(self._modifiers))
-
         self.url = self.url.replace("http", "ws")
         self.socket.on("connect", self._on_connect)
-        self.socket.on("modifier:run", self._run_modifier)
-        self.socket.on("modifier:wakeup", on_wakeup)
         self.socket.on("room:log", lambda x: print(x))
         self.socket.on("version", _check_version_compatibility)
 
@@ -143,6 +194,8 @@ class ZnDraw(ZnDrawBase):
                     raise socketio.exceptions.ConnectionError(
                         f"Unable to connect to ZnDraw server at '{self.url}'. Is the server running?"
                     ) from err
+
+        self.socket.start_background_task(check_queue, self)
 
     def _on_connect(self):
         log.debug("Connected to ZnDraw server")
@@ -170,6 +223,7 @@ class ZnDraw(ZnDrawBase):
                 f"room:{self.token}:frames",
                 converter=[ASEConverter],
                 socket=self._refresh_client,
+                max_commands_per_call=100,
             )[index]
 
         else:
@@ -178,6 +232,7 @@ class ZnDraw(ZnDrawBase):
                 "room:default:frames",
                 converter=[ASEConverter],
                 socket=self._refresh_client,
+                max_commands_per_call=100,
             )[index]
 
         if single_item:
@@ -200,14 +255,20 @@ class ZnDraw(ZnDrawBase):
             f"room:{self.token}:frames",
             converter=[ASEConverter],
             socket=self._refresh_client,
+            max_commands_per_call=100,
         )
         if not self.r.exists(f"room:{self.token}:frames") and self.r.exists(
             "room:default:frames"
         ):
             default_lst = znsocket.List(
-                self.r, "room:default:frames", socket=self._refresh_client
+                self.r,
+                "room:default:frames",
+                socket=self._refresh_client,
+                max_commands_per_call=100,
             )
-            lst.copy(key=default_lst.key)
+            if not (len(default_lst) == 1 and len(default_lst[0]) == 0):
+                # prevent copying empty default room
+                default_lst.copy(key=lst.key)
 
         if isinstance(index, slice):
             index = list(range(*index.indices(len(self))))
@@ -225,11 +286,17 @@ class ZnDraw(ZnDrawBase):
         # TODO: what if the room does not exist yet?
         if not self.r.exists(f"room:{self.token}:frames"):
             return len(
-                znsocket.List(self.r, "room:default:frames", socket=self._refresh_client)
+                znsocket.List(
+                    self.r,
+                    "room:default:frames",
+                    socket=self._refresh_client,
+                )
             )
         return len(
             znsocket.List(
-                self.r, f"room:{self.token}:frames", socket=self._refresh_client
+                self.r,
+                f"room:{self.token}:frames",
+                socket=self._refresh_client,
             )
         )
 
@@ -239,7 +306,9 @@ class ZnDraw(ZnDrawBase):
             f"room:{self.token}:frames",
             converter=[ASEConverter],
             socket=self._refresh_client,
+            max_commands_per_call=100,
         )
+
         if not self.r.exists(f"room:{self.token}:frames") and self.r.exists(
             "room:default:frames"
         ):
@@ -248,8 +317,11 @@ class ZnDraw(ZnDrawBase):
                 "room:default:frames",
                 converter=[ASEConverter],
                 socket=self._refresh_client,
+                max_commands_per_call=100,
             )
-            default_lst.copy(key=lst.key)
+            if not (len(default_lst) == 1 and len(default_lst[0]) == 0):
+                # prevent copying empty default room
+                default_lst.copy(key=lst.key)
 
         del lst[index]
 
@@ -283,7 +355,9 @@ class ZnDraw(ZnDrawBase):
                 converter=[ASEConverter],
                 socket=self._refresh_client,
             )
-            default_lst.copy(key=lst.key)
+            if not (len(default_lst) == 1 and len(default_lst[0]) == 0):
+                # prevent copying empty default room
+                default_lst.copy(key=lst.key)
 
         if isinstance(value, ase.Atoms):
             if not hasattr(value, "connectivity") and self.bond_calculator is not None:
@@ -296,6 +370,20 @@ class ZnDraw(ZnDrawBase):
         ):
             raise ValueError("Unable to parse provided data object")
 
+        if not self.r.exists(f"room:{self.token}:frames") and self.r.exists(
+            "room:default:frames"
+        ):
+            default_lst = znsocket.List(
+                self.r,
+                "room:default:frames",
+                converter=[ASEConverter],
+                socket=self._refresh_client,
+                max_commands_per_call=100,
+            )
+            if not (len(default_lst) == 1 and len(default_lst[0]) == 0):
+                # prevent copying empty default room
+                default_lst.copy(key=f"room:{self.token}:frames")
+
         # enable tbar if more than 10 messages are sent
         # approximated by the size of the first frame
         lst = znsocket.List(
@@ -303,41 +391,29 @@ class ZnDraw(ZnDrawBase):
             f"room:{self.token}:frames",
             converter=[ASEConverter],
             socket=self._refresh_client,
+            max_commands_per_call=100,
         )
         # TODO: why is there no copy action here?
-        show_tbar = (
-            len(values)
-            * len(
-                znjson.dumps(
-                    values[0], cls=znjson.ZnEncoder.from_converters([ASEConverter])
-                ).encode("utf-8")
-            )
-        ) > (10 * self.maximum_message_size)
+        show_tbar = (len(values[0]) * len(values)) > self.max_atoms_per_call
         tbar = tqdm.tqdm(
             values, desc="Sending frames", unit=" frame", disable=not show_tbar
         )
 
         msg = []
+        n_atoms = 0
 
         for val in tbar:
-            if isinstance(val, ase.Atoms):
-                if not hasattr(val, "connectivity") and self.bond_calculator is not None:
-                    val.connectivity = self.bond_calculator.get_bonds(val)
+            if not hasattr(val, "connectivity") and self.bond_calculator is not None:
+                val.connectivity = self.bond_calculator.get_bonds(val)
 
-                msg.append(val)
-            else:
-                msg.append(val)
-            if (
-                len(
-                    json.dumps(
-                        msg, cls=znjson.ZnEncoder.from_converters([ASEConverter])
-                    ).encode("utf-8")
-                )
-                > self.maximum_message_size
-            ):
+            msg.append(val)
+            n_atoms += len(val)
+
+            if n_atoms > self.max_atoms_per_call:
                 lst.extend(msg)
                 msg = []
-        if len(msg) > 0:  # Only send the message if it's not empty
+                n_atoms = 0
+        if len(msg) > 0:
             lst.extend(msg)
 
     @property
@@ -383,7 +459,10 @@ class ZnDraw(ZnDrawBase):
             "origin": self.name,
         }
         znsocket.List(
-            self.r, f"room:{self.token}:chat", socket=self._refresh_client
+            self.r,
+            f"room:{self.token}:chat",
+            socket=self._refresh_client,
+            max_commands_per_call=100,
         ).append(msg)
 
     @property
@@ -393,6 +472,7 @@ class ZnDraw(ZnDrawBase):
             f"room:{self.token}:chat",
             repr_type="length",
             socket=self._refresh_client,
+            max_commands_per_call=100,
         )
 
     @step.setter
@@ -437,7 +517,10 @@ class ZnDraw(ZnDrawBase):
 
     @property
     def atoms(self) -> ase.Atoms:
-        return self[self.step]
+        try:
+            return self[self.step]
+        except IndexError:
+            return ase.Atoms()
 
     @atoms.setter
     def atoms(self, atoms: ATOMS_LIKE) -> None:
@@ -517,6 +600,7 @@ class ZnDraw(ZnDrawBase):
             repr_type="full",
             socket=self._refresh_client,
             converter=[Object3DConverter],
+            max_commands_per_call=100,
         )
 
     @geometries.setter
@@ -528,22 +612,39 @@ class ZnDraw(ZnDrawBase):
             f"room:{self.token}:geometries",
             socket=self._refresh_client,
             converter=[Object3DConverter],
+            max_commands_per_call=100,
         )
         lst.clear()
         lst.extend(value)
 
     @property
-    def config(self) -> ZnDrawConfig:
-        config: dict = call_with_retry(
-            self.socket,
-            "room:config:get",
-            retries=self.timeout["call_retries"],
+    def config(self) -> znsocket.Dict:
+        conf = znsocket.Dict(
+            self.r,
+            f"room:{self.token}:config",
+            repr_type="full",
+            socket=self._refresh_client,
         )
-        return ZnDrawConfig(
-            vis=self,
-            arrows=ArrowsConfig(**config.get("arrows", {})),
-            scene=Scene(**config.get("scene", {})),
-        )
+        if len(conf) == 0:
+            scene_conf = znsocket.Dict(
+                self.r,
+                f"room:{self.token}:config:scene",
+                repr_type="full",
+                socket=self._refresh_client,
+            )
+            if len(scene_conf) == 0:
+                scene_conf.update(Scene().model_dump())
+            arrows_conf = znsocket.Dict(
+                self.r,
+                f"room:{self.token}:config:arrows",
+                repr_type="full",
+                socket=self._refresh_client,
+            )
+            if len(arrows_conf) == 0:
+                arrows_conf.update(Arrows().model_dump())
+            conf["scene"] = scene_conf
+            conf["arrows"] = arrows_conf
+        return conf
 
     @property
     def locked(self) -> bool:
@@ -552,6 +653,65 @@ class ZnDraw(ZnDrawBase):
     @locked.setter
     def locked(self, value: bool) -> None:
         emit_with_retry(self.socket, "room:lock:set", value)
+
+    def register(
+        self,
+        cls: t.Type[Extension],
+        run_kwargs: dict | None = None,
+        public: bool = False,
+        variant: ExtensionType = ExtensionType.MODIFIER,
+    ):
+        """Register an extension class."""
+        if run_kwargs is None:
+            run_kwargs = {}
+
+        if variant == ExtensionType.MODIFIER:
+            # TODO: need to create a custom vis object for the room!
+            if public:
+                modifier_schema = znsocket.Dict(
+                    self.r,
+                    "schema:default:modifier",
+                    socket=self._refresh_client,
+                )
+            else:
+                modifier_schema = znsocket.Dict(
+                    self.r,
+                    f"schema:{self.token}:modifier",
+                    socket=self._refresh_client,
+                )
+            # TODO: check if the key exists and if it is different?
+            # TODO: also check in the default schema room.
+            # TODO: can not register the same modifier twice!
+            modifier_schema[cls.__name__] = cls.model_json_schema()
+
+            # TODO: if public!
+            if public:
+                modifier_registry = znsocket.Dict(
+                    self.r,
+                    "registry:default:modifier",
+                    socket=self._refresh_client,
+                )
+            else:
+                modifier_registry = znsocket.Dict(
+                    self.r,
+                    f"registry:{self.token}:modifier",
+                    socket=self._refresh_client,
+                )
+            if self.socket.get_sid() not in modifier_registry:
+                modifier_registry[self.socket.get_sid()] = [cls.__name__]
+            else:
+                modifier_registry[self.socket.get_sid()] = modifier_registry[
+                    self.socket.get_sid()
+                ] + [cls.__name__]
+
+            self._modifiers[cls.__name__] = {
+                "cls": cls,
+                "run_kwargs": run_kwargs,
+                "public": public,
+            }
+
+        else:
+            raise NotImplementedError(f"Variant {variant} is not implemented")
 
     def register_modifier(
         self,
@@ -585,57 +745,18 @@ class ZnDraw(ZnDrawBase):
             This can have a performance impact and may lead to timeouts.
 
         """
-        if timeout < 1:
-            raise ValueError("Timeout must be at least 1 second")
-        if timeout > 300:
-            log.critical(
-                "Timeout is set to more than 300 seconds. Modifiers might be killed automatically."
-            )
         if run_kwargs is None:
             run_kwargs = {}
-        if cls.__name__ in self._modifiers:
-            raise ValueError(f"Modifier {cls.__name__} already registered")
 
-        self._modifiers[cls.__name__] = {
-            "cls": cls,
-            "run_kwargs": run_kwargs,
-            "public": public,
-            "frozen": use_frozen,
-            "timeout": timeout,
-        }
+        # if use_frozen:
+        #     cls = cls.frozen()
 
-        _register_modifier(self, self._modifiers[cls.__name__])
-
-    def _run_modifier(self, data: dict):
-        self._available = False
-        room = data.pop("ZNDRAW_CLIENT_ROOM")
-        vis = type(self)(
-            url=self.url, token=room, maximum_message_size=self.maximum_message_size
+        self.register(
+            cls=cls,
+            run_kwargs=run_kwargs,
+            public=public,
+            variant=ExtensionType.MODIFIER,
         )
-        vis.timeout = self.timeout
-
-        try:
-            vis.socket.emit("room:modifier:queue", 0)
-            name = data["method"]["discriminator"]
-
-            instance = self._modifiers[name]["cls"](**data["method"])
-            instance.run(
-                vis,
-                timeout=self._modifiers[name]["timeout"],
-                **self._modifiers[name]["run_kwargs"],
-            )
-        except Exception as e:
-            log.exception(e)
-            vis.log(f"Error: {e}")
-        finally:
-            vis.socket.emit("room:modifier:queue", -1)
-
-            # wait and then disconnect
-            vis.socket.sleep(1)
-            vis.socket.disconnect()
-
-            self._available = True
-            self.socket.emit("modifier:available", list(self._modifiers))
 
 
 @tyex.deprecated("Use ZnDraw instead.")

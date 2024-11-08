@@ -3,9 +3,8 @@ import typing as t
 
 import networkx as nx
 import numpy as np
-from pydantic import Field
+from pydantic import BaseModel, Field
 
-from zndraw.base import Extension, MethodsCollection
 from zndraw.zndraw import ZnDraw
 
 try:
@@ -15,7 +14,7 @@ except ImportError:
     pass
 
 
-class SelectionBase(Extension):
+class SelectionBase(BaseModel):
     def run(self, vis: "ZnDraw") -> None:
         raise NotImplementedError()
 
@@ -120,21 +119,13 @@ class UpdateSelection(SelectionBase):
         vis.selection = vis.selection
 
 
-# Order here matters
-methods = t.Union[
-    ConnectedParticles,
-    NoneSelection,
-    All,
-    Invert,
-    Range,
-    Random,
-    IdenticalSpecies,
-    Neighbour,
-]
-
-
-class Selection(MethodsCollection):
-    method: methods = Field(
-        description="Selection method",
-        discriminator="discriminator",
-    )
+selections: dict[str, t.Type[SelectionBase]] = {
+    ConnectedParticles.__name__: ConnectedParticles,
+    NoneSelection.__name__: NoneSelection,
+    All.__name__: All,
+    Invert.__name__: Invert,
+    Range.__name__: Range,
+    Random.__name__: Random,
+    IdenticalSpecies.__name__: IdenticalSpecies,
+    Neighbour.__name__: Neighbour,
+}
