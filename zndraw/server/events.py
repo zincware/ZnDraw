@@ -17,7 +17,6 @@ from zndraw.tasks import (
     load_zntrack_frames,
     run_analysis_schema,
     run_geometry_schema,
-    run_modifier,
     run_modify_schema,
     setup_public_modifier,
     run_room_worker,
@@ -74,13 +73,14 @@ def init_socketio_events(io: SocketIO):
         else:
             log.critical(f"disconnecting (pyclient) {request.sid}")
 
+        for ref_token in [room, "default"]:
             modifier_registry = znsocket.Dict(
-                r=r, key=f"registry:{room}:modifier", repr_type="full"
+                r=r, key=f"registry:{ref_token}:modifier", repr_type="full"
             )
 
             modifier_schema = znsocket.Dict(
                 r=r,
-                key=f"schema:{room}:modifier",
+                key=f"schema:{ref_token}:modifier",
                 repr_type="full",
                 socket=DummyClient(sio=io),
             )
@@ -161,62 +161,6 @@ def init_socketio_events(io: SocketIO):
         join_room(room)
         log.critical(f"connecting (pyclient) {request.sid} to {room}")
         # join_room(f"pyclients_{token}")
-
-    @io.on("modifier:register")
-    def modifier_register(data: dict):
-        """Register the modifier."""
-        if data["public"] and not session["authenticated"]:
-            log.critical("Unauthenticated user tried to register a default modifier.")
-            return
-
-        r: Redis = current_app.extensions["redis"]
-        room = session.get("token")
-
-        data["ZNDRAW_CLIENT_SID"] = request.sid
-
-        if data.pop("public"):
-            r.hset("room:default:modifiers", data["name"], json.dumps(data))
-            r.sadd(f"room:default:modifiers:{data['name']}", request.sid)
-        else:
-            r.hset(f"room:{room}:modifiers", data["name"], json.dumps(data))
-            r.sadd(f"room:{room}:modifiers:{data['name']}", request.sid)
-
-        # only if public this is required
-        emit("modifier:schema:refresh", broadcast=True)
-
-        room = session.get("token")
-        r: Redis = current_app.extensions["redis"]
-
-        name = data["method"]["discriminator"]
-
-        public = r.smembers(f"room:default:modifiers:{name}")
-        privat = r.smembers(f"room:{room}:modifiers:{name}")
-
-        data["ZNDRAW_CLIENT_ROOM"] = room
-
-        queue_position = 1
-
-        if len(public):
-            # The modifier was registered with public=True
-            queue_position = r.rpush(f"modifier:queue:{name}", json.dumps(data))
-        elif len(privat):
-            # The modifier was registered with public=False
-            queue_position = r.rpush(f"modifier:queue:{room}:{name}", json.dumps(data))
-        else:
-            # This would be the queue for default modifiers.
-            # but they are queued using celery directly.
-            # so no need for redis queue.
-            pass
-
-        emit("room:modifier:queue", queue_position, to=room)
-
-        clients: set[str] = public | privat
-        if len(clients):
-            for sid in clients:
-                # kindly ask every client if they are available
-                emit("modifier:wakeup", to=sid)
-        else:
-            run_modifier.delay(room, data)
 
     @io.on("room:worker:run")
     def room_worker_run():

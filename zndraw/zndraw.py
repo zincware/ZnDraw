@@ -69,8 +69,11 @@ def check_queue(vis: "ZnDraw") -> None:
                     )
                 except IndexError:
                     pass
-
-        # TODO: this now does not differentiate between public and private modifiers
+        
+        # TODO: closing a room does not remove the room from this list, so it is ever growing
+        # TODO: only run if there are actually public modifiers
+        # TODO: access to this should only be given to authenticated users, needs to addted to znsocket
+        # TODO: add running state?
         public_queue = znsocket.Dict(
             r=vis.r,
             socket=vis._refresh_client,
@@ -80,14 +83,15 @@ def check_queue(vis: "ZnDraw") -> None:
         for room in public_queue:
             for key in public_queue[room]:
                 if key in vis._modifiers:
-                    new_vis = ZnDraw(url=vis.url, token=room, r=vis.r)
-                    try:
-                        task = public_queue[room].pop(key)
-                        vis._modifiers[key]["cls"](**task).run(
-                            new_vis, **vis._modifiers[key]["run_kwargs"]
-                        )
-                    except IndexError:
-                        pass
+                    if vis._modifiers[key]["public"]:
+                        new_vis = ZnDraw(url=vis.url, token=room, r=vis.r)
+                        try:
+                            task = public_queue[room].pop(key)
+                            vis._modifiers[key]["cls"](**task).run(
+                                new_vis, **vis._modifiers[key]["run_kwargs"]
+                            )
+                        except IndexError:
+                            pass
         vis.socket.sleep(1)  # wakeup timeout
 
 
@@ -654,11 +658,19 @@ class ZnDraw(ZnDrawBase):
             # TODO: can not register the same modifier twice!
             modifier_schema[cls.__name__] = cls.model_json_schema()
 
-            modifier_registry = znsocket.Dict(
-                self.r,
-                f"registry:{self.token}:modifier",
-                socket=self._refresh_client,
-            )
+            # TODO: if public!
+            if public:
+                modifier_registry = znsocket.Dict(
+                    self.r,
+                    "registry:default:modifier",
+                    socket=self._refresh_client,
+                )
+            else:
+                modifier_registry = znsocket.Dict(
+                    self.r,
+                    f"registry:{self.token}:modifier",
+                    socket=self._refresh_client,
+                )
             if self.socket.get_sid() not in modifier_registry:
                 modifier_registry[self.socket.get_sid()] = [cls.__name__]
             else:
@@ -666,7 +678,7 @@ class ZnDraw(ZnDrawBase):
                     self.socket.get_sid()
                 ] + [cls.__name__]
 
-            self._modifiers[cls.__name__] = {"cls": cls, "run_kwargs": run_kwargs}
+            self._modifiers[cls.__name__] = {"cls": cls, "run_kwargs": run_kwargs, "public": public}
 
         else:
             raise NotImplementedError(f"Variant {variant} is not implemented")

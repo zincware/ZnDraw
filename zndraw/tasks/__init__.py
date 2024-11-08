@@ -144,80 +144,6 @@ def read_file(fileio: dict) -> None:
 
 
 @shared_task
-def run_modifier(room, data: dict) -> None:
-    from zndraw import ZnDraw
-    from zndraw.modify import Modifier
-
-    vis = ZnDraw(
-        r=current_app.extensions["redis"],
-        url=current_app.config["SERVER_URL"],
-        token=room,
-    )
-    if not current_app.config.get("COMPUTE_BONDS", False):
-        vis.bond_calculator = None
-    vis.socket.emit("room:modifier:queue", 0)
-    try:
-        if vis.locked:
-            raise RoomLockedError("The room you are trying to modify is locked.")
-        modifier = Modifier(**data)
-        modifier.run(vis)
-    except Exception as e:
-        vis.log(str(e))
-    finally:
-        vis.socket.emit("room:modifier:queue", -1)
-
-    # wait and then disconnect
-    vis.socket.sleep(1)
-    vis.socket.disconnect()
-
-
-@shared_task
-def run_selection(room, data: dict) -> None:
-    from zndraw import ZnDraw
-    from zndraw.selection import Selection
-
-    vis = ZnDraw(
-        r=current_app.extensions["redis"],
-        url=current_app.config["SERVER_URL"],
-        token=room,
-    )
-    vis.socket.emit("room:selection:queue", 0)
-    try:
-        selection = Selection(**data)
-        selection.run(vis)
-    finally:
-        vis.socket.emit("room:selection:queue", -1)
-
-    # wait and then disconnect
-    vis.socket.sleep(1)
-    vis.socket.disconnect()
-
-
-@shared_task
-def run_analysis(room, data: dict) -> None:
-    from zndraw.analyse import Analysis
-    from zndraw.zndraw import ZnDrawLocal
-
-    vis = ZnDrawLocal(
-        r=current_app.extensions["redis"],
-        url=current_app.config["SERVER_URL"],
-        token=room,
-    )
-    vis.socket.emit("room:analysis:queue", 0)
-    try:
-        analysis = Analysis(**data)
-        analysis.run(vis)
-    except Exception as e:
-        vis.log(str(e))
-    finally:
-        vis.socket.emit("room:analysis:queue", -1)
-
-    # wait and then disconnect
-    vis.socket.sleep(1)
-    vis.socket.disconnect()
-
-
-@shared_task
 def run_upload_file(room, data: dict):
     from io import StringIO
 
@@ -473,10 +399,16 @@ def setup_public_modifier(room):
         key=f"queue:{room}:modifier",
     )
 
+    # We link the room queue to the default queue
+    # so that the public modifier can be used in the room
+    # public modifiers iterate the default_modifier_queue
+    # and check for applicable tasks to pick up.
+    # TODO: remove rooms from this list if they are closed
+    # TODO: when to close a room?
     default_modifier_queue = znsocket.Dict(
         r=current_app.extensions["redis"],
         socket=vis._refresh_client,
-        key=f"queue:default:modifier",
+        key="queue:default:modifier",
     )
 
     default_modifier_queue[room] = room_modifier_queue
