@@ -688,33 +688,64 @@ const TutorialModal: React.FC<TutorialModalProps> = ({ show, onHide, url }) => {
   );
 };
 
-function SiMGenButtons({ queuePosition }: { queuePosition: number }) {
-  const runConnect = () => {
-    socket.emit("modifier:run", {
-      method: { discriminator: "Connect" },
+function SiMGenButtons({ visible, token }: { visible: boolean, token: string }) {
+  const [disabledBtn, setDisabledBtn] = useState<boolean>(false);
+  const queueRef = useRef<any>(null);
+
+  useEffect(() => {
+    const queue = new znsocket.Dict({
+      client: client,
+      key: "queue:" + token + ":modifier",
     });
+    queueRef.current = queue;
+
+    queue.length().then((length: any) => {
+      setDisabledBtn(length > 0);
+    });
+    queue.onRefresh(async (x: any) => {
+      const length = await queue.length();
+      setDisabledBtn(length > 0);
+    });
+
+    return () => {
+      queue.offRefresh();
+    };
+  }, [token]);
+
+  const runConnect = () => {
+    if (queueRef.current) {
+      queueRef.current["Connect"] = {};
+      socket.emit("room:worker:run");
+      setDisabledBtn(true);
+    }
   };
 
   const runGenerate = () => {
-    socket.emit("modifier:run", {
-      method: { discriminator: "SiMGenDemo" },
-    });
+    if (queueRef.current) {
+      queueRef.current["SiMGenDemo"] = {};
+      socket.emit("room:worker:run");
+      setDisabledBtn(true);
+    }
   };
 
   const createNewCanvas = () => {
-    socket.emit("modifier:run", {
-      method: { discriminator: "NewCanvas" },
-    });
+    if (queueRef.current) {
+      queueRef.current["NewCanvas"] = {};
+      socket.emit("room:worker:run");
+      setDisabledBtn(true);
+    }
   };
 
   return (
     <>
+    {visible && (
+      <>
       <BtnTooltip text="Connect selected atoms (shift click)">
         <Button
           variant="success"
           className="mx-1"
           onClick={runConnect}
-          disabled={queuePosition != -1}
+          disabled={disabledBtn}
         >
           <TbPlugConnected /> Connect
         </Button>
@@ -724,7 +755,7 @@ function SiMGenButtons({ queuePosition }: { queuePosition: number }) {
           variant="success"
           className="mx-1"
           onClick={runGenerate}
-          disabled={queuePosition != -1}
+          disabled={disabledBtn}
         >
           <FaRocket /> Generate
         </Button>
@@ -734,11 +765,13 @@ function SiMGenButtons({ queuePosition }: { queuePosition: number }) {
           variant="success"
           className="mx-1"
           onClick={createNewCanvas}
-          disabled={queuePosition != -1}
+          disabled={disabledBtn}
         >
           <FaFileCirclePlus /> New Canvas
         </Button>
       </BtnTooltip>
+      </>
+    )}
     </>
   );
 }
@@ -926,7 +959,7 @@ const HeadBar = ({
                   <FaHandSparkles />
                 </Button>
               </BtnTooltip>
-              {showSiMGen && <SiMGenButtons queuePosition={modifierQueue} />}
+              <SiMGenButtons visible={showSiMGen} token={token}/>
             </Nav>
             <Nav className="ms-auto">
               {tutorialURL && (

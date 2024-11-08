@@ -14,80 +14,9 @@ log = logging.getLogger(__name__)
 
 
 class Extension(BaseModel):
-    # TODO: can I hide the discriminator field in the model json schema automatically here?
-    @classmethod
-    def __init_subclass__(cls, **kwargs):
-        super().__init_subclass__(**kwargs)
-        # Automatically add the discriminator field
-        cls.__annotations__["discriminator"] = t.Literal[cls.__name__]
-        setattr(cls, "discriminator", cls.__name__)
 
     def run(self, vis, **kwargs) -> None:
         raise NotImplementedError("run method must be implemented in subclass")
-
-    @staticmethod
-    def get_atoms() -> ase.Atoms:
-        """Get the ase atoms object at the current position in the room"""
-        from zndraw import ZnDraw
-
-        room = session["token"]
-
-        vis = ZnDraw(
-            r=current_app.extensions["redis"],
-            url=current_app.config["SERVER_URL"],
-            token=room,
-        )
-        atoms = vis.atoms
-        vis.socket.disconnect()
-        # vis.socket.sleep(1)
-        return atoms
-
-
-class MethodsCollection(BaseModel):
-    """Base class for collections of methods for modification, analysis, etc."""
-
-    method: t.Type[Extension] = Field(..., description="Select a method.")
-
-    def run(self, vis, **kwargs) -> None:
-        self.method.run(vis, **kwargs)
-
-    @classmethod
-    def get_updated_schema(
-        cls, extensions: t.Optional[t.List[t.Type[Extension]]] = None
-    ) -> dict:
-        methods = cls.__annotations__["method"]
-        if extensions is not None and len(extensions) > 0:
-            extensions_types = t.Union[tuple(extensions)]
-            extended_methods = t.Union[extensions_types, methods]
-        else:
-            extended_methods = methods
-
-        # get the description of the cls.method field
-        method_field = cls.model_fields["method"]
-
-        field_kwargs = {
-            "description": method_field.description,
-            "discriminator": "discriminator",
-        }
-        field_kwargs["default"] = method_field.default
-        field_kwargs["default_factory"] = method_field.default_factory
-
-        extended_cls = create_model(
-            cls.__name__,
-            __base__=cls,
-            method=(
-                extended_methods,
-                Field(**field_kwargs),
-            ),
-        )
-        schema = extended_cls.model_json_schema()
-        # TODO: iterate through all fields that have the
-        for prop in [x.__name__ for x in t.get_args(extended_methods)]:
-            schema["$defs"][prop]["properties"]["discriminator"]["options"] = {
-                "hidden": True
-            }
-
-        return schema
 
 
 @dataclasses.dataclass  # TODO: move to a separate file, so it can be imported in other files

@@ -12,8 +12,6 @@ from . import UpdateScene
 class NewScene(UpdateScene):
     """Clear the scene, deleting all atoms and points."""
 
-    discriminator: t.Literal["NewScene"] = Field("NewScene")
-
     def run(self, vis: "ZnDraw", **kwargs) -> None:
         del vis[vis.step + 1 :]
         vis.points = []
@@ -27,8 +25,6 @@ class NewScene(UpdateScene):
 
 class ClearTools(UpdateScene):
     """Clear the tools, removing all guiding points and undoing any selection."""
-
-    discriminator: t.Literal["ClearTools"] = Field("ClearTools")
 
     def run(self, vis: "ZnDraw", **kwargs) -> None:
         vis.points = []
