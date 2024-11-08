@@ -7,6 +7,7 @@ import {
   FaRegHandPointer,
   FaRegMap,
   FaGithub,
+  FaPlay,
 } from "react-icons/fa";
 import { IoStop } from "react-icons/io5";
 import { FaCircleNodes } from "react-icons/fa6";
@@ -270,14 +271,14 @@ const SidebarMenu2: any = ({
           {!sendImmediately && (
             <ButtonGroup aria-label="Basic example">
               <Button
-                variant="primary"
+                variant="outline-primary"
                 onClick={submitEditor}
-                className="ms-2" // Adds some spacing between select and button
+                className="ms-2 d-flex align-items-center"
                 disabled={disabledBtn}
               >
-                Submit
+                <FaPlay className="me-1"/> Submit
               </Button>
-              <Button variant="danger" onClick={cancelTask}>
+              <Button variant="outline-danger" onClick={cancelTask}>
                 <IoStop />
               </Button>
             </ButtonGroup>
