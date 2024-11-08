@@ -66,9 +66,12 @@ def check_queue(vis: "ZnDraw") -> None:
             if key in vis._modifiers:
                 try:
                     task = modifier_queue.pop(key)
-                    vis._modifiers[key]["cls"](**task).run(
-                        vis, **vis._modifiers[key]["run_kwargs"]
-                    )
+                    try:
+                        vis._modifiers[key]["cls"](**task).run(
+                            vis, **vis._modifiers[key]["run_kwargs"]
+                        )
+                    except Exception as err:
+                        vis.log(f"Error running modifier `{key}`: {err}")
                 except IndexError:
                     pass
 
@@ -90,11 +93,17 @@ def check_queue(vis: "ZnDraw") -> None:
                             new_vis = ZnDraw(url=vis.url, token=room, r=vis.r)
                             try:
                                 task = public_queue[room].pop(key)
-                                vis._modifiers[key]["cls"](**task).run(
-                                    new_vis, **vis._modifiers[key]["run_kwargs"]
-                                )
+                                try:
+                                    vis._modifiers[key]["cls"](**task).run(
+                                        new_vis, **vis._modifiers[key]["run_kwargs"]
+                                    )
+                                except Exception as err:
+                                    new_vis.log(f"Error running modifier `{key}`: {err}")
                             except IndexError:
                                 pass
+                            
+                            new_vis.socket.sleep(1)
+                            new_vis.socket.disconnect()
         vis.socket.sleep(1)  # wakeup timeout
 
 
