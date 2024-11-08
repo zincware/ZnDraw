@@ -14,7 +14,7 @@ from zndraw.bonds import ASEComputeBonds
 from zndraw.draw import geometries
 from zndraw.exceptions import RoomLockedError
 from zndraw.modify import modifier
-from zndraw.scene import Scene
+from zndraw.config import Scene
 from zndraw.selection import selections
 from zndraw.utils import load_plots_to_dict
 
@@ -336,11 +336,11 @@ def run_scene_schema(room) -> None:
     # we also want to initialize the `vis.config`
     # calling the config will set the default values
     # but not overwrite the existing ones, if they are set
-    orig_config = vis.config
+    orig_scene_config = vis.config["scene"]
 
     for key, val in scene_schema["properties"].items():
         try:
-            scene_schema["properties"][key]["default"] = orig_config["scene"][key]
+            scene_schema["properties"][key]["default"] = orig_scene_config[key]
         except KeyError:
             vis.log(f"KeyError: {key}")
 
@@ -508,9 +508,11 @@ def run_room_worker(room):
 
     for key, val in scene_queue.items():
         if key == "Scene":  # hotfix
-            vis.config["scene"] = val
+            vis.config["scene"].update(val)
         else:
-            vis.config[key] = val
+            vis.config[key].update(val)
+        # TODO: also update the schema to update all other rooms
+        vis.config["trigger_update"] = True
 
     modifier_queue = znsocket.Dict(
         r=current_app.extensions["redis"],

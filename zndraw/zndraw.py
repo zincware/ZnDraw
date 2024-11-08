@@ -19,7 +19,7 @@ from redis import Redis
 from zndraw.abc import Message
 from zndraw.base import Extension, ZnDrawBase
 from zndraw.bonds import ASEComputeBonds
-from zndraw.config import ZnDrawConfig
+from zndraw.config import Scene, Arrows
 from zndraw.converter import Object3DConverter
 from zndraw.draw import Object3D
 from zndraw.figure import Figure, FigureConverter
@@ -631,7 +631,24 @@ class ZnDraw(ZnDrawBase):
             socket=self._refresh_client,
         )
         if len(conf) == 0:
-            conf.update(ZnDrawConfig(vis=self).to_dict())
+            scene_conf = znsocket.Dict(
+                self.r,
+                f"room:{self.token}:config:scene",
+                repr_type="full",
+                socket=self._refresh_client,
+            )
+            if len(scene_conf) == 0:
+                scene_conf.update(Scene().model_dump())
+            arrows_conf = znsocket.Dict(
+                self.r,
+                f"room:{self.token}:config:arrows",
+                repr_type="full",
+                socket=self._refresh_client,
+            )
+            if len(arrows_conf) == 0:
+                arrows_conf.update(Arrows().model_dump())
+            conf["scene"] = scene_conf
+            conf["arrows"] = arrows_conf
         return conf
 
     @property

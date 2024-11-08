@@ -564,18 +564,19 @@ export const setupConfig = (token: string, setConfig: any) => {
     });
 
     // initial load
-    con.entries().then((items: any) => {
-      const result = Object.fromEntries(items);
-      console.log(result);
-      // check if len result > 0
+    con.entries()
+    .then((items: any) => con.toObject())
+    .then((result) => {
       if (Object.keys(result).length > 0) {
         setConfig(result);
       }
+    })
+    .catch((error) => {
+      console.error("Failed to load config:", error);
     });
 
     con.onRefresh(async (x: any) => {
-      const result = Object.fromEntries(await con.entries());
-      console.log("config updated externally");
+      const result = await con.toObject();
       if (Object.keys(result).length > 0) {
         setConfig(result);
       }

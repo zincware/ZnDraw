@@ -106,12 +106,14 @@ const SidebarMenu2: any = ({
   const [sharedSchema, setSharedSchema] = useState<any>({});
   const [editorValue, setEditorValue] = useState<any>(null);
   const [disabledBtn, setDisabledBtn] = useState<boolean>(false);
+  const initialTrigger = useRef<boolean>(true);
   const editorRef = useRef<HTMLDivElement>(null);
   const queueRef = useRef<any>(null);
 
   useEffect(() => {
     if (visible) {
       socket.emit("schema:refresh");
+      initialTrigger.current = true;
     }
   }, [visible]);
 
@@ -222,6 +224,11 @@ const SidebarMenu2: any = ({
 
   useEffect(() => {
     if (sendImmediately && editorValue && userInput && queueRef.current) {
+      if (initialTrigger.current) {
+        initialTrigger.current = false;
+        return;
+      }
+      console.log("Sending immediately");
       submitEditor();
     }
   }, [editorValue]);
