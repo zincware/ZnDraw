@@ -299,13 +299,6 @@ const SidebarMenu2: any = ({
           )}
         </Form.Group>
         <div ref={editorRef}></div>
-        {/* {useSubmit && (
-          <Button onClick={submitEditor} disabled={queuePosition >= 0}>
-            {queuePosition > 0 && `Queue position: ${queuePosition}`}
-            {queuePosition == 0 && `Running`}
-            {queuePosition < 0 && `Submit`}
-          </Button>
-        )} */}
       </Card.Body>
     </Card>
   );
@@ -430,18 +423,6 @@ function SideBar({ token }: { token: string }) {
           </BtnTooltip>
         </Card>
       </Navbar>
-      {/* <SidebarMenu
-        schema={selectionSchema}
-        onSubmit={(data: any) => {
-          socket.emit("selection:run", data);
-        }}
-        queuePosition={selectionQueue}
-        trigger={triggerSelection}
-        setTrigger={setTriggerSelection}
-        visible={visibleOption == "selection"}
-        useSubmit={true}
-        closeMenu={() => setVisibleOption("")}
-      /> */}
       <SidebarMenu2
         name="selection"
         visible={visibleOption == "selection"} // remove
@@ -449,16 +430,6 @@ function SideBar({ token }: { token: string }) {
         closeMenu={() => setVisibleOption("")}
         sendImmediately={false}
       />
-      {/* <SidebarMenu
-        schema={modifierSchema}
-        onSubmit={(data: any) => {
-          socket.emit("modifier:run", data);
-        }}
-        queuePosition={modifierQueue}
-        visible={visibleOption == "modifier"}
-        useSubmit={true}
-        closeMenu={() => setVisibleOption("")}
-      /> */}
       <SidebarMenu2
         name="modifier"
         visible={visibleOption == "modifier"}
