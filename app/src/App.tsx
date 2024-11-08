@@ -572,6 +572,7 @@ export default function App() {
               setHoveredId={setHoveredId}
               setTriggerSelection={setTriggerSelection}
               sceneSettings={roomConfig["scene"]}
+              token={token}
             />
             <BondInstances
               frame={currentFrame}

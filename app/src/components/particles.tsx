@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import * as THREE from "three";
+import * as znsocket from "znsocket";
+import { client, socket } from "../socket";
 
 import { useFrame, useThree } from "@react-three/fiber";
 import { Line } from "@react-three/drei";
@@ -112,6 +114,7 @@ export const ParticleInstances = ({
   setHoveredId,
   setTriggerSelection,
   sceneSettings,
+  token,
 }: {
   frame: Frame;
   selectedIds: Set<number>;
@@ -124,6 +127,7 @@ export const ParticleInstances = ({
   setHoveredId: any;
   setTriggerSelection: any;
   sceneSettings: any;
+  token: string;
 }) => {
   const meshRef = useRef();
 
@@ -215,7 +219,13 @@ export const ParticleInstances = ({
   };
 
   const handleDoubleClick = (event) => {
-    setTriggerSelection(true);
+
+    const queue = new znsocket.Dict({
+      client: client,
+      key: "queue:" + token + ":" + "selection",
+    });
+    queue["ConnectedParticles"] = {};
+    socket.emit("room:worker:run");
     event.stopPropagation();
   };
 
