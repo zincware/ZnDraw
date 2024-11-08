@@ -26,6 +26,7 @@ import { Frames, Frame, Player } from "./components/particles";
 import { Geometries } from "./components/geometries";
 import "./App.css";
 import { Plotting } from "./components/plotting";
+import * as znsocket from "znsocket";
 
 import { Canvas, useThree, useFrame } from "@react-three/fiber";
 import {
@@ -400,9 +401,13 @@ export default function App() {
           }
         } else {
           if (selectedIds.size > 0) {
-            socket.emit("modifier:run", {
-              method: { discriminator: "Delete" },
+            const queue = new znsocket.Dict({
+              client: client,
+              key: "queue:" + token + ":" + "modifier",
             });
+            queue["Delete"] = {};
+            socket.emit("room:worker:run");
+
           }
         }
       } else if (event.key == "c") {
