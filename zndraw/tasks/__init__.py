@@ -375,13 +375,14 @@ def run_modify_schema(room) -> None:
     dct = znsocket.Dict(
         r=current_app.extensions["redis"],
         socket=vis._refresh_client,
-        key=f"schema:default:modifier",
+        key="schema:default:modifier",
     )
     for key, val in modifier.items():
         dct[key] = val.model_json_schema()
 
     vis.socket.sleep(1)
     vis.socket.disconnect()
+
 
 @shared_task
 def setup_public_modifier(room):

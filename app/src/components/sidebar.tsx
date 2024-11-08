@@ -196,7 +196,6 @@ const SidebarMenu2: any = ({
       client: client,
       key: "schema:default:" + name,
     });
-    
 
     const queue = new znsocket.Dict({
       client: client,

@@ -2,7 +2,6 @@ import dataclasses
 import datetime
 import enum
 import importlib.metadata
-import json
 import logging
 import typing as t
 
@@ -72,7 +71,7 @@ def check_queue(vis: "ZnDraw") -> None:
                     )
                 except IndexError:
                     pass
-        
+
         # TODO: closing a room does not remove the room from this list, so it is ever growing
         # TODO: only run if there are actually public modifiers
         # TODO: access to this should only be given to authenticated users, needs to addted to znsocket
@@ -414,14 +413,14 @@ class ZnDraw(ZnDrawBase):
 
             msg.append(val)
             n_atoms += len(val)
-            
+
             if n_atoms > self.max_atoms_per_call:
                 lst.extend(msg)
                 msg = []
                 n_atoms = 0
         if len(msg) > 0:
             lst.extend(msg)
-    
+
     @property
     def selection(self) -> list[int]:
         try:
@@ -690,7 +689,11 @@ class ZnDraw(ZnDrawBase):
                     self.socket.get_sid()
                 ] + [cls.__name__]
 
-            self._modifiers[cls.__name__] = {"cls": cls, "run_kwargs": run_kwargs, "public": public}
+            self._modifiers[cls.__name__] = {
+                "cls": cls,
+                "run_kwargs": run_kwargs,
+                "public": public,
+            }
 
         else:
             raise NotImplementedError(f"Variant {variant} is not implemented")
@@ -739,7 +742,6 @@ class ZnDraw(ZnDrawBase):
             public=public,
             variant=ExtensionType.MODIFIER,
         )
-
 
 
 @tyex.deprecated("Use ZnDraw instead.")

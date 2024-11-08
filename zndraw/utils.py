@@ -1,14 +1,9 @@
 import functools
-import importlib.util
-import json
 import logging
 import pathlib
 import socket
-import sys
-import tempfile
 import typing as t
 import urllib.parse
-import uuid
 from urllib.parse import urlparse
 
 import ase

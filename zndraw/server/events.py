@@ -2,7 +2,6 @@ import dataclasses
 import importlib
 import importlib.metadata
 import importlib.util
-import json
 import logging
 import uuid
 
@@ -18,11 +17,11 @@ from zndraw.tasks import (
     run_analysis_schema,
     run_geometry_schema,
     run_modify_schema,
-    setup_public_modifier,
     run_room_worker,
     run_scene_schema,
     run_selection_schema,
     run_upload_file,
+    setup_public_modifier,
 )
 
 log = logging.getLogger(__name__)
@@ -92,7 +91,9 @@ def init_socketio_events(io: SocketIO):
                         break
                 else:
                     log.debug(f"Remove {modifier} from room {room}")
-                    modifier_schema.pop(modifier) # TODO this does not work well with public yet.
+                    modifier_schema.pop(
+                        modifier
+                    )  # TODO this does not work well with public yet.
 
     @io.on("webclient:connect")
     def webclient_connect():
@@ -167,7 +168,7 @@ def init_socketio_events(io: SocketIO):
         """Start a worker to process all (available) queued tasks."""
         room = session.get("token")
         run_room_worker.delay(room)
-    
+
     @io.on("schema:refresh")
     def schema_refresh():
         room = session.get("token")

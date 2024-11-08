@@ -1,10 +1,10 @@
 import numpy as np
 import numpy.testing as npt
-import pytest
-from ase.build import bulk, molecule
 import znsocket
+from ase.build import bulk, molecule
 
 from zndraw import Extension, ZnDraw
+
 
 def run_queue(vis, key, msg: dict):
     modifier_queue = znsocket.Dict(
@@ -206,7 +206,7 @@ def test_modify_RemoveAtoms(server):
     vis.append(molecule("H2O"))
     assert len(vis) == 2
     vis.step = 0
-    
+
     run_queue(vis, "modifier", {"RemoveAtoms": {}})
 
     assert len(vis) == 1
