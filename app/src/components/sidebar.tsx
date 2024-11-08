@@ -171,7 +171,10 @@ const SidebarMenu2: any = ({
 
   // set the default userInput to the first key in the schema, if userInput is empty
   useEffect(() => {
-    if (userInput === undefined && Object.keys({ ...sharedSchema, ...schema }).length > 0) {
+    if (
+      userInput === undefined &&
+      Object.keys({ ...sharedSchema, ...schema }).length > 0
+    ) {
       setUserInput(Object.keys({ ...sharedSchema, ...schema })[0]);
     }
   }, [schema, sharedSchema, userInput]);
@@ -297,11 +300,7 @@ const SidebarMenu2: any = ({
   );
 };
 
-function SideBar({
-  token,
-}: {
-  token: string;
-}) {
+function SideBar({ token }: { token: string }) {
   const [visibleOption, setVisibleOption] = useState<string>("");
   useEffect(() => {
     if (visibleOption !== "") {
