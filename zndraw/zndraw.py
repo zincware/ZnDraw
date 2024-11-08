@@ -106,21 +106,6 @@ def check_queue(vis: "ZnDraw") -> None:
         vis.socket.sleep(1)  # wakeup timeout
 
 
-def _register_modifier(vis: "ZnDraw", data: RegisterModifier) -> None:
-    log.debug(f"Registering modifier `{data['cls'].__name__}`")
-    vis.socket.emit(
-        "modifier:register",
-        {
-            "schema": data["cls"].model_json_schema(),
-            "name": data["cls"].__name__,
-            "public": data["public"],
-            "timeout": data["timeout"],
-        },
-    )
-    if vis._available:
-        vis.socket.emit("modifier:available", list(vis._modifiers))
-
-
 def _check_version_compatibility(server_version: str) -> None:
     if server_version != __version__:
         log.warning(
@@ -218,9 +203,6 @@ class ZnDraw(ZnDrawBase):
             },
             retries=self.timeout["emit_retries"],
         )
-
-        for data in self._modifiers.values():
-            _register_modifier(self, data)
 
     def __getitem__(self, index: int | list | slice) -> ase.Atoms | list[ase.Atoms]:
         single_item = isinstance(index, int)
