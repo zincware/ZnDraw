@@ -290,7 +290,6 @@ class ZnDraw(ZnDrawBase):
                     self.r,
                     "room:default:frames",
                     socket=self._refresh_client,
-                    max_commands_per_call=100,
                 )
             )
         return len(
@@ -298,7 +297,6 @@ class ZnDraw(ZnDrawBase):
                 self.r,
                 f"room:{self.token}:frames",
                 socket=self._refresh_client,
-                max_commands_per_call=100,
             )
         )
 
@@ -347,7 +345,6 @@ class ZnDraw(ZnDrawBase):
             f"room:{self.token}:frames",
             converter=[ASEConverter],
             socket=self._refresh_client,
-            max_commands_per_call=100,
         )
         if not self.r.exists(f"room:{self.token}:frames") and self.r.exists(
             "room:default:frames"
@@ -357,7 +354,6 @@ class ZnDraw(ZnDrawBase):
                 "room:default:frames",
                 converter=[ASEConverter],
                 socket=self._refresh_client,
-                max_commands_per_call=100,
             )
             if not (len(default_lst) == 1 and len(default_lst[0]) == 0):
                 # prevent copying empty default room
