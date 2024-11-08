@@ -240,6 +240,11 @@ const SidebarMenu2: any = ({
     }
   }
 
+  function capitalizeFirstLetter(text: string) {
+    if (!text) return ""; // Handle empty or undefined text
+    return text.charAt(0).toUpperCase() + text.slice(1);
+  }
+
   return (
     <Card
       className="rounded-0 border-start-0 overflow-y-auto rounded-end"
@@ -260,7 +265,7 @@ const SidebarMenu2: any = ({
           backgroundColor: "inherit", // Use the same background color as the rest of the card
         }}
       >
-        <Card.Title>{name}</Card.Title>
+        <Card.Title>{capitalizeFirstLetter(name)}</Card.Title>
         <Button variant="close" className="ms-auto" onClick={closeMenu} />
       </Card.Header>
       <Card.Body style={{ paddingBottom: 80 }}>
