@@ -40,9 +40,8 @@ class Scene(BaseModel):
     particle_size: float = Field(1.0, ge=0.1, le=5, description="Particle Size")
     bond_size: float = Field(1.0, ge=0.1, le=5, description="Bonds Size")
     # wireframe: bool = Field(False, description="Wireframe")
-    loop: bool = Field(
+    animation_loop: bool = Field(
         False,
-        alias="Animation Loop",
         description="Automatically restart animation when finished.",
     )
     simulation_box: bool = Field(
@@ -111,7 +110,7 @@ class Scene(BaseModel):
         schema["properties"]["vectors"]["default"] = ""
 
         # schema["properties"]["wireframe"]["format"] = "checkbox"
-        schema["properties"]["Animation Loop"]["format"] = "checkbox"
+        schema["properties"]["animation_loop"]["format"] = "checkbox"
         schema["properties"]["simulation_box"]["format"] = "checkbox"
         schema["properties"]["vectorfield"]["format"] = "checkbox"
         schema["properties"]["frame_update"]["format"] = "checkbox"

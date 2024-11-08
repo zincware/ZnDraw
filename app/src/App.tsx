@@ -639,7 +639,7 @@ export default function App() {
               step={step}
               setStep={setStep}
               fps={roomConfig["scene"].fps}
-              loop={roomConfig["scene"]["Animation Loop"]}
+              loop={roomConfig["scene"]["animation_loop"]}
               length={length}
               selectedFrames={selectedFrames}
             />
