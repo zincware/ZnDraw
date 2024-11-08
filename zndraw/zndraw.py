@@ -54,6 +54,9 @@ class ExtensionType(str, enum.Enum):
 def check_queue(vis: "ZnDraw") -> None:
     # TODO: if there if a public modifier, iterate the queue:default:modifier
     while True:
+        if len(vis._modifiers) == 0:
+            vis.socket.sleep(1)
+            continue
         modifier_queue = znsocket.Dict(
             r=vis.r,
             socket=vis._refresh_client,
@@ -74,24 +77,25 @@ def check_queue(vis: "ZnDraw") -> None:
         # TODO: only run if there are actually public modifiers
         # TODO: access to this should only be given to authenticated users, needs to addted to znsocket
         # TODO: add running state?
-        public_queue = znsocket.Dict(
-            r=vis.r,
-            socket=vis._refresh_client,
-            key="queue:default:modifier",
-        )
+        if any(vis._modifiers[key]["public"] for key in vis._modifiers):
+            public_queue = znsocket.Dict(
+                r=vis.r,
+                socket=vis._refresh_client,
+                key="queue:default:modifier",
+            )
 
-        for room in public_queue:
-            for key in public_queue[room]:
-                if key in vis._modifiers:
-                    if vis._modifiers[key]["public"]:
-                        new_vis = ZnDraw(url=vis.url, token=room, r=vis.r)
-                        try:
-                            task = public_queue[room].pop(key)
-                            vis._modifiers[key]["cls"](**task).run(
-                                new_vis, **vis._modifiers[key]["run_kwargs"]
-                            )
-                        except IndexError:
-                            pass
+            for room in public_queue:
+                for key in public_queue[room]:
+                    if key in vis._modifiers:
+                        if vis._modifiers[key]["public"]:
+                            new_vis = ZnDraw(url=vis.url, token=room, r=vis.r)
+                            try:
+                                task = public_queue[room].pop(key)
+                                vis._modifiers[key]["cls"](**task).run(
+                                    new_vis, **vis._modifiers[key]["run_kwargs"]
+                                )
+                            except IndexError:
+                                pass
         vis.socket.sleep(1)  # wakeup timeout
 
 
