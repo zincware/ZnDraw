@@ -19,7 +19,6 @@ pydantic = "^2"
 python-socketio = {extras = ["client"], version = "^5.11"}
 plotly = "^5"
 pandas = "^2"
-datamodel-code-generator = "^0.25"
 celery = "^5"
 sqlalchemy = "^2"
 redis = "^5"
