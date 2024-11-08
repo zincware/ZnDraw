@@ -62,7 +62,6 @@ const useJSONEditor = (
         if (useSubmit) {
           // when using the submit button, we need to set the user input on ready
           // otherwise, it could be None.
-          console.log("Setting user input on ready");
           if (JSONEditorRef.current.validate()) {
             const editorValue = JSONEditorRef.current.getValue();
             setUserInput(editorValue);
@@ -94,77 +93,6 @@ const useJSONEditor = (
   return editorRef;
 };
 
-const SidebarMenu: React.FC<SidebarMenuProps> = ({
-  schema,
-  onSubmit,
-  queuePosition,
-  trigger,
-  setTrigger,
-  visible,
-  useSubmit,
-  closeMenu,
-}) => {
-  const [userInput, setUserInput] = useState<any>(null);
-
-  function submitEditor() {
-    if (onSubmit) {
-      onSubmit(userInput);
-    }
-  }
-  useEffect(() => {
-    if (trigger) {
-      submitEditor();
-      if (setTrigger) {
-        setTrigger(false);
-      }
-    }
-  }, [trigger]);
-
-  const editorRef = useJSONEditor(schema, setUserInput, useSubmit);
-
-  useEffect(() => {
-    if (!useSubmit && userInput !== null) {
-      submitEditor();
-    }
-  }, [userInput, useSubmit]);
-
-  return (
-    <Card
-      className="rounded-0 border-start-0 overflow-y-auto rounded-end"
-      style={{
-        position: "fixed",
-        top: "50px",
-        left: "50px",
-        height: "100%",
-        maxWidth: "35%",
-        margin: 0,
-        padding: 0,
-        display: visible ? "block" : "none",
-      }}
-    >
-      <Card.Header
-        className="d-flex justify-content-between align-items-center"
-        style={{
-          backgroundColor: "inherit", // Use the same background color as the rest of the card
-        }}
-      >
-        <Card.Title>{schema.title}</Card.Title>
-        <Button variant="close" className="ms-auto" onClick={closeMenu} />
-      </Card.Header>
-      <Card.Body style={{ marginTop: -30, paddingBottom: 80 }}>
-        <div ref={editorRef}></div>
-        {useSubmit && (
-          <Button onClick={submitEditor} disabled={queuePosition >= 0}>
-            {queuePosition > 0 && `Queue position: ${queuePosition}`}
-            {queuePosition == 0 && `Running`}
-            {queuePosition < 0 && `Submit`}
-          </Button>
-        )}
-      </Card.Body>
-    </Card>
-  );
-};
-
 const SidebarMenu2: any = ({
   visible,
   closeMenu,
@@ -172,7 +100,7 @@ const SidebarMenu2: any = ({
   name,
   sendImmediately,
 }) => {
-  const [userInput, setUserInput] = useState<string>("");
+  const [userInput, setUserInput] = useState<string>(undefined);
   const [schema, setSchema] = useState<any>({});
   const [sharedSchema, setSharedSchema] = useState<any>({});
   const [editorValue, setEditorValue] = useState<any>(null);
@@ -239,6 +167,13 @@ const SidebarMenu2: any = ({
       queue.offRefresh();
     };
   }, [token]);
+
+  // set the default userInput to the first key in the schema, if userInput is empty
+  useEffect(() => {
+    if (userInput === undefined && Object.keys({ ...sharedSchema, ...schema }).length > 0) {
+      setUserInput(Object.keys({ ...sharedSchema, ...schema })[0]);
+    }
+  }, [schema, sharedSchema, userInput]);
 
   useEffect(() => {
     let editor: any;
@@ -323,6 +258,7 @@ const SidebarMenu2: any = ({
           <Form.Select
             aria-label="Default select example"
             onChange={(e) => setUserInput(e.target.value)}
+            value={userInput}
           >
             <option></option>
             {Object.keys({ ...sharedSchema, ...schema }).map((key) => (
@@ -361,34 +297,8 @@ const SidebarMenu2: any = ({
 };
 
 function SideBar({
-  selectionSchema,
-  modifierSchema,
-  sceneSchema,
-  analysisSchema,
-  sceneSettings,
-  modifierQueue,
-  selectionQueue,
-  analysisQueue,
-  geometryQueue,
-  triggerSelection,
-  setTriggerSelection,
-  colorMode,
-  setStep,
   token,
 }: {
-  selectionSchema: any;
-  modifierSchema: any;
-  sceneSchema: any;
-  analysisSchema: any;
-  sceneSettings: any;
-  modifierQueue: number;
-  selectionQueue: number;
-  analysisQueue: number;
-  geometryQueue: number;
-  triggerSelection: boolean;
-  setTriggerSelection: any;
-  colorMode: string;
-  setStep: any;
   token: string;
 }) {
   const [visibleOption, setVisibleOption] = useState<string>("");

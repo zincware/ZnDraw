@@ -98,10 +98,6 @@ export default function App() {
   // const [fooEvents, setFooEvents] = useState([]);
 
   const [connected, setConnected] = useState<boolean>(false);
-  const [selectionSchema, setSelectionSchema] = useState({});
-  const [modifierSchema, setModifierSchema] = useState({});
-  const [sceneSchema, setSceneSchema] = useState({});
-  const [analysisSchema, setAnalysisSchema] = useState({});
   const [currentFrame, setCurrentFrame] = useState<Frame>({
     arrays: { colors: [], radii: [] },
     calc: null,
@@ -150,11 +146,8 @@ export default function App() {
   const [roomLock, setRoomLock] = useState<boolean>(false);
 
   // QUEUES
+  // TODO: fix
   const [modifierQueue, setModifierQueue] = useState<number>(-1);
-  const [selectionQueue, setSelectionQueue] = useState<number>(-1);
-  const [geometryQueue, setGeometryQueue] = useState<number>(-1);
-  const [analysisQueue, setAnalysisQueue] = useState<number>(-1);
-
   const [triggerSelection, setTriggerSelection] = useState<boolean>(false);
 
   const cameraLightRef = useRef<THREE.PointLight>(null);
@@ -220,44 +213,6 @@ export default function App() {
       setConnected(false);
     }
 
-    function onSelectionSchema(receivedSchema: any) {
-      setSelectionSchema(receivedSchema);
-    }
-    function onModifierSchema(receivedSchema: any) {
-      setModifierSchema(receivedSchema);
-    }
-    function onSceneSchema(receivedSchema: any) {
-      setSceneSchema(receivedSchema);
-    }
-    function onAnalysisSchema(receivedSchema: any) {
-      setAnalysisSchema(receivedSchema);
-    }
-
-    function onModifierQueue(data: number) {
-      setModifierQueue(data);
-    }
-
-    function onAnalysisQueue(data: number) {
-      setAnalysisQueue(data);
-    }
-
-    function onGeometryQueue(data: number) {
-      setGeometryQueue(data);
-    }
-
-    function onSelectionQueue(data: number) {
-      setSelectionQueue(data);
-    }
-
-    function onModifierRefresh() {
-      socket.emit("modifier:schema");
-    }
-    function onAnalysisRefresh() {
-      socket.emit("analysis:schema");
-      // scene provides visualisation of vectors, needs to know what is available
-      socket.emit("scene:schema");
-    }
-
     function onTutorialURL(data: string) {
       setTutorialURL(data);
     }
@@ -271,16 +226,6 @@ export default function App() {
 
     socket.on("connect", onConnect);
     socket.on("disconnect", onDisconnect);
-    socket.on("selection:schema", onSelectionSchema);
-    socket.on("modifier:schema", onModifierSchema);
-    socket.on("scene:schema", onSceneSchema);
-    socket.on("analysis:schema", onAnalysisSchema);
-    socket.on("room:modifier:queue", onModifierQueue);
-    socket.on("room:analysis:queue", onAnalysisQueue);
-    socket.on("room:geometry:queue", onGeometryQueue);
-    socket.on("room:selection:queue", onSelectionQueue);
-    socket.on("modifier:schema:refresh", onModifierRefresh);
-    socket.on("analysis:schema:refresh", onAnalysisRefresh);
     socket.on("tutorial:url", onTutorialURL);
     socket.on("showSiMGen", onShowSiMGen);
     socket.on("room:lock:set", onRoomLockSet);
@@ -288,16 +233,6 @@ export default function App() {
     return () => {
       socket.off("connect", onConnect);
       socket.off("disconnect", onDisconnect);
-      socket.off("selection:schema", onSelectionSchema);
-      socket.off("modifier:schema", onModifierSchema);
-      socket.off("scene:schema", onSceneSchema);
-      socket.off("analysis:schema", onAnalysisSchema);
-      socket.off("room:modifier:queue", onModifierQueue);
-      socket.off("room:analysis:queue", onAnalysisQueue);
-      socket.off("room:geometry:queue", onGeometryQueue);
-      socket.off("room:selection:queue", onSelectionQueue);
-      socket.off("modifier:schema:refresh", onModifierRefresh);
-      socket.off("analysis:schema:refresh", onAnalysisRefresh);
       socket.off("tutorial:url", onTutorialURL);
       socket.off("showSiMGen", onShowSiMGen);
       socket.off("room:lock:set", onRoomLockSet);
@@ -768,19 +703,6 @@ export default function App() {
           selection={selectedIds}
         />
         <Sidebar
-          selectionSchema={selectionSchema}
-          modifierSchema={modifierSchema}
-          sceneSchema={sceneSchema}
-          analysisSchema={analysisSchema}
-          sceneSettings={roomConfig["scene"]}
-          modifierQueue={modifierQueue}
-          selectionQueue={selectionQueue}
-          geometryQueue={geometryQueue}
-          analysisQueue={analysisQueue}
-          triggerSelection={triggerSelection}
-          setTriggerSelection={setTriggerSelection}
-          colorMode={colorMode}
-          setStep={setStep}
           token={token}
         />
         <FrameProgressBar

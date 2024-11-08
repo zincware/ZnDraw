@@ -522,7 +522,10 @@ class ZnDraw(ZnDrawBase):
 
     @property
     def atoms(self) -> ase.Atoms:
-        return self[self.step]
+        try:
+            return self[self.step]
+        except IndexError:
+            return ase.Atoms()
 
     @atoms.setter
     def atoms(self, atoms: ATOMS_LIKE) -> None:
