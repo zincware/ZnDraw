@@ -294,105 +294,6 @@ def inspect_zntrack_node(name, rev, remote):
 
 
 @shared_task
-def run_geometry_schema(room) -> None:
-    from zndraw import ZnDraw
-
-    vis = ZnDraw(
-        r=current_app.extensions["redis"],
-        url=current_app.config["SERVER_URL"],
-        token=room,
-    )
-
-    dct = znsocket.Dict(
-        r=current_app.extensions["redis"],
-        socket=vis._refresh_client,
-        key=f"schema:{room}:geometry",
-    )
-    for key, val in geometries.items():
-        dct[key] = val.model_json_schema()
-    vis.socket.sleep(1)
-    vis.socket.disconnect()
-
-
-@shared_task
-def run_scene_schema(room) -> None:
-    from zndraw import ZnDraw
-
-    vis = ZnDraw(
-        r=current_app.extensions["redis"],
-        url=current_app.config["SERVER_URL"],
-        token=room,
-    )
-
-    dct = znsocket.Dict(
-        r=current_app.extensions["redis"],
-        socket=vis._refresh_client,
-        key=f"schema:{room}:scene",
-    )
-
-    scene_schema = Scene.model_json_schema_from_atoms(vis.atoms)
-
-    # we also want to initialize the `vis.config`
-    # calling the config will set the default values
-    # but not overwrite the existing ones, if they are set
-    orig_scene_config = dict(vis.config["scene"])
-
-    for key, val in scene_schema["properties"].items():
-        try:
-            scene_schema["properties"][key]["default"] = orig_scene_config[key]
-        except KeyError:
-            vis.log(f"KeyError: {key}")
-
-    dct["Scene"] = scene_schema
-
-    vis.socket.sleep(1)
-    vis.socket.disconnect()
-
-
-@shared_task
-def run_analysis_schema(room) -> None:
-    from zndraw import ZnDraw
-
-    vis = ZnDraw(
-        r=current_app.extensions["redis"],
-        url=current_app.config["SERVER_URL"],
-        token=room,
-    )
-
-    dct = znsocket.Dict(
-        r=current_app.extensions["redis"],
-        socket=vis._refresh_client,
-        key=f"schema:{room}:analysis",
-    )
-    for key, val in analyses.items():
-        dct[key] = val.model_json_schema_from_atoms(vis.atoms)
-    vis.socket.sleep(1)
-    vis.socket.disconnect()
-
-
-@shared_task
-def run_modify_schema(room) -> None:
-    from zndraw import ZnDraw
-
-    vis = ZnDraw(
-        r=current_app.extensions["redis"],
-        url=current_app.config["SERVER_URL"],
-        token=room,
-    )
-
-    dct = znsocket.Dict(
-        r=current_app.extensions["redis"],
-        socket=vis._refresh_client,
-        key="schema:default:modifier",
-    )
-    for key, val in modifier.items():
-        dct[key] = val.model_json_schema()
-
-    vis.socket.sleep(1)
-    vis.socket.disconnect()
-
-
-@shared_task
 def setup_public_modifier(room):
     from zndraw import ZnDraw
 
@@ -422,28 +323,6 @@ def setup_public_modifier(room):
 
     default_modifier_queue[room] = room_modifier_queue
 
-    vis.socket.sleep(1)
-    vis.socket.disconnect()
-
-
-@shared_task
-def run_selection_schema(room) -> None:
-    from zndraw import ZnDraw
-    from zndraw.selection import selections
-
-    vis = ZnDraw(
-        r=current_app.extensions["redis"],
-        url=current_app.config["SERVER_URL"],
-        token=room,
-    )
-
-    dct = znsocket.Dict(
-        r=current_app.extensions["redis"],
-        socket=vis._refresh_client,
-        key=f"schema:{room}:selection",
-    )
-    for key, val in selections.items():
-        dct[key] = val.model_json_schema()
     vis.socket.sleep(1)
     vis.socket.disconnect()
 
