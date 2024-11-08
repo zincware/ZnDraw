@@ -5022,13 +5022,18 @@ name = "znsocket"
 version = "0.2.7"
 description = "Python implementation of a Redis-compatible API using websockets."
 optional = false
-python-versions = "*"
-files = []
-develop = false
+python-versions = "<4.0,>=3.10"
+files = [
+    {file = "znsocket-0.2.7-py3-none-any.whl", hash = "sha256:890c08cee5a4ae174d6bd8667b8445fba242586879f3fde60de35fe8fcb574df"},
+    {file = "znsocket-0.2.7.tar.gz", hash = "sha256:1e5f8225af2ccaa82334064f2054142e68caa4980a64f9d2711761677d8d323e"},
+]
 
-[package.source]
-type = "directory"
-url = "../znsocket"
+[package.dependencies]
+eventlet = ">=0,<1"
+python-socketio = {version = ">=5.11,<6.0", extras = ["client"]}
+redis = ">=5,<6"
+typer = ">=0,<1"
+znjson = ">=0.2.3,<0.3.0"
 
 [[package]]
 name = "zntrack"
