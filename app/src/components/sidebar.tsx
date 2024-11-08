@@ -181,6 +181,12 @@ const SidebarMenu2: any = ({
   const queueRef = useRef<any>(null);
 
   useEffect(() => {
+    if (visible) {
+      socket.emit("schema:refresh");
+    }
+  }, [visible]);
+
+  useEffect(() => {
     const con = new znsocket.Dict({
       client: client,
       key: "schema:" + token + ":" + name,

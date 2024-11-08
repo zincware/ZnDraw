@@ -167,6 +167,16 @@ def init_socketio_events(io: SocketIO):
         """Start a worker to process all (available) queued tasks."""
         room = session.get("token")
         run_room_worker.delay(room)
+    
+    @io.on("schema:refresh")
+    def schema_refresh():
+        room = session.get("token")
+        # run_geometry_schema.delay(room)
+        # run_selection_schema.delay(room)
+        run_analysis_schema.delay(room)
+        run_scene_schema.delay(room)
+        # run_modify_schema.delay(room)
+        # setup_public_modifier.delay(room)
 
     @io.on("room:alert")
     def room_alert(msg: str):
