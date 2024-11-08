@@ -144,7 +144,8 @@ class ZnDraw(ZnDrawBase):
     )
     verify: bool | str = True
 
-    maximum_message_size: int = dataclasses.field(default=500_000, repr=False)
+    max_atoms_per_call: int = dataclasses.field(default=1000, repr=False)
+    # number of `ase.Atom` to send per call
     name: str | None = None
 
     _modifiers: dict[str, RegisterModifier] = dataclasses.field(default_factory=dict)
@@ -262,7 +263,9 @@ class ZnDraw(ZnDrawBase):
                 socket=self._refresh_client,
                 max_commands_per_call=100,
             )
-            lst.copy(key=default_lst.key)
+            if not (len(default_lst) == 1 and len(default_lst[0])) == 0:
+                # prevent copying empty default room
+                lst.copy(key=default_lst.key)
 
         if isinstance(index, slice):
             index = list(range(*index.indices(len(self))))
@@ -314,7 +317,9 @@ class ZnDraw(ZnDrawBase):
                 socket=self._refresh_client,
                 max_commands_per_call=100,
             )
-            default_lst.copy(key=lst.key)
+            if not (len(default_lst) == 1 and len(default_lst[0])) == 0:
+                # prevent copying empty default room
+                default_lst.copy(key=lst.key)
 
         del lst[index]
 
@@ -350,7 +355,9 @@ class ZnDraw(ZnDrawBase):
                 socket=self._refresh_client,
                 max_commands_per_call=100,
             )
-            default_lst.copy(key=lst.key)
+            if not (len(default_lst) == 1 and len(default_lst[0])) == 0:
+                # prevent copying empty default room
+                default_lst.copy(key=lst.key)
 
         if isinstance(value, ase.Atoms):
             if not hasattr(value, "connectivity") and self.bond_calculator is not None:
@@ -365,6 +372,20 @@ class ZnDraw(ZnDrawBase):
 
         # TODO: what about the default room check?!
 
+        if not self.r.exists(f"room:{self.token}:frames") and self.r.exists(
+            "room:default:frames"
+        ):
+            default_lst = znsocket.List(
+                self.r,
+                "room:default:frames",
+                converter=[ASEConverter],
+                socket=self._refresh_client,
+                max_commands_per_call=100,
+            )
+            if not (len(default_lst) == 1 and len(default_lst[0])) == 0:
+                # prevent copying empty default room
+                default_lst.copy(key=f"room:{self.token}:frames")
+
         # enable tbar if more than 10 messages are sent
         # approximated by the size of the first frame
         lst = znsocket.List(
@@ -375,41 +396,28 @@ class ZnDraw(ZnDrawBase):
             max_commands_per_call=100,
         )
         # TODO: why is there no copy action here?
-        show_tbar = (
-            len(values)
-            * len(
-                znjson.dumps(
-                    values[0], cls=znjson.ZnEncoder.from_converters([ASEConverter])
-                ).encode("utf-8")
-            )
-        ) > (10 * self.maximum_message_size)
+        show_tbar = (len(values[0]) * len(values)) > self.max_atoms_per_call
         tbar = tqdm.tqdm(
             values, desc="Sending frames", unit=" frame", disable=not show_tbar
         )
 
         msg = []
+        n_atoms = 0
 
         for val in tbar:
-            if isinstance(val, ase.Atoms):
-                if not hasattr(val, "connectivity") and self.bond_calculator is not None:
-                    val.connectivity = self.bond_calculator.get_bonds(val)
+            if not hasattr(val, "connectivity") and self.bond_calculator is not None:
+                val.connectivity = self.bond_calculator.get_bonds(val)
 
-                msg.append(val)
-            else:
-                msg.append(val)
-            if (
-                len(
-                    json.dumps(
-                        msg, cls=znjson.ZnEncoder.from_converters([ASEConverter])
-                    ).encode("utf-8")
-                )
-                > self.maximum_message_size
-            ):
+            msg.append(val)
+            n_atoms += len(val)
+            
+            if n_atoms > self.max_atoms_per_call:
                 lst.extend(msg)
                 msg = []
-        if len(msg) > 0:  # Only send the message if it's not empty
+                n_atoms = 0
+        if len(msg) > 0:
             lst.extend(msg)
-
+    
     @property
     def selection(self) -> list[int]:
         try:
