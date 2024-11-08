@@ -20,7 +20,7 @@ from zndraw.abc import Message
 from zndraw.base import Extension, ZnDrawBase
 from zndraw.bonds import ASEComputeBonds
 from zndraw.config import Arrows, Scene
-from zndraw.converter import Object3DConverter
+from zndraw.converter import ASEConverter, Object3DConverter
 from zndraw.draw import Object3D
 from zndraw.figure import Figure, FigureConverter
 from zndraw.type_defs import (
@@ -31,7 +31,6 @@ from zndraw.type_defs import (
     TimeoutConfig,
 )
 from zndraw.utils import (
-    ASEConverter,
     call_with_retry,
     convert_url_to_http,
     emit_with_retry,
@@ -40,6 +39,8 @@ from zndraw.utils import (
 
 log = logging.getLogger(__name__)
 __version__ = importlib.metadata.version("zndraw")
+
+TASK_RUNNING = "ZNDRAW TASK IS RUNNING"
 
 
 class ExtensionType(str, enum.Enum):
@@ -67,16 +68,17 @@ def check_queue(vis: "ZnDraw") -> None:
                 try:
                     task = modifier_queue.pop(key)
                     try:
+                        modifier_queue[TASK_RUNNING] = True
                         vis._modifiers[key]["cls"](**task).run(
                             vis, **vis._modifiers[key]["run_kwargs"]
                         )
+                        modifier_queue.pop(TASK_RUNNING)
                     except Exception as err:
                         vis.log(f"Error running modifier `{key}`: {err}")
                 except IndexError:
                     pass
 
         # TODO: closing a room does not remove the room from this list, so it is ever growing
-        # TODO: only run if there are actually public modifiers
         # TODO: access to this should only be given to authenticated users, needs to added to znsocket
         # TODO: add running state?
         if any(vis._modifiers[key]["public"] for key in vis._modifiers):
@@ -94,9 +96,11 @@ def check_queue(vis: "ZnDraw") -> None:
                             try:
                                 task = public_queue[room].pop(key)
                                 try:
+                                    public_queue[room][TASK_RUNNING] = True
                                     vis._modifiers[key]["cls"](**task).run(
                                         new_vis, **vis._modifiers[key]["run_kwargs"]
                                     )
+                                    public_queue[room].pop(TASK_RUNNING)
                                 except Exception as err:
                                     new_vis.log(f"Error running modifier `{key}`: {err}")
                             except IndexError:
@@ -105,21 +109,6 @@ def check_queue(vis: "ZnDraw") -> None:
                             new_vis.socket.sleep(1)
                             new_vis.socket.disconnect()
         vis.socket.sleep(1)  # wakeup timeout
-
-
-def _register_modifier(vis: "ZnDraw", data: RegisterModifier) -> None:
-    log.debug(f"Registering modifier `{data['cls'].__name__}`")
-    vis.socket.emit(
-        "modifier:register",
-        {
-            "schema": data["cls"].model_json_schema(),
-            "name": data["cls"].__name__,
-            "public": data["public"],
-            "timeout": data["timeout"],
-        },
-    )
-    if vis._available:
-        vis.socket.emit("modifier:available", list(vis._modifiers))
 
 
 def _check_version_compatibility(server_version: str) -> None:
@@ -219,9 +208,6 @@ class ZnDraw(ZnDrawBase):
             },
             retries=self.timeout["emit_retries"],
         )
-
-        for data in self._modifiers.values():
-            _register_modifier(self, data)
 
     def __getitem__(self, index: int | list | slice) -> ase.Atoms | list[ase.Atoms]:
         single_item = isinstance(index, int)

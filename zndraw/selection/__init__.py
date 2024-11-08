@@ -3,8 +3,9 @@ import typing as t
 
 import networkx as nx
 import numpy as np
-from pydantic import BaseModel, Field
+from pydantic import Field
 
+from zndraw.base import Extension
 from zndraw.zndraw import ZnDraw
 
 try:
@@ -14,17 +15,12 @@ except ImportError:
     pass
 
 
-class SelectionBase(BaseModel):
-    def run(self, vis: "ZnDraw") -> None:
-        raise NotImplementedError()
-
-
-class NoneSelection(SelectionBase):
+class NoneSelection(Extension):
     def run(self, vis) -> None:
         vis.selection = []
 
 
-class All(SelectionBase):
+class All(Extension):
     """Select all atoms."""
 
     def run(self, vis) -> None:
@@ -32,14 +28,14 @@ class All(SelectionBase):
         vis.selection = list(range(len(atoms)))
 
 
-class Invert(SelectionBase):
+class Invert(Extension):
     def run(self, vis) -> None:
         atoms = vis[vis.step]
         selected_ids = vis.selection
         vis.selection = list(set(range(len(atoms))) - set(selected_ids))
 
 
-class Range(SelectionBase):
+class Range(Extension):
     start: int = Field(0, description="Start index")
     end: int = Field(5, description="End index")
     step: int = Field(1, description="Step size")
@@ -48,7 +44,7 @@ class Range(SelectionBase):
         vis.selection = list(range(self.start, self.end, self.step))
 
 
-class Random(SelectionBase):
+class Random(Extension):
     count: int = Field(..., description="Number of atoms to select")
 
     def run(self, vis) -> None:
@@ -56,7 +52,7 @@ class Random(SelectionBase):
         vis.selection = random.sample(range(len(atoms)), self.count)
 
 
-class IdenticalSpecies(SelectionBase):
+class IdenticalSpecies(Extension):
     def run(self, vis) -> None:
         atoms = vis[vis.step]
         selected_ids = vis.selection
@@ -69,7 +65,7 @@ class IdenticalSpecies(SelectionBase):
         vis.selection = list(selected_ids)
 
 
-class ConnectedParticles(SelectionBase):
+class ConnectedParticles(Extension):
     def run(self, vis) -> None:
         atoms = vis.atoms
         selected_ids = vis.selection
@@ -90,7 +86,7 @@ class ConnectedParticles(SelectionBase):
         vis.selection = [x.item() for x in set(total_ids)]
 
 
-class Neighbour(SelectionBase):
+class Neighbour(Extension):
     """Select the nth order neighbours of the selected atoms."""
 
     order: int = Field(1, description="Order of neighbour")
@@ -112,14 +108,14 @@ class Neighbour(SelectionBase):
         vis.selection = list(set(total_ids))
 
 
-class UpdateSelection(SelectionBase):
+class UpdateSelection(Extension):
     """Reload Selection."""
 
     def run(self, vis: ZnDraw) -> None:
         vis.selection = vis.selection
 
 
-selections: dict[str, t.Type[SelectionBase]] = {
+selections: dict[str, t.Type[Extension]] = {
     ConnectedParticles.__name__: ConnectedParticles,
     NoneSelection.__name__: NoneSelection,
     All.__name__: All,

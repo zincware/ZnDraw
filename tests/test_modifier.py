@@ -180,14 +180,6 @@ def test_modify_AddLineParticles(server):
     assert vis[1].symbols[3] == "He"
 
 
-# def test_modify_connect(server):
-#     Camera is not available without a webclient
-#     vis = ZnDraw(url=server, token="test_token")
-#     vis.append(molecule("H2O"))
-#     vis.selection = [0, 1]
-#     vis.socket.emit("modifier:run", {"method": {"discriminator": "Connect"}})
-
-
 def test_modify_center(server):
     vis = ZnDraw(url=server, token="test_token")
     copper = bulk("Cu", cubic=True)

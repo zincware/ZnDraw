@@ -286,15 +286,29 @@ class Center(UpdateScene):
 
 
 class Replicate(UpdateScene):
-    x: int = Field(2, ge=1)
-    y: int = Field(2, ge=1)
-    z: int = Field(2, ge=1)
+    """Replicate the atoms in the cell."""
+
+    x: int = Field(2, ge=1, le=10)
+    y: int = Field(2, ge=1, le=10)
+    z: int = Field(2, ge=1, le=10)
 
     keep_box: bool = Field(False, description="Keep the original box size")
     all: bool = Field(
         False,
         description="Apply to the full trajectory",
     )
+
+    @classmethod
+    def model_json_schema(cls):
+        schema = super().model_json_schema()
+        # make it sliders
+        schema["properties"]["x"]["format"] = "range"
+        schema["properties"]["y"]["format"] = "range"
+        schema["properties"]["z"]["format"] = "range"
+        # and checkboxes
+        schema["properties"]["keep_box"]["format"] = "checkbox"
+        schema["properties"]["all"]["format"] = "checkbox"
+        return schema
 
     def run(self, vis: "ZnDraw", **kwargs) -> None:
         if self.all:
@@ -342,21 +356,6 @@ class RemoveAtoms(UpdateScene):
     def run(self, vis: "ZnDraw", **kwargs) -> None:
         del vis[vis.step]
 
-
-methods = t.Union[
-    Delete,
-    Rotate,
-    Translate,
-    Duplicate,
-    ChangeType,
-    AddLineParticles,
-    Wrap,
-    Center,
-    Replicate,
-    Connect,
-    NewCanvas,
-    RemoveAtoms,
-]
 
 modifier: dict[str, t.Type[UpdateScene]] = {
     Delete.__name__: Delete,

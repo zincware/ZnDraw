@@ -2,8 +2,6 @@ import typing as t
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from zndraw.base import MethodsCollection
-
 
 def _update_material_schema(schema: dict) -> dict:
     schema["properties"]["wireframe"]["format"] = "checkbox"
@@ -147,37 +145,3 @@ geometries: dict[str, t.Type[Object3D]] = {
     Rhomboid.__name__: Rhomboid,
     Ellipsoid.__name__: Ellipsoid,
 }
-
-
-methods = t.Union[
-    Plane,
-    Sphere,
-    Box,
-    Circle,
-    Cone,
-    Cylinder,
-    Dodecahedron,
-    Icosahedron,
-    Octahedron,
-    Ring,
-    Tetrahedron,
-    Torus,
-    TorusKnot,
-    Rhomboid,
-    Ellipsoid,
-]
-
-
-class Geometry(MethodsCollection):
-    method: methods = Field(default_factory=Box, description="Select a geometry method.")
-
-    # @classmethod
-    # def updated_schema(cls) -> dict:
-    #     schema = super().updated_schema()
-
-    #     schema["properties"]["wireframe"]["format"] = "checkbox"
-    #     schema["properties"]["color"]["format"] = "color"
-    #     schema["properties"]["opacity"]["format"] = "range"
-    #     schema["properties"]["opacity"]["step"] = 0.01
-
-    #     return schema
