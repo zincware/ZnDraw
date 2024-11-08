@@ -688,7 +688,13 @@ const TutorialModal: React.FC<TutorialModalProps> = ({ show, onHide, url }) => {
   );
 };
 
-function SiMGenButtons({ visible, token }: { visible: boolean, token: string }) {
+function SiMGenButtons({
+  visible,
+  token,
+}: {
+  visible: boolean;
+  token: string;
+}) {
   const [disabledBtn, setDisabledBtn] = useState<boolean>(false);
   const queueRef = useRef<any>(null);
 
@@ -738,40 +744,40 @@ function SiMGenButtons({ visible, token }: { visible: boolean, token: string }) 
 
   return (
     <>
-    {visible && (
-      <>
-      <BtnTooltip text="Connect selected atoms (shift click)">
-        <Button
-          variant="success"
-          className="mx-1"
-          onClick={runConnect}
-          disabled={disabledBtn}
-        >
-          <TbPlugConnected /> Connect
-        </Button>
-      </BtnTooltip>
-      <BtnTooltip text="Run SiMGen molecular generation">
-        <Button
-          variant="success"
-          className="mx-1"
-          onClick={runGenerate}
-          disabled={disabledBtn}
-        >
-          <FaRocket /> Generate
-        </Button>
-      </BtnTooltip>
-      <BtnTooltip text="Replace scene with empty canvas and enter drawing mode">
-        <Button
-          variant="success"
-          className="mx-1"
-          onClick={createNewCanvas}
-          disabled={disabledBtn}
-        >
-          <FaFileCirclePlus /> New Canvas
-        </Button>
-      </BtnTooltip>
-      </>
-    )}
+      {visible && (
+        <>
+          <BtnTooltip text="Connect selected atoms (shift click)">
+            <Button
+              variant="success"
+              className="mx-1"
+              onClick={runConnect}
+              disabled={disabledBtn}
+            >
+              <TbPlugConnected /> Connect
+            </Button>
+          </BtnTooltip>
+          <BtnTooltip text="Run SiMGen molecular generation">
+            <Button
+              variant="success"
+              className="mx-1"
+              onClick={runGenerate}
+              disabled={disabledBtn}
+            >
+              <FaRocket /> Generate
+            </Button>
+          </BtnTooltip>
+          <BtnTooltip text="Replace scene with empty canvas and enter drawing mode">
+            <Button
+              variant="success"
+              className="mx-1"
+              onClick={createNewCanvas}
+              disabled={disabledBtn}
+            >
+              <FaFileCirclePlus /> New Canvas
+            </Button>
+          </BtnTooltip>
+        </>
+      )}
     </>
   );
 }
@@ -959,7 +965,7 @@ const HeadBar = ({
                   <FaHandSparkles />
                 </Button>
               </BtnTooltip>
-              <SiMGenButtons visible={showSiMGen} token={token}/>
+              <SiMGenButtons visible={showSiMGen} token={token} />
             </Nav>
             <Nav className="ms-auto">
               {tutorialURL && (
