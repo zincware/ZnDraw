@@ -407,7 +407,6 @@ export default function App() {
             });
             queue["Delete"] = {};
             socket.emit("room:worker:run");
-
           }
         }
       } else if (event.key == "c") {

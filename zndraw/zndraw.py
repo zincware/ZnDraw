@@ -310,7 +310,7 @@ class ZnDraw(ZnDrawBase):
             socket=self._refresh_client,
             max_commands_per_call=100,
         )
-        
+
         if not self.r.exists(f"room:{self.token}:frames") and self.r.exists(
             "room:default:frames"
         ):
