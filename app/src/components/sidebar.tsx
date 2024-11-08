@@ -279,7 +279,7 @@ const SidebarMenu2: any = ({
                 className="ms-2 d-flex align-items-center"
                 disabled={disabledBtn}
               >
-                <FaPlay className="me-1"/> Submit
+                <FaPlay className="me-1" /> Submit
               </Button>
               <Button variant="outline-danger" onClick={cancelTask}>
                 <IoStop />
