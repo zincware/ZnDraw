@@ -287,9 +287,10 @@ class Center(UpdateScene):
 
 class Replicate(UpdateScene):
     """Replicate the atoms in the cell."""
+
     x: int = Field(2, ge=1, le=10)
     y: int = Field(2, ge=1, le=10)
-    z: int = Field(2, ge=1, le=10
+    z: int = Field(2, ge=1, le=10)
 
     keep_box: bool = Field(False, description="Keep the original box size")
     all: bool = Field(
@@ -322,6 +323,7 @@ class Replicate(UpdateScene):
             if self.keep_box:
                 atoms.cell = vis.atoms.cell
             vis[vis.step] = atoms
+
 
 class NewCanvas(UpdateScene):
     """Clear the scene, deleting all atoms and points."""
