@@ -14,14 +14,10 @@ from zndraw.tasks import (
     inspect_zntrack_node,
     load_zntrack_figures,
     load_zntrack_frames,
-    run_analysis_schema,
-    run_geometry_schema,
-    run_modify_schema,
     run_room_worker,
-    run_scene_schema,
-    run_selection_schema,
     run_upload_file,
-    setup_public_modifier,
+    run_scene_dependent_schema,
+    run_schema,
 )
 
 log = logging.getLogger(__name__)
@@ -112,13 +108,9 @@ def init_socketio_events(io: SocketIO):
         room = str(session["token"])
         join_room(room)  # rename token to room or room_token
 
-        # submit schema jobs
-        run_geometry_schema.delay(room)
-        run_selection_schema.delay(room)
-        run_analysis_schema.delay(room)
-        run_scene_schema.delay(room)
-        run_modify_schema.delay(room)
-        setup_public_modifier.delay(room)
+        run_schema.delay(room)
+        run_scene_dependent_schema.delay(room)
+
 
         session["name"] = uuid.uuid4().hex[:8]
 
@@ -172,10 +164,11 @@ def init_socketio_events(io: SocketIO):
     @io.on("schema:refresh")
     def schema_refresh():
         room = session.get("token")
+        run_scene_dependent_schema.delay(room)
         # run_geometry_schema.delay(room)
         # run_selection_schema.delay(room)
-        run_analysis_schema.delay(room)
-        run_scene_schema.delay(room)
+        # run_analysis_schema.delay(room)
+        # run_scene_schema.delay(room)
         # run_modify_schema.delay(room)
         # setup_public_modifier.delay(room)
 

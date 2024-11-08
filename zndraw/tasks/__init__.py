@@ -530,3 +530,105 @@ def run_room_worker(room):
     # wait and then disconnect
     vis.socket.sleep(1)
     vis.socket.disconnect()
+
+
+@shared_task
+def run_schema(room) -> None:
+    from zndraw import ZnDraw
+
+    vis = ZnDraw(
+        r=current_app.extensions["redis"],
+        url=current_app.config["SERVER_URL"],
+        token=room,
+    )
+
+    room_modifier_queue = znsocket.Dict(
+        r=current_app.extensions["redis"],
+        socket=vis._refresh_client,
+        key=f"queue:{room}:modifier",
+    )
+
+    # We link the room queue to the default queue
+    # so that the public modifier can be used in the room
+    # public modifiers iterate the default_modifier_queue
+    # and check for applicable tasks to pick up.
+    # TODO: remove rooms from this list if they are closed
+    # TODO: when to close a room?
+    default_modifier_queue = znsocket.Dict(
+        r=current_app.extensions["redis"],
+        socket=vis._refresh_client,
+        key="queue:default:modifier",
+    )
+
+    default_modifier_queue[room] = room_modifier_queue
+
+    dct = znsocket.Dict(
+        r=current_app.extensions["redis"],
+        socket=vis._refresh_client,
+        key="schema:default:modifier",
+    )
+    for key, val in modifier.items():
+        dct[key] = val.model_json_schema()
+
+    dct = znsocket.Dict(
+        r=current_app.extensions["redis"],
+        socket=vis._refresh_client,
+        key=f"schema:{room}:selection",
+    )
+    for key, val in selections.items():
+        dct[key] = val.model_json_schema()
+
+    dct = znsocket.Dict(
+        r=current_app.extensions["redis"],
+        socket=vis._refresh_client,
+        key=f"schema:{room}:geometry",
+    )
+    for key, val in geometries.items():
+        dct[key] = val.model_json_schema()
+
+    vis.socket.sleep(1)
+    vis.socket.disconnect()
+
+
+
+@shared_task
+def run_scene_dependent_schema(room) -> None:
+    from zndraw import ZnDraw
+
+    vis = ZnDraw(
+        r=current_app.extensions["redis"],
+        url=current_app.config["SERVER_URL"],
+        token=room,
+    )
+
+    dct = znsocket.Dict(
+        r=current_app.extensions["redis"],
+        socket=vis._refresh_client,
+        key=f"schema:{room}:analysis",
+    )
+    for key, val in analyses.items():
+        dct[key] = val.model_json_schema_from_atoms(vis.atoms)
+
+    dct = znsocket.Dict(
+        r=current_app.extensions["redis"],
+        socket=vis._refresh_client,
+        key=f"schema:{room}:scene",
+    )
+
+    scene_schema = Scene.model_json_schema_from_atoms(vis.atoms)
+
+    # we also want to initialize the `vis.config`
+    # calling the config will set the default values
+    # but not overwrite the existing ones, if they are set
+    orig_scene_config = dict(vis.config["scene"])
+
+    for key, val in scene_schema["properties"].items():
+        try:
+            scene_schema["properties"][key]["default"] = orig_scene_config[key]
+        except KeyError:
+            vis.log(f"KeyError: {key}")
+
+    dct["Scene"] = scene_schema
+
+    vis.socket.sleep(1)
+    vis.socket.disconnect()
