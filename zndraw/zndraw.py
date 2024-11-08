@@ -101,7 +101,7 @@ def check_queue(vis: "ZnDraw") -> None:
                                     new_vis.log(f"Error running modifier `{key}`: {err}")
                             except IndexError:
                                 pass
-                            
+
                             new_vis.socket.sleep(1)
                             new_vis.socket.disconnect()
         vis.socket.sleep(1)  # wakeup timeout
