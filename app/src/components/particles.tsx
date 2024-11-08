@@ -219,7 +219,6 @@ export const ParticleInstances = ({
   };
 
   const handleDoubleClick = (event) => {
-
     const queue = new znsocket.Dict({
       client: client,
       key: "queue:" + token + ":" + "selection",
