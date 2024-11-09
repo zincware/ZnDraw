@@ -463,7 +463,9 @@ export default function App() {
   useEffect(() => {
     if (selectedIds.size > 0) {
       const newSelectedIds = new Set(
-        Array.from(selectedIds).filter((id) => id < currentFrame.positions.length),
+        Array.from(selectedIds).filter(
+          (id) => id < currentFrame.positions.length,
+        ),
       );
       // if the selection is reduced, update the selection
       if (newSelectedIds.size < selectedIds.size) {
