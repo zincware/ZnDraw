@@ -129,12 +129,15 @@ export const ParticleInstances = ({
   const sphereRef = useRef<THREE.InstancedMesh | null>(null);
   const originalScale = useRef<number>(1);
 
-  const [actualVisibleIndices, setActualVisibleIndices] = useState<Set<number>>(new Set());
+  const [actualVisibleIndices, setActualVisibleIndices] = useState<Set<number>>(
+    new Set(),
+  );
 
   // Update actualVisibleIndices when visibleIndices or frame.numbers changes
   useEffect(() => {
     setActualVisibleIndices(
-      visibleIndices ?? new Set(Array.from({ length: frame.numbers.length }, (_, i) => i))
+      visibleIndices ??
+        new Set(Array.from({ length: frame.numbers.length }, (_, i) => i)),
     );
   }, [visibleIndices, frame.numbers.length]);
 
@@ -150,7 +153,8 @@ export const ParticleInstances = ({
       const visibleArray = Array.from(actualVisibleIndices);
       visibleArray.forEach((atomIdx, i) => {
         const position = positions[atomIdx];
-        if (!position) { // if position was removed, this can happen and we skip it until next update
+        if (!position) {
+          // if position was removed, this can happen and we skip it until next update
           return;
         }
 
@@ -165,9 +169,9 @@ export const ParticleInstances = ({
           radius = radii[atomIdx];
         }
         // Set position and scale for each instance
-        const matrix = new THREE.Matrix4().setPosition(position).scale(
-          scaleVector.set(radius, radius, radius)
-        );
+        const matrix = new THREE.Matrix4()
+          .setPosition(position)
+          .scale(scaleVector.set(radius, radius, radius));
         meshRef.current.setMatrixAt(i, matrix);
         color.set(highlight ? selection_color : colors[atomIdx]);
         meshRef.current.setColorAt(i, color);
@@ -177,7 +181,14 @@ export const ParticleInstances = ({
       meshRef.current.instanceMatrix.needsUpdate = true;
       meshRef.current.instanceColor.needsUpdate = true;
     }
-  }, [positions, colors, radii, actualVisibleIndices, selection_color, highlight]);
+  }, [
+    positions,
+    colors,
+    radii,
+    actualVisibleIndices,
+    selection_color,
+    highlight,
+  ]);
 
   useEffect(() => {
     if (sphereRef.current) {
@@ -278,11 +289,22 @@ export const ParticleInstances = ({
           />
         )}
         {!highlight && material === "MeshPhysicalMaterial" && (
-          <meshPhysicalMaterial attach="material" roughness={0.3} reflectivity={0.4} side={THREE.FrontSide}/>
+          <meshPhysicalMaterial
+            attach="material"
+            roughness={0.3}
+            reflectivity={0.4}
+            side={THREE.FrontSide}
+          />
         )}
-        {!highlight && material === "MeshToonMaterial" && <meshToonMaterial attach="material" side={THREE.FrontSide}/>}
-        {!highlight && material === "MeshStandardMaterial" && <meshStandardMaterial attach="material" side={THREE.FrontSide}/>}
-        {!highlight && material === "MeshBasicMaterial" && <meshBasicMaterial attach="material" side={THREE.FrontSide}/>}
+        {!highlight && material === "MeshToonMaterial" && (
+          <meshToonMaterial attach="material" side={THREE.FrontSide} />
+        )}
+        {!highlight && material === "MeshStandardMaterial" && (
+          <meshStandardMaterial attach="material" side={THREE.FrontSide} />
+        )}
+        {!highlight && material === "MeshBasicMaterial" && (
+          <meshBasicMaterial attach="material" side={THREE.FrontSide} />
+        )}
       </instancedMesh>
     </>
   );
