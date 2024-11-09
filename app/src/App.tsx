@@ -459,6 +459,19 @@ export default function App() {
     selectedIds,
   ]);
 
+  // reduce selection, if selected points is reduced
+  useEffect(() => {
+    if (selectedIds.size > 0) {
+      const newSelectedIds = new Set(
+        Array.from(selectedIds).filter((id) => id < currentFrame.positions.length),
+      );
+      // if the selection is reduced, update the selection
+      if (newSelectedIds.size < selectedIds.size) {
+        setSelectedIds(newSelectedIds);
+      }
+    }
+  }, [currentFrame, selectedIds]);
+
   useEffect(() => {
     const updateCursorPosition = (event) => {
       setCursorPosition({ x: event.clientX, y: event.clientY });
