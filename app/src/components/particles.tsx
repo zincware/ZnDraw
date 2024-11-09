@@ -107,12 +107,8 @@ export const ParticleInstances = ({
   selectedIds,
   setSelectedIds,
   isDrawing,
-  points,
   setPoints,
-  setOrbitControlsTarget,
-  hoveredId,
   setHoveredId,
-  setTriggerSelection,
   sceneSettings,
   token,
   visibleIndices = undefined,
@@ -122,12 +118,8 @@ export const ParticleInstances = ({
   selectedIds: Set<number>;
   setSelectedIds: any;
   isDrawing: boolean;
-  points: THREE.Vector3[];
   setPoints: any;
-  setOrbitControlsTarget: any;
-  hoveredId: number | null;
   setHoveredId: any;
-  setTriggerSelection: any;
   sceneSettings: any;
   token: string;
   visibleIndices: Set<number> | undefined;

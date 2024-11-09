@@ -569,14 +569,12 @@ export default function App() {
               selectedIds={selectedIds}
               setSelectedIds={setSelectedIds}
               isDrawing={isDrawing}
-              points={points}
               setPoints={setPoints}
-              setOrbitControlsTarget={setOrbitControlsTarget}
-              hoveredId={hoveredId}
               setHoveredId={setHoveredId}
-              setTriggerSelection={setTriggerSelection}
               sceneSettings={roomConfig["scene"]}
               token={token}
+              highlight=""
+              visibleIndices={undefined}
             />
             {/* <ParticleInstances
               frame={currentFrame}
@@ -599,12 +597,8 @@ export default function App() {
               selectedIds={selectedIds}
               setSelectedIds={setSelectedIds}
               isDrawing={isDrawing}
-              points={points}
               setPoints={setPoints}
-              setOrbitControlsTarget={setOrbitControlsTarget}
-              hoveredId={hoveredId}
               setHoveredId={setHoveredId}
-              setTriggerSelection={setTriggerSelection}
               sceneSettings={roomConfig["scene"]}
               token={token}
               visibleIndices={
@@ -617,12 +611,8 @@ export default function App() {
               selectedIds={selectedIds}
               setSelectedIds={setSelectedIds}
               isDrawing={isDrawing}
-              points={points}
               setPoints={setPoints}
-              setOrbitControlsTarget={setOrbitControlsTarget}
-              hoveredId={hoveredId}
               setHoveredId={setHoveredId}
-              setTriggerSelection={setTriggerSelection}
               sceneSettings={roomConfig["scene"]}
               token={token}
               visibleIndices={selectedIds}
