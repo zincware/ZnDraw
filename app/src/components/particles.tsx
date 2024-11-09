@@ -110,32 +110,32 @@ const ParticleBondMaterial = ({
   material: string;
 }) => {
   if (highlight) {
-      switch (highlight) {
-        case "backside":
-          return (
-            <meshBasicMaterial
-              side={THREE.BackSide}
-              transparent
-              opacity={0.8}
-            />
-          );
-        case "frontside":
-          return <meshBasicMaterial side={THREE.FrontSide} transparent opacity={0.5}/>;
-        case "selection":
-          return <meshBasicMaterial side={THREE.FrontSide} transparent opacity={0.5}/>;
-        case "constraint":
-          return (
-            <meshBasicMaterial
-              side={THREE.FrontSide}
-              // transparent
-              // opacity={0.5}
-              color="red"
-              wireframe
-            />
-          );
-        default:
-          return null;
-      }
+    switch (highlight) {
+      case "backside":
+        return (
+          <meshBasicMaterial side={THREE.BackSide} transparent opacity={0.8} />
+        );
+      case "frontside":
+        return (
+          <meshBasicMaterial side={THREE.FrontSide} transparent opacity={0.5} />
+        );
+      case "selection":
+        return (
+          <meshBasicMaterial side={THREE.FrontSide} transparent opacity={0.5} />
+        );
+      case "constraint":
+        return (
+          <meshBasicMaterial
+            side={THREE.FrontSide}
+            // transparent
+            // opacity={0.5}
+            color="red"
+            wireframe
+          />
+        );
+      default:
+        return null;
+    }
   }
 
   switch (material) {
