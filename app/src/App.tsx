@@ -685,6 +685,7 @@ export default function App() {
               loop={roomConfig["scene"]["animation_loop"]}
               length={length}
               selectedFrames={selectedFrames}
+              stepSize={1}
             />
             <Line3D
               points={points}
