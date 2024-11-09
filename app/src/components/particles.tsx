@@ -160,7 +160,7 @@ export const ParticleInstances = ({
   setHoveredId: any;
   sceneSettings: any;
   token: string;
-  visibleIndices: Set<number> | undefined;
+  visibleIndices: Set<number> | undefined | number;
   highlight: string;
 }) => {
   const meshRef = useRef<THREE.InstancedMesh | null>(null);
@@ -173,6 +173,14 @@ export const ParticleInstances = ({
 
   // Update actualVisibleIndices when visibleIndices or frame.numbers changes
   useEffect(() => {
+    if (typeof visibleIndices === "number") {
+      if (visibleIndices === -1) { // -1 means no hover
+        setActualVisibleIndices(new Set());
+      } else {
+        setActualVisibleIndices(new Set([visibleIndices]));
+      }
+      return;
+    }
     setActualVisibleIndices(
       visibleIndices ??
         new Set(Array.from({ length: frame.numbers.length }, (_, i) => i)),
@@ -254,7 +262,7 @@ export const ParticleInstances = ({
       return;
     }
     event.stopPropagation();
-    setHoveredId(null);
+    setHoveredId(-1);
   };
 
   const handleClicked = (event) => {

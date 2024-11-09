@@ -137,7 +137,7 @@ export default function App() {
   // TODO: initial values are wrong for orbitcontrolstarget and camperaPosition
   // todo give to particles and bonds
   const [colorMode, handleColorMode] = useColorMode();
-  const [hoveredId, setHoveredId] = useState<number>(null);
+  const [hoveredId, setHoveredId] = useState<number>(-1);
   const [roomConfig, setRoomConfig] = useState({
     arrows: {},
     scene: { floor: false },
@@ -576,22 +576,6 @@ export default function App() {
               highlight=""
               visibleIndices={undefined}
             />
-            {/* <ParticleInstances
-              frame={currentFrame}
-              selectedIds={selectedIds}
-              setSelectedIds={setSelectedIds}
-              isDrawing={isDrawing}
-              points={points}
-              setPoints={setPoints}
-              setOrbitControlsTarget={setOrbitControlsTarget}
-              hoveredId={hoveredId}
-              setHoveredId={setHoveredId}
-              setTriggerSelection={setTriggerSelection}
-              sceneSettings={roomConfig["scene"]}
-              token={token}
-              visibleIndices={hoveredId !== null ? new Set([hoveredId]) : new Set([])}
-              highlight={"frontside"}
-            /> */}
             <ParticleInstances
               frame={currentFrame}
               selectedIds={selectedIds}
@@ -601,9 +585,7 @@ export default function App() {
               setHoveredId={setHoveredId}
               sceneSettings={roomConfig["scene"]}
               token={token}
-              visibleIndices={
-                hoveredId !== null ? new Set([hoveredId]) : new Set([])
-              }
+              visibleIndices={hoveredId}
               highlight={"backside"}
             />
             <ParticleInstances
