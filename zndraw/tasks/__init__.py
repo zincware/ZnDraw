@@ -382,7 +382,9 @@ def run_room_worker(room):
                 try:
                     analysis_queue[TASK_RUNNING] = True
                     analyses[key](**task).run(vis)
-                    analysis_queue.pop(TASK_RUNNING) # TODO: does this cause an error when trying to stop on the GUI
+                    analysis_queue.pop(
+                        TASK_RUNNING
+                    )  # TODO: does this cause an error when trying to stop on the GUI
                 except Exception as err:
                     vis.log(f"Error running analysis `{key}`: {err}")
             except IndexError:

@@ -145,10 +145,12 @@ export const ParticleInstances = ({
     if (visibleIndices) {
       setActualVisibleIndices(visibleIndices);
     } else {
-      setActualVisibleIndices(new Set(Array.from({ length: frame.numbers.length }, (_, i) => i)));
+      setActualVisibleIndices(
+        new Set(Array.from({ length: frame.numbers.length }, (_, i) => i)),
+      );
     }
   }, [visibleIndices, frame.positions]);
-  
+
   const { colors, radii } = frame.arrays;
   const positions = frame.positions;
   const { selection_color, material } = sceneSettings;
@@ -161,13 +163,12 @@ export const ParticleInstances = ({
       // Convert visibleIndices Set to an array to ensure consistent indexing for `i`
       Array.from(actualVisibleIndices).forEach((atomIdx, i) => {
         const position = positions[atomIdx];
-        let radius
+        let radius;
         if (highlight == "backside") {
           radius = radii[atomIdx] * 1.25;
         } else if (highlight == "frontside") {
           radius = radii[atomIdx] * 1.01;
-        }
-        else if (highlight == "selection") {
+        } else if (highlight == "selection") {
           radius = radii[atomIdx] * 1.01;
         } else {
           radius = radii[atomIdx];
@@ -189,7 +190,14 @@ export const ParticleInstances = ({
       meshRef.current.instanceMatrix.needsUpdate = true;
       meshRef.current.instanceColor.needsUpdate = true;
     }
-  }, [positions, colors, radii, actualVisibleIndices, selection_color, selectedIds]);
+  }, [
+    positions,
+    colors,
+    radii,
+    actualVisibleIndices,
+    selection_color,
+    selectedIds,
+  ]);
 
   useEffect(() => {
     if (sphereRef.current) {
@@ -287,42 +295,46 @@ export const ParticleInstances = ({
 
   return (
     <>
-    <instancedMesh
-      ref={meshRef}
-      args={[null, null, actualVisibleIndices.size]}
-      onPointerOver={handlePointerOver}
-      onPointerOut={handlePointerOut}
-      onPointerMove={handlePointerMove}
-      onClick={handleClicked}
-      onDoubleClick={handleDoubleClick}
-      castShadow
-      frustumCulled={false}
-    >
-      <sphereGeometry args={[1, 30, 30]} ref={sphereRef} />
+      <instancedMesh
+        ref={meshRef}
+        args={[null, null, actualVisibleIndices.size]}
+        onPointerOver={handlePointerOver}
+        onPointerOut={handlePointerOut}
+        onPointerMove={handlePointerMove}
+        onClick={handleClicked}
+        onDoubleClick={handleDoubleClick}
+        castShadow
+        frustumCulled={false}
+      >
+        <sphereGeometry args={[1, 30, 30]} ref={sphereRef} />
 
-      {highlight === "backside" && (
-        <meshBasicMaterial side={THREE.BackSide} transparent opacity={0.8}/>
-      )}
-      {highlight === "frontside" && (
-        <meshBasicMaterial side={THREE.FrontSide} transparent opacity={0.3}/>
-      )}
-      {highlight === "selection" && (
-        <meshBasicMaterial side={THREE.FrontSide} transparent opacity={0.5}/>
-      )}
+        {highlight === "backside" && (
+          <meshBasicMaterial side={THREE.BackSide} transparent opacity={0.8} />
+        )}
+        {highlight === "frontside" && (
+          <meshBasicMaterial side={THREE.FrontSide} transparent opacity={0.3} />
+        )}
+        {highlight === "selection" && (
+          <meshBasicMaterial side={THREE.FrontSide} transparent opacity={0.5} />
+        )}
 
-      {(highlight === "" && material === "MeshPhysicalMaterial") && (
-         <meshPhysicalMaterial attach="material" roughness={0.3} reflectivity={0.4}/>
-      )}
-      {(highlight === "" && material === "MeshToonMaterial") && (
-         <meshToonMaterial attach="material" />
-      )}
-      {(highlight === "" && material === "MeshStandardMaterial") && (
-         <meshStandardMaterial attach="material" />
-      )}
-      {(highlight === "" && material === "MeshBasicMaterial") && (
-         <meshBasicMaterial attach="material" />
-      )}
-    </instancedMesh>
+        {highlight === "" && material === "MeshPhysicalMaterial" && (
+          <meshPhysicalMaterial
+            attach="material"
+            roughness={0.3}
+            reflectivity={0.4}
+          />
+        )}
+        {highlight === "" && material === "MeshToonMaterial" && (
+          <meshToonMaterial attach="material" />
+        )}
+        {highlight === "" && material === "MeshStandardMaterial" && (
+          <meshStandardMaterial attach="material" />
+        )}
+        {highlight === "" && material === "MeshBasicMaterial" && (
+          <meshBasicMaterial attach="material" />
+        )}
+      </instancedMesh>
     </>
   );
 };

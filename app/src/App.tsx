@@ -607,7 +607,9 @@ export default function App() {
               setTriggerSelection={setTriggerSelection}
               sceneSettings={roomConfig["scene"]}
               token={token}
-              visibleIndices={hoveredId !== null ? new Set([hoveredId]) : new Set([])}
+              visibleIndices={
+                hoveredId !== null ? new Set([hoveredId]) : new Set([])
+              }
               highlight={"backside"}
             />
             <ParticleInstances
