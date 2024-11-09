@@ -137,7 +137,7 @@ export default function App() {
   // TODO: initial values are wrong for orbitcontrolstarget and camperaPosition
   // todo give to particles and bonds
   const [colorMode, handleColorMode] = useColorMode();
-  const [hoveredId, setHoveredId] = useState<number>(null);
+  const [hoveredId, setHoveredId] = useState<number>(-1);
   const [roomConfig, setRoomConfig] = useState({
     arrows: {},
     scene: { floor: false },
@@ -459,6 +459,21 @@ export default function App() {
     selectedIds,
   ]);
 
+  // reduce selection, if selected points is reduced
+  useEffect(() => {
+    if (selectedIds.size > 0) {
+      const newSelectedIds = new Set(
+        Array.from(selectedIds).filter(
+          (id) => id < currentFrame.positions.length,
+        ),
+      );
+      // if the selection is reduced, update the selection
+      if (newSelectedIds.size < selectedIds.size) {
+        setSelectedIds(newSelectedIds);
+      }
+    }
+  }, [currentFrame, selectedIds]);
+
   useEffect(() => {
     const updateCursorPosition = (event) => {
       setCursorPosition({ x: event.clientX, y: event.clientY });
@@ -569,19 +584,47 @@ export default function App() {
               selectedIds={selectedIds}
               setSelectedIds={setSelectedIds}
               isDrawing={isDrawing}
-              points={points}
               setPoints={setPoints}
-              setOrbitControlsTarget={setOrbitControlsTarget}
-              hoveredId={hoveredId}
               setHoveredId={setHoveredId}
-              setTriggerSelection={setTriggerSelection}
               sceneSettings={roomConfig["scene"]}
               token={token}
+              highlight=""
+              visibleIndices={undefined}
+            />
+            <ParticleInstances
+              frame={currentFrame}
+              selectedIds={selectedIds}
+              setSelectedIds={setSelectedIds}
+              isDrawing={isDrawing}
+              setPoints={setPoints}
+              setHoveredId={setHoveredId}
+              sceneSettings={roomConfig["scene"]}
+              token={token}
+              visibleIndices={hoveredId}
+              highlight={"backside"}
+            />
+            <ParticleInstances
+              frame={currentFrame}
+              selectedIds={selectedIds}
+              setSelectedIds={setSelectedIds}
+              isDrawing={isDrawing}
+              setPoints={setPoints}
+              setHoveredId={setHoveredId}
+              sceneSettings={roomConfig["scene"]}
+              token={token}
+              visibleIndices={selectedIds}
+              highlight={"selection"}
             />
             <BondInstances
               frame={currentFrame}
-              selectedIds={selectedIds}
-              hoveredId={hoveredId}
+              visibleIndices={selectedIds}
+              highlight="selection"
+              sceneSettings={roomConfig["scene"]}
+            />
+            <BondInstances
+              frame={currentFrame}
+              visibleIndices={undefined}
+              highlight=""
               sceneSettings={roomConfig["scene"]}
             />
             {roomConfig["scene"]["simulation_box"] && (

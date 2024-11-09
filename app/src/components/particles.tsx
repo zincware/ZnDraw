@@ -102,104 +102,179 @@ export const getCentroid = (
   }
 };
 
+const ParticleBondMaterial = ({
+  highlight,
+  material,
+}: {
+  highlight: string;
+  material: string;
+}) => {
+  if (highlight) {
+    return (
+      <meshBasicMaterial
+        side={highlight === "backside" ? THREE.BackSide : THREE.FrontSide}
+        transparent
+        opacity={highlight === "backside" ? 0.8 : 0.5}
+      />
+    );
+  }
+
+  switch (material) {
+    case "MeshPhysicalMaterial":
+      return (
+        <meshPhysicalMaterial
+          attach="material"
+          roughness={0.3}
+          reflectivity={0.4}
+          side={THREE.FrontSide}
+        />
+      );
+    case "MeshToonMaterial":
+      return <meshToonMaterial attach="material" side={THREE.FrontSide} />;
+    case "MeshStandardMaterial":
+      return <meshStandardMaterial attach="material" side={THREE.FrontSide} />;
+    case "MeshBasicMaterial":
+      return <meshBasicMaterial attach="material" side={THREE.FrontSide} />;
+    default:
+      return null;
+  }
+};
+
 export const ParticleInstances = ({
   frame,
   selectedIds,
   setSelectedIds,
   isDrawing,
-  points,
   setPoints,
-  setOrbitControlsTarget,
-  hoveredId,
   setHoveredId,
-  setTriggerSelection,
   sceneSettings,
   token,
+  visibleIndices = undefined,
+  highlight = "",
 }: {
   frame: Frame;
   selectedIds: Set<number>;
   setSelectedIds: any;
   isDrawing: boolean;
-  points: THREE.Vector3[];
   setPoints: any;
-  setOrbitControlsTarget: any;
-  hoveredId: number | null;
   setHoveredId: any;
-  setTriggerSelection: any;
   sceneSettings: any;
   token: string;
+  visibleIndices: Set<number> | undefined | number;
+  highlight: string;
 }) => {
-  const meshRef = useRef();
-
-  const count = Object.keys(frame.positions).length;
-  const originalScale = useRef<number>(1);
+  const meshRef = useRef<THREE.InstancedMesh | null>(null);
   const sphereRef = useRef<THREE.InstancedMesh | null>(null);
+  const originalScale = useRef<number>(1);
+
+  const [actualVisibleIndices, setActualVisibleIndices] = useState<Set<number>>(
+    new Set(),
+  );
+
+  // Update actualVisibleIndices when visibleIndices or frame.numbers changes
+  useEffect(() => {
+    if (typeof visibleIndices === "number") {
+      if (visibleIndices === -1) {
+        // -1 means no hover
+        setActualVisibleIndices(new Set());
+      } else {
+        setActualVisibleIndices(new Set([visibleIndices]));
+      }
+      return;
+    }
+    setActualVisibleIndices(
+      visibleIndices ??
+        new Set(Array.from({ length: frame.numbers.length }, (_, i) => i)),
+    );
+  }, [visibleIndices, frame.numbers.length]);
+
+  const { colors, radii } = frame.arrays;
+  const positions = frame.positions;
+  const { selection_color, material, particle_size } = sceneSettings;
 
   useEffect(() => {
-    if (meshRef.current && count > 0) {
-      const color = new THREE.Color();
+    if (meshRef.current && actualVisibleIndices.size > 0) {
+      const color = new THREE.Color(selection_color);
+      const scaleVector = new THREE.Vector3();
 
-      frame.positions.forEach((position, i) => {
-        const matrix = new THREE.Matrix4().setPosition(position);
-        matrix.scale(
-          new THREE.Vector3(
-            frame.arrays.radii[i],
-            frame.arrays.radii[i],
-            frame.arrays.radii[i],
-          ),
-        );
-        meshRef.current.setMatrixAt(i, matrix);
-        // update color
-        if (selectedIds.has(i)) {
-          color.setStyle(sceneSettings.selection_color);
-        } else {
-          color.set(frame.arrays.colors[i]);
+      const visibleArray = Array.from(actualVisibleIndices);
+      visibleArray.forEach((atomIdx, i) => {
+        const position = positions[atomIdx];
+        if (!position) {
+          // if position was removed, this can happen and we skip it until next update
+          return;
         }
+
+        let radius;
+        if (highlight == "backside") {
+          radius = radii[atomIdx] * 1.25;
+        } else if (highlight == "frontside") {
+          radius = radii[atomIdx] * 1.01;
+        } else if (highlight == "selection") {
+          radius = radii[atomIdx] * 1.01;
+        } else {
+          radius = radii[atomIdx];
+        }
+        // Set position and scale for each instance
+        const matrix = new THREE.Matrix4()
+          .setPosition(position)
+          .scale(scaleVector.set(radius, radius, radius));
+        meshRef.current.setMatrixAt(i, matrix);
+        color.set(highlight ? selection_color : colors[atomIdx]);
         meshRef.current.setColorAt(i, color);
       });
+
+      // Mark instance matrices and colors for update
       meshRef.current.instanceMatrix.needsUpdate = true;
       meshRef.current.instanceColor.needsUpdate = true;
     }
-  }, [frame.positions, frame.arrays.colors, frame.arrays.radii]);
+  }, [
+    positions,
+    colors,
+    radii,
+    actualVisibleIndices,
+    selection_color,
+    highlight,
+  ]);
+
+  useEffect(() => {
+    if (sphereRef.current) {
+      const scale = particle_size / originalScale.current;
+      sphereRef.current.scale(scale, scale, scale);
+      originalScale.current = particle_size;
+    }
+  }, [particle_size]);
 
   const handlePointerOver = (event) => {
+    if (highlight != "") {
+      return;
+    }
     event.stopPropagation();
     setHoveredId(event.instanceId);
-    // // detect shift and control key being pressed at the same time
+    // detect shift and control key being pressed at the same time
     if (event.shiftKey && event.ctrlKey) {
       selectedIds.add(event.instanceId);
       setSelectedIds(new Set(selectedIds));
     }
   };
 
-  const handlePointerMove = (event) => {
-    event.stopPropagation();
-    if (isDrawing) {
-      // replace the last point with the hovered point
-      let i = 0;
-      while (
-        i < event.intersections.length &&
-        !event.intersections[i].object.visible
-      ) {
-        i++;
-      }
-
-      setPoints((prevPoints: THREE.Vector3[]) => [
-        ...prevPoints.slice(0, prevPoints.length - 1),
-        event.intersections[i].point,
-      ]);
-    }
-  };
-
   const handlePointerOut = (event) => {
+    if (highlight != "") {
+      return;
+    }
     event.stopPropagation();
-    setHoveredId(null);
+    setHoveredId(-1);
   };
 
-  const handleClick = (event) => {
-    // if not shift key, the selected particle is the only one selected, if already selected, no particle is selected
-    // if shift key, the selected particle is added to the selected particles, if already selected, it is removed
-    if (event.detail !== 1) return; // prevent double click tirgger
+  const handleClicked = (event) => {
+    if (event.detail !== 1) {
+      return; // only handle single clicks
+    }
+    if (highlight != "") {
+      return;
+    }
+
+    event.stopPropagation();
     if (!event.shiftKey) {
       if (selectedIds.has(event.instanceId)) {
         setSelectedIds(new Set());
@@ -209,13 +284,11 @@ export const ParticleInstances = ({
     } else {
       if (selectedIds.has(event.instanceId)) {
         selectedIds.delete(event.instanceId);
-        setSelectedIds(new Set(selectedIds));
       } else {
         selectedIds.add(event.instanceId);
-        setSelectedIds(new Set(selectedIds));
       }
+      setSelectedIds(new Set(selectedIds));
     }
-    event.stopPropagation();
   };
 
   const handleDoubleClick = (event) => {
@@ -228,103 +301,71 @@ export const ParticleInstances = ({
     event.stopPropagation();
   };
 
-  useEffect(() => {
-    if (meshRef.current && count > 0) {
-      const color = new THREE.Color();
-      frame.positions.forEach((_, i) => {
-        if (selectedIds.has(i)) {
-          color.setStyle(sceneSettings.selection_color);
-          meshRef.current.setColorAt(i, color);
-        }
-      });
-      meshRef.current.instanceColor.needsUpdate = true;
-    }
-  }, [selectedIds]);
+  const handlePointerMove = (event) => {
+    if (!isDrawing || highlight) return;
+    event.stopPropagation();
 
-  // useFrame to change color if hovered
-  useFrame(() => {
-    if (meshRef.current && count > 0) {
-      const color = new THREE.Color();
-      frame.positions.forEach((_, i) => {
-        if (i === hoveredId) {
-          color.setHex(0xf05000);
-          meshRef.current.setColorAt(i, color);
-        } else if (selectedIds.has(i)) {
-          color.setStyle(sceneSettings.selection_color);
-          meshRef.current.setColorAt(i, color);
-        } else {
-          color.set(frame.arrays.colors[i]);
-          meshRef.current.setColorAt(i, color);
-        }
-      });
-      meshRef.current.instanceColor.needsUpdate = true;
+    const hoverPoint = event.intersections.find((i) => i.object.visible)?.point;
+    if (hoverPoint) {
+      setPoints((prevPoints: THREE.Vector3[]) => [
+        ...prevPoints.slice(0, -1),
+        hoverPoint,
+      ]);
     }
-  });
-
-  useEffect(() => {
-    if (sphereRef.current) {
-      sphereRef.current.scale(
-        1 / originalScale.current,
-        1 / originalScale.current,
-        1 / originalScale.current,
-      );
-      originalScale.current = sceneSettings.particle_size;
-      sphereRef.current.scale(
-        sceneSettings.particle_size,
-        sceneSettings.particle_size,
-        sceneSettings.particle_size,
-      );
-    }
-  }, [sceneSettings.particle_size]);
+  };
 
   return (
-    <instancedMesh
-      ref={meshRef}
-      args={[null, null, count]}
-      onPointerOver={handlePointerOver}
-      onPointerOut={handlePointerOut}
-      onClick={handleClick}
-      onDoubleClick={handleDoubleClick}
-      onPointerMove={handlePointerMove}
-      castShadow
-      // receiveShadow
-      frustumCulled={false}
-    >
-      <sphereGeometry args={[1, 30, 30]} ref={sphereRef} />
-      {sceneSettings.material === "MeshPhysicalMaterial" && (
-        <meshPhysicalMaterial
-          attach="material"
-          roughness={0.3}
-          reflectivity={0.4}
-        />
-      )}
-      {sceneSettings.material === "MeshToonMaterial" && (
-        <meshToonMaterial attach="material" />
-      )}
-      {sceneSettings.material === "MeshStandardMaterial" && (
-        <meshStandardMaterial attach="material" />
-      )}
-      {sceneSettings.material === "MeshBasicMaterial" && (
-        <meshBasicMaterial attach="material" />
-      )}
-    </instancedMesh>
+    <>
+      <instancedMesh
+        ref={meshRef}
+        args={[null, null, actualVisibleIndices.size]}
+        onPointerOver={handlePointerOver}
+        onPointerOut={handlePointerOut}
+        onPointerMove={handlePointerMove}
+        onClick={handleClicked}
+        onDoubleClick={handleDoubleClick}
+        castShadow
+        frustumCulled={false}
+      >
+        <sphereGeometry args={[1, 30, 30]} ref={sphereRef} />
+        <ParticleBondMaterial highlight={highlight} material={material} />
+      </instancedMesh>
+    </>
   );
 };
 
 export const BondInstances = ({
   frame,
-  selectedIds,
-  hoveredId,
+  visibleIndices = undefined,
+  highlight = "",
   sceneSettings,
 }: {
   frame: Frame;
-  selectedIds: Set<number>;
-  hoveredId: number;
   sceneSettings: any;
+  visibleIndices: Set<number> | undefined;
+  highlight: string;
 }) => {
   const meshRef = useRef<THREE.InstancedMesh | null>(null);
 
-  const count = Object.keys(frame.connectivity).length * 2;
+  const [actualVisibleConnectivity, setActualVisibleConnectivity] = useState<
+    number[][]
+  >([]);
+
+  const { material, selection_color } = sceneSettings;
+
+  // Update actualVisibleIndices when visibleIndices or frame.numbers changes
+  useEffect(() => {
+    if (!visibleIndices) {
+      setActualVisibleConnectivity(frame.connectivity);
+      return;
+    }
+    // find the subset of frame.connectivity where one of the particles are in visibleIndices
+    const newConnectivity = frame.connectivity.filter(([a, b]) => {
+      return visibleIndices?.has(a) && visibleIndices?.has(b);
+    });
+    setActualVisibleConnectivity(newConnectivity);
+  }, [visibleIndices, frame]);
+
   const originalScale = useRef<number>(1);
 
   const geometry = useMemo(() => {
@@ -336,7 +377,7 @@ export const BondInstances = ({
   }, []);
 
   useEffect(() => {
-    if (meshRef.current && count > 0) {
+    if (meshRef.current && actualVisibleConnectivity.length > 0) {
       const color = new THREE.Color();
       const matrix = new THREE.Matrix4();
       const up = new THREE.Vector3(0, 1, 0);
@@ -350,6 +391,9 @@ export const BondInstances = ({
         direction.subVectors(posB, posA).normalize();
         const distance = posA.distanceTo(posB);
         scale.set(1, 1, distance);
+        if (highlight === "selection") {
+          scale.multiplyScalar(1.01);
+        }
 
         matrix.lookAt(posA, posB, up);
         matrix.scale(scale);
@@ -358,11 +402,11 @@ export const BondInstances = ({
         return matrix.clone(); // Clone to avoid overwriting
       };
 
-      frame.connectivity.forEach(([a, b], i) => {
+      actualVisibleConnectivity.forEach(([a, b], i) => {
         const posA = frame.positions[a] as THREE.Vector3;
         const posB = frame.positions[b] as THREE.Vector3;
         if (!posA || !posB) {
-          console.error("Connected particles not found");
+          // console.error("Connected particles not found");
           return;
         }
 
@@ -371,11 +415,11 @@ export const BondInstances = ({
           i * 2,
           createTransformationMatrix(posA, posB),
         );
-        color.setStyle(
-          selectedIds.has(a)
-            ? sceneSettings.selection_color
-            : frame.arrays.colors[a],
-        );
+        if (highlight === "selection") {
+          color.set(selection_color);
+        } else {
+          color.setStyle(frame.arrays.colors[a]);
+        }
         meshRef.current!.setColorAt(i * 2, color);
 
         // Set matrix and color for the bond from B to A
@@ -383,41 +427,18 @@ export const BondInstances = ({
           i * 2 + 1,
           createTransformationMatrix(posB, posA),
         );
-        color.setStyle(
-          selectedIds.has(b)
-            ? sceneSettings.selection_color
-            : frame.arrays.colors[b],
-        );
+        if (highlight === "selection") {
+          color.set(selection_color);
+        } else {
+          color.setStyle(frame.arrays.colors[b]);
+        }
         meshRef.current!.setColorAt(i * 2 + 1, color);
       });
 
       meshRef.current.instanceMatrix.needsUpdate = true;
       meshRef.current.instanceColor.needsUpdate = true;
     }
-  }, [frame, selectedIds, count]);
-
-  // if selectedIds changes, update the color of the bonds corresponding to the selected particles
-  useEffect(() => {
-    if (meshRef.current && count > 0) {
-      const color = new THREE.Color();
-      frame.connectivity.forEach(([a, b], i) => {
-        if (selectedIds.has(a)) {
-          color.setStyle(sceneSettings.selection_color);
-          meshRef.current.setColorAt(i * 2, color);
-        } else if (selectedIds.has(b)) {
-          // TODO: check if this is required?
-          color.setStyle(sceneSettings.selection_color);
-          meshRef.current.setColorAt(i * 2 + 1, color);
-        } else {
-          color.set(frame.arrays.colors[a]);
-          meshRef.current.setColorAt(i * 2, color);
-          color.set(frame.arrays.colors[b]);
-          meshRef.current.setColorAt(i * 2 + 1, color);
-        }
-      });
-      meshRef.current.instanceColor.needsUpdate = true;
-    }
-  }, [selectedIds, sceneSettings]);
+  }, [frame, actualVisibleConnectivity, selection_color]);
 
   useEffect(() => {
     if (meshRef.current) {
@@ -430,26 +451,11 @@ export const BondInstances = ({
   return (
     <instancedMesh
       ref={meshRef}
-      args={[geometry, null, count]}
+      args={[geometry, null, actualVisibleConnectivity.length * 2]}
       castShadow
       // receiveShadow
     >
-      {sceneSettings.material === "MeshPhysicalMaterial" && (
-        <meshPhysicalMaterial
-          attach="material"
-          roughness={0.3}
-          reflectivity={0.4}
-        />
-      )}
-      {sceneSettings.material === "MeshToonMaterial" && (
-        <meshToonMaterial attach="material" />
-      )}
-      {sceneSettings.material === "MeshStandardMaterial" && (
-        <meshStandardMaterial attach="material" />
-      )}
-      {sceneSettings.material === "MeshBasicMaterial" && (
-        <meshBasicMaterial attach="material" />
-      )}
+      <ParticleBondMaterial highlight={highlight} material={material} />
     </instancedMesh>
   );
 };
