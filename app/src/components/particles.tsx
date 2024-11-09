@@ -312,19 +312,34 @@ export const ParticleInstances = ({
 
 export const BondInstances = ({
   frame,
-  // selectedIds,
-  hoveredId,
+  visibleIndices = undefined,
+  highlight = "",
   sceneSettings,
 }: {
   frame: Frame;
-  // selectedIds: Set<number>;
-  hoveredId: number;
   sceneSettings: any;
+  visibleIndices: Set<number> | undefined;
+  highlight: string;
 }) => {
   const meshRef = useRef<THREE.InstancedMesh | null>(null);
-  const selectedIds = new Set();
 
-  const count = Object.keys(frame.connectivity).length * 2;
+  const [actualVisibleConnectivity, setActualVisibleConnectivity] = useState<number[][]>([]);
+
+  const { material, selection_color } = sceneSettings;
+
+  // Update actualVisibleIndices when visibleIndices or frame.numbers changes
+  useEffect(() => {
+    if (!visibleIndices) {
+      setActualVisibleConnectivity(frame.connectivity);
+      return;
+    }
+    // find the subset of frame.connectivity where one of the particles are in visibleIndices
+    const newConnectivity = frame.connectivity.filter(([a, b]) => {
+      return visibleIndices?.has(a) && visibleIndices?.has(b);
+    });
+    setActualVisibleConnectivity(newConnectivity);
+  }, [visibleIndices, frame]);
+  
   const originalScale = useRef<number>(1);
 
   const geometry = useMemo(() => {
@@ -336,7 +351,7 @@ export const BondInstances = ({
   }, []);
 
   useEffect(() => {
-    if (meshRef.current && count > 0) {
+    if (meshRef.current && actualVisibleConnectivity.length > 0) {
       const color = new THREE.Color();
       const matrix = new THREE.Matrix4();
       const up = new THREE.Vector3(0, 1, 0);
@@ -350,6 +365,9 @@ export const BondInstances = ({
         direction.subVectors(posB, posA).normalize();
         const distance = posA.distanceTo(posB);
         scale.set(1, 1, distance);
+        if (highlight === "selection") {
+          scale.multiplyScalar(1.01);
+        }
 
         matrix.lookAt(posA, posB, up);
         matrix.scale(scale);
@@ -358,7 +376,7 @@ export const BondInstances = ({
         return matrix.clone(); // Clone to avoid overwriting
       };
 
-      frame.connectivity.forEach(([a, b], i) => {
+      actualVisibleConnectivity.forEach(([a, b], i) => {
         const posA = frame.positions[a] as THREE.Vector3;
         const posB = frame.positions[b] as THREE.Vector3;
         if (!posA || !posB) {
@@ -371,11 +389,11 @@ export const BondInstances = ({
           i * 2,
           createTransformationMatrix(posA, posB),
         );
-        color.setStyle(
-          selectedIds.has(a)
-            ? sceneSettings.selection_color
-            : frame.arrays.colors[a],
-        );
+        if (highlight === "selection") {
+          color.set(selection_color);
+        } else {
+          color.setStyle(frame.arrays.colors[a]);
+        }
         meshRef.current!.setColorAt(i * 2, color);
 
         // Set matrix and color for the bond from B to A
@@ -383,41 +401,18 @@ export const BondInstances = ({
           i * 2 + 1,
           createTransformationMatrix(posB, posA),
         );
-        color.setStyle(
-          selectedIds.has(b)
-            ? sceneSettings.selection_color
-            : frame.arrays.colors[b],
-        );
+        if (highlight === "selection") {
+          color.set(selection_color);
+        } else {
+          color.setStyle(frame.arrays.colors[b]);
+        }
         meshRef.current!.setColorAt(i * 2 + 1, color);
       });
 
       meshRef.current.instanceMatrix.needsUpdate = true;
       meshRef.current.instanceColor.needsUpdate = true;
     }
-  }, [frame, selectedIds, count]);
-
-  // if selectedIds changes, update the color of the bonds corresponding to the selected particles
-  useEffect(() => {
-    if (meshRef.current && count > 0) {
-      const color = new THREE.Color();
-      frame.connectivity.forEach(([a, b], i) => {
-        if (selectedIds.has(a)) {
-          color.setStyle(sceneSettings.selection_color);
-          meshRef.current.setColorAt(i * 2, color);
-        } else if (selectedIds.has(b)) {
-          // TODO: check if this is required?
-          color.setStyle(sceneSettings.selection_color);
-          meshRef.current.setColorAt(i * 2 + 1, color);
-        } else {
-          color.set(frame.arrays.colors[a]);
-          meshRef.current.setColorAt(i * 2, color);
-          color.set(frame.arrays.colors[b]);
-          meshRef.current.setColorAt(i * 2 + 1, color);
-        }
-      });
-      meshRef.current.instanceColor.needsUpdate = true;
-    }
-  }, [selectedIds, sceneSettings]);
+  }, [frame, actualVisibleConnectivity, selection_color]);
 
   useEffect(() => {
     if (meshRef.current) {
@@ -430,26 +425,34 @@ export const BondInstances = ({
   return (
     <instancedMesh
       ref={meshRef}
-      args={[geometry, null, count]}
+      args={[geometry, null, actualVisibleConnectivity.length * 2]}
       castShadow
       // receiveShadow
     >
-      {sceneSettings.material === "MeshPhysicalMaterial" && (
-        <meshPhysicalMaterial
-          attach="material"
-          roughness={0.3}
-          reflectivity={0.4}
-        />
-      )}
-      {sceneSettings.material === "MeshToonMaterial" && (
-        <meshToonMaterial attach="material" />
-      )}
-      {sceneSettings.material === "MeshStandardMaterial" && (
-        <meshStandardMaterial attach="material" />
-      )}
-      {sceneSettings.material === "MeshBasicMaterial" && (
-        <meshBasicMaterial attach="material" />
-      )}
+      {highlight && (
+          <meshBasicMaterial
+            side={THREE.FrontSide}
+            transparent
+            opacity={0.5}
+          />
+        )}
+        {!highlight && material === "MeshPhysicalMaterial" && (
+          <meshPhysicalMaterial
+            attach="material"
+            roughness={0.3}
+            reflectivity={0.4}
+            side={THREE.FrontSide}
+          />
+        )}
+        {!highlight && material === "MeshToonMaterial" && (
+          <meshToonMaterial attach="material" side={THREE.FrontSide} />
+        )}
+        {!highlight && material === "MeshStandardMaterial" && (
+          <meshStandardMaterial attach="material" side={THREE.FrontSide} />
+        )}
+        {!highlight && material === "MeshBasicMaterial" && (
+          <meshBasicMaterial attach="material" side={THREE.FrontSide} />
+        )}
     </instancedMesh>
   );
 };

@@ -620,8 +620,14 @@ export default function App() {
             />
             <BondInstances
               frame={currentFrame}
-              selectedIds={selectedIds}
-              hoveredId={hoveredId}
+              visibleIndices={selectedIds}
+              highlight="selection"
+              sceneSettings={roomConfig["scene"]}
+            />
+            <BondInstances
+              frame={currentFrame}
+              visibleIndices={undefined}
+              highlight=""
               sceneSettings={roomConfig["scene"]}
             />
             {roomConfig["scene"]["simulation_box"] && (
