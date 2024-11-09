@@ -244,23 +244,14 @@ export const ParticleInstances = ({
   };
 
   const handlePointerMove = (event) => {
-    if (highlight != "") {
-      return;
-    }
+    if (!isDrawing || highlight) return;
     event.stopPropagation();
-    if (isDrawing) {
-      // replace the last point with the hovered point
-      let i = 0;
-      while (
-        i < event.intersections.length &&
-        !event.intersections[i].object.visible
-      ) {
-        i++;
-      }
 
+    const hoverPoint = event.intersections.find((i) => i.object.visible)?.point;
+    if (hoverPoint) {
       setPoints((prevPoints: THREE.Vector3[]) => [
-        ...prevPoints.slice(0, prevPoints.length - 1),
-        event.intersections[i].point,
+        ...prevPoints.slice(0, -1),
+        hoverPoint,
       ]);
     }
   };
