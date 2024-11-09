@@ -102,7 +102,6 @@ export const getCentroid = (
   }
 };
 
-
 const ParticleBondMaterial = ({
   highlight,
   material,
@@ -140,7 +139,6 @@ const ParticleBondMaterial = ({
       return null;
   }
 };
-
 
 export const ParticleInstances = ({
   frame,
@@ -448,7 +446,7 @@ export const BondInstances = ({
       castShadow
       // receiveShadow
     >
-    <ParticleBondMaterial highlight={highlight} material={material} />
+      <ParticleBondMaterial highlight={highlight} material={material} />
     </instancedMesh>
   );
 };
