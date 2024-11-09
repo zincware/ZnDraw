@@ -323,7 +323,9 @@ export const BondInstances = ({
 }) => {
   const meshRef = useRef<THREE.InstancedMesh | null>(null);
 
-  const [actualVisibleConnectivity, setActualVisibleConnectivity] = useState<number[][]>([]);
+  const [actualVisibleConnectivity, setActualVisibleConnectivity] = useState<
+    number[][]
+  >([]);
 
   const { material, selection_color } = sceneSettings;
 
@@ -339,7 +341,7 @@ export const BondInstances = ({
     });
     setActualVisibleConnectivity(newConnectivity);
   }, [visibleIndices, frame]);
-  
+
   const originalScale = useRef<number>(1);
 
   const geometry = useMemo(() => {
@@ -430,29 +432,25 @@ export const BondInstances = ({
       // receiveShadow
     >
       {highlight && (
-          <meshBasicMaterial
-            side={THREE.FrontSide}
-            transparent
-            opacity={0.5}
-          />
-        )}
-        {!highlight && material === "MeshPhysicalMaterial" && (
-          <meshPhysicalMaterial
-            attach="material"
-            roughness={0.3}
-            reflectivity={0.4}
-            side={THREE.FrontSide}
-          />
-        )}
-        {!highlight && material === "MeshToonMaterial" && (
-          <meshToonMaterial attach="material" side={THREE.FrontSide} />
-        )}
-        {!highlight && material === "MeshStandardMaterial" && (
-          <meshStandardMaterial attach="material" side={THREE.FrontSide} />
-        )}
-        {!highlight && material === "MeshBasicMaterial" && (
-          <meshBasicMaterial attach="material" side={THREE.FrontSide} />
-        )}
+        <meshBasicMaterial side={THREE.FrontSide} transparent opacity={0.5} />
+      )}
+      {!highlight && material === "MeshPhysicalMaterial" && (
+        <meshPhysicalMaterial
+          attach="material"
+          roughness={0.3}
+          reflectivity={0.4}
+          side={THREE.FrontSide}
+        />
+      )}
+      {!highlight && material === "MeshToonMaterial" && (
+        <meshToonMaterial attach="material" side={THREE.FrontSide} />
+      )}
+      {!highlight && material === "MeshStandardMaterial" && (
+        <meshStandardMaterial attach="material" side={THREE.FrontSide} />
+      )}
+      {!highlight && material === "MeshBasicMaterial" && (
+        <meshBasicMaterial attach="material" side={THREE.FrontSide} />
+      )}
     </instancedMesh>
   );
 };
