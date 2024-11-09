@@ -129,32 +129,31 @@ export const ParticleInstances = ({
   const sphereRef = useRef<THREE.InstancedMesh | null>(null);
   const originalScale = useRef<number>(1);
 
-  const [actualVisibleIndices, setActualVisibleIndices] = useState<Set<number>>(
-    new Set(),
-  );
+  const [actualVisibleIndices, setActualVisibleIndices] = useState<Set<number>>(new Set());
 
+  // Update actualVisibleIndices when visibleIndices or frame.numbers changes
   useEffect(() => {
-    if (visibleIndices) {
-      setActualVisibleIndices(visibleIndices);
-    } else {
-      setActualVisibleIndices(
-        new Set(Array.from({ length: frame.numbers.length }, (_, i) => i)),
-      );
-    }
-  }, [visibleIndices, frame.positions]);
+    setActualVisibleIndices(
+      visibleIndices ?? new Set(Array.from({ length: frame.numbers.length }, (_, i) => i))
+    );
+  }, [visibleIndices, frame.numbers.length]);
 
   const { colors, radii } = frame.arrays;
   const positions = frame.positions;
-  const { selection_color, material } = sceneSettings;
+  const { selection_color, material, particle_size } = sceneSettings;
 
   useEffect(() => {
     if (meshRef.current && actualVisibleIndices.size > 0) {
-      const color = new THREE.Color();
+      const color = new THREE.Color(selection_color);
       const scaleVector = new THREE.Vector3();
 
-      // Convert visibleIndices Set to an array to ensure consistent indexing for `i`
-      Array.from(actualVisibleIndices).forEach((atomIdx, i) => {
+      const visibleArray = Array.from(actualVisibleIndices);
+      visibleArray.forEach((atomIdx, i) => {
         const position = positions[atomIdx];
+        if (!position) { // if position was removed, this can happen and we skip it until next update
+          return;
+        }
+
         let radius;
         if (highlight == "backside") {
           radius = radii[atomIdx] * 1.25;
@@ -166,15 +165,11 @@ export const ParticleInstances = ({
           radius = radii[atomIdx];
         }
         // Set position and scale for each instance
-        const matrix = new THREE.Matrix4().setPosition(position);
-        scaleVector.set(radius, radius, radius);
-        matrix.scale(scaleVector);
+        const matrix = new THREE.Matrix4().setPosition(position).scale(
+          scaleVector.set(radius, radius, radius)
+        );
         meshRef.current.setMatrixAt(i, matrix);
-        if (highlight != "") {
-          color.set(selection_color);
-        } else {
-          color.set(colors[atomIdx]);
-        }
+        color.set(highlight ? selection_color : colors[atomIdx]);
         meshRef.current.setColorAt(i, color);
       });
 
@@ -182,30 +177,15 @@ export const ParticleInstances = ({
       meshRef.current.instanceMatrix.needsUpdate = true;
       meshRef.current.instanceColor.needsUpdate = true;
     }
-  }, [
-    positions,
-    colors,
-    radii,
-    actualVisibleIndices,
-    selection_color,
-    selectedIds,
-  ]);
+  }, [positions, colors, radii, actualVisibleIndices, selection_color, highlight]);
 
   useEffect(() => {
     if (sphereRef.current) {
-      sphereRef.current.scale(
-        1 / originalScale.current,
-        1 / originalScale.current,
-        1 / originalScale.current,
-      );
-      originalScale.current = sceneSettings.particle_size;
-      sphereRef.current.scale(
-        sceneSettings.particle_size,
-        sceneSettings.particle_size,
-        sceneSettings.particle_size,
-      );
+      const scale = particle_size / originalScale.current;
+      sphereRef.current.scale(scale, scale, scale);
+      originalScale.current = particle_size;
     }
-  }, [sceneSettings.particle_size]);
+  }, [particle_size]);
 
   const handlePointerOver = (event) => {
     if (highlight != "") {
@@ -299,33 +279,19 @@ export const ParticleInstances = ({
         frustumCulled={false}
       >
         <sphereGeometry args={[1, 30, 30]} ref={sphereRef} />
-
-        {highlight === "backside" && (
-          <meshBasicMaterial side={THREE.BackSide} transparent opacity={0.8} />
-        )}
-        {highlight === "frontside" && (
-          <meshBasicMaterial side={THREE.FrontSide} transparent opacity={0.3} />
-        )}
-        {highlight === "selection" && (
-          <meshBasicMaterial side={THREE.FrontSide} transparent opacity={0.5} />
-        )}
-
-        {highlight === "" && material === "MeshPhysicalMaterial" && (
-          <meshPhysicalMaterial
-            attach="material"
-            roughness={0.3}
-            reflectivity={0.4}
+        {highlight && (
+          <meshBasicMaterial
+            side={highlight === "backside" ? THREE.BackSide : THREE.FrontSide}
+            transparent
+            opacity={highlight === "backside" ? 0.8 : 0.5}
           />
         )}
-        {highlight === "" && material === "MeshToonMaterial" && (
-          <meshToonMaterial attach="material" />
+        {!highlight && material === "MeshPhysicalMaterial" && (
+          <meshPhysicalMaterial attach="material" roughness={0.3} reflectivity={0.4} side={THREE.FrontSide}/>
         )}
-        {highlight === "" && material === "MeshStandardMaterial" && (
-          <meshStandardMaterial attach="material" />
-        )}
-        {highlight === "" && material === "MeshBasicMaterial" && (
-          <meshBasicMaterial attach="material" />
-        )}
+        {!highlight && material === "MeshToonMaterial" && <meshToonMaterial attach="material" side={THREE.FrontSide}/>}
+        {!highlight && material === "MeshStandardMaterial" && <meshStandardMaterial attach="material" side={THREE.FrontSide}/>}
+        {!highlight && material === "MeshBasicMaterial" && <meshBasicMaterial attach="material" side={THREE.FrontSide}/>}
       </instancedMesh>
     </>
   );
