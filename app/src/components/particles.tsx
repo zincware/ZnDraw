@@ -174,7 +174,8 @@ export const ParticleInstances = ({
   // Update actualVisibleIndices when visibleIndices or frame.numbers changes
   useEffect(() => {
     if (typeof visibleIndices === "number") {
-      if (visibleIndices === -1) { // -1 means no hover
+      if (visibleIndices === -1) {
+        // -1 means no hover
         setActualVisibleIndices(new Set());
       } else {
         setActualVisibleIndices(new Set([visibleIndices]));
