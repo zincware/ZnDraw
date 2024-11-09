@@ -115,6 +115,8 @@ export const ParticleInstances = ({
   setTriggerSelection,
   sceneSettings,
   token,
+  visibleIndices = undefined,
+  highlight = "",
 }: {
   frame: Frame;
   selectedIds: Set<number>;
@@ -128,51 +130,143 @@ export const ParticleInstances = ({
   setTriggerSelection: any;
   sceneSettings: any;
   token: string;
+  visibleIndices: Set<number> | undefined;
+  highlight: string;
 }) => {
-  const meshRef = useRef();
-
-  const count = Object.keys(frame.positions).length;
-  const originalScale = useRef<number>(1);
+  const meshRef = useRef<THREE.InstancedMesh | null>(null);
   const sphereRef = useRef<THREE.InstancedMesh | null>(null);
+  const originalScale = useRef<number>(1);
+
+  const [actualVisibleIndices, setActualVisibleIndices] = useState<Set<number>>(
+    new Set(),
+  );
 
   useEffect(() => {
-    if (meshRef.current && count > 0) {
-      const color = new THREE.Color();
+    if (visibleIndices) {
+      setActualVisibleIndices(visibleIndices);
+    } else {
+      setActualVisibleIndices(new Set(Array.from({ length: frame.numbers.length }, (_, i) => i)));
+    }
+  }, [visibleIndices, frame.positions]);
+  
+  const { colors, radii } = frame.arrays;
+  const positions = frame.positions;
+  const { selection_color, material } = sceneSettings;
 
-      frame.positions.forEach((position, i) => {
-        const matrix = new THREE.Matrix4().setPosition(position);
-        matrix.scale(
-          new THREE.Vector3(
-            frame.arrays.radii[i],
-            frame.arrays.radii[i],
-            frame.arrays.radii[i],
-          ),
-        );
-        meshRef.current.setMatrixAt(i, matrix);
-        // update color
-        if (selectedIds.has(i)) {
-          color.setStyle(sceneSettings.selection_color);
+  useEffect(() => {
+    if (meshRef.current && actualVisibleIndices.size > 0) {
+      const color = new THREE.Color();
+      const scaleVector = new THREE.Vector3();
+
+      // Convert visibleIndices Set to an array to ensure consistent indexing for `i`
+      Array.from(actualVisibleIndices).forEach((atomIdx, i) => {
+        const position = positions[atomIdx];
+        let radius
+        if (highlight == "backside") {
+          radius = radii[atomIdx] * 1.25;
+        } else if (highlight == "frontside") {
+          radius = radii[atomIdx] * 1.01;
+        }
+        else if (highlight == "selection") {
+          radius = radii[atomIdx] * 1.01;
         } else {
-          color.set(frame.arrays.colors[i]);
+          radius = radii[atomIdx];
+        }
+        // Set position and scale for each instance
+        const matrix = new THREE.Matrix4().setPosition(position);
+        scaleVector.set(radius, radius, radius);
+        matrix.scale(scaleVector);
+        meshRef.current.setMatrixAt(i, matrix);
+        if (highlight != "") {
+          color.set(selection_color);
+        } else {
+          color.set(colors[atomIdx]);
         }
         meshRef.current.setColorAt(i, color);
       });
+
+      // Mark instance matrices and colors for update
       meshRef.current.instanceMatrix.needsUpdate = true;
       meshRef.current.instanceColor.needsUpdate = true;
     }
-  }, [frame.positions, frame.arrays.colors, frame.arrays.radii]);
+  }, [positions, colors, radii, actualVisibleIndices, selection_color, selectedIds]);
+
+  useEffect(() => {
+    if (sphereRef.current) {
+      sphereRef.current.scale(
+        1 / originalScale.current,
+        1 / originalScale.current,
+        1 / originalScale.current,
+      );
+      originalScale.current = sceneSettings.particle_size;
+      sphereRef.current.scale(
+        sceneSettings.particle_size,
+        sceneSettings.particle_size,
+        sceneSettings.particle_size,
+      );
+    }
+  }, [sceneSettings.particle_size]);
 
   const handlePointerOver = (event) => {
+    if (highlight != "") {
+      return;
+    }
     event.stopPropagation();
     setHoveredId(event.instanceId);
-    // // detect shift and control key being pressed at the same time
+    // detect shift and control key being pressed at the same time
     if (event.shiftKey && event.ctrlKey) {
       selectedIds.add(event.instanceId);
       setSelectedIds(new Set(selectedIds));
     }
   };
 
+  const handlePointerOut = (event) => {
+    if (highlight != "") {
+      return;
+    }
+    event.stopPropagation();
+    setHoveredId(null);
+  };
+
+  const handleClicked = (event) => {
+    if (event.detail !== 1) {
+      return; // only handle single clicks
+    }
+    if (highlight != "") {
+      return;
+    }
+
+    event.stopPropagation();
+    if (!event.shiftKey) {
+      if (selectedIds.has(event.instanceId)) {
+        setSelectedIds(new Set());
+      } else {
+        setSelectedIds(new Set([event.instanceId]));
+      }
+    } else {
+      if (selectedIds.has(event.instanceId)) {
+        selectedIds.delete(event.instanceId);
+      } else {
+        selectedIds.add(event.instanceId);
+      }
+      setSelectedIds(new Set(selectedIds));
+    }
+  };
+
+  const handleDoubleClick = (event) => {
+    const queue = new znsocket.Dict({
+      client: client,
+      key: "queue:" + token + ":" + "selection",
+    });
+    queue["ConnectedParticles"] = {};
+    socket.emit("room:worker:run");
+    event.stopPropagation();
+  };
+
   const handlePointerMove = (event) => {
+    if (highlight != "") {
+      return;
+    }
     event.stopPropagation();
     if (isDrawing) {
       // replace the last point with the hovered point
@@ -191,138 +285,61 @@ export const ParticleInstances = ({
     }
   };
 
-  const handlePointerOut = (event) => {
-    event.stopPropagation();
-    setHoveredId(null);
-  };
-
-  const handleClick = (event) => {
-    // if not shift key, the selected particle is the only one selected, if already selected, no particle is selected
-    // if shift key, the selected particle is added to the selected particles, if already selected, it is removed
-    if (event.detail !== 1) return; // prevent double click tirgger
-    if (!event.shiftKey) {
-      if (selectedIds.has(event.instanceId)) {
-        setSelectedIds(new Set());
-      } else {
-        setSelectedIds(new Set([event.instanceId]));
-      }
-    } else {
-      if (selectedIds.has(event.instanceId)) {
-        selectedIds.delete(event.instanceId);
-        setSelectedIds(new Set(selectedIds));
-      } else {
-        selectedIds.add(event.instanceId);
-        setSelectedIds(new Set(selectedIds));
-      }
-    }
-    event.stopPropagation();
-  };
-
-  const handleDoubleClick = (event) => {
-    const queue = new znsocket.Dict({
-      client: client,
-      key: "queue:" + token + ":" + "selection",
-    });
-    queue["ConnectedParticles"] = {};
-    socket.emit("room:worker:run");
-    event.stopPropagation();
-  };
-
-  useEffect(() => {
-    if (meshRef.current && count > 0) {
-      const color = new THREE.Color();
-      frame.positions.forEach((_, i) => {
-        if (selectedIds.has(i)) {
-          color.setStyle(sceneSettings.selection_color);
-          meshRef.current.setColorAt(i, color);
-        }
-      });
-      meshRef.current.instanceColor.needsUpdate = true;
-    }
-  }, [selectedIds]);
-
-  // useFrame to change color if hovered
-  useFrame(() => {
-    if (meshRef.current && count > 0) {
-      const color = new THREE.Color();
-      frame.positions.forEach((_, i) => {
-        if (i === hoveredId) {
-          color.setHex(0xf05000);
-          meshRef.current.setColorAt(i, color);
-        } else if (selectedIds.has(i)) {
-          color.setStyle(sceneSettings.selection_color);
-          meshRef.current.setColorAt(i, color);
-        } else {
-          color.set(frame.arrays.colors[i]);
-          meshRef.current.setColorAt(i, color);
-        }
-      });
-      meshRef.current.instanceColor.needsUpdate = true;
-    }
-  });
-
-  useEffect(() => {
-    if (sphereRef.current) {
-      sphereRef.current.scale(
-        1 / originalScale.current,
-        1 / originalScale.current,
-        1 / originalScale.current,
-      );
-      originalScale.current = sceneSettings.particle_size;
-      sphereRef.current.scale(
-        sceneSettings.particle_size,
-        sceneSettings.particle_size,
-        sceneSettings.particle_size,
-      );
-    }
-  }, [sceneSettings.particle_size]);
-
   return (
+    <>
     <instancedMesh
       ref={meshRef}
-      args={[null, null, count]}
+      args={[null, null, actualVisibleIndices.size]}
       onPointerOver={handlePointerOver}
       onPointerOut={handlePointerOut}
-      onClick={handleClick}
-      onDoubleClick={handleDoubleClick}
       onPointerMove={handlePointerMove}
+      onClick={handleClicked}
+      onDoubleClick={handleDoubleClick}
       castShadow
-      // receiveShadow
       frustumCulled={false}
     >
       <sphereGeometry args={[1, 30, 30]} ref={sphereRef} />
-      {sceneSettings.material === "MeshPhysicalMaterial" && (
-        <meshPhysicalMaterial
-          attach="material"
-          roughness={0.3}
-          reflectivity={0.4}
-        />
+
+      {highlight === "backside" && (
+        <meshBasicMaterial side={THREE.BackSide} transparent opacity={0.8}/>
       )}
-      {sceneSettings.material === "MeshToonMaterial" && (
-        <meshToonMaterial attach="material" />
+      {highlight === "frontside" && (
+        <meshBasicMaterial side={THREE.FrontSide} transparent opacity={0.3}/>
       )}
-      {sceneSettings.material === "MeshStandardMaterial" && (
-        <meshStandardMaterial attach="material" />
+      {highlight === "selection" && (
+        <meshBasicMaterial side={THREE.FrontSide} transparent opacity={0.5}/>
       )}
-      {sceneSettings.material === "MeshBasicMaterial" && (
-        <meshBasicMaterial attach="material" />
+
+      {(highlight === "" && material === "MeshPhysicalMaterial") && (
+         <meshPhysicalMaterial attach="material" roughness={0.3} reflectivity={0.4}/>
+      )}
+      {(highlight === "" && material === "MeshToonMaterial") && (
+         <meshToonMaterial attach="material" />
+      )}
+      {(highlight === "" && material === "MeshStandardMaterial") && (
+         <meshStandardMaterial attach="material" />
+      )}
+      {(highlight === "" && material === "MeshBasicMaterial") && (
+         <meshBasicMaterial attach="material" />
       )}
     </instancedMesh>
+    </>
   );
 };
 
 export const BondInstances = ({
   frame,
-  selectedIds,
+  // selectedIds,
   hoveredId,
   sceneSettings,
 }: {
   frame: Frame;
-  selectedIds: Set<number>;
+  // selectedIds: Set<number>;
   hoveredId: number;
   sceneSettings: any;
 }) => {
   const meshRef = useRef<THREE.InstancedMesh | null>(null);
+  const selectedIds = new Set();
 
   const count = Object.keys(frame.connectivity).length * 2;
   const originalScale = useRef<number>(1);

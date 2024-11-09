@@ -190,9 +190,9 @@ def run_upload_file(room, data: dict):
 
 @shared_task
 def read_plots(paths: list[str], remote, rev) -> None:
-    from zndraw.zndraw import ZnDrawLocal
+    from zndraw import ZnDraw
 
-    vis = ZnDrawLocal(
+    vis = ZnDraw(
         r=current_app.extensions["redis"],
         url=current_app.config["SERVER_URL"],
         token="default",
@@ -363,7 +363,9 @@ def run_room_worker(room):
         if key in selections:
             try:
                 task = selection_queue.pop(key)
+                selection_queue[TASK_RUNNING] = True
                 selections[key](**task).run(vis)
+                selection_queue.pop(TASK_RUNNING)
             except IndexError:
                 pass
 
@@ -377,7 +379,12 @@ def run_room_worker(room):
         if key in analyses:
             try:
                 task = analysis_queue.pop(key)
-                analyses[key](**task).run(vis)
+                try:
+                    analysis_queue[TASK_RUNNING] = True
+                    analyses[key](**task).run(vis)
+                    analysis_queue.pop(TASK_RUNNING) # TODO: does this cause an error when trying to stop on the GUI
+                except Exception as err:
+                    vis.log(f"Error running analysis `{key}`: {err}")
             except IndexError:
                 pass
 

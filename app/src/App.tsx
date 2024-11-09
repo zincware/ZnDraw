@@ -578,6 +578,54 @@ export default function App() {
               sceneSettings={roomConfig["scene"]}
               token={token}
             />
+            {/* <ParticleInstances
+              frame={currentFrame}
+              selectedIds={selectedIds}
+              setSelectedIds={setSelectedIds}
+              isDrawing={isDrawing}
+              points={points}
+              setPoints={setPoints}
+              setOrbitControlsTarget={setOrbitControlsTarget}
+              hoveredId={hoveredId}
+              setHoveredId={setHoveredId}
+              setTriggerSelection={setTriggerSelection}
+              sceneSettings={roomConfig["scene"]}
+              token={token}
+              visibleIndices={hoveredId !== null ? new Set([hoveredId]) : new Set([])}
+              highlight={"frontside"}
+            /> */}
+            <ParticleInstances
+              frame={currentFrame}
+              selectedIds={selectedIds}
+              setSelectedIds={setSelectedIds}
+              isDrawing={isDrawing}
+              points={points}
+              setPoints={setPoints}
+              setOrbitControlsTarget={setOrbitControlsTarget}
+              hoveredId={hoveredId}
+              setHoveredId={setHoveredId}
+              setTriggerSelection={setTriggerSelection}
+              sceneSettings={roomConfig["scene"]}
+              token={token}
+              visibleIndices={hoveredId !== null ? new Set([hoveredId]) : new Set([])}
+              highlight={"backside"}
+            />
+            <ParticleInstances
+              frame={currentFrame}
+              selectedIds={selectedIds}
+              setSelectedIds={setSelectedIds}
+              isDrawing={isDrawing}
+              points={points}
+              setPoints={setPoints}
+              setOrbitControlsTarget={setOrbitControlsTarget}
+              hoveredId={hoveredId}
+              setHoveredId={setHoveredId}
+              setTriggerSelection={setTriggerSelection}
+              sceneSettings={roomConfig["scene"]}
+              token={token}
+              visibleIndices={selectedIds}
+              highlight={"selection"}
+            />
             <BondInstances
               frame={currentFrame}
               selectedIds={selectedIds}
