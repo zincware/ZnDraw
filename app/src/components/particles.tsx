@@ -102,6 +102,46 @@ export const getCentroid = (
   }
 };
 
+
+const ParticleBondMaterial = ({
+  highlight,
+  material,
+}: {
+  highlight: string;
+  material: string;
+}) => {
+  if (highlight) {
+    return (
+      <meshBasicMaterial
+        side={highlight === "backside" ? THREE.BackSide : THREE.FrontSide}
+        transparent
+        opacity={highlight === "backside" ? 0.8 : 0.5}
+      />
+    );
+  }
+
+  switch (material) {
+    case "MeshPhysicalMaterial":
+      return (
+        <meshPhysicalMaterial
+          attach="material"
+          roughness={0.3}
+          reflectivity={0.4}
+          side={THREE.FrontSide}
+        />
+      );
+    case "MeshToonMaterial":
+      return <meshToonMaterial attach="material" side={THREE.FrontSide} />;
+    case "MeshStandardMaterial":
+      return <meshStandardMaterial attach="material" side={THREE.FrontSide} />;
+    case "MeshBasicMaterial":
+      return <meshBasicMaterial attach="material" side={THREE.FrontSide} />;
+    default:
+      return null;
+  }
+};
+
+
 export const ParticleInstances = ({
   frame,
   selectedIds,
@@ -281,30 +321,7 @@ export const ParticleInstances = ({
         frustumCulled={false}
       >
         <sphereGeometry args={[1, 30, 30]} ref={sphereRef} />
-        {highlight && (
-          <meshBasicMaterial
-            side={highlight === "backside" ? THREE.BackSide : THREE.FrontSide}
-            transparent
-            opacity={highlight === "backside" ? 0.8 : 0.5}
-          />
-        )}
-        {!highlight && material === "MeshPhysicalMaterial" && (
-          <meshPhysicalMaterial
-            attach="material"
-            roughness={0.3}
-            reflectivity={0.4}
-            side={THREE.FrontSide}
-          />
-        )}
-        {!highlight && material === "MeshToonMaterial" && (
-          <meshToonMaterial attach="material" side={THREE.FrontSide} />
-        )}
-        {!highlight && material === "MeshStandardMaterial" && (
-          <meshStandardMaterial attach="material" side={THREE.FrontSide} />
-        )}
-        {!highlight && material === "MeshBasicMaterial" && (
-          <meshBasicMaterial attach="material" side={THREE.FrontSide} />
-        )}
+        <ParticleBondMaterial highlight={highlight} material={material} />
       </instancedMesh>
     </>
   );
@@ -431,26 +448,7 @@ export const BondInstances = ({
       castShadow
       // receiveShadow
     >
-      {highlight && (
-        <meshBasicMaterial side={THREE.FrontSide} transparent opacity={0.5} />
-      )}
-      {!highlight && material === "MeshPhysicalMaterial" && (
-        <meshPhysicalMaterial
-          attach="material"
-          roughness={0.3}
-          reflectivity={0.4}
-          side={THREE.FrontSide}
-        />
-      )}
-      {!highlight && material === "MeshToonMaterial" && (
-        <meshToonMaterial attach="material" side={THREE.FrontSide} />
-      )}
-      {!highlight && material === "MeshStandardMaterial" && (
-        <meshStandardMaterial attach="material" side={THREE.FrontSide} />
-      )}
-      {!highlight && material === "MeshBasicMaterial" && (
-        <meshBasicMaterial attach="material" side={THREE.FrontSide} />
-      )}
+    <ParticleBondMaterial highlight={highlight} material={material} />
     </instancedMesh>
   );
 };
