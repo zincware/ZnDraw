@@ -47,7 +47,6 @@ export const Player = ({
   selectedFrames,
   stepSize,
 }: PlayerProps) => {
-
   useFrame(({ clock }) => {
     const a = clock.getElapsedTime();
     if (a > 1 / fps) {
