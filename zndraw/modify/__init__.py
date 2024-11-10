@@ -5,9 +5,9 @@ import time
 import typing as t
 
 import ase
+import ase.constraints
 import numpy as np
 from ase.data import chemical_symbols
-import ase.constraints
 from pydantic import BaseModel, Field
 
 try:
@@ -370,6 +370,7 @@ class FixAtoms(UpdateScene):
             constraint = ase.constraints.FixAtoms(indices=selection)
             atoms.set_constraint(constraint)
         vis.atoms = atoms
+
 
 modifier: dict[str, t.Type[UpdateScene]] = {
     Delete.__name__: Delete,
