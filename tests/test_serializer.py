@@ -5,6 +5,7 @@ import znjson
 from ase.calculators.singlepoint import SinglePointCalculator
 
 from zndraw.converter import ASEConverter
+from ase.constraints import FixAtoms
 
 
 def test_ase_converter(s22):
@@ -74,3 +75,14 @@ def test_modified_atoms():
     npt.assert_array_equal(new_atoms.get_atomic_numbers(), [1, 1])
     npt.assert_array_equal(new_atoms.arrays["colors"], ["#ffffff", "#ffffff"])
     npt.assert_almost_equal(new_atoms.arrays["radii"], [0.3458333, 0.3458333])
+
+
+def test_constraints_fixed_atoms():
+    atoms = ase.Atoms("H2", positions=[[0, 0, 0], [0, 0, 1]])
+    atoms.set_constraint(FixAtoms([0]))
+    new_atoms = znjson.loads(
+        znjson.dumps(atoms, cls=znjson.ZnEncoder.from_converters([ASEConverter])),
+        cls=znjson.ZnDecoder.from_converters([ASEConverter]),
+    )
+    assert isinstance(new_atoms.constraints[0], FixAtoms)
+    assert new_atoms.constraints[0].index == [0]

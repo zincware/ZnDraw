@@ -615,7 +615,7 @@ export default function App() {
               visibleIndices={selectedIds}
               highlight={"selection"}
             />
-            {/* <ParticleInstances
+            <ParticleInstances
               frame={currentFrame}
               selectedIds={selectedIds}
               setSelectedIds={setSelectedIds}
@@ -624,9 +624,9 @@ export default function App() {
               setHoveredId={setHoveredId}
               sceneSettings={roomConfig["scene"]}
               token={token}
-              visibleIndices={new Set([1,2,3,4])}
+              visibleIndices={new Set(currentFrame.constraints?.[0]?.indices)}
               highlight={"constraint"}
-            /> */}
+            />
             <BondInstances
               frame={currentFrame}
               visibleIndices={selectedIds}

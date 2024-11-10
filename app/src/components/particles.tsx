@@ -18,6 +18,7 @@ export interface Frame {
   pbc: boolean[];
   positions: THREE.Vector3[]; // only number[][] | before being mapped immediately
   vectors: [number, number, number][][];
+  constraints: any[];
 }
 
 export interface Frames {

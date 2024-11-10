@@ -7,6 +7,7 @@ from ase.data.colors import jmol_colors
 from zndraw.draw import Object3D
 from zndraw.type_defs import ASEDict
 from zndraw.utils import get_scaled_radii, rgb2hex
+from ase.constraints import FixAtoms
 
 
 class ASEConverter(znjson.ConverterBase):
@@ -120,6 +121,15 @@ class ASEConverter(znjson.ConverterBase):
             )
         else:
             connectivity = []
+        
+        constraints = []
+        if len(obj.constraints) > 0:
+            for constraint in obj.constraints:
+                if isinstance(constraint, FixAtoms):
+                    constraints.append({"type": "FixAtoms", "indices": constraint.index.tolist()})
+                else:
+                    # Can not serialize other constraints
+                    pass
 
         return ASEDict(
             numbers=numbers,
@@ -131,6 +141,7 @@ class ASEConverter(znjson.ConverterBase):
             pbc=pbc,
             cell=cell,
             vectors=vectors,
+            constraints=constraints,
         )
 
     def decode(self, value: ASEDict) -> ase.Atoms:
@@ -152,6 +163,10 @@ class ASEConverter(znjson.ConverterBase):
             atoms.calc.results.update(calc)
         if vectors := value.get("vectors"):
             atoms.info["vectors"] = vectors
+        if constraints := value.get("constraints"):
+            for constraint in constraints:
+                if constraint["type"] == "FixAtoms":
+                    atoms.set_constraint(FixAtoms(constraint["indices"]))
         return atoms
 
 

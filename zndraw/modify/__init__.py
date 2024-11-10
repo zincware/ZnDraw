@@ -7,6 +7,7 @@ import typing as t
 import ase
 import numpy as np
 from ase.data import chemical_symbols
+import ase.constraints
 from pydantic import BaseModel, Field
 
 try:
@@ -357,6 +358,19 @@ class RemoveAtoms(UpdateScene):
         del vis[vis.step]
 
 
+class FixAtoms(UpdateScene):
+    """Fix the selected atoms."""
+
+    def run(self, vis: "ZnDraw", **kwargs) -> None:
+        selection = vis.selection
+        atoms = vis.atoms
+        if len(selection) == 0:
+            atoms.set_constraint()
+        else:
+            constraint = ase.constraints.FixAtoms(indices=selection)
+            atoms.set_constraint(constraint)
+        vis.atoms = atoms
+
 modifier: dict[str, t.Type[UpdateScene]] = {
     Delete.__name__: Delete,
     Rotate.__name__: Rotate,
@@ -370,4 +384,5 @@ modifier: dict[str, t.Type[UpdateScene]] = {
     Connect.__name__: Connect,
     NewCanvas.__name__: NewCanvas,
     RemoveAtoms.__name__: RemoveAtoms,
+    FixAtoms.__name__: FixAtoms,
 }

@@ -42,6 +42,7 @@ class ASEDict(t.TypedDict):
     pbc: list[bool]
     cell: list[list[float]]
     vectors: list[list[list[float]]]
+    constraints: list[dict]
 
 
 class ASEJson(t.TypedDict):
