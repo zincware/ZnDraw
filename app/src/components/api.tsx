@@ -296,7 +296,6 @@ export const setupFrames = (
   let [framesRequiringUpdate, setFramesRequiringUpdate] = useState(undefined);
 
   const setCurrentFrameFromObject = (frame: any) => {
-    console.log(frame);
     frame = frame["value"];
     frame.positions = frame.positions.map(
       (position: [number, number, number]) =>
@@ -373,7 +372,6 @@ export const setupFrames = (
       });
       // the initial step is -1 so it queries the last frame
       currentInterface.get(parseInt(step) || 0).then((frame: any) => {
-        console.log(frame);
         if (frame === null) {
           currentInterface.length().then((length: any) => {
             setStep(length - 1);
