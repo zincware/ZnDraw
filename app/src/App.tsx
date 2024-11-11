@@ -29,7 +29,7 @@ import "./App.css";
 import { Plotting } from "./components/plotting";
 import * as znsocket from "znsocket";
 
-import { Canvas, useThree, useFrame } from "@react-three/fiber";
+import { Canvas, useFrame } from "@react-three/fiber";
 import {
   OrbitControls,
   PerspectiveCamera,
@@ -526,7 +526,7 @@ export default function App() {
       <div className="canvas-container" onDragOver={onDragOver} onDrop={onDrop}>
         {roomConfig.scene.controls !== undefined && (
           <Canvas onPointerMissed={onPointerMissed} shadows>
-            <Pathtracer enabled={true}>
+            <Pathtracer enabled={false}>
             <Environment preset="city" />
 
             {roomConfig["scene"].floor ? (
@@ -648,10 +648,10 @@ export default function App() {
               visibleIndices={undefined}
               highlight=""
               sceneSettings={roomConfig["scene"]}
-            /> */}
-            {/* {roomConfig["scene"]["simulation_box"] && (
+            />  */}
+            {roomConfig["scene"]["simulation_box"] && (
               <SimulationCell frame={currentFrame} colorMode={colorMode} />
-            )} */}
+            )}
             {roomConfig["scene"].controls === "OrbitControls" && (
               <OrbitControls
                 ref={controlsRef}

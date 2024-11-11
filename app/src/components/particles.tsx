@@ -3,13 +3,15 @@ import * as THREE from "three";
 import * as znsocket from "znsocket";
 import { client, socket } from "../socket";
 
-import { useFrame } from "@react-three/fiber";
+import { useFrame, useThree } from "@react-three/fiber";
 import { Line, Sphere } from "@react-three/drei";
 import Arrows from "./meshes";
 import { IndicesState } from "./utils";
 
 import { ParticleControls } from "./particlesEditor";
 import { usePathtracer } from "@react-three/gpu-pathtracer";
+import { mergeInstancedMesh } from './utils/mergeInstancedMesh';
+
 
 export interface Frame {
   arrays: { colors: Array<string>; radii: Array<number> };
@@ -203,20 +205,6 @@ export const ParticleInstances = ({
   }, [nonInstancedAttributes]);
 
   useEffect(() => {
-    if (!useInstancing) {
-      const visibleArray = Array.from(actualVisibleIndices);
-      const tempNonInstancedAttributes = [];
-      visibleArray.forEach((atomIdx, i) => {
-        const position = positions[atomIdx];
-        const radius = radii[atomIdx];
-        if (!position) {
-          // if position was removed, this can happen and we skip it until next update
-          return;
-        }
-        tempNonInstancedAttributes.push({ position, color: colors[atomIdx], radius: radius });
-      });
-      setNonInstancedAttributes(tempNonInstancedAttributes);
-    } else {
     if (meshRef.current && actualVisibleIndices.size > 0) {
       const color = new THREE.Color(selection_color);
       const scaleVector = new THREE.Vector3();
@@ -251,7 +239,7 @@ export const ParticleInstances = ({
       // Mark instance matrices and colors for update
       meshRef.current.instanceMatrix.needsUpdate = true;
       meshRef.current.instanceColor.needsUpdate = true;
-    }}
+    }
   }, [
     positions,
     colors,
@@ -338,6 +326,34 @@ export const ParticleInstances = ({
     }
   };
 
+  const { scene } = useThree();
+  const [mergedMesh, setMergedMesh] = useState(null);
+
+  useEffect(() => {
+    console.log("Merging mesh",  meshRef.current);
+    if (meshRef.current?.instanceMatrix?.array?.length > 0) {
+      // Convert the InstancedMesh into a single Mesh using the utility function
+      const singleMesh = mergeInstancedMesh(meshRef.current);
+      console.log("Merged mesh created" + singleMesh);
+      setMergedMesh(singleMesh);
+    }
+  }, [frame, actualVisibleIndices]);
+
+  useEffect(() => {
+    if (mergedMesh) {
+      // Add the merged mesh to the scene
+      scene.add(mergedMesh);
+      update();
+
+      // Optional cleanup on component unmount
+      return () => {
+        scene.remove(mergedMesh);
+        mergedMesh.geometry.dispose();
+        mergedMesh.material.dispose();
+      };
+    }
+  }, [mergedMesh, scene, useInstancing]);
+
   return (
     <>
       {highlight === "selection" && (
@@ -347,9 +363,9 @@ export const ParticleInstances = ({
           setFrame={setFrame}
         />
       )}
-      {useInstancing ? (
       <instancedMesh
         ref={meshRef}
+        visible={useInstancing}
         args={[null, null, actualVisibleIndices.size]}
         onPointerOver={handlePointerOver}
         onPointerOut={handlePointerOut}
@@ -362,16 +378,6 @@ export const ParticleInstances = ({
         <sphereGeometry args={[1, 30, 30]} ref={sphereRef} />
         <ParticleBondMaterial highlight={highlight} material={material} />
       </instancedMesh>
-      ) :
-      (
-        <>
-        {nonInstancedAttributes.map((attr, i) => (
-          <Sphere key={i} args={[attr.radius, 30, 30]} position={attr.position}>
-            <meshStandardMaterial color={attr.color} />
-          </Sphere>
-        ))}
-        </>
-      )}
     </>
   );
 };
@@ -381,17 +387,21 @@ export const BondInstances = ({
   visibleIndices = undefined,
   highlight = "",
   sceneSettings,
+  useInstancing = false,
 }: {
   frame: Frame;
   sceneSettings: any;
   visibleIndices: Set<number> | undefined;
   highlight: string;
+  useInstancing: boolean;
 }) => {
   const meshRef = useRef<THREE.InstancedMesh | null>(null);
 
   const [actualVisibleConnectivity, setActualVisibleConnectivity] = useState<
     number[][]
   >([]);
+
+  // const [nonInstancedAttributes, setNonInstancedAttributes] = useState<any[]>([]);
 
   const { material, selection_color } = sceneSettings;
 
