@@ -9,6 +9,7 @@ import Arrows from "./meshes";
 import { IndicesState } from "./utils";
 
 import { ParticleControls } from "./particlesEditor";
+import { usePathtracer } from "@react-three/gpu-pathtracer";
 
 export interface Frame {
   arrays: { colors: Array<string>; radii: Array<number> };
@@ -193,7 +194,29 @@ export const ParticleInstances = ({
   const positions = frame.positions;
   const { selection_color, material, particle_size } = sceneSettings;
 
+  const [nonInstancedAttributes, setNonInstancedAttributes] = useState<any[]>([]);
+
+  const { update } = usePathtracer();
+
   useEffect(() => {
+    update();
+  }, [nonInstancedAttributes]);
+
+  useEffect(() => {
+    if (!useInstancing) {
+      const visibleArray = Array.from(actualVisibleIndices);
+      const tempNonInstancedAttributes = [];
+      visibleArray.forEach((atomIdx, i) => {
+        const position = positions[atomIdx];
+        const radius = radii[atomIdx];
+        if (!position) {
+          // if position was removed, this can happen and we skip it until next update
+          return;
+        }
+        tempNonInstancedAttributes.push({ position, color: colors[atomIdx], radius: radius });
+      });
+      setNonInstancedAttributes(tempNonInstancedAttributes);
+    } else {
     if (meshRef.current && actualVisibleIndices.size > 0) {
       const color = new THREE.Color(selection_color);
       const scaleVector = new THREE.Vector3();
@@ -228,7 +251,7 @@ export const ParticleInstances = ({
       // Mark instance matrices and colors for update
       meshRef.current.instanceMatrix.needsUpdate = true;
       meshRef.current.instanceColor.needsUpdate = true;
-    }
+    }}
   }, [
     positions,
     colors,
@@ -342,17 +365,11 @@ export const ParticleInstances = ({
       ) :
       (
         <>
-        {Array.from(frame.positions).map((pos, i) => (
-          <Sphere key={i} args={[radii[i], 30, 30]} position={pos.clone()}>
-            <meshStandardMaterial color={colors[i]} />
+        {nonInstancedAttributes.map((attr, i) => (
+          <Sphere key={i} args={[attr.radius, 30, 30]} position={attr.position}>
+            <meshStandardMaterial color={attr.color} />
           </Sphere>
         ))}
-        {/* <Sphere args={[1, 30, 30]} >
-            <meshStandardMaterial color="hotpink" />
-        </Sphere>
-        <Sphere args={[1, 30, 30]} position={[0, 0, 2]}>
-          <meshStandardMaterial color="hotpink" />
-        </Sphere> */}
         </>
       )}
     </>
