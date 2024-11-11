@@ -337,14 +337,14 @@ export const ParticleInstances = ({
 
   return (
     <>
-    {highlight === "selection" && (
-      <ParticleControls
-        frame={frame}
-        selectedIds={selectedIds}
-        setFrame={setFrame}
-        highlight={highlight}
-      />
-    )}
+      {highlight === "selection" && (
+        <ParticleControls
+          frame={frame}
+          selectedIds={selectedIds}
+          setFrame={setFrame}
+          highlight={highlight}
+        />
+      )}
       <instancedMesh
         ref={meshRef}
         args={[null, null, actualVisibleIndices.size]}
