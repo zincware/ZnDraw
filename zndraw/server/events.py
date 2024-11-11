@@ -14,11 +14,11 @@ from zndraw.tasks import (
     inspect_zntrack_node,
     load_zntrack_figures,
     load_zntrack_frames,
+    run_room_copy,
     run_room_worker,
     run_scene_dependent_schema,
     run_schema,
     run_upload_file,
-    run_room_copy,
 )
 
 log = logging.getLogger(__name__)
@@ -165,7 +165,9 @@ def init_socketio_events(io: SocketIO):
     def room_worker_run():
         """Start a worker to process all (available) queued tasks."""
         room = session.get("token")
-        print(" -------------------------------- room:copy -------------------------------- ")
+        print(
+            " -------------------------------- room:copy -------------------------------- "
+        )
         run_room_copy.delay(room)
 
     @io.on("schema:refresh")
