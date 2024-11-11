@@ -161,15 +161,6 @@ def init_socketio_events(io: SocketIO):
         room = session.get("token")
         run_room_worker.delay(room)
 
-    @io.on("room:copy")
-    def room_worker_run():
-        """Start a worker to process all (available) queued tasks."""
-        room = session.get("token")
-        print(
-            " -------------------------------- room:copy -------------------------------- "
-        )
-        run_room_copy.delay(room)
-
     @io.on("schema:refresh")
     def schema_refresh():
         room = session.get("token")
