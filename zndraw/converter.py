@@ -132,7 +132,7 @@ class ASEConverter(znjson.ConverterBase):
                 else:
                     # Can not serialize other constraints
                     pass
-        
+
         # We don't want to send positions twice
         arrays.pop("positions", None)
 
