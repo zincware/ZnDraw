@@ -4,7 +4,7 @@ import * as znsocket from "znsocket";
 import { client, socket } from "../socket";
 
 import { useFrame } from "@react-three/fiber";
-import { Line } from "@react-three/drei";
+import { Line, Sphere } from "@react-three/drei";
 import Arrows from "./meshes";
 import { IndicesState } from "./utils";
 
@@ -87,9 +87,11 @@ export const Player = ({
 const ParticleBondMaterial = ({
   highlight,
   material,
+  color,
 }: {
   highlight: string;
   material: string;
+  color?: string;
 }) => {
   if (highlight) {
     switch (highlight) {
@@ -118,18 +120,18 @@ const ParticleBondMaterial = ({
     case "MeshPhysicalMaterial":
       return (
         <meshPhysicalMaterial
-          attach="material"
           roughness={0.3}
           reflectivity={0.4}
           side={THREE.FrontSide}
+          color={color}
         />
       );
     case "MeshToonMaterial":
-      return <meshToonMaterial attach="material" side={THREE.FrontSide} />;
+      return <meshToonMaterial side={THREE.FrontSide} color={color}/>;
     case "MeshStandardMaterial":
-      return <meshStandardMaterial attach="material" side={THREE.FrontSide} />;
+      return <meshStandardMaterial side={THREE.FrontSide} color={color}/>;
     case "MeshBasicMaterial":
-      return <meshBasicMaterial attach="material" side={THREE.FrontSide} />;
+      return <meshBasicMaterial side={THREE.FrontSide} color={color}/>;
     default:
       return null;
   }
@@ -147,6 +149,7 @@ export const ParticleInstances = ({
   token,
   visibleIndices = undefined,
   highlight = "",
+  useInstancing = false,
 }: {
   frame: Frame;
   setFrame: (frame: Frame) => void;
@@ -159,6 +162,7 @@ export const ParticleInstances = ({
   token: string;
   visibleIndices: Set<number> | undefined | number;
   highlight: string;
+  useInstancing: boolean;
 }) => {
   const meshRef = useRef<THREE.InstancedMesh | null>(null);
   const sphereRef = useRef<THREE.InstancedMesh | null>(null);
@@ -320,6 +324,7 @@ export const ParticleInstances = ({
           setFrame={setFrame}
         />
       )}
+      {useInstancing ? (
       <instancedMesh
         ref={meshRef}
         args={[null, null, actualVisibleIndices.size]}
@@ -334,6 +339,22 @@ export const ParticleInstances = ({
         <sphereGeometry args={[1, 30, 30]} ref={sphereRef} />
         <ParticleBondMaterial highlight={highlight} material={material} />
       </instancedMesh>
+      ) :
+      (
+        <>
+        {Array.from(frame.positions).map((pos, i) => (
+          <Sphere key={i} args={[radii[i], 30, 30]} position={pos.clone()}>
+            <meshStandardMaterial color={colors[i]} />
+          </Sphere>
+        ))}
+        {/* <Sphere args={[1, 30, 30]} >
+            <meshStandardMaterial color="hotpink" />
+        </Sphere>
+        <Sphere args={[1, 30, 30]} position={[0, 0, 2]}>
+          <meshStandardMaterial color="hotpink" />
+        </Sphere> */}
+        </>
+      )}
     </>
   );
 };

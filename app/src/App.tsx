@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { socket, client } from "./socket";
+import { Pathtracer } from "@react-three/gpu-pathtracer";
 import {
   setupBookmarks,
   setupPoints,
@@ -37,6 +38,8 @@ import {
   TransformControls,
   Box,
   CameraControls,
+  Environment,
+  Sphere,
 } from "@react-three/drei";
 import { Button, InputGroup, Form } from "react-bootstrap";
 import * as THREE from "three";
@@ -523,6 +526,9 @@ export default function App() {
       <div className="canvas-container" onDragOver={onDragOver} onDrop={onDrop}>
         {roomConfig.scene.controls !== undefined && (
           <Canvas onPointerMissed={onPointerMissed} shadows>
+            <Pathtracer enabled={true}>
+            <Environment preset="city" />
+
             {roomConfig["scene"].floor ? (
               <>
                 <Floor colorMode={colorMode} roomConfig={roomConfig} />
@@ -553,7 +559,7 @@ export default function App() {
                 position={[10, 10, 10]}
               />
             )}
-            {roomConfig["scene"].camera === "OrthographicCamera" && (
+            {/* {roomConfig["scene"].camera === "OrthographicCamera" && (
               <OrthographicCamera
                 ref={cameraRef}
                 makeDefault
@@ -562,14 +568,14 @@ export default function App() {
                 position={[10, 10, 10]}
                 zoom={10}
               />
-            )}
+            )} */}
             <pointLight
               ref={cameraLightRef}
               position={[11, 11, 11]}
               decay={0}
               intensity={Math.PI / 2}
             />
-            {roomConfig["scene"]["vectorfield"] &&
+            {/* {roomConfig["scene"]["vectorfield"] &&
               currentFrame.vectors !== undefined && (
                 <VectorField
                   vectors={currentFrame.vectors}
@@ -578,7 +584,7 @@ export default function App() {
                     ...roomConfig.arrows,
                   }}
                 />
-              )}
+              )} */}
             <ParticleInstances
               frame={currentFrame}
               selectedIds={selectedIds}
@@ -592,7 +598,7 @@ export default function App() {
               visibleIndices={undefined}
               setFrame={setCurrentFrame}
             />
-            <ParticleInstances
+            {/* <ParticleInstances
               frame={currentFrame}
               selectedIds={selectedIds}
               setSelectedIds={setSelectedIds}
@@ -604,8 +610,8 @@ export default function App() {
               visibleIndices={hoveredId}
               highlight={"backside"}
               setFrame={setCurrentFrame}
-            />
-            <ParticleInstances
+            /> */}
+            {/* <ParticleInstances
               frame={currentFrame}
               selectedIds={selectedIds}
               setSelectedIds={setSelectedIds}
@@ -630,8 +636,8 @@ export default function App() {
               visibleIndices={new Set(currentFrame.constraints?.[0]?.indices)}
               highlight={"constraint"}
               setFrame={setCurrentFrame}
-            />
-            <BondInstances
+            /> */}
+            {/* <BondInstances
               frame={currentFrame}
               visibleIndices={selectedIds}
               highlight="selection"
@@ -642,10 +648,10 @@ export default function App() {
               visibleIndices={undefined}
               highlight=""
               sceneSettings={roomConfig["scene"]}
-            />
-            {roomConfig["scene"]["simulation_box"] && (
+            /> */}
+            {/* {roomConfig["scene"]["simulation_box"] && (
               <SimulationCell frame={currentFrame} colorMode={colorMode} />
-            )}
+            )} */}
             {roomConfig["scene"].controls === "OrbitControls" && (
               <OrbitControls
                 ref={controlsRef}
@@ -666,7 +672,7 @@ export default function App() {
                 makeDefault
               />
             )}
-            {roomConfig["scene"].controls === "TrackballControls" && (
+            {/* {roomConfig["scene"].controls === "TrackballControls" && (
               <TrackballControls
                 ref={controlsRef}
                 target={orbitControlsTarget}
@@ -685,13 +691,13 @@ export default function App() {
                 }}
                 makeDefault
               />
-            )}
-            {roomConfig["scene"].crosshair && (
+            )} */}
+            {/* {roomConfig["scene"].crosshair && (
               <MoveCameraTarget
                 controlsRef={controlsRef}
                 colorMode={colorMode}
               />
-            )}
+            )} */}
             <Player
               playing={playing}
               togglePlaying={setPlaying}
@@ -702,7 +708,7 @@ export default function App() {
               length={length}
               selectedFrames={selectedFrames}
             />
-            <Line3D
+            {/* <Line3D
               points={points}
               setPoints={setPoints}
               setSelectedPoint={setSelectedPoint}
@@ -711,27 +717,27 @@ export default function App() {
               hoveredId={hoveredId}
               setIsDrawing={setIsDrawing}
               setLineLength={setLineLength}
-            />
+            /> */}
             <ControlsBuilder
               points={points}
               setPoints={setPoints}
               selectedPoint={selectedPoint}
               setSelectedPoint={setSelectedPoint}
             />
-            <Geometries
+            {/* <Geometries
               geometries={geometries}
               isDrawing={isDrawing}
               setHoveredId={setHoveredId}
               setPoints={setPoints}
-            />
-            <VirtualCanvas
+            /> */}
+            {/* <VirtualCanvas
               setPoints={setPoints}
               isDrawing={isDrawing}
               points={points}
               hoveredId={hoveredId}
               setHoveredId={setHoveredId}
-            />
-            {roomConfig["scene"].vectors != "" && (
+            /> */}
+            {/* {roomConfig["scene"].vectors != "" && (
               <PerParticleVectors
                 frame={currentFrame}
                 property={roomConfig["scene"].vectors}
@@ -741,7 +747,8 @@ export default function App() {
                   ...roomConfig.arrows,
                 }}
               ></PerParticleVectors>
-            )}
+            )} */}
+          </Pathtracer>
           </Canvas>
         )}
       </div>
