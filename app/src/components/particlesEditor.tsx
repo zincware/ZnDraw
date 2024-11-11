@@ -1,6 +1,6 @@
 import { useEffect, useRef, useCallback, useMemo, useState } from "react";
 import { TransformControls } from "@react-three/drei";
-import { Vector3 } from "three";
+import { Vector3, Euler } from "three";
 
 export const getCentroid = (positions: Vector3[], selection: Set<number>) => {
   const centroid = new Vector3();
@@ -35,6 +35,7 @@ export const ParticleControls = ({
 }) => {
   const controls = useRef(null);
   const controlsPostRef = useRef(new Vector3());
+  const controlsRotationRef = useRef(new Vector3());
 
   // State for the edit mode: "None", "translate", or "rotate"
   const [mode, setMode] = useState("None");
@@ -62,8 +63,30 @@ export const ParticleControls = ({
     [setFrame, selectedIds]
   );
 
+// Helper to update frame rotations based on delta rotation
+  const applyDeltaToRotations = useCallback(
+    (deltaRotation) => {
+      setFrame((prevFrame) => ({
+        ...prevFrame,
+        positions: prevFrame.positions.map((rot, i) => {
+          if (selectedIds.has(i)) {
+            // rotate the position around the centroid
+            const position = rot.clone().sub(centroid);
+            const euler = new Euler().setFromVector3(deltaRotation);
+            position.applyEuler(euler);
+            position.add(centroid);
+            return position;
+          }
+          return rot;
+        }),
+      }));
+    },
+    [setFrame, selectedIds, centroid]
+  );
+
   // Handle control changes, applying only necessary updates to position and delta
   const handleControlsChange = useCallback(() => {
+    if (mode === "translate") {
     if (controls.current?.object?.position && selectedIds.size > 0) {
       const deltaPosition = controlsPostRef.current
         .clone()
@@ -71,7 +94,16 @@ export const ParticleControls = ({
       applyDeltaToPositions(deltaPosition);
       controlsPostRef.current.copy(controls.current.object.position);
     }
-  }, [applyDeltaToPositions, selectedIds, mode]);
+  } else if (mode === "rotate") {
+    if (controls.current?.object?.rotation && selectedIds.size > 0) {
+      const deltaRotation = controlsRotationRef.current
+        .clone()
+        .sub(controls.current.object.rotation);
+      applyDeltaToRotations(deltaRotation);
+      controlsRotationRef.current.copy(controls.current.object.rotation);
+    }
+  }
+  }, [applyDeltaToPositions, selectedIds, mode, applyDeltaToRotations]);
 
   // Toggle mode between "None", "translate", and "rotate" on "E" key press
   useEffect(() => {
