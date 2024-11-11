@@ -329,7 +329,10 @@ export const setupFrames = (
         x.z,
       ]);
       // TODO: need to make a copy of the default room :/ Maybe when entering edit mode, send a message
-      conInterfaceRef.current.set(parseInt(step) || 0, { value: newFrame, _type: "ase.Atoms"});
+      conInterfaceRef.current.set(parseInt(step) || 0, {
+        value: newFrame,
+        _type: "ase.Atoms",
+      });
     };
 
     const debounceTimeout = setTimeout(updateCon, 500);

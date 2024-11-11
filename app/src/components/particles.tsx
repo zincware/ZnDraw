@@ -8,7 +8,7 @@ import { Line } from "@react-three/drei";
 import Arrows from "./meshes";
 import { IndicesState } from "./utils";
 
-import {ParticleControls} from "./particlesEditor";
+import { ParticleControls } from "./particlesEditor";
 
 export interface Frame {
   arrays: { colors: Array<string>; radii: Array<number> };
@@ -170,11 +170,11 @@ export const ParticleInstances = ({
   //     try{
 
   //     const deltaPosition = controlsPostRef.current.clone().sub(controls.current.object.position);
-    
+
   //     // Apply delta matrix to selected positions only
   //     const newPositions = frame.positions.map((pos, i) => {
   //       return selectedIds.has(i) ? pos.clone().sub(deltaPosition) : pos;
-  //     });    
+  //     });
   //     // Update frame with new positions array (ensuring immutability)
   //     setFrame((prevFrame) => ({ ...prevFrame, positions: newPositions }));
   //   } catch (e) {
@@ -341,7 +341,12 @@ export const ParticleInstances = ({
         <TransformControls ref={controls} onChange={handleControlsChange}></TransformControls>
       </>
       )} */}
-      <ParticleControls frame={frame} selectedIds={selectedIds} setFrame={setFrame} highlight={highlight} />
+      <ParticleControls
+        frame={frame}
+        selectedIds={selectedIds}
+        setFrame={setFrame}
+        highlight={highlight}
+      />
       <instancedMesh
         ref={meshRef}
         args={[null, null, actualVisibleIndices.size]}

@@ -121,7 +121,6 @@ class ASEConverter(znjson.ConverterBase):
         else:
             connectivity = []
 
-
         # TODO!!! check that positions are not sent twice in arrays and positions
 
         return ASEDict(
