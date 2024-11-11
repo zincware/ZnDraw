@@ -163,44 +163,6 @@ export const ParticleInstances = ({
   const meshRef = useRef<THREE.InstancedMesh | null>(null);
   const sphereRef = useRef<THREE.InstancedMesh | null>(null);
   const originalScale = useRef<number>(1);
-  // const controls = useRef<typeof TransformControls>(null);
-  // const controlsPostRef = useRef(new THREE.Vector3(0, 0, 0));
-
-  // // move the transform controls to the selected particle
-  // useEffect(() => {
-  //   if (!controls.current) return;
-  //   if (selectedIds.size > 0) {
-  //     const centroid = getCentroid(frame.positions, selectedIds);
-  //     controlsPostRef.current = centroid;
-  //     // controls.current.attach(sphereRef.current);
-  //     controls.current.object.position.copy(centroid);
-  //   }
-  // }, [selectedIds]);
-
-  // function handleControlsChange() {
-  //   if (!controls.current) return;
-  //   if (selectedIds.size > 0){
-  //     // Calculate the delta matrix based on the change since the last transformation
-  //     try{
-
-  //     const deltaPosition = controlsPostRef.current.clone().sub(controls.current.object.position);
-
-  //     // Apply delta matrix to selected positions only
-  //     const newPositions = frame.positions.map((pos, i) => {
-  //       return selectedIds.has(i) ? pos.clone().sub(deltaPosition) : pos;
-  //     });
-  //     // Update frame with new positions array (ensuring immutability)
-  //     setFrame((prevFrame) => ({ ...prevFrame, positions: newPositions }));
-  //   } catch (e) {
-  //     // because we are not using useEffect this can cause issues
-  //     // TODO: rewrite using a useEffect!
-  //   }
-  //   }
-  //   // Update controlsMatrixRef with the current transformation matrix
-  //   if (controls.current.object?.position){
-  //     controlsPostRef.current = controls.current.object.position.clone();
-  //   }
-  // }
 
   const [actualVisibleIndices, setActualVisibleIndices] = useState<Set<number>>(
     new Set(),
@@ -363,7 +325,7 @@ export const ParticleInstances = ({
         args={[null, null, actualVisibleIndices.size]}
         onPointerOver={handlePointerOver}
         onPointerOut={handlePointerOut}
-        onPointerMove={handlePointerMove}
+        onPointerMove={highlight === "" ? handlePointerMove : undefined}
         onClick={handleClicked}
         onDoubleClick={handleDoubleClick}
         castShadow
