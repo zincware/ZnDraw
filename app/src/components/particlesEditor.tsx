@@ -1,6 +1,7 @@
 import { useEffect, useRef, useCallback, useMemo, useState } from "react";
 import { TransformControls } from "@react-three/drei";
 import { Vector3, Euler } from "three";
+import { socket } from "../socket";
 
 export const getCentroid = (positions: Vector3[], selection: Set<number>) => {
   const centroid = new Vector3();
@@ -108,7 +109,11 @@ export const ParticleControls = ({
   // Toggle mode between "None", "translate", and "rotate" on "E" key press
   useEffect(() => {
     const toggleMode = (event) => {
+      if (document.activeElement !== document.body) {
+        return;
+      }
       if (event.key.toLowerCase() === "e") {
+        socket.emit("room:copy");
         setMode((prevMode) => {
           switch (prevMode) {
             case "None":

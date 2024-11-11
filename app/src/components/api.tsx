@@ -352,6 +352,10 @@ export const setupFrames = (
     });
 
     // initially check if the room exists
+    // TODO whith the edit mode, you need to check
+    // if the room exists more often
+    // because if can be updated from within
+    // this instance and not trigger a refresh
     con.get(parseInt(step) || 0).then((frame: any) => {
       if (frame !== null) {
         useDefaultRoomRef.current = false;
