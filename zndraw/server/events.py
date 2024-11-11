@@ -14,7 +14,6 @@ from zndraw.tasks import (
     inspect_zntrack_node,
     load_zntrack_figures,
     load_zntrack_frames,
-    run_room_copy,
     run_room_worker,
     run_scene_dependent_schema,
     run_schema,
