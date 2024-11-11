@@ -56,14 +56,14 @@ export const ParticleControls = ({
       setFrame((prevFrame) => ({
         ...prevFrame,
         positions: prevFrame.positions.map((pos, i) =>
-          selectedIds.has(i) ? pos.clone().sub(deltaPosition) : pos
+          selectedIds.has(i) ? pos.clone().sub(deltaPosition) : pos,
         ),
       }));
     },
-    [setFrame, selectedIds]
+    [setFrame, selectedIds],
   );
 
-// Helper to update frame rotations based on delta rotation
+  // Helper to update frame rotations based on delta rotation
   const applyDeltaToRotations = useCallback(
     (deltaRotation) => {
       setFrame((prevFrame) => ({
@@ -81,28 +81,28 @@ export const ParticleControls = ({
         }),
       }));
     },
-    [setFrame, selectedIds, centroid]
+    [setFrame, selectedIds, centroid],
   );
 
   // Handle control changes, applying only necessary updates to position and delta
   const handleControlsChange = useCallback(() => {
     if (mode === "translate") {
-    if (controls.current?.object?.position && selectedIds.size > 0) {
-      const deltaPosition = controlsPostRef.current
-        .clone()
-        .sub(controls.current.object.position);
-      applyDeltaToPositions(deltaPosition);
-      controlsPostRef.current.copy(controls.current.object.position);
+      if (controls.current?.object?.position && selectedIds.size > 0) {
+        const deltaPosition = controlsPostRef.current
+          .clone()
+          .sub(controls.current.object.position);
+        applyDeltaToPositions(deltaPosition);
+        controlsPostRef.current.copy(controls.current.object.position);
+      }
+    } else if (mode === "rotate") {
+      if (controls.current?.object?.rotation && selectedIds.size > 0) {
+        const deltaRotation = controlsRotationRef.current
+          .clone()
+          .sub(controls.current.object.rotation);
+        applyDeltaToRotations(deltaRotation);
+        controlsRotationRef.current.copy(controls.current.object.rotation);
+      }
     }
-  } else if (mode === "rotate") {
-    if (controls.current?.object?.rotation && selectedIds.size > 0) {
-      const deltaRotation = controlsRotationRef.current
-        .clone()
-        .sub(controls.current.object.rotation);
-      applyDeltaToRotations(deltaRotation);
-      controlsRotationRef.current.copy(controls.current.object.rotation);
-    }
-  }
   }, [applyDeltaToPositions, selectedIds, mode, applyDeltaToRotations]);
 
   // Toggle mode between "None", "translate", and "rotate" on "E" key press
