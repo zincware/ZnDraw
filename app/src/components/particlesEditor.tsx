@@ -28,11 +28,7 @@ const useCentroid = ({ frame, selectedIds }: any) => {
   }, [frame.positions, selectedIds]);
 };
 
-export const ParticleControls = ({
-  frame,
-  selectedIds,
-  setFrame,
-}) => {
+export const ParticleControls = ({ frame, selectedIds, setFrame }) => {
   const controls = useRef(null);
   const controlsPostRef = useRef(new Vector3());
   const controlsRotationRef = useRef(new Vector3());

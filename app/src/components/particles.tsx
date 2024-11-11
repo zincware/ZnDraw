@@ -107,11 +107,7 @@ const ParticleBondMaterial = ({
         );
       case "constraint":
         return (
-          <meshBasicMaterial
-            side={THREE.FrontSide}
-            color="red"
-            wireframe
-          />
+          <meshBasicMaterial side={THREE.FrontSide} color="red" wireframe />
         );
       default:
         return null;
