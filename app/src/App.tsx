@@ -20,8 +20,8 @@ import {
   BondInstances,
   SimulationCell,
   PerParticleVectors,
-  getCentroid,
 } from "./components/particles";
+import { getCentroid } from "./components/particlesEditor";
 import { Frames, Frame, Player } from "./components/particles";
 import { Geometries } from "./components/geometries";
 import "./App.css";
