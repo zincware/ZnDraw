@@ -10,7 +10,7 @@ import { IndicesState } from "./utils";
 
 import { ParticleControls } from "./particlesEditor";
 import { usePathtracer } from "@react-three/gpu-pathtracer";
-import { mergeInstancedMesh } from './utils/mergeInstancedMesh';
+import { mergeInstancedMesh, splitInstancedMesh } from './utils/mergeInstancedMesh';
 
 
 export interface Frame {
@@ -327,13 +327,13 @@ export const ParticleInstances = ({
   };
 
   const { scene } = useThree();
-  const [mergedMesh, setMergedMesh] = useState(null);
+  const [mergedMesh, setMergedMesh] = useState<THREE.Group | null>(null);
 
   useEffect(() => {
     console.log("Merging mesh",  meshRef.current);
     if (meshRef.current?.instanceMatrix?.array?.length > 0) {
       // Convert the InstancedMesh into a single Mesh using the utility function
-      const singleMesh = mergeInstancedMesh(meshRef.current);
+      const singleMesh = splitInstancedMesh(meshRef.current);
       console.log("Merged mesh created" + singleMesh);
       setMergedMesh(singleMesh);
     }
@@ -348,8 +348,6 @@ export const ParticleInstances = ({
       // Optional cleanup on component unmount
       return () => {
         scene.remove(mergedMesh);
-        mergedMesh.geometry.dispose();
-        mergedMesh.material.dispose();
       };
     }
   }, [mergedMesh, scene, useInstancing]);
@@ -396,6 +394,7 @@ export const BondInstances = ({
   useInstancing: boolean;
 }) => {
   const meshRef = useRef<THREE.InstancedMesh | null>(null);
+  const { update } = usePathtracer();
 
   const [actualVisibleConnectivity, setActualVisibleConnectivity] = useState<
     number[][]
@@ -500,9 +499,36 @@ export const BondInstances = ({
     }
   }, [sceneSettings.bond_size]);
 
+  const { scene } = useThree();
+  const [mergedMesh, setMergedMesh] = useState<THREE.Group | null>(null);
+
+  useEffect(() => {
+    console.log("Merging mesh",  meshRef.current);
+    if (meshRef.current?.instanceMatrix?.array?.length > 0) {
+      // Convert the InstancedMesh into a single Mesh using the utility function
+      const singleMesh = splitInstancedMesh(meshRef.current);
+      // console.log("Merged mesh created" + singleMesh);
+      setMergedMesh(singleMesh);
+    }
+  }, [frame, actualVisibleConnectivity]);
+
+  useEffect(() => {
+    if (mergedMesh) {
+      // Add the merged mesh to the scene
+      scene.add(mergedMesh);
+      update();
+
+      // Optional cleanup on component unmount
+      return () => {
+        scene.remove(mergedMesh);
+      };
+    }
+  }, [mergedMesh, scene, useInstancing]);
+
   return (
     <instancedMesh
       ref={meshRef}
+      visible={useInstancing}
       args={[geometry, null, actualVisibleConnectivity.length * 2]}
       castShadow
       // receiveShadow

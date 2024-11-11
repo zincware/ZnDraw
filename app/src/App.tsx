@@ -527,7 +527,7 @@ export default function App() {
         {roomConfig.scene.controls !== undefined && (
           <Canvas onPointerMissed={onPointerMissed} shadows>
             <Pathtracer enabled={false}>
-            <Environment preset="city" />
+            {/* <Environment preset="city" /> */}
 
             {roomConfig["scene"].floor ? (
               <>
@@ -642,13 +642,13 @@ export default function App() {
               visibleIndices={selectedIds}
               highlight="selection"
               sceneSettings={roomConfig["scene"]}
-            />
+            /> */}
             <BondInstances
               frame={currentFrame}
               visibleIndices={undefined}
               highlight=""
               sceneSettings={roomConfig["scene"]}
-            />  */}
+            /> 
             {roomConfig["scene"]["simulation_box"] && (
               <SimulationCell frame={currentFrame} colorMode={colorMode} />
             )}
