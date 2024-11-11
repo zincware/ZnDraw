@@ -4,7 +4,7 @@ import * as znsocket from "znsocket";
 import { client, socket } from "../socket";
 
 import { useFrame, useThree } from "@react-three/fiber";
-import { Line } from "@react-three/drei";
+import { Dodecahedron, Line, TransformControls } from "@react-three/drei";
 import Arrows from "./meshes";
 import { IndicesState } from "./utils";
 
@@ -142,6 +142,7 @@ const ParticleBondMaterial = ({
 
 export const ParticleInstances = ({
   frame,
+  setFrame,
   selectedIds,
   setSelectedIds,
   isDrawing,
@@ -153,6 +154,7 @@ export const ParticleInstances = ({
   highlight = "",
 }: {
   frame: Frame;
+  setFrame: (frame: Frame) => void;
   selectedIds: Set<number>;
   setSelectedIds: any;
   isDrawing: boolean;
@@ -166,6 +168,33 @@ export const ParticleInstances = ({
   const meshRef = useRef<THREE.InstancedMesh | null>(null);
   const sphereRef = useRef<THREE.InstancedMesh | null>(null);
   const originalScale = useRef<number>(1);
+  const controls = useRef<typeof TransformControls>(null);
+  const controlsPostRef = useRef(new THREE.Vector3(0, 0, 0));
+
+  function handleControlsChange() {
+    if (!controls.current) return;
+    if (selectedIds.size > 0){
+      // Calculate the delta matrix based on the change since the last transformation
+      try{
+
+      const deltaPosition = controlsPostRef.current.clone().sub(controls.current.object.position);
+    
+      // Apply delta matrix to selected positions only
+      const newPositions = frame.positions.map((pos, i) => {
+        return selectedIds.has(i) ? pos.clone().sub(deltaPosition) : pos;
+      });    
+      // Update frame with new positions array (ensuring immutability)
+      setFrame((prevFrame) => ({ ...prevFrame, positions: newPositions }));
+    } catch (e) {
+      // because we are not using useEffect this can cause issues
+      // TODO: rewrite using a useEffect!
+    }
+    }
+    // Update controlsMatrixRef with the current transformation matrix
+    if (controls.current.object?.position){
+      controlsPostRef.current = controls.current.object.position.clone();
+    }
+  }
 
   const [actualVisibleIndices, setActualVisibleIndices] = useState<Set<number>>(
     new Set(),
@@ -316,6 +345,10 @@ export const ParticleInstances = ({
 
   return (
     <>
+      {highlight === "selection" && selectedIds.size > 0 && (<>
+        <TransformControls ref={controls} onChange={handleControlsChange}></TransformControls>
+      </>
+      )}
       <instancedMesh
         ref={meshRef}
         args={[null, null, actualVisibleIndices.size]}

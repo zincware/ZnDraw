@@ -183,7 +183,7 @@ export default function App() {
     controlsRef,
     cameraRef,
   );
-  setupFrames(token, step, setCurrentFrame, setLength, setStep);
+  setupFrames(token, step, setCurrentFrame, currentFrame, setLength, setStep);
   setupFigures(token, setUpdatedPlotsList);
   setupGeometries(token, setGeometries, geometries);
   setupMessages(token, setMessages, messages);
@@ -590,6 +590,7 @@ export default function App() {
               token={token}
               highlight=""
               visibleIndices={undefined}
+              setFrame={setCurrentFrame}
             />
             <ParticleInstances
               frame={currentFrame}
@@ -602,6 +603,7 @@ export default function App() {
               token={token}
               visibleIndices={hoveredId}
               highlight={"backside"}
+              setFrame={setCurrentFrame}
             />
             <ParticleInstances
               frame={currentFrame}
@@ -614,6 +616,7 @@ export default function App() {
               token={token}
               visibleIndices={selectedIds}
               highlight={"selection"}
+              setFrame={setCurrentFrame}
             />
             <BondInstances
               frame={currentFrame}

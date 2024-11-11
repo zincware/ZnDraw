@@ -14,7 +14,7 @@ export default function ControlsBuilder({
   setSelectedPoint: any;
 }) {
   const mesh = useRef<THREE.Object3D>(null); // TODO: check type
-  const controls = useRef<THREE.TransformControls>(null);
+  const controls = useRef<typeof TransformControls>(null);
 
   useEffect(() => {
     if (selectedPoint == null) {

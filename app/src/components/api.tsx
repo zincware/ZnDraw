@@ -287,6 +287,7 @@ export const setupFrames = (
   token: string,
   step: any,
   setCurrentFrame: any,
+  currentFrame: any,
   setLength: any,
   setStep: any,
 ) => {
@@ -294,6 +295,7 @@ export const setupFrames = (
   const defaultConInterfaceRef = useRef<typeof znsocket.List>(undefined);
   const useDefaultRoomRef = useRef(true);
   let [framesRequiringUpdate, setFramesRequiringUpdate] = useState(undefined);
+  let currentFrameUpdatedFromSocketRef = useRef(true);
 
   const setCurrentFrameFromObject = (frame: any) => {
     console.log("setting current frame");
@@ -303,7 +305,37 @@ export const setupFrames = (
         new THREE.Vector3(position[0], position[1], position[2]),
     ) as THREE.Vector3[];
     setCurrentFrame(frame);
+    currentFrameUpdatedFromSocketRef.current = true;
   };
+
+  useEffect(() => {
+    if (currentFrameUpdatedFromSocketRef.current === true) {
+      currentFrameUpdatedFromSocketRef.current = false;
+      return;
+    }
+
+    const updateCon = async () => {
+      if (conInterfaceRef.current === undefined) {
+        return;
+      }
+      if (!currentFrame.positions) {
+        return;
+      }
+      // make the frame object serializable
+      let newFrame = { ...currentFrame };
+      newFrame.positions = newFrame.positions.map((x: THREE.Vector3) => [
+        x.x,
+        x.y,
+        x.z,
+      ]);
+      // TODO: need to make a copy of the default room :/ Maybe when entering edit mode, send a message
+      conInterfaceRef.current.set(parseInt(step) || 0, { value: newFrame, _type: "ase.Atoms"});
+    };
+
+    const debounceTimeout = setTimeout(updateCon, 500);
+
+    return () => clearTimeout(debounceTimeout);
+  }, [currentFrame]);
 
   useEffect(() => {
     const con = new znsocket.List({
