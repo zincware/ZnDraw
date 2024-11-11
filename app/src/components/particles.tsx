@@ -171,6 +171,17 @@ export const ParticleInstances = ({
   const controls = useRef<typeof TransformControls>(null);
   const controlsPostRef = useRef(new THREE.Vector3(0, 0, 0));
 
+  // move the transform controls to the selected particle
+  useEffect(() => {
+    if (!controls.current) return;
+    if (selectedIds.size > 0) {
+      const centroid = getCentroid(frame.positions, selectedIds);
+      controlsPostRef.current = centroid;
+      // controls.current.attach(sphereRef.current);
+      controls.current.object.position.copy(centroid);
+    }
+  }, [selectedIds]);
+
   function handleControlsChange() {
     if (!controls.current) return;
     if (selectedIds.size > 0){
