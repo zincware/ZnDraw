@@ -629,6 +629,7 @@ export default function App() {
               token={token}
               visibleIndices={new Set(currentFrame.constraints?.[0]?.indices)}
               highlight={"constraint"}
+              setFrame={setCurrentFrame}
             />
             <BondInstances
               frame={currentFrame}
