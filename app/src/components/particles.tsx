@@ -20,6 +20,7 @@ export interface Frame {
   pbc: boolean[];
   positions: THREE.Vector3[]; // only number[][] | before being mapped immediately
   vectors: [number, number, number][][];
+  constraints: any[];
 }
 
 export interface Frames {
@@ -91,13 +92,26 @@ const ParticleBondMaterial = ({
   material: string;
 }) => {
   if (highlight) {
-    return (
-      <meshBasicMaterial
-        side={highlight === "backside" ? THREE.BackSide : THREE.FrontSide}
-        transparent
-        opacity={highlight === "backside" ? 0.8 : 0.5}
-      />
-    );
+    switch (highlight) {
+      case "backside":
+        return (
+          <meshBasicMaterial side={THREE.BackSide} transparent opacity={0.8} />
+        );
+      case "frontside":
+        return (
+          <meshBasicMaterial side={THREE.FrontSide} transparent opacity={0.5} />
+        );
+      case "selection":
+        return (
+          <meshBasicMaterial side={THREE.FrontSide} transparent opacity={0.5} />
+        );
+      case "constraint":
+        return (
+          <meshBasicMaterial side={THREE.FrontSide} color="red" wireframe />
+        );
+      default:
+        return null;
+    }
   }
 
   switch (material) {
@@ -342,7 +356,6 @@ export const ParticleInstances = ({
           frame={frame}
           selectedIds={selectedIds}
           setFrame={setFrame}
-          highlight={highlight}
         />
       )}
       <instancedMesh

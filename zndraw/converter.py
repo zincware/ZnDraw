@@ -2,6 +2,7 @@ import ase
 import numpy as np
 import znjson
 from ase.calculators.singlepoint import SinglePointCalculator
+from ase.constraints import FixAtoms
 from ase.data.colors import jmol_colors
 
 from zndraw.draw import Object3D
@@ -121,7 +122,19 @@ class ASEConverter(znjson.ConverterBase):
         else:
             connectivity = []
 
-        # TODO!!! check that positions are not sent twice in arrays and positions
+        constraints = []
+        if len(obj.constraints) > 0:
+            for constraint in obj.constraints:
+                if isinstance(constraint, FixAtoms):
+                    constraints.append(
+                        {"type": "FixAtoms", "indices": constraint.index.tolist()}
+                    )
+                else:
+                    # Can not serialize other constraints
+                    pass
+
+        # We don't want to send positions twice
+        arrays.pop("positions", None)
 
         return ASEDict(
             numbers=numbers,
@@ -133,6 +146,7 @@ class ASEConverter(znjson.ConverterBase):
             pbc=pbc,
             cell=cell,
             vectors=vectors,
+            constraints=constraints,
         )
 
     def decode(self, value: ASEDict) -> ase.Atoms:
@@ -154,6 +168,10 @@ class ASEConverter(znjson.ConverterBase):
             atoms.calc.results.update(calc)
         if vectors := value.get("vectors"):
             atoms.info["vectors"] = vectors
+        if constraints := value.get("constraints"):
+            for constraint in constraints:
+                if constraint["type"] == "FixAtoms":
+                    atoms.set_constraint(FixAtoms(constraint["indices"]))
         return atoms
 
 

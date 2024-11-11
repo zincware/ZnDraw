@@ -14,6 +14,7 @@ from zndraw.tasks import (
     inspect_zntrack_node,
     load_zntrack_figures,
     load_zntrack_frames,
+    run_room_copy,
     run_room_worker,
     run_scene_dependent_schema,
     run_schema,
@@ -220,3 +221,8 @@ def init_socketio_events(io: SocketIO):
     @io.on("zntrack:load-figure")
     def zntrack_load_figure(data: dict):
         load_zntrack_figures.delay(room=session.get("token"), **data)
+
+    @io.on("room:copy")
+    def room_copy():
+        room = session.get("token")
+        run_room_copy.delay(room)

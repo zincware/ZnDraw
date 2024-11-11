@@ -157,7 +157,6 @@ export function setupSelection(
       if (!conInterfaceRef.current) return;
 
       // Update remote selection if change wasn't from external source
-      console.log("updating selection");
       conInterfaceRef.current.set("grp-0", Array.from(selectedIds));
     };
 
@@ -298,7 +297,6 @@ export const setupFrames = (
   let currentFrameUpdatedFromSocketRef = useRef(true);
 
   const setCurrentFrameFromObject = (frame: any) => {
-    console.log("setting current frame");
     frame = frame["value"];
     frame.positions = frame.positions.map(
       (position: [number, number, number]) =>
@@ -412,7 +410,6 @@ export const setupFrames = (
       });
       // the initial step is -1 so it queries the last frame
       currentInterface.get(parseInt(step) || 0).then((frame: any) => {
-        console.log(frame);
         if (frame === null) {
           currentInterface.length().then((length: any) => {
             setStep(length - 1);
