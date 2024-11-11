@@ -35,6 +35,7 @@ interface PlayerProps {
   loop: boolean;
   togglePlaying: (playing: boolean) => void;
   selectedFrames: IndicesState;
+  stepSize: number;
 }
 
 export const Player = ({
@@ -46,6 +47,7 @@ export const Player = ({
   loop,
   togglePlaying: setPlaying,
   selectedFrames,
+  stepSize,
 }: PlayerProps) => {
   useFrame(({ clock }) => {
     const a = clock.getElapsedTime();
@@ -64,7 +66,7 @@ export const Player = ({
         } else {
           if (selectedFrames.indices.size > 0 && selectedFrames.active) {
             const nextFrame = Array.from(selectedFrames.indices).find(
-              (frame) => frame > step,
+              (frame) => frame >= step + stepSize,
             );
             if (nextFrame) {
               setStep(nextFrame);
@@ -72,7 +74,7 @@ export const Player = ({
               setStep(Math.min(...selectedFrames.indices));
             }
           } else {
-            setStep(step + 1);
+            setStep(step + stepSize);
           }
         }
       }
