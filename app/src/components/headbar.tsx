@@ -375,6 +375,7 @@ function HelpModel(props: any) {
 - **remove line point**: \`shift + backspace\`
 - **reset camera to original position**: \`keypress O\`
 - **rotate camera perpendicular to the screen**: \`keypress R\` or \`keypress ctrl + R\`
+- (experimental) **Enter molecule editor (none, translate, rotate)**: \`keypress E\`
 `;
 
   return (
