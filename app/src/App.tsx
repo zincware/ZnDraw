@@ -636,12 +636,6 @@ export default function App() {
               highlight="selection"
               sceneSettings={roomConfig["scene"]}
             />
-            {/* <BondInstances
-              frame={currentFrame}
-              visibleIndices={new Set([1,2,3,4])}
-              highlight="constraint"
-              sceneSettings={roomConfig["scene"]}
-            /> */}
             <BondInstances
               frame={currentFrame}
               visibleIndices={undefined}

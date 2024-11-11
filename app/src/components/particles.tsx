@@ -109,8 +109,6 @@ const ParticleBondMaterial = ({
         return (
           <meshBasicMaterial
             side={THREE.FrontSide}
-            // transparent
-            // opacity={0.5}
             color="red"
             wireframe
           />
@@ -362,7 +360,6 @@ export const ParticleInstances = ({
           frame={frame}
           selectedIds={selectedIds}
           setFrame={setFrame}
-          highlight={highlight}
         />
       )}
       <instancedMesh

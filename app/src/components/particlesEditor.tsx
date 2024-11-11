@@ -32,7 +32,6 @@ export const ParticleControls = ({
   frame,
   selectedIds,
   setFrame,
-  highlight,
 }) => {
   const controls = useRef(null);
   const controlsPostRef = useRef(new Vector3());
@@ -144,7 +143,7 @@ export const ParticleControls = ({
 
   return (
     <>
-      {highlight === "selection" && selectedIds.size > 0 && mode !== "None" && (
+      {selectedIds.size > 0 && mode !== "None" && (
         <TransformControls ref={controls} onChange={handleControlsChange} />
       )}
     </>

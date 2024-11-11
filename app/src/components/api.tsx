@@ -157,7 +157,6 @@ export function setupSelection(
       if (!conInterfaceRef.current) return;
 
       // Update remote selection if change wasn't from external source
-      console.log("updating selection");
       conInterfaceRef.current.set("grp-0", Array.from(selectedIds));
     };
 
