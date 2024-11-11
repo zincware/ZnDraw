@@ -527,3 +527,18 @@ def run_scene_dependent_schema(room) -> None:
 
     vis.socket.sleep(1)
     vis.socket.disconnect()
+
+
+@shared_task
+def run_room_copy(room) -> None:
+    # check if the room exists or if default room is used instead
+    r = current_app.extensions["redis"]
+
+    if not r.exists(f"room:{room}:frames") and r.exists("room:default:frames"):
+        default_lst = znsocket.List(
+            r,
+            "room:default:frames",
+        )
+        if not (len(default_lst) == 1 and len(default_lst[0]) == 0):
+            # prevent copying empty default room
+            default_lst.copy(key=f"room:{room}:frames")
