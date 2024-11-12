@@ -112,7 +112,6 @@ def check_queue(vis: "ZnDraw") -> None:
         vis.socket.sleep(1)  # wakeup timeout
 
 
-
 def _check_version_compatibility(server_version: str) -> None:
     if server_version != __version__:
         log.warning(
