@@ -14,6 +14,7 @@ import tqdm
 import typing_extensions as tyex
 import znjson
 import znsocket
+import znsocket.exceptions
 from redis import Redis
 
 from zndraw.abc import Message
@@ -109,6 +110,7 @@ def check_queue(vis: "ZnDraw") -> None:
                             new_vis.socket.sleep(1)
                             new_vis.socket.disconnect()
         vis.socket.sleep(1)  # wakeup timeout
+
 
 
 def _check_version_compatibility(server_version: str) -> None:
