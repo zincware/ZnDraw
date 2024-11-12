@@ -609,7 +609,6 @@ export default function App() {
                 highlight=""
                 visibleIndices={undefined}
                 setFrame={setCurrentFrame}
-                useInstancing={!roomConfig.PathTracer.enabled}
                 pathTracingSettings={roomConfig.PathTracer}
               />
               {!roomConfig.PathTracer.enabled && (
@@ -626,7 +625,6 @@ export default function App() {
                     visibleIndices={hoveredId}
                     highlight={"backside"}
                     setFrame={setCurrentFrame}
-                    useInstancing={true}
                   />
                   <ParticleInstances
                     frame={currentFrame}
@@ -640,7 +638,6 @@ export default function App() {
                     visibleIndices={selectedIds}
                     highlight={"selection"}
                     setFrame={setCurrentFrame}
-                    useInstancing={true}
                   />
                   <ParticleInstances
                     frame={currentFrame}
@@ -656,14 +653,12 @@ export default function App() {
                     }
                     highlight={"constraint"}
                     setFrame={setCurrentFrame}
-                    useInstancing={true}
                   />
                   <BondInstances
                     frame={currentFrame}
                     visibleIndices={selectedIds}
                     highlight="selection"
                     sceneSettings={roomConfig["scene"]}
-                    useInstancing={true}
                   />
                 </>
               )}
@@ -672,7 +667,6 @@ export default function App() {
                 visibleIndices={undefined}
                 highlight=""
                 sceneSettings={roomConfig["scene"]}
-                useInstancing={!roomConfig.PathTracer.enabled}
                 pathTracingSettings={roomConfig.PathTracer}
               />
               {roomConfig["scene"]["simulation_box"] &&

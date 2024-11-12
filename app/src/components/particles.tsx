@@ -3,14 +3,13 @@ import * as THREE from "three";
 import * as znsocket from "znsocket";
 import { client, socket } from "../socket";
 
-import { useFrame, useThree } from "@react-three/fiber";
+import { useFrame } from "@react-three/fiber";
 import { Line } from "@react-three/drei";
 import Arrows from "./meshes";
 import { IndicesState } from "./utils";
 
 import { ParticleControls } from "./particlesEditor";
-import { usePathtracer } from "@react-three/gpu-pathtracer";
-import { splitInstancedMesh } from "./utils/mergeInstancedMesh";
+import { useMergedMesh } from "./utils/mergeInstancedMesh";
 
 export interface Frame {
   arrays: { colors: Array<string>; radii: Array<number> };
@@ -151,7 +150,6 @@ export const ParticleInstances = ({
   token,
   visibleIndices = undefined,
   highlight = "",
-  useInstancing = false,
   pathTracingSettings,
 }: {
   frame: Frame;
@@ -165,60 +163,38 @@ export const ParticleInstances = ({
   token: string;
   visibleIndices: Set<number> | undefined | number;
   highlight: string;
-  useInstancing: boolean;
   pathTracingSettings: any;
 }) => {
   const meshRef = useRef<THREE.InstancedMesh | null>(null);
-  const sphereRef = useRef<THREE.InstancedMesh | null>(null);
-  const originalScale = useRef<number>(1);
 
-  const [actualVisibleIndices, setActualVisibleIndices] = useState<Set<number>>(
-    new Set(),
-  );
-
-  // Update actualVisibleIndices when visibleIndices or frame.numbers changes
-  useEffect(() => {
+  const actualVisibleIndices = useMemo(() => {
     if (typeof visibleIndices === "number") {
       if (visibleIndices === -1) {
         // -1 means no hover
-        setActualVisibleIndices(new Set());
+        return new Set();
       } else {
-        setActualVisibleIndices(new Set([visibleIndices]));
+        return new Set([visibleIndices]);
       }
-      return;
     }
-    setActualVisibleIndices(
-      visibleIndices ??
-        new Set(Array.from({ length: frame.numbers.length }, (_, i) => i)),
-    );
+    return visibleIndices ?? new Set(Array.from({ length: frame.numbers.length }, (_, i) => i));
   }, [visibleIndices, frame.numbers.length]);
+
 
   const { colors, radii } = frame.arrays;
   const positions = frame.positions;
   const { selection_color, material, particle_size } = sceneSettings;
 
-  const [nonInstancedAttributes, setNonInstancedAttributes] = useState<any[]>(
-    [],
-  );
-
-  const { update } = usePathtracer();
-
-  useEffect(() => {
-    update();
-  }, [nonInstancedAttributes]);
-
   const geometry = useMemo(() => {
     const _geometry = new THREE.SphereGeometry(1, 32, 32);
     _geometry.scale(particle_size, particle_size, particle_size);
-    if (!useInstancing) {
+    if (pathTracingSettings?.enabled) {
       _geometry.scale(0, 0, 0);
     }
     return _geometry;
-  }, [useInstancing, particle_size]);
+  }, [pathTracingSettings?.enabled, particle_size]);
 
   const instancedGeometry = useMemo(() => {
-    const _geometry = new THREE.SphereGeometry(1, 32, 32);
-    return _geometry;
+    return new THREE.SphereGeometry(1, 32, 32);
   }, []);
 
   useEffect(() => {
@@ -336,33 +312,9 @@ export const ParticleInstances = ({
     }
   };
 
-  const { scene } = useThree();
-
-  const mergedMesh = useMemo(() => {
-    if (meshRef.current?.instanceMatrix?.array?.length > 0 && !useInstancing) {
-      // Convert the InstancedMesh into a single Mesh using the utility function
-      const singleMesh = splitInstancedMesh(
-        meshRef.current,
-        instancedGeometry,
-        pathTracingSettings,
-      );
-      return singleMesh;
-    }
-    return null;
-  }, [frame, pathTracingSettings]);
-
-  useEffect(() => {
-    if (mergedMesh && !useInstancing) {
-      // Add the merged mesh to the scene
-      scene.add(mergedMesh);
-      update();
-
-      // Optional cleanup on component unmount
-      return () => {
-        scene.remove(mergedMesh);
-      };
-    }
-  }, [mergedMesh, useInstancing]);
+  if (highlight == ""){
+    useMergedMesh(meshRef, instancedGeometry, pathTracingSettings, [frame]);
+  }
 
   return (
     <>
@@ -375,7 +327,6 @@ export const ParticleInstances = ({
       )}
       <instancedMesh
         ref={meshRef}
-        visible={useInstancing}
         args={[geometry, null, actualVisibleIndices.size]}
         onPointerOver={handlePointerOver}
         onPointerOut={handlePointerOut}
@@ -396,53 +347,41 @@ export const BondInstances = ({
   visibleIndices = undefined,
   highlight = "",
   sceneSettings,
-  useInstancing = false,
   pathTracingSettings,
 }: {
   frame: Frame;
   sceneSettings: any;
   visibleIndices: Set<number> | undefined;
   highlight: string;
-  useInstancing: boolean;
   pathTracingSettings: any;
 }) => {
-  const meshRef = useRef<THREE.InstancedMesh | null>(null);
-  const { update } = usePathtracer();
-
-  const [actualVisibleConnectivity, setActualVisibleConnectivity] = useState<
-    number[][]
-  >([]);
-
-  // const [nonInstancedAttributes, setNonInstancedAttributes] = useState<any[]>([]);
+  const meshRef = useRef<THREE.InstancedMesh | null>(null); 
 
   const { material, selection_color, bond_size } = sceneSettings;
 
-  // Update actualVisibleIndices when visibleIndices or frame.numbers changes
-  useEffect(() => {
+  const actualVisibleConnectivity = useMemo(() => {
     if (!visibleIndices) {
-      setActualVisibleConnectivity(frame.connectivity);
-      return;
+      return frame.connectivity;
     }
     // find the subset of frame.connectivity where one of the particles are in visibleIndices
-    const newConnectivity = frame.connectivity.filter(([a, b]) => {
+    return frame.connectivity.filter(([a, b]) => {
       return visibleIndices?.has(a) && visibleIndices?.has(b);
     });
-    setActualVisibleConnectivity(newConnectivity);
-  }, [visibleIndices, frame]);
+  } , [visibleIndices, frame.connectivity]);
 
   const geometry = useMemo(() => {
     const _geometry = new THREE.CylinderGeometry(0.14, 0.14, 1, 32, 1, true);
     _geometry.translate(0, 0.5, 0);
     _geometry.rotateX(Math.PI / 2);
 
-    if (useInstancing) {
+    if (!pathTracingSettings?.enabled) {
       _geometry.scale(bond_size, bond_size, 0.5);
     } else {
       // set to zero to make invisible
       _geometry.scale(0, 0, 0.5);
     }
     return _geometry;
-  }, [useInstancing, bond_size]);
+  }, [pathTracingSettings?.enabled, bond_size]);
 
   const instancedGeometry = useMemo(() => {
     const _geometry = new THREE.CylinderGeometry(0.14, 0.14, 1, 32, 1, true);
@@ -517,33 +456,7 @@ export const BondInstances = ({
     }
   }, [frame, actualVisibleConnectivity, selection_color, geometry]);
 
-  const { scene } = useThree();
-
-  const mergedMesh = useMemo(() => {
-    if (meshRef.current?.instanceMatrix?.array?.length > 0 && !useInstancing) {
-      // Convert the InstancedMesh into a single Mesh using the utility function
-      const singleMesh = splitInstancedMesh(
-        meshRef.current,
-        instancedGeometry,
-        pathTracingSettings,
-      );
-      return singleMesh;
-    }
-    return null;
-  }, [frame, actualVisibleConnectivity, useInstancing, pathTracingSettings]);
-
-  useEffect(() => {
-    if (mergedMesh && !useInstancing) {
-      // Add the merged mesh to the scene
-      scene.add(mergedMesh);
-      update();
-
-      // Optional cleanup on component unmount
-      return () => {
-        scene.remove(mergedMesh);
-      };
-    }
-  }, [mergedMesh, useInstancing]);
+  if (highlight == ""){useMergedMesh(meshRef, instancedGeometry, pathTracingSettings, [frame]);}
 
   return (
     <instancedMesh
@@ -721,11 +634,14 @@ export const PerParticleVectors: React.FC<PerParticleVectorsProps> = ({
     }
   }, [frame, property]);
 
+  const startMap = useMemo(() => vectors.map((vec) => vec.start.toArray()), [vectors]);
+  const endMap = useMemo(() => vectors.map((vec) => vec.end.toArray()), [vectors]);
+  
   return (
     <>
       <Arrows
-        start={vectors.map((vec) => vec.start.toArray())}
-        end={vectors.map((vec) => vec.end.toArray())}
+        start={startMap}
+        end={endMap}
         scale_vector_thickness={arrowsConfig.scale_vector_thickness}
         colormap={arrowsConfig.colormap}
         colorrange={colorRange}

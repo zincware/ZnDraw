@@ -2,9 +2,7 @@ import React, { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { BufferGeometryUtils } from "three/examples/jsm/Addons.js";
 import { interpolateColor, HSLColor, ColorRange } from "./utils";
-import { splitInstancedMesh } from "./utils/mergeInstancedMesh";
-import { useThree } from "@react-three/fiber";
-import { usePathtracer } from "@react-three/gpu-pathtracer";
+import { useMergedMesh } from "./utils/mergeInstancedMesh";
 
 function createArrowMesh() {
   const cylinderRadius = 0.04;
@@ -52,62 +50,24 @@ const Arrows: React.FC<ArrowsProps> = ({
   rescale = 1.0,
   pathTracingSettings = undefined,
 }) => {
-  const arrowGeometry = useMemo(() => createArrowMesh(), []);
   const meshRef = useRef<THREE.InstancedMesh>(null);
   const materialRef = useRef<THREE.MeshStandardMaterial>(null);
 
   const geometry = useMemo(() => {
-    const _geom = arrowGeometry;
-    // if (pathTracingSettings && pathTracingSettings?.enabled) {
-    //   // make invisible when path tracing is enabled
-    //   _geom.scale(0, 0, 0);
-    // }
+    const _geom = createArrowMesh()
+    if (pathTracingSettings && pathTracingSettings?.enabled) {
+      // make invisible when path tracing is enabled
+      _geom.scale(0, 0, 0);
+    }
     return _geom;
   }, [pathTracingSettings]);
 
-  // move this part into module
-  ///////////////////////////////
-  const { scene } = useThree();
-  const { update } = usePathtracer();
+  const instancedGeometry = useMemo(() => {
+    return createArrowMesh();
+  }, []);
 
-  const mergedMesh = useMemo(() => {
-    // console.log triggering permanently
-    if (
-      meshRef.current?.instanceMatrix?.array?.length > 0 &&
-      pathTracingSettings?.enabled
-    ) {
-      // Convert the InstancedMesh into a single Mesh using the utility function
-      const singleMesh = splitInstancedMesh(
-        meshRef.current,
-        arrowGeometry,
-        pathTracingSettings,
-      );
-      console.log("Merged mesh created for arrows");
-      return singleMesh;
-    }
-    return null;
-  }, [
-    start,
-    end,
-    scale_vector_thickness,
-    colormap,
-    colorrange,
-    pathTracingSettings,
-  ]);
 
-  useEffect(() => {
-    if (mergedMesh && pathTracingSettings?.enabled) {
-      // Add the merged mesh to the scene
-      scene.add(mergedMesh);
-      update();
-
-      // Optional cleanup on component unmount
-      return () => {
-        scene.remove(mergedMesh);
-      };
-    }
-  }, [mergedMesh, pathTracingSettings]);
-  ///////////////////////////////
+  const mergedMesh = useMergedMesh(meshRef, instancedGeometry, pathTracingSettings, [start, end, scale_vector_thickness, colormap, colorrange, opacity, rescale]);
 
   useEffect(() => {
     if (!meshRef.current) return;

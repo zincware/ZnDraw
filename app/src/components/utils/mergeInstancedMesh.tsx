@@ -1,6 +1,55 @@
 import * as THREE from "three";
 import * as BufferGeometryUtils from "three/addons/utils/BufferGeometryUtils.js";
-import { clearcoat } from "three/examples/jsm/nodes/Nodes.js";
+import { useMemo, useEffect, RefObject, useRef } from 'react';
+import { useThree } from '@react-three/fiber';
+import { usePathtracer } from "@react-three/gpu-pathtracer";
+
+interface PathTracingSettings {
+  enabled: boolean;
+  [key: string]: any;
+}
+
+/**
+ * Hook to create a merged mesh from an InstancedMesh, add it to the scene, and update it for path tracing.
+ * 
+ * @param {RefObject<THREE.InstancedMesh>} meshRef - React ref of the InstancedMesh.
+ * @param {THREE.BufferGeometry} geometry - Geometry to use for the merged mesh.
+ * @param {PathTracingSettings} settings - Settings for path tracing and merging.
+ * @param {Array<unknown>} dependencies - Dependencies array for recalculating merged mesh.
+ * 
+ * @returns {THREE.Group | null} Merged mesh if created, otherwise null.
+ */
+export function useMergedMesh(
+  meshRef: RefObject<THREE.InstancedMesh>,
+  geometry: THREE.BufferGeometry,
+  settings: PathTracingSettings,
+  dependencies: unknown[] = []
+): THREE.Group | null {
+  const { scene } = useThree();
+  const { update } = usePathtracer();
+
+  const mergedMesh = useMemo(() => {
+    if (meshRef.current?.instanceMatrix?.array?.length > 0 && settings?.enabled) {
+      const singleMesh = splitInstancedMesh(meshRef.current, geometry, settings);
+      return singleMesh;
+    }
+    return null;
+  }, [geometry, settings, ...dependencies]);
+
+  useEffect(() => {
+    if (mergedMesh && settings?.enabled) {
+      scene.add(mergedMesh);
+      update();
+
+      return () => {
+        scene.remove(mergedMesh);
+      };
+    }
+  }, [mergedMesh, settings]);
+
+  return mergedMesh;
+}
+
 /**
  * Merges an InstancedMesh into a single Mesh.
  *
