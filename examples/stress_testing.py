@@ -1,5 +1,6 @@
-from rdkit2ase import smiles2conformers
 import tqdm
+from rdkit2ase import smiles2conformers
+
 #### Import ZnDraw ####
 from zndraw import ZnDraw
 
