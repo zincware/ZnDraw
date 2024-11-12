@@ -1,8 +1,9 @@
+import json
+
 import ase
 import numpy.testing as npt
 import pytest
 import znjson
-import json
 from ase.calculators.singlepoint import SinglePointCalculator
 from ase.constraints import FixAtoms
 
