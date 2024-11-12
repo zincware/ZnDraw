@@ -586,11 +586,10 @@ export default function App() {
                 intensity={Math.PI / 2}
               />
               {roomConfig["scene"]["vectorfield"] &&
-                currentFrame.vectors !== undefined &&
-                !roomConfig.PathTracer.enabled && (
-                  // TODO: add support for rendering
+                currentFrame.vectors !== undefined && (
                   <VectorField
                     vectors={currentFrame.vectors}
+                    pathTracingSettings={roomConfig.PathTracer}
                     arrowsConfig={{
                       rescale: roomConfig["scene"].vector_scale,
                       ...roomConfig.arrows,

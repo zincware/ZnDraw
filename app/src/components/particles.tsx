@@ -315,7 +315,7 @@ export const ParticleInstances = ({
   };
 
   if (highlight == "") {
-    useMergedMesh(meshRef, instancedGeometry, pathTracingSettings, [frame]);
+    useMergedMesh(meshRef, instancedGeometry, pathTracingSettings, [frame, visibleIndices]);
   }
 
   return (
@@ -459,7 +459,7 @@ export const BondInstances = ({
   }, [frame, actualVisibleConnectivity, selection_color, geometry]);
 
   if (highlight == "") {
-    useMergedMesh(meshRef, instancedGeometry, pathTracingSettings, [frame]);
+    useMergedMesh(meshRef, instancedGeometry, pathTracingSettings, [frame, visibleIndices]);
   }
 
   return (
