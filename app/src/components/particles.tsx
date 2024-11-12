@@ -4,14 +4,13 @@ import * as znsocket from "znsocket";
 import { client, socket } from "../socket";
 
 import { useFrame, useThree } from "@react-three/fiber";
-import { Line, Sphere } from "@react-three/drei";
+import { Line } from "@react-three/drei";
 import Arrows from "./meshes";
 import { IndicesState } from "./utils";
 
 import { ParticleControls } from "./particlesEditor";
 import { usePathtracer } from "@react-three/gpu-pathtracer";
 import {
-  mergeInstancedMesh,
   splitInstancedMesh,
 } from "./utils/mergeInstancedMesh";
 
@@ -204,11 +203,7 @@ export const ParticleInstances = ({
     [],
   );
 
-  const { pathtracer, update } = usePathtracer();
-
-  useEffect(() => {
-    pathtracer.filteredGlossyFactor = 0;
-  }, [useInstancing]);
+  const { update } = usePathtracer();
 
   useEffect(() => {
     update();
@@ -216,11 +211,12 @@ export const ParticleInstances = ({
 
   const geometry = useMemo(() => {
     const _geometry = new THREE.SphereGeometry(1, 32, 32);
+    _geometry.scale(particle_size, particle_size, particle_size);
     if (!useInstancing) {
       _geometry.scale(0, 0, 0);
     }
     return _geometry;
-  }, [useInstancing]);
+  }, [useInstancing, particle_size]);
 
   const instancedGeometry = useMemo(() => {
     const _geometry = new THREE.SphereGeometry(1, 32, 32);
@@ -270,16 +266,9 @@ export const ParticleInstances = ({
     actualVisibleIndices,
     selection_color,
     highlight,
+    geometry,
   ]);
 
-  // TODO replace with useMemo scaling
-  useEffect(() => {
-    if (sphereRef.current) {
-      const scale = particle_size / originalScale.current;
-      sphereRef.current.scale(scale, scale, scale);
-      originalScale.current = particle_size;
-    }
-  }, [particle_size]);
 
   const handlePointerOver = (event) => {
     if (highlight != "") {
@@ -351,9 +340,8 @@ export const ParticleInstances = ({
   };
 
   const { scene } = useThree();
-  const [mergedMesh, setMergedMesh] = useState<THREE.Group | null>(null);
 
-  useEffect(() => {
+  const mergedMesh = useMemo(() => {
     if (meshRef.current?.instanceMatrix?.array?.length > 0 && !useInstancing) {
       // Convert the InstancedMesh into a single Mesh using the utility function
       const singleMesh = splitInstancedMesh(
@@ -361,9 +349,9 @@ export const ParticleInstances = ({
         instancedGeometry,
         pathTracingSettings,
       );
-      console.log("Merged mesh created" + singleMesh);
-      setMergedMesh(singleMesh);
+      return singleMesh;
     }
+    return null;
   }, [frame, pathTracingSettings]);
 
   useEffect(() => {
@@ -400,7 +388,6 @@ export const ParticleInstances = ({
         castShadow
         frustumCulled={false}
       >
-        {/* <sphereGeometry args={[1, 30, 30]} ref={sphereRef}/> */}
         <ParticleBondMaterial highlight={highlight} material={material} />
       </instancedMesh>
     </>
@@ -431,7 +418,7 @@ export const BondInstances = ({
 
   // const [nonInstancedAttributes, setNonInstancedAttributes] = useState<any[]>([]);
 
-  const { material, selection_color } = sceneSettings;
+  const { material, selection_color, bond_size } = sceneSettings;
 
   // Update actualVisibleIndices when visibleIndices or frame.numbers changes
   useEffect(() => {
@@ -446,21 +433,19 @@ export const BondInstances = ({
     setActualVisibleConnectivity(newConnectivity);
   }, [visibleIndices, frame]);
 
-  const originalScale = useRef<number>(1);
-
   const geometry = useMemo(() => {
     const _geometry = new THREE.CylinderGeometry(0.14, 0.14, 1, 32, 1, true);
     _geometry.translate(0, 0.5, 0);
     _geometry.rotateX(Math.PI / 2);
 
     if (useInstancing) {
-      _geometry.scale(1, 1, 0.5);
+      _geometry.scale(bond_size, bond_size, 0.5);
     } else {
       // set to zero to make invisible
       _geometry.scale(0, 0, 0.5);
     }
     return _geometry;
-  }, [useInstancing]);
+  }, [useInstancing, bond_size]);
 
   const instancedGeometry = useMemo(() => {
     const _geometry = new THREE.CylinderGeometry(0.14, 0.14, 1, 32, 1, true);
@@ -533,21 +518,11 @@ export const BondInstances = ({
       meshRef.current.instanceMatrix.needsUpdate = true;
       meshRef.current.instanceColor.needsUpdate = true;
     }
-  }, [frame, actualVisibleConnectivity, selection_color, useInstancing]);
-
-  useEffect(() => {
-    if (meshRef.current) {
-      geometry.scale(1 / originalScale.current, 1 / originalScale.current, 1);
-      originalScale.current = sceneSettings.bond_size;
-      geometry.scale(sceneSettings.bond_size, sceneSettings.bond_size, 1);
-    }
-  }, [sceneSettings.bond_size]);
+  }, [frame, actualVisibleConnectivity, selection_color, geometry]);
 
   const { scene } = useThree();
-  const [mergedMesh, setMergedMesh] = useState<THREE.Group | null>(null);
 
-  // TODO use useMemo instead?
-  useEffect(() => {
+  const mergedMesh = useMemo(() => {
     if (meshRef.current?.instanceMatrix?.array?.length > 0 && !useInstancing) {
       // Convert the InstancedMesh into a single Mesh using the utility function
       const singleMesh = splitInstancedMesh(
@@ -555,9 +530,9 @@ export const BondInstances = ({
         instancedGeometry,
         pathTracingSettings,
       );
-      // console.log("Merged mesh created" + singleMesh);
-      setMergedMesh(singleMesh);
+      return singleMesh;
     }
+    return null;
   }, [frame, actualVisibleConnectivity, useInstancing, pathTracingSettings]);
 
   useEffect(() => {

@@ -143,7 +143,7 @@ export default function App() {
   const [hoveredId, setHoveredId] = useState<number>(-1);
   const [roomConfig, setRoomConfig] = useState({
     arrows: {},
-    scene: { floor: false },
+    scene: { floor: false, particle_size: 1, bond_size: 1 },
     PathTracer: { enabled: false, environment: "none" },
   });
 
