@@ -216,7 +216,7 @@ class ZnDraw(ZnDrawBase):
             retries=self.timeout["emit_retries"],
         )
 
-        self.socket.sleep(5)  # wait for znsocket to reconnect as well
+        # self.socket.sleep(5)  # wait for znsocket to reconnect as well
         registerd_modifiers = list(self._modifiers[x]["cls"] for x in self._modifiers)
         for modifier in registerd_modifiers:
             self.register_modifier(modifier)
