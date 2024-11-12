@@ -58,10 +58,14 @@ def check_queue(vis: "ZnDraw") -> None:
         if not vis._modifiers:
             vis.socket.sleep(1)
             continue
-
-        process_modifier_queue(vis)
-        process_public_queue(vis)
-        vis.socket.sleep(1)
+        try:
+            process_modifier_queue(vis)
+            process_public_queue(vis)
+            vis.socket.sleep(1)
+        except (znsocket.exceptions.ZnSocketError, socketio.exceptions.SocketIOError):
+            log.warning("Connection to ZnDraw server lost. Reconnecting...")
+            vis.socket.disconnect()
+            vis.socket.sleep(1)
 
 
 def process_modifier_queue(vis: "ZnDraw") -> None:
