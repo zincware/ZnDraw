@@ -161,6 +161,7 @@ class EnvironmentPreset(str, enum.Enum):
 
 class PathTracer(BaseModel):
     """Experimental path tracer settings."""
+
     enabled: bool = False
     environment: EnvironmentPreset = EnvironmentPreset.studio
     metalness: float = Field(0.7, ge=0.0, le=1.0, description="Metalness")

@@ -529,7 +529,9 @@ def run_scene_dependent_schema(room) -> None:
     path_tracer_schema = PathTracer.model_json_schema_from_atoms(vis.atoms)
     for key, val in path_tracer_schema["properties"].items():
         try:
-            path_tracer_schema["properties"][key]["default"] = orig_path_tracer_config[key]
+            path_tracer_schema["properties"][key]["default"] = orig_path_tracer_config[
+                key
+            ]
         except KeyError:
             vis.log(f"KeyError: {key}")
     dct["PathTracer"] = path_tracer_schema
