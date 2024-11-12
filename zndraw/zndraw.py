@@ -114,6 +114,8 @@ def run_modifier_task(vis: "ZnDraw", key: str, task: dict, queue: znsocket.Dict)
         queue.pop(TASK_RUNNING)
     except Exception as err:
         vis.log(f"Error running modifier `{key}`: {err}")
+
+
 def _check_version_compatibility(server_version: str) -> None:
     if server_version != __version__:
         log.warning(
