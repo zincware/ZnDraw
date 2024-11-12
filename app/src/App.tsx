@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { socket, client } from "./socket";
+import { Pathtracer } from "@react-three/gpu-pathtracer";
 import {
   setupBookmarks,
   setupPoints,
@@ -28,7 +29,7 @@ import "./App.css";
 import { Plotting } from "./components/plotting";
 import * as znsocket from "znsocket";
 
-import { Canvas, useThree, useFrame } from "@react-three/fiber";
+import { Canvas, useFrame } from "@react-three/fiber";
 import {
   OrbitControls,
   PerspectiveCamera,
@@ -37,6 +38,8 @@ import {
   TransformControls,
   Box,
   CameraControls,
+  Environment,
+  Sphere,
 } from "@react-three/drei";
 import { Button, InputGroup, Form } from "react-bootstrap";
 import * as THREE from "three";
@@ -140,7 +143,8 @@ export default function App() {
   const [hoveredId, setHoveredId] = useState<number>(-1);
   const [roomConfig, setRoomConfig] = useState({
     arrows: {},
-    scene: { floor: false },
+    scene: { floor: false, particle_size: 1, bond_size: 1 },
+    PathTracer: { enabled: false, environment: "none" },
   });
 
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(true);
@@ -523,225 +527,253 @@ export default function App() {
       <div className="canvas-container" onDragOver={onDragOver} onDrop={onDrop}>
         {roomConfig.scene.controls !== undefined && (
           <Canvas onPointerMissed={onPointerMissed} shadows>
-            {roomConfig["scene"].floor ? (
-              <>
-                <Floor colorMode={colorMode} roomConfig={roomConfig} />
-                <directionalLight
-                  position={[0, 100, 0]}
-                  intensity={1.0}
-                  castShadow
-                  shadow-mapSize-width={roomConfig["scene"]["camera_far"] * 10} // Adjust the width of the shadow map
-                  shadow-mapSize-height={roomConfig["scene"]["camera_far"] * 10} // Adjust the height of the shadow map
-                  shadow-camera-near={10} // Adjust the near clipping plane of the shadow camera
-                  shadow-camera-far={800} // Adjust the far clipping plane of the shadow camera
-                  shadow-camera-left={-1 * roomConfig["scene"]["camera_far"]} // Set the left boundary for the shadow camera frustum
-                  shadow-camera-right={roomConfig["scene"]["camera_far"]} // Set the right boundary for the shadow camera frustum
-                  shadow-camera-top={roomConfig["scene"]["camera_far"]} // Set the top boundary for the shadow camera frustum
-                  shadow-camera-bottom={-1 * roomConfig["scene"]["camera_far"]} // Set the bottom boundary for the shadow camera frustum
-                />
-              </>
-            ) : (
-              <directionalLight position={[0, 100, 0]} intensity={1.0} />
-            )}
+            <Pathtracer enabled={roomConfig.PathTracer.enabled}>
+              {roomConfig.PathTracer.enabled &&
+                roomConfig.PathTracer.environment !== "none" && (
+                  <Environment preset={roomConfig.PathTracer.environment} />
+                )}
 
-            {roomConfig["scene"].camera === "PerspectiveCamera" && (
-              <PerspectiveCamera
-                ref={cameraRef}
-                makeDefault
-                near={roomConfig["scene"]["camera_near"]}
-                far={roomConfig["scene"]["camera_far"]}
-                position={[10, 10, 10]}
+              {roomConfig["scene"].floor ? (
+                <>
+                  <Floor colorMode={colorMode} roomConfig={roomConfig} />
+                  <directionalLight
+                    position={[0, 100, 0]}
+                    intensity={1.0}
+                    castShadow
+                    shadow-mapSize-width={
+                      roomConfig["scene"]["camera_far"] * 10
+                    } // Adjust the width of the shadow map
+                    shadow-mapSize-height={
+                      roomConfig["scene"]["camera_far"] * 10
+                    } // Adjust the height of the shadow map
+                    shadow-camera-near={10} // Adjust the near clipping plane of the shadow camera
+                    shadow-camera-far={800} // Adjust the far clipping plane of the shadow camera
+                    shadow-camera-left={-1 * roomConfig["scene"]["camera_far"]} // Set the left boundary for the shadow camera frustum
+                    shadow-camera-right={roomConfig["scene"]["camera_far"]} // Set the right boundary for the shadow camera frustum
+                    shadow-camera-top={roomConfig["scene"]["camera_far"]} // Set the top boundary for the shadow camera frustum
+                    shadow-camera-bottom={
+                      -1 * roomConfig["scene"]["camera_far"]
+                    } // Set the bottom boundary for the shadow camera frustum
+                  />
+                </>
+              ) : (
+                <directionalLight position={[0, 100, 0]} intensity={1.0} />
+              )}
+
+              {roomConfig["scene"].camera === "PerspectiveCamera" && (
+                <PerspectiveCamera
+                  ref={cameraRef}
+                  makeDefault
+                  near={roomConfig["scene"]["camera_near"]}
+                  far={roomConfig["scene"]["camera_far"]}
+                  position={[10, 10, 10]}
+                />
+              )}
+              {roomConfig["scene"].camera === "OrthographicCamera" && (
+                <OrthographicCamera
+                  ref={cameraRef}
+                  makeDefault
+                  near={roomConfig["scene"]["camera_near"]}
+                  far={roomConfig["scene"]["camera_far"]}
+                  position={[10, 10, 10]}
+                  zoom={10}
+                />
+              )}
+              <pointLight
+                ref={cameraLightRef}
+                position={[11, 11, 11]}
+                decay={0}
+                intensity={Math.PI / 2}
               />
-            )}
-            {roomConfig["scene"].camera === "OrthographicCamera" && (
-              <OrthographicCamera
-                ref={cameraRef}
-                makeDefault
-                near={roomConfig["scene"]["camera_near"]}
-                far={roomConfig["scene"]["camera_far"]}
-                position={[10, 10, 10]}
-                zoom={10}
+              {roomConfig["scene"]["vectorfield"] &&
+                currentFrame.vectors !== undefined && (
+                  <VectorField
+                    vectors={currentFrame.vectors}
+                    pathTracingSettings={roomConfig.PathTracer}
+                    arrowsConfig={{
+                      rescale: roomConfig["scene"].vector_scale,
+                      ...roomConfig.arrows,
+                    }}
+                  />
+                )}
+              <ParticleInstances
+                frame={currentFrame}
+                selectedIds={selectedIds}
+                setSelectedIds={setSelectedIds}
+                isDrawing={isDrawing}
+                setPoints={setPoints}
+                setHoveredId={setHoveredId}
+                sceneSettings={roomConfig["scene"]}
+                token={token}
+                highlight=""
+                visibleIndices={undefined}
+                setFrame={setCurrentFrame}
+                pathTracingSettings={roomConfig.PathTracer}
               />
-            )}
-            <pointLight
-              ref={cameraLightRef}
-              position={[11, 11, 11]}
-              decay={0}
-              intensity={Math.PI / 2}
-            />
-            {roomConfig["scene"]["vectorfield"] &&
-              currentFrame.vectors !== undefined && (
-                <VectorField
-                  vectors={currentFrame.vectors}
+              {!roomConfig.PathTracer.enabled && (
+                <>
+                  <ParticleInstances
+                    frame={currentFrame}
+                    selectedIds={selectedIds}
+                    setSelectedIds={setSelectedIds}
+                    isDrawing={isDrawing}
+                    setPoints={setPoints}
+                    setHoveredId={setHoveredId}
+                    sceneSettings={roomConfig["scene"]}
+                    token={token}
+                    visibleIndices={hoveredId}
+                    highlight={"backside"}
+                    setFrame={setCurrentFrame}
+                  />
+                  <ParticleInstances
+                    frame={currentFrame}
+                    selectedIds={selectedIds}
+                    setSelectedIds={setSelectedIds}
+                    isDrawing={isDrawing}
+                    setPoints={setPoints}
+                    setHoveredId={setHoveredId}
+                    sceneSettings={roomConfig["scene"]}
+                    token={token}
+                    visibleIndices={selectedIds}
+                    highlight={"selection"}
+                    setFrame={setCurrentFrame}
+                  />
+                  <ParticleInstances
+                    frame={currentFrame}
+                    selectedIds={selectedIds}
+                    setSelectedIds={setSelectedIds}
+                    isDrawing={isDrawing}
+                    setPoints={setPoints}
+                    setHoveredId={setHoveredId}
+                    sceneSettings={roomConfig["scene"]}
+                    token={token}
+                    visibleIndices={
+                      new Set(currentFrame.constraints?.[0]?.indices)
+                    }
+                    highlight={"constraint"}
+                    setFrame={setCurrentFrame}
+                  />
+                  <BondInstances
+                    frame={currentFrame}
+                    visibleIndices={selectedIds}
+                    highlight="selection"
+                    sceneSettings={roomConfig["scene"]}
+                  />
+                </>
+              )}
+              <BondInstances
+                frame={currentFrame}
+                visibleIndices={undefined}
+                highlight=""
+                sceneSettings={roomConfig["scene"]}
+                pathTracingSettings={roomConfig.PathTracer}
+              />
+              {roomConfig["scene"]["simulation_box"] &&
+                !roomConfig.PathTracer.enabled && (
+                  <SimulationCell frame={currentFrame} colorMode={colorMode} />
+                )}
+              {roomConfig["scene"].controls === "OrbitControls" && (
+                <OrbitControls
+                  ref={controlsRef}
+                  enableDamping={false}
+                  target={orbitControlsTarget}
+                  onChange={(e) => {
+                    if (!e) return;
+                    const camera = e.target.object;
+                    if (cameraLightRef.current) {
+                      cameraLightRef.current.position
+                        .copy(camera.position)
+                        .sub(orbitControlsTarget)
+                        .normalize()
+                        .add(camera.position);
+                    }
+                    setCameraPosition(
+                      new THREE.Vector3().copy(camera.position),
+                    );
+                  }}
+                  makeDefault
+                />
+              )}
+              {roomConfig["scene"].controls === "TrackballControls" && (
+                <TrackballControls
+                  ref={controlsRef}
+                  target={orbitControlsTarget}
+                  staticMoving={true}
+                  onChange={(e) => {
+                    if (!e) return;
+                    const camera = e.target.object;
+                    if (cameraLightRef.current) {
+                      cameraLightRef.current.position
+                        .copy(camera.position)
+                        .sub(orbitControlsTarget)
+                        .normalize()
+                        .add(camera.position);
+                    }
+                    setCameraPosition(
+                      new THREE.Vector3().copy(camera.position),
+                    );
+                  }}
+                  makeDefault
+                />
+              )}
+              {roomConfig["scene"].crosshair && (
+                <MoveCameraTarget
+                  controlsRef={controlsRef}
+                  colorMode={colorMode}
+                />
+              )}
+              <Player
+                playing={playing}
+                togglePlaying={setPlaying}
+                step={step}
+                setStep={setStep}
+                fps={roomConfig["scene"].fps}
+                loop={roomConfig["scene"]["animation_loop"]}
+                length={length}
+                selectedFrames={selectedFrames}
+              />
+              <Line3D
+                points={points}
+                setPoints={setPoints}
+                setSelectedPoint={setSelectedPoint}
+                isDrawing={isDrawing}
+                colorMode={colorMode}
+                hoveredId={hoveredId}
+                setIsDrawing={setIsDrawing}
+                setLineLength={setLineLength}
+              />
+              <ControlsBuilder
+                points={points}
+                setPoints={setPoints}
+                selectedPoint={selectedPoint}
+                setSelectedPoint={setSelectedPoint}
+              />
+              <Geometries
+                geometries={geometries}
+                isDrawing={isDrawing}
+                setHoveredId={setHoveredId}
+                setPoints={setPoints}
+              />
+              <VirtualCanvas
+                setPoints={setPoints}
+                isDrawing={isDrawing}
+                points={points}
+                hoveredId={hoveredId}
+                setHoveredId={setHoveredId}
+              />
+              {roomConfig["scene"].vectors != "" && (
+                <PerParticleVectors
+                  frame={currentFrame}
+                  property={roomConfig["scene"].vectors}
+                  colorMode={colorMode}
                   arrowsConfig={{
                     rescale: roomConfig["scene"].vector_scale,
                     ...roomConfig.arrows,
                   }}
-                />
+                  pathTracingSettings={roomConfig.PathTracer}
+                ></PerParticleVectors>
               )}
-            <ParticleInstances
-              frame={currentFrame}
-              selectedIds={selectedIds}
-              setSelectedIds={setSelectedIds}
-              isDrawing={isDrawing}
-              setPoints={setPoints}
-              setHoveredId={setHoveredId}
-              sceneSettings={roomConfig["scene"]}
-              token={token}
-              highlight=""
-              visibleIndices={undefined}
-              setFrame={setCurrentFrame}
-            />
-            <ParticleInstances
-              frame={currentFrame}
-              selectedIds={selectedIds}
-              setSelectedIds={setSelectedIds}
-              isDrawing={isDrawing}
-              setPoints={setPoints}
-              setHoveredId={setHoveredId}
-              sceneSettings={roomConfig["scene"]}
-              token={token}
-              visibleIndices={hoveredId}
-              highlight={"backside"}
-              setFrame={setCurrentFrame}
-            />
-            <ParticleInstances
-              frame={currentFrame}
-              selectedIds={selectedIds}
-              setSelectedIds={setSelectedIds}
-              isDrawing={isDrawing}
-              setPoints={setPoints}
-              setHoveredId={setHoveredId}
-              sceneSettings={roomConfig["scene"]}
-              token={token}
-              visibleIndices={selectedIds}
-              highlight={"selection"}
-              setFrame={setCurrentFrame}
-            />
-            <ParticleInstances
-              frame={currentFrame}
-              selectedIds={selectedIds}
-              setSelectedIds={setSelectedIds}
-              isDrawing={isDrawing}
-              setPoints={setPoints}
-              setHoveredId={setHoveredId}
-              sceneSettings={roomConfig["scene"]}
-              token={token}
-              visibleIndices={new Set(currentFrame.constraints?.[0]?.indices)}
-              highlight={"constraint"}
-              setFrame={setCurrentFrame}
-            />
-            <BondInstances
-              frame={currentFrame}
-              visibleIndices={selectedIds}
-              highlight="selection"
-              sceneSettings={roomConfig["scene"]}
-            />
-            <BondInstances
-              frame={currentFrame}
-              visibleIndices={undefined}
-              highlight=""
-              sceneSettings={roomConfig["scene"]}
-            />
-            {roomConfig["scene"]["simulation_box"] && (
-              <SimulationCell frame={currentFrame} colorMode={colorMode} />
-            )}
-            {roomConfig["scene"].controls === "OrbitControls" && (
-              <OrbitControls
-                ref={controlsRef}
-                enableDamping={false}
-                target={orbitControlsTarget}
-                onChange={(e) => {
-                  if (!e) return;
-                  const camera = e.target.object;
-                  if (cameraLightRef.current) {
-                    cameraLightRef.current.position
-                      .copy(camera.position)
-                      .sub(orbitControlsTarget)
-                      .normalize()
-                      .add(camera.position);
-                  }
-                  setCameraPosition(new THREE.Vector3().copy(camera.position));
-                }}
-                makeDefault
-              />
-            )}
-            {roomConfig["scene"].controls === "TrackballControls" && (
-              <TrackballControls
-                ref={controlsRef}
-                target={orbitControlsTarget}
-                staticMoving={true}
-                onChange={(e) => {
-                  if (!e) return;
-                  const camera = e.target.object;
-                  if (cameraLightRef.current) {
-                    cameraLightRef.current.position
-                      .copy(camera.position)
-                      .sub(orbitControlsTarget)
-                      .normalize()
-                      .add(camera.position);
-                  }
-                  setCameraPosition(new THREE.Vector3().copy(camera.position));
-                }}
-                makeDefault
-              />
-            )}
-            {roomConfig["scene"].crosshair && (
-              <MoveCameraTarget
-                controlsRef={controlsRef}
-                colorMode={colorMode}
-              />
-            )}
-            <Player
-              playing={playing}
-              togglePlaying={setPlaying}
-              step={step}
-              setStep={setStep}
-              fps={roomConfig["scene"].fps}
-              loop={roomConfig["scene"]["animation_loop"]}
-              length={length}
-              selectedFrames={selectedFrames}
-            />
-            <Line3D
-              points={points}
-              setPoints={setPoints}
-              setSelectedPoint={setSelectedPoint}
-              isDrawing={isDrawing}
-              colorMode={colorMode}
-              hoveredId={hoveredId}
-              setIsDrawing={setIsDrawing}
-              setLineLength={setLineLength}
-            />
-            <ControlsBuilder
-              points={points}
-              setPoints={setPoints}
-              selectedPoint={selectedPoint}
-              setSelectedPoint={setSelectedPoint}
-            />
-            <Geometries
-              geometries={geometries}
-              isDrawing={isDrawing}
-              setHoveredId={setHoveredId}
-              setPoints={setPoints}
-            />
-            <VirtualCanvas
-              setPoints={setPoints}
-              isDrawing={isDrawing}
-              points={points}
-              hoveredId={hoveredId}
-              setHoveredId={setHoveredId}
-            />
-            {roomConfig["scene"].vectors != "" && (
-              <PerParticleVectors
-                frame={currentFrame}
-                property={roomConfig["scene"].vectors}
-                colorMode={colorMode}
-                arrowsConfig={{
-                  rescale: roomConfig["scene"].vector_scale,
-                  ...roomConfig.arrows,
-                }}
-              ></PerParticleVectors>
-            )}
+            </Pathtracer>
           </Canvas>
         )}
       </div>

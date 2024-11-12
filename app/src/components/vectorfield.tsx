@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import * as THREE from "three";
 import Arrows from "./meshes";
 import { HSLColor } from "./utils";
@@ -6,6 +6,7 @@ import { HSLColor } from "./utils";
 interface VectorFieldProps {
   vectors: [number, number, number][][];
   showArrows?: boolean;
+  pathTracingSettings: any | undefined;
   arrowsConfig: {
     normalize: boolean;
     scale_vector_thickness: boolean;
@@ -19,6 +20,7 @@ export const VectorField: React.FC<VectorFieldProps> = ({
   vectors,
   showArrows = true,
   arrowsConfig,
+  pathTracingSettings,
 }) => {
   const [colorRange, setColorRange] = useState<[number, number]>(
     arrowsConfig.colorrange,
@@ -39,15 +41,19 @@ export const VectorField: React.FC<VectorFieldProps> = ({
     }
   }, [vectors, arrowsConfig.normalize, arrowsConfig.colorrange]);
 
+  const startMap = useMemo(() => vectors.map((vector) => vector[0]), [vectors]);
+  const endMap = useMemo(() => vectors.map((vector) => vector[1]), [vectors]);
+
   return (
     <Arrows
-      start={vectors.map((vector) => vector[0])}
-      end={vectors.map((vector) => vector[1])}
+      start={startMap}
+      end={endMap}
       scale_vector_thickness={arrowsConfig.scale_vector_thickness}
       colormap={arrowsConfig.colormap}
       colorrange={colorRange}
       opacity={arrowsConfig.opacity}
       rescale={arrowsConfig.rescale}
+      pathTracingSettings={pathTracingSettings}
     />
   );
 };

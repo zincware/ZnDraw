@@ -11,7 +11,7 @@ from flask import current_app
 from zndraw.analyse import analyses
 from zndraw.base import FileIO
 from zndraw.bonds import ASEComputeBonds
-from zndraw.config import Scene
+from zndraw.config import PathTracer, Scene
 from zndraw.draw import geometries
 from zndraw.modify import modifier
 from zndraw.selection import selections
@@ -524,6 +524,17 @@ def run_scene_dependent_schema(room) -> None:
             vis.log(f"KeyError: {key}")
 
     dct["Scene"] = scene_schema
+
+    orig_path_tracer_config = dict(vis.config["PathTracer"])
+    path_tracer_schema = PathTracer.model_json_schema_from_atoms(vis.atoms)
+    for key, val in path_tracer_schema["properties"].items():
+        try:
+            path_tracer_schema["properties"][key]["default"] = orig_path_tracer_config[
+                key
+            ]
+        except KeyError:
+            vis.log(f"KeyError: {key}")
+    dct["PathTracer"] = path_tracer_schema
 
     vis.socket.sleep(1)
     vis.socket.disconnect()

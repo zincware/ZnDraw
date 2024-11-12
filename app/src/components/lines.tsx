@@ -263,6 +263,7 @@ export const VirtualCanvas = ({
             1, 1, 50, 50,
           ]} /* Initial size is [1, 1], will be scaled dynamically */
           onPointerMove={onHover}
+          visible={false}
         >
           <meshBasicMaterial
             attach="material"
