@@ -19,7 +19,7 @@ from redis import Redis
 from zndraw.abc import Message
 from zndraw.base import Extension, ZnDrawBase
 from zndraw.bonds import ASEComputeBonds
-from zndraw.config import Arrows, Scene, PathTracer
+from zndraw.config import Arrows, PathTracer, Scene
 from zndraw.converter import ASEConverter, Object3DConverter
 from zndraw.draw import Object3D
 from zndraw.figure import Figure, FigureConverter
@@ -642,7 +642,7 @@ class ZnDraw(ZnDrawBase):
             )
             if len(arrows_conf) == 0:
                 arrows_conf.update(Arrows().model_dump())
-            
+
             path_trace_conf = znsocket.Dict(
                 self.r,
                 f"room:{self.token}:config:path_tracer",
@@ -651,7 +651,7 @@ class ZnDraw(ZnDrawBase):
             )
             if len(path_trace_conf) == 0:
                 path_trace_conf.update(PathTracer().model_dump())
-            # 
+            #
             conf["scene"] = scene_conf
             conf["arrows"] = arrows_conf
             conf["PathTracer"] = path_trace_conf

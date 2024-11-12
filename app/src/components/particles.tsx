@@ -10,8 +10,10 @@ import { IndicesState } from "./utils";
 
 import { ParticleControls } from "./particlesEditor";
 import { usePathtracer } from "@react-three/gpu-pathtracer";
-import { mergeInstancedMesh, splitInstancedMesh } from './utils/mergeInstancedMesh';
-
+import {
+  mergeInstancedMesh,
+  splitInstancedMesh,
+} from "./utils/mergeInstancedMesh";
 
 export interface Frame {
   arrays: { colors: Array<string>; radii: Array<number> };
@@ -130,11 +132,11 @@ const ParticleBondMaterial = ({
         />
       );
     case "MeshToonMaterial":
-      return <meshToonMaterial side={THREE.FrontSide} color={color}/>;
+      return <meshToonMaterial side={THREE.FrontSide} color={color} />;
     case "MeshStandardMaterial":
-      return <meshStandardMaterial side={THREE.FrontSide} color={color}/>;
+      return <meshStandardMaterial side={THREE.FrontSide} color={color} />;
     case "MeshBasicMaterial":
-      return <meshBasicMaterial side={THREE.FrontSide} color={color}/>;
+      return <meshBasicMaterial side={THREE.FrontSide} color={color} />;
     default:
       return null;
   }
@@ -198,7 +200,9 @@ export const ParticleInstances = ({
   const positions = frame.positions;
   const { selection_color, material, particle_size } = sceneSettings;
 
-  const [nonInstancedAttributes, setNonInstancedAttributes] = useState<any[]>([]);
+  const [nonInstancedAttributes, setNonInstancedAttributes] = useState<any[]>(
+    [],
+  );
 
   const { pathtracer, update } = usePathtracer();
 
@@ -352,7 +356,11 @@ export const ParticleInstances = ({
   useEffect(() => {
     if (meshRef.current?.instanceMatrix?.array?.length > 0 && !useInstancing) {
       // Convert the InstancedMesh into a single Mesh using the utility function
-      const singleMesh = splitInstancedMesh(meshRef.current, instancedGeometry, pathTracingSettings);
+      const singleMesh = splitInstancedMesh(
+        meshRef.current,
+        instancedGeometry,
+        pathTracingSettings,
+      );
       console.log("Merged mesh created" + singleMesh);
       setMergedMesh(singleMesh);
     }
@@ -444,7 +452,7 @@ export const BondInstances = ({
     const _geometry = new THREE.CylinderGeometry(0.14, 0.14, 1, 32, 1, true);
     _geometry.translate(0, 0.5, 0);
     _geometry.rotateX(Math.PI / 2);
-    
+
     if (useInstancing) {
       _geometry.scale(1, 1, 0.5);
     } else {
@@ -458,7 +466,7 @@ export const BondInstances = ({
     const _geometry = new THREE.CylinderGeometry(0.14, 0.14, 1, 32, 1, true);
     _geometry.translate(0, 0.5, 0);
     _geometry.rotateX(Math.PI / 2);
-    
+
     _geometry.scale(1, 1, 0.5);
     return _geometry;
   }, []);
@@ -542,7 +550,11 @@ export const BondInstances = ({
   useEffect(() => {
     if (meshRef.current?.instanceMatrix?.array?.length > 0 && !useInstancing) {
       // Convert the InstancedMesh into a single Mesh using the utility function
-      const singleMesh = splitInstancedMesh(meshRef.current, instancedGeometry, pathTracingSettings);
+      const singleMesh = splitInstancedMesh(
+        meshRef.current,
+        instancedGeometry,
+        pathTracingSettings,
+      );
       // console.log("Merged mesh created" + singleMesh);
       setMergedMesh(singleMesh);
     }

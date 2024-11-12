@@ -11,7 +11,7 @@ from flask import current_app
 from zndraw.analyse import analyses
 from zndraw.base import FileIO
 from zndraw.bonds import ASEComputeBonds
-from zndraw.config import Scene, PathTracer
+from zndraw.config import PathTracer, Scene
 from zndraw.draw import geometries
 from zndraw.modify import modifier
 from zndraw.selection import selections

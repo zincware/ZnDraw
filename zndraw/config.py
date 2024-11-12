@@ -158,13 +158,16 @@ class EnvironmentPreset(str, enum.Enum):
     sunset = "sunset"
     warehouse = "warehouse"
 
+
 class PathTracer(BaseModel):
     enabled: bool = False
     environment: EnvironmentPreset = EnvironmentPreset.city
     metalness: float = Field(0.7, ge=0.0, le=1.0, description="Metalness")
     roughness: float = Field(0.2, ge=0.0, le=1.0, description="Roughness")
     clearcoat: float = Field(0.0, ge=0.0, le=1.0, description="Clearcoat")
-    clearcoatRoughness: float = Field(0.0, ge=0.0, le=1.0, description="Clearcoat Roughness")
+    clearcoatRoughness: float = Field(
+        0.0, ge=0.0, le=1.0, description="Clearcoat Roughness"
+    )
 
     @classmethod
     def model_json_schema_from_atoms(cls, atoms: ase.Atoms) -> dict:

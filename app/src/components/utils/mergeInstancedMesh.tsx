@@ -1,13 +1,15 @@
-import * as THREE from 'three';
-import * as BufferGeometryUtils from 'three/addons/utils/BufferGeometryUtils.js';
-import { clearcoat } from 'three/examples/jsm/nodes/Nodes.js';
+import * as THREE from "three";
+import * as BufferGeometryUtils from "three/addons/utils/BufferGeometryUtils.js";
+import { clearcoat } from "three/examples/jsm/nodes/Nodes.js";
 /**
  * Merges an InstancedMesh into a single Mesh.
- * 
+ *
  * @param {THREE.InstancedMesh} instancedMesh - The instanced mesh to merge.
  * @returns {THREE.Mesh} - A single mesh with merged geometry.
  */
-export function mergeInstancedMesh(instancedMesh: THREE.InstancedMesh): THREE.Mesh {
+export function mergeInstancedMesh(
+  instancedMesh: THREE.InstancedMesh,
+): THREE.Mesh {
   const { count, geometry, material } = instancedMesh;
   const mergedGeometries = [];
 
@@ -26,14 +28,19 @@ export function mergeInstancedMesh(instancedMesh: THREE.InstancedMesh): THREE.Me
 
     // Clone the original geometry and apply the instance's transformation
     const instanceGeometry = geometry.clone();
-    instanceGeometry.applyMatrix4(new THREE.Matrix4().compose(tempPosition, tempQuaternion, tempScale));
+    instanceGeometry.applyMatrix4(
+      new THREE.Matrix4().compose(tempPosition, tempQuaternion, tempScale),
+    );
 
     // Add transformed geometry to the array for merging
     mergedGeometries.push(instanceGeometry);
   }
 
   // Merge all transformed geometries into one
-  const mergedGeometry = BufferGeometryUtils.mergeGeometries(mergedGeometries, true);
+  const mergedGeometry = BufferGeometryUtils.mergeGeometries(
+    mergedGeometries,
+    true,
+  );
 
   // Return a single mesh
   return new THREE.Mesh(mergedGeometry, material);
@@ -41,11 +48,15 @@ export function mergeInstancedMesh(instancedMesh: THREE.InstancedMesh): THREE.Me
 
 /**
  * Converts an InstancedMesh into a Group of individual meshes, each with its own color.
- * 
+ *
  * @param {THREE.InstancedMesh} instancedMesh - The instanced mesh to split into individual meshes.
  * @returns {THREE.Group} - A group containing individual meshes.
  */
-export function splitInstancedMesh(instancedMesh: THREE.InstancedMesh, geometry: THREE.BufferGeometry, pathTracingSettings: any): THREE.Group {
+export function splitInstancedMesh(
+  instancedMesh: THREE.InstancedMesh,
+  geometry: THREE.BufferGeometry,
+  pathTracingSettings: any,
+): THREE.Group {
   const { count } = instancedMesh;
   const group = new THREE.Group();
 
@@ -66,7 +77,9 @@ export function splitInstancedMesh(instancedMesh: THREE.InstancedMesh, geometry:
     // Clone the geometry for each instance and apply the transformation
     const instanceGeometry = geometry.clone();
     // const instanceGeometry = new THREE.SphereGeometry(1, 32, 32);
-    instanceGeometry.applyMatrix4(new THREE.Matrix4().compose(tempPosition, tempQuaternion, tempScale));
+    instanceGeometry.applyMatrix4(
+      new THREE.Matrix4().compose(tempPosition, tempQuaternion, tempScale),
+    );
 
     // Determine the color for this instance
     let color = new THREE.Color(0xffffff); // Default to white if no color attribute
