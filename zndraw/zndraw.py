@@ -14,8 +14,8 @@ import tqdm
 import typing_extensions as tyex
 import znjson
 import znsocket
-from redis import Redis
 import znsocket.exceptions
+from redis import Redis
 
 from zndraw.abc import Message
 from zndraw.base import Extension, ZnDrawBase
@@ -50,6 +50,7 @@ class ExtensionType(str, enum.Enum):
     MODIFIER = "modifier"
     SELECTION = "selection"
     ANALYSIS = "analysis"
+
 
 def check_queue(vis: "ZnDraw") -> None:
     """Main loop to check and process modifier tasks for both private and public queues."""
