@@ -199,7 +199,6 @@ class ChangeType(UpdateScene):
 
 class AddLineParticles(UpdateScene):
     symbol: Symbols
-    steps: int = Field(10, le=100, ge=1)
 
     def run(self, vis: "ZnDraw", **kwargs) -> None:
         if len(vis) > vis.step + 1:
@@ -209,8 +208,12 @@ class AddLineParticles(UpdateScene):
         for point in vis.points:
             atoms += ase.Atom(self.symbol.name, position=point)
 
-        for _ in range(self.steps):
-            vis.append(atoms)
+        del atoms.arrays["colors"]
+        del atoms.arrays["radii"]
+        if hasattr(atoms, "connectivity"):
+            del atoms.connectivity
+
+        vis.append(atoms)
 
 
 class Wrap(UpdateScene):
