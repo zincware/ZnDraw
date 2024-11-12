@@ -63,7 +63,7 @@ const Arrows: React.FC<ArrowsProps> = ({
     //   _geom.scale(0, 0, 0);
     // }
     return _geom;
-  }, [pathTracingSettings])
+  }, [pathTracingSettings]);
 
   // move this part into module
   ///////////////////////////////
@@ -72,7 +72,10 @@ const Arrows: React.FC<ArrowsProps> = ({
 
   const mergedMesh = useMemo(() => {
     // console.log triggering permanently
-    if (meshRef.current?.instanceMatrix?.array?.length > 0 && pathTracingSettings?.enabled) {
+    if (
+      meshRef.current?.instanceMatrix?.array?.length > 0 &&
+      pathTracingSettings?.enabled
+    ) {
       // Convert the InstancedMesh into a single Mesh using the utility function
       const singleMesh = splitInstancedMesh(
         meshRef.current,
@@ -83,7 +86,14 @@ const Arrows: React.FC<ArrowsProps> = ({
       return singleMesh;
     }
     return null;
-  }, [start, end, scale_vector_thickness, colormap, colorrange, pathTracingSettings]);
+  }, [
+    start,
+    end,
+    scale_vector_thickness,
+    colormap,
+    colorrange,
+    pathTracingSettings,
+  ]);
 
   useEffect(() => {
     if (mergedMesh && pathTracingSettings?.enabled) {
