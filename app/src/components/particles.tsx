@@ -153,6 +153,7 @@ export const ParticleInstances = ({
   visibleIndices = undefined,
   highlight = "",
   useInstancing = false,
+  pathTracingSettings,
 }: {
   frame: Frame;
   setFrame: (frame: Frame) => void;
@@ -166,6 +167,7 @@ export const ParticleInstances = ({
   visibleIndices: Set<number> | undefined | number;
   highlight: string;
   useInstancing: boolean;
+  pathTracingSettings: any;
 }) => {
   const meshRef = useRef<THREE.InstancedMesh | null>(null);
   const sphereRef = useRef<THREE.InstancedMesh | null>(null);
@@ -198,11 +200,28 @@ export const ParticleInstances = ({
 
   const [nonInstancedAttributes, setNonInstancedAttributes] = useState<any[]>([]);
 
-  const { update } = usePathtracer();
+  const { pathtracer, update } = usePathtracer();
+
+  useEffect(() => {
+    pathtracer.filteredGlossyFactor = 0;
+  }, [useInstancing]);
 
   useEffect(() => {
     update();
   }, [nonInstancedAttributes]);
+
+  const geometry = useMemo(() => {
+    const _geometry = new THREE.SphereGeometry(1, 32, 32);
+    if (!useInstancing) {
+      _geometry.scale(0, 0, 0);
+    }
+    return _geometry;
+  }, [useInstancing]);
+
+  const instancedGeometry = useMemo(() => {
+    const _geometry = new THREE.SphereGeometry(1, 32, 32);
+    return _geometry;
+  }, []);
 
   useEffect(() => {
     if (meshRef.current && actualVisibleIndices.size > 0) {
@@ -249,6 +268,7 @@ export const ParticleInstances = ({
     highlight,
   ]);
 
+  // TODO replace with useMemo scaling
   useEffect(() => {
     if (sphereRef.current) {
       const scale = particle_size / originalScale.current;
@@ -330,17 +350,16 @@ export const ParticleInstances = ({
   const [mergedMesh, setMergedMesh] = useState<THREE.Group | null>(null);
 
   useEffect(() => {
-    console.log("Merging mesh",  meshRef.current);
-    if (meshRef.current?.instanceMatrix?.array?.length > 0) {
+    if (meshRef.current?.instanceMatrix?.array?.length > 0 && !useInstancing) {
       // Convert the InstancedMesh into a single Mesh using the utility function
-      const singleMesh = splitInstancedMesh(meshRef.current);
+      const singleMesh = splitInstancedMesh(meshRef.current, instancedGeometry, pathTracingSettings);
       console.log("Merged mesh created" + singleMesh);
       setMergedMesh(singleMesh);
     }
-  }, [frame, actualVisibleIndices]);
+  }, [frame, pathTracingSettings]);
 
   useEffect(() => {
-    if (mergedMesh) {
+    if (mergedMesh && !useInstancing) {
       // Add the merged mesh to the scene
       scene.add(mergedMesh);
       update();
@@ -350,7 +369,7 @@ export const ParticleInstances = ({
         scene.remove(mergedMesh);
       };
     }
-  }, [mergedMesh, scene, useInstancing]);
+  }, [mergedMesh]);
 
   return (
     <>
@@ -364,7 +383,7 @@ export const ParticleInstances = ({
       <instancedMesh
         ref={meshRef}
         visible={useInstancing}
-        args={[null, null, actualVisibleIndices.size]}
+        args={[geometry, null, actualVisibleIndices.size]}
         onPointerOver={handlePointerOver}
         onPointerOut={handlePointerOut}
         onPointerMove={highlight === "" ? handlePointerMove : undefined}
@@ -373,7 +392,7 @@ export const ParticleInstances = ({
         castShadow
         frustumCulled={false}
       >
-        <sphereGeometry args={[1, 30, 30]} ref={sphereRef} />
+        {/* <sphereGeometry args={[1, 30, 30]} ref={sphereRef}/> */}
         <ParticleBondMaterial highlight={highlight} material={material} />
       </instancedMesh>
     </>
@@ -386,12 +405,14 @@ export const BondInstances = ({
   highlight = "",
   sceneSettings,
   useInstancing = false,
+  pathTracingSettings,
 }: {
   frame: Frame;
   sceneSettings: any;
   visibleIndices: Set<number> | undefined;
   highlight: string;
   useInstancing: boolean;
+  pathTracingSettings: any;
 }) => {
   const meshRef = useRef<THREE.InstancedMesh | null>(null);
   const { update } = usePathtracer();
@@ -423,6 +444,21 @@ export const BondInstances = ({
     const _geometry = new THREE.CylinderGeometry(0.14, 0.14, 1, 32, 1, true);
     _geometry.translate(0, 0.5, 0);
     _geometry.rotateX(Math.PI / 2);
+    
+    if (useInstancing) {
+      _geometry.scale(1, 1, 0.5);
+    } else {
+      // set to zero to make invisible
+      _geometry.scale(0, 0, 0.5);
+    }
+    return _geometry;
+  }, [useInstancing]);
+
+  const instancedGeometry = useMemo(() => {
+    const _geometry = new THREE.CylinderGeometry(0.14, 0.14, 1, 32, 1, true);
+    _geometry.translate(0, 0.5, 0);
+    _geometry.rotateX(Math.PI / 2);
+    
     _geometry.scale(1, 1, 0.5);
     return _geometry;
   }, []);
@@ -489,7 +525,7 @@ export const BondInstances = ({
       meshRef.current.instanceMatrix.needsUpdate = true;
       meshRef.current.instanceColor.needsUpdate = true;
     }
-  }, [frame, actualVisibleConnectivity, selection_color]);
+  }, [frame, actualVisibleConnectivity, selection_color, useInstancing]);
 
   useEffect(() => {
     if (meshRef.current) {
@@ -502,18 +538,18 @@ export const BondInstances = ({
   const { scene } = useThree();
   const [mergedMesh, setMergedMesh] = useState<THREE.Group | null>(null);
 
+  // TODO use useMemo instead?
   useEffect(() => {
-    console.log("Merging mesh",  meshRef.current);
-    if (meshRef.current?.instanceMatrix?.array?.length > 0) {
+    if (meshRef.current?.instanceMatrix?.array?.length > 0 && !useInstancing) {
       // Convert the InstancedMesh into a single Mesh using the utility function
-      const singleMesh = splitInstancedMesh(meshRef.current);
+      const singleMesh = splitInstancedMesh(meshRef.current, instancedGeometry, pathTracingSettings);
       // console.log("Merged mesh created" + singleMesh);
       setMergedMesh(singleMesh);
     }
-  }, [frame, actualVisibleConnectivity]);
+  }, [frame, actualVisibleConnectivity, useInstancing, pathTracingSettings]);
 
   useEffect(() => {
-    if (mergedMesh) {
+    if (mergedMesh && !useInstancing) {
       // Add the merged mesh to the scene
       scene.add(mergedMesh);
       update();
@@ -523,13 +559,12 @@ export const BondInstances = ({
         scene.remove(mergedMesh);
       };
     }
-  }, [mergedMesh, scene, useInstancing]);
+  }, [mergedMesh]);
 
   return (
     <instancedMesh
       ref={meshRef}
-      visible={useInstancing}
-      args={[geometry, null, actualVisibleConnectivity.length * 2]}
+      args={[geometry, undefined, actualVisibleConnectivity.length * 2]}
       castShadow
       // receiveShadow
     >

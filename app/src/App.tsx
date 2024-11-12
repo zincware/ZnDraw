@@ -144,6 +144,7 @@ export default function App() {
   const [roomConfig, setRoomConfig] = useState({
     arrows: {},
     scene: { floor: false },
+    PathTracer: { enabled: false, environment: "none" },
   });
 
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(true);
@@ -526,8 +527,11 @@ export default function App() {
       <div className="canvas-container" onDragOver={onDragOver} onDrop={onDrop}>
         {roomConfig.scene.controls !== undefined && (
           <Canvas onPointerMissed={onPointerMissed} shadows>
-            <Pathtracer enabled={false}>
-            {/* <Environment preset="city" /> */}
+            <Pathtracer enabled={roomConfig.PathTracer.enabled}>
+            {roomConfig.PathTracer.environment &&
+              roomConfig.PathTracer.environment !== "none" && (
+                  <Environment preset={roomConfig.PathTracer.environment}/>
+              )}
 
             {roomConfig["scene"].floor ? (
               <>
@@ -559,7 +563,7 @@ export default function App() {
                 position={[10, 10, 10]}
               />
             )}
-            {/* {roomConfig["scene"].camera === "OrthographicCamera" && (
+            {roomConfig["scene"].camera === "OrthographicCamera" && (
               <OrthographicCamera
                 ref={cameraRef}
                 makeDefault
@@ -568,15 +572,18 @@ export default function App() {
                 position={[10, 10, 10]}
                 zoom={10}
               />
-            )} */}
+            )}
             <pointLight
               ref={cameraLightRef}
               position={[11, 11, 11]}
               decay={0}
               intensity={Math.PI / 2}
             />
-            {/* {roomConfig["scene"]["vectorfield"] &&
-              currentFrame.vectors !== undefined && (
+            {roomConfig["scene"]["vectorfield"] &&
+              currentFrame.vectors !== undefined && 
+              !roomConfig.PathTracer.enabled &&
+              (
+                // TODO: add support for rendering
                 <VectorField
                   vectors={currentFrame.vectors}
                   arrowsConfig={{
@@ -584,7 +591,7 @@ export default function App() {
                     ...roomConfig.arrows,
                   }}
                 />
-              )} */}
+              )}
             <ParticleInstances
               frame={currentFrame}
               selectedIds={selectedIds}
@@ -597,6 +604,8 @@ export default function App() {
               highlight=""
               visibleIndices={undefined}
               setFrame={setCurrentFrame}
+              useInstancing={!roomConfig.PathTracer.enabled}
+              pathTracingSettings={roomConfig.PathTracer}
             />
             {/* <ParticleInstances
               frame={currentFrame}
@@ -610,6 +619,7 @@ export default function App() {
               visibleIndices={hoveredId}
               highlight={"backside"}
               setFrame={setCurrentFrame}
+              useInstancing={true}
             /> */}
             {/* <ParticleInstances
               frame={currentFrame}
@@ -623,8 +633,9 @@ export default function App() {
               visibleIndices={selectedIds}
               highlight={"selection"}
               setFrame={setCurrentFrame}
-            />
-            <ParticleInstances
+              useInstancing={true}
+            /> */}
+            {/* <ParticleInstances
               frame={currentFrame}
               selectedIds={selectedIds}
               setSelectedIds={setSelectedIds}
@@ -636,20 +647,24 @@ export default function App() {
               visibleIndices={new Set(currentFrame.constraints?.[0]?.indices)}
               highlight={"constraint"}
               setFrame={setCurrentFrame}
+              useInstancing={true}
             /> */}
             {/* <BondInstances
               frame={currentFrame}
               visibleIndices={selectedIds}
               highlight="selection"
               sceneSettings={roomConfig["scene"]}
+              useInstancing={true}
             /> */}
             <BondInstances
               frame={currentFrame}
               visibleIndices={undefined}
               highlight=""
               sceneSettings={roomConfig["scene"]}
+              useInstancing={!roomConfig.PathTracer.enabled}
+              pathTracingSettings={roomConfig.PathTracer}
             /> 
-            {roomConfig["scene"]["simulation_box"] && (
+            {roomConfig["scene"]["simulation_box"] && !roomConfig.PathTracer.enabled && (
               <SimulationCell frame={currentFrame} colorMode={colorMode} />
             )}
             {roomConfig["scene"].controls === "OrbitControls" && (
@@ -672,7 +687,7 @@ export default function App() {
                 makeDefault
               />
             )}
-            {/* {roomConfig["scene"].controls === "TrackballControls" && (
+            {roomConfig["scene"].controls === "TrackballControls" && (
               <TrackballControls
                 ref={controlsRef}
                 target={orbitControlsTarget}
@@ -691,13 +706,13 @@ export default function App() {
                 }}
                 makeDefault
               />
-            )} */}
-            {/* {roomConfig["scene"].crosshair && (
+            )}
+            {roomConfig["scene"].crosshair && (
               <MoveCameraTarget
                 controlsRef={controlsRef}
                 colorMode={colorMode}
               />
-            )} */}
+            )}
             <Player
               playing={playing}
               togglePlaying={setPlaying}
@@ -708,7 +723,7 @@ export default function App() {
               length={length}
               selectedFrames={selectedFrames}
             />
-            {/* <Line3D
+            <Line3D
               points={points}
               setPoints={setPoints}
               setSelectedPoint={setSelectedPoint}
@@ -717,27 +732,27 @@ export default function App() {
               hoveredId={hoveredId}
               setIsDrawing={setIsDrawing}
               setLineLength={setLineLength}
-            /> */}
+            />
             <ControlsBuilder
               points={points}
               setPoints={setPoints}
               selectedPoint={selectedPoint}
               setSelectedPoint={setSelectedPoint}
             />
-            {/* <Geometries
+            <Geometries
               geometries={geometries}
               isDrawing={isDrawing}
               setHoveredId={setHoveredId}
               setPoints={setPoints}
-            /> */}
-            {/* <VirtualCanvas
+            />
+            <VirtualCanvas
               setPoints={setPoints}
               isDrawing={isDrawing}
               points={points}
               hoveredId={hoveredId}
               setHoveredId={setHoveredId}
-            /> */}
-            {/* {roomConfig["scene"].vectors != "" && (
+            />
+            {roomConfig["scene"].vectors != "" && (
               <PerParticleVectors
                 frame={currentFrame}
                 property={roomConfig["scene"].vectors}
@@ -747,7 +762,7 @@ export default function App() {
                   ...roomConfig.arrows,
                 }}
               ></PerParticleVectors>
-            )} */}
+            )}
           </Pathtracer>
           </Canvas>
         )}

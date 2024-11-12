@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import * as BufferGeometryUtils from 'three/addons/utils/BufferGeometryUtils.js';
+import { clearcoat } from 'three/examples/jsm/nodes/Nodes.js';
 /**
  * Merges an InstancedMesh into a single Mesh.
  * 
@@ -44,8 +45,8 @@ export function mergeInstancedMesh(instancedMesh: THREE.InstancedMesh): THREE.Me
  * @param {THREE.InstancedMesh} instancedMesh - The instanced mesh to split into individual meshes.
  * @returns {THREE.Group} - A group containing individual meshes.
  */
-export function splitInstancedMesh(instancedMesh: THREE.InstancedMesh): THREE.Group {
-  const { count, geometry } = instancedMesh;
+export function splitInstancedMesh(instancedMesh: THREE.InstancedMesh, geometry: THREE.BufferGeometry, pathTracingSettings: any): THREE.Group {
+  const { count } = instancedMesh;
   const group = new THREE.Group();
 
   // Temporary objects to hold decomposed transformations
@@ -64,6 +65,7 @@ export function splitInstancedMesh(instancedMesh: THREE.InstancedMesh): THREE.Gr
 
     // Clone the geometry for each instance and apply the transformation
     const instanceGeometry = geometry.clone();
+    // const instanceGeometry = new THREE.SphereGeometry(1, 32, 32);
     instanceGeometry.applyMatrix4(new THREE.Matrix4().compose(tempPosition, tempQuaternion, tempScale));
 
     // Determine the color for this instance
@@ -76,7 +78,13 @@ export function splitInstancedMesh(instancedMesh: THREE.InstancedMesh): THREE.Gr
     }
 
     // Create a material with the instance's color
-    const instanceMaterial = new THREE.MeshStandardMaterial({ color });
+    const instanceMaterial = new THREE.MeshPhysicalMaterial({
+      color: color,
+      metalness: pathTracingSettings.metalness,
+      roughness: pathTracingSettings.roughness,
+      clearcoat: pathTracingSettings.clearcoat,
+      clearcoatRoughness: pathTracingSettings.clearcoatRoughness,
+    });
 
     // Create a mesh for this instance
     const instanceMesh = new THREE.Mesh(instanceGeometry, instanceMaterial);

@@ -143,3 +143,41 @@ class Arrows(BaseModel):
     colorrange: tuple[float, float] = (0, 1.0)
     scale_vector_thickness: bool = False
     opacity: float = 1.0
+
+
+class EnvironmentPreset(str, enum.Enum):
+    none = "none"
+    apartment = "apartment"
+    city = "city"
+    dawn = "dawn"
+    forest = "forest"
+    lobby = "lobby"
+    night = "night"
+    park = "park"
+    studio = "studio"
+    sunset = "sunset"
+    warehouse = "warehouse"
+
+class PathTracer(BaseModel):
+    enabled: bool = False
+    environment: EnvironmentPreset = EnvironmentPreset.none
+    metalness: float = Field(0.0, ge=0.0, le=1.0, description="Metalness")
+    roughness: float = Field(0.5, ge=0.0, le=1.0, description="Roughness")
+    clearcoat: float = Field(0.0, ge=0.0, le=1.0, description="Clearcoat")
+    clearcoatRoughness: float = Field(0.0, ge=0.0, le=1.0, description="Clearcoat Roughness")
+
+    @classmethod
+    def model_json_schema_from_atoms(cls, atoms: ase.Atoms) -> dict:
+        schema = cls.model_json_schema()
+        schema["properties"]["enabled"]["format"] = "checkbox"
+        # make all of them sliders
+        schema["properties"]["metalness"]["format"] = "range"
+        schema["properties"]["roughness"]["format"] = "range"
+        schema["properties"]["clearcoat"]["format"] = "range"
+        schema["properties"]["clearcoatRoughness"]["format"] = "range"
+        # also set the step
+        schema["properties"]["metalness"]["step"] = 0.05
+        schema["properties"]["roughness"]["step"] = 0.05
+        schema["properties"]["clearcoat"]["step"] = 0.05
+        schema["properties"]["clearcoatRoughness"]["step"] = 0.05
+        return schema
