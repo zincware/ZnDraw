@@ -10,9 +10,7 @@ import { IndicesState } from "./utils";
 
 import { ParticleControls } from "./particlesEditor";
 import { usePathtracer } from "@react-three/gpu-pathtracer";
-import {
-  splitInstancedMesh,
-} from "./utils/mergeInstancedMesh";
+import { splitInstancedMesh } from "./utils/mergeInstancedMesh";
 
 export interface Frame {
   arrays: { colors: Array<string>; radii: Array<number> };
@@ -268,7 +266,6 @@ export const ParticleInstances = ({
     highlight,
     geometry,
   ]);
-
 
   const handlePointerOver = (event) => {
     if (highlight != "") {
