@@ -103,7 +103,9 @@ def check_queue(vis: "ZnDraw") -> None:
                                         )
                                         public_queue[room].pop(TASK_RUNNING)
                                     except Exception as err:
-                                        new_vis.log(f"Error running modifier `{key}`: {err}")
+                                        new_vis.log(
+                                            f"Error running modifier `{key}`: {err}"
+                                        )
                                 except IndexError:
                                     pass
 
@@ -113,6 +115,7 @@ def check_queue(vis: "ZnDraw") -> None:
 
     except socketio.exceptions.SocketIOError:
         vis.socket.disconnect()
+
 
 def _check_version_compatibility(server_version: str) -> None:
     if server_version != __version__:
@@ -213,7 +216,7 @@ class ZnDraw(ZnDrawBase):
             retries=self.timeout["emit_retries"],
         )
 
-        self.socket.sleep(5) # wait for znsocket to reconnect as well
+        self.socket.sleep(5)  # wait for znsocket to reconnect as well
         registerd_modifiers = list(self._modifiers[x]["cls"] for x in self._modifiers)
         for modifier in registerd_modifiers:
             self.register_modifier(modifier)
