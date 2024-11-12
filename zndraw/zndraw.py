@@ -116,6 +116,7 @@ def run_modifier_task(vis: "ZnDraw", key: str, task: dict, queue: znsocket.Dict)
     except Exception as err:
         vis.log(f"Error running modifier `{key}`: {err}")
 
+
 def _check_version_compatibility(server_version: str) -> None:
     if server_version != __version__:
         log.warning(
@@ -215,7 +216,7 @@ class ZnDraw(ZnDrawBase):
             retries=self.timeout["emit_retries"],
         )
 
-        self.socket.sleep(5) # wait for znsocket to reconnect as well
+        self.socket.sleep(5)  # wait for znsocket to reconnect as well
         registerd_modifiers = list(self._modifiers[x]["cls"] for x in self._modifiers)
         for modifier in registerd_modifiers:
             self.register_modifier(modifier)
