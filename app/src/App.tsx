@@ -528,7 +528,7 @@ export default function App() {
         {roomConfig.scene.controls !== undefined && (
           <Canvas onPointerMissed={onPointerMissed} shadows>
             <Pathtracer enabled={roomConfig.PathTracer.enabled}>
-            {roomConfig.PathTracer.environment &&
+            {roomConfig.PathTracer.enabled &&
               roomConfig.PathTracer.environment !== "none" && (
                   <Environment preset={roomConfig.PathTracer.environment}/>
               )}
@@ -607,7 +607,8 @@ export default function App() {
               useInstancing={!roomConfig.PathTracer.enabled}
               pathTracingSettings={roomConfig.PathTracer}
             />
-            {/* <ParticleInstances
+            { !roomConfig.PathTracer.enabled && (<>
+            <ParticleInstances
               frame={currentFrame}
               selectedIds={selectedIds}
               setSelectedIds={setSelectedIds}
@@ -620,8 +621,8 @@ export default function App() {
               highlight={"backside"}
               setFrame={setCurrentFrame}
               useInstancing={true}
-            /> */}
-            {/* <ParticleInstances
+            />
+            <ParticleInstances
               frame={currentFrame}
               selectedIds={selectedIds}
               setSelectedIds={setSelectedIds}
@@ -634,8 +635,8 @@ export default function App() {
               highlight={"selection"}
               setFrame={setCurrentFrame}
               useInstancing={true}
-            /> */}
-            {/* <ParticleInstances
+            />
+            <ParticleInstances
               frame={currentFrame}
               selectedIds={selectedIds}
               setSelectedIds={setSelectedIds}
@@ -648,14 +649,15 @@ export default function App() {
               highlight={"constraint"}
               setFrame={setCurrentFrame}
               useInstancing={true}
-            /> */}
-            {/* <BondInstances
+            />
+            <BondInstances
               frame={currentFrame}
               visibleIndices={selectedIds}
               highlight="selection"
               sceneSettings={roomConfig["scene"]}
               useInstancing={true}
-            /> */}
+            />
+            </>)}
             <BondInstances
               frame={currentFrame}
               visibleIndices={undefined}

@@ -369,7 +369,7 @@ export const ParticleInstances = ({
         scene.remove(mergedMesh);
       };
     }
-  }, [mergedMesh]);
+  }, [mergedMesh, useInstancing]);
 
   return (
     <>
@@ -559,7 +559,7 @@ export const BondInstances = ({
         scene.remove(mergedMesh);
       };
     }
-  }, [mergedMesh]);
+  }, [mergedMesh, useInstancing]);
 
   return (
     <instancedMesh

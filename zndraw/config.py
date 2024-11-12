@@ -160,9 +160,9 @@ class EnvironmentPreset(str, enum.Enum):
 
 class PathTracer(BaseModel):
     enabled: bool = False
-    environment: EnvironmentPreset = EnvironmentPreset.none
-    metalness: float = Field(0.0, ge=0.0, le=1.0, description="Metalness")
-    roughness: float = Field(0.5, ge=0.0, le=1.0, description="Roughness")
+    environment: EnvironmentPreset = EnvironmentPreset.city
+    metalness: float = Field(0.7, ge=0.0, le=1.0, description="Metalness")
+    roughness: float = Field(0.2, ge=0.0, le=1.0, description="Roughness")
     clearcoat: float = Field(0.0, ge=0.0, le=1.0, description="Clearcoat")
     clearcoatRoughness: float = Field(0.0, ge=0.0, le=1.0, description="Clearcoat Roughness")
 
