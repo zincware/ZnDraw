@@ -205,7 +205,7 @@ class ZnDraw(ZnDrawBase):
         self.socket.start_background_task(check_queue, self)
 
     def _on_connect(self):
-        print("Connected to ZnDraw server")
+        log.debug("Connected to ZnDraw server")
 
         emit_with_retry(
             self.socket,
