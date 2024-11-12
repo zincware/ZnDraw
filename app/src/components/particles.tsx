@@ -176,9 +176,11 @@ export const ParticleInstances = ({
         return new Set([visibleIndices]);
       }
     }
-    return visibleIndices ?? new Set(Array.from({ length: frame.numbers.length }, (_, i) => i));
+    return (
+      visibleIndices ??
+      new Set(Array.from({ length: frame.numbers.length }, (_, i) => i))
+    );
   }, [visibleIndices, frame.numbers.length]);
-
 
   const { colors, radii } = frame.arrays;
   const positions = frame.positions;
@@ -312,7 +314,7 @@ export const ParticleInstances = ({
     }
   };
 
-  if (highlight == ""){
+  if (highlight == "") {
     useMergedMesh(meshRef, instancedGeometry, pathTracingSettings, [frame]);
   }
 
@@ -355,7 +357,7 @@ export const BondInstances = ({
   highlight: string;
   pathTracingSettings: any;
 }) => {
-  const meshRef = useRef<THREE.InstancedMesh | null>(null); 
+  const meshRef = useRef<THREE.InstancedMesh | null>(null);
 
   const { material, selection_color, bond_size } = sceneSettings;
 
@@ -367,7 +369,7 @@ export const BondInstances = ({
     return frame.connectivity.filter(([a, b]) => {
       return visibleIndices?.has(a) && visibleIndices?.has(b);
     });
-  } , [visibleIndices, frame.connectivity]);
+  }, [visibleIndices, frame.connectivity]);
 
   const geometry = useMemo(() => {
     const _geometry = new THREE.CylinderGeometry(0.14, 0.14, 1, 32, 1, true);
@@ -456,7 +458,9 @@ export const BondInstances = ({
     }
   }, [frame, actualVisibleConnectivity, selection_color, geometry]);
 
-  if (highlight == ""){useMergedMesh(meshRef, instancedGeometry, pathTracingSettings, [frame]);}
+  if (highlight == "") {
+    useMergedMesh(meshRef, instancedGeometry, pathTracingSettings, [frame]);
+  }
 
   return (
     <instancedMesh
@@ -634,9 +638,15 @@ export const PerParticleVectors: React.FC<PerParticleVectorsProps> = ({
     }
   }, [frame, property]);
 
-  const startMap = useMemo(() => vectors.map((vec) => vec.start.toArray()), [vectors]);
-  const endMap = useMemo(() => vectors.map((vec) => vec.end.toArray()), [vectors]);
-  
+  const startMap = useMemo(
+    () => vectors.map((vec) => vec.start.toArray()),
+    [vectors],
+  );
+  const endMap = useMemo(
+    () => vectors.map((vec) => vec.end.toArray()),
+    [vectors],
+  );
+
   return (
     <>
       <Arrows

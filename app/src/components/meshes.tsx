@@ -54,7 +54,7 @@ const Arrows: React.FC<ArrowsProps> = ({
   const materialRef = useRef<THREE.MeshStandardMaterial>(null);
 
   const geometry = useMemo(() => {
-    const _geom = createArrowMesh()
+    const _geom = createArrowMesh();
     if (pathTracingSettings && pathTracingSettings?.enabled) {
       // make invisible when path tracing is enabled
       _geom.scale(0, 0, 0);
@@ -66,8 +66,20 @@ const Arrows: React.FC<ArrowsProps> = ({
     return createArrowMesh();
   }, []);
 
-
-  const mergedMesh = useMergedMesh(meshRef, instancedGeometry, pathTracingSettings, [start, end, scale_vector_thickness, colormap, colorrange, opacity, rescale]);
+  const mergedMesh = useMergedMesh(
+    meshRef,
+    instancedGeometry,
+    pathTracingSettings,
+    [
+      start,
+      end,
+      scale_vector_thickness,
+      colormap,
+      colorrange,
+      opacity,
+      rescale,
+    ],
+  );
 
   useEffect(() => {
     if (!meshRef.current) return;
