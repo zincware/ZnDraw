@@ -135,6 +135,7 @@ class ASEConverter(znjson.ConverterBase):
 
         # We don't want to send positions twice
         arrays.pop("positions", None)
+        arrays.pop("numbers", None)
 
         return ASEDict(
             numbers=numbers,
