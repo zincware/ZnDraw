@@ -777,6 +777,7 @@ export default function App() {
                     rescale: roomConfig["scene"].vector_scale,
                     ...roomConfig.arrows,
                   }}
+                  pathTracingSettings={roomConfig.PathTracer}
                 ></PerParticleVectors>
               )}
             </Pathtracer>

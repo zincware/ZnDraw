@@ -649,6 +649,7 @@ interface PerParticleVectorsProps {
   property: string;
   colorMode: string;
   arrowsConfig: any;
+  pathTracingSettings: any;
 }
 
 export const PerParticleVectors: React.FC<PerParticleVectorsProps> = ({
@@ -656,6 +657,7 @@ export const PerParticleVectors: React.FC<PerParticleVectorsProps> = ({
   property,
   colorMode,
   arrowsConfig,
+  pathTracingSettings,
 }) => {
   const [vectors, setVectors] = useState<
     { start: THREE.Vector3; end: THREE.Vector3 }[]
@@ -729,6 +731,7 @@ export const PerParticleVectors: React.FC<PerParticleVectorsProps> = ({
         colorrange={colorRange}
         opacity={arrowsConfig.opacity}
         rescale={arrowsConfig.rescale}
+        pathTracingSettings={pathTracingSettings}
       />
     </>
   );
