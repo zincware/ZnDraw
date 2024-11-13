@@ -7,11 +7,11 @@ import typing as t
 from collections.abc import MutableSequence
 
 import ase
-import splines
 import numpy as np
 import plotly.graph_objects as go
 import requests
 import socketio.exceptions
+import splines
 import tqdm
 import typing_extensions as tyex
 import znjson
