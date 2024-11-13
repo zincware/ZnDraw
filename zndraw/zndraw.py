@@ -4,12 +4,14 @@ import enum
 import importlib.metadata
 import logging
 import typing as t
+from collections.abc import MutableSequence
 
 import ase
 import numpy as np
 import plotly.graph_objects as go
 import requests
 import socketio.exceptions
+import splines
 import tqdm
 import typing_extensions as tyex
 import znjson
@@ -18,7 +20,7 @@ import znsocket.exceptions
 from redis import Redis
 
 from zndraw.abc import Message
-from zndraw.base import Extension, ZnDrawBase
+from zndraw.base import Extension
 from zndraw.bonds import ASEComputeBonds
 from zndraw.config import Arrows, PathTracer, Scene
 from zndraw.converter import ASEConverter, Object3DConverter
@@ -60,7 +62,7 @@ def _check_version_compatibility(server_version: str) -> None:
 
 
 @dataclasses.dataclass
-class ZnDraw(ZnDrawBase):
+class ZnDraw(MutableSequence):
     url: str
     token: str | None = None
     auth_token: str | None = None
@@ -491,6 +493,14 @@ class ZnDraw(ZnDrawBase):
         znsocket.Dict(self.r, f"room:{self.token}:points", socket=self._refresh_client)[
             "grp-0"
         ] = points
+
+    @property
+    def segments(self) -> np.ndarray:
+        points = self.points
+        if points.shape[0] <= 1:
+            return points
+        t = np.linspace(0, len(points) - 1, len(points) * 50)
+        return splines.CatmullRom(points).evaluate(t)
 
     @property
     def bookmarks(self) -> dict[int, str]:
