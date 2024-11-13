@@ -598,11 +598,13 @@ class ZnDraw(ZnDrawBase):
             if len(path_trace_conf) == 0:
                 path_trace_conf.update(PathTracer().model_dump())
             #
-            conf.update({
-                "scene": scene_conf,
-                "arrows": arrows_conf,
-                "PathTracer": path_trace_conf
-            })
+            conf.update(
+                {
+                    "scene": scene_conf,
+                    "arrows": arrows_conf,
+                    "PathTracer": path_trace_conf,
+                }
+            )
         return conf
 
     @property
