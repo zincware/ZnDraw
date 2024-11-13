@@ -1,13 +1,17 @@
 import tqdm
 from rdkit2ase import smiles2conformers
+import uuid
+import datetime
 
 #### Import ZnDraw ####
 from zndraw import ZnDraw
 
-vis = ZnDraw(url="https://zndraw.icp.uni-stuttgart.de/", token="6b1d9f77")
+vis = ZnDraw(url="https://zndraw.icp.uni-stuttgart.de/", token=uuid.uuid4().hex)
 #### ------------- ####
 
-conformers = smiles2conformers("CCCCCCCCCO", numConfs=100)
+vis._refresh_client.delay_between_calls = datetime.timedelta(milliseconds=10)
+
+conformers = smiles2conformers("CCCCCCCCCO", numConfs=1000)
 
 # append
 for atoms in tqdm.tqdm(conformers, desc="append", ncols=80):
