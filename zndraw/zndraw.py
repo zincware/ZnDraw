@@ -37,11 +37,11 @@ from zndraw.utils import (
     emit_with_retry,
     parse_url,
 )
+from zndraw.queue import check_queue
 
 log = logging.getLogger(__name__)
 __version__ = importlib.metadata.version("zndraw")
 
-TASK_RUNNING = "ZNDRAW TASK IS RUNNING"
 
 
 class ExtensionType(str, enum.Enum):
@@ -51,73 +51,6 @@ class ExtensionType(str, enum.Enum):
     SELECTION = "selection"
     ANALYSIS = "analysis"
 
-
-def check_queue(vis: "ZnDraw") -> None:
-    """Main loop to check and process modifier tasks for both private and public queues."""
-    while True:
-        if not vis._modifiers:
-            vis.socket.sleep(1)
-            continue
-        try:
-            process_modifier_queue(vis)
-            process_public_queue(vis)
-            vis.socket.sleep(1)
-        except (znsocket.exceptions.ZnSocketError, socketio.exceptions.SocketIOError):
-            log.warning("Connection to ZnDraw server lost. Reconnecting...")
-            vis.socket.disconnect()
-            vis.socket.sleep(1)
-
-
-def process_modifier_queue(vis: "ZnDraw") -> None:
-    """Process private modifier tasks in the queue."""
-    modifier_queue = znsocket.Dict(
-        r=vis.r,
-        socket=vis._refresh_client,
-        key=f"queue:{vis.token}:modifier",
-    )
-
-    for key in modifier_queue:
-        if key in vis._modifiers:
-            try:
-                task = modifier_queue.pop(key)
-                run_modifier_task(vis, key, task, modifier_queue)
-            except IndexError:
-                pass
-
-
-def process_public_queue(vis: "ZnDraw") -> None:
-    """Process public modifier tasks in the public queue."""
-    if not any(mod["public"] for mod in vis._modifiers.values()):
-        return
-
-    public_queue = znsocket.Dict(
-        r=vis.r,
-        socket=vis._refresh_client,
-        key="queue:default:modifier",
-    )
-
-    for room, room_queue in public_queue.items():
-        for key in room_queue:
-            if key in vis._modifiers and vis._modifiers[key]["public"]:
-                new_vis = ZnDraw(url=vis.url, token=room, r=vis.r)
-                try:
-                    task = room_queue.pop(key)
-                    run_modifier_task(new_vis, key, task, room_queue)
-                except IndexError:
-                    pass
-                finally:
-                    new_vis.socket.sleep(1)
-                    new_vis.socket.disconnect()
-
-
-def run_modifier_task(vis: "ZnDraw", key: str, task: dict, queue: znsocket.Dict) -> None:
-    """Run a specific modifier task and handle exceptions."""
-    try:
-        queue[TASK_RUNNING] = True
-        vis._modifiers[key]["cls"](**task).run(vis, **vis._modifiers[key]["run_kwargs"])
-        queue.pop(TASK_RUNNING)
-    except Exception as err:
-        vis.log(f"Error running modifier `{key}`: {err}")
 
 
 def _check_version_compatibility(server_version: str) -> None:
