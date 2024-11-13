@@ -1,5 +1,6 @@
 # Run tests with and without eventlet
 import eventlet
+
 eventlet.monkey_patch()
 
 import datetime  # noqa
