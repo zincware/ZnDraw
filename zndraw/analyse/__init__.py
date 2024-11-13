@@ -7,7 +7,9 @@ import numpy as np
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
-from pydantic import BaseModel, Field
+from pydantic import Field
+
+from zndraw.base import Extension
 
 try:
     from zndraw.analyse import mda  # noqa: F401
@@ -32,13 +34,10 @@ def _get_data_from_frames(key, frames: list[ase.Atoms]):
     return data
 
 
-class AnaylsisMethod(BaseModel):
+class AnaylsisMethod(Extension):
     @classmethod
     def model_json_schema_from_atoms(cls, atoms: ase.Atoms) -> dict:
         return cls.model_json_schema()
-
-    def run(self, vis):
-        raise NotImplementedError()
 
 
 class DihedralAngle(AnaylsisMethod):
