@@ -8,6 +8,7 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 from pydantic import Field
+
 from zndraw.base import Extension
 
 try:
@@ -37,6 +38,7 @@ class AnaylsisMethod(Extension):
     @classmethod
     def model_json_schema_from_atoms(cls, atoms: ase.Atoms) -> dict:
         return cls.model_json_schema()
+
 
 class DihedralAngle(AnaylsisMethod):
     def run(self, vis):

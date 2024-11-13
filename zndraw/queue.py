@@ -1,10 +1,10 @@
-import typing as t
 import logging
+import typing as t
+
 import socketio.exceptions
 import znsocket.exceptions
 
-from zndraw.base import Extension 
-
+from zndraw.base import Extension
 
 if t.TYPE_CHECKING:
     from zndraw import ZnDraw
@@ -28,8 +28,6 @@ def check_queue(vis: "ZnDraw") -> None:
             log.warning("Connection to ZnDraw server lost. Reconnecting...")
             vis.socket.disconnect()
             vis.socket.sleep(1)
-
-
 
 
 def process_modifier_queue(vis: "ZnDraw") -> None:
@@ -79,7 +77,13 @@ def process_public_queue(vis: "ZnDraw") -> None:
                     new_vis.socket.disconnect()
 
 
-def run_queued_task(vis: "ZnDraw", cls: t.Type[Extension], task: dict, queue: znsocket.Dict, run_kwargs: dict|None = None) -> None:
+def run_queued_task(
+    vis: "ZnDraw",
+    cls: t.Type[Extension],
+    task: dict,
+    queue: znsocket.Dict,
+    run_kwargs: dict | None = None,
+) -> None:
     """Run a specific task and handle exceptions."""
     if not run_kwargs:
         run_kwargs = {}
@@ -90,4 +94,3 @@ def run_queued_task(vis: "ZnDraw", cls: t.Type[Extension], task: dict, queue: zn
         vis.log(f"Error running `{cls}`: `{err}`")
     finally:
         queue.pop(TASK_RUNNING)
-

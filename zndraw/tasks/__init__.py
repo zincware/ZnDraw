@@ -14,12 +14,11 @@ from zndraw.bonds import ASEComputeBonds
 from zndraw.config import PathTracer, Scene
 from zndraw.draw import geometries
 from zndraw.modify import modifier
+from zndraw.queue import run_queued_task
 from zndraw.selection import selections
 from zndraw.utils import load_plots_to_dict
-from zndraw.queue import run_queued_task
 
 log = logging.getLogger(__name__)
-
 
 
 def _get_default_generator(file_io: FileIO) -> t.Iterable[ase.Atoms]:

@@ -9,6 +9,7 @@ import ase.constraints
 import numpy as np
 from ase.data import chemical_symbols
 from pydantic import Field
+
 from zndraw.base import Extension
 
 try:
@@ -27,7 +28,6 @@ Symbols = enum.Enum("Symbols", {symbol: symbol for symbol in chemical_symbols})
 
 
 class UpdateScene(Extension):
-
     def apply_selection(
         self, atom_ids: list[int], atoms: ase.Atoms
     ) -> t.Tuple[ase.Atoms, ase.Atoms]:

@@ -24,6 +24,7 @@ from zndraw.config import Arrows, PathTracer, Scene
 from zndraw.converter import ASEConverter, Object3DConverter
 from zndraw.draw import Object3D
 from zndraw.figure import Figure, FigureConverter
+from zndraw.queue import check_queue
 from zndraw.type_defs import (
     ATOMS_LIKE,
     CameraData,
@@ -37,11 +38,9 @@ from zndraw.utils import (
     emit_with_retry,
     parse_url,
 )
-from zndraw.queue import check_queue
 
 log = logging.getLogger(__name__)
 __version__ = importlib.metadata.version("zndraw")
-
 
 
 class ExtensionType(str, enum.Enum):
@@ -50,7 +49,6 @@ class ExtensionType(str, enum.Enum):
     MODIFIER = "modifier"
     SELECTION = "selection"
     ANALYSIS = "analysis"
-
 
 
 def _check_version_compatibility(server_version: str) -> None:
