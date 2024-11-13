@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { BufferGeometryUtils } from "three/examples/jsm/Addons.js";
 import { interpolateColor, HSLColor, ColorRange } from "./utils";
+import { useMergedMesh } from "./utils/mergeInstancedMesh";
 
 function createArrowMesh() {
   const cylinderRadius = 0.04;
@@ -36,6 +37,7 @@ interface ArrowsProps {
   colorrange: ColorRange;
   opacity?: number;
   rescale?: number;
+  pathTracingSettings: any | undefined;
 }
 
 const Arrows: React.FC<ArrowsProps> = ({
@@ -46,10 +48,38 @@ const Arrows: React.FC<ArrowsProps> = ({
   colorrange,
   opacity = 1.0,
   rescale = 1.0,
+  pathTracingSettings = undefined,
 }) => {
-  const geometry = useMemo(() => createArrowMesh(), []);
   const meshRef = useRef<THREE.InstancedMesh>(null);
   const materialRef = useRef<THREE.MeshStandardMaterial>(null);
+
+  const geometry = useMemo(() => {
+    const _geom = createArrowMesh();
+    if (pathTracingSettings && pathTracingSettings?.enabled) {
+      // make invisible when path tracing is enabled
+      _geom.scale(0, 0, 0);
+    }
+    return _geom;
+  }, [pathTracingSettings]);
+
+  const instancedGeometry = useMemo(() => {
+    return createArrowMesh();
+  }, []);
+
+  const mergedMesh = useMergedMesh(
+    meshRef,
+    instancedGeometry,
+    pathTracingSettings,
+    [
+      start,
+      end,
+      scale_vector_thickness,
+      colormap,
+      colorrange,
+      opacity,
+      rescale,
+    ],
+  );
 
   useEffect(() => {
     if (!meshRef.current) return;
@@ -93,8 +123,7 @@ const Arrows: React.FC<ArrowsProps> = ({
   }, [start, end, scale_vector_thickness, colormap, colorrange]);
 
   return (
-    <instancedMesh ref={meshRef} args={[undefined, undefined, start.length]}>
-      <bufferGeometry attach="geometry" {...geometry} />
+    <instancedMesh ref={meshRef} args={[geometry, undefined, start.length]}>
       <meshStandardMaterial
         ref={materialRef}
         attach="material"

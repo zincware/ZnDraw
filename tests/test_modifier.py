@@ -21,6 +21,7 @@ def test_run_selection(server, s22):
     """Test the server fixture."""
     vis = ZnDraw(url=server, token="test_token")
     vis.extend(s22)
+    vis.step = 0
     vis.selection = [0]
 
     run_queue(vis, "selection", {"ConnectedParticles": {}})

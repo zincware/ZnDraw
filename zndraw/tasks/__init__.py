@@ -11,15 +11,14 @@ from flask import current_app
 from zndraw.analyse import analyses
 from zndraw.base import FileIO
 from zndraw.bonds import ASEComputeBonds
-from zndraw.config import Scene
+from zndraw.config import PathTracer, Scene
 from zndraw.draw import geometries
 from zndraw.modify import modifier
+from zndraw.queue import run_queued_task
 from zndraw.selection import selections
 from zndraw.utils import load_plots_to_dict
 
 log = logging.getLogger(__name__)
-
-TASK_RUNNING = "ZNDRAW TASK IS RUNNING"
 
 
 def _get_default_generator(file_io: FileIO) -> t.Iterable[ase.Atoms]:
@@ -363,9 +362,7 @@ def run_room_worker(room):
         if key in selections:
             try:
                 task = selection_queue.pop(key)
-                selection_queue[TASK_RUNNING] = True
-                selections[key](**task).run(vis)
-                selection_queue.pop(TASK_RUNNING)
+                run_queued_task(vis, selections[key], task, selection_queue)
             except IndexError:
                 pass
 
@@ -380,11 +377,7 @@ def run_room_worker(room):
             try:
                 task = analysis_queue.pop(key)
                 try:
-                    analysis_queue[TASK_RUNNING] = True
-                    analyses[key](**task).run(vis)
-                    analysis_queue.pop(
-                        TASK_RUNNING
-                    )  # TODO: does this cause an error when trying to stop on the GUI
+                    run_queued_task(vis, analyses[key], task, analysis_queue)
                 except Exception as err:
                     vis.log(f"Error running analysis `{key}`: {err}")
             except IndexError:
@@ -415,9 +408,7 @@ def run_room_worker(room):
             try:
                 task = modifier_queue.pop(key)
                 try:
-                    modifier_queue[TASK_RUNNING] = True
-                    modifier[key](**task).run(vis)
-                    modifier_queue.pop(TASK_RUNNING)
+                    run_queued_task(vis, modifier[key], task, modifier_queue)
                 except Exception as err:
                     vis.log(f"Error running modifier `{key}`: {err}")
             except IndexError:
@@ -524,6 +515,17 @@ def run_scene_dependent_schema(room) -> None:
             vis.log(f"KeyError: {key}")
 
     dct["Scene"] = scene_schema
+
+    orig_path_tracer_config = dict(vis.config["PathTracer"])
+    path_tracer_schema = PathTracer.model_json_schema_from_atoms(vis.atoms)
+    for key, val in path_tracer_schema["properties"].items():
+        try:
+            path_tracer_schema["properties"][key]["default"] = orig_path_tracer_config[
+                key
+            ]
+        except KeyError:
+            vis.log(f"KeyError: {key}")
+    dct["PathTracer"] = path_tracer_schema
 
     vis.socket.sleep(1)
     vis.socket.disconnect()

@@ -614,6 +614,7 @@ export const setupConfig = (token: string, setConfig: any) => {
 
     con.onRefresh(async (x: any) => {
       const result = await con.toObject();
+      console.log("config updated externally");
       if (Object.keys(result).length > 0) {
         setConfig(result);
       }

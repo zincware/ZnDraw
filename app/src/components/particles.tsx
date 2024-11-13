@@ -9,6 +9,7 @@ import Arrows from "./meshes";
 import { IndicesState } from "./utils";
 
 import { ParticleControls } from "./particlesEditor";
+import { useMergedMesh } from "./utils/mergeInstancedMesh";
 
 export interface Frame {
   arrays: { colors: Array<string>; radii: Array<number> };
@@ -87,9 +88,11 @@ export const Player = ({
 const ParticleBondMaterial = ({
   highlight,
   material,
+  color,
 }: {
   highlight: string;
   material: string;
+  color?: string;
 }) => {
   if (highlight) {
     switch (highlight) {
@@ -118,18 +121,18 @@ const ParticleBondMaterial = ({
     case "MeshPhysicalMaterial":
       return (
         <meshPhysicalMaterial
-          attach="material"
           roughness={0.3}
           reflectivity={0.4}
           side={THREE.FrontSide}
+          color={color}
         />
       );
     case "MeshToonMaterial":
-      return <meshToonMaterial attach="material" side={THREE.FrontSide} />;
+      return <meshToonMaterial side={THREE.FrontSide} color={color} />;
     case "MeshStandardMaterial":
-      return <meshStandardMaterial attach="material" side={THREE.FrontSide} />;
+      return <meshStandardMaterial side={THREE.FrontSide} color={color} />;
     case "MeshBasicMaterial":
-      return <meshBasicMaterial attach="material" side={THREE.FrontSide} />;
+      return <meshBasicMaterial side={THREE.FrontSide} color={color} />;
     default:
       return null;
   }
@@ -147,6 +150,7 @@ export const ParticleInstances = ({
   token,
   visibleIndices = undefined,
   highlight = "",
+  pathTracingSettings,
 }: {
   frame: Frame;
   setFrame: (frame: Frame) => void;
@@ -159,35 +163,41 @@ export const ParticleInstances = ({
   token: string;
   visibleIndices: Set<number> | undefined | number;
   highlight: string;
+  pathTracingSettings: any;
 }) => {
   const meshRef = useRef<THREE.InstancedMesh | null>(null);
-  const sphereRef = useRef<THREE.InstancedMesh | null>(null);
-  const originalScale = useRef<number>(1);
 
-  const [actualVisibleIndices, setActualVisibleIndices] = useState<Set<number>>(
-    new Set(),
-  );
-
-  // Update actualVisibleIndices when visibleIndices or frame.numbers changes
-  useEffect(() => {
+  const actualVisibleIndices = useMemo(() => {
     if (typeof visibleIndices === "number") {
       if (visibleIndices === -1) {
         // -1 means no hover
-        setActualVisibleIndices(new Set());
+        return new Set();
       } else {
-        setActualVisibleIndices(new Set([visibleIndices]));
+        return new Set([visibleIndices]);
       }
-      return;
     }
-    setActualVisibleIndices(
+    return (
       visibleIndices ??
-        new Set(Array.from({ length: frame.numbers.length }, (_, i) => i)),
+      new Set(Array.from({ length: frame.numbers.length }, (_, i) => i))
     );
   }, [visibleIndices, frame.numbers.length]);
 
   const { colors, radii } = frame.arrays;
   const positions = frame.positions;
   const { selection_color, material, particle_size } = sceneSettings;
+
+  const geometry = useMemo(() => {
+    const _geometry = new THREE.SphereGeometry(1, 32, 32);
+    _geometry.scale(particle_size, particle_size, particle_size);
+    if (pathTracingSettings?.enabled) {
+      _geometry.scale(0, 0, 0);
+    }
+    return _geometry;
+  }, [pathTracingSettings?.enabled, particle_size]);
+
+  const instancedGeometry = useMemo(() => {
+    return new THREE.SphereGeometry(1, 32, 32);
+  }, []);
 
   useEffect(() => {
     if (meshRef.current && actualVisibleIndices.size > 0) {
@@ -232,15 +242,8 @@ export const ParticleInstances = ({
     actualVisibleIndices,
     selection_color,
     highlight,
+    geometry,
   ]);
-
-  useEffect(() => {
-    if (sphereRef.current) {
-      const scale = particle_size / originalScale.current;
-      sphereRef.current.scale(scale, scale, scale);
-      originalScale.current = particle_size;
-    }
-  }, [particle_size]);
 
   const handlePointerOver = (event) => {
     if (highlight != "") {
@@ -311,6 +314,13 @@ export const ParticleInstances = ({
     }
   };
 
+  if (highlight == "") {
+    useMergedMesh(meshRef, instancedGeometry, pathTracingSettings, [
+      frame,
+      visibleIndices,
+    ]);
+  }
+
   return (
     <>
       {highlight === "selection" && (
@@ -322,7 +332,7 @@ export const ParticleInstances = ({
       )}
       <instancedMesh
         ref={meshRef}
-        args={[null, null, actualVisibleIndices.size]}
+        args={[geometry, null, actualVisibleIndices.size]}
         onPointerOver={handlePointerOver}
         onPointerOut={handlePointerOut}
         onPointerMove={highlight === "" ? handlePointerMove : undefined}
@@ -331,7 +341,6 @@ export const ParticleInstances = ({
         castShadow
         frustumCulled={false}
       >
-        <sphereGeometry args={[1, 30, 30]} ref={sphereRef} />
         <ParticleBondMaterial highlight={highlight} material={material} />
       </instancedMesh>
     </>
@@ -343,39 +352,47 @@ export const BondInstances = ({
   visibleIndices = undefined,
   highlight = "",
   sceneSettings,
+  pathTracingSettings,
 }: {
   frame: Frame;
   sceneSettings: any;
   visibleIndices: Set<number> | undefined;
   highlight: string;
+  pathTracingSettings: any;
 }) => {
   const meshRef = useRef<THREE.InstancedMesh | null>(null);
 
-  const [actualVisibleConnectivity, setActualVisibleConnectivity] = useState<
-    number[][]
-  >([]);
+  const { material, selection_color, bond_size } = sceneSettings;
 
-  const { material, selection_color } = sceneSettings;
-
-  // Update actualVisibleIndices when visibleIndices or frame.numbers changes
-  useEffect(() => {
+  const actualVisibleConnectivity = useMemo(() => {
     if (!visibleIndices) {
-      setActualVisibleConnectivity(frame.connectivity);
-      return;
+      return frame.connectivity;
     }
     // find the subset of frame.connectivity where one of the particles are in visibleIndices
-    const newConnectivity = frame.connectivity.filter(([a, b]) => {
+    return frame.connectivity.filter(([a, b]) => {
       return visibleIndices?.has(a) && visibleIndices?.has(b);
     });
-    setActualVisibleConnectivity(newConnectivity);
-  }, [visibleIndices, frame]);
-
-  const originalScale = useRef<number>(1);
+  }, [visibleIndices, frame.connectivity]);
 
   const geometry = useMemo(() => {
     const _geometry = new THREE.CylinderGeometry(0.14, 0.14, 1, 32, 1, true);
     _geometry.translate(0, 0.5, 0);
     _geometry.rotateX(Math.PI / 2);
+
+    if (!pathTracingSettings?.enabled) {
+      _geometry.scale(bond_size, bond_size, 0.5);
+    } else {
+      // set to zero to make invisible
+      _geometry.scale(0, 0, 0.5);
+    }
+    return _geometry;
+  }, [pathTracingSettings?.enabled, bond_size]);
+
+  const instancedGeometry = useMemo(() => {
+    const _geometry = new THREE.CylinderGeometry(0.14, 0.14, 1, 32, 1, true);
+    _geometry.translate(0, 0.5, 0);
+    _geometry.rotateX(Math.PI / 2);
+
     _geometry.scale(1, 1, 0.5);
     return _geometry;
   }, []);
@@ -442,20 +459,19 @@ export const BondInstances = ({
       meshRef.current.instanceMatrix.needsUpdate = true;
       meshRef.current.instanceColor.needsUpdate = true;
     }
-  }, [frame, actualVisibleConnectivity, selection_color]);
+  }, [frame, actualVisibleConnectivity, selection_color, geometry]);
 
-  useEffect(() => {
-    if (meshRef.current) {
-      geometry.scale(1 / originalScale.current, 1 / originalScale.current, 1);
-      originalScale.current = sceneSettings.bond_size;
-      geometry.scale(sceneSettings.bond_size, sceneSettings.bond_size, 1);
-    }
-  }, [sceneSettings.bond_size]);
+  if (highlight == "") {
+    useMergedMesh(meshRef, instancedGeometry, pathTracingSettings, [
+      frame,
+      visibleIndices,
+    ]);
+  }
 
   return (
     <instancedMesh
       ref={meshRef}
-      args={[geometry, null, actualVisibleConnectivity.length * 2]}
+      args={[geometry, undefined, actualVisibleConnectivity.length * 2]}
       castShadow
       // receiveShadow
     >
@@ -556,6 +572,7 @@ interface PerParticleVectorsProps {
   property: string;
   colorMode: string;
   arrowsConfig: any;
+  pathTracingSettings: any;
 }
 
 export const PerParticleVectors: React.FC<PerParticleVectorsProps> = ({
@@ -563,6 +580,7 @@ export const PerParticleVectors: React.FC<PerParticleVectorsProps> = ({
   property,
   colorMode,
   arrowsConfig,
+  pathTracingSettings,
 }) => {
   const [vectors, setVectors] = useState<
     { start: THREE.Vector3; end: THREE.Vector3 }[]
@@ -626,16 +644,26 @@ export const PerParticleVectors: React.FC<PerParticleVectorsProps> = ({
     }
   }, [frame, property]);
 
+  const startMap = useMemo(
+    () => vectors.map((vec) => vec.start.toArray()),
+    [vectors],
+  );
+  const endMap = useMemo(
+    () => vectors.map((vec) => vec.end.toArray()),
+    [vectors],
+  );
+
   return (
     <>
       <Arrows
-        start={vectors.map((vec) => vec.start.toArray())}
-        end={vectors.map((vec) => vec.end.toArray())}
+        start={startMap}
+        end={endMap}
         scale_vector_thickness={arrowsConfig.scale_vector_thickness}
         colormap={arrowsConfig.colormap}
         colorrange={colorRange}
         opacity={arrowsConfig.opacity}
         rescale={arrowsConfig.rescale}
+        pathTracingSettings={pathTracingSettings}
       />
     </>
   );

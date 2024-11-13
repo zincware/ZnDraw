@@ -1,14 +1,14 @@
-import abc
 import enum
 import logging
-import time
 import typing as t
 
 import ase
 import ase.constraints
 import numpy as np
 from ase.data import chemical_symbols
-from pydantic import BaseModel, Field
+from pydantic import Field
+
+from zndraw.base import Extension
 
 try:
     from zndraw.modify import extras  # noqa: F401
@@ -25,12 +25,7 @@ log = logging.getLogger("zndraw")
 Symbols = enum.Enum("Symbols", {symbol: symbol for symbol in chemical_symbols})
 
 
-class UpdateScene(BaseModel, abc.ABC):
-    @abc.abstractmethod
-    def run(self, vis: "ZnDraw", timeout: float, **kwargs) -> None:
-        """Method called when running the modifier."""
-        pass
-
+class UpdateScene(Extension):
     def apply_selection(
         self, atom_ids: list[int], atoms: ase.Atoms
     ) -> t.Tuple[ase.Atoms, ase.Atoms]:
@@ -73,7 +68,6 @@ class Rotate(UpdateScene):
     steps: int = Field(
         30, ge=1, description="Number of steps to take to complete the rotation"
     )
-    sleep: float = Field(0.1, ge=0, description="Sleep time between steps")
 
     def run(self, vis: "ZnDraw", **kwargs) -> None:
         # split atoms object into the selected from atoms_ids and the remaining
@@ -92,13 +86,15 @@ class Rotate(UpdateScene):
         atoms_selected, atoms_remaining = self.apply_selection(atom_ids, atoms)
         # create a vector from the two points
         vector = points[1] - points[0]
+        frames = []
         for _ in range(self.steps):
             # rotate the selected atoms around the vector
             atoms_selected.rotate(angle, vector, center=points[0])
             # update the positions of the selected atoms
             atoms.positions[atom_ids] = atoms_selected.positions
-            vis.append(atoms)
-            time.sleep(self.sleep)
+            frames.append(atoms.copy())
+
+        vis.extend(frames)
 
 
 class Delete(UpdateScene):
@@ -141,6 +137,8 @@ class Translate(UpdateScene):
         atoms = vis.atoms
         selection = np.array(vis.selection)
 
+        frames = []
+
         for idx in range(self.steps):
             end_idx = int((idx + 1) * (len(segments) - 1) / self.steps)
             tmp_atoms = atoms.copy()
@@ -148,7 +146,9 @@ class Translate(UpdateScene):
             positions = tmp_atoms.positions
             positions[selection] += vector
             tmp_atoms.positions = positions
-            vis.append(tmp_atoms)
+            frames.append(tmp_atoms)
+
+        vis.extend(frames)
 
 
 class Duplicate(UpdateScene):
@@ -199,7 +199,6 @@ class ChangeType(UpdateScene):
 
 class AddLineParticles(UpdateScene):
     symbol: Symbols
-    steps: int = Field(10, le=100, ge=1)
 
     def run(self, vis: "ZnDraw", **kwargs) -> None:
         if len(vis) > vis.step + 1:
@@ -209,8 +208,12 @@ class AddLineParticles(UpdateScene):
         for point in vis.points:
             atoms += ase.Atom(self.symbol.name, position=point)
 
-        for _ in range(self.steps):
-            vis.append(atoms)
+        del atoms.arrays["colors"]
+        del atoms.arrays["radii"]
+        if hasattr(atoms, "connectivity"):
+            del atoms.connectivity
+
+        vis.append(atoms)
 
 
 class Wrap(UpdateScene):
