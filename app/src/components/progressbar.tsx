@@ -73,7 +73,6 @@ const ColoredTiles = ({
   tickInterval: number;
 }) => {
   useEffect(() => {
-    console.log("component rerendered");
   }, [length, disabledFrames, setStep, tickInterval]);
 
   const [disabledPositions, setdisabledPositions] = useState<number[]>([]);
