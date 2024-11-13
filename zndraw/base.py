@@ -15,6 +15,8 @@ log = logging.getLogger(__name__)
 
 
 class Extension(BaseModel):
+
+    @abstractmethod
     def run(self, vis: "ZnDraw", **kwargs) -> None:
         raise NotImplementedError("run method must be implemented in subclass")
 
