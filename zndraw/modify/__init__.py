@@ -8,7 +8,8 @@ import ase
 import ase.constraints
 import numpy as np
 from ase.data import chemical_symbols
-from pydantic import BaseModel, Field
+from pydantic import Field
+from zndraw.base import Extension
 
 try:
     from zndraw.modify import extras  # noqa: F401
@@ -25,11 +26,7 @@ log = logging.getLogger("zndraw")
 Symbols = enum.Enum("Symbols", {symbol: symbol for symbol in chemical_symbols})
 
 
-class UpdateScene(BaseModel, abc.ABC):
-    @abc.abstractmethod
-    def run(self, vis: "ZnDraw", timeout: float, **kwargs) -> None:
-        """Method called when running the modifier."""
-        pass
+class UpdateScene(Extension):
 
     def apply_selection(
         self, atom_ids: list[int], atoms: ase.Atoms
