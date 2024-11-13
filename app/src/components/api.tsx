@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useMemo, useCallback } from "react";
 import { client } from "../socket";
 import * as znsocket from "znsocket";
 import * as THREE from "three";
@@ -168,27 +168,34 @@ export function setupSelection(
   }, [selectedIds]);
 }
 
-export function setupStep(token: string, setStep: any, step: any) {
-  const conInterfaceRef = useRef<any>(undefined);
+export function setupStep(token: string, setStep: (items: any) => void, step: any) {
+  // Keep conInterfaceRef stable across renders
+  const conInterfaceRef = useRef<any>(null);
   const updateByRefreshRef = useRef(false);
 
-  useEffect(() => {
-    const con = new znsocket.Dict({
+  // Memoize `con` to keep it consistent
+  const con = useMemo(() => {
+    return new znsocket.Dict({
       client: client,
       key: "room:" + token + ":step",
     });
+  }, [token]);
 
-    // Initial load
-    con.get("grp-0").then((items: any) => {
+  useEffect(() => {
+    // Load initial step only once
+    const loadInitialStep = async () => {
+      const items = await con.get("grp-0");
       console.log("initial step update");
-      updateByRefreshRef.current = true;
-      if (items === null) {
-        return;
+      if (items !== null) {
+        updateByRefreshRef.current = true;
+        setStep(items);
       }
-      setStep(items);
-    });
+    };
 
-    con.onRefresh(async (x: any) => {
+    loadInitialStep();
+
+    // Register external update listener
+    con.onRefresh(async () => {
       const items = await con.get("grp-0");
       console.log("step updated externally");
       updateByRefreshRef.current = true;
@@ -200,28 +207,25 @@ export function setupStep(token: string, setStep: any, step: any) {
     return () => {
       con.offRefresh();
     };
-  }, [token]);
+  }, [con, setStep]);
 
-  useEffect(() => {
-    const updateCon = async () => {
-      if (conInterfaceRef.current === undefined) {
-        return;
-      }
+  const updateCon = useCallback(() => {
+    if (conInterfaceRef.current) {
       conInterfaceRef.current.set("grp-0", step);
-    };
-
-    if (updateByRefreshRef.current) {
-      updateByRefreshRef.current = false;
-    } else {
-      // Set a delay of 100ms before calling `updateCon`
-      const debounceTimeout = setTimeout(updateCon, 100);
-
-      // Clear the timeout if `points` changes within the 100ms
-      return () => clearTimeout(debounceTimeout);
     }
   }, [step]);
-}
 
+  useEffect(() => {
+    if (updateByRefreshRef.current) {
+      // Reset flag if the step was updated externally
+      updateByRefreshRef.current = false;
+    } else {
+      // Debounce the update to avoid rapid consecutive updates
+      const debounceTimeout = setTimeout(updateCon, 100);
+      return () => clearTimeout(debounceTimeout);
+    }
+  }, [step, updateCon]);
+}
 export function setupCamera(
   token: string,
   cameraPosition: any,
