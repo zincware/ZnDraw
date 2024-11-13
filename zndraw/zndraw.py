@@ -16,9 +16,10 @@ import znjson
 import znsocket
 import znsocket.exceptions
 from redis import Redis
+from collections.abc import MutableSequence
 
 from zndraw.abc import Message
-from zndraw.base import Extension, ZnDrawBase
+from zndraw.base import Extension
 from zndraw.bonds import ASEComputeBonds
 from zndraw.config import Arrows, PathTracer, Scene
 from zndraw.converter import ASEConverter, Object3DConverter
@@ -60,7 +61,7 @@ def _check_version_compatibility(server_version: str) -> None:
 
 
 @dataclasses.dataclass
-class ZnDraw(ZnDrawBase):
+class ZnDraw(MutableSequence):
     url: str
     token: str | None = None
     auth_token: str | None = None
