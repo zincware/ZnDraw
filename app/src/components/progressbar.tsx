@@ -72,7 +72,6 @@ const ColoredTiles = ({
   setStep: (step: number) => void;
   tickInterval: number;
 }) => {
-
   const [disabledPositions, setdisabledPositions] = useState<number[]>([]);
   const [ticks, setTicks] = useState<number[]>([]);
 
