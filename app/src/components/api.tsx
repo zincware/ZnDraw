@@ -180,7 +180,11 @@ export function setupStep(token: string, setStep: any, step: any) {
 
     // Initial load
     con.get("grp-0").then((items: any) => {
+      console.log("initial step update");
       updateByRefreshRef.current = true;
+      if (items === null) {
+        return;
+      }
       setStep(items);
     });
 
@@ -289,12 +293,17 @@ export const setupFrames = (
   currentFrame: any,
   setLength: any,
   setStep: any,
+  frame_update: boolean,
 ) => {
   const conInterfaceRef = useRef<typeof znsocket.List>(undefined);
   const defaultConInterfaceRef = useRef<typeof znsocket.List>(undefined);
   const useDefaultRoomRef = useRef(true);
   let [framesRequiringUpdate, setFramesRequiringUpdate] = useState(undefined);
   let currentFrameUpdatedFromSocketRef = useRef(true);
+
+  useEffect(() => {
+    console.log(step);
+  }, [step]);
 
   const setCurrentFrameFromObject = (frame: any) => {
     frame = frame["value"];
@@ -370,6 +379,11 @@ export const setupFrames = (
 
     con.onRefresh(async (x: any) => {
       useDefaultRoomRef.current = false;
+      console.log(x);
+      if (frame_update && x.start) {
+        setStep(x.start);
+      }
+      // defaultCon.offRefresh(); ?
       con.length().then((length: any) => {
         setLength(length);
       });
@@ -378,8 +392,11 @@ export const setupFrames = (
 
     defaultCon.onRefresh(async (x: any) => {
       setFramesRequiringUpdate(x);
-
+      if (frame_update && x.start) {
+        setStep(x.start);
+      }
       defaultCon.length().then((length: any) => {
+        // TODO: if settings. set frame
         setLength(length);
       });
     });
@@ -412,6 +429,10 @@ export const setupFrames = (
       currentInterface.get(parseInt(step) || 0).then((frame: any) => {
         if (frame === null) {
           currentInterface.length().then((length: any) => {
+            if (length === 0) {
+              return;
+            }
+            console.log("setting step to", length - 1);
             setStep(length - 1);
           });
         } else {
@@ -422,6 +443,8 @@ export const setupFrames = (
     }
   }, [step, framesRequiringUpdate]);
 
+  // TODO: remove duplicate?
+  // TODO: check settings, auto jump to new frames
   useEffect(() => {
     if (
       conInterfaceRef.current === undefined &&
@@ -436,6 +459,10 @@ export const setupFrames = (
     currentInterface.get(parseInt(step) || 0).then((frame: any) => {
       if (frame === null) {
         currentInterface.length().then((length: any) => {
+          if (length === 0) {
+            return;
+          }
+          console.log("setting step to", length - 1);
           setStep(length - 1);
         });
       } else {
