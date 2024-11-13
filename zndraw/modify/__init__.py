@@ -69,7 +69,6 @@ class Rotate(UpdateScene):
     steps: int = Field(
         30, ge=1, description="Number of steps to take to complete the rotation"
     )
-    sleep: float = Field(0.1, ge=0, description="Sleep time between steps")
 
     def run(self, vis: "ZnDraw", **kwargs) -> None:
         # split atoms object into the selected from atoms_ids and the remaining
@@ -88,13 +87,16 @@ class Rotate(UpdateScene):
         atoms_selected, atoms_remaining = self.apply_selection(atom_ids, atoms)
         # create a vector from the two points
         vector = points[1] - points[0]
+        frames = []
         for _ in range(self.steps):
             # rotate the selected atoms around the vector
             atoms_selected.rotate(angle, vector, center=points[0])
             # update the positions of the selected atoms
             atoms.positions[atom_ids] = atoms_selected.positions
-            vis.append(atoms)
-            time.sleep(self.sleep)
+            frames.append(atoms.copy())
+        
+        vis.extend(frames)
+
 
 
 class Delete(UpdateScene):
@@ -137,6 +139,8 @@ class Translate(UpdateScene):
         atoms = vis.atoms
         selection = np.array(vis.selection)
 
+        frames = []
+
         for idx in range(self.steps):
             end_idx = int((idx + 1) * (len(segments) - 1) / self.steps)
             tmp_atoms = atoms.copy()
@@ -144,7 +148,9 @@ class Translate(UpdateScene):
             positions = tmp_atoms.positions
             positions[selection] += vector
             tmp_atoms.positions = positions
-            vis.append(tmp_atoms)
+            frames.append(tmp_atoms)
+        
+        vis.extend(frames)
 
 
 class Duplicate(UpdateScene):
