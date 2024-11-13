@@ -1,3 +1,6 @@
+import eventlet
+eventlet.monkey_patch()
+
 import tqdm
 from rdkit2ase import smiles2conformers
 import uuid
