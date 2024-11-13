@@ -6,6 +6,7 @@ import logging
 import typing as t
 
 import ase
+import splines
 import numpy as np
 import plotly.graph_objects as go
 import requests
@@ -491,6 +492,14 @@ class ZnDraw(ZnDrawBase):
         znsocket.Dict(self.r, f"room:{self.token}:points", socket=self._refresh_client)[
             "grp-0"
         ] = points
+
+    @property
+    def segments(self) -> np.ndarray:
+        points = self.points
+        if points.shape[0] <= 1:
+            return points
+        t = np.linspace(0, len(points) - 1, len(points) * 50)
+        return splines.CatmullRom(points).evaluate(t)
 
     @property
     def bookmarks(self) -> dict[int, str]:
