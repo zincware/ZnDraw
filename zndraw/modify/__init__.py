@@ -1,6 +1,5 @@
 import enum
 import logging
-import time
 import typing as t
 
 import ase
