@@ -1,5 +1,6 @@
 import dataclasses
 import logging
+import typing as t
 from abc import abstractmethod
 from collections.abc import MutableSequence
 
@@ -7,11 +8,15 @@ import numpy as np
 import splines
 from pydantic import BaseModel
 
+if t.TYPE_CHECKING:
+    from zndraw import ZnDraw
+
 log = logging.getLogger(__name__)
 
 
 class Extension(BaseModel):
-    def run(self, vis, **kwargs) -> None:
+    @abstractmethod
+    def run(self, vis: "ZnDraw", **kwargs) -> None:
         raise NotImplementedError("run method must be implemented in subclass")
 
 

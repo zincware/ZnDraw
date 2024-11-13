@@ -141,10 +141,45 @@ export default function App() {
   // todo give to particles and bonds
   const [colorMode, handleColorMode] = useColorMode();
   const [hoveredId, setHoveredId] = useState<number>(-1);
+  // UPDATE THESE using `vis.config` on the Python side
   const [roomConfig, setRoomConfig] = useState({
-    arrows: {},
-    scene: { floor: false, particle_size: 1, bond_size: 1 },
-    PathTracer: { enabled: false, environment: "none" },
+    arrows: {
+      colormap: [
+        [-0.5, 0.9, 0.5],
+        [0.0, 0.9, 0.5],
+      ],
+      normalize: true,
+      colorrange: [0, 1.0],
+      scale_vector_thickness: false,
+      opacity: 1.0,
+    },
+    scene: {
+      fps: 30,
+      material: "MeshStandardMaterial",
+      particle_size: 1.0,
+      bond_size: 1.0,
+      animation_loop: false,
+      simulation_box: true,
+      vectorfield: true,
+      controls: "OrbitControls",
+      vectors: "",
+      vector_scale: 1.0,
+      selection_color: "#ffa500",
+      camera: "PerspectiveCamera",
+      camera_near: 0.1,
+      camera_far: 300,
+      frame_update: true,
+      crosshair: false,
+      floor: false,
+    },
+    PathTracer: {
+      enabled: false,
+      environment: "studio",
+      metalness: 0.7,
+      roughness: 0.2,
+      clearcoat: 0.0,
+      clearcoatRoughness: 0.0,
+    },
   });
 
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(true);

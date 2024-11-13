@@ -1,3 +1,5 @@
+import json
+
 import ase
 import numpy.testing as npt
 import pytest
@@ -17,6 +19,13 @@ def test_ase_converter(s22):
     structures_json = znjson.dumps(
         s22, cls=znjson.ZnEncoder.from_converters([ASEConverter])
     )
+
+    non_json = json.loads(structures_json)
+    assert "numbers" not in non_json[0]["value"]["arrays"]
+    assert "positions" not in non_json[0]["value"]["arrays"]
+    assert "pbc" not in non_json[0]["value"]["info"]
+    assert "cell" not in non_json[0]["value"]["info"]
+
     structures = znjson.loads(
         structures_json, cls=znjson.ZnDecoder.from_converters([ASEConverter])
     )
