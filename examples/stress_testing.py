@@ -1,7 +1,8 @@
+import datetime
+import uuid
+
 import tqdm
 from rdkit2ase import smiles2conformers
-import uuid
-import datetime
 
 #### Import ZnDraw ####
 from zndraw import ZnDraw
