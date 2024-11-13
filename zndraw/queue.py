@@ -51,6 +51,8 @@ def process_modifier_queue(vis: "ZnDraw") -> None:
 
 def process_public_queue(vis: "ZnDraw") -> None:
     """Process public modifier tasks in the public queue."""
+    from zndraw import ZnDraw
+    
     if not any(mod["public"] for mod in vis._modifiers.values()):
         return
 
