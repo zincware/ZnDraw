@@ -3,9 +3,6 @@ import logging
 import typing as t
 from abc import abstractmethod
 
-
-import numpy as np
-import splines
 from pydantic import BaseModel
 
 if t.TYPE_CHECKING:

@@ -4,6 +4,7 @@ import enum
 import importlib.metadata
 import logging
 import typing as t
+from collections.abc import MutableSequence
 
 import ase
 import numpy as np
@@ -16,7 +17,6 @@ import znjson
 import znsocket
 import znsocket.exceptions
 from redis import Redis
-from collections.abc import MutableSequence
 
 from zndraw.abc import Message
 from zndraw.base import Extension
