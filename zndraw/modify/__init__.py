@@ -94,9 +94,8 @@ class Rotate(UpdateScene):
             # update the positions of the selected atoms
             atoms.positions[atom_ids] = atoms_selected.positions
             frames.append(atoms.copy())
-        
-        vis.extend(frames)
 
+        vis.extend(frames)
 
 
 class Delete(UpdateScene):
@@ -149,7 +148,7 @@ class Translate(UpdateScene):
             positions[selection] += vector
             tmp_atoms.positions = positions
             frames.append(tmp_atoms)
-        
+
         vis.extend(frames)
 
 
