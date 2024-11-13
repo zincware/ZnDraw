@@ -1,11 +1,8 @@
-# Run this test with and without eventlet.monkey_patch()
-import eventlet
-eventlet.monkey_patch()
+import datetime # noqa
+import uuid
 
 import tqdm
 from rdkit2ase import smiles2conformers
-import uuid
-import datetime # noqa
 
 #### Import ZnDraw ####
 from zndraw import ZnDraw
