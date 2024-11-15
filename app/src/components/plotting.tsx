@@ -103,7 +103,6 @@ const PlotsCard2 = ({
   let [plotData, setPlotData] = useState<{ [key: string]: any }>(undefined);
   let [plotType, setPlotType] = useState<string>("");
   let [plotLayout, setPlotLayout] = useState<{ [key: string]: any }>(undefined);
-  let [plotHover, setPlotHover] = useState<boolean>(false);
   const [allowDrag, setAllowDrag] = useState<boolean>(true);
   let selectFormRef = useRef<HTMLSelectElement>(null);
   let cardRef = useRef<HTMLSelectElement>(null);
@@ -120,17 +119,6 @@ const PlotsCard2 = ({
       }
     }
   }, [availablePlots, selectedOption]);
-
-  useEffect(() => {
-    if (plotHover) {
-      setAllowDrag(false);
-    } else {
-      const debounceTimeout = setTimeout(() => {
-        setAllowDrag(true);
-      }, 1000);
-      return () => clearTimeout(debounceTimeout);
-    }
-  }, [plotHover]);
 
   useEffect(() => {
     // check if identifier is in visiblePlots, if so, set selectedOption to visiblePlots[identifier]
@@ -350,6 +338,8 @@ const PlotsCard2 = ({
         <Card.Header
           className="d-flex justify-content-between align-items-center flex-nowrap"
           style={{ height: 50 }}
+          onPointerEnter={() => setAllowDrag(true)}
+          onPointerLeave={() => setAllowDrag(false)}
         >
           <Form.Select
             onChange={handleSelectChange}
@@ -367,17 +357,6 @@ const PlotsCard2 = ({
               </option>
             ))}
           </Form.Select>
-          <BtnTooltip
-            text={allowDrag ? "Lock card movement" : "Unlock card movement"}
-          >
-            <Button
-              variant="outline-secondary"
-              className="mx-1"
-              onClick={() => setAllowDrag(!allowDrag)}
-            >
-              {allowDrag ? <FaLockOpen /> : <FaLock />}
-            </Button>
-          </BtnTooltip>
           <BtnTooltip text="Add another card">
             <Button
               variant="tertiary"
@@ -394,10 +373,6 @@ const PlotsCard2 = ({
             <Plot
               data={plotData}
               layout={plotLayout}
-              onHover={() => setPlotHover(true)}
-              onSelecting={() => setPlotHover(true)}
-              onBeforeHover={() => setPlotHover(true)}
-              onUnhover={() => setPlotHover(false)}
               onClick={onPlotClick}
               onSelected={onPlotSelected}
               onDeselect={onPlotDeselect}
