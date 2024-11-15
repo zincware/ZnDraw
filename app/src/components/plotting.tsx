@@ -111,7 +111,7 @@ const PlotsCard2 = ({
   // when created, iterate through availablePlots and set the first one as selectedOption that is not already in visiblePlots
   useEffect(() => {
     if (selectedOption !== "") {
-      return
+      return;
     }
     for (let i = 0; i < availablePlots.length; i++) {
       if (!Object.values(visiblePlots).includes(availablePlots[i])) {
