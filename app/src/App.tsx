@@ -162,7 +162,7 @@ export default function App() {
       simulation_box: true,
       vectorfield: true,
       controls: "OrbitControls",
-      vectors: "",
+      vectors: [],
       vector_scale: 1.0,
       selection_color: "#ffa500",
       camera: "PerspectiveCamera",
@@ -804,18 +804,20 @@ export default function App() {
                 hoveredId={hoveredId}
                 setHoveredId={setHoveredId}
               />
-              {roomConfig["scene"].vectors != "" && (
-                <PerParticleVectors
-                  frame={currentFrame}
-                  property={roomConfig["scene"].vectors}
-                  colorMode={colorMode}
-                  arrowsConfig={{
-                    rescale: roomConfig["scene"].vector_scale,
-                    ...roomConfig.arrows,
-                  }}
-                  pathTracingSettings={roomConfig.PathTracer}
-                ></PerParticleVectors>
-              )}
+              {roomConfig["scene"].vectors[0] &&
+                roomConfig["scene"].vectors.map((vector) => (
+                  <PerParticleVectors
+                    frame={currentFrame}
+                    property={vector}
+                    colorMode={colorMode}
+                    arrowsConfig={{
+                      rescale: roomConfig["scene"].vector_scale,
+                      ...roomConfig.arrows,
+                    }}
+                    pathTracingSettings={roomConfig.PathTracer}
+                    key={vector}
+                  ></PerParticleVectors>
+                ))}
             </Pathtracer>
           </Canvas>
         )}

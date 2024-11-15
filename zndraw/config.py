@@ -52,7 +52,7 @@ class Scene(BaseModel):
 
     controls: Controls = Field(Controls.OrbitControls, description="Controls")
 
-    vectors: str = Field("", description="Visualize vectorial property")
+    vectors: list = Field("", description="Visualize vectorial property")
     vector_scale: float = Field(1.0, ge=0.1, le=5, description="Rescale Vectors")
     selection_color: str = Field("#ffa500", description="Selection color")
     camera: Camera = Field(Camera.PerspectiveCamera, description="Camera")
@@ -92,7 +92,7 @@ class Scene(BaseModel):
     @classmethod
     def model_json_schema_from_atoms(cls, atoms: ase.Atoms) -> dict:
         schema = cls.model_json_schema()
-        array_props = [""]
+        array_props = []
         if atoms.calc is not None:
             for key in atoms.calc.results.keys():
                 if (
@@ -106,8 +106,10 @@ class Scene(BaseModel):
                 and np.array(atoms.arrays[key]).shape[1] == 3
             ):
                 array_props.append(key)
-        schema["properties"]["vectors"]["enum"] = array_props
-        schema["properties"]["vectors"]["default"] = ""
+        # remove "positions" from the list
+        array_props = [x for x in array_props if x != "positions"]
+        schema["properties"]["vectors"]["items"] = {"type": "string", "enum": array_props}
+        schema["properties"]["vectors"]["uniqueItems"] = True
 
         # schema["properties"]["wireframe"]["format"] = "checkbox"
         schema["properties"]["animation_loop"]["format"] = "checkbox"
@@ -131,6 +133,7 @@ class Scene(BaseModel):
         schema["properties"]["camera_near"]["step"] = 0.1
         schema["properties"]["camera_far"]["format"] = "range"
         schema["properties"]["camera_far"]["step"] = 1
+
         # schema["properties"]["bonds"]["format"] = "checkbox"
         # schema["properties"]["line_label"]["format"] = "checkbox"
 

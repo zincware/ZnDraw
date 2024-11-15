@@ -29,78 +29,20 @@ JSONEditor.defaults.options.keep_oneof_values = false;
 JSONEditor.defaults.editors.object.options.titleHidden = true;
 
 interface SidebarMenuProps {
-  schema: any;
-  onSubmit: any;
-  queuePosition: number;
-  trigger?: boolean; // Mark trigger as optional
-  setTrigger?: (value: boolean) => void; // Mark setTrigger as optional
   visible: boolean;
-  useSubmit?: boolean; // provide a submit button or trigger on change
-  closeMenu?: () => void;
+  closeMenu: () => void;
+  token: string;
+  name: string;
+  sendImmediately: boolean;
 }
 
-const useJSONEditor = (
-  schema: any,
-  setUserInput: (value: any) => void,
-  useSubmit: boolean,
-) => {
-  const editorRef = useRef<HTMLDivElement>(null);
-  const JSONEditorRef = useRef<JSONEditor | null>(null);
-
-  useEffect(() => {
-    if (Object.keys(schema).length === 0) {
-      return;
-    }
-
-    if (editorRef.current) {
-      JSONEditorRef.current = new JSONEditor(editorRef.current, {
-        schema: schema,
-      });
-      let created_trigger = false;
-
-      // on ready, validate and set user input
-      JSONEditorRef.current.on("ready", () => {
-        if (useSubmit) {
-          // when using the submit button, we need to set the user input on ready
-          // otherwise, it could be None.
-          if (JSONEditorRef.current.validate()) {
-            const editorValue = JSONEditorRef.current.getValue();
-            setUserInput(editorValue);
-          }
-        }
-      });
-
-      JSONEditorRef.current.on("change", () => {
-        if (JSONEditorRef.current.ready) {
-          if (created_trigger) {
-            if (JSONEditorRef.current.validate()) {
-              const editorValue = JSONEditorRef.current.getValue();
-              setUserInput(editorValue);
-            }
-          } else {
-            // skip first trigger
-            created_trigger = true;
-          }
-        }
-      });
-    }
-    return () => {
-      if (JSONEditorRef.current) {
-        JSONEditorRef.current.destroy();
-      }
-    };
-  }, [schema]);
-
-  return editorRef;
-};
-
-const SidebarMenu2: any = ({
+const SidebarMenu = ({
   visible,
   closeMenu,
   token,
   name,
   sendImmediately,
-}) => {
+}: SidebarMenuProps) => {
   const [userInput, setUserInput] = useState<string>(undefined);
   const [schema, setSchema] = useState<any>({});
   const [sharedSchema, setSharedSchema] = useState<any>({});
@@ -423,35 +365,35 @@ function SideBar({ token }: { token: string }) {
           </BtnTooltip>
         </Card>
       </Navbar>
-      <SidebarMenu2
+      <SidebarMenu
         name="selection"
         visible={visibleOption == "selection"} // remove
         token={token}
         closeMenu={() => setVisibleOption("")}
         sendImmediately={false}
       />
-      <SidebarMenu2
+      <SidebarMenu
         name="modifier"
         visible={visibleOption == "modifier"}
         token={token}
         closeMenu={() => setVisibleOption("")}
         sendImmediately={false}
       />
-      <SidebarMenu2
+      <SidebarMenu
         name="scene"
         visible={visibleOption == "scene"}
         token={token}
         closeMenu={() => setVisibleOption("")}
         sendImmediately={true}
       />
-      <SidebarMenu2
+      <SidebarMenu
         name="geometry"
         visible={visibleOption == "geometry"}
         token={token}
         closeMenu={() => setVisibleOption("")}
         sendImmediately={false}
       />
-      <SidebarMenu2
+      <SidebarMenu
         name="analysis"
         visible={visibleOption == "analysis"}
         token={token}

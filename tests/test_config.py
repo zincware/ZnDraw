@@ -21,6 +21,14 @@ def test_config_modify_arrows(server):
     assert vis.config["arrows"]["opacity"] == 1.0
 
 
+# def test_config_replace_znsocket(server):
+#     room = "test_config_znsocket"
+#     vis = ZnDraw(url=server, token=room)
+
+#     vis.config["scene"] = None
+#     assert isinstance(vis.config["scene"], znsocket.Dict)
+
+
 def test_config_modify_scene(server):
     room = "test_config_scene"
     vis = ZnDraw(url=server, token=room)
