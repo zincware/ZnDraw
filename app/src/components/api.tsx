@@ -379,7 +379,6 @@ export const setupFrames = (
 
     con.onRefresh(async (x: any) => {
       useDefaultRoomRef.current = false;
-      console.log(x);
       if (frame_update && x.start) {
         setStep(x.start);
       }
@@ -396,7 +395,6 @@ export const setupFrames = (
         setStep(x.start);
       }
       defaultCon.length().then((length: any) => {
-        // TODO: if settings. set frame
         setLength(length);
       });
     });
@@ -417,59 +415,36 @@ export const setupFrames = (
     ) {
       return;
     }
-    let currentInterface: znsocket.List = useDefaultRoomRef.current
+  
+    const currentInterface = useDefaultRoomRef.current
       ? defaultConInterfaceRef.current
       : conInterfaceRef.current;
-    if (framesRequiringUpdate !== undefined) {
-      // cheap way out - we just update the current frame no matter what.
-      currentInterface.length().then((length: any) => {
+  
+    const updateCurrentFrame = async () => {
+      if (framesRequiringUpdate !== undefined || step !== undefined) {
+        // Update length
+        const length = await currentInterface.length();
         setLength(length);
-      });
-      // the initial step is -1 so it queries the last frame
-      currentInterface.get(parseInt(step) || 0).then((frame: any) => {
+  
+        // Retrieve the current frame
+        const frame = await currentInterface.get(parseInt(step) || 0);
         if (frame === null) {
-          currentInterface.length().then((length: any) => {
-            if (length === 0) {
-              return;
-            }
-            console.log("setting step to", length - 1);
+          if (length > 0) {
             setStep(length - 1);
-          });
+          }
         } else {
           setCurrentFrameFromObject(frame);
         }
-      });
-      setFramesRequiringUpdate(undefined);
-    }
-  }, [step, framesRequiringUpdate]);
-
-  // TODO: remove duplicate?
-  // TODO: check settings, auto jump to new frames
-  useEffect(() => {
-    if (
-      conInterfaceRef.current === undefined &&
-      defaultConInterfaceRef.current === undefined
-    ) {
-      return;
-    }
-    let currentInterface = useDefaultRoomRef.current
-      ? defaultConInterfaceRef.current
-      : conInterfaceRef.current;
-
-    currentInterface.get(parseInt(step) || 0).then((frame: any) => {
-      if (frame === null) {
-        currentInterface.length().then((length: any) => {
-          if (length === 0) {
-            return;
-          }
-          console.log("setting step to", length - 1);
-          setStep(length - 1);
-        });
-      } else {
-        setCurrentFrameFromObject(frame);
+  
+        // Reset framesRequiringUpdate if it was set
+        if (framesRequiringUpdate !== undefined) {
+          setFramesRequiringUpdate(undefined);
+        }
       }
-    });
-  }, [step]);
+    };
+  
+    updateCurrentFrame();
+  }, [step, framesRequiringUpdate]);
 };
 
 export const setupGeometries = (
