@@ -1,7 +1,6 @@
 import logging
 import typing as t
 import urllib.request
-import warnings
 from io import StringIO
 
 import ase.io
