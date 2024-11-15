@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useMemo, useCallback } from "react";
 import { client } from "../socket";
 import * as znsocket from "znsocket";
 import * as THREE from "three";
@@ -168,23 +168,38 @@ export function setupSelection(
   }, [selectedIds]);
 }
 
-export function setupStep(token: string, setStep: any, step: any) {
-  const conInterfaceRef = useRef<any>(undefined);
+export function setupStep(
+  token: string,
+  setStep: (items: any) => void,
+  step: any,
+) {
+  // Keep conInterfaceRef stable across renders
+  const conInterfaceRef = useRef<any>(null);
   const updateByRefreshRef = useRef(false);
 
-  useEffect(() => {
-    const con = new znsocket.Dict({
+  // Memoize `con` to keep it consistent
+  const con = useMemo(() => {
+    return new znsocket.Dict({
       client: client,
       key: "room:" + token + ":step",
     });
+  }, [token]);
 
-    // Initial load
-    con.get("grp-0").then((items: any) => {
-      updateByRefreshRef.current = true;
-      setStep(items);
-    });
+  useEffect(() => {
+    // Load initial step only once
+    const loadInitialStep = async () => {
+      const items = await con.get("grp-0");
+      console.log("initial step update");
+      if (items !== null) {
+        updateByRefreshRef.current = true;
+        setStep(items);
+      }
+    };
 
-    con.onRefresh(async (x: any) => {
+    loadInitialStep();
+
+    // Register external update listener
+    con.onRefresh(async () => {
       const items = await con.get("grp-0");
       console.log("step updated externally");
       updateByRefreshRef.current = true;
@@ -196,28 +211,25 @@ export function setupStep(token: string, setStep: any, step: any) {
     return () => {
       con.offRefresh();
     };
-  }, [token]);
+  }, [con, setStep]);
 
-  useEffect(() => {
-    const updateCon = async () => {
-      if (conInterfaceRef.current === undefined) {
-        return;
-      }
+  const updateCon = useCallback(() => {
+    if (conInterfaceRef.current) {
       conInterfaceRef.current.set("grp-0", step);
-    };
-
-    if (updateByRefreshRef.current) {
-      updateByRefreshRef.current = false;
-    } else {
-      // Set a delay of 100ms before calling `updateCon`
-      const debounceTimeout = setTimeout(updateCon, 100);
-
-      // Clear the timeout if `points` changes within the 100ms
-      return () => clearTimeout(debounceTimeout);
     }
   }, [step]);
-}
 
+  useEffect(() => {
+    if (updateByRefreshRef.current) {
+      // Reset flag if the step was updated externally
+      updateByRefreshRef.current = false;
+    } else {
+      // Debounce the update to avoid rapid consecutive updates
+      const debounceTimeout = setTimeout(updateCon, 100);
+      return () => clearTimeout(debounceTimeout);
+    }
+  }, [step, updateCon]);
+}
 export function setupCamera(
   token: string,
   cameraPosition: any,
@@ -289,6 +301,7 @@ export const setupFrames = (
   currentFrame: any,
   setLength: any,
   setStep: any,
+  frame_update: boolean,
 ) => {
   const conInterfaceRef = useRef<typeof znsocket.List>(undefined);
   const defaultConInterfaceRef = useRef<typeof znsocket.List>(undefined);
@@ -370,6 +383,10 @@ export const setupFrames = (
 
     con.onRefresh(async (x: any) => {
       useDefaultRoomRef.current = false;
+      if (frame_update && x.start) {
+        setStep(x.start);
+      }
+      // defaultCon.offRefresh(); ?
       con.length().then((length: any) => {
         setLength(length);
       });
@@ -378,7 +395,9 @@ export const setupFrames = (
 
     defaultCon.onRefresh(async (x: any) => {
       setFramesRequiringUpdate(x);
-
+      if (frame_update && x.start) {
+        setStep(x.start);
+      }
       defaultCon.length().then((length: any) => {
         setLength(length);
       });
@@ -400,49 +419,36 @@ export const setupFrames = (
     ) {
       return;
     }
-    let currentInterface: znsocket.List = useDefaultRoomRef.current
+
+    const currentInterface = useDefaultRoomRef.current
       ? defaultConInterfaceRef.current
       : conInterfaceRef.current;
-    if (framesRequiringUpdate !== undefined) {
-      // cheap way out - we just update the current frame no matter what.
-      currentInterface.length().then((length: any) => {
+
+    const updateCurrentFrame = async () => {
+      if (framesRequiringUpdate !== undefined || step !== undefined) {
+        // Update length
+        const length = await currentInterface.length();
         setLength(length);
-      });
-      // the initial step is -1 so it queries the last frame
-      currentInterface.get(parseInt(step) || 0).then((frame: any) => {
+
+        // Retrieve the current frame
+        const frame = await currentInterface.get(parseInt(step) || 0);
         if (frame === null) {
-          currentInterface.length().then((length: any) => {
+          if (length > 0) {
             setStep(length - 1);
-          });
+          }
         } else {
           setCurrentFrameFromObject(frame);
         }
-      });
-      setFramesRequiringUpdate(undefined);
-    }
-  }, [step, framesRequiringUpdate]);
 
-  useEffect(() => {
-    if (
-      conInterfaceRef.current === undefined &&
-      defaultConInterfaceRef.current === undefined
-    ) {
-      return;
-    }
-    let currentInterface = useDefaultRoomRef.current
-      ? defaultConInterfaceRef.current
-      : conInterfaceRef.current;
-
-    currentInterface.get(parseInt(step) || 0).then((frame: any) => {
-      if (frame === null) {
-        currentInterface.length().then((length: any) => {
-          setStep(length - 1);
-        });
-      } else {
-        setCurrentFrameFromObject(frame);
+        // Reset framesRequiringUpdate if it was set
+        if (framesRequiringUpdate !== undefined) {
+          setFramesRequiringUpdate(undefined);
+        }
       }
-    });
-  }, [step]);
+    };
+
+    updateCurrentFrame();
+  }, [step, framesRequiringUpdate]);
 };
 
 export const setupGeometries = (
