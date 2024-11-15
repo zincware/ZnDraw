@@ -305,10 +305,6 @@ export const setupFrames = (
   let [framesRequiringUpdate, setFramesRequiringUpdate] = useState(undefined);
   let currentFrameUpdatedFromSocketRef = useRef(true);
 
-  useEffect(() => {
-    console.log(step);
-  }, [step]);
-
   const setCurrentFrameFromObject = (frame: any) => {
     frame = frame["value"];
     frame.positions = frame.positions.map(
