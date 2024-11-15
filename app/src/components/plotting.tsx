@@ -267,11 +267,11 @@ const PlotsCard2 = ({
   };
 
   const onPlotClick = ({ points }: { points: any[] }) => {
-    if (points[0]?.customdata) {
+    if (points[0]?.customdata[0]) {
       setStep(points[0].customdata[0]);
-      if (points[0].customdata[1]) {
-        setSelectedIds(new Set([points[0].customdata[1]]));
-      }
+    }
+    if (points[0]?.customdata[1]) {
+      setSelectedIds(new Set([points[0].customdata[1]]));
     }
   };
 
