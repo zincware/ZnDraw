@@ -1,5 +1,4 @@
 from zndraw import ZnDraw
-import znsocket
 
 # def test_config_defaults(server):
 #     vis = ZnDraw(url=server, token="test_token")

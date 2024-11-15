@@ -804,19 +804,20 @@ export default function App() {
                 hoveredId={hoveredId}
                 setHoveredId={setHoveredId}
               />
-              {roomConfig["scene"].vectors[0] && roomConfig["scene"].vectors.map((vector) => (
-                <PerParticleVectors
-                  frame={currentFrame}
-                  property={vector}
-                  colorMode={colorMode}
-                  arrowsConfig={{
-                    rescale: roomConfig["scene"].vector_scale,
-                    ...roomConfig.arrows,
-                  }}
-                  pathTracingSettings={roomConfig.PathTracer}
-                  key={vector}
-                ></PerParticleVectors>
-              ))}
+              {roomConfig["scene"].vectors[0] &&
+                roomConfig["scene"].vectors.map((vector) => (
+                  <PerParticleVectors
+                    frame={currentFrame}
+                    property={vector}
+                    colorMode={colorMode}
+                    arrowsConfig={{
+                      rescale: roomConfig["scene"].vector_scale,
+                      ...roomConfig.arrows,
+                    }}
+                    pathTracingSettings={roomConfig.PathTracer}
+                    key={vector}
+                  ></PerParticleVectors>
+                ))}
             </Pathtracer>
           </Canvas>
         )}

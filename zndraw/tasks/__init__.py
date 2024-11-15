@@ -1,6 +1,7 @@
 import logging
 import typing as t
 import urllib.request
+import warnings
 from io import StringIO
 
 import ase.io
@@ -17,7 +18,6 @@ from zndraw.modify import modifier
 from zndraw.queue import run_queued_task
 from zndraw.selection import selections
 from zndraw.utils import load_plots_to_dict
-import warnings
 
 log = logging.getLogger(__name__)
 

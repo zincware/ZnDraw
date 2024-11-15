@@ -108,10 +108,7 @@ class Scene(BaseModel):
                 array_props.append(key)
         # remove "positions" from the list
         array_props = [x for x in array_props if x != "positions"]
-        schema["properties"]["vectors"]["items"] = {
-            "type": "string",
-            "enum": array_props
-        }
+        schema["properties"]["vectors"]["items"] = {"type": "string", "enum": array_props}
         schema["properties"]["vectors"]["uniqueItems"] = True
 
         # schema["properties"]["wireframe"]["format"] = "checkbox"
