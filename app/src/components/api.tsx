@@ -168,7 +168,11 @@ export function setupSelection(
   }, [selectedIds]);
 }
 
-export function setupStep(token: string, setStep: (items: any) => void, step: any) {
+export function setupStep(
+  token: string,
+  setStep: (items: any) => void,
+  step: any,
+) {
   // Keep conInterfaceRef stable across renders
   const conInterfaceRef = useRef<any>(null);
   const updateByRefreshRef = useRef(false);
@@ -415,17 +419,17 @@ export const setupFrames = (
     ) {
       return;
     }
-  
+
     const currentInterface = useDefaultRoomRef.current
       ? defaultConInterfaceRef.current
       : conInterfaceRef.current;
-  
+
     const updateCurrentFrame = async () => {
       if (framesRequiringUpdate !== undefined || step !== undefined) {
         // Update length
         const length = await currentInterface.length();
         setLength(length);
-  
+
         // Retrieve the current frame
         const frame = await currentInterface.get(parseInt(step) || 0);
         if (frame === null) {
@@ -435,14 +439,14 @@ export const setupFrames = (
         } else {
           setCurrentFrameFromObject(frame);
         }
-  
+
         // Reset framesRequiringUpdate if it was set
         if (framesRequiringUpdate !== undefined) {
           setFramesRequiringUpdate(undefined);
         }
       }
     };
-  
+
     updateCurrentFrame();
   }, [step, framesRequiringUpdate]);
 };

@@ -222,7 +222,15 @@ export default function App() {
     controlsRef,
     cameraRef,
   );
-  setupFrames(token, step, setCurrentFrame, currentFrame, setLength, setStep, roomConfig["scene"]["frame_update"]);
+  setupFrames(
+    token,
+    step,
+    setCurrentFrame,
+    currentFrame,
+    setLength,
+    setStep,
+    roomConfig["scene"]["frame_update"],
+  );
   setupFigures(token, setUpdatedPlotsList);
   setupGeometries(token, setGeometries, geometries);
   setupMessages(token, setMessages, messages);
