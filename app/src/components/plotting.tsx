@@ -103,21 +103,22 @@ const PlotsCard2 = ({
   let [plotData, setPlotData] = useState<{ [key: string]: any }>(undefined);
   let [plotType, setPlotType] = useState<string>("");
   let [plotLayout, setPlotLayout] = useState<{ [key: string]: any }>(undefined);
-  let [plotHover, setPlotHover] = useState<boolean>(false);
   const [allowDrag, setAllowDrag] = useState<boolean>(true);
   let selectFormRef = useRef<HTMLSelectElement>(null);
   let cardRef = useRef<HTMLSelectElement>(null);
 
+  // when created, iterate through availablePlots and set the first one as selectedOption that is not already in visiblePlots
   useEffect(() => {
-    if (plotHover) {
-      setAllowDrag(false);
-    } else {
-      const debounceTimeout = setTimeout(() => {
-        setAllowDrag(true);
-      }, 1000);
-      return () => clearTimeout(debounceTimeout);
+    if (selectedOption !== "") {
+      return;
     }
-  }, [plotHover]);
+    for (let i = 0; i < availablePlots.length; i++) {
+      if (!Object.values(visiblePlots).includes(availablePlots[i])) {
+        setSelectedOption(availablePlots[i]);
+        break;
+      }
+    }
+  }, [availablePlots, selectedOption]);
 
   useEffect(() => {
     // check if identifier is in visiblePlots, if so, set selectedOption to visiblePlots[identifier]
@@ -267,11 +268,11 @@ const PlotsCard2 = ({
   };
 
   const onPlotClick = ({ points }: { points: any[] }) => {
-    if (points[0]?.customdata) {
+    if (points[0]?.customdata[0]) {
       setStep(points[0].customdata[0]);
-      if (points[0].customdata[1]) {
-        setSelectedIds(new Set([points[0].customdata[1]]));
-      }
+    }
+    if (points[0]?.customdata[1]) {
+      setSelectedIds(new Set([points[0].customdata[1]]));
     }
   };
 
@@ -337,6 +338,8 @@ const PlotsCard2 = ({
         <Card.Header
           className="d-flex justify-content-between align-items-center flex-nowrap"
           style={{ height: 50 }}
+          onPointerEnter={() => setAllowDrag(true)}
+          onPointerLeave={() => setAllowDrag(false)}
         >
           <Form.Select
             onChange={handleSelectChange}
@@ -354,17 +357,6 @@ const PlotsCard2 = ({
               </option>
             ))}
           </Form.Select>
-          <BtnTooltip
-            text={allowDrag ? "Lock card movement" : "Unlock card movement"}
-          >
-            <Button
-              variant="outline-secondary"
-              className="mx-1"
-              onClick={() => setAllowDrag(!allowDrag)}
-            >
-              {allowDrag ? <FaLockOpen /> : <FaLock />}
-            </Button>
-          </BtnTooltip>
           <BtnTooltip text="Add another card">
             <Button
               variant="tertiary"
@@ -381,10 +373,6 @@ const PlotsCard2 = ({
             <Plot
               data={plotData}
               layout={plotLayout}
-              onHover={() => setPlotHover(true)}
-              onSelecting={() => setPlotHover(true)}
-              onBeforeHover={() => setPlotHover(true)}
-              onUnhover={() => setPlotHover(false)}
               onClick={onPlotClick}
               onSelected={onPlotSelected}
               onDeselect={onPlotDeselect}
