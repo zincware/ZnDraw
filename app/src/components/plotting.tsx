@@ -108,6 +108,19 @@ const PlotsCard2 = ({
   let selectFormRef = useRef<HTMLSelectElement>(null);
   let cardRef = useRef<HTMLSelectElement>(null);
 
+  // when created, iterate through availablePlots and set the first one as selectedOption that is not already in visiblePlots
+  useEffect(() => {
+    if (selectedOption !== "") {
+      return
+    }
+    for (let i = 0; i < availablePlots.length; i++) {
+      if (!Object.values(visiblePlots).includes(availablePlots[i])) {
+        setSelectedOption(availablePlots[i]);
+        break;
+      }
+    }
+  }, [availablePlots, selectedOption]);
+
   useEffect(() => {
     if (plotHover) {
       setAllowDrag(false);
