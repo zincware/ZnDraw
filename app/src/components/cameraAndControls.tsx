@@ -101,6 +101,39 @@ const CameraAndControls: React.FC<CameraAndControlsProps> = ({
     [],
   );
 
+  const rollCamera = useCallback((angle: number) => {
+    if (!cameraRef.current) {
+      return;
+    }
+  
+    const yDir = new THREE.Vector3(0, 1, 0); // Global Y-axis
+    console.log("Rolling camera by", angle);
+  
+    // Get the current direction the camera is looking
+    const looksTo = new THREE.Vector3();
+    cameraRef.current.getWorldDirection(looksTo);
+  
+    // Calculate the rotation axis (perpendicular to both yDir and looksTo)
+    const rotationAxis = new THREE.Vector3();
+    rotationAxis.crossVectors(yDir, looksTo).normalize();
+  
+    // Compute the quaternion for the roll rotation
+    const quaternion = new THREE.Quaternion();
+    quaternion.setFromAxisAngle(looksTo, angle);
+  
+    // Update the `up` vector of the camera
+    const newUp = new THREE.Vector3();
+    newUp.copy(cameraRef.current.up).applyQuaternion(quaternion).normalize();
+    cameraRef.current.up.copy(newUp);
+  
+    // Update the camera matrix and controls
+    cameraRef.current.updateProjectionMatrix();
+    if (controlsRef.current) {
+      controlsRef.current.update();
+    }
+  }, []);
+
+  
   const getResetCamera = useCallback(() => {
     if (currentFrame.positions.length === 0) {
       return;
@@ -166,6 +199,13 @@ const CameraAndControls: React.FC<CameraAndControlsProps> = ({
         const resetCamera = getResetCamera();
         if (resetCamera) {
           setCameraAndControls(resetCamera);
+        }
+      } else if (event.key == "r") {
+        const roll = Math.PI / 100;
+        if (event.ctrlKey) {
+          rollCamera(-roll);
+        } else {
+          rollCamera(roll);
         }
       }
     };

@@ -237,47 +237,6 @@ export default function App() {
     };
   }, []);
 
-  // camera roll
-
-  // useEffect(() => {
-  //   if (controlsRef.current && cameraRef.current) {
-  //     const camera = cameraRef.current;
-  //     if (camera) {
-  //       controlsRef.current.enabled = false;
-  //       // y direction
-  //       var yDir = new THREE.Vector3(0, 1, 0);
-  //       if (cameraRoll === null) {
-  //         camera.up.copy(yDir);
-  //       } else {
-  //         // test case to roll the camera normal to screen
-
-  //         // direction camera is looking to
-  //         var looksTo = new THREE.Vector3();
-  //         camera.getWorldDirection(looksTo);
-
-  //         // direction perpendicular to both yDir and looksTo
-  //         var b = new THREE.Vector3();
-  //         b.crossVectors(yDir, looksTo).normalize();
-
-  //         // direction perpendicular to both looksTo and b
-  //         var n = new THREE.Vector3();
-  //         n.crossVectors(looksTo, b).normalize();
-
-  //         // make a circle in the plane with vectors b and n
-  //         n.multiplyScalar(Math.cos(cameraRoll)).add(
-  //           b.multiplyScalar(Math.sin(cameraRoll)),
-  //         );
-
-  //         // set camera up
-  //         camera.up.set(n.x, n.y, n.z);
-  //       }
-
-  //       controlsRef.current.update();
-  //       controlsRef.current.enabled = true;
-  //       cameraRef.current.updateProjectionMatrix();
-  //     }
-  //   }
-  // }, [cameraRoll]);
 
   useEffect(() => {
     // page initialization
@@ -405,13 +364,6 @@ export default function App() {
             queue["Delete"] = {};
             socket.emit("room:worker:run");
           }
-        }
-      } else if (event.key == "r") {
-        const roll = Math.PI / 100;
-        if (event.ctrlKey) {
-          setCameraRoll((prev) => prev - roll);
-        } else {
-          setCameraRoll((prev) => prev + roll);
         }
       }
     };
