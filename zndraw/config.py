@@ -57,7 +57,7 @@ class Scene(BaseModel):
     selection_color: str = Field("#ffa500", description="Selection color")
     camera: Camera = Field(Camera.PerspectiveCamera, description="Camera")
     camera_near: float = Field(
-        0.1, ge=0.1, le=100, description="Camera near rendering plane"
+        0.1, ge=0, le=100, description="Camera near rendering plane"
     )
     camera_far: float = Field(
         300, ge=1, le=1000, description="Camera far rendering plane"
@@ -73,6 +73,10 @@ class Scene(BaseModel):
     floor: bool = Field(
         False,
         description="Show the floor.",
+    )
+    synchronize_camera: bool = Field(
+        True,
+        description="Synchronize camera with other room members.",
     )
     # bonds: bool = Field(
     #     True,
@@ -118,6 +122,7 @@ class Scene(BaseModel):
         schema["properties"]["frame_update"]["format"] = "checkbox"
         schema["properties"]["crosshair"]["format"] = "checkbox"
         schema["properties"]["floor"]["format"] = "checkbox"
+        schema["properties"]["synchronize_camera"]["format"] = "checkbox"
         # schema["properties"]["resolution"]["format"] = "range"
         # schema["properties"]["label_offset"]["format"] = "range"
         schema["properties"]["particle_size"]["format"] = "range"

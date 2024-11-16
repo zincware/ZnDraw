@@ -95,6 +95,8 @@ def create_app() -> Flask:
         "message_queue": message_queue,
         "cors_allowed_origins": "*",
     }
+    if "SOCKETIO_PING_TIMEOUT" in app.config:
+        kwargs["ping_timeout"] = app.config["SOCKETIO_PING_TIMEOUT"]
     if max_http_buffer_size is not None:
         kwargs["max_http_buffer_size"] = int(max_http_buffer_size)
 
