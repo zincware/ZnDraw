@@ -159,8 +159,12 @@ class ZnDraw(MutableSequence):
         registerd_modifiers = list(self._modifiers[x]["cls"] for x in self._modifiers)
         for modifier in registerd_modifiers:
             try:
-                self.register_modifier(modifier, public=self._modifiers[modifier.__name__]["public"])
-            except socketio.exceptions.BadNamespaceError as err:  # /znsocket is not a connected namespace.
+                self.register_modifier(
+                    modifier, public=self._modifiers[modifier.__name__]["public"]
+                )
+            except (
+                socketio.exceptions.BadNamespaceError
+            ) as err:  # /znsocket is not a connected namespace.
                 log.error(str(err))
                 log.error("Disconnecting. Please restart.")
                 self.socket.disconnect()
