@@ -321,22 +321,22 @@ export const setupFrames = (
 	setLength: any,
 	setStep: any,
 	frame_update: boolean,
-  ) => {
+) => {
 	const currentFrameUpdatedFromSocketRef = useRef(true);
 	const customRoomAvailRef = useRef(false); // Track whether listening to the default room
-  
+
 	const setCurrentFrameFromObject = (frame: any) => {
-	  frame = frame.value;
-	  frame.positions = frame.positions.map(
-		(position: [number, number, number]) =>
-		  new THREE.Vector3(position[0], position[1], position[2]),
-	  ) as THREE.Vector3[];
-	  console.log("frame updated");
-	  setCurrentFrame(frame);
-	  currentFrameUpdatedFromSocketRef.current = true;
+		frame = frame.value;
+		frame.positions = frame.positions.map(
+			(position: [number, number, number]) =>
+				new THREE.Vector3(position[0], position[1], position[2]),
+		) as THREE.Vector3[];
+		console.log("frame updated");
+		setCurrentFrame(frame);
+		currentFrameUpdatedFromSocketRef.current = true;
 	};
 
-	useEffect(() => {	
+	useEffect(() => {
 		if (token === "") {
 			return;
 		}
@@ -378,9 +378,13 @@ export const setupFrames = (
 		});
 
 		const getFrameFromCon = async () => {
-			let fetchedFrame = await currentRoomCon.get(Number.parseInt(step.toString(), 10) || 0);
+			let fetchedFrame = await currentRoomCon.get(
+				Number.parseInt(step.toString(), 10) || 0,
+			);
 			if (!customRoomAvailRef.current && fetchedFrame === null) {
-				return await defaultRoomCon.get(Number.parseInt(step.toString(), 10) || 0);
+				return await defaultRoomCon.get(
+					Number.parseInt(step.toString(), 10) || 0,
+				);
 			}
 			customRoomAvailRef.current = true;
 			return fetchedFrame;
@@ -404,7 +408,7 @@ export const setupFrames = (
 			const length = await getLengthFromCon();
 			setLength(length);
 			setCurrentFrameFromObject(frame);
-		}
+		};
 
 		updateFrame();
 
@@ -412,42 +416,41 @@ export const setupFrames = (
 			currentRoomCon.offRefresh?.();
 			defaultRoomCon.offRefresh?.();
 		};
-
 	}, [step, token, frame_update]);
-  
+
 	useEffect(() => {
-	  if (currentFrameUpdatedFromSocketRef.current === true) {
-		currentFrameUpdatedFromSocketRef.current = false;
-		return;
-	  }
-  
-	  const updateCon = async () => {
-		const con = new znsocket.List({
-		  client,
-		  key: `room:${token}:frames`,
-		});
-		if (!currentFrame.positions) {
-		  return;
+		if (currentFrameUpdatedFromSocketRef.current === true) {
+			currentFrameUpdatedFromSocketRef.current = false;
+			return;
 		}
-		// Make the frame object serializable
-		const newFrame = { ...currentFrame };
-		newFrame.positions = newFrame.positions.map((x: THREE.Vector3) => [
-		  x.x,
-		  x.y,
-		  x.z,
-		]);
-		con.set(Number.parseInt(step) || 0, {
-		  value: newFrame,
-		  _type: "ase.Atoms",
-		});
-	  };
-  
-	  // Use a debounce mechanism for updates
-	  const debounceTimeout = setTimeout(updateCon, 100);
-  
-	  return () => clearTimeout(debounceTimeout);
+
+		const updateCon = async () => {
+			const con = new znsocket.List({
+				client,
+				key: `room:${token}:frames`,
+			});
+			if (!currentFrame.positions) {
+				return;
+			}
+			// Make the frame object serializable
+			const newFrame = { ...currentFrame };
+			newFrame.positions = newFrame.positions.map((x: THREE.Vector3) => [
+				x.x,
+				x.y,
+				x.z,
+			]);
+			con.set(Number.parseInt(step) || 0, {
+				value: newFrame,
+				_type: "ase.Atoms",
+			});
+		};
+
+		// Use a debounce mechanism for updates
+		const debounceTimeout = setTimeout(updateCon, 100);
+
+		return () => clearTimeout(debounceTimeout);
 	}, [currentFrame]);
-  };
+};
 
 export const setupGeometries = (
 	token: string,
