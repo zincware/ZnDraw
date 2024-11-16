@@ -232,58 +232,80 @@ export function setupStep(
 }
 export function setupCamera(
   token: string,
-  cameraPosition: any,
-  orbitControlsTarget: any,
-  setCameraPosition: any,
-  setOrbitControlsTarget: any,
+  cameraAndControls: {camera: any, target: any},
+  setCameraAndControls: (cameraAndControls: {camera: any, target: any}) => void,
   controlsRef: any,
-  cameraRef: any,
+  // cameraRef: any,
+  synchronize_camera: boolean,
 ) {
-  let [conInterface, setConInterface]: any = useState(undefined);
-  const updateByRefreshRef = useRef(0);
-  useEffect(() => {
-    const con = new znsocket.Dict({
+  // let [conInterface, setConInterface]: any = useState(undefined);
+
+  const conInterface = useMemo(() => {
+    return new znsocket.Dict({
       client: client,
       key: "room:" + token + ":camera",
     });
-
-    con.onRefresh(async (x: any) => {
-      const items = Object.fromEntries(await con.entries());
-      console.log("camera updated externally");
-      setCameraPosition(new THREE.Vector3(...items.position));
-      setOrbitControlsTarget(new THREE.Vector3(...items.target));
-
-      updateByRefreshRef.current = 2;
-
-      if (controlsRef.current && cameraRef.current) {
-        controlsRef.current.enabled = false;
-        cameraRef.current.position.set(...items.position);
-        controlsRef.current.update();
-        controlsRef.current.enabled = true;
-      }
-    });
-
-    setConInterface(con);
-
-    return () => {
-      con.offRefresh();
-    };
   }, [token]);
+
+  const updateByRefreshRef = useRef(0);
+
+  useEffect(() => {
+    if (synchronize_camera) {
+      conInterface.onRefresh(async (x: any) => {
+        const items = Object.fromEntries(await conInterface.entries());
+        console.log("camera updated externally");
+        console.log(items);
+        setCameraAndControls({
+          camera: new THREE.Vector3(...items.position),
+          target: new THREE.Vector3(...items.target),
+        });
+        
+        // TODO
+        updateByRefreshRef.current = 2;
+  
+        if (controlsRef.current && cameraRef.current) {
+          controlsRef.current.enabled = false;
+          cameraRef.current.position.set(...items.position);
+          controlsRef.current.update();
+          controlsRef.current.enabled = true;
+        }
+      });
+    }
+   
+    return () => {
+      conInterface.offRefresh();
+    };
+  }, [token, synchronize_camera, conInterface]);
+
+  // initial load of the camera and target
+  useEffect(() => {
+    const loadInitialCamera = async () => {
+      const items = Object.fromEntries(await conInterface.entries());
+      if (items === null || items.position === undefined || items.target === undefined) {
+        return;
+      }
+      console.log("initial camera update");
+      setCameraAndControls({
+        camera: new THREE.Vector3(...items.position),
+        target: new THREE.Vector3(...items.target),
+      });
+    };
+
+    loadInitialCamera();
+  }, [conInterface, setCameraAndControls]);
 
   useEffect(() => {
     const updateCon = async () => {
-      if (conInterface === undefined) {
-        return;
-      }
       if (updateByRefreshRef.current > 0) {
         // this is triggered twice because of camera and orbit target
         // TODO: this is not reliable yet!
         updateByRefreshRef.current -= 1;
         return;
       }
-      // TODO: use conInterface.update
-      conInterface.set("position", cameraPosition.toArray());
-      conInterface.set("target", orbitControlsTarget.toArray());
+      conInterface.update({
+        position: cameraAndControls.camera.toArray(),
+        target: cameraAndControls.target.toArray(),
+      });
     };
 
     // Set a delay of 100ms before calling `updateCon`
@@ -291,7 +313,7 @@ export function setupCamera(
 
     // Clear the timeout if `points` changes within the 100ms
     return () => clearTimeout(debounceTimeout);
-  }, [cameraPosition, orbitControlsTarget, conInterface]);
+  }, [cameraAndControls, conInterface]);
 }
 
 export const setupFrames = (

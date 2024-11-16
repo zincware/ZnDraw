@@ -30,6 +30,7 @@ import { Plotting } from "./components/plotting";
 import * as znsocket from "znsocket";
 
 import { Canvas, useFrame } from "@react-three/fiber";
+import CameraAndControls from "./components/cameraAndControls";
 import {
   OrbitControls,
   PerspectiveCamera,
@@ -63,13 +64,13 @@ const MoveCameraTarget = ({
   const longDimension = 0.5;
 
   // Update the controlsCrosshair position to match the orbit controls target
-  useFrame(() => {
-    if (controlsCrosshairRef.current && controlsRef.current) {
-      const crosshair = controlsCrosshairRef.current;
-      const target = controlsRef.current.target;
-      crosshair.position.copy(target);
-    }
-  });
+  // useFrame(() => {
+  //   if (controlsCrosshairRef.current && controlsRef.current) {
+  //     const crosshair = controlsCrosshairRef.current;
+  //     const target = controlsRef.current.target;
+  //     crosshair.position.copy(target);
+  //   }
+  // });
 
   return (
     <group ref={controlsCrosshairRef}>
@@ -131,12 +132,10 @@ export default function App() {
   );
   const [roomName, setRoomName] = useState<string>("");
   const [geometries, setGeometries] = useState<any>([]);
-  const [orbitControlsTarget, setOrbitControlsTarget] = useState<THREE.Vector3>(
-    new THREE.Vector3(0, 0, 0),
-  );
-  const [cameraPosition, setCameraPosition] = useState<THREE.Vector3>(
-    new THREE.Vector3(0, 0, 0),
-  );
+  const [cameraAndControls, setCameraAndControls] = useState<any>({
+    camera: new THREE.Vector3(0, 0, 0),
+    target: new THREE.Vector3(0, 0, 0),
+  });
   // TODO: initial values are wrong for orbitcontrolstarget and camperaPosition
   // todo give to particles and bonds
   const [colorMode, handleColorMode] = useColorMode();
@@ -171,6 +170,7 @@ export default function App() {
       frame_update: true,
       crosshair: false,
       floor: false,
+      synchronize_camera: false,
     },
     PathTracer: {
       enabled: false,
@@ -188,7 +188,6 @@ export default function App() {
   // QUEUES
   // TODO: fix
   const [modifierQueue, setModifierQueue] = useState<number>(-1);
-  const [triggerSelection, setTriggerSelection] = useState<boolean>(false);
 
   const cameraLightRef = useRef<THREE.PointLight>(null);
   const controlsRef = useRef<TransformControls>(null);
@@ -215,12 +214,11 @@ export default function App() {
   setupStep(token, setStep, step);
   setupCamera(
     token,
-    cameraPosition,
-    orbitControlsTarget,
-    setCameraPosition,
-    setOrbitControlsTarget,
+    cameraAndControls,
+    setCameraAndControls,
     controlsRef,
     cameraRef,
+    roomConfig["scene"]["synchronize_camera"],
   );
   setupFrames(
     token,
@@ -289,45 +287,45 @@ export default function App() {
 
   // camera roll
 
-  useEffect(() => {
-    if (controlsRef.current && cameraRef.current) {
-      const camera = cameraRef.current;
-      if (camera) {
-        controlsRef.current.enabled = false;
-        // y direction
-        var yDir = new THREE.Vector3(0, 1, 0);
-        if (cameraRoll === null) {
-          camera.up.copy(yDir);
-        } else {
-          // test case to roll the camera normal to screen
+  // useEffect(() => {
+  //   if (controlsRef.current && cameraRef.current) {
+  //     const camera = cameraRef.current;
+  //     if (camera) {
+  //       controlsRef.current.enabled = false;
+  //       // y direction
+  //       var yDir = new THREE.Vector3(0, 1, 0);
+  //       if (cameraRoll === null) {
+  //         camera.up.copy(yDir);
+  //       } else {
+  //         // test case to roll the camera normal to screen
 
-          // direction camera is looking to
-          var looksTo = new THREE.Vector3();
-          camera.getWorldDirection(looksTo);
+  //         // direction camera is looking to
+  //         var looksTo = new THREE.Vector3();
+  //         camera.getWorldDirection(looksTo);
 
-          // direction perpendicular to both yDir and looksTo
-          var b = new THREE.Vector3();
-          b.crossVectors(yDir, looksTo).normalize();
+  //         // direction perpendicular to both yDir and looksTo
+  //         var b = new THREE.Vector3();
+  //         b.crossVectors(yDir, looksTo).normalize();
 
-          // direction perpendicular to both looksTo and b
-          var n = new THREE.Vector3();
-          n.crossVectors(looksTo, b).normalize();
+  //         // direction perpendicular to both looksTo and b
+  //         var n = new THREE.Vector3();
+  //         n.crossVectors(looksTo, b).normalize();
 
-          // make a circle in the plane with vectors b and n
-          n.multiplyScalar(Math.cos(cameraRoll)).add(
-            b.multiplyScalar(Math.sin(cameraRoll)),
-          );
+  //         // make a circle in the plane with vectors b and n
+  //         n.multiplyScalar(Math.cos(cameraRoll)).add(
+  //           b.multiplyScalar(Math.sin(cameraRoll)),
+  //         );
 
-          // set camera up
-          camera.up.set(n.x, n.y, n.z);
-        }
+  //         // set camera up
+  //         camera.up.set(n.x, n.y, n.z);
+  //       }
 
-        controlsRef.current.update();
-        controlsRef.current.enabled = true;
-        cameraRef.current.updateProjectionMatrix();
-      }
-    }
-  }, [cameraRoll]);
+  //       controlsRef.current.update();
+  //       controlsRef.current.enabled = true;
+  //       cameraRef.current.updateProjectionMatrix();
+  //     }
+  //   }
+  // }, [cameraRoll]);
 
   useEffect(() => {
     // page initialization
@@ -458,11 +456,18 @@ export default function App() {
         }
       } else if (event.key == "c") {
         if (selectedPoint !== null) {
-          setOrbitControlsTarget(selectedPoint);
+          setCameraAndControls((prev: any) => ({
+            ...prev,
+            target: selectedPoint,
+          }));
         } else {
           if (currentFrame.positions.length > 0) {
             const center = getCentroid(currentFrame.positions, selectedIds);
-            setOrbitControlsTarget(center);
+            console.log(center);
+            setCameraAndControls((prev: any) => ({
+              ...prev,
+              target: center,
+            }));
           }
         }
       } else if (event.key == "o") {
@@ -470,15 +475,14 @@ export default function App() {
           position: [10, 10, 10],
           target: getCentroid(currentFrame.positions, new Set()),
         };
-        setOrbitControlsTarget(new THREE.Vector3(...origin.target));
-        setCameraPosition(new THREE.Vector3(...origin.position));
-        if (controlsRef.current && cameraRef.current) {
-          controlsRef.current.enabled = false;
-          cameraRef.current.position.set(...origin.position);
-          setCameraRoll(null);
-          controlsRef.current.update();
-          controlsRef.current.enabled = true;
-        }
+        setCameraAndControls({camera: new THREE.Vector3(...origin.position), target: new THREE.Vector3(...origin.target)});
+        // if (controlsRef.current && cameraRef.current) {
+        //   controlsRef.current.enabled = false;
+        //   cameraRef.current.position.set(...origin.position);
+        //   setCameraRoll(null);
+        //   controlsRef.current.update();
+        //   controlsRef.current.enabled = true;
+        // }
       } else if (event.key == "r") {
         const roll = Math.PI / 100;
         if (event.ctrlKey) {
@@ -568,8 +572,8 @@ export default function App() {
   return (
     <>
       <div className="canvas-container" onDragOver={onDragOver} onDrop={onDrop}>
-        {roomConfig.scene.controls !== undefined && (
           <Canvas onPointerMissed={onPointerMissed} shadows>
+            <CameraAndControls roomConfig={roomConfig} cameraAndControls={cameraAndControls} setCameraAndControls={setCameraAndControls} currentFrame={currentFrame} selectedIds={selectedIds}/>
             <Pathtracer enabled={roomConfig.PathTracer.enabled}>
               {roomConfig.PathTracer.enabled &&
                 roomConfig.PathTracer.environment !== "none" && (
@@ -603,31 +607,6 @@ export default function App() {
                 <directionalLight position={[0, 100, 0]} intensity={1.0} />
               )}
 
-              {roomConfig["scene"].camera === "PerspectiveCamera" && (
-                <PerspectiveCamera
-                  ref={cameraRef}
-                  makeDefault
-                  near={roomConfig["scene"]["camera_near"]}
-                  far={roomConfig["scene"]["camera_far"]}
-                  position={[10, 10, 10]}
-                />
-              )}
-              {roomConfig["scene"].camera === "OrthographicCamera" && (
-                <OrthographicCamera
-                  ref={cameraRef}
-                  makeDefault
-                  near={roomConfig["scene"]["camera_near"]}
-                  far={roomConfig["scene"]["camera_far"]}
-                  position={[10, 10, 10]}
-                  zoom={10}
-                />
-              )}
-              <pointLight
-                ref={cameraLightRef}
-                position={[11, 11, 11]}
-                decay={0}
-                intensity={Math.PI / 2}
-              />
               {roomConfig["scene"]["vectorfield"] &&
                 currentFrame.vectors !== undefined && (
                   <VectorField
@@ -715,50 +694,6 @@ export default function App() {
                 !roomConfig.PathTracer.enabled && (
                   <SimulationCell frame={currentFrame} colorMode={colorMode} />
                 )}
-              {roomConfig["scene"].controls === "OrbitControls" && (
-                <OrbitControls
-                  ref={controlsRef}
-                  enableDamping={false}
-                  target={orbitControlsTarget}
-                  onChange={(e) => {
-                    if (!e) return;
-                    const camera = e.target.object;
-                    if (cameraLightRef.current) {
-                      cameraLightRef.current.position
-                        .copy(camera.position)
-                        .sub(orbitControlsTarget)
-                        .normalize()
-                        .add(camera.position);
-                    }
-                    setCameraPosition(
-                      new THREE.Vector3().copy(camera.position),
-                    );
-                  }}
-                  makeDefault
-                />
-              )}
-              {roomConfig["scene"].controls === "TrackballControls" && (
-                <TrackballControls
-                  ref={controlsRef}
-                  target={orbitControlsTarget}
-                  staticMoving={true}
-                  onChange={(e) => {
-                    if (!e) return;
-                    const camera = e.target.object;
-                    if (cameraLightRef.current) {
-                      cameraLightRef.current.position
-                        .copy(camera.position)
-                        .sub(orbitControlsTarget)
-                        .normalize()
-                        .add(camera.position);
-                    }
-                    setCameraPosition(
-                      new THREE.Vector3().copy(camera.position),
-                    );
-                  }}
-                  makeDefault
-                />
-              )}
               {roomConfig["scene"].crosshair && (
                 <MoveCameraTarget
                   controlsRef={controlsRef}
@@ -820,7 +755,6 @@ export default function App() {
                 ))}
             </Pathtracer>
           </Canvas>
-        )}
       </div>
       <div className="App">
         <HeadBar
