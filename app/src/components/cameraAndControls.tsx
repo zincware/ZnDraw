@@ -17,6 +17,10 @@ import { debounce } from "lodash";
 import { useCentroid, getCentroid } from "./particlesEditor";
 import { Box } from "@react-three/drei";
 
+const zeroVector = new THREE.Vector3(0, 0, 0);
+const upVector = new THREE.Vector3(0, 1, 0);
+console.log("upVector", upVector);
+
 const MoveCameraTarget = forwardRef(
   ({ colorMode }: { colorMode: string }, ref: React.Ref<THREE.Group>) => {
     const shortDimension = 0.05;
@@ -106,7 +110,6 @@ const CameraAndControls: React.FC<CameraAndControlsProps> = ({
       return;
     }
 
-    const yDir = new THREE.Vector3(0, 1, 0); // Global Y-axis
     console.log("Rolling camera by", angle);
 
     // Get the current direction the camera is looking
@@ -115,7 +118,7 @@ const CameraAndControls: React.FC<CameraAndControlsProps> = ({
 
     // Calculate the rotation axis (perpendicular to both yDir and looksTo)
     const rotationAxis = new THREE.Vector3();
-    rotationAxis.crossVectors(yDir, looksTo).normalize();
+    rotationAxis.crossVectors(upVector, looksTo).normalize();
 
     // Compute the quaternion for the roll rotation
     const quaternion = new THREE.Quaternion();
@@ -150,7 +153,11 @@ const CameraAndControls: React.FC<CameraAndControlsProps> = ({
     });
 
     const fov = (cameraRef.current.fov * Math.PI) / 180; // Convert FOV to radians
-    const distance = maxDistance / Math.tan(fov / 2);
+    let distance = maxDistance / Math.tan(fov / 2);
+    // if distance is NaN, return - happens for OrthographicCamera
+    if (isNaN(distance)) {
+      distance = 0;
+    }
 
     return {
       camera: new THREE.Vector3(distance, distance, distance),
@@ -161,8 +168,8 @@ const CameraAndControls: React.FC<CameraAndControlsProps> = ({
   // if the camera positions and target positions is default, adapt them to the scene
   useEffect(() => {
     if (
-      cameraAndControls.camera.equals(new THREE.Vector3(0, 0, 0)) &&
-      cameraAndControls.target.equals(new THREE.Vector3(0, 0, 0))
+      cameraAndControls.camera.equals(zeroVector) &&
+      cameraAndControls.target.equals(zeroVector)
     ) {
       const resetCamera = getResetCamera();
       if (resetCamera) {
@@ -170,6 +177,14 @@ const CameraAndControls: React.FC<CameraAndControlsProps> = ({
       }
     }
   }, [currentFrame.positions]);
+
+  // if the camera changes, run resetCamera
+  useEffect(() => {
+    const resetCamera = getResetCamera();
+    if (resetCamera) {
+      setCameraAndControls(resetCamera);
+    }
+  }, [roomConfig.scene.camera]);
 
   useEffect(() => {
     if (!cameraRef.current || !controlsRef.current) {
@@ -199,6 +214,14 @@ const CameraAndControls: React.FC<CameraAndControlsProps> = ({
         if (resetCamera) {
           setCameraAndControls(resetCamera);
         }
+        // reset the camera roll
+        if (cameraRef.current) {
+          cameraRef.current.up.copy(upVector);
+          cameraRef.current.updateProjectionMatrix();
+          if (controlsRef.current) {
+            controlsRef.current.update();
+          }
+        }
       } else if (event.key == "r") {
         const roll = Math.PI / 100;
         if (event.ctrlKey) {
@@ -221,15 +244,18 @@ const CameraAndControls: React.FC<CameraAndControlsProps> = ({
   return (
     <>
       {roomConfig.scene.camera === "OrthographicCamera" && (
-        <OrthographicCamera makeDefault ref={cameraRef}>
+        <OrthographicCamera makeDefault ref={cameraRef} zoom={10} near={roomConfig["scene"]["camera_near"]}
+        far={roomConfig["scene"]["camera_far"]}>
           <pointLight decay={0} intensity={Math.PI / 2} />
         </OrthographicCamera>
       )}
       {roomConfig.scene.camera === "PerspectiveCamera" && (
-        <PerspectiveCamera makeDefault ref={cameraRef}>
+        <PerspectiveCamera makeDefault ref={cameraRef} near={roomConfig["scene"]["camera_near"]}
+        far={roomConfig["scene"]["camera_far"]}>
           <pointLight decay={0} intensity={Math.PI / 2} />
         </PerspectiveCamera>
       )}
+      {roomConfig.scene.controls === "OrbitControls" && (
       <OrbitControls
         makeDefault
         onEnd={controlsOnEndFn}
@@ -237,9 +263,19 @@ const CameraAndControls: React.FC<CameraAndControlsProps> = ({
         enableDamping={false}
         ref={controlsRef}
       />
+      )}
+      {roomConfig.scene.controls === "TrackballControls" && (
+        <TrackballControls
+          makeDefault
+          onEnd={controlsOnEndFn}
+          onChange={controlsOnChangeFn}
+          ref={controlsRef}
+        />
+      )}
       {roomConfig["scene"].crosshair && controlsRef.current.target && (
         <MoveCameraTarget colorMode={colorMode} ref={crossHairRef} />
       )}
+      
     </>
   );
 };
