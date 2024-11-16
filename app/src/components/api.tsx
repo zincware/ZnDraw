@@ -321,131 +321,133 @@ export const setupFrames = (
 	setLength: any,
 	setStep: any,
 	frame_update: boolean,
-) => {
+  ) => {
 	const currentFrameUpdatedFromSocketRef = useRef(true);
-
+	const customRoomAvailRef = useRef(false); // Track whether listening to the default room
+  
 	const setCurrentFrameFromObject = (frame: any) => {
-		frame = frame.value;
-		frame.positions = frame.positions.map(
-			(position: [number, number, number]) =>
-				new THREE.Vector3(position[0], position[1], position[2]),
-		) as THREE.Vector3[];
-		setCurrentFrame(frame);
-		currentFrameUpdatedFromSocketRef.current = true;
+	  frame = frame.value;
+	  frame.positions = frame.positions.map(
+		(position: [number, number, number]) =>
+		  new THREE.Vector3(position[0], position[1], position[2]),
+	  ) as THREE.Vector3[];
+	  console.log("frame updated");
+	  setCurrentFrame(frame);
+	  currentFrameUpdatedFromSocketRef.current = true;
 	};
 
-	useEffect(() => {
-		let isMounted = true;
-		let con: znsocket.List;
-	  
+	useEffect(() => {	
 		if (token === "") {
-		  return;
-		}
-	  
-		const fetchFrame = async () => {
-		  try {
-			let fetchedFrame = await con.get(Number.parseInt(step.toString(), 10) || 0);
-	  
-			if (fetchedFrame === null) {
-			  // Switch to default room if no frame is found
-			  con = new znsocket.List({
-				client,
-				key: "room:default:frames",
-			  });
-			  fetchedFrame = await con.get(Number.parseInt(step.toString(), 10) || 0);
-			}
-	  
-			if (fetchedFrame === null) {
-			  // Retry after 100 ms if still null
-			  if (isMounted) {
-				setTimeout(fetchFrame, 100);
-			  }
-			  return;
-			}
-	  
-			// Frame handling
-			setCurrentFrameFromObject(fetchedFrame);
-			const length = await con.length();
-			setLength(length);
-		  } catch (error) {
-			console.error("Error fetching frame:", error);
-			if (isMounted) {
-			  // Retry after 100 ms in case of an error
-			  setTimeout(fetchFrame, 100);
-			}
-		  }
-		};
-	  
-		const handleRefresh = async (x: any) => {
-		  const length = await con.length();
-		  setLength(length);
-
-		  if (frame_update) {
-			console.log("frame updated externally");
-			if (x?.start <= step) {
-			  setStep(x.start);
-			} else if (x?.indices?.includes(step)) {
-			  await fetchFrame(); // Retry fetching frame
-			}
-		  }
-		};
-	  
-		(async () => {
-		  con = new znsocket.List({
-			client,
-			key: `room:${token}:frames`,
-		  });
-	  
-		  fetchFrame();
-	  
-		  // Register `onRefresh` listener
-		  if (isMounted) {
-			con.onRefresh(handleRefresh);
-		  }
-		})();
-	  
-		return () => {
-		  isMounted = false;
-		  if (con) {
-			con.offRefresh?.(); // Clean up `onRefresh`
-		  }
-		};
-	  }, [step, token, client]);
-
-	useEffect(() => {
-		if (currentFrameUpdatedFromSocketRef.current === true) {
-			currentFrameUpdatedFromSocketRef.current = false;
 			return;
 		}
 
-		const updateCon = async () => {
-			const con = new znsocket.List({
-				client,
-				key: `room:${token}:frames`,
-			  });
-			if (!currentFrame.positions) {
-				return;
+		// isn't it expensive to do this in the useEffect, step is updated quite often
+		let currentRoomCon = new znsocket.List({
+			client,
+			key: `room:${token}:frames`,
+		});
+
+		currentRoomCon.onRefresh(async (x: any) => {
+			if (x?.start > step && frame_update) {
+				setStep(x.start);
+			} else if (x?.start === step) {
+				setStep(x.start);
+			} else if (x?.indices?.includes(step)) {
+				const frame = await currentRoomCon.get(step);
+				setCurrentFrameFromObject(frame);
 			}
-			// make the frame object serializable
-			const newFrame = { ...currentFrame };
-			newFrame.positions = newFrame.positions.map((x: THREE.Vector3) => [
-				x.x,
-				x.y,
-				x.z,
-			]);
-			// TODO: need to make a copy of the default room :/ Maybe when entering edit mode, send a message
-			con.set(Number.parseInt(step) || 0, {
-				value: newFrame,
-				_type: "ase.Atoms",
-			});
+			const length = await currentRoomCon.length();
+			setLength(length);
+		});
+
+		let defaultRoomCon = new znsocket.List({
+			client,
+			key: "room:default:frames",
+		});
+		defaultRoomCon.onRefresh(async (x: any) => {
+			if (x?.start > step && frame_update) {
+				setStep(x.start);
+			} else if (x?.start === step) {
+				setStep(x.start);
+			} else if (x?.indices?.includes(step)) {
+				const frame = await defaultRoomCon.get(step);
+				setCurrentFrameFromObject(frame);
+			}
+			const length = await defaultRoomCon.length();
+			setLength(length);
+		});
+
+		const getFrameFromCon = async () => {
+			let fetchedFrame = await currentRoomCon.get(Number.parseInt(step.toString(), 10) || 0);
+			if (!customRoomAvailRef.current && fetchedFrame === null) {
+				return await defaultRoomCon.get(Number.parseInt(step.toString(), 10) || 0);
+			}
+			customRoomAvailRef.current = true;
+			return fetchedFrame;
 		};
 
-		// this can be an issue with the editor. Edit and then switch frame will mess this up!
-		const debounceTimeout = setTimeout(updateCon, 100);
+		const getLengthFromCon = async () => {
+			let length = await currentRoomCon.length();
+			if (!customRoomAvailRef.current && length === 0) {
+				return await defaultRoomCon.length();
+			}
+			customRoomAvailRef.current = true;
+			return length;
+		};
 
-		return () => clearTimeout(debounceTimeout);
+		const updateFrame = async () => {
+			const frame = await getFrameFromCon();
+			if (frame === null) {
+				// Retry after 100 ms if still null
+				setTimeout(() => updateFrame(), 100);
+			}
+			const length = await getLengthFromCon();
+			setLength(length);
+			setCurrentFrameFromObject(frame);
+		}
+
+		updateFrame();
+
+		return () => {
+			currentRoomCon.offRefresh?.();
+			defaultRoomCon.offRefresh?.();
+		};
+
+	}, [step, token, frame_update]);
+  
+	useEffect(() => {
+	  if (currentFrameUpdatedFromSocketRef.current === true) {
+		currentFrameUpdatedFromSocketRef.current = false;
+		return;
+	  }
+  
+	  const updateCon = async () => {
+		const con = new znsocket.List({
+		  client,
+		  key: `room:${token}:frames`,
+		});
+		if (!currentFrame.positions) {
+		  return;
+		}
+		// Make the frame object serializable
+		const newFrame = { ...currentFrame };
+		newFrame.positions = newFrame.positions.map((x: THREE.Vector3) => [
+		  x.x,
+		  x.y,
+		  x.z,
+		]);
+		con.set(Number.parseInt(step) || 0, {
+		  value: newFrame,
+		  _type: "ase.Atoms",
+		});
+	  };
+  
+	  // Use a debounce mechanism for updates
+	  const debounceTimeout = setTimeout(updateCon, 100);
+  
+	  return () => clearTimeout(debounceTimeout);
 	}, [currentFrame]);
-};
+  };
 
 export const setupGeometries = (
 	token: string,
