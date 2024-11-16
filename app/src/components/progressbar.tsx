@@ -277,7 +277,6 @@ const FrameProgressBar: React.FC<FrameProgressBarProps> = ({
 	}, [selectedFrames, length]);
 
 	const handleSelectionReset = () => {
-		console.log("toggle selection");
 		setSelectedFrames((prev) => ({
 			indices: prev.indices,
 			active: !prev.active,

@@ -500,7 +500,6 @@ function RemoteFileModal({ show, onHide, colorMode }: any) {
 			{ remote: remoteRepoRef.current, rev: remoteRevRef.current },
 			(data: string[]) => {
 				setAvailableNodes(data);
-				console.log(data);
 				setLoading(false);
 			},
 		);
@@ -517,7 +516,6 @@ function RemoteFileModal({ show, onHide, colorMode }: any) {
 					name: selectedNode,
 				},
 				(data: string[][]) => {
-					console.log(data);
 					setLoading(false);
 					setSelectedNodeAttributes(data);
 				},

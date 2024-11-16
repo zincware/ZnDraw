@@ -19,7 +19,6 @@ import { getCentroid, useCentroid } from "./particlesEditor";
 
 const zeroVector = new THREE.Vector3(0, 0, 0);
 const upVector = new THREE.Vector3(0, 1, 0);
-console.log("upVector", upVector);
 
 const MoveCameraTarget = forwardRef(
 	({ colorMode }: { colorMode: string }, ref: React.Ref<THREE.Group>) => {
@@ -109,9 +108,6 @@ const CameraAndControls: React.FC<CameraAndControlsProps> = ({
 		if (!cameraRef.current) {
 			return;
 		}
-
-		console.log("Rolling camera by", angle);
-
 		// Get the current direction the camera is looking
 		const looksTo = new THREE.Vector3();
 		cameraRef.current.getWorldDirection(looksTo);

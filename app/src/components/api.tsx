@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import * as znsocket from "znsocket";
 import { client } from "../socket";
+import { debounce } from "lodash";
 
 export function setupBookmarks(
 	token: string,
@@ -163,7 +164,7 @@ export function setupSelection(
 		if (updateByRefreshRef.current) {
 			updateByRefreshRef.current = false;
 		} else {
-			updateCon();
+			debounce(updateCon, 100)();
 		}
 	}, [selectedIds]);
 }
@@ -255,7 +256,6 @@ export function setupCamera(
 			conInterface.onRefresh(async (x: any) => {
 				const items = Object.fromEntries(await conInterface.entries());
 				console.log("camera updated externally");
-				console.log(items);
 				setCameraAndControls({
 					camera: new THREE.Vector3(...items.position),
 					target: new THREE.Vector3(...items.target),
@@ -282,7 +282,6 @@ export function setupCamera(
 			) {
 				return;
 			}
-			console.log("initial camera update");
 			setCameraAndControls({
 				camera: new THREE.Vector3(...items.position),
 				target: new THREE.Vector3(...items.target),
@@ -512,7 +511,6 @@ export const setupGeometries = (
 				});
 			}
 			updateByRefreshRef.current = true;
-			console.log(geometries);
 			setGeometries(geometries);
 		});
 
