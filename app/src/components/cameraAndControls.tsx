@@ -150,6 +150,35 @@ const CameraAndControls: React.FC<CameraAndControlsProps> = ({
     controlsRef.current.update();
   }, [cameraAndControls]);
 
+  // keyboard controls
+  useEffect(() => {
+    // page initialization
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      // if canvas is not focused, don't do anything
+      if (document.activeElement !== document.body) {
+        return;
+      }
+      if (event.key == "c") {
+        setCameraAndControls((prev: any) => ({
+          ...prev,
+          target: centroid,
+        }));
+    };
+  }
+
+    // Add the event listener
+    window.addEventListener("keydown", handleKeyDown);
+
+    // Clean up the event listener on unmount
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [
+    currentFrame,
+    selectedIds,
+  ]);
+
   return (
     <>
       {roomConfig.scene.camera === "OrthographicCamera" && (

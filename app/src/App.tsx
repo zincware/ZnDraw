@@ -406,22 +406,6 @@ export default function App() {
             socket.emit("room:worker:run");
           }
         }
-      } else if (event.key == "c") {
-        if (selectedPoint !== null) {
-          setCameraAndControls((prev: any) => ({
-            ...prev,
-            target: selectedPoint,
-          }));
-        } else {
-          if (currentFrame.positions.length > 0) {
-            const center = getCentroid(currentFrame.positions, selectedIds);
-            console.log(center);
-            setCameraAndControls((prev: any) => ({
-              ...prev,
-              target: center,
-            }));
-          }
-        }
       } else if (event.key == "o") {
         const origin = {
           position: [10, 10, 10],
