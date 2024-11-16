@@ -237,8 +237,6 @@ export function setupCamera(
     camera: any;
     target: any;
   }) => void,
-  controlsRef: any,
-  // cameraRef: any,
   synchronize_camera: boolean,
 ) {
   // let [conInterface, setConInterface]: any = useState(undefined);
@@ -265,11 +263,6 @@ export function setupCamera(
 
         // TODO
         updateByRefreshRef.current = true;
-
-        if (controlsRef.current && cameraRef.current) {
-          cameraRef.current.position.set(...items.position);
-          controlsRef.current.update();
-        }
       });
     }
 

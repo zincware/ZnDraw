@@ -52,52 +52,6 @@ import { useColorMode } from "./components/utils";
 import { IndicesState } from "./components/utils";
 import { Floor } from "./components/floor";
 
-const MoveCameraTarget = ({
-  controlsRef,
-  colorMode,
-}: {
-  controlsRef: any;
-  colorMode: string;
-}) => {
-  const controlsCrosshairRef = useRef<THREE.Object3D>(null);
-  const shortDimension = 0.05;
-  const longDimension = 0.5;
-
-  // Update the controlsCrosshair position to match the orbit controls target
-  // useFrame(() => {
-  //   if (controlsCrosshairRef.current && controlsRef.current) {
-  //     const crosshair = controlsCrosshairRef.current;
-  //     const target = controlsRef.current.target;
-  //     crosshair.position.copy(target);
-  //   }
-  // });
-
-  return (
-    <group ref={controlsCrosshairRef}>
-      {/* X axis box */}
-      <Box scale={[longDimension, shortDimension, shortDimension]}>
-        <meshStandardMaterial
-          color={colorMode == "light" ? "#454b66" : "#f5fdc6"}
-        />
-      </Box>
-
-      {/* Y axis box */}
-      <Box scale={[shortDimension, longDimension, shortDimension]}>
-        <meshStandardMaterial
-          color={colorMode == "light" ? "#454b66" : "#f5fdc6"}
-        />
-      </Box>
-
-      {/* Z axis box */}
-      <Box scale={[shortDimension, shortDimension, longDimension]}>
-        <meshStandardMaterial
-          color={colorMode == "light" ? "#454b66" : "#f5fdc6"}
-        />
-      </Box>
-    </group>
-  );
-};
-
 export default function App() {
   // const [isConnected, setIsConnected] = useState(socket.connected);
   // const [fooEvents, setFooEvents] = useState([]);
@@ -170,7 +124,7 @@ export default function App() {
       frame_update: true,
       crosshair: false,
       floor: false,
-      synchronize_camera: false,
+      synchronize_camera: true,
     },
     PathTracer: {
       enabled: false,
@@ -216,8 +170,6 @@ export default function App() {
     token,
     cameraAndControls,
     setCameraAndControls,
-    controlsRef,
-    cameraRef,
     roomConfig["scene"]["synchronize_camera"],
   );
   setupFrames(
@@ -582,6 +534,7 @@ export default function App() {
             setCameraAndControls={setCameraAndControls}
             currentFrame={currentFrame}
             selectedIds={selectedIds}
+            colorMode={colorMode}
           />
           <Pathtracer enabled={roomConfig.PathTracer.enabled}>
             {roomConfig.PathTracer.enabled &&
@@ -697,12 +650,6 @@ export default function App() {
               !roomConfig.PathTracer.enabled && (
                 <SimulationCell frame={currentFrame} colorMode={colorMode} />
               )}
-            {roomConfig["scene"].crosshair && (
-              <MoveCameraTarget
-                controlsRef={controlsRef}
-                colorMode={colorMode}
-              />
-            )}
             <Player
               playing={playing}
               togglePlaying={setPlaying}

@@ -75,7 +75,7 @@ class Scene(BaseModel):
         description="Show the floor.",
     )
     synchronize_camera: bool = Field(
-        False,
+        True,
         description="Synchronize camera with other room members.",
     )
     # bonds: bool = Field(

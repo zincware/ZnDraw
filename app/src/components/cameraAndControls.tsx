@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, forwardRef } from "react";
 import {
   PerspectiveCamera,
   OrthographicCamera,
@@ -8,6 +8,44 @@ import {
 import * as THREE from "three";
 import { debounce } from "lodash";
 import { useCentroid } from "./particlesEditor";
+import { Box } from "@react-three/drei";
+
+
+const MoveCameraTarget = forwardRef(
+  (
+    { colorMode }: { colorMode: string },
+    ref: React.Ref<THREE.Group>
+  ) => {
+    const shortDimension = 0.05;
+    const longDimension = 0.5;
+
+    return (
+      <group ref={ref}>
+        {/* X axis box */}
+        <Box scale={[longDimension, shortDimension, shortDimension]}>
+          <meshStandardMaterial
+            color={colorMode == "light" ? "#454b66" : "#f5fdc6"}
+          />
+        </Box>
+
+        {/* Y axis box */}
+        <Box scale={[shortDimension, longDimension, shortDimension]}>
+          <meshStandardMaterial
+            color={colorMode == "light" ? "#454b66" : "#f5fdc6"}
+          />
+        </Box>
+
+        {/* Z axis box */}
+        <Box scale={[shortDimension, shortDimension, longDimension]}>
+          <meshStandardMaterial
+            color={colorMode == "light" ? "#454b66" : "#f5fdc6"}
+          />
+        </Box>
+      </group>
+    );
+  }
+);
+
 
 type CameraAndControls = {
   camera: THREE.Vector3;
@@ -20,6 +58,7 @@ type CameraAndControlsProps = {
   setCameraAndControls: React.Dispatch<React.SetStateAction<CameraAndControls>>;
   currentFrame: any;
   selectedIds: Set<number>;
+  colorMode: string;
 };
 
 const CameraAndControls: React.FC<CameraAndControlsProps> = ({
@@ -28,6 +67,7 @@ const CameraAndControls: React.FC<CameraAndControlsProps> = ({
   setCameraAndControls,
   currentFrame,
   selectedIds,
+  colorMode,
 }) => {
   const cameraRef = useRef<any>(null);
   const controlsRef = useRef<any>(null);
@@ -35,6 +75,19 @@ const CameraAndControls: React.FC<CameraAndControlsProps> = ({
     frame: currentFrame,
     selectedIds: selectedIds,
   });
+
+  // need this extra for the crosshair
+  const crossHairRef = useRef<any>(null);
+
+  const controlsOnChangeFn = useCallback(
+    (e: any) => {
+      if (!crossHairRef.current) {
+        return;
+      }
+      crossHairRef.current.position.copy(e.target.target);
+    },
+    [],
+  );
 
   const controlsOnEndFn = useCallback(
     debounce(() => {
@@ -82,8 +135,6 @@ const CameraAndControls: React.FC<CameraAndControlsProps> = ({
       const fov = (cameraRef.current.fov * Math.PI) / 180; // Convert FOV to radians
       const distance = maxDistance / Math.tan(fov / 2);
 
-      console.log("cameraAndControls default", cameraAndControls);
-      console.log("centroid", centroid);
       setCameraAndControls({
         camera: new THREE.Vector3(distance, distance, distance),
         target: centroid,
@@ -95,7 +146,6 @@ const CameraAndControls: React.FC<CameraAndControlsProps> = ({
     if (!cameraRef.current || !controlsRef.current) {
       return;
     }
-    console.log("cameraAndControls update", cameraAndControls);
     cameraRef.current.position.copy(cameraAndControls.camera);
     controlsRef.current.target.copy(cameraAndControls.target);
     controlsRef.current.update();
@@ -116,9 +166,16 @@ const CameraAndControls: React.FC<CameraAndControlsProps> = ({
       <OrbitControls
         makeDefault
         onEnd={controlsOnEndFn}
+        onChange={controlsOnChangeFn}
         enableDamping={false}
         ref={controlsRef}
       />
+      {roomConfig["scene"].crosshair && controlsRef.current.target && (
+        <MoveCameraTarget
+          colorMode={colorMode}
+          ref={crossHairRef}
+        />
+      )}
     </>
   );
 };
