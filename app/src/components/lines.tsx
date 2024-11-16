@@ -233,7 +233,9 @@ export const VirtualCanvas = ({
 			updatePlaneSize();
 			// if nothing is hovered, the canvas should be visible
 			canvasRef.current.visible =
-				hoveredId == null || hoveredId === canvasRef.current || hoveredId === -1;
+				hoveredId == null ||
+				hoveredId === canvasRef.current ||
+				hoveredId === -1;
 		}
 
 		if (points.length >= 2) {

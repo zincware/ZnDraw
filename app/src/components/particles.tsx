@@ -174,7 +174,7 @@ export const ParticleInstances = ({
 				// -1 means no hover
 				return new Set();
 			}
-				return new Set([visibleIndices]);
+			return new Set([visibleIndices]);
 		}
 		return (
 			visibleIndices ??
@@ -610,37 +610,37 @@ export const PerParticleVectors: React.FC<PerParticleVectorsProps> = ({
 			setVectors([]);
 			return;
 		}
-			let frameData;
-			if (property in frame.calc) {
-				frameData = frame.calc[property];
-			} else if (property in frame.arrays) {
-				frameData = frame.arrays[property];
-			} else {
-				console.error(`Property ${property} not found in frame`);
-				setVectors([]);
-				return;
-			}
-			if (frameData.length !== frame.positions.length) {
-				console.error(
-					`Length of property ${property} does not match the number of particles`,
-				);
-				setVectors([]);
-				return;
-			}
+		let frameData;
+		if (property in frame.calc) {
+			frameData = frame.calc[property];
+		} else if (property in frame.arrays) {
+			frameData = frame.arrays[property];
+		} else {
+			console.error(`Property ${property} not found in frame`);
+			setVectors([]);
+			return;
+		}
+		if (frameData.length !== frame.positions.length) {
+			console.error(
+				`Length of property ${property} does not match the number of particles`,
+			);
+			setVectors([]);
+			return;
+		}
 
-			console.log(`Property ${property} found in frame.calc`);
-			const calculatedVectors = frameData.map((vector, i) => {
-				const start = frame.positions[i];
-				const end = start
-					.clone()
-					.add(
-						new THREE.Vector3(vector[0], vector[1], vector[2]).multiplyScalar(
-							LineScale,
-						),
-					);
-				return { start, end };
-			});
-			setVectors(calculatedVectors);
+		console.log(`Property ${property} found in frame.calc`);
+		const calculatedVectors = frameData.map((vector, i) => {
+			const start = frame.positions[i];
+			const end = start
+				.clone()
+				.add(
+					new THREE.Vector3(vector[0], vector[1], vector[2]).multiplyScalar(
+						LineScale,
+					),
+				);
+			return { start, end };
+		});
+		setVectors(calculatedVectors);
 	}, [frame, property]);
 
 	const startMap = useMemo(

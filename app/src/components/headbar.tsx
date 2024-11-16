@@ -309,15 +309,12 @@ function ChatInsertModal({ show, onHide, chatInputRef, step, selection }: any) {
 			.replace(/\/token\/.*/, ""); // replace everything after /token/
 
 		if (selectedOption.value === "step") {
-			chatInputRef.current.value =
-				`${chatInputRef.current.value}[step ${step}](${basePath}/?step=${step})`;
+			chatInputRef.current.value = `${chatInputRef.current.value}[step ${step}](${basePath}/?step=${step})`;
 		} else if (selectedOption.value === "selection") {
 			if (selection.size === 0) {
-				chatInputRef.current.value =
-					`${chatInputRef.current.value}[${selectedOption.value}](${basePath}/?selection=null)`;
+				chatInputRef.current.value = `${chatInputRef.current.value}[${selectedOption.value}](${basePath}/?selection=null)`;
 			} else {
-				chatInputRef.current.value =
-					`${chatInputRef.current.value}[${selectedOption.value}](${basePath}/?selection=${Array.from(selection)})`;
+				chatInputRef.current.value = `${chatInputRef.current.value}[${selectedOption.value}](${basePath}/?selection=${Array.from(selection)})`;
 			}
 		}
 		// trigger the change event
@@ -604,54 +601,47 @@ function RemoteFileModal({ show, onHide, colorMode }: any) {
 						</ul>
 					)}
 
-					{selectedNodeAttributes.length > 0 && (
+					{selectedNodeAttributes.length > 0 &&
 						selectedNodeAttributes.map((attr, index) => (
-								<Row key={index} className="justify-content-center">
-									<Col>
-										{" "}
-										<Markdown
-											children={`~~~python\n${attr.join(": ")}`}
-											components={{
-												code(props) {
-													const { children, className, node, ...rest } = props;
-													const match = /language-(\w+)/.exec(className || "");
-													return match ? (
-														<SyntaxHighlighter
-															{...rest}
-															PreTag="div"
-															language={match[1]}
-															style={colorMode === "light" ? oneLight : oneDark}
-														>
-															{String(children).replace(/\n$/, "")}
-														</SyntaxHighlighter>
-													) : (
-														<code {...rest} className={className}>
-															{children}
-														</code>
-													);
-												},
-											}}
-										/>{" "}
-									</Col>
-									<Col md="auto">
-										<Button
-											variant="primary"
-											onClick={() => loadFrames(attr[0])}
-										>
-											<SiMoleculer /> Load Frames
-										</Button>
-									</Col>
-									<Col md="auto">
-										<Button
-											variant="primary"
-											onClick={() => loadFigure(attr[0])}
-										>
-											<MdOutlineAutoGraph /> Load Figure
-										</Button>
-									</Col>
-								</Row>
-							))
-					)}
+							<Row key={index} className="justify-content-center">
+								<Col>
+									{" "}
+									<Markdown
+										children={`~~~python\n${attr.join(": ")}`}
+										components={{
+											code(props) {
+												const { children, className, node, ...rest } = props;
+												const match = /language-(\w+)/.exec(className || "");
+												return match ? (
+													<SyntaxHighlighter
+														{...rest}
+														PreTag="div"
+														language={match[1]}
+														style={colorMode === "light" ? oneLight : oneDark}
+													>
+														{String(children).replace(/\n$/, "")}
+													</SyntaxHighlighter>
+												) : (
+													<code {...rest} className={className}>
+														{children}
+													</code>
+												);
+											},
+										}}
+									/>{" "}
+								</Col>
+								<Col md="auto">
+									<Button variant="primary" onClick={() => loadFrames(attr[0])}>
+										<SiMoleculer /> Load Frames
+									</Button>
+								</Col>
+								<Col md="auto">
+									<Button variant="primary" onClick={() => loadFigure(attr[0])}>
+										<MdOutlineAutoGraph /> Load Figure
+									</Button>
+								</Col>
+							</Row>
+						))}
 				</Container>
 			</Modal.Body>
 			<Modal.Footer>

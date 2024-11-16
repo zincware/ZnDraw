@@ -21,9 +21,7 @@ const JumpFrame: React.FC<JumpFrameProps> = ({ step, setStep, length }) => {
 		if (newStep >= 0 && newStep < length) {
 			setStep(newStep);
 		} else {
-			alert(
-				`Invalid input. Please enter a number between 0 and ${length - 1}`,
-			);
+			alert(`Invalid input. Please enter a number between 0 and ${length - 1}`);
 		}
 		e.target.value = "";
 	};
