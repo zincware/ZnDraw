@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useMemo, useRef, useState, forwardRef } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  forwardRef,
+} from "react";
 import {
   PerspectiveCamera,
   OrthographicCamera,
@@ -10,12 +17,8 @@ import { debounce } from "lodash";
 import { useCentroid } from "./particlesEditor";
 import { Box } from "@react-three/drei";
 
-
 const MoveCameraTarget = forwardRef(
-  (
-    { colorMode }: { colorMode: string },
-    ref: React.Ref<THREE.Group>
-  ) => {
+  ({ colorMode }: { colorMode: string }, ref: React.Ref<THREE.Group>) => {
     const shortDimension = 0.05;
     const longDimension = 0.5;
 
@@ -43,9 +46,8 @@ const MoveCameraTarget = forwardRef(
         </Box>
       </group>
     );
-  }
+  },
 );
-
 
 type CameraAndControls = {
   camera: THREE.Vector3;
@@ -79,15 +81,12 @@ const CameraAndControls: React.FC<CameraAndControlsProps> = ({
   // need this extra for the crosshair
   const crossHairRef = useRef<any>(null);
 
-  const controlsOnChangeFn = useCallback(
-    (e: any) => {
-      if (!crossHairRef.current) {
-        return;
-      }
-      crossHairRef.current.position.copy(e.target.target);
-    },
-    [],
-  );
+  const controlsOnChangeFn = useCallback((e: any) => {
+    if (!crossHairRef.current) {
+      return;
+    }
+    crossHairRef.current.position.copy(e.target.target);
+  }, []);
 
   const controlsOnEndFn = useCallback(
     debounce(() => {
@@ -171,10 +170,7 @@ const CameraAndControls: React.FC<CameraAndControlsProps> = ({
         ref={controlsRef}
       />
       {roomConfig["scene"].crosshair && controlsRef.current.target && (
-        <MoveCameraTarget
-          colorMode={colorMode}
-          ref={crossHairRef}
-        />
+        <MoveCameraTarget colorMode={colorMode} ref={crossHairRef} />
       )}
     </>
   );
