@@ -22,7 +22,7 @@ export const getCentroid = (positions: Vector3[], selection: Set<number>) => {
 // Custom hook for handling centroid calculations
 export const useCentroid = ({ frame, selectedIds }: any) => {
   return useMemo(() => {
-    return getCentroid(frame.positions, selectedIds)
+    return getCentroid(frame.positions, selectedIds);
   }, [frame.positions, selectedIds]);
 };
 

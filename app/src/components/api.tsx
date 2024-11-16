@@ -232,8 +232,11 @@ export function setupStep(
 }
 export function setupCamera(
   token: string,
-  cameraAndControls: {camera: any, target: any},
-  setCameraAndControls: (cameraAndControls: {camera: any, target: any}) => void,
+  cameraAndControls: { camera: any; target: any },
+  setCameraAndControls: (cameraAndControls: {
+    camera: any;
+    target: any;
+  }) => void,
   controlsRef: any,
   // cameraRef: any,
   synchronize_camera: boolean,
@@ -259,10 +262,10 @@ export function setupCamera(
           camera: new THREE.Vector3(...items.position),
           target: new THREE.Vector3(...items.target),
         });
-        
+
         // TODO
         updateByRefreshRef.current = 2;
-  
+
         if (controlsRef.current && cameraRef.current) {
           controlsRef.current.enabled = false;
           cameraRef.current.position.set(...items.position);
@@ -271,7 +274,7 @@ export function setupCamera(
         }
       });
     }
-   
+
     return () => {
       conInterface.offRefresh();
     };
@@ -281,7 +284,11 @@ export function setupCamera(
   useEffect(() => {
     const loadInitialCamera = async () => {
       const items = Object.fromEntries(await conInterface.entries());
-      if (items === null || items.position === undefined || items.target === undefined) {
+      if (
+        items === null ||
+        items.position === undefined ||
+        items.target === undefined
+      ) {
         return;
       }
       console.log("initial camera update");
