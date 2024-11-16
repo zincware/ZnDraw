@@ -44,7 +44,7 @@ export const Line3D = ({
 
 	useEffect(() => {
 		// TODO: use bootstrap colors
-		if ((hoveredId == null || hoveredId == -1) && isDrawing) {
+		if ((hoveredId == null || hoveredId === -1) && isDrawing) {
 			setLineColor("#f01d23");
 			setPointColor("#710000");
 		} else if (colorMode === "light") {
@@ -62,7 +62,7 @@ export const Line3D = ({
 		if (!isDrawing) {
 			setSelectedPoint(event.object.position.clone());
 		} else {
-			if (hoveredId != null && hoveredId != -1) {
+			if (hoveredId != null && hoveredId !== -1) {
 				const point = event.point.clone();
 				setPoints([...points, point]);
 			} else {
@@ -233,7 +233,7 @@ export const VirtualCanvas = ({
 			updatePlaneSize();
 			// if nothing is hovered, the canvas should be visible
 			canvasRef.current.visible =
-				hoveredId == null || hoveredId == canvasRef.current || hoveredId == -1;
+				hoveredId == null || hoveredId === canvasRef.current || hoveredId === -1;
 		}
 
 		if (points.length >= 2) {

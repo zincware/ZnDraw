@@ -173,9 +173,8 @@ export const ParticleInstances = ({
 			if (visibleIndices === -1) {
 				// -1 means no hover
 				return new Set();
-			} else {
-				return new Set([visibleIndices]);
 			}
+				return new Set([visibleIndices]);
 		}
 		return (
 			visibleIndices ??
@@ -214,11 +213,11 @@ export const ParticleInstances = ({
 				}
 
 				let radius;
-				if (highlight == "backside") {
+				if (highlight === "backside") {
 					radius = radii[atomIdx] * 1.25;
-				} else if (highlight == "frontside") {
+				} else if (highlight === "frontside") {
 					radius = radii[atomIdx] * 1.01;
-				} else if (highlight == "selection") {
+				} else if (highlight === "selection") {
 					radius = radii[atomIdx] * 1.01;
 				} else {
 					radius = radii[atomIdx];
@@ -247,7 +246,7 @@ export const ParticleInstances = ({
 	]);
 
 	const handlePointerOver = (event) => {
-		if (highlight != "") {
+		if (highlight !== "") {
 			return;
 		}
 		event.stopPropagation();
@@ -260,7 +259,7 @@ export const ParticleInstances = ({
 	};
 
 	const handlePointerOut = (event) => {
-		if (highlight != "") {
+		if (highlight !== "") {
 			return;
 		}
 		event.stopPropagation();
@@ -271,7 +270,7 @@ export const ParticleInstances = ({
 		if (event.detail !== 1) {
 			return; // only handle single clicks
 		}
-		if (highlight != "") {
+		if (highlight !== "") {
 			return;
 		}
 
@@ -295,9 +294,9 @@ export const ParticleInstances = ({
 	const handleDoubleClick = (event) => {
 		const queue = new znsocket.Dict({
 			client: client,
-			key: "queue:" + token + ":" + "selection",
+			key: `queue:${token}:selection`,
 		});
-		queue["ConnectedParticles"] = {};
+		queue.ConnectedParticles = {};
 		socket.emit("room:worker:run");
 		event.stopPropagation();
 	};
@@ -315,7 +314,7 @@ export const ParticleInstances = ({
 		}
 	};
 
-	if (highlight == "") {
+	if (highlight === "") {
 		useMergedMesh(meshRef, instancedGeometry, pathTracingSettings, [
 			frame,
 			visibleIndices,
@@ -433,7 +432,7 @@ export const BondInstances = ({
 				}
 
 				// Set matrix and color for the bond from A to B
-				meshRef.current!.setMatrixAt(
+				meshRef.current?.setMatrixAt(
 					i * 2,
 					createTransformationMatrix(posA, posB),
 				);
@@ -442,10 +441,10 @@ export const BondInstances = ({
 				} else {
 					color.setStyle(frame.arrays.colors[a]);
 				}
-				meshRef.current!.setColorAt(i * 2, color);
+				meshRef.current?.setColorAt(i * 2, color);
 
 				// Set matrix and color for the bond from B to A
-				meshRef.current!.setMatrixAt(
+				meshRef.current?.setMatrixAt(
 					i * 2 + 1,
 					createTransformationMatrix(posB, posA),
 				);
@@ -454,7 +453,7 @@ export const BondInstances = ({
 				} else {
 					color.setStyle(frame.arrays.colors[b]);
 				}
-				meshRef.current!.setColorAt(i * 2 + 1, color);
+				meshRef.current?.setColorAt(i * 2 + 1, color);
 			});
 
 			meshRef.current.instanceMatrix.needsUpdate = true;
@@ -462,7 +461,7 @@ export const BondInstances = ({
 		}
 	}, [frame, actualVisibleConnectivity, selection_color, geometry]);
 
-	if (highlight == "") {
+	if (highlight === "") {
 		useMergedMesh(meshRef, instancedGeometry, pathTracingSettings, [
 			frame,
 			visibleIndices,
@@ -610,7 +609,7 @@ export const PerParticleVectors: React.FC<PerParticleVectorsProps> = ({
 		if (!frame) {
 			setVectors([]);
 			return;
-		} else {
+		}
 			let frameData;
 			if (property in frame.calc) {
 				frameData = frame.calc[property];
@@ -642,7 +641,6 @@ export const PerParticleVectors: React.FC<PerParticleVectorsProps> = ({
 				return { start, end };
 			});
 			setVectors(calculatedVectors);
-		}
 	}, [frame, property]);
 
 	const startMap = useMemo(

@@ -16,7 +16,7 @@ export function setupBookmarks(
 		}
 		const con = new znsocket.Dict({
 			client: client,
-			key: "room:" + token + ":bookmarks",
+			key: `room:${token}:bookmarks`,
 		});
 
 		// initial load
@@ -64,7 +64,7 @@ export function setupPoints(token: string, setPoints: any, points: any) {
 	useEffect(() => {
 		const con = new znsocket.Dict({
 			client: client,
-			key: "room:" + token + ":points",
+			key: `room:${token}:points`,
 		});
 
 		// initial load
@@ -127,7 +127,7 @@ export function setupSelection(
 		console.log("setting up selection");
 		const con = new znsocket.Dict({
 			client: client,
-			key: "room:" + token + ":selection",
+			key: `room:${token}:selection`,
 		});
 
 		// Initial load
@@ -181,7 +181,7 @@ export function setupStep(
 	const con = useMemo(() => {
 		return new znsocket.Dict({
 			client: client,
-			key: "room:" + token + ":step",
+			key: `room:${token}:step`,
 		});
 	}, [token]);
 
@@ -244,7 +244,7 @@ export function setupCamera(
 	const conInterface = useMemo(() => {
 		return new znsocket.Dict({
 			client: client,
-			key: "room:" + token + ":camera",
+			key: `room:${token}:camera`,
 		});
 	}, [token]);
 
@@ -330,7 +330,7 @@ export const setupFrames = (
 	const currentFrameUpdatedFromSocketRef = useRef(true);
 
 	const setCurrentFrameFromObject = (frame: any) => {
-		frame = frame["value"];
+		frame = frame.value;
 		frame.positions = frame.positions.map(
 			(position: [number, number, number]) =>
 				new THREE.Vector3(position[0], position[1], position[2]),
@@ -374,7 +374,7 @@ export const setupFrames = (
 	useEffect(() => {
 		const con = new znsocket.List({
 			client: client,
-			key: "room:" + token + ":frames",
+			key: `room:${token}:frames`,
 		});
 
 		const defaultCon = new znsocket.List({
@@ -482,7 +482,7 @@ export const setupGeometries = (
 	useEffect(() => {
 		const con = new znsocket.List({
 			client: client,
-			key: "room:" + token + ":geometries",
+			key: `room:${token}:geometries`,
 		});
 
 		// initial load
@@ -490,8 +490,8 @@ export const setupGeometries = (
 			const geometries = [];
 			for await (const value of con) {
 				geometries.push({
-					...value["value"]["data"],
-					discriminator: value["value"]["class"],
+					...value.value.data,
+					discriminator: value.value.class,
 				});
 			}
 			updateByRefreshRef.current = true;
@@ -507,8 +507,8 @@ export const setupGeometries = (
 			for await (const value of con) {
 				// console.log(value["value"]["data"]); // Process each value as it becomes available
 				geometries.push({
-					...value["value"]["data"],
-					discriminator: value["value"]["class"],
+					...value.value.data,
+					discriminator: value.value.class,
 				});
 			}
 			updateByRefreshRef.current = true;
@@ -546,11 +546,11 @@ export const setupFigures = (token: string, setUpdatedPlotsList: any) => {
 	useEffect(() => {
 		const con = new znsocket.Dict({
 			client: client,
-			key: "room:" + token + ":figures",
+			key: `room:${token}:figures`,
 		});
 
 		con.onRefresh(async (x: any) => {
-			setUpdatedPlotsList(x["keys"]);
+			setUpdatedPlotsList(x.keys);
 		});
 		return () => {
 			con.offRefresh();
@@ -569,7 +569,7 @@ export const setupMessages = (
 	useEffect(() => {
 		const con = new znsocket.List({
 			client: client,
-			key: "room:" + token + ":chat",
+			key: `room:${token}:chat`,
 		});
 
 		// initial load
@@ -622,7 +622,7 @@ export const setupConfig = (token: string, setConfig: any) => {
 	useEffect(() => {
 		const con = new znsocket.Dict({
 			client: client,
-			key: "room:" + token + ":config",
+			key: `room:${token}:config`,
 		});
 
 		// initial load

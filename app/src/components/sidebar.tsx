@@ -62,17 +62,17 @@ const SidebarMenu = ({
 	useEffect(() => {
 		const con = new znsocket.Dict({
 			client: client,
-			key: "schema:" + token + ":" + name,
+			key: `schema:${token}:${name}`,
 		});
 
 		const sharedCon = new znsocket.Dict({
 			client: client,
-			key: "schema:default:" + name,
+			key: `schema:default:${name}`,
 		});
 
 		const queue = new znsocket.Dict({
 			client: client,
-			key: "queue:" + token + ":" + name,
+			key: `queue:${token}:${name}`,
 		});
 		queueRef.current = queue;
 
@@ -217,7 +217,7 @@ const SidebarMenu = ({
 						onChange={(e) => setUserInput(e.target.value)}
 						value={userInput}
 					>
-						<option></option>
+						<option />
 						{Object.keys({ ...sharedSchema, ...schema }).map((key) => (
 							<option key={key} value={key}>
 								{key}
@@ -240,7 +240,7 @@ const SidebarMenu = ({
 						</ButtonGroup>
 					)}
 				</Form.Group>
-				<div ref={editorRef}></div>
+				<div ref={editorRef} />
 			</Card.Body>
 		</Card>
 	);
@@ -290,7 +290,7 @@ function SideBar({ token }: { token: string }) {
 								variant="outline-tertiary"
 								onClick={() =>
 									setVisibleOption(
-										visibleOption != "selection" ? "selection" : "",
+										visibleOption !== "selection" ? "selection" : "",
 									)
 								}
 							>
@@ -304,7 +304,7 @@ function SideBar({ token }: { token: string }) {
 								variant="outline-tertiary"
 								onClick={() =>
 									setVisibleOption(
-										visibleOption != "modifier" ? "modifier" : "",
+										visibleOption !== "modifier" ? "modifier" : "",
 									)
 								}
 							>
@@ -317,7 +317,7 @@ function SideBar({ token }: { token: string }) {
 							<Button
 								variant="outline-tertiary"
 								onClick={() =>
-									setVisibleOption(visibleOption != "scene" ? "scene" : "")
+									setVisibleOption(visibleOption !== "scene" ? "scene" : "")
 								}
 							>
 								<FaCube />
@@ -330,7 +330,7 @@ function SideBar({ token }: { token: string }) {
 								variant="outline-tertiary"
 								onClick={() =>
 									setVisibleOption(
-										visibleOption != "geometry" ? "geometry" : "",
+										visibleOption !== "geometry" ? "geometry" : "",
 									)
 								}
 							>
@@ -344,7 +344,7 @@ function SideBar({ token }: { token: string }) {
 								variant="outline-tertiary"
 								onClick={() =>
 									setVisibleOption(
-										visibleOption != "analysis" ? "analysis" : "",
+										visibleOption !== "analysis" ? "analysis" : "",
 									)
 								}
 							>
@@ -367,35 +367,35 @@ function SideBar({ token }: { token: string }) {
 			</Navbar>
 			<SidebarMenu
 				name="selection"
-				visible={visibleOption == "selection"} // remove
+				visible={visibleOption === "selection"} // remove
 				token={token}
 				closeMenu={() => setVisibleOption("")}
 				sendImmediately={false}
 			/>
 			<SidebarMenu
 				name="modifier"
-				visible={visibleOption == "modifier"}
+				visible={visibleOption === "modifier"}
 				token={token}
 				closeMenu={() => setVisibleOption("")}
 				sendImmediately={false}
 			/>
 			<SidebarMenu
 				name="scene"
-				visible={visibleOption == "scene"}
+				visible={visibleOption === "scene"}
 				token={token}
 				closeMenu={() => setVisibleOption("")}
 				sendImmediately={true}
 			/>
 			<SidebarMenu
 				name="geometry"
-				visible={visibleOption == "geometry"}
+				visible={visibleOption === "geometry"}
 				token={token}
 				closeMenu={() => setVisibleOption("")}
 				sendImmediately={false}
 			/>
 			<SidebarMenu
 				name="analysis"
-				visible={visibleOption == "analysis"}
+				visible={visibleOption === "analysis"}
 				token={token}
 				closeMenu={() => setVisibleOption("")}
 				sendImmediately={false}

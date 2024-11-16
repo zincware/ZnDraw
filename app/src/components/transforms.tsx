@@ -29,7 +29,7 @@ export default function ControlsBuilder({
 					const index = points.findIndex(
 						(point) => point.distanceTo(selectedPoint) < 0.1,
 					);
-					if (index == -1) {
+					if (index === -1) {
 						// TODO: check what would be best here?
 						return;
 					}

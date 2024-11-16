@@ -170,7 +170,7 @@ export default function App() {
 		token,
 		cameraAndControls,
 		setCameraAndControls,
-		roomConfig["scene"]["synchronize_camera"],
+		roomConfig.scene.synchronize_camera,
 	);
 	setupFrames(
 		token,
@@ -179,7 +179,7 @@ export default function App() {
 		currentFrame,
 		setLength,
 		setStep,
-		roomConfig["scene"]["frame_update"],
+		roomConfig.scene.frame_update,
 	);
 	setupFigures(token, setUpdatedPlotsList);
 	setupGeometries(token, setGeometries, geometries);
@@ -191,8 +191,8 @@ export default function App() {
 			socket.emit(
 				"webclient:connect",
 				(data: { name: string; room: string; authenticated: boolean }) => {
-					setRoomName(data["room"]);
-					setIsAuthenticated(data["authenticated"]);
+					setRoomName(data.room);
+					setIsAuthenticated(data.authenticated);
 				},
 			);
 			console.log("connected");
@@ -302,34 +302,34 @@ export default function App() {
 						);
 					}
 				}
-			} else if (event.key == "ArrowUp") {
+			} else if (event.key === "ArrowUp") {
 				// jump 10 percent, or to the end
 				setPlaying(false);
 				const newStep = Math.min(step + Math.floor(length / 10), length - 1);
 				setStep(newStep);
-			} else if (event.key == "ArrowDown") {
+			} else if (event.key === "ArrowDown") {
 				// jump 10 percent, or to the beginning
 				setPlaying(false);
 				const newStep = Math.max(step - Math.floor(length / 10), 0);
 				setStep(newStep);
-			} else if (event.key == " ") {
+			} else if (event.key === " ") {
 				// backspace
 				// updateLength();
 				setPlaying((prev) => !prev);
-				if (step == length - 1) {
+				if (step === length - 1) {
 					setStep(0);
 				}
-			} else if (event.key == "x") {
+			} else if (event.key === "x") {
 				setIsDrawing((prev) => !prev);
-			} else if (event.key == "i") {
+			} else if (event.key === "i") {
 				setShowParticleInfo((prev) => !prev);
-			} else if (event.key == "b") {
+			} else if (event.key === "b") {
 				setBookmarks((prev) => {
 					const newBookmarks = { ...prev };
 					newBookmarks[step] = `Frame ${step}`;
 					return newBookmarks;
 				});
-			} else if (event.key == "a") {
+			} else if (event.key === "a") {
 				if (event.ctrlKey) {
 					setSelectedIds(
 						new Set([
@@ -340,7 +340,7 @@ export default function App() {
 						]),
 					);
 				}
-			} else if (event.key == "Backspace" || event.key == "Delete") {
+			} else if (event.key === "Backspace" || event.key === "Delete") {
 				// check if shift is pressed
 				if (event.shiftKey) {
 					if (selectedPoint !== null) {
@@ -358,9 +358,9 @@ export default function App() {
 					if (selectedIds.size > 0) {
 						const queue = new znsocket.Dict({
 							client: client,
-							key: "queue:" + token + ":" + "modifier",
+							key: `queue:${token}:modifier`,
 						});
-						queue["Delete"] = {};
+						queue.Delete = {};
 						socket.emit("room:worker:run");
 					}
 				}
@@ -461,34 +461,34 @@ export default function App() {
 								<Environment preset={roomConfig.PathTracer.environment} />
 							)}
 
-						{roomConfig["scene"].floor ? (
+						{roomConfig.scene.floor ? (
 							<>
 								<Floor colorMode={colorMode} roomConfig={roomConfig} />
 								<directionalLight
 									position={[0, 100, 0]}
 									intensity={1.0}
 									castShadow
-									shadow-mapSize-width={roomConfig["scene"]["camera_far"] * 10} // Adjust the width of the shadow map
-									shadow-mapSize-height={roomConfig["scene"]["camera_far"] * 10} // Adjust the height of the shadow map
+									shadow-mapSize-width={roomConfig.scene.camera_far * 10} // Adjust the width of the shadow map
+									shadow-mapSize-height={roomConfig.scene.camera_far * 10} // Adjust the height of the shadow map
 									shadow-camera-near={10} // Adjust the near clipping plane of the shadow camera
 									shadow-camera-far={800} // Adjust the far clipping plane of the shadow camera
-									shadow-camera-left={-1 * roomConfig["scene"]["camera_far"]} // Set the left boundary for the shadow camera frustum
-									shadow-camera-right={roomConfig["scene"]["camera_far"]} // Set the right boundary for the shadow camera frustum
-									shadow-camera-top={roomConfig["scene"]["camera_far"]} // Set the top boundary for the shadow camera frustum
-									shadow-camera-bottom={-1 * roomConfig["scene"]["camera_far"]} // Set the bottom boundary for the shadow camera frustum
+									shadow-camera-left={-1 * roomConfig.scene.camera_far} // Set the left boundary for the shadow camera frustum
+									shadow-camera-right={roomConfig.scene.camera_far} // Set the right boundary for the shadow camera frustum
+									shadow-camera-top={roomConfig.scene.camera_far} // Set the top boundary for the shadow camera frustum
+									shadow-camera-bottom={-1 * roomConfig.scene.camera_far} // Set the bottom boundary for the shadow camera frustum
 								/>
 							</>
 						) : (
 							<directionalLight position={[0, 100, 0]} intensity={1.0} />
 						)}
 
-						{roomConfig["scene"]["vectorfield"] &&
+						{roomConfig.scene.vectorfield &&
 							currentFrame.vectors !== undefined && (
 								<VectorField
 									vectors={currentFrame.vectors}
 									pathTracingSettings={roomConfig.PathTracer}
 									arrowsConfig={{
-										rescale: roomConfig["scene"].vector_scale,
+										rescale: roomConfig.scene.vector_scale,
 										...roomConfig.arrows,
 									}}
 								/>
@@ -500,7 +500,7 @@ export default function App() {
 							isDrawing={isDrawing}
 							setPoints={setPoints}
 							setHoveredId={setHoveredId}
-							sceneSettings={roomConfig["scene"]}
+							sceneSettings={roomConfig.scene}
 							token={token}
 							highlight=""
 							visibleIndices={undefined}
@@ -516,7 +516,7 @@ export default function App() {
 									isDrawing={isDrawing}
 									setPoints={setPoints}
 									setHoveredId={setHoveredId}
-									sceneSettings={roomConfig["scene"]}
+									sceneSettings={roomConfig.scene}
 									token={token}
 									visibleIndices={hoveredId}
 									highlight={"backside"}
@@ -529,7 +529,7 @@ export default function App() {
 									isDrawing={isDrawing}
 									setPoints={setPoints}
 									setHoveredId={setHoveredId}
-									sceneSettings={roomConfig["scene"]}
+									sceneSettings={roomConfig.scene}
 									token={token}
 									visibleIndices={selectedIds}
 									highlight={"selection"}
@@ -542,7 +542,7 @@ export default function App() {
 									isDrawing={isDrawing}
 									setPoints={setPoints}
 									setHoveredId={setHoveredId}
-									sceneSettings={roomConfig["scene"]}
+									sceneSettings={roomConfig.scene}
 									token={token}
 									visibleIndices={
 										new Set(currentFrame.constraints?.[0]?.indices)
@@ -554,7 +554,7 @@ export default function App() {
 									frame={currentFrame}
 									visibleIndices={selectedIds}
 									highlight="selection"
-									sceneSettings={roomConfig["scene"]}
+									sceneSettings={roomConfig.scene}
 								/>
 							</>
 						)}
@@ -562,10 +562,10 @@ export default function App() {
 							frame={currentFrame}
 							visibleIndices={undefined}
 							highlight=""
-							sceneSettings={roomConfig["scene"]}
+							sceneSettings={roomConfig.scene}
 							pathTracingSettings={roomConfig.PathTracer}
 						/>
-						{roomConfig["scene"]["simulation_box"] &&
+						{roomConfig.scene.simulation_box &&
 							!roomConfig.PathTracer.enabled && (
 								<SimulationCell frame={currentFrame} colorMode={colorMode} />
 							)}
@@ -574,8 +574,8 @@ export default function App() {
 							togglePlaying={setPlaying}
 							step={step}
 							setStep={setStep}
-							fps={roomConfig["scene"].fps}
-							loop={roomConfig["scene"]["animation_loop"]}
+							fps={roomConfig.scene.fps}
+							loop={roomConfig.scene.animation_loop}
 							length={length}
 							selectedFrames={selectedFrames}
 						/>
@@ -608,19 +608,19 @@ export default function App() {
 							hoveredId={hoveredId}
 							setHoveredId={setHoveredId}
 						/>
-						{roomConfig["scene"].vectors[0] &&
-							roomConfig["scene"].vectors.map((vector) => (
+						{roomConfig.scene.vectors[0] &&
+							roomConfig.scene.vectors.map((vector) => (
 								<PerParticleVectors
 									frame={currentFrame}
 									property={vector}
 									colorMode={colorMode}
 									arrowsConfig={{
-										rescale: roomConfig["scene"].vector_scale,
+										rescale: roomConfig.scene.vector_scale,
 										...roomConfig.arrows,
 									}}
 									pathTracingSettings={roomConfig.PathTracer}
 									key={vector}
-								></PerParticleVectors>
+								/>
 							))}
 					</Pathtracer>
 				</Canvas>

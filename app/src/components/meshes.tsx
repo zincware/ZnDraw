@@ -56,7 +56,7 @@ const Arrows: React.FC<ArrowsProps> = ({
 
 	const geometry = useMemo(() => {
 		const _geom = createArrowMesh();
-		if (pathTracingSettings && pathTracingSettings?.enabled) {
+		if (pathTracingSettings?.enabled) {
 			// make invisible when path tracing is enabled
 			_geom.scale(0, 0, 0);
 		}

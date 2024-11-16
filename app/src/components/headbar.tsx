@@ -310,17 +310,14 @@ function ChatInsertModal({ show, onHide, chatInputRef, step, selection }: any) {
 
 		if (selectedOption.value === "step") {
 			chatInputRef.current.value =
-				chatInputRef.current.value +
-				`[step ${step}](${basePath}/?step=${step})`;
+				`${chatInputRef.current.value}[step ${step}](${basePath}/?step=${step})`;
 		} else if (selectedOption.value === "selection") {
 			if (selection.size === 0) {
 				chatInputRef.current.value =
-					chatInputRef.current.value +
-					`[${selectedOption.value}](${basePath}/?selection=null)`;
+					`${chatInputRef.current.value}[${selectedOption.value}](${basePath}/?selection=null)`;
 			} else {
 				chatInputRef.current.value =
-					chatInputRef.current.value +
-					`[${selectedOption.value}](${basePath}/?selection=${Array.from(selection)})`;
+					`${chatInputRef.current.value}[${selectedOption.value}](${basePath}/?selection=${Array.from(selection)})`;
 			}
 		}
 		// trigger the change event
@@ -608,8 +605,7 @@ function RemoteFileModal({ show, onHide, colorMode }: any) {
 					)}
 
 					{selectedNodeAttributes.length > 0 && (
-						<>
-							{selectedNodeAttributes.map((attr, index) => (
+						selectedNodeAttributes.map((attr, index) => (
 								<Row key={index} className="justify-content-center">
 									<Col>
 										{" "}
@@ -654,8 +650,7 @@ function RemoteFileModal({ show, onHide, colorMode }: any) {
 										</Button>
 									</Col>
 								</Row>
-							))}
-						</>
+							))
 					)}
 				</Container>
 			</Modal.Body>
@@ -684,7 +679,7 @@ const TutorialModal: React.FC<TutorialModalProps> = ({ show, onHide, url }) => {
 					id="tutorialIframe"
 					allowFullScreen
 					className="iframe-custom"
-				></iframe>
+				/>
 			</Modal.Body>
 		</Modal>
 	);
@@ -703,7 +698,7 @@ function SiMGenButtons({
 	useEffect(() => {
 		const queue = new znsocket.Dict({
 			client: client,
-			key: "queue:" + token + ":modifier",
+			key: `queue:${token}:modifier`,
 		});
 		queueRef.current = queue;
 
@@ -722,7 +717,7 @@ function SiMGenButtons({
 
 	const runConnect = () => {
 		if (queueRef.current) {
-			queueRef.current["Connect"] = {};
+			queueRef.current.Connect = {};
 			socket.emit("room:worker:run");
 			setDisabledBtn(true);
 		}
@@ -730,7 +725,7 @@ function SiMGenButtons({
 
 	const runGenerate = () => {
 		if (queueRef.current) {
-			queueRef.current["SiMGenDemo"] = {};
+			queueRef.current.SiMGenDemo = {};
 			socket.emit("room:worker:run");
 			setDisabledBtn(true);
 		}
@@ -738,7 +733,7 @@ function SiMGenButtons({
 
 	const createNewCanvas = () => {
 		if (queueRef.current) {
-			queueRef.current["NewCanvas"] = {};
+			queueRef.current.NewCanvas = {};
 			socket.emit("room:worker:run");
 			setDisabledBtn(true);
 		}

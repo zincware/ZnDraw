@@ -31,21 +31,21 @@ const MoveCameraTarget = forwardRef(
 				{/* X axis box */}
 				<Box scale={[longDimension, shortDimension, shortDimension]}>
 					<meshStandardMaterial
-						color={colorMode == "light" ? "#454b66" : "#f5fdc6"}
+						color={colorMode === "light" ? "#454b66" : "#f5fdc6"}
 					/>
 				</Box>
 
 				{/* Y axis box */}
 				<Box scale={[shortDimension, longDimension, shortDimension]}>
 					<meshStandardMaterial
-						color={colorMode == "light" ? "#454b66" : "#f5fdc6"}
+						color={colorMode === "light" ? "#454b66" : "#f5fdc6"}
 					/>
 				</Box>
 
 				{/* Z axis box */}
 				<Box scale={[shortDimension, shortDimension, longDimension]}>
 					<meshStandardMaterial
-						color={colorMode == "light" ? "#454b66" : "#f5fdc6"}
+						color={colorMode === "light" ? "#454b66" : "#f5fdc6"}
 					/>
 				</Box>
 			</group>
@@ -155,7 +155,7 @@ const CameraAndControls: React.FC<CameraAndControlsProps> = ({
 		const fov = (cameraRef.current.fov * Math.PI) / 180; // Convert FOV to radians
 		let distance = maxDistance / Math.tan(fov / 2);
 		// if distance is NaN, return - happens for OrthographicCamera
-		if (isNaN(distance)) {
+		if (Number.isNaN(distance)) {
 			distance = 0;
 		}
 
@@ -204,12 +204,12 @@ const CameraAndControls: React.FC<CameraAndControlsProps> = ({
 			if (document.activeElement !== document.body) {
 				return;
 			}
-			if (event.key == "c") {
+			if (event.key === "c") {
 				setCameraAndControls((prev: any) => ({
 					...prev,
 					target: centroid,
 				}));
-			} else if (event.key == "o") {
+			} else if (event.key === "o") {
 				const resetCamera = getResetCamera();
 				if (resetCamera) {
 					setCameraAndControls(resetCamera);
@@ -222,7 +222,7 @@ const CameraAndControls: React.FC<CameraAndControlsProps> = ({
 						controlsRef.current.update();
 					}
 				}
-			} else if (event.key == "r") {
+			} else if (event.key === "r") {
 				const roll = Math.PI / 100;
 				if (event.ctrlKey) {
 					rollCamera(-roll);
@@ -248,8 +248,8 @@ const CameraAndControls: React.FC<CameraAndControlsProps> = ({
 					makeDefault
 					ref={cameraRef}
 					zoom={10}
-					near={roomConfig["scene"]["camera_near"]}
-					far={roomConfig["scene"]["camera_far"]}
+					near={roomConfig.scene.camera_near}
+					far={roomConfig.scene.camera_far}
 				>
 					<pointLight decay={0} intensity={Math.PI / 2} />
 				</OrthographicCamera>
@@ -258,8 +258,8 @@ const CameraAndControls: React.FC<CameraAndControlsProps> = ({
 				<PerspectiveCamera
 					makeDefault
 					ref={cameraRef}
-					near={roomConfig["scene"]["camera_near"]}
-					far={roomConfig["scene"]["camera_far"]}
+					near={roomConfig.scene.camera_near}
+					far={roomConfig.scene.camera_far}
 				>
 					<pointLight decay={0} intensity={Math.PI / 2} />
 				</PerspectiveCamera>
@@ -281,7 +281,7 @@ const CameraAndControls: React.FC<CameraAndControlsProps> = ({
 					ref={controlsRef}
 				/>
 			)}
-			{roomConfig["scene"].crosshair && controlsRef.current.target && (
+			{roomConfig.scene.crosshair && controlsRef.current.target && (
 				<MoveCameraTarget colorMode={colorMode} ref={crossHairRef} />
 			)}
 		</>

@@ -133,7 +133,7 @@ const PlotsCard2 = ({
 	useEffect(() => {
 		const con = new znsocket.Dict({
 			client: client,
-			key: "room:" + token + ":figures",
+			key: `room:${token}:figures`,
 		});
 
 		con.onRefresh(async (x: any) => {
@@ -160,13 +160,13 @@ const PlotsCard2 = ({
 			if (data === null) {
 				return;
 			}
-			if (data["_type"] === "plotly.graph_objs.Figure") {
+			if (data._type === "plotly.graph_objs.Figure") {
 				setPlotType("plotly");
-				setRawPlotData(JSON.parse(data["value"]).data);
-				setPlotLayout(JSON.parse(data["value"]).layout);
-			} else if (data["_type"] === "zndraw.Figure") {
+				setRawPlotData(JSON.parse(data.value).data);
+				setPlotLayout(JSON.parse(data.value).layout);
+			} else if (data._type === "zndraw.Figure") {
 				setPlotType("zndraw.Figure");
-				setPlotData(data["value"]["base64"]);
+				setPlotData(data.value.base64);
 			}
 		});
 	}, [conInterface, selectedOption]);
@@ -184,8 +184,8 @@ const PlotsCard2 = ({
 				if (data === null) {
 					return;
 				}
-				setRawPlotData(JSON.parse(data["value"]).data);
-				setPlotLayout(JSON.parse(data["value"]).layout);
+				setRawPlotData(JSON.parse(data.value).data);
+				setPlotLayout(JSON.parse(data.value).layout);
 			});
 		}
 	}, [updatedPlotsList]);
@@ -301,7 +301,7 @@ const PlotsCard2 = ({
 		// for all points.customdata[0] == step collect the points.customdata[1] and set selectedIds if customdata[1] is available
 		const selectedIds = new Set<number>(
 			event.points
-				.filter((point: any) => point.customdata && point.customdata[1])
+				.filter((point: any) => point.customdata?.[1])
 				.map((point: any) => point.customdata[1]),
 		);
 		if (selectedIds.size > 0) {
@@ -372,7 +372,7 @@ const PlotsCard2 = ({
 					<Button variant="close" className="mx-2" onClick={closeThisCard} />
 				</Card.Header>
 				<Card.Body style={{ padding: 0 }}>
-					{plotType == "plotly" && (
+					{plotType === "plotly" && (
 						<Plot
 							data={plotData}
 							layout={plotLayout}
@@ -381,14 +381,14 @@ const PlotsCard2 = ({
 							onDeselect={onPlotDeselect}
 						/>
 					)}
-					{plotType == "zndraw.Figure" && (
+					{plotType === "zndraw.Figure" && (
 						<img
 							src={`data:image/png;base64, ${plotData}`}
 							alt="plot"
 							className="img-fluid"
 						/>
 					)}
-					{plotType == "" && (
+					{plotType === "" && (
 						<h3 className="text-secondary m-3">No data available</h3>
 					)}
 				</Card.Body>

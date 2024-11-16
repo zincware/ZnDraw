@@ -22,7 +22,7 @@ const JumpFrame: React.FC<JumpFrameProps> = ({ step, setStep, length }) => {
 			setStep(newStep);
 		} else {
 			alert(
-				"Invalid input. Please enter a number between 0 and " + (length - 1),
+				`Invalid input. Please enter a number between 0 and ${length - 1}`,
 			);
 		}
 		e.target.value = "";
@@ -39,7 +39,7 @@ const JumpFrame: React.FC<JumpFrameProps> = ({ step, setStep, length }) => {
 		<InputGroup>
 			<Form.Control
 				className="text-center user-select-none"
-				placeholder={`${step == -1 ? length - 1 : step}/${length - 1}`}
+				placeholder={`${step === -1 ? length - 1 : step}/${length - 1}`}
 				onBlur={handleBlur}
 				onKeyDown={handleKeyDown}
 				style={{
@@ -106,10 +106,10 @@ const ColoredTiles = ({
 				return (
 					<div
 						key={position}
-						className={`position-absolute`}
+						className={"position-absolute"}
 						style={commonStyles}
 					>
-						<div className="progress-bar-tick-line bg-secondary"></div>
+						<div className="progress-bar-tick-line bg-secondary" />
 					</div>
 				);
 			})}
@@ -117,7 +117,7 @@ const ColoredTiles = ({
 				className={`position-absolute ${disabledPositions.length === 0 ? "bg-body" : "bg-success"}`}
 				style={{ width: "100%", height: 25 }}
 				onClick={(e) => onTileClick(e)}
-			></div>
+			/>
 
 			{disabledPositions.map((position) => {
 				const commonStyles = {
@@ -128,9 +128,9 @@ const ColoredTiles = ({
 				return (
 					<div
 						key={position}
-						className={`position-absolute p-0 bg-body`}
+						className={"position-absolute p-0 bg-body"}
 						style={commonStyles}
-					></div>
+					/>
 				);
 			})}
 		</>
@@ -199,12 +199,12 @@ const VLine = ({ length, step }: { length: number; step: number }) => {
 		<div
 			className="position-absolute p-0 progress-bar-v-line"
 			style={{
-				left: `${step == -1 ? ((length - 1) / length) * 100 : (step / length) * 100}%`,
+				left: `${step === -1 ? ((length - 1) / length) * 100 : (step / length) * 100}%`,
 				height: 25,
 				width: "2px",
 			}}
 			// why do I need to overwrite the height and width here?
-		></div>
+		/>
 	);
 };
 
@@ -289,7 +289,7 @@ const FrameProgressBar: React.FC<FrameProgressBarProps> = ({
 	useEffect(() => {
 		// Calculate the linePosition based on the step, length, and window width
 		setLinePosition(
-			step == -1 ? ((length - 1) / length) * 100 : (step / length) * 100,
+			step === -1 ? ((length - 1) / length) * 100 : (step / length) * 100,
 		);
 	}, [step, length]);
 
@@ -331,7 +331,7 @@ const FrameProgressBar: React.FC<FrameProgressBarProps> = ({
 						<Col
 							className="d-flex bg-secondary justify-content-center align-items-center"
 							style={{ height: 1 }}
-						></Col>
+						/>
 					</Row>
 					<Row>
 						<Col
@@ -367,8 +367,8 @@ const FrameProgressBar: React.FC<FrameProgressBarProps> = ({
 								style={{ left: `${linePosition}%`, cursor: "pointer" }}
 								onMouseDown={(e) => handleMouseDown(e)}
 							>
-								<div className="square"></div>
-								<div className="triangle"></div>
+								<div className="square" />
+								<div className="triangle" />
 							</div>
 						</Col>
 					</Row>
@@ -376,7 +376,7 @@ const FrameProgressBar: React.FC<FrameProgressBarProps> = ({
 						<Col
 							className="d-flex bg-secondary justify-content-center align-items-center"
 							style={{ height: 1 }}
-						></Col>
+						/>
 					</Row>
 
 					<ProgressBar
@@ -393,7 +393,7 @@ const FrameProgressBar: React.FC<FrameProgressBarProps> = ({
 						<Col
 							className="d-flex bg-secondary justify-content-center align-items-center"
 							style={{ height: 1 }}
-						></Col>
+						/>
 					</Row>
 					<Row>
 						<Col
