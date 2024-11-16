@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import * as znsocket from "znsocket";
 import { client } from "../socket";
-import { debounce } from "lodash";
 
 export function setupBookmarks(
 	token: string,
@@ -164,7 +163,8 @@ export function setupSelection(
 		if (updateByRefreshRef.current) {
 			updateByRefreshRef.current = false;
 		} else {
-			debounce(updateCon, 100)();
+			const debounceTimeout = setTimeout(updateCon, 100);
+			return () => clearTimeout(debounceTimeout);
 		}
 	}, [selectedIds]);
 }
