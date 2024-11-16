@@ -237,7 +237,6 @@ export default function App() {
     };
   }, []);
 
-
   useEffect(() => {
     // page initialization
 
