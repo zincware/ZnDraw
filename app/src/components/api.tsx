@@ -267,10 +267,8 @@ export function setupCamera(
         updateByRefreshRef.current = 2;
 
         if (controlsRef.current && cameraRef.current) {
-          controlsRef.current.enabled = false;
           cameraRef.current.position.set(...items.position);
           controlsRef.current.update();
-          controlsRef.current.enabled = true;
         }
       });
     }

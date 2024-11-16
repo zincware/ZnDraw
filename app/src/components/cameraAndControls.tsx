@@ -96,11 +96,9 @@ const CameraAndControls: React.FC<CameraAndControlsProps> = ({
       return;
     }
     console.log("cameraAndControls update", cameraAndControls);
-    // controlsRef.current.enabled = false;
     cameraRef.current.position.copy(cameraAndControls.camera);
     controlsRef.current.target.copy(cameraAndControls.target);
     controlsRef.current.update();
-    // controlsRef.current.enabled = true;
   }, [cameraAndControls]);
 
   return (
