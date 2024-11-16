@@ -250,7 +250,7 @@ export function setupCamera(
     });
   }, [token]);
 
-  const updateByRefreshRef = useRef(0);
+  const updateByRefreshRef = useRef(true);
 
   useEffect(() => {
     if (synchronize_camera) {
@@ -264,7 +264,7 @@ export function setupCamera(
         });
 
         // TODO
-        updateByRefreshRef.current = 2;
+        updateByRefreshRef.current = true;
 
         if (controlsRef.current && cameraRef.current) {
           cameraRef.current.position.set(...items.position);
@@ -301,10 +301,10 @@ export function setupCamera(
 
   useEffect(() => {
     const updateCon = async () => {
-      if (updateByRefreshRef.current > 0) {
+      if (updateByRefreshRef.current) {
         // this is triggered twice because of camera and orbit target
         // TODO: this is not reliable yet!
-        updateByRefreshRef.current -= 1;
+        updateByRefreshRef.current = false;
         return;
       }
       conInterface.update({
