@@ -164,8 +164,8 @@ const CameraAndControls: React.FC<CameraAndControlsProps> = ({
           ...prev,
           target: centroid,
         }));
+      }
     };
-  }
 
     // Add the event listener
     window.addEventListener("keydown", handleKeyDown);
@@ -174,10 +174,7 @@ const CameraAndControls: React.FC<CameraAndControlsProps> = ({
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [
-    currentFrame,
-    selectedIds,
-  ]);
+  }, [currentFrame, selectedIds]);
 
   return (
     <>
