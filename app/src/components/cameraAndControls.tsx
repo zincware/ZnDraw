@@ -244,25 +244,34 @@ const CameraAndControls: React.FC<CameraAndControlsProps> = ({
   return (
     <>
       {roomConfig.scene.camera === "OrthographicCamera" && (
-        <OrthographicCamera makeDefault ref={cameraRef} zoom={10} near={roomConfig["scene"]["camera_near"]}
-        far={roomConfig["scene"]["camera_far"]}>
+        <OrthographicCamera
+          makeDefault
+          ref={cameraRef}
+          zoom={10}
+          near={roomConfig["scene"]["camera_near"]}
+          far={roomConfig["scene"]["camera_far"]}
+        >
           <pointLight decay={0} intensity={Math.PI / 2} />
         </OrthographicCamera>
       )}
       {roomConfig.scene.camera === "PerspectiveCamera" && (
-        <PerspectiveCamera makeDefault ref={cameraRef} near={roomConfig["scene"]["camera_near"]}
-        far={roomConfig["scene"]["camera_far"]}>
+        <PerspectiveCamera
+          makeDefault
+          ref={cameraRef}
+          near={roomConfig["scene"]["camera_near"]}
+          far={roomConfig["scene"]["camera_far"]}
+        >
           <pointLight decay={0} intensity={Math.PI / 2} />
         </PerspectiveCamera>
       )}
       {roomConfig.scene.controls === "OrbitControls" && (
-      <OrbitControls
-        makeDefault
-        onEnd={controlsOnEndFn}
-        onChange={controlsOnChangeFn}
-        enableDamping={false}
-        ref={controlsRef}
-      />
+        <OrbitControls
+          makeDefault
+          onEnd={controlsOnEndFn}
+          onChange={controlsOnChangeFn}
+          enableDamping={false}
+          ref={controlsRef}
+        />
       )}
       {roomConfig.scene.controls === "TrackballControls" && (
         <TrackballControls
@@ -275,7 +284,6 @@ const CameraAndControls: React.FC<CameraAndControlsProps> = ({
       {roomConfig["scene"].crosshair && controlsRef.current.target && (
         <MoveCameraTarget colorMode={colorMode} ref={crossHairRef} />
       )}
-      
     </>
   );
 };
