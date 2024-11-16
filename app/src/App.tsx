@@ -406,22 +406,6 @@ export default function App() {
             socket.emit("room:worker:run");
           }
         }
-      } else if (event.key == "o") {
-        const origin = {
-          position: [10, 10, 10],
-          target: getCentroid(currentFrame.positions, new Set()),
-        };
-        setCameraAndControls({
-          camera: new THREE.Vector3(...origin.position),
-          target: new THREE.Vector3(...origin.target),
-        });
-        // if (controlsRef.current && cameraRef.current) {
-        //   controlsRef.current.enabled = false;
-        //   cameraRef.current.position.set(...origin.position);
-        //   setCameraRoll(null);
-        //   controlsRef.current.update();
-        //   controlsRef.current.enabled = true;
-        // }
       } else if (event.key == "r") {
         const roll = Math.PI / 100;
         if (event.ctrlKey) {

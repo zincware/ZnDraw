@@ -14,7 +14,7 @@ import {
 } from "@react-three/drei";
 import * as THREE from "three";
 import { debounce } from "lodash";
-import { useCentroid } from "./particlesEditor";
+import { useCentroid, getCentroid } from "./particlesEditor";
 import { Box } from "@react-three/drei";
 
 const MoveCameraTarget = forwardRef(
@@ -101,45 +101,43 @@ const CameraAndControls: React.FC<CameraAndControlsProps> = ({
     [],
   );
 
+  const getResetCamera = useCallback(() => {
+    if (currentFrame.positions.length === 0) {
+      return;
+    }
+    if (cameraRef.current === null) {
+      return;
+    }
+    // now calculate the camera positions
+    let fullCentroid = getCentroid(currentFrame.positions, new Set());
+
+    // Compute the bounding sphere radius
+    let maxDistance = 0;
+    currentFrame.positions.forEach((x) => {
+      maxDistance = Math.max(maxDistance, x.distanceTo(fullCentroid));
+    });
+
+    const fov = (cameraRef.current.fov * Math.PI) / 180; // Convert FOV to radians
+    const distance = maxDistance / Math.tan(fov / 2);
+
+    return {
+      camera: new THREE.Vector3(distance, distance, distance),
+      target: fullCentroid,
+    };
+  }, [currentFrame.positions]);
+
   // if the camera positions and target positions is default, adapt them to the scene
   useEffect(() => {
     if (
       cameraAndControls.camera.equals(new THREE.Vector3(0, 0, 0)) &&
       cameraAndControls.target.equals(new THREE.Vector3(0, 0, 0))
     ) {
-      if (!centroid) {
-        return;
+      const resetCamera = getResetCamera();
+      if (resetCamera) {
+        setCameraAndControls(resetCamera);
       }
-      if (currentFrame.positions.length === 0) {
-        return;
-      }
-      if (cameraRef.current === null) {
-        return;
-      }
-      if (centroid.equals(new THREE.Vector3(0, 0, 0))) {
-        return;
-      }
-      // check that centroid is not NaN
-      if (isNaN(centroid.x) || isNaN(centroid.y) || isNaN(centroid.z)) {
-        return;
-      }
-      // now calculate the camera positions
-
-      // Compute the bounding sphere radius
-      let maxDistance = 0;
-      currentFrame.positions.forEach((x) => {
-        maxDistance = Math.max(maxDistance, x.distanceTo(centroid));
-      });
-
-      const fov = (cameraRef.current.fov * Math.PI) / 180; // Convert FOV to radians
-      const distance = maxDistance / Math.tan(fov / 2);
-
-      setCameraAndControls({
-        camera: new THREE.Vector3(distance, distance, distance),
-        target: centroid,
-      });
     }
-  }, [centroid, currentFrame.positions]);
+  }, [currentFrame.positions]);
 
   useEffect(() => {
     if (!cameraRef.current || !controlsRef.current) {
@@ -164,6 +162,11 @@ const CameraAndControls: React.FC<CameraAndControlsProps> = ({
           ...prev,
           target: centroid,
         }));
+      } else if (event.key == "o") {
+        const resetCamera = getResetCamera();
+        if (resetCamera) {
+          setCameraAndControls(resetCamera);
+        }
       }
     };
 
