@@ -61,6 +61,8 @@ def assets(filename):
 
 @main.route("/token/<token>")
 def token(token):
+    if token == "default":
+        return "Invalid token", 403
     session["token"] = token
     return send_from_directory("templates", "index.html")
 
