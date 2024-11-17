@@ -30,7 +30,6 @@ def upload(
 
     if not append:
         size = len(vis)
-        print(f"Deleting {size} existing figures ...")
         del vis[: size - 1]
     typer.echo(f"Reading {fileio.name} ...")
 
@@ -44,6 +43,7 @@ def upload(
     if not append:
         # There must be a frame otherwise removing everything currently doesn't work
         del vis[0]
-    vis.extend(frames[1:])
+    if len(frames) > 1:
+        vis.extend(frames[1:])
 
     vis.figures.update(load_plots_to_dict(plots, fileio.remote, fileio.rev))
