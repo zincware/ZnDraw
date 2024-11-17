@@ -322,11 +322,8 @@ export const setupFrames = (
 	setStep: any,
 	frame_update: boolean,
 ) => {
-	const conInterfaceRef = useRef<typeof znsocket.List>(undefined);
-	const defaultConInterfaceRef = useRef<typeof znsocket.List>(undefined);
-	const useDefaultRoomRef = useRef(true);
-	const [framesRequiringUpdate, setFramesRequiringUpdate] = useState(undefined);
 	const currentFrameUpdatedFromSocketRef = useRef(true);
+	const customRoomAvailRef = useRef(false); // Track whether listening to the default room
 
 	const setCurrentFrameFromObject = (frame: any) => {
 		frame = frame.value;
@@ -334,9 +331,92 @@ export const setupFrames = (
 			(position: [number, number, number]) =>
 				new THREE.Vector3(position[0], position[1], position[2]),
 		) as THREE.Vector3[];
+		console.log("frame updated");
 		setCurrentFrame(frame);
 		currentFrameUpdatedFromSocketRef.current = true;
 	};
+
+	useEffect(() => {
+		if (token === "") {
+			return;
+		}
+
+		// isn't it expensive to do this in the useEffect, step is updated quite often
+		let currentRoomCon = new znsocket.List({
+			client,
+			key: `room:${token}:frames`,
+		});
+
+		currentRoomCon.onRefresh(async (x: any) => {
+			if (x?.start > step && frame_update) {
+				setStep(x.start);
+			} else if (x?.start === step) {
+				setStep(x.start);
+			} else if (x?.indices?.includes(step)) {
+				const frame = await currentRoomCon.get(step);
+				setCurrentFrameFromObject(frame);
+			}
+			const length = await currentRoomCon.length();
+			setLength(length);
+		});
+
+		let defaultRoomCon = new znsocket.List({
+			client,
+			key: "room:default:frames",
+		});
+		defaultRoomCon.onRefresh(async (x: any) => {
+			if (x?.start > step && frame_update) {
+				setStep(x.start);
+			} else if (x?.start === step) {
+				setStep(x.start);
+			} else if (x?.indices?.includes(step)) {
+				const frame = await defaultRoomCon.get(step);
+				setCurrentFrameFromObject(frame);
+			}
+			const length = await defaultRoomCon.length();
+			setLength(length);
+		});
+
+		const getFrameFromCon = async () => {
+			let fetchedFrame = await currentRoomCon.get(
+				Number.parseInt(step.toString(), 10) || 0,
+			);
+			if (!customRoomAvailRef.current && fetchedFrame === null) {
+				return await defaultRoomCon.get(
+					Number.parseInt(step.toString(), 10) || 0,
+				);
+			}
+			customRoomAvailRef.current = true;
+			return fetchedFrame;
+		};
+
+		const getLengthFromCon = async () => {
+			let length = await currentRoomCon.length();
+			if (!customRoomAvailRef.current && length === 0) {
+				return await defaultRoomCon.length();
+			}
+			customRoomAvailRef.current = true;
+			return length;
+		};
+
+		const updateFrame = async () => {
+			const frame = await getFrameFromCon();
+			if (frame === null) {
+				// Retry after 100 ms if still null
+				setTimeout(() => updateFrame(), 100);
+			}
+			const length = await getLengthFromCon();
+			setLength(length);
+			setCurrentFrameFromObject(frame);
+		};
+
+		updateFrame();
+
+		return () => {
+			currentRoomCon.offRefresh?.();
+			defaultRoomCon.offRefresh?.();
+		};
+	}, [step, token, frame_update]);
 
 	useEffect(() => {
 		if (currentFrameUpdatedFromSocketRef.current === true) {
@@ -345,129 +425,31 @@ export const setupFrames = (
 		}
 
 		const updateCon = async () => {
-			if (conInterfaceRef.current === undefined) {
-				return;
-			}
+			const con = new znsocket.List({
+				client,
+				key: `room:${token}:frames`,
+			});
 			if (!currentFrame.positions) {
 				return;
 			}
-			// make the frame object serializable
+			// Make the frame object serializable
 			const newFrame = { ...currentFrame };
 			newFrame.positions = newFrame.positions.map((x: THREE.Vector3) => [
 				x.x,
 				x.y,
 				x.z,
 			]);
-			// TODO: need to make a copy of the default room :/ Maybe when entering edit mode, send a message
-			conInterfaceRef.current.set(Number.parseInt(step) || 0, {
+			con.set(Number.parseInt(step) || 0, {
 				value: newFrame,
 				_type: "ase.Atoms",
 			});
 		};
 
-		const debounceTimeout = setTimeout(updateCon, 500);
+		// Use a debounce mechanism for updates
+		const debounceTimeout = setTimeout(updateCon, 100);
 
 		return () => clearTimeout(debounceTimeout);
 	}, [currentFrame]);
-
-	useEffect(() => {
-		const con = new znsocket.List({
-			client: client,
-			key: `room:${token}:frames`,
-		});
-
-		const defaultCon = new znsocket.List({
-			client: client,
-			key: "room:default:frames",
-		});
-
-		// initially check if the room exists
-		// TODO with the edit mode, you need to check
-		// if the room exists more often
-		// because if can be updated from within
-		// this instance and not trigger a refresh
-		con.get(Number.parseInt(step) || 0).then((frame: any) => {
-			if (frame !== null) {
-				useDefaultRoomRef.current = false;
-				con.length().then((length: any) => {
-					setLength(length);
-				});
-			} else {
-				useDefaultRoomRef.current = true;
-				defaultCon.length().then((length: any) => {
-					setLength(length);
-				});
-			}
-		});
-
-		con.onRefresh(async (x: any) => {
-			useDefaultRoomRef.current = false;
-			if (frame_update && x.start) {
-				setStep(x.start);
-			}
-			// defaultCon.offRefresh(); ?
-			con.length().then((length: any) => {
-				setLength(length);
-			});
-			setFramesRequiringUpdate(x);
-		});
-
-		defaultCon.onRefresh(async (x: any) => {
-			setFramesRequiringUpdate(x);
-			if (frame_update && x.start) {
-				setStep(x.start);
-			}
-			defaultCon.length().then((length: any) => {
-				setLength(length);
-			});
-		});
-
-		conInterfaceRef.current = con;
-		defaultConInterfaceRef.current = defaultCon;
-
-		return () => {
-			con.offRefresh();
-			defaultCon.offRefresh();
-		};
-	}, [token]);
-
-	useEffect(() => {
-		if (
-			conInterfaceRef.current === undefined &&
-			defaultConInterfaceRef.current === undefined
-		) {
-			return;
-		}
-
-		const currentInterface = useDefaultRoomRef.current
-			? defaultConInterfaceRef.current
-			: conInterfaceRef.current;
-
-		const updateCurrentFrame = async () => {
-			if (framesRequiringUpdate !== undefined || step !== undefined) {
-				// Update length
-				const length = await currentInterface.length();
-				setLength(length);
-
-				// Retrieve the current frame
-				const frame = await currentInterface.get(Number.parseInt(step) || 0);
-				if (frame === null) {
-					if (length > 0) {
-						setStep(length - 1);
-					}
-				} else {
-					setCurrentFrameFromObject(frame);
-				}
-
-				// Reset framesRequiringUpdate if it was set
-				if (framesRequiringUpdate !== undefined) {
-					setFramesRequiringUpdate(undefined);
-				}
-			}
-		};
-
-		updateCurrentFrame();
-	}, [step, framesRequiringUpdate]);
 };
 
 export const setupGeometries = (
