@@ -351,7 +351,8 @@ export const setupFrames = (
 			if (x?.start > step && frame_update) {
 				setStep(x.start);
 			} else if (x?.start === step) {
-				setStep(x.start);
+				const frame = await currentRoomCon.get(step);
+				setCurrentFrameFromObject(frame);
 			} else if (x?.indices?.includes(step)) {
 				const frame = await currentRoomCon.get(step);
 				setCurrentFrameFromObject(frame);
@@ -368,7 +369,9 @@ export const setupFrames = (
 			if (x?.start > step && frame_update) {
 				setStep(x.start);
 			} else if (x?.start === step) {
-				setStep(x.start);
+				// this should never happen?
+				const frame = await defaultRoomCon.get(step);
+				setCurrentFrameFromObject(frame);
 			} else if (x?.indices?.includes(step)) {
 				const frame = await defaultRoomCon.get(step);
 				setCurrentFrameFromObject(frame);
