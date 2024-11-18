@@ -105,11 +105,6 @@ const ParticleBondMaterial = ({
 				return (
 					<meshBasicMaterial side={THREE.BackSide} transparent opacity={hover_opacity} />
 				);
-			case "frontside":
-				// when is this used?
-				return (
-					<meshBasicMaterial side={THREE.FrontSide} transparent opacity={selection_opacity} />
-				);
 			case "selection":
 				return (
 					<meshBasicMaterial side={THREE.FrontSide} transparent opacity={selection_opacity} />
@@ -220,8 +215,6 @@ export const ParticleInstances = ({
 				let radius;
 				if (highlight === "backside") {
 					radius = radii[atomIdx] * 1.25;
-				} else if (highlight === "frontside") {
-					radius = radii[atomIdx] * 1.01;
 				} else if (highlight === "selection") {
 					radius = radii[atomIdx] * 1.01;
 				} else {
