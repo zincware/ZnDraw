@@ -44,6 +44,6 @@ def upload(
         if len(frames) == batch_size:
             vis.extend(frames)
             frames = []
-    vis.extend(frames)   
+    vis.extend(frames)
 
     vis.figures.update(load_plots_to_dict(plots, fileio.remote, fileio.rev))
