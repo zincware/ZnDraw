@@ -121,9 +121,12 @@ export function setupSelection(
 	selectedIds: Set<number>,
 ) {
 	const conInterfaceRef = useRef<any>(undefined);
-	const updateByRefreshRef = useRef(false);
+	const updateByRefreshRef = useRef(true);
 
 	useEffect(() => {
+		if (token === "") {
+			return;
+		}
 		console.log("setting up selection");
 		const con = new znsocket.Dict({
 			client: client,
@@ -134,6 +137,7 @@ export function setupSelection(
 		con.get("grp-0").then((items: any) => {
 			updateByRefreshRef.current = true;
 			setSelectedIds(new Set(items));
+			console.log("initial selection update to", items);
 		});
 
 		// External updates handler
