@@ -388,6 +388,11 @@ export default function App() {
 
 	// reduce selection, if selected points is reduced
 	useEffect(() => {
+		if (currentFrame.positions.length === 0) {
+			// this is not ideal, but we want to prohibit changes when loading
+			// one consequence is that the selection is not updated when the frame is empty
+			return;
+		}
 		if (selectedIds.size > 0) {
 			const newSelectedIds = new Set(
 				Array.from(selectedIds).filter(

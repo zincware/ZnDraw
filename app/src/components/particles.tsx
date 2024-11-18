@@ -245,7 +245,9 @@ export const ParticleInstances = ({
 
 			// Mark instance matrices and colors for update
 			meshRef.current.instanceMatrix.needsUpdate = true;
-			meshRef.current.instanceColor.needsUpdate = true;
+			if (meshRef.current.instanceColor) {
+				meshRef.current.instanceColor.needsUpdate = true;
+			}
 		}
 	}, [
 		positions,

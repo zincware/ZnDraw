@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import * as znsocket from "znsocket";
 import { client } from "../socket";
@@ -121,10 +121,12 @@ export function setupSelection(
 	selectedIds: Set<number>,
 ) {
 	const conInterfaceRef = useRef<any>(undefined);
-	const updateByRefreshRef = useRef(false);
+	const updateByRefreshRef = useRef(true);
 
 	useEffect(() => {
-		console.log("setting up selection");
+		if (token === "") {
+			return;
+		}
 		const con = new znsocket.Dict({
 			client: client,
 			key: `room:${token}:selection`,
@@ -336,35 +338,25 @@ export const setupFrames = (
 		currentFrameUpdatedFromSocketRef.current = true;
 	};
 
-	useEffect(() => {
-		if (token === "") {
-			return;
-		}
-
-		// isn't it expensive to do this in the useEffect, step is updated quite often
-		let currentRoomCon = new znsocket.List({
+	const currentRoomCon = useMemo(() => {
+		return new znsocket.List({
 			client,
 			key: `room:${token}:frames`,
 		});
+	}, [token]);
 
-		currentRoomCon.onRefresh(async (x: any) => {
-			if (x?.start > step && frame_update) {
-				setStep(x.start);
-			} else if (x?.start === step) {
-				const frame = await currentRoomCon.get(step);
-				setCurrentFrameFromObject(frame);
-			} else if (x?.indices?.includes(step)) {
-				const frame = await currentRoomCon.get(step);
-				setCurrentFrameFromObject(frame);
-			}
-			const length = await currentRoomCon.length();
-			setLength(length);
-		});
-
-		let defaultRoomCon = new znsocket.List({
+	const defaultRoomCon = useMemo(() => {
+		return new znsocket.List({
 			client,
 			key: "room:default:frames",
 		});
+	}, []);
+
+	// setup onRefresh and initial load
+	// default room
+	useEffect(() => {
+		if (defaultRoomCon === undefined) return;
+
 		defaultRoomCon.onRefresh(async (x: any) => {
 			if (x?.start > step && frame_update) {
 				setStep(x.start);
@@ -378,32 +370,73 @@ export const setupFrames = (
 			}
 			const length = await defaultRoomCon.length();
 			setLength(length);
+			if (length >= step) {
+				setStep(length - 1);
+			}
 		});
 
-		const getFrameFromCon = async () => {
-			let fetchedFrame = await currentRoomCon.get(
-				Number.parseInt(step.toString(), 10) || 0,
-			);
+		return () => {
+			defaultRoomCon.offRefresh?.();
+		};
+	}, [defaultRoomCon, frame_update]);
+
+	// custom room
+	useEffect(() => {
+		if (currentRoomCon === undefined) return;
+
+		currentRoomCon.onRefresh(async (x: any) => {
+			// how does this even work without a step deps?
+			if (x?.start > step && frame_update) {
+				setStep(x.start);
+			} else if (x?.start === step) {
+				const frame = await currentRoomCon.get(step);
+				setCurrentFrameFromObject(frame);
+			} else if (x?.indices?.includes(step)) {
+				const frame = await currentRoomCon.get(step);
+				setCurrentFrameFromObject(frame);
+			}
+			const length = await currentRoomCon.length();
+			setLength(length);
+			if (length >= step) {
+				setStep(length - 1);
+			}
+		});
+
+		return () => {
+			currentRoomCon.offRefresh?.();
+		};
+	}, [currentRoomCon, frame_update]);
+
+	const getFrameFromCon = useCallback(
+		async (step: number) => {
+			let fetchedFrame = await currentRoomCon.get(step);
 			if (!customRoomAvailRef.current && fetchedFrame === null) {
-				return await defaultRoomCon.get(
-					Number.parseInt(step.toString(), 10) || 0,
-				);
+				return await defaultRoomCon.get(step);
 			}
 			customRoomAvailRef.current = true;
 			return fetchedFrame;
-		};
+		},
+		[currentRoomCon, defaultRoomCon],
+	);
 
-		const getLengthFromCon = async () => {
-			let length = await currentRoomCon.length();
-			if (!customRoomAvailRef.current && length === 0) {
-				return await defaultRoomCon.length();
-			}
-			customRoomAvailRef.current = true;
-			return length;
-		};
+	const getLengthFromCon = useCallback(async () => {
+		let length = await currentRoomCon.length();
+		if (!customRoomAvailRef.current && length === 0) {
+			return await defaultRoomCon.length();
+		}
+		customRoomAvailRef.current = true;
+		return length;
+	}, [currentRoomCon, defaultRoomCon]);
+
+	useEffect(() => {
+		if (defaultRoomCon === undefined || currentRoomCon === undefined) {
+			return;
+		}
 
 		const updateFrame = async () => {
-			const frame = await getFrameFromCon();
+			const frame = await getFrameFromCon(
+				Number.parseInt(step.toString(), 10) || 0,
+			);
 			if (frame === null) {
 				// Retry after 100 ms if still null
 				setTimeout(() => updateFrame(), 100);
@@ -413,14 +446,16 @@ export const setupFrames = (
 			setCurrentFrameFromObject(frame);
 		};
 
-		updateFrame();
-
+		// debounce by 8ms (roughly 120fps)
+		// this will smooth scrubbing through the frames
+		// and avoid unnecessary updates
+		const debounceTimeout = setTimeout(updateFrame, 8);
 		return () => {
-			currentRoomCon.offRefresh?.();
-			defaultRoomCon.offRefresh?.();
+			clearTimeout(debounceTimeout);
 		};
-	}, [step, token, frame_update]);
+	}, [step]);
 
+	// Sending edits from ZnDraw to the server
 	useEffect(() => {
 		if (currentFrameUpdatedFromSocketRef.current === true) {
 			currentFrameUpdatedFromSocketRef.current = false;

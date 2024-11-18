@@ -5,6 +5,9 @@ import { socket } from "../socket";
 
 export const getCentroid = (positions: Vector3[], selection: Set<number>) => {
 	const centroid = new Vector3();
+	if (!positions || positions.length === 0) {
+		return centroid;
+	}
 	if (selection.size > 0) {
 		selection.forEach((i) => {
 			centroid.add(positions[i]);
