@@ -127,7 +127,6 @@ export function setupSelection(
 		if (token === "") {
 			return;
 		}
-		console.log("setting up selection");
 		const con = new znsocket.Dict({
 			client: client,
 			key: `room:${token}:selection`,
@@ -137,7 +136,6 @@ export function setupSelection(
 		con.get("grp-0").then((items: any) => {
 			updateByRefreshRef.current = true;
 			setSelectedIds(new Set(items));
-			console.log("initial selection update to", items);
 		});
 
 		// External updates handler
@@ -434,8 +432,6 @@ export const setupFrames = (
 		if (defaultRoomCon === undefined || currentRoomCon === undefined) {
 			return;
 		}
-		// keep track if this useEffect is still active
-		let active = true;
 
 		const updateFrame = async () => {
 			const frame = await getFrameFromCon(
@@ -447,10 +443,7 @@ export const setupFrames = (
 			}
 			const length = await getLengthFromCon();
 			setLength(length);
-			// if (active){ // this does not work, because when playing right now we render the frame
-			// even if the slider already moved on.
 			setCurrentFrameFromObject(frame);
-			// }
 		};
 
 		// debounce by 8ms (roughly 120fps)
@@ -458,7 +451,6 @@ export const setupFrames = (
 		// and avoid unnecessary updates
 		const debounceTimeout = setTimeout(updateFrame, 8);
 		return () => {
-			active = false;
 			clearTimeout(debounceTimeout);
 		};
 	}, [step]);
