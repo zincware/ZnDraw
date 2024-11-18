@@ -9,7 +9,7 @@ import {
 	FaRegHandPointer,
 	FaRegMap,
 } from "react-icons/fa";
-import { FaCircleNodes } from "react-icons/fa6";
+import { FaCircleNodes, FaGear } from "react-icons/fa6";
 import { IoStop } from "react-icons/io5";
 import Select from "react-select";
 import * as znsocket from "znsocket";
@@ -312,15 +312,15 @@ function SideBar({ token }: { token: string }) {
 							</Button>
 						</Nav>
 					</BtnTooltip>
-					<BtnTooltip text="Scene" placement="right">
+					<BtnTooltip text="Settings" placement="right">
 						<Nav className="mx-auto my-1">
 							<Button
 								variant="outline-tertiary"
 								onClick={() =>
-									setVisibleOption(visibleOption !== "scene" ? "scene" : "")
+									setVisibleOption(visibleOption !== "settings" ? "settings" : "")
 								}
 							>
-								<FaCube />
+								<FaGear />
 							</Button>
 						</Nav>
 					</BtnTooltip>
@@ -380,8 +380,8 @@ function SideBar({ token }: { token: string }) {
 				sendImmediately={false}
 			/>
 			<SidebarMenu
-				name="scene"
-				visible={visibleOption === "scene"}
+				name="settings"
+				visible={visibleOption === "settings"}
 				token={token}
 				closeMenu={() => setVisibleOption("")}
 				sendImmediately={true}

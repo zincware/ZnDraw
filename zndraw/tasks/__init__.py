@@ -386,7 +386,7 @@ def run_room_worker(room):
     scene_queue = znsocket.Dict(
         r=current_app.extensions["redis"],
         socket=vis._refresh_client,
-        key=f"queue:{room}:scene",
+        key=f"queue:{room}:settings",
     )
 
     for key, val in scene_queue.items():
@@ -495,7 +495,7 @@ def run_scene_dependent_schema(room) -> None:
     dct = znsocket.Dict(
         r=current_app.extensions["redis"],
         socket=vis._refresh_client,
-        key=f"schema:{room}:scene",
+        key=f"schema:{room}:settings",
     )
 
     for key, val in SETTINGS.items():
