@@ -29,9 +29,7 @@ def upload(
     typer.echo(f"Uploading to: {url}/token/{vis.token}")
 
     if not append:
-        size = len(vis)
-        print(f"Deleting {size} existing figures ...")
-        del vis[: size - 1]
+        del vis[:]
     typer.echo(f"Reading {fileio.name} ...")
 
     generator = get_generator_from_filename(fileio)
@@ -41,9 +39,7 @@ def upload(
     if browser:
         webbrowser.open(f"{url}/token/{vis.token}")
 
-    if not append:
-        # There must be a frame otherwise removing everything currently doesn't work
-        del vis[0]
-    vis.extend(frames[1:])
+    if len(frames) > 1:
+        vis.extend(frames[1:])
 
     vis.figures.update(load_plots_to_dict(plots, fileio.remote, fileio.rev))
