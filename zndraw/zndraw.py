@@ -22,7 +22,7 @@ from redis import Redis
 from zndraw.abc import Message
 from zndraw.base import Extension
 from zndraw.bonds import ASEComputeBonds
-from zndraw.config import Arrows, PathTracer, Scene
+from zndraw.config import SETTINGS
 from zndraw.converter import ASEConverter, Object3DConverter
 from zndraw.draw import Object3D
 from zndraw.figure import Figure, FigureConverter
@@ -594,39 +594,18 @@ class ZnDraw(MutableSequence):
             socket=self._refresh_client,
         )
         if len(conf) == 0:
-            scene_conf = znsocket.Dict(
-                self.r,
-                f"room:{self.token}:config:scene",
-                repr_type="full",
-                socket=self._refresh_client,
-            )
-            if len(scene_conf) == 0:
-                scene_conf.update(Scene().model_dump())
-            arrows_conf = znsocket.Dict(
-                self.r,
-                f"room:{self.token}:config:arrows",
-                repr_type="full",
-                socket=self._refresh_client,
-            )
-            if len(arrows_conf) == 0:
-                arrows_conf.update(Arrows().model_dump())
-
-            path_trace_conf = znsocket.Dict(
-                self.r,
-                f"room:{self.token}:config:path_tracer",
-                repr_type="full",
-                socket=self._refresh_client,
-            )
-            if len(path_trace_conf) == 0:
-                path_trace_conf.update(PathTracer().model_dump())
-            #
-            conf.update(
-                {
-                    "scene": scene_conf,
-                    "arrows": arrows_conf,
-                    "PathTracer": path_trace_conf,
-                }
-            )
+            conf_dicts = {}
+            for key, value in SETTINGS.items():
+                conf_dicts[key] = znsocket.Dict(
+                    self.r,
+                    f"room:{self.token}:config:{key}",
+                    repr_type="full",
+                    socket=self._refresh_client,
+                )
+                if len(conf_dicts[key]) == 0:
+                    conf_dicts[key].update(value().model_dump())
+            conf.update(conf_dicts)
+            # TODO: arrows
         return conf
 
     @property

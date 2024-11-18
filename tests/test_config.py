@@ -11,14 +11,14 @@ def test_config_modify_arrows(server):
     room = "test_config_arrows"
     vis = ZnDraw(url=server, token=room)
 
-    vis.config["arrows"]["normalize"] = False
-    assert vis.config["arrows"]["normalize"] is False
+    vis.config["Arrows"]["normalize"] = False
+    assert vis.config["Arrows"]["normalize"] is False
 
-    vis.config["arrows"]["normalize"] = True
-    assert vis.config["arrows"]["normalize"] is True
+    vis.config["Arrows"]["normalize"] = True
+    assert vis.config["Arrows"]["normalize"] is True
 
     # check other defaults
-    assert vis.config["arrows"]["opacity"] == 1.0
+    assert vis.config["Arrows"]["opacity"] == 1.0
 
 
 # def test_config_replace_znsocket(server):
@@ -33,10 +33,10 @@ def test_config_modify_scene(server):
     room = "test_config_scene"
     vis = ZnDraw(url=server, token=room)
 
-    vis.config["scene"]["fps"] = 30
-    assert vis.config["scene"]["fps"] == 30
-    vis.config["scene"]["fps"] = 60
-    assert vis.config["scene"]["fps"] == 60
+    vis.config["Camera"]["fps"] = 30
+    assert vis.config["Camera"]["fps"] == 30
+    vis.config["Camera"]["fps"] = 60
+    assert vis.config["Camera"]["fps"] == 60
 
     # check other defaults
-    assert vis.config["scene"]["material"] == "MeshStandardMaterial"
+    assert vis.config["Camera"]["camera"] == "PerspectiveCamera"

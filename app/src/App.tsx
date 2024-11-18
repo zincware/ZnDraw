@@ -96,7 +96,7 @@ export default function App() {
 	const [hoveredId, setHoveredId] = useState<number>(-1);
 	// UPDATE THESE using `vis.config` on the Python side
 	const [roomConfig, setRoomConfig] = useState({
-		arrows: {
+		Arrows: {
 			colormap: [
 				[-0.5, 0.9, 0.5],
 				[0.0, 0.9, 0.5],
@@ -106,25 +106,28 @@ export default function App() {
 			scale_vector_thickness: false,
 			opacity: 1.0,
 		},
-		scene: {
-			fps: 30,
-			material: "MeshStandardMaterial",
+		Particle: {
 			particle_size: 1.0,
 			bond_size: 1.0,
-			animation_loop: false,
-			simulation_box: true,
-			vectorfield: true,
-			controls: "OrbitControls",
-			vectors: [],
-			vector_scale: 1.0,
+			material: "MeshStandardMaterial",
 			selection_color: "#ffa500",
+			hover_opacity: 0.8,
+			selection_opacity: 0.5,
+		},
+		Visualization: {
+			simulation_box: true,
+			floor: false,
+			frame_update: true,
+			animation_loop: false,
+		},
+		Camera: {
 			camera: "PerspectiveCamera",
 			camera_near: 0.1,
 			camera_far: 300,
-			frame_update: true,
 			crosshair: false,
-			floor: false,
 			synchronize_camera: true,
+			fps: 30,
+			controls: "OrbitControls",
 		},
 		PathTracer: {
 			enabled: false,
@@ -134,6 +137,11 @@ export default function App() {
 			clearcoat: 0.0,
 			clearcoatRoughness: 0.0,
 		},
+		VectorDisplay: {
+			vectorfield: true,
+			vectors: "",
+			vector_scale: 1.0,
+		},
 	});
 
 	const [isAuthenticated, setIsAuthenticated] = useState<boolean>(true);
@@ -142,12 +150,6 @@ export default function App() {
 	// QUEUES
 	// TODO: fix
 	const [modifierQueue, setModifierQueue] = useState<number>(-1);
-
-	const cameraLightRef = useRef<THREE.PointLight>(null);
-	const controlsRef = useRef<TransformControls>(null);
-	const cameraRef = useRef<THREE.Camera>(null);
-
-	const [cameraRoll, setCameraRoll] = useState<number>(0); // or undefined
 
 	// extension UI elements
 	const [tutorialURL, setTutorialURL] = useState<string>("");
@@ -170,7 +172,7 @@ export default function App() {
 		token,
 		cameraAndControls,
 		setCameraAndControls,
-		roomConfig.scene.synchronize_camera,
+		roomConfig.Camera.synchronize_camera,
 	);
 	setupFrames(
 		token,
@@ -179,7 +181,7 @@ export default function App() {
 		currentFrame,
 		setLength,
 		setStep,
-		roomConfig.scene.frame_update,
+		roomConfig.Visualization.frame_update,
 	);
 	setupFigures(token, setUpdatedPlotsList);
 	setupGeometries(token, setGeometries, geometries);
@@ -448,7 +450,7 @@ export default function App() {
 			<div className="canvas-container" onDragOver={onDragOver} onDrop={onDrop}>
 				<Canvas onPointerMissed={onPointerMissed} shadows>
 					<CameraAndControls
-						roomConfig={roomConfig}
+						cameraConfig={roomConfig.Camera}
 						cameraAndControls={cameraAndControls}
 						setCameraAndControls={setCameraAndControls}
 						currentFrame={currentFrame}
@@ -461,35 +463,35 @@ export default function App() {
 								<Environment preset={roomConfig.PathTracer.environment} />
 							)}
 
-						{roomConfig.scene.floor ? (
+						{roomConfig.Visualization.floor ? (
 							<>
 								<Floor colorMode={colorMode} roomConfig={roomConfig} />
 								<directionalLight
 									position={[0, 100, 0]}
 									intensity={1.0}
 									castShadow
-									shadow-mapSize-width={roomConfig.scene.camera_far * 10} // Adjust the width of the shadow map
-									shadow-mapSize-height={roomConfig.scene.camera_far * 10} // Adjust the height of the shadow map
+									shadow-mapSize-width={roomConfig.Camera.camera_far * 10} // Adjust the width of the shadow map
+									shadow-mapSize-height={roomConfig.Camera.camera_far * 10} // Adjust the height of the shadow map
 									shadow-camera-near={10} // Adjust the near clipping plane of the shadow camera
 									shadow-camera-far={800} // Adjust the far clipping plane of the shadow camera
-									shadow-camera-left={-1 * roomConfig.scene.camera_far} // Set the left boundary for the shadow camera frustum
-									shadow-camera-right={roomConfig.scene.camera_far} // Set the right boundary for the shadow camera frustum
-									shadow-camera-top={roomConfig.scene.camera_far} // Set the top boundary for the shadow camera frustum
-									shadow-camera-bottom={-1 * roomConfig.scene.camera_far} // Set the bottom boundary for the shadow camera frustum
+									shadow-camera-left={-1 * roomConfig.Camera.camera_far} // Set the left boundary for the shadow camera frustum
+									shadow-camera-right={roomConfig.Camera.camera_far} // Set the right boundary for the shadow camera frustum
+									shadow-camera-top={roomConfig.Camera.camera_far} // Set the top boundary for the shadow camera frustum
+									shadow-camera-bottom={-1 * roomConfig.Camera.camera_far} // Set the bottom boundary for the shadow camera frustum
 								/>
 							</>
 						) : (
 							<directionalLight position={[0, 100, 0]} intensity={1.0} />
 						)}
 
-						{roomConfig.scene.vectorfield &&
+						{roomConfig.VectorDisplay.vectorfield &&
 							currentFrame.vectors !== undefined && (
 								<VectorField
 									vectors={currentFrame.vectors}
 									pathTracingSettings={roomConfig.PathTracer}
 									arrowsConfig={{
-										rescale: roomConfig.scene.vector_scale,
-										...roomConfig.arrows,
+										rescale: roomConfig.VectorDisplay.vector_scale,
+										...roomConfig.Arrows,
 									}}
 								/>
 							)}
@@ -500,7 +502,7 @@ export default function App() {
 							isDrawing={isDrawing}
 							setPoints={setPoints}
 							setHoveredId={setHoveredId}
-							sceneSettings={roomConfig.scene}
+							sceneSettings={roomConfig.Particle}
 							token={token}
 							highlight=""
 							visibleIndices={undefined}
@@ -516,7 +518,7 @@ export default function App() {
 									isDrawing={isDrawing}
 									setPoints={setPoints}
 									setHoveredId={setHoveredId}
-									sceneSettings={roomConfig.scene}
+									sceneSettings={roomConfig.Particle}
 									token={token}
 									visibleIndices={hoveredId}
 									highlight={"backside"}
@@ -529,7 +531,7 @@ export default function App() {
 									isDrawing={isDrawing}
 									setPoints={setPoints}
 									setHoveredId={setHoveredId}
-									sceneSettings={roomConfig.scene}
+									sceneSettings={roomConfig.Particle}
 									token={token}
 									visibleIndices={selectedIds}
 									highlight={"selection"}
@@ -542,7 +544,7 @@ export default function App() {
 									isDrawing={isDrawing}
 									setPoints={setPoints}
 									setHoveredId={setHoveredId}
-									sceneSettings={roomConfig.scene}
+									sceneSettings={roomConfig.Particle}
 									token={token}
 									visibleIndices={
 										new Set(currentFrame.constraints?.[0]?.indices)
@@ -554,7 +556,7 @@ export default function App() {
 									frame={currentFrame}
 									visibleIndices={selectedIds}
 									highlight="selection"
-									sceneSettings={roomConfig.scene}
+									sceneSettings={roomConfig.Particle}
 								/>
 							</>
 						)}
@@ -562,10 +564,10 @@ export default function App() {
 							frame={currentFrame}
 							visibleIndices={undefined}
 							highlight=""
-							sceneSettings={roomConfig.scene}
+							sceneSettings={roomConfig.Particle}
 							pathTracingSettings={roomConfig.PathTracer}
 						/>
-						{roomConfig.scene.simulation_box &&
+						{roomConfig.Visualization.simulation_box &&
 							!roomConfig.PathTracer.enabled && (
 								<SimulationCell frame={currentFrame} colorMode={colorMode} />
 							)}
@@ -574,8 +576,8 @@ export default function App() {
 							togglePlaying={setPlaying}
 							step={step}
 							setStep={setStep}
-							fps={roomConfig.scene.fps}
-							loop={roomConfig.scene.animation_loop}
+							fps={roomConfig.Camera.fps}
+							loop={roomConfig.Visualization.animation_loop}
 							length={length}
 							selectedFrames={selectedFrames}
 						/>
@@ -608,15 +610,15 @@ export default function App() {
 							hoveredId={hoveredId}
 							setHoveredId={setHoveredId}
 						/>
-						{roomConfig.scene.vectors[0] &&
-							roomConfig.scene.vectors.map((vector) => (
+						{roomConfig.VectorDisplay.vectors[0] &&
+							roomConfig.VectorDisplay.vectors.map((vector) => (
 								<PerParticleVectors
 									frame={currentFrame}
 									property={vector}
 									colorMode={colorMode}
 									arrowsConfig={{
-										rescale: roomConfig.scene.vector_scale,
-										...roomConfig.arrows,
+										rescale: roomConfig.VectorDisplay.vector_scale,
+										...roomConfig.Arrows,
 									}}
 									pathTracingSettings={roomConfig.PathTracer}
 									key={vector}

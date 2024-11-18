@@ -58,7 +58,7 @@ type CameraAndControls = {
 };
 
 type CameraAndControlsProps = {
-	roomConfig: any;
+	cameraConfig: any;
 	cameraAndControls: CameraAndControls;
 	setCameraAndControls: React.Dispatch<React.SetStateAction<CameraAndControls>>;
 	currentFrame: any;
@@ -67,7 +67,7 @@ type CameraAndControlsProps = {
 };
 
 const CameraAndControls: React.FC<CameraAndControlsProps> = ({
-	roomConfig,
+	cameraConfig,
 	cameraAndControls,
 	setCameraAndControls,
 	currentFrame,
@@ -180,7 +180,7 @@ const CameraAndControls: React.FC<CameraAndControlsProps> = ({
 		if (resetCamera) {
 			setCameraAndControls(resetCamera);
 		}
-	}, [roomConfig.scene.camera]);
+	}, [cameraConfig.camera]);
 
 	useEffect(() => {
 		if (!cameraRef.current || !controlsRef.current) {
@@ -239,28 +239,28 @@ const CameraAndControls: React.FC<CameraAndControlsProps> = ({
 
 	return (
 		<>
-			{roomConfig.scene.camera === "OrthographicCamera" && (
+			{cameraConfig.camera === "OrthographicCamera" && (
 				<OrthographicCamera
 					makeDefault
 					ref={cameraRef}
 					zoom={10}
-					near={roomConfig.scene.camera_near}
-					far={roomConfig.scene.camera_far}
+					near={cameraConfig.camera_near}
+					far={cameraConfig.camera_far}
 				>
 					<pointLight decay={0} intensity={Math.PI / 2} />
 				</OrthographicCamera>
 			)}
-			{roomConfig.scene.camera === "PerspectiveCamera" && (
+			{cameraConfig.camera === "PerspectiveCamera" && (
 				<PerspectiveCamera
 					makeDefault
 					ref={cameraRef}
-					near={roomConfig.scene.camera_near}
-					far={roomConfig.scene.camera_far}
+					near={cameraConfig.camera_near}
+					far={cameraConfig.camera_far}
 				>
 					<pointLight decay={0} intensity={Math.PI / 2} />
 				</PerspectiveCamera>
 			)}
-			{roomConfig.scene.controls === "OrbitControls" && (
+			{cameraConfig.controls === "OrbitControls" && (
 				<OrbitControls
 					makeDefault
 					onEnd={controlsOnEndFn}
@@ -269,7 +269,7 @@ const CameraAndControls: React.FC<CameraAndControlsProps> = ({
 					ref={controlsRef}
 				/>
 			)}
-			{roomConfig.scene.controls === "TrackballControls" && (
+			{cameraConfig.controls === "TrackballControls" && (
 				<TrackballControls
 					makeDefault
 					onEnd={controlsOnEndFn}
@@ -277,7 +277,7 @@ const CameraAndControls: React.FC<CameraAndControlsProps> = ({
 					ref={controlsRef}
 				/>
 			)}
-			{roomConfig.scene.crosshair && controlsRef.current.target && (
+			{cameraConfig.crosshair && controlsRef.current.target && (
 				<MoveCameraTarget colorMode={colorMode} ref={crossHairRef} />
 			)}
 		</>
