@@ -111,6 +111,8 @@ export default function App() {
 			bond_size: 1.0,
 			material: "MeshStandardMaterial",
 			selection_color: "#ffa500",
+			hover_opacity: 0.8,
+			selection_opacity: 0.5,
 		},
 		Visualization: {
 			simulation_box: true,

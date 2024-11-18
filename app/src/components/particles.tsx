@@ -90,24 +90,29 @@ const ParticleBondMaterial = ({
 	highlight,
 	material,
 	color,
+	hover_opacity,
+	selection_opacity,
 }: {
 	highlight: string;
 	material: string;
 	color?: string;
+	hover_opacity?: number;
+	selection_opacity?: number;
 }) => {
 	if (highlight) {
 		switch (highlight) {
 			case "backside":
 				return (
-					<meshBasicMaterial side={THREE.BackSide} transparent opacity={0.8} />
+					<meshBasicMaterial side={THREE.BackSide} transparent opacity={hover_opacity} />
 				);
 			case "frontside":
+				// when is this used?
 				return (
-					<meshBasicMaterial side={THREE.FrontSide} transparent opacity={0.5} />
+					<meshBasicMaterial side={THREE.FrontSide} transparent opacity={selection_opacity} />
 				);
 			case "selection":
 				return (
-					<meshBasicMaterial side={THREE.FrontSide} transparent opacity={0.5} />
+					<meshBasicMaterial side={THREE.FrontSide} transparent opacity={selection_opacity} />
 				);
 			case "constraint":
 				return (
@@ -184,7 +189,7 @@ export const ParticleInstances = ({
 
 	const { colors, radii } = frame.arrays;
 	const positions = frame.positions;
-	const { selection_color, material, particle_size } = sceneSettings;
+	const { selection_color, material, particle_size, hover_opacity, selection_opacity } = sceneSettings;
 
 	const geometry = useMemo(() => {
 		const _geometry = new THREE.SphereGeometry(1, 32, 32);
@@ -341,7 +346,7 @@ export const ParticleInstances = ({
 				castShadow
 				frustumCulled={false}
 			>
-				<ParticleBondMaterial highlight={highlight} material={material} />
+				<ParticleBondMaterial highlight={highlight} material={material} hover_opacity={hover_opacity} selection_opacity={selection_opacity}/>
 			</instancedMesh>
 		</>
 	);
@@ -362,7 +367,7 @@ export const BondInstances = ({
 }) => {
 	const meshRef = useRef<THREE.InstancedMesh | null>(null);
 
-	const { material, selection_color, bond_size } = sceneSettings;
+	const { material, selection_color, bond_size, hover_opacity, selection_opacity } = sceneSettings;
 
 	const actualVisibleConnectivity = useMemo(() => {
 		if (!visibleIndices) {
@@ -475,7 +480,7 @@ export const BondInstances = ({
 			castShadow
 			// receiveShadow
 		>
-			<ParticleBondMaterial highlight={highlight} material={material} />
+			<ParticleBondMaterial highlight={highlight} material={material} hover_opacity={hover_opacity} selection_opacity={selection_opacity}/>
 		</instancedMesh>
 	);
 };

@@ -43,6 +43,8 @@ class Particle(SettingsBase):
     bond_size: float = Field(1.0, ge=0.1, le=5, description="Bonds Size")
     material: Material = Field(Material.MeshStandardMaterial, description="Material")
     selection_color: str = Field("#ffa500", description="Selection color")
+    hover_opacity: float = Field(0.8, ge=0.0, le=1.0, description="Hover opacity")
+    selection_opacity: float = Field(0.5, ge=0.0, le=1.0, description="Selection opacity")
 
     @classmethod
     def model_json_schema_from_atoms(cls, atoms: ase.Atoms) -> dict:
@@ -52,6 +54,10 @@ class Particle(SettingsBase):
         schema["properties"]["bond_size"]["format"] = "range"
         schema["properties"]["bond_size"]["step"] = 0.1
         schema["properties"]["selection_color"]["format"] = "color"
+        schema["properties"]["hover_opacity"]["format"] = "range"
+        schema["properties"]["hover_opacity"]["step"] = 0.05
+        schema["properties"]["selection_opacity"]["format"] = "range"
+        schema["properties"]["selection_opacity"]["step"] = 0.05
         return schema
 
 
