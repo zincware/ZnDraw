@@ -317,7 +317,9 @@ function SideBar({ token }: { token: string }) {
 							<Button
 								variant="outline-tertiary"
 								onClick={() =>
-									setVisibleOption(visibleOption !== "settings" ? "settings" : "")
+									setVisibleOption(
+										visibleOption !== "settings" ? "settings" : "",
+									)
 								}
 							>
 								<FaGear />
