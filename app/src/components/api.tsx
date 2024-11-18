@@ -340,6 +340,9 @@ export const setupFrames = (
 	};
 
 	const currentRoomCon = useMemo(() => {
+		if (token === "") {
+			return undefined;
+		}
 		return new znsocket.List({
 			client,
 			key: `room:${token}:frames`,
@@ -445,7 +448,7 @@ export const setupFrames = (
 		return () => {
 			clearTimeout(debounceTimeout);
 		};
-	}, [step, updateStepInPlace]);
+	}, [step, updateStepInPlace, defaultRoomCon, currentRoomCon]);
 
 	// Sending edits from ZnDraw to the server
 	useEffect(() => {
