@@ -370,7 +370,7 @@ export const setupFrames = (
 			}
 			const length = await defaultRoomCon.length();
 			setLength(length);
-			if (length >= step) {
+			if (step >= length) {
 				setStep(length - 1);
 			}
 		});
@@ -378,14 +378,13 @@ export const setupFrames = (
 		return () => {
 			defaultRoomCon.offRefresh?.();
 		};
-	}, [defaultRoomCon, frame_update]);
+	}, [defaultRoomCon, frame_update, step]);
 
 	// custom room
 	useEffect(() => {
 		if (currentRoomCon === undefined) return;
 
 		currentRoomCon.onRefresh(async (x: any) => {
-			// how does this even work without a step deps?
 			if (x?.start > step && frame_update) {
 				setStep(x.start);
 			} else if (x?.start === step) {
@@ -397,7 +396,7 @@ export const setupFrames = (
 			}
 			const length = await currentRoomCon.length();
 			setLength(length);
-			if (length >= step) {
+			if (step >= length) {
 				setStep(length - 1);
 			}
 		});
@@ -405,7 +404,7 @@ export const setupFrames = (
 		return () => {
 			currentRoomCon.offRefresh?.();
 		};
-	}, [currentRoomCon, frame_update]);
+	}, [currentRoomCon, frame_update, step]);
 
 	const getFrameFromCon = useCallback(
 		async (step: number) => {
