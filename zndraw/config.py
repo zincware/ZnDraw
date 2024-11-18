@@ -11,8 +11,8 @@ if t.TYPE_CHECKING:
 
 HSLColor = t.Tuple[float, float, float]
 
-class SettingsBase(BaseModel):
 
+class SettingsBase(BaseModel):
     @classmethod
     def model_json_schema_from_atoms(cls, atoms: ase.Atoms) -> dict:
         return cls.model_json_schema()
@@ -148,6 +148,7 @@ class Camera(SettingsBase):
 
 class Arrows(SettingsBase):
     """Experimental vector color settings."""
+
     colormap: list[HSLColor] = ((0.5, 0.9, 0.5), (1.0, 0.9, 0.5))
     normalize: bool = True
     colorrange: tuple[float, float] = (0, 1.0)
@@ -166,9 +167,30 @@ class Arrows(SettingsBase):
                 "maxItems": 3,
                 "headertemplate": "{{ i1 }}",
                 "items": [
-                    {"type": "number", "description": "Hue (0.0 - 1.0)", "format": "range", "step": 0.01, "minimum": 0, "maximum": 1},
-                    {"type": "number", "description": "Saturation (0.0 - 1.0)", "format": "range", "step": 0.01, "minimum": 0, "maximum": 1},
-                    {"type": "number", "description": "Lightness (0.0 - 1.0)", "format": "range", "step": 0.01, "minimum": 0, "maximum": 1},
+                    {
+                        "type": "number",
+                        "description": "Hue (0.0 - 1.0)",
+                        "format": "range",
+                        "step": 0.01,
+                        "minimum": 0,
+                        "maximum": 1,
+                    },
+                    {
+                        "type": "number",
+                        "description": "Saturation (0.0 - 1.0)",
+                        "format": "range",
+                        "step": 0.01,
+                        "minimum": 0,
+                        "maximum": 1,
+                    },
+                    {
+                        "type": "number",
+                        "description": "Lightness (0.0 - 1.0)",
+                        "format": "range",
+                        "step": 0.01,
+                        "minimum": 0,
+                        "maximum": 1,
+                    },
                 ],
             },
         }
@@ -180,8 +202,18 @@ class Arrows(SettingsBase):
             "minItems": 2,
             "maxItems": 2,
             "items": [
-                {"type": "number", "description": "Minimum value of the range.", "format": "range", "step": 0.01},
-                {"type": "number", "description": "Maximum value of the range.", "format": "range", "step": 0.01},
+                {
+                    "type": "number",
+                    "description": "Minimum value of the range.",
+                    "format": "range",
+                    "step": 0.01,
+                },
+                {
+                    "type": "number",
+                    "description": "Maximum value of the range.",
+                    "format": "range",
+                    "step": 0.01,
+                },
             ],
         }
 

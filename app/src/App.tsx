@@ -106,40 +106,40 @@ export default function App() {
 			scale_vector_thickness: false,
 			opacity: 1.0,
 		},
-  "Particle": {
-    "particle_size": 1.0,
-    "bond_size": 1.0,
-    "material": "MeshStandardMaterial",
-	"selection_color": "#ffa500"
-  },
-  "Visualization": {
-    "simulation_box": true,
-    "floor": false,
-    "frame_update": true,
-    "animation_loop": false
-  },
-  "Camera": {
-    "camera": "PerspectiveCamera",
-    "camera_near": 0.1,
-    "camera_far": 300,
-    "crosshair": false,
-    "synchronize_camera": true,
-    "fps": 30,
-    "controls": "OrbitControls"
-  },
-  "PathTracer": {
-    "enabled": false,
-    "environment": "studio",
-    "metalness": 0.7,
-    "roughness": 0.2,
-    "clearcoat": 0.0,
-    "clearcoatRoughness": 0.0
-  },
-  "VectorDisplay": {
-    "vectorfield": true,
-    "vectors": "",
-    "vector_scale": 1.0
-  },
+		Particle: {
+			particle_size: 1.0,
+			bond_size: 1.0,
+			material: "MeshStandardMaterial",
+			selection_color: "#ffa500",
+		},
+		Visualization: {
+			simulation_box: true,
+			floor: false,
+			frame_update: true,
+			animation_loop: false,
+		},
+		Camera: {
+			camera: "PerspectiveCamera",
+			camera_near: 0.1,
+			camera_far: 300,
+			crosshair: false,
+			synchronize_camera: true,
+			fps: 30,
+			controls: "OrbitControls",
+		},
+		PathTracer: {
+			enabled: false,
+			environment: "studio",
+			metalness: 0.7,
+			roughness: 0.2,
+			clearcoat: 0.0,
+			clearcoatRoughness: 0.0,
+		},
+		VectorDisplay: {
+			vectorfield: true,
+			vectors: "",
+			vector_scale: 1.0,
+		},
 	});
 
 	const [isAuthenticated, setIsAuthenticated] = useState<boolean>(true);
