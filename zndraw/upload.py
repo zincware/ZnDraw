@@ -48,7 +48,6 @@ def upload(
     # frames = list(generator)
     # vis.append(frames[0])
 
-
     # if len(frames) > 1:
     #     vis.extend(frames[1:])
 
