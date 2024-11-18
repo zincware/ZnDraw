@@ -103,11 +103,19 @@ const ParticleBondMaterial = ({
 		switch (highlight) {
 			case "backside":
 				return (
-					<meshBasicMaterial side={THREE.BackSide} transparent opacity={hover_opacity} />
+					<meshBasicMaterial
+						side={THREE.BackSide}
+						transparent
+						opacity={hover_opacity}
+					/>
 				);
 			case "selection":
 				return (
-					<meshBasicMaterial side={THREE.FrontSide} transparent opacity={selection_opacity} />
+					<meshBasicMaterial
+						side={THREE.FrontSide}
+						transparent
+						opacity={selection_opacity}
+					/>
 				);
 			case "constraint":
 				return (
@@ -184,7 +192,13 @@ export const ParticleInstances = ({
 
 	const { colors, radii } = frame.arrays;
 	const positions = frame.positions;
-	const { selection_color, material, particle_size, hover_opacity, selection_opacity } = sceneSettings;
+	const {
+		selection_color,
+		material,
+		particle_size,
+		hover_opacity,
+		selection_opacity,
+	} = sceneSettings;
 
 	const geometry = useMemo(() => {
 		const _geometry = new THREE.SphereGeometry(1, 32, 32);
@@ -339,7 +353,12 @@ export const ParticleInstances = ({
 				castShadow
 				frustumCulled={false}
 			>
-				<ParticleBondMaterial highlight={highlight} material={material} hover_opacity={hover_opacity} selection_opacity={selection_opacity}/>
+				<ParticleBondMaterial
+					highlight={highlight}
+					material={material}
+					hover_opacity={hover_opacity}
+					selection_opacity={selection_opacity}
+				/>
 			</instancedMesh>
 		</>
 	);
@@ -360,7 +379,13 @@ export const BondInstances = ({
 }) => {
 	const meshRef = useRef<THREE.InstancedMesh | null>(null);
 
-	const { material, selection_color, bond_size, hover_opacity, selection_opacity } = sceneSettings;
+	const {
+		material,
+		selection_color,
+		bond_size,
+		hover_opacity,
+		selection_opacity,
+	} = sceneSettings;
 
 	const actualVisibleConnectivity = useMemo(() => {
 		if (!visibleIndices) {
@@ -473,7 +498,12 @@ export const BondInstances = ({
 			castShadow
 			// receiveShadow
 		>
-			<ParticleBondMaterial highlight={highlight} material={material} hover_opacity={hover_opacity} selection_opacity={selection_opacity}/>
+			<ParticleBondMaterial
+				highlight={highlight}
+				material={material}
+				hover_opacity={hover_opacity}
+				selection_opacity={selection_opacity}
+			/>
 		</instancedMesh>
 	);
 };
