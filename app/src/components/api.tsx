@@ -429,7 +429,7 @@ export const setupFrames = (
 			// now we request the frame
 
 			const frame = await getFrameFromCon(step || 0);
-	
+
 			if (frame === null) {
 				console.warn("Frame ", step, " is null, retrying after 100ms...");
 				setTimeout(updateFrame, 100); // Retry after 100 ms
