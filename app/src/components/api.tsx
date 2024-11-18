@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import * as znsocket from "znsocket";
 import { client } from "../socket";
@@ -326,6 +326,7 @@ export const setupFrames = (
 ) => {
 	const currentFrameUpdatedFromSocketRef = useRef(true);
 	const customRoomAvailRef = useRef(false); // Track whether listening to the default room
+	const [updateStepInPlace, setUpdateStepInPlace] = useState(0);
 
 	const setCurrentFrameFromObject = (frame: any) => {
 		frame = frame.value;
@@ -361,17 +362,9 @@ export const setupFrames = (
 			if (x?.start > step && frame_update) {
 				setStep(x.start);
 			} else if (x?.start === step) {
-				// this should never happen?
-				const frame = await defaultRoomCon.get(step);
-				setCurrentFrameFromObject(frame);
+				setUpdateStepInPlace((prev) => prev + 1);
 			} else if (x?.indices?.includes(step)) {
-				const frame = await defaultRoomCon.get(step);
-				setCurrentFrameFromObject(frame);
-			}
-			const length = await defaultRoomCon.length();
-			setLength(length);
-			if (step >= length) {
-				setStep(length - 1);
+				setUpdateStepInPlace((prev) => prev + 1);
 			}
 		});
 
@@ -388,16 +381,9 @@ export const setupFrames = (
 			if (x?.start > step && frame_update) {
 				setStep(x.start);
 			} else if (x?.start === step) {
-				const frame = await currentRoomCon.get(step);
-				setCurrentFrameFromObject(frame);
+				setUpdateStepInPlace((prev) => prev + 1);
 			} else if (x?.indices?.includes(step)) {
-				const frame = await currentRoomCon.get(step);
-				setCurrentFrameFromObject(frame);
-			}
-			const length = await currentRoomCon.length();
-			setLength(length);
-			if (step >= length) {
-				setStep(length - 1);
+				setUpdateStepInPlace((prev) => prev + 1);
 			}
 		});
 
@@ -433,16 +419,23 @@ export const setupFrames = (
 		}
 
 		const updateFrame = async () => {
-			const frame = await getFrameFromCon(
-				Number.parseInt(step.toString(), 10) || 0,
-			);
-			if (frame === null) {
-				// Retry after 100 ms if still null
-				setTimeout(() => updateFrame(), 100);
-			}
+			// first we check the length
 			const length = await getLengthFromCon();
 			setLength(length);
-			setCurrentFrameFromObject(frame);
+			if (step >= length) {
+				setStep(Math.max(0, length - 1));
+				return;
+			}
+			// now we request the frame
+
+			const frame = await getFrameFromCon(step || 0);
+	
+			if (frame === null) {
+				console.warn("Frame ", step, " is null, retrying after 100ms...");
+				setTimeout(updateFrame, 100); // Retry after 100 ms
+				return;
+			}
+			setCurrentFrameFromObject(frame); // Process the valid frame
 		};
 
 		// debounce by 8ms (roughly 120fps)
@@ -452,7 +445,7 @@ export const setupFrames = (
 		return () => {
 			clearTimeout(debounceTimeout);
 		};
-	}, [step]);
+	}, [step, updateStepInPlace]);
 
 	// Sending edits from ZnDraw to the server
 	useEffect(() => {
