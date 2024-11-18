@@ -11,7 +11,7 @@ from flask import current_app
 from zndraw.analyse import analyses
 from zndraw.base import FileIO
 from zndraw.bonds import ASEComputeBonds
-from zndraw.config import PathTracer, Scene
+from zndraw.config import SETTINGS
 from zndraw.draw import geometries
 from zndraw.modify import modifier
 from zndraw.queue import run_queued_task
@@ -390,10 +390,7 @@ def run_room_worker(room):
     )
 
     for key, val in scene_queue.items():
-        if key == "Scene":  # hotfix
-            vis.config["scene"].update(val)
-        else:
-            vis.config[key].update(val)
+        vis.config[key].update(val)
         # TODO: also update the schema to update all other rooms
         vis.config["trigger_update"] = True
 
@@ -501,31 +498,15 @@ def run_scene_dependent_schema(room) -> None:
         key=f"schema:{room}:scene",
     )
 
-    scene_schema = Scene.model_json_schema_from_atoms(vis.atoms)
-
-    # we also want to initialize the `vis.config`
-    # calling the config will set the default values
-    # but not overwrite the existing ones, if they are set
-    orig_scene_config = dict(vis.config["scene"])
-
-    for key, val in scene_schema["properties"].items():
-        try:
-            scene_schema["properties"][key]["default"] = orig_scene_config[key]
-        except KeyError:
-            vis.log(f"KeyError: {key}")
-
-    dct["Scene"] = scene_schema
-
-    orig_path_tracer_config = dict(vis.config["PathTracer"])
-    path_tracer_schema = PathTracer.model_json_schema_from_atoms(vis.atoms)
-    for key, val in path_tracer_schema["properties"].items():
-        try:
-            path_tracer_schema["properties"][key]["default"] = orig_path_tracer_config[
-                key
-            ]
-        except KeyError:
-            vis.log(f"KeyError: {key}")
-    dct["PathTracer"] = path_tracer_schema
+    for key, val in SETTINGS.items():
+        config_values = dict(vis.config[key])
+        schema = val.model_json_schema_from_atoms(vis.atoms)
+        for prop, val in schema["properties"].items():
+            try:
+                schema["properties"][prop]["default"] = config_values[prop]
+            except KeyError:
+                vis.log(f"KeyError: {prop}")
+        dct[key] = schema
 
     vis.socket.sleep(1)
     vis.socket.disconnect()

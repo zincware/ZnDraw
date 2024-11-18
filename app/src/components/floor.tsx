@@ -68,13 +68,13 @@ export const Floor: any = ({ colorMode, roomConfig }: any) => {
 			<fog
 				attach="fog"
 				color={bsColor["--bs-body-bg"]}
-				near={roomConfig.scene.camera_far * 0.8}
-				far={roomConfig.scene.camera_far}
+				near={roomConfig.Camera.camera_far * 0.8}
+				far={roomConfig.Camera.camera_far}
 			/>
 			<Plane
 				args={[
-					roomConfig.scene.camera_far * 2,
-					roomConfig.scene.camera_far * 2,
+					roomConfig.Camera.camera_far * 2,
+					roomConfig.Camera.camera_far * 2,
 					1,
 					1,
 				]}
@@ -87,8 +87,8 @@ export const Floor: any = ({ colorMode, roomConfig }: any) => {
 			<Grid
 				position={[0, -4.95, 0]}
 				gridSpacing={10}
-				sizeX={roomConfig.scene.camera_far * 2}
-				sizeY={roomConfig.scene.camera_far * 2}
+				sizeX={roomConfig.Camera.camera_far * 2}
+				sizeY={roomConfig.Camera.camera_far * 2}
 				color={bsColor["--bs-secondary"]}
 			/>
 		</>
