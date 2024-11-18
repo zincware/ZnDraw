@@ -400,18 +400,14 @@ export const setupFrames = (
 
 	const getFrameFromCon = useCallback(
 		async (step: number) => {
-			let fetchedFrame = await currentRoomCon.get(
-				step,
-			);
+			let fetchedFrame = await currentRoomCon.get(step);
 			if (!customRoomAvailRef.current && fetchedFrame === null) {
-				return await defaultRoomCon.get(
-					step,
-				);
+				return await defaultRoomCon.get(step);
 			}
 			customRoomAvailRef.current = true;
 			return fetchedFrame;
 		},
-		[currentRoomCon, defaultRoomCon]
+		[currentRoomCon, defaultRoomCon],
 	);
 
 	const getLengthFromCon = useCallback(async () => {
@@ -431,7 +427,9 @@ export const setupFrames = (
 		let active = true;
 
 		const updateFrame = async () => {
-			const frame = await getFrameFromCon(Number.parseInt(step.toString(), 10) || 0);
+			const frame = await getFrameFromCon(
+				Number.parseInt(step.toString(), 10) || 0,
+			);
 			if (frame === null) {
 				// Retry after 100 ms if still null
 				setTimeout(() => updateFrame(), 100);
@@ -447,12 +445,11 @@ export const setupFrames = (
 		// debounce by 8ms (roughly 120fps)
 		// this will smooth scrubbing through the frames
 		// and avoid unnecessary updates
-		const debounceTimeout = setTimeout(updateFrame, 8); 
+		const debounceTimeout = setTimeout(updateFrame, 8);
 		return () => {
 			active = false;
 			clearTimeout(debounceTimeout);
-		}
-
+		};
 	}, [step]);
 
 	// Sending edits from ZnDraw to the server
