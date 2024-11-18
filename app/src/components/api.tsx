@@ -372,6 +372,9 @@ export const setupFrames = (
 			}
 			const length = await defaultRoomCon.length();
 			setLength(length);
+			if (length >= step) {
+				setStep(length - 1);
+			}
 		});
 
 		return () => {
@@ -384,6 +387,7 @@ export const setupFrames = (
 		if (currentRoomCon === undefined) return;
 
 		currentRoomCon.onRefresh(async (x: any) => {
+			// how does this even work without a step deps?
 			if (x?.start > step && frame_update) {
 				setStep(x.start);
 			} else if (x?.start === step) {
@@ -395,6 +399,9 @@ export const setupFrames = (
 			}
 			const length = await currentRoomCon.length();
 			setLength(length);
+			if (length >= step) {
+				setStep(length - 1);
+			}
 		});
 
 		return () => {
