@@ -119,7 +119,7 @@ class Visualization(SettingsBase):
 
 
 class Camera(SettingsBase):
-    camera: CameraEnum = Field(CameraEnum.PerspectiveCamera, description="Camera")
+    camera: CameraEnum = Field(CameraEnum.PerspectiveCamera)
     camera_near: float = Field(
         0.1, ge=0, le=100, description="Camera near rendering plane"
     )
