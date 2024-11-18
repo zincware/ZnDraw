@@ -21,6 +21,7 @@ def upload(
     append: bool,
     plots: list[str],
     browser: bool,
+    batch_size: int = 16,
 ):
     """Upload a file to ZnDraw."""
     if token is None:
@@ -34,12 +35,15 @@ def upload(
 
     generator = get_generator_from_filename(fileio)
 
-    frames = list(generator)
-    vis.append(frames[0])
     if browser:
         webbrowser.open(f"{url}/token/{vis.token}")
 
-    if len(frames) > 1:
-        vis.extend(frames[1:])
+    frames = []
+    for frame in generator:
+        frames.append(frame)
+        if len(frames) == batch_size:
+            vis.extend(frames)
+            frames = []
+    vis.extend(frames)
 
     vis.figures.update(load_plots_to_dict(plots, fileio.remote, fileio.rev))
