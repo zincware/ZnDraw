@@ -22,7 +22,7 @@ from redis import Redis
 from zndraw.abc import Message
 from zndraw.base import Extension
 from zndraw.bonds import ASEComputeBonds
-from zndraw.config import Arrows, PathTracer, Scene
+from zndraw.config import SETTINGS
 from zndraw.converter import ASEConverter, Object3DConverter
 from zndraw.draw import Object3D
 from zndraw.figure import Figure, FigureConverter
@@ -117,6 +117,11 @@ class ZnDraw(MutableSequence):
         self.socket.on("version", _check_version_compatibility)
         self.socket.on("disconnect", lambda: print("Disconnected from ZnDraw server"))
 
+        self._connect()
+
+        self.socket.start_background_task(check_queue, self)
+
+    def _connect(self):
         for idx in range(self.timeout["connect_retries"] + 1):
             try:
                 _url, _path = parse_url(self.url)
@@ -137,8 +142,6 @@ class ZnDraw(MutableSequence):
                         f"Unable to connect to ZnDraw server at '{self.url}'. Is the server running?"
                     ) from err
 
-        self.socket.start_background_task(check_queue, self)
-
     def _on_connect(self):
         log.debug("Connected to ZnDraw server")
 
@@ -155,7 +158,16 @@ class ZnDraw(MutableSequence):
         # self.socket.sleep(5)  # wait for znsocket to reconnect as well
         registerd_modifiers = list(self._modifiers[x]["cls"] for x in self._modifiers)
         for modifier in registerd_modifiers:
-            self.register_modifier(modifier)
+            try:
+                self.register_modifier(
+                    modifier, public=self._modifiers[modifier.__name__]["public"]
+                )
+            except (
+                socketio.exceptions.BadNamespaceError
+            ) as err:  # /znsocket is not a connected namespace.
+                log.error(str(err))
+                log.error("Disconnecting. Please restart.")
+                self.socket.disconnect()
 
     def __getitem__(self, index: int | list | slice) -> ase.Atoms | list[ase.Atoms]:
         single_item = isinstance(index, int)
@@ -582,39 +594,18 @@ class ZnDraw(MutableSequence):
             socket=self._refresh_client,
         )
         if len(conf) == 0:
-            scene_conf = znsocket.Dict(
-                self.r,
-                f"room:{self.token}:config:scene",
-                repr_type="full",
-                socket=self._refresh_client,
-            )
-            if len(scene_conf) == 0:
-                scene_conf.update(Scene().model_dump())
-            arrows_conf = znsocket.Dict(
-                self.r,
-                f"room:{self.token}:config:arrows",
-                repr_type="full",
-                socket=self._refresh_client,
-            )
-            if len(arrows_conf) == 0:
-                arrows_conf.update(Arrows().model_dump())
-
-            path_trace_conf = znsocket.Dict(
-                self.r,
-                f"room:{self.token}:config:path_tracer",
-                repr_type="full",
-                socket=self._refresh_client,
-            )
-            if len(path_trace_conf) == 0:
-                path_trace_conf.update(PathTracer().model_dump())
-            #
-            conf.update(
-                {
-                    "scene": scene_conf,
-                    "arrows": arrows_conf,
-                    "PathTracer": path_trace_conf,
-                }
-            )
+            conf_dicts = {}
+            for key, value in SETTINGS.items():
+                conf_dicts[key] = znsocket.Dict(
+                    self.r,
+                    f"room:{self.token}:config:{key}",
+                    repr_type="full",
+                    socket=self._refresh_client,
+                )
+                if len(conf_dicts[key]) == 0:
+                    conf_dicts[key].update(value().model_dump())
+            conf.update(conf_dicts)
+            # TODO: arrows
         return conf
 
     @property

@@ -1,20 +1,20 @@
-import { Button, Navbar, Nav, Card, Form, ButtonGroup } from "react-bootstrap";
-import Select from "react-select";
-import { BtnTooltip } from "./tooltips";
-import {
-  FaRegChartBar,
-  FaCube,
-  FaRegHandPointer,
-  FaRegMap,
-  FaGithub,
-  FaPlay,
-} from "react-icons/fa";
-import { IoStop } from "react-icons/io5";
-import { FaCircleNodes } from "react-icons/fa6";
-import { useState, useRef } from "react";
-import { socket, client } from "../socket";
+import { useRef, useState } from "react";
 import { useEffect } from "react";
+import { Button, ButtonGroup, Card, Form, Nav, Navbar } from "react-bootstrap";
+import {
+	FaCube,
+	FaGithub,
+	FaPlay,
+	FaRegChartBar,
+	FaRegHandPointer,
+	FaRegMap,
+} from "react-icons/fa";
+import { FaCircleNodes, FaGear } from "react-icons/fa6";
+import { IoStop } from "react-icons/io5";
+import Select from "react-select";
 import * as znsocket from "znsocket";
+import { client, socket } from "../socket";
+import { BtnTooltip } from "./tooltips";
 
 import { JSONEditor } from "@json-editor/json-editor";
 
@@ -29,437 +29,381 @@ JSONEditor.defaults.options.keep_oneof_values = false;
 JSONEditor.defaults.editors.object.options.titleHidden = true;
 
 interface SidebarMenuProps {
-  schema: any;
-  onSubmit: any;
-  queuePosition: number;
-  trigger?: boolean; // Mark trigger as optional
-  setTrigger?: (value: boolean) => void; // Mark setTrigger as optional
-  visible: boolean;
-  useSubmit?: boolean; // provide a submit button or trigger on change
-  closeMenu?: () => void;
+	visible: boolean;
+	closeMenu: () => void;
+	token: string;
+	name: string;
+	sendImmediately: boolean;
 }
 
-const useJSONEditor = (
-  schema: any,
-  setUserInput: (value: any) => void,
-  useSubmit: boolean,
-) => {
-  const editorRef = useRef<HTMLDivElement>(null);
-  const JSONEditorRef = useRef<JSONEditor | null>(null);
+const SidebarMenu = ({
+	visible,
+	closeMenu,
+	token,
+	name,
+	sendImmediately,
+}: SidebarMenuProps) => {
+	const [userInput, setUserInput] = useState<string>(undefined);
+	const [schema, setSchema] = useState<any>({});
+	const [sharedSchema, setSharedSchema] = useState<any>({});
+	const [editorValue, setEditorValue] = useState<any>(null);
+	const [disabledBtn, setDisabledBtn] = useState<boolean>(false);
+	const initialTrigger = useRef<boolean>(true);
+	const editorRef = useRef<HTMLDivElement>(null);
+	const queueRef = useRef<any>(null);
 
-  useEffect(() => {
-    if (Object.keys(schema).length === 0) {
-      return;
-    }
+	useEffect(() => {
+		if (visible) {
+			socket.emit("schema:refresh");
+			initialTrigger.current = true;
+		}
+	}, [visible]);
 
-    if (editorRef.current) {
-      JSONEditorRef.current = new JSONEditor(editorRef.current, {
-        schema: schema,
-      });
-      let created_trigger = false;
+	useEffect(() => {
+		const con = new znsocket.Dict({
+			client: client,
+			key: `schema:${token}:${name}`,
+		});
 
-      // on ready, validate and set user input
-      JSONEditorRef.current.on("ready", () => {
-        if (useSubmit) {
-          // when using the submit button, we need to set the user input on ready
-          // otherwise, it could be None.
-          if (JSONEditorRef.current.validate()) {
-            const editorValue = JSONEditorRef.current.getValue();
-            setUserInput(editorValue);
-          }
-        }
-      });
+		const sharedCon = new znsocket.Dict({
+			client: client,
+			key: `schema:default:${name}`,
+		});
 
-      JSONEditorRef.current.on("change", () => {
-        if (JSONEditorRef.current.ready) {
-          if (created_trigger) {
-            if (JSONEditorRef.current.validate()) {
-              const editorValue = JSONEditorRef.current.getValue();
-              setUserInput(editorValue);
-            }
-          } else {
-            // skip first trigger
-            created_trigger = true;
-          }
-        }
-      });
-    }
-    return () => {
-      if (JSONEditorRef.current) {
-        JSONEditorRef.current.destroy();
-      }
-    };
-  }, [schema]);
+		const queue = new znsocket.Dict({
+			client: client,
+			key: `queue:${token}:${name}`,
+		});
+		queueRef.current = queue;
 
-  return editorRef;
-};
+		// initial load
+		con.entries().then((items: any) => {
+			const result = Object.fromEntries(items);
+			setSchema(result);
+		});
+		sharedCon.entries().then((items: any) => {
+			const result = Object.fromEntries(items);
+			setSharedSchema(result);
+		});
 
-const SidebarMenu2: any = ({
-  visible,
-  closeMenu,
-  token,
-  name,
-  sendImmediately,
-}) => {
-  const [userInput, setUserInput] = useState<string>(undefined);
-  const [schema, setSchema] = useState<any>({});
-  const [sharedSchema, setSharedSchema] = useState<any>({});
-  const [editorValue, setEditorValue] = useState<any>(null);
-  const [disabledBtn, setDisabledBtn] = useState<boolean>(false);
-  const initialTrigger = useRef<boolean>(true);
-  const editorRef = useRef<HTMLDivElement>(null);
-  const queueRef = useRef<any>(null);
+		queue.length().then((length: any) => {
+			setDisabledBtn(length > 0);
+		});
+		queue.onRefresh(async (x: any) => {
+			const length = await queue.length();
+			setDisabledBtn(length > 0);
+		});
 
-  useEffect(() => {
-    if (visible) {
-      socket.emit("schema:refresh");
-      initialTrigger.current = true;
-    }
-  }, [visible]);
+		con.onRefresh(async (x: any) => {
+			const items = await con.entries();
+			const result = Object.fromEntries(items);
+			setSchema(result);
+		});
 
-  useEffect(() => {
-    const con = new znsocket.Dict({
-      client: client,
-      key: "schema:" + token + ":" + name,
-    });
+		sharedCon.onRefresh(async (x: any) => {
+			const items = await sharedCon.entries();
+			const result = Object.fromEntries(items);
+			setSharedSchema(result);
+		});
 
-    const sharedCon = new znsocket.Dict({
-      client: client,
-      key: "schema:default:" + name,
-    });
+		return () => {
+			con.offRefresh();
+			sharedCon.offRefresh();
+			queue.offRefresh();
+		};
+	}, [token]);
 
-    const queue = new znsocket.Dict({
-      client: client,
-      key: "queue:" + token + ":" + name,
-    });
-    queueRef.current = queue;
+	// set the default userInput to the first key in the schema, if userInput is empty
+	useEffect(() => {
+		if (
+			userInput === undefined &&
+			Object.keys({ ...sharedSchema, ...schema }).length > 0
+		) {
+			setUserInput(Object.keys({ ...sharedSchema, ...schema })[0]);
+		}
+	}, [schema, sharedSchema, userInput]);
 
-    // initial load
-    con.entries().then((items: any) => {
-      const result = Object.fromEntries(items);
-      setSchema(result);
-    });
-    sharedCon.entries().then((items: any) => {
-      const result = Object.fromEntries(items);
-      setSharedSchema(result);
-    });
+	useEffect(() => {
+		let editor: any;
+		const fullSchema = { ...sharedSchema, ...schema };
+		if (editorRef.current && fullSchema[userInput]) {
+			editor = new JSONEditor(editorRef.current, {
+				schema: fullSchema[userInput],
+			});
 
-    queue.length().then((length: any) => {
-      setDisabledBtn(length > 0);
-    });
-    queue.onRefresh(async (x: any) => {
-      const length = await queue.length();
-      setDisabledBtn(length > 0);
-    });
+			editor.on("ready", () => {
+				if (editor.validate()) {
+					const editorValue = editor.getValue();
+					setEditorValue(editorValue);
+				}
+			});
 
-    con.onRefresh(async (x: any) => {
-      const items = await con.entries();
-      const result = Object.fromEntries(items);
-      setSchema(result);
-    });
+			editor.on("change", () => {
+				if (editor.ready) {
+					if (editor.validate()) {
+						const editorValue = editor.getValue();
+						setEditorValue(editorValue);
+					}
+				}
+			});
+		}
+		return () => {
+			if (editor) {
+				editor.destroy();
+				setEditorValue(null);
+			}
+		};
+	}, [userInput, schema, sharedSchema]);
 
-    sharedCon.onRefresh(async (x: any) => {
-      const items = await sharedCon.entries();
-      const result = Object.fromEntries(items);
-      setSharedSchema(result);
-    });
+	function submitEditor() {
+		if (editorValue && userInput && queueRef.current) {
+			setDisabledBtn(true);
+			// queueRef.current.push({ [userInput]: editorValue });
+			queueRef.current[userInput] = editorValue;
+			socket.emit("room:worker:run");
+		}
+	}
 
-    return () => {
-      con.offRefresh();
-      sharedCon.offRefresh();
-      queue.offRefresh();
-    };
-  }, [token]);
+	useEffect(() => {
+		if (sendImmediately && editorValue && userInput && queueRef.current) {
+			if (initialTrigger.current) {
+				initialTrigger.current = false;
+				return;
+			}
+			submitEditor();
+		}
+	}, [editorValue]);
 
-  // set the default userInput to the first key in the schema, if userInput is empty
-  useEffect(() => {
-    if (
-      userInput === undefined &&
-      Object.keys({ ...sharedSchema, ...schema }).length > 0
-    ) {
-      setUserInput(Object.keys({ ...sharedSchema, ...schema })[0]);
-    }
-  }, [schema, sharedSchema, userInput]);
+	function cancelTask() {
+		if (queueRef.current) {
+			queueRef.current.clear().then(() => {
+				setDisabledBtn(false);
+			});
+		}
+	}
 
-  useEffect(() => {
-    let editor: any;
-    const fullSchema = { ...sharedSchema, ...schema };
-    if (editorRef.current && fullSchema[userInput]) {
-      editor = new JSONEditor(editorRef.current, {
-        schema: fullSchema[userInput],
-      });
+	function capitalizeFirstLetter(text: string) {
+		if (!text) return ""; // Handle empty or undefined text
+		return text.charAt(0).toUpperCase() + text.slice(1);
+	}
 
-      editor.on("ready", () => {
-        if (editor.validate()) {
-          const editorValue = editor.getValue();
-          setEditorValue(editorValue);
-        }
-      });
-
-      editor.on("change", () => {
-        if (editor.ready) {
-          if (editor.validate()) {
-            const editorValue = editor.getValue();
-            setEditorValue(editorValue);
-          }
-        }
-      });
-    }
-    return () => {
-      if (editor) {
-        editor.destroy();
-        setEditorValue(null);
-      }
-    };
-  }, [userInput, schema, sharedSchema]);
-
-  function submitEditor() {
-    if (editorValue && userInput && queueRef.current) {
-      setDisabledBtn(true);
-      // queueRef.current.push({ [userInput]: editorValue });
-      queueRef.current[userInput] = editorValue;
-      socket.emit("room:worker:run");
-    }
-  }
-
-  useEffect(() => {
-    if (sendImmediately && editorValue && userInput && queueRef.current) {
-      if (initialTrigger.current) {
-        initialTrigger.current = false;
-        return;
-      }
-      submitEditor();
-    }
-  }, [editorValue]);
-
-  function cancelTask() {
-    if (queueRef.current) {
-      queueRef.current.clear().then(() => {
-        setDisabledBtn(false);
-      });
-    }
-  }
-
-  function capitalizeFirstLetter(text: string) {
-    if (!text) return ""; // Handle empty or undefined text
-    return text.charAt(0).toUpperCase() + text.slice(1);
-  }
-
-  return (
-    <Card
-      className="rounded-0 border-start-0 overflow-y-auto rounded-end"
-      style={{
-        position: "fixed",
-        top: "50px",
-        left: "50px",
-        height: "100%",
-        maxWidth: "35%",
-        margin: 0,
-        padding: 0,
-        display: visible ? "block" : "none",
-      }}
-    >
-      <Card.Header
-        className="d-flex justify-content-between align-items-center"
-        style={{
-          backgroundColor: "inherit", // Use the same background color as the rest of the card
-        }}
-      >
-        <Card.Title>{capitalizeFirstLetter(name)}</Card.Title>
-        <Button variant="close" className="ms-auto" onClick={closeMenu} />
-      </Card.Header>
-      <Card.Body style={{ paddingBottom: 80 }}>
-        <Form.Group className="d-flex align-items-center">
-          <Form.Select
-            aria-label="Default select example"
-            onChange={(e) => setUserInput(e.target.value)}
-            value={userInput}
-          >
-            <option></option>
-            {Object.keys({ ...sharedSchema, ...schema }).map((key) => (
-              <option key={key} value={key}>
-                {key}
-              </option>
-            ))}
-          </Form.Select>
-          {!sendImmediately && (
-            <ButtonGroup aria-label="Basic example">
-              <Button
-                variant="outline-primary"
-                onClick={submitEditor}
-                className="ms-2 d-flex align-items-center"
-                disabled={disabledBtn}
-              >
-                <FaPlay className="me-1" /> Submit
-              </Button>
-              <Button variant="outline-danger" onClick={cancelTask}>
-                <IoStop />
-              </Button>
-            </ButtonGroup>
-          )}
-        </Form.Group>
-        <div ref={editorRef}></div>
-      </Card.Body>
-    </Card>
-  );
+	return (
+		<Card
+			className="rounded-0 border-start-0 overflow-y-auto rounded-end"
+			style={{
+				position: "fixed",
+				top: "50px",
+				left: "50px",
+				height: "100%",
+				maxWidth: "35%",
+				margin: 0,
+				padding: 0,
+				display: visible ? "block" : "none",
+			}}
+		>
+			<Card.Header
+				className="d-flex justify-content-between align-items-center"
+				style={{
+					backgroundColor: "inherit", // Use the same background color as the rest of the card
+				}}
+			>
+				<Card.Title>{capitalizeFirstLetter(name)}</Card.Title>
+				<Button variant="close" className="ms-auto" onClick={closeMenu} />
+			</Card.Header>
+			<Card.Body style={{ paddingBottom: 80 }}>
+				<Form.Group className="d-flex align-items-center">
+					<Form.Select
+						aria-label="Default select example"
+						onChange={(e) => setUserInput(e.target.value)}
+						value={userInput}
+					>
+						<option />
+						{Object.keys({ ...sharedSchema, ...schema }).map((key) => (
+							<option key={key} value={key}>
+								{key}
+							</option>
+						))}
+					</Form.Select>
+					{!sendImmediately && (
+						<ButtonGroup aria-label="Basic example">
+							<Button
+								variant="outline-primary"
+								onClick={submitEditor}
+								className="ms-2 d-flex align-items-center"
+								disabled={disabledBtn}
+							>
+								<FaPlay className="me-1" /> Submit
+							</Button>
+							<Button variant="outline-danger" onClick={cancelTask}>
+								<IoStop />
+							</Button>
+						</ButtonGroup>
+					)}
+				</Form.Group>
+				<div ref={editorRef} />
+			</Card.Body>
+		</Card>
+	);
 };
 
 function SideBar({ token }: { token: string }) {
-  const [visibleOption, setVisibleOption] = useState<string>("");
-  useEffect(() => {
-    if (visibleOption !== "") {
-      // emit visibleOption:schema e.g. selection:schema
-      socket.emit(`${visibleOption}:schema`);
-    }
-  }, [visibleOption]);
+	const [visibleOption, setVisibleOption] = useState<string>("");
+	useEffect(() => {
+		if (visibleOption !== "") {
+			// emit visibleOption:schema e.g. selection:schema
+			socket.emit(`${visibleOption}:schema`);
+		}
+	}, [visibleOption]);
 
-  // if any menu is open and you click escape, close it
-  useEffect(() => {
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        setVisibleOption("");
-      }
-    }
+	// if any menu is open and you click escape, close it
+	useEffect(() => {
+		function handleKeyDown(event: KeyboardEvent) {
+			if (event.key === "Escape") {
+				setVisibleOption("");
+			}
+		}
 
-    document.addEventListener("keydown", handleKeyDown);
+		document.addEventListener("keydown", handleKeyDown);
 
-    return () => {
-      document.removeEventListener("keydown", handleKeyDown);
-    };
-  }, []);
+		return () => {
+			document.removeEventListener("keydown", handleKeyDown);
+		};
+	}, []);
 
-  return (
-    <>
-      <Navbar className="flex-column bg-body-primary bg-tertiary">
-        <Card
-          border="tertiary py-0 px-0"
-          className="rounded-0 border-top-0"
-          style={{
-            position: "fixed",
-            top: "50px",
-            left: "0",
-            height: "100%",
-            width: "50px",
-          }}
-        >
-          <BtnTooltip text="Selection" placement="right">
-            <Nav className="mx-auto my-1">
-              <Button
-                variant="outline-tertiary"
-                onClick={() =>
-                  setVisibleOption(
-                    visibleOption != "selection" ? "selection" : "",
-                  )
-                }
-              >
-                <FaRegHandPointer />
-              </Button>
-            </Nav>
-          </BtnTooltip>
-          <BtnTooltip text="Interaction" placement="right">
-            <Nav className="mx-auto my-1">
-              <Button
-                variant="outline-tertiary"
-                onClick={() =>
-                  setVisibleOption(
-                    visibleOption != "modifier" ? "modifier" : "",
-                  )
-                }
-              >
-                <FaCircleNodes />
-              </Button>
-            </Nav>
-          </BtnTooltip>
-          <BtnTooltip text="Scene" placement="right">
-            <Nav className="mx-auto my-1">
-              <Button
-                variant="outline-tertiary"
-                onClick={() =>
-                  setVisibleOption(visibleOption != "scene" ? "scene" : "")
-                }
-              >
-                <FaCube />
-              </Button>
-            </Nav>
-          </BtnTooltip>
-          <BtnTooltip text="Geometry" placement="right">
-            <Nav className="mx-auto my-1">
-              <Button
-                variant="outline-tertiary"
-                onClick={() =>
-                  setVisibleOption(
-                    visibleOption != "geometry" ? "geometry" : "",
-                  )
-                }
-              >
-                <FaRegMap />
-              </Button>
-            </Nav>
-          </BtnTooltip>
-          <BtnTooltip text="Analysis" placement="right">
-            <Nav className="mx-auto my-1">
-              <Button
-                variant="outline-tertiary"
-                onClick={() =>
-                  setVisibleOption(
-                    visibleOption != "analysis" ? "analysis" : "",
-                  )
-                }
-              >
-                <FaRegChartBar />
-              </Button>
-            </Nav>
-          </BtnTooltip>
-          <BtnTooltip text="View on GitHub" placement="right">
-            <Nav className="mx-auto my-1">
-              <Button
-                variant="outline-tertiary"
-                href="https://github.com/zincware/ZnDraw"
-                target="_blank"
-              >
-                <FaGithub />
-              </Button>
-            </Nav>
-          </BtnTooltip>
-        </Card>
-      </Navbar>
-      <SidebarMenu2
-        name="selection"
-        visible={visibleOption == "selection"} // remove
-        token={token}
-        closeMenu={() => setVisibleOption("")}
-        sendImmediately={false}
-      />
-      <SidebarMenu2
-        name="modifier"
-        visible={visibleOption == "modifier"}
-        token={token}
-        closeMenu={() => setVisibleOption("")}
-        sendImmediately={false}
-      />
-      <SidebarMenu2
-        name="scene"
-        visible={visibleOption == "scene"}
-        token={token}
-        closeMenu={() => setVisibleOption("")}
-        sendImmediately={true}
-      />
-      <SidebarMenu2
-        name="geometry"
-        visible={visibleOption == "geometry"}
-        token={token}
-        closeMenu={() => setVisibleOption("")}
-        sendImmediately={false}
-      />
-      <SidebarMenu2
-        name="analysis"
-        visible={visibleOption == "analysis"}
-        token={token}
-        closeMenu={() => setVisibleOption("")}
-        sendImmediately={false}
-      />
-    </>
-  );
+	return (
+		<>
+			<Navbar className="flex-column bg-body-primary bg-tertiary">
+				<Card
+					border="tertiary py-0 px-0"
+					className="rounded-0 border-top-0"
+					style={{
+						position: "fixed",
+						top: "50px",
+						left: "0",
+						height: "100%",
+						width: "50px",
+					}}
+				>
+					<BtnTooltip text="Selection" placement="right">
+						<Nav className="mx-auto my-1">
+							<Button
+								variant="outline-tertiary"
+								onClick={() =>
+									setVisibleOption(
+										visibleOption !== "selection" ? "selection" : "",
+									)
+								}
+							>
+								<FaRegHandPointer />
+							</Button>
+						</Nav>
+					</BtnTooltip>
+					<BtnTooltip text="Interaction" placement="right">
+						<Nav className="mx-auto my-1">
+							<Button
+								variant="outline-tertiary"
+								onClick={() =>
+									setVisibleOption(
+										visibleOption !== "modifier" ? "modifier" : "",
+									)
+								}
+							>
+								<FaCircleNodes />
+							</Button>
+						</Nav>
+					</BtnTooltip>
+					<BtnTooltip text="Settings" placement="right">
+						<Nav className="mx-auto my-1">
+							<Button
+								variant="outline-tertiary"
+								onClick={() =>
+									setVisibleOption(
+										visibleOption !== "settings" ? "settings" : "",
+									)
+								}
+							>
+								<FaGear />
+							</Button>
+						</Nav>
+					</BtnTooltip>
+					<BtnTooltip text="Geometry" placement="right">
+						<Nav className="mx-auto my-1">
+							<Button
+								variant="outline-tertiary"
+								onClick={() =>
+									setVisibleOption(
+										visibleOption !== "geometry" ? "geometry" : "",
+									)
+								}
+							>
+								<FaRegMap />
+							</Button>
+						</Nav>
+					</BtnTooltip>
+					<BtnTooltip text="Analysis" placement="right">
+						<Nav className="mx-auto my-1">
+							<Button
+								variant="outline-tertiary"
+								onClick={() =>
+									setVisibleOption(
+										visibleOption !== "analysis" ? "analysis" : "",
+									)
+								}
+							>
+								<FaRegChartBar />
+							</Button>
+						</Nav>
+					</BtnTooltip>
+					<BtnTooltip text="View on GitHub" placement="right">
+						<Nav className="mx-auto my-1">
+							<Button
+								variant="outline-tertiary"
+								href="https://github.com/zincware/ZnDraw"
+								target="_blank"
+							>
+								<FaGithub />
+							</Button>
+						</Nav>
+					</BtnTooltip>
+				</Card>
+			</Navbar>
+			<SidebarMenu
+				name="selection"
+				visible={visibleOption === "selection"} // remove
+				token={token}
+				closeMenu={() => setVisibleOption("")}
+				sendImmediately={false}
+			/>
+			<SidebarMenu
+				name="modifier"
+				visible={visibleOption === "modifier"}
+				token={token}
+				closeMenu={() => setVisibleOption("")}
+				sendImmediately={false}
+			/>
+			<SidebarMenu
+				name="settings"
+				visible={visibleOption === "settings"}
+				token={token}
+				closeMenu={() => setVisibleOption("")}
+				sendImmediately={true}
+			/>
+			<SidebarMenu
+				name="geometry"
+				visible={visibleOption === "geometry"}
+				token={token}
+				closeMenu={() => setVisibleOption("")}
+				sendImmediately={false}
+			/>
+			<SidebarMenu
+				name="analysis"
+				visible={visibleOption === "analysis"}
+				token={token}
+				closeMenu={() => setVisibleOption("")}
+				sendImmediately={false}
+			/>
+		</>
+	);
 }
 
 export default SideBar;

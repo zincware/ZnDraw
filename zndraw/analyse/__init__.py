@@ -213,8 +213,7 @@ class ForceCorrelation(AnaylsisMethod):
         x_data = x_data.reshape(-1)
         y_data = y_data.reshape(-1)
 
-        current_step = vis.step
-        meta_step = [current_step for _ in range(len(x_data))]
+        meta_step = [None for _ in range(len(x_data))]
         meta_idx = list(range(len(x_data)))
 
         df = pd.DataFrame(
