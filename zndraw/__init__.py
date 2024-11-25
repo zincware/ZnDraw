@@ -1,3 +1,5 @@
+import importlib.metadata
+
 from zndraw.base import Extension
 from zndraw.draw import (
     Box,
@@ -44,3 +46,5 @@ __all__ = [
     "Custom2DShape",
     "Figure",
 ]
+
+__version__ = importlib.metadata.version("zndraw")

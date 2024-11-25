@@ -43,6 +43,11 @@ znh5md = {version = "^0.3"}
 
 
 
+
+[tool.poetry.group.docs.dependencies]
+sphinx = "^8.1.3"
+furo = "^2024.8.6"
+
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
