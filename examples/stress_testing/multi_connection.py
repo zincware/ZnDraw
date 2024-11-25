@@ -1,7 +1,9 @@
-import typer 
 import subprocess
 
+import typer
+
 app = typer.Typer()
+
 
 @app.command()
 def main(file: str, n: int, browser: bool = False):
@@ -12,6 +14,6 @@ def main(file: str, n: int, browser: bool = False):
     for _ in range(n):
         subprocess.Popen(cmd)
 
+
 if __name__ == "__main__":
     app()
-
