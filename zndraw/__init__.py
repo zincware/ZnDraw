@@ -21,6 +21,8 @@ from zndraw.draw import (
 from zndraw.figure import Figure
 from zndraw.zndraw import ZnDraw, ZnDrawLocal
 
+import importlib.metadata
+
 __all__ = [
     "ZnDraw",
     "ZnDrawLocal",
@@ -44,3 +46,5 @@ __all__ = [
     "Custom2DShape",
     "Figure",
 ]
+
+__version__ = importlib.metadata.version("zndraw")
