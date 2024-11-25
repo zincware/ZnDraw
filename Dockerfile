@@ -1,4 +1,6 @@
 FROM continuumio/miniconda3
+# Increase memory limit for Node.js
+ENV NODE_OPTIONS="--max-old-space-size=4096"
 WORKDIR /usr/src/app
 COPY ./ ./
 # required for h5py, chemfiles

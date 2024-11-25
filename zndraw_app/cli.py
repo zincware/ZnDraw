@@ -15,6 +15,7 @@ from zndraw.standalone import run_celery_thread_worker, run_znsocket
 from zndraw.tasks import read_file, read_plots
 from zndraw.upload import upload
 from zndraw.utils import get_port
+from zndraw_app.healthcheck import run_healthcheck
 
 cli = typer.Typer()
 
@@ -129,11 +130,16 @@ def main(
         help="Convert NaN values to None. This is slow and experimental, but if your file contains NaN/inf values, it is required.",
         envvar="ZNDRAW_CONVERT_NAN",
     ),
+    healthcheck: bool = typer.Option(False, help="Run the healthcheck."),
 ):
     """Start the ZnDraw server.
 
     Visualize Trajectories, Structures, and more in ZnDraw.
     """
+    if healthcheck:
+        if url is None:
+            raise ValueError("You need to provide a URL to use the healthcheck feature.")
+        run_healthcheck(url)
     if plots is None:
         plots = []
     if token is not None and url is None:

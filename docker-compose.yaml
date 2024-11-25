@@ -1,6 +1,11 @@
 services:
   zndraw:
-    image: pythonf/zndraw:latest
+    build: .
+    healthcheck:
+      test: ["CMD", "zndraw", "--healthcheck", "--url", "http://zndraw:5003"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
     command: --no-standalone
     restart: unless-stopped
     ports:
@@ -13,7 +18,12 @@ services:
       - FLASK_AUTH_TOKEN=super-secret-token
 
   worker:
-    image: pythonf/zndraw:latest
+    build: .
+    healthcheck:
+      test: ["CMD", "zndraw", "--healthcheck", "--url", "http://zndraw:5003"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
     entrypoint: celery -A zndraw_app.make_celery worker --loglevel=info -P eventlet
     restart: unless-stopped
     depends_on:
