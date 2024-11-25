@@ -1,0 +1,191 @@
+{
+ "cells": [
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "# 01 - Christmas Tree Builder"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 1,
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stderr",
+     "output_type": "stream",
+     "text": [
+      "Server version (0.5.4) and client version (0.5.5) are not the same. This may lead to unexpected behavior.\n"
+     ]
+    }
+   ],
+   "source": [
+    "from zndraw import ZnDraw\n",
+    "\n",
+    "vis = ZnDraw(url=\"http://localhost:5003/\", token=\"1bc149e0\")"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "from ase import Atoms\n",
+    "from pydantic import Field\n",
+    "from rdkit2ase import smiles2atoms, smiles2conformers\n",
+    "\n",
+    "from zndraw import Extension\n",
+    "\n",
+    "\n",
+    "class BuildChristmasTree(Extension):\n",
+    "    smiles: str = Field(\n",
+    "        \"CO\", description=\"SMILES string of the molecule to use for the tree\"\n",
+    "    )\n",
+    "    n: int = Field(5, description=\"Number of layers for the tree\", ge=1, le=10)\n",
+    "    x_spacing: float = Field(\n",
+    "        4,\n",
+    "        description=\"Horizontal spacing between molecules in each layer (in Ångstroms)\",\n",
+    "        ge=0,\n",
+    "        le=10,\n",
+    "    )\n",
+    "    y_spacing: float = Field(\n",
+    "        3, description=\"Vertical spacing between layers (in Ångstroms)\", ge=0, le=10\n",
+    "    )\n",
+    "    trunk_height: int = Field(\n",
+    "        2, description=\"Number of molecules in the trunk\", ge=0, le=10\n",
+    "    )\n",
+    "    conformers: bool = True\n",
+    "\n",
+    "    def run(self, vis, **kwargs):\n",
+    "        # compute number of needed conformers\n",
+    "        n_molecules = (self.n * (self.n + 1)) + self.trunk_height\n",
+    "        if self.conformers:\n",
+    "            molecules = smiles2conformers(self.smiles, numConfs=n_molecules)\n",
+    "        else:\n",
+    "            molecule = smiles2atoms(self.smiles)\n",
+    "            molecules = [molecule.copy() for _ in range(n_molecules)]\n",
+    "        tree = build_christmas_tree(\n",
+    "            molecules, self.n, self.trunk_height, self.x_spacing, self.y_spacing\n",
+    "        )\n",
+    "        vis.append(tree)\n",
+    "\n",
+    "    @classmethod\n",
+    "    def model_json_schema(cls):\n",
+    "        schema = super().model_json_schema()\n",
+    "        schema[\"properties\"][\"conformers\"][\"format\"] = \"checkbox\"\n",
+    "        # make format range\n",
+    "        schema[\"properties\"][\"n\"][\"format\"] = \"range\"\n",
+    "        schema[\"properties\"][\"x_spacing\"][\"format\"] = \"range\"\n",
+    "        schema[\"properties\"][\"x_spacing\"][\"step\"] = 0.1\n",
+    "        schema[\"properties\"][\"x_spacing\"]\n",
+    "        schema[\"properties\"][\"y_spacing\"][\"format\"] = \"range\"\n",
+    "        schema[\"properties\"][\"trunk_height\"][\"format\"] = \"range\"\n",
+    "        return schema\n",
+    "\n",
+    "\n",
+    "def build_christmas_tree(\n",
+    "    molecules: list[Atoms],\n",
+    "    n: int = 5,\n",
+    "    trunk_height: int = 2,\n",
+    "    x_spacing: float = 3.0,\n",
+    "    y_spacing: float = 3.0,\n",
+    ") -> Atoms:\n",
+    "    \"\"\"Build an atomic Christmas tree.\n",
+    "\n",
+    "    Arguments\n",
+    "    ---------\n",
+    "    molecules : list[Atoms]\n",
+    "        A list of molecular structures to use for each part of the tree.\n",
+    "    n : int\n",
+    "        The number of layers for the tree.\n",
+    "    trunk_height : int\n",
+    "        The number of molecules in the trunk.\n",
+    "    x_spacing : float\n",
+    "        Horizontal spacing between molecules in each layer (in Ångstroms).\n",
+    "    y_spacing : float\n",
+    "        Vertical spacing between layers (in Ångstroms).\n",
+    "\n",
+    "    Returns\n",
+    "    -------\n",
+    "    tree : Atoms\n",
+    "        An assembled \"tree\" with the trunk and branches built from the provided molecules.\n",
+    "    \"\"\"\n",
+    "    # Ensure there are enough molecules to build the tree\n",
+    "    if len(molecules) < n * (n + 1) // 2 + trunk_height:\n",
+    "        raise ValueError(\n",
+    "            \"Not enough molecules to build the tree and trunk with the given parameters.\"\n",
+    "        )\n",
+    "\n",
+    "    # Center molecules individually\n",
+    "    for mol in molecules:\n",
+    "        mol.center()\n",
+    "\n",
+    "    # Create an empty structure for the tree\n",
+    "    tree = Atoms()\n",
+    "\n",
+    "    # Build the trunk\n",
+    "    for _ in range(trunk_height):\n",
+    "        mol_copy = molecules.pop()\n",
+    "        tree += mol_copy\n",
+    "        [mol.translate([0, y_spacing, 0]) for mol in molecules]\n",
+    "\n",
+    "    # Build the layers from bottom to top\n",
+    "    for layer_num in reversed(range(n)):\n",
+    "        layer = Atoms()\n",
+    "        num_molecules = layer_num + 1\n",
+    "        x_offset = (\n",
+    "            x_spacing * (num_molecules - 1) / 2\n",
+    "        )  # Offset to center the layer horizontally\n",
+    "\n",
+    "        for j in range(num_molecules):\n",
+    "            mol_copy = molecules.pop()\n",
+    "            mol_copy.translate([j * x_spacing - x_offset, 0, 0])\n",
+    "            layer += mol_copy\n",
+    "\n",
+    "        tree += layer\n",
+    "        [mol.translate([0, y_spacing, 0]) for mol in molecules]\n",
+    "\n",
+    "    return tree"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 3,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "vis.register(BuildChristmasTree)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": []
+  }
+ ],
+ "metadata": {
+  "kernelspec": {
+   "display_name": "zndraw",
+   "language": "python",
+   "name": "python3"
+  },
+  "language_info": {
+   "codemirror_mode": {
+    "name": "ipython",
+    "version": 3
+   },
+   "file_extension": ".py",
+   "mimetype": "text/x-python",
+   "name": "python",
+   "nbconvert_exporter": "python",
+   "pygments_lexer": "ipython3",
+   "version": "3.11.5"
+  }
+ },
+ "nbformat": 4,
+ "nbformat_minor": 2
+}
