@@ -25,5 +25,7 @@ You can use port forwarding to access the visualisation from a remote machine.
 
 .. toctree::
    :maxdepth: 2
-   :caption: Contents:
+   :hidden:
+
+   python-api
 
