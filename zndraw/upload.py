@@ -31,7 +31,6 @@ def upload(
 
     if not append:
         del vis[:]
-    typer.echo(f"Reading {fileio.name} ...")
 
     generator = get_generator_from_filename(fileio)
 

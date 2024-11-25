@@ -5,6 +5,7 @@ eventlet.monkey_patch()
 
 import datetime  # noqa
 import uuid
+import os
 
 import tqdm
 from rdkit2ase import smiles2conformers
@@ -12,7 +13,7 @@ from rdkit2ase import smiles2conformers
 #### Import ZnDraw ####
 from zndraw import ZnDraw
 
-vis = ZnDraw(url="https://zndraw.icp.uni-stuttgart.de/", token=uuid.uuid4().hex)
+vis = ZnDraw(url=os.environ["ZNDRAW_URL"], token=uuid.uuid4().hex)
 #### ------------- ####
 
 # vis._refresh_client.delay_between_calls = datetime.timedelta(milliseconds=10)
