@@ -10,4 +10,3 @@ Each example - unless otherwise noted - assumes a running ZnDraw instance on ``h
    :glob:
 
    2025/*
-
