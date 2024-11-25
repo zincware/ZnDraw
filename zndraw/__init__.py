@@ -1,3 +1,5 @@
+import importlib.metadata
+
 from zndraw.base import Extension
 from zndraw.draw import (
     Box,
@@ -20,8 +22,6 @@ from zndraw.draw import (
 )
 from zndraw.figure import Figure
 from zndraw.zndraw import ZnDraw, ZnDrawLocal
-
-import importlib.metadata
 
 __all__ = [
     "ZnDraw",

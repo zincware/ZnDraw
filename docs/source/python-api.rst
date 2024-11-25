@@ -5,15 +5,15 @@ The ``zndraw`` package provides a Python interface to interact with the visualis
 To use this API, you need to have a running instance of the ZnDraw web server.
 
 .. note::
-    
+
     You can run a local webserver by using the command line interface.
-    
+
     .. code:: console
-    
+
         $ zndraw file.xyz --port 1234
 
 
-.. code:: python 
+.. code:: python
 
     from zndraw import ZnDraw
 
@@ -39,4 +39,3 @@ Modifying the list will update the visualisation in real-time.
 
     frames = aio.read("file.xyz", index=":")
     vis.extend(frames)
-

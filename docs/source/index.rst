@@ -19,7 +19,7 @@ ZnDraw uses a local web server to display the visualisation and runs in your def
 You can use port forwarding to access the visualisation from a remote machine.
 
 .. code:: console
-   
+
       $ zndraw file.xyz
 
 
@@ -28,4 +28,3 @@ You can use port forwarding to access the visualisation from a remote machine.
    :hidden:
 
    python-api
-

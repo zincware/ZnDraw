@@ -8,9 +8,9 @@
 
 import zndraw
 
-project = 'ZnDraw'
-copyright = '2024, Fabian Zills'
-author = 'Fabian Zills'
+project = "ZnDraw"
+copyright = "2024, Fabian Zills"
+author = "Fabian Zills"
 release = zndraw.__version__
 
 # -- General configuration ---------------------------------------------------
@@ -18,13 +18,12 @@ release = zndraw.__version__
 
 extensions = []
 
-templates_path = ['_templates']
+templates_path = ["_templates"]
 exclude_patterns = []
-
 
 
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
 html_theme = "furo"
-html_static_path = ['_static']
+html_static_path = ["_static"]
