@@ -47,6 +47,7 @@ znh5md = {version = "^0.3"}
 [tool.poetry.group.docs.dependencies]
 sphinx = "^8.1.3"
 furo = "^2024.8.6"
+nbsphinx = "^0.9.5"
 
 [build-system]
 requires = ["poetry-core"]
