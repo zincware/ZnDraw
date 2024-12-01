@@ -327,6 +327,8 @@ class ZnDraw(MutableSequence):
             isinstance(x, ase.Atoms) for x in values
         ):
             raise ValueError("Unable to parse provided data object")
+        if len(values) == 0:
+            return
 
         if not self.r.exists(f"room:{self.token}:frames") and self.r.exists(
             "room:default:frames"

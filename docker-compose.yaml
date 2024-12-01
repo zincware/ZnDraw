@@ -1,0 +1,40 @@
+services:
+  zndraw:
+    build: .
+    healthcheck:
+      test: ["CMD", "zndraw", "--healthcheck", "--url", "http://zndraw:5003"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    command: --no-standalone
+    restart: unless-stopped
+    ports:
+      - 5003:5003
+    depends_on:
+      - redis
+      - worker
+    environment:
+      - FLASK_STORAGE=redis://redis:6379/0
+      - FLASK_AUTH_TOKEN=super-secret-token
+
+  worker:
+    build: .
+    healthcheck:
+      test: ["CMD", "zndraw", "--healthcheck", "--url", "http://zndraw:5003"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    entrypoint: celery -A zndraw_app.make_celery worker --loglevel=info -P eventlet
+    restart: unless-stopped
+    depends_on:
+      - redis
+    environment:
+      - FLASK_STORAGE=redis://redis:6379/0
+      - FLASK_SERVER_URL="http://zndraw:5003"
+      - FLASK_AUTH_TOKEN=super-secret-token
+
+  redis:
+    image: redis:latest
+    restart: always
+    environment:
+      - REDIS_PORT=6379
