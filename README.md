@@ -4,8 +4,8 @@
 
 <div align="center">
 
-![Logo](https://raw.githubusercontent.com/zincware/ZnDraw/refs/heads/docs/docs/source/_static/zndraw-light.svg#gh-light-mode-only)
-![Logo](https://raw.githubusercontent.com/zincware/ZnDraw/refs/heads/docs/docs/source/_static/zndraw-dark.svg#gh-dark-mode-only)
+![Logo](https://raw.githubusercontent.com/zincware/ZnDraw/refs/heads/main/docs/source/_static/zndraw-dark.svg#gh-light-mode-only)
+![Logo](https://raw.githubusercontent.com/zincware/ZnDraw/refs/heads/main/docs/source/_static/zndraw-dark.svg#gh-dark-mode-only)
 
 [![zincware](https://img.shields.io/badge/Powered%20by-zincware-darkcyan)](https://github.com/zincware)
 [![PyPI version](https://badge.fury.io/py/zndraw.svg)](https://badge.fury.io/py/zndraw)
