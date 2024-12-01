@@ -72,4 +72,4 @@ select = ["I", "F"]
 addopts = "-m 'not chrome'"
 
 [tool.codespell]
-skip = "poetry.lock"
+skip = "*.svg,*.lock"
