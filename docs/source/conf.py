@@ -18,6 +18,7 @@ release = zndraw.__version__
 
 extensions = [
     "nbsphinx",
+    "sphinx_copybutton",
 ]
 
 templates_path = ["_templates"]
@@ -29,3 +30,25 @@ exclude_patterns = []
 
 html_theme = "furo"
 html_static_path = ["_static"]
+
+html_theme_options: dict = {
+    "light_logo": "zndraw-light.svg",
+    "dark_logo": "zndraw-dark.svg",
+    "footer_icons": [
+        {
+            "name": "GitHub",
+            "url": "https://github.com/zincware/zndraw",
+            "html": "",
+            "class": "fa-brands fa-github fa-2x",
+        },
+    ],
+    "source_repository": "https://github.com/zincware/zndraw",
+    "source_branch": "main",
+    "source_directory": "docs/source/",
+    "navigation_with_keys": True,
+}
+
+# font-awesome logos
+html_css_files = [
+    "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/brands.min.css",
+]
