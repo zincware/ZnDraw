@@ -48,6 +48,7 @@ znh5md = {version = "^0.3"}
 sphinx = "^8.1.3"
 furo = "^2024.8.6"
 nbsphinx = "^0.9.5"
+sphinx-copybutton = "^0.5.2"
 
 [build-system]
 requires = ["poetry-core"]
@@ -71,4 +72,4 @@ select = ["I", "F"]
 addopts = "-m 'not chrome'"
 
 [tool.codespell]
-skip = "poetry.lock"
+skip = "*.svg,*.lock"

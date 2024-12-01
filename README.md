@@ -1,17 +1,28 @@
+
+
+
+
+<div align="center">
+
+![Logo](https://raw.githubusercontent.com/zincware/ZnDraw/refs/heads/docs/docs/source/_static/zndraw-light.svg#gh-light-mode-only)
+![Logo](https://raw.githubusercontent.com/zincware/ZnDraw/refs/heads/docs/docs/source/_static/zndraw-dark.svg#gh-dark-mode-only)
+
 [![zincware](https://img.shields.io/badge/Powered%20by-zincware-darkcyan)](https://github.com/zincware)
 [![PyPI version](https://badge.fury.io/py/zndraw.svg)](https://badge.fury.io/py/zndraw)
 [![DOI](https://img.shields.io/badge/arXiv-2402.08708-red)](https://arxiv.org/abs/2402.08708)
 [![codecov](https://codecov.io/gh/zincware/ZnDraw/graph/badge.svg?token=3GPCKH1BBX)](https://codecov.io/gh/zincware/ZnDraw)
 [![Discord](https://img.shields.io/discord/1034511611802689557)](https://discord.gg/7ncfwhsnm4)
+[![Documentation Status](https://readthedocs.org/projects/zndraw/badge/?version=latest)](https://zndraw.readthedocs.io/en/latest/?badge=latest)
 !['Threejs](https://img.shields.io/badge/threejs-black?style=for-the-badge&logo=three.js&logoColor=white)
 
-# ZnDraw
+</div>
 
+# ZnDraw - Display and Edit Molecules
 Welcome to ZnDraw, a powerful tool for visualizing and interacting with your trajectories.
 
 ## Installation
 
-It is recommended to install ZnDraw from PyPi via:
+You can install ZnDraw directly from PyPi via:
 
 ```bash
 pip install zndraw
