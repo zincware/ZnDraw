@@ -151,4 +151,3 @@ The Extension will appear on the modifier sidebar and gives you full control ove
         :width: 100%
         :alt: ZnDraw
         :class: only-dark
-
