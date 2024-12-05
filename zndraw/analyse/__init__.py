@@ -10,6 +10,7 @@ import plotly.graph_objects as go
 from pydantic import Field
 
 from zndraw.base import Extension
+from zndraw.utils import update_figure_layout
 
 try:
     from zndraw.analyse import mda  # noqa: F401
@@ -62,6 +63,7 @@ class DihedralAngle(AnaylsisMethod):
         fig.update_traces(
             customdata=np.stack([meta_step], axis=-1),
         )
+        update_figure_layout(fig)
 
         vis.figures.update({"DihedralAngle": fig})
 
@@ -113,6 +115,7 @@ class Distance(AnaylsisMethod):
         fig.update_traces(
             customdata=np.stack([meta_step], axis=-1),
         )
+        update_figure_layout(fig)
 
         vis.figures.update({"Distance": fig})
 
@@ -177,6 +180,7 @@ class Properties2D(AnaylsisMethod):
         fig.update_traces(
             customdata=np.stack([meta_step], axis=-1),
         )
+        update_figure_layout(fig)
 
         vis.figures.update({"Properties2D": fig})
 
@@ -226,6 +230,13 @@ class ForceCorrelation(AnaylsisMethod):
 
         fig = px.scatter(df, x=self.x_data, y=self.y_data, render_mode="svg")
         fig.update_traces(customdata=np.stack([meta_step, meta_idx], axis=-1))
+
+        fig.update_layout(
+            title=f"Force Correlation for step {step}",
+            xaxis_title=self.x_data,
+            yaxis_title=self.y_data,
+        )
+        update_figure_layout(fig)
 
         vis.figures.update({f"ForceCorrelation-{step}": fig})
 
@@ -296,6 +307,7 @@ class Properties1D(AnaylsisMethod):
         fig.update_traces(
             customdata=np.stack([meta_step], axis=-1),
         )
+        update_figure_layout(fig)
 
         vis.figures.update({"Properties1D": fig})
 

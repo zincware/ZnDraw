@@ -237,3 +237,17 @@ def load_plots_to_dict(
             raise ValueError("The plots must be a dict, list or Figure")
 
     return data
+
+
+def update_figure_layout(fig: go.Figure) -> None:
+    fig.update_layout(
+        plot_bgcolor="rgba(64, 128, 230, 0.05)",  # Neutral light background tint
+        paper_bgcolor="rgba(255, 255, 255, 0)",
+        font_color="rgb(64, 128, 230, 0.75)",  # Dark gray text for improved contrast
+    )
+    fig.update_xaxes(
+        showgrid=True, gridwidth=1, gridcolor="rgba(120, 120, 120, 0.3)", zeroline=False
+    )
+    fig.update_yaxes(
+        showgrid=True, gridwidth=1, gridcolor="rgba(120, 120, 120, 0.3)", zeroline=False
+    )
