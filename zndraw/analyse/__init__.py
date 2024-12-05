@@ -202,6 +202,7 @@ class ForceCorrelation(AnaylsisMethod):
 
     def run(self, vis):
         atoms = vis.atoms
+        step = vis.step
         x_data = _get_data_from_frames(self.x_data, [atoms])
         y_data = _get_data_from_frames(self.y_data, [atoms])
 
@@ -226,7 +227,7 @@ class ForceCorrelation(AnaylsisMethod):
         fig = px.scatter(df, x=self.x_data, y=self.y_data, render_mode="svg")
         fig.update_traces(customdata=np.stack([meta_step, meta_idx], axis=-1))
 
-        vis.figures.update({"ForceCorrelation": fig})
+        vis.figures.update({f"ForceCorrelation-{step}": fig})
 
 
 class Properties1D(AnaylsisMethod):
