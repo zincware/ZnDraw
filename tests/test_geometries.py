@@ -1,8 +1,9 @@
 import pytest
+import znsocket
+from ase.build import molecule
 
 from zndraw import Box, Sphere, ZnDraw
-from ase.build import molecule
-import znsocket
+
 
 def test_geometries(server, s22):
     """Test the server fixture."""
@@ -36,7 +37,16 @@ def test_geometry_selection_position(server):
         socket=vis._refresh_client,
         key=f"queue:{vis.token}:geometry",
     )
-    geometry_queue["Plane"] = {'material': {'color': '#62929e', 'opacity': 0.2, 'wireframe': False, 'outlines': False}, 'width': 10, 'height': 10}
+    geometry_queue["Plane"] = {
+        "material": {
+            "color": "#62929e",
+            "opacity": 0.2,
+            "wireframe": False,
+            "outlines": False,
+        },
+        "width": 10,
+        "height": 10,
+    }
     vis.socket.emit("room:worker:run")
     vis.socket.sleep(5)
 
@@ -45,7 +55,16 @@ def test_geometry_selection_position(server):
 
     # now with a selection
     vis.selection = [1]
-    geometry_queue["Plane"] = {'material': {'color': '#62929e', 'opacity': 0.2, 'wireframe': False, 'outlines': False}, 'width': 10, 'height': 10}
+    geometry_queue["Plane"] = {
+        "material": {
+            "color": "#62929e",
+            "opacity": 0.2,
+            "wireframe": False,
+            "outlines": False,
+        },
+        "width": 10,
+        "height": 10,
+    }
     vis.socket.emit("room:worker:run")
     vis.socket.sleep(5)
 
@@ -55,10 +74,21 @@ def test_geometry_selection_position(server):
 
     # now with a selection of multiple atoms
     vis.selection = [1, 2]
-    geometry_queue["Plane"] = {'material': {'color': '#62929e', 'opacity': 0.2, 'wireframe': False, 'outlines': False}, 'width': 10, 'height': 10}
+    geometry_queue["Plane"] = {
+        "material": {
+            "color": "#62929e",
+            "opacity": 0.2,
+            "wireframe": False,
+            "outlines": False,
+        },
+        "width": 10,
+        "height": 10,
+    }
     vis.socket.emit("room:worker:run")
     vis.socket.sleep(5)
 
     assert len(vis.geometries) == 3
-    assert vis.geometries[2].position == vis.atoms.get_center_of_mass(indices=[1, 2]).tolist()
-    
+    assert (
+        vis.geometries[2].position
+        == vis.atoms.get_center_of_mass(indices=[1, 2]).tolist()
+    )
