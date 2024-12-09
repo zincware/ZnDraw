@@ -354,7 +354,7 @@ def run_room_worker(room):
                         atoms = vis.atoms
                         com = atoms.get_center_of_mass(indices=vis.selection)
                         task["position"] = com
-                        
+
                 print(task)
                 vis.geometries.append(geometries[key](**task))
             except IndexError:
