@@ -87,7 +87,7 @@ export default function App() {
 	const [roomName, setRoomName] = useState<string>("");
 	const [geometries, setGeometries] = useState<any>([]);
 	const [cameraAndControls, setCameraAndControls] = useState<any>({
-		camera: new THREE.Vector3(0, 0, 0),
+		camera: new THREE.Vector3(5, 5, 5),
 		target: new THREE.Vector3(0, 0, 0),
 	});
 	// TODO: initial values are wrong for orbitcontrolstarget and camperaPosition

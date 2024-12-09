@@ -18,6 +18,7 @@ import * as THREE from "three";
 import { getCentroid, useCentroid } from "./particlesEditor";
 
 const zeroVector = new THREE.Vector3(0, 0, 0);
+const initialCameraVector = new THREE.Vector3(5, 5, 5);
 const upVector = new THREE.Vector3(0, 1, 0);
 
 const MoveCameraTarget = forwardRef(
@@ -164,7 +165,7 @@ const CameraAndControls: React.FC<CameraAndControlsProps> = ({
 	// if the camera positions and target positions is default, adapt them to the scene
 	useEffect(() => {
 		if (
-			cameraAndControls.camera.equals(zeroVector) &&
+			cameraAndControls.camera.equals(initialCameraVector) &&
 			cameraAndControls.target.equals(zeroVector)
 		) {
 			const resetCamera = getResetCamera();
