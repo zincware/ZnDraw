@@ -348,6 +348,14 @@ def run_room_worker(room):
         if key in geometries:
             try:
                 task = geometry_queue.pop(key)
+                if "position" not in task:
+                    selection = vis.selection
+                    if len(selection) > 0:
+                        atoms = vis.atoms
+                        com = atoms.get_center_of_mass(indices=vis.selection)
+                        task["position"] = com
+
+                print(task)
                 vis.geometries.append(geometries[key](**task))
             except IndexError:
                 pass
