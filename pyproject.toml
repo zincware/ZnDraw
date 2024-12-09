@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "zndraw"
-version = "0.4.7"
+version = "0.5.6"
 description = "Display and Edit Molecular Structures and Trajectories in the Browser."
 authors = ["zincwarecode <zincwarecode@gmail.com>"]
 license = "License :: OSI Approved :: Eclipse Public License 2.0 (EPL-2.0)"
@@ -10,7 +10,7 @@ include = ["zndraw/templates/**/*", "zndraw_app/**/*"]
 [tool.poetry.dependencies]
 python = "^3.10"
 ase = "^3"
-typer = {extras = ["all"], version = "^0"}
+typer = {extras = ["all"], version = "^0.13"}
 flask = "^3"
 tqdm = "^4"
 flask-socketio = "^5"
@@ -19,13 +19,13 @@ pydantic = "^2"
 python-socketio = {extras = ["client"], version = "^5.11"}
 plotly = "^5"
 pandas = "^2"
-datamodel-code-generator = "^0.25"
 celery = "^5"
 sqlalchemy = "^2"
 redis = "^5"
 splines = "^0.3"
-znsocket = "^0.2.3"
+znsocket = "^0.2.7"
 znjson = "^0.2.4"
+eventlet = "^0.38"
 
 
 [tool.poetry.group.dev.dependencies]
@@ -38,10 +38,17 @@ ipykernel = "^6.29.4"
 mdanalysis = {version = "^2"}
 tidynamics = {version = "^1"}
 rdkit2ase = {version = "^0.1"}
-zntrack = {version = "^0.7.3"}
-znh5md = {version = "^0.3"}
+zntrack = {version = "^0.8"}
+znh5md = {version = "^0.4"}
 
 
+
+
+[tool.poetry.group.docs.dependencies]
+sphinx = "^8.1.3"
+furo = "^2024.8.6"
+nbsphinx = "^0.9.5"
+sphinx-copybutton = "^0.5.2"
 
 [build-system]
 requires = ["poetry-core"]
@@ -65,4 +72,4 @@ select = ["I", "F"]
 addopts = "-m 'not chrome'"
 
 [tool.codespell]
-skip = "poetry.lock"
+skip = "*.svg,*.lock"

@@ -8,8 +8,6 @@ class RegisterModifier(t.TypedDict):
     cls: t.Type["Extension"]
     run_kwargs: dict
     public: bool
-    frozen: bool
-    timeout: float
 
 
 class TimeoutConfig(t.TypedDict):
@@ -44,6 +42,7 @@ class ASEDict(t.TypedDict):
     pbc: list[bool]
     cell: list[list[float]]
     vectors: list[list[list[float]]]
+    constraints: list[dict]
 
 
 class ASEJson(t.TypedDict):

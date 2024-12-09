@@ -7,9 +7,10 @@ import numpy as np
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
-from pydantic import ConfigDict, Field
+from pydantic import Field
 
-from zndraw.base import Extension, MethodsCollection
+from zndraw.base import Extension
+from zndraw.utils import update_figure_layout
 
 try:
     from zndraw.analyse import mda  # noqa: F401
@@ -19,10 +20,6 @@ except ImportError:
 
 
 log = logging.getLogger(__name__)
-
-
-def _schema_from_atoms(schema, cls):
-    return cls.model_json_schema_from_atoms(schema)
 
 
 def _get_data_from_frames(key, frames: list[ase.Atoms]):
@@ -38,7 +35,13 @@ def _get_data_from_frames(key, frames: list[ase.Atoms]):
     return data
 
 
-class DihedralAngle(Extension):
+class AnaylsisMethod(Extension):
+    @classmethod
+    def model_json_schema_from_atoms(cls, atoms: ase.Atoms) -> dict:
+        return cls.model_json_schema()
+
+
+class DihedralAngle(AnaylsisMethod):
     def run(self, vis):
         atoms_lst = list(vis)
         dihedral_angles = []
@@ -60,18 +63,19 @@ class DihedralAngle(Extension):
         fig.update_traces(
             customdata=np.stack([meta_step], axis=-1),
         )
+        update_figure_layout(fig)
 
         vis.figures.update({"DihedralAngle": fig})
 
 
-class Distance(Extension):
+class Distance(AnaylsisMethod):
     smooth: bool = False
     mic: bool = True
 
-    model_config = ConfigDict(json_schema_extra=_schema_from_atoms)
+    @classmethod
+    def model_json_schema_from_atoms(cls, atoms: ase.Atoms) -> dict:
+        schema = cls.model_json_schema()
 
-    @staticmethod
-    def model_json_schema_from_atoms(schema: dict) -> dict:
         schema["properties"]["smooth"]["format"] = "checkbox"
         schema["properties"]["mic"]["format"] = "checkbox"
 
@@ -111,38 +115,32 @@ class Distance(Extension):
         fig.update_traces(
             customdata=np.stack([meta_step], axis=-1),
         )
+        update_figure_layout(fig)
 
         vis.figures.update({"Distance": fig})
 
 
-class Properties2D(Extension):
+class Properties2D(AnaylsisMethod):
     x_data: str
     y_data: str
     color: str
     fix_aspect_ratio: bool = True
 
-    model_config = ConfigDict(json_schema_extra=_schema_from_atoms)
-
     @classmethod
-    def model_json_schema_from_atoms(cls, schema: dict) -> dict:
-        ATOMS = cls.get_atoms()
-        log.debug(f"GATHERING PROPERTIES FROM {ATOMS=}")
-        try:
-            available_properties = list(ATOMS.arrays.keys())
-            available_properties += list(ATOMS.info.keys())
-            if ATOMS.calc is not None:
-                available_properties += list(
-                    ATOMS.calc.results.keys()
-                )  # global ATOMS object
+    def model_json_schema_from_atoms(cls, atoms: ase.Atoms) -> dict:
+        schema = cls.model_json_schema()
 
-            available_properties += ["step"]
-            schema["properties"]["x_data"]["enum"] = available_properties
-            schema["properties"]["y_data"]["enum"] = available_properties
-            schema["properties"]["color"]["enum"] = available_properties
-            schema["properties"]["fix_aspect_ratio"]["format"] = "checkbox"
+        available_properties = list(atoms.arrays.keys())
+        available_properties += list(atoms.info.keys())
+        if atoms.calc is not None:
+            available_properties += list(atoms.calc.results.keys())  # global ATOMS object
 
-        except AttributeError:
-            pass
+        available_properties += ["step"]
+        schema["properties"]["x_data"]["enum"] = available_properties
+        schema["properties"]["y_data"]["enum"] = available_properties
+        schema["properties"]["color"]["enum"] = available_properties
+        schema["properties"]["fix_aspect_ratio"]["format"] = "checkbox"
+
         return schema
 
     def run(self, vis):
@@ -182,34 +180,33 @@ class Properties2D(Extension):
         fig.update_traces(
             customdata=np.stack([meta_step], axis=-1),
         )
+        update_figure_layout(fig)
 
         vis.figures.update({"Properties2D": fig})
 
 
-class ForceCorrelation(Extension):
+class ForceCorrelation(AnaylsisMethod):
     """Compute the correlation between two properties for the current frame."""
 
     x_data: str
     y_data: str
 
-    model_config = ConfigDict(json_schema_extra=_schema_from_atoms)
-
     @classmethod
-    def model_json_schema_from_atoms(cls, schema: dict) -> dict:
-        ATOMS = cls.get_atoms()
-        try:
-            available_properties = list(ATOMS.arrays.keys())
-            available_properties += list(ATOMS.info.keys())
-            if ATOMS.calc is not None:
-                available_properties += list(ATOMS.calc.results.keys())
-            schema["properties"]["x_data"]["enum"] = available_properties
-            schema["properties"]["y_data"]["enum"] = available_properties
-        except AttributeError:
-            pass
+    def model_json_schema_from_atoms(cls, atoms: ase.Atoms) -> dict:
+        schema = cls.model_json_schema()
+
+        available_properties = list(atoms.arrays.keys())
+        available_properties += list(atoms.info.keys())
+        if atoms.calc is not None:
+            available_properties += list(atoms.calc.results.keys())
+        schema["properties"]["x_data"]["enum"] = available_properties
+        schema["properties"]["y_data"]["enum"] = available_properties
+
         return schema
 
     def run(self, vis):
         atoms = vis.atoms
+        step = vis.step
         x_data = _get_data_from_frames(self.x_data, [atoms])
         y_data = _get_data_from_frames(self.y_data, [atoms])
 
@@ -221,8 +218,7 @@ class ForceCorrelation(Extension):
         x_data = x_data.reshape(-1)
         y_data = y_data.reshape(-1)
 
-        current_step = vis.step
-        meta_step = [current_step for _ in range(len(x_data))]
+        meta_step = [None for _ in range(len(x_data))]
         meta_idx = list(range(len(x_data)))
 
         df = pd.DataFrame(
@@ -235,31 +231,36 @@ class ForceCorrelation(Extension):
         fig = px.scatter(df, x=self.x_data, y=self.y_data, render_mode="svg")
         fig.update_traces(customdata=np.stack([meta_step, meta_idx], axis=-1))
 
-        vis.figures.update({"ForceCorrelation": fig})
+        fig.update_layout(
+            title=f"Force Correlation for step {step}",
+            xaxis_title=self.x_data,
+            yaxis_title=self.y_data,
+        )
+        update_figure_layout(fig)
+
+        vis.figures.update({f"ForceCorrelation-{step}": fig})
 
 
-class Properties1D(Extension):
+class Properties1D(AnaylsisMethod):
     value: str
     smooth: bool = False
 
-    model_config = ConfigDict(json_schema_extra=_schema_from_atoms)
     aggregation: t.Literal["mean", "median", "max", ""] = Field(
         "",
         description="For multidimensional data, aggregate over all dimensions, except the first one.",
     )
 
     @classmethod
-    def model_json_schema_from_atoms(cls, schema: dict) -> dict:
-        ATOMS = cls.get_atoms()
-        try:
-            available_properties = list(ATOMS.arrays.keys())
-            available_properties += list(ATOMS.info.keys())
-            if ATOMS.calc is not None:
-                available_properties += list(ATOMS.calc.results.keys())
-            log.critical(f"AVAILABLE PROPERTIES: {available_properties=}")
-            schema["properties"]["value"]["enum"] = available_properties
-        except AttributeError:
-            print(f"{ATOMS=}")
+    def model_json_schema_from_atoms(cls, atoms: ase.Atoms) -> dict:
+        schema = cls.model_json_schema()
+
+        available_properties = list(atoms.arrays.keys())
+        available_properties += list(atoms.info.keys())
+        if atoms.calc is not None:
+            available_properties += list(atoms.calc.results.keys())
+        log.critical(f"AVAILABLE PROPERTIES: {available_properties=}")
+        schema["properties"]["value"]["enum"] = available_properties
+
         return schema
 
     def run(self, vis):
@@ -306,18 +307,15 @@ class Properties1D(Extension):
         fig.update_traces(
             customdata=np.stack([meta_step], axis=-1),
         )
+        update_figure_layout(fig)
 
         vis.figures.update({"Properties1D": fig})
 
 
-methods = t.Union[
-    Properties1D,
-    DihedralAngle,
-    Distance,
-    Properties2D,
-    ForceCorrelation,
-]
-
-
-class Analysis(MethodsCollection):
-    method: methods = Field(description="Analysis method", discriminator="discriminator")
+analyses: dict[str, t.Type[AnaylsisMethod]] = {
+    Properties1D.__name__: Properties1D,
+    DihedralAngle.__name__: DihedralAngle,
+    Distance.__name__: Distance,
+    Properties2D.__name__: Properties2D,
+    ForceCorrelation.__name__: ForceCorrelation,
+}

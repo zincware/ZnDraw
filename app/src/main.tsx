@@ -9,7 +9,7 @@ import "bootstrap/dist/css/bootstrap.min.css";
 // this will fail for our useRef based socket detection
 // and messages will be send through the socket, that should not be send
 ReactDOM.createRoot(document.getElementById("root")!).render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>,
+	<React.StrictMode>
+		<App />
+	</React.StrictMode>,
 );

@@ -1,15 +1,14 @@
-import abc
 import enum
 import logging
-import time
 import typing as t
 
 import ase
+import ase.constraints
 import numpy as np
 from ase.data import chemical_symbols
 from pydantic import Field
 
-from zndraw.base import Extension, MethodsCollection
+from zndraw.base import Extension
 
 try:
     from zndraw.modify import extras  # noqa: F401
@@ -26,12 +25,7 @@ log = logging.getLogger("zndraw")
 Symbols = enum.Enum("Symbols", {symbol: symbol for symbol in chemical_symbols})
 
 
-class UpdateScene(Extension, abc.ABC):
-    @abc.abstractmethod
-    def run(self, vis: "ZnDraw", timeout: float, **kwargs) -> None:
-        """Method called when running the modifier."""
-        pass
-
+class UpdateScene(Extension):
     def apply_selection(
         self, atom_ids: list[int], atoms: ase.Atoms
     ) -> t.Tuple[ase.Atoms, ase.Atoms]:
@@ -74,7 +68,6 @@ class Rotate(UpdateScene):
     steps: int = Field(
         30, ge=1, description="Number of steps to take to complete the rotation"
     )
-    sleep: float = Field(0.1, ge=0, description="Sleep time between steps")
 
     def run(self, vis: "ZnDraw", **kwargs) -> None:
         # split atoms object into the selected from atoms_ids and the remaining
@@ -93,13 +86,15 @@ class Rotate(UpdateScene):
         atoms_selected, atoms_remaining = self.apply_selection(atom_ids, atoms)
         # create a vector from the two points
         vector = points[1] - points[0]
+        frames = []
         for _ in range(self.steps):
             # rotate the selected atoms around the vector
             atoms_selected.rotate(angle, vector, center=points[0])
             # update the positions of the selected atoms
             atoms.positions[atom_ids] = atoms_selected.positions
-            vis.append(atoms)
-            time.sleep(self.sleep)
+            frames.append(atoms.copy())
+
+        vis.extend(frames)
 
 
 class Delete(UpdateScene):
@@ -142,6 +137,8 @@ class Translate(UpdateScene):
         atoms = vis.atoms
         selection = np.array(vis.selection)
 
+        frames = []
+
         for idx in range(self.steps):
             end_idx = int((idx + 1) * (len(segments) - 1) / self.steps)
             tmp_atoms = atoms.copy()
@@ -149,7 +146,9 @@ class Translate(UpdateScene):
             positions = tmp_atoms.positions
             positions[selection] += vector
             tmp_atoms.positions = positions
-            vis.append(tmp_atoms)
+            frames.append(tmp_atoms)
+
+        vis.extend(frames)
 
 
 class Duplicate(UpdateScene):
@@ -200,7 +199,6 @@ class ChangeType(UpdateScene):
 
 class AddLineParticles(UpdateScene):
     symbol: Symbols
-    steps: int = Field(10, le=100, ge=1)
 
     def run(self, vis: "ZnDraw", **kwargs) -> None:
         if len(vis) > vis.step + 1:
@@ -210,8 +208,12 @@ class AddLineParticles(UpdateScene):
         for point in vis.points:
             atoms += ase.Atom(self.symbol.name, position=point)
 
-        for _ in range(self.steps):
-            vis.append(atoms)
+        del atoms.arrays["colors"]
+        del atoms.arrays["radii"]
+        if hasattr(atoms, "connectivity"):
+            del atoms.connectivity
+
+        vis.append(atoms)
 
 
 class Wrap(UpdateScene):
@@ -288,15 +290,29 @@ class Center(UpdateScene):
 
 
 class Replicate(UpdateScene):
-    x: int = Field(2, ge=1)
-    y: int = Field(2, ge=1)
-    z: int = Field(2, ge=1)
+    """Replicate the atoms in the cell."""
+
+    x: int = Field(2, ge=1, le=10)
+    y: int = Field(2, ge=1, le=10)
+    z: int = Field(2, ge=1, le=10)
 
     keep_box: bool = Field(False, description="Keep the original box size")
     all: bool = Field(
         False,
         description="Apply to the full trajectory",
     )
+
+    @classmethod
+    def model_json_schema(cls):
+        schema = super().model_json_schema()
+        # make it sliders
+        schema["properties"]["x"]["format"] = "range"
+        schema["properties"]["y"]["format"] = "range"
+        schema["properties"]["z"]["format"] = "range"
+        # and checkboxes
+        schema["properties"]["keep_box"]["format"] = "checkbox"
+        schema["properties"]["all"]["format"] = "checkbox"
+        return schema
 
     def run(self, vis: "ZnDraw", **kwargs) -> None:
         if self.all:
@@ -345,25 +361,32 @@ class RemoveAtoms(UpdateScene):
         del vis[vis.step]
 
 
-methods = t.Union[
-    Delete,
-    Rotate,
-    Translate,
-    Duplicate,
-    ChangeType,
-    AddLineParticles,
-    Wrap,
-    Center,
-    Replicate,
-    Connect,
-    NewCanvas,
-    RemoveAtoms,
-]
+class FixAtoms(UpdateScene):
+    """Fix the selected atoms."""
+
+    def run(self, vis: "ZnDraw", **kwargs) -> None:
+        selection = vis.selection
+        atoms = vis.atoms
+        if len(selection) == 0:
+            atoms.set_constraint()
+        else:
+            constraint = ase.constraints.FixAtoms(indices=selection)
+            atoms.set_constraint(constraint)
+        vis.atoms = atoms
 
 
-class Modifier(MethodsCollection):
-    """Run modifications on the scene"""
-
-    method: methods = Field(
-        ..., description="Modify method", discriminator="discriminator"
-    )
+modifier: dict[str, t.Type[UpdateScene]] = {
+    Delete.__name__: Delete,
+    Rotate.__name__: Rotate,
+    Translate.__name__: Translate,
+    Duplicate.__name__: Duplicate,
+    ChangeType.__name__: ChangeType,
+    AddLineParticles.__name__: AddLineParticles,
+    Wrap.__name__: Wrap,
+    Center.__name__: Center,
+    Replicate.__name__: Replicate,
+    Connect.__name__: Connect,
+    NewCanvas.__name__: NewCanvas,
+    RemoveAtoms.__name__: RemoveAtoms,
+    FixAtoms.__name__: FixAtoms,
+}

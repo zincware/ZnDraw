@@ -4,12 +4,18 @@ import urllib.request
 from io import StringIO
 
 import ase.io
+import znsocket
 from celery import shared_task
 from flask import current_app
 
+from zndraw.analyse import analyses
 from zndraw.base import FileIO
 from zndraw.bonds import ASEComputeBonds
-from zndraw.exceptions import RoomLockedError
+from zndraw.config import SETTINGS
+from zndraw.draw import geometries
+from zndraw.modify import modifier
+from zndraw.queue import run_queued_task
+from zndraw.selection import selections
 from zndraw.utils import load_plots_to_dict
 
 log = logging.getLogger(__name__)
@@ -117,6 +123,7 @@ def read_file(fileio: dict) -> None:
         r=current_app.extensions["redis"],
         url=current_app.config["SERVER_URL"],
         token="default",
+        convert_nan=file_io.convert_nan,
     )
     bonds_calculator = ASEComputeBonds()
     if current_app.config.get("COMPUTE_BONDS", False):
@@ -133,103 +140,6 @@ def read_file(fileio: dict) -> None:
             atoms_buffer = []
     vis.extend(atoms_buffer)
 
-    vis.socket.sleep(1)
-    vis.socket.disconnect()
-
-
-@shared_task
-def run_modifier(room, data: dict) -> None:
-    from zndraw import ZnDraw
-    from zndraw.modify import Modifier
-
-    vis = ZnDraw(
-        r=current_app.extensions["redis"],
-        url=current_app.config["SERVER_URL"],
-        token=room,
-    )
-    if not current_app.config.get("COMPUTE_BONDS", False):
-        vis.bond_calculator = None
-    vis.socket.emit("room:modifier:queue", 0)
-    try:
-        if vis.locked:
-            raise RoomLockedError("The room you are trying to modify is locked.")
-        modifier = Modifier(**data)
-        modifier.run(vis)
-    except Exception as e:
-        vis.log(str(e))
-    finally:
-        vis.socket.emit("room:modifier:queue", -1)
-
-    # wait and then disconnect
-    vis.socket.sleep(1)
-    vis.socket.disconnect()
-
-
-@shared_task
-def run_selection(room, data: dict) -> None:
-    from zndraw.selection import Selection
-    from zndraw.zndraw import ZnDrawLocal
-
-    vis = ZnDrawLocal(
-        r=current_app.extensions["redis"],
-        url=current_app.config["SERVER_URL"],
-        token=room,
-    )
-    vis.socket.emit("room:selection:queue", 0)
-    try:
-        selection = Selection(**data)
-        selection.run(vis)
-    finally:
-        vis.socket.emit("room:selection:queue", -1)
-
-    # wait and then disconnect
-    vis.socket.sleep(1)
-    vis.socket.disconnect()
-
-
-@shared_task
-def run_analysis(room, data: dict) -> None:
-    from zndraw.analyse import Analysis
-    from zndraw.zndraw import ZnDrawLocal
-
-    vis = ZnDrawLocal(
-        r=current_app.extensions["redis"],
-        url=current_app.config["SERVER_URL"],
-        token=room,
-    )
-    vis.socket.emit("room:analysis:queue", 0)
-    try:
-        analysis = Analysis(**data)
-        analysis.run(vis)
-    except Exception as e:
-        vis.log(str(e))
-    finally:
-        vis.socket.emit("room:analysis:queue", -1)
-
-    # wait and then disconnect
-    vis.socket.sleep(1)
-    vis.socket.disconnect()
-
-
-@shared_task
-def run_geometry(room, data: dict) -> None:
-    from zndraw.draw import Geometry
-    from zndraw.zndraw import ZnDrawLocal
-
-    vis = ZnDrawLocal(
-        r=current_app.extensions["redis"],
-        url=current_app.config["SERVER_URL"],
-        token=room,
-    )
-    vis.socket.emit("room:geometry:queue", 0)
-    try:
-        geom = Geometry(**data)
-        # TODO: set the position / rotation / scale
-        geom.run(vis)
-    finally:
-        vis.socket.emit("room:geometry:queue", -1)
-
-    # wait and then disconnect
     vis.socket.sleep(1)
     vis.socket.disconnect()
 
@@ -279,9 +189,9 @@ def run_upload_file(room, data: dict):
 
 @shared_task
 def read_plots(paths: list[str], remote, rev) -> None:
-    from zndraw.zndraw import ZnDrawLocal
+    from zndraw import ZnDraw
 
-    vis = ZnDrawLocal(
+    vis = ZnDraw(
         r=current_app.extensions["redis"],
         url=current_app.config["SERVER_URL"],
         token="default",
@@ -291,3 +201,327 @@ def read_plots(paths: list[str], remote, rev) -> None:
 
     vis.socket.sleep(1)
     vis.socket.disconnect()
+
+
+@shared_task
+def load_zntrack_frames(room: str, remote: str, rev: str, attribute: str, name: str):
+    if len(rev) == 0:
+        rev = None
+    import zntrack
+
+    from zndraw import ZnDraw
+
+    vis = ZnDraw(
+        r=current_app.extensions["redis"],
+        url=current_app.config["SERVER_URL"],
+        token=room,
+    )
+    try:
+        vis.extend(getattr(zntrack.from_rev(name, remote=remote, rev=rev), attribute))
+    except Exception as e:
+        vis.log(str(e))
+
+    vis.socket.sleep(1)
+    vis.socket.disconnect()
+
+
+@shared_task
+def load_zntrack_figures(room: str, remote: str, rev: str, attribute: str, name: str):
+    if len(rev) == 0:
+        rev = None
+    import zntrack
+
+    from zndraw import ZnDraw
+
+    vis = ZnDraw(
+        r=current_app.extensions["redis"],
+        url=current_app.config["SERVER_URL"],
+        token=room,
+    )
+    try:
+        vis.figures.update(
+            getattr(zntrack.from_rev(name, remote=remote, rev=rev), attribute)
+        )
+    except Exception as e:
+        vis.log(str(e))
+
+    vis.socket.sleep(1)
+    vis.socket.disconnect()
+
+
+@shared_task
+def inspect_zntrack_node(name, rev, remote):
+    import dataclasses
+
+    import zntrack
+    from zntrack.config import ZNTRACK_OPTION, ZnTrackOptionEnum
+
+    node = zntrack.from_rev(name=name, remote=remote, rev=rev)
+
+    # find all @property decorated methods
+    def find_properties(cls):
+        exclude = set(
+            [
+                "_init_descriptors_",
+                "_init_subclass_basecls_",
+                "_use_repr_",
+                "nwd",
+                "state",
+                "uuid",
+            ]
+        )
+        names = []
+        for name in dir(cls):
+            if name not in exclude:
+                attr = getattr(cls, name)
+                if isinstance(attr, property):
+                    # get the type hint of the property
+                    hint = attr.fget.__annotations__.get("return", None)
+                    names.append((name, str(hint)))
+        return names
+
+    def find_deps_outs(cls):
+        names = []
+        for field in dataclasses.fields(cls):
+            if field.metadata.get(ZNTRACK_OPTION) in [
+                ZnTrackOptionEnum.OUTS,
+                ZnTrackOptionEnum.DEPS,
+            ]:
+                # names.append(field.name)
+                # append a tuple with the name and the type
+                names.append((field.name, str(field.type)))
+        return names
+
+    return find_deps_outs(node) + find_properties(node.__class__)
+
+
+@shared_task
+def setup_public_modifier(room):
+    from zndraw import ZnDraw
+
+    vis = ZnDraw(
+        r=current_app.extensions["redis"],
+        url=current_app.config["SERVER_URL"],
+        token=room,
+    )
+
+    room_modifier_queue = znsocket.Dict(
+        r=current_app.extensions["redis"],
+        socket=vis._refresh_client,
+        key=f"queue:{room}:modifier",
+    )
+
+    # We link the room queue to the default queue
+    # so that the public modifier can be used in the room
+    # public modifiers iterate the default_modifier_queue
+    # and check for applicable tasks to pick up.
+    # TODO: remove rooms from this list if they are closed
+    # TODO: when to close a room?
+    default_modifier_queue = znsocket.Dict(
+        r=current_app.extensions["redis"],
+        socket=vis._refresh_client,
+        key="queue:default:modifier",
+    )
+
+    default_modifier_queue[room] = room_modifier_queue
+
+    vis.socket.sleep(1)
+    vis.socket.disconnect()
+
+
+@shared_task
+def run_room_worker(room):
+    from zndraw import ZnDraw
+
+    vis = ZnDraw(
+        r=current_app.extensions["redis"],
+        url=current_app.config["SERVER_URL"],
+        token=room,
+    )
+
+    geometry_queue = znsocket.Dict(
+        r=current_app.extensions["redis"],
+        socket=vis._refresh_client,
+        key=f"queue:{room}:geometry",
+    )
+    for key in geometry_queue:
+        if key in geometries:
+            try:
+                task = geometry_queue.pop(key)
+                vis.geometries.append(geometries[key](**task))
+            except IndexError:
+                pass
+
+    selection_queue = znsocket.Dict(
+        r=current_app.extensions["redis"],
+        socket=vis._refresh_client,
+        key=f"queue:{room}:selection",
+    )
+
+    for key in selection_queue:
+        if key in selections:
+            try:
+                task = selection_queue.pop(key)
+                run_queued_task(vis, selections[key], task, selection_queue)
+            except IndexError:
+                pass
+
+    analysis_queue = znsocket.Dict(
+        r=current_app.extensions["redis"],
+        socket=vis._refresh_client,
+        key=f"queue:{room}:analysis",
+    )
+
+    for key in analysis_queue:
+        if key in analyses:
+            try:
+                task = analysis_queue.pop(key)
+                try:
+                    run_queued_task(vis, analyses[key], task, analysis_queue)
+                except Exception as err:
+                    vis.log(f"Error running analysis `{key}`: {err}")
+            except IndexError:
+                pass
+
+    scene_queue = znsocket.Dict(
+        r=current_app.extensions["redis"],
+        socket=vis._refresh_client,
+        key=f"queue:{room}:settings",
+    )
+
+    for key, val in scene_queue.items():
+        vis.config[key].update(val)
+        # TODO: also update the schema to update all other rooms
+        vis.config["trigger_update"] = True
+
+    modifier_queue = znsocket.Dict(
+        r=current_app.extensions["redis"],
+        socket=vis._refresh_client,
+        key=f"queue:{room}:modifier",
+    )
+
+    for key in modifier_queue:
+        if key in modifier:
+            try:
+                task = modifier_queue.pop(key)
+                try:
+                    run_queued_task(vis, modifier[key], task, modifier_queue)
+                except Exception as err:
+                    vis.log(f"Error running modifier `{key}`: {err}")
+            except IndexError:
+                pass
+
+    # wait and then disconnect
+    vis.socket.sleep(1)
+    vis.socket.disconnect()
+
+
+@shared_task
+def run_schema(room) -> None:
+    from zndraw import ZnDraw
+
+    vis = ZnDraw(
+        r=current_app.extensions["redis"],
+        url=current_app.config["SERVER_URL"],
+        token=room,
+    )
+
+    room_modifier_queue = znsocket.Dict(
+        r=current_app.extensions["redis"],
+        socket=vis._refresh_client,
+        key=f"queue:{room}:modifier",
+    )
+
+    # We link the room queue to the default queue
+    # so that the public modifier can be used in the room
+    # public modifiers iterate the default_modifier_queue
+    # and check for applicable tasks to pick up.
+    # TODO: remove rooms from this list if they are closed
+    # TODO: when to close a room?
+    default_modifier_queue = znsocket.Dict(
+        r=current_app.extensions["redis"],
+        socket=vis._refresh_client,
+        key="queue:default:modifier",
+    )
+
+    default_modifier_queue[room] = room_modifier_queue
+
+    dct = znsocket.Dict(
+        r=current_app.extensions["redis"],
+        socket=vis._refresh_client,
+        key="schema:default:modifier",
+    )
+    for key, val in modifier.items():
+        dct[key] = val.model_json_schema()
+
+    dct = znsocket.Dict(
+        r=current_app.extensions["redis"],
+        socket=vis._refresh_client,
+        key=f"schema:{room}:selection",
+    )
+    for key, val in selections.items():
+        dct[key] = val.model_json_schema()
+
+    dct = znsocket.Dict(
+        r=current_app.extensions["redis"],
+        socket=vis._refresh_client,
+        key=f"schema:{room}:geometry",
+    )
+    for key, val in geometries.items():
+        dct[key] = val.model_json_schema()
+
+    vis.socket.sleep(1)
+    vis.socket.disconnect()
+
+
+@shared_task
+def run_scene_dependent_schema(room) -> None:
+    from zndraw import ZnDraw
+
+    vis = ZnDraw(
+        r=current_app.extensions["redis"],
+        url=current_app.config["SERVER_URL"],
+        token=room,
+    )
+
+    dct = znsocket.Dict(
+        r=current_app.extensions["redis"],
+        socket=vis._refresh_client,
+        key=f"schema:{room}:analysis",
+    )
+    for key, val in analyses.items():
+        dct[key] = val.model_json_schema_from_atoms(vis.atoms)
+
+    dct = znsocket.Dict(
+        r=current_app.extensions["redis"],
+        socket=vis._refresh_client,
+        key=f"schema:{room}:settings",
+    )
+
+    for key, val in SETTINGS.items():
+        config_values = dict(vis.config[key])
+        schema = val.model_json_schema_from_atoms(vis.atoms)
+        for prop, val in schema["properties"].items():
+            try:
+                schema["properties"][prop]["default"] = config_values[prop]
+            except KeyError:
+                vis.log(f"KeyError: {prop}")
+        dct[key] = schema
+
+    vis.socket.sleep(1)
+    vis.socket.disconnect()
+
+
+@shared_task
+def run_room_copy(room) -> None:
+    # check if the room exists or if default room is used instead
+    r = current_app.extensions["redis"]
+
+    if not r.exists(f"room:{room}:frames") and r.exists("room:default:frames"):
+        default_lst = znsocket.List(
+            r,
+            "room:default:frames",
+        )
+        if not (len(default_lst) == 1 and len(default_lst[0]) == 0):
+            # prevent copying empty default room
+            default_lst.copy(key=f"room:{room}:frames")

@@ -1,0 +1,153 @@
+01 - Christmas Tree Builder
+============================
+
+You can use a ZnDraw extension to provide a graphical user interface for building a Christmas tree out of molecules.
+
+.. code:: python
+
+    from ase import Atoms
+    from zndraw import ZnDraw, Extension
+    from pydantic import Field
+    from rdkit2ase import smiles2atoms, smiles2conformers
+
+    vis = ZnDraw(url="http://localhost:5003/", token="tree")
+
+    class BuildChristmasTree(Extension):
+        smiles: str = Field(
+            "CO", description="SMILES string of the molecule to use for the tree"
+        )
+        n: int = Field(5, description="Number of layers for the tree", ge=1, le=10)
+        x_spacing: float = Field(
+            4,
+            description="Horizontal spacing between molecules in each layer (in Ångstroms)",
+            ge=0,
+            le=10,
+        )
+        y_spacing: float = Field(
+            3, description="Vertical spacing between layers (in Ångstroms)", ge=0, le=10
+        )
+        trunk_height: int = Field(
+            2, description="Number of molecules in the trunk", ge=0, le=10
+        )
+        conformers: bool = True
+
+        def run(self, vis, **kwargs):
+            # compute number of needed conformers
+            n_molecules = (self.n * (self.n + 1)) + self.trunk_height
+            if self.conformers:
+                molecules = smiles2conformers(self.smiles, numConfs=n_molecules)
+            else:
+                molecule = smiles2atoms(self.smiles)
+                molecules = [molecule.copy() for _ in range(n_molecules)]
+            tree = build_christmas_tree(
+                molecules, self.n, self.trunk_height, self.x_spacing, self.y_spacing
+            )
+            vis.append(tree)
+
+        @classmethod
+        def model_json_schema(cls):
+            schema = super().model_json_schema()
+            schema["properties"]["conformers"]["format"] = "checkbox"
+            # make format range
+            schema["properties"]["n"]["format"] = "range"
+            schema["properties"]["x_spacing"]["format"] = "range"
+            schema["properties"]["x_spacing"]["step"] = 0.1
+            schema["properties"]["y_spacing"]["format"] = "range"
+            schema["properties"]["y_spacing"]["step"] = 0.1
+            schema["properties"]["trunk_height"]["format"] = "range"
+            return schema
+
+
+    def build_christmas_tree(
+        molecules: list[Atoms],
+        n: int = 5,
+        trunk_height: int = 2,
+        x_spacing: float = 3.0,
+        y_spacing: float = 3.0,
+    ) -> Atoms:
+        """Build an atomic Christmas tree.
+
+        Arguments
+        ---------
+        molecules : list[Atoms]
+            A list of molecular structures to use for each part of the tree.
+        n : int
+            The number of layers for the tree.
+        trunk_height : int
+            The number of molecules in the trunk.
+        x_spacing : float
+            Horizontal spacing between molecules in each layer (in Ångstroms).
+        y_spacing : float
+            Vertical spacing between layers (in Ångstroms).
+
+        Returns
+        -------
+        tree : Atoms
+            An assembled "tree" with the trunk and branches built from the provided molecules.
+        """
+        # Ensure there are enough molecules to build the tree
+        if len(molecules) < n * (n + 1) // 2 + trunk_height:
+            raise ValueError(
+                "Not enough molecules to build the tree and trunk with the given parameters."
+            )
+
+        # Center molecules individually
+        for mol in molecules:
+            mol.center()
+
+        # Create an empty structure for the tree
+        tree = Atoms()
+
+        # Build the trunk
+        for _ in range(trunk_height):
+            mol_copy = molecules.pop()
+            tree += mol_copy
+            [mol.translate([0, y_spacing, 0]) for mol in molecules]
+
+        # Build the layers from bottom to top
+        for layer_num in reversed(range(n)):
+            layer = Atoms()
+            num_molecules = layer_num + 1
+            x_offset = (
+                x_spacing * (num_molecules - 1) / 2
+            )  # Offset to center the layer horizontally
+
+            for j in range(num_molecules):
+                mol_copy = molecules.pop()
+                mol_copy.translate([j * x_spacing - x_offset, 0, 0])
+                layer += mol_copy
+
+            tree += layer
+            [mol.translate([0, y_spacing, 0]) for mol in molecules]
+
+        return tree
+
+    vis.register(BuildChristmasTree, public=True)
+    vis.socket.wait()
+
+The Extension will appear on the modifier sidebar and gives you full control over the parameters of the tree builder.
+
+.. image:: https://github.com/user-attachments/assets/161e6b40-f539-45b9-9bab-cfa613e37b8f
+   :width: 100%
+   :alt: ZnDraw
+   :class: only-light
+
+.. image:: https://github.com/user-attachments/assets/f1495096-c443-4a53-98c4-07368354b21d
+   :width: 100%
+   :alt: ZnDraw
+   :class: only-dark
+
+
+.. tip::
+
+   Use the PathTracer integrated with ZnDraw to make the christmas tree reflective like christmas decorations.
+
+    .. image:: https://github.com/user-attachments/assets/ca382068-1f17-4bcb-a6f2-ef48c671ac48
+        :width: 100%
+        :alt: ZnDraw
+        :class: only-light
+
+    .. image:: https://github.com/user-attachments/assets/5df7e7ab-a930-4361-ac5e-e4f0fcd10cc1
+        :width: 100%
+        :alt: ZnDraw
+        :class: only-dark
