@@ -4,6 +4,8 @@ import znsocket
 from ase.build import bulk, molecule
 
 from zndraw import Extension, ZnDraw
+from zndraw.exceptions import RoomLockedError
+import pytest
 
 
 def run_queue(vis, key, msg: dict):
@@ -221,3 +223,18 @@ def test_modified_while_locked(server):
     run_queue(vis, "modifier", {"RemoveAtoms": {}})
 
     assert len(vis) == 2
+
+    with pytest.raises(RoomLockedError):
+        vis.append(molecule("H2O"))
+
+    with pytest.raises(RoomLockedError):
+        vis.step = 0
+    
+    with pytest.raises(RoomLockedError):
+        vis.selection = [0]
+    
+    with pytest.raises(RoomLockedError):
+        vis.atoms = molecule("H2O")
+
+    with pytest.raises(RoomLockedError):
+        vis.extend([molecule("H2O")])
