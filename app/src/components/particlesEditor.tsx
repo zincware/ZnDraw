@@ -35,6 +35,8 @@ interface ParticleControlsProps {
 	selectedIds: Set<number>;
 	setFrame: (frame: any) => void;
 	roomLock: boolean;
+	editMode: string;
+	setEditMode: (mode: string) => void;
 }
 
 export const ParticleControls: React.FC<ParticleControlsProps> = ({
@@ -42,17 +44,18 @@ export const ParticleControls: React.FC<ParticleControlsProps> = ({
 	selectedIds,
 	setFrame,
 	roomLock,
+	editMode,
+	setEditMode,
 }: ParticleControlsProps) => {
 	const controls = useRef(null);
 	const controlsPostRef = useRef(new Vector3());
 	const controlsRotationRef = useRef(new Vector3());
 
 	// State for the edit mode: "None", "translate", or "rotate"
-	const [mode, setMode] = useState("None");
 
 	useEffect(() => {
 		if (roomLock) {
-			setMode("None");
+			setEditMode("none");
 		}
 	}, [roomLock]);
 
@@ -102,7 +105,7 @@ export const ParticleControls: React.FC<ParticleControlsProps> = ({
 
 	// Handle control changes, applying only necessary updates to position and delta
 	const handleControlsChange = useCallback(() => {
-		if (mode === "translate") {
+		if (editMode === "translate") {
 			if (controls.current?.object?.position && selectedIds.size > 0) {
 				const deltaPosition = controlsPostRef.current
 					.clone()
@@ -110,7 +113,7 @@ export const ParticleControls: React.FC<ParticleControlsProps> = ({
 				applyDeltaToPositions(deltaPosition);
 				controlsPostRef.current.copy(controls.current.object.position);
 			}
-		} else if (mode === "rotate") {
+		} else if (editMode === "rotate") {
 			if (controls.current?.object?.rotation && selectedIds.size > 0) {
 				const deltaRotation = controlsRotationRef.current
 					.clone()
@@ -119,7 +122,7 @@ export const ParticleControls: React.FC<ParticleControlsProps> = ({
 				controlsRotationRef.current.copy(controls.current.object.rotation);
 			}
 		}
-	}, [applyDeltaToPositions, selectedIds, mode, applyDeltaToRotations]);
+	}, [applyDeltaToPositions, selectedIds, editMode, applyDeltaToRotations]);
 
 	// Toggle mode between "None", "translate", and "rotate" on "E" key press
 	useEffect(() => {
@@ -132,16 +135,16 @@ export const ParticleControls: React.FC<ParticleControlsProps> = ({
 			}
 			if (event.key.toLowerCase() === "e") {
 				socket.emit("room:copy");
-				setMode((prevMode) => {
+				setEditMode((prevMode) => {
 					switch (prevMode) {
-						case "None":
+						case "none":
 							return "translate";
 						case "translate":
 							return "rotate";
 						case "rotate":
-							return "None";
+							return "none";
 						default:
-							return "None";
+							return "none";
 					}
 				});
 			}
@@ -156,13 +159,13 @@ export const ParticleControls: React.FC<ParticleControlsProps> = ({
 	// Apply mode to TransformControls whenever it changes
 	useEffect(() => {
 		if (controls.current) {
-			controls.current.mode = mode === "None" ? "" : mode;
+			controls.current.mode = editMode === "none" ? "" : editMode;
 		}
-	}, [mode]);
+	}, [editMode]);
 
 	return (
 		<>
-			{selectedIds.size > 0 && mode !== "None" && (
+			{selectedIds.size > 0 && editMode !== "none" && (
 				<TransformControls ref={controls} onChange={handleControlsChange} />
 			)}
 		</>

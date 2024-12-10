@@ -161,6 +161,8 @@ export const ParticleInstances = ({
 	highlight = "",
 	pathTracingSettings,
 	roomLock,
+	editMode = "",
+	setEditMode = () => {},
 }: {
 	frame: Frame;
 	setFrame: (frame: Frame) => void;
@@ -175,6 +177,8 @@ export const ParticleInstances = ({
 	highlight: string;
 	pathTracingSettings: any;
 	roomLock: boolean;
+	editMode?: string; // Make editMode optional
+	setEditMode?: (mode: string) => void; // Make setEditMode optional
 }) => {
 	const meshRef = useRef<THREE.InstancedMesh | null>(null);
 
@@ -345,6 +349,8 @@ export const ParticleInstances = ({
 					selectedIds={selectedIds}
 					setFrame={setFrame}
 					roomLock={roomLock}
+					editMode={editMode}
+					setEditMode={setEditMode}
 				/>
 			)}
 			<instancedMesh
