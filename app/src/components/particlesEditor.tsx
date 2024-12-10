@@ -1,3 +1,4 @@
+import React from "react";
 import { TransformControls } from "@react-three/drei";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Euler, Vector3 } from "three";
@@ -29,13 +30,34 @@ export const useCentroid = ({ frame, selectedIds }: any) => {
 	}, [frame.positions, selectedIds]);
 };
 
-export const ParticleControls = ({ frame, selectedIds, setFrame }) => {
+interface ParticleControlsProps {
+	frame: any;
+	selectedIds: Set<number>;
+	setFrame: (frame: any) => void;
+	roomLock: boolean;
+	editMode: string;
+	setEditMode: (mode: string) => void;
+}
+
+export const ParticleControls: React.FC<ParticleControlsProps> = ({
+	frame,
+	selectedIds,
+	setFrame,
+	roomLock,
+	editMode,
+	setEditMode,
+}: ParticleControlsProps) => {
 	const controls = useRef(null);
 	const controlsPostRef = useRef(new Vector3());
 	const controlsRotationRef = useRef(new Vector3());
 
 	// State for the edit mode: "None", "translate", or "rotate"
-	const [mode, setMode] = useState("None");
+
+	useEffect(() => {
+		if (roomLock) {
+			setEditMode("none");
+		}
+	}, [roomLock]);
 
 	// Efficiently calculate centroid and attach control to it when `selectedIds` changes
 	const centroid = useCentroid({ frame, selectedIds });
@@ -83,7 +105,7 @@ export const ParticleControls = ({ frame, selectedIds, setFrame }) => {
 
 	// Handle control changes, applying only necessary updates to position and delta
 	const handleControlsChange = useCallback(() => {
-		if (mode === "translate") {
+		if (editMode === "translate") {
 			if (controls.current?.object?.position && selectedIds.size > 0) {
 				const deltaPosition = controlsPostRef.current
 					.clone()
@@ -91,7 +113,7 @@ export const ParticleControls = ({ frame, selectedIds, setFrame }) => {
 				applyDeltaToPositions(deltaPosition);
 				controlsPostRef.current.copy(controls.current.object.position);
 			}
-		} else if (mode === "rotate") {
+		} else if (editMode === "rotate") {
 			if (controls.current?.object?.rotation && selectedIds.size > 0) {
 				const deltaRotation = controlsRotationRef.current
 					.clone()
@@ -100,7 +122,7 @@ export const ParticleControls = ({ frame, selectedIds, setFrame }) => {
 				controlsRotationRef.current.copy(controls.current.object.rotation);
 			}
 		}
-	}, [applyDeltaToPositions, selectedIds, mode, applyDeltaToRotations]);
+	}, [applyDeltaToPositions, selectedIds, editMode, applyDeltaToRotations]);
 
 	// Toggle mode between "None", "translate", and "rotate" on "E" key press
 	useEffect(() => {
@@ -108,18 +130,21 @@ export const ParticleControls = ({ frame, selectedIds, setFrame }) => {
 			if (document.activeElement !== document.body) {
 				return;
 			}
+			if (roomLock) {
+				return;
+			}
 			if (event.key.toLowerCase() === "e") {
 				socket.emit("room:copy");
-				setMode((prevMode) => {
+				setEditMode((prevMode) => {
 					switch (prevMode) {
-						case "None":
+						case "none":
 							return "translate";
 						case "translate":
 							return "rotate";
 						case "rotate":
-							return "None";
+							return "none";
 						default:
-							return "None";
+							return "none";
 					}
 				});
 			}
@@ -129,18 +154,18 @@ export const ParticleControls = ({ frame, selectedIds, setFrame }) => {
 		return () => {
 			window.removeEventListener("keydown", toggleMode);
 		};
-	}, []);
+	}, [roomLock]);
 
 	// Apply mode to TransformControls whenever it changes
 	useEffect(() => {
 		if (controls.current) {
-			controls.current.mode = mode === "None" ? "" : mode;
+			controls.current.mode = editMode === "none" ? "" : editMode;
 		}
-	}, [mode]);
+	}, [editMode]);
 
 	return (
 		<>
-			{selectedIds.size > 0 && mode !== "None" && (
+			{selectedIds.size > 0 && editMode !== "none" && (
 				<TransformControls ref={controls} onChange={handleControlsChange} />
 			)}
 		</>

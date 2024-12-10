@@ -1,9 +1,8 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App.tsx";
-import "./index.css";
-
 import "bootstrap/dist/css/bootstrap.min.css";
+import "./index.css";
 
 // React strict mode renders the app twice to detect side effects
 // this will fail for our useRef based socket detection

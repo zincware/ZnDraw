@@ -338,6 +338,12 @@ def run_room_worker(room):
         url=current_app.config["SERVER_URL"],
         token=room,
     )
+    locked = vis.locked
+    if locked:
+        vis.log("Room is locked. Can not modify the room.")
+        vis.socket.sleep(1)
+        vis.socket.disconnect()
+        return
 
     geometry_queue = znsocket.Dict(
         r=current_app.extensions["redis"],

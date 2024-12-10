@@ -25,6 +25,7 @@ from zndraw.bonds import ASEComputeBonds
 from zndraw.config import SETTINGS
 from zndraw.converter import ASEConverter, Object3DConverter
 from zndraw.draw import Object3D
+from zndraw.exceptions import RoomLockedError
 from zndraw.figure import Figure, FigureConverter
 from zndraw.queue import check_queue
 from zndraw.type_defs import (
@@ -206,6 +207,8 @@ class ZnDraw(MutableSequence):
         else:
             if not isinstance(value, ase.Atoms):
                 raise ValueError("Unable to parse provided data object")
+        if self.locked:
+            raise RoomLockedError
         lst = znsocket.List(
             self.r,
             f"room:{self.token}:frames",
@@ -258,6 +261,8 @@ class ZnDraw(MutableSequence):
         )
 
     def __delitem__(self, index: int | slice | list[int]):
+        if self.locked:
+            raise RoomLockedError
         lst = znsocket.List(
             self.r,
             f"room:{self.token}:frames",
@@ -297,6 +302,8 @@ class ZnDraw(MutableSequence):
     def insert(self, index: int, value: ase.Atoms):
         if not isinstance(value, ase.Atoms):
             raise ValueError("Unable to parse provided data object")
+        if self.locked:
+            raise RoomLockedError
         lst = znsocket.List(
             self.r,
             f"room:{self.token}:frames",
@@ -327,6 +334,9 @@ class ZnDraw(MutableSequence):
             isinstance(x, ase.Atoms) for x in values
         ):
             raise ValueError("Unable to parse provided data object")
+        if self.locked:
+            raise RoomLockedError
+
         if len(values) == 0:
             return
 
@@ -394,6 +404,8 @@ class ZnDraw(MutableSequence):
             raise ValueError("Selection must be a list of integers")
         if len(value) != len(set(value)):
             raise ValueError("Selection must not contain duplicates")
+        if self.locked:
+            raise RoomLockedError
 
         max_index = len(self.atoms)
         if any(x >= max_index for x in value):
@@ -445,6 +457,8 @@ class ZnDraw(MutableSequence):
             raise ValueError("Step must be positive")
         if value >= len(self):
             raise IndexError("Step out of range")
+        if self.locked:
+            raise RoomLockedError
         # Have only one step per room!
         # shared rooms are rare anyhow and making per-client steps
         # and room hosts is annoying
@@ -468,6 +482,8 @@ class ZnDraw(MutableSequence):
     @figures.setter
     def figures(self, data: dict[str, go.Figure]) -> None:
         """Update the figures on the remote."""
+        if self.locked:
+            raise RoomLockedError
         figures_dict = znsocket.Dict(
             self.r,
             f"room:{self.token}:figures",
@@ -502,6 +518,8 @@ class ZnDraw(MutableSequence):
 
     @points.setter
     def points(self, points: np.ndarray | list) -> None:
+        if self.locked:
+            raise RoomLockedError
         if isinstance(points, np.ndarray):
             points = points.tolist()
         znsocket.Dict(self.r, f"room:{self.token}:points", socket=self._refresh_client)[
@@ -527,6 +545,8 @@ class ZnDraw(MutableSequence):
 
     @bookmarks.setter
     def bookmarks(self, value: dict[int, str]):
+        if self.locked:
+            raise RoomLockedError
         if not isinstance(value, dict):
             raise ValueError("Bookmarks must be a dictionary")
         if not all(isinstance(x, int) for x in value.keys()):
@@ -556,6 +576,8 @@ class ZnDraw(MutableSequence):
 
     @camera.setter
     def camera(self, value: CameraData):
+        if self.locked:
+            raise RoomLockedError
         if set(value.keys()) != {"position", "target"}:
             raise ValueError("Camera must have 'position' and 'target' keys")
         znsocket.Dict(
@@ -577,6 +599,8 @@ class ZnDraw(MutableSequence):
     def geometries(self, value: list[Object3D]):
         if not all(isinstance(x, Object3D) for x in value):
             raise ValueError("Geometries must be a list of Object3D instances")
+        if self.locked:
+            raise RoomLockedError
         lst = znsocket.List(
             self.r,
             f"room:{self.token}:geometries",

@@ -94,6 +94,7 @@ export default function App() {
 	// todo give to particles and bonds
 	const [colorMode, handleColorMode] = useColorMode();
 	const [hoveredId, setHoveredId] = useState<number>(-1);
+	const [editMode, setEditMode] = useState<string>("none");
 	// UPDATE THESE using `vis.config` on the Python side
 	const [roomConfig, setRoomConfig] = useState({
 		Arrows: {
@@ -452,7 +453,11 @@ export default function App() {
 
 	return (
 		<>
-			<div className="canvas-container" onDragOver={onDragOver} onDrop={onDrop}>
+			<div
+				className="canvas-container edit-mode-border"
+				onDragOver={onDragOver}
+				onDrop={onDrop}
+			>
 				<Canvas onPointerMissed={onPointerMissed} shadows>
 					<CameraAndControls
 						cameraConfig={roomConfig.Camera}
@@ -513,6 +518,7 @@ export default function App() {
 							visibleIndices={undefined}
 							setFrame={setCurrentFrame}
 							pathTracingSettings={roomConfig.PathTracer}
+							roomLock={roomLock}
 						/>
 						{!roomConfig.PathTracer.enabled && (
 							<>
@@ -528,6 +534,7 @@ export default function App() {
 									visibleIndices={hoveredId}
 									highlight={"backside"}
 									setFrame={setCurrentFrame}
+									roomLock={roomLock}
 								/>
 								<ParticleInstances
 									frame={currentFrame}
@@ -541,6 +548,9 @@ export default function App() {
 									visibleIndices={selectedIds}
 									highlight={"selection"}
 									setFrame={setCurrentFrame}
+									roomLock={roomLock}
+									editMode={editMode}
+									setEditMode={setEditMode}
 								/>
 								<ParticleInstances
 									frame={currentFrame}
@@ -556,6 +566,7 @@ export default function App() {
 									}
 									highlight={"constraint"}
 									setFrame={setCurrentFrame}
+									roomLock={roomLock}
 								/>
 								<BondInstances
 									frame={currentFrame}
@@ -632,6 +643,9 @@ export default function App() {
 					</Pathtracer>
 				</Canvas>
 			</div>
+			{editMode !== "none" && (
+				<div className="edit-mode-description">{editMode}</div>
+			)}
 			<div className="App">
 				<HeadBar
 					room={roomName}

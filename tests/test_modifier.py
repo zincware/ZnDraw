@@ -1,9 +1,11 @@
 import numpy as np
 import numpy.testing as npt
+import pytest
 import znsocket
 from ase.build import bulk, molecule
 
 from zndraw import Extension, ZnDraw
+from zndraw.exceptions import RoomLockedError
 
 
 def run_queue(vis, key, msg: dict):
@@ -203,3 +205,36 @@ def test_modify_RemoveAtoms(server):
     run_queue(vis, "modifier", {"RemoveAtoms": {}})
 
     assert len(vis) == 1
+
+
+def test_modified_while_locked(server):
+    vis = ZnDraw(url=server, token="test_token")
+    vis.append(molecule("H2O"))
+    vis.append(molecule("H2O"))
+    vis.append(molecule("H2O"))
+
+    assert len(vis) == 3
+
+    run_queue(vis, "modifier", {"RemoveAtoms": {}})
+
+    assert len(vis) == 2
+    vis.locked = True
+
+    run_queue(vis, "modifier", {"RemoveAtoms": {}})
+
+    assert len(vis) == 2
+
+    with pytest.raises(RoomLockedError):
+        vis.append(molecule("H2O"))
+
+    with pytest.raises(RoomLockedError):
+        vis.step = 0
+
+    with pytest.raises(RoomLockedError):
+        vis.selection = [0]
+
+    with pytest.raises(RoomLockedError):
+        vis.atoms = molecule("H2O")
+
+    with pytest.raises(RoomLockedError):
+        vis.extend([molecule("H2O")])
