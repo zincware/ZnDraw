@@ -203,3 +203,21 @@ def test_modify_RemoveAtoms(server):
     run_queue(vis, "modifier", {"RemoveAtoms": {}})
 
     assert len(vis) == 1
+
+
+def test_modified_while_locked(server):
+    vis = ZnDraw(url=server, token="test_token")
+    vis.append(molecule("H2O"))
+    vis.append(molecule("H2O"))
+    vis.append(molecule("H2O"))
+
+    assert len(vis) == 3
+
+    run_queue(vis, "modifier", {"RemoveAtoms": {}})
+
+    assert len(vis) == 2
+    vis.locked = True
+
+    run_queue(vis, "modifier", {"RemoveAtoms": {}})
+
+    assert len(vis) == 2
