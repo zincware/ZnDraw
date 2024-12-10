@@ -549,7 +549,7 @@ class ZnDraw(MutableSequence):
             socket=self._refresh_client,
         )
         if "position" not in camera_dct:
-            camera_dct["position"] = [0, 0, 0]
+            camera_dct["position"] = [5, 5, 5]
         if "target" not in camera_dct:
             camera_dct["target"] = [0, 0, 0]
         return camera_dct
