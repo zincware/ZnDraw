@@ -1,3 +1,4 @@
+import React from "react";
 import { TransformControls } from "@react-three/drei";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Euler, Vector3 } from "three";
@@ -29,13 +30,31 @@ export const useCentroid = ({ frame, selectedIds }: any) => {
 	}, [frame.positions, selectedIds]);
 };
 
-export const ParticleControls = ({ frame, selectedIds, setFrame }) => {
+interface ParticleControlsProps {
+	frame: any;
+	selectedIds: Set<number>;
+	setFrame: (frame: any) => void;
+	roomLock: boolean;
+}
+
+export const ParticleControls: React.FC<ParticleControlsProps> = ({
+	frame,
+	selectedIds,
+	setFrame,
+	roomLock,
+}: ParticleControlsProps) => {
 	const controls = useRef(null);
 	const controlsPostRef = useRef(new Vector3());
 	const controlsRotationRef = useRef(new Vector3());
 
 	// State for the edit mode: "None", "translate", or "rotate"
 	const [mode, setMode] = useState("None");
+
+	useEffect(() => {
+		if (roomLock) {
+			setMode("None");
+		}
+	}, [roomLock]);
 
 	// Efficiently calculate centroid and attach control to it when `selectedIds` changes
 	const centroid = useCentroid({ frame, selectedIds });
@@ -108,6 +127,9 @@ export const ParticleControls = ({ frame, selectedIds, setFrame }) => {
 			if (document.activeElement !== document.body) {
 				return;
 			}
+			if (roomLock) {
+				return;
+			}
 			if (event.key.toLowerCase() === "e") {
 				socket.emit("room:copy");
 				setMode((prevMode) => {
@@ -129,7 +151,7 @@ export const ParticleControls = ({ frame, selectedIds, setFrame }) => {
 		return () => {
 			window.removeEventListener("keydown", toggleMode);
 		};
-	}, []);
+	}, [roomLock]);
 
 	// Apply mode to TransformControls whenever it changes
 	useEffect(() => {

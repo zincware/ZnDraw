@@ -513,6 +513,7 @@ export default function App() {
 							visibleIndices={undefined}
 							setFrame={setCurrentFrame}
 							pathTracingSettings={roomConfig.PathTracer}
+							roomLock={roomLock}
 						/>
 						{!roomConfig.PathTracer.enabled && (
 							<>
@@ -528,6 +529,7 @@ export default function App() {
 									visibleIndices={hoveredId}
 									highlight={"backside"}
 									setFrame={setCurrentFrame}
+									roomLock={roomLock}
 								/>
 								<ParticleInstances
 									frame={currentFrame}
@@ -541,6 +543,7 @@ export default function App() {
 									visibleIndices={selectedIds}
 									highlight={"selection"}
 									setFrame={setCurrentFrame}
+									roomLock={roomLock}
 								/>
 								<ParticleInstances
 									frame={currentFrame}
@@ -556,6 +559,7 @@ export default function App() {
 									}
 									highlight={"constraint"}
 									setFrame={setCurrentFrame}
+									roomLock={roomLock}
 								/>
 								<BondInstances
 									frame={currentFrame}

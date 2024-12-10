@@ -160,6 +160,7 @@ export const ParticleInstances = ({
 	visibleIndices = undefined,
 	highlight = "",
 	pathTracingSettings,
+	roomLock,
 }: {
 	frame: Frame;
 	setFrame: (frame: Frame) => void;
@@ -173,6 +174,7 @@ export const ParticleInstances = ({
 	visibleIndices: Set<number> | undefined | number;
 	highlight: string;
 	pathTracingSettings: any;
+	roomLock: boolean;
 }) => {
 	const meshRef = useRef<THREE.InstancedMesh | null>(null);
 
@@ -342,6 +344,7 @@ export const ParticleInstances = ({
 					frame={frame}
 					selectedIds={selectedIds}
 					setFrame={setFrame}
+					roomLock={roomLock}
 				/>
 			)}
 			<instancedMesh
