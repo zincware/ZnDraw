@@ -6,7 +6,7 @@ def test_camera(server, s22):
     vis = ZnDraw(url=server, token="test_token")
     vis.extend(s22)
 
-    assert vis.camera["position"] == [0, 0, 0]
+    assert vis.camera["position"] == [5, 5, 5]
     assert vis.camera["target"] == [0, 0, 0]
     assert len(vis.camera) == 2
 
