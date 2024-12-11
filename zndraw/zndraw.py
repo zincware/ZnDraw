@@ -419,9 +419,9 @@ class ZnDraw(MutableSequence):
     @property
     def step(self) -> int:
         try:
-            return znsocket.Dict(
+            return int(znsocket.Dict(
                 self.r, f"room:{self.token}:step", socket=self._refresh_client
-            )["grp-0"]
+            )["grp-0"])
         except KeyError:
             return 0
 
