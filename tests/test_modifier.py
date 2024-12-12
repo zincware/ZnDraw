@@ -1,11 +1,11 @@
 import numpy as np
 import numpy.testing as npt
+import pytest
 import znsocket
 from ase.build import bulk, molecule
 
 from zndraw import Extension, ZnDraw
 from zndraw.exceptions import RoomLockedError
-import pytest
 
 
 def run_queue(vis, key, msg: dict):
