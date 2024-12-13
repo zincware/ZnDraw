@@ -66,7 +66,6 @@ def test_modified_atoms():
     # npt.assert_array_equal(new_atoms.arrays["colors"], ["#ffffff", "#ffffff"])
     # npt.assert_almost_equal(new_atoms.arrays["radii"], [0.3458333, 0.3458333])
     npt.assert_array_equal(new_atoms.get_atomic_numbers(), [1, 1])
-    
 
     # subtract
     atoms = new_atoms[:1]
