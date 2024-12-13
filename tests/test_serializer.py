@@ -38,14 +38,17 @@ def test_ase_converter(s22):
 
     assert structures[3].calc.results == {"energy": 0.0, "predicted_energy": 1.0}
 
-    assert "colors" in structures[0].arrays
-    assert "radii" in structures[0].arrays
+    assert "colors" not in structures[0].arrays
+    assert "radii" not in structures[0].arrays
 
     assert structures[4].info == {"key": "value"}
 
 
 def test_exotic_atoms():
     atoms = ase.Atoms("X", positions=[[0, 0, 0]])
+    atoms.arrays["colors"] = ["#ff0000"]
+    atoms.arrays["radii"] = [0.3]
+
     new_atoms = znjson.loads(
         znjson.dumps(atoms, cls=znjson.ZnEncoder.from_converters([ASEConverter])),
         cls=znjson.ZnDecoder.from_converters([ASEConverter]),
@@ -60,8 +63,7 @@ def test_modified_atoms():
         znjson.dumps(atoms, cls=znjson.ZnEncoder.from_converters([ASEConverter])),
         cls=znjson.ZnDecoder.from_converters([ASEConverter]),
     )
-    npt.assert_array_equal(new_atoms.arrays["colors"], ["#ffffff", "#ffffff"])
-    npt.assert_almost_equal(new_atoms.arrays["radii"], [0.3458333, 0.3458333])
+    npt.assert_array_equal(new_atoms.get_atomic_numbers(), [1, 1])
 
     # subtract
     atoms = new_atoms[:1]
@@ -70,8 +72,7 @@ def test_modified_atoms():
         cls=znjson.ZnDecoder.from_converters([ASEConverter]),
     )
 
-    npt.assert_array_equal(new_atoms.arrays["colors"], ["#ffffff"])
-    npt.assert_almost_equal(new_atoms.arrays["radii"], [0.3458333])
+    npt.assert_array_equal(new_atoms.get_atomic_numbers(), [1])
 
     # add
     atoms = new_atoms + ase.Atoms("H", positions=[[0, 0, 1]])
@@ -82,8 +83,6 @@ def test_modified_atoms():
     )
 
     npt.assert_array_equal(new_atoms.get_atomic_numbers(), [1, 1])
-    npt.assert_array_equal(new_atoms.arrays["colors"], ["#ffffff", "#ffffff"])
-    npt.assert_almost_equal(new_atoms.arrays["radii"], [0.3458333, 0.3458333])
 
 
 def test_constraints_fixed_atoms():
