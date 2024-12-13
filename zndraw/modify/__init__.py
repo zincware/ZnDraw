@@ -9,6 +9,7 @@ from ase.data import chemical_symbols
 from pydantic import Field
 
 from zndraw.base import Extension
+from zndraw.utils import get_scaled_radii
 
 try:
     from zndraw.modify import extras  # noqa: F401
@@ -49,7 +50,9 @@ class Connect(UpdateScene):
         camera_position = np.array(vis.camera["position"])[None, :]  # 1,3
 
         new_points = atom_positions[atom_ids]  # N, 3
-        radii: np.ndarray = atoms.arrays["radii"][atom_ids][:, None]
+        radii = np.array(
+            [get_scaled_radii()[number] for number in atoms.numbers[atom_ids]]
+        )[:, None]
         direction = camera_position - new_points
         direction /= np.linalg.norm(direction, axis=1, keepdims=True)
         new_points += direction * radii
@@ -167,8 +170,8 @@ class Duplicate(UpdateScene):
             atom.position += np.array([self.x, self.y, self.z])
             atom.symbol = self.symbol.name if self.symbol.name != "X" else atom.symbol
             atoms += atom
-            del atoms.arrays["colors"]
-            del atoms.arrays["radii"]
+            atoms.arrays.pop("colors", None)
+            atoms.arrays.pop("radii", None)
             if hasattr(atoms, "connectivity"):
                 del atoms.connectivity
 
@@ -187,8 +190,8 @@ class ChangeType(UpdateScene):
         for atom_id in vis.selection:
             atoms[atom_id].symbol = self.symbol.name
 
-        del atoms.arrays["colors"]
-        del atoms.arrays["radii"]
+        atoms.arrays.pop("colors", None)
+        atoms.arrays.pop("radii", None)
         if hasattr(atoms, "connectivity"):
             # vdW radii might change
             del atoms.connectivity
@@ -208,8 +211,8 @@ class AddLineParticles(UpdateScene):
         for point in vis.points:
             atoms += ase.Atom(self.symbol.name, position=point)
 
-        del atoms.arrays["colors"]
-        del atoms.arrays["radii"]
+        atoms.arrays.pop("colors", None)
+        atoms.arrays.pop("radii", None)
         if hasattr(atoms, "connectivity"):
             del atoms.connectivity
 
