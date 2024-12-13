@@ -332,7 +332,7 @@ export const setupFrames = (
 		const minRadius = Math.min(...covalentRadii);
 		const maxRadius = Math.max(...covalentRadii);
 		const range = maxRadius - minRadius;
-		return covalentRadii.map((x: number) => ((x - minRadius) / range) + 0.3);
+		return covalentRadii.map((x: number) => (x - minRadius) / range + 0.3);
 	}, [covalentRadii]);
 
 	const setCurrentFrameFromObject = (frame: any) => {
@@ -343,8 +343,8 @@ export const setupFrames = (
 		) as THREE.Vector3[];
 		console.log("frame updated");
 		if (!frame?.arrays?.colors) {
-			frame.arrays.colors = frame.numbers.map((x: number) =>
-				"#"+JMOL_COLORS[x].getHexString(),
+			frame.arrays.colors = frame.numbers.map(
+				(x: number) => "#" + JMOL_COLORS[x].getHexString(),
 			);
 		}
 		if (!frame.arrays.radii) {

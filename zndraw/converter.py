@@ -3,11 +3,9 @@ import numpy as np
 import znjson
 from ase.calculators.singlepoint import SinglePointCalculator
 from ase.constraints import FixAtoms
-from ase.data.colors import jmol_colors
 
 from zndraw.draw import Object3D
 from zndraw.type_defs import ASEDict
-from zndraw.utils import get_scaled_radii, rgb2hex
 
 
 class ASEConverter(znjson.ConverterBase):
