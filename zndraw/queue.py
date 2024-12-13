@@ -1,5 +1,6 @@
 import logging
 import typing as t
+import traceback
 
 import socketio.exceptions
 import znsocket.exceptions
@@ -93,6 +94,11 @@ def run_queued_task(
         queue[TASK_RUNNING] = True
         cls(**task).run(vis, **run_kwargs)
     except Exception as err:
-        vis.log(f"Error running `{cls}`: `{err}`")
+        # TODO: print stacktrace
+        vis.log(f"""Error running `{cls}`:
+```python
+{traceback.format_exc()}
+```"""
+)
     finally:
         queue.pop(TASK_RUNNING)
