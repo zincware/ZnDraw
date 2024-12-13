@@ -9,6 +9,7 @@ from ase.data import chemical_symbols
 from pydantic import Field
 
 from zndraw.base import Extension
+from zndraw.utils import get_scaled_radii
 
 try:
     from zndraw.modify import extras  # noqa: F401
@@ -49,8 +50,7 @@ class Connect(UpdateScene):
         camera_position = np.array(vis.camera["position"])[None, :]  # 1,3
 
         new_points = atom_positions[atom_ids]  # N, 3
-        # TODO: this will fail!
-        radii: np.ndarray = atoms.arrays["radii"][atom_ids][:, None]
+        radii = np.array([get_scaled_radii()[number] for number in atoms.numbers[atom_ids]])[:, None]
         direction = camera_position - new_points
         direction /= np.linalg.norm(direction, axis=1, keepdims=True)
         new_points += direction * radii
