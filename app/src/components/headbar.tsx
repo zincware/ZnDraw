@@ -905,7 +905,7 @@ const HeadBar = ({
 								<Button
 									className="px-0 py-0 btn-lg"
 									variant="tertiary"
-									href="https://github.com/zincware/zndraw"
+									href="https://github.com/RokasEl/simgen"
 									target="_blank"
 								>
 									SiMGen

@@ -3,11 +3,9 @@ import numpy as np
 import znjson
 from ase.calculators.singlepoint import SinglePointCalculator
 from ase.constraints import FixAtoms
-from ase.data.colors import jmol_colors
 
 from zndraw.draw import Object3D
 from zndraw.type_defs import ASEDict
-from zndraw.utils import get_scaled_radii, rgb2hex
 
 
 class ASEConverter(znjson.ConverterBase):
@@ -86,28 +84,8 @@ class ASEConverter(znjson.ConverterBase):
         # All additional information should be stored in calc.results
         # and not in calc.arrays, thus we will not convert it here!
         arrays = {}
-        if ("colors" not in obj.arrays) or ("" in obj.arrays["colors"]):
-            arrays["colors"] = [rgb2hex(jmol_colors[number]) for number in numbers]
-        else:
-            arrays["colors"] = (
-                obj.arrays["colors"].tolist()
-                if isinstance(obj.arrays["colors"], np.ndarray)
-                else obj.arrays["colors"]
-            )
-
-        if ("radii" not in obj.arrays) or (0 in obj.arrays["radii"]):
-            # arrays["radii"] = [covalent_radii[number] for number in numbers]
-            arrays["radii"] = [get_scaled_radii()[number] for number in numbers]
-        else:
-            arrays["radii"] = (
-                obj.arrays["radii"].tolist()
-                if isinstance(obj.arrays["radii"], np.ndarray)
-                else obj.arrays["radii"]
-            )
 
         for key in obj.arrays:
-            if key in ["colors", "radii"]:
-                continue
             if isinstance(obj.arrays[key], np.ndarray):
                 arrays[key] = obj.arrays[key].tolist()
             else:
