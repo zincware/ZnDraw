@@ -84,26 +84,26 @@ class ASEConverter(znjson.ConverterBase):
         # All additional information should be stored in calc.results
         # and not in calc.arrays, thus we will not convert it here!
         arrays = {}
-        if ("colors" not in obj.arrays) or ("" in obj.arrays["colors"]):
-            pass
-            # arrays["colors"] = [rgb2hex(jmol_colors[number]) for number in numbers]
-        else:
-            arrays["colors"] = (
-                obj.arrays["colors"].tolist()
-                if isinstance(obj.arrays["colors"], np.ndarray)
-                else obj.arrays["colors"]
-            )
+        # if ("colors" not in obj.arrays) or ("" in obj.arrays["colors"]):
+        #     pass
+        #     # arrays["colors"] = [rgb2hex(jmol_colors[number]) for number in numbers]
+        # else:
+        #     arrays["colors"] = (
+        #         obj.arrays["colors"].tolist()
+        #         if isinstance(obj.arrays["colors"], np.ndarray)
+        #         else obj.arrays["colors"]
+        #     )
 
-        if ("radii" not in obj.arrays) or (0 in obj.arrays["radii"]):
-            # arrays["radii"] = [covalent_radii[number] for number in numbers]
-            # arrays["radii"] = [get_scaled_radii()[number] for number in numbers]
-            pass
-        else:
-            arrays["radii"] = (
-                obj.arrays["radii"].tolist()
-                if isinstance(obj.arrays["radii"], np.ndarray)
-                else obj.arrays["radii"]
-            )
+        # if ("radii" not in obj.arrays) or (0 in obj.arrays["radii"]):
+        #     # arrays["radii"] = [covalent_radii[number] for number in numbers]
+        #     # arrays["radii"] = [get_scaled_radii()[number] for number in numbers]
+        #     pass
+        # else:
+        #     arrays["radii"] = (
+        #         obj.arrays["radii"].tolist()
+        #         if isinstance(obj.arrays["radii"], np.ndarray)
+        #         else obj.arrays["radii"]
+        #     )
 
         for key in obj.arrays:
             if key in ["colors", "radii"]:
