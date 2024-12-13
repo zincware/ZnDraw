@@ -161,7 +161,9 @@ class ZnDraw(MutableSequence):
         for modifier in registerd_modifiers:
             try:
                 self.register_modifier(
-                    modifier, public=self._modifiers[modifier.__name__]["public"], run_kwargs=self._modifiers[modifier.__name__]["run_kwargs"]
+                    modifier,
+                    public=self._modifiers[modifier.__name__]["public"],
+                    run_kwargs=self._modifiers[modifier.__name__]["run_kwargs"],
                 )
             except (
                 socketio.exceptions.BadNamespaceError
