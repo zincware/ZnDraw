@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
+import { JMOL_COLORS, covalentRadii } from "./data";
 import * as znsocket from "znsocket";
 import { client } from "../socket";
 
@@ -327,6 +328,12 @@ export const setupFrames = (
 	const currentFrameUpdatedFromSocketRef = useRef(true);
 	const customRoomAvailRef = useRef(false); // Track whether listening to the default room
 	const [updateStepInPlace, setUpdateStepInPlace] = useState(0);
+	const scaledRadii = useMemo(() => {
+		const minRadius = Math.min(...covalentRadii);
+		const maxRadius = Math.max(...covalentRadii);
+		const range = maxRadius - minRadius;
+		return covalentRadii.map((x: number) => ((x - minRadius) / range) + 0.3);
+	}, [covalentRadii]);
 
 	const setCurrentFrameFromObject = (frame: any) => {
 		frame = frame.value;
@@ -335,6 +342,14 @@ export const setupFrames = (
 				new THREE.Vector3(position[0], position[1], position[2]),
 		) as THREE.Vector3[];
 		console.log("frame updated");
+		if (!frame?.arrays?.colors) {
+			frame.arrays.colors = frame.numbers.map((x: number) =>
+				"#"+JMOL_COLORS[x].getHexString(),
+			);
+		}
+		if (!frame.arrays.radii) {
+			frame.arrays.radii = frame.numbers.map((x: number) => scaledRadii[x]);
+		}
 		setCurrentFrame(frame);
 		currentFrameUpdatedFromSocketRef.current = true;
 	};

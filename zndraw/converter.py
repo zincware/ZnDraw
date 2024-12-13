@@ -87,7 +87,8 @@ class ASEConverter(znjson.ConverterBase):
         # and not in calc.arrays, thus we will not convert it here!
         arrays = {}
         if ("colors" not in obj.arrays) or ("" in obj.arrays["colors"]):
-            arrays["colors"] = [rgb2hex(jmol_colors[number]) for number in numbers]
+            pass
+            # arrays["colors"] = [rgb2hex(jmol_colors[number]) for number in numbers]
         else:
             arrays["colors"] = (
                 obj.arrays["colors"].tolist()
@@ -97,7 +98,8 @@ class ASEConverter(znjson.ConverterBase):
 
         if ("radii" not in obj.arrays) or (0 in obj.arrays["radii"]):
             # arrays["radii"] = [covalent_radii[number] for number in numbers]
-            arrays["radii"] = [get_scaled_radii()[number] for number in numbers]
+            # arrays["radii"] = [get_scaled_radii()[number] for number in numbers]
+            pass
         else:
             arrays["radii"] = (
                 obj.arrays["radii"].tolist()
