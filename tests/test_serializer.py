@@ -63,8 +63,6 @@ def test_modified_atoms():
         znjson.dumps(atoms, cls=znjson.ZnEncoder.from_converters([ASEConverter])),
         cls=znjson.ZnDecoder.from_converters([ASEConverter]),
     )
-    # npt.assert_array_equal(new_atoms.arrays["colors"], ["#ffffff", "#ffffff"])
-    # npt.assert_almost_equal(new_atoms.arrays["radii"], [0.3458333, 0.3458333])
     npt.assert_array_equal(new_atoms.get_atomic_numbers(), [1, 1])
 
     # subtract
@@ -74,8 +72,6 @@ def test_modified_atoms():
         cls=znjson.ZnDecoder.from_converters([ASEConverter]),
     )
 
-    # npt.assert_array_equal(new_atoms.arrays["colors"], ["#ffffff"])
-    # npt.assert_almost_equal(new_atoms.arrays["radii"], [0.3458333])
     npt.assert_array_equal(new_atoms.get_atomic_numbers(), [1])
 
     # add
@@ -87,8 +83,6 @@ def test_modified_atoms():
     )
 
     npt.assert_array_equal(new_atoms.get_atomic_numbers(), [1, 1])
-    # npt.assert_array_equal(new_atoms.arrays["colors"], ["#ffffff", "#ffffff"])
-    # npt.assert_almost_equal(new_atoms.arrays["radii"], [0.3458333, 0.3458333])
 
 
 def test_constraints_fixed_atoms():
