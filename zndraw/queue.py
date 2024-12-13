@@ -1,4 +1,5 @@
 import logging
+import traceback
 import typing as t
 
 import socketio.exceptions
@@ -92,7 +93,10 @@ def run_queued_task(
     try:
         queue[TASK_RUNNING] = True
         cls(**task).run(vis, **run_kwargs)
-    except Exception as err:
-        vis.log(f"Error running `{cls}`: `{err}`")
+    except Exception:
+        vis.log(f"""Error running `{cls}`:
+```python
+{traceback.format_exc()}
+```""")
     finally:
         queue.pop(TASK_RUNNING)
