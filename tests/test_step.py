@@ -9,6 +9,7 @@ def test_step(server, s22):
     vis.extend(s22)
 
     assert vis.step == 0
+    assert isinstance(vis.step, int)
 
     assert len(vis) == 22
 
@@ -23,3 +24,4 @@ def test_step(server, s22):
 
     vis.step = 5
     assert vis.step == 5
+    assert isinstance(vis.step, int)
