@@ -86,8 +86,6 @@ class ASEConverter(znjson.ConverterBase):
         arrays = {}
 
         for key in obj.arrays:
-            if key in ["colors", "radii"]:
-                continue
             if isinstance(obj.arrays[key], np.ndarray):
                 arrays[key] = obj.arrays[key].tolist()
             else:
