@@ -20,7 +20,7 @@ import {
 	Row,
 	ToggleButton,
 } from "react-bootstrap";
-import {version} from "../../package.json";
+import { version } from "../../package.json";
 import { MdOutlineAutoGraph } from "react-icons/md";
 import { SiMoleculer } from "react-icons/si";
 import Select from "react-select";
