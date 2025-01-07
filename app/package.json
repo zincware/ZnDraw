@@ -1,7 +1,7 @@
 {
-	"name": "my-app",
+	"name": "zndraw",
 	"private": true,
-	"version": "0.0.0",
+	"version": "0.5.8",
 	"type": "module",
 	"scripts": {
 		"dev": "vite",
