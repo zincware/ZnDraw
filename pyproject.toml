@@ -1,65 +1,52 @@
-[tool.poetry]
+[project]
 name = "zndraw"
-version = "0.5.8"
+version = "0.5.8a1"
 description = "Display and Edit Molecular Structures and Trajectories in the Browser."
-authors = ["zincwarecode <zincwarecode@gmail.com>"]
-license = "License :: OSI Approved :: Eclipse Public License 2.0 (EPL-2.0)"
+authors = [
+    { name = "Fabian Zills", email = "fzills@icp.uni-stuttgart.de" },
+]
+classifiers = ["License :: OSI Approved :: Eclipse Public License 2.0 (EPL-2.0)"]
 readme = "README.md"
-include = ["zndraw/templates/**/*", "zndraw_app/**/*"]
+requires-python = ">=3.10"
+dependencies = [
+    "ase>=3.24.0",
+    "celery>=5.4.0",
+    "eventlet>=0.39.0",
+    "flask>=3.1.0",
+    "flask-socketio>=5.5.1",
+    "networkx>=3.4.2",
+    "pandas>=2.2.3",
+    "plotly>=6.0.0",
+    "pydantic>=2.10.6",
+    "python-socketio[client]>=5.12.1",
+    "redis>=5.2.1",
+    "splines>=0.3.2",
+    "sqlalchemy>=2.0.38",
+    "tqdm>=4.67.1",
+    "typer>=0.15.1",
+    "znjson>=0.2.6",
+    "znsocket>=0.2.8",
+]
 
-[tool.poetry.dependencies]
-python = "^3.10"
-ase = "^3"
-typer = {extras = ["all"], version = "^0.13"}
-flask = "^3"
-tqdm = "^4"
-flask-socketio = "^5"
-networkx = "^3"
-pydantic = "^2"
-python-socketio = {extras = ["client"], version = "^5.11"}
-plotly = "^5"
-pandas = "^2"
-celery = "^5"
-sqlalchemy = "^2"
-redis = "^5"
-splines = "^0.3"
-znsocket = "^0.2.7"
-znjson = "^0.2.4"
-eventlet = "^0.38"
-
-
-[tool.poetry.group.dev.dependencies]
-eventlet = "^0"
-pre-commit = "^3"
-pytest = "^7"
-coverage = "^7"
-ruff = "^0.1"
-ipykernel = "^6.29.4"
-mdanalysis = {version = "^2"}
-tidynamics = {version = "^1"}
-rdkit2ase = {version = "^0.1"}
-zntrack = {version = "^0.8"}
-znh5md = {version = "^0.4"}
+[project.urls]
+Repository = "https://github.com/zincware/ZnDraw"
+Releases = "https://github.com/zincware/ZnDraw/releases"
+Discord = "https://discord.gg/7ncfwhsnm4"
+Documentation = "https://zndraw.readthedocs.io/"
 
 
-
-
-[tool.poetry.group.docs.dependencies]
-sphinx = "^8.1.3"
-furo = "^2024.8.6"
-nbsphinx = "^0.9.5"
-sphinx-copybutton = "^0.5.2"
-
-[build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
-
-[tool.poetry.scripts]
+[project.scripts]
 zndraw = 'zndraw_app.cli:cli'
 
 
-[tool.poetry.urls]
-repository = "https://github.com/zincware/ZnDraw"
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.sdist]
+exclude = [
+  "/app",
+]
 
 [tool.ruff]
 line-length = 90
@@ -73,3 +60,20 @@ addopts = "-m 'not chrome'"
 
 [tool.codespell]
 skip = "*.svg,*.lock"
+
+[dependency-groups]
+dev = [
+    "coverage>=7.6.10",
+    "mdanalysis>=2.8.0",
+    "pytest>=8.3.4",
+    "rdkit2ase>=0.1.4",
+    "tidynamics>=1.1.2",
+    "znh5md>=0.4.4",
+    "zntrack>=0.8.2",
+]
+docs = [
+    "furo>=2024.8.6",
+    "nbsphinx>=0.9.6",
+    "sphinx>=8.1.3",
+    "sphinx-copybutton>=0.5.2",
+]
