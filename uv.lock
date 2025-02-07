@@ -3831,7 +3831,7 @@ dev = [
     { name = "pytest", specifier = ">=8.3.4" },
     { name = "rdkit2ase", specifier = ">=0.1.4" },
     { name = "tidynamics", specifier = ">=1.1.2" },
-    { name = "znh5md", specifier = ">=0.4.3" },
+    { name = "znh5md", specifier = ">=0.4.4" },
     { name = "zntrack", specifier = ">=0.8.2" },
 ]
 docs = [
@@ -3864,7 +3864,7 @@ wheels = [
 
 [[package]]
 name = "znh5md"
-version = "0.4.3"
+version = "0.4.4"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "ase" },
@@ -3872,9 +3872,9 @@ dependencies = [
     { name = "tqdm" },
     { name = "typer" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/35/80/c3e7ed2d756e8d917662483a9dd820d51235da4be6c0a9bbabd2d72e08d2/znh5md-0.4.3.tar.gz", hash = "sha256:afbf4d3af145ba73bbc2751824dc71c638273631de8f2636807f5632e99c67ff", size = 18590 }
+sdist = { url = "https://files.pythonhosted.org/packages/a4/63/fb2a977e119d403b8a0c3d0f4421d52e1b6e1eb8ed106e08348fb2fde63e/znh5md-0.4.4.tar.gz", hash = "sha256:5b20f9ceed62e890935d16171c9abb0613f0ef1d65c1d63997d41838d495a35d", size = 156669 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/26/7a/23780f678e653a88dc6b363ea5ad332ffda3e76f03ca2f3032f81baeab53/znh5md-0.4.3-py3-none-any.whl", hash = "sha256:ecb581e20f172533096ef6d59a3c803bc81424d9393fd7d08e0b66595bfe683a", size = 22098 },
+    { url = "https://files.pythonhosted.org/packages/e8/9e/2fdd8702626dc549ab0c18a7a9849b621c2a33f6d6a8bfd53414bce5a695/znh5md-0.4.4-py3-none-any.whl", hash = "sha256:075f0fa6e495ecc4a19251a216a599789167677a2c68504ee4a42a6e6b6907b8", size = 22131 },
 ]
 
 [[package]]

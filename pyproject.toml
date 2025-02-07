@@ -68,7 +68,7 @@ dev = [
     "pytest>=8.3.4",
     "rdkit2ase>=0.1.4",
     "tidynamics>=1.1.2",
-    "znh5md>=0.4.3",
+    "znh5md>=0.4.4",
     "zntrack>=0.8.2",
 ]
 docs = [
