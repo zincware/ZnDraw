@@ -10,9 +10,6 @@
 name: Publish Docker image
 
 on:
-  # push:
-  #     branches:
-  #         - dev
   release:
     types: [published]
 
@@ -49,11 +46,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-      - name: Install Poetry
-        uses: snok/install-poetry@v1
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
       - name: build frontend
         run: |
           npm install -g bun
@@ -62,5 +56,5 @@ jobs:
         env:
           PYPI_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
         run: |
-          poetry config pypi-token.pypi $PYPI_TOKEN
-          poetry publish --build
+          uv build
+          uv publish --token $PYPI_TOKEN
