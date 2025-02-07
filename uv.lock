@@ -3764,7 +3764,7 @@ wheels = [
 
 [[package]]
 name = "zndraw"
-version = "0.5.8"
+version = "0.5.8a1"
 source = { editable = "." }
 dependencies = [
     { name = "ase" },
@@ -3821,7 +3821,7 @@ requires-dist = [
     { name = "tqdm", specifier = ">=4.67.1" },
     { name = "typer", specifier = ">=0.15.1" },
     { name = "znjson", specifier = ">=0.2.6" },
-    { name = "znsocket", specifier = ">=0.2.7" },
+    { name = "znsocket", specifier = ">=0.2.8" },
 ]
 
 [package.metadata.requires-dev]
@@ -3888,7 +3888,7 @@ wheels = [
 
 [[package]]
 name = "znsocket"
-version = "0.2.7"
+version = "0.2.8"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "eventlet" },
@@ -3897,9 +3897,9 @@ dependencies = [
     { name = "typer" },
     { name = "znjson" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/f7/d6/806d3456e0dac0de28da028242d3bc3faccc7e4348470b1e516efbd4dd94/znsocket-0.2.7.tar.gz", hash = "sha256:1e5f8225af2ccaa82334064f2054142e68caa4980a64f9d2711761677d8d323e", size = 16650 }
+sdist = { url = "https://files.pythonhosted.org/packages/a1/82/eb3efbeb1e971f9d7eacbb5ec0f2bfa3a84647c5181b7b51b5302ca33aac/znsocket-0.2.8.tar.gz", hash = "sha256:e2190928775414fdd426dc342c1cc2464eb449e6a669b256c54876c94ea1163b", size = 102918 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/5f/3f/0ff06ba0e46b15807500076081a3f361fd5f8769427ba033c70bc48d184d/znsocket-0.2.7-py3-none-any.whl", hash = "sha256:890c08cee5a4ae174d6bd8667b8445fba242586879f3fde60de35fe8fcb574df", size = 18210 },
+    { url = "https://files.pythonhosted.org/packages/ec/27/c00b07b3e6bdce0f48130335cd42bbe4cc0986ebd2e1869bf7f0592b2138/znsocket-0.2.8-py3-none-any.whl", hash = "sha256:d81518425fe0bae791da0cae515313f5d4f42a969625918bfe3b98d85383e386", size = 18627 },
 ]
 
 [[package]]

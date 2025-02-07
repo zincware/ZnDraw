@@ -110,7 +110,6 @@ def create_app() -> Flask:
     # we only need this server if we are using redis
     # otherwise a znsocket server will run anyhow
     if app.config["STORAGE"].startswith("redis"):
-        # TODO: if we run standalone with znsocket running, don't start its own server but attach as well!
         from redis import Redis
 
         znsocket.attach_events(
