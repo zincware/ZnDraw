@@ -61,7 +61,7 @@ class DihedralAngle(AnaylsisMethod):
         # meta_idx = np.full_like(meta_step, np.nan)
 
         fig.update_traces(
-            customdata=np.stack([meta_step], axis=-1),
+            customdata=np.stack([meta_step], axis=-1).tolist(),
         )
         update_figure_layout(fig)
 
@@ -113,7 +113,7 @@ class Distance(AnaylsisMethod):
         # meta_idx = np.full_like(meta_step, np.nan)
 
         fig.update_traces(
-            customdata=np.stack([meta_step], axis=-1),
+            customdata=np.stack([meta_step], axis=-1).tolist(),
         )
         update_figure_layout(fig)
 
@@ -178,7 +178,7 @@ class Properties2D(AnaylsisMethod):
         # meta_idx = np.full_like(meta_step, np.nan)
 
         fig.update_traces(
-            customdata=np.stack([meta_step], axis=-1),
+            customdata=np.stack([meta_step], axis=-1).tolist(),
         )
         update_figure_layout(fig)
 
@@ -229,7 +229,7 @@ class ForceCorrelation(AnaylsisMethod):
         )
 
         fig = px.scatter(df, x=self.x_data, y=self.y_data, render_mode="svg")
-        fig.update_traces(customdata=np.stack([meta_step, meta_idx], axis=-1))
+        fig.update_traces(customdata=np.stack([meta_step, meta_idx], axis=-1).tolist())
 
         fig.update_layout(
             title=f"Force Correlation for step {step}",
@@ -305,7 +305,7 @@ class Properties1D(AnaylsisMethod):
         # meta_idx = np.full_like(meta_step, np.nan)
 
         fig.update_traces(
-            customdata=np.stack([meta_step], axis=-1),
+            customdata=np.stack([meta_step], axis=-1).tolist(),
         )
         update_figure_layout(fig)
 

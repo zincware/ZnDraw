@@ -4,6 +4,7 @@ import { Button, Card, Form } from "react-bootstrap";
 import { FaLock, FaLockOpen } from "react-icons/fa";
 import { IoDuplicate } from "react-icons/io5";
 import Plot from "react-plotly.js";
+import { decodeTypedArraySpec } from 'plotly.js/src/lib/array.js';
 import { Rnd, type RndResizeCallback } from "react-rnd";
 import * as znsocket from "znsocket";
 import { client } from "../socket";
@@ -199,9 +200,26 @@ const PlotsCard2 = ({
 				if (dataItem.customdata) {
 					dataItem.customdata.forEach((customdata, index) => {
 						// Check if customdata[0] matches the step
-						if (customdata[0] === step) {
-							const xPosition = dataItem.x[index];
-							const yPosition = dataItem.y[index];
+						// check if "bdata and dtype" are in the data field you try to access
+						let customdata_array;
+						if ('bdata' in customdata && 'dtype' in customdata) {
+							customdata_array = decodeTypedArraySpec(customdata);
+						} else {
+							customdata_array = customdata;
+						}
+						customdata = customdata_array;
+						if (customdata_array[0] === step) {
+							console.log(dataItem);
+							console.log(decodeTypedArraySpec(dataItem.x));
+							let xPosition
+							let yPosition
+							if ('bdata' in dataItem.x && 'dtype' in dataItem.x) {
+								xPosition = decodeTypedArraySpec(dataItem.x)[index];
+								yPosition = decodeTypedArraySpec(dataItem.y)[index];
+							} else {
+								xPosition = dataItem.x[index];
+								yPosition = dataItem.y[index];
+							}
 							// check if dataItem.line.color is available
 							let color = "red";
 							if (dataItem.line) {
@@ -216,7 +234,7 @@ const PlotsCard2 = ({
 			});
 
 			const plotDataCopy = JSON.parse(JSON.stringify(rawPlotData));
-
+			console.log(markerList);
 			// Add the markers to the data array
 			plotDataCopy.push({
 				type: "scatter",
@@ -271,6 +289,7 @@ const PlotsCard2 = ({
 	};
 
 	const onPlotClick = ({ points }: { points: any[] }) => {
+		// TODO: parse customdata to array in useState to avoid doing it every time
 		if (points[0]?.customdata[0]) {
 			setStep(points[0].customdata[0]);
 		}
