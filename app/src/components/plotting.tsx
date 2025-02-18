@@ -238,8 +238,6 @@ const PlotsCard2 = ({
 				return convertedItem;
 			});
 
-			console.log(markerList);
-
 			// Add marker data
 			updatedPlotData.push({
 				type: "scatter",
@@ -295,7 +293,6 @@ const PlotsCard2 = ({
 	};
 
 	const onPlotClick = ({ points }: { points: any[] }) => {
-		// TODO: parse customdata to array in useState to avoid doing it every time
 		if (points[0]?.customdata[0]) {
 			setStep(points[0].customdata[0]);
 		}
