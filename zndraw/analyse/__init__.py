@@ -18,6 +18,7 @@ except ImportError:
     # mdanalysis is not installed
     pass
 
+
 def _get_available_properties(atoms: ase.Atoms) -> list[str]:
     available_properties = list(atoms.arrays.keys())
     available_properties += list(atoms.info.keys())
