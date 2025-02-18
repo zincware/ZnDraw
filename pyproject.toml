@@ -49,9 +49,9 @@ exclude = [
 ]
 
 [tool.hatch.build.targets.wheel]
-packages = ["zndraw", "zndraw_app"]
+include = ["zndraw", "zndraw_app"]
 artifacts = [
-  "zndraw/templates/*",
+  "zndraw/templates/**",
 ]
 
 [tool.ruff]
