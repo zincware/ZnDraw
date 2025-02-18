@@ -1,6 +1,6 @@
 [project]
 name = "zndraw"
-version = "0.5.8"
+version = "0.5.9"
 description = "Display and Edit Molecular Structures and Trajectories in the Browser."
 authors = [
     { name = "Fabian Zills", email = "fzills@icp.uni-stuttgart.de" },
@@ -46,6 +46,12 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.sdist]
 exclude = [
   "/app",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["zndraw", "zndraw_app"]
+artifacts = [
+  "zndraw/templates/*",
 ]
 
 [tool.ruff]
