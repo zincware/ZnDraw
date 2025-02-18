@@ -190,53 +190,52 @@ const PlotsCard2 = ({
 			});
 		}
 	}, [updatedPlotsList]);
-
+	
 	useEffect(() => {
 		if (rawPlotData && plotType === "plotly") {
 			const markerList: [number, number, string][] = [];
-
-			// Add markers at the matching step in the data
-			rawPlotData.forEach((dataItem) => {
-				if (dataItem.customdata) {
-					dataItem.customdata.forEach((customdata, index) => {
-						// Check if customdata[0] matches the step
-						// check if "bdata and dtype" are in the data field you try to access
-						let customdata_array;
-						if ("bdata" in customdata && "dtype" in customdata) {
-							customdata_array = decodeTypedArraySpec(customdata);
-						} else {
-							customdata_array = customdata;
-						}
-						customdata = customdata_array;
-						if (customdata_array[0] === step) {
-							console.log(dataItem);
-							console.log(decodeTypedArraySpec(dataItem.x));
-							let xPosition;
-							let yPosition;
-							if ("bdata" in dataItem.x && "dtype" in dataItem.x) {
-								xPosition = decodeTypedArraySpec(dataItem.x)[index];
-								yPosition = decodeTypedArraySpec(dataItem.y)[index];
-							} else {
-								xPosition = dataItem.x[index];
-								yPosition = dataItem.y[index];
-							}
-							// check if dataItem.line.color is available
+	
+			// Function to convert fields containing bdata and dtype
+			const convertToArray = (data: any) => {
+				if (data && typeof data === "object" && "bdata" in data && "dtype" in data) {
+					return decodeTypedArraySpec(data);
+				}
+				return data;
+			};
+	
+			// Process each data item
+			const updatedPlotData = rawPlotData.map((dataItem) => {
+				console.log(dataItem);
+				const convertedItem = {
+					...dataItem,
+					x: convertToArray(dataItem.x),
+					y: convertToArray(dataItem.y),
+					customdata: dataItem.customdata ? convertToArray(dataItem.customdata) : dataItem.customdata,
+				};
+	
+				if (convertedItem.customdata) {
+					convertedItem.customdata.forEach((customdata, index) => {
+						if (customdata[0] === step) {
+							let xPosition = convertedItem.x[index];
+							let yPosition = convertedItem.y[index];
+	
 							let color = "red";
-							if (dataItem.line) {
-								if (dataItem.line.color) {
-									color = dataItem.line.color;
-								}
+							if (convertedItem.line?.color) {
+								color = convertedItem.line.color;
 							}
+	
 							markerList.push([xPosition, yPosition, color]);
 						}
 					});
 				}
+	
+				return convertedItem;
 			});
-
-			const plotDataCopy = JSON.parse(JSON.stringify(rawPlotData));
+	
 			console.log(markerList);
-			// Add the markers to the data array
-			plotDataCopy.push({
+	
+			// Add marker data
+			updatedPlotData.push({
 				type: "scatter",
 				mode: "markers",
 				name: "Step",
@@ -253,9 +252,10 @@ const PlotsCard2 = ({
 					},
 				},
 			});
-			setPlotData(plotDataCopy);
+	
+			setPlotData(updatedPlotData);
 		}
-	}, [rawPlotData, step, plotType]); // does this self-trigger? If so use raw
+	}, [rawPlotData, step, plotType]);
 
 	const handleSelectChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
 		setSelectedOption(event.target.value);
