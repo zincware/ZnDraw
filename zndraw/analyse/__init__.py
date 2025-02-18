@@ -18,6 +18,13 @@ except ImportError:
     # mdanalysis is not installed
     pass
 
+def _get_available_properties(atoms: ase.Atoms) -> list[str]:
+    available_properties = list(atoms.arrays.keys())
+    available_properties += list(atoms.info.keys())
+    if atoms.calc is not None:
+        available_properties += list(atoms.calc.results.keys())
+    return available_properties
+
 
 log = logging.getLogger(__name__)
 
@@ -130,10 +137,7 @@ class Properties2D(AnaylsisMethod):
     def model_json_schema_from_atoms(cls, atoms: ase.Atoms) -> dict:
         schema = cls.model_json_schema()
 
-        available_properties = list(atoms.arrays.keys())
-        available_properties += list(atoms.info.keys())
-        if atoms.calc is not None:
-            available_properties += list(atoms.calc.results.keys())  # global ATOMS object
+        available_properties = _get_available_properties(atoms)
 
         available_properties += ["step"]
         schema["properties"]["x_data"]["enum"] = available_properties
@@ -195,10 +199,7 @@ class ForceCorrelation(AnaylsisMethod):
     def model_json_schema_from_atoms(cls, atoms: ase.Atoms) -> dict:
         schema = cls.model_json_schema()
 
-        available_properties = list(atoms.arrays.keys())
-        available_properties += list(atoms.info.keys())
-        if atoms.calc is not None:
-            available_properties += list(atoms.calc.results.keys())
+        available_properties = _get_available_properties(atoms)
         schema["properties"]["x_data"]["enum"] = available_properties
         schema["properties"]["y_data"]["enum"] = available_properties
 
@@ -254,11 +255,7 @@ class Properties1D(AnaylsisMethod):
     def model_json_schema_from_atoms(cls, atoms: ase.Atoms) -> dict:
         schema = cls.model_json_schema()
 
-        available_properties = list(atoms.arrays.keys())
-        available_properties += list(atoms.info.keys())
-        if atoms.calc is not None:
-            available_properties += list(atoms.calc.results.keys())
-        log.critical(f"AVAILABLE PROPERTIES: {available_properties=}")
+        available_properties = _get_available_properties(atoms)
         schema["properties"]["value"]["enum"] = available_properties
 
         return schema
