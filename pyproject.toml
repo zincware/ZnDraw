@@ -1,9 +1,11 @@
 [project]
 name = "zndraw"
-version = "0.5.9"
+version = "0.5.10"
 description = "Display and Edit Molecular Structures and Trajectories in the Browser."
 authors = [
     { name = "Fabian Zills", email = "fzills@icp.uni-stuttgart.de" },
+    { name = "Rokas Elijošius", email = "re344@cam.ac.uk" },
+    { name = "Paul Hohenberger"},
 ]
 classifiers = ["License :: OSI Approved :: Eclipse Public License 2.0 (EPL-2.0)"]
 readme = "README.md"
@@ -49,9 +51,9 @@ exclude = [
 ]
 
 [tool.hatch.build.targets.wheel]
-packages = ["zndraw", "zndraw_app"]
+include = ["zndraw", "zndraw_app"]
 artifacts = [
-  "zndraw/templates/*",
+  "zndraw/templates/**",
 ]
 
 [tool.ruff]

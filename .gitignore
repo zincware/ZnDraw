@@ -164,4 +164,4 @@ tmp/
 data/
 .zndraw/
 control/
-zndraw/templates/*
+.DS_Store
