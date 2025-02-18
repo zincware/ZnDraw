@@ -190,19 +190,24 @@ const PlotsCard2 = ({
 			});
 		}
 	}, [updatedPlotsList]);
-	
+
 	useEffect(() => {
 		if (rawPlotData && plotType === "plotly") {
 			const markerList: [number, number, string][] = [];
-	
+
 			// Function to convert fields containing bdata and dtype
 			const convertToArray = (data: any) => {
-				if (data && typeof data === "object" && "bdata" in data && "dtype" in data) {
+				if (
+					data &&
+					typeof data === "object" &&
+					"bdata" in data &&
+					"dtype" in data
+				) {
 					return decodeTypedArraySpec(data);
 				}
 				return data;
 			};
-	
+
 			// Process each data item
 			const updatedPlotData = rawPlotData.map((dataItem) => {
 				console.log(dataItem);
@@ -210,30 +215,32 @@ const PlotsCard2 = ({
 					...dataItem,
 					x: convertToArray(dataItem.x),
 					y: convertToArray(dataItem.y),
-					customdata: dataItem.customdata ? convertToArray(dataItem.customdata) : dataItem.customdata,
+					customdata: dataItem.customdata
+						? convertToArray(dataItem.customdata)
+						: dataItem.customdata,
 				};
-	
+
 				if (convertedItem.customdata) {
 					convertedItem.customdata.forEach((customdata, index) => {
 						if (customdata[0] === step) {
 							let xPosition = convertedItem.x[index];
 							let yPosition = convertedItem.y[index];
-	
+
 							let color = "red";
 							if (convertedItem.line?.color) {
 								color = convertedItem.line.color;
 							}
-	
+
 							markerList.push([xPosition, yPosition, color]);
 						}
 					});
 				}
-	
+
 				return convertedItem;
 			});
-	
+
 			console.log(markerList);
-	
+
 			// Add marker data
 			updatedPlotData.push({
 				type: "scatter",
@@ -252,7 +259,7 @@ const PlotsCard2 = ({
 					},
 				},
 			});
-	
+
 			setPlotData(updatedPlotData);
 		}
 	}, [rawPlotData, step, plotType]);
