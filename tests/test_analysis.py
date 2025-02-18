@@ -1,6 +1,8 @@
+import numpy as np
 import znsocket
 
 from zndraw import ZnDraw
+from zndraw.analyse import Properties1D
 
 
 def run_queue(vis, key, msg: dict):
@@ -11,7 +13,7 @@ def run_queue(vis, key, msg: dict):
     )
     modifier_queue.update(msg)
     vis.socket.emit("room:worker:run")
-    vis.socket.sleep(7)
+    vis.socket.sleep(10)
 
 
 def test_run_analysis_distance(server, s22_energy_forces):
@@ -68,3 +70,26 @@ def test_run_analysis_DihedralAngle(server, s22_energy_forces):
     fig = vis.figures["DihedralAngle"]
     # assert that the x-axis label is "step"
     assert fig.layout.xaxis.title.text == "step"
+
+
+def test_analysis_Properties1D_json_schema(s22_energy_forces):
+    # add custom info keys
+    for atoms in s22_energy_forces:
+        atoms.info["custom"] = 42
+        atoms.info["custom2"] = np.random.rand(10)
+        atoms.info["custom3"] = np.random.rand(10, 5)
+        atoms.calc.results["custom4"] = np.random.rand(10)
+        atoms.arrays["arr"] = np.zeros_like(atoms.get_positions())
+
+    schema = Properties1D.model_json_schema_from_atoms(s22_energy_forces[0])
+    assert set(schema["properties"]["value"]["enum"]) == {
+        "energy",
+        "forces",
+        "custom",
+        "numbers",
+        "positions",
+        "arr",
+        "custom2",
+        "custom3",
+        "custom4",
+    }

@@ -1,6 +1,6 @@
 [project]
 name = "zndraw"
-version = "0.5.8a1"
+version = "0.5.8"
 description = "Display and Edit Molecular Structures and Trajectories in the Browser."
 authors = [
     { name = "Fabian Zills", email = "fzills@icp.uni-stuttgart.de" },
@@ -63,9 +63,9 @@ skip = "*.svg,*.lock"
 
 [dependency-groups]
 dev = [
-    "coverage>=7.6.10",
     "mdanalysis>=2.8.0",
     "pytest>=8.3.4",
+    "pytest-cov>=6.0.0",
     "rdkit2ase>=0.1.4",
     "tidynamics>=1.1.2",
     "znh5md>=0.4.4",
