@@ -210,7 +210,6 @@ const PlotsCard2 = ({
 
 			// Process each data item
 			const updatedPlotData = rawPlotData.map((dataItem) => {
-				console.log(dataItem);
 				const convertedItem = {
 					...dataItem,
 					x: convertToArray(dataItem.x),
