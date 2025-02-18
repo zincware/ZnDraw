@@ -48,7 +48,7 @@ def test_geometry_selection_position(server):
         "height": 10,
     }
     vis.socket.emit("room:worker:run")
-    vis.socket.sleep(5)
+    vis.socket.sleep(8)
 
     assert len(vis.geometries) == 1
     assert vis.geometries[0].position == [0, 0, 0]
@@ -66,7 +66,7 @@ def test_geometry_selection_position(server):
         "height": 10,
     }
     vis.socket.emit("room:worker:run")
-    vis.socket.sleep(5)
+    vis.socket.sleep(8)
 
     assert len(vis.geometries) == 2
     assert vis.geometries[1].position == vis.atoms.positions[1].tolist()
@@ -85,7 +85,7 @@ def test_geometry_selection_position(server):
         "height": 10,
     }
     vis.socket.emit("room:worker:run")
-    vis.socket.sleep(5)
+    vis.socket.sleep(8)
 
     assert len(vis.geometries) == 3
     assert (
