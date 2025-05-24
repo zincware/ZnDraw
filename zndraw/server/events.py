@@ -32,6 +32,10 @@ class DummyClient:
     sio: SocketIO
     refresh_callbacks: list = dataclasses.field(default_factory=list)
 
+    def call(self, event: str, *args, **kwargs):
+        """Call a socketio event."""
+        return True
+
 
 def init_socketio_events(io: SocketIO):
     @io.on("connect")
@@ -78,7 +82,7 @@ def init_socketio_events(io: SocketIO):
                 r=r,
                 key=f"schema:{ref_token}:modifier",
                 repr_type="full",
-                socket=DummyClient(sio=io),
+                socket=DummyClient(sio=io),  # TODO: why are we using a dummy client?
             )
 
             # TODO: default room modifier

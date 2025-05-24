@@ -176,23 +176,17 @@ class ZnDraw(MutableSequence):
         single_item = isinstance(index, int)
         if single_item:
             index = [index]
-        if self.r.exists(f"room:{self.token}:frames"):
-            structures = znsocket.List(
-                self.r,
-                f"room:{self.token}:frames",
-                converter=[ASEConverter],
-                socket=self._refresh_client,
-                max_commands_per_call=100,
-            )[index]
 
-        else:
-            structures = znsocket.List(
-                self.r,
-                "room:default:frames",
-                converter=[ASEConverter],
-                socket=self._refresh_client,
-                max_commands_per_call=100,
-            )[index]
+        structures = znsocket.List(
+            self.r,
+            f"room:{self.token}:frames",
+            converter=[ASEConverter],
+            socket=self._refresh_client,
+            max_commands_per_call=100,
+            fallback="room:default:frames",
+        )[index]
+
+       
 
         if single_item:
             return structures[0]
