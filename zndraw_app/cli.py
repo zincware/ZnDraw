@@ -219,10 +219,6 @@ def main(
             celery_app = app.extensions["celery"]
             celery_app.control.broadcast("shutdown")
             print("---------------------- SHUTDOWN ZNSOCKET ----------------------")
-            if env_config.FLASK_STORAGE.startswith("znsocket"):
-                server.terminate()
-                server.wait()
-                print("znsocket server terminated.")
             socketio.stop()
             worker.join()
 
