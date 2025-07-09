@@ -14,11 +14,30 @@ def run_celery_thread_worker() -> threading.Thread:
         my_env["OBJC_DISABLE_INITIALIZE_FORK_SAFETY"] = "YES"
 
     def run_celery_worker():
+        import signal
+
         from zndraw_app.make_celery import celery_app
 
-        celery_app.worker_main(
-            argv=["worker", "--loglevel=info", "--without-gossip", "--pool=eventlet"]
-        )
+        # Prevent celery from installing signal handlers by temporarily disabling them
+        original_signal = signal.signal
+
+        def dummy_signal(sig, handler):
+            if sig in (signal.SIGINT, signal.SIGTERM):
+                # Don't let celery install handlers for these signals
+                return signal.SIG_DFL
+            return original_signal(sig, handler)
+
+        signal.signal = dummy_signal
+        try:
+            celery_app.worker_main(
+                argv=[
+                    "worker",
+                    "--loglevel=info",
+                    "--pool=eventlet",
+                ]
+            )
+        finally:
+            signal.signal = original_signal
 
     worker = threading.Thread(target=run_celery_worker)
     worker.start()

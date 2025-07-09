@@ -3,7 +3,6 @@ import datetime
 import os
 import pathlib
 import shutil
-import signal
 import typing as t
 import webbrowser
 
@@ -107,9 +106,6 @@ def main(
         None,
         help="URL to the redis `redis://localhost:6379/0` or znsocket `znsocket://127.0.0.1:6379` server. If None is provided, a local znsocket server will be started.",
     ),
-    storage_port: int = typer.Option(
-        None, help="Port to use for the storage server. Default port is 6374"
-    ),
     standalone: bool = typer.Option(
         True,
         help="Run ZnDraw without additional tools. If disabled, redis and celery must be started manually.",
@@ -199,7 +195,6 @@ def main(
     typer.echo(
         f"{datetime.datetime.now().isoformat()}: Starting zndraw server on port {port}"
     )
-    typer.echo(f"To manually shutdown, visit: http://localhost:{env_config.FLASK_PORT}/exit")
 
     app = create_app(main=True)
 
@@ -208,43 +203,8 @@ def main(
 
     socketio = app.extensions["socketio"]
 
-    def signal_handler(sig, frame):
-        if standalone and url is None:
-            print("---------------------- SHUTDOWN CELERY ----------------------")
-            if worker is not None:
-                try:
-                    celery_app = app.extensions["celery"]
-                    celery_app.control.broadcast("shutdown")
-                    # Give worker a reasonable time to shutdown, then continue
-                    worker.join(timeout=5.0)
-                    if worker.is_alive():
-                        print("Celery worker didn't shutdown gracefully, trying HTTP shutdown...")
-                        # Try HTTP shutdown as fallback
-                        try:
-                            import requests
-                            requests.get(f"http://localhost:{env_config.FLASK_PORT}/exit", timeout=3)
-                            # Wait 10 seconds for HTTP shutdown to work
-                            import time
-                            time.sleep(10)
-                        except Exception as e:
-                            print(f"HTTP shutdown failed: {e}")
-                except Exception as e:
-                    print(f"Error during celery shutdown: {e}")
-            print("---------------------- SHUTDOWN ZNSOCKET ----------------------")
-            socketio.stop()
-        # Force exit to prevent hanging
-        import sys
-        sys.exit(0)
-
-    signal.signal(signal.SIGINT, signal_handler)
-    signal.signal(signal.SIGTERM, signal_handler)  # Handle SIGTERM as well
-
     # Start celery worker after Flask server is ready to accept connections
     def start_worker_delayed():
-        import time
-
-        # Wait a bit for the server to be ready
-        time.sleep(2)
         nonlocal worker
         if standalone and url is None:
             worker = run_celery_thread_worker()
@@ -270,9 +230,25 @@ def main(
             port=app.config["PORT"],
         )
     finally:
-        # get the celery broker config
-        if app.config["CELERY"]["broker_url"] == "filesystem://":
-            print("---------------------- REMOVE CELERY CTRL ----------------------")
-            for path in app.config["CELERY"]["broker_transport_options"].values():
-                if os.path.exists(path):
-                    shutil.rmtree(path)
+        try:
+            print(
+                f"{datetime.datetime.now().isoformat()}: Shutting down zndraw server {env_config.FLASK_SERVER_URL}"
+            )
+
+            if standalone and url is None and worker is not None:
+                print("---------------------- SHUTDOWN CELERY ----------------------")
+                celery_app = app.extensions["celery"]
+                celery_app.control.broadcast("shutdown")
+                print("Waiting for celery worker to shutdown...")
+            if worker_thread is not None:
+                worker_thread.join()
+            if worker is not None:
+                worker.join()
+        finally:
+            if app.config["CELERY"]["broker_url"] == "filesystem://":
+                print("---------------------- REMOVE CELERY CTRL ----------------------")
+                for path in app.config["CELERY"]["broker_transport_options"].values():
+                    if os.path.exists(path):
+                        shutil.rmtree(path)
+
+            print("---------------------- SHUTDOWN COMPLETE ----------------------")
