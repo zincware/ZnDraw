@@ -107,7 +107,7 @@ class ZnDraw(MutableSequence):
             http_session.verify = self.verify
             self.socket = socketio.Client(http_session=http_session)
 
-        self._refresh_client = znsocket.Client.from_url(self.url)
+        self._refresh_client = znsocket.Client.from_url(self.url, connect_wait_timeout=10)
         # TODO: the refresh_client should be able to use the same socket connection!
         if self.r is None:
             self.r = self._refresh_client

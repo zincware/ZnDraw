@@ -4088,7 +4088,7 @@ requires-dist = [
     { name = "tqdm", specifier = ">=4.67.1" },
     { name = "typer", specifier = ">=0.15.1" },
     { name = "znjson", specifier = ">=0.2.6" },
-    { name = "znsocket", specifier = ">=0.2.8" },
+    { name = "znsocket", git = "https://github.com/zincware/ZnSocket.git" },
 ]
 
 [package.metadata.requires-dev]
@@ -4156,18 +4156,14 @@ wheels = [
 
 [[package]]
 name = "znsocket"
-version = "0.2.8"
-source = { registry = "https://pypi.org/simple" }
+version = "0.2.9"
+source = { git = "https://github.com/zincware/ZnSocket.git#d3133858d43ec1d42764fe10c0880800ecd6bf5c" }
 dependencies = [
     { name = "eventlet" },
     { name = "python-socketio", extra = ["client"] },
     { name = "redis" },
     { name = "typer" },
     { name = "znjson" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/a1/82/eb3efbeb1e971f9d7eacbb5ec0f2bfa3a84647c5181b7b51b5302ca33aac/znsocket-0.2.8.tar.gz", hash = "sha256:e2190928775414fdd426dc342c1cc2464eb449e6a669b256c54876c94ea1163b", size = 102918, upload-time = "2025-02-07T09:06:15.108Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/ec/27/c00b07b3e6bdce0f48130335cd42bbe4cc0986ebd2e1869bf7f0592b2138/znsocket-0.2.8-py3-none-any.whl", hash = "sha256:d81518425fe0bae791da0cae515313f5d4f42a969625918bfe3b98d85383e386", size = 18627, upload-time = "2025-02-07T09:06:13.181Z" },
 ]
 
 [[package]]

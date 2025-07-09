@@ -3,6 +3,7 @@ import datetime
 import os
 import pathlib
 import shutil
+import subprocess
 import typing as t
 import webbrowser
 
@@ -10,7 +11,7 @@ import typer
 
 from zndraw.app import create_app
 from zndraw.base import FileIO
-from zndraw.standalone import run_celery_thread_worker
+from zndraw.standalone import run_celery_worker
 from zndraw.tasks import read_file, read_plots
 from zndraw.upload import upload
 from zndraw.utils import get_port
@@ -176,7 +177,6 @@ def main(
             raise typer.Exit(code=1)
 
     worker = None  # Initialize worker variable
-    worker_thread = None  # Initialize worker thread variable
 
     fileio = FileIO(
         name=filename,
@@ -203,21 +203,12 @@ def main(
 
     socketio = app.extensions["socketio"]
 
-    # Start celery worker after Flask server is ready to accept connections
-    def start_worker_delayed():
-        nonlocal worker
-        if standalone and url is None:
-            worker = run_celery_thread_worker()
-            # Start the initial tasks after worker is ready
-            read_file.s(fileio.to_dict()).apply_async()
-            read_plots.s(plots, fileio.remote, fileio.rev).apply_async()
-
+    # Start celery worker as separate process
     if standalone and url is None:
-        import threading
-
-        worker_thread = threading.Thread(target=start_worker_delayed)
-        worker_thread.daemon = True
-        worker_thread.start()
+        worker = run_celery_worker()
+        # Start the initial tasks after worker is ready
+        read_file.s(fileio.to_dict()).apply_async()
+        read_plots.s(plots, fileio.remote, fileio.rev).apply_async()
     else:
         # If not standalone, start tasks immediately
         read_file.s(fileio.to_dict()).apply_async()
@@ -237,13 +228,27 @@ def main(
 
             if standalone and url is None and worker is not None:
                 print("---------------------- SHUTDOWN CELERY ----------------------")
-                celery_app = app.extensions["celery"]
-                celery_app.control.broadcast("shutdown")
-                print("Waiting for celery worker to shutdown...")
-            if worker_thread is not None:
-                worker_thread.join()
-            if worker is not None:
-                worker.join()
+                try:
+                    # Try graceful shutdown first
+                    celery_app = app.extensions["celery"]
+                    celery_app.control.broadcast("shutdown")
+                    # TODO: check that all workers are actually shutdown
+                    print("Waiting for celery worker to shutdown...")
+                    worker.wait(timeout=5)
+                    print("Celery worker shutdown successfully")
+                except subprocess.TimeoutExpired:
+                    print("Celery worker didn't shutdown gracefully, terminating...")
+                    worker.terminate()
+                    worker.wait()
+                    print("Celery worker terminated")
+                except Exception as e:
+                    print(f"Error during celery shutdown: {e}")
+                    # Force terminate if anything goes wrong
+                    try:
+                        worker.terminate()
+                        worker.wait()
+                    except:
+                        pass
         finally:
             if app.config["CELERY"]["broker_url"] == "filesystem://":
                 print("---------------------- REMOVE CELERY CTRL ----------------------")

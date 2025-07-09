@@ -32,7 +32,9 @@ def storage_init_app(app: Flask) -> None:
         for _ in range(100):  # try to connect to znsocket for 10 s
             # if we start znsocket via celery it will take some time to start
             try:
-                app.extensions["redis"] = znsocket.Client.from_url(app.config["STORAGE"])
+                app.extensions["redis"] = znsocket.Client.from_url(
+                    app.config["STORAGE"], connect_wait_timeout=10
+                )
                 break
             except ConnectionError:
                 # wait for znsocket to start, if started together with the server
@@ -111,7 +113,7 @@ def create_app(main: bool) -> Flask:
         from redis import Redis
 
         znsocket.attach_events(
-            socketio.server,
+            socketio.server,  # TODO should this not just be socketio?
             namespace="/znsocket",
             storage=Redis.from_url(app.config["STORAGE"], decode_responses=True),
         )
@@ -127,7 +129,7 @@ def create_app(main: bool) -> Flask:
             socketio.server,
             namespace="/znsocket",
             storage=znsocket.Client.from_url(
-                app.config["STORAGE"], decode_responses=True
+                app.config["STORAGE"], decode_responses=True, connect_wait_timeout=10
             ),
         )
 
