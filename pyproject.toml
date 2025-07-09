@@ -27,7 +27,7 @@ dependencies = [
     "tqdm>=4.67.1",
     "typer>=0.15.1",
     "znjson>=0.2.6",
-    "znsocket>=0.2.8",
+    "znsocket>=0.2.9",
 ]
 
 [project.urls]
@@ -69,8 +69,12 @@ addopts = "-m 'not chrome'"
 [tool.codespell]
 skip = "*.svg,*.lock"
 
+[tool.uv.sources]
+znsocket = { git = "https://github.com/zincware/ZnSocket.git" }
+
 [dependency-groups]
 dev = [
+    "ipykernel>=6.29.5",
     "mdanalysis>=2.8.0",
     "pytest>=8.3.4",
     "pytest-cov>=6.0.0",

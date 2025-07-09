@@ -3,7 +3,7 @@ import datetime
 import os
 import pathlib
 import shutil
-import signal
+import subprocess
 import typing as t
 import webbrowser
 
@@ -11,7 +11,7 @@ import typer
 
 from zndraw.app import create_app
 from zndraw.base import FileIO
-from zndraw.standalone import run_celery_thread_worker, run_znsocket
+from zndraw.standalone import run_celery_worker
 from zndraw.tasks import read_file, read_plots
 from zndraw.upload import upload
 from zndraw.utils import get_port
@@ -28,7 +28,6 @@ class EnvOptions:
     FLASK_TUTORIAL: str | None = None
     FLASK_SIMGEN: str | None = None
     FLASK_SERVER_URL: str | None = None
-    FLASK_STORAGE_PORT: str | None = None
     FLASK_COMPUTE_BONDS: str | None = None
     FLASK_MAX_HTTP_BUFFER_SIZE: str | None = None
 
@@ -108,9 +107,6 @@ def main(
         None,
         help="URL to the redis `redis://localhost:6379/0` or znsocket `znsocket://127.0.0.1:6379` server. If None is provided, a local znsocket server will be started.",
     ),
-    storage_port: int = typer.Option(
-        None, help="Port to use for the storage server. Default port is 6374"
-    ),
     standalone: bool = typer.Option(
         True,
         help="Run ZnDraw without additional tools. If disabled, redis and celery must be started manually.",
@@ -151,11 +147,6 @@ def main(
 
     env_config = EnvOptions.from_env()
 
-    if storage_port is not None:
-        env_config.FLASK_STORAGE_PORT = str(storage_port)
-    elif env_config.FLASK_STORAGE_PORT is None:
-        env_config.FLASK_STORAGE_PORT = str(get_port(default=6374))
-
     if port is not None:
         env_config.FLASK_PORT = str(port)
     elif env_config.FLASK_PORT is None:
@@ -176,7 +167,7 @@ def main(
     env_config.FLASK_SERVER_URL = f"http://localhost:{env_config.FLASK_PORT}"
 
     if standalone and storage is None:
-        env_config.FLASK_STORAGE = f"znsocket://localhost:{env_config.FLASK_STORAGE_PORT}"
+        env_config.FLASK_STORAGE = f"znsocket://localhost:{env_config.FLASK_PORT}"
 
     env_config.save_to_env()
 
@@ -185,11 +176,7 @@ def main(
             typer.echo(f"File {filename} does not exist.")
             raise typer.Exit(code=1)
 
-    if standalone and url is None:
-        if env_config.FLASK_STORAGE.startswith("znsocket"):
-            # standalone with redis would assume a running instance of redis
-            server = run_znsocket(env_config.FLASK_STORAGE_PORT)
-        worker = run_celery_thread_worker()
+    worker = None  # Initialize worker variable
 
     fileio = FileIO(
         name=filename,
@@ -209,32 +196,23 @@ def main(
         f"{datetime.datetime.now().isoformat()}: Starting zndraw server on port {port}"
     )
 
-    app = create_app()
+    app = create_app(main=True)
 
     if browser:
         webbrowser.open(f"http://localhost:{env_config.FLASK_PORT}")
 
     socketio = app.extensions["socketio"]
 
-    def signal_handler(sig, frame):
-        if standalone and url is None:
-            print("---------------------- SHUTDOWN CELERY ----------------------")
-            celery_app = app.extensions["celery"]
-            celery_app.control.broadcast("shutdown")
-            print("---------------------- SHUTDOWN ZNSOCKET ----------------------")
-            if env_config.FLASK_STORAGE.startswith("znsocket"):
-                server.terminate()
-                server.wait()
-                print("znsocket server terminated.")
-            socketio.stop()
-            worker.join()
-
-    signal.signal(
-        signal.SIGINT, signal_handler
-    )  # need to have the signal handler to avoid stalling the celery worker
-
-    read_file.s(fileio.to_dict()).apply_async()
-    read_plots.s(plots, fileio.remote, fileio.rev).apply_async()
+    # Start celery worker as separate process
+    if standalone and url is None:
+        worker = run_celery_worker()
+        # Start the initial tasks after worker is ready
+        read_file.s(fileio.to_dict()).apply_async()
+        read_plots.s(plots, fileio.remote, fileio.rev).apply_async()
+    else:
+        # If not standalone, start tasks immediately
+        read_file.s(fileio.to_dict()).apply_async()
+        read_plots.s(plots, fileio.remote, fileio.rev).apply_async()
 
     try:
         socketio.run(
@@ -243,9 +221,39 @@ def main(
             port=app.config["PORT"],
         )
     finally:
-        # get the celery broker config
-        if app.config["CELERY"]["broker_url"] == "filesystem://":
-            print("---------------------- REMOVE CELERY CTRL ----------------------")
-            for path in app.config["CELERY"]["broker_transport_options"].values():
-                if os.path.exists(path):
-                    shutil.rmtree(path)
+        try:
+            print(
+                f"{datetime.datetime.now().isoformat()}: Shutting down zndraw server {env_config.FLASK_SERVER_URL}"
+            )
+
+            if standalone and url is None and worker is not None:
+                print("---------------------- SHUTDOWN CELERY ----------------------")
+                try:
+                    # Try graceful shutdown first
+                    celery_app = app.extensions["celery"]
+                    celery_app.control.broadcast("shutdown")
+                    # TODO: check that all workers are actually shutdown
+                    print("Waiting for celery worker to shutdown...")
+                    worker.wait(timeout=5)
+                    print("Celery worker shutdown successfully")
+                except subprocess.TimeoutExpired:
+                    print("Celery worker didn't shutdown gracefully, terminating...")
+                    worker.terminate()
+                    worker.wait()
+                    print("Celery worker terminated")
+                except Exception as e:
+                    print(f"Error during celery shutdown: {e}")
+                    # Force terminate if anything goes wrong
+                    try:
+                        worker.terminate()
+                        worker.wait()
+                    except:
+                        pass
+        finally:
+            if app.config["CELERY"]["broker_url"] == "filesystem://":
+                print("---------------------- REMOVE CELERY CTRL ----------------------")
+                for path in app.config["CELERY"]["broker_transport_options"].values():
+                    if os.path.exists(path):
+                        shutil.rmtree(path)
+
+            print("---------------------- SHUTDOWN COMPLETE ----------------------")

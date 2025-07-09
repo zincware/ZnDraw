@@ -32,7 +32,9 @@ def storage_init_app(app: Flask) -> None:
         for _ in range(100):  # try to connect to znsocket for 10 s
             # if we start znsocket via celery it will take some time to start
             try:
-                app.extensions["redis"] = znsocket.Client.from_url(app.config["STORAGE"])
+                app.extensions["redis"] = znsocket.Client.from_url(
+                    app.config["STORAGE"], connect_wait_timeout=10
+                )
                 break
             except ConnectionError:
                 # wait for znsocket to start, if started together with the server
@@ -41,7 +43,7 @@ def storage_init_app(app: Flask) -> None:
         raise ValueError(f"Unknown storage type: {app.config['STORAGE']}")
 
 
-def create_app() -> Flask:
+def create_app(main: bool) -> Flask:
     app = Flask(__name__)
     app.config.update(SESSION_COOKIE_SAMESITE="None", SESSION_COOKIE_SECURE=True)
     app.config["SECRET_KEY"] = "secret!"
@@ -105,22 +107,29 @@ def create_app() -> Flask:
     # Initialize Celery
     celery_init_app(app)
 
-    # Initialize storage
-    storage_init_app(app)
-    # we only need this server if we are using redis
-    # otherwise a znsocket server will run anyhow
+    # Initialize storage and znsocket events
     if app.config["STORAGE"].startswith("redis"):
+        storage_init_app(app)
         from redis import Redis
 
         znsocket.attach_events(
-            socketio.server,
+            socketio.server,  # TODO should this not just be socketio?
+            namespace="/znsocket",
             storage=Redis.from_url(app.config["STORAGE"], decode_responses=True),
         )
+    elif main:
+        # Main app uses embedded znsocket.Storage
+        storage = znsocket.Storage()
+        znsocket.attach_events(socketio.server, namespace="/znsocket", storage=storage)
+        app.extensions["redis"] = storage
     else:
+        # Celery workers connect to the main app's znsocket server
+        storage_init_app(app)
         znsocket.attach_events(
             socketio.server,
+            namespace="/znsocket",
             storage=znsocket.Client.from_url(
-                app.config["STORAGE"], decode_responses=True
+                app.config["STORAGE"], decode_responses=True, connect_wait_timeout=10
             ),
         )
 
