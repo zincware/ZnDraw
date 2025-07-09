@@ -199,6 +199,7 @@ def main(
     typer.echo(
         f"{datetime.datetime.now().isoformat()}: Starting zndraw server on port {port}"
     )
+    typer.echo(f"To manually shutdown, visit: http://localhost:{env_config.FLASK_PORT}/exit")
 
     app = create_app(main=True)
 
@@ -217,7 +218,16 @@ def main(
                     # Give worker a reasonable time to shutdown, then continue
                     worker.join(timeout=5.0)
                     if worker.is_alive():
-                        print("Celery worker didn't shutdown gracefully, forcing exit")
+                        print("Celery worker didn't shutdown gracefully, trying HTTP shutdown...")
+                        # Try HTTP shutdown as fallback
+                        try:
+                            import requests
+                            requests.get(f"http://localhost:{env_config.FLASK_PORT}/exit", timeout=3)
+                            # Wait 10 seconds for HTTP shutdown to work
+                            import time
+                            time.sleep(10)
+                        except Exception as e:
+                            print(f"HTTP shutdown failed: {e}")
                 except Exception as e:
                     print(f"Error during celery shutdown: {e}")
             print("---------------------- SHUTDOWN ZNSOCKET ----------------------")
