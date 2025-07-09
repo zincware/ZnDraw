@@ -125,3 +125,9 @@ selections: dict[str, t.Type[Extension]] = {
     IdenticalSpecies.__name__: IdenticalSpecies,
     Neighbour.__name__: Neighbour,
 }
+
+try:
+    from .molecules import SelectSmarts
+    selections[SelectSmarts.__name__] = SelectSmarts
+except ImportError:
+    pass

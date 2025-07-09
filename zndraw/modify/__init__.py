@@ -393,3 +393,9 @@ modifier: dict[str, t.Type[UpdateScene]] = {
     RemoveAtoms.__name__: RemoveAtoms,
     FixAtoms.__name__: FixAtoms,
 }
+
+try:
+    from .molecules import CreateBox  # noqa: F401
+    modifier[CreateBox.__name__] = CreateBox
+except ImportError:
+    pass 
