@@ -105,34 +105,33 @@ def create_app(main: bool) -> Flask:
     # Initialize Celery
     celery_init_app(app)
 
-    # we only need this server if we are using redis
-    # otherwise a znsocket server will run anyhow
+    # Initialize storage and znsocket events
     if app.config["STORAGE"].startswith("redis"):
         storage_init_app(app)
-
         from redis import Redis
-
+        
         znsocket.attach_events(
             socketio.server,
             namespace="/znsocket",
             storage=Redis.from_url(app.config["STORAGE"], decode_responses=True),
         )
+    elif main:
+        # Main app uses embedded znsocket.Storage
+        storage = znsocket.Storage()
+        znsocket.attach_events(
+            socketio.server, namespace="/znsocket", storage=storage
+        )
+        app.extensions["redis"] = storage
     else:
-        if main:
-            storage = znsocket.Storage()
-            znsocket.attach_events(
-                socketio.server, namespace="/znsocket", storage=storage
-            )
-            app.extensions["redis"] = storage
-        else:
-            storage_init_app(app)
-            znsocket.attach_events(
-                socketio.server,
-                namespace="/znsocket",
-                storage=znsocket.Client.from_url(
-                    app.config["STORAGE"], decode_responses=True
-                ),
-            )
+        # Celery workers connect to the main app's znsocket server
+        storage_init_app(app)
+        znsocket.attach_events(
+            socketio.server,
+            namespace="/znsocket",
+            storage=znsocket.Client.from_url(
+                app.config["STORAGE"], decode_responses=True
+            ),
+        )
 
     # Register routes and socketio events
     app.register_blueprint(main_blueprint)

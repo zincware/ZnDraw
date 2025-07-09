@@ -28,7 +28,6 @@ class EnvOptions:
     FLASK_TUTORIAL: str | None = None
     FLASK_SIMGEN: str | None = None
     FLASK_SERVER_URL: str | None = None
-    FLASK_STORAGE_PORT: str | None = None
     FLASK_COMPUTE_BONDS: str | None = None
     FLASK_MAX_HTTP_BUFFER_SIZE: str | None = None
 
@@ -151,16 +150,10 @@ def main(
 
     env_config = EnvOptions.from_env()
 
-    # if storage_port is not None:
-    #     env_config.FLASK_STORAGE_PORT = str(storage_port)
-    # elif env_config.FLASK_STORAGE_PORT is None:
-    #     env_config.FLASK_STORAGE_PORT = str(get_port(default=6374))
-
     if port is not None:
         env_config.FLASK_PORT = str(port)
     elif env_config.FLASK_PORT is None:
         env_config.FLASK_PORT = str(get_port(default=1234))
-    env_config.FLASK_STORAGE_PORT = env_config.FLASK_PORT
     if storage is not None:
         env_config.FLASK_STORAGE = storage
     if auth_token is not None:
@@ -177,7 +170,7 @@ def main(
     env_config.FLASK_SERVER_URL = f"http://localhost:{env_config.FLASK_PORT}"
 
     if standalone and storage is None:
-        env_config.FLASK_STORAGE = f"znsocket://localhost:{env_config.FLASK_STORAGE_PORT}"
+        env_config.FLASK_STORAGE = f"znsocket://localhost:{env_config.FLASK_PORT}"
 
     env_config.save_to_env()
 
@@ -187,6 +180,7 @@ def main(
             raise typer.Exit(code=1)
 
     worker = None  # Initialize worker variable
+    worker_thread = None  # Initialize worker thread variable
 
     fileio = FileIO(
         name=filename,
@@ -214,17 +208,18 @@ def main(
     socketio = app.extensions["socketio"]
 
     def signal_handler(sig, frame):
-        if standalone and url is None and worker is not None:
+        if standalone and url is None:
             print("---------------------- SHUTDOWN CELERY ----------------------")
-            celery_app = app.extensions["celery"]
-            celery_app.control.broadcast("shutdown")
+            if worker is not None:
+                celery_app = app.extensions["celery"]
+                celery_app.control.broadcast("shutdown")
+                worker.join()
             print("---------------------- SHUTDOWN ZNSOCKET ----------------------")
             socketio.stop()
-            worker.join()
+            # The worker_thread is daemon so it will be cleaned up automatically
 
-    signal.signal(
-        signal.SIGINT, signal_handler
-    )  # need to have the signal handler to avoid stalling the celery worker
+    signal.signal(signal.SIGINT, signal_handler)
+    signal.signal(signal.SIGTERM, signal_handler)  # Handle SIGTERM as well
 
     # Start celery worker after Flask server is ready to accept connections
     def start_worker_delayed():
