@@ -31,7 +31,7 @@ class DummyClient:
 
     sio: SocketIO
     refresh_callbacks: list = dataclasses.field(default_factory=list)
-    
+
     def call(self, event, **kwargs):
         """Dummy call method for znsocket compatibility."""
         if event == "check_adapter":

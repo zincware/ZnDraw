@@ -156,7 +156,6 @@ def main(
     # elif env_config.FLASK_STORAGE_PORT is None:
     #     env_config.FLASK_STORAGE_PORT = str(get_port(default=6374))
 
-
     if port is not None:
         env_config.FLASK_PORT = str(port)
     elif env_config.FLASK_PORT is None:
@@ -234,6 +233,7 @@ def main(
     # Start celery worker after Flask server is ready to accept connections
     def start_worker_delayed():
         import time
+
         # Wait a bit for the server to be ready
         time.sleep(2)
         nonlocal worker
@@ -245,6 +245,7 @@ def main(
 
     if standalone and url is None:
         import threading
+
         worker_thread = threading.Thread(target=start_worker_delayed)
         worker_thread.daemon = True
         worker_thread.start()

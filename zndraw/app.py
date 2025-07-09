@@ -121,9 +121,7 @@ def create_app(main: bool) -> Flask:
         if main:
             storage = znsocket.Storage()
             znsocket.attach_events(
-                socketio.server,
-                namespace="/znsocket",
-                storage=storage
+                socketio.server, namespace="/znsocket", storage=storage
             )
             app.extensions["redis"] = storage
         else:
@@ -135,8 +133,6 @@ def create_app(main: bool) -> Flask:
                     app.config["STORAGE"], decode_responses=True
                 ),
             )
-
-
 
     # Register routes and socketio events
     app.register_blueprint(main_blueprint)
