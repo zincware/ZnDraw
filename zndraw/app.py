@@ -109,7 +109,7 @@ def create_app(main: bool) -> Flask:
     if app.config["STORAGE"].startswith("redis"):
         storage_init_app(app)
         from redis import Redis
-        
+
         znsocket.attach_events(
             socketio.server,
             namespace="/znsocket",
@@ -118,9 +118,7 @@ def create_app(main: bool) -> Flask:
     elif main:
         # Main app uses embedded znsocket.Storage
         storage = znsocket.Storage()
-        znsocket.attach_events(
-            socketio.server, namespace="/znsocket", storage=storage
-        )
+        znsocket.attach_events(socketio.server, namespace="/znsocket", storage=storage)
         app.extensions["redis"] = storage
     else:
         # Celery workers connect to the main app's znsocket server

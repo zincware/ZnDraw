@@ -172,24 +172,3 @@ def download():
     except Exception as e:
         log.error(f"Error downloading file: {e}")
         return str(e), 500
-
-
-@main.route("/exit")
-def exit_route():
-    """Shutdown the server."""
-    if "AUTH_TOKEN" in current_app.config and not session.get("authenticated", False):
-        return "Unauthorized", 401
-    
-    def shutdown_server():
-        import time
-        import threading
-        
-        def delayed_shutdown():
-            time.sleep(1)  # Give time for response to be sent
-            import os
-            os.kill(os.getpid(), 15)  # Send SIGTERM to self
-        
-        threading.Thread(target=delayed_shutdown, daemon=True).start()
-    
-    shutdown_server()
-    return "Server shutting down...", 200
