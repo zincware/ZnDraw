@@ -4,28 +4,6 @@ import os
 import platform
 import subprocess
 import threading
-import time
-
-import znsocket.exceptions
-
-
-def run_znsocket(port) -> subprocess.Popen:
-    """Run a znsocket server instead of redis."""
-
-    server = subprocess.Popen(["znsocket", "--port", str(port)])
-
-    for trial in range(1000):
-        try:
-            znsocket.Client.from_url(f"znsocket://localhost:{port}")
-            break
-        except znsocket.exceptions.ConnectionError:
-            time.sleep(0.1)
-            if trial % 10 == 0:
-                print("Waiting for znsocket to start...")
-    else:
-        raise RuntimeError("Unable to start ZnSocket server!")
-
-    return server
 
 
 def run_celery_thread_worker() -> threading.Thread:

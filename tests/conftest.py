@@ -28,7 +28,7 @@ def server():
     proc = run_celery_worker()
 
     def start_server():
-        app = create_app()
+        app = create_app(main=True)
         app.config["TESTING"] = True
 
         socketio = app.extensions["socketio"]
