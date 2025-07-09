@@ -21,6 +21,7 @@ dependencies = [
     "plotly>=6.0.0",
     "pydantic>=2.10.6",
     "python-socketio[client]>=5.12.1",
+    "rdkit2ase>=0.1.9",
     "redis>=5.2.1",
     "splines>=0.3.2",
     "sqlalchemy>=2.0.38",
