@@ -211,12 +211,20 @@ def main(
         if standalone and url is None:
             print("---------------------- SHUTDOWN CELERY ----------------------")
             if worker is not None:
-                celery_app = app.extensions["celery"]
-                celery_app.control.broadcast("shutdown")
-                worker.join()
+                try:
+                    celery_app = app.extensions["celery"]
+                    celery_app.control.broadcast("shutdown")
+                    # Give worker a reasonable time to shutdown, then continue
+                    worker.join(timeout=5.0)
+                    if worker.is_alive():
+                        print("Celery worker didn't shutdown gracefully, forcing exit")
+                except Exception as e:
+                    print(f"Error during celery shutdown: {e}")
             print("---------------------- SHUTDOWN ZNSOCKET ----------------------")
             socketio.stop()
-            # The worker_thread is daemon so it will be cleaned up automatically
+        # Force exit to prevent hanging
+        import sys
+        sys.exit(0)
 
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)  # Handle SIGTERM as well
