@@ -396,6 +396,7 @@ modifier: dict[str, t.Type[UpdateScene]] = {
 
 try:
     from .molecules import CreateBox  # noqa: F401
+
     modifier[CreateBox.__name__] = CreateBox
 except ImportError:
-    pass 
+    pass
