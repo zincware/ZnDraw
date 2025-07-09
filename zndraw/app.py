@@ -41,7 +41,7 @@ def storage_init_app(app: Flask) -> None:
         raise ValueError(f"Unknown storage type: {app.config['STORAGE']}")
 
 
-def create_app() -> Flask:
+def create_app(main: bool) -> Flask:
     app = Flask(__name__)
     app.config.update(SESSION_COOKIE_SAMESITE="None", SESSION_COOKIE_SECURE=True)
     app.config["SECRET_KEY"] = "secret!"
@@ -105,24 +105,38 @@ def create_app() -> Flask:
     # Initialize Celery
     celery_init_app(app)
 
-    # Initialize storage
-    storage_init_app(app)
     # we only need this server if we are using redis
     # otherwise a znsocket server will run anyhow
     if app.config["STORAGE"].startswith("redis"):
+        storage_init_app(app)
+
         from redis import Redis
 
         znsocket.attach_events(
             socketio.server,
+            namespace="/znsocket",
             storage=Redis.from_url(app.config["STORAGE"], decode_responses=True),
         )
     else:
-        znsocket.attach_events(
-            socketio.server,
-            storage=znsocket.Client.from_url(
-                app.config["STORAGE"], decode_responses=True
-            ),
-        )
+        if main:
+            storage = znsocket.Storage()
+            znsocket.attach_events(
+                socketio.server,
+                namespace="/znsocket",
+                storage=storage
+            )
+            app.extensions["redis"] = storage
+        else:
+            storage_init_app(app)
+            znsocket.attach_events(
+                socketio.server,
+                namespace="/znsocket",
+                storage=znsocket.Client.from_url(
+                    app.config["STORAGE"], decode_responses=True
+                ),
+            )
+
+
 
     # Register routes and socketio events
     app.register_blueprint(main_blueprint)

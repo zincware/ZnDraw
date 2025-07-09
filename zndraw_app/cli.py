@@ -11,7 +11,7 @@ import typer
 
 from zndraw.app import create_app
 from zndraw.base import FileIO
-from zndraw.standalone import run_celery_thread_worker, run_znsocket
+from zndraw.standalone import run_celery_thread_worker
 from zndraw.tasks import read_file, read_plots
 from zndraw.upload import upload
 from zndraw.utils import get_port
@@ -151,15 +151,17 @@ def main(
 
     env_config = EnvOptions.from_env()
 
-    if storage_port is not None:
-        env_config.FLASK_STORAGE_PORT = str(storage_port)
-    elif env_config.FLASK_STORAGE_PORT is None:
-        env_config.FLASK_STORAGE_PORT = str(get_port(default=6374))
+    # if storage_port is not None:
+    #     env_config.FLASK_STORAGE_PORT = str(storage_port)
+    # elif env_config.FLASK_STORAGE_PORT is None:
+    #     env_config.FLASK_STORAGE_PORT = str(get_port(default=6374))
+
 
     if port is not None:
         env_config.FLASK_PORT = str(port)
     elif env_config.FLASK_PORT is None:
         env_config.FLASK_PORT = str(get_port(default=1234))
+    env_config.FLASK_STORAGE_PORT = env_config.FLASK_PORT
     if storage is not None:
         env_config.FLASK_STORAGE = storage
     if auth_token is not None:
@@ -185,11 +187,7 @@ def main(
             typer.echo(f"File {filename} does not exist.")
             raise typer.Exit(code=1)
 
-    if standalone and url is None:
-        if env_config.FLASK_STORAGE.startswith("znsocket"):
-            # standalone with redis would assume a running instance of redis
-            server = run_znsocket(env_config.FLASK_STORAGE_PORT)
-        worker = run_celery_thread_worker()
+    worker = None  # Initialize worker variable
 
     fileio = FileIO(
         name=filename,
@@ -209,7 +207,7 @@ def main(
         f"{datetime.datetime.now().isoformat()}: Starting zndraw server on port {port}"
     )
 
-    app = create_app()
+    app = create_app(main=True)
 
     if browser:
         webbrowser.open(f"http://localhost:{env_config.FLASK_PORT}")
@@ -217,7 +215,7 @@ def main(
     socketio = app.extensions["socketio"]
 
     def signal_handler(sig, frame):
-        if standalone and url is None:
+        if standalone and url is None and worker is not None:
             print("---------------------- SHUTDOWN CELERY ----------------------")
             celery_app = app.extensions["celery"]
             celery_app.control.broadcast("shutdown")
@@ -233,8 +231,27 @@ def main(
         signal.SIGINT, signal_handler
     )  # need to have the signal handler to avoid stalling the celery worker
 
-    read_file.s(fileio.to_dict()).apply_async()
-    read_plots.s(plots, fileio.remote, fileio.rev).apply_async()
+    # Start celery worker after Flask server is ready to accept connections
+    def start_worker_delayed():
+        import time
+        # Wait a bit for the server to be ready
+        time.sleep(2)
+        nonlocal worker
+        if standalone and url is None:
+            worker = run_celery_thread_worker()
+            # Start the initial tasks after worker is ready
+            read_file.s(fileio.to_dict()).apply_async()
+            read_plots.s(plots, fileio.remote, fileio.rev).apply_async()
+
+    if standalone and url is None:
+        import threading
+        worker_thread = threading.Thread(target=start_worker_delayed)
+        worker_thread.daemon = True
+        worker_thread.start()
+    else:
+        # If not standalone, start tasks immediately
+        read_file.s(fileio.to_dict()).apply_async()
+        read_plots.s(plots, fileio.remote, fileio.rev).apply_async()
 
     try:
         socketio.run(
