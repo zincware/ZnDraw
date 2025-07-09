@@ -31,6 +31,14 @@ class DummyClient:
 
     sio: SocketIO
     refresh_callbacks: list = dataclasses.field(default_factory=list)
+    
+    def call(self, event, **kwargs):
+        """Dummy call method for znsocket compatibility."""
+        if event == "check_adapter":
+            # For check_adapter, return False to indicate no adapter is available
+            return False
+        # For other events, just return None
+        return None
 
 
 def init_socketio_events(io: SocketIO):
