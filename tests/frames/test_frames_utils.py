@@ -1,6 +1,6 @@
 import znsocket
 
-from zndraw.frames.utils import dict_to_nested_znsocket
+from zndraw.converter import dict_to_nested_znsocket
 
 
 def test_dict_to_nested_znsocket(znsclient):

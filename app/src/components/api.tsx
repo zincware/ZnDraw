@@ -400,7 +400,7 @@ export const setupFrames = (
 			]);
 
 		// TODO: vectors are missing!
-		// request them seperately, only if needed
+		// request them separately, only if needed
 
 		// Await nested arrays.colors and arrays.radii
 		const [colors, radii] = await Promise.all([

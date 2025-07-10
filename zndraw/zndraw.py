@@ -23,11 +23,10 @@ from zndraw.abc import Message
 from zndraw.base import Extension
 from zndraw.bonds import ASEComputeBonds
 from zndraw.config import SETTINGS
+from zndraw.converter import ASEConverter, Object3DConverter, dict_to_nested_znsocket
 from zndraw.draw import Object3D
 from zndraw.exceptions import RoomLockedError
 from zndraw.figure import Figure, FigureConverter
-from zndraw.frames.converter import ASEConverter, Object3DConverter
-from zndraw.frames.utils import dict_to_nested_znsocket
 from zndraw.queue import check_queue
 from zndraw.type_defs import (
     ATOMS_LIKE,
