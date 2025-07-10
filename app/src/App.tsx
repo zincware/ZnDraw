@@ -638,6 +638,8 @@ export default function App() {
 									}}
 									pathTracingSettings={roomConfig.PathTracer}
 									key={vector}
+									step={step}
+									token={token}
 								/>
 							))}
 					</Pathtracer>

@@ -316,6 +316,56 @@ export function setupCamera(
 	}, [cameraAndControls, conInterface]);
 }
 
+// Shared frame fetching utilities
+export const useFrameConnections = (token: string) => {
+	const currentRoomCon = useMemo(() => {
+		if (token === "") {
+			return undefined;
+		}
+		return new znsocket.List({
+			client,
+			key: `room:${token}:frames`,
+		});
+	}, [token]);
+
+	const defaultRoomCon = useMemo(() => {
+		return new znsocket.List({
+			client,
+			key: "room:default:frames",
+		});
+	}, []);
+
+	return { currentRoomCon, defaultRoomCon };
+};
+
+export const useFrameFetching = (token: string) => {
+	const { currentRoomCon, defaultRoomCon } = useFrameConnections(token);
+	const customRoomAvailRef = useRef(false);
+
+	const getFrameFromCon = useCallback(
+		async (step: number) => {
+			let fetchedFrame = await currentRoomCon.get(step);
+			if (!customRoomAvailRef.current && fetchedFrame === null) {
+				return await defaultRoomCon.get(step);
+			}
+			customRoomAvailRef.current = true;
+			return fetchedFrame;
+		},
+		[currentRoomCon, defaultRoomCon],
+	);
+
+	const getLengthFromCon = useCallback(async () => {
+		let length = await currentRoomCon.length();
+		if (!customRoomAvailRef.current && length === 0) {
+			return await defaultRoomCon.length();
+		}
+		customRoomAvailRef.current = true;
+		return length;
+	}, [currentRoomCon, defaultRoomCon]);
+
+	return { getFrameFromCon, getLengthFromCon, currentRoomCon, defaultRoomCon };
+};
+
 export const setupFrames = (
 	token: string,
 	step: any,
@@ -326,7 +376,6 @@ export const setupFrames = (
 	frame_update: boolean,
 ) => {
 	const currentFrameUpdatedFromSocketRef = useRef(true);
-	const customRoomAvailRef = useRef(false); // Track whether listening to the default room
 	const [updateStepInPlace, setUpdateStepInPlace] = useState(0);
 	const scaledRadii = useMemo(() => {
 		const minRadius = Math.min(...covalentRadii);
@@ -335,14 +384,17 @@ export const setupFrames = (
 		return covalentRadii.map((x: number) => (x - minRadius) / range + 0.3);
 	}, [covalentRadii]);
 
+	const { getFrameFromCon, getLengthFromCon, currentRoomCon, defaultRoomCon } = useFrameFetching(token);
+
 	const setCurrentFrameFromObject = async (frame: any) => {
 		// Await top-level fields
-		const [positions, numbers, arrays, connectivity, cell] = await Promise.all([
+		const [positions, numbers, arrays, connectivity, cell, constraints] = await Promise.all([
 			frame.positions,
 			frame.numbers,
 			frame.arrays,
 			frame.connectivity,
 			frame.cell,
+			frame.constraints,
 		]);
 
 		// TODO: vectors are missing!
@@ -367,6 +419,7 @@ export const setupFrames = (
 			numbers,
 			connectivity: connectivity ?? [],
 			cell: cell,
+			constraints: constraints ?? [],
 			arrays: {
 				...arrays,
 				colors:
@@ -381,23 +434,6 @@ export const setupFrames = (
 		setCurrentFrame(resolvedFrame);
 		currentFrameUpdatedFromSocketRef.current = true;
 	};
-
-	const currentRoomCon = useMemo(() => {
-		if (token === "") {
-			return undefined;
-		}
-		return new znsocket.List({
-			client,
-			key: `room:${token}:frames`,
-		});
-	}, [token]);
-
-	const defaultRoomCon = useMemo(() => {
-		return new znsocket.List({
-			client,
-			key: "room:default:frames",
-		});
-	}, []);
 
 	// setup onRefresh and initial load
 	// default room
@@ -437,27 +473,6 @@ export const setupFrames = (
 			currentRoomCon.offRefresh?.();
 		};
 	}, [currentRoomCon, frame_update, step]);
-
-	const getFrameFromCon = useCallback(
-		async (step: number) => {
-			let fetchedFrame = await currentRoomCon.get(step);
-			if (!customRoomAvailRef.current && fetchedFrame === null) {
-				return await defaultRoomCon.get(step);
-			}
-			customRoomAvailRef.current = true;
-			return fetchedFrame;
-		},
-		[currentRoomCon, defaultRoomCon],
-	);
-
-	const getLengthFromCon = useCallback(async () => {
-		let length = await currentRoomCon.length();
-		if (!customRoomAvailRef.current && length === 0) {
-			return await defaultRoomCon.length();
-		}
-		customRoomAvailRef.current = true;
-		return length;
-	}, [currentRoomCon, defaultRoomCon]);
 
 	useEffect(() => {
 		if (defaultRoomCon === undefined || currentRoomCon === undefined) {
@@ -672,6 +687,80 @@ export const setupMessages = (
 			updateCon();
 		}
 	}, [messages]);
+};
+
+export const setupVectors = (
+	token: string,
+	step: any,
+	setVectors: any,
+	requestedProperties: string[] = [],
+) => {
+	const { getFrameFromCon } = useFrameFetching(token);
+
+	const setVectorsFromFrame = async (frame: any) => {
+		if (!frame) {
+			setVectors({});
+			return;
+		}
+
+		try {
+			const [calc, arrays] = await Promise.all([
+				frame.calc,
+				frame.arrays,
+			]);
+
+			const [calcKeys, arraysKeys] = await Promise.all([
+				calc.keys(),
+				arrays.keys(),
+			]);
+
+			const vectorProperties: { [key: string]: any } = {};
+			const allKeys = new Set([...calcKeys, ...arraysKeys]);
+			
+			// Only process requested properties
+			for (const property of requestedProperties) {
+				if (!allKeys.has(property)) {
+					console.warn(`Requested property '${property}' not found in frame`);
+					continue;
+				}
+
+				let data;
+				if (calcKeys.includes(property)) {
+					data = await calc[property];
+				} else if (arraysKeys.includes(property)) {
+					data = await arrays[property];
+				}
+				
+				if (data && Array.isArray(data) && data.length > 0 && Array.isArray(data[0]) && data[0].length === 3) {
+					vectorProperties[property] = data;
+				} else {
+					console.warn(`Property '${property}' is not a valid 3D vector array`);
+				}
+			}
+
+			setVectors(vectorProperties);
+		} catch (error) {
+			console.error("Error while resolving vectors:", error);
+			setVectors({});
+		}
+	};
+
+	useEffect(() => {
+		const updateVectors = async () => {
+			const frame = await getFrameFromCon(step || 0);
+			if (frame === null) {
+				console.warn("Frame ", step, " is null for vectors, retrying after 100ms...");
+				setTimeout(updateVectors, 100);
+				return;
+			}
+			setVectorsFromFrame(frame);
+		};
+
+		const debounceTimeout = setTimeout(updateVectors, 8);
+		return () => {
+			clearTimeout(debounceTimeout);
+		};
+	}, [step, requestedProperties, getFrameFromCon]);
 };
 
 export const setupConfig = (token: string, setConfig: any) => {

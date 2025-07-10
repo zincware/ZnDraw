@@ -8,6 +8,7 @@ import { Line } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
 import Arrows from "./meshes";
 import type { IndicesState } from "./utils";
+import { setupVectors } from "./api";
 
 import { ParticleControls } from "./particlesEditor";
 import { useMergedMesh } from "./utils/mergeInstancedMesh";
@@ -608,22 +609,27 @@ export const SimulationCell = ({
 
 interface PerParticleVectorsProps {
 	frame: Frame | undefined;
+	step: any;
 	property: string;
 	colorMode: string;
 	arrowsConfig: any;
 	pathTracingSettings: any;
+	token: string;
 }
 
 export const PerParticleVectors: React.FC<PerParticleVectorsProps> = ({
 	frame,
+	step,
 	property,
 	colorMode,
 	arrowsConfig,
 	pathTracingSettings,
+	token,
 }) => {
 	const [vectors, setVectors] = useState<
 		{ start: THREE.Vector3; end: THREE.Vector3 }[]
 	>([]);
+	const [vectorProperties, setVectorProperties] = useState<{ [key: string]: any }>({});
 
 	const LineColor = colorMode === "light" ? "#454b66" : "#f5fdc6";
 	const LineWidth = 2;
@@ -632,6 +638,8 @@ export const PerParticleVectors: React.FC<PerParticleVectorsProps> = ({
 	const [colorRange, setColorRange] = useState<[number, number]>(
 		arrowsConfig.colorrange,
 	);
+
+	setupVectors(token, step, setVectorProperties, [property]);
 
 	useEffect(() => {
 		if (arrowsConfig.normalize) {
@@ -645,20 +653,12 @@ export const PerParticleVectors: React.FC<PerParticleVectorsProps> = ({
 	}, [vectors, arrowsConfig.normalize, arrowsConfig.colorrange]);
 
 	useEffect(() => {
-		if (!frame) {
+		if (!frame || !vectorProperties[property]) {
 			setVectors([]);
 			return;
 		}
-		let frameData;
-		if (property in frame.calc) {
-			frameData = frame.calc[property];
-		} else if (property in frame.arrays) {
-			frameData = frame.arrays[property];
-		} else {
-			console.error(`Property ${property} not found in frame`);
-			setVectors([]);
-			return;
-		}
+
+		const frameData = vectorProperties[property];
 		if (frameData.length !== frame.positions.length) {
 			console.error(
 				`Length of property ${property} does not match the number of particles`,
@@ -667,8 +667,8 @@ export const PerParticleVectors: React.FC<PerParticleVectorsProps> = ({
 			return;
 		}
 
-		console.log(`Property ${property} found in frame.calc`);
-		const calculatedVectors = frameData.map((vector, i) => {
+		console.log(`Property ${property} found in vectorProperties`);
+		const calculatedVectors = frameData.map((vector: [number, number, number], i: number) => {
 			const start = frame.positions[i];
 			const end = start
 				.clone()
@@ -680,7 +680,7 @@ export const PerParticleVectors: React.FC<PerParticleVectorsProps> = ({
 			return { start, end };
 		});
 		setVectors(calculatedVectors);
-	}, [frame, property]);
+	}, [frame, vectorProperties, property, LineScale]);
 
 	const startMap = useMemo(
 		() => vectors.map((vec) => vec.start.toArray()),
