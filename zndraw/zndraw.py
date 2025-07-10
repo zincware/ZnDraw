@@ -23,7 +23,7 @@ from zndraw.abc import Message
 from zndraw.base import Extension
 from zndraw.bonds import ASEComputeBonds
 from zndraw.config import SETTINGS
-from zndraw.converter import ASEConverter, Object3DConverter
+from zndraw.converter import ASEConverter, Object3DConverter, dict_to_nested_znsocket
 from zndraw.draw import Object3D
 from zndraw.exceptions import RoomLockedError
 from zndraw.figure import Figure, FigureConverter
@@ -176,7 +176,7 @@ class ZnDraw(MutableSequence):
         single_item = isinstance(index, int)
         if single_item:
             index = [index]
-        if self.r.exists(f"room:{self.token}:frames"):
+        if self.r.exists(f"znsocket.List:room:{self.token}:frames"):
             structures = znsocket.List(
                 self.r,
                 f"room:{self.token}:frames",
@@ -194,9 +194,10 @@ class ZnDraw(MutableSequence):
                 max_commands_per_call=100,
             )[index]
 
+        # TODO: converting this back could also make use of a pipeline?
         if single_item:
-            return structures[0]
-        return structures
+            return ASEConverter().decode(structures[0])
+        return [ASEConverter().decode(x) for x in structures]
 
     def __setitem__(
         self,
@@ -219,8 +220,8 @@ class ZnDraw(MutableSequence):
             max_commands_per_call=100,
             convert_nan=self.convert_nan,
         )
-        if not self.r.exists(f"room:{self.token}:frames") and self.r.exists(
-            "room:default:frames"
+        if not self.r.exists(f"znsocket.List:room:{self.token}:frames") and self.r.exists(
+            "znsocket.List:room:default:frames"
         ):
             default_lst = znsocket.List(
                 self.r,
@@ -238,15 +239,23 @@ class ZnDraw(MutableSequence):
             index = [index]
             value = [value]
 
+        pipeline = self.r.pipeline()
         for i, val in zip(index, value):
             if isinstance(val, ase.Atoms):
                 if not hasattr(val, "connectivity") and self.bond_calculator is not None:
                     val.connectivity = self.bond_calculator.get_bonds(val)
-            lst[i] = val
+                atoms_dict = ASEConverter().encode(val)
+                nested_dict = dict_to_nested_znsocket(
+                    data=atoms_dict, key=f"room:{self.token}:frame:{i}", client=pipeline
+                )
+                lst[i] = nested_dict
+            else:
+                lst[i] = val
+        pipeline.execute()
 
     def __len__(self) -> int:
         # TODO: what if the room does not exist yet?
-        if not self.r.exists(f"room:{self.token}:frames"):
+        if not self.r.exists(f"znsocket.List:room:{self.token}:frames"):
             return len(
                 znsocket.List(
                     self.r,
@@ -273,8 +282,8 @@ class ZnDraw(MutableSequence):
             max_commands_per_call=100,
         )
 
-        if not self.r.exists(f"room:{self.token}:frames") and self.r.exists(
-            "room:default:frames"
+        if not self.r.exists(f"znsocket.List:room:{self.token}:frames") and self.r.exists(
+            "znsocket.List:room:default:frames"
         ):
             default_lst = znsocket.List(
                 self.r,
@@ -313,8 +322,8 @@ class ZnDraw(MutableSequence):
             socket=self._refresh_client,
             convert_nan=self.convert_nan,
         )
-        if not self.r.exists(f"room:{self.token}:frames") and self.r.exists(
-            "room:default:frames"
+        if not self.r.exists(f"znsocket.List:room:{self.token}:frames") and self.r.exists(
+            "znsocket.List:room:default:frames"
         ):
             default_lst = znsocket.List(
                 self.r,
@@ -324,12 +333,23 @@ class ZnDraw(MutableSequence):
             )
             if not (len(default_lst) == 1 and len(default_lst[0]) == 0):
                 # prevent copying empty default room
+                # TODO: need a nested copy here, because otherwise,
+                # the user could modify the default room!
                 default_lst.copy(key=lst.key)
 
         if isinstance(value, ase.Atoms):
             if not hasattr(value, "connectivity") and self.bond_calculator is not None:
                 value.connectivity = self.bond_calculator.get_bonds(value)
-        lst.insert(index, value)
+
+            pipeline = self.r.pipeline()
+            atoms_dict = ASEConverter().encode(value)
+            nested_dict = dict_to_nested_znsocket(
+                data=atoms_dict, key=f"room:{self.token}:frame:{index}", client=pipeline
+            )
+            pipeline.execute()
+            lst.insert(index, nested_dict)
+        else:
+            lst.insert(index, value)
 
     def extend(self, values: list[ase.Atoms]):
         if not isinstance(values, list) or not all(
@@ -342,8 +362,8 @@ class ZnDraw(MutableSequence):
         if len(values) == 0:
             return
 
-        if not self.r.exists(f"room:{self.token}:frames") and self.r.exists(
-            "room:default:frames"
+        if not self.r.exists(f"znsocket.List:room:{self.token}:frames") and self.r.exists(
+            "znsocket.List:room:default:frames"
         ):
             default_lst = znsocket.List(
                 self.r,
@@ -361,7 +381,6 @@ class ZnDraw(MutableSequence):
         lst = znsocket.List(
             self.r,
             f"room:{self.token}:frames",
-            converter=[ASEConverter],
             socket=self._refresh_client,
             max_commands_per_call=100,
             convert_nan=self.convert_nan,
@@ -374,20 +393,31 @@ class ZnDraw(MutableSequence):
 
         msg = []
         n_atoms = 0
+        offset = 0
+
+        start_idx = len(lst)
+        pipeline = self.r.pipeline()
 
         for val in tbar:
             if not hasattr(val, "connectivity") and self.bond_calculator is not None:
                 val.connectivity = self.bond_calculator.get_bonds(val)
 
-            msg.append(val)
-            n_atoms += len(val)
-
-            if n_atoms > self.max_atoms_per_call:
-                lst.extend(msg)
-                msg = []
-                n_atoms = 0
-        if len(msg) > 0:
-            lst.extend(msg)
+            atoms_dict = ASEConverter().encode(val)
+            msg.append(
+                dict_to_nested_znsocket(
+                    data=atoms_dict,
+                    key=f"room:{self.token}:frame:{start_idx + offset}",
+                    client=pipeline,
+                    repr_type="minimal",
+                )
+            )
+            offset += 1
+            if offset >= self.max_atoms_per_call:
+                pipeline.execute()
+                n_atoms += offset
+                offset = 0
+        pipeline.execute()
+        lst.extend(msg)
 
     @property
     def selection(self) -> list[int]:
