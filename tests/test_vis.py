@@ -4,7 +4,7 @@ import znjson
 from ase.build import molecule
 
 from zndraw import ZnDraw, ZnDrawLocal
-from zndraw.converter import ASEConverter
+from zndraw.frames.converter import ASEConverter
 
 
 @pytest.fixture

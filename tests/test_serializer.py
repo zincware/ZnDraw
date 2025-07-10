@@ -7,7 +7,7 @@ import znjson
 from ase.calculators.singlepoint import SinglePointCalculator
 from ase.constraints import FixAtoms
 
-from zndraw.converter import ASEConverter
+from zndraw.frames.converter import ASEConverter
 
 
 def test_ase_converter(s22):

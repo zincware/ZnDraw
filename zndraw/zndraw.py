@@ -23,7 +23,8 @@ from zndraw.abc import Message
 from zndraw.base import Extension
 from zndraw.bonds import ASEComputeBonds
 from zndraw.config import SETTINGS
-from zndraw.converter import ASEConverter, Object3DConverter
+from zndraw.frames.converter import ASEConverter, Object3DConverter
+from zndraw.frames.utils import dict_to_nested_znsocket
 from zndraw.draw import Object3D
 from zndraw.exceptions import RoomLockedError
 from zndraw.figure import Figure, FigureConverter
@@ -176,7 +177,7 @@ class ZnDraw(MutableSequence):
         single_item = isinstance(index, int)
         if single_item:
             index = [index]
-        if self.r.exists(f"room:{self.token}:frames"):
+        if self.r.exists(f"znsocket.List:room:{self.token}:frames"):
             structures = znsocket.List(
                 self.r,
                 f"room:{self.token}:frames",
@@ -194,9 +195,10 @@ class ZnDraw(MutableSequence):
                 max_commands_per_call=100,
             )[index]
 
+        # TODO: converting this back could also make use of a pipeline?
         if single_item:
-            return structures[0]
-        return structures
+            return ASEConverter().decode(structures[0])
+        return [ASEConverter().decode(x) for x in structures]
 
     def __setitem__(
         self,
@@ -374,20 +376,28 @@ class ZnDraw(MutableSequence):
 
         msg = []
         n_atoms = 0
+        offset = 0
+
+        start_idx = len(lst)
+        pipeline = self.r.pipeline()
 
         for val in tbar:
             if not hasattr(val, "connectivity") and self.bond_calculator is not None:
                 val.connectivity = self.bond_calculator.get_bonds(val)
 
-            msg.append(val)
-            n_atoms += len(val)
-
-            if n_atoms > self.max_atoms_per_call:
-                lst.extend(msg)
-                msg = []
-                n_atoms = 0
-        if len(msg) > 0:
-            lst.extend(msg)
+                atoms_dict = ASEConverter().encode(val)
+                msg.append(dict_to_nested_znsocket(
+                    data=atoms_dict,
+                    key=f"room:{self.token}:frame:{start_idx + offset}",
+                    client=pipeline
+                ))
+                offset += 1
+                if offset >= self.max_atoms_per_call:
+                    pipeline.execute()
+                    n_atoms += offset
+                    offset = 0
+        pipeline.execute()
+        lst.extend(msg)
 
     @property
     def selection(self) -> list[int]:
