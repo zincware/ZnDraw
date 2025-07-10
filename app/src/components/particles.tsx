@@ -12,6 +12,7 @@ import { setupVectors } from "./api";
 
 import { ParticleControls } from "./particlesEditor";
 import { useMergedMesh } from "./utils/mergeInstancedMesh";
+import { LuSailboat } from "react-icons/lu";
 
 export interface Frame {
 	arrays: { colors: Array<string>; radii: Array<number> };
@@ -51,39 +52,32 @@ export const Player = ({
 	togglePlaying: setPlaying,
 	selectedFrames,
 }: PlayerProps) => {
+	const lastUpdateTime = useRef(0);
+	const frameTime = 1 / 30; // 30 FPS hardcoded for now
+
+
 	useFrame(({ clock }) => {
-		const a = clock.getElapsedTime();
-		if (a > 1 / fps) {
-			if (playing) {
-				if (step === length - 1) {
-					if (!loop) {
-						setPlaying(!playing);
-					} else {
-						if (selectedFrames.indices.size > 0 && selectedFrames.active) {
-							setStep(Math.min(...selectedFrames.indices));
-						} else {
-							setStep(0);
+		if (playing) {
+			// check if the difference is greater than frameTime
+			if (clock.getElapsedTime() - lastUpdateTime.current > frameTime) {
+				console.log(frameTime);
+				console.log(clock.getElapsedTime() - lastUpdateTime.current);
+				lastUpdateTime.current = clock.getElapsedTime();
+				setStep((prevStep) => {
+					console.log("step", prevStep, "length", length, "loop", loop);
+					if (prevStep < length - 1) {
+						if (prevStep + 1 == length - 1 && !loop) {
+							setPlaying(false);
 						}
+						return prevStep + 1;
+					} else if (prevStep === length - 1) {
+						return 0;
 					}
-				} else {
-					if (selectedFrames.indices.size > 0 && selectedFrames.active) {
-						const nextFrame = Array.from(selectedFrames.indices).find(
-							(frame) => frame > step,
-						);
-						if (nextFrame) {
-							setStep(nextFrame);
-						} else {
-							setStep(Math.min(...selectedFrames.indices));
-						}
-					} else {
-						setStep(step + 1);
-					}
-				}
+				});
 			}
-			// reset the clock
-			clock.start();
 		}
 	});
+
 	return null;
 };
 

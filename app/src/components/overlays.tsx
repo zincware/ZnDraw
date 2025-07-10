@@ -77,7 +77,7 @@ export const SceneInfoOverlay = ({
 					<Button variant="close" onClick={() => setShowParticleInfo(false)} />
 				</Card.Header>
 				<Card.Body className="text-start overflow-y-auto">
-					{frame.calc.energy && (
+					{frame.calc?.energy && (
 						<>
 							Energy: {frame.calc.energy} eV
 							<br />

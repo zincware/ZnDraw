@@ -344,6 +344,9 @@ export const useFrameFetching = (token: string) => {
 
 	const getFrameFromCon = useCallback(
 		async (step: number) => {
+			if (!currentRoomCon || !defaultRoomCon) {
+				return null;
+			}
 			let fetchedFrame = await currentRoomCon.get(step);
 			if (!customRoomAvailRef.current && fetchedFrame === null) {
 				return await defaultRoomCon.get(step);
@@ -355,6 +358,9 @@ export const useFrameFetching = (token: string) => {
 	);
 
 	const getLengthFromCon = useCallback(async () => {
+		if (!currentRoomCon || !defaultRoomCon) {
+			return 0;
+		}
 		let length = await currentRoomCon.length();
 		if (!customRoomAvailRef.current && length === 0) {
 			return await defaultRoomCon.length();
