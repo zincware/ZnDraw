@@ -335,22 +335,51 @@ export const setupFrames = (
 		return covalentRadii.map((x: number) => (x - minRadius) / range + 0.3);
 	}, [covalentRadii]);
 
-	const setCurrentFrameFromObject = (frame: any) => {
-		frame = frame.value;
-		frame.positions = frame.positions.map(
+	const setCurrentFrameFromObject = async (frame: any) => {
+		// Await top-level fields
+		const [positions, numbers, arrays, connectivity, cell] = await Promise.all([
+			frame.positions,
+			frame.numbers,
+			frame.arrays,
+			frame.connectivity,
+			frame.cell,
+		]);
+
+		// TODO: vectors are missing!
+		// request them seperately, only if needed
+
+		// Await nested arrays.colors and arrays.radii
+		const [colors, radii] = await Promise.all([
+			arrays?.colors ?? Promise.resolve(null),
+			arrays?.radii ?? Promise.resolve(null),
+		]);
+
+		// Convert positions to THREE.Vector3
+		const resolvedPositions = positions.map(
 			(position: [number, number, number]) =>
 				new THREE.Vector3(position[0], position[1], position[2]),
-		) as THREE.Vector3[];
-		console.log("frame updated");
-		if (!frame?.arrays?.colors) {
-			frame.arrays.colors = frame.numbers.map(
-				(x: number) => "#" + JMOL_COLORS[x].getHexString(),
-			);
-		}
-		if (!frame.arrays.radii) {
-			frame.arrays.radii = frame.numbers.map((x: number) => scaledRadii[x]);
-		}
-		setCurrentFrame(frame);
+		);
+
+		// Build full resolved frame
+		const resolvedFrame = {
+			...frame,
+			positions: resolvedPositions,
+			numbers,
+			connectivity: connectivity ?? [],
+			cell: cell,
+			arrays: {
+				...arrays,
+				colors: colors ??
+					numbers.map(
+						(x: number) => "#" + JMOL_COLORS[x].getHexString(),
+					),
+				radii: radii ?? numbers.map((x: number) => scaledRadii[x]),
+			},
+		};
+
+		console.log("Frame resolved from socket:", resolvedFrame);
+
+		setCurrentFrame(resolvedFrame);
 		currentFrameUpdatedFromSocketRef.current = true;
 	};
 
@@ -447,6 +476,7 @@ export const setupFrames = (
 			// now we request the frame
 
 			const frame = await getFrameFromCon(step || 0);
+			
 
 			if (frame === null) {
 				console.warn("Frame ", step, " is null, retrying after 100ms...");
