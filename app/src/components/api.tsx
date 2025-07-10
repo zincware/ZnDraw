@@ -384,18 +384,20 @@ export const setupFrames = (
 		return covalentRadii.map((x: number) => (x - minRadius) / range + 0.3);
 	}, [covalentRadii]);
 
-	const { getFrameFromCon, getLengthFromCon, currentRoomCon, defaultRoomCon } = useFrameFetching(token);
+	const { getFrameFromCon, getLengthFromCon, currentRoomCon, defaultRoomCon } =
+		useFrameFetching(token);
 
 	const setCurrentFrameFromObject = async (frame: any) => {
 		// Await top-level fields
-		const [positions, numbers, arrays, connectivity, cell, constraints] = await Promise.all([
-			frame.positions,
-			frame.numbers,
-			frame.arrays,
-			frame.connectivity,
-			frame.cell,
-			frame.constraints,
-		]);
+		const [positions, numbers, arrays, connectivity, cell, constraints] =
+			await Promise.all([
+				frame.positions,
+				frame.numbers,
+				frame.arrays,
+				frame.connectivity,
+				frame.cell,
+				frame.constraints,
+			]);
 
 		// TODO: vectors are missing!
 		// request them seperately, only if needed
@@ -704,10 +706,7 @@ export const setupVectors = (
 		}
 
 		try {
-			const [calc, arrays] = await Promise.all([
-				frame.calc,
-				frame.arrays,
-			]);
+			const [calc, arrays] = await Promise.all([frame.calc, frame.arrays]);
 
 			const [calcKeys, arraysKeys] = await Promise.all([
 				calc.keys(),
@@ -716,7 +715,7 @@ export const setupVectors = (
 
 			const vectorProperties: { [key: string]: any } = {};
 			const allKeys = new Set([...calcKeys, ...arraysKeys]);
-			
+
 			// Only process requested properties
 			for (const property of requestedProperties) {
 				if (!allKeys.has(property)) {
@@ -730,8 +729,14 @@ export const setupVectors = (
 				} else if (arraysKeys.includes(property)) {
 					data = await arrays[property];
 				}
-				
-				if (data && Array.isArray(data) && data.length > 0 && Array.isArray(data[0]) && data[0].length === 3) {
+
+				if (
+					data &&
+					Array.isArray(data) &&
+					data.length > 0 &&
+					Array.isArray(data[0]) &&
+					data[0].length === 3
+				) {
 					vectorProperties[property] = data;
 				} else {
 					console.warn(`Property '${property}' is not a valid 3D vector array`);
@@ -749,7 +754,11 @@ export const setupVectors = (
 		const updateVectors = async () => {
 			const frame = await getFrameFromCon(step || 0);
 			if (frame === null) {
-				console.warn("Frame ", step, " is null for vectors, retrying after 100ms...");
+				console.warn(
+					"Frame ",
+					step,
+					" is null for vectors, retrying after 100ms...",
+				);
 				setTimeout(updateVectors, 100);
 				return;
 			}

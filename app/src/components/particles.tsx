@@ -629,7 +629,9 @@ export const PerParticleVectors: React.FC<PerParticleVectorsProps> = ({
 	const [vectors, setVectors] = useState<
 		{ start: THREE.Vector3; end: THREE.Vector3 }[]
 	>([]);
-	const [vectorProperties, setVectorProperties] = useState<{ [key: string]: any }>({});
+	const [vectorProperties, setVectorProperties] = useState<{
+		[key: string]: any;
+	}>({});
 
 	const LineColor = colorMode === "light" ? "#454b66" : "#f5fdc6";
 	const LineWidth = 2;
@@ -668,17 +670,19 @@ export const PerParticleVectors: React.FC<PerParticleVectorsProps> = ({
 		}
 
 		console.log(`Property ${property} found in vectorProperties`);
-		const calculatedVectors = frameData.map((vector: [number, number, number], i: number) => {
-			const start = frame.positions[i];
-			const end = start
-				.clone()
-				.add(
-					new THREE.Vector3(vector[0], vector[1], vector[2]).multiplyScalar(
-						LineScale,
-					),
-				);
-			return { start, end };
-		});
+		const calculatedVectors = frameData.map(
+			(vector: [number, number, number], i: number) => {
+				const start = frame.positions[i];
+				const end = start
+					.clone()
+					.add(
+						new THREE.Vector3(vector[0], vector[1], vector[2]).multiplyScalar(
+							LineScale,
+						),
+					);
+				return { start, end };
+			},
+		);
 		setVectors(calculatedVectors);
 	}, [frame, vectorProperties, property, LineScale]);
 
