@@ -55,7 +55,6 @@ export const Player = ({
 	const lastUpdateTime = useRef(0);
 	const frameTime = 1 / 30; // 30 FPS hardcoded for now
 
-
 	useFrame(({ clock }) => {
 		if (playing) {
 			// check if the difference is greater than frameTime

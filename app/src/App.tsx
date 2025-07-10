@@ -11,32 +11,32 @@ import "./App.css";
 
 // Internal component that uses all the hooks
 const AppContent: React.FC = () => {
-  // Initialize all hooks
-  useSocketManager();
-  useKeyboardHandler();
-  // useWheelHandler();
-  useSelectionCleanup();
-  
-  const { onDragOver, onDrop, onPointerMissed } = useFileHandler();
+	// Initialize all hooks
+	useSocketManager();
+	useKeyboardHandler();
+	// useWheelHandler();
+	useSelectionCleanup();
 
-  return (
-    <>
-      <VisualizationContainer
-        onPointerMissed={onPointerMissed}
-        onDragOver={onDragOver}
-        onDrop={onDrop}
-      />
-      <UIContainer />
-    </>
-  );
+	const { onDragOver, onDrop, onPointerMissed } = useFileHandler();
+
+	return (
+		<>
+			<VisualizationContainer
+				onPointerMissed={onPointerMissed}
+				onDragOver={onDragOver}
+				onDrop={onDrop}
+			/>
+			<UIContainer />
+		</>
+	);
 };
 
 export default function App() {
-  const [colorMode, handleColorMode] = useColorMode();
+	const [colorMode, handleColorMode] = useColorMode();
 
-  return (
-    <AppProvider colorMode={colorMode} handleColorMode={handleColorMode}>
-      <AppContent />
-    </AppProvider>
-  );
+	return (
+		<AppProvider colorMode={colorMode} handleColorMode={handleColorMode}>
+			<AppContent />
+		</AppProvider>
+	);
 }
