@@ -23,11 +23,11 @@ from zndraw.abc import Message
 from zndraw.base import Extension
 from zndraw.bonds import ASEComputeBonds
 from zndraw.config import SETTINGS
-from zndraw.frames.converter import ASEConverter, Object3DConverter
-from zndraw.frames.utils import dict_to_nested_znsocket
 from zndraw.draw import Object3D
 from zndraw.exceptions import RoomLockedError
 from zndraw.figure import Figure, FigureConverter
+from zndraw.frames.converter import ASEConverter, Object3DConverter
+from zndraw.frames.utils import dict_to_nested_znsocket
 from zndraw.queue import check_queue
 from zndraw.type_defs import (
     ATOMS_LIKE,
@@ -247,9 +247,7 @@ class ZnDraw(MutableSequence):
                     val.connectivity = self.bond_calculator.get_bonds(val)
                 atoms_dict = ASEConverter().encode(val)
                 nested_dict = dict_to_nested_znsocket(
-                    data=atoms_dict,
-                    key=f"room:{self.token}:frame:{i}",
-                    client=pipeline
+                    data=atoms_dict, key=f"room:{self.token}:frame:{i}", client=pipeline
                 )
                 lst[i] = nested_dict
             else:
@@ -343,13 +341,11 @@ class ZnDraw(MutableSequence):
         if isinstance(value, ase.Atoms):
             if not hasattr(value, "connectivity") and self.bond_calculator is not None:
                 value.connectivity = self.bond_calculator.get_bonds(value)
-            
+
             pipeline = self.r.pipeline()
             atoms_dict = ASEConverter().encode(value)
             nested_dict = dict_to_nested_znsocket(
-                data=atoms_dict,
-                key=f"room:{self.token}:frame:{index}",
-                client=pipeline
+                data=atoms_dict, key=f"room:{self.token}:frame:{index}", client=pipeline
             )
             pipeline.execute()
             lst.insert(index, nested_dict)
@@ -408,12 +404,14 @@ class ZnDraw(MutableSequence):
                 val.connectivity = self.bond_calculator.get_bonds(val)
 
             atoms_dict = ASEConverter().encode(val)
-            msg.append(dict_to_nested_znsocket(
-                data=atoms_dict,
-                key=f"room:{self.token}:frame:{start_idx + offset}",
-                client=pipeline,
-                repr_type="minimal"
-            ))
+            msg.append(
+                dict_to_nested_znsocket(
+                    data=atoms_dict,
+                    key=f"room:{self.token}:frame:{start_idx + offset}",
+                    client=pipeline,
+                    repr_type="minimal",
+                )
+            )
             offset += 1
             if offset >= self.max_atoms_per_call:
                 pipeline.execute()

@@ -530,7 +530,9 @@ def run_room_copy(room) -> None:
     # check if the room exists or if default room is used instead
     r = current_app.extensions["redis"]
 
-    if not r.exists(f"znsocket.List:room:{room}:frames") and r.exists("znsocket.List:room:default:frames"):
+    if not r.exists(f"znsocket.List:room:{room}:frames") and r.exists(
+        "znsocket.List:room:default:frames"
+    ):
         default_lst = znsocket.List(
             r,
             "room:default:frames",

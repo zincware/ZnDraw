@@ -1,11 +1,9 @@
-import eventlet
-
 import random
 
+import eventlet
 import pytest
 import socketio
 import socketio.exceptions
-
 from znsocket import Client, Server
 
 
@@ -33,6 +31,7 @@ def eventlet_memory_server():
     yield f"znsocket://127.0.0.1:{port}"
 
     thread.kill()
+
 
 @pytest.fixture
 def znsclient(eventlet_memory_server):

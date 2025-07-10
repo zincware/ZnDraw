@@ -369,10 +369,9 @@ export const setupFrames = (
 			cell: cell,
 			arrays: {
 				...arrays,
-				colors: colors ??
-					numbers.map(
-						(x: number) => "#" + JMOL_COLORS[x].getHexString(),
-					),
+				colors:
+					colors ??
+					numbers.map((x: number) => "#" + JMOL_COLORS[x].getHexString()),
 				radii: radii ?? numbers.map((x: number) => scaledRadii[x]),
 			},
 		};
@@ -476,7 +475,6 @@ export const setupFrames = (
 			// now we request the frame
 
 			const frame = await getFrameFromCon(step || 0);
-			
 
 			if (frame === null) {
 				console.warn("Frame ", step, " is null, retrying after 100ms...");
