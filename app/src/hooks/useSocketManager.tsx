@@ -61,16 +61,20 @@ export const useSocketManager = () => {
 	useEffect(() => {
 		function onConnect() {
 			setConnected(true);
-			setIsAuthenticated(true);
 			console.log("connected");
+
+			// Connect to room and get authentication status
+			socket.emit(
+				"webclient:connect",
+				(data: { name: string; room: string; authenticated: boolean }) => {
+					setIsAuthenticated(data.authenticated);
+					setToken(data.room);
+				}
+			);
 
 			// get lock state
 			socket.emit("room:lock:get", (data: boolean) => {
 				setRoomLock(data);
-			});
-
-			socket.emit("room:token:get", (data: string) => {
-				setToken(data);
 			});
 		}
 

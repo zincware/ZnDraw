@@ -134,25 +134,35 @@ export const UIContainer: React.FC = () => {
 			)}
 
 			{/* Overlays */}
-			{showParticleInfo &&
-				hoveredId !== -1 &&
-				hoveredId < currentFrame.positions.length && (
-					<ParticleInfoOverlay
-						particle={{
-							position: currentFrame.positions[hoveredId],
-							number: currentFrame.numbers[hoveredId],
-							color: currentFrame.arrays.colors[hoveredId],
-							radius: currentFrame.arrays.radii[hoveredId],
-							...(isDrawing && { Line: `${lineLength.toFixed(2)} Å` }),
-						}}
-						position={cursorPosition}
-					/>
-				)}
-
-			<SceneInfoOverlay
-				frame={currentFrame}
-				setShowParticleInfo={setShowParticleInfo}
-			/>
+			{(() => {
+				console.log("ParticleInfoOverlay debug:", {
+					showParticleInfo,
+					hoveredId,
+					framePositionsLength: currentFrame.positions.length,
+					condition: showParticleInfo && hoveredId !== -1 && hoveredId < currentFrame.positions.length
+				});
+				return showParticleInfo &&
+					hoveredId !== -1 &&
+					hoveredId < currentFrame.positions.length && (
+						<ParticleInfoOverlay
+							show={showParticleInfo}
+							info={{
+								position: currentFrame.positions[hoveredId],
+								number: currentFrame.numbers[hoveredId],
+								color: currentFrame.arrays.colors[hoveredId],
+								radius: currentFrame.arrays.radii[hoveredId],
+								...(isDrawing && { Line: `${lineLength.toFixed(2)} Å` }),
+							}}
+							position={cursorPosition}
+						/>
+					);
+			})()}
+			{showParticleInfo && (
+				<SceneInfoOverlay
+					frame={currentFrame}
+					setShowParticleInfo={setShowParticleInfo}
+				/>
+			)}
 		</>
 	);
 };

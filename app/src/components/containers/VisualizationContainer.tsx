@@ -109,51 +109,74 @@ export const VisualizationContainer: React.FC<VisualizationContainerProps> = ({
 						)}
 
 					{/* Lighting */}
-					{roomConfig.Visualization.directional_light &&
-						(roomConfig.Visualization.floor ? (
-							<>
-								<Floor colorMode={colorMode} roomConfig={roomConfig} />
-								<directionalLight
-									position={[0, 100, 0]}
-									intensity={1.0}
-									castShadow
-									shadow-mapSize-width={roomConfig.Camera.camera_far * 10}
-									shadow-mapSize-height={roomConfig.Camera.camera_far * 10}
-									shadow-camera-near={10}
-									shadow-camera-far={800}
-									shadow-camera-left={-1 * roomConfig.Camera.camera_far}
-									shadow-camera-right={roomConfig.Camera.camera_far}
-									shadow-camera-top={roomConfig.Camera.camera_far}
-									shadow-camera-bottom={-1 * roomConfig.Camera.camera_far}
-								/>
-							</>
-						) : (
-							<directionalLight position={[0, 100, 0]} intensity={1.0} />
-						))}
+					{(() => {
+						console.log("Floor debug:", {
+							directional_light: roomConfig.Visualization.directional_light,
+							floor: roomConfig.Visualization.floor,
+							roomConfig: roomConfig
+						});
+						return roomConfig.Visualization.directional_light &&
+							(roomConfig.Visualization.floor ? (
+								<>
+									<Floor colorMode={colorMode} roomConfig={roomConfig} />
+									<directionalLight
+										position={[0, 100, 0]}
+										intensity={1.0}
+										castShadow
+										shadow-mapSize-width={roomConfig.Camera.camera_far * 10}
+										shadow-mapSize-height={roomConfig.Camera.camera_far * 10}
+										shadow-camera-near={10}
+										shadow-camera-far={800}
+										shadow-camera-left={-1 * roomConfig.Camera.camera_far}
+										shadow-camera-right={roomConfig.Camera.camera_far}
+										shadow-camera-top={roomConfig.Camera.camera_far}
+										shadow-camera-bottom={-1 * roomConfig.Camera.camera_far}
+									/>
+								</>
+							) : (
+								<directionalLight position={[0, 100, 0]} intensity={1.0} />
+							));
+					})()}
 
 					{/* Vector field */}
-					{roomConfig.VectorDisplay.vectorfield &&
-						currentFrame.vectors !== undefined && (
-							<VectorField
-								vectors={currentFrame.vectors}
-								arrowsConfig={roomConfig.Arrows}
-								pathTracingSettings={roomConfig.PathTracer}
-							/>
-						)}
+					{(() => {
+						console.log("Vector field debug:", {
+							vectorfield: roomConfig.VectorDisplay.vectorfield,
+							vectors: currentFrame.vectors,
+							vectorsUndefined: currentFrame.vectors === undefined,
+							vectorsLength: currentFrame.vectors?.length
+						});
+						return roomConfig.VectorDisplay.vectorfield &&
+							currentFrame.vectors !== undefined && (
+								<VectorField
+									vectors={currentFrame.vectors}
+									arrowsConfig={roomConfig.Arrows}
+									pathTracingSettings={roomConfig.PathTracer}
+								/>
+							);
+					})()}
 
 					{/* Per-particle vectors */}
-					{roomConfig.VectorDisplay.property &&
-						roomConfig.VectorDisplay.property !== "none" && (
-							<PerParticleVectors
-								frame={currentFrame}
-								step={step}
-								property={roomConfig.VectorDisplay.property}
-								colorMode={colorMode}
-								arrowsConfig={roomConfig.VectorDisplay}
-								pathTracingSettings={roomConfig.PathTracer}
-								token={token}
-							/>
-						)}
+					{(() => {
+						console.log("Per-particle vectors debug:", {
+							property: roomConfig.VectorDisplay.property,
+							propertyNotNone: roomConfig.VectorDisplay.property !== "none",
+							frame: currentFrame,
+							step: step
+						});
+						return roomConfig.VectorDisplay.property &&
+							roomConfig.VectorDisplay.property !== "none" && (
+								<PerParticleVectors
+									frame={currentFrame}
+									step={step}
+									property={roomConfig.VectorDisplay.property}
+									colorMode={colorMode}
+									arrowsConfig={roomConfig.VectorDisplay}
+									pathTracingSettings={roomConfig.PathTracer}
+									token={token}
+								/>
+							);
+					})()}
 
 					{/* Simulation cell */}
 					{currentFrame.cell.length > 0 && (
