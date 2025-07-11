@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { useAppContext } from "../contexts/AppContext";
+import { getCentroid } from "../components/particlesEditor";
 
 export const useKeyboardHandler = () => {
 	const {
@@ -21,6 +22,8 @@ export const useKeyboardHandler = () => {
 		setShowParticleInfo,
 		isDrawing,
 		setIsDrawing,
+		cameraAndControls,
+		setCameraAndControls,
 	} = useAppContext();
 
 	useEffect(() => {
@@ -131,6 +134,16 @@ export const useKeyboardHandler = () => {
 			} else if (event.key === "Escape") {
 				// Clear selection
 				setSelectedPoint(null);
+			} else if (event.key === "c" || event.key === "C") {
+				// Center camera on centroid of selected particles, or all particles if none selected
+				const centroid = selectedIds.size > 0 
+					? getCentroid(currentFrame.positions, selectedIds)
+					: getCentroid(currentFrame.positions, new Set());
+				
+				setCameraAndControls((prev: any) => ({
+					...prev,
+					target: centroid,
+				}));
 			} else if (event.key === "i" || event.key === "I") {
 				// Toggle particle info display
 				setShowParticleInfo(!showParticleInfo);
@@ -164,5 +177,7 @@ export const useKeyboardHandler = () => {
 		setShowParticleInfo,
 		isDrawing,
 		setIsDrawing,
+		cameraAndControls,
+		setCameraAndControls,
 	]);
 };
