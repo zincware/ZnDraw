@@ -99,7 +99,7 @@ interface AppState {
 	setShowSiMGen: (show: boolean) => void;
 
 	// Additional UI state
-	modifierQueue: any[];
+	modifierQueue: unknown[];
 	isAuthenticated: boolean;
 	setIsAuthenticated: (authenticated: boolean) => void;
 	addPlotsWindow: number;
@@ -108,8 +108,8 @@ interface AppState {
 	// Data collections
 	bookmarks: Record<number, string>;
 	setBookmarks: (bookmarks: Record<number, string>) => void;
-	geometries: any[];
-	setGeometries: (geometries: any[]) => void;
+	geometries: unknown[];
+	setGeometries: (geometries: unknown[]) => void;
 
 	// Configuration
 	roomConfig: RoomConfig;
@@ -120,12 +120,12 @@ interface AppState {
 	setUpdatedPlotsList: (list: string[]) => void;
 
 	// Messages
-	messages: any[];
-	setMessages: (messages: any[]) => void;
+	messages: unknown[];
+	setMessages: (messages: unknown[]) => void;
 
 	// Vector data
-	vectorProperties: { [key: string]: any };
-	setVectorProperties: (properties: { [key: string]: any }) => void;
+	vectorProperties: Record<string, unknown>;
+	setVectorProperties: (properties: Record<string, unknown>) => void;
 	perParticleVectors: { start: THREE.Vector3; end: THREE.Vector3 }[];
 	vectorFieldData: [number, number, number][][];
 	// Computed colormap for vectors
@@ -216,13 +216,13 @@ export const AppProvider: React.FC<AppProviderProps> = ({
 	const [showSiMGen, setShowSiMGen] = useState<boolean>(false);
 
 	// Additional UI state
-	const [modifierQueue] = useState<any[]>([]);
+	const [modifierQueue] = useState<unknown[]>([]);
 	const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
 	const [addPlotsWindow, setAddPlotsWindow] = useState<number>(0);
 
 	// Data collections
 	const [bookmarks, setBookmarks] = useState<Record<number, string>>({});
-	const [geometries, setGeometries] = useState<any[]>([]);
+	const [geometries, setGeometries] = useState<unknown[]>([]);
 
 	// Configuration
 	const [roomConfig, setRoomConfig] = useState<RoomConfig>({
@@ -280,7 +280,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({
 	const [updatedPlotsList, setUpdatedPlotsList] = useState<string[]>([]);
 
 	// Messages
-	const [messages, setMessages] = useState<any[]>([]);
+	const [messages, setMessages] = useState<unknown[]>([]);
 
 	// Vector data using custom hook
 	const {

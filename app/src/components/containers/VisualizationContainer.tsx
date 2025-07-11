@@ -16,8 +16,6 @@ import { Floor } from "../floor";
 import { Line3D, VirtualCanvas } from "../lines";
 import ControlsBuilder from "../transforms";
 import VectorField from "../vectorfield";
-import { getCentroid } from "../particlesEditor";
-import * as THREE from "three";
 
 interface VisualizationContainerProps {
 	onPointerMissed: () => void;
@@ -73,23 +71,6 @@ export const VisualizationContainer: React.FC<VisualizationContainerProps> = ({
 		vectorFieldData,
 		vectorColormap,
 	} = useAppContext();
-
-	// Calculate derived values
-	const centroid = useMemo(() => {
-		if (selectedIds && selectedIds.size > 0) {
-			return getCentroid(currentFrame.positions, selectedIds);
-		}
-		return getCentroid(currentFrame.positions, new Set());
-	}, [selectedIds, currentFrame.positions]);
-
-	const lineLength = useMemo(() => {
-		if (points.length >= 2) {
-			const start = points[points.length - 2];
-			const end = points[points.length - 1];
-			return start.distanceTo(end);
-		}
-		return 0;
-	}, [points]);
 
 	return (
 		<div
@@ -268,7 +249,10 @@ export const VisualizationContainer: React.FC<VisualizationContainerProps> = ({
 							colorMode={colorMode}
 							hoveredId={hoveredId}
 							setIsDrawing={setIsDrawing}
-							setLineLength={() => {}} // TODO: Add lineLength management
+							setLineLength={(length: number) => {
+								// Line length is now calculated automatically via hook
+								// This callback can be used for additional side effects if needed
+							}}
 						/>
 					)}
 

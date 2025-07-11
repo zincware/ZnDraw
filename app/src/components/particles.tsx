@@ -11,7 +11,6 @@ import type { IndicesState } from "./utils";
 
 import { ParticleControls } from "./particlesEditor";
 import { useMergedMesh } from "./utils/mergeInstancedMesh";
-import { LuSailboat } from "react-icons/lu";
 
 export interface Frame {
 	arrays: { colors: Array<string>; radii: Array<number> };
@@ -58,11 +57,8 @@ export const Player = ({
 		if (playing) {
 			// check if the difference is greater than frameTime
 			if (clock.getElapsedTime() - lastUpdateTime.current > frameTime) {
-				console.log(frameTime);
-				console.log(clock.getElapsedTime() - lastUpdateTime.current);
 				lastUpdateTime.current = clock.getElapsedTime();
 				setStep((prevStep) => {
-					console.log("step", prevStep, "length", length, "loop", loop);
 					if (prevStep < length - 1) {
 						if (prevStep + 1 == length - 1 && !loop) {
 							setPlaying(false);

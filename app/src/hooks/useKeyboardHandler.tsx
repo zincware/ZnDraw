@@ -42,16 +42,9 @@ export const useKeyboardHandler = () => {
 			}
 
 			if (event.key === " ") {
-				console.log("Space bar pressed, current playing state:", playing);
 				event.preventDefault();
 				event.stopPropagation();
-				setPlaying((prevPlaying) => {
-					console.log("Toggling playing from", prevPlaying, "to", !prevPlaying);
-					// Ensure the state is actually updated and returned
-					const newState = !prevPlaying;
-					console.log("New playing state after toggle:", newState);
-					return newState;
-				});
+				setPlaying((prevPlaying) => !prevPlaying);
 				return;
 			}
 
@@ -146,7 +139,7 @@ export const useKeyboardHandler = () => {
 					// Regular Delete/Backspace: Delete selected atoms or selected point
 					if (selectedIds.size > 0) {
 						// Logic for deleting atoms would go here
-						console.log("Delete selected atoms:", selectedIds);
+						// TODO: Implement atom deletion logic
 					}
 					// Delete selected point
 					if (selectedPoint) {
@@ -206,6 +199,5 @@ export const useKeyboardHandler = () => {
 		setIsDrawing,
 		cameraAndControls,
 		setCameraAndControls,
-		REMOVAL_THROTTLE_MS,
 	]);
 };
