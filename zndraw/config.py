@@ -281,3 +281,19 @@ SETTINGS = {
     VectorDisplay.__name__: VectorDisplay,
     Arrows.__name__: Arrows,
 }
+
+if __name__ == "__main__":
+    class FullSettings(SettingsBase):
+        particle: Particle
+        visualization: Visualization
+        camera: Camera
+        path_tracer: PathTracer
+        vector_display: VectorDisplay
+        arrows: Arrows
+
+    # write to ../tmp/config.json
+    import json
+
+    with open("../tmp/config.json", "w") as f:
+        json.dump(FullSettings.model_json_schema(), f, indent=2)
+    # bunx quicktype --lang typescript --src config.json to convert to typescript
