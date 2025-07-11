@@ -59,6 +59,13 @@ export const Player = ({
 	const lastUpdateTime = useRef(0);
 	const frameTime = 1 / 30; // 30 FPS hardcoded for now
 
+	// Handle play state changes - if starting to play on the last frame, jump to first frame
+	useEffect(() => {
+		if (playing && step >= length - 1) {
+			setStep(0);
+		}
+	}, [playing, step, length, setStep]);
+
 	useFrame(({ clock }) => {
 		if (playing && !isFrameRendering) {
 			// check if the difference is greater than frameTime
@@ -74,12 +81,24 @@ export const Player = ({
 					// Apply frame rate (skip frames)
 					if (prevStep < length - 1) {
 						nextStep = Math.min(prevStep + frameRate, length - 1);
-						if (nextStep >= length - 1 && !loop) {
-							setPlaying(false);
+						// Check if we've reached the last frame
+						if (nextStep >= length - 1) {
+							if (loop) {
+								// If looping is enabled, continue playing (will wrap on next iteration)
+								// Don't stop playing here
+							} else {
+								// If looping is disabled, stop playing when we reach the last frame
+								setPlaying(false);
+							}
 						}
 					} else if (prevStep >= length - 1) {
-						nextStep = loop ? 0 : prevStep;
-						if (!loop) {
+						// We're at or past the last frame
+						if (loop) {
+							// If looping is enabled, wrap to the first frame and continue playing
+							nextStep = 0;
+						} else {
+							// If looping is disabled, stay at the last frame and stop playing
+							nextStep = prevStep;
 							setPlaying(false);
 						}
 					}
