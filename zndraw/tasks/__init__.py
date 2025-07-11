@@ -408,12 +408,15 @@ def run_room_worker(room):
     for key in modifier_queue:
         if key in modifier:
             try:
-                task = modifier_queue.pop(key)
-                try:
-                    run_queued_task(vis, modifier[key], task, modifier_queue)
-                except Exception as err:
-                    vis.log(f"Error running modifier `{key}`: {err}")
-            except IndexError:
+                # Check if key exists before popping to avoid KeyError
+                if key in modifier_queue:
+                    task = modifier_queue.pop(key)
+                    try:
+                        run_queued_task(vis, modifier[key], task, modifier_queue)
+                    except Exception as err:
+                        vis.log(f"Error running modifier `{key}`: {err}")
+            except (IndexError, KeyError) as err:
+                vis.log(f"Warning: Task key '{key}' no longer available: {err}")
                 pass
 
     # wait and then disconnect
@@ -530,5 +533,6 @@ def run_room_copy(room) -> None:
             "room:default:frames",
         )
         if not (len(default_lst) == 1 and len(default_lst[0]) == 0):
-            # prevent copying empty default room
-            default_lst.copy(key=f"room:{room}:frames")
+            # Deep copy with full nested structure isolation
+            from zndraw.zndraw import deep_copy_frames_to_room
+            deep_copy_frames_to_room(default_lst, room, r)

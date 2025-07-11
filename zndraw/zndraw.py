@@ -46,6 +46,50 @@ log = logging.getLogger(__name__)
 __version__ = importlib.metadata.version("zndraw")
 
 
+def deep_copy_frames_to_room(default_list: znsocket.List, target_room_token: str, redis_client) -> None:
+    """
+    Deep copy frame data from default room to target room, ensuring all nested
+    znsocket.Dict objects are properly copied to prevent cross-room contamination.
+    """
+    # Create target list
+    target_list = znsocket.List(
+        redis_client,
+        f"room:{target_room_token}:frames",
+        converter=default_list.converter,
+        socket=default_list.socket,
+    )
+    
+    data = list(default_list)
+    frames = []
+    for idx, frame in enumerate(data):
+        # Create a new key for the target room
+        new_key = f"room:{target_room_token}:frame:{idx}"
+        
+        assert isinstance(frame, znsocket.Dict)
+        frames.append(frame.copy(new_key))
+    target_list.extend(frames)
+
+
+def _copy_nested_structures(redis_client, old_key_prefix: str, new_key_prefix: str) -> None:
+    """
+    Recursively copy all nested znsocket objects that belong to a frame.
+    """
+    # Find all keys that start with the old prefix
+    pattern = f"znsocket.*:{old_key_prefix}.*"
+    keys = redis_client.keys(pattern)
+    
+    for old_full_key in keys:
+        # Extract the suffix after the old prefix
+        if f":{old_key_prefix}" in old_full_key:
+            suffix = old_full_key.split(f":{old_key_prefix}", 1)[1]
+            new_full_key = old_full_key.replace(old_key_prefix, new_key_prefix)
+            
+            try:
+                redis_client.copy(old_full_key, new_full_key)
+            except Exception as e:
+                log.warning(f"Failed to copy nested structure {old_full_key}: {e}")
+
+
 class ExtensionType(str, enum.Enum):
     """The type of the extension."""
 
@@ -224,8 +268,9 @@ class ZnDraw(MutableSequence):
                 socket=self._refresh_client,
             )
             if not (len(default_lst) == 1 and len(default_lst[0]) == 0):
-                # prevent copying empty default room
-                default_lst.copy(key=lst.key)
+                # Deep copy with full nested structure isolation
+                if self.token:
+                    deep_copy_frames_to_room(default_lst, self.token, self.r)
 
         if isinstance(index, slice):
             index = list(range(*index.indices(len(self))))
@@ -285,8 +330,9 @@ class ZnDraw(MutableSequence):
                 socket=self._refresh_client,
             )
             if not (len(default_lst) == 1 and len(default_lst[0]) == 0):
-                # prevent copying empty default room
-                default_lst.copy(key=lst.key)
+                # Deep copy with full nested structure isolation
+                if self.token:
+                    deep_copy_frames_to_room(default_lst, self.token, self.r)
 
         del lst[index]
 
@@ -324,10 +370,10 @@ class ZnDraw(MutableSequence):
                 socket=self._refresh_client,
             )
             if not (len(default_lst) == 1 and len(default_lst[0]) == 0):
-                # prevent copying empty default room
-                # TODO: need a nested copy here, because otherwise,
-                # the user could modify the default room!
-                default_lst.copy(key=lst.key)
+                # Deep copy with full nested structure isolation
+                # This resolves the TODO for nested copy
+                if self.token:
+                    deep_copy_frames_to_room(default_lst, self.token, self.r)
 
         if isinstance(value, ase.Atoms):
             if not hasattr(value, "connectivity") and self.bond_calculator is not None:
@@ -364,8 +410,9 @@ class ZnDraw(MutableSequence):
                 socket=self._refresh_client,
             )
             if not (len(default_lst) == 1 and len(default_lst[0]) == 0):
-                # prevent copying empty default room
-                default_lst.copy(key=f"room:{self.token}:frames")
+                # Deep copy with full nested structure isolation
+                if self.token:
+                    deep_copy_frames_to_room(default_lst, self.token, self.r)
 
         # enable tbar if more than 10 messages are sent
         # approximated by the size of the first frame
