@@ -33,6 +33,7 @@ export const useSocketManager = () => {
 		setLength,
 		playing,
 		setPlaying,
+		setIsFrameRendering,
 		// Selection and interaction
 		selectedIds,
 		setSelectedIds,
@@ -128,6 +129,7 @@ export const useSocketManager = () => {
 		setLength,
 		setStep,
 		roomConfig.Visualization.frame_update,
+		setIsFrameRendering,
 	);
 	setupSelection(token, setSelectedIds, selectedIds);
 	setupBookmarks(token, setBookmarks, bookmarks);

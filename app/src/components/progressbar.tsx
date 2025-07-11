@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from "react";
-import { Card, Col, Container, Form, InputGroup, Row } from "react-bootstrap";
+import { Col, Container, Form, InputGroup, Row, FormControl } from "react-bootstrap";
+import "./progressbar.css";
 
 import { OverlayTrigger, Tooltip } from "react-bootstrap";
-import { FaEye, FaLock, FaRegBookmark } from "react-icons/fa";
+import { FaRegBookmark } from "react-icons/fa";
 import { PiSelection, PiSelectionSlash } from "react-icons/pi";
+import { IoMdCodeDownload } from "react-icons/io";
 import type { IndicesState } from "./utils";
 
 interface JumpFrameProps {
@@ -135,6 +137,117 @@ const ColoredTiles = ({
 	);
 };
 
+interface FrameRateControlProps {
+  frameRate: number;
+  setFrameRate: (val: number) => void;
+  isFrameRendering: boolean;
+  connected: boolean;
+}
+
+const FrameRateControl: React.FC<FrameRateControlProps> = ({
+  frameRate,
+  setFrameRate,
+  isFrameRendering,
+  connected,
+}) => {
+  const [showLoadingIcon, setShowLoadingIcon] = useState(false);
+
+  // Delay before showing ⧗ to avoid flickering
+  useEffect(() => {
+    let timeout: NodeJS.Timeout;
+    if (isFrameRendering) {
+      timeout = setTimeout(() => setShowLoadingIcon(true), 1);
+    } else {
+      setShowLoadingIcon(false);
+      clearTimeout(timeout);
+    }
+    return () => clearTimeout(timeout);
+  }, [isFrameRendering]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = parseInt(e.target.value, 10);
+    if (!isNaN(val)) {
+      setFrameRate(Math.max(1, val)); // Ensure frame rate is at least 1
+    }
+  };
+
+  return (
+    <Col
+      className="d-flex justify-content-center align-items-center user-select-none"
+      style={{ height: "25px", padding: 0 }}
+    >
+      <div
+        style={{
+          display: "flex",
+          height: "100%",
+		  
+        }}
+      >
+        <FormControl
+          type="number"
+          value={frameRate}
+          onChange={handleChange}
+          min={1}
+          size="sm"
+          style={{
+            width: "40px",
+            height: "18px",
+            fontSize: "10px",
+            textAlign: "center",
+          }}
+          title="Frame rate (1 = every frame, 2 = every 2nd frame, etc.)"
+        />
+
+        {/* Frame loading icon */}
+		<OverlayTrigger
+            placement="top"
+            delay={{ show: 0, hide: 100 }}
+            overlay={<Tooltip>Loading frame data...</Tooltip>}
+          >
+        <div
+          style={{
+			height: "100%",
+            animation: showLoadingIcon ? "pulse 1s infinite" : "none",
+            visibility: showLoadingIcon ? "visible" : "hidden",
+			alignItems: "center",
+			justifyContent: "center",
+			display: "flex",
+          }}
+          title="Loading frame data..."
+        >
+          <IoMdCodeDownload />
+        </div>
+			</OverlayTrigger>
+
+        {/* Server connection spinner */}
+        {!connected && (
+          <OverlayTrigger
+            placement="top"
+            delay={{ show: 0, hide: 100 }}
+            overlay={<Tooltip>Not connected to server</Tooltip>}
+          >
+			<div 				style={{
+					height: "25px",
+					width: "25px",
+				}}>
+				<div
+				className="spinner-border spinner-border-sm text-primary"
+				role="status"
+				style={{
+					width: "15px",
+					height: "15px",
+				}}
+				>
+				</div>
+              <span className="visually-hidden">Loading...</span>
+            </div>
+          </OverlayTrigger>
+        )}
+      </div>
+    </Col>
+  );
+};
+
 const Bookmarks = ({
 	length,
 	bookmarks,
@@ -201,7 +314,7 @@ const VLine = ({ length, step }: { length: number; step: number }) => {
 				height: 25,
 				width: "2px",
 			}}
-			// why do I need to overwrite the height and width here?
+		// why do I need to overwrite the height and width here?
 		/>
 	);
 };
@@ -248,6 +361,9 @@ interface FrameProgressBarProps {
 	setBookmarks: (bookmarks: any[]) => void; // Replace with actual type if known
 	setSelectedFrames: (selectedFrames: IndicesState) => void;
 	connected: boolean;
+	frameRate: number;
+	setFrameRate: (rate: number) => void;
+	isFrameRendering: boolean;
 }
 
 const FrameProgressBar: React.FC<FrameProgressBarProps> = ({
@@ -259,6 +375,9 @@ const FrameProgressBar: React.FC<FrameProgressBarProps> = ({
 	setBookmarks,
 	setSelectedFrames,
 	connected,
+	frameRate,
+	setFrameRate,
+	isFrameRendering,
 }) => {
 	const [linePosition, setLinePosition] = useState<number>(0);
 	const [disabledFrames, setDisabledFrames] = useState<number[]>([]);
@@ -393,31 +512,12 @@ const FrameProgressBar: React.FC<FrameProgressBarProps> = ({
 						/>
 					</Row>
 					<Row>
-						<Col
-							className="d-flex bg-body justify-content-center align-items-center user-select-none"
-							style={{ height: 25 }}
-						>
-							1
-						</Col>
-						{!connected && (
-							<Col
-								className="d-flex bg-body justify-content-center align-items-center user-select-none"
-								style={{ height: 25 }}
-							>
-								<OverlayTrigger
-									placement="top"
-									delay={{ show: 0, hide: 100 }}
-									overlay={<Tooltip>Not connected to server</Tooltip>}
-								>
-									<div
-										className="spinner-border spinner-border-sm text-primary"
-										role="status"
-									>
-										<span className="visually-hidden">Loading...</span>
-									</div>
-								</OverlayTrigger>
-							</Col>
-						)}
+						<FrameRateControl
+							frameRate={frameRate}
+							setFrameRate={setFrameRate}
+							isFrameRendering={isFrameRendering}
+							connected={connected}
+						/>
 					</Row>
 				</Col>
 			</Row>

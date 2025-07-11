@@ -38,6 +38,9 @@ interface PlayerProps {
 	loop: boolean;
 	togglePlaying: (playing: boolean) => void;
 	selectedFrames: IndicesState;
+	isFrameRendering: boolean;
+	setIsFrameRendering: (rendering: boolean) => void;
+	frameRate: number;
 }
 
 export const Player = ({
@@ -49,24 +52,37 @@ export const Player = ({
 	loop,
 	togglePlaying: setPlaying,
 	selectedFrames,
+	isFrameRendering,
+	setIsFrameRendering,
+	frameRate,
 }: PlayerProps) => {
 	const lastUpdateTime = useRef(0);
 	const frameTime = 1 / 30; // 30 FPS hardcoded for now
 
 	useFrame(({ clock }) => {
-		if (playing) {
+		if (playing && !isFrameRendering) {
 			// check if the difference is greater than frameTime
 			if (clock.getElapsedTime() - lastUpdateTime.current > frameTime) {
 				lastUpdateTime.current = clock.getElapsedTime();
+				
+				// Mark frame as rendering
+				setIsFrameRendering(true);
+				
 				setStep((prevStep) => {
+					let nextStep = prevStep;
+					
+					// Apply frame rate (skip frames)
 					if (prevStep < length - 1) {
-						if (prevStep + 1 == length - 1 && !loop) {
+						nextStep = Math.min(prevStep + frameRate, length - 1);
+						if (nextStep >= length - 1 && !loop) {
 							setPlaying(false);
 						}
-						return prevStep + 1;
 					} else if (prevStep === length - 1) {
-						return 0;
+						nextStep = 0;
 					}
+					
+					// Frame will be marked as finished after rendering completes
+					return nextStep;
 				});
 			}
 		}

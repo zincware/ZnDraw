@@ -63,6 +63,10 @@ interface AppState {
 	// Player state
 	playing: boolean;
 	setPlaying: (playing: boolean) => void;
+	isFrameRendering: boolean;
+	setIsFrameRendering: (rendering: boolean) => void;
+	frameRate: number;
+	setFrameRate: (rate: number) => void;
 
 	// Selection state
 	selectedFrames: IndicesState;
@@ -179,6 +183,8 @@ export const AppProvider: React.FC<AppProviderProps> = ({
 
 	// Player state
 	const [playing, setPlaying] = useState<boolean>(false);
+	const [isFrameRendering, setIsFrameRendering] = useState<boolean>(false);
+	const [frameRate, setFrameRate] = useState<number>(1); // 1 = every frame, 2 = every second frame, etc.
 
 	// Selection state
 	const [selectedFrames, setSelectedFrames] = useState<IndicesState>({
@@ -320,6 +326,10 @@ export const AppProvider: React.FC<AppProviderProps> = ({
 		// Player state
 		playing,
 		setPlaying,
+		isFrameRendering,
+		setIsFrameRendering,
+		frameRate,
+		setFrameRate,
 
 		// Selection state
 		selectedFrames,

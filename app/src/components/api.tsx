@@ -380,6 +380,7 @@ export const setupFrames = (
 	setLength: any,
 	setStep: any,
 	frame_update: boolean,
+	setIsFrameRendering?: (rendering: boolean) => void,
 ) => {
 	const currentFrameUpdatedFromSocketRef = useRef(true);
 	const [updateStepInPlace, setUpdateStepInPlace] = useState(0);
@@ -441,6 +442,9 @@ export const setupFrames = (
 
 		setCurrentFrame(resolvedFrame);
 		currentFrameUpdatedFromSocketRef.current = true;
+		
+		// Set rendering state to false when frame is successfully set
+		setIsFrameRendering?.(false);
 	};
 
 	// setup onRefresh and initial load
@@ -488,11 +492,16 @@ export const setupFrames = (
 		}
 
 		const updateFrame = async () => {
+			// Set rendering state to true when starting websocket request
+			setIsFrameRendering?.(true);
+			
 			// first we check the length
 			const length = await getLengthFromCon();
 			setLength(length);
 			if (step >= length) {
 				setStep(Math.max(0, length - 1));
+				// Set rendering state to false when ending early
+				setIsFrameRendering?.(false);
 				return;
 			}
 			// now we request the frame
@@ -501,6 +510,7 @@ export const setupFrames = (
 
 			if (frame === null) {
 				console.warn("Frame ", step, " is null, retrying after 100ms...");
+				// Keep rendering state true during retry
 				setTimeout(updateFrame, 100); // Retry after 100 ms
 				return;
 			}

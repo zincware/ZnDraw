@@ -22,6 +22,9 @@ export const UIContainer: React.FC = () => {
 		length,
 		playing,
 		setPlaying,
+		frameRate,
+		setFrameRate,
+		isFrameRendering,
 
 		// Selection and interaction
 		selectedIds,
@@ -128,6 +131,9 @@ export const UIContainer: React.FC = () => {
 				bookmarks={bookmarks}
 				setBookmarks={setBookmarks}
 				connected={connected}
+				frameRate={frameRate}
+				setFrameRate={setFrameRate}
+				isFrameRendering={isFrameRendering}
 			/>
 
 			{/* Plotting Component */}
@@ -167,6 +173,7 @@ export const UIContainer: React.FC = () => {
 					setShowParticleInfo={setShowParticleInfo}
 				/>
 			)}
+
 		</>
 	);
 };

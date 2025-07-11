@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React from "react";
 import { Canvas } from "@react-three/fiber";
 import { Pathtracer } from "@react-three/gpu-pathtracer";
 import { Environment } from "@react-three/drei";
@@ -37,6 +37,9 @@ export const VisualizationContainer: React.FC<VisualizationContainerProps> = ({
 		length,
 		playing,
 		setPlaying,
+		isFrameRendering,
+		setIsFrameRendering,
+		frameRate,
 
 		// Selection and interaction
 		selectedIds,
@@ -71,6 +74,8 @@ export const VisualizationContainer: React.FC<VisualizationContainerProps> = ({
 		vectorFieldData,
 		vectorColormap,
 	} = useAppContext();
+
+	// Note: Frame rendering state is now tracked by websocket data loading in setupFrames
 
 	return (
 		<div
@@ -284,6 +289,9 @@ export const VisualizationContainer: React.FC<VisualizationContainerProps> = ({
 					loop={roomConfig.Visualization.loop}
 					togglePlaying={setPlaying}
 					selectedFrames={selectedFrames}
+					isFrameRendering={isFrameRendering}
+					setIsFrameRendering={setIsFrameRendering}
+					frameRate={frameRate}
 				/>
 			</Canvas>
 
