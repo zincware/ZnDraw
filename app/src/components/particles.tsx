@@ -77,8 +77,11 @@ export const Player = ({
 						if (nextStep >= length - 1 && !loop) {
 							setPlaying(false);
 						}
-					} else if (prevStep === length - 1) {
-						nextStep = 0;
+					} else if (prevStep >= length - 1) {
+						nextStep = loop ? 0 : prevStep;
+						if (!loop) {
+							setPlaying(false);
+						}
 					}
 
 					// Frame will be marked as finished after rendering completes
@@ -187,6 +190,10 @@ export const ParticleInstances = ({
 }) => {
 	const meshRef = useRef<THREE.InstancedMesh | null>(null);
 
+
+	useEffect(() => {
+		console.log("Updating frame:", frame);
+	}, [frame]);
 	const actualVisibleIndices = useMemo(() => {
 		if (typeof visibleIndices === "number") {
 			if (visibleIndices === -1) {
@@ -227,32 +234,34 @@ export const ParticleInstances = ({
 	useEffect(() => {
 		if (meshRef.current && actualVisibleIndices.size > 0) {
 			const color = new THREE.Color(selection_color);
-			const scaleVector = new THREE.Vector3();
+			const matrix = new THREE.Matrix4(); // Reuse matrix object
 
 			const visibleArray = Array.from(actualVisibleIndices);
-			visibleArray.forEach((atomIdx, i) => {
+			const highlightColor = highlight ? selection_color : null;
+			
+			// Pre-calculate scale multipliers to avoid repeated conditionals
+			const scaleMultiplier = highlight === "backside" ? 1.25 : 
+								   highlight === "selection" ? 1.01 : 1.0;
+
+			for (let i = 0; i < visibleArray.length; i++) {
+				const atomIdx = visibleArray[i];
 				const position = positions[atomIdx];
 				if (!position) {
 					// if position was removed, this can happen and we skip it until next update
-					return;
+					continue;
 				}
 
-				let radius;
-				if (highlight === "backside") {
-					radius = radii[atomIdx] * 1.25;
-				} else if (highlight === "selection") {
-					radius = radii[atomIdx] * 1.01;
-				} else {
-					radius = radii[atomIdx];
-				}
-				// Set position and scale for each instance
-				const matrix = new THREE.Matrix4()
-					.setPosition(position)
-					.scale(scaleVector.set(radius, radius, radius));
+				const radius = radii[atomIdx] * scaleMultiplier;
+				
+				// Optimize matrix operations by setting elements directly
+				matrix.makeScale(radius, radius, radius);
+				matrix.setPosition(position);
 				meshRef.current.setMatrixAt(i, matrix);
-				color.set(highlight ? selection_color : colors[atomIdx]);
+				
+				// Set color efficiently
+				color.set(highlightColor || colors[atomIdx] || "#ffffff");
 				meshRef.current.setColorAt(i, color);
-			});
+			}
 
 			// Mark instance matrices and colors for update
 			meshRef.current.instanceMatrix.needsUpdate = true;
@@ -339,7 +348,7 @@ export const ParticleInstances = ({
 		}
 	};
 
-	if (highlight === "") {
+	if (highlight === "" && pathTracingSettings?.enabled) {
 		useMergedMesh(meshRef, instancedGeometry, pathTracingSettings, [
 			frame,
 			visibleIndices,
@@ -500,7 +509,7 @@ export const BondInstances = ({
 		}
 	}, [frame, actualVisibleConnectivity, selection_color, geometry]);
 
-	if (highlight === "") {
+	if (highlight === "" && pathTracingSettings?.enabled) {
 		useMergedMesh(meshRef, instancedGeometry, pathTracingSettings, [
 			frame,
 			visibleIndices,

@@ -89,8 +89,6 @@ class ZnDraw(MutableSequence):
     verify: bool | str = True
     convert_nan: bool = False
 
-    max_atoms_per_call: int = dataclasses.field(default=1, repr=False)
-    # number of `ase.Atom` to send per call
     name: str | None = None
 
     _modifiers: dict[str, RegisterModifier] = dataclasses.field(default_factory=dict)
@@ -182,7 +180,6 @@ class ZnDraw(MutableSequence):
                 f"room:{self.token}:frames",
                 converter=[ASEConverter],
                 socket=self._refresh_client,
-                max_commands_per_call=100,
             )[index]
 
         else:
@@ -191,7 +188,6 @@ class ZnDraw(MutableSequence):
                 "room:default:frames",
                 converter=[ASEConverter],
                 socket=self._refresh_client,
-                max_commands_per_call=100,
             )[index]
 
         # TODO: converting this back could also make use of a pipeline?
@@ -217,7 +213,6 @@ class ZnDraw(MutableSequence):
             f"room:{self.token}:frames",
             converter=[ASEConverter],
             socket=self._refresh_client,
-            max_commands_per_call=100,
             convert_nan=self.convert_nan,
         )
         if not self.r.exists(f"znsocket.List:room:{self.token}:frames") and self.r.exists(
@@ -227,7 +222,6 @@ class ZnDraw(MutableSequence):
                 self.r,
                 "room:default:frames",
                 socket=self._refresh_client,
-                max_commands_per_call=100,
             )
             if not (len(default_lst) == 1 and len(default_lst[0]) == 0):
                 # prevent copying empty default room
@@ -279,7 +273,6 @@ class ZnDraw(MutableSequence):
             f"room:{self.token}:frames",
             converter=[ASEConverter],
             socket=self._refresh_client,
-            max_commands_per_call=100,
         )
 
         if not self.r.exists(f"znsocket.List:room:{self.token}:frames") and self.r.exists(
@@ -290,7 +283,6 @@ class ZnDraw(MutableSequence):
                 "room:default:frames",
                 converter=[ASEConverter],
                 socket=self._refresh_client,
-                max_commands_per_call=100,
             )
             if not (len(default_lst) == 1 and len(default_lst[0]) == 0):
                 # prevent copying empty default room
@@ -370,7 +362,6 @@ class ZnDraw(MutableSequence):
                 "room:default:frames",
                 converter=[ASEConverter],
                 socket=self._refresh_client,
-                max_commands_per_call=100,
             )
             if not (len(default_lst) == 1 and len(default_lst[0]) == 0):
                 # prevent copying empty default room
@@ -382,27 +373,24 @@ class ZnDraw(MutableSequence):
             self.r,
             f"room:{self.token}:frames",
             socket=self._refresh_client,
-            max_commands_per_call=100,
             convert_nan=self.convert_nan,
         )
         # TODO: why is there no copy action here?
-        show_tbar = (len(values[0]) * len(values)) > self.max_atoms_per_call
         tbar = tqdm.tqdm(
-            values, desc="Sending frames", unit=" frame", disable=not show_tbar
+            values, desc="Sending frames", unit=" frame", disable=False, leave=True
         )
 
         msg = []
-        n_atoms = 0
         offset = 0
 
         start_idx = len(lst)
-        # nonlocal pipeline
         pipeline = self.r.pipeline()
 
-
         for val in tbar:
+            # TODO connectivity in info
             if not hasattr(val, "connectivity") and self.bond_calculator is not None:
                 val.connectivity = self.bond_calculator.get_bonds(val)
+            
 
             atoms_dict = ASEConverter().encode(val)
             msg.append(
@@ -414,13 +402,18 @@ class ZnDraw(MutableSequence):
                 )
             )
             offset += 1
-            if offset >= self.max_atoms_per_call:
+            if offset >= 10: # hard coded sent every 10 frames
                 pipeline.execute()
                 pipeline = self.r.pipeline()
-                n_atoms += offset
+                start_idx += offset
                 offset = 0
+                lst.extend(msg)
+                msg = []
+
         pipeline.execute()
-        lst.extend(msg)
+        if len(msg) > 0:
+            lst.extend(msg)
+
 
     @property
     def selection(self) -> list[int]:
@@ -472,7 +465,6 @@ class ZnDraw(MutableSequence):
             self.r,
             f"room:{self.token}:chat",
             socket=self._refresh_client,
-            max_commands_per_call=100,
             convert_nan=self.convert_nan,
         ).append(msg)
 
@@ -483,7 +475,6 @@ class ZnDraw(MutableSequence):
             f"room:{self.token}:chat",
             repr_type="length",
             socket=self._refresh_client,
-            max_commands_per_call=100,
         )
 
     @step.setter
@@ -629,7 +620,6 @@ class ZnDraw(MutableSequence):
             repr_type="full",
             socket=self._refresh_client,
             converter=[Object3DConverter],
-            max_commands_per_call=100,
         )
 
     @geometries.setter
@@ -643,7 +633,6 @@ class ZnDraw(MutableSequence):
             f"room:{self.token}:geometries",
             socket=self._refresh_client,
             converter=[Object3DConverter],
-            max_commands_per_call=100,
         )
         lst.clear()
         lst.extend(value)

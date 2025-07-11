@@ -126,21 +126,11 @@ def read_file(fileio: dict) -> None:
         url=current_app.config["SERVER_URL"],
         token="default",
         convert_nan=file_io.convert_nan,
+        bond_calculator=ASEComputeBonds() if current_app.config.get("COMPUTE_BONDS", False) else None,
     )
-    bonds_calculator = ASEComputeBonds()
-    if current_app.config.get("COMPUTE_BONDS", False):
-        generator = get_generator_from_filename(file_io, bonds_calculator)
-    else:
-        generator = get_generator_from_filename(file_io)
-
-    # TODO: vis.extend(generator) # vis does not yet support consuming a generator
-    atoms_buffer = []
-    for atoms in generator:
-        atoms_buffer.append(atoms)
-        if len(atoms_buffer) > 10:
-            vis.extend(atoms_buffer)
-            atoms_buffer = []
-    vis.extend(atoms_buffer)
+    generator = get_generator_from_filename(file_io)
+    data = list(generator)
+    vis.extend(data)
     vis.socket.sleep(1)
     vis.socket.disconnect()
 
