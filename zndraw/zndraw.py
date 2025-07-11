@@ -16,7 +16,6 @@ import tqdm
 import typing_extensions as tyex
 import znjson
 import znsocket
-import znsocket.exceptions
 from redis import Redis
 
 from zndraw.abc import Message
@@ -433,6 +432,8 @@ class ZnDraw(MutableSequence):
         start_idx = len(lst)
         pipeline = self.r.pipeline()
 
+        now = datetime.datetime.now()
+
         for val in tbar:
             # TODO connectivity in info
             if not hasattr(val, "connectivity") and self.bond_calculator is not None:
@@ -449,7 +450,7 @@ class ZnDraw(MutableSequence):
                 )
             )
             offset += 1
-            if offset >= 10: # hard coded sent every 10 frames
+            if datetime.datetime.now() - now > datetime.timedelta(seconds=1):
                 pipeline.execute()
                 pipeline = self.r.pipeline()
                 start_idx += offset
