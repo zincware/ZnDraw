@@ -280,8 +280,8 @@ class ZnDraw(MutableSequence):
         pipeline = self.r.pipeline()
         for i, val in zip(index, value):
             if isinstance(val, ase.Atoms):
-                if not hasattr(val, "connectivity") and self.bond_calculator is not None:
-                    val.connectivity = self.bond_calculator.get_bonds(val)
+                if "connectivity" not in val.info and self.bond_calculator is not None:
+                    self.bond_calculator.get_bonds(val)
                 atoms_dict = ASEConverter().encode(val)
                 nested_dict = dict_to_nested_znsocket(
                     data=atoms_dict, key=f"room:{self.token}:frame:{i}", client=pipeline
@@ -375,8 +375,8 @@ class ZnDraw(MutableSequence):
                     deep_copy_frames_to_room(default_lst, self.token, self.r)
 
         if isinstance(value, ase.Atoms):
-            if not hasattr(value, "connectivity") and self.bond_calculator is not None:
-                value.connectivity = self.bond_calculator.get_bonds(value)
+            if "connectivity" not in value.info and self.bond_calculator is not None:
+                self.bond_calculator.get_bonds(value)
 
             pipeline = self.r.pipeline()
             atoms_dict = ASEConverter().encode(value)
@@ -435,9 +435,9 @@ class ZnDraw(MutableSequence):
         now = datetime.datetime.now()
 
         for val in tbar:
-            # TODO connectivity in info
-            if not hasattr(val, "connectivity") and self.bond_calculator is not None:
-                val.connectivity = self.bond_calculator.get_bonds(val)
+            # connectivity now stored in val.info["connectivity"]
+            if "connectivity" not in val.info and self.bond_calculator is not None:
+                self.bond_calculator.get_bonds(val)
             
 
             atoms_dict = ASEConverter().encode(val)

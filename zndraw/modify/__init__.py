@@ -116,7 +116,8 @@ class Delete(UpdateScene):
             for idx, atom_id in enumerate(sorted(atom_ids)):
                 atoms.pop(atom_id - idx)  # we remove the atom and shift the index
             if hasattr(atoms, "connectivity"):
-                del atoms.connectivity
+                if "connectivity" in atoms.info:
+                    del atoms.info["connectivity"]
         vis.append(atoms)
         vis.selection = []
         vis.step += 1
@@ -173,7 +174,8 @@ class Duplicate(UpdateScene):
             atoms.arrays.pop("colors", None)
             atoms.arrays.pop("radii", None)
             if hasattr(atoms, "connectivity"):
-                del atoms.connectivity
+                if "connectivity" in atoms.info:
+                    del atoms.info["connectivity"]
 
         vis.append(atoms)
         vis.selection = []
@@ -194,7 +196,8 @@ class ChangeType(UpdateScene):
         atoms.arrays.pop("radii", None)
         if hasattr(atoms, "connectivity"):
             # vdW radii might change
-            del atoms.connectivity
+            if "connectivity" in atoms.info:
+                    del atoms.info["connectivity"]
 
         vis.append(atoms)
         vis.selection = []
@@ -214,7 +217,8 @@ class AddLineParticles(UpdateScene):
         atoms.arrays.pop("colors", None)
         atoms.arrays.pop("radii", None)
         if hasattr(atoms, "connectivity"):
-            del atoms.connectivity
+            if "connectivity" in atoms.info:
+                    del atoms.info["connectivity"]
 
         vis.append(atoms)
 

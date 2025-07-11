@@ -108,8 +108,8 @@ def get_generator_from_filename(
 
     if bond_calculator is not None:
         for atoms in gen:
-            if not hasattr(atoms, "connectivity"):
-                atoms.connectivity = bond_calculator.get_bonds(atoms)
+            if "connectivity" not in atoms.info:
+                bond_calculator.get_bonds(atoms)
             yield atoms
     else:
         yield from gen
@@ -163,8 +163,8 @@ def run_upload_file(room, data: dict):
     if len(atoms_list) == 1 and len(vis.points) != 0:
         scene = vis.atoms
         atoms = atoms_list[0]
-        if hasattr(scene, "connectivity"):
-            del scene.connectivity
+        if "connectivity" in scene.info:
+            del scene.info["connectivity"]
         for point in vis.points:
             atoms.positions -= atoms.get_center_of_mass() - point
             scene += atoms
