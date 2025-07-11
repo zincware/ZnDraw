@@ -66,7 +66,9 @@ def _get_znh5md_generator(file_io: FileIO) -> t.Iterable[ase.Atoms]:
             "You need to install ZnH5MD>=0.3 to use the remote feature."
         ) from err
     log.critical(file_io)
-    return io[file_io.start : file_io.stop : file_io.step]
+    frames = io[file_io.start : file_io.stop : file_io.step]
+    log.critical(f"Loaded frames: {len(frames)}")
+    return frames
 
 
 def _get_http_generator(file_io: FileIO) -> t.Iterable[ase.Atoms]:

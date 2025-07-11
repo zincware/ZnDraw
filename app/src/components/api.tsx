@@ -438,7 +438,7 @@ export const setupFrames = (
 			},
 		};
 
-		console.log("Frame resolved from socket:", resolvedFrame);
+		// console.log("Frame resolved from socket:", resolvedFrame);
 
 		setCurrentFrame(resolvedFrame);
 		currentFrameUpdatedFromSocketRef.current = true;

@@ -163,7 +163,7 @@ const FrameRateControl: React.FC<FrameRateControlProps> = ({
 	useEffect(() => {
 		let timeout: NodeJS.Timeout;
 		if (isFrameRendering) {
-			timeout = setTimeout(() => setShowLoadingIcon(true), 1);
+			timeout = setTimeout(() => setShowLoadingIcon(true), 100);
 		} else {
 			setShowLoadingIcon(false);
 			clearTimeout(timeout);

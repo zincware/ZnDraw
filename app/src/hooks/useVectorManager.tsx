@@ -152,13 +152,6 @@ export const useVectorManager = ({
 		const shouldLoadVectorField = token && vectorConfig.vectorfield;
 
 		if (shouldLoadVectors || shouldLoadVectorField) {
-			console.log(
-				"Setting up vectors for properties:",
-				vectorConfig.vectors,
-				"vectorfield:",
-				vectorConfig.vectorfield,
-			);
-
 			const loadVectors = async () => {
 				try {
 					const frame = await getFrameFromCon(step);

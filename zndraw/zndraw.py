@@ -89,7 +89,7 @@ class ZnDraw(MutableSequence):
     verify: bool | str = True
     convert_nan: bool = False
 
-    max_atoms_per_call: int = dataclasses.field(default=1000, repr=False)
+    max_atoms_per_call: int = dataclasses.field(default=1, repr=False)
     # number of `ase.Atom` to send per call
     name: str | None = None
 
@@ -396,7 +396,9 @@ class ZnDraw(MutableSequence):
         offset = 0
 
         start_idx = len(lst)
+        # nonlocal pipeline
         pipeline = self.r.pipeline()
+
 
         for val in tbar:
             if not hasattr(val, "connectivity") and self.bond_calculator is not None:
@@ -414,6 +416,7 @@ class ZnDraw(MutableSequence):
             offset += 1
             if offset >= self.max_atoms_per_call:
                 pipeline.execute()
+                pipeline = self.r.pipeline()
                 n_atoms += offset
                 offset = 0
         pipeline.execute()
