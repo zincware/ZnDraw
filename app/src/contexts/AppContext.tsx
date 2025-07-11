@@ -2,6 +2,8 @@ import React, { createContext, useContext, useState, ReactNode } from "react";
 import * as THREE from "three";
 import type { Frame } from "../components/particles";
 import type { IndicesState } from "../components/utils";
+import type { HSLColor } from "../components/utils";
+import { useVectorManager } from "../hooks/useVectorManager";
 
 // Define interfaces for better type safety
 interface RoomConfig {
@@ -26,6 +28,8 @@ interface RoomConfig {
 	};
 	VectorDisplay: {
 		vectorfield: boolean;
+		vectors: string[];
+		vector_scale: number;
 		[key: string]: any;
 	};
 }
@@ -117,6 +121,13 @@ interface AppState {
 	// Messages
 	messages: any[];
 	setMessages: (messages: any[]) => void;
+
+	// Vector data
+	vectorProperties: { [key: string]: any };
+	setVectorProperties: (properties: { [key: string]: any }) => void;
+	perParticleVectors: { start: THREE.Vector3; end: THREE.Vector3 }[];
+	// Computed colormap for vectors
+	vectorColormap: HSLColor[];
 }
 
 const AppContext = createContext<AppState | undefined>(undefined);
@@ -251,10 +262,11 @@ export const AppProvider: React.FC<AppProviderProps> = ({
 			colorrange: [0, 1],
 			normalize: false,
 			opacity: 1.0,
-			property: "none",
 			rescale: 1.0,
 			scale_vector_thickness: false,
 			vectorfield: false,
+			vectors: [],
+			vector_scale: 1.0,
 		},
 	});
 
@@ -263,6 +275,14 @@ export const AppProvider: React.FC<AppProviderProps> = ({
 
 	// Messages
 	const [messages, setMessages] = useState<any[]>([]);
+
+	// Vector data using custom hook
+	const { vectorProperties, setVectorProperties, perParticleVectors, vectorColormap } = useVectorManager({
+		token,
+		step,
+		currentFrame,
+		vectorConfig: roomConfig.VectorDisplay,
+	});
 
 	const value: AppState = {
 		// Connection state
@@ -346,6 +366,12 @@ export const AppProvider: React.FC<AppProviderProps> = ({
 		// Messages
 		messages,
 		setMessages,
+
+		// Vector data
+		vectorProperties,
+		setVectorProperties,
+		perParticleVectors,
+		vectorColormap,
 	};
 
 	return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

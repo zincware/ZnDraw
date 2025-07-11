@@ -67,6 +67,10 @@ export const VisualizationContainer: React.FC<VisualizationContainerProps> = ({
 
 		// Geometry data
 		geometries,
+
+		// Vector data
+		perParticleVectors,
+		vectorColormap,
 	} = useAppContext();
 
 	// Calculate derived values
@@ -132,44 +136,30 @@ export const VisualizationContainer: React.FC<VisualizationContainerProps> = ({
 						)}
 
 					{/* Vector field */}
-					{(() => {
-						console.log("Vector field debug:", {
-							vectorfield: roomConfig.VectorDisplay.vectorfield,
-							vectors: currentFrame.vectors,
-							vectorsUndefined: currentFrame.vectors === undefined,
-							vectorsLength: currentFrame.vectors?.length
-						});
-						return roomConfig.VectorDisplay.vectorfield &&
-							currentFrame.vectors !== undefined && (
-								<VectorField
-									vectors={currentFrame.vectors}
-									arrowsConfig={roomConfig.Arrows}
-									pathTracingSettings={roomConfig.PathTracer}
-								/>
-							);
-					})()}
+					{roomConfig.VectorDisplay.vectorfield && currentFrame.vectors !== undefined && (
+						<VectorField
+							vectors={currentFrame.vectors}
+							arrowsConfig={{
+								...roomConfig.Arrows,
+								colormap: vectorColormap,
+							}}
+							pathTracingSettings={roomConfig.PathTracer}
+						/>
+					)}
 
 					{/* Per-particle vectors */}
-					{(() => {
-						console.log("Per-particle vectors debug:", {
-							property: roomConfig.VectorDisplay.property,
-							propertyNotNone: roomConfig.VectorDisplay.property !== "none",
-							frame: currentFrame,
-							step: step
-						});
-						return roomConfig.VectorDisplay.property &&
-							roomConfig.VectorDisplay.property !== "none" && (
-								<PerParticleVectors
-									frame={currentFrame}
-									step={step}
-									property={roomConfig.VectorDisplay.property}
-									colorMode={colorMode}
-									arrowsConfig={roomConfig.VectorDisplay}
-									pathTracingSettings={roomConfig.PathTracer}
-									token={token}
-								/>
-							);
-					})()}
+					{roomConfig.VectorDisplay.vectors &&
+						roomConfig.VectorDisplay.vectors.length > 0 && 
+						perParticleVectors.length > 0 && (
+							<PerParticleVectors
+								vectors={perParticleVectors}
+								arrowsConfig={{
+									...roomConfig.VectorDisplay,
+									colormap: vectorColormap,
+								}}
+								pathTracingSettings={roomConfig.PathTracer}
+							/>
+						)}
 
 					{/* Simulation cell */}
 					{currentFrame.cell.length > 0 && (

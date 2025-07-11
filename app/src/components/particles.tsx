@@ -8,7 +8,6 @@ import { Line } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
 import Arrows from "./meshes";
 import type { IndicesState } from "./utils";
-import { setupVectors } from "./api";
 
 import { ParticleControls } from "./particlesEditor";
 import { useMergedMesh } from "./utils/mergeInstancedMesh";
@@ -601,83 +600,35 @@ export const SimulationCell = ({
 };
 
 interface PerParticleVectorsProps {
-	frame: Frame | undefined;
-	step: any;
-	property: string;
-	colorMode: string;
+	vectors: { start: THREE.Vector3; end: THREE.Vector3 }[];
 	arrowsConfig: any;
 	pathTracingSettings: any;
-	token: string;
 }
 
 export const PerParticleVectors: React.FC<PerParticleVectorsProps> = ({
-	frame,
-	step,
-	property,
-	colorMode,
+	vectors,
 	arrowsConfig,
 	pathTracingSettings,
-	token,
 }) => {
-	const [vectors, setVectors] = useState<
-		{ start: THREE.Vector3; end: THREE.Vector3 }[]
-	>([]);
-	const [vectorProperties, setVectorProperties] = useState<{
-		[key: string]: any;
-	}>({});
-
-	const LineColor = colorMode === "light" ? "#454b66" : "#f5fdc6";
-	const LineWidth = 2;
-	const LineScale = 1;
-
 	const [colorRange, setColorRange] = useState<[number, number]>(
-		arrowsConfig.colorrange,
+		Array.isArray(arrowsConfig.colorrange) ? arrowsConfig.colorrange : [0, 1],
 	);
 
-	setupVectors(token, step, setVectorProperties, [property]);
-
 	useEffect(() => {
+		if (vectors.length === 0) {
+			setColorRange([0, 1]);
+			return;
+		}
+		
 		if (arrowsConfig.normalize) {
 			const max = Math.max(
 				...vectors.map((vector) => vector.start.distanceTo(vector.end)),
 			);
 			setColorRange([0, max]);
 		} else {
-			setColorRange(arrowsConfig.colorrange);
+			setColorRange(Array.isArray(arrowsConfig.colorrange) ? arrowsConfig.colorrange : [0, 1]);
 		}
 	}, [vectors, arrowsConfig.normalize, arrowsConfig.colorrange]);
-
-	useEffect(() => {
-		if (!frame || !vectorProperties[property]) {
-			setVectors([]);
-			return;
-		}
-
-		const frameData = vectorProperties[property];
-		if (frameData.length !== frame.positions.length) {
-			console.error(
-				`Length of property ${property} does not match the number of particles`,
-			);
-			setVectors([]);
-			return;
-		}
-
-		console.log(`Property ${property} found in vectorProperties`);
-		const calculatedVectors = frameData.map(
-			(vector: [number, number, number], i: number) => {
-				const start = frame.positions[i];
-				const end = start
-					.clone()
-					.add(
-						new THREE.Vector3(vector[0], vector[1], vector[2]).multiplyScalar(
-							LineScale,
-						),
-					);
-				return { start, end };
-			},
-		);
-		setVectors(calculatedVectors);
-	}, [frame, vectorProperties, property, LineScale]);
 
 	const startMap = useMemo(
 		() => vectors.map((vec) => vec.start.toArray()),
@@ -687,6 +638,10 @@ export const PerParticleVectors: React.FC<PerParticleVectorsProps> = ({
 		() => vectors.map((vec) => vec.end.toArray()),
 		[vectors],
 	);
+
+	if (vectors.length === 0) {
+		return null;
+	}
 
 	return (
 		<>

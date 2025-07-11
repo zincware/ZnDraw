@@ -135,12 +135,6 @@ export const UIContainer: React.FC = () => {
 
 			{/* Overlays */}
 			{(() => {
-				console.log("ParticleInfoOverlay debug:", {
-					showParticleInfo,
-					hoveredId,
-					framePositionsLength: currentFrame.positions.length,
-					condition: showParticleInfo && hoveredId !== -1 && hoveredId < currentFrame.positions.length
-				});
 				return showParticleInfo &&
 					hoveredId !== -1 &&
 					hoveredId < currentFrame.positions.length && (
