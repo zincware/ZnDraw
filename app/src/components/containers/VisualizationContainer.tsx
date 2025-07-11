@@ -70,6 +70,7 @@ export const VisualizationContainer: React.FC<VisualizationContainerProps> = ({
 
 		// Vector data
 		perParticleVectors,
+		vectorFieldData,
 		vectorColormap,
 	} = useAppContext();
 
@@ -136,9 +137,9 @@ export const VisualizationContainer: React.FC<VisualizationContainerProps> = ({
 						)}
 
 					{/* Vector field */}
-					{roomConfig.VectorDisplay.vectorfield && currentFrame.vectors !== undefined && (
+					{roomConfig.VectorDisplay.vectorfield && vectorFieldData.length > 0 && (
 						<VectorField
-							vectors={currentFrame.vectors}
+							vectors={vectorFieldData}
 							arrowsConfig={{
 								...roomConfig.Arrows,
 								colormap: vectorColormap,

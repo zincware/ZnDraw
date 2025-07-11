@@ -26,6 +26,7 @@ interface VectorConfig {
 	vectors: string[];
 	colormap: string;
 	vector_scale: number;
+	vectorfield: boolean;
 	[key: string]: any;
 }
 
@@ -40,6 +41,7 @@ interface UseVectorManagerReturn {
 	vectorProperties: { [key: string]: any };
 	setVectorProperties: (properties: { [key: string]: any }) => void;
 	perParticleVectors: { start: THREE.Vector3; end: THREE.Vector3 }[];
+	vectorFieldData: [number, number, number][][];
 	vectorColormap: HSLColor[];
 }
 
@@ -51,6 +53,7 @@ export const useVectorManager = ({
 }: UseVectorManagerProps): UseVectorManagerReturn => {
 	const [vectorProperties, setVectorProperties] = useState<{ [key: string]: any }>({});
 	const [perParticleVectors, setPerParticleVectors] = useState<{ start: THREE.Vector3; end: THREE.Vector3 }[]>([]);
+	const [vectorFieldData, setVectorFieldData] = useState<[number, number, number][][]>([]);
 	
 	// Computed colormap based on vectorConfig
 	const vectorColormap = getColormap(vectorConfig.colormap);
@@ -63,11 +66,12 @@ export const useVectorManager = ({
 		const setupVectorsFromFrame = async (frame: any, requestedProperties: string[]) => {
 			if (!frame) {
 				setVectorProperties({});
+				setVectorFieldData([]);
 				return;
 			}
 
 			try {
-				const [calc, arrays] = await Promise.all([frame.calc, frame.arrays]);
+				const [calc, arrays, vectors] = await Promise.all([frame.calc, frame.arrays, frame.vectors]);
 
 				const [calcKeys, arraysKeys] = await Promise.all([
 					calc.keys(),
@@ -77,7 +81,7 @@ export const useVectorManager = ({
 				const vectorPropertiesData: { [key: string]: any } = {};
 				const allKeys = new Set([...calcKeys, ...arraysKeys]);
 
-				// Only process requested properties
+				// Only process requested properties for per-particle vectors
 				for (const property of requestedProperties) {
 					if (!allKeys.has(property)) {
 						console.warn(`Requested property '${property}' not found in frame`);
@@ -105,14 +109,34 @@ export const useVectorManager = ({
 				}
 
 				setVectorProperties(vectorPropertiesData);
+
+				// Load vector field data from info.vectors if vectorfield is enabled
+				if (vectorConfig.vectorfield && vectors) {
+					try {
+						if (vectors && Array.isArray(vectors)) {
+							setVectorFieldData(vectors);
+						} else {
+							setVectorFieldData([]);
+						}
+					} catch (error) {
+						console.warn("No vector field data found in frame.info.vectors");
+						setVectorFieldData([]);
+					}
+				} else {
+					setVectorFieldData([]);
+				}
 			} catch (error) {
 				console.error("Error setting up vectors:", error);
 				setVectorProperties({});
+				setVectorFieldData([]);
 			}
 		};
 
-		if (token && vectorConfig.vectors && vectorConfig.vectors.length > 0) {
-			console.log("Setting up vectors for properties:", vectorConfig.vectors);
+		const shouldLoadVectors = token && vectorConfig.vectors && vectorConfig.vectors.length > 0;
+		const shouldLoadVectorField = token && vectorConfig.vectorfield;
+
+		if (shouldLoadVectors || shouldLoadVectorField) {
+			console.log("Setting up vectors for properties:", vectorConfig.vectors, "vectorfield:", vectorConfig.vectorfield);
 			
 			const loadVectors = async () => {
 				try {
@@ -121,14 +145,16 @@ export const useVectorManager = ({
 				} catch (error) {
 					console.error("Error loading vectors:", error);
 					setVectorProperties({});
+					setVectorFieldData([]);
 				}
 			};
 
 			loadVectors();
 		} else {
 			setVectorProperties({});
+			setVectorFieldData([]);
 		}
-	}, [token, step, vectorConfig.vectors, getFrameFromCon]);
+	}, [token, step, vectorConfig.vectors, vectorConfig.vectorfield, getFrameFromCon]);
 
 	// Calculate per-particle vectors when vectorProperties or currentFrame changes
 	useEffect(() => {
@@ -164,6 +190,7 @@ export const useVectorManager = ({
 		vectorProperties,
 		setVectorProperties,
 		perParticleVectors,
+		vectorFieldData,
 		vectorColormap,
 	};
 };

@@ -126,6 +126,7 @@ interface AppState {
 	vectorProperties: { [key: string]: any };
 	setVectorProperties: (properties: { [key: string]: any }) => void;
 	perParticleVectors: { start: THREE.Vector3; end: THREE.Vector3 }[];
+	vectorFieldData: [number, number, number][][];
 	// Computed colormap for vectors
 	vectorColormap: HSLColor[];
 }
@@ -277,7 +278,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({
 	const [messages, setMessages] = useState<any[]>([]);
 
 	// Vector data using custom hook
-	const { vectorProperties, setVectorProperties, perParticleVectors, vectorColormap } = useVectorManager({
+	const { vectorProperties, setVectorProperties, perParticleVectors, vectorFieldData, vectorColormap } = useVectorManager({
 		token,
 		step,
 		currentFrame,
@@ -371,6 +372,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({
 		vectorProperties,
 		setVectorProperties,
 		perParticleVectors,
+		vectorFieldData,
 		vectorColormap,
 	};
 
