@@ -28,11 +28,11 @@ export const useKeyboardHandler = () => {
 
 	useEffect(() => {
 		const handleKeyDown = (event: KeyboardEvent) => {
-
-			const canvasContainer = document.querySelector('.canvas-container');
-			const isCanvasFocused = canvasContainer && canvasContainer.contains(document.activeElement);
+			const canvasContainer = document.querySelector(".canvas-container");
+			const isCanvasFocused =
+				canvasContainer && canvasContainer.contains(document.activeElement);
 			const isBodyFocused = document.activeElement === document.body;
-			
+
 			if (!isCanvasFocused && !isBodyFocused) {
 				return;
 			}
@@ -136,10 +136,11 @@ export const useKeyboardHandler = () => {
 				setSelectedPoint(null);
 			} else if (event.key === "c" || event.key === "C") {
 				// Center camera on centroid of selected particles, or all particles if none selected
-				const centroid = selectedIds.size > 0 
-					? getCentroid(currentFrame.positions, selectedIds)
-					: getCentroid(currentFrame.positions, new Set());
-				
+				const centroid =
+					selectedIds.size > 0
+						? getCentroid(currentFrame.positions, selectedIds)
+						: getCentroid(currentFrame.positions, new Set());
+
 				setCameraAndControls((prev: any) => ({
 					...prev,
 					target: centroid,

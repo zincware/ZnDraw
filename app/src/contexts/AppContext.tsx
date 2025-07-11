@@ -278,7 +278,13 @@ export const AppProvider: React.FC<AppProviderProps> = ({
 	const [messages, setMessages] = useState<any[]>([]);
 
 	// Vector data using custom hook
-	const { vectorProperties, setVectorProperties, perParticleVectors, vectorFieldData, vectorColormap } = useVectorManager({
+	const {
+		vectorProperties,
+		setVectorProperties,
+		perParticleVectors,
+		vectorFieldData,
+		vectorColormap,
+	} = useVectorManager({
 		token,
 		step,
 		currentFrame,

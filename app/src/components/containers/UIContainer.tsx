@@ -135,7 +135,8 @@ export const UIContainer: React.FC = () => {
 
 			{/* Overlays */}
 			{(() => {
-				return showParticleInfo &&
+				return (
+					showParticleInfo &&
 					hoveredId !== -1 &&
 					hoveredId < currentFrame.positions.length && (
 						<ParticleInfoOverlay
@@ -149,7 +150,8 @@ export const UIContainer: React.FC = () => {
 							}}
 							position={cursorPosition}
 						/>
-					);
+					)
+				);
 			})()}
 			{showParticleInfo && (
 				<SceneInfoOverlay

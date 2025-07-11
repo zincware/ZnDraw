@@ -32,7 +32,7 @@ export const VectorField: React.FC<VectorFieldProps> = ({
 			setColorRange([0, 1]);
 			return;
 		}
-		
+
 		if (arrowsConfig.normalize) {
 			const max = Math.max(
 				...vectors.map((vector) =>
@@ -43,7 +43,11 @@ export const VectorField: React.FC<VectorFieldProps> = ({
 			);
 			setColorRange([0, max]);
 		} else {
-			setColorRange(Array.isArray(arrowsConfig.colorrange) ? arrowsConfig.colorrange : [0, 1]);
+			setColorRange(
+				Array.isArray(arrowsConfig.colorrange)
+					? arrowsConfig.colorrange
+					: [0, 1],
+			);
 		}
 	}, [vectors, arrowsConfig.normalize, arrowsConfig.colorrange]);
 

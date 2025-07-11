@@ -69,7 +69,7 @@ export const useSocketManager = () => {
 				(data: { name: string; room: string; authenticated: boolean }) => {
 					setIsAuthenticated(data.authenticated);
 					setToken(data.room);
-				}
+				},
 			);
 
 			// get lock state

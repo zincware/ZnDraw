@@ -116,41 +116,42 @@ export const VisualizationContainer: React.FC<VisualizationContainerProps> = ({
 
 					{/* Lighting */}
 					{roomConfig.Visualization.floor ? (
-							<>
-								<Floor colorMode={colorMode} roomConfig={roomConfig} />
-								<directionalLight
-									position={[0, 100, 0]}
-									intensity={1.0}
-									castShadow
-									shadow-mapSize-width={roomConfig.Camera.camera_far * 10} // Adjust the width of the shadow map
-									shadow-mapSize-height={roomConfig.Camera.camera_far * 10} // Adjust the height of the shadow map
-									shadow-camera-near={10} // Adjust the near clipping plane of the shadow camera
-									shadow-camera-far={800} // Adjust the far clipping plane of the shadow camera
-									shadow-camera-left={-1 * roomConfig.Camera.camera_far} // Set the left boundary for the shadow camera frustum
-									shadow-camera-right={roomConfig.Camera.camera_far} // Set the right boundary for the shadow camera frustum
-									shadow-camera-top={roomConfig.Camera.camera_far} // Set the top boundary for the shadow camera frustum
-									shadow-camera-bottom={-1 * roomConfig.Camera.camera_far} // Set the bottom boundary for the shadow camera frustum
-								/>
-							</>
-						) : (
-							<directionalLight position={[0, 100, 0]} intensity={1.0} />
-						)}
+						<>
+							<Floor colorMode={colorMode} roomConfig={roomConfig} />
+							<directionalLight
+								position={[0, 100, 0]}
+								intensity={1.0}
+								castShadow
+								shadow-mapSize-width={roomConfig.Camera.camera_far * 10} // Adjust the width of the shadow map
+								shadow-mapSize-height={roomConfig.Camera.camera_far * 10} // Adjust the height of the shadow map
+								shadow-camera-near={10} // Adjust the near clipping plane of the shadow camera
+								shadow-camera-far={800} // Adjust the far clipping plane of the shadow camera
+								shadow-camera-left={-1 * roomConfig.Camera.camera_far} // Set the left boundary for the shadow camera frustum
+								shadow-camera-right={roomConfig.Camera.camera_far} // Set the right boundary for the shadow camera frustum
+								shadow-camera-top={roomConfig.Camera.camera_far} // Set the top boundary for the shadow camera frustum
+								shadow-camera-bottom={-1 * roomConfig.Camera.camera_far} // Set the bottom boundary for the shadow camera frustum
+							/>
+						</>
+					) : (
+						<directionalLight position={[0, 100, 0]} intensity={1.0} />
+					)}
 
 					{/* Vector field */}
-					{roomConfig.VectorDisplay.vectorfield && vectorFieldData.length > 0 && (
-						<VectorField
-							vectors={vectorFieldData}
-							arrowsConfig={{
-								...roomConfig.Arrows,
-								colormap: vectorColormap,
-							}}
-							pathTracingSettings={roomConfig.PathTracer}
-						/>
-					)}
+					{roomConfig.VectorDisplay.vectorfield &&
+						vectorFieldData.length > 0 && (
+							<VectorField
+								vectors={vectorFieldData}
+								arrowsConfig={{
+									...roomConfig.Arrows,
+									colormap: vectorColormap,
+								}}
+								pathTracingSettings={roomConfig.PathTracer}
+							/>
+						)}
 
 					{/* Per-particle vectors */}
 					{roomConfig.VectorDisplay.vectors &&
-						roomConfig.VectorDisplay.vectors.length > 0 && 
+						roomConfig.VectorDisplay.vectors.length > 0 &&
 						perParticleVectors.length > 0 && (
 							<PerParticleVectors
 								vectors={perParticleVectors}

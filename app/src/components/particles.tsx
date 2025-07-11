@@ -619,14 +619,18 @@ export const PerParticleVectors: React.FC<PerParticleVectorsProps> = ({
 			setColorRange([0, 1]);
 			return;
 		}
-		
+
 		if (arrowsConfig.normalize) {
 			const max = Math.max(
 				...vectors.map((vector) => vector.start.distanceTo(vector.end)),
 			);
 			setColorRange([0, max]);
 		} else {
-			setColorRange(Array.isArray(arrowsConfig.colorrange) ? arrowsConfig.colorrange : [0, 1]);
+			setColorRange(
+				Array.isArray(arrowsConfig.colorrange)
+					? arrowsConfig.colorrange
+					: [0, 1],
+			);
 		}
 	}, [vectors, arrowsConfig.normalize, arrowsConfig.colorrange]);
 
