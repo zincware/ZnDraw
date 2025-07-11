@@ -179,16 +179,10 @@ const FrameRateControl: React.FC<FrameRateControlProps> = ({
 	};
 
 	return (
-		<Col
+		<div
 			className="d-flex justify-content-center align-items-center user-select-none"
-			style={{ height: "25px", padding: 0 }}
+			style={{ display: "flex", height: "100%" }}
 		>
-			<div
-				style={{
-					display: "flex",
-					height: "100%",
-				}}
-			>
 				<FormControl
 					type="number"
 					value={frameRate}
@@ -250,8 +244,7 @@ const FrameRateControl: React.FC<FrameRateControlProps> = ({
 						</div>
 					</OverlayTrigger>
 				)}
-			</div>
-		</Col>
+		</div>
 	);
 };
 
@@ -519,12 +512,17 @@ const FrameProgressBar: React.FC<FrameProgressBarProps> = ({
 						/>
 					</Row>
 					<Row>
-						<FrameRateControl
-							frameRate={frameRate}
-							setFrameRate={setFrameRate}
-							isFrameRendering={isFrameRendering}
-							connected={connected}
-						/>
+						<Col
+							className="d-flex bg-body justify-content-center align-items-center"
+							style={{ height: 25 }}
+						>
+							<FrameRateControl
+								frameRate={frameRate}
+								setFrameRate={setFrameRate}
+								isFrameRendering={isFrameRendering}
+								connected={connected}
+							/>
+						</Col>
 					</Row>
 				</Col>
 			</Row>
