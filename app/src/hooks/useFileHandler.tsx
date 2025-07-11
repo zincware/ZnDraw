@@ -3,7 +3,8 @@ import { socket } from "../socket";
 import { useAppContext } from "../contexts/AppContext";
 
 export const useFileHandler = () => {
-	const { setSelectedPoint, setSelectedIds, isDrawing, setIsDrawing } = useAppContext();
+	const { setSelectedPoint, setSelectedIds, isDrawing, setIsDrawing } =
+		useAppContext();
 
 	const onDragOver = useCallback((event: React.DragEvent) => {
 		event.preventDefault();

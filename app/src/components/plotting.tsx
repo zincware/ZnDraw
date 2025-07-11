@@ -222,9 +222,12 @@ const PlotsCard2 = ({
 				if (convertedItem.customdata) {
 					convertedItem.customdata.forEach((customdata, index) => {
 						// Ensure we have valid data and the step matches
-						if (customdata && customdata[0] === step && 
-							convertedItem.x[index] !== undefined && 
-							convertedItem.y[index] !== undefined) {
+						if (
+							customdata &&
+							customdata[0] === step &&
+							convertedItem.x[index] !== undefined &&
+							convertedItem.y[index] !== undefined
+						) {
 							let xPosition = convertedItem.x[index];
 							let yPosition = convertedItem.y[index];
 

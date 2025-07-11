@@ -131,8 +131,8 @@ export const UIContainer: React.FC = () => {
 			/>
 
 			{/* Plotting Component */}
-			<Plotting 
-				token={token} 
+			<Plotting
+				token={token}
 				updatedPlotsList={updatedPlotsList}
 				addPlotsWindow={addPlotsWindow}
 				setStep={setStep}

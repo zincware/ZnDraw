@@ -187,7 +187,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({
 	});
 	const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
 	const [hoveredId, setHoveredIdState] = useState<number>(-1);
-	
+
 	const setHoveredId = (id: number | null) => {
 		setHoveredIdState(id ?? -1);
 	};

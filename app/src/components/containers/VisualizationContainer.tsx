@@ -164,9 +164,10 @@ export const VisualizationContainer: React.FC<VisualizationContainerProps> = ({
 						)}
 
 					{/* Simulation cell */}
-					{currentFrame.cell.length > 0 && roomConfig.Visualization.simulation_box && (
-						<SimulationCell frame={currentFrame} colorMode={colorMode} />
-					)}
+					{currentFrame.cell.length > 0 &&
+						roomConfig.Visualization.simulation_box && (
+							<SimulationCell frame={currentFrame} colorMode={colorMode} />
+						)}
 
 					{/* Main particle visualization */}
 					<ParticleInstances

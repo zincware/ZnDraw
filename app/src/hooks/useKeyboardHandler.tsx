@@ -130,7 +130,7 @@ export const useKeyboardHandler = () => {
 							event.preventDefault();
 							event.stopPropagation();
 							lastRemovalTimeRef.current = now;
-							
+
 							const updatedPoints = points.slice(0, -1);
 							setPoints(updatedPoints);
 							// If we removed the selected point, clear selection
