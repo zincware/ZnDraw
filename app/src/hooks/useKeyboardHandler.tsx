@@ -17,18 +17,23 @@ export const useKeyboardHandler = () => {
 		setPoints,
 		selectedPoint,
 		setSelectedPoint,
+		showParticleInfo,
+		setShowParticleInfo,
+		isDrawing,
+		setIsDrawing,
 	} = useAppContext();
 
 	useEffect(() => {
 		const handleKeyDown = (event: KeyboardEvent) => {
-			console.log(
-				"Key pressed:",
-				event.key,
-				"Active element:",
-				document.activeElement?.tagName,
-			);
 
-			// Handle space bar separately with no focus restrictions
+			const canvasContainer = document.querySelector('.canvas-container');
+			const isCanvasFocused = canvasContainer && canvasContainer.contains(document.activeElement);
+			const isBodyFocused = document.activeElement === document.body;
+			
+			if (!isCanvasFocused && !isBodyFocused) {
+				return;
+			}
+
 			if (event.key === " ") {
 				console.log("Space bar pressed, current playing state:", playing);
 				event.preventDefault();
@@ -40,11 +45,6 @@ export const useKeyboardHandler = () => {
 					console.log("New playing state after toggle:", newState);
 					return newState;
 				});
-				return;
-			}
-
-			// Other keys require body focus
-			if (document.activeElement !== document.body) {
 				return;
 			}
 
@@ -131,6 +131,12 @@ export const useKeyboardHandler = () => {
 			} else if (event.key === "Escape") {
 				// Clear selection
 				setSelectedPoint(null);
+			} else if (event.key === "i" || event.key === "I") {
+				// Toggle particle info display
+				setShowParticleInfo(!showParticleInfo);
+			} else if (event.key === "x" || event.key === "X") {
+				// Toggle drawing mode
+				setIsDrawing(!isDrawing);
 			}
 		};
 
@@ -154,5 +160,9 @@ export const useKeyboardHandler = () => {
 		setPoints,
 		selectedPoint,
 		setSelectedPoint,
+		showParticleInfo,
+		setShowParticleInfo,
+		isDrawing,
+		setIsDrawing,
 	]);
 };

@@ -227,7 +227,6 @@ export const AppProvider: React.FC<AppProviderProps> = ({
 		},
 		Visualization: {
 			camera_target: null,
-			directional_light: true,
 			floor: false,
 			frame_update: true,
 			fps: 24,
