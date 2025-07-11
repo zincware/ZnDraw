@@ -61,10 +61,22 @@ export const Player = ({
 
 	// Handle play state changes - if starting to play on the last frame, jump to first frame
 	useEffect(() => {
-		if (playing && step >= length - 1) {
-			setStep(0);
+		if (playing) {
+			if (selectedFrames.indices.size > 0 && selectedFrames.active) {
+				// Selection mode - check if we're at the last selected frame
+				const selectedFramesList = Array.from(selectedFrames.indices).sort((a, b) => a - b);
+				const lastSelectedFrame = selectedFramesList[selectedFramesList.length - 1];
+				if (step >= lastSelectedFrame) {
+					setStep(selectedFramesList[0]); // Jump to first selected frame
+				}
+			} else {
+				// Normal mode - check if we're at the last frame
+				if (step >= length - 1) {
+					setStep(0);
+				}
+			}
 		}
-	}, [playing, step, length, setStep]);
+	}, [playing, step, length, setStep, selectedFrames]);
 
 	useFrame(({ clock }) => {
 		if (playing && !isFrameRendering) {
@@ -78,28 +90,72 @@ export const Player = ({
 				setStep((prevStep) => {
 					let nextStep = prevStep;
 
-					// Apply frame rate (skip frames)
-					if (prevStep < length - 1) {
-						nextStep = Math.min(prevStep + frameRate, length - 1);
-						// Check if we've reached the last frame
-						if (nextStep >= length - 1) {
-							if (loop) {
-								// If looping is enabled, continue playing (will wrap on next iteration)
-								// Don't stop playing here
+					// Check if frame selection is active
+					if (selectedFrames.indices.size > 0 && selectedFrames.active) {
+						// Playing within selected frames only
+						const selectedFramesList = Array.from(selectedFrames.indices).sort((a, b) => a - b);
+						const currentIndex = selectedFramesList.indexOf(prevStep);
+						
+						if (currentIndex !== -1) {
+							// Current frame is in selection, move to next selected frame
+							let nextIndex = currentIndex;
+							
+							// Apply frame rate (skip selected frames)
+							for (let i = 0; i < frameRate && nextIndex < selectedFramesList.length - 1; i++) {
+								nextIndex++;
+							}
+							
+							if (nextIndex < selectedFramesList.length) {
+								nextStep = selectedFramesList[nextIndex];
 							} else {
-								// If looping is disabled, stop playing when we reach the last frame
+								// Reached end of selected frames
+								if (loop) {
+									// Loop back to first selected frame
+									nextStep = selectedFramesList[0];
+								} else {
+									// Stop playing at last selected frame
+									nextStep = selectedFramesList[selectedFramesList.length - 1];
+									setPlaying(false);
+								}
+							}
+						} else {
+							// Current frame is not in selection, find next selected frame
+							const nextSelectedFrame = selectedFramesList.find(frame => frame > prevStep);
+							if (nextSelectedFrame !== undefined) {
+								nextStep = nextSelectedFrame;
+							} else if (loop) {
+								// Wrap to first selected frame
+								nextStep = selectedFramesList[0];
+							} else {
+								// No more selected frames, stop playing
 								setPlaying(false);
+								nextStep = prevStep;
 							}
 						}
-					} else if (prevStep >= length - 1) {
-						// We're at or past the last frame
-						if (loop) {
-							// If looping is enabled, wrap to the first frame and continue playing
-							nextStep = 0;
-						} else {
-							// If looping is disabled, stay at the last frame and stop playing
-							nextStep = prevStep;
-							setPlaying(false);
+					} else {
+						// Normal playback through all frames
+						if (prevStep < length - 1) {
+							nextStep = Math.min(prevStep + frameRate, length - 1);
+							// Check if we've reached the last frame
+							if (nextStep >= length - 1) {
+								if (loop) {
+									// If looping is enabled, continue playing (will wrap on next iteration)
+									// Don't stop playing here
+								} else {
+									// If looping is disabled, stop playing when we reach the last frame
+									setPlaying(false);
+								}
+							}
+						} else if (prevStep >= length - 1) {
+							// We're at or past the last frame
+							if (loop) {
+								// If looping is enabled, wrap to the first frame and continue playing
+								nextStep = 0;
+							} else {
+								// If looping is disabled, stay at the last frame and stop playing
+								nextStep = prevStep;
+								setPlaying(false);
+							}
 						}
 					}
 
