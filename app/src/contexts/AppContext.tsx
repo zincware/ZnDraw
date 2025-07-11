@@ -102,7 +102,8 @@ interface AppState {
 	modifierQueue: any[];
 	isAuthenticated: boolean;
 	setIsAuthenticated: (authenticated: boolean) => void;
-	setAddPlotsWindow: (show: boolean) => void;
+	addPlotsWindow: number;
+	setAddPlotsWindow: (show: number) => void;
 
 	// Data collections
 	bookmarks: Record<number, string>;
@@ -213,7 +214,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({
 	// Additional UI state
 	const [modifierQueue] = useState<any[]>([]);
 	const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
-	const [addPlotsWindow, setAddPlotsWindow] = useState<boolean>(false);
+	const [addPlotsWindow, setAddPlotsWindow] = useState<number>(0);
 
 	// Data collections
 	const [bookmarks, setBookmarks] = useState<Record<number, string>>({});
@@ -354,6 +355,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({
 		modifierQueue,
 		isAuthenticated,
 		setIsAuthenticated,
+		addPlotsWindow,
 		setAddPlotsWindow,
 
 		// Data collections

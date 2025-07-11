@@ -25,6 +25,7 @@ export const UIContainer: React.FC = () => {
 
 		// Selection and interaction
 		selectedIds,
+		setSelectedIds,
 		selectedFrames,
 		setSelectedFrames,
 		hoveredId,
@@ -46,6 +47,7 @@ export const UIContainer: React.FC = () => {
 		// Additional UI state
 		modifierQueue,
 		isAuthenticated,
+		addPlotsWindow,
 		setAddPlotsWindow,
 
 		// Data collections
@@ -129,9 +131,15 @@ export const UIContainer: React.FC = () => {
 			/>
 
 			{/* Plotting Component */}
-			{updatedPlotsList.length > 0 && (
-				<Plotting token={token} updatedPlotsList={updatedPlotsList} />
-			)}
+			<Plotting 
+				token={token} 
+				updatedPlotsList={updatedPlotsList}
+				addPlotsWindow={addPlotsWindow}
+				setStep={setStep}
+				step={step}
+				setSelectedFrames={setSelectedFrames}
+				setSelectedIds={setSelectedIds}
+			/>
 
 			{/* Overlays */}
 			{(() => {
