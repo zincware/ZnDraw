@@ -442,7 +442,7 @@ export const setupFrames = (
 
 		setCurrentFrame(resolvedFrame);
 		currentFrameUpdatedFromSocketRef.current = true;
-		
+
 		// Set rendering state to false when frame is successfully set
 		setIsFrameRendering?.(false);
 	};
@@ -494,7 +494,7 @@ export const setupFrames = (
 		const updateFrame = async () => {
 			// Set rendering state to true when starting websocket request
 			setIsFrameRendering?.(true);
-			
+
 			// first we check the length
 			const length = await getLengthFromCon();
 			setLength(length);

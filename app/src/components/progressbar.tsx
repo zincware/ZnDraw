@@ -1,5 +1,12 @@
 import React, { useState, useEffect } from "react";
-import { Col, Container, Form, InputGroup, Row, FormControl } from "react-bootstrap";
+import {
+	Col,
+	Container,
+	Form,
+	InputGroup,
+	Row,
+	FormControl,
+} from "react-bootstrap";
 import "./progressbar.css";
 
 import { OverlayTrigger, Tooltip } from "react-bootstrap";
@@ -138,114 +145,114 @@ const ColoredTiles = ({
 };
 
 interface FrameRateControlProps {
-  frameRate: number;
-  setFrameRate: (val: number) => void;
-  isFrameRendering: boolean;
-  connected: boolean;
+	frameRate: number;
+	setFrameRate: (val: number) => void;
+	isFrameRendering: boolean;
+	connected: boolean;
 }
 
 const FrameRateControl: React.FC<FrameRateControlProps> = ({
-  frameRate,
-  setFrameRate,
-  isFrameRendering,
-  connected,
+	frameRate,
+	setFrameRate,
+	isFrameRendering,
+	connected,
 }) => {
-  const [showLoadingIcon, setShowLoadingIcon] = useState(false);
+	const [showLoadingIcon, setShowLoadingIcon] = useState(false);
 
-  // Delay before showing ⧗ to avoid flickering
-  useEffect(() => {
-    let timeout: NodeJS.Timeout;
-    if (isFrameRendering) {
-      timeout = setTimeout(() => setShowLoadingIcon(true), 1);
-    } else {
-      setShowLoadingIcon(false);
-      clearTimeout(timeout);
-    }
-    return () => clearTimeout(timeout);
-  }, [isFrameRendering]);
+	// Delay before showing ⧗ to avoid flickering
+	useEffect(() => {
+		let timeout: NodeJS.Timeout;
+		if (isFrameRendering) {
+			timeout = setTimeout(() => setShowLoadingIcon(true), 1);
+		} else {
+			setShowLoadingIcon(false);
+			clearTimeout(timeout);
+		}
+		return () => clearTimeout(timeout);
+	}, [isFrameRendering]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = parseInt(e.target.value, 10);
-    if (!isNaN(val)) {
-      setFrameRate(Math.max(1, val)); // Ensure frame rate is at least 1
-    }
-  };
+	const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+		const val = parseInt(e.target.value, 10);
+		if (!isNaN(val)) {
+			setFrameRate(Math.max(1, val)); // Ensure frame rate is at least 1
+		}
+	};
 
-  return (
-    <Col
-      className="d-flex justify-content-center align-items-center user-select-none"
-      style={{ height: "25px", padding: 0 }}
-    >
-      <div
-        style={{
-          display: "flex",
-          height: "100%",
-		  
-        }}
-      >
-        <FormControl
-          type="number"
-          value={frameRate}
-          onChange={handleChange}
-          min={1}
-          size="sm"
-          style={{
-            width: "40px",
-            height: "18px",
-            fontSize: "10px",
-            textAlign: "center",
-          }}
-          title="Frame rate (1 = every frame, 2 = every 2nd frame, etc.)"
-        />
-
-        {/* Frame loading icon */}
-		<OverlayTrigger
-            placement="top"
-            delay={{ show: 0, hide: 100 }}
-            overlay={<Tooltip>Loading frame data...</Tooltip>}
-          >
-        <div
-          style={{
-			height: "100%",
-            animation: showLoadingIcon ? "pulse 1s infinite" : "none",
-            visibility: showLoadingIcon ? "visible" : "hidden",
-			alignItems: "center",
-			justifyContent: "center",
-			display: "flex",
-          }}
-          title="Loading frame data..."
-        >
-          <IoMdCodeDownload />
-        </div>
-			</OverlayTrigger>
-
-        {/* Server connection spinner */}
-        {!connected && (
-          <OverlayTrigger
-            placement="top"
-            delay={{ show: 0, hide: 100 }}
-            overlay={<Tooltip>Not connected to server</Tooltip>}
-          >
-			<div 				style={{
-					height: "25px",
-					width: "25px",
-				}}>
-				<div
-				className="spinner-border spinner-border-sm text-primary"
-				role="status"
+	return (
+		<Col
+			className="d-flex justify-content-center align-items-center user-select-none"
+			style={{ height: "25px", padding: 0 }}
+		>
+			<div
 				style={{
-					width: "15px",
-					height: "15px",
+					display: "flex",
+					height: "100%",
 				}}
+			>
+				<FormControl
+					type="number"
+					value={frameRate}
+					onChange={handleChange}
+					min={1}
+					size="sm"
+					style={{
+						width: "40px",
+						height: "18px",
+						fontSize: "10px",
+						textAlign: "center",
+					}}
+					title="Frame rate (1 = every frame, 2 = every 2nd frame, etc.)"
+				/>
+
+				{/* Frame loading icon */}
+				<OverlayTrigger
+					placement="top"
+					delay={{ show: 0, hide: 100 }}
+					overlay={<Tooltip>Loading frame data...</Tooltip>}
 				>
-				</div>
-              <span className="visually-hidden">Loading...</span>
-            </div>
-          </OverlayTrigger>
-        )}
-      </div>
-    </Col>
-  );
+					<div
+						style={{
+							height: "100%",
+							animation: showLoadingIcon ? "pulse 1s infinite" : "none",
+							visibility: showLoadingIcon ? "visible" : "hidden",
+							alignItems: "center",
+							justifyContent: "center",
+							display: "flex",
+						}}
+						title="Loading frame data..."
+					>
+						<IoMdCodeDownload />
+					</div>
+				</OverlayTrigger>
+
+				{/* Server connection spinner */}
+				{!connected && (
+					<OverlayTrigger
+						placement="top"
+						delay={{ show: 0, hide: 100 }}
+						overlay={<Tooltip>Not connected to server</Tooltip>}
+					>
+						<div
+							style={{
+								height: "25px",
+								width: "25px",
+							}}
+						>
+							<div
+								className="spinner-border spinner-border-sm text-primary"
+								role="status"
+								style={{
+									width: "15px",
+									height: "15px",
+								}}
+							></div>
+							<span className="visually-hidden">Loading...</span>
+						</div>
+					</OverlayTrigger>
+				)}
+			</div>
+		</Col>
+	);
 };
 
 const Bookmarks = ({
@@ -314,7 +321,7 @@ const VLine = ({ length, step }: { length: number; step: number }) => {
 				height: 25,
 				width: "2px",
 			}}
-		// why do I need to overwrite the height and width here?
+			// why do I need to overwrite the height and width here?
 		/>
 	);
 };

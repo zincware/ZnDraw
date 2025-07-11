@@ -64,13 +64,13 @@ export const Player = ({
 			// check if the difference is greater than frameTime
 			if (clock.getElapsedTime() - lastUpdateTime.current > frameTime) {
 				lastUpdateTime.current = clock.getElapsedTime();
-				
+
 				// Mark frame as rendering
 				setIsFrameRendering(true);
-				
+
 				setStep((prevStep) => {
 					let nextStep = prevStep;
-					
+
 					// Apply frame rate (skip frames)
 					if (prevStep < length - 1) {
 						nextStep = Math.min(prevStep + frameRate, length - 1);
@@ -80,7 +80,7 @@ export const Player = ({
 					} else if (prevStep === length - 1) {
 						nextStep = 0;
 					}
-					
+
 					// Frame will be marked as finished after rendering completes
 					return nextStep;
 				});

@@ -173,7 +173,6 @@ export const UIContainer: React.FC = () => {
 					setShowParticleInfo={setShowParticleInfo}
 				/>
 			)}
-
 		</>
 	);
 };

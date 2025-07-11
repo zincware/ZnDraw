@@ -283,6 +283,7 @@ SETTINGS = {
 }
 
 if __name__ == "__main__":
+
     class FullSettings(SettingsBase):
         particle: Particle
         visualization: Visualization
