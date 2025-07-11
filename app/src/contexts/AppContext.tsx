@@ -70,7 +70,7 @@ interface AppState {
 	selectedIds: Set<number>;
 	setSelectedIds: (ids: Set<number>) => void;
 	hoveredId: number;
-	setHoveredId: (id: number) => void;
+	setHoveredId: (id: number | null) => void;
 
 	// Drawing state
 	isDrawing: boolean;
@@ -186,7 +186,11 @@ export const AppProvider: React.FC<AppProviderProps> = ({
 		indices: new Set<number>(),
 	});
 	const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
-	const [hoveredId, setHoveredId] = useState<number>(-1);
+	const [hoveredId, setHoveredIdState] = useState<number>(-1);
+	
+	const setHoveredId = (id: number | null) => {
+		setHoveredIdState(id ?? -1);
+	};
 
 	// Drawing state
 	const [isDrawing, setIsDrawing] = useState<boolean>(false);

@@ -1,6 +1,6 @@
 import { CatmullRomLine, Dodecahedron } from "@react-three/drei";
 import { useThree } from "@react-three/fiber";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { socket } from "../socket";
 
 import * as THREE from "three";
@@ -155,7 +155,6 @@ export const Line3D = ({
 
 import { Plane } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
-import { useRef } from "react";
 
 export const VirtualCanvas = ({
 	isDrawing,

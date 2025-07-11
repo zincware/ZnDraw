@@ -13,7 +13,7 @@ import {
 import { Geometries } from "../geometries";
 import CameraAndControls from "../cameraAndControls";
 import { Floor } from "../floor";
-import { Line3D } from "../lines";
+import { Line3D, VirtualCanvas } from "../lines";
 import ControlsBuilder from "../transforms";
 import VectorField from "../vectorfield";
 import { getCentroid } from "../particlesEditor";
@@ -164,7 +164,7 @@ export const VisualizationContainer: React.FC<VisualizationContainerProps> = ({
 						)}
 
 					{/* Simulation cell */}
-					{currentFrame.cell.length > 0 && (
+					{currentFrame.cell.length > 0 && roomConfig.Visualization.simulation_box && (
 						<SimulationCell frame={currentFrame} colorMode={colorMode} />
 					)}
 
@@ -276,6 +276,15 @@ export const VisualizationContainer: React.FC<VisualizationContainerProps> = ({
 						geometries={geometries}
 						isDrawing={isDrawing}
 						setPoints={setPoints}
+						setHoveredId={setHoveredId}
+					/>
+
+					{/* Virtual Canvas for drawing */}
+					<VirtualCanvas
+						isDrawing={isDrawing}
+						setPoints={setPoints}
+						points={points}
+						hoveredId={hoveredId}
 						setHoveredId={setHoveredId}
 					/>
 				</Pathtracer>

@@ -3,7 +3,7 @@ import { socket } from "../socket";
 import { useAppContext } from "../contexts/AppContext";
 
 export const useFileHandler = () => {
-	const { setSelectedPoint, setSelectedIds } = useAppContext();
+	const { setSelectedPoint, setSelectedIds, isDrawing, setIsDrawing } = useAppContext();
 
 	const onDragOver = useCallback((event: React.DragEvent) => {
 		event.preventDefault();
@@ -35,7 +35,10 @@ export const useFileHandler = () => {
 	const onPointerMissed = useCallback(() => {
 		setSelectedPoint(null);
 		setSelectedIds(new Set());
-	}, [setSelectedPoint, setSelectedIds]);
+		if (isDrawing) {
+			setIsDrawing(false);
+		}
+	}, [setSelectedPoint, setSelectedIds, isDrawing, setIsDrawing]);
 
 	return {
 		onDragOver,

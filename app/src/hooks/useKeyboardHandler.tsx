@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useAppContext } from "../contexts/AppContext";
 import { getCentroid } from "../components/particlesEditor";
 
@@ -25,6 +25,10 @@ export const useKeyboardHandler = () => {
 		cameraAndControls,
 		setCameraAndControls,
 	} = useAppContext();
+
+	// Ref to track last removal time for throttling
+	const lastRemovalTimeRef = useRef<number>(0);
+	const REMOVAL_THROTTLE_MS = 100; // Minimum time between removals
 
 	useEffect(() => {
 		const handleKeyDown = (event: KeyboardEvent) => {
@@ -118,18 +122,40 @@ export const useKeyboardHandler = () => {
 					});
 				}
 			} else if (event.key === "Delete" || event.key === "Backspace") {
-				// Delete selected atoms
-				if (selectedIds.size > 0) {
-					// Logic for deleting atoms would go here
-					console.log("Delete selected atoms:", selectedIds);
-				}
-				// Delete selected point
-				if (selectedPoint) {
-					const updatedPoints = points.filter(
-						(point) => point !== selectedPoint,
-					);
-					setPoints(updatedPoints);
-					setSelectedPoint(null);
+				if (event.shiftKey) {
+					// Shift + Backspace: Remove last point from line with throttling
+					if (points.length > 0) {
+						const now = Date.now();
+						if (now - lastRemovalTimeRef.current >= REMOVAL_THROTTLE_MS) {
+							event.preventDefault();
+							event.stopPropagation();
+							lastRemovalTimeRef.current = now;
+							
+							const updatedPoints = points.slice(0, -1);
+							setPoints(updatedPoints);
+							// If we removed the selected point, clear selection
+							if (selectedPoint && points.length > 0) {
+								const lastPoint = points[points.length - 1];
+								if (selectedPoint.equals(lastPoint)) {
+									setSelectedPoint(null);
+								}
+							}
+						}
+					}
+				} else {
+					// Regular Delete/Backspace: Delete selected atoms or selected point
+					if (selectedIds.size > 0) {
+						// Logic for deleting atoms would go here
+						console.log("Delete selected atoms:", selectedIds);
+					}
+					// Delete selected point
+					if (selectedPoint) {
+						const updatedPoints = points.filter(
+							(point) => !point.equals(selectedPoint),
+						);
+						setPoints(updatedPoints);
+						setSelectedPoint(null);
+					}
 				}
 			} else if (event.key === "Escape") {
 				// Clear selection
@@ -180,5 +206,6 @@ export const useKeyboardHandler = () => {
 		setIsDrawing,
 		cameraAndControls,
 		setCameraAndControls,
+		REMOVAL_THROTTLE_MS,
 	]);
 };
