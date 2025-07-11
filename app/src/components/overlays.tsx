@@ -84,6 +84,8 @@ export const SceneInfoOverlay = ({
 						</>
 					)}
 					Particles: {frame.positions.length}
+					<br />
+					Bonds: {frame.connectivity?.length || 0}
 				</Card.Body>
 			</Card>
 		</Rnd>
