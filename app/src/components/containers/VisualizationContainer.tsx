@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { Canvas } from "@react-three/fiber";
 import { Pathtracer } from "@react-three/gpu-pathtracer";
 import { Environment } from "@react-three/drei";
@@ -74,6 +74,23 @@ export const VisualizationContainer: React.FC<VisualizationContainerProps> = ({
 		vectorFieldData,
 		vectorColormap,
 	} = useAppContext();
+
+	// Extract constrained atom indices from frame constraints
+	const constrainedAtomIds = useMemo(() => {
+		const constrainedIds = new Set<number>();
+		
+		if (currentFrame?.constraints) {
+			for (const constraint of currentFrame.constraints) {
+				if (constraint.type === "FixAtoms" && constraint.indices) {
+					for (const index of constraint.indices) {
+						constrainedIds.add(index);
+					}
+				}
+			}
+		}
+		
+		return constrainedIds;
+	}, [currentFrame?.constraints]);
 
 	// Note: Frame rendering state is now tracked by websocket data loading in setupFrames
 
@@ -223,6 +240,27 @@ export const VisualizationContainer: React.FC<VisualizationContainerProps> = ({
 								pathTracingSettings={roomConfig.PathTracer}
 							/>
 						</>
+					)}
+
+					{/* Constrained particles highlight */}
+					{constrainedAtomIds.size > 0 && (
+						<ParticleInstances
+							frame={currentFrame}
+							setFrame={setCurrentFrame}
+							selectedIds={selectedIds}
+							setSelectedIds={setSelectedIds}
+							isDrawing={isDrawing}
+							setPoints={setPoints}
+							setHoveredId={setHoveredId}
+							sceneSettings={roomConfig.Particle}
+							token={token}
+							visibleIndices={constrainedAtomIds}
+							highlight="constraint"
+							pathTracingSettings={roomConfig.PathTracer}
+							roomLock={roomLock}
+							editMode={editMode}
+							setEditMode={setEditMode}
+						/>
 					)}
 
 					{/* Bonds */}
