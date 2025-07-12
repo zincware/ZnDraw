@@ -393,7 +393,7 @@ function HelpModel(props: any) {
 	);
 }
 
-function ConnectModal({ show, onHide, room }) {
+function ConnectModal({ show, onHide, token }) {
 	// const url = window.location.href.replace(/\/$/, "");
 	// for testing the socketio url is different and hard coded
 	const serverUrl = getServerUrl();
@@ -401,7 +401,7 @@ function ConnectModal({ show, onHide, room }) {
 
 	const pythonCode = `from zndraw import ZnDraw
 
-vis = ZnDraw(url="${serverUrl}", token="${room}")`;
+vis = ZnDraw(url="${serverUrl}", token="${token}")`;
 
 	const helpMD = `
 You can connect a Python kernel to this ZnDraw session using
@@ -1079,7 +1079,7 @@ const HeadBar = ({
 			<ConnectModal
 				show={connectModalShow}
 				onHide={() => setConnectModalShow(false)}
-				room={room}
+				token={token}
 			/>
 			<RefreshModal
 				show={refreshModalShow}

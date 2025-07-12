@@ -71,12 +71,12 @@ class ConnectedParticles(Extension):
         selected_ids = vis.selection
         total_ids = []
         try:
-            edges = atoms.connectivity
+            edges = atoms.info.get("connectivity", [])
             graph = nx.Graph()
             for edge in edges:
                 node_a, node_b, weight = edge
                 graph.add_edge(node_a, node_b, weight=weight)
-        except AttributeError:
+        except (AttributeError, KeyError):
             return selected_ids
 
         for node_id in selected_ids:
@@ -96,8 +96,11 @@ class Neighbour(Extension):
         atoms = vis[vis.step]
         selected_ids = vis.selection
         try:
-            graph = atoms.connectivity
-        except AttributeError:
+            connectivity = atoms.info.get("connectivity", [])
+            graph = nx.Graph()
+            for u, v, weight in connectivity:
+                graph.add_edge(u, v, weight=weight)
+        except (AttributeError, KeyError):
             return selected_ids
 
         for node_id in selected_ids:

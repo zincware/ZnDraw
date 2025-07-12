@@ -28,4 +28,5 @@ You can use port forwarding to access the visualisation from a remote machine.
    :hidden:
 
    python-api
+   developer-guide
    adventofcode

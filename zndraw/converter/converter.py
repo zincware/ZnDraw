@@ -91,14 +91,10 @@ class ASEConverter(znjson.ConverterBase):
             else:
                 arrays[key] = obj.arrays[key]
 
-        if hasattr(obj, "connectivity") and obj.connectivity is not None:
-            connectivity = (
-                obj.connectivity.tolist()
-                if isinstance(obj.connectivity, np.ndarray)
-                else obj.connectivity
-            )
-        else:
-            connectivity = []
+        connectivity = obj.info.get("connectivity", [])
+        # Convert numpy arrays to lists if needed
+        if isinstance(connectivity, np.ndarray):
+            connectivity = connectivity.tolist()
 
         constraints = []
         if len(obj.constraints) > 0:
@@ -138,8 +134,8 @@ class ASEConverter(znjson.ConverterBase):
             cell=value["cell"],
         )
         if connectivity := value.get("connectivity"):
-            # or do we want this to be nx.Graph?
-            atoms.connectivity = np.array(connectivity)
+            # Store connectivity in atoms.info instead of atoms.connectivity
+            atoms.info["connectivity"] = connectivity
         for key, val in value["arrays"].items():
             atoms.arrays[key] = np.array(val)
         if calc := value.get("calc"):

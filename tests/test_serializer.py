@@ -2,7 +2,6 @@ import json
 
 import ase
 import numpy.testing as npt
-import pytest
 import znjson
 from ase.calculators.singlepoint import SinglePointCalculator
 from ase.constraints import FixAtoms
@@ -11,7 +10,7 @@ from zndraw.converter import ASEConverter
 
 
 def test_ase_converter(s22):
-    s22[0].connectivity = [[0, 1, 1], [1, 2, 1], [2, 3, 1]]
+    s22[0].info["connectivity"] = [[0, 1, 1], [1, 2, 1], [2, 3, 1]]
     s22[3].calc = SinglePointCalculator(s22[3])
     s22[3].calc.results = {"energy": 0.0, "predicted_energy": 1.0}
     s22[4].info = {"key": "value"}
@@ -32,9 +31,8 @@ def test_ase_converter(s22):
     for s1, s2 in zip(s22, structures):
         assert s1 == s2
 
-    npt.assert_array_equal(structures[0].connectivity, [[0, 1, 1], [1, 2, 1], [2, 3, 1]])
-    with pytest.raises(AttributeError):
-        _ = structures[1].connectivity
+    assert structures[0].info["connectivity"] == [[0, 1, 1], [1, 2, 1], [2, 3, 1]]
+    assert "connectivity" not in structures[1].info
 
     assert structures[3].calc.results == {"energy": 0.0, "predicted_energy": 1.0}
 

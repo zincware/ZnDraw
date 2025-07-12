@@ -1,0 +1,58 @@
+/* Progress bar styles */
+.progress-bar-tick-line {
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 1px;
+	height: 100%;
+}
+
+.progress-bar-bookmark {
+	z-index: 2;
+}
+
+.progress-bar-v-line {
+	background-color: #007bff;
+	z-index: 3;
+}
+
+.handle {
+	position: absolute;
+	top: -8px;
+	margin-left: -8px;
+	z-index: 4;
+}
+
+.handle .square {
+	width: 16px;
+	height: 16px;
+	background-color: #007bff;
+	border-radius: 2px;
+	position: absolute;
+	top: 0;
+	left: 0;
+}
+
+.handle .triangle {
+	width: 0;
+	height: 0;
+	border-left: 8px solid transparent;
+	border-right: 8px solid transparent;
+	border-top: 8px solid #007bff;
+	position: absolute;
+	top: 16px;
+	left: 0;
+}
+
+/* Keyframes for rendering indicator pulse animation */
+@keyframes pulse {
+	0% {
+		opacity: 1;
+	}
+	50% {
+		opacity: 0.5;
+	}
+	100% {
+		opacity: 1;
+	}
+}

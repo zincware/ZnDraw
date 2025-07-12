@@ -221,13 +221,21 @@ const PlotsCard2 = ({
 
 				if (convertedItem.customdata) {
 					convertedItem.customdata.forEach((customdata, index) => {
-						if (customdata[0] === step) {
+						// Ensure we have valid data and the step matches
+						if (
+							customdata &&
+							customdata[0] === step &&
+							convertedItem.x[index] !== undefined &&
+							convertedItem.y[index] !== undefined
+						) {
 							let xPosition = convertedItem.x[index];
 							let yPosition = convertedItem.y[index];
 
 							let color = "red";
 							if (convertedItem.line?.color) {
 								color = convertedItem.line.color;
+							} else if (convertedItem.marker?.color) {
+								color = convertedItem.marker.color;
 							}
 
 							markerList.push([xPosition, yPosition, color]);
@@ -238,24 +246,26 @@ const PlotsCard2 = ({
 				return convertedItem;
 			});
 
-			// Add marker data
-			updatedPlotData.push({
-				type: "scatter",
-				mode: "markers",
-				name: "Step",
-				showlegend: false,
-				x: markerList.map((marker) => marker[0]),
-				y: markerList.map((marker) => marker[1]),
-				marker: {
-					color: markerList.map((marker) => marker[2]),
-					size: 10,
-					symbol: "circle",
-					line: {
-						color: "black",
-						width: 2,
+			// Add marker data - only if we have markers to show
+			if (markerList.length > 0) {
+				updatedPlotData.push({
+					type: "scatter",
+					mode: "markers",
+					name: "Current Step",
+					showlegend: false,
+					x: markerList.map((marker) => marker[0]),
+					y: markerList.map((marker) => marker[1]),
+					marker: {
+						color: markerList.map((marker) => marker[2]),
+						size: 12,
+						symbol: "circle",
+						line: {
+							color: "black",
+							width: 2,
+						},
 					},
-				},
-			});
+				});
+			}
 
 			setPlotData(updatedPlotData);
 		}
