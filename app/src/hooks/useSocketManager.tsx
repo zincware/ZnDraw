@@ -128,7 +128,7 @@ export const useSocketManager = () => {
 		currentFrame,
 		setLength,
 		setStep,
-		roomConfig.Visualization.frame_update,
+		roomConfig.Visualization.frame_update || true,
 		setIsFrameRendering,
 	);
 	setupSelection(token, setSelectedIds, selectedIds);
@@ -139,7 +139,7 @@ export const useSocketManager = () => {
 		token,
 		cameraAndControls,
 		setCameraAndControls,
-		roomConfig.Camera.synchronize_camera,
+		roomConfig.Camera.synchronize_camera || true,
 	);
 	setupConfig(token, setRoomConfig);
 	setupFigures(token, setUpdatedPlotsList);

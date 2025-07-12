@@ -4,35 +4,8 @@ import type { Frame } from "../components/particles";
 import type { IndicesState } from "../components/utils";
 import type { HSLColor } from "../components/utils";
 import { useVectorManager } from "../hooks/useVectorManager";
-
-// Define interfaces for better type safety
-interface RoomConfig {
-	Arrows: {
-		[key: string]: any;
-	};
-	Particle: {
-		[key: string]: any;
-	};
-	Visualization: {
-		floor: boolean;
-		[key: string]: any;
-	};
-	Camera: {
-		camera_far: number;
-		[key: string]: any;
-	};
-	PathTracer: {
-		enabled: boolean;
-		environment: string;
-		[key: string]: any;
-	};
-	VectorDisplay: {
-		vectorfield: boolean;
-		vectors: string[];
-		vector_scale: number;
-		[key: string]: any;
-	};
-}
+import type { RoomConfig } from "../types/room-config";
+import { DEFAULT_ROOM_CONFIG } from "../types/room-config";
 
 interface CameraAndControls {
 	camera: THREE.Vector3;
@@ -130,7 +103,7 @@ interface AppState {
 	// Vector data
 	vectorProperties: Record<string, unknown>;
 	setVectorProperties: (properties: Record<string, unknown>) => void;
-	perParticleVectors: { start: THREE.Vector3; end: THREE.Vector3 }[];
+	perParticleVectors: { start: THREE.Vector3; end: THREE.Vector3; vectorType: string }[];
 	vectorFieldData: [number, number, number][][];
 	// Computed colormap for vectors
 	vectorColormap: HSLColor[];
@@ -230,57 +203,8 @@ export const AppProvider: React.FC<AppProviderProps> = ({
 	const [bookmarks, setBookmarks] = useState<Record<number, string>>({});
 	const [geometries, setGeometries] = useState<unknown[]>([]);
 
-	// Configuration
-	const [roomConfig, setRoomConfig] = useState<RoomConfig>({
-		Arrows: {
-			colormap: "viridis",
-			colorrange: [0, 1],
-			normalize: false,
-			opacity: 1.0,
-			rescale: 1.0,
-			scale_vector_thickness: false,
-		},
-		Particle: {
-			bond_size: 1.0,
-			hover_opacity: 0.6,
-			material: "MeshStandardMaterial",
-			particle_size: 1.0,
-			selection_color: "#ff5722",
-			selection_opacity: 0.7,
-		},
-		Visualization: {
-			camera_target: null,
-			floor: false,
-			frame_update: true,
-			fps: 24,
-			loop: true,
-			material: "MeshStandardMaterial",
-		},
-		Camera: {
-			camera_far: 100,
-			camera_fov: 75,
-			camera_near: 0.1,
-			controls: "OrbitControls",
-			position: [10, 10, 10],
-			synchronize_camera: false,
-			up: [0, 1, 0],
-		},
-		PathTracer: {
-			enabled: false,
-			environment: "city",
-		},
-		VectorDisplay: {
-			colormap: "viridis",
-			colorrange: [0, 1],
-			normalize: false,
-			opacity: 1.0,
-			rescale: 1.0,
-			scale_vector_thickness: false,
-			vectorfield: false,
-			vectors: [],
-			vector_scale: 1.0,
-		},
-	});
+	// Configuration - using defaults from pydantic models
+	const [roomConfig, setRoomConfig] = useState<RoomConfig>(DEFAULT_ROOM_CONFIG);
 
 	// Plotting
 	const [updatedPlotsList, setUpdatedPlotsList] = useState<string[]>([]);

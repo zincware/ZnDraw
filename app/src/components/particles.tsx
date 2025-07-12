@@ -57,7 +57,7 @@ export const Player = ({
 	frameRate,
 }: PlayerProps) => {
 	const lastUpdateTime = useRef(0);
-	const frameTime = 1 / 30; // 30 FPS hardcoded for now
+	const frameTime = 1 / fps; // 30 FPS hardcoded for now
 
 	// Handle play state changes - if starting to play on the last frame, jump to first frame
 	useEffect(() => {
@@ -696,7 +696,7 @@ export const SimulationCell = ({
 };
 
 interface PerParticleVectorsProps {
-	vectors: { start: THREE.Vector3; end: THREE.Vector3 }[];
+	vectors: { start: THREE.Vector3; end: THREE.Vector3; vectorType: string }[];
 	arrowsConfig: any;
 	pathTracingSettings: any;
 }
@@ -706,55 +706,84 @@ export const PerParticleVectors: React.FC<PerParticleVectorsProps> = ({
 	arrowsConfig,
 	pathTracingSettings,
 }) => {
-	const [colorRange, setColorRange] = useState<[number, number]>(
-		Array.isArray(arrowsConfig.colorrange) ? arrowsConfig.colorrange : [0, 1],
-	);
-
-	useEffect(() => {
-		if (vectors.length === 0) {
-			setColorRange([0, 1]);
-			return;
-		}
-
-		if (arrowsConfig.normalize) {
-			const max = Math.max(
-				...vectors.map((vector) => vector.start.distanceTo(vector.end)),
-			);
-			setColorRange([0, max]);
-		} else {
-			setColorRange(
-				Array.isArray(arrowsConfig.colorrange)
-					? arrowsConfig.colorrange
-					: [0, 1],
-			);
-		}
-	}, [vectors, arrowsConfig.normalize, arrowsConfig.colorrange]);
-
-	const startMap = useMemo(
-		() => vectors.map((vec) => vec.start.toArray()),
-		[vectors],
-	);
-	const endMap = useMemo(
-		() => vectors.map((vec) => vec.end.toArray()),
-		[vectors],
-	);
-
 	if (vectors.length === 0) {
 		return null;
 	}
 
+	// Group vectors by type
+	const vectorsByType = useMemo(() => {
+		const grouped: Record<string, { start: THREE.Vector3; end: THREE.Vector3 }[]> = {};
+		for (const vector of vectors) {
+			if (!grouped[vector.vectorType]) {
+				grouped[vector.vectorType] = [];
+			}
+			grouped[vector.vectorType].push({
+				start: vector.start,
+				end: vector.end,
+			});
+		}
+		return grouped;
+	}, [vectors]);
+
+	// Helper function to convert hex color to HSL colormap
+	const hexToHSLColormap = (hexColor: string): [number, number, number][] => {
+		// Simple hex to HSL conversion for single color
+		const hex = hexColor.replace('#', '');
+		const r = parseInt(hex.substr(0, 2), 16) / 255;
+		const g = parseInt(hex.substr(2, 2), 16) / 255;
+		const b = parseInt(hex.substr(4, 2), 16) / 255;
+		
+		const max = Math.max(r, g, b);
+		const min = Math.min(r, g, b);
+		const diff = max - min;
+		const l = (max + min) / 2;
+		
+		let h = 0;
+		let s = 0;
+		
+		if (diff !== 0) {
+			s = l > 0.5 ? diff / (2 - max - min) : diff / (max + min);
+			
+			switch (max) {
+				case r: h = (g - b) / diff + (g < b ? 6 : 0); break;
+				case g: h = (b - r) / diff + 2; break;
+				case b: h = (r - g) / diff + 4; break;
+			}
+			h /= 6;
+		}
+		
+		return [[h, s, l]];
+	};
+
 	return (
 		<>
-			<Arrows
-				start={startMap}
-				end={endMap}
-				scale_vector_thickness={arrowsConfig.scale_vector_thickness}
-				colormap={arrowsConfig.colormap}
-				colorrange={colorRange}
-				opacity={arrowsConfig.opacity}
-				rescale={arrowsConfig.rescale}
-				pathTracingSettings={pathTracingSettings}
-			/>
+			{Object.entries(vectorsByType).map(([vectorType, typeVectors]) => {
+				const vectorColor = arrowsConfig.vector_colors?.[vectorType] || "#ff0000";
+				const colormap = hexToHSLColormap(vectorColor);
+				
+				const startMap = typeVectors.map((vec) => vec.start.toArray());
+				const endMap = typeVectors.map((vec) => vec.end.toArray());
+				
+				// Calculate color range for this vector type
+				const distances = typeVectors.map((vector) => vector.start.distanceTo(vector.end));
+				const colorRange: [number, number] = arrowsConfig.normalize 
+					? [0, Math.max(...distances)]
+					: (Array.isArray(arrowsConfig.colorrange) ? arrowsConfig.colorrange : [0, 1]);
+
+				return (
+					<Arrows
+						key={vectorType}
+						start={startMap}
+						end={endMap}
+						scale_vector_thickness={arrowsConfig.scale_vector_thickness || false}
+						colormap={colormap}
+						colorrange={colorRange}
+						opacity={arrowsConfig.opacity || 1.0}
+						rescale={arrowsConfig.rescale}
+						pathTracingSettings={pathTracingSettings}
+					/>
+				);
+			})}
 		</>
 	);
 };

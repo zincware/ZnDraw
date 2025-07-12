@@ -23,10 +23,10 @@ const getColormap = (colormapName: string): HSLColor[] => {
 };
 
 interface VectorConfig {
-	vectors: string[];
-	colormap: string;
-	vector_scale: number;
-	vectorfield: boolean;
+	vectors?: string[];
+	vector_scale?: number;
+	vectorfield?: boolean;
+	vector_colors?: { [key: string]: string };
 	[key: string]: any;
 }
 
@@ -40,7 +40,7 @@ interface UseVectorManagerProps {
 interface UseVectorManagerReturn {
 	vectorProperties: { [key: string]: any };
 	setVectorProperties: (properties: { [key: string]: any }) => void;
-	perParticleVectors: { start: THREE.Vector3; end: THREE.Vector3 }[];
+	perParticleVectors: { start: THREE.Vector3; end: THREE.Vector3; vectorType: string }[];
 	vectorFieldData: [number, number, number][][];
 	vectorColormap: HSLColor[];
 }
@@ -55,14 +55,14 @@ export const useVectorManager = ({
 		[key: string]: any;
 	}>({});
 	const [perParticleVectors, setPerParticleVectors] = useState<
-		{ start: THREE.Vector3; end: THREE.Vector3 }[]
+		{ start: THREE.Vector3; end: THREE.Vector3; vectorType: string }[]
 	>([]);
 	const [vectorFieldData, setVectorFieldData] = useState<
 		[number, number, number][][]
 	>([]);
 
-	// Computed colormap based on vectorConfig
-	const vectorColormap = getColormap(vectorConfig.colormap);
+	// Computed colormap based on vectorConfig (using default since colormap is no longer used)
+	const vectorColormap = getColormap("viridis");
 
 	// Custom hook for vector setup
 	const { getFrameFromCon } = useFrameFetching(token);
@@ -149,13 +149,13 @@ export const useVectorManager = ({
 
 		const shouldLoadVectors =
 			token && vectorConfig.vectors && vectorConfig.vectors.length > 0;
-		const shouldLoadVectorField = token && vectorConfig.vectorfield;
+		const shouldLoadVectorField = token && (vectorConfig.vectorfield || false);
 
 		if (shouldLoadVectors || shouldLoadVectorField) {
 			const loadVectors = async () => {
 				try {
 					const frame = await getFrameFromCon(step);
-					await setupVectorsFromFrame(frame, vectorConfig.vectors);
+					await setupVectorsFromFrame(frame, vectorConfig.vectors || []);
 				} catch (error) {
 					console.error("Error loading vectors:", error);
 					setVectorProperties({});
@@ -187,8 +187,8 @@ export const useVectorManager = ({
 			return;
 		}
 
-		// Combine all selected vector properties
-		const allVectors: { start: THREE.Vector3; end: THREE.Vector3 }[] = [];
+		// Combine all selected vector properties with type information
+		const allVectors: { start: THREE.Vector3; end: THREE.Vector3; vectorType: string }[] = [];
 
 		for (const vectorProperty of vectorConfig.vectors) {
 			const frameData = vectorProperties[vectorProperty];
@@ -201,9 +201,10 @@ export const useVectorManager = ({
 							.clone()
 							.add(
 								new THREE.Vector3(...vector).multiplyScalar(
-									vectorConfig.vector_scale,
+									vectorConfig.vector_scale || 1.0,
 								),
 							),
+						vectorType: vectorProperty, // Add vector type information
 					}),
 				);
 				allVectors.push(...calculatedVectors);

@@ -41,6 +41,7 @@ class CameraEnum(str, enum.Enum):
 class Particle(SettingsBase):
     particle_size: float = Field(1.0, ge=0.1, le=5, description="Particle Size")
     bond_size: float = Field(1.0, ge=0.1, le=5, description="Bonds Size")
+    show_bonds: bool = Field(True, description="Show bonds")
     material: Material = Field(Material.MeshStandardMaterial, description="Material")
     selection_color: str = Field("#ffa500", description="Selection color")
     hover_opacity: float = Field(0.8, ge=0.0, le=1.0, description="Hover opacity")
@@ -53,6 +54,7 @@ class Particle(SettingsBase):
         schema["properties"]["particle_size"]["step"] = 0.1
         schema["properties"]["bond_size"]["format"] = "range"
         schema["properties"]["bond_size"]["step"] = 0.1
+        schema["properties"]["show_bonds"]["format"] = "checkbox"
         schema["properties"]["selection_color"]["format"] = "color"
         schema["properties"]["hover_opacity"]["format"] = "range"
         schema["properties"]["hover_opacity"]["step"] = 0.05
@@ -63,8 +65,19 @@ class Particle(SettingsBase):
 
 class VectorDisplay(SettingsBase):
     vectorfield: bool = Field(True, description="Show vectorfield.")
-    vectors: list = Field("", description="Visualize vectorial property")
+    vectors: list[str] = Field(default_factory=list, description="Visualize vectorial property")
     vector_scale: float = Field(1.0, ge=0.1, le=5, description="Rescale Vectors")
+    vector_colors: dict[str, str] = Field(default_factory=dict, description="Color for each vector")
+    
+    # Arrow configuration properties
+    normalize: bool = Field(True, description="Normalize vector lengths")
+    scale_vector_thickness: bool = Field(False, description="Scale arrow thickness based on vector magnitude")
+    opacity: float = Field(1.0, ge=0.0, le=1.0, description="Arrow transparency")
+    colorrange: tuple[float, float] = Field((0.0, 1.0), description="Min and max values for color mapping")
+    default_colormap: list[tuple[float, float, float]] = Field(
+        default=[(0.66, 1.0, 0.5), (0.0, 1.0, 0.5)], 
+        description="Default HSL colormap for vector fields (blue to red)"
+    )
 
     @classmethod
     def model_json_schema_from_atoms(cls, atoms: ase.Atoms) -> dict:
@@ -90,6 +103,23 @@ class VectorDisplay(SettingsBase):
         schema["properties"]["vectorfield"]["format"] = "checkbox"
         schema["properties"]["vector_scale"]["format"] = "range"
         schema["properties"]["vector_scale"]["step"] = 0.05
+        
+        # Configure vector_colors as color pickers for each available vector
+        schema["properties"]["vector_colors"] = {
+            "type": "object",
+            "description": "Color for each vector",
+            "additionalProperties": {
+                "type": "string",
+                "format": "color",
+                "default": "#ff0000"
+            }
+        }
+        if array_props:
+            schema["properties"]["vector_colors"]["properties"] = {
+                prop: {"type": "string", "format": "color", "default": "#ff0000"}
+                for prop in array_props
+            }
+        
         return schema
 
 
@@ -152,82 +182,6 @@ class Camera(SettingsBase):
         return schema
 
 
-class Arrows(SettingsBase):
-    """Experimental vector color settings."""
-
-    colormap: list[HSLColor] = ((0.5, 0.9, 0.5), (1.0, 0.9, 0.5))
-    normalize: bool = True
-    colorrange: tuple[float, float] = (0, 1.0)
-    scale_vector_thickness: bool = False
-    opacity: float = Field(1.0, ge=0.0, le=1.0, description="Opacity")
-
-    @classmethod
-    def model_json_schema_from_atoms(cls, atoms: ase.Atoms) -> dict:
-        schema = cls.model_json_schema()
-        schema["properties"]["colormap"] = {
-            "type": "array",
-            "description": "Defines the colormap as a list of HSL tuples (Hue, Saturation, Lightness).",
-            "items": {
-                "type": "array",
-                "minItems": 3,
-                "maxItems": 3,
-                "headertemplate": "{{ i1 }}",
-                "items": [
-                    {
-                        "type": "number",
-                        "description": "Hue (0.0 - 1.0)",
-                        "format": "range",
-                        "step": 0.01,
-                        "minimum": 0,
-                        "maximum": 1,
-                    },
-                    {
-                        "type": "number",
-                        "description": "Saturation (0.0 - 1.0)",
-                        "format": "range",
-                        "step": 0.01,
-                        "minimum": 0,
-                        "maximum": 1,
-                    },
-                    {
-                        "type": "number",
-                        "description": "Lightness (0.0 - 1.0)",
-                        "format": "range",
-                        "step": 0.01,
-                        "minimum": 0,
-                        "maximum": 1,
-                    },
-                ],
-            },
-        }
-
-        # Enhance "colorrange"
-        schema["properties"]["colorrange"] = {
-            "type": "array",
-            "description": "Specifies the range of values for colors, defined as [min, max].",
-            "minItems": 2,
-            "maxItems": 2,
-            "items": [
-                {
-                    "type": "number",
-                    "description": "Minimum value of the range.",
-                    "format": "range",
-                    "step": 0.01,
-                },
-                {
-                    "type": "number",
-                    "description": "Maximum value of the range.",
-                    "format": "range",
-                    "step": 0.01,
-                },
-            ],
-        }
-
-        schema["properties"]["normalize"]["format"] = "checkbox"
-        schema["properties"]["scale_vector_thickness"]["format"] = "checkbox"
-        schema["properties"]["opacity"]["format"] = "range"
-        schema["properties"]["opacity"]["step"] = 0.05
-        return schema
 
 
 class EnvironmentPreset(str, enum.Enum):
@@ -279,22 +233,81 @@ SETTINGS = {
     Camera.__name__: Camera,
     PathTracer.__name__: PathTracer,
     VectorDisplay.__name__: VectorDisplay,
-    Arrows.__name__: Arrows,
 }
 
+
+class RoomConfig(SettingsBase):
+    """ZnDraw room configuration combining all settings sections."""
+    Particle: Particle
+    Visualization: Visualization
+    Camera: Camera
+    PathTracer: PathTracer
+    VectorDisplay: VectorDisplay
+
 if __name__ == "__main__":
-
-    class FullSettings(SettingsBase):
-        particle: Particle
-        visualization: Visualization
-        camera: Camera
-        path_tracer: PathTracer
-        vector_display: VectorDisplay
-        arrows: Arrows
-
-    # write to ../tmp/config.json
     import json
+    import subprocess
+    from pathlib import Path
 
-    with open("../tmp/config.json", "w") as f:
-        json.dump(FullSettings.model_json_schema(), f, indent=2)
-    # bunx quicktype --lang typescript --src config.json to convert to typescript
+    # Create output directories if they don't exist
+    backend_output_dir = Path(__file__).parent / "generated"
+    frontend_output_dir = Path(__file__).parent.parent / "app" / "src" / "types"
+    backend_output_dir.mkdir(exist_ok=True)
+    frontend_output_dir.mkdir(exist_ok=True)
+
+    # Generate schema using pydantic model (includes default values)
+    schema = RoomConfig.model_json_schema()
+    
+    # Export JSON schema
+    schema_file = backend_output_dir / "config.json"
+    with open(schema_file, "w") as f:
+        json.dump(schema, f, indent=2)
+    
+    # Convert to TypeScript using bunx quicktype with JSON schema
+    ts_file = frontend_output_dir / "room-config.ts"
+    subprocess.run([
+        "bunx", "quicktype", 
+        "--lang", "typescript",
+        "--src-lang", "schema",
+        "--src", str(schema_file),
+        "--out", str(ts_file),
+        "--top-level", "RoomConfig",
+        "--prefer-unions",
+        "--just-types"
+    ], check=True)
+    
+    # Create default values object from actual pydantic instances
+    room_config_instance = RoomConfig(
+        Particle=Particle(),
+        Visualization=Visualization(),
+        Camera=Camera(),
+        PathTracer=PathTracer(),
+        VectorDisplay=VectorDisplay()
+    )
+    defaults = room_config_instance.model_dump()
+    
+    # Add header comment and default values to the TypeScript file
+    with open(ts_file, "r") as f:
+        content = f.read()
+    
+    # Add header comment at the top
+    header_comment = """/**
+ * ZnDraw room configuration combining all settings sections.
+ * 
+ * This file is automatically generated by running: python -m zndraw.config
+ * Do not edit manually - changes will be overwritten.
+ */
+"""
+    
+    # Replace the content with header + existing content + defaults
+    with open(ts_file, "w") as f:
+        f.write(header_comment)
+        f.write(content)
+        f.write("\n\n// Default configuration values from pydantic models\n")
+        f.write("export const DEFAULT_ROOM_CONFIG: RoomConfig = ")
+        f.write(json.dumps(defaults, indent=2))
+        f.write(";\n")
+    
+    print(f"Generated JSON schema: {schema_file}")
+    print(f"Generated TypeScript: {ts_file}")
+    print("Frontend types available at: app/src/types/room-config.ts")
