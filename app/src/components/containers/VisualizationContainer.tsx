@@ -23,7 +23,6 @@ interface VisualizationContainerProps {
 	onDrop: (event: React.DragEvent) => void;
 }
 
-
 export const VisualizationContainer: React.FC<VisualizationContainerProps> = ({
 	onPointerMissed,
 	onDragOver,
@@ -79,7 +78,7 @@ export const VisualizationContainer: React.FC<VisualizationContainerProps> = ({
 	// Extract constrained atom indices from frame constraints
 	const constrainedAtomIds = useMemo(() => {
 		const constrainedIds = new Set<number>();
-		
+
 		if (currentFrame?.constraints) {
 			for (const constraint of currentFrame.constraints) {
 				if (constraint.type === "FixAtoms" && constraint.indices) {
@@ -89,7 +88,7 @@ export const VisualizationContainer: React.FC<VisualizationContainerProps> = ({
 				}
 			}
 		}
-		
+
 		return constrainedIds;
 	}, [currentFrame?.constraints]);
 
@@ -126,14 +125,20 @@ export const VisualizationContainer: React.FC<VisualizationContainerProps> = ({
 								position={[0, 100, 0]}
 								intensity={1.0}
 								castShadow
-								shadow-mapSize-width={(roomConfig.Camera.camera_far || 300) * 10} // Adjust the width of the shadow map
-								shadow-mapSize-height={(roomConfig.Camera.camera_far || 300) * 10} // Adjust the height of the shadow map
+								shadow-mapSize-width={
+									(roomConfig.Camera.camera_far || 300) * 10
+								} // Adjust the width of the shadow map
+								shadow-mapSize-height={
+									(roomConfig.Camera.camera_far || 300) * 10
+								} // Adjust the height of the shadow map
 								shadow-camera-near={10} // Adjust the near clipping plane of the shadow camera
 								shadow-camera-far={800} // Adjust the far clipping plane of the shadow camera
 								shadow-camera-left={-1 * (roomConfig.Camera.camera_far || 300)} // Set the left boundary for the shadow camera frustum
-								shadow-camera-right={(roomConfig.Camera.camera_far || 300)} // Set the right boundary for the shadow camera frustum
-								shadow-camera-top={(roomConfig.Camera.camera_far || 300)} // Set the top boundary for the shadow camera frustum
-								shadow-camera-bottom={-1 * (roomConfig.Camera.camera_far || 300)} // Set the bottom boundary for the shadow camera frustum
+								shadow-camera-right={roomConfig.Camera.camera_far || 300} // Set the right boundary for the shadow camera frustum
+								shadow-camera-top={roomConfig.Camera.camera_far || 300} // Set the top boundary for the shadow camera frustum
+								shadow-camera-bottom={
+									-1 * (roomConfig.Camera.camera_far || 300)
+								} // Set the bottom boundary for the shadow camera frustum
 							/>
 						</>
 					) : (
@@ -147,10 +152,23 @@ export const VisualizationContainer: React.FC<VisualizationContainerProps> = ({
 								vectors={vectorFieldData}
 								arrowsConfig={{
 									normalize: roomConfig.VectorDisplay.normalize || true,
-									colorrange: (roomConfig.VectorDisplay.colorrange || [0, 1.0]) as [number, number],
-									scale_vector_thickness: roomConfig.VectorDisplay.scale_vector_thickness || false,
+									colorrange: (roomConfig.VectorDisplay.colorrange || [
+										0, 1.0,
+									]) as [number, number],
+									scale_vector_thickness:
+										roomConfig.VectorDisplay.scale_vector_thickness || false,
 									opacity: roomConfig.VectorDisplay.opacity || 1.0,
-									colormap: vectorColormap.length > 0 ? vectorColormap : (roomConfig.VectorDisplay.default_colormap as [number, number, number][]) || [[0.66, 1.0, 0.5], [0.0, 1.0, 0.5]],
+									colormap:
+										vectorColormap.length > 0
+											? vectorColormap
+											: (roomConfig.VectorDisplay.default_colormap as [
+													number,
+													number,
+													number,
+												][]) || [
+													[0.66, 1.0, 0.5],
+													[0.0, 1.0, 0.5],
+												],
 								}}
 								pathTracingSettings={roomConfig.PathTracer}
 							/>

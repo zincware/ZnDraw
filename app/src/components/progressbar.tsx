@@ -183,67 +183,67 @@ const FrameRateControl: React.FC<FrameRateControlProps> = ({
 			className="d-flex justify-content-center align-items-center user-select-none"
 			style={{ display: "flex", height: "100%" }}
 		>
-				<FormControl
-					type="number"
-					value={frameRate}
-					onChange={handleChange}
-					min={1}
-					size="sm"
-					style={{
-						width: "40px",
-						height: "18px",
-						fontSize: "10px",
-						textAlign: "center",
-					}}
-					title="Frame rate (1 = every frame, 2 = every 2nd frame, etc.)"
-				/>
+			<FormControl
+				type="number"
+				value={frameRate}
+				onChange={handleChange}
+				min={1}
+				size="sm"
+				style={{
+					width: "40px",
+					height: "18px",
+					fontSize: "10px",
+					textAlign: "center",
+				}}
+				title="Frame rate (1 = every frame, 2 = every 2nd frame, etc.)"
+			/>
 
-				{/* Frame loading icon */}
+			{/* Frame loading icon */}
+			<OverlayTrigger
+				placement="top"
+				delay={{ show: 0, hide: 100 }}
+				overlay={<Tooltip>Loading frame data...</Tooltip>}
+			>
+				<div
+					style={{
+						height: "100%",
+						animation: showLoadingIcon ? "pulse 1s infinite" : "none",
+						visibility: showLoadingIcon ? "visible" : "hidden",
+						alignItems: "center",
+						justifyContent: "center",
+						display: "flex",
+					}}
+					title="Loading frame data..."
+				>
+					<IoMdCodeDownload />
+				</div>
+			</OverlayTrigger>
+
+			{/* Server connection spinner */}
+			{!connected && (
 				<OverlayTrigger
 					placement="top"
 					delay={{ show: 0, hide: 100 }}
-					overlay={<Tooltip>Loading frame data...</Tooltip>}
+					overlay={<Tooltip>Not connected to server</Tooltip>}
 				>
 					<div
 						style={{
-							height: "100%",
-							animation: showLoadingIcon ? "pulse 1s infinite" : "none",
-							visibility: showLoadingIcon ? "visible" : "hidden",
-							alignItems: "center",
-							justifyContent: "center",
-							display: "flex",
+							height: "25px",
+							width: "25px",
 						}}
-						title="Loading frame data..."
-					>
-						<IoMdCodeDownload />
-					</div>
-				</OverlayTrigger>
-
-				{/* Server connection spinner */}
-				{!connected && (
-					<OverlayTrigger
-						placement="top"
-						delay={{ show: 0, hide: 100 }}
-						overlay={<Tooltip>Not connected to server</Tooltip>}
 					>
 						<div
+							className="spinner-border spinner-border-sm text-primary"
+							role="status"
 							style={{
-								height: "25px",
-								width: "25px",
+								width: "15px",
+								height: "15px",
 							}}
-						>
-							<div
-								className="spinner-border spinner-border-sm text-primary"
-								role="status"
-								style={{
-									width: "15px",
-									height: "15px",
-								}}
-							></div>
-							<span className="visually-hidden">Loading...</span>
-						</div>
-					</OverlayTrigger>
-				)}
+						></div>
+						<span className="visually-hidden">Loading...</span>
+					</div>
+				</OverlayTrigger>
+			)}
 		</div>
 	);
 };

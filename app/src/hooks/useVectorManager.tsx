@@ -40,7 +40,11 @@ interface UseVectorManagerProps {
 interface UseVectorManagerReturn {
 	vectorProperties: { [key: string]: any };
 	setVectorProperties: (properties: { [key: string]: any }) => void;
-	perParticleVectors: { start: THREE.Vector3; end: THREE.Vector3; vectorType: string }[];
+	perParticleVectors: {
+		start: THREE.Vector3;
+		end: THREE.Vector3;
+		vectorType: string;
+	}[];
 	vectorFieldData: [number, number, number][][];
 	vectorColormap: HSLColor[];
 }
@@ -188,7 +192,11 @@ export const useVectorManager = ({
 		}
 
 		// Combine all selected vector properties with type information
-		const allVectors: { start: THREE.Vector3; end: THREE.Vector3; vectorType: string }[] = [];
+		const allVectors: {
+			start: THREE.Vector3;
+			end: THREE.Vector3;
+			vectorType: string;
+		}[] = [];
 
 		for (const vectorProperty of vectorConfig.vectors) {
 			const frameData = vectorProperties[vectorProperty];

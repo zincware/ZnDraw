@@ -197,7 +197,7 @@ class ChangeType(UpdateScene):
         if hasattr(atoms, "connectivity"):
             # vdW radii might change
             if "connectivity" in atoms.info:
-                    del atoms.info["connectivity"]
+                del atoms.info["connectivity"]
 
         vis.append(atoms)
         vis.selection = []
@@ -218,7 +218,7 @@ class AddLineParticles(UpdateScene):
         atoms.arrays.pop("radii", None)
         if hasattr(atoms, "connectivity"):
             if "connectivity" in atoms.info:
-                    del atoms.info["connectivity"]
+                del atoms.info["connectivity"]
 
         vis.append(atoms)
 

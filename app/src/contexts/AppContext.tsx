@@ -103,7 +103,11 @@ interface AppState {
 	// Vector data
 	vectorProperties: Record<string, unknown>;
 	setVectorProperties: (properties: Record<string, unknown>) => void;
-	perParticleVectors: { start: THREE.Vector3; end: THREE.Vector3; vectorType: string }[];
+	perParticleVectors: {
+		start: THREE.Vector3;
+		end: THREE.Vector3;
+		vectorType: string;
+	}[];
 	vectorFieldData: [number, number, number][][];
 	// Computed colormap for vectors
 	vectorColormap: HSLColor[];

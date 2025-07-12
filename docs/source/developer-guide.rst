@@ -16,22 +16,22 @@ ZnDraw implements a sophisticated real-time communication system that enables co
             AS[ASE Structures<br/>Molecular Data]
             MOD[Modifiers<br/>Analysis Tasks]
         end
-        
+
         subgraph "Server Layer"
             FS[Flask-SocketIO Server<br/>zndraw.app]
             CEL[Celery Workers<br/>Background Tasks]
             ZS[ZnSocket Storage<br/>Data Synchronization]
         end
-        
+
         subgraph "Web Environment"
             WC[Web Client<br/>React + Three.js]
             UI[User Interface<br/>3D Visualization]
         end
-        
+
         subgraph "Storage Backend"
             RED[Redis/Storage<br/>Persistent Data]
         end
-        
+
         PC <--> |Socket.IO<br/>WebSocket| FS
         WC <--> |Socket.IO<br/>WebSocket| FS
         PC <--> |ZnSocket Client<br/>Data Sync| ZS
@@ -39,7 +39,7 @@ ZnDraw implements a sophisticated real-time communication system that enables co
         FS <--> |Storage Layer| ZS
         ZS <--> |Persistence| RED
         FS <--> |Task Queue| CEL
-        
+
         AS --> PC
         PC --> MOD
         MOD --> PC
@@ -59,23 +59,23 @@ ZnSocket provides the foundation for real-time data synchronization. It implemen
         participant ZS as ZnSocket Server
         participant WC as Web Client
         participant ST as Storage
-        
+
         Note over PC, WC: Initial Connection Setup
         PC->>ZS: Connect znsocket.Client
         WC->>ZS: Connect JavaScript client
         ZS->>ST: Initialize storage backend
-        
+
         Note over PC, WC: Data Structure Creation
         PC->>ZS: Create znsocket.List("room:token:frames")
         ZS->>ST: Store list metadata
         ZS-->>WC: Notify structure available
-        
+
         Note over PC, WC: Real-time Synchronization
         PC->>ZS: Append frame data
         ZS->>ST: Update persistent storage
         ZS-->>WC: Trigger refresh callback
         WC->>WC: Update 3D visualization
-        
+
         Note over PC, WC: Bidirectional Updates
         WC->>ZS: Update selection data
         ZS->>ST: Store selection state
@@ -95,23 +95,23 @@ ZnDraw uses a token-based room system to isolate data between different sessions
             DC[room:default:config]
             DS[room:default:selection]
         end
-        
+
         subgraph "Private Room A"
             AF[room:token-a:frames]
             AC[room:token-a:config]
             AS[room:token-a:selection]
         end
-        
+
         subgraph "Private Room B"
             BF[room:token-b:frames]
             BC[room:token-b:config]
             BS[room:token-b:selection]
         end
-        
+
         DF -.->|copy on first access| AF
         DC -.->|copy on first access| AC
         DS -.->|copy on first access| AS
-        
+
         DF -.->|copy on first access| BF
         DC -.->|copy on first access| BC
         DS -.->|copy on first access| BS
@@ -164,25 +164,25 @@ The configuration system uses nested ``znsocket.Dict`` structures to organize di
         subgraph "znsocket.Dict: room:token:config"
             direction TB
             ROOT[Config Root]
-            
+
             subgraph "Particle Settings"
                 PP[particle_size: Float]
                 PC[particle_color: String]
                 PR[particle_radius: Float]
             end
-            
+
             subgraph "Bond Settings"
                 BP[bond_style: String]
                 BC[bond_color: String]
                 BR[bond_radius: Float]
             end
-            
+
             subgraph "Camera Settings"
                 CP[camera_position: Array]
                 CT[camera_target: Array]
                 CU[camera_up: Array]
             end
-            
+
             ROOT --> PP
             ROOT --> PC
             ROOT --> PR
@@ -209,7 +209,7 @@ When the Python client updates molecular data, the changes propagate automatical
         participant ZL as znsocket.List
         participant WC as Web Client
         participant UI as 3D Visualization
-        
+
         Note over PY, UI: Adding New Molecular Structures
         PY->>PY: Load ASE structures
         PY->>ZL: vis.extend(structures)
@@ -218,7 +218,7 @@ When the Python client updates molecular data, the changes propagate automatical
         WC->>WC: Fetch updated frame data
         WC->>UI: Update Three.js scene
         UI->>UI: Render new molecules
-        
+
         Note over PY, UI: Modifier Execution
         PY->>ZL: Register modifier function
         WC->>ZL: Trigger modifier via UI
@@ -241,13 +241,13 @@ User interactions in the web interface can trigger actions in the Python client,
         participant ZS as ZnSocket
         participant PY as Python Client
         participant CEL as Celery Worker
-        
+
         Note over UI, CEL: User Selection and Analysis
         UI->>WC: User selects atoms
         WC->>ZS: Update selection dict
         ZS-->>PY: Selection change callback
         PY->>PY: Check modifier queue
-        
+
         Note over UI, CEL: Background Task Execution
         UI->>WC: Trigger analysis task
         WC->>ZS: Add task to queue
@@ -293,9 +293,8 @@ The Python client runs a background thread that continuously monitors for change
         """Background thread for processing modifier and public queues."""
         while True:
             process_modifier_queue(vis)
-            process_public_queue(vis) 
+            process_public_queue(vis)
             vis.socket.sleep(1)  # Rate limiting
 
     # Start background processing
     vis.socket.start_background_task(check_queue, vis)
-

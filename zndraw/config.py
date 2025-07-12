@@ -65,18 +65,26 @@ class Particle(SettingsBase):
 
 class VectorDisplay(SettingsBase):
     vectorfield: bool = Field(True, description="Show vectorfield.")
-    vectors: list[str] = Field(default_factory=list, description="Visualize vectorial property")
+    vectors: list[str] = Field(
+        default_factory=list, description="Visualize vectorial property"
+    )
     vector_scale: float = Field(1.0, ge=0.1, le=5, description="Rescale Vectors")
-    vector_colors: dict[str, str] = Field(default_factory=dict, description="Color for each vector")
-    
+    vector_colors: dict[str, str] = Field(
+        default_factory=dict, description="Color for each vector"
+    )
+
     # Arrow configuration properties
     normalize: bool = Field(True, description="Normalize vector lengths")
-    scale_vector_thickness: bool = Field(False, description="Scale arrow thickness based on vector magnitude")
+    scale_vector_thickness: bool = Field(
+        False, description="Scale arrow thickness based on vector magnitude"
+    )
     opacity: float = Field(1.0, ge=0.0, le=1.0, description="Arrow transparency")
-    colorrange: tuple[float, float] = Field((0.0, 1.0), description="Min and max values for color mapping")
+    colorrange: tuple[float, float] = Field(
+        (0.0, 1.0), description="Min and max values for color mapping"
+    )
     default_colormap: list[tuple[float, float, float]] = Field(
-        default=[(0.66, 1.0, 0.5), (0.0, 1.0, 0.5)], 
-        description="Default HSL colormap for vector fields (blue to red)"
+        default=[(0.66, 1.0, 0.5), (0.0, 1.0, 0.5)],
+        description="Default HSL colormap for vector fields (blue to red)",
     )
 
     @classmethod
@@ -103,7 +111,7 @@ class VectorDisplay(SettingsBase):
         schema["properties"]["vectorfield"]["format"] = "checkbox"
         schema["properties"]["vector_scale"]["format"] = "range"
         schema["properties"]["vector_scale"]["step"] = 0.05
-        
+
         # Configure vector_colors as color pickers for each available vector
         schema["properties"]["vector_colors"] = {
             "type": "object",
@@ -111,15 +119,15 @@ class VectorDisplay(SettingsBase):
             "additionalProperties": {
                 "type": "string",
                 "format": "color",
-                "default": "#ff0000"
-            }
+                "default": "#ff0000",
+            },
         }
         if array_props:
             schema["properties"]["vector_colors"]["properties"] = {
                 prop: {"type": "string", "format": "color", "default": "#ff0000"}
                 for prop in array_props
             }
-        
+
         return schema
 
 
@@ -182,8 +190,6 @@ class Camera(SettingsBase):
         return schema
 
 
-
-
 class EnvironmentPreset(str, enum.Enum):
     none = "none"
     apartment = "apartment"
@@ -238,11 +244,13 @@ SETTINGS = {
 
 class RoomConfig(SettingsBase):
     """ZnDraw room configuration combining all settings sections."""
+
     Particle: Particle
     Visualization: Visualization
     Camera: Camera
     PathTracer: PathTracer
     VectorDisplay: VectorDisplay
+
 
 if __name__ == "__main__":
     import json
@@ -257,48 +265,57 @@ if __name__ == "__main__":
 
     # Generate schema using pydantic model (includes default values)
     schema = RoomConfig.model_json_schema()
-    
+
     # Export JSON schema
     schema_file = backend_output_dir / "config.json"
     with open(schema_file, "w") as f:
         json.dump(schema, f, indent=2)
-    
+
     # Convert to TypeScript using bunx quicktype with JSON schema
     ts_file = frontend_output_dir / "room-config.ts"
-    subprocess.run([
-        "bunx", "quicktype", 
-        "--lang", "typescript",
-        "--src-lang", "schema",
-        "--src", str(schema_file),
-        "--out", str(ts_file),
-        "--top-level", "RoomConfig",
-        "--prefer-unions",
-        "--just-types"
-    ], check=True)
-    
+    subprocess.run(
+        [
+            "bunx",
+            "quicktype",
+            "--lang",
+            "typescript",
+            "--src-lang",
+            "schema",
+            "--src",
+            str(schema_file),
+            "--out",
+            str(ts_file),
+            "--top-level",
+            "RoomConfig",
+            "--prefer-unions",
+            "--just-types",
+        ],
+        check=True,
+    )
+
     # Create default values object from actual pydantic instances
     room_config_instance = RoomConfig(
         Particle=Particle(),
         Visualization=Visualization(),
         Camera=Camera(),
         PathTracer=PathTracer(),
-        VectorDisplay=VectorDisplay()
+        VectorDisplay=VectorDisplay(),
     )
     defaults = room_config_instance.model_dump()
-    
+
     # Add header comment and default values to the TypeScript file
     with open(ts_file, "r") as f:
         content = f.read()
-    
+
     # Add header comment at the top
     header_comment = """/**
  * ZnDraw room configuration combining all settings sections.
- * 
+ *
  * This file is automatically generated by running: python -m zndraw.config
  * Do not edit manually - changes will be overwritten.
  */
 """
-    
+
     # Replace the content with header + existing content + defaults
     with open(ts_file, "w") as f:
         f.write(header_comment)
@@ -307,7 +324,7 @@ if __name__ == "__main__":
         f.write("export const DEFAULT_ROOM_CONFIG: RoomConfig = ")
         f.write(json.dumps(defaults, indent=2))
         f.write(";\n")
-    
+
     print(f"Generated JSON schema: {schema_file}")
     print(f"Generated TypeScript: {ts_file}")
     print("Frontend types available at: app/src/types/room-config.ts")

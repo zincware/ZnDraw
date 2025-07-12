@@ -126,7 +126,9 @@ def read_file(fileio: dict) -> None:
         url=current_app.config["SERVER_URL"],
         token="default",
         convert_nan=file_io.convert_nan,
-        bond_calculator=ASEComputeBonds() if current_app.config.get("COMPUTE_BONDS", False) else None,
+        bond_calculator=ASEComputeBonds()
+        if current_app.config.get("COMPUTE_BONDS", False)
+        else None,
     )
     generator = get_generator_from_filename(file_io)
     data = list(generator)
@@ -535,4 +537,5 @@ def run_room_copy(room) -> None:
         if not (len(default_lst) == 1 and len(default_lst[0]) == 0):
             # Deep copy with full nested structure isolation
             from zndraw.zndraw import deep_copy_frames_to_room
+
             deep_copy_frames_to_room(default_lst, room, r)

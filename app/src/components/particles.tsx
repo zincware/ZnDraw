@@ -64,8 +64,11 @@ export const Player = ({
 		if (playing) {
 			if (selectedFrames.indices.size > 0 && selectedFrames.active) {
 				// Selection mode - check if we're at the last selected frame
-				const selectedFramesList = Array.from(selectedFrames.indices).sort((a, b) => a - b);
-				const lastSelectedFrame = selectedFramesList[selectedFramesList.length - 1];
+				const selectedFramesList = Array.from(selectedFrames.indices).sort(
+					(a, b) => a - b,
+				);
+				const lastSelectedFrame =
+					selectedFramesList[selectedFramesList.length - 1];
 				if (step >= lastSelectedFrame) {
 					setStep(selectedFramesList[0]); // Jump to first selected frame
 				}
@@ -93,18 +96,24 @@ export const Player = ({
 					// Check if frame selection is active
 					if (selectedFrames.indices.size > 0 && selectedFrames.active) {
 						// Playing within selected frames only
-						const selectedFramesList = Array.from(selectedFrames.indices).sort((a, b) => a - b);
+						const selectedFramesList = Array.from(selectedFrames.indices).sort(
+							(a, b) => a - b,
+						);
 						const currentIndex = selectedFramesList.indexOf(prevStep);
-						
+
 						if (currentIndex !== -1) {
 							// Current frame is in selection, move to next selected frame
 							let nextIndex = currentIndex;
-							
+
 							// Apply frame rate (skip selected frames)
-							for (let i = 0; i < frameRate && nextIndex < selectedFramesList.length - 1; i++) {
+							for (
+								let i = 0;
+								i < frameRate && nextIndex < selectedFramesList.length - 1;
+								i++
+							) {
 								nextIndex++;
 							}
-							
+
 							if (nextIndex < selectedFramesList.length) {
 								nextStep = selectedFramesList[nextIndex];
 							} else {
@@ -120,7 +129,9 @@ export const Player = ({
 							}
 						} else {
 							// Current frame is not in selection, find next selected frame
-							const nextSelectedFrame = selectedFramesList.find(frame => frame > prevStep);
+							const nextSelectedFrame = selectedFramesList.find(
+								(frame) => frame > prevStep,
+							);
 							if (nextSelectedFrame !== undefined) {
 								nextStep = nextSelectedFrame;
 							} else if (loop) {
@@ -265,7 +276,6 @@ export const ParticleInstances = ({
 }) => {
 	const meshRef = useRef<THREE.InstancedMesh | null>(null);
 
-
 	useEffect(() => {
 		console.log("Updating frame:", frame);
 	}, [frame]);
@@ -313,10 +323,14 @@ export const ParticleInstances = ({
 
 			const visibleArray = Array.from(actualVisibleIndices);
 			const highlightColor = highlight ? selection_color : null;
-			
+
 			// Pre-calculate scale multipliers to avoid repeated conditionals
-			const scaleMultiplier = highlight === "backside" ? 1.25 : 
-								   highlight === "selection" ? 1.01 : 1.0;
+			const scaleMultiplier =
+				highlight === "backside"
+					? 1.25
+					: highlight === "selection"
+						? 1.01
+						: 1.0;
 
 			for (let i = 0; i < visibleArray.length; i++) {
 				const atomIdx = visibleArray[i];
@@ -327,12 +341,12 @@ export const ParticleInstances = ({
 				}
 
 				const radius = radii[atomIdx] * scaleMultiplier;
-				
+
 				// Optimize matrix operations by setting elements directly
 				matrix.makeScale(radius, radius, radius);
 				matrix.setPosition(position);
 				meshRef.current.setMatrixAt(i, matrix);
-				
+
 				// Set color efficiently
 				color.set(highlightColor || colors[atomIdx] || "#ffffff");
 				meshRef.current.setColorAt(i, color);
@@ -712,7 +726,10 @@ export const PerParticleVectors: React.FC<PerParticleVectorsProps> = ({
 
 	// Group vectors by type
 	const vectorsByType = useMemo(() => {
-		const grouped: Record<string, { start: THREE.Vector3; end: THREE.Vector3 }[]> = {};
+		const grouped: Record<
+			string,
+			{ start: THREE.Vector3; end: THREE.Vector3 }[]
+		> = {};
 		for (const vector of vectors) {
 			if (!grouped[vector.vectorType]) {
 				grouped[vector.vectorType] = [];
@@ -728,54 +745,67 @@ export const PerParticleVectors: React.FC<PerParticleVectorsProps> = ({
 	// Helper function to convert hex color to HSL colormap
 	const hexToHSLColormap = (hexColor: string): [number, number, number][] => {
 		// Simple hex to HSL conversion for single color
-		const hex = hexColor.replace('#', '');
+		const hex = hexColor.replace("#", "");
 		const r = parseInt(hex.substr(0, 2), 16) / 255;
 		const g = parseInt(hex.substr(2, 2), 16) / 255;
 		const b = parseInt(hex.substr(4, 2), 16) / 255;
-		
+
 		const max = Math.max(r, g, b);
 		const min = Math.min(r, g, b);
 		const diff = max - min;
 		const l = (max + min) / 2;
-		
+
 		let h = 0;
 		let s = 0;
-		
+
 		if (diff !== 0) {
 			s = l > 0.5 ? diff / (2 - max - min) : diff / (max + min);
-			
+
 			switch (max) {
-				case r: h = (g - b) / diff + (g < b ? 6 : 0); break;
-				case g: h = (b - r) / diff + 2; break;
-				case b: h = (r - g) / diff + 4; break;
+				case r:
+					h = (g - b) / diff + (g < b ? 6 : 0);
+					break;
+				case g:
+					h = (b - r) / diff + 2;
+					break;
+				case b:
+					h = (r - g) / diff + 4;
+					break;
 			}
 			h /= 6;
 		}
-		
+
 		return [[h, s, l]];
 	};
 
 	return (
 		<>
 			{Object.entries(vectorsByType).map(([vectorType, typeVectors]) => {
-				const vectorColor = arrowsConfig.vector_colors?.[vectorType] || "#ff0000";
+				const vectorColor =
+					arrowsConfig.vector_colors?.[vectorType] || "#ff0000";
 				const colormap = hexToHSLColormap(vectorColor);
-				
+
 				const startMap = typeVectors.map((vec) => vec.start.toArray());
 				const endMap = typeVectors.map((vec) => vec.end.toArray());
-				
+
 				// Calculate color range for this vector type
-				const distances = typeVectors.map((vector) => vector.start.distanceTo(vector.end));
-				const colorRange: [number, number] = arrowsConfig.normalize 
+				const distances = typeVectors.map((vector) =>
+					vector.start.distanceTo(vector.end),
+				);
+				const colorRange: [number, number] = arrowsConfig.normalize
 					? [0, Math.max(...distances)]
-					: (Array.isArray(arrowsConfig.colorrange) ? arrowsConfig.colorrange : [0, 1]);
+					: Array.isArray(arrowsConfig.colorrange)
+						? arrowsConfig.colorrange
+						: [0, 1];
 
 				return (
 					<Arrows
 						key={vectorType}
 						start={startMap}
 						end={endMap}
-						scale_vector_thickness={arrowsConfig.scale_vector_thickness || false}
+						scale_vector_thickness={
+							arrowsConfig.scale_vector_thickness || false
+						}
 						colormap={colormap}
 						colorrange={colorRange}
 						opacity={arrowsConfig.opacity || 1.0}
