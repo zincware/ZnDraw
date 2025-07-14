@@ -1,8 +1,6 @@
 import ase
 import networkx as nx
-import numpy as np
-from networkx.exception import NetworkXError
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 from rdkit2ase import ase2networkx
 
 
