@@ -98,7 +98,7 @@ def server():
 
     yield f"http://127.0.0.1:{port}"
 
-    # use time.sleep and disbale the no-browser flag to see the results (might interfere with tests)
+    # use time.sleep and disable the no-browser flag to see the results (might interfere with tests)
     # time.sleep(10)
 
     # Clean up: kill the server process and any child processes
