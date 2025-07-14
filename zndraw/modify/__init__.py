@@ -115,8 +115,7 @@ class Delete(UpdateScene):
         else:
             for idx, atom_id in enumerate(sorted(atom_ids)):
                 atoms.pop(atom_id - idx)  # we remove the atom and shift the index
-            if hasattr(atoms, "connectivity"):
-                del atoms.connectivity
+            atoms.info.pop("connectivity", None)
         vis.append(atoms)
         vis.selection = []
         vis.step += 1
@@ -172,8 +171,7 @@ class Duplicate(UpdateScene):
             atoms += atom
             atoms.arrays.pop("colors", None)
             atoms.arrays.pop("radii", None)
-            if hasattr(atoms, "connectivity"):
-                del atoms.connectivity
+            atoms.info.pop("connectivity", None)
 
         vis.append(atoms)
         vis.selection = []
@@ -192,9 +190,7 @@ class ChangeType(UpdateScene):
 
         atoms.arrays.pop("colors", None)
         atoms.arrays.pop("radii", None)
-        if hasattr(atoms, "connectivity"):
-            # vdW radii might change
-            del atoms.connectivity
+        atoms.info.pop("connectivity", None)
 
         vis.append(atoms)
         vis.selection = []
@@ -213,8 +209,7 @@ class AddLineParticles(UpdateScene):
 
         atoms.arrays.pop("colors", None)
         atoms.arrays.pop("radii", None)
-        if hasattr(atoms, "connectivity"):
-            del atoms.connectivity
+        atoms.info.pop("connectivity", None)
 
         vis.append(atoms)
 
@@ -233,13 +228,13 @@ class Wrap(UpdateScene):
             for idx, atoms in enumerate(vis):
                 atoms.wrap()
                 if self.recompute_bonds:
-                    delattr(atoms, "connectivity")
+                    atoms.info.pop("connectivity", None)
                 vis[idx] = atoms
         else:
             atoms = vis.atoms
             atoms.wrap()
             if self.recompute_bonds:
-                delattr(atoms, "connectivity")
+                atoms.info.pop("connectivity", None)
             vis[vis.step] = atoms
 
 
@@ -276,7 +271,7 @@ class Center(UpdateScene):
                 if self.wrap:
                     atoms.wrap()
                 if self.recompute_bonds:
-                    delattr(atoms, "connectivity")
+                    atoms.info.pop("connectivity", None)
 
                 vis[idx] = atoms
         else:
@@ -287,7 +282,7 @@ class Center(UpdateScene):
             if self.wrap:
                 atoms.wrap()
             if self.recompute_bonds:
-                delattr(atoms, "connectivity")
+                atoms.info.pop("connectivity", None)
 
             vis[vis.step] = atoms
 

@@ -16,7 +16,6 @@ import tqdm
 import typing_extensions as tyex
 import znjson
 import znsocket
-import znsocket.exceptions
 from redis import Redis
 
 from zndraw.abc import Message
@@ -44,6 +43,32 @@ from zndraw.utils import (
 
 log = logging.getLogger(__name__)
 __version__ = importlib.metadata.version("zndraw")
+
+
+def deep_copy_frames_to_room(
+    default_list: znsocket.List, target_room_token: str, redis_client
+) -> None:
+    """
+    Deep copy frame data from default room to target room, ensuring all nested
+    znsocket.Dict objects are properly copied to prevent cross-room contamination.
+    """
+    # Create target list
+    target_list = znsocket.List(
+        redis_client,
+        f"room:{target_room_token}:frames",
+        converter=default_list.converter,
+        socket=default_list.socket,
+    )
+
+    data = list(default_list)
+    frames = []
+    for idx, frame in enumerate(data):
+        # Create a new key for the target room
+        new_key = f"room:{target_room_token}:frame:{idx}"
+
+        assert isinstance(frame, znsocket.Dict)
+        frames.append(frame.copy(new_key))
+    target_list.extend(frames)
 
 
 class ExtensionType(str, enum.Enum):
@@ -89,8 +114,6 @@ class ZnDraw(MutableSequence):
     verify: bool | str = True
     convert_nan: bool = False
 
-    max_atoms_per_call: int = dataclasses.field(default=1000, repr=False)
-    # number of `ase.Atom` to send per call
     name: str | None = None
 
     _modifiers: dict[str, RegisterModifier] = dataclasses.field(default_factory=dict)
@@ -172,7 +195,16 @@ class ZnDraw(MutableSequence):
                 log.error("Disconnecting. Please restart.")
                 self.socket.disconnect()
 
-    def __getitem__(self, index: int | list | slice) -> ase.Atoms | list[ase.Atoms]:
+    @t.overload
+    def __getitem__(self, index: int) -> ase.Atoms: ...
+
+    @t.overload
+    def __getitem__(self, index: list[int]) -> list[ase.Atoms]: ...
+
+    @t.overload
+    def __getitem__(self, index: slice) -> list[ase.Atoms]: ...
+
+    def __getitem__(self, index: int | list[int] | slice) -> ase.Atoms | list[ase.Atoms]:
         single_item = isinstance(index, int)
         if single_item:
             index = [index]
@@ -182,7 +214,6 @@ class ZnDraw(MutableSequence):
                 f"room:{self.token}:frames",
                 converter=[ASEConverter],
                 socket=self._refresh_client,
-                max_commands_per_call=100,
             )[index]
 
         else:
@@ -191,7 +222,6 @@ class ZnDraw(MutableSequence):
                 "room:default:frames",
                 converter=[ASEConverter],
                 socket=self._refresh_client,
-                max_commands_per_call=100,
             )[index]
 
         # TODO: converting this back could also make use of a pipeline?
@@ -217,7 +247,6 @@ class ZnDraw(MutableSequence):
             f"room:{self.token}:frames",
             converter=[ASEConverter],
             socket=self._refresh_client,
-            max_commands_per_call=100,
             convert_nan=self.convert_nan,
         )
         if not self.r.exists(f"znsocket.List:room:{self.token}:frames") and self.r.exists(
@@ -227,11 +256,11 @@ class ZnDraw(MutableSequence):
                 self.r,
                 "room:default:frames",
                 socket=self._refresh_client,
-                max_commands_per_call=100,
             )
             if not (len(default_lst) == 1 and len(default_lst[0]) == 0):
-                # prevent copying empty default room
-                default_lst.copy(key=lst.key)
+                # Deep copy with full nested structure isolation
+                if self.token:
+                    deep_copy_frames_to_room(default_lst, self.token, self.r)
 
         if isinstance(index, slice):
             index = list(range(*index.indices(len(self))))
@@ -242,8 +271,8 @@ class ZnDraw(MutableSequence):
         pipeline = self.r.pipeline()
         for i, val in zip(index, value):
             if isinstance(val, ase.Atoms):
-                if not hasattr(val, "connectivity") and self.bond_calculator is not None:
-                    val.connectivity = self.bond_calculator.get_bonds(val)
+                if "connectivity" not in val.info and self.bond_calculator is not None:
+                    self.bond_calculator.get_bonds(val)
                 atoms_dict = ASEConverter().encode(val)
                 nested_dict = dict_to_nested_znsocket(
                     data=atoms_dict, key=f"room:{self.token}:frame:{i}", client=pipeline
@@ -279,7 +308,6 @@ class ZnDraw(MutableSequence):
             f"room:{self.token}:frames",
             converter=[ASEConverter],
             socket=self._refresh_client,
-            max_commands_per_call=100,
         )
 
         if not self.r.exists(f"znsocket.List:room:{self.token}:frames") and self.r.exists(
@@ -290,11 +318,11 @@ class ZnDraw(MutableSequence):
                 "room:default:frames",
                 converter=[ASEConverter],
                 socket=self._refresh_client,
-                max_commands_per_call=100,
             )
             if not (len(default_lst) == 1 and len(default_lst[0]) == 0):
-                # prevent copying empty default room
-                default_lst.copy(key=lst.key)
+                # Deep copy with full nested structure isolation
+                if self.token:
+                    deep_copy_frames_to_room(default_lst, self.token, self.r)
 
         del lst[index]
 
@@ -332,14 +360,14 @@ class ZnDraw(MutableSequence):
                 socket=self._refresh_client,
             )
             if not (len(default_lst) == 1 and len(default_lst[0]) == 0):
-                # prevent copying empty default room
-                # TODO: need a nested copy here, because otherwise,
-                # the user could modify the default room!
-                default_lst.copy(key=lst.key)
+                # Deep copy with full nested structure isolation
+                # This resolves the TODO for nested copy
+                if self.token:
+                    deep_copy_frames_to_room(default_lst, self.token, self.r)
 
         if isinstance(value, ase.Atoms):
-            if not hasattr(value, "connectivity") and self.bond_calculator is not None:
-                value.connectivity = self.bond_calculator.get_bonds(value)
+            if "connectivity" not in value.info and self.bond_calculator is not None:
+                self.bond_calculator.get_bonds(value)
 
             pipeline = self.r.pipeline()
             atoms_dict = ASEConverter().encode(value)
@@ -370,11 +398,11 @@ class ZnDraw(MutableSequence):
                 "room:default:frames",
                 converter=[ASEConverter],
                 socket=self._refresh_client,
-                max_commands_per_call=100,
             )
             if not (len(default_lst) == 1 and len(default_lst[0]) == 0):
-                # prevent copying empty default room
-                default_lst.copy(key=f"room:{self.token}:frames")
+                # Deep copy with full nested structure isolation
+                if self.token:
+                    deep_copy_frames_to_room(default_lst, self.token, self.r)
 
         # enable tbar if more than 10 messages are sent
         # approximated by the size of the first frame
@@ -382,25 +410,25 @@ class ZnDraw(MutableSequence):
             self.r,
             f"room:{self.token}:frames",
             socket=self._refresh_client,
-            max_commands_per_call=100,
             convert_nan=self.convert_nan,
         )
         # TODO: why is there no copy action here?
-        show_tbar = (len(values[0]) * len(values)) > self.max_atoms_per_call
         tbar = tqdm.tqdm(
-            values, desc="Sending frames", unit=" frame", disable=not show_tbar
+            values, desc="Sending frames", unit=" frame", disable=False, leave=True
         )
 
         msg = []
-        n_atoms = 0
         offset = 0
 
         start_idx = len(lst)
         pipeline = self.r.pipeline()
 
+        now = datetime.datetime.now()
+
         for val in tbar:
-            if not hasattr(val, "connectivity") and self.bond_calculator is not None:
-                val.connectivity = self.bond_calculator.get_bonds(val)
+            # connectivity now stored in val.info["connectivity"]
+            if "connectivity" not in val.info and self.bond_calculator is not None:
+                self.bond_calculator.get_bonds(val)
 
             atoms_dict = ASEConverter().encode(val)
             msg.append(
@@ -412,12 +440,17 @@ class ZnDraw(MutableSequence):
                 )
             )
             offset += 1
-            if offset >= self.max_atoms_per_call:
+            if datetime.datetime.now() - now > datetime.timedelta(seconds=1):
                 pipeline.execute()
-                n_atoms += offset
+                pipeline = self.r.pipeline()
+                start_idx += offset
                 offset = 0
+                lst.extend(msg)
+                msg = []
+
         pipeline.execute()
-        lst.extend(msg)
+        if len(msg) > 0:
+            lst.extend(msg)
 
     @property
     def selection(self) -> list[int]:
@@ -469,7 +502,6 @@ class ZnDraw(MutableSequence):
             self.r,
             f"room:{self.token}:chat",
             socket=self._refresh_client,
-            max_commands_per_call=100,
             convert_nan=self.convert_nan,
         ).append(msg)
 
@@ -480,7 +512,6 @@ class ZnDraw(MutableSequence):
             f"room:{self.token}:chat",
             repr_type="length",
             socket=self._refresh_client,
-            max_commands_per_call=100,
         )
 
     @step.setter
@@ -626,7 +657,6 @@ class ZnDraw(MutableSequence):
             repr_type="full",
             socket=self._refresh_client,
             converter=[Object3DConverter],
-            max_commands_per_call=100,
         )
 
     @geometries.setter
@@ -640,7 +670,6 @@ class ZnDraw(MutableSequence):
             f"room:{self.token}:geometries",
             socket=self._refresh_client,
             converter=[Object3DConverter],
-            max_commands_per_call=100,
         )
         lst.clear()
         lst.extend(value)

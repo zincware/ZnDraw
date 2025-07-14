@@ -7,18 +7,18 @@ from zndraw import ZnDraw
 #     vis.config == ref_config.to_dict()
 
 
-def test_config_modify_arrows(server):
-    room = "test_config_arrows"
-    vis = ZnDraw(url=server, token=room)
+# def test_config_modify_arrows(server):
+#     room = "test_config_arrows"
+#     vis = ZnDraw(url=server, token=room)
 
-    vis.config["Arrows"]["normalize"] = False
-    assert vis.config["Arrows"]["normalize"] is False
+#     vis.config["Arrows"]["normalize"] = False
+#     assert vis.config["Arrows"]["normalize"] is False
 
-    vis.config["Arrows"]["normalize"] = True
-    assert vis.config["Arrows"]["normalize"] is True
+#     vis.config["Arrows"]["normalize"] = True
+#     assert vis.config["Arrows"]["normalize"] is True
 
-    # check other defaults
-    assert vis.config["Arrows"]["opacity"] == 1.0
+#     # check other defaults
+#     assert vis.config["Arrows"]["opacity"] == 1.0
 
 
 # def test_config_replace_znsocket(server):

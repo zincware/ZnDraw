@@ -1,9 +1,9 @@
 import pytest
-import redis
 import znjson
+import znsocket
 from ase.build import molecule
 
-from zndraw import ZnDraw, ZnDrawLocal
+from zndraw import ZnDraw
 from zndraw.converter import ASEConverter
 
 
@@ -14,9 +14,9 @@ def full(server):
 
 @pytest.fixture
 def local(server):
-    r = redis.Redis.from_url("redis://localhost:6379/0")
+    client = znsocket.Client.from_url(server.replace("http", "znsocket"))
 
-    return ZnDrawLocal(url=server, token="test_token", r=r)
+    return ZnDraw(url=server, token="test_token", r=client)
 
 
 @pytest.mark.parametrize("ref", ["full", "local"])

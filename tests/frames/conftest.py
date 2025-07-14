@@ -1,36 +1,42 @@
 import random
+import socket
+import subprocess
+import time
 
-import eventlet
 import pytest
-import socketio
-import socketio.exceptions
-from znsocket import Client, Server
+from znsocket import Client
 
 
 @pytest.fixture
 def eventlet_memory_server():
     port = random.randint(10000, 20000)
 
-    def start_server():
-        server = Server(port=port)
-        server.run()
+    # Start znsocket server subprocess
+    server_proc = subprocess.Popen(
+        ["znsocket", "--port", str(port)],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
 
-    thread = eventlet.spawn(start_server)
-
-    # wait for the server to be ready
+    # Wait for the server to be ready
     for _ in range(100):
         try:
-            with socketio.SimpleClient() as client:
-                client.connect(f"http://localhost:{port}")
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+                sock.settimeout(0.2)
+                sock.connect(("127.0.0.1", port))
                 break
-        except socketio.exceptions.ConnectionError:
-            eventlet.sleep(0.1)
+        except (ConnectionRefusedError, OSError):
+            time.sleep(0.1)
     else:
+        server_proc.terminate()
+        server_proc.wait()
         raise TimeoutError("Server did not start in time")
 
     yield f"znsocket://127.0.0.1:{port}"
 
-    thread.kill()
+    # Clean up
+    server_proc.terminate()
+    server_proc.wait()
 
 
 @pytest.fixture

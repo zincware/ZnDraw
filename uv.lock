@@ -3307,7 +3307,7 @@ wheels = [
 
 [[package]]
 name = "rdkit2ase"
-version = "0.1.9"
+version = "0.1.10"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "ase" },
@@ -3315,9 +3315,9 @@ dependencies = [
     { name = "networkx", version = "3.5", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
     { name = "rdkit" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/33/c0/485cd9c1fe53636191039df5c9b643ec8b905ff8a85a909a1ed59cc95aab/rdkit2ase-0.1.9.tar.gz", hash = "sha256:20925ccccb302ad4f13ba674672f9fd6d429a5f59f56167667b4a9797e9ac44a", size = 182310, upload-time = "2025-06-26T09:21:30.457Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/ad/58/b413ba0b2d03edf430a6c379011ea6c265c6b9f60345fcd7c93024c2111b/rdkit2ase-0.1.10.tar.gz", hash = "sha256:444c00d7fbd8d98bf77bbcbc78219831132c6e13164cd1e8e9a526db2768d5d0", size = 193430, upload-time = "2025-07-14T13:33:38.268Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/71/2f/38448d85e60f3dbd8083364c241cf7a8331d8ebfbf4572cfa6ae561ccf1a/rdkit2ase-0.1.9-py3-none-any.whl", hash = "sha256:5dfeab7e4eac76052f30327136043e6702de4a23cf39c078b35c112647c085db", size = 20193, upload-time = "2025-06-26T09:21:29.389Z" },
+    { url = "https://files.pythonhosted.org/packages/6d/ad/b10861cda5260aa16ee1c4c2934148b65dfe5a143b8eb4715a69cfc1996f/rdkit2ase-0.1.10-py3-none-any.whl", hash = "sha256:2030d33baea6f0fe89656d652599b0e7510dd62f655aa33e0a03b7360a971c07", size = 20633, upload-time = "2025-07-14T13:33:37.231Z" },
 ]
 
 [[package]]
@@ -3870,6 +3870,19 @@ wheels = [
 ]
 
 [[package]]
+name = "sphinxcontrib-mermaid"
+version = "1.0.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "pyyaml" },
+    { name = "sphinx" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/97/69/bf039237ad260073e8c02f820b3e00dc34f3a2de20aff7861e6b19d2f8c5/sphinxcontrib_mermaid-1.0.0.tar.gz", hash = "sha256:2e8ab67d3e1e2816663f9347d026a8dee4a858acdd4ad32dd1c808893db88146", size = 15153, upload-time = "2024-10-12T16:33:03.863Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/cd/c8/784b9ac6ea08aa594c1a4becbd0dbe77186785362e31fd633b8c6ae0197a/sphinxcontrib_mermaid-1.0.0-py3-none-any.whl", hash = "sha256:60b72710ea02087f212028feb09711225fbc2e343a10d34822fe787510e1caa3", size = 9597, upload-time = "2024-10-12T16:33:02.303Z" },
+]
+
+[[package]]
 name = "sphinxcontrib-qthelp"
 version = "2.0.0"
 source = { registry = "https://pypi.org/simple" }
@@ -4159,6 +4172,23 @@ wheels = [
 ]
 
 [[package]]
+name = "vesin"
+version = "0.3.7"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
+    { name = "numpy", version = "2.3.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/73/24/39c98cd0911a170fb94f1077f26a043d4f47df48eecb3eccd1cb11c9e991/vesin-0.3.7.tar.gz", hash = "sha256:52c11ac0ba775c228f06779877cf8641854edab7ea59036093ef5e8447379de0", size = 31534, upload-time = "2025-05-14T15:50:04.371Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/8d/cf/a8be6255d45a1434b6027ea5675ffdea55da1851a4b0f7607be12d38b336/vesin-0.3.7-py3-none-macosx_10_13_x86_64.whl", hash = "sha256:d9ad3fe9c040764d9329925cb560e40770c7b7167ac72096c5a1f6981ecea44f", size = 25929, upload-time = "2025-05-14T15:49:57.411Z" },
+    { url = "https://files.pythonhosted.org/packages/0e/69/f37c3922a0040fd5baa22516d1c82b455ea94c9f4c18c71f4a669904a434/vesin-0.3.7-py3-none-macosx_11_0_arm64.whl", hash = "sha256:1678347adb71070dca7130fe45c28b5f0cc3daa7a5461bd87ee1d93d62c9a57a", size = 26042, upload-time = "2025-05-14T15:49:58.743Z" },
+    { url = "https://files.pythonhosted.org/packages/7e/42/8a8db8d202403306a51045e85eb28e7d2a1fb4d9f3ca2cde5a139b5e007f/vesin-0.3.7-py3-none-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:7c85dde76427eb7e03a5bde915b8bdca2cfb64a0a82f0334231174a21ced4ab9", size = 54619, upload-time = "2025-05-14T15:50:00.481Z" },
+    { url = "https://files.pythonhosted.org/packages/6a/a4/aa108860fc8b563668046df37347c6ed36854981505ac36d78ea2845b33f/vesin-0.3.7-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:e41dc2eb5598bb9dc759f6eb88df5e3076698a30465cf496e0ab35dc230820dc", size = 55954, upload-time = "2025-05-14T15:50:01.352Z" },
+    { url = "https://files.pythonhosted.org/packages/e6/74/ff7810aa15d7c2d0562472be7dda16188e05a1bdc392ae17dbe37c5bc0b4/vesin-0.3.7-py3-none-win_amd64.whl", hash = "sha256:69e55daff9f8ffc516708bee233c258c9fabdd2a8d6683c5044479b2d38ba577", size = 58173, upload-time = "2025-05-14T15:50:02.323Z" },
+]
+
+[[package]]
 name = "vine"
 version = "5.1.0"
 source = { registry = "https://pypi.org/simple" }
@@ -4354,11 +4384,13 @@ dependencies = [
     { name = "plotly" },
     { name = "pydantic" },
     { name = "python-socketio", extra = ["client"] },
+    { name = "rdkit2ase" },
     { name = "redis" },
     { name = "splines" },
     { name = "sqlalchemy" },
     { name = "tqdm" },
     { name = "typer" },
+    { name = "vesin" },
     { name = "znjson" },
     { name = "znsocket" },
 ]
@@ -4379,6 +4411,7 @@ docs = [
     { name = "nbsphinx" },
     { name = "sphinx" },
     { name = "sphinx-copybutton" },
+    { name = "sphinxcontrib-mermaid" },
 ]
 
 [package.metadata]
@@ -4393,13 +4426,15 @@ requires-dist = [
     { name = "plotly", specifier = ">=6.0.0" },
     { name = "pydantic", specifier = ">=2.10.6" },
     { name = "python-socketio", extras = ["client"], specifier = ">=5.12.1" },
+    { name = "rdkit2ase", specifier = ">=0.1.10" },
     { name = "redis", specifier = ">=5.2.1" },
     { name = "splines", specifier = ">=0.3.2" },
     { name = "sqlalchemy", specifier = ">=2.0.38" },
     { name = "tqdm", specifier = ">=4.67.1" },
     { name = "typer", specifier = ">=0.15.1" },
+    { name = "vesin", specifier = ">=0.3.7" },
     { name = "znjson", specifier = ">=0.2.6" },
-    { name = "znsocket", specifier = ">=0.2.10" },
+    { name = "znsocket", specifier = ">=0.2.11" },
 ]
 
 [package.metadata.requires-dev]
@@ -4410,7 +4445,7 @@ dev = [
     { name = "pytest-cov", specifier = ">=6.0.0" },
     { name = "rdkit2ase", specifier = ">=0.1.4" },
     { name = "tidynamics", specifier = ">=1.1.2" },
-    { name = "znh5md", specifier = ">=0.4.4" },
+    { name = "znh5md", specifier = ">=0.4.8" },
     { name = "zntrack", specifier = ">=0.8.2" },
 ]
 docs = [
@@ -4418,6 +4453,7 @@ docs = [
     { name = "nbsphinx", specifier = ">=0.9.6" },
     { name = "sphinx", specifier = ">=8.1.3" },
     { name = "sphinx-copybutton", specifier = ">=0.5.2" },
+    { name = "sphinxcontrib-mermaid", specifier = ">=1.0.0" },
 ]
 
 [[package]]
@@ -4468,7 +4504,7 @@ wheels = [
 
 [[package]]
 name = "znsocket"
-version = "0.2.10"
+version = "0.2.11"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "eventlet" },
@@ -4477,9 +4513,9 @@ dependencies = [
     { name = "typer" },
     { name = "znjson" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/e2/d9/c22c7e0c482da3afac704c35cf0d2b4140211c2547193fe6942d16ba6f14/znsocket-0.2.10.tar.gz", hash = "sha256:0004099d543ab757922f9083cbbc8336519581d61d7038c14a9722dbc6089b53", size = 207919, upload-time = "2025-07-10T13:28:44.284Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/de/c4/14b45e01da81e8cfb43a5167beab80aafa6d181b2a369e397d49ccd2422e/znsocket-0.2.11.tar.gz", hash = "sha256:fddee32356fa690a130eaca3223f12ecef28f5264c6786ac48e6a6958aa024d8", size = 234159, upload-time = "2025-07-14T13:36:06.615Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/0b/fe/9ef77f4112ca4b7219a096ff70957ac6f123634b8f411f0fe18fc0c15920/znsocket-0.2.10-py3-none-any.whl", hash = "sha256:66dad3e15befaa88ee039fd3b5c10375b7a75b975984f66780bd069140a21939", size = 32712, upload-time = "2025-07-10T13:28:42.096Z" },
+    { url = "https://files.pythonhosted.org/packages/e8/b1/989bc65c898fe505cb85f8027e350a5c7a95d3c47073637b35b4d7b8d58a/znsocket-0.2.11-py3-none-any.whl", hash = "sha256:bcaeb13489212ebd1cf0579d61266e99d9890168826b637f084bd45cdebb26c9", size = 38176, upload-time = "2025-07-14T13:36:05.31Z" },
 ]
 
 [[package]]

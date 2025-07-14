@@ -344,6 +344,9 @@ export const useFrameFetching = (token: string) => {
 
 	const getFrameFromCon = useCallback(
 		async (step: number) => {
+			if (!currentRoomCon || !defaultRoomCon) {
+				return null;
+			}
 			let fetchedFrame = await currentRoomCon.get(step);
 			if (!customRoomAvailRef.current && fetchedFrame === null) {
 				return await defaultRoomCon.get(step);
@@ -355,6 +358,9 @@ export const useFrameFetching = (token: string) => {
 	);
 
 	const getLengthFromCon = useCallback(async () => {
+		if (!currentRoomCon || !defaultRoomCon) {
+			return 0;
+		}
 		let length = await currentRoomCon.length();
 		if (!customRoomAvailRef.current && length === 0) {
 			return await defaultRoomCon.length();
@@ -374,6 +380,7 @@ export const setupFrames = (
 	setLength: any,
 	setStep: any,
 	frame_update: boolean,
+	setIsFrameRendering?: (rendering: boolean) => void,
 ) => {
 	const currentFrameUpdatedFromSocketRef = useRef(true);
 	const [updateStepInPlace, setUpdateStepInPlace] = useState(0);
@@ -431,10 +438,13 @@ export const setupFrames = (
 			},
 		};
 
-		console.log("Frame resolved from socket:", resolvedFrame);
+		// console.log("Frame resolved from socket:", resolvedFrame);
 
 		setCurrentFrame(resolvedFrame);
 		currentFrameUpdatedFromSocketRef.current = true;
+
+		// Set rendering state to false when frame is successfully set
+		setIsFrameRendering?.(false);
 	};
 
 	// setup onRefresh and initial load
@@ -482,11 +492,16 @@ export const setupFrames = (
 		}
 
 		const updateFrame = async () => {
+			// Set rendering state to true when starting websocket request
+			setIsFrameRendering?.(true);
+
 			// first we check the length
 			const length = await getLengthFromCon();
 			setLength(length);
 			if (step >= length) {
 				setStep(Math.max(0, length - 1));
+				// Set rendering state to false when ending early
+				setIsFrameRendering?.(false);
 				return;
 			}
 			// now we request the frame
@@ -495,6 +510,7 @@ export const setupFrames = (
 
 			if (frame === null) {
 				console.warn("Frame ", step, " is null, retrying after 100ms...");
+				// Keep rendering state true during retry
 				setTimeout(updateFrame, 100); // Retry after 100 ms
 				return;
 			}
