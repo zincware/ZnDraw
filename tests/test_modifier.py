@@ -22,7 +22,7 @@ def run_queue(vis, key, msg: dict):
 def test_run_selection(server, s22, request):
     """Test the server fixture."""
     vis = ZnDraw(url=server, token="test_token")
-    vis.log(f'Running pytest `{request.node.name.split("[")[0]}`')
+    vis.log(f"Running pytest `{request.node.name.split('[')[0]}`")
     vis.extend(s22)
     assert len(vis) == 22
     vis.step = 0
@@ -31,13 +31,13 @@ def test_run_selection(server, s22, request):
     assert vis.selection == [0]
 
     run_queue(vis, "selection", {"ConnectedParticles": {}})
-    
+
     assert vis.selection == [0, 1, 2, 3]
 
 
 def test_run_modifier(server, request):
     vis = ZnDraw(url=server, token="test_token")
-    vis.log(f'Running pytest `{request.node.name.split("[")[0]}`')
+    vis.log(f"Running pytest `{request.node.name.split('[')[0]}`")
     vis.append(molecule("H2O"))
     vis.selection = [0]
     assert len(vis) == 1
@@ -51,7 +51,7 @@ def test_run_modifier(server, request):
 
 def test_register_modifier(server, s22, water, request):
     vis = ZnDraw(url=server, token="test_token")
-    vis.log(f'Running pytest `{request.node.name.split("[")[0]}`')
+    vis.log(f"Running pytest `{request.node.name.split('[')[0]}`")
     vis.extend(s22)
 
     class AppendWater(Extension):
@@ -68,7 +68,7 @@ def test_register_modifier(server, s22, water, request):
 
 def test_locked(server, request):
     vis = ZnDraw(url=server, token="test_token")
-    vis.log(f'Running pytest `{request.node.name.split("[")[0]}`')
+    vis.log(f"Running pytest `{request.node.name.split('[')[0]}`")
 
     assert vis.locked is False
     vis.locked = True
@@ -80,7 +80,7 @@ def test_locked(server, request):
 
 def test_modify_delete(server, request):
     vis = ZnDraw(url=server, token="test_token")
-    vis.log(f'Running pytest `{request.node.name.split("[")[0]}`')
+    vis.log(f"Running pytest `{request.node.name.split('[')[0]}`")
     vis.append(molecule("H2O"))
     vis.selection = [0]
     assert len(vis) == 1
@@ -94,7 +94,7 @@ def test_modify_delete(server, request):
 
 def test_modify_rotate(server, request):
     vis = ZnDraw(url=server, token="test_token")
-    vis.log(f'Running pytest `{request.node.name.split("[")[0]}`')
+    vis.log(f"Running pytest `{request.node.name.split('[')[0]}`")
     vis.append(molecule("H2O"))
     vis.selection = [0, 1]
     vis.points = [[0, 0, 0], [1, 0, 0]]
@@ -108,7 +108,7 @@ def test_modify_rotate(server, request):
 
 def test_modify_translate(server, request):
     vis = ZnDraw(url=server, token="test_token")
-    vis.log(f'Running pytest `{request.node.name.split("[")[0]}`')
+    vis.log(f"Running pytest `{request.node.name.split('[')[0]}`")
     vis.append(molecule("H2O"))
     vis.selection = [0, 1, 2]
     vis.points = [[1, 0, 0], [0, 0, 0]]
@@ -127,7 +127,7 @@ def test_modify_translate(server, request):
 
 def test_modify_duplicate(server, request):
     vis = ZnDraw(url=server, token="test_token")
-    vis.log(f'Running pytest `{request.node.name.split("[")[0]}`')
+    vis.log(f"Running pytest `{request.node.name.split('[')[0]}`")
     vis.append(molecule("H2O"))
     vis.selection = [0]
 
@@ -140,7 +140,7 @@ def test_modify_duplicate(server, request):
 
 def test_modify_change_type(server, request):
     vis = ZnDraw(url=server, token="test_token")
-    vis.log(f'Running pytest `{request.node.name.split("[")[0]}`')
+    vis.log(f"Running pytest `{request.node.name.split('[')[0]}`")
     vis.append(molecule("H2O"))
     vis.selection = [0]
 
@@ -151,7 +151,7 @@ def test_modify_change_type(server, request):
 
 def test_modify_wrap(server, request):
     vis = ZnDraw(url=server, token="test_token")
-    vis.log(f'Running pytest `{request.node.name.split("[")[0]}`')
+    vis.log(f"Running pytest `{request.node.name.split('[')[0]}`")
     copper = bulk("Cu", cubic=True)
     copper.positions += 5  # shift, so wrapped is recognizable
     vis.extend([copper, copper])
@@ -169,7 +169,7 @@ def test_modify_wrap(server, request):
 
 def test_modify_replicate(server, request):
     vis = ZnDraw(url=server, token="test_token")
-    vis.log(f'Running pytest `{request.node.name.split("[")[0]}`')
+    vis.log(f"Running pytest `{request.node.name.split('[')[0]}`")
     wurtzite = bulk("ZnO", "wurtzite", a=3.25, c=5.2)
     vis.extend([wurtzite, wurtzite])
 
@@ -184,7 +184,7 @@ def test_modify_replicate(server, request):
 
 def test_modify_AddLineParticles(server, request):
     vis = ZnDraw(url=server, token="test_token")
-    vis.log(f'Running pytest `{request.node.name.split("[")[0]}`')
+    vis.log(f"Running pytest `{request.node.name.split('[')[0]}`")
     vis.append(molecule("H2O"))
     vis.points = [[0, 0, 0], [1, 0, 0]]
 
@@ -200,7 +200,7 @@ def test_modify_AddLineParticles(server, request):
 
 def test_modify_center(server, request):
     vis = ZnDraw(url=server, token="test_token")
-    vis.log(f'Running pytest `{request.node.name.split("[")[0]}`')
+    vis.log(f"Running pytest `{request.node.name.split('[')[0]}`")
     copper = bulk("Cu", cubic=True)
     vis.append(copper)
     vis.selection = [0]
@@ -213,7 +213,7 @@ def test_modify_center(server, request):
 
 def test_modify_RemoveAtoms(server, request):
     vis = ZnDraw(url=server, token="test_token")
-    vis.log(f'Running pytest `{request.node.name.split("[")[0]}`')
+    vis.log(f"Running pytest `{request.node.name.split('[')[0]}`")
     vis.append(molecule("H2O"))
     vis.append(molecule("H2O"))
     assert len(vis) == 2
@@ -226,7 +226,7 @@ def test_modify_RemoveAtoms(server, request):
 
 def test_modified_while_locked(server, request):
     vis = ZnDraw(url=server, token="test_token")
-    vis.log(f'Running pytest `{request.node.name.split("[")[0]}`')
+    vis.log(f"Running pytest `{request.node.name.split('[')[0]}`")
     vis.append(molecule("H2O"))
     vis.append(molecule("H2O"))
     vis.append(molecule("H2O"))

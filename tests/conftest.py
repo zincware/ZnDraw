@@ -12,6 +12,7 @@ import numpy as np
 import pytest
 from ase.calculators.singlepoint import SinglePointCalculator
 
+
 @pytest.fixture
 def server():
     port = random.randint(10000, 20000)
@@ -21,7 +22,7 @@ def server():
     my_env["FLASK_PORT"] = str(port)
     my_env["FLASK_STORAGE"] = f"znsocket://localhost:{port}"
     my_env["FLASK_SERVER_URL"] = f"http://localhost:{port}"
-    
+
     if platform.system() == "Darwin" and platform.processor() == "arm":
         # fix celery worker issue on apple silicon
         my_env["OBJC_DISABLE_INITIALIZE_FORK_SAFETY"] = "YES"
@@ -31,29 +32,35 @@ def server():
         try:
             # Get child processes
             result = subprocess.run(
-                ["pgrep", "-P", str(parent_pid)], 
-                capture_output=True, 
-                text=True, 
-                timeout=2
+                ["pgrep", "-P", str(parent_pid)],
+                capture_output=True,
+                text=True,
+                timeout=2,
             )
             if result.returncode == 0:
-                child_pids = result.stdout.strip().split('\n')
+                child_pids = result.stdout.strip().split("\n")
                 for child_pid in child_pids:
                     if child_pid:
                         try:
                             # Get process name for logging
                             try:
                                 name_result = subprocess.run(
-                                    ["ps", "-p", child_pid, "-o", "comm="], 
-                                    capture_output=True, 
-                                    text=True, 
-                                    timeout=1
+                                    ["ps", "-p", child_pid, "-o", "comm="],
+                                    capture_output=True,
+                                    text=True,
+                                    timeout=1,
                                 )
-                                process_name = name_result.stdout.strip() if name_result.returncode == 0 else "unknown"
+                                process_name = (
+                                    name_result.stdout.strip()
+                                    if name_result.returncode == 0
+                                    else "unknown"
+                                )
                             except:
                                 process_name = "unknown"
-                            
-                            print(f"Killing child process {child_pid} ({process_name}){context}")
+
+                            print(
+                                f"Killing child process {child_pid} ({process_name}){context}"
+                            )
                             os.kill(int(child_pid), signal.SIGTERM)
                         except (ProcessLookupError, ValueError):
                             pass
@@ -80,7 +87,7 @@ def server():
     else:
         # Clean up if server failed to start
         kill_child_processes(server_proc.pid, " - startup failure cleanup")
-        
+
         # Then kill the main server process
         server_proc.terminate()
         try:
@@ -97,14 +104,14 @@ def server():
     # Clean up: kill the server process and any child processes
     # Kill child processes first (celery workers, znsocket, etc.)
     kill_child_processes(server_proc.pid)
-    
+
     # Then kill the main server process
     server_proc.terminate()
     try:
         server_proc.wait(timeout=5)
     except subprocess.TimeoutExpired:
         server_proc.kill()
-        
+
     # Double check - kill any remaining child processes after main process cleanup
     time.sleep(0.5)
     kill_child_processes(server_proc.pid, " - post-cleanup verification")
