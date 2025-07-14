@@ -1,6 +1,7 @@
 import pytest
 
 from zndraw import ZnDraw
+import znsocket
 
 
 def test_bookmarks(server, s22):
@@ -9,8 +10,9 @@ def test_bookmarks(server, s22):
     vis.extend(s22)
 
     assert vis.bookmarks == {}
+    assert isinstance(vis.bookmarks, znsocket.Dict)
     vis.bookmarks = {5: "Hey there!"}
-    assert vis.bookmarks == {"5": "Hey there!"}
+    assert vis.bookmarks == {5: "Hey there!"}
 
     vis.bookmarks[5] = "Hello!"
     assert vis.bookmarks[5] == "Hello!"
