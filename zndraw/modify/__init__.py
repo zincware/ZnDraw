@@ -228,13 +228,13 @@ class Wrap(UpdateScene):
             for idx, atoms in enumerate(vis):
                 atoms.wrap()
                 if self.recompute_bonds:
-                    delattr(atoms, "connectivity")
+                    atoms.info.pop("connectivity", None)
                 vis[idx] = atoms
         else:
             atoms = vis.atoms
             atoms.wrap()
             if self.recompute_bonds:
-                delattr(atoms, "connectivity")
+                atoms.info.pop("connectivity", None)
             vis[vis.step] = atoms
 
 
@@ -271,7 +271,7 @@ class Center(UpdateScene):
                 if self.wrap:
                     atoms.wrap()
                 if self.recompute_bonds:
-                    delattr(atoms, "connectivity")
+                    atoms.info.pop("connectivity", None)
 
                 vis[idx] = atoms
         else:
@@ -282,7 +282,7 @@ class Center(UpdateScene):
             if self.wrap:
                 atoms.wrap()
             if self.recompute_bonds:
-                delattr(atoms, "connectivity")
+                atoms.info.pop("connectivity", None)
 
             vis[vis.step] = atoms
 

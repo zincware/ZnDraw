@@ -195,7 +195,16 @@ class ZnDraw(MutableSequence):
                 log.error("Disconnecting. Please restart.")
                 self.socket.disconnect()
 
-    def __getitem__(self, index: int | list | slice) -> ase.Atoms | list[ase.Atoms]:
+    @t.overload
+    def __getitem__(self, index: int) -> ase.Atoms: ...
+
+    @t.overload
+    def __getitem__(self, index: list[int]) -> list[ase.Atoms]: ...
+
+    @t.overload
+    def __getitem__(self, index: slice) -> list[ase.Atoms]: ...
+
+    def __getitem__(self, index: int | list[int] | slice) -> ase.Atoms | list[ase.Atoms]:
         single_item = isinstance(index, int)
         if single_item:
             index = [index]
