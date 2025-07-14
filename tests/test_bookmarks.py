@@ -1,7 +1,7 @@
 import pytest
+import znsocket
 
 from zndraw import ZnDraw
-import znsocket
 
 
 def test_bookmarks(server, s22):

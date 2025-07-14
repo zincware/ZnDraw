@@ -1,10 +1,9 @@
 import pytest
-import redis
 import znjson
+import znsocket
 from ase.build import molecule
 
 from zndraw import ZnDraw
-import znsocket
 from zndraw.converter import ASEConverter
 
 
