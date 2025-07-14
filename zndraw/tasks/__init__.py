@@ -66,7 +66,9 @@ def _get_znh5md_generator(file_io: FileIO) -> t.Iterable[ase.Atoms]:
             "You need to install ZnH5MD>=0.3 to use the remote feature."
         ) from err
     log.critical(file_io)
-    return io[file_io.start : file_io.stop : file_io.step]
+    frames = io[file_io.start : file_io.stop : file_io.step]
+    log.critical(f"Loaded frames: {len(frames)}")
+    return frames
 
 
 def _get_http_generator(file_io: FileIO) -> t.Iterable[ase.Atoms]:
@@ -106,8 +108,8 @@ def get_generator_from_filename(
 
     if bond_calculator is not None:
         for atoms in gen:
-            if not hasattr(atoms, "connectivity"):
-                atoms.connectivity = bond_calculator.get_bonds(atoms)
+            if "connectivity" not in atoms.info:
+                bond_calculator.get_bonds(atoms)
             yield atoms
     else:
         yield from gen
@@ -124,22 +126,13 @@ def read_file(fileio: dict) -> None:
         url=current_app.config["SERVER_URL"],
         token="default",
         convert_nan=file_io.convert_nan,
+        bond_calculator=ASEComputeBonds()
+        if current_app.config.get("COMPUTE_BONDS", False)
+        else None,
     )
-    bonds_calculator = ASEComputeBonds()
-    if current_app.config.get("COMPUTE_BONDS", False):
-        generator = get_generator_from_filename(file_io, bonds_calculator)
-    else:
-        generator = get_generator_from_filename(file_io)
-
-    # TODO: vis.extend(generator) # vis does not yet support consuming a generator
-    atoms_buffer = []
-    for atoms in generator:
-        atoms_buffer.append(atoms)
-        if len(atoms_buffer) > 10:
-            vis.extend(atoms_buffer)
-            atoms_buffer = []
-    vis.extend(atoms_buffer)
-
+    generator = get_generator_from_filename(file_io)
+    data = list(generator)
+    vis.extend(data)
     vis.socket.sleep(1)
     vis.socket.disconnect()
 
@@ -172,8 +165,8 @@ def run_upload_file(room, data: dict):
     if len(atoms_list) == 1 and len(vis.points) != 0:
         scene = vis.atoms
         atoms = atoms_list[0]
-        if hasattr(scene, "connectivity"):
-            del scene.connectivity
+        if "connectivity" in scene.info:
+            del scene.info["connectivity"]
         for point in vis.points:
             atoms.positions -= atoms.get_center_of_mass() - point
             scene += atoms
@@ -417,12 +410,15 @@ def run_room_worker(room):
     for key in modifier_queue:
         if key in modifier:
             try:
-                task = modifier_queue.pop(key)
-                try:
-                    run_queued_task(vis, modifier[key], task, modifier_queue)
-                except Exception as err:
-                    vis.log(f"Error running modifier `{key}`: {err}")
-            except IndexError:
+                # Check if key exists before popping to avoid KeyError
+                if key in modifier_queue:
+                    task = modifier_queue.pop(key)
+                    try:
+                        run_queued_task(vis, modifier[key], task, modifier_queue)
+                    except Exception as err:
+                        vis.log(f"Error running modifier `{key}`: {err}")
+            except (IndexError, KeyError) as err:
+                vis.log(f"Warning: Task key '{key}' no longer available: {err}")
                 pass
 
     # wait and then disconnect
@@ -531,11 +527,15 @@ def run_room_copy(room) -> None:
     # check if the room exists or if default room is used instead
     r = current_app.extensions["redis"]
 
-    if not r.exists(f"room:{room}:frames") and r.exists("room:default:frames"):
+    if not r.exists(f"znsocket.List:room:{room}:frames") and r.exists(
+        "znsocket.List:room:default:frames"
+    ):
         default_lst = znsocket.List(
             r,
             "room:default:frames",
         )
         if not (len(default_lst) == 1 and len(default_lst[0]) == 0):
-            # prevent copying empty default room
-            default_lst.copy(key=f"room:{room}:frames")
+            # Deep copy with full nested structure isolation
+            from zndraw.zndraw import deep_copy_frames_to_room
+
+            deep_copy_frames_to_room(default_lst, room, r)

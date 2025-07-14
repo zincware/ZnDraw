@@ -201,12 +201,7 @@ const CameraAndControls: React.FC<CameraAndControlsProps> = ({
 			if (document.activeElement !== document.body) {
 				return;
 			}
-			if (event.key === "c") {
-				setCameraAndControls((prev: any) => ({
-					...prev,
-					target: centroid,
-				}));
-			} else if (event.key === "o") {
+			if (event.key === "o") {
 				const resetCamera = getResetCamera();
 				if (resetCamera) {
 					setCameraAndControls(resetCamera);

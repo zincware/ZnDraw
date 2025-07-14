@@ -38,6 +38,9 @@ interface PlayerProps {
 	loop: boolean;
 	togglePlaying: (playing: boolean) => void;
 	selectedFrames: IndicesState;
+	isFrameRendering: boolean;
+	setIsFrameRendering: (rendering: boolean) => void;
+	frameRate: number;
 }
 
 export const Player = ({
@@ -49,40 +52,131 @@ export const Player = ({
 	loop,
 	togglePlaying: setPlaying,
 	selectedFrames,
+	isFrameRendering,
+	setIsFrameRendering,
+	frameRate,
 }: PlayerProps) => {
-	useFrame(({ clock }) => {
-		const a = clock.getElapsedTime();
-		if (a > 1 / fps) {
-			if (playing) {
-				if (step === length - 1) {
-					if (!loop) {
-						setPlaying(!playing);
-					} else {
-						if (selectedFrames.indices.size > 0 && selectedFrames.active) {
-							setStep(Math.min(...selectedFrames.indices));
-						} else {
-							setStep(0);
-						}
-					}
-				} else {
-					if (selectedFrames.indices.size > 0 && selectedFrames.active) {
-						const nextFrame = Array.from(selectedFrames.indices).find(
-							(frame) => frame > step,
-						);
-						if (nextFrame) {
-							setStep(nextFrame);
-						} else {
-							setStep(Math.min(...selectedFrames.indices));
-						}
-					} else {
-						setStep(step + 1);
-					}
+	const lastUpdateTime = useRef(0);
+	const frameTime = 1 / fps; // 30 FPS hardcoded for now
+
+	// Handle play state changes - if starting to play on the last frame, jump to first frame
+	useEffect(() => {
+		if (playing) {
+			if (selectedFrames.indices.size > 0 && selectedFrames.active) {
+				// Selection mode - check if we're at the last selected frame
+				const selectedFramesList = Array.from(selectedFrames.indices).sort(
+					(a, b) => a - b,
+				);
+				const lastSelectedFrame =
+					selectedFramesList[selectedFramesList.length - 1];
+				if (step >= lastSelectedFrame) {
+					setStep(selectedFramesList[0]); // Jump to first selected frame
+				}
+			} else {
+				// Normal mode - check if we're at the last frame
+				if (step >= length - 1) {
+					setStep(0);
 				}
 			}
-			// reset the clock
-			clock.start();
+		}
+	}, [playing, step, length, setStep, selectedFrames]);
+
+	useFrame(({ clock }) => {
+		if (playing && !isFrameRendering) {
+			// check if the difference is greater than frameTime
+			if (clock.getElapsedTime() - lastUpdateTime.current > frameTime) {
+				lastUpdateTime.current = clock.getElapsedTime();
+
+				// Mark frame as rendering
+				setIsFrameRendering(true);
+
+				setStep((prevStep) => {
+					let nextStep = prevStep;
+
+					// Check if frame selection is active
+					if (selectedFrames.indices.size > 0 && selectedFrames.active) {
+						// Playing within selected frames only
+						const selectedFramesList = Array.from(selectedFrames.indices).sort(
+							(a, b) => a - b,
+						);
+						const currentIndex = selectedFramesList.indexOf(prevStep);
+
+						if (currentIndex !== -1) {
+							// Current frame is in selection, move to next selected frame
+							let nextIndex = currentIndex;
+
+							// Apply frame rate (skip selected frames)
+							for (
+								let i = 0;
+								i < frameRate && nextIndex < selectedFramesList.length - 1;
+								i++
+							) {
+								nextIndex++;
+							}
+
+							if (nextIndex < selectedFramesList.length) {
+								nextStep = selectedFramesList[nextIndex];
+							} else {
+								// Reached end of selected frames
+								if (loop) {
+									// Loop back to first selected frame
+									nextStep = selectedFramesList[0];
+								} else {
+									// Stop playing at last selected frame
+									nextStep = selectedFramesList[selectedFramesList.length - 1];
+									setPlaying(false);
+								}
+							}
+						} else {
+							// Current frame is not in selection, find next selected frame
+							const nextSelectedFrame = selectedFramesList.find(
+								(frame) => frame > prevStep,
+							);
+							if (nextSelectedFrame !== undefined) {
+								nextStep = nextSelectedFrame;
+							} else if (loop) {
+								// Wrap to first selected frame
+								nextStep = selectedFramesList[0];
+							} else {
+								// No more selected frames, stop playing
+								setPlaying(false);
+								nextStep = prevStep;
+							}
+						}
+					} else {
+						// Normal playback through all frames
+						if (prevStep < length - 1) {
+							nextStep = Math.min(prevStep + frameRate, length - 1);
+							// Check if we've reached the last frame
+							if (nextStep >= length - 1) {
+								if (loop) {
+									// If looping is enabled, continue playing (will wrap on next iteration)
+									// Don't stop playing here
+								} else {
+									// If looping is disabled, stop playing when we reach the last frame
+									setPlaying(false);
+								}
+							}
+						} else if (prevStep >= length - 1) {
+							// We're at or past the last frame
+							if (loop) {
+								// If looping is enabled, wrap to the first frame and continue playing
+								nextStep = 0;
+							} else {
+								// If looping is disabled, stay at the last frame and stop playing
+								nextStep = prevStep;
+								setPlaying(false);
+							}
+						}
+					}
+
+					// Frame will be marked as finished after rendering completes
+					return nextStep;
+				});
+			}
 		}
 	});
+
 	return null;
 };
 
@@ -182,6 +276,9 @@ export const ParticleInstances = ({
 }) => {
 	const meshRef = useRef<THREE.InstancedMesh | null>(null);
 
+	useEffect(() => {
+		console.log("Updating frame:", frame);
+	}, [frame]);
 	const actualVisibleIndices = useMemo(() => {
 		if (typeof visibleIndices === "number") {
 			if (visibleIndices === -1) {
@@ -222,32 +319,38 @@ export const ParticleInstances = ({
 	useEffect(() => {
 		if (meshRef.current && actualVisibleIndices.size > 0) {
 			const color = new THREE.Color(selection_color);
-			const scaleVector = new THREE.Vector3();
+			const matrix = new THREE.Matrix4(); // Reuse matrix object
 
 			const visibleArray = Array.from(actualVisibleIndices);
-			visibleArray.forEach((atomIdx, i) => {
+			const highlightColor = highlight ? selection_color : null;
+
+			// Pre-calculate scale multipliers to avoid repeated conditionals
+			const scaleMultiplier =
+				highlight === "backside"
+					? 1.25
+					: highlight === "selection"
+						? 1.01
+						: 1.0;
+
+			for (let i = 0; i < visibleArray.length; i++) {
+				const atomIdx = visibleArray[i];
 				const position = positions[atomIdx];
 				if (!position) {
 					// if position was removed, this can happen and we skip it until next update
-					return;
+					continue;
 				}
 
-				let radius;
-				if (highlight === "backside") {
-					radius = radii[atomIdx] * 1.25;
-				} else if (highlight === "selection") {
-					radius = radii[atomIdx] * 1.01;
-				} else {
-					radius = radii[atomIdx];
-				}
-				// Set position and scale for each instance
-				const matrix = new THREE.Matrix4()
-					.setPosition(position)
-					.scale(scaleVector.set(radius, radius, radius));
+				const radius = radii[atomIdx] * scaleMultiplier;
+
+				// Optimize matrix operations by setting elements directly
+				matrix.makeScale(radius, radius, radius);
+				matrix.setPosition(position);
 				meshRef.current.setMatrixAt(i, matrix);
-				color.set(highlight ? selection_color : colors[atomIdx]);
+
+				// Set color efficiently
+				color.set(highlightColor || colors[atomIdx] || "#ffffff");
 				meshRef.current.setColorAt(i, color);
-			});
+			}
 
 			// Mark instance matrices and colors for update
 			meshRef.current.instanceMatrix.needsUpdate = true;
@@ -334,7 +437,7 @@ export const ParticleInstances = ({
 		}
 	};
 
-	if (highlight === "") {
+	if (highlight === "" && pathTracingSettings?.enabled) {
 		useMergedMesh(meshRef, instancedGeometry, pathTracingSettings, [
 			frame,
 			visibleIndices,
@@ -495,7 +598,7 @@ export const BondInstances = ({
 		}
 	}, [frame, actualVisibleConnectivity, selection_color, geometry]);
 
-	if (highlight === "") {
+	if (highlight === "" && pathTracingSettings?.enabled) {
 		useMergedMesh(meshRef, instancedGeometry, pathTracingSettings, [
 			frame,
 			visibleIndices,
@@ -607,102 +710,110 @@ export const SimulationCell = ({
 };
 
 interface PerParticleVectorsProps {
-	frame: Frame | undefined;
-	property: string;
-	colorMode: string;
+	vectors: { start: THREE.Vector3; end: THREE.Vector3; vectorType: string }[];
 	arrowsConfig: any;
 	pathTracingSettings: any;
 }
 
 export const PerParticleVectors: React.FC<PerParticleVectorsProps> = ({
-	frame,
-	property,
-	colorMode,
+	vectors,
 	arrowsConfig,
 	pathTracingSettings,
 }) => {
-	const [vectors, setVectors] = useState<
-		{ start: THREE.Vector3; end: THREE.Vector3 }[]
-	>([]);
+	if (vectors.length === 0) {
+		return null;
+	}
 
-	const LineColor = colorMode === "light" ? "#454b66" : "#f5fdc6";
-	const LineWidth = 2;
-	const LineScale = 1;
-
-	const [colorRange, setColorRange] = useState<[number, number]>(
-		arrowsConfig.colorrange,
-	);
-
-	useEffect(() => {
-		if (arrowsConfig.normalize) {
-			const max = Math.max(
-				...vectors.map((vector) => vector.start.distanceTo(vector.end)),
-			);
-			setColorRange([0, max]);
-		} else {
-			setColorRange(arrowsConfig.colorrange);
+	// Group vectors by type
+	const vectorsByType = useMemo(() => {
+		const grouped: Record<
+			string,
+			{ start: THREE.Vector3; end: THREE.Vector3 }[]
+		> = {};
+		for (const vector of vectors) {
+			if (!grouped[vector.vectorType]) {
+				grouped[vector.vectorType] = [];
+			}
+			grouped[vector.vectorType].push({
+				start: vector.start,
+				end: vector.end,
+			});
 		}
-	}, [vectors, arrowsConfig.normalize, arrowsConfig.colorrange]);
+		return grouped;
+	}, [vectors]);
 
-	useEffect(() => {
-		if (!frame) {
-			setVectors([]);
-			return;
-		}
-		let frameData;
-		if (property in frame.calc) {
-			frameData = frame.calc[property];
-		} else if (property in frame.arrays) {
-			frameData = frame.arrays[property];
-		} else {
-			console.error(`Property ${property} not found in frame`);
-			setVectors([]);
-			return;
-		}
-		if (frameData.length !== frame.positions.length) {
-			console.error(
-				`Length of property ${property} does not match the number of particles`,
-			);
-			setVectors([]);
-			return;
+	// Helper function to convert hex color to HSL colormap
+	const hexToHSLColormap = (hexColor: string): [number, number, number][] => {
+		// Simple hex to HSL conversion for single color
+		const hex = hexColor.replace("#", "");
+		const r = parseInt(hex.substr(0, 2), 16) / 255;
+		const g = parseInt(hex.substr(2, 2), 16) / 255;
+		const b = parseInt(hex.substr(4, 2), 16) / 255;
+
+		const max = Math.max(r, g, b);
+		const min = Math.min(r, g, b);
+		const diff = max - min;
+		const l = (max + min) / 2;
+
+		let h = 0;
+		let s = 0;
+
+		if (diff !== 0) {
+			s = l > 0.5 ? diff / (2 - max - min) : diff / (max + min);
+
+			switch (max) {
+				case r:
+					h = (g - b) / diff + (g < b ? 6 : 0);
+					break;
+				case g:
+					h = (b - r) / diff + 2;
+					break;
+				case b:
+					h = (r - g) / diff + 4;
+					break;
+			}
+			h /= 6;
 		}
 
-		console.log(`Property ${property} found in frame.calc`);
-		const calculatedVectors = frameData.map((vector, i) => {
-			const start = frame.positions[i];
-			const end = start
-				.clone()
-				.add(
-					new THREE.Vector3(vector[0], vector[1], vector[2]).multiplyScalar(
-						LineScale,
-					),
-				);
-			return { start, end };
-		});
-		setVectors(calculatedVectors);
-	}, [frame, property]);
-
-	const startMap = useMemo(
-		() => vectors.map((vec) => vec.start.toArray()),
-		[vectors],
-	);
-	const endMap = useMemo(
-		() => vectors.map((vec) => vec.end.toArray()),
-		[vectors],
-	);
+		return [[h, s, l]];
+	};
 
 	return (
 		<>
-			<Arrows
-				start={startMap}
-				end={endMap}
-				scale_vector_thickness={arrowsConfig.scale_vector_thickness}
-				colormap={arrowsConfig.colormap}
-				colorrange={colorRange}
-				opacity={arrowsConfig.opacity}
-				rescale={arrowsConfig.rescale}
-				pathTracingSettings={pathTracingSettings}
-			/>
+			{Object.entries(vectorsByType).map(([vectorType, typeVectors]) => {
+				const vectorColor =
+					arrowsConfig.vector_colors?.[vectorType] || "#ff0000";
+				const colormap = hexToHSLColormap(vectorColor);
+
+				const startMap = typeVectors.map((vec) => vec.start.toArray());
+				const endMap = typeVectors.map((vec) => vec.end.toArray());
+
+				// Calculate color range for this vector type
+				const distances = typeVectors.map((vector) =>
+					vector.start.distanceTo(vector.end),
+				);
+				const colorRange: [number, number] = arrowsConfig.normalize
+					? [0, Math.max(...distances)]
+					: Array.isArray(arrowsConfig.colorrange)
+						? arrowsConfig.colorrange
+						: [0, 1];
+
+				return (
+					<Arrows
+						key={vectorType}
+						start={startMap}
+						end={endMap}
+						scale_vector_thickness={
+							arrowsConfig.scale_vector_thickness || false
+						}
+						colormap={colormap}
+						colorrange={colorRange}
+						opacity={arrowsConfig.opacity || 1.0}
+						rescale={arrowsConfig.rescale}
+						pathTracingSettings={pathTracingSettings}
+					/>
+				);
+			})}
 		</>
 	);
 };

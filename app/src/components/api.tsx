@@ -316,44 +316,8 @@ export function setupCamera(
 	}, [cameraAndControls, conInterface]);
 }
 
-export const setupFrames = (
-	token: string,
-	step: any,
-	setCurrentFrame: any,
-	currentFrame: any,
-	setLength: any,
-	setStep: any,
-	frame_update: boolean,
-) => {
-	const currentFrameUpdatedFromSocketRef = useRef(true);
-	const customRoomAvailRef = useRef(false); // Track whether listening to the default room
-	const [updateStepInPlace, setUpdateStepInPlace] = useState(0);
-	const scaledRadii = useMemo(() => {
-		const minRadius = Math.min(...covalentRadii);
-		const maxRadius = Math.max(...covalentRadii);
-		const range = maxRadius - minRadius;
-		return covalentRadii.map((x: number) => (x - minRadius) / range + 0.3);
-	}, [covalentRadii]);
-
-	const setCurrentFrameFromObject = (frame: any) => {
-		frame = frame.value;
-		frame.positions = frame.positions.map(
-			(position: [number, number, number]) =>
-				new THREE.Vector3(position[0], position[1], position[2]),
-		) as THREE.Vector3[];
-		console.log("frame updated");
-		if (!frame?.arrays?.colors) {
-			frame.arrays.colors = frame.numbers.map(
-				(x: number) => "#" + JMOL_COLORS[x].getHexString(),
-			);
-		}
-		if (!frame.arrays.radii) {
-			frame.arrays.radii = frame.numbers.map((x: number) => scaledRadii[x]);
-		}
-		setCurrentFrame(frame);
-		currentFrameUpdatedFromSocketRef.current = true;
-	};
-
+// Shared frame fetching utilities
+export const useFrameConnections = (token: string) => {
 	const currentRoomCon = useMemo(() => {
 		if (token === "") {
 			return undefined;
@@ -370,6 +334,118 @@ export const setupFrames = (
 			key: "room:default:frames",
 		});
 	}, []);
+
+	return { currentRoomCon, defaultRoomCon };
+};
+
+export const useFrameFetching = (token: string) => {
+	const { currentRoomCon, defaultRoomCon } = useFrameConnections(token);
+	const customRoomAvailRef = useRef(false);
+
+	const getFrameFromCon = useCallback(
+		async (step: number) => {
+			if (!currentRoomCon || !defaultRoomCon) {
+				return null;
+			}
+			let fetchedFrame = await currentRoomCon.get(step);
+			if (!customRoomAvailRef.current && fetchedFrame === null) {
+				return await defaultRoomCon.get(step);
+			}
+			customRoomAvailRef.current = true;
+			return fetchedFrame;
+		},
+		[currentRoomCon, defaultRoomCon],
+	);
+
+	const getLengthFromCon = useCallback(async () => {
+		if (!currentRoomCon || !defaultRoomCon) {
+			return 0;
+		}
+		let length = await currentRoomCon.length();
+		if (!customRoomAvailRef.current && length === 0) {
+			return await defaultRoomCon.length();
+		}
+		customRoomAvailRef.current = true;
+		return length;
+	}, [currentRoomCon, defaultRoomCon]);
+
+	return { getFrameFromCon, getLengthFromCon, currentRoomCon, defaultRoomCon };
+};
+
+export const setupFrames = (
+	token: string,
+	step: any,
+	setCurrentFrame: any,
+	currentFrame: any,
+	setLength: any,
+	setStep: any,
+	frame_update: boolean,
+	setIsFrameRendering?: (rendering: boolean) => void,
+) => {
+	const currentFrameUpdatedFromSocketRef = useRef(true);
+	const [updateStepInPlace, setUpdateStepInPlace] = useState(0);
+	const scaledRadii = useMemo(() => {
+		const minRadius = Math.min(...covalentRadii);
+		const maxRadius = Math.max(...covalentRadii);
+		const range = maxRadius - minRadius;
+		return covalentRadii.map((x: number) => (x - minRadius) / range + 0.3);
+	}, [covalentRadii]);
+
+	const { getFrameFromCon, getLengthFromCon, currentRoomCon, defaultRoomCon } =
+		useFrameFetching(token);
+
+	const setCurrentFrameFromObject = async (frame: any) => {
+		// Await top-level fields
+		const [positions, numbers, arrays, connectivity, cell, constraints] =
+			await Promise.all([
+				frame.positions,
+				frame.numbers,
+				frame.arrays,
+				frame.connectivity,
+				frame.cell,
+				frame.constraints,
+			]);
+
+		// TODO: vectors are missing!
+		// request them separately, only if needed
+
+		// Await nested arrays.colors and arrays.radii
+		const [colors, radii] = await Promise.all([
+			arrays?.colors ?? Promise.resolve(null),
+			arrays?.radii ?? Promise.resolve(null),
+		]);
+
+		// Convert positions to THREE.Vector3
+		const resolvedPositions = positions.map(
+			(position: [number, number, number]) =>
+				new THREE.Vector3(position[0], position[1], position[2]),
+		);
+
+		// Build full resolved frame
+		const resolvedFrame = {
+			...frame,
+			positions: resolvedPositions,
+			numbers,
+			connectivity: connectivity ?? [],
+			cell: cell,
+			constraints: constraints ?? [],
+			arrays: {
+				...arrays,
+				colors:
+					colors ??
+					numbers.map((x: number) => "#" + JMOL_COLORS[x].getHexString()),
+				radii: radii ?? numbers.map((x: number) => scaledRadii[x]),
+			},
+		};
+
+		// console.log("Frame resolved from socket:", resolvedFrame);
+
+		setCurrentFrame(resolvedFrame);
+		currentFrameUpdatedFromSocketRef.current = true;
+
+		// Set rendering state to false when frame is successfully set
+		setIsFrameRendering?.(false);
+	};
 
 	// setup onRefresh and initial load
 	// default room
@@ -410,38 +486,22 @@ export const setupFrames = (
 		};
 	}, [currentRoomCon, frame_update, step]);
 
-	const getFrameFromCon = useCallback(
-		async (step: number) => {
-			let fetchedFrame = await currentRoomCon.get(step);
-			if (!customRoomAvailRef.current && fetchedFrame === null) {
-				return await defaultRoomCon.get(step);
-			}
-			customRoomAvailRef.current = true;
-			return fetchedFrame;
-		},
-		[currentRoomCon, defaultRoomCon],
-	);
-
-	const getLengthFromCon = useCallback(async () => {
-		let length = await currentRoomCon.length();
-		if (!customRoomAvailRef.current && length === 0) {
-			return await defaultRoomCon.length();
-		}
-		customRoomAvailRef.current = true;
-		return length;
-	}, [currentRoomCon, defaultRoomCon]);
-
 	useEffect(() => {
 		if (defaultRoomCon === undefined || currentRoomCon === undefined) {
 			return;
 		}
 
 		const updateFrame = async () => {
+			// Set rendering state to true when starting websocket request
+			setIsFrameRendering?.(true);
+
 			// first we check the length
 			const length = await getLengthFromCon();
 			setLength(length);
 			if (step >= length) {
 				setStep(Math.max(0, length - 1));
+				// Set rendering state to false when ending early
+				setIsFrameRendering?.(false);
 				return;
 			}
 			// now we request the frame
@@ -450,6 +510,7 @@ export const setupFrames = (
 
 			if (frame === null) {
 				console.warn("Frame ", step, " is null, retrying after 100ms...");
+				// Keep rendering state true during retry
 				setTimeout(updateFrame, 100); // Retry after 100 ms
 				return;
 			}
@@ -644,6 +705,87 @@ export const setupMessages = (
 			updateCon();
 		}
 	}, [messages]);
+};
+
+export const setupVectors = (
+	token: string,
+	step: any,
+	setVectors: any,
+	requestedProperties: string[] = [],
+) => {
+	const { getFrameFromCon } = useFrameFetching(token);
+
+	const setVectorsFromFrame = async (frame: any) => {
+		if (!frame) {
+			setVectors({});
+			return;
+		}
+
+		try {
+			const [calc, arrays] = await Promise.all([frame.calc, frame.arrays]);
+
+			const [calcKeys, arraysKeys] = await Promise.all([
+				calc.keys(),
+				arrays.keys(),
+			]);
+
+			const vectorProperties: { [key: string]: any } = {};
+			const allKeys = new Set([...calcKeys, ...arraysKeys]);
+
+			// Only process requested properties
+			for (const property of requestedProperties) {
+				if (!allKeys.has(property)) {
+					console.warn(`Requested property '${property}' not found in frame`);
+					continue;
+				}
+
+				let data;
+				if (calcKeys.includes(property)) {
+					data = await calc[property];
+				} else if (arraysKeys.includes(property)) {
+					data = await arrays[property];
+				}
+
+				if (
+					data &&
+					Array.isArray(data) &&
+					data.length > 0 &&
+					Array.isArray(data[0]) &&
+					data[0].length === 3
+				) {
+					vectorProperties[property] = data;
+				} else {
+					console.warn(`Property '${property}' is not a valid 3D vector array`);
+				}
+			}
+
+			setVectors(vectorProperties);
+		} catch (error) {
+			console.error("Error while resolving vectors:", error);
+			setVectors({});
+		}
+	};
+
+	useEffect(() => {
+		const updateVectors = async () => {
+			const frame = await getFrameFromCon(step || 0);
+			if (frame === null) {
+				console.warn(
+					"Frame ",
+					step,
+					" is null for vectors, retrying after 100ms...",
+				);
+				setTimeout(updateVectors, 100);
+				return;
+			}
+			setVectorsFromFrame(frame);
+		};
+
+		const debounceTimeout = setTimeout(updateVectors, 8);
+		return () => {
+			clearTimeout(debounceTimeout);
+		};
+	}, [step, requestedProperties, getFrameFromCon]);
 };
 
 export const setupConfig = (token: string, setConfig: any) => {

@@ -24,10 +24,15 @@ export const VectorField: React.FC<VectorFieldProps> = ({
 	pathTracingSettings,
 }) => {
 	const [colorRange, setColorRange] = useState<[number, number]>(
-		arrowsConfig.colorrange,
+		Array.isArray(arrowsConfig.colorrange) ? arrowsConfig.colorrange : [0, 1],
 	);
 
 	useEffect(() => {
+		if (vectors.length === 0) {
+			setColorRange([0, 1]);
+			return;
+		}
+
 		if (arrowsConfig.normalize) {
 			const max = Math.max(
 				...vectors.map((vector) =>
@@ -38,12 +43,20 @@ export const VectorField: React.FC<VectorFieldProps> = ({
 			);
 			setColorRange([0, max]);
 		} else {
-			setColorRange(arrowsConfig.colorrange);
+			setColorRange(
+				Array.isArray(arrowsConfig.colorrange)
+					? arrowsConfig.colorrange
+					: [0, 1],
+			);
 		}
 	}, [vectors, arrowsConfig.normalize, arrowsConfig.colorrange]);
 
 	const startMap = useMemo(() => vectors.map((vector) => vector[0]), [vectors]);
 	const endMap = useMemo(() => vectors.map((vector) => vector[1]), [vectors]);
+
+	if (vectors.length === 0) {
+		return null;
+	}
 
 	return (
 		<Arrows
