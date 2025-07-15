@@ -129,8 +129,8 @@ def main(
     healthcheck: bool = typer.Option(False, help="Run the healthcheck."),
     follow: bool = typer.Option(
         False,
-        help="Follow the file and update the visualization in real-time (only h5md files supported). "
-    )
+        help="Follow the file and update the visualization in real-time (only h5md files supported). ",
+    ),
 ):
     """Start the ZnDraw server.
 

@@ -5,10 +5,10 @@ import uuid
 import webbrowser
 
 import typer
+import znsocket
 
 from zndraw import ZnDraw
-import znsocket
-from zndraw.converter import dict_to_nested_znsocket, ASEConverter
+from zndraw.converter import ASEConverter, dict_to_nested_znsocket
 
 from .tasks import FileIO, get_generator_from_filename
 from .utils import load_plots_to_dict
@@ -24,7 +24,7 @@ def upload(
     plots: list[str],
     browser: bool,
     batch_size: int,
-    follow: bool
+    follow: bool,
 ):
     """Upload a file to ZnDraw."""
     if token is None:
@@ -32,18 +32,25 @@ def upload(
 
     if follow:
         vis = ZnDraw(url=url, token=str(uuid.uuid4()), convert_nan=fileio.convert_nan)
-         # need to use a different token, because the room is being created, when creating this object.
+        # need to use a different token, because the room is being created, when creating this object.
 
         import znh5md
+
         # TODO: can also work with zntrack, could also work with ASE in some way.
         io = znh5md.IO(fileio.name)
+
         def item_transform_callback(item, key, socket, converter=None, convert_nan=False):
             """Transform an item into a znsocket-compatible format."""
             value = ASEConverter().encode(item)
             print(f"Transforming item: {item} to key: {key}")
             return dict_to_nested_znsocket(value, key, socket)
 
-        znsocket.ListAdapter(object=io, key=f"room:{token}:frames", socket=vis.r, item_transform_callback=item_transform_callback)
+        znsocket.ListAdapter(
+            object=io,
+            key=f"room:{token}:frames",
+            socket=vis.r,
+            item_transform_callback=item_transform_callback,
+        )
         typer.echo(f"Connecting IO (len={len(io)}) to: {url}/token/{token}")
         vis.socket.wait()
         return
