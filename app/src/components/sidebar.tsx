@@ -113,6 +113,7 @@ const SidebarMenu = ({
 		};
 	}, [token]);
 
+
 	// set the default userInput to the first key in the schema, if userInput is empty
 	useEffect(() => {
 		if (
@@ -130,6 +131,7 @@ const SidebarMenu = ({
 			editor = new JSONEditor(editorRef.current, {
 				schema: fullSchema[userInput],
 			});
+
 
 			editor.on("ready", () => {
 				if (editor.validate()) {
@@ -155,8 +157,10 @@ const SidebarMenu = ({
 		};
 	}, [userInput, schema, sharedSchema]);
 
+
 	function submitEditor() {
 		if (editorValue && userInput && queueRef.current) {
+			console.log(`Submitting ${userInput} config change`);
 			setDisabledBtn(true);
 			// queueRef.current.push({ [userInput]: editorValue });
 			queueRef.current[userInput] = editorValue;
@@ -170,6 +174,7 @@ const SidebarMenu = ({
 				initialTrigger.current = false;
 				return;
 			}
+			console.log(`Auto-submitting ${userInput} change`);
 			submitEditor();
 		}
 	}, [editorValue]);

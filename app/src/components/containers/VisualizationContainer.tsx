@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useEffect } from "react";
 import { Canvas } from "@react-three/fiber";
 import { Pathtracer } from "@react-three/gpu-pathtracer";
 import { Environment } from "@react-three/drei";
@@ -74,6 +74,11 @@ export const VisualizationContainer: React.FC<VisualizationContainerProps> = ({
 		vectorFieldData,
 		vectorColormap,
 	} = useAppContext();
+
+	// Track roomConfig changes for real-time updates
+	useEffect(() => {
+		console.log("UI updated with new config");
+	}, [roomConfig]);
 
 	// Extract constrained atom indices from frame constraints
 	const constrainedAtomIds = useMemo(() => {
