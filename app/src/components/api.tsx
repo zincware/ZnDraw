@@ -818,7 +818,6 @@ export const setupConfig = (token: string, setConfig: any) => {
 		const refreshConfig = async (source: string) => {
 			try {
 				const result = await con.toObject();
-				console.log(`Config updated from ${source}`);
 				if (Object.keys(result).length > 0) {
 					setConfig(result);
 				} else {
@@ -839,7 +838,6 @@ export const setupConfig = (token: string, setConfig: any) => {
 
 		// Register main config refresh handler
 		con.onRefresh(async () => {
-			console.log("Main config structure changed");
 			await refreshConfig("main");
 		});
 

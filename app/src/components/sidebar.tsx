@@ -157,7 +157,6 @@ const SidebarMenu = ({
 
 	function submitEditor() {
 		if (editorValue && userInput && queueRef.current) {
-			console.log(`Submitting ${userInput} config change`);
 			setDisabledBtn(true);
 			// queueRef.current.push({ [userInput]: editorValue });
 			queueRef.current[userInput] = editorValue;
@@ -171,7 +170,6 @@ const SidebarMenu = ({
 				initialTrigger.current = false;
 				return;
 			}
-			console.log(`Auto-submitting ${userInput} change`);
 			submitEditor();
 		}
 	}, [editorValue]);

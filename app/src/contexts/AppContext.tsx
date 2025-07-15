@@ -212,7 +212,6 @@ export const AppProvider: React.FC<AppProviderProps> = ({
 
 	// Enhanced config setter for debugging
 	const setRoomConfigWithLogging = (config: RoomConfig) => {
-		console.log("Config state updated");
 		setRoomConfig(config);
 	};
 

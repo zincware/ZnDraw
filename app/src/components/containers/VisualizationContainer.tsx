@@ -75,11 +75,6 @@ export const VisualizationContainer: React.FC<VisualizationContainerProps> = ({
 		vectorColormap,
 	} = useAppContext();
 
-	// Track roomConfig changes for real-time updates
-	useEffect(() => {
-		console.log("UI updated with new config");
-	}, [roomConfig]);
-
 	// Extract constrained atom indices from frame constraints
 	const constrainedAtomIds = useMemo(() => {
 		const constrainedIds = new Set<number>();
