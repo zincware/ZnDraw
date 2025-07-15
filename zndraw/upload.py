@@ -68,7 +68,3 @@ def upload(
     vis.extend(frames)
 
     vis.figures.update(load_plots_to_dict(plots, fileio.remote, fileio.rev))
-
-
-def follow():
-    pass
