@@ -1,8 +1,7 @@
-import { useRef, useState } from "react";
+import { useRef, useState, useCallback, useMemo } from "react";
 import { useEffect } from "react";
 import { Button, ButtonGroup, Card, Form, Nav, Navbar } from "react-bootstrap";
 import {
-	FaCube,
 	FaGithub,
 	FaPlay,
 	FaRegChartBar,
@@ -11,22 +10,14 @@ import {
 } from "react-icons/fa";
 import { FaCircleNodes, FaGear } from "react-icons/fa6";
 import { IoStop } from "react-icons/io5";
-import Select from "react-select";
+// import Select from "react-select";
 import * as znsocket from "znsocket";
 import { client, socket } from "../socket";
 import { BtnTooltip } from "./tooltips";
+import JSONFormsEditor from "./JSONFormsEditor";
+import isEqual from "lodash.isequal";
 
-import { JSONEditor } from "@json-editor/json-editor";
-
-JSONEditor.defaults.options.theme = "bootstrap5";
-JSONEditor.defaults.options.iconlib = "fontawesome5";
-JSONEditor.defaults.options.object_background = "bg-body-color";
-JSONEditor.defaults.options.disable_edit_json = true;
-JSONEditor.defaults.options.disable_properties = true;
-JSONEditor.defaults.options.disable_collapse = true;
-JSONEditor.defaults.options.no_additional_properties = true;
-JSONEditor.defaults.options.keep_oneof_values = false;
-JSONEditor.defaults.editors.object.options.titleHidden = true;
+// JSONEditor configuration removed - using JSONForms instead
 
 interface SidebarMenuProps {
 	visible: boolean;
@@ -43,14 +34,16 @@ const SidebarMenu = ({
 	name,
 	sendImmediately,
 }: SidebarMenuProps) => {
-	const [userInput, setUserInput] = useState<string>(undefined);
+	const [userInput, setUserInput] = useState<string | undefined>(undefined);
 	const [schema, setSchema] = useState<any>({});
 	const [sharedSchema, setSharedSchema] = useState<any>({});
 	const [editorValue, setEditorValue] = useState<any>(null);
 	const [disabledBtn, setDisabledBtn] = useState<boolean>(false);
+	const [validationErrors, setValidationErrors] = useState<any[]>([]);
 	const initialTrigger = useRef<boolean>(true);
-	const editorRef = useRef<HTMLDivElement>(null);
 	const queueRef = useRef<any>(null);
+	const lastSchemaRef = useRef<any>(null);
+	const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
 
 	useEffect(() => {
 		if (visible) {
@@ -89,18 +82,18 @@ const SidebarMenu = ({
 		queue.length().then((length: any) => {
 			setDisabledBtn(length > 0);
 		});
-		queue.onRefresh(async (x: any) => {
+		queue.onRefresh(async () => {
 			const length = await queue.length();
 			setDisabledBtn(length > 0);
 		});
 
-		con.onRefresh(async (x: any) => {
+		con.onRefresh(async () => {
 			const items = await con.entries();
 			const result = Object.fromEntries(items);
 			setSchema(result);
 		});
 
-		sharedCon.onRefresh(async (x: any) => {
+		sharedCon.onRefresh(async () => {
 			const items = await sharedCon.entries();
 			const result = Object.fromEntries(items);
 			setSharedSchema(result);
@@ -119,50 +112,84 @@ const SidebarMenu = ({
 			userInput === undefined &&
 			Object.keys({ ...sharedSchema, ...schema }).length > 0
 		) {
-			setUserInput(Object.keys({ ...sharedSchema, ...schema })[0]);
+			const keys = Object.keys({ ...sharedSchema, ...schema });
+			if (keys.length > 0) {
+				setUserInput(keys[0]);
+			}
 		}
 	}, [schema, sharedSchema, userInput]);
 
+	// Memoize the full schema to prevent unnecessary re-renders
+	const fullSchema = useMemo(() => {
+		const merged = { ...sharedSchema, ...schema };
+		console.log("Full schema updated:", merged);
+		return merged;
+	}, [sharedSchema, schema]);
+
+	// Memoize the current schema to prevent unnecessary re-renders
+	const currentSchema = useMemo(() => {
+		if (!userInput) return null;
+		const schema = fullSchema[userInput];
+		console.log("Current schema for", userInput, ":", schema);
+		return schema;
+	}, [fullSchema, userInput]);
+
+	// Only recreate editor data if the schema actually changes
 	useEffect(() => {
-		let editor: any;
-		const fullSchema = { ...sharedSchema, ...schema };
-		if (editorRef.current && fullSchema[userInput]) {
-			editor = new JSONEditor(editorRef.current, {
-				schema: fullSchema[userInput],
-			});
-
-			editor.on("ready", () => {
-				if (editor.validate()) {
-					const editorValue = editor.getValue();
-					setEditorValue(editorValue);
-				}
-			});
-
-			editor.on("change", () => {
-				if (editor.ready) {
-					if (editor.validate()) {
-						const editorValue = editor.getValue();
-						setEditorValue(editorValue);
+		if (currentSchema && !isEqual(currentSchema, lastSchemaRef.current)) {
+			console.log("Schema changed for", userInput, "recreating editor");
+			lastSchemaRef.current = currentSchema;
+			// Set initial value from schema defaults if available
+			if (currentSchema.properties) {
+				const defaultValue: any = {};
+				for (const [key, prop] of Object.entries(currentSchema.properties)) {
+					const property = prop as any;
+					if (property.default !== undefined) {
+						defaultValue[key] = property.default;
 					}
 				}
-			});
-		}
-		return () => {
-			if (editor) {
-				editor.destroy();
-				setEditorValue(null);
+				setEditorValue(defaultValue);
 			}
-		};
-	}, [userInput, schema, sharedSchema]);
+		}
+	}, [currentSchema, userInput]);
+
+	// Debounced submit function
+	const debouncedSubmit = useCallback(
+		(value: any) => {
+			if (debounceTimerRef.current) {
+				clearTimeout(debounceTimerRef.current);
+			}
+			debounceTimerRef.current = setTimeout(() => {
+				if (value && userInput && queueRef.current) {
+					console.log("Submitting debounced value:", value, "for", userInput);
+					setDisabledBtn(true);
+					queueRef.current[userInput] = value;
+					socket.emit("room:worker:run");
+				}
+			}, 500); // 500ms debounce
+		},
+		[userInput],
+	);
 
 	function submitEditor() {
 		if (editorValue && userInput && queueRef.current) {
 			setDisabledBtn(true);
-			// queueRef.current.push({ [userInput]: editorValue });
 			queueRef.current[userInput] = editorValue;
 			socket.emit("room:worker:run");
 		}
 	}
+
+	// Handle JSONForms data changes
+	const handleEditorChange = useCallback((data: any) => {
+		console.log("Editor value changed:", data);
+		setEditorValue(data);
+	}, []);
+
+	// Handle validation errors
+	const handleValidationChange = useCallback((errors: any[]) => {
+		console.log("Validation errors:", errors);
+		setValidationErrors(errors);
+	}, []);
 
 	useEffect(() => {
 		if (sendImmediately && editorValue && userInput && queueRef.current) {
@@ -170,9 +197,18 @@ const SidebarMenu = ({
 				initialTrigger.current = false;
 				return;
 			}
-			submitEditor();
+			debouncedSubmit(editorValue);
 		}
-	}, [editorValue]);
+	}, [editorValue, sendImmediately, userInput, debouncedSubmit]);
+
+	// Cleanup debounce timer on unmount
+	useEffect(() => {
+		return () => {
+			if (debounceTimerRef.current) {
+				clearTimeout(debounceTimerRef.current);
+			}
+		};
+	}, []);
 
 	function cancelTask() {
 		if (queueRef.current) {
@@ -208,7 +244,14 @@ const SidebarMenu = ({
 				}}
 			>
 				<Card.Title>{capitalizeFirstLetter(name)}</Card.Title>
-				<Button variant="close" className="ms-auto" onClick={closeMenu} />
+				<Button
+					variant="outline-secondary"
+					className="ms-auto"
+					onClick={closeMenu}
+					aria-label="Close"
+				>
+					×
+				</Button>
 			</Card.Header>
 			<Card.Body style={{ paddingBottom: 80 }}>
 				<Form.Group className="d-flex align-items-center">
@@ -218,7 +261,7 @@ const SidebarMenu = ({
 						value={userInput}
 					>
 						<option />
-						{Object.keys({ ...sharedSchema, ...schema }).map((key) => (
+						{Object.keys(fullSchema).map((key) => (
 							<option key={key} value={key}>
 								{key}
 							</option>
@@ -230,7 +273,7 @@ const SidebarMenu = ({
 								variant="outline-primary"
 								onClick={submitEditor}
 								className="ms-2 d-flex align-items-center"
-								disabled={disabledBtn}
+								disabled={disabledBtn || validationErrors.length > 0}
 							>
 								<FaPlay className="me-1" /> Submit
 							</Button>
@@ -240,7 +283,24 @@ const SidebarMenu = ({
 						</ButtonGroup>
 					)}
 				</Form.Group>
-				<div ref={editorRef} />
+				{validationErrors.length > 0 && (
+					<div className="alert alert-danger" role="alert">
+						<strong>Validation Errors:</strong>
+						<ul className="mb-0">
+							{validationErrors.map((error, index) => (
+								<li key={index}>{error.message}</li>
+							))}
+						</ul>
+					</div>
+				)}
+				{currentSchema && (
+					<JSONFormsEditor
+						schema={currentSchema}
+						data={editorValue}
+						onChange={handleEditorChange}
+						onValidationChange={handleValidationChange}
+					/>
+				)}
 			</Card.Body>
 		</Card>
 	);

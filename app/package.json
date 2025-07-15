@@ -12,7 +12,9 @@
 		"lint:fix": "biome check --fix ."
 	},
 	"dependencies": {
-		"@json-editor/json-editor": "^2.15.2",
+		"@jsonforms/core": "^3.6.0",
+		"@jsonforms/react": "^3.6.0",
+		"@jsonforms/vanilla-renderers": "^3.6.0",
 		"@react-three/drei": "^9.122.0",
 		"@react-three/fiber": "^8.18.0",
 		"@react-three/gpu-pathtracer": "^0.2.0",
@@ -20,6 +22,7 @@
 		"@types/three": "^0.165.0",
 		"bootstrap": "5.3.3",
 		"lodash": "^4.17.21",
+		"lodash.isequal": "^4.5.0",
 		"plotly.js": "^2.35.3",
 		"react": "^18.3.1",
 		"react-bootstrap": "^2.10.10",
@@ -41,6 +44,7 @@
 	},
 	"devDependencies": {
 		"@biomejs/biome": "1.9.4",
+		"@types/lodash.isequal": "^4.5.8",
 		"@types/react": "^18.3.23",
 		"@types/react-dom": "^18.3.7",
 		"@vitejs/plugin-react-swc": "^3.10.2",
