@@ -127,6 +127,10 @@ def main(
         envvar="ZNDRAW_CONVERT_NAN",
     ),
     healthcheck: bool = typer.Option(False, help="Run the healthcheck."),
+    follow: bool = typer.Option(
+        False,
+        help="Follow the file and update the visualization in real-time"
+    )
 ):
     """Start the ZnDraw server.
 
@@ -144,6 +148,8 @@ def main(
         raise ValueError(
             "You cannot provide a URL and a port at the same time. Use something like '--url http://localhost:1234' instead."
         )
+    if follow and url is None:
+        raise ValueError("You need to provide a URL to use the follow feature.")
 
     env_config = EnvOptions.from_env()
 
@@ -189,7 +195,7 @@ def main(
     )
 
     if url is not None:
-        upload(url, token, fileio, append, plots, browser)
+        upload(url, token, fileio, append, plots, browser, 16, follow)
         return
 
     typer.echo(

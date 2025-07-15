@@ -283,20 +283,12 @@ class ZnDraw(MutableSequence):
         pipeline.execute()
 
     def __len__(self) -> int:
-        # TODO: what if the room does not exist yet?
-        if not self.r.exists(f"znsocket.List:room:{self.token}:frames"):
-            return len(
-                znsocket.List(
-                    self.r,
-                    "room:default:frames",
-                    socket=self._refresh_client,
-                )
-            )
         return len(
             znsocket.List(
-                self.r,
-                f"room:{self.token}:frames",
+                r=self.r,
+                key=f"room:{self.token}:frames",
                 socket=self._refresh_client,
+                fallback="room:default:frames",
             )
         )
 
