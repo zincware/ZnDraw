@@ -10,11 +10,10 @@ import {
     CircularProgress,
 } from "@mui/material";
 import { styled } from "@mui/system";
-import { FaRegBookmark } from "react-icons/fa";
 import WifiIcon from '@mui/icons-material/Wifi';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
-import CloudDownloadIcon from '@mui/icons-material/CloudDownload'; // Icon for waiting for data
+import CloudDownloadIcon from '@mui/icons-material/CloudDownload';
 
 interface IndicesState {
     active: boolean;
@@ -35,131 +34,118 @@ interface FrameProgressBarProps {
     isFrameRendering: boolean;
 }
 
-// Main container with improved alignment and padding
 const ProgressBarContainer = styled(Box)(() => ({
     width: "100%",
-    padding: "12px 16px",
+    padding: "4px 16px",
     backgroundColor: "#f4f6f8",
     borderRadius: "8px",
-    boxShadow: "0px 3px 6px rgba(0,0,0,0.16)",
+    boxShadow: "0px 2px 4px rgba(0,0,0,0.1)",
     display: "flex",
-    alignItems: "center", // Vertically aligns all direct children
-    gap: "16px",
+    alignItems: "center",
+    gap: "12px",
     flexWrap: 'wrap',
 }));
 
-// Simplified wrapper for the slider. No longer needs complex padding or height.
 const SliderControlsWrapper = styled(Box)(() => ({
-    position: "relative", // Remains relative for bookmarks and highlights
+    position: "relative",
     flexGrow: 1,
     display: "flex",
     alignItems: "center",
     minWidth: 250,
+    margin: "0 8px",
 }));
 
-// Repositioned bookmark to be closer to the slider track
+// CORRECTED: Bookmark positioning logic
 const BookmarkIndicator = styled("div")<{ left: string }>(({ left }) => ({
-    position: "absolute",
+    position: 'absolute',
     left: left,
-    top: "50%", // Align with the vertical center of the wrapper
+    top: '50%', // Start from the vertical center of the parent
+    // Horizontally center on the mark.
+    // Vertically, shift it up by its own height (7px) plus half the rail height (2px)
+    // to make the tip sit exactly on top of the slider rail.
+    transform: 'translate(-50%, -9px)',
+    width: '12px',
+    height: '7px', // The height of the triangle
     zIndex: 2,
-    // Shift horizontally to center on the mark, and vertically to sit just above the track
-    transform: "translate(-50%, -110%)",
-    "& svg": {
-        color: "#ff9800",
-        fontSize: "1.1em",
-        cursor: "pointer",
-        transition: "transform 0.2s ease-in-out",
-        "&:hover": {
-            transform: "scale(1.3)",
-        },
+    cursor: 'pointer',
+    '& svg': {
+        display: 'block',
+        width: '100%',
+        height: '100%',
+        filter: 'drop-shadow(0px 1px 1px rgba(0,0,0,0.2))',
+    },
+    '& svg path': {
+        fill: '#ff9800',
+        transition: 'fill 0.2s ease-in-out',
+    },
+    '&:hover svg path': {
+        fill: '#e65100', // Darken on hover
     },
 }));
 
-// Highlight style adjusted for the new, slimmer progress bar
+
 const SelectedFrameHighlight = styled("div")<{ left: string; width: string }>(
     ({ left, width }) => ({
         position: "absolute",
         left: left,
         width: width,
-        height: "6px", // Slightly thicker than the track for visibility
+        height: "6px",
         backgroundColor: "#42a5f5",
         borderRadius: "3px",
         zIndex: 1,
         pointerEvents: "none",
-        top: "50%", // Center vertically on the slider's centerline
+        top: "50%",
         transform: "translateY(-50%)",
-        opacity: 0.8,
+        opacity: 0.9,
     })
 );
 
-// Animation for the "waiting for data" icon
+const compactTextFieldSx = {
+    "& .MuiInputBase-root": { height: 30, fontSize: "0.875rem" },
+    "& .MuiOutlinedInput-input": { padding: "4px 8px" },
+    "& .MuiInputLabel-root": { top: "-6px" },
+    "& .MuiInputLabel-shrink": { top: "0px" }
+};
+
 const waitingAnimation = {
     '@keyframes waiting': {
-        '0%, 100%': { transform: 'translateY(0)' },
-        '50%': { transform: 'translateY(-3px)' },
+        '0%, 100%': { transform: 'translateY(0)' }, '50%': { transform: 'translateY(-3px)' },
     },
     animation: 'waiting 1.5s ease-in-out infinite',
 };
 
-
 export const FrameProgressBar: React.FC<FrameProgressBarProps> = ({
-    length,
-    step,
-    setStep,
-    selectedFrames,
-    setSelectedFrames,
-    bookmarks,
-    setBookmarks,
-    connected,
-    frameRate,
-    setFrameRate,
-    isFrameRendering,
+    length, step, setStep, selectedFrames, setSelectedFrames,
+    bookmarks, setBookmarks, connected, frameRate, setFrameRate, isFrameRendering,
 }) => {
     const [inputValue, setInputValue] = useState<string>(String(step));
     const [fpsInputValue, setFpsInputValue] = useState<string>(String(frameRate));
-
     const [debouncedConnected, setDebouncedConnected] = useState(connected);
     const [debouncedIsFrameRendering, setDebouncedIsFrameRendering] = useState(isFrameRendering);
 
+    useEffect(() => { setInputValue(String(step)); }, [step]);
+    useEffect(() => { setFpsInputValue(String(frameRate)); }, [frameRate]);
     useEffect(() => {
-        setInputValue(String(step));
-    }, [step]);
-
-    useEffect(() => {
-        setFpsInputValue(String(frameRate));
-    }, [frameRate]);
-
-    useEffect(() => {
-        const handler = setTimeout(() => setDebouncedConnected(connected), connected ? 0 : 100);
+        const handler = setTimeout(() => setDebouncedConnected(connected), connected ? 0 : 500);
         return () => clearTimeout(handler);
     }, [connected]);
-
     useEffect(() => {
-        const handler = setTimeout(() => setDebouncedIsFrameRendering(isFrameRendering), isFrameRendering ? 100 : 0);
+        const handler = setTimeout(() => setDebouncedIsFrameRendering(isFrameRendering), isFrameRendering ? 500 : 0);
         return () => clearTimeout(handler);
     }, [isFrameRendering]);
 
     const handleSliderChange = (event: Event, newValue: number | number[]) => {
         setStep(newValue as number);
     };
-
     const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-        const value = event.target.value;
-        setInputValue(value);
-        const numValue = Number(value);
-        if (!isNaN(numValue) && numValue >= 0 && numValue <= length) {
-            setStep(numValue);
-        }
+        setInputValue(event.target.value);
+        const numValue = Number(event.target.value);
+        if (!isNaN(numValue) && numValue >= 0 && numValue <= length) setStep(numValue);
     };
-
     const handleInputBlur = () => {
         const numValue = Number(inputValue);
-        if (isNaN(numValue) || numValue < 0 || numValue > length) {
-            setInputValue(String(step));
-        }
+        if (isNaN(numValue) || numValue < 0 || numValue > length) setInputValue(String(step));
     };
-
     const handleBookmarkClick = (event: React.MouseEvent, frameNumber: number) => {
         if (event.shiftKey) {
             const newBookmarks = { ...bookmarks };
@@ -169,150 +155,110 @@ export const FrameProgressBar: React.FC<FrameProgressBarProps> = ({
             setStep(frameNumber);
         }
     };
-
     const handleToggleSelectedFrames = () => {
         setSelectedFrames({ ...selectedFrames, active: !selectedFrames.active });
     };
-
     const handleFpsInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-        const value = event.target.value;
-        setFpsInputValue(value);
-        const numValue = Number(value);
-        if (!isNaN(numValue) && numValue > 0) {
-            setFrameRate(numValue);
-        }
+        setFpsInputValue(event.target.value);
+        const numValue = Number(event.target.value);
+        if (!isNaN(numValue) && numValue > 0) setFrameRate(numValue);
     };
-
     const handleFpsInputBlur = () => {
         const numValue = Number(fpsInputValue);
-        if (isNaN(numValue) || numValue <= 0) {
-            setFpsInputValue(String(frameRate));
-        }
+        if (isNaN(numValue) || numValue <= 0) setFpsInputValue(String(frameRate));
     };
 
-    const renderBookmarks = () => {
-        return Object.keys(bookmarks).map((key) => {
-            const position = Number.parseInt(key);
-            const leftPosition = `${(position / length) * 100}%`;
-            return (
-                <Tooltip key={`bookmark-${position}`} title={bookmarks[position]}>
-                    <BookmarkIndicator left={leftPosition}>
-                        <FaRegBookmark
-                            onClick={(e) => handleBookmarkClick(e, position)}
-                        />
-                    </BookmarkIndicator>
-                </Tooltip>
-            );
-        });
-    };
+    const renderBookmarks = () => Object.keys(bookmarks).map((key) => {
+        const position = Number.parseInt(key);
+        return (
+            <Tooltip key={`bookmark-${position}`} title={bookmarks[position]} placement="top">
+                <BookmarkIndicator
+                    left={`${(position / length) * 100}%`}
+                    onClick={(e) => handleBookmarkClick(e, position)}
+                >
+                    <svg viewBox="0 0 12 7" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M0 0 L12 0 L6 7 Z" />
+                    </svg>
+                </BookmarkIndicator>
+            </Tooltip>
+        );
+    });
 
     const renderSelectedFrames = () => {
-        if (!selectedFrames || !selectedFrames.active || !selectedFrames.indices) return null;
-
-        const framesToHighlight = [...selectedFrames.indices].sort((a, b) => a - b);
-        const highlightBlocks: { start: number; end: number }[] = [];
-
-        if (framesToHighlight.length > 0) {
-            let currentBlock = { start: framesToHighlight[0], end: framesToHighlight[0] };
-            for (let i = 1; i < framesToHighlight.length; i++) {
-                if (framesToHighlight[i] === currentBlock.end + 1) {
-                    currentBlock.end = framesToHighlight[i];
+        if (!selectedFrames.active || !selectedFrames.indices) return null;
+        const frames = [...selectedFrames.indices].sort((a, b) => a - b);
+        const blocks: { start: number; end: number }[] = [];
+        if (frames.length > 0) {
+            let currentBlock = { start: frames[0], end: frames[0] };
+            for (let i = 1; i < frames.length; i++) {
+                if (frames[i] === currentBlock.end + 1) {
+                    currentBlock.end = frames[i];
                 } else {
-                    highlightBlocks.push(currentBlock);
-                    currentBlock = { start: framesToHighlight[i], end: framesToHighlight[i] };
+                    blocks.push(currentBlock);
+                    currentBlock = { start: frames[i], end: frames[i] };
                 }
             }
-            highlightBlocks.push(currentBlock);
+            blocks.push(currentBlock);
         }
-
-        return highlightBlocks.map((block, index) => {
-            const leftPosition = `${(block.start / length) * 100}%`;
-            const width = `${((block.end - block.start + 1) / length) * 100}%`;
-            return <SelectedFrameHighlight key={`selected-block-${index}`} left={leftPosition} width={width} />;
-        });
+        return blocks.map((block, index) => (
+            <SelectedFrameHighlight
+                key={`selected-block-${index}`}
+                left={`${(block.start / length) * 100}%`}
+                width={`${((block.end - block.start + 1) / length) * 100}%`}
+            />
+        ));
     };
 
     return (
         <ProgressBarContainer>
             <TextField
-                variant="outlined"
-                size="small"
-                value={inputValue}
-                onChange={handleInputChange}
-                onBlur={handleInputBlur}
-                type="number"
-                inputProps={{ min: 0, max: length, step: 1 }}
+                variant="outlined" size="small" value={inputValue} onChange={handleInputChange}
+                onBlur={handleInputBlur} type="number" sx={{ ...compactTextFieldSx, width: 110 }}
                 InputProps={{
-                    endAdornment: <InputAdornment position="end">/ {length}</InputAdornment>,
+                    endAdornment: <InputAdornment position="end">/{length}</InputAdornment>,
                 }}
-                sx={{ width: 120, flexShrink: 0 }}
             />
 
             <SliderControlsWrapper>
                 {renderSelectedFrames()}
                 {renderBookmarks()}
                 <Slider
-                    value={step}
-                    min={0}
-                    max={length}
-                    step={1}
-                    onChange={handleSliderChange}
-                    aria-labelledby="frame-slider"
+                    value={step} min={0} max={length} step={1} onChange={handleSliderChange}
                     sx={{
-                        // Removed absolute positioning for natural flex alignment
+                        color: selectedFrames.active ? 'transparent' : 'primary.main',
+                        "& .MuiSlider-rail": {
+                            height: 4, borderRadius: 2,
+                            backgroundColor: selectedFrames.active ? '#bdbdbd' : '#e0e0e0',
+                            opacity: 1,
+                        },
                         "& .MuiSlider-track": { height: 4, borderRadius: 2 },
-                        "& .MuiSlider-rail": { height: 4, borderRadius: 2 },
                         "& .MuiSlider-thumb": {
-                            width: 16,
-                            height: 16,
-                            backgroundColor: '#fff',
-                            border: '2px solid currentColor',
-                            '&:hover, &.Mui-focusVisible': {
-                                boxShadow: '0 0 0 8px rgba(25, 118, 210, 0.16)',
-                            },
+                            width: 14, height: 14,
+                            backgroundColor: '#fff', border: '2px solid currentColor',
+                            color: selectedFrames.active ? '#42a5f5' : 'primary.main',
                         },
                     }}
                 />
             </SliderControlsWrapper>
 
             <TextField
-                variant="outlined"
-                size="small"
-                label="FPS"
-                value={fpsInputValue}
-                onChange={handleFpsInputChange}
-                onBlur={handleFpsInputBlur}
-                type="number"
-                inputProps={{ min: 1 }}
-                sx={{ width: 100, flexShrink: 0 }}
+                variant="outlined" size="small" label="FPS" value={fpsInputValue}
+                onChange={handleFpsInputChange} onBlur={handleFpsInputBlur} type="number"
+                sx={{ ...compactTextFieldSx, width: 80 }}
             />
 
             <Tooltip title={selectedFrames.active ? "Hide Selections" : "Show Selections"}>
-                <IconButton onClick={handleToggleSelectedFrames} color="primary">
+                <IconButton onClick={handleToggleSelectedFrames} size="small" color="primary">
                     {selectedFrames.active ? <VisibilityIcon /> : <VisibilityOffIcon />}
                 </IconButton>
             </Tooltip>
-            
-            {/* Unified status indicator logic */}
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: 40, flexShrink: 0 }}>
-                <Tooltip
-                    title={
-                        !debouncedConnected
-                            ? "Connecting..."
-                            : debouncedIsFrameRendering
-                            ? "Waiting for frame data..."
-                            : "Connected to Server"
-                    }
-                >
-                    {/* Wrapper div prevents Tooltip warnings on conditionally rendered/disabled items */}
-                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 24, width: 24 }}>
-                        {!debouncedConnected ? (
-                            <CircularProgress size={24} />
-                        ) : debouncedIsFrameRendering ? (
-                            <CloudDownloadIcon sx={{ color: "#1976d2", ...waitingAnimation }} />
-                        ) : (
-                            <WifiIcon sx={{ color: "#4caf50" }} />
-                        )}
+
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 24, height: 24 }}>
+                <Tooltip title={!debouncedConnected ? "Connecting..." : debouncedIsFrameRendering ? "Waiting for data..." : "Connected"}>
+                    <Box sx={{ display: 'flex' }}>
+                        {!debouncedConnected ? <CircularProgress size={20} />
+                            : debouncedIsFrameRendering ? <CloudDownloadIcon sx={{ color: "#1976d2", fontSize: 22, ...waitingAnimation }} />
+                                : <WifiIcon sx={{ color: "#4caf50", fontSize: 22 }} />}
                     </Box>
                 </Tooltip>
             </Box>
