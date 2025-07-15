@@ -100,7 +100,7 @@ const HeadBar = ({
 	return (
 		<>
 			<AppBar position="fixed" sx={{ height: 50, bgcolor: "background.paper" }}>
-				<Toolbar>
+				<Toolbar sx={{ height: 50, minHeight: 50 }}>
 					<Box sx={{ flexGrow: 1 }}>
 						<Button
 							size="large"
@@ -166,8 +166,8 @@ const HeadBar = ({
 						{tutorialURL && (
 							<BtnTooltip text="Tutorial">
 								<Button
-									variant="warning"
-									className="mx-1"
+									variant="outlined"
+									color="warning"
 									onClick={() => setTutorialModalShow(true)}
 								>
 									Tutorial <FaFilm />
@@ -187,8 +187,8 @@ const HeadBar = ({
 						</BtnTooltip>
 						<BtnTooltip text="Python access">
 							<Button
-								variant="outline-primary"
-								className="mx-1"
+								variant="outlined"
+								color="primary"
 								onClick={() => setConnectModalShow(true)}
 							>
 								<FaCode />
@@ -196,8 +196,8 @@ const HeadBar = ({
 						</BtnTooltip>
 						<BtnTooltip text="Add plots window">
 							<Button
-								variant="outline-primary"
-								className="mx-1"
+								variant="outlined"
+								color="primary"
 								onClick={() => setAddPlotsWindow((prev: number) => prev + 1)}
 							>
 								<MdAddChart />
@@ -206,8 +206,8 @@ const HeadBar = ({
 						<FileUpload />
 						<BtnTooltip text="Download">
 							<Button
-								variant="outline-primary"
-								className="mx-1"
+								variant="outlined"
+								color="primary"
 								href={`${basePath}download`}
 								target="_blank"
 							>
@@ -217,8 +217,8 @@ const HeadBar = ({
 						{zntrackAvailable && (
 							<BtnTooltip text="Open File via DVC">
 								<Button
-									variant="outline-primary"
-									className="mx-1"
+									variant="outlined"
+									color="primary"
 									onClick={() => {
 										setRemoteFileModalShow(true);
 									}}
@@ -229,8 +229,8 @@ const HeadBar = ({
 						)}
 						<BtnTooltip text="Help">
 							<Button
-								variant="outline-primary"
-								className="mx-1"
+								variant="outlined"
+								color="primary"
 								onClick={() => setHelpModalShow(true)}
 							>
 								<GrHelpBook />
@@ -238,8 +238,8 @@ const HeadBar = ({
 						</BtnTooltip>
 						<BtnTooltip text="Switch Colormode">
 							<Button
-								variant="outline-primary"
-								className="mx-1"
+								variant="outlined"
+								color="primary"
 								onClick={handleColorMode}
 							>
 								{colorMode === "light" ? <FaSun /> : <FaMoon />}
@@ -251,8 +251,8 @@ const HeadBar = ({
 									text={roomLock ? "Unlock this room" : "Lock this room"}
 								>
 									<Button
-										variant="outline-danger"
-										className="mx-1"
+										variant="outlined"
+										color="error"
 										onClick={() => {
 											socket.emit("room:lock:set", !roomLock);
 										}}
@@ -260,13 +260,13 @@ const HeadBar = ({
 										{roomLock ? <FaLock /> : <FaLockOpen />}
 									</Button>
 								</BtnTooltip>
-								{/* <Button variant="outline-primary" className="mx-1">
+								{/* <Button variant="outlined" className="mx-1">
                 <FaUsers />
               </Button> */}
 								<BtnTooltip text="Close ZnDraw">
 									<Button
-										variant="outline-danger"
-										className="mx-1"
+										variant="outlined"
+										color="error"
 										onClick={() => {
 											socket.emit("shutdown");
 											close();

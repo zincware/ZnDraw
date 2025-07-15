@@ -37,8 +37,8 @@ export const FileUpload = forwardRef((props, ref) => {
 			/>
 			<BtnTooltip text="Upload">
 				<Button
-					variant="outline-primary"
-					className="mx-1"
+					variant="outlined"
+					color="primary"
 					onClick={handleClick}
 				>
 					<FaUpload />

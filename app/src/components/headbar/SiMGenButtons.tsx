@@ -66,8 +66,8 @@ export function SiMGenButtons({
 				<>
 					<BtnTooltip text="Connect selected atoms (shift click)">
 						<Button
-							variant="success"
-							className="mx-1"
+							variant="contained"
+							color="success"
 							onClick={runConnect}
 							disabled={disabledBtn}
 						>
@@ -76,8 +76,8 @@ export function SiMGenButtons({
 					</BtnTooltip>
 					<BtnTooltip text="Run SiMGen molecular generation">
 						<Button
-							variant="success"
-							className="mx-1"
+							variant="contained"
+							color="success"
 							onClick={runGenerate}
 							disabled={disabledBtn}
 						>
@@ -86,8 +86,8 @@ export function SiMGenButtons({
 					</BtnTooltip>
 					<BtnTooltip text="Replace scene with empty canvas and enter drawing mode">
 						<Button
-							variant="success"
-							className="mx-1"
+							variant="contained"
+							color="success"
 							onClick={createNewCanvas}
 							disabled={disabledBtn}
 						>
