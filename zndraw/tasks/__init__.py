@@ -400,7 +400,7 @@ def run_room_worker(room):
         vis.config[key].update(val)
         # TODO: also update the schema to update all other rooms
         vis.config.update({})
-        
+
     modifier_queue = znsocket.Dict(
         r=current_app.extensions["redis"],
         socket=vis._refresh_client,
