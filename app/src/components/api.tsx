@@ -799,11 +799,13 @@ export const setupConfig = (token: string, setConfig: any) => {
 		});
 
 		// Get config sections from the DEFAULT_ROOM_CONFIG keys
-		const configSections = Object.keys(DEFAULT_ROOM_CONFIG).filter(key => key !== "property") as string[];
+		const configSections = Object.keys(DEFAULT_ROOM_CONFIG).filter(
+			(key) => key !== "property",
+		) as string[];
 		const allConnections: any[] = [con];
 
-		// Create connections for each config section 
-		const sectionConnections = configSections.map(section => {
+		// Create connections for each config section
+		const sectionConnections = configSections.map((section) => {
 			const sectionCon = new znsocket.Dict({
 				client: client,
 				key: `room:${token}:config:${section}`,
