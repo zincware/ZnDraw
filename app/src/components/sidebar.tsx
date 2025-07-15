@@ -113,7 +113,6 @@ const SidebarMenu = ({
 		};
 	}, [token]);
 
-
 	// set the default userInput to the first key in the schema, if userInput is empty
 	useEffect(() => {
 		if (
@@ -131,7 +130,6 @@ const SidebarMenu = ({
 			editor = new JSONEditor(editorRef.current, {
 				schema: fullSchema[userInput],
 			});
-
 
 			editor.on("ready", () => {
 				if (editor.validate()) {
@@ -156,7 +154,6 @@ const SidebarMenu = ({
 			}
 		};
 	}, [userInput, schema, sharedSchema]);
-
 
 	function submitEditor() {
 		if (editorValue && userInput && queueRef.current) {
