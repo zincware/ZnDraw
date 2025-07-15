@@ -13,6 +13,7 @@ import {
 	FaMoon,
 	FaSun,
 	FaTerminal,
+	FaUpload,
 } from "react-icons/fa";
 import { GrHelpBook } from "react-icons/gr";
 import { socket } from "../socket";
@@ -102,7 +103,7 @@ const HeadBar = ({
 	return (
 		<>
 			<AppBar position="fixed" sx={{ height: 50, bgcolor: "background.paper" }}>
-				<Toolbar sx={{ height: 50, minHeight: 50, justifyContent: "space-between" }}>
+				<Toolbar sx={{ height: 50, minHeight: 50, justifyContent: "space-between", alignItems: "center" }}>
 					{/* --- LEFT ALIGNED ITEMS --- */}
 					<Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
 						<Button
@@ -128,7 +129,6 @@ const HeadBar = ({
 								</Button>
 							</>
 						)}
-						{/* Spacer */}
 						<Box sx={{ width: 24 }} />
 
 						<BtnTooltip text="Reset Scene">
@@ -142,7 +142,13 @@ const HeadBar = ({
 								selected={isDrawing}
 								onChange={() => setIsDrawing((prev: boolean) => !prev)}
 								size="small"
-								sx={{ border: 0 }} // Unify style with IconButton
+								sx={{ border: 0,
+                                    "&.MuiToggleButton-root": {
+                                        "&:hover": {
+                                            backgroundColor: (theme) => theme.palette.action.hover,
+                                        },
+                                    },
+                                 }}
 							>
 								<FaPencil style={{ fontSize: iconSize }} />
 							</ToggleButton>
@@ -161,7 +167,7 @@ const HeadBar = ({
 						{tutorialURL && (
 							<BtnTooltip text="Tutorial">
 								<Button
-									variant="text" // More consistent with icon buttons
+									variant="outlined" // Outlined for emphasis
 									color="warning"
 									onClick={() => setTutorialModalShow(true)}
 									startIcon={<FaFilm />}
@@ -176,7 +182,13 @@ const HeadBar = ({
 								selected={consoleShow}
 								onChange={() => setConsoleShow((prev: boolean) => !prev)}
 								size="small"
-								sx={{ border: 0 }} // Unify style with IconButton
+								sx={{ border: 0,
+                                    "&.MuiToggleButton-root": {
+                                        "&:hover": {
+                                            backgroundColor: (theme) => theme.palette.action.hover,
+                                        },
+                                    },
+                                 }}
 							>
 								<FaTerminal style={{ fontSize: iconSize }} />
 							</ToggleButton>
@@ -194,7 +206,17 @@ const HeadBar = ({
 								<MdAddChart style={{ fontSize: iconSize }} />
 							</IconButton>
 						</BtnTooltip>
-						<FileUpload />
+                        
+					<FileUpload
+						renderButton={(handleClick) => (
+							<BtnTooltip text="Upload File">
+								<IconButton color="primary" onClick={handleClick} component="span">
+									<FaUpload style={{ fontSize: iconSize }} />
+								</IconButton>
+							</BtnTooltip>
+						)}
+					/>
+
 						<BtnTooltip text="Download">
 							<IconButton
 								color="primary"

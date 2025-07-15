@@ -1,49 +1,52 @@
-import { Button } from "@mui/material";
 import { forwardRef, useRef } from "react";
-import { FaUpload } from "react-icons/fa";
-import { BtnTooltip } from "../tooltips";
+import type { ReactElement } from "react";
 
-export const FileUpload = forwardRef((props, ref) => {
-	const fileInputRef = useRef(null);
+// The component now takes a function to render the button.
+interface FileUploadProps {
+    renderButton: (handleClick: () => void) => ReactElement;
+}
 
-	const handleClick = () => {
-		fileInputRef.current.click();
-	};
+export const FileUpload = forwardRef<HTMLInputElement, FileUploadProps>(
+    ({ renderButton }, ref) => {
+        const fileInputRef = useRef<HTMLInputElement>(null);
 
-	const handleFileChange = (event) => {
-		const file = event.target.files[0];
-		const formData = new FormData();
-		formData.append("file", file);
+        // This function will be passed to the renderButton prop.
+        const handleClick = () => {
+            fileInputRef.current?.click();
+        };
 
-		const basePath = import.meta.env.BASE_URL || "/";
-		fetch(`${basePath}upload`, {
-			method: "POST",
-			body: formData,
-		});
+        const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+            const file = event.target.files?.[0];
+            if (!file) return;
 
-		if (ref) {
-			// Check if ref is provided
-			ref.current = fileInputRef.current; // Forward the ref to the underlying DOM element
-		}
-	};
+            const formData = new FormData();
+            formData.append("file", file);
 
-	return (
-		<div>
-			<input
-				type="file"
-				ref={fileInputRef}
-				onChange={handleFileChange}
-				style={{ display: "none" }} // Hide the file input visually
-			/>
-			<BtnTooltip text="Upload">
-				<Button
-					variant="outlined"
-					color="primary"
-					onClick={handleClick}
-				>
-					<FaUpload />
-				</Button>
-			</BtnTooltip>
-		</div>
-	);
-});
+            const basePath = import.meta.env.BASE_URL || "/";
+            fetch(`${basePath}upload`, {
+                method: "POST",
+                body: formData,
+            });
+
+            if (ref && typeof ref !== "function") {
+                ref.current = fileInputRef.current;
+            }
+        };
+
+        return (
+            <>
+                {/* The actual file input remains hidden */}
+                <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handleFileChange}
+                    style={{ display: "none" }}
+                />
+                {/* Call the render function, passing it the click handler */}
+                {renderButton(handleClick)}
+            </>
+        );
+    }
+);
+
+FileUpload.displayName = "FileUpload";
