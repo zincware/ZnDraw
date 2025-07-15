@@ -1,10 +1,18 @@
-import { useEffect, useRef, useState } from "react";
+import { Close, ContentCopy, Lock, LockOpen } from "@mui/icons-material";
 // Plottly interface
-import { Button, Card, Form } from "react-bootstrap";
-import { FaLock, FaLockOpen } from "react-icons/fa";
-import { IoDuplicate } from "react-icons/io5";
-import Plot from "react-plotly.js";
+import {
+	Box,
+	Button,
+	Card,
+	CardContent,
+	CardHeader,
+	IconButton,
+	TextField,
+	Typography,
+} from "@mui/material";
 import { decodeTypedArraySpec } from "plotly.js/src/lib/array.js";
+import { useEffect, useRef, useState } from "react";
+import Plot from "react-plotly.js";
 import { Rnd, type RndResizeCallback } from "react-rnd";
 import * as znsocket from "znsocket";
 import { client } from "../socket";
@@ -228,8 +236,8 @@ const PlotsCard2 = ({
 							convertedItem.x[index] !== undefined &&
 							convertedItem.y[index] !== undefined
 						) {
-							let xPosition = convertedItem.x[index];
-							let yPosition = convertedItem.y[index];
+							const xPosition = convertedItem.x[index];
+							const yPosition = convertedItem.y[index];
 
 							let color = "red";
 							if (convertedItem.line?.color) {
@@ -370,16 +378,25 @@ const PlotsCard2 = ({
 				}}
 				ref={cardRef}
 			>
-				<Card.Header
-					className="d-flex justify-content-between align-items-center flex-nowrap"
-					style={{ height: 50 }}
+				<CardHeader
+					sx={{
+						height: 50,
+						display: "flex",
+						justifyContent: "space-between",
+						alignItems: "center",
+						flexWrap: "nowrap",
+					}}
 					onPointerEnter={() => setAllowDrag(true)}
 					onPointerLeave={() => setAllowDrag(false)}
 				>
-					<Form.Select
+					<TextField
+						select
 						onChange={handleSelectChange}
-						value={selectedOption} // https://github.com/react-bootstrap/react-bootstrap/issues/2091
+						value={selectedOption}
 						ref={selectFormRef}
+						size="small"
+						variant="outlined"
+						sx={{ minWidth: 120 }}
 					>
 						{selectedOption === "" && (
 							<option value="" disabled>
@@ -391,19 +408,23 @@ const PlotsCard2 = ({
 								{plot}
 							</option>
 						))}
-					</Form.Select>
+					</TextField>
 					<BtnTooltip text="Add another card">
 						<Button
-							variant="tertiary"
-							className="mx-2 btn btn-outline-secondary"
+							variant="outlined"
+							color="secondary"
+							size="small"
+							sx={{ mx: 2 }}
 							onClick={addAnotherCard}
 						>
-							<IoDuplicate />
+							<ContentCopy />
 						</Button>
 					</BtnTooltip>
-					<Button variant="close" className="mx-2" onClick={closeThisCard} />
-				</Card.Header>
-				<Card.Body style={{ padding: 0 }}>
+					<IconButton onClick={closeThisCard} size="small">
+						<Close />
+					</IconButton>
+				</CardHeader>
+				<CardContent sx={{ padding: 0 }}>
 					{plotType === "plotly" && (
 						<Plot
 							data={plotData}
@@ -421,9 +442,11 @@ const PlotsCard2 = ({
 						/>
 					)}
 					{plotType === "" && (
-						<h3 className="text-secondary m-3">No data available</h3>
+						<Typography variant="h6" color="text.secondary" sx={{ m: 3 }}>
+							No data available
+						</Typography>
 					)}
-				</Card.Body>
+				</CardContent>
 			</Card>
 		</Rnd>
 	);

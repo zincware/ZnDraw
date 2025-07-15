@@ -1,6 +1,6 @@
 import { useCallback } from "react";
-import { socket } from "../socket";
 import { useAppContext } from "../contexts/AppContext";
+import { socket } from "../socket";
 
 export const useFileHandler = () => {
 	const { setSelectedPoint, setSelectedIds, isDrawing, setIsDrawing } =

@@ -1,18 +1,10 @@
+import { Container, Box, TextField, Tooltip } from "@mui/material";
 import React, { useState, useEffect } from "react";
-import {
-	Col,
-	Container,
-	Form,
-	InputGroup,
-	Row,
-	FormControl,
-} from "react-bootstrap";
 import "./progressbar.css";
 
-import { OverlayTrigger, Tooltip } from "react-bootstrap";
 import { FaRegBookmark } from "react-icons/fa";
-import { PiSelection, PiSelectionSlash } from "react-icons/pi";
 import { IoMdCodeDownload } from "react-icons/io";
+import { PiSelection, PiSelectionSlash } from "react-icons/pi";
 import type { IndicesState } from "./utils";
 
 interface JumpFrameProps {
@@ -43,19 +35,24 @@ const JumpFrame: React.FC<JumpFrameProps> = ({ step, setStep, length }) => {
 	};
 
 	return (
-		<InputGroup>
-			<Form.Control
-				className="text-center user-select-none"
-				placeholder={`${step === -1 ? length - 1 : step}/${length - 1}`}
-				onBlur={handleBlur}
-				onKeyDown={handleKeyDown}
-				style={{
-					background: "transparent",
+		<TextField
+			className="text-center user-select-none"
+			placeholder={`${step === -1 ? length - 1 : step}/${length - 1}`}
+			onBlur={handleBlur}
+			onKeyDown={handleKeyDown}
+			variant="outlined"
+			size="small"
+			style={{
+				background: "transparent",
+				zIndex: 1,
+			}}
+			InputProps={{
+				style: {
 					borderColor: "transparent",
-					zIndex: 1,
-				}}
-			/>
-		</InputGroup>
+					textAlign: "center",
+				},
+			}}
+		/>
 	);
 };
 
@@ -172,7 +169,7 @@ const FrameRateControl: React.FC<FrameRateControlProps> = ({
 	}, [isFrameRendering]);
 
 	const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-		const val = parseInt(e.target.value, 10);
+		const val = Number.parseInt(e.target.value, 10);
 		if (!isNaN(val)) {
 			setFrameRate(Math.max(1, val)); // Ensure frame rate is at least 1
 		}
@@ -183,27 +180,29 @@ const FrameRateControl: React.FC<FrameRateControlProps> = ({
 			className="d-flex justify-content-center align-items-center user-select-none"
 			style={{ display: "flex", height: "100%" }}
 		>
-			<FormControl
+			<TextField
 				type="number"
 				value={frameRate}
 				onChange={handleChange}
-				min={1}
-				size="sm"
+				InputProps={{
+					inputProps: {
+						min: 1,
+						style: {
+							textAlign: "center",
+							fontSize: "10px",
+						},
+					},
+				}}
+				size="small"
 				style={{
 					width: "40px",
 					height: "18px",
-					fontSize: "10px",
-					textAlign: "center",
 				}}
 				title="Frame rate (1 = every frame, 2 = every 2nd frame, etc.)"
 			/>
 
 			{/* Frame loading icon */}
-			<OverlayTrigger
-				placement="top"
-				delay={{ show: 0, hide: 100 }}
-				overlay={<Tooltip>Loading frame data...</Tooltip>}
-			>
+			<Tooltip title="Loading frame data...">
 				<div
 					style={{
 						height: "100%",
@@ -217,15 +216,11 @@ const FrameRateControl: React.FC<FrameRateControlProps> = ({
 				>
 					<IoMdCodeDownload />
 				</div>
-			</OverlayTrigger>
+			</Tooltip>
 
 			{/* Server connection spinner */}
 			{!connected && (
-				<OverlayTrigger
-					placement="top"
-					delay={{ show: 0, hide: 100 }}
-					overlay={<Tooltip>Not connected to server</Tooltip>}
-				>
+				<Tooltip title="Not connected to server">
 					<div
 						style={{
 							height: "25px",
@@ -242,7 +237,7 @@ const FrameRateControl: React.FC<FrameRateControlProps> = ({
 						></div>
 						<span className="visually-hidden">Loading...</span>
 					</div>
-				</OverlayTrigger>
+				</Tooltip>
 			)}
 		</div>
 	);
@@ -274,15 +269,14 @@ const Bookmarks = ({
 			{Object.keys(bookmarks).map((key) => {
 				const position = Number.parseInt(key);
 				return (
-					<OverlayTrigger
+					<Tooltip
 						key={position}
-						placement="top"
-						delay={{ show: 0, hide: 100 }}
-						overlay={
-							<Tooltip style={{ marginLeft: "0.375em" }}>
-								{bookmarks[position]}
-							</Tooltip>
-						}
+						title={bookmarks[position]}
+						slotProps={{
+							tooltip: {
+								style: { marginLeft: "0.375em" },
+							},
+						}}
 					>
 						<div
 							className="position-absolute progress-bar-bookmark"
@@ -298,7 +292,7 @@ const Bookmarks = ({
 								onClick={(e) => handleBookmarkClick(e, position)}
 							/>
 						</div>
-					</OverlayTrigger>
+					</Tooltip>
 				);
 			})}
 		</>
@@ -334,7 +328,7 @@ const ProgressBar = ({
 	}, [length]);
 
 	return (
-		<Row className="position-relative">
+		<Box className="position-relative">
 			<ColoredTiles
 				length={length}
 				disabledFrames={disabledFrames}
@@ -348,7 +342,7 @@ const ProgressBar = ({
 				setStep={setStep}
 			/>
 			<VLine length={length} step={step} />
-		</Row>
+		</Box>
 	);
 };
 
@@ -440,26 +434,22 @@ const FrameProgressBar: React.FC<FrameProgressBarProps> = ({
 	};
 
 	return (
-		<Container fluid className="fixed-bottom px-0 py-0">
-			<Row>
-				<Col xs="2">
-					<Row>
-						<Col
+		<Container className="fixed-bottom px-0 py-0">
+			<Box display="flex" width="100%">
+				<Box width="16.67%">
+					<Box>
+						<Box
 							className="d-flex bg-secondary justify-content-center align-items-center"
 							style={{ height: 1 }}
 						/>
-					</Row>
-					<Row>
-						<Col
+					</Box>
+					<Box>
+						<Box
 							className="d-flex bg-body justify-content-center align-items-center"
 							style={{ height: 25 }}
 						>
 							<JumpFrame step={step} setStep={setStep} length={length} />
-							<OverlayTrigger
-								placement="top"
-								delay={{ show: 0, hide: 100 }}
-								overlay={<Tooltip>toggle selection</Tooltip>}
-							>
+							<Tooltip title="toggle selection">
 								<div>
 									{" "}
 									{selectedFrames.active ? (
@@ -468,13 +458,13 @@ const FrameProgressBar: React.FC<FrameProgressBarProps> = ({
 										<PiSelectionSlash onClick={handleSelectionReset} />
 									)}
 								</div>
-							</OverlayTrigger>
-						</Col>
-					</Row>
-				</Col>
-				<Col>
-					<Row className="position-relative">
-						<Col
+							</Tooltip>
+						</Box>
+					</Box>
+				</Box>
+				<Box flexGrow={1}>
+					<Box className="position-relative">
+						<Box
 							className="d-flex justify-content-center"
 							ref={progressHandleParentRef}
 						>
@@ -486,14 +476,14 @@ const FrameProgressBar: React.FC<FrameProgressBarProps> = ({
 								<div className="square" />
 								<div className="triangle" />
 							</div>
-						</Col>
-					</Row>
-					<Row>
-						<Col
+						</Box>
+					</Box>
+					<Box>
+						<Box
 							className="d-flex bg-secondary justify-content-center align-items-center"
 							style={{ height: 1 }}
 						/>
-					</Row>
+					</Box>
 
 					<ProgressBar
 						length={length}
@@ -503,16 +493,16 @@ const FrameProgressBar: React.FC<FrameProgressBarProps> = ({
 						setStep={setStep}
 						setBookmarks={setBookmarks}
 					/>
-				</Col>
-				<Col xs="1">
-					<Row>
-						<Col
+				</Box>
+				<Box width="8.33%">
+					<Box>
+						<Box
 							className="d-flex bg-secondary justify-content-center align-items-center"
 							style={{ height: 1 }}
 						/>
-					</Row>
-					<Row>
-						<Col
+					</Box>
+					<Box>
+						<Box
 							className="d-flex bg-body justify-content-center align-items-center"
 							style={{ height: 25 }}
 						>
@@ -522,10 +512,10 @@ const FrameProgressBar: React.FC<FrameProgressBarProps> = ({
 								isFrameRendering={isFrameRendering}
 								connected={connected}
 							/>
-						</Col>
-					</Row>
-				</Col>
-			</Row>
+						</Box>
+					</Box>
+				</Box>
+			</Box>
 		</Container>
 	);
 };

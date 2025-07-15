@@ -1,8 +1,8 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import * as THREE from "three";
-import type { HSLColor } from "../components/utils";
 import { useFrameFetching } from "../components/api";
 import type { Frame } from "../components/particles";
+import type { HSLColor } from "../components/utils";
 
 // Colormap definitions
 const VIRIDIS_COLORMAP: HSLColor[] = [

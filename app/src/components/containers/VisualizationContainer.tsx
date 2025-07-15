@@ -1,19 +1,20 @@
-import React, { useMemo, useEffect } from "react";
+import { Environment } from "@react-three/drei";
 import { Canvas } from "@react-three/fiber";
 import { Pathtracer } from "@react-three/gpu-pathtracer";
-import { Environment } from "@react-three/drei";
+import type React from "react";
+import { useEffect, useMemo } from "react";
 import { useAppContext } from "../../contexts/AppContext";
+import CameraAndControls from "../cameraAndControls";
+import { Floor } from "../floor";
+import { Geometries } from "../geometries";
+import { Line3D, VirtualCanvas } from "../lines";
 import {
 	BondInstances,
 	ParticleInstances,
 	PerParticleVectors,
-	SimulationCell,
 	Player,
+	SimulationCell,
 } from "../particles";
-import { Geometries } from "../geometries";
-import CameraAndControls from "../cameraAndControls";
-import { Floor } from "../floor";
-import { Line3D, VirtualCanvas } from "../lines";
 import ControlsBuilder from "../transforms";
 import VectorField from "../vectorfield";
 

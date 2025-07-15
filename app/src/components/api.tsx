@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
-import { JMOL_COLORS, covalentRadii } from "./data";
 import * as znsocket from "znsocket";
 import { client } from "../socket";
 import { DEFAULT_ROOM_CONFIG } from "../types/room-config";
+import { JMOL_COLORS, covalentRadii } from "./data";
 
 export function setupBookmarks(
 	token: string,
@@ -348,7 +348,7 @@ export const useFrameFetching = (token: string) => {
 			if (!currentRoomCon || !defaultRoomCon) {
 				return null;
 			}
-			let fetchedFrame = await currentRoomCon.get(step);
+			const fetchedFrame = await currentRoomCon.get(step);
 			if (!customRoomAvailRef.current && fetchedFrame === null) {
 				return await defaultRoomCon.get(step);
 			}
@@ -362,7 +362,7 @@ export const useFrameFetching = (token: string) => {
 		if (!currentRoomCon || !defaultRoomCon) {
 			return 0;
 		}
-		let length = await currentRoomCon.length();
+		const length = await currentRoomCon.length();
 		if (!customRoomAvailRef.current && length === 0) {
 			return await defaultRoomCon.length();
 		}

@@ -1,3 +1,31 @@
+import { Close as CloseIcon } from "@mui/icons-material";
+import {
+	AppBar,
+	Box,
+	Button,
+	Card,
+	CardActions,
+	CardContent,
+	CardHeader,
+	Container,
+	Dialog,
+	DialogActions,
+	DialogContent,
+	DialogTitle,
+	FormControl,
+	FormControlLabel,
+	Grid,
+	IconButton,
+	InputAdornment,
+	InputLabel,
+	MenuItem,
+	Select,
+	Switch,
+	TextField,
+	ToggleButton,
+	Toolbar,
+	Typography,
+} from "@mui/material";
 import type React from "react";
 import {
 	SetStateAction,
@@ -7,28 +35,14 @@ import {
 	useRef,
 	useState,
 } from "react";
-import {
-	Button,
-	Card,
-	Col,
-	Container,
-	Form,
-	InputGroup,
-	Modal,
-	Nav,
-	Navbar,
-	Row,
-	ToggleButton,
-} from "react-bootstrap";
-import { version } from "../../package.json";
 import { MdOutlineAutoGraph } from "react-icons/md";
 import { SiMoleculer } from "react-icons/si";
-import Select from "react-select";
 import rehypeKatex from "rehype-katex";
 import rehypeRaw from "rehype-raw";
 import remarkBreaks from "remark-breaks";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
+import { version } from "../../package.json";
 import "katex/dist/katex.min.css"; // `rehype-katex` does not import the CSS for you
 import {
 	FaCloudDownloadAlt,
@@ -326,31 +340,39 @@ function ChatInsertModal({ show, onHide, chatInputRef, step, selection }: any) {
 	};
 
 	return (
-		<Modal
-			show={show}
+		<Dialog
+			open={show}
+			onClose={onHide}
 			aria-labelledby="contained-modal-title-vcenter"
-			size="lg"
+			maxWidth="lg"
+			fullWidth
 		>
-			<Modal.Header closeButton>
-				<Modal.Title id="contained-modal-title-vcenter">
-					ZnDraw Chat Insert
-				</Modal.Title>
-			</Modal.Header>
-			<Modal.Body>
+			<DialogTitle id="contained-modal-title-vcenter">
+				ZnDraw Chat Insert
+			</DialogTitle>
+			<DialogContent>
 				<Container>
 					Share your current view:
-					<Select
-						options={options}
-						onChange={handleSelectChange}
-						// menuIsOpen={true}
-						placeholder="Choose..."
-					/>
+					<FormControl fullWidth sx={{ mt: 2 }}>
+						<InputLabel>Choose...</InputLabel>
+						<Select
+							value=""
+							onChange={(e) => handleSelectChange({ value: e.target.value })}
+							label="Choose..."
+						>
+							{options.map((option) => (
+								<MenuItem key={option.value} value={option.value}>
+									{option.label}
+								</MenuItem>
+							))}
+						</Select>
+					</FormControl>
 				</Container>
-			</Modal.Body>
-			<Modal.Footer>
+			</DialogContent>
+			<DialogActions>
 				<Button onClick={onHide}>Close</Button>
-			</Modal.Footer>
-		</Modal>
+			</DialogActions>
+		</Dialog>
 	);
 }
 
@@ -375,21 +397,24 @@ function HelpModel(props: any) {
 `;
 
 	return (
-		<Modal {...props} aria-labelledby="contained-modal-title-vcenter" size="lg">
-			<Modal.Header closeButton>
-				<Modal.Title id="contained-modal-title-vcenter">
-					ZnDraw Help
-				</Modal.Title>
-			</Modal.Header>
-			<Modal.Body>
+		<Dialog
+			{...props}
+			aria-labelledby="contained-modal-title-vcenter"
+			maxWidth="lg"
+			fullWidth
+			open={props.show}
+			onClose={props.onHide}
+		>
+			<DialogTitle id="contained-modal-title-vcenter">ZnDraw Help</DialogTitle>
+			<DialogContent>
 				<Container>
 					<Markdown>{helpMD}</Markdown>
 				</Container>
-			</Modal.Body>
-			<Modal.Footer>
+			</DialogContent>
+			<DialogActions>
 				<Button onClick={props.onHide}>Close</Button>
-			</Modal.Footer>
-		</Modal>
+			</DialogActions>
+		</Dialog>
 	);
 }
 
@@ -417,29 +442,28 @@ ${pythonCode}
 	};
 
 	return (
-		<Modal
-			show={show}
-			onHide={onHide}
+		<Dialog
+			open={show}
+			onClose={onHide}
 			aria-labelledby="contained-modal-title-vcenter"
-			size="lg"
+			maxWidth="lg"
+			fullWidth
 		>
-			<Modal.Header closeButton>
-				<Modal.Title id="contained-modal-title-vcenter">
-					Python Client
-				</Modal.Title>
-			</Modal.Header>
-			<Modal.Body>
+			<DialogTitle id="contained-modal-title-vcenter">
+				Python Client
+			</DialogTitle>
+			<DialogContent>
 				<Container>
 					<Markdown>{helpMD}</Markdown>
 				</Container>
-			</Modal.Body>
-			<Modal.Footer>
+			</DialogContent>
+			<DialogActions>
 				<Button onClick={copyToClipboard}>
 					<FaRegClipboard /> Copy to Clipboard
 				</Button>
 				<Button onClick={onHide}>Close</Button>
-			</Modal.Footer>
-		</Modal>
+			</DialogActions>
+		</Dialog>
 	);
 }
 
@@ -449,18 +473,15 @@ function RefreshModal({ show, onHide, room }) {
 	const resetURL = `${serverUrl}reset`;
 
 	return (
-		<Modal
-			show={show}
-			onHide={onHide}
+		<Dialog
+			open={show}
+			onClose={onHide}
 			aria-labelledby="contained-modal-title-vcenter"
-			size="lg"
+			maxWidth="lg"
+			fullWidth
 		>
-			<Modal.Header closeButton>
-				<Modal.Title id="contained-modal-title-vcenter">
-					Reload Scene
-				</Modal.Title>
-			</Modal.Header>
-			<Modal.Body>
+			<DialogTitle id="contained-modal-title-vcenter">Reload Scene</DialogTitle>
+			<DialogContent>
 				<Container>
 					<p>
 						You are about the reload the scene. The current scene will be
@@ -469,18 +490,18 @@ function RefreshModal({ show, onHide, room }) {
 						<a href={urlWithRoom}>{urlWithRoom}</a>
 					</p>
 					<Button
-						variant="outline-primary"
+						variant="outlined"
 						onClick={() => navigator.clipboard.writeText(urlWithRoom)}
 					>
 						copy URL to clipboard
 					</Button>
 				</Container>
-			</Modal.Body>
-			<Modal.Footer>
+			</DialogContent>
+			<DialogActions>
 				<Button onClick={onHide}>Cancel</Button>
 				<Button href={resetURL}>Create new Scene</Button>
-			</Modal.Footer>
-		</Modal>
+			</DialogActions>
+		</Dialog>
 	);
 }
 
@@ -544,66 +565,63 @@ function RemoteFileModal({ show, onHide, colorMode }: any) {
 	}
 
 	return (
-		<Modal
-			show={show}
-			onHide={onHide}
+		<Dialog
+			open={show}
+			onClose={onHide}
 			aria-labelledby="contained-modal-title-vcenter"
-			size="lg"
+			maxWidth="lg"
+			fullWidth
 		>
-			<Modal.Header closeButton>
-				<Modal.Title id="contained-modal-title-vcenter">
-					Load Data via DVC and ZnTrack
-				</Modal.Title>
-			</Modal.Header>
-			<Modal.Body>
+			<DialogTitle id="contained-modal-title-vcenter">
+				Load Data via DVC and ZnTrack
+			</DialogTitle>
+			<DialogContent>
 				<Container>
-					<InputGroup className="mb-3">
-						<InputGroup.Text id="basic-addon1">Repo</InputGroup.Text>
-						<Form.Control
-							placeholder="Repository path"
-							aria-label="repositoryPath"
-							aria-describedby="basic-addon1"
-							onChange={(e) => {
-								remoteRepoRef.current = e.target.value;
-							}}
-						/>
-					</InputGroup>
-					<InputGroup className="mb-3">
-						<InputGroup.Text id="basic-addon1">Rev</InputGroup.Text>
-						<Form.Control
-							// defaultValue={"HEAD"}
-							placeholder="Revision"
-							aria-label="repository"
-							aria-describedby="basic-addon1"
-							onChange={(e) => {
-								remoteRevRef.current = e.target.value;
-							}}
-						/>
-					</InputGroup>
+					<TextField
+						label="Repo"
+						placeholder="Repository path"
+						variant="outlined"
+						fullWidth
+						sx={{ mb: 3 }}
+						onChange={(e) => {
+							remoteRepoRef.current = e.target.value;
+						}}
+					/>
+					<TextField
+						label="Rev"
+						placeholder="Revision"
+						variant="outlined"
+						fullWidth
+						sx={{ mb: 3 }}
+						onChange={(e) => {
+							remoteRevRef.current = e.target.value;
+						}}
+					/>
 					<Button onClick={fetchAvailableNodes}>Show available data</Button>
 					<hr />
 					{loading && <p>Loading...</p>}
 
 					{availableNodes.length > 0 && (
-						<ul>
+						<FormControl fullWidth sx={{ mt: 2 }}>
+							<InputLabel>Choose...</InputLabel>
 							<Select
-								options={availableNodes.map((node) => ({
-									value: node,
-									label: node,
-								}))}
-								onChange={(selectedOption: any) => {
-									setSelectedNode(selectedOption.value);
-								}}
-								// menuIsOpen={true}
-								placeholder="Choose..."
-							/>
-						</ul>
+								value={selectedNode}
+								onChange={(e) => setSelectedNode(e.target.value)}
+								label="Choose..."
+							>
+								{availableNodes.map((node) => (
+									<MenuItem key={node} value={node}>
+										{node}
+									</MenuItem>
+								))}
+							</Select>
+						</FormControl>
 					)}
 
 					{selectedNodeAttributes.length > 0 &&
 						selectedNodeAttributes.map((attr, index) => (
-							<Row key={index} className="justify-content-center">
-								<Col>
+							<Grid container key={index} justifyContent="center">
+								<Grid item xs={12}>
 									{" "}
 									<Markdown
 										children={`~~~python\n${attr.join(": ")}`}
@@ -628,25 +646,31 @@ function RemoteFileModal({ show, onHide, colorMode }: any) {
 											},
 										}}
 									/>{" "}
-								</Col>
-								<Col md="auto">
-									<Button variant="primary" onClick={() => loadFrames(attr[0])}>
+								</Grid>
+								<Grid item md="auto">
+									<Button
+										variant="contained"
+										onClick={() => loadFrames(attr[0])}
+									>
 										<SiMoleculer /> Load Frames
 									</Button>
-								</Col>
-								<Col md="auto">
-									<Button variant="primary" onClick={() => loadFigure(attr[0])}>
+								</Grid>
+								<Grid item md="auto">
+									<Button
+										variant="contained"
+										onClick={() => loadFigure(attr[0])}
+									>
 										<MdOutlineAutoGraph /> Load Figure
 									</Button>
-								</Col>
-							</Row>
+								</Grid>
+							</Grid>
 						))}
 				</Container>
-			</Modal.Body>
-			<Modal.Footer>
+			</DialogContent>
+			<DialogActions>
 				<Button onClick={onHide}>Cancel</Button>
-			</Modal.Footer>
-		</Modal>
+			</DialogActions>
+		</Dialog>
 	);
 }
 
@@ -658,19 +682,17 @@ interface TutorialModalProps {
 
 const TutorialModal: React.FC<TutorialModalProps> = ({ show, onHide, url }) => {
 	return (
-		<Modal show={show} onHide={onHide} size="xl" dialogClassName="custom-modal">
-			<Modal.Header closeButton>
-				<Modal.Title>ZnDraw Tutorial</Modal.Title>
-			</Modal.Header>
-			<Modal.Body className="modal-body-custom">
+		<Dialog open={show} onClose={onHide} maxWidth="xl" fullWidth>
+			<DialogTitle>ZnDraw Tutorial</DialogTitle>
+			<DialogContent>
 				<iframe
 					src={url}
 					id="tutorialIframe"
 					allowFullScreen
-					className="iframe-custom"
+					style={{ width: "100%", height: "80vh", border: "none" }}
 				/>
-			</Modal.Body>
-		</Modal>
+			</DialogContent>
+		</Dialog>
 	);
 };
 
@@ -883,16 +905,12 @@ const HeadBar = ({
 
 	return (
 		<>
-			<Navbar
-				expand="md"
-				className="bg-body-tertiary fixed-top"
-				style={{ height: 50 }}
-			>
-				<Container fluid>
-					<Navbar.Brand>
+			<AppBar position="fixed" sx={{ height: 50, bgcolor: "background.paper" }}>
+				<Toolbar>
+					<Box sx={{ flexGrow: 1 }}>
 						<Button
-							className="px-0 py-0 btn-lg"
-							variant="tertiary"
+							size="large"
+							color="inherit"
 							href="https://github.com/zincware/zndraw"
 							target="_blank"
 						>
@@ -900,12 +918,12 @@ const HeadBar = ({
 						</Button>
 						{showSiMGen && (
 							<>
-								<Button className="px-0 py-0 btn-lg" variant="tertiary">
+								<Button size="large" color="inherit">
 									+
 								</Button>
 								<Button
-									className="px-0 py-0 btn-lg"
-									variant="tertiary"
+									size="large"
+									color="inherit"
 									href="https://github.com/RokasEl/simgen"
 									target="_blank"
 								>
@@ -913,168 +931,161 @@ const HeadBar = ({
 								</Button>
 							</>
 						)}
-					</Navbar.Brand>
-					<Navbar.Toggle aria-controls="basic-navbar-nav" />
-					<Navbar.Collapse id="basic-navbar-nav">
-						<Nav className="me-auto">
-							<BtnTooltip text="Reset Scene">
+					</Box>
+					<Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+						<BtnTooltip text="Reset Scene">
+							<Button
+								variant="outlined"
+								color="error"
+								size="small"
+								onClick={() => {
+									setRefreshModalShow((prev: boolean) => !prev);
+								}}
+							>
+								<FaArrowRotateRight />
+							</Button>
+						</BtnTooltip>
+						<BtnTooltip text="Activate Drawing Tool">
+							<ToggleButton
+								value="1"
+								selected={isDrawing}
+								onChange={(e) => {
+									setIsDrawing((prev: boolean) => !prev);
+								}}
+							>
+								<FaPencil />
+							</ToggleButton>
+						</BtnTooltip>
+						<BtnTooltip text="Remove all guiding points and geometries">
+							<Button
+								variant="outlined"
+								color="primary"
+								size="small"
+								onClick={handleRemovePointsGeometries}
+							>
+								<FaHandSparkles />
+							</Button>
+						</BtnTooltip>
+						<SiMGenButtons visible={showSiMGen} token={token} />
+					</Box>
+					<Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+						{tutorialURL && (
+							<BtnTooltip text="Tutorial">
 								<Button
-									variant="outline-danger"
+									variant="warning"
+									className="mx-1"
+									onClick={() => setTutorialModalShow(true)}
+								>
+									Tutorial <FaFilm />
+								</Button>
+							</BtnTooltip>
+						)}
+						<BtnTooltip text="Access console">
+							<ToggleButton
+								value="1"
+								selected={consoleShow}
+								onChange={() => {
+									setConsoleShow((prev: boolean) => !prev);
+								}}
+							>
+								<FaTerminal />
+							</ToggleButton>
+						</BtnTooltip>
+						<BtnTooltip text="Python access">
+							<Button
+								variant="outline-primary"
+								className="mx-1"
+								onClick={() => setConnectModalShow(true)}
+							>
+								<FaCode />
+							</Button>
+						</BtnTooltip>
+						<BtnTooltip text="Add plots window">
+							<Button
+								variant="outline-primary"
+								className="mx-1"
+								onClick={() => setAddPlotsWindow((prev: number) => prev + 1)}
+							>
+								<MdAddChart />
+							</Button>
+						</BtnTooltip>
+						<FileUpload />
+						<BtnTooltip text="Download">
+							<Button
+								variant="outline-primary"
+								className="mx-1"
+								href={`${basePath}download`}
+								target="_blank"
+							>
+								<FaDownload />
+							</Button>
+						</BtnTooltip>
+						{zntrackAvailable && (
+							<BtnTooltip text="Open File via DVC">
+								<Button
+									variant="outline-primary"
 									className="mx-1"
 									onClick={() => {
-										setRefreshModalShow((prev: boolean) => !prev);
+										setRemoteFileModalShow(true);
 									}}
 								>
-									<FaArrowRotateRight />
+									<FaCloudDownloadAlt />
 								</Button>
 							</BtnTooltip>
-							<BtnTooltip text="Activate Drawing Tool">
-								<ToggleButton
-									variant="outline-primary"
-									className="mx-1"
-									value="1"
-									id="toggle-drawing"
-									active={isDrawing}
-									onClick={(e) => {
-										setIsDrawing((prev: boolean) => !prev);
-									}}
+						)}
+						<BtnTooltip text="Help">
+							<Button
+								variant="outline-primary"
+								className="mx-1"
+								onClick={() => setHelpModalShow(true)}
+							>
+								<GrHelpBook />
+							</Button>
+						</BtnTooltip>
+						<BtnTooltip text="Switch Colormode">
+							<Button
+								variant="outline-primary"
+								className="mx-1"
+								onClick={handleColorMode}
+							>
+								{colorMode === "light" ? <FaSun /> : <FaMoon />}
+							</Button>
+						</BtnTooltip>
+						{isAuthenticated && (
+							<>
+								<BtnTooltip
+									text={roomLock ? "Unlock this room" : "Lock this room"}
 								>
-									<FaPencil />
-								</ToggleButton>
-							</BtnTooltip>
-							<BtnTooltip text="Remove all guiding points and geometries">
-								<Button
-									variant="outline-primary"
-									className="mx-1"
-									onClick={handleRemovePointsGeometries}
-								>
-									<FaHandSparkles />
-								</Button>
-							</BtnTooltip>
-							<SiMGenButtons visible={showSiMGen} token={token} />
-						</Nav>
-						<Nav className="ms-auto">
-							{tutorialURL && (
-								<BtnTooltip text="Tutorial">
 									<Button
-										variant="warning"
-										className="mx-1"
-										onClick={() => setTutorialModalShow(true)}
-									>
-										Tutorial <FaFilm />
-									</Button>
-								</BtnTooltip>
-							)}
-							<BtnTooltip text="Access console">
-								<ToggleButton
-									variant="outline-primary"
-									className="mx-1"
-									value="1"
-									id="toggle-console"
-									active={consoleShow}
-									onClick={() => {
-										setConsoleShow((prev: boolean) => !prev);
-									}}
-								>
-									<FaTerminal />
-								</ToggleButton>
-							</BtnTooltip>
-							<BtnTooltip text="Python access">
-								<Button
-									variant="outline-primary"
-									className="mx-1"
-									onClick={() => setConnectModalShow(true)}
-								>
-									<FaCode />
-								</Button>
-							</BtnTooltip>
-							<BtnTooltip text="Add plots window">
-								<Button
-									variant="outline-primary"
-									className="mx-1"
-									onClick={() => setAddPlotsWindow((prev: number) => prev + 1)}
-								>
-									<MdAddChart />
-								</Button>
-							</BtnTooltip>
-							<FileUpload />
-							<BtnTooltip text="Download">
-								<Button
-									variant="outline-primary"
-									className="mx-1"
-									href={`${basePath}download`}
-									target="_blank"
-								>
-									<FaDownload />
-								</Button>
-							</BtnTooltip>
-							{zntrackAvailable && (
-								<BtnTooltip text="Open File via DVC">
-									<Button
-										variant="outline-primary"
+										variant="outline-danger"
 										className="mx-1"
 										onClick={() => {
-											setRemoteFileModalShow(true);
+											socket.emit("room:lock:set", !roomLock);
 										}}
 									>
-										<FaCloudDownloadAlt />
+										{roomLock ? <FaLock /> : <FaLockOpen />}
 									</Button>
 								</BtnTooltip>
-							)}
-							<BtnTooltip text="Help">
-								<Button
-									variant="outline-primary"
-									className="mx-1"
-									onClick={() => setHelpModalShow(true)}
-								>
-									<GrHelpBook />
-								</Button>
-							</BtnTooltip>
-							<BtnTooltip text="Switch Colormode">
-								<Button
-									variant="outline-primary"
-									className="mx-1"
-									onClick={handleColorMode}
-								>
-									{colorMode === "light" ? <FaSun /> : <FaMoon />}
-								</Button>
-							</BtnTooltip>
-							{isAuthenticated && (
-								<>
-									<BtnTooltip
-										text={roomLock ? "Unlock this room" : "Lock this room"}
-									>
-										<Button
-											variant="outline-danger"
-											className="mx-1"
-											onClick={() => {
-												socket.emit("room:lock:set", !roomLock);
-											}}
-										>
-											{roomLock ? <FaLock /> : <FaLockOpen />}
-										</Button>
-									</BtnTooltip>
-									{/* <Button variant="outline-primary" className="mx-1">
+								{/* <Button variant="outline-primary" className="mx-1">
                 <FaUsers />
               </Button> */}
-									<BtnTooltip text="Close ZnDraw">
-										<Button
-											variant="outline-danger"
-											className="mx-1"
-											onClick={() => {
-												socket.emit("shutdown");
-												close();
-											}}
-										>
-											<MdExitToApp />
-										</Button>
-									</BtnTooltip>
-								</>
-							)}
-						</Nav>
-					</Navbar.Collapse>
-				</Container>
-			</Navbar>
+								<BtnTooltip text="Close ZnDraw">
+									<Button
+										variant="outline-danger"
+										className="mx-1"
+										onClick={() => {
+											socket.emit("shutdown");
+											close();
+										}}
+									>
+										<MdExitToApp />
+									</Button>
+								</BtnTooltip>
+							</>
+						)}
+					</Box>
+				</Toolbar>
+			</AppBar>
 			<HelpModel show={helpModalShow} onHide={() => setHelpModalShow(false)} />
 			<ConnectModal
 				show={connectModalShow}

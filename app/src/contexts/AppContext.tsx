@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, ReactNode } from "react";
+import type React from "react";
+import { type ReactNode, createContext, useContext, useState } from "react";
 import * as THREE from "three";
 import type { Frame } from "../components/particles";
 import type { IndicesState } from "../components/utils";

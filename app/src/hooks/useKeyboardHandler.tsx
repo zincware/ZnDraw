@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
-import { useAppContext } from "../contexts/AppContext";
 import { getCentroid } from "../components/particlesEditor";
+import { useAppContext } from "../contexts/AppContext";
 
 export const useKeyboardHandler = () => {
 	const {

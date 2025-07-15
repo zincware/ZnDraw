@@ -1,6 +1,4 @@
 import { useEffect } from "react";
-import { socket } from "../socket";
-import { useAppContext } from "../contexts/AppContext";
 import {
 	setupBookmarks,
 	setupCamera,
@@ -13,6 +11,8 @@ import {
 	setupSelection,
 	setupStep,
 } from "../components/api";
+import { useAppContext } from "../contexts/AppContext";
+import { socket } from "../socket";
 
 export const useSocketManager = () => {
 	const {

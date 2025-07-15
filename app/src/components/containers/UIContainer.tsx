@@ -1,11 +1,12 @@
-import React, { useState, useEffect, useMemo } from "react";
+import type React from "react";
+import { useEffect, useMemo, useState } from "react";
+import * as THREE from "three";
 import { useAppContext } from "../../contexts/AppContext";
 import HeadBar from "../headbar";
-import Sidebar from "../sidebar";
-import FrameProgressBar from "../progressbar";
-import { Plotting } from "../plotting";
 import { ParticleInfoOverlay, SceneInfoOverlay } from "../overlays";
-import * as THREE from "three";
+import { Plotting } from "../plotting";
+import FrameProgressBar from "../progressbar";
+import Sidebar from "../sidebar";
 
 export const UIContainer: React.FC = () => {
 	const {

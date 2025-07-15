@@ -1,5 +1,5 @@
-import React from "react";
 import { TransformControls } from "@react-three/drei";
+import type React from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Euler, Vector3 } from "three";
 import { socket } from "../socket";

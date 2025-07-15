@@ -1,23 +1,40 @@
-import { useRef, useState, useCallback, useMemo } from "react";
-import { useEffect } from "react";
-import { Button, ButtonGroup, Card, Form, Nav, Navbar } from "react-bootstrap";
 import {
-	FaGithub,
-	FaPlay,
-	FaRegChartBar,
-	FaRegHandPointer,
-	FaRegMap,
-} from "react-icons/fa";
-import { FaCircleNodes, FaGear } from "react-icons/fa6";
-import { IoStop } from "react-icons/io5";
-// import Select from "react-select";
+	AccountTree,
+	BarChart,
+	Close,
+	GitHub,
+	Map,
+	PanTool,
+	PlayArrow,
+	Settings,
+	Stop,
+} from "@mui/icons-material";
+import {
+	Alert,
+	AppBar,
+	Box,
+	Button,
+	ButtonGroup,
+	Card,
+	CardContent,
+	CardHeader,
+	FormControl,
+	IconButton,
+	InputLabel,
+	MenuItem,
+	Select,
+	Toolbar,
+	Tooltip,
+	Typography,
+} from "@mui/material";
+import isEqual from "lodash.isequal";
+import { useCallback, useMemo, useRef, useState } from "react";
+import { useEffect } from "react";
 import * as znsocket from "znsocket";
 import { client, socket } from "../socket";
-import { BtnTooltip } from "./tooltips";
 import JSONFormsEditor from "./JSONFormsEditor";
-import isEqual from "lodash.isequal";
 
-// JSONEditor configuration removed - using JSONForms instead
+// Material-UI theme configuration will be handled by the app-level theme provider
 
 interface SidebarMenuProps {
 	visible: boolean;
@@ -225,8 +242,7 @@ const SidebarMenu = ({
 
 	return (
 		<Card
-			className="rounded-0 border-start-0 overflow-y-auto rounded-end"
-			style={{
+			sx={{
 				position: "fixed",
 				top: "50px",
 				left: "50px",
@@ -235,63 +251,65 @@ const SidebarMenu = ({
 				margin: 0,
 				padding: 0,
 				display: visible ? "block" : "none",
+				overflowY: "auto",
 			}}
 		>
-			<Card.Header
-				className="d-flex justify-content-between align-items-center"
-				style={{
-					backgroundColor: "inherit", // Use the same background color as the rest of the card
-				}}
-			>
-				<Card.Title>{capitalizeFirstLetter(name)}</Card.Title>
-				<Button
-					variant="outline-secondary"
-					className="ms-auto"
-					onClick={closeMenu}
-					aria-label="Close"
-				>
-					×
-				</Button>
-			</Card.Header>
-			<Card.Body style={{ paddingBottom: 80 }}>
-				<Form.Group className="d-flex align-items-center">
-					<Form.Select
-						aria-label="Default select example"
-						onChange={(e) => setUserInput(e.target.value)}
-						value={userInput}
-					>
-						<option />
-						{Object.keys(fullSchema).map((key) => (
-							<option key={key} value={key}>
-								{key}
-							</option>
-						))}
-					</Form.Select>
+			<CardHeader
+				action={
+					<IconButton onClick={closeMenu} aria-label="Close">
+						<Close />
+					</IconButton>
+				}
+				title={capitalizeFirstLetter(name)}
+			/>
+			<CardContent sx={{ paddingBottom: 10 }}>
+				<Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
+					<FormControl fullWidth sx={{ mr: 2 }}>
+						<InputLabel>Select Option</InputLabel>
+						<Select
+							value={userInput || ""}
+							onChange={(e) => setUserInput(e.target.value)}
+							label="Select Option"
+						>
+							<MenuItem value="">Select...</MenuItem>
+							{Object.keys(fullSchema).map((key) => (
+								<MenuItem key={key} value={key}>
+									{key}
+								</MenuItem>
+							))}
+						</Select>
+					</FormControl>
 					{!sendImmediately && (
-						<ButtonGroup aria-label="Basic example">
+						<ButtonGroup>
 							<Button
-								variant="outline-primary"
+								variant="contained"
+								color="primary"
 								onClick={submitEditor}
-								className="ms-2 d-flex align-items-center"
+								startIcon={<PlayArrow />}
 								disabled={disabledBtn || validationErrors.length > 0}
 							>
-								<FaPlay className="me-1" /> Submit
+								Submit
 							</Button>
-							<Button variant="outline-danger" onClick={cancelTask}>
-								<IoStop />
+							<Button
+								variant="outlined"
+								color="error"
+								onClick={cancelTask}
+								startIcon={<Stop />}
+							>
+								Cancel
 							</Button>
 						</ButtonGroup>
 					)}
-				</Form.Group>
+				</Box>
 				{validationErrors.length > 0 && (
-					<div className="alert alert-danger" role="alert">
+					<Alert severity="error" sx={{ mb: 2 }}>
 						<strong>Validation Errors:</strong>
-						<ul className="mb-0">
+						<ul>
 							{validationErrors.map((error, index) => (
 								<li key={index}>{error.message}</li>
 							))}
 						</ul>
-					</div>
+					</Alert>
 				)}
 				{currentSchema && (
 					<JSONFormsEditor
@@ -301,7 +319,7 @@ const SidebarMenu = ({
 						onValidationChange={handleValidationChange}
 					/>
 				)}
-			</Card.Body>
+			</CardContent>
 		</Card>
 	);
 };
@@ -332,101 +350,86 @@ function SideBar({ token }: { token: string }) {
 
 	return (
 		<>
-			<Navbar className="flex-column bg-body-primary bg-tertiary">
-				<Card
-					border="tertiary py-0 px-0"
-					className="rounded-0 border-top-0"
-					style={{
-						position: "fixed",
-						top: "50px",
-						left: "0",
-						height: "100%",
-						width: "50px",
-					}}
-				>
-					<BtnTooltip text="Selection" placement="right">
-						<Nav className="mx-auto my-1">
-							<Button
-								variant="outline-tertiary"
-								onClick={() =>
-									setVisibleOption(
-										visibleOption !== "selection" ? "selection" : "",
-									)
-								}
-							>
-								<FaRegHandPointer />
-							</Button>
-						</Nav>
-					</BtnTooltip>
-					<BtnTooltip text="Interaction" placement="right">
-						<Nav className="mx-auto my-1">
-							<Button
-								variant="outline-tertiary"
-								onClick={() =>
-									setVisibleOption(
-										visibleOption !== "modifier" ? "modifier" : "",
-									)
-								}
-							>
-								<FaCircleNodes />
-							</Button>
-						</Nav>
-					</BtnTooltip>
-					<BtnTooltip text="Settings" placement="right">
-						<Nav className="mx-auto my-1">
-							<Button
-								variant="outline-tertiary"
-								onClick={() =>
-									setVisibleOption(
-										visibleOption !== "settings" ? "settings" : "",
-									)
-								}
-							>
-								<FaGear />
-							</Button>
-						</Nav>
-					</BtnTooltip>
-					<BtnTooltip text="Geometry" placement="right">
-						<Nav className="mx-auto my-1">
-							<Button
-								variant="outline-tertiary"
-								onClick={() =>
-									setVisibleOption(
-										visibleOption !== "geometry" ? "geometry" : "",
-									)
-								}
-							>
-								<FaRegMap />
-							</Button>
-						</Nav>
-					</BtnTooltip>
-					<BtnTooltip text="Analysis" placement="right">
-						<Nav className="mx-auto my-1">
-							<Button
-								variant="outline-tertiary"
-								onClick={() =>
-									setVisibleOption(
-										visibleOption !== "analysis" ? "analysis" : "",
-									)
-								}
-							>
-								<FaRegChartBar />
-							</Button>
-						</Nav>
-					</BtnTooltip>
-					<BtnTooltip text="View on GitHub" placement="right">
-						<Nav className="mx-auto my-1">
-							<Button
-								variant="outline-tertiary"
-								href="https://github.com/zincware/ZnDraw"
-								target="_blank"
-							>
-								<FaGithub />
-							</Button>
-						</Nav>
-					</BtnTooltip>
-				</Card>
-			</Navbar>
+			<Box
+				sx={{
+					position: "fixed",
+					top: "50px",
+					left: "0",
+					height: "100%",
+					width: "50px",
+					display: "flex",
+					flexDirection: "column",
+					backgroundColor: "background.paper",
+					borderRight: 1,
+					borderColor: "divider",
+				}}
+			>
+				<Tooltip title="Selection" placement="right">
+					<IconButton
+						color={visibleOption === "selection" ? "primary" : "default"}
+						onClick={() =>
+							setVisibleOption(visibleOption !== "selection" ? "selection" : "")
+						}
+						sx={{ margin: 1 }}
+					>
+						<PanTool />
+					</IconButton>
+				</Tooltip>
+				<Tooltip title="Interaction" placement="right">
+					<IconButton
+						color={visibleOption === "modifier" ? "primary" : "default"}
+						onClick={() =>
+							setVisibleOption(visibleOption !== "modifier" ? "modifier" : "")
+						}
+						sx={{ margin: 1 }}
+					>
+						<AccountTree />
+					</IconButton>
+				</Tooltip>
+				<Tooltip title="Settings" placement="right">
+					<IconButton
+						color={visibleOption === "settings" ? "primary" : "default"}
+						onClick={() =>
+							setVisibleOption(visibleOption !== "settings" ? "settings" : "")
+						}
+						sx={{ margin: 1 }}
+					>
+						<Settings />
+					</IconButton>
+				</Tooltip>
+				<Tooltip title="Geometry" placement="right">
+					<IconButton
+						color={visibleOption === "geometry" ? "primary" : "default"}
+						onClick={() =>
+							setVisibleOption(visibleOption !== "geometry" ? "geometry" : "")
+						}
+						sx={{ margin: 1 }}
+					>
+						<Map />
+					</IconButton>
+				</Tooltip>
+				<Tooltip title="Analysis" placement="right">
+					<IconButton
+						color={visibleOption === "analysis" ? "primary" : "default"}
+						onClick={() =>
+							setVisibleOption(visibleOption !== "analysis" ? "analysis" : "")
+						}
+						sx={{ margin: 1 }}
+					>
+						<BarChart />
+					</IconButton>
+				</Tooltip>
+				<Tooltip title="View on GitHub" placement="right">
+					<IconButton
+						component="a"
+						href="https://github.com/zincware/ZnDraw"
+						target="_blank"
+						sx={{ margin: 1 }}
+					>
+						<GitHub />
+					</IconButton>
+				</Tooltip>
+			</Box>
 			<SidebarMenu
 				name="selection"
 				visible={visibleOption === "selection"} // remove

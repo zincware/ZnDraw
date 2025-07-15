@@ -1,6 +1,6 @@
 import { CatmullRomLine, Dodecahedron } from "@react-three/drei";
 import { useThree } from "@react-three/fiber";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { socket } from "../socket";
 
 import * as THREE from "three";

@@ -1,4 +1,4 @@
-import { Button, Card } from "react-bootstrap";
+import { Button, Card, CardContent, Typography } from "@mui/material";
 import { Rnd } from "react-rnd";
 import type { Frame } from "./particles";
 

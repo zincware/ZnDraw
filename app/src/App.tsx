@@ -1,12 +1,12 @@
-import React from "react";
-import { AppProvider } from "./contexts/AppContext";
-import { VisualizationContainer } from "./components/containers/VisualizationContainer";
+import type React from "react";
 import { UIContainer } from "./components/containers/UIContainer";
-import { useSocketManager } from "./hooks/useSocketManager";
-import { useKeyboardHandler } from "./hooks/useKeyboardHandler";
-import { useFileHandler } from "./hooks/useFileHandler";
-import { useSelectionCleanup } from "./hooks/useSelectionCleanup";
+import { VisualizationContainer } from "./components/containers/VisualizationContainer";
 import { useColorMode } from "./components/utils";
+import { AppProvider } from "./contexts/AppContext";
+import { useFileHandler } from "./hooks/useFileHandler";
+import { useKeyboardHandler } from "./hooks/useKeyboardHandler";
+import { useSelectionCleanup } from "./hooks/useSelectionCleanup";
+import { useSocketManager } from "./hooks/useSocketManager";
 import "./App.css";
 
 // Internal component that uses all the hooks

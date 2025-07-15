@@ -1,6 +1,10 @@
-import React, { useMemo, useCallback } from "react";
+import {
+	materialCells,
+	materialRenderers,
+} from "@jsonforms/material-renderers";
 import { JsonForms } from "@jsonforms/react";
-import { vanillaRenderers, vanillaCells } from "@jsonforms/vanilla-renderers";
+import type React from "react";
+import { useCallback, useMemo } from "react";
 
 interface JSONFormsEditorProps {
 	schema: any;
@@ -15,9 +19,9 @@ export const JSONFormsEditor: React.FC<JSONFormsEditorProps> = ({
 	onChange,
 	onValidationChange,
 }) => {
-	// Use vanilla renderers for bootstrap compatibility
-	const renderers = useMemo(() => vanillaRenderers, []);
-	const cells = useMemo(() => vanillaCells, []);
+	// Use Material-UI renderers
+	const renderers = useMemo(() => materialRenderers, []);
+	const cells = useMemo(() => materialCells, []);
 
 	const handleChange = useCallback(
 		(state: any) => {

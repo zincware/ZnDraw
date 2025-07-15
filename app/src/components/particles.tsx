@@ -746,9 +746,9 @@ export const PerParticleVectors: React.FC<PerParticleVectorsProps> = ({
 	const hexToHSLColormap = (hexColor: string): [number, number, number][] => {
 		// Simple hex to HSL conversion for single color
 		const hex = hexColor.replace("#", "");
-		const r = parseInt(hex.substr(0, 2), 16) / 255;
-		const g = parseInt(hex.substr(2, 2), 16) / 255;
-		const b = parseInt(hex.substr(4, 2), 16) / 255;
+		const r = Number.parseInt(hex.substr(0, 2), 16) / 255;
+		const g = Number.parseInt(hex.substr(2, 2), 16) / 255;
+		const b = Number.parseInt(hex.substr(4, 2), 16) / 255;
 
 		const max = Math.max(r, g, b);
 		const min = Math.min(r, g, b);
