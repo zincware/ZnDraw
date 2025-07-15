@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import {
     Slider,
     TextField,
@@ -14,6 +14,7 @@ import { FaRegBookmark } from "react-icons/fa";
 import WifiIcon from '@mui/icons-material/Wifi';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
+import CloudDownloadIcon from '@mui/icons-material/CloudDownload'; // Icon for waiting for data
 
 interface IndicesState {
     active: boolean;
@@ -34,36 +35,36 @@ interface FrameProgressBarProps {
     isFrameRendering: boolean;
 }
 
+// Main container with improved alignment and padding
 const ProgressBarContainer = styled(Box)(() => ({
     width: "100%",
-    padding: "12px 24px",
+    padding: "12px 16px",
     backgroundColor: "#f4f6f8",
     borderRadius: "8px",
     boxShadow: "0px 3px 6px rgba(0,0,0,0.16)",
     display: "flex",
-    alignItems: "center",
-    gap: "24px",
-    position: "relative",
+    alignItems: "center", // Vertically aligns all direct children
+    gap: "16px",
     flexWrap: 'wrap',
 }));
 
+// Simplified wrapper for the slider. No longer needs complex padding or height.
 const SliderControlsWrapper = styled(Box)(() => ({
-    position: "relative",
+    position: "relative", // Remains relative for bookmarks and highlights
     flexGrow: 1,
-    height: 48,
     display: "flex",
     alignItems: "center",
-    paddingTop: 18,
-    paddingBottom: 8,
     minWidth: 250,
 }));
 
+// Repositioned bookmark to be closer to the slider track
 const BookmarkIndicator = styled("div")<{ left: string }>(({ left }) => ({
     position: "absolute",
     left: left,
-    top: 0,
+    top: "50%", // Align with the vertical center of the wrapper
     zIndex: 2,
-    transform: 'translateX(-50%)',
+    // Shift horizontally to center on the mark, and vertically to sit just above the track
+    transform: "translate(-50%, -110%)",
     "& svg": {
         color: "#ff9800",
         fontSize: "1.1em",
@@ -75,20 +76,32 @@ const BookmarkIndicator = styled("div")<{ left: string }>(({ left }) => ({
     },
 }));
 
+// Highlight style adjusted for the new, slimmer progress bar
 const SelectedFrameHighlight = styled("div")<{ left: string; width: string }>(
     ({ left, width }) => ({
         position: "absolute",
         left: left,
         width: width,
-        height: "10px",
+        height: "6px", // Slightly thicker than the track for visibility
         backgroundColor: "#42a5f5",
         borderRadius: "3px",
         zIndex: 1,
         pointerEvents: "none",
-        bottom: "10px", // Adjusted to align with the bottom of the progress bar track
+        top: "50%", // Center vertically on the slider's centerline
+        transform: "translateY(-50%)",
         opacity: 0.8,
     })
 );
+
+// Animation for the "waiting for data" icon
+const waitingAnimation = {
+    '@keyframes waiting': {
+        '0%, 100%': { transform: 'translateY(0)' },
+        '50%': { transform: 'translateY(-3px)' },
+    },
+    animation: 'waiting 1.5s ease-in-out infinite',
+};
+
 
 export const FrameProgressBar: React.FC<FrameProgressBarProps> = ({
     length,
@@ -106,6 +119,9 @@ export const FrameProgressBar: React.FC<FrameProgressBarProps> = ({
     const [inputValue, setInputValue] = useState<string>(String(step));
     const [fpsInputValue, setFpsInputValue] = useState<string>(String(frameRate));
 
+    const [debouncedConnected, setDebouncedConnected] = useState(connected);
+    const [debouncedIsFrameRendering, setDebouncedIsFrameRendering] = useState(isFrameRendering);
+
     useEffect(() => {
         setInputValue(String(step));
     }, [step]);
@@ -113,6 +129,16 @@ export const FrameProgressBar: React.FC<FrameProgressBarProps> = ({
     useEffect(() => {
         setFpsInputValue(String(frameRate));
     }, [frameRate]);
+
+    useEffect(() => {
+        const handler = setTimeout(() => setDebouncedConnected(connected), connected ? 0 : 100);
+        return () => clearTimeout(handler);
+    }, [connected]);
+
+    useEffect(() => {
+        const handler = setTimeout(() => setDebouncedIsFrameRendering(isFrameRendering), isFrameRendering ? 100 : 0);
+        return () => clearTimeout(handler);
+    }, [isFrameRendering]);
 
     const handleSliderChange = (event: Event, newValue: number | number[]) => {
         setStep(newValue as number);
@@ -181,14 +207,11 @@ export const FrameProgressBar: React.FC<FrameProgressBarProps> = ({
     };
 
     const renderSelectedFrames = () => {
-        if (!selectedFrames || !selectedFrames.active || !selectedFrames.indices) {
-            return null;
-        }
+        if (!selectedFrames || !selectedFrames.active || !selectedFrames.indices) return null;
 
-        const framesToHighlight = [...selectedFrames.indices];
-        framesToHighlight.sort((a, b) => a - b);
-
+        const framesToHighlight = [...selectedFrames.indices].sort((a, b) => a - b);
         const highlightBlocks: { start: number; end: number }[] = [];
+
         if (framesToHighlight.length > 0) {
             let currentBlock = { start: framesToHighlight[0], end: framesToHighlight[0] };
             for (let i = 1; i < framesToHighlight.length; i++) {
@@ -205,20 +228,12 @@ export const FrameProgressBar: React.FC<FrameProgressBarProps> = ({
         return highlightBlocks.map((block, index) => {
             const leftPosition = `${(block.start / length) * 100}%`;
             const width = `${((block.end - block.start + 1) / length) * 100}%`;
-
-            return (
-                <SelectedFrameHighlight
-                    key={`selected-block-${index}`}
-                    left={leftPosition}
-                    width={width}
-                />
-            );
+            return <SelectedFrameHighlight key={`selected-block-${index}`} left={leftPosition} width={width} />;
         });
     };
 
     return (
         <ProgressBarContainer>
-            {/* Frame Number Input */}
             <TextField
                 variant="outlined"
                 size="small"
@@ -226,22 +241,13 @@ export const FrameProgressBar: React.FC<FrameProgressBarProps> = ({
                 onChange={handleInputChange}
                 onBlur={handleInputBlur}
                 type="number"
-                inputProps={{
-                    min: 0,
-                    max: length,
-                    step: 1,
-                }}
+                inputProps={{ min: 0, max: length, step: 1 }}
                 InputProps={{
-                    endAdornment: (
-                        <InputAdornment position="end">
-                            <Typography variant="body2" sx={{ color: "#616161" }}>/ {length}</Typography>
-                        </InputAdornment>
-                    ),
+                    endAdornment: <InputAdornment position="end">/ {length}</InputAdornment>,
                 }}
                 sx={{ width: 120, flexShrink: 0 }}
             />
 
-            {/* Slider with Highlights and Bookmarks */}
             <SliderControlsWrapper>
                 {renderSelectedFrames()}
                 {renderBookmarks()}
@@ -253,32 +259,22 @@ export const FrameProgressBar: React.FC<FrameProgressBarProps> = ({
                     onChange={handleSliderChange}
                     aria-labelledby="frame-slider"
                     sx={{
-                        "& .MuiSlider-track": {
-                            height: 8,
-                            borderRadius: 4,
-                            backgroundColor: selectedFrames.active ? 'transparent' : '#1976d2',
-                        },
-                        "& .MuiSlider-rail": {
-                            height: 8,
-                            borderRadius: 4,
-                            backgroundColor: selectedFrames.active ? 'rgba(128, 128, 128, 0.3)' : '#e0e0e0',
-                        },
+                        // Removed absolute positioning for natural flex alignment
+                        "& .MuiSlider-track": { height: 4, borderRadius: 2 },
+                        "& .MuiSlider-rail": { height: 4, borderRadius: 2 },
                         "& .MuiSlider-thumb": {
-                            width: 18,
-                            height: 18,
-                            // marginTop: '-50px',
-                            backgroundColor: '#1976d2',
-                            border: '2px solid white',
-                            boxShadow: '0px 0px 5px rgba(0,0,0,0.2)',
+                            width: 16,
+                            height: 16,
+                            backgroundColor: '#fff',
+                            border: '2px solid currentColor',
+                            '&:hover, &.Mui-focusVisible': {
+                                boxShadow: '0 0 0 8px rgba(25, 118, 210, 0.16)',
+                            },
                         },
-                        width: '100%',
-                        position: 'absolute',
-                        bottom: 0,
                     }}
                 />
             </SliderControlsWrapper>
 
-            {/* FPS Custom Input */}
             <TextField
                 variant="outlined"
                 size="small"
@@ -291,30 +287,34 @@ export const FrameProgressBar: React.FC<FrameProgressBarProps> = ({
                 sx={{ width: 100, flexShrink: 0 }}
             />
 
-            {/* Toggle for Selected Frames (Clickable Icon) */}
             <Tooltip title={selectedFrames.active ? "Hide Selections" : "Show Selections"}>
-                <IconButton onClick={handleToggleSelectedFrames} sx={{ color: "#1976d2" }}>
+                <IconButton onClick={handleToggleSelectedFrames} color="primary">
                     {selectedFrames.active ? <VisibilityIcon /> : <VisibilityOffIcon />}
                 </IconButton>
             </Tooltip>
-
-            {/* Connection Status and Frame Loading Indicators */}
-            <Box sx={{ display: 'flex', gap: 1.5, minWidth: 60, justifyContent: 'flex-end', flexShrink: 0 }}>
-                {/* Connection Status Indicator */}
-                <Tooltip title={connected ? "Connected to Server" : "Connecting..."}>
-                    {connected ? (
-                        <WifiIcon sx={{ color: "#4caf50", fontSize: 22 }} />
-                    ) : (
-                        <CircularProgress size={22} />
-                    )}
+            
+            {/* Unified status indicator logic */}
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: 40, flexShrink: 0 }}>
+                <Tooltip
+                    title={
+                        !debouncedConnected
+                            ? "Connecting..."
+                            : debouncedIsFrameRendering
+                            ? "Waiting for frame data..."
+                            : "Connected to Server"
+                    }
+                >
+                    {/* Wrapper div prevents Tooltip warnings on conditionally rendered/disabled items */}
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 24, width: 24 }}>
+                        {!debouncedConnected ? (
+                            <CircularProgress size={24} />
+                        ) : debouncedIsFrameRendering ? (
+                            <CloudDownloadIcon sx={{ color: "#1976d2", ...waitingAnimation }} />
+                        ) : (
+                            <WifiIcon sx={{ color: "#4caf50" }} />
+                        )}
+                    </Box>
                 </Tooltip>
-
-                {/* Frame Loading Indicator */}
-                {isFrameRendering && (
-                    <Tooltip title="Frame is loading...">
-                        <CircularProgress size={22} />
-                    </Tooltip>
-                )}
             </Box>
         </ProgressBarContainer>
     );
