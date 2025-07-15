@@ -1,6 +1,6 @@
 [project]
 name = "zndraw"
-version = "0.5.10"
+version = "0.5.11a1"
 description = "Display and Edit Molecular Structures and Trajectories in the Browser."
 authors = [
     { name = "Fabian Zills", email = "fzills@icp.uni-stuttgart.de" },
@@ -29,7 +29,7 @@ dependencies = [
     "typer>=0.15.1",
     "vesin>=0.3.7",
     "znjson>=0.2.6",
-    "znsocket>=0.2.11",
+    "znsocket>=0.2.12",
 ]
 
 [project.urls]
