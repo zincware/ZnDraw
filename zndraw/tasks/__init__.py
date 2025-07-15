@@ -399,7 +399,7 @@ def run_room_worker(room):
     for key, val in scene_queue.items():
         vis.config[key].update(val)
         # TODO: also update the schema to update all other rooms
-        vis.config["trigger_update"] = True
+        vis.config.update({})
 
     modifier_queue = znsocket.Dict(
         r=current_app.extensions["redis"],

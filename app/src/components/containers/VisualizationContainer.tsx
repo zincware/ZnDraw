@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useEffect } from "react";
 import { Canvas } from "@react-three/fiber";
 import { Pathtracer } from "@react-three/gpu-pathtracer";
 import { Environment } from "@react-three/drei";

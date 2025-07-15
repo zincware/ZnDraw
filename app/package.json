@@ -6,9 +6,10 @@
 	"scripts": {
 		"dev": "vite",
 		"build": "tsc && vite build",
-		"lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
-		"preview": "vite preview",
-		"format": "prettier . --write"
+		"format": "biome format --write .",
+		"format:check": "biome check .",
+		"lint": "biome lint .",
+		"lint:fix": "biome check --fix ."
 	},
 	"dependencies": {
 		"@json-editor/json-editor": "^2.15.2",

@@ -3,6 +3,7 @@ import * as THREE from "three";
 import { JMOL_COLORS, covalentRadii } from "./data";
 import * as znsocket from "znsocket";
 import { client } from "../socket";
+import { DEFAULT_ROOM_CONFIG } from "../types/room-config";
 
 export function setupBookmarks(
 	token: string,
@@ -790,12 +791,57 @@ export const setupVectors = (
 
 export const setupConfig = (token: string, setConfig: any) => {
 	useEffect(() => {
+		if (!token) return;
+
 		const con = new znsocket.Dict({
 			client: client,
 			key: `room:${token}:config`,
 		});
 
-		// initial load
+		// Get config sections from the DEFAULT_ROOM_CONFIG keys
+		const configSections = Object.keys(DEFAULT_ROOM_CONFIG).filter(
+			(key) => key !== "property",
+		) as string[];
+		const allConnections: any[] = [con];
+
+		// Create connections for each config section
+		const sectionConnections = configSections.map((section) => {
+			const sectionCon = new znsocket.Dict({
+				client: client,
+				key: `room:${token}:config:${section}`,
+			});
+			allConnections.push(sectionCon);
+			return { section, connection: sectionCon };
+		});
+
+		// Shared refresh handler that reloads the full config
+		const refreshConfig = async (source: string) => {
+			try {
+				const result = await con.toObject();
+				if (Object.keys(result).length > 0) {
+					setConfig(result);
+				} else {
+					console.warn("Received empty config update");
+				}
+			} catch (error) {
+				console.error(`Error refreshing config from ${source}:`, error);
+			}
+		};
+
+		// Register refresh handlers for each section
+		sectionConnections.forEach(({ section, connection }) => {
+			connection.onRefresh(async () => {
+				console.log(`${section} config section changed`);
+				await refreshConfig(section);
+			});
+		});
+
+		// Register main config refresh handler
+		con.onRefresh(async () => {
+			await refreshConfig("main");
+		});
+
+		// Initial load
 		con
 			.entries()
 			.then((items: any) => con.toObject())
@@ -805,19 +851,16 @@ export const setupConfig = (token: string, setConfig: any) => {
 				}
 			})
 			.catch((error) => {
-				console.error("Failed to load config:", error);
+				console.error("Failed to load initial config:", error);
 			});
 
-		con.onRefresh(async (x: any) => {
-			const result = await con.toObject();
-			console.log("config updated externally");
-			if (Object.keys(result).length > 0) {
-				setConfig(result);
-			}
-		});
-
 		return () => {
-			con.offRefresh();
+			// Clean up all registered callbacks
+			allConnections.forEach((connection) => {
+				if (connection && typeof connection.offRefresh === "function") {
+					connection.offRefresh();
+				}
+			});
 		};
 	}, [token]);
 };

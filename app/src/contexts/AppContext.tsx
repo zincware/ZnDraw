@@ -210,6 +210,11 @@ export const AppProvider: React.FC<AppProviderProps> = ({
 	// Configuration - using defaults from pydantic models
 	const [roomConfig, setRoomConfig] = useState<RoomConfig>(DEFAULT_ROOM_CONFIG);
 
+	// Enhanced config setter for debugging
+	const setRoomConfigWithLogging = (config: RoomConfig) => {
+		setRoomConfig(config);
+	};
+
 	// Plotting
 	const [updatedPlotsList, setUpdatedPlotsList] = useState<string[]>([]);
 
@@ -308,7 +313,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({
 
 		// Configuration
 		roomConfig,
-		setRoomConfig,
+		setRoomConfig: setRoomConfigWithLogging,
 
 		// Plotting
 		updatedPlotsList,
