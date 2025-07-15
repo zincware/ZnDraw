@@ -165,3 +165,4 @@ data/
 .zndraw/
 control/
 .DS_Store
+*.local.md
