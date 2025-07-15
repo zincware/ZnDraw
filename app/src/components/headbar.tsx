@@ -193,25 +193,29 @@ function ConsoleWindow({
 					}}
 					// ref={cardRef}
 				>
-					<Card.Header className="d-flex justify-content-between align-items-center">
-						<Card.Title>Chat</Card.Title>
-						<div className="d-flex align-items-center">
-							<Form.Check
-								type="switch"
-								id="show-time-switch"
-								label="Show Time"
-								checked={showTime}
-								onChange={() => {
-									setShowTime(!showTime);
-								}}
-								className="me-2"
-							/>
-							<Button variant="close" onClick={() => setConsoleShow(false)} />
-						</div>
-					</Card.Header>
+					<CardHeader
+						title="Chat"
+						action={
+							<Box sx={{ display: 'flex', alignItems: 'center' }}>
+								<FormControlLabel
+									control={
+										<Switch
+											checked={showTime}
+											onChange={() => setShowTime(!showTime)}
+										/>
+									}
+									label="Show Time"
+									sx={{ mr: 2 }}
+								/>
+								<IconButton onClick={() => setConsoleShow(false)}>
+									<CloseIcon />
+								</IconButton>
+							</Box>
+						}
+					/>
 
 					{/* Message Body with Optional Timestamp */}
-					<Card.Body className="text-start overflow-y-auto" ref={scrollRef}>
+					<CardContent sx={{ textAlign: 'start', overflowY: 'auto' }} ref={scrollRef}>
 						{messages.map((line, idx) => (
 							<div key={idx} className="mb-2">
 								{/* Row for timestamp and edit icons */}
@@ -264,36 +268,37 @@ function ConsoleWindow({
 											}}
 										/>
 									) : (
-										<InputGroup>
-											<Form.Control
-												as="textarea"
-												value={tempMsg}
-												rows={4}
-												onChange={(e) => setTempMsg(e.target.value)}
-												onKeyDown={(e) => handleEditKeyPress(e, idx)}
-											/>
-										</InputGroup>
+										<TextField
+											multiline
+											rows={4}
+											value={tempMsg}
+											onChange={(e) => setTempMsg(e.target.value)}
+											onKeyDown={(e) => handleEditKeyPress(e, idx)}
+											variant="outlined"
+											fullWidth
+										/>
 									)}
 								</div>
 							</div>
 						))}
-					</Card.Body>
+					</CardContent>
 
-					<Card.Footer>
-						<InputGroup>
-							<Form.Control
-								as="textarea"
-								rows={1}
-								placeholder="Type a message..."
-								onInput={handleChatInputChange}
-								onKeyDown={handleKeyPress}
-								ref={chatInputRef}
-							/>
-							<Button variant="primary" onClick={handleSendMessage}>
-								Send
-							</Button>
-						</InputGroup>
-					</Card.Footer>
+					<CardActions sx={{ display: 'flex', gap: 1 }}>
+						<TextField
+							multiline
+							rows={1}
+							placeholder="Type a message..."
+							onInput={handleChatInputChange}
+							onKeyDown={handleKeyPress}
+							ref={chatInputRef}
+							variant="outlined"
+							fullWidth
+							size="small"
+						/>
+						<Button variant="contained" onClick={handleSendMessage}>
+							Send
+						</Button>
+					</CardActions>
 				</Card>
 			</Rnd>
 			{showDropdown && (
