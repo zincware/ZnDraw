@@ -29,12 +29,12 @@ export const ProgressBar = ({
 
 	return (
 		<Box className="position-relative">
-			<ColoredTiles
+			{/* <ColoredTiles
 				length={length}
 				disabledFrames={disabledFrames}
 				setStep={setStep}
 				tickInterval={tickInterval}
-			/>
+			/> */}
 			<Bookmarks
 				length={length}
 				bookmarks={bookmarks}

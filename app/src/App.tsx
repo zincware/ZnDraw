@@ -1,3 +1,4 @@
+import { Box } from "@mui/material";
 import type React from "react";
 import { UIContainer } from "./components/containers/UIContainer";
 import { VisualizationContainer } from "./components/containers/VisualizationContainer";
@@ -20,14 +21,18 @@ const AppContent: React.FC = () => {
 	const { onDragOver, onDrop, onPointerMissed } = useFileHandler();
 
 	return (
-		<>
+		<Box sx={{ position: "relative", width: "100vw", height: "100vh" }}>
 			<VisualizationContainer
 				onPointerMissed={onPointerMissed}
 				onDragOver={onDragOver}
 				onDrop={onDrop}
 			/>
-			<UIContainer />
-		</>
+			<Box
+				s={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", pointerEvents: "none" }}
+			>
+				<UIContainer />
+			</Box>
+		</Box>
 	);
 };
 

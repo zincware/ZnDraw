@@ -1,5 +1,4 @@
 import { Tooltip } from "@mui/material";
-import React from "react";
 import { FaRegBookmark } from "react-icons/fa";
 
 export const Bookmarks = ({
