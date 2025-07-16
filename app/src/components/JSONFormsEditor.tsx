@@ -6,17 +6,16 @@ import { JsonForms } from "@jsonforms/react";
 import type React from "react";
 import { useCallback, useMemo } from "react";
 // Import your custom renderers and testers
-import CustomRangeSlider from './jsonforms-renderers/CustomRangeSlider';
-import { customRangeSliderTester } from './jsonforms-renderers/customRangeSliderTester';
-import CustomColorPicker from './jsonforms-renderers/CustomColorPicker';
-import { customColorPickerTester } from './jsonforms-renderers/customColorPickerTester';
-
+import CustomRangeSlider from "./jsonforms-renderers/CustomRangeSlider";
+import { customRangeSliderTester } from "./jsonforms-renderers/customRangeSliderTester";
+import CustomColorPicker from "./jsonforms-renderers/CustomColorPicker";
+import { customColorPickerTester } from "./jsonforms-renderers/customColorPickerTester";
 
 // TODO: do we need to memoize this?
 const customRenderers = [
-  ...materialRenderers,
-  { tester: customRangeSliderTester, renderer: CustomRangeSlider },
-  { tester: customColorPickerTester, renderer: CustomColorPicker }
+	...materialRenderers,
+	{ tester: customRangeSliderTester, renderer: CustomRangeSlider },
+	{ tester: customColorPickerTester, renderer: CustomColorPicker },
 ];
 interface JSONFormsEditorProps {
 	schema: any;
@@ -78,4 +77,3 @@ export const JSONFormsEditor: React.FC<JSONFormsEditorProps> = ({
 };
 
 export default JSONFormsEditor;
-

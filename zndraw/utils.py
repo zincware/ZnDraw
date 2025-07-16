@@ -15,6 +15,7 @@ from ase.data import covalent_radii
 
 log = logging.getLogger(__name__)
 
+
 def parse_url(input_url) -> t.Tuple[str, t.Optional[str]]:
     parsed = urlparse(input_url)
     base_url = f"{parsed.scheme}://{parsed.netloc}"

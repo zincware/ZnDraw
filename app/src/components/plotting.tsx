@@ -233,18 +233,21 @@ const PlotCard = ({
 	}, [selectedOption, token, step]); // Re-process data when step changes
 
 	// ✅ FIX: Added the onResize handler to update the plot layout state
-	const onResize = useCallback<RndResizeCallback>((e, direction, ref) => {
-		bringToFront(identifier);
-		setPlotLayout((prevLayout) => {
-			if (!prevLayout) return prevLayout;
-			return {
-				...prevLayout,
-				// The plot's layout dimensions are explicitly set from the Rnd container's size
-				width: ref.offsetWidth,
-				height: ref.offsetHeight - 50, // Subtract header height
-			};
-		});
-	}, [bringToFront, identifier]);
+	const onResize = useCallback<RndResizeCallback>(
+		(e, direction, ref) => {
+			bringToFront(identifier);
+			setPlotLayout((prevLayout) => {
+				if (!prevLayout) return prevLayout;
+				return {
+					...prevLayout,
+					// The plot's layout dimensions are explicitly set from the Rnd container's size
+					width: ref.offsetWidth,
+					height: ref.offsetHeight - 50, // Subtract header height
+				};
+			});
+		},
+		[bringToFront, identifier],
+	);
 
 	const onDragStop = useCallback(() => {
 		bringToFront(identifier);
@@ -344,11 +347,11 @@ const PlotCard = ({
 		<Rnd
 			minHeight={200}
 			minWidth={220}
-			default={{ 
-				x: Math.max(20, centerX), 
-				y: Math.max(20, centerY), 
-				width: defaultWidth, 
-				height: defaultHeight 
+			default={{
+				x: Math.max(20, centerX),
+				y: Math.max(20, centerY),
+				width: defaultWidth,
+				height: defaultHeight,
 			}}
 			style={{ zIndex }}
 			disableDragging={isLocked}

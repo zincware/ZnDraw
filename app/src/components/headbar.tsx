@@ -37,7 +37,6 @@ import { RemoteFileModal } from "./headbar/RemoteFileModal";
 import { SiMGenButtons } from "./headbar/SiMGenButtons";
 import { TutorialModal } from "./headbar/TutorialModal";
 
-
 interface HeadBarProps {
 	room: string;
 	colorMode: string;
@@ -105,7 +104,7 @@ const HeadBar = ({
 	};
 	const basePath = useMemo(() => import.meta.env.BASE_URL || "/", []);
 	const iconSize = "1.25rem";
-	
+
 	// Common styles for icon buttons to ensure consistent alignment
 	const iconButtonStyle = {
 		width: 40,
@@ -176,8 +175,8 @@ const HeadBar = ({
 					<Box sx={{ width: 24 }} />
 
 					<BtnTooltip text="Reset Scene">
-						<IconButton 
-							color="error" 
+						<IconButton
+							color="error"
 							onClick={() => setRefreshModalShow(true)}
 							sx={iconButtonStyle}
 						>
@@ -190,7 +189,7 @@ const HeadBar = ({
 							selected={isDrawing}
 							onChange={() => setIsDrawing((prev: boolean) => !prev)}
 							size="small"
-							sx={{ 
+							sx={{
 								border: 0,
 								...iconButtonStyle,
 								"&.MuiToggleButton-root": {
@@ -204,8 +203,8 @@ const HeadBar = ({
 						</ToggleButton>
 					</BtnTooltip>
 					<BtnTooltip text="Remove all guiding points and geometries">
-						<IconButton 
-							color="primary" 
+						<IconButton
+							color="primary"
 							onClick={handleRemovePointsGeometries}
 							sx={iconButtonStyle}
 						>
@@ -236,7 +235,7 @@ const HeadBar = ({
 							selected={consoleShow}
 							onChange={() => setConsoleShow((prev: boolean) => !prev)}
 							size="small"
-							sx={{ 
+							sx={{
 								border: 0,
 								...iconButtonStyle,
 								"&.MuiToggleButton-root": {
@@ -302,8 +301,8 @@ const HeadBar = ({
 						</BtnTooltip>
 					)}
 					<BtnTooltip text="Help">
-						<IconButton 
-							color="primary" 
+						<IconButton
+							color="primary"
 							onClick={() => setHelpModalShow(true)}
 							sx={iconButtonStyle}
 						>
@@ -311,8 +310,8 @@ const HeadBar = ({
 						</IconButton>
 					</BtnTooltip>
 					<BtnTooltip text="Switch Colormode">
-						<IconButton 
-							color="primary" 
+						<IconButton
+							color="primary"
 							onClick={handleColorMode}
 							sx={iconButtonStyle}
 						>
