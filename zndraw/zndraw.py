@@ -722,10 +722,9 @@ class ZnDraw(MutableSequence):
                     f"schema:{self.token}:modifier",
                     socket=self._refresh_client,
                 )
-            # TODO: check if the key exists and if it is different?
-            # TODO: also check in the default schema room.
-            # TODO: can not register the same modifier twice!
-            modifier_schema[cls.__name__] = cls.model_json_schema()
+
+            data_schema = cls.model_json_schema()
+            modifier_schema[cls.__name__] = {"data": data_schema, "ui": {}}
 
             # TODO: if public!
             if public:

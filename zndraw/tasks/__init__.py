@@ -462,7 +462,8 @@ def run_schema(room) -> None:
         key="schema:default:modifier",
     )
     for key, val in modifier.items():
-        dct[key] = val.model_json_schema()
+        data_schema = val.model_json_schema()
+        dct[key] = {"data": data_schema, "ui": {}}
 
     dct = znsocket.Dict(
         r=current_app.extensions["redis"],
@@ -470,7 +471,8 @@ def run_schema(room) -> None:
         key=f"schema:{room}:selection",
     )
     for key, val in selections.items():
-        dct[key] = val.model_json_schema()
+        data_schema = val.model_json_schema()
+        dct[key] = {"data": data_schema, "ui": {}}
 
     dct = znsocket.Dict(
         r=current_app.extensions["redis"],
@@ -478,7 +480,8 @@ def run_schema(room) -> None:
         key=f"schema:{room}:geometry",
     )
     for key, val in geometries.items():
-        dct[key] = val.model_json_schema()
+        data_schema = val.model_json_schema()
+        dct[key] = {"data": data_schema, "ui": {}}
 
     vis.socket.sleep(1)
     vis.socket.disconnect()
@@ -500,7 +503,8 @@ def run_scene_dependent_schema(room) -> None:
         key=f"schema:{room}:analysis",
     )
     for key, val in analyses.items():
-        dct[key] = val.model_json_schema_from_atoms(vis.atoms)
+        data_schema = val.model_json_schema_from_atoms(vis.atoms)
+        dct[key] = {"data": data_schema, "ui": {}}
 
     dct = znsocket.Dict(
         r=current_app.extensions["redis"],
@@ -516,7 +520,8 @@ def run_scene_dependent_schema(room) -> None:
                 schema["properties"][prop]["default"] = config_values[prop]
             except KeyError:
                 vis.log(f"KeyError: {prop}")
-        dct[key] = schema
+
+        dct[key] = {"data": schema, "ui": {}}
 
     vis.socket.sleep(1)
     vis.socket.disconnect()
