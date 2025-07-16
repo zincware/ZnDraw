@@ -286,7 +286,12 @@ const PlotCard = ({
 
 	const memoizedPlotContent = useMemo(
 		() => (
-			<CardContent sx={{ flexGrow: 1, p: "2px", overflow: "hidden" }}>
+			<CardContent sx={{ 
+				flexGrow: 1, 
+				p: "2px", 
+				overflow: "hidden",
+				backgroundColor: "background.paper",
+			}}>
 				{plotType === "plotly" && plotData ? (
 					<Plot
 						data={plotData}
@@ -367,18 +372,27 @@ const PlotCard = ({
 					height: "100%",
 					display: "flex",
 					flexDirection: "column",
+					border: 1,
+					borderColor: "divider",
+					backgroundColor: "background.default",
 				}}
 			>
 				<CardHeader
 					className="drag-handle"
 					onMouseDown={() => bringToFront(identifier)}
 					sx={{
-						height: 50,
+						height: 45,
 						flexShrink: 0,
 						pr: 1,
-						pl: 2,
+						pl: 5,
 						cursor: isLocked ? "default" : "move",
-						"& .MuiCardHeader-content": { flexGrow: 1, minWidth: 0 },
+						borderBottom: 1,
+						borderColor: "divider",
+						display: "flex",
+						alignItems: "center",
+						"& .MuiCardHeader-action": {
+							alignSelf: "center",
+						},
 					}}
 					title={
 						<TextField

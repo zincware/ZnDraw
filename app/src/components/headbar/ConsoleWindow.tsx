@@ -229,20 +229,39 @@ export function ConsoleWindow({
 						height: "100%",
 						display: "flex",
 						flexDirection: "column",
+						border: 1,
+						borderColor: "divider",
+						backgroundColor: "background.default",
 					}}
 				>
 					<CardHeader
 						className="drag-handle"
-						title="Chat"
+						title={
+							<Typography variant="body2" sx={{ fontWeight: 600 }}>
+								Chat
+							</Typography>
+						}
 						action={
-							<IconButton onClick={() => setConsoleShow(false)}>
+							<IconButton onClick={() => setConsoleShow(false)} size="small">
 								<CloseIcon />
 							</IconButton>
 						}
-						sx={{ cursor: "move", borderBottom: 1, borderColor: "divider" }}
+						sx={{ 
+							cursor: "move", 
+							borderBottom: 1, 
+							borderColor: "divider",
+							backgroundColor: colorMode === "light" ? "#f5f5f5" : "#2d2d2d",
+							py: 1,
+							minHeight: 40,
+						}}
 					/>
 					<CardContent
-						sx={{ flexGrow: 1, overflowY: "auto", p: 2 }}
+						sx={{ 
+							flexGrow: 1, 
+							overflowY: "auto", 
+							p: 2,
+							backgroundColor: "background.paper",
+						}}
 						ref={scrollRef}
 					>
 						{messages.filter(Boolean).map((message, idx) => (
