@@ -53,7 +53,11 @@ export const JSONFormsEditor: React.FC<JSONFormsEditorProps> = ({
 
 	const memoizedUiSchema = useMemo(() => {
 		console.log("JSONForms uischema updated:", schema);
-		return schema?.ui;
+		const ui = schema?.ui;
+		if (Object.keys(ui || {}).length === 0) {
+			return undefined;
+		}
+		return ui;
 	}, [schema]);
 
 	// Memoize the data to prevent unnecessary re-renders
