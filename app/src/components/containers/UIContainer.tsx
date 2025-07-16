@@ -75,15 +75,28 @@ export const UIContainer: React.FC = () => {
 	// Local UI state
 	const [cursorPosition, setCursorPosition] = useState({ x: 0, y: 0 });
 
-	// Update cursor position for overlays
+	// Update cursor position for overlays with throttling
 	useEffect(() => {
+		let rafId: number;
+		
 		const updateCursorPosition = (event: MouseEvent) => {
-			setCursorPosition({ x: event.clientX, y: event.clientY });
+			// Cancel any pending animation frame
+			if (rafId) {
+				cancelAnimationFrame(rafId);
+			}
+			
+			// Schedule update on next animation frame to throttle updates
+			rafId = requestAnimationFrame(() => {
+				setCursorPosition({ x: event.clientX, y: event.clientY });
+			});
 		};
 
 		window.addEventListener("mousemove", updateCursorPosition);
 
 		return () => {
+			if (rafId) {
+				cancelAnimationFrame(rafId);
+			}
 			window.removeEventListener("mousemove", updateCursorPosition);
 		};
 	}, []);
