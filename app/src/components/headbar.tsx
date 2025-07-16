@@ -13,7 +13,6 @@ import {
 	FaCloudDownloadAlt,
 	FaCode,
 	FaDownload,
-	FaFilm,
 	FaHandSparkles,
 	FaLock,
 	FaLockOpen,
@@ -156,23 +155,6 @@ const HeadBar = ({
 							ZnDraw {version}
 						</Typography>
 					</Button>
-					{showSiMGen && (
-						<>
-							<Typography variant="h6" sx={{ color: "text.secondary" }}>
-								+
-							</Typography>
-							<Button
-								href="https://github.com/RokasEl/simgen"
-								target="_blank"
-								sx={{ textTransform: "none", color: "text.primary", mr: 1 }}
-							>
-								<Typography variant="h6" component="div">
-									SiMGen
-								</Typography>
-							</Button>
-						</>
-					)}
-					<Box sx={{ width: 24 }} />
 
 					<BtnTooltip text="Reset Scene">
 						<IconButton
@@ -216,19 +198,12 @@ const HeadBar = ({
 					<Box sx={{ flexGrow: 1 }} />
 
 					{/* --- RIGHT ALIGNED ITEMS --- */}
-					<SiMGenButtons visible={showSiMGen} token={token} />
-					{tutorialURL && (
-						<BtnTooltip text="Tutorial">
-							<Button
-								variant="outlined"
-								color="warning"
-								onClick={() => setTutorialModalShow(true)}
-								startIcon={<FaFilm />}
-							>
-								Tutorial
-							</Button>
-						</BtnTooltip>
-					)}
+					<SiMGenButtons 
+						visible={showSiMGen} 
+						token={token} 
+						tutorialURL={tutorialURL}
+						setTutorialModalShow={setTutorialModalShow}
+					/>
 					<BtnTooltip text="Access console">
 						<ToggleButton
 							value="1"

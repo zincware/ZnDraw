@@ -1,6 +1,6 @@
-import { Button } from "@mui/material";
+import { Box, Button } from "@mui/material";
 import { useEffect, useRef, useState } from "react";
-import { FaFileCirclePlus, FaRocket } from "react-icons/fa6";
+import { FaFileCirclePlus, FaFilm, FaRocket } from "react-icons/fa6";
 import { TbPlugConnected } from "react-icons/tb";
 import * as znsocket from "znsocket";
 import { client, socket } from "../../socket";
@@ -9,9 +9,13 @@ import { BtnTooltip } from "../tooltips";
 export function SiMGenButtons({
 	visible,
 	token,
+	tutorialURL,
+	setTutorialModalShow,
 }: {
 	visible: boolean;
 	token: string;
+	tutorialURL?: string;
+	setTutorialModalShow: (show: boolean) => void;
 }) {
 	const [disabledBtn, setDisabledBtn] = useState<boolean>(false);
 	const queueRef = useRef<any>(null);
@@ -63,13 +67,48 @@ export function SiMGenButtons({
 	return (
 		<>
 			{visible && (
-				<>
+				<Box
+					sx={{
+						display: "flex",
+						alignItems: "center",
+						gap: 0.5,
+						border: 1.5,
+						borderColor: "success.main",
+						borderRadius: 1,
+						px: 2,
+						py: 0.5,
+						mr: 1,
+						backgroundColor: "transparent",
+					}}
+				>
+					<Button
+						href="https://github.com/RokasEl/simgen"
+						target="_blank"
+						sx={{ 
+							textTransform: "none", 
+							color: "success.main", 
+							minWidth: "auto",
+							p: 0.25,
+							fontSize: "1rem",
+							fontWeight: 600
+						}}
+					>
+						SiMGen
+					</Button>
 					<BtnTooltip text="Connect selected atoms (shift click)">
 						<Button
 							variant="contained"
 							color="success"
 							onClick={runConnect}
 							disabled={disabledBtn}
+							size="small"
+							sx={{ 
+								mr: 0.5,
+								minWidth: 'auto',
+								px: 1,
+								gap: 0.5,
+								textTransform: 'none'
+							}}
 						>
 							<TbPlugConnected /> Connect
 						</Button>
@@ -80,6 +119,14 @@ export function SiMGenButtons({
 							color="success"
 							onClick={runGenerate}
 							disabled={disabledBtn}
+							size="small"
+							sx={{ 
+								mr: 0.5,
+								minWidth: 'auto',
+								px: 1,
+								gap: 0.5,
+								textTransform: 'none'
+							}}
 						>
 							<FaRocket /> Generate
 						</Button>
@@ -90,11 +137,37 @@ export function SiMGenButtons({
 							color="success"
 							onClick={createNewCanvas}
 							disabled={disabledBtn}
+							size="small"
+							sx={{ 
+								mr: 0.5,
+								minWidth: 'auto',
+								px: 1,
+								gap: 0.5,
+								textTransform: 'none'
+							}}
 						>
 							<FaFileCirclePlus /> New Canvas
 						</Button>
 					</BtnTooltip>
-				</>
+					{tutorialURL && (
+						<BtnTooltip text="Tutorial">
+							<Button
+								variant="outlined"
+								color="success"
+								onClick={() => setTutorialModalShow(true)}
+								startIcon={<FaFilm />}
+								size="small"
+								sx={{ 
+									minWidth: 'auto',
+									px: 1,
+									textTransform: 'none',
+								}}
+							>
+								Tutorial
+							</Button>
+						</BtnTooltip>
+					)}
+				</Box>
 			)}
 		</>
 	);
