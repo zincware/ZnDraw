@@ -11,7 +11,6 @@ import {
 } from "@mui/icons-material";
 import {
 	Alert,
-	AppBar,
 	Box,
 	Button,
 	ButtonGroup,
@@ -23,18 +22,25 @@ import {
 	InputLabel,
 	MenuItem,
 	Select,
-	Toolbar,
 	Tooltip,
-	Typography,
 } from "@mui/material";
 import isEqual from "lodash.isequal";
-import { useCallback, useMemo, useRef, useState } from "react";
-import { useEffect } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as znsocket from "znsocket";
 import { client, socket } from "../socket";
 import JSONFormsEditor from "./JSONFormsEditor";
 
-// Material-UI theme configuration will be handled by the app-level theme provider
+// Sidebar menu configuration
+const SIDEBAR_MENU_CONFIG = [
+	{ name: "selection", icon: PanTool, title: "Selection", sendImmediately: false },
+	{ name: "modifier", icon: AccountTree, title: "Interaction", sendImmediately: false },
+	{ name: "settings", icon: Settings, title: "Settings", sendImmediately: true },
+	{ name: "geometry", icon: Map, title: "Geometry", sendImmediately: false },
+	{ name: "analysis", icon: BarChart, title: "Analysis", sendImmediately: false },
+] as const;
+
+const SIDEBAR_WIDTH = 50;
+const SIDEBAR_TOP = 50;
 
 interface SidebarMenuProps {
 	visible: boolean;
@@ -170,43 +176,30 @@ const SidebarMenu = ({
 		}
 	}, [currentSchema, userInput]);
 
-	// Debounced submit function
+	// Submit handlers
+	const submitValue = useCallback((value: any) => {
+		if (value && userInput && queueRef.current) {
+			setDisabledBtn(true);
+			queueRef.current[userInput] = value;
+			socket.emit("room:worker:run");
+		}
+	}, [userInput]);
+
 	const debouncedSubmit = useCallback(
 		(value: any) => {
 			if (debounceTimerRef.current) {
 				clearTimeout(debounceTimerRef.current);
 			}
-			debounceTimerRef.current = setTimeout(() => {
-				if (value && userInput && queueRef.current) {
-					console.log("Submitting debounced value:", value, "for", userInput);
-					setDisabledBtn(true);
-					queueRef.current[userInput] = value;
-					socket.emit("room:worker:run");
-				}
-			}, 500); // 500ms debounce
+			debounceTimerRef.current = setTimeout(() => submitValue(value), 500);
 		},
-		[userInput],
+		[submitValue],
 	);
 
-	function submitEditor() {
-		if (editorValue && userInput && queueRef.current) {
-			setDisabledBtn(true);
-			queueRef.current[userInput] = editorValue;
-			socket.emit("room:worker:run");
-		}
-	}
+	const submitEditor = useCallback(() => submitValue(editorValue), [submitValue, editorValue]);
 
-	// Handle JSONForms data changes
-	const handleEditorChange = useCallback((data: any) => {
-		console.log("Editor value changed:", data);
-		setEditorValue(data);
-	}, []);
-
-	// Handle validation errors
-	const handleValidationChange = useCallback((errors: any[]) => {
-		console.log("Validation errors:", errors);
-		setValidationErrors(errors);
-	}, []);
+	// Event handlers
+	const handleEditorChange = useCallback((data: any) => setEditorValue(data), []);
+	const handleValidationChange = useCallback((errors: any[]) => setValidationErrors(errors), []);
 
 	useEffect(() => {
 		if (sendImmediately && editorValue && userInput && queueRef.current) {
@@ -227,66 +220,129 @@ const SidebarMenu = ({
 		};
 	}, []);
 
-	function cancelTask() {
-		if (queueRef.current) {
-			queueRef.current.clear().then(() => {
-				setDisabledBtn(false);
-			});
-		}
-	}
+	const cancelTask = useCallback(() => {
+		queueRef.current?.clear().then(() => setDisabledBtn(false));
+	}, []);
 
-	function capitalizeFirstLetter(text: string) {
-		if (!text) return ""; // Handle empty or undefined text
-		return text.charAt(0).toUpperCase() + text.slice(1);
-	}
+	const capitalizeFirstLetter = useCallback((text: string) => {
+		return text ? text.charAt(0).toUpperCase() + text.slice(1) : "";
+	}, []);
 
 	return (
 		<Card
 			sx={{
 				position: "fixed",
-				top: "50px",
-				left: "50px",
+				top: SIDEBAR_TOP,
+				left: SIDEBAR_WIDTH,
 				height: "100%",
 				maxWidth: "35%",
+				minWidth: "320px",
 				margin: 0,
 				padding: 0,
 				display: visible ? "block" : "none",
 				overflowY: "auto",
+				boxShadow: 3,
+				borderRadius: 0,
+				borderLeft: "1px solid",
+				borderColor: "divider",
 			}}
 		>
 			<CardHeader
 				action={
-					<IconButton onClick={closeMenu} aria-label="Close">
+					<IconButton 
+						onClick={closeMenu} 
+						aria-label="Close"
+						size="small"
+						sx={{
+							color: "text.secondary",
+							"&:hover": {
+								color: "text.primary",
+								backgroundColor: "action.hover"
+							}
+						}}
+					>
 						<Close />
 					</IconButton>
 				}
 				title={capitalizeFirstLetter(name)}
+				sx={{
+					backgroundColor: "background.paper",
+					borderBottom: "1px solid",
+					borderColor: "divider",
+					py: 2,
+					"& .MuiCardHeader-title": {
+						fontSize: "1.1rem",
+						fontWeight: 600,
+						color: "text.primary"
+					}
+				}}
 			/>
-			<CardContent sx={{ paddingBottom: 10 }}>
-				<Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
-					<FormControl fullWidth sx={{ mr: 2 }}>
-						<InputLabel>Select Option</InputLabel>
+			<CardContent sx={{ p: 3, paddingBottom: 10 }}>
+				{/* Header Section with Select and Actions */}
+				<Box sx={{ 
+					display: "flex", 
+					flexDirection: "column", 
+					gap: 2, 
+					mb: 3,
+					p: 2,
+					backgroundColor: "background.default",
+					borderRadius: 2,
+					border: "1px solid",
+					borderColor: "divider"
+				}}>
+					<FormControl fullWidth>
+						<InputLabel 
+							shrink 
+							sx={{ 
+								fontSize: "0.875rem", 
+								fontWeight: 600,
+								color: "text.primary" 
+							}}
+						>
+							Select Option
+						</InputLabel>
 						<Select
 							value={userInput || ""}
 							onChange={(e) => setUserInput(e.target.value)}
 							label="Select Option"
+							size="small"
+							sx={{
+								mt: 1,
+								"& .MuiSelect-select": {
+									py: 1.5,
+									fontSize: "0.875rem"
+								}
+							}}
 						>
-							<MenuItem value="">Select...</MenuItem>
+							<MenuItem value="" disabled sx={{ fontStyle: "italic", color: "text.secondary" }}>
+								Choose an option...
+							</MenuItem>
 							{Object.keys(fullSchema).map((key) => (
-								<MenuItem key={key} value={key}>
+								<MenuItem key={key} value={key} sx={{ textTransform: "capitalize" }}>
 									{key}
 								</MenuItem>
 							))}
 						</Select>
 					</FormControl>
+					
 					{!sendImmediately && (
-						<ButtonGroup>
+						<Box sx={{ display: "flex", gap: 1, mt: 1 }}>
 							<Button
 								variant="contained"
 								color="primary"
 								onClick={submitEditor}
 								startIcon={<PlayArrow />}
 								disabled={disabledBtn || validationErrors.length > 0}
+								size="small"
+								sx={{
+									flex: 1,
+									fontWeight: 600,
+									textTransform: "none",
+									boxShadow: 2,
+									"&:hover": {
+										boxShadow: 3
+									}
+								}}
 							>
 								Submit
 							</Button>
@@ -295,176 +351,196 @@ const SidebarMenu = ({
 								color="error"
 								onClick={cancelTask}
 								startIcon={<Stop />}
+								size="small"
+								sx={{
+									flex: 1,
+									fontWeight: 600,
+									textTransform: "none",
+									borderWidth: 2,
+									"&:hover": {
+										borderWidth: 2
+									}
+								}}
 							>
 								Cancel
 							</Button>
-						</ButtonGroup>
+						</Box>
 					)}
 				</Box>
 				{validationErrors.length > 0 && (
-					<Alert severity="error" sx={{ mb: 2 }}>
-						<strong>Validation Errors:</strong>
-						<ul>
-							{validationErrors.map((error, index) => (
-								<li key={index}>{error.message}</li>
-							))}
-						</ul>
+					<Alert 
+						severity="error" 
+						sx={{ 
+							mb: 3, 
+							borderRadius: 2,
+							"& .MuiAlert-message": {
+								width: "100%"
+							}
+						}}
+					>
+						<Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+							<Box sx={{ fontWeight: 600, fontSize: "0.875rem" }}>
+								Validation Errors:
+							</Box>
+							<Box component="ul" sx={{ 
+								m: 0, 
+								pl: 2, 
+								"& li": { 
+									mb: 0.5,
+									fontSize: "0.8rem"
+								} 
+							}}>
+								{validationErrors.map((error, index) => (
+									<li key={index}>{error.message}</li>
+								))}
+							</Box>
+						</Box>
 					</Alert>
 				)}
 				{currentSchema && (
-					<JSONFormsEditor
-						schema={currentSchema}
-						data={editorValue}
-						onChange={handleEditorChange}
-						onValidationChange={handleValidationChange}
-					/>
+					<Box sx={{ 
+						border: "1px solid",
+						borderColor: "divider",
+						borderRadius: 2,
+						backgroundColor: "background.paper",
+						p: 2
+					}}>
+						<JSONFormsEditor
+							schema={currentSchema}
+							data={editorValue}
+							onChange={handleEditorChange}
+							onValidationChange={handleValidationChange}
+						/>
+					</Box>
 				)}
 			</CardContent>
 		</Card>
 	);
 };
 
+// Reusable sidebar button component
+const SidebarButton = ({ 
+	icon: Icon, 
+	title, 
+	isActive, 
+	onClick 
+}: { 
+	icon: any; 
+	title: string; 
+	isActive: boolean; 
+	onClick: () => void; 
+}) => (
+	<Tooltip title={title} placement="right">
+		<IconButton
+			color={isActive ? "primary" : "default"}
+			onClick={onClick}
+			sx={{ 
+				margin: 0.5,
+				width: 40,
+				height: 40,
+				borderRadius: 1,
+				backgroundColor: isActive ? "action.selected" : "transparent",
+				"&:hover": {
+					backgroundColor: isActive ? "action.selected" : "action.hover"
+				},
+				transition: "all 0.2s ease-in-out"
+			}}
+		>
+			<Icon />
+		</IconButton>
+	</Tooltip>
+);
+
 function SideBar({ token }: { token: string }) {
 	const [visibleOption, setVisibleOption] = useState<string>("");
+	
+	const toggleOption = useCallback((option: string) => {
+		setVisibleOption(prev => prev === option ? "" : option);
+	}, []);
+
+	const closeMenu = useCallback(() => setVisibleOption(""), []);
+
+	// Emit schema refresh when option changes
 	useEffect(() => {
-		if (visibleOption !== "") {
-			// emit visibleOption:schema e.g. selection:schema
+		if (visibleOption) {
 			socket.emit(`${visibleOption}:schema`);
 		}
 	}, [visibleOption]);
 
-	// if any menu is open and you click escape, close it
+	// Handle escape key to close menu
 	useEffect(() => {
-		function handleKeyDown(event: KeyboardEvent) {
+		const handleKeyDown = (event: KeyboardEvent) => {
 			if (event.key === "Escape") {
-				setVisibleOption("");
+				closeMenu();
 			}
-		}
+		};
 
 		document.addEventListener("keydown", handleKeyDown);
-
-		return () => {
-			document.removeEventListener("keydown", handleKeyDown);
-		};
-	}, []);
+		return () => document.removeEventListener("keydown", handleKeyDown);
+	}, [closeMenu]);
 
 	return (
 		<>
 			<Box
 				sx={{
 					position: "fixed",
-					top: "50px",
-					left: "0",
+					top: SIDEBAR_TOP,
+					left: 0,
 					height: "100%",
-					width: "50px",
+					width: SIDEBAR_WIDTH,
 					display: "flex",
 					flexDirection: "column",
 					backgroundColor: "background.paper",
 					borderRight: 1,
 					borderColor: "divider",
+					boxShadow: 1,
+					alignItems: "center",
+					py: 1,
+					gap: 0.5
 				}}
 			>
-				<Tooltip title="Selection" placement="right">
-					<IconButton
-						color={visibleOption === "selection" ? "primary" : "default"}
-						onClick={() =>
-							setVisibleOption(visibleOption !== "selection" ? "selection" : "")
-						}
-						sx={{ margin: 1 }}
-					>
-						<PanTool />
-					</IconButton>
-				</Tooltip>
-				<Tooltip title="Interaction" placement="right">
-					<IconButton
-						color={visibleOption === "modifier" ? "primary" : "default"}
-						onClick={() =>
-							setVisibleOption(visibleOption !== "modifier" ? "modifier" : "")
-						}
-						sx={{ margin: 1 }}
-					>
-						<AccountTree />
-					</IconButton>
-				</Tooltip>
-				<Tooltip title="Settings" placement="right">
-					<IconButton
-						color={visibleOption === "settings" ? "primary" : "default"}
-						onClick={() =>
-							setVisibleOption(visibleOption !== "settings" ? "settings" : "")
-						}
-						sx={{ margin: 1 }}
-					>
-						<Settings />
-					</IconButton>
-				</Tooltip>
-				<Tooltip title="Geometry" placement="right">
-					<IconButton
-						color={visibleOption === "geometry" ? "primary" : "default"}
-						onClick={() =>
-							setVisibleOption(visibleOption !== "geometry" ? "geometry" : "")
-						}
-						sx={{ margin: 1 }}
-					>
-						<Map />
-					</IconButton>
-				</Tooltip>
-				<Tooltip title="Analysis" placement="right">
-					<IconButton
-						color={visibleOption === "analysis" ? "primary" : "default"}
-						onClick={() =>
-							setVisibleOption(visibleOption !== "analysis" ? "analysis" : "")
-						}
-						sx={{ margin: 1 }}
-					>
-						<BarChart />
-					</IconButton>
-				</Tooltip>
+				{SIDEBAR_MENU_CONFIG.map(({ name, icon, title }) => (
+					<SidebarButton
+						key={name}
+						icon={icon}
+						title={title}
+						isActive={visibleOption === name}
+						onClick={() => toggleOption(name)}
+					/>
+				))}
 				<Tooltip title="View on GitHub" placement="right">
 					<IconButton
 						component="a"
 						href="https://github.com/zincware/ZnDraw"
 						target="_blank"
-						sx={{ margin: 1 }}
+						sx={{ 
+							margin: 0.5,
+							width: 40,
+							height: 40,
+							borderRadius: 1,
+							color: "text.secondary",
+							"&:hover": {
+								backgroundColor: "action.hover",
+								color: "text.primary"
+							},
+							transition: "all 0.2s ease-in-out"
+						}}
 					>
 						<GitHub />
 					</IconButton>
 				</Tooltip>
 			</Box>
-			<SidebarMenu
-				name="selection"
-				visible={visibleOption === "selection"} // remove
-				token={token}
-				closeMenu={() => setVisibleOption("")}
-				sendImmediately={false}
-			/>
-			<SidebarMenu
-				name="modifier"
-				visible={visibleOption === "modifier"}
-				token={token}
-				closeMenu={() => setVisibleOption("")}
-				sendImmediately={false}
-			/>
-			<SidebarMenu
-				name="settings"
-				visible={visibleOption === "settings"}
-				token={token}
-				closeMenu={() => setVisibleOption("")}
-				sendImmediately={true}
-			/>
-			<SidebarMenu
-				name="geometry"
-				visible={visibleOption === "geometry"}
-				token={token}
-				closeMenu={() => setVisibleOption("")}
-				sendImmediately={false}
-			/>
-			<SidebarMenu
-				name="analysis"
-				visible={visibleOption === "analysis"}
-				token={token}
-				closeMenu={() => setVisibleOption("")}
-				sendImmediately={false}
-			/>
+			
+			{SIDEBAR_MENU_CONFIG.map(({ name, sendImmediately }) => (
+				<SidebarMenu
+					key={name}
+					name={name}
+					visible={visibleOption === name}
+					token={token}
+					closeMenu={closeMenu}
+					sendImmediately={sendImmediately}
+				/>
+			))}
 		</>
 	);
 }
