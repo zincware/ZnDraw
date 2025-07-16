@@ -13,9 +13,9 @@ function getServerUrl() {
 	return `${protocol}//${host}${basePath}`;
 }
 
-export function RefreshModal({ show, onHide, room }) {
+export function RefreshModal({ show, onHide, room, token }) {
 	const serverUrl = getServerUrl();
-	const urlWithRoom = `${serverUrl}token/${room}`;
+	const urlWithRoom = token ? `${serverUrl}token/${room}/${token}` : `${serverUrl}token/${room}`;
 	const resetURL = `${serverUrl}reset`;
 
 	return (

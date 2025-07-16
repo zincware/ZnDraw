@@ -37,7 +37,27 @@ import { RemoteFileModal } from "./headbar/RemoteFileModal";
 import { SiMGenButtons } from "./headbar/SiMGenButtons";
 import { TutorialModal } from "./headbar/TutorialModal";
 
-// ... (interface HeadBarProps remains the same)
+
+interface HeadBarProps {
+	room: string;
+	colorMode: string;
+	handleColorMode: any;
+	setIsDrawing: any;
+	setGeometries: any;
+	setPoints: any;
+	isDrawing: boolean;
+	tutorialURL: string;
+	showSiMGen: boolean;
+	modifierQueue: number;
+	isAuthenticated: boolean;
+	roomLock: boolean;
+	setAddPlotsWindow: any;
+	messages: any[];
+	setMessages: any;
+	token: string;
+	step: number;
+	selection: Set<number>;
+}
 
 const HeadBar = ({
 	room,
@@ -193,7 +213,7 @@ const HeadBar = ({
 						</IconButton>
 					</BtnTooltip>
 
-					{/* ✅ FIX: This spacer pushes all subsequent items to the right */}
+					{/* This spacer pushes all subsequent items to the right */}
 					<Box sx={{ flexGrow: 1 }} />
 
 					{/* --- RIGHT ALIGNED ITEMS --- */}
@@ -345,6 +365,7 @@ const HeadBar = ({
 				show={refreshModalShow}
 				onHide={() => setRefreshModalShow(false)}
 				room={room}
+				token={token}
 			/>
 			<TutorialModal
 				show={tutorialModalShow}
