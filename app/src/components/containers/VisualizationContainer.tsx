@@ -105,7 +105,7 @@ export const VisualizationContainer: React.FC<VisualizationContainerProps> = ({
 			<Canvas
 				onPointerMissed={onPointerMissed}
 				shadows
-				style={{ background: "transparent" }}
+				style={{ background: colorMode === "light" ? "white" : "#424242" }}
 			>
 				<CameraAndControls
 					cameraConfig={roomConfig.Camera}
