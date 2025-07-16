@@ -143,7 +143,6 @@ export const UIContainer: React.FC = () => {
 					paddingTop: "56px", // Space for fixed AppBar
 				}}
 			>
-				{/* Sidebar positioned at the left */}
 				<Box
 					sx={{
 						position: "fixed",
