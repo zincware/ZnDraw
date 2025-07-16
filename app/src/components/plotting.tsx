@@ -234,6 +234,7 @@ const PlotCard = ({
 
 	// ✅ FIX: Added the onResize handler to update the plot layout state
 	const onResize = useCallback<RndResizeCallback>((e, direction, ref) => {
+		bringToFront(identifier);
 		setPlotLayout((prevLayout) => {
 			if (!prevLayout) return prevLayout;
 			return {
@@ -243,7 +244,11 @@ const PlotCard = ({
 				height: ref.offsetHeight - 50, // Subtract header height
 			};
 		});
-	}, []);
+	}, [bringToFront, identifier]);
+
+	const onDragStop = useCallback(() => {
+		bringToFront(identifier);
+	}, [bringToFront, identifier]);
 
 	const onPlotClick = useCallback(
 		({ points }: { points: any[] }) => {
@@ -329,17 +334,29 @@ const PlotCard = ({
 		],
 	);
 
+	// Calculate center position for the window
+	const defaultWidth = 450;
+	const defaultHeight = 350;
+	const centerX = (window.innerWidth - defaultWidth) / 2;
+	const centerY = (window.innerHeight - defaultHeight) / 2;
+
 	return (
 		<Rnd
 			minHeight={200}
 			minWidth={220}
-			default={{ x: 20, y: 20, width: 450, height: 350 }}
+			default={{ 
+				x: Math.max(20, centerX), 
+				y: Math.max(20, centerY), 
+				width: defaultWidth, 
+				height: defaultHeight 
+			}}
 			style={{ zIndex }}
 			disableDragging={isLocked}
 			bounds="window"
 			dragHandleClassName="drag-handle"
 			// ✅ FIX: Pass the onResize handler to the Rnd component
 			onResize={onResize}
+			onDragStop={onDragStop}
 		>
 			<Card
 				sx={{
