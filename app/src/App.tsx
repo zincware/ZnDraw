@@ -1,8 +1,8 @@
 import { Box } from "@mui/material";
+import { useColorScheme } from "@mui/material/styles";
 import type React from "react";
 import { UIContainer } from "./components/containers/UIContainer";
 import { VisualizationContainer } from "./components/containers/VisualizationContainer";
-import { useColorMode } from "./components/utils";
 import { AppProvider } from "./contexts/AppContext";
 import { useFileHandler } from "./hooks/useFileHandler";
 import { useKeyboardHandler } from "./hooks/useKeyboardHandler";
@@ -28,7 +28,15 @@ const AppContent: React.FC = () => {
 				onDrop={onDrop}
 			/>
 			<Box
-				s={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", pointerEvents: "none" }}
+				sx={{
+					position: "absolute",
+					top: 0,
+					left: 0,
+					width: "100%",
+					height: "100%",
+					pointerEvents: "none",
+					"& > *": { pointerEvents: "auto" },
+				}}
 			>
 				<UIContainer />
 			</Box>
@@ -37,10 +45,15 @@ const AppContent: React.FC = () => {
 };
 
 export default function App() {
-	const [colorMode, handleColorMode] = useColorMode();
+	const { mode, setMode } = useColorScheme();
+
+	const handleColorMode = () => {
+		const newMode = mode === "light" ? "dark" : "light";
+		setMode(newMode);
+	};
 
 	return (
-		<AppProvider colorMode={colorMode} handleColorMode={handleColorMode}>
+		<AppProvider colorMode={mode || "light"} handleColorMode={handleColorMode}>
 			<AppContent />
 		</AppProvider>
 	);

@@ -102,7 +102,11 @@ export const VisualizationContainer: React.FC<VisualizationContainerProps> = ({
 			onDrop={onDrop}
 			tabIndex={0}
 		>
-			<Canvas onPointerMissed={onPointerMissed} shadows style={{ background: "transparent" }}>
+			<Canvas
+				onPointerMissed={onPointerMissed}
+				shadows
+				style={{ background: "transparent" }}
+			>
 				<CameraAndControls
 					cameraConfig={roomConfig.Camera}
 					cameraAndControls={cameraAndControls}

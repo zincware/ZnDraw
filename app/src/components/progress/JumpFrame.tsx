@@ -7,7 +7,11 @@ interface JumpFrameProps {
 	length: number;
 }
 
-export const JumpFrame: React.FC<JumpFrameProps> = ({ step, setStep, length }) => {
+export const JumpFrame: React.FC<JumpFrameProps> = ({
+	step,
+	setStep,
+	length,
+}) => {
 	const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
 		if (e.target.value === "") {
 			return;

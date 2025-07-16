@@ -125,26 +125,28 @@ export const UIContainer: React.FC = () => {
 					<Sidebar token={token} />
 					<Box sx={{ flexGrow: 1 }} />
 				</Box>
-				<Box sx={{
-                position: 'fixed', // Pins the component to the viewport
-                bottom: 0,          // Aligns to the bottom
-                left: 0,            // Aligns to the left
-                right: 0,           // Extends to the right, ensuring full width
-                zIndex: 1000,       // Ensure it's on top of other content
-            }}>	
-				<FrameProgressBar
-					step={step}
-					setStep={setStep}
-					length={length}
-					selectedFrames={selectedFrames}
-					setSelectedFrames={setSelectedFrames}
-					bookmarks={bookmarks}
-					setBookmarks={setBookmarks}
-					connected={connected}
-					frameRate={frameRate}
-					setFrameRate={setFrameRate}
-					isFrameRendering={isFrameRendering}
-				/>
+				<Box
+					sx={{
+						position: "fixed", // Pins the component to the viewport
+						bottom: 0, // Aligns to the bottom
+						left: 0, // Aligns to the left
+						right: 0, // Extends to the right, ensuring full width
+						zIndex: 1000, // Ensure it's on top of other content
+					}}
+				>
+					<FrameProgressBar
+						step={step}
+						setStep={setStep}
+						length={length}
+						selectedFrames={selectedFrames}
+						setSelectedFrames={setSelectedFrames}
+						bookmarks={bookmarks}
+						setBookmarks={setBookmarks}
+						connected={connected}
+						frameRate={frameRate}
+						setFrameRate={setFrameRate}
+						isFrameRendering={isFrameRendering}
+					/>
 				</Box>
 			</Box>
 

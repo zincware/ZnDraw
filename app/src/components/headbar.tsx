@@ -1,4 +1,12 @@
-import { AppBar, Box, Button, IconButton, ToggleButton, Toolbar, Typography } from "@mui/material";
+import {
+	AppBar,
+	Box,
+	Button,
+	IconButton,
+	ToggleButton,
+	Toolbar,
+	Typography,
+} from "@mui/material";
 import { useEffect, useMemo, useState } from "react";
 import { version } from "../../package.json";
 import "katex/dist/katex.min.css";
@@ -31,26 +39,25 @@ import { SiMGenButtons } from "./headbar/SiMGenButtons";
 import { TutorialModal } from "./headbar/TutorialModal";
 
 interface HeadBarProps {
-    room: string;
-    colorMode: string;
-    handleColorMode: any;
-    setIsDrawing: any;
-    setGeometries: any;
-    setPoints: any;
-    isDrawing: boolean;
-    tutorialURL: string;
-    showSiMGen: boolean;
-    modifierQueue: number;
-    isAuthenticated: boolean;
-    roomLock: boolean;
-    setAddPlotsWindow: any;
-    messages: any[];
-    setMessages: any;
-    token: string;
-    step: number;
-    selection: Set<number>;
+	room: string;
+	colorMode: string;
+	handleColorMode: any;
+	setIsDrawing: any;
+	setGeometries: any;
+	setPoints: any;
+	isDrawing: boolean;
+	tutorialURL: string;
+	showSiMGen: boolean;
+	modifierQueue: number;
+	isAuthenticated: boolean;
+	roomLock: boolean;
+	setAddPlotsWindow: any;
+	messages: any[];
+	setMessages: any;
+	token: string;
+	step: number;
+	selection: Set<number>;
 }
-
 
 const HeadBar = ({
 	room,
@@ -97,13 +104,20 @@ const HeadBar = ({
 		setPoints([]);
 	};
 	const basePath = useMemo(() => import.meta.env.BASE_URL || "/", []);
-	
+
 	const iconSize = "1.4rem";
 
 	return (
 		<>
 			<AppBar position="fixed" sx={{ height: 50, bgcolor: "background.paper" }}>
-				<Toolbar sx={{ height: 50, minHeight: 50, justifyContent: "space-between", alignItems: "center" }}>
+				<Toolbar
+					sx={{
+						height: 50,
+						minHeight: 50,
+						justifyContent: "space-between",
+						alignItems: "center",
+					}}
+				>
 					{/* --- LEFT ALIGNED ITEMS --- */}
 					<Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
 						<Button
@@ -117,7 +131,9 @@ const HeadBar = ({
 						</Button>
 						{showSiMGen && (
 							<>
-								<Typography variant="h6" sx={{ color: "text.secondary" }}>+</Typography>
+								<Typography variant="h6" sx={{ color: "text.secondary" }}>
+									+
+								</Typography>
 								<Button
 									href="https://github.com/RokasEl/simgen"
 									target="_blank"
@@ -132,7 +148,10 @@ const HeadBar = ({
 						<Box sx={{ width: 24 }} />
 
 						<BtnTooltip text="Reset Scene">
-							<IconButton color="error" onClick={() => setRefreshModalShow(true)}>
+							<IconButton
+								color="error"
+								onClick={() => setRefreshModalShow(true)}
+							>
 								<FaArrowRotateRight style={{ fontSize: iconSize }} />
 							</IconButton>
 						</BtnTooltip>
@@ -142,19 +161,23 @@ const HeadBar = ({
 								selected={isDrawing}
 								onChange={() => setIsDrawing((prev: boolean) => !prev)}
 								size="small"
-								sx={{ border: 0,
-                                    "&.MuiToggleButton-root": {
-                                        "&:hover": {
-                                            backgroundColor: (theme) => theme.palette.action.hover,
-                                        },
-                                    },
-                                 }}
+								sx={{
+									border: 0,
+									"&.MuiToggleButton-root": {
+										"&:hover": {
+											backgroundColor: (theme) => theme.palette.action.hover,
+										},
+									},
+								}}
 							>
 								<FaPencil style={{ fontSize: iconSize }} />
 							</ToggleButton>
 						</BtnTooltip>
 						<BtnTooltip text="Remove all guiding points and geometries">
-							<IconButton color="primary" onClick={handleRemovePointsGeometries}>
+							<IconButton
+								color="primary"
+								onClick={handleRemovePointsGeometries}
+							>
 								<FaHandSparkles style={{ fontSize: iconSize }} />
 							</IconButton>
 						</BtnTooltip>
@@ -182,19 +205,23 @@ const HeadBar = ({
 								selected={consoleShow}
 								onChange={() => setConsoleShow((prev: boolean) => !prev)}
 								size="small"
-								sx={{ border: 0,
-                                    "&.MuiToggleButton-root": {
-                                        "&:hover": {
-                                            backgroundColor: (theme) => theme.palette.action.hover,
-                                        },
-                                    },
-                                 }}
+								sx={{
+									border: 0,
+									"&.MuiToggleButton-root": {
+										"&:hover": {
+											backgroundColor: (theme) => theme.palette.action.hover,
+										},
+									},
+								}}
 							>
 								<FaTerminal style={{ fontSize: iconSize }} />
 							</ToggleButton>
 						</BtnTooltip>
 						<BtnTooltip text="Python access">
-							<IconButton color="primary" onClick={() => setConnectModalShow(true)}>
+							<IconButton
+								color="primary"
+								onClick={() => setConnectModalShow(true)}
+							>
 								<FaCode style={{ fontSize: iconSize }} />
 							</IconButton>
 						</BtnTooltip>
@@ -206,16 +233,20 @@ const HeadBar = ({
 								<MdAddChart style={{ fontSize: iconSize }} />
 							</IconButton>
 						</BtnTooltip>
-                        
-					<FileUpload
-						renderButton={(handleClick) => (
-							<BtnTooltip text="Upload File">
-								<IconButton color="primary" onClick={handleClick} component="span">
-									<FaUpload style={{ fontSize: iconSize }} />
-								</IconButton>
-							</BtnTooltip>
-						)}
-					/>
+
+						<FileUpload
+							renderButton={(handleClick) => (
+								<BtnTooltip text="Upload File">
+									<IconButton
+										color="primary"
+										onClick={handleClick}
+										component="span"
+									>
+										<FaUpload style={{ fontSize: iconSize }} />
+									</IconButton>
+								</BtnTooltip>
+							)}
+						/>
 
 						<BtnTooltip text="Download">
 							<IconButton
@@ -228,13 +259,19 @@ const HeadBar = ({
 						</BtnTooltip>
 						{zntrackAvailable && (
 							<BtnTooltip text="Open File via DVC">
-								<IconButton color="primary" onClick={() => setRemoteFileModalShow(true)}>
+								<IconButton
+									color="primary"
+									onClick={() => setRemoteFileModalShow(true)}
+								>
 									<FaCloudDownloadAlt style={{ fontSize: iconSize }} />
 								</IconButton>
 							</BtnTooltip>
 						)}
 						<BtnTooltip text="Help">
-							<IconButton color="primary" onClick={() => setHelpModalShow(true)}>
+							<IconButton
+								color="primary"
+								onClick={() => setHelpModalShow(true)}
+							>
 								<GrHelpBook style={{ fontSize: iconSize }} />
 							</IconButton>
 						</BtnTooltip>
@@ -279,39 +316,39 @@ const HeadBar = ({
 					</Box>
 				</Toolbar>
 			</AppBar>
-            
+
 			<HelpModel show={helpModalShow} onHide={() => setHelpModalShow(false)} />
-            <ConnectModal
-                show={connectModalShow}
-                onHide={() => setConnectModalShow(false)}
-                token={token}
-            />
-            <RefreshModal
-                show={refreshModalShow}
-                onHide={() => setRefreshModalShow(false)}
-                room={room}
-            />
-            <TutorialModal
-                show={tutorialModalShow}
-                onHide={() => setTutorialModalShow(false)}
-                url={tutorialURL}
-            />
-            <RemoteFileModal
-                show={remoteFileModalShow}
-                onHide={() => setRemoteFileModalShow(false)}
-                colorMode={colorMode}
-            />
-            {consoleShow && (
-                <ConsoleWindow
-                    messages={messages}
-                    setConsoleShow={setConsoleShow}
-                    token={token}
-                    setMessages={setMessages}
-                    colorMode={colorMode}
-                    step={step}
-                    selection={selection}
-                />
-            )}
+			<ConnectModal
+				show={connectModalShow}
+				onHide={() => setConnectModalShow(false)}
+				token={token}
+			/>
+			<RefreshModal
+				show={refreshModalShow}
+				onHide={() => setRefreshModalShow(false)}
+				room={room}
+			/>
+			<TutorialModal
+				show={tutorialModalShow}
+				onHide={() => setTutorialModalShow(false)}
+				url={tutorialURL}
+			/>
+			<RemoteFileModal
+				show={remoteFileModalShow}
+				onHide={() => setRemoteFileModalShow(false)}
+				colorMode={colorMode}
+			/>
+			{consoleShow && (
+				<ConsoleWindow
+					messages={messages}
+					setConsoleShow={setConsoleShow}
+					token={token}
+					setMessages={setMessages}
+					colorMode={colorMode}
+					step={step}
+					selection={selection}
+				/>
+			)}
 		</>
 	);
 };
