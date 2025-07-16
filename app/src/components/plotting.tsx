@@ -173,252 +173,252 @@ export const Plotting = (props: PlottingProps) => {
 // --------------------------------------------------------------------------
 
 interface PlotCardProps {
-    identifier: number;
-    initialPlotName: string | null;
-    isFocused: boolean;
-    zIndex: number;
-    onRemove: (id: number) => void;
-    onDuplicate: (plotName: string | null) => void;
-    onUpdatePlot: (id: number, plotName: string) => void;
-    bringToFront: (id: number) => void;
+	identifier: number;
+	initialPlotName: string | null;
+	isFocused: boolean;
+	zIndex: number;
+	onRemove: (id: number) => void;
+	onDuplicate: (plotName: string | null) => void;
+	onUpdatePlot: (id: number, plotName: string) => void;
+	bringToFront: (id: number) => void;
 }
 
 const PlotCard = ({
-    identifier,
-    initialPlotName,
-    isFocused,
-    zIndex,
-    onRemove,
-    onDuplicate,
-    onUpdatePlot,
-    bringToFront,
+	identifier,
+	initialPlotName,
+	isFocused,
+	zIndex,
+	onRemove,
+	onDuplicate,
+	onUpdatePlot,
+	bringToFront,
 }: PlotCardProps) => {
-    const { token, step, setStep, setSelectedFrames, setSelectedIds } =
-        usePlottingContext();
-    const [availablePlots, setAvailablePlots] = useState<string[]>([]);
-    const [selectedOption, setSelectedOption] = useState(initialPlotName || "");
-    const [plotData, setPlotData] = useState<any[] | string | undefined>();
-    const [plotType, setPlotType] = useState("");
-    const [plotLayout, setPlotLayout] = useState<any>();
-    const [isLocked, setIsLocked] = useState(false);
+	const { token, step, setStep, setSelectedFrames, setSelectedIds } =
+		usePlottingContext();
+	const [availablePlots, setAvailablePlots] = useState<string[]>([]);
+	const [selectedOption, setSelectedOption] = useState(initialPlotName || "");
+	const [plotData, setPlotData] = useState<any[] | string | undefined>();
+	const [plotType, setPlotType] = useState("");
+	const [plotLayout, setPlotLayout] = useState<any>();
+	const [isLocked, setIsLocked] = useState(false);
 
-    useEffect(() => {
-        const con = new znsocket.Dict({ client, key: `room:${token}:figures` });
-        const handleRefresh = async () => setAvailablePlots(await con.keys());
-        con.onRefresh(handleRefresh);
-        handleRefresh();
-        return () => con.offRefresh(handleRefresh);
-    }, [token]);
+	useEffect(() => {
+		const con = new znsocket.Dict({ client, key: `room:${token}:figures` });
+		const handleRefresh = async () => setAvailablePlots(await con.keys());
+		con.onRefresh(handleRefresh);
+		handleRefresh();
+		return () => con.offRefresh(handleRefresh);
+	}, [token]);
 
-    useEffect(() => {
-        if (!selectedOption) {
-            setPlotData(undefined);
-            setPlotType("");
-            return;
-        }
-        const con = new znsocket.Dict({ client, key: `room:${token}:figures` });
-        con.get(selectedOption).then((data: any) => {
-            if (!data) return;
-            if (data._type === "plotly.graph_objs.Figure") {
-                const parsed = JSON.parse(data.value);
-                const processedData = processPlotData(parsed.data, step);
-                setPlotType("plotly");
-                setPlotData(processedData);
-                setPlotLayout(parsed.layout);
-            } else if (data._type === "zndraw.Figure") {
-                setPlotType("zndraw.Figure");
-                setPlotData(data.value.base64);
-            }
-        });
-    }, [selectedOption, token, step]); // Re-process data when step changes
+	useEffect(() => {
+		if (!selectedOption) {
+			setPlotData(undefined);
+			setPlotType("");
+			return;
+		}
+		const con = new znsocket.Dict({ client, key: `room:${token}:figures` });
+		con.get(selectedOption).then((data: any) => {
+			if (!data) return;
+			if (data._type === "plotly.graph_objs.Figure") {
+				const parsed = JSON.parse(data.value);
+				const processedData = processPlotData(parsed.data, step);
+				setPlotType("plotly");
+				setPlotData(processedData);
+				setPlotLayout(parsed.layout);
+			} else if (data._type === "zndraw.Figure") {
+				setPlotType("zndraw.Figure");
+				setPlotData(data.value.base64);
+			}
+		});
+	}, [selectedOption, token, step]); // Re-process data when step changes
 
-    // ✅ FIX: Added the onResize handler to update the plot layout state
-    const onResize = useCallback<RndResizeCallback>((e, direction, ref) => {
-        setPlotLayout((prevLayout) => {
-            if (!prevLayout) return prevLayout;
-            return {
-                ...prevLayout,
-                // The plot's layout dimensions are explicitly set from the Rnd container's size
-                width: ref.offsetWidth,
-                height: ref.offsetHeight - 50, // Subtract header height
-            };
-        });
-    }, []);
+	// ✅ FIX: Added the onResize handler to update the plot layout state
+	const onResize = useCallback<RndResizeCallback>((e, direction, ref) => {
+		setPlotLayout((prevLayout) => {
+			if (!prevLayout) return prevLayout;
+			return {
+				...prevLayout,
+				// The plot's layout dimensions are explicitly set from the Rnd container's size
+				width: ref.offsetWidth,
+				height: ref.offsetHeight - 50, // Subtract header height
+			};
+		});
+	}, []);
 
-    const onPlotClick = useCallback(
-        ({ points }: { points: any[] }) => {
-            if (!isFocused) return;
-            if (points[0]?.customdata?.[0] !== undefined)
-                setStep(points[0].customdata[0]);
-            if (points[0]?.customdata?.[1] !== undefined)
-                setSelectedIds(new Set([points[0].customdata[1]]));
-        },
-        [isFocused, setStep, setSelectedIds],
-    );
+	const onPlotClick = useCallback(
+		({ points }: { points: any[] }) => {
+			if (!isFocused) return;
+			if (points[0]?.customdata?.[0] !== undefined)
+				setStep(points[0].customdata[0]);
+			if (points[0]?.customdata?.[1] !== undefined)
+				setSelectedIds(new Set([points[0].customdata[1]]));
+		},
+		[isFocused, setStep, setSelectedIds],
+	);
 
-    const onPlotSelected = useCallback(
-        (event: any) => {
-            if (!isFocused || !event?.points?.length) return;
-            const frames = new Set<number>(
-                event.points.map((p: any) => p.customdata?.[0] ?? p.pointIndex),
-            );
-            const ids = new Set<number>(
-                event.points.map((p: any) => p.customdata?.[1]).filter(Boolean),
-            );
-            if (ids.size > 0) setSelectedIds(ids);
-            setSelectedFrames({ active: true, indices: frames });
-        },
-        [isFocused, setSelectedFrames, setSelectedIds],
-    );
+	const onPlotSelected = useCallback(
+		(event: any) => {
+			if (!isFocused || !event?.points?.length) return;
+			const frames = new Set<number>(
+				event.points.map((p: any) => p.customdata?.[0] ?? p.pointIndex),
+			);
+			const ids = new Set<number>(
+				event.points.map((p: any) => p.customdata?.[1]).filter(Boolean),
+			);
+			if (ids.size > 0) setSelectedIds(ids);
+			setSelectedFrames({ active: true, indices: frames });
+		},
+		[isFocused, setSelectedFrames, setSelectedIds],
+	);
 
-    const onPlotDeselect = useCallback(() => {
-        if (!isFocused) return;
-        setSelectedFrames({ active: true, indices: new Set() });
-    }, [isFocused, setSelectedFrames]);
+	const onPlotDeselect = useCallback(() => {
+		if (!isFocused) return;
+		setSelectedFrames({ active: true, indices: new Set() });
+	}, [isFocused, setSelectedFrames]);
 
-    const memoizedPlotContent = useMemo(
-        () => (
-            <CardContent sx={{ flexGrow: 1, p: "2px", overflow: "hidden" }}>
-                {plotType === "plotly" && plotData ? (
-                    <Plot
-                        data={plotData}
-                        layout={{ ...plotLayout, dragmode: "lasso", autosize: true }}
-                        useResizeHandler={true}
-                        style={{ width: "100%", height: "100%" }}
-                        onClick={onPlotClick}
-                        onSelected={onPlotSelected}
-                        onDeselect={onPlotDeselect}
-                    />
-                ) : plotType === "zndraw.Figure" && plotData ? (
-                    <Box
-                        sx={{
-                            display: "flex",
-                            justifyContent: "center",
-                            alignItems: "center",
-                            height: "100%",
-                        }}
-                    >
-                        <img
-                            src={`data:image/png;base64, ${plotData}`}
-                            alt="plot"
-                            style={{
-                                maxWidth: "100%",
-                                maxHeight: "100%",
-                                objectFit: "contain",
-                            }}
-                        />
-                    </Box>
-                ) : (
-                    <Typography
-                        variant="h6"
-                        color="text.secondary"
-                        sx={{ m: 3, textAlign: "center" }}
-                    >
-                        {selectedOption ? "Loading..." : "No plot selected."}
-                    </Typography>
-                )}
-            </CardContent>
-        ),
-        [
-            plotData,
-            plotLayout,
-            plotType,
-            onPlotClick,
-            onPlotSelected,
-            onPlotDeselect,
-        ],
-    );
+	const memoizedPlotContent = useMemo(
+		() => (
+			<CardContent sx={{ flexGrow: 1, p: "2px", overflow: "hidden" }}>
+				{plotType === "plotly" && plotData ? (
+					<Plot
+						data={plotData}
+						layout={{ ...plotLayout, dragmode: "lasso", autosize: true }}
+						useResizeHandler={true}
+						style={{ width: "100%", height: "100%" }}
+						onClick={onPlotClick}
+						onSelected={onPlotSelected}
+						onDeselect={onPlotDeselect}
+					/>
+				) : plotType === "zndraw.Figure" && plotData ? (
+					<Box
+						sx={{
+							display: "flex",
+							justifyContent: "center",
+							alignItems: "center",
+							height: "100%",
+						}}
+					>
+						<img
+							src={`data:image/png;base64, ${plotData}`}
+							alt="plot"
+							style={{
+								maxWidth: "100%",
+								maxHeight: "100%",
+								objectFit: "contain",
+							}}
+						/>
+					</Box>
+				) : (
+					<Typography
+						variant="h6"
+						color="text.secondary"
+						sx={{ m: 3, textAlign: "center" }}
+					>
+						{selectedOption ? "Loading..." : "No plot selected."}
+					</Typography>
+				)}
+			</CardContent>
+		),
+		[
+			plotData,
+			plotLayout,
+			plotType,
+			onPlotClick,
+			onPlotSelected,
+			onPlotDeselect,
+		],
+	);
 
-    return (
-        <Rnd
-            minHeight={200}
-            minWidth={220}
-            default={{ x: 20, y: 20, width: 450, height: 350 }}
-            style={{ zIndex }}
-            disableDragging={isLocked}
-            bounds="window"
-            dragHandleClassName="drag-handle"
-            // ✅ FIX: Pass the onResize handler to the Rnd component
-            onResize={onResize}
-        >
-            <Card
-                sx={{
-                    width: "100%",
-                    height: "100%",
-                    display: "flex",
-                    flexDirection: "column",
-                }}
-            >
-                <CardHeader
-                    className="drag-handle"
-                    onMouseDown={() => bringToFront(identifier)}
-                    sx={{
-                        height: 50,
-                        flexShrink: 0,
-                        pr: 1,
-                        pl: 2,
-                        cursor: isLocked ? "default" : "move",
-                        "& .MuiCardHeader-content": { flexGrow: 1, minWidth: 0 },
-                    }}
-                    title={
-                        <TextField
-                            select
-                            value={selectedOption}
-                            onChange={(e) => {
-                                setSelectedOption(e.target.value);
-                                onUpdatePlot(identifier, e.target.value);
-                            }}
-                            size="small"
-                            variant="outlined"
-                            fullWidth
-                        >
-                            {!selectedOption && (
-                                <MenuItem value="" disabled>
-                                    Select plot
-                                </MenuItem>
-                            )}
-                            {availablePlots.map((plot) => (
-                                <MenuItem key={plot} value={plot}>
-                                    {plot}
-                                </MenuItem>
-                            ))}
-                        </TextField>
-                    }
-                    action={
-                        <Box
-                            sx={{
-                                display: "flex",
-                                alignItems: "center",
-                                flexShrink: 0,
-                                ml: 1,
-                            }}
-                        >
-                            <BtnTooltip text={isLocked ? "Unlock" : "Lock"}>
-                                <IconButton onClick={() => setIsLocked(!isLocked)} size="small">
-                                    {isLocked ? <Lock /> : <LockOpen />}
-                                </IconButton>
-                            </BtnTooltip>
-                            <BtnTooltip text="Duplicate">
-                                <IconButton
-                                    color="secondary"
-                                    size="small"
-                                    onClick={() => onDuplicate(selectedOption)}
-                                >
-                                    <ContentCopy />
-                                </IconButton>
-                            </BtnTooltip>
-                            <BtnTooltip text="Close">
-                                <IconButton onClick={() => onRemove(identifier)} size="small">
-                                    <Close />
-                                </IconButton>
-                            </BtnTooltip>
-                        </Box>
-                    }
-                />
-                {memoizedPlotContent}
-            </Card>
-        </Rnd>
-    );
+	return (
+		<Rnd
+			minHeight={200}
+			minWidth={220}
+			default={{ x: 20, y: 20, width: 450, height: 350 }}
+			style={{ zIndex }}
+			disableDragging={isLocked}
+			bounds="window"
+			dragHandleClassName="drag-handle"
+			// ✅ FIX: Pass the onResize handler to the Rnd component
+			onResize={onResize}
+		>
+			<Card
+				sx={{
+					width: "100%",
+					height: "100%",
+					display: "flex",
+					flexDirection: "column",
+				}}
+			>
+				<CardHeader
+					className="drag-handle"
+					onMouseDown={() => bringToFront(identifier)}
+					sx={{
+						height: 50,
+						flexShrink: 0,
+						pr: 1,
+						pl: 2,
+						cursor: isLocked ? "default" : "move",
+						"& .MuiCardHeader-content": { flexGrow: 1, minWidth: 0 },
+					}}
+					title={
+						<TextField
+							select
+							value={selectedOption}
+							onChange={(e) => {
+								setSelectedOption(e.target.value);
+								onUpdatePlot(identifier, e.target.value);
+							}}
+							size="small"
+							variant="outlined"
+							fullWidth
+						>
+							{!selectedOption && (
+								<MenuItem value="" disabled>
+									Select plot
+								</MenuItem>
+							)}
+							{availablePlots.map((plot) => (
+								<MenuItem key={plot} value={plot}>
+									{plot}
+								</MenuItem>
+							))}
+						</TextField>
+					}
+					action={
+						<Box
+							sx={{
+								display: "flex",
+								alignItems: "center",
+								flexShrink: 0,
+								ml: 1,
+							}}
+						>
+							<BtnTooltip text={isLocked ? "Unlock" : "Lock"}>
+								<IconButton onClick={() => setIsLocked(!isLocked)} size="small">
+									{isLocked ? <Lock /> : <LockOpen />}
+								</IconButton>
+							</BtnTooltip>
+							<BtnTooltip text="Duplicate">
+								<IconButton
+									color="secondary"
+									size="small"
+									onClick={() => onDuplicate(selectedOption)}
+								>
+									<ContentCopy />
+								</IconButton>
+							</BtnTooltip>
+							<BtnTooltip text="Close">
+								<IconButton onClick={() => onRemove(identifier)} size="small">
+									<Close />
+								</IconButton>
+							</BtnTooltip>
+						</Box>
+					}
+				/>
+				{memoizedPlotContent}
+			</Card>
+		</Rnd>
+	);
 };
 
 // --- Helper Function ---

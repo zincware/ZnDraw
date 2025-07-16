@@ -113,53 +113,73 @@ export const UIContainer: React.FC = () => {
 
 	return (
 		<>
-			<Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
-				<HeadBar
-					room={roomName}
-					colorMode={colorMode}
-					handleColorMode={handleColorMode}
-					setIsDrawing={setIsDrawing}
-					setGeometries={setGeometries}
-					setPoints={setPoints}
-					isDrawing={isDrawing}
-					tutorialURL={tutorialURL}
-					showSiMGen={showSiMGen}
-					modifierQueue={modifierQueue.length}
-					isAuthenticated={isAuthenticated}
-					roomLock={roomLock}
-					setAddPlotsWindow={setAddPlotsWindow}
-					messages={messages}
-					setMessages={setMessages}
-					token={token}
-					step={step}
-					selection={selectedIds}
-				/>
-				<Box sx={{ display: "flex", flexGrow: 1 }}>
-					<Sidebar token={token} />
-				</Box>
+			<HeadBar
+				room={roomName}
+				colorMode={colorMode}
+				handleColorMode={handleColorMode}
+				setIsDrawing={setIsDrawing}
+				setGeometries={setGeometries}
+				setPoints={setPoints}
+				isDrawing={isDrawing}
+				tutorialURL={tutorialURL}
+				showSiMGen={showSiMGen}
+				modifierQueue={modifierQueue.length}
+				isAuthenticated={isAuthenticated}
+				roomLock={roomLock}
+				setAddPlotsWindow={setAddPlotsWindow}
+				messages={messages}
+				setMessages={setMessages}
+				token={token}
+				step={step}
+				selection={selectedIds}
+			/>
+
+			{/* Main content area with proper spacing for fixed AppBar */}
+			<Box
+				sx={{
+					display: "flex",
+					flexDirection: "column",
+					height: "100vh",
+					paddingTop: "56px", // Space for fixed AppBar
+				}}
+			>
+				{/* Sidebar positioned at the left */}
 				<Box
 					sx={{
-						position: "fixed", // Pins the component to the viewport
-						bottom: 0, // Aligns to the bottom
-						left: 0, // Aligns to the left
-						right: 0, // Extends to the right, ensuring full width
-						zIndex: 1000, // Ensure it's on top of other content
+						position: "fixed",
+						top: "56px", // Below the AppBar
+						left: 0,
+						height: "calc(100vh - 56px - 60px)", // Full height minus AppBar and progress bar
+						zIndex: 1000,
 					}}
 				>
-					<FrameProgressBar
-						step={step}
-						setStep={setStep}
-						length={length}
-						selectedFrames={selectedFrames}
-						setSelectedFrames={setSelectedFrames}
-						bookmarks={bookmarks}
-						setBookmarks={setBookmarks}
-						connected={connected}
-						frameRate={frameRate}
-						setFrameRate={setFrameRate}
-						isFrameRendering={isFrameRendering}
-					/>
+					<Sidebar token={token} />
 				</Box>
+			</Box>
+
+			{/* Progress bar at the bottom */}
+			<Box
+				sx={{
+					position: "fixed",
+					bottom: 0,
+					left: 0,
+					right: 0,
+					zIndex: 1000,
+				}}
+			>
+				<FrameProgressBar
+					step={step}
+					setStep={setStep}
+					length={length}
+					selectedFrames={selectedFrames}
+					setSelectedFrames={setSelectedFrames}
+					bookmarks={bookmarks}
+					setBookmarks={setBookmarks}
+					connected={connected}
+					frameRate={frameRate}
+					setFrameRate={setFrameRate}
+					isFrameRendering={isFrameRendering}
+				/>
 			</Box>
 
 			{/* Plotting Component */}
