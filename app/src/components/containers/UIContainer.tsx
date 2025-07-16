@@ -123,7 +123,6 @@ export const UIContainer: React.FC = () => {
 				/>
 				<Box sx={{ display: "flex", flexGrow: 1 }}>
 					<Sidebar token={token} />
-					<Box sx={{ flexGrow: 1 }} />
 				</Box>
 				<Box
 					sx={{

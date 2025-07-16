@@ -34,18 +34,6 @@ interface FrameProgressBarProps {
 	isFrameRendering: boolean;
 }
 
-const ProgressBarContainer = styled(Box)(({ theme }) => ({
-	width: "100%",
-	padding: "4px 16px",
-	backgroundColor: theme.palette.background.paper,
-	borderRadius: "8px",
-	boxShadow: theme.shadows[1],
-	display: "flex",
-	alignItems: "center",
-	gap: "12px",
-	flexWrap: "wrap",
-}));
-
 const SliderControlsWrapper = styled(Box)(() => ({
 	position: "relative",
 	flexGrow: 1,
@@ -82,22 +70,6 @@ const BookmarkIndicator = styled("div")<{ left: string }>(({ left }) => ({
 		fill: "#e65100", // Darken on hover
 	},
 }));
-
-const SelectedFrameHighlight = styled("div")<{ left: string; width: string }>(
-	({ left, width, theme }) => ({
-		position: "absolute",
-		left: left,
-		width: width,
-		height: "6px",
-		backgroundColor: theme.palette.primary.light,
-		borderRadius: "3px",
-		zIndex: 1,
-		pointerEvents: "none",
-		top: "50%",
-		transform: "translateY(-50%)",
-		opacity: 0.9,
-	}),
-);
 
 const compactTextFieldSx = {
 	"& .MuiInputBase-root": { height: 30, fontSize: "0.875rem" },
@@ -232,16 +204,39 @@ export const FrameProgressBar: React.FC<FrameProgressBarProps> = ({
 			blocks.push(currentBlock);
 		}
 		return blocks.map((block, index) => (
-			<SelectedFrameHighlight
+			<Box
 				key={`selected-block-${index}`}
-				left={`${(block.start / length) * 100}%`}
-				width={`${((block.end - block.start + 1) / length) * 100}%`}
+				sx={{
+					position: "absolute",
+					left: `${(block.start / length) * 100}%`,
+					width: `${((block.end - block.start + 1) / length) * 100}%`,
+					height: "6px",
+					backgroundColor: "primary.light",
+					borderRadius: "3px",
+					zIndex: 1,
+					pointerEvents: "none",
+					top: "50%",
+					transform: "translateY(-50%)",
+					opacity: 0.9,
+				}}
 			/>
 		));
 	};
 
 	return (
-		<ProgressBarContainer>
+		<Box
+			sx={{
+				width: "100%",
+				padding: "4px 16px",
+				backgroundColor: "background.paper",
+				borderRadius: "8px",
+				boxShadow: 1,
+				display: "flex",
+				alignItems: "center",
+				gap: "12px",
+				flexWrap: "wrap",
+			}}
+		>
 			<TextField
 				variant="outlined"
 				size="small"
@@ -344,7 +339,7 @@ export const FrameProgressBar: React.FC<FrameProgressBarProps> = ({
 					</Box>
 				</Tooltip>
 			</Box>
-		</ProgressBarContainer>
+		</Box>
 	);
 };
 
