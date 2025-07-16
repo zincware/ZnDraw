@@ -27,19 +27,7 @@ const AppContent: React.FC = () => {
 				onDragOver={onDragOver}
 				onDrop={onDrop}
 			/>
-			<Box
-				sx={{
-					position: "absolute",
-					top: 0,
-					left: 0,
-					width: "100%",
-					height: "100%",
-					pointerEvents: "none",
-					"& > *": { pointerEvents: "auto" },
-				}}
-			>
-				<UIContainer />
-			</Box>
+			<UIContainer />
 		</Box>
 	);
 };
