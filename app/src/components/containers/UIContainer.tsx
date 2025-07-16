@@ -78,13 +78,13 @@ export const UIContainer: React.FC = () => {
 	// Update cursor position for overlays with throttling
 	useEffect(() => {
 		let rafId: number;
-		
+
 		const updateCursorPosition = (event: MouseEvent) => {
 			// Cancel any pending animation frame
 			if (rafId) {
 				cancelAnimationFrame(rafId);
 			}
-			
+
 			// Schedule update on next animation frame to throttle updates
 			rafId = requestAnimationFrame(() => {
 				setCursorPosition({ x: event.clientX, y: event.clientY });
@@ -124,7 +124,7 @@ export const UIContainer: React.FC = () => {
 					isDrawing={isDrawing}
 					tutorialURL={tutorialURL}
 					showSiMGen={showSiMGen}
-					modifierQueue={modifierQueue}
+					modifierQueue={modifierQueue.length}
 					isAuthenticated={isAuthenticated}
 					roomLock={roomLock}
 					setAddPlotsWindow={setAddPlotsWindow}

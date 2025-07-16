@@ -14,11 +14,7 @@ import WifiIcon from "@mui/icons-material/Wifi";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
 import CloudDownloadIcon from "@mui/icons-material/CloudDownload";
-
-interface IndicesState {
-	active: boolean;
-	indices: number[];
-}
+import { type IndicesState } from "./utils";
 
 interface FrameProgressBarProps {
 	length: number;

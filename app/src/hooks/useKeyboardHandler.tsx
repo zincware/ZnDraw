@@ -49,6 +49,8 @@ export const useKeyboardHandler = () => {
 			}
 
 			if (event.key === "ArrowRight") {
+				event.preventDefault();
+				event.stopPropagation();
 				setPlaying(false);
 				if (event.shiftKey) {
 					// Jump to the bookmark after the current step
@@ -75,6 +77,8 @@ export const useKeyboardHandler = () => {
 					}
 				}
 			} else if (event.key === "ArrowLeft") {
+				event.preventDefault();
+				event.stopPropagation();
 				setPlaying(false);
 				if (event.shiftKey) {
 					// Jump to the bookmark before the current step
