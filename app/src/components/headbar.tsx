@@ -119,6 +119,7 @@ const HeadBar = ({
 		<>
 			<AppBar
 				position="fixed"
+				elevation={0}
 				sx={{
 					height: HeadBarHeight,
 					bgcolor: "background.paper",
