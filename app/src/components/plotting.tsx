@@ -10,7 +10,7 @@ import {
     Typography,
 } from "@mui/material";
 import { decodeTypedArraySpec } from "plotly.js/src/lib/array.js";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import Plot from "react-plotly.js";
 import { Rnd, type RndResizeCallback } from "react-rnd";
 import * as znsocket from "znsocket";
@@ -30,36 +30,36 @@ interface PlottingProps {
     updatedPlotsList: string[];
 }
 
-interface PlotCardProps {
-    identifier: number;
-    initialPlotName: string | null;
+interface PlottingContextType {
     token: string;
     step: number;
     setStep: (step: number) => void;
-    setSelectedIds: (selectedIds: Set<number>) => void;
-    setSelectedFrames: (selectedFrames: IndicesState) => void;
-    onRemove: (id: number) => void;
-    onDuplicate: (plotName: string | null) => void;
-    onUpdatePlot: (id: number, plotName: string) => void;
-    bringToFront: (id: number) => void;
-    zIndex: number;
+    setSelectedFrames: (state: IndicesState) => void;
+    setSelectedIds: (ids: Set<number>) => void;
 }
 
+// --------------------------------------------------------------------------
+// ## 1. Plotting Context
+// Manages shared state to avoid passing too many props down.
+// --------------------------------------------------------------------------
+
+const PlottingContext = createContext<PlottingContextType | null>(null);
+
+const usePlottingContext = () => {
+    const context = useContext(PlottingContext);
+    if (!context) {
+        throw new Error("usePlottingContext must be used within a PlottingProvider");
+    }
+    return context;
+};
 
 // --------------------------------------------------------------------------
-// ## Parent Component
+// ## 2. Parent Component (Provider)
 // Manages the existence, creation, and stacking of plot windows.
 // --------------------------------------------------------------------------
 
-export const Plotting = ({
-    setStep,
-    step,
-    setSelectedFrames,
-    addPlotsWindow,
-    setSelectedIds,
-    token,
-    updatedPlotsList,
-}: PlottingProps) => {
+export const Plotting = (props: PlottingProps) => {
+    const { token, step, setStep, setSelectedFrames, setSelectedIds, addPlotsWindow, updatedPlotsList } = props;
     const [cards, setCards] = useState<{ id: number; plotName: string | null }[]>([]);
     const [zIndices, setZIndices] = useState<{ [key: number]: number }>({});
     const [highestZ, setHighestZ] = useState(100);
@@ -68,12 +68,11 @@ export const Plotting = ({
     const bringToFront = useCallback((cardId: number) => {
         setHighestZ((prevZ) => {
             const newZ = prevZ + 1;
-            setZIndices((prevIndices) => ({ ...prevIndices, [cardId]: newZ }));
+            setZIndices((prev) => ({ ...prev, [cardId]: newZ }));
             return newZ;
         });
     }, []);
 
-    // Effect to add a blank window via button click
     useEffect(() => {
         if (addPlotsWindow > 0) {
             const newCardId = nextId.current++;
@@ -82,98 +81,91 @@ export const Plotting = ({
         }
     }, [addPlotsWindow, bringToFront]);
 
-    // Effect to automatically open windows for new plots from the server
     useEffect(() => {
         setCards(currentCards => {
             const visiblePlotNames = new Set(currentCards.map(c => c.plotName).filter(Boolean));
             const plotsToAdd = updatedPlotsList.filter(name => !visiblePlotNames.has(name));
-
             if (plotsToAdd.length > 0) {
                 const newCards = plotsToAdd.map(plotName => {
                     const newCardId = nextId.current++;
-                    bringToFront(newCardId); 
+                    bringToFront(newCardId);
                     return { id: newCardId, plotName };
                 });
                 return [...currentCards, ...newCards];
             }
-            return currentCards; 
+            return currentCards;
         });
     }, [updatedPlotsList, bringToFront]);
 
     const updateCardPlot = useCallback((cardId: number, plotName: string) => {
-        setCards((prev) =>
-            prev.map((card) => (card.id === cardId ? { ...card, plotName } : card)),
-        );
+        setCards(prev => prev.map(card => card.id === cardId ? { ...card, plotName } : card));
     }, []);
 
     const removeCard = useCallback((cardId: number) => {
-        setCards((prev) => prev.filter((card) => card.id !== cardId));
-        setZIndices((prev) => {
-            const newZ = { ...prev };
-            delete newZ[cardId];
-            return newZ;
-        });
+        setCards(prev => prev.filter(card => card.id !== cardId));
     }, []);
 
     const duplicateCard = useCallback((plotName: string | null) => {
         const newCardId = nextId.current++;
-        setCards((prev) => [...prev, { id: newCardId, plotName }]);
+        setCards(prev => [...prev, { id: newCardId, plotName }]);
         bringToFront(newCardId);
     }, [bringToFront]);
 
+    const contextValue = { token, step, setStep, setSelectedFrames, setSelectedIds };
+
     return (
-        <>
-            {cards.map((card) => (
+        <PlottingContext.Provider value={contextValue}>
+            {cards.map(card => (
                 <PlotCard
                     key={card.id}
                     identifier={card.id}
                     initialPlotName={card.plotName}
-                    token={token}
-                    step={step}
-                    setStep={setStep}
-                    setSelectedIds={setSelectedIds}
-                    setSelectedFrames={setSelectedFrames}
+                    isFocused={zIndices[card.id] === highestZ || cards.length <= 1}
+                    zIndex={zIndices[card.id] || 100}
                     onRemove={removeCard}
                     onDuplicate={duplicateCard}
                     onUpdatePlot={updateCardPlot}
                     bringToFront={bringToFront}
-                    zIndex={zIndices[card.id] || 100}
                 />
             ))}
-        </>
+        </PlottingContext.Provider>
     );
 };
 
-
 // --------------------------------------------------------------------------
-// ## Child Component
+// ## 3. Child Component (Consumer)
 // Manages the content and interactions of a single plot window.
 // --------------------------------------------------------------------------
+
+interface PlotCardProps {
+    identifier: number;
+    initialPlotName: string | null;
+    isFocused: boolean;
+    zIndex: number;
+    onRemove: (id: number) => void;
+    onDuplicate: (plotName: string | null) => void;
+    onUpdatePlot: (id: number, plotName: string) => void;
+    bringToFront: (id: number) => void;
+}
 
 const PlotCard = ({
     identifier,
     initialPlotName,
-    token,
-    step,
-    setStep,
-    setSelectedIds,
-    setSelectedFrames,
+    isFocused,
+    zIndex,
     onRemove,
     onDuplicate,
     onUpdatePlot,
     bringToFront,
-    zIndex,
 }: PlotCardProps) => {
+    const { token, step, setStep, setSelectedFrames, setSelectedIds } = usePlottingContext();
     const [availablePlots, setAvailablePlots] = useState<string[]>([]);
-    const [selectedOption, setSelectedOption] = useState<string>(initialPlotName || "");
-    const [rawPlotData, setRawPlotData] = useState<any[] | undefined>(undefined);
-    const [plotData, setPlotData] = useState<any[] | string | undefined>(undefined);
-    const [plotType, setPlotType] = useState<string>("");
-    const [plotLayout, setPlotLayout] = useState<any>(undefined);
-    const [isLocked, setIsLocked] = useState<boolean>(false);
-    const cardRef = useRef<HTMLDivElement>(null);
+    const [selectedOption, setSelectedOption] = useState(initialPlotName || "");
+    const [plotData, setPlotData] = useState<any[] | string | undefined>();
+    const [plotType, setPlotType] = useState("");
+    const [plotLayout, setPlotLayout] = useState<any>();
+    const [isLocked, setIsLocked] = useState(false);
 
-    // Effect to get the list of available plots
     useEffect(() => {
         const con = new znsocket.Dict({ client, key: `room:${token}:figures` });
         const handleRefresh = async () => setAvailablePlots(await con.keys());
@@ -181,89 +173,50 @@ const PlotCard = ({
         handleRefresh();
         return () => con.offRefresh(handleRefresh);
     }, [token]);
-    
-    // Effect to fetch plot data when selection changes
+
     useEffect(() => {
         if (!selectedOption) {
-            setRawPlotData(undefined); // Clear data if no plot is selected
+            setPlotData(undefined);
+            setPlotType("");
             return;
-        };
+        }
         const con = new znsocket.Dict({ client, key: `room:${token}:figures` });
         con.get(selectedOption).then((data: any) => {
             if (!data) return;
             if (data._type === "plotly.graph_objs.Figure") {
                 const parsed = JSON.parse(data.value);
+                const processedData = processPlotData(parsed.data, step);
                 setPlotType("plotly");
-                setRawPlotData(parsed.data);
+                setPlotData(processedData);
                 setPlotLayout(parsed.layout);
             } else if (data._type === "zndraw.Figure") {
                 setPlotType("zndraw.Figure");
                 setPlotData(data.value.base64);
-                setRawPlotData(undefined); // Ensure raw data is cleared for non-plotly plots
             }
         });
-    }, [selectedOption, token]);
-
-    // Effect to process data for the step indicator
-    useEffect(() => {
-        if (!rawPlotData || plotType !== "plotly") {
-            if (!rawPlotData) setPlotData(undefined); // Clear plot if raw data disappears
-            return;
-        }
-
-        const convertToArray = (d: any) => d?.bdata ? decodeTypedArraySpec(d) : d;
-        const markerList: [number, number, string][] = [];
-        const updatedPlotData = rawPlotData.map((trace) => {
-            const converted = { ...trace, x: convertToArray(trace.x), y: convertToArray(trace.y), customdata: convertToArray(trace.customdata) };
-            converted.customdata?.forEach((cd: any, i: number) => {
-                if (cd?.[0] === step) {
-                    const color = converted.line?.color || converted.marker?.color || "red";
-                    markerList.push([converted.x[i], converted.y[i], color]);
-                }
-            });
-            return converted;
-        });
-
-        if (markerList.length > 0) {
-            updatedPlotData.push({
-                type: "scatter", mode: "markers", name: "Current Step", showlegend: false,
-                x: markerList.map(m => m[0]), y: markerList.map(m => m[1]),
-                marker: { color: markerList.map(m => m[2]), size: 12, symbol: "circle", line: { color: "black", width: 2 } },
-            });
-        }
-        setPlotData(updatedPlotData);
-    }, [rawPlotData, step, plotType]);
-
-    // --- Callbacks ---
-    const handleSelectChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
-        const newSelected = event.target.value;
-        setSelectedOption(newSelected);
-        onUpdatePlot(identifier, newSelected);
-    }, [identifier, onUpdatePlot]);
-
-    const onResize = useCallback<RndResizeCallback>((e, dir, ref) => {
-        setPlotLayout((prev: any) => prev ? { ...prev, width: ref.offsetWidth, height: ref.offsetHeight - 50 } : undefined);
-    }, []);
+    }, [selectedOption, token, step]); // Re-process data when step changes
 
     const onPlotClick = useCallback(({ points }: { points: any[] }) => {
+        if (!isFocused) return;
         if (points[0]?.customdata?.[0] !== undefined) setStep(points[0].customdata[0]);
         if (points[0]?.customdata?.[1] !== undefined) setSelectedIds(new Set([points[0].customdata[1]]));
-    }, [setStep, setSelectedIds]);
+    }, [isFocused, setStep, setSelectedIds]);
 
     const onPlotSelected = useCallback((event: any) => {
-        if (!event?.points?.length) return;
-        const frames = new Set<number>(event.points.map((p: any) => p.customdata ? p.customdata[0] : p.pointIndex));
+        if (!isFocused || !event?.points?.length) return;
+        const frames = new Set<number>(event.points.map((p: any) => p.customdata?.[0] ?? p.pointIndex));
         const ids = new Set<number>(event.points.map((p: any) => p.customdata?.[1]).filter(Boolean));
         if (ids.size > 0) setSelectedIds(ids);
         setSelectedFrames({ active: true, indices: frames });
-    }, [setSelectedFrames, setSelectedIds]);
+    }, [isFocused, setSelectedFrames, setSelectedIds]);
 
     const onPlotDeselect = useCallback(() => {
+        if (!isFocused) return;
         setSelectedFrames({ active: true, indices: new Set() });
-    }, [setSelectedFrames]);
-    
+    }, [isFocused, setSelectedFrames]);
+
     const memoizedPlotContent = useMemo(() => (
-        <CardContent sx={{ flexGrow: 1, p: "2px", overflow: 'hidden' }}>
+        <CardContent sx={{ flexGrow: 1, p: "2px", overflow: "hidden" }}>
             {plotType === "plotly" && plotData ? (
                 <Plot
                     data={plotData}
@@ -284,29 +237,26 @@ const PlotCard = ({
                 </Typography>
             )}
         </CardContent>
-    ), [plotType, plotData, plotLayout, selectedOption, onPlotClick, onPlotSelected, onPlotDeselect]);
-
+    ), [plotData, plotLayout, plotType, onPlotClick, onPlotSelected, onPlotDeselect]);
+    
     return (
         <Rnd
             minHeight={200} minWidth={220}
             default={{ x: 20, y: 20, width: 450, height: 350 }}
             style={{ zIndex }}
-            onResize={onResize}
             disableDragging={isLocked}
             bounds="window"
             dragHandleClassName="drag-handle"
         >
-            <Card sx={{ width: "100%", height: "100%", display: "flex", flexDirection: "column" }} ref={cardRef}>
+            <Card sx={{ width: "100%", height: "100%", display: "flex", flexDirection: "column" }}>
                 <CardHeader
                     className="drag-handle"
                     onMouseDown={() => bringToFront(identifier)}
                     sx={{ height: 50, flexShrink: 0, pr: 1, pl: 2, cursor: isLocked ? 'default' : 'move', '& .MuiCardHeader-content': { flexGrow: 1, minWidth: 0 } }}
                     title={
-                        <TextField select value={selectedOption} onChange={handleSelectChange} size="small" variant="outlined" fullWidth>
+                        <TextField select value={selectedOption} onChange={(e) => { setSelectedOption(e.target.value); onUpdatePlot(identifier, e.target.value); }} size="small" variant="outlined" fullWidth>
                             {!selectedOption && <MenuItem value="" disabled>Select plot</MenuItem>}
-                            {availablePlots.map((plot) => (
-                                <MenuItem key={plot} value={plot}>{plot}</MenuItem>
-                            ))}
+                            {availablePlots.map((plot) => <MenuItem key={plot} value={plot}>{plot}</MenuItem>)}
                         </TextField>
                     }
                     action={
@@ -322,3 +272,32 @@ const PlotCard = ({
         </Rnd>
     );
 };
+
+// --- Helper Function ---
+function processPlotData(rawData: any[] | undefined, step: number): any[] | undefined {
+    if (!rawData) return undefined;
+    
+    const convert = (d: any) => d?.bdata ? decodeTypedArraySpec(d) : d;
+    const markers: [number, number, string][] = [];
+    
+    const processedTraces = rawData.map(trace => {
+        const converted = { ...trace, x: convert(trace.x), y: convert(trace.y), customdata: convert(trace.customdata) };
+        converted.customdata?.forEach((cd: any, i: number) => {
+            if (cd?.[0] === step) {
+                const color = converted.line?.color || converted.marker?.color || "red";
+                markers.push([converted.x[i], converted.y[i], color]);
+            }
+        });
+        return converted;
+    });
+
+    if (markers.length > 0) {
+        processedTraces.push({
+            type: "scatter", mode: "markers", name: "Current Step", showlegend: false,
+            x: markers.map(m => m[0]), y: markers.map(m => m[1]),
+            marker: { color: markers.map(m => m[2]), size: 12, symbol: "circle", line: { color: "black", width: 2 } },
+        });
+    }
+
+    return processedTraces;
+}
