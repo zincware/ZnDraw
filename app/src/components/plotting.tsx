@@ -1,14 +1,14 @@
 import { Close, ContentCopy, Lock, LockOpen } from "@mui/icons-material";
-// Plottly interface
 import {
-	Box,
-	Button,
-	Card,
-	CardContent,
-	CardHeader,
-	IconButton,
-	TextField,
-	Typography,
+    Box,
+    Button,
+    Card,
+    CardContent,
+    CardHeader,
+    IconButton,
+    TextField,
+    Typography,
+    MenuItem,
 } from "@mui/material";
 import { decodeTypedArraySpec } from "plotly.js/src/lib/array.js";
 import { useEffect, useRef, useState } from "react";
@@ -19,435 +19,538 @@ import { client } from "../socket";
 import { BtnTooltip } from "./tooltips";
 import type { IndicesState } from "./utils";
 
-interface PlottingProps {
-	setStep: (step: number) => void;
-	step: number;
-	setSelectedFrames: (selectedFrames: IndicesState) => void;
-	addPlotsWindow: number;
-	setSelectedIds: (selectedIds: Set<number>) => void;
-	token: string;
-	updatedPlotsList: string[];
-}
+// Assuming PlottingProps and PlotsCard2Props interfaces are correctly defined in your file.
 
 export const Plotting = ({
-	setStep,
-	step,
-	setSelectedFrames,
-	addPlotsWindow,
-	setSelectedIds,
-	token,
-	updatedPlotsList,
+    setStep,
+    step,
+    setSelectedFrames,
+    addPlotsWindow,
+    setSelectedIds,
+    token,
+    updatedPlotsList,
 }: PlottingProps) => {
-	const [displayedCards, setDisplayedCards] = useState<number[]>([]);
-	const [visiblePlots, setVisiblePlots] = useState<{ [key: number]: string }>(
-		{},
-	);
+    const [displayedCards, setDisplayedCards] = useState<number[]>([]);
+    const [visiblePlots, setVisiblePlots] = useState<{ [key: number]: string }>(
+        {},
+    );
 
-	useEffect(() => {
-		if (addPlotsWindow > 0) {
-			setDisplayedCards((prevCards) => {
-				const newCardIndex =
-					prevCards.length > 0 ? prevCards[prevCards.length - 1] + 1 : 0;
-				return [...prevCards, newCardIndex];
-			});
-		}
-	}, [addPlotsWindow]);
+    useEffect(() => {
+        if (addPlotsWindow > 0) {
+            setDisplayedCards((prevCards) => {
+                const newCardIndex =
+                    prevCards.length > 0 ? Math.max(...prevCards) + 1 : 0;
+                return [...prevCards, newCardIndex];
+            });
+        }
+    }, [addPlotsWindow]);
 
-	// test if a key in updatedPlotsList is not in visible plots, then create a new card
-	useEffect(() => {
-		updatedPlotsList.forEach((plot) => {
-			if (!Object.values(visiblePlots).includes(plot)) {
-				setDisplayedCards((prevCards) => {
-					const newCardIndex =
-						prevCards.length > 0 ? prevCards[prevCards.length - 1] + 1 : 0;
-					// use visiblePlots to set the default value of the plot
-					setVisiblePlots((prev: any) => {
-						return { ...prev, [newCardIndex]: plot };
-					});
-					return [...prevCards, newCardIndex];
-				});
-			}
-		});
-	}, [updatedPlotsList]);
+    useEffect(() => {
+        updatedPlotsList.forEach((plotName) => {
+            if (!Object.values(visiblePlots).includes(plotName)) {
+                setDisplayedCards((prevCards) => {
+                    const newCardIndex =
+                        prevCards.length > 0 ? Math.max(...prevCards) + 1 : 0;
+                    setVisiblePlots((prev) => ({ ...prev, [newCardIndex]: plotName }));
+                    return [...prevCards, newCardIndex];
+                });
+            }
+        });
+    }, [updatedPlotsList, visiblePlots]);
 
-	return (
-		<>
-			{displayedCards.map((cardIndex) => (
-				<PlotsCard2
-					key={cardIndex}
-					identifier={cardIndex}
-					updatedPlotsList={updatedPlotsList}
-					token={token}
-					setVisiblePlots={setVisiblePlots}
-					setDisplayedCards={setDisplayedCards}
-					visiblePlots={visiblePlots}
-					setStep={setStep}
-					setSelectedIds={setSelectedIds}
-					setSelectedFrames={setSelectedFrames}
-					step={step}
-				/>
-			))}
-		</>
-	);
+    return (
+        <>
+            {displayedCards.map((cardIndex) => (
+                <PlotsCard2
+                    key={cardIndex}
+                    identifier={cardIndex}
+                    updatedPlotsList={updatedPlotsList}
+                    token={token}
+                    setVisiblePlots={setVisiblePlots}
+                    setDisplayedCards={setDisplayedCards}
+                    visiblePlots={visiblePlots}
+                    setStep={setStep}
+                    setSelectedIds={setSelectedIds}
+                    setSelectedFrames={setSelectedFrames}
+                    step={step}
+                />
+            ))}
+        </>
+    );
 };
 
+interface PlotsCard2Props {
+    updatedPlotsList: string[];
+    token: string;
+    setVisiblePlots: React.Dispatch<React.SetStateAction<{ [key: number]: string }>>;
+    identifier: number;
+    setDisplayedCards: React.Dispatch<React.SetStateAction<number[]>>;
+    visiblePlots: { [key: number]: string };
+    setStep: (step: number) => void;
+    setSelectedIds: (selectedIds: Set<number>) => void;
+    setSelectedFrames: (selectedFrames: IndicesState) => void;
+    step: number;
+}
+
+
 const PlotsCard2 = ({
-	updatedPlotsList,
-	token,
-	setVisiblePlots,
-	identifier,
-	setDisplayedCards,
-	visiblePlots,
-	setStep,
-	setSelectedIds,
-	setSelectedFrames,
-	step,
-}: any) => {
-	const [conInterface, setConInterface]: any =
-		useState<znsocket.Dict>(undefined);
-	const [availablePlots, setAvailablePlots] = useState<string[]>([]);
-	const [selectedOption, setSelectedOption] = useState<string>("");
-	const [rawPlotData, setRawPlotData] = useState<{ [key: string]: any }>(
-		undefined,
-	);
-	const [plotData, setPlotData] = useState<{ [key: string]: any }>(undefined);
-	const [plotType, setPlotType] = useState<string>("");
-	const [plotLayout, setPlotLayout] = useState<{ [key: string]: any }>(
-		undefined,
-	);
-	const [allowDrag, setAllowDrag] = useState<boolean>(true);
-	const selectFormRef = useRef<HTMLSelectElement>(null);
-	const cardRef = useRef<HTMLSelectElement>(null);
+    updatedPlotsList,
+    token,
+    setVisiblePlots,
+    identifier,
+    setDisplayedCards,
+    visiblePlots,
+    setStep,
+    setSelectedIds,
+    setSelectedFrames,
+    step,
+}: PlotsCard2Props) => {
+    const [conInterface, setConInterface] =
+        useState<znsocket.Dict | undefined>(undefined);
+    const [availablePlots, setAvailablePlots] = useState<string[]>([]);
+    const [selectedOption, setSelectedOption] = useState<string>("");
+    const [rawPlotData, setRawPlotData] = useState<any[] | undefined>(undefined);
+    const [plotData, setPlotData] = useState<any[] | string | undefined>(undefined);
+    const [plotType, setPlotType] = useState<string>("");
+    const [plotLayout, setPlotLayout] = useState<{ [key: string]: any } | undefined>(
+        undefined,
+    );
+    const [isLocked, setIsLocked] = useState<boolean>(false);
+    const cardRef = useRef<HTMLDivElement>(null);
 
-	// when created, iterate through availablePlots and set the first one as selectedOption that is not already in visiblePlots
-	useEffect(() => {
-		if (selectedOption !== "") {
-			return;
-		}
-		for (let i = 0; i < availablePlots.length; i++) {
-			if (!Object.values(visiblePlots).includes(availablePlots[i])) {
-				setSelectedOption(availablePlots[i]);
-				break;
-			}
-		}
-	}, [availablePlots, selectedOption]);
+    useEffect(() => {
+        if (selectedOption || availablePlots.length === 0) {
+            return;
+        }
 
-	useEffect(() => {
-		// check if identifier is in visiblePlots, if so, set selectedOption to visiblePlots[identifier]
-		if (visiblePlots[identifier]) {
-			setSelectedOption(visiblePlots[identifier]);
-		}
-	}, [identifier]);
+        const plotToSelect = availablePlots.find(
+            (plotName) => !Object.values(visiblePlots).includes(plotName)
+        );
 
-	useEffect(() => {
-		const con = new znsocket.Dict({
-			client: client,
-			key: `room:${token}:figures`,
-		});
+        if (plotToSelect) {
+            setSelectedOption(plotToSelect);
+        }
+    }, [availablePlots, selectedOption, visiblePlots]);
 
-		con.onRefresh(async (x: any) => {
-			con.keys().then((keys: any) => {
-				setAvailablePlots(keys);
-			});
-		});
+    useEffect(() => {
+        if (visiblePlots[identifier] && visiblePlots[identifier] !== selectedOption) {
+            setSelectedOption(visiblePlots[identifier]);
+        }
+    }, [identifier, visiblePlots, selectedOption]);
 
-		con.keys().then((keys: any) => {
-			setAvailablePlots(keys);
-		});
-		setConInterface(con);
+    useEffect(() => {
+        const con = new znsocket.Dict({
+            client: client,
+            key: `room:${token}:figures`,
+        });
 
-		return () => {
-			con.offRefresh();
-		};
-	}, [token]);
+        const handleRefresh = async (x: any) => {
+            const keys = await con.keys();
+            setAvailablePlots(keys);
+        };
 
-	useEffect(() => {
-		if (conInterface === undefined) {
-			return;
-		}
-		conInterface.get(selectedOption).then((data: any) => {
-			if (data === null) {
-				return;
-			}
-			if (data._type === "plotly.graph_objs.Figure") {
-				setPlotType("plotly");
-				setRawPlotData(JSON.parse(data.value).data);
-				setPlotLayout(JSON.parse(data.value).layout);
-			} else if (data._type === "zndraw.Figure") {
-				setPlotType("zndraw.Figure");
-				setPlotData(data.value.base64);
-			}
-		});
-	}, [conInterface, selectedOption]);
+        con.onRefresh(handleRefresh);
+        con.keys().then((keys: any) => {
+            setAvailablePlots(keys);
+        });
+        setConInterface(con);
 
-	useEffect(() => {
-		setVisiblePlots((prev: any) => {
-			return { ...prev, [identifier]: selectedOption };
-		});
-	}, [selectedOption]);
+        return () => {
+            con.offRefresh(handleRefresh);
+        };
+    }, [token]);
 
-	// update the actual plot if it is in updatedPlotsList
-	useEffect(() => {
-		if (updatedPlotsList.includes(selectedOption)) {
-			conInterface.get(selectedOption).then((data: any) => {
-				if (data === null) {
-					return;
-				}
-				setRawPlotData(JSON.parse(data.value).data);
-				setPlotLayout(JSON.parse(data.value).layout);
-			});
-		}
-	}, [updatedPlotsList]);
+    useEffect(() => {
+        if (conInterface === undefined || selectedOption === "") {
+            setRawPlotData(undefined);
+            setPlotLayout(undefined);
+            setPlotType("");
+            setPlotData(undefined);
+            return;
+        }
 
-	useEffect(() => {
-		if (rawPlotData && plotType === "plotly") {
-			const markerList: [number, number, string][] = [];
+        conInterface.get(selectedOption).then((data: any) => {
+            if (data === null) {
+                console.warn(`No data found for plot: ${selectedOption}`);
+                setRawPlotData(undefined);
+                setPlotLayout(undefined);
+                setPlotType("");
+                setPlotData(undefined);
+                return;
+            }
+            if (data._type === "plotly.graph_objs.Figure") {
+                setPlotType("plotly");
+                const parsedData = JSON.parse(data.value);
+                setRawPlotData(parsedData.data);
 
-			// Function to convert fields containing bdata and dtype
-			const convertToArray = (data: any) => {
-				if (
-					data &&
-					typeof data === "object" &&
-					"bdata" in data &&
-					"dtype" in data
-				) {
-					return decodeTypedArraySpec(data);
-				}
-				return data;
-			};
+                // --- START PLOTLY MARGIN ADJUSTMENT ---
+                const initialLayout = parsedData.layout;
+                setPlotLayout({
+                    ...initialLayout,
+                    autosize: true, // Keep autosize for container resizing
+                    margin: {
+                        l: 20, // left margin
+                        r: 20, // right margin
+                        b: 20, // bottom margin
+                        t: 20, // top margin
+                        pad: 0 // padding between plot area and legend/color bar
+                    },
+                    // You can also use automargin if you have elements that might get cut off
+                    // automargin: true,
+                    // If you want more control over specific axes, you can set automargin per axis
+                    // xaxis: { automargin: true },
+                    // yaxis: { automargin: true },
+                });
+                // --- END PLOTLY MARGIN ADJUSTMENT ---
 
-			// Process each data item
-			const updatedPlotData = rawPlotData.map((dataItem) => {
-				const convertedItem = {
-					...dataItem,
-					x: convertToArray(dataItem.x),
-					y: convertToArray(dataItem.y),
-					customdata: dataItem.customdata
-						? convertToArray(dataItem.customdata)
-						: dataItem.customdata,
-				};
+            } else if (data._type === "zndraw.Figure") {
+                setPlotType("zndraw.Figure");
+                setPlotData(data.value.base64);
+            } else {
+                console.warn(`Unknown plot type: ${data._type} for plot: ${selectedOption}`);
+                setRawPlotData(undefined);
+                setPlotLayout(undefined);
+                setPlotType("");
+                setPlotData(undefined);
+            }
+        }).catch(error => {
+            console.error(`Error fetching plot data for ${selectedOption}:`, error);
+            setRawPlotData(undefined);
+            setPlotLayout(undefined);
+            setPlotType("");
+            setPlotData(undefined);
+        });
+    }, [conInterface, selectedOption]);
 
-				if (convertedItem.customdata) {
-					convertedItem.customdata.forEach((customdata, index) => {
-						// Ensure we have valid data and the step matches
-						if (
-							customdata &&
-							customdata[0] === step &&
-							convertedItem.x[index] !== undefined &&
-							convertedItem.y[index] !== undefined
-						) {
-							const xPosition = convertedItem.x[index];
-							const yPosition = convertedItem.y[index];
+    useEffect(() => {
+        setVisiblePlots((prev) => ({ ...prev, [identifier]: selectedOption }));
+    }, [selectedOption, identifier, setVisiblePlots]);
 
-							let color = "red";
-							if (convertedItem.line?.color) {
-								color = convertedItem.line.color;
-							} else if (convertedItem.marker?.color) {
-								color = convertedItem.marker.color;
-							}
+    useEffect(() => {
+        if (updatedPlotsList.includes(selectedOption) && conInterface) {
+            conInterface.get(selectedOption).then((data: any) => {
+                if (data === null) {
+                    return;
+                }
+                if (data._type === "plotly.graph_objs.Figure") {
+                    const parsedData = JSON.parse(data.value);
+                    setRawPlotData(parsedData.data);
+                    
+                    // Re-apply margin settings on update
+                    const updatedLayout = parsedData.layout;
+                    setPlotLayout({
+                        ...updatedLayout,
+                        autosize: true,
+                        margin: {
+                            l: 20,
+                            r: 20,
+                            b: 20,
+                            t: 20,
+                            pad: 0
+                        },
+                        // automargin: true, // Keep this consistent if you use it above
+                    });
+                }
+            }).catch(error => {
+                console.error(`Error updating plot data for ${selectedOption}:`, error);
+            });
+        }
+    }, [updatedPlotsList, selectedOption, conInterface]);
 
-							markerList.push([xPosition, yPosition, color]);
-						}
-					});
-				}
+    useEffect(() => {
+        if (rawPlotData && plotType === "plotly") {
+            const markerList: [number, number, string][] = [];
 
-				return convertedItem;
-			});
+            const convertToArray = (data: any) => {
+                if (
+                    data &&
+                    typeof data === "object" &&
+                    "bdata" in data &&
+                    "dtype" in data
+                ) {
+                    return decodeTypedArraySpec(data);
+                }
+                return data;
+            };
 
-			// Add marker data - only if we have markers to show
-			if (markerList.length > 0) {
-				updatedPlotData.push({
-					type: "scatter",
-					mode: "markers",
-					name: "Current Step",
-					showlegend: false,
-					x: markerList.map((marker) => marker[0]),
-					y: markerList.map((marker) => marker[1]),
-					marker: {
-						color: markerList.map((marker) => marker[2]),
-						size: 12,
-						symbol: "circle",
-						line: {
-							color: "black",
-							width: 2,
-						},
-					},
-				});
-			}
+            const updatedPlotData = rawPlotData.map((dataItem) => {
+                const convertedItem = {
+                    ...dataItem,
+                    x: convertToArray(dataItem.x),
+                    y: convertToArray(dataItem.y),
+                    customdata: dataItem.customdata
+                        ? convertToArray(dataItem.customdata)
+                        : dataItem.customdata,
+                };
 
-			setPlotData(updatedPlotData);
-		}
-	}, [rawPlotData, step, plotType]);
+                if (convertedItem.customdata) {
+                    convertedItem.customdata.forEach((customdata, index) => {
+                        if (
+                            Array.isArray(customdata) &&
+                            customdata.length > 0 &&
+                            customdata[0] === step &&
+                            convertedItem.x?.[index] !== undefined &&
+                    convertedItem.y?.[index] !== undefined
+                        ) {
+                            const xPosition = convertedItem.x[index];
+                            const yPosition = convertedItem.y[index];
 
-	const handleSelectChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
-		setSelectedOption(event.target.value);
-	};
+                            let color = "red";
+                            if (convertedItem.line?.color) {
+                                color = convertedItem.line.color;
+                            } else if (convertedItem.marker?.color) {
+                                color = convertedItem.marker.color;
+                            }
 
-	const closeThisCard = () => {
-		setDisplayedCards((prevCards) =>
-			prevCards.filter((card) => card !== identifier),
-		);
-		// also remove from visiblePlots
-		setVisiblePlots((prev: any) => {
-			const copy = { ...prev };
-			delete copy[identifier];
-			return copy;
-		});
-	};
+                            markerList.push([xPosition, yPosition, color]);
+                        }
+                    });
+                }
 
-	const onResize: RndResizeCallback = () => {
-		if (cardRef.current) {
-			setPlotLayout((prev) => {
-				if (prev) {
-					return {
-						...prev,
-						width: cardRef.current.clientWidth - 20,
-						height: cardRef.current.clientHeight - 60,
-					};
-				}
-				return prev;
-			});
-		}
-	};
+                return convertedItem;
+            });
 
-	const onPlotClick = ({ points }: { points: any[] }) => {
-		if (points[0]?.customdata[0]) {
-			setStep(points[0].customdata[0]);
-		}
-		if (points[0]?.customdata[1]) {
-			setSelectedIds(new Set([points[0].customdata[1]]));
-		}
-	};
+            if (markerList.length > 0) {
+                updatedPlotData.push({
+                    type: "scatter",
+                    mode: "markers",
+                    name: "Current Step",
+                    showlegend: false,
+                    x: markerList.map((marker) => marker[0]),
+                    y: markerList.map((marker) => marker[1]),
+                    marker: {
+                        color: markerList.map((marker) => marker[2]),
+                        size: 12,
+                        symbol: "circle",
+                        line: {
+                            color: "black",
+                            width: 2,
+                        },
+                    },
+                });
+            }
+            setPlotData(updatedPlotData);
+        } else if (rawPlotData === undefined && plotType === "plotly") {
+            setPlotData(undefined);
+        }
+    }, [rawPlotData, step, plotType]);
 
-	const addAnotherCard = () => {
-		setDisplayedCards((prevCards) => {
-			const newCardIndex =
-				prevCards.length > 0 ? prevCards[prevCards.length - 1] + 1 : 0;
-			return [...prevCards, newCardIndex];
-		});
-	};
+    const handleSelectChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const newSelectedOption = event.target.value;
+        setSelectedOption(newSelectedOption);
+    };
 
-	const onPlotSelected = (event: any) => {
-		if (!event || !event.points) {
-			return;
-		}
-		if (event.points.length === 0) {
-			// This is triggered once the plot is re-rendered. We want to keep the selection here.
-			return;
-		}
-		const selectedFrames = event.points.map((point: any) =>
-			point.customdata ? point.customdata[0] : point.pointIndex,
-		);
-		// for all points.customdata[0] == step collect the points.customdata[1] and set selectedIds if customdata[1] is available
-		const selectedIds = new Set<number>(
-			event.points
-				.filter((point: any) => point.customdata?.[1])
-				.map((point: any) => point.customdata[1]),
-		);
-		if (selectedIds.size > 0) {
-			setSelectedIds(selectedIds);
-		}
+    const closeThisCard = () => {
+        setDisplayedCards((prevCards) =>
+            prevCards.filter((card) => card !== identifier),
+        );
+        setVisiblePlots((prevVisiblePlots) => {
+            const newVisiblePlots = { ...prevVisiblePlots };
+            delete newVisiblePlots[identifier];
+            return newVisiblePlots;
+        });
+    };
 
-		setSelectedFrames({
-			active: true,
-			indices: new Set(selectedFrames),
-		});
-	};
+    const onResize: RndResizeCallback = (e, direction, ref, delta, position) => {
+        if (cardRef.current && plotLayout) { // Check plotLayout before updating
+            setPlotLayout((prev) => {
+                if (prev) {
+                    const headerHeight = 50;
+                    const contentPadding = 16;
+                    // These calculations might need slight adjustments based on border/shadows if they add to the size
+                    return {
+                        ...prev,
+                        width: ref.offsetWidth - (contentPadding * 2),
+                        height: ref.offsetHeight - headerHeight - (contentPadding * 2),
+                    };
+                }
+                return prev;
+            });
+        }
+    };
 
-	const onPlotDeselect = () => {
-		setSelectedFrames({
-			active: true,
-			indices: new Set(),
-		});
-	};
+    const onPlotClick = ({ points }: { points: any[] }) => {
+        if (points && points.length > 0) {
+            const firstPoint = points[0];
+            if (firstPoint?.customdata?.[0] !== undefined) {
+                setStep(firstPoint.customdata[0]);
+            }
+            if (firstPoint?.customdata?.[1] !== undefined) {
+                setSelectedIds(new Set([firstPoint.customdata[1]]));
+            }
+        }
+    };
 
-	return (
-		<Rnd
-			minHeight={200}
-			minWidth={220}
-			onResize={onResize}
-			disableDragging={!allowDrag}
-			dragGrid={[50, 50]}
-			resizeGrid={[50, 50]}
-		>
-			<Card
-				style={{
-					padding: 0,
-					width: "100%",
-					height: "100%",
-				}}
-				ref={cardRef}
-			>
-				<CardHeader
-					sx={{
-						height: 50,
-						display: "flex",
-						justifyContent: "space-between",
-						alignItems: "center",
-						flexWrap: "nowrap",
-					}}
-					onPointerEnter={() => setAllowDrag(true)}
-					onPointerLeave={() => setAllowDrag(false)}
-				>
-					<TextField
-						select
-						onChange={handleSelectChange}
-						value={selectedOption}
-						ref={selectFormRef}
-						size="small"
-						variant="outlined"
-						sx={{ minWidth: 120 }}
-					>
-						{selectedOption === "" && (
-							<option value="" disabled>
-								Select plot
-							</option>
-						)}
-						{availablePlots.map((plot, index) => (
-							<option key={index} value={plot}>
-								{plot}
-							</option>
-						))}
-					</TextField>
-					<BtnTooltip text="Add another card">
-						<Button
-							variant="outlined"
-							color="secondary"
-							size="small"
-							sx={{ mx: 2 }}
-							onClick={addAnotherCard}
-						>
-							<ContentCopy />
-						</Button>
-					</BtnTooltip>
-					<IconButton onClick={closeThisCard} size="small">
-						<Close />
-					</IconButton>
-				</CardHeader>
-				<CardContent sx={{ padding: 0 }}>
-					{plotType === "plotly" && (
-						<Plot
-							data={plotData}
-							layout={plotLayout}
-							onClick={onPlotClick}
-							onSelected={onPlotSelected}
-							onDeselect={onPlotDeselect}
-						/>
-					)}
-					{plotType === "zndraw.Figure" && (
-						<img
-							src={`data:image/png;base64, ${plotData}`}
-							alt="plot"
-							className="img-fluid"
-						/>
-					)}
-					{plotType === "" && (
-						<Typography variant="h6" color="text.secondary" sx={{ m: 3 }}>
-							No data available
-						</Typography>
-					)}
-				</CardContent>
-			</Card>
-		</Rnd>
-	);
+    const addAnotherCard = () => {
+        setDisplayedCards((prevCards) => {
+            const newCardIndex =
+                prevCards.length > 0 ? Math.max(...prevCards) + 1 : 0;
+            return [...prevCards, newCardIndex];
+        });
+    };
+
+    const onPlotSelected = (event: any) => {
+        if (!event || !event.points || event.points.length === 0) {
+            setSelectedFrames({ active: true, indices: new Set() });
+            return;
+        }
+
+        const selectedFramesIndices = new Set<number>();
+        const selectedObjectIds = new Set<number>();
+
+        event.points.forEach((point: any) => {
+            if (point.customdata?.[0] !== undefined) {
+                selectedFramesIndices.add(point.customdata[0]);
+            }
+            if (point.customdata?.[1] !== undefined) {
+                selectedObjectIds.add(point.customdata[1]);
+            }
+        });
+
+        if (selectedObjectIds.size > 0) {
+            setSelectedIds(selectedObjectIds);
+        }
+
+        setSelectedFrames({
+            active: true,
+            indices: selectedFramesIndices,
+        });
+    };
+
+    const onPlotDeselect = () => {
+        setSelectedFrames({
+            active: true,
+            indices: new Set(),
+        });
+    };
+
+    return (
+        <Rnd
+            minHeight={200}
+            minWidth={220}
+            default={{
+                x: 0,
+                y: 0,
+                width: 400,
+                height: 300,
+            }}
+            onResize={onResize}
+            disableDragging={isLocked}
+            dragGrid={[1, 1]}
+            resizeGrid={[1, 1]}
+            bounds="window"
+        >
+            <Card
+                style={{
+                    width: "100%",
+                    height: "100%",
+                    display: "flex",
+                    flexDirection: "column",
+                }}
+                ref={cardRef}
+            >
+                <CardHeader
+                    sx={{
+                        height: 50,
+                        display: "flex",
+                        alignItems: "center",
+                        flexShrink: 0,
+                        pr: 1,
+                        pl: 2,
+                        '& .MuiCardHeader-content': {
+                            flexGrow: 1,
+                            minWidth: 0,
+                        }
+                    }}
+                    title={
+                        <TextField
+                            select
+                            value={selectedOption}
+                            onChange={handleSelectChange}
+                            size="small"
+                            variant="outlined"
+                            fullWidth
+                            sx={{
+                                flexGrow: 1,
+                            }}
+                        >
+                            {!selectedOption && (
+                                <MenuItem value="" disabled>
+                                    Select plot
+                                </MenuItem>
+                            )}
+                            {availablePlots.map((plot, index) => (
+                                <MenuItem key={index} value={plot}>
+                                    {plot}
+                                </MenuItem>
+                            ))}
+                        </TextField>
+                    }
+                    action={
+                        <Box sx={{ display: 'flex', alignItems: 'center', flexShrink: 0, ml: 1 }}>
+                            <BtnTooltip text={isLocked ? "Unlock dragging" : "Lock dragging"}>
+                                <IconButton onClick={() => setIsLocked(!isLocked)} size="small">
+                                    {isLocked ? <Lock /> : <LockOpen />}
+                                </IconButton>
+                            </BtnTooltip>
+                            <BtnTooltip text="Add another card">
+                                <IconButton
+                                    color="secondary"
+                                    size="small"
+                                    onClick={addAnotherCard}
+                                >
+                                    <ContentCopy />
+                                </IconButton>
+                            </BtnTooltip>
+                            <BtnTooltip text="Close card">
+                                <IconButton onClick={closeThisCard} size="small">
+                                    <Close />
+                                </IconButton>
+                            </BtnTooltip>
+                        </Box>
+                    }
+                />
+                <CardContent sx={{ flexGrow: 1, p: 2, overflow: 'hidden' }}>
+                    {plotType === "plotly" && plotData && plotLayout ? (
+                        <Plot
+                            data={plotData}
+                            layout={{
+                                ...plotLayout,
+                                autosize: true, // Keep autosize here
+                                // Explicitly define margins to reduce whitespace
+                                margin: {
+                                    l: 20, // left margin
+                                    r: 20, // right margin
+                                    b: 20, // bottom margin
+                                    t: 20, // top margin
+                                    pad: 0 // padding between plot area and legend/color bar
+                                },
+                                // You might still want automargin for axes if labels can be long
+                                xaxis: { automargin: true },
+                                yaxis: { automargin: true },
+                            }}
+                            useResizeHandler={true}
+                            style={{ width: "100%", height: "100%" }}
+                            onClick={onPlotClick}
+                            onSelected={onPlotSelected}
+                            onDeselect={onPlotDeselect}
+                            className="responsive-plotly-plot"
+                        />
+                    ) : plotType === "zndraw.Figure" && plotData ? (
+                        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%', width: '100%' }}>
+                            <img
+                                src={`data:image/png;base64, ${plotData}`}
+                                alt="plot"
+                                style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain" }}
+                            />
+                        </Box>
+                    ) : (
+                        <Typography variant="h6" color="text.secondary" sx={{ m: 3, textAlign: 'center' }}>
+                            {selectedOption ? "Loading plot data..." : "No plot selected or available."}
+                        </Typography>
+                    )}
+                </CardContent>
+            </Card>
+        </Rnd>
+    );
 };
