@@ -288,7 +288,7 @@ const PlotCard = ({
 		() => (
 			<CardContent sx={{ 
 				flexGrow: 1, 
-				p: "2px", 
+				p: "0px !important",
 				overflow: "hidden",
 				backgroundColor: "background.paper",
 			}}>
