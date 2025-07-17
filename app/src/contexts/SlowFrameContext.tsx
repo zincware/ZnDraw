@@ -10,10 +10,12 @@ import {
 import { useAppContext } from "./AppContext";
 import { useFrameConnection } from "../components/api";
 import { Dict } from "znsocket";
+import { set } from "lodash";
 
 interface SlowFrameState {
     isSlowFrame: boolean;
     atomsInfo: Record<string, any>;
+    atomsArrays: Record<string, any>;
     threshold: number; // Optional threshold for slow frame detection
 }
 
@@ -41,6 +43,7 @@ export const SlowFrameProvider: React.FC<SlowFrameProviderProps> = ({
 
     const [isSlowFrame, setIsSlowFrame] = useState(false);
     const [atomsInfo, setAtomsInfo] = useState<Record<string, any>>({});
+    const [atomsArrays, setAtomsArrays] = useState<Record<string, any>>({});
 
     useEffect(() => {
         const fetchData = async () => {
@@ -49,9 +52,10 @@ export const SlowFrameProvider: React.FC<SlowFrameProviderProps> = ({
                 if (!frameData) return;
 
                 // Fetch info and calc concurrently
-                const [info, calc] = await Promise.all([
+                const [info, calc, arrays] = await Promise.all([
                     frameData.get("info") as Promise<Dict | null>,
                     frameData.get("calc") as Promise<Dict | null>,
+                    frameData.get("arrays") as Promise<Dict | null>,
                 ]);
 
                 let newEntries = {};
@@ -63,6 +67,10 @@ export const SlowFrameProvider: React.FC<SlowFrameProviderProps> = ({
                 if (calc) {
                     const calcEntries = await calc.entries();
                     newEntries = { ...newEntries, ...Object.fromEntries(calcEntries) };
+                }
+                if (arrays) {
+                    const arraysEntries = await arrays.entries();
+                    setAtomsArrays(() => ({...Object.fromEntries(arraysEntries) }));
                 }
                 // iterate over the entries, check if any of them are Dict and if so, convert them to a plain object
                 for (const [key, value] of Object.entries(newEntries)) {
@@ -92,6 +100,13 @@ export const SlowFrameProvider: React.FC<SlowFrameProviderProps> = ({
                 }
                 return {}; // Otherwise, reset to a new empty object
             });
+            setAtomsArrays((prev) => {
+                if (Object.keys(prev).length === 0) {
+                    return prev; // Return current state to prevent re-render
+                }
+                return {}; // Otherwise, reset to a new empty object
+            });
+            // TODO: need to disconnect the framesCon?
         };
     }, [step, threshold, framesCon]);
 
@@ -99,7 +114,7 @@ export const SlowFrameProvider: React.FC<SlowFrameProviderProps> = ({
         console.log("atomsInfo changed:", atomsInfo);
     }, [atomsInfo]);
 
-    const value = useMemo(() => ({ isSlowFrame, atomsInfo, threshold }), [isSlowFrame, atomsInfo, threshold]);
+    const value = useMemo(() => ({ isSlowFrame, atomsInfo, threshold, atomsArrays }), [isSlowFrame, atomsInfo, threshold, atomsArrays]);
 
     return (
         <SlowFrameContext.Provider value={value}>

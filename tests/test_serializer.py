@@ -123,6 +123,20 @@ def atoms_x_arrays(atoms):
     atoms.arrays["radii"] = np.array([0.3, 0.4])
     return atoms
 
+@pytest.fixture
+def atoms_x_arrays_figure(atoms):
+    """Create an ASE Atoms object with a Figure in arrays."""
+    fig, ax = plt.subplots()
+    ax.plot([1, 2, 3], [1, 2, 3])
+    atoms.arrays["figure"] = [Figure.from_matplotlib(fig) for _ in range(len(atoms))]
+    return atoms
+
+@pytest.fixture
+def atoms_x_arrays_plotly(atoms):
+    """Create an ASE Atoms object with a Plotly figure in arrays."""
+    fig = go.Figure(data=go.Scatter(x=[1, 2, 3], y=[1, 2, 3]))
+    atoms.arrays["plotly_figure"] = [fig for _ in range(len(atoms))]
+    return atoms
 
 @pytest.fixture
 def atoms_x_cell(atoms):
@@ -147,6 +161,8 @@ def atoms_x_cell(atoms):
         "atoms_x_calc",
         "atoms_x_constraints",
         "atoms_x_arrays",
+        "atoms_x_arrays_figure",
+        "atoms_x_arrays_plotly",
         "atoms_x_cell",
     ],
 )
