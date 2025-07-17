@@ -437,12 +437,13 @@ export const ParticleInstances = ({
 		}
 	};
 
-	if (highlight === "" && pathTracingSettings?.enabled) {
-		useMergedMesh(meshRef, instancedGeometry, pathTracingSettings, [
-			frame,
-			visibleIndices,
-		]);
-	}
+	const shouldUseMergedMesh = highlight === "" && pathTracingSettings?.enabled;
+	useMergedMesh(
+		meshRef,
+		instancedGeometry,
+		shouldUseMergedMesh ? pathTracingSettings : { enabled: false },
+		[frame, visibleIndices]
+	);
 
 	return (
 		<>
@@ -598,12 +599,13 @@ export const BondInstances = ({
 		}
 	}, [frame, actualVisibleConnectivity, selection_color, geometry]);
 
-	if (highlight === "" && pathTracingSettings?.enabled) {
-		useMergedMesh(meshRef, instancedGeometry, pathTracingSettings, [
-			frame,
-			visibleIndices,
-		]);
-	}
+	const shouldUseMergedMesh = highlight === "" && pathTracingSettings?.enabled;
+	useMergedMesh(
+		meshRef,
+		instancedGeometry,
+		shouldUseMergedMesh ? pathTracingSettings : { enabled: false },
+		[frame, visibleIndices]
+	);
 
 	return (
 		<instancedMesh

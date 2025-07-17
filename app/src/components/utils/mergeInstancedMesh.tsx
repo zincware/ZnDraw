@@ -1,6 +1,6 @@
 import { useThree } from "@react-three/fiber";
 import { usePathtracer } from "@react-three/gpu-pathtracer";
-import { type RefObject, useEffect, useMemo, useRef } from "react";
+import { type RefObject, useEffect, useMemo } from "react";
 import * as THREE from "three";
 import * as BufferGeometryUtils from "three/addons/utils/BufferGeometryUtils.js";
 
@@ -30,9 +30,11 @@ export function useMergedMesh(
 
 	const mergedMesh = useMemo(() => {
 		if (
-			meshRef.current?.instanceMatrix?.array?.length > 0 &&
+			meshRef.current?.instanceMatrix?.array?.length &&
+			meshRef.current.instanceMatrix.array.length > 0 &&
 			settings?.enabled
 		) {
+			console.log('Creating merged mesh for path tracing with', meshRef.current.count, 'instances');
 			const singleMesh = splitInstancedMesh(
 				meshRef.current,
 				geometry,
@@ -111,7 +113,7 @@ export function mergeInstancedMesh(
 export function splitInstancedMesh(
 	instancedMesh: THREE.InstancedMesh,
 	geometry: THREE.BufferGeometry,
-	pathTracingSettings: any,
+	pathTracingSettings: PathTracingSettings,
 ): THREE.Group {
 	const { count } = instancedMesh;
 	const group = new THREE.Group();
