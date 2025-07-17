@@ -201,10 +201,8 @@ export const UIContainer: React.FC = () => {
 						<ParticleInfoOverlay
 							show={showParticleInfo}
 							info={{
-								position: currentFrame.positions[hoveredId],
 								number: currentFrame.numbers[hoveredId],
-								color: currentFrame.arrays.colors[hoveredId],
-								radius: currentFrame.arrays.radii[hoveredId],
+								id: hoveredId,
 								...(isDrawing && { Line: `${lineLength.toFixed(2)} Å` }),
 							}}
 							position={cursorPosition}
