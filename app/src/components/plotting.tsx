@@ -361,35 +361,17 @@ const PlotCard = ({
 					backgroundColor: "background.paper",
 				}}
 			>
-				{plotType === "plotly" && plotData ? (
-					<Plot
-						data={plotData}
-						layout={{ ...plotLayout, dragmode: "lasso", autosize: true }}
+				{plotData ? (
+					<PlotDisplay
+						plotData={plotData}
+						plotType={plotType}
+						plotLayout={plotLayout}
+						interactive={true}
 						useResizeHandler={true}
-						style={{ width: "100%", height: "100%" }}
-						onClick={onPlotClick}
-						onSelected={onPlotSelected}
-						onDeselect={onPlotDeselect}
+						onPlotClick={onPlotClick}
+						onPlotSelected={onPlotSelected}
+						onPlotDeselect={onPlotDeselect}
 					/>
-				) : plotType === "zndraw.Figure" && plotData ? (
-					<Box
-						sx={{
-							display: "flex",
-							justifyContent: "center",
-							alignItems: "center",
-							height: "100%",
-						}}
-					>
-						<img
-							src={`data:image/png;base64, ${plotData}`}
-							alt="plot"
-							style={{
-								maxWidth: "100%",
-								maxHeight: "100%",
-								objectFit: "contain",
-							}}
-						/>
-					</Box>
 				) : (
 					<Typography
 						variant="h6"
@@ -408,6 +390,7 @@ const PlotCard = ({
 			onPlotClick,
 			onPlotSelected,
 			onPlotDeselect,
+			selectedOption,
 		],
 	);
 
@@ -419,7 +402,7 @@ const PlotCard = ({
 	return (
 		<Rnd
 			minHeight={200}
-			minWidth={220}
+			minWidth={280}
 			default={{
 				x: Math.max(20, centerX),
 				y: Math.max(20, centerY),
@@ -535,6 +518,13 @@ interface PlotDisplayProps {
 	width?: number;
 	height?: number;
 	className?: string;
+	// Interactive features for PlotCard
+	interactive?: boolean;
+	onPlotClick?: (event: any) => void;
+	onPlotSelected?: (event: any) => void;
+	onPlotDeselect?: (event: any) => void;
+	useResizeHandler?: boolean;
+	style?: React.CSSProperties;
 }
 
 export const PlotDisplay = ({ 
@@ -543,32 +533,62 @@ export const PlotDisplay = ({
 	plotLayout, 
 	width = 200, 
 	height = 150,
-	className 
+	className,
+	interactive = false,
+	onPlotClick,
+	onPlotSelected,
+	onPlotDeselect,
+	useResizeHandler = false,
+	style = {}
 }: PlotDisplayProps) => {
 	if (plotType === "plotly" && plotData) {
+		const layoutConfig = interactive 
+			? { ...plotLayout, dragmode: "lasso", autosize: true }
+			: { 
+				...plotLayout, 
+				width, 
+				height,
+				margin: { t: 20, r: 20, b: 20, l: 20 },
+				showlegend: false,
+				paper_bgcolor: 'rgba(0,0,0,0)',
+				plot_bgcolor: 'rgba(0,0,0,0)'
+			};
+
+		const plotConfig = interactive 
+			? undefined
+			: { displayModeBar: false };
+
+		const plotStyle = interactive 
+			? { width: "100%", height: "100%", ...style }
+			: { width: "100%", height: "100%", ...style };
+
+		const containerStyle = interactive 
+			? { width: "100%", height: "100%" }
+			: { width, height };
+
 		return (
-			<div className={className} style={{ width, height }}>
+			<div className={className} style={containerStyle}>
 				<Plot
 					data={plotData}
-					layout={{ 
-						...plotLayout, 
-						width, 
-						height,
-						margin: { t: 20, r: 20, b: 20, l: 20 },
-						showlegend: false,
-						paper_bgcolor: 'rgba(0,0,0,0)',
-						plot_bgcolor: 'rgba(0,0,0,0)'
-					}}
-					config={{ displayModeBar: false }}
-					style={{ width: "100%", height: "100%" }}
+					layout={layoutConfig}
+					config={plotConfig}
+					style={plotStyle}
+					useResizeHandler={useResizeHandler}
+					onClick={onPlotClick}
+					onSelected={onPlotSelected}
+					onDeselect={onPlotDeselect}
 				/>
 			</div>
 		);
 	}
 
 	if (plotType === "zndraw.Figure" && plotData) {
+		const containerStyle = interactive 
+			? { width: "100%", height: "100%", display: "flex", justifyContent: "center", alignItems: "center" }
+			: { width, height, display: "flex", justifyContent: "center", alignItems: "center" };
+
 		return (
-			<div className={className} style={{ width, height, display: "flex", justifyContent: "center", alignItems: "center" }}>
+			<div className={className} style={containerStyle}>
 				<img
 					src={`data:image/png;base64, ${plotData}`}
 					alt="plot"
