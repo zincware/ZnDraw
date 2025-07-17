@@ -5,148 +5,104 @@ from ase.calculators.singlepoint import SinglePointCalculator
 from ase.constraints import FixAtoms
 
 from zndraw.draw import Object3D
+from zndraw.figure import Figure
 from zndraw.type_defs import ASEDict
 
 
 class ASEConverter(znjson.ConverterBase):
-    """Encode/Decode datetime objects
-
-    Attributes
-    ----------
-    level: int
-        Priority of this converter over others.
-        A higher level will be used first, if there
-        are multiple converters available
-    representation: str
-        An unique identifier for this converter.
-    instance:
-        Used to select the correct converter.
-        This should fulfill isinstance(other, self.instance)
-        or __eq__ should be overwritten.
-    """
-
     level = 100
     representation = "ase.Atoms"
     instance = ase.Atoms
 
-    def encode(self, obj: ase.Atoms) -> ASEDict:
-        """Convert the datetime object to str / isoformat"""
-
-        numbers = obj.numbers.tolist()
-        positions = obj.positions.tolist()
-        pbc = obj.pbc.tolist()
-        cell = obj.cell.tolist()
-
-        info = {
-            k: v
-            for k, v in obj.info.items()
-            if isinstance(v, (float, int, str, bool, list))
+    def encode(self, obj: ase.Atoms) -> dict:
+        data = {
+            "numbers": obj.numbers.tolist(),
+            "positions": obj.positions.tolist(),
+            "pbc": obj.pbc.tolist(),
+            "cell": obj.cell.tolist(),
         }
-        info |= {k: v.tolist() for k, v in obj.info.items() if isinstance(v, np.ndarray)}
-        vectors = info.pop("vectors", [])
-        if isinstance(vectors, np.ndarray):
-            vectors = vectors.tolist()
-        for idx, vector in enumerate(vectors):
-            if isinstance(vector, np.ndarray):
-                vectors[idx] = vector.tolist()
+        info = {}
+        for key, value in obj.info.items():
+            if isinstance(value, (str, int, float, bool)):
+                info[key] = value
+            elif isinstance(value, np.ndarray):
+                info[key] = value.tolist()
+            elif isinstance(value, Figure):
+                info[key] = {"_type": "zndraw.Figure", "base64": value.base64}
+            else:
+                raise TypeError(f"Unsupported type in info: {type(value)}")
+        data["info"] = info
 
-        if len(vectors) != 0:
-            vectors = np.array(vectors)
-            if vectors.ndim != 3:
-                raise ValueError(
-                    f"Vectors must be of shape (n, 2, 3), found '{vectors.shape}'"
-                )
-            if vectors.shape[1] != 2:
-                raise ValueError(
-                    f"Vectors must be of shape (n, 2, 3), found '{vectors.shape}'"
-                )
-            if vectors.shape[2] != 3:
-                raise ValueError(
-                    f"Vectors must be of shape (n, 2, 3), found '{vectors.shape}'"
-                )
-
-            vectors = vectors.tolist()
+        arrays = {}
+        for key, value in obj.arrays.items():
+            if isinstance(value, np.ndarray):
+                arrays[key] = value.tolist()
+            elif isinstance(value, Figure):
+                arrays[key] = {"_type": "zndraw.Figure", "base64": value.base64}
+            else:
+                raise TypeError(f"Unsupported type in arrays: {type(value)}")
+        data["arrays"] = arrays
 
         if obj.calc is not None:
-            calc = {
-                k: v
-                for k, v in obj.calc.results.items()
-                if isinstance(v, (float, int, str, bool, list))
-            }
-            calc |= {
-                k: v.tolist()
-                for k, v in obj.calc.results.items()
-                if isinstance(v, np.ndarray)
-            }
+            calc_results = {}
+            for key, value in obj.calc.results.items():
+                if isinstance(value, (str, int, float, bool)):
+                    calc_results[key] = value
+                elif isinstance(value, np.ndarray):
+                    calc_results[key] = value.tolist()
+                else:
+                    raise TypeError(f"Unsupported type in calc results: {type(value)}")
+            data["calc"] = calc_results
         else:
-            calc = {}
-
-        # All additional information should be stored in calc.results
-        # and not in calc.arrays, thus we will not convert it here!
-        arrays = {}
-
-        for key in obj.arrays:
-            if isinstance(obj.arrays[key], np.ndarray):
-                arrays[key] = obj.arrays[key].tolist()
-            else:
-                arrays[key] = obj.arrays[key]
-
-        connectivity = obj.info.get("connectivity", [])
-        # Convert numpy arrays to lists if needed
-        if isinstance(connectivity, np.ndarray):
-            connectivity = connectivity.tolist()
+            data["calc"] = {}
 
         constraints = []
-        if len(obj.constraints) > 0:
-            for constraint in obj.constraints:
-                if isinstance(constraint, FixAtoms):
-                    constraints.append(
-                        {"type": "FixAtoms", "indices": constraint.index.tolist()}
-                    )
-                else:
-                    # Can not serialize other constraints
-                    pass
+        for constraint in obj.constraints:
+            if isinstance(constraint, FixAtoms):
+                constraints.append(
+                    {"_type": "FixAtoms", "indices": constraint.index.tolist()}
+                )
+            else:
+                raise TypeError(
+                    f"Unsupported constraint type: {type(constraint)}"
+                )
+        data["constraints"] = constraints
 
-        # We don't want to send positions twice
-        arrays.pop("positions", None)
-        arrays.pop("numbers", None)
+        return data
 
-        return ASEDict(
-            numbers=numbers,
-            positions=positions,
-            connectivity=connectivity,
-            arrays=arrays,
-            info=info,
-            calc=calc,
-            pbc=pbc,
-            cell=cell,
-            vectors=vectors,
-            constraints=constraints,
-        )
-
-    def decode(self, value: ASEDict) -> ase.Atoms:
-        """Create datetime object from str / isoformat"""
+    def decode(self, value: dict) -> ase.Atoms:
         atoms = ase.Atoms(
             numbers=value["numbers"],
             positions=value["positions"],
-            info=value["info"],
             pbc=value["pbc"],
             cell=value["cell"],
         )
-        if connectivity := value.get("connectivity"):
-            # Store connectivity in atoms.info instead of atoms.connectivity
-            atoms.info["connectivity"] = connectivity
+        for key, val in value["info"].items():
+            if isinstance(val, dict):
+                if val.keys() == {"_type", "base64"} and val["_type"] == "zndraw.Figure":
+                    atoms.info[key] = Figure(base64=val["base64"])
+                else:
+                    atoms.info[key] = val
+            else:
+                atoms.info[key] = val
         for key, val in value["arrays"].items():
             atoms.arrays[key] = np.array(val)
-        if calc := value.get("calc"):
+        if "calc" in value:
             atoms.calc = SinglePointCalculator(atoms)
-            atoms.calc.results.update(calc)
-        if vectors := value.get("vectors"):
-            atoms.info["vectors"] = vectors
-        if constraints := value.get("constraints"):
-            for constraint in constraints:
-                if constraint["type"] == "FixAtoms":
+            for key, val in value["calc"].items():
+                if isinstance(val, list):
+                    atoms.calc.results[key] = np.array(val)
+                else:
+                    atoms.calc.results[key] = val
+        if "constraints" in value:
+            for constraint in value["constraints"]:
+                if constraint["_type"] == "FixAtoms":
                     atoms.set_constraint(FixAtoms(constraint["indices"]))
+                else:
+                    raise TypeError(
+                        f"Unsupported constraint type: {constraint['_type']}"
+                    )
+
         return atoms
 
 

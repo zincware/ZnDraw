@@ -9,8 +9,8 @@ import znjson
 @dataclasses.dataclass(frozen=True)
 class Figure:
     """Visualize a file or a matplotlib figure.
-    
-    
+
+
     Parameters
     ----------
     path : str | None

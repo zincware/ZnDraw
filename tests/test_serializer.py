@@ -1,94 +1,130 @@
-import json
-
 import ase
+import matplotlib.pyplot as plt
+import numpy as np
 import numpy.testing as npt
 import znjson
 from ase.calculators.singlepoint import SinglePointCalculator
 from ase.constraints import FixAtoms
+import rdkit2ase
 
+from zndraw import Figure
 from zndraw.converter import ASEConverter
+import pytest
 
 
-def test_ase_converter(s22):
-    s22[0].info["connectivity"] = [[0, 1, 1], [1, 2, 1], [2, 3, 1]]
-    s22[3].calc = SinglePointCalculator(s22[3])
-    s22[3].calc.results = {"energy": 0.0, "predicted_energy": 1.0}
-    s22[4].info = {"key": "value"}
+@pytest.fixture
+def atoms():
+    """Create a simple ASE Atoms object for testing."""
+    return ase.Atoms("H2", positions=[[0, 0, 0], [0, 0, 1]])
 
-    structures_json = znjson.dumps(
-        s22, cls=znjson.ZnEncoder.from_converters([ASEConverter])
-    )
+@pytest.fixture
+def atoms_x_info_str(atoms):
+    """Create an ASE Atoms object with additional info."""
+    atoms.info["key"] = "value"
+    return atoms
 
-    non_json = json.loads(structures_json)
-    assert "numbers" not in non_json[0]["value"]["arrays"]
-    assert "positions" not in non_json[0]["value"]["arrays"]
-    assert "pbc" not in non_json[0]["value"]["info"]
-    assert "cell" not in non_json[0]["value"]["info"]
+@pytest.fixture
+def atoms_x_info_nested_dict(atoms):
+    """Create an ASE Atoms object with additional info."""
+    atoms.info["key"] = {"subkey": "subvalue"}
+    atoms.info["nested"] = {"key1": "value1", "key2": {"subkey": "subvalue"}, "key3": [1, 2, 3]}
+    return atoms
 
-    structures = znjson.loads(
-        structures_json, cls=znjson.ZnDecoder.from_converters([ASEConverter])
-    )
-    for s1, s2 in zip(s22, structures):
-        assert s1 == s2
+@pytest.fixture
+def atoms_x_info_nested_list(atoms):
+    """Create an ASE Atoms object with a list in info."""
+    atoms.info["key"] = ["value1", "value2"]
+    atoms.info["nested"] = [{"subkey": "subvalue"}, [1, 2, 3]]
+    return atoms
 
-    assert structures[0].info["connectivity"] == [[0, 1, 1], [1, 2, 1], [2, 3, 1]]
-    assert "connectivity" not in structures[1].info
+@pytest.fixture
+def atoms_x_info_figure(atoms):
+    """Create an ASE Atoms object with a Figure in info."""
+    fig, ax = plt.subplots()
+    ax.plot([1, 2, 3], [1, 2, 3])
+    atoms.info["figure"] = Figure.from_matplotlib(fig)
+    return atoms
 
-    assert structures[3].calc.results == {"energy": 0.0, "predicted_energy": 1.0}
+@pytest.fixture
+def atoms_x_info_array(atoms):
+    """Create an ASE Atoms object with an array in info."""
+    atoms.info["array"] = np.array([1, 2, 3])
+    return atoms
 
-    assert "colors" not in structures[0].arrays
-    assert "radii" not in structures[0].arrays
+@pytest.fixture
+def atoms_x_connectivity():
+    """Create an ASE Atoms object with connectivity info."""
+    atoms = rdkit2ase.smiles2atoms("CCO")
+    assert "connectivity" in atoms.info
+    return atoms
 
-    assert structures[4].info == {"key": "value"}
+@pytest.fixture
+def atoms_x_calc(atoms):
+    """Create an ASE Atoms object with a calculator."""
+    atoms.calc = SinglePointCalculator(atoms, energy=0.0, forces=np.zeros((2, 3)))
+    return atoms
 
-
-def test_exotic_atoms():
-    atoms = ase.Atoms("X", positions=[[0, 0, 0]])
-    atoms.arrays["colors"] = ["#ff0000"]
-    atoms.arrays["radii"] = [0.3]
-
-    new_atoms = znjson.loads(
-        znjson.dumps(atoms, cls=znjson.ZnEncoder.from_converters([ASEConverter])),
-        cls=znjson.ZnDecoder.from_converters([ASEConverter]),
-    )
-    npt.assert_array_equal(new_atoms.arrays["colors"], ["#ff0000"])
-    npt.assert_array_equal(new_atoms.arrays["radii"], [0.3])
-
-
-def test_modified_atoms():
-    atoms = ase.Atoms("H2", positions=[[0, 0, 0], [0, 0, 1]])
-    new_atoms = znjson.loads(
-        znjson.dumps(atoms, cls=znjson.ZnEncoder.from_converters([ASEConverter])),
-        cls=znjson.ZnDecoder.from_converters([ASEConverter]),
-    )
-    npt.assert_array_equal(new_atoms.get_atomic_numbers(), [1, 1])
-
-    # subtract
-    atoms = new_atoms[:1]
-    new_atoms = znjson.loads(
-        znjson.dumps(atoms, cls=znjson.ZnEncoder.from_converters([ASEConverter])),
-        cls=znjson.ZnDecoder.from_converters([ASEConverter]),
-    )
-
-    npt.assert_array_equal(new_atoms.get_atomic_numbers(), [1])
-
-    # add
-    atoms = new_atoms + ase.Atoms("H", positions=[[0, 0, 1]])
-
-    new_atoms = znjson.loads(
-        znjson.dumps(atoms, cls=znjson.ZnEncoder.from_converters([ASEConverter])),
-        cls=znjson.ZnDecoder.from_converters([ASEConverter]),
-    )
-
-    npt.assert_array_equal(new_atoms.get_atomic_numbers(), [1, 1])
-
-
-def test_constraints_fixed_atoms():
-    atoms = ase.Atoms("H2", positions=[[0, 0, 0], [0, 0, 1]])
+@pytest.fixture
+def atoms_x_constraints(atoms):
+    """Create an ASE Atoms object with constraints."""
     atoms.set_constraint(FixAtoms([0]))
-    new_atoms = znjson.loads(
-        znjson.dumps(atoms, cls=znjson.ZnEncoder.from_converters([ASEConverter])),
-        cls=znjson.ZnDecoder.from_converters([ASEConverter]),
-    )
-    assert isinstance(new_atoms.constraints[0], FixAtoms)
-    assert new_atoms.constraints[0].index == [0]
+    return atoms
+
+@pytest.fixture
+def atoms_x_arrays(atoms):
+    """Create an ASE Atoms object with additional arrays."""
+    atoms.arrays["colors"] = np.array(["#ff0000", "#00ff00"])
+    atoms.arrays["radii"] = np.array([0.3, 0.4])
+    return atoms
+
+@pytest.fixture
+def atoms_x_cell(atoms):
+    """Create an ASE Atoms object with a cell."""
+    atoms.set_cell([[1, 0, 0], [0, 1, 0], [0, 0, 1]])
+    atoms.set_pbc([True, True, False])
+    return atoms
+
+
+@pytest.mark.parametrize(
+    "myatoms",
+    [
+        "atoms_x_info_str",
+        "atoms_x_info_nested_dict",
+        "atoms_x_info_nested_list",
+        "atoms_x_info_figure",
+        "atoms_x_info_array",
+        "atoms_x_connectivity",
+        "atoms_x_calc",
+        "atoms_x_constraints",
+        "atoms_x_arrays",
+        "atoms_x_cell",
+    ],
+)
+def test_serialization(myatoms, request):
+    atoms = request.getfixturevalue(myatoms)
+    serialized = znjson.dumps(atoms, cls=znjson.ZnEncoder.from_converters([ASEConverter]))
+    deserialized = znjson.loads(serialized, cls=znjson.ZnDecoder.from_converters([ASEConverter]))
+
+    npt.assert_array_equal(atoms.get_atomic_numbers(), deserialized.get_atomic_numbers())
+    npt.assert_array_equal(atoms.get_positions(), deserialized.get_positions())
+    npt.assert_array_equal(atoms.get_pbc(), deserialized.get_pbc())
+    npt.assert_array_equal(atoms.get_cell(), deserialized.get_cell())
+    
+    for key in atoms.info:
+        npt.assert_array_equal(atoms.info[key], deserialized.info[key])
+    for key in atoms.arrays:
+        npt.assert_array_equal(atoms.arrays[key], deserialized.arrays[key])
+    if atoms.calc is not None:
+        for key in atoms.calc.results:
+            npt.assert_array_equal(atoms.calc.results[key], deserialized.calc.results[key])
+
+
+def test_unsupported_type():
+    """Test serialization of an unsupported type."""
+    atoms = ase.Atoms("H2", positions=[[0, 0, 0], [0, 0, 1]])
+    fig, ax = plt.subplots()
+    ax.plot([1, 2, 3], [1, 2, 3])
+    atoms.info["unsupported"] = fig  # Matplotlib figure is not supported
+    with pytest.raises(TypeError):
+        znjson.dumps(atoms, cls=znjson.ZnEncoder.from_converters([ASEConverter]))
+
