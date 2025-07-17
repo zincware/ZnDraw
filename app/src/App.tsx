@@ -4,6 +4,7 @@ import type React from "react";
 import { UIContainer } from "./components/containers/UIContainer";
 import { VisualizationContainer } from "./components/containers/VisualizationContainer";
 import { AppProvider } from "./contexts/AppContext";
+import { SlowFrameProvider } from "./contexts/SlowFrameContext";
 import { useFileHandler } from "./hooks/useFileHandler";
 import { useKeyboardHandler } from "./hooks/useKeyboardHandler";
 import { useSelectionCleanup } from "./hooks/useSelectionCleanup";
@@ -42,7 +43,9 @@ export default function App() {
 
 	return (
 		<AppProvider colorMode={mode || "light"} handleColorMode={handleColorMode}>
-			<AppContent />
+			<SlowFrameProvider>
+				<AppContent />
+			</SlowFrameProvider>
 		</AppProvider>
 	);
 }

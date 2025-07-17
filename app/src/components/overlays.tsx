@@ -2,6 +2,7 @@ import { Card, CardContent, Typography, Box, IconButton } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import { Rnd } from "react-rnd";
 import type { Frame } from "./particles";
+import { useSlowFrame } from "../contexts/SlowFrameContext";
 
 export const ParticleInfoOverlay = ({
 	show,
@@ -44,6 +45,9 @@ export const SceneInfoOverlay = ({
 	frame: Frame;
 	setShowParticleInfo: (show: boolean) => void;
 }) => {
+
+	const { atomsInfo } = useSlowFrame();
+
 	return (
 		<Rnd
 			default={{
@@ -96,17 +100,17 @@ export const SceneInfoOverlay = ({
 						padding: "8px",
 					}}
 				>
-					{frame.calc?.energy && (
-						<Typography variant="body2">
-							Energy: {frame.calc.energy.toFixed(3)} eV
-						</Typography>
-					)}
 					<Typography variant="body2">
 						Particles: {frame.positions.length}
 					</Typography>
 					<Typography variant="body2">
 						Bonds: {frame.connectivity?.length || 0}
 					</Typography>
+					{atomsInfo?.energy && (
+						<Typography variant="body2">
+							Energy: {atomsInfo.energy.toFixed(3)} eV
+						</Typography>
+					)}
 				</CardContent>
 			</Card>
 		</Rnd>
