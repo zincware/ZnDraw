@@ -84,13 +84,13 @@ export function SiMGenButtons({
 					<Button
 						href="https://github.com/RokasEl/simgen"
 						target="_blank"
-						sx={{ 
-							textTransform: "none", 
-							color: "success.main", 
+						sx={{
+							textTransform: "none",
+							color: "success.main",
 							minWidth: "auto",
 							p: 0.25,
 							fontSize: "1rem",
-							fontWeight: 600
+							fontWeight: 600,
 						}}
 					>
 						SiMGen
@@ -102,12 +102,12 @@ export function SiMGenButtons({
 							onClick={runConnect}
 							disabled={disabledBtn}
 							size="small"
-							sx={{ 
+							sx={{
 								mr: 0.5,
-								minWidth: 'auto',
+								minWidth: "auto",
 								px: 1,
 								gap: 0.5,
-								textTransform: 'none'
+								textTransform: "none",
 							}}
 						>
 							<TbPlugConnected /> Connect
@@ -120,12 +120,12 @@ export function SiMGenButtons({
 							onClick={runGenerate}
 							disabled={disabledBtn}
 							size="small"
-							sx={{ 
+							sx={{
 								mr: 0.5,
-								minWidth: 'auto',
+								minWidth: "auto",
 								px: 1,
 								gap: 0.5,
-								textTransform: 'none'
+								textTransform: "none",
 							}}
 						>
 							<FaRocket /> Generate
@@ -138,12 +138,12 @@ export function SiMGenButtons({
 							onClick={createNewCanvas}
 							disabled={disabledBtn}
 							size="small"
-							sx={{ 
+							sx={{
 								mr: 0.5,
-								minWidth: 'auto',
+								minWidth: "auto",
 								px: 1,
 								gap: 0.5,
-								textTransform: 'none'
+								textTransform: "none",
 							}}
 						>
 							<FaFileCirclePlus /> New Canvas
@@ -157,10 +157,10 @@ export function SiMGenButtons({
 								onClick={() => setTutorialModalShow(true)}
 								startIcon={<FaFilm />}
 								size="small"
-								sx={{ 
-									minWidth: 'auto',
+								sx={{
+									minWidth: "auto",
 									px: 1,
-									textTransform: 'none',
+									textTransform: "none",
 								}}
 							>
 								Tutorial

@@ -246,9 +246,9 @@ export function ConsoleWindow({
 								<CloseIcon />
 							</IconButton>
 						}
-						sx={{ 
-							cursor: "move", 
-							borderBottom: 1, 
+						sx={{
+							cursor: "move",
+							borderBottom: 1,
 							borderColor: "divider",
 							backgroundColor: colorMode === "light" ? "#f5f5f5" : "#2d2d2d",
 							py: 1,
@@ -256,9 +256,9 @@ export function ConsoleWindow({
 						}}
 					/>
 					<CardContent
-						sx={{ 
-							flexGrow: 1, 
-							overflowY: "auto", 
+						sx={{
+							flexGrow: 1,
+							overflowY: "auto",
 							p: 2,
 							backgroundColor: "background.paper",
 						}}

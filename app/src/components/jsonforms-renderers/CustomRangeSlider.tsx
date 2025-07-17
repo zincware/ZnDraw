@@ -1,6 +1,13 @@
 // src/renderers/CustomRangeSlider.js
 import { withJsonFormsControlProps } from "@jsonforms/react";
-import { FormLabel, Slider, Box, Typography, Tooltip, IconButton } from "@mui/material";
+import {
+	FormLabel,
+	Slider,
+	Box,
+	Typography,
+	Tooltip,
+	IconButton,
+} from "@mui/material";
 import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
 
 const CustomRangeSlider = ({

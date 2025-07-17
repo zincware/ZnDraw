@@ -286,12 +286,14 @@ const PlotCard = ({
 
 	const memoizedPlotContent = useMemo(
 		() => (
-			<CardContent sx={{ 
-				flexGrow: 1, 
-				p: "0px !important",
-				overflow: "hidden",
-				backgroundColor: "background.paper",
-			}}>
+			<CardContent
+				sx={{
+					flexGrow: 1,
+					p: "0px !important",
+					overflow: "hidden",
+					backgroundColor: "background.paper",
+				}}
+			>
 				{plotType === "plotly" && plotData ? (
 					<Plot
 						data={plotData}

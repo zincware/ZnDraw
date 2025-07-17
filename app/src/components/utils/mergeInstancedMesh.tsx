@@ -34,7 +34,11 @@ export function useMergedMesh(
 			meshRef.current.instanceMatrix.array.length > 0 &&
 			settings?.enabled
 		) {
-			console.log('Creating merged mesh for path tracing with', meshRef.current.count, 'instances');
+			console.log(
+				"Creating merged mesh for path tracing with",
+				meshRef.current.count,
+				"instances",
+			);
 			const singleMesh = splitInstancedMesh(
 				meshRef.current,
 				geometry,

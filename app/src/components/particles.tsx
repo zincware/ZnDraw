@@ -442,7 +442,7 @@ export const ParticleInstances = ({
 		meshRef,
 		instancedGeometry,
 		shouldUseMergedMesh ? pathTracingSettings : { enabled: false },
-		[frame, visibleIndices]
+		[frame, visibleIndices],
 	);
 
 	return (
@@ -604,7 +604,7 @@ export const BondInstances = ({
 		meshRef,
 		instancedGeometry,
 		shouldUseMergedMesh ? pathTracingSettings : { enabled: false },
-		[frame, visibleIndices]
+		[frame, visibleIndices],
 	);
 
 	return (

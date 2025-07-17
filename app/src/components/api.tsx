@@ -397,23 +397,21 @@ export const setupFrames = (
 
 	const setCurrentFrameFromObject = async (frame: any) => {
 		// Await top-level fields
-		const [positions, numbers, arrays, connectivity, cell, constraints] =
+		const [positions, numbers, arrays, info, cell, constraints] =
 			await Promise.all([
 				frame.positions,
 				frame.numbers,
 				frame.arrays,
-				frame.connectivity,
+				frame.info,
 				frame.cell,
 				frame.constraints,
 			]);
-
-		// TODO: vectors are missing!
-		// request them separately, only if needed
-
+		
 		// Await nested arrays.colors and arrays.radii
-		const [colors, radii] = await Promise.all([
+		const [colors, radii, connectivity] = await Promise.all([
 			arrays?.colors ?? Promise.resolve(null),
 			arrays?.radii ?? Promise.resolve(null),
+			info?.connectivity ?? Promise.resolve([]),
 		]);
 
 		// Convert positions to THREE.Vector3

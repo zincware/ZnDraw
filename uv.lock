@@ -4370,7 +4370,7 @@ wheels = [
 
 [[package]]
 name = "zndraw"
-version = "0.5.10"
+version = "0.5.11a2"
 source = { editable = "." }
 dependencies = [
     { name = "ase" },

@@ -199,9 +199,9 @@ const HeadBar = ({
 					<Box sx={{ flexGrow: 1 }} />
 
 					{/* --- RIGHT ALIGNED ITEMS --- */}
-					<SiMGenButtons 
-						visible={showSiMGen} 
-						token={token} 
+					<SiMGenButtons
+						visible={showSiMGen}
+						token={token}
 						tutorialURL={tutorialURL}
 						setTutorialModalShow={setTutorialModalShow}
 					/>

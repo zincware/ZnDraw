@@ -267,7 +267,11 @@ export const FrameProgressBar: React.FC<FrameProgressBarProps> = ({
 								: theme.palette.action.hover,
 							opacity: 1,
 						},
-						"& .MuiSlider-track": { height: 4, borderRadius: 2, transition: "none" },
+						"& .MuiSlider-track": {
+							height: 4,
+							borderRadius: 2,
+							transition: "none",
+						},
 						"& .MuiSlider-thumb": {
 							width: 14,
 							height: 14,

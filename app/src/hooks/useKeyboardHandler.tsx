@@ -179,18 +179,21 @@ export const useKeyboardHandler = () => {
 				// Reset camera to original position
 				event.preventDefault();
 				event.stopPropagation();
-				
+
 				if (currentFrame.positions.length === 0) {
 					return;
 				}
-				
+
 				// Calculate the camera positions
 				const fullCentroid = getCentroid(currentFrame.positions, new Set());
 
 				// Compute the bounding sphere radius
 				let maxDistance = 0;
 				currentFrame.positions.forEach((position) => {
-					maxDistance = Math.max(maxDistance, position.distanceTo(fullCentroid));
+					maxDistance = Math.max(
+						maxDistance,
+						position.distanceTo(fullCentroid),
+					);
 				});
 
 				// Assume a default FOV of 75 degrees for perspective camera
@@ -205,8 +208,8 @@ export const useKeyboardHandler = () => {
 					camera: new THREE.Vector3(distance, distance, distance),
 					target: fullCentroid,
 				};
-				
-				console.log('Resetting camera to original position:', resetCamera);
+
+				console.log("Resetting camera to original position:", resetCamera);
 				setCameraAndControls(resetCamera);
 			}
 		};
