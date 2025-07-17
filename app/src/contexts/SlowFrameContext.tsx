@@ -14,6 +14,7 @@ import { Dict } from "znsocket";
 interface SlowFrameState {
     isSlowFrame: boolean;
     atomsInfo: Record<string, any>;
+    threshold: number; // Optional threshold for slow frame detection
 }
 
 const SlowFrameContext = createContext<SlowFrameState | undefined>(undefined);
@@ -33,7 +34,7 @@ interface SlowFrameProviderProps {
 
 export const SlowFrameProvider: React.FC<SlowFrameProviderProps> = ({
     children,
-    threshold = 50,
+    threshold = 150,
 }) => {
     const { step, token } = useAppContext();
     const { framesCon } = useFrameConnection(token);
@@ -98,7 +99,7 @@ export const SlowFrameProvider: React.FC<SlowFrameProviderProps> = ({
         console.log("atomsInfo changed:", atomsInfo);
     }, [atomsInfo]);
 
-    const value = useMemo(() => ({ isSlowFrame, atomsInfo }), [isSlowFrame, atomsInfo]);
+    const value = useMemo(() => ({ isSlowFrame, atomsInfo, threshold }), [isSlowFrame, atomsInfo, threshold]);
 
     return (
         <SlowFrameContext.Provider value={value}>

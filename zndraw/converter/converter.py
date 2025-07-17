@@ -8,6 +8,8 @@ from zndraw.draw import Object3D
 from zndraw.figure import Figure
 from zndraw.type_defs import ASEDict
 import znsocket
+import plotly.graph_objects as go
+import plotly.io as pio
 
 # TODO: there is an issue with using `_type` with znjson and the numpy array type,
 TYPE_KEY = "type"
@@ -31,6 +33,8 @@ class ASEConverter(znjson.ConverterBase):
                 return [recursive_encode(v) for v in val]
             elif isinstance(val, dict):
                 return {k: recursive_encode(v) for k, v in val.items()}
+            elif isinstance(val, go.Figure):
+                return {TYPE_KEY: "plotly.graph_objs.Figure", "value": val.to_json()}
             # elif isinstance(val, znsocket.Dict):
             #     return {k: recursive_encode(v) for k, v in val.items()}
             # elif isinstance(val, (znsocket.List, znsocket.Segments)):
@@ -74,6 +78,8 @@ class ASEConverter(znjson.ConverterBase):
                         return Figure(base64=val["base64"])
                     elif val[TYPE_KEY] == "ndarray":
                         return np.array(val["value"])
+                    elif val[TYPE_KEY] == "plotly.graph_objs.Figure":
+                        return pio.from_json(val["value"])
                     else:
                         raise TypeError(f"Unsupported type during decoding: {val[TYPE_KEY]}")
                 else:

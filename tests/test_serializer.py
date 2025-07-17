@@ -6,6 +6,7 @@ import znjson
 from ase.calculators.singlepoint import SinglePointCalculator
 from ase.constraints import FixAtoms
 import rdkit2ase
+import plotly.graph_objects as go
 
 from zndraw import Figure
 from zndraw.converter import ASEConverter
@@ -66,6 +67,13 @@ def atoms_x_info_figure(atoms):
     fig, ax = plt.subplots()
     ax.plot([1, 2, 3], [1, 2, 3])
     atoms.info["figure"] = Figure.from_matplotlib(fig)
+    return atoms
+
+@pytest.fixture
+def atoms_x_info_plotly(atoms):
+    """Create an ASE Atoms object with a Plotly figure in info."""
+    fig = go.Figure(data=go.Scatter(x=[1, 2, 3], y=[1, 2, 3]))
+    atoms.info["plotly_figure"] = fig
     return atoms
 
 
@@ -134,6 +142,7 @@ def atoms_x_cell(atoms):
         "atoms_x_info_figure",
         "atoms_x_info_array",
         "atoms_x_info_np_generic",
+        "atoms_x_info_plotly",
         "atoms_x_connectivity",
         "atoms_x_calc",
         "atoms_x_constraints",

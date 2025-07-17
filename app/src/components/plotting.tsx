@@ -197,7 +197,7 @@ const PlotCard = ({
 }: PlotCardProps) => {
 	const { token, step, setStep, setSelectedFrames, setSelectedIds } =
 		usePlottingContext();
-	const { atomsInfo } = useSlowFrame();
+	const { atomsInfo, threshold } = useSlowFrame();
 
 	const [slowFramePlots, setSlowFramePlots] = useState<Record<string, any>>({});
 	const [globalPlots, setGlobalPlots] = useState<Record<string, any>>({});
@@ -216,7 +216,7 @@ const PlotCard = ({
 			if (value?.type === "plotly.graph_objs.Figure") {
 				newEntries[key] = {
 					_type: "plotly.graph_objs.Figure",
-					value: JSON.stringify(value),
+					value: value.value,
 				};
 			} else if (value?.type === "zndraw.Figure") {
 				newEntries[key] = {
@@ -224,6 +224,7 @@ const PlotCard = ({
 					value: value,
 				};
 			}
+			console.log(newEntries);
 		}
 		setSlowFramePlots(newEntries);
 	}, [atomsInfo]);
@@ -258,13 +259,20 @@ const PlotCard = ({
 
 	// Clear selection if plot is no longer available
 	useEffect(() => {
-		const isStillAvailable = availablePlots.includes(selectedOption);
-		if (!isStillAvailable) {
-			setPlotData(undefined);
-			setPlotType("");
-			setPlotLayout(undefined);
+		let timeoutId: NodeJS.Timeout;
+
+		if (!availablePlots.includes(selectedOption)) {
+			timeoutId = setTimeout(() => {
+				setPlotData(undefined);
+				setPlotType("");
+				setPlotLayout(undefined);
+			}, threshold);
 		}
-	}, [availablePlots, selectedOption]);
+
+		return () => {
+			if (timeoutId) clearTimeout(timeoutId);
+		};
+	}, [availablePlots, selectedOption, threshold]);
 
 	// Load plot data from correct source
 	useEffect(() => {
