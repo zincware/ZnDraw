@@ -7,7 +7,26 @@ import znjson
 
 @dataclasses.dataclass(frozen=True)
 class Figure:
-    """Visualize a file or a matplotlib figure."""
+    """Visualize a file or a matplotlib figure.
+    
+    
+    Parameters
+    ----------
+    path : str | None
+        Path to the image file.
+    figure : plt.Figure | None
+        Matplotlib figure object.
+
+    Examples
+    --------
+    >>> import matplotlib.pyplot as plt
+    >>> from zndraw import ZnDraw, Figure
+    >>> vis = ZnDraw(url="http://localhost:8000", token="test_token")
+    >>> fig, ax = plt.subplots()
+    >>> ax.plot([1, 2, 3], [1, 2, 3])
+    >>> vis.figures["mtpl"] = Figure(figure=fig)
+    >>> vis.figures["png"] = Figure(path="/path/to/image.png")
+    """
 
     path: str | None = None
     figure: plt.Figure | None = None
