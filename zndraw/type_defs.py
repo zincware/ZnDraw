@@ -1,4 +1,5 @@
 import typing as t
+import numpy as np
 
 if t.TYPE_CHECKING:
     from zndraw.base import Extension
@@ -35,10 +36,10 @@ class CameraData(t.TypedDict):
 class ASEDict(t.TypedDict):
     numbers: list[int]
     positions: list[list[float]]
-    connectivity: list[tuple[int, int, int]]
+    # connectivity: list[tuple[int, int, int]]
     arrays: dict[str, list[float | int | list[float | int]]]
     info: dict[str, float | int]
-    # calc: dict[str, float|int|np.ndarray] # should this be split into arrays and info?
+    calc: dict[str, float|int|np.ndarray] # should this be split into arrays and info?
     pbc: list[bool]
     cell: list[list[float]]
     vectors: list[list[list[float]]]

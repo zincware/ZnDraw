@@ -75,6 +75,16 @@ def atoms_x_info_array(atoms):
     atoms.info["array"] = np.array([1, 2, 3])
     return atoms
 
+@pytest.fixture
+def atoms_x_info_np_generic(atoms):
+    """Create an ASE Atoms object with a numpy generic type in info."""
+    atoms.info["generic"] = np.int64(42)
+    return atoms
+
+@pytest.fixture
+def atoms_x_info_znsocket(atoms):
+    """Create an ASE Atoms object with a znsocket in info."""
+    
 
 @pytest.fixture
 def atoms_x_connectivity():
@@ -123,6 +133,7 @@ def atoms_x_cell(atoms):
         "atoms_x_info_nested_objects",
         "atoms_x_info_figure",
         "atoms_x_info_array",
+        "atoms_x_info_np_generic",
         "atoms_x_connectivity",
         "atoms_x_calc",
         "atoms_x_constraints",
@@ -143,13 +154,29 @@ def test_serialization(myatoms, request):
 
     for key in atoms.info:
         npt.assert_equal(atoms.info[key], deserialized.info[key])
+    for key in deserialized.info:
+        npt.assert_equal(atoms.info[key], deserialized.info[key])
     for key in atoms.arrays:
+        npt.assert_equal(atoms.arrays[key], deserialized.arrays[key])
+    for key in deserialized.arrays:
         npt.assert_equal(atoms.arrays[key], deserialized.arrays[key])
     if atoms.calc is not None:
         for key in atoms.calc.results:
             npt.assert_equal(
                 atoms.calc.results[key], deserialized.calc.results[key]
             )
+    if deserialized.calc is not None:
+        for key in deserialized.calc.results:
+            npt.assert_equal(
+                atoms.calc.results[key], deserialized.calc.results[key]
+            )
+    if atoms.constraints:
+        for a, b in zip(atoms.constraints, deserialized.constraints):
+            assert repr(a) == repr(b)
+
+    if deserialized.constraints:
+        for a, b in zip(atoms.constraints, deserialized.constraints):
+            assert repr(a) == repr(b)
 
 
 def test_unsupported_type():

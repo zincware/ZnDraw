@@ -7,28 +7,36 @@ from ase.constraints import FixAtoms
 from zndraw.draw import Object3D
 from zndraw.figure import Figure
 from zndraw.type_defs import ASEDict
+import znsocket
+
+# TODO: there is an issue with using `_type` with znjson and the numpy array type,
+TYPE_KEY = "type"
 
 class ASEConverter(znjson.ConverterBase):
     level = 100
     representation = "ase.Atoms"
     instance = ase.Atoms
 
-    def encode(self, obj: ase.Atoms) -> dict:
+    def encode(self, obj: ase.Atoms) -> ASEDict:
         def recursive_encode(val):
             if isinstance(val, (str, int, float, bool, type(None))):
                 return val
             elif isinstance(val, np.ndarray):
-                return {"type": "ndarray", "value": val.tolist()}
+                return {TYPE_KEY: "ndarray", "value": val.tolist()}
+            elif isinstance(val, np.generic):
+                return val.item()  # Convert numpy generic types to native Python types
             elif isinstance(val, Figure):
-                return {"type": "zndraw.Figure", "base64": val.base64}
-            elif isinstance(val, list):
+                return {TYPE_KEY: "zndraw.Figure", "base64": val.base64}
+            elif isinstance(val, (list, tuple)):
                 return [recursive_encode(v) for v in val]
-            elif isinstance(val, tuple):
-                return {"type": "tuple", "value": [recursive_encode(v) for v in val]}
             elif isinstance(val, dict):
                 return {k: recursive_encode(v) for k, v in val.items()}
+            # elif isinstance(val, znsocket.Dict):
+            #     return {k: recursive_encode(v) for k, v in val.items()}
+            # elif isinstance(val, (znsocket.List, znsocket.Segments)):
+            #     return [recursive_encode(v) for v in val]
             else:
-                raise TypeError(f"Unsupported type during encoding: {type(val)}")
+                raise TypeError(f"Unsupported type during encoding: {type(val)} / {val}")
 
         data = {
             "numbers": obj.numbers.tolist(),
@@ -47,33 +55,36 @@ class ASEConverter(znjson.ConverterBase):
         for constraint in obj.constraints:
             if isinstance(constraint, FixAtoms):
                 data["constraints"].append(
-                    {"type": "FixAtoms", "indices": constraint.index.tolist()}
+                    {TYPE_KEY: "FixAtoms", "indices": constraint.index.tolist()}
                 )
             else:
                 raise TypeError(f"Unsupported constraint type: {type(constraint)}")
 
         return data
 
-    def decode(self, value: dict) -> ase.Atoms:
+    def decode(self, value: ASEDict) -> ase.Atoms:
         def recursive_decode(val):
             if isinstance(val, (str, int, float, bool, type(None))):
                 return val
             elif isinstance(val, list):
                 return [recursive_decode(v) for v in val]
             elif isinstance(val, dict):
-                if "type" in val:
-                    if val["type"] == "zndraw.Figure":
+                if TYPE_KEY in val:
+                    if val[TYPE_KEY] == "zndraw.Figure":
                         return Figure(base64=val["base64"])
-                    elif val["type"] == "ndarray":
+                    elif val[TYPE_KEY] == "ndarray":
                         return np.array(val["value"])
-                    elif val["type"] == "tuple":
-                        return tuple(recursive_decode(v) for v in val["value"])
                     else:
-                        raise TypeError(f"Unsupported type during decoding: {val['type']}")
+                        raise TypeError(f"Unsupported type during decoding: {val[TYPE_KEY]}")
                 else:
                     return {k: recursive_decode(v) for k, v in val.items()}
+            # special znsocket cases, they need to be resolved
+            elif isinstance(val, znsocket.Dict):
+                return recursive_decode(dict(val))
+            elif isinstance(val, (znsocket.List, znsocket.Segments)):
+                return recursive_decode(val[:])
             else:
-                raise TypeError(f"Unsupported type during decoding: {type(val)}")
+                raise TypeError(f"Unsupported type during decoding: {type(val)} / {val}")
 
         atoms = ase.Atoms(
             numbers=value["numbers"],
@@ -92,10 +103,10 @@ class ASEConverter(znjson.ConverterBase):
 
         if "constraints" in value:
             for constraint in value["constraints"]:
-                if constraint["type"] == "FixAtoms":
+                if constraint[TYPE_KEY] == "FixAtoms":
                     atoms.set_constraint(FixAtoms(constraint["indices"]))
                 else:
-                    raise TypeError(f"Unsupported constraint type: {constraint['type']}")
+                    raise TypeError(f"Unsupported constraint type: {constraint[TYPE_KEY]}")
 
         return atoms
 
