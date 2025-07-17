@@ -10,12 +10,15 @@ import CustomRangeSlider from "./jsonforms-renderers/CustomRangeSlider";
 import { customRangeSliderTester } from "./jsonforms-renderers/customRangeSliderTester";
 import CustomColorPicker from "./jsonforms-renderers/CustomColorPicker";
 import { customColorPickerTester } from "./jsonforms-renderers/customColorPickerTester";
+import CustomSmilesRenderer from "./jsonforms-renderers/CustomSmilesRenderer";
+import { customSmilesRendererTester } from "./jsonforms-renderers/customSmilesRendererTester";
 
 // TODO: do we need to memoize this?
 const customRenderers = [
 	...materialRenderers,
 	{ tester: customRangeSliderTester, renderer: CustomRangeSlider },
 	{ tester: customColorPickerTester, renderer: CustomColorPicker },
+	{ tester: customSmilesRendererTester, renderer: CustomSmilesRenderer },
 ];
 interface JSONFormsEditorProps {
 	schema: any;

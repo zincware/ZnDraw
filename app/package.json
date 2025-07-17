@@ -18,6 +18,7 @@
 		"@jsonforms/material-renderers": "^3.6.0",
 		"@jsonforms/react": "^3.6.0",
 		"@jsonforms/vanilla-renderers": "^3.6.0",
+		"@loschmidt/jsme-react": "^1.0.2",
 		"@mui/icons-material": "^7.2.0",
 		"@mui/material": "^7.2.0",
 		"@react-three/drei": "^9.122.0",
