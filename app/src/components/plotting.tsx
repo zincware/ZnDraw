@@ -523,6 +523,121 @@ const PlotCard = ({
 		</Rnd>
 	);
 };
+// --------------------------------------------------------------------------
+// ## 4. Reusable Plot Component
+// A lightweight component for displaying plots without the full windowing system
+// --------------------------------------------------------------------------
+
+interface PlotDisplayProps {
+	plotData: any[] | string | undefined;
+	plotType: string;
+	plotLayout?: any;
+	width?: number;
+	height?: number;
+	className?: string;
+}
+
+export const PlotDisplay = ({ 
+	plotData, 
+	plotType, 
+	plotLayout, 
+	width = 200, 
+	height = 150,
+	className 
+}: PlotDisplayProps) => {
+	if (plotType === "plotly" && plotData) {
+		return (
+			<div className={className} style={{ width, height }}>
+				<Plot
+					data={plotData}
+					layout={{ 
+						...plotLayout, 
+						width, 
+						height,
+						margin: { t: 20, r: 20, b: 20, l: 20 },
+						showlegend: false,
+						paper_bgcolor: 'rgba(0,0,0,0)',
+						plot_bgcolor: 'rgba(0,0,0,0)'
+					}}
+					config={{ displayModeBar: false }}
+					style={{ width: "100%", height: "100%" }}
+				/>
+			</div>
+		);
+	}
+
+	if (plotType === "zndraw.Figure" && plotData) {
+		return (
+			<div className={className} style={{ width, height, display: "flex", justifyContent: "center", alignItems: "center" }}>
+				<img
+					src={`data:image/png;base64, ${plotData}`}
+					alt="plot"
+					style={{
+						maxWidth: "100%",
+						maxHeight: "100%",
+						objectFit: "contain",
+					}}
+				/>
+			</div>
+		);
+	}
+
+	return null;
+};
+
+// --------------------------------------------------------------------------
+// ## 5. Hook for Processing Array Data to Plots
+// Extracts plot data from atomsArrays for a specific particle index
+// --------------------------------------------------------------------------
+
+export const useArrayPlots = (atomsArrays: Record<string, any>, particleIndex: number) => {
+	const [plotsData, setPlotsData] = useState<{[key: string]: { plotData: any, plotType: string, plotLayout?: any }}>({});
+
+	useEffect(() => {
+		if (!atomsArrays || particleIndex === -1) {
+			setPlotsData({});
+			return;
+		}
+
+		const plots: {[key: string]: { plotData: any, plotType: string, plotLayout?: any }} = {};
+
+		// Process each array key in atomsArrays
+		for (const [key, arrayList] of Object.entries(atomsArrays)) {
+			if (key === 'colors' || key === 'radii') continue; // Skip these basic arrays
+			
+			try {
+				// arrayList should be an array of objects
+				if (Array.isArray(arrayList) && arrayList[particleIndex] !== undefined) {
+					const value = arrayList[particleIndex];
+					
+					// Check if it's a plot figure
+					if (value && typeof value === 'object' && value.type) {
+						if (value.type === "plotly.graph_objs.Figure") {
+							const parsed = JSON.parse(value.value);
+							plots[key] = {
+								plotData: parsed.data,
+								plotType: "plotly",
+								plotLayout: parsed.layout
+							};
+						} else if (value.type === "zndraw.Figure") {
+							plots[key] = {
+								plotData: value.base64,
+								plotType: "zndraw.Figure"
+							};
+						}
+					}
+				}
+			} catch (error) {
+				console.warn(`Error processing array ${key}:`, error);
+			}
+		}
+
+		setPlotsData(plots);
+	}, [atomsArrays, particleIndex]);
+
+	return plotsData;
+};
+
 // --- Helper Function ---
 function processPlotData(
 	rawData: any[] | undefined,

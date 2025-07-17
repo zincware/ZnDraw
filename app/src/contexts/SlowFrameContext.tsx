@@ -110,10 +110,6 @@ export const SlowFrameProvider: React.FC<SlowFrameProviderProps> = ({
         };
     }, [step, threshold, framesCon]);
 
-    useEffect(() => {
-        console.log("atomsInfo changed:", atomsInfo);
-    }, [atomsInfo]);
-
     const value = useMemo(() => ({ isSlowFrame, atomsInfo, threshold, atomsArrays }), [isSlowFrame, atomsInfo, threshold, atomsArrays]);
 
     return (

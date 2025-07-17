@@ -1,21 +1,29 @@
-import { Card, CardContent, Typography, Box, IconButton } from "@mui/material";
+import { Card, CardContent, Typography, Box, IconButton, Divider } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import { Rnd } from "react-rnd";
 import type { Frame } from "./particles";
 import { useSlowFrame } from "../contexts/SlowFrameContext";
+import { PlotDisplay, useArrayPlots } from "./plotting";
 
 export const ParticleInfoOverlay = ({
 	show,
 	info,
 	position,
+	particleIndex,
 }: {
 	show: boolean;
 	info: { [key: string]: any };
 	position: { x: number; y: number };
+	particleIndex?: number;
 }) => {
+	const { atomsArrays } = useSlowFrame();
+	const arrayPlots = useArrayPlots(atomsArrays, particleIndex ?? -1);
+	
 	if (!show) {
 		return null;
 	}
+
+	const hasPlots = Object.keys(arrayPlots).length > 0;
 
 	return (
 		<Card
@@ -24,7 +32,7 @@ export const ParticleInfoOverlay = ({
 				top: position.y - 25,
 				left: position.x - 50,
 				zIndex: 1000,
-				maxWidth: "18rem",
+				maxWidth: hasPlots ? "24rem" : "18rem",
 			}}
 		>
 			<CardContent sx={{ padding: "8px !important" }}>
@@ -33,6 +41,28 @@ export const ParticleInfoOverlay = ({
 						<strong>{key}:</strong> {String(value)}
 					</Typography>
 				))}
+				
+				{hasPlots && (
+					<>
+						<Divider sx={{ my: 1 }} />
+						<Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+							{Object.entries(arrayPlots).map(([key, plotInfo]) => (
+								<Box key={key} sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
+									<Typography variant="caption" sx={{ fontWeight: "bold" }}>
+										{key}:
+									</Typography>
+									<PlotDisplay
+										plotData={plotInfo.plotData}
+										plotType={plotInfo.plotType}
+										plotLayout={plotInfo.plotLayout}
+										width={180}
+										height={120}
+									/>
+								</Box>
+							))}
+						</Box>
+					</>
+				)}
 			</CardContent>
 		</Card>
 	);

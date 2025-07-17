@@ -206,6 +206,7 @@ export const UIContainer: React.FC = () => {
 								...(isDrawing && { Line: `${lineLength.toFixed(2)} Å` }),
 							}}
 							position={cursorPosition}
+							particleIndex={hoveredId}
 						/>
 					)
 				);
