@@ -172,7 +172,7 @@ export const FrameProgressBar: React.FC<FrameProgressBarProps> = ({
 					placement="top"
 				>
 					<BookmarkIndicator
-						left={`${(position / length) * 100}%`}
+						left={`${(position / (length - 1)) * 100}%`}
 						onClick={(e) => handleBookmarkClick(e, position)}
 					>
 						<svg viewBox="0 0 12 7" xmlns="http://www.w3.org/2000/svg">
@@ -204,8 +204,8 @@ export const FrameProgressBar: React.FC<FrameProgressBarProps> = ({
 				key={`selected-block-${index}`}
 				sx={{
 					position: "absolute",
-					left: `${(block.start / length) * 100}%`,
-					width: `${((block.end - block.start + 1) / length) * 100}%`,
+					left: `${(block.start / (length - 1)) * 100}%`,
+					width: `${((block.end - block.start + 1) / (length - 1)) * 100}%`,
 					height: "6px",
 					backgroundColor: "primary.light",
 					borderRadius: "3px",
@@ -243,7 +243,7 @@ export const FrameProgressBar: React.FC<FrameProgressBarProps> = ({
 				sx={{ ...compactTextFieldSx, width: 110 }}
 				InputProps={{
 					endAdornment: (
-						<InputAdornment position="end">/{length}</InputAdornment>
+						<InputAdornment position="end">/{length - 1}</InputAdornment>
 					),
 				}}
 			/>
@@ -254,7 +254,7 @@ export const FrameProgressBar: React.FC<FrameProgressBarProps> = ({
 				<Slider
 					value={step}
 					min={0}
-					max={length}
+					max={length - 1}
 					step={1}
 					onChange={handleSliderChange}
 					sx={{
