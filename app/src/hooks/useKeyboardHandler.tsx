@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { getCentroid } from "../components/particlesEditor";
 import { useAppContext } from "../contexts/AppContext";
+import * as THREE from "three";
 
 export const useKeyboardHandler = () => {
 	const {
@@ -174,6 +175,39 @@ export const useKeyboardHandler = () => {
 			} else if (event.key === "x" || event.key === "X") {
 				// Toggle drawing mode
 				setIsDrawing(!isDrawing);
+			} else if (event.key === "o" || event.key === "O") {
+				// Reset camera to original position
+				event.preventDefault();
+				event.stopPropagation();
+				
+				if (currentFrame.positions.length === 0) {
+					return;
+				}
+				
+				// Calculate the camera positions
+				const fullCentroid = getCentroid(currentFrame.positions, new Set());
+
+				// Compute the bounding sphere radius
+				let maxDistance = 0;
+				currentFrame.positions.forEach((position) => {
+					maxDistance = Math.max(maxDistance, position.distanceTo(fullCentroid));
+				});
+
+				// Assume a default FOV of 75 degrees for perspective camera
+				const fov = (75 * Math.PI) / 180; // Convert FOV to radians
+				let distance = maxDistance / Math.tan(fov / 2);
+				// if distance is NaN or 0, use a default distance
+				if (Number.isNaN(distance) || distance === 0) {
+					distance = 10;
+				}
+
+				const resetCamera = {
+					camera: new THREE.Vector3(distance, distance, distance),
+					target: fullCentroid,
+				};
+				
+				console.log('Resetting camera to original position:', resetCamera);
+				setCameraAndControls(resetCamera);
 			}
 		};
 

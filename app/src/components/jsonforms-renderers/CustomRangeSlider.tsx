@@ -1,7 +1,7 @@
 // src/renderers/CustomRangeSlider.js
-import React from "react";
 import { withJsonFormsControlProps } from "@jsonforms/react";
-import { FormLabel, Slider, Box, Typography } from "@mui/material"; // Example with MUI for better UI
+import { FormLabel, Slider, Box, Typography, Tooltip, IconButton } from "@mui/material";
+import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
 
 const CustomRangeSlider = ({
 	data,
@@ -16,7 +16,16 @@ const CustomRangeSlider = ({
 
 	return (
 		<Box sx={{ marginBottom: 2 }}>
-			<FormLabel required={required}>{label}</FormLabel>
+			<Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+				<FormLabel required={required}>{label}</FormLabel>
+				{schema.description && (
+					<Tooltip title={schema.description} placement="top">
+						<IconButton size="small" sx={{ padding: 0.5 }}>
+							<HelpOutlineIcon fontSize="small" />
+						</IconButton>
+					</Tooltip>
+				)}
+			</Box>
 			<Box sx={{ display: "flex", alignItems: "center", gap: 2, paddingX: 1 }}>
 				<Slider
 					value={value}

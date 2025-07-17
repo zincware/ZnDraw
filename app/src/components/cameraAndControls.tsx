@@ -198,23 +198,15 @@ const CameraAndControls: React.FC<CameraAndControlsProps> = ({
 
 		const handleKeyDown = (event: KeyboardEvent) => {
 			// if canvas is not focused, don't do anything
-			if (document.activeElement !== document.body) {
+			const canvasContainer = document.querySelector(".canvas-container");
+			const isCanvasFocused =
+				canvasContainer && canvasContainer.contains(document.activeElement);
+			const isBodyFocused = document.activeElement === document.body;
+
+			if (!isCanvasFocused && !isBodyFocused) {
 				return;
 			}
-			if (event.key === "o") {
-				const resetCamera = getResetCamera();
-				if (resetCamera) {
-					setCameraAndControls(resetCamera);
-				}
-				// reset the camera roll
-				if (cameraRef.current) {
-					cameraRef.current.up.copy(upVector);
-					cameraRef.current.updateProjectionMatrix();
-					if (controlsRef.current) {
-						controlsRef.current.update();
-					}
-				}
-			} else if (event.key === "r") {
+			if (event.key === "r") {
 				const roll = Math.PI / 100;
 				if (event.ctrlKey) {
 					rollCamera(-roll);

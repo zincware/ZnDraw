@@ -1,7 +1,8 @@
 // src/renderers/CustomColorPicker.js
 import React from "react";
 import { withJsonFormsControlProps } from "@jsonforms/react";
-import { FormLabel, Box } from "@mui/material"; // Example with MUI
+import { FormLabel, Box, Tooltip, IconButton } from "@mui/material";
+import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
 
 const CustomColorPicker = ({
 	data,
@@ -15,7 +16,16 @@ const CustomColorPicker = ({
 
 	return (
 		<Box sx={{ marginBottom: 2 }}>
-			<FormLabel required={required}>{label}</FormLabel>
+			<Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+				<FormLabel required={required}>{label}</FormLabel>
+				{schema.description && (
+					<Tooltip title={schema.description} placement="top">
+						<IconButton size="small" sx={{ padding: 0.5 }}>
+							<HelpOutlineIcon fontSize="small" />
+						</IconButton>
+					</Tooltip>
+				)}
+			</Box>
 			<Box sx={{ display: "flex", alignItems: "center", gap: 2, marginTop: 1 }}>
 				<input
 					type="color"
