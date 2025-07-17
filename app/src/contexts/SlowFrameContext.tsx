@@ -9,7 +9,7 @@ import {
 } from "react";
 import { useAppContext } from "./AppContext";
 import { useFrameConnection } from "../components/api";
-import type { Dict } from "znsocket";
+import { Dict } from "znsocket";
 
 interface SlowFrameState {
     isSlowFrame: boolean;
@@ -33,7 +33,7 @@ interface SlowFrameProviderProps {
 
 export const SlowFrameProvider: React.FC<SlowFrameProviderProps> = ({
     children,
-    threshold = 500,
+    threshold = 50,
 }) => {
     const { step, token } = useAppContext();
     const { framesCon } = useFrameConnection(token);
@@ -62,6 +62,13 @@ export const SlowFrameProvider: React.FC<SlowFrameProviderProps> = ({
                 if (calc) {
                     const calcEntries = await calc.entries();
                     newEntries = { ...newEntries, ...Object.fromEntries(calcEntries) };
+                }
+                // iterate over the entries, check if any of them are Dict and if so, convert them to a plain object
+                for (const [key, value] of Object.entries(newEntries)) {
+                    if (value instanceof Dict) {
+                        let plainObject = await value.entries();
+                        newEntries[key] = Object.fromEntries(plainObject);
+                    }
                 }
 
                 setAtomsInfo((prev) => ({ ...prev, ...newEntries }));

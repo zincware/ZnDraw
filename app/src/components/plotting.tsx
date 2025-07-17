@@ -25,6 +25,8 @@ import * as znsocket from "znsocket";
 import { client } from "../socket";
 import { BtnTooltip } from "./tooltips";
 import type { IndicesState } from "./utils";
+import { useSlowFrame } from "../contexts/SlowFrameContext";
+
 
 // --- Type Definitions ---
 
@@ -195,44 +197,102 @@ const PlotCard = ({
 }: PlotCardProps) => {
 	const { token, step, setStep, setSelectedFrames, setSelectedIds } =
 		usePlottingContext();
+	const { atomsInfo } = useSlowFrame();
+
+	const [slowFramePlots, setSlowFramePlots] = useState<Record<string, any>>({});
+	const [globalPlots, setGlobalPlots] = useState<Record<string, any>>({});
 	const [availablePlots, setAvailablePlots] = useState<string[]>([]);
+
 	const [selectedOption, setSelectedOption] = useState(initialPlotName || "");
 	const [plotData, setPlotData] = useState<any[] | string | undefined>();
 	const [plotType, setPlotType] = useState("");
 	const [plotLayout, setPlotLayout] = useState<any>();
 	const [isLocked, setIsLocked] = useState(false);
 
+	// Collect local (slowframe) plots
+	useEffect(() => {
+		const newEntries: Record<string, any> = {};
+		for (const [key, value] of Object.entries(atomsInfo)) {
+			if (value?.type === "plotly.graph_objs.Figure") {
+				newEntries[key] = {
+					_type: "plotly.graph_objs.Figure",
+					value: JSON.stringify(value),
+				};
+			} else if (value?.type === "zndraw.Figure") {
+				newEntries[key] = {
+					_type: "zndraw.Figure",
+					value: value,
+				};
+			}
+		}
+		setSlowFramePlots(newEntries);
+	}, [atomsInfo]);
+
+	// Collect global (shared via znsocket.Dict) plots
 	useEffect(() => {
 		const con = new znsocket.Dict({ client, key: `room:${token}:figures` });
-		const handleRefresh = async () => setAvailablePlots(await con.keys());
+		const handleRefresh = async () => {
+			const keys = await con.keys();
+			const fetchedPlots: Record<string, any> = {};
+			await Promise.all(
+				keys.map(async (key) => {
+					const val = await con.get(key);
+					if (val) fetchedPlots[key] = val;
+				}),
+			);
+			setGlobalPlots(fetchedPlots);
+		};
 		con.onRefresh(handleRefresh);
 		handleRefresh();
 		return () => con.offRefresh(handleRefresh);
 	}, [token]);
 
+	// Merge all available plots
+	useEffect(() => {
+		const mergedKeys = [...new Set([
+			...Object.keys(slowFramePlots),
+			...Object.keys(globalPlots),
+		])];
+		setAvailablePlots(mergedKeys);
+	}, [slowFramePlots, globalPlots]);
+
+	// Clear selection if plot is no longer available
+	useEffect(() => {
+		const isStillAvailable = availablePlots.includes(selectedOption);
+		if (!isStillAvailable) {
+			setPlotData(undefined);
+			setPlotType("");
+			setPlotLayout(undefined);
+		}
+	}, [availablePlots, selectedOption]);
+
+	// Load plot data from correct source
 	useEffect(() => {
 		if (!selectedOption) {
 			setPlotData(undefined);
 			setPlotType("");
+			setPlotLayout(undefined);
 			return;
 		}
-		const con = new znsocket.Dict({ client, key: `room:${token}:figures` });
-		con.get(selectedOption).then((data: any) => {
-			if (!data) return;
-			if (data._type === "plotly.graph_objs.Figure") {
-				const parsed = JSON.parse(data.value);
-				const processedData = processPlotData(parsed.data, step);
-				setPlotType("plotly");
-				setPlotData(processedData);
-				setPlotLayout(parsed.layout);
-			} else if (data._type === "zndraw.Figure") {
-				setPlotType("zndraw.Figure");
-				setPlotData(data.value.base64);
-			}
-		});
-	}, [selectedOption, token, step]); // Re-process data when step changes
 
-	// ✅ FIX: Added the onResize handler to update the plot layout state
+		const local = slowFramePlots[selectedOption];
+		const global = globalPlots[selectedOption];
+
+		const data = local || global;
+		if (!data) return;
+
+		if (data._type === "plotly.graph_objs.Figure") {
+			const parsed = JSON.parse(data.value);
+			const processedData = processPlotData(parsed.data, step);
+			setPlotType("plotly");
+			setPlotData(processedData);
+			setPlotLayout(parsed.layout);
+		} else if (data._type === "zndraw.Figure") {
+			setPlotType("zndraw.Figure");
+			setPlotData(data.value.base64);
+		}
+	}, [selectedOption, step, slowFramePlots, globalPlots]);
+
 	const onResize = useCallback<RndResizeCallback>(
 		(e, direction, ref) => {
 			bringToFront(identifier);
@@ -240,9 +300,8 @@ const PlotCard = ({
 				if (!prevLayout) return prevLayout;
 				return {
 					...prevLayout,
-					// The plot's layout dimensions are explicitly set from the Rnd container's size
 					width: ref.offsetWidth,
-					height: ref.offsetHeight - 50, // Subtract header height
+					height: ref.offsetHeight - 50, // Adjust for header
 				};
 			});
 		},
@@ -344,7 +403,6 @@ const PlotCard = ({
 		],
 	);
 
-	// Calculate center position for the window
 	const defaultWidth = 450;
 	const defaultHeight = 350;
 	const centerX = (window.innerWidth - defaultWidth) / 2;
@@ -364,7 +422,6 @@ const PlotCard = ({
 			disableDragging={isLocked}
 			bounds="window"
 			dragHandleClassName="drag-handle"
-			// ✅ FIX: Pass the onResize handler to the Rnd component
 			onResize={onResize}
 			onDragStop={onDragStop}
 		>
@@ -416,6 +473,8 @@ const PlotCard = ({
 							{availablePlots.map((plot) => (
 								<MenuItem key={plot} value={plot}>
 									{plot}
+									{slowFramePlots[plot] && " (local)"}
+									{globalPlots[plot] && " (shared)"}
 								</MenuItem>
 							))}
 						</TextField>
@@ -456,7 +515,6 @@ const PlotCard = ({
 		</Rnd>
 	);
 };
-
 // --- Helper Function ---
 function processPlotData(
 	rawData: any[] | undefined,
