@@ -1,4 +1,11 @@
-import { Card, CardContent, Typography, Box, IconButton, Divider } from "@mui/material";
+import {
+	Card,
+	CardContent,
+	Typography,
+	Box,
+	IconButton,
+	Divider,
+} from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import { Rnd } from "react-rnd";
 import type { Frame } from "./particles";
@@ -18,7 +25,7 @@ export const ParticleInfoOverlay = ({
 }) => {
 	const { atomsArrays } = useSlowFrame();
 	const arrayPlots = useArrayPlots(atomsArrays, particleIndex ?? -1);
-	
+
 	if (!show) {
 		return null;
 	}
@@ -41,13 +48,16 @@ export const ParticleInfoOverlay = ({
 						<strong>{key}:</strong> {String(value)}
 					</Typography>
 				))}
-				
+
 				{hasPlots && (
 					<>
 						<Divider sx={{ my: 1 }} />
 						<Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
 							{Object.entries(arrayPlots).map(([key, plotInfo]) => (
-								<Box key={key} sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
+								<Box
+									key={key}
+									sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}
+								>
 									<Typography variant="caption" sx={{ fontWeight: "bold" }}>
 										{key}:
 									</Typography>
@@ -75,7 +85,6 @@ export const SceneInfoOverlay = ({
 	frame: Frame;
 	setShowParticleInfo: (show: boolean) => void;
 }) => {
-
 	const { atomsInfo } = useSlowFrame();
 
 	return (

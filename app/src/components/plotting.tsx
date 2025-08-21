@@ -27,7 +27,6 @@ import { BtnTooltip } from "./tooltips";
 import type { IndicesState } from "./utils";
 import { useSlowFrame } from "../contexts/SlowFrameContext";
 
-
 // --- Type Definitions ---
 
 interface PlottingProps {
@@ -250,10 +249,9 @@ const PlotCard = ({
 
 	// Merge all available plots
 	useEffect(() => {
-		const mergedKeys = [...new Set([
-			...Object.keys(slowFramePlots),
-			...Object.keys(globalPlots),
-		])];
+		const mergedKeys = [
+			...new Set([...Object.keys(slowFramePlots), ...Object.keys(globalPlots)]),
+		];
 		setAvailablePlots(mergedKeys);
 	}, [slowFramePlots, globalPlots]);
 
@@ -527,11 +525,11 @@ interface PlotDisplayProps {
 	style?: React.CSSProperties;
 }
 
-export const PlotDisplay = ({ 
-	plotData, 
-	plotType, 
-	plotLayout, 
-	width = 200, 
+export const PlotDisplay = ({
+	plotData,
+	plotType,
+	plotLayout,
+	width = 200,
 	height = 150,
 	className,
 	interactive = false,
@@ -539,30 +537,28 @@ export const PlotDisplay = ({
 	onPlotSelected,
 	onPlotDeselect,
 	useResizeHandler = false,
-	style = {}
+	style = {},
 }: PlotDisplayProps) => {
 	if (plotType === "plotly" && plotData) {
-		const layoutConfig = interactive 
+		const layoutConfig = interactive
 			? { ...plotLayout, dragmode: "lasso", autosize: true }
-			: { 
-				...plotLayout, 
-				width, 
-				height,
-				margin: { t: 20, r: 20, b: 20, l: 20 },
-				showlegend: false,
-				paper_bgcolor: 'rgba(0,0,0,0)',
-				plot_bgcolor: 'rgba(0,0,0,0)'
-			};
+			: {
+					...plotLayout,
+					width,
+					height,
+					margin: { t: 20, r: 20, b: 20, l: 20 },
+					showlegend: false,
+					paper_bgcolor: "rgba(0,0,0,0)",
+					plot_bgcolor: "rgba(0,0,0,0)",
+				};
 
-		const plotConfig = interactive 
-			? undefined
-			: { displayModeBar: false };
+		const plotConfig = interactive ? undefined : { displayModeBar: false };
 
-		const plotStyle = interactive 
+		const plotStyle = interactive
 			? { width: "100%", height: "100%", ...style }
 			: { width: "100%", height: "100%", ...style };
 
-		const containerStyle = interactive 
+		const containerStyle = interactive
 			? { width: "100%", height: "100%" }
 			: { width, height };
 
@@ -583,9 +579,21 @@ export const PlotDisplay = ({
 	}
 
 	if (plotType === "zndraw.Figure" && plotData) {
-		const containerStyle = interactive 
-			? { width: "100%", height: "100%", display: "flex", justifyContent: "center", alignItems: "center" }
-			: { width, height, display: "flex", justifyContent: "center", alignItems: "center" };
+		const containerStyle = interactive
+			? {
+					width: "100%",
+					height: "100%",
+					display: "flex",
+					justifyContent: "center",
+					alignItems: "center",
+				}
+			: {
+					width,
+					height,
+					display: "flex",
+					justifyContent: "center",
+					alignItems: "center",
+				};
 
 		return (
 			<div className={className} style={containerStyle}>
@@ -610,8 +618,13 @@ export const PlotDisplay = ({
 // Extracts plot data from atomsArrays for a specific particle index
 // --------------------------------------------------------------------------
 
-export const useArrayPlots = (atomsArrays: Record<string, any>, particleIndex: number) => {
-	const [plotsData, setPlotsData] = useState<{[key: string]: { plotData: any, plotType: string, plotLayout?: any }}>({});
+export const useArrayPlots = (
+	atomsArrays: Record<string, any>,
+	particleIndex: number,
+) => {
+	const [plotsData, setPlotsData] = useState<{
+		[key: string]: { plotData: any; plotType: string; plotLayout?: any };
+	}>({});
 
 	useEffect(() => {
 		if (!atomsArrays || particleIndex === -1) {
@@ -619,30 +632,35 @@ export const useArrayPlots = (atomsArrays: Record<string, any>, particleIndex: n
 			return;
 		}
 
-		const plots: {[key: string]: { plotData: any, plotType: string, plotLayout?: any }} = {};
+		const plots: {
+			[key: string]: { plotData: any; plotType: string; plotLayout?: any };
+		} = {};
 
 		// Process each array key in atomsArrays
 		for (const [key, arrayList] of Object.entries(atomsArrays)) {
-			if (key === 'colors' || key === 'radii') continue; // Skip these basic arrays
-			
+			if (key === "colors" || key === "radii") continue; // Skip these basic arrays
+
 			try {
 				// arrayList should be an array of objects
-				if (Array.isArray(arrayList) && arrayList[particleIndex] !== undefined) {
+				if (
+					Array.isArray(arrayList) &&
+					arrayList[particleIndex] !== undefined
+				) {
 					const value = arrayList[particleIndex];
-					
+
 					// Check if it's a plot figure
-					if (value && typeof value === 'object' && value.type) {
+					if (value && typeof value === "object" && value.type) {
 						if (value.type === "plotly.graph_objs.Figure") {
 							const parsed = JSON.parse(value.value);
 							plots[key] = {
 								plotData: parsed.data,
 								plotType: "plotly",
-								plotLayout: parsed.layout
+								plotLayout: parsed.layout,
 							};
 						} else if (value.type === "zndraw.Figure") {
 							plots[key] = {
 								plotData: value.base64,
-								plotType: "zndraw.Figure"
+								plotType: "zndraw.Figure",
 							};
 						}
 					}

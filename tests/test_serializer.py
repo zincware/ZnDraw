@@ -2,15 +2,15 @@ import ase
 import matplotlib.pyplot as plt
 import numpy as np
 import numpy.testing as npt
+import plotly.graph_objects as go
+import pytest
+import rdkit2ase
 import znjson
 from ase.calculators.singlepoint import SinglePointCalculator
 from ase.constraints import FixAtoms
-import rdkit2ase
-import plotly.graph_objects as go
 
 from zndraw import Figure
 from zndraw.converter import ASEConverter
-import pytest
 
 
 @pytest.fixture
@@ -30,7 +30,11 @@ def atoms_x_info_str(atoms):
 def atoms_x_info_nested_dict(atoms):
     """Create an ASE Atoms object with additional info."""
     atoms.info["key"] = {"subkey": "subvalue"}
-    atoms.info["nested"] = {"key1": "value1", "key2": {"subkey": "subvalue"}, "key3": [1, 2, 3]}
+    atoms.info["nested"] = {
+        "key1": "value1",
+        "key2": {"subkey": "subvalue"},
+        "key3": [1, 2, 3],
+    }
     return atoms
 
 
@@ -69,6 +73,7 @@ def atoms_x_info_figure(atoms):
     atoms.info["figure"] = Figure.from_matplotlib(fig)
     return atoms
 
+
 @pytest.fixture
 def atoms_x_info_plotly(atoms):
     """Create an ASE Atoms object with a Plotly figure in info."""
@@ -83,16 +88,18 @@ def atoms_x_info_array(atoms):
     atoms.info["array"] = np.array([1, 2, 3])
     return atoms
 
+
 @pytest.fixture
 def atoms_x_info_np_generic(atoms):
     """Create an ASE Atoms object with a numpy generic type in info."""
     atoms.info["generic"] = np.int64(42)
     return atoms
 
+
 @pytest.fixture
 def atoms_x_info_znsocket(atoms):
     """Create an ASE Atoms object with a znsocket in info."""
-    
+
 
 @pytest.fixture
 def atoms_x_connectivity():
@@ -123,6 +130,7 @@ def atoms_x_arrays(atoms):
     atoms.arrays["radii"] = np.array([0.3, 0.4])
     return atoms
 
+
 @pytest.fixture
 def atoms_x_arrays_figure(atoms):
     """Create an ASE Atoms object with a Figure in arrays."""
@@ -131,12 +139,14 @@ def atoms_x_arrays_figure(atoms):
     atoms.arrays["figure"] = [Figure.from_matplotlib(fig) for _ in range(len(atoms))]
     return atoms
 
+
 @pytest.fixture
 def atoms_x_arrays_plotly(atoms):
     """Create an ASE Atoms object with a Plotly figure in arrays."""
     fig = go.Figure(data=go.Scatter(x=[1, 2, 3], y=[1, 2, 3]))
     atoms.arrays["plotly_figure"] = [fig for _ in range(len(atoms))]
     return atoms
+
 
 @pytest.fixture
 def atoms_x_cell(atoms):
@@ -170,7 +180,9 @@ def test_serialization(myatoms, request):
     """Test serialization and deserialization of ASE Atoms objects."""
     atoms = request.getfixturevalue(myatoms)
     serialized = znjson.dumps(atoms, cls=znjson.ZnEncoder.from_converters([ASEConverter]))
-    deserialized = znjson.loads(serialized, cls=znjson.ZnDecoder.from_converters([ASEConverter]))
+    deserialized = znjson.loads(
+        serialized, cls=znjson.ZnDecoder.from_converters([ASEConverter])
+    )
 
     npt.assert_array_equal(atoms.get_atomic_numbers(), deserialized.get_atomic_numbers())
     npt.assert_array_equal(atoms.get_positions(), deserialized.get_positions())
@@ -187,14 +199,10 @@ def test_serialization(myatoms, request):
         npt.assert_equal(atoms.arrays[key], deserialized.arrays[key])
     if atoms.calc is not None:
         for key in atoms.calc.results:
-            npt.assert_equal(
-                atoms.calc.results[key], deserialized.calc.results[key]
-            )
+            npt.assert_equal(atoms.calc.results[key], deserialized.calc.results[key])
     if deserialized.calc is not None:
         for key in deserialized.calc.results:
-            npt.assert_equal(
-                atoms.calc.results[key], deserialized.calc.results[key]
-            )
+            npt.assert_equal(atoms.calc.results[key], deserialized.calc.results[key])
     if atoms.constraints:
         for a, b in zip(atoms.constraints, deserialized.constraints):
             assert repr(a) == repr(b)

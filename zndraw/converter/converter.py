@@ -1,18 +1,19 @@
 import ase
 import numpy as np
+import plotly.graph_objects as go
+import plotly.io as pio
 import znjson
+import znsocket
 from ase.calculators.singlepoint import SinglePointCalculator
 from ase.constraints import FixAtoms
 
 from zndraw.draw import Object3D
 from zndraw.figure import Figure
 from zndraw.type_defs import ASEDict
-import znsocket
-import plotly.graph_objects as go
-import plotly.io as pio
 
 # TODO: there is an issue with using `_type` with znjson and the numpy array type,
 TYPE_KEY = "type"
+
 
 class ASEConverter(znjson.ConverterBase):
     level = 100
@@ -81,7 +82,9 @@ class ASEConverter(znjson.ConverterBase):
                     elif val[TYPE_KEY] == "plotly.graph_objs.Figure":
                         return pio.from_json(val["value"])
                     else:
-                        raise TypeError(f"Unsupported type during decoding: {val[TYPE_KEY]}")
+                        raise TypeError(
+                            f"Unsupported type during decoding: {val[TYPE_KEY]}"
+                        )
                 else:
                     return {k: recursive_decode(v) for k, v in val.items()}
             # special znsocket cases, they need to be resolved
@@ -112,10 +115,11 @@ class ASEConverter(znjson.ConverterBase):
                 if constraint[TYPE_KEY] == "FixAtoms":
                     atoms.set_constraint(FixAtoms(constraint["indices"]))
                 else:
-                    raise TypeError(f"Unsupported constraint type: {constraint[TYPE_KEY]}")
+                    raise TypeError(
+                        f"Unsupported constraint type: {constraint[TYPE_KEY]}"
+                    )
 
         return atoms
-
 
 
 class Object3DConverter(znjson.ConverterBase):

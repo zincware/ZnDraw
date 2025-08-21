@@ -318,189 +318,189 @@ export function setupCamera(
 }
 
 export const useFrameConnection = (token: string) => {
-    const framesCon = useMemo(() => {
-        if (token === "") {
-            return undefined;
-        }
-        // This single connection object will try the token-specific room first,
-        // then automatically fall back to the default room if the key doesn't exist.
-        return new znsocket.List({
-            client,
-            key: `room:${token}:frames`,
-            fallback: "room:default:frames",
-        });
-    }, [token]);
+	const framesCon = useMemo(() => {
+		if (token === "") {
+			return undefined;
+		}
+		// This single connection object will try the token-specific room first,
+		// then automatically fall back to the default room if the key doesn't exist.
+		return new znsocket.List({
+			client,
+			key: `room:${token}:frames`,
+			fallback: "room:default:frames",
+		});
+	}, [token]);
 
-    return { framesCon };
+	return { framesCon };
 };
 
 export const useFrameFetching = (token: string) => {
-    const { framesCon } = useFrameConnection(token);
+	const { framesCon } = useFrameConnection(token);
 
-    const getFrameFromCon = useCallback(
-        async (step: number) => {
-            if (!framesCon) return null;
-            return await framesCon.get(step);
-        },
-        [framesCon],
-    );
+	const getFrameFromCon = useCallback(
+		async (step: number) => {
+			if (!framesCon) return null;
+			return await framesCon.get(step);
+		},
+		[framesCon],
+	);
 
-    const getLengthFromCon = useCallback(async () => {
-        if (!framesCon) return 0;
-        return await framesCon.length();
-    }, [framesCon]);
+	const getLengthFromCon = useCallback(async () => {
+		if (!framesCon) return 0;
+		return await framesCon.length();
+	}, [framesCon]);
 
-    return { getFrameFromCon, getLengthFromCon, framesCon };
+	return { getFrameFromCon, getLengthFromCon, framesCon };
 };
 
 export const setupFrames = (
-    token: string,
-    step: any,
-    setCurrentFrame: any,
-    currentFrame: any,
-    setLength: any,
-    setStep: any,
-    frame_update: boolean,
-    setIsFrameRendering?: (rendering: boolean) => void,
+	token: string,
+	step: any,
+	setCurrentFrame: any,
+	currentFrame: any,
+	setLength: any,
+	setStep: any,
+	frame_update: boolean,
+	setIsFrameRendering?: (rendering: boolean) => void,
 ) => {
-    const currentFrameUpdatedFromSocketRef = useRef(true);
-    const [updateStepInPlace, setUpdateStepInPlace] = useState(0);
-    const scaledRadii = useMemo(() => {
-        const minRadius = Math.min(...covalentRadii);
-        const maxRadius = Math.max(...covalentRadii);
-        const range = maxRadius - minRadius;
-        return covalentRadii.map((x: number) => (x - minRadius) / range + 0.3);
-    }, [covalentRadii]);
+	const currentFrameUpdatedFromSocketRef = useRef(true);
+	const [updateStepInPlace, setUpdateStepInPlace] = useState(0);
+	const scaledRadii = useMemo(() => {
+		const minRadius = Math.min(...covalentRadii);
+		const maxRadius = Math.max(...covalentRadii);
+		const range = maxRadius - minRadius;
+		return covalentRadii.map((x: number) => (x - minRadius) / range + 0.3);
+	}, [covalentRadii]);
 
-    // Use the simplified fetching hook
-    const { getFrameFromCon, getLengthFromCon, framesCon } =
-        useFrameFetching(token);
+	// Use the simplified fetching hook
+	const { getFrameFromCon, getLengthFromCon, framesCon } =
+		useFrameFetching(token);
 
-    const setCurrentFrameFromObject = async (frame: any) => {
-        const [positions, numbers, arrays, info, cell, constraints] =
-            await Promise.all([
-                frame.positions,
-                frame.numbers,
-                frame.arrays,
-                frame.info,
-                frame.cell,
-                frame.constraints,
-            ]);
-        
-        const [colors, radii, connectivity] = await Promise.all([
-            arrays?.colors ?? Promise.resolve(null),
-            arrays?.radii ?? Promise.resolve(null),
-            info?.connectivity ?? Promise.resolve([]),
-        ]);
+	const setCurrentFrameFromObject = async (frame: any) => {
+		const [positions, numbers, arrays, info, cell, constraints] =
+			await Promise.all([
+				frame.positions,
+				frame.numbers,
+				frame.arrays,
+				frame.info,
+				frame.cell,
+				frame.constraints,
+			]);
 
-        const resolvedPositions = positions.map(
-            (position: [number, number, number]) =>
-                new THREE.Vector3(position[0], position[1], position[2]),
-        );
+		const [colors, radii, connectivity] = await Promise.all([
+			arrays?.colors ?? Promise.resolve(null),
+			arrays?.radii ?? Promise.resolve(null),
+			info?.connectivity ?? Promise.resolve([]),
+		]);
 
-        const resolvedFrame = {
-            ...frame,
-            positions: resolvedPositions,
-            numbers,
-            connectivity: connectivity ?? [],
-            cell: cell,
-            constraints: constraints ?? [],
-            arrays: {
-                ...arrays,
-                colors:
-                    colors ??
-                    numbers.map((x: number) => "#" + JMOL_COLORS[x].getHexString()),
-                radii: radii ?? numbers.map((x: number) => scaledRadii[x]),
-            },
-        };
+		const resolvedPositions = positions.map(
+			(position: [number, number, number]) =>
+				new THREE.Vector3(position[0], position[1], position[2]),
+		);
 
-        setCurrentFrame(resolvedFrame);
-        currentFrameUpdatedFromSocketRef.current = true;
-        setIsFrameRendering?.(false);
-    };
+		const resolvedFrame = {
+			...frame,
+			positions: resolvedPositions,
+			numbers,
+			connectivity: connectivity ?? [],
+			cell: cell,
+			constraints: constraints ?? [],
+			arrays: {
+				...arrays,
+				colors:
+					colors ??
+					numbers.map((x: number) => "#" + JMOL_COLORS[x].getHexString()),
+				radii: radii ?? numbers.map((x: number) => scaledRadii[x]),
+			},
+		};
 
-    useEffect(() => {
-        if (framesCon === undefined) return;
+		setCurrentFrame(resolvedFrame);
+		currentFrameUpdatedFromSocketRef.current = true;
+		setIsFrameRendering?.(false);
+	};
 
-        const handleRefresh = (x: any) => {
-            if (x?.start > step && frame_update) {
-                setStep(x.start);
-            } else if (x?.start === step || x?.indices?.includes(step)) {
-                setUpdateStepInPlace((prev) => prev + 1);
-            }
-        };
+	useEffect(() => {
+		if (framesCon === undefined) return;
 
-        framesCon.onRefresh(handleRefresh);
+		const handleRefresh = (x: any) => {
+			if (x?.start > step && frame_update) {
+				setStep(x.start);
+			} else if (x?.start === step || x?.indices?.includes(step)) {
+				setUpdateStepInPlace((prev) => prev + 1);
+			}
+		};
 
-        return () => {
-            framesCon.offRefresh?.(handleRefresh);
-        };
-    }, [framesCon, frame_update, step, setStep]);
+		framesCon.onRefresh(handleRefresh);
 
-    useEffect(() => {
-        if (framesCon === undefined) {
-            return;
-        }
+		return () => {
+			framesCon.offRefresh?.(handleRefresh);
+		};
+	}, [framesCon, frame_update, step, setStep]);
 
-        const updateFrame = async () => {
-            setIsFrameRendering?.(true);
-            const length = await getLengthFromCon();
-            setLength(length);
-            if (step >= length) {
-                setStep(Math.max(0, length - 1));
-                setIsFrameRendering?.(false);
-                return;
-            }
-            
-            const frame = await getFrameFromCon(step || 0);
+	useEffect(() => {
+		if (framesCon === undefined) {
+			return;
+		}
 
-            if (frame === null) {
-                console.warn("Frame ", step, " is null, retrying after 100ms...");
-                setTimeout(updateFrame, 100);
-                return;
-            }
-            setCurrentFrameFromObject(frame);
-        };
+		const updateFrame = async () => {
+			setIsFrameRendering?.(true);
+			const length = await getLengthFromCon();
+			setLength(length);
+			if (step >= length) {
+				setStep(Math.max(0, length - 1));
+				setIsFrameRendering?.(false);
+				return;
+			}
 
-        const debounceTimeout = setTimeout(updateFrame, 8);
-        return () => clearTimeout(debounceTimeout);
-    }, [step, updateStepInPlace, framesCon]);
+			const frame = await getFrameFromCon(step || 0);
 
-    // Sending edits from ZnDraw to the server
-    useEffect(() => {
-        if (currentFrameUpdatedFromSocketRef.current === true) {
-            currentFrameUpdatedFromSocketRef.current = false;
-            return;
-        }
+			if (frame === null) {
+				console.warn("Frame ", step, " is null, retrying after 100ms...");
+				setTimeout(updateFrame, 100);
+				return;
+			}
+			setCurrentFrameFromObject(frame);
+		};
 
-        const updateCon = async () => {
-            // Edits should only go to the token-specific room, not the fallback.
-            // So we create a new connection without the fallback key for writing.
+		const debounceTimeout = setTimeout(updateFrame, 8);
+		return () => clearTimeout(debounceTimeout);
+	}, [step, updateStepInPlace, framesCon]);
+
+	// Sending edits from ZnDraw to the server
+	useEffect(() => {
+		if (currentFrameUpdatedFromSocketRef.current === true) {
+			currentFrameUpdatedFromSocketRef.current = false;
+			return;
+		}
+
+		const updateCon = async () => {
+			// Edits should only go to the token-specific room, not the fallback.
+			// So we create a new connection without the fallback key for writing.
 			// TODO: for edits, we need to ensure there exists a copy of the room
 			// in the future we want to use segments!
-            const con = new znsocket.List({
-                client,
-                key: `room:${token}:frames`,
-            });
-            if (!currentFrame.positions) {
-                return;
-            }
-            
-            const newFrame = { ...currentFrame };
-            newFrame.positions = newFrame.positions.map((x: THREE.Vector3) => [
-                x.x,
-                x.y,
-                x.z,
-            ]);
-            con.set(Number.parseInt(step) || 0, {
-                value: newFrame,
-                _type: "ase.Atoms",
-            });
-        };
+			const con = new znsocket.List({
+				client,
+				key: `room:${token}:frames`,
+			});
+			if (!currentFrame.positions) {
+				return;
+			}
 
-        const debounceTimeout = setTimeout(updateCon, 100);
-        return () => clearTimeout(debounceTimeout);
-    }, [currentFrame]);
+			const newFrame = { ...currentFrame };
+			newFrame.positions = newFrame.positions.map((x: THREE.Vector3) => [
+				x.x,
+				x.y,
+				x.z,
+			]);
+			con.set(Number.parseInt(step) || 0, {
+				value: newFrame,
+				_type: "ase.Atoms",
+			});
+		};
+
+		const debounceTimeout = setTimeout(updateCon, 100);
+		return () => clearTimeout(debounceTimeout);
+	}, [currentFrame]);
 };
 
 export const setupGeometries = (
@@ -650,81 +650,81 @@ export const setupMessages = (
 };
 
 export const setupVectors = (
-    token: string,
-    step: any,
-    setVectors: any,
-    requestedProperties: string[] = [],
+	token: string,
+	step: any,
+	setVectors: any,
+	requestedProperties: string[] = [],
 ) => {
-    // The hook now returns the simplified getFrameFromCon
-    const { getFrameFromCon } = useFrameFetching(token);
+	// The hook now returns the simplified getFrameFromCon
+	const { getFrameFromCon } = useFrameFetching(token);
 
-    const setVectorsFromFrame = async (frame: any) => {
-        if (!frame) {
-            setVectors({});
-            return;
-        }
+	const setVectorsFromFrame = async (frame: any) => {
+		if (!frame) {
+			setVectors({});
+			return;
+		}
 
-        try {
-            const [calc, arrays] = await Promise.all([frame.calc, frame.arrays]);
+		try {
+			const [calc, arrays] = await Promise.all([frame.calc, frame.arrays]);
 
-            const [calcKeys, arraysKeys] = await Promise.all([
-                calc.keys(),
-                arrays.keys(),
-            ]);
+			const [calcKeys, arraysKeys] = await Promise.all([
+				calc.keys(),
+				arrays.keys(),
+			]);
 
-            const vectorProperties: { [key: string]: any } = {};
-            const allKeys = new Set([...calcKeys, ...arraysKeys]);
+			const vectorProperties: { [key: string]: any } = {};
+			const allKeys = new Set([...calcKeys, ...arraysKeys]);
 
-            for (const property of requestedProperties) {
-                if (!allKeys.has(property)) {
-                    console.warn(`Requested property '${property}' not found in frame`);
-                    continue;
-                }
+			for (const property of requestedProperties) {
+				if (!allKeys.has(property)) {
+					console.warn(`Requested property '${property}' not found in frame`);
+					continue;
+				}
 
-                let data;
-                if (calcKeys.includes(property)) {
-                    data = await calc[property];
-                } else if (arraysKeys.includes(property)) {
-                    data = await arrays[property];
-                }
+				let data;
+				if (calcKeys.includes(property)) {
+					data = await calc[property];
+				} else if (arraysKeys.includes(property)) {
+					data = await arrays[property];
+				}
 
-                if (
-                    data &&
-                    Array.isArray(data) &&
-                    data.length > 0 &&
-                    Array.isArray(data[0]) &&
-                    data[0].length === 3
-                ) {
-                    vectorProperties[property] = data;
-                } else {
-                    console.warn(`Property '${property}' is not a valid 3D vector array`);
-                }
-            }
-            setVectors(vectorProperties);
-        } catch (error) {
-            console.error("Error while resolving vectors:", error);
-            setVectors({});
-        }
-    };
+				if (
+					data &&
+					Array.isArray(data) &&
+					data.length > 0 &&
+					Array.isArray(data[0]) &&
+					data[0].length === 3
+				) {
+					vectorProperties[property] = data;
+				} else {
+					console.warn(`Property '${property}' is not a valid 3D vector array`);
+				}
+			}
+			setVectors(vectorProperties);
+		} catch (error) {
+			console.error("Error while resolving vectors:", error);
+			setVectors({});
+		}
+	};
 
-    useEffect(() => {
-        const updateVectors = async () => {
-            const frame = await getFrameFromCon(step || 0);
-            if (frame === null) {
-                console.warn(
-                    "Frame ",
-                    step,
-                    " is null for vectors, retrying after 100ms...",
-                );
-                setTimeout(updateVectors, 100);
-                return;
-            }
-            setVectorsFromFrame(frame);
-        };
+	useEffect(() => {
+		const updateVectors = async () => {
+			const frame = await getFrameFromCon(step || 0);
+			if (frame === null) {
+				console.warn(
+					"Frame ",
+					step,
+					" is null for vectors, retrying after 100ms...",
+				);
+				setTimeout(updateVectors, 100);
+				return;
+			}
+			setVectorsFromFrame(frame);
+		};
 
-        const debounceTimeout = setTimeout(updateVectors, 8);
-        return () => clearTimeout(debounceTimeout);
-    }, [step, requestedProperties, getFrameFromCon]);
+		const debounceTimeout = setTimeout(updateVectors, 8);
+		return () => clearTimeout(debounceTimeout);
+	}, [step, requestedProperties, getFrameFromCon]);
 };
 export const setupConfig = (token: string, setConfig: any) => {
 	useEffect(() => {
