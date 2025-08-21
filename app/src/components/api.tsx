@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
-import { JMOL_COLORS, covalentRadii } from "./data";
 import * as znsocket from "znsocket";
 import { client } from "../socket";
 import { DEFAULT_ROOM_CONFIG } from "../types/room-config";
+import { JMOL_COLORS, covalentRadii } from "./data";
 
 export function setupBookmarks(
 	token: string,
@@ -317,60 +317,40 @@ export function setupCamera(
 	}, [cameraAndControls, conInterface]);
 }
 
-// Shared frame fetching utilities
-export const useFrameConnections = (token: string) => {
-	const currentRoomCon = useMemo(() => {
+export const useFrameConnection = (token: string) => {
+	const framesCon = useMemo(() => {
 		if (token === "") {
 			return undefined;
 		}
+		// This single connection object will try the token-specific room first,
+		// then automatically fall back to the default room if the key doesn't exist.
 		return new znsocket.List({
 			client,
 			key: `room:${token}:frames`,
+			fallback: "room:default:frames",
 		});
 	}, [token]);
 
-	const defaultRoomCon = useMemo(() => {
-		return new znsocket.List({
-			client,
-			key: "room:default:frames",
-		});
-	}, []);
-
-	return { currentRoomCon, defaultRoomCon };
+	return { framesCon };
 };
 
 export const useFrameFetching = (token: string) => {
-	const { currentRoomCon, defaultRoomCon } = useFrameConnections(token);
-	const customRoomAvailRef = useRef(false);
+	const { framesCon } = useFrameConnection(token);
 
 	const getFrameFromCon = useCallback(
 		async (step: number) => {
-			if (!currentRoomCon || !defaultRoomCon) {
-				return null;
-			}
-			let fetchedFrame = await currentRoomCon.get(step);
-			if (!customRoomAvailRef.current && fetchedFrame === null) {
-				return await defaultRoomCon.get(step);
-			}
-			customRoomAvailRef.current = true;
-			return fetchedFrame;
+			if (!framesCon) return null;
+			return await framesCon.get(step);
 		},
-		[currentRoomCon, defaultRoomCon],
+		[framesCon],
 	);
 
 	const getLengthFromCon = useCallback(async () => {
-		if (!currentRoomCon || !defaultRoomCon) {
-			return 0;
-		}
-		let length = await currentRoomCon.length();
-		if (!customRoomAvailRef.current && length === 0) {
-			return await defaultRoomCon.length();
-		}
-		customRoomAvailRef.current = true;
-		return length;
-	}, [currentRoomCon, defaultRoomCon]);
+		if (!framesCon) return 0;
+		return await framesCon.length();
+	}, [framesCon]);
 
-	return { getFrameFromCon, getLengthFromCon, currentRoomCon, defaultRoomCon };
+	return { getFrameFromCon, getLengthFromCon, framesCon };
 };
 
 export const setupFrames = (
@@ -392,37 +372,32 @@ export const setupFrames = (
 		return covalentRadii.map((x: number) => (x - minRadius) / range + 0.3);
 	}, [covalentRadii]);
 
-	const { getFrameFromCon, getLengthFromCon, currentRoomCon, defaultRoomCon } =
+	// Use the simplified fetching hook
+	const { getFrameFromCon, getLengthFromCon, framesCon } =
 		useFrameFetching(token);
 
 	const setCurrentFrameFromObject = async (frame: any) => {
-		// Await top-level fields
-		const [positions, numbers, arrays, connectivity, cell, constraints] =
+		const [positions, numbers, arrays, info, cell, constraints] =
 			await Promise.all([
 				frame.positions,
 				frame.numbers,
 				frame.arrays,
-				frame.connectivity,
+				frame.info,
 				frame.cell,
 				frame.constraints,
 			]);
 
-		// TODO: vectors are missing!
-		// request them separately, only if needed
-
-		// Await nested arrays.colors and arrays.radii
-		const [colors, radii] = await Promise.all([
+		const [colors, radii, connectivity] = await Promise.all([
 			arrays?.colors ?? Promise.resolve(null),
 			arrays?.radii ?? Promise.resolve(null),
+			info?.connectivity ?? Promise.resolve([]),
 		]);
 
-		// Convert positions to THREE.Vector3
 		const resolvedPositions = positions.map(
 			(position: [number, number, number]) =>
 				new THREE.Vector3(position[0], position[1], position[2]),
 		);
 
-		// Build full resolved frame
 		const resolvedFrame = {
 			...frame,
 			positions: resolvedPositions,
@@ -439,93 +414,57 @@ export const setupFrames = (
 			},
 		};
 
-		// console.log("Frame resolved from socket:", resolvedFrame);
-
 		setCurrentFrame(resolvedFrame);
 		currentFrameUpdatedFromSocketRef.current = true;
-
-		// Set rendering state to false when frame is successfully set
 		setIsFrameRendering?.(false);
 	};
 
-	// setup onRefresh and initial load
-	// default room
 	useEffect(() => {
-		if (defaultRoomCon === undefined) return;
+		if (framesCon === undefined) return;
 
-		defaultRoomCon.onRefresh(async (x: any) => {
+		const handleRefresh = (x: any) => {
 			if (x?.start > step && frame_update) {
 				setStep(x.start);
-			} else if (x?.start === step) {
-				setUpdateStepInPlace((prev) => prev + 1);
-			} else if (x?.indices?.includes(step)) {
+			} else if (x?.start === step || x?.indices?.includes(step)) {
 				setUpdateStepInPlace((prev) => prev + 1);
 			}
-		});
+		};
+
+		framesCon.onRefresh(handleRefresh);
 
 		return () => {
-			defaultRoomCon.offRefresh?.();
+			framesCon.offRefresh?.(handleRefresh);
 		};
-	}, [defaultRoomCon, frame_update, step]);
-
-	// custom room
-	useEffect(() => {
-		if (currentRoomCon === undefined) return;
-
-		currentRoomCon.onRefresh(async (x: any) => {
-			if (x?.start > step && frame_update) {
-				setStep(x.start);
-			} else if (x?.start === step) {
-				setUpdateStepInPlace((prev) => prev + 1);
-			} else if (x?.indices?.includes(step)) {
-				setUpdateStepInPlace((prev) => prev + 1);
-			}
-		});
-
-		return () => {
-			currentRoomCon.offRefresh?.();
-		};
-	}, [currentRoomCon, frame_update, step]);
+	}, [framesCon, frame_update, step, setStep]);
 
 	useEffect(() => {
-		if (defaultRoomCon === undefined || currentRoomCon === undefined) {
+		if (framesCon === undefined) {
 			return;
 		}
 
 		const updateFrame = async () => {
-			// Set rendering state to true when starting websocket request
 			setIsFrameRendering?.(true);
-
-			// first we check the length
 			const length = await getLengthFromCon();
 			setLength(length);
 			if (step >= length) {
 				setStep(Math.max(0, length - 1));
-				// Set rendering state to false when ending early
 				setIsFrameRendering?.(false);
 				return;
 			}
-			// now we request the frame
 
 			const frame = await getFrameFromCon(step || 0);
 
 			if (frame === null) {
 				console.warn("Frame ", step, " is null, retrying after 100ms...");
-				// Keep rendering state true during retry
-				setTimeout(updateFrame, 100); // Retry after 100 ms
+				setTimeout(updateFrame, 100);
 				return;
 			}
-			setCurrentFrameFromObject(frame); // Process the valid frame
+			setCurrentFrameFromObject(frame);
 		};
 
-		// debounce by 8ms (roughly 120fps)
-		// this will smooth scrubbing through the frames
-		// and avoid unnecessary updates
 		const debounceTimeout = setTimeout(updateFrame, 8);
-		return () => {
-			clearTimeout(debounceTimeout);
-		};
-	}, [step, updateStepInPlace, defaultRoomCon, currentRoomCon]);
+		return () => clearTimeout(debounceTimeout);
+	}, [step, updateStepInPlace, framesCon]);
 
 	// Sending edits from ZnDraw to the server
 	useEffect(() => {
@@ -535,6 +474,10 @@ export const setupFrames = (
 		}
 
 		const updateCon = async () => {
+			// Edits should only go to the token-specific room, not the fallback.
+			// So we create a new connection without the fallback key for writing.
+			// TODO: for edits, we need to ensure there exists a copy of the room
+			// in the future we want to use segments!
 			const con = new znsocket.List({
 				client,
 				key: `room:${token}:frames`,
@@ -542,7 +485,7 @@ export const setupFrames = (
 			if (!currentFrame.positions) {
 				return;
 			}
-			// Make the frame object serializable
+
 			const newFrame = { ...currentFrame };
 			newFrame.positions = newFrame.positions.map((x: THREE.Vector3) => [
 				x.x,
@@ -555,9 +498,7 @@ export const setupFrames = (
 			});
 		};
 
-		// Use a debounce mechanism for updates
 		const debounceTimeout = setTimeout(updateCon, 100);
-
 		return () => clearTimeout(debounceTimeout);
 	}, [currentFrame]);
 };
@@ -714,6 +655,7 @@ export const setupVectors = (
 	setVectors: any,
 	requestedProperties: string[] = [],
 ) => {
+	// The hook now returns the simplified getFrameFromCon
 	const { getFrameFromCon } = useFrameFetching(token);
 
 	const setVectorsFromFrame = async (frame: any) => {
@@ -733,7 +675,6 @@ export const setupVectors = (
 			const vectorProperties: { [key: string]: any } = {};
 			const allKeys = new Set([...calcKeys, ...arraysKeys]);
 
-			// Only process requested properties
 			for (const property of requestedProperties) {
 				if (!allKeys.has(property)) {
 					console.warn(`Requested property '${property}' not found in frame`);
@@ -759,7 +700,6 @@ export const setupVectors = (
 					console.warn(`Property '${property}' is not a valid 3D vector array`);
 				}
 			}
-
 			setVectors(vectorProperties);
 		} catch (error) {
 			console.error("Error while resolving vectors:", error);
@@ -783,12 +723,9 @@ export const setupVectors = (
 		};
 
 		const debounceTimeout = setTimeout(updateVectors, 8);
-		return () => {
-			clearTimeout(debounceTimeout);
-		};
+		return () => clearTimeout(debounceTimeout);
 	}, [step, requestedProperties, getFrameFromCon]);
 };
-
 export const setupConfig = (token: string, setConfig: any) => {
 	useEffect(() => {
 		if (!token) return;

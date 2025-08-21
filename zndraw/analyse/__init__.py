@@ -187,7 +187,9 @@ class Properties2D(AnaylsisMethod):
         )
         update_figure_layout(fig)
 
-        vis.figures.update({"Properties2D": fig})
+        name = f"Properties2D-{self.x_data}-{self.y_data}-{self.color}"
+
+        vis.figures.update({name: fig})
 
 
 class ForceCorrelation(AnaylsisMethod):
@@ -306,8 +308,9 @@ class Properties1D(AnaylsisMethod):
             customdata=np.stack([meta_step], axis=-1),
         )
         update_figure_layout(fig)
+        name = f"Properties1D-{self.value}"
 
-        vis.figures.update({"Properties1D": fig})
+        vis.figures.update({name: fig})
 
 
 analyses: dict[str, t.Type[AnaylsisMethod]] = {
