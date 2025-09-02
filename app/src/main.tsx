@@ -1,5 +1,6 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
+import { BrowserRouter } from "react-router-dom";
 import "./index.css";
 import { AppWithTheme } from "./AppWithTheme";
 
@@ -8,6 +9,8 @@ import { AppWithTheme } from "./AppWithTheme";
 // and messages will be send through the socket, that should not be send
 ReactDOM.createRoot(document.getElementById("root")!).render(
 	<React.StrictMode>
-		<AppWithTheme />
+		<BrowserRouter>
+			<AppWithTheme />
+		</BrowserRouter>
 	</React.StrictMode>,
 );
