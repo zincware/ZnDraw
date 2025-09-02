@@ -58,11 +58,22 @@ type CameraAndControls = {
 	target: THREE.Vector3;
 };
 
+interface Frame {
+	positions: THREE.Vector3[];
+	numbers: number[];
+	[key: string]: unknown;
+}
+
+interface CameraConfig {
+	synchronize_camera?: boolean;
+	[key: string]: unknown;
+}
+
 type CameraAndControlsProps = {
-	cameraConfig: any;
+	cameraConfig: CameraConfig;
 	cameraAndControls: CameraAndControls;
 	setCameraAndControls: React.Dispatch<React.SetStateAction<CameraAndControls>>;
-	currentFrame: any;
+	currentFrame: Frame;
 	selectedIds: Set<number>;
 	colorMode: string;
 };
@@ -75,17 +86,17 @@ const CameraAndControls: React.FC<CameraAndControlsProps> = ({
 	selectedIds,
 	colorMode,
 }) => {
-	const cameraRef = useRef<any>(null);
-	const controlsRef = useRef<any>(null);
+	const cameraRef = useRef<THREE.Camera>(null);
+	const controlsRef = useRef<any>(null); // Controls type varies by control type (OrbitControls, TrackballControls, etc.)
 	const centroid = useCentroid({
 		frame: currentFrame,
 		selectedIds: selectedIds,
 	});
 
 	// need this extra for the crosshair
-	const crossHairRef = useRef<any>(null);
+	const crossHairRef = useRef<THREE.Group>(null);
 
-	const controlsOnChangeFn = useCallback((e: any) => {
+	const controlsOnChangeFn = useCallback((e?: THREE.Event) => {
 		if (!crossHairRef.current) {
 			return;
 		}
@@ -145,9 +156,9 @@ const CameraAndControls: React.FC<CameraAndControlsProps> = ({
 
 		// Compute the bounding sphere radius
 		let maxDistance = 0;
-		currentFrame.positions.forEach((x) => {
+		for (const x of currentFrame.positions) {
 			maxDistance = Math.max(maxDistance, x.distanceTo(fullCentroid));
-		});
+		}
 
 		const fov = (cameraRef.current.fov * Math.PI) / 180; // Convert FOV to radians
 		let distance = maxDistance / Math.tan(fov / 2);
@@ -173,7 +184,13 @@ const CameraAndControls: React.FC<CameraAndControlsProps> = ({
 				setCameraAndControls(resetCamera);
 			}
 		}
-	}, [currentFrame.positions]);
+	}, [
+		currentFrame.positions,
+		cameraAndControls.camera,
+		cameraAndControls.target,
+		getResetCamera,
+		setCameraAndControls,
+	]);
 
 	// if the camera changes, run resetCamera
 	useEffect(() => {
@@ -199,8 +216,7 @@ const CameraAndControls: React.FC<CameraAndControlsProps> = ({
 		const handleKeyDown = (event: KeyboardEvent) => {
 			// if canvas is not focused, don't do anything
 			const canvasContainer = document.querySelector(".canvas-container");
-			const isCanvasFocused =
-				canvasContainer && canvasContainer.contains(document.activeElement);
+			const isCanvasFocused = canvasContainer?.contains(document.activeElement);
 			const isBodyFocused = document.activeElement === document.body;
 
 			if (!isCanvasFocused && !isBodyFocused) {

@@ -1,20 +1,21 @@
-import React, { useState, useEffect } from "react";
-import {
-	Slider,
-	TextField,
-	InputAdornment,
-	IconButton,
-	Box,
-	Typography,
-	Tooltip,
-	CircularProgress,
-} from "@mui/material";
-import { styled, useTheme } from "@mui/material/styles";
-import WifiIcon from "@mui/icons-material/Wifi";
+import CloudDownloadIcon from "@mui/icons-material/CloudDownload";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
-import CloudDownloadIcon from "@mui/icons-material/CloudDownload";
-import { type IndicesState } from "./utils";
+import WifiIcon from "@mui/icons-material/Wifi";
+import {
+	Box,
+	CircularProgress,
+	IconButton,
+	InputAdornment,
+	Slider,
+	TextField,
+	Tooltip,
+	Typography,
+} from "@mui/material";
+import { styled, useTheme } from "@mui/material/styles";
+import type React from "react";
+import { useEffect, useState } from "react";
+import type { IndicesState } from "./utils";
 
 interface FrameProgressBarProps {
 	length: number;

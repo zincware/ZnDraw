@@ -18,7 +18,7 @@ export function SiMGenButtons({
 	setTutorialModalShow: (show: boolean) => void;
 }) {
 	const [disabledBtn, setDisabledBtn] = useState<boolean>(false);
-	const queueRef = useRef<any>(null);
+	const queueRef = useRef<znsocket.Dict>(null);
 
 	useEffect(() => {
 		const queue = new znsocket.Dict({
@@ -27,10 +27,10 @@ export function SiMGenButtons({
 		});
 		queueRef.current = queue;
 
-		queue.length().then((length: any) => {
+		queue.length().then((length: number) => {
 			setDisabledBtn(length > 0);
 		});
-		queue.onRefresh(async (x: any) => {
+		queue.onRefresh(async (x: unknown) => {
 			const length = await queue.length();
 			setDisabledBtn(length > 0);
 		});

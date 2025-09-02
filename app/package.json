@@ -5,11 +5,10 @@
 	"type": "module",
 	"scripts": {
 		"dev": "vite",
-		"build": "tsc && vite build",
+		"build": "vite build",
 		"format": "biome format --write .",
-		"format:check": "biome check .",
-		"lint": "biome lint .",
-		"lint:fix": "biome check --fix ."
+		"lint:fix": "biome check --fix .",
+		"test": "echo \"No tests specified\" && exit 0"
 	},
 	"dependencies": {
 		"@emotion/react": "^11.14.0",

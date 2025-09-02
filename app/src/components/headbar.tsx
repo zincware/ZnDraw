@@ -26,7 +26,6 @@ import { GrHelpBook } from "react-icons/gr";
 import { MdAddChart, MdExitToApp } from "react-icons/md";
 import { version } from "../../package.json";
 import { socket } from "../socket";
-import { BtnTooltip } from "./tooltips";
 import { ConnectModal } from "./headbar/ConnectModal";
 import { ConsoleWindow } from "./headbar/ConsoleWindow";
 import { FileUpload } from "./headbar/FileUpload";
@@ -35,6 +34,7 @@ import { RefreshModal } from "./headbar/RefreshModal";
 import { RemoteFileModal } from "./headbar/RemoteFileModal";
 import { SiMGenButtons } from "./headbar/SiMGenButtons";
 import { TutorialModal } from "./headbar/TutorialModal";
+import { BtnTooltip } from "./tooltips";
 
 interface HeadBarProps {
 	room: string;

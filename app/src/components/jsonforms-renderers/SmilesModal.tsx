@@ -1,12 +1,12 @@
-import { useState } from "react";
-import {
-	Dialog,
-	DialogContent,
-	DialogActions,
-	Button,
-	Box,
-} from "@mui/material";
 import { Jsme } from "@loschmidt/jsme-react";
+import {
+	Box,
+	Button,
+	Dialog,
+	DialogActions,
+	DialogContent,
+} from "@mui/material";
+import { useState } from "react";
 
 export const SmilesModal = ({
 	smiles,

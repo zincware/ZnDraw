@@ -1,8 +1,8 @@
+import { withJsonFormsControlProps } from "@jsonforms/react";
+import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
+import { Box, FormLabel, IconButton, Tooltip } from "@mui/material";
 // src/renderers/CustomColorPicker.js
 import React from "react";
-import { withJsonFormsControlProps } from "@jsonforms/react";
-import { FormLabel, Box, Tooltip, IconButton } from "@mui/material";
-import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
 
 const CustomColorPicker = ({
 	data,

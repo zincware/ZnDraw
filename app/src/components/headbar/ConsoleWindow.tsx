@@ -24,7 +24,8 @@ import {
 	Typography,
 } from "@mui/material";
 import "katex/dist/katex.min.css";
-import React, { memo, useCallback, useEffect, useRef, useState } from "react";
+import type React from "react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
 import Markdown from "react-markdown";
 import { Rnd } from "react-rnd";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";

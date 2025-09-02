@@ -1,3 +1,4 @@
+import type { ErrorObject, JsonSchema, UISchemaElement } from "@jsonforms/core";
 import {
 	materialCells,
 	materialRenderers,
@@ -5,12 +6,12 @@ import {
 import { JsonForms } from "@jsonforms/react";
 import type React from "react";
 import { useCallback, useMemo } from "react";
+import CustomColorPicker from "./jsonforms-renderers/CustomColorPicker";
 // Import your custom renderers and testers
 import CustomRangeSlider from "./jsonforms-renderers/CustomRangeSlider";
-import { customRangeSliderTester } from "./jsonforms-renderers/customRangeSliderTester";
-import CustomColorPicker from "./jsonforms-renderers/CustomColorPicker";
-import { customColorPickerTester } from "./jsonforms-renderers/customColorPickerTester";
 import CustomSmilesRenderer from "./jsonforms-renderers/CustomSmilesRenderer";
+import { customColorPickerTester } from "./jsonforms-renderers/customColorPickerTester";
+import { customRangeSliderTester } from "./jsonforms-renderers/customRangeSliderTester";
 import { customSmilesRendererTester } from "./jsonforms-renderers/customSmilesRendererTester";
 
 // TODO: do we need to memoize this?
@@ -20,11 +21,23 @@ const customRenderers = [
 	{ tester: customColorPickerTester, renderer: CustomColorPicker },
 	{ tester: customSmilesRendererTester, renderer: CustomSmilesRenderer },
 ];
+
+interface JSONFormsState {
+	data: unknown;
+	errors?: ErrorObject[];
+}
+
+interface Schema {
+	data?: JsonSchema;
+	ui?: UISchemaElement;
+	[key: string]: unknown;
+}
+
 interface JSONFormsEditorProps {
-	schema: any;
-	data?: any;
-	onChange: (data: any) => void;
-	onValidationChange?: (errors: any[]) => void;
+	schema: Schema;
+	data?: unknown;
+	onChange: (data: unknown) => void;
+	onValidationChange?: (errors: ErrorObject[]) => void;
 }
 
 export const JSONFormsEditor: React.FC<JSONFormsEditorProps> = ({
@@ -37,7 +50,7 @@ export const JSONFormsEditor: React.FC<JSONFormsEditorProps> = ({
 	const cells = useMemo(() => materialCells, []);
 
 	const handleChange = useCallback(
-		(state: any) => {
+		(state: JSONFormsState) => {
 			console.log("JSONForms data changed:", state.data);
 			onChange(state.data);
 

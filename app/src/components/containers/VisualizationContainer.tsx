@@ -100,7 +100,6 @@ export const VisualizationContainer: React.FC<VisualizationContainerProps> = ({
 			className="canvas-container edit-mode-border"
 			onDragOver={onDragOver}
 			onDrop={onDrop}
-			tabIndex={0}
 		>
 			<Canvas
 				onPointerMissed={onPointerMissed}
@@ -119,7 +118,21 @@ export const VisualizationContainer: React.FC<VisualizationContainerProps> = ({
 				<Pathtracer enabled={roomConfig.PathTracer.enabled}>
 					{roomConfig.PathTracer.enabled &&
 						roomConfig.PathTracer.environment !== "none" && (
-							<Environment preset={roomConfig.PathTracer.environment as any} />
+							<Environment
+								preset={
+									roomConfig.PathTracer.environment as
+										| "sunset"
+										| "dawn"
+										| "night"
+										| "warehouse"
+										| "forest"
+										| "apartment"
+										| "studio"
+										| "city"
+										| "park"
+										| "lobby"
+								}
+							/>
 						)}
 
 					{/* Lighting */}

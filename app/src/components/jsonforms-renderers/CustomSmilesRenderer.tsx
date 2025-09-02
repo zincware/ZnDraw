@@ -1,7 +1,7 @@
-import { useState } from "react";
 import { withJsonFormsControlProps } from "@jsonforms/react";
-import { FormLabel, Box, Tooltip, IconButton, TextField } from "@mui/material";
-import { HelpOutline, Edit } from "@mui/icons-material";
+import { Edit, HelpOutline } from "@mui/icons-material";
+import { Box, FormLabel, IconButton, TextField, Tooltip } from "@mui/material";
+import { useState } from "react";
 import { SmilesModal } from "./SmilesModal";
 
 const CustomSmilesRenderer = ({

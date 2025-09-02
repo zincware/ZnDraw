@@ -1,11 +1,17 @@
 import type React from "react";
-import { type ReactNode, createContext, useContext, useState, useEffect } from "react";
+import {
+	type ReactNode,
+	createContext,
+	useContext,
+	useEffect,
+	useState,
+} from "react";
 import * as THREE from "three";
 import type { Frame } from "../components/particles";
 import type { IndicesState } from "../components/utils";
 import type { HSLColor } from "../components/utils";
-import { useVectorManager } from "../hooks/useVectorManager";
 import { useTokenFromUrl } from "../hooks/useTokenFromUrl";
+import { useVectorManager } from "../hooks/useVectorManager";
 import type { RoomConfig } from "../types/room-config";
 import { DEFAULT_ROOM_CONFIG } from "../types/room-config";
 
@@ -138,7 +144,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({
 }) => {
 	// Extract token from URL
 	const urlToken = useTokenFromUrl();
-	
+
 	// Connection state
 	const [connected, setConnected] = useState<boolean>(false);
 

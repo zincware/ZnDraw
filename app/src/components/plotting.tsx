@@ -22,10 +22,10 @@ import {
 import Plot from "react-plotly.js";
 import { Rnd, type RndResizeCallback } from "react-rnd";
 import * as znsocket from "znsocket";
+import { useSlowFrame } from "../contexts/SlowFrameContext";
 import { client } from "../socket";
 import { BtnTooltip } from "./tooltips";
 import type { IndicesState } from "./utils";
-import { useSlowFrame } from "../contexts/SlowFrameContext";
 
 // --- Type Definitions ---
 

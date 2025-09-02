@@ -9,9 +9,10 @@ import { useEffect, useState } from "react";
 import App from "./App";
 
 const theme = createTheme({
-	cssVariables: true,
+	cssVariables: {
+		colorSchemeSelector: "data-mui-color-scheme",
+	},
 	defaultColorScheme: "light",
-	colorSchemeSelector: "data-mui-color-scheme",
 	colorSchemes: {
 		light: {
 			palette: {

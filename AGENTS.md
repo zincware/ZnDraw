@@ -20,8 +20,9 @@ uv run pytest                        # Run full test suite
 ### TypeScript
 ```bash
 bun install                              # Install dependencies
-bun vite build                           # Build the frontend
-bun run lint                             # Linting and Code formatting
+bun run build                           # Build the frontend
+bun run lint:fix                         # Lint and fix the code
+bun run format                           # Format the code
 bun run test                             # Run full test suite
 ```
 
@@ -38,11 +39,19 @@ bun run test                             # Run full test suite
 
 
 ## Code Standards
+
 ### Python
 - Python ≥ 3.10 with full type annotations
 - Follow existing patterns and maintain consistency
 - **Prioritize readable, understandable code** - clarity over cleverness
 - Avoid obfuscated or confusing patterns even if they're shorter
+- Use numpy style docstrings
+
 ### TypeScript
 - Follow existing patterns and maintain consistency
 - **Prioritize readable, understandable code** - clarity over cleverness
+- Use ES modules (import/export) syntax, not CommonJS (require)
+- Destructure imports when possible (eg. import { foo } from 'bar')
+
+### Interface between Frontend and Backend
+- Mostly websockets / socket.io through the znsocket package

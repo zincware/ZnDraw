@@ -1,15 +1,15 @@
+import CloseIcon from "@mui/icons-material/Close";
 import {
+	Box,
 	Card,
 	CardContent,
-	Typography,
-	Box,
-	IconButton,
 	Divider,
+	IconButton,
+	Typography,
 } from "@mui/material";
-import CloseIcon from "@mui/icons-material/Close";
 import { Rnd } from "react-rnd";
-import type { Frame } from "./particles";
 import { useSlowFrame } from "../contexts/SlowFrameContext";
+import type { Frame } from "./particles";
 import { PlotDisplay, useArrayPlots } from "./plotting";
 
 export const ParticleInfoOverlay = ({

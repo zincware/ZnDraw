@@ -1,16 +1,16 @@
+import { set } from "lodash";
 import type React from "react";
 import {
 	type ReactNode,
 	createContext,
-	useEffect,
-	useState,
 	useContext,
+	useEffect,
 	useMemo,
+	useState,
 } from "react";
-import { useAppContext } from "./AppContext";
-import { useFrameConnection } from "../components/api";
 import { Dict } from "znsocket";
-import { set } from "lodash";
+import { useFrameConnection } from "../components/api";
+import { useAppContext } from "./AppContext";
 
 interface SlowFrameState {
 	isSlowFrame: boolean;
@@ -75,7 +75,7 @@ export const SlowFrameProvider: React.FC<SlowFrameProviderProps> = ({
 				// iterate over the entries, check if any of them are Dict and if so, convert them to a plain object
 				for (const [key, value] of Object.entries(newEntries)) {
 					if (value instanceof Dict) {
-						let plainObject = await value.entries();
+						const plainObject = await value.entries();
 						newEntries[key] = Object.fromEntries(plainObject);
 					}
 				}

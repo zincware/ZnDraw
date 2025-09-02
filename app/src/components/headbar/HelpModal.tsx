@@ -6,9 +6,15 @@ import {
 	DialogContent,
 	DialogTitle,
 } from "@mui/material";
+import type React from "react";
 import Markdown from "react-markdown";
 
-export function HelpModel(props: any) {
+interface HelpModalProps {
+	show: boolean;
+	onHide: () => void;
+}
+
+export function HelpModel(props: HelpModalProps) {
 	const helpMD = `
 - **play / pause**: \`keypress space\`
 - **frame forwards / backwards**: \`keypress ▶\\◀\`
