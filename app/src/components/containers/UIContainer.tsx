@@ -1,11 +1,13 @@
-import React, { useState, useEffect, useMemo } from "react";
+import { Box } from "@mui/material";
+import type React from "react";
+import { useEffect, useMemo, useState } from "react";
+import * as THREE from "three";
 import { useAppContext } from "../../contexts/AppContext";
 import HeadBar from "../headbar";
-import Sidebar from "../sidebar";
-import FrameProgressBar from "../progressbar";
-import { Plotting } from "../plotting";
 import { ParticleInfoOverlay, SceneInfoOverlay } from "../overlays";
-import * as THREE from "three";
+import { Plotting } from "../plotting";
+import FrameProgressBar from "../progressbar";
+import Sidebar from "../sidebar";
 
 export const UIContainer: React.FC = () => {
 	const {
@@ -73,15 +75,28 @@ export const UIContainer: React.FC = () => {
 	// Local UI state
 	const [cursorPosition, setCursorPosition] = useState({ x: 0, y: 0 });
 
-	// Update cursor position for overlays
+	// Update cursor position for overlays with throttling
 	useEffect(() => {
+		let rafId: number;
+
 		const updateCursorPosition = (event: MouseEvent) => {
-			setCursorPosition({ x: event.clientX, y: event.clientY });
+			// Cancel any pending animation frame
+			if (rafId) {
+				cancelAnimationFrame(rafId);
+			}
+
+			// Schedule update on next animation frame to throttle updates
+			rafId = requestAnimationFrame(() => {
+				setCursorPosition({ x: event.clientX, y: event.clientY });
+			});
 		};
 
 		window.addEventListener("mousemove", updateCursorPosition);
 
 		return () => {
+			if (rafId) {
+				cancelAnimationFrame(rafId);
+			}
 			window.removeEventListener("mousemove", updateCursorPosition);
 		};
 	}, []);
@@ -98,7 +113,6 @@ export const UIContainer: React.FC = () => {
 
 	return (
 		<>
-			{/* Main UI Components */}
 			<HeadBar
 				room={roomName}
 				colorMode={colorMode}
@@ -109,7 +123,7 @@ export const UIContainer: React.FC = () => {
 				isDrawing={isDrawing}
 				tutorialURL={tutorialURL}
 				showSiMGen={showSiMGen}
-				modifierQueue={modifierQueue}
+				modifierQueue={modifierQueue.length}
 				isAuthenticated={isAuthenticated}
 				roomLock={roomLock}
 				setAddPlotsWindow={setAddPlotsWindow}
@@ -120,21 +134,52 @@ export const UIContainer: React.FC = () => {
 				selection={selectedIds}
 			/>
 
-			<Sidebar token={token} />
+			{/* Main content area with proper spacing for fixed AppBar */}
+			<Box
+				sx={{
+					display: "flex",
+					flexDirection: "column",
+					height: "100vh",
+					paddingTop: "56px", // Space for fixed AppBar
+				}}
+			>
+				<Box
+					sx={{
+						position: "fixed",
+						top: "56px", // Below the AppBar
+						left: 0,
+						height: "calc(100vh - 56px - 60px)", // Full height minus AppBar and progress bar
+						zIndex: 1000,
+					}}
+				>
+					<Sidebar token={token} />
+				</Box>
+			</Box>
 
-			<FrameProgressBar
-				step={step}
-				setStep={setStep}
-				length={length}
-				selectedFrames={selectedFrames}
-				setSelectedFrames={setSelectedFrames}
-				bookmarks={bookmarks}
-				setBookmarks={setBookmarks}
-				connected={connected}
-				frameRate={frameRate}
-				setFrameRate={setFrameRate}
-				isFrameRendering={isFrameRendering}
-			/>
+			{/* Progress bar at the bottom */}
+			<Box
+				sx={{
+					position: "fixed",
+					bottom: 0,
+					left: 0,
+					right: 0,
+					zIndex: 1000,
+				}}
+			>
+				<FrameProgressBar
+					step={step}
+					setStep={setStep}
+					length={length}
+					selectedFrames={selectedFrames}
+					setSelectedFrames={setSelectedFrames}
+					bookmarks={bookmarks}
+					setBookmarks={setBookmarks}
+					connected={connected}
+					frameRate={frameRate}
+					setFrameRate={setFrameRate}
+					isFrameRendering={isFrameRendering}
+				/>
+			</Box>
 
 			{/* Plotting Component */}
 			<Plotting
@@ -156,13 +201,12 @@ export const UIContainer: React.FC = () => {
 						<ParticleInfoOverlay
 							show={showParticleInfo}
 							info={{
-								position: currentFrame.positions[hoveredId],
 								number: currentFrame.numbers[hoveredId],
-								color: currentFrame.arrays.colors[hoveredId],
-								radius: currentFrame.arrays.radii[hoveredId],
+								id: hoveredId,
 								...(isDrawing && { Line: `${lineLength.toFixed(2)} Å` }),
 							}}
 							position={cursorPosition}
+							particleIndex={hoveredId}
 						/>
 					)
 				);

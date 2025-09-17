@@ -111,6 +111,7 @@ class VectorDisplay(SettingsBase):
         schema["properties"]["vectorfield"]["format"] = "checkbox"
         schema["properties"]["vector_scale"]["format"] = "range"
         schema["properties"]["vector_scale"]["step"] = 0.05
+        schema["properties"]["opacity"]["format"] = "range"
 
         # Configure vector_colors as color pickers for each available vector
         schema["properties"]["vector_colors"] = {

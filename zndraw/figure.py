@@ -1,5 +1,6 @@
 import base64
 import dataclasses
+import io
 
 import matplotlib.pyplot as plt
 import znjson
@@ -7,26 +8,44 @@ import znjson
 
 @dataclasses.dataclass(frozen=True)
 class Figure:
-    """Visualize a file or a matplotlib figure."""
+    """Visualize a file or a matplotlib figure.
 
-    path: str | None = None
-    figure: plt.Figure | None = None
 
-    def __post_init__(self):
-        if self.path is not None and self.figure is not None:
-            raise ValueError("Figure can't have both path and figure")
+    Parameters
+    ----------
+    path : str | None
+        Path to the image file.
+    figure : plt.Figure | None
+        Matplotlib figure object.
 
-    def to_base64(self) -> str:
-        if self.path is not None:
-            with open(self.path, "rb") as image_file:
-                return base64.b64encode(image_file.read()).decode("utf-8")
-        else:
-            import io
+    Examples
+    --------
+    >>> import matplotlib.pyplot as plt
+    >>> from zndraw import ZnDraw, Figure
+    >>> vis = ZnDraw(url="http://localhost:8000", token="test_token")
+    >>> fig, ax = plt.subplots()
+    >>> ax.plot([1, 2, 3], [1, 2, 3])
+    >>> vis.figures["mtpl"] = Figure.from_matplotlib(fig)
+    >>> vis.figures["png"] = Figure.from_path("path/to/image.png")
+    """
 
-            buf = io.BytesIO()
-            self.figure.savefig(buf, format="png")
-            buf.seek(0)
-            return base64.b64encode(buf.read()).decode("utf-8")
+    base64: str | None = None
+
+    @classmethod
+    def from_path(cls, path: str) -> "Figure":
+        """Create a Figure from a file path."""
+        with open(path, "rb") as image_file:
+            content = base64.b64encode(image_file.read()).decode("utf-8")
+        return cls(base64=content)
+
+    @classmethod
+    def from_matplotlib(cls, figure: plt.Figure) -> "Figure":
+        """Create a Figure from a matplotlib figure."""
+        buf = io.BytesIO()
+        figure.savefig(buf, format="png")
+        buf.seek(0)
+        content = base64.b64encode(buf.read()).decode("utf-8")
+        return cls(base64=content)
 
 
 class FigureConverter(znjson.ConverterBase):
@@ -35,7 +54,7 @@ class FigureConverter(znjson.ConverterBase):
     representation = "zndraw.Figure"
 
     def encode(self, obj: Figure) -> dict:
-        return {"path": obj.path, "base64": obj.to_base64()}
+        return {"base64": obj.base64}
 
     def decode(self, value: dict) -> Figure:
-        return Figure(value["path"])
+        return Figure(base64=value["base64"])

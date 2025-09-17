@@ -1,532 +1,347 @@
-import React, { useState, useEffect } from "react";
+import CloudDownloadIcon from "@mui/icons-material/CloudDownload";
+import VisibilityIcon from "@mui/icons-material/Visibility";
+import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
+import WifiIcon from "@mui/icons-material/Wifi";
 import {
-	Col,
-	Container,
-	Form,
-	InputGroup,
-	Row,
-	FormControl,
-} from "react-bootstrap";
-import "./progressbar.css";
-
-import { OverlayTrigger, Tooltip } from "react-bootstrap";
-import { FaRegBookmark } from "react-icons/fa";
-import { PiSelection, PiSelectionSlash } from "react-icons/pi";
-import { IoMdCodeDownload } from "react-icons/io";
+	Box,
+	CircularProgress,
+	IconButton,
+	InputAdornment,
+	Slider,
+	TextField,
+	Tooltip,
+	Typography,
+} from "@mui/material";
+import { styled, useTheme } from "@mui/material/styles";
+import type React from "react";
+import { useEffect, useState } from "react";
 import type { IndicesState } from "./utils";
-
-interface JumpFrameProps {
-	step: number;
-	setStep: (step: number) => void;
-	length: number;
-}
-
-const JumpFrame: React.FC<JumpFrameProps> = ({ step, setStep, length }) => {
-	const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
-		if (e.target.value === "") {
-			return;
-		}
-		const newStep = Number.parseInt(e.target.value, 10);
-		if (newStep >= 0 && newStep < length) {
-			setStep(newStep);
-		} else {
-			alert(`Invalid input. Please enter a number between 0 and ${length - 1}`);
-		}
-		e.target.value = "";
-	};
-
-	const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-		if (e.key === "Enter") {
-			e.preventDefault();
-			e.currentTarget.blur();
-		}
-	};
-
-	return (
-		<InputGroup>
-			<Form.Control
-				className="text-center user-select-none"
-				placeholder={`${step === -1 ? length - 1 : step}/${length - 1}`}
-				onBlur={handleBlur}
-				onKeyDown={handleKeyDown}
-				style={{
-					background: "transparent",
-					borderColor: "transparent",
-					zIndex: 1,
-				}}
-			/>
-		</InputGroup>
-	);
-};
-
-interface ProgressBarProps {
-	length: number;
-	disabledFrames: number[];
-	bookmarks: any;
-	setBookmarks: any;
-	step: number;
-	setStep: (step: number) => void;
-}
-
-const ColoredTiles = ({
-	length,
-	disabledFrames,
-	setStep,
-	tickInterval,
-}: {
-	length: number;
-	disabledFrames: number[];
-	setStep: (step: number) => void;
-	tickInterval: number;
-}) => {
-	const [disabledPositions, setdisabledPositions] = useState<number[]>([]);
-	const [ticks, setTicks] = useState<number[]>([]);
-
-	useEffect(() => {
-		const disabledPositions = [...Array(length).keys()].filter((position) =>
-			disabledFrames.includes(position),
-		);
-		setdisabledPositions(disabledPositions);
-	}, [length, disabledFrames]);
-
-	useEffect(() => {
-		const ticks = [...Array(length).keys()].filter(
-			(position) => position % tickInterval === 0,
-		);
-		setTicks(ticks);
-	}, [length, tickInterval]);
-
-	const onTileClick = (event: any) => {
-		const rect = event.target.getBoundingClientRect();
-		const x = event.clientX - rect.left;
-		const position = Math.floor((x / rect.width) * length);
-		setStep(position);
-	};
-	return (
-		<>
-			{ticks.map((position) => {
-				const commonStyles = {
-					left: `${(position / length) * 100}%`,
-					width: `${100 / (length - 1)}%`,
-					height: 25,
-				};
-				return (
-					<div
-						key={position}
-						className={"position-absolute"}
-						style={commonStyles}
-					>
-						<div className="progress-bar-tick-line bg-secondary" />
-					</div>
-				);
-			})}
-			<div
-				className={`position-absolute ${disabledPositions.length === 0 ? "bg-body" : "bg-success"}`}
-				style={{ width: "100%", height: 25 }}
-				onClick={(e) => onTileClick(e)}
-			/>
-
-			{disabledPositions.map((position) => {
-				const commonStyles = {
-					left: `${(position / length) * 100}%`,
-					width: `${100 / (length - 1)}%`,
-					height: 25,
-				};
-				return (
-					<div
-						key={position}
-						className={"position-absolute p-0 bg-body"}
-						style={commonStyles}
-					/>
-				);
-			})}
-		</>
-	);
-};
-
-interface FrameRateControlProps {
-	frameRate: number;
-	setFrameRate: (val: number) => void;
-	isFrameRendering: boolean;
-	connected: boolean;
-}
-
-const FrameRateControl: React.FC<FrameRateControlProps> = ({
-	frameRate,
-	setFrameRate,
-	isFrameRendering,
-	connected,
-}) => {
-	const [showLoadingIcon, setShowLoadingIcon] = useState(false);
-
-	// Delay before showing ⧗ to avoid flickering
-	useEffect(() => {
-		let timeout: NodeJS.Timeout;
-		if (isFrameRendering) {
-			timeout = setTimeout(() => setShowLoadingIcon(true), 50);
-		} else {
-			setShowLoadingIcon(false);
-			clearTimeout(timeout);
-		}
-		return () => clearTimeout(timeout);
-	}, [isFrameRendering]);
-
-	const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-		const val = parseInt(e.target.value, 10);
-		if (!isNaN(val)) {
-			setFrameRate(Math.max(1, val)); // Ensure frame rate is at least 1
-		}
-	};
-
-	return (
-		<div
-			className="d-flex justify-content-center align-items-center user-select-none"
-			style={{ display: "flex", height: "100%" }}
-		>
-			<FormControl
-				type="number"
-				value={frameRate}
-				onChange={handleChange}
-				min={1}
-				size="sm"
-				style={{
-					width: "40px",
-					height: "18px",
-					fontSize: "10px",
-					textAlign: "center",
-				}}
-				title="Frame rate (1 = every frame, 2 = every 2nd frame, etc.)"
-			/>
-
-			{/* Frame loading icon */}
-			<OverlayTrigger
-				placement="top"
-				delay={{ show: 0, hide: 100 }}
-				overlay={<Tooltip>Loading frame data...</Tooltip>}
-			>
-				<div
-					style={{
-						height: "100%",
-						animation: showLoadingIcon ? "pulse 1s infinite" : "none",
-						visibility: showLoadingIcon ? "visible" : "hidden",
-						alignItems: "center",
-						justifyContent: "center",
-						display: "flex",
-					}}
-					title="Loading frame data..."
-				>
-					<IoMdCodeDownload />
-				</div>
-			</OverlayTrigger>
-
-			{/* Server connection spinner */}
-			{!connected && (
-				<OverlayTrigger
-					placement="top"
-					delay={{ show: 0, hide: 100 }}
-					overlay={<Tooltip>Not connected to server</Tooltip>}
-				>
-					<div
-						style={{
-							height: "25px",
-							width: "25px",
-						}}
-					>
-						<div
-							className="spinner-border spinner-border-sm text-primary"
-							role="status"
-							style={{
-								width: "15px",
-								height: "15px",
-							}}
-						></div>
-						<span className="visually-hidden">Loading...</span>
-					</div>
-				</OverlayTrigger>
-			)}
-		</div>
-	);
-};
-
-const Bookmarks = ({
-	length,
-	bookmarks,
-	setBookmarks,
-	setStep,
-}: {
-	length: number;
-	bookmarks: { [key: number]: string };
-	setBookmarks: (bookmarks: { [key: number]: string }) => void;
-	setStep: (step: number) => void;
-}) => {
-	const handleBookmarkClick = (event: any, number: number) => {
-		if (event.shiftKey) {
-			const newBookmarks = { ...bookmarks };
-			delete newBookmarks[number];
-			setBookmarks(newBookmarks);
-		} else {
-			setStep(number);
-		}
-	};
-
-	return (
-		<>
-			{Object.keys(bookmarks).map((key) => {
-				const position = Number.parseInt(key);
-				return (
-					<OverlayTrigger
-						key={position}
-						placement="top"
-						delay={{ show: 0, hide: 100 }}
-						overlay={
-							<Tooltip style={{ marginLeft: "0.375em" }}>
-								{bookmarks[position]}
-							</Tooltip>
-						}
-					>
-						<div
-							className="position-absolute progress-bar-bookmark"
-							style={{
-								left: `${(position / length) * 100}%`,
-								top: 7,
-								marginLeft: "-0.375em",
-							}}
-						>
-							<FaRegBookmark
-								className="position-absolute"
-								size={"0.75em"}
-								onClick={(e) => handleBookmarkClick(e, position)}
-							/>
-						</div>
-					</OverlayTrigger>
-				);
-			})}
-		</>
-	);
-};
-
-const VLine = ({ length, step }: { length: number; step: number }) => {
-	return (
-		<div
-			className="position-absolute p-0 progress-bar-v-line"
-			style={{
-				left: `${step === -1 ? ((length - 1) / length) * 100 : (step / length) * 100}%`,
-				height: 25,
-				width: "2px",
-			}}
-			// why do I need to overwrite the height and width here?
-		/>
-	);
-};
-
-const ProgressBar = ({
-	length,
-	disabledFrames,
-	bookmarks,
-	setBookmarks,
-	step,
-	setStep,
-}: ProgressBarProps) => {
-	const [tickInterval, setTickInterval] = useState<number>(1);
-
-	useEffect(() => {
-		setTickInterval(Math.floor(length / 100) + 1);
-	}, [length]);
-
-	return (
-		<Row className="position-relative">
-			<ColoredTiles
-				length={length}
-				disabledFrames={disabledFrames}
-				setStep={setStep}
-				tickInterval={tickInterval}
-			/>
-			<Bookmarks
-				length={length}
-				bookmarks={bookmarks}
-				setBookmarks={setBookmarks}
-				setStep={setStep}
-			/>
-			<VLine length={length} step={step} />
-		</Row>
-	);
-};
 
 interface FrameProgressBarProps {
 	length: number;
 	step: number;
 	setStep: (step: number) => void;
 	selectedFrames: IndicesState;
-	bookmarks: any[]; // Replace with actual type if known
-	setBookmarks: (bookmarks: any[]) => void; // Replace with actual type if known
 	setSelectedFrames: (selectedFrames: IndicesState) => void;
+	bookmarks: { [key: number]: string };
+	setBookmarks: (bookmarks: { [key: number]: string }) => void;
 	connected: boolean;
 	frameRate: number;
 	setFrameRate: (rate: number) => void;
 	isFrameRendering: boolean;
 }
 
-const FrameProgressBar: React.FC<FrameProgressBarProps> = ({
+const SliderControlsWrapper = styled(Box)(() => ({
+	position: "relative",
+	flexGrow: 1,
+	display: "flex",
+	alignItems: "center",
+	minWidth: 250,
+	margin: "0 8px",
+}));
+
+// CORRECTED: Bookmark positioning logic
+const BookmarkIndicator = styled("div")<{ left: string }>(({ left }) => ({
+	position: "absolute",
+	left: left,
+	top: "50%", // Start from the vertical center of the parent
+	// Horizontally center on the mark.
+	// Vertically, shift it up by its own height (7px) plus half the rail height (2px)
+	// to make the tip sit exactly on top of the slider rail.
+	transform: "translate(-50%, -9px)",
+	width: "12px",
+	height: "7px", // The height of the triangle
+	zIndex: 2,
+	cursor: "pointer",
+	"& svg": {
+		display: "block",
+		width: "100%",
+		height: "100%",
+		filter: "drop-shadow(0px 1px 1px rgba(0,0,0,0.2))",
+	},
+	"& svg path": {
+		fill: "#ff9800",
+		transition: "fill 0.2s ease-in-out",
+	},
+	"&:hover svg path": {
+		fill: "#e65100", // Darken on hover
+	},
+}));
+
+const compactTextFieldSx = {
+	"& .MuiInputBase-root": { height: 30, fontSize: "0.875rem" },
+	"& .MuiOutlinedInput-input": { padding: "4px 8px" },
+	"& .MuiInputLabel-root": { top: "-6px" },
+	"& .MuiInputLabel-shrink": { top: "0px" },
+};
+
+const waitingAnimation = {
+	"@keyframes waiting": {
+		"0%, 100%": { transform: "translateY(0)" },
+		"50%": { transform: "translateY(-3px)" },
+	},
+	animation: "waiting 1.5s ease-in-out infinite",
+};
+
+export const FrameProgressBar: React.FC<FrameProgressBarProps> = ({
 	length,
 	step,
 	setStep,
 	selectedFrames,
+	setSelectedFrames,
 	bookmarks,
 	setBookmarks,
-	setSelectedFrames,
 	connected,
 	frameRate,
 	setFrameRate,
 	isFrameRendering,
 }) => {
-	const [linePosition, setLinePosition] = useState<number>(0);
-	const [disabledFrames, setDisabledFrames] = useState<number[]>([]);
-	const progressHandleParentRef = React.createRef<HTMLDivElement>();
+	const theme = useTheme();
+	const [inputValue, setInputValue] = useState<string>(String(step));
+	const [fpsInputValue, setFpsInputValue] = useState<string>(String(frameRate));
+	const [debouncedConnected, setDebouncedConnected] = useState(connected);
+	const [debouncedIsFrameRendering, setDebouncedIsFrameRendering] =
+		useState(isFrameRendering);
 
 	useEffect(() => {
-		// disable frames are the frames that are not selected, if the selectedFrames is not empty
-		if (selectedFrames.indices.size > 0 && selectedFrames.active) {
-			const disabledFrames = [...Array(length).keys()].filter(
-				(frame) => !selectedFrames.indices.has(frame),
-			);
-			setDisabledFrames(disabledFrames);
-		} else {
-			setDisabledFrames([]);
-		}
-	}, [selectedFrames, length]);
+		setInputValue(String(step));
+	}, [step]);
+	useEffect(() => {
+		setFpsInputValue(String(frameRate));
+	}, [frameRate]);
+	useEffect(() => {
+		const handler = setTimeout(
+			() => setDebouncedConnected(connected),
+			connected ? 0 : 500,
+		);
+		return () => clearTimeout(handler);
+	}, [connected]);
+	useEffect(() => {
+		const handler = setTimeout(
+			() => setDebouncedIsFrameRendering(isFrameRendering),
+			isFrameRendering ? 500 : 0,
+		);
+		return () => clearTimeout(handler);
+	}, [isFrameRendering]);
 
-	const handleSelectionReset = () => {
-		setSelectedFrames((prev) => ({
-			indices: prev.indices,
-			active: !prev.active,
-		}));
+	const handleSliderChange = (event: Event, newValue: number | number[]) => {
+		setStep(newValue as number);
+	};
+	const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+		setInputValue(event.target.value);
+		const numValue = Number(event.target.value);
+		if (!isNaN(numValue) && numValue >= 0 && numValue <= length)
+			setStep(numValue);
+	};
+	const handleInputBlur = () => {
+		const numValue = Number(inputValue);
+		if (isNaN(numValue) || numValue < 0 || numValue > length)
+			setInputValue(String(step));
+	};
+	const handleBookmarkClick = (
+		event: React.MouseEvent,
+		frameNumber: number,
+	) => {
+		if (event.shiftKey) {
+			const newBookmarks = { ...bookmarks };
+			delete newBookmarks[frameNumber];
+			setBookmarks(newBookmarks);
+		} else {
+			setStep(frameNumber);
+		}
+	};
+	const handleToggleSelectedFrames = () => {
+		setSelectedFrames({ ...selectedFrames, active: !selectedFrames.active });
+	};
+	const handleFpsInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+		setFpsInputValue(event.target.value);
+		const numValue = Number(event.target.value);
+		if (!isNaN(numValue) && numValue > 0) setFrameRate(numValue);
+	};
+	const handleFpsInputBlur = () => {
+		const numValue = Number(fpsInputValue);
+		if (isNaN(numValue) || numValue <= 0) setFpsInputValue(String(frameRate));
 	};
 
-	useEffect(() => {
-		// Calculate the linePosition based on the step, length, and window width
-		setLinePosition(
-			step === -1 ? ((length - 1) / length) * 100 : (step / length) * 100,
-		);
-	}, [step, length]);
-
-	const handleMouseDown = (e) => {
-		e.preventDefault();
-		if (!progressHandleParentRef.current) {
-			console.error(
-				"progressHandleParentRef is not set - dragging will not work",
+	const renderBookmarks = () =>
+		Object.keys(bookmarks).map((key) => {
+			const position = Number.parseInt(key);
+			return (
+				<Tooltip
+					key={`bookmark-${position}`}
+					title={bookmarks[position]}
+					placement="top"
+				>
+					<BookmarkIndicator
+						left={`${(position / (length - 1)) * 100}%`}
+						onClick={(e) => handleBookmarkClick(e, position)}
+					>
+						<svg viewBox="0 0 12 7" xmlns="http://www.w3.org/2000/svg">
+							<path d="M0 0 L12 0 L6 7 Z" />
+						</svg>
+					</BookmarkIndicator>
+				</Tooltip>
 			);
-			return;
+		});
+
+	const renderSelectedFrames = () => {
+		if (!selectedFrames.active || !selectedFrames.indices) return null;
+		const frames = [...selectedFrames.indices].sort((a, b) => a - b);
+		const blocks: { start: number; end: number }[] = [];
+		if (frames.length > 0) {
+			let currentBlock = { start: frames[0], end: frames[0] };
+			for (let i = 1; i < frames.length; i++) {
+				if (frames[i] === currentBlock.end + 1) {
+					currentBlock.end = frames[i];
+				} else {
+					blocks.push(currentBlock);
+					currentBlock = { start: frames[i], end: frames[i] };
+				}
+			}
+			blocks.push(currentBlock);
 		}
-		// we need to store the parent rect in a variable because
-		// once we move the mouse, the parent rect will change
-		const parentRect = progressHandleParentRef.current.getBoundingClientRect();
-
-		const handleMouseMove = (e) => {
-			// compute the lineposition based on the mouse position and the length
-			const x = e.clientX - parentRect.left;
-			const position = Math.floor((x / parentRect.width) * length);
-			setStep(Math.min(Math.max(position, 0), length - 1));
-		};
-
-		document.addEventListener("mousemove", handleMouseMove);
-
-		document.addEventListener(
-			"mouseup",
-			() => {
-				document.removeEventListener("mousemove", handleMouseMove);
-			},
-			{ once: true },
-		);
+		return blocks.map((block, index) => (
+			<Box
+				key={`selected-block-${index}`}
+				sx={{
+					position: "absolute",
+					left: `${(block.start / (length - 1)) * 100}%`,
+					width: `${((block.end - block.start + 1) / (length - 1)) * 100}%`,
+					height: "6px",
+					backgroundColor: "primary.light",
+					borderRadius: "3px",
+					zIndex: 1,
+					pointerEvents: "none",
+					top: "50%",
+					transform: "translateY(-50%)",
+					opacity: 0.9,
+				}}
+			/>
+		));
 	};
 
 	return (
-		<Container fluid className="fixed-bottom px-0 py-0">
-			<Row>
-				<Col xs="2">
-					<Row>
-						<Col
-							className="d-flex bg-secondary justify-content-center align-items-center"
-							style={{ height: 1 }}
-						/>
-					</Row>
-					<Row>
-						<Col
-							className="d-flex bg-body justify-content-center align-items-center"
-							style={{ height: 25 }}
-						>
-							<JumpFrame step={step} setStep={setStep} length={length} />
-							<OverlayTrigger
-								placement="top"
-								delay={{ show: 0, hide: 100 }}
-								overlay={<Tooltip>toggle selection</Tooltip>}
-							>
-								<div>
-									{" "}
-									{selectedFrames.active ? (
-										<PiSelection onClick={handleSelectionReset} />
-									) : (
-										<PiSelectionSlash onClick={handleSelectionReset} />
-									)}
-								</div>
-							</OverlayTrigger>
-						</Col>
-					</Row>
-				</Col>
-				<Col>
-					<Row className="position-relative">
-						<Col
-							className="d-flex justify-content-center"
-							ref={progressHandleParentRef}
-						>
-							<div
-								className="handle"
-								style={{ left: `${linePosition}%`, cursor: "pointer" }}
-								onMouseDown={(e) => handleMouseDown(e)}
-							>
-								<div className="square" />
-								<div className="triangle" />
-							</div>
-						</Col>
-					</Row>
-					<Row>
-						<Col
-							className="d-flex bg-secondary justify-content-center align-items-center"
-							style={{ height: 1 }}
-						/>
-					</Row>
+		<Box
+			sx={{
+				width: "100%",
+				padding: "4px 16px",
+				backgroundColor: "background.paper",
+				borderRadius: "8px",
+				boxShadow: 1,
+				display: "flex",
+				alignItems: "center",
+				gap: "12px",
+				flexWrap: "wrap",
+			}}
+		>
+			<TextField
+				variant="outlined"
+				size="small"
+				value={inputValue}
+				onChange={handleInputChange}
+				onBlur={handleInputBlur}
+				type="number"
+				sx={{ ...compactTextFieldSx, width: 110 }}
+				InputProps={{
+					endAdornment: (
+						<InputAdornment position="end">/{length - 1}</InputAdornment>
+					),
+				}}
+			/>
 
-					<ProgressBar
-						length={length}
-						disabledFrames={disabledFrames}
-						bookmarks={bookmarks}
-						step={step}
-						setStep={setStep}
-						setBookmarks={setBookmarks}
-					/>
-				</Col>
-				<Col xs="1">
-					<Row>
-						<Col
-							className="d-flex bg-secondary justify-content-center align-items-center"
-							style={{ height: 1 }}
-						/>
-					</Row>
-					<Row>
-						<Col
-							className="d-flex bg-body justify-content-center align-items-center"
-							style={{ height: 25 }}
-						>
-							<FrameRateControl
-								frameRate={frameRate}
-								setFrameRate={setFrameRate}
-								isFrameRendering={isFrameRendering}
-								connected={connected}
+			<SliderControlsWrapper>
+				{renderSelectedFrames()}
+				{renderBookmarks()}
+				<Slider
+					value={step}
+					min={0}
+					max={length - 1}
+					step={1}
+					onChange={handleSliderChange}
+					sx={{
+						color: selectedFrames.active ? "transparent" : "primary.main",
+						"& .MuiSlider-rail": {
+							height: 4,
+							borderRadius: 2,
+							backgroundColor: selectedFrames.active
+								? theme.palette.action.disabled
+								: theme.palette.action.hover,
+							opacity: 1,
+						},
+						"& .MuiSlider-track": {
+							height: 4,
+							borderRadius: 2,
+							transition: "none",
+						},
+						"& .MuiSlider-thumb": {
+							width: 14,
+							height: 14,
+							backgroundColor: theme.palette.background.paper,
+							border: "2px solid currentColor",
+							color: selectedFrames.active
+								? theme.palette.primary.light
+								: "primary.main",
+							transition: "none",
+						},
+					}}
+				/>
+			</SliderControlsWrapper>
+
+			<TextField
+				variant="outlined"
+				size="small"
+				label="FPS"
+				value={fpsInputValue}
+				onChange={handleFpsInputChange}
+				onBlur={handleFpsInputBlur}
+				type="number"
+				sx={{ ...compactTextFieldSx, width: 80 }}
+			/>
+
+			<Tooltip
+				title={selectedFrames.active ? "Hide Selections" : "Show Selections"}
+			>
+				<IconButton
+					onClick={handleToggleSelectedFrames}
+					size="small"
+					color="primary"
+				>
+					{selectedFrames.active ? <VisibilityIcon /> : <VisibilityOffIcon />}
+				</IconButton>
+			</Tooltip>
+
+			<Box
+				sx={{
+					display: "flex",
+					alignItems: "center",
+					justifyContent: "center",
+					width: 24,
+					height: 24,
+				}}
+			>
+				<Tooltip
+					title={
+						!debouncedConnected
+							? "Connecting..."
+							: debouncedIsFrameRendering
+								? "Waiting for data..."
+								: "Connected"
+					}
+				>
+					<Box sx={{ display: "flex" }}>
+						{!debouncedConnected ? (
+							<CircularProgress size={20} />
+						) : debouncedIsFrameRendering ? (
+							<CloudDownloadIcon
+								sx={{ color: "#1976d2", fontSize: 22, ...waitingAnimation }}
 							/>
-						</Col>
-					</Row>
-				</Col>
-			</Row>
-		</Container>
+						) : (
+							<WifiIcon sx={{ color: "#4caf50", fontSize: 22 }} />
+						)}
+					</Box>
+				</Tooltip>
+			</Box>
+		</Box>
 	);
 };
 

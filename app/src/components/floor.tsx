@@ -1,5 +1,6 @@
 import { Plane } from "@react-three/drei";
 import { Line } from "@react-three/drei";
+import type React from "react";
 import { useEffect, useState } from "react";
 import * as THREE from "three";
 
@@ -45,20 +46,30 @@ function Grid({
 	return <group position={position}>{lines}</group>;
 }
 
-export const Floor: any = ({ colorMode, roomConfig }: any) => {
+interface FloorProps {
+	colorMode: string;
+	roomConfig: {
+		Visualization?: {
+			simulation_box?: boolean;
+			[key: string]: unknown;
+		};
+		[key: string]: unknown;
+	};
+}
+
+export const Floor: React.FC<FloorProps> = ({ colorMode, roomConfig }) => {
 	const [bsColor, setBsColor] = useState({
 		"--bs-body-bg": "#fff",
 		"--bs-secondary": "#fff",
 	});
 
 	useEffect(() => {
+		// Re-read CSS custom properties when color mode changes
+		console.log("Color mode changed to:", colorMode);
+		const computedStyle = getComputedStyle(document.documentElement);
 		setBsColor({
-			"--bs-body-bg": getComputedStyle(
-				document.documentElement,
-			).getPropertyValue("--bs-body-bg"),
-			"--bs-secondary": getComputedStyle(
-				document.documentElement,
-			).getPropertyValue("--bs-secondary"),
+			"--bs-body-bg": computedStyle.getPropertyValue("--bs-body-bg"),
+			"--bs-secondary": computedStyle.getPropertyValue("--bs-secondary"),
 		});
 	}, [colorMode]);
 

@@ -1,6 +1,6 @@
 [project]
 name = "zndraw"
-version = "0.5.11a1"
+version = "0.5.11a2"
 description = "Display and Edit Molecular Structures and Trajectories in the Browser."
 authors = [
     { name = "Fabian Zills", email = "fzills@icp.uni-stuttgart.de" },

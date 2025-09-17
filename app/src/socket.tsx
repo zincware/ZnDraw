@@ -1,8 +1,5 @@
-import { useEffect, useRef } from "react";
 import { Manager } from "socket.io-client";
 import { createClient } from "znsocket";
-
-import * as THREE from "three";
 
 function setupIO() {
 	const basePath = import.meta.env.BASE_URL || "/";

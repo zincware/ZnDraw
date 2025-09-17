@@ -1,8 +1,16 @@
-import React, { createContext, useContext, useState, ReactNode } from "react";
+import type React from "react";
+import {
+	type ReactNode,
+	createContext,
+	useContext,
+	useEffect,
+	useState,
+} from "react";
 import * as THREE from "three";
 import type { Frame } from "../components/particles";
 import type { IndicesState } from "../components/utils";
 import type { HSLColor } from "../components/utils";
+import { useTokenFromUrl } from "../hooks/useTokenFromUrl";
 import { useVectorManager } from "../hooks/useVectorManager";
 import type { RoomConfig } from "../types/room-config";
 import { DEFAULT_ROOM_CONFIG } from "../types/room-config";
@@ -134,11 +142,14 @@ export const AppProvider: React.FC<AppProviderProps> = ({
 	colorMode,
 	handleColorMode,
 }) => {
+	// Extract token from URL
+	const urlToken = useTokenFromUrl();
+
 	// Connection state
 	const [connected, setConnected] = useState<boolean>(false);
 
-	// Room state
-	const [token, setToken] = useState<string>("");
+	// Room state - use urlToken as initial value and fallback to socket updates
+	const [token, setToken] = useState<string>(urlToken || "");
 	const [roomName, setRoomName] = useState<string>("");
 	const [roomLock, setRoomLock] = useState<boolean>(false);
 
@@ -234,6 +245,14 @@ export const AppProvider: React.FC<AppProviderProps> = ({
 		currentFrame,
 		vectorConfig: roomConfig.VectorDisplay,
 	});
+
+	// Update token when urlToken changes from URL (prioritize URL token over socket token)
+	useEffect(() => {
+		if (urlToken && urlToken !== token) {
+			setToken(urlToken);
+			console.log("Token updated from URL:", urlToken);
+		}
+	}, [urlToken, token]);
 
 	const value: AppState = {
 		// Connection state

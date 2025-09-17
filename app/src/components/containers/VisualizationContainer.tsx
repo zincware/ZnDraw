@@ -1,19 +1,20 @@
-import React, { useMemo, useEffect } from "react";
+import { Environment } from "@react-three/drei";
 import { Canvas } from "@react-three/fiber";
 import { Pathtracer } from "@react-three/gpu-pathtracer";
-import { Environment } from "@react-three/drei";
+import type React from "react";
+import { useEffect, useMemo } from "react";
 import { useAppContext } from "../../contexts/AppContext";
+import CameraAndControls from "../cameraAndControls";
+import { Floor } from "../floor";
+import { Geometries } from "../geometries";
+import { Line3D, VirtualCanvas } from "../lines";
 import {
 	BondInstances,
 	ParticleInstances,
 	PerParticleVectors,
-	SimulationCell,
 	Player,
+	SimulationCell,
 } from "../particles";
-import { Geometries } from "../geometries";
-import CameraAndControls from "../cameraAndControls";
-import { Floor } from "../floor";
-import { Line3D, VirtualCanvas } from "../lines";
 import ControlsBuilder from "../transforms";
 import VectorField from "../vectorfield";
 
@@ -99,9 +100,12 @@ export const VisualizationContainer: React.FC<VisualizationContainerProps> = ({
 			className="canvas-container edit-mode-border"
 			onDragOver={onDragOver}
 			onDrop={onDrop}
-			tabIndex={0}
 		>
-			<Canvas onPointerMissed={onPointerMissed} shadows>
+			<Canvas
+				onPointerMissed={onPointerMissed}
+				shadows
+				style={{ background: colorMode === "light" ? "white" : "#424242" }}
+			>
 				<CameraAndControls
 					cameraConfig={roomConfig.Camera}
 					cameraAndControls={cameraAndControls}
@@ -114,7 +118,21 @@ export const VisualizationContainer: React.FC<VisualizationContainerProps> = ({
 				<Pathtracer enabled={roomConfig.PathTracer.enabled}>
 					{roomConfig.PathTracer.enabled &&
 						roomConfig.PathTracer.environment !== "none" && (
-							<Environment preset={roomConfig.PathTracer.environment as any} />
+							<Environment
+								preset={
+									roomConfig.PathTracer.environment as
+										| "sunset"
+										| "dawn"
+										| "night"
+										| "warehouse"
+										| "forest"
+										| "apartment"
+										| "studio"
+										| "city"
+										| "park"
+										| "lobby"
+								}
+							/>
 						)}
 
 					{/* Lighting */}

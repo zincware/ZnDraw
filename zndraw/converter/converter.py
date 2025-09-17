@@ -1,152 +1,124 @@
 import ase
 import numpy as np
+import plotly.graph_objects as go
+import plotly.io as pio
 import znjson
+import znsocket
 from ase.calculators.singlepoint import SinglePointCalculator
 from ase.constraints import FixAtoms
 
 from zndraw.draw import Object3D
+from zndraw.figure import Figure
 from zndraw.type_defs import ASEDict
+
+# TODO: there is an issue with using `_type` with znjson and the numpy array type,
+TYPE_KEY = "type"
 
 
 class ASEConverter(znjson.ConverterBase):
-    """Encode/Decode datetime objects
-
-    Attributes
-    ----------
-    level: int
-        Priority of this converter over others.
-        A higher level will be used first, if there
-        are multiple converters available
-    representation: str
-        An unique identifier for this converter.
-    instance:
-        Used to select the correct converter.
-        This should fulfill isinstance(other, self.instance)
-        or __eq__ should be overwritten.
-    """
-
     level = 100
     representation = "ase.Atoms"
     instance = ase.Atoms
 
     def encode(self, obj: ase.Atoms) -> ASEDict:
-        """Convert the datetime object to str / isoformat"""
+        def recursive_encode(val):
+            if isinstance(val, (str, int, float, bool, type(None))):
+                return val
+            elif isinstance(val, np.ndarray):
+                return {TYPE_KEY: "ndarray", "value": val.tolist()}
+            elif isinstance(val, np.generic):
+                return val.item()  # Convert numpy generic types to native Python types
+            elif isinstance(val, Figure):
+                return {TYPE_KEY: "zndraw.Figure", "base64": val.base64}
+            elif isinstance(val, (list, tuple)):
+                return [recursive_encode(v) for v in val]
+            elif isinstance(val, dict):
+                return {k: recursive_encode(v) for k, v in val.items()}
+            elif isinstance(val, go.Figure):
+                return {TYPE_KEY: "plotly.graph_objs.Figure", "value": val.to_json()}
+            # elif isinstance(val, znsocket.Dict):
+            #     return {k: recursive_encode(v) for k, v in val.items()}
+            # elif isinstance(val, (znsocket.List, znsocket.Segments)):
+            #     return [recursive_encode(v) for v in val]
+            else:
+                raise TypeError(f"Unsupported type during encoding: {type(val)} / {val}")
 
-        numbers = obj.numbers.tolist()
-        positions = obj.positions.tolist()
-        pbc = obj.pbc.tolist()
-        cell = obj.cell.tolist()
-
-        info = {
-            k: v
-            for k, v in obj.info.items()
-            if isinstance(v, (float, int, str, bool, list))
+        data = {
+            "numbers": obj.numbers.tolist(),
+            "positions": obj.positions.tolist(),
+            "pbc": obj.pbc.tolist(),
+            "cell": obj.cell.tolist(),
+            "info": recursive_encode(obj.info),
+            "arrays": {k: recursive_encode(v) for k, v in obj.arrays.items()},
+            "constraints": [],
+            "calc": {},
         }
-        info |= {k: v.tolist() for k, v in obj.info.items() if isinstance(v, np.ndarray)}
-        vectors = info.pop("vectors", [])
-        if isinstance(vectors, np.ndarray):
-            vectors = vectors.tolist()
-        for idx, vector in enumerate(vectors):
-            if isinstance(vector, np.ndarray):
-                vectors[idx] = vector.tolist()
-
-        if len(vectors) != 0:
-            vectors = np.array(vectors)
-            if vectors.ndim != 3:
-                raise ValueError(
-                    f"Vectors must be of shape (n, 2, 3), found '{vectors.shape}'"
-                )
-            if vectors.shape[1] != 2:
-                raise ValueError(
-                    f"Vectors must be of shape (n, 2, 3), found '{vectors.shape}'"
-                )
-            if vectors.shape[2] != 3:
-                raise ValueError(
-                    f"Vectors must be of shape (n, 2, 3), found '{vectors.shape}'"
-                )
-
-            vectors = vectors.tolist()
 
         if obj.calc is not None:
-            calc = {
-                k: v
-                for k, v in obj.calc.results.items()
-                if isinstance(v, (float, int, str, bool, list))
-            }
-            calc |= {
-                k: v.tolist()
-                for k, v in obj.calc.results.items()
-                if isinstance(v, np.ndarray)
-            }
-        else:
-            calc = {}
+            data["calc"] = recursive_encode(obj.calc.results)
 
-        # All additional information should be stored in calc.results
-        # and not in calc.arrays, thus we will not convert it here!
-        arrays = {}
-
-        for key in obj.arrays:
-            if isinstance(obj.arrays[key], np.ndarray):
-                arrays[key] = obj.arrays[key].tolist()
+        for constraint in obj.constraints:
+            if isinstance(constraint, FixAtoms):
+                data["constraints"].append(
+                    {TYPE_KEY: "FixAtoms", "indices": constraint.index.tolist()}
+                )
             else:
-                arrays[key] = obj.arrays[key]
+                raise TypeError(f"Unsupported constraint type: {type(constraint)}")
 
-        connectivity = obj.info.get("connectivity", [])
-        # Convert numpy arrays to lists if needed
-        if isinstance(connectivity, np.ndarray):
-            connectivity = connectivity.tolist()
-
-        constraints = []
-        if len(obj.constraints) > 0:
-            for constraint in obj.constraints:
-                if isinstance(constraint, FixAtoms):
-                    constraints.append(
-                        {"type": "FixAtoms", "indices": constraint.index.tolist()}
-                    )
-                else:
-                    # Can not serialize other constraints
-                    pass
-
-        # We don't want to send positions twice
-        arrays.pop("positions", None)
-        arrays.pop("numbers", None)
-
-        return ASEDict(
-            numbers=numbers,
-            positions=positions,
-            connectivity=connectivity,
-            arrays=arrays,
-            info=info,
-            calc=calc,
-            pbc=pbc,
-            cell=cell,
-            vectors=vectors,
-            constraints=constraints,
-        )
+        return data
 
     def decode(self, value: ASEDict) -> ase.Atoms:
-        """Create datetime object from str / isoformat"""
+        def recursive_decode(val):
+            if isinstance(val, (str, int, float, bool, type(None))):
+                return val
+            elif isinstance(val, list):
+                return [recursive_decode(v) for v in val]
+            elif isinstance(val, dict):
+                if TYPE_KEY in val:
+                    if val[TYPE_KEY] == "zndraw.Figure":
+                        return Figure(base64=val["base64"])
+                    elif val[TYPE_KEY] == "ndarray":
+                        return np.array(val["value"])
+                    elif val[TYPE_KEY] == "plotly.graph_objs.Figure":
+                        return pio.from_json(val["value"])
+                    else:
+                        raise TypeError(
+                            f"Unsupported type during decoding: {val[TYPE_KEY]}"
+                        )
+                else:
+                    return {k: recursive_decode(v) for k, v in val.items()}
+            # special znsocket cases, they need to be resolved
+            elif isinstance(val, znsocket.Dict):
+                return recursive_decode(dict(val))
+            elif isinstance(val, (znsocket.List, znsocket.Segments)):
+                return recursive_decode(val[:])
+            else:
+                raise TypeError(f"Unsupported type during decoding: {type(val)} / {val}")
+
         atoms = ase.Atoms(
             numbers=value["numbers"],
             positions=value["positions"],
-            info=value["info"],
             pbc=value["pbc"],
             cell=value["cell"],
         )
-        if connectivity := value.get("connectivity"):
-            # Store connectivity in atoms.info instead of atoms.connectivity
-            atoms.info["connectivity"] = connectivity
-        for key, val in value["arrays"].items():
-            atoms.arrays[key] = np.array(val)
-        if calc := value.get("calc"):
+        atoms.info = recursive_decode(value.get("info", {}))
+
+        for key, val in value.get("arrays", {}).items():
+            atoms.arrays[key] = recursive_decode(val)
+
+        if "calc" in value and value["calc"]:
             atoms.calc = SinglePointCalculator(atoms)
-            atoms.calc.results.update(calc)
-        if vectors := value.get("vectors"):
-            atoms.info["vectors"] = vectors
-        if constraints := value.get("constraints"):
-            for constraint in constraints:
-                if constraint["type"] == "FixAtoms":
+            atoms.calc.results = recursive_decode(value["calc"])
+
+        if "constraints" in value:
+            for constraint in value["constraints"]:
+                if constraint[TYPE_KEY] == "FixAtoms":
                     atoms.set_constraint(FixAtoms(constraint["indices"]))
+                else:
+                    raise TypeError(
+                        f"Unsupported constraint type: {constraint[TYPE_KEY]}"
+                    )
+
         return atoms
 
 

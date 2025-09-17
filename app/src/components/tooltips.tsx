@@ -1,10 +1,10 @@
-import { OverlayTrigger, Tooltip } from "react-bootstrap";
-import type { Placement } from "react-bootstrap/esm/types";
+import { Tooltip } from "@mui/material";
+import type { TooltipProps } from "@mui/material/Tooltip";
 
 interface BtnTooltipProps {
 	text: string;
-	children: any;
-	placement?: Placement;
+	children: React.ReactElement;
+	placement?: TooltipProps["placement"];
 	delayShow?: number;
 	delayHide?: number;
 }
@@ -17,12 +17,13 @@ export const BtnTooltip: React.FC<BtnTooltipProps> = ({
 	delayHide = 100,
 }) => {
 	return (
-		<OverlayTrigger
+		<Tooltip
+			title={text}
 			placement={placement}
-			delay={{ show: delayShow, hide: delayHide }}
-			overlay={<Tooltip>{text}</Tooltip>}
+			enterDelay={delayShow}
+			leaveDelay={delayHide}
 		>
 			{children}
-		</OverlayTrigger>
+		</Tooltip>
 	);
 };
