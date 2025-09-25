@@ -3,150 +3,147 @@ import socketio
 import warnings
 import numpy as np
 import requests
+import typing as t
 from tqdm import tqdm
+import msgpack
+import logging
 
-@dataclasses.dataclass
-class Client:
-    room: str = "default"
-    url: str = "http://localhost:5000"
-
-
-    def __post_init__(self):
-        self.sio = socketio.Client()
-        self.lock = SocketIOLock(self.sio, target="trajectory:meta")
-        self.sio.on("connect", self.on_connect)
-        self.sio.connect(self.url)
-
-    def on_connect(self):
-        print(f"Connected to {self.url}")
-        self.sio.emit("join_room", {"room": self.room})
-
-    def get_frame(self, frame_id: int) -> np.ndarray:
-        response = requests.get(f"{self.url}/frame/{self.room}/{frame_id}", timeout=10)
-        response.raise_for_status()
-        positions = np.frombuffer(response.content, dtype=np.float32)
-        return positions
-
-    def append_frame(self, data: np.ndarray[tuple[int, int], np.float32]):
-        with self.lock:
-            response = self.sio.call("upload:prepare", {})
-            if not response.get("success"):
-                print("Failed to prepare for upload")
-                return
-            token = response["token"]
-            try:
-                headers = {
-                    "Authorization": f"Bearer {token}",
-                    "Content-Type": "application/octet-stream"
-                }
-                response = requests.post(
-                    f"{self.url}/upload",
-                    data=data.tobytes(),
-                    headers=headers,
-                    timeout=30
-                )
-                response.raise_for_status() # Raise an exception for 4xx/5xx errors
-                
-                result = response.json()
-                if not result.get("success"):
-                    print(f"Server reported failure: {result.get('error')}")
-                    return
-
-            except requests.exceptions.RequestException as e:
-                print(f"Error uploading frame data: {e}")
-
-
-
+log = logging.getLogger(__name__)
 
 @dataclasses.dataclass
 class SocketIOLock:
+    """A client-side context manager for a distributed lock via Socket.IO."""
     sio: socketio.Client
     target: str
 
-    def acquire(self, blocking: bool = True, timeout: float = 60):
-        """Acquire a lock."""
-        return self.sio.call("lock:acquire", {"target": self.target}, timeout=int(timeout))
+    def acquire(self, timeout: float = 60) -> bool:
+        """
+        Acquire a lock for the specific target.
+        Waits for the server's confirmation.
+        """
+        payload = {"target": self.target}
+        # sio.call is inherently blocking, so it waits for the server's response.
+        response = self.sio.call("lock:acquire", payload, timeout=timeout)
+        return response and response.get("success", False)
 
-    def release(self):
-        """Release a lock."""
-        return self.sio.call("lock:release", {"target": self.target})
+    def release(self) -> bool:
+        """Release the lock."""
+        payload = {"target": self.target}
+        response = self.sio.call("lock:release", payload, timeout=10)
+        return response and response.get("success", False)
 
     def __enter__(self):
         if not self.acquire():
-            raise RuntimeError("Failed to acquire lock")
+            raise RuntimeError(f"Failed to acquire lock for target '{self.target}'")
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         if not self.release():
-            warnings.warn("Failed to release lock")
+            # Use a warning here because an exception in release could hide
+            # the original exception that occurred inside the 'with' block.
+            warnings.warn(f"Failed to release lock for target '{self.target}'. It may have expired.")
+
+@dataclasses.dataclass
+class Client:
+    """A client for interacting with the ZnDraw server."""
+    room: str = "default"
+    url: str = "http://localhost:5000"
+
+    def __post_init__(self):
+        self.sio = socketio.Client()
+        self.sio.on("connect", self._on_connect)
+
+    def connect(self):
+        """Establishes a connection to the server."""
+        if self.sio.connected:
+            print("Already connected.")
+            return
+        self.sio.connect(self.url)
+
+    def disconnect(self):
+        """Disconnects from the server."""
+        if self.sio.connected:
+            self.sio.disconnect()
+            print("Disconnected.")
+
+    def _on_connect(self):
+        """Internal callback for when a connection is established."""
+        log.debug(f"Connected to {self.url} with session ID {self.sio.sid}")
+        self.sio.emit("join_room", {"room": self.room})
+        log.debug(f"Joined room: '{self.room}'")
+
+    def get_frame(self, frame_id: int) -> dict[str, np.ndarray]:
+        """Fetches a single frame's data from the server."""
+        full_url = f"{self.url}/frame/{self.room}/{frame_id}"
+        response = requests.get(full_url, timeout=10)
+        response.raise_for_status()
+
+        # Unpack msgpack data
+        serialized_data = msgpack.unpackb(response.content, strict_map_key=False)
+
+        # Reconstruct numpy arrays from bytes, shape, and dtype
+        result = {}
+        for key, array_info in serialized_data.items():
+            data_bytes = array_info['data']
+            shape = tuple(array_info['shape'])
+            dtype = array_info['dtype']
+
+            result[key] = np.frombuffer(data_bytes, dtype=dtype).reshape(shape)
+
+        return result
+
+    def append_frame(self, data: dict[str, np.ndarray]):
+        if not self.sio.connected:
+            raise RuntimeError("Client is not connected. Please call .connect() first.")
+
+        lock = SocketIOLock(self.sio, target="trajectory:meta")
+
+        with lock:
+            response = self.sio.call("upload:prepare", {})
+            
+            if not response or not response.get("success"):
+                raise RuntimeError(f"Failed to prepare for upload: {response.get('error')}")
+            
+            token = response["token"]            
+            try:
+                # Pack the data using msgpack with bytes and shape info
+                serialized_data = {}
+                for key, array in data.items():
+                    serialized_data[key] = {
+                        'data': array.tobytes(),
+                        'shape': array.shape,
+                        'dtype': str(array.dtype)
+                    }
+
+                packed_data = msgpack.packb(serialized_data)
+
+                upload_url = f"{self.url}/rooms/{self.room}/frames"
+                headers = {
+                    "Authorization": f"Bearer {token}",
+                    "Content-Type": "application/octet-stream"
+                }
+
+                http_response = requests.post(
+                    upload_url,
+                    data=packed_data,
+                    headers=headers,
+                    timeout=30
+                )
+                http_response.raise_for_status()
+
+                result = http_response.json()
+                if not result.get("success"):
+                    raise RuntimeError(f"Server reported failure: {result.get('error')}")
+                
+            except requests.exceptions.RequestException as e:
+                # Wrap the HTTP error in a RuntimeError
+                raise RuntimeError(f"Error uploading frame data: {e}") from e
 
 if __name__ == '__main__':
-    import znh5md
-    io = znh5md.IO("/Users/fzills/tools/zndraw-communication-testing/structures.h5")
-    positions = np.array([frame.positions for frame in io[:]])
     client = Client()
-    data = np.random.rand(100, 3).astype(np.float32)
-    client.append_frame(positions)
-    for frame in tqdm(io[:]):
-        client.append_frame(frame.positions)
-    # for _ in tqdm(range(1000)):
-    #     data = np.random.rand(10_000, 3).astype(np.float32)
-    #     client.append_frame(data)
-
-    print(client.get_frame(0))
-    client.sio.wait()
-
-
-
-# import requests
-# import numpy as np
-# from tqdm import tqdm
-
-# def get_frame(frame_id: int, server_url: str = "http://localhost:5000") -> np.ndarray:
-#     """
-#     Fetches binary frame data from the Flask server and returns it as a NumPy array.
-
-#     Args:
-#         frame_id: The integer ID of the frame to retrieve.
-#         server_url: The base URL of the Flask server.
-
-#     Returns:
-#         A NumPy array of shape (N, 3) containing the atomic positions,
-#         or None if an error occurs.
-#     """
-#     url = f"{server_url}/frame/{frame_id}"    
-#     response = requests.get(url, timeout=10)
-#     response.raise_for_status()
-#     positions = np.frombuffer(response.content, dtype=np.float32)
-#     positions_reshaped = positions.reshape(-1, 3)
-#     return positions_reshaped
-
-
-# # --- Example Usage ---
-# if __name__ == '__main__':
-#     frames = []
-#     print("Round 1")
-#     for idx in tqdm(range(50)):
-#         frame_data = get_frame(idx)
-#         frames.append(frame_data)
-#     print("Round 2")
-#     for idx in tqdm(range(50)):
-#         frame_data = get_frame(idx)
-#         frames.append(frame_data)
-#     print("Done")
-#     print(np.array(frames).shape)
-
-# import socketio
-
-# sio = socketio.Client()
-
-# @sio.on("set_frame")
-# def on_set_frame(data):
-#     frame_id = data["frame"]
-#     print(f"Switched to frame {frame_id}")
-
-# sio.connect("http://localhost:5000")
-
-# # Example: set frame from this client
-# sio.emit("set_frame", {"frame": 10})
-# sio.wait()  # Keep the client running to listen for events
+    client.connect()
+    for idx in tqdm(range(50)):
+        client.append_frame({"index": np.array([idx])})
+    for idx in range(50):
+        frame = client.get_frame(idx)
+        print(f"Frame {idx} keys: {list(frame.keys())}, index: {frame['index']}")
