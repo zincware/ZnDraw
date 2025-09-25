@@ -3,7 +3,6 @@ import socketio
 import warnings
 import numpy as np
 import requests
-import typing as t
 from tqdm import tqdm
 import msgpack
 import logging
@@ -97,52 +96,73 @@ class Client(MutableSequence):
 
         return result
 
-    def append_frame(self, data: dict[str, np.ndarray]):
+    def _serialize_frame_data(self, data: dict[str, np.ndarray]) -> dict:
+        """Convert numpy arrays to msgpack-compatible format."""
+        serialized_data = {}
+        for key, array in data.items():
+            serialized_data[key] = {
+                'data': array.tobytes(),
+                'shape': array.shape,
+                'dtype': str(array.dtype)
+            }
+        return serialized_data
+
+    def _serialize_frames_data(self, frames: list[dict[str, np.ndarray]]) -> list[dict]:
+        """Convert list of frame data to msgpack-compatible format."""
+        return [self._serialize_frame_data(frame) for frame in frames]
+
+    def _prepare_upload_token(self, action: str, **kwargs) -> str:
+        """Prepare upload token for frame operations."""
+        request_data = {"action": action}
+        request_data.update(kwargs)
+
+        response = self.sio.call("upload:prepare", request_data)
+        if not response or not response.get("success"):
+            raise RuntimeError(f"Failed to prepare for upload: {response.get('error') if response else 'No response'}")
+        return response["token"]
+
+    def _upload_frame_data(self, token: str, serialized_data) -> dict:
+        """Upload frame data using the provided token."""
+        packed_data = msgpack.packb(serialized_data)
+
+        upload_url = f"{self.url}/rooms/{self.room}/frames"
+        headers = {
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/octet-stream"
+        }
+
+        http_response = requests.post(
+            upload_url,
+            data=packed_data,
+            headers=headers,
+            timeout=30
+        )
+        http_response.raise_for_status()
+
+        result = http_response.json()
+        if not result.get("success"):
+            raise RuntimeError(f"Server reported failure: {result.get('error')}")
+
+        return result
+
+    def _perform_locked_upload(self, action: str, data, **kwargs):
+        """Perform a locked upload operation with common error handling."""
         if not self.sio.connected:
             raise RuntimeError("Client is not connected. Please call .connect() first.")
 
         lock = SocketIOLock(self.sio, target="trajectory:meta")
 
         with lock:
-            response = self.sio.call("upload:prepare", {"action": "append"})
-            
-            if not response or not response.get("success"):
-                raise RuntimeError(f"Failed to prepare for upload: {response.get('error')}")
-            
-            token = response["token"]            
             try:
-                # Pack the data using msgpack with bytes and shape info
-                serialized_data = {}
-                for key, array in data.items():
-                    serialized_data[key] = {
-                        'data': array.tobytes(),
-                        'shape': array.shape,
-                        'dtype': str(array.dtype)
-                    }
-
-                packed_data = msgpack.packb(serialized_data)
-
-                upload_url = f"{self.url}/rooms/{self.room}/frames"
-                headers = {
-                    "Authorization": f"Bearer {token}",
-                    "Content-Type": "application/octet-stream"
-                }
-
-                http_response = requests.post(
-                    upload_url,
-                    data=packed_data,
-                    headers=headers,
-                    timeout=30
-                )
-                http_response.raise_for_status()
-
-                result = http_response.json()
-                if not result.get("success"):
-                    raise RuntimeError(f"Server reported failure: {result.get('error')}")
-                
+                token = self._prepare_upload_token(action, **kwargs)
+                serialized_data = self._serialize_frame_data(data) if isinstance(data, dict) else self._serialize_frames_data(data)
+                return self._upload_frame_data(token, serialized_data)
             except requests.exceptions.RequestException as e:
-                # Wrap the HTTP error in a RuntimeError
                 raise RuntimeError(f"Error uploading frame data: {e}") from e
+
+    def append_frame(self, data: dict[str, np.ndarray]):
+        """Appends a single frame to the trajectory."""
+        self._perform_locked_upload("append", data)
 
     def extend_frames(self, data: list[dict[str, np.ndarray]]):
         """
@@ -152,56 +172,8 @@ class Client(MutableSequence):
         Args:
             data: List of dictionaries, each containing numpy arrays for one frame
         """
-        if not self.sio.connected:
-            raise RuntimeError("Client is not connected. Please call .connect() first.")
-
-        lock = SocketIOLock(self.sio, target="trajectory:meta")
-
-        with lock:
-            response = self.sio.call("upload:prepare", {"action": "extend"})
-
-            if not response or not response.get("success"):
-                raise RuntimeError(f"Failed to prepare for upload: {response.get('error')}")
-
-            token = response["token"]
-            try:
-                # Pack the list of frames using msgpack with bytes and shape info
-                serialized_frames = []
-                for frame_data in data:
-                    serialized_frame = {}
-                    for key, array in frame_data.items():
-                        serialized_frame[key] = {
-                            'data': array.tobytes(),
-                            'shape': array.shape,
-                            'dtype': str(array.dtype)
-                        }
-                    serialized_frames.append(serialized_frame)
-
-                packed_data = msgpack.packb(serialized_frames)
-
-                upload_url = f"{self.url}/rooms/{self.room}/frames"
-                headers = {
-                    "Authorization": f"Bearer {token}",
-                    "Content-Type": "application/octet-stream"
-                }
-
-                http_response = requests.post(
-                    upload_url,
-                    data=packed_data,
-                    headers=headers,
-                    timeout=30
-                )
-                http_response.raise_for_status()
-
-                result = http_response.json()
-                if not result.get("success"):
-                    raise RuntimeError(f"Server reported failure: {result.get('error')}")
-
-                return result.get("new_indices", [])
-
-            except requests.exceptions.RequestException as e:
-                # Wrap the HTTP error in a RuntimeError
-                raise RuntimeError(f"Error uploading frame data: {e}") from e
+        result = self._perform_locked_upload("extend", data)
+        return result.get("new_indices", [])
 
     def get_frames(self, indices_or_slice) -> list[dict[str, np.ndarray]]:
         """
@@ -285,54 +257,7 @@ class Client(MutableSequence):
         This is a locked, non-destructive operation that appends the new data
         and updates the logical-to-physical mapping.
         """
-        if not self.sio.connected:
-            raise RuntimeError("Client is not connected. Please call .connect() first.")
-
-        lock = SocketIOLock(self.sio, target="trajectory:meta")
-        with lock:
-            print(f"Acquired trajectory lock. Preparing to replace frame {frame_id}...")
-            response = self.sio.call("upload:prepare", {"action": "replace", "frame_id": frame_id})
-
-            
-            if not response or not response.get("success"):
-                raise RuntimeError(f"Failed to prepare for upload: {response.get('error')}")
-            
-            token = response["token"]
-            print("Received upload token. Uploading new data...")
-            
-            try:
-                # Serialize the dictionary of arrays using msgpack
-                serialized_data = {}
-                for key, array in data.items():
-                    serialized_data[key] = {
-                        'data': array.tobytes(),
-                        'shape': array.shape,
-                        'dtype': str(array.dtype)
-                    }
-                packed_data = msgpack.packb(serialized_data)
-
-                upload_url = f"{self.url}/rooms/{self.room}/frames"
-                headers = {
-                    "Authorization": f"Bearer {token}",
-                    "Content-Type": "application/octet-stream"
-                }
-
-                http_response = requests.post(
-                    upload_url,
-                    data=packed_data,
-                    headers=headers,
-                    timeout=30
-                )
-                http_response.raise_for_status()
-
-                result = http_response.json()
-                if not result.get("success"):
-                    raise RuntimeError(f"Server reported failure: {result.get('error')}")
-                
-                print(f"Successfully replaced frame {frame_id}.")
-
-            except requests.exceptions.RequestException as e:
-                raise RuntimeError(f"Error uploading frame data: {e}") from e
+        self._perform_locked_upload("replace", data, frame_id=frame_id)
 
     def insert_frame(self, index: int, data: dict[str, np.ndarray]):
         """
@@ -343,51 +268,7 @@ class Client(MutableSequence):
             index: Logical position where to insert the frame (0-based)
             data: Dictionary containing numpy arrays for the frame
         """
-        if not self.sio.connected:
-            raise RuntimeError("Client is not connected. Please call .connect() first.")
-
-        lock = SocketIOLock(self.sio, target="trajectory:meta")
-
-        with lock:
-            response = self.sio.call("upload:prepare", {"action": "insert", "insert_position": index})
-
-            if not response or not response.get("success"):
-                raise RuntimeError(f"Failed to prepare for upload: {response.get('error')}")
-
-            token = response["token"]
-            try:
-                # Pack the data using msgpack with bytes and shape info
-                serialized_data = {}
-                for key, array in data.items():
-                    serialized_data[key] = {
-                        'data': array.tobytes(),
-                        'shape': array.shape,
-                        'dtype': str(array.dtype)
-                    }
-
-                packed_data = msgpack.packb(serialized_data)
-
-                upload_url = f"{self.url}/rooms/{self.room}/frames"
-                headers = {
-                    "Authorization": f"Bearer {token}",
-                    "Content-Type": "application/octet-stream"
-                }
-
-                http_response = requests.post(
-                    upload_url,
-                    data=packed_data,
-                    headers=headers,
-                    timeout=30
-                )
-                http_response.raise_for_status()
-
-                result = http_response.json()
-                if not result.get("success"):
-                    raise RuntimeError(f"Server reported failure: {result.get('error')}")
-
-            except requests.exceptions.RequestException as e:
-                # Wrap the HTTP error in a RuntimeError
-                raise RuntimeError(f"Error uploading frame data: {e}") from e
+        self._perform_locked_upload("insert", data, insert_position=index)
 
     # MutableSequence interface implementation
     def __len__(self) -> int:
