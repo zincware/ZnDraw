@@ -240,6 +240,86 @@ def test_mutable_sequence_interface():
     client.disconnect()
     assert not client.sio.connected
 
+def test_insert_frame_functionality():
+    client = Client(room=uuid.uuid4().hex, url="http://localhost:5000")
+    client.connect()
+
+    # Start with some initial frames
+    initial_frames = [
+        {"index": np.array([0]), "value": np.array([100])},
+        {"index": np.array([1]), "value": np.array([200])},
+        {"index": np.array([2]), "value": np.array([300])},
+    ]
+    for frame in initial_frames:
+        client.append_frame(frame)
+
+    assert len(client) == 3
+
+    # Test insert at beginning
+    insert_frame_0 = {"index": np.array([999]), "value": np.array([999])}
+    client.insert_frame(0, insert_frame_0)
+    assert len(client) == 4
+
+    # Verify the insertion shifted everything
+    frame = client.get_frame(0)
+    assert np.array_equal(frame["index"], insert_frame_0["index"])
+    frame = client.get_frame(1)  # Should be the original frame 0
+    assert np.array_equal(frame["index"], initial_frames[0]["index"])
+
+    # Test insert in middle
+    insert_frame_2 = {"index": np.array([888]), "value": np.array([888])}
+    client.insert_frame(2, insert_frame_2)
+    assert len(client) == 5
+
+    # Verify the insertion
+    frame = client.get_frame(2)
+    assert np.array_equal(frame["index"], insert_frame_2["index"])
+    # Original frame 1 should now be at position 3
+    frame = client.get_frame(3)
+    assert np.array_equal(frame["index"], initial_frames[1]["index"])
+
+    # Test insert at end (equivalent to append)
+    insert_frame_end = {"index": np.array([777]), "value": np.array([777])}
+    client.insert_frame(len(client), insert_frame_end)
+    assert len(client) == 6
+
+    # Should be at the last position
+    frame = client.get_frame(-1)
+    assert np.array_equal(frame["index"], insert_frame_end["index"])
+
+    client.disconnect()
+    assert not client.sio.connected
+
+def test_mutable_sequence_insert():
+    client = Client(room=uuid.uuid4().hex, url="http://localhost:5000")
+    client.connect()
+
+    # Add initial frames using MutableSequence interface
+    frames = [
+        {"data": np.array([1, 2, 3])},
+        {"data": np.array([4, 5, 6])},
+        {"data": np.array([7, 8, 9])},
+    ]
+
+    for frame in frames:
+        client.append(frame)
+
+    assert len(client) == 3
+
+    # Test MutableSequence insert at position 1
+    insert_data = {"data": np.array([99, 99, 99])}
+    client.insert(1, insert_data)
+    assert len(client) == 4
+
+    # Verify the order
+    assert np.array_equal(client[0]["data"], frames[0]["data"])  # Original frame 0
+    assert np.array_equal(client[1]["data"], insert_data["data"])  # Inserted frame
+    assert np.array_equal(client[2]["data"], frames[1]["data"])   # Shifted from pos 1 to 2
+    assert np.array_equal(client[3]["data"], frames[2]["data"])   # Shifted from pos 2 to 3
+
+    client.disconnect()
+    assert not client.sio.connected
+
 
 # def test_replace_frame_additional_keys():
 #     client = Client(room=uuid.uuid4().hex, url="http://localhost:5000")

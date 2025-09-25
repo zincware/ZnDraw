@@ -75,6 +75,10 @@ class Client(MutableSequence):
 
     def get_frame(self, frame_id: int) -> dict[str, np.ndarray]:
         """Fetches a single frame's data from the server."""
+        # Handle negative indices
+        if frame_id < 0:
+            frame_id = self.len_frames() + frame_id
+
         full_url = f"{self.url}/frame/{self.room}/{frame_id}"
         response = requests.get(full_url, timeout=10)
         response.raise_for_status()
@@ -330,6 +334,61 @@ class Client(MutableSequence):
             except requests.exceptions.RequestException as e:
                 raise RuntimeError(f"Error uploading frame data: {e}") from e
 
+    def insert_frame(self, index: int, data: dict[str, np.ndarray]):
+        """
+        Inserts a frame at the specified logical position.
+        All frames at position >= index will be shifted to the right.
+
+        Args:
+            index: Logical position where to insert the frame (0-based)
+            data: Dictionary containing numpy arrays for the frame
+        """
+        if not self.sio.connected:
+            raise RuntimeError("Client is not connected. Please call .connect() first.")
+
+        lock = SocketIOLock(self.sio, target="trajectory:meta")
+
+        with lock:
+            response = self.sio.call("upload:prepare", {"action": "insert", "insert_position": index})
+
+            if not response or not response.get("success"):
+                raise RuntimeError(f"Failed to prepare for upload: {response.get('error')}")
+
+            token = response["token"]
+            try:
+                # Pack the data using msgpack with bytes and shape info
+                serialized_data = {}
+                for key, array in data.items():
+                    serialized_data[key] = {
+                        'data': array.tobytes(),
+                        'shape': array.shape,
+                        'dtype': str(array.dtype)
+                    }
+
+                packed_data = msgpack.packb(serialized_data)
+
+                upload_url = f"{self.url}/rooms/{self.room}/frames"
+                headers = {
+                    "Authorization": f"Bearer {token}",
+                    "Content-Type": "application/octet-stream"
+                }
+
+                http_response = requests.post(
+                    upload_url,
+                    data=packed_data,
+                    headers=headers,
+                    timeout=30
+                )
+                http_response.raise_for_status()
+
+                result = http_response.json()
+                if not result.get("success"):
+                    raise RuntimeError(f"Server reported failure: {result.get('error')}")
+
+            except requests.exceptions.RequestException as e:
+                # Wrap the HTTP error in a RuntimeError
+                raise RuntimeError(f"Error uploading frame data: {e}") from e
+
     # MutableSequence interface implementation
     def __len__(self) -> int:
         """Return the number of frames."""
@@ -363,11 +422,14 @@ class Client(MutableSequence):
         self.delete_frame(index)
 
     def insert(self, index: int, value: dict[str, np.ndarray]):
-        """Insert frame at index. For now, only append is supported."""
-        if index == len(self):
-            self.append_frame(value)
-        else:
-            raise NotImplementedError("Insert at arbitrary position not supported by server")
+        """Insert frame at index."""
+        # Handle negative indices and clamp to valid range
+        if index < 0:
+            index = max(0, len(self) + index + 1)
+        elif index > len(self):
+            index = len(self)
+
+        self.insert_frame(index, value)
 
     def append(self, value: dict[str, np.ndarray]):
         """Append a frame."""

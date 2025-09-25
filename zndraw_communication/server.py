@@ -296,6 +296,76 @@ def append_frame(room_id):
             log.info(f"Extended trajectory with {num_frames} frames (physical: {next_physical_index}-{next_physical_index + num_frames - 1}) to room '{room_id}'")
             return {"success": True, "new_indices": new_indices}
 
+        elif action == "insert":
+            # Insert operation: add new data and shift existing logical indices
+            insert_position = int(token_data.get("insert_position", 0))
+
+            # Get current frame mapping and validate insert position
+            used_physical_indices = [int(x) for x in r.zrange(indices_key, 0, -1)]
+            current_length = len(used_physical_indices)
+
+            if insert_position < 0 or insert_position > current_length:
+                return {"error": f"Insert position {insert_position} out of range [0, {current_length}]"}, 400
+
+            # Find next available physical index for the new frame
+            next_physical_index = max(used_physical_indices) + 1 if used_physical_indices else 0
+
+            # Process the new frame data
+            for key, array_info in serialized_data.items():
+                # Reconstruct numpy array from bytes, shape, and dtype
+                data_bytes = array_info['data']
+                shape = tuple(array_info['shape'])
+                dtype = array_info['dtype']
+                array = np.frombuffer(data_bytes, dtype=dtype).reshape(shape)
+
+                # Create array if it doesn't exist
+                if key not in root:
+                    # Create with expandable first dimension for frames
+                    initial_shape = (next_physical_index + 1,) + array.shape
+                    chunks = (1,) + array.shape
+                    dataset = root.create_array(
+                        name=key,
+                        shape=initial_shape,
+                        chunks=chunks,
+                        dtype=array.dtype
+                    )
+                    dataset[next_physical_index] = array
+                    log.info(f"Created new array '{key}' with shape {initial_shape}")
+                else:
+                    dataset = root[key]
+                    # Resize array to accommodate new frame if needed
+                    if next_physical_index >= dataset.shape[0]:
+                        new_shape = (next_physical_index + 1,) + dataset.shape[1:]
+                        dataset.resize(new_shape)
+                    dataset[next_physical_index] = array
+
+            # Get all current mappings and rebuild them with the insertion
+            all_mappings = r.zrange(indices_key, 0, -1, withscores=True)
+
+            # Clear the current mappings
+            r.delete(indices_key)
+
+            # Rebuild mappings with the new frame inserted
+            pipeline = r.pipeline()
+
+            # Add all existing frames, shifting those at position >= insert_position
+            for physical_idx_str, logical_pos in all_mappings:
+                if logical_pos >= insert_position:
+                    # Shift this frame one position to the right
+                    pipeline.zadd(indices_key, {physical_idx_str: logical_pos + 1})
+                else:
+                    # Keep this frame at its current position
+                    pipeline.zadd(indices_key, {physical_idx_str: logical_pos})
+
+            # Add the new frame at the insert position
+            pipeline.zadd(indices_key, {str(next_physical_index): insert_position})
+            pipeline.execute()
+
+            socketio.emit("trajectory_updated", {"action": "insert", "position": insert_position}, to=room_id, skip_sid=sid_from_token)
+
+            log.info(f"Inserted frame at position {insert_position} (physical: {next_physical_index}) in room '{room_id}' with keys: {list(serialized_data.keys())}")
+            return {"success": True, "inserted_position": insert_position}
+
         else:
             # Append operation: add new physical data and update logical mapping
             # Find next available physical index
@@ -407,6 +477,7 @@ def handle_upload_prepare(data):
     room = get_project_room_from_session(sid)
     action = data.get("action", "append")  # Default to append for backward compatibility
     frame_id = data.get("frame_id")  # For replace operations
+    insert_position = data.get("insert_position")  # For insert operations
 
     if not room:
         return {"success": False, "error": "Client has not joined a room."}
@@ -434,6 +505,10 @@ def handle_upload_prepare(data):
         "action": action,
         "frame_id": str(frame_id) if frame_id is not None else "-1"
     }
+
+    # Add insert_position for insert operations
+    if insert_position is not None:
+        token_data["insert_position"] = str(insert_position)
     r.hset(token_key, mapping=token_data)
     r.expire(token_key, 60)
 
