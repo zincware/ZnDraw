@@ -49,22 +49,25 @@ def get_frame(room_id, frame_id):
     try:
         root = zarr.group(store_path)
 
-        # Check if frame exists in Redis index
+        # Get logical-to-physical mapping from Redis
         indices_key = f"room:{room_id}:trajectory:indices"
-        frame_count = r.zcard(indices_key)
+        frame_mapping = r.zrange(indices_key, 0, -1)
 
-        if frame_count == 0:
+        if not frame_mapping:
             return Response("No frames found in room", status=404)
 
-        if frame_id >= frame_count:
-            return Response(f"Frame {frame_id} not found, max frame: {frame_count-1}", status=404)
+        if frame_id >= len(frame_mapping):
+            return Response(f"Frame {frame_id} not found, max frame: {len(frame_mapping)-1}", status=404)
+
+        # Get the physical index for this logical frame
+        physical_index = int(frame_mapping[frame_id])
 
         # Build response dict with all arrays for this frame
         frame_data = {}
         for key in root.keys():
             dataset = root[key]
-            if frame_id < dataset.shape[0]:
-                frame_data[key] = dataset[frame_id]
+            if physical_index < dataset.shape[0]:
+                frame_data[key] = dataset[physical_index]
 
         # Serialize using msgpack with bytes and shape info
         serialized_data = {}
@@ -109,8 +112,11 @@ def append_frame(room_id):
         root = zarr.group(store_path)
 
         indices_key = f"room:{room_id}:trajectory:indices"
-        last_item = r.zrevrange(indices_key, 0, 0)
-        new_index = int(last_item[0]) + 1 if last_item else 0
+
+        # Find next available physical index
+        # Get all physical indices currently used
+        used_physical_indices = [int(x) for x in r.zrange(indices_key, 0, -1)]
+        next_physical_index = max(used_physical_indices) + 1 if used_physical_indices else 0
 
         # Process each array in the frame data
         for key, array_info in serialized_data.items():
@@ -123,7 +129,8 @@ def append_frame(room_id):
             # Create array if it doesn't exist
             if key not in root:
                 # Create with expandable first dimension for frames
-                initial_shape = (1,) + array.shape
+                # Start with enough space for the next physical index
+                initial_shape = (next_physical_index + 1,) + array.shape
                 chunks = (1,) + array.shape
                 dataset = root.create_array(
                     name=key,
@@ -131,22 +138,24 @@ def append_frame(room_id):
                     chunks=chunks,
                     dtype=array.dtype
                 )
-                dataset[0] = array
+                dataset[next_physical_index] = array
                 log.info(f"Created new array '{key}' with shape {initial_shape}")
             else:
                 dataset = root[key]
-                # Resize array to accommodate new frame
-                current_shape = dataset.shape
-                new_shape = (new_index + 1,) + current_shape[1:]
-                dataset.resize(new_shape)
-                dataset[new_index] = array
+                # Resize array to accommodate new frame if needed
+                if next_physical_index >= dataset.shape[0]:
+                    new_shape = (next_physical_index + 1,) + dataset.shape[1:]
+                    dataset.resize(new_shape)
+                dataset[next_physical_index] = array
 
-        r.zadd(indices_key, {str(new_index): new_index})
+        # Add the physical index to the logical sequence
+        logical_position = len(used_physical_indices)  # This will be the next logical position
+        r.zadd(indices_key, {str(next_physical_index): logical_position})
 
-        socketio.emit("trajectory_updated", {"action": "append", "new_index": new_index}, to=room_id, skip_sid=sid_from_token)
+        socketio.emit("trajectory_updated", {"action": "append", "new_index": logical_position}, to=room_id, skip_sid=sid_from_token)
 
-        log.info(f"Appended frame {new_index} to room '{room_id}' with keys: {list(serialized_data.keys())}")
-        return {"success": True, "new_index": new_index}
+        log.info(f"Appended frame {logical_position} (physical: {next_physical_index}) to room '{room_id}' with keys: {list(serialized_data.keys())}")
+        return {"success": True, "new_index": logical_position}
     except Exception as e:
         log.error(f"Failed to write to Zarr store: {e}")
         return {"error": "Failed to write to data store"}, 500
@@ -238,11 +247,58 @@ def handle_len_frames(data):
 
     try:
         indices_key = f"room:{room}:trajectory:indices"
+        # Count is the number of entries in the mapping (logical frames)
         frame_count = r.zcard(indices_key)
         return {"success": True, "count": frame_count}
     except Exception as e:
         log.error(f"Failed to get frame count: {e}")
         return {"success": False, "error": "Failed to get frame count"}
+
+@socketio.on("frame:delete")
+def handle_delete_frame(data):
+    sid = request.sid
+    room = get_project_room_from_session(sid)
+    frame_id = data.get("frame_id")
+
+    if not room:
+        return {"success": False, "error": "Client has not joined a room."}
+
+    if frame_id is None:
+        return {"success": False, "error": "frame_id is required"}
+
+    lock_key = get_lock_key(room, "trajectory:meta")
+    if r.get(lock_key) != sid:
+        return {"success": False, "error": "Client does not hold the trajectory lock."}
+
+    try:
+        indices_key = f"room:{room}:trajectory:indices"
+        frame_mapping = r.zrange(indices_key, 0, -1)
+
+        if not frame_mapping:
+            return {"success": False, "error": "No frames found in room"}
+
+        if frame_id >= len(frame_mapping):
+            return {"success": False, "error": f"Frame {frame_id} not found, max frame: {len(frame_mapping)-1}"}
+
+        # Get the physical index that we're "deleting" (just removing from mapping)
+        physical_index_to_remove = int(frame_mapping[frame_id])
+
+        # Remove the mapping entry for this logical position
+        # We need to rebuild the mapping without this entry
+        remaining_physical_indices = frame_mapping[:frame_id] + frame_mapping[frame_id+1:]
+
+        # Clear and rebuild the Redis mapping
+        r.delete(indices_key)
+        for logical_pos, physical_idx_str in enumerate(remaining_physical_indices):
+            r.zadd(indices_key, {physical_idx_str: logical_pos})
+
+        socketio.emit("trajectory_updated", {"action": "delete", "frame_id": frame_id}, to=room, skip_sid=sid)
+
+        log.info(f"Deleted logical frame {frame_id} (physical: {physical_index_to_remove}) from room '{room}'. Physical data preserved.")
+        return {"success": True, "deleted_frame": frame_id, "physical_preserved": physical_index_to_remove}
+    except Exception as e:
+        log.error(f"Failed to delete frame: {e}")
+        return {"success": False, "error": "Failed to delete frame"}
 
 if __name__ == '__main__':
     try:

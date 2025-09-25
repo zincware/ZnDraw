@@ -151,13 +151,34 @@ class Client:
 
         return response["count"]
 
+    def delete_frame(self, frame_id: int):
+        """Deletes a frame from the current room."""
+        if not self.sio.connected:
+            raise RuntimeError("Client is not connected. Please call .connect() first.")
+
+        lock = SocketIOLock(self.sio, target="trajectory:meta")
+
+        with lock:
+            response = self.sio.call("frame:delete", {"frame_id": frame_id})
+
+            if not response or not response.get("success"):
+                raise RuntimeError(f"Failed to delete frame: {response.get('error') if response else 'No response'}")
+
+            return response
+
 if __name__ == '__main__':
     client = Client()
     client.connect()
     for idx in tqdm(range(50)):
         client.append_frame({"index": np.array([idx])})
-    for idx in range(50):
+    for idx in range(client.len_frames()):
         frame = client.get_frame(idx)
         print(f"Frame {idx} keys: {list(frame.keys())}, index: {frame['index']}")
-    
+    client.delete_frame(0)
+    client.delete_frame(0)
+    print("After deletion:")
+    for idx in range(client.len_frames()):
+        frame = client.get_frame(idx)
+        print(f"Frame {idx} keys: {list(frame.keys())}, index: {frame['index']}")
+
     print(f"Total frames: {client.len_frames()}")
