@@ -4,13 +4,13 @@ import numpy as np
 import pytest
 
 
-
 def test_connection():
     client = Client(room=uuid.uuid4().hex, url="http://localhost:5000")
     client.connect()
     assert client.sio.connected
     client.disconnect()
     assert not client.sio.connected
+
 
 def test_len_frames_empty():
     client = Client(room=uuid.uuid4().hex, url="http://localhost:5000")
@@ -19,6 +19,7 @@ def test_len_frames_empty():
     client.disconnect()
     assert not client.sio.connected
 
+
 def test_append_and_get_frame():
     client = Client(room=uuid.uuid4().hex, url="http://localhost:5000")
     client.connect()
@@ -26,7 +27,7 @@ def test_append_and_get_frame():
         data = {
             "index": np.array([i]),
             "points": np.random.rand(5, 3),
-            "colors": np.random.randint(0, 255, size=(5, 4), dtype=np.uint8)
+            "colors": np.random.randint(0, 255, size=(5, 4), dtype=np.uint8),
         }
         client.append_frame(data)
         assert client.len_frames() == i + 1
@@ -36,6 +37,7 @@ def test_append_and_get_frame():
         assert np.array_equal(frame["colors"], data["colors"])
     client.disconnect()
     assert not client.sio.connected
+
 
 def test_delete_frame():
     client = Client(room=uuid.uuid4().hex, url="http://localhost:5000")
@@ -53,6 +55,7 @@ def test_delete_frame():
     assert np.array_equal(frame["index"], np.array([3]))
     client.disconnect()
     assert not client.sio.connected
+
 
 def test_replace_frame():
     client = Client(room=uuid.uuid4().hex, url="http://localhost:5000")
@@ -72,6 +75,7 @@ def test_replace_frame():
 
     client.disconnect()
     assert not client.sio.connected
+
 
 def test_extend_frames():
     client = Client(room=uuid.uuid4().hex, url="http://localhost:5000")
@@ -102,6 +106,7 @@ def test_extend_frames():
     client.disconnect()
     assert not client.sio.connected
 
+
 def test_get_frames_with_indices():
     client = Client(room=uuid.uuid4().hex, url="http://localhost:5000")
     client.connect()
@@ -109,10 +114,7 @@ def test_get_frames_with_indices():
     # Add some test frames
     test_data = []
     for i in range(10):
-        data = {
-            "index": np.array([i * 10]),
-            "points": np.random.rand(3, 3)
-        }
+        data = {"index": np.array([i * 10]), "points": np.random.rand(3, 3)}
         client.append_frame(data)
         test_data.append(data)
 
@@ -127,6 +129,7 @@ def test_get_frames_with_indices():
 
     client.disconnect()
     assert not client.sio.connected
+
 
 def test_get_frames_with_slice():
     client = Client(room=uuid.uuid4().hex, url="http://localhost:5000")
@@ -167,6 +170,7 @@ def test_get_frames_with_slice():
     client.disconnect()
     assert not client.sio.connected
 
+
 def test_get_frames_empty_result():
     client = Client(room=uuid.uuid4().hex, url="http://localhost:5000")
     client.connect()
@@ -185,6 +189,7 @@ def test_get_frames_empty_result():
 
     client.disconnect()
     assert not client.sio.connected
+
 
 def test_mutable_sequence_interface():
     client = Client(room=uuid.uuid4().hex, url="http://localhost:5000")
@@ -222,10 +227,7 @@ def test_mutable_sequence_interface():
     assert np.array_equal(retrieved["index"], new_frame["index"])
 
     # Test extend()
-    extend_data = [
-        {"index": np.array([100])},
-        {"index": np.array([200])}
-    ]
+    extend_data = [{"index": np.array([100])}, {"index": np.array([200])}]
     client.extend(extend_data)
     assert len(client) == 4
     assert np.array_equal(client[2]["index"], extend_data[0]["index"])
@@ -240,6 +242,7 @@ def test_mutable_sequence_interface():
 
     client.disconnect()
     assert not client.sio.connected
+
 
 def test_insert_frame_functionality():
     client = Client(room=uuid.uuid4().hex, url="http://localhost:5000")
@@ -291,6 +294,7 @@ def test_insert_frame_functionality():
     client.disconnect()
     assert not client.sio.connected
 
+
 def test_mutable_sequence_insert():
     client = Client(room=uuid.uuid4().hex, url="http://localhost:5000")
     client.connect()
@@ -315,8 +319,12 @@ def test_mutable_sequence_insert():
     # Verify the order
     assert np.array_equal(client[0]["data"], frames[0]["data"])  # Original frame 0
     assert np.array_equal(client[1]["data"], insert_data["data"])  # Inserted frame
-    assert np.array_equal(client[2]["data"], frames[1]["data"])   # Shifted from pos 1 to 2
-    assert np.array_equal(client[3]["data"], frames[2]["data"])   # Shifted from pos 2 to 3
+    assert np.array_equal(
+        client[2]["data"], frames[1]["data"]
+    )  # Shifted from pos 1 to 2
+    assert np.array_equal(
+        client[3]["data"], frames[2]["data"]
+    )  # Shifted from pos 2 to 3
 
     client.disconnect()
     assert not client.sio.connected
@@ -331,11 +339,11 @@ def test_slice_assignment_vs_python_list():
     test_cases = [
         # (initial_data, slice_assignment, values_to_assign)
         ([1, 2, 3, 4, 5], slice(1, 3), [10, 20]),  # data[1:3] = [10, 20]
-        ([1, 2, 3], slice(3, None), [4, 5, 6]),    # data[3:] = [4, 5, 6] (extend)
-        ([1, 2, 3, 4, 5], slice(None, 2), [10, 20]), # data[:2] = [10, 20]
-        ([1, 2, 3, 4, 5], slice(1, 4), [10]),      # data[1:4] = [10] (shrink)
-        ([1, 2, 3], slice(1, 1), [10, 20]),        # data[1:1] = [10, 20] (insert)
-        ([1, 2, 3, 4, 5], slice(2, 4), []),        # data[2:4] = [] (delete range)
+        ([1, 2, 3], slice(3, None), [4, 5, 6]),  # data[3:] = [4, 5, 6] (extend)
+        ([1, 2, 3, 4, 5], slice(None, 2), [10, 20]),  # data[:2] = [10, 20]
+        ([1, 2, 3, 4, 5], slice(1, 4), [10]),  # data[1:4] = [10] (shrink)
+        ([1, 2, 3], slice(1, 1), [10, 20]),  # data[1:1] = [10, 20] (insert)
+        ([1, 2, 3, 4, 5], slice(2, 4), []),  # data[2:4] = [] (delete range)
     ]
 
     for i, (initial, slice_obj, values) in enumerate(test_cases):
@@ -359,12 +367,16 @@ def test_slice_assignment_vs_python_list():
         client[slice_obj] = value_frames
 
         # Compare results
-        assert len(client) == len(python_list), f"Test case {i}: Length mismatch. Client: {len(client)}, Python: {len(python_list)}"
+        assert len(client) == len(python_list), (
+            f"Test case {i}: Length mismatch. Client: {len(client)}, Python: {len(python_list)}"
+        )
 
         for j in range(len(python_list)):
             client_value = client[j]["index"][0]
             python_value = python_list[j]
-            assert client_value == python_value, f"Test case {i}, index {j}: Client: {client_value}, Python: {python_value}"
+            assert client_value == python_value, (
+                f"Test case {i}, index {j}: Client: {client_value}, Python: {python_value}"
+            )
 
     client.disconnect()
     assert not client.sio.connected
@@ -378,9 +390,21 @@ def test_extended_slice_assignment_vs_python_list():
     # Test cases for extended slices (step != 1)
     test_cases = [
         # (initial_data, slice_assignment, values_to_assign)
-        ([1, 2, 3, 4, 5, 6], slice(None, None, 2), [10, 20, 30]),  # data[::2] = [10, 20, 30]
-        ([1, 2, 3, 4, 5, 6], slice(1, None, 2), [10, 20, 30]),     # data[1::2] = [10, 20, 30]
-        ([1, 2, 3, 4, 5, 6, 7, 8], slice(2, 7, 2), [10, 20, 30]), # data[2:7:2] = [10, 20, 30]
+        (
+            [1, 2, 3, 4, 5, 6],
+            slice(None, None, 2),
+            [10, 20, 30],
+        ),  # data[::2] = [10, 20, 30]
+        (
+            [1, 2, 3, 4, 5, 6],
+            slice(1, None, 2),
+            [10, 20, 30],
+        ),  # data[1::2] = [10, 20, 30]
+        (
+            [1, 2, 3, 4, 5, 6, 7, 8],
+            slice(2, 7, 2),
+            [10, 20, 30],
+        ),  # data[2:7:2] = [10, 20, 30]
     ]
 
     for i, (initial, slice_obj, values) in enumerate(test_cases):
@@ -403,12 +427,16 @@ def test_extended_slice_assignment_vs_python_list():
         client[slice_obj] = value_frames
 
         # Compare results
-        assert len(client) == len(python_list), f"Extended test case {i}: Length mismatch. Client: {len(client)}, Python: {len(python_list)}"
+        assert len(client) == len(python_list), (
+            f"Extended test case {i}: Length mismatch. Client: {len(client)}, Python: {len(python_list)}"
+        )
 
         for j in range(len(python_list)):
             client_value = client[j]["index"][0]
             python_value = python_list[j]
-            assert client_value == python_value, f"Extended test case {i}, index {j}: Client: {client_value}, Python: {python_value}"
+            assert client_value == python_value, (
+                f"Extended test case {i}, index {j}: Client: {client_value}, Python: {python_value}"
+            )
 
     client.disconnect()
     assert not client.sio.connected
@@ -429,11 +457,17 @@ def test_slice_assignment_error_conditions():
 
     # Test that Python raises ValueError for this case
     python_list = [1, 2, 3, 4, 5]
-    with pytest.raises(ValueError, match="attempt to assign sequence of size 1 to extended slice of size 3"):
+    with pytest.raises(
+        ValueError,
+        match="attempt to assign sequence of size 1 to extended slice of size 3",
+    ):
         python_list[::2] = [10]  # Trying to assign 1 value to 3 positions
 
     # Test that client also raises ValueError with same message
-    with pytest.raises(ValueError, match="attempt to assign sequence of size 1 to extended slice of size 3"):
+    with pytest.raises(
+        ValueError,
+        match="attempt to assign sequence of size 1 to extended slice of size 3",
+    ):
         client[::2] = value_frames
 
     client.disconnect()
@@ -463,19 +497,20 @@ def test_slice_assignment_edge_cases():
     # Test cases for edge conditions
     edge_cases = [
         # Empty list operations
-        ([], slice(0, 0), [1, 2, 3]),      # empty[:] = [1, 2, 3]
-        ([], slice(None), [1, 2]),         # empty[:] = [1, 2]
-
+        ([], slice(0, 0), [1, 2, 3]),  # empty[:] = [1, 2, 3]
+        ([], slice(None), [1, 2]),  # empty[:] = [1, 2]
         # Negative indices in slices
         ([1, 2, 3, 4, 5], slice(-3, -1), [10, 20]),  # data[-3:-1] = [10, 20]
-        ([1, 2, 3, 4, 5], slice(-2, None), [10]),    # data[-2:] = [10]
-
+        ([1, 2, 3, 4, 5], slice(-2, None), [10]),  # data[-2:] = [10]
         # Step = -1 (reverse slice assignment)
-        ([1, 2, 3, 4, 5], slice(None, None, -1), [10, 20, 30, 40, 50]),  # data[::-1] = [...]
-
+        (
+            [1, 2, 3, 4, 5],
+            slice(None, None, -1),
+            [10, 20, 30, 40, 50],
+        ),  # data[::-1] = [...]
         # Out of bounds operations
         ([1, 2, 3], slice(5, 10), [10, 20]),  # Beyond end of list
-        ([1, 2, 3], slice(-10, 2), [10, 20]), # Before start of list
+        ([1, 2, 3], slice(-10, 2), [10, 20]),  # Before start of list
     ]
 
     for i, (initial, slice_obj, values) in enumerate(edge_cases):
@@ -498,12 +533,16 @@ def test_slice_assignment_edge_cases():
         client[slice_obj] = value_frames
 
         # Compare results
-        assert len(client) == len(python_list), f"Edge case {i}: Length mismatch. Client: {len(client)}, Python: {len(python_list)}"
+        assert len(client) == len(python_list), (
+            f"Edge case {i}: Length mismatch. Client: {len(client)}, Python: {len(python_list)}"
+        )
 
         for j in range(len(python_list)):
             client_value = client[j]["index"][0]
             python_value = python_list[j]
-            assert client_value == python_value, f"Edge case {i}, index {j}: Client: {client_value}, Python: {python_value}"
+            assert client_value == python_value, (
+                f"Edge case {i}, index {j}: Client: {client_value}, Python: {python_value}"
+            )
 
     client.disconnect()
     assert not client.sio.connected
@@ -530,15 +569,135 @@ def test_slice_assignment_single_value():
     client[1:3] = single_frame  # Should be equivalent
 
     # Compare results
-    assert len(client) == len(python_list), f"Single value: Length mismatch. Client: {len(client)}, Python: {len(python_list)}"
+    assert len(client) == len(python_list), (
+        f"Single value: Length mismatch. Client: {len(client)}, Python: {len(python_list)}"
+    )
 
     for j in range(len(python_list)):
         client_value = client[j]["index"][0]
         python_value = python_list[j]
-        assert client_value == python_value, f"Single value, index {j}: Client: {client_value}, Python: {python_value}"
+        assert client_value == python_value, (
+            f"Single value, index {j}: Client: {client_value}, Python: {python_value}"
+        )
 
     client.disconnect()
     assert not client.sio.connected
+
+
+def test_nested_dict_handling():
+    client = Client(room=uuid.uuid4().hex, url="http://localhost:5000")
+    client.connect()
+
+    # Append a frame with nested dictionaries
+    nested_data = {
+        "index": np.array([1, 2, 3]),
+        "meta": {
+            "author": "Test",
+            "details": {"version": 1.0, "tags": ["test", "nested"]},
+        },
+    }
+    client.append_frame(nested_data)
+    assert client.len_frames() == 1
+
+    # Retrieve and verify the nested structure
+    frame = client.get_frame(0)
+    assert np.array_equal(frame["index"], nested_data["index"])
+    assert frame["meta"]["author"] == nested_data["meta"]["author"]
+    assert (
+        frame["meta"]["details"]["version"] == nested_data["meta"]["details"]["version"]
+    )
+    assert frame["meta"]["details"]["tags"] == nested_data["meta"]["details"]["tags"]
+
+    client.disconnect()
+    assert not client.sio.connected
+
+
+def test_comprehensive_atom_dict():
+    data = {
+        "numbers": np.array([6, 1, 1, 1, 1]),
+        "positions": np.array(
+            [
+                [0.0, 0.0, 0.0],
+                [0.0, 0.0, 1.0],
+                [1.0, 0.0, 0.0],
+                [0.0, 1.0, 0.0],
+                [-1.0, 0.0, 0.0],
+            ]
+        ),
+        "tags": np.array([1, 2, 3, 4, 5]),
+        "initial_charges": np.array(
+            [0.68062226, 0.77952437, 0.98666274, 0.12193437, 0.94664167]
+        ),
+        "momenta": np.array(
+            [
+                [0.11615927, 0.03696042, 0.46672605],
+                [0.15866194, 0.11610305, 0.83340719],
+                [0.59826544, 0.67848578, 0.74957987],
+                [0.14949151, 0.68352953, 0.92811033],
+                [0.40530313, 0.61190158, 0.43241552],
+            ]
+        ),
+        "name": np.array(["Carbon", "Hydrogen", "Hydrogen", "Hydrogen", "Hydrogen"]),
+        "info": {
+            "string": "Lorem Ipsum",
+            "float": 3.14,
+            "list": [1, 2, 3],
+            "array": np.array([1.0, 2.0, 3.0]),
+            "dict": {"a": 1, "b": 2},
+            "d2": {"a": [1, 2], "b": [3, 4]},
+            "REPEATED_KEY": "info",
+        },
+        "REPEATED_KEY": np.array([0, 1, 2, 3, 4]),
+        "cell": np.array([[10.0, 0.0, 0.0], [0.0, 10.0, 0.0], [0.0, 0.0, 10.0]]),
+        "pbc": np.array([True, False, True]),
+        "celldisp": np.array([0.1, 0.2, 0.3]),
+        "<SinglePointCalculator>": {
+            "energy": 1.0,
+            "forces": np.array(
+                [
+                    [0.22055347, 0.10920619, 0.27019844],
+                    [0.72417325, 0.71259895, 0.77200743],
+                    [0.07070797, 0.14246075, 0.31810531],
+                    [0.34846727, 0.33212284, 0.09877173],
+                    [0.46943827, 0.29961628, 0.43061745],
+                ]
+            ),
+            "string-calc": "this is a string from calc",
+        },
+    }
+
+    client = Client(room=uuid.uuid4().hex, url="http://localhost:5000")
+    client.connect()
+    client.append_frame(data)
+    assert client.len_frames() == 1
+    frame = client.get_frame(0)
+    assert np.array_equal(frame["numbers"], data["numbers"])
+    assert np.array_equal(frame["positions"], data["positions"])
+    assert np.array_equal(frame["tags"], data["tags"])
+    assert np.allclose(frame["initial_charges"], data["initial_charges"])
+    assert np.array_equal(frame["momenta"], data["momenta"])
+    assert np.array_equal(frame["name"], data["name"])
+    assert frame["info"]["string"] == data["info"]["string"]
+    assert frame["info"]["float"] == data["info"]["float"]
+    assert frame["info"]["list"] == data["info"]["list"]
+    assert np.array_equal(frame["info"]["array"], data["info"]["array"])
+    assert frame["info"]["dict"] == data["info"]["dict"]
+    assert frame["info"]["d2"] == data["info"]["d2"]
+    assert frame["info"]["REPEATED_KEY"] == data["info"]["REPEATED_KEY"]
+    assert np.array_equal(frame["REPEATED_KEY"], data["REPEATED_KEY"])
+    assert np.array_equal(frame["cell"], data["cell"])
+    assert np.array_equal(frame["pbc"], data["pbc"])
+    assert np.array_equal(frame["celldisp"], data["celldisp"])
+    assert frame["<SinglePointCalculator>"]["energy"] == data["<SinglePointCalculator>"][
+        "energy"
+    ]
+    assert np.array_equal(
+        frame["<SinglePointCalculator>"]["forces"], data["<SinglePointCalculator>"]["forces"]
+    )
+    assert (
+        frame["<SinglePointCalculator>"]["string-calc"]
+        == data["<SinglePointCalculator>"]["string-calc"]
+    )
 
 
 # def test_replace_frame_additional_keys():
