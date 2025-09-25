@@ -286,13 +286,82 @@ class Client(MutableSequence):
         else:
             raise TypeError("Index must be int or slice")
 
-    def __setitem__(self, index: int, value: dict[str, np.ndarray]):
-        """Replace frame at index."""
+    def __setitem__(self, index, value):
+        """Replace frame(s) at index or slice."""
         if isinstance(index, slice):
-            raise NotImplementedError("Slice assignment not supported")
-        if index < 0:
-            index += len(self)
-        self.replace_frame(index, value)
+            self._setitem_slice(index, value)
+        else:
+            # Single index assignment
+            if index < 0:
+                index += len(self)
+            self.replace_frame(index, value)
+
+    def _setitem_slice(self, slice_obj: slice, values):
+        """Handle slice assignment like Python lists."""
+        current_len = len(self)
+
+        # Convert values to list if it's iterable
+        if hasattr(values, '__iter__') and not isinstance(values, dict):
+            values = list(values)
+        else:
+            # Single value for slice assignment
+            values = [values]
+
+        # Calculate slice indices
+        start, stop, step = slice_obj.indices(current_len)
+
+        if step == 1:
+            # Simple slice assignment: replace range with new values
+            self._simple_slice_assignment(start, stop, values)
+        else:
+            # Extended slice assignment: must have same length
+            self._extended_slice_assignment(start, stop, step, values)
+
+    def _simple_slice_assignment(self, start: int, stop: int, values: list):
+        """Handle simple slice assignment like data[2:5] = [a, b, c]."""
+        if not self.sio.connected:
+            raise RuntimeError("Client is not connected. Please call .connect() first.")
+
+        # Number of positions being replaced
+        old_count = max(0, stop - start)
+
+        lock = SocketIOLock(self.sio, target="trajectory:meta")
+
+        with lock:
+            # First, delete the old range if it exists
+            for _ in range(old_count):
+                if start < len(self):
+                    response = self.sio.call("frame:delete", {"frame_id": start})
+                    if not response or not response.get("success"):
+                        raise RuntimeError(f"Failed to delete frame: {response.get('error') if response else 'No response'}")
+
+            # Then insert the new values at the start position
+            for i, value in enumerate(values):
+                # Use the direct upload mechanism
+                token = self._prepare_upload_token("insert", insert_position=start + i)
+                serialized_data = self._serialize_frame_data(value)
+                self._upload_frame_data(token, serialized_data)
+
+    def _extended_slice_assignment(self, start: int, stop: int, step: int, values: list):
+        """Handle extended slice assignment like data[::2] = [a, b, c]."""
+        if not self.sio.connected:
+            raise RuntimeError("Client is not connected. Please call .connect() first.")
+
+        # Calculate the indices that would be affected
+        indices = list(range(start, stop, step))
+
+        if len(values) != len(indices):
+            raise ValueError(f"attempt to assign sequence of size {len(values)} to extended slice of size {len(indices)}")
+
+        lock = SocketIOLock(self.sio, target="trajectory:meta")
+
+        with lock:
+            # Replace each position individually using direct calls
+            for i, value in zip(indices, values):
+                if i < len(self):
+                    token = self._prepare_upload_token("replace", frame_id=i)
+                    serialized_data = self._serialize_frame_data(value)
+                    self._upload_frame_data(token, serialized_data)
 
     def __delitem__(self, index: int):
         """Delete frame at index."""
@@ -316,7 +385,7 @@ class Client(MutableSequence):
         """Append a frame."""
         self.append_frame(value)
 
-    def extend(self, values):
+    def extend(self, values: list[dict[str, np.ndarray]]):
         """Extend with multiple frames."""
         if hasattr(values, '__iter__'):
             values = list(values)

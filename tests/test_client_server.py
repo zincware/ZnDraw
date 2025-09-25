@@ -1,6 +1,7 @@
 from zndraw_communication import Client
 import uuid
 import numpy as np
+import pytest
 
 
 
@@ -316,6 +317,225 @@ def test_mutable_sequence_insert():
     assert np.array_equal(client[1]["data"], insert_data["data"])  # Inserted frame
     assert np.array_equal(client[2]["data"], frames[1]["data"])   # Shifted from pos 1 to 2
     assert np.array_equal(client[3]["data"], frames[2]["data"])   # Shifted from pos 2 to 3
+
+    client.disconnect()
+    assert not client.sio.connected
+
+
+def test_slice_assignment_vs_python_list():
+    """Test that slice assignment behavior matches Python list behavior exactly."""
+    client = Client(room=uuid.uuid4().hex, url="http://localhost:5000")
+    client.connect()
+
+    # Test cases covering various slice assignment scenarios
+    test_cases = [
+        # (initial_data, slice_assignment, values_to_assign)
+        ([1, 2, 3, 4, 5], slice(1, 3), [10, 20]),  # data[1:3] = [10, 20]
+        ([1, 2, 3], slice(3, None), [4, 5, 6]),    # data[3:] = [4, 5, 6] (extend)
+        ([1, 2, 3, 4, 5], slice(None, 2), [10, 20]), # data[:2] = [10, 20]
+        ([1, 2, 3, 4, 5], slice(1, 4), [10]),      # data[1:4] = [10] (shrink)
+        ([1, 2, 3], slice(1, 1), [10, 20]),        # data[1:1] = [10, 20] (insert)
+        ([1, 2, 3, 4, 5], slice(2, 4), []),        # data[2:4] = [] (delete range)
+    ]
+
+    for i, (initial, slice_obj, values) in enumerate(test_cases):
+        # Test with Python list
+        python_list = initial.copy()
+        python_list[slice_obj] = values
+
+        # Test with client
+        # Convert integers to numpy arrays for client
+        initial_frames = [{"index": np.array([x])} for x in initial]
+        value_frames = [{"index": np.array([x])} for x in values]
+
+        # Clear client and set up initial data
+        while len(client) > 0:
+            del client[0]
+
+        for frame in initial_frames:
+            client.append(frame)
+
+        # Perform slice assignment
+        client[slice_obj] = value_frames
+
+        # Compare results
+        assert len(client) == len(python_list), f"Test case {i}: Length mismatch. Client: {len(client)}, Python: {len(python_list)}"
+
+        for j in range(len(python_list)):
+            client_value = client[j]["index"][0]
+            python_value = python_list[j]
+            assert client_value == python_value, f"Test case {i}, index {j}: Client: {client_value}, Python: {python_value}"
+
+    client.disconnect()
+    assert not client.sio.connected
+
+
+def test_extended_slice_assignment_vs_python_list():
+    """Test extended slice assignment behavior matches Python list behavior."""
+    client = Client(room=uuid.uuid4().hex, url="http://localhost:5000")
+    client.connect()
+
+    # Test cases for extended slices (step != 1)
+    test_cases = [
+        # (initial_data, slice_assignment, values_to_assign)
+        ([1, 2, 3, 4, 5, 6], slice(None, None, 2), [10, 20, 30]),  # data[::2] = [10, 20, 30]
+        ([1, 2, 3, 4, 5, 6], slice(1, None, 2), [10, 20, 30]),     # data[1::2] = [10, 20, 30]
+        ([1, 2, 3, 4, 5, 6, 7, 8], slice(2, 7, 2), [10, 20, 30]), # data[2:7:2] = [10, 20, 30]
+    ]
+
+    for i, (initial, slice_obj, values) in enumerate(test_cases):
+        # Test with Python list
+        python_list = initial.copy()
+        python_list[slice_obj] = values
+
+        # Test with client
+        initial_frames = [{"index": np.array([x])} for x in initial]
+        value_frames = [{"index": np.array([x])} for x in values]
+
+        # Clear client and set up initial data
+        while len(client) > 0:
+            del client[0]
+
+        for frame in initial_frames:
+            client.append(frame)
+
+        # Perform extended slice assignment
+        client[slice_obj] = value_frames
+
+        # Compare results
+        assert len(client) == len(python_list), f"Extended test case {i}: Length mismatch. Client: {len(client)}, Python: {len(python_list)}"
+
+        for j in range(len(python_list)):
+            client_value = client[j]["index"][0]
+            python_value = python_list[j]
+            assert client_value == python_value, f"Extended test case {i}, index {j}: Client: {client_value}, Python: {python_value}"
+
+    client.disconnect()
+    assert not client.sio.connected
+
+
+def test_slice_assignment_error_conditions():
+    """Test that slice assignment error conditions match Python behavior."""
+    client = Client(room=uuid.uuid4().hex, url="http://localhost:5000")
+    client.connect()
+
+    # Set up initial data
+    initial_frames = [{"index": np.array([i])} for i in range(1, 6)]  # [1, 2, 3, 4, 5]
+    for frame in initial_frames:
+        client.append(frame)
+
+    # Test extended slice with wrong number of values (should raise ValueError)
+    value_frames = [{"index": np.array([10])}]  # Only 1 value for 3 positions
+
+    # Test that Python raises ValueError for this case
+    python_list = [1, 2, 3, 4, 5]
+    with pytest.raises(ValueError, match="attempt to assign sequence of size 1 to extended slice of size 3"):
+        python_list[::2] = [10]  # Trying to assign 1 value to 3 positions
+
+    # Test that client also raises ValueError with same message
+    with pytest.raises(ValueError, match="attempt to assign sequence of size 1 to extended slice of size 3"):
+        client[::2] = value_frames
+
+    client.disconnect()
+    assert not client.sio.connected
+
+
+def test_slice_assignment_connection_error():
+    """Test that slice assignment fails when not connected."""
+    client = Client(room=uuid.uuid4().hex, url="http://localhost:5000")
+    # Deliberately not connecting
+
+    value_frames = [{"index": np.array([10])}]
+
+    # Test that both simple and extended slice assignment fail when not connected
+    with pytest.raises(RuntimeError, match="Client is not connected"):
+        client[1:3] = value_frames
+
+    with pytest.raises(RuntimeError, match="Client is not connected"):
+        client[::2] = value_frames
+
+
+def test_slice_assignment_edge_cases():
+    """Test additional edge cases for slice assignment."""
+    client = Client(room=uuid.uuid4().hex, url="http://localhost:5000")
+    client.connect()
+
+    # Test cases for edge conditions
+    edge_cases = [
+        # Empty list operations
+        ([], slice(0, 0), [1, 2, 3]),      # empty[:] = [1, 2, 3]
+        ([], slice(None), [1, 2]),         # empty[:] = [1, 2]
+
+        # Negative indices in slices
+        ([1, 2, 3, 4, 5], slice(-3, -1), [10, 20]),  # data[-3:-1] = [10, 20]
+        ([1, 2, 3, 4, 5], slice(-2, None), [10]),    # data[-2:] = [10]
+
+        # Step = -1 (reverse slice assignment)
+        ([1, 2, 3, 4, 5], slice(None, None, -1), [10, 20, 30, 40, 50]),  # data[::-1] = [...]
+
+        # Out of bounds operations
+        ([1, 2, 3], slice(5, 10), [10, 20]),  # Beyond end of list
+        ([1, 2, 3], slice(-10, 2), [10, 20]), # Before start of list
+    ]
+
+    for i, (initial, slice_obj, values) in enumerate(edge_cases):
+        # Test with Python list
+        python_list = initial.copy()
+        python_list[slice_obj] = values
+
+        # Test with client
+        initial_frames = [{"index": np.array([x])} for x in initial]
+        value_frames = [{"index": np.array([x])} for x in values]
+
+        # Clear client and set up initial data
+        while len(client) > 0:
+            del client[0]
+
+        for frame in initial_frames:
+            client.append(frame)
+
+        # Perform slice assignment
+        client[slice_obj] = value_frames
+
+        # Compare results
+        assert len(client) == len(python_list), f"Edge case {i}: Length mismatch. Client: {len(client)}, Python: {len(python_list)}"
+
+        for j in range(len(python_list)):
+            client_value = client[j]["index"][0]
+            python_value = python_list[j]
+            assert client_value == python_value, f"Edge case {i}, index {j}: Client: {client_value}, Python: {python_value}"
+
+    client.disconnect()
+    assert not client.sio.connected
+
+
+def test_slice_assignment_single_value():
+    """Test slice assignment with single value (not in list)."""
+    client = Client(room=uuid.uuid4().hex, url="http://localhost:5000")
+    client.connect()
+
+    # Set up initial data
+    initial_frames = [{"index": np.array([i])} for i in range(1, 4)]  # [1, 2, 3]
+    for frame in initial_frames:
+        client.append(frame)
+
+    # Test assigning single frame to slice (should be treated as [frame])
+    single_frame = {"index": np.array([99])}
+
+    # Python behavior: single value gets wrapped in list for slice assignment
+    python_list = [1, 2, 3]
+    python_list[1:3] = [99]  # Equivalent to our operation
+
+    # Client operation
+    client[1:3] = single_frame  # Should be equivalent
+
+    # Compare results
+    assert len(client) == len(python_list), f"Single value: Length mismatch. Client: {len(client)}, Python: {len(python_list)}"
+
+    for j in range(len(python_list)):
+        client_value = client[j]["index"][0]
+        python_value = python_list[j]
+        assert client_value == python_value, f"Single value, index {j}: Client: {client_value}, Python: {python_value}"
 
     client.disconnect()
     assert not client.sio.connected
