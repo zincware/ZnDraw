@@ -198,6 +198,55 @@ class Client:
                 # Wrap the HTTP error in a RuntimeError
                 raise RuntimeError(f"Error uploading frame data: {e}") from e
 
+    def get_frames(self, indices_or_slice) -> list[dict[str, np.ndarray]]:
+        """
+        Fetches multiple frames' data from the server in a single call.
+
+        Args:
+            indices_or_slice: Either a list of frame indices [0, 2, 5] or a slice object slice(start, stop, step)
+
+        Returns:
+            List of dictionaries, each containing numpy arrays for one frame
+        """
+        if not self.sio.connected:
+            raise RuntimeError("Client is not connected. Please call .connect() first.")
+
+        # Prepare request payload based on input type
+        if isinstance(indices_or_slice, list):
+            # Direct list of indices
+            payload = {"indices": indices_or_slice}
+        elif isinstance(indices_or_slice, slice):
+            # Slice object - extract start, stop, step
+            payload = {}
+            if indices_or_slice.start is not None:
+                payload["start"] = indices_or_slice.start
+            if indices_or_slice.stop is not None:
+                payload["stop"] = indices_or_slice.stop
+            if indices_or_slice.step is not None:
+                payload["step"] = indices_or_slice.step
+        else:
+            raise ValueError("indices_or_slice must be either a list of integers or a slice object")
+
+        full_url = f"{self.url}/frames/{self.room}"
+        response = requests.post(full_url, json=payload, timeout=30)
+        response.raise_for_status()
+
+        # Unpack msgpack data
+        serialized_frames = msgpack.unpackb(response.content, strict_map_key=False)
+
+        # Reconstruct list of frame dictionaries with numpy arrays
+        frames = []
+        for serialized_frame in serialized_frames:
+            frame = {}
+            for key, array_info in serialized_frame.items():
+                data_bytes = array_info['data']
+                shape = tuple(array_info['shape'])
+                dtype = array_info['dtype']
+                frame[key] = np.frombuffer(data_bytes, dtype=dtype).reshape(shape)
+            frames.append(frame)
+
+        return frames
+
     def len_frames(self) -> int:
         """Returns the number of frames in the current room."""
         if not self.sio.connected:
@@ -305,4 +354,6 @@ if __name__ == '__main__':
     for entry in tqdm(data):
         client.append_frame(entry)
 
+    all_data = client.get_frames(slice(None, None, None))
+    print(f"Fetched {len(all_data)} frames via get_frames.")
     print(f"Total frames: {client.len_frames()}")

@@ -84,6 +84,95 @@ def get_frame(room_id, frame_id):
         log.error(f"Error retrieving frame {frame_id} from room '{room_id}': {e}")
         return Response(f"Room '{room_id}' not found or is invalid.", status=404)
 
+@app.route("/frames/<string:room_id>", methods=["POST"])
+def get_frames(room_id):
+    """Serves multiple frames' data from the room's Zarr store using either indices or slice parameters."""
+    try:
+        # Parse the request data
+        request_data = request.get_json()
+        if request_data is None:
+            return {"error": "Request body required"}, 400
+
+        store_path = get_zarr_store_path(room_id)
+        root = zarr.group(store_path)
+
+        # Get logical-to-physical mapping from Redis
+        indices_key = f"room:{room_id}:trajectory:indices"
+        frame_mapping = r.zrange(indices_key, 0, -1)
+
+        if not frame_mapping:
+            return {"error": "No frames found in room"}, 404
+
+        max_frame = len(frame_mapping) - 1
+
+        # Determine frame indices based on request parameters
+        if 'indices' in request_data:
+            # Direct list of indices
+            frame_indices = request_data['indices']
+            if not isinstance(frame_indices, list):
+                return {"error": "Indices must be a list"}, 400
+
+            # Validate frame indices
+            for frame_id in frame_indices:
+                if not isinstance(frame_id, int) or frame_id < 0 or frame_id > max_frame:
+                    return {"error": f"Invalid frame index {frame_id}, valid range: 0-{max_frame}"}, 400
+
+        else:
+            # Default to slice behavior for any remaining cases (including empty payload)
+            # This handles slice parameters and slice(None, None, None) which sends empty payload
+            start = request_data.get('start', 0)
+            stop = request_data.get('stop', len(frame_mapping))
+            step = request_data.get('step', 1)
+
+            # Validate slice parameters
+            if not all(isinstance(x, int) for x in [start, stop, step]):
+                return {"error": "start, stop, and step must be integers"}, 400
+
+            if step == 0:
+                return {"error": "step cannot be zero"}, 400
+
+            # Generate frame indices from slice
+            try:
+                frame_indices = list(range(start, stop, step))
+                # Filter out invalid indices
+                frame_indices = [i for i in frame_indices if 0 <= i <= max_frame]
+            except ValueError as e:
+                return {"error": f"Invalid slice parameters: {e}"}, 400
+
+        # Build response with all requested frames (empty list if no indices)
+        frames_data = []
+        if not frame_indices:
+            # Return empty result for valid but empty requests
+            packed_data = msgpack.packb(frames_data)
+            return Response(packed_data, content_type='application/octet-stream')
+        for frame_id in frame_indices:
+            # Get the physical index for this logical frame
+            physical_index = int(frame_mapping[frame_id])
+
+            # Build frame data dict with all arrays for this frame
+            frame_data = {}
+            for key in root.keys():
+                dataset = root[key]
+                if physical_index < dataset.shape[0]:
+                    frame_data[key] = dataset[physical_index]
+
+            # Serialize frame using msgpack with bytes and shape info
+            serialized_frame = {}
+            for key, array in frame_data.items():
+                serialized_frame[key] = {
+                    'data': array.tobytes(),
+                    'shape': array.shape,
+                    'dtype': str(array.dtype)
+                }
+
+            frames_data.append(serialized_frame)
+
+        packed_data = msgpack.packb(frames_data)
+        return Response(packed_data, content_type='application/octet-stream')
+    except Exception as e:
+        log.error(f"Error retrieving frames from room '{room_id}': {e}")
+        return {"error": "Internal server error"}, 500
+
 @app.route("/rooms/<string:room_id>/frames", methods=["POST"])
 def append_frame(room_id):
     """Appends a new frame. Authorized via a short-lived Bearer token."""
