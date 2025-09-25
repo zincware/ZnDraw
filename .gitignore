@@ -12,4 +12,5 @@ wheels/
 *.h5
 *.zarr
 tmp/
-
+*.pdb
+data/
