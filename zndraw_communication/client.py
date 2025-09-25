@@ -99,7 +99,7 @@ class Client:
         lock = SocketIOLock(self.sio, target="trajectory:meta")
 
         with lock:
-            response = self.sio.call("upload:prepare", {})
+            response = self.sio.call("upload:prepare", {"action": "append"})
             
             if not response or not response.get("success"):
                 raise RuntimeError(f"Failed to prepare for upload: {response.get('error')}")
@@ -165,6 +165,61 @@ class Client:
                 raise RuntimeError(f"Failed to delete frame: {response.get('error') if response else 'No response'}")
 
             return response
+        
+    def replace_frame(self, frame_id: int, data: dict[str, np.ndarray]):
+        """
+        Replaces an existing logical frame with new data.
+        This is a locked, non-destructive operation that appends the new data
+        and updates the logical-to-physical mapping.
+        """
+        if not self.sio.connected:
+            raise RuntimeError("Client is not connected. Please call .connect() first.")
+
+        lock = SocketIOLock(self.sio, target="trajectory:meta")
+        with lock:
+            print(f"Acquired trajectory lock. Preparing to replace frame {frame_id}...")
+            response = self.sio.call("upload:prepare", {"action": "replace", "frame_id": frame_id})
+
+            
+            if not response or not response.get("success"):
+                raise RuntimeError(f"Failed to prepare for upload: {response.get('error')}")
+            
+            token = response["token"]
+            print("Received upload token. Uploading new data...")
+            
+            try:
+                # Serialize the dictionary of arrays using msgpack
+                serialized_data = {}
+                for key, array in data.items():
+                    serialized_data[key] = {
+                        'data': array.tobytes(),
+                        'shape': array.shape,
+                        'dtype': str(array.dtype)
+                    }
+                packed_data = msgpack.packb(serialized_data)
+
+                upload_url = f"{self.url}/rooms/{self.room}/frames"
+                headers = {
+                    "Authorization": f"Bearer {token}",
+                    "Content-Type": "application/octet-stream"
+                }
+
+                http_response = requests.post(
+                    upload_url,
+                    data=packed_data,
+                    headers=headers,
+                    timeout=30
+                )
+                http_response.raise_for_status()
+
+                result = http_response.json()
+                if not result.get("success"):
+                    raise RuntimeError(f"Server reported failure: {result.get('error')}")
+                
+                print(f"Successfully replaced frame {frame_id}.")
+
+            except requests.exceptions.RequestException as e:
+                raise RuntimeError(f"Error uploading frame data: {e}") from e
 
 if __name__ == '__main__':
     client = Client()
@@ -178,6 +233,10 @@ if __name__ == '__main__':
     client.delete_frame(0)
     print("After deletion:")
     for idx in range(client.len_frames()):
+        frame = client.get_frame(idx)
+        print(f"Frame {idx} keys: {list(frame.keys())}, index: {frame['index']}")
+    client.replace_frame(5, {"index": np.array([999])})
+    for idx in range(10):
         frame = client.get_frame(idx)
         print(f"Frame {idx} keys: {list(frame.keys())}, index: {frame['index']}")
 

@@ -94,9 +94,14 @@ def append_frame(room_id):
     token = auth_header.split(" ")[1]
     token_key = f"room:{room_id}:upload_token:{token}"
 
-    sid_from_token = r.get(token_key)
-    if not sid_from_token:
+    # Get token metadata
+    token_data = r.hgetall(token_key)
+    if not token_data:
         return {"error": "Token is invalid or has expired"}, 403
+
+    sid_from_token = token_data.get("sid")
+    action = token_data.get("action", "append")
+    target_frame_id = int(token_data.get("frame_id", -1)) if token_data.get("frame_id") != "-1" else None
 
     r.delete(token_key) # Invalidate the token after first use
 
@@ -113,49 +118,81 @@ def append_frame(room_id):
 
         indices_key = f"room:{room_id}:trajectory:indices"
 
-        # Find next available physical index
-        # Get all physical indices currently used
-        used_physical_indices = [int(x) for x in r.zrange(indices_key, 0, -1)]
-        next_physical_index = max(used_physical_indices) + 1 if used_physical_indices else 0
+        if action == "replace":
+            # Replace operation: update the physical data but keep the same logical mapping
+            frame_mapping = r.zrange(indices_key, 0, -1)
+            if target_frame_id >= len(frame_mapping):
+                return {"error": f"Frame {target_frame_id} does not exist"}, 404
 
-        # Process each array in the frame data
-        for key, array_info in serialized_data.items():
-            # Reconstruct numpy array from bytes, shape, and dtype
-            data_bytes = array_info['data']
-            shape = tuple(array_info['shape'])
-            dtype = array_info['dtype']
-            array = np.frombuffer(data_bytes, dtype=dtype).reshape(shape)
+            # Get the physical index for this logical frame
+            physical_index = int(frame_mapping[target_frame_id])
 
-            # Create array if it doesn't exist
-            if key not in root:
-                # Create with expandable first dimension for frames
-                # Start with enough space for the next physical index
-                initial_shape = (next_physical_index + 1,) + array.shape
-                chunks = (1,) + array.shape
-                dataset = root.create_array(
-                    name=key,
-                    shape=initial_shape,
-                    chunks=chunks,
-                    dtype=array.dtype
-                )
-                dataset[next_physical_index] = array
-                log.info(f"Created new array '{key}' with shape {initial_shape}")
-            else:
+            # Process each array in the frame data
+            for key, array_info in serialized_data.items():
+                # Reconstruct numpy array from bytes, shape, and dtype
+                data_bytes = array_info['data']
+                shape = tuple(array_info['shape'])
+                dtype = array_info['dtype']
+                array = np.frombuffer(data_bytes, dtype=dtype).reshape(shape)
+
+                # Update the existing data at the physical index
+                if key not in root:
+                    return {"error": f"Array '{key}' does not exist for replacement"}, 400
+
                 dataset = root[key]
-                # Resize array to accommodate new frame if needed
-                if next_physical_index >= dataset.shape[0]:
-                    new_shape = (next_physical_index + 1,) + dataset.shape[1:]
-                    dataset.resize(new_shape)
-                dataset[next_physical_index] = array
+                if physical_index >= dataset.shape[0]:
+                    return {"error": f"Physical index {physical_index} out of range for array '{key}'"}, 400
 
-        # Add the physical index to the logical sequence
-        logical_position = len(used_physical_indices)  # This will be the next logical position
-        r.zadd(indices_key, {str(next_physical_index): logical_position})
+                dataset[physical_index] = array
 
-        socketio.emit("trajectory_updated", {"action": "append", "new_index": logical_position}, to=room_id, skip_sid=sid_from_token)
+            socketio.emit("trajectory_updated", {"action": "replace", "frame_id": target_frame_id}, to=room_id, skip_sid=sid_from_token)
 
-        log.info(f"Appended frame {logical_position} (physical: {next_physical_index}) to room '{room_id}' with keys: {list(serialized_data.keys())}")
-        return {"success": True, "new_index": logical_position}
+            log.info(f"Replaced frame {target_frame_id} (physical: {physical_index}) in room '{room_id}' with keys: {list(serialized_data.keys())}")
+            return {"success": True, "replaced_frame": target_frame_id}
+
+        else:
+            # Append operation: add new physical data and update logical mapping
+            # Find next available physical index
+            used_physical_indices = [int(x) for x in r.zrange(indices_key, 0, -1)]
+            next_physical_index = max(used_physical_indices) + 1 if used_physical_indices else 0
+
+            # Process each array in the frame data
+            for key, array_info in serialized_data.items():
+                # Reconstruct numpy array from bytes, shape, and dtype
+                data_bytes = array_info['data']
+                shape = tuple(array_info['shape'])
+                dtype = array_info['dtype']
+                array = np.frombuffer(data_bytes, dtype=dtype).reshape(shape)
+
+                # Create array if it doesn't exist
+                if key not in root:
+                    # Create with expandable first dimension for frames
+                    initial_shape = (next_physical_index + 1,) + array.shape
+                    chunks = (1,) + array.shape
+                    dataset = root.create_array(
+                        name=key,
+                        shape=initial_shape,
+                        chunks=chunks,
+                        dtype=array.dtype
+                    )
+                    dataset[next_physical_index] = array
+                    log.info(f"Created new array '{key}' with shape {initial_shape}")
+                else:
+                    dataset = root[key]
+                    # Resize array to accommodate new frame if needed
+                    if next_physical_index >= dataset.shape[0]:
+                        new_shape = (next_physical_index + 1,) + dataset.shape[1:]
+                        dataset.resize(new_shape)
+                    dataset[next_physical_index] = array
+
+            # Add the physical index to the logical sequence
+            logical_position = len(used_physical_indices)  # This will be the next logical position
+            r.zadd(indices_key, {str(next_physical_index): logical_position})
+
+            socketio.emit("trajectory_updated", {"action": "append", "new_index": logical_position}, to=room_id, skip_sid=sid_from_token)
+
+            log.info(f"Appended frame {logical_position} (physical: {next_physical_index}) to room '{room_id}' with keys: {list(serialized_data.keys())}")
+            return {"success": True, "new_index": logical_position}
     except Exception as e:
         log.error(f"Failed to write to Zarr store: {e}")
         return {"error": "Failed to write to data store"}, 500
@@ -222,6 +259,8 @@ def release_lock(data):
 def handle_upload_prepare(data):
     sid = request.sid
     room = get_project_room_from_session(sid)
+    action = data.get("action", "append")  # Default to append for backward compatibility
+    frame_id = data.get("frame_id")  # For replace operations
 
     if not room:
         return {"success": False, "error": "Client has not joined a room."}
@@ -229,12 +268,30 @@ def handle_upload_prepare(data):
     lock_key = get_lock_key(room, "trajectory:meta")
     if r.get(lock_key) != sid:
         return {"success": False, "error": "Client does not hold the trajectory lock."}
-        
+
+    # For replace operations, validate the frame exists
+    if action == "replace":
+        if frame_id is None:
+            return {"success": False, "error": "frame_id is required for replace operations"}
+
+        indices_key = f"room:{room}:trajectory:indices"
+        frame_mapping = r.zrange(indices_key, 0, -1)
+
+        if not frame_mapping or frame_id >= len(frame_mapping):
+            return {"success": False, "error": f"Frame {frame_id} does not exist"}
+
     token = str(uuid.uuid4())
     token_key = f"room:{room}:upload_token:{token}"
-    r.set(token_key, sid, ex=60)
+    # Store additional metadata with the token
+    token_data = {
+        "sid": sid,
+        "action": action,
+        "frame_id": str(frame_id) if frame_id is not None else "-1"
+    }
+    r.hset(token_key, mapping=token_data)
+    r.expire(token_key, 60)
 
-    log.info(f"Issued upload token for room '{room}' to {sid}")
+    log.info(f"Issued {action} token for room '{room}' to {sid}" + (f" (frame {frame_id})" if frame_id is not None else ""))
     return {"success": True, "token": token}
 
 @socketio.on("frames:count")
@@ -300,10 +357,17 @@ def handle_delete_frame(data):
         log.error(f"Failed to delete frame: {e}")
         return {"success": False, "error": "Failed to delete frame"}
 
-if __name__ == '__main__':
+
+def main():
+    """Main entry point for the ZnDraw server."""
     try:
         log.info("Starting ZnDraw Server")
-        socketio.run(app, debug=True)
+        socketio.run(app, debug=True, host="0.0.0.0", port=5000)
     finally:
         r.flushall()
+        # Clean up Zarr data directory on shutdown for this example
         shutil.rmtree("data", ignore_errors=True)
+
+
+if __name__ == '__main__':
+    main()
