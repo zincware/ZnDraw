@@ -139,6 +139,18 @@ class Client:
                 # Wrap the HTTP error in a RuntimeError
                 raise RuntimeError(f"Error uploading frame data: {e}") from e
 
+    def len_frames(self) -> int:
+        """Returns the number of frames in the current room."""
+        if not self.sio.connected:
+            raise RuntimeError("Client is not connected. Please call .connect() first.")
+
+        response = self.sio.call("frames:count", {})
+
+        if not response or not response.get("success"):
+            raise RuntimeError(f"Failed to get frame count: {response.get('error') if response else 'No response'}")
+
+        return response["count"]
+
 if __name__ == '__main__':
     client = Client()
     client.connect()
@@ -147,3 +159,5 @@ if __name__ == '__main__':
     for idx in range(50):
         frame = client.get_frame(idx)
         print(f"Frame {idx} keys: {list(frame.keys())}, index: {frame['index']}")
+    
+    print(f"Total frames: {client.len_frames()}")

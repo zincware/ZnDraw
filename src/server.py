@@ -228,6 +228,22 @@ def handle_upload_prepare(data):
     log.info(f"Issued upload token for room '{room}' to {sid}")
     return {"success": True, "token": token}
 
+@socketio.on("frames:count")
+def handle_len_frames(data):
+    sid = request.sid
+    room = get_project_room_from_session(sid)
+
+    if not room:
+        return {"success": False, "error": "Client has not joined a room."}
+
+    try:
+        indices_key = f"room:{room}:trajectory:indices"
+        frame_count = r.zcard(indices_key)
+        return {"success": True, "count": frame_count}
+    except Exception as e:
+        log.error(f"Failed to get frame count: {e}")
+        return {"success": False, "error": "Failed to get frame count"}
+
 if __name__ == '__main__':
     try:
         log.info("Starting ZnDraw Server")
