@@ -7,6 +7,7 @@ import typing as t
 from tqdm import tqdm
 import msgpack
 import logging
+from collections.abc import MutableSequence
 
 log = logging.getLogger(__name__)
 
@@ -44,8 +45,8 @@ class SocketIOLock:
             warnings.warn(f"Failed to release lock for target '{self.target}'. It may have expired.")
 
 @dataclasses.dataclass
-class Client:
-    """A client for interacting with the ZnDraw server."""
+class Client(MutableSequence):
+    """A client for interacting with the ZnDraw server. Implements MutableSequence for frame operations."""
     room: str = "default"
     url: str = "http://localhost:5000"
 
@@ -328,6 +329,55 @@ class Client:
 
             except requests.exceptions.RequestException as e:
                 raise RuntimeError(f"Error uploading frame data: {e}") from e
+
+    # MutableSequence interface implementation
+    def __len__(self) -> int:
+        """Return the number of frames."""
+        return self.len_frames()
+
+    def __getitem__(self, index) -> dict[str, np.ndarray] | list[dict[str, np.ndarray]]:
+        """Get frame(s) by index or slice."""
+        if isinstance(index, slice):
+            return self.get_frames(index)
+        elif isinstance(index, int):
+            if index < 0:
+                index += len(self)
+            return self.get_frame(index)
+        else:
+            raise TypeError("Index must be int or slice")
+
+    def __setitem__(self, index: int, value: dict[str, np.ndarray]):
+        """Replace frame at index."""
+        if isinstance(index, slice):
+            raise NotImplementedError("Slice assignment not supported")
+        if index < 0:
+            index += len(self)
+        self.replace_frame(index, value)
+
+    def __delitem__(self, index: int):
+        """Delete frame at index."""
+        if isinstance(index, slice):
+            raise NotImplementedError("Slice deletion not supported")
+        if index < 0:
+            index += len(self)
+        self.delete_frame(index)
+
+    def insert(self, index: int, value: dict[str, np.ndarray]):
+        """Insert frame at index. For now, only append is supported."""
+        if index == len(self):
+            self.append_frame(value)
+        else:
+            raise NotImplementedError("Insert at arbitrary position not supported by server")
+
+    def append(self, value: dict[str, np.ndarray]):
+        """Append a frame."""
+        self.append_frame(value)
+
+    def extend(self, values):
+        """Extend with multiple frames."""
+        if hasattr(values, '__iter__'):
+            values = list(values)
+        self.extend_frames(values)
 
 if __name__ == '__main__':
     client = Client()

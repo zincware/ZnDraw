@@ -185,6 +185,61 @@ def test_get_frames_empty_result():
     client.disconnect()
     assert not client.sio.connected
 
+def test_mutable_sequence_interface():
+    client = Client(room=uuid.uuid4().hex, url="http://localhost:5000")
+    client.connect()
+
+    # Test len()
+    assert len(client) == 0
+
+    # Test append()
+    frame1 = {"index": np.array([10])}
+    frame2 = {"index": np.array([20])}
+    client.append(frame1)
+    assert len(client) == 1
+    client.append(frame2)
+    assert len(client) == 2
+
+    # Test __getitem__ with positive index
+    retrieved = client[0]
+    assert np.array_equal(retrieved["index"], frame1["index"])
+
+    # Test __getitem__ with negative index
+    retrieved = client[-1]
+    assert np.array_equal(retrieved["index"], frame2["index"])
+
+    # Test __getitem__ with slice
+    frames = client[0:2]
+    assert len(frames) == 2
+    assert np.array_equal(frames[0]["index"], frame1["index"])
+    assert np.array_equal(frames[1]["index"], frame2["index"])
+
+    # Test __setitem__ (replace)
+    new_frame = {"index": np.array([999])}
+    client[1] = new_frame
+    retrieved = client[1]
+    assert np.array_equal(retrieved["index"], new_frame["index"])
+
+    # Test extend()
+    extend_data = [
+        {"index": np.array([100])},
+        {"index": np.array([200])}
+    ]
+    client.extend(extend_data)
+    assert len(client) == 4
+    assert np.array_equal(client[2]["index"], extend_data[0]["index"])
+    assert np.array_equal(client[3]["index"], extend_data[1]["index"])
+
+    # Test __delitem__
+    client[1]  # Should be the replaced frame with index 999
+    del client[1]
+    assert len(client) == 3
+    # After deletion, what was at index 2 should now be at index 1
+    assert np.array_equal(client[1]["index"], extend_data[0]["index"])
+
+    client.disconnect()
+    assert not client.sio.connected
+
 
 # def test_replace_frame_additional_keys():
 #     client = Client(room=uuid.uuid4().hex, url="http://localhost:5000")
