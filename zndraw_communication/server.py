@@ -365,24 +365,18 @@ def append_frame(room_id):
                     dataset[next_physical_index] = array
 
             # Get all current mappings and rebuild them with the insertion
-            all_mappings = r.zrange(indices_key, 0, -1, withscores=True)
+            # In the "insert" action handler
+            # Get members to be shifted
+            members_to_shift = r.zrangebyscore(indices_key, insert_position, '+inf')
 
-            # Clear the current mappings
-            r.delete(indices_key)
-
-            # Rebuild mappings with the new frame inserted
+            # Use a pipeline for atomicity
             pipeline = r.pipeline()
+            if members_to_shift:
+                # Increment the score of each affected member by 1
+                for member in members_to_shift:
+                    pipeline.zincrby(indices_key, 1, member)
 
-            # Add all existing frames, shifting those at position >= insert_position
-            for physical_idx_str, logical_pos in all_mappings:
-                if logical_pos >= insert_position:
-                    # Shift this frame one position to the right
-                    pipeline.zadd(indices_key, {physical_idx_str: logical_pos + 1})
-                else:
-                    # Keep this frame at its current position
-                    pipeline.zadd(indices_key, {physical_idx_str: logical_pos})
-
-            # Add the new frame at the insert position
+            # Add the new frame at the correct position
             pipeline.zadd(indices_key, {str(next_physical_index): insert_position})
             pipeline.execute()
 

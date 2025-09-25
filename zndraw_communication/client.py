@@ -401,6 +401,8 @@ class Client(MutableSequence):
         lock = SocketIOLock(self.sio, target="trajectory:meta")
 
         with lock:
+            # TODO: this is very chatty and should be improved in the server!!
+            
             # First, delete the old range if it exists
             for _ in range(old_count):
                 if start < len(self):
