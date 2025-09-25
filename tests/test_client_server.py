@@ -699,6 +699,52 @@ def test_comprehensive_atom_dict():
         == data["<SinglePointCalculator>"]["string-calc"]
     )
 
+# TODO: only load some keys, e.g. position and colors are there, but only load position
+def test_partial_key_retrieval():
+    client = Client(room=uuid.uuid4().hex, url="http://localhost:5000")
+    client.connect()
+    data = {
+        "index": np.array([1, 2, 3]),
+        "points": np.random.rand(5, 3),
+        "colors": np.random.randint(0, 255, size=(5, 4), dtype=np.uint8),
+        "extra": "This is some extra info",
+    }
+    client.append_frame(data)
+    assert client.len_frames() == 1
+
+    # Retrieve only 'points' key
+    frame = client.get_frame(0, keys=["points"])
+    assert frame.keys() == {"points"}
+    assert np.array_equal(frame["points"], data["points"])
+
+    # Retrieve 'index' and 'extra' keys
+    frame = client.get_frame(0, keys=["index", "extra"])
+    assert frame.keys() == {"index", "extra"}
+    assert np.array_equal(frame["index"], data["index"])
+    assert frame["extra"] == data["extra"]
+
+    # do the same with get_frames
+    frames = client.get_frames([0], keys=["colors"])
+    assert len(frames) == 1
+    assert frames[0].keys() == {"colors"}
+    assert np.array_equal(frames[0]["colors"], data["colors"])
+    
+    with pytest.raises(KeyError):
+        client.get_frame(0, keys=["nonexistent_key"])
+    
+    with pytest.raises(KeyError):
+        client.get_frames([0], keys=["nonexistent_key"])
+
+    with pytest.raises(IndexError):
+        client.get_frame(5, keys=["points"])
+
+    with pytest.raises(IndexError):
+        client.get_frames([0, 5], keys=["points"])
+
+    client.disconnect()
+    assert not client.sio.connected
+
+# TODO: test KeyError!
 
 # def test_replace_frame_additional_keys():
 #     client = Client(room=uuid.uuid4().hex, url="http://localhost:5000")

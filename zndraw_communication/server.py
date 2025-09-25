@@ -8,6 +8,7 @@ import uuid
 import logging
 import msgpack
 import shutil
+import json
 
 # --- Logging Setup ---
 log = logging.getLogger(__name__)
@@ -45,6 +46,10 @@ def get_zarr_store_path(room_id: str) -> str:
 @app.route("/frame/<string:room_id>/<int:frame_id>")
 def get_frame(room_id, frame_id):
     """Serves a single frame's data from the room's Zarr store."""
+    # Get keys parameter from query string
+    keys_param = request.args.get('keys')
+    requested_keys = keys_param.split(',') if keys_param else None
+
     store_path = get_zarr_store_path(room_id)
     try:
         root = zarr.group(store_path)
@@ -57,17 +62,76 @@ def get_frame(room_id, frame_id):
             return Response("No frames found in room", status=404)
 
         if frame_id >= len(frame_mapping):
-            return Response(f"Frame {frame_id} not found, max frame: {len(frame_mapping)-1}", status=404)
+            error_data = {"error": f"Frame {frame_id} not found, max frame: {len(frame_mapping)-1}", "type": "IndexError"}
+            return Response(json.dumps(error_data), status=404, content_type='application/json')
 
         # Get the physical index for this logical frame
         physical_index = int(frame_mapping[frame_id])
 
-        # Build response dict with all arrays for this frame
+        # Build response dict with arrays for this frame
         frame_data = {}
-        for key in root.keys():
-            dataset = root[key]
-            if physical_index < dataset.shape[0]:
-                frame_data[key] = dataset[physical_index]
+
+        # Get all keys from zarr store (arrays) and metadata
+        available_keys = set(root.keys())
+        metadata_keys = set()
+
+        # If metadata exists, extract the keys it contains
+        if '_metadata' in root:
+            metadata_dataset = root['_metadata']
+            if physical_index < metadata_dataset.shape[0]:
+                metadata_array = metadata_dataset[physical_index]
+                try:
+                    # Reconstruct the JSON string from the metadata array
+                    # metadata_array is a numpy array with Unicode strings
+                    json_str = metadata_array.item() if metadata_array.size > 0 else '{}'
+                    metadata_dict = json.loads(json_str)
+                    metadata_keys = set(metadata_dict.keys())
+                except Exception as e:
+                    log.debug(f"Failed to parse metadata: {e}")
+                    pass
+
+        # Determine which keys to process
+        if requested_keys:
+            keys_to_process = requested_keys
+            # Validate that all requested keys exist
+            all_available_keys = available_keys | metadata_keys
+            missing_keys = set(requested_keys) - all_available_keys
+            if missing_keys:
+                error_data = {"error": f"Key(s) not found: {', '.join(sorted(missing_keys))}", "type": "KeyError"}
+                return Response(json.dumps(error_data), status=404, content_type='application/json')
+        else:
+            keys_to_process = list(available_keys) + list(metadata_keys)
+
+        # Process regular zarr arrays
+        for key in keys_to_process:
+            if key in root and key != '_metadata':
+                dataset = root[key]
+                if physical_index < dataset.shape[0]:
+                    frame_data[key] = dataset[physical_index]
+
+        # Process metadata keys if metadata exists
+        if '_metadata' in root and metadata_keys:
+            metadata_dataset = root['_metadata']
+            if physical_index < metadata_dataset.shape[0]:
+                metadata_array = metadata_dataset[physical_index]
+                try:
+                    json_str = metadata_array.item() if metadata_array.size > 0 else '{}'
+                    metadata_dict = json.loads(json_str)
+
+                    # Filter metadata to only include requested keys that exist in metadata
+                    filtered_metadata = {}
+                    for key in keys_to_process:
+                        if key in metadata_dict:
+                            filtered_metadata[key] = metadata_dict[key]
+
+                    # If we have filtered metadata to include, add it back to frame_data as _metadata
+                    if filtered_metadata:
+                        # Convert metadata back to the format expected by client
+                        filtered_json_str = json.dumps(filtered_metadata)
+                        filtered_json_array = np.array([filtered_json_str], dtype='U')
+                        frame_data['_metadata'] = filtered_json_array
+                except:
+                    pass
 
         # Serialize using msgpack with bytes and shape info
         serialized_data = {}
@@ -115,7 +179,8 @@ def get_frames(room_id):
             # Validate frame indices
             for frame_id in frame_indices:
                 if not isinstance(frame_id, int) or frame_id < 0 or frame_id > max_frame:
-                    return {"error": f"Invalid frame index {frame_id}, valid range: 0-{max_frame}"}, 400
+                    error_data = {"error": f"Invalid frame index {frame_id}, valid range: 0-{max_frame}", "type": "IndexError"}
+                    return Response(json.dumps(error_data), status=404, content_type='application/json')
 
         else:
             # Default to slice behavior for any remaining cases (including empty payload)
@@ -139,6 +204,36 @@ def get_frames(room_id):
             except ValueError as e:
                 return {"error": f"Invalid slice parameters: {e}"}, 400
 
+        # Get keys parameter if specified
+        requested_keys = request_data.get('keys')
+
+        # Validate requested keys before processing any frames
+        if requested_keys:
+            # For frames endpoint, we need comprehensive validation similar to single frame endpoint
+            available_keys = set(root.keys())
+            metadata_keys = set()
+
+            # If metadata exists, get the keys from the first frame to check availability
+            if '_metadata' in root:
+                metadata_dataset = root['_metadata']
+                if len(frame_mapping) > 0 and metadata_dataset.shape[0] > 0:
+                    try:
+                        physical_index = int(frame_mapping[0])
+                        if physical_index < metadata_dataset.shape[0]:
+                            metadata_array = metadata_dataset[physical_index]
+                            json_str = metadata_array.item() if metadata_array.size > 0 else '{}'
+                            metadata_dict = json.loads(json_str)
+                            metadata_keys = set(metadata_dict.keys())
+                    except:
+                        pass
+
+            # Validate that all requested keys exist
+            all_available_keys = available_keys | metadata_keys
+            missing_keys = set(requested_keys) - all_available_keys
+            if missing_keys:
+                error_data = {"error": f"Key(s) not found: {', '.join(sorted(missing_keys))}", "type": "KeyError"}
+                return Response(json.dumps(error_data), status=404, content_type='application/json')
+
         # Build response with all requested frames (empty list if no indices)
         frames_data = []
         if not frame_indices:
@@ -149,12 +244,17 @@ def get_frames(room_id):
             # Get the physical index for this logical frame
             physical_index = int(frame_mapping[frame_id])
 
-            # Build frame data dict with all arrays for this frame
+            # Build frame data dict with arrays for this frame
             frame_data = {}
-            for key in root.keys():
-                dataset = root[key]
-                if physical_index < dataset.shape[0]:
-                    frame_data[key] = dataset[physical_index]
+
+            # Determine which keys to process
+            keys_to_process = requested_keys if requested_keys else root.keys()
+
+            for key in keys_to_process:
+                if key in root:
+                    dataset = root[key]
+                    if physical_index < dataset.shape[0]:
+                        frame_data[key] = dataset[physical_index]
 
             # Serialize frame using msgpack with bytes and shape info
             serialized_frame = {}

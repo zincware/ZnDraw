@@ -6,6 +6,7 @@ import requests
 from tqdm import tqdm
 import msgpack
 import logging
+import json
 from collections.abc import MutableSequence
 
 log = logging.getLogger(__name__)
@@ -72,42 +73,134 @@ class Client(MutableSequence):
         self.sio.emit("join_room", {"room": self.room})
         log.debug(f"Joined room: '{self.room}'")
 
-    def get_frame(self, frame_id: int) -> dict[str, np.ndarray]:
+    def get_frame(self, frame_id: int, keys: list[str] | None = None) -> dict:
         """Fetches a single frame's data from the server."""
         # Handle negative indices
         if frame_id < 0:
             frame_id = self.len_frames() + frame_id
 
         full_url = f"{self.url}/frame/{self.room}/{frame_id}"
-        response = requests.get(full_url, timeout=10)
+
+        # Add keys parameter to URL if specified
+        params = {}
+        if keys is not None:
+            params['keys'] = ','.join(keys)
+
+        response = requests.get(full_url, params=params, timeout=10)
+
+        # Check for errors
+        if response.status_code == 404:
+            try:
+                error_data = response.json()
+                error_type = error_data.get("type", "")
+                error_msg = error_data.get("error", response.text)
+
+                if error_type == "KeyError":
+                    raise KeyError(error_msg)
+                elif error_type == "IndexError":
+                    raise IndexError(error_msg)
+            except ValueError:
+                # JSON parsing failed, let raise_for_status handle it
+                pass
+
         response.raise_for_status()
 
         # Unpack msgpack data
         serialized_data = msgpack.unpackb(response.content, strict_map_key=False)
 
-        # Reconstruct numpy arrays from bytes, shape, and dtype
+        # Deserialize frame data
+        return self._deserialize_frame_data(serialized_data)
+
+    def _serialize_frame_data(self, data: dict) -> dict:
+        """Convert nested dict with numpy arrays to server-compatible format."""
+        flattened = self._flatten_data(data)
+        # Convert to server format (data/shape/dtype for arrays)
+        serialized = {}
+        non_array_data = {}
+
+        for key, value in flattened.items():
+            if isinstance(value, np.ndarray):
+                serialized[key] = {
+                    'data': value.tobytes(),
+                    'shape': value.shape,
+                    'dtype': str(value.dtype)
+                }
+            else:
+                # Collect non-array values for metadata
+                non_array_data[key] = value
+
+        # If we have non-array data, store it as a JSON-encoded numpy array
+        if non_array_data:
+            json_str = json.dumps(non_array_data)
+            json_array = np.array([json_str], dtype='U')
+            serialized['_metadata'] = {
+                'data': json_array.tobytes(),
+                'shape': json_array.shape,
+                'dtype': str(json_array.dtype)
+            }
+
+        return serialized
+
+    def _flatten_data(self, data, prefix=''):
+        """Flatten nested dictionaries using dot notation for keys."""
+        flattened = {}
+        for key, value in data.items():
+            full_key = f"{prefix}.{key}" if prefix else key
+            if isinstance(value, dict):
+                # Recursively flatten nested dicts
+                flattened.update(self._flatten_data(value, full_key))
+            else:
+                flattened[full_key] = value
+        return flattened
+
+    def _unflatten_data(self, flattened):
+        """Reconstruct nested dictionary from flattened dot notation."""
         result = {}
-        for key, array_info in serialized_data.items():
-            data_bytes = array_info['data']
-            shape = tuple(array_info['shape'])
-            dtype = array_info['dtype']
-
-            result[key] = np.frombuffer(data_bytes, dtype=dtype).reshape(shape)
-
+        for key, value in flattened.items():
+            parts = key.split('.')
+            current = result
+            for part in parts[:-1]:
+                if part not in current:
+                    current[part] = {}
+                current = current[part]
+            current[parts[-1]] = value
         return result
 
-    def _serialize_frame_data(self, data: dict[str, np.ndarray]) -> dict:
-        """Convert numpy arrays to msgpack-compatible format."""
-        serialized_data = {}
-        for key, array in data.items():
-            serialized_data[key] = {
-                'data': array.tobytes(),
-                'shape': array.shape,
-                'dtype': str(array.dtype)
-            }
-        return serialized_data
+    def _deserialize_frame_data(self, serialized_data):
+        """Convert server format back to nested dict with numpy arrays."""
+        # First convert arrays back from server format
+        converted = {}
+        metadata = {}
 
-    def _serialize_frames_data(self, frames: list[dict[str, np.ndarray]]) -> list[dict]:
+        for key, array_info in serialized_data.items():
+            if key == '_metadata':
+                # Handle metadata specially
+                data_bytes = array_info['data']
+                shape = tuple(array_info['shape'])
+                dtype = array_info['dtype']
+
+                # Reconstruct the JSON string array
+                json_array = np.frombuffer(data_bytes, dtype=dtype).reshape(shape)
+                json_str = str(json_array[0]) if len(json_array) > 0 else '{}'
+
+                try:
+                    metadata = json.loads(json_str)
+                except (json.JSONDecodeError, TypeError):
+                    metadata = {}
+            else:
+                # Regular array
+                data_bytes = array_info['data']
+                shape = tuple(array_info['shape'])
+                dtype = array_info['dtype']
+                converted[key] = np.frombuffer(data_bytes, dtype=dtype).reshape(shape)
+
+        # Add metadata back
+        converted.update(metadata)
+
+        # Unflatten the structure
+        return self._unflatten_data(converted)
+
+    def _serialize_frames_data(self, frames: list[dict]) -> list[dict]:
         """Convert list of frame data to msgpack-compatible format."""
         return [self._serialize_frame_data(frame) for frame in frames]
 
@@ -160,30 +253,31 @@ class Client(MutableSequence):
             except requests.exceptions.RequestException as e:
                 raise RuntimeError(f"Error uploading frame data: {e}") from e
 
-    def append_frame(self, data: dict[str, np.ndarray]):
+    def append_frame(self, data: dict):
         """Appends a single frame to the trajectory."""
         self._perform_locked_upload("append", data)
 
-    def extend_frames(self, data: list[dict[str, np.ndarray]]):
+    def extend_frames(self, data: list[dict]):
         """
         Extends the trajectory by adding multiple frames in a single operation.
         Uses a single lock for the entire operation to ensure atomicity.
 
         Args:
-            data: List of dictionaries, each containing numpy arrays for one frame
+            data: List of dictionaries, each containing data for one frame
         """
         result = self._perform_locked_upload("extend", data)
         return result.get("new_indices", [])
 
-    def get_frames(self, indices_or_slice) -> list[dict[str, np.ndarray]]:
+    def get_frames(self, indices_or_slice, keys: list[str] = None) -> list[dict]:
         """
         Fetches multiple frames' data from the server in a single call.
 
         Args:
             indices_or_slice: Either a list of frame indices [0, 2, 5] or a slice object slice(start, stop, step)
+            keys: Optional list of keys to retrieve for each frame
 
         Returns:
-            List of dictionaries, each containing numpy arrays for one frame
+            List of dictionaries, each containing data for one frame
         """
         if not self.sio.connected:
             raise RuntimeError("Client is not connected. Please call .connect() first.")
@@ -204,25 +298,35 @@ class Client(MutableSequence):
         else:
             raise ValueError("indices_or_slice must be either a list of integers or a slice object")
 
+        # Add keys parameter if specified
+        if keys is not None:
+            payload["keys"] = keys
+
         full_url = f"{self.url}/frames/{self.room}"
         response = requests.post(full_url, json=payload, timeout=30)
+
+        # Check for errors
+        if response.status_code == 404:
+            try:
+                error_data = response.json()
+                error_type = error_data.get("type", "")
+                error_msg = error_data.get("error", response.text)
+
+                if error_type == "KeyError":
+                    raise KeyError(error_msg)
+                elif error_type == "IndexError":
+                    raise IndexError(error_msg)
+            except ValueError:
+                # JSON parsing failed, let raise_for_status handle it
+                pass
+
         response.raise_for_status()
 
         # Unpack msgpack data
         serialized_frames = msgpack.unpackb(response.content, strict_map_key=False)
 
-        # Reconstruct list of frame dictionaries with numpy arrays
-        frames = []
-        for serialized_frame in serialized_frames:
-            frame = {}
-            for key, array_info in serialized_frame.items():
-                data_bytes = array_info['data']
-                shape = tuple(array_info['shape'])
-                dtype = array_info['dtype']
-                frame[key] = np.frombuffer(data_bytes, dtype=dtype).reshape(shape)
-            frames.append(frame)
-
-        return frames
+        # Deserialize frames
+        return [self._deserialize_frame_data(frame) for frame in serialized_frames]
 
     def len_frames(self) -> int:
         """Returns the number of frames in the current room."""
@@ -251,7 +355,7 @@ class Client(MutableSequence):
 
             return response
         
-    def replace_frame(self, frame_id: int, data: dict[str, np.ndarray]):
+    def replace_frame(self, frame_id: int, data: dict):
         """
         Replaces an existing logical frame with new data.
         This is a locked, non-destructive operation that appends the new data
@@ -259,14 +363,14 @@ class Client(MutableSequence):
         """
         self._perform_locked_upload("replace", data, frame_id=frame_id)
 
-    def insert_frame(self, index: int, data: dict[str, np.ndarray]):
+    def insert_frame(self, index: int, data: dict):
         """
         Inserts a frame at the specified logical position.
         All frames at position >= index will be shifted to the right.
 
         Args:
             index: Logical position where to insert the frame (0-based)
-            data: Dictionary containing numpy arrays for the frame
+            data: Dictionary containing data for the frame
         """
         self._perform_locked_upload("insert", data, insert_position=index)
 
@@ -275,7 +379,7 @@ class Client(MutableSequence):
         """Return the number of frames."""
         return self.len_frames()
 
-    def __getitem__(self, index) -> dict[str, np.ndarray] | list[dict[str, np.ndarray]]:
+    def __getitem__(self, index) -> dict | list[dict]:
         """Get frame(s) by index or slice."""
         if isinstance(index, slice):
             return self.get_frames(index)
@@ -371,7 +475,7 @@ class Client(MutableSequence):
             index += len(self)
         self.delete_frame(index)
 
-    def insert(self, index: int, value: dict[str, np.ndarray]):
+    def insert(self, index: int, value: dict):
         """Insert frame at index."""
         # Handle negative indices and clamp to valid range
         if index < 0:
@@ -381,11 +485,11 @@ class Client(MutableSequence):
 
         self.insert_frame(index, value)
 
-    def append(self, value: dict[str, np.ndarray]):
+    def append(self, value: dict):
         """Append a frame."""
         self.append_frame(value)
 
-    def extend(self, values: list[dict[str, np.ndarray]]):
+    def extend(self, values: list[dict]):
         """Extend with multiple frames."""
         if hasattr(values, '__iter__'):
             values = list(values)

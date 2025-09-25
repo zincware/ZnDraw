@@ -11,3 +11,5 @@ wheels/
 *.xyz
 *.h5
 *.zarr
+tmp/
+
