@@ -744,7 +744,9 @@ def test_partial_key_retrieval():
     client.disconnect()
     assert not client.sio.connected
 
-# TODO: test KeyError!
+# TODO: test keys that contain "." or `<SinglePointCalculator>`
+# TODO: test replacing only single keys / nested keys via a.b (think atoms.arrats["plots"])
+
 
 # def test_replace_frame_additional_keys():
 #     client = Client(room=uuid.uuid4().hex, url="http://localhost:5000")

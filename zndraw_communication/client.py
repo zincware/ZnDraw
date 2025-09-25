@@ -78,38 +78,7 @@ class Client(MutableSequence):
         # Handle negative indices
         if frame_id < 0:
             frame_id = self.len_frames() + frame_id
-
-        full_url = f"{self.url}/frame/{self.room}/{frame_id}"
-
-        # Add keys parameter to URL if specified
-        params = {}
-        if keys is not None:
-            params['keys'] = ','.join(keys)
-
-        response = requests.get(full_url, params=params, timeout=10)
-
-        # Check for errors
-        if response.status_code == 404:
-            try:
-                error_data = response.json()
-                error_type = error_data.get("type", "")
-                error_msg = error_data.get("error", response.text)
-
-                if error_type == "KeyError":
-                    raise KeyError(error_msg)
-                elif error_type == "IndexError":
-                    raise IndexError(error_msg)
-            except ValueError:
-                # JSON parsing failed, let raise_for_status handle it
-                pass
-
-        response.raise_for_status()
-
-        # Unpack msgpack data
-        serialized_data = msgpack.unpackb(response.content, strict_map_key=False)
-
-        # Deserialize frame data
-        return self._deserialize_frame_data(serialized_data)
+        return self.get_frames([frame_id], keys=keys)[0]
 
     def _serialize_frame_data(self, data: dict) -> dict:
         """Convert nested dict with numpy arrays to server-compatible format."""
@@ -268,7 +237,7 @@ class Client(MutableSequence):
         result = self._perform_locked_upload("extend", data)
         return result.get("new_indices", [])
 
-    def get_frames(self, indices_or_slice, keys: list[str] = None) -> list[dict]:
+    def get_frames(self, indices_or_slice, keys: list[str] | None = None) -> list[dict]:
         """
         Fetches multiple frames' data from the server in a single call.
 
