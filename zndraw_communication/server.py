@@ -150,6 +150,63 @@ def append_frame(room_id):
             log.info(f"Replaced frame {target_frame_id} (physical: {physical_index}) in room '{room_id}' with keys: {list(serialized_data.keys())}")
             return {"success": True, "replaced_frame": target_frame_id}
 
+        elif action == "extend":
+            # Extend operation: add multiple frames in one go
+            # Find next available physical indices
+            used_physical_indices = [int(x) for x in r.zrange(indices_key, 0, -1)]
+            next_physical_index = max(used_physical_indices) + 1 if used_physical_indices else 0
+
+            # serialized_data should be a list of dictionaries for multiple frames
+            if not isinstance(serialized_data, list):
+                return {"error": "For extend action, data must be a list of frame dictionaries"}, 400
+
+            num_frames = len(serialized_data)
+            new_indices = []
+
+            # Process each frame in the list
+            for frame_idx, frame_data in enumerate(serialized_data):
+                current_physical_index = next_physical_index + frame_idx
+
+                # Process each array in the frame data
+                for key, array_info in frame_data.items():
+                    # Reconstruct numpy array from bytes, shape, and dtype
+                    data_bytes = array_info['data']
+                    shape = tuple(array_info['shape'])
+                    dtype = array_info['dtype']
+                    array = np.frombuffer(data_bytes, dtype=dtype).reshape(shape)
+
+                    # Create array if it doesn't exist
+                    if key not in root:
+                        # Create with expandable first dimension for frames
+                        initial_shape = (current_physical_index + num_frames - frame_idx,) + array.shape
+                        chunks = (1,) + array.shape
+                        dataset = root.create_array(
+                            name=key,
+                            shape=initial_shape,
+                            chunks=chunks,
+                            dtype=array.dtype
+                        )
+                        dataset[current_physical_index] = array
+                        log.info(f"Created new array '{key}' with shape {initial_shape}")
+                    else:
+                        dataset = root[key]
+                        # Resize array to accommodate all new frames if needed
+                        required_size = current_physical_index + 1
+                        if required_size > dataset.shape[0]:
+                            new_shape = (required_size,) + dataset.shape[1:]
+                            dataset.resize(new_shape)
+                        dataset[current_physical_index] = array
+
+                # Add the physical index to the logical sequence
+                logical_position = len(used_physical_indices) + frame_idx
+                new_indices.append(logical_position)
+                r.zadd(indices_key, {str(current_physical_index): logical_position})
+
+            socketio.emit("trajectory_updated", {"action": "extend", "new_indices": new_indices}, to=room_id, skip_sid=sid_from_token)
+
+            log.info(f"Extended trajectory with {num_frames} frames (physical: {next_physical_index}-{next_physical_index + num_frames - 1}) to room '{room_id}'")
+            return {"success": True, "new_indices": new_indices}
+
         else:
             # Append operation: add new physical data and update logical mapping
             # Find next available physical index

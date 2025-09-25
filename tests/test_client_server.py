@@ -72,6 +72,36 @@ def test_replace_frame():
     client.disconnect()
     assert not client.sio.connected
 
+def test_extend_frames():
+    client = Client(room=uuid.uuid4().hex, url="http://localhost:5000")
+    client.connect()
+
+    # Start with a few frames
+    for i in range(3):
+        client.append_frame({"index": np.array([i])})
+    assert client.len_frames() == 3
+
+    # Extend with multiple frames at once
+    extend_data = [
+        {"index": np.array([10]), "points": np.random.rand(5, 3)},
+        {"index": np.array([20]), "points": np.random.rand(5, 3)},
+        {"index": np.array([30]), "points": np.random.rand(5, 3)},
+    ]
+
+    new_indices = client.extend_frames(extend_data)
+    assert client.len_frames() == 6
+    assert new_indices == [3, 4, 5]  # Should be appended at these logical positions
+
+    # Verify the extended frames
+    for i, expected_idx in enumerate([10, 20, 30]):
+        frame = client.get_frame(3 + i)
+        assert np.array_equal(frame["index"], np.array([expected_idx]))
+        assert frame["points"].shape == (5, 3)
+
+    client.disconnect()
+    assert not client.sio.connected
+
+
 # def test_replace_frame_additional_keys():
 #     client = Client(room=uuid.uuid4().hex, url="http://localhost:5000")
 #     client.connect()

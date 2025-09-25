@@ -139,6 +139,65 @@ class Client:
                 # Wrap the HTTP error in a RuntimeError
                 raise RuntimeError(f"Error uploading frame data: {e}") from e
 
+    def extend_frames(self, data: list[dict[str, np.ndarray]]):
+        """
+        Extends the trajectory by adding multiple frames in a single operation.
+        Uses a single lock for the entire operation to ensure atomicity.
+
+        Args:
+            data: List of dictionaries, each containing numpy arrays for one frame
+        """
+        if not self.sio.connected:
+            raise RuntimeError("Client is not connected. Please call .connect() first.")
+
+        lock = SocketIOLock(self.sio, target="trajectory:meta")
+
+        with lock:
+            response = self.sio.call("upload:prepare", {"action": "extend"})
+
+            if not response or not response.get("success"):
+                raise RuntimeError(f"Failed to prepare for upload: {response.get('error')}")
+
+            token = response["token"]
+            try:
+                # Pack the list of frames using msgpack with bytes and shape info
+                serialized_frames = []
+                for frame_data in data:
+                    serialized_frame = {}
+                    for key, array in frame_data.items():
+                        serialized_frame[key] = {
+                            'data': array.tobytes(),
+                            'shape': array.shape,
+                            'dtype': str(array.dtype)
+                        }
+                    serialized_frames.append(serialized_frame)
+
+                packed_data = msgpack.packb(serialized_frames)
+
+                upload_url = f"{self.url}/rooms/{self.room}/frames"
+                headers = {
+                    "Authorization": f"Bearer {token}",
+                    "Content-Type": "application/octet-stream"
+                }
+
+                http_response = requests.post(
+                    upload_url,
+                    data=packed_data,
+                    headers=headers,
+                    timeout=30
+                )
+                http_response.raise_for_status()
+
+                result = http_response.json()
+                if not result.get("success"):
+                    raise RuntimeError(f"Server reported failure: {result.get('error')}")
+
+                return result.get("new_indices", [])
+
+            except requests.exceptions.RequestException as e:
+                # Wrap the HTTP error in a RuntimeError
+                raise RuntimeError(f"Error uploading frame data: {e}") from e
+
     def len_frames(self) -> int:
         """Returns the number of frames in the current room."""
         if not self.sio.connected:
@@ -239,5 +298,11 @@ if __name__ == '__main__':
     for idx in range(10):
         frame = client.get_frame(idx)
         print(f"Frame {idx} keys: {list(frame.keys())}, index: {frame['index']}")
+    
+    data = [{"index": np.array([1000 + i])} for i in range(50)]
+    for _ in tqdm(range(1)):
+        client.extend_frames(data)
+    for entry in tqdm(data):
+        client.append_frame(entry)
 
     print(f"Total frames: {client.len_frames()}")
