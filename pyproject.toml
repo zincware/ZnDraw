@@ -5,12 +5,14 @@ description = "ZnDraw communication testing with physical-to-logical frame mappi
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
+    "eventlet>=0.40.3",
     "flask>=3.1.2",
     "flask-socketio>=5.5.1",
     "msgpack>=1.1.1",
     "python-socketio[client]>=5.13.0",
     "redis>=6.4.0",
     "tqdm>=4.67.1",
+    "typer>=0.19.2",
     "zarr>=3.1.3",
     "znh5md>=0.4.8",
 ]
@@ -29,7 +31,7 @@ build-backend = "hatchling.build"
 packages = ["zndraw_communication"]
 
 [project.scripts]
-zndraw-server = "zndraw_communication.server:main"
+zndraw-server = "zndraw_communication.cli:app"
 
 [project.optional-dependencies]
 test = [

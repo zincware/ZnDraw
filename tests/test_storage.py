@@ -298,16 +298,30 @@ def test_zarr_storage_sequence_add_shape(tmp_path):
     store = ZarrStorageSequence(root)
     store.append({"a": np.array([1, 2])})
     store.append({"a": np.array([3, 4, 5, 6])})
-    # TODO: test add something in between that does not have "a"
+    store.append({"b": np.array([10, 11, 12])})
     store.append({"a": np.array([3, 4, 5])})
+    store.append({"b": np.array([13])})
 
-    assert len(store) == 3
-    for idx, item in enumerate([np.array([1, 2]), np.array([3, 4, 5, 6]), np.array([3, 4, 5])]):
-        data = store[idx]
-        assert data.keys() == {"a"}
-        npt.assert_array_equal(data["a"], item)
-
+    assert len(store) == 5
 
     assert_equal(store[0], {"a": np.array([1, 2])})
     assert_equal(store[1], {"a": np.array([3, 4, 5, 6])})
-    assert_equal(store[2], {"a": np.array([3, 4, 5])})
+    assert_equal(store[2], {"b": np.array([10, 11, 12])})
+    assert_equal(store[3], {"a": np.array([3, 4, 5])})
+    assert_equal(store[4], {"b": np.array([13])})
+
+def test_zarr_storage_sequence_add_shape_2d(tmp_path):
+    root = zarr.group(store=tmp_path / "test.zarr")
+    store = ZarrStorageSequence(root)
+    store.append({"a": np.arange(4).reshape(2, 2)})
+    store.append({"a": np.arange(6).reshape(3, 2)})
+
+    assert len(store) == 2
+
+    assert_equal(store[0], {"a": np.arange(4).reshape(2, 2)})
+    assert_equal(store[1], {"a": np.arange(6).reshape(3, 2)})
+
+    with pytest.raises(ValueError):
+        store.append({"a": np.arange(6).reshape(2, 3)})
+    with pytest.raises(ValueError):
+        store.append({"a": np.arange(5).reshape(5,)})

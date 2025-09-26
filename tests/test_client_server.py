@@ -6,24 +6,24 @@ import pytest
 from zndraw_communication import Client
 
 
-def test_connection():
-    client = Client(room=uuid.uuid4().hex, url="http://localhost:5000")
+def test_connection(server):
+    client = Client(room=uuid.uuid4().hex, url=server)
     client.connect()
     assert client.sio.connected
     client.disconnect()
     assert not client.sio.connected
 
 
-def test_len_frames_empty():
-    client = Client(room=uuid.uuid4().hex, url="http://localhost:5000")
+def test_len_frames_empty(server):
+    client = Client(room=uuid.uuid4().hex, url=server)
     client.connect()
     assert client.len_frames() == 0
     client.disconnect()
     assert not client.sio.connected
 
 
-def test_append_and_get_frame():
-    client = Client(room=uuid.uuid4().hex, url="http://localhost:5000")
+def test_append_and_get_frame(server):
+    client = Client(room=uuid.uuid4().hex, url=server)
     client.connect()
     for i in range(10):
         data = {
@@ -41,8 +41,8 @@ def test_append_and_get_frame():
     assert not client.sio.connected
 
 
-def test_delete_frame():
-    client = Client(room=uuid.uuid4().hex, url="http://localhost:5000")
+def test_delete_frame(server):
+    client = Client(room=uuid.uuid4().hex, url=server)
     client.connect()
     for i in range(5):
         client.append_frame({"index": np.array([i])})
@@ -59,8 +59,8 @@ def test_delete_frame():
     assert not client.sio.connected
 
 
-def test_replace_frame():
-    client = Client(room=uuid.uuid4().hex, url="http://localhost:5000")
+def test_replace_frame(server):
+    client = Client(room=uuid.uuid4().hex, url=server)
     client.connect()
     for i in range(10):
         client.append_frame({"index": np.array([i])})
@@ -79,8 +79,8 @@ def test_replace_frame():
     assert not client.sio.connected
 
 
-def test_extend_frames():
-    client = Client(room=uuid.uuid4().hex, url="http://localhost:5000")
+def test_extend_frames(server):
+    client = Client(room=uuid.uuid4().hex, url=server)
     client.connect()
 
     # Start with a few frames
@@ -109,8 +109,8 @@ def test_extend_frames():
     assert not client.sio.connected
 
 
-def test_get_frames_with_indices():
-    client = Client(room=uuid.uuid4().hex, url="http://localhost:5000")
+def test_get_frames_with_indices(server):
+    client = Client(room=uuid.uuid4().hex, url=server)
     client.connect()
 
     # Add some test frames
@@ -133,8 +133,8 @@ def test_get_frames_with_indices():
     assert not client.sio.connected
 
 
-def test_get_frames_with_slice():
-    client = Client(room=uuid.uuid4().hex, url="http://localhost:5000")
+def test_get_frames_with_slice(server):
+    client = Client(room=uuid.uuid4().hex, url=server)
     client.connect()
 
     # Add some test frames
@@ -173,8 +173,8 @@ def test_get_frames_with_slice():
     assert not client.sio.connected
 
 
-def test_get_frames_empty_result():
-    client = Client(room=uuid.uuid4().hex, url="http://localhost:5000")
+def test_get_frames_empty_result(server):
+    client = Client(room=uuid.uuid4().hex, url=server)
     client.connect()
 
     # Add a few frames
@@ -193,8 +193,8 @@ def test_get_frames_empty_result():
     assert not client.sio.connected
 
 
-def test_mutable_sequence_interface():
-    client = Client(room=uuid.uuid4().hex, url="http://localhost:5000")
+def test_mutable_sequence_interface(server):
+    client = Client(room=uuid.uuid4().hex, url=server)
     client.connect()
 
     # Test len()
@@ -246,8 +246,8 @@ def test_mutable_sequence_interface():
     assert not client.sio.connected
 
 
-def test_insert_frame_functionality():
-    client = Client(room=uuid.uuid4().hex, url="http://localhost:5000")
+def test_insert_frame_functionality(server):
+    client = Client(room=uuid.uuid4().hex, url=server)
     client.connect()
 
     # Start with some initial frames
@@ -297,8 +297,8 @@ def test_insert_frame_functionality():
     assert not client.sio.connected
 
 
-def test_mutable_sequence_insert():
-    client = Client(room=uuid.uuid4().hex, url="http://localhost:5000")
+def test_mutable_sequence_insert(server):
+    client = Client(room=uuid.uuid4().hex, url=server)
     client.connect()
 
     # Add initial frames using MutableSequence interface
@@ -332,9 +332,9 @@ def test_mutable_sequence_insert():
     assert not client.sio.connected
 
 
-def test_slice_assignment_vs_python_list():
+def test_slice_assignment_vs_python_list(server):
     """Test that slice assignment behavior matches Python list behavior exactly."""
-    client = Client(room=uuid.uuid4().hex, url="http://localhost:5000")
+    client = Client(room=uuid.uuid4().hex, url=server)
     client.connect()
 
     # Test cases covering various slice assignment scenarios
@@ -384,9 +384,9 @@ def test_slice_assignment_vs_python_list():
     assert not client.sio.connected
 
 
-def test_extended_slice_assignment_vs_python_list():
+def test_extended_slice_assignment_vs_python_list(server):
     """Test extended slice assignment behavior matches Python list behavior."""
-    client = Client(room=uuid.uuid4().hex, url="http://localhost:5000")
+    client = Client(room=uuid.uuid4().hex, url=server)
     client.connect()
 
     # Test cases for extended slices (step != 1)
@@ -444,9 +444,9 @@ def test_extended_slice_assignment_vs_python_list():
     assert not client.sio.connected
 
 
-def test_slice_assignment_error_conditions():
+def test_slice_assignment_error_conditions(server):
     """Test that slice assignment error conditions match Python behavior."""
-    client = Client(room=uuid.uuid4().hex, url="http://localhost:5000")
+    client = Client(room=uuid.uuid4().hex, url=server)
     client.connect()
 
     # Set up initial data
@@ -476,9 +476,9 @@ def test_slice_assignment_error_conditions():
     assert not client.sio.connected
 
 
-def test_slice_assignment_connection_error():
+def test_slice_assignment_connection_error(server):
     """Test that slice assignment fails when not connected."""
-    client = Client(room=uuid.uuid4().hex, url="http://localhost:5000")
+    client = Client(room=uuid.uuid4().hex, url=server)
     # Deliberately not connecting
 
     value_frames = [{"index": np.array([10])}]
@@ -491,9 +491,9 @@ def test_slice_assignment_connection_error():
         client[::2] = value_frames
 
 
-def test_slice_assignment_edge_cases():
+def test_slice_assignment_edge_cases(server):
     """Test additional edge cases for slice assignment."""
-    client = Client(room=uuid.uuid4().hex, url="http://localhost:5000")
+    client = Client(room=uuid.uuid4().hex, url=server)
     client.connect()
 
     # Test cases for edge conditions
@@ -550,9 +550,9 @@ def test_slice_assignment_edge_cases():
     assert not client.sio.connected
 
 
-def test_slice_assignment_single_value():
+def test_slice_assignment_single_value(server):
     """Test slice assignment with single value (not in list)."""
-    client = Client(room=uuid.uuid4().hex, url="http://localhost:5000")
+    client = Client(room=uuid.uuid4().hex, url=server)
     client.connect()
 
     # Set up initial data
@@ -586,8 +586,8 @@ def test_slice_assignment_single_value():
     assert not client.sio.connected
 
 
-def test_nested_dict_handling():
-    client = Client(room=uuid.uuid4().hex, url="http://localhost:5000")
+def test_nested_dict_handling(server):
+    client = Client(room=uuid.uuid4().hex, url=server)
     client.connect()
 
     # Append a frame with nested dictionaries
@@ -614,7 +614,7 @@ def test_nested_dict_handling():
     assert not client.sio.connected
 
 
-def test_comprehensive_atom_dict():
+def test_comprehensive_atom_dict(server):
     data = {
         "numbers": np.array([6, 1, 1, 1, 1]),
         "positions": np.array(
@@ -668,7 +668,7 @@ def test_comprehensive_atom_dict():
         },
     }
 
-    client = Client(room=uuid.uuid4().hex, url="http://localhost:5000")
+    client = Client(room=uuid.uuid4().hex, url=server)
     client.connect()
     client.append_frame(data)
     assert client.len_frames() == 1
@@ -705,8 +705,8 @@ def test_comprehensive_atom_dict():
 
 
 # TODO: only load some keys, e.g. position and colors are there, but only load position
-def test_partial_key_retrieval():
-    client = Client(room=uuid.uuid4().hex, url="http://localhost:5000")
+def test_partial_key_retrieval(server):
+    client = Client(room=uuid.uuid4().hex, url=server)
     client.connect()
     data = {
         "index": np.array([1, 2, 3]),

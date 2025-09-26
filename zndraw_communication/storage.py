@@ -182,6 +182,10 @@ def extend_zarr(root: zarr.Group, data: list[dict]):
                         raise TypeError(f"Existing item '{key}' is a Group, expected Array.")
                     if item.shape[0] < total_len:
                         item.resize((total_len,) + item.shape[1:])
+                    if len(item.shape) - 1 != len(shape_suffix):
+                        raise ValueError(f"Shape mismatch for key '{key}': existing shape {item.shape}, new shape {shape_suffix}.")
+                    if item.shape[2:] != shape_suffix[1:]:
+                        raise ValueError(f"Shape mismatch for key '{key}': existing shape {item.shape}, new shape {shape_suffix}.")
                     if item.shape[1:] != shape_suffix:
 
                         # # TODO: what about multidimensional arrays?
