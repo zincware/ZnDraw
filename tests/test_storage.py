@@ -205,8 +205,26 @@ def test_decode_data(sample_data):
 def test_create_zarr(tmp_path, sample_data):
     root = zarr.group(store=tmp_path / "test.zarr")
     create_zarr(root, sample_data)
-    result = read_zarr(root)
+    result = read_zarr(root, index=0)
     assert_equal(sample_data, result)
+
+
+def test_read_zarr(tmp_path, sample_data):
+    root = zarr.group(store=tmp_path / "test.zarr")
+    create_zarr(root, sample_data)
+    result = read_zarr(root, index=0, keys=["numbers", "positions", "info"])
+    assert_equal(
+        {
+            "numbers": sample_data["numbers"],
+            "positions": sample_data["positions"],
+            "info": sample_data["info"],
+        },
+        result,
+    )
+    with pytest.raises(KeyError):
+        read_zarr(root, index=0, keys=["nonexistent"])
+    with pytest.raises(IndexError):
+        read_zarr(root, index=1)
 
 
 def test_extend_zarr(tmp_path, sample_data):
@@ -238,3 +256,14 @@ def test_zarr_storage_sequence_create(tmp_path, sample_data):
     sequence.append(sample_data)
     assert len(sequence) == 1
     assert_equal(sample_data, sequence[0])
+    sequence.get(0, keys=["numbers", "positions"])
+    assert len(sequence) == 1
+    assert_equal(
+        {
+            "numbers": sample_data["numbers"],
+            "positions": sample_data["positions"],
+        },
+        sequence.get(0, keys=["numbers", "positions"]),
+    )
+
+    assert_equal(sequence.get(0, keys=["info"]), {"info": sample_data["info"]})

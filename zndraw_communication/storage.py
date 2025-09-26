@@ -83,9 +83,27 @@ def create_zarr(root: zarr.Group, data: dict):
             dataset.attrs["format"] = "json"
 
 
-def read_zarr(root: zarr.Group, index: int = 0) -> dict:
+def read_zarr(root: zarr.Group, index: int, keys: t.Optional[list[str]] = None) -> dict:
+    """
+    Reads a single frame (at `index`) from a Zarr group hierarchy.
+
+    If `keys` is provided, this function only loads those specific keys, raising
+    a `KeyError` if any are not found. Otherwise, it loads all keys in the group.
+    """
     data = {}
-    for key in root:
+
+    # Determine which keys to iterate over.
+    keys_to_load = keys if keys is not None else list(root.keys())
+
+    # If specific keys were requested, validate that they all exist at this level.
+    if keys is not None:
+        missing_keys = set(keys) - set(root.keys())
+        if missing_keys:
+            raise KeyError(
+                f"Keys {sorted(list(missing_keys))} not found in Zarr group '{root.name}'"
+            )
+
+    for key in keys_to_load:
         item = root[key]
         if isinstance(item, zarr.Array):
             if item.attrs.get("format") == "json":
@@ -93,6 +111,7 @@ def read_zarr(root: zarr.Group, index: int = 0) -> dict:
             else:
                 data[key] = item[index]
         elif isinstance(item, zarr.Group):
+            # If a requested key is a group, we load the entire subgroup.
             data[key] = read_zarr(item, index=index)
     return data
 
@@ -126,13 +145,18 @@ class ZarrStorageSequence(MutableSequence):
         self.group = group
 
     def __getitem__(self, index: int | list[int] | slice) -> dict | list[dict]:
+        return self.get(index)
+
+    def get(
+        self, index: int | list[int] | slice, keys: list[str] | None = None
+    ) -> dict | list[dict]:
         if isinstance(index, slice):
             index = list(range(*index.indices(len(self))))
         is_single = False
         if isinstance(index, int):
             is_single = True
             index = [index]
-        result = [read_zarr(self.group, i) for i in index]
+        result = [read_zarr(self.group, i, keys=keys) for i in index]
         if is_single:
             return result[0]
         return result

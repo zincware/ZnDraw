@@ -124,13 +124,29 @@ def get_frames(room_id):
 
         # TODO: requested keys and KeyError handling
         # TODO: instead of iterate load at once
-
-        frames_data = []
-        for frame_id in frame_indices:
-            # Get the physical index for this logical frame
-            physical_index = int(frame_mapping[frame_id])
-            frame_data = storage[physical_index]
-            frames_data.append(encode_data(frame_data))
+        try:
+            frames_data = []
+            for frame_id in frame_indices:
+                # Get the physical index for this logical frame
+                physical_index = int(frame_mapping[frame_id])
+                frame_data = storage.get(physical_index, keys=requested_keys)
+                frames_data.append(encode_data(frame_data))
+        except KeyError as e:
+            error_data = {
+                "error": f"Key(s) not found: {e}",
+                "type": "KeyError",
+            }
+            return Response(
+                json.dumps(error_data), status=404, content_type="application/json"
+            )
+        except IndexError as e:
+            error_data = {
+                "error": f"Frame index out of range: {e}",
+                "type": "IndexError",
+            }
+            return Response(
+                json.dumps(error_data), status=404, content_type="application/json"
+            )
 
         packed_data = msgpack.packb(frames_data)
         return Response(packed_data, content_type="application/octet-stream")

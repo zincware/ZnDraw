@@ -10,6 +10,8 @@ import requests
 import socketio
 from tqdm import tqdm
 
+from zndraw_communication.storage import decode_data, encode_data
+
 log = logging.getLogger(__name__)
 
 
@@ -87,99 +89,6 @@ class Client(MutableSequence):
             frame_id = self.len_frames() + frame_id
         return self.get_frames([frame_id], keys=keys)[0]
 
-    def _serialize_frame_data(self, data: dict) -> dict:
-        """Convert nested dict with numpy arrays to server-compatible format."""
-        flattened = self._flatten_data(data)
-        # Convert to server format (data/shape/dtype for arrays)
-        serialized = {}
-        non_array_data = {}
-
-        for key, value in flattened.items():
-            if isinstance(value, np.ndarray):
-                serialized[key] = {
-                    "data": value.tobytes(),
-                    "shape": value.shape,
-                    "dtype": str(value.dtype),
-                }
-            else:
-                # Collect non-array values for metadata
-                non_array_data[key] = value
-
-        # If we have non-array data, store it as a JSON-encoded numpy array
-        if non_array_data:
-            json_str = json.dumps(non_array_data)
-            json_array = np.array([json_str], dtype="U")
-            serialized["_metadata"] = {
-                "data": json_array.tobytes(),
-                "shape": json_array.shape,
-                "dtype": str(json_array.dtype),
-            }
-
-        return serialized
-
-    def _flatten_data(self, data, prefix=""):
-        """Flatten nested dictionaries using dot notation for keys."""
-        flattened = {}
-        for key, value in data.items():
-            full_key = f"{prefix}.{key}" if prefix else key
-            if isinstance(value, dict):
-                # Recursively flatten nested dicts
-                flattened.update(self._flatten_data(value, full_key))
-            else:
-                flattened[full_key] = value
-        return flattened
-
-    def _unflatten_data(self, flattened):
-        """Reconstruct nested dictionary from flattened dot notation."""
-        result = {}
-        for key, value in flattened.items():
-            parts = key.split(".")
-            current = result
-            for part in parts[:-1]:
-                if part not in current:
-                    current[part] = {}
-                current = current[part]
-            current[parts[-1]] = value
-        return result
-
-    def _deserialize_frame_data(self, serialized_data):
-        """Convert server format back to nested dict with numpy arrays."""
-        # First convert arrays back from server format
-        converted = {}
-        metadata = {}
-
-        for key, array_info in serialized_data.items():
-            if key == "_metadata":
-                # Handle metadata specially
-                data_bytes = array_info["data"]
-                shape = tuple(array_info["shape"])
-                dtype = array_info["dtype"]
-
-                # Reconstruct the JSON string array
-                json_array = np.frombuffer(data_bytes, dtype=dtype).reshape(shape)
-                json_str = str(json_array[0]) if len(json_array) > 0 else "{}"
-
-                try:
-                    metadata = json.loads(json_str)
-                except (json.JSONDecodeError, TypeError):
-                    metadata = {}
-            else:
-                # Regular array
-                data_bytes = array_info["data"]
-                shape = tuple(array_info["shape"])
-                dtype = array_info["dtype"]
-                converted[key] = np.frombuffer(data_bytes, dtype=dtype).reshape(shape)
-
-        # Add metadata back
-        converted.update(metadata)
-
-        # Unflatten the structure
-        return self._unflatten_data(converted)
-
-    def _serialize_frames_data(self, frames: list[dict]) -> list[dict]:
-        """Convert list of frame data to msgpack-compatible format."""
-        return [self._serialize_frame_data(frame) for frame in frames]
-
     def _prepare_upload_token(self, action: str, **kwargs) -> str:
         """Prepare upload token for frame operations."""
         request_data = {"action": action}
@@ -224,9 +133,9 @@ class Client(MutableSequence):
             try:
                 token = self._prepare_upload_token(action, **kwargs)
                 serialized_data = (
-                    self._serialize_frame_data(data)
+                    encode_data(data)
                     if isinstance(data, dict)
-                    else self._serialize_frames_data(data)
+                    else [encode_data(frame) for frame in data]
                 )
                 return self._upload_frame_data(token, serialized_data)
             except requests.exceptions.RequestException as e:
@@ -303,11 +212,8 @@ class Client(MutableSequence):
 
         response.raise_for_status()
 
-        # Unpack msgpack data
         serialized_frames = msgpack.unpackb(response.content, strict_map_key=False)
-
-        # Deserialize frames
-        return [self._deserialize_frame_data(frame) for frame in serialized_frames]
+        return [decode_data(frame) for frame in serialized_frames]
 
     def len_frames(self) -> int:
         """Returns the number of frames in the current room."""
@@ -432,7 +338,7 @@ class Client(MutableSequence):
             for i, value in enumerate(values):
                 # Use the direct upload mechanism
                 token = self._prepare_upload_token("insert", insert_position=start + i)
-                serialized_data = self._serialize_frame_data(value)
+                serialized_data = encode_data(value)
                 self._upload_frame_data(token, serialized_data)
 
     def _extended_slice_assignment(
@@ -457,7 +363,7 @@ class Client(MutableSequence):
             for i, value in zip(indices, values):
                 if i < len(self):
                     token = self._prepare_upload_token("replace", frame_id=i)
-                    serialized_data = self._serialize_frame_data(value)
+                    serialized_data = encode_data(value)
                     self._upload_frame_data(token, serialized_data)
 
     def __delitem__(self, index: int):
