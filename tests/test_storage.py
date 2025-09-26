@@ -267,3 +267,37 @@ def test_zarr_storage_sequence_create(tmp_path, sample_data):
     )
 
     assert_equal(sequence.get(0, keys=["info"]), {"info": sample_data["info"]})
+
+def test_zarr_storage_sequence_add_new(tmp_path):
+    root = zarr.group(store=tmp_path / "test.zarr")
+    store = ZarrStorageSequence(root)
+    store.append({"a": np.array([1, 2])})
+    store.append({"a": np.array([3, 4]), "b": np.array([5, 6])})
+    store.append({"b": np.array([9, 10])})
+
+    assert len(store) == 3
+    assert_equal(store[0], {"a": np.array([1, 2])})
+    assert_equal(store.get(0, keys=["a"]), {"a": np.array([1, 2])})
+    assert_equal(store[1], {"a": np.array([3, 4]), "b": np.array([5, 6])})
+    assert_equal(store.get(1, keys=["a"]), {"a": np.array([3, 4])})
+    assert_equal(store.get(1, keys=["b"]), {"b": np.array([5, 6])})
+    assert_equal(store.get(1, keys=["a", "b"]), {"a": np.array([3, 4]), "b": np.array([5, 6])})
+    assert_equal(store[2], {"b": np.array([9, 10])})
+    assert_equal(store.get(2, keys=["b"]), {"b": np.array([9, 10])})
+
+    with pytest.raises(KeyError):
+        store.get(0, keys=["b"])
+    with pytest.raises(KeyError):
+        store.get(2, keys=["a"])
+    with pytest.raises(KeyError):
+        store.get(1, keys=["c"])
+
+def test_zarr_storage_sequence_add_shape(tmp_path):
+    root = zarr.group(store=tmp_path / "test.zarr")
+    store = ZarrStorageSequence(root)
+    store.append({"a": np.array([1, 2])})
+    store.append({"a": np.array([3, 4, 5, 6])})
+
+    assert len(store) == 2
+    assert_equal(store[0], {"a": np.array([1, 2])})
+    assert_equal(store[1], {"a": np.array([3, 4, 5, 6])})
