@@ -1,7 +1,9 @@
-from zndraw_communication import Client
 import uuid
+
 import numpy as np
 import pytest
+
+from zndraw_communication import Client
 
 
 def test_connection():
@@ -83,7 +85,7 @@ def test_extend_frames():
 
     # Start with a few frames
     for i in range(3):
-        client.append_frame({"index": np.array([i])})
+        client.append_frame({"index": np.array([i]), "points": np.random.rand(5, 3)})
     assert client.len_frames() == 3
 
     # Extend with multiple frames at once
@@ -688,16 +690,19 @@ def test_comprehensive_atom_dict():
     assert np.array_equal(frame["cell"], data["cell"])
     assert np.array_equal(frame["pbc"], data["pbc"])
     assert np.array_equal(frame["celldisp"], data["celldisp"])
-    assert frame["<SinglePointCalculator>"]["energy"] == data["<SinglePointCalculator>"][
-        "energy"
-    ]
+    assert (
+        frame["<SinglePointCalculator>"]["energy"]
+        == data["<SinglePointCalculator>"]["energy"]
+    )
     assert np.array_equal(
-        frame["<SinglePointCalculator>"]["forces"], data["<SinglePointCalculator>"]["forces"]
+        frame["<SinglePointCalculator>"]["forces"],
+        data["<SinglePointCalculator>"]["forces"],
     )
     assert (
         frame["<SinglePointCalculator>"]["string-calc"]
         == data["<SinglePointCalculator>"]["string-calc"]
     )
+
 
 # TODO: only load some keys, e.g. position and colors are there, but only load position
 def test_partial_key_retrieval():
@@ -728,10 +733,10 @@ def test_partial_key_retrieval():
     assert len(frames) == 1
     assert frames[0].keys() == {"colors"}
     assert np.array_equal(frames[0]["colors"], data["colors"])
-    
+
     with pytest.raises(KeyError):
         client.get_frame(0, keys=["nonexistent_key"])
-    
+
     with pytest.raises(KeyError):
         client.get_frames([0], keys=["nonexistent_key"])
 
@@ -743,6 +748,7 @@ def test_partial_key_retrieval():
 
     client.disconnect()
     assert not client.sio.connected
+
 
 # TODO: test keys that contain "." or `<SinglePointCalculator>`
 # TODO: test replacing only single keys / nested keys via a.b (think atoms.arrats["plots"])

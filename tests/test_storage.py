@@ -1,8 +1,18 @@
-from zndraw_communication.storage import encode_data, decode_data, create_zarr, read_zarr, extend_zarr, ZarrStorageSequence
-import pytest
-import numpy as np
-import zarr
 import json
+
+import numpy as np
+import pytest
+import zarr
+
+from zndraw_communication.storage import (
+    ZarrStorageSequence,
+    create_zarr,
+    decode_data,
+    encode_data,
+    extend_zarr,
+    read_zarr,
+)
+
 
 def assert_equal(original, reconstructed):
     if isinstance(original, np.ndarray):
@@ -191,11 +201,13 @@ def test_decode_data(sample_data):
 
     assert_equal(sample_data, decoded)
 
+
 def test_create_zarr(tmp_path, sample_data):
     root = zarr.group(store=tmp_path / "test.zarr")
     create_zarr(root, sample_data)
     result = read_zarr(root)
     assert_equal(sample_data, result)
+
 
 def test_extend_zarr(tmp_path, sample_data):
     root = zarr.group(store=tmp_path / "test.zarr")
@@ -207,6 +219,7 @@ def test_extend_zarr(tmp_path, sample_data):
     assert read_zarr(root, index=0)["<SinglePointCalculator>"]["energy"] == 1.0
     assert read_zarr(root, index=1)["<SinglePointCalculator>"]["energy"] == 2.0
 
+
 def test_zarr_storage_sequence(tmp_path, sample_data):
     root = zarr.group(store=tmp_path / "test.zarr")
     create_zarr(root, sample_data)
@@ -217,3 +230,11 @@ def test_zarr_storage_sequence(tmp_path, sample_data):
     sequence.append(sample_data)
     assert len(sequence) == 2
     assert_equal(sample_data, sequence[1])
+
+
+def test_zarr_storage_sequence_create(tmp_path, sample_data):
+    root = zarr.group(store=tmp_path / "test.zarr")
+    sequence = ZarrStorageSequence(root)
+    sequence.append(sample_data)
+    assert len(sequence) == 1
+    assert_equal(sample_data, sequence[0])

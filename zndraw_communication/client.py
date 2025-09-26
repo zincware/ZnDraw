@@ -1,19 +1,22 @@
 import dataclasses
-import socketio
-import warnings
-import numpy as np
-import requests
-from tqdm import tqdm
-import msgpack
-import logging
 import json
+import logging
+import warnings
 from collections.abc import MutableSequence
 
+import msgpack
+import numpy as np
+import requests
+import socketio
+from tqdm import tqdm
+
 log = logging.getLogger(__name__)
+
 
 @dataclasses.dataclass
 class SocketIOLock:
     """A client-side context manager for a distributed lock via Socket.IO."""
+
     sio: socketio.Client
     target: str
 
@@ -42,11 +45,15 @@ class SocketIOLock:
         if not self.release():
             # Use a warning here because an exception in release could hide
             # the original exception that occurred inside the 'with' block.
-            warnings.warn(f"Failed to release lock for target '{self.target}'. It may have expired.")
+            warnings.warn(
+                f"Failed to release lock for target '{self.target}'. It may have expired."
+            )
+
 
 @dataclasses.dataclass
 class Client(MutableSequence):
     """A client for interacting with the ZnDraw server. Implements MutableSequence for frame operations."""
+
     room: str = "default"
     url: str = "http://localhost:5000"
 
@@ -90,9 +97,9 @@ class Client(MutableSequence):
         for key, value in flattened.items():
             if isinstance(value, np.ndarray):
                 serialized[key] = {
-                    'data': value.tobytes(),
-                    'shape': value.shape,
-                    'dtype': str(value.dtype)
+                    "data": value.tobytes(),
+                    "shape": value.shape,
+                    "dtype": str(value.dtype),
                 }
             else:
                 # Collect non-array values for metadata
@@ -101,16 +108,16 @@ class Client(MutableSequence):
         # If we have non-array data, store it as a JSON-encoded numpy array
         if non_array_data:
             json_str = json.dumps(non_array_data)
-            json_array = np.array([json_str], dtype='U')
-            serialized['_metadata'] = {
-                'data': json_array.tobytes(),
-                'shape': json_array.shape,
-                'dtype': str(json_array.dtype)
+            json_array = np.array([json_str], dtype="U")
+            serialized["_metadata"] = {
+                "data": json_array.tobytes(),
+                "shape": json_array.shape,
+                "dtype": str(json_array.dtype),
             }
 
         return serialized
 
-    def _flatten_data(self, data, prefix=''):
+    def _flatten_data(self, data, prefix=""):
         """Flatten nested dictionaries using dot notation for keys."""
         flattened = {}
         for key, value in data.items():
@@ -126,7 +133,7 @@ class Client(MutableSequence):
         """Reconstruct nested dictionary from flattened dot notation."""
         result = {}
         for key, value in flattened.items():
-            parts = key.split('.')
+            parts = key.split(".")
             current = result
             for part in parts[:-1]:
                 if part not in current:
@@ -142,15 +149,15 @@ class Client(MutableSequence):
         metadata = {}
 
         for key, array_info in serialized_data.items():
-            if key == '_metadata':
+            if key == "_metadata":
                 # Handle metadata specially
-                data_bytes = array_info['data']
-                shape = tuple(array_info['shape'])
-                dtype = array_info['dtype']
+                data_bytes = array_info["data"]
+                shape = tuple(array_info["shape"])
+                dtype = array_info["dtype"]
 
                 # Reconstruct the JSON string array
                 json_array = np.frombuffer(data_bytes, dtype=dtype).reshape(shape)
-                json_str = str(json_array[0]) if len(json_array) > 0 else '{}'
+                json_str = str(json_array[0]) if len(json_array) > 0 else "{}"
 
                 try:
                     metadata = json.loads(json_str)
@@ -158,9 +165,9 @@ class Client(MutableSequence):
                     metadata = {}
             else:
                 # Regular array
-                data_bytes = array_info['data']
-                shape = tuple(array_info['shape'])
-                dtype = array_info['dtype']
+                data_bytes = array_info["data"]
+                shape = tuple(array_info["shape"])
+                dtype = array_info["dtype"]
                 converted[key] = np.frombuffer(data_bytes, dtype=dtype).reshape(shape)
 
         # Add metadata back
@@ -180,7 +187,9 @@ class Client(MutableSequence):
 
         response = self.sio.call("upload:prepare", request_data)
         if not response or not response.get("success"):
-            raise RuntimeError(f"Failed to prepare for upload: {response.get('error') if response else 'No response'}")
+            raise RuntimeError(
+                f"Failed to prepare for upload: {response.get('error') if response else 'No response'}"
+            )
         return response["token"]
 
     def _upload_frame_data(self, token: str, serialized_data) -> dict:
@@ -190,14 +199,11 @@ class Client(MutableSequence):
         upload_url = f"{self.url}/rooms/{self.room}/frames"
         headers = {
             "Authorization": f"Bearer {token}",
-            "Content-Type": "application/octet-stream"
+            "Content-Type": "application/octet-stream",
         }
 
         http_response = requests.post(
-            upload_url,
-            data=packed_data,
-            headers=headers,
-            timeout=30
+            upload_url, data=packed_data, headers=headers, timeout=30
         )
         http_response.raise_for_status()
 
@@ -217,7 +223,11 @@ class Client(MutableSequence):
         with lock:
             try:
                 token = self._prepare_upload_token(action, **kwargs)
-                serialized_data = self._serialize_frame_data(data) if isinstance(data, dict) else self._serialize_frames_data(data)
+                serialized_data = (
+                    self._serialize_frame_data(data)
+                    if isinstance(data, dict)
+                    else self._serialize_frames_data(data)
+                )
                 return self._upload_frame_data(token, serialized_data)
             except requests.exceptions.RequestException as e:
                 raise RuntimeError(f"Error uploading frame data: {e}") from e
@@ -265,7 +275,9 @@ class Client(MutableSequence):
             if indices_or_slice.step is not None:
                 payload["step"] = indices_or_slice.step
         else:
-            raise ValueError("indices_or_slice must be either a list of integers or a slice object")
+            raise ValueError(
+                "indices_or_slice must be either a list of integers or a slice object"
+            )
 
         # Add keys parameter if specified
         if keys is not None:
@@ -305,7 +317,9 @@ class Client(MutableSequence):
         response = self.sio.call("frames:count", {})
 
         if not response or not response.get("success"):
-            raise RuntimeError(f"Failed to get frame count: {response.get('error') if response else 'No response'}")
+            raise RuntimeError(
+                f"Failed to get frame count: {response.get('error') if response else 'No response'}"
+            )
 
         return response["count"]
 
@@ -320,10 +334,12 @@ class Client(MutableSequence):
             response = self.sio.call("frame:delete", {"frame_id": frame_id})
 
             if not response or not response.get("success"):
-                raise RuntimeError(f"Failed to delete frame: {response.get('error') if response else 'No response'}")
+                raise RuntimeError(
+                    f"Failed to delete frame: {response.get('error') if response else 'No response'}"
+                )
 
             return response
-        
+
     def replace_frame(self, frame_id: int, data: dict):
         """
         Replaces an existing logical frame with new data.
@@ -374,7 +390,7 @@ class Client(MutableSequence):
         current_len = len(self)
 
         # Convert values to list if it's iterable
-        if hasattr(values, '__iter__') and not isinstance(values, dict):
+        if hasattr(values, "__iter__") and not isinstance(values, dict):
             values = list(values)
         else:
             # Single value for slice assignment
@@ -402,13 +418,15 @@ class Client(MutableSequence):
 
         with lock:
             # TODO: this is very chatty and should be improved in the server!!
-            
+
             # First, delete the old range if it exists
             for _ in range(old_count):
                 if start < len(self):
                     response = self.sio.call("frame:delete", {"frame_id": start})
                     if not response or not response.get("success"):
-                        raise RuntimeError(f"Failed to delete frame: {response.get('error') if response else 'No response'}")
+                        raise RuntimeError(
+                            f"Failed to delete frame: {response.get('error') if response else 'No response'}"
+                        )
 
             # Then insert the new values at the start position
             for i, value in enumerate(values):
@@ -417,7 +435,9 @@ class Client(MutableSequence):
                 serialized_data = self._serialize_frame_data(value)
                 self._upload_frame_data(token, serialized_data)
 
-    def _extended_slice_assignment(self, start: int, stop: int, step: int, values: list):
+    def _extended_slice_assignment(
+        self, start: int, stop: int, step: int, values: list
+    ):
         """Handle extended slice assignment like data[::2] = [a, b, c]."""
         if not self.sio.connected:
             raise RuntimeError("Client is not connected. Please call .connect() first.")
@@ -426,7 +446,9 @@ class Client(MutableSequence):
         indices = list(range(start, stop, step))
 
         if len(values) != len(indices):
-            raise ValueError(f"attempt to assign sequence of size {len(values)} to extended slice of size {len(indices)}")
+            raise ValueError(
+                f"attempt to assign sequence of size {len(values)} to extended slice of size {len(indices)}"
+            )
 
         lock = SocketIOLock(self.sio, target="trajectory:meta")
 
@@ -462,11 +484,12 @@ class Client(MutableSequence):
 
     def extend(self, values: list[dict]):
         """Extend with multiple frames."""
-        if hasattr(values, '__iter__'):
+        if hasattr(values, "__iter__"):
             values = list(values)
         self.extend_frames(values)
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     client = Client()
     client.connect()
     for idx in tqdm(range(50)):
@@ -484,8 +507,10 @@ if __name__ == '__main__':
     for idx in range(10):
         frame = client.get_frame(idx)
         print(f"Frame {idx} keys: {list(frame.keys())}, index: {frame['index']}")
-    
+
     data = [{"index": np.array([1000 + i])} for i in range(50)]
+    for _ in tqdm(range(1)):
+        client.extend_frames(data)
     for _ in tqdm(range(1)):
         client.extend_frames(data)
     for entry in tqdm(data):
