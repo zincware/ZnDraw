@@ -41,6 +41,7 @@ def decode_data(data: dict) -> dict:
             deserialized[key] = value
     return deserialized
 
+
 @deprecated("Use extend_zarr() instead.")
 def create_zarr(root: zarr.Group, data: dict):
     extend_zarr(root, [data])
@@ -67,7 +68,9 @@ def read_zarr(root: zarr.Group, index: int, keys: t.Optional[list[str]] = None) 
         try:
             valid_keys_for_frame = set(json.loads(root["__valid_keys__"][index].item()))
         except IndexError as e:
-            raise IndexError(f"Index {index} is out of bounds for the Zarr store.") from e
+            raise IndexError(
+                f"Index {index} is out of bounds for the Zarr store."
+            ) from e
 
         if keys is not None:
             # Case 1: User requested specific keys.
@@ -92,7 +95,6 @@ def read_zarr(root: zarr.Group, index: int, keys: t.Optional[list[str]] = None) 
                 )
         keys_to_load = keys if keys is not None else list(root.keys())
 
-
     # Process and load the data for the determined keys
     for key in keys_to_load:
         item = root[key]
@@ -110,6 +112,7 @@ def read_zarr(root: zarr.Group, index: int, keys: t.Optional[list[str]] = None) 
             data[key] = read_zarr(item, index=index)
 
     return data
+
 
 def extend_zarr(root: zarr.Group, data: list[dict]):
     """
@@ -153,41 +156,69 @@ def extend_zarr(root: zarr.Group, data: list[dict]):
     def _extend_recursive(group: zarr.Group, data_dict: dict, idx: int, total_len: int):
         for key, value in data_dict.items():
             is_new = key not in group
-            attrs, item_type, prepared_value, shape_suffix, dtype = {}, None, None, None, None
+            attrs, item_type, prepared_value, shape_suffix, dtype = (
+                {},
+                None,
+                None,
+                None,
+                None,
+            )
 
             # Determine how to handle the value based on its type
             if isinstance(value, np.ndarray):
-                item_type, dtype, shape_suffix, prepared_value = "array", value.dtype, value.shape, value
+                item_type, dtype, shape_suffix, prepared_value = (
+                    "array",
+                    value.dtype,
+                    value.shape,
+                    value,
+                )
             elif isinstance(value, dict):
                 try:
                     prepared_value = json.dumps(value)
-                    item_type, dtype, shape_suffix, attrs = "json_array", zarr.dtype.VariableLengthUTF8(), (), {"format": "json"}
+                    item_type, dtype, shape_suffix, attrs = (
+                        "json_array",
+                        zarr.dtype.VariableLengthUTF8(),
+                        (),
+                        {"format": "json"},
+                    )
                 except TypeError:
                     item_type = "group"
             else:
                 prepared_value = json.dumps(value)
-                item_type, dtype, shape_suffix, attrs = "json_array", zarr.dtype.VariableLengthUTF8(), (), {"format": "json"}
+                item_type, dtype, shape_suffix, attrs = (
+                    "json_array",
+                    zarr.dtype.VariableLengthUTF8(),
+                    (),
+                    {"format": "json"},
+                )
 
             # Create/resize and write to the Zarr item
             if item_type in ["array", "json_array"]:
                 if is_new:
                     item = group.create_array(
-                        name=key, shape=(total_len,) + shape_suffix,
-                        chunks=(1,) + shape_suffix, dtype=dtype
+                        name=key,
+                        shape=(total_len,) + shape_suffix,
+                        chunks=(1,) + shape_suffix,
+                        dtype=dtype,
                     )
                     item.attrs.update(attrs)
                 else:
                     item = group[key]
                     if not isinstance(item, zarr.Array):
-                        raise TypeError(f"Existing item '{key}' is a Group, expected Array.")
+                        raise TypeError(
+                            f"Existing item '{key}' is a Group, expected Array."
+                        )
                     if item.shape[0] < total_len:
                         item.resize((total_len,) + item.shape[1:])
                     if len(item.shape) - 1 != len(shape_suffix):
-                        raise ValueError(f"Shape mismatch for key '{key}': existing shape {item.shape}, new shape {shape_suffix}.")
+                        raise ValueError(
+                            f"Shape mismatch for key '{key}': existing shape {item.shape}, new shape {shape_suffix}."
+                        )
                     if item.shape[2:] != shape_suffix[1:]:
-                        raise ValueError(f"Shape mismatch for key '{key}': existing shape {item.shape}, new shape {shape_suffix}.")
+                        raise ValueError(
+                            f"Shape mismatch for key '{key}': existing shape {item.shape}, new shape {shape_suffix}."
+                        )
                     if item.shape[1:] != shape_suffix:
-
                         # # TODO: what about multidimensional arrays?
                         if f"__mask__{key}__" not in root:
                             grp = group.require_array(
@@ -196,11 +227,14 @@ def extend_zarr(root: zarr.Group, data: list[dict]):
                                 chunks="auto",
                                 dtype="int32",
                             )
-                            grp[:] = np.array([item.shape[1] for _ in range(total_len - 1)] + [shape_suffix[0]])
+                            grp[:] = np.array(
+                                [item.shape[1] for _ in range(total_len - 1)]
+                                + [shape_suffix[0]]
+                            )
                         else:
                             grp = group[f"__mask__{key}__"]
                             if grp.shape[0] < total_len:
-                                grp.resize((total_len -1,))
+                                grp.resize((total_len - 1,))
                             grp.append(np.array([shape_suffix[0]]))
                         if item.shape[1:] < shape_suffix:
                             item.resize((item.shape[0],) + shape_suffix)
@@ -212,12 +246,13 @@ def extend_zarr(root: zarr.Group, data: list[dict]):
     # Process each new data entry
     for i, entry in enumerate(data):
         current_index = start_index + i
-        
+
         # 1. Store the list of valid keys for this entry
         valid_keys_ds[current_index] = json.dumps(list(entry.keys()))
-        
+
         # 2. Process the actual data recursively
         _extend_recursive(root, entry, current_index, total_entries)
+
 
 class ZarrStorageSequence(MutableSequence):
     def __init__(self, group: zarr.Group):

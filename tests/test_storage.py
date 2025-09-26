@@ -5,7 +5,7 @@ import numpy.testing as npt
 import pytest
 import zarr
 
-from zndraw_communication.storage import (
+from zndraw.storage import (
     ZarrStorageSequence,
     create_zarr,
     decode_data,
@@ -269,6 +269,7 @@ def test_zarr_storage_sequence_create(tmp_path, sample_data):
 
     assert_equal(sequence.get(0, keys=["info"]), {"info": sample_data["info"]})
 
+
 def test_zarr_storage_sequence_add_new(tmp_path):
     root = zarr.group(store=tmp_path / "test.zarr")
     store = ZarrStorageSequence(root)
@@ -282,7 +283,9 @@ def test_zarr_storage_sequence_add_new(tmp_path):
     assert_equal(store[1], {"a": np.array([3, 4]), "b": np.array([5, 6])})
     assert_equal(store.get(1, keys=["a"]), {"a": np.array([3, 4])})
     assert_equal(store.get(1, keys=["b"]), {"b": np.array([5, 6])})
-    assert_equal(store.get(1, keys=["a", "b"]), {"a": np.array([3, 4]), "b": np.array([5, 6])})
+    assert_equal(
+        store.get(1, keys=["a", "b"]), {"a": np.array([3, 4]), "b": np.array([5, 6])}
+    )
     assert_equal(store[2], {"b": np.array([9, 10])})
     assert_equal(store.get(2, keys=["b"]), {"b": np.array([9, 10])})
 
@@ -292,6 +295,7 @@ def test_zarr_storage_sequence_add_new(tmp_path):
         store.get(2, keys=["a"])
     with pytest.raises(KeyError):
         store.get(1, keys=["c"])
+
 
 def test_zarr_storage_sequence_add_shape(tmp_path):
     root = zarr.group(store=tmp_path / "test.zarr")
@@ -310,6 +314,7 @@ def test_zarr_storage_sequence_add_shape(tmp_path):
     assert_equal(store[3], {"a": np.array([3, 4, 5])})
     assert_equal(store[4], {"b": np.array([13])})
 
+
 def test_zarr_storage_sequence_add_shape_2d(tmp_path):
     root = zarr.group(store=tmp_path / "test.zarr")
     store = ZarrStorageSequence(root)
@@ -324,4 +329,10 @@ def test_zarr_storage_sequence_add_shape_2d(tmp_path):
     with pytest.raises(ValueError):
         store.append({"a": np.arange(6).reshape(2, 3)})
     with pytest.raises(ValueError):
-        store.append({"a": np.arange(5).reshape(5,)})
+        store.append(
+            {
+                "a": np.arange(5).reshape(
+                    5,
+                )
+            }
+        )

@@ -3,7 +3,7 @@ import uuid
 import numpy as np
 import pytest
 
-from zndraw_communication import Client
+from zndraw import Client
 
 
 def test_connection(server):

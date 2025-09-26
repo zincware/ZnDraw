@@ -10,7 +10,7 @@ import requests
 import socketio
 from tqdm import tqdm
 
-from zndraw_communication.storage import decode_data, encode_data
+from zndraw.storage import decode_data, encode_data
 
 log = logging.getLogger(__name__)
 

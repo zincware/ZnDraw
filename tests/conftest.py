@@ -1,11 +1,11 @@
 import random
+import shutil
 import socket
 import subprocess
 import time
-import eventlet # noqa - eventlet must be installed for flask-socketio to start a production server
 
+import eventlet  # noqa - eventlet must be installed for flask-socketio to start a production server
 import pytest
-import shutil
 
 
 @pytest.fixture
@@ -18,7 +18,6 @@ def server():
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
     )
-    
 
     # Wait for the server to be ready
     for _ in range(100):
@@ -46,4 +45,3 @@ def server():
             proc.wait(timeout=5)
         except subprocess.TimeoutExpired:
             proc.kill()
-
