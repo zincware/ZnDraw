@@ -105,7 +105,7 @@ class Client(MutableSequence):
         """Upload frame data using the provided token."""
         packed_data = msgpack.packb(serialized_data)
 
-        upload_url = f"{self.url}/rooms/{self.room}/frames"
+        upload_url = f"{self.url}/api/rooms/{self.room}/frames"
         headers = {
             "Authorization": f"Bearer {token}",
             "Content-Type": "application/octet-stream",
@@ -192,7 +192,7 @@ class Client(MutableSequence):
         if keys is not None:
             payload["keys"] = keys
 
-        full_url = f"{self.url}/frames/{self.room}"
+        full_url = f"{self.url}/api/frames/{self.room}"
         response = requests.post(full_url, json=payload, timeout=30)
 
         # Check for errors

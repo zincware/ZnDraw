@@ -1,5 +1,4 @@
 """ZnDraw communication package with physical-to-logical frame mapping."""
-
 import logging
 
 from zndraw.client import Client

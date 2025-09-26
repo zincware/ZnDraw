@@ -1,14 +1,9 @@
 import json
 import logging
-import shutil
-import typing as t
-import uuid
 
 import msgpack
-import redis
 import zarr
-from flask import Flask, Response, current_app, request
-from flask_socketio import SocketIO, join_room, leave_room, rooms
+from flask import Response, current_app, request
 
 from zndraw.storage import ZarrStorageSequence, decode_data, encode_data
 
@@ -30,9 +25,10 @@ def get_zarr_store_path(room_id: str) -> str:
     return f"data/{room_id}.zarr"
 
 
-@main.route("/frames/<string:room_id>", methods=["POST"])
+@main.route("/api/frames/<string:room_id>", methods=["POST"])
 def get_frames(room_id):
     """Serves multiple frames' data from the room's Zarr store using either indices or slice parameters."""
+    print("get_frames called")
     r = current_app.config["redis"]
     try:
         # Parse the request data
@@ -143,7 +139,7 @@ def get_frames(room_id):
         )
 
 
-@main.route("/rooms/<string:room_id>/frames", methods=["POST"])
+@main.route("/api/rooms/<string:room_id>/frames", methods=["POST"])
 def append_frame(room_id):
     """Appends a new frame. Authorized via a short-lived Bearer token."""
     r = current_app.config["redis"]
