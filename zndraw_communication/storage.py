@@ -100,7 +100,11 @@ def read_zarr(root: zarr.Group, index: int, keys: t.Optional[list[str]] = None) 
             if item.attrs.get("format") == "json":
                 data[key] = json.loads(item[index].item())
             else:
-                data[key] = item[index]
+                if f"__mask__{key}__" in root:
+                    mask = root[f"__mask__{key}__"][index]
+                    data[key] = item[index, :mask]
+                else:
+                    data[key] = item[index]
         elif isinstance(item, zarr.Group):
             # For a subgroup, we read its entire contents for the given index.
             data[key] = read_zarr(item, index=index)
@@ -178,6 +182,24 @@ def extend_zarr(root: zarr.Group, data: list[dict]):
                         raise TypeError(f"Existing item '{key}' is a Group, expected Array.")
                     if item.shape[0] < total_len:
                         item.resize((total_len,) + item.shape[1:])
+                    if item.shape[1:] != shape_suffix:
+
+                        # # TODO: what about multidimensional arrays?
+                        if f"__mask__{key}__" not in root:
+                            grp = group.require_array(
+                                name=f"__mask__{key}__",
+                                shape=(total_len,),
+                                chunks="auto",
+                                dtype="int32",
+                            )
+                            grp[:] = np.array([item.shape[1] for _ in range(total_len - 1)] + [shape_suffix[0]])
+                        else:
+                            grp = group[f"__mask__{key}__"]
+                            if grp.shape[0] < total_len:
+                                grp.resize((total_len -1,))
+                            grp.append(np.array([shape_suffix[0]]))
+                        if item.shape[1:] < shape_suffix:
+                            item.resize((item.shape[0],) + shape_suffix)
                 item[idx] = prepared_value
             elif item_type == "group":
                 subgroup = group.require_group(key)

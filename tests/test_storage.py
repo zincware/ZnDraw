@@ -1,6 +1,7 @@
 import json
 
 import numpy as np
+import numpy.testing as npt
 import pytest
 import zarr
 
@@ -297,7 +298,16 @@ def test_zarr_storage_sequence_add_shape(tmp_path):
     store = ZarrStorageSequence(root)
     store.append({"a": np.array([1, 2])})
     store.append({"a": np.array([3, 4, 5, 6])})
+    # TODO: test add something in between that does not have "a"
+    store.append({"a": np.array([3, 4, 5])})
 
-    assert len(store) == 2
+    assert len(store) == 3
+    for idx, item in enumerate([np.array([1, 2]), np.array([3, 4, 5, 6]), np.array([3, 4, 5])]):
+        data = store[idx]
+        assert data.keys() == {"a"}
+        npt.assert_array_equal(data["a"], item)
+
+
     assert_equal(store[0], {"a": np.array([1, 2])})
     assert_equal(store[1], {"a": np.array([3, 4, 5, 6])})
+    assert_equal(store[2], {"a": np.array([3, 4, 5])})
