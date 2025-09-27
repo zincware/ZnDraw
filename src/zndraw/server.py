@@ -32,6 +32,11 @@ def celery_init_app(app: Flask) -> Celery:
     app.extensions["celery"] = celery_app
     return celery_app
 
+def redis_init_app(app: Flask) -> redis.Redis:
+    r = redis.Redis(decode_responses=True)
+    app.extensions["redis"] = r
+    return r
+
 def create_app(main: bool = False) -> Flask:
     app = Flask(__name__)
 
@@ -58,13 +63,11 @@ def create_app(main: bool = False) -> Flask:
 
     app.config.from_prefixed_env()
     celery_init_app(app)
+    redis_init_app(app)
 
     socketio.init_app(app, cors_allowed_origins="*")
-    r = redis.Redis(decode_responses=True)
 
     app.config["SECRET_KEY"] = "your_secret_key"
-    # TODO: move "redis" to extensions and use similiar to celery_init_app!
-    app.config["redis"] = r
     
     if main:
         tasks.read_file.delay()

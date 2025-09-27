@@ -20,6 +20,6 @@ def main(port: int = 5000, debug: bool = False):
         worker.terminate()
         worker.wait()
         worker.kill()
-        flask_app.config["redis"].flushall()
+        flask_app.extensions["redis"].flushall()
         shutil.rmtree("data", ignore_errors=True)
         print("Celery worker terminated.")

@@ -44,7 +44,7 @@ def internal_emit():
 @main.route("/api/frames/<string:room_id>", methods=["POST"])
 def get_frames(room_id):
     """Serves multiple frames' data from the room's Zarr store using either indices or slice parameters."""
-    r = current_app.config["redis"]
+    r = current_app.extensions["redis"]
     try:
         # Parse the request data
         request_data = request.get_json()
@@ -158,7 +158,7 @@ def get_frames(room_id):
 @main.route("/api/rooms/<string:room_id>/frames", methods=["POST"])
 def append_frame(room_id):
     """Appends a new frame. Authorized via a short-lived Bearer token."""
-    r = current_app.config["redis"]
+    r = current_app.extensions["redis"]
     auth_header = request.headers.get("Authorization")
     if not auth_header or not auth_header.startswith("Bearer "):
         return {"error": "Authorization token is missing or invalid"}, 401

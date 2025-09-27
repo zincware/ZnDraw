@@ -4,8 +4,14 @@ import { useAppStore } from '../store';
 import { useFormStore } from '../formStore';
 
 export const useSocketManager = (room: string) => {
-  const { setConnected, setFrameCount } = useAppStore();
+  const { setConnected, setFrameCount, isConnected } = useAppStore();
   const { setFormConfigs } = useFormStore();
+
+  useEffect(() => {
+    if (!room) return;
+    if (isConnected) return;
+    socket.connect();
+  }, [room]);
 
   useEffect(() => {
     function onConnect() {

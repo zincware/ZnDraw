@@ -24,11 +24,15 @@ def get_lock_key(room: str, target: str) -> str:
     """Constructs a standardized Redis key for a lock."""
     return f"room:{room}:lock:{target}"
 
+@socketio.on("connect")
+def handle_connect():
+    sid = request.sid
+    log.info(f"Client connected: {sid}")
 
 @socketio.on("disconnect")
 def handle_disconnect():
     sid = request.sid
-    r = current_app.config["redis"]
+    r = current_app.extensions["redis"]
     log.info(f"Client disconnected: {sid}")
     lock_keys = r.scan_iter(f"*:lock:*")
     for key in lock_keys:
@@ -55,7 +59,7 @@ def handle_join(data):
 @socketio.on("lock:acquire")
 def acquire_lock(data):
     sid = request.sid
-    r = current_app.config["redis"]
+    r = current_app.extensions["redis"]
     target = data.get("target")
     room = get_project_room_from_session(sid)
 
@@ -76,7 +80,7 @@ def acquire_lock(data):
 @socketio.on("lock:release")
 def release_lock(data):
     sid = request.sid
-    r = current_app.config["redis"]
+    r = current_app.extensions["redis"]
     target = data.get("target")
     room = get_project_room_from_session(sid)
 
@@ -98,7 +102,7 @@ def release_lock(data):
 @socketio.on("upload:prepare")
 def handle_upload_prepare(data):
     sid = request.sid
-    r = current_app.config["redis"]
+    r = current_app.extensions["redis"]
     room = get_project_room_from_session(sid)
     action = data.get("action")  # Default to append for backward compatibility
     frame_id = data.get("frame_id")  # For replace operations
@@ -160,7 +164,7 @@ def handle_upload_prepare(data):
 @socketio.on("frames:count")
 def handle_len_frames(data):
     sid = request.sid
-    r = current_app.config["redis"]
+    r = current_app.extensions["redis"]
     room = get_project_room_from_session(sid)
 
     if not room:
@@ -179,7 +183,7 @@ def handle_len_frames(data):
 @socketio.on("frame:delete")
 def handle_delete_frame(data):
     sid = request.sid
-    r = current_app.config["redis"]
+    r = current_app.extensions["redis"]
     room = get_project_room_from_session(sid)
     frame_id = data.get("frame_id")
 
