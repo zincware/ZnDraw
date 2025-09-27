@@ -19,7 +19,6 @@ def run_celery_worker() -> subprocess.Popen:
             "src.zndraw.app.make_celery",
             "worker",
             "--loglevel=info",
-            "--pool=eventlet",
         ],
         env=my_env,
     )

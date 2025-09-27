@@ -1,22 +1,91 @@
 import { Box, Slider, TextField, Typography, CircularProgress } from "@mui/material";
-import { useEffect, useState } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import WifiIcon from '@mui/icons-material/Wifi';
 import CloudDownloadIcon from '@mui/icons-material/CloudDownload';
 import { useAppStore } from '../store';
+import { throttle } from 'lodash';
+import { socket } from '../socket';
 
 
 const FrameProgressBar = () => {
-    // const [currentFrame, setCurrentFrame] = useState(0);
     const [isEditing, setIsEditing] = useState(false);
     const [inputValue, setInputValue] = useState("0");
-    const [isLoading, setIsLoading] = useState(false);
-    const [isConnected, setIsConnected] = useState(true);
-    const [skipFrames, setSkipFrames] = useState(1);
 
-    const { currentFrame, setCurrentFrame, frameCount } = useAppStore();
-    // const { data: frameData, isLoading, isError } = useFrameData(currentFrame, ['positions']);
+    // Refs to manage the scrubbing logic without causing re-renders
+    const scrubTimerRef = useRef<NodeJS.Timeout | null>(null);
+    const isScrubbingRef = useRef(false);
 
-    // Animation for waiting state
+    const {
+        currentFrame, setCurrentFrame, frameCount, isConnected, isLoading,
+        skipFrames, setSkipFrames, isPresenter, setPresenter, presenterSid
+    } = useAppStore();
+
+    // Emits CONTINUOUS updates while dragging
+    const throttledFrameUpdate = useMemo(
+        () => throttle((frame: number) => {
+            // Only send if we are confirmed to be the presenter
+            if (useAppStore.getState().isPresenter) {
+                socket.emit('set_frame_continuous', { frame });
+            }
+        }, 100),
+        []
+    );
+
+    // This is the primary handler for the slider
+    const handleSliderChange = (_e: Event, newFrame: number | number[]) => {
+        setCurrentFrame(newFrame as number);
+
+        // If we're already in scrubbing mode, just send throttled updates
+        if (isScrubbingRef.current) {
+            throttledFrameUpdate(newFrame as number);
+            return;
+        }
+
+        // If a timer is running, it means this is the 2nd change event -> it's a scrub!
+        if (scrubTimerRef.current) {
+            clearTimeout(scrubTimerRef.current);
+            scrubTimerRef.current = null;
+            isScrubbingRef.current = true;
+            socket.emit('request_presenter_token'); // Escalate to presenter mode
+        }
+        // This is the first change event. Treat it as an atomic jump for now.
+        else {
+            socket.emit('set_frame_atomic', { frame: newFrame as number });
+            // Start a timer. If it completes, the interaction was just a click.
+            scrubTimerRef.current = setTimeout(() => {
+                scrubTimerRef.current = null;
+            }, 150); // A short delay to detect a drag
+        }
+    };
+
+    // This handler cleans up after the interaction ends
+    const handleScrubEnd = () => {
+        // Always clear any pending timer
+        if (scrubTimerRef.current) {
+            clearTimeout(scrubTimerRef.current);
+            scrubTimerRef.current = null;
+        }
+
+        // If we were in scrubbing mode, release the token
+        if (isScrubbingRef.current) {
+            throttledFrameUpdate.flush(); // Send the final frame
+            socket.emit('release_presenter_token');
+            setPresenter(false); // Optimistically update UI
+        }
+
+        // Reset the scrubbing flag for the next interaction
+        isScrubbingRef.current = false;
+    };
+
+    // Ensure timers are cleaned up if the component unmounts
+    useEffect(() => {
+        return () => {
+            if (scrubTimerRef.current) {
+                clearTimeout(scrubTimerRef.current);
+            }
+        };
+    }, []);
+
 
     const waitingAnimation = {
         '@keyframes pulse': {
@@ -143,14 +212,18 @@ const FrameProgressBar = () => {
                             }
                         }}
                     >
-                        {currentFrame} / {frameCount - 1 }
+                        {currentFrame} / {frameCount - 1}
                     </Typography>
                 )}
             </Box>
+            {/* TODO: prevent arrow movements / handle them seperatly! */}
             <Slider
                 orientation="horizontal"
                 value={currentFrame}
-                onChange={(_e, val) => setCurrentFrame(val as number)}
+                onChange={handleSliderChange}
+                onMouseUp={handleScrubEnd} 
+                onMouseDown={() => { isScrubbingRef.current = false; }}
+                disabled={presenterSid !== null && !isPresenter}
                 max={frameCount - 1}
                 aria-label="Frame Progress"
                 valueLabelDisplay="auto"

@@ -17,9 +17,13 @@ def main(port: int = 5000, debug: bool = False):
     try:
         socketio.run(flask_app, debug=debug, host="0.0.0.0", port=port)
     finally:
-        worker.terminate()
-        worker.wait()
-        worker.kill()
-        flask_app.extensions["redis"].flushall()
+        flask_app.extensions["celery"].control.shutdown()
+        socketio.sleep(1)  # give some time to shutdown
         shutil.rmtree("data", ignore_errors=True)
-        print("Celery worker terminated.")
+        flask_app.extensions["redis"].flushall()
+        worker.wait()
+        print("Celery worker closed.")
+        
+    #     # worker.terminate()
+    #     # worker.wait()
+    #     # worker.kill()

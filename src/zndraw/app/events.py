@@ -3,12 +3,33 @@ import typing as t
 import uuid
 
 from flask import current_app, request
-from flask_socketio import join_room, leave_room, rooms
+from flask_socketio import join_room, leave_room, rooms, emit
 
 from zndraw.server import socketio
 from zndraw.app import tasks
 
 log = logging.getLogger(__name__)
+
+
+TOKEN_EXPIRY_SECONDS = 5 # Short expiry for auto-cleanup
+
+
+def _get_len() -> dict:
+    sid = request.sid
+    r = current_app.extensions["redis"]
+    room = get_project_room_from_session(sid)
+
+    if not room:
+        return {"success": False, "error": "Client has not joined a room."}
+
+    try:
+        indices_key = f"room:{room}:trajectory:indices"
+        # Count is the number of entries in the mapping (logical frames)
+        frame_count = r.zcard(indices_key)
+        return {"success": True, "count": frame_count}
+    except Exception as e:
+        log.error(f"Failed to get frame count: {e}")
+        return {"success": False, "error": "Failed to get frame count"}
 
 
 # --- Helper Functions ---
@@ -33,6 +54,7 @@ def handle_connect():
 def handle_disconnect():
     sid = request.sid
     r = current_app.extensions["redis"]
+    room = get_project_room_from_session(sid)
     log.info(f"Client disconnected: {sid}")
     lock_keys = r.scan_iter(f"*:lock:*")
     for key in lock_keys:
@@ -41,12 +63,19 @@ def handle_disconnect():
                 f"Cleaning up orphaned lock '{key}' held by disconnected client {sid}"
             )
             r.delete(key)
+    lock_key = f"room:{room}:presenter_lock"
+    presenter_sid = r.get(lock_key)
+    if presenter_sid and presenter_sid == request.sid:
+        r.delete(lock_key)
+        # Inform everyone that the presenter left
+        emit('presenter_update', {'presenterSid': None}, to=room)
 
 
 @socketio.on("join_room")
-def handle_join(data):
+def on_join(data):
     room = data["room"]
     sid = request.sid
+    r = current_app.extensions["redis"]
     if previous_room := get_project_room_from_session(sid):
         leave_room(previous_room)
         log.info(f"Client {sid} left room: {previous_room}")
@@ -54,7 +83,91 @@ def handle_join(data):
     join_room(room)
     log.info(f"Client {sid} joined room: {room}")
     tasks.get_schema.delay(sid)
+    emit("len_frames", _get_len(), room=sid)
 
+    presenter_sid = r.get(f"room:{room}:presenter_lock")
+    if presenter_sid:
+        emit('presenter_update', {'presenterSid': presenter_sid}, to=sid)
+
+
+@socketio.on('request_presenter_token')
+def handle_request_presenter_token():
+    sid = request.sid
+    room = get_project_room_from_session(sid)
+    lock_key = f"room:{room}:presenter_lock"
+
+    r = current_app.extensions["redis"]
+    
+    # Try to acquire the lock using SETNX (set if not exists)
+    # This is an atomic operation.
+    was_set = r.set(lock_key, request.sid, nx=True, ex=TOKEN_EXPIRY_SECONDS)
+
+    if was_set:
+        # Success! You are the presenter.
+        emit('presenter_token_granted')
+        # Inform everyone else in the room who the new presenter is
+        emit('presenter_update', {'presenterSid': request.sid}, to=room)
+    else:
+        # Failure, someone else holds the lock.
+        emit('presenter_token_denied')
+
+
+@socketio.on('set_frame_atomic')
+def handle_set_frame_atomic(data):
+    """
+    Handles a single frame jump. REJECTED if a presenter is active.
+    """
+    room = get_project_room_from_session(request.sid)
+    lock_key = f"room:{room}:presenter_lock"
+    redis_client = current_app.extensions["redis"]
+
+    if redis_client.exists(lock_key):
+        return # Presenter is active, ignore atomic update
+
+    frame = data.get('frame')
+    if frame is not None:
+        emit('frame_update', {'frame': frame}, to=room, skip_sid=request.sid)
+
+@socketio.on('set_frame_continuous')
+def handle_set_frame_continuous(data):
+    """
+    Handles continuous frame updates. REQUIRES sender to be the presenter.
+    """
+    room = get_project_room_from_session(request.sid)
+    lock_key = f"room:{room}:presenter_lock"
+    redis_client = current_app.extensions["redis"]
+    
+    presenter_sid_bytes = redis_client.get(lock_key)
+    if presenter_sid_bytes and presenter_sid_bytes == request.sid:
+        frame = data.get('frame')
+        if frame is not None:
+            emit('frame_update', {'frame': frame}, to=room, skip_sid=request.sid)
+
+@socketio.on('renew_presenter_token')
+def handle_renew_presenter_token():
+    room = get_project_room_from_session(request.sid)
+    lock_key = f"room:{room}:presenter_lock"
+    r = current_app.extensions["redis"]
+    
+    # Verify ownership before renewing
+    presenter_sid = r.get(lock_key)
+    if presenter_sid and presenter_sid == request.sid:
+        # Refresh the expiry time
+        r.expire(lock_key, TOKEN_EXPIRY_SECONDS)
+
+
+@socketio.on('release_presenter_token')
+def handle_release_presenter_token():
+    room = get_project_room_from_session(request.sid)
+    lock_key = f"room:{room}:presenter_lock"
+    r = current_app.extensions["redis"]
+    
+    # Verify ownership before deleting
+    presenter_sid = r.get(lock_key)
+    if presenter_sid and presenter_sid == request.sid:
+        r.delete(lock_key)
+        # Inform everyone that scrubbing is over
+        emit('presenter_update', {'presenterSid': None}, to=room)
 
 @socketio.on("lock:acquire")
 def acquire_lock(data):
@@ -90,6 +203,12 @@ def release_lock(data):
     lock_key = get_lock_key(room, target)
     if r.get(lock_key) == sid:
         r.delete(lock_key)
+
+        # gathering the lock means typically, making updates, so update frame count
+        # TODO: later move this to the specific frames changed, because
+        # we need to send a frames_changed event anyway
+        emit("len_frames", _get_len(), to=room)
+
         log.info(f"Lock released for '{target}' in room '{room}' by {sid}")
         return {"success": True}
 
@@ -163,21 +282,8 @@ def handle_upload_prepare(data):
 
 @socketio.on("frames:count")
 def handle_len_frames(data):
-    sid = request.sid
-    r = current_app.extensions["redis"]
-    room = get_project_room_from_session(sid)
-
-    if not room:
-        return {"success": False, "error": "Client has not joined a room."}
-
-    try:
-        indices_key = f"room:{room}:trajectory:indices"
-        # Count is the number of entries in the mapping (logical frames)
-        frame_count = r.zcard(indices_key)
-        return {"success": True, "count": frame_count}
-    except Exception as e:
-        log.error(f"Failed to get frame count: {e}")
-        return {"success": False, "error": "Failed to get frame count"}
+    return _get_len()
+    
 
 
 @socketio.on("frame:delete")

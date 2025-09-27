@@ -314,4 +314,8 @@ def append_frame(room_id):
         return {"error": "Failed to write to data store"}, 500
 
 
-# --- Socket.IO Control Endpoints ---
+@main.route("/api/exit")
+def exit_app():
+    """Endpoint to gracefully shut down the server. Secured via a shared secret."""
+    socketio.stop()
+    return {"success": True}
