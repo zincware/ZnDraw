@@ -6,6 +6,7 @@ import zarr
 from flask import Response, current_app, request
 
 from zndraw.storage import ZarrStorageSequence, decode_data, encode_data
+from zndraw.server import socketio
 
 from . import main
 
@@ -23,6 +24,21 @@ def get_zarr_store_path(room_id: str) -> str:
     """Returns the path to the Zarr store for a given room."""
     # In a real app, this path might come from a config file.
     return f"data/{room_id}.zarr"
+
+@main.route("/internal/emit", methods=["POST"])
+def internal_emit():
+    """Internal endpoint to emit Socket.IO events. Secured via a shared secret."""
+    data = request.get_json()
+
+    event = data.get("event")
+    sid = data.get("sid")
+    payload = data.get("data", {})
+
+    if not event or not sid:
+        return {"error": "Event and sid are required"}, 400
+
+    socketio.emit(event, payload, to=sid)
+    return {"success": True}
 
 
 @main.route("/api/frames/<string:room_id>", methods=["POST"])

@@ -1,12 +1,15 @@
 import { useEffect } from 'react';
 import { socket } from '../socket';
 import { useAppStore } from '../store';
+import { useFormStore } from '../formStore';
 
 export const useSocketManager = (room: string) => {
   const { setConnected, setFrameCount } = useAppStore();
+  const { setFormConfigs } = useFormStore();
 
   useEffect(() => {
     function onConnect() {
+      console.log('Socket connected and joining room:', room);
       setConnected(true, room);
       socket.emit('join_room', { room });
       socket.emit('frames:count', {}, (response: any) => {
@@ -16,12 +19,24 @@ export const useSocketManager = (room: string) => {
         }
         setFrameCount(response.count);
       });
+    }
+    function onSchema(data: any) {
+      console.log('Received schema:', data);
+      setFormConfigs(data);
+    }
+    function onDisconnect() {
+      console.log('Socket disconnected');
+      setConnected(false, room);
+    }
 
-    }    
+    socket.on('disconnect', onDisconnect);
     socket.on('connect', onConnect);
+    socket.on('schema', onSchema);
 
     return () => {
       socket.off('connect', onConnect);
+      socket.off('schema', onSchema);
+      socket.off('disconnect', onDisconnect);
     };
-  }, [room, setConnected, setFrameCount]);
+  }, [room, setConnected, setFrameCount, setFormConfigs]);
 };

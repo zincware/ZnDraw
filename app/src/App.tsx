@@ -1,6 +1,8 @@
 import { createBrowserRouter, RouterProvider } from 'react-router-dom';
-import RoomPage from './pages/roomPage';
 import MainPage from './pages/landingPage';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+
+const queryClient = new QueryClient()
 
 
 const LandingPage = () => {
@@ -22,14 +24,10 @@ const router = createBrowserRouter([
   },
   {
     path: '/room/:roomId', // The main viewer route
-    element: <RoomPage />,
-  },
-  {
-    path: '/main',
     element: <MainPage />,
-  },
+  }
 ]);
 
 export function App() {
-  return <RouterProvider router={router} />;
+  return <QueryClientProvider client={queryClient}><RouterProvider router={router} /></QueryClientProvider>;
 }

@@ -1,7 +1,7 @@
 import { useAppStore } from '../store';
 
 export function ConnectionStatus() {
-  const { isConnected, currentFrame, frameData, frameCount, roomId } = useAppStore();
+  const { isConnected, currentFrame, frameCount, roomId } = useAppStore();
 
   return (
     <div className="status">
@@ -9,7 +9,6 @@ export function ConnectionStatus() {
         Status: {isConnected ? 'Connected' : 'Disconnected'}
         {isConnected && <span> - Total Frames: {frameCount}</span>}
         {isConnected && <span> - Current Frame: {currentFrame}</span>}
-        {frameData && <span> - Frame Data: {JSON.stringify(frameData)}</span>}
         {roomId && <span> - Room: {roomId}</span>}
       </p>
     </div>

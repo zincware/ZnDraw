@@ -1,17 +1,28 @@
 import { Box, Slider, TextField, Typography, CircularProgress } from "@mui/material";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import WifiIcon from '@mui/icons-material/Wifi';
 import CloudDownloadIcon from '@mui/icons-material/CloudDownload';
+import { useAppStore } from '../store';
+import { useFrameData } from "../hooks/useTrajectoryData";
 
 
 const FrameProgressBar = () => {
-    const [currentFrame, setCurrentFrame] = useState(0);
-    const [totalFrames, setTotalFrames] = useState(100);
+    // const [currentFrame, setCurrentFrame] = useState(0);
     const [isEditing, setIsEditing] = useState(false);
-    const [inputValue, setInputValue] = useState(currentFrame.toString());
+    const [inputValue, setInputValue] = useState("0");
     const [isLoading, setIsLoading] = useState(false);
     const [isConnected, setIsConnected] = useState(true);
     const [skipFrames, setSkipFrames] = useState(1);
+
+    const { currentFrame, setCurrentFrame, frameCount } = useAppStore();
+    // const { data: frameData, isLoading, isError } = useFrameData(currentFrame, ['positions']);
+    const { data: frameData, isError } = useFrameData(currentFrame, ['positions', 'colors', 'radii']);
+
+    useEffect(() => {
+        console.log("Frame data updated:", frameData);
+    }, [frameData]);
+
+    // Animation for waiting state
 
     const waitingAnimation = {
         '@keyframes pulse': {
@@ -44,7 +55,7 @@ const FrameProgressBar = () => {
 
     const handleInputSubmit = () => {
         const newFrame = parseInt(inputValue, 10);
-        if (!isNaN(newFrame) && newFrame >= 0 && newFrame <= totalFrames) {
+        if (!isNaN(newFrame) && newFrame >= 0 && newFrame <= frameCount - 1) {
             setCurrentFrame(newFrame);
         } else {
             setInputValue(currentFrame.toString());
@@ -138,7 +149,7 @@ const FrameProgressBar = () => {
                             }
                         }}
                     >
-                        {currentFrame} / {totalFrames}
+                        {currentFrame} / {frameCount - 1 }
                     </Typography>
                 )}
             </Box>
@@ -146,7 +157,7 @@ const FrameProgressBar = () => {
                 orientation="horizontal"
                 value={currentFrame}
                 onChange={(_e, val) => setCurrentFrame(val as number)}
-                max={totalFrames}
+                max={frameCount - 1}
                 aria-label="Frame Progress"
                 valueLabelDisplay="auto"
                 sx={{

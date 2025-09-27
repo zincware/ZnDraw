@@ -6,6 +6,7 @@ from flask import current_app, request
 from flask_socketio import join_room, leave_room, rooms
 
 from zndraw.server import socketio
+from zndraw.app import tasks
 
 log = logging.getLogger(__name__)
 
@@ -48,6 +49,7 @@ def handle_join(data):
 
     join_room(room)
     log.info(f"Client {sid} joined room: {room}")
+    tasks.get_schema.delay(sid)
 
 
 @socketio.on("lock:acquire")

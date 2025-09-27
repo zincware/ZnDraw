@@ -7,7 +7,7 @@ from celery import Celery, Task
 
 log = logging.getLogger(__name__)
 
-socketio = SocketIO()
+socketio = SocketIO(cors_allowed_origins="*")
 
 
 def upload_data():
@@ -63,6 +63,7 @@ def create_app(main: bool = False) -> Flask:
     r = redis.Redis(decode_responses=True)
 
     app.config["SECRET_KEY"] = "your_secret_key"
+    # TODO: move "redis" to extensions and use similiar to celery_init_app!
     app.config["redis"] = r
     
     if main:
