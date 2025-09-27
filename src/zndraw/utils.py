@@ -18,7 +18,7 @@ def get_scaled_radii() -> np.ndarray:
 def update_colors_and_radii(atoms: ase.Atoms) -> None:
     """Update the colors and radii of the atoms in-place."""
     if "colors" not in atoms.arrays:
-        colors = np.array([jmol_colors[atom.number] for atom in atoms], dtype=np.float16)
+        colors = np.array([jmol_colors[atom.number] for atom in atoms], dtype=np.float32)
         atoms.set_array("colors", colors)
     if "radii" not in atoms.arrays:
          radii = np.array([covalent_radii[atom.number] for atom in atoms], dtype=np.float32)

@@ -3,7 +3,6 @@ import { useEffect, useState } from "react";
 import WifiIcon from '@mui/icons-material/Wifi';
 import CloudDownloadIcon from '@mui/icons-material/CloudDownload';
 import { useAppStore } from '../store';
-import { useFrameData } from "../hooks/useTrajectoryData";
 
 
 const FrameProgressBar = () => {
@@ -16,11 +15,6 @@ const FrameProgressBar = () => {
 
     const { currentFrame, setCurrentFrame, frameCount } = useAppStore();
     // const { data: frameData, isLoading, isError } = useFrameData(currentFrame, ['positions']);
-    const { data: frameData, isError } = useFrameData(currentFrame, ['positions', 'colors', 'radii']);
-
-    useEffect(() => {
-        console.log("Frame data updated:", frameData);
-    }, [frameData]);
 
     // Animation for waiting state
 

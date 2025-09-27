@@ -44,7 +44,6 @@ def internal_emit():
 @main.route("/api/frames/<string:room_id>", methods=["POST"])
 def get_frames(room_id):
     """Serves multiple frames' data from the room's Zarr store using either indices or slice parameters."""
-    print("get_frames called")
     r = current_app.config["redis"]
     try:
         # Parse the request data
@@ -113,6 +112,7 @@ def get_frames(room_id):
 
         # Get keys parameter if specified
         requested_keys = request_data.get("keys")
+        print(f"get_frames called with keys: {requested_keys}")
         # error_data = {"error": f"Key(s) not found: {', '.join(sorted(missing_keys))}", "type": "KeyError"}
         # return Response(json.dumps(error_data), status=404, content_type='application/json')
 

@@ -1,20 +1,16 @@
-import { useQuery } from '@tanstack/react-query';
-import { useAppStore } from '../store';
 import { decode } from '@msgpack/msgpack';
 
+const numpyDtypeToTypedArray = {
+    'float32': Float32Array,
+    'float64': Float64Array,
+    'int8': Int8Array,
+    'int16': Int16Array,
+    'int32': Int32Array,
+    'uint8': Uint8Array,
+    'uint16': Uint16Array,
+    'uint32': Uint32Array,
+};
 
-
-interface DecodedNumpyArray {
-  shape: number[];
-  dtype: string;
-  data: any; // This can be more specific based on your needs
-}
-
-interface FrameResponseData {
-  positions?: DecodedNumpyArray;
-  colors?: DecodedNumpyArray;
-  radii?: DecodedNumpyArray;
-}
 
 const fetchFrameData = async (roomId: string, frameIndex: number, keys: string[], signal: AbortSignal) => {
   const response = await fetch(`/api/frames/${roomId}`, {
@@ -31,43 +27,41 @@ const fetchFrameData = async (roomId: string, frameIndex: number, keys: string[]
   return response.arrayBuffer();
 };
 
-// The new hook is much simpler.
-export const useFrameData = (frameIndex: number, keys: string[]) => {
-  const { roomId } = useAppStore();
+export const getFrameDataOptions = (roomId: string, frameIndex: number, key: string) => {
 
-  return useQuery({
-    // 1. The Query Key: Uniquely identifies this data.
-    // When frameIndex changes, TanStack Query will automatically fetch new data.
-    queryKey: ['frame', roomId, frameIndex, keys],
-    
-    // 2. The Query Function: The async function that fetches the data.
-    queryFn: ({ signal }) => fetchFrameData(roomId, frameIndex, keys, signal),
-
-    // 3. Configuration Options: This is where the magic happens.
-    staleTime: Infinity,   // Frames are immutable, so they never become "stale".
-    gcTime: 1000 * 60 * 5, // Garbage collect unused frames after 5 minutes.
-    enabled: !!roomId && frameIndex !== null, // Only run the query if we have a roomId and frameIndex.
-    
-    // 4. Select: Transform the data AFTER it's fetched and cached.
-    // This is very efficient. The raw ArrayBuffer is cached, and the conversion
-    // only runs when a component needs the data.
+  return {
+    // We are not calling useQuery here, but returning its options object
+    // so that `useQueries` can use it.
+    queryKey: ['frame', roomId, frameIndex, key],
+    queryFn: ({ signal }) => fetchFrameData(roomId, frameIndex, [key], signal),
+    staleTime: Infinity,
+    gcTime: 1000 * 60 * 5,
+    // placeholderData: (previousData: any, previousQuery: any) => previousData,
+    enabled: !!roomId && frameIndex !== null && !!key,
     select: (arrayBuffer: ArrayBuffer) => {
-      const decodedData = decode(arrayBuffer) as FrameResponseData[];
+      const decodedData = decode(arrayBuffer) as any[]; // Type based on your server response
       const singleFrameData = decodedData[0];
-      // assume all are float32
-      // TODO: get dtype from key.dtype!
-      const positions = new Float64Array(singleFrameData.positions.data.slice().buffer);
-      const colors = new Float16Array(singleFrameData.colors.data.slice().buffer);
-      const radii = new Float32Array(singleFrameData.radii.data.slice().buffer);
+      
+      const keyData = singleFrameData[key];
+      if (!keyData || !keyData.dtype || !keyData.data) {
+        console.warn(`Data for key "${key}" not found in response for frame ${frameIndex}`);
+        return null;
+      }
+      
+      const TypedArray = numpyDtypeToTypedArray[keyData.dtype];
+      if (!TypedArray) {
+        throw new Error(`Unsupported dtype: ${keyData.dtype}`);
+      }
 
-      console.log(singleFrameData);
+      const dataArray = new TypedArray(keyData.data.slice().buffer);
+      if (!dataArray) {
+        throw new Error(`Failed to create typed array for dtype: ${keyData.dtype}`);
+      }
 
       return {
-        positions, // Float32Array of [x1, y1, z1, x2, y2, z2, ...]
-        colors,    // Float32Array of [r1, g1, b1, r2, g2, b2, ...]
-        radii,     // Float32Array of [r1, r2, r3, ...]
-        count: singleFrameData.positions.shape[0], // The number of atoms
+        data: dataArray,
+        shape: keyData.shape,
       };
     },
-  });
+  };
 };
