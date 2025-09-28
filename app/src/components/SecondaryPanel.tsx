@@ -1,48 +1,67 @@
 // components/SecondaryPanel.tsx
 import { useMemo } from 'react';
-import { Box, Typography, Divider, FormControl, InputLabel, Select, MenuItem, Button, SelectChangeEvent } from '@mui/material';
+import { Box, Typography, Divider, FormControl, InputLabel, Select, MenuItem, Button, SelectChangeEvent, CircularProgress } from '@mui/material';
 import SaveIcon from '@mui/icons-material/Save';
 import { JsonForms } from '@jsonforms/react';
 import { materialCells, materialRenderers } from "@jsonforms/material-renderers";
-import { useFormStore } from '../formStore'; // Import the store
+import { useFormStore } from '../formStore';
+import { useSchemas } from '../hooks/useSchemas';
+import { useAppStore } from '../store';
 
 interface SecondaryPanelProps {
     panelTitle: string;
 }
 
 const SecondaryPanel = ({ panelTitle }: SecondaryPanelProps) => {
-    // Select only the state and actions relevant to this component
-    const formConfigs = useFormStore(state => state.formConfigs);
+    // This is correct, you've used the variable name 'roomId' as requested.
+    const roomId = useAppStore(state => state.roomId);
+
+    if (!roomId) {
+        return <Typography sx={{ p: 2 }}>Joining room...</Typography>;
+    }
+
+    const { data: schemas, isLoading, isError } = useSchemas(roomId, panelTitle);
+
+    // 🚀 CORRECTED: Select each piece of state individually from the Zustand store.
+    // This prevents the creation of new objects on every render and stops the infinite loop.
     const formData = useFormStore(state => state.formData);
-    const selectedMethod = useFormStore(state => state.uiState.selectedMethods[panelTitle] || null);
+    const uiState = useFormStore(state => state.uiState);
     const setSelectedMethod = useFormStore(state => state.setSelectedMethod);
     const updateFormData = useFormStore(state => state.updateFormData);
 
-    // Derive values from state (this logic remains the same)
-    const formOptions = Object.keys(formConfigs[panelTitle] || {});
+    const selectedMethod = uiState.selectedMethods[panelTitle] || null;
     const compositeKey = `${panelTitle}.${selectedMethod}`;
+    
+    const formOptions = useMemo(() => Object.keys(schemas || {}), [schemas]);
+    const currentSchema = useMemo(() => schemas?.[selectedMethod ?? '']?.schema, [schemas, selectedMethod]);
     const currentFormData = formData[compositeKey] || {};
-    const selectedSchemaData = formConfigs[panelTitle]?.[selectedMethod ?? ''];
-    const currentSchema = selectedSchemaData?.schema;
 
-    // Event handlers now call store actions
     const handleSelectionChange = (event: SelectChangeEvent<string>) => {
         setSelectedMethod(panelTitle, event.target.value || null);
     };
 
     const handleFormChange = ({ data }: { data: any }) => {
         if (selectedMethod) {
-            updateFormData(panelTitle, selectedMethod, data);
+            updateFormData(compositeKey, data);
         }
     };
 
     const handleSubmit = () => {
-        if (!selectedMethod) return;
-        // The data is already in the store, but we can access it here for submission
-        console.log(`Submitting for ${compositeKey}:`, currentFormData);
-        alert(`Data for ${compositeKey} submitted! Check the console.`);
-        // You would place your API call here, e.g., api.submit(compositeKey, currentFormData)
+        console.log('Submitting data for', compositeKey, 'with data:', currentFormData);
+        // Here you would call your TanStack mutation, e.g., saveSettings(currentFormData)
     };
+    
+    if (isLoading) {
+        return (
+            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+                <CircularProgress />
+            </Box>
+        );
+    }
+
+    if (isError) {
+        return <Typography color="error" sx={{ p: 2 }}>Failed to load schemas.</Typography>;
+    }
 
     return (
         <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -63,8 +82,8 @@ const SecondaryPanel = ({ panelTitle }: SecondaryPanelProps) => {
                         ))}
                     </Select>
                 </FormControl>
-
-                {currentSchema && (
+                
+                {currentSchema ? (
                     <>
                         <Button
                             variant="contained"
@@ -74,7 +93,7 @@ const SecondaryPanel = ({ panelTitle }: SecondaryPanelProps) => {
                             color="primary"
                             sx={{ mb: 2 }}
                         >
-                            Save Changes
+                            Run Action
                         </Button>
                         <JsonForms
                             schema={currentSchema}
@@ -84,6 +103,8 @@ const SecondaryPanel = ({ panelTitle }: SecondaryPanelProps) => {
                             onChange={handleFormChange}
                         />
                     </>
+                ) : (
+                   selectedMethod && <Typography>Select a method to see its form.</Typography>
                 )}
             </Box>
         </Box>

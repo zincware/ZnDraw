@@ -82,12 +82,14 @@ def on_join(data):
 
     join_room(room)
     log.info(f"Client {sid} joined room: {room}")
-    tasks.get_schema.delay(sid)
-    emit("len_frames", _get_len(), room=sid)
+    emit("len_frames", _get_len(), to=sid)
 
     presenter_sid = r.get(f"room:{room}:presenter_lock")
     if presenter_sid:
         emit('presenter_update', {'presenterSid': presenter_sid}, to=sid)
+    current_frame = r.get(f"room:{room}:current_frame")
+    if current_frame is not None:
+        emit('frame_update', {'frame': int(current_frame)}, to=sid)
 
 
 @socketio.on('request_presenter_token')
@@ -126,6 +128,7 @@ def handle_set_frame_atomic(data):
 
     frame = data.get('frame')
     if frame is not None:
+        redis_client.set(f"room:{room}:current_frame", frame)
         emit('frame_update', {'frame': frame}, to=room, skip_sid=request.sid)
 
 @socketio.on('set_frame_continuous')
@@ -137,10 +140,11 @@ def handle_set_frame_continuous(data):
     lock_key = f"room:{room}:presenter_lock"
     redis_client = current_app.extensions["redis"]
     
-    presenter_sid_bytes = redis_client.get(lock_key)
-    if presenter_sid_bytes and presenter_sid_bytes == request.sid:
+    presenter_sid = redis_client.get(lock_key)
+    if presenter_sid and presenter_sid == request.sid:
         frame = data.get('frame')
         if frame is not None:
+            redis_client.set(f"room:{room}:current_frame", frame)
             emit('frame_update', {'frame': frame}, to=room, skip_sid=request.sid)
 
 @socketio.on('renew_presenter_token')
@@ -279,11 +283,6 @@ def handle_upload_prepare(data):
     )
     return {"success": True, "token": token}
 
-
-@socketio.on("frames:count")
-def handle_len_frames(data):
-    return _get_len()
-    
 
 
 @socketio.on("frame:delete")

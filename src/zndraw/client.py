@@ -55,13 +55,45 @@ class SocketIOLock:
 @dataclasses.dataclass
 class Client(MutableSequence):
     """A client for interacting with the ZnDraw server. Implements MutableSequence for frame operations."""
-
-    room: str = "default"
     url: str = "http://localhost:5000"
+    room: str = "default"
+
+    _step: int| None = None
+    _len: int = 0
 
     def __post_init__(self):
         self.sio = socketio.Client()
         self.sio.on("connect", self._on_connect)
+        self.sio.on("frame_update", self._on_frame_update)
+        self.sio.on("len_frames", self._on_len_frames_update)
+
+    def _on_frame_update(self, data):
+        """Internal callback for when a frame update is received."""
+        if "frame" in data:
+            self._step = data["frame"]
+
+    def _on_len_frames_update(self, data):
+        """Internal callback for when a len_frames update is received."""
+        if "count" in data:
+            self._len = data["count"]
+
+    @property
+    def step(self) -> int|None:
+        """Get the current step/frame index."""
+        return self._step
+    
+    @step.setter
+    def step(self, value: int):
+        """Set the current step/frame index and notify the server."""
+        if not isinstance(value, int) or value < 0:
+            raise ValueError("Step must be a non-negative integer.")
+        if value >= self._len:
+            raise ValueError(f"Step {value} is out of bounds. Current number of frames: {self._len}.")
+        self._step = value
+        if self.sio.connected:
+            self.sio.emit("set_frame_atomic", {"frame": value})
+        else:
+            raise RuntimeError("Client is not connected. Please call .connect() first.")
 
     def connect(self):
         """Establishes a connection to the server."""
@@ -217,17 +249,7 @@ class Client(MutableSequence):
 
     def len_frames(self) -> int:
         """Returns the number of frames in the current room."""
-        if not self.sio.connected:
-            raise RuntimeError("Client is not connected. Please call .connect() first.")
-
-        response = self.sio.call("frames:count", {})
-
-        if not response or not response.get("success"):
-            raise RuntimeError(
-                f"Failed to get frame count: {response.get('error') if response else 'No response'}"
-            )
-
-        return response["count"]
+        return self._len
 
     def delete_frame(self, frame_id: int):
         """Deletes a frame from the current room."""
@@ -268,7 +290,7 @@ class Client(MutableSequence):
     # MutableSequence interface implementation
     def __len__(self) -> int:
         """Return the number of frames."""
-        return self.len_frames()
+        return self._len
 
     def __getitem__(self, index) -> dict | list[dict]:
         """Get frame(s) by index or slice."""

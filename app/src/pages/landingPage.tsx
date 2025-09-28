@@ -13,8 +13,8 @@ import MyScene from '../components/Canvas';
 
 
 export default function MainPage() {
-  const { roomId } = useParams<{ roomId: string }>();
-  useSocketManager(roomId as string);
+  const { roomId, userId } = useParams<{ roomId: string, userId: string }>();
+  useSocketManager(roomId as string, userId as string);
 
   return (
     <>

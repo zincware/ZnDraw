@@ -3,6 +3,7 @@ import { create } from 'zustand';
 interface AppState {
   // Connection & Room
   roomId: string | null;
+  userId: string | null;
   isConnected: boolean;
   isLoading: boolean;
   currentFrame: number;
@@ -12,7 +13,7 @@ interface AppState {
   presenterSid: string | null;
 
   // Actions (functions to modify the state)
-  setConnected: (status: boolean, room: string) => void;
+  setConnected: (status: boolean, room: string, user: string) => void;
   setCurrentFrame: (frame: number) => void;
   setFrameCount: (count: number) => void;
   setLoading: (loading: boolean) => void;
@@ -24,6 +25,7 @@ interface AppState {
 export const useAppStore = create<AppState>((set) => ({
   // Initial State
   roomId: null,
+  userId: null,
   isConnected: false,
   currentFrame: 0,
   frameCount: 0,
@@ -33,7 +35,7 @@ export const useAppStore = create<AppState>((set) => ({
   presenterSid: null,
 
   // Actions
-  setConnected: (status, room) => set({ isConnected: status, roomId: room }),
+  setConnected: (status, room, user) => set({ isConnected: status, roomId: room, userId: user }),
   setCurrentFrame: (frame) => set({ currentFrame: frame }),
   setFrameCount: (count) => set({ frameCount: count }),
   setLoading: (loading) => set({ isLoading: loading }),

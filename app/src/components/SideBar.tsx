@@ -4,28 +4,26 @@ import { Box } from '@mui/material';
 import PrimaryDrawer from './PrimaryDrawer';
 import SecondaryPanel from './SecondaryPanel';
 import { useFormStore } from '../formStore'; // Assuming your store is here
+import SettingsIcon from '@mui/icons-material/Settings'; // Example Icons
+import FilterCenterFocusIcon from '@mui/icons-material/FilterCenterFocus';
+import BuildIcon from '@mui/icons-material/Build';
+
+// Hardcode the navigation items
+const navItems = [
+    { name: 'settings', icon: <SettingsIcon />, schemaType: 'settings' },
+    { name: 'selections', icon: <FilterCenterFocusIcon />, schemaType: 'selections' },
+    { name: 'modifiers', icon: <BuildIcon />, schemaType: 'modifiers' },
+];
 
 
 const PRIMARY_DRAWER_WIDTH = 60;
 const SECONDARY_PANEL_WIDTH = 240;
 
 const SideBar = () => {
-    // Select ALL state and actions needed from the store
-    // const { formConfigs, selectedForm, setSelectedForm } = useFormStore(state => ({
-    //     formConfigs: state.formConfigs,
-    //     selectedForm: state.uiState.selectedForm,
-    //     setSelectedForm: state.setSelectedForm,
-    // }));
-
-    const formConfigs = useFormStore(state => state.formConfigs);
     const selectedForm = useFormStore(state => state.uiState.selectedForm);
     const setSelectedForm = useFormStore(state => state.setSelectedForm);
 
-    const navItems = useMemo(() => Object.keys(formConfigs), [formConfigs]);
-
-    // The toggle logic is now handled by the store's action
     const handlePanelToggle = (panelName: string) => {
-        // If clicking the same item, it will be set to null, closing the panel
         const newSelectedForm = selectedForm === panelName ? null : panelName;
         setSelectedForm(newSelectedForm);
     };
@@ -38,7 +36,6 @@ const SideBar = () => {
                 selectedItem={selectedForm}
                 onItemClick={handlePanelToggle}
             />
-            {/* The secondary panel's visibility is now driven by the store's state */}
             {selectedForm && (
                 <Box
                     component="aside"
@@ -54,8 +51,6 @@ const SideBar = () => {
                         boxShadow: 2,
                     }}
                 >
-                    {/* The SecondaryPanel no longer needs schema data passed as props */}
-                    {/* It will get everything it needs from the store */}
                     <SecondaryPanel key={selectedForm} panelTitle={selectedForm} />
                 </Box>
             )}

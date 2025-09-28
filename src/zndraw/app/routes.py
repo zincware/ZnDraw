@@ -319,3 +319,55 @@ def exit_app():
     """Endpoint to gracefully shut down the server. Secured via a shared secret."""
     socketio.stop()
     return {"success": True}
+
+@main.route("/api/rooms/<string:room_id>/schema/<string:option>", methods=["GET"])
+def get_room_schema(room_id: str, option: str):
+    """Get the schema for a specific room."""
+    from zndraw.actions.modify import modifier
+    from zndraw.actions.selection import selections
+    from zndraw.settings import settings
+    schema = {}
+    if option == "selections":
+        for name, cls in selections.items():
+            # this will be updated with ase.Atoms data later!
+            schema[name] = {"schema": cls.model_json_schema()}
+    elif option == "modifiers":
+        for name, cls in modifier.items():
+            # this will be updated with ase.Atoms data later!
+            schema[name] = {"schema": cls.model_json_schema()}
+    elif option == "settings":
+        for name, cls in settings.items():
+            # this will be updated with ase.Atoms data later!
+            schema[name] = {"schema": cls.model_json_schema()}
+    else:
+        schema = {"error": f"Unknown schema option '{option}'"}
+
+    return schema
+
+@main.route("/api/rooms/<string:room_id>/settings", methods=["GET"])
+def get_user_settings(room_id: str):
+    user_id = request.args.get("user")
+    if not user_id:
+        return {"error": "User ID is required"}, 400
+    redis_client = current_app.extensions["redis"]
+    settings_data = redis_client.get(f"room:{room_id}:user:{user_id}:settings")
+    if settings_data:
+        return json.loads(settings_data)
+    # Return default settings if none are saved
+    from zndraw.settings import RoomConfig
+    return RoomConfig().model_dump() 
+
+@main.route("/api/rooms/<string:room_id>/settings", methods=["POST"])
+def save_user_settings(room_id: str):
+    settings_data = request.json
+    user_id = request.args.get("user")
+    if not user_id:
+        return {"error": "User ID is required"}, 400
+    # Here you would validate the incoming data against your Pydantic settings model
+    # validated_settings = Settings(**settings_data)
+    redis_client = current_app.extensions["redis"]
+    redis_client.set(f"room:{room_id}:user:{user_id}:settings", json.dumps(settings_data))
+    
+    # IMPORTANT: Notify the user's client that its settings were updated
+    socketio.emit("settings_invalidated", to=user_id) # Emit directly to the user's SID
+    return {"status": "success"}, 200

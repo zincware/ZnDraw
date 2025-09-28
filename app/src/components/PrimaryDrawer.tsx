@@ -1,12 +1,13 @@
-// components/PrimaryDrawer.tsx
-// No changes needed. This component is already well-designed.
 import { Drawer, Toolbar, Box, List, ListItem, ListItemButton, ListItemIcon } from "@mui/material";
-import InboxIcon from '@mui/icons-material/MoveToInbox';
-import MailIcon from '@mui/icons-material/Mail';
+
+interface NavItem {
+    name: string;
+    icon: React.ReactElement;
+}
 
 interface PrimaryDrawerProps {
     drawerWidth: number;
-    navItems: string[];
+    navItems: NavItem[];
     selectedItem: string | null;
     onItemClick: (itemName: string) => void;
 }
@@ -24,15 +25,15 @@ const PrimaryDrawer = ({ drawerWidth, navItems, selectedItem, onItemClick }: Pri
             <Toolbar />
             <Box sx={{ overflow: 'auto' }}>
                 <List>
-                    {navItems.map((text, index) => (
-                        <ListItem key={text} disablePadding>
+                    {navItems.map((item) => (
+                        <ListItem key={item.name} disablePadding>
                             <ListItemButton
-                                onClick={() => onItemClick(text)}
-                                selected={selectedItem === text}
+                                onClick={() => onItemClick(item.name)}
+                                selected={selectedItem === item.name}
                                 sx={{ justifyContent: 'center', p: 2 }}
                             >
                                 <ListItemIcon sx={{ minWidth: 0 }}>
-                                    {index % 2 === 0 ? <InboxIcon /> : <MailIcon />}
+                                    {item.icon}
                                 </ListItemIcon>
                             </ListItemButton>
                         </ListItem>

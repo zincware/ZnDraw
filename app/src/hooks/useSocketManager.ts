@@ -3,7 +3,7 @@ import { socket } from '../socket';
 import { useAppStore } from '../store';
 import { useFormStore } from '../formStore';
 
-export const useSocketManager = (room: string) => {
+export const useSocketManager = (room: string, user: string) => {
   const { setConnected, setFrameCount, isConnected, setPresenter, setPresenterSid, setCurrentFrame } = useAppStore();
   const { setFormConfigs } = useFormStore();
 
@@ -16,7 +16,7 @@ export const useSocketManager = (room: string) => {
   useEffect(() => {
     function onConnect() {
       console.log('Socket connected and joining room:', room);
-      setConnected(true, room);
+      setConnected(true, room, user);
       socket.emit('join_room', { room });
     }
     function onSchema(data: any) {
@@ -25,7 +25,7 @@ export const useSocketManager = (room: string) => {
     }
     function onDisconnect() {
       console.log('Socket disconnected');
-      setConnected(false, room);
+      setConnected(false, room, user);
     }
     function onLenUpdate(data: any) {
       if (data && typeof data.count === 'number') {
@@ -76,5 +76,5 @@ export const useSocketManager = (room: string) => {
       socket.off('presenter_update', onPresenterUpdate);
       socket.off('frame_update', onFrameUpdate);
     };
-  }, [room, setConnected, setFrameCount, setFormConfigs]);
+  }, [room, setConnected, setFrameCount, setFormConfigs, user]);
 };
