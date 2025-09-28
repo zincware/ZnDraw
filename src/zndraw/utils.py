@@ -4,7 +4,6 @@ from ase.data.colors import jmol_colors
 import ase
 import numpy as np
 
-import ase
 from ase.calculators.singlepoint import SinglePointCalculator
 
 def atoms_to_dict(atoms: ase.Atoms) -> dict:

@@ -6,7 +6,6 @@ from flask import current_app, request
 from flask_socketio import join_room, leave_room, rooms, emit
 
 from zndraw.server import socketio
-from zndraw.app import tasks
 
 log = logging.getLogger(__name__)
 
@@ -56,7 +55,7 @@ def handle_disconnect():
     r = current_app.extensions["redis"]
     room = get_project_room_from_session(sid)
     log.info(f"Client disconnected: {sid}")
-    lock_keys = r.scan_iter(f"*:lock:*")
+    lock_keys = r.scan_iter("*:lock:*")
     for key in lock_keys:
         if r.get(key) == sid:
             log.warning(

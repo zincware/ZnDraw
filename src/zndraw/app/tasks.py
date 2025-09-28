@@ -1,7 +1,6 @@
 from celery import shared_task
 import znh5md
 from tqdm import tqdm
-import requests
 from zndraw.utils import update_colors_and_radii, atoms_to_dict
 
 

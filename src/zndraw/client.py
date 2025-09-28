@@ -1,5 +1,4 @@
 import dataclasses
-import json
 import logging
 import warnings
 from collections.abc import MutableSequence

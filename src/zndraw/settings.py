@@ -5,8 +5,7 @@ import ase
 import numpy as np
 from pydantic import BaseModel, Field
 
-from pydantic import BaseModel, Field, field_validator, ConfigDict, ValidationInfo
-import typing as t
+from pydantic import field_validator, ValidationInfo
 from pydantic.json_schema import SkipJsonSchema
 
 HSLColor = t.Tuple[float, float, float]
