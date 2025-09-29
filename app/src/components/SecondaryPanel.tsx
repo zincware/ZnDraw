@@ -1,6 +1,17 @@
 // components/SecondaryPanel.tsx
-import { useEffect, useMemo, useState } from 'react';
-import { Box, Typography, Divider, FormControl, InputLabel, Select, MenuItem, Button, SelectChangeEvent, CircularProgress } from '@mui/material';
+import { useEffect, useMemo, useState, useRef, useCallback } from 'react';
+import {
+    Box,
+    Typography,
+    Divider,
+    FormControl,
+    InputLabel,
+    Select,
+    MenuItem,
+    Button,
+    SelectChangeEvent,
+    CircularProgress
+} from '@mui/material';
 import SaveIcon from '@mui/icons-material/Save';
 import { JsonForms } from '@jsonforms/react';
 import { materialCells, materialRenderers } from "@jsonforms/material-renderers";
@@ -15,6 +26,8 @@ interface SecondaryPanelProps {
 const SecondaryPanel = ({ panelTitle }: SecondaryPanelProps) => {
     const { roomId, userId } = useAppStore();
     const [localFormData, setLocalFormData] = useState<any>({});
+    // const userInteractionRef = useRef(false);
+    const ignoreFirstChangeRef = useRef(true);
 
     if (!roomId || !userId) {
         return <Typography sx={{ p: 2 }}>Joining room...</Typography>;
@@ -23,24 +36,33 @@ const SecondaryPanel = ({ panelTitle }: SecondaryPanelProps) => {
     const { selectedMethods, setSelectedMethod } = useFormStore();
     const selectedMethod = selectedMethods[panelTitle] || null;
 
-    const { data: schemas, isLoading: isLoadingSchemas, isError: isSchemasError } = useSchemas(roomId, panelTitle);
-    const { data: serverData, isLoading: isLoadingData, isError: isDataError } = useSchemaData(
-        roomId,
-        userId,
-        panelTitle,
-        selectedMethod || ''
-    );
+    const { data: schemas, isLoading: isLoadingSchemas, isError: isSchemasError } =
+        useSchemas(roomId, panelTitle);
+
+    const {
+        data: serverData,
+        isLoading: isLoadingData,
+        isError: isDataError
+    } = useSchemaData(roomId, userId, panelTitle, selectedMethod || '');
 
     useEffect(() => {
-        setLocalFormData({});
-    }, [selectedMethod]);
-
-    useEffect(() => {
-        if (serverData !== undefined) {
-            setLocalFormData(serverData);
+        if (!isLoadingData && serverData !== undefined) {
+            setLocalFormData(serverData ?? {});
+            // userInteractionRef.current = false;
+            ignoreFirstChangeRef.current = true; // <-- added
         }
-    }, [serverData]);
-    
+    }, [isLoadingData, serverData, selectedMethod]);
+
+    const handleFormChange = useCallback(({ data }: { data: any }) => {
+        const safeData = data ?? {};
+        if (ignoreFirstChangeRef.current) {
+            ignoreFirstChangeRef.current = false;
+            return; // ignore JsonForms init overwrite
+        }
+        setLocalFormData(safeData);
+        // userInteractionRef.current = true;
+    }, []);
+
     const { mutate: submit, isPending: isSubmitting } = useSubmitAction();
 
     const handleSelectionChange = (event: SelectChangeEvent<string>) => {
@@ -54,12 +76,19 @@ const SecondaryPanel = ({ panelTitle }: SecondaryPanelProps) => {
             userId,
             action: panelTitle,
             method: selectedMethod,
-            data: localFormData,
+            data: localFormData
         });
     };
 
-    const currentSchema = useMemo(() => schemas?.[selectedMethod ?? '']?.schema, [schemas, selectedMethod]);
+    const currentSchema = useMemo(
+        () => schemas?.[selectedMethod ?? '']?.schema,
+        [schemas, selectedMethod]
+    );
     const formOptions = useMemo(() => Object.keys(schemas || {}), [schemas]);
+
+    useEffect(() => {
+        console.log("localFormData changed: ", localFormData);
+    }, [localFormData]);
 
     if (isLoadingSchemas) {
         return (
@@ -70,12 +99,18 @@ const SecondaryPanel = ({ panelTitle }: SecondaryPanelProps) => {
     }
 
     if (isSchemasError || isDataError) {
-        return <Typography color="error" sx={{ p: 2 }}>Failed to load configuration.</Typography>;
+        return (
+            <Typography color="error" sx={{ p: 2 }}>
+                Failed to load configuration.
+            </Typography>
+        );
     }
 
     return (
         <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-            <Typography variant="h6" sx={{ p: 2, pb: 1, flexShrink: 0 }}>{panelTitle}</Typography>
+            <Typography variant="h6" sx={{ p: 2, pb: 1, flexShrink: 0 }}>
+                {panelTitle}
+            </Typography>
             <Divider />
 
             <Box sx={{ p: 2, flexGrow: 1, overflowY: 'auto' }}>
@@ -88,7 +123,9 @@ const SecondaryPanel = ({ panelTitle }: SecondaryPanelProps) => {
                         onChange={handleSelectionChange}
                     >
                         {formOptions.map((item) => (
-                            <MenuItem key={item} value={item}>{item}</MenuItem>
+                            <MenuItem key={item} value={item}>
+                                {item}
+                            </MenuItem>
                         ))}
                     </Select>
                 </FormControl>
@@ -106,15 +143,17 @@ const SecondaryPanel = ({ panelTitle }: SecondaryPanelProps) => {
                         >
                             {isSubmitting ? 'Running...' : 'Run Action'}
                         </Button>
-                        
-                        {isLoadingData ? <CircularProgress /> : (
+
+                        {isLoadingData ? (
+                            <CircularProgress />
+                        ) : (
                             <JsonForms
+                                key={selectedMethod} // remount when method changes
                                 schema={currentSchema}
                                 data={localFormData}
                                 renderers={materialRenderers}
                                 cells={materialCells}
-                                // FIX 2: Destructure the data object from the onChange callback.
-                                onChange={({ data }) => setLocalFormData(data)}
+                                onChange={handleFormChange}
                             />
                         )}
                     </>
