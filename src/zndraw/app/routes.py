@@ -353,20 +353,20 @@ def log_room_action(room_id: str):
         return {"error": "Request body required"}, 400
     print(f"Logging action for room {room_id}: {data}")
     user_id = data.get("userId")
+    action = data.get("action")
     # {'user': 'testuser', 'action': 'settings', 'method': 'particle', 'data': {'bond_size': 0.3, 'hover_opacity': 0.1}}
-    if data.get("action") == "settings":
-        if user_id is None:
-            return {"error": "User ID is required for settings action"}, 400
-        # store in redis
-        redis_client = current_app.extensions["redis"]
-        method = data.get("method")
-        # Store the entire settings data as a JSON string
-        redis_client.hset(
-            f"room:{room_id}:user:{user_id}:settings", method, json.dumps(data.get("data", {}))
-        )
+    
+    if user_id is None:
+        return {"error": "User ID is required for settings action"}, 400
+    # store in redis
+    redis_client = current_app.extensions["redis"]
+    method = data.get("method")
+    # Store the entire settings data as a JSON string
+    redis_client.hset(
+        f"room:{room_id}:user:{user_id}:{action}", method, json.dumps(data.get("data", {}))
+    )
+    if action == "settings":
         socketio.emit("settings_invalidated", to=f"user:{user_id}") # Emit directly to the user's room
-    else:
-        pass
 
     return {"status": "success"}, 200
 
@@ -382,9 +382,6 @@ def get_actions_data(room_id: str):
 
     if not action:
         return {"error": "Action parameter is required"}, 400
-
-    if action != "settings":
-        return {"error": f"Action '{action}' is not supported. Only 'settings' is allowed."}, 400
 
     redis_client = current_app.extensions["redis"]
     settings_data = redis_client.hget(f"room:{room_id}:user:{user_id}:{action}", method)
