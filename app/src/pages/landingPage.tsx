@@ -7,14 +7,12 @@ import FrameProgressBar from '../components/ProgressBar';
 import SideBar from '../components/SideBar';
 
 import { useSocketManager } from '../hooks/useSocketManager';
-import { useParams } from 'react-router-dom'; // 1. Import useParams
 import MyScene from '../components/Canvas';
 
 
 
 export default function MainPage() {
-  const { roomId, userId } = useParams<{ roomId: string, userId: string }>();
-  useSocketManager(roomId as string, userId as string);
+  useSocketManager();
 
   return (
     <>

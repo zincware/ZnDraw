@@ -8,6 +8,9 @@ import numpy as np
 import requests
 import socketio
 from tqdm import tqdm
+import json
+import requests
+from zndraw.settings import settings, RoomConfig
 
 from zndraw.storage import decode_data, encode_data
 
@@ -56,15 +59,18 @@ class Client(MutableSequence):
     """A client for interacting with the ZnDraw server. Implements MutableSequence for frame operations."""
     url: str = "http://localhost:5000"
     room: str = "default"
+    user: str = "guest"
 
     _step: int| None = None
     _len: int = 0
+    _settings: dict = dataclasses.field(default_factory=dict, init=False)
 
     def __post_init__(self):
         self.sio = socketio.Client()
         self.sio.on("connect", self._on_connect)
         self.sio.on("frame_update", self._on_frame_update)
         self.sio.on("len_frames", self._on_len_frames_update)
+        self.sio.on("settings_invalidated", self._on_settings_invalidated)
 
     def _on_frame_update(self, data):
         """Internal callback for when a frame update is received."""
@@ -75,6 +81,10 @@ class Client(MutableSequence):
         """Internal callback for when a len_frames update is received."""
         if "count" in data:
             self._len = data["count"]
+
+    def _on_settings_invalidated(self):
+        """Internal callback for when settings are invalidated."""
+        self._settings.clear()
 
     @property
     def step(self) -> int|None:
@@ -110,7 +120,7 @@ class Client(MutableSequence):
     def _on_connect(self):
         """Internal callback for when a connection is established."""
         log.debug(f"Connected to {self.url} with session ID {self.sio.sid}")
-        self.sio.emit("join_room", {"room": self.room})
+        self.sio.emit("join_room", {"room": self.room, "userId": self.user})
         log.debug(f"Joined room: '{self.room}'")
 
     def get_frame(self, frame_id: int, keys: list[str] | None = None) -> dict:
@@ -414,6 +424,27 @@ class Client(MutableSequence):
         if hasattr(values, "__iter__"):
             values = list(values)
         self.extend_frames(values)
+
+    @property
+    def settings(self) -> RoomConfig:
+        def callback_fn():
+            print("Settings updated from ZnDraw")
+        for key in settings:
+            if key not in self._settings:
+                response = requests.get(
+                    f"{self.url}/api/rooms/{self.room}/actions-data",
+                    params={"userId": self.user, "room": self.room, "action": "settings", "method": key}
+                )
+                data = response.json()
+                if data["data"] is None:
+                    self._settings[key] = settings[key]()
+                else:
+                    self._settings[key] = settings[key](**json.loads(data["data"]))
+                    self._settings[key].callback = callback_fn
+
+        config = RoomConfig(**self._settings)
+        # TODO: do not allow changing config.<setting> directly, only sub-fields
+        return config
 
 
 if __name__ == "__main__":

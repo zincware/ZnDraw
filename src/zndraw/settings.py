@@ -5,13 +5,14 @@ import ase
 import numpy as np
 from pydantic import BaseModel, Field
 
-from pydantic import field_validator, ValidationInfo
+from pydantic import field_validator, ValidationInfo, ConfigDict
 from pydantic.json_schema import SkipJsonSchema
 
 HSLColor = t.Tuple[float, float, float]
 
 
 class SettingsBase(BaseModel):
+    model_config = ConfigDict(validate_assignment=True)
 
     callback: SkipJsonSchema[t.Callable[[], None]] = Field(
         default=lambda: None,
@@ -163,7 +164,6 @@ class Visualization(SettingsBase):
         schema["properties"]["floor"]["format"] = "checkbox"
         return schema
 
-
 class Camera(SettingsBase):
     camera: CameraEnum = Field(CameraEnum.PerspectiveCamera)
     camera_near: float = Field(
@@ -258,13 +258,6 @@ class RoomConfig(SettingsBase):
     camera: Camera = Camera()
     path_tracer: PathTracer = PathTracer()
     vector_display: VectorDisplay = VectorDisplay()
-
-    def model_post_init(self, __context):
-        self.particle.callback = self.callback
-        self.visualization.callback = self.callback
-        self.camera.callback = self.callback
-        self.path_tracer.callback = self.callback
-        self.vector_display.callback = self.callback
 
 
 

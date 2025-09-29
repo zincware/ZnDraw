@@ -344,30 +344,52 @@ def get_room_schema(room_id: str, option: str):
 
     return schema
 
-@main.route("/api/rooms/<string:room_id>/settings", methods=["GET"])
-def get_user_settings(room_id: str):
-    user_id = request.args.get("user")
-    if not user_id:
-        return {"error": "User ID is required"}, 400
-    redis_client = current_app.extensions["redis"]
-    settings_data = redis_client.get(f"room:{room_id}:user:{user_id}:settings")
-    if settings_data:
-        return json.loads(settings_data)
-    # Return default settings if none are saved
-    from zndraw.settings import RoomConfig
-    return RoomConfig().model_dump() 
 
-@main.route("/api/rooms/<string:room_id>/settings", methods=["POST"])
-def save_user_settings(room_id: str):
-    settings_data = request.json
-    user_id = request.args.get("user")
+@main.route("/api/rooms/<string:room_id>/actions", methods=["POST"])
+def log_room_action(room_id: str):
+    """Logs a user action in the room's action log."""
+    data = request.json
+    if data is None:
+        return {"error": "Request body required"}, 400
+    print(f"Logging action for room {room_id}: {data}")
+    user_id = data.get("userId")
+    # {'user': 'testuser', 'action': 'settings', 'method': 'particle', 'data': {'bond_size': 0.3, 'hover_opacity': 0.1}}
+    if data.get("action") == "settings":
+        if user_id is None:
+            return {"error": "User ID is required for settings action"}, 400
+        # store in redis
+        redis_client = current_app.extensions["redis"]
+        method = data.get("method")
+        # Store the entire settings data as a JSON string
+        redis_client.hset(
+            f"room:{room_id}:user:{user_id}:settings", method, json.dumps(data.get("data", {}))
+        )
+        socketio.emit("settings_invalidated", to=f"user:{user_id}") # Emit directly to the user's room
+    else:
+        pass
+
+    return {"status": "success"}, 200
+
+@main.route("/api/rooms/<string:room_id>/actions-data", methods=["GET"])
+def get_actions_data(room_id: str):
+    user_id = request.args.get("userId")
+    method = request.args.get("method")
+    action = request.args.get("action")
+    print(f"get_actions_data called with userId={user_id}, method={method}, action={action} for room {room_id}")
+
     if not user_id:
         return {"error": "User ID is required"}, 400
-    # Here you would validate the incoming data against your Pydantic settings model
-    # validated_settings = Settings(**settings_data)
+
+    if not action:
+        return {"error": "Action parameter is required"}, 400
+
+    if action != "settings":
+        return {"error": f"Action '{action}' is not supported. Only 'settings' is allowed."}, 400
+
     redis_client = current_app.extensions["redis"]
-    redis_client.set(f"room:{room_id}:user:{user_id}:settings", json.dumps(settings_data))
-    
-    # IMPORTANT: Notify the user's client that its settings were updated
-    socketio.emit("settings_invalidated", to=user_id) # Emit directly to the user's SID
-    return {"status": "success"}, 200
+    settings_data = redis_client.hget(f"room:{room_id}:user:{user_id}:{action}", method)
+    if settings_data is None:
+        return {"data": None}, 200
+    settings_data = json.loads(settings_data)
+    return {"data": settings_data}, 200
+

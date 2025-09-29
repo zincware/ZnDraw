@@ -33,11 +33,10 @@ def _get_len() -> dict:
 
 # --- Helper Functions ---
 def get_project_room_from_session(sid: str) -> t.Optional[str]:
-    """Finds the project room a client has joined."""
-    for room in rooms(sid=sid):
-        if room != sid:
-            return room
-    return None
+    """Finds the project room a client has joined from Redis."""
+    r = current_app.extensions["redis"]
+    room_name = r.get(f"sid:{sid}")
+    return room_name if room_name else None
 
 
 def get_lock_key(room: str, target: str) -> str:
@@ -53,42 +52,77 @@ def handle_connect():
 def handle_disconnect():
     sid = request.sid
     r = current_app.extensions["redis"]
-    room = get_project_room_from_session(sid)
-    log.info(f"Client disconnected: {sid}")
+    
+    # --- New Redis-based Cleanup ---
+    room_name = r.get(f"sid:{sid}")
+    if room_name:
+        # Get username before deleting for logging purposes
+        user = r.hget(f"room:{room_name}:users", sid)
+        log.info(f"Client disconnected: {sid} ({user}) from room {room_name}")
+        
+        # Clean up Redis entries
+        r.hdel(f"room:{room_name}:users", sid)
+        r.delete(f"sid:{sid}")
+
+        # (Optional) Notify room that a user has left
+        users_in_room = r.hgetall(f"room:{room_name}:users")
+        emit('room_users_update', users_in_room, to=f"room:{room_name}")
+    else:
+        log.info(f"Client disconnected: {sid} (was not in a Redis-managed room)")
+
+    # --- Existing Lock Cleanup Logic ---
     lock_keys = r.scan_iter("*:lock:*")
     for key in lock_keys:
         if r.get(key) == sid:
-            log.warning(
-                f"Cleaning up orphaned lock '{key}' held by disconnected client {sid}"
-            )
+            log.warning(f"Cleaning up orphaned lock '{key}' held by disconnected client {sid}")
             r.delete(key)
-    lock_key = f"room:{room}:presenter_lock"
-    presenter_sid = r.get(lock_key)
-    if presenter_sid and presenter_sid == request.sid:
-        r.delete(lock_key)
-        # Inform everyone that the presenter left
-        emit('presenter_update', {'presenterSid': None}, to=room)
+            
+    if room_name:
+        lock_key = f"room:{room_name}:presenter_lock"
+        presenter_sid = r.get(lock_key)
+        if presenter_sid and presenter_sid == sid:
+            r.delete(lock_key)
+            # Inform everyone that the presenter left
+            emit('presenter_update', {'presenterSid': None}, to=f"room:{room_name}")
 
 
 @socketio.on("join_room")
 def on_join(data):
     room = data["room"]
+    user = data.get("userId", "Anonymous")
     sid = request.sid
     r = current_app.extensions["redis"]
-    if previous_room := get_project_room_from_session(sid):
-        leave_room(previous_room)
-        log.info(f"Client {sid} left room: {previous_room}")
 
-    join_room(room)
-    log.info(f"Client {sid} joined room: {room}")
+    # --- New Redis-based Logic ---
+    # Leave previous room if any
+    if previous_room_name := r.get(f"sid:{sid}"):
+        leave_room(f"room:{previous_room_name}")
+        # Remove user from the old room's user list in Redis
+        r.hdel(f"room:{previous_room_name}:users", sid)
+        log.info(f"Client {sid} ({user}) removed from Redis room: {previous_room_name}")
+
+    # Join the new room (flask-socketio still needs this for the message queue)
+    join_room(f"room:{room}")
+    # joint the room for this user, e.g. one user can have multiple connections
+    join_room(f"user:{user}")    
+
+    # Store the new room membership and user info in Redis
+    r.set(f"sid:{sid}", room)
+    r.hset(f"room:{room}:users", sid, user)
+    log.info(f"Client {sid} ({user}) joined room: {room} (and stored in Redis)")
+
+    # --- Existing Logic ---
     emit("len_frames", _get_len(), to=sid)
-
     presenter_sid = r.get(f"room:{room}:presenter_lock")
     if presenter_sid:
         emit('presenter_update', {'presenterSid': presenter_sid}, to=sid)
     current_frame = r.get(f"room:{room}:current_frame")
     if current_frame is not None:
         emit('frame_update', {'frame': int(current_frame)}, to=sid)
+    
+    # (Optional but recommended) Notify everyone in the room about the updated user list
+    users_in_room = r.hgetall(f"room:{room}:users")
+    emit('room_users_update', users_in_room, to=f"room:{room}")
 
 
 @socketio.on('request_presenter_token')

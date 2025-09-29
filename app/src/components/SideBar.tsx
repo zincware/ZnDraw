@@ -1,10 +1,9 @@
 // components/SideBar.tsx
-import { useEffect, useMemo } from 'react';
 import { Box } from '@mui/material';
 import PrimaryDrawer from './PrimaryDrawer';
 import SecondaryPanel from './SecondaryPanel';
-import { useFormStore } from '../formStore'; // Assuming your store is here
-import SettingsIcon from '@mui/icons-material/Settings'; // Example Icons
+import { useFormStore } from '../formStore';
+import SettingsIcon from '@mui/icons-material/Settings';
 import FilterCenterFocusIcon from '@mui/icons-material/FilterCenterFocus';
 import BuildIcon from '@mui/icons-material/Build';
 
@@ -15,12 +14,13 @@ const navItems = [
     { name: 'modifiers', icon: <BuildIcon />, schemaType: 'modifiers' },
 ];
 
-
 const PRIMARY_DRAWER_WIDTH = 60;
 const SECONDARY_PANEL_WIDTH = 240;
 
 const SideBar = () => {
-    const selectedForm = useFormStore(state => state.uiState.selectedForm);
+    // CORRECTED: Select state directly from the top level of the store.
+    // The state object no longer has a 'uiState' property.
+    const selectedForm = useFormStore(state => state.selectedForm);
     const setSelectedForm = useFormStore(state => state.setSelectedForm);
 
     const handlePanelToggle = (panelName: string) => {

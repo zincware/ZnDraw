@@ -105,11 +105,11 @@ sequenceDiagram
     participant Client
     participant Server
 
-    Client->>Server: GET /api/rooms/testroom/settings?user=testuser
+    Client->>Server: GET /api/rooms/testroom/settings?userId=testuser
     Server->>Server: Read settings from Redis
     Server-->>Client: Response with JSON settings data
 
-    Client->>Server: POST /api/rooms/testroom/settings?user=testuser (with new settings)
+    Client->>Server: POST /api/rooms/testroom/settings?userId=testuser (with new settings)
     Server->>Server: Save settings to Redis
     Server-->>Client: Response with { "status": "success" }
     Server->>Server: emit('settings_invalidated', to='testuser_sid')

@@ -1,11 +1,11 @@
 // components/SecondaryPanel.tsx
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Box, Typography, Divider, FormControl, InputLabel, Select, MenuItem, Button, SelectChangeEvent, CircularProgress } from '@mui/material';
 import SaveIcon from '@mui/icons-material/Save';
 import { JsonForms } from '@jsonforms/react';
 import { materialCells, materialRenderers } from "@jsonforms/material-renderers";
 import { useFormStore } from '../formStore';
-import { useSchemas } from '../hooks/useSchemas';
+import { useSchemas, useSchemaData, useSubmitAction } from '../hooks/useSchemas';
 import { useAppStore } from '../store';
 
 interface SecondaryPanelProps {
@@ -13,45 +13,55 @@ interface SecondaryPanelProps {
 }
 
 const SecondaryPanel = ({ panelTitle }: SecondaryPanelProps) => {
-    // This is correct, you've used the variable name 'roomId' as requested.
-    const roomId = useAppStore(state => state.roomId);
+    const { roomId, userId } = useAppStore();
+    const [localFormData, setLocalFormData] = useState<any>({});
 
-    if (!roomId) {
+    if (!roomId || !userId) {
         return <Typography sx={{ p: 2 }}>Joining room...</Typography>;
     }
 
-    const { data: schemas, isLoading, isError } = useSchemas(roomId, panelTitle);
+    const { selectedMethods, setSelectedMethod } = useFormStore();
+    const selectedMethod = selectedMethods[panelTitle] || null;
 
-    // 🚀 CORRECTED: Select each piece of state individually from the Zustand store.
-    // This prevents the creation of new objects on every render and stops the infinite loop.
-    const formData = useFormStore(state => state.formData);
-    const uiState = useFormStore(state => state.uiState);
-    const setSelectedMethod = useFormStore(state => state.setSelectedMethod);
-    const updateFormData = useFormStore(state => state.updateFormData);
+    const { data: schemas, isLoading: isLoadingSchemas, isError: isSchemasError } = useSchemas(roomId, panelTitle);
+    const { data: serverData, isLoading: isLoadingData, isError: isDataError } = useSchemaData(
+        roomId,
+        userId,
+        panelTitle,
+        selectedMethod || ''
+    );
 
-    const selectedMethod = uiState.selectedMethods[panelTitle] || null;
-    const compositeKey = `${panelTitle}.${selectedMethod}`;
+    useEffect(() => {
+        setLocalFormData({});
+    }, [selectedMethod]);
+
+    useEffect(() => {
+        if (serverData !== undefined) {
+            setLocalFormData(serverData);
+        }
+    }, [serverData]);
     
-    const formOptions = useMemo(() => Object.keys(schemas || {}), [schemas]);
-    const currentSchema = useMemo(() => schemas?.[selectedMethod ?? '']?.schema, [schemas, selectedMethod]);
-    const currentFormData = formData[compositeKey] || {};
+    const { mutate: submit, isPending: isSubmitting } = useSubmitAction();
 
     const handleSelectionChange = (event: SelectChangeEvent<string>) => {
         setSelectedMethod(panelTitle, event.target.value || null);
     };
 
-    const handleFormChange = ({ data }: { data: any }) => {
-        if (selectedMethod) {
-            updateFormData(compositeKey, data);
-        }
+    const handleSubmit = () => {
+        if (!selectedMethod || !roomId || !userId) return;
+        submit({
+            roomId,
+            userId,
+            action: panelTitle,
+            method: selectedMethod,
+            data: localFormData,
+        });
     };
 
-    const handleSubmit = () => {
-        console.log('Submitting data for', compositeKey, 'with data:', currentFormData);
-        // Here you would call your TanStack mutation, e.g., saveSettings(currentFormData)
-    };
-    
-    if (isLoading) {
+    const currentSchema = useMemo(() => schemas?.[selectedMethod ?? '']?.schema, [schemas, selectedMethod]);
+    const formOptions = useMemo(() => Object.keys(schemas || {}), [schemas]);
+
+    if (isLoadingSchemas) {
         return (
             <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
                 <CircularProgress />
@@ -59,8 +69,8 @@ const SecondaryPanel = ({ panelTitle }: SecondaryPanelProps) => {
         );
     }
 
-    if (isError) {
-        return <Typography color="error" sx={{ p: 2 }}>Failed to load schemas.</Typography>;
+    if (isSchemasError || isDataError) {
+        return <Typography color="error" sx={{ p: 2 }}>Failed to load configuration.</Typography>;
     }
 
     return (
@@ -82,29 +92,32 @@ const SecondaryPanel = ({ panelTitle }: SecondaryPanelProps) => {
                         ))}
                     </Select>
                 </FormControl>
-                
-                {currentSchema ? (
+
+                {currentSchema && (
                     <>
                         <Button
                             variant="contained"
                             startIcon={<SaveIcon />}
                             onClick={handleSubmit}
+                            disabled={isSubmitting || isLoadingData}
                             fullWidth
                             color="primary"
                             sx={{ mb: 2 }}
                         >
-                            Run Action
+                            {isSubmitting ? 'Running...' : 'Run Action'}
                         </Button>
-                        <JsonForms
-                            schema={currentSchema}
-                            data={currentFormData}
-                            renderers={materialRenderers}
-                            cells={materialCells}
-                            onChange={handleFormChange}
-                        />
+                        
+                        {isLoadingData ? <CircularProgress /> : (
+                            <JsonForms
+                                schema={currentSchema}
+                                data={localFormData}
+                                renderers={materialRenderers}
+                                cells={materialCells}
+                                // FIX 2: Destructure the data object from the onChange callback.
+                                onChange={({ data }) => setLocalFormData(data)}
+                            />
+                        )}
                     </>
-                ) : (
-                   selectedMethod && <Typography>Select a method to see its form.</Typography>
                 )}
             </Box>
         </Box>

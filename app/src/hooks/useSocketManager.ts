@@ -1,11 +1,12 @@
 import { useEffect } from 'react';
 import { socket } from '../socket';
 import { useAppStore } from '../store';
-import { useFormStore } from '../formStore';
+import { useParams } from 'react-router-dom';
 
-export const useSocketManager = (room: string, user: string) => {
+
+export const useSocketManager = () => {
+  const { roomId: room, userId: user } = useParams<{ roomId: string, userId: string }>();
   const { setConnected, setFrameCount, isConnected, setPresenter, setPresenterSid, setCurrentFrame } = useAppStore();
-  const { setFormConfigs } = useFormStore();
 
   useEffect(() => {
     if (!room) return;
@@ -17,11 +18,7 @@ export const useSocketManager = (room: string, user: string) => {
     function onConnect() {
       console.log('Socket connected and joining room:', room);
       setConnected(true, room, user);
-      socket.emit('join_room', { room });
-    }
-    function onSchema(data: any) {
-      console.log('Received schema:', data);
-      setFormConfigs(data);
+      socket.emit('join_room', { room, user });
     }
     function onDisconnect() {
       console.log('Socket disconnected');
@@ -57,7 +54,6 @@ export const useSocketManager = (room: string, user: string) => {
 
     socket.on('disconnect', onDisconnect);
     socket.on('connect', onConnect);
-    socket.on('schema', onSchema);
     socket.on('len_frames', onLenUpdate);
 
     socket.on('presenter_token_granted', onPresenterTokenGranted);
@@ -67,7 +63,6 @@ export const useSocketManager = (room: string, user: string) => {
 
     return () => {
       socket.off('connect', onConnect);
-      socket.off('schema', onSchema);
       socket.off('disconnect', onDisconnect);
       socket.off('len_frames', onLenUpdate);
 
@@ -76,5 +71,5 @@ export const useSocketManager = (room: string, user: string) => {
       socket.off('presenter_update', onPresenterUpdate);
       socket.off('frame_update', onFrameUpdate);
     };
-  }, [room, setConnected, setFrameCount, setFormConfigs, user]);
+  }, [room, setConnected, setFrameCount, user]);
 };
