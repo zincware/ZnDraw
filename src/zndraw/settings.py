@@ -17,6 +17,7 @@ class SettingsBase(BaseModel):
     callback: SkipJsonSchema[t.Callable[[], None] | None] = Field(
         default=None,
         exclude=True,  # 🚀 excludes from model_dump and schema
+        repr=False,
     )
 
     @field_validator("*")
