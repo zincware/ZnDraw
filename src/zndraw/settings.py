@@ -14,8 +14,8 @@ HSLColor = t.Tuple[float, float, float]
 class SettingsBase(BaseModel):
     model_config = ConfigDict(validate_assignment=True)
 
-    callback: SkipJsonSchema[t.Callable[[], None]] = Field(
-        default=lambda: None,
+    callback: SkipJsonSchema[t.Callable[[], None] | None] = Field(
+        default=None,
         exclude=True,  # 🚀 excludes from model_dump and schema
     )
 
@@ -23,7 +23,9 @@ class SettingsBase(BaseModel):
     @classmethod
     def trigger_callback_on_change(cls, v: t.Any, info: ValidationInfo) -> t.Any:
         if "callback" in info.data and callable(info.data["callback"]):
-            info.data["callback"]()
+            new_data = info.data
+            new_data[info.field_name] = v
+            info.data["callback"]({k: v for k, v in new_data.items() if k != "callback"})
         return v
 
 

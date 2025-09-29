@@ -2,11 +2,13 @@ import { useEffect } from 'react';
 import { socket } from '../socket';
 import { useAppStore } from '../store';
 import { useParams } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 
 
 export const useSocketManager = () => {
-  const { roomId: room, userId: user } = useParams<{ roomId: string, userId: string }>();
+  const { roomId: room, userId } = useParams<{ roomId: string, userId: string }>();
   const { setConnected, setFrameCount, isConnected, setPresenter, setPresenterSid, setCurrentFrame } = useAppStore();
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     if (!room) return;
@@ -17,12 +19,12 @@ export const useSocketManager = () => {
   useEffect(() => {
     function onConnect() {
       console.log('Socket connected and joining room:', room);
-      setConnected(true, room, user);
-      socket.emit('join_room', { room, user });
+      setConnected(true, room, userId);
+      socket.emit('join_room', { room, userId });
     }
     function onDisconnect() {
       console.log('Socket disconnected');
-      setConnected(false, room, user);
+      setConnected(false, room, userId);
     }
     function onLenUpdate(data: any) {
       if (data && typeof data.count === 'number') {
@@ -52,6 +54,14 @@ export const useSocketManager = () => {
       setCurrentFrame(frame);
     }
 
+    function onInvalidate(data: any) {
+      const { roomId, userId, action, option } = data;
+      queryClient.invalidateQueries({
+          queryKey: ['schemaData', roomId, userId, action, option],
+        });
+      console.log(`Invalidated schema data for user ${userId}, action ${action}, option ${option} in room ${roomId}`);
+    }
+
     socket.on('disconnect', onDisconnect);
     socket.on('connect', onConnect);
     socket.on('len_frames', onLenUpdate);
@@ -60,6 +70,7 @@ export const useSocketManager = () => {
     socket.on('presenter_token_denied', onPresenterTokenDenied);
     socket.on('presenter_update', onPresenterUpdate);
     socket.on('frame_update', onFrameUpdate);
+    socket.on('invalidate', onInvalidate);
 
     return () => {
       socket.off('connect', onConnect);
@@ -70,6 +81,7 @@ export const useSocketManager = () => {
       socket.off('presenter_token_denied', onPresenterTokenDenied);
       socket.off('presenter_update', onPresenterUpdate);
       socket.off('frame_update', onFrameUpdate);
+      socket.off('invalidate', onInvalidate);
     };
-  }, [room, setConnected, setFrameCount, user]);
+  }, [room, setConnected, setFrameCount, userId, isConnected, setPresenter, setPresenterSid, setCurrentFrame, queryClient]);
 };

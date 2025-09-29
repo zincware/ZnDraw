@@ -9,6 +9,7 @@ import requests
 import socketio
 from tqdm import tqdm
 import json
+import functools
 import requests
 from zndraw.settings import settings, RoomConfig
 
@@ -70,7 +71,7 @@ class Client(MutableSequence):
         self.sio.on("connect", self._on_connect)
         self.sio.on("frame_update", self._on_frame_update)
         self.sio.on("len_frames", self._on_len_frames_update)
-        self.sio.on("settings_invalidated", self._on_settings_invalidated)
+        self.sio.on("invalidate", self.on_invalidate)
 
     def _on_frame_update(self, data):
         """Internal callback for when a frame update is received."""
@@ -82,9 +83,11 @@ class Client(MutableSequence):
         if "count" in data:
             self._len = data["count"]
 
-    def _on_settings_invalidated(self):
+    def on_invalidate(self, data: dict):
         """Internal callback for when settings are invalidated."""
-        self._settings.clear()
+        # "invalidate", {"userId": user_id, "action": action, "option": method, "roomId": room_id}, to=f"user:{user_id}"
+        if data["action"] == "settings":
+            self._settings.pop(data["option"], None)
 
     @property
     def step(self) -> int|None:
@@ -427,8 +430,15 @@ class Client(MutableSequence):
 
     @property
     def settings(self) -> RoomConfig:
-        def callback_fn():
-            print("Settings updated from ZnDraw")
+        def callback_fn(data, method: str):
+            # print("Settings updated from ZnDraw")
+            action = "settings"
+            response = requests.post(
+                    f"{self.url}/api/rooms/{self.room}/actions",
+                    json={"userId": self.user, "action": action, "method": method, "data": data}
+                )
+            response.raise_for_status()
+
         for key in settings:
             if key not in self._settings:
                 response = requests.get(
@@ -439,8 +449,8 @@ class Client(MutableSequence):
                 if data["data"] is None:
                     self._settings[key] = settings[key]()
                 else:
-                    self._settings[key] = settings[key](**json.loads(data["data"]))
-                    self._settings[key].callback = callback_fn
+                    self._settings[key] = settings[key](**data["data"])
+                self._settings[key].callback = functools.partial(callback_fn, method=key)
 
         config = RoomConfig(**self._settings)
         # TODO: do not allow changing config.<setting> directly, only sub-fields

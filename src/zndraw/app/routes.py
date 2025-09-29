@@ -351,7 +351,7 @@ def log_room_action(room_id: str):
     data = request.json
     if data is None:
         return {"error": "Request body required"}, 400
-    print(f"Logging action for room {room_id}: {data}")
+    print(f"Logging action for room {room_id}: {data} for {json.dumps(data.get('data', {}))}")
     user_id = data.get("userId")
     action = data.get("action")
     # {'user': 'testuser', 'action': 'settings', 'method': 'particle', 'data': {'bond_size': 0.3, 'hover_opacity': 0.1}}
@@ -365,9 +365,8 @@ def log_room_action(room_id: str):
     redis_client.hset(
         f"room:{room_id}:user:{user_id}:{action}", method, json.dumps(data.get("data", {}))
     )
-    if action == "settings":
-        socketio.emit("settings_invalidated", to=f"user:{user_id}") # Emit directly to the user's room
-
+    print(f"Emitting invalidate for user {user_id}, action {action}, option {method}, room {room_id} to user:{user_id}")
+    socketio.emit("invalidate", {"userId": user_id, "action": action, "option": method, "roomId": room_id}, to=f"user:{user_id}")
     return {"status": "success"}, 200
 
 @main.route("/api/rooms/<string:room_id>/actions-data", methods=["GET"])
