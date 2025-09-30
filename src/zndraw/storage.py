@@ -238,7 +238,17 @@ def extend_zarr(root: zarr.Group, data: list[dict]):
                             grp.append(np.array([shape_suffix[0]]))
                         if item.shape[1:] < shape_suffix:
                             item.resize((item.shape[0],) + shape_suffix)
-                item[idx] = prepared_value
+
+                # If the array shape is smaller than the allocated space, pad it
+                # (only for numpy arrays, not json_array strings)
+                if item_type == "array" and item.shape[1:] != prepared_value.shape:
+                    padded_value = np.zeros(item.shape[1:], dtype=prepared_value.dtype)
+                    # Copy the actual data into the padded array
+                    slices = tuple(slice(0, s) for s in prepared_value.shape)
+                    padded_value[slices] = prepared_value
+                    item[idx] = padded_value
+                else:
+                    item[idx] = prepared_value
             elif item_type == "group":
                 subgroup = group.require_group(key)
                 _extend_recursive(subgroup, value, idx, total_len)

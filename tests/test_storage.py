@@ -334,3 +334,19 @@ def test_zarr_storage_sequence_add_shape_2d(tmp_path):
                 )
             }
         )
+
+
+def test_zarr_storage_large_shape_mismatch(tmp_path):
+    """Test for shape mismatch bug when appending arrays with different first dimension sizes."""
+    root = zarr.group(store=tmp_path / "test.zarr")
+    store = ZarrStorageSequence(root)
+
+    # Create initial entry with large array
+    store.append({"positions": np.random.rand(3000, 3)})
+
+    # This should work - appending a smaller array
+    store.append({"positions": np.random.rand(9, 3)})
+
+    assert len(store) == 2
+    assert store[0]["positions"].shape == (3000, 3)
+    assert store[1]["positions"].shape == (9, 3)
