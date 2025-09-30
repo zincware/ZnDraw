@@ -194,3 +194,7 @@ This keeps the control channel lightweight.
 	•	Robust persistence (swappable backends).
 	•	Undo/redo potential (versions + hashes).
 	•	No race conditions (lock + version checks).
+
+
+TODOs
+- have the state of the queue available in the chat or a table or something

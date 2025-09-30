@@ -551,16 +551,112 @@ def register_extension(data: dict):
     return {"status": "success"}
 
 
+def _process_worker_queues(sid: str, room_id: str, category: str, redis_client) -> None:
+    """Process queued tasks for all extensions that a worker can handle.
+
+    This function:
+    1. Retrieves all extensions the worker is registered for
+    2. For each extension, checks if there's a queued task
+    3. Dispatches the first available queued task to the worker
+    4. Uses FIFO ordering within each extension's queue
+
+    Args:
+        sid: The worker's session ID
+        room_id: The room ID
+        category: The extension category (e.g., 'modifiers', 'selections')
+        redis_client: The Redis client instance
+    """
+    # Get all extensions this worker is registered for in this category
+    user_extensions_key = f"room:{room_id}:extensions:{category}:{sid}"
+    registered_extensions = redis_client.smembers(user_extensions_key)
+
+    if not registered_extensions:
+        print(f"Worker {sid} has no registered extensions in category '{category}'")
+        return
+
+    print(f"Worker {sid} can handle extensions: {registered_extensions}")
+
+    # Check each extension's queue for pending tasks
+    for extension_name in registered_extensions:
+        queue_key = f"room:{room_id}:extensions:{category}:{extension_name}:queue"
+        idle_key = f"room:{room_id}:extensions:{category}:{extension_name}:idle_workers"
+        progressing_key = f"room:{room_id}:extensions:{category}:{extension_name}:progressing_workers"
+
+        # Check if worker is still idle for this extension (might have been assigned already)
+        is_idle = redis_client.sismember(idle_key, sid)
+        if not is_idle:
+            continue
+
+        # Try to pop a task from the queue (LPOP for FIFO)
+        queued_task_json = redis_client.lpop(queue_key)
+
+        if queued_task_json:
+            # Parse the queued task
+            print(f"Found queued task for extension '{extension_name}' for worker {sid}")
+            try:
+                queued_task = json.loads(queued_task_json)
+                task_data = queued_task.get("data")
+                # user_id can be used for future analytics/logging
+                _user_id = queued_task.get("user_id")
+
+                log.info(
+                    f"Dispatching queued task for extension '{extension_name}' "
+                    f"to worker {sid} in room '{room_id}'"
+                )
+
+                # Move worker from idle to progressing atomically
+                moved = redis_client.smove(idle_key, progressing_key, sid)
+
+                if moved:
+                    # Emit the task to the worker
+                    emit(
+                        "task:run",
+                        {
+                            "data": task_data,
+                            "extension": extension_name,
+                            "category": category,
+                        },
+                        to=sid,
+                    )
+
+                    print(
+                        f"Successfully dispatched task from queue to worker {sid} "
+                        f"for extension '{extension_name}'"
+                    )
+
+                    # The worker is now busy, so we stop checking other queues
+                    return
+                else:
+                    # Worker was removed from idle set by another process
+                    # Put the task back in the queue
+                    redis_client.lpush(queue_key, queued_task_json)
+                    log.warning(
+                        f"Worker {sid} no longer idle, task returned to queue "
+                        f"for '{extension_name}'"
+                    )
+                    return
+
+            except json.JSONDecodeError as e:
+                log.error(f"Failed to parse queued task: {e}")
+                continue
+
+    print(f"No queued tasks found for worker {sid} in category '{category}'")
+
+
 @socketio.on("task:finished")
 def handle_task_finished(data: dict):
-    """Handles the completion of a task and sets the worker state back to idle."""
+    """Handles the completion of a task and sets the worker state back to idle.
+
+    After marking the worker as idle, checks for queued tasks across ALL extensions
+    this worker can handle and dispatches the next task if available.
+    """
     sid = request.sid
     room_id = get_project_room_from_session(sid)
     category = data.get("category")
     extension = data.get("extension")
 
     if not all([room_id, category, extension]):
-        print(f"Received incomplete task_finished event from {sid}: {data}")
+        log.warning(f"Received incomplete task_finished event from {sid}: {data}")
         return
 
     redis_client = current_app.extensions["redis"]
@@ -570,11 +666,13 @@ def handle_task_finished(data: dict):
     # Atomically move the worker from the progressing set back to the idle set
     moved = redis_client.smove(progressing_key, idle_key, sid)
     if moved:
-        print(f"Worker {sid} finished task '{extension}' and is now idle.")
+        log.info(f"Worker {sid} finished task '{extension}' and is now idle.")
     else:
         # This could happen if the worker disconnected and was already cleaned up.
-        print(f"Warning: Worker {sid} finished task '{extension}', but was not in the progressing set.")
+        log.warning(
+            f"Worker {sid} finished task '{extension}', but was not in the progressing set."
+        )
+        return
 
-    # TODO: check queue
-    queue_key = f"room:{room_id}:extensions:{category}:{extension}:queue"
-    # ISSUE!! We need to iterate all extensions this worker is registered for, but we don't have that info here.
+    # Process queues for all extensions this worker can handle
+    _process_worker_queues(sid, room_id, category, redis_client)
