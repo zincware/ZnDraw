@@ -16,7 +16,7 @@ import SaveIcon from '@mui/icons-material/Save';
 import { JsonForms } from '@jsonforms/react';
 import { materialCells, materialRenderers } from "@jsonforms/material-renderers";
 import { useFormStore } from '../formStore';
-import { useSchemas, useSchemaData, useSubmitAction } from '../hooks/useSchemas';
+import { useSchemas, useExtensionData, useSubmitExtension } from '../hooks/useSchemas';
 import { useAppStore } from '../store';
 
 interface SecondaryPanelProps {
@@ -33,8 +33,8 @@ const SecondaryPanel = ({ panelTitle }: SecondaryPanelProps) => {
         return <Typography sx={{ p: 2 }}>Joining room...</Typography>;
     }
 
-    const { selectedMethods, setSelectedMethod } = useFormStore();
-    const selectedMethod = selectedMethods[panelTitle] || null;
+    const { selectedExtensions, setSelectedExtension } = useFormStore();
+    const selectedExtension = selectedExtensions[panelTitle] || null;
 
     const { data: schemas, isLoading: isLoadingSchemas, isError: isSchemasError } =
         useSchemas(roomId, panelTitle);
@@ -43,7 +43,7 @@ const SecondaryPanel = ({ panelTitle }: SecondaryPanelProps) => {
         data: serverData,
         isLoading: isLoadingData,
         isError: isDataError
-    } = useSchemaData(roomId, userId, panelTitle, selectedMethod || '');
+    } = useExtensionData(roomId, userId, panelTitle, selectedExtension || '');
 
     useEffect(() => {
         if (!isLoadingData && serverData !== undefined) {
@@ -51,7 +51,7 @@ const SecondaryPanel = ({ panelTitle }: SecondaryPanelProps) => {
             // userInteractionRef.current = false;
             ignoreFirstChangeRef.current = true; // <-- added
         }
-    }, [isLoadingData, serverData, selectedMethod]);
+    }, [isLoadingData, serverData, selectedExtension]);
 
     const handleFormChange = useCallback(({ data }: { data: any }) => {
         const safeData = data ?? {};
@@ -63,26 +63,26 @@ const SecondaryPanel = ({ panelTitle }: SecondaryPanelProps) => {
         // userInteractionRef.current = true;
     }, []);
 
-    const { mutate: submit, isPending: isSubmitting } = useSubmitAction();
+    const { mutate: submit, isPending: isSubmitting } = useSubmitExtension();
 
     const handleSelectionChange = (event: SelectChangeEvent<string>) => {
-        setSelectedMethod(panelTitle, event.target.value || null);
+        setSelectedExtension(panelTitle, event.target.value || null);
     };
 
     const handleSubmit = () => {
-        if (!selectedMethod || !roomId || !userId) return;
+        if (!selectedExtension || !roomId || !userId) return;
         submit({
             roomId,
             userId,
-            action: panelTitle,
-            method: selectedMethod,
+            category: panelTitle,
+            extension: selectedExtension,
             data: localFormData
         });
     };
 
     const currentSchema = useMemo(
-        () => schemas?.[selectedMethod ?? '']?.schema,
-        [schemas, selectedMethod]
+        () => schemas?.[selectedExtension ?? '']?.schema,
+        [schemas, selectedExtension]
     );
     const formOptions = useMemo(() => Object.keys(schemas || {}), [schemas]);
 
@@ -118,7 +118,7 @@ const SecondaryPanel = ({ panelTitle }: SecondaryPanelProps) => {
                     <InputLabel id="panel-select-label">{panelTitle} Method</InputLabel>
                     <Select
                         labelId="panel-select-label"
-                        value={selectedMethod || ''}
+                        value={selectedExtension || ''}
                         label={`${panelTitle} Method`}
                         onChange={handleSelectionChange}
                     >
@@ -148,7 +148,7 @@ const SecondaryPanel = ({ panelTitle }: SecondaryPanelProps) => {
                             <CircularProgress />
                         ) : (
                             <JsonForms
-                                key={selectedMethod} // remount when method changes
+                                key={selectedExtension} // remount when extension changes
                                 schema={currentSchema}
                                 data={localFormData}
                                 renderers={materialRenderers}

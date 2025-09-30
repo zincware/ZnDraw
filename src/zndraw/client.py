@@ -85,9 +85,9 @@ class Client(MutableSequence):
 
     def on_invalidate(self, data: dict):
         """Internal callback for when settings are invalidated."""
-        # "invalidate", {"userId": user_id, "action": action, "option": method, "roomId": room_id}, to=f"user:{user_id}"
-        if data["action"] == "settings":
-            self._settings.pop(data["option"], None)
+        # "invalidate", {"userId": user_id, "category": category, "extension": extension, "roomId": room_id}, to=f"user:{user_id}"
+        if data["category"] == "settings":
+            self._settings.pop(data["extension"], None)
 
     @property
     def step(self) -> int|None:
@@ -430,27 +430,26 @@ class Client(MutableSequence):
 
     @property
     def settings(self) -> RoomConfig:
-        def callback_fn(data, method: str):
+        def callback_fn(data, extension: str):
             # print("Settings updated from ZnDraw")
-            action = "settings"
+            category = "settings"
             response = requests.post(
-                    f"{self.url}/api/rooms/{self.room}/actions",
-                    json={"userId": self.user, "action": action, "method": method, "data": data}
+                    f"{self.url}/api/rooms/{self.room}/extensions/{category}/{extension}?userId={self.user}",
+                    json=data
                 )
             response.raise_for_status()
 
         for key in settings:
             if key not in self._settings:
                 response = requests.get(
-                    f"{self.url}/api/rooms/{self.room}/actions-data",
-                    params={"userId": self.user, "room": self.room, "action": "settings", "method": key}
+                    f"{self.url}/api/rooms/{self.room}/extension-data/settings/{key}?userId={self.user}"
                 )
                 data = response.json()
                 if data["data"] is None:
                     self._settings[key] = settings[key]()
                 else:
                     self._settings[key] = settings[key](**data["data"])
-                self._settings[key].callback = functools.partial(callback_fn, method=key)
+                self._settings[key].callback = functools.partial(callback_fn, extension=key)
 
         config = RoomConfig(**self._settings)
         # TODO: do not allow changing config.<setting> directly, only sub-fields

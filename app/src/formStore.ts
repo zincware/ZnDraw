@@ -3,33 +3,33 @@ import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 
 type UiState = {
-  selectedForm: string | null; // Add this back
-  selectedMethods: Record<string, string | null>;
+  selectedCategory: string | null;
+  selectedExtensions: Record<string, string | null>;
 };
 
 type UiActions = {
-  setSelectedForm: (formId: string | null) => void; // Add this back
-  setSelectedMethod: (formId: string, methodId: string | null) => void;
+  setSelectedCategory: (category: string | null) => void;
+  setSelectedExtension: (category: string, extension: string | null) => void;
 };
 
 export const useFormStore = create<UiState & UiActions>()(
   immer((set) => ({
     // Initialize the state
-    selectedForm: null,
-    selectedMethods: {},
+    selectedCategory: null,
+    selectedExtensions: {},
 
     // Define the actions
-    setSelectedForm: (formId) => {
+    setSelectedCategory: (category) => {
       set((state) => {
-        state.selectedForm = formId;
+        state.selectedCategory = category;
       });
     },
 
-    setSelectedMethod: (formId, methodId) => {
+    setSelectedExtension: (category, extension) => {
       set((state) => {
-        state.selectedMethods[formId] = methodId;
+        state.selectedExtensions[category] = extension;
       });
     },
-    
+
   }))
 );

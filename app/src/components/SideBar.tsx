@@ -18,14 +18,12 @@ const PRIMARY_DRAWER_WIDTH = 60;
 const SECONDARY_PANEL_WIDTH = 240;
 
 const SideBar = () => {
-    // CORRECTED: Select state directly from the top level of the store.
-    // The state object no longer has a 'uiState' property.
-    const selectedForm = useFormStore(state => state.selectedForm);
-    const setSelectedForm = useFormStore(state => state.setSelectedForm);
+    const selectedCategory = useFormStore(state => state.selectedCategory);
+    const setSelectedCategory = useFormStore(state => state.setSelectedCategory);
 
     const handlePanelToggle = (panelName: string) => {
-        const newSelectedForm = selectedForm === panelName ? null : panelName;
-        setSelectedForm(newSelectedForm);
+        const newSelectedCategory = selectedCategory === panelName ? null : panelName;
+        setSelectedCategory(newSelectedCategory);
     };
 
     return (
@@ -33,10 +31,10 @@ const SideBar = () => {
             <PrimaryDrawer
                 drawerWidth={PRIMARY_DRAWER_WIDTH}
                 navItems={navItems}
-                selectedItem={selectedForm}
+                selectedItem={selectedCategory}
                 onItemClick={handlePanelToggle}
             />
-            {selectedForm && (
+            {selectedCategory && (
                 <Box
                     component="aside"
                     sx={{
@@ -51,7 +49,7 @@ const SideBar = () => {
                         boxShadow: 2,
                     }}
                 >
-                    <SecondaryPanel key={selectedForm} panelTitle={selectedForm} />
+                    <SecondaryPanel key={selectedCategory} panelTitle={selectedCategory} />
                 </Box>
             )}
         </>

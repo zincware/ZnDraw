@@ -320,72 +320,67 @@ def exit_app():
     socketio.stop()
     return {"success": True}
 
-@main.route("/api/rooms/<string:room_id>/schema/<string:option>", methods=["GET"])
-def get_room_schema(room_id: str, option: str):
+@main.route("/api/rooms/<string:room_id>/schema/<string:category>", methods=["GET"])
+def get_room_schema(room_id: str, category: str):
     """Get the schema for a specific room."""
     from zndraw.actions.modify import modifier
     from zndraw.actions.selection import selections
     from zndraw.settings import settings
     schema = {}
-    if option == "selections":
+    if category == "selections":
         for name, cls in selections.items():
             # this will be updated with ase.Atoms data later!
             schema[name] = {"schema": cls.model_json_schema()}
-    elif option == "modifiers":
+    elif category == "modifiers":
         for name, cls in modifier.items():
             # this will be updated with ase.Atoms data later!
             schema[name] = {"schema": cls.model_json_schema()}
-    elif option == "settings":
+    elif category == "settings":
         for name, cls in settings.items():
             # this will be updated with ase.Atoms data later!
             schema[name] = {"schema": cls.model_json_schema()}
     else:
-        schema = {"error": f"Unknown schema option '{option}'"}
+        schema = {"error": f"Unknown schema category '{category}'"}
 
     return schema
 
 
-@main.route("/api/rooms/<string:room_id>/actions", methods=["POST"])
-def log_room_action(room_id: str):
-    """Logs a user action in the room's action log."""
+@main.route("/api/rooms/<string:room_id>/extensions/<string:category>/<string:extension>", methods=["POST"])
+def log_room_extension(room_id: str, category: str, extension: str):
+    """Logs a user extension action in the room's action log."""
+    user_id = request.args.get("userId")
+
+    if user_id is None:
+        return {"error": "User ID is required"}, 400
+
     data = request.json
     if data is None:
         return {"error": "Request body required"}, 400
-    print(f"Logging action for room {room_id}: {data} for {json.dumps(data.get('data', {}))}")
-    user_id = data.get("userId")
-    action = data.get("action")
-    # {'user': 'testuser', 'action': 'settings', 'method': 'particle', 'data': {'bond_size': 0.3, 'hover_opacity': 0.1}}
-    
-    if user_id is None:
-        return {"error": "User ID is required for settings action"}, 400
+
+    print(f"Logging extension for room {room_id}: category={category}, extension={extension}, data={json.dumps(data)}")
+
     # store in redis
     redis_client = current_app.extensions["redis"]
-    method = data.get("method")
-    # Store the entire settings data as a JSON string
+    # Store the entire extension data as a JSON string
     redis_client.hset(
-        f"room:{room_id}:user:{user_id}:{action}", method, json.dumps(data.get("data", {}))
+        f"room:{room_id}:user:{user_id}:{category}", extension, json.dumps(data)
     )
-    print(f"Emitting invalidate for user {user_id}, action {action}, option {method}, room {room_id} to user:{user_id}")
-    socketio.emit("invalidate", {"userId": user_id, "action": action, "option": method, "roomId": room_id}, to=f"user:{user_id}")
+    print(f"Emitting invalidate for user {user_id}, category {category}, extension {extension}, room {room_id} to user:{user_id}")
+    socketio.emit("invalidate", {"userId": user_id, "category": category, "extension": extension, "roomId": room_id}, to=f"user:{user_id}")
     return {"status": "success"}, 200
 
-@main.route("/api/rooms/<string:room_id>/actions-data", methods=["GET"])
-def get_actions_data(room_id: str):
+@main.route("/api/rooms/<string:room_id>/extension-data/<string:category>/<string:extension>", methods=["GET"])
+def get_extension_data(room_id: str, category: str, extension: str):
     user_id = request.args.get("userId")
-    method = request.args.get("method")
-    action = request.args.get("action")
-    print(f"get_actions_data called with userId={user_id}, method={method}, action={action} for room {room_id}")
+    print(f"get_extension_data called with userId={user_id}, category={category}, extension={extension} for room {room_id}")
 
     if not user_id:
         return {"error": "User ID is required"}, 400
 
-    if not action:
-        return {"error": "Action parameter is required"}, 400
-
     redis_client = current_app.extensions["redis"]
-    settings_data = redis_client.hget(f"room:{room_id}:user:{user_id}:{action}", method)
-    if settings_data is None:
+    extension_data = redis_client.hget(f"room:{room_id}:user:{user_id}:{category}", extension)
+    if extension_data is None:
         return {"data": None}, 200
-    settings_data = json.loads(settings_data)
-    return {"data": settings_data}, 200
+    extension_data = json.loads(extension_data)
+    return {"data": extension_data}, 200
 

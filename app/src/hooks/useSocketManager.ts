@@ -55,11 +55,11 @@ export const useSocketManager = () => {
     }
 
     function onInvalidate(data: any) {
-      const { roomId, userId, action, option } = data;
+      const { roomId, userId, category, extension } = data;
       queryClient.invalidateQueries({
-          queryKey: ['schemaData', roomId, userId, action, option],
+          queryKey: ['extensionData', roomId, userId, category, extension],
         });
-      console.log(`Invalidated schema data for user ${userId}, action ${action}, option ${option} in room ${roomId}`);
+      console.log(`Invalidated extension data for user ${userId}, category ${category}, extension ${extension} in room ${roomId}`);
     }
 
     socket.on('disconnect', onDisconnect);
