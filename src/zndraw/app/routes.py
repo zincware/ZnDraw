@@ -7,6 +7,8 @@ from flask import Response, current_app, request
 
 from zndraw.storage import ZarrStorageSequence, decode_data, encode_data
 from zndraw.server import socketio
+import traceback
+
 
 from . import main
 
@@ -150,6 +152,7 @@ def get_frames(room_id):
             "type": type(e).__name__,
             "success": False,
         }
+        print(traceback.format_exc())
         return Response(
             json.dumps(error_data), status=500, content_type="application/json"
         )
@@ -311,6 +314,7 @@ def append_frame(room_id):
             return {"error": f"The requested action '{action}' is not supported."}, 400
     except Exception as e:
         log.error(f"Failed to write to Zarr store: {e}")
+        print(traceback.format_exc())
         return {"error": "Failed to write to data store"}, 500
 
 
@@ -380,9 +384,30 @@ def log_room_extension(room_id: str, category: str, extension: str):
     redis_client.hset(
         f"room:{room_id}:user:{user_id}:{category}", extension, json.dumps(data)
     )
+
+    # send data via `task:run` emit
+    idle_key = f"room:{room_id}:extensions:{category}:{extension}:idle_workers"
+    progressing_key = f"room:{room_id}:extensions:{category}:{extension}:progressing_workers"
+
+    worker_sid = redis_client.spop(idle_key)
+    queue_position = 0
+    if worker_sid is not None:
+        socketio.emit("task:run", {"data": data, "extension": extension, "category": category}, to=worker_sid)
+        print(f"Emitted task:run to worker {worker_sid} for user {user_id}, category {category}, extension {extension}, room {room_id}")
+        redis_client.sadd(progressing_key, worker_sid)
+    else:
+        # add to queue
+        queue_key = f"room:{room_id}:extensions:{category}:{extension}:queue"
+        redis_client.rpush(queue_key, json.dumps({"user_id": user_id, "data": data}))
+        print(f"No idle workers, queued task for user {user_id}, category { category}, extension {extension}, room {room_id}")
+        queue_position = redis_client.llen(queue_key)
+        # TODO: return queue position?
+
+
+
     print(f"Emitting invalidate for user {user_id}, category {category}, extension {extension}, room {room_id} to user:{user_id}")
     socketio.emit("invalidate", {"userId": user_id, "category": category, "extension": extension, "roomId": room_id}, to=f"user:{user_id}")
-    return {"status": "success"}, 200
+    return {"status": "success", "queuePosition": queue_position}, 200
 
 @main.route("/api/rooms/<string:room_id>/extension-data/<string:category>/<string:extension>", methods=["GET"])
 def get_extension_data(room_id: str, category: str, extension: str):

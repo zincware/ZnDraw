@@ -141,7 +141,7 @@ const SecondaryPanel = ({ panelTitle }: SecondaryPanelProps) => {
                             color="primary"
                             sx={{ mb: 2 }}
                         >
-                            {isSubmitting ? 'Running...' : 'Run Action'}
+                            {isSubmitting ? 'Running...' : 'Run Extension'}
                         </Button>
 
                         {isLoadingData ? (

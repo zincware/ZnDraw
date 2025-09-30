@@ -8,11 +8,12 @@ import numpy as np
 import requests
 import socketio
 from tqdm import tqdm
-import json
+import typing as t
 import functools
 import requests
 from zndraw.settings import settings, RoomConfig
 from zndraw.exceptions import LockError
+from zndraw.extensions import Extension, ExtensionType
 
 from zndraw.storage import decode_data, encode_data
 
@@ -55,6 +56,10 @@ class SocketIOLock:
                 f"Failed to release lock for target '{self.target}'. It may have expired."
             )
 
+class _ExtensionStore(t.TypedDict):
+    public: bool
+    run_kwargs: dict|None
+    extension: t.Type[Extension]
 
 @dataclasses.dataclass
 class Client(MutableSequence):
@@ -66,13 +71,16 @@ class Client(MutableSequence):
     _step: int = 0
     _len: int = 0
     _settings: dict = dataclasses.field(default_factory=dict, init=False)
+    _extensions: dict[str, _ExtensionStore] = dataclasses.field(default_factory=dict, init=False)
 
     def __post_init__(self):
         self.sio = socketio.Client()
         self.sio.on("connect", self._on_connect)
         self.sio.on("frame_update", self._on_frame_update)
         self.sio.on("len_frames", self._on_len_frames_update)
-        self.sio.on("invalidate", self.on_invalidate)
+        self.sio.on("invalidate", self._on_invalidate)
+        self.sio.on("task:run", self._on_task_run)
+
 
     def _on_frame_update(self, data):
         """Internal callback for when a frame update is received."""
@@ -83,8 +91,24 @@ class Client(MutableSequence):
         """Internal callback for when a len_frames update is received."""
         if "count" in data:
             self._len = data["count"]
+    
+    def _on_task_run(self, data):
+        """Internal callback for when a task is run."""
+        print(f"Task run: {data}")
+        schema_data = data.get("data", {})
+        extension = data.get("extension")
+        category = data.get("category")
+        try:
+            ext = self._extensions[extension]["extension"]
+            instance = ext(**(schema_data))
+            # TODO: if public=True, we need to create a new vis instance, connected to the correct room
+            instance.run(self, **(self._extensions[extension]["run_kwargs"] or {}))
+            self.sio.emit("task:finished", {"status": "success", "extension": extension, "category": category})
+        except Exception as e:
+            print(f"Error running task: {e}")
+            self.sio.emit("task:finished", {"status": "error", "message": str(e), "extension": extension, "category": category})
 
-    def on_invalidate(self, data: dict):
+    def _on_invalidate(self, data: dict):
         """Internal callback for when settings are invalidated."""
         # "invalidate", {"userId": user_id, "category": category, "extension": extension, "roomId": room_id}, to=f"user:{user_id}"
         if data["category"] == "settings":
@@ -462,6 +486,48 @@ class Client(MutableSequence):
         config = RoomConfig(**self._settings)
         # TODO: do not allow changing config.<setting> directly, only sub-fields
         return config
+    
+
+    def register_extension(self, extension: t.Type[Extension], public: bool = False, run_kwargs: dict|None = None):
+        # A WARNING ABOUT RUN_KWARGS!
+        # If multiple workers are registering the same extension, work load will be distributed among them.
+        # We do check that the extension schema are the same, but run_kwargs are not validated and can 
+        # lead to unreproducible behavior if they are different among workers.
+        if not hasattr(extension, "category"):
+            raise ValueError("Extension must have a 'category' attribute and inherit from Extension base class.")
+        name = extension.__name__
+        if name in self._extensions:
+            raise ValueError(f"Extension '{name}' is already registered.")
+        if extension.category not in (cat.value for cat in ExtensionType):
+            raise ValueError(f"Extension category '{extension.category}' is not valid. Must be one of {[cat.value for cat in ExtensionType]}.")
+        self._extensions[name] = {
+            "public": public,
+            "run_kwargs": run_kwargs,
+            "extension": extension
+        }
+        print(f"Registered extension '{name}' of category '{extension.category}'.")
+
+        schema = extension.model_json_schema()
+        if not public:
+            response = self.sio.call("register:extension", {
+                "name": name,
+                "category": extension.category,
+                "schema": schema,
+                "public": False
+            })
+            print(f"Extension '{name}' registered with room '{self.room}'.")
+        else:
+            response = self.sio.call("register:extension", {
+                "name": name,
+                "category": extension.category,
+                "schema": schema,
+                "public": True
+            })
+            print(f"Extension '{name}' registered as public.")
+        
+        if response.get("status") != "success":
+            raise RuntimeError(f"Failed to register extension '{name}': {response}")
+        
 
 
 if __name__ == "__main__":

@@ -95,51 +95,73 @@ def handle_disconnect():
 
     for category in extension_categories:
         user_extensions_key = f"room:{room_name}:extensions:{category}:{sid}"
+        # This key tells us which extensions this SID was providing
         user_extensions = r.smembers(user_extensions_key)
 
         if not user_extensions:
             continue
 
-        print(f"User {sid} was using extensions in '{category}': {user_extensions}")
-
-        with r.pipeline() as pipe:
-            for ext_name in user_extensions:
-                extension_sids_key = (
-                    f"room:{room_name}:extensions:{category}:{ext_name}"
-                )
-                pipe.srem(extension_sids_key, sid)
-                pipe.scard(extension_sids_key)
-
-            # where 1 is srem's result (1 member removed) and 0/2 is scard's result.
-            results = pipe.execute()
+        print(f"User {sid} was providing extensions in '{category}': {user_extensions}")
 
         schema_invalidated = False
         extensions_to_delete = []
 
+        with r.pipeline() as pipe:
+            for ext_name in user_extensions:
+                idle_key = (
+                    f"room:{room_name}:extensions:{category}:{ext_name}:idle_workers"
+                )
+                progressing_key = f"room:{room_name}:extensions:{category}:{ext_name}:progressing_workers"
+
+                # Remove the SID from both possible state sets
+                pipe.srem(idle_key, sid)
+                pipe.srem(progressing_key, sid)
+
+                # Check the combined cardinality of both sets to see if the extension is orphaned
+                pipe.scard(idle_key)
+                pipe.scard(progressing_key)
+
+            # Each extension now produces 4 results in the pipeline
+            results = pipe.execute()
+
+        # Iterate through the results to decide which extensions to delete
         for i, ext_name in enumerate(user_extensions):
-            remaining_sids_count = results[i * 2 + 1]  # Get the scard result
+            # Get the scard results for this extension
+            remaining_idle = results[i * 4 + 2]
+            remaining_progressing = results[i * 4 + 3]
+            total_remaining = remaining_idle + remaining_progressing
+
             print(
-                f"Extension '{ext_name}': {remaining_sids_count} SIDs remaining after removing {sid}."
+                f"Extension '{ext_name}': {total_remaining} workers remaining after removing {sid}."
             )
 
-            if remaining_sids_count == 0:
+            if total_remaining == 0:
                 extensions_to_delete.append(ext_name)
                 schema_invalidated = True
 
-        # 4. If any extensions are now orphaned, delete them completely
+        # If any extensions are now orphaned, delete them and their state sets
         if extensions_to_delete:
             print(
                 f"Deleting orphaned extensions in '{category}': {extensions_to_delete}"
             )
             with r.pipeline() as pipe:
                 for ext_name in extensions_to_delete:
-                    pipe.delete(f"room:{room_name}:extensions:{category}:{ext_name}")
+                    # Delete the state sets
+                    pipe.delete(
+                        f"room:{room_name}:extensions:{category}:{ext_name}:idle_workers"
+                    )
+                    pipe.delete(
+                        f"room:{room_name}:extensions:{category}:{ext_name}:progressing_workers"
+                    )
+                    # Delete the schema from the main hash
                     pipe.hdel(f"room:{room_name}:extensions:{category}", ext_name)
                 pipe.execute()
 
+        # Clean up the user-specific reverse-lookup key
         r.delete(user_extensions_key)
         print(f"Cleaned up user-specific extension list: {user_extensions_key}")
 
+        # If we deleted any schemas, notify the clients
         if schema_invalidated:
             print(
                 f"Invalidating schema for category '{category}' in room '{room_name}'."
@@ -468,7 +490,7 @@ def handle_delete_frame(data):
 
 @socketio.on("register:extension")
 def register_extension(data: dict):
-    """Registers a new extension for the room."""
+    """Registers a new extension for the room and sets its initial state to idle."""
     name = data.get("name")
     category = data.get("category")
     schema = data.get("schema")
@@ -481,13 +503,18 @@ def register_extension(data: dict):
         return {"error": "name, category, and schema are required"}
 
     print(
-        f"Registering extension for room {room_id}: name={name}, category={category}, schema={json.dumps(schema)}"
+        f"Registering extension for room {room_id}: name={name}, category={category}, sid={request.sid}"
     )
 
     # store in redis
     redis_client = current_app.extensions["redis"]
-    # try to get existing schema for this name
-    existing_schema = redis_client.hget(f"room:{room_id}:extensions:{category}", name)
+    schema_key = f"room:{room_id}:extensions:{category}"
+    existing_schema = redis_client.hget(schema_key, name)
+
+    # Define keys for the new state model
+    idle_workers_key = f"room:{room_id}:extensions:{category}:{name}:idle_workers"
+    user_extensions_key = f"room:{room_id}:extensions:{category}:{request.sid}"
+
     if existing_schema is not None:
         existing_schema = json.loads(existing_schema)
         if existing_schema != schema:
@@ -495,29 +522,59 @@ def register_extension(data: dict):
                 "error": "Extension with this name already exists with a different schema"
             }
         else:
-            # save a mapping: sid -> extension
-            # and a list extension -> available sids
-            # in redis, if public, just go extensions:category ...
+            # Worker is re-registering. Add it to the idle set.
+            redis_client.sadd(idle_workers_key, request.sid)
             redis_client.sadd(
-                f"room:{room_id}:extensions:{category}:{request.sid}", name
-            )
-            redis_client.sadd(
-                f"room:{room_id}:extensions:{category}:{name}", request.sid
-            )
+                user_extensions_key, name
+            )  # Keep this for disconnect cleanup
             return {
                 "status": "success",
-                "message": "Extension already registered with same schema",
+                "message": "Extension already registered with same schema. Worker marked as idle.",
             }
     else:
-        redis_client.sadd(f"room:{room_id}:extensions:{category}:{request.sid}", name)
-        redis_client.sadd(f"room:{room_id}:extensions:{category}:{name}", request.sid)
-        redis_client.hset(
-            f"room:{room_id}:extensions:{category}", name, json.dumps(schema)
-        )
-        # invalidate schema on all clients
+        # This is a brand new extension for the room
+        with redis_client.pipeline() as pipe:
+            # Set the schema
+            pipe.hset(schema_key, name, json.dumps(schema))
+            # Add the current worker to the set of idle workers for this extension
+            pipe.sadd(idle_workers_key, request.sid)
+            # Maintain the reverse mapping for easy cleanup on disconnect
+            pipe.sadd(user_extensions_key, name)
+            pipe.execute()
+
+        # Invalidate schema on all clients so they can see the new extension
         socketio.emit(
             "invalidate:schema",
             {"roomId": room_id, "category": category},
             to=f"room:{room_id}",
         )
     return {"status": "success"}
+
+
+@socketio.on("task:finished")
+def handle_task_finished(data: dict):
+    """Handles the completion of a task and sets the worker state back to idle."""
+    sid = request.sid
+    room_id = get_project_room_from_session(sid)
+    category = data.get("category")
+    extension = data.get("extension")
+
+    if not all([room_id, category, extension]):
+        print(f"Received incomplete task_finished event from {sid}: {data}")
+        return
+
+    redis_client = current_app.extensions["redis"]
+    idle_key = f"room:{room_id}:extensions:{category}:{extension}:idle_workers"
+    progressing_key = f"room:{room_id}:extensions:{category}:{extension}:progressing_workers"
+
+    # Atomically move the worker from the progressing set back to the idle set
+    moved = redis_client.smove(progressing_key, idle_key, sid)
+    if moved:
+        print(f"Worker {sid} finished task '{extension}' and is now idle.")
+    else:
+        # This could happen if the worker disconnected and was already cleaned up.
+        print(f"Warning: Worker {sid} finished task '{extension}', but was not in the progressing set.")
+
+    # TODO: check queue
+    queue_key = f"room:{room_id}:extensions:{category}:{extension}:queue"
+    # ISSUE!! We need to iterate all extensions this worker is registered for, but we don't have that info here.
