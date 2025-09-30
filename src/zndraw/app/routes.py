@@ -323,8 +323,8 @@ def exit_app():
 @main.route("/api/rooms/<string:room_id>/schema/<string:category>", methods=["GET"])
 def get_room_schema(room_id: str, category: str):
     """Get the schema for a specific room."""
-    from zndraw.actions.modify import modifier
-    from zndraw.actions.selection import selections
+    from zndraw.extensions.modifiers import modifiers
+    from zndraw.extensions.selections import selections
     from zndraw.settings import settings
     schema = {}
     if category == "selections":
@@ -332,7 +332,7 @@ def get_room_schema(room_id: str, category: str):
             # this will be updated with ase.Atoms data later!
             schema[name] = {"schema": cls.model_json_schema()}
     elif category == "modifiers":
-        for name, cls in modifier.items():
+        for name, cls in modifiers.items():
             # this will be updated with ase.Atoms data later!
             schema[name] = {"schema": cls.model_json_schema()}
     elif category == "settings":

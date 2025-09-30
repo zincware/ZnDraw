@@ -361,7 +361,7 @@ class FixAtoms(UpdateScene):
         vis.atoms = atoms
 
 
-modifier: dict[str, t.Type[BaseModel]] = {
+modifiers: dict[str, t.Type[BaseModel]] = {
     Delete.__name__: Delete,
     Rotate.__name__: Rotate,
     Translate.__name__: Translate,
