@@ -50,7 +50,11 @@ const FrameProgressBar = () => {
         }
         // This is the first change event. Treat it as an atomic jump for now.
         else {
-            socket.emit('set_frame_atomic', { frame: newFrame as number });
+            socket.emit('set_frame_atomic', { frame: newFrame as number }, (response: any) => {
+                if (response && !response.success) {
+                    console.error(`Failed to set frame: ${response.error} - ${response.message}`);
+                }
+            });
             // Start a timer. If it completes, the interaction was just a click.
             scrubTimerRef.current = setTimeout(() => {
                 scrubTimerRef.current = null;

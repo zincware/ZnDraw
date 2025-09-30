@@ -37,7 +37,11 @@ export const useAppStore = create<AppState>((set) => ({
   // Actions
   setConnected: (status, room, user) => set({ isConnected: status, roomId: room, userId: user }),
   setCurrentFrame: (frame) => set({ currentFrame: frame }),
-  setFrameCount: (count) => set({ frameCount: count }),
+  setFrameCount: (count) => set((state) => {
+    // If currentFrame is beyond the new frameCount, reset to 0
+    const newCurrentFrame = state.currentFrame >= count ? 0 : state.currentFrame;
+    return { frameCount: count, currentFrame: newCurrentFrame };
+  }),
   setLoading: (loading) => set({ isLoading: loading }),
   setSkipFrames: (skip) => set({ skipFrames: skip }),
   setPresenter: (status) => set({ isPresenter: status }),

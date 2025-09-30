@@ -12,6 +12,7 @@ import json
 import functools
 import requests
 from zndraw.settings import settings, RoomConfig
+from zndraw.exceptions import LockError
 
 from zndraw.storage import decode_data, encode_data
 
@@ -62,7 +63,7 @@ class Client(MutableSequence):
     room: str = "default"
     user: str = "guest"
 
-    _step: int| None = None
+    _step: int = 0
     _len: int = 0
     _settings: dict = dataclasses.field(default_factory=dict, init=False)
 
@@ -103,7 +104,14 @@ class Client(MutableSequence):
             raise ValueError(f"Step {value} is out of bounds. Current number of frames: {self._len}.")
         self._step = value
         if self.sio.connected:
-            self.sio.emit("set_frame_atomic", {"frame": value})
+            response = self.sio.call("set_frame_atomic", {"frame": value}, timeout=5)
+            if response and not response.get("success", False):
+                error_type = response.get("error")
+                error_msg = response.get("message", "Failed to set frame")
+                if error_type == "LockError":
+                    raise LockError(error_msg)
+                else:
+                    raise RuntimeError(error_msg)
         else:
             raise RuntimeError("Client is not connected. Please call .connect() first.")
 

@@ -13,7 +13,7 @@ class ZnDraw:
         self.client.connect()
 
     @property
-    def step(self) -> int|None:
+    def step(self) -> int:
         return self.client.step
 
     @step.setter

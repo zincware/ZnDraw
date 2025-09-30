@@ -10,7 +10,7 @@ from zndraw.server import socketio
 log = logging.getLogger(__name__)
 
 
-TOKEN_EXPIRY_SECONDS = 5 # Short expiry for auto-cleanup
+TOKEN_EXPIRY_SECONDS = 5000 # Short expiry for auto-cleanup
 
 
 def _get_len() -> dict:
@@ -141,7 +141,7 @@ def handle_request_presenter_token():
         # Success! You are the presenter.
         emit('presenter_token_granted')
         # Inform everyone else in the room who the new presenter is
-        emit('presenter_update', {'presenterSid': request.sid}, to=room)
+        emit('presenter_update', {'presenterSid': request.sid}, to=f"room:{room}")
     else:
         # Failure, someone else holds the lock.
         emit('presenter_token_denied')
@@ -157,12 +157,14 @@ def handle_set_frame_atomic(data):
     redis_client = current_app.extensions["redis"]
 
     if redis_client.exists(lock_key):
-        return # Presenter is active, ignore atomic update
+        # Presenter is active, return error
+        return {"success": False, "error": "LockError", "message": "Cannot set frame while presenter is active"}
 
     frame = data.get('frame')
     if frame is not None:
         redis_client.set(f"room:{room}:current_frame", frame)
-        emit('frame_update', {'frame': frame}, to=room, skip_sid=request.sid)
+        emit('frame_update', {'frame': frame}, to=f"room:{room}", skip_sid=request.sid)
+        return {"success": True}
 
 @socketio.on('set_frame_continuous')
 def handle_set_frame_continuous(data):
@@ -178,7 +180,7 @@ def handle_set_frame_continuous(data):
         frame = data.get('frame')
         if frame is not None:
             redis_client.set(f"room:{room}:current_frame", frame)
-            emit('frame_update', {'frame': frame}, to=room, skip_sid=request.sid)
+            emit('frame_update', {'frame': frame}, to=f"room:{room}", skip_sid=request.sid)
 
 @socketio.on('renew_presenter_token')
 def handle_renew_presenter_token():
@@ -204,7 +206,7 @@ def handle_release_presenter_token():
     if presenter_sid and presenter_sid == request.sid:
         r.delete(lock_key)
         # Inform everyone that scrubbing is over
-        emit('presenter_update', {'presenterSid': None}, to=room)
+        emit('presenter_update', {'presenterSid': None}, to=f"room:{room}")
 
 @socketio.on("lock:acquire")
 def acquire_lock(data):
@@ -244,7 +246,7 @@ def release_lock(data):
         # gathering the lock means typically, making updates, so update frame count
         # TODO: later move this to the specific frames changed, because
         # we need to send a frames_changed event anyway
-        emit("len_frames", _get_len(), to=room)
+        emit("len_frames", _get_len(), to=f"room:{room}")
 
         log.info(f"Lock released for '{target}' in room '{room}' by {sid}")
         return {"success": True}
