@@ -9,8 +9,6 @@ interface AppState {
   currentFrame: number;
   frameCount: number;
   skipFrames: number;
-  isPresenter: boolean; // Is the current client the presenter?
-  presenterSid: string | null;
 
   // Actions (functions to modify the state)
   setConnected: (status: boolean, room: string, user: string) => void;
@@ -18,8 +16,6 @@ interface AppState {
   setFrameCount: (count: number) => void;
   setLoading: (loading: boolean) => void;
   setSkipFrames: (skip: number) => void;
-  setPresenter: (status: boolean) => void;
-  setPresenterSid: (sid: string | null) => void;
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -31,8 +27,6 @@ export const useAppStore = create<AppState>((set) => ({
   frameCount: 0,
   isLoading: false,
   skipFrames: 1,
-  isPresenter: false,
-  presenterSid: null,
 
   // Actions
   setConnected: (status, room, user) => set({ isConnected: status, roomId: room, userId: user }),
@@ -44,6 +38,4 @@ export const useAppStore = create<AppState>((set) => ({
   }),
   setLoading: (loading) => set({ isLoading: loading }),
   setSkipFrames: (skip) => set({ skipFrames: skip }),
-  setPresenter: (status) => set({ isPresenter: status }),
-  setPresenterSid: (sid) => set({ presenterSid: sid }),
 }));

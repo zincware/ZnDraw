@@ -9,8 +9,8 @@ from zndraw.server import socketio
 
 log = logging.getLogger(__name__)
 
-
-TOKEN_EXPIRY_SECONDS = 5000 # Short expiry for auto-cleanup
+# for crash handling.
+TOKEN_EXPIRY_SECONDS = 10
 
 
 def _get_len() -> dict:
@@ -113,38 +113,19 @@ def on_join(data):
 
     # --- Existing Logic ---
     emit("len_frames", _get_len(), to=sid)
-    presenter_sid = r.get(f"room:{room}:presenter_lock")
-    if presenter_sid:
-        emit('presenter_update', {'presenterSid': presenter_sid}, to=sid)
-    current_frame = r.get(f"room:{room}:current_frame")
-    if current_frame is not None:
-        emit('frame_update', {'frame': int(current_frame)}, to=sid)
+    # presenter_sid = r.get(f"room:{room}:presenter_lock")
+    # if presenter_sid:
+    #     emit('presenter_update', {'presenterSid': presenter_sid}, to=sid)
+    # current_frame = r.get(f"room:{room}:current_frame")
+    # if current_frame is not None:
+    #     emit('frame_update', {'frame': int(current_frame)}, to=sid)
     
-    # (Optional but recommended) Notify everyone in the room about the updated user list
-    users_in_room = r.hgetall(f"room:{room}:users")
-    emit('room_users_update', users_in_room, to=f"room:{room}")
+    # # (Optional but recommended) Notify everyone in the room about the updated user list
+    # users_in_room = r.hgetall(f"room:{room}:users")
+    # emit('room_users_update', users_in_room, to=f"room:{room}")
 
 
-@socketio.on('request_presenter_token')
-def handle_request_presenter_token():
-    sid = request.sid
-    room = get_project_room_from_session(sid)
-    lock_key = f"room:{room}:presenter_lock"
 
-    r = current_app.extensions["redis"]
-    
-    # Try to acquire the lock using SETNX (set if not exists)
-    # This is an atomic operation.
-    was_set = r.set(lock_key, request.sid, nx=True, ex=TOKEN_EXPIRY_SECONDS)
-
-    if was_set:
-        # Success! You are the presenter.
-        emit('presenter_token_granted')
-        # Inform everyone else in the room who the new presenter is
-        emit('presenter_update', {'presenterSid': request.sid}, to=f"room:{room}")
-    else:
-        # Failure, someone else holds the lock.
-        emit('presenter_token_denied')
 
 
 @socketio.on('set_frame_atomic')
@@ -156,8 +137,7 @@ def handle_set_frame_atomic(data):
     lock_key = f"room:{room}:presenter_lock"
     redis_client = current_app.extensions["redis"]
 
-    if redis_client.exists(lock_key):
-        # Presenter is active, return error
+    if redis_client.get(lock_key) not in [request.sid, None]:
         return {"success": False, "error": "LockError", "message": "Cannot set frame while presenter is active"}
 
     frame = data.get('frame')
@@ -165,6 +145,8 @@ def handle_set_frame_atomic(data):
         redis_client.set(f"room:{room}:current_frame", frame)
         emit('frame_update', {'frame': frame}, to=f"room:{room}", skip_sid=request.sid)
         return {"success": True}
+    
+    return {"success": False, "error": "Invalid frame"}
 
 @socketio.on('set_frame_continuous')
 def handle_set_frame_continuous(data):
@@ -176,23 +158,41 @@ def handle_set_frame_continuous(data):
     redis_client = current_app.extensions["redis"]
     
     presenter_sid = redis_client.get(lock_key)
+
     if presenter_sid and presenter_sid == request.sid:
         frame = data.get('frame')
         if frame is not None:
             redis_client.set(f"room:{room}:current_frame", frame)
             emit('frame_update', {'frame': frame}, to=f"room:{room}", skip_sid=request.sid)
 
-@socketio.on('renew_presenter_token')
-def handle_renew_presenter_token():
-    room = get_project_room_from_session(request.sid)
+
+@socketio.on('request_presenter_token')
+def handle_request_presenter_token():
+    sid = request.sid
+    room = get_project_room_from_session(sid)
+    if not room:
+        return {"success": False, "reason": "Not in a valid room"}
+
     lock_key = f"room:{room}:presenter_lock"
     r = current_app.extensions["redis"]
-    
-    # Verify ownership before renewing
-    presenter_sid = r.get(lock_key)
-    if presenter_sid and presenter_sid == request.sid:
-        # Refresh the expiry time
-        r.expire(lock_key, TOKEN_EXPIRY_SECONDS)
+
+    # --- UPDATED LOGIC ---
+    # Get the current holder of the lock
+    current_holder = r.get(lock_key)
+
+    # Case 1: No one has the lock, or the requester already has it (renewal)
+    if current_holder is None or current_holder == sid:
+        # Set (or reset) the lock with the new expiry
+        r.set(lock_key, sid, ex=TOKEN_EXPIRY_SECONDS)
+        
+        # If this is a brand new presenter, inform the room
+        if current_holder is None:
+            emit('presenter_update', {'presenterSid': sid}, to=f"room:{room}", skip_sid=sid)
+            
+        return {"success": True}
+    else:
+        # Case 2: Someone else has the lock
+        return {"success": False, "reason": "Presenter lock is held by another user"}
 
 
 @socketio.on('release_presenter_token')
@@ -200,13 +200,15 @@ def handle_release_presenter_token():
     room = get_project_room_from_session(request.sid)
     lock_key = f"room:{room}:presenter_lock"
     r = current_app.extensions["redis"]
-    
-    # Verify ownership before deleting
+
     presenter_sid = r.get(lock_key)
+
     if presenter_sid and presenter_sid == request.sid:
         r.delete(lock_key)
-        # Inform everyone that scrubbing is over
-        emit('presenter_update', {'presenterSid': None}, to=f"room:{room}")
+        emit('presenter_update', {'presenterSid': None}, to=f"room:{room}", skip_sid=request.sid)
+        return {"success": True}
+    else:
+        return {"success": False, "error": "Not the current presenter"}
 
 @socketio.on("lock:acquire")
 def acquire_lock(data):

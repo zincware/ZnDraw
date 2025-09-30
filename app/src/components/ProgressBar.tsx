@@ -5,7 +5,7 @@ import CloudDownloadIcon from '@mui/icons-material/CloudDownload';
 import { useAppStore } from '../store';
 import { throttle } from 'lodash';
 import { socket } from '../socket';
-
+import { usePresenterMode } from '../hooks/usePresenterMode';
 
 const FrameProgressBar = () => {
     const [isEditing, setIsEditing] = useState(false);
@@ -17,18 +17,20 @@ const FrameProgressBar = () => {
 
     const {
         currentFrame, setCurrentFrame, frameCount, isConnected, isLoading,
-        skipFrames, setSkipFrames, isPresenter, setPresenter, presenterSid
+        skipFrames, setSkipFrames
     } = useAppStore();
+
+    const { requestPresenterMode, releasePresenterMode, presenterMode } = usePresenterMode();
 
     // Emits CONTINUOUS updates while dragging
     const throttledFrameUpdate = useMemo(
         () => throttle((frame: number) => {
             // Only send if we are confirmed to be the presenter
-            if (useAppStore.getState().isPresenter) {
+            if (presenterMode === 'presenting') {
                 socket.emit('set_frame_continuous', { frame });
             }
         }, 100),
-        []
+        [presenterMode]
     );
 
     // This is the primary handler for the slider
@@ -46,7 +48,7 @@ const FrameProgressBar = () => {
             clearTimeout(scrubTimerRef.current);
             scrubTimerRef.current = null;
             isScrubbingRef.current = true;
-            socket.emit('request_presenter_token'); // Escalate to presenter mode
+            requestPresenterMode(); // Request presenter mode
         }
         // This is the first change event. Treat it as an atomic jump for now.
         else {
@@ -73,8 +75,7 @@ const FrameProgressBar = () => {
         // If we were in scrubbing mode, release the token
         if (isScrubbingRef.current) {
             throttledFrameUpdate.flush(); // Send the final frame
-            socket.emit('release_presenter_token');
-            setPresenter(false); // Optimistically update UI
+            releasePresenterMode(); // Release presenter mode
         }
 
         // Reset the scrubbing flag for the next interaction
@@ -87,8 +88,12 @@ const FrameProgressBar = () => {
             if (scrubTimerRef.current) {
                 clearTimeout(scrubTimerRef.current);
             }
+            // Release presenter mode if still active
+            if (isScrubbingRef.current) {
+                releasePresenterMode();
+            }
         };
-    }, []);
+    }, [releasePresenterMode]);
 
 
     const waitingAnimation = {
@@ -225,9 +230,9 @@ const FrameProgressBar = () => {
                 orientation="horizontal"
                 value={currentFrame}
                 onChange={handleSliderChange}
-                onMouseUp={handleScrubEnd} 
+                onMouseUp={handleScrubEnd}
                 onMouseDown={() => { isScrubbingRef.current = false; }}
-                disabled={presenterSid !== null && !isPresenter}
+                disabled={presenterMode === 'locked'}
                 max={frameCount - 1}
                 aria-label="Frame Progress"
                 valueLabelDisplay="auto"
