@@ -4,6 +4,7 @@ import uuid
 
 from flask import current_app, request
 from flask_socketio import join_room, leave_room, rooms, emit
+import json
 
 from zndraw.server import socketio
 
@@ -43,30 +44,32 @@ def get_lock_key(room: str, target: str) -> str:
     """Constructs a standardized Redis key for a lock."""
     return f"room:{room}:lock:{target}"
 
+
 @socketio.on("connect")
 def handle_connect():
     sid = request.sid
     log.info(f"Client connected: {sid}")
 
+
 @socketio.on("disconnect")
 def handle_disconnect():
     sid = request.sid
     r = current_app.extensions["redis"]
-    
+
     # --- New Redis-based Cleanup ---
     room_name = r.get(f"sid:{sid}")
     if room_name:
         # Get username before deleting for logging purposes
         user = r.hget(f"room:{room_name}:users", sid)
         log.info(f"Client disconnected: {sid} ({user}) from room {room_name}")
-        
+
         # Clean up Redis entries
         r.hdel(f"room:{room_name}:users", sid)
         r.delete(f"sid:{sid}")
 
         # (Optional) Notify room that a user has left
         users_in_room = r.hgetall(f"room:{room_name}:users")
-        emit('room_users_update', users_in_room, to=f"room:{room_name}")
+        emit("room_users_update", users_in_room, to=f"room:{room_name}")
     else:
         log.info(f"Client disconnected: {sid} (was not in a Redis-managed room)")
 
@@ -74,16 +77,78 @@ def handle_disconnect():
     lock_keys = r.scan_iter("*:lock:*")
     for key in lock_keys:
         if r.get(key) == sid:
-            log.warning(f"Cleaning up orphaned lock '{key}' held by disconnected client {sid}")
+            log.warning(
+                f"Cleaning up orphaned lock '{key}' held by disconnected client {sid}"
+            )
             r.delete(key)
-            
+
     if room_name:
         lock_key = f"room:{room_name}:presenter_lock"
         presenter_sid = r.get(lock_key)
         if presenter_sid and presenter_sid == sid:
             r.delete(lock_key)
             # Inform everyone that the presenter left
-            emit('presenter_update', {'presenterSid': None}, to=f"room:{room_name}")
+            emit("presenter_update", {"presenterSid": None}, to=f"room:{room_name}")
+
+    extension_categories = ["modifiers", "selections", "analyses"]
+    print(f"Cleaning up extensions for disconnected SID {sid} in room '{room_name}'...")
+
+    for category in extension_categories:
+        user_extensions_key = f"room:{room_name}:extensions:{category}:{sid}"
+        user_extensions = r.smembers(user_extensions_key)
+
+        if not user_extensions:
+            continue
+
+        print(f"User {sid} was using extensions in '{category}': {user_extensions}")
+
+        with r.pipeline() as pipe:
+            for ext_name in user_extensions:
+                extension_sids_key = (
+                    f"room:{room_name}:extensions:{category}:{ext_name}"
+                )
+                pipe.srem(extension_sids_key, sid)
+                pipe.scard(extension_sids_key)
+
+            # where 1 is srem's result (1 member removed) and 0/2 is scard's result.
+            results = pipe.execute()
+
+        schema_invalidated = False
+        extensions_to_delete = []
+
+        for i, ext_name in enumerate(user_extensions):
+            remaining_sids_count = results[i * 2 + 1]  # Get the scard result
+            print(
+                f"Extension '{ext_name}': {remaining_sids_count} SIDs remaining after removing {sid}."
+            )
+
+            if remaining_sids_count == 0:
+                extensions_to_delete.append(ext_name)
+                schema_invalidated = True
+
+        # 4. If any extensions are now orphaned, delete them completely
+        if extensions_to_delete:
+            print(
+                f"Deleting orphaned extensions in '{category}': {extensions_to_delete}"
+            )
+            with r.pipeline() as pipe:
+                for ext_name in extensions_to_delete:
+                    pipe.delete(f"room:{room_name}:extensions:{category}:{ext_name}")
+                    pipe.hdel(f"room:{room_name}:extensions:{category}", ext_name)
+                pipe.execute()
+
+        r.delete(user_extensions_key)
+        print(f"Cleaned up user-specific extension list: {user_extensions_key}")
+
+        if schema_invalidated:
+            print(
+                f"Invalidating schema for category '{category}' in room '{room_name}'."
+            )
+            socketio.emit(
+                "invalidate:schema",
+                {"roomId": room_name, "category": category},
+                to=f"room:{room_name}",
+            )
 
 
 @socketio.on("join_room")
@@ -104,7 +169,7 @@ def on_join(data):
     # Join the new room (flask-socketio still needs this for the message queue)
     join_room(f"room:{room}")
     # joint the room for this user, e.g. one user can have multiple connections
-    join_room(f"user:{user}")    
+    join_room(f"user:{user}")
 
     # Store the new room membership and user info in Redis
     r.set(f"sid:{sid}", room)
@@ -119,16 +184,15 @@ def on_join(data):
     # current_frame = r.get(f"room:{room}:current_frame")
     # if current_frame is not None:
     #     emit('frame_update', {'frame': int(current_frame)}, to=sid)
-    
+
     # # (Optional but recommended) Notify everyone in the room about the updated user list
     # users_in_room = r.hgetall(f"room:{room}:users")
     # emit('room_users_update', users_in_room, to=f"room:{room}")
 
+    # check if this user has any extensions registered
 
 
-
-
-@socketio.on('set_frame_atomic')
+@socketio.on("set_frame_atomic")
 def handle_set_frame_atomic(data):
     """
     Handles a single frame jump. REJECTED if a presenter is active.
@@ -138,17 +202,22 @@ def handle_set_frame_atomic(data):
     redis_client = current_app.extensions["redis"]
 
     if redis_client.get(lock_key) not in [request.sid, None]:
-        return {"success": False, "error": "LockError", "message": "Cannot set frame while presenter is active"}
+        return {
+            "success": False,
+            "error": "LockError",
+            "message": "Cannot set frame while presenter is active",
+        }
 
-    frame = data.get('frame')
+    frame = data.get("frame")
     if frame is not None:
         redis_client.set(f"room:{room}:current_frame", frame)
-        emit('frame_update', {'frame': frame}, to=f"room:{room}", skip_sid=request.sid)
+        emit("frame_update", {"frame": frame}, to=f"room:{room}", skip_sid=request.sid)
         return {"success": True}
-    
+
     return {"success": False, "error": "Invalid frame"}
 
-@socketio.on('set_frame_continuous')
+
+@socketio.on("set_frame_continuous")
 def handle_set_frame_continuous(data):
     """
     Handles continuous frame updates. REQUIRES sender to be the presenter.
@@ -156,17 +225,22 @@ def handle_set_frame_continuous(data):
     room = get_project_room_from_session(request.sid)
     lock_key = f"room:{room}:presenter_lock"
     redis_client = current_app.extensions["redis"]
-    
+
     presenter_sid = redis_client.get(lock_key)
 
     if presenter_sid and presenter_sid == request.sid:
-        frame = data.get('frame')
+        frame = data.get("frame")
         if frame is not None:
             redis_client.set(f"room:{room}:current_frame", frame)
-            emit('frame_update', {'frame': frame}, to=f"room:{room}", skip_sid=request.sid)
+            emit(
+                "frame_update",
+                {"frame": frame},
+                to=f"room:{room}",
+                skip_sid=request.sid,
+            )
 
 
-@socketio.on('request_presenter_token')
+@socketio.on("request_presenter_token")
 def handle_request_presenter_token():
     sid = request.sid
     room = get_project_room_from_session(sid)
@@ -184,18 +258,23 @@ def handle_request_presenter_token():
     if current_holder is None or current_holder == sid:
         # Set (or reset) the lock with the new expiry
         r.set(lock_key, sid, ex=TOKEN_EXPIRY_SECONDS)
-        
+
         # If this is a brand new presenter, inform the room
         if current_holder is None:
-            emit('presenter_update', {'presenterSid': sid}, to=f"room:{room}", skip_sid=sid)
-            
+            emit(
+                "presenter_update",
+                {"presenterSid": sid},
+                to=f"room:{room}",
+                skip_sid=sid,
+            )
+
         return {"success": True}
     else:
         # Case 2: Someone else has the lock
         return {"success": False, "reason": "Presenter lock is held by another user"}
 
 
-@socketio.on('release_presenter_token')
+@socketio.on("release_presenter_token")
 def handle_release_presenter_token():
     room = get_project_room_from_session(request.sid)
     lock_key = f"room:{room}:presenter_lock"
@@ -205,10 +284,16 @@ def handle_release_presenter_token():
 
     if presenter_sid and presenter_sid == request.sid:
         r.delete(lock_key)
-        emit('presenter_update', {'presenterSid': None}, to=f"room:{room}", skip_sid=request.sid)
+        emit(
+            "presenter_update",
+            {"presenterSid": None},
+            to=f"room:{room}",
+            skip_sid=request.sid,
+        )
         return {"success": True}
     else:
         return {"success": False, "error": "Not the current presenter"}
+
 
 @socketio.on("lock:acquire")
 def acquire_lock(data):
@@ -321,7 +406,6 @@ def handle_upload_prepare(data):
     return {"success": True, "token": token}
 
 
-
 @socketio.on("frame:delete")
 def handle_delete_frame(data):
     sid = request.sid
@@ -380,3 +464,60 @@ def handle_delete_frame(data):
     except Exception as e:
         log.error(f"Failed to delete frame: {e}")
         return {"success": False, "error": "Failed to delete frame"}
+
+
+@socketio.on("register:extension")
+def register_extension(data: dict):
+    """Registers a new extension for the room."""
+    name = data.get("name")
+    category = data.get("category")
+    schema = data.get("schema")
+    public = data.get("public", False)
+    if public:
+        return {"error": "Cannot register public extensions via this endpoint"}
+    room_id = get_project_room_from_session(request.sid)
+
+    if not name or not category or not schema:
+        return {"error": "name, category, and schema are required"}
+
+    print(
+        f"Registering extension for room {room_id}: name={name}, category={category}, schema={json.dumps(schema)}"
+    )
+
+    # store in redis
+    redis_client = current_app.extensions["redis"]
+    # try to get existing schema for this name
+    existing_schema = redis_client.hget(f"room:{room_id}:extensions:{category}", name)
+    if existing_schema is not None:
+        existing_schema = json.loads(existing_schema)
+        if existing_schema != schema:
+            return {
+                "error": "Extension with this name already exists with a different schema"
+            }
+        else:
+            # save a mapping: sid -> extension
+            # and a list extension -> available sids
+            # in redis, if public, just go extensions:category ...
+            redis_client.sadd(
+                f"room:{room_id}:extensions:{category}:{request.sid}", name
+            )
+            redis_client.sadd(
+                f"room:{room_id}:extensions:{category}:{name}", request.sid
+            )
+            return {
+                "status": "success",
+                "message": "Extension already registered with same schema",
+            }
+    else:
+        redis_client.sadd(f"room:{room_id}:extensions:{category}:{request.sid}", name)
+        redis_client.sadd(f"room:{room_id}:extensions:{category}:{name}", request.sid)
+        redis_client.hset(
+            f"room:{room_id}:extensions:{category}", name, json.dumps(schema)
+        )
+        # invalidate schema on all clients
+        socketio.emit(
+            "invalidate:schema",
+            {"roomId": room_id, "category": category},
+            to=f"room:{room_id}",
+        )
+    return {"status": "success"}

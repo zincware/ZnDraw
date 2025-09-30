@@ -3,15 +3,19 @@ import typing as t
 
 import networkx as nx
 import numpy as np
-from pydantic import Field, BaseModel
+from pydantic import Field
+from zndraw.extensions.abc import ExtensionType, Extension
 
+class Selection(Extension):
+    """The base class for all selection extensions."""
+    category: t.ClassVar[ExtensionType] = ExtensionType.SELECTION
 
-class NoneSelection(BaseModel):
+class NoneSelection(Selection):
     def run(self, vis) -> None:
         vis.selection = []
 
 
-class All(BaseModel):
+class All(Selection):
     """Select all atoms."""
 
     def run(self, vis) -> None:
@@ -19,14 +23,14 @@ class All(BaseModel):
         vis.selection = list(range(len(atoms)))
 
 
-class Invert(BaseModel):
+class Invert(Selection):
     def run(self, vis) -> None:
         atoms = vis[vis.step]
         selected_ids = vis.selection
         vis.selection = list(set(range(len(atoms))) - set(selected_ids))
 
 
-class Range(BaseModel):
+class Range(Selection):
     start: int = Field(0, description="Start index")
     end: int = Field(5, description="End index")
     step: int = Field(1, description="Step size")
@@ -35,7 +39,7 @@ class Range(BaseModel):
         vis.selection = list(range(self.start, self.end, self.step))
 
 
-class Random(BaseModel):
+class Random(Selection):
     count: int = Field(..., description="Number of atoms to select")
 
     def run(self, vis) -> None:
@@ -43,7 +47,7 @@ class Random(BaseModel):
         vis.selection = random.sample(range(len(atoms)), self.count)
 
 
-class IdenticalSpecies(BaseModel):
+class IdenticalSpecies(Selection):
     def run(self, vis) -> None:
         atoms = vis[vis.step]
         selected_ids = vis.selection
@@ -56,7 +60,7 @@ class IdenticalSpecies(BaseModel):
         vis.selection = list(selected_ids)
 
 
-class ConnectedParticles(BaseModel):
+class ConnectedParticles(Selection):
     def run(self, vis) -> None:
         atoms = vis.atoms
         selected_ids = vis.selection
@@ -77,7 +81,7 @@ class ConnectedParticles(BaseModel):
         vis.selection = [x.item() for x in set(total_ids)]
 
 
-class Neighbour(BaseModel):
+class Neighbour(Selection):
     """Select the nth order neighbours of the selected atoms."""
 
     order: int = Field(1, description="Order of neighbour")
@@ -102,14 +106,14 @@ class Neighbour(BaseModel):
         vis.selection = list(set(total_ids))
 
 
-class UpdateSelection(BaseModel):
+class UpdateSelection(Selection):
     """Reload Selection."""
 
     def run(self, vis) -> None:
         vis.selection = vis.selection
 
 
-selections: dict[str, t.Type[BaseModel]] = {
+selections: dict[str, t.Type[Selection]] = {
     ConnectedParticles.__name__: ConnectedParticles,
     NoneSelection.__name__: NoneSelection,
     All.__name__: All,

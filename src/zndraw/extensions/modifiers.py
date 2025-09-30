@@ -7,6 +7,7 @@ import ase.constraints
 import numpy as np
 from ase.data import chemical_symbols
 from pydantic import Field, BaseModel
+from zndraw.extensions.abc import ExtensionType, Extension
 
 
 log = logging.getLogger("zndraw")
@@ -14,7 +15,9 @@ log = logging.getLogger("zndraw")
 Symbols = enum.Enum("Symbols", {symbol: symbol for symbol in chemical_symbols})
 
 
-class UpdateScene(BaseModel):
+class UpdateScene(Extension):
+    category = ExtensionType.MODIFIER
+
     def apply_selection(
         self, atom_ids: list[int], atoms: ase.Atoms
     ) -> t.Tuple[ase.Atoms, ase.Atoms]:
@@ -361,7 +364,7 @@ class FixAtoms(UpdateScene):
         vis.atoms = atoms
 
 
-modifiers: dict[str, t.Type[BaseModel]] = {
+modifiers: dict[str, t.Type[UpdateScene]] = {
     Delete.__name__: Delete,
     Rotate.__name__: Rotate,
     Translate.__name__: Translate,

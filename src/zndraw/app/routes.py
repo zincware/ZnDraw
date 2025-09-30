@@ -326,21 +326,36 @@ def get_room_schema(room_id: str, category: str):
     from zndraw.extensions.modifiers import modifiers
     from zndraw.extensions.selections import selections
     from zndraw.settings import settings
+
+    # Map category strings to the corresponding imported objects
+    category_map = {
+        "selections": selections,
+        "modifiers": modifiers,
+        "settings": settings,
+    }
+
+    if category not in category_map:
+        return {"error": f"Unknown schema category '{category}'"}
+
+    redis_client = current_app.extensions["redis"]
     schema = {}
-    if category == "selections":
-        for name, cls in selections.items():
-            # this will be updated with ase.Atoms data later!
-            schema[name] = {"schema": cls.model_json_schema()}
-    elif category == "modifiers":
-        for name, cls in modifiers.items():
-            # this will be updated with ase.Atoms data later!
-            schema[name] = {"schema": cls.model_json_schema()}
-    elif category == "settings":
-        for name, cls in settings.items():
-            # this will be updated with ase.Atoms data later!
-            schema[name] = {"schema": cls.model_json_schema()}
-    else:
-        schema = {"error": f"Unknown schema category '{category}'"}
+    
+    for name, cls in category_map[category].items():
+        schema[name] = {"schema": cls.model_json_schema()}
+
+    redis_key = f"room:{room_id}:extensions:{category}"
+    redis_schema = redis_client.hgetall(redis_key)
+
+    for name, sch_str in redis_schema.items():
+        sch = json.loads(sch_str)
+        if name in schema:
+            if schema[name]["schema"] != sch:
+                print(
+                    f"Warning: {category.capitalize()} extension '{name}' schema "
+                    "in Redis differs from server schema."
+                )
+        else:
+            schema[name] = {"schema": sch}
 
     return schema
 

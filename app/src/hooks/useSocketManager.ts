@@ -46,11 +46,20 @@ export const useSocketManager = () => {
       console.log(`Invalidated extension data for user ${userId}, category ${category}, extension ${extension} in room ${roomId}`);
     }
 
+    function onSchemaInvalidate(data: any) {
+      const { roomId, category } = data;
+      queryClient.invalidateQueries({
+          queryKey: ['schemas', roomId, category],
+        });
+      console.log(`Invalidated schemas for category ${category} in room ${roomId}`);
+    }
+
     socket.on('disconnect', onDisconnect);
     socket.on('connect', onConnect);
     socket.on('len_frames', onLenUpdate);
     socket.on('frame_update', onFrameUpdate);
     socket.on('invalidate', onInvalidate);
+    socket.on('invalidate:schema', onSchemaInvalidate);
 
     return () => {
       socket.off('connect', onConnect);
@@ -58,6 +67,7 @@ export const useSocketManager = () => {
       socket.off('len_frames', onLenUpdate);
       socket.off('frame_update', onFrameUpdate);
       socket.off('invalidate', onInvalidate);
+      socket.off('invalidate:schema', onSchemaInvalidate);
     };
   }, [room, setConnected, setFrameCount, userId, isConnected, setCurrentFrame, queryClient]);
 };
