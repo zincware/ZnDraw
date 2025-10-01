@@ -483,3 +483,61 @@ def test_worker_finish_nonstarted_job(server):
     assert response_json["status"] == "completed"
     assert response_json["worker_id"] == vis.client.sid
 
+
+def test_worker_fail_job(server):
+    room = "testroom"
+    user = "testuser"
+    mod = ModifierExtension
+    vis = ZnDraw(url=server, room=room, user=user)
+    vis.register_extension(mod)
+
+    # queue job for mod1
+    response = requests.post(f"{server}/api/rooms/{room}/extensions/modifiers/{mod.__name__}?userId={user}", json={"parameter": 42})
+    assert response.status_code == 200
+    response_json = response.json()
+    jobId = response_json.pop("jobId")
+    assert response_json == {
+        "queuePosition": 0,
+        "status": "success",
+    }
+
+    # fail the job without starting it
+    response = requests.post(f"{server}/api/rooms/{room}/jobs/{jobId}/fail", json={"workerId": vis.client.sid, "error": "Something went wrong"})
+    assert response.status_code == 400
+    assert response.json() == {"error": "Job is not running"}
+
+    # pick up the job
+    response = requests.post(f"{server}/api/rooms/{room}/jobs/next", json={"workerId": vis.client.sid})
+    assert response.status_code == 200
+    response_json = response.json()
+    assert response_json["jobId"] == jobId
+    assert response_json["data"] == {"parameter": 42}
+
+    # fail the job with wrong worker id
+    response = requests.post(f"{server}/api/rooms/{room}/jobs/{jobId}/fail", json={"workerId": "wrong-worker-id", "error": "Something went wrong"})
+    assert response.status_code == 400
+    assert response.json() == {"error": "Worker ID does not match job's worker ID"}
+
+    # fail the job
+    response = requests.post(f"{server}/api/rooms/{room}/jobs/{jobId}/fail", json={"workerId": vis.client.sid, "error": "Something went wrong"})
+    assert response.status_code == 200
+    assert response.json() == {"status": "success"}
+
+    # check job status again
+    response = requests.get(f"{server}/api/rooms/{room}/jobs/{jobId}")
+    assert response.status_code == 200
+    response_json = response.json()
+    assert response_json["status"] == "failed"
+    assert response_json["worker_id"] == vis.client.sid
+    assert response_json["error"] == "Something went wrong"
+
+    # get all jobs
+    response = requests.get(f"{server}/api/rooms/{room}/jobs")
+    assert response.status_code == 200
+    response_json = response.json()
+    assert isinstance(response_json, list)
+    assert len(response_json) == 1
+    assert response_json[0]["status"] == "failed"
+    assert response_json[0]["error"] == "Something went wrong"
+    assert response_json[0]["data"] == {"parameter": 42}
+    assert response_json[0]["id"] == jobId
