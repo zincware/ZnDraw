@@ -11,6 +11,7 @@ interface AppState {
   skipFrames: number;
   selection: number[] | null;
   frame_selection: number[] | null;
+  bookmarks: Record<number, string> | null;
 
   // Actions (functions to modify the state)
   setConnected: (status: boolean, room: string, user: string) => void;
@@ -20,6 +21,7 @@ interface AppState {
   setSkipFrames: (skip: number) => void;
   setSelection: (selection: number[] | null) => void;
   setFrameSelection: (selection: number[] | null) => void;
+  setBookmarks: (bookmark: Record<number, string> | null) => void;
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -33,7 +35,7 @@ export const useAppStore = create<AppState>((set) => ({
   skipFrames: 1,
   selection: null,
   frame_selection: null,
-
+  bookmarks: {1: "Example Bookmark", 5: "Another Bookmark", 10: "Last Bookmark"},
   // Actions
   setConnected: (status, room, user) => set({ isConnected: status, roomId: room, userId: user }),
   setCurrentFrame: (frame) => set({ currentFrame: frame }),
@@ -46,4 +48,5 @@ export const useAppStore = create<AppState>((set) => ({
   setSkipFrames: (skip) => set({ skipFrames: skip }),
   setSelection: (selection) => set({ selection }),
   setFrameSelection: (frame_selection) => set({ frame_selection }),
+  setBookmarks: (bookmarks) => set({ bookmarks }),
 }));
