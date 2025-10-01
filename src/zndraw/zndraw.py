@@ -4,11 +4,12 @@ from zndraw.extensions import Extension, ExtensionType
 import typing as t
 import ase
 from zndraw.utils import update_colors_and_radii, atoms_to_dict, atoms_from_dict
+from collections.abc import MutableSequence
 
 
 
 @dataclasses.dataclass
-class ZnDraw:
+class ZnDraw(MutableSequence):
     url: str
     room: str
     user: str
@@ -63,3 +64,21 @@ class ZnDraw:
         """Get an Atoms object by index."""
         data = self.client[index]
         return atoms_from_dict(data)
+    
+    def __setitem__(self, index: int, atoms: ase.Atoms) -> None:
+        """Set an Atoms object at a specific index."""
+        if not isinstance(atoms, ase.Atoms):
+            raise TypeError("Only ase.Atoms objects are supported")
+        update_colors_and_radii(atoms)
+        self.client[index] = atoms_to_dict(atoms)
+
+    def __delitem__(self, index: int) -> None:
+        """Delete an Atoms object at a specific index."""
+        del self.client[index]
+
+    def insert(self, index: int, atoms: ase.Atoms) -> None:
+        """Insert an Atoms object at a specific index."""
+        if not isinstance(atoms, ase.Atoms):
+            raise TypeError("Only ase.Atoms objects are supported")
+        update_colors_and_radii(atoms)
+        self.client.insert(index, atoms_to_dict(atoms))

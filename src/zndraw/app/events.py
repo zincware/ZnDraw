@@ -428,6 +428,7 @@ def handle_upload_prepare(data):
             return {
                 "success": False,
                 "error": f"Frame {frame_id} does not exist. Max index is {num_frames - 1}.",
+                "error_type": "IndexError",
             }
 
     token = str(uuid.uuid4())
@@ -483,6 +484,7 @@ def handle_delete_frame(data):
             return {
                 "success": False,
                 "error": f"Frame {frame_id} not found, max frame: {len(frame_mapping) - 1}",
+                "error_type": "IndexError",
             }
 
         # Get the physical index that we're "deleting" (just removing from mapping)

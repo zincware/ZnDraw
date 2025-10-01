@@ -197,9 +197,13 @@ class Client(MutableSequence):
 
         response = self.sio.call("upload:prepare", request_data)
         if not response or not response.get("success"):
-            raise RuntimeError(
-                f"Failed to prepare for upload: {response.get('error') if response else 'No response'}"
-            )
+            error_msg = response.get('error') if response else 'No response'
+            error_type = response.get('error_type') if response else None
+
+            # Raise the appropriate error type based on server response
+            if error_type == "IndexError":
+                raise IndexError(error_msg)
+            raise RuntimeError(f"Failed to prepare for upload: {error_msg}")
         return response["token"]
 
     def _upload_frame_data(self, token: str, serialized_data) -> dict:
@@ -331,9 +335,13 @@ class Client(MutableSequence):
             response = self.sio.call("frame:delete", {"frame_id": frame_id})
 
             if not response or not response.get("success"):
-                raise RuntimeError(
-                    f"Failed to delete frame: {response.get('error') if response else 'No response'}"
-                )
+                error_msg = response.get('error') if response else 'No response'
+                error_type = response.get('error_type') if response else None
+
+                # Raise the appropriate error type based on server response
+                if error_type == "IndexError":
+                    raise IndexError(error_msg)
+                raise RuntimeError(f"Failed to delete frame: {error_msg}")
 
             return response
 
