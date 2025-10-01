@@ -1,6 +1,18 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
-const fetchSchemas = async (room: string, category: string) => {
+export interface ExtensionMetadata {
+  schema: any;
+  provider: "celery" | number;  // "celery" for server-side, or number of workers for client-side
+  queueLength: number;
+  idleWorkers: number;
+  progressingWorkers: number;
+}
+
+export interface SchemasResponse {
+  [extensionName: string]: ExtensionMetadata;
+}
+
+const fetchSchemas = async (room: string, category: string): Promise<SchemasResponse> => {
   const response = await fetch(`/api/rooms/${room}/schema/${category}`);
   if (!response.ok) {
     throw new Error(`Failed to fetch schema for ${category}`);
@@ -12,7 +24,6 @@ export const useSchemas = (room: string, category: string) => {
   return useQuery({
     queryKey: ['schemas', room, category],
     queryFn: () => fetchSchemas(room, category),
-    staleTime: Infinity, // These schemas are static, they never go stale
     enabled: !!room && !!category, // Only run the query if room and category are available
   });
 };

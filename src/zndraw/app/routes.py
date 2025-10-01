@@ -326,7 +326,14 @@ def exit_app():
 
 @main.route("/api/rooms/<string:room_id>/schema/<string:category>", methods=["GET"])
 def get_room_schema(room_id: str, category: str):
-    """Get the schema for a specific room."""
+    """Get the schema for a specific room with worker and queue statistics.
+
+    Returns schema along with metadata about each extension:
+    - provider: "celery" for server-side extensions, or count of registered workers
+    - queueLength: number of queued tasks for this extension
+    - idleWorkers: number of idle workers available
+    - progressingWorkers: number of workers currently processing tasks
+    """
     from zndraw.extensions.modifiers import modifiers
     from zndraw.extensions.selections import selections
     from zndraw.settings import settings
@@ -343,15 +350,34 @@ def get_room_schema(room_id: str, category: str):
 
     redis_client = current_app.extensions["redis"]
     schema = {}
-    
-    for name, cls in category_map[category].items():
-        schema[name] = {"schema": cls.model_json_schema()}
 
+    # Add server-provided extensions (Celery-based)
+    for name, cls in category_map[category].items():
+        schema[name] = {
+            "schema": cls.model_json_schema(),
+            "provider": "celery",
+            "queueLength": 0,
+            "idleWorkers": 0,
+            "progressingWorkers": 0
+        }
+
+    # Add client-provided extensions from Redis
     redis_key = f"room:{room_id}:extensions:{category}"
     redis_schema = redis_client.hgetall(redis_key)
 
     for name, sch_str in redis_schema.items():
         sch = json.loads(sch_str)
+
+        # Get worker statistics for this extension
+        idle_key = f"room:{room_id}:extensions:{category}:{name}:idle_workers"
+        progressing_key = f"room:{room_id}:extensions:{category}:{name}:progressing_workers"
+        queue_key = f"room:{room_id}:extensions:{category}:{name}:queue"
+
+        idle_count = redis_client.scard(idle_key)
+        progressing_count = redis_client.scard(progressing_key)
+        queue_length = redis_client.llen(queue_key)
+        total_workers = idle_count + progressing_count
+
         if name in schema:
             if schema[name]["schema"] != sch:
                 print(
@@ -359,7 +385,13 @@ def get_room_schema(room_id: str, category: str):
                     "in Redis differs from server schema."
                 )
         else:
-            schema[name] = {"schema": sch}
+            schema[name] = {
+                "schema": sch,
+                "provider": total_workers,  # Number of workers for client extensions
+                "queueLength": queue_length,
+                "idleWorkers": idle_count,
+                "progressingWorkers": progressing_count
+            }
 
     return schema
 
@@ -395,13 +427,44 @@ def log_room_extension(room_id: str, category: str, extension: str):
         socketio.emit("task:run", {"data": data, "extension": extension, "category": category}, to=worker_sid)
         print(f"Emitted task:run to worker {worker_sid} for user {user_id}, category {category}, extension {extension}, room {room_id}")
         redis_client.sadd(progressing_key, worker_sid)
+
+        # Notify all clients in room about worker state change
+        idle_count = redis_client.scard(idle_key)
+        progressing_count = redis_client.scard(progressing_key)
+        socketio.emit(
+            "queue:update",
+            {
+                "roomId": room_id,
+                "category": category,
+                "extension": extension,
+                "queueLength": 0,
+                "idleWorkers": idle_count,
+                "progressingWorkers": progressing_count
+            },
+            to=f"room:{room_id}"
+        )
     else:
         # add to queue
         queue_key = f"room:{room_id}:extensions:{category}:{extension}:queue"
         redis_client.rpush(queue_key, json.dumps({"user_id": user_id, "data": data}))
         print(f"No idle workers, queued task for user {user_id}, category { category}, extension {extension}, room {room_id}")
         queue_position = redis_client.llen(queue_key)
-        # TODO: return queue position?
+
+        # Notify all clients in room about queue update
+        idle_count = redis_client.scard(idle_key)
+        progressing_count = redis_client.scard(progressing_key)
+        socketio.emit(
+            "queue:update",
+            {
+                "roomId": room_id,
+                "category": category,
+                "extension": extension,
+                "queueLength": queue_position,
+                "idleWorkers": idle_count,
+                "progressingWorkers": progressing_count
+            },
+            to=f"room:{room_id}"
+        )
 
 
 
