@@ -9,6 +9,8 @@ interface AppState {
   currentFrame: number;
   frameCount: number;
   skipFrames: number;
+  selection: number[] | null;
+  frame_selection: number[] | null;
 
   // Actions (functions to modify the state)
   setConnected: (status: boolean, room: string, user: string) => void;
@@ -16,6 +18,8 @@ interface AppState {
   setFrameCount: (count: number) => void;
   setLoading: (loading: boolean) => void;
   setSkipFrames: (skip: number) => void;
+  setSelection: (selection: number[] | null) => void;
+  setFrameSelection: (selection: number[] | null) => void;
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -27,6 +31,8 @@ export const useAppStore = create<AppState>((set) => ({
   frameCount: 0,
   isLoading: false,
   skipFrames: 1,
+  selection: null,
+  frame_selection: null,
 
   // Actions
   setConnected: (status, room, user) => set({ isConnected: status, roomId: room, userId: user }),
@@ -38,4 +44,6 @@ export const useAppStore = create<AppState>((set) => ({
   }),
   setLoading: (loading) => set({ isLoading: loading }),
   setSkipFrames: (skip) => set({ skipFrames: skip }),
+  setSelection: (selection) => set({ selection }),
+  setFrameSelection: (frame_selection) => set({ frame_selection }),
 }));

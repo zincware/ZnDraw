@@ -6,7 +6,7 @@ import { useQueryClient } from '@tanstack/react-query';
 
 export const useSocketManager = () => {
   const { roomId: room, userId } = useParams<{ roomId: string, userId: string }>();
-  const { setConnected, setFrameCount, isConnected, setCurrentFrame } = useAppStore();
+  const { setConnected, setFrameCount, isConnected, setCurrentFrame, setFrameSelection, setSelection } = useAppStore();
   const queryClient = useQueryClient();
 
   useEffect(() => {
@@ -77,6 +77,16 @@ export const useSocketManager = () => {
       console.log(`Queue updated for ${category}/${extension}: ${queueLength} queued, ${idleWorkers} idle, ${progressingWorkers} progressing`);
     }
 
+    function onSelectionUpdate(data: any) {
+      console.log(data);
+      setSelection(data["indices"] || null);
+    }
+
+    function onFrameSelectionUpdate(data: any) {
+      console.log(data);
+      setFrameSelection(data["indices"] || null);
+    }
+
     socket.on('disconnect', onDisconnect);
     socket.on('connect', onConnect);
     socket.on('len_frames', onLenUpdate);
@@ -84,6 +94,8 @@ export const useSocketManager = () => {
     socket.on('invalidate', onInvalidate);
     socket.on('invalidate:schema', onSchemaInvalidate);
     socket.on('queue:update', onQueueUpdate);
+    socket.on('selection:update', onSelectionUpdate);
+    socket.on('frame_selection:update', onFrameSelectionUpdate);
 
     return () => {
       socket.off('connect', onConnect);
@@ -93,6 +105,8 @@ export const useSocketManager = () => {
       socket.off('invalidate', onInvalidate);
       socket.off('invalidate:schema', onSchemaInvalidate);
       socket.off('queue:update', onQueueUpdate);
+      socket.off('selection:update', onSelectionUpdate);
+      socket.off('frame_selection:update', onFrameSelectionUpdate);
     };
   }, [room, setConnected, setFrameCount, userId, isConnected, setCurrentFrame, queryClient]);
 };
