@@ -229,6 +229,10 @@ def on_join(data):
     selection = r.get(f"room:{room}:selection:default")
     if selection:
         emit("selection:update", {"indices": json.loads(selection)}, to=sid)
+
+    frame_selection = r.get(f"room:{room}:frame_selection:default")
+    if frame_selection:
+        emit("frame_selection:update", {"indices": json.loads(frame_selection)}, to=sid)
     # presenter_sid = r.get(f"room:{room}:presenter_lock")
     # if presenter_sid:
     #     emit('presenter_update', {'presenterSid': presenter_sid}, to=sid)
@@ -258,6 +262,25 @@ def handle_selection_set(data):
 
     redis_client.set(f"room:{room}:selection:default", json.dumps(indices))
     emit("selection:update", {"indices": indices}, to=f"room:{room}", skip_sid=request.sid)
+    return {"success": True}
+
+
+@socketio.on("frame_selection:set")
+def handle_frame_selection_set(data):
+    room = get_project_room_from_session(request.sid)
+    redis_client = current_app.extensions["redis"]
+
+    indices = data.get("indices", [])
+    if not isinstance(indices, list):
+        return {"success": False, "messagemsg": "Indices must be a list", "error": "TypeError"}
+
+    # Validate and store the selection in Redis
+    # valid_indices = [idx for idx in indices if isinstance(idx, int) and 0 <= idx < _get_len()]
+    if any(not isinstance(idx, int) or idx < 0 for idx in indices):
+        return {"success": False, "message": f"No valid indices provided {indices}", "error": "ValueError"}
+
+    redis_client.set(f"room:{room}:frame_selection:default", json.dumps(indices))
+    emit("frame_selection:update", {"indices": indices}, to=f"room:{room}", skip_sid=request.sid)
     return {"success": True}
 
 

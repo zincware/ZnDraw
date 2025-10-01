@@ -93,3 +93,12 @@ class ZnDraw(MutableSequence):
         """Set the current selection of frame indices."""
         self.client.selection = value
     
+    @property
+    def frame_selection(self) -> frozenset[int]:
+        """Get the current selection of frame indices."""
+        return self.client.frame_selection
+    
+    @frame_selection.setter
+    def frame_selection(self, value: t.Iterable[int] | None):
+        """Set the current selection of frame indices."""
+        self.client.frame_selection = value
