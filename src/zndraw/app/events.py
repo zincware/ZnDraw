@@ -501,6 +501,26 @@ def register_extension(data: dict):
     if not name or not category or not schema:
         return {"error": "name, category, and schema are required"}
 
+    # Security check: prevent registration of extensions with server-side names
+    from zndraw.extensions.modifiers import modifiers
+    from zndraw.extensions.selections import selections
+    from zndraw.settings import settings
+
+    category_map = {
+        "selections": selections,
+        "modifiers": modifiers,
+        "settings": settings,
+    }
+
+    if category in category_map and name in category_map[category]:
+        log.warning(
+            f"Blocked attempt to register extension '{name}' in category '{category}' "
+            f"- name conflicts with server-side extension (security violation)"
+        )
+        return {
+            "error": f"Cannot register extension '{name}': name is reserved for server-side extensions"
+        }
+
     print(
         f"Registering extension for room {room_id}: name={name}, category={category}, sid={request.sid}"
     )
@@ -612,6 +632,7 @@ def _process_worker_queues(sid: str, room_id: str, category: str, redis_client) 
             try:
                 queued_task = json.loads(queued_task_json)
                 task_data = queued_task.get("data")
+                task_room = queued_task.get("room", room_id)  # Get room from task or default to current room_id
 
                 log.info(
                     f"Dispatching queued task for extension '{extension_name}' "
@@ -629,6 +650,7 @@ def _process_worker_queues(sid: str, room_id: str, category: str, redis_client) 
                             "data": task_data,
                             "extension": extension_name,
                             "category": category,
+                            "room": task_room,
                         },
                         to=sid,
                     )

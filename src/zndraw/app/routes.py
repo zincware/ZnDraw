@@ -413,31 +413,73 @@ def log_room_extension(room_id: str, category: str, extension: str):
         f"room:{room_id}:user:{user_id}:{category}", extension, json.dumps(data)
     )
 
-    # send data via `task:run` emit
-    keys = ExtensionKeys.for_extension(room_id, category, extension)
+    # Check if this is a server-side (Celery) extension
+    from zndraw.extensions.modifiers import modifiers
+    from zndraw.extensions.selections import selections
+    from zndraw.settings import settings
 
-    worker_sid = redis_client.spop(keys.idle_workers)
+    category_map = {
+        "selections": selections,
+        "modifiers": modifiers,
+        "settings": settings,
+    }
+
+    is_celery_extension = (
+        category in category_map and extension in category_map[category]
+    )
+
     queue_position = 0
-    if worker_sid is not None:
-        socketio.emit(SocketEvents.TASK_RUN, {"data": data, "extension": extension, "category": category}, to=worker_sid)
-        print(f"Emitted task:run to worker {worker_sid} for user {user_id}, category {category}, extension {extension}, room {room_id}")
-        redis_client.sadd(keys.progressing_workers, worker_sid)
 
-        # Notify all clients in room about worker state change
-        emit_queue_update(redis_client, room_id, category, extension, socketio)
+    if is_celery_extension:
+        # Dispatch to Celery task for server-side execution
+        from zndraw.app.tasks import run_extension_task
+
+        log.info(
+            f"Dispatching Celery task for {category}/{extension} in room {room_id}"
+        )
+        run_extension_task.delay(room_id, category, extension, data, user_id)
+        print(
+            f"Dispatched Celery task for user {user_id}, category {category}, extension {extension}, room {room_id}"
+        )
     else:
-        # add to queue
-        redis_client.rpush(keys.queue, json.dumps({"user_id": user_id, "data": data}))
-        print(f"No idle workers, queued task for user {user_id}, category { category}, extension {extension}, room {room_id}")
-        queue_position = redis_client.llen(keys.queue)
+        # send data via `task:run` emit to client workers
+        keys = ExtensionKeys.for_extension(room_id, category, extension)
 
-        # Notify all clients in room about queue update
-        emit_queue_update(redis_client, room_id, category, extension, socketio)
+        worker_sid = redis_client.spop(keys.idle_workers)
+        if worker_sid is not None:
+            socketio.emit(
+                SocketEvents.TASK_RUN,
+                {"data": data, "extension": extension, "category": category, "room": room_id},
+                to=worker_sid,
+            )
+            print(
+                f"Emitted task:run to worker {worker_sid} for user {user_id}, category {category}, extension {extension}, room {room_id}"
+            )
+            redis_client.sadd(keys.progressing_workers, worker_sid)
 
+            # Notify all clients in room about worker state change
+            emit_queue_update(redis_client, room_id, category, extension, socketio)
+        else:
+            # add to queue
+            redis_client.rpush(
+                keys.queue, json.dumps({"user_id": user_id, "data": data, "room": room_id})
+            )
+            print(
+                f"No idle workers, queued task for user {user_id}, category {category}, extension {extension}, room {room_id}"
+            )
+            queue_position = redis_client.llen(keys.queue)
 
+            # Notify all clients in room about queue update
+            emit_queue_update(redis_client, room_id, category, extension, socketio)
 
-    print(f"Emitting invalidate for user {user_id}, category {category}, extension {extension}, room {room_id} to user:{user_id}")
-    socketio.emit(SocketEvents.INVALIDATE, {"userId": user_id, "category": category, "extension": extension, "roomId": room_id}, to=f"user:{user_id}")
+    print(
+        f"Emitting invalidate for user {user_id}, category {category}, extension {extension}, room {room_id} to user:{user_id}"
+    )
+    socketio.emit(
+        SocketEvents.INVALIDATE,
+        {"userId": user_id, "category": category, "extension": extension, "roomId": room_id},
+        to=f"user:{user_id}",
+    )
     return {"status": "success", "queuePosition": queue_position}, 200
 
 @main.route("/api/rooms/<string:room_id>/extension-data/<string:category>/<string:extension>", methods=["GET"])
