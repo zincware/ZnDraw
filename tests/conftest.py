@@ -6,6 +6,7 @@ import time
 
 import eventlet  # noqa - eventlet must be installed for flask-socketio to start a production server
 import pytest
+import signal
 
 
 @pytest.fixture
@@ -35,13 +36,10 @@ def server():
     try:
         yield f"http://127.0.0.1:{port}"
     finally:
-        # r.flushall()
-        # # Clean up Zarr data directory on shutdown for this example
-        shutil.rmtree("data", ignore_errors=True)
-
-        # Clean up: kill the subprocess
-        proc.terminate()
+        proc.send_signal(signal.SIGTERM)
         try:
-            proc.wait(timeout=5)
+            proc.wait(timeout=10)
         except subprocess.TimeoutExpired:
             proc.kill()
+            shutil.rmtree("data", ignore_errors=True)
+            raise RuntimeError("Server did not shut down in time")
