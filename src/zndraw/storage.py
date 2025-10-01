@@ -218,8 +218,10 @@ def extend_zarr(root: zarr.Group, data: list[dict]):
                         raise ValueError(
                             f"Shape mismatch for key '{key}': existing shape {item.shape}, new shape {shape_suffix}."
                         )
+
+                    # Handle variable-sized arrays with masks
                     if item.shape[1:] != shape_suffix:
-                        # # TODO: what about multidimensional arrays?
+                        # Create or update mask array
                         if f"__mask__{key}__" not in group:
                             grp = group.require_array(
                                 name=f"__mask__{key}__",
@@ -227,15 +229,24 @@ def extend_zarr(root: zarr.Group, data: list[dict]):
                                 chunks="auto",
                                 dtype="int32",
                             )
+                            # Initialize all previous entries with the existing array shape
                             grp[:idx] = item.shape[1]
-                            grp[idx] = shape_suffix[0]
                         else:
                             grp = group[f"__mask__{key}__"]
                             if grp.shape[0] < total_len:
                                 grp.resize((total_len,))
-                            grp[idx] = shape_suffix[0]
+
+                        # Always set the mask value for current index
+                        grp[idx] = shape_suffix[0]
+
+                        # Resize array if needed to accommodate larger shapes
                         if item.shape[1:] < shape_suffix:
                             item.resize((item.shape[0],) + shape_suffix)
+                    else:
+                        # Even if shapes match, we might need to set mask if it exists
+                        if f"__mask__{key}__" in group:
+                            grp = group[f"__mask__{key}__"]
+                            grp[idx] = shape_suffix[0]
 
                 # If the array shape is smaller than the allocated space, pad it
                 # (only for numpy arrays, not json_array strings)

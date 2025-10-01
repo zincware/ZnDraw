@@ -8,7 +8,7 @@ import eventlet  # noqa - eventlet must be installed for flask-socketio to start
 import pytest
 import signal
 from zndraw.start_celery import run_celery_worker
-import os
+import ase.collections
 import redis
 
 
@@ -72,3 +72,9 @@ def celery_worker():
         except subprocess.TimeoutExpired:
             worker.kill()
             raise RuntimeError("Celery worker did not shut down in time")
+
+
+@pytest.fixture
+def s22() -> list[ase.Atom]:
+    """Return a list of 22 atoms."""
+    return list(ase.collections.s22)

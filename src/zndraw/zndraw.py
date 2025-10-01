@@ -2,8 +2,8 @@ import dataclasses
 from zndraw.client import Client
 from zndraw.extensions import Extension, ExtensionType
 import typing as t
-import requests
-
+import ase
+from zndraw.utils import update_colors_and_radii, atoms_to_dict, atoms_from_dict
 
 
 
@@ -35,3 +35,31 @@ class ZnDraw:
 
     def register_extension(self, *args, **kwargs):
         self.client.register_extension(*args, **kwargs)
+
+    def append(self, atoms: ase.Atoms) -> None:
+        """Append an Atoms object to the visualization."""
+        if not isinstance(atoms, ase.Atoms):
+            raise TypeError("Only ase.Atoms objects are supported")
+        update_colors_and_radii(atoms)
+        self.client.append(atoms_to_dict(atoms))
+
+    def extend(self, atoms_list: t.Iterable[ase.Atoms]) -> None:
+        """Extend the visualization with a list of Atoms objects."""
+        dicts = []
+        for atoms in atoms_list:
+            if not isinstance(atoms, ase.Atoms):
+                raise TypeError("Only ase.Atoms objects are supported")
+            update_colors_and_radii(atoms)
+            dicts.append(atoms_to_dict(atoms))
+        self.client.extend(dicts)
+
+    @t.overload
+    def __getitem__(self, index: int) -> ase.Atoms: ...
+    @t.overload
+    def __getitem__(self, index: slice) -> list[ase.Atoms]: ...
+    @t.overload
+    def __getitem__(self, index: list[int]) -> list[ase.Atoms]: ...
+    def __getitem__(self, index: int|slice|list[int]) -> ase.Atoms|list[ase.Atoms]:
+        """Get an Atoms object by index."""
+        data = self.client[index]
+        return atoms_from_dict(data)
