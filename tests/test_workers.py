@@ -291,22 +291,195 @@ def test_run_client_extensions(server, category):
 
 
 
-    # # pick up job 2
-    # response = requests.post(f"{server}/api/rooms/{room}/jobs/{jobId2}/start", json={"workerId": vis.client.sid})
-    # assert response.status_code == 200
-    # assert response.json() == {"status": "success"}
-    # # check job status again
-    # response = requests.get(f"{server}/api/rooms/{room}/jobs/{jobId2}")
-    # assert response.status_code == 200
-    # response_json = response.json()
-    # assert response_json["status"] == "running"
-    # assert response_json["worker_id"] == vis.client.sid
-    # # check job 3 status again
-    # response = requests.get(f"{server}/api/rooms/{room}/jobs/{jobId3}")
-    # assert response.status_code == 200
-    # response_json = response.json()
-    # assert response_json["status"] == "queued"
-    # assert response_json == {}
-    # # assert response_json["queuePosition"] == 0  # position should have updated
+def test_run_different_client_different_extensions(server):
+    room = "testroom"
+    user = "testuser"
+    mod1 = ModifierExtension
+    mod2 = SelectionExtension
+    vis1 = ZnDraw(url=server, room=room, user=user)
+    vis2 = ZnDraw(url=server, room=room, user=user)
+    vis1.register_extension(mod1)
+    vis2.register_extension(mod2)
 
+    # queue job for mod1
+    response = requests.post(f"{server}/api/rooms/{room}/extensions/modifiers/{mod1.__name__}?userId={user}", json={"parameter": 42})
+    assert response.status_code == 200
+    response = requests.post(f"{server}/api/rooms/{room}/extensions/modifiers/{mod1.__name__}?userId={user}", json={"parameter": 42})
+    assert response.status_code == 200
+    # queue job for mod2
+    response = requests.post(f"{server}/api/rooms/{room}/extensions/selections/{mod2.__name__}?userId={user}", json={"parameter": 43})
+    assert response.status_code == 200
+    response = requests.post(f"{server}/api/rooms/{room}/extensions/selections/{mod2.__name__}?userId={user}", json={"parameter": 43})
+    assert response.status_code == 200
     
+    # assert that there are 4 jobs in total
+    response = requests.get(f"{server}/api/rooms/{room}/jobs")
+    assert response.status_code == 200
+    response_json = response.json()
+    assert isinstance(response_json, list)
+    assert len(response_json) == 4
+
+    # pick up job for vis1
+    response = requests.post(f"{server}/api/rooms/{room}/jobs/next", json={"workerId": vis1.client.sid})
+    assert response.status_code == 200
+    response_json = response.json()
+    jobId = response_json["jobId"]
+    assert response_json["category"] == "modifiers"
+    assert response_json["extension"] == mod1.__name__
+    # finish the job
+    response = requests.post(f"{server}/api/rooms/{room}/jobs/{jobId}/complete", json={"workerId": vis1.client.sid})
+    assert response.status_code == 200
+    assert response.json() == {"status": "success"}
+    # pick up next job
+    response = requests.post(f"{server}/api/rooms/{room}/jobs/next", json={"workerId": vis1.client.sid})
+    assert response.status_code == 200
+    response_json = response.json()
+    jobId2 = response_json["jobId"]
+    assert response_json["category"] == "modifiers"
+    assert response_json["extension"] == mod1.__name__
+    # finish the job
+    response = requests.post(f"{server}/api/rooms/{room}/jobs/{jobId2}/complete", json={"workerId": vis1.client.sid})
+    assert response.status_code == 200
+    assert response.json() == {"status": "success"}
+    # try pick up another job
+    response = requests.post(f"{server}/api/rooms/{room}/jobs/next", json={"workerId": vis1.client.sid})
+    assert response.status_code == 400
+    assert response.json() == {"error": "No jobs available"}
+
+    # queue another job for mod1
+    response = requests.post(f"{server}/api/rooms/{room}/extensions/modifiers/{mod1.__name__}?userId={user}", json={"parameter": 42})
+    assert response.status_code == 200
+    response_json = response.json()
+    jobId3 = response_json.pop("jobId")
+    response = requests.post(f"{server}/api/rooms/{room}/jobs/next", json={"workerId": vis1.client.sid})
+    assert response.status_code == 200
+    response_json = response.json()
+    assert response_json["jobId"] == jobId3
+    # finish the job
+    response = requests.post(f"{server}/api/rooms/{room}/jobs/{jobId3}/complete", json={"workerId": vis1.client.sid})
+    assert response.status_code == 200
+    assert response.json() == {"status": "success"}
+
+    # pick up job for vis2
+    response = requests.post(f"{server}/api/rooms/{room}/jobs/next", json={"workerId": vis2.client.sid})
+    assert response.status_code == 200
+    response_json = response.json()
+    jobId = response_json["jobId"]
+    assert response_json["category"] == "selections"
+    assert response_json["extension"] == mod2.__name__
+    # finish the job
+    response = requests.post(f"{server}/api/rooms/{room}/jobs/{jobId}/complete", json={"workerId": vis2.client.sid})
+    assert response.status_code == 200
+    assert response.json() == {"status": "success"}
+
+    # list all jobs, there should be one queued job and 2+1+1 completed jobs
+    response = requests.get(f"{server}/api/rooms/{room}/jobs")
+    assert response.status_code == 200
+    response_json = response.json()
+    assert isinstance(response_json, list)
+    assert len(response_json) == 5
+    completed_jobs = [job for job in response_json if job["status"] == "completed"]
+    queued_jobs = [job for job in response_json if job["status"] == "queued"]
+    assert len(completed_jobs) == 4
+    assert len(queued_jobs) == 1
+    
+
+
+def test_run_different_client_same_extensions(server):
+    room = "testroom"
+    user = "testuser"
+    vis1 = ZnDraw(url=server, room=room, user=user)
+    vis2 = ZnDraw(url=server, room=room, user=user)
+    vis1.register_extension(ModifierExtension)
+    vis2.register_extension(ModifierExtension)
+
+    # queue 4 job
+    for idx in range(4):
+        _ = requests.post(f"{server}/api/rooms/{room}/extensions/modifiers/{ModifierExtension.__name__}?userId={user}", json={"parameter": 42 + idx})
+
+    # pick up job for vis1
+    response = requests.post(f"{server}/api/rooms/{room}/jobs/next", json={"workerId": vis1.client.sid})
+    assert response.status_code == 200
+    response_json = response.json()
+    jobId1 = response_json["jobId"]
+    assert response_json["category"] == "modifiers"
+    assert response_json["extension"] == ModifierExtension.__name__
+    # pick up job for vis2
+    response = requests.post(f"{server}/api/rooms/{room}/jobs/next", json={"workerId": vis2.client.sid})
+    assert response.status_code == 200
+    response_json = response.json()
+    jobId2 = response_json["jobId"]
+    assert response_json["category"] == "modifiers"
+    assert response_json["extension"] == ModifierExtension.__name__
+
+    # check jobs
+    response = requests.get(f"{server}/api/rooms/{room}/jobs")
+    assert response.status_code == 200
+    response_json = response.json()
+    assert isinstance(response_json, list)
+    assert len(response_json) == 4
+    running_jobs = [job for job in response_json if job["status"] == "running"]
+    queued_jobs = [job for job in response_json if job["status"] == "queued"]
+    assert len(running_jobs) == 2
+    assert len(queued_jobs) == 2
+    # finish the jobs for both
+    response = requests.post(f"{server}/api/rooms/{room}/jobs/{jobId1}/complete", json={"workerId": vis1.client.sid})
+    assert response.status_code == 200
+    response = requests.post(f"{server}/api/rooms/{room}/jobs/{jobId2}/complete", json={"workerId": vis2.client.sid})
+    assert response.status_code == 200
+
+    # check jobs
+    response = requests.get(f"{server}/api/rooms/{room}/jobs")
+    assert response.status_code == 200
+    response_json = response.json()
+    assert isinstance(response_json, list)
+    assert len(response_json) == 4
+    completed_jobs = [job for job in response_json if job["status"] == "completed"]
+    queued_jobs = [job for job in response_json if job["status"] == "queued"]
+    assert len(completed_jobs) == 2
+    assert len(queued_jobs) == 2
+
+def test_worker_finish_nonstarted_job(server):
+    room = "testroom"
+    user = "testuser"
+    mod = ModifierExtension
+    vis = ZnDraw(url=server, room=room, user=user)
+    vis.register_extension(mod)
+
+    # queue job for mod1
+    response = requests.post(f"{server}/api/rooms/{room}/extensions/modifiers/{mod.__name__}?userId={user}", json={"parameter": 42})
+    assert response.status_code == 200
+    response_json = response.json()
+    jobId = response_json.pop("jobId")
+    assert response_json == {
+        "queuePosition": 0,
+        "status": "success",
+    }
+    # complete job without starting it
+    response = requests.post(f"{server}/api/rooms/{room}/jobs/{jobId}/complete", json={"workerId": vis.client.sid})
+    assert response.status_code == 400
+    assert response.json() == {"error": "Job is not running"}
+    # pick up the job
+    response = requests.post(f"{server}/api/rooms/{room}/jobs/next", json={"workerId": vis.client.sid})
+    assert response.status_code == 200
+    response_json = response.json()
+    assert response_json["jobId"] == jobId
+    assert response_json["data"] == {"parameter": 42}
+
+    # finish the job
+    response = requests.post(f"{server}/api/rooms/{room}/jobs/{jobId}/complete", json={"workerId": "wrong-worker-id"})
+    assert response.status_code == 400
+    assert response.json() == {"error": "Worker ID does not match job's worker ID"}
+
+    # finish the job with correct worker id
+    response = requests.post(f"{server}/api/rooms/{room}/jobs/{jobId}/complete", json={"workerId": vis.client.sid})
+    assert response.status_code == 200
+    assert response.json() == {"status": "success"}
+
+    # check job status again
+    response = requests.get(f"{server}/api/rooms/{room}/jobs/{jobId}")
+    assert response.status_code == 200
+    response_json = response.json()
+    assert response_json["status"] == "completed"
+    assert response_json["worker_id"] == vis.client.sid
+
