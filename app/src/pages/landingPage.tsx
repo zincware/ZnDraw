@@ -7,12 +7,14 @@ import FrameProgressBar from '../components/ProgressBar';
 import SideBar from '../components/SideBar';
 
 import { useSocketManager } from '../hooks/useSocketManager';
+import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
 import MyScene from '../components/Canvas';
 
 
 
 export default function MainPage() {
   useSocketManager();
+  useKeyboardShortcuts();
 
   return (
     <>
