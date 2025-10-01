@@ -14,10 +14,20 @@ class ModifierExtension(Extension):
 
     parameter: int
 
+    def run(self, vis: ZnDraw, **kwargs):
+        kwargs["info"].update({"parameter": self.parameter})
+        if kwargs["info"].get("raise") is True:
+            raise ValueError("Test error")
+
 class SelectionExtension(Extension):
     category = ExtensionType.SELECTION
 
     parameter: int
+
+    def run(self, vis: ZnDraw, **kwargs):
+         kwargs["info"].update({"parameter": self.parameter})
+         if kwargs["info"].get("raise") is True:
+            raise ValueError("Test error")
 
 # TODO: add auto_pickup_jobs: bool = False to ZnDraw constructor and test it here
 # and not listen to socketio events
@@ -584,3 +594,86 @@ def test_delete_job(server):
     response = requests.delete(f"{server}/api/rooms/{room}/jobs/non-existing-job-id")
     assert response.status_code == 404
     assert response.json() == {"error": "Job not found"}
+
+
+def test_worker_pickup_task(server):
+    room = "testroom"
+    user = "testuser"
+    mod = ModifierExtension
+    vis = ZnDraw(url=server, room=room, user=user)
+    shared_dict = {}
+
+    vis.register_extension(mod, run_kwargs={"info": shared_dict})
+    # submit a job
+    response = requests.post(f"{server}/api/rooms/{room}/extensions/modifiers/{mod.__name__}", json={"data": {"parameter": 42}, "userId": user})
+    assert response.status_code == 200
+    response_json = response.json()
+    jobId = response_json.pop("jobId")
+    assert response_json == {
+        "queuePosition": 0,
+        "status": "success",
+    }
+    vis.client.sio.sleep(1)  # give some time to pick up the job and run it
+    # assert shared_dict == {"parameter": 42}
+    # get job status
+    response = requests.get(f"{server}/api/rooms/{room}/jobs/{jobId}")
+    assert response.status_code == 200
+    response_json = response.json()
+    assert response_json["status"] == "completed"
+    assert response_json["worker_id"] == vis.client.sid
+    assert response_json["data"] == {"parameter": 42}
+    assert response_json["error"] == ""
+
+    shared_dict["raise"] = True
+    # submit another job
+    response = requests.post(f"{server}/api/rooms/{room}/extensions/modifiers/{mod.__name__}", json={"data": {"parameter": 43}, "userId": user})
+    assert response.status_code == 200
+    response_json = response.json()
+    jobId = response_json.pop("jobId")
+    assert response_json == {
+        "queuePosition": 0,
+        "status": "success",
+    }
+    vis.client.sio.sleep(1)  # give some time to pick up the job and run it
+    # get job status
+    response = requests.get(f"{server}/api/rooms/{room}/jobs/{jobId}")
+    assert response.status_code == 200
+    response_json = response.json()
+    assert response_json["status"] == "failed"
+    assert response_json["worker_id"] == vis.client.sid
+    assert response_json["data"] == {"parameter": 43}
+    assert response_json["error"] == "Test error"
+
+    # check worker state
+    response = requests.get(f"{server}/api/workers/{vis.client.sid}")
+    assert response.status_code == 200
+    response_json = response.json()
+    assert response_json == {
+        "idle": True,
+        "currentJob": None,
+    }
+
+
+    # submit two jobs to finish
+    shared_dict["raise"] = False
+    for idx in range(2):
+        response = requests.post(f"{server}/api/rooms/{room}/extensions/modifiers/{mod.__name__}", json={"data": {"parameter": 44 + idx}, "userId": user})
+        assert response.status_code == 200
+        response_json = response.json()
+        jobId = response_json.pop("jobId")
+        assert response_json == {
+            "queuePosition": 0 + idx,
+            "status": "success",
+        }
+    
+    vis.client.sio.sleep(3)  # give some time to pick up the job and run it
+    # get all jobs
+    response = requests.get(f"{server}/api/rooms/{room}/jobs")
+    assert response.status_code == 200
+    response_json = response.json()
+    assert isinstance(response_json, list)
+    assert len(response_json) == 4
+    completed_jobs = [job for job in response_json if job["status"] == "completed"]
+    failed_jobs = [job for job in response_json if job["status"] == "failed"]
+    assert len(completed_jobs) == 3
+    assert len(failed_jobs) == 1
