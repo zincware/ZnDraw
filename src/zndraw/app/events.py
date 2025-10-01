@@ -9,7 +9,7 @@ import json
 from zndraw.server import socketio
 from .constants import SocketEvents
 from .redis_keys import ExtensionKeys
-from .queue_manager import emit_queue_update
+from .worker_dispatcher import dispatch_next_task
 
 log = logging.getLogger(__name__)
 
@@ -43,6 +43,13 @@ def get_project_room_from_session(sid: str) -> t.Optional[str]:
     return room_name if room_name else None
 
 
+def get_client_id_from_sid(sid: str) -> t.Optional[str]:
+    """Gets the client_id for a given Socket.IO sid."""
+    r = current_app.extensions["redis"]
+    client_id = r.get(f"sid:{sid}:client_id")
+    return client_id if client_id else None
+
+
 def get_lock_key(room: str, target: str) -> str:
     """Constructs a standardized Redis key for a lock."""
     return f"room:{room}:lock:{target}"
@@ -59,16 +66,24 @@ def handle_disconnect():
     sid = request.sid
     r = current_app.extensions["redis"]
 
+    # Get client_id before cleanup
+    client_id = r.get(f"sid:{sid}:client_id")
+
     # --- New Redis-based Cleanup ---
     room_name = r.get(f"sid:{sid}")
     if room_name:
         # Get username before deleting for logging purposes
         user = r.hget(f"room:{room_name}:users", sid)
-        log.info(f"Client disconnected: {sid} ({user}) from room {room_name}")
+        log.info(f"Client disconnected: sid={sid}, client_id={client_id}, user={user}, room={room_name}")
 
         # Clean up Redis entries
         r.hdel(f"room:{room_name}:users", sid)
         r.delete(f"sid:{sid}")
+
+        # Clean up client_id mappings
+        if client_id:
+            r.delete(f"sid:{sid}:client_id")
+            r.delete(f"client_id:{client_id}:sid")
 
         # (Optional) Notify room that a user has left
         users_in_room = r.hgetall(f"room:{room_name}:users")
@@ -93,18 +108,20 @@ def handle_disconnect():
             # Inform everyone that the presenter left
             emit("presenter_update", {"presenterSid": None}, to=f"room:{room_name}")
 
+    # Extension cleanup - use client_id if available, otherwise fall back to sid for backwards compatibility
+    worker_id = client_id if client_id else sid
     extension_categories = ["modifiers", "selections", "analyses"]
-    print(f"Cleaning up extensions for disconnected SID {sid} in room '{room_name}'...")
+    log.info(f"Cleaning up extensions for worker_id={worker_id} in room '{room_name}'...")
 
     for category in extension_categories:
-        user_extensions_key = f"room:{room_name}:extensions:{category}:{sid}"
-        # This key tells us which extensions this SID was providing
+        user_extensions_key = f"room:{room_name}:extensions:{category}:{worker_id}"
+        # This key tells us which extensions this worker_id was providing
         user_extensions = r.smembers(user_extensions_key)
 
         if not user_extensions:
             continue
 
-        print(f"User {sid} was providing extensions in '{category}': {user_extensions}")
+        log.info(f"Worker {worker_id} was providing extensions in '{category}': {user_extensions}")
 
         extensions_to_delete = []
 
@@ -114,9 +131,9 @@ def handle_disconnect():
                 idle_key = keys.idle_workers
                 progressing_key = keys.progressing_workers
 
-                # Remove the SID from both possible state sets
-                pipe.srem(idle_key, sid)
-                pipe.srem(progressing_key, sid)
+                # Remove the worker_id from both possible state sets
+                pipe.srem(idle_key, worker_id)
+                pipe.srem(progressing_key, worker_id)
 
                 # Check the combined cardinality of both sets to see if the extension is orphaned
                 pipe.scard(idle_key)
@@ -132,8 +149,8 @@ def handle_disconnect():
             remaining_progressing = results[i * 4 + 3]
             total_remaining = remaining_idle + remaining_progressing
 
-            print(
-                f"Extension '{ext_name}': {total_remaining} workers remaining after removing {sid}."
+            log.info(
+                f"Extension '{ext_name}': {total_remaining} workers remaining after removing {worker_id}."
             )
 
             if total_remaining == 0:
@@ -176,6 +193,7 @@ def handle_disconnect():
 def on_join(data):
     room = data["room"]
     user = data.get("userId", "Anonymous")
+    client_id = data.get("clientId")
     sid = request.sid
     r = current_app.extensions["redis"]
 
@@ -195,7 +213,14 @@ def on_join(data):
     # Store the new room membership and user info in Redis
     r.set(f"sid:{sid}", room)
     r.hset(f"room:{room}:users", sid, user)
-    log.info(f"Client {sid} ({user}) joined room: {room} (and stored in Redis)")
+
+    # Store bidirectional mapping between Socket.IO sid and client_id
+    if client_id:
+        r.set(f"sid:{sid}:client_id", client_id)
+        r.set(f"client_id:{client_id}:sid", sid)
+        log.info(f"Client {sid} ({user}) with client_id {client_id} joined room: {room}")
+    else:
+        log.info(f"Client {sid} ({user}) joined room: {room} (no client_id provided)")
 
     # --- Existing Logic ---
     emit("len_frames", _get_len(), to=sid)
@@ -490,13 +515,20 @@ def handle_delete_frame(data):
 @socketio.on("register:extension")
 def register_extension(data: dict):
     """Registers a new extension for the room and sets its initial state to idle."""
+    sid = request.sid
+    client_id = get_client_id_from_sid(sid)
+
+    if not client_id:
+        log.error(f"Cannot register extension: no client_id found for sid {sid}")
+        return {"error": "Client ID not found. Please reconnect."}
+
     name = data.get("name")
     category = data.get("category")
     schema = data.get("schema")
     public = data.get("public", False)
     if public:
         return {"error": "Cannot register public extensions via this endpoint"}
-    room_id = get_project_room_from_session(request.sid)
+    room_id = get_project_room_from_session(sid)
 
     if not name or not category or not schema:
         return {"error": "name, category, and schema are required"}
@@ -521,14 +553,15 @@ def register_extension(data: dict):
             "error": f"Cannot register extension '{name}': name is reserved for server-side extensions"
         }
 
-    print(
-        f"Registering extension for room {room_id}: name={name}, category={category}, sid={request.sid}"
+    log.info(
+        f"Registering extension for room {room_id}: name={name}, category={category}, "
+        f"sid={sid}, client_id={client_id}"
     )
 
     # store in redis
     redis_client = current_app.extensions["redis"]
     keys = ExtensionKeys.for_extension(room_id, category, name)
-    user_extensions_key = ExtensionKeys.user_extensions_key(room_id, category, request.sid)
+    user_extensions_key = ExtensionKeys.user_extensions_key(room_id, category, client_id)
     existing_schema = redis_client.hget(keys.schema, name)
 
     if existing_schema is not None:
@@ -539,14 +572,14 @@ def register_extension(data: dict):
             }
         else:
             # Worker is re-registering. Add it to the idle set.
-            redis_client.sadd(keys.idle_workers, request.sid)
+            redis_client.sadd(keys.idle_workers, client_id)
             redis_client.sadd(
                 user_extensions_key, name
             )  # Keep this for disconnect cleanup
 
             # Notify clients about worker count change
             log.info(
-                f"Worker {request.sid} re-registered for extension '{name}' "
+                f"Worker {client_id} re-registered for extension '{name}' "
                 f"in category '{category}', invalidating schema"
             )
             socketio.emit(
@@ -557,7 +590,7 @@ def register_extension(data: dict):
 
             # Check if there are queued tasks that this worker can handle
             if room_id:  # Null check for type safety
-                _process_worker_queues(request.sid, room_id, category, redis_client)
+                dispatch_next_task(redis_client, socketio, client_id, room_id, category)
 
             return {
                 "status": "success",
@@ -569,7 +602,7 @@ def register_extension(data: dict):
             # Set the schema
             pipe.hset(keys.schema, name, json.dumps(schema))
             # Add the current worker to the set of idle workers for this extension
-            pipe.sadd(keys.idle_workers, request.sid)
+            pipe.sadd(keys.idle_workers, client_id)
             # Maintain the reverse mapping for easy cleanup on disconnect
             pipe.sadd(user_extensions_key, name)
             pipe.execute()
@@ -583,139 +616,6 @@ def register_extension(data: dict):
 
         # Check if there are queued tasks that this worker can handle
         if room_id:  # Null check for type safety
-            _process_worker_queues(request.sid, room_id, category, redis_client)
+            dispatch_next_task(redis_client, socketio, client_id, room_id, category)
 
     return {"status": "success"}
-
-
-def _process_worker_queues(sid: str, room_id: str, category: str, redis_client) -> None:
-    """Process queued tasks for all extensions that a worker can handle.
-
-    This function:
-    1. Retrieves all extensions the worker is registered for
-    2. For each extension, checks if there's a queued task
-    3. Dispatches the first available queued task to the worker
-    4. Uses FIFO ordering within each extension's queue
-
-    Args:
-        sid: The worker's session ID
-        room_id: The room ID
-        category: The extension category (e.g., 'modifiers', 'selections')
-        redis_client: The Redis client instance
-    """
-    # Get all extensions this worker is registered for in this category
-    # TODO: consider all categories?
-    user_extensions_key = ExtensionKeys.user_extensions_key(room_id, category, sid)
-    registered_extensions = redis_client.smembers(user_extensions_key)
-
-    if not registered_extensions:
-        print(f"Worker {sid} has no registered extensions in category '{category}'")
-        return
-
-    print(f"Worker {sid} can handle extensions: {registered_extensions}")
-
-    # Check each extension's queue for pending tasks
-    for extension_name in registered_extensions:
-        keys = ExtensionKeys.for_extension(room_id, category, extension_name)
-
-        # Check if worker is still idle for this extension (might have been assigned already)
-        is_idle = redis_client.sismember(keys.idle_workers, sid)
-        if not is_idle:
-            continue
-
-        # Try to pop a task from the queue (LPOP for FIFO)
-        queued_task_json = redis_client.lpop(keys.queue)
-
-        if queued_task_json:
-            # Parse the queued task
-            print(f"Found queued task for extension '{extension_name}' for worker {sid}")
-            try:
-                queued_task = json.loads(queued_task_json)
-                task_data = queued_task.get("data")
-                task_room = queued_task.get("room", room_id)  # Get room from task or default to current room_id
-
-                log.info(
-                    f"Dispatching queued task for extension '{extension_name}' "
-                    f"to worker {sid} in room '{room_id}'"
-                )
-
-                # Move worker from idle to progressing atomically
-                moved = redis_client.smove(keys.idle_workers, keys.progressing_workers, sid)
-
-                if moved:
-                    # Emit the task to the worker
-                    emit(
-                        SocketEvents.TASK_RUN,
-                        {
-                            "data": task_data,
-                            "extension": extension_name,
-                            "category": category,
-                            "room": task_room,
-                        },
-                        to=sid,
-                    )
-
-                    print(
-                        f"Successfully dispatched task from queue to worker {sid} "
-                        f"for extension '{extension_name}'"
-                    )
-
-                    # Notify all clients in room about queue update and worker state change
-                    emit_queue_update(
-                        redis_client, room_id, category, extension_name, socketio
-                    )
-
-                    # The worker is now busy, so we stop checking other queues
-                    return
-                else:
-                    # Worker was removed from idle set by another process
-                    # Put the task back in the queue
-                    redis_client.lpush(keys.queue, queued_task_json)
-                    log.warning(
-                        f"Worker {sid} no longer idle, task returned to queue "
-                        f"for '{extension_name}'"
-                    )
-                    return
-
-            except json.JSONDecodeError as e:
-                log.error(f"Failed to parse queued task: {e}")
-                continue
-
-    print(f"No queued tasks found for worker {sid} in category '{category}'")
-
-
-@socketio.on("task:finished")
-def handle_task_finished(data: dict):
-    """Handles the completion of a task and sets the worker state back to idle.
-
-    After marking the worker as idle, checks for queued tasks across ALL extensions
-    this worker can handle and dispatches the next task if available.
-    """
-    sid = request.sid
-    room_id = get_project_room_from_session(sid)
-    category = data.get("category")
-    extension = data.get("extension")
-
-    if not all([room_id, category, extension]):
-        log.warning(f"Received incomplete task_finished event from {sid}: {data}")
-        return
-
-    redis_client = current_app.extensions["redis"]
-    keys = ExtensionKeys.for_extension(room_id, category, extension)
-
-    # Atomically move the worker from the progressing set back to the idle set
-    moved = redis_client.smove(keys.progressing_workers, keys.idle_workers, sid)
-    if moved:
-        log.info(f"Worker {sid} finished task '{extension}' and is now idle.")
-
-        # Notify all clients about worker state change
-        emit_queue_update(redis_client, room_id, category, extension, socketio)
-    else:
-        # This could happen if the worker disconnected and was already cleaned up.
-        log.warning(
-            f"Worker {sid} finished task '{extension}', but was not in the progressing set."
-        )
-        return
-
-    # Process queues for all extensions this worker can handle
-    _process_worker_queues(sid, room_id, category, redis_client)

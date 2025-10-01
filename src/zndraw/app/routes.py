@@ -11,6 +11,8 @@ from .constants import SocketEvents
 from .redis_keys import ExtensionKeys
 from .worker_stats import WorkerStats
 from .queue_manager import emit_queue_update
+from .job_manager import JobManager
+from .worker_dispatcher import dispatch_next_task
 import traceback
 
 
@@ -395,14 +397,15 @@ def get_room_schema(room_id: str, category: str):
 @main.route("/api/rooms/<string:room_id>/extensions/<string:category>/<string:extension>", methods=["POST"])
 def log_room_extension(room_id: str, category: str, extension: str):
     """Logs a user extension action in the room's action log."""
-    user_id = request.args.get("userId")
+    json_data = request.json
+    if json_data is None:
+        return {"error": "Request body required"}, 400
 
+    user_id = json_data.pop("userId", None)
     if user_id is None:
         return {"error": "User ID is required"}, 400
-
-    data = request.json
-    if data is None:
-        return {"error": "Request body required"}, 400
+    
+    data = json_data.pop("data", {})
 
     print(f"Logging extension for room {room_id}: category={category}, extension={extension}, data={json.dumps(data)}")
 
@@ -428,49 +431,45 @@ def log_room_extension(room_id: str, category: str, extension: str):
         category in category_map and extension in category_map[category]
     )
 
+    # Create job
+    provider = "celery" if is_celery_extension else "client"
+    job_id = JobManager.create_job(
+        redis_client, room_id, category, extension, data, user_id, provider
+    )
+
     queue_position = 0
 
     if is_celery_extension:
-        # Dispatch to Celery task for server-side execution
-        from zndraw.app.tasks import run_extension_task
-
-        log.info(
-            f"Dispatching Celery task for {category}/{extension} in room {room_id}"
-        )
-        run_extension_task.delay(room_id, category, extension, data, user_id)
-        print(
-            f"Dispatched Celery task for user {user_id}, category {category}, extension {extension}, room {room_id}"
-        )
-    else:
-        # send data via `task:run` emit to client workers
+        # Queue job for Celery workers to poll via /jobs/next endpoint
+        # Celery workers will check provider="celery" and pick up these jobs
         keys = ExtensionKeys.for_extension(room_id, category, extension)
 
-        worker_sid = redis_client.spop(keys.idle_workers)
-        if worker_sid is not None:
-            socketio.emit(
-                SocketEvents.TASK_RUN,
-                {"data": data, "extension": extension, "category": category, "room": room_id},
-                to=worker_sid,
-            )
-            print(
-                f"Emitted task:run to worker {worker_sid} for user {user_id}, category {category}, extension {extension}, room {room_id}"
-            )
-            redis_client.sadd(keys.progressing_workers, worker_sid)
+        # Add to queue with provider info
+        redis_client.rpush(
+            keys.queue, json.dumps({"user_id": user_id, "data": data, "room": room_id, "jobId": job_id, "provider": "celery"})
+        )
+        print(
+            f"Queued Celery task for user {user_id}, category {category}, extension {extension}, room {room_id}, job {job_id}"
+        )
+        queue_position = redis_client.llen(keys.queue) - 1
 
-            # Notify all clients in room about worker state change
-            emit_queue_update(redis_client, room_id, category, extension, socketio)
-        else:
-            # add to queue
-            redis_client.rpush(
-                keys.queue, json.dumps({"user_id": user_id, "data": data, "room": room_id})
-            )
-            print(
-                f"No idle workers, queued task for user {user_id}, category {category}, extension {extension}, room {room_id}"
-            )
-            queue_position = redis_client.llen(keys.queue)
+        # Notify all clients in room about queue update
+        emit_queue_update(redis_client, room_id, category, extension, socketio)
+    else:
+        # Queue job for client workers to poll via /jobs/next endpoint
+        keys = ExtensionKeys.for_extension(room_id, category, extension)
 
-            # Notify all clients in room about queue update
-            emit_queue_update(redis_client, room_id, category, extension, socketio)
+        # Add to queue
+        redis_client.rpush(
+            keys.queue, json.dumps({"user_id": user_id, "data": data, "room": room_id, "jobId": job_id})
+        )
+        print(
+            f"Queued task for user {user_id}, category {category}, extension {extension}, room {room_id}, job {job_id}"
+        )
+        queue_position = redis_client.llen(keys.queue) - 1  # Zero-indexed position
+
+        # Notify all clients in room about queue update
+        emit_queue_update(redis_client, room_id, category, extension, socketio)
 
     print(
         f"Emitting invalidate for user {user_id}, category {category}, extension {extension}, room {room_id} to user:{user_id}"
@@ -480,7 +479,7 @@ def log_room_extension(room_id: str, category: str, extension: str):
         {"userId": user_id, "category": category, "extension": extension, "roomId": room_id},
         to=f"user:{user_id}",
     )
-    return {"status": "success", "queuePosition": queue_position}, 200
+    return {"status": "success", "queuePosition": queue_position, "jobId": job_id}, 200
 
 @main.route("/api/rooms/<string:room_id>/extension-data/<string:category>/<string:extension>", methods=["GET"])
 def get_extension_data(room_id: str, category: str, extension: str):
@@ -496,4 +495,386 @@ def get_extension_data(room_id: str, category: str, extension: str):
         return {"data": None}, 200
     extension_data = json.loads(extension_data)
     return {"data": extension_data}, 200
+
+
+@main.route("/api/rooms/<string:room_id>/extensions/<string:category>/<string:extension>/workers", methods=["GET"])
+def get_extension_workers(room_id: str, category: str, extension: str):
+    """Get worker details for a specific extension.
+
+    Returns:
+        {
+            "idleWorkers": ["worker_id_1", "worker_id_2"],
+            "progressingWorkers": ["worker_id_3"],
+            "queueLength": 5
+        }
+    """
+    redis_client = current_app.extensions["redis"]
+    keys = ExtensionKeys.for_extension(room_id, category, extension)
+
+    idle_workers = list(redis_client.smembers(keys.idle_workers))
+    progressing_workers = list(redis_client.smembers(keys.progressing_workers))
+    queue_length = redis_client.llen(keys.queue)
+
+    return {
+        "idleWorkers": idle_workers,
+        "progressingWorkers": progressing_workers,
+        "queueLength": queue_length,
+        "totalWorkers": len(idle_workers) + len(progressing_workers)
+    }, 200
+
+
+# Job management endpoints
+@main.route("/api/rooms/<string:room_id>/jobs", methods=["GET"])
+def list_jobs(room_id: str):
+    """List active jobs for a room."""
+    redis_client = current_app.extensions["redis"]
+    jobs = JobManager.list_all_jobs(redis_client, room_id)
+    return jobs, 200
+
+
+@main.route("/api/rooms/<string:room_id>/jobs/<string:job_id>", methods=["GET", "DELETE"])
+def get_job(room_id: str, job_id: str):
+    """Get details for a specific job."""
+    redis_client = current_app.extensions["redis"]
+    if request.method == "DELETE":
+        job = JobManager.get_job(redis_client, job_id)
+        if not job:
+            return {"error": "Job not found"}, 404
+        if job.get("status") == "running":
+            return {"error": "Cannot delete a running job"}, 400
+
+        category = job.get("category")
+        extension = job.get("extension")
+
+        JobManager.delete_job(redis_client, job_id)
+
+        # Emit queue update instead of job:deleted
+        if category and extension:
+            emit_queue_update(redis_client, room_id, category, extension, socketio)
+
+        return {"status": "success"}, 200
+
+    job = JobManager.get_job(redis_client, job_id)
+    if not job:
+        return {"error": "Job not found"}, 404
+    return job, 200
+
+
+@main.route("/api/rooms/<string:room_id>/jobs/<string:job_id>/complete", methods=["POST"])
+def complete_job(room_id: str, job_id: str):
+    """Mark a job as completed and transition worker back to idle.
+
+    Called by both Celery tasks and client workers when they finish successfully.
+    For client workers: transitions worker from progressing → idle, then checks queue.
+    For Celery workers: just marks job complete (no worker state to manage).
+    """
+    data = request.get_json() or {}
+    result = data.get("result")
+    worker_id = data.get("workerId")  # Optional: only for client workers
+
+    log.info(f"Complete job called: job_id={job_id}, worker_id={worker_id}, room_id={room_id}")
+
+    redis_client = current_app.extensions["redis"]
+
+    # Get job details to know category/extension
+    job = JobManager.get_job(redis_client, job_id)
+    if not job:
+        log.error(f"Job {job_id} not found in Redis")
+        return {"error": "Job not found"}, 404
+
+    log.info(f"Job data: category={job.get('category')}, extension={job.get('extension')}")
+
+    # Validate job is in running state
+    if job.get("status") != "running":
+        log.error(f"Job {job_id} is not running (status: {job.get('status')})")
+        return {"error": "Job is not running"}, 400
+
+    # Validate worker ID matches the job's assigned worker
+    if worker_id and job.get("worker_id") != worker_id:
+        log.error(f"Worker ID mismatch: job assigned to {job.get('worker_id')}, but {worker_id} tried to complete it")
+        return {"error": "Worker ID does not match job's worker ID"}, 400
+
+    # Mark job as completed
+    success = JobManager.complete_job(redis_client, job_id, result)
+    if not success:
+        log.error(f"Failed to mark job {job_id} as completed")
+        return {"error": "Failed to complete job"}, 400
+
+    log.info(f"Job {job_id} completed in room {room_id}")
+
+    # If this is a client worker (not Celery), handle worker state transition
+    if worker_id and not worker_id.startswith("celery:"):
+        log.info(f"Transitioning worker {worker_id} to idle")
+        _transition_worker_to_idle(redis_client, socketio, worker_id, job, room_id, success=True)
+    else:
+        log.info(f"Skipping worker transition (worker_id={worker_id})")
+
+    return {"status": "success"}, 200
+
+
+@main.route("/api/rooms/<string:room_id>/jobs/<string:job_id>/fail", methods=["POST"])
+def fail_job(room_id: str, job_id: str):
+    """Mark a job as failed and transition worker back to idle.
+
+    Called by both Celery tasks and client workers when they fail.
+    For client workers: transitions worker from progressing → idle, then checks queue.
+    For Celery workers: just marks job failed (no worker state to manage).
+    """
+    data = request.get_json() or {}
+    error = data.get("error", "Unknown error")
+    worker_id = data.get("workerId")  # Optional: only for client workers
+
+    redis_client = current_app.extensions["redis"]
+
+    # Get job details to know category/extension
+    job = JobManager.get_job(redis_client, job_id)
+    if not job:
+        return {"error": "Job not found"}, 404
+
+    # Validate job is in running state
+    if job.get("status") != "running":
+        log.error(f"Job {job_id} is not running (status: {job.get('status')})")
+        return {"error": "Job is not running"}, 400
+
+    # Validate worker ID matches the job's assigned worker
+    if worker_id and job.get("worker_id") != worker_id:
+        log.error(f"Worker ID mismatch: job assigned to {job.get('worker_id')}, but {worker_id} tried to fail it")
+        return {"error": "Worker ID does not match job's worker ID"}, 400
+
+    # Mark job as failed
+    success = JobManager.fail_job(redis_client, job_id, error)
+    if not success:
+        return {"error": "Failed to mark job as failed"}, 400
+
+    log.error(f"Job {job_id} failed in room {room_id}: {error}")
+
+    # If this is a client worker (not Celery), handle worker state transition
+    if worker_id and not worker_id.startswith("celery:"):
+        _transition_worker_to_idle(redis_client, socketio, worker_id, job, room_id, success=False)
+
+    return {"status": "success"}, 200
+
+
+@main.route("/api/workers/<string:worker_id>", methods=["GET"])
+def get_worker_state(worker_id: str):
+    """Get the current state of a worker.
+
+    Returns:
+        {
+            "idle": true/false,
+            "currentJob": job_id or null
+        }
+    """
+    redis_client = current_app.extensions["redis"]
+
+    # Check both modifiers and selections categories to find if worker is progressing
+    current_job_id = None
+    is_idle = True
+
+    for category in ["modifiers", "selections"]:
+        # Get all extensions this worker might be registered for
+        # We need to check all extensions to find if the worker is in any progressing set
+        # First, get the worker's registered extensions
+        user_extensions_key = ExtensionKeys.user_extensions_key("*", category, worker_id)
+
+        # Since we don't know the room, we need to scan for worker state
+        # Check if worker has a current job by scanning all rooms
+        # For simplicity, we'll check the most common pattern
+
+        # Alternative approach: check if there's any job assigned to this worker
+        # by looking for jobs where worker_id matches
+        for key in redis_client.scan_iter(match=f"job:*"):
+            job_data = redis_client.hgetall(key)
+            if job_data.get("worker_id") == worker_id and job_data.get("status") == "running":
+                current_job_id = job_data.get("id")
+                is_idle = False
+                break
+
+        if current_job_id:
+            break
+
+    return {
+        "idle": is_idle,
+        "currentJob": current_job_id
+    }, 200
+
+
+@main.route("/api/rooms/<string:room_id>/jobs/next", methods=["POST"])
+def get_next_job(room_id: str):
+    """Poll for the next available job for a worker.
+
+    Workers call this endpoint to get assigned their next job from the queue.
+    The worker should be registered for at least one extension category.
+
+    Request body:
+        {
+            "workerId": "worker_session_id"
+        }
+
+    Returns:
+        Job object directly (jobId, category, extension, data, etc.) or null if no jobs available
+    """
+    data = request.get_json() or {}
+    worker_id = data.get("workerId")
+
+    if not worker_id:
+        return {"error": "workerId is required"}, 400
+
+    redis_client = current_app.extensions["redis"]
+
+    # Check if worker already has a running job
+    for key in redis_client.scan_iter(match=f"job:*"):
+        job_data = redis_client.hgetall(key)
+        if job_data.get("worker_id") == worker_id and job_data.get("status") == "running":
+            return {"error": "Worker is not idle"}, 400
+
+    # If worker is "celery-worker", check for celery jobs across all extensions
+    is_celery_worker = worker_id.startswith("celery")
+
+    # Check both modifiers and selections categories for queued jobs
+    for category in ["modifiers", "selections"]:
+        if is_celery_worker:
+            # For celery workers, check all extensions for celery jobs
+            from zndraw.extensions.modifiers import modifiers
+            from zndraw.extensions.selections import selections
+
+            category_map = {
+                "modifiers": modifiers,
+                "selections": selections,
+            }
+
+            if category in category_map:
+                for extension in category_map[category].keys():
+                    keys = ExtensionKeys.for_extension(room_id, category, extension)
+                    queue_length = redis_client.llen(keys.queue)
+
+                    if queue_length > 0:
+                        # Peek at the first job to check if it's a celery job
+                        task_data = redis_client.lindex(keys.queue, 0)
+                        if task_data:
+                            task_info = json.loads(task_data)
+                            if task_info.get("provider") == "celery":
+                                # This is a celery job, pop it
+                                redis_client.lpop(keys.queue)
+                                job_id = task_info.get("jobId")
+
+                                # Get full job details
+                                job = JobManager.get_job(redis_client, job_id)
+                                if job:
+                                    # Mark job as started by this worker
+                                    JobManager.start_job(redis_client, job_id, worker_id)
+
+                                    # Emit queue update
+                                    emit_queue_update(redis_client, room_id, category, extension, socketio)
+
+                                    # Get updated job details (now with running status)
+                                    job = JobManager.get_job(redis_client, job_id)
+
+                                    # Rename 'id' to 'jobId' for consistency with client expectations
+                                    job["jobId"] = job.pop("id")
+
+                                    log.info(f"Assigned celery job {job_id} to worker {worker_id} from queue")
+                                    return job, 200
+        else:
+            # Get all extensions this worker is registered for in this category
+            user_extensions_key = ExtensionKeys.user_extensions_key(room_id, category, worker_id)
+            registered_extensions = redis_client.smembers(user_extensions_key)
+
+            # Check each registered extension for queued jobs
+            for extension in registered_extensions:
+                keys = ExtensionKeys.for_extension(room_id, category, extension)
+                queue_length = redis_client.llen(keys.queue)
+
+                if queue_length > 0:
+                    # Get the first job from the queue
+                    task_data = redis_client.lpop(keys.queue)
+                    if task_data:
+                        task_info = json.loads(task_data)
+                        job_id = task_info.get("jobId")
+
+                        # Get full job details
+                        job = JobManager.get_job(redis_client, job_id)
+                        if job:
+                            # Move worker from idle to progressing
+                            redis_client.smove(keys.idle_workers, keys.progressing_workers, worker_id)
+
+                            # Mark job as started by this worker
+                            JobManager.start_job(redis_client, job_id, worker_id)
+
+                            # Emit queue update (this covers job:started notification)
+                            emit_queue_update(redis_client, room_id, category, extension, socketio)
+
+                            # Get updated job details (now with running status)
+                            job = JobManager.get_job(redis_client, job_id)
+
+                            # Rename 'id' to 'jobId' for consistency with client expectations
+                            job["jobId"] = job.pop("id")
+
+                            log.info(f"Assigned job {job_id} to worker {worker_id} from queue")
+                            return job, 200
+
+    # No jobs available
+    return {"error": "No jobs available"}, 400
+
+
+def _transition_worker_to_idle(
+    redis_client,
+    socketio_instance,
+    worker_id: str,
+    job: dict,
+    room_id: str,
+    success: bool = True
+) -> None:
+    """Transition worker from progressing to idle and dispatch next task.
+
+    Args:
+        redis_client: Redis client
+        socketio_instance: SocketIO instance
+        worker_id: Worker session ID
+        job: Job data dict containing category/extension
+        room_id: Room identifier
+        success: True if job completed, False if failed (affects log message)
+    """
+    category = job.get("category")
+    extension = job.get("extension")
+
+    log.info(f"_transition_worker_to_idle called: worker_id={worker_id}, category={category}, extension={extension}")
+
+    if not category or not extension:
+        log.warning(f"Missing category or extension in job data: category={category}, extension={extension}")
+        return
+
+    # Move worker from progressing back to idle for the extension they just completed
+    keys = ExtensionKeys.for_extension(room_id, category, extension)
+    moved = redis_client.smove(keys.progressing_workers, keys.idle_workers, worker_id)
+
+    log.info(f"Worker transition: moved={moved}, progressing_key={keys.progressing_workers}, idle_key={keys.idle_workers}")
+
+    if moved:
+        status_msg = "finished and is now idle" if success else "marked idle after failure"
+        log.info(f"Worker {worker_id} {status_msg}")
+
+        # Get all extensions this worker is registered for in this category
+        user_extensions_key = ExtensionKeys.user_extensions_key(room_id, category, worker_id)
+        registered_extensions = redis_client.smembers(user_extensions_key)
+
+        log.info(f"Worker {worker_id} registered extensions: {registered_extensions}")
+
+        # Add worker to idle set for ALL registered extensions (not just the one they completed)
+        # This ensures dispatch_next_task can find them for any extension
+        for ext_name in registered_extensions:
+            if ext_name != extension:  # Already moved above for completed extension
+                ext_keys = ExtensionKeys.for_extension(room_id, category, ext_name)
+                # Remove from progressing (if present) and add to idle
+                redis_client.srem(ext_keys.progressing_workers, worker_id)
+                redis_client.sadd(ext_keys.idle_workers, worker_id)
+                log.info(f"Added worker {worker_id} to idle set for extension {ext_name}")
+
+        # Emit queue update for this extension
+        emit_queue_update(redis_client, room_id, category, extension, socketio_instance)
+
+        # Workers will poll for the next task via /jobs/next endpoint
+        log.info(f"Worker {worker_id} is now idle and can poll for next task")
+    else:
+        log.warning(f"Failed to move worker {worker_id} from progressing to idle (may already be idle or not in progressing)")
 

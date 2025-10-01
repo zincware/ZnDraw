@@ -62,10 +62,10 @@ const submitExtension = async (variables: {
   data: any;
 }) => {
   const { roomId, userId, category, extension, data } = variables;
-  const response = await fetch(`/api/rooms/${roomId}/extensions/${category}/${extension}?userId=${userId}`, {
+  const response = await fetch(`/api/rooms/${roomId}/extensions/${category}/${extension}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
+    body: JSON.stringify({ userId, data }),
   });
   if (!response.ok) {
     throw new Error('Network response was not ok');
@@ -93,5 +93,60 @@ export const useSubmitExtension = () => {
     onError: (error) => {
       console.error('Error submitting extension:', error);
     },
+  });
+};
+
+// Job interfaces
+export interface Job {
+  id: string;
+  room: string;
+  category: string;
+  extension: string;
+  data: any;
+  user_id: string;
+  status: 'queued' | 'running' | 'completed' | 'failed';
+  provider: string;
+  created_at: string;
+  started_at: string;
+  completed_at: string;
+  worker_id: string;
+  error: string;
+  result: any;
+}
+
+// Fetch active jobs for a room
+const fetchJobs = async (room: string): Promise<Job[]> => {
+  const response = await fetch(`/api/rooms/${room}/jobs`);
+  if (!response.ok) {
+    throw new Error('Failed to fetch jobs');
+  }
+  const result = await response.json();
+  return result.jobs;
+};
+
+export const useJobs = (room: string) => {
+  return useQuery({
+    queryKey: ['jobs', room],
+    queryFn: () => fetchJobs(room),
+    enabled: !!room,
+    refetchInterval: 5000, // Refetch every 5 seconds
+  });
+};
+
+// Fetch a specific job
+const fetchJob = async (room: string, jobId: string): Promise<Job> => {
+  const response = await fetch(`/api/rooms/${room}/jobs/${jobId}`);
+  if (!response.ok) {
+    throw new Error('Failed to fetch job');
+  }
+  const result = await response.json();
+  return result.job;
+};
+
+export const useJob = (room: string, jobId: string) => {
+  return useQuery({
+    queryKey: ['job', room, jobId],
+    queryFn: () => fetchJob(room, jobId),
+    enabled: !!room && !!jobId,
   });
 };

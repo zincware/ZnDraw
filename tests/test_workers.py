@@ -677,3 +677,52 @@ def test_worker_pickup_task(server):
     failed_jobs = [job for job in response_json if job["status"] == "failed"]
     assert len(completed_jobs) == 3
     assert len(failed_jobs) == 1
+
+
+def test_celery_task(server):
+    room = "testroom"
+    user = "testuser"
+    mod_name = next(iter(modifiers.keys()))
+
+    # Create a celery job by calling a server-side modifier extension
+    response = requests.post(
+        f"{server}/api/rooms/{room}/extensions/modifiers/{mod_name}",
+        json={"data": {}, "userId": user}
+    )
+    assert response.status_code == 200
+    response_json = response.json()
+    jobId = response_json.pop("jobId")
+    assert response_json == {
+        "queuePosition": 0,
+        "status": "success",
+    }
+
+    # Verify the job was created with celery provider
+    response = requests.get(f"{server}/api/rooms/{room}/jobs/{jobId}")
+    assert response.status_code == 200
+    response_json = response.json()
+    assert response_json["status"] == "queued"
+    assert response_json["provider"] == "celery"
+
+    # Have celery-worker fetch the job
+    response = requests.post(f"{server}/api/rooms/{room}/jobs/next", json={"workerId": "celery-worker"})
+    assert response.status_code == 200
+    response_json = response.json()
+    assert response_json["jobId"] == jobId
+    assert response_json["category"] == "modifiers"
+    assert response_json["extension"] == mod_name
+    assert response_json["data"] == {}
+    assert response_json["status"] == "running"
+
+    # Finish the job
+    response = requests.post(f"{server}/api/rooms/{room}/jobs/{jobId}/complete", json={"workerId": "celery-worker"})
+    assert response.status_code == 200
+    assert response.json() == {"status": "success"}
+
+    response = requests.get(f"{server}/api/rooms/{room}/jobs")
+    assert response.status_code == 200
+    response_json = response.json()
+    assert isinstance(response_json, list)
+    assert len(response_json) == 1
+    assert response_json[0]["status"] == "completed"
+

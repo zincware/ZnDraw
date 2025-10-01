@@ -218,3 +218,96 @@ graph TD
         K --> L2("{TaskNameB}")
     end
 ```
+
+#  Diagram 1: Worker Registration & Initial State
+
+```mermaid
+sequenceDiagram
+    participant Worker
+    participant Server
+    participant Redis
+    participant UI
+
+    Worker->>Server: Connect (Socket.IO)
+    Server->>Worker: Connection Acknowledged (SID Assigned)
+    Worker->>Server: register_worker(worker_id, <sio_sid>)
+    Server->>Redis: HSET worker:<worker_id> status:idle, sid:<sio_sid>
+    Server->>Redis: HSET sid_to_worker <sio_sid>:<worker_id>
+    Server->>UI: ui_update_worker({id:worker_id, status:idle}) (Socket.IO)
+    Note over Worker,UI: Worker is now idle and registered. UI shows it online.
+```
+
+# Diagram 2: Job Submission & Worker Processing (Successful)
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant Server
+    participant Redis
+    participant Worker
+    participant UI
+
+    Client->>Server: POST /api/jobs (Job Data)
+    Server->>Redis: LPUSH job_queue (Serialized Job)
+    Server->>Worker: new_job_available (Socket.IO - Optional Notification)
+    Note over Server: Server can immediately notify workers that a new job exists.
+    Worker->>Server: GET /api/jobs/next?worker_id=<worker_id> (Worker Poll)
+    Server->>Redis: RPOPLPUSH job_queue processing:<worker_id>
+    alt Job Available
+        Redis-->>Server: Job Data
+        Server-->>Worker: Job Data (HTTP 200)
+        Worker->>Worker: Process Job...
+        Worker->>Server: update_worker_state({worker_id, status:busy, job_id}) (Socket.IO)
+        Server->>Redis: HSET worker:<worker_id> status:busy, job_id:<job_id>
+        Server->>UI: ui_update_worker({id:worker_id, status:busy, job_id}) (Socket.IO)
+        Worker->>Server: POST /api/jobs/result/<job_id> (Job Result)
+        Server->>Redis: Remove job from processing:<worker_id> list (or mark as complete)
+        Worker->>Server: update_worker_state({worker_id, status:idle}) (Socket.IO)
+        Server->>Redis: HSET worker:<worker_id> status:idle, job_id:null
+        Server->>UI: ui_update_worker({id:worker_id, status:idle}) (Socket.IO)
+        Server-->>Client: Job Queued (HTTP 202)
+    else No Job Available
+        Redis-->>Server: null
+        Server-->>Worker: No Content (HTTP 204)
+        Worker->>Worker: Wait for next poll/notification
+    end
+```
+
+# Diagram 3: Worker Disconnection & Job Re-queue (Fault Tolerance)
+
+```mermaid
+sequenceDiagram
+    participant Worker
+    participant Server
+    participant Redis
+    participant UI
+
+    Worker--xServer: Unexpected Disconnect (e.g., Crash, Network Loss)
+    Server->>Redis: HGET sid_to_worker <disconnected_sid>
+    Redis-->>Server: <worker_id>
+    Server->>Redis: HSET worker:<worker_id> status:offline
+    Server->>Redis: HDEL sid_to_worker <disconnected_sid>
+    Server->>Redis: RPOPLPUSH processing:<worker_id> job_queue
+    Note over Server,Redis: Atomically moves the job back to the main queue for another worker.
+    Server->>UI: ui_update_worker({id:worker_id, status:offline}) (Socket.IO)
+    Note over Worker,UI: The job is now safely back in the queue, and the UI reflects the worker's status.
+```
+
+# Diagram 4: UI Updates (Simplified)
+
+```mermaid
+sequenceDiagram
+    participant UI_Client
+    participant Server
+    participant Redis
+    participant Worker
+
+    UI_Client->>Server: Connect (Socket.IO)
+    UI_Client->>Server: subscribe_ui() (Socket.IO)
+    Server->>UI_Client: Connection Acknowledged (SID Assigned), joined 'ui' room
+    Note over Server: (Later, when a worker state changes)
+    Worker->>Server: update_worker_state(...)
+    Server->>Redis: HSET worker:<worker_id> status:<new_status>
+    Server->>UI_Client: ui_update_worker({id:worker_id, status:<new_status>, ...}) (Socket.IO, to 'ui' room)
+    Note over UI_Client: UI updates in real-time.
+```

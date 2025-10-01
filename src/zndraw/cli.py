@@ -10,7 +10,7 @@ app = typer.Typer()
 
 
 @app.command()
-def main(port: int = 5000, debug: bool = False):
+def main(port: int = 5000, debug: bool = False, celery: bool = True):
     """
     Start the zndraw-server.
     """
@@ -24,7 +24,8 @@ def main(port: int = 5000, debug: bool = False):
     # --- End of new code ---
     
     flask_app = create_app(main=True)
-    worker = run_celery_worker()
+    if celery:
+        worker = run_celery_worker()
     try:
         socketio.run(flask_app, debug=debug, host="0.0.0.0", port=port)
     except KeyboardInterrupt:
@@ -32,6 +33,7 @@ def main(port: int = 5000, debug: bool = False):
     finally:
         shutil.rmtree("data", ignore_errors=True)
         flask_app.extensions["redis"].flushall()
-        worker.terminate()
-        worker.wait()
-        print("Celery worker closed.")
+        if celery:
+            worker.terminate()
+            worker.wait()
+            print("Celery worker closed.")

@@ -3,6 +3,8 @@ import znh5md
 from tqdm import tqdm
 from zndraw.utils import update_colors_and_radii, atoms_to_dict
 import logging
+import requests
+import time
 
 log = logging.getLogger(__name__)
 
@@ -22,40 +24,62 @@ def read_file() -> None:
 
 
 @shared_task(bind=True)
-def run_extension_task(self, room: str, category: str, extension: str, data: dict, user_id: str) -> dict:
-    """Run a server-side extension task.
+def celery_job_worker(self, room: str, server_url: str = "http://localhost:5000"):
+    """Celery worker that polls for server-side extension jobs.
 
-    This Celery task runs extensions that are provided by the server (provider="celery")
-    rather than by client workers. It mimics the behavior of _on_task_run in the client.
+    This task continuously polls the /jobs/next endpoint looking for jobs
+    with provider="celery". It executes the extension and marks the job
+    as completed or failed.
 
     Args:
         self: Celery task instance (bound)
-        room: The room ID where the task should run
-        category: The extension category (e.g., 'modifiers', 'selections', 'settings')
-        extension: The extension name
-        data: The extension input data (schema-validated)
-        user_id: The user ID who triggered the task
-
-    Returns:
-        dict: Task result with status and optional error message
+        room: The room ID to poll for jobs
+        server_url: The ZnDraw server URL
     """
     from zndraw.zndraw import ZnDraw
-    from flask import current_app
+    from zndraw.extensions.modifiers import modifiers
+    from zndraw.extensions.selections import selections
+    from zndraw.settings import settings
 
-    log.info(f"Running server-side extension task: {category}/{extension} in room {room}")
+    worker_id = f"celery:{self.request.id}"
+
+    category_map = {
+        "selections": selections,
+        "modifiers": modifiers,
+        "settings": settings,
+    }
+
+    log.info(f"Celery worker {worker_id} starting to poll for jobs in room {room}")
+
+    response = requests.post(
+        f"{server_url}/api/rooms/{room}/jobs/next",
+        json={"workerId": worker_id},
+    )
+
+    if response.status_code == 400:
+        # No jobs available or worker not idle
+        error_msg = response.json().get("error", "")
+        if "No jobs available" in error_msg:
+            log.debug(f"No jobs available, worker {worker_id}.")
+            return
+        else:
+            log.warning(f"Worker {worker_id} got 400: {error_msg}")
+            return
+
+    if response.status_code != 200:
+        log.error(f"Failed to fetch next job: {response.status_code} {response.text}")
+        return
+
+    job_data = response.json()
+    job_id = job_data.get("jobId")
+    category = job_data.get("category")
+    extension = job_data.get("extension")
+    data = job_data.get("data", {})
+
+    log.info(f"Worker {worker_id} picked up job {job_id}: {category}/{extension}")
 
     try:
-        # Import the extension classes
-        from zndraw.extensions.modifiers import modifiers
-        from zndraw.extensions.selections import selections
-        from zndraw.settings import settings
-
-        category_map = {
-            "selections": selections,
-            "modifiers": modifiers,
-            "settings": settings,
-        }
-
+        # Validate category and extension
         if category not in category_map:
             raise ValueError(f"Unknown category: {category}")
 
@@ -67,20 +91,37 @@ def run_extension_task(self, room: str, category: str, extension: str, data: dic
         instance = ext_class(**data)
 
         # Create a ZnDraw client connected to the specific room
-        # Use the server URL from the Flask app config
-        vis = ZnDraw(room=room, url="http://localhost:5000", user=user_id)
+        vis = ZnDraw(room=room, url=server_url, user=worker_id)
 
         # Run the extension
         instance.run(vis)
 
-        log.info(f"Successfully completed extension task: {category}/{extension}")
-        return {"status": "success", "extension": extension, "category": category}
+        log.info(f"Worker {worker_id} successfully completed job {job_id}")
+
+        # Mark job as completed
+        requests.post(
+            f"{server_url}/api/rooms/{room}/jobs/{job_id}/complete",
+            json={"result": {}, "workerId": worker_id},
+        )
 
     except Exception as e:
-        log.error(f"Error running extension task {category}/{extension}: {e}", exc_info=True)
-        return {
-            "status": "error",
-            "message": str(e),
-            "extension": extension,
-            "category": category,
-        }
+        log.error(f"Worker {worker_id} error executing job {job_id}: {e}", exc_info=True)
+        requests.post(
+            f"{server_url}/api/rooms/{room}/jobs/{job_id}/fail",
+            json={"error": str(e), "workerId": worker_id},
+        )
+
+
+
+@shared_task
+def start_celery_workers(room: str, num_workers: int = 1, server_url: str = "http://localhost:5000"):
+    """Start multiple Celery workers for a room.
+
+    Args:
+        room: The room ID to poll for jobs
+        num_workers: Number of worker tasks to start
+        server_url: The ZnDraw server URL
+    """
+    for i in range(num_workers):
+        celery_job_worker.delay(room, server_url)
+        log.info(f"Started Celery worker {i+1}/{num_workers} for room {room}")

@@ -7,6 +7,7 @@ import time
 import eventlet  # noqa - eventlet must be installed for flask-socketio to start a production server
 import pytest
 import signal
+from zndraw.start_celery import run_celery_worker
 
 
 @pytest.fixture
@@ -15,7 +16,7 @@ def server():
 
     # Start zndraw-server subprocess
     proc = subprocess.Popen(
-        ["zndraw-server", "--port", str(port)],
+        ["zndraw-server", "--port", str(port), "--no-celery"],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
     )
@@ -43,3 +44,17 @@ def server():
             proc.kill()
             shutil.rmtree("data", ignore_errors=True)
             raise RuntimeError("Server did not shut down in time")
+
+
+@pytest.fixture
+def celery_worker():
+    worker = run_celery_worker()
+    try:
+        yield worker
+    finally:
+        worker.terminate()
+        try:
+            worker.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            worker.kill()
+            raise RuntimeError("Celery worker did not shut down in time")

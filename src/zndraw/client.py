@@ -1,6 +1,7 @@
 import dataclasses
 import logging
 import warnings
+import uuid
 from collections.abc import MutableSequence
 
 import msgpack
@@ -67,11 +68,13 @@ class Client(MutableSequence):
     url: str = "http://localhost:5000"
     room: str = "default"
     user: str = "guest"
+    auto_pickup_jobs: bool = True
 
     _step: int = 0
     _len: int = 0
     _settings: dict = dataclasses.field(default_factory=dict, init=False)
     _extensions: dict[str, _ExtensionStore] = dataclasses.field(default_factory=dict, init=False)
+    _client_id: str = dataclasses.field(default_factory=lambda: str(uuid.uuid4()), init=False)
 
     def __post_init__(self):
         self.sio = socketio.Client()
@@ -79,7 +82,12 @@ class Client(MutableSequence):
         self.sio.on("frame_update", self._on_frame_update)
         self.sio.on("len_frames", self._on_len_frames_update)
         self.sio.on("invalidate", self._on_invalidate)
-        self.sio.on("task:run", self._on_task_run)
+        self.sio.on("queue:update", self._on_queue_update)
+
+    @property
+    def sid(self) -> str:
+        """Get the client's unique identifier (distinct from Socket.IO SIDs)."""
+        return self._client_id
 
 
     def _on_frame_update(self, data):
@@ -91,22 +99,39 @@ class Client(MutableSequence):
         """Internal callback for when a len_frames update is received."""
         if "count" in data:
             self._len = data["count"]
+
+    def _on_queue_update(self, data: dict):
+        print(f"Queue update received: {data}")
+        if not self.auto_pickup_jobs:
+            return
+        response = requests.post(f"{self.url}/api/rooms/{self.room}/jobs/next", json={"workerId": self.sid})
+        if response.status_code == 200:
+            data = response.json()
+            if "jobId" in data:
+                try:
+                    self._on_task_run(data=data.get("data"), extension=data.get("extension"), category=data.get("category"))
+                    response = requests.post(f"{self.url}/api/rooms/{self.room}/jobs/{data.get('jobId')}/complete", json={"workerId": self.sid})
+                    if response.status_code != 200:
+                        log.error(f"Failed to mark job {data.get('jobId')} as complete: {response.status_code} {response.text}")
+                    # log as completed
+                except Exception as e:
+                    log.error(f"Error processing job {data.get('jobId')}: {e}")
+                    response = requests.post(f"{self.url}/api/rooms/{self.room}/jobs/{data.get('jobId')}/fail", json={"workerId": self.sid, "error": str(e)})
+                # we have finished now, so we check for more jobs
+                self._on_queue_update({})
+        elif response.status_code == 400:
+            print("No jobs available.")
+        else:
+            log.error(f"Failed to fetch next job: {response.status_code} {response.text}")
+
     
-    def _on_task_run(self, data):
+    def _on_task_run(self, data: dict, extension: str, category: str):
         """Internal callback for when a task is run."""
-        print(f"Task run: {data}")
-        schema_data = data.get("data", {})
-        extension = data.get("extension")
-        category = data.get("category")
-        try:
-            ext = self._extensions[extension]["extension"]
-            instance = ext(**(schema_data))
-            # TODO: if public=True, we need to create a new vis instance, connected to the correct room
-            instance.run(self, **(self._extensions[extension]["run_kwargs"] or {}))
-            self.sio.emit("task:finished", {"status": "success", "extension": extension, "category": category})
-        except Exception as e:
-            print(f"Error running task: {e}")
-            self.sio.emit("task:finished", {"status": "error", "message": str(e), "extension": extension, "category": category})
+
+        ext = self._extensions[extension]["extension"]
+        instance = ext(**(data))
+        # TODO: if public=True, we need to create a new vis instance, connected to the correct room
+        instance.run(self, **(self._extensions[extension]["run_kwargs"] or {}))
 
     def _on_invalidate(self, data: dict):
         """Internal callback for when settings are invalidated."""
@@ -155,8 +180,8 @@ class Client(MutableSequence):
     def _on_connect(self):
         """Internal callback for when a connection is established."""
         log.debug(f"Connected to {self.url} with session ID {self.sio.sid}")
-        self.sio.emit("join_room", {"room": self.room, "userId": self.user})
-        log.debug(f"Joined room: '{self.room}'")
+        self.sio.emit("join_room", {"room": self.room, "userId": self.user, "clientId": self._client_id})
+        log.debug(f"Joined room: '{self.room}' with client ID: {self._client_id}")
 
     def get_frame(self, frame_id: int, keys: list[str] | None = None) -> dict:
         """Fetches a single frame's data from the server."""

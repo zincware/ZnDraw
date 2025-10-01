@@ -13,17 +13,17 @@ export const useSocketManager = () => {
     if (!room) return;
     if (isConnected) return;
     socket.connect();
-  }, [room]);
+  }, [room, isConnected]);
 
   useEffect(() => {
     function onConnect() {
       console.log('Socket connected and joining room:', room);
-      setConnected(true, room, userId);
+      setConnected(true, room || '', userId || '');
       socket.emit('join_room', { room, userId });
     }
     function onDisconnect() {
       console.log('Socket disconnected');
-      setConnected(false, room, userId);
+      setConnected(false, room || '', userId || '');
     }
     function onLenUpdate(data: any) {
       if (data && typeof data.count === 'number') {
@@ -56,7 +56,8 @@ export const useSocketManager = () => {
 
     function onQueueUpdate(data: any) {
       const { roomId, category, extension, queueLength, idleWorkers, progressingWorkers } = data;
-      // Update the cached schema data with new queue length and worker counts
+
+      // 1. Update the cached schema data with new queue length and worker counts
       queryClient.setQueryData(['schemas', roomId, category], (oldData: any) => {
         if (!oldData || !oldData[extension]) return oldData;
         return {
@@ -69,6 +70,10 @@ export const useSocketManager = () => {
           },
         };
       });
+
+      // 2. Invalidate jobs list to refetch all jobs (covers created/started/completed/failed/deleted)
+      queryClient.invalidateQueries({ queryKey: ['jobs', room] });
+
       console.log(`Queue updated for ${category}/${extension}: ${queueLength} queued, ${idleWorkers} idle, ${progressingWorkers} progressing`);
     }
 

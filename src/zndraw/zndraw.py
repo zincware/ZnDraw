@@ -12,9 +12,10 @@ class ZnDraw:
     url: str
     room: str
     user: str
+    auto_pickup_jobs: bool = True
 
     def __post_init__(self):
-        self.client = Client(url=self.url, room=self.room, user=self.user)
+        self.client = Client(url=self.url, room=self.room, user=self.user, auto_pickup_jobs=self.auto_pickup_jobs)
         self.client.connect()
 
     @property
