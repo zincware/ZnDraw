@@ -350,3 +350,16 @@ def test_zarr_storage_large_shape_mismatch(tmp_path):
     assert len(store) == 2
     assert store[0]["positions"].shape == (3000, 3)
     assert store[1]["positions"].shape == (9, 3)
+
+
+def test_zarr_storage_variable_sizes(tmp_path):
+    """Test that atoms objects with different particle counts are stored and retrieved correctly."""
+    root = zarr.group(store=tmp_path / "test.zarr")
+    store = ZarrStorageSequence(root)
+
+    dicts = [{"x": np.array([1, 2, 3])}, {"x": np.array([1, 2, 3, 4])}, {"x": np.array([1, 2])}]
+    store.extend(dicts)
+
+    assert len(store) == len(dicts)
+    for item in zip(store, dicts):
+        assert_equal(item[0], item[1])

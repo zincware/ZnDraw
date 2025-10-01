@@ -220,22 +220,20 @@ def extend_zarr(root: zarr.Group, data: list[dict]):
                         )
                     if item.shape[1:] != shape_suffix:
                         # # TODO: what about multidimensional arrays?
-                        if f"__mask__{key}__" not in root:
+                        if f"__mask__{key}__" not in group:
                             grp = group.require_array(
                                 name=f"__mask__{key}__",
                                 shape=(total_len,),
                                 chunks="auto",
                                 dtype="int32",
                             )
-                            grp[:] = np.array(
-                                [item.shape[1] for _ in range(total_len - 1)]
-                                + [shape_suffix[0]]
-                            )
+                            grp[:idx] = item.shape[1]
+                            grp[idx] = shape_suffix[0]
                         else:
                             grp = group[f"__mask__{key}__"]
                             if grp.shape[0] < total_len:
-                                grp.resize((total_len - 1,))
-                            grp.append(np.array([shape_suffix[0]]))
+                                grp.resize((total_len,))
+                            grp[idx] = shape_suffix[0]
                         if item.shape[1:] < shape_suffix:
                             item.resize((item.shape[0],) + shape_suffix)
 
