@@ -105,19 +105,42 @@ const SelectionTrackOverlay: React.FC<SelectionTrackOverlayProps> = ({
     return null;
   }
 
-  const ranges = framesToRanges(selectedFrames);
+  // Create centered segments for each selected frame (±0.5 around each frame)
+  const centeredRanges: Array<[number, number]> = selectedFrames
+    .map(frame => {
+      const start = Math.max(0, frame - 0.5);
+      const end = Math.min(frameCount - 1, frame + 0.5);
+      return [start, end] as [number, number];
+    })
+    .sort((a, b) => a[0] - b[0]);
+
+  // Merge overlapping/adjacent blue segments
+  const mergedRanges: Array<[number, number]> = [];
+  centeredRanges.forEach(([start, end]) => {
+    if (mergedRanges.length === 0) {
+      mergedRanges.push([start, end]);
+    } else {
+      const last = mergedRanges[mergedRanges.length - 1];
+      if (start <= last[1]) {
+        // Overlapping or adjacent - merge
+        last[1] = Math.max(last[1], end);
+      } else {
+        mergedRanges.push([start, end]);
+      }
+    }
+  });
 
   // Generate segments for the entire timeline
   // Selected ranges = blue, gaps between = grey
   const segments: Array<{ start: number; end: number; selected: boolean }> = [];
 
   let currentPos = 0;
-  ranges.forEach(([rangeStart, rangeEnd]) => {
+  mergedRanges.forEach(([rangeStart, rangeEnd]) => {
     // Add grey segment before this range if there's a gap
     if (rangeStart > currentPos) {
       segments.push({
         start: currentPos,
-        end: rangeStart - 1,
+        end: rangeStart,
         selected: false,
       });
     }
@@ -129,7 +152,7 @@ const SelectionTrackOverlay: React.FC<SelectionTrackOverlayProps> = ({
       selected: true,
     });
 
-    currentPos = rangeEnd + 1;
+    currentPos = rangeEnd;
   });
 
   // Add grey segment after last range if needed
@@ -155,20 +178,7 @@ const SelectionTrackOverlay: React.FC<SelectionTrackOverlayProps> = ({
     >
       {segments.map((segment, idx) => {
         const leftPercent = getPercentPosition(segment.start);
-
-        // Determine the visual end position for this segment
-        // Extend to the start of the next segment, or to the end of the timeline
-        const isLastSegment = idx === segments.length - 1;
-        let visualEnd: number;
-
-        if (isLastSegment) {
-          visualEnd = frameCount - 1;
-        } else {
-          // Extend to just before the next segment starts
-          visualEnd = segments[idx + 1].start;
-        }
-
-        const rightPercent = getPercentPosition(visualEnd);
+        const rightPercent = getPercentPosition(segment.end);
         const widthPercent = rightPercent - leftPercent;
 
         return (
