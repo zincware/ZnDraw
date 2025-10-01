@@ -224,6 +224,11 @@ def on_join(data):
 
     # --- Existing Logic ---
     emit("len_frames", _get_len(), to=sid)
+
+    # get selection
+    selection = r.get(f"room:{room}:selection:default")
+    if selection:
+        emit("selection:update", {"indices": json.loads(selection)}, to=sid)
     # presenter_sid = r.get(f"room:{room}:presenter_lock")
     # if presenter_sid:
     #     emit('presenter_update', {'presenterSid': presenter_sid}, to=sid)
@@ -236,6 +241,24 @@ def on_join(data):
     # emit('room_users_update', users_in_room, to=f"room:{room}")
 
     # check if this user has any extensions registered
+
+@socketio.on("selection:set")
+def handle_selection_set(data):
+    room = get_project_room_from_session(request.sid)
+    redis_client = current_app.extensions["redis"]
+
+    indices = data.get("indices", [])
+    if not isinstance(indices, list):
+        return {"success": False, "messagemsg": "Indices must be a list", "error": "TypeError"}
+
+    # Validate and store the selection in Redis
+    # valid_indices = [idx for idx in indices if isinstance(idx, int) and 0 <= idx < _get_len()]
+    if any(not isinstance(idx, int) or idx < 0 for idx in indices):
+        return {"success": False, "message": f"No valid indices provided {indices}", "error": "ValueError"}
+
+    redis_client.set(f"room:{room}:selection:default", json.dumps(indices))
+    emit("selection:update", {"indices": indices}, to=f"room:{room}", skip_sid=request.sid)
+    return {"success": True}
 
 
 @socketio.on("set_frame_atomic")

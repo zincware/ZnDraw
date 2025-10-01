@@ -75,11 +75,13 @@ class Client(MutableSequence):
     _settings: dict = dataclasses.field(default_factory=dict, init=False)
     _extensions: dict[str, _ExtensionStore] = dataclasses.field(default_factory=dict, init=False)
     _client_id: str = dataclasses.field(default_factory=lambda: str(uuid.uuid4()), init=False)
+    _selection: frozenset[int] = frozenset()
 
     def __post_init__(self):
         self.sio = socketio.Client()
         self.sio.on("connect", self._on_connect)
         self.sio.on("frame_update", self._on_frame_update)
+        self.sio.on("selection:update", self._on_selection_update)
         self.sio.on("len_frames", self._on_len_frames_update)
         self.sio.on("invalidate", self._on_invalidate)
         self.sio.on("queue:update", self._on_queue_update)
@@ -99,6 +101,11 @@ class Client(MutableSequence):
         """Internal callback for when a len_frames update is received."""
         if "count" in data:
             self._len = data["count"]
+
+    def _on_selection_update(self, data):
+        """Internal callback for when a selection update is received."""
+        if "indices" in data:
+            self._selection = frozenset(data["indices"])
 
     def _on_queue_update(self, data: dict):
         print(f"Queue update received: {data}")
@@ -161,6 +168,34 @@ class Client(MutableSequence):
                     raise LockError(error_msg)
                 else:
                     raise RuntimeError(error_msg)
+        else:
+            raise RuntimeError("Client is not connected. Please call .connect() first.")
+        
+        
+    @property
+    def selection(self) -> frozenset[int]:
+        """Get the current selection of frame indices."""
+        return self._selection
+    
+    @selection.setter
+    def selection(self, value: t.Iterable[int] | None):
+        """Set the current selection of frame indices."""
+        if value is None:
+            indices = []
+        else:
+            indices = [x for x in value]
+            if not all(isinstance(idx, int) and 0 <= idx < len(self[self.step]) for idx in indices):
+                raise ValueError("Selection must be an iterable of valid frame indices.")
+        if self.sio.connected:
+            response = self.sio.call("selection:set", {"indices": indices}, timeout=5)
+            if response and not response.get("success", False):
+                error_type = response.get("error")
+                error_msg = response.get("message", "Failed to set selection")
+                if error_type == "LockError":
+                    raise LockError(error_msg)
+                else:
+                    raise RuntimeError(error_msg)
+            self._selection = frozenset(indices)
         else:
             raise RuntimeError("Client is not connected. Please call .connect() first.")
 
@@ -561,6 +596,7 @@ class Client(MutableSequence):
         if response.get("status") != "success":
             raise RuntimeError(f"Failed to register extension '{name}': {response}")
         
+
 
 
 if __name__ == "__main__":

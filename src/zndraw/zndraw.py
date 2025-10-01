@@ -82,3 +82,14 @@ class ZnDraw(MutableSequence):
             raise TypeError("Only ase.Atoms objects are supported")
         update_colors_and_radii(atoms)
         self.client.insert(index, atoms_to_dict(atoms))
+
+    @property
+    def selection(self) -> frozenset[int]:
+        """Get the current selection of frame indices."""
+        return self.client.selection
+    
+    @selection.setter
+    def selection(self, value: t.Iterable[int] | None):
+        """Set the current selection of frame indices."""
+        self.client.selection = value
+    
