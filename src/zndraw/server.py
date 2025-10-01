@@ -32,12 +32,14 @@ def celery_init_app(app: Flask) -> Celery:
     app.extensions["celery"] = celery_app
     return celery_app
 
-def redis_init_app(app: Flask) -> redis.Redis:
-    r = redis.Redis(decode_responses=True)
+def redis_init_app(app: Flask, redis_url: str) -> redis.Redis:
+    r = redis.Redis.from_url(redis_url, decode_responses=True)
     app.extensions["redis"] = r
     return r
 
-def create_app(main: bool = False) -> Flask:
+def create_app(
+    main: bool = False, storage_path: str = "./zndraw-data.zarr", redis_url: str = "redis://localhost:6379"
+) -> Flask:
     app = Flask(__name__)
 
     from zndraw.app import main as main_blueprint
@@ -45,11 +47,15 @@ def create_app(main: bool = False) -> Flask:
 
     app.register_blueprint(main_blueprint)
 
+    # Store configuration
+    app.config["STORAGE_PATH"] = storage_path
+    app.config["REDIS_URL"] = redis_url
+
     # Production
     app.config.from_mapping(
         CELERY=dict(
-            broker_url="redis://localhost",
-            result_backend="redis://localhost",
+            broker_url=redis_url,
+            result_backend=redis_url,
             task_ignore_result=True,
         ),
     )
@@ -63,7 +69,7 @@ def create_app(main: bool = False) -> Flask:
 
     app.config.from_prefixed_env()
     celery_init_app(app)
-    redis_init_app(app)
+    redis_init_app(app, redis_url)
 
     socketio.init_app(app, cors_allowed_origins="*")
 

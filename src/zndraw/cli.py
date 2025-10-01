@@ -10,26 +10,22 @@ app = typer.Typer()
 
 
 @app.command()
-def main(port: int = 5000, debug: bool = False, celery: bool = True):
+def main(
+    port: int = 5000,
+    debug: bool = False,
+    celery: bool = True,
+    storage_path: str = "./zndraw-data.zarr",
+    redis_url: str = "redis://localhost:6379",
+):
     """
     Start the zndraw-server.
     """
-    # --- Start of new code ---
-    def handle_sigterm(*_):
-        print("SIGTERM received, shutting down gracefully.")
-        # Raise KeyboardInterrupt to trigger the same shutdown path as SIGINT
-        raise KeyboardInterrupt
 
-    signal.signal(signal.SIGTERM, handle_sigterm)
-    # --- End of new code ---
-    
-    flask_app = create_app(main=True)
+    flask_app = create_app(main=True, storage_path=storage_path, redis_url=redis_url)
     if celery:
         worker = run_celery_worker()
     try:
         socketio.run(flask_app, debug=debug, host="0.0.0.0", port=port)
-    except KeyboardInterrupt:
-        print("Shutdown requested.")
     finally:
         shutil.rmtree("data", ignore_errors=True)
         flask_app.extensions["redis"].flushall()

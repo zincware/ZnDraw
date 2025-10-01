@@ -8,17 +8,27 @@ import eventlet  # noqa - eventlet must be installed for flask-socketio to start
 import pytest
 import signal
 from zndraw.start_celery import run_celery_worker
+import os
+import redis
 
 
 @pytest.fixture
-def server():
+def server(tmp_path):
     port = random.randint(10000, 20000)
+    storage_path = tmp_path / "zndraw-data.zarr"
+    redis_url = "redis://localhost:6379"
 
     # Start zndraw-server subprocess
     proc = subprocess.Popen(
-        ["zndraw-server", "--port", str(port), "--no-celery"],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
+        [
+            "zndraw-server",
+            "--port", str(port),
+            "--no-celery",
+            "--storage-path", str(storage_path),
+            "--redis-url", redis_url,
+        ],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
     )
 
     # Wait for the server to be ready
@@ -42,8 +52,12 @@ def server():
             proc.wait(timeout=10)
         except subprocess.TimeoutExpired:
             proc.kill()
-            shutil.rmtree("data", ignore_errors=True)
             raise RuntimeError("Server did not shut down in time")
+        finally:
+            # Clean up storage and Redis
+            shutil.rmtree(storage_path, ignore_errors=True)
+            r = redis.Redis.from_url(redis_url, decode_responses=True)
+            r.flushall()
 
 
 @pytest.fixture

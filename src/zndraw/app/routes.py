@@ -30,8 +30,10 @@ def get_lock_key(room: str, target: str) -> str:
 
 def get_zarr_store_path(room_id: str) -> str:
     """Returns the path to the Zarr store for a given room."""
-    # In a real app, this path might come from a config file.
-    return f"data/{room_id}.zarr"
+    storage_path = current_app.config.get("STORAGE_PATH", "./zndraw-data.zarr")
+    # Remove .zarr extension if present to append room_id
+    base_path = storage_path.rstrip("/").removesuffix(".zarr")
+    return f"{base_path}/{room_id}.zarr"
 
 @main.route("/internal/emit", methods=["POST"])
 def internal_emit():
