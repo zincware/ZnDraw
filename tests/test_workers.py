@@ -19,6 +19,10 @@ class SelectionExtension(Extension):
 
     parameter: int
 
+# TODO: add auto_pickup_jobs: bool = False to ZnDraw constructor and test it here
+# and not listen to socketio events
+# TODO: on job queue, emit event to all available workers that a new job is available
+# TODO: available workers should join a room, once busy, leave the room
 
 @pytest.mark.parametrize("category", ["modifiers", "selections"])
 def test_register_extensions(server, category):
@@ -32,7 +36,7 @@ def test_register_extensions(server, category):
         default_keys = set(selections.keys())
     else:
         raise ValueError("Unknown category")
-    vis = ZnDraw(url=server, room=room, user=user)
+    vis = ZnDraw(url=server, room=room, user=user, auto_pickup_jobs=False)
     response = requests.get(f"{server}/api/rooms/{room}/schema/{category}")
     assert response.status_code == 200
     response_json = response.json()
@@ -79,8 +83,8 @@ def test_register_extensions(server, category):
     assert set(response_json.keys()) == default_keys
 
     # connect two workers
-    vis1 = ZnDraw(url=server, room=room, user=user)
-    vis2 = ZnDraw(url=server, room=room, user=user)
+    vis1 = ZnDraw(url=server, room=room, user=user, auto_pickup_jobs=False)
+    vis2 = ZnDraw(url=server, room=room, user=user, auto_pickup_jobs=False)
     vis1.register_extension(mod)
     vis2.register_extension(mod)
 
@@ -117,7 +121,7 @@ def test_run_client_extensions(server, category):
         default_keys = set(selections.keys())
     else:
         raise ValueError("Unknown category")
-    vis = ZnDraw(url=server, room=room, user=user)
+    vis = ZnDraw(url=server, room=room, user=user, auto_pickup_jobs=False)
     vis.register_extension(mod)
 
     # /api/rooms/${roomId}/extensions/${category}/${extension}
@@ -296,8 +300,8 @@ def test_run_different_client_different_extensions(server):
     user = "testuser"
     mod1 = ModifierExtension
     mod2 = SelectionExtension
-    vis1 = ZnDraw(url=server, room=room, user=user)
-    vis2 = ZnDraw(url=server, room=room, user=user)
+    vis1 = ZnDraw(url=server, room=room, user=user, auto_pickup_jobs=False)
+    vis2 = ZnDraw(url=server, room=room, user=user, auto_pickup_jobs=False)
     vis1.register_extension(mod1)
     vis2.register_extension(mod2)
 
@@ -388,8 +392,8 @@ def test_run_different_client_different_extensions(server):
 def test_run_different_client_same_extensions(server):
     room = "testroom"
     user = "testuser"
-    vis1 = ZnDraw(url=server, room=room, user=user)
-    vis2 = ZnDraw(url=server, room=room, user=user)
+    vis1 = ZnDraw(url=server, room=room, user=user, auto_pickup_jobs=False)
+    vis2 = ZnDraw(url=server, room=room, user=user, auto_pickup_jobs=False)
     vis1.register_extension(ModifierExtension)
     vis2.register_extension(ModifierExtension)
 
@@ -443,7 +447,7 @@ def test_worker_finish_nonstarted_job(server):
     room = "testroom"
     user = "testuser"
     mod = ModifierExtension
-    vis = ZnDraw(url=server, room=room, user=user)
+    vis = ZnDraw(url=server, room=room, user=user , auto_pickup_jobs=False)
     vis.register_extension(mod)
 
     # queue job for mod1
@@ -488,7 +492,7 @@ def test_worker_fail_job(server):
     room = "testroom"
     user = "testuser"
     mod = ModifierExtension
-    vis = ZnDraw(url=server, room=room, user=user)
+    vis = ZnDraw(url=server, room=room, user=user, auto_pickup_jobs=False)
     vis.register_extension(mod)
 
     # queue job for mod1
@@ -546,7 +550,7 @@ def test_delete_job(server):
     room = "testroom"
     user = "testuser"
     mod = ModifierExtension
-    vis = ZnDraw(url=server, room=room, user=user)
+    vis = ZnDraw(url=server, room=room, user=user, auto_pickup_jobs=False)
     vis.register_extension(mod)
 
     # queue job for mod1
