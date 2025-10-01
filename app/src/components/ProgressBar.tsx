@@ -1,15 +1,21 @@
-import { Box, Slider, TextField, Typography, CircularProgress } from "@mui/material";
+import { Box, Slider, TextField, Typography, CircularProgress, IconButton, Tooltip } from "@mui/material";
 import { useState, useMemo, useRef, useEffect } from "react";
 import WifiIcon from '@mui/icons-material/Wifi';
 import CloudDownloadIcon from '@mui/icons-material/CloudDownload';
+import FilterListIcon from '@mui/icons-material/FilterList';
 import { useAppStore } from '../store';
 import { throttle } from 'lodash';
 import { socket } from '../socket';
 import { usePresenterMode } from '../hooks/usePresenterMode';
+import SelectionLayer from './SelectionLayer';
+import BookmarkLayer from './BookmarkLayer';
+import SelectionTrackOverlay from './SelectionTrackOverlay';
 
 const FrameProgressBar = () => {
     const [isEditing, setIsEditing] = useState(false);
     const [inputValue, setInputValue] = useState("0");
+    const sliderContainerRef = useRef<HTMLDivElement>(null);
+    const [sliderWidth, setSliderWidth] = useState(0);
 
     // Refs to manage the scrubbing logic without causing re-renders
     const scrubTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -17,10 +23,30 @@ const FrameProgressBar = () => {
 
     const {
         currentFrame, setCurrentFrame, frameCount, isConnected, isLoading,
-        skipFrames, setSkipFrames
+        skipFrames, setSkipFrames, frame_selection, bookmarks, frameSelectionEnabled, setFrameSelectionEnabled
     } = useAppStore();
 
     const { requestPresenterMode, releasePresenterMode, presenterMode } = usePresenterMode();
+
+    // Find nearest selected frame when filtering is enabled
+    const findNearestSelectedFrame = (targetFrame: number): number => {
+        if (!frameSelectionEnabled || !frame_selection || frame_selection.length === 0) {
+            return targetFrame;
+        }
+
+        let nearest = frame_selection[0];
+        let minDistance = Math.abs(targetFrame - nearest);
+
+        for (const frame of frame_selection) {
+            const distance = Math.abs(targetFrame - frame);
+            if (distance < minDistance) {
+                minDistance = distance;
+                nearest = frame;
+            }
+        }
+
+        return nearest;
+    };
 
     // Emits CONTINUOUS updates while dragging
     const throttledFrameUpdate = useMemo(
@@ -35,11 +61,13 @@ const FrameProgressBar = () => {
 
     // This is the primary handler for the slider
     const handleSliderChange = (_e: Event, newFrame: number | number[]) => {
-        setCurrentFrame(newFrame as number);
+        // Apply snap-to-selected-frame logic if filtering is enabled
+        const snappedFrame = findNearestSelectedFrame(newFrame as number);
+        setCurrentFrame(snappedFrame);
 
         // If we're already in scrubbing mode, just send throttled updates
         if (isScrubbingRef.current) {
-            throttledFrameUpdate(newFrame as number);
+            throttledFrameUpdate(snappedFrame);
             return;
         }
 
@@ -52,7 +80,7 @@ const FrameProgressBar = () => {
         }
         // This is the first change event. Treat it as an atomic jump for now.
         else {
-            socket.emit('set_frame_atomic', { frame: newFrame as number }, (response: any) => {
+            socket.emit('set_frame_atomic', { frame: snappedFrame }, (response: any) => {
                 if (response && !response.success) {
                     console.error(`Failed to set frame: ${response.error} - ${response.message}`);
                 }
@@ -81,6 +109,19 @@ const FrameProgressBar = () => {
         // Reset the scrubbing flag for the next interaction
         isScrubbingRef.current = false;
     };
+
+    // Measure slider container width
+    useEffect(() => {
+        const updateWidth = () => {
+            if (sliderContainerRef.current) {
+                setSliderWidth(sliderContainerRef.current.offsetWidth);
+            }
+        };
+
+        updateWidth();
+        window.addEventListener('resize', updateWidth);
+        return () => window.removeEventListener('resize', updateWidth);
+    }, []);
 
     // Ensure timers are cleaned up if the component unmounts
     useEffect(() => {
@@ -225,30 +266,75 @@ const FrameProgressBar = () => {
                     </Typography>
                 )}
             </Box>
-            {/* TODO: prevent arrow movements / handle them seperatly! */}
-            <Slider
-                orientation="horizontal"
-                value={currentFrame}
-                onChange={handleSliderChange}
-                onMouseUp={handleScrubEnd}
-                onMouseDown={() => { isScrubbingRef.current = false; }}
-                disabled={presenterMode === 'locked'}
-                max={frameCount - 1}
-                aria-label="Frame Progress"
-                valueLabelDisplay="auto"
-                sx={{
-                    flexGrow: 1,
-                    '& .MuiSlider-thumb': {
-                        transition: 'none !important',
-                    },
-                    '& .MuiSlider-track': {
-                        transition: 'none !important',
-                    },
-                    '& .MuiSlider-rail': {
-                        transition: 'none !important',
-                    }
-                }}
-            />
+            {/* Timeline annotations container with layers */}
+            <Box
+                ref={sliderContainerRef}
+                sx={{ flexGrow: 1, position: 'relative' }}
+            >
+                {/* Bookmark Layer - Top tier */}
+                <BookmarkLayer
+                    bookmarks={bookmarks}
+                    frameCount={frameCount}
+                    currentFrame={currentFrame}
+                    containerWidth={sliderWidth}
+                    onBookmarkClick={(frame) => {
+                        setCurrentFrame(frame);
+                        socket.emit('set_frame_atomic', { frame }, (response: any) => {
+                            if (response && !response.success) {
+                                console.error(`Failed to set frame: ${response.error}`);
+                            }
+                        });
+                    }}
+                />
+
+                {/* Selection Track Overlay - Always shown to replace MUI track/rail */}
+                <SelectionTrackOverlay
+                    selectedFrames={frame_selection}
+                    frameCount={frameCount}
+                    containerWidth={sliderWidth}
+                    enabled={frameSelectionEnabled}
+                    currentFrame={currentFrame}
+                />
+
+                {/* Selection Markers - Shows individual selected frames when filtering is disabled */}
+                {!frameSelectionEnabled && (
+                    <SelectionLayer
+                        selectedFrames={frame_selection}
+                        frameCount={frameCount}
+                        currentFrame={currentFrame}
+                        containerWidth={sliderWidth}
+                    />
+                )}
+
+                {/* Slider - Bottom tier */}
+                <Slider
+                    orientation="horizontal"
+                    value={currentFrame}
+                    onChange={handleSliderChange}
+                    onMouseUp={handleScrubEnd}
+                    onMouseDown={() => { isScrubbingRef.current = false; }}
+                    disabled={presenterMode === 'locked'}
+                    max={frameCount - 1}
+                    aria-label="Frame Progress"
+                    valueLabelDisplay="auto"
+                    sx={{
+                        position: 'relative',
+                        top: '2px', // Shift slider down to align with overlay
+                        '& .MuiSlider-thumb': {
+                            transition: 'none !important',
+                            zIndex: 2,
+                        },
+                        '& .MuiSlider-track': {
+                            transition: 'none !important',
+                            display: 'none', // Always hide - use custom overlay
+                        },
+                        '& .MuiSlider-rail': {
+                            transition: 'none !important',
+                            display: 'none', // Always hide - use custom overlay
+                        }
+                    }}
+                />
+            </Box>
             <Box sx={{
                 display: 'flex',
                 alignItems: 'center',
@@ -267,6 +353,22 @@ const FrameProgressBar = () => {
                     }}
                     sx={{ ...compactTextFieldSx, width: 80 }}
                 />
+                {frame_selection && frame_selection.length > 0 && (
+                    <Tooltip title={frameSelectionEnabled ? "Disable frame selection filter" : "Enable frame selection filter"}>
+                        <IconButton
+                            size="small"
+                            onClick={() => setFrameSelectionEnabled(!frameSelectionEnabled)}
+                            sx={{
+                                color: frameSelectionEnabled ? 'primary.main' : 'text.secondary',
+                                '&:hover': {
+                                    backgroundColor: 'action.hover',
+                                }
+                            }}
+                        >
+                            <FilterListIcon fontSize="small" />
+                        </IconButton>
+                    </Tooltip>
+                )}
                 {renderConnectionStatus()}
             </Box>
         </Box>

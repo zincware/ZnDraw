@@ -6,7 +6,7 @@ import { useQueryClient } from '@tanstack/react-query';
 
 export const useSocketManager = () => {
   const { roomId: room, userId } = useParams<{ roomId: string, userId: string }>();
-  const { setConnected, setFrameCount, isConnected, setCurrentFrame, setFrameSelection, setSelection } = useAppStore();
+  const { setConnected, setFrameCount, isConnected, setCurrentFrame, setFrameSelection, setSelection, setBookmarks } = useAppStore();
   const queryClient = useQueryClient();
 
   useEffect(() => {
@@ -87,6 +87,11 @@ export const useSocketManager = () => {
       setFrameSelection(data["indices"] || null);
     }
 
+    function onBookmarksUpdate(data: any) {
+      console.log('Bookmarks update:', data);
+      setBookmarks(data["bookmarks"] || null);
+    }
+
     socket.on('disconnect', onDisconnect);
     socket.on('connect', onConnect);
     socket.on('len_frames', onLenUpdate);
@@ -96,6 +101,7 @@ export const useSocketManager = () => {
     socket.on('queue:update', onQueueUpdate);
     socket.on('selection:update', onSelectionUpdate);
     socket.on('frame_selection:update', onFrameSelectionUpdate);
+    socket.on('bookmarks:update', onBookmarksUpdate);
 
     return () => {
       socket.off('connect', onConnect);
@@ -107,6 +113,7 @@ export const useSocketManager = () => {
       socket.off('queue:update', onQueueUpdate);
       socket.off('selection:update', onSelectionUpdate);
       socket.off('frame_selection:update', onFrameSelectionUpdate);
+      socket.off('bookmarks:update', onBookmarksUpdate);
     };
-  }, [room, setConnected, setFrameCount, userId, isConnected, setCurrentFrame, queryClient]);
+  }, [room, setConnected, setFrameCount, userId, isConnected, setCurrentFrame, queryClient, setBookmarks]);
 };
