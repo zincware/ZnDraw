@@ -11,6 +11,7 @@ export const useKeyboardShortcuts = () => {
     frameSelectionEnabled,
     playing,
     setPlaying,
+    skipFrames,
   } = useAppStore();
 
   const getNavigableFrames = useCallback((): number[] => {
@@ -78,17 +79,24 @@ export const useKeyboardShortcuts = () => {
     const intervalId = setInterval(() => {
       const navigableFrames = getNavigableFrames();
       const currentIndex = navigableFrames.indexOf(currentFrame);
+      const lastIndex = navigableFrames.length - 1;
 
-      if (currentIndex < navigableFrames.length - 1) {
-        goToFrame(navigableFrames[currentIndex + 1]);
+      // Advance by skipFrames amount
+      const nextIndex = currentIndex + skipFrames;
+
+      if (nextIndex < lastIndex) {
+        goToFrame(navigableFrames[nextIndex]);
+      } else if (currentIndex < lastIndex) {
+        // If next skip would overshoot, go to last frame
+        goToFrame(navigableFrames[lastIndex]);
       } else {
-        // Stop at the last frame
+        // Already at last frame, stop playing
         setPlaying(false);
       }
-    }, 100); // Advance frame every 100ms (adjust as needed)
+    }, 33); // approximately 30 fps
 
     return () => clearInterval(intervalId);
-  }, [playing, currentFrame, getNavigableFrames, goToFrame, setPlaying]);
+  }, [playing, currentFrame, getNavigableFrames, goToFrame, setPlaying, skipFrames]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
