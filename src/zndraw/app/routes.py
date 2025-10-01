@@ -401,13 +401,17 @@ def log_room_extension(room_id: str, category: str, extension: str):
     """Logs a user extension action in the room's action log."""
     json_data = request.json
     if json_data is None:
-        return {"error": "Request body required"}, 400
+        json_data = {}
 
-    user_id = json_data.pop("userId", None)
+    # Try to get userId from query params first, then from JSON body
+    user_id = request.args.get("userId") or json_data.pop("userId", None)
     if user_id is None:
         return {"error": "User ID is required"}, 400
-    
-    data = json_data.pop("data", {})
+
+    data = json_data.pop("data", None)
+    if data is None:
+        # If no "data" key, treat the entire JSON body as data
+        data = json_data
 
     print(f"Logging extension for room {room_id}: category={category}, extension={extension}, data={json.dumps(data)}")
 
