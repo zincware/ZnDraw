@@ -3,10 +3,13 @@ import typing as t
 import uuid
 
 from flask import current_app, request
-from flask_socketio import join_room, leave_room, rooms, emit
+from flask_socketio import join_room, leave_room, emit
 import json
 
 from zndraw.server import socketio
+from .constants import SocketEvents
+from .redis_keys import ExtensionKeys
+from .queue_manager import emit_queue_update
 
 log = logging.getLogger(__name__)
 
@@ -103,15 +106,13 @@ def handle_disconnect():
 
         print(f"User {sid} was providing extensions in '{category}': {user_extensions}")
 
-        schema_invalidated = False
         extensions_to_delete = []
 
         with r.pipeline() as pipe:
             for ext_name in user_extensions:
-                idle_key = (
-                    f"room:{room_name}:extensions:{category}:{ext_name}:idle_workers"
-                )
-                progressing_key = f"room:{room_name}:extensions:{category}:{ext_name}:progressing_workers"
+                keys = ExtensionKeys.for_extension(room_name, category, ext_name)
+                idle_key = keys.idle_workers
+                progressing_key = keys.progressing_workers
 
                 # Remove the SID from both possible state sets
                 pipe.srem(idle_key, sid)
@@ -137,7 +138,6 @@ def handle_disconnect():
 
             if total_remaining == 0:
                 extensions_to_delete.append(ext_name)
-                schema_invalidated = True
 
         # If any extensions are now orphaned, delete them and their state sets
         if extensions_to_delete:
@@ -146,15 +146,12 @@ def handle_disconnect():
             )
             with r.pipeline() as pipe:
                 for ext_name in extensions_to_delete:
+                    keys = ExtensionKeys.for_extension(room_name, category, ext_name)
                     # Delete the state sets
-                    pipe.delete(
-                        f"room:{room_name}:extensions:{category}:{ext_name}:idle_workers"
-                    )
-                    pipe.delete(
-                        f"room:{room_name}:extensions:{category}:{ext_name}:progressing_workers"
-                    )
+                    pipe.delete(keys.idle_workers)
+                    pipe.delete(keys.progressing_workers)
                     # Delete the schema from the main hash
-                    pipe.hdel(f"room:{room_name}:extensions:{category}", ext_name)
+                    pipe.hdel(keys.schema, ext_name)
                 pipe.execute()
 
         # Clean up the user-specific reverse-lookup key
@@ -169,7 +166,7 @@ def handle_disconnect():
                 f"due to worker disconnect."
             )
             socketio.emit(
-                "invalidate:schema",
+                SocketEvents.INVALIDATE_SCHEMA,
                 {"roomId": room_name, "category": category},
                 to=f"room:{room_name}",
             )
@@ -510,12 +507,9 @@ def register_extension(data: dict):
 
     # store in redis
     redis_client = current_app.extensions["redis"]
-    schema_key = f"room:{room_id}:extensions:{category}"
-    existing_schema = redis_client.hget(schema_key, name)
-
-    # Define keys for the new state model
-    idle_workers_key = f"room:{room_id}:extensions:{category}:{name}:idle_workers"
-    user_extensions_key = f"room:{room_id}:extensions:{category}:{request.sid}"
+    keys = ExtensionKeys.for_extension(room_id, category, name)
+    user_extensions_key = ExtensionKeys.user_extensions_key(room_id, category, request.sid)
+    existing_schema = redis_client.hget(keys.schema, name)
 
     if existing_schema is not None:
         existing_schema = json.loads(existing_schema)
@@ -525,7 +519,7 @@ def register_extension(data: dict):
             }
         else:
             # Worker is re-registering. Add it to the idle set.
-            redis_client.sadd(idle_workers_key, request.sid)
+            redis_client.sadd(keys.idle_workers, request.sid)
             redis_client.sadd(
                 user_extensions_key, name
             )  # Keep this for disconnect cleanup
@@ -536,13 +530,14 @@ def register_extension(data: dict):
                 f"in category '{category}', invalidating schema"
             )
             socketio.emit(
-                "invalidate:schema",
+                SocketEvents.INVALIDATE_SCHEMA,
                 {"roomId": room_id, "category": category},
                 to=f"room:{room_id}",
             )
 
             # Check if there are queued tasks that this worker can handle
-            _process_worker_queues(request.sid, room_id, category, redis_client)
+            if room_id:  # Null check for type safety
+                _process_worker_queues(request.sid, room_id, category, redis_client)
 
             return {
                 "status": "success",
@@ -552,22 +547,23 @@ def register_extension(data: dict):
         # This is a brand new extension for the room
         with redis_client.pipeline() as pipe:
             # Set the schema
-            pipe.hset(schema_key, name, json.dumps(schema))
+            pipe.hset(keys.schema, name, json.dumps(schema))
             # Add the current worker to the set of idle workers for this extension
-            pipe.sadd(idle_workers_key, request.sid)
+            pipe.sadd(keys.idle_workers, request.sid)
             # Maintain the reverse mapping for easy cleanup on disconnect
             pipe.sadd(user_extensions_key, name)
             pipe.execute()
 
         # Invalidate schema on all clients so they can see the new extension
         socketio.emit(
-            "invalidate:schema",
+            SocketEvents.INVALIDATE_SCHEMA,
             {"roomId": room_id, "category": category},
             to=f"room:{room_id}",
         )
 
         # Check if there are queued tasks that this worker can handle
-        _process_worker_queues(request.sid, room_id, category, redis_client)
+        if room_id:  # Null check for type safety
+            _process_worker_queues(request.sid, room_id, category, redis_client)
 
     return {"status": "success"}
 
@@ -589,7 +585,7 @@ def _process_worker_queues(sid: str, room_id: str, category: str, redis_client) 
     """
     # Get all extensions this worker is registered for in this category
     # TODO: consider all categories?
-    user_extensions_key = f"room:{room_id}:extensions:{category}:{sid}"
+    user_extensions_key = ExtensionKeys.user_extensions_key(room_id, category, sid)
     registered_extensions = redis_client.smembers(user_extensions_key)
 
     if not registered_extensions:
@@ -600,17 +596,15 @@ def _process_worker_queues(sid: str, room_id: str, category: str, redis_client) 
 
     # Check each extension's queue for pending tasks
     for extension_name in registered_extensions:
-        queue_key = f"room:{room_id}:extensions:{category}:{extension_name}:queue"
-        idle_key = f"room:{room_id}:extensions:{category}:{extension_name}:idle_workers"
-        progressing_key = f"room:{room_id}:extensions:{category}:{extension_name}:progressing_workers"
+        keys = ExtensionKeys.for_extension(room_id, category, extension_name)
 
         # Check if worker is still idle for this extension (might have been assigned already)
-        is_idle = redis_client.sismember(idle_key, sid)
+        is_idle = redis_client.sismember(keys.idle_workers, sid)
         if not is_idle:
             continue
 
         # Try to pop a task from the queue (LPOP for FIFO)
-        queued_task_json = redis_client.lpop(queue_key)
+        queued_task_json = redis_client.lpop(keys.queue)
 
         if queued_task_json:
             # Parse the queued task
@@ -618,8 +612,6 @@ def _process_worker_queues(sid: str, room_id: str, category: str, redis_client) 
             try:
                 queued_task = json.loads(queued_task_json)
                 task_data = queued_task.get("data")
-                # user_id can be used for future analytics/logging
-                _user_id = queued_task.get("user_id")
 
                 log.info(
                     f"Dispatching queued task for extension '{extension_name}' "
@@ -627,12 +619,12 @@ def _process_worker_queues(sid: str, room_id: str, category: str, redis_client) 
                 )
 
                 # Move worker from idle to progressing atomically
-                moved = redis_client.smove(idle_key, progressing_key, sid)
+                moved = redis_client.smove(keys.idle_workers, keys.progressing_workers, sid)
 
                 if moved:
                     # Emit the task to the worker
                     emit(
-                        "task:run",
+                        SocketEvents.TASK_RUN,
                         {
                             "data": task_data,
                             "extension": extension_name,
@@ -647,20 +639,8 @@ def _process_worker_queues(sid: str, room_id: str, category: str, redis_client) 
                     )
 
                     # Notify all clients in room about queue update and worker state change
-                    new_queue_length = redis_client.llen(queue_key)
-                    idle_count = redis_client.scard(idle_key)
-                    progressing_count = redis_client.scard(progressing_key)
-                    emit(
-                        "queue:update",
-                        {
-                            "roomId": room_id,
-                            "category": category,
-                            "extension": extension_name,
-                            "queueLength": new_queue_length,
-                            "idleWorkers": idle_count,
-                            "progressingWorkers": progressing_count
-                        },
-                        to=f"room:{room_id}",
+                    emit_queue_update(
+                        redis_client, room_id, category, extension_name, socketio
                     )
 
                     # The worker is now busy, so we stop checking other queues
@@ -668,7 +648,7 @@ def _process_worker_queues(sid: str, room_id: str, category: str, redis_client) 
                 else:
                     # Worker was removed from idle set by another process
                     # Put the task back in the queue
-                    redis_client.lpush(queue_key, queued_task_json)
+                    redis_client.lpush(keys.queue, queued_task_json)
                     log.warning(
                         f"Worker {sid} no longer idle, task returned to queue "
                         f"for '{extension_name}'"
@@ -699,32 +679,15 @@ def handle_task_finished(data: dict):
         return
 
     redis_client = current_app.extensions["redis"]
-    idle_key = f"room:{room_id}:extensions:{category}:{extension}:idle_workers"
-    progressing_key = f"room:{room_id}:extensions:{category}:{extension}:progressing_workers"
+    keys = ExtensionKeys.for_extension(room_id, category, extension)
 
     # Atomically move the worker from the progressing set back to the idle set
-    moved = redis_client.smove(progressing_key, idle_key, sid)
+    moved = redis_client.smove(keys.progressing_workers, keys.idle_workers, sid)
     if moved:
         log.info(f"Worker {sid} finished task '{extension}' and is now idle.")
 
         # Notify all clients about worker state change
-        idle_count = redis_client.scard(idle_key)
-        progressing_count = redis_client.scard(progressing_key)
-        queue_key = f"room:{room_id}:extensions:{category}:{extension}:queue"
-        queue_length = redis_client.llen(queue_key)
-
-        emit(
-            "queue:update",
-            {
-                "roomId": room_id,
-                "category": category,
-                "extension": extension,
-                "queueLength": queue_length,
-                "idleWorkers": idle_count,
-                "progressingWorkers": progressing_count
-            },
-            to=f"room:{room_id}",
-        )
+        emit_queue_update(redis_client, room_id, category, extension, socketio)
     else:
         # This could happen if the worker disconnected and was already cleaned up.
         log.warning(

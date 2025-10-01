@@ -10,20 +10,15 @@ import {
     MenuItem,
     Button,
     SelectChangeEvent,
-    CircularProgress,
-    Chip,
-    Stack
+    CircularProgress
 } from '@mui/material';
 import SaveIcon from '@mui/icons-material/Save';
-import WorkIcon from '@mui/icons-material/Work';
-import QueueIcon from '@mui/icons-material/Queue';
-import CloudIcon from '@mui/icons-material/Cloud';
-import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import { JsonForms } from '@jsonforms/react';
 import { materialCells, materialRenderers } from "@jsonforms/material-renderers";
 import { useFormStore } from '../formStore';
-import { useSchemas, useExtensionData, useSubmitExtension, type ExtensionMetadata } from '../hooks/useSchemas';
+import { useSchemas, useExtensionData, useSubmitExtension } from '../hooks/useSchemas';
 import { useAppStore } from '../store';
+import { ExtensionStatusChips } from './ExtensionStatusChips';
 
 interface SecondaryPanelProps {
     panelTitle: string;
@@ -137,46 +132,7 @@ const SecondaryPanel = ({ panelTitle }: SecondaryPanelProps) => {
                 </FormControl>
 
                 {selectedExtension && schemas && schemas[selectedExtension] && (
-                    <Stack direction="row" spacing={1} sx={{ mb: 2 }} flexWrap="wrap" gap={1}>
-                        {(() => {
-                            const metadata: ExtensionMetadata = schemas[selectedExtension];
-                            return (
-                                <>
-                                    {metadata.provider === 'celery' ? (
-                                        <Chip
-                                            icon={<CloudIcon />}
-                                            label="Server-side"
-                                            color="primary"
-                                            size="small"
-                                        />
-                                    ) : (
-                                        <Chip
-                                            icon={<WorkIcon />}
-                                            label={`${metadata.provider} worker${metadata.provider !== 1 ? 's' : ''}`}
-                                            color={metadata.provider > 0 ? 'success' : 'default'}
-                                            size="small"
-                                        />
-                                    )}
-                                    {metadata.progressingWorkers > 0 && (
-                                        <Chip
-                                            icon={<PlayArrowIcon />}
-                                            label={`${metadata.progressingWorkers} running`}
-                                            color="info"
-                                            size="small"
-                                        />
-                                    )}
-                                    {metadata.queueLength > 0 && (
-                                        <Chip
-                                            icon={<QueueIcon />}
-                                            label={`${metadata.queueLength} queued`}
-                                            color="warning"
-                                            size="small"
-                                        />
-                                    )}
-                                </>
-                            );
-                        })()}
-                    </Stack>
+                    <ExtensionStatusChips metadata={schemas[selectedExtension]} />
                 )}
 
                 {currentSchema && (
