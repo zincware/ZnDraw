@@ -17,9 +17,12 @@ from .redis_keys import ExtensionKeys
 from .worker_dispatcher import dispatch_next_task
 from .worker_stats import WorkerStats
 
+from zarr.storage import MemoryStore
+
 # --- Logging Setup ---
 log = logging.getLogger(__name__)
 
+STORAGE: dict[str, MemoryStore] = {}
 
 # TODO: move to utils
 def get_lock_key(room: str, target: str) -> str:
@@ -34,6 +37,13 @@ def get_zarr_store_path(room_id: str) -> str:
     base_path = storage_path.rstrip("/").removesuffix(".zarr")
     return f"{base_path}/{room_id}.zarr"
 
+def get_storage(room_id: str) -> ZarrStorageSequence:
+    # store_path = get_zarr_store_path(room_id)
+    if room_id not in STORAGE:
+        STORAGE[room_id] = MemoryStore()
+    root = zarr.group(STORAGE[room_id])
+    storage = ZarrStorageSequence(root)
+    return storage
 
 @main.route("/internal/emit", methods=["POST"])
 def internal_emit():
@@ -61,16 +71,17 @@ def get_frames(room_id):
         if request_data is None:
             return {"error": "Request body required"}, 400
 
-        store_path = get_zarr_store_path(room_id)
-        root = zarr.group(store_path)
-        storage = ZarrStorageSequence(root)
+        storage = get_storage(room_id)
 
         # Get logical-to-physical mapping from Redis
         indices_key = f"room:{room_id}:trajectory:indices"
         frame_mapping = r.zrange(indices_key, 0, -1)
 
         if not frame_mapping:
-            return {"error": "No frames found in room"}, 404
+            return {
+                        "error": f"Index out of range for data with 0 frames in room '{room_id}'",
+                        "type": "IndexError",
+                    }, 404
 
         max_frame = len(frame_mapping) - 1
 
@@ -131,9 +142,19 @@ def get_frames(room_id):
         try:
             frames_data = []
             for frame_id in frame_indices:
-                # Get the physical index for this logical frame
-                physical_index = int(frame_mapping[frame_id])
-                frame_data = storage.get(physical_index, keys=requested_keys)
+                # Parse the frame mapping entry (format: "room_id:physical_index")
+                mapping_entry = frame_mapping[frame_id]
+
+                if ":" in mapping_entry:
+                    source_room_id, physical_index_str = mapping_entry.split(":", 1)
+                    physical_index = int(physical_index_str)
+                    source_storage = get_storage(source_room_id)
+                else:
+                    # Fallback for any legacy data without colon separator
+                    physical_index = int(mapping_entry)
+                    source_storage = storage
+
+                frame_data = source_storage.get(physical_index, keys=requested_keys)
                 frames_data.append(encode_data(frame_data))
         except KeyError as e:
             error_data = {
@@ -200,9 +221,7 @@ def append_frame(room_id):
         # Unpack the msgpack data
         serialized_data = msgpack.unpackb(request.data, strict_map_key=False)
 
-        store_path = get_zarr_store_path(room_id)
-        root = zarr.group(store_path)
-        storage = ZarrStorageSequence(root)
+        storage = get_storage(room_id)
 
         indices_key = f"room:{room_id}:trajectory:indices"
 
@@ -221,15 +240,15 @@ def append_frame(room_id):
             decoded_data = decode_data(serialized_data)
             storage.append(decoded_data)
 
-            old_physical_index_to_unmap = frame_mapping[target_frame_id]
+            old_mapping_entry = frame_mapping[target_frame_id]
 
             pipeline = r.pipeline()
-            pipeline.zrem(indices_key, old_physical_index_to_unmap)
-            pipeline.zadd(indices_key, {str(new_physical_index): target_frame_id})
+            pipeline.zrem(indices_key, old_mapping_entry)
+            pipeline.zadd(indices_key, {f"{room_id}:{new_physical_index}": target_frame_id})
             pipeline.execute()
 
             log.info(
-                f"Replaced frame {target_frame_id} (old physical: {old_physical_index_to_unmap}, new physical: {new_physical_index}) in room '{room_id}'"
+                f"Replaced frame {target_frame_id} (old: {old_mapping_entry}, new: {room_id}:{new_physical_index}) in room '{room_id}'"
             )
             return {"success": True, "replaced_frame": target_frame_id}
 
@@ -249,9 +268,9 @@ def append_frame(room_id):
             decoded_frames = [decode_data(frame) for frame in serialized_data]
             storage.extend(decoded_frames)
 
-            # 3. Create the new logical-to-physical mapping for all new frames
+            # 3. Create the new logical-to-physical mapping for all new frames with room_id prefix
             new_mapping = {
-                str(start_physical_pos + i): start_logical_pos + i
+                f"{room_id}:{start_physical_pos + i}": start_logical_pos + i
                 for i in range(num_frames)
             }
             if new_mapping:
@@ -290,8 +309,8 @@ def append_frame(room_id):
                 for member in members_to_shift:
                     pipeline.zincrby(indices_key, 1, member)
 
-            # Add the new frame at the correct logical position
-            pipeline.zadd(indices_key, {str(new_physical_index): insert_position})
+            # Add the new frame at the correct logical position with room_id prefix
+            pipeline.zadd(indices_key, {f"{room_id}:{new_physical_index}": insert_position})
             pipeline.execute()
 
             log.info(
@@ -309,11 +328,11 @@ def append_frame(room_id):
             decoded_data = decode_data(serialized_data)
             storage.append(decoded_data)
 
-            # 3. Add the new physical index to the logical sequence
-            r.zadd(indices_key, {str(new_physical_index): logical_position})
+            # 3. Add the new physical index to the logical sequence with room_id prefix
+            r.zadd(indices_key, {f"{room_id}:{new_physical_index}": logical_position})
 
             log.info(
-                f"Appended frame {logical_position} (physical: {new_physical_index}) to room '{room_id}'"
+                f"Appended frame {logical_position} (physical: {room_id}:{new_physical_index}) to room '{room_id}'"
             )
             return {"success": True, "new_index": logical_position}
 
@@ -459,6 +478,15 @@ def promote_room_to_template(room_id):
 
     if not name or not description:
         return {"error": "name and description are required"}, 400
+
+    # Sanitize room_id: replace ':' with '_' to avoid conflicts with frame index format
+    if ":" in room_id:
+        original_room_id = room_id
+        room_id = room_id.replace(":", "_")
+        log.warning(
+            f"Template/Room ID '{original_room_id}' contains ':' which is reserved. "
+            f"Using sanitized ID '{room_id}' instead."
+        )
 
     # Check if room exists by looking for any room-related keys
     room_exists = False
@@ -1053,6 +1081,88 @@ def get_next_job(room_id: str):
 
     # No jobs available
     return {"error": "No jobs available"}, 400
+
+
+@main.route("/api/room/<string:room_id>/join", methods=["POST"])
+def join_room(room_id):
+    data = request.get_json() or {}
+    if ":" in room_id:
+        return {"error": "Room ID cannot contain ':' character"}, 400
+    
+    response = {
+        "status": "ok",
+        "frameCount": 0,
+        "roomId": room_id,
+        "template": "empty",
+        "selection": None,
+        "frame_selection": None,
+        "created": True,
+        "presenter-lock": False,
+        "step": None,
+    }
+    
+    r = current_app.extensions["redis"]
+
+    # Check if room already exists
+    room_exists = r.exists(f"room:{room_id}:template")
+    response["created"] = not room_exists
+
+    if not room_exists:
+        if "template" not in data:
+            # Use default template
+            from .routes import ensure_empty_template_exists
+
+            ensure_empty_template_exists()
+            template_id = r.get("default_template") or "empty"
+        elif data["template"] is None:
+            # Explicit None means use "empty" template
+            template_id = "empty"
+        else:
+            # Use specified template
+            template_id = data["template"]
+            # Verify template exists, fall back to "empty" if it doesn't
+            template_key = f"template:{template_id}"
+            if not r.exists(template_key):
+                log.warning(
+                    f"Template '{template_id}' not found for room '{room_id}', falling back to 'empty'"
+                )
+                template_id = "empty"
+
+        # Store the template used for this room
+        r.set(f"room:{room_id}:template", template_id)
+        log.info(f"New room '{room_id}' created from template '{template_id}'")
+
+        # Initialize room with template frames if not empty
+        if template_id != "empty":
+            template_indices_key = f"room:{template_id}:trajectory:indices"
+            template_frames = r.zrange(template_indices_key, 0, -1, withscores=True)
+
+            if template_frames:
+                room_indices_key = f"room:{room_id}:trajectory:indices"
+                # Copy template frames with the new room_id:index format
+                for member, score in template_frames:
+                    r.zadd(room_indices_key, {member: score})
+                log.info(
+                    f"Copied {len(template_frames)} frames from template '{template_id}' to room '{room_id}'"
+                )
+        response["template"] = template_id
+
+    indices_key = f"room:{room_id}:trajectory:indices"
+    response["frameCount"] = r.zcard(indices_key)
+
+    selection = r.get(f"room:{room_id}:selection:default")
+    response["selection"] = json.loads(selection) if selection else None
+
+    frame_selection = r.get(f"room:{room_id}:frame_selection:default")
+    response["frame_selection"] = json.loads(frame_selection) if frame_selection else None
+
+    presenter_lock = r.get(f"room:{room_id}:presenter_lock")
+    response["presenter-lock"] = json.loads(presenter_lock) if presenter_lock else None
+
+    step = r.get(f"room:{room_id}:current_frame")
+    response["step"] = int(step) if step else None
+
+    return response
 
 
 def _transition_worker_to_idle(

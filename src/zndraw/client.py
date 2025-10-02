@@ -104,6 +104,25 @@ class Client(MutableSequence):
 
         self._lock = SocketIOLock(self.sio, target="trajectory:meta")
 
+        if self.template is _TemplateValue:
+            response = requests.post(f"{self.url}/api/room/{self.room}/join", json={})
+        else:
+            response = requests.post(
+                f"{self.url}/api/room/{self.room}/join",
+                json={"template": self.template},
+            )
+        
+        if response.status_code != 200:
+            raise RuntimeError(
+                f"Failed to join room '{self.room}': {response.status_code} {response.text}"
+            )
+        response_data = response.json()
+        if response_data["selection"] is not None:
+            self._selection = frozenset(response_data["selection"])
+        if response_data["frame_selection"] is not None:
+            self._frame_selection = frozenset(response_data["frame_selection"])
+        self._len = response_data["frameCount"]
+
     @property
     def lock(self) -> SocketIOLock:
         """Get a lock object for the trajectory metadata."""
@@ -295,18 +314,12 @@ class Client(MutableSequence):
 
     def _on_connect(self):
         """Internal callback for when a connection is established."""
-        log.debug(f"Connected to {self.url} with session ID {self.sio.sid}")
-
         # Prepare join_room data
         join_data = {
             "room": self.room,
             "userId": self.user,
             "clientId": self._client_id,
         }
-
-        # Only include template if explicitly specified (not the default sentinel)
-        if self.template is not _TemplateValue:
-            join_data["template"] = self.template
 
         self.sio.emit("join_room", join_data)
         log.debug(f"Joined room: '{self.room}' with client ID: {self._client_id}")

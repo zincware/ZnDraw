@@ -16,10 +16,46 @@ export const useSocketManager = () => {
   }, [room, isConnected]);
 
   useEffect(() => {
-    function onConnect() {
+    async function onConnect() {
       console.log('Socket connected and joining room:', room);
       setConnected(true, room || '', userId || '');
       socket.emit('join_room', { room, userId });
+
+      // Post to join endpoint to get initial room data
+      try {
+        const response = await fetch(`/api/room/${room}/join`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({}),
+        });
+
+        if (!response.ok) {
+          console.error(`Failed to join room: ${response.status} ${response.statusText}`);
+          return;
+        }
+
+        const data = await response.json();
+
+        // Update Zustand store with room data
+        if (typeof data.frameCount === 'number') {
+          setFrameCount(data.frameCount);
+        }
+        if (data.selection !== undefined) {
+          setSelection(data.selection);
+        }
+        if (data.frame_selection !== undefined) {
+          setFrameSelection(data.frame_selection);
+        }
+        if (data.step !== undefined) {
+          setCurrentFrame(data.step);
+        }
+
+        console.log('Room joined successfully:', data);
+      } catch (error) {
+        console.error('Error joining room:', error);
+      }
     }
     function onDisconnect() {
       console.log('Socket disconnected');

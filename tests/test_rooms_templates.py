@@ -140,13 +140,22 @@ def test_rest_default_template_invalid_template(server):
 
 
 def test_create_from_template(server, promoted_template, s22):
+    vis1 = ZnDraw(url=server, room="s22-0", user="user1")
     vis2 = ZnDraw(url=server, room="s22-1", user="user1", template=promoted_template)
 
-    # # Assert the data
-    # assert len(vis2) == 1
-    # assert vis2[0] == s22[0]
+    assert len(vis1) == 1
+    assert len(vis2) == 1
+    assert vis2[0] == s22[0]
 
-    # Assert the API metadata
+    vis2.append(s22[1])
+    assert len(vis2) == 2
+    assert vis2[0] == s22[0]
+    assert vis2[1] == s22[1]
+
+    assert len(vis1) == 1
+    assert vis1[0] == s22[0]
+
+    # # Assert the API metadata
     response = requests.get(f"{server}/api/rooms/s22-1")
     assert response.json()["template"] == promoted_template
 
@@ -161,8 +170,9 @@ def test_default_template(server, promoted_template, s22):
     # Create a room without specifying a template
     vis4 = ZnDraw(url=server, room="s22-3", user="user1")
 
-    # assert len(vis4) == 1
-    # assert vis4[0] == s22[0]
+    assert len(vis4) == 1
+    assert vis4[0] == s22[0]
+
 
     response = requests.get(f"{server}/api/rooms/s22-3")
     assert response.json()["template"] == promoted_template
@@ -176,7 +186,7 @@ def test_create_blank_overrides_default(server, promoted_template, s22):
     ).raise_for_status()
 
     vis5 = ZnDraw(url=server, room="s22-4", user="user1", template=None)
-    # assert len(vis5) == 0
+    assert len(vis5) == 0
     response = requests.get(f"{server}/api/rooms/s22-4")
     assert response.json()["template"] == "empty"
 
@@ -189,7 +199,8 @@ def test_default_is_unchanged_after_promote(server, promoted_template):
     vis3 = ZnDraw(url=server, room="s22-2", user="user1")
 
     # Assert the data is empty (assuming 'empty' template is blank)
-    # assert len(vis3) == 0
+    # TODO: a new room should be empty!
+    assert len(vis3) == 0
 
     # Assert the API metadata
     response = requests.get(f"{server}/api/rooms/s22-2")

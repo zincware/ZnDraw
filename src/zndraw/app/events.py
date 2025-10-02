@@ -204,7 +204,6 @@ def on_join(data):
     sid = request.sid
     r = current_app.extensions["redis"]
 
-    # --- New Redis-based Logic ---
     # Leave previous room if any
     if previous_room_name := r.get(f"sid:{sid}"):
         leave_room(f"room:{previous_room_name}")
@@ -212,39 +211,10 @@ def on_join(data):
         r.hdel(f"room:{previous_room_name}:users", sid)
         log.info(f"Client {sid} ({user}) removed from Redis room: {previous_room_name}")
 
-    # Check if this is a new room and handle template initialization
-    # Use template key to check if room was already created
     room_exists = r.exists(f"room:{room}:template")
-
     if not room_exists:
-        # This is a new room - determine which template to use
-        # "template" key in data:
-        #   - not present: use default template
-        #   - None: use "empty" template explicitly
-        #   - string value: use that template
-        if "template" not in data:
-            # Use default template
-            from .routes import ensure_empty_template_exists
-
-            ensure_empty_template_exists()
-            template_id = r.get("default_template") or "empty"
-        elif data["template"] is None:
-            # Explicit None means use "empty" template
-            template_id = "empty"
-        else:
-            # Use specified template
-            template_id = data["template"]
-            # Verify template exists, fall back to "empty" if it doesn't
-            template_key = f"template:{template_id}"
-            if not r.exists(template_key):
-                log.warning(
-                    f"Template '{template_id}' not found for room '{room}', falling back to 'empty'"
-                )
-                template_id = "empty"
-
-        # Store the template used for this room
-        r.set(f"room:{room}:template", template_id)
-        log.info(f"New room '{room}' created from template '{template_id}'")
+        log.error(f"Room '{room}' does not exist. Cannot join non-existent room.")
+        return
 
     # Join the new room (flask-socketio still needs this for the message queue)
     join_room(f"room:{room}")
@@ -264,30 +234,6 @@ def on_join(data):
         )
     else:
         log.info(f"Client {sid} ({user}) joined room: {room} (no client_id provided)")
-
-    # --- Existing Logic ---
-    emit("len_frames", _get_len(), to=sid)
-
-    # get selection
-    selection = r.get(f"room:{room}:selection:default")
-    if selection:
-        emit("selection:update", {"indices": json.loads(selection)}, to=sid)
-
-    frame_selection = r.get(f"room:{room}:frame_selection:default")
-    if frame_selection:
-        emit("frame_selection:update", {"indices": json.loads(frame_selection)}, to=sid)
-    # presenter_sid = r.get(f"room:{room}:presenter_lock")
-    # if presenter_sid:
-    #     emit('presenter_update', {'presenterSid': presenter_sid}, to=sid)
-    # current_frame = r.get(f"room:{room}:current_frame")
-    # if current_frame is not None:
-    #     emit('frame_update', {'frame': int(current_frame)}, to=sid)
-
-    # # (Optional but recommended) Notify everyone in the room about the updated user list
-    # users_in_room = r.hgetall(f"room:{room}:users")
-    # emit('room_users_update', users_in_room, to=f"room:{room}")
-
-    # check if this user has any extensions registered
 
 
 @socketio.on("selection:set")
@@ -603,8 +549,28 @@ def handle_delete_frame(data):
                 "error_type": "IndexError",
             }
 
+        # Parse the frame mapping entry to check if it's a template frame
+        mapping_entry = frame_mapping[frame_id]
+        if isinstance(mapping_entry, bytes):
+            mapping_entry = mapping_entry.decode()
+
+        # Check if this frame belongs to a different room (e.g., a template)
+        if ":" in mapping_entry:
+            source_room_id = mapping_entry.split(":", 1)[0]
+            if source_room_id != room:
+                # This is a template frame or from another room
+                return {
+                    "success": False,
+                    "error": f"Cannot delete template frame. This frame belongs to '{source_room_id}'",
+                    "error_type": "PermissionError",
+                }
+
         # Get the physical index that we're "deleting" (just removing from mapping)
-        physical_index_to_remove = int(frame_mapping[frame_id])
+        # For backward compatibility, handle both old format (just index) and new format (room:index)
+        if ":" in mapping_entry:
+            physical_index_to_remove = int(mapping_entry.split(":", 1)[1])
+        else:
+            physical_index_to_remove = int(mapping_entry)
 
         # Remove the mapping entry for this logical position
         # We need to rebuild the mapping without this entry
