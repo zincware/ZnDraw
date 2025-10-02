@@ -24,7 +24,8 @@ import { format } from 'date-fns';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
-import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
+// import { oneDark as vs } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import { oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism';
 
 import 'katex/dist/katex.min.css';
 
@@ -260,7 +261,7 @@ const ChatWindow = ({ open, onClose }: ChatWindowProps) => {
                             const match = /language-(\w+)/.exec(className || '');
                             return !inline && match ? (
                               <SyntaxHighlighter
-                                style={vscDarkPlus}
+                                style={oneLight}
                                 language={match[1]}
                                 PreTag="div"
                                 {...props}
