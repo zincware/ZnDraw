@@ -1,3 +1,6 @@
+import { useAppStore } from '../store';
+import { remarkFrameLink } from '../utils/remark-frame-link.js';
+
 import { useState, useRef, useEffect, memo } from 'react';
 import {
   Box,
@@ -7,7 +10,6 @@ import {
   Paper,
   CircularProgress,
   Divider,
-  Chip,
 } from '@mui/material';
 import SendIcon from '@mui/icons-material/Send';
 import CloseIcon from '@mui/icons-material/Close';
@@ -24,7 +26,6 @@ import { format } from 'date-fns';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
-// import { oneDark as vs } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism';
 
 import 'katex/dist/katex.min.css';
@@ -34,9 +35,13 @@ interface ChatWindowProps {
   onClose: () => void;
 }
 
+const markdownPlugins = [remarkMath, remarkFrameLink];
+const htmlPlugins = [rehypeKatex];
+
 const MemoizedMarkdown = memo(ReactMarkdown);
 
 const ChatWindow = ({ open, onClose }: ChatWindowProps) => {
+  const { setCurrentFrame } = useAppStore();
   const { roomId, userId } = useParams<{ roomId: string; userId: string }>();
   const [messageInput, setMessageInput] = useState('');
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
@@ -151,7 +156,7 @@ const ChatWindow = ({ open, onClose }: ChatWindowProps) => {
       minHeight={400}
       bounds="window"
       dragHandleClassName="drag-handle"
-      style={{ zIndex: 1301 }} // Higher than MUI Drawer default
+      style={{ zIndex: 1301 }}
     >
       <Paper
         elevation={4}
@@ -254,12 +259,12 @@ const ChatWindow = ({ open, onClose }: ChatWindowProps) => {
                   <>
                     <Box sx={{ '& p': { margin: 0 }, wordBreak: 'break-word' }}>
                       <MemoizedMarkdown
-                        remarkPlugins={[remarkMath]}
-                        rehypePlugins={[rehypeKatex]}
+                        remarkPlugins={markdownPlugins}
+                        rehypePlugins={htmlPlugins}
                         components={{
-                          code({ node, inline, className, children, ...props }) {
+                          code({ node, className, children, ...props }) {
                             const match = /language-(\w+)/.exec(className || '');
-                            return !inline && match ? (
+                            return !node && match ? (
                               <SyntaxHighlighter
                                 style={oneLight}
                                 language={match[1]}
@@ -272,6 +277,27 @@ const ChatWindow = ({ open, onClose }: ChatWindowProps) => {
                               <code className={className} {...props}>
                                 {children}
                               </code>
+                            );
+                          },
+                          a({ node, children, ...props }) {
+                            const frameId = props.frame as number | undefined;
+                            return frameId ? (
+                              <a
+                                {...props}
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  setCurrentFrame(frameId);
+                                }}
+                                style={{
+                                  cursor: 'pointer',
+                                  textDecoration: 'underline',
+                                  color: '#1976d2',
+                                }}
+                              >
+                                {children}
+                              </a>
+                            ) : (
+                              <a {...props}>{children}</a>
                             );
                           },
                         }}
