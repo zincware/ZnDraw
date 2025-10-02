@@ -160,8 +160,20 @@ def handle_disconnect():
                 f"Extension '{ext_name}': {total_remaining} workers remaining after removing {worker_id}."
             )
 
+            # Only delete extension if no workers AND no jobs in queue
             if total_remaining == 0:
-                extensions_to_delete.append(ext_name)
+                keys = ExtensionKeys.for_extension(room_name, category, ext_name)
+                queue_length = r.llen(keys.queue)
+
+                if queue_length == 0:
+                    extensions_to_delete.append(ext_name)
+                    log.info(
+                        f"Extension '{ext_name}' marked for deletion: no workers, no queued jobs"
+                    )
+                else:
+                    log.info(
+                        f"Extension '{ext_name}' kept despite no workers: {queue_length} jobs in queue"
+                    )
 
         # If any extensions are now orphaned, delete them and their state sets
         if extensions_to_delete:

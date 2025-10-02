@@ -686,10 +686,6 @@ def log_room_extension(room_id: str, category: str, extension: str):
 
     # store in redis
     redis_client = current_app.extensions["redis"]
-    # Store the entire extension data as a JSON string
-    redis_client.hset(
-        f"room:{room_id}:user:{user_id}:{category}", extension, json.dumps(data)
-    )
 
     # Check if this is a server-side (Celery) extension
     from zndraw.extensions.modifiers import modifiers
@@ -704,6 +700,20 @@ def log_room_extension(room_id: str, category: str, extension: str):
 
     is_celery_extension = (
         category in category_map and extension in category_map[category]
+    )
+
+    # Check if extension exists (either as server-side or client-registered)
+    if not is_celery_extension:
+        # Check if any client has registered this extension
+        schema_key = ExtensionKeys.schema_key(room_id, category)
+        extension_schema = redis_client.hget(schema_key, extension)
+
+        if extension_schema is None:
+            return {"error": f"No workers available for extension {extension}"}, 400
+
+    # Store the entire extension data as a JSON string
+    redis_client.hset(
+        f"room:{room_id}:user:{user_id}:{category}", extension, json.dumps(data)
     )
 
     # Create job

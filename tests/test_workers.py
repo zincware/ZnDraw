@@ -34,12 +34,6 @@ class SelectionExtension(Extension):
             raise ValueError("Test error")
 
 
-# TODO: add auto_pickup_jobs: bool = False to ZnDraw constructor and test it here
-# and not listen to socketio events
-# TODO: on job queue, emit event to all available workers that a new job is available
-# TODO: available workers should join a room, once busy, leave the room
-
-
 @pytest.mark.parametrize("category", ["modifiers", "selections"])
 def test_register_extensions(server, category):
     room = "testroom"
@@ -860,3 +854,123 @@ def test_celery_task(server):
     assert isinstance(response_json, list)
     assert len(response_json) == 1
     assert response_json[0]["status"] == "completed"
+
+
+@pytest.mark.parametrize("category", ["modifiers", "selections"])
+def test_register_extensions_reconnect_with_queue(server, category):
+    room = "testroom"
+    user = "testuser"
+    if category == "modifiers":
+        mod = ModifierExtension
+        default_keys = set(modifiers.keys())
+    elif category == "selections":
+        mod = SelectionExtension
+        default_keys = set(selections.keys())
+    else:
+        raise ValueError("Unknown category")
+    vis = ZnDraw(url=server, room=room, user=user, auto_pickup_jobs=False)
+    vis.register_extension(mod)
+    response = requests.get(f"{server}/api/rooms/{room}/schema/{category}")
+    assert response.status_code == 200
+    response_json = response.json()
+    assert isinstance(response_json, dict)
+    assert set(response_json.keys()) == default_keys | {mod.__name__}
+
+    # submit a job
+    response = requests.post(
+        f"{server}/api/rooms/{room}/extensions/{category}/{mod.__name__}",
+        json={"data": {"parameter": 42}, "userId": user},
+    )
+    response.raise_for_status()
+    jobId = response.json().pop("jobId")
+    # check job status
+    response = requests.get(f"{server}/api/rooms/{room}/jobs/{jobId}")
+    assert response.status_code == 200
+    response_json = response.json()
+    assert response_json["status"] == "queued"
+
+    # disconnect client
+    vis.client.sio.disconnect()
+    vis.client.sio.sleep(1)  # give some time to process disconnect
+
+    # check job status again
+    response = requests.get(f"{server}/api/rooms/{room}/jobs/{jobId}")
+    assert response.status_code == 200
+    response_json = response.json()
+    assert response_json["status"] == "queued"
+
+    response = requests.get(f"{server}/api/rooms/{room}/schema/{category}")
+    assert response.status_code == 200
+    response_json = response.json()
+    assert isinstance(response_json, dict)
+    assert set(response_json.keys()) == default_keys | {mod.__name__}
+
+    # get available workers for the job
+    response = requests.get(
+        f"{server}/api/rooms/{room}/extensions/{category}/{mod.__name__}/workers"
+    )
+    assert response.status_code == 200
+    response_json = response.json()
+    assert response_json["idleWorkers"] == []
+    assert response_json["totalWorkers"] == 0
+
+    # try submit a job -> should not fail
+    response = requests.post(
+        f"{server}/api/rooms/{room}/extensions/{category}/{mod.__name__}",
+        json={"data": {"parameter": 42}, "userId": user},
+    )
+    assert response.status_code == 200
+    response_json = response.json()
+    jobId2 = response_json.pop("jobId")
+    assert response_json == {
+        "queuePosition": 1,
+        "status": "success",
+    }
+    # reconnect client
+    # vis.client.connect()
+
+
+
+@pytest.mark.parametrize("category", ["modifiers", "selections"])
+def test_register_extensions_reconnect_without_queue(server, category):
+    room = "testroom"
+    user = "testuser"
+    if category == "modifiers":
+        mod = ModifierExtension
+        default_keys = set(modifiers.keys())
+    elif category == "selections":
+        mod = SelectionExtension
+        default_keys = set(selections.keys())
+    else:
+        raise ValueError("Unknown category")
+    vis = ZnDraw(url=server, room=room, user=user, auto_pickup_jobs=False)
+    vis.register_extension(mod)
+    response = requests.get(f"{server}/api/rooms/{room}/schema/{category}")
+    assert response.status_code == 200
+    response_json = response.json()
+    assert isinstance(response_json, dict)
+    assert set(response_json.keys()) == default_keys | {mod.__name__}
+    # disconnect client
+    vis.client.sio.disconnect()
+    vis.client.sio.sleep(1)  # give some time to process disconnect
+
+    response = requests.get(f"{server}/api/rooms/{room}/schema/{category}")
+    assert response.status_code == 200
+    response_json = response.json()
+    assert isinstance(response_json, dict)
+    assert set(response_json.keys()) == default_keys # no more jobs in queue, so the modifier should be gone
+
+    # try submit a job -> should fail
+    response = requests.post(
+        f"{server}/api/rooms/{room}/extensions/{category}/{mod.__name__}",
+        json={"data": {"parameter": 42}, "userId": user},
+    )
+    assert response.status_code == 400
+    assert response.json() == {"error": f"No workers available for extension {mod.__name__}"}
+
+# TODO: test job in queue, modifier disconnected
+# - submit a new job -> should be ok
+# get schema should include the modifier
+# TODO: test, no job in queue, modifier disconnected
+# - get schema should not include the modifier
+# - submit a new job -> should fail
