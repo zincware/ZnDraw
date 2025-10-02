@@ -4,6 +4,7 @@ import os
 import platform
 import subprocess
 
+
 # We use this for running tests for now
 def run_celery_worker() -> subprocess.Popen:
     """Run a celery worker."""
@@ -23,6 +24,7 @@ def run_celery_worker() -> subprocess.Popen:
         env=my_env,
     )
     return worker
+
 
 if __name__ == "__main__":
     try:

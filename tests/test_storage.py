@@ -1,4 +1,3 @@
-
 import numpy as np
 import numpy.testing as npt
 import pytest
@@ -12,7 +11,6 @@ from zndraw.storage import (
     extend_zarr,
     read_zarr,
 )
-
 from zndraw.utils import atoms_to_dict
 
 
@@ -360,7 +358,13 @@ def test_zarr_storage_variable_sizes(tmp_path):
     root = zarr.group(store=tmp_path / "test.zarr")
     store = ZarrStorageSequence(root)
 
-    dicts = [{"x": np.array([1, 2, 3])}, {"x": np.array([1, 2, 3, 4])}, {"x": np.array([1, 2])}, {"x": np.array([1, 2, 3, 4, 5, 6])}, {"x": np.array([1])}]
+    dicts = [
+        {"x": np.array([1, 2, 3])},
+        {"x": np.array([1, 2, 3, 4])},
+        {"x": np.array([1, 2])},
+        {"x": np.array([1, 2, 3, 4, 5, 6])},
+        {"x": np.array([1])},
+    ]
     store.extend(dicts)
 
     assert len(store) == len(dicts)
@@ -369,6 +373,7 @@ def test_zarr_storage_variable_sizes(tmp_path):
     npt.assert_array_equal(store[2]["x"], dicts[2]["x"])
     npt.assert_array_equal(store[3]["x"], dicts[3]["x"])
     npt.assert_array_equal(store[4]["x"], dicts[4]["x"])
+
 
 def test_zarr_storage_variable_sized_atoms(tmp_path, s22):
     dict = [atoms_to_dict(atoms) for atoms in s22]

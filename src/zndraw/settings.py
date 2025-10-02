@@ -3,9 +3,7 @@ import typing as t
 
 import ase
 import numpy as np
-from pydantic import BaseModel, Field
-
-from pydantic import field_validator, ValidationInfo, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, field_validator
 from pydantic.json_schema import SkipJsonSchema
 
 HSLColor = t.Tuple[float, float, float]
@@ -26,7 +24,9 @@ class SettingsBase(BaseModel):
         if "callback" in info.data and callable(info.data["callback"]):
             new_data = info.data
             new_data[info.field_name] = v
-            info.data["callback"]({k: v for k, v in new_data.items() if k != "callback"})
+            info.data["callback"](
+                {k: v for k, v in new_data.items() if k != "callback"}
+            )
         return v
 
 
@@ -57,7 +57,9 @@ class Particle(SettingsBase):
     material: Material = Field(Material.MeshStandardMaterial, description="Material")
     selection_color: str = Field("#ffa500", description="Selection color")
     hover_opacity: float = Field(0.8, ge=0.0, le=1.0, description="Hover opacity")
-    selection_opacity: float = Field(0.5, ge=0.0, le=1.0, description="Selection opacity")
+    selection_opacity: float = Field(
+        0.5, ge=0.0, le=1.0, description="Selection opacity"
+    )
 
     @classmethod
     def model_json_schema_from_atoms(cls, atoms: ase.Atoms) -> dict:
@@ -118,7 +120,10 @@ class VectorDisplay(SettingsBase):
                 array_props.append(key)
         # remove "positions" from the list
         array_props = [x for x in array_props if x != "positions"]
-        schema["properties"]["vectors"]["items"] = {"type": "string", "enum": array_props}
+        schema["properties"]["vectors"]["items"] = {
+            "type": "string",
+            "enum": array_props,
+        }
         schema["properties"]["vectors"]["uniqueItems"] = True
         schema["properties"]["vectorfield"]["format"] = "checkbox"
         schema["properties"]["vector_scale"]["format"] = "range"
@@ -166,6 +171,7 @@ class Visualization(SettingsBase):
         schema["properties"]["animation_loop"]["format"] = "checkbox"
         schema["properties"]["floor"]["format"] = "checkbox"
         return schema
+
 
 class Camera(SettingsBase):
     camera: CameraEnum = Field(CameraEnum.PerspectiveCamera)
@@ -261,7 +267,6 @@ class RoomConfig(SettingsBase):
     camera: Camera = Camera()
     path_tracer: PathTracer = PathTracer()
     vector_display: VectorDisplay = VectorDisplay()
-
 
 
 if __name__ == "__main__":

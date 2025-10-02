@@ -1,11 +1,12 @@
 import dataclasses
-from zndraw.client import Client, _TemplateValue
-from zndraw.extensions import Extension, ExtensionType
 import typing as t
-import ase
-from zndraw.utils import update_colors_and_radii, atoms_to_dict, atoms_from_dict
 from collections.abc import MutableSequence
 
+import ase
+
+from zndraw.client import Client, _TemplateValue
+from zndraw.extensions import Extension, ExtensionType
+from zndraw.utils import atoms_from_dict, atoms_to_dict, update_colors_and_radii
 
 
 @dataclasses.dataclass
@@ -17,7 +18,13 @@ class ZnDraw(MutableSequence):
     template: str | None | t.Type[_TemplateValue] = _TemplateValue
 
     def __post_init__(self):
-        self.client = Client(url=self.url, room=self.room, user=self.user, auto_pickup_jobs=self.auto_pickup_jobs, template=self.template)
+        self.client = Client(
+            url=self.url,
+            room=self.room,
+            user=self.user,
+            auto_pickup_jobs=self.auto_pickup_jobs,
+            template=self.template,
+        )
         self.client.connect()
 
     @property
@@ -65,11 +72,13 @@ class ZnDraw(MutableSequence):
     def __getitem__(self, index: slice) -> list[ase.Atoms]: ...
     @t.overload
     def __getitem__(self, index: list[int]) -> list[ase.Atoms]: ...
-    def __getitem__(self, index: int|slice|list[int]) -> ase.Atoms|list[ase.Atoms]:
+    def __getitem__(
+        self, index: int | slice | list[int]
+    ) -> ase.Atoms | list[ase.Atoms]:
         """Get an Atoms object by index."""
         data = self.client[index]
         return atoms_from_dict(data)
-    
+
     def __setitem__(self, index: int, atoms: ase.Atoms) -> None:
         """Set an Atoms object at a specific index."""
         if not isinstance(atoms, ase.Atoms):
@@ -92,17 +101,17 @@ class ZnDraw(MutableSequence):
     def selection(self) -> frozenset[int]:
         """Get the current selection of frame indices."""
         return self.client.selection
-    
+
     @selection.setter
     def selection(self, value: t.Iterable[int] | None):
         """Set the current selection of frame indices."""
         self.client.selection = value
-    
+
     @property
     def frame_selection(self) -> frozenset[int]:
         """Get the current selection of frame indices."""
         return self.client.frame_selection
-    
+
     @frame_selection.setter
     def frame_selection(self, value: t.Iterable[int] | None):
         """Set the current selection of frame indices."""

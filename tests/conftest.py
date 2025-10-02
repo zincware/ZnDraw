@@ -1,15 +1,16 @@
 import random
 import shutil
+import signal
 import socket
 import subprocess
 import time
 
+import ase.collections
 import eventlet  # noqa - eventlet must be installed for flask-socketio to start a production server
 import pytest
-import signal
-from zndraw.start_celery import run_celery_worker
-import ase.collections
 import redis
+
+from zndraw.start_celery import run_celery_worker
 
 
 @pytest.fixture
@@ -22,10 +23,13 @@ def server(tmp_path):
     proc = subprocess.Popen(
         [
             "zndraw-server",
-            "--port", str(port),
+            "--port",
+            str(port),
             "--no-celery",
-            "--storage-path", str(storage_path),
-            "--redis-url", redis_url,
+            "--storage-path",
+            str(storage_path),
+            "--redis-url",
+            redis_url,
         ],
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,

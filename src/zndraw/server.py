@@ -1,9 +1,9 @@
 import logging
 
 import redis
+from celery import Celery, Task
 from flask import Flask
 from flask_socketio import SocketIO
-from celery import Celery, Task
 
 log = logging.getLogger(__name__)
 
@@ -18,8 +18,6 @@ def upload_data():
     c.append({"x": 10, "y": 10})
 
 
-
-
 def celery_init_app(app: Flask) -> Celery:
     class FlaskTask(Task):
         def __call__(self, *args: object, **kwargs: object) -> object:
@@ -32,13 +30,17 @@ def celery_init_app(app: Flask) -> Celery:
     app.extensions["celery"] = celery_app
     return celery_app
 
+
 def redis_init_app(app: Flask, redis_url: str) -> redis.Redis:
     r = redis.Redis.from_url(redis_url, decode_responses=True)
     app.extensions["redis"] = r
     return r
 
+
 def create_app(
-    main: bool = False, storage_path: str = "./zndraw-data.zarr", redis_url: str = "redis://localhost:6379"
+    main: bool = False,
+    storage_path: str = "./zndraw-data.zarr",
+    redis_url: str = "redis://localhost:6379",
 ) -> Flask:
     app = Flask(__name__)
 
@@ -74,7 +76,7 @@ def create_app(
     socketio.init_app(app, cors_allowed_origins="*")
 
     app.config["SECRET_KEY"] = "your_secret_key"
-    
+
     if main:
         tasks.read_file.delay()
 

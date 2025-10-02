@@ -4,11 +4,15 @@ import typing as t
 import networkx as nx
 import numpy as np
 from pydantic import Field
-from zndraw.extensions.abc import ExtensionType, Extension
+
+from zndraw.extensions.abc import Extension, ExtensionType
+
 
 class Selection(Extension):
     """The base class for all selection extensions."""
+
     category: t.ClassVar[ExtensionType] = ExtensionType.SELECTION
+
 
 class NoneSelection(Selection):
     def run(self, vis) -> None:

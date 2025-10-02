@@ -1,7 +1,9 @@
 import dataclasses
+import functools
 import logging
-import warnings
+import typing as t
 import uuid
+import warnings
 from collections.abc import MutableSequence
 
 import msgpack
@@ -9,13 +11,10 @@ import numpy as np
 import requests
 import socketio
 from tqdm import tqdm
-import typing as t
-import functools
-import requests
-from zndraw.settings import settings, RoomConfig
-from zndraw.exceptions import LockError, TemplateNotFoundError
-from zndraw.extensions import Extension, ExtensionType
 
+from zndraw.exceptions import LockError
+from zndraw.extensions import Extension, ExtensionType
+from zndraw.settings import RoomConfig, settings
 from zndraw.storage import decode_data, encode_data
 
 log = logging.getLogger(__name__)
@@ -57,19 +56,23 @@ class SocketIOLock:
                 f"Failed to release lock for target '{self.target}'. It may have expired."
             )
 
+
 class _ExtensionStore(t.TypedDict):
     public: bool
-    run_kwargs: dict|None
+    run_kwargs: dict | None
     extension: t.Type[Extension]
+
 
 class _TemplateValue:
     """Sentinel value for template parameter."""
+
     pass
 
 
 @dataclasses.dataclass
 class Client(MutableSequence):
     """A client for interacting with the ZnDraw server. Implements MutableSequence for frame operations."""
+
     url: str = "http://localhost:5000"
     room: str = "default"
     user: str = "guest"
@@ -79,8 +82,12 @@ class Client(MutableSequence):
     _step: int = 0
     _len: int = 0
     _settings: dict = dataclasses.field(default_factory=dict, init=False)
-    _extensions: dict[str, _ExtensionStore] = dataclasses.field(default_factory=dict, init=False)
-    _client_id: str = dataclasses.field(default_factory=lambda: str(uuid.uuid4()), init=False)
+    _extensions: dict[str, _ExtensionStore] = dataclasses.field(
+        default_factory=dict, init=False
+    )
+    _client_id: str = dataclasses.field(
+        default_factory=lambda: str(uuid.uuid4()), init=False
+    )
     _selection: frozenset[int] = frozenset()
     _frame_selection: frozenset[int] = frozenset()
     _lock: SocketIOLock = dataclasses.field(init=False)
@@ -94,10 +101,9 @@ class Client(MutableSequence):
         self.sio.on("invalidate", self._on_invalidate)
         self.sio.on("queue:update", self._on_queue_update)
         self.sio.on("frame_selection:update", self._on_frame_selection_update)
-        self.sio.on("error", self._on_error)
 
         self._lock = SocketIOLock(self.sio, target="trajectory:meta")
-    
+
     @property
     def lock(self) -> SocketIOLock:
         """Get a lock object for the trajectory metadata."""
@@ -107,7 +113,6 @@ class Client(MutableSequence):
     def sid(self) -> str:
         """Get the client's unique identifier (distinct from Socket.IO SIDs)."""
         return self._client_id
-
 
     def _on_frame_update(self, data):
         """Internal callback for when a frame update is received."""
@@ -123,47 +128,52 @@ class Client(MutableSequence):
         """Internal callback for when a selection update is received."""
         if "indices" in data:
             self._selection = frozenset(data["indices"])
-    
+
     def _on_frame_selection_update(self, data):
         """Internal callback for when a frame selection update is received."""
         if "indices" in data:
             self._frame_selection = frozenset(data["indices"])
 
-    def _on_error(self, data):
-        """Internal callback for when an error is received."""
-        error_type = data.get("error", "RuntimeError")
-        message = data.get("message", "Unknown error")
-
-        if error_type == "TemplateNotFoundError":
-            raise TemplateNotFoundError(message)
-        else:
-            raise RuntimeError(f"{error_type}: {message}")
-
     def _on_queue_update(self, data: dict):
         print(f"Queue update received: {data}")
         if not self.auto_pickup_jobs:
             return
-        response = requests.post(f"{self.url}/api/rooms/{self.room}/jobs/next", json={"workerId": self.sid})
+        response = requests.post(
+            f"{self.url}/api/rooms/{self.room}/jobs/next", json={"workerId": self.sid}
+        )
         if response.status_code == 200:
             data = response.json()
             if "jobId" in data:
                 try:
-                    self._on_task_run(data=data.get("data"), extension=data.get("extension"), category=data.get("category"))
-                    response = requests.post(f"{self.url}/api/rooms/{self.room}/jobs/{data.get('jobId')}/complete", json={"workerId": self.sid})
+                    self._on_task_run(
+                        data=data.get("data"),
+                        extension=data.get("extension"),
+                        category=data.get("category"),
+                    )
+                    response = requests.post(
+                        f"{self.url}/api/rooms/{self.room}/jobs/{data.get('jobId')}/complete",
+                        json={"workerId": self.sid},
+                    )
                     if response.status_code != 200:
-                        log.error(f"Failed to mark job {data.get('jobId')} as complete: {response.status_code} {response.text}")
+                        log.error(
+                            f"Failed to mark job {data.get('jobId')} as complete: {response.status_code} {response.text}"
+                        )
                     # log as completed
                 except Exception as e:
                     log.error(f"Error processing job {data.get('jobId')}: {e}")
-                    response = requests.post(f"{self.url}/api/rooms/{self.room}/jobs/{data.get('jobId')}/fail", json={"workerId": self.sid, "error": str(e)})
+                    response = requests.post(
+                        f"{self.url}/api/rooms/{self.room}/jobs/{data.get('jobId')}/fail",
+                        json={"workerId": self.sid, "error": str(e)},
+                    )
                 # we have finished now, so we check for more jobs
                 self._on_queue_update({})
         elif response.status_code == 400:
             print("No jobs available.")
         else:
-            log.error(f"Failed to fetch next job: {response.status_code} {response.text}")
+            log.error(
+                f"Failed to fetch next job: {response.status_code} {response.text}"
+            )
 
-    
     def _on_task_run(self, data: dict, extension: str, category: str):
         """Internal callback for when a task is run."""
 
@@ -182,14 +192,16 @@ class Client(MutableSequence):
     def step(self) -> int:
         """Get the current step/frame index."""
         return self._step
-    
+
     @step.setter
     def step(self, value: int):
         """Set the current step/frame index and notify the server."""
         if not isinstance(value, int) or value < 0:
             raise ValueError("Step must be a non-negative integer.")
         if value >= self._len:
-            raise ValueError(f"Step {value} is out of bounds. Current number of frames: {self._len}.")
+            raise ValueError(
+                f"Step {value} is out of bounds. Current number of frames: {self._len}."
+            )
         self._step = value
         if self.sio.connected:
             response = self.sio.call("set_frame_atomic", {"frame": value}, timeout=5)
@@ -202,13 +214,12 @@ class Client(MutableSequence):
                     raise RuntimeError(error_msg)
         else:
             raise RuntimeError("Client is not connected. Please call .connect() first.")
-        
-        
+
     @property
     def selection(self) -> frozenset[int]:
         """Get the current selection of frame indices."""
         return self._selection
-    
+
     @selection.setter
     def selection(self, value: t.Iterable[int] | None):
         """Set the current selection of frame indices."""
@@ -216,8 +227,13 @@ class Client(MutableSequence):
             indices = []
         else:
             indices = [x for x in value]
-            if not all(isinstance(idx, int) and 0 <= idx < len(self[self.step]) for idx in indices):
-                raise ValueError("Selection must be an iterable of valid frame indices.")
+            if not all(
+                isinstance(idx, int) and 0 <= idx < len(self[self.step])
+                for idx in indices
+            ):
+                raise ValueError(
+                    "Selection must be an iterable of valid frame indices."
+                )
         if self.sio.connected:
             response = self.sio.call("selection:set", {"indices": indices}, timeout=5)
             if response and not response.get("success", False):
@@ -230,12 +246,12 @@ class Client(MutableSequence):
             self._selection = frozenset(indices)
         else:
             raise RuntimeError("Client is not connected. Please call .connect() first.")
-        
+
     @property
     def frame_selection(self) -> frozenset[int]:
         """Get the current selection of frame indices."""
         return self._frame_selection
-    
+
     @frame_selection.setter
     def frame_selection(self, value: t.Iterable[int] | None):
         """Set the current selection of frame indices."""
@@ -243,10 +259,16 @@ class Client(MutableSequence):
             indices = []
         else:
             indices = [x for x in value]
-            if not all(isinstance(idx, int) and 0 <= idx < len(self) for idx in indices):
-                raise ValueError("Selection must be an iterable of valid frame indices.")
+            if not all(
+                isinstance(idx, int) and 0 <= idx < len(self) for idx in indices
+            ):
+                raise ValueError(
+                    "Selection must be an iterable of valid frame indices."
+                )
         if self.sio.connected:
-            response = self.sio.call("frame_selection:set", {"indices": indices}, timeout=5)
+            response = self.sio.call(
+                "frame_selection:set", {"indices": indices}, timeout=5
+            )
             if response and not response.get("success", False):
                 error_type = response.get("error")
                 error_msg = response.get("message", "Failed to set selection")
@@ -276,7 +298,11 @@ class Client(MutableSequence):
         log.debug(f"Connected to {self.url} with session ID {self.sio.sid}")
 
         # Prepare join_room data
-        join_data = {"room": self.room, "userId": self.user, "clientId": self._client_id}
+        join_data = {
+            "room": self.room,
+            "userId": self.user,
+            "clientId": self._client_id,
+        }
 
         # Only include template if explicitly specified (not the default sentinel)
         if self.template is not _TemplateValue:
@@ -299,8 +325,8 @@ class Client(MutableSequence):
 
         response = self.sio.call("upload:prepare", request_data)
         if not response or not response.get("success"):
-            error_msg = response.get('error') if response else 'No response'
-            error_type = response.get('error_type') if response else None
+            error_msg = response.get("error") if response else "No response"
+            error_type = response.get("error_type") if response else None
 
             # Raise the appropriate error type based on server response
             if error_type == "IndexError":
@@ -437,8 +463,8 @@ class Client(MutableSequence):
             response = self.sio.call("frame:delete", {"frame_id": frame_id})
 
             if not response or not response.get("success"):
-                error_msg = response.get('error') if response else 'No response'
-                error_type = response.get('error_type') if response else None
+                error_msg = response.get("error") if response else "No response"
+                error_type = response.get("error_type") if response else None
 
                 # Raise the appropriate error type based on server response
                 if error_type == "IndexError":
@@ -601,9 +627,9 @@ class Client(MutableSequence):
             # print("Settings updated from ZnDraw")
             category = "settings"
             response = requests.post(
-                    f"{self.url}/api/rooms/{self.room}/extensions/{category}/{extension}?userId={self.user}",
-                    json=data
-                )
+                f"{self.url}/api/rooms/{self.room}/extensions/{category}/{extension}?userId={self.user}",
+                json=data,
+            )
             response.raise_for_status()
 
         for key in settings:
@@ -616,54 +642,68 @@ class Client(MutableSequence):
                     self._settings[key] = settings[key]()
                 else:
                     self._settings[key] = settings[key](**data["data"])
-                self._settings[key].callback = functools.partial(callback_fn, extension=key)
+                self._settings[key].callback = functools.partial(
+                    callback_fn, extension=key
+                )
 
         config = RoomConfig(**self._settings)
         # TODO: do not allow changing config.<setting> directly, only sub-fields
         return config
-    
 
-    def register_extension(self, extension: t.Type[Extension], public: bool = False, run_kwargs: dict|None = None):
+    def register_extension(
+        self,
+        extension: t.Type[Extension],
+        public: bool = False,
+        run_kwargs: dict | None = None,
+    ):
         # A WARNING ABOUT RUN_KWARGS!
         # If multiple workers are registering the same extension, work load will be distributed among them.
-        # We do check that the extension schema are the same, but run_kwargs are not validated and can 
+        # We do check that the extension schema are the same, but run_kwargs are not validated and can
         # lead to unreproducible behavior if they are different among workers.
         if not hasattr(extension, "category"):
-            raise ValueError("Extension must have a 'category' attribute and inherit from Extension base class.")
+            raise ValueError(
+                "Extension must have a 'category' attribute and inherit from Extension base class."
+            )
         name = extension.__name__
         if name in self._extensions:
             raise ValueError(f"Extension '{name}' is already registered.")
         if extension.category not in (cat.value for cat in ExtensionType):
-            raise ValueError(f"Extension category '{extension.category}' is not valid. Must be one of {[cat.value for cat in ExtensionType]}.")
+            raise ValueError(
+                f"Extension category '{extension.category}' is not valid. Must be one of {[cat.value for cat in ExtensionType]}."
+            )
         self._extensions[name] = {
             "public": public,
             "run_kwargs": run_kwargs,
-            "extension": extension
+            "extension": extension,
         }
         print(f"Registered extension '{name}' of category '{extension.category}'.")
 
         schema = extension.model_json_schema()
         if not public:
-            response = self.sio.call("register:extension", {
-                "name": name,
-                "category": extension.category,
-                "schema": schema,
-                "public": False
-            })
+            response = self.sio.call(
+                "register:extension",
+                {
+                    "name": name,
+                    "category": extension.category,
+                    "schema": schema,
+                    "public": False,
+                },
+            )
             print(f"Extension '{name}' registered with room '{self.room}'.")
         else:
-            response = self.sio.call("register:extension", {
-                "name": name,
-                "category": extension.category,
-                "schema": schema,
-                "public": True
-            })
+            response = self.sio.call(
+                "register:extension",
+                {
+                    "name": name,
+                    "category": extension.category,
+                    "schema": schema,
+                    "public": True,
+                },
+            )
             print(f"Extension '{name}' registered as public.")
-        
+
         if response.get("status") != "success":
             raise RuntimeError(f"Failed to register extension '{name}': {response}")
-        
-
 
 
 if __name__ == "__main__":

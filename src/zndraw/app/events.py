@@ -1,12 +1,13 @@
+import json
 import logging
 import typing as t
 import uuid
 
 from flask import current_app, request
-from flask_socketio import join_room, leave_room, emit
-import json
+from flask_socketio import emit, join_room, leave_room
 
 from zndraw.server import socketio
+
 from .constants import SocketEvents
 from .redis_keys import ExtensionKeys
 from .worker_dispatcher import dispatch_next_task
@@ -74,7 +75,9 @@ def handle_disconnect():
     if room_name:
         # Get username before deleting for logging purposes
         user = r.hget(f"room:{room_name}:users", sid)
-        log.info(f"Client disconnected: sid={sid}, client_id={client_id}, user={user}, room={room_name}")
+        log.info(
+            f"Client disconnected: sid={sid}, client_id={client_id}, user={user}, room={room_name}"
+        )
 
         # Clean up Redis entries
         r.hdel(f"room:{room_name}:users", sid)
@@ -111,7 +114,9 @@ def handle_disconnect():
     # Extension cleanup - use client_id if available, otherwise fall back to sid for backwards compatibility
     worker_id = client_id if client_id else sid
     extension_categories = ["modifiers", "selections", "analyses"]
-    log.info(f"Cleaning up extensions for worker_id={worker_id} in room '{room_name}'...")
+    log.info(
+        f"Cleaning up extensions for worker_id={worker_id} in room '{room_name}'..."
+    )
 
     for category in extension_categories:
         user_extensions_key = f"room:{room_name}:extensions:{category}:{worker_id}"
@@ -121,7 +126,9 @@ def handle_disconnect():
         if not user_extensions:
             continue
 
-        log.info(f"Worker {worker_id} was providing extensions in '{category}': {user_extensions}")
+        log.info(
+            f"Worker {worker_id} was providing extensions in '{category}': {user_extensions}"
+        )
 
         extensions_to_delete = []
 
@@ -218,6 +225,7 @@ def on_join(data):
         if "template" not in data:
             # Use default template
             from .routes import ensure_empty_template_exists
+
             ensure_empty_template_exists()
             template_id = r.get("default_template") or "empty"
         elif data["template"] is None:
@@ -229,7 +237,9 @@ def on_join(data):
             # Verify template exists, fall back to "empty" if it doesn't
             template_key = f"template:{template_id}"
             if not r.exists(template_key):
-                log.warning(f"Template '{template_id}' not found for room '{room}', falling back to 'empty'")
+                log.warning(
+                    f"Template '{template_id}' not found for room '{room}', falling back to 'empty'"
+                )
                 template_id = "empty"
 
         # Store the template used for this room
@@ -249,7 +259,9 @@ def on_join(data):
     if client_id:
         r.set(f"sid:{sid}:client_id", client_id)
         r.set(f"client_id:{client_id}:sid", sid)
-        log.info(f"Client {sid} ({user}) with client_id {client_id} joined room: {room}")
+        log.info(
+            f"Client {sid} ({user}) with client_id {client_id} joined room: {room}"
+        )
     else:
         log.info(f"Client {sid} ({user}) joined room: {room} (no client_id provided)")
 
@@ -277,6 +289,7 @@ def on_join(data):
 
     # check if this user has any extensions registered
 
+
 @socketio.on("selection:set")
 def handle_selection_set(data):
     room = get_project_room_from_session(request.sid)
@@ -284,15 +297,28 @@ def handle_selection_set(data):
 
     indices = data.get("indices", [])
     if not isinstance(indices, list):
-        return {"success": False, "messagemsg": "Indices must be a list", "error": "TypeError"}
+        return {
+            "success": False,
+            "messagemsg": "Indices must be a list",
+            "error": "TypeError",
+        }
 
     # Validate and store the selection in Redis
     # valid_indices = [idx for idx in indices if isinstance(idx, int) and 0 <= idx < _get_len()]
     if any(not isinstance(idx, int) or idx < 0 for idx in indices):
-        return {"success": False, "message": f"No valid indices provided {indices}", "error": "ValueError"}
+        return {
+            "success": False,
+            "message": f"No valid indices provided {indices}",
+            "error": "ValueError",
+        }
 
     redis_client.set(f"room:{room}:selection:default", json.dumps(indices))
-    emit("selection:update", {"indices": indices}, to=f"room:{room}", skip_sid=request.sid)
+    emit(
+        "selection:update",
+        {"indices": indices},
+        to=f"room:{room}",
+        skip_sid=request.sid,
+    )
     return {"success": True}
 
 
@@ -303,15 +329,28 @@ def handle_frame_selection_set(data):
 
     indices = data.get("indices", [])
     if not isinstance(indices, list):
-        return {"success": False, "messagemsg": "Indices must be a list", "error": "TypeError"}
+        return {
+            "success": False,
+            "messagemsg": "Indices must be a list",
+            "error": "TypeError",
+        }
 
     # Validate and store the selection in Redis
     # valid_indices = [idx for idx in indices if isinstance(idx, int) and 0 <= idx < _get_len()]
     if any(not isinstance(idx, int) or idx < 0 for idx in indices):
-        return {"success": False, "message": f"No valid indices provided {indices}", "error": "ValueError"}
+        return {
+            "success": False,
+            "message": f"No valid indices provided {indices}",
+            "error": "ValueError",
+        }
 
     redis_client.set(f"room:{room}:frame_selection:default", json.dumps(indices))
-    emit("frame_selection:update", {"indices": indices}, to=f"room:{room}", skip_sid=request.sid)
+    emit(
+        "frame_selection:update",
+        {"indices": indices},
+        to=f"room:{room}",
+        skip_sid=request.sid,
+    )
     return {"success": True}
 
 
@@ -640,7 +679,9 @@ def register_extension(data: dict):
     # store in redis
     redis_client = current_app.extensions["redis"]
     keys = ExtensionKeys.for_extension(room_id, category, name)
-    user_extensions_key = ExtensionKeys.user_extensions_key(room_id, category, client_id)
+    user_extensions_key = ExtensionKeys.user_extensions_key(
+        room_id, category, client_id
+    )
     existing_schema = redis_client.hget(keys.schema, name)
 
     if existing_schema is not None:

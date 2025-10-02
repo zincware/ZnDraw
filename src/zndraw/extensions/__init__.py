@@ -1,3 +1,3 @@
-from zndraw.extensions.abc import ExtensionType, Extension
+from zndraw.extensions.abc import Extension, ExtensionType
 
 __all__ = ["ExtensionType", "Extension"]

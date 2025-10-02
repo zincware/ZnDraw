@@ -4,13 +4,13 @@ This module consolidates queue dispatching functionality that was previously
 duplicated in both events.py and routes.py.
 """
 
-from typing import Any
 import json
 import logging
+from typing import Any
 
-from .redis_keys import ExtensionKeys
 from .constants import SocketEvents
 from .queue_manager import emit_queue_update
+from .redis_keys import ExtensionKeys
 
 log = logging.getLogger(__name__)
 
@@ -20,7 +20,7 @@ def dispatch_next_task(
     socketio_instance: Any,
     worker_id: str,
     room_id: str,
-    category: str
+    category: str,
 ) -> bool:
     """Check queues for all extensions a worker can handle and dispatch next task.
 
@@ -38,11 +38,15 @@ def dispatch_next_task(
     Returns:
         bool: True if a task was dispatched, False otherwise
     """
-    user_extensions_key = ExtensionKeys.user_extensions_key(room_id, category, worker_id)
+    user_extensions_key = ExtensionKeys.user_extensions_key(
+        room_id, category, worker_id
+    )
     registered_extensions = redis_client.smembers(user_extensions_key)
 
     if not registered_extensions:
-        log.debug(f"Worker {worker_id} has no registered extensions in category '{category}'")
+        log.debug(
+            f"Worker {worker_id} has no registered extensions in category '{category}'"
+        )
         return False
 
     # Get the Socket.IO SID for this worker's client_id (needed for emit)
@@ -76,7 +80,9 @@ def dispatch_next_task(
                 )
 
                 # Move worker from idle to progressing atomically
-                moved = redis_client.smove(keys.idle_workers, keys.progressing_workers, worker_id)
+                moved = redis_client.smove(
+                    keys.idle_workers, keys.progressing_workers, worker_id
+                )
 
                 if moved:
                     # Emit task to worker using Socket.IO SID
@@ -93,7 +99,13 @@ def dispatch_next_task(
                     )
 
                     # Notify all clients in room about queue update
-                    emit_queue_update(redis_client, room_id, category, extension_name, socketio_instance)
+                    emit_queue_update(
+                        redis_client,
+                        room_id,
+                        category,
+                        extension_name,
+                        socketio_instance,
+                    )
 
                     log.info(
                         f"Successfully dispatched task from queue to worker {worker_id} "
@@ -116,7 +128,9 @@ def dispatch_next_task(
                 log.error(f"Failed to parse queued task: {e}")
                 continue
             except Exception as e:
-                log.error(f"Error dispatching task to worker {worker_id}: {e}", exc_info=True)
+                log.error(
+                    f"Error dispatching task to worker {worker_id}: {e}", exc_info=True
+                )
                 continue
 
     log.debug(f"No queued tasks found for worker {worker_id} in category '{category}'")

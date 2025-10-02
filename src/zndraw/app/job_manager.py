@@ -2,10 +2,11 @@
 
 import json
 import uuid
-from datetime import datetime
-from typing import Any, Optional
-from enum import Enum
 from dataclasses import dataclass
+from datetime import datetime
+from enum import Enum
+from typing import Any, Optional
+
 
 @dataclass
 class Job:
@@ -27,6 +28,7 @@ class Job:
 
 class JobStatus(str, Enum):
     """Job status states."""
+
     QUEUED = "queued"
     RUNNING = "running"
     COMPLETED = "completed"
@@ -92,9 +94,7 @@ class JobManager:
         redis_client.zadd(
             f"room:{room}:jobs:by_time", {job_id: datetime.utcnow().timestamp()}
         )
-        redis_client.sadd(
-            f"room:{room}:extension:{category}:{extension}:jobs", job_id
-        )
+        redis_client.sadd(f"room:{room}:extension:{category}:{extension}:jobs", job_id)
 
         return job_id
 
@@ -344,9 +344,7 @@ class JobManager:
             pipe.srem(f"room:{room}:jobs:inactive", job_id)
             pipe.zrem(f"room:{room}:jobs:by_time", job_id)
             if category and extension:
-                pipe.srem(
-                    f"room:{room}:extension:{category}:{extension}:jobs", job_id
-                )
+                pipe.srem(f"room:{room}:extension:{category}:{extension}:jobs", job_id)
 
         pipe.execute()
         return True
