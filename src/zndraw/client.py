@@ -796,34 +796,12 @@ class Client(MutableSequence):
                 )
             print(f"Extension '{name}' registered with room '{self.room}'.")
 
+    def run(self, extension: Extension) -> None|dict:
+        print(f"Running extension: {extension}")
+        response = requests.post(
+            f"{self.url}/api/rooms/{self.room}/extensions/{extension.category.value}/{extension.__class__.__name__}/submit",
+            json={"data": extension.model_dump(), "userId": self.user},
+        )
 
-if __name__ == "__main__":
-    client = Client()
-    client.connect()
-    for idx in tqdm(range(50)):
-        client.append_frame({"index": np.array([idx])})
-    for idx in range(client.len_frames()):
-        frame = client.get_frame(idx)
-        print(f"Frame {idx} keys: {list(frame.keys())}, index: {frame['index']}")
-    client.delete_frame(0)
-    client.delete_frame(0)
-    print("After deletion:")
-    for idx in range(client.len_frames()):
-        frame = client.get_frame(idx)
-        print(f"Frame {idx} keys: {list(frame.keys())}, index: {frame['index']}")
-    client.replace_frame(5, {"index": np.array([999])})
-    for idx in range(10):
-        frame = client.get_frame(idx)
-        print(f"Frame {idx} keys: {list(frame.keys())}, index: {frame['index']}")
-
-    data = [{"index": np.array([1000 + i])} for i in range(50)]
-    for _ in tqdm(range(1)):
-        client.extend_frames(data)
-    for _ in tqdm(range(1)):
-        client.extend_frames(data)
-    for entry in tqdm(data):
-        client.append_frame(entry)
-
-    all_data = client.get_frames(slice(None, None, None))
-    print(f"Fetched {len(all_data)} frames via get_frames.")
-    print(f"Total frames: {client.len_frames()}")
+        response.raise_for_status()
+        return response.json()

@@ -96,11 +96,11 @@ class Delete(UpdateScene):
 
     def run(self, vis, **kwargs) -> None:
         atom_ids = vis.selection
-        atoms = vis.atoms
+        atoms = vis[vis.step]
 
         if len(vis) > vis.step + 1:
             del vis[vis.step + 1 :]
-        vis.log(f"Deleting atoms {atom_ids}")
+        # vis.log(f"Deleting atoms {atom_ids}")
         if len(atom_ids) == len(atoms):
             vis.append(ase.Atoms())
         else:
@@ -363,6 +363,12 @@ class FixAtoms(UpdateScene):
             atoms.set_constraint(constraint)
         vis.atoms = atoms
 
+class Empty(UpdateScene):
+    """An empty modifier that does nothing."""
+
+    def run(self, vis, **kwargs) -> None:
+        vis.append(ase.Atoms())
+
 
 modifiers: dict[str, t.Type[UpdateScene]] = {
     Delete.__name__: Delete,
@@ -378,4 +384,5 @@ modifiers: dict[str, t.Type[UpdateScene]] = {
     NewCanvas.__name__: NewCanvas,
     RemoveAtoms.__name__: RemoveAtoms,
     FixAtoms.__name__: FixAtoms,
+    Empty.__name__: Empty,
 }

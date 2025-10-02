@@ -994,9 +994,16 @@ def test_register_extensions_reconnect_without_queue(server, category):
     assert response.status_code == 400
     assert response.json() == {"error": f"No workers available for extension {mod.__name__}"}
 
-# TODO: test job in queue, modifier disconnected
-# - submit a new job -> should be ok
-# get schema should include the modifier
-# TODO: test, no job in queue, modifier disconnected
-# - get schema should not include the modifier
-# - submit a new job -> should fail
+def test_submit_task_via_vis_run(server):
+    vis = ZnDraw(url=server, room="testroom", user="testuser", auto_pickup_jobs=False)
+    vis.register_extension(ModifierExtension)
+
+    vis.run(ModifierExtension(parameter=123))
+
+    response = requests.get(f"{server}/api/rooms/testroom/jobs")
+    assert response.status_code == 200
+    response_json = response.json()
+    assert isinstance(response_json, list)
+    assert len(response_json) == 1
+    assert response_json[0]["status"] == "queued"
+    assert response_json[0]["data"] == {"parameter": 123}

@@ -126,3 +126,7 @@ class ZnDraw(MutableSequence):
     def bookmarks(self, value: dict[int, str] | None):
         """Set the current bookmarks of frame indices."""
         self.client.bookmarks = value
+
+    def run(self, *args, **kwargs) -> None:
+        """Run an extension on the current selection."""
+        self.client.run(*args, **kwargs)
