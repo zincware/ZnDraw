@@ -81,15 +81,29 @@ def emit_bookmarks_update(room_id: str):
         )
 
 
-def emit_frames_invalidate(room_id: str):
+def emit_frames_invalidate(room_id: str, operation: str, affected_index: int = None, affected_from: int = None):
     """
     Emit frames:invalidate event to tell clients to clear their frame cache.
-    Should be called after delete, insert, or replace operations that change
-    the logical-to-physical frame mapping.
+
+    Args:
+        room_id: The room identifier
+        operation: Type of operation - 'delete', 'insert', or 'replace'
+        affected_index: For 'replace' - the specific frame index that was replaced
+        affected_from: For 'delete'/'insert' - all frames from this index onward are affected
     """
+    data = {
+        "roomId": room_id,
+        "operation": operation,
+    }
+
+    if affected_index is not None:
+        data["affectedIndex"] = affected_index
+    if affected_from is not None:
+        data["affectedFrom"] = affected_from
+
     socketio.emit(
         "frames:invalidate",
-        {"roomId": room_id},
+        data,
         to=f"room:{room_id}",
     )
 
@@ -301,8 +315,8 @@ def append_frame(room_id):
 
             # Emit bookmarks update to reflect removal
             emit_bookmarks_update(room_id)
-            # Invalidate frame cache on clients
-            emit_frames_invalidate(room_id)
+            # Invalidate only the replaced frame
+            emit_frames_invalidate(room_id, operation="replace", affected_index=target_frame_id)
 
             log.info(
                 f"Replaced frame {target_frame_id} (old: {old_mapping_entry}, new: {room_id}:{new_physical_index}) in room '{room_id}'"
@@ -372,8 +386,8 @@ def append_frame(room_id):
 
             # Emit bookmarks update (logical indices shifted by the insert)
             emit_bookmarks_update(room_id)
-            # Invalidate frame cache on clients
-            emit_frames_invalidate(room_id)
+            # Invalidate all frames from insert position onward (they all shift up)
+            emit_frames_invalidate(room_id, operation="insert", affected_from=insert_position)
 
             log.info(
                 f"Inserted frame at position {insert_position} (physical: {new_physical_index}) in room '{room_id}'"

@@ -132,10 +132,29 @@ export const useSocketManager = () => {
     }
 
     function onFramesInvalidate(data: any) {
-      const { roomId } = data;
-      console.log('Invalidating frame cache for room:', roomId);
+      const { roomId, operation, affectedIndex, affectedFrom } = data;
+      console.log('Invalidating frame cache:', { roomId, operation, affectedIndex, affectedFrom });
+
       queryClient.invalidateQueries({
-        queryKey: ['frame', roomId],
+        predicate: (query) => {
+          const [type, qRoomId, frameIndex] = query.queryKey;
+
+          // Only invalidate frame queries for this room
+          if (type !== 'frame' || qRoomId !== roomId) return false;
+
+          // frameIndex might be undefined for non-frame queries
+          if (typeof frameIndex !== 'number') return false;
+
+          if (operation === 'replace') {
+            // Only invalidate the specific replaced frame
+            return frameIndex === affectedIndex;
+          } else if (operation === 'delete' || operation === 'insert') {
+            // Invalidate all frames from the affected position onward
+            return frameIndex >= affectedFrom;
+          }
+
+          return false;
+        }
       });
     }
 

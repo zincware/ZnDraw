@@ -668,7 +668,8 @@ def handle_delete_frame(data):
         # Emit bookmarks update to all clients (uses helper from routes)
         from .routes import emit_bookmarks_update, emit_frames_invalidate
         emit_bookmarks_update(room)
-        emit_frames_invalidate(room)
+        # Invalidate all frames from deleted position onward (they all shift down)
+        emit_frames_invalidate(room, operation="delete", affected_from=frame_id)
 
         return {
             "success": True,
