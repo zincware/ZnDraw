@@ -1157,7 +1157,7 @@ def join_room(room_id):
     response["frame_selection"] = json.loads(frame_selection) if frame_selection else None
 
     presenter_lock = r.get(f"room:{room_id}:presenter_lock")
-    response["presenter-lock"] = json.loads(presenter_lock) if presenter_lock else None
+    response["presenter-lock"] = presenter_lock
 
     step = r.get(f"room:{room_id}:current_frame")
     response["step"] = int(step) if step else None
