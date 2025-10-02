@@ -80,6 +80,19 @@ def emit_bookmarks_update(room_id: str):
             to=f"room:{room_id}",
         )
 
+
+def emit_frames_invalidate(room_id: str):
+    """
+    Emit frames:invalidate event to tell clients to clear their frame cache.
+    Should be called after delete, insert, or replace operations that change
+    the logical-to-physical frame mapping.
+    """
+    socketio.emit(
+        "frames:invalidate",
+        {"roomId": room_id},
+        to=f"room:{room_id}",
+    )
+
 @main.route("/internal/emit", methods=["POST"])
 def internal_emit():
     """Internal endpoint to emit Socket.IO events. Secured via a shared secret."""
@@ -288,6 +301,8 @@ def append_frame(room_id):
 
             # Emit bookmarks update to reflect removal
             emit_bookmarks_update(room_id)
+            # Invalidate frame cache on clients
+            emit_frames_invalidate(room_id)
 
             log.info(
                 f"Replaced frame {target_frame_id} (old: {old_mapping_entry}, new: {room_id}:{new_physical_index}) in room '{room_id}'"
@@ -357,6 +372,8 @@ def append_frame(room_id):
 
             # Emit bookmarks update (logical indices shifted by the insert)
             emit_bookmarks_update(room_id)
+            # Invalidate frame cache on clients
+            emit_frames_invalidate(room_id)
 
             log.info(
                 f"Inserted frame at position {insert_position} (physical: {new_physical_index}) in room '{room_id}'"

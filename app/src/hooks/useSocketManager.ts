@@ -131,6 +131,14 @@ export const useSocketManager = () => {
       setBookmarks(data["bookmarks"] || null);
     }
 
+    function onFramesInvalidate(data: any) {
+      const { roomId } = data;
+      console.log('Invalidating frame cache for room:', roomId);
+      queryClient.invalidateQueries({
+        queryKey: ['frame', roomId],
+      });
+    }
+
     socket.on('disconnect', onDisconnect);
     socket.on('connect', onConnect);
     socket.on('len_frames', onLenUpdate);
@@ -141,6 +149,7 @@ export const useSocketManager = () => {
     socket.on('selection:update', onSelectionUpdate);
     socket.on('frame_selection:update', onFrameSelectionUpdate);
     socket.on('bookmarks:update', onBookmarksUpdate);
+    socket.on('frames:invalidate', onFramesInvalidate);
 
     return () => {
       socket.off('connect', onConnect);
@@ -153,6 +162,7 @@ export const useSocketManager = () => {
       socket.off('selection:update', onSelectionUpdate);
       socket.off('frame_selection:update', onFrameSelectionUpdate);
       socket.off('bookmarks:update', onBookmarksUpdate);
+      socket.off('frames:invalidate', onFramesInvalidate);
     };
   }, [room, setConnected, setFrameCount, userId, isConnected, setCurrentFrame, queryClient, setBookmarks]);
 };

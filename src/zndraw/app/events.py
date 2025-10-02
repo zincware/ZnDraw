@@ -666,8 +666,9 @@ def handle_delete_frame(data):
         )
 
         # Emit bookmarks update to all clients (uses helper from routes)
-        from .routes import emit_bookmarks_update
+        from .routes import emit_bookmarks_update, emit_frames_invalidate
         emit_bookmarks_update(room)
+        emit_frames_invalidate(room)
 
         return {
             "success": True,
