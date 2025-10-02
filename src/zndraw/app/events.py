@@ -542,6 +542,99 @@ def release_lock(data):
     return {"success": False}
 
 
+@socketio.on("chat:message:create")
+def handle_chat_message_create(data):
+    """
+    Create a new chat message.
+    Payload: { "content": "message text" }
+    Returns: { "success": bool, "message": Message | None, "error": str | None }
+    """
+    from .chat_utils import create_message
+
+    sid = request.sid
+    r = current_app.extensions["redis"]
+    room = get_project_room_from_session(sid)
+
+    if not room:
+        return {"success": False, "error": "Client has not joined a room."}
+
+    content = data.get("content")
+    if not content or not isinstance(content, str):
+        return {"success": False, "error": "Message content is required"}
+
+    # Get user ID from session
+    user_id = r.hget(f"room:{room}:users", sid)
+    if not user_id:
+        return {"success": False, "error": "User not found in room"}
+
+    try:
+        # Create message using helper function
+        message = create_message(r, room, user_id, content)
+
+        # Emit to room (excluding sender)
+        emit("chat:message:new", message, to=f"room:{room}", skip_sid=sid)
+
+        return {"success": True, "message": message}
+    except Exception as e:
+        log.error(f"Failed to create chat message: {e}")
+        return {"success": False, "error": str(e)}
+
+
+@socketio.on("chat:message:edit")
+def handle_chat_message_edit(data):
+    """
+    Edit an existing chat message.
+    Payload: { "messageId": "msg_room_42", "content": "new text" }
+    Returns: { "success": bool, "message": Message | None, "error": str | None }
+    """
+    from .chat_utils import get_message, update_message
+
+    sid = request.sid
+    r = current_app.extensions["redis"]
+    room = get_project_room_from_session(sid)
+
+    if not room:
+        return {"success": False, "error": "Client has not joined a room."}
+
+    message_id = data.get("messageId")
+    content = data.get("content")
+
+    if not message_id or not isinstance(message_id, str):
+        return {"success": False, "error": "Message ID is required"}
+
+    if not content or not isinstance(content, str):
+        return {"success": False, "error": "Message content is required"}
+
+    # Get user ID from session
+    user_id = r.hget(f"room:{room}:users", sid)
+    if not user_id:
+        return {"success": False, "error": "User not found in room"}
+
+    try:
+        # Fetch existing message
+        existing_message = get_message(r, room, message_id)
+        if not existing_message:
+            return {"success": False, "error": "Message not found"}
+
+        # Authorization check: verify user owns the message
+        if existing_message["author"]["id"] != user_id:
+            return {
+                "success": False,
+                "error": "You can only edit your own messages",
+            }
+
+        # Update message
+        updated_message = update_message(r, room, message_id, content)
+
+        # Emit to room
+        emit("chat:message:updated", updated_message, to=f"room:{room}")
+
+        return {"success": True, "message": updated_message}
+    except Exception as e:
+        log.error(f"Failed to edit chat message: {e}")
+        return {"success": False, "error": str(e)}
+
+
 @socketio.on("upload:prepare")
 def handle_upload_prepare(data):
     sid = request.sid

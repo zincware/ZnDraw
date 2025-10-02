@@ -14,6 +14,7 @@ interface AppState {
   frameSelectionEnabled: boolean;
   bookmarks: Record<number, string> | null;
   playing: boolean;
+  chatOpen: boolean;
 
   // Actions (functions to modify the state)
   setConnected: (status: boolean, room: string, user: string) => void;
@@ -26,6 +27,7 @@ interface AppState {
   setFrameSelectionEnabled: (enabled: boolean) => void;
   setBookmarks: (bookmark: Record<number, string> | null) => void;
   setPlaying: (playing: boolean) => void;
+  setChatOpen: (open: boolean) => void;
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -42,6 +44,7 @@ export const useAppStore = create<AppState>((set) => ({
   frameSelectionEnabled: false,
   bookmarks: {1: "Example Bookmark", 5: "Another Bookmark", 10: "Last Bookmark"},
   playing: false,
+  chatOpen: false,
   // Actions
   setConnected: (status, room, user) => set({ isConnected: status, roomId: room, userId: user }),
   setCurrentFrame: (frame) => set({ currentFrame: frame }),
@@ -57,4 +60,5 @@ export const useAppStore = create<AppState>((set) => ({
   setFrameSelectionEnabled: (enabled) => set({ frameSelectionEnabled: enabled }),
   setBookmarks: (bookmarks) => set({ bookmarks }),
   setPlaying: (playing) => set({ playing }),
+  setChatOpen: (open) => set({ chatOpen: open }),
 }));

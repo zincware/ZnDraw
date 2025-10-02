@@ -1338,6 +1338,112 @@ def get_next_job(room_id: str):
     return {"error": "No jobs available"}, 400
 
 
+@main.route("/api/rooms/<string:room_id>/chat/messages", methods=["GET"])
+def get_chat_messages(room_id: str):
+    """
+    Get paginated chat messages for a room.
+
+    Query Parameters:
+        - limit (int): Number of messages (default: 30, max: 100)
+        - before (int): Get messages before this timestamp
+        - after (int): Get messages after this timestamp
+
+    Returns:
+    {
+        "messages": [Message],
+        "metadata": {
+            "hasMore": bool,
+            "totalCount": int,
+            "oldestTimestamp": int | null,
+            "newestTimestamp": int | null
+        }
+    }
+    """
+    r = current_app.extensions["redis"]
+
+    # Parse and validate query parameters
+    try:
+        limit = int(request.args.get("limit", 30))
+        limit = max(1, min(limit, 100))  # Clamp between 1 and 100
+    except (ValueError, TypeError):
+        return {"error": "Invalid limit parameter"}, 400
+
+    before = request.args.get("before")
+    after = request.args.get("after")
+
+    try:
+        before = int(before) if before else None
+        after = int(after) if after else None
+    except (ValueError, TypeError):
+        return {"error": "Invalid before/after parameter"}, 400
+
+    index_key = f"room:{room_id}:chat:index"
+    data_key = f"room:{room_id}:chat:data"
+
+    # Get total count
+    total_count = r.zcard(index_key)
+
+    # Determine range query based on before/after
+    if after is not None:
+        # Get messages after timestamp (ascending order, then reverse)
+        message_ids = r.zrangebyscore(
+            index_key, f"({after}", "+inf", start=0, num=limit
+        )
+        # Reverse to maintain newest-first order
+        message_ids = list(reversed(message_ids))
+    elif before is not None:
+        # Get messages before timestamp (descending order)
+        message_ids = r.zrevrangebyscore(
+            index_key, f"({before}", "-inf", start=0, num=limit
+        )
+    else:
+        # Get latest messages (descending order)
+        message_ids = r.zrevrangebyscore(
+            index_key, "+inf", "-inf", start=0, num=limit
+        )
+
+    # Fetch message data
+    messages = []
+    if message_ids:
+        with r.pipeline() as pipe:
+            for msg_id in message_ids:
+                pipe.hget(data_key, msg_id)
+            message_data_list = pipe.execute()
+
+        messages = [
+            json.loads(msg_data) for msg_data in message_data_list if msg_data
+        ]
+
+    # Calculate metadata
+    has_more = False
+    oldest_timestamp = None
+    newest_timestamp = None
+
+    if messages:
+        oldest_timestamp = messages[-1]["createdAt"]
+        newest_timestamp = messages[0]["createdAt"]
+
+        # Check if there are more messages
+        if after is not None:
+            # Check if there are more recent messages
+            count_after = r.zcount(index_key, f"({newest_timestamp}", "+inf")
+            has_more = count_after > 0
+        else:
+            # Check if there are older messages
+            count_before = r.zcount(index_key, "-inf", f"({oldest_timestamp}")
+            has_more = count_before > 0
+
+    return {
+        "messages": messages,
+        "metadata": {
+            "hasMore": has_more,
+            "totalCount": total_count,
+            "oldestTimestamp": oldest_timestamp,
+            "newestTimestamp": newest_timestamp,
+        },
+    }, 200
+
+
 @main.route("/api/rooms/<string:room_id>/join", methods=["POST"])
 def join_room(room_id):
     data = request.get_json() or {}

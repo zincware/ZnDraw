@@ -805,3 +805,66 @@ class Client(MutableSequence):
 
         response.raise_for_status()
         return response.json()
+
+    def log(self, message: str) -> dict:
+        """
+        Send a chat message to the room.
+
+        Args:
+            message: Chat message content (markdown supported)
+
+        Returns:
+            dict: Response with success status and message data
+        """
+        if not self.sio.connected:
+            raise RuntimeError("Client is not connected. Please call .connect() first.")
+
+        response = self.sio.call("chat:message:create", {"content": message}, timeout=5)
+        return response
+
+    def edit_message(self, message_id: str, new_content: str) -> dict:
+        """
+        Edit a previously sent message.
+
+        Args:
+            message_id: ID of the message to edit
+            new_content: New message content
+
+        Returns:
+            dict: Response with success status and updated message data
+        """
+        if not self.sio.connected:
+            raise RuntimeError("Client is not connected. Please call .connect() first.")
+
+        response = self.sio.call(
+            "chat:message:edit",
+            {"messageId": message_id, "content": new_content},
+            timeout=5,
+        )
+        return response
+
+    def get_messages(
+        self, limit: int = 30, before: int = None, after: int = None
+    ) -> dict:
+        """
+        Fetch chat message history.
+
+        Args:
+            limit: Number of messages to fetch (1-100)
+            before: Get messages before this timestamp
+            after: Get messages after this timestamp
+
+        Returns:
+            dict: Response with messages and metadata
+        """
+        params = {"limit": limit}
+        if before:
+            params["before"] = before
+        if after:
+            params["after"] = after
+
+        response = requests.get(
+            f"{self.url}/api/rooms/{self.room}/chat/messages", params=params
+        )
+        response.raise_for_status()
+        return response.json()

@@ -158,6 +158,38 @@ export const useSocketManager = () => {
       });
     }
 
+    function onChatMessageNew(data: any) {
+      queryClient.setQueryData(['chat', room], (oldData: any) => {
+        if (!oldData) return oldData;
+        const newPages = [...oldData.pages];
+        const lastPageIndex = newPages.length - 1;
+        if (lastPageIndex >= 0) {
+          newPages[lastPageIndex] = {
+            ...newPages[lastPageIndex],
+            messages: [...newPages[lastPageIndex].messages, data],
+            metadata: {
+              ...newPages[lastPageIndex].metadata,
+              totalCount: newPages[lastPageIndex].metadata.totalCount + 1,
+            }
+          };
+        }
+        return { ...oldData, pages: newPages };
+      });
+    }
+
+    function onChatMessageUpdated(data: any) {
+      queryClient.setQueryData(['chat', room], (oldData: any) => {
+        if (!oldData) return oldData;
+        const newPages = oldData.pages.map((page: any) => ({
+          ...page,
+          messages: page.messages.map((msg: any) =>
+            msg.id === data.id ? data : msg
+          ),
+        }));
+        return { ...oldData, pages: newPages };
+      });
+    }
+
     socket.on('disconnect', onDisconnect);
     socket.on('connect', onConnect);
     socket.on('len_frames', onLenUpdate);
@@ -169,6 +201,8 @@ export const useSocketManager = () => {
     socket.on('frame_selection:update', onFrameSelectionUpdate);
     socket.on('bookmarks:update', onBookmarksUpdate);
     socket.on('frames:invalidate', onFramesInvalidate);
+    socket.on('chat:message:new', onChatMessageNew);
+    socket.on('chat:message:updated', onChatMessageUpdated);
 
     return () => {
       socket.off('connect', onConnect);
@@ -182,6 +216,8 @@ export const useSocketManager = () => {
       socket.off('frame_selection:update', onFrameSelectionUpdate);
       socket.off('bookmarks:update', onBookmarksUpdate);
       socket.off('frames:invalidate', onFramesInvalidate);
+      socket.off('chat:message:new', onChatMessageNew);
+      socket.off('chat:message:updated', onChatMessageUpdated);
     };
   }, [room, setConnected, setFrameCount, userId, isConnected, setCurrentFrame, queryClient, setBookmarks]);
 };
