@@ -90,6 +90,7 @@ class Client(MutableSequence):
     )
     _selection: frozenset[int] = frozenset()
     _frame_selection: frozenset[int] = frozenset()
+    _bookmarks: dict[int, str] = dataclasses.field(default_factory=dict, init=False)
     _lock: SocketIOLock = dataclasses.field(init=False)
 
     def __post_init__(self):
@@ -101,6 +102,7 @@ class Client(MutableSequence):
         self.sio.on("invalidate", self._on_invalidate)
         self.sio.on("queue:update", self._on_queue_update)
         self.sio.on("frame_selection:update", self._on_frame_selection_update)
+        self.sio.on("bookmarks:update", self._on_bookmarks_update)
 
         self._lock = SocketIOLock(self.sio, target="trajectory:meta")
 
@@ -121,6 +123,9 @@ class Client(MutableSequence):
             self._selection = frozenset(response_data["selection"])
         if response_data["frame_selection"] is not None:
             self._frame_selection = frozenset(response_data["frame_selection"])
+        if response_data.get("bookmarks") is not None:
+            # Convert string keys to int keys
+            self._bookmarks = {int(k): v for k, v in response_data["bookmarks"].items()}
         self._len = response_data["frameCount"]
 
     @property
@@ -152,6 +157,12 @@ class Client(MutableSequence):
         """Internal callback for when a frame selection update is received."""
         if "indices" in data:
             self._frame_selection = frozenset(data["indices"])
+
+    def _on_bookmarks_update(self, data):
+        """Internal callback for when bookmarks are updated."""
+        if "bookmarks" in data:
+            # Convert string keys to int keys
+            self._bookmarks = {int(k): v for k, v in data["bookmarks"].items()}
 
     def _on_queue_update(self, data: dict):
         print(f"Queue update received: {data}")
@@ -296,6 +307,53 @@ class Client(MutableSequence):
                 else:
                     raise RuntimeError(error_msg)
             self._frame_selection = frozenset(indices)
+        else:
+            raise RuntimeError("Client is not connected. Please call .connect() first.")
+
+    @property
+    def bookmarks(self) -> dict[int, str]:
+        """Get the current bookmarks mapping frame indices to labels."""
+        return self._bookmarks.copy()
+
+    @bookmarks.setter
+    def bookmarks(self, value: dict[int, str] | None):
+        """Set bookmarks for frames.
+
+        Args:
+            value: Dictionary mapping frame indices to bookmark labels, or None to clear all bookmarks
+        """
+        if value is None:
+            bookmarks = {}
+        else:
+            if not isinstance(value, dict):
+                raise TypeError("Bookmarks must be a dictionary")
+
+            bookmarks = {}
+            for idx, label in value.items():
+                if not isinstance(idx, int) or idx < 0 or idx >= len(self):
+                    raise IndexError(
+                        f"Bookmark index {idx} out of range [0, {len(self) - 1}]"
+                    )
+                if not isinstance(label, str):
+                    raise TypeError(
+                        f"Bookmark label must be a string, got {type(label).__name__}"
+                    )
+                bookmarks[idx] = label
+
+        if self.sio.connected:
+            # Convert int keys to strings for JSON
+            bookmarks_json = {str(k): v for k, v in bookmarks.items()}
+            response = self.sio.call(
+                "bookmarks:set", {"bookmarks": bookmarks_json}, timeout=5
+            )
+            if response and not response.get("success", False):
+                error_type = response.get("error")
+                error_msg = response.get("message", "Failed to set bookmarks")
+                if error_type == "LockError":
+                    raise LockError(error_msg)
+                else:
+                    raise RuntimeError(error_msg)
+            self._bookmarks = bookmarks
         else:
             raise RuntimeError("Client is not connected. Please call .connect() first.")
 

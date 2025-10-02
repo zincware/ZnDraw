@@ -45,6 +45,41 @@ def get_storage(room_id: str) -> ZarrStorageSequence:
     storage = ZarrStorageSequence(root)
     return storage
 
+
+def emit_bookmarks_update(room_id: str):
+    """
+    Emit bookmarks update to all clients after frame mapping changes.
+    Converts physical bookmarks to logical indices based on current mapping.
+    """
+    r = current_app.extensions["redis"]
+    indices_key = f"room:{room_id}:trajectory:indices"
+    bookmarks_key = f"room:{room_id}:bookmarks"
+
+    physical_bookmarks = r.hgetall(bookmarks_key)
+
+    if physical_bookmarks:
+        # Get current frame mapping
+        frame_mapping = r.zrange(indices_key, 0, -1)
+
+        # Build reverse mapping: physical_key -> logical_index
+        physical_to_logical = {
+            physical_key: idx for idx, physical_key in enumerate(frame_mapping)
+        }
+
+        # Convert bookmarks from physical to logical indices
+        logical_bookmarks = {}
+        for physical_key, label in physical_bookmarks.items():
+            if physical_key in physical_to_logical:
+                logical_idx = physical_to_logical[physical_key]
+                logical_bookmarks[str(logical_idx)] = label
+
+        # Emit bookmarks update to all clients
+        socketio.emit(
+            "bookmarks:update",
+            {"bookmarks": logical_bookmarks},
+            to=f"room:{room_id}",
+        )
+
 @main.route("/internal/emit", methods=["POST"])
 def internal_emit():
     """Internal endpoint to emit Socket.IO events. Secured via a shared secret."""
@@ -247,6 +282,13 @@ def append_frame(room_id):
             pipeline.zadd(indices_key, {f"{room_id}:{new_physical_index}": target_frame_id})
             pipeline.execute()
 
+            # Remove bookmark for old physical frame (if it exists)
+            bookmarks_key = f"room:{room_id}:bookmarks"
+            r.hdel(bookmarks_key, old_mapping_entry)
+
+            # Emit bookmarks update to reflect removal
+            emit_bookmarks_update(room_id)
+
             log.info(
                 f"Replaced frame {target_frame_id} (old: {old_mapping_entry}, new: {room_id}:{new_physical_index}) in room '{room_id}'"
             )
@@ -312,6 +354,9 @@ def append_frame(room_id):
             # Add the new frame at the correct logical position with room_id prefix
             pipeline.zadd(indices_key, {f"{room_id}:{new_physical_index}": insert_position})
             pipeline.execute()
+
+            # Emit bookmarks update (logical indices shifted by the insert)
+            emit_bookmarks_update(room_id)
 
             log.info(
                 f"Inserted frame at position {insert_position} (physical: {new_physical_index}) in room '{room_id}'"
@@ -1161,6 +1206,27 @@ def join_room(room_id):
 
     step = r.get(f"room:{room_id}:current_frame")
     response["step"] = int(step) if step else None
+
+    bookmarks_key = f"room:{room_id}:bookmarks"
+    physical_bookmarks = r.hgetall(bookmarks_key)
+
+    if physical_bookmarks:
+        frame_mapping = r.zrange(indices_key, 0, -1)
+
+        # Build reverse mapping: physical_key -> logical_index
+        physical_to_logical = {physical_key: idx for idx, physical_key in enumerate(frame_mapping)}
+
+        # Convert bookmarks from physical to logical indices
+        logical_bookmarks = {}
+        for physical_key, label in physical_bookmarks.items():
+            if physical_key in physical_to_logical:
+                logical_idx = physical_to_logical[physical_key]
+                logical_bookmarks[logical_idx] = label
+            # If physical_key not in mapping, skip it (orphaned bookmark)
+
+        response["bookmarks"] = logical_bookmarks
+    else:
+        response["bookmarks"] = None
 
     return response
 

@@ -116,3 +116,13 @@ class ZnDraw(MutableSequence):
     def frame_selection(self, value: t.Iterable[int] | None):
         """Set the current selection of frame indices."""
         self.client.frame_selection = value
+
+    @property
+    def bookmarks(self) -> dict[int, str]:
+        """Get the current bookmarks of frame indices."""
+        return self.client.bookmarks
+    
+    @bookmarks.setter
+    def bookmarks(self, value: dict[int, str] | None):
+        """Set the current bookmarks of frame indices."""
+        self.client.bookmarks = value

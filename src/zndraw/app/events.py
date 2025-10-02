@@ -300,6 +300,82 @@ def handle_frame_selection_set(data):
     return {"success": True}
 
 
+@socketio.on("bookmarks:set")
+def handle_bookmarks_set(data):
+    """
+    Set bookmarks for frames. Bookmarks are stored using physical indices
+    so they persist through frame deletions/reordering.
+
+    data format: {"bookmarks": {logical_index: "label", ...}}
+    """
+    room = get_project_room_from_session(request.sid)
+    redis_client = current_app.extensions["redis"]
+
+    bookmarks = data.get("bookmarks", {})
+    if not isinstance(bookmarks, dict):
+        return {
+            "success": False,
+            "message": "Bookmarks must be a dictionary",
+            "error": "TypeError",
+        }
+
+    # Get frame mapping to convert logical -> physical indices
+    indices_key = f"room:{room}:trajectory:indices"
+    frame_mapping = redis_client.zrange(indices_key, 0, -1)
+
+    if not frame_mapping:
+        max_frame = -1
+    else:
+        max_frame = len(frame_mapping) - 1
+
+    # Convert logical indices to physical indices and validate
+    physical_bookmarks = {}
+    for logical_idx_str, label in bookmarks.items():
+        try:
+            logical_idx = int(logical_idx_str)
+        except (ValueError, TypeError):
+            return {
+                "success": False,
+                "message": f"Invalid bookmark index: {logical_idx_str}",
+                "error": "ValueError",
+            }
+
+        if logical_idx < 0 or logical_idx > max_frame:
+            return {
+                "success": False,
+                "message": f"Bookmark index {logical_idx} out of range [0, {max_frame}]",
+                "error": "IndexError",
+            }
+
+        if not isinstance(label, str):
+            return {
+                "success": False,
+                "message": f"Bookmark label must be a string, got {type(label).__name__}",
+                "error": "TypeError",
+            }
+
+        # Get physical index from mapping
+        physical_key = frame_mapping[logical_idx]
+        physical_bookmarks[physical_key] = label
+
+    # Store bookmarks using physical indices
+    bookmarks_key = f"room:{room}:bookmarks"
+
+    # Clear existing bookmarks and set new ones
+    redis_client.delete(bookmarks_key)
+    if physical_bookmarks:
+        redis_client.hset(bookmarks_key, mapping=physical_bookmarks)
+
+    # Emit update with logical indices for clients
+    emit(
+        "bookmarks:update",
+        {"bookmarks": bookmarks},  # Send back the logical indices
+        to=f"room:{room}",
+        skip_sid=request.sid,
+    )
+    return {"success": True}
+
+
 @socketio.on("set_frame_atomic")
 def handle_set_frame_atomic(data):
     """
@@ -588,6 +664,11 @@ def handle_delete_frame(data):
         log.info(
             f"Deleted logical frame {frame_id} (physical: {physical_index_to_remove}) from room '{room}'. Physical data preserved."
         )
+
+        # Emit bookmarks update to all clients (uses helper from routes)
+        from .routes import emit_bookmarks_update
+        emit_bookmarks_update(room)
+
         return {
             "success": True,
             "deleted_frame": frame_id,

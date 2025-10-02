@@ -25,6 +25,7 @@ def test_rest_join_new_room(server):
     assert data["created"] is True
     assert data["presenter-lock"] is None
     assert data["step"] is None
+    assert data["bookmarks"] is None
 
     # list all rooms again to see if the new room is there
     response = requests.get(f"{server}/api/rooms")

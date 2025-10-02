@@ -51,6 +51,9 @@ export const useSocketManager = () => {
         if (data.step !== undefined) {
           setCurrentFrame(data.step);
         }
+        if (data.bookmarks !== undefined) {
+          setBookmarks(data.bookmarks);
+        }
 
         console.log('Room joined successfully:', data);
       } catch (error) {
