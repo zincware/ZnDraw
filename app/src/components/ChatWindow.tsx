@@ -1,6 +1,5 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, memo } from 'react';
 import {
-  Drawer,
   Box,
   TextField,
   IconButton,
@@ -19,11 +18,22 @@ import ReactMarkdown from 'react-markdown';
 import { useParams } from 'react-router-dom';
 import { useChatMessages, useSendMessage, useEditMessage } from '../hooks/useChat';
 import type { ChatMessage } from '../types/chat';
+import { Rnd } from 'react-rnd';
+import TextareaAutosize from 'react-textarea-autosize';
+import { format } from 'date-fns';
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
+
+import 'katex/dist/katex.min.css';
 
 interface ChatWindowProps {
   open: boolean;
   onClose: () => void;
 }
+
+const MemoizedMarkdown = memo(ReactMarkdown);
 
 const ChatWindow = ({ open, onClose }: ChatWindowProps) => {
   const { roomId, userId } = useParams<{ roomId: string; userId: string }>();
@@ -35,32 +45,32 @@ const ChatWindow = ({ open, onClose }: ChatWindowProps) => {
 
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } = useChatMessages(
     roomId || '',
-    30
+    50
   );
   const sendMessage = useSendMessage(roomId || '');
   const editMessage = useEditMessage(roomId || '');
 
-  // Auto-scroll to bottom on new messages
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
   useEffect(() => {
-    if (messagesEndRef.current && !isFetchingNextPage) {
-      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    if (!isFetchingNextPage) {
+      scrollToBottom();
     }
   }, [data, isFetchingNextPage]);
 
-  // Handle infinite scroll
   const handleScroll = () => {
-    if (!scrollContainerRef.current) return;
-    const { scrollTop } = scrollContainerRef.current;
-
-    // Load more when scrolled near the top
-    if (scrollTop < 100 && hasNextPage && !isFetchingNextPage) {
-      fetchNextPage();
+    if (scrollContainerRef.current) {
+      const { scrollTop } = scrollContainerRef.current;
+      if (scrollTop < 50 && hasNextPage && !isFetchingNextPage) {
+        fetchNextPage();
+      }
     }
   };
 
   const handleSendMessage = async () => {
     if (!messageInput.trim()) return;
-
     try {
       await sendMessage.mutateAsync(messageInput);
       setMessageInput('');
@@ -76,7 +86,6 @@ const ChatWindow = ({ open, onClose }: ChatWindowProps) => {
 
   const handleSaveEdit = async () => {
     if (!editingMessageId || !editContent.trim()) return;
-
     try {
       await editMessage.mutateAsync({
         messageId: editingMessageId,
@@ -94,24 +103,39 @@ const ChatWindow = ({ open, onClose }: ChatWindowProps) => {
     setEditContent('');
   };
 
-  // Flatten all messages from all pages
-  const allMessages = data?.pages.flatMap((page) => page.messages) || [];
+  const allMessages = data?.pages.flatMap((page) => page.messages).sort((a, b) => a.createdAt - b.createdAt) || [];
+
+  if (!open) {
+    return null;
+  }
 
   return (
-    <Drawer
-      anchor="right"
-      open={open}
-      onClose={onClose}
-      sx={{
-        '& .MuiDrawer-paper': {
-          width: 400,
-          maxWidth: '100%',
-        },
+    <Rnd
+      default={{
+        x: window.innerWidth - 420,
+        y: 20,
+        width: 400,
+        height: 600,
       }}
+      minWidth={300}
+      minHeight={400}
+      bounds="window"
+      dragHandleClassName="drag-handle"
+      style={{ zIndex: 1301 }} // Higher than MUI Drawer default
     >
-      <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+      <Paper
+        elevation={4}
+        sx={{
+          width: '100%',
+          height: '100%',
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden',
+        }}
+      >
         {/* Header */}
         <Box
+          className="drag-handle"
           sx={{
             p: 2,
             display: 'flex',
@@ -119,6 +143,7 @@ const ChatWindow = ({ open, onClose }: ChatWindowProps) => {
             justifyContent: 'space-between',
             borderBottom: 1,
             borderColor: 'divider',
+            cursor: 'move',
           }}
         >
           <Typography variant="h6">Chat</Typography>
@@ -140,21 +165,17 @@ const ChatWindow = ({ open, onClose }: ChatWindowProps) => {
             gap: 1,
           }}
         >
-          {/* Loading indicator for initial load */}
           {isLoading && (
             <Box sx={{ display: 'flex', justifyContent: 'center', p: 2 }}>
               <CircularProgress size={24} />
             </Box>
           )}
-
-          {/* Load more indicator */}
           {isFetchingNextPage && (
             <Box sx={{ display: 'flex', justifyContent: 'center', p: 1 }}>
               <CircularProgress size={20} />
             </Box>
           )}
 
-          {/* Messages */}
           {allMessages.map((message) => {
             const isOwnMessage = message.author.id === userId;
             const isEditing = editingMessageId === message.id;
@@ -172,7 +193,7 @@ const ChatWindow = ({ open, onClose }: ChatWindowProps) => {
               >
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
                   <Typography variant="caption" color="text.secondary">
-                    {message.author.id}
+                    {message.author.id} - {format(new Date(message.createdAt), 'HH:mm')}
                   </Typography>
                   {isOwnMessage && !isEditing && (
                     <IconButton size="small" onClick={() => handleStartEdit(message)}>
@@ -200,8 +221,32 @@ const ChatWindow = ({ open, onClose }: ChatWindowProps) => {
                   </Box>
                 ) : (
                   <>
-                    <Box sx={{ '& p': { margin: 0 } }}>
-                      <ReactMarkdown>{message.content}</ReactMarkdown>
+                    <Box sx={{ '& p': { margin: 0 }, wordBreak: 'break-word' }}>
+                      <MemoizedMarkdown
+                        remarkPlugins={[remarkMath]}
+                        rehypePlugins={[rehypeKatex]}
+                        components={{
+                          code({ node, inline, className, children, ...props }) {
+                            const match = /language-(\w+)/.exec(className || '');
+                            return !inline && match ? (
+                              <SyntaxHighlighter
+                                style={vscDarkPlus}
+                                language={match[1]}
+                                PreTag="div"
+                                {...props}
+                              >
+                                {String(children).replace(/\n$/, '')}
+                              </SyntaxHighlighter>
+                            ) : (
+                              <code className={className} {...props}>
+                                {children}
+                              </code>
+                            );
+                          },
+                        }}
+                      >
+                        {message.content}
+                      </MemoizedMarkdown>
                     </Box>
                     {message.isEdited && (
                       <Typography variant="caption" color="text.secondary" sx={{ fontStyle: 'italic', mt: 0.5 }}>
@@ -213,18 +258,17 @@ const ChatWindow = ({ open, onClose }: ChatWindowProps) => {
               </Paper>
             );
           })}
-
           <div ref={messagesEndRef} />
         </Box>
 
         <Divider />
 
         {/* Input Area */}
-        <Box sx={{ p: 2 }}>
-          <Box sx={{ display: 'flex', gap: 1 }}>
-            <TextField
-              fullWidth
-              size="small"
+        <Box sx={{ p: 2, backgroundColor: 'background.default' }}>
+          <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+            <TextareaAutosize
+              minRows={1}
+              maxRows={6}
               placeholder="Type a message... (Markdown supported)"
               value={messageInput}
               onChange={(e) => setMessageInput(e.target.value)}
@@ -234,8 +278,15 @@ const ChatWindow = ({ open, onClose }: ChatWindowProps) => {
                   handleSendMessage();
                 }
               }}
-              multiline
-              maxRows={4}
+              style={{
+                width: '100%',
+                resize: 'none',
+                padding: '8.5px 14px',
+                borderRadius: '4px',
+                borderColor: 'rgba(0, 0, 0, 0.23)',
+                fontFamily: 'inherit',
+                fontSize: 'inherit',
+              }}
             />
             <IconButton
               color="primary"
@@ -245,12 +296,9 @@ const ChatWindow = ({ open, onClose }: ChatWindowProps) => {
               <SendIcon />
             </IconButton>
           </Box>
-          <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
-            Press Enter to send, Shift+Enter for new line
-          </Typography>
         </Box>
-      </Box>
-    </Drawer>
+      </Paper>
+    </Rnd>
   );
 };
 
