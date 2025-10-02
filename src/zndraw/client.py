@@ -381,6 +381,19 @@ class Client(MutableSequence):
 
         self.sio.emit("join_room", join_data)
         log.debug(f"Joined room: '{self.room}' with client ID: {self._client_id}")
+        for name, ext in self._extensions.items():
+            response = requests.post(
+                f"{self.url}/api/rooms/{self.room}/extensions/register",
+                json={
+                    "name": name,
+                    "category": ext["extension"].category,
+                    "schema": ext["extension"].model_json_schema(),
+                    "clientId": self.sid,
+                },
+            )
+            response.raise_for_status()
+        # check for jobs
+        self._on_queue_update({})
 
     def get_frame(self, frame_id: int, keys: list[str] | None = None) -> dict:
         """Fetches a single frame's data from the server."""
@@ -750,31 +763,24 @@ class Client(MutableSequence):
         print(f"Registered extension '{name}' of category '{extension.category}'.")
 
         schema = extension.model_json_schema()
-        if not public:
-            response = self.sio.call(
-                "register:extension",
-                {
-                    "name": name,
-                    "category": extension.category,
-                    "schema": schema,
-                    "public": False,
-                },
-            )
-            print(f"Extension '{name}' registered with room '{self.room}'.")
+        if public:
+            raise NotImplementedError("Public extensions are not supported yet.")
         else:
-            response = self.sio.call(
-                "register:extension",
-                {
+            # /api/rooms/<string:room_id>/extensions/register
+            response = requests.post(
+                f"{self.url}/api/rooms/{self.room}/extensions/register",
+                json={
                     "name": name,
                     "category": extension.category,
                     "schema": schema,
-                    "public": True,
+                    "clientId": self.sid,
                 },
             )
-            print(f"Extension '{name}' registered as public.")
-
-        if response.get("status") != "success":
-            raise RuntimeError(f"Failed to register extension '{name}': {response}")
+            if response.status_code != 200:
+                raise RuntimeError(
+                    f"Failed to register extension '{name}': {response.status_code} {response.text}"
+                )
+            print(f"Extension '{name}' registered with room '{self.room}'.")
 
 
 if __name__ == "__main__":

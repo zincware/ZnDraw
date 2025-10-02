@@ -890,8 +890,7 @@ def test_register_extensions_reconnect_with_queue(server, category):
     assert response_json["status"] == "queued"
 
     # disconnect client
-    vis.client.sio.disconnect()
-    vis.client.sio.sleep(1)  # give some time to process disconnect
+    requests.post(f"{server}/api/disconnect/{vis.client.sid}").raise_for_status()
 
     # check job status again
     response = requests.get(f"{server}/api/rooms/{room}/jobs/{jobId}")
@@ -927,7 +926,34 @@ def test_register_extensions_reconnect_with_queue(server, category):
         "status": "success",
     }
     # reconnect client
+    assert not vis.client.sio.connected
+    vis.client.connect()
+    assert vis.client.sio.connected
+    # vis.client.sio.sleep(5)  # give some time to process reconnect
+
+    response = requests.get(
+        f"{server}/api/rooms/{room}/extensions/{category}/{mod.__name__}/workers"
+    )
+    assert response.status_code == 200
+    response_json = response.json()
+    assert response_json["idleWorkers"] == [vis.client.sid]
+    assert response_json["totalWorkers"] == 1
+
+    # disconnect, change auto_pickup_jobs to True and reconnect
+    # requests.post(f"{server}/api/disconnect/{vis.client.sid}").raise_for_status()
+    # vis.client.auto_pickup_jobs = True
     # vis.client.connect()
+    # assert vis.client.sio.connected
+    # vis.client.sio.sleep(10)  # give some time to process reconnect and pickup
+    # # check that both jobs are completed
+    # response = requests.get(f"{server}/api/rooms/{room}/jobs/{jobId}")
+    # assert response.status_code == 200
+    # response_json = response.json()
+    # assert response_json["status"] == "completed"
+    # response = requests.get(f"{server}/api/rooms/{room}/jobs/{jobId2}")
+    # assert response.status_code == 200
+    # response_json = response.json()
+    # assert response_json["status"] == "completed"
 
 
 

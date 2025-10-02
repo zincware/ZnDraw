@@ -5,6 +5,7 @@ import traceback
 import msgpack
 import zarr
 from flask import Response, current_app, request
+from flask_socketio import disconnect
 
 from zndraw.server import socketio
 from zndraw.storage import ZarrStorageSequence, decode_data, encode_data
@@ -106,6 +107,18 @@ def emit_frames_invalidate(room_id: str, operation: str, affected_index: int = N
         data,
         to=f"room:{room_id}",
     )
+
+
+@main.route("/api/disconnect/<string:client_sid>", methods=["POST"])
+def disconnect_sid(client_sid: str):
+    """Disconnects the client from the room."""
+    try:
+        r = current_app.extensions["redis"]
+        sid = r.get(f"client_id:{client_sid}:sid")
+        disconnect(sid, namespace='/')
+        return {"success": True}
+    except Exception:
+        return {"success": False}
 
 @main.route("/internal/emit", methods=["POST"])
 def internal_emit():
@@ -982,6 +995,102 @@ def fail_job(room_id: str, job_id: str):
         )
 
     return {"status": "success"}, 200
+
+@main.route("/api/rooms/<string:room_id>/extensions/register", methods=["POST"])
+def register_extension(room_id: str):
+    data = request.get_json()
+    try:
+        name = data["name"]
+        category = data["category"]
+        schema = data["schema"]
+        client_id = data["clientId"]
+    except KeyError as e:
+        return {"error": f"Missing required field: {e}"}, 400
+
+    redis_client = current_app.extensions["redis"]
+
+    from zndraw.extensions.modifiers import modifiers
+    from zndraw.extensions.selections import selections
+    from zndraw.settings import settings
+
+    category_map = {
+        "selections": selections,
+        "modifiers": modifiers,
+        "settings": settings,
+    }
+
+    if category in category_map and name in category_map[category]:
+        log.warning(
+            f"Blocked attempt to register extension '{name}' in category '{category}' "
+            f"- name conflicts with server-side extension (security violation)"
+        )
+        return {
+            "error": f"Cannot register extension '{name}': name is reserved for server-side extensions"
+        }
+
+    log.info(
+        f"Registering extension for room {room_id}: name={name}, category={category}"
+    )
+
+    keys = ExtensionKeys.for_extension(room_id, category, name)
+    user_extensions_key = ExtensionKeys.user_extensions_key(
+        room_id, category, client_id
+    )
+    existing_schema = redis_client.hget(keys.schema, name)
+
+    if existing_schema is not None:
+        existing_schema = json.loads(existing_schema)
+        if existing_schema != schema:
+            return {
+                "error": "Extension with this name already exists with a different schema"
+            }, 400
+        redis_client.sadd(keys.idle_workers, client_id)
+        redis_client.sadd(
+            user_extensions_key, name
+        )  # Keep this for disconnect cleanup
+
+        # Notify clients about worker count change
+        log.info(
+            f"Worker {client_id} re-registered for extension '{name}' "
+            f"in category '{category}', invalidating schema"
+        )
+        socketio.emit(
+            SocketEvents.INVALIDATE_SCHEMA,
+            {"roomId": room_id, "category": category},
+            to=f"room:{room_id}",
+        )
+
+        # Check if there are queued tasks that this worker can handle
+        # if room_id:  # Null check for type safety
+        #     dispatch_next_task(redis_client, socketio, client_id, room_id, category)
+
+        return {
+            "status": "success",
+            "message": "Extension already registered with same schema. Worker marked as idle.",
+        }
+    else:
+        # This is a brand new extension for the room
+        with redis_client.pipeline() as pipe:
+            # Set the schema
+            pipe.hset(keys.schema, name, json.dumps(schema))
+            # Add the current worker to the set of idle workers for this extension
+            pipe.sadd(keys.idle_workers, client_id)
+            # Maintain the reverse mapping for easy cleanup on disconnect
+            pipe.sadd(user_extensions_key, name)
+            pipe.execute()
+
+        # Invalidate schema on all clients so they can see the new extension
+        socketio.emit(
+            SocketEvents.INVALIDATE_SCHEMA,
+            {"roomId": room_id, "category": category},
+            to=f"room:{room_id}",
+        )
+
+        # Check if there are queued tasks that this worker can handle
+        # if room_id:  # Null check for type safety
+        #     dispatch_next_task(redis_client, socketio, client_id, room_id, category)
+
+    return {"status": "success"}
 
 
 @main.route("/api/workers/<string:worker_id>", methods=["GET"])
