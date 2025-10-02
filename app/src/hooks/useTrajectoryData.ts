@@ -18,7 +18,7 @@ const fetchFrameData = async (roomId: string, frameIndex: number, keys: string[]
   if (keys && keys.length > 0) {
     params.append('keys', keys.join(','));
   }
-  const response = await fetch(`/api/frames/${roomId}?${params.toString()}`, {
+  const response = await fetch(`/api/rooms/${roomId}/frames?${params.toString()}`, {
     signal, // TanStack Query passes an AbortSignal automatically!
     method: 'GET',
     headers: { 'Content-Type': 'application/json' },

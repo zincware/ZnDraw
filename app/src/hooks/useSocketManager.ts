@@ -23,7 +23,7 @@ export const useSocketManager = () => {
 
       // Post to join endpoint to get initial room data
       try {
-        const response = await fetch(`/api/room/${room}/join`, {
+        const response = await fetch(`/api/rooms/${room}/join`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

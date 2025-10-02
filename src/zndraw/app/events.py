@@ -551,7 +551,7 @@ def handle_upload_prepare(data):
     frame_id = data.get("frame_id")  # For replace operations
     insert_position = data.get("insert_position")  # For insert operations
 
-    if action not in {"append", "replace", "insert", "extend"}:
+    if action not in {"append", "replace", "insert", "extend", "delete"}:
         return {"success": False, "error": "Invalid action specified"}
 
     if not room:
@@ -564,12 +564,12 @@ def handle_upload_prepare(data):
             "error": "Client does not hold the trajectory lock.",
         }
 
-    # For replace operations, validate the frame exists
-    if action == "replace":
+    # For replace and delete operations, validate the frame exists
+    if action in {"replace", "delete"}:
         if frame_id is None:
             return {
                 "success": False,
-                "error": "frame_id is required for replace operations",
+                "error": f"frame_id is required for {action} operations",
             }
 
         indices_key = f"room:{room}:trajectory:indices"
@@ -603,92 +603,4 @@ def handle_upload_prepare(data):
         + (f" (frame {frame_id})" if frame_id is not None else "")
     )
     return {"success": True, "token": token}
-
-
-@socketio.on("frame:delete")
-def handle_delete_frame(data):
-    sid = request.sid
-    r = current_app.extensions["redis"]
-    room = get_project_room_from_session(sid)
-    frame_id = data.get("frame_id")
-
-    if not room:
-        return {"success": False, "error": "Client has not joined a room."}
-
-    if frame_id is None:
-        return {"success": False, "error": "frame_id is required"}
-
-    lock_key = get_lock_key(room, "trajectory:meta")
-    if r.get(lock_key) != sid:
-        return {
-            "success": False,
-            "error": "Client does not hold the trajectory lock.",
-        }
-
-    try:
-        indices_key = f"room:{room}:trajectory:indices"
-        frame_mapping = r.zrange(indices_key, 0, -1)
-
-        if not frame_mapping:
-            return {"success": False, "error": "No frames found in room"}
-
-        if frame_id >= len(frame_mapping):
-            return {
-                "success": False,
-                "error": f"Frame {frame_id} not found, max frame: {len(frame_mapping) - 1}",
-                "error_type": "IndexError",
-            }
-
-        # Parse the frame mapping entry to check if it's a template frame
-        mapping_entry = frame_mapping[frame_id]
-        if isinstance(mapping_entry, bytes):
-            mapping_entry = mapping_entry.decode()
-
-        # Check if this frame belongs to a different room (e.g., a template)
-        if ":" in mapping_entry:
-            source_room_id = mapping_entry.split(":", 1)[0]
-            if source_room_id != room:
-                # This is a template frame or from another room
-                return {
-                    "success": False,
-                    "error": f"Cannot delete template frame. This frame belongs to '{source_room_id}'",
-                    "error_type": "PermissionError",
-                }
-
-        # Get the physical index that we're "deleting" (just removing from mapping)
-        # For backward compatibility, handle both old format (just index) and new format (room:index)
-        if ":" in mapping_entry:
-            physical_index_to_remove = int(mapping_entry.split(":", 1)[1])
-        else:
-            physical_index_to_remove = int(mapping_entry)
-
-        # Remove the mapping entry for this logical position
-        # We need to rebuild the mapping without this entry
-        remaining_physical_indices = (
-            frame_mapping[:frame_id] + frame_mapping[frame_id + 1 :]
-        )
-
-        # Clear and rebuild the Redis mapping
-        r.delete(indices_key)
-        for logical_pos, physical_idx_str in enumerate(remaining_physical_indices):
-            r.zadd(indices_key, {physical_idx_str: logical_pos})
-
-        log.info(
-            f"Deleted logical frame {frame_id} (physical: {physical_index_to_remove}) from room '{room}'. Physical data preserved."
-        )
-
-        # Emit bookmarks update to all clients (uses helper from routes)
-        from .routes import emit_bookmarks_update, emit_frames_invalidate
-        emit_bookmarks_update(room)
-        # Invalidate all frames from deleted position onward (they all shift down)
-        emit_frames_invalidate(room, operation="delete", affected_from=frame_id)
-
-        return {
-            "success": True,
-            "deleted_frame": frame_id,
-            "physical_preserved": physical_index_to_remove,
-        }
-    except Exception as e:
-        log.error(f"Failed to delete frame: {e}")
-        return {"success": False, "error": "Failed to delete frame"}
 

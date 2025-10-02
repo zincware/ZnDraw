@@ -107,10 +107,10 @@ class Client(MutableSequence):
         self._lock = SocketIOLock(self.sio, target="trajectory:meta")
 
         if self.template is _TemplateValue:
-            response = requests.post(f"{self.url}/api/room/{self.room}/join", json={})
+            response = requests.post(f"{self.url}/api/rooms/{self.room}/join", json={})
         else:
             response = requests.post(
-                f"{self.url}/api/room/{self.room}/join",
+                f"{self.url}/api/rooms/{self.room}/join",
                 json={"template": self.template},
             )
         
@@ -180,9 +180,9 @@ class Client(MutableSequence):
                         extension=data.get("extension"),
                         category=data.get("category"),
                     )
-                    response = requests.post(
-                        f"{self.url}/api/rooms/{self.room}/jobs/{data.get('jobId')}/complete",
-                        json={"workerId": self.sid},
+                    response = requests.put(
+                        f"{self.url}/api/rooms/{self.room}/jobs/{data.get('jobId')}/status",
+                        json={"status": "completed", "workerId": self.sid},
                     )
                     if response.status_code != 200:
                         log.error(
@@ -191,9 +191,9 @@ class Client(MutableSequence):
                     # log as completed
                 except Exception as e:
                     log.error(f"Error processing job {data.get('jobId')}: {e}")
-                    response = requests.post(
-                        f"{self.url}/api/rooms/{self.room}/jobs/{data.get('jobId')}/fail",
-                        json={"workerId": self.sid, "error": str(e)},
+                    response = requests.put(
+                        f"{self.url}/api/rooms/{self.room}/jobs/{data.get('jobId')}/status",
+                        json={"status": "failed", "error": str(e), "workerId": self.sid},
                     )
                 # we have finished now, so we check for more jobs
                 self._on_queue_update({})
@@ -509,7 +509,7 @@ class Client(MutableSequence):
         if keys is not None:
             payload["keys"] = ",".join(keys)
 
-        full_url = f"{self.url}/api/frames/{self.room}"
+        full_url = f"{self.url}/api/rooms/{self.room}/frames"
         response = requests.get(full_url, params=payload, timeout=30)
 
         # Check for errors
@@ -544,18 +544,31 @@ class Client(MutableSequence):
         lock = SocketIOLock(self.sio, target="trajectory:meta")
 
         with lock:
-            response = self.sio.call("frame:delete", {"frame_id": frame_id})
+            # Get delete token
+            token = self._prepare_upload_token("delete", frame_id=frame_id)
 
-            if not response or not response.get("success"):
-                error_msg = response.get("error") if response else "No response"
-                error_type = response.get("error_type") if response else None
+            # Make DELETE request
+            delete_url = f"{self.url}/api/rooms/{self.room}/frames/{frame_id}"
+            headers = {"Authorization": f"Bearer {token}"}
 
-                # Raise the appropriate error type based on server response
-                if error_type == "IndexError":
-                    raise IndexError(error_msg)
-                raise RuntimeError(f"Failed to delete frame: {error_msg}")
+            response = requests.delete(delete_url, headers=headers, timeout=30)
 
-            return response
+            # Check for errors
+            if response.status_code == 404:
+                try:
+                    error_data = response.json()
+                    error_type = error_data.get("type", "")
+                    error_msg = error_data.get("error", response.text)
+
+                    if error_type == "IndexError":
+                        raise IndexError(error_msg)
+                    elif error_type == "PermissionError":
+                        raise PermissionError(error_msg)
+                except ValueError:
+                    pass
+
+            response.raise_for_status()
+            return response.json()
 
     def replace_frame(self, frame_id: int, data: dict):
         """
@@ -639,11 +652,12 @@ class Client(MutableSequence):
             # First, delete the old range if it exists
             for _ in range(old_count):
                 if start < len(self):
-                    response = self.sio.call("frame:delete", {"frame_id": start})
-                    if not response or not response.get("success"):
-                        raise RuntimeError(
-                            f"Failed to delete frame: {response.get('error') if response else 'No response'}"
-                        )
+                    # Get delete token and make DELETE request
+                    token = self._prepare_upload_token("delete", frame_id=start)
+                    delete_url = f"{self.url}/api/rooms/{self.room}/frames/{start}"
+                    headers = {"Authorization": f"Bearer {token}"}
+                    response = requests.delete(delete_url, headers=headers, timeout=30)
+                    response.raise_for_status()
 
             # Then insert the new values at the start position
             for i, value in enumerate(values):
@@ -711,7 +725,7 @@ class Client(MutableSequence):
             # print("Settings updated from ZnDraw")
             category = "settings"
             response = requests.post(
-                f"{self.url}/api/rooms/{self.room}/extensions/{category}/{extension}?userId={self.user}",
+                f"{self.url}/api/rooms/{self.room}/extensions/{category}/{extension}/submit?userId={self.user}",
                 json=data,
             )
             response.raise_for_status()
@@ -719,7 +733,7 @@ class Client(MutableSequence):
         for key in settings:
             if key not in self._settings:
                 response = requests.get(
-                    f"{self.url}/api/rooms/{self.room}/extension-data/settings/{key}?userId={self.user}"
+                    f"{self.url}/api/rooms/{self.room}/extensions/settings/{key}/data?userId={self.user}"
                 )
                 data = response.json()
                 if data["data"] is None:

@@ -136,7 +136,7 @@ def internal_emit():
     return {"success": True}
 
 
-@main.route("/api/frames/<string:room_id>", methods=["GET"])
+@main.route("/api/rooms/<string:room_id>/frames", methods=["GET"])
 def get_frames(room_id):
     """Serves multiple frames' data from the room's Zarr store using either indices or slice parameters."""
     r = current_app.extensions["redis"]
@@ -431,6 +431,98 @@ def append_frame(room_id):
         return {"error": "Failed to write to data store"}, 500
 
 
+@main.route("/api/rooms/<string:room_id>/frames/<int:frame_id>", methods=["DELETE"])
+def delete_frame(room_id, frame_id):
+    """Deletes a frame. Authorized via a short-lived Bearer token."""
+    r = current_app.extensions["redis"]
+    auth_header = request.headers.get("Authorization")
+    if not auth_header or not auth_header.startswith("Bearer "):
+        return {"error": "Authorization token is missing or invalid"}, 401
+
+    token = auth_header.split(" ")[1]
+    token_key = f"room:{room_id}:upload_token:{token}"
+
+    # Get token metadata
+    token_data = r.hgetall(token_key)
+    if not token_data:
+        return {"error": "Token is invalid or has expired"}, 403
+
+    sid_from_token = token_data.get("sid")
+    action = token_data.get("action")
+
+    # Validate this is a delete action
+    if action != "delete":
+        return {"error": "Token is not valid for delete operation"}, 403
+
+    r.delete(token_key)  # Invalidate the token after first use
+
+    lock_key = get_lock_key(room_id, "trajectory:meta")
+    if r.get(lock_key) != sid_from_token:
+        return {"error": "Client does not hold the trajectory lock"}, 403
+
+    try:
+        indices_key = f"room:{room_id}:trajectory:indices"
+        frame_mapping = r.zrange(indices_key, 0, -1)
+
+        if not frame_mapping:
+            return {"error": "No frames found in room"}, 404
+
+        if frame_id >= len(frame_mapping):
+            return {
+                "error": f"Frame {frame_id} not found, max frame: {len(frame_mapping) - 1}",
+                "type": "IndexError",
+            }, 404
+
+        # Parse the frame mapping entry to check if it's a template frame
+        mapping_entry = frame_mapping[frame_id]
+        if isinstance(mapping_entry, bytes):
+            mapping_entry = mapping_entry.decode()
+
+        # Check if this frame belongs to a different room (e.g., a template)
+        if ":" in mapping_entry:
+            source_room_id = mapping_entry.split(":", 1)[0]
+            if source_room_id != room_id:
+                # This is a template frame or from another room
+                return {
+                    "error": f"Cannot delete template frame. This frame belongs to '{source_room_id}'",
+                    "type": "PermissionError",
+                }, 403
+
+        # Get the physical index that we're "deleting" (just removing from mapping)
+        # For backward compatibility, handle both old format (just index) and new format (room:index)
+        if ":" in mapping_entry:
+            physical_index_to_remove = int(mapping_entry.split(":", 1)[1])
+        else:
+            physical_index_to_remove = int(mapping_entry)
+
+        # Remove the mapping entry for this logical position
+        # We need to rebuild the mapping without this entry
+        remaining_physical_indices = (
+            frame_mapping[:frame_id] + frame_mapping[frame_id + 1 :]
+        )
+
+        # Clear and rebuild the Redis mapping
+        r.delete(indices_key)
+        for logical_pos, physical_idx_str in enumerate(remaining_physical_indices):
+            r.zadd(indices_key, {physical_idx_str: logical_pos})
+
+        log.info(
+            f"Deleted logical frame {frame_id} (physical: {physical_index_to_remove}) from room '{room_id}'. Physical data preserved."
+        )
+
+        # Emit bookmarks update to all clients
+        emit_bookmarks_update(room_id)
+        # Invalidate all frames from deleted position onward (they all shift down)
+        emit_frames_invalidate(room_id, operation="delete", affected_from=frame_id)
+
+        return {"success": True, "deleted_frame": frame_id}
+
+    except Exception as e:
+        log.error(f"Failed to delete frame: {e}")
+        print(traceback.format_exc())
+        return {"error": "Failed to delete frame"}, 500
+
+
 def ensure_empty_template_exists():
     """Ensure the 'empty' template exists in Redis."""
     redis_client = current_app.extensions["redis"]
@@ -671,11 +763,11 @@ def get_room_schema(room_id: str, category: str):
 
 
 @main.route(
-    "/api/rooms/<string:room_id>/extensions/<string:category>/<string:extension>",
+    "/api/rooms/<string:room_id>/extensions/<string:category>/<string:extension>/submit",
     methods=["POST"],
 )
 def log_room_extension(room_id: str, category: str, extension: str):
-    """Logs a user extension action in the room's action log."""
+    """Submits a user extension action to create a job."""
     json_data = request.json
     if json_data is None:
         json_data = {}
@@ -795,10 +887,11 @@ def log_room_extension(room_id: str, category: str, extension: str):
 
 
 @main.route(
-    "/api/rooms/<string:room_id>/extension-data/<string:category>/<string:extension>",
+    "/api/rooms/<string:room_id>/extensions/<string:category>/<string:extension>/data",
     methods=["GET"],
 )
 def get_extension_data(room_id: str, category: str, extension: str):
+    """Gets the cached data for a user's extension."""
     user_id = request.args.get("userId")
     print(
         f"get_extension_data called with userId={user_id}, category={category}, extension={extension} for room {room_id}"
@@ -885,23 +978,28 @@ def get_job(room_id: str, job_id: str):
     return job, 200
 
 
-@main.route(
-    "/api/rooms/<string:room_id>/jobs/<string:job_id>/complete", methods=["POST"]
-)
-def complete_job(room_id: str, job_id: str):
-    """Mark a job as completed and transition worker back to idle.
+@main.route("/api/rooms/<string:room_id>/jobs/<string:job_id>/status", methods=["PUT"])
+def update_job_status(room_id: str, job_id: str):
+    """Update a job's status (complete or fail) and transition worker back to idle.
 
-    Called by both Celery tasks and client workers when they finish successfully.
+    Called by both Celery tasks and client workers when they finish.
     For client workers: transitions worker from progressing → idle, then checks queue.
-    For Celery workers: just marks job complete (no worker state to manage).
+    For Celery workers: just marks job complete/failed (no worker state to manage).
+
+    Request body:
+        {
+            "status": "completed" | "failed",
+            "result": <result data>,  // for completed status
+            "error": <error message>,  // for failed status
+            "workerId": <worker_id>  // optional, only for client workers
+        }
     """
     data = request.get_json() or {}
-    result = data.get("result")
+    status = data.get("status")
     worker_id = data.get("workerId")  # Optional: only for client workers
 
-    log.info(
-        f"Complete job called: job_id={job_id}, worker_id={worker_id}, room_id={room_id}"
-    )
+    if status not in ["completed", "failed"]:
+        return {"error": "Status must be 'completed' or 'failed'"}, 400
 
     redis_client = current_app.extensions["redis"]
 
@@ -911,6 +1009,9 @@ def complete_job(room_id: str, job_id: str):
         log.error(f"Job {job_id} not found in Redis")
         return {"error": "Job not found"}, 404
 
+    log.info(
+        f"Update job status called: job_id={job_id}, status={status}, worker_id={worker_id}, room_id={room_id}"
+    )
     log.info(
         f"Job data: category={job.get('category')}, extension={job.get('extension')}"
     )
@@ -923,73 +1024,35 @@ def complete_job(room_id: str, job_id: str):
     # Validate worker ID matches the job's assigned worker
     if worker_id and job.get("worker_id") != worker_id:
         log.error(
-            f"Worker ID mismatch: job assigned to {job.get('worker_id')}, but {worker_id} tried to complete it"
+            f"Worker ID mismatch: job assigned to {job.get('worker_id')}, but {worker_id} tried to update it"
         )
         return {"error": "Worker ID does not match job's worker ID"}, 400
 
-    # Mark job as completed
-    success = JobManager.complete_job(redis_client, job_id, result)
-    if not success:
-        log.error(f"Failed to mark job {job_id} as completed")
-        return {"error": "Failed to complete job"}, 400
-
-    log.info(f"Job {job_id} completed in room {room_id}")
+    # Update job status based on requested status
+    if status == "completed":
+        result = data.get("result")
+        success = JobManager.complete_job(redis_client, job_id, result)
+        if not success:
+            log.error(f"Failed to mark job {job_id} as completed")
+            return {"error": "Failed to complete job"}, 400
+        log.info(f"Job {job_id} completed in room {room_id}")
+        worker_success = True
+    else:  # status == "failed"
+        error = data.get("error", "Unknown error")
+        success = JobManager.fail_job(redis_client, job_id, error)
+        if not success:
+            return {"error": "Failed to mark job as failed"}, 400
+        log.error(f"Job {job_id} failed in room {room_id}: {error}")
+        worker_success = False
 
     # If this is a client worker (not Celery), handle worker state transition
     if worker_id and not worker_id.startswith("celery:"):
         log.info(f"Transitioning worker {worker_id} to idle")
         _transition_worker_to_idle(
-            redis_client, socketio, worker_id, job, room_id, success=True
+            redis_client, socketio, worker_id, job, room_id, success=worker_success
         )
     else:
         log.info(f"Skipping worker transition (worker_id={worker_id})")
-
-    return {"status": "success"}, 200
-
-
-@main.route("/api/rooms/<string:room_id>/jobs/<string:job_id>/fail", methods=["POST"])
-def fail_job(room_id: str, job_id: str):
-    """Mark a job as failed and transition worker back to idle.
-
-    Called by both Celery tasks and client workers when they fail.
-    For client workers: transitions worker from progressing → idle, then checks queue.
-    For Celery workers: just marks job failed (no worker state to manage).
-    """
-    data = request.get_json() or {}
-    error = data.get("error", "Unknown error")
-    worker_id = data.get("workerId")  # Optional: only for client workers
-
-    redis_client = current_app.extensions["redis"]
-
-    # Get job details to know category/extension
-    job = JobManager.get_job(redis_client, job_id)
-    if not job:
-        return {"error": "Job not found"}, 404
-
-    # Validate job is in running state
-    if job.get("status") != "running":
-        log.error(f"Job {job_id} is not running (status: {job.get('status')})")
-        return {"error": "Job is not running"}, 400
-
-    # Validate worker ID matches the job's assigned worker
-    if worker_id and job.get("worker_id") != worker_id:
-        log.error(
-            f"Worker ID mismatch: job assigned to {job.get('worker_id')}, but {worker_id} tried to fail it"
-        )
-        return {"error": "Worker ID does not match job's worker ID"}, 400
-
-    # Mark job as failed
-    success = JobManager.fail_job(redis_client, job_id, error)
-    if not success:
-        return {"error": "Failed to mark job as failed"}, 400
-
-    log.error(f"Job {job_id} failed in room {room_id}: {error}")
-
-    # If this is a client worker (not Celery), handle worker state transition
-    if worker_id and not worker_id.startswith("celery:"):
-        _transition_worker_to_idle(
-            redis_client, socketio, worker_id, job, room_id, success=False
-        )
 
     return {"status": "success"}, 200
 
@@ -1275,7 +1338,7 @@ def get_next_job(room_id: str):
     return {"error": "No jobs available"}, 400
 
 
-@main.route("/api/room/<string:room_id>/join", methods=["POST"])
+@main.route("/api/rooms/<string:room_id>/join", methods=["POST"])
 def join_room(room_id):
     data = request.get_json() or {}
     if ":" in room_id:

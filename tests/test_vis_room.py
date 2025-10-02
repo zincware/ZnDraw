@@ -14,7 +14,7 @@ def test_rest_join_new_room(server):
     assert len(rooms) == 0  # no rooms yet
 
     room = "test-room-1"
-    response = requests.post(f"{server}/api/room/{room}/join", json={})
+    response = requests.post(f"{server}/api/rooms/{room}/join", json={})
     assert response.status_code == 200
     data = response.json()
     assert data["status"] == "ok"
@@ -38,7 +38,7 @@ def test_rest_join_new_room(server):
 
     # getting any frame will fail with index error
     for frame_idx in [0, 1, -1, 100]:
-        response = requests.get(f"{server}/api/frames/{room}", params={"indices": [frame_idx]})
+        response = requests.get(f"{server}/api/rooms/{room}/frames", params={"indices": str(frame_idx)})
         assert response.status_code == 404
         data = response.json()
         assert data["type"] == "IndexError"
@@ -47,11 +47,11 @@ def test_rest_join_new_room(server):
 def test_join_existing_room(server):
     # create a room first
     room = "test-room-1"
-    response = requests.post(f"{server}/api/room/{room}/join", json={})
+    response = requests.post(f"{server}/api/rooms/{room}/join", json={})
     assert response.status_code == 200
 
     # join the existing room with a different user
-    response = requests.post(f"{server}/api/room/{room}/join", json={})
+    response = requests.post(f"{server}/api/rooms/{room}/join", json={})
     assert response.status_code == 200
     data = response.json()
     assert data["status"] == "ok"
@@ -66,14 +66,14 @@ def test_join_existing_room(server):
 def test_join_room_with_template(server):
     # create a room and promote to template
     room = "template-room"
-    response = requests.post(f"{server}/api/room/{room}/join", json={})
+    response = requests.post(f"{server}/api/rooms/{room}/join", json={})
     assert response.status_code == 200
     response = requests.post(f"{server}/api/rooms/{room}/promote", json={"name": "Template Room", "description": "A custom template"})
     assert response.status_code == 200
 
     # create a new room using the above template
     new_room = "test-room-1"
-    response = requests.post(f"{server}/api/room/{new_room}/join", json={"template": room})
+    response = requests.post(f"{server}/api/rooms/{new_room}/join", json={"template": room})
     assert response.status_code == 200
     data = response.json()
     assert data["status"] == "ok"
@@ -81,7 +81,7 @@ def test_join_room_with_template(server):
 
     # create a new room without template
     another_room = "test-room-2"
-    response = requests.post(f"{server}/api/room/{another_room}/join", json={})
+    response = requests.post(f"{server}/api/rooms/{another_room}/join", json={})
     assert response.status_code == 200
     data = response.json()
     assert data["status"] == "ok"
@@ -89,7 +89,7 @@ def test_join_room_with_template(server):
 
 def test_join_room_invalid_name(server):
     room = "invalid:room"
-    response = requests.post(f"{server}/api/room/{room}/join", json={})
+    response = requests.post(f"{server}/api/rooms/{room}/join", json={})
     assert response.status_code == 400
     data = response.json()
     assert "error" in data

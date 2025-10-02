@@ -143,10 +143,10 @@ def test_run_client_extensions(server, category):
     vis = ZnDraw(url=server, room=room, user=user, auto_pickup_jobs=False)
     vis.register_extension(mod)
 
-    # /api/rooms/${roomId}/extensions/${category}/${extension}
+    # /api/rooms/${roomId}/extensions/${category}/${extension}/submit
     # post request with data = {}
     response = requests.post(
-        f"{server}/api/rooms/{room}/extensions/{category}/{mod.__name__}",
+        f"{server}/api/rooms/{room}/extensions/{category}/{mod.__name__}/submit",
         json={"data": {"parameter": 42}, "userId": user},
     )
     assert response.status_code == 200
@@ -201,10 +201,10 @@ def test_run_client_extensions(server, category):
     assert response_json["status"] == "running"
     assert response_json["worker_id"] == vis.client.sid
 
-    # now we emulate completing the job by the worker /api/rooms/<string:room_id>/jobs/<string:job_id>/complete"
-    response = requests.post(
-        f"{server}/api/rooms/{room}/jobs/{jobId}/complete",
-        json={"workerId": vis.client.sid},
+    # now we emulate completing the job by the worker /api/rooms/<string:room_id>/jobs/<string:job_id>/status"
+    response = requests.put(
+        f"{server}/api/rooms/{room}/jobs/{jobId}/status",
+        json={"status": "completed", "workerId": vis.client.sid},
     )
     assert response.status_code == 200
     assert response.json() == {"status": "success"}
@@ -233,7 +233,7 @@ def test_run_client_extensions(server, category):
 
     # let's queue two more job
     response = requests.post(
-        f"{server}/api/rooms/{room}/extensions/{category}/{mod.__name__}",
+        f"{server}/api/rooms/{room}/extensions/{category}/{mod.__name__}/submit",
         json={"data": {"parameter": 43}, "userId": user},
     )
     assert response.status_code == 200
@@ -244,7 +244,7 @@ def test_run_client_extensions(server, category):
         "status": "success",
     }
     response = requests.post(
-        f"{server}/api/rooms/{room}/extensions/{category}/{mod.__name__}",
+        f"{server}/api/rooms/{room}/extensions/{category}/{mod.__name__}/submit",
         json={"data": {"parameter": 44}, "userId": user},
     )
     assert response.status_code == 200
@@ -293,9 +293,9 @@ def test_run_client_extensions(server, category):
     assert response.json() == {"error": "Worker is not idle"}
 
     # complete job 2
-    response = requests.post(
-        f"{server}/api/rooms/{room}/jobs/{jobId2}/complete",
-        json={"workerId": vis.client.sid},
+    response = requests.put(
+        f"{server}/api/rooms/{room}/jobs/{jobId2}/status",
+        json={"status": "completed", "workerId": vis.client.sid},
     )
     assert response.status_code == 200
     assert response.json() == {"status": "success"}
@@ -323,9 +323,9 @@ def test_run_client_extensions(server, category):
     assert response_json["category"] == category
     assert response_json["extension"] == mod.__name__
     # finish the job
-    response = requests.post(
-        f"{server}/api/rooms/{room}/jobs/{jobId3}/complete",
-        json={"workerId": vis.client.sid},
+    response = requests.put(
+        f"{server}/api/rooms/{room}/jobs/{jobId3}/status",
+        json={"status": "completed", "workerId": vis.client.sid},
     )
     assert response.status_code == 200
     assert response.json() == {"status": "success"}
@@ -351,23 +351,23 @@ def test_run_different_client_different_extensions(server):
 
     # queue job for mod1
     response = requests.post(
-        f"{server}/api/rooms/{room}/extensions/modifiers/{mod1.__name__}",
+        f"{server}/api/rooms/{room}/extensions/modifiers/{mod1.__name__}/submit",
         json={"data": {"parameter": 42}, "userId": user},
     )
     assert response.status_code == 200
     response = requests.post(
-        f"{server}/api/rooms/{room}/extensions/modifiers/{mod1.__name__}",
+        f"{server}/api/rooms/{room}/extensions/modifiers/{mod1.__name__}/submit",
         json={"data": {"parameter": 42}, "userId": user},
     )
     assert response.status_code == 200
     # queue job for mod2
     response = requests.post(
-        f"{server}/api/rooms/{room}/extensions/selections/{mod2.__name__}",
+        f"{server}/api/rooms/{room}/extensions/selections/{mod2.__name__}/submit",
         json={"data": {"parameter": 43}, "userId": user},
     )
     assert response.status_code == 200
     response = requests.post(
-        f"{server}/api/rooms/{room}/extensions/selections/{mod2.__name__}",
+        f"{server}/api/rooms/{room}/extensions/selections/{mod2.__name__}/submit",
         json={"data": {"parameter": 43}, "userId": user},
     )
     assert response.status_code == 200
@@ -389,9 +389,9 @@ def test_run_different_client_different_extensions(server):
     assert response_json["category"] == "modifiers"
     assert response_json["extension"] == mod1.__name__
     # finish the job
-    response = requests.post(
-        f"{server}/api/rooms/{room}/jobs/{jobId}/complete",
-        json={"workerId": vis1.client.sid},
+    response = requests.put(
+        f"{server}/api/rooms/{room}/jobs/{jobId}/status",
+        json={"status": "completed", "workerId": vis1.client.sid},
     )
     assert response.status_code == 200
     assert response.json() == {"status": "success"}
@@ -405,9 +405,9 @@ def test_run_different_client_different_extensions(server):
     assert response_json["category"] == "modifiers"
     assert response_json["extension"] == mod1.__name__
     # finish the job
-    response = requests.post(
-        f"{server}/api/rooms/{room}/jobs/{jobId2}/complete",
-        json={"workerId": vis1.client.sid},
+    response = requests.put(
+        f"{server}/api/rooms/{room}/jobs/{jobId2}/status",
+        json={"status": "completed", "workerId": vis1.client.sid},
     )
     assert response.status_code == 200
     assert response.json() == {"status": "success"}
@@ -420,7 +420,7 @@ def test_run_different_client_different_extensions(server):
 
     # queue another job for mod1
     response = requests.post(
-        f"{server}/api/rooms/{room}/extensions/modifiers/{mod1.__name__}",
+        f"{server}/api/rooms/{room}/extensions/modifiers/{mod1.__name__}/submit",
         json={"data": {"parameter": 42}, "userId": user},
     )
     assert response.status_code == 200
@@ -433,9 +433,9 @@ def test_run_different_client_different_extensions(server):
     response_json = response.json()
     assert response_json["jobId"] == jobId3
     # finish the job
-    response = requests.post(
-        f"{server}/api/rooms/{room}/jobs/{jobId3}/complete",
-        json={"workerId": vis1.client.sid},
+    response = requests.put(
+        f"{server}/api/rooms/{room}/jobs/{jobId3}/status",
+        json={"status": "completed", "workerId": vis1.client.sid},
     )
     assert response.status_code == 200
     assert response.json() == {"status": "success"}
@@ -450,9 +450,9 @@ def test_run_different_client_different_extensions(server):
     assert response_json["category"] == "selections"
     assert response_json["extension"] == mod2.__name__
     # finish the job
-    response = requests.post(
-        f"{server}/api/rooms/{room}/jobs/{jobId}/complete",
-        json={"workerId": vis2.client.sid},
+    response = requests.put(
+        f"{server}/api/rooms/{room}/jobs/{jobId}/status",
+        json={"status": "completed", "workerId": vis2.client.sid},
     )
     assert response.status_code == 200
     assert response.json() == {"status": "success"}
@@ -480,7 +480,7 @@ def test_run_different_client_same_extensions(server):
     # queue 4 job
     for idx in range(4):
         _ = requests.post(
-            f"{server}/api/rooms/{room}/extensions/modifiers/{ModifierExtension.__name__}",
+            f"{server}/api/rooms/{room}/extensions/modifiers/{ModifierExtension.__name__}/submit",
             json={"data": {"parameter": 42 + idx}, "userId": user},
         )
 
@@ -514,14 +514,14 @@ def test_run_different_client_same_extensions(server):
     assert len(running_jobs) == 2
     assert len(queued_jobs) == 2
     # finish the jobs for both
-    response = requests.post(
-        f"{server}/api/rooms/{room}/jobs/{jobId1}/complete",
-        json={"workerId": vis1.client.sid},
+    response = requests.put(
+        f"{server}/api/rooms/{room}/jobs/{jobId1}/status",
+        json={"status": "completed", "workerId": vis1.client.sid},
     )
     assert response.status_code == 200
-    response = requests.post(
-        f"{server}/api/rooms/{room}/jobs/{jobId2}/complete",
-        json={"workerId": vis2.client.sid},
+    response = requests.put(
+        f"{server}/api/rooms/{room}/jobs/{jobId2}/status",
+        json={"status": "completed", "workerId": vis2.client.sid},
     )
     assert response.status_code == 200
 
@@ -546,7 +546,7 @@ def test_worker_finish_nonstarted_job(server):
 
     # queue job for mod1
     response = requests.post(
-        f"{server}/api/rooms/{room}/extensions/modifiers/{mod.__name__}",
+        f"{server}/api/rooms/{room}/extensions/modifiers/{mod.__name__}/submit",
         json={"data": {"parameter": 42}, "userId": user},
     )
     assert response.status_code == 200
@@ -557,9 +557,9 @@ def test_worker_finish_nonstarted_job(server):
         "status": "success",
     }
     # complete job without starting it
-    response = requests.post(
-        f"{server}/api/rooms/{room}/jobs/{jobId}/complete",
-        json={"workerId": vis.client.sid},
+    response = requests.put(
+        f"{server}/api/rooms/{room}/jobs/{jobId}/status",
+        json={"status": "completed", "workerId": vis.client.sid},
     )
     assert response.status_code == 400
     assert response.json() == {"error": "Job is not running"}
@@ -573,17 +573,17 @@ def test_worker_finish_nonstarted_job(server):
     assert response_json["data"] == {"parameter": 42}
 
     # finish the job
-    response = requests.post(
-        f"{server}/api/rooms/{room}/jobs/{jobId}/complete",
-        json={"workerId": "wrong-worker-id"},
+    response = requests.put(
+        f"{server}/api/rooms/{room}/jobs/{jobId}/status",
+        json={"status": "completed", "workerId": "wrong-worker-id"},
     )
     assert response.status_code == 400
     assert response.json() == {"error": "Worker ID does not match job's worker ID"}
 
     # finish the job with correct worker id
-    response = requests.post(
-        f"{server}/api/rooms/{room}/jobs/{jobId}/complete",
-        json={"workerId": vis.client.sid},
+    response = requests.put(
+        f"{server}/api/rooms/{room}/jobs/{jobId}/status",
+        json={"status": "completed", "workerId": vis.client.sid},
     )
     assert response.status_code == 200
     assert response.json() == {"status": "success"}
@@ -605,7 +605,7 @@ def test_worker_fail_job(server):
 
     # queue job for mod1
     response = requests.post(
-        f"{server}/api/rooms/{room}/extensions/modifiers/{mod.__name__}",
+        f"{server}/api/rooms/{room}/extensions/modifiers/{mod.__name__}/submit",
         json={"data": {"parameter": 42}, "userId": user},
     )
     assert response.status_code == 200
@@ -617,9 +617,9 @@ def test_worker_fail_job(server):
     }
 
     # fail the job without starting it
-    response = requests.post(
-        f"{server}/api/rooms/{room}/jobs/{jobId}/fail",
-        json={"workerId": vis.client.sid, "error": "Something went wrong"},
+    response = requests.put(
+        f"{server}/api/rooms/{room}/jobs/{jobId}/status",
+        json={"status": "failed", "workerId": vis.client.sid, "error": "Something went wrong"},
     )
     assert response.status_code == 400
     assert response.json() == {"error": "Job is not running"}
@@ -634,17 +634,17 @@ def test_worker_fail_job(server):
     assert response_json["data"] == {"parameter": 42}
 
     # fail the job with wrong worker id
-    response = requests.post(
-        f"{server}/api/rooms/{room}/jobs/{jobId}/fail",
-        json={"workerId": "wrong-worker-id", "error": "Something went wrong"},
+    response = requests.put(
+        f"{server}/api/rooms/{room}/jobs/{jobId}/status",
+        json={"status": "failed", "workerId": "wrong-worker-id", "error": "Something went wrong"},
     )
     assert response.status_code == 400
     assert response.json() == {"error": "Worker ID does not match job's worker ID"}
 
     # fail the job
-    response = requests.post(
-        f"{server}/api/rooms/{room}/jobs/{jobId}/fail",
-        json={"workerId": vis.client.sid, "error": "Something went wrong"},
+    response = requests.put(
+        f"{server}/api/rooms/{room}/jobs/{jobId}/status",
+        json={"status": "failed", "workerId": vis.client.sid, "error": "Something went wrong"},
     )
     assert response.status_code == 200
     assert response.json() == {"status": "success"}
@@ -678,7 +678,7 @@ def test_delete_job(server):
 
     # queue job for mod1
     response = requests.post(
-        f"{server}/api/rooms/{room}/extensions/modifiers/{mod.__name__}",
+        f"{server}/api/rooms/{room}/extensions/modifiers/{mod.__name__}/submit",
         json={"data": {"parameter": 42}, "userId": user},
     )
     assert response.status_code == 200
@@ -722,7 +722,7 @@ def test_worker_pickup_task(server):
     vis.register_extension(mod, run_kwargs={"info": shared_dict})
     # submit a job
     response = requests.post(
-        f"{server}/api/rooms/{room}/extensions/modifiers/{mod.__name__}",
+        f"{server}/api/rooms/{room}/extensions/modifiers/{mod.__name__}/submit",
         json={"data": {"parameter": 42}, "userId": user},
     )
     assert response.status_code == 200
@@ -746,7 +746,7 @@ def test_worker_pickup_task(server):
     shared_dict["raise"] = True
     # submit another job
     response = requests.post(
-        f"{server}/api/rooms/{room}/extensions/modifiers/{mod.__name__}",
+        f"{server}/api/rooms/{room}/extensions/modifiers/{mod.__name__}/submit",
         json={"data": {"parameter": 43}, "userId": user},
     )
     assert response.status_code == 200
@@ -779,7 +779,7 @@ def test_worker_pickup_task(server):
     shared_dict["raise"] = False
     for idx in range(2):
         response = requests.post(
-            f"{server}/api/rooms/{room}/extensions/modifiers/{mod.__name__}",
+            f"{server}/api/rooms/{room}/extensions/modifiers/{mod.__name__}/submit",
             json={"data": {"parameter": 44 + idx}, "userId": user},
         )
         assert response.status_code == 200
@@ -810,7 +810,7 @@ def test_celery_task(server):
 
     # Create a celery job by calling a server-side modifier extension
     response = requests.post(
-        f"{server}/api/rooms/{room}/extensions/modifiers/{mod_name}",
+        f"{server}/api/rooms/{room}/extensions/modifiers/{mod_name}/submit",
         json={"data": {}, "userId": user},
     )
     assert response.status_code == 200
@@ -841,9 +841,9 @@ def test_celery_task(server):
     assert response_json["status"] == "running"
 
     # Finish the job
-    response = requests.post(
-        f"{server}/api/rooms/{room}/jobs/{jobId}/complete",
-        json={"workerId": "celery-worker"},
+    response = requests.put(
+        f"{server}/api/rooms/{room}/jobs/{jobId}/status",
+        json={"status": "completed", "workerId": "celery-worker"},
     )
     assert response.status_code == 200
     assert response.json() == {"status": "success"}
@@ -878,7 +878,7 @@ def test_register_extensions_reconnect_with_queue(server, category):
 
     # submit a job
     response = requests.post(
-        f"{server}/api/rooms/{room}/extensions/{category}/{mod.__name__}",
+        f"{server}/api/rooms/{room}/extensions/{category}/{mod.__name__}/submit",
         json={"data": {"parameter": 42}, "userId": user},
     )
     response.raise_for_status()
@@ -915,7 +915,7 @@ def test_register_extensions_reconnect_with_queue(server, category):
 
     # try submit a job -> should not fail
     response = requests.post(
-        f"{server}/api/rooms/{room}/extensions/{category}/{mod.__name__}",
+        f"{server}/api/rooms/{room}/extensions/{category}/{mod.__name__}/submit",
         json={"data": {"parameter": 42}, "userId": user},
     )
     assert response.status_code == 200
@@ -988,7 +988,7 @@ def test_register_extensions_reconnect_without_queue(server, category):
 
     # try submit a job -> should fail
     response = requests.post(
-        f"{server}/api/rooms/{room}/extensions/{category}/{mod.__name__}",
+        f"{server}/api/rooms/{room}/extensions/{category}/{mod.__name__}/submit",
         json={"data": {"parameter": 42}, "userId": user},
     )
     assert response.status_code == 400

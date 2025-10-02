@@ -29,7 +29,7 @@ export const useSchemas = (room: string, category: string) => {
 };
 
 const fetchExtensionData = async (room: string, user: string, category: string, extension: string) => {
-  const response = await fetch(`/api/rooms/${room}/extension-data/${category}/${extension}?userId=${user}`, {
+  const response = await fetch(`/api/rooms/${room}/extensions/${category}/${extension}/data?userId=${user}`, {
     method: 'GET',
     headers: {
       'Content-Type': 'application/json',
@@ -62,7 +62,7 @@ const submitExtension = async (variables: {
   data: any;
 }) => {
   const { roomId, userId, category, extension, data } = variables;
-  const response = await fetch(`/api/rooms/${roomId}/extensions/${category}/${extension}`, {
+  const response = await fetch(`/api/rooms/${roomId}/extensions/${category}/${extension}/submit`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ userId, data }),
