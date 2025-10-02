@@ -50,21 +50,50 @@ const ChatWindow = ({ open, onClose }: ChatWindowProps) => {
   const sendMessage = useSendMessage(roomId || '');
   const editMessage = useEditMessage(roomId || '');
 
+  useEffect(() => {
+    if (open) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [open]);
+
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
+    }
   };
 
   useEffect(() => {
-    if (!isFetchingNextPage) {
-      scrollToBottom();
+    if (open) {
+      // Use timeout to ensure DOM is updated before scrolling
+      setTimeout(scrollToBottom, 100);
     }
-  }, [data, isFetchingNextPage]);
+  }, [open, data]); // Rerun when opened or when new data arrives
 
-  const handleScroll = () => {
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
     if (scrollContainerRef.current) {
       const { scrollTop } = scrollContainerRef.current;
       if (scrollTop < 50 && hasNextPage && !isFetchingNextPage) {
         fetchNextPage();
+      }
+    }
+  };
+
+  const handleWheel = (e: React.WheelEvent<HTMLDivElement>) => {
+    if (scrollContainerRef.current) {
+      const { scrollTop, scrollHeight, clientHeight } = scrollContainerRef.current;
+      // If scrolling up at the top or scrolling down at the bottom, prevent bubbling
+      if ((e.deltaY < 0 && scrollTop === 0) || (e.deltaY > 0 && scrollTop + clientHeight >= scrollHeight - 1)) {
+        // Allow scroll if there's more content to load upwards
+        if (e.deltaY < 0 && hasNextPage) {
+          return;
+        }
+        e.preventDefault();
+        e.stopPropagation();
       }
     }
   };
@@ -156,6 +185,7 @@ const ChatWindow = ({ open, onClose }: ChatWindowProps) => {
         <Box
           ref={scrollContainerRef}
           onScroll={handleScroll}
+          onWheel={handleWheel}
           sx={{
             flexGrow: 1,
             overflowY: 'auto',
@@ -269,7 +299,7 @@ const ChatWindow = ({ open, onClose }: ChatWindowProps) => {
             <TextareaAutosize
               minRows={1}
               maxRows={6}
-              placeholder="Type a message... (Markdown supported)"
+              placeholder="Type a message..."
               value={messageInput}
               onChange={(e) => setMessageInput(e.target.value)}
               onKeyPress={(e) => {

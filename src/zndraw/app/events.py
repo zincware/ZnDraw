@@ -572,7 +572,7 @@ def handle_chat_message_create(data):
         message = create_message(r, room, user_id, content)
 
         # Emit to room (excluding sender)
-        emit("chat:message:new", message, to=f"room:{room}", skip_sid=sid)
+        emit("chat:message:new", message, to=f"room:{room}", include_self=True)
 
         return {"success": True, "message": message}
     except Exception as e:
