@@ -294,6 +294,7 @@ const FrameProgressBar = () => {
                     containerWidth={sliderWidth}
                     enabled={frameSelectionEnabled}
                     currentFrame={currentFrame}
+                    disabled={presenterMode === 'locked'}
                 />
 
                 {/* Selection Markers - Shows individual selected frames when filtering is disabled */}

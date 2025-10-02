@@ -7,6 +7,7 @@ interface SelectionTrackOverlayProps {
   containerWidth: number;
   enabled: boolean;
   currentFrame: number;
+  disabled?: boolean;
 }
 
 // Convert array of frames to contiguous ranges
@@ -38,6 +39,7 @@ const SelectionTrackOverlay: React.FC<SelectionTrackOverlayProps> = ({
   containerWidth,
   enabled,
   currentFrame,
+  disabled = false,
 }) => {
   useEffect(() => {
     console.log("SelectionTrackOverlay:", { selectedFrames, enabled, containerWidth, currentFrame });
@@ -90,7 +92,9 @@ const SelectionTrackOverlay: React.FC<SelectionTrackOverlayProps> = ({
                 top: '50%',
                 transform: 'translateY(-50%)',
                 height: 4,
-                backgroundColor: segment.selected ? 'primary.main' : 'action.disabledBackground',
+                backgroundColor: disabled
+                  ? 'action.disabledBackground'
+                  : (segment.selected ? 'primary.main' : 'action.disabledBackground'),
                 borderRadius: '2px',
               }}
             />
@@ -191,7 +195,9 @@ const SelectionTrackOverlay: React.FC<SelectionTrackOverlayProps> = ({
               top: '50%',
               transform: 'translateY(-50%)',
               height: 4,
-              backgroundColor: segment.selected ? 'primary.main' : 'grey.400',
+              backgroundColor: disabled
+                ? 'action.disabledBackground'
+                : (segment.selected ? 'primary.main' : 'grey.400'),
               borderRadius: '2px',
             }}
           />
