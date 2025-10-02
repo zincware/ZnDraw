@@ -13,7 +13,7 @@ import typing as t
 import functools
 import requests
 from zndraw.settings import settings, RoomConfig
-from zndraw.exceptions import LockError
+from zndraw.exceptions import LockError, TemplateNotFoundError
 from zndraw.extensions import Extension, ExtensionType
 
 from zndraw.storage import decode_data, encode_data
@@ -62,6 +62,11 @@ class _ExtensionStore(t.TypedDict):
     run_kwargs: dict|None
     extension: t.Type[Extension]
 
+class _TemplateValue:
+    """Sentinel value for template parameter."""
+    pass
+
+
 @dataclasses.dataclass
 class Client(MutableSequence):
     """A client for interacting with the ZnDraw server. Implements MutableSequence for frame operations."""
@@ -69,6 +74,7 @@ class Client(MutableSequence):
     room: str = "default"
     user: str = "guest"
     auto_pickup_jobs: bool = True
+    template: str | None | t.Type[_TemplateValue] = _TemplateValue
 
     _step: int = 0
     _len: int = 0
@@ -88,7 +94,8 @@ class Client(MutableSequence):
         self.sio.on("invalidate", self._on_invalidate)
         self.sio.on("queue:update", self._on_queue_update)
         self.sio.on("frame_selection:update", self._on_frame_selection_update)
-        
+        self.sio.on("error", self._on_error)
+
         self._lock = SocketIOLock(self.sio, target="trajectory:meta")
     
     @property
@@ -121,6 +128,16 @@ class Client(MutableSequence):
         """Internal callback for when a frame selection update is received."""
         if "indices" in data:
             self._frame_selection = frozenset(data["indices"])
+
+    def _on_error(self, data):
+        """Internal callback for when an error is received."""
+        error_type = data.get("error", "RuntimeError")
+        message = data.get("message", "Unknown error")
+
+        if error_type == "TemplateNotFoundError":
+            raise TemplateNotFoundError(message)
+        else:
+            raise RuntimeError(f"{error_type}: {message}")
 
     def _on_queue_update(self, data: dict):
         print(f"Queue update received: {data}")
@@ -162,7 +179,7 @@ class Client(MutableSequence):
             self._settings.pop(data["extension"], None)
 
     @property
-    def step(self) -> int|None:
+    def step(self) -> int:
         """Get the current step/frame index."""
         return self._step
     
@@ -257,7 +274,15 @@ class Client(MutableSequence):
     def _on_connect(self):
         """Internal callback for when a connection is established."""
         log.debug(f"Connected to {self.url} with session ID {self.sio.sid}")
-        self.sio.emit("join_room", {"room": self.room, "userId": self.user, "clientId": self._client_id})
+
+        # Prepare join_room data
+        join_data = {"room": self.room, "userId": self.user, "clientId": self._client_id}
+
+        # Only include template if explicitly specified (not the default sentinel)
+        if self.template is not _TemplateValue:
+            join_data["template"] = self.template
+
+        self.sio.emit("join_room", join_data)
         log.debug(f"Joined room: '{self.room}' with client ID: {self._client_id}")
 
     def get_frame(self, frame_id: int, keys: list[str] | None = None) -> dict:

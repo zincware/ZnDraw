@@ -356,9 +356,32 @@ def list_rooms():
         if len(parts) >= 2:
             room_ids.add(parts[1])
 
-    # Return list of room objects with id field
-    rooms = [{"id": room_id} for room_id in sorted(room_ids)]
+    # Return list of room objects with id and template fields
+    rooms = []
+    for room_id in sorted(room_ids):
+        template_id = redis_client.get(f"room:{room_id}:template") or "empty"
+        rooms.append({"id": room_id, "template": template_id})
+
     return rooms, 200
+
+
+@main.route("/api/rooms/<string:room_id>", methods=["GET"])
+def get_room(room_id):
+    """Get details for a specific room."""
+    redis_client = current_app.extensions["redis"]
+
+    # Check if room exists
+    room_exists = False
+    for key in redis_client.scan_iter(match=f"room:{room_id}:*", count=1):
+        room_exists = True
+        break
+
+    if not room_exists:
+        return {"error": "Room not found"}, 404
+
+    template_id = redis_client.get(f"room:{room_id}:template") or "empty"
+
+    return {"id": room_id, "template": template_id}, 200
 
 
 @main.route("/api/templates", methods=["GET"])

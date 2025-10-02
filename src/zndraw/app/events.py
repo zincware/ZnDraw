@@ -205,6 +205,37 @@ def on_join(data):
         r.hdel(f"room:{previous_room_name}:users", sid)
         log.info(f"Client {sid} ({user}) removed from Redis room: {previous_room_name}")
 
+    # Check if this is a new room and handle template initialization
+    # Use template key to check if room was already created
+    room_exists = r.exists(f"room:{room}:template")
+
+    if not room_exists:
+        # This is a new room - determine which template to use
+        # "template" key in data:
+        #   - not present: use default template
+        #   - None: use "empty" template explicitly
+        #   - string value: use that template
+        if "template" not in data:
+            # Use default template
+            from .routes import ensure_empty_template_exists
+            ensure_empty_template_exists()
+            template_id = r.get("default_template") or "empty"
+        elif data["template"] is None:
+            # Explicit None means use "empty" template
+            template_id = "empty"
+        else:
+            # Use specified template
+            template_id = data["template"]
+            # Verify template exists, fall back to "empty" if it doesn't
+            template_key = f"template:{template_id}"
+            if not r.exists(template_key):
+                log.warning(f"Template '{template_id}' not found for room '{room}', falling back to 'empty'")
+                template_id = "empty"
+
+        # Store the template used for this room
+        r.set(f"room:{room}:template", template_id)
+        log.info(f"New room '{room}' created from template '{template_id}'")
+
     # Join the new room (flask-socketio still needs this for the message queue)
     join_room(f"room:{room}")
     # joint the room for this user, e.g. one user can have multiple connections

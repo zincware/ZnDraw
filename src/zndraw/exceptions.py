@@ -9,3 +9,8 @@ class ZnDrawException(Exception):
 class LockError(ZnDrawException):
     """Raised when an operation fails due to a lock being held by another client."""
     pass
+
+
+class TemplateNotFoundError(ZnDrawException):
+    """Raised when a template is not found."""
+    pass

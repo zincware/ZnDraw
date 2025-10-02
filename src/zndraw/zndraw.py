@@ -1,5 +1,5 @@
 import dataclasses
-from zndraw.client import Client
+from zndraw.client import Client, _TemplateValue
 from zndraw.extensions import Extension, ExtensionType
 import typing as t
 import ase
@@ -14,14 +14,19 @@ class ZnDraw(MutableSequence):
     room: str
     user: str
     auto_pickup_jobs: bool = True
+    template: str | None | t.Type[_TemplateValue] = _TemplateValue
 
     def __post_init__(self):
-        self.client = Client(url=self.url, room=self.room, user=self.user, auto_pickup_jobs=self.auto_pickup_jobs)
+        self.client = Client(url=self.url, room=self.room, user=self.user, auto_pickup_jobs=self.auto_pickup_jobs, template=self.template)
         self.client.connect()
 
     @property
     def step(self) -> int:
         return self.client.step
+
+    @property
+    def lock(self):
+        return self.client.lock
 
     @step.setter
     def step(self, value: int):
