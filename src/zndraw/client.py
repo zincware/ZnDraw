@@ -77,6 +77,7 @@ class Client(MutableSequence):
     _client_id: str = dataclasses.field(default_factory=lambda: str(uuid.uuid4()), init=False)
     _selection: frozenset[int] = frozenset()
     _frame_selection: frozenset[int] = frozenset()
+    _lock: SocketIOLock = dataclasses.field(init=False)
 
     def __post_init__(self):
         self.sio = socketio.Client()
@@ -87,6 +88,13 @@ class Client(MutableSequence):
         self.sio.on("invalidate", self._on_invalidate)
         self.sio.on("queue:update", self._on_queue_update)
         self.sio.on("frame_selection:update", self._on_frame_selection_update)
+        
+        self._lock = SocketIOLock(self.sio, target="trajectory:meta")
+    
+    @property
+    def lock(self) -> SocketIOLock:
+        """Get a lock object for the trajectory metadata."""
+        return self._lock
 
     @property
     def sid(self) -> str:

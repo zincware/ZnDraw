@@ -326,6 +326,144 @@ def append_frame(room_id):
         return {"error": "Failed to write to data store"}, 500
 
 
+def ensure_empty_template_exists():
+    """Ensure the 'empty' template exists in Redis."""
+    redis_client = current_app.extensions["redis"]
+    template_key = "template:empty"
+
+    # Check if template already exists
+    if not redis_client.exists(template_key):
+        # Create the empty template
+        template_data = {
+            "id": "empty",
+            "name": "Empty Room Template",
+            "description": "Empty room template"
+        }
+        redis_client.hset(template_key, mapping=template_data)
+        log.info("Created 'empty' template")
+
+
+@main.route("/api/rooms", methods=["GET"])
+def list_rooms():
+    """List all active rooms."""
+    redis_client = current_app.extensions["redis"]
+
+    # Scan for all room keys to find unique room IDs
+    room_ids = set()
+    for key in redis_client.scan_iter(match="room:*"):
+        # Extract room ID from keys like "room:{room_id}:..."
+        parts = key.split(":")
+        if len(parts) >= 2:
+            room_ids.add(parts[1])
+
+    # Return list of room objects with id field
+    rooms = [{"id": room_id} for room_id in sorted(room_ids)]
+    return rooms, 200
+
+
+@main.route("/api/templates", methods=["GET"])
+def list_templates():
+    """List all available room templates."""
+    redis_client = current_app.extensions["redis"]
+
+    # Ensure empty template exists
+    ensure_empty_template_exists()
+
+    # Get all templates from Redis
+    templates = []
+    for key in redis_client.scan_iter(match="template:*"):
+        template_data = redis_client.hgetall(key)
+        if template_data:
+            templates.append(template_data)
+
+    # Sort by id to ensure "empty" comes first
+    templates.sort(key=lambda t: (t["id"] != "empty", t["id"]))
+
+    return templates, 200
+
+
+@main.route("/api/templates/default", methods=["GET"])
+def get_default_template():
+    """Get the default template."""
+    redis_client = current_app.extensions["redis"]
+
+    # Ensure empty template exists
+    ensure_empty_template_exists()
+
+    # Get default template ID from Redis, defaulting to "empty"
+    default_template_id = redis_client.get("default_template") or "empty"
+
+    # Get the template data
+    template_key = f"template:{default_template_id}"
+    template_data = redis_client.hgetall(template_key)
+
+    if not template_data:
+        return {"error": "Default template not found"}, 404
+
+    return template_data, 200
+
+
+@main.route("/api/templates/default", methods=["PUT"])
+def set_default_template():
+    """Set the default template."""
+    redis_client = current_app.extensions["redis"]
+    data = request.get_json()
+
+    template_id = data.get("template_id")
+    if not template_id:
+        return {"error": "template_id is required"}, 400
+
+    # Verify template exists
+    template_key = f"template:{template_id}"
+    if not redis_client.exists(template_key):
+        return {"error": f"Template '{template_id}' not found"}, 404
+
+    # Set as default
+    redis_client.set("default_template", template_id)
+
+    log.info(f"Set default template to '{template_id}'")
+    return {"status": "ok"}, 200
+
+
+@main.route("/api/rooms/<string:room_id>/promote", methods=["POST"])
+def promote_room_to_template(room_id):
+    """Promote a room to a template and make it read-only."""
+    redis_client = current_app.extensions["redis"]
+    data = request.get_json()
+
+    name = data.get("name")
+    description = data.get("description")
+
+    if not name or not description:
+        return {"error": "name and description are required"}, 400
+
+    # Check if room exists by looking for any room-related keys
+    room_exists = False
+    for key in redis_client.scan_iter(match=f"room:{room_id}:*", count=1):
+        room_exists = True
+        break
+
+    if not room_exists:
+        return {"error": "Room not found"}, 404
+
+    # Create template from room
+    template_key = f"template:{room_id}"
+    template_data = {
+        "id": room_id,
+        "name": name,
+        "description": description
+    }
+    redis_client.hset(template_key, mapping=template_data)
+
+    # Lock the room permanently by setting a lock without TTL
+    # This prevents any client from acquiring the trajectory lock
+    lock_key = get_lock_key(room_id, "trajectory:meta")
+    redis_client.set(lock_key, "template-lock")
+
+    log.info(f"Promoted room '{room_id}' to template '{name}' and locked it permanently")
+    return {"status": "ok"}, 200
+
+
 @main.route("/api/exit")
 def exit_app():
     """Endpoint to gracefully shut down the server. Secured via a shared secret."""
