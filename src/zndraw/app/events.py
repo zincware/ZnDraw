@@ -352,6 +352,7 @@ def handle_set_frame_continuous(data):
 def handle_request_presenter_token():
     sid = request.sid
     room = get_project_room_from_session(sid)
+    print(f"Presenter token requested by {sid} in room {room}")
     if not room:
         return {"success": False, "reason": "Not in a valid room"}
 
@@ -386,6 +387,7 @@ def handle_request_presenter_token():
 def handle_release_presenter_token():
     room = get_project_room_from_session(request.sid)
     lock_key = f"room:{room}:presenter_lock"
+    print(f"Presenter token release requested by {request.sid} in room {room}")
     r = current_app.extensions["redis"]
 
     presenter_sid = r.get(lock_key)
