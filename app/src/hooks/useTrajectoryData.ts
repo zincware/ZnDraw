@@ -13,11 +13,15 @@ const numpyDtypeToTypedArray = {
 
 
 const fetchFrameData = async (roomId: string, frameIndex: number, keys: string[], signal: AbortSignal) => {
-  const response = await fetch(`/api/frames/${roomId}`, {
+  const params = new URLSearchParams();
+  params.append('indices', frameIndex.toString());
+  if (keys && keys.length > 0) {
+    params.append('keys', keys.join(','));
+  }
+  const response = await fetch(`/api/frames/${roomId}?${params.toString()}`, {
     signal, // TanStack Query passes an AbortSignal automatically!
-    method: 'POST',
+    method: 'GET',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ indices: [frameIndex], keys: keys }),
   });
 
   if (!response.ok) {

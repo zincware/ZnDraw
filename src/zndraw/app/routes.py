@@ -136,16 +136,11 @@ def internal_emit():
     return {"success": True}
 
 
-@main.route("/api/frames/<string:room_id>", methods=["POST"])
+@main.route("/api/frames/<string:room_id>", methods=["GET"])
 def get_frames(room_id):
     """Serves multiple frames' data from the room's Zarr store using either indices or slice parameters."""
     r = current_app.extensions["redis"]
     try:
-        # Parse the request data
-        request_data = request.get_json()
-        if request_data is None:
-            return {"error": "Request body required"}, 400
-
         storage = get_storage(room_id)
 
         # Get logical-to-physical mapping from Redis
@@ -161,11 +156,19 @@ def get_frames(room_id):
         max_frame = len(frame_mapping) - 1
 
         # Determine frame indices based on request parameters
-        if "indices" in request_data:
-            # Direct list of indices
-            frame_indices = request_data["indices"]
-            if not isinstance(frame_indices, list):
-                return {"error": "Indices must be a list"}, 400
+        if "indices" in request.args:
+            # Indices parameter was provided as comma-separated values
+            indices_str = request.args.get("indices")
+
+            # Handle empty string case
+            if not indices_str:
+                frame_indices = []
+            else:
+                # Split by comma and convert to integers
+                try:
+                    frame_indices = [int(idx.strip()) for idx in indices_str.split(",")]
+                except ValueError:
+                    return {"error": "Indices must be comma-separated integers"}, 400
 
             # Validate frame indices
             for frame_id in frame_indices:
@@ -187,30 +190,24 @@ def get_frames(room_id):
         else:
             # Default to slice behavior for any remaining cases (including empty payload)
             # This handles slice parameters and slice(None, None, None) which sends empty payload
-            start = request_data.get("start", 0)
-            stop = request_data.get("stop", len(frame_mapping))
-            step = request_data.get("step", 1)
-
-            # Validate slice parameters
-            if not all(isinstance(x, int) for x in [start, stop, step]):
-                return {"error": "start, stop, and step must be integers"}, 400
+            start = int(request.args.get("start", 0))
+            stop = int(request.args.get("stop", len(frame_mapping)))
+            step = int(request.args.get("step", 1))
 
             if step == 0:
                 return {"error": "step cannot be zero"}, 400
 
             # Generate frame indices from slice
-            try:
-                frame_indices = list(range(start, stop, step))
-                # Filter out invalid indices
-                frame_indices = [i for i in frame_indices if 0 <= i <= max_frame]
-            except ValueError as e:
-                return {"error": f"Invalid slice parameters: {e}"}, 400
+            frame_indices = list(range(start, stop, step))
+            # Filter out invalid indices
+            frame_indices = [i for i in frame_indices if 0 <= i <= max_frame]
 
-        # Get keys parameter if specified
-        requested_keys = request_data.get("keys")
-        print(f"get_frames called with keys: {requested_keys}")
-        # error_data = {"error": f"Key(s) not found: {', '.join(sorted(missing_keys))}", "type": "KeyError"}
-        # return Response(json.dumps(error_data), status=404, content_type='application/json')
+        # Get keys parameter if specified (comma-separated)
+        keys_str = request.args.get("keys")
+        if keys_str:
+            requested_keys = [k.strip() for k in keys_str.split(",")]
+        else:
+            requested_keys = None
 
         # TODO: requested keys and KeyError handling
         # TODO: instead of iterate load at once
@@ -602,7 +599,7 @@ def promote_room_to_template(room_id):
     return {"status": "ok"}, 200
 
 
-@main.route("/api/exit")
+@main.route("/api/shutdown", methods=["POST"])
 def exit_app():
     """Endpoint to gracefully shut down the server. Secured via a shared secret."""
     socketio.stop()

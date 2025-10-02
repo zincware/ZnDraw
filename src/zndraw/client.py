@@ -489,8 +489,8 @@ class Client(MutableSequence):
 
         # Prepare request payload based on input type
         if isinstance(indices_or_slice, list):
-            # Direct list of indices
-            payload = {"indices": indices_or_slice}
+            # Direct list of indices - convert to comma-separated string
+            payload = {"indices": ",".join(str(i) for i in indices_or_slice)}
         elif isinstance(indices_or_slice, slice):
             # Slice object - extract start, stop, step
             payload = {}
@@ -505,12 +505,12 @@ class Client(MutableSequence):
                 "indices_or_slice must be either a list of integers or a slice object"
             )
 
-        # Add keys parameter if specified
+        # Add keys parameter if specified (comma-separated)
         if keys is not None:
-            payload["keys"] = keys
+            payload["keys"] = ",".join(keys)
 
         full_url = f"{self.url}/api/frames/{self.room}"
-        response = requests.post(full_url, json=payload, timeout=30)
+        response = requests.get(full_url, params=payload, timeout=30)
 
         # Check for errors
         if response.status_code == 404:

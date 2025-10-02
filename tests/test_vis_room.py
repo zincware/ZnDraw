@@ -38,7 +38,7 @@ def test_rest_join_new_room(server):
 
     # getting any frame will fail with index error
     for frame_idx in [0, 1, -1, 100]:
-        response = requests.post(f"{server}/api/frames/{room}", json={"indices": [frame_idx]})
+        response = requests.get(f"{server}/api/frames/{room}", params={"indices": [frame_idx]})
         assert response.status_code == 404
         data = response.json()
         assert data["type"] == "IndexError"
