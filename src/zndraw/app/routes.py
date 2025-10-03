@@ -190,17 +190,23 @@ def get_frames(room_id):
         else:
             # Default to slice behavior for any remaining cases (including empty payload)
             # This handles slice parameters and slice(None, None, None) which sends empty payload
-            start = int(request.args.get("start", 0))
-            stop = int(request.args.get("stop", len(frame_mapping)))
-            step = int(request.args.get("step", 1))
+            start_param = request.args.get("start")
+            stop_param = request.args.get("stop")
+            step_param = request.args.get("step")
+
+            start = int(start_param) if start_param is not None else None
+            stop = int(stop_param) if stop_param is not None else None
+            step = int(step_param) if step_param is not None else None
 
             if step == 0:
                 return {"error": "step cannot be zero"}, 400
 
+            # Use slice.indices to properly handle negative indices
+            slice_obj = slice(start, stop, step)
+            start, stop, step = slice_obj.indices(len(frame_mapping))
+
             # Generate frame indices from slice
             frame_indices = list(range(start, stop, step))
-            # Filter out invalid indices
-            frame_indices = [i for i in frame_indices if 0 <= i <= max_frame]
 
         # Get keys parameter if specified (comma-separated)
         keys_str = request.args.get("keys")

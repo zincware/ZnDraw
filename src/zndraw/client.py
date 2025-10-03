@@ -596,14 +596,51 @@ class Client(MutableSequence):
 
     def __getitem__(self, index) -> dict | list[dict]:
         """Get frame(s) by index or slice."""
+        import numpy as np
+
+        # Handle numpy arrays
+        if isinstance(index, np.ndarray):
+            if index.ndim == 0:
+                # 0-d array (scalar)
+                index = int(index.item())
+            else:
+                # Multi-dimensional array - convert to list
+                index = index.tolist()
+
         if isinstance(index, slice):
+            # Validate slice step
+            if index.step is not None:
+                if not isinstance(index.step, int):
+                    raise TypeError("Slice step must be an integer")
+                if index.step == 0:
+                    raise ValueError("Slice step cannot be zero")
             return self.get_frames(index)
+        elif isinstance(index, list):
+            # Validate list elements
+            length = len(self)
+            validated_indices = []
+            for i in index:
+                if not isinstance(i, (int, np.integer)):
+                    raise TypeError(f"List indices must be integers, not {type(i).__name__}")
+                original_i = i
+                # Convert negative indices
+                if i < 0:
+                    i += length
+                # Check bounds
+                if i < 0 or i >= length:
+                    raise IndexError(f"list index out of range")
+                validated_indices.append(int(i))
+            return self.get_frames(validated_indices)
         elif isinstance(index, int):
+            length = len(self)
             if index < 0:
-                index += len(self)
+                index += length
+            # Check bounds after converting negative index
+            if index < 0 or index >= length:
+                raise IndexError(f"Index out of range")
             return self.get_frame(index)
         else:
-            raise TypeError("Index must be int or slice")
+            raise TypeError(f"Index must be int, slice, or list, not {type(index).__name__}")
 
     def __setitem__(self, index, value):
         """Replace frame(s) at index or slice."""

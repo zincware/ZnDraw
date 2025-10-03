@@ -3,6 +3,7 @@ import typing as t
 from collections.abc import MutableSequence
 
 import ase
+import numpy as np
 
 from zndraw.client import Client, _TemplateValue
 from zndraw.extensions import Extension, ExtensionType
@@ -72,11 +73,15 @@ class ZnDraw(MutableSequence):
     def __getitem__(self, index: slice) -> list[ase.Atoms]: ...
     @t.overload
     def __getitem__(self, index: list[int]) -> list[ase.Atoms]: ...
+    @t.overload
+    def __getitem__(self, index: np.ndarray) -> ase.Atoms | list[ase.Atoms]: ...
     def __getitem__(
-        self, index: int | slice | list[int]
+        self, index: int | slice | list[int] | np.ndarray
     ) -> ase.Atoms | list[ase.Atoms]:
         """Get an Atoms object by index."""
         data = self.client[index]
+        if isinstance(data, list):
+            return [atoms_from_dict(d) for d in data]
         return atoms_from_dict(data)
 
     def __setitem__(self, index: int, atoms: ase.Atoms) -> None:
