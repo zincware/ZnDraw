@@ -114,7 +114,7 @@ const SecondaryPanel = ({ panelTitle }: SecondaryPanelProps) => {
             </Typography>
             <Divider />
 
-            <Box sx={{ p: 2, flexGrow: 1, overflowY: 'auto' }}>
+            <Box sx={{ p: 2, pb: 12, flexGrow: 1, overflowY: 'auto' }}>
                 <FormControl fullWidth sx={{ mb: 2 }}>
                     <InputLabel id="panel-select-label">{panelTitle} Method</InputLabel>
                     <Select
