@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useCallback, useRef } from 'react';
 import { useAppStore } from '../store';
-import { useParams } from 'react-router-dom';
+import { useParams, useSearchParams } from 'react-router-dom';
 import { set, throttle } from 'lodash';
 
 export const useRestJoinManager = () => {
     const { setClientId, setRoomId, setUserId, setCurrentFrame, setFrameCount, setSelection, setFrameSelection, setBookmarks, setJoinToken } = useAppStore();
     const { roomId: room, userId } = useParams<{ roomId: string, userId: string }>();
+    const [searchParams] = useSearchParams();
 
     const abortControllerRef = useRef<AbortController | null>(null);
 
@@ -20,13 +21,22 @@ export const useRestJoinManager = () => {
 
         console.log('Joining room via REST:', room, userId);
 
+        // Get template from query parameters
+        const template = searchParams.get('template');
+
+        // Build request body
+        const requestBody: { userId: string; template?: string } = { userId };
+        if (template) {
+            requestBody.template = template;
+        }
+
         try {
             const response = await fetch(`/api/rooms/${room}/join`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({userId: userId}),
+                body: JSON.stringify(requestBody),
                 // 3. Pass the controller's signal to the fetch options.
                 signal: controller.signal,
             });
@@ -78,7 +88,7 @@ export const useRestJoinManager = () => {
             }
         }
 
-    }, [room, userId, setClientId, setRoomId, setUserId, setCurrentFrame, setFrameCount, setSelection, setFrameSelection, setBookmarks, setJoinToken]);
+    }, [room, userId, searchParams, setClientId, setRoomId, setUserId, setCurrentFrame, setFrameCount, setSelection, setFrameSelection, setBookmarks, setJoinToken]);
 
     const throttledJoin = useMemo(() =>
         throttle(joinRoom, 10000, { leading: true, trailing: false }),
