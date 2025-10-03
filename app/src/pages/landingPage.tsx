@@ -5,6 +5,7 @@ import Toolbar from '@mui/material/Toolbar';
 import Typography from '@mui/material/Typography';
 import IconButton from '@mui/material/IconButton';
 import ChatIcon from '@mui/icons-material/Chat';
+import CodeIcon from '@mui/icons-material/Code';
 import FrameProgressBar from '../components/ProgressBar';
 import SideBar from '../components/SideBar';
 
@@ -12,8 +13,10 @@ import { useSocketManager } from '../hooks/useSocketManager';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
 import MyScene from '../components/Canvas';
 import ChatWindow from '../components/ChatWindow';
+import ConnectionDialog from '../components/ConnectionDialog';
 import { useAppStore } from '../store';
 import { useRestJoinManager } from '../hooks/useRestManager';
+import { useState } from 'react';
 
 
 
@@ -23,6 +26,7 @@ export default function MainPage() {
   useRestJoinManager();
 
   const { chatOpen, setChatOpen } = useAppStore();
+  const [connectionDialogOpen, setConnectionDialogOpen] = useState(false);
 
   return (
     <>
@@ -34,6 +38,13 @@ export default function MainPage() {
             <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
               ZnDraw
             </Typography>
+            <IconButton
+              color="inherit"
+              aria-label="show connection info"
+              onClick={() => setConnectionDialogOpen(true)}
+            >
+              <CodeIcon />
+            </IconButton>
             <IconButton
               color="inherit"
               aria-label="toggle chat"
@@ -55,6 +66,11 @@ export default function MainPage() {
         <ChatWindow open={chatOpen} onClose={() => setChatOpen(false)} />
       </Box>
       <FrameProgressBar />
+
+      <ConnectionDialog
+        open={connectionDialogOpen}
+        onClose={() => setConnectionDialogOpen(false)}
+      />
     </>
   );
 }
