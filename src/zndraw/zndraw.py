@@ -130,3 +130,7 @@ class ZnDraw(MutableSequence):
     def run(self, *args, **kwargs) -> None:
         """Run an extension on the current selection."""
         self.client.run(*args, **kwargs)
+
+    def log(self, message: str) -> None:
+        """Log a message to the client."""
+        self.client.log(message)
