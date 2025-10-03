@@ -27,6 +27,7 @@ import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import { FrameReference } from './FrameReference';
 
 import 'katex/dist/katex.min.css';
 
@@ -263,7 +264,7 @@ const ChatWindow = ({ open, onClose }: ChatWindowProps) => {
                         rehypePlugins={htmlPlugins}
                         components={{
                           code({ node, className, children, ...props }) {
-                            const match = /language-(\w+)/.exec(className || '');
+                            const match = /language-(\w+)/.exec(className || "");
                             return !node && match ? (
                               <SyntaxHighlighter
                                 style={oneLight}
@@ -271,7 +272,7 @@ const ChatWindow = ({ open, onClose }: ChatWindowProps) => {
                                 PreTag="div"
                                 {...props}
                               >
-                                {String(children).replace(/\n$/, '')}
+                                {String(children).replace(/\n$/, "")}
                               </SyntaxHighlighter>
                             ) : (
                               <code className={className} {...props}>
@@ -279,27 +280,24 @@ const ChatWindow = ({ open, onClose }: ChatWindowProps) => {
                               </code>
                             );
                           },
-                          a({ node, children, ...props }) {
-                            const frameId = props.frame as number | undefined;
-                            return frameId ? (
-                              <a
-                                {...props}
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  setCurrentFrame(frameId);
-                                }}
-                                style={{
-                                  cursor: 'pointer',
-                                  textDecoration: 'underline',
-                                  color: '#1976d2',
-                                }}
-                              >
-                                {children}
-                              </a>
-                            ) : (
-                              <a {...props}>{children}</a>
-                            );
+
+                          // 👇 map frameLink directly
+                          frameLink({ frame }) { // Destructure 'frame' directly from props
+                            if (typeof frame === 'number') {
+                              return <FrameReference frame={frame} />;
+                            }
+                            // Optional: return a fallback if frame is missing for some reason
+                            return null;
                           },
+
+                          // fallback for real links
+                          // a({ node, children, ...props }) {
+                          //   return (
+                          //     <a {...props} style={{ color: "#1976d2" }}>
+                          //       {children}
+                          //     </a>
+                          //   );
+                          // },
                         }}
                       >
                         {message.content}

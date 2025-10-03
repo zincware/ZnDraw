@@ -1,3 +1,4 @@
+// remark-frame-link.js
 import { visit, SKIP } from 'unist-util-visit';
 
 const frameRegex = /(^|\s)@(\d+)/g;
@@ -20,7 +21,7 @@ export function remarkFrameLink() {
           });
         }
 
-        // preserve the leading space if present
+        // preserve leading space
         if (match[1] === ' ') {
           newNodes.push({ type: 'text', value: ' ' });
         }
@@ -30,8 +31,8 @@ export function remarkFrameLink() {
         newNodes.push({
           type: 'frameLink',
           data: {
-            hName: 'a',
-            hProperties: { href: '#', frame: frameId },
+            hName: 'frameLink', // 👈 custom node instead of <a>
+            hProperties: { frame: frameId },
           },
           children: [{ type: 'text', value: `@${frameId}` }],
         });
