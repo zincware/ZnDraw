@@ -1809,6 +1809,11 @@ def join_room(room_id):
     indices_key = f"room:{room_id}:trajectory:indices"
     response["frameCount"] = r.zcard(indices_key)
 
+    # Initialize current_frame to 0 for newly created rooms
+    if not room_exists:
+        r.set(f"room:{room_id}:current_frame", 0)
+        log.info(f"Initialized current_frame to 0 for new room '{room_id}'")
+
     selection = r.get(f"room:{room_id}:selection:default")
     response["selection"] = json.loads(selection) if selection else None
 
@@ -1821,7 +1826,7 @@ def join_room(room_id):
     response["presenter-lock"] = presenter_lock
 
     step = r.get(f"room:{room_id}:current_frame")
-    response["step"] = int(step) if step else None
+    response["step"] = int(step) if step is not None else 0
 
     bookmarks_key = f"room:{room_id}:bookmarks"
     physical_bookmarks = r.hgetall(bookmarks_key)
