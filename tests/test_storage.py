@@ -2,6 +2,7 @@ import numpy as np
 import numpy.testing as npt
 import pytest
 import zarr
+from zarr.storage import MemoryStore
 
 from zndraw.storage import (
     ZarrStorageSequence,
@@ -12,7 +13,6 @@ from zndraw.storage import (
     read_zarr,
 )
 from zndraw.utils import atoms_to_dict
-from zarr.storage import MemoryStore
 
 
 def assert_equal(original, reconstructed):
@@ -386,6 +386,7 @@ def test_zarr_storage_variable_sized_atoms(s22):
     for i in range(len(s22)):
         assert_equal(dict[i], store[i])
 
+
 def test_zarr_storage_empty():
     root = zarr.group(store=MemoryStore())
     store = ZarrStorageSequence(root)
@@ -393,6 +394,7 @@ def test_zarr_storage_empty():
     assert len(store) == 0
     with pytest.raises(IndexError):
         store[0]
+
 
 def test_zarr_storage_append_empty_dict():
     root = zarr.group(store=MemoryStore())
@@ -409,6 +411,7 @@ def test_zarr_storage_append_empty_dict():
     assert store[0]["2D"].shape == (4, 3)
     assert store[1]["2D"].shape == (0, 3)
     assert store[2]["2D"].shape == (2, 3)
+
 
 def test_zarr_slicing():
     root = zarr.group(store=MemoryStore())
@@ -432,13 +435,10 @@ def test_zarr_slicing():
     npt.assert_array_equal(store[[1, 3, -2]]["1D"], np.array([1, 3, 8]))
     npt.assert_array_equal(store[np.array([1, 3, -2])]["1D"], np.array([1, 3, 8]))
 
-
     with pytest.raises(IndexError):
         store[10]
     with pytest.raises(IndexError):
         store[-11]
-    
+
     with pytest.raises(IndexError):
         store[np.array([1, 2, 100])]
-
-    

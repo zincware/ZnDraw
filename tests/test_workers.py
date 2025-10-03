@@ -619,7 +619,11 @@ def test_worker_fail_job(server):
     # fail the job without starting it
     response = requests.put(
         f"{server}/api/rooms/{room}/jobs/{jobId}/status",
-        json={"status": "failed", "workerId": vis.client.sid, "error": "Something went wrong"},
+        json={
+            "status": "failed",
+            "workerId": vis.client.sid,
+            "error": "Something went wrong",
+        },
     )
     assert response.status_code == 400
     assert response.json() == {"error": "Job is not running"}
@@ -636,7 +640,11 @@ def test_worker_fail_job(server):
     # fail the job with wrong worker id
     response = requests.put(
         f"{server}/api/rooms/{room}/jobs/{jobId}/status",
-        json={"status": "failed", "workerId": "wrong-worker-id", "error": "Something went wrong"},
+        json={
+            "status": "failed",
+            "workerId": "wrong-worker-id",
+            "error": "Something went wrong",
+        },
     )
     assert response.status_code == 400
     assert response.json() == {"error": "Worker ID does not match job's worker ID"}
@@ -644,7 +652,11 @@ def test_worker_fail_job(server):
     # fail the job
     response = requests.put(
         f"{server}/api/rooms/{room}/jobs/{jobId}/status",
-        json={"status": "failed", "workerId": vis.client.sid, "error": "Something went wrong"},
+        json={
+            "status": "failed",
+            "workerId": vis.client.sid,
+            "error": "Something went wrong",
+        },
     )
     assert response.status_code == 200
     assert response.json() == {"status": "success"}
@@ -956,7 +968,6 @@ def test_register_extensions_reconnect_with_queue(server, category):
     # assert response_json["status"] == "completed"
 
 
-
 @pytest.mark.parametrize("category", ["modifiers", "selections"])
 def test_register_extensions_reconnect_without_queue(server, category):
     room = "testroom"
@@ -984,7 +995,9 @@ def test_register_extensions_reconnect_without_queue(server, category):
     assert response.status_code == 200
     response_json = response.json()
     assert isinstance(response_json, dict)
-    assert set(response_json.keys()) == default_keys # no more jobs in queue, so the modifier should be gone
+    assert (
+        set(response_json.keys()) == default_keys
+    )  # no more jobs in queue, so the modifier should be gone
 
     # try submit a job -> should fail
     response = requests.post(
@@ -992,7 +1005,10 @@ def test_register_extensions_reconnect_without_queue(server, category):
         json={"data": {"parameter": 42}, "userId": user},
     )
     assert response.status_code == 400
-    assert response.json() == {"error": f"No workers available for extension {mod.__name__}"}
+    assert response.json() == {
+        "error": f"No workers available for extension {mod.__name__}"
+    }
+
 
 def test_submit_task_via_vis_run(server):
     vis = ZnDraw(url=server, room="testroom", user="testuser", auto_pickup_jobs=False)

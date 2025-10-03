@@ -173,7 +173,6 @@ def test_default_template(server, promoted_template, s22):
     assert len(vis4) == 1
     assert vis4[0] == s22[0]
 
-
     response = requests.get(f"{server}/api/rooms/s22-3")
     assert response.json()["template"] == promoted_template
 

@@ -1,5 +1,7 @@
-from zndraw.zndraw import ZnDraw
 import pytest
+
+from zndraw.zndraw import ZnDraw
+
 
 def test_vis_bookmarks(server, s22):
     vis = ZnDraw(url=server, room="testroom", user="testuser")
@@ -19,12 +21,13 @@ def test_vis_bookmarks(server, s22):
     vis.bookmarks = None
     assert vis.bookmarks == {}
 
+
 def test_vis_bookmarks_errors(server, s22):
     vis = ZnDraw(url=server, room="testroom", user="testuser")
     vis.extend(s22)
 
     with pytest.raises(IndexError):
         vis.bookmarks = {999: "Out of bounds"}
-    
+
     with pytest.raises(TypeError):
         vis.bookmarks = {0: 123}  # Non-string label

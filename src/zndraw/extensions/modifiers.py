@@ -363,6 +363,7 @@ class FixAtoms(UpdateScene):
             atoms.set_constraint(constraint)
         vis.atoms = atoms
 
+
 class Empty(UpdateScene):
     """An empty modifier that does nothing."""
 

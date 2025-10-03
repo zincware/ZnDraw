@@ -322,7 +322,9 @@ class ZarrStorageSequence(MutableSequence):
         length = len(self)
         for i in index:
             if i < -length or i >= length:
-                raise IndexError(f"Index {i} is out of bounds for storage of length {length}")
+                raise IndexError(
+                    f"Index {i} is out of bounds for storage of length {length}"
+                )
 
         result = [read_zarr(self.group, i, keys=keys) for i in index]
         if is_single:

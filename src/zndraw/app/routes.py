@@ -6,6 +6,7 @@ import msgpack
 import zarr
 from flask import Response, current_app, request
 from flask_socketio import disconnect
+from zarr.storage import MemoryStore
 
 from zndraw.server import socketio
 from zndraw.storage import ZarrStorageSequence, decode_data, encode_data
@@ -18,12 +19,11 @@ from .redis_keys import ExtensionKeys
 from .worker_dispatcher import dispatch_next_task
 from .worker_stats import WorkerStats
 
-from zarr.storage import MemoryStore
-
 # --- Logging Setup ---
 log = logging.getLogger(__name__)
 
 STORAGE: dict[str, MemoryStore] = {}
+
 
 # TODO: move to utils
 def get_lock_key(room: str, target: str) -> str:
@@ -37,6 +37,7 @@ def get_zarr_store_path(room_id: str) -> str:
     # Remove .zarr extension if present to append room_id
     base_path = storage_path.rstrip("/").removesuffix(".zarr")
     return f"{base_path}/{room_id}.zarr"
+
 
 def get_storage(room_id: str) -> ZarrStorageSequence:
     # store_path = get_zarr_store_path(room_id)
@@ -82,7 +83,9 @@ def emit_bookmarks_update(room_id: str):
         )
 
 
-def emit_frames_invalidate(room_id: str, operation: str, affected_index: int = None, affected_from: int = None):
+def emit_frames_invalidate(
+    room_id: str, operation: str, affected_index: int = None, affected_from: int = None
+):
     """
     Emit frames:invalidate event to tell clients to clear their frame cache.
 
@@ -115,10 +118,11 @@ def disconnect_sid(client_sid: str):
     try:
         r = current_app.extensions["redis"]
         sid = r.get(f"client_id:{client_sid}:sid")
-        disconnect(sid, namespace='/')
+        disconnect(sid, namespace="/")
         return {"success": True}
     except Exception:
         return {"success": False}
+
 
 @main.route("/internal/emit", methods=["POST"])
 def internal_emit():
@@ -149,9 +153,9 @@ def get_frames(room_id):
 
         if not frame_mapping:
             return {
-                        "error": f"Index out of range for data with 0 frames in room '{room_id}'",
-                        "type": "IndexError",
-                    }, 404
+                "error": f"Index out of range for data with 0 frames in room '{room_id}'",
+                "type": "IndexError",
+            }, 404
 
         max_frame = len(frame_mapping) - 1
 
@@ -398,7 +402,9 @@ def delete_frames_batch(room_id):
         emit_bookmarks_update(room_id)
         # Invalidate all frames from the first deleted position onward
         if frame_indices:
-            emit_frames_invalidate(room_id, operation="delete", affected_from=min(frame_indices))
+            emit_frames_invalidate(
+                room_id, operation="delete", affected_from=min(frame_indices)
+            )
 
         return {"success": True, "deleted_count": len(frame_indices)}
     except Exception as e:
@@ -436,9 +442,7 @@ def append_frame(room_id):
             # Get frame_id from query parameters
             target_frame_id = request.args.get("frame_id")
             if target_frame_id is None:
-                return {
-                    "error": "frame_id is required for replace operations"
-                }, 400
+                return {"error": "frame_id is required for replace operations"}, 400
 
             try:
                 target_frame_id = int(target_frame_id)
@@ -451,7 +455,7 @@ def append_frame(room_id):
             if not (0 <= target_frame_id < len(frame_mapping)):
                 return {
                     "error": f"Invalid or missing frame_id for replace. Valid range: 0-{len(frame_mapping) - 1}",
-                    "type": "IndexError"
+                    "type": "IndexError",
                 }, 404
 
             new_physical_index = len(storage)
@@ -462,7 +466,9 @@ def append_frame(room_id):
 
             pipeline = r.pipeline()
             pipeline.zrem(indices_key, old_mapping_entry)
-            pipeline.zadd(indices_key, {f"{room_id}:{new_physical_index}": target_frame_id})
+            pipeline.zadd(
+                indices_key, {f"{room_id}:{new_physical_index}": target_frame_id}
+            )
             pipeline.execute()
 
             # Remove bookmark for old physical frame (if it exists)
@@ -472,7 +478,9 @@ def append_frame(room_id):
             # Emit bookmarks update to reflect removal
             emit_bookmarks_update(room_id)
             # Invalidate only the replaced frame
-            emit_frames_invalidate(room_id, operation="replace", affected_index=target_frame_id)
+            emit_frames_invalidate(
+                room_id, operation="replace", affected_index=target_frame_id
+            )
 
             log.info(
                 f"Replaced frame {target_frame_id} (old: {old_mapping_entry}, new: {room_id}:{new_physical_index}) in room '{room_id}'"
@@ -547,13 +555,17 @@ def append_frame(room_id):
                     pipeline.zincrby(indices_key, 1, member)
 
             # Add the new frame at the correct logical position with room_id prefix
-            pipeline.zadd(indices_key, {f"{room_id}:{new_physical_index}": insert_position})
+            pipeline.zadd(
+                indices_key, {f"{room_id}:{new_physical_index}": insert_position}
+            )
             pipeline.execute()
 
             # Emit bookmarks update (logical indices shifted by the insert)
             emit_bookmarks_update(room_id)
             # Invalidate all frames from insert position onward (they all shift up)
-            emit_frames_invalidate(room_id, operation="insert", affected_from=insert_position)
+            emit_frames_invalidate(
+                room_id, operation="insert", affected_from=insert_position
+            )
 
             log.info(
                 f"Inserted frame at position {insert_position} (physical: {new_physical_index}) in room '{room_id}'"
@@ -607,9 +619,7 @@ def bulk_replace_frames(room_id):
         serialized_data = msgpack.unpackb(request.data, strict_map_key=False)
 
         if not isinstance(serialized_data, list):
-            return {
-                "error": "Body must contain a list of frame dictionaries"
-            }, 400
+            return {"error": "Body must contain a list of frame dictionaries"}, 400
 
         storage = get_storage(room_id)
         indices_key = f"room:{room_id}:trajectory:indices"
@@ -635,7 +645,7 @@ def bulk_replace_frames(room_id):
                 if idx < 0 or idx >= len(frame_mapping):
                     return {
                         "error": f"Invalid index {idx}, valid range: 0-{len(frame_mapping) - 1}",
-                        "type": "IndexError"
+                        "type": "IndexError",
                     }, 404
 
             # Check length matches
@@ -656,12 +666,16 @@ def bulk_replace_frames(room_id):
 
                 # Remove old mapping and add new one
                 pipeline.zrem(indices_key, old_mapping_entry)
-                pipeline.zadd(indices_key, {f"{room_id}:{new_physical_idx}": logical_idx})
+                pipeline.zadd(
+                    indices_key, {f"{room_id}:{new_physical_idx}": logical_idx}
+                )
 
             pipeline.execute()
 
             emit_bookmarks_update(room_id)
-            emit_frames_invalidate(room_id, operation="replace", affected_from=min(target_indices))
+            emit_frames_invalidate(
+                room_id, operation="replace", affected_from=min(target_indices)
+            )
 
             log.info(f"Bulk replaced {len(target_indices)} frames in room '{room_id}'")
             return {"success": True, "replaced_count": len(target_indices)}
@@ -725,14 +739,12 @@ def bulk_replace_frames(room_id):
                 "replaced_range": [start, stop],
                 "old_count": old_count,
                 "new_count": new_count,
-                "new_length": len(new_mapping_list)
+                "new_length": len(new_mapping_list),
             }
 
     except Exception as e:
         log.error(f"Failed to bulk replace frames: {e}\n{traceback.format_exc()}")
         return {"error": "Failed to bulk replace frames"}, 500
-
-
 
 
 def ensure_empty_template_exists():
@@ -1268,6 +1280,7 @@ def update_job_status(room_id: str, job_id: str):
 
     return {"status": "success"}, 200
 
+
 @main.route("/api/rooms/<string:room_id>/extensions/register", methods=["POST"])
 def register_extension(room_id: str):
     data = request.get_json()
@@ -1317,9 +1330,7 @@ def register_extension(room_id: str):
                 "error": "Extension with this name already exists with a different schema"
             }, 400
         redis_client.sadd(keys.idle_workers, client_id)
-        redis_client.sadd(
-            user_extensions_key, name
-        )  # Keep this for disconnect cleanup
+        redis_client.sadd(user_extensions_key, name)  # Keep this for disconnect cleanup
 
         # Notify clients about worker count change
         log.info(
@@ -1610,9 +1621,7 @@ def get_chat_messages(room_id: str):
         )
     else:
         # Get latest messages (descending order)
-        message_ids = r.zrevrangebyscore(
-            index_key, "+inf", "-inf", start=0, num=limit
-        )
+        message_ids = r.zrevrangebyscore(index_key, "+inf", "-inf", start=0, num=limit)
 
     # Fetch message data
     messages = []
@@ -1622,9 +1631,7 @@ def get_chat_messages(room_id: str):
                 pipe.hget(data_key, msg_id)
             message_data_list = pipe.execute()
 
-        messages = [
-            json.loads(msg_data) for msg_data in message_data_list if msg_data
-        ]
+        messages = [json.loads(msg_data) for msg_data in message_data_list if msg_data]
 
     # Calculate metadata
     has_more = False
@@ -1661,7 +1668,7 @@ def join_room(room_id):
     data = request.get_json() or {}
     if ":" in room_id:
         return {"error": "Room ID cannot contain ':' character"}, 400
-    
+
     response = {
         "status": "ok",
         "frameCount": 0,
@@ -1673,7 +1680,7 @@ def join_room(room_id):
         "presenter-lock": False,
         "step": None,
     }
-    
+
     r = current_app.extensions["redis"]
 
     # Check if room already exists
@@ -1727,7 +1734,9 @@ def join_room(room_id):
     response["selection"] = json.loads(selection) if selection else None
 
     frame_selection = r.get(f"room:{room_id}:frame_selection:default")
-    response["frame_selection"] = json.loads(frame_selection) if frame_selection else None
+    response["frame_selection"] = (
+        json.loads(frame_selection) if frame_selection else None
+    )
 
     presenter_lock = r.get(f"room:{room_id}:presenter_lock")
     response["presenter-lock"] = presenter_lock
@@ -1742,7 +1751,9 @@ def join_room(room_id):
         frame_mapping = r.zrange(indices_key, 0, -1)
 
         # Build reverse mapping: physical_key -> logical_index
-        physical_to_logical = {physical_key: idx for idx, physical_key in enumerate(frame_mapping)}
+        physical_to_logical = {
+            physical_key: idx for idx, physical_key in enumerate(frame_mapping)
+        }
 
         # Convert bookmarks from physical to logical indices
         logical_bookmarks = {}

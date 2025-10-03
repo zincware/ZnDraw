@@ -38,11 +38,17 @@ def test_rest_join_new_room(server):
 
     # getting any frame will fail with index error
     for frame_idx in [0, 1, -1, 100]:
-        response = requests.get(f"{server}/api/rooms/{room}/frames", params={"indices": str(frame_idx)})
+        response = requests.get(
+            f"{server}/api/rooms/{room}/frames", params={"indices": str(frame_idx)}
+        )
         assert response.status_code == 404
         data = response.json()
         assert data["type"] == "IndexError"
-        assert data["error"] == f"Index out of range for data with 0 frames in room '{room}'"
+        assert (
+            data["error"]
+            == f"Index out of range for data with 0 frames in room '{room}'"
+        )
+
 
 def test_join_existing_room(server):
     # create a room first
@@ -63,17 +69,23 @@ def test_join_existing_room(server):
     assert data["presenter-lock"] is None
     assert data["template"] == "empty"
 
+
 def test_join_room_with_template(server):
     # create a room and promote to template
     room = "template-room"
     response = requests.post(f"{server}/api/rooms/{room}/join", json={})
     assert response.status_code == 200
-    response = requests.post(f"{server}/api/rooms/{room}/promote", json={"name": "Template Room", "description": "A custom template"})
+    response = requests.post(
+        f"{server}/api/rooms/{room}/promote",
+        json={"name": "Template Room", "description": "A custom template"},
+    )
     assert response.status_code == 200
 
     # create a new room using the above template
     new_room = "test-room-1"
-    response = requests.post(f"{server}/api/rooms/{new_room}/join", json={"template": room})
+    response = requests.post(
+        f"{server}/api/rooms/{new_room}/join", json={"template": room}
+    )
     assert response.status_code == 200
     data = response.json()
     assert data["status"] == "ok"
@@ -87,6 +99,7 @@ def test_join_room_with_template(server):
     assert data["status"] == "ok"
     assert data["template"] == "empty"
 
+
 def test_join_room_invalid_name(server):
     room = "invalid:room"
     response = requests.post(f"{server}/api/rooms/{room}/join", json={})
@@ -97,6 +110,7 @@ def test_join_room_invalid_name(server):
 
     with pytest.raises(RuntimeError):
         _ = ZnDraw(url=server, room=room, user="user1")
+
 
 def test_vis_empty_room(server, s22):
     vis1 = ZnDraw(url=server, room="room-a", user="user1")
@@ -112,11 +126,11 @@ def test_vis_empty_room(server, s22):
     with pytest.raises(IndexError):
         _ = vis1[9999]
 
+
 def test_vis_len(server, s22):
     vis1 = ZnDraw(url=server, room="room-a", user="user1")
     vis1.extend(s22)
     assert len(vis1) == len(s22)
-    
+
     vis2 = ZnDraw(url=server, room="room-a", user="user2")
     assert len(vis2) == len(s22)
-

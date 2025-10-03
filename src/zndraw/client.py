@@ -92,6 +92,7 @@ class Client(MutableSequence):
     _frame_selection: frozenset[int] = frozenset()
     _bookmarks: dict[int, str] = dataclasses.field(default_factory=dict, init=False)
     _lock: SocketIOLock = dataclasses.field(init=False)
+    _cache: dict[int, dict] = dataclasses.field(default_factory=dict, init=False)
 
     def __post_init__(self):
         self.sio = socketio.Client()
@@ -113,7 +114,7 @@ class Client(MutableSequence):
                 f"{self.url}/api/rooms/{self.room}/join",
                 json={"template": self.template},
             )
-        
+
         if response.status_code != 200:
             raise RuntimeError(
                 f"Failed to join room '{self.room}': {response.status_code} {response.text}"
@@ -193,7 +194,11 @@ class Client(MutableSequence):
                     log.error(f"Error processing job {data.get('jobId')}: {e}")
                     response = requests.put(
                         f"{self.url}/api/rooms/{self.room}/jobs/{data.get('jobId')}/status",
-                        json={"status": "failed", "error": str(e), "workerId": self.sid},
+                        json={
+                            "status": "failed",
+                            "error": str(e),
+                            "workerId": self.sid,
+                        },
                     )
                 # we have finished now, so we check for more jobs
                 self._on_queue_update({})
@@ -402,7 +407,6 @@ class Client(MutableSequence):
             frame_id = self.len_frames() + frame_id
         return self.get_frames([frame_id], keys=keys)[0]
 
-
     def _perform_locked_upload(self, action: str, data, **kwargs):
         """Perform a locked upload operation with common error handling."""
         if not self.sio.connected:
@@ -443,7 +447,9 @@ class Client(MutableSequence):
                 result = http_response.json()
 
                 if not result.get("success"):
-                    raise RuntimeError(f"Server reported failure: {result.get('error')}")
+                    raise RuntimeError(
+                        f"Server reported failure: {result.get('error')}"
+                    )
 
                 return result
             except requests.exceptions.RequestException as e:
@@ -597,7 +603,17 @@ class Client(MutableSequence):
         """Return the number of frames."""
         return self._len
 
-    def __getitem__(self, index) -> dict | list[dict]:
+    @t.overload
+    def __getitem__(self, index: int) -> dict: ...
+    @t.overload
+    def __getitem__(self, index: slice) -> list[dict]: ...
+    @t.overload
+    def __getitem__(self, index: list[int]) -> list[dict]: ...
+    @t.overload
+    def __getitem__(self, index: np.ndarray) -> dict | list[dict]: ...
+    def __getitem__(
+        self, index: int | slice | list[int] | np.ndarray
+    ) -> dict | list[dict]:
         """Get frame(s) by index or slice."""
         # Handle numpy arrays
         if isinstance(index, np.ndarray):
@@ -622,7 +638,9 @@ class Client(MutableSequence):
             validated_indices = []
             for i in index:
                 if not isinstance(i, (int, np.integer)):
-                    raise TypeError(f"List indices must be integers, not {type(i).__name__}")
+                    raise TypeError(
+                        f"List indices must be integers, not {type(i).__name__}"
+                    )
                 original_i = i
                 # Convert negative indices
                 if i < 0:
@@ -641,7 +659,9 @@ class Client(MutableSequence):
                 raise IndexError(f"Index out of range")
             return self.get_frame(index)
         else:
-            raise TypeError(f"Index must be int, slice, or list, not {type(index).__name__}")
+            raise TypeError(
+                f"Index must be int, slice, or list, not {type(index).__name__}"
+            )
 
     def __setitem__(self, index, value):
         """Replace frame(s) at index, slice, or list of indices."""
@@ -664,7 +684,9 @@ class Client(MutableSequence):
                 index += len(self)
             self.replace_frame(index, value)
         else:
-            raise TypeError(f"Index must be int, slice, or list, not {type(index).__name__}")
+            raise TypeError(
+                f"Index must be int, slice, or list, not {type(index).__name__}"
+            )
 
     def _setitem_slice(self, slice_obj: slice, values):
         """Handle slice assignment like Python lists."""
@@ -743,7 +765,9 @@ class Client(MutableSequence):
         validated_indices = []
         for i in indices:
             if not isinstance(i, (int, np.integer)):
-                raise TypeError(f"List indices must be integers, not {type(i).__name__}")
+                raise TypeError(
+                    f"List indices must be integers, not {type(i).__name__}"
+                )
             # Convert negative indices
             if i < 0:
                 i += length
@@ -849,7 +873,9 @@ class Client(MutableSequence):
             validated_indices = []
             for i in index:
                 if not isinstance(i, (int, np.integer)):
-                    raise TypeError(f"List indices must be integers, not {type(i).__name__}")
+                    raise TypeError(
+                        f"List indices must be integers, not {type(i).__name__}"
+                    )
                 # Convert negative indices
                 if i < 0:
                     i += length
@@ -866,7 +892,9 @@ class Client(MutableSequence):
                 raise IndexError(f"list index out of range")
             self.delete_frame(index)
         else:
-            raise TypeError(f"Index must be int, slice, or list, not {type(index).__name__}")
+            raise TypeError(
+                f"Index must be int, slice, or list, not {type(index).__name__}"
+            )
 
     def insert(self, index: int, value: dict):
         """Insert frame at index."""
@@ -965,7 +993,7 @@ class Client(MutableSequence):
                 )
             print(f"Extension '{name}' registered with room '{self.room}'.")
 
-    def run(self, extension: Extension) -> None|dict:
+    def run(self, extension: Extension) -> None | dict:
         print(f"Running extension: {extension}")
         response = requests.post(
             f"{self.url}/api/rooms/{self.room}/extensions/{extension.category.value}/{extension.__class__.__name__}/submit",

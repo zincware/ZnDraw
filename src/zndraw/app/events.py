@@ -633,6 +633,3 @@ def handle_chat_message_edit(data):
     except Exception as e:
         log.error(f"Failed to edit chat message: {e}")
         return {"success": False, "error": str(e)}
-
-
-

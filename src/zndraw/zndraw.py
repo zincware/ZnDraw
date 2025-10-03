@@ -84,7 +84,6 @@ class ZnDraw(MutableSequence):
             return [atoms_from_dict(d) for d in data]
         return atoms_from_dict(data)
 
-
     @t.overload
     def __setitem__(self, index: int, atoms: ase.Atoms) -> None: ...
     @t.overload
@@ -92,8 +91,14 @@ class ZnDraw(MutableSequence):
     @t.overload
     def __setitem__(self, index: list[int], atoms: list[ase.Atoms]) -> None: ...
     @t.overload
-    def __setitem__(self, index: np.ndarray, atoms: list[ase.Atoms] | ase.Atoms) -> None: ...
-    def __setitem__(self, index: int | slice | list[int] | np.ndarray, atoms: list[ase.Atoms] | ase.Atoms) -> None:
+    def __setitem__(
+        self, index: np.ndarray, atoms: list[ase.Atoms] | ase.Atoms
+    ) -> None: ...
+    def __setitem__(
+        self,
+        index: int | slice | list[int] | np.ndarray,
+        atoms: list[ase.Atoms] | ase.Atoms,
+    ) -> None:
         """Set an Atoms object at a specific index."""
         # Handle single atom vs list of atoms
         if isinstance(atoms, list):
@@ -111,8 +116,9 @@ class ZnDraw(MutableSequence):
             update_colors_and_radii(atoms)
             self.client[index] = atoms_to_dict(atoms)
         else:
-            raise TypeError("Only ase.Atoms objects or lists of ase.Atoms are supported")
-
+            raise TypeError(
+                "Only ase.Atoms objects or lists of ase.Atoms are supported"
+            )
 
     @t.overload
     def __delitem__(self, index: int) -> None: ...
@@ -157,7 +163,7 @@ class ZnDraw(MutableSequence):
     def bookmarks(self) -> dict[int, str]:
         """Get the current bookmarks of frame indices."""
         return self.client.bookmarks
-    
+
     @bookmarks.setter
     def bookmarks(self, value: dict[int, str] | None):
         """Set the current bookmarks of frame indices."""
