@@ -6,6 +6,7 @@ from zarr.storage import MemoryStore
 
 from zndraw.storage import (
     ZarrStorageSequence,
+    _split_key,
     create_zarr,
     decode_data,
     encode_data,
@@ -89,65 +90,23 @@ def sample_data():
 def test_encode_data(sample_data):
     encoded = encode_data(sample_data)
 
+    # With flattened keys, nested dicts become dotted paths
     assert encoded == {
-        "<SinglePointCalculator>": {
-            "energy": 1.0,
-            "forces": {
-                "data": b"/\xacU\x9a\x18;\xcc?y\x1d\x92\xd6\xef\xf4\xbb?\xe5\xbb\xcee\xeeJ\xd1?\xc2j,am,\xe7?\xfd>-P\x9c\xcd\xe6?\xed\xce\x03\xedH\xb4\xe8?\xc3o\xb7\xe2\xea\x19\xb2?KX\x1bc'<\xc2?\x80\x92\xc8_\xd6[\xd4?\xf8\x16\x18\xaaIM\xd6?;\x7f\x03(\x80A\xd5?4\x8d\x1e\xa6\x1aI\xb9?)\x03I\xd0F\x0b\xde?Y\xbf\xfc\xc2\xe9,\xd3?\x05\x905~<\x8f\xdb?",
-                "dtype": "float64",
-                "shape": (
-                    5,
-                    3,
-                ),
-            },
-            "string-calc": "this is a string from calc",
-        },
-        "REPEATED_KEY": {
-            "data": b"\x00\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x02\x00\x00\x00\x00\x00\x00\x00\x03\x00\x00\x00\x00\x00\x00\x00\x04\x00\x00\x00\x00\x00\x00\x00",
+        # Top-level arrays
+        "numbers": {
+            "data": b"\x06\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00",
             "dtype": "int64",
             "shape": (5,),
         },
-        "cell": {
-            "data": b"\x00\x00\x00\x00\x00\x00$@\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00$@\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00$@",
+        "positions": {
+            "data": b"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xf0?\x00\x00\x00\x00\x00\x00\xf0?\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xf0?\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xf0\xbf\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00",
             "dtype": "float64",
-            "shape": (
-                3,
-                3,
-            ),
+            "shape": (5, 3),
         },
-        "celldisp": {
-            "data": b"\x9a\x99\x99\x99\x99\x99\xb9?\x9a\x99\x99\x99\x99\x99\xc9?333333\xd3?",
-            "dtype": "float64",
-            "shape": (3,),
-        },
-        "info": {
-            "REPEATED_KEY": "info",
-            "array": {
-                "data": b"\x00\x00\x00\x00\x00\x00\xf0?\x00\x00\x00\x00\x00\x00\x00@\x00\x00\x00\x00\x00\x00\x08@",
-                "dtype": "float64",
-                "shape": (3,),
-            },
-            "d2": {
-                "a": [
-                    1,
-                    2,
-                ],
-                "b": [
-                    3,
-                    4,
-                ],
-            },
-            "dict": {
-                "a": 1,
-                "b": 2,
-            },
-            "float": 3.14,
-            "list": [
-                1,
-                2,
-                3,
-            ],
-            "string": "Lorem Ipsum",
+        "tags": {
+            "data": b"\x01\x00\x00\x00\x00\x00\x00\x00\x02\x00\x00\x00\x00\x00\x00\x00\x03\x00\x00\x00\x00\x00\x00\x00\x04\x00\x00\x00\x00\x00\x00\x00\x05\x00\x00\x00\x00\x00\x00\x00",
+            "dtype": "int64",
+            "shape": (5,),
         },
         "initial_charges": {
             "data": b"\xc2%tU\xa8\xc7\xe5?Y\xb8r\x17\xdd\xf1\xe8?\x81j\x0f\xbd\xbd\x92\xef?\x83\x8ahC\x177\xbf?P\xc9\xb5x\xe3J\xee?",
@@ -158,39 +117,55 @@ def test_encode_data(sample_data):
             "data": b"\xcd\xf8\xc6)\x9d\xbc\xbd?!\xf8J\xe6y\xec\xa2?\x9e=<\xf0\xd6\xde\xdd?\xc0\xbf\xb5\xd1\x08O\xc4?!B\xb7\xf2\xed\xb8\xbd?\xe8\xa3)\x8eE\xab\xea?\xcc\x10d\x90\xfd$\xe3?i\xd5|\xcf'\xb6\xe5?Rzl\xec"
             b'\x8e\xfc\xe7?fe=\xad\x89"\xc3?uh&Ry\xdf\xe5?\xa8\xc0Mo\x14\xb3\xed?\x7f@\x14\x8a|\xf0\xd9?3\x10O\x9f\xb2\x94\xe3?\x8d\xb3+%\xb2\xac\xdb?',
             "dtype": "float64",
-            "shape": (
-                5,
-                3,
-            ),
+            "shape": (5, 3),
         },
         "name": {
             "data": b"C\x00\x00\x00a\x00\x00\x00r\x00\x00\x00b\x00\x00\x00o\x00\x00\x00n\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00H\x00\x00\x00y\x00\x00\x00d\x00\x00\x00r\x00\x00\x00o\x00\x00\x00g\x00\x00\x00e\x00\x00\x00n\x00\x00\x00H\x00\x00\x00y\x00\x00\x00d\x00\x00\x00r\x00\x00\x00o\x00\x00\x00g\x00\x00\x00e\x00\x00\x00n\x00\x00\x00H\x00\x00\x00y\x00\x00\x00d\x00\x00\x00r\x00\x00\x00o\x00\x00\x00g\x00\x00\x00e\x00\x00\x00n\x00\x00\x00H\x00\x00\x00y\x00\x00\x00d\x00\x00\x00r\x00\x00\x00o\x00\x00\x00g\x00\x00\x00e\x00\x00\x00n\x00\x00\x00",
             "dtype": "<U8",
             "shape": (5,),
         },
-        "numbers": {
-            "data": b"\x06\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00",
+        "REPEATED_KEY": {
+            "data": b"\x00\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x02\x00\x00\x00\x00\x00\x00\x00\x03\x00\x00\x00\x00\x00\x00\x00\x04\x00\x00\x00\x00\x00\x00\x00",
             "dtype": "int64",
             "shape": (5,),
+        },
+        "cell": {
+            "data": b"\x00\x00\x00\x00\x00\x00$@\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00$@\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00$@",
+            "dtype": "float64",
+            "shape": (3, 3),
         },
         "pbc": {
             "data": b"\x01\x00\x01",
             "dtype": "bool",
             "shape": (3,),
         },
-        "positions": {
-            "data": b"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xf0?\x00\x00\x00\x00\x00\x00\xf0?\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xf0?\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xf0\xbf\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00",
+        "celldisp": {
+            "data": b"\x9a\x99\x99\x99\x99\x99\xb9?\x9a\x99\x99\x99\x99\x99\xc9?333333\xd3?",
             "dtype": "float64",
-            "shape": (
-                5,
-                3,
-            ),
+            "shape": (3,),
         },
-        "tags": {
-            "data": b"\x01\x00\x00\x00\x00\x00\x00\x00\x02\x00\x00\x00\x00\x00\x00\x00\x03\x00\x00\x00\x00\x00\x00\x00\x04\x00\x00\x00\x00\x00\x00\x00\x05\x00\x00\x00\x00\x00\x00\x00",
-            "dtype": "int64",
-            "shape": (5,),
+        # Flattened info fields
+        "info.string": "Lorem Ipsum",
+        "info.float": 3.14,
+        "info.list": [1, 2, 3],
+        "info.array": {
+            "data": b"\x00\x00\x00\x00\x00\x00\xf0?\x00\x00\x00\x00\x00\x00\x00@\x00\x00\x00\x00\x00\x00\x08@",
+            "dtype": "float64",
+            "shape": (3,),
         },
+        "info.dict.a": 1,
+        "info.dict.b": 2,
+        "info.d2.a": [1, 2],
+        "info.d2.b": [3, 4],
+        "info.REPEATED_KEY": "info",
+        # Flattened calculator fields
+        "<SinglePointCalculator>.energy": 1.0,
+        "<SinglePointCalculator>.forces": {
+            "data": b"/\xacU\x9a\x18;\xcc?y\x1d\x92\xd6\xef\xf4\xbb?\xe5\xbb\xcee\xeeJ\xd1?\xc2j,am,\xe7?\xfd>-P\x9c\xcd\xe6?\xed\xce\x03\xedH\xb4\xe8?\xc3o\xb7\xe2\xea\x19\xb2?KX\x1bc'<\xc2?\x80\x92\xc8_\xd6[\xd4?\xf8\x16\x18\xaaIM\xd6?;\x7f\x03(\x80A\xd5?4\x8d\x1e\xa6\x1aI\xb9?)\x03I\xd0F\x0b\xde?Y\xbf\xfc\xc2\xe9,\xd3?\x05\x905~<\x8f\xdb?",
+            "dtype": "float64",
+            "shape": (5, 3),
+        },
+        "<SinglePointCalculator>.string-calc": "this is a string from calc",
     }
 
 
@@ -469,3 +444,81 @@ def test_zarr_storage_mask_resize_on_matching_shape():
     npt.assert_array_equal(store[1]["x"], np.array([4, 5]))
     npt.assert_array_equal(store[2]["x"], np.array([6, 7, 8]))
     npt.assert_array_equal(store[3]["x"], np.array([9, 10, 11]))
+
+
+def test_split_key():
+    """Test the _split_key helper function."""
+    # Simple cases
+    assert _split_key("key") == ["key"]
+    assert _split_key("parent.child") == ["parent", "child"]
+    assert _split_key("a.b.c") == ["a", "b", "c"]
+
+    # Escaped dots
+    assert _split_key(r"my\.key") == [r"my\.key"]
+    assert _split_key(r"parent.my\.key") == ["parent", r"my\.key"]
+    assert _split_key(r"a\.b.c\.d.e") == [r"a\.b", r"c\.d", "e"]
+
+    # Edge cases
+    assert _split_key("") == []  # Empty string has no parts
+    assert _split_key(".") == ["", ""]
+    assert _split_key("a.") == ["a", ""]
+    assert _split_key(".a") == ["", "a"]
+
+
+def test_encode_decode_with_dots_in_keys():
+    """Test encoding and decoding with actual dots in key names."""
+    data = {
+        "normal_key": np.array([1, 2, 3]),
+        "key.with.dots": np.array([4, 5, 6]),
+        "nested": {
+            "child.key": "value",
+            "normal": "other",
+        },
+    }
+
+    encoded = encode_data(data)
+
+    # Check that dots in keys are escaped
+    assert "normal_key" in encoded
+    assert r"key\.with\.dots" in encoded
+    assert r"nested.child\.key" in encoded
+    assert "nested.normal" in encoded
+
+    # Decode and verify we get back the original structure
+    decoded = decode_data(encoded)
+    assert_equal(data, decoded)
+
+
+def test_encode_decode_calculator_with_selective_loading():
+    """Test that flattened keys allow selective loading of calculator results."""
+    data = {
+        "positions": np.array([[0, 0, 0], [1, 1, 1]]),
+        "<SinglePointCalculator>": {
+            "energy": -123.45,
+            "forces": np.array([[0.1, 0.2, 0.3], [0.4, 0.5, 0.6]]),
+            "stress": np.array([1, 2, 3, 4, 5, 6]),
+        },
+    }
+
+    encoded = encode_data(data)
+
+    # Verify flattened structure
+    assert "positions" in encoded
+    assert "<SinglePointCalculator>.energy" in encoded
+    assert "<SinglePointCalculator>.forces" in encoded
+    assert "<SinglePointCalculator>.stress" in encoded
+
+    # The key benefit: we can now selectively load only energy
+    # without loading the large arrays (forces, stress)
+    energy_only = {
+        k: v for k, v in encoded.items()
+        if k == "<SinglePointCalculator>.energy"
+    }
+
+    # Decode just the energy
+    decoded_energy = decode_data(energy_only)
+    assert decoded_energy == {"<SinglePointCalculator>": {"energy": -123.45}}
+
+    # Full decode should match original
+    decoded_full = decode_data(encoded)
+    assert_equal(data, decoded_full)

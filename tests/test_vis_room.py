@@ -23,8 +23,12 @@ def test_rest_join_new_room(server):
     assert data["frame_selection"] is None
     assert data["created"] is True
     assert data["presenter-lock"] is None
-    assert data["step"] is None
+    assert data["step"] == 0
     assert data["bookmarks"] is None
+    assert data["template"] == "empty"
+    assert "settings" in data
+    assert "joinToken" in data
+    assert "clientId" in data
 
     # list all rooms again to see if the new room is there
     response = requests.get(f"{server}/api/rooms")

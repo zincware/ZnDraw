@@ -35,6 +35,11 @@ def main(
     celery: bool = True,
     storage_path: str = "./zndraw-data.zarr",
     redis_url: str = "redis://localhost:6379",
+    host: str = typer.Option(
+        "localhost",
+        envvar="ZNDRAW_SERVER_HOST",
+        help="Server hostname or IP address for the SERVER_URL (e.g., 'example.com' or '192.168.1.1')"
+    ),
 ):
     """
     Start the zndraw-server.
@@ -44,7 +49,7 @@ def main(
     print([path_to_room(p) for p in path] if path else "No files loaded on startup.")
 
     flask_app = create_app(storage_path=storage_path, redis_url=redis_url)
-    flask_app.config["SERVER_URL"] = f"http://localhost:{port}"
+    flask_app.config["SERVER_URL"] = f"http://{host}:{port}"
     if path is not None:
         make_default = True
         for p in path:
