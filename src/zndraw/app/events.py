@@ -83,7 +83,10 @@ def handle_connect(auth):
         return {"status": "error", "message": "Invalid or expired join token"}
 
     # Parse token data
-    client_id, room_id, user_name = token_data.split(":")
+    token_info = json.loads(token_data)
+    client_id = token_info["clientId"]
+    room_id = token_info["roomId"]
+    user_name = token_info["userName"]
 
     # Delete token (one-time use)
     r.delete(token_key)

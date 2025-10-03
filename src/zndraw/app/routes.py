@@ -1087,6 +1087,11 @@ def log_room_extension(room_id: str, category: str, extension: str):
         )
         queue_position = redis_client.llen(keys.queue) - 1
 
+        # Trigger a celery worker task to pick up the job
+        from zndraw.app.tasks import celery_job_worker
+        server_url = current_app.config.get("SERVER_URL", "http://localhost:5000")
+        _ = celery_job_worker.delay(room_id, server_url)
+
         # Notify all clients in room about queue update
         emit_queue_update(redis_client, room_id, category, extension, socketio)
     else:
@@ -1711,7 +1716,8 @@ def join_room(room_id):
     join_token = str(uuid.uuid4())
     token_key = f"join_token:{join_token}"
     # Store token with clientId, room, userName (expires in 60 seconds)
-    r.setex(token_key, 60, f"{client_id}:{room_id}:{user_name}")
+    token_data = json.dumps({"clientId": client_id, "roomId": room_id, "userName": user_name})
+    r.setex(token_key, 60, token_data)
 
     log.info(f"Client {client_id} ({user_name}) prepared to join room: {room_id}, token: {join_token}")
 

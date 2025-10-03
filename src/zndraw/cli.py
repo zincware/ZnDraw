@@ -35,6 +35,7 @@ def main(
     print([path_to_room(p) for p in path] if path else "No files loaded on startup.")
 
     flask_app = create_app(storage_path=storage_path, redis_url=redis_url)
+    flask_app.config["SERVER_URL"] = f"http://localhost:{port}"
     if path is not None:
         for p in path:
             room = path_to_room(p)

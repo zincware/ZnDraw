@@ -9,12 +9,13 @@ import ase.collections
 import eventlet  # noqa - eventlet must be installed for flask-socketio to start a production server
 import pytest
 import redis
+import typing as t
 
 from zndraw.start_celery import run_celery_worker
 
 
 @pytest.fixture
-def server(tmp_path):
+def server(tmp_path) -> t.Generator[str, None, None]:
     port = random.randint(10000, 20000)
     storage_path = tmp_path / "zndraw-data.zarr"
     redis_url = "redis://localhost:6379"

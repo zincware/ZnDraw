@@ -66,7 +66,6 @@ def celery_job_worker(self, room: str, server_url: str = "http://localhost:5000"
         "modifiers": modifiers,
         "settings": settings,
     }
-
     log.info(f"Celery worker {worker_id} starting to poll for jobs in room {room}")
 
     response = requests.post(
