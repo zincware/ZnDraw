@@ -1,11 +1,11 @@
+import re
 import shutil
 
 import typer
-import re
 
+from zndraw.app.tasks import read_file
 from zndraw.server import create_app, socketio
 from zndraw.start_celery import run_celery_worker
-from zndraw.app.tasks import read_file
 
 app = typer.Typer()
 
@@ -18,7 +18,7 @@ def path_to_room(path: str) -> str:
 
 @app.command()
 def main(
-    path: list[str]|None = typer.Argument(
+    path: list[str] | None = typer.Argument(
         None, help="Path to file(s) to load on startup (optional)."
     ),
     port: int = 5000,

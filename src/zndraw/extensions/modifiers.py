@@ -6,7 +6,7 @@ import ase
 import ase.constraints
 import numpy as np
 from ase.data import chemical_symbols
-from pydantic import BaseModel, Field
+from pydantic import Field
 
 from zndraw.extensions.abc import Extension, ExtensionType
 

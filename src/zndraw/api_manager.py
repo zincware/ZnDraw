@@ -1,9 +1,11 @@
+import dataclasses
+import typing as t
+
 import msgpack
 import requests
-import typing as t
-import dataclasses
 
 from zndraw.storage import decode_data, encode_data
+
 
 @dataclasses.dataclass
 class APIManager:
@@ -14,6 +16,7 @@ class APIManager:
     def join_room(self, template: t.Any, user_id: str = "guest") -> dict:
         # Import here to avoid circular import
         from zndraw.zndraw import _TemplateValue
+
         # If template is _TemplateValue (default), don't send it (use server default)
         # If template is None, send {"template": None} (create blank room)
         # If template is a string, send {"template": template_name}
@@ -44,7 +47,9 @@ class APIManager:
             response.raise_for_status()
             return None
 
-    def update_job_status(self, job_id: str, status: str, worker_id: str, error: str | None = None) -> None:
+    def update_job_status(
+        self, job_id: str, status: str, worker_id: str, error: str | None = None
+    ) -> None:
         payload = {"status": status, "workerId": worker_id}
         if error:
             payload["error"] = error
@@ -54,7 +59,9 @@ class APIManager:
         )
         response.raise_for_status()
 
-    def register_extension(self, name: str, category: str, schema: dict, client_id: str) -> None:
+    def register_extension(
+        self, name: str, category: str, schema: dict, client_id: str
+    ) -> None:
         response = requests.post(
             f"{self.url}/api/rooms/{self.room}/extensions/register",
             json={
@@ -138,9 +145,7 @@ class APIManager:
             result = http_response.json()
 
             if not result.get("success"):
-                raise RuntimeError(
-                    f"Server reported failure: {result.get('error')}"
-                )
+                raise RuntimeError(f"Server reported failure: {result.get('error')}")
 
             return result
         except requests.exceptions.RequestException as e:
@@ -179,8 +184,10 @@ class APIManager:
 
         response.raise_for_status()
         return response.json()
-    
-    def bulk_patch_frames(self, data: list, start: int = None, stop: int = None, indices: list[int] = None):
+
+    def bulk_patch_frames(
+        self, data: list, start: int = None, stop: int = None, indices: list[int] = None
+    ):
         serialized_data = [encode_data(value) for value in data]
         packed_data = msgpack.packb(serialized_data)
 
@@ -193,9 +200,7 @@ class APIManager:
         else:
             raise ValueError("Either start/stop or indices must be provided.")
 
-        response = requests.patch(
-            bulk_url, data=packed_data, params=params, timeout=30
-        )
+        response = requests.patch(bulk_url, data=packed_data, params=params, timeout=30)
 
         if response.status_code == 404:
             try:
@@ -217,7 +222,9 @@ class APIManager:
         response.raise_for_status()
         return response.json()
 
-    def submit_extension_settings(self, extension_name: str, user_id: str, data: dict) -> None:
+    def submit_extension_settings(
+        self, extension_name: str, user_id: str, data: dict
+    ) -> None:
         response = requests.post(
             f"{self.url}/api/rooms/{self.room}/extensions/settings/{extension_name}/submit?userId={user_id}",
             json=data,

@@ -4,12 +4,12 @@ import signal
 import socket
 import subprocess
 import time
+import typing as t
 
 import ase.collections
 import eventlet  # noqa - eventlet must be installed for flask-socketio to start a production server
 import pytest
 import redis
-import typing as t
 
 from zndraw.start_celery import run_celery_worker
 

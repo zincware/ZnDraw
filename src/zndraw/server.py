@@ -44,7 +44,7 @@ def create_app(
     app = Flask(__name__)
 
     from zndraw.app import main as main_blueprint
-    from zndraw.app import tasks # noqa: F401
+    from zndraw.app import tasks  # noqa: F401
 
     app.register_blueprint(main_blueprint)
 

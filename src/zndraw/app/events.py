@@ -102,7 +102,9 @@ def handle_connect(auth):
     join_room(f"room:{room_id}")
     join_room(f"user:{user_name}")
 
-    log.info(f"Client {client_id} ({user_name}) connected to room {room_id} (sid: {sid})")
+    log.info(
+        f"Client {client_id} ({user_name}) connected to room {room_id} (sid: {sid})"
+    )
 
     return {"status": "ok"}
 
@@ -141,7 +143,11 @@ def handle_disconnect():
     if room_name:
         # Notify room that a user has disconnected (but not left)
         clients_in_room = r.smembers(f"room:{room_name}:clients")
-        emit("room_clients_update", {"clients": list(clients_in_room)}, to=f"room:{room_name}")
+        emit(
+            "room_clients_update",
+            {"clients": list(clients_in_room)},
+            to=f"room:{room_name}",
+        )
     else:
         log.info(f"Client {client_id} disconnected (was not in a room)")
 
@@ -577,7 +583,7 @@ def handle_chat_message_create(data):
     client_id = get_client_id_from_sid(sid)
     if not client_id:
         return {"success": False, "error": "Client not found"}
-    
+
     user_id = r.hget(f"client:{client_id}", "userName")
     if not user_id:
         return {"success": False, "error": "User not found"}
@@ -624,7 +630,7 @@ def handle_chat_message_edit(data):
     client_id = get_client_id_from_sid(sid)
     if not client_id:
         return {"success": False, "error": "Client not found"}
-    
+
     user_id = r.hget(f"client:{client_id}", "userName")
     if not user_id:
         return {"success": False, "error": "User not found"}

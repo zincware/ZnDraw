@@ -1,13 +1,15 @@
+import dataclasses
 import logging
 import typing as t
 import warnings
-import dataclasses
+
 import socketio
 
 if t.TYPE_CHECKING:
     from zndraw.zndraw import ZnDraw
 
 log = logging.getLogger(__name__)
+
 
 @dataclasses.dataclass
 class SocketIOLock:
@@ -79,7 +81,9 @@ class SocketManager:
         return self.sio.connected
 
     def _on_connect(self):
-        log.debug(f"Joined room: '{self.zndraw.room}' with client ID: {self.zndraw.sid}")
+        log.debug(
+            f"Joined room: '{self.zndraw.room}' with client ID: {self.zndraw.sid}"
+        )
         for name, ext in self.zndraw._extensions.items():
             self.zndraw.api.register_extension(
                 name=name,
@@ -113,7 +117,7 @@ class SocketManager:
         print(f"Queue update received: {data}")
         if not self.zndraw.auto_pickup_jobs:
             return
-        
+
         job_data = self.zndraw.api.get_next_job(self.zndraw.sid)
         if job_data and "jobId" in job_data:
             try:
@@ -140,7 +144,9 @@ class SocketManager:
     def _on_task_run(self, data: dict, extension: str, category: str):
         ext = self.zndraw._extensions[extension]["extension"]
         instance = ext(**(data))
-        instance.run(self.zndraw, **(self.zndraw._extensions[extension]["run_kwargs"] or {}))
+        instance.run(
+            self.zndraw, **(self.zndraw._extensions[extension]["run_kwargs"] or {})
+        )
 
     def _on_invalidate(self, data: dict):
         if data["category"] == "settings":
@@ -165,6 +171,6 @@ class SocketManager:
             self.zndraw.cache.clear()
         else:
             log.warning(
-                f"Unknown or broad invalidation event received. Clearing entire frame cache."
+                "Unknown or broad invalidation event received. Clearing entire frame cache."
             )
             self.zndraw.cache.clear()

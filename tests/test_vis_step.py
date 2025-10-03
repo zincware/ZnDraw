@@ -14,9 +14,10 @@ def test_vis_step(server, s22):
 
     with pytest.raises(ValueError):
         vis.step = -1
-    
+
     with pytest.raises(ValueError):
         vis.step = 100
+
 
 def test_vis_step_two_users(server, s22):
     vis1 = ZnDraw(url=server, room="testroom", user="user1")

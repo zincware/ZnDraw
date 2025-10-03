@@ -2,7 +2,6 @@ import dataclasses
 import functools
 import logging
 import typing as t
-import uuid
 from collections.abc import MutableSequence
 
 import ase
@@ -27,6 +26,7 @@ class _ExtensionStore(t.TypedDict):
 
 class _TemplateValue:
     """Sentinel value for template parameter."""
+
     pass
 
 
@@ -46,9 +46,7 @@ class ZnDraw(MutableSequence):
     _extensions: dict[str, _ExtensionStore] = dataclasses.field(
         default_factory=dict, init=False
     )
-    _client_id: str | None = dataclasses.field(
-        default=None, init=False
-    )
+    _client_id: str | None = dataclasses.field(default=None, init=False)
     _selection: frozenset[int] = frozenset()
     _frame_selection: frozenset[int] = frozenset()
     _bookmarks: dict[int, str] = dataclasses.field(default_factory=dict, init=False)
@@ -104,7 +102,9 @@ class ZnDraw(MutableSequence):
             )
         self._step = value
         if self.socket.sio.connected:
-            response = self.socket.sio.call("set_frame_atomic", {"frame": value}, timeout=5)
+            response = self.socket.sio.call(
+                "set_frame_atomic", {"frame": value}, timeout=5
+            )
             if response and not response.get("success", False):
                 error_type = response.get("error")
                 error_msg = response.get("message", "Failed to set frame")
@@ -122,11 +122,15 @@ class ZnDraw(MutableSequence):
     @selection.setter
     def selection(self, value: t.Iterable[int] | None):
         indices = [] if value is None else list(value)
-        if not all(isinstance(idx, int) and 0 <= idx < len(self[self.step]) for idx in indices):
+        if not all(
+            isinstance(idx, int) and 0 <= idx < len(self[self.step]) for idx in indices
+        ):
             raise ValueError("Selection must be an iterable of valid atom indices.")
-        
+
         if self.socket.sio.connected:
-            response = self.socket.sio.call("selection:set", {"indices": indices}, timeout=5)
+            response = self.socket.sio.call(
+                "selection:set", {"indices": indices}, timeout=5
+            )
             if response and not response.get("success", False):
                 raise RuntimeError(response.get("message", "Failed to set selection"))
             self._selection = frozenset(indices)
@@ -144,9 +148,13 @@ class ZnDraw(MutableSequence):
             raise ValueError("Selection must be an iterable of valid frame indices.")
 
         if self.socket.sio.connected:
-            response = self.socket.sio.call("frame_selection:set", {"indices": indices}, timeout=5)
+            response = self.socket.sio.call(
+                "frame_selection:set", {"indices": indices}, timeout=5
+            )
             if response and not response.get("success", False):
-                raise RuntimeError(response.get("message", "Failed to set frame selection"))
+                raise RuntimeError(
+                    response.get("message", "Failed to set frame selection")
+                )
             self._frame_selection = frozenset(indices)
         else:
             raise RuntimeError("Client is not connected.")
@@ -160,7 +168,7 @@ class ZnDraw(MutableSequence):
         bookmarks = {} if value is None else value
         if not isinstance(bookmarks, dict):
             raise TypeError("Bookmarks must be a dictionary.")
-        
+
         for idx, label in bookmarks.items():
             if not (isinstance(idx, int) and 0 <= idx < len(self)):
                 raise IndexError(f"Bookmark index {idx} out of range.")
@@ -169,7 +177,9 @@ class ZnDraw(MutableSequence):
 
         if self.socket.sio.connected:
             bookmarks_json = {str(k): v for k, v in bookmarks.items()}
-            response = self.socket.sio.call("bookmarks:set", {"bookmarks": bookmarks_json}, timeout=5)
+            response = self.socket.sio.call(
+                "bookmarks:set", {"bookmarks": bookmarks_json}, timeout=5
+            )
             if response and not response.get("success", False):
                 raise RuntimeError(response.get("message", "Failed to set bookmarks"))
             self._bookmarks = bookmarks
@@ -223,7 +233,11 @@ class ZnDraw(MutableSequence):
                 raise IndexError("Index out of range")
 
             # Only use cache if keys is None (full frame)
-            if keys is None and self.cache is not None and normalized_index in self.cache:
+            if (
+                keys is None
+                and self.cache is not None
+                and normalized_index in self.cache
+            ):
                 return self.cache.get(normalized_index)
 
             frame_data = self.api.get_frames([normalized_index], keys=keys)[0]
@@ -251,7 +265,9 @@ class ZnDraw(MutableSequence):
             # Validate all indices are integers
             for idx in index:
                 if not isinstance(idx, (int, np.integer)):
-                    raise TypeError(f"List indices must be integers, not {type(idx).__name__}")
+                    raise TypeError(
+                        f"List indices must be integers, not {type(idx).__name__}"
+                    )
 
             if not index:
                 return []
@@ -276,7 +292,9 @@ class ZnDraw(MutableSequence):
 
             return [results_dict[idx] for idx in normalized_indices]
 
-        raise TypeError(f"Index must be int, slice, or list, not {type(index).__name__}")
+        raise TypeError(
+            f"Index must be int, slice, or list, not {type(index).__name__}"
+        )
 
     @t.overload
     def __getitem__(self, index: int) -> ase.Atoms: ...
@@ -299,7 +317,9 @@ class ZnDraw(MutableSequence):
     @t.overload
     def __setitem__(self, index: list[int], atoms: list[ase.Atoms]) -> None: ...
     @t.overload
-    def __setitem__(self, index: np.ndarray, atoms: list[ase.Atoms] | ase.Atoms) -> None: ...
+    def __setitem__(
+        self, index: np.ndarray, atoms: list[ase.Atoms] | ase.Atoms
+    ) -> None: ...
     def __setitem__(self, index, atoms):
         if isinstance(atoms, list):
             if not all(isinstance(a, ase.Atoms) for a in atoms):
@@ -340,18 +360,24 @@ class ZnDraw(MutableSequence):
                                 f"attempt to assign sequence of size {len(value)} to extended slice of size {len(indices)}"
                             )
                         self.api.bulk_patch_frames(value, indices=indices)
-                else: # list
+                else:  # list
                     if len(value) != len(index):
-                         raise ValueError("Attempt to assign sequence of wrong size.")
+                        raise ValueError("Attempt to assign sequence of wrong size.")
                     # Validate all indices are integers
                     for idx in index:
                         if not isinstance(idx, (int, np.integer)):
-                            raise TypeError(f"List indices must be integers, not {type(idx).__name__}")
+                            raise TypeError(
+                                f"List indices must be integers, not {type(idx).__name__}"
+                            )
                     # Normalize negative indices
-                    normalized_indices = [idx if idx >= 0 else length + idx for idx in index]
+                    normalized_indices = [
+                        idx if idx >= 0 else length + idx for idx in index
+                    ]
                     self.api.bulk_patch_frames(value, indices=normalized_indices)
         else:
-            raise TypeError(f"Index must be int, slice, or list, not {type(index).__name__}")
+            raise TypeError(
+                f"Index must be int, slice, or list, not {type(index).__name__}"
+            )
 
     def __delitem__(self, index: int | slice | list[int] | np.ndarray):
         if isinstance(index, np.ndarray):
@@ -359,7 +385,9 @@ class ZnDraw(MutableSequence):
 
         # Validate index type
         if not isinstance(index, (int, slice, list)):
-            raise TypeError(f"Indices must be integers, slices, or lists, not {type(index).__name__}")
+            raise TypeError(
+                f"Indices must be integers, slices, or lists, not {type(index).__name__}"
+            )
 
         length = len(self)
 
@@ -370,7 +398,9 @@ class ZnDraw(MutableSequence):
             # Validate all indices are integers
             for idx in index:
                 if not isinstance(idx, (int, np.integer)):
-                    raise TypeError(f"List indices must be integers, not {type(idx).__name__}")
+                    raise TypeError(
+                        f"List indices must be integers, not {type(idx).__name__}"
+                    )
             index = [idx if idx >= 0 else length + idx for idx in index]
 
         with self.lock:
@@ -411,23 +441,36 @@ class ZnDraw(MutableSequence):
             if key not in self._settings:
                 data = self.api.get_extension_settings(key, self.user)
                 self._settings[key] = settings[key](**(data.get("data") or {}))
-                self._settings[key].callback = functools.partial(callback_fn, extension=key)
-        
+                self._settings[key].callback = functools.partial(
+                    callback_fn, extension=key
+                )
+
         return RoomConfig(**self._settings)
 
-    def register_extension(self, extension: t.Type[Extension], public: bool = False, run_kwargs: dict | None = None):
+    def register_extension(
+        self,
+        extension: t.Type[Extension],
+        public: bool = False,
+        run_kwargs: dict | None = None,
+    ):
         name = extension.__name__
         if name in self._extensions:
             raise ValueError(f"Extension '{name}' is already registered.")
-        if not hasattr(extension, "category") or extension.category not in [cat.value for cat in ExtensionType]:
+        if not hasattr(extension, "category") or extension.category not in [
+            cat.value for cat in ExtensionType
+        ]:
             raise ValueError("Extension must have a valid 'category' attribute.")
-        
-        self._extensions[name] = {"public": public, "run_kwargs": run_kwargs, "extension": extension}
+
+        self._extensions[name] = {
+            "public": public,
+            "run_kwargs": run_kwargs,
+            "extension": extension,
+        }
         print(f"Registered extension '{name}' of category '{extension.category}'.")
 
         if public:
             raise NotImplementedError("Public extensions are not supported yet.")
-        
+
         self.api.register_extension(
             name=name,
             category=extension.category,
@@ -447,7 +490,9 @@ class ZnDraw(MutableSequence):
     def log(self, message: str) -> dict:
         if not self.socket.sio.connected:
             raise RuntimeError("Client is not connected.")
-        return self.socket.sio.call("chat:message:create", {"content": message}, timeout=5)
+        return self.socket.sio.call(
+            "chat:message:create", {"content": message}, timeout=5
+        )
 
     def edit_message(self, message_id: str, new_content: str) -> dict:
         if not self.socket.sio.connected:
@@ -458,5 +503,7 @@ class ZnDraw(MutableSequence):
             timeout=5,
         )
 
-    def get_messages(self, limit: int = 30, before: int = None, after: int = None) -> dict:
+    def get_messages(
+        self, limit: int = 30, before: int = None, after: int = None
+    ) -> dict:
         return self.api.get_messages(limit=limit, before=before, after=after)

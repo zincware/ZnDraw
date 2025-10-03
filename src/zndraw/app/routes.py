@@ -5,7 +5,7 @@ import traceback
 import msgpack
 import zarr
 from flask import Response, current_app, request
-from flask_socketio import disconnect, join_room as socketio_join_room, leave_room
+from flask_socketio import disconnect
 from zarr.storage import MemoryStore
 
 from zndraw.server import socketio
@@ -16,7 +16,6 @@ from .constants import SocketEvents
 from .job_manager import JobManager
 from .queue_manager import emit_queue_update
 from .redis_keys import ExtensionKeys
-from .worker_dispatcher import dispatch_next_task
 from .worker_stats import WorkerStats
 
 # --- Logging Setup ---
@@ -84,7 +83,10 @@ def emit_bookmarks_update(room_id: str):
 
 
 def emit_frames_invalidate(
-    room_id: str, operation: str, affected_index: int|None = None, affected_from: int|None = None
+    room_id: str,
+    operation: str,
+    affected_index: int | None = None,
+    affected_from: int | None = None,
 ):
     """
     Emit frames:invalidate event to tell clients to clear their frame cache.
@@ -104,7 +106,7 @@ def emit_frames_invalidate(
         data["affectedIndex"] = affected_index
     if affected_from is not None:
         data["affectedFrom"] = affected_from
-    
+
     log.info(f"Emitting frames:invalidate for room '{room_id}': {data}")
 
     socketio.emit(
@@ -117,17 +119,17 @@ def emit_frames_invalidate(
 @main.route("/api/disconnect/<string:client_sid>", methods=["POST"])
 def disconnect_sid(client_sid: str):
     """Disconnects the client from the room.
-    
+
     Args:
         client_sid: Can be either a socket sid OR a client_id.
                    We try both lookups to support both cases.
     """
     try:
         r = current_app.extensions["redis"]
-        
+
         # First, try to interpret client_sid as a client_id and get the socket sid
         socket_sid = r.hget(f"client:{client_sid}", "currentSid")
-        
+
         if socket_sid:
             disconnect(socket_sid, namespace="/")
             return {"success": True}
@@ -743,7 +745,9 @@ def bulk_replace_frames(room_id):
             pipeline.execute()
 
             emit_bookmarks_update(room_id)
-            emit_frames_invalidate(room_id, operation="bulk_replace", affected_from=start)
+            emit_frames_invalidate(
+                room_id, operation="bulk_replace", affected_from=start
+            )
 
             log.info(
                 f"Bulk replaced slice [{start}:{stop}] ({old_count} frames) with {new_count} frames in room '{room_id}'"
@@ -1089,6 +1093,7 @@ def log_room_extension(room_id: str, category: str, extension: str):
 
         # Trigger a celery worker task to pick up the job
         from zndraw.app.tasks import celery_job_worker
+
         server_url = current_app.config.get("SERVER_URL", "http://localhost:5000")
         _ = celery_job_worker.delay(room_id, server_url)
 
@@ -1425,7 +1430,7 @@ def get_worker_state(worker_id: str):
 
         # Alternative approach: check if there's any job assigned to this worker
         # by looking for jobs where worker_id matches
-        for key in redis_client.scan_iter(match=f"job:*"):
+        for key in redis_client.scan_iter(match="job:*"):
             job_data = redis_client.hgetall(key)
             if (
                 job_data.get("worker_id") == worker_id
@@ -1465,7 +1470,7 @@ def get_next_job(room_id: str):
     redis_client = current_app.extensions["redis"]
 
     # Check if worker already has a running job
-    for key in redis_client.scan_iter(match=f"job:*"):
+    for key in redis_client.scan_iter(match="job:*"):
         job_data = redis_client.hgetall(key)
         if (
             job_data.get("worker_id") == worker_id
@@ -1695,6 +1700,7 @@ def join_room(room_id):
     # Generate clientId if not provided
     if not client_id:
         import uuid
+
         client_id = str(uuid.uuid4())
         log.info(f"Generated new clientId: {client_id}")
 
@@ -1713,13 +1719,18 @@ def join_room(room_id):
 
     # Generate temporary join token for socket authentication
     import uuid
+
     join_token = str(uuid.uuid4())
     token_key = f"join_token:{join_token}"
     # Store token with clientId, room, userName (expires in 60 seconds)
-    token_data = json.dumps({"clientId": client_id, "roomId": room_id, "userName": user_name})
+    token_data = json.dumps(
+        {"clientId": client_id, "roomId": room_id, "userName": user_name}
+    )
     r.setex(token_key, 60, token_data)
 
-    log.info(f"Client {client_id} ({user_name}) prepared to join room: {room_id}, token: {join_token}")
+    log.info(
+        f"Client {client_id} ({user_name}) prepared to join room: {room_id}, token: {join_token}"
+    )
 
     response = {
         "status": "ok",

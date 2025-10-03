@@ -33,7 +33,7 @@ def test_append_and_get_frame(server):
         assert np.array_equal(frame["index"], data["index"])
         assert np.array_equal(frame["points"], data["points"])
         assert np.array_equal(frame["colors"], data["colors"])
-    
+
     client.disconnect()
     assert not client.socket.connected
 
@@ -234,7 +234,6 @@ def test_mutable_sequence_interface(server):
 
     client.disconnect()
     assert not client.socket.connected
-
 
 
 def test_insert_frame_functionality(server, s22):
@@ -481,6 +480,7 @@ def test_slice_assignment_connection_error(server):
 
     with pytest.raises(RuntimeError, match="Client is not connected"):
         client.set_frames(slice(0, None, 2), value_frames)
+
 
 def test_slice_assignment_edge_cases(server):
     """Test additional edge cases for slice assignment."""

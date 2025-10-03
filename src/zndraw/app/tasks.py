@@ -1,14 +1,12 @@
 import logging
-import time
-
-import requests
-import znh5md
-import ase.io
-from celery import shared_task
-from tqdm import tqdm
 from pathlib import Path
 
-from zndraw.utils import atoms_to_dict, update_colors_and_radii
+import ase.io
+import requests
+import znh5md
+from celery import shared_task
+from tqdm import tqdm
+
 
 log = logging.getLogger(__name__)
 
@@ -35,10 +33,9 @@ def read_file(file: str, room: str) -> None:
         except Exception as e:
             vis.log(f"Error reading file {file}: {e}")
             return
-        
+
     vis.log(f"Finished reading file {file}.")
     vis.disconnect()
-
 
 
 @shared_task(bind=True)

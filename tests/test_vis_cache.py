@@ -1,10 +1,9 @@
-import time
 import copy
+import time
 
 from ase.build import molecule
 
 from zndraw import ZnDraw
-from cachetools import LRUCache
 
 
 def test_cache_hit(server, s22):

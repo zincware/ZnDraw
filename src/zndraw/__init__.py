@@ -2,8 +2,8 @@
 
 import logging
 
-from zndraw.zndraw import ZnDraw
 from zndraw.server import create_app
+from zndraw.zndraw import ZnDraw
 
 __all__ = ["ZnDraw", "create_app"]
 

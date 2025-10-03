@@ -1,15 +1,11 @@
-import json
-import time
 
 import pytest
-import rdkit2ase
 import requests
 
+from zndraw import ZnDraw
 from zndraw.extensions import Extension, ExtensionType
 from zndraw.extensions.modifiers import modifiers
 from zndraw.extensions.selections import selections
-from zndraw.utils import atoms_to_dict, update_colors_and_radii
-from zndraw import ZnDraw
 
 
 class ModifierExtension(Extension):

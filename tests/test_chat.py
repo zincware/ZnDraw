@@ -1,6 +1,5 @@
 import time
 
-import pytest
 import requests
 
 from zndraw import ZnDraw

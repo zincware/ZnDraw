@@ -27,7 +27,6 @@ def create_zarr_store_from_h5(h5_path, zarr_path):
         return
 
     print(f"Creating Zarr store from '{h5_path}'...")
-    import znh5md  # Lazy import as it's only needed for ingestion
 
     io = znh5md.IO(h5_path)
     total_frames = len(io)

@@ -32,6 +32,7 @@ def test_vis_bookmarks_errors(server, s22):
     with pytest.raises(TypeError):
         vis.bookmarks = {0: 123}  # Non-string label
 
+
 def test_vis_bookmarks_multiple_clients(server, s22):
     vis1 = ZnDraw(url=server, room="testroom", user="user1")
     vis2 = ZnDraw(url=server, room="testroom", user="user2")
@@ -42,7 +43,11 @@ def test_vis_bookmarks_multiple_clients(server, s22):
     assert len(vis2) == len(s22)
     assert len(vis1) == len(s22)
 
-    assert vis2.bookmarks == vis1.bookmarks == {1: "First Frame", 5: "Middle Frame", 9: "Last Frame"}
+    assert (
+        vis2.bookmarks
+        == vis1.bookmarks
+        == {1: "First Frame", 5: "Middle Frame", 9: "Last Frame"}
+    )
 
     vis2.bookmarks = {2: "Second Frame", 6: "Another Middle", 9: "Last Frame"}
     assert vis2.bookmarks == {2: "Second Frame", 6: "Another Middle", 9: "Last Frame"}

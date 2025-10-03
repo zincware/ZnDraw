@@ -1,5 +1,7 @@
-from cachetools import LRUCache
 import typing as t
+
+from cachetools import LRUCache
+
 
 class FrameCache:
     def __init__(self, maxsize=100):
@@ -7,7 +9,7 @@ class FrameCache:
 
     def keys(self):
         return self._cache.keys()
-    
+
     def __len__(self):
         return len(self._cache)
 
@@ -16,7 +18,7 @@ class FrameCache:
 
     def set(self, key: int, value: t.Any):
         self._cache[key] = value
-    
+
     def __contains__(self, key: int) -> bool:
         return key in self._cache
 
@@ -36,6 +38,6 @@ class FrameCache:
     @property
     def maxsize(self) -> int:
         return int(self._cache.maxsize)
-    
+
     def items(self):
         return self._cache.items()
