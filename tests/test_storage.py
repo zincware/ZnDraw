@@ -442,3 +442,30 @@ def test_zarr_slicing():
 
     with pytest.raises(IndexError):
         store[np.array([1, 2, 100])]
+
+
+def test_zarr_storage_mask_resize_on_matching_shape():
+    """Test that mask arrays are properly resized when appending data with matching shapes.
+
+    This test captures a bug where the mask array wasn't resized when appending
+    entries with the same shape as the current max shape, causing index out of bounds errors.
+    """
+    root = zarr.group(store=MemoryStore())
+    store = ZarrStorageSequence(root)
+
+    # First, create entries with different sizes to create a mask array
+    store.append({"x": np.array([1, 2, 3])})
+    store.append({"x": np.array([4, 5])})  # Different size, creates mask
+
+    # Now append more entries with size 3 (matches current array max shape)
+    # Before the fix, this would fail with: zarr.errors.BoundsCheckError:
+    # index out of bounds for dimension with length 2
+    store.append({"x": np.array([6, 7, 8])})  # Size 3 - matches current array shape
+    store.append({"x": np.array([9, 10, 11])})  # Size 3 - should still work
+
+    # Verify all entries are stored correctly
+    assert len(store) == 4
+    npt.assert_array_equal(store[0]["x"], np.array([1, 2, 3]))
+    npt.assert_array_equal(store[1]["x"], np.array([4, 5]))
+    npt.assert_array_equal(store[2]["x"], np.array([6, 7, 8]))
+    npt.assert_array_equal(store[3]["x"], np.array([9, 10, 11]))

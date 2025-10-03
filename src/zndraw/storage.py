@@ -247,6 +247,9 @@ def extend_zarr(root: zarr.Group, data: list[dict]):
                         # Even if shapes match, we might need to set mask if it exists
                         if f"__mask__{key}__" in group:
                             grp = group[f"__mask__{key}__"]
+                            # Resize mask array if needed
+                            if grp.shape[0] < total_len:
+                                grp.resize((total_len,))
                             grp[idx] = shape_suffix[0]
 
                 # If the array shape is smaller than the allocated space, pad it
