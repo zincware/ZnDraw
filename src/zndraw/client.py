@@ -646,14 +646,29 @@ class Client(MutableSequence):
             raise TypeError(f"Index must be int, slice, or list, not {type(index).__name__}")
 
     def __setitem__(self, index, value):
-        """Replace frame(s) at index or slice."""
+        """Replace frame(s) at index, slice, or list of indices."""
+        import numpy as np
+
+        # Handle numpy arrays
+        if isinstance(index, np.ndarray):
+            if index.ndim == 0:
+                # 0-d array (scalar)
+                index = int(index.item())
+            else:
+                # Multi-dimensional array - convert to list
+                index = index.tolist()
+
         if isinstance(index, slice):
             self._setitem_slice(index, value)
-        else:
+        elif isinstance(index, list):
+            self._setitem_list(index, value)
+        elif isinstance(index, int):
             # Single index assignment
             if index < 0:
                 index += len(self)
             self.replace_frame(index, value)
+        else:
+            raise TypeError(f"Index must be int, slice, or list, not {type(index).__name__}")
 
     def _setitem_slice(self, slice_obj: slice, values):
         """Handle slice assignment like Python lists."""
@@ -709,6 +724,56 @@ class Client(MutableSequence):
 
                 response = requests.post(
                     insert_url, data=packed_data, params=params, timeout=30
+                )
+                response.raise_for_status()
+
+    def _setitem_list(self, indices: list, values):
+        """Handle list index assignment like data[[1,2,3]] = [a, b, c]."""
+        import numpy as np
+
+        if not self.sio.connected:
+            raise RuntimeError("Client is not connected. Please call .connect() first.")
+
+        # Convert values to list if it's iterable
+        if hasattr(values, "__iter__") and not isinstance(values, dict):
+            values = list(values)
+        else:
+            # Single value for all indices
+            values = [values] * len(indices)
+
+        # Validate list length
+        if len(values) != len(indices):
+            raise ValueError(
+                f"attempt to assign sequence of size {len(values)} to list of size {len(indices)}"
+            )
+
+        # Validate and convert indices
+        length = len(self)
+        validated_indices = []
+        for i in indices:
+            if not isinstance(i, (int, np.integer)):
+                raise TypeError(f"List indices must be integers, not {type(i).__name__}")
+            # Convert negative indices
+            if i < 0:
+                i += length
+            # Check bounds
+            if i < 0 or i >= length:
+                raise IndexError("list index out of range")
+            validated_indices.append(int(i))
+
+        lock = SocketIOLock(self.sio, target="trajectory:meta")
+
+        with lock:
+            # Replace each position individually using direct calls
+            for i, value in zip(validated_indices, values):
+                serialized_data = encode_data(value)
+                packed_data = msgpack.packb(serialized_data)
+
+                replace_url = f"{self.url}/api/rooms/{self.room}/frames"
+                params = {"action": "replace", "frame_id": i}
+
+                response = requests.post(
+                    replace_url, data=packed_data, params=params, timeout=30
                 )
                 response.raise_for_status()
 

@@ -95,10 +95,23 @@ class ZnDraw(MutableSequence):
     def __setitem__(self, index: np.ndarray, atoms: list[ase.Atoms] | ase.Atoms) -> None: ...
     def __setitem__(self, index: int | slice | list[int] | np.ndarray, atoms: list[ase.Atoms] | ase.Atoms) -> None:
         """Set an Atoms object at a specific index."""
-        if not isinstance(atoms, ase.Atoms):
-            raise TypeError("Only ase.Atoms objects are supported")
-        update_colors_and_radii(atoms)
-        self.client[index] = atoms_to_dict(atoms)
+        # Handle single atom vs list of atoms
+        if isinstance(atoms, list):
+            # List of atoms - validate each one
+            if not all(isinstance(a, ase.Atoms) for a in atoms):
+                raise TypeError("All elements must be ase.Atoms objects")
+            # Convert each atom to dict with colors and radii
+            dicts = []
+            for atom in atoms:
+                update_colors_and_radii(atom)
+                dicts.append(atoms_to_dict(atom))
+            self.client[index] = dicts
+        elif isinstance(atoms, ase.Atoms):
+            # Single atom
+            update_colors_and_radii(atoms)
+            self.client[index] = atoms_to_dict(atoms)
+        else:
+            raise TypeError("Only ase.Atoms objects or lists of ase.Atoms are supported")
 
 
     @t.overload

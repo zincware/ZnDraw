@@ -1,6 +1,7 @@
 from zndraw.zndraw import ZnDraw
 import pytest
 import numpy as np
+from ase.build import molecule
 
 def test_getitem_slice(server, s22):
     vis = ZnDraw(url=server, room="testroom", user="testuser")
@@ -245,3 +246,162 @@ def test_delitem_list(server, s22):
         del vis[[1, "2", 3]]
     with pytest.raises(TypeError):
         del vis[[1, [2], 3]]
+
+def test_setitem_slice(server, s22):
+    vis = ZnDraw(url=server, room="testroom", user="testuser")
+    vis.extend(s22)
+
+    new_atoms = molecule("H2O")
+
+    vis[5:15] = [new_atoms.copy() for _ in range(10)]
+    assert len(vis) == len(s22)
+    for i in range(5):
+        assert vis[i] == s22[i]
+    for i in range(5, 15):
+        assert vis[i] == new_atoms
+    for i in range(15, len(vis)):
+        assert vis[i] == s22[i]
+
+    # reset
+    del vis[:]
+    vis.extend(s22)
+
+    vis[:10] = [new_atoms.copy() for _ in range(10)]
+    assert len(vis) == len(s22)
+    for i in range(10):
+        assert vis[i] == new_atoms
+    for i in range(10, len(vis)):
+        assert vis[i] == s22[i]
+
+    # reset
+    del vis[:]
+    vis.extend(s22)
+
+    vis[-10:] = [new_atoms.copy() for _ in range(10)]
+    assert len(vis) == len(s22)
+    for i in range(len(vis) - 10):
+        assert vis[i] == s22[i]
+    for i in range(len(vis) - 10, len(vis)):
+        assert vis[i] == new_atoms
+
+    # reset
+    del vis[:]
+    vis.extend(s22)
+
+    vis[::2] = [new_atoms.copy() for _ in range((len(s22) + 1) // 2)]
+    assert len(vis) == len(s22)
+    for i in range((len(s22) + 1) // 2):
+        assert vis[i * 2] == new_atoms
+    for i in range(len(s22) // 2):
+        assert vis[i * 2 + 1] == s22[i * 2 + 1]
+
+
+def test_setitem_index(server, s22):
+    vis = ZnDraw(url=server, room="testroom", user="testuser")
+    vis.extend(s22)
+
+    new_atoms = molecule("H2O")
+
+    vis[0] = new_atoms
+    assert len(vis) == len(s22)
+    assert vis[0] == new_atoms
+    for i in range(1, len(vis)):
+        assert vis[i] == s22[i]
+
+    # reset
+    del vis[:]
+    vis.extend(s22)
+
+    vis[-1] = new_atoms
+    assert len(vis) == len(s22)
+    for i in range(len(vis) - 1):
+        assert vis[i] == s22[i]
+    assert vis[-1] == new_atoms
+
+    # reset
+    del vis[:]
+    vis.extend(s22)
+
+    vis[np.array(0)] = new_atoms
+    assert len(vis) == len(s22)
+    assert vis[0] == new_atoms
+    for i in range(1, len(vis)):
+        assert vis[i] == s22[i]
+
+
+def test_invalid_setitem_index(server, s22):
+    vis = ZnDraw(url=server, room="testroom", user="testuser")
+    vis.extend(s22)
+    assert len(vis) == len(s22)
+
+    new_atoms = molecule("H2O")
+
+    with pytest.raises(IndexError):
+        vis[len(s22)] = new_atoms
+    with pytest.raises(IndexError):
+        vis[-len(s22) - 1] = new_atoms
+    with pytest.raises(TypeError):
+        vis[5.5] = new_atoms
+    with pytest.raises(TypeError):
+        vis["invalid"] = new_atoms
+    with pytest.raises(TypeError):
+        vis[0] = "not an atoms"
+
+    assert len(vis) == len(s22)
+    for i in range(len(vis)):
+        assert vis[i] == s22[i]
+
+def test_setitem_list(server, s22):
+    vis = ZnDraw(url=server, room="testroom", user="testuser")
+    vis.extend(s22)
+
+    new_atoms = molecule("H2O")
+
+    vis[[1, 2, 3]] = [new_atoms.copy() for _ in range(3)]
+    assert len(vis) == len(s22)
+    assert vis[0] == s22[0]
+    for i in range(1, 4):
+        assert vis[i] == new_atoms
+    for i in range(4, len(vis)):
+        assert vis[i] == s22[i]
+
+    # reset
+    del vis[:]
+    vis.extend(s22)
+
+    vis[[0, -1]] = [new_atoms.copy() for _ in range(2)]
+    assert len(vis) == len(s22)
+    assert vis[0] == new_atoms
+    for i in range(1, len(vis) - 1):
+        assert vis[i] == s22[i]
+    assert vis[-1] == new_atoms
+
+    # reset
+    del vis[:]
+    vis.extend(s22)
+
+    vis[np.array([0, -1])] = [new_atoms.copy() for _ in range(2)]
+    assert len(vis) == len(s22)
+    assert vis[0] == new_atoms
+    for i in range(1, len(vis) - 1):
+        assert vis[i] == s22[i]
+    assert vis[-1] == new_atoms
+
+    # reset
+    del vis[:]
+    vis.extend(s22)
+
+    with pytest.raises(IndexError):
+        vis[[0, len(vis)]] = [new_atoms.copy() for _ in range(2)]
+    with pytest.raises(IndexError):
+        vis[[-len(vis) - 1, 0]] = [new_atoms.copy() for _ in range(2)]
+    with pytest.raises(TypeError):
+        vis[[1, 2.5, 3]] = [new_atoms.copy() for _ in range(3)]
+    with pytest.raises(TypeError):
+        vis[[1, "2", 3]] = [new_atoms.copy() for _ in range(3)]
+    with pytest.raises(TypeError):
+        vis[[1, [2], 3]] = [new_atoms.copy() for _ in range(3)]
+    with pytest.raises(TypeError):
+        vis[[1, 2, 3]] = "not a list"
+    with pytest.raises(ValueError):
+        vis[[1, 2, 3]] = [new_atoms.copy() for _ in range(2)]
