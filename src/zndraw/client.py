@@ -402,42 +402,6 @@ class Client(MutableSequence):
             frame_id = self.len_frames() + frame_id
         return self.get_frames([frame_id], keys=keys)[0]
 
-    def _prepare_upload_token(self, action: str, **kwargs) -> str:
-        """Prepare upload token for frame operations."""
-        request_data = {"action": action}
-        request_data.update(kwargs)
-
-        response = self.sio.call("upload:prepare", request_data)
-        if not response or not response.get("success"):
-            error_msg = response.get("error") if response else "No response"
-            error_type = response.get("error_type") if response else None
-
-            # Raise the appropriate error type based on server response
-            if error_type == "IndexError":
-                raise IndexError(error_msg)
-            raise RuntimeError(f"Failed to prepare for upload: {error_msg}")
-        return response["token"]
-
-    def _upload_frame_data(self, token: str, serialized_data) -> dict:
-        """Upload frame data using the provided token."""
-        packed_data = msgpack.packb(serialized_data)
-
-        upload_url = f"{self.url}/api/rooms/{self.room}/frames"
-        headers = {
-            "Authorization": f"Bearer {token}",
-            "Content-Type": "application/octet-stream",
-        }
-
-        http_response = requests.post(
-            upload_url, data=packed_data, headers=headers, timeout=30
-        )
-        http_response.raise_for_status()
-
-        result = http_response.json()
-        if not result.get("success"):
-            raise RuntimeError(f"Server reported failure: {result.get('error')}")
-
-        return result
 
     def _perform_locked_upload(self, action: str, data, **kwargs):
         """Perform a locked upload operation with common error handling."""
@@ -448,13 +412,40 @@ class Client(MutableSequence):
 
         with lock:
             try:
-                token = self._prepare_upload_token(action, **kwargs)
                 serialized_data = (
                     encode_data(data)
                     if isinstance(data, dict)
                     else [encode_data(frame) for frame in data]
                 )
-                return self._upload_frame_data(token, serialized_data)
+                packed_data = msgpack.packb(serialized_data)
+
+                upload_url = f"{self.url}/api/rooms/{self.room}/frames"
+                params = {"action": action}
+                params.update(kwargs)
+
+                http_response = requests.post(
+                    upload_url, data=packed_data, params=params, timeout=30
+                )
+
+                # Check for errors
+                if http_response.status_code == 404:
+                    try:
+                        error_data = http_response.json()
+                        error_type = error_data.get("type", "")
+                        error_msg = error_data.get("error", http_response.text)
+
+                        if error_type == "IndexError":
+                            raise IndexError(error_msg)
+                    except ValueError:
+                        pass
+
+                http_response.raise_for_status()
+                result = http_response.json()
+
+                if not result.get("success"):
+                    raise RuntimeError(f"Server reported failure: {result.get('error')}")
+
+                return result
             except requests.exceptions.RequestException as e:
                 raise RuntimeError(f"Error uploading frame data: {e}") from e
 
@@ -544,34 +535,26 @@ class Client(MutableSequence):
         lock = SocketIOLock(self.sio, target="trajectory:meta")
 
         with lock:
+            delete_url = f"{self.url}/api/rooms/{self.room}/frames"
+            params = {"action": "delete"}
+
             # Determine if this is a single frame or batch delete
             if isinstance(index, int):
-                # Single frame deletion - use path parameter
-                token = self._prepare_upload_token("delete", frame_id=index)
-                delete_url = f"{self.url}/api/rooms/{self.room}/frames/{index}"
-                headers = {"Authorization": f"Bearer {token}"}
-                response = requests.delete(delete_url, headers=headers, timeout=30)
-            else:
-                # Batch deletion - use query parameters
-                token = self._prepare_upload_token("delete")
-                delete_url = f"{self.url}/api/rooms/{self.room}/frames"
-                headers = {"Authorization": f"Bearer {token}"}
+                # Single frame deletion
+                params["frame_id"] = index
+            elif isinstance(index, list):
+                # List of indices - convert to comma-separated string
+                params["indices"] = ",".join(str(i) for i in index)
+            elif isinstance(index, slice):
+                # Slice object - extract start, stop, step
+                if index.start is not None:
+                    params["start"] = index.start
+                if index.stop is not None:
+                    params["stop"] = index.stop
+                if index.step is not None:
+                    params["step"] = index.step
 
-                # Prepare payload based on input type
-                payload = {}
-                if isinstance(index, list):
-                    # Direct list of indices - convert to comma-separated string
-                    payload["indices"] = ",".join(str(i) for i in index)
-                elif isinstance(index, slice):
-                    # Slice object - extract start, stop, step
-                    if index.start is not None:
-                        payload["start"] = index.start
-                    if index.stop is not None:
-                        payload["stop"] = index.stop
-                    if index.step is not None:
-                        payload["step"] = index.step
-
-                response = requests.delete(delete_url, headers=headers, params=payload, timeout=30)
+            response = requests.delete(delete_url, params=params, timeout=30)
 
             # Check for errors
             if response.status_code == 404:
@@ -709,19 +692,25 @@ class Client(MutableSequence):
             # First, delete the old range if it exists
             for _ in range(old_count):
                 if start < len(self):
-                    # Get delete token and make DELETE request
-                    token = self._prepare_upload_token("delete", frame_id=start)
-                    delete_url = f"{self.url}/api/rooms/{self.room}/frames/{start}"
-                    headers = {"Authorization": f"Bearer {token}"}
-                    response = requests.delete(delete_url, headers=headers, timeout=30)
+                    # Make DELETE request
+                    delete_url = f"{self.url}/api/rooms/{self.room}/frames"
+                    params = {"action": "delete", "frame_id": start}
+                    response = requests.delete(delete_url, params=params, timeout=30)
                     response.raise_for_status()
 
             # Then insert the new values at the start position
             for i, value in enumerate(values):
-                # Use the direct upload mechanism
-                token = self._prepare_upload_token("insert", insert_position=start + i)
+                # Use direct POST request
                 serialized_data = encode_data(value)
-                self._upload_frame_data(token, serialized_data)
+                packed_data = msgpack.packb(serialized_data)
+
+                insert_url = f"{self.url}/api/rooms/{self.room}/frames"
+                params = {"action": "insert", "insert_position": start + i}
+
+                response = requests.post(
+                    insert_url, data=packed_data, params=params, timeout=30
+                )
+                response.raise_for_status()
 
     def _extended_slice_assignment(
         self, start: int, stop: int, step: int, values: list
@@ -744,11 +733,18 @@ class Client(MutableSequence):
             # Replace each position individually using direct calls
             for i, value in zip(indices, values):
                 if i < len(self):
-                    token = self._prepare_upload_token("replace", frame_id=i)
                     serialized_data = encode_data(value)
-                    self._upload_frame_data(token, serialized_data)
+                    packed_data = msgpack.packb(serialized_data)
 
-    def __delitem__(self, index: int | slice | list[int]):
+                    replace_url = f"{self.url}/api/rooms/{self.room}/frames"
+                    params = {"action": "replace", "frame_id": i}
+
+                    response = requests.post(
+                        replace_url, data=packed_data, params=params, timeout=30
+                    )
+                    response.raise_for_status()
+
+    def __delitem__(self, index: int | slice | list[int] | np.ndarray):
         """Delete frame(s) at index, slice, or list of indices."""
         import numpy as np
 

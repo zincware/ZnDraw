@@ -267,32 +267,8 @@ def get_frames(room_id):
 
 @main.route("/api/rooms/<string:room_id>/frames", methods=["DELETE"])
 def delete_frames_batch(room_id):
-    """Deletes multiple frames using either indices or slice parameters. Authorized via a short-lived Bearer token."""
+    """Deletes frames using either a single frame_id, indices, or slice parameters from query params."""
     r = current_app.extensions["redis"]
-    auth_header = request.headers.get("Authorization")
-    if not auth_header or not auth_header.startswith("Bearer "):
-        return {"error": "Authorization token is missing or invalid"}, 401
-
-    token = auth_header.split(" ")[1]
-    token_key = f"room:{room_id}:upload_token:{token}"
-
-    # Get token metadata
-    token_data = r.hgetall(token_key)
-    if not token_data:
-        return {"error": "Token is invalid or has expired"}, 403
-
-    sid_from_token = token_data.get("sid")
-    action = token_data.get("action")
-
-    # Validate this is a delete action
-    if action != "delete":
-        return {"error": "Token is not valid for delete operation"}, 403
-
-    r.delete(token_key)  # Invalidate the token after first use
-
-    lock_key = get_lock_key(room_id, "trajectory:meta")
-    if r.get(lock_key) != sid_from_token:
-        return {"error": "Client does not hold the trajectory lock"}, 403
 
     try:
         indices_key = f"room:{room_id}:trajectory:indices"
@@ -304,7 +280,27 @@ def delete_frames_batch(room_id):
         max_frame = len(frame_mapping) - 1
 
         # Determine frame indices based on request parameters
-        if "indices" in request.args:
+        if "frame_id" in request.args:
+            # Single frame deletion
+            frame_id_str = request.args.get("frame_id")
+            try:
+                frame_id = int(frame_id_str)
+            except ValueError:
+                return {"error": "frame_id must be an integer"}, 400
+
+            if frame_id < 0 or frame_id > max_frame:
+                error_data = {
+                    "error": f"Invalid frame index {frame_id}, valid range: 0-{max_frame}",
+                    "type": "IndexError",
+                }
+                return Response(
+                    json.dumps(error_data),
+                    status=404,
+                    content_type="application/json",
+                )
+            frame_indices = [frame_id]
+
+        elif "indices" in request.args:
             # Indices parameter was provided as comma-separated values
             indices_str = request.args.get("indices")
 
@@ -410,33 +406,14 @@ def delete_frames_batch(room_id):
 
 @main.route("/api/rooms/<string:room_id>/frames", methods=["POST"])
 def append_frame(room_id):
-    """Appends a new frame. Authorized via a short-lived Bearer token."""
+    """Handles frame operations (append, extend, replace, insert) based on action query parameter."""
     r = current_app.extensions["redis"]
-    auth_header = request.headers.get("Authorization")
-    if not auth_header or not auth_header.startswith("Bearer "):
-        return {"error": "Authorization token is missing or invalid"}, 401
 
-    token = auth_header.split(" ")[1]
-    token_key = f"room:{room_id}:upload_token:{token}"
+    # Get action from query parameters
+    action = request.args.get("action", "append")
 
-    # Get token metadata
-    token_data = r.hgetall(token_key)
-    if not token_data:
-        return {"error": "Token is invalid or has expired"}, 403
-
-    sid_from_token = token_data.get("sid")
-    action = token_data.get("action", "append")
-    target_frame_id = (
-        int(token_data.get("frame_id", -1))
-        if token_data.get("frame_id") != "-1"
-        else None
-    )
-
-    r.delete(token_key)  # Invalidate the token after first use
-
-    lock_key = get_lock_key(room_id, "trajectory:meta")
-    if r.get(lock_key) != sid_from_token:
-        return {"error": "Client does not hold the trajectory lock"}, 403
+    if action not in {"append", "replace", "insert", "extend"}:
+        return {"error": "Invalid action specified"}, 400
 
     try:
         # Unpack the msgpack data
@@ -447,14 +424,25 @@ def append_frame(room_id):
         indices_key = f"room:{room_id}:trajectory:indices"
 
         if action == "replace":
+            # Get frame_id from query parameters
+            target_frame_id = request.args.get("frame_id")
+            if target_frame_id is None:
+                return {
+                    "error": "frame_id is required for replace operations"
+                }, 400
+
+            try:
+                target_frame_id = int(target_frame_id)
+            except ValueError:
+                return {"error": "frame_id must be an integer"}, 400
+
             frame_mapping = r.zrange(indices_key, 0, -1)
 
             # Validate target_frame_id
-            if target_frame_id is None or not (
-                0 <= target_frame_id < len(frame_mapping)
-            ):
+            if not (0 <= target_frame_id < len(frame_mapping)):
                 return {
-                    "error": f"Invalid or missing frame_id for replace. Valid range: 0-{len(frame_mapping) - 1}"
+                    "error": f"Invalid or missing frame_id for replace. Valid range: 0-{len(frame_mapping) - 1}",
+                    "type": "IndexError"
                 }, 404
 
             new_physical_index = len(storage)
@@ -515,8 +503,18 @@ def append_frame(room_id):
             return {"success": True, "new_indices": new_indices}
 
         elif action == "insert":
-            # Insert operation: add a new physical frame and insert it into the logical sequence
-            insert_position = int(token_data.get("insert_position", 0))
+            # Get insert_position from query parameters
+            insert_position_str = request.args.get("insert_position")
+            if insert_position_str is None:
+                return {
+                    "error": "insert_position is required for insert operations"
+                }, 400
+
+            try:
+                insert_position = int(insert_position_str)
+            except ValueError:
+                return {"error": "insert_position must be an integer"}, 400
+
             current_length = r.zcard(indices_key)
 
             if not (0 <= insert_position <= current_length):
@@ -580,96 +578,6 @@ def append_frame(room_id):
         return {"error": "Failed to write to data store"}, 500
 
 
-@main.route("/api/rooms/<string:room_id>/frames/<int:frame_id>", methods=["DELETE"])
-def delete_frame(room_id, frame_id):
-    """Deletes a frame. Authorized via a short-lived Bearer token."""
-    r = current_app.extensions["redis"]
-    auth_header = request.headers.get("Authorization")
-    if not auth_header or not auth_header.startswith("Bearer "):
-        return {"error": "Authorization token is missing or invalid"}, 401
-
-    token = auth_header.split(" ")[1]
-    token_key = f"room:{room_id}:upload_token:{token}"
-
-    # Get token metadata
-    token_data = r.hgetall(token_key)
-    if not token_data:
-        return {"error": "Token is invalid or has expired"}, 403
-
-    sid_from_token = token_data.get("sid")
-    action = token_data.get("action")
-
-    # Validate this is a delete action
-    if action != "delete":
-        return {"error": "Token is not valid for delete operation"}, 403
-
-    r.delete(token_key)  # Invalidate the token after first use
-
-    lock_key = get_lock_key(room_id, "trajectory:meta")
-    if r.get(lock_key) != sid_from_token:
-        return {"error": "Client does not hold the trajectory lock"}, 403
-
-    try:
-        indices_key = f"room:{room_id}:trajectory:indices"
-        frame_mapping = r.zrange(indices_key, 0, -1)
-
-        if not frame_mapping:
-            return {"error": "No frames found in room"}, 404
-
-        if frame_id >= len(frame_mapping):
-            return {
-                "error": f"Frame {frame_id} not found, max frame: {len(frame_mapping) - 1}",
-                "type": "IndexError",
-            }, 404
-
-        # Parse the frame mapping entry to check if it's a template frame
-        mapping_entry = frame_mapping[frame_id]
-        if isinstance(mapping_entry, bytes):
-            mapping_entry = mapping_entry.decode()
-
-        # Check if this frame belongs to a different room (e.g., a template)
-        if ":" in mapping_entry:
-            source_room_id = mapping_entry.split(":", 1)[0]
-            if source_room_id != room_id:
-                # This is a template frame or from another room
-                return {
-                    "error": f"Cannot delete template frame. This frame belongs to '{source_room_id}'",
-                    "type": "PermissionError",
-                }, 403
-
-        # Get the physical index that we're "deleting" (just removing from mapping)
-        # For backward compatibility, handle both old format (just index) and new format (room:index)
-        if ":" in mapping_entry:
-            physical_index_to_remove = int(mapping_entry.split(":", 1)[1])
-        else:
-            physical_index_to_remove = int(mapping_entry)
-
-        # Remove the mapping entry for this logical position
-        # We need to rebuild the mapping without this entry
-        remaining_physical_indices = (
-            frame_mapping[:frame_id] + frame_mapping[frame_id + 1 :]
-        )
-
-        # Clear and rebuild the Redis mapping
-        r.delete(indices_key)
-        for logical_pos, physical_idx_str in enumerate(remaining_physical_indices):
-            r.zadd(indices_key, {physical_idx_str: logical_pos})
-
-        log.info(
-            f"Deleted logical frame {frame_id} (physical: {physical_index_to_remove}) from room '{room_id}'. Physical data preserved."
-        )
-
-        # Emit bookmarks update to all clients
-        emit_bookmarks_update(room_id)
-        # Invalidate all frames from deleted position onward (they all shift down)
-        emit_frames_invalidate(room_id, operation="delete", affected_from=frame_id)
-
-        return {"success": True, "deleted_frame": frame_id}
-
-    except Exception as e:
-        log.error(f"Failed to delete frame: {e}")
-        print(traceback.format_exc())
-        return {"error": "Failed to delete frame"}, 500
 
 
 def ensure_empty_template_exists():
