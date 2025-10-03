@@ -2,10 +2,10 @@
 
 import logging
 
-from zndraw.client import Client
+from zndraw.zndraw import ZnDraw
 from zndraw.server import create_app
 
-__all__ = ["Client", "create_app"]
+__all__ = ["ZnDraw", "create_app"]
 
 log = logging.getLogger(__name__)
 log.setLevel(logging.INFO)

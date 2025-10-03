@@ -1,13 +1,11 @@
 import time
 
-from zndraw import Client
+from zndraw import ZnDraw
 
 
 def test_vis_settings_same_room_same_user(server):
-    client1 = Client(url=server, room="testroom", user="user1")
-    client1.connect()
-    client2 = Client(url=server, room="testroom", user="user1")
-    client2.connect()
+    client1 = ZnDraw(url=server, room="testroom", user="user1")
+    client2 = ZnDraw(url=server, room="testroom", user="user1")
 
     client1.settings.visualization.floor = True
     time.sleep(0.1)
@@ -26,10 +24,8 @@ def test_vis_settings_same_room_same_user(server):
 
 
 def test_vis_settings_different_room_same_user(server):
-    client1 = Client(url=server, room="room1", user="user1")
-    client1.connect()
-    client2 = Client(url=server, room="room2", user="user1")
-    client2.connect()
+    client1 = ZnDraw(url=server, room="room1", user="user1")
+    client2 = ZnDraw(url=server, room="room2", user="user1")
 
     client1.settings.visualization.floor = True
     time.sleep(0.1)
@@ -48,10 +44,8 @@ def test_vis_settings_different_room_same_user(server):
 
 
 def test_vis_settings_same_room_different_user(server):
-    client1 = Client(url=server, room="testroom", user="user1")
-    client1.connect()
-    client2 = Client(url=server, room="testroom", user="user2")
-    client2.connect()
+    client1 = ZnDraw(url=server, room="testroom", user="user1")
+    client2 = ZnDraw(url=server, room="testroom", user="user2")
 
     client1.settings.visualization.floor = True
     time.sleep(0.1)

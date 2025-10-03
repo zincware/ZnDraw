@@ -3,28 +3,24 @@ import uuid
 import numpy as np
 import pytest
 
-from zndraw import Client
+from zndraw import ZnDraw
 
 
 def test_connection(server):
-    client = Client(room=uuid.uuid4().hex, url=server)
-    client.connect()
-    assert client.sio.connected
+    client = ZnDraw(room=uuid.uuid4().hex, url=server)
+    assert client.socket.connected
     client.disconnect()
-    assert not client.sio.connected
+    assert not client.socket.connected
 
 
 def test_len_frames_empty(server):
-    client = Client(room=uuid.uuid4().hex, url=server)
-    client.connect()
-    assert client.len_frames() == 0
-    client.disconnect()
-    assert not client.sio.connected
+    client = ZnDraw(room=uuid.uuid4().hex, url=server)
+    assert len(client) == 0
+    assert client.socket.connected
 
 
 def test_append_and_get_frame(server):
-    client = Client(room=uuid.uuid4().hex, url=server)
-    client.connect()
+    client = ZnDraw(room=uuid.uuid4().hex, url=server)
     for i in range(10):
         data = {
             "index": np.array([i]),
@@ -32,61 +28,59 @@ def test_append_and_get_frame(server):
             "colors": np.random.randint(0, 255, size=(5, 4), dtype=np.uint8),
         }
         client.append_frame(data)
-        assert client.len_frames() == i + 1
-        frame = client.get_frame(i)
+        assert len(client) == i + 1
+        frame = client.get(i)
         assert np.array_equal(frame["index"], data["index"])
         assert np.array_equal(frame["points"], data["points"])
         assert np.array_equal(frame["colors"], data["colors"])
+    
     client.disconnect()
-    assert not client.sio.connected
+    assert not client.socket.connected
 
 
 def test_delete_frame(server):
-    client = Client(room=uuid.uuid4().hex, url=server)
-    client.connect()
+    client = ZnDraw(room=uuid.uuid4().hex, url=server)
     for i in range(5):
         client.append_frame({"index": np.array([i])})
-    assert client.len_frames() == 5
-    client.delete_frame(0)
-    assert client.len_frames() == 4
-    frame = client.get_frame(0)
+    assert len(client) == 5
+    del client[0]
+    assert len(client) == 4
+    frame = client.get(0)
     assert np.array_equal(frame["index"], np.array([1]))
-    client.delete_frame(1)
-    assert client.len_frames() == 3
-    frame = client.get_frame(1)
+    del client[1]
+    assert len(client) == 3
+    frame = client.get(1)
     assert np.array_equal(frame["index"], np.array([3]))
     client.disconnect()
-    assert not client.sio.connected
+    assert not client.socket.connected
 
 
 def test_replace_frame(server):
-    client = Client(room=uuid.uuid4().hex, url=server)
-    client.connect()
+    client = ZnDraw(room=uuid.uuid4().hex, url=server)
     for i in range(10):
         client.append_frame({"index": np.array([i])})
-    assert client.len_frames() == 10
+    assert len(client) == 10
 
     # Replace frame at index 5
     new_data = {
         "index": np.array([999]),
     }
     client.replace_frame(5, new_data)
-    frame = client.get_frame(5)
+    frame = client.get(5)
     assert np.array_equal(frame["index"], new_data["index"])
-    assert client.len_frames() == 10
+    assert len(client) == 10
 
     client.disconnect()
-    assert not client.sio.connected
+    assert not client.socket.connected
 
 
 def test_extend_frames(server):
-    client = Client(room=uuid.uuid4().hex, url=server)
-    client.connect()
+    client = ZnDraw(room=uuid.uuid4().hex, url=server)
 
     # Start with a few frames
     for i in range(3):
         client.append_frame({"index": np.array([i]), "points": np.random.rand(5, 3)})
-    assert client.len_frames() == 3
+    assert len(client) == 3
 
     # Extend with multiple frames at once
     extend_data = [
@@ -96,22 +90,21 @@ def test_extend_frames(server):
     ]
 
     new_indices = client.extend_frames(extend_data)
-    assert client.len_frames() == 6
+    assert len(client) == 6
     assert new_indices == [3, 4, 5]  # Should be appended at these logical positions
 
     # Verify the extended frames
     for i, expected_idx in enumerate([10, 20, 30]):
-        frame = client.get_frame(3 + i)
+        frame = client.get(3 + i)
         assert np.array_equal(frame["index"], np.array([expected_idx]))
         assert frame["points"].shape == (5, 3)
 
     client.disconnect()
-    assert not client.sio.connected
+    assert not client.socket.connected
 
 
 def test_get_frames_with_indices(server):
-    client = Client(room=uuid.uuid4().hex, url=server)
-    client.connect()
+    client = ZnDraw(room=uuid.uuid4().hex, url=server)
 
     # Add some test frames
     test_data = []
@@ -122,7 +115,7 @@ def test_get_frames_with_indices(server):
 
     # Test fetching specific frames by indices
     indices = [0, 2, 5, 8]
-    frames = client.get_frames(indices)
+    frames = client.get(indices)
 
     assert len(frames) == len(indices)
     for i, frame_idx in enumerate(indices):
@@ -130,12 +123,11 @@ def test_get_frames_with_indices(server):
         assert np.array_equal(frames[i]["points"], test_data[frame_idx]["points"])
 
     client.disconnect()
-    assert not client.sio.connected
+    assert not client.socket.connected
 
 
 def test_get_frames_with_slice(server):
-    client = Client(room=uuid.uuid4().hex, url=server)
-    client.connect()
+    client = ZnDraw(room=uuid.uuid4().hex, url=server)
 
     # Add some test frames
     test_data = []
@@ -145,7 +137,7 @@ def test_get_frames_with_slice(server):
         test_data.append(data)
 
     # Test fetching frames with slice notation
-    frames = client.get_frames(slice(5, 15, 2))  # Every 2nd frame from 5 to 15
+    frames = client.get(slice(5, 15, 2))  # Every 2nd frame from 5 to 15
     expected_indices = [5, 7, 9, 11, 13]
 
     assert len(frames) == len(expected_indices)
@@ -153,49 +145,47 @@ def test_get_frames_with_slice(server):
         assert np.array_equal(frames[i]["index"], test_data[expected_idx]["index"])
 
     # Test slice with just start
-    frames = client.get_frames(slice(10, None))  # From 10 to end
+    frames = client.get(slice(10, None))  # From 10 to end
     assert len(frames) == 10  # frames 10-19
     for i, frame in enumerate(frames):
         assert np.array_equal(frame["index"], test_data[10 + i]["index"])
 
     # Test slice with step only
-    frames = client.get_frames(slice(None, None, 3))  # Every 3rd frame
+    frames = client.get(slice(None, None, 3))  # Every 3rd frame
     expected_count = (20 + 2) // 3  # Ceiling division
     assert len(frames) == expected_count
 
     # Test slice(None, None, None) - should get all frames
-    frames = client.get_frames(slice(None, None, None))
+    frames = client.get(slice(None, None, None))
     assert len(frames) == 20  # All frames
     for i, frame in enumerate(frames):
         assert np.array_equal(frame["index"], test_data[i]["index"])
 
     client.disconnect()
-    assert not client.sio.connected
+    assert not client.socket.connected
 
 
 def test_get_frames_empty_result(server):
-    client = Client(room=uuid.uuid4().hex, url=server)
-    client.connect()
+    client = ZnDraw(room=uuid.uuid4().hex, url=server)
 
     # Add a few frames
     for i in range(5):
         client.append_frame({"index": np.array([i])})
 
     # Test slice that results in no frames
-    frames = client.get_frames(slice(10, 20))  # Beyond available frames
+    frames = client.get(slice(10, 20))  # Beyond available frames
     assert len(frames) == 0
 
     # Test empty indices list
-    frames = client.get_frames([])
+    frames = client.get([])
     assert len(frames) == 0
 
     client.disconnect()
-    assert not client.sio.connected
+    assert not client.socket.connected
 
 
 def test_mutable_sequence_interface(server):
-    client = Client(room=uuid.uuid4().hex, url=server)
-    client.connect()
+    client = ZnDraw(room=uuid.uuid4().hex, url=server)
 
     # Test len()
     assert len(client) == 0
@@ -203,51 +193,52 @@ def test_mutable_sequence_interface(server):
     # Test append()
     frame1 = {"index": np.array([10])}
     frame2 = {"index": np.array([20])}
-    client.append(frame1)
+    client.append_frame(frame1)
     assert len(client) == 1
-    client.append(frame2)
+    client.append_frame(frame2)
     assert len(client) == 2
 
     # Test __getitem__ with positive index
-    retrieved = client[0]
+    retrieved = client.get(0)
     assert np.array_equal(retrieved["index"], frame1["index"])
 
     # Test __getitem__ with negative index
-    retrieved = client[-1]
+    retrieved = client.get(-1)
     assert np.array_equal(retrieved["index"], frame2["index"])
 
     # Test __getitem__ with slice
-    frames = client[0:2]
+    frames = client.get(slice(0, 2))
     assert len(frames) == 2
     assert np.array_equal(frames[0]["index"], frame1["index"])
     assert np.array_equal(frames[1]["index"], frame2["index"])
 
     # Test __setitem__ (replace)
     new_frame = {"index": np.array([999])}
-    client[1] = new_frame
-    retrieved = client[1]
+    client.replace_frame(1, new_frame)
+    retrieved = client.get(1)
     assert np.array_equal(retrieved["index"], new_frame["index"])
 
     # Test extend()
     extend_data = [{"index": np.array([100])}, {"index": np.array([200])}]
-    client.extend(extend_data)
+    client.extend_frames(extend_data)
     assert len(client) == 4
-    assert np.array_equal(client[2]["index"], extend_data[0]["index"])
-    assert np.array_equal(client[3]["index"], extend_data[1]["index"])
+    assert np.array_equal(client.get(2)["index"], extend_data[0]["index"])
+    assert np.array_equal(client.get(3)["index"], extend_data[1]["index"])
 
     # Test __delitem__
-    client[1]  # Should be the replaced frame with index 999
+    client.get(1)  # Should be the replaced frame with index 999
     del client[1]
     assert len(client) == 3
     # After deletion, what was at index 2 should now be at index 1
-    assert np.array_equal(client[1]["index"], extend_data[0]["index"])
+    assert np.array_equal(client.get(1)["index"], extend_data[0]["index"])
 
     client.disconnect()
-    assert not client.sio.connected
+    assert not client.socket.connected
 
 
-def test_insert_frame_functionality(server):
-    client = Client(room=uuid.uuid4().hex, url=server)
+
+def test_insert_frame_functionality(server, s22):
+    client = ZnDraw(room=uuid.uuid4().hex, url=server)
     client.connect()
 
     # Start with some initial frames
@@ -267,9 +258,9 @@ def test_insert_frame_functionality(server):
     assert len(client) == 4
 
     # Verify the insertion shifted everything
-    frame = client.get_frame(0)
+    frame = client.get(0)
     assert np.array_equal(frame["index"], insert_frame_0["index"])
-    frame = client.get_frame(1)  # Should be the original frame 0
+    frame = client.get(1)  # Should be the original frame 0
     assert np.array_equal(frame["index"], initial_frames[0]["index"])
 
     # Test insert in middle
@@ -278,10 +269,10 @@ def test_insert_frame_functionality(server):
     assert len(client) == 5
 
     # Verify the insertion
-    frame = client.get_frame(2)
+    frame = client.get(2)
     assert np.array_equal(frame["index"], insert_frame_2["index"])
     # Original frame 1 should now be at position 3
-    frame = client.get_frame(3)
+    frame = client.get(3)
     assert np.array_equal(frame["index"], initial_frames[1]["index"])
 
     # Test insert at end (equivalent to append)
@@ -290,15 +281,15 @@ def test_insert_frame_functionality(server):
     assert len(client) == 6
 
     # Should be at the last position
-    frame = client.get_frame(-1)
+    frame = client.get(-1)
     assert np.array_equal(frame["index"], insert_frame_end["index"])
 
     client.disconnect()
-    assert not client.sio.connected
+    assert not client.socket.sio.connected
 
 
 def test_mutable_sequence_insert(server):
-    client = Client(room=uuid.uuid4().hex, url=server)
+    client = ZnDraw(room=uuid.uuid4().hex, url=server)
     client.connect()
 
     # Add initial frames using MutableSequence interface
@@ -309,32 +300,32 @@ def test_mutable_sequence_insert(server):
     ]
 
     for frame in frames:
-        client.append(frame)
+        client.append_frame(frame)
 
     assert len(client) == 3
 
     # Test MutableSequence insert at position 1
     insert_data = {"data": np.array([99, 99, 99])}
-    client.insert(1, insert_data)
+    client.insert_frame(1, insert_data)
     assert len(client) == 4
 
     # Verify the order
-    assert np.array_equal(client[0]["data"], frames[0]["data"])  # Original frame 0
-    assert np.array_equal(client[1]["data"], insert_data["data"])  # Inserted frame
+    assert np.array_equal(client.get(0)["data"], frames[0]["data"])  # Original frame 0
+    assert np.array_equal(client.get(1)["data"], insert_data["data"])  # Inserted frame
     assert np.array_equal(
-        client[2]["data"], frames[1]["data"]
+        client.get(2)["data"], frames[1]["data"]
     )  # Shifted from pos 1 to 2
     assert np.array_equal(
-        client[3]["data"], frames[2]["data"]
+        client.get(3)["data"], frames[2]["data"]
     )  # Shifted from pos 2 to 3
 
     client.disconnect()
-    assert not client.sio.connected
+    assert not client.socket.sio.connected
 
 
 def test_slice_assignment_vs_python_list(server):
     """Test that slice assignment behavior matches Python list behavior exactly."""
-    client = Client(room=uuid.uuid4().hex, url=server)
+    client = ZnDraw(room=uuid.uuid4().hex, url=server)
     client.connect()
 
     # Test cases covering various slice assignment scenarios
@@ -363,10 +354,10 @@ def test_slice_assignment_vs_python_list(server):
             del client[0]
 
         for frame in initial_frames:
-            client.append(frame)
+            client.append_frame(frame)
 
         # Perform slice assignment
-        client[slice_obj] = value_frames
+        client.set_frames(slice_obj, value_frames)
 
         # Compare results
         assert len(client) == len(python_list), (
@@ -374,19 +365,19 @@ def test_slice_assignment_vs_python_list(server):
         )
 
         for j in range(len(python_list)):
-            client_value = client[j]["index"][0]
+            client_value = client.get(j)["index"][0]
             python_value = python_list[j]
             assert client_value == python_value, (
                 f"Test case {i}, index {j}: Client: {client_value}, Python: {python_value}"
             )
 
     client.disconnect()
-    assert not client.sio.connected
+    assert not client.socket.sio.connected
 
 
 def test_extended_slice_assignment_vs_python_list(server):
     """Test extended slice assignment behavior matches Python list behavior."""
-    client = Client(room=uuid.uuid4().hex, url=server)
+    client = ZnDraw(room=uuid.uuid4().hex, url=server)
     client.connect()
 
     # Test cases for extended slices (step != 1)
@@ -423,10 +414,10 @@ def test_extended_slice_assignment_vs_python_list(server):
             del client[0]
 
         for frame in initial_frames:
-            client.append(frame)
+            client.append_frame(frame)
 
         # Perform extended slice assignment
-        client[slice_obj] = value_frames
+        client.set_frames(slice_obj, value_frames)
 
         # Compare results
         assert len(client) == len(python_list), (
@@ -434,25 +425,24 @@ def test_extended_slice_assignment_vs_python_list(server):
         )
 
         for j in range(len(python_list)):
-            client_value = client[j]["index"][0]
+            client_value = client.get(j)["index"][0]
             python_value = python_list[j]
             assert client_value == python_value, (
                 f"Extended test case {i}, index {j}: Client: {client_value}, Python: {python_value}"
             )
 
     client.disconnect()
-    assert not client.sio.connected
+    assert not client.socket.sio.connected
 
 
 def test_slice_assignment_error_conditions(server):
     """Test that slice assignment error conditions match Python behavior."""
-    client = Client(room=uuid.uuid4().hex, url=server)
-    client.connect()
+    client = ZnDraw(room=uuid.uuid4().hex, url=server)
 
     # Set up initial data
     initial_frames = [{"index": np.array([i])} for i in range(1, 6)]  # [1, 2, 3, 4, 5]
     for frame in initial_frames:
-        client.append(frame)
+        client.append_frame(frame)
 
     # Test extended slice with wrong number of values (should raise ValueError)
     value_frames = [{"index": np.array([10])}]  # Only 1 value for 3 positions
@@ -470,30 +460,31 @@ def test_slice_assignment_error_conditions(server):
         ValueError,
         match="attempt to assign sequence of size 1 to extended slice of size 3",
     ):
-        client[::2] = value_frames
+        client.set_frames(slice(0, None, 2), value_frames)
 
     client.disconnect()
-    assert not client.sio.connected
+    assert not client.socket.connected
 
 
 def test_slice_assignment_connection_error(server):
     """Test that slice assignment fails when not connected."""
-    client = Client(room=uuid.uuid4().hex, url=server)
+    client = ZnDraw(room=uuid.uuid4().hex, url=server)
+    client.disconnect()
+    assert not client.socket.connected
     # Deliberately not connecting
 
     value_frames = [{"index": np.array([10])}]
 
     # Test that both simple and extended slice assignment fail when not connected
     with pytest.raises(RuntimeError, match="Client is not connected"):
-        client[1:3] = value_frames
+        client.set_frames(slice(1, 3), value_frames)
 
     with pytest.raises(RuntimeError, match="Client is not connected"):
-        client[::2] = value_frames
-
+        client.set_frames(slice(0, None, 2), value_frames)
 
 def test_slice_assignment_edge_cases(server):
     """Test additional edge cases for slice assignment."""
-    client = Client(room=uuid.uuid4().hex, url=server)
+    client = ZnDraw(room=uuid.uuid4().hex, url=server)
     client.connect()
 
     # Test cases for edge conditions
@@ -529,10 +520,10 @@ def test_slice_assignment_edge_cases(server):
             del client[0]
 
         for frame in initial_frames:
-            client.append(frame)
+            client.append_frame(frame)
 
         # Perform slice assignment
-        client[slice_obj] = value_frames
+        client.set_frames(slice_obj, value_frames)
 
         # Compare results
         assert len(client) == len(python_list), (
@@ -540,25 +531,24 @@ def test_slice_assignment_edge_cases(server):
         )
 
         for j in range(len(python_list)):
-            client_value = client[j]["index"][0]
+            client_value = client.get(j)["index"][0]
             python_value = python_list[j]
             assert client_value == python_value, (
                 f"Edge case {i}, index {j}: Client: {client_value}, Python: {python_value}"
             )
 
     client.disconnect()
-    assert not client.sio.connected
+    assert not client.socket.connected
 
 
 def test_slice_assignment_single_value(server):
     """Test slice assignment with single value (not in list)."""
-    client = Client(room=uuid.uuid4().hex, url=server)
-    client.connect()
+    client = ZnDraw(room=uuid.uuid4().hex, url=server)
 
     # Set up initial data
     initial_frames = [{"index": np.array([i])} for i in range(1, 4)]  # [1, 2, 3]
     for frame in initial_frames:
-        client.append(frame)
+        client.append_frame(frame)
 
     # Test assigning single frame to slice (should be treated as [frame])
     single_frame = {"index": np.array([99])}
@@ -568,7 +558,7 @@ def test_slice_assignment_single_value(server):
     python_list[1:3] = [99]  # Equivalent to our operation
 
     # Client operation
-    client[1:3] = single_frame  # Should be equivalent
+    client.set_frames(slice(1, 3), [single_frame])  # Should be equivalent
 
     # Compare results
     assert len(client) == len(python_list), (
@@ -576,19 +566,18 @@ def test_slice_assignment_single_value(server):
     )
 
     for j in range(len(python_list)):
-        client_value = client[j]["index"][0]
+        client_value = client.get(j)["index"][0]
         python_value = python_list[j]
         assert client_value == python_value, (
             f"Single value, index {j}: Client: {client_value}, Python: {python_value}"
         )
 
     client.disconnect()
-    assert not client.sio.connected
+    assert not client.socket.connected
 
 
 def test_nested_dict_handling(server):
-    client = Client(room=uuid.uuid4().hex, url=server)
-    client.connect()
+    client = ZnDraw(room=uuid.uuid4().hex, url=server)
 
     # Append a frame with nested dictionaries
     nested_data = {
@@ -599,10 +588,10 @@ def test_nested_dict_handling(server):
         },
     }
     client.append_frame(nested_data)
-    assert client.len_frames() == 1
+    assert len(client) == 1
 
     # Retrieve and verify the nested structure
-    frame = client.get_frame(0)
+    frame = client.get(0)
     assert np.array_equal(frame["index"], nested_data["index"])
     assert frame["meta"]["author"] == nested_data["meta"]["author"]
     assert (
@@ -611,7 +600,7 @@ def test_nested_dict_handling(server):
     assert frame["meta"]["details"]["tags"] == nested_data["meta"]["details"]["tags"]
 
     client.disconnect()
-    assert not client.sio.connected
+    assert not client.socket.connected
 
 
 def test_comprehensive_atom_dict(server):
@@ -668,11 +657,10 @@ def test_comprehensive_atom_dict(server):
         },
     }
 
-    client = Client(room=uuid.uuid4().hex, url=server)
-    client.connect()
+    client = ZnDraw(room=uuid.uuid4().hex, url=server)
     client.append_frame(data)
-    assert client.len_frames() == 1
-    frame = client.get_frame(0)
+    assert len(client) == 1
+    frame = client.get(0)
     assert np.array_equal(frame["numbers"], data["numbers"])
     assert np.array_equal(frame["positions"], data["positions"])
     assert np.array_equal(frame["tags"], data["tags"])
@@ -704,10 +692,8 @@ def test_comprehensive_atom_dict(server):
     )
 
 
-# TODO: only load some keys, e.g. position and colors are there, but only load position
 def test_partial_key_retrieval(server):
-    client = Client(room=uuid.uuid4().hex, url=server)
-    client.connect()
+    client = ZnDraw(room=uuid.uuid4().hex, url=server)
     data = {
         "index": np.array([1, 2, 3]),
         "points": np.random.rand(5, 3),
@@ -715,39 +701,39 @@ def test_partial_key_retrieval(server):
         "extra": "This is some extra info",
     }
     client.append_frame(data)
-    assert client.len_frames() == 1
+    assert len(client) == 1
 
     # Retrieve only 'points' key
-    frame = client.get_frame(0, keys=["points"])
+    frame = client.get(0, keys=["points"])
     assert frame.keys() == {"points"}
     assert np.array_equal(frame["points"], data["points"])
 
     # Retrieve 'index' and 'extra' keys
-    frame = client.get_frame(0, keys=["index", "extra"])
+    frame = client.get(0, keys=["index", "extra"])
     assert frame.keys() == {"index", "extra"}
     assert np.array_equal(frame["index"], data["index"])
     assert frame["extra"] == data["extra"]
 
-    # do the same with get_frames
-    frames = client.get_frames([0], keys=["colors"])
+    # do the same with get using list
+    frames = client.get([0], keys=["colors"])
     assert len(frames) == 1
     assert frames[0].keys() == {"colors"}
     assert np.array_equal(frames[0]["colors"], data["colors"])
 
     with pytest.raises(KeyError):
-        client.get_frame(0, keys=["nonexistent_key"])
+        client.get(0, keys=["nonexistent_key"])
 
     with pytest.raises(KeyError):
-        client.get_frames([0], keys=["nonexistent_key"])
+        client.get([0], keys=["nonexistent_key"])
 
     with pytest.raises(IndexError):
-        client.get_frame(5, keys=["points"])
+        client.get(5, keys=["points"])
 
     with pytest.raises(IndexError):
-        client.get_frames([0, 5], keys=["points"])
+        client.get([0, 5], keys=["points"])
 
     client.disconnect()
-    assert not client.sio.connected
+    assert not client.socket.connected
 
 
 # TODO: test keys that contain "." or `<SinglePointCalculator>`

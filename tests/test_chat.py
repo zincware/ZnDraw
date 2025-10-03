@@ -3,7 +3,7 @@ import time
 import pytest
 import requests
 
-from zndraw.client import Client
+from zndraw import ZnDraw
 
 
 def test_rest_get_chat_messages_empty(server):
@@ -29,8 +29,7 @@ def test_chat_message_create(server):
     room = "test-chat-room"
     user = "test-user"
 
-    vis = Client(url=server, room=room, user=user)
-    vis.connect()
+    vis = ZnDraw(url=server, room=room, user=user)
 
     # Send a message
     response = vis.log("Hello **world**!")
@@ -42,16 +41,13 @@ def test_chat_message_create(server):
     assert message["roomId"] == room
     assert message["isEdited"] is False
 
-    vis.disconnect()
-
 
 def test_chat_message_edit(server):
     """Test editing a chat message"""
     room = "test-chat-room"
     user = "test-user"
 
-    vis = Client(url=server, room=room, user=user)
-    vis.connect()
+    vis = ZnDraw(url=server, room=room, user=user)
 
     # Send a message
     response = vis.log("Original message")
@@ -65,8 +61,6 @@ def test_chat_message_edit(server):
     assert response["message"]["isEdited"] is True
     assert response["message"]["id"] == message_id
 
-    vis.disconnect()
-
 
 def test_chat_message_edit_unauthorized(server):
     """Test that users cannot edit other users' messages"""
@@ -75,20 +69,16 @@ def test_chat_message_edit_unauthorized(server):
     user2 = "user2"
 
     # User 1 sends a message
-    vis1 = Client(url=server, room=room, user=user1)
-    vis1.connect()
+    vis1 = ZnDraw(url=server, room=room, user=user1)
     response = vis1.log("User 1 message")
     assert response["success"] is True
     message_id = response["message"]["id"]
-    vis1.disconnect()
 
     # User 2 tries to edit user 1's message
-    vis2 = Client(url=server, room=room, user=user2)
-    vis2.connect()
+    vis2 = ZnDraw(url=server, room=room, user=user2)
     response = vis2.edit_message(message_id, "Hacked message")
     assert response["success"] is False
     assert "error" in response
-    vis2.disconnect()
 
 
 def test_get_chat_messages_rest(server):
@@ -96,8 +86,7 @@ def test_get_chat_messages_rest(server):
     room = "test-chat-room"
     user = "test-user"
 
-    vis = Client(url=server, room=room, user=user)
-    vis.connect()
+    vis = ZnDraw(url=server, room=room, user=user)
 
     # Send multiple messages
     for i in range(5):
@@ -114,16 +103,13 @@ def test_get_chat_messages_rest(server):
     assert response["messages"][0]["content"] == "Message 5"
     assert response["messages"][4]["content"] == "Message 1"
 
-    vis.disconnect()
-
 
 def test_chat_pagination(server):
     """Test pagination with before/after parameters"""
     room = "test-chat-room"
     user = "test-user"
 
-    vis = Client(url=server, room=room, user=user)
-    vis.connect()
+    vis = ZnDraw(url=server, room=room, user=user)
 
     # Send 10 messages
     for i in range(10):
@@ -141,8 +127,6 @@ def test_chat_pagination(server):
     assert len(response["messages"]) == 5
     assert response["metadata"]["hasMore"] is False
 
-    vis.disconnect()
-
 
 def test_chat_room_isolation(server):
     """Test messages are isolated per room"""
@@ -150,12 +134,10 @@ def test_chat_room_isolation(server):
     room2 = "room2"
     user = "test-user"
 
-    vis1 = Client(url=server, room=room1, user=user)
-    vis1.connect()
+    vis1 = ZnDraw(url=server, room=room1, user=user)
     vis1.log("Message in room 1")
 
-    vis2 = Client(url=server, room=room2, user=user)
-    vis2.connect()
+    vis2 = ZnDraw(url=server, room=room2, user=user)
     vis2.log("Message in room 2")
 
     # Check room 1 messages
@@ -168,17 +150,13 @@ def test_chat_room_isolation(server):
     assert len(response2["messages"]) == 1
     assert response2["messages"][0]["content"] == "Message in room 2"
 
-    vis1.disconnect()
-    vis2.disconnect()
-
 
 def test_chat_python_client(server):
     """Test vis.log() method"""
     room = "test-chat-room"
     user = "test-user"
 
-    vis = Client(url=server, room=room, user=user)
-    vis.connect()
+    vis = ZnDraw(url=server, room=room, user=user)
 
     # Test sending a message
     response = vis.log("Test message with **markdown**")
@@ -189,5 +167,3 @@ def test_chat_python_client(server):
     messages = vis.get_messages()
     assert len(messages["messages"]) == 1
     assert messages["messages"][0]["content"] == "Test message with **markdown**"
-
-    vis.disconnect()

@@ -3,7 +3,7 @@ import time
 import pytest
 import requests
 
-from zndraw.zndraw import ZnDraw
+from zndraw import ZnDraw
 
 
 @pytest.fixture

@@ -9,7 +9,7 @@ from zndraw.extensions import Extension, ExtensionType
 from zndraw.extensions.modifiers import modifiers
 from zndraw.extensions.selections import selections
 from zndraw.utils import atoms_to_dict, update_colors_and_radii
-from zndraw.zndraw import ZnDraw
+from zndraw import ZnDraw
 
 
 class ModifierExtension(Extension):
@@ -80,14 +80,14 @@ def test_register_extensions(server, category):
     assert response.status_code == 200
     response_json = response.json()
     assert response_json == {
-        "idleWorkers": [vis.client.sid],
+        "idleWorkers": [vis.sid],
         "progressingWorkers": [],
         "queueLength": 0,
         "totalWorkers": 1,
     }
 
     # disconnect extension via client disconnect
-    vis.client.sio.disconnect()
+    vis.disconnect()
 
     response = requests.get(f"{server}/api/rooms/{room}/schema/{category}")
     assert response.status_code == 200
@@ -106,19 +106,19 @@ def test_register_extensions(server, category):
     )
     assert response.status_code == 200
     response_json = response.json()
-    assert set(response_json["idleWorkers"]) == {vis1.client.sid, vis2.client.sid}
+    assert set(response_json["idleWorkers"]) == {vis1.sid, vis2.sid}
     assert response_json["totalWorkers"] == 2
 
-    vis1.client.sio.disconnect()
+    vis1.disconnect()
     response = requests.get(
         f"{server}/api/rooms/{room}/extensions/{category}/{mod.__name__}/workers"
     )
     assert response.status_code == 200
     response_json = response.json()
-    assert response_json["idleWorkers"] == [vis2.client.sid]
+    assert response_json["idleWorkers"] == [vis2.sid]
     assert response_json["totalWorkers"] == 1
 
-    vis2.client.sio.disconnect()
+    vis2.disconnect()
     response = requests.get(
         f"{server}/api/rooms/{room}/extensions/{category}/{mod.__name__}/workers"
     )
@@ -176,7 +176,7 @@ def test_run_client_extensions(server, category):
     # /api/jobs/next?worker_id=<worker_id>
     # now we emulate picking up the job by the worker
     response = requests.post(
-        f"{server}/api/rooms/{room}/jobs/next", json={"workerId": vis.client.sid}
+        f"{server}/api/rooms/{room}/jobs/next", json={"workerId": vis.sid}
     )
     assert response.status_code == 200
     response_json = response.json()
@@ -186,7 +186,7 @@ def test_run_client_extensions(server, category):
     assert response_json["extension"] == mod.__name__
 
     # get the worker state
-    response = requests.get(f"{server}/api/workers/{vis.client.sid}")
+    response = requests.get(f"{server}/api/workers/{vis.sid}")
     assert response.status_code == 200
     response_json = response.json()
     assert response_json == {
@@ -199,12 +199,12 @@ def test_run_client_extensions(server, category):
     assert response.status_code == 200
     response_json = response.json()
     assert response_json["status"] == "running"
-    assert response_json["worker_id"] == vis.client.sid
+    assert response_json["worker_id"] == vis.sid
 
     # now we emulate completing the job by the worker /api/rooms/<string:room_id>/jobs/<string:job_id>/status"
     response = requests.put(
         f"{server}/api/rooms/{room}/jobs/{jobId}/status",
-        json={"status": "completed", "workerId": vis.client.sid},
+        json={"status": "completed", "workerId": vis.sid},
     )
     assert response.status_code == 200
     assert response.json() == {"status": "success"}
@@ -215,7 +215,7 @@ def test_run_client_extensions(server, category):
     assert response_json["status"] == "completed"
 
     # get the worker state again
-    response = requests.get(f"{server}/api/workers/{vis.client.sid}")
+    response = requests.get(f"{server}/api/workers/{vis.sid}")
     assert response.status_code == 200
     response_json = response.json()
     assert response_json == {
@@ -257,7 +257,7 @@ def test_run_client_extensions(server, category):
 
     # pick up next job
     response = requests.post(
-        f"{server}/api/rooms/{room}/jobs/next", json={"workerId": vis.client.sid}
+        f"{server}/api/rooms/{room}/jobs/next", json={"workerId": vis.sid}
     )
     assert response.status_code == 200
     response_json = response.json()
@@ -271,14 +271,14 @@ def test_run_client_extensions(server, category):
     assert response.status_code == 200
     response_json = response.json()
     assert response_json["status"] == "running"
-    assert response_json["worker_id"] == vis.client.sid
+    assert response_json["worker_id"] == vis.sid
     # check job 3 status again
     response = requests.get(f"{server}/api/rooms/{room}/jobs/{jobId3}")
     assert response.status_code == 200
     response_json = response.json()
     assert response_json["status"] == "queued"
     # check worker state
-    response = requests.get(f"{server}/api/workers/{vis.client.sid}")
+    response = requests.get(f"{server}/api/workers/{vis.sid}")
     assert response.status_code == 200
     response_json = response.json()
     assert response_json == {
@@ -287,7 +287,7 @@ def test_run_client_extensions(server, category):
     }
     # Try requesting next job while one is running
     response = requests.post(
-        f"{server}/api/rooms/{room}/jobs/next", json={"workerId": vis.client.sid}
+        f"{server}/api/rooms/{room}/jobs/next", json={"workerId": vis.sid}
     )
     assert response.status_code == 400
     assert response.json() == {"error": "Worker is not idle"}
@@ -295,7 +295,7 @@ def test_run_client_extensions(server, category):
     # complete job 2
     response = requests.put(
         f"{server}/api/rooms/{room}/jobs/{jobId2}/status",
-        json={"status": "completed", "workerId": vis.client.sid},
+        json={"status": "completed", "workerId": vis.sid},
     )
     assert response.status_code == 200
     assert response.json() == {"status": "success"}
@@ -305,7 +305,7 @@ def test_run_client_extensions(server, category):
     response_json = response.json()
     assert response_json["status"] == "completed"
     # check worker state
-    response = requests.get(f"{server}/api/workers/{vis.client.sid}")
+    response = requests.get(f"{server}/api/workers/{vis.sid}")
     assert response.status_code == 200
     response_json = response.json()
     assert response_json == {
@@ -314,7 +314,7 @@ def test_run_client_extensions(server, category):
     }
     # pick up next job
     response = requests.post(
-        f"{server}/api/rooms/{room}/jobs/next", json={"workerId": vis.client.sid}
+        f"{server}/api/rooms/{room}/jobs/next", json={"workerId": vis.sid}
     )
     assert response.status_code == 200
     response_json = response.json()
@@ -325,7 +325,7 @@ def test_run_client_extensions(server, category):
     # finish the job
     response = requests.put(
         f"{server}/api/rooms/{room}/jobs/{jobId3}/status",
-        json={"status": "completed", "workerId": vis.client.sid},
+        json={"status": "completed", "workerId": vis.sid},
     )
     assert response.status_code == 200
     assert response.json() == {"status": "success"}
@@ -381,7 +381,7 @@ def test_run_different_client_different_extensions(server):
 
     # pick up job for vis1
     response = requests.post(
-        f"{server}/api/rooms/{room}/jobs/next", json={"workerId": vis1.client.sid}
+        f"{server}/api/rooms/{room}/jobs/next", json={"workerId": vis1.sid}
     )
     assert response.status_code == 200
     response_json = response.json()
@@ -391,13 +391,13 @@ def test_run_different_client_different_extensions(server):
     # finish the job
     response = requests.put(
         f"{server}/api/rooms/{room}/jobs/{jobId}/status",
-        json={"status": "completed", "workerId": vis1.client.sid},
+        json={"status": "completed", "workerId": vis1.sid},
     )
     assert response.status_code == 200
     assert response.json() == {"status": "success"}
     # pick up next job
     response = requests.post(
-        f"{server}/api/rooms/{room}/jobs/next", json={"workerId": vis1.client.sid}
+        f"{server}/api/rooms/{room}/jobs/next", json={"workerId": vis1.sid}
     )
     assert response.status_code == 200
     response_json = response.json()
@@ -407,13 +407,13 @@ def test_run_different_client_different_extensions(server):
     # finish the job
     response = requests.put(
         f"{server}/api/rooms/{room}/jobs/{jobId2}/status",
-        json={"status": "completed", "workerId": vis1.client.sid},
+        json={"status": "completed", "workerId": vis1.sid},
     )
     assert response.status_code == 200
     assert response.json() == {"status": "success"}
     # try pick up another job
     response = requests.post(
-        f"{server}/api/rooms/{room}/jobs/next", json={"workerId": vis1.client.sid}
+        f"{server}/api/rooms/{room}/jobs/next", json={"workerId": vis1.sid}
     )
     assert response.status_code == 400
     assert response.json() == {"error": "No jobs available"}
@@ -427,7 +427,7 @@ def test_run_different_client_different_extensions(server):
     response_json = response.json()
     jobId3 = response_json.pop("jobId")
     response = requests.post(
-        f"{server}/api/rooms/{room}/jobs/next", json={"workerId": vis1.client.sid}
+        f"{server}/api/rooms/{room}/jobs/next", json={"workerId": vis1.sid}
     )
     assert response.status_code == 200
     response_json = response.json()
@@ -435,14 +435,14 @@ def test_run_different_client_different_extensions(server):
     # finish the job
     response = requests.put(
         f"{server}/api/rooms/{room}/jobs/{jobId3}/status",
-        json={"status": "completed", "workerId": vis1.client.sid},
+        json={"status": "completed", "workerId": vis1.sid},
     )
     assert response.status_code == 200
     assert response.json() == {"status": "success"}
 
     # pick up job for vis2
     response = requests.post(
-        f"{server}/api/rooms/{room}/jobs/next", json={"workerId": vis2.client.sid}
+        f"{server}/api/rooms/{room}/jobs/next", json={"workerId": vis2.sid}
     )
     assert response.status_code == 200
     response_json = response.json()
@@ -452,7 +452,7 @@ def test_run_different_client_different_extensions(server):
     # finish the job
     response = requests.put(
         f"{server}/api/rooms/{room}/jobs/{jobId}/status",
-        json={"status": "completed", "workerId": vis2.client.sid},
+        json={"status": "completed", "workerId": vis2.sid},
     )
     assert response.status_code == 200
     assert response.json() == {"status": "success"}
@@ -486,7 +486,7 @@ def test_run_different_client_same_extensions(server):
 
     # pick up job for vis1
     response = requests.post(
-        f"{server}/api/rooms/{room}/jobs/next", json={"workerId": vis1.client.sid}
+        f"{server}/api/rooms/{room}/jobs/next", json={"workerId": vis1.sid}
     )
     assert response.status_code == 200
     response_json = response.json()
@@ -495,7 +495,7 @@ def test_run_different_client_same_extensions(server):
     assert response_json["extension"] == ModifierExtension.__name__
     # pick up job for vis2
     response = requests.post(
-        f"{server}/api/rooms/{room}/jobs/next", json={"workerId": vis2.client.sid}
+        f"{server}/api/rooms/{room}/jobs/next", json={"workerId": vis2.sid}
     )
     assert response.status_code == 200
     response_json = response.json()
@@ -516,12 +516,12 @@ def test_run_different_client_same_extensions(server):
     # finish the jobs for both
     response = requests.put(
         f"{server}/api/rooms/{room}/jobs/{jobId1}/status",
-        json={"status": "completed", "workerId": vis1.client.sid},
+        json={"status": "completed", "workerId": vis1.sid},
     )
     assert response.status_code == 200
     response = requests.put(
         f"{server}/api/rooms/{room}/jobs/{jobId2}/status",
-        json={"status": "completed", "workerId": vis2.client.sid},
+        json={"status": "completed", "workerId": vis2.sid},
     )
     assert response.status_code == 200
 
@@ -559,13 +559,13 @@ def test_worker_finish_nonstarted_job(server):
     # complete job without starting it
     response = requests.put(
         f"{server}/api/rooms/{room}/jobs/{jobId}/status",
-        json={"status": "completed", "workerId": vis.client.sid},
+        json={"status": "completed", "workerId": vis.sid},
     )
     assert response.status_code == 400
     assert response.json() == {"error": "Job is not running"}
     # pick up the job
     response = requests.post(
-        f"{server}/api/rooms/{room}/jobs/next", json={"workerId": vis.client.sid}
+        f"{server}/api/rooms/{room}/jobs/next", json={"workerId": vis.sid}
     )
     assert response.status_code == 200
     response_json = response.json()
@@ -583,7 +583,7 @@ def test_worker_finish_nonstarted_job(server):
     # finish the job with correct worker id
     response = requests.put(
         f"{server}/api/rooms/{room}/jobs/{jobId}/status",
-        json={"status": "completed", "workerId": vis.client.sid},
+        json={"status": "completed", "workerId": vis.sid},
     )
     assert response.status_code == 200
     assert response.json() == {"status": "success"}
@@ -593,7 +593,7 @@ def test_worker_finish_nonstarted_job(server):
     assert response.status_code == 200
     response_json = response.json()
     assert response_json["status"] == "completed"
-    assert response_json["worker_id"] == vis.client.sid
+    assert response_json["worker_id"] == vis.sid
 
 
 def test_worker_fail_job(server):
@@ -621,7 +621,7 @@ def test_worker_fail_job(server):
         f"{server}/api/rooms/{room}/jobs/{jobId}/status",
         json={
             "status": "failed",
-            "workerId": vis.client.sid,
+            "workerId": vis.sid,
             "error": "Something went wrong",
         },
     )
@@ -630,7 +630,7 @@ def test_worker_fail_job(server):
 
     # pick up the job
     response = requests.post(
-        f"{server}/api/rooms/{room}/jobs/next", json={"workerId": vis.client.sid}
+        f"{server}/api/rooms/{room}/jobs/next", json={"workerId": vis.sid}
     )
     assert response.status_code == 200
     response_json = response.json()
@@ -654,7 +654,7 @@ def test_worker_fail_job(server):
         f"{server}/api/rooms/{room}/jobs/{jobId}/status",
         json={
             "status": "failed",
-            "workerId": vis.client.sid,
+            "workerId": vis.sid,
             "error": "Something went wrong",
         },
     )
@@ -666,7 +666,7 @@ def test_worker_fail_job(server):
     assert response.status_code == 200
     response_json = response.json()
     assert response_json["status"] == "failed"
-    assert response_json["worker_id"] == vis.client.sid
+    assert response_json["worker_id"] == vis.sid
     assert response_json["error"] == "Something went wrong"
 
     # get all jobs
@@ -744,14 +744,14 @@ def test_worker_pickup_task(server):
         "queuePosition": 0,
         "status": "success",
     }
-    vis.client.sio.sleep(1)  # give some time to pick up the job and run it
+    vis.socket.sio.sleep(1)  # give some time to pick up the job and run it
     # assert shared_dict == {"parameter": 42}
     # get job status
     response = requests.get(f"{server}/api/rooms/{room}/jobs/{jobId}")
     assert response.status_code == 200
     response_json = response.json()
     assert response_json["status"] == "completed"
-    assert response_json["worker_id"] == vis.client.sid
+    assert response_json["worker_id"] == vis.sid
     assert response_json["data"] == {"parameter": 42}
     assert response_json["error"] == ""
 
@@ -768,18 +768,18 @@ def test_worker_pickup_task(server):
         "queuePosition": 0,
         "status": "success",
     }
-    vis.client.sio.sleep(1)  # give some time to pick up the job and run it
+    vis.socket.sio.sleep(1)  # give some time to pick up the job and run it
     # get job status
     response = requests.get(f"{server}/api/rooms/{room}/jobs/{jobId}")
     assert response.status_code == 200
     response_json = response.json()
     assert response_json["status"] == "failed"
-    assert response_json["worker_id"] == vis.client.sid
+    assert response_json["worker_id"] == vis.sid
     assert response_json["data"] == {"parameter": 43}
     assert response_json["error"] == "Test error"
 
     # check worker state
-    response = requests.get(f"{server}/api/workers/{vis.client.sid}")
+    response = requests.get(f"{server}/api/workers/{vis.sid}")
     assert response.status_code == 200
     response_json = response.json()
     assert response_json == {
@@ -802,7 +802,7 @@ def test_worker_pickup_task(server):
             "status": "success",
         }
 
-    vis.client.sio.sleep(3)  # give some time to pick up the job and run it
+    vis.socket.sio.sleep(3)  # give some time to pick up the job and run it
     # get all jobs
     response = requests.get(f"{server}/api/rooms/{room}/jobs")
     assert response.status_code == 200
@@ -902,7 +902,7 @@ def test_register_extensions_reconnect_with_queue(server, category):
     assert response_json["status"] == "queued"
 
     # disconnect client
-    requests.post(f"{server}/api/disconnect/{vis.client.sid}").raise_for_status()
+    requests.post(f"{server}/api/disconnect/{vis.sid}").raise_for_status()
 
     # check job status again
     response = requests.get(f"{server}/api/rooms/{room}/jobs/{jobId}")
@@ -938,9 +938,9 @@ def test_register_extensions_reconnect_with_queue(server, category):
         "status": "success",
     }
     # reconnect client
-    assert not vis.client.sio.connected
-    vis.client.connect()
-    assert vis.client.sio.connected
+    assert not vis.socket.connected
+    vis.connect()
+    assert vis.socket.connected
     # vis.client.sio.sleep(5)  # give some time to process reconnect
 
     response = requests.get(
@@ -948,11 +948,11 @@ def test_register_extensions_reconnect_with_queue(server, category):
     )
     assert response.status_code == 200
     response_json = response.json()
-    assert response_json["idleWorkers"] == [vis.client.sid]
+    assert response_json["idleWorkers"] == [vis.sid]
     assert response_json["totalWorkers"] == 1
 
     # disconnect, change auto_pickup_jobs to True and reconnect
-    # requests.post(f"{server}/api/disconnect/{vis.client.sid}").raise_for_status()
+    # requests.post(f"{server}/api/disconnect/{vis.sid}").raise_for_status()
     # vis.client.auto_pickup_jobs = True
     # vis.client.connect()
     # assert vis.client.sio.connected
@@ -988,8 +988,8 @@ def test_register_extensions_reconnect_without_queue(server, category):
     assert isinstance(response_json, dict)
     assert set(response_json.keys()) == default_keys | {mod.__name__}
     # disconnect client
-    vis.client.sio.disconnect()
-    vis.client.sio.sleep(1)  # give some time to process disconnect
+    vis.disconnect()
+    vis.socket.sio.sleep(1)  # give some time to process disconnect
 
     response = requests.get(f"{server}/api/rooms/{room}/schema/{category}")
     assert response.status_code == 200
