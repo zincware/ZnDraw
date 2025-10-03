@@ -45,8 +45,9 @@ class SocketIOLock:
 
 
 class SocketManager:
-    def __init__(self, zndraw_instance: "ZnDraw"):
+    def __init__(self, zndraw_instance: "ZnDraw", join_token: str):
         self.zndraw = zndraw_instance
+        self.join_token = join_token
         self.sio = socketio.Client()
         self._register_handlers()
 
@@ -65,7 +66,8 @@ class SocketManager:
         if self.sio.connected:
             print("Already connected.")
             return
-        self.sio.connect(self.zndraw.url)
+        # Connect with join token for authentication
+        self.sio.connect(self.zndraw.url, auth={"token": self.join_token}, wait=True)
 
     def disconnect(self):
         if self.sio.connected:
@@ -77,12 +79,6 @@ class SocketManager:
         return self.sio.connected
 
     def _on_connect(self):
-        join_data = {
-            "room": self.zndraw.room,
-            "userId": self.zndraw.user,
-            "clientId": self.zndraw.sid,
-        }
-        self.sio.emit("join_room", join_data)
         log.debug(f"Joined room: '{self.zndraw.room}' with client ID: {self.zndraw.sid}")
         for name, ext in self.zndraw._extensions.items():
             self.zndraw.api.register_extension(

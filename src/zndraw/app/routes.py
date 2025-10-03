@@ -5,7 +5,7 @@ import traceback
 import msgpack
 import zarr
 from flask import Response, current_app, request
-from flask_socketio import disconnect
+from flask_socketio import disconnect, join_room as socketio_join_room, leave_room
 from zarr.storage import MemoryStore
 
 from zndraw.server import socketio
@@ -116,14 +116,26 @@ def emit_frames_invalidate(
 
 @main.route("/api/disconnect/<string:client_sid>", methods=["POST"])
 def disconnect_sid(client_sid: str):
-    """Disconnects the client from the room."""
+    """Disconnects the client from the room.
+    
+    Args:
+        client_sid: Can be either a socket sid OR a client_id.
+                   We try both lookups to support both cases.
+    """
     try:
         r = current_app.extensions["redis"]
-        sid = r.get(f"client_id:{client_sid}:sid")
-        disconnect(sid, namespace="/")
-        return {"success": True}
-    except Exception:
-        return {"success": False}
+        
+        # First, try to interpret client_sid as a client_id and get the socket sid
+        socket_sid = r.hget(f"client:{client_sid}", "currentSid")
+        
+        if socket_sid:
+            disconnect(socket_sid, namespace="/")
+            return {"success": True}
+        else:
+            return {"success": False, "error": "Client not found or not connected"}
+    except Exception as e:
+        log.error(f"Error disconnecting client {client_sid}: {e}")
+        return {"success": False, "error": str(e)}
 
 
 @main.route("/internal/emit", methods=["POST"])
@@ -1671,8 +1683,42 @@ def join_room(room_id):
     if ":" in room_id:
         return {"error": "Room ID cannot contain ':' character"}, 400
 
+    user_name = data.get("userId", "Anonymous")
+    client_id = data.get("clientId")
+    r = current_app.extensions["redis"]
+
+    # Generate clientId if not provided
+    if not client_id:
+        import uuid
+        client_id = str(uuid.uuid4())
+        log.info(f"Generated new clientId: {client_id}")
+
+    # Get or create client data
+    client_key = f"client:{client_id}"
+
+    # Update client data (but NOT currentSid - that happens on socket connect)
+    r.hset(client_key, "userName", user_name)
+    r.hset(client_key, "currentRoom", room_id)
+
+    # Check if room already exists
+    room_exists = r.exists(f"room:{room_id}:template")
+
+    # Add client to room's client set (they're joining the room, even if not connected yet)
+    r.sadd(f"room:{room_id}:clients", client_id)
+
+    # Generate temporary join token for socket authentication
+    import uuid
+    join_token = str(uuid.uuid4())
+    token_key = f"join_token:{join_token}"
+    # Store token with clientId, room, userName (expires in 60 seconds)
+    r.setex(token_key, 60, f"{client_id}:{room_id}:{user_name}")
+
+    log.info(f"Client {client_id} ({user_name}) prepared to join room: {room_id}, token: {join_token}")
+
     response = {
         "status": "ok",
+        "clientId": client_id,
+        "joinToken": join_token,
         "frameCount": 0,
         "roomId": room_id,
         "template": "empty",
@@ -1683,10 +1729,6 @@ def join_room(room_id):
         "step": None,
     }
 
-    r = current_app.extensions["redis"]
-
-    # Check if room already exists
-    room_exists = r.exists(f"room:{room_id}:template")
     response["created"] = not room_exists
 
     if not room_exists:

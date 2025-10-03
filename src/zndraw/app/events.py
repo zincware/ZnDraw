@@ -1,16 +1,14 @@
 import json
 import logging
 import typing as t
-import uuid
 
 from flask import current_app, request
-from flask_socketio import emit, join_room, leave_room
+from flask_socketio import emit
 
 from zndraw.server import socketio
 
 from .constants import SocketEvents
 from .redis_keys import ExtensionKeys
-from .worker_dispatcher import dispatch_next_task
 
 log = logging.getLogger(__name__)
 
@@ -38,16 +36,21 @@ def _get_len() -> dict:
 
 # --- Helper Functions ---
 def get_project_room_from_session(sid: str) -> t.Optional[str]:
-    """Finds the project room a client has joined from Redis."""
+    """Finds the project room a client has joined from Redis using the new schema."""
     r = current_app.extensions["redis"]
-    room_name = r.get(f"sid:{sid}")
+    # Get clientId from sid
+    client_id = r.get(f"sid:{sid}")
+    if not client_id:
+        return None
+    # Get room from client data
+    room_name = r.hget(f"client:{client_id}", "currentRoom")
     return room_name if room_name else None
 
 
 def get_client_id_from_sid(sid: str) -> t.Optional[str]:
-    """Gets the client_id for a given Socket.IO sid."""
+    """Gets the client_id for a given Socket.IO sid using the new schema."""
     r = current_app.extensions["redis"]
-    client_id = r.get(f"sid:{sid}:client_id")
+    client_id = r.get(f"sid:{sid}")
     return client_id if client_id else None
 
 
@@ -57,9 +60,48 @@ def get_lock_key(room: str, target: str) -> str:
 
 
 @socketio.on("connect")
-def handle_connect():
+def handle_connect(auth):
+    """Handle socket connection with token-based authentication."""
+    from flask_socketio import join_room
+
     sid = request.sid
-    log.info(f"Client connected: {sid}")
+    r = current_app.extensions["redis"]
+
+    # Get join token from auth
+    join_token = auth.get("token") if auth else None
+
+    if not join_token:
+        log.warning(f"Client {sid} connected without join token")
+        return {"status": "error", "message": "Join token required"}
+
+    # Validate token and get client info
+    token_key = f"join_token:{join_token}"
+    token_data = r.get(token_key)
+
+    if not token_data:
+        log.error(f"Invalid or expired join token: {join_token}")
+        return {"status": "error", "message": "Invalid or expired join token"}
+
+    # Parse token data
+    client_id, room_id, user_name = token_data.split(":")
+
+    # Delete token (one-time use)
+    r.delete(token_key)
+
+    # Update connection lookup: sid -> clientId
+    r.set(f"sid:{sid}", client_id)
+
+    # Update client's currentSid
+    client_key = f"client:{client_id}"
+    r.hset(client_key, "currentSid", sid)
+
+    # Join socket rooms
+    join_room(f"room:{room_id}")
+    join_room(f"user:{user_name}")
+
+    log.info(f"Client {client_id} ({user_name}) connected to room {room_id} (sid: {sid})")
+
+    return {"status": "ok"}
 
 
 @socketio.on("disconnect")
@@ -67,32 +109,38 @@ def handle_disconnect():
     sid = request.sid
     r = current_app.extensions["redis"]
 
-    # Get client_id before cleanup
-    client_id = r.get(f"sid:{sid}:client_id")
+    # Get client_id from connection lookup
+    client_id = r.get(f"sid:{sid}")
 
-    # --- New Redis-based Cleanup ---
-    room_name = r.get(f"sid:{sid}")
+    if not client_id:
+        log.info(f"Client disconnected: {sid} (no clientId found)")
+        return
+
+    # Get client data
+    client_key = f"client:{client_id}"
+    user_name = r.hget(client_key, "userName")
+    room_name = r.hget(client_key, "currentRoom")
+
+    log.info(
+        f"Client disconnected: sid={sid}, clientId={client_id}, user={user_name}, room={room_name}"
+    )
+
+    # Clean up connection lookup
+    r.delete(f"sid:{sid}")
+
+    # Update client's currentSid to empty (client still exists but disconnected)
+    r.hset(client_key, "currentSid", "")
+
+    # Note: We don't remove the client from the room or delete client data
+    # The client may reconnect and rejoin the same room
+    # Only when a client explicitly joins a different room do we remove them from the old room
+
     if room_name:
-        # Get username before deleting for logging purposes
-        user = r.hget(f"room:{room_name}:users", sid)
-        log.info(
-            f"Client disconnected: sid={sid}, client_id={client_id}, user={user}, room={room_name}"
-        )
-
-        # Clean up Redis entries
-        r.hdel(f"room:{room_name}:users", sid)
-        r.delete(f"sid:{sid}")
-
-        # Clean up client_id mappings
-        if client_id:
-            r.delete(f"sid:{sid}:client_id")
-            r.delete(f"client_id:{client_id}:sid")
-
-        # (Optional) Notify room that a user has left
-        users_in_room = r.hgetall(f"room:{room_name}:users")
-        emit("room_users_update", users_in_room, to=f"room:{room_name}")
+        # Notify room that a user has disconnected (but not left)
+        clients_in_room = r.smembers(f"room:{room_name}:clients")
+        emit("room_clients_update", {"clients": list(clients_in_room)}, to=f"room:{room_name}")
     else:
-        log.info(f"Client disconnected: {sid} (was not in a Redis-managed room)")
+        log.info(f"Client {client_id} disconnected (was not in a room)")
 
     # --- Existing Lock Cleanup Logic ---
     lock_keys = r.scan_iter("*:lock:*")
@@ -206,46 +254,6 @@ def handle_disconnect():
                 {"roomId": room_name, "category": category},
                 to=f"room:{room_name}",
             )
-
-
-@socketio.on("join_room")
-def on_join(data):
-    room = data["room"]
-    user = data.get("userId", "Anonymous")
-    client_id = data.get("clientId")
-    sid = request.sid
-    r = current_app.extensions["redis"]
-
-    # Leave previous room if any
-    if previous_room_name := r.get(f"sid:{sid}"):
-        leave_room(f"room:{previous_room_name}")
-        # Remove user from the old room's user list in Redis
-        r.hdel(f"room:{previous_room_name}:users", sid)
-        log.info(f"Client {sid} ({user}) removed from Redis room: {previous_room_name}")
-
-    room_exists = r.exists(f"room:{room}:template")
-    if not room_exists:
-        log.error(f"Room '{room}' does not exist. Cannot join non-existent room.")
-        return
-
-    # Join the new room (flask-socketio still needs this for the message queue)
-    join_room(f"room:{room}")
-    # joint the room for this user, e.g. one user can have multiple connections
-    join_room(f"user:{user}")
-
-    # Store the new room membership and user info in Redis
-    r.set(f"sid:{sid}", room)
-    r.hset(f"room:{room}:users", sid, user)
-
-    # Store bidirectional mapping between Socket.IO sid and client_id
-    if client_id:
-        r.set(f"sid:{sid}:client_id", client_id)
-        r.set(f"client_id:{client_id}:sid", sid)
-        log.info(
-            f"Client {sid} ({user}) with client_id {client_id} joined room: {room}"
-        )
-    else:
-        log.info(f"Client {sid} ({user}) joined room: {room} (no client_id provided)")
 
 
 @socketio.on("selection:set")
@@ -562,10 +570,14 @@ def handle_chat_message_create(data):
     if not content or not isinstance(content, str):
         return {"success": False, "error": "Message content is required"}
 
-    # Get user ID from session
-    user_id = r.hget(f"room:{room}:users", sid)
+    # Get user ID from session using new schema: sid -> clientId -> userName
+    client_id = get_client_id_from_sid(sid)
+    if not client_id:
+        return {"success": False, "error": "Client not found"}
+    
+    user_id = r.hget(f"client:{client_id}", "userName")
     if not user_id:
-        return {"success": False, "error": "User not found in room"}
+        return {"success": False, "error": "User not found"}
 
     try:
         # Create message using helper function
@@ -605,10 +617,14 @@ def handle_chat_message_edit(data):
     if not content or not isinstance(content, str):
         return {"success": False, "error": "Message content is required"}
 
-    # Get user ID from session
-    user_id = r.hget(f"room:{room}:users", sid)
+    # Get user ID from session using new schema: sid -> clientId -> userName
+    client_id = get_client_id_from_sid(sid)
+    if not client_id:
+        return {"success": False, "error": "Client not found"}
+    
+    user_id = r.hget(f"client:{client_id}", "userName")
     if not user_id:
-        return {"success": False, "error": "User not found in room"}
+        return {"success": False, "error": "User not found"}
 
     try:
         # Fetch existing message

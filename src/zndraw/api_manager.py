@@ -9,20 +9,21 @@ from zndraw.storage import decode_data, encode_data
 class APIManager:
     url: str
     room: str
+    client_id: str | None = None
 
-    def join_room(self, template: t.Any) -> dict:
+    def join_room(self, template: t.Any, user_id: str = "guest") -> dict:
         # Import here to avoid circular import
         from zndraw.zndraw import _TemplateValue
         # If template is _TemplateValue (default), don't send it (use server default)
         # If template is None, send {"template": None} (create blank room)
         # If template is a string, send {"template": template_name}
-        if template is _TemplateValue:
-            response = requests.post(f"{self.url}/api/rooms/{self.room}/join", json={})
-        else:
-            response = requests.post(
-                f"{self.url}/api/rooms/{self.room}/join",
-                json={"template": template},
-            )
+        payload = {"userId": user_id}
+        if template is not _TemplateValue:
+            payload["template"] = template
+        if self.client_id:
+            payload["clientId"] = self.client_id
+
+        response = requests.post(f"{self.url}/api/rooms/{self.room}/join", json=payload)
 
         if response.status_code != 200:
             raise RuntimeError(

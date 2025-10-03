@@ -46,20 +46,33 @@ class ZnDraw(MutableSequence):
     _extensions: dict[str, _ExtensionStore] = dataclasses.field(
         default_factory=dict, init=False
     )
-    _client_id: str = dataclasses.field(
-        default_factory=lambda: str(uuid.uuid4()), init=False
+    _client_id: str | None = dataclasses.field(
+        default=None, init=False
     )
     _selection: frozenset[int] = frozenset()
     _frame_selection: frozenset[int] = frozenset()
     _bookmarks: dict[int, str] = dataclasses.field(default_factory=dict, init=False)
 
     def __post_init__(self):
-        self.api = APIManager(url=self.url, room=self.room)
-        self.socket = SocketManager(zndraw_instance=self)
+        self.api = APIManager(url=self.url, room=self.room, client_id=self._client_id)
         self.cache: FrameCache | None = FrameCache(maxsize=100)
 
-        # Pass template as-is (could be _TemplateValue, None, or a string)
-        response_data = self.api.join_room(template=self.template)
+        # Call join_room FIRST to get join token and prepare room
+        response_data = self.api.join_room(template=self.template, user_id=self.user)
+
+        # Update client_id if server assigned a new one
+        if "clientId" in response_data:
+            self._client_id = response_data["clientId"]
+            self.api.client_id = self._client_id
+
+        # Get join token for socket authentication
+        join_token = response_data.get("joinToken")
+        if not join_token:
+            raise RuntimeError("Server did not provide join token")
+
+        # Now create socket manager and connect WITH the token
+        self.socket = SocketManager(zndraw_instance=self, join_token=join_token)
+        self.connect()
 
         if response_data["selection"] is not None:
             self._selection = frozenset(response_data["selection"])
@@ -68,8 +81,6 @@ class ZnDraw(MutableSequence):
         if response_data.get("bookmarks") is not None:
             self._bookmarks = {int(k): v for k, v in response_data["bookmarks"].items()}
         self._len = response_data["frameCount"]
-        
-        self.connect()
 
     @property
     def lock(self) -> SocketIOLock:
