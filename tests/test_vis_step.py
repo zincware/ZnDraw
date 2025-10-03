@@ -29,10 +29,12 @@ def test_vis_step_two_users(server, s22):
     assert vis2.step == 0
 
     vis1.step = 3
+    vis1.socket.sio.sleep(0.1)
     assert vis1.step == 3
     assert vis2.step == 3
 
     vis2.step = 5
+    vis1.socket.sio.sleep(0.1)
     assert vis1.step == 5
     assert vis2.step == 5
 
