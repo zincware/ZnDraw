@@ -46,10 +46,12 @@ def main(
     flask_app = create_app(storage_path=storage_path, redis_url=redis_url)
     flask_app.config["SERVER_URL"] = f"http://localhost:{port}"
     if path is not None:
+        make_default = True
         for p in path:
             room = path_to_room(p)
             print(f"Loading file {p} into room {room}.")
-            read_file.delay(file=p, room=room, start=start, stop=stop, step=step)
+            read_file.delay(file=p, room=room, start=start, stop=stop, step=step, make_default=make_default)
+            make_default = False
 
     if celery:
         worker = run_celery_worker()

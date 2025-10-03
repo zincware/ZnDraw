@@ -6,7 +6,7 @@ import { useRef, useEffect, useMemo } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
 
-// Reusable THREE objects to avoid creating new ones in the render loop for performance
+// Reusable THREE objects
 const matrix = new THREE.Matrix4();
 const color = new THREE.Color();
 const positionVec = new THREE.Vector3();
@@ -14,86 +14,79 @@ const scaleVec = new THREE.Vector3();
 
 function Instances() {
   const instancedMeshRef = useRef<THREE.InstancedMesh | null>(null);
-  const { currentFrame, roomId } = useAppStore();
+  const { currentFrame, roomId, clientId } = useAppStore();
   const lastGoodFrameData = useRef<any>(null);
   const progress = useRef(0);
-
-  // Guard against running hooks before roomId is available
-  if (!roomId) {
-    return null;
-  }
-
+  
   const requiredKeys = ['positions', 'colors', 'radii'];
 
-  // Memoize the query options array to prevent TanStack Query from refetching continuously
+  // All hooks must be called unconditionally at the top level.
+  // Memoize the query options. If roomId is missing, this will return an empty array.
   const queries = useMemo(() => {
+    // FIX 1: Handle the case where roomId is not yet available inside the hook.
+    if (!roomId) {
+      return [];
+    }
     return requiredKeys.map(key => getFrameDataOptions(roomId, currentFrame, key));
   }, [currentFrame, roomId]);
   
-  // https://tanstack.com/query/v5/docs/framework/react/guides/parallel-queries
+  // useQueries is safe to call with an empty array.
   const queryResults = useQueries({ queries });
 
-  // TODO: how to access the isFetching state in other components?
-  // Either refactor or set in Zustand store
+  // This dependency array is better. It only changes when the data objects themselves change.
+  const queryData = queryResults.map(q => q.data);
   const { frameData, isFetching } = useMemo(() => {
-    // check for q.isPlaceholderData to see, if the data is still loading
     const isFetching = queryResults.some(result => result.isFetching || result.isPlaceholderData);
-    const firstSuccessfulResult = queryResults.find(result => result.isSuccess);
-
     const allDataPresent = queryResults.every(result => result.data);
 
-    if (!allDataPresent) {
+    // If queries haven't run or are still fetching, there's no data.
+    if (!allDataPresent || queryResults.length === 0) {
       return { isFetching, frameData: null };
     }
 
+    const firstSuccessfulResult = queryResults.find(result => result.isSuccess);
     const combinedData = {};
-    let isComplete = true; // Flag to ensure all data for a complete frame is present
+    let isComplete = true;
 
-    // Rely on the guaranteed order of useQueries results instead of searching
     for (let i = 0; i < requiredKeys.length; i++) {
       const key = requiredKeys[i];
       const result = queryResults[i];
-
       if (result?.data?.data) {
         combinedData[key] = result.data.data;
       } else {
-        isComplete = false; // If any key is missing, the frame is not ready
+        isComplete = false;
         break;
       }
     }
     
-    // Only return a valid frameData object if all parts were successfully combined
     if (!isComplete) {
-        return { isFetching, frameData: null };
+      return { isFetching, frameData: null };
     }
 
-    combinedData.count = firstSuccessfulResult.data?.shape[0] || 0;
-
+    combinedData.count = firstSuccessfulResult?.data?.shape[0] || 0;
     return { isFetching, frameData: combinedData };
-  }, [queryResults.map(q => q.data)]);
+  }, [queryData]); // Depend on the array of data objects.
 
+  // This hook can now run safely on every render.
+  useEffect(() => {
+    // Reset progress when new, valid data arrives.
+    if (frameData) {
+      progress.current = 0;
+    }
+  }, [frameData]);
 
-  if (frameData) {
-    lastGoodFrameData.current = frameData;
-  }
   const dataToRender = frameData || lastGoodFrameData.current;
 
-  // Reset the animation progress when a new frame's data is ready
-  useEffect(() => {
-    progress.current = 0;
-  }, [dataToRender]);
-
+  // This hook also runs safely on every render.
   useFrame(() => {
-    // Top-level guards for the render loop
-    if (!frameData || !instancedMeshRef.current || isFetching) {
+    if (!instancedMeshRef.current || !dataToRender || isFetching) {
       return;
     }
 
     const mesh = instancedMeshRef.current;
-    const { positions, colors, radii, count } = frameData;
+    const { positions, colors, radii, count } = dataToRender;
 
-    // Stronger guard to prevent crashes if a data array is missing
-    if (!positions || !colors || !radii) {
+    if (!positions || !colors || !radii || !count) {
       return;
     }
 
@@ -106,13 +99,10 @@ function Instances() {
 
     for (let i = progress.current; i < end; i++) {
       const i3 = i * 3;
-
       positionVec.set(positions[i3], positions[i3 + 1], positions[i3 + 2]);
       scaleVec.set(radii[i], radii[i], radii[i]);
       
-      matrix.identity();
-      matrix.setPosition(positionVec);
-      matrix.scale(scaleVec);
+      matrix.identity().setPosition(positionVec).scale(scaleVec);
       mesh.setMatrixAt(i, matrix);
 
       color.setRGB(colors[i3], colors[i3 + 1], colors[i3 + 2]);
@@ -127,13 +117,19 @@ function Instances() {
     progress.current = end;
   });
 
-  if (!dataToRender) {
-    return null; // Or a full-screen loading spinner for the very first frame
+  // FIX 2: The guard is now placed *after* all hooks have been called.
+  if (!clientId || !roomId || !dataToRender) {
+    // You can return a loader here for the initial state
+    return null;
+  }
+  
+  if (frameData) {
+    lastGoodFrameData.current = frameData;
   }
 
   return (
     <instancedMesh
-      key={dataToRender.count} // Re-creates the mesh if atom count changes
+      key={dataToRender.count}
       ref={instancedMeshRef}
       args={[undefined, undefined, dataToRender.count]}
     >
@@ -143,6 +139,7 @@ function Instances() {
   );
 }
 
+// ... MyScene component remains the same ...
 function MyScene() {
   return (
     <div style={{ width: '100%', height: 'calc(100vh - 64px)' }}>

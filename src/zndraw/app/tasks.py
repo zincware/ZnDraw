@@ -12,7 +12,7 @@ log = logging.getLogger(__name__)
 
 
 @shared_task
-def read_file(file: str, room: str, server_url: str = "http://localhost:5000", start: int | None = None, stop: int | None = None, step: int | None = None) -> None:
+def read_file(file: str, room: str, server_url: str = "http://localhost:5000", start: int | None = None, stop: int | None = None, step: int | None = None, make_default: bool = False) -> None:
     from zndraw import ZnDraw
 
     file_path = Path(file)
@@ -39,6 +39,16 @@ def read_file(file: str, room: str, server_url: str = "http://localhost:5000", s
             return
 
     vis.log(f"Finished reading file {file}.")
+    # promote to template
+    requests.post(
+        f"{server_url}/api/rooms/{room}/promote",
+        json={"name": file, "description": f"Data uploaded from file {file}"},
+    ).raise_for_status()
+    if make_default:
+        requests.put(
+            f"{server_url}/api/templates/default", json={"template_id": room}
+        ).raise_for_status()
+
     vis.disconnect()
 
 
