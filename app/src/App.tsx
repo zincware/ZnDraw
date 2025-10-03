@@ -1,9 +1,18 @@
 import { createBrowserRouter, RouterProvider, Navigate, useParams } from 'react-router-dom';
 import MainPage from './pages/landingPage';
 import TemplateSelectionPage from './pages/templateSelection';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { ThemeProvider, createTheme } from '@mui/material/styles';
+import CssBaseline from '@mui/material/CssBaseline';
 
-const queryClient = new QueryClient()
+const queryClient = new QueryClient();
+
+const theme = createTheme({
+  colorSchemes: {
+    dark: true,
+  },
+  defaultColorScheme: 'light',
+});
 
 // Redirect component for /rooms/:roomId -> /rooms/:roomId/:uuid
 const RoomRedirect = () => {
@@ -32,5 +41,12 @@ const router = createBrowserRouter([
 ]);
 
 export function App() {
-  return <QueryClientProvider client={queryClient}><RouterProvider router={router} /></QueryClientProvider>;
+  return (
+    <ThemeProvider theme={theme}>
+      <CssBaseline />
+      <QueryClientProvider client={queryClient}>
+        <RouterProvider router={router} />
+      </QueryClientProvider>
+    </ThemeProvider>
+  );
 }

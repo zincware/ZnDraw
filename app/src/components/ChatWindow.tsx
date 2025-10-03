@@ -27,7 +27,9 @@ import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { FrameReference } from './FrameReference';
+import { useColorScheme, useTheme } from '@mui/material/styles';
 
 import 'katex/dist/katex.min.css';
 
@@ -49,6 +51,8 @@ const ChatWindow = ({ open, onClose }: ChatWindowProps) => {
   const [editContent, setEditContent] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const { mode } = useColorScheme();
+  const theme = useTheme();
 
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } = useChatMessages(
     roomId || '',
@@ -222,7 +226,12 @@ const ChatWindow = ({ open, onClose }: ChatWindowProps) => {
                 key={message.id}
                 sx={{
                   p: 1.5,
-                  backgroundColor: isOwnMessage ? 'primary.light' : 'background.paper',
+                  backgroundColor: isOwnMessage
+                    ? (mode === 'dark' ? 'primary.dark' : 'primary.light')
+                    : 'background.paper',
+                  color: isOwnMessage
+                    ? (mode === 'dark' ? 'primary.contrastText' : 'text.primary')
+                    : 'text.primary',
                   alignSelf: isOwnMessage ? 'flex-end' : 'flex-start',
                   maxWidth: '80%',
                 }}
@@ -265,9 +274,9 @@ const ChatWindow = ({ open, onClose }: ChatWindowProps) => {
                         components={{
                           code({ node, className, children, ...props }) {
                             const match = /language-(\w+)/.exec(className || "");
-                            return !node && match ? (
+                            return match ? (
                               <SyntaxHighlighter
-                                style={oneLight}
+                                style={mode === 'dark' ? oneDark : oneLight}
                                 language={match[1]}
                                 PreTag="div"
                                 {...props}
@@ -338,7 +347,9 @@ const ChatWindow = ({ open, onClose }: ChatWindowProps) => {
                 resize: 'none',
                 padding: '8.5px 14px',
                 borderRadius: '4px',
-                borderColor: 'rgba(0, 0, 0, 0.23)',
+                border: `1px solid ${theme.palette.divider}`,
+                backgroundColor: theme.palette.background.paper,
+                color: theme.palette.text.primary,
                 fontFamily: 'inherit',
                 fontSize: 'inherit',
               }}

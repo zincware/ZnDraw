@@ -7,6 +7,7 @@ import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls, ContactShadows } from '@react-three/drei';
 import { useExtensionData } from '../hooks/useSchemas';
 import type { Representation } from '../types/room-config';
+import { useColorScheme } from '@mui/material/styles';
 
 // Reusable THREE objects
 const matrix = new THREE.Matrix4();
@@ -201,6 +202,7 @@ function CameraAttachedLight({ intensity = 1.0 }) {
 function MyScene() {
 
   const { roomId, userId } = useAppStore();
+  const { mode } = useColorScheme();
   const { data: studioLightingSettings } = useExtensionData(
     roomId || '',
     userId || '',
@@ -211,7 +213,7 @@ function MyScene() {
   const keyLightIntensity = studioLightingSettings?.key_light_intensity ?? 1.2;
   const fillLightIntensity = studioLightingSettings?.fill_light_intensity ?? 0.3;
   const rimLightIntensity = studioLightingSettings?.rim_light_intensity ?? 1.5;
-  const backgroundColor = studioLightingSettings?.background_color ?? '#333840';
+  const backgroundColor = studioLightingSettings?.background_color ?? (mode === 'dark' ? '#333840' : '#f5f5f5');
   const showContactShadow = studioLightingSettings?.contact_shadow ?? true;
 
   return (

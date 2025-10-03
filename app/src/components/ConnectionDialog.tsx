@@ -8,6 +8,8 @@ import Button from '@mui/material/Button';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import { useColorScheme } from '@mui/material/styles';
 
 interface ConnectionDialogProps {
   open: boolean;
@@ -16,6 +18,7 @@ interface ConnectionDialogProps {
 
 const ConnectionDialog = ({ open, onClose }: ConnectionDialogProps) => {
   const { roomId, userId } = useParams<{ roomId: string; userId: string }>();
+  const { mode } = useColorScheme();
 
   const handleCopyCode = () => {
     const code = `from zndraw import ZnDraw\n\nvis = ZnDraw(\n  url="${window.location.origin}/",\n  room="${roomId}",\n  user="${userId}"\n)`;
@@ -37,7 +40,7 @@ const ConnectionDialog = ({ open, onClose }: ConnectionDialogProps) => {
         <Box sx={{ position: 'relative' }}>
           <SyntaxHighlighter
             language="python"
-            style={oneLight}
+            style={mode === 'dark' ? oneDark : oneLight}
             customStyle={{
               margin: 0,
               borderRadius: '4px',
