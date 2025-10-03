@@ -21,6 +21,15 @@ def main(
     path: list[str] | None = typer.Argument(
         None, help="Path to file(s) to load on startup (optional)."
     ),
+    start: int|None = typer.Option(
+        None, help="Start frame (optional, only for certain file types)."
+    ),
+    stop: int|None = typer.Option(
+        None, help="Stop frame (optional, only for certain file types)."
+    ),
+    step: int|None = typer.Option(
+        None, help="Step frame (optional, only for certain file types)."
+    ),
     port: int = 5000,
     debug: bool = False,
     celery: bool = True,
@@ -40,7 +49,7 @@ def main(
         for p in path:
             room = path_to_room(p)
             print(f"Loading file {p} into room {room}.")
-            read_file.delay(file=p, room=room)
+            read_file.delay(file=p, room=room, start=start, stop=stop, step=step)
 
     if celery:
         worker = run_celery_worker()

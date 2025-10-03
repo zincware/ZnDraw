@@ -12,24 +12,28 @@ log = logging.getLogger(__name__)
 
 
 @shared_task
-def read_file(file: str, room: str) -> None:
+def read_file(file: str, room: str, server_url: str = "http://localhost:5000", start: int | None = None, stop: int | None = None, step: int | None = None) -> None:
     from zndraw import ZnDraw
 
     file_path = Path(file)
-    vis = ZnDraw(room=room, url="http://localhost:5000", user="uploader")
+    vis = ZnDraw(room=room, url=server_url, user="uploader")
     if not file_path.exists():
         vis.log(f"File {file} does not exist.")
         return
     vis.log(f"Reading file {file}...")
     if file_path.suffix in [".h5", ".h5md"]:
         io = znh5md.IO(file)
-        frames = io[:]
-        for atoms in tqdm(frames, desc="Uploading frames"):
-            vis.append(atoms)
+        if step is not None and step < 0:
+            frames = io[:][start:stop:step]
+        else:
+            frames = io[start:stop:step]
+        vis.extend(frames)
     else:
         try:
-            for atoms in tqdm(ase.io.iread(file), desc="Uploading frames"):
-                vis.append(atoms)
+            frames = ase.io.read(file, index=slice(start, stop, step))
+            if not isinstance(frames, list):
+                frames = [frames]
+            vis.extend(frames)
         except Exception as e:
             vis.log(f"Error reading file {file}: {e}")
             return
