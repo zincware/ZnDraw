@@ -84,14 +84,32 @@ class ZnDraw(MutableSequence):
             return [atoms_from_dict(d) for d in data]
         return atoms_from_dict(data)
 
-    def __setitem__(self, index: int, atoms: ase.Atoms) -> None:
+
+    @t.overload
+    def __setitem__(self, index: int, atoms: ase.Atoms) -> None: ...
+    @t.overload
+    def __setitem__(self, index: slice, atoms: list[ase.Atoms]) -> None: ...
+    @t.overload
+    def __setitem__(self, index: list[int], atoms: list[ase.Atoms]) -> None: ...
+    @t.overload
+    def __setitem__(self, index: np.ndarray, atoms: list[ase.Atoms] | ase.Atoms) -> None: ...
+    def __setitem__(self, index: int | slice | list[int] | np.ndarray, atoms: list[ase.Atoms] | ase.Atoms) -> None:
         """Set an Atoms object at a specific index."""
         if not isinstance(atoms, ase.Atoms):
             raise TypeError("Only ase.Atoms objects are supported")
         update_colors_and_radii(atoms)
         self.client[index] = atoms_to_dict(atoms)
 
-    def __delitem__(self, index: int) -> None:
+
+    @t.overload
+    def __delitem__(self, index: int) -> None: ...
+    @t.overload
+    def __delitem__(self, index: slice) -> None: ...
+    @t.overload
+    def __delitem__(self, index: list[int]) -> None: ...
+    @t.overload
+    def __delitem__(self, index: np.ndarray) -> None: ...
+    def __delitem__(self, index: int | slice | list[int] | np.ndarray) -> None:
         """Delete an Atoms object at a specific index."""
         del self.client[index]
 

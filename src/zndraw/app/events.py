@@ -657,8 +657,9 @@ def handle_upload_prepare(data):
             "error": "Client does not hold the trajectory lock.",
         }
 
-    # For replace and delete operations, validate the frame exists
-    if action in {"replace", "delete"}:
+    # For replace operations, validate the frame exists
+    # For delete operations with frame_id (single delete), also validate
+    if action == "replace" or (action == "delete" and frame_id is not None):
         if frame_id is None:
             return {
                 "success": False,

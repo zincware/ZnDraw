@@ -123,3 +123,125 @@ def test_getitem_list(server, s22):
         _ = vis[[1, "2", 3]]
     with pytest.raises(TypeError):
         _ = vis[[1, [2], 3]]
+
+def test_delitem_slice(server, s22):
+    vis = ZnDraw(url=server, room="testroom", user="testuser")
+    vis.extend(s22)
+
+    assert len(vis) == len(s22)
+    del vis[:]
+    assert len(vis) == 0
+
+    vis.extend(s22)
+    assert len(vis) == len(s22)
+
+    del vis[5:15]
+    assert len(vis) == len(s22) - 10
+    for i in range(5):
+        assert vis[i] == s22[i]
+    for i in range(5, len(vis)):
+        assert vis[i] == s22[i + 10]
+
+    # reset
+    del vis[:]
+    vis.extend(s22)
+
+    del vis[:-10]
+    assert len(vis) == 10
+    for i in range(10):
+        assert vis[i] == s22[len(s22) - 10 + i]
+
+    # reset
+    del vis[:]
+    vis.extend(s22)
+
+    del vis[::2]
+    assert len(vis) == (len(s22) + 1) // 2
+    for i in range(len(vis)):
+        assert vis[i] == s22[i * 2 + 1]
+
+
+def test_delitem_index(server, s22):
+    vis = ZnDraw(url=server, room="testroom", user="testuser")
+    vis.extend(s22)
+    assert len(vis) == len(s22)
+
+    del vis[0]
+    assert len(vis) == len(s22) - 1
+    for i in range(len(vis)):
+        assert vis[i] == s22[i + 1]
+
+    # reset
+    del vis[:]
+    vis.extend(s22)
+
+    del vis[-1]
+    assert len(vis) == len(s22) - 1
+    for i in range(len(vis)):
+        assert vis[i] == s22[i]
+
+    # reset
+    del vis[:]
+    vis.extend(s22)
+
+def test_invalid_delitem_index(server, s22):
+    vis = ZnDraw(url=server, room="testroom", user="testuser")
+    vis.extend(s22)
+    assert len(vis) == len(s22)
+
+    with pytest.raises(IndexError):
+        del vis[len(s22)]
+    with pytest.raises(IndexError):
+        del vis[-len(s22) - 1]
+    with pytest.raises(TypeError):
+        del vis[5.5]
+    with pytest.raises(TypeError):
+        del vis["invalid"]
+
+    assert len(vis) == len(s22)
+
+
+def test_delitem_list(server, s22):
+    vis = ZnDraw(url=server, room="testroom", user="testuser")
+    vis.extend(s22)
+
+    del vis[[1, 2, 3]]
+    assert len(vis) == len(s22) - 3
+    assert vis[0] == s22[0]
+    for i in range(1, len(vis)):
+        assert vis[i] == s22[i + 3]
+
+    # reset
+    del vis[:]
+    vis.extend(s22)
+
+    del vis[[0, -1]]
+    assert len(vis) == len(s22) - 2
+    assert vis[0] == s22[1]
+    for i in range(1, len(vis)):
+        assert vis[i] == s22[i + 1]
+
+    # reset
+    del vis[:]
+    vis.extend(s22)
+
+    del vis[np.array([0, -1])]
+    assert len(vis) == len(s22) - 2
+    assert vis[0] == s22[1]
+    for i in range(1, len(vis)):
+        assert vis[i] == s22[i + 1]
+
+    # reset
+    del vis[:]
+    vis.extend(s22)
+
+    with pytest.raises(IndexError):
+        del vis[[0, len(vis)]]
+    with pytest.raises(IndexError):
+        del vis[[-len(vis) - 1, 0]]
+    with pytest.raises(TypeError):
+        del vis[[1, 2.5, 3]]
+    with pytest.raises(TypeError):
+        del vis[[1, "2", 3]]
+    with pytest.raises(TypeError):
+        del vis[[1, [2], 3]]

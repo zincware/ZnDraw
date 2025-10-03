@@ -120,3 +120,6 @@ sequenceDiagram
 ## Summary
 
 The application uses a hybrid approach to communication, leveraging the strengths of both REST and WebSockets. The REST API is used for fetching and uploading large data payloads, as well as for fetching configuration data like schemas and settings. WebSockets are used for real-time updates and synchronization between clients. This architecture allows for a responsive and collaborative user experience.
+
+# TODO
+- replace prepare_upload_token and use DELETE and PUT for upload, insert, append, extend, delete

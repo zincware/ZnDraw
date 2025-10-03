@@ -536,22 +536,42 @@ class Client(MutableSequence):
         """Returns the number of frames in the current room."""
         return self._len
 
-    def delete_frame(self, frame_id: int):
-        """Deletes a frame from the current room."""
+    def delete_frame(self, index: int | slice | list[int]):
+        """Deletes frame(s) from the current room."""
         if not self.sio.connected:
             raise RuntimeError("Client is not connected. Please call .connect() first.")
 
         lock = SocketIOLock(self.sio, target="trajectory:meta")
 
         with lock:
-            # Get delete token
-            token = self._prepare_upload_token("delete", frame_id=frame_id)
+            # Determine if this is a single frame or batch delete
+            if isinstance(index, int):
+                # Single frame deletion - use path parameter
+                token = self._prepare_upload_token("delete", frame_id=index)
+                delete_url = f"{self.url}/api/rooms/{self.room}/frames/{index}"
+                headers = {"Authorization": f"Bearer {token}"}
+                response = requests.delete(delete_url, headers=headers, timeout=30)
+            else:
+                # Batch deletion - use query parameters
+                token = self._prepare_upload_token("delete")
+                delete_url = f"{self.url}/api/rooms/{self.room}/frames"
+                headers = {"Authorization": f"Bearer {token}"}
 
-            # Make DELETE request
-            delete_url = f"{self.url}/api/rooms/{self.room}/frames/{frame_id}"
-            headers = {"Authorization": f"Bearer {token}"}
+                # Prepare payload based on input type
+                payload = {}
+                if isinstance(index, list):
+                    # Direct list of indices - convert to comma-separated string
+                    payload["indices"] = ",".join(str(i) for i in index)
+                elif isinstance(index, slice):
+                    # Slice object - extract start, stop, step
+                    if index.start is not None:
+                        payload["start"] = index.start
+                    if index.stop is not None:
+                        payload["stop"] = index.stop
+                    if index.step is not None:
+                        payload["step"] = index.step
 
-            response = requests.delete(delete_url, headers=headers, timeout=30)
+                response = requests.delete(delete_url, headers=headers, params=payload, timeout=30)
 
             # Check for errors
             if response.status_code == 404:
@@ -728,13 +748,52 @@ class Client(MutableSequence):
                     serialized_data = encode_data(value)
                     self._upload_frame_data(token, serialized_data)
 
-    def __delitem__(self, index: int):
-        """Delete frame at index."""
+    def __delitem__(self, index: int | slice | list[int]):
+        """Delete frame(s) at index, slice, or list of indices."""
+        import numpy as np
+
+        # Handle numpy arrays
+        if isinstance(index, np.ndarray):
+            if index.ndim == 0:
+                # 0-d array (scalar)
+                index = int(index.item())
+            else:
+                # Multi-dimensional array - convert to list
+                index = index.tolist()
+
+        length = len(self)
+
         if isinstance(index, slice):
-            raise NotImplementedError("Slice deletion not supported")
-        if index < 0:
-            index += len(self)
-        self.delete_frame(index)
+            # Validate slice step
+            if index.step is not None:
+                if not isinstance(index.step, int):
+                    raise TypeError("Slice step must be an integer")
+                if index.step == 0:
+                    raise ValueError("Slice step cannot be zero")
+            self.delete_frame(index)
+        elif isinstance(index, list):
+            # Validate list elements and convert negative indices
+            validated_indices = []
+            for i in index:
+                if not isinstance(i, (int, np.integer)):
+                    raise TypeError(f"List indices must be integers, not {type(i).__name__}")
+                # Convert negative indices
+                if i < 0:
+                    i += length
+                # Check bounds
+                if i < 0 or i >= length:
+                    raise IndexError(f"list index out of range")
+                validated_indices.append(int(i))
+            self.delete_frame(validated_indices)
+        elif isinstance(index, int):
+            # Single index - convert negative and check bounds
+            if index < 0:
+                index += length
+            if index < 0 or index >= length:
+                raise IndexError(f"list index out of range")
+            self.delete_frame(index)
+        else:
+            raise TypeError(f"Index must be int, slice, or list, not {type(index).__name__}")
 
     def insert(self, index: int, value: dict):
         """Insert frame at index."""
