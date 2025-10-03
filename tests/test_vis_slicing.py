@@ -3,10 +3,12 @@ import pytest
 from ase.build import molecule
 
 from zndraw.zndraw import ZnDraw
+from cachetools import LRUCache
 
 
 def test_getitem_slice(server, s22):
     vis = ZnDraw(url=server, room="testroom", user="testuser")
+    vis.client._cache = LRUCache(maxsize=1)
     vis.extend(s22)
 
     # Basic slicing
@@ -30,6 +32,8 @@ def test_getitem_slice(server, s22):
     assert len(slice5) == len(s22) - 10
     for i in range(len(s22) - 10):
         assert slice5[i] == s22[i]
+
+    assert len(vis.client._cache) == 1
 
     # Slicing with step
     slice6 = vis[0:20:2]
@@ -56,6 +60,7 @@ def test_getitem_slice(server, s22):
 
 def test_getitem_slice_invalid(server, s22):
     vis = ZnDraw(url=server, room="testroom", user="testuser")
+    vis.client._cache = LRUCache(maxsize=1)
     vis.extend(s22)
 
     # Invalid slice types
@@ -81,6 +86,7 @@ def test_getitem_slice_invalid(server, s22):
 
 def test_getitem_index(server, s22):
     vis = ZnDraw(url=server, room="testroom", user="testuser")
+    vis.client._cache = LRUCache(maxsize=1)
     vis.extend(s22)
 
     # Valid indices
@@ -100,6 +106,7 @@ def test_getitem_index(server, s22):
 
 def test_getitem_list(server, s22):
     vis = ZnDraw(url=server, room="testroom", user="testuser")
+    vis.client._cache = LRUCache(maxsize=1)
     vis.extend(s22)
 
     slice = vis[[1, 2, 3]]
@@ -133,6 +140,7 @@ def test_getitem_list(server, s22):
 
 def test_delitem_slice(server, s22):
     vis = ZnDraw(url=server, room="testroom", user="testuser")
+    vis.client._cache = LRUCache(maxsize=1)
     vis.extend(s22)
 
     assert len(vis) == len(s22)
@@ -170,6 +178,7 @@ def test_delitem_slice(server, s22):
 
 def test_delitem_index(server, s22):
     vis = ZnDraw(url=server, room="testroom", user="testuser")
+    vis.client._cache = LRUCache(maxsize=1)
     vis.extend(s22)
     assert len(vis) == len(s22)
 
@@ -194,6 +203,7 @@ def test_delitem_index(server, s22):
 
 def test_invalid_delitem_index(server, s22):
     vis = ZnDraw(url=server, room="testroom", user="testuser")
+    vis.client._cache = LRUCache(maxsize=1)
     vis.extend(s22)
     assert len(vis) == len(s22)
 
@@ -211,6 +221,7 @@ def test_invalid_delitem_index(server, s22):
 
 def test_delitem_list(server, s22):
     vis = ZnDraw(url=server, room="testroom", user="testuser")
+    vis.client._cache = LRUCache(maxsize=1)
     vis.extend(s22)
 
     del vis[[1, 2, 3]]
@@ -257,6 +268,7 @@ def test_delitem_list(server, s22):
 
 def test_setitem_slice(server, s22):
     vis = ZnDraw(url=server, room="testroom", user="testuser")
+    vis.client._cache = LRUCache(maxsize=1)
     vis.extend(s22)
 
     new_atoms = molecule("H2O")
@@ -306,6 +318,7 @@ def test_setitem_slice(server, s22):
 
 def test_setitem_index(server, s22):
     vis = ZnDraw(url=server, room="testroom", user="testuser")
+    vis.client._cache = LRUCache(maxsize=1)
     vis.extend(s22)
 
     new_atoms = molecule("H2O")
@@ -339,6 +352,7 @@ def test_setitem_index(server, s22):
 
 def test_invalid_setitem_index(server, s22):
     vis = ZnDraw(url=server, room="testroom", user="testuser")
+    vis.client._cache = LRUCache(maxsize=1)
     vis.extend(s22)
     assert len(vis) == len(s22)
 
@@ -362,6 +376,7 @@ def test_invalid_setitem_index(server, s22):
 
 def test_setitem_list(server, s22):
     vis = ZnDraw(url=server, room="testroom", user="testuser")
+    vis.client._cache = LRUCache(maxsize=1)
     vis.extend(s22)
 
     new_atoms = molecule("H2O")
@@ -422,6 +437,7 @@ def test_setitem_slice_unequal_length(server, s22):
 
     # --- Test Case 1: Grow the list ---
     vis = ZnDraw(url=server, room="testroom", user="testuser")
+    vis.client._cache = LRUCache(maxsize=1)
     vis.extend(s22)
     original_len = len(vis)
 
@@ -463,6 +479,7 @@ def test_setitem_slice_unequal_length(server, s22):
 def test_setitem_extended_slice_invalid_length(server, s22):
     """Test ValueError when assigning a list of incorrect size to an extended slice."""
     vis = ZnDraw(url=server, room="testroom", user="testuser")
+    vis.client._cache = LRUCache(maxsize=1)
     vis.extend(s22)
 
     new_atoms = molecule("H2O")
@@ -486,6 +503,7 @@ def test_setitem_extended_slice_invalid_length(server, s22):
 def test_setitem_slice_insertion(server, s22):
     """Test inserting items using an empty slice assignment, e.g., vis[5:5] = ..."""
     vis = ZnDraw(url=server, room="testroom", user="testuser")
+    vis.client._cache = LRUCache(maxsize=1)
     vis.extend(s22)
     original_len = len(vis)
     new_atoms = molecule("H2O")
@@ -532,6 +550,7 @@ def test_delitem_slice_edge_cases(server, s22):
     """Test edge cases for __delitem__ like negative steps and empty slices."""
     # --- Test deletion with a negative step ---
     vis = ZnDraw(url=server, room="testroom", user="testuser")
+    vis.client._cache = LRUCache(maxsize=1)
     vis.extend(s22)
     original_len = len(s22)
 
@@ -562,6 +581,7 @@ def test_delitem_slice_edge_cases(server, s22):
 def test_setitem_slice_negative_step(server, s22):
     """Test assigning values to a slice with a negative step."""
     vis = ZnDraw(url=server, room="testroom", user="testuser")
+    vis.client._cache = LRUCache(maxsize=1)
     vis.extend(s22)
     new_atoms = molecule("H2O")
 
@@ -594,6 +614,7 @@ def test_setitem_slice_negative_step(server, s22):
 # def test_delitem_list_with_duplicates(server, s22):
 #     """Test deleting with a list of indices containing duplicates."""
 #     vis = ZnDraw(url=server, room="testroom", user="testuser")
+#     vis.client._cache = LRUCache(maxsize=1)
 #     vis.extend(s22)
 #     original_len = len(s22)
 
@@ -609,6 +630,7 @@ def test_setitem_slice_negative_step(server, s22):
 # def test_setitem_list_with_duplicates(server, s22):
 #     """Test setting with a list of indices containing duplicates."""
 #     vis = ZnDraw(url=server, room="testroom", user="testuser")
+#     vis.client._cache = LRUCache(maxsize=1)
 #     vis.extend(s22)
 #     original_len = len(s22)
 #     new_atoms = molecule("H2O")

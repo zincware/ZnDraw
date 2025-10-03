@@ -80,16 +80,16 @@ export const useSocketManager = () => {
     function onInvalidate(data: any) {
       const { roomId, userId, category, extension } = data;
       queryClient.invalidateQueries({
-          queryKey: ['extensionData', roomId, userId, category, extension],
-        });
+        queryKey: ['extensionData', roomId, userId, category, extension],
+      });
       console.log(`Invalidated extension data for user ${userId}, category ${category}, extension ${extension} in room ${roomId}`);
     }
 
     function onSchemaInvalidate(data: any) {
       const { roomId, category } = data;
       queryClient.invalidateQueries({
-          queryKey: ['schemas', roomId, category],
-        });
+        queryKey: ['schemas', roomId, category],
+      });
       console.log(`Invalidated schemas for category ${category} in room ${roomId}`);
     }
 
@@ -137,22 +137,29 @@ export const useSocketManager = () => {
 
       queryClient.invalidateQueries({
         predicate: (query) => {
+          // Query keys are expected to be in the format: ['frame', roomId, frameIndex]
           const [type, qRoomId, frameIndex] = query.queryKey;
 
           // Only invalidate frame queries for this room
           if (type !== 'frame' || qRoomId !== roomId) return false;
 
-          // frameIndex might be undefined for non-frame queries
+          // Ensure we are only dealing with queries for specific frames
           if (typeof frameIndex !== 'number') return false;
 
           if (operation === 'replace') {
-            // Only invalidate the specific replaced frame
+            // Handles single-item replacement ONLY.
             return frameIndex === affectedIndex;
-          } else if (operation === 'delete' || operation === 'insert') {
-            // Invalidate all frames from the affected position onward
+          } else if (
+            operation === 'delete' ||
+            operation === 'insert' ||
+            operation === 'bulk_replace'
+          ) {
+            // Handles any operation that shifts indices or modifies a range.
+            // Invalidate all frames from the affected position onward.
             return frameIndex >= affectedFrom;
           }
 
+          // Default to not invalidating if the operation is unknown.
           return false;
         }
       });

@@ -10,6 +10,7 @@ import msgpack
 import numpy as np
 import requests
 import socketio
+from cachetools import LRUCache
 from tqdm import tqdm
 
 from zndraw.exceptions import LockError
@@ -92,7 +93,9 @@ class Client(MutableSequence):
     _frame_selection: frozenset[int] = frozenset()
     _bookmarks: dict[int, str] = dataclasses.field(default_factory=dict, init=False)
     _lock: SocketIOLock = dataclasses.field(init=False)
-    _cache: dict[int, dict] = dataclasses.field(default_factory=dict, init=False)
+    _cache: LRUCache[int, dict] = dataclasses.field(
+        default_factory=lambda: LRUCache(maxsize=100), init=False
+    )
 
     def __post_init__(self):
         self.sio = socketio.Client()
@@ -104,6 +107,7 @@ class Client(MutableSequence):
         self.sio.on("queue:update", self._on_queue_update)
         self.sio.on("frame_selection:update", self._on_frame_selection_update)
         self.sio.on("bookmarks:update", self._on_bookmarks_update)
+        self.sio.on("frames:invalidate", self._on_frames_invalidate)
 
         self._lock = SocketIOLock(self.sio, target="trajectory:meta")
 
@@ -223,6 +227,39 @@ class Client(MutableSequence):
         if data["category"] == "settings":
             self._settings.pop(data["extension"], None)
 
+    def _on_frames_invalidate(self, data: dict):
+        """
+        Callback to invalidate the client-side cache based on server events.
+        """
+        log.debug(f"Received cache invalidation event: {data}")
+        operation = data.get("operation")
+
+        if operation == "replace":
+            # This now correctly handles ONLY single-item replacements
+            idx = data.get("affectedIndex")
+            if idx is not None:
+                self._cache.pop(idx, None)
+
+        elif operation in ("insert", "delete", "bulk_replace"):
+            # An insert, delete, or bulk slice operation has shifted subsequent frames.
+            # Invalidate all cache entries from the point of change onwards.
+            from_idx = data.get("affectedFrom")
+            if from_idx is not None:
+                new_cache = LRUCache(maxsize=self._cache.maxsize)
+                for k, v in self._cache.items():
+                    if k < from_idx:
+                        new_cache[k] = v
+                self._cache = new_cache
+
+
+        elif operation == "clear_all":
+            self._cache.clear()
+
+        else:
+            log.warning(
+                f"Unknown or broad invalidation event received. Clearing entire frame cache."
+            )
+            self._cache.clear()
     @property
     def step(self) -> int:
         """Get the current step/frame index."""
@@ -614,54 +651,106 @@ class Client(MutableSequence):
     def __getitem__(
         self, index: int | slice | list[int] | np.ndarray
     ) -> dict | list[dict]:
-        """Get frame(s) by index or slice."""
-        # Handle numpy arrays
+        """Get frame(s) by index or slice, utilizing a local cache.
+        
+        For slices and lists, this method checks for partial hits in the cache
+        and only fetches the missing frames from the server.
+        """
+        # Handle numpy arrays first
         if isinstance(index, np.ndarray):
-            if index.ndim == 0:
-                # 0-d array (scalar)
-                index = int(index.item())
-            else:
-                # Multi-dimensional array - convert to list
-                index = index.tolist()
+            index = index.tolist() if index.ndim > 0 else int(index.item())
 
-        if isinstance(index, slice):
-            # Validate slice step
+        length = len(self)
+
+        if isinstance(index, int):
+            # Caching logic for single integer index
+            normalized_index = index if index >= 0 else length + index
+            if not (0 <= normalized_index < length):
+                raise IndexError("Index out of range")
+            
+            if normalized_index in self._cache:
+                return self._cache[normalized_index]
+            
+            frame_data = self.get_frame(normalized_index)
+            self._cache[normalized_index] = frame_data
+            return frame_data
+
+        elif isinstance(index, slice):
+            # Caching logic for slices with partial hits
             if index.step is not None:
                 if not isinstance(index.step, int):
                     raise TypeError("Slice step must be an integer")
                 if index.step == 0:
                     raise ValueError("Slice step cannot be zero")
-            return self.get_frames(index)
+
+            resolved_indices = list(range(*index.indices(length)))
+            if not resolved_indices:
+                return []
+
+            results_dict = {}
+            misses = []
+
+            # 1. Check the cache for hits and identify misses
+            for idx in resolved_indices:
+                if idx in self._cache:
+                    results_dict[idx] = self._cache[idx]
+                else:
+                    misses.append(idx)
+            
+            # 2. If there were misses, fetch only them from the server
+            if misses:
+                fetched_data = self.get_frames(misses)
+                
+                # 3. Populate cache and results with the new data
+                for idx, frame in zip(misses, fetched_data):
+                    self._cache[idx] = frame
+                    results_dict[idx] = frame
+            
+            # 4. Reconstruct the final list in the correct order
+            return [results_dict[idx] for idx in resolved_indices]
+            
         elif isinstance(index, list):
-            # Validate list elements
-            length = len(self)
+            # Caching logic for list of indices with partial hits
+            if not index:
+                return []
+
             validated_indices = []
             for i in index:
                 if not isinstance(i, (int, np.integer)):
-                    raise TypeError(
-                        f"List indices must be integers, not {type(i).__name__}"
-                    )
-                original_i = i
-                # Convert negative indices
-                if i < 0:
-                    i += length
-                # Check bounds
-                if i < 0 or i >= length:
-                    raise IndexError(f"list index out of range")
-                validated_indices.append(int(i))
-            return self.get_frames(validated_indices)
-        elif isinstance(index, int):
-            length = len(self)
-            if index < 0:
-                index += length
-            # Check bounds after converting negative index
-            if index < 0 or index >= length:
-                raise IndexError(f"Index out of range")
-            return self.get_frame(index)
+                    raise TypeError(f"List indices must be integers, not {type(i).__name__}")
+                normalized_i = i if i >= 0 else length + i
+                if not (0 <= normalized_i < length):
+                    raise IndexError("list index out of range")
+                validated_indices.append(normalized_i)
+            
+            results_dict = {}
+            misses = []
+
+            # 1. Check the cache for hits and identify unique misses
+            for idx in validated_indices:
+                if idx in self._cache:
+                    results_dict[idx] = self._cache[idx]
+                else:
+                    # Avoid requesting the same missing index multiple times in one call
+                    if idx not in misses:
+                        misses.append(idx)
+            
+            # 2. If there were misses, fetch them from the server
+            if misses:
+                fetched_data = self.get_frames(misses)
+                
+                # 3. Populate cache and results with the new data
+                for idx, frame in zip(misses, fetched_data):
+                    self._cache[idx] = frame
+                    results_dict[idx] = frame
+
+            # 4. Reconstruct the final list, preserving original order and duplicates
+            return [results_dict[idx] for idx in validated_indices]
         else:
             raise TypeError(
                 f"Index must be int, slice, or list, not {type(index).__name__}"
             )
+
 
     def __setitem__(self, index, value):
         """Replace frame(s) at index, slice, or list of indices."""

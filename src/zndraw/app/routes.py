@@ -84,7 +84,7 @@ def emit_bookmarks_update(room_id: str):
 
 
 def emit_frames_invalidate(
-    room_id: str, operation: str, affected_index: int = None, affected_from: int = None
+    room_id: str, operation: str, affected_index: int|None = None, affected_from: int|None = None
 ):
     """
     Emit frames:invalidate event to tell clients to clear their frame cache.
@@ -104,6 +104,8 @@ def emit_frames_invalidate(
         data["affectedIndex"] = affected_index
     if affected_from is not None:
         data["affectedFrom"] = affected_from
+    
+    log.info(f"Emitting frames:invalidate for room '{room_id}': {data}")
 
     socketio.emit(
         "frames:invalidate",
@@ -729,7 +731,7 @@ def bulk_replace_frames(room_id):
             pipeline.execute()
 
             emit_bookmarks_update(room_id)
-            emit_frames_invalidate(room_id, operation="replace", affected_from=start)
+            emit_frames_invalidate(room_id, operation="bulk_replace", affected_from=start)
 
             log.info(
                 f"Bulk replaced slice [{start}:{stop}] ({old_count} frames) with {new_count} frames in room '{room_id}'"
