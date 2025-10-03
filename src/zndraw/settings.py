@@ -65,11 +65,11 @@ class EnvironmentPreset(str, enum.Enum):
 
 class Representation(SettingsBase):
     """Controls the visual style of atoms and bonds."""
-    particle_size: float = Field(1.0, ge=0.1, le=5, description="Atom radius scaling factor")
+    particle_scale: float = Field(1.0, ge=0.1, le=5, description="Atom radius scaling factor")
     show_bonds: bool = Field(True, description="Render bonds between atoms")
     bond_size: float = Field(1.0, ge=0.1, le=5, description="Bond radius scaling factor")
     material: Material = Field(Material.MeshStandardMaterial, description="Atom and bond material")
-    particle_resolution: int = Field(8, ge=2, le=32, description="Sphere resolution for atoms")
+    particle_resolution: int = Field(12, ge=2, le=32, description="Sphere resolution for atoms")
     bond_resolution: int = Field(3, ge=2, le=10, description="Cylinder resolution for bonds")
     # Future
 
@@ -82,7 +82,22 @@ class Scene(SettingsBase):
         EnvironmentPreset.studio, 
         description="HDR environment for reflections and lighting"
     )
-    # You might add light controls here later, e.g., ambient light intensity
+
+class StudioLighting(SettingsBase):
+    """Controls for the neutral studio lighting setup."""
+    background_color: str = Field("#FFFFFF", description="Neutral background color of the scene")
+    key_light_intensity: float = Field(1.2, ge=0.0, le=3.0, description="Intensity of the main light attached to the camera")
+    fill_light_intensity: float = Field(0.3, ge=0.0, le=3.0, description="Intensity of the soft global light that lifts shadows")
+    rim_light_intensity: float = Field(1.5, ge=0.0, le=5.0, description="Intensity of the back light that creates highlights")
+    contact_shadow: bool = Field(True, description="Show contact shadow below the model")
+
+    @classmethod
+    def model_json_schema(cls, *args, **kwargs) -> dict[str, t.Any]:
+        schema = super().model_json_schema(*args, **kwargs)
+        schema["properties"]["background_color"]["format"] = "color"
+        schema["properties"]["key_light_intensity"]["format"] = "range"
+        schema["properties"]["key_light_intensity"]["step"] = 0.1
+        return schema
 
 class Playback(SettingsBase):
     """Controls for trajectory animation."""
@@ -166,6 +181,7 @@ settings = {
     "rendering": Rendering,
     "interaction": Interaction,
     "vector_display": VectorDisplay,
+    "studio_lighting": StudioLighting,
 }
 
 
@@ -179,6 +195,7 @@ class RoomConfig(SettingsBase):
     rendering: Rendering = Rendering()
     interaction: Interaction = Interaction()
     vector_display: VectorDisplay = VectorDisplay() # Or nest under a general DataOverlays model
+    studio_lighting: StudioLighting = StudioLighting()
 
 
 if __name__ == "__main__":

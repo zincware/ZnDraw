@@ -3,8 +3,8 @@ import { useQueries } from '@tanstack/react-query';
 import { getFrameDataOptions } from '../hooks/useTrajectoryData';
 import { useAppStore } from '../store';
 import { useRef, useEffect, useMemo } from 'react';
-import { Canvas, useFrame } from '@react-three/fiber';
-import { OrbitControls } from '@react-three/drei';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
+import { OrbitControls, ContactShadows } from '@react-three/drei';
 import { useExtensionData } from '../hooks/useSchemas';
 import type { Representation } from '../types/room-config';
 
@@ -29,6 +29,8 @@ function Instances() {
   ) as { data: Representation | undefined };
 
   const particleResolution = representationSettings?.particle_resolution ?? 8;
+  const material = representationSettings?.material ?? 'MeshStandardMaterial';
+  const particleScale = representationSettings?.particle_scale ?? 1.0;
 
   const requiredKeys = ['positions', 'colors', 'radii'];
 
@@ -41,7 +43,7 @@ function Instances() {
     }
     return requiredKeys.map(key => getFrameDataOptions(roomId, currentFrame, key));
   }, [currentFrame, roomId]);
-  
+
   // useQueries is safe to call with an empty array.
   const queryResults = useQueries({ queries });
 
@@ -70,7 +72,7 @@ function Instances() {
         break;
       }
     }
-    
+
     if (!isComplete) {
       return { isFetching, frameData: null };
     }
@@ -106,14 +108,15 @@ function Instances() {
       return;
     }
 
-    const chunkSize = 10000;
+    // TODO: remove the chunking, it makes things only slower!
+    const chunkSize = 1000000;
     const end = Math.min(progress.current + chunkSize, count);
 
     for (let i = progress.current; i < end; i++) {
       const i3 = i * 3;
       positionVec.set(positions[i3], positions[i3 + 1], positions[i3 + 2]);
-      scaleVec.set(radii[i], radii[i], radii[i]);
-      
+      scaleVec.set(radii[i] * particleScale, radii[i] * particleScale, radii[i] * particleScale);
+
       matrix.identity().setPosition(positionVec).scale(scaleVec);
       mesh.setMatrixAt(i, matrix);
 
@@ -134,10 +137,27 @@ function Instances() {
     // You can return a loader here for the initial state
     return null;
   }
-  
+
   if (frameData) {
     lastGoodFrameData.current = frameData;
   }
+
+  // Render the appropriate material based on settings
+  const renderMaterial = () => {
+    const commonProps = { color: "white", side: THREE.FrontSide };
+
+    switch (material) {
+      case 'MeshBasicMaterial':
+        return <meshBasicMaterial {...commonProps} />;
+      case 'MeshPhysicalMaterial':
+        return <meshPhysicalMaterial {...commonProps} roughness={0.3} reflectivity={0.4} />;
+      case 'MeshToonMaterial':
+        return <meshToonMaterial {...commonProps} />;
+      case 'MeshStandardMaterial':
+      default:
+        return <meshStandardMaterial {...commonProps} />;
+    }
+  };
 
   return (
     <instancedMesh
@@ -146,20 +166,79 @@ function Instances() {
       args={[undefined, undefined, dataToRender.count]}
     >
       <sphereGeometry args={[1, particleResolution, particleResolution]} />
-      <meshPhysicalMaterial color={"white"} />
+      {renderMaterial()}
     </instancedMesh>
   );
 }
 
+function CameraAttachedLight({ intensity = 1.0 }) {
+  const { camera } = useThree();
+  const lightRef = useRef();
+
+  useFrame(() => {
+    if (lightRef.current) {
+      // Copy the camera's world position
+      lightRef.current.position.copy(camera.position);
+      // Optional: You could also make the light target a point in front of the camera
+    }
+  });
+
+  return <directionalLight ref={lightRef} intensity={intensity} />;
+}
+
 // ... MyScene component remains the same ...
 function MyScene() {
+
+  const { roomId, userId } = useAppStore();
+  const { data: studioLightingSettings } = useExtensionData(
+    roomId || '',
+    userId || '',
+    'settings',
+    'studio_lighting' // Assuming you have a studio lighting settings model
+  );
+
+  const keyLightIntensity = studioLightingSettings?.key_light_intensity ?? 1.2;
+  const fillLightIntensity = studioLightingSettings?.fill_light_intensity ?? 0.3;
+  const rimLightIntensity = studioLightingSettings?.rim_light_intensity ?? 1.5;
+  const backgroundColor = studioLightingSettings?.background_color ?? '#333840';
+  const showContactShadow = studioLightingSettings?.contact_shadow ?? true;
+
   return (
     <div style={{ width: '100%', height: 'calc(100vh - 64px)' }}>
-      <Canvas style={{ background: '#d6d6d6ff' }} >
-        <OrbitControls />
-        <ambientLight intensity={1.5} />
-        <pointLight position={[10, 10, 10]} intensity={0.5} />
+      <Canvas
+        shadows
+        camera={{ position: [-10, 10, 30], fov: 50 }}
+        gl={{ antialias: true, toneMapping: THREE.ACESFilmicToneMapping }}
+        // Set the neutral background color
+        style={{ background: backgroundColor }}
+      >
+        {/* 1. Main light attached to the camera for clarity */}
+        <CameraAttachedLight intensity={keyLightIntensity} />
+
+        {/* 2. Soft ambient light to lift the shadows */}
+        <ambientLight intensity={fillLightIntensity} />
+
+        {/* 3. Rim light from the back-top-right to create highlights and define shape */}
+        <directionalLight
+          position={[10, 20, -20]} // Behind and above
+          intensity={rimLightIntensity}
+        />
+
+        {/* Your scene content */}
         <Instances />
+
+        {showContactShadow &&
+          <ContactShadows
+            position={[0, -15, 0]}
+            opacity={0.5}
+            scale={80}
+            blur={2}
+            far={30}
+            color="#000000" // Ensure shadows are neutral
+          />
+        }
+
+        <OrbitControls enableDamping={false} />
       </Canvas>
     </div>
   );

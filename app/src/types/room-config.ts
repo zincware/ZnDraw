@@ -8,13 +8,14 @@
  * ZnDraw room configuration combining all settings sections.
  */
 export interface RoomConfig {
-    camera?:         Camera;
-    interaction?:    Interaction;
-    playback?:       Playback;
-    rendering?:      Rendering;
-    representation?: Representation;
-    scene?:          Scene;
-    vector_display?: VectorDisplay;
+    camera?:          Camera;
+    interaction?:     Interaction;
+    playback?:        Playback;
+    rendering?:       Rendering;
+    representation?:  Representation;
+    scene?:           Scene;
+    studio_lighting?: StudioLighting;
+    vector_display?:  VectorDisplay;
     [property: string]: any;
 }
 
@@ -168,7 +169,7 @@ export interface Representation {
     /**
      * Atom radius scaling factor
      */
-    particle_size?: number;
+    particle_scale?: number;
     /**
      * Render bonds between atoms
      */
@@ -209,6 +210,33 @@ export interface Scene {
  */
 export type EnvironmentPreset = "none" | "apartment" | "city" | "dawn" | "forest" | "lobby" | "night" | "park" | "studio" | "sunset" | "warehouse";
 
+/**
+ * Controls for the neutral studio lighting setup.
+ */
+export interface StudioLighting {
+    /**
+     * Neutral background color of the scene
+     */
+    background_color?: string;
+    /**
+     * Show contact shadow below the model
+     */
+    contact_shadow?: boolean;
+    /**
+     * Intensity of the soft global light that lifts shadows
+     */
+    fill_light_intensity?: number;
+    /**
+     * Intensity of the main light attached to the camera
+     */
+    key_light_intensity?: number;
+    /**
+     * Intensity of the back light that creates highlights
+     */
+    rim_light_intensity?: number;
+    [property: string]: any;
+}
+
 export interface VectorDisplay {
     /**
      * Min and max values for color mapping
@@ -248,4 +276,3 @@ export interface VectorDisplay {
     vectors?: string[];
     [property: string]: any;
 }
-

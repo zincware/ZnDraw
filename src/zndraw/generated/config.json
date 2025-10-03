@@ -234,12 +234,12 @@
     "Representation": {
       "description": "Controls the visual style of atoms and bonds.",
       "properties": {
-        "particle_size": {
+        "particle_scale": {
           "default": 1.0,
           "description": "Atom radius scaling factor",
           "maximum": 5,
           "minimum": 0.1,
-          "title": "Particle Size",
+          "title": "Particle Scale",
           "type": "number"
         },
         "show_bonds": {
@@ -262,7 +262,7 @@
           "description": "Atom and bond material"
         },
         "particle_resolution": {
-          "default": 8,
+          "default": 12,
           "description": "Sphere resolution for atoms",
           "maximum": 32,
           "minimum": 2,
@@ -309,6 +309,49 @@
         }
       },
       "title": "Scene",
+      "type": "object"
+    },
+    "StudioLighting": {
+      "description": "Controls for the neutral studio lighting setup.",
+      "properties": {
+        "background_color": {
+          "default": "#FFFFFF",
+          "description": "Neutral background color of the scene",
+          "title": "Background Color",
+          "type": "string"
+        },
+        "key_light_intensity": {
+          "default": 1.2,
+          "description": "Intensity of the main light attached to the camera",
+          "maximum": 3.0,
+          "minimum": 0.0,
+          "title": "Key Light Intensity",
+          "type": "number"
+        },
+        "fill_light_intensity": {
+          "default": 0.3,
+          "description": "Intensity of the soft global light that lifts shadows",
+          "maximum": 3.0,
+          "minimum": 0.0,
+          "title": "Fill Light Intensity",
+          "type": "number"
+        },
+        "rim_light_intensity": {
+          "default": 1.5,
+          "description": "Intensity of the back light that creates highlights",
+          "maximum": 5.0,
+          "minimum": 0.0,
+          "title": "Rim Light Intensity",
+          "type": "number"
+        },
+        "contact_shadow": {
+          "default": true,
+          "description": "Show contact shadow below the model",
+          "title": "Contact Shadow",
+          "type": "boolean"
+        }
+      },
+      "title": "StudioLighting",
       "type": "object"
     },
     "VectorDisplay": {
@@ -425,11 +468,11 @@
     "representation": {
       "$ref": "#/$defs/Representation",
       "default": {
-        "particle_size": 1.0,
+        "particle_scale": 1.0,
         "show_bonds": true,
         "bond_size": 1.0,
         "material": "MeshStandardMaterial",
-        "particle_resolution": 8,
+        "particle_resolution": 12,
         "bond_resolution": 3
       }
     },
@@ -511,6 +554,16 @@
             0.5
           ]
         ]
+      }
+    },
+    "studio_lighting": {
+      "$ref": "#/$defs/StudioLighting",
+      "default": {
+        "background_color": "#FFFFFF",
+        "key_light_intensity": 1.2,
+        "fill_light_intensity": 0.3,
+        "rim_light_intensity": 1.5,
+        "contact_shadow": true
       }
     }
   },

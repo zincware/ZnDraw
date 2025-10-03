@@ -20,10 +20,18 @@ import { useSchemas, useExtensionData, useSubmitExtension } from '../hooks/useSc
 import { useAppStore } from '../store';
 import { ExtensionStatusChips } from './ExtensionStatusChips';
 import { debounce } from 'lodash';
+import CustomColorPicker, { customColorPickerTester } from './jsonforms-renderers/CustomColorPicker';
+import CustomRangeSlider, { customRangeSliderTester } from './jsonforms-renderers/CustomRangeSlider';
 
 interface SecondaryPanelProps {
     panelTitle: string;
 }
+
+const customRenderers = [
+	...materialRenderers,
+	{ tester: customColorPickerTester, renderer: CustomColorPicker },
+    { tester: customRangeSliderTester, renderer: CustomRangeSlider },
+];
 
 const SecondaryPanel = ({ panelTitle }: SecondaryPanelProps) => {
     const { roomId, userId } = useAppStore();
@@ -68,7 +76,7 @@ const SecondaryPanel = ({ panelTitle }: SecondaryPanelProps) => {
                 extension: selectedExtension,
                 data: data
             });
-        }, 100),
+        }, 10),
         [selectedExtension, roomId, userId, panelTitle, submit]
     );
 
@@ -187,7 +195,7 @@ const SecondaryPanel = ({ panelTitle }: SecondaryPanelProps) => {
                                 key={selectedExtension} // remount when extension changes
                                 schema={currentSchema}
                                 data={localFormData}
-                                renderers={materialRenderers}
+                                renderers={customRenderers}
                                 cells={materialCells}
                                 onChange={handleFormChange}
                             />
