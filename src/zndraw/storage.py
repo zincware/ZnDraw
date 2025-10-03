@@ -1,6 +1,7 @@
 import json
 import typing as t
 from collections.abc import MutableSequence
+from typing import overload
 
 import numpy as np
 import zarr.dtype
@@ -277,22 +278,74 @@ class ZarrStorageSequence(MutableSequence):
     def __init__(self, group: zarr.Group):
         self.group = group
 
-    def __getitem__(self, index: int | list[int] | slice) -> dict | list[dict]:
+    @overload
+    def __getitem__(self, index: int) -> dict: ...
+    @overload
+    def __getitem__(self, index: slice) -> dict: ...
+    @overload
+    def __getitem__(self, index: list[int]) -> dict: ...
+    @overload
+    def __getitem__(self, index: np.ndarray) -> dict: ...
+
+    def __getitem__(self, index: int | list[int] | slice | np.ndarray) -> dict:
         return self.get(index)
 
+    @overload
+    def get(self, index: int, keys: list[str] | None = None) -> dict: ...
+    @overload
+    def get(self, index: slice, keys: list[str] | None = None) -> dict: ...
+    @overload
+    def get(self, index: list[int], keys: list[str] | None = None) -> dict: ...
+    @overload
+    def get(self, index: np.ndarray, keys: list[str] | None = None) -> dict: ...
+
     def get(
-        self, index: int | list[int] | slice, keys: list[str] | None = None
-    ) -> dict | list[dict]:
+        self, index: int | list[int] | slice | np.ndarray, keys: list[str] | None = None
+    ) -> dict:
+        # Handle numpy arrays and scalars
+        if isinstance(index, np.ndarray):
+            if index.ndim == 0:
+                # 0-d array (scalar)
+                index = int(index.item())
+            else:
+                # Multi-dimensional array
+                index = index.tolist()
+
         if isinstance(index, slice):
             index = list(range(*index.indices(len(self))))
         is_single = False
         if isinstance(index, int):
             is_single = True
             index = [index]
+
+        # Validate indices are within bounds
+        length = len(self)
+        for i in index:
+            if i < -length or i >= length:
+                raise IndexError(f"Index {i} is out of bounds for storage of length {length}")
+
         result = [read_zarr(self.group, i, keys=keys) for i in index]
         if is_single:
             return result[0]
-        return result
+
+        # For multiple indices, concatenate arrays for each key
+        if not result:
+            return {}
+
+        concatenated = {}
+        all_keys = set()
+        for d in result:
+            all_keys.update(d.keys())
+
+        for key in all_keys:
+            values = [d[key] for d in result if key in d]
+            if values and isinstance(values[0], np.ndarray):
+                concatenated[key] = np.array(values)
+            else:
+                # For non-array values, just return as list
+                concatenated[key] = values
+
+        return concatenated
 
     def __setitem__(self, index: int | list[int] | slice, value: dict | list[dict]):
         if isinstance(index, slice):

@@ -12,6 +12,7 @@ from zndraw.storage import (
     read_zarr,
 )
 from zndraw.utils import atoms_to_dict
+from zarr.storage import MemoryStore
 
 
 def assert_equal(original, reconstructed):
@@ -202,15 +203,15 @@ def test_decode_data(sample_data):
     assert_equal(sample_data, decoded)
 
 
-def test_create_zarr(tmp_path, sample_data):
-    root = zarr.group(store=tmp_path / "test.zarr")
+def test_create_zarr(sample_data):
+    root = zarr.group(store=MemoryStore())
     create_zarr(root, sample_data)
     result = read_zarr(root, index=0)
     assert_equal(sample_data, result)
 
 
-def test_read_zarr(tmp_path, sample_data):
-    root = zarr.group(store=tmp_path / "test.zarr")
+def test_read_zarr(sample_data):
+    root = zarr.group(store=MemoryStore())
     create_zarr(root, sample_data)
     result = read_zarr(root, index=0, keys=["numbers", "positions", "info"])
     assert_equal(
@@ -227,8 +228,8 @@ def test_read_zarr(tmp_path, sample_data):
         read_zarr(root, index=1)
 
 
-def test_extend_zarr(tmp_path, sample_data):
-    root = zarr.group(store=tmp_path / "test.zarr")
+def test_extend_zarr(sample_data):
+    root = zarr.group(store=MemoryStore())
     create_zarr(root, sample_data)
 
     sample_data["<SinglePointCalculator>"]["energy"] = 2.0
@@ -238,8 +239,8 @@ def test_extend_zarr(tmp_path, sample_data):
     assert read_zarr(root, index=1)["<SinglePointCalculator>"]["energy"] == 2.0
 
 
-def test_zarr_storage_sequence(tmp_path, sample_data):
-    root = zarr.group(store=tmp_path / "test.zarr")
+def test_zarr_storage_sequence(sample_data):
+    root = zarr.group(store=MemoryStore())
     create_zarr(root, sample_data)
     sequence = ZarrStorageSequence(root)
     assert_equal(sample_data, sequence[0])
@@ -250,8 +251,8 @@ def test_zarr_storage_sequence(tmp_path, sample_data):
     assert_equal(sample_data, sequence[1])
 
 
-def test_zarr_storage_sequence_create(tmp_path, sample_data):
-    root = zarr.group(store=tmp_path / "test.zarr")
+def test_zarr_storage_sequence_create(sample_data):
+    root = zarr.group(store=MemoryStore())
     sequence = ZarrStorageSequence(root)
     sequence.append(sample_data)
     assert len(sequence) == 1
@@ -269,8 +270,8 @@ def test_zarr_storage_sequence_create(tmp_path, sample_data):
     assert_equal(sequence.get(0, keys=["info"]), {"info": sample_data["info"]})
 
 
-def test_zarr_storage_sequence_add_new(tmp_path):
-    root = zarr.group(store=tmp_path / "test.zarr")
+def test_zarr_storage_sequence_add_new():
+    root = zarr.group(store=MemoryStore())
     store = ZarrStorageSequence(root)
     store.append({"a": np.array([1, 2])})
     store.append({"a": np.array([3, 4]), "b": np.array([5, 6])})
@@ -296,8 +297,8 @@ def test_zarr_storage_sequence_add_new(tmp_path):
         store.get(1, keys=["c"])
 
 
-def test_zarr_storage_sequence_add_shape(tmp_path):
-    root = zarr.group(store=tmp_path / "test.zarr")
+def test_zarr_storage_sequence_add_shape():
+    root = zarr.group(store=MemoryStore())
     store = ZarrStorageSequence(root)
     store.append({"a": np.array([1, 2])})
     store.append({"a": np.array([3, 4, 5, 6])})
@@ -314,8 +315,8 @@ def test_zarr_storage_sequence_add_shape(tmp_path):
     assert_equal(store[4], {"b": np.array([13])})
 
 
-def test_zarr_storage_sequence_add_shape_2d(tmp_path):
-    root = zarr.group(store=tmp_path / "test.zarr")
+def test_zarr_storage_sequence_add_shape_2d():
+    root = zarr.group(store=MemoryStore())
     store = ZarrStorageSequence(root)
     store.append({"a": np.arange(4).reshape(2, 2)})
     store.append({"a": np.arange(6).reshape(3, 2)})
@@ -337,9 +338,9 @@ def test_zarr_storage_sequence_add_shape_2d(tmp_path):
         )
 
 
-def test_zarr_storage_large_shape_mismatch(tmp_path):
+def test_zarr_storage_large_shape_mismatch():
     """Test for shape mismatch bug when appending arrays with different first dimension sizes."""
-    root = zarr.group(store=tmp_path / "test.zarr")
+    root = zarr.group(store=MemoryStore())
     store = ZarrStorageSequence(root)
 
     # Create initial entry with large array
@@ -353,9 +354,9 @@ def test_zarr_storage_large_shape_mismatch(tmp_path):
     assert store[1]["positions"].shape == (9, 3)
 
 
-def test_zarr_storage_variable_sizes(tmp_path):
+def test_zarr_storage_variable_sizes():
     """Test that atoms objects with different particle counts are stored and retrieved correctly."""
-    root = zarr.group(store=tmp_path / "test.zarr")
+    root = zarr.group(store=MemoryStore())
     store = ZarrStorageSequence(root)
 
     dicts = [
@@ -375,12 +376,69 @@ def test_zarr_storage_variable_sizes(tmp_path):
     npt.assert_array_equal(store[4]["x"], dicts[4]["x"])
 
 
-def test_zarr_storage_variable_sized_atoms(tmp_path, s22):
+def test_zarr_storage_variable_sized_atoms(s22):
     dict = [atoms_to_dict(atoms) for atoms in s22]
-    root = zarr.group(store=tmp_path / "test.zarr")
+    root = zarr.group(store=MemoryStore())
     store = ZarrStorageSequence(root)
     store.extend(dict)
 
     assert len(store) == len(s22)
     for i in range(len(s22)):
         assert_equal(dict[i], store[i])
+
+def test_zarr_storage_empty():
+    root = zarr.group(store=MemoryStore())
+    store = ZarrStorageSequence(root)
+
+    assert len(store) == 0
+    with pytest.raises(IndexError):
+        store[0]
+
+def test_zarr_storage_append_empty_dict():
+    root = zarr.group(store=MemoryStore())
+    store = ZarrStorageSequence(root)
+
+    store.append({"1D": np.random.rand(3), "2D": np.random.rand(4, 3)})
+    store.append({"1D": np.random.rand(0), "2D": np.random.rand(0, 3)})
+    store.append({"1D": np.random.rand(2), "2D": np.random.rand(2, 3)})
+
+    assert len(store) == 3
+    assert store[0]["1D"].shape == (3,)
+    assert store[1]["1D"].shape == (0,)
+    assert store[2]["1D"].shape == (2,)
+    assert store[0]["2D"].shape == (4, 3)
+    assert store[1]["2D"].shape == (0, 3)
+    assert store[2]["2D"].shape == (2, 3)
+
+def test_zarr_slicing():
+    root = zarr.group(store=MemoryStore())
+    store = ZarrStorageSequence(root)
+    for idx in range(10):
+        store.append({"1D": np.array(idx)})
+    assert len(store) == 10
+    assert store[0]["1D"] == 0
+    assert store[-1]["1D"] == 9
+    assert store[np.array(-1)]["1D"] == 9
+    npt.assert_array_equal(store[2:5]["1D"], np.array([2, 3, 4]))
+    npt.assert_array_equal(store[:3]["1D"], np.array([0, 1, 2]))
+    npt.assert_array_equal(store[7:]["1D"], np.array([7, 8, 9]))
+    npt.assert_array_equal(store[::2]["1D"], np.array([0, 2, 4, 6, 8]))
+    npt.assert_array_equal(store[::-1]["1D"], np.array([9, 8, 7, 6, 5, 4, 3, 2, 1, 0]))
+    npt.assert_array_equal(store[-3:]["1D"], np.array([7, 8, 9]))
+    npt.assert_array_equal(store[-5:-2]["1D"], np.array([5, 6, 7]))
+    npt.assert_array_equal(store[-1:-6:-1]["1D"], np.array([9, 8, 7, 6, 5]))
+
+    npt.assert_array_equal(store[[1, 3, 5]]["1D"], np.array([1, 3, 5]))
+    npt.assert_array_equal(store[[1, 3, -2]]["1D"], np.array([1, 3, 8]))
+    npt.assert_array_equal(store[np.array([1, 3, -2])]["1D"], np.array([1, 3, 8]))
+
+
+    with pytest.raises(IndexError):
+        store[10]
+    with pytest.raises(IndexError):
+        store[-11]
+    
+    with pytest.raises(IndexError):
+        store[np.array([1, 2, 100])]
+
+    
