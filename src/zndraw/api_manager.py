@@ -13,7 +13,6 @@ class APIManager:
     def join_room(self, template: t.Any) -> dict:
         # Import here to avoid circular import
         from zndraw.zndraw import _TemplateValue
-
         # If template is _TemplateValue (default), don't send it (use server default)
         # If template is None, send {"template": None} (create blank room)
         # If template is a string, send {"template": template_name}

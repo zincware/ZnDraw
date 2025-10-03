@@ -38,14 +38,13 @@ def redis_init_app(app: Flask, redis_url: str) -> redis.Redis:
 
 
 def create_app(
-    main: bool = False,
     storage_path: str = "./zndraw-data.zarr",
     redis_url: str = "redis://localhost:6379",
 ) -> Flask:
     app = Flask(__name__)
 
     from zndraw.app import main as main_blueprint
-    from zndraw.app import tasks
+    from zndraw.app import tasks # noqa: F401
 
     app.register_blueprint(main_blueprint)
 
@@ -76,8 +75,5 @@ def create_app(
     socketio.init_app(app, cors_allowed_origins="*")
 
     app.config["SECRET_KEY"] = "your_secret_key"
-
-    if main:
-        tasks.read_file.delay()
 
     return app

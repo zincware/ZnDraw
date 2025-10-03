@@ -505,7 +505,7 @@ def acquire_lock(data):
 
     lock_key = get_lock_key(room, target)
     if r.set(lock_key, sid, nx=True, ex=60):
-        log.info(f"Lock acquired for '{target}' in room '{room}' by {sid}")
+        log.debug(f"Lock acquired for '{target}' in room '{room}' by {sid}")
         return {"success": True}
     else:
         log.info(
@@ -533,7 +533,7 @@ def release_lock(data):
         # we need to send a frames_changed event anyway
         emit("len_frames", _get_len(), to=f"room:{room}")
 
-        log.info(f"Lock released for '{target}' in room '{room}' by {sid}")
+        log.debug(f"Lock released for '{target}' in room '{room}' by {sid}")
         return {"success": True}
 
     log.warning(

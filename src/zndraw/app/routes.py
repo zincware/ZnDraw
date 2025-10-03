@@ -587,7 +587,7 @@ def append_frame(room_id):
             # 3. Add the new physical index to the logical sequence with room_id prefix
             r.zadd(indices_key, {f"{room_id}:{new_physical_index}": logical_position})
 
-            log.info(
+            log.debug(
                 f"Appended frame {logical_position} (physical: {room_id}:{new_physical_index}) to room '{room_id}'"
             )
             return {"success": True, "new_index": logical_position}

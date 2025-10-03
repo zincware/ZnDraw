@@ -3,8 +3,10 @@ import time
 
 import requests
 import znh5md
+import ase.io
 from celery import shared_task
 from tqdm import tqdm
+from pathlib import Path
 
 from zndraw.utils import atoms_to_dict, update_colors_and_radii
 
@@ -12,17 +14,31 @@ log = logging.getLogger(__name__)
 
 
 @shared_task
-def read_file() -> None:
-    from zndraw import Client
+def read_file(file: str, room: str) -> None:
+    from zndraw import ZnDraw
 
-    client = Client(room="testroom", url="http://localhost:5000")
-    client.connect()
-    io = znh5md.IO("/Users/fzills/tools/zndraw-communication-testing/structures.h5")
-    frames = io[:]
-    for atoms in tqdm(frames, desc="Uploading frames"):
-        update_colors_and_radii(atoms)
-        # atoms = atoms.repeat((4, 4, 4))
-        client.append(atoms_to_dict(atoms))
+    file_path = Path(file)
+    vis = ZnDraw(room=room, url="http://localhost:5000", user="uploader")
+    if not file_path.exists():
+        vis.log(f"File {file} does not exist.")
+        return
+    vis.log(f"Reading file {file}...")
+    if file_path.suffix in [".h5", ".h5md"]:
+        io = znh5md.IO(file)
+        frames = io[:]
+        for atoms in tqdm(frames, desc="Uploading frames"):
+            vis.append(atoms)
+    else:
+        try:
+            for atoms in tqdm(ase.io.iread(file), desc="Uploading frames"):
+                vis.append(atoms)
+        except Exception as e:
+            vis.log(f"Error reading file {file}: {e}")
+            return
+        
+    vis.log(f"Finished reading file {file}.")
+    vis.disconnect()
+
 
 
 @shared_task(bind=True)
