@@ -405,3 +405,69 @@ def test_setitem_list(server, s22):
         vis[[1, 2, 3]] = "not a list"
     with pytest.raises(ValueError):
         vis[[1, 2, 3]] = [new_atoms.copy() for _ in range(2)]
+
+
+def test_setitem_slice_unequal_length(server, s22):
+    """Test assigning a list of a different size to a simple slice."""
+    new_atoms = molecule("H2O")
+
+    # --- Test Case 1: Grow the list ---
+    vis = ZnDraw(url=server, room="testroom", user="testuser")
+    vis.extend(s22)
+    original_len = len(vis)
+    
+    # Replace 2 elements (at index 5 and 6) with 5 new elements
+    vis[5:7] = [new_atoms.copy() for _ in range(5)]
+    
+    assert len(vis) == original_len - 2 + 5
+    # Check elements before the slice
+    for i in range(5):
+        assert vis[i] == s22[i]
+    # Check the newly inserted elements
+    for i in range(5, 10):
+        assert vis[i] == new_atoms
+    # Check elements after the slice
+    for i in range(10, len(vis)):
+        assert vis[i] == s22[i - 3] # original index was i-5+2 = i-3
+
+    # --- Test Case 2: Shrink the list ---
+    # reset
+    del vis[:]
+    vis.extend(s22)
+    original_len = len(vis)
+
+    # Replace 10 elements (from index 5 to 14) with 2 new elements
+    vis[5:15] = [new_atoms.copy() for _ in range(2)]
+
+    assert len(vis) == original_len - 10 + 2
+    # Check elements before the slice
+    for i in range(5):
+        assert vis[i] == s22[i]
+    # Check the newly inserted elements
+    for i in range(5, 7):
+        assert vis[i] == new_atoms
+    # Check elements after the slice
+    for i in range(7, len(vis)):
+        assert vis[i] == s22[i + 8] # original index was i-2+10 = i+8
+
+def test_setitem_extended_slice_invalid_length(server, s22):
+    """Test ValueError when assigning a list of incorrect size to an extended slice."""
+    vis = ZnDraw(url=server, room="testroom", user="testuser")
+    vis.extend(s22)
+    
+    new_atoms = molecule("H2O")
+    
+    # The slice vis[::2] has length (len(s22) + 1) // 2
+    slice_len = (len(s22) + 1) // 2
+    
+    # This should fail because the list has length 2, but the slice is longer
+    with pytest.raises(ValueError):
+        vis[::2] = [new_atoms.copy() for _ in range(2)]
+
+    # This should fail because the list is too long
+    with pytest.raises(ValueError):
+        vis[::2] = [new_atoms.copy() for _ in range(slice_len + 5)]
+
+    # This should fail for a different step
+    with pytest.raises(ValueError):
+        vis[5:15:3] = [new_atoms.copy()] # slice has len 4, assigned list has len 1
