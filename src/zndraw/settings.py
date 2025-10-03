@@ -69,6 +69,9 @@ class Representation(SettingsBase):
     show_bonds: bool = Field(True, description="Render bonds between atoms")
     bond_size: float = Field(1.0, ge=0.1, le=5, description="Bond radius scaling factor")
     material: Material = Field(Material.MeshStandardMaterial, description="Atom and bond material")
+    particle_resolution: int = Field(8, ge=2, le=32, description="Sphere resolution for atoms")
+    bond_resolution: int = Field(3, ge=2, le=10, description="Cylinder resolution for bonds")
+    # Future
 
 class Scene(SettingsBase):
     """Controls the background, lighting, and environment."""
@@ -185,7 +188,7 @@ if __name__ == "__main__":
 
     # Create output directories if they don't exist
     backend_output_dir = Path(__file__).parent / "generated"
-    frontend_output_dir = Path(__file__).parent.parent / "app" / "src" / "types"
+    frontend_output_dir = Path(__file__).parent.parent.parent / "app" / "src" / "types"
     backend_output_dir.mkdir(exist_ok=True)
     frontend_output_dir.mkdir(exist_ok=True)
 
@@ -220,13 +223,7 @@ if __name__ == "__main__":
     )
 
     # Create default values object from actual pydantic instances
-    room_config_instance = RoomConfig(
-        Particle=Particle(),
-        Visualization=Visualization(),
-        Camera=Camera(),
-        PathTracer=PathTracer(),
-        VectorDisplay=VectorDisplay(),
-    )
+    room_config_instance = RoomConfig()
     defaults = room_config_instance.model_dump()
 
     # Add header comment and default values to the TypeScript file
@@ -246,10 +243,10 @@ if __name__ == "__main__":
     with open(ts_file, "w") as f:
         f.write(header_comment)
         f.write(content)
-        f.write("\n\n// Default configuration values from pydantic models\n")
-        f.write("export const DEFAULT_ROOM_CONFIG: RoomConfig = ")
-        f.write(json.dumps(defaults, indent=2))
-        f.write(";\n")
+        # f.write("\n\n// Default configuration values from pydantic models\n")
+        # f.write("export const DEFAULT_ROOM_CONFIG: RoomConfig = ")
+        # f.write(json.dumps(defaults, indent=2))
+        # f.write(";\n")
 
     print(f"Generated JSON schema: {schema_file}")
     print(f"Generated TypeScript: {ts_file}")

@@ -1814,6 +1814,20 @@ def join_room(room_id):
         r.set(f"room:{room_id}:current_frame", 0)
         log.info(f"Initialized current_frame to 0 for new room '{room_id}'")
 
+        # Initialize default settings for new room
+        from zndraw.settings import RoomConfig
+        default_config = RoomConfig()
+        config_dict = default_config.model_dump()
+
+        # Store each settings category
+        for category_name, category_data in config_dict.items():
+            r.hset(
+                f"room:{room_id}:user:{user_name}:settings",
+                category_name,
+                json.dumps(category_data)
+            )
+        log.info(f"Initialized default settings for new room '{room_id}'")
+
     selection = r.get(f"room:{room_id}:selection:default")
     response["selection"] = json.loads(selection) if selection else None
 
@@ -1850,6 +1864,13 @@ def join_room(room_id):
         response["bookmarks"] = logical_bookmarks
     else:
         response["bookmarks"] = None
+
+    # Fetch all settings for the user
+    settings_data = {}
+    settings_hash = r.hgetall(f"room:{room_id}:user:{user_name}:settings")
+    for setting_name, setting_value in settings_hash.items():
+        settings_data[setting_name] = json.loads(setting_value)
+    response["settings"] = settings_data
 
     return response
 

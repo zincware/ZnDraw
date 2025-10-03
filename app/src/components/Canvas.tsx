@@ -5,6 +5,8 @@ import { useAppStore } from '../store';
 import { useRef, useEffect, useMemo } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
+import { useExtensionData } from '../hooks/useSchemas';
+import type { Representation } from '../types/room-config';
 
 // Reusable THREE objects
 const matrix = new THREE.Matrix4();
@@ -14,10 +16,20 @@ const scaleVec = new THREE.Vector3();
 
 function Instances() {
   const instancedMeshRef = useRef<THREE.InstancedMesh | null>(null);
-  const { currentFrame, roomId, clientId } = useAppStore();
+  const { currentFrame, roomId, clientId, userId } = useAppStore();
   const lastGoodFrameData = useRef<any>(null);
   const progress = useRef(0);
-  
+
+  // Fetch representation settings
+  const { data: representationSettings } = useExtensionData(
+    roomId || '',
+    userId || '',
+    'settings',
+    'representation'
+  ) as { data: Representation | undefined };
+
+  const particleResolution = representationSettings?.particle_resolution ?? 8;
+
   const requiredKeys = ['positions', 'colors', 'radii'];
 
   // All hooks must be called unconditionally at the top level.
@@ -133,7 +145,7 @@ function Instances() {
       ref={instancedMeshRef}
       args={[undefined, undefined, dataToRender.count]}
     >
-      <sphereGeometry args={[1, 8, 8]} />
+      <sphereGeometry args={[1, particleResolution, particleResolution]} />
       <meshPhysicalMaterial color={"white"} />
     </instancedMesh>
   );

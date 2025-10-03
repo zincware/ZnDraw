@@ -2,11 +2,13 @@ import { useEffect, useMemo, useCallback, useRef } from 'react';
 import { useAppStore } from '../store';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { set, throttle } from 'lodash';
+import { useQueryClient } from '@tanstack/react-query';
 
 export const useRestJoinManager = () => {
     const { setClientId, setRoomId, setUserId, setCurrentFrame, setFrameCount, setSelection, setFrameSelection, setBookmarks, setJoinToken } = useAppStore();
     const { roomId: room, userId } = useParams<{ roomId: string, userId: string }>();
     const [searchParams] = useSearchParams();
+    const queryClient = useQueryClient();
 
     const abortControllerRef = useRef<AbortController | null>(null);
 
@@ -74,6 +76,14 @@ export const useRestJoinManager = () => {
             setRoomId(room);
             setUserId(userId);
 
+            // Store settings in query cache for each category
+            if (data.settings) {
+                for (const [categoryName, categoryData] of Object.entries(data.settings)) {
+                    const queryKey = ['extensionData', room, userId, 'settings', categoryName];
+                    queryClient.setQueryData(queryKey, categoryData);
+                }
+            }
+
         } catch (error) {
             // 4. Check if the error was due to the request being aborted.
             if (error.name === 'AbortError') {
@@ -88,7 +98,7 @@ export const useRestJoinManager = () => {
             }
         }
 
-    }, [room, userId, searchParams, setClientId, setRoomId, setUserId, setCurrentFrame, setFrameCount, setSelection, setFrameSelection, setBookmarks, setJoinToken]);
+    }, [room, userId, searchParams, queryClient, setClientId, setRoomId, setUserId, setCurrentFrame, setFrameCount, setSelection, setFrameSelection, setBookmarks, setJoinToken]);
 
     const throttledJoin = useMemo(() =>
         throttle(joinRoom, 10000, { leading: true, trailing: false }),

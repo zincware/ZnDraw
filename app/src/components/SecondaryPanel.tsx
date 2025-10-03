@@ -68,7 +68,7 @@ const SecondaryPanel = ({ panelTitle }: SecondaryPanelProps) => {
                 extension: selectedExtension,
                 data: data
             });
-        }, 500),
+        }, 100),
         [selectedExtension, roomId, userId, panelTitle, submit]
     );
 
