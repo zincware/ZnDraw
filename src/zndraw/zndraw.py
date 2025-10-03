@@ -78,6 +78,8 @@ class ZnDraw(MutableSequence):
             self._frame_selection = frozenset(response_data["frame_selection"])
         if response_data.get("bookmarks") is not None:
             self._bookmarks = {int(k): v for k, v in response_data["bookmarks"].items()}
+        if response_data.get("step") is not None:
+            self._step = int(response_data["step"])
         self._len = response_data["frameCount"]
 
     @property

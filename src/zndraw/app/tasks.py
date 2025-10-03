@@ -135,6 +135,7 @@ def celery_job_worker(self, room: str, server_url: str = "http://localhost:5000"
         )
 
     except Exception as e:
+        vis.log(f"Error executing job {job_id}: {e}")
         log.error(
             f"Worker {worker_id} error executing job {job_id}: {e}", exc_info=True
         )
@@ -142,6 +143,11 @@ def celery_job_worker(self, room: str, server_url: str = "http://localhost:5000"
             f"{server_url}/api/rooms/{room}/jobs/{job_id}/fail",
             json={"error": str(e), "workerId": worker_id},
         )
+    finally:
+        try:
+            vis.disconnect()
+        except Exception:
+            pass
 
 
 @shared_task

@@ -16,9 +16,15 @@ const scaleVec = new THREE.Vector3();
 
 function Instances() {
   const instancedMeshRef = useRef<THREE.InstancedMesh | null>(null);
-  const { currentFrame, roomId, clientId, userId } = useAppStore();
+  const { currentFrame, roomId, clientId, userId, selection } = useAppStore();
   const lastGoodFrameData = useRef<any>(null);
   const progress = useRef(0);
+  
+  // Memoize the selection Set for performance
+  const selectionSet = useMemo(() => {
+    console.log('Current selection:', selection);
+    return selection ? new Set(selection) : null;
+  }, [selection]);
 
   // Fetch representation settings
   const { data: representationSettings } = useExtensionData(
@@ -120,7 +126,12 @@ function Instances() {
       matrix.identity().setPosition(positionVec).scale(scaleVec);
       mesh.setMatrixAt(i, matrix);
 
-      color.setRGB(colors[i3], colors[i3 + 1], colors[i3 + 2]);
+      // If this particle is in the selection, color it pink, otherwise use original color
+      if (selectionSet && selectionSet.has(i)) {
+        color.setRGB(1.0, 0.75, 0.8); // Pink color
+      } else {
+        color.setRGB(colors[i3], colors[i3 + 1], colors[i3 + 2]);
+      }
       mesh.setColorAt(i, color);
     }
 
