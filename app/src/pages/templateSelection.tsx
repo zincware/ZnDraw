@@ -41,11 +41,13 @@ export default function TemplateSelectionPage() {
         if (nonEmptyTemplates.length === 0) {
           // Only "empty" template exists, auto-forward to empty room
           const roomUuid = crypto.randomUUID();
-          navigate(`/rooms/${roomUuid}/anonym?template=empty`);
+          const userUuid = crypto.randomUUID();
+          navigate(`/rooms/${roomUuid}/${userUuid}?template=empty`);
         } else if (nonEmptyTemplates.length === 1) {
           // Only one non-empty template exists, auto-forward to it
           const roomUuid = crypto.randomUUID();
-          navigate(`/rooms/${roomUuid}/anonym?template=${nonEmptyTemplates[0].id}`);
+          const userUuid = crypto.randomUUID();
+          navigate(`/rooms/${roomUuid}/${userUuid}?template=${nonEmptyTemplates[0].id}`);
         } else {
           // Multiple non-empty templates, show selection table
           setTemplates(data);
@@ -62,7 +64,8 @@ export default function TemplateSelectionPage() {
 
   const handleJoinTemplate = (templateId: string) => {
     const roomUuid = crypto.randomUUID();
-    navigate(`/rooms/${roomUuid}/anonym?template=${templateId}`);
+    const userUuid = crypto.randomUUID();
+    navigate(`/rooms/${roomUuid}/${userUuid}?template=${templateId}`);
   };
 
   if (loading) {
