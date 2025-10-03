@@ -471,3 +471,138 @@ def test_setitem_extended_slice_invalid_length(server, s22):
     # This should fail for a different step
     with pytest.raises(ValueError):
         vis[5:15:3] = [new_atoms.copy()] # slice has len 4, assigned list has len 1
+
+def test_setitem_slice_insertion(server, s22):
+    """Test inserting items using an empty slice assignment, e.g., vis[5:5] = ..."""
+    vis = ZnDraw(url=server, room="testroom", user="testuser")
+    vis.extend(s22)
+    original_len = len(vis)
+    new_atoms = molecule("H2O")
+    
+    # --- Insert in the middle ---
+    insert_data = [new_atoms.copy() for _ in range(3)]
+    vis[5:5] = insert_data
+    
+    assert len(vis) == original_len + 3
+    # Check elements before the insertion point
+    for i in range(5):
+        assert vis[i] == s22[i]
+    # Check the newly inserted elements
+    for i in range(3):
+        assert vis[5 + i] == new_atoms
+    # Check elements after the insertion point
+    for i in range(5, original_len):
+        assert vis[i + 3] == s22[i]
+
+    # --- Insert at the beginning ---
+    # reset
+    del vis[:]
+    vis.extend(s22)
+    vis[0:0] = insert_data
+    assert len(vis) == original_len + 3
+    for i in range(3):
+        assert vis[i] == new_atoms
+    for i in range(original_len):
+        assert vis[i + 3] == s22[i]
+
+    # --- Insert at the end ---
+    # reset
+    del vis[:]
+    vis.extend(s22)
+    vis[len(vis):len(vis)] = insert_data
+    assert len(vis) == original_len + 3
+    for i in range(original_len):
+        assert vis[i] == s22[i]
+    for i in range(3):
+        assert vis[original_len + i] == new_atoms
+
+def test_delitem_slice_edge_cases(server, s22):
+    """Test edge cases for __delitem__ like negative steps and empty slices."""
+    # --- Test deletion with a negative step ---
+    vis = ZnDraw(url=server, room="testroom", user="testuser")
+    vis.extend(s22)
+    original_len = len(s22)
+    
+    del vis[::-2] # Delete every other element from the end
+    
+    expected_len = original_len // 2
+    assert len(vis) == expected_len
+    # The remaining items should be s22[0], s22[2], s22[4], ...
+    for i in range(expected_len):
+        assert vis[i] == s22[i * 2]
+
+    # --- Test that deleting an empty slice is a no-op ---
+    # reset
+    del vis[:]
+    vis.extend(s22)
+    
+    del vis[5:2] # This slice is empty
+    assert len(vis) == original_len
+    
+    del vis[100:200] # This slice is also empty (out of bounds)
+    assert len(vis) == original_len
+    
+    # Verify content is unchanged
+    for i in range(original_len):
+        assert vis[i] == s22[i]
+
+
+def test_setitem_slice_negative_step(server, s22):
+    """Test assigning values to a slice with a negative step."""
+    vis = ZnDraw(url=server, room="testroom", user="testuser")
+    vis.extend(s22)
+    new_atoms = molecule("H2O")
+
+    # The slice vis[10:0:-2] corresponds to indices [10, 8, 6, 4, 2]
+    # It has 5 elements.
+    slice_len = 5
+    
+    new_values = [new_atoms.copy() for _ in range(slice_len)]
+    vis[10:0:-2] = new_values
+
+    assert len(vis) == len(s22)
+    # Check that the items at the affected indices have been replaced
+    assert vis[10] == new_atoms
+    assert vis[8] == new_atoms
+    assert vis[6] == new_atoms
+    assert vis[4] == new_atoms
+    assert vis[2] == new_atoms
+    
+    # Check that other items are untouched
+    assert vis[0] == s22[0]
+    assert vis[1] == s22[1]
+    assert vis[3] == s22[3]
+    assert vis[11] == s22[11]
+
+    # Test that a length mismatch still raises ValueError
+    with pytest.raises(ValueError):
+        vis[::-1] = [new_atoms.copy()] # Mismatched length
+
+
+# def test_delitem_list_with_duplicates(server, s22):
+#     """Test deleting with a list of indices containing duplicates."""
+#     vis = ZnDraw(url=server, room="testroom", user="testuser")
+#     vis.extend(s22)
+#     original_len = len(s22)
+    
+#     # A robust implementation should probably forbid duplicates to avoid ambiguity
+#     # in a transactional client-server setting.
+#     with pytest.raises(ValueError, match="Duplicate indices are not allowed in bulk operations"):
+#          del vis[[5, 10, 5]]
+    
+#     # Ensure no change was made
+#     assert len(vis) == original_len
+
+
+# def test_setitem_list_with_duplicates(server, s22):
+#     """Test setting with a list of indices containing duplicates."""
+#     vis = ZnDraw(url=server, room="testroom", user="testuser")
+#     vis.extend(s22)
+#     original_len = len(s22)
+#     new_atoms = molecule("H2O")
+    
+#     with pytest.raises(ValueError, match="Duplicate indices are not allowed in bulk operations"):
+#          vis[[5, 10, 5]] = [new_atoms.copy() for _ in range(3)]
+    
+#     # Ensure no change was made
+#     assert len(vis) == original_len
