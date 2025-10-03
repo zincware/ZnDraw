@@ -1,68 +1,26 @@
 import { useEffect } from 'react';
 import { socket } from '../socket';
 import { useAppStore } from '../store';
-import { useParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 
 export const useSocketManager = () => {
-  const { roomId: room, userId } = useParams<{ roomId: string, userId: string }>();
-  const { setConnected, setFrameCount, isConnected, setCurrentFrame, setFrameSelection, setSelection, setBookmarks } = useAppStore();
+  const { setConnected, setFrameCount, isConnected, setCurrentFrame, setFrameSelection, setSelection, setBookmarks, roomId, userId, joinToken } = useAppStore();
   const queryClient = useQueryClient();
 
   useEffect(() => {
-    if (!room) return;
-    if (isConnected) return;
-    socket.connect();
-  }, [room, isConnected]);
+    if (!joinToken) {
+      console.warn('No join token available, cannot connect socket.');
+      return;
+    }
 
-  useEffect(() => {
     async function onConnect() {
-      console.log('Socket connected and joining room:', room);
-      setConnected(true, room || '', userId || '');
-      socket.emit('join_room', { room, userId });
+      console.log('Socket connected and joining room:',   roomId, userId);
+      setConnected(true);
 
-      // Post to join endpoint to get initial room data
-      try {
-        const response = await fetch(`/api/rooms/${room}/join`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({}),
-        });
-
-        if (!response.ok) {
-          console.error(`Failed to join room: ${response.status} ${response.statusText}`);
-          return;
-        }
-
-        const data = await response.json();
-
-        // Update Zustand store with room data
-        if (typeof data.frameCount === 'number') {
-          setFrameCount(data.frameCount);
-        }
-        if (data.selection !== undefined) {
-          setSelection(data.selection);
-        }
-        if (data.frame_selection !== undefined) {
-          setFrameSelection(data.frame_selection);
-        }
-        if (data.step !== undefined) {
-          setCurrentFrame(data.step);
-        }
-        if (data.bookmarks !== undefined) {
-          setBookmarks(data.bookmarks);
-        }
-
-        console.log('Room joined successfully:', data);
-      } catch (error) {
-        console.error('Error joining room:', error);
-      }
     }
     function onDisconnect() {
       console.log('Socket disconnected');
-      setConnected(false, room || '', userId || '');
+      setConnected(false);
     }
     function onLenUpdate(data: any) {
       if (data && typeof data.count === 'number') {
@@ -111,7 +69,7 @@ export const useSocketManager = () => {
       });
 
       // 2. Invalidate jobs list to refetch all jobs (covers created/started/completed/failed/deleted)
-      queryClient.invalidateQueries({ queryKey: ['jobs', room] });
+      queryClient.invalidateQueries({ queryKey: ['jobs', roomId] });
 
       console.log(`Queue updated for ${category}/${extension}: ${queueLength} queued, ${idleWorkers} idle, ${progressingWorkers} progressing`);
     }
@@ -166,7 +124,7 @@ export const useSocketManager = () => {
     }
 
     function onChatMessageNew(data: any) {
-      queryClient.setQueryData(['chat', room], (oldData: any) => {
+      queryClient.setQueryData(['chat', roomId], (oldData: any) => {
         if (!oldData) return oldData;
         const newPages = [...oldData.pages];
         const lastPageIndex = newPages.length - 1;
@@ -185,7 +143,7 @@ export const useSocketManager = () => {
     }
 
     function onChatMessageUpdated(data: any) {
-      queryClient.setQueryData(['chat', room], (oldData: any) => {
+      queryClient.setQueryData(['chat', roomId], (oldData: any) => {
         if (!oldData) return oldData;
         const newPages = oldData.pages.map((page: any) => ({
           ...page,
@@ -197,8 +155,13 @@ export const useSocketManager = () => {
       });
     }
 
+    function onConnectError(err: any) {
+      console.error('Socket connection error:', err);
+    }
+
     socket.on('disconnect', onDisconnect);
     socket.on('connect', onConnect);
+    socket.on('connect_error', onConnectError);
     socket.on('len_frames', onLenUpdate);
     socket.on('frame_update', onFrameUpdate);
     socket.on('invalidate', onInvalidate);
@@ -210,6 +173,9 @@ export const useSocketManager = () => {
     socket.on('frames:invalidate', onFramesInvalidate);
     socket.on('chat:message:new', onChatMessageNew);
     socket.on('chat:message:updated', onChatMessageUpdated);
+
+    socket.auth = { token: joinToken };
+    socket.connect();
 
     return () => {
       socket.off('connect', onConnect);
@@ -226,5 +192,5 @@ export const useSocketManager = () => {
       socket.off('chat:message:new', onChatMessageNew);
       socket.off('chat:message:updated', onChatMessageUpdated);
     };
-  }, [room, setConnected, setFrameCount, userId, isConnected, setCurrentFrame, queryClient, setBookmarks]);
+  }, [joinToken, roomId, userId, setConnected, setFrameCount, userId, isConnected, setCurrentFrame, queryClient, setBookmarks]);
 };

@@ -13,12 +13,14 @@ import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
 import MyScene from '../components/Canvas';
 import ChatWindow from '../components/ChatWindow';
 import { useAppStore } from '../store';
+import { useRestJoinManager } from '../hooks/useRestManager';
 
 
 
 export default function MainPage() {
   useSocketManager();
   useKeyboardShortcuts();
+  useRestJoinManager();
 
   const { chatOpen, setChatOpen } = useAppStore();
 

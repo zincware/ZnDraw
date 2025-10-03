@@ -4,6 +4,7 @@ interface AppState {
   // Connection & Room
   roomId: string | null;
   userId: string | null;
+  clientId: string | null;
   isConnected: boolean;
   isLoading: boolean;
   currentFrame: number;
@@ -15,9 +16,14 @@ interface AppState {
   bookmarks: Record<number, string> | null;
   playing: boolean;
   chatOpen: boolean;
+  joinToken: string | null;
 
   // Actions (functions to modify the state)
-  setConnected: (status: boolean, room: string, user: string) => void;
+  setRoomId: (roomId: string) => void;
+  setUserId: (userId: string) => void;
+  setConnected: (status: boolean) => void;
+  setClientId: (clientId: string) => void;
+  setJoinToken: (joinToken: string) => void;
   setCurrentFrame: (frame: number) => void;
   setFrameCount: (count: number) => void;
   setLoading: (loading: boolean) => void;
@@ -34,6 +40,7 @@ export const useAppStore = create<AppState>((set) => ({
   // Initial State
   roomId: null,
   userId: null,
+  clientId: null,
   isConnected: false,
   currentFrame: 0,
   frameCount: 0,
@@ -42,11 +49,15 @@ export const useAppStore = create<AppState>((set) => ({
   selection: null,
   frame_selection: null,
   frameSelectionEnabled: false,
-  bookmarks: {1: "Example Bookmark", 5: "Another Bookmark", 10: "Last Bookmark"},
+  bookmarks: null,
   playing: false,
   chatOpen: false,
+  joinToken: null,
   // Actions
-  setConnected: (status, room, user) => set({ isConnected: status, roomId: room, userId: user }),
+  setConnected: (status) => set({ isConnected: status }),
+  setRoomId: (roomId) => set({ roomId }),
+  setUserId: (userId) => set({ userId }),
+  setClientId: (clientId) => set({ clientId }),
   setCurrentFrame: (frame) => set({ currentFrame: frame }),
   setFrameCount: (count) => set((state) => {
     // If currentFrame is beyond the new frameCount, reset to 0
@@ -61,4 +72,5 @@ export const useAppStore = create<AppState>((set) => ({
   setBookmarks: (bookmarks) => set({ bookmarks }),
   setPlaying: (playing) => set({ playing }),
   setChatOpen: (open) => set({ chatOpen: open }),
+  setJoinToken: (joinToken) => set({ joinToken }),
 }));
