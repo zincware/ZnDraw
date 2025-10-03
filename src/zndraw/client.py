@@ -599,8 +599,6 @@ class Client(MutableSequence):
 
     def __getitem__(self, index) -> dict | list[dict]:
         """Get frame(s) by index or slice."""
-        import numpy as np
-
         # Handle numpy arrays
         if isinstance(index, np.ndarray):
             if index.ndim == 0:
@@ -647,8 +645,6 @@ class Client(MutableSequence):
 
     def __setitem__(self, index, value):
         """Replace frame(s) at index, slice, or list of indices."""
-        import numpy as np
-
         # Handle numpy arrays
         if isinstance(index, np.ndarray):
             if index.ndim == 0:
@@ -692,45 +688,40 @@ class Client(MutableSequence):
             self._extended_slice_assignment(start, stop, step, values)
 
     def _simple_slice_assignment(self, start: int, stop: int, values: list):
-        """Handle simple slice assignment like data[2:5] = [a, b, c]."""
+        """Handle simple slice assignment like data[2:5] = [a, b, c] using bulk endpoint."""
         if not self.sio.connected:
             raise RuntimeError("Client is not connected. Please call .connect() first.")
-
-        # Number of positions being replaced
-        old_count = max(0, stop - start)
 
         lock = SocketIOLock(self.sio, target="trajectory:meta")
 
         with lock:
-            # TODO: this is very chatty and should be improved in the server!!
+            # Use the new bulk endpoint for efficient slice replacement
+            serialized_data = [encode_data(value) for value in values]
+            packed_data = msgpack.packb(serialized_data)
 
-            # First, delete the old range if it exists
-            for _ in range(old_count):
-                if start < len(self):
-                    # Make DELETE request
-                    delete_url = f"{self.url}/api/rooms/{self.room}/frames"
-                    params = {"action": "delete", "frame_id": start}
-                    response = requests.delete(delete_url, params=params, timeout=30)
-                    response.raise_for_status()
+            bulk_url = f"{self.url}/api/rooms/{self.room}/frames/bulk"
+            params = {"start": start, "stop": stop}
 
-            # Then insert the new values at the start position
-            for i, value in enumerate(values):
-                # Use direct POST request
-                serialized_data = encode_data(value)
-                packed_data = msgpack.packb(serialized_data)
+            response = requests.patch(
+                bulk_url, data=packed_data, params=params, timeout=30
+            )
 
-                insert_url = f"{self.url}/api/rooms/{self.room}/frames"
-                params = {"action": "insert", "insert_position": start + i}
+            # Check for errors
+            if response.status_code == 404:
+                try:
+                    error_data = response.json()
+                    error_type = error_data.get("type", "")
+                    error_msg = error_data.get("error", response.text)
 
-                response = requests.post(
-                    insert_url, data=packed_data, params=params, timeout=30
-                )
-                response.raise_for_status()
+                    if error_type == "IndexError":
+                        raise IndexError(error_msg)
+                except ValueError:
+                    pass
+
+            response.raise_for_status()
 
     def _setitem_list(self, indices: list, values):
-        """Handle list index assignment like data[[1,2,3]] = [a, b, c]."""
-        import numpy as np
-
+        """Handle list index assignment like data[[1,2,3]] = [a, b, c] using bulk endpoint."""
         if not self.sio.connected:
             raise RuntimeError("Client is not connected. Please call .connect() first.")
 
@@ -764,23 +755,35 @@ class Client(MutableSequence):
         lock = SocketIOLock(self.sio, target="trajectory:meta")
 
         with lock:
-            # Replace each position individually using direct calls
-            for i, value in zip(validated_indices, values):
-                serialized_data = encode_data(value)
-                packed_data = msgpack.packb(serialized_data)
+            # Use the new bulk endpoint for efficient list replacement
+            serialized_data = [encode_data(value) for value in values]
+            packed_data = msgpack.packb(serialized_data)
 
-                replace_url = f"{self.url}/api/rooms/{self.room}/frames"
-                params = {"action": "replace", "frame_id": i}
+            bulk_url = f"{self.url}/api/rooms/{self.room}/frames/bulk"
+            params = {"indices": ",".join(str(i) for i in validated_indices)}
 
-                response = requests.post(
-                    replace_url, data=packed_data, params=params, timeout=30
-                )
-                response.raise_for_status()
+            response = requests.patch(
+                bulk_url, data=packed_data, params=params, timeout=30
+            )
+
+            # Check for errors
+            if response.status_code == 404:
+                try:
+                    error_data = response.json()
+                    error_type = error_data.get("type", "")
+                    error_msg = error_data.get("error", response.text)
+
+                    if error_type == "IndexError":
+                        raise IndexError(error_msg)
+                except ValueError:
+                    pass
+
+            response.raise_for_status()
 
     def _extended_slice_assignment(
         self, start: int, stop: int, step: int, values: list
     ):
-        """Handle extended slice assignment like data[::2] = [a, b, c]."""
+        """Handle extended slice assignment like data[::2] = [a, b, c] using bulk endpoint."""
         if not self.sio.connected:
             raise RuntimeError("Client is not connected. Please call .connect() first.")
 
@@ -795,24 +798,33 @@ class Client(MutableSequence):
         lock = SocketIOLock(self.sio, target="trajectory:meta")
 
         with lock:
-            # Replace each position individually using direct calls
-            for i, value in zip(indices, values):
-                if i < len(self):
-                    serialized_data = encode_data(value)
-                    packed_data = msgpack.packb(serialized_data)
+            # Use the new bulk endpoint for efficient extended slice replacement
+            serialized_data = [encode_data(value) for value in values]
+            packed_data = msgpack.packb(serialized_data)
 
-                    replace_url = f"{self.url}/api/rooms/{self.room}/frames"
-                    params = {"action": "replace", "frame_id": i}
+            bulk_url = f"{self.url}/api/rooms/{self.room}/frames/bulk"
+            params = {"indices": ",".join(str(i) for i in indices)}
 
-                    response = requests.post(
-                        replace_url, data=packed_data, params=params, timeout=30
-                    )
-                    response.raise_for_status()
+            response = requests.patch(
+                bulk_url, data=packed_data, params=params, timeout=30
+            )
+
+            # Check for errors
+            if response.status_code == 404:
+                try:
+                    error_data = response.json()
+                    error_type = error_data.get("type", "")
+                    error_msg = error_data.get("error", response.text)
+
+                    if error_type == "IndexError":
+                        raise IndexError(error_msg)
+                except ValueError:
+                    pass
+
+            response.raise_for_status()
 
     def __delitem__(self, index: int | slice | list[int] | np.ndarray):
         """Delete frame(s) at index, slice, or list of indices."""
-        import numpy as np
-
         # Handle numpy arrays
         if isinstance(index, np.ndarray):
             if index.ndim == 0:

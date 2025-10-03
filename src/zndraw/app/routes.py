@@ -259,7 +259,7 @@ def get_frames(room_id):
             "type": type(e).__name__,
             "success": False,
         }
-        print(traceback.format_exc())
+        log.error(f"Server error: {e}\n{traceback.format_exc()}")
         return Response(
             json.dumps(error_data), status=500, content_type="application/json"
         )
@@ -366,20 +366,29 @@ def delete_frames_batch(room_id):
                         "type": "PermissionError",
                     }, 403
 
-        # Delete in reverse order to avoid index shifting issues
-        for frame_id in sorted(set(frame_indices), reverse=True):
-            # Get remaining frames
-            frame_mapping = r.zrange(indices_key, 0, -1)
+        # Optimized batch delete: calculate final state once, then apply in single transaction
+        # Convert to set for O(1) lookup
+        indices_to_delete = set(frame_indices)
 
-            # Remove the mapping entry for this logical position
-            remaining_physical_indices = (
-                frame_mapping[:frame_id] + frame_mapping[frame_id + 1 :]
-            )
+        # Build the list of frames that should remain after deletion
+        remaining_frames = []
+        for idx, physical_idx_str in enumerate(frame_mapping):
+            if idx not in indices_to_delete:
+                remaining_frames.append(physical_idx_str)
 
-            # Clear and rebuild the Redis mapping
-            r.delete(indices_key)
-            for logical_pos, physical_idx_str in enumerate(remaining_physical_indices):
-                r.zadd(indices_key, {physical_idx_str: logical_pos})
+        # Use a pipeline to delete and rebuild the mapping in a single atomic transaction
+        pipeline = r.pipeline()
+        pipeline.delete(indices_key)
+
+        if remaining_frames:
+            # Build new mapping with sequential logical indices
+            new_mapping = {
+                physical_idx_str: logical_pos
+                for logical_pos, physical_idx_str in enumerate(remaining_frames)
+            }
+            pipeline.zadd(indices_key, new_mapping)
+
+        pipeline.execute()
 
         log.info(
             f"Deleted {len(frame_indices)} frames from room '{room_id}'. Physical data preserved."
@@ -398,7 +407,7 @@ def delete_frames_batch(room_id):
             "type": type(e).__name__,
             "success": False,
         }
-        print(traceback.format_exc())
+        log.error(f"Server error: {e}\n{traceback.format_exc()}")
         return Response(
             json.dumps(error_data), status=500, content_type="application/json"
         )
@@ -573,9 +582,155 @@ def append_frame(room_id):
             # Default case for any unknown actions
             return {"error": f"The requested action '{action}' is not supported."}, 400
     except Exception as e:
-        log.error(f"Failed to write to Zarr store: {e}")
-        print(traceback.format_exc())
+        log.error(f"Failed to write to Zarr store: {e}\n{traceback.format_exc()}")
         return {"error": "Failed to write to data store"}, 500
+
+
+@main.route("/api/rooms/<string:room_id>/frames/bulk", methods=["PATCH"])
+def bulk_replace_frames(room_id):
+    """
+    Bulk replace frames using either a slice (start/stop) or a list of indices.
+
+    This endpoint is optimized for replacing multiple frames in a single operation,
+    significantly reducing the number of HTTP requests and Redis operations.
+
+    Query parameters:
+    - For slice operations: start, stop (optional)
+    - For list operations: indices (comma-separated)
+
+    Body: msgpack-encoded list of frame dictionaries
+    """
+    r = current_app.extensions["redis"]
+
+    try:
+        # Unpack the msgpack data - should be a list of frames
+        serialized_data = msgpack.unpackb(request.data, strict_map_key=False)
+
+        if not isinstance(serialized_data, list):
+            return {
+                "error": "Body must contain a list of frame dictionaries"
+            }, 400
+
+        storage = get_storage(room_id)
+        indices_key = f"room:{room_id}:trajectory:indices"
+        frame_mapping = r.zrange(indices_key, 0, -1)
+
+        # Determine which indices to replace
+        if "indices" in request.args:
+            # List operations require existing frames
+            if not frame_mapping:
+                return {"error": "No frames found in room"}, 404
+            # List of specific indices
+            indices_str = request.args.get("indices")
+            if not indices_str:
+                return {"error": "indices parameter cannot be empty"}, 400
+
+            try:
+                target_indices = [int(idx.strip()) for idx in indices_str.split(",")]
+            except ValueError:
+                return {"error": "Indices must be comma-separated integers"}, 400
+
+            # Validate indices
+            for idx in target_indices:
+                if idx < 0 or idx >= len(frame_mapping):
+                    return {
+                        "error": f"Invalid index {idx}, valid range: 0-{len(frame_mapping) - 1}",
+                        "type": "IndexError"
+                    }, 404
+
+            # Check length matches
+            if len(serialized_data) != len(target_indices):
+                return {
+                    "error": f"Number of frames ({len(serialized_data)}) must match number of indices ({len(target_indices)})"
+                }, 400
+
+            # Replace each frame
+            start_physical_pos = len(storage)
+            decoded_frames = [decode_data(frame) for frame in serialized_data]
+            storage.extend(decoded_frames)
+
+            pipeline = r.pipeline()
+            for i, logical_idx in enumerate(target_indices):
+                old_mapping_entry = frame_mapping[logical_idx]
+                new_physical_idx = start_physical_pos + i
+
+                # Remove old mapping and add new one
+                pipeline.zrem(indices_key, old_mapping_entry)
+                pipeline.zadd(indices_key, {f"{room_id}:{new_physical_idx}": logical_idx})
+
+            pipeline.execute()
+
+            emit_bookmarks_update(room_id)
+            emit_frames_invalidate(room_id, operation="replace", affected_from=min(target_indices))
+
+            log.info(f"Bulk replaced {len(target_indices)} frames in room '{room_id}'")
+            return {"success": True, "replaced_count": len(target_indices)}
+
+        else:
+            # Slice operation
+            start_param = request.args.get("start")
+            stop_param = request.args.get("stop")
+
+            start = int(start_param) if start_param is not None else None
+            stop = int(stop_param) if stop_param is not None else None
+
+            # Use slice.indices to handle negative indices and defaults
+            slice_obj = slice(start, stop, 1)  # step is always 1 for simple slices
+            start, stop, _ = slice_obj.indices(len(frame_mapping))
+
+            # Calculate how many frames are being replaced
+            old_count = stop - start
+            new_count = len(serialized_data)
+
+            # Delete the old frames and insert the new ones
+            # This is more complex because the length can change
+
+            # 1. Decode all new frames and add to physical storage
+            start_physical_pos = len(storage)
+            decoded_frames = [decode_data(frame) for frame in serialized_data]
+            storage.extend(decoded_frames)
+
+            # 2. Build the new frame mapping
+            # Keep frames before the slice
+            new_mapping_list = list(frame_mapping[:start])
+
+            # Add new frames
+            for i in range(new_count):
+                new_mapping_list.append(f"{room_id}:{start_physical_pos + i}")
+
+            # Add frames after the slice (if any)
+            new_mapping_list.extend(frame_mapping[stop:])
+
+            # 3. Rebuild the entire Redis sorted set with the new mapping
+            pipeline = r.pipeline()
+            pipeline.delete(indices_key)
+
+            new_mapping = {
+                physical_idx_str: logical_pos
+                for logical_pos, physical_idx_str in enumerate(new_mapping_list)
+            }
+            if new_mapping:
+                pipeline.zadd(indices_key, new_mapping)
+
+            pipeline.execute()
+
+            emit_bookmarks_update(room_id)
+            emit_frames_invalidate(room_id, operation="replace", affected_from=start)
+
+            log.info(
+                f"Bulk replaced slice [{start}:{stop}] ({old_count} frames) with {new_count} frames in room '{room_id}'"
+            )
+            return {
+                "success": True,
+                "replaced_range": [start, stop],
+                "old_count": old_count,
+                "new_count": new_count,
+                "new_length": len(new_mapping_list)
+            }
+
+    except Exception as e:
+        log.error(f"Failed to bulk replace frames: {e}\n{traceback.format_exc()}")
+        return {"error": "Failed to bulk replace frames"}, 500
 
 
 
@@ -805,8 +960,8 @@ def get_room_schema(room_id: str, category: str):
 
         if name in schema:
             if schema[name]["schema"] != sch:
-                print(
-                    f"Warning: {category.capitalize()} extension '{name}' schema "
+                log.warning(
+                    f"{category.capitalize()} extension '{name}' schema "
                     "in Redis differs from server schema."
                 )
         else:
@@ -839,7 +994,7 @@ def log_room_extension(room_id: str, category: str, extension: str):
         # If no "data" key, treat the entire JSON body as data
         data = json_data
 
-    print(
+    log.info(
         f"Logging extension for room {room_id}: category={category}, extension={extension}, data={json.dumps(data)}"
     )
 
@@ -901,7 +1056,7 @@ def log_room_extension(room_id: str, category: str, extension: str):
                 }
             ),
         )
-        print(
+        log.info(
             f"Queued Celery task for user {user_id}, category {category}, extension {extension}, room {room_id}, job {job_id}"
         )
         queue_position = redis_client.llen(keys.queue) - 1
@@ -919,7 +1074,7 @@ def log_room_extension(room_id: str, category: str, extension: str):
                 {"user_id": user_id, "data": data, "room": room_id, "jobId": job_id}
             ),
         )
-        print(
+        log.info(
             f"Queued task for user {user_id}, category {category}, extension {extension}, room {room_id}, job {job_id}"
         )
         queue_position = redis_client.llen(keys.queue) - 1  # Zero-indexed position
@@ -927,7 +1082,7 @@ def log_room_extension(room_id: str, category: str, extension: str):
         # Notify all clients in room about queue update
         emit_queue_update(redis_client, room_id, category, extension, socketio)
 
-    print(
+    log.info(
         f"Emitting invalidate for user {user_id}, category {category}, extension {extension}, room {room_id} to user:{user_id}"
     )
     socketio.emit(
