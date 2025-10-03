@@ -1060,6 +1060,24 @@ def log_room_extension(room_id: str, category: str, extension: str):
         f"room:{room_id}:user:{user_id}:{category}", extension, json.dumps(data)
     )
 
+    # Handle settings differently - no job queue, just update and notify
+    if category == "settings":
+        # Emit socket event to notify all clients in room
+        socketio.emit(
+            SocketEvents.INVALIDATE,
+            {
+                "userId": user_id,
+                "category": category,
+                "extension": extension,
+                "roomId": room_id,
+            },
+            to=f"room:{room_id}",  # Broadcast to all users in room
+        )
+        log.info(
+            f"Updated settings for room {room_id}, user {user_id}: {extension} = {json.dumps(data)}"
+        )
+        return {"status": "success", "message": "Settings updated"}, 200
+
     # Create job
     provider = "celery" if is_celery_extension else "client"
     job_id = JobManager.create_job(

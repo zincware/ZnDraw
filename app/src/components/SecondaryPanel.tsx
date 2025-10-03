@@ -19,6 +19,7 @@ import { useFormStore } from '../formStore';
 import { useSchemas, useExtensionData, useSubmitExtension } from '../hooks/useSchemas';
 import { useAppStore } from '../store';
 import { ExtensionStatusChips } from './ExtensionStatusChips';
+import { debounce } from 'lodash';
 
 interface SecondaryPanelProps {
     panelTitle: string;
@@ -54,6 +55,30 @@ const SecondaryPanel = ({ panelTitle }: SecondaryPanelProps) => {
         }
     }, [isLoadingData, serverData, selectedExtension]);
 
+    const { mutate: submit, isPending: isSubmitting } = useSubmitExtension();
+
+    // Debounced submit function for settings auto-save
+    const debouncedSubmit = useMemo(
+        () => debounce((data: any) => {
+            if (!selectedExtension || !roomId || !userId) return;
+            submit({
+                roomId,
+                userId,
+                category: panelTitle,
+                extension: selectedExtension,
+                data: data
+            });
+        }, 500),
+        [selectedExtension, roomId, userId, panelTitle, submit]
+    );
+
+    // Cleanup debounce on unmount
+    useEffect(() => {
+        return () => {
+            debouncedSubmit.cancel();
+        };
+    }, [debouncedSubmit]);
+
     const handleFormChange = useCallback(({ data }: { data: any }) => {
         const safeData = data ?? {};
         if (ignoreFirstChangeRef.current) {
@@ -61,10 +86,13 @@ const SecondaryPanel = ({ panelTitle }: SecondaryPanelProps) => {
             return; // ignore JsonForms init overwrite
         }
         setLocalFormData(safeData);
-        // userInteractionRef.current = true;
-    }, []);
 
-    const { mutate: submit, isPending: isSubmitting } = useSubmitExtension();
+        // Auto-submit for settings category
+        if (panelTitle === 'settings') {
+            debouncedSubmit(safeData);
+        }
+        // userInteractionRef.current = true;
+    }, [panelTitle, debouncedSubmit]);
 
     const handleSelectionChange = (event: SelectChangeEvent<string>) => {
         setSelectedExtension(panelTitle, event.target.value || null);
@@ -137,17 +165,20 @@ const SecondaryPanel = ({ panelTitle }: SecondaryPanelProps) => {
 
                 {currentSchema && (
                     <>
-                        <Button
-                            variant="contained"
-                            startIcon={<SaveIcon />}
-                            onClick={handleSubmit}
-                            disabled={isSubmitting || isLoadingData}
-                            fullWidth
-                            color="primary"
-                            sx={{ mb: 2 }}
-                        >
-                            {isSubmitting ? 'Running...' : 'Run Extension'}
-                        </Button>
+                        {/* Only show Run Extension button for non-settings categories */}
+                        {panelTitle !== 'settings' && (
+                            <Button
+                                variant="contained"
+                                startIcon={<SaveIcon />}
+                                onClick={handleSubmit}
+                                disabled={isSubmitting || isLoadingData}
+                                fullWidth
+                                color="primary"
+                                sx={{ mb: 2 }}
+                            >
+                                {isSubmitting ? 'Running...' : 'Run Extension'}
+                            </Button>
+                        )}
 
                         {isLoadingData ? (
                             <CircularProgress />
