@@ -30,7 +30,7 @@ def server(tmp_path) -> t.Generator[str, None, None]:
     with open(server_log, "w") as stdout_f, open(server_err, "w") as stderr_f:
         proc = subprocess.Popen(
             [
-                "zndraw-server",
+                "zndraw",
                 "--port",
                 str(port),
                 "--no-celery",

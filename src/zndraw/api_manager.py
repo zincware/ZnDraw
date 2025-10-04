@@ -273,3 +273,39 @@ class APIManager:
             return None
         response.raise_for_status()
         return response.json()
+
+    def add_figure(self, key: str, figure: dict) -> None:
+        response = requests.post(
+            f"{self.url}/api/rooms/{self.room}/figures",
+            json={"key": key, "figure": figure},
+        )
+        response.raise_for_status()
+
+    def delete_figure(self, key: str) -> None:
+        response = requests.delete(
+            f"{self.url}/api/rooms/{self.room}/figures/{key}",
+        )
+        response_data = response.json()
+        if response.status_code != 200:
+            error = response_data.get("error", None)
+            error_type = response_data.get("type", None)
+            if error_type == "KeyError":
+                raise KeyError(error)
+
+        response.raise_for_status()
+
+    def get_figure(self, key: str) -> dict | None:
+        response = requests.get(
+            f"{self.url}/api/rooms/{self.room}/figures/{key}",
+        )
+        if response.status_code == 404:
+            return None
+        response.raise_for_status()
+        return response.json().get("figure", None)
+    
+    def list_figures(self) -> list[str]:
+        response = requests.get(
+            f"{self.url}/api/rooms/{self.room}/figures",
+        )
+        response.raise_for_status()
+        return response.json().get("figures", [])

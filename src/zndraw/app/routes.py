@@ -2071,6 +2071,61 @@ def list_geometries(room_id: str):
     result = {key: json.loads(value) for key, value in all_data.items()}
     return result, 200
 
+ #-------------#
+ ### FIGURES ###
+ #-------------#
+
+@main.route("/api/rooms/<string:room_id>/figures", methods=["POST"])
+def create_figure(room_id: str):
+    data = request.get_json() or {}
+    key = data.get("key")
+    figure = data.get("figure")
+
+    if not key or not figure:
+        return {"error": "Both 'key' and 'figure' are required", "type": "ValueError"}, 400
+    
+    # store in hash
+    r = current_app.extensions["redis"]
+    r.hset(f"room:{room_id}:figures", key, json.dumps(figure))
+    socketio.emit(
+        SocketEvents.INVALIDATE_FIGURE,
+        {
+            "key": key,
+        },
+        to=f"room:{room_id}",
+    )
+    return {"status": "success"}, 200
+
+@main.route("/api/rooms/<string:room_id>/figures/<string:key>", methods=["GET"])
+def get_figure(room_id: str, key: str):
+    r = current_app.extensions["redis"]
+    figure_data = r.hget(f"room:{room_id}:figures", key)
+    if not figure_data:
+        return {"error": f"Figure with key '{key}' not found", "type": "KeyError"}, 404
+    figure = json.loads(figure_data)
+    return {"key": key, "figure": figure}, 200
+
+@main.route("/api/rooms/<string:room_id>/figures/<string:key>", methods=["DELETE"])
+def delete_figure(room_id: str, key: str):
+    r = current_app.extensions["redis"]
+    response = r.hdel(f"room:{room_id}:figures", key)
+    if response == 0:
+        return {"error": f"Figure with key '{key}' does not exist", "type": "KeyError"}, 404
+    socketio.emit(
+        SocketEvents.INVALIDATE_FIGURE,
+        {
+            "key": key,
+        },
+        to=f"room:{room_id}",
+    )
+    return {"status": "success"}, 200
+
+@main.route("/api/rooms/<string:room_id>/figures", methods=["GET"])
+def list_figures(room_id: str):
+    r = current_app.extensions["redis"]
+    all_keys = r.hkeys(f"room:{room_id}:figures")
+    return {"figures": list(all_keys)}, 200
+
 
 def _transition_worker_to_idle(
     redis_client,

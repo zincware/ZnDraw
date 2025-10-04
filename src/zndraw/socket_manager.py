@@ -121,6 +121,10 @@ class SocketManager:
             if response is not None:
                 self.zndraw._geometries = response
 
+    def _on_figure_invalidate(self, data):
+        if key := data.get("key"):
+            self.zndraw._figures.pop(key, None)
+
     def _on_queue_update(self, data: dict):
         print(f"Queue update received: {data}")
         if not self.zndraw.auto_pickup_jobs:
