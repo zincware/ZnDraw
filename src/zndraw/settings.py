@@ -1,8 +1,6 @@
 import enum
 import typing as t
 
-import ase
-import numpy as np
 from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, field_validator
 from pydantic.json_schema import SkipJsonSchema
 
@@ -49,6 +47,7 @@ class CameraEnum(str, enum.Enum):
     PerspectiveCamera = "PerspectiveCamera"
     OrthographicCamera = "OrthographicCamera"
 
+
 class EnvironmentPreset(str, enum.Enum):
     none = "none"
     apartment = "apartment"
@@ -65,31 +64,67 @@ class EnvironmentPreset(str, enum.Enum):
 
 class Representation(SettingsBase):
     """Controls the visual style of atoms and bonds."""
-    particle_scale: float = Field(1.0, ge=0.1, le=5, description="Atom radius scaling factor")
+
+    particle_scale: float = Field(
+        1.0, ge=0.1, le=5, description="Atom radius scaling factor"
+    )
     show_bonds: bool = Field(True, description="Render bonds between atoms")
-    bond_size: float = Field(1.0, ge=0.1, le=5, description="Bond radius scaling factor")
-    material: Material = Field(Material.MeshStandardMaterial, description="Atom and bond material")
-    particle_resolution: int = Field(12, ge=2, le=32, description="Sphere resolution for atoms")
-    bond_resolution: int = Field(3, ge=2, le=10, description="Cylinder resolution for bonds")
+    bond_size: float = Field(
+        1.0, ge=0.1, le=5, description="Bond radius scaling factor"
+    )
+    material: Material = Field(
+        Material.MeshStandardMaterial, description="Atom and bond material"
+    )
+    particle_resolution: int = Field(
+        12, ge=2, le=32, description="Sphere resolution for atoms"
+    )
+    bond_resolution: int = Field(
+        3, ge=2, le=10, description="Cylinder resolution for bonds"
+    )
     # Future
+
 
 class Scene(SettingsBase):
     """Controls the background, lighting, and environment."""
+
     background_color: str = Field("#ffffff", description="Scene background color")
-    show_simulation_box: bool = Field(True, description="Show the periodic cell boundary")
+    show_simulation_box: bool = Field(
+        True, description="Show the periodic cell boundary"
+    )
     show_floor: bool = Field(False, description="Display a reflective grid floor")
     environment: EnvironmentPreset = Field(
-        EnvironmentPreset.studio, 
-        description="HDR environment for reflections and lighting"
+        EnvironmentPreset.studio,
+        description="HDR environment for reflections and lighting",
     )
+
 
 class StudioLighting(SettingsBase):
     """Controls for the neutral studio lighting setup."""
-    background_color: str = Field("#FFFFFF", description="Neutral background color of the scene")
-    key_light_intensity: float = Field(1.1, ge=0.0, le=3.0, description="Intensity of the main light attached to the camera")
-    fill_light_intensity: float = Field(0.3, ge=0.0, le=3.0, description="Intensity of the soft global light that lifts shadows")
-    rim_light_intensity: float = Field(0.4, ge=0.0, le=5.0, description="Intensity of the back light that creates highlights")
-    contact_shadow: bool = Field(False, description="Show contact shadow below the model")
+
+    background_color: str = Field(
+        "#FFFFFF", description="Neutral background color of the scene"
+    )
+    key_light_intensity: float = Field(
+        1.1,
+        ge=0.0,
+        le=3.0,
+        description="Intensity of the main light attached to the camera",
+    )
+    fill_light_intensity: float = Field(
+        0.3,
+        ge=0.0,
+        le=3.0,
+        description="Intensity of the soft global light that lifts shadows",
+    )
+    rim_light_intensity: float = Field(
+        0.4,
+        ge=0.0,
+        le=5.0,
+        description="Intensity of the back light that creates highlights",
+    )
+    contact_shadow: bool = Field(
+        False, description="Show contact shadow below the model"
+    )
 
     @classmethod
     def model_json_schema(cls, *args, **kwargs) -> dict[str, t.Any]:
@@ -99,54 +134,84 @@ class StudioLighting(SettingsBase):
         schema["properties"]["key_light_intensity"]["step"] = 0.1
         return schema
 
+
 class Playback(SettingsBase):
     """Controls for trajectory animation."""
+
     animation_loop: bool = Field(False, description="Loop animation when it ends")
-    playback_speed: float = Field(1.0, ge=0.1, le=10.0, description="Animation speed multiplier")
+    playback_speed: float = Field(
+        1.0, ge=0.1, le=10.0, description="Animation speed multiplier"
+    )
     # This was 'frame_update', which is a bit ambiguous. Renaming for clarity.
-    sync_with_updates: bool = Field(True, description="Automatically jump to newly added frames")
+    sync_with_updates: bool = Field(
+        True, description="Automatically jump to newly added frames"
+    )
+
 
 class Camera(SettingsBase):
     """Defines the camera projection and user interaction controls."""
+
     camera_type: CameraEnum = Field(
-        CameraEnum.PerspectiveCamera, 
-        alias="camera", 
-        description="Camera projection type"
+        CameraEnum.PerspectiveCamera,
+        alias="camera",
+        description="Camera projection type",
     )
-    controls: Controls = Field(Controls.OrbitControls, description="Mouse interaction mode")
-    near_plane: float = Field(0.1, ge=0, le=100, description="Camera near rendering plane")
-    far_plane: float = Field(300, ge=1, le=1000, description="Camera far rendering plane")
-    show_crosshair: bool = Field(False, description="Show a crosshair at the camera's focal point")
+    controls: Controls = Field(
+        Controls.OrbitControls, description="Mouse interaction mode"
+    )
+    near_plane: float = Field(
+        0.1, ge=0, le=100, description="Camera near rendering plane"
+    )
+    far_plane: float = Field(
+        300, ge=1, le=1000, description="Camera far rendering plane"
+    )
+    show_crosshair: bool = Field(
+        False, description="Show a crosshair at the camera's focal point"
+    )
     # This is a collaboration feature, which could even be in its own category if you add more.
     synchronize_view: bool = Field(
-        True, 
-        description="Synchronize camera with other users in the room"
+        True, description="Synchronize camera with other users in the room"
     )
 
 
 class PathTracerSettings(SettingsBase):
     """Settings for the experimental path tracer. Overrides standard materials."""
+
     enabled: bool = False
     metalness: float = Field(0.7, ge=0.0, le=1.0, description="Global metalness")
     roughness: float = Field(0.2, ge=0.0, le=1.0, description="Global roughness")
     clearcoat: float = Field(0.0, ge=0.0, le=1.0, description="Global clearcoat")
-    clearcoatRoughness: float = Field(0.0, ge=0.0, le=1.0, description="Global clearcoat roughness")
+    clearcoatRoughness: float = Field(
+        0.0, ge=0.0, le=1.0, description="Global clearcoat roughness"
+    )
 
 
 class Rendering(SettingsBase):
     """Controls for rendering quality and visual effects."""
+
     max_fps: int = Field(30, ge=1, le=120, description="Maximum frames per second")
-    antialiasing: bool = Field(True, description="Enable multisample anti-aliasing (MSAA)")
-    ambient_occlusion: bool = Field(False, description="Enable Screen-Space Ambient Occlusion (SSAO)")
+    antialiasing: bool = Field(
+        True, description="Enable multisample anti-aliasing (MSAA)"
+    )
+    ambient_occlusion: bool = Field(
+        False, description="Enable Screen-Space Ambient Occlusion (SSAO)"
+    )
     shadows: bool = Field(False, description="Enable dynamic shadows")
     path_tracer: PathTracerSettings = PathTracerSettings()
 
 
 class Interaction(SettingsBase):
     """Controls for selection, hover effects, and measurements."""
-    selection_color: str = Field("#ffa500", description="Highlight color for selected atoms")
-    selection_opacity: float = Field(0.5, ge=0.0, le=1.0, description="Opacity of non-selected atoms")
-    hover_opacity: float = Field(0.8, ge=0.0, le=1.0, description="Opacity of non-hovered atoms")
+
+    selection_color: str = Field(
+        "#ffa500", description="Highlight color for selected atoms"
+    )
+    selection_opacity: float = Field(
+        0.5, ge=0.0, le=1.0, description="Opacity of non-selected atoms"
+    )
+    hover_opacity: float = Field(
+        0.8, ge=0.0, le=1.0, description="Opacity of non-hovered atoms"
+    )
 
 
 class VectorDisplay(SettingsBase):
@@ -173,6 +238,7 @@ class VectorDisplay(SettingsBase):
         description="Default HSL colormap for vector fields (blue to red)",
     )
 
+
 settings = {
     "camera": Camera,
     "representation": Representation,
@@ -194,7 +260,9 @@ class RoomConfig(SettingsBase):
     camera: Camera = Camera()
     rendering: Rendering = Rendering()
     interaction: Interaction = Interaction()
-    vector_display: VectorDisplay = VectorDisplay() # Or nest under a general DataOverlays model
+    vector_display: VectorDisplay = (
+        VectorDisplay()
+    )  # Or nest under a general DataOverlays model
     studio_lighting: StudioLighting = StudioLighting()
 
 

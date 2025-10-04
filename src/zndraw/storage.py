@@ -10,7 +10,7 @@ from typing_extensions import deprecated
 
 def _convert_numpy_types(obj):
     """Convert numpy scalar types to native Python types for JSON serialization.
-    
+
     This function recursively converts numpy scalars (int64, float64, bool_, etc.)
     to their Python equivalents, making them JSON-serializable. Numpy arrays are
     left unchanged as they are handled separately by the storage system.
@@ -38,20 +38,20 @@ def _split_key(key: str) -> list[str]:
     current = []
     i = 0
     while i < len(key):
-        if key[i] == '\\' and i + 1 < len(key) and key[i + 1] == '.':
+        if key[i] == "\\" and i + 1 < len(key) and key[i + 1] == ".":
             # Escaped dot - include it as part of the current segment
-            current.append('\\.')
+            current.append("\\.")
             i += 2
-        elif key[i] == '.':
+        elif key[i] == ".":
             # Unescaped dot - this is a separator
-            parts.append(''.join(current))
+            parts.append("".join(current))
             current = []
             i += 1
         else:
             current.append(key[i])
             i += 1
     # Always append the final segment, even if empty
-    parts.append(''.join(current))
+    parts.append("".join(current))
     return parts
 
 
@@ -102,9 +102,9 @@ def decode_data(data: dict) -> dict:
             and "shape" in value
             and "dtype" in value
         ):
-            decoded_value = np.frombuffer(
-                value["data"], dtype=value["dtype"]
-            ).reshape(value["shape"])
+            decoded_value = np.frombuffer(value["data"], dtype=value["dtype"]).reshape(
+                value["shape"]
+            )
         else:
             decoded_value = value
 

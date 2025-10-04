@@ -5,13 +5,12 @@ import socket
 import subprocess
 import time
 import typing as t
-from pathlib import Path
 
 import ase.collections
+import ase.io
 import eventlet  # noqa - eventlet must be installed for flask-socketio to start a production server
 import pytest
 import redis
-import ase.io
 import znh5md
 
 from zndraw.start_celery import run_celery_worker
@@ -100,12 +99,14 @@ def s22() -> list[ase.Atom]:
     """Return a list of 22 atoms."""
     return list(ase.collections.s22)
 
+
 @pytest.fixture
 def s22_xyz(s22, tmp_path) -> str:
     """Return the S22 trajectory as an Atoms object with multiple frames."""
     traj_path = tmp_path / "s22.xyz"
     ase.io.write(traj_path, s22)
     return traj_path.as_posix()
+
 
 @pytest.fixture
 def s22_h5(s22, tmp_path) -> str:

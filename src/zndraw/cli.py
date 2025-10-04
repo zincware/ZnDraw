@@ -21,13 +21,13 @@ def main(
     path: list[str] | None = typer.Argument(
         None, help="Path to file(s) to load on startup (optional)."
     ),
-    start: int|None = typer.Option(
+    start: int | None = typer.Option(
         None, help="Start frame (optional, only for certain file types)."
     ),
-    stop: int|None = typer.Option(
+    stop: int | None = typer.Option(
         None, help="Stop frame (optional, only for certain file types)."
     ),
-    step: int|None = typer.Option(
+    step: int | None = typer.Option(
         None, help="Step frame (optional, only for certain file types)."
     ),
     port: int = 5000,
@@ -38,7 +38,7 @@ def main(
     host: str = typer.Option(
         "localhost",
         envvar="ZNDRAW_SERVER_HOST",
-        help="Server hostname or IP address for the SERVER_URL (e.g., 'example.com' or '192.168.1.1')"
+        help="Server hostname or IP address for the SERVER_URL (e.g., 'example.com' or '192.168.1.1')",
     ),
 ):
     """
@@ -55,7 +55,14 @@ def main(
         for p in path:
             room = path_to_room(p)
             print(f"Loading file {p} into room {room}.")
-            read_file.delay(file=p, room=room, start=start, stop=stop, step=step, make_default=make_default)
+            read_file.delay(
+                file=p,
+                room=room,
+                start=start,
+                stop=stop,
+                step=step,
+                make_default=make_default,
+            )
             make_default = False
 
     if celery:

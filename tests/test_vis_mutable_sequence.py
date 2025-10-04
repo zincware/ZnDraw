@@ -1,4 +1,3 @@
-
 import pytest
 
 from zndraw.zndraw import ZnDraw

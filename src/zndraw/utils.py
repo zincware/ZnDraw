@@ -9,7 +9,7 @@ from ase.data.colors import jmol_colors
 
 def _convert_numpy_scalars(obj):
     """Convert numpy scalar types to native Python types.
-    
+
     This function recursively converts numpy scalars (int64, float64, bool_, etc.)
     to their Python equivalents. Numpy arrays are left unchanged.
     """

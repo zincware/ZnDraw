@@ -511,8 +511,7 @@ def test_encode_decode_calculator_with_selective_loading():
     # The key benefit: we can now selectively load only energy
     # without loading the large arrays (forces, stress)
     energy_only = {
-        k: v for k, v in encoded.items()
-        if k == "<SinglePointCalculator>.energy"
+        k: v for k, v in encoded.items() if k == "<SinglePointCalculator>.energy"
     }
 
     # Decode just the energy
@@ -526,13 +525,13 @@ def test_encode_decode_calculator_with_selective_loading():
 
 def test_numpy_scalar_types_in_storage():
     """Test that numpy scalar types (int64, float64, bool_) are properly handled in zarr storage.
-    
+
     This test verifies the fix for the 'can not serialize numpy.int64 object' error
     that occurred when reading files with ASE, which produces numpy scalar types.
     """
     root = zarr.group(store=MemoryStore())
     store = ZarrStorageSequence(root)
-    
+
     # Create data with numpy scalar types (as produced by ASE's atoms.todict())
     data_with_numpy_scalars = {
         "positions": np.array([[0.0, 0.0, 0.0], [1.0, 1.0, 1.0]]),
@@ -545,24 +544,24 @@ def test_numpy_scalar_types_in_storage():
             "nested": {
                 "value": np.int64(999),  # nested numpy scalar
                 "factor": np.float32(2.5),  # numpy scalar
-            }
+            },
         },
         "metadata": {
             "temperature": np.float64(300.0),  # numpy scalar in different dict
             "pressure": np.float32(1.0),  # numpy scalar
-        }
+        },
     }
-    
+
     # This should not raise TypeError about serializing numpy.int64
     store.append(data_with_numpy_scalars)
-    
+
     # Verify we can read it back
     retrieved = store[0]
-    
+
     # Verify arrays are preserved
     npt.assert_array_equal(retrieved["positions"], data_with_numpy_scalars["positions"])
     npt.assert_array_equal(retrieved["numbers"], data_with_numpy_scalars["numbers"])
-    
+
     # Verify scalar values are preserved (converted to Python types but values match)
     assert retrieved["info"]["energy"] == 123.456
     assert retrieved["info"]["step"] == 100
@@ -572,7 +571,7 @@ def test_numpy_scalar_types_in_storage():
     assert retrieved["info"]["nested"]["factor"] == pytest.approx(2.5)
     assert retrieved["metadata"]["temperature"] == 300.0
     assert retrieved["metadata"]["pressure"] == pytest.approx(1.0)
-    
+
     # Verify multiple frames work
     data2 = {
         "positions": np.array([[2.0, 2.0, 2.0]]),
@@ -580,10 +579,10 @@ def test_numpy_scalar_types_in_storage():
         "info": {
             "energy": np.float64(456.789),
             "step": np.int64(200),
-        }
+        },
     }
     store.append(data2)
-    
+
     assert len(store) == 2
     retrieved2 = store[1]
     assert retrieved2["info"]["energy"] == 456.789

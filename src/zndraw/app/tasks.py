@@ -5,14 +5,20 @@ import ase.io
 import requests
 import znh5md
 from celery import shared_task
-from tqdm import tqdm
-
 
 log = logging.getLogger(__name__)
 
 
 @shared_task
-def read_file(file: str, room: str, server_url: str = "http://localhost:5000", start: int | None = None, stop: int | None = None, step: int | None = None, make_default: bool = False) -> None:
+def read_file(
+    file: str,
+    room: str,
+    server_url: str = "http://localhost:5000",
+    start: int | None = None,
+    stop: int | None = None,
+    step: int | None = None,
+    make_default: bool = False,
+) -> None:
     from zndraw import ZnDraw
 
     file_path = Path(file)
