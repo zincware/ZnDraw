@@ -34,7 +34,7 @@ class DihedralAngle(Analysis):
         df = pd.DataFrame(
             {"step": list(range(len(atoms_lst))), "dihedral": dihedral_angles}
         )
-        fig = px.line(df, x="step", y="dihedral", render_mode="svg")
+        fig = px.line(df, x="step", y="dihedral")
 
         meta_step = np.arange(len(atoms_lst))
 

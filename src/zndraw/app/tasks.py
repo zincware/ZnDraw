@@ -4,9 +4,22 @@ from pathlib import Path
 import ase.io
 import requests
 import znh5md
+import itertools
+# Tqdm is removed from the generator as it won't render in a Celery worker.
+# from tqdm import tqdm 
+
 from celery import shared_task
 
 log = logging.getLogger(__name__)
+
+def batch_generator(iterable, size):
+    """Yields successive n-sized chunks from any iterable."""
+    it = iter(iterable)
+    while True:
+        chunk = list(itertools.islice(it, size))
+        if not chunk:
+            return
+        yield chunk
 
 
 @shared_task
@@ -18,6 +31,7 @@ def read_file(
     stop: int | None = None,
     step: int | None = None,
     make_default: bool = False,
+    batch_size: int = 10,
 ) -> None:
     from zndraw import ZnDraw
 
@@ -27,33 +41,62 @@ def read_file(
         vis.log(f"File {file} does not exist.")
         return
     vis.log(f"Reading file {file}...")
-    if file_path.suffix in [".h5", ".h5md"]:
-        io = znh5md.IO(file)
-        if step is not None and step < 0:
-            frames = io[:][start:stop:step]
+    try:
+        frame_iterator = None
+        if file_path.suffix in [".h5", ".h5md"]:
+            io = znh5md.IO(file_path)
+            
+            # --- FIX 1: Correctly handle None for islice ---
+            # Provide default integer values for start and step if they are None.
+            # stop can correctly be None.
+            _start = start if start is not None else 0
+            _step = step if step is not None else 1
+            frame_iterator = itertools.islice(io, _start, stop, _step)
         else:
-            frames = io[start:stop:step]
-        vis.extend(frames)
-    else:
-        try:
-            frames = ase.io.read(file, index=slice(start, stop, step))
-            if not isinstance(frames, list):
-                frames = [frames]
-            vis.extend(frames)
-        except Exception as e:
-            vis.log(f"Error reading file {file}: {e}")
-            return
+            # --- FIX 2: Correctly build the ASE index string ---
+            # Convert None to empty strings for the slice format.
+            start_str = str(start) if start is not None else ""
+            stop_str = str(stop) if stop is not None else ""
+            step_str = str(step) if step is not None else ""
+            index_str = f"{start_str}:{stop_str}:{step_str}"
+            
+            # Use ase.io.iread() with the correctly formatted index string.
+            frame_iterator = ase.io.iread(file_path, index=index_str)
+
+        # Now, the batching logic is the same for both file types
+        if frame_iterator:
+            # We can wrap the iterator in tqdm here if we want to see the total number of items
+            # but it is better to use Celery's progress reporting for background tasks.
+            total_items = None
+            if stop is not None and start is not None and step is not None:
+                total_items = (stop - start) // step
+            
+            # A simple log message is often better for background tasks.
+            log.info(f"Processing frames from {file_path} in batches of {batch_size}")
+            
+            for batch in batch_generator(frame_iterator, batch_size):
+                vis.extend(batch)
+
+    except Exception as e:
+        # Log the full exception for better debugging
+        log.exception(f"An error occurred while reading file {file_path}")
+        vis.log(f"Error reading file {file_path}: {e}")
+        return
 
     vis.log(f"Finished reading file {file}.")
     # promote to template
-    requests.post(
-        f"{server_url}/api/rooms/{room}/promote",
-        json={"name": file, "description": f"Data uploaded from file {file}"},
-    ).raise_for_status()
-    if make_default:
-        requests.put(
-            f"{server_url}/api/templates/default", json={"template_id": room}
+    try:
+        requests.post(
+            f"{server_url}/api/rooms/{room}/promote",
+            json={"name": file, "description": f"Data uploaded from file {file}"},
         ).raise_for_status()
+        if make_default:
+            requests.put(
+                f"{server_url}/api/templates/default", json={"template_id": room}
+            ).raise_for_status()
+    except requests.RequestException as e:
+        log.error(f"Failed to promote template for room {room}: {e}")
+        vis.log("Failed to promote data to template.")
 
     vis.disconnect()
 
@@ -157,18 +200,3 @@ def celery_job_worker(self, room: str, server_url: str = "http://localhost:5000"
         except Exception:
             pass
 
-
-@shared_task
-def start_celery_workers(
-    room: str, num_workers: int = 1, server_url: str = "http://localhost:5000"
-):
-    """Start multiple Celery workers for a room.
-
-    Args:
-        room: The room ID to poll for jobs
-        num_workers: Number of worker tasks to start
-        server_url: The ZnDraw server URL
-    """
-    for i in range(num_workers):
-        celery_job_worker.delay(room, server_url)
-        log.info(f"Started Celery worker {i + 1}/{num_workers} for room {room}")
