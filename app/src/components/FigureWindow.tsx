@@ -2,6 +2,7 @@ import { Rnd } from "react-rnd";
 import Plot from "react-plotly.js";
 import { useWindowManagerStore } from "../stores/windowManagerStore";
 import { useFigure, useFigureList } from "../hooks/useFigures";
+import { useAppStore } from "../store";
 
 // MUI Imports
 import {
@@ -37,9 +38,51 @@ function FigureWindow({ windowId }: FigureWindowProps) {
   } = useFigure(windowInstance?.figureKey, { enabled: !!windowInstance });
   const { data: allFiguresResponse } = useFigureList();
 
+  const { setCurrentFrame, setSelection, setFrameSelection } = useAppStore();
+
   if (!windowInstance) {
     return null;
   }
+
+  const onPlotClick = ({ points }: { points: any[] }) => {
+    if (!points || points.length === 0) {
+      return;
+    }
+    if (points[0]?.customdata && points[0].customdata[0] != null) {
+      setCurrentFrame(points[0].customdata[0]);
+    }
+    if (points[0]?.customdata && points[0].customdata[1] != null) {
+      setSelection([points[0].customdata[1]]);
+    }
+	};
+
+  const onPlotSelected = (event: any) => {
+		if (!event || !event.points) {
+			return;
+		}
+		if (event.points.length === 0) {
+			// This is triggered once the plot is re-rendered. We want to keep the selection here.
+			return;
+		}
+		const selectedFrames = event.points.map((point: any) =>
+			point.customdata ? point.customdata[0] : point.pointIndex,
+		);
+		// for all points.customdata[0] == step collect the points.customdata[1] and set selectedIds if customdata[1] is available
+		const selectedIds = new Set<number>(
+			event.points
+				.filter((point: any) => point.customdata?.[1])
+				.map((point: any) => point.customdata[1]),
+		);
+		if (selectedIds.size > 0) {
+			setSelection(Array.from(selectedIds));
+		}
+
+		setFrameSelection(selectedFrames);
+	};
+
+  const onPlotDeselect = () => {
+		setFrameSelection([]);
+	};
 
   const handleAutocompleteChange = (
     event: React.SyntheticEvent,
@@ -91,6 +134,9 @@ function FigureWindow({ windowId }: FigureWindowProps) {
               layout={{ ...plotlyJson.layout, autosize: true }}
               useResizeHandler={true}
               style={{ width: "100%", height: "100%" }}
+              onClick={onPlotClick}
+              onSelected={onPlotSelected}
+              onDeselect={onPlotDeselect}
             />
           );
         } catch (e) {
