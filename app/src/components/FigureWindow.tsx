@@ -27,6 +27,7 @@ function FigureWindow({ windowId }: FigureWindowProps) {
     bringToFront, 
     changeFigureInWindow 
   } = useWindowManagerStore();
+  
   const { 
     data: figureResponse, 
     isLoading, 
@@ -80,7 +81,8 @@ function FigureWindow({ windowId }: FigureWindowProps) {
       minWidth={350}
       minHeight={300}
       style={{ zIndex: windowInstance.zIndex }}
-      dragHandleClassName="window-header"
+      // Use the same class name as the chat for consistency
+      dragHandleClassName="drag-handle"
       onDragStart={() => bringToFront(windowId)}
       onDragStop={(_, d) => { updateWindowState(windowId, { x: d.x, y: d.y }); }}
       onResizeStop={(_, __, ref, ___, position) => {
@@ -92,64 +94,57 @@ function FigureWindow({ windowId }: FigureWindowProps) {
       }}
       bounds=".drag-boundary-container"
     >
+      {/* --- STYLE CHANGE: Elevation and layout match ChatWindow --- */}
       <Paper 
-        elevation={8}
+        elevation={4}
         sx={{
             width: '100%',
             height: '100%',
             display: 'flex',
             flexDirection: 'column',
             overflow: 'hidden',
-            border: '1px solid rgba(0,0,0,0.2)'
         }}
       >
         {/* Header / Title Bar */}
         <Box
-          className="window-header"
+          // Use the same class name as the chat for consistency
+          className="drag-handle"
           onMouseDown={() => bringToFront(windowId)}
+          // --- STYLE CHANGE: Header styles now match ChatWindow ---
           sx={{
+            p: 2,
             display: 'flex',
             alignItems: 'center',
-            gap: 2,
-            bgcolor: 'primary.main',
-            color: 'primary.contrastText',
-            py: 0.5,
-            px: 2,
-            cursor: 'grab',
+            justifyContent: 'space-between',
+            borderBottom: 1,
+            borderColor: 'divider',
+            cursor: 'move',
           }}
         >
-          {/* --- FIXES APPLIED HERE --- */}
+          {/* We now use a flex layout with space-between like the chat window */}
           <Autocomplete
             options={allFiguresResponse?.figures || []}
             value={windowInstance.figureKey}
             onChange={handleAutocompleteChange}
-            fullWidth
             disableClearable
             size="small"
-            // FIX 1: This is the most important change. It stops the click from
-            // starting a drag action on the window header.
             onMouseDown={(event) => event.stopPropagation()}
-            // FIX 2: This renders the dropdown list within the Rnd component,
-            // preventing z-index and positioning issues.
             disablePortal
+            // --- STYLE CHANGE: Autocomplete now has a larger flex footprint ---
+            sx={{ flexGrow: 1, minWidth: 150, mr: 2 }}
             renderInput={(params) => (
               <TextField
                 {...params}
                 label="Figure"
-                variant="standard"
-                // Simplified styling for better readability and performance
-                sx={{
-                  '& .MuiInput-underline:before': { borderBottomColor: 'rgba(255, 255, 255, 0.7)' },
-                  '& .MuiInputBase-input': { color: 'primary.contrastText' },
-                  '& .MuiInputLabel-root': { color: 'rgba(255, 255, 255, 0.7)' },
-                  '& .MuiSvgIcon-root': { color: 'primary.contrastText' }
-                }}
+                // --- STYLE CHANGE: Use outlined variant for a cleaner look ---
+                variant="outlined"
+                size="small"
               />
             )}
           />
           
-          <IconButton onClick={() => closeWindow(windowId)} size="small" color="inherit">
-            <CloseIcon fontSize="small" />
+          <IconButton onClick={() => closeWindow(windowId)} size="small">
+            <CloseIcon />
           </IconButton>
         </Box>
 
@@ -160,7 +155,7 @@ function FigureWindow({ windowId }: FigureWindowProps) {
             p: 1,
             overflow: 'auto',
             position: 'relative',
-            backgroundColor: '#fff'
+            backgroundColor: 'background.paper' // Use theme background color
           }}
         >
           {renderContent()}
