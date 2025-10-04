@@ -9,11 +9,8 @@ import { useColorScheme } from '@mui/material/styles';
 // Import our new, self-contained components
 import { SimulationCell } from './three/SimulationCell';
 import Sphere from './three/Particles';
+import Arrow from './three/Arrow';
 
-const componentMap = {
-  Sphere: Sphere,
-  // Box: Box,
-};
 
 // A small helper component to keep a light attached to the camera
 function CameraAttachedLight({ intensity = 1.0 }) {
@@ -63,35 +60,38 @@ function MyScene() {
         {/* Render our clean, refactored components */}
         {/* <Sphere /> */}
         {Object.entries(geometries).map(([name, config]) => {
-        // Look up the component based on its 'type' string
-        const Component = componentMap[config.type];
+          if (config.type === 'Sphere') {
+            return (
+              <Sphere
+                key={name} // React requires a unique key for list items
+                positionKey={config.data.position}
+                colorKey={config.data.color}
+                radiusKey={config.data.radius}
+              />
+            );
+          } else if (config.type === 'Arrow') {
+            return (
+              <Arrow
+                key={name}
+                start={config.data.start}
+                direction={config.data.direction}
+                color={config.data.color}
+                radius={config.data.radius}
+                scale={config.data.scale}
+              />
+            );
+          } else {
+            console.warn(`Unhandled geometry type: ${config.type}`);
+            return null;
+          }
 
-        // If the type doesn't match any component, render nothing and warn.
-        if (!Component) {
-          console.warn(`No component found for geometry type: ${config.type}`);
+          // You could add other types here
+          // if (config.type === 'Box') {
+          //   return <Box key={name} /* ...box props... */ />;
+          // }
+
           return null;
-        }
-        
-        // This is a robust way to handle different prop mappings if needed.
-        // For now, we assume a component of type 'Sphere' needs these specific props.
-        if (config.type === 'Sphere') {
-          return (
-            <Sphere
-              key={name} // React requires a unique key for list items
-              positionKey={config.data.position}
-              colorKey={config.data.color}
-              radiusKey={config.data.radius}
-            />
-          );
-        }
-
-        // You could add other types here
-        // if (config.type === 'Box') {
-        //   return <Box key={name} /* ...box props... */ />;
-        // }
-
-        return null;
-      })}
+        })}
         <SimulationCell />
 
         {showContactShadow &&

@@ -1,5 +1,6 @@
 from zndraw.geometries.sphere import Sphere
+from zndraw.geometries.arrow import Arrow
 
-geometries = {"Sphere": Sphere}
+geometries = {"Sphere": Sphere, "Arrow": Arrow}
 
-__all__ = ["Sphere", "geometries"]
+__all__ = ["Sphere", "Arrow", "geometries"]
