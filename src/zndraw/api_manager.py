@@ -236,6 +236,19 @@ class APIManager:
             f"{self.url}/api/rooms/{self.room}/extensions/{category}/{name}/submit",
             json={"data": data, "userId": user_id},
         )
+        if response.status_code != 200:
+            error_data = response.json()
+            error_type = error_data.get("type", "")
+            error_msg = error_data.get("error", response.text)
+
+            if error_type == "KeyError":
+                raise KeyError(error_msg)
+            elif error_type == "ValueError":
+                raise ValueError(error_msg)
+            elif error_type == "TypeError":
+                raise TypeError(error_msg)
+            else:
+                raise RuntimeError(f"Error running extension: {error_msg}")
         response.raise_for_status()
         return response.json()
 

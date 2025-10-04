@@ -1080,6 +1080,7 @@ def get_room_schema(room_id: str, category: str):
     """
     from zndraw.extensions.modifiers import modifiers
     from zndraw.extensions.selections import selections
+    from zndraw.extensions.analysis import analysis
     from zndraw.settings import settings
 
     # Map category strings to the corresponding imported objects
@@ -1087,6 +1088,7 @@ def get_room_schema(room_id: str, category: str):
         "selections": selections,
         "modifiers": modifiers,
         "settings": settings,
+        "analysis": analysis,
     }
 
     if category not in category_map:
@@ -1162,11 +1164,13 @@ def log_room_extension(room_id: str, category: str, extension: str):
     # Check if this is a server-side (Celery) extension
     from zndraw.extensions.modifiers import modifiers
     from zndraw.extensions.selections import selections
+    from zndraw.extensions.analysis import analysis
     from zndraw.settings import settings
 
     category_map = {
         "selections": selections,
         "modifiers": modifiers,
+        "analysis": analysis,
         "settings": settings,
     }
 
@@ -1465,6 +1469,7 @@ def register_extension(room_id: str):
     redis_client = current_app.extensions["redis"]
 
     from zndraw.extensions.modifiers import modifiers
+    from zndraw.extensions.analysis import analysis
     from zndraw.extensions.selections import selections
     from zndraw.settings import settings
 
@@ -1472,6 +1477,7 @@ def register_extension(room_id: str):
         "selections": selections,
         "modifiers": modifiers,
         "settings": settings,
+        "analysis": analysis,
     }
 
     if category in category_map and name in category_map[category]:
@@ -1562,7 +1568,7 @@ def get_worker_state(worker_id: str):
     current_job_id = None
     is_idle = True
 
-    for category in ["modifiers", "selections"]:
+    for category in ["modifiers", "selections", "analysis"]:
         # Get all extensions this worker might be registered for
         # We need to check all extensions to find if the worker is in any progressing set
         # First, get the worker's registered extensions
@@ -1628,15 +1634,17 @@ def get_next_job(room_id: str):
     is_celery_worker = worker_id.startswith("celery")
 
     # Check both modifiers and selections categories for queued jobs
-    for category in ["modifiers", "selections"]:
+    for category in ["modifiers", "selections", "analysis"]:
         if is_celery_worker:
             # For celery workers, check all extensions for celery jobs
             from zndraw.extensions.modifiers import modifiers
             from zndraw.extensions.selections import selections
+            from zndraw.extensions.analysis import analysis
 
             category_map = {
                 "modifiers": modifiers,
                 "selections": selections,
+                "analysis": analysis,
             }
 
             if category in category_map:

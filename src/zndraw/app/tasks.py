@@ -73,6 +73,7 @@ def celery_job_worker(self, room: str, server_url: str = "http://localhost:5000"
     """
     from zndraw.extensions.modifiers import modifiers
     from zndraw.extensions.selections import selections
+    from zndraw.extensions.analysis import analysis
     from zndraw.settings import settings
     from zndraw.zndraw import ZnDraw
 
@@ -82,6 +83,7 @@ def celery_job_worker(self, room: str, server_url: str = "http://localhost:5000"
         "selections": selections,
         "modifiers": modifiers,
         "settings": settings,
+        "analysis": analysis,
     }
     log.info(f"Celery worker {worker_id} starting to poll for jobs in room {room}")
 

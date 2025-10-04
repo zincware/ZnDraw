@@ -10,7 +10,7 @@ if t.TYPE_CHECKING:
 class ExtensionType(str, enum.Enum):
     MODIFIER = "modifiers"
     SELECTION = "selections"
-    ANALYSIS = "analyses"
+    ANALYSIS = "analysis"
 
 
 class Extension(BaseModel):

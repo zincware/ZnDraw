@@ -6,16 +6,20 @@ import { useFormStore } from "../formStore";
 import SettingsIcon from "@mui/icons-material/Settings";
 import FilterCenterFocusIcon from "@mui/icons-material/FilterCenterFocus";
 import BuildIcon from "@mui/icons-material/Build";
+import AnalyticsIcon from '@mui/icons-material/Analytics';
+
 
 // Hardcode the navigation items
 const navItems = [
-  { name: "settings", icon: <SettingsIcon />, schemaType: "settings" },
+  { name: "settings", icon: <SettingsIcon />, schemaType: "settings", description: "Application settings" },
   {
     name: "selections",
     icon: <FilterCenterFocusIcon />,
     schemaType: "selections",
+    description: "Selection tools"
   },
-  { name: "modifiers", icon: <BuildIcon />, schemaType: "modifiers" },
+  { name: "modifiers", icon: <BuildIcon />, schemaType: "modifiers", description: "Modifier tools" },
+  { name: "analysis", icon: <AnalyticsIcon />, schemaType: "analysis", description: "Analysis tools" },
 ];
 
 const PRIMARY_DRAWER_WIDTH = 60;

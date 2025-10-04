@@ -170,7 +170,7 @@ def handle_disconnect():
 
     # Extension cleanup - use client_id if available, otherwise fall back to sid for backwards compatibility
     worker_id = client_id if client_id else sid
-    extension_categories = ["modifiers", "selections", "analyses"]
+    extension_categories = ["modifiers", "selections", "analysis"]
     log.info(
         f"Cleaning up extensions for worker_id={worker_id} in room '{room_name}'..."
     )

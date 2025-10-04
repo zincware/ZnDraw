@@ -123,7 +123,7 @@ export default function Sphere({
       mesh.setMatrixAt(i, matrix);
 
       if (selectionSet && selectionSet.has(i)) {
-        color.setRGB(1.0, 0.75, 0.8); // Pink color
+        color.setRGB(1, 0, 0); // Highlight selected particles in red
       } else {
         color.setRGB(colors[i3], colors[i3 + 1], colors[i3 + 2]);
       }

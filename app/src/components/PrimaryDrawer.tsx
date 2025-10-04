@@ -8,9 +8,13 @@ import {
   ListItemIcon,
 } from "@mui/material";
 
+import Tooltip from "@mui/material/Tooltip";
+
 interface NavItem {
   name: string;
   icon: React.ReactElement;
+  description?: string;
+  schemaType: string;
 }
 
 interface PrimaryDrawerProps {
@@ -38,8 +42,9 @@ const PrimaryDrawer = ({
       <Toolbar />
       <Box sx={{ overflow: "auto" }}>
         <List>
-          {navItems.map((item) => (
+            {navItems.map((item) => (
             <ListItem key={item.name} disablePadding>
+              <Tooltip title={item.description} placement="right">
               <ListItemButton
                 onClick={() => onItemClick(item.name)}
                 selected={selectedItem === item.name}
@@ -47,8 +52,9 @@ const PrimaryDrawer = ({
               >
                 <ListItemIcon sx={{ minWidth: 0 }}>{item.icon}</ListItemIcon>
               </ListItemButton>
+              </Tooltip>
             </ListItem>
-          ))}
+            ))}
         </List>
       </Box>
     </Drawer>
