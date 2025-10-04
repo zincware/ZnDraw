@@ -7,12 +7,32 @@ from ase.data import covalent_radii
 from ase.data.colors import jmol_colors
 
 
+def _convert_numpy_scalars(obj):
+    """Convert numpy scalar types to native Python types.
+    
+    This function recursively converts numpy scalars (int64, float64, bool_, etc.)
+    to their Python equivalents. Numpy arrays are left unchanged.
+    """
+    if isinstance(obj, np.generic):
+        # Use .item() to convert any numpy scalar to native Python type
+        return obj.item()
+    elif isinstance(obj, dict):
+        return {key: _convert_numpy_scalars(value) for key, value in obj.items()}
+    elif isinstance(obj, (list, tuple)):
+        return type(obj)(_convert_numpy_scalars(item) for item in obj)
+    else:
+        return obj
+
+
 def atoms_to_dict(atoms: ase.Atoms) -> dict:
     if not atoms.calc:
-        return atoms.todict()
-    results = atoms.todict()
-    results["<SinglePointCalculator>"] = atoms.calc.results
-    return results
+        result = atoms.todict()
+    else:
+        result = atoms.todict()
+        result["<SinglePointCalculator>"] = atoms.calc.results
+    # return result
+    # Convert any numpy scalars to Python native types to avoid JSON serialization errors
+    return _convert_numpy_scalars(result)
 
 
 def atoms_from_dict(d: dict) -> ase.Atoms:

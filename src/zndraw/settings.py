@@ -86,10 +86,10 @@ class Scene(SettingsBase):
 class StudioLighting(SettingsBase):
     """Controls for the neutral studio lighting setup."""
     background_color: str = Field("#FFFFFF", description="Neutral background color of the scene")
-    key_light_intensity: float = Field(1.2, ge=0.0, le=3.0, description="Intensity of the main light attached to the camera")
+    key_light_intensity: float = Field(1.1, ge=0.0, le=3.0, description="Intensity of the main light attached to the camera")
     fill_light_intensity: float = Field(0.3, ge=0.0, le=3.0, description="Intensity of the soft global light that lifts shadows")
-    rim_light_intensity: float = Field(1.5, ge=0.0, le=5.0, description="Intensity of the back light that creates highlights")
-    contact_shadow: bool = Field(True, description="Show contact shadow below the model")
+    rim_light_intensity: float = Field(0.4, ge=0.0, le=5.0, description="Intensity of the back light that creates highlights")
+    contact_shadow: bool = Field(False, description="Show contact shadow below the model")
 
     @classmethod
     def model_json_schema(cls, *args, **kwargs) -> dict[str, t.Any]:

@@ -8,6 +8,24 @@ import zarr.dtype
 from typing_extensions import deprecated
 
 
+def _convert_numpy_types(obj):
+    """Convert numpy scalar types to native Python types for JSON serialization.
+    
+    This function recursively converts numpy scalars (int64, float64, bool_, etc.)
+    to their Python equivalents, making them JSON-serializable. Numpy arrays are
+    left unchanged as they are handled separately by the storage system.
+    """
+    if isinstance(obj, np.generic):
+        # Use .item() to convert any numpy scalar to native Python type
+        return obj.item()
+    elif isinstance(obj, dict):
+        return {key: _convert_numpy_types(value) for key, value in obj.items()}
+    elif isinstance(obj, (list, tuple)):
+        return [_convert_numpy_types(item) for item in obj]
+    else:
+        return obj
+
+
 def _split_key(key: str) -> list[str]:
     """Split a key by unescaped dots.
 
@@ -233,7 +251,9 @@ def extend_zarr(root: zarr.Group, data: list[dict]):
                 )
             elif isinstance(value, dict):
                 try:
-                    prepared_value = json.dumps(value)
+                    # Convert numpy types to native Python types before JSON serialization
+                    converted_value = _convert_numpy_types(value)
+                    prepared_value = json.dumps(converted_value)
                     item_type, dtype, shape_suffix, attrs = (
                         "json_array",
                         zarr.dtype.VariableLengthUTF8(),
@@ -243,7 +263,9 @@ def extend_zarr(root: zarr.Group, data: list[dict]):
                 except TypeError:
                     item_type = "group"
             else:
-                prepared_value = json.dumps(value)
+                # Convert numpy types to native Python types before JSON serialization
+                converted_value = _convert_numpy_types(value)
+                prepared_value = json.dumps(converted_value)
                 item_type, dtype, shape_suffix, attrs = (
                     "json_array",
                     zarr.dtype.VariableLengthUTF8(),
