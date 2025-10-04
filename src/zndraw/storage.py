@@ -26,96 +26,38 @@ def _convert_numpy_types(obj):
         return obj
 
 
-def _split_key(key: str) -> list[str]:
-    """Split a key by unescaped dots.
-
-    Dots escaped with backslash (\\.) are treated as part of the key name.
-    """
-    if not key:
-        return []
-
-    parts = []
-    current = []
-    i = 0
-    while i < len(key):
-        if key[i] == "\\" and i + 1 < len(key) and key[i + 1] == ".":
-            # Escaped dot - include it as part of the current segment
-            current.append("\\.")
-            i += 2
-        elif key[i] == ".":
-            # Unescaped dot - this is a separator
-            parts.append("".join(current))
-            current = []
-            i += 1
-        else:
-            current.append(key[i])
-            i += 1
-    # Always append the final segment, even if empty
-    parts.append("".join(current))
-    return parts
-
-
-def encode_data(data: dict, prefix: str = "") -> dict:
-    """Encode data with flattened keys using dot notation.
-
-    Nested dictionaries are flattened into keys like "parent.child.value".
-    Actual dots in key names are escaped with backslash (\\.).
-    """
+def encode_data(data: dict) -> dict:
     serialized = {}
     for key, value in data.items():
-        # Escape actual dots in keys
-        escaped_key = key.replace(".", r"\.")
-        # Build the full key path
-        full_key = f"{prefix}.{escaped_key}" if prefix else escaped_key
-
         if isinstance(value, np.ndarray):
-            serialized[full_key] = {
+            serialized[key] = {
                 "data": value.tobytes(),
                 "shape": value.shape,
                 "dtype": str(value.dtype),
             }
         elif isinstance(value, dict):
-            # Recursively encode nested dicts with flattened keys
-            serialized.update(encode_data(value, prefix=full_key))
+            serialized[key] = encode_data(value)
         else:
-            serialized[full_key] = value
+            serialized[key] = value
     return serialized
 
 
 def decode_data(data: dict) -> dict:
-    """Decode data with flattened keys back to nested structure.
-
-    Keys like "parent.child.value" are reconstructed into nested dicts.
-    Escaped dots (\\.) in keys are unescaped to actual dots.
-    """
     deserialized = {}
     for key, value in data.items():
-        # Split by unescaped dots
-        parts = _split_key(key)
-        # Unescape dots in each part
-        parts = [part.replace(r"\.", ".") for part in parts]
-
-        # Decode the value if it's an encoded array
         if (
             isinstance(value, dict)
             and "data" in value
             and "shape" in value
             and "dtype" in value
         ):
-            decoded_value = np.frombuffer(value["data"], dtype=value["dtype"]).reshape(
-                value["shape"]
-            )
+            deserialized[key] = np.frombuffer(
+                value["data"], dtype=value["dtype"]
+            ).reshape(value["shape"])
+        elif isinstance(value, dict):
+            deserialized[key] = decode_data(value)
         else:
-            decoded_value = value
-
-        # Build nested structure
-        current = deserialized
-        for part in parts[:-1]:
-            if part not in current:
-                current[part] = {}
-            current = current[part]
-        current[parts[-1]] = decoded_value
-
+            deserialized[key] = value
     return deserialized
 
 
