@@ -1,7 +1,7 @@
-import { useAppStore } from '../store';
-import { remarkFrameLink } from '../utils/remark-frame-link.js';
+import { useAppStore } from "../store";
+import { remarkFrameLink } from "../utils/remark-frame-link.js";
 
-import { useState, useRef, useEffect, memo } from 'react';
+import { useState, useRef, useEffect, memo } from "react";
 import {
   Box,
   TextField,
@@ -10,28 +10,32 @@ import {
   Paper,
   CircularProgress,
   Divider,
-} from '@mui/material';
-import SendIcon from '@mui/icons-material/Send';
-import CloseIcon from '@mui/icons-material/Close';
-import EditIcon from '@mui/icons-material/Edit';
-import CheckIcon from '@mui/icons-material/Check';
-import CancelIcon from '@mui/icons-material/Cancel';
-import ReactMarkdown from 'react-markdown';
-import { useParams } from 'react-router-dom';
-import { useChatMessages, useSendMessage, useEditMessage } from '../hooks/useChat';
-import type { ChatMessage } from '../types/chat';
-import { Rnd } from 'react-rnd';
-import TextareaAutosize from 'react-textarea-autosize';
-import { format } from 'date-fns';
-import remarkMath from 'remark-math';
-import rehypeKatex from 'rehype-katex';
-import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
-import { oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism';
-import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
-import { FrameReference } from './FrameReference';
-import { useColorScheme, useTheme } from '@mui/material/styles';
+} from "@mui/material";
+import SendIcon from "@mui/icons-material/Send";
+import CloseIcon from "@mui/icons-material/Close";
+import EditIcon from "@mui/icons-material/Edit";
+import CheckIcon from "@mui/icons-material/Check";
+import CancelIcon from "@mui/icons-material/Cancel";
+import ReactMarkdown from "react-markdown";
+import { useParams } from "react-router-dom";
+import {
+  useChatMessages,
+  useSendMessage,
+  useEditMessage,
+} from "../hooks/useChat";
+import type { ChatMessage } from "../types/chat";
+import { Rnd } from "react-rnd";
+import TextareaAutosize from "react-textarea-autosize";
+import { format } from "date-fns";
+import remarkMath from "remark-math";
+import rehypeKatex from "rehype-katex";
+import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
+import { oneLight } from "react-syntax-highlighter/dist/esm/styles/prism";
+import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism";
+import { FrameReference } from "./FrameReference";
+import { useColorScheme, useTheme } from "@mui/material/styles";
 
-import 'katex/dist/katex.min.css';
+import "katex/dist/katex.min.css";
 
 interface ChatWindowProps {
   open: boolean;
@@ -46,35 +50,34 @@ const MemoizedMarkdown = memo(ReactMarkdown);
 const ChatWindow = ({ open, onClose }: ChatWindowProps) => {
   const { setCurrentFrame } = useAppStore();
   const { roomId, userId } = useParams<{ roomId: string; userId: string }>();
-  const [messageInput, setMessageInput] = useState('');
+  const [messageInput, setMessageInput] = useState("");
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
-  const [editContent, setEditContent] = useState('');
+  const [editContent, setEditContent] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const { mode } = useColorScheme();
   const theme = useTheme();
 
-  const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } = useChatMessages(
-    roomId || '',
-    50
-  );
-  const sendMessage = useSendMessage(roomId || '');
-  const editMessage = useEditMessage(roomId || '');
+  const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } =
+    useChatMessages(roomId || "", 50);
+  const sendMessage = useSendMessage(roomId || "");
+  const editMessage = useEditMessage(roomId || "");
 
   useEffect(() => {
     if (open) {
-      document.body.style.overflow = 'hidden';
+      document.body.style.overflow = "hidden";
     } else {
-      document.body.style.overflow = 'unset';
+      document.body.style.overflow = "unset";
     }
     return () => {
-      document.body.style.overflow = 'unset';
+      document.body.style.overflow = "unset";
     };
   }, [open]);
 
   const scrollToBottom = () => {
     if (scrollContainerRef.current) {
-      scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
+      scrollContainerRef.current.scrollTop =
+        scrollContainerRef.current.scrollHeight;
     }
   };
 
@@ -96,9 +99,13 @@ const ChatWindow = ({ open, onClose }: ChatWindowProps) => {
 
   const handleWheel = (e: React.WheelEvent<HTMLDivElement>) => {
     if (scrollContainerRef.current) {
-      const { scrollTop, scrollHeight, clientHeight } = scrollContainerRef.current;
+      const { scrollTop, scrollHeight, clientHeight } =
+        scrollContainerRef.current;
       // If scrolling up at the top or scrolling down at the bottom, prevent bubbling
-      if ((e.deltaY < 0 && scrollTop === 0) || (e.deltaY > 0 && scrollTop + clientHeight >= scrollHeight - 1)) {
+      if (
+        (e.deltaY < 0 && scrollTop === 0) ||
+        (e.deltaY > 0 && scrollTop + clientHeight >= scrollHeight - 1)
+      ) {
         // Allow scroll if there's more content to load upwards
         if (e.deltaY < 0 && hasNextPage) {
           return;
@@ -113,9 +120,9 @@ const ChatWindow = ({ open, onClose }: ChatWindowProps) => {
     if (!messageInput.trim()) return;
     try {
       await sendMessage.mutateAsync(messageInput);
-      setMessageInput('');
+      setMessageInput("");
     } catch (error) {
-      console.error('Failed to send message:', error);
+      console.error("Failed to send message:", error);
     }
   };
 
@@ -132,18 +139,21 @@ const ChatWindow = ({ open, onClose }: ChatWindowProps) => {
         content: editContent,
       });
       setEditingMessageId(null);
-      setEditContent('');
+      setEditContent("");
     } catch (error) {
-      console.error('Failed to edit message:', error);
+      console.error("Failed to edit message:", error);
     }
   };
 
   const handleCancelEdit = () => {
     setEditingMessageId(null);
-    setEditContent('');
+    setEditContent("");
   };
 
-  const allMessages = data?.pages.flatMap((page) => page.messages).sort((a, b) => a.createdAt - b.createdAt) || [];
+  const allMessages =
+    data?.pages
+      .flatMap((page) => page.messages)
+      .sort((a, b) => a.createdAt - b.createdAt) || [];
 
   if (!open) {
     return null;
@@ -166,11 +176,11 @@ const ChatWindow = ({ open, onClose }: ChatWindowProps) => {
       <Paper
         elevation={4}
         sx={{
-          width: '100%',
-          height: '100%',
-          display: 'flex',
-          flexDirection: 'column',
-          overflow: 'hidden',
+          width: "100%",
+          height: "100%",
+          display: "flex",
+          flexDirection: "column",
+          overflow: "hidden",
         }}
       >
         {/* Header */}
@@ -178,12 +188,12 @@ const ChatWindow = ({ open, onClose }: ChatWindowProps) => {
           className="drag-handle"
           sx={{
             p: 1.4,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
             borderBottom: 1,
-            borderColor: 'divider',
-            cursor: 'move',
+            borderColor: "divider",
+            cursor: "move",
           }}
         >
           <Typography variant="h6">Chat</Typography>
@@ -199,20 +209,20 @@ const ChatWindow = ({ open, onClose }: ChatWindowProps) => {
           onWheel={handleWheel}
           sx={{
             flexGrow: 1,
-            overflowY: 'auto',
+            overflowY: "auto",
             p: 2,
-            display: 'flex',
-            flexDirection: 'column',
+            display: "flex",
+            flexDirection: "column",
             gap: 1,
           }}
         >
           {isLoading && (
-            <Box sx={{ display: 'flex', justifyContent: 'center', p: 2 }}>
+            <Box sx={{ display: "flex", justifyContent: "center", p: 2 }}>
               <CircularProgress size={24} />
             </Box>
           )}
           {isFetchingNextPage && (
-            <Box sx={{ display: 'flex', justifyContent: 'center', p: 1 }}>
+            <Box sx={{ display: "flex", justifyContent: "center", p: 1 }}>
               <CircularProgress size={20} />
             </Box>
           )}
@@ -227,29 +237,44 @@ const ChatWindow = ({ open, onClose }: ChatWindowProps) => {
                 sx={{
                   p: 1.5,
                   backgroundColor: isOwnMessage
-                    ? (mode === 'dark' ? 'primary.dark' : 'primary.light')
-                    : 'background.paper',
+                    ? mode === "dark"
+                      ? "primary.dark"
+                      : "primary.light"
+                    : "background.paper",
                   color: isOwnMessage
-                    ? (mode === 'dark' ? 'primary.contrastText' : 'text.primary')
-                    : 'text.primary',
-                  alignSelf: isOwnMessage ? 'flex-end' : 'flex-start',
-                  maxWidth: '80%',
+                    ? mode === "dark"
+                      ? "primary.contrastText"
+                      : "text.primary"
+                    : "text.primary",
+                  alignSelf: isOwnMessage ? "flex-end" : "flex-start",
+                  maxWidth: "80%",
                 }}
                 elevation={1}
               >
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
+                <Box
+                  sx={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    mb: 0.5,
+                  }}
+                >
                   <Typography variant="caption" color="text.secondary">
-                    {message.author.id} - {format(new Date(message.createdAt), 'HH:mm')}
+                    {message.author.id} -{" "}
+                    {format(new Date(message.createdAt), "HH:mm")}
                   </Typography>
                   {isOwnMessage && !isEditing && (
-                    <IconButton size="small" onClick={() => handleStartEdit(message)}>
+                    <IconButton
+                      size="small"
+                      onClick={() => handleStartEdit(message)}
+                    >
                       <EditIcon fontSize="small" />
                     </IconButton>
                   )}
                 </Box>
 
                 {isEditing ? (
-                  <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                  <Box sx={{ display: "flex", gap: 1, alignItems: "center" }}>
                     <TextField
                       fullWidth
                       size="small"
@@ -258,7 +283,11 @@ const ChatWindow = ({ open, onClose }: ChatWindowProps) => {
                       multiline
                       maxRows={4}
                     />
-                    <IconButton size="small" onClick={handleSaveEdit} color="primary">
+                    <IconButton
+                      size="small"
+                      onClick={handleSaveEdit}
+                      color="primary"
+                    >
                       <CheckIcon fontSize="small" />
                     </IconButton>
                     <IconButton size="small" onClick={handleCancelEdit}>
@@ -267,16 +296,18 @@ const ChatWindow = ({ open, onClose }: ChatWindowProps) => {
                   </Box>
                 ) : (
                   <>
-                    <Box sx={{ '& p': { margin: 0 }, wordBreak: 'break-word' }}>
+                    <Box sx={{ "& p": { margin: 0 }, wordBreak: "break-word" }}>
                       <MemoizedMarkdown
                         remarkPlugins={markdownPlugins}
                         rehypePlugins={htmlPlugins}
                         components={{
                           code({ node, className, children, ...props }) {
-                            const match = /language-(\w+)/.exec(className || "");
+                            const match = /language-(\w+)/.exec(
+                              className || "",
+                            );
                             return match ? (
                               <SyntaxHighlighter
-                                style={mode === 'dark' ? oneDark : oneLight}
+                                style={mode === "dark" ? oneDark : oneLight}
                                 language={match[1]}
                                 PreTag="div"
                                 {...props}
@@ -291,8 +322,9 @@ const ChatWindow = ({ open, onClose }: ChatWindowProps) => {
                           },
 
                           // 👇 map frameLink directly
-                          frameLink({ frame }) { // Destructure 'frame' directly from props
-                            if (typeof frame === 'number') {
+                          frameLink({ frame }) {
+                            // Destructure 'frame' directly from props
+                            if (typeof frame === "number") {
                               return <FrameReference frame={frame} />;
                             }
                             // Optional: return a fallback if frame is missing for some reason
@@ -313,7 +345,11 @@ const ChatWindow = ({ open, onClose }: ChatWindowProps) => {
                       </MemoizedMarkdown>
                     </Box>
                     {message.isEdited && (
-                      <Typography variant="caption" color="text.secondary" sx={{ fontStyle: 'italic', mt: 0.5 }}>
+                      <Typography
+                        variant="caption"
+                        color="text.secondary"
+                        sx={{ fontStyle: "italic", mt: 0.5 }}
+                      >
                         (edited)
                       </Typography>
                     )}
@@ -328,8 +364,8 @@ const ChatWindow = ({ open, onClose }: ChatWindowProps) => {
         <Divider />
 
         {/* Input Area */}
-        <Box sx={{ p: 2, backgroundColor: 'background.default' }}>
-          <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+        <Box sx={{ p: 2, backgroundColor: "background.default" }}>
+          <Box sx={{ display: "flex", gap: 1, alignItems: "center" }}>
             <TextareaAutosize
               minRows={1}
               maxRows={6}
@@ -337,21 +373,21 @@ const ChatWindow = ({ open, onClose }: ChatWindowProps) => {
               value={messageInput}
               onChange={(e) => setMessageInput(e.target.value)}
               onKeyPress={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
+                if (e.key === "Enter" && !e.shiftKey) {
                   e.preventDefault();
                   handleSendMessage();
                 }
               }}
               style={{
-                width: '100%',
-                resize: 'none',
-                padding: '8.5px 14px',
-                borderRadius: '4px',
+                width: "100%",
+                resize: "none",
+                padding: "8.5px 14px",
+                borderRadius: "4px",
                 border: `1px solid ${theme.palette.divider}`,
                 backgroundColor: theme.palette.background.paper,
                 color: theme.palette.text.primary,
-                fontFamily: 'inherit',
-                fontSize: 'inherit',
+                fontFamily: "inherit",
+                fontSize: "inherit",
               }}
             />
             <IconButton

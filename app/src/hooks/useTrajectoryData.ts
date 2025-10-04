@@ -1,28 +1,35 @@
-import { decode } from '@msgpack/msgpack';
+import { decode } from "@msgpack/msgpack";
 
 const numpyDtypeToTypedArray = {
-    'float32': Float32Array,
-    'float64': Float64Array,
-    'int8': Int8Array,
-    'int16': Int16Array,
-    'int32': Int32Array,
-    'uint8': Uint8Array,
-    'uint16': Uint16Array,
-    'uint32': Uint32Array,
+  float32: Float32Array,
+  float64: Float64Array,
+  int8: Int8Array,
+  int16: Int16Array,
+  int32: Int32Array,
+  uint8: Uint8Array,
+  uint16: Uint16Array,
+  uint32: Uint32Array,
 };
 
-
-const fetchFrameData = async (roomId: string, frameIndex: number, keys: string[], signal: AbortSignal) => {
+const fetchFrameData = async (
+  roomId: string,
+  frameIndex: number,
+  keys: string[],
+  signal: AbortSignal,
+) => {
   const params = new URLSearchParams();
-  params.append('indices', frameIndex.toString());
+  params.append("indices", frameIndex.toString());
   if (keys && keys.length > 0) {
-    params.append('keys', keys.join(','));
+    params.append("keys", keys.join(","));
   }
-  const response = await fetch(`/api/rooms/${roomId}/frames?${params.toString()}`, {
-    signal, // TanStack Query passes an AbortSignal automatically!
-    method: 'GET',
-    headers: { 'Content-Type': 'application/json' },
-  });
+  const response = await fetch(
+    `/api/rooms/${roomId}/frames?${params.toString()}`,
+    {
+      signal, // TanStack Query passes an AbortSignal automatically!
+      method: "GET",
+      headers: { "Content-Type": "application/json" },
+    },
+  );
 
   if (!response.ok) {
     console.error("Received error response from /api/frames:", response);
@@ -31,12 +38,15 @@ const fetchFrameData = async (roomId: string, frameIndex: number, keys: string[]
   return response.arrayBuffer();
 };
 
-export const getFrameDataOptions = (roomId: string, frameIndex: number, key: string) => {
-
+export const getFrameDataOptions = (
+  roomId: string,
+  frameIndex: number,
+  key: string,
+) => {
   return {
     // We are not calling useQuery here, but returning its options object
     // so that `useQueries` can use it.
-    queryKey: ['frame', roomId, frameIndex, key],
+    queryKey: ["frame", roomId, frameIndex, key],
     queryFn: ({ signal }) => fetchFrameData(roomId, frameIndex, [key], signal),
     staleTime: Infinity,
     gcTime: 1000 * 60 * 5,
@@ -45,13 +55,15 @@ export const getFrameDataOptions = (roomId: string, frameIndex: number, key: str
     select: (arrayBuffer: ArrayBuffer) => {
       const decodedData = decode(arrayBuffer) as any[]; // Type based on your server response
       const singleFrameData = decodedData[0];
-      
+
       const keyData = singleFrameData[key];
       if (!keyData || !keyData.dtype || !keyData.data) {
-        console.warn(`Data for key "${key}" not found in response for frame ${frameIndex}`);
+        console.warn(
+          `Data for key "${key}" not found in response for frame ${frameIndex}`,
+        );
         return null;
       }
-      
+
       const TypedArray = numpyDtypeToTypedArray[keyData.dtype];
       if (!TypedArray) {
         throw new Error(`Unsupported dtype: ${keyData.dtype}`);
@@ -59,7 +71,9 @@ export const getFrameDataOptions = (roomId: string, frameIndex: number, key: str
 
       const dataArray = new TypedArray(keyData.data.slice().buffer);
       if (!dataArray) {
-        throw new Error(`Failed to create typed array for dtype: ${keyData.dtype}`);
+        throw new Error(
+          `Failed to create typed array for dtype: ${keyData.dtype}`,
+        );
       }
 
       return {

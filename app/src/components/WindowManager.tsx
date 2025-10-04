@@ -1,10 +1,10 @@
-import { useWindowManagerStore } from '../stores/windowManagerStore';
-import FigureWindow from './FigureWindow';
-import { useShallow } from 'zustand/react/shallow';
+import { useWindowManagerStore } from "../stores/windowManagerStore";
+import FigureWindow from "./FigureWindow";
+import { useShallow } from "zustand/react/shallow";
 
 function WindowManager() {
   const windowIds = useWindowManagerStore(
-    useShallow((state) => Object.keys(state.openWindows))
+    useShallow((state) => Object.keys(state.openWindows)),
   );
 
   return (

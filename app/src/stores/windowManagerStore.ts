@@ -1,9 +1,9 @@
-import { create } from 'zustand';
+import { create } from "zustand";
 
 // A window now has its own stable ID and a figureKey property for its content
 export interface WindowInstance {
   id: string;
-  figureKey: string; 
+  figureKey: string;
   x: number;
   y: number;
   width: number;
@@ -17,7 +17,10 @@ interface WindowManagerStore {
   openWindow: (figureKey: string) => void;
   closeWindow: (windowId: string) => void;
   changeFigureInWindow: (windowId: string, newFigureKey: string) => void; // New action
-  updateWindowState: (windowId: string, updates: Partial<Omit<WindowInstance, 'id' | 'figureKey'>>) => void;
+  updateWindowState: (
+    windowId: string,
+    updates: Partial<Omit<WindowInstance, "id" | "figureKey">>,
+  ) => void;
   bringToFront: (windowId: string) => void;
 }
 
@@ -34,9 +37,12 @@ export const useWindowManagerStore = create<WindowManagerStore>((set, get) => ({
     const windowId = `window-${Date.now()}`; // Generate a unique, stable ID
 
     // Get the boundary container dimensions
-    const boundaryContainer = document.querySelector('.drag-boundary-container');
+    const boundaryContainer = document.querySelector(
+      ".drag-boundary-container",
+    );
     const containerWidth = boundaryContainer?.clientWidth || window.innerWidth;
-    const containerHeight = boundaryContainer?.clientHeight || window.innerHeight;
+    const containerHeight =
+      boundaryContainer?.clientHeight || window.innerHeight;
 
     // Define window dimensions
     const windowWidth = 500;
@@ -44,8 +50,8 @@ export const useWindowManagerStore = create<WindowManagerStore>((set, get) => ({
     const padding = 20;
 
     // Position in lower right corner with 20px padding on all sides
-    const x = containerWidth - windowWidth - padding - (openCount * 30);
-    const y = containerHeight - windowHeight - padding - (openCount * 30);
+    const x = containerWidth - windowWidth - padding - openCount * 30;
+    const y = containerHeight - windowHeight - padding - openCount * 30;
 
     set((state) => ({
       openWindows: {
@@ -73,7 +79,7 @@ export const useWindowManagerStore = create<WindowManagerStore>((set, get) => ({
       return { openWindows: remainingWindows };
     });
   },
-  
+
   /**
    * Changes the figure displayed within an existing window.
    */
@@ -112,15 +118,15 @@ export const useWindowManagerStore = create<WindowManagerStore>((set, get) => ({
     if (!currentWindow) return;
 
     const newZIndex = get()._zIndexCounter + 1;
-    
+
     if (currentWindow.zIndex !== newZIndex - 1) {
-        set((state) => ({
-          openWindows: {
-            ...state.openWindows,
-            [windowId]: { ...currentWindow, zIndex: newZIndex },
-          },
-          _zIndexCounter: newZIndex,
-        }));
+      set((state) => ({
+        openWindows: {
+          ...state.openWindows,
+          [windowId]: { ...currentWindow, zIndex: newZIndex },
+        },
+        _zIndexCounter: newZIndex,
+      }));
     }
   },
 }));

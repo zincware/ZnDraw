@@ -42,7 +42,12 @@ const SelectionTrackOverlay: React.FC<SelectionTrackOverlayProps> = ({
   disabled = false,
 }) => {
   useEffect(() => {
-    console.log("SelectionTrackOverlay:", { selectedFrames, enabled, containerWidth, currentFrame });
+    console.log("SelectionTrackOverlay:", {
+      selectedFrames,
+      enabled,
+      containerWidth,
+      currentFrame,
+    });
   }, [selectedFrames, enabled, containerWidth, currentFrame]);
 
   const getPercentPosition = (frame: number): number => {
@@ -64,19 +69,21 @@ const SelectionTrackOverlay: React.FC<SelectionTrackOverlayProps> = ({
     return (
       <Box
         sx={{
-          position: 'absolute',
+          position: "absolute",
           top: 0,
           left: 0,
           right: 0,
           bottom: 0,
-          pointerEvents: 'none',
+          pointerEvents: "none",
           zIndex: 1,
         }}
       >
         {segments.map((segment, idx) => {
           const leftPercent = getPercentPosition(segment.start);
           const isLastSegment = idx === segments.length - 1;
-          const visualEnd = isLastSegment ? frameCount - 1 : segments[idx + 1].start;
+          const visualEnd = isLastSegment
+            ? frameCount - 1
+            : segments[idx + 1].start;
           const rightPercent = getPercentPosition(visualEnd);
           const widthPercent = rightPercent - leftPercent;
 
@@ -86,16 +93,18 @@ const SelectionTrackOverlay: React.FC<SelectionTrackOverlayProps> = ({
             <Box
               key={idx}
               sx={{
-                position: 'absolute',
+                position: "absolute",
                 left: `${leftPercent}%`,
                 width: `${widthPercent}%`,
-                top: '50%',
-                transform: 'translateY(-50%)',
+                top: "50%",
+                transform: "translateY(-50%)",
                 height: 4,
                 backgroundColor: disabled
-                  ? 'action.disabledBackground'
-                  : (segment.selected ? 'primary.main' : 'action.disabledBackground'),
-                borderRadius: '2px',
+                  ? "action.disabledBackground"
+                  : segment.selected
+                    ? "primary.main"
+                    : "action.disabledBackground",
+                borderRadius: "2px",
               }}
             />
           );
@@ -111,7 +120,7 @@ const SelectionTrackOverlay: React.FC<SelectionTrackOverlayProps> = ({
 
   // Create centered segments for each selected frame (±0.5 around each frame)
   const centeredRanges: Array<[number, number]> = selectedFrames
-    .map(frame => {
+    .map((frame) => {
       const start = Math.max(0, frame - 0.5);
       const end = Math.min(frameCount - 1, frame + 0.5);
       return [start, end] as [number, number];
@@ -171,12 +180,12 @@ const SelectionTrackOverlay: React.FC<SelectionTrackOverlayProps> = ({
   return (
     <Box
       sx={{
-        position: 'absolute',
+        position: "absolute",
         top: 0,
         left: 0,
         right: 0,
         bottom: 0,
-        pointerEvents: 'none',
+        pointerEvents: "none",
         zIndex: 1, // Above the slider rail but below thumb
       }}
     >
@@ -189,16 +198,18 @@ const SelectionTrackOverlay: React.FC<SelectionTrackOverlayProps> = ({
           <Box
             key={idx}
             sx={{
-              position: 'absolute',
+              position: "absolute",
               left: `${leftPercent}%`,
               width: `${widthPercent}%`,
-              top: '50%',
-              transform: 'translateY(-50%)',
+              top: "50%",
+              transform: "translateY(-50%)",
               height: 4,
               backgroundColor: disabled
-                ? 'action.disabledBackground'
-                : (segment.selected ? 'primary.main' : 'grey.400'),
-              borderRadius: '2px',
+                ? "action.disabledBackground"
+                : segment.selected
+                  ? "primary.main"
+                  : "grey.400",
+              borderRadius: "2px",
             }}
           />
         );

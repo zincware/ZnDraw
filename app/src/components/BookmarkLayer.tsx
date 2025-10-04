@@ -1,6 +1,6 @@
 import { Box, Tooltip } from "@mui/material";
 import { useEffect } from "react";
-import BookmarkIcon from '@mui/icons-material/Bookmark';
+import BookmarkIcon from "@mui/icons-material/Bookmark";
 
 interface BookmarkLayerProps {
   bookmarks: Record<number, string> | null;
@@ -23,7 +23,7 @@ const BookmarkLayer: React.FC<BookmarkLayerProps> = ({
   }, [bookmarks, containerWidth]);
 
   const getMarkerPosition = (frame: number): string => {
-    if (frameCount <= 1) return '0%';
+    if (frameCount <= 1) return "0%";
 
     // Calculate percentage position - matches MUI Slider calculation
     const percentage = (frame / (frameCount - 1)) * 100;
@@ -31,7 +31,11 @@ const BookmarkLayer: React.FC<BookmarkLayerProps> = ({
     return `${percentage}%`;
   };
 
-  if (!bookmarks || Object.keys(bookmarks).length === 0 || containerWidth === 0) {
+  if (
+    !bookmarks ||
+    Object.keys(bookmarks).length === 0 ||
+    containerWidth === 0
+  ) {
     console.log("Not rendering bookmark layer:", { bookmarks, containerWidth });
     return null;
   }
@@ -46,12 +50,12 @@ const BookmarkLayer: React.FC<BookmarkLayerProps> = ({
   return (
     <Box
       sx={{
-        position: 'absolute',
-        top: '-20px',
+        position: "absolute",
+        top: "-20px",
         left: 0,
         right: 0,
         height: 16,
-        pointerEvents: 'none', // Container doesn't block clicks
+        pointerEvents: "none", // Container doesn't block clicks
         zIndex: 2,
       }}
     >
@@ -64,8 +68,8 @@ const BookmarkLayer: React.FC<BookmarkLayerProps> = ({
             key={frame}
             title={
               <Box>
-                <Box sx={{ fontWeight: 'bold', mb: 0.5 }}>{label}</Box>
-                <Box sx={{ fontSize: '0.75rem', opacity: 0.8 }}>
+                <Box sx={{ fontWeight: "bold", mb: 0.5 }}>{label}</Box>
+                <Box sx={{ fontSize: "0.75rem", opacity: 0.8 }}>
                   Frame: {frame}
                 </Box>
               </Box>
@@ -78,34 +82,34 @@ const BookmarkLayer: React.FC<BookmarkLayerProps> = ({
             <Box
               onClick={() => onBookmarkClick?.(frame, label)}
               sx={{
-                position: 'absolute',
+                position: "absolute",
                 left: leftPercent,
-                transform: 'translateX(-50%)',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                transition: 'all 0.2s ease',
-                pointerEvents: 'auto', // Only bookmark icon is clickable
-                '&:hover': {
-                  transform: 'translateX(-50%) scale(1.2)',
+                transform: "translateX(-50%)",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                transition: "all 0.2s ease",
+                pointerEvents: "auto", // Only bookmark icon is clickable
+                "&:hover": {
+                  transform: "translateX(-50%) scale(1.2)",
                 },
               }}
             >
               <BookmarkIcon
                 sx={{
                   fontSize: 20,
-                  color: isCurrentFrame ? 'secondary.main' : 'primary.main',
-                  fontWeight: 'normal',
-                  '& path': {
-                    fill: 'none',
-                    stroke: 'currentColor',
+                  color: isCurrentFrame ? "secondary.main" : "primary.main",
+                  fontWeight: "normal",
+                  "& path": {
+                    fill: "none",
+                    stroke: "currentColor",
                     strokeWidth: 1.5,
                   },
                   filter: isCurrentFrame
-                    ? 'drop-shadow(0 0 4px rgba(156, 39, 176, 0.6))'
-                    : 'drop-shadow(0 1px 2px rgba(0,0,0,0.2))',
-                  transition: 'color 0.2s ease',
+                    ? "drop-shadow(0 0 4px rgba(156, 39, 176, 0.6))"
+                    : "drop-shadow(0 1px 2px rgba(0,0,0,0.2))",
+                  transition: "color 0.2s ease",
                 }}
               />
             </Box>

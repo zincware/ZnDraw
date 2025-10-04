@@ -1,6 +1,6 @@
 // formStore.ts
-import { create } from 'zustand';
-import { immer } from 'zustand/middleware/immer';
+import { create } from "zustand";
+import { immer } from "zustand/middleware/immer";
 
 type UiState = {
   selectedCategory: string | null;
@@ -30,6 +30,5 @@ export const useFormStore = create<UiState & UiActions>()(
         state.selectedExtensions[category] = extension;
       });
     },
-
-  }))
+  })),
 );

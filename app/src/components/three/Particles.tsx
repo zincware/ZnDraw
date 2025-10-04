@@ -1,11 +1,11 @@
-import * as THREE from 'three';
-import { useQueries } from '@tanstack/react-query';
-import { getFrameDataOptions } from '../../hooks/useTrajectoryData';
-import { useAppStore } from '../../store';
-import { useRef, useMemo } from 'react';
-import { useExtensionData } from '../../hooks/useSchemas';
-import { useFrame } from '@react-three/fiber';
-import { renderMaterial } from './materials';
+import * as THREE from "three";
+import { useQueries } from "@tanstack/react-query";
+import { getFrameDataOptions } from "../../hooks/useTrajectoryData";
+import { useAppStore } from "../../store";
+import { useRef, useMemo } from "react";
+import { useExtensionData } from "../../hooks/useSchemas";
+import { useFrame } from "@react-three/fiber";
+import { renderMaterial } from "./materials";
 
 interface SphereProps {
   positionKey: string;
@@ -22,7 +22,14 @@ const scaleVec = new THREE.Vector3();
 const matrix = new THREE.Matrix4();
 const color = new THREE.Color();
 
-export default function Sphere({ positionKey, colorKey, radiusKey, material, resolution, scale }: SphereProps) {
+export default function Sphere({
+  positionKey,
+  colorKey,
+  radiusKey,
+  material,
+  resolution,
+  scale,
+}: SphereProps) {
   const instancedMeshRef = useRef<THREE.InstancedMesh | null>(null);
   const { currentFrame, roomId, clientId, userId, selection } = useAppStore();
   const lastGoodFrameData = useRef<any>(null);
@@ -31,34 +38,38 @@ export default function Sphere({ positionKey, colorKey, radiusKey, material, res
     return selection ? new Set(selection) : null;
   }, [selection]);
 
-
   const particleResolution = resolution || 8;
   const particleScale = scale || 1.0;
 
-  const requiredKeys = useMemo(() => [positionKey, colorKey, radiusKey], [
-    positionKey,
-    colorKey,
-    radiusKey,
-  ]);
+  const requiredKeys = useMemo(
+    () => [positionKey, colorKey, radiusKey],
+    [positionKey, colorKey, radiusKey],
+  );
 
   const queries = useMemo(() => {
     if (!roomId) {
       return [];
     }
-    return requiredKeys.map(key => getFrameDataOptions(roomId, currentFrame, key));
+    return requiredKeys.map((key) =>
+      getFrameDataOptions(roomId, currentFrame, key),
+    );
   }, [currentFrame, roomId, requiredKeys]);
 
   const queryResults = useQueries({ queries });
 
   const { frameData, isFetching } = useMemo(() => {
-    const isFetching = queryResults.some(result => result.isFetching || result.isPlaceholderData);
-    const allDataPresent = queryResults.every(result => result.data);
+    const isFetching = queryResults.some(
+      (result) => result.isFetching || result.isPlaceholderData,
+    );
+    const allDataPresent = queryResults.every((result) => result.data);
 
     if (!allDataPresent || queryResults.length === 0) {
       return { isFetching, frameData: null };
     }
 
-    const firstSuccessfulResult = queryResults.find(result => result.isSuccess);
+    const firstSuccessfulResult = queryResults.find(
+      (result) => result.isSuccess,
+    );
     const combinedData: { [key: string]: any } = {};
     let isComplete = true;
 
@@ -89,7 +100,7 @@ export default function Sphere({ positionKey, colorKey, radiusKey, material, res
     }
 
     const mesh = instancedMeshRef.current;
-    
+
     const positions = dataToRender[positionKey];
     const colors = dataToRender[colorKey];
     const radii = dataToRender[radiusKey];
@@ -102,7 +113,11 @@ export default function Sphere({ positionKey, colorKey, radiusKey, material, res
     for (let i = 0; i < count; i++) {
       const i3 = i * 3;
       positionVec.set(positions[i3], positions[i3 + 1], positions[i3 + 2]);
-      scaleVec.set(radii[i] * particleScale, radii[i] * particleScale, radii[i] * particleScale);
+      scaleVec.set(
+        radii[i] * particleScale,
+        radii[i] * particleScale,
+        radii[i] * particleScale,
+      );
 
       matrix.identity().setPosition(positionVec).scale(scaleVec);
       mesh.setMatrixAt(i, matrix);

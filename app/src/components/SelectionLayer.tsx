@@ -20,7 +20,7 @@ const SelectionLayer: React.FC<SelectionLayerProps> = ({
   }, [selectedFrames, containerWidth]);
 
   const getMarkerPosition = (frame: number): string => {
-    if (frameCount <= 1) return '0%';
+    if (frameCount <= 1) return "0%";
 
     // Calculate percentage position - matches MUI Slider calculation
     const percentage = (frame / (frameCount - 1)) * 100;
@@ -29,7 +29,10 @@ const SelectionLayer: React.FC<SelectionLayerProps> = ({
   };
 
   if (!selectedFrames || selectedFrames.length === 0 || containerWidth === 0) {
-    console.log("Not rendering selection layer:", { selectedFrames, containerWidth });
+    console.log("Not rendering selection layer:", {
+      selectedFrames,
+      containerWidth,
+    });
     return null;
   }
 
@@ -38,13 +41,13 @@ const SelectionLayer: React.FC<SelectionLayerProps> = ({
   return (
     <Box
       sx={{
-        position: 'absolute',
-        top: '50%',
+        position: "absolute",
+        top: "50%",
         left: 0,
         right: 0,
-        transform: 'translateY(-50%)',
+        transform: "translateY(-50%)",
         height: 8,
-        pointerEvents: 'none',
+        pointerEvents: "none",
         zIndex: 0, // Below bookmarks and slider
       }}
     >
@@ -56,14 +59,16 @@ const SelectionLayer: React.FC<SelectionLayerProps> = ({
           <Box
             key={frame}
             sx={{
-              position: 'absolute',
+              position: "absolute",
               left: leftPercent,
-              transform: 'translateX(-50%)',
+              transform: "translateX(-50%)",
               width: 2,
-              height: '100%',
-              backgroundColor: isCurrentFrame ? 'secondary.main' : 'primary.main',
+              height: "100%",
+              backgroundColor: isCurrentFrame
+                ? "secondary.main"
+                : "primary.main",
               opacity: isCurrentFrame ? 0.5 : 0.25,
-              pointerEvents: 'none',
+              pointerEvents: "none",
             }}
           />
         );

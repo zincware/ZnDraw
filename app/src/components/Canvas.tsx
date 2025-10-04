@@ -1,16 +1,15 @@
-import * as THREE from 'three';
-import { useRef } from 'react';
-import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { OrbitControls, ContactShadows } from '@react-three/drei';
-import { useAppStore } from '../store';
-import { useExtensionData } from '../hooks/useSchemas';
-import { useColorScheme } from '@mui/material/styles';
+import * as THREE from "three";
+import { useRef } from "react";
+import { Canvas, useFrame, useThree } from "@react-three/fiber";
+import { OrbitControls, ContactShadows } from "@react-three/drei";
+import { useAppStore } from "../store";
+import { useExtensionData } from "../hooks/useSchemas";
+import { useColorScheme } from "@mui/material/styles";
 
 // Import our new, self-contained components
-import { SimulationCell } from './three/SimulationCell';
-import Sphere from './three/Particles';
-import Arrow from './three/Arrow';
-
+import { SimulationCell } from "./three/SimulationCell";
+import Sphere from "./three/Particles";
+import Arrow from "./three/Arrow";
 
 // A small helper component to keep a light attached to the camera
 function CameraAttachedLight({ intensity = 1.0 }) {
@@ -32,21 +31,24 @@ function MyScene() {
   const { mode } = useColorScheme();
 
   const { data: studioLightingSettings } = useExtensionData(
-    roomId || '',
-    userId || '',
-    'settings',
-    'studio_lighting'
+    roomId || "",
+    userId || "",
+    "settings",
+    "studio_lighting",
   );
 
   // Use settings or provide sensible defaults
   const keyLightIntensity = studioLightingSettings?.key_light_intensity ?? 1.2;
-  const fillLightIntensity = studioLightingSettings?.fill_light_intensity ?? 0.3;
+  const fillLightIntensity =
+    studioLightingSettings?.fill_light_intensity ?? 0.3;
   const rimLightIntensity = studioLightingSettings?.rim_light_intensity ?? 1.5;
-  const backgroundColor = studioLightingSettings?.background_color ?? (mode === 'dark' ? '#333840' : '#f5f5f5');
+  const backgroundColor =
+    studioLightingSettings?.background_color ??
+    (mode === "dark" ? "#333840" : "#f5f5f5");
   const showContactShadow = studioLightingSettings?.contact_shadow ?? true;
 
   return (
-    <div style={{ width: '100%', height: 'calc(100vh - 64px)' }}>
+    <div style={{ width: "100%", height: "calc(100vh - 64px)" }}>
       <Canvas
         shadows
         camera={{ position: [-10, 10, 30], fov: 50 }}
@@ -55,12 +57,15 @@ function MyScene() {
       >
         <CameraAttachedLight intensity={keyLightIntensity} />
         <ambientLight intensity={fillLightIntensity} />
-        <directionalLight position={[10, 20, -20]} intensity={rimLightIntensity} />
+        <directionalLight
+          position={[10, 20, -20]}
+          intensity={rimLightIntensity}
+        />
 
         {/* Render our clean, refactored components */}
         {/* <Sphere /> */}
         {Object.entries(geometries).map(([name, config]) => {
-          if (config.type === 'Sphere') {
+          if (config.type === "Sphere") {
             return (
               <Sphere
                 key={name} // React requires a unique key for list items
@@ -72,7 +77,7 @@ function MyScene() {
                 scale={config.data.scale}
               />
             );
-          } else if (config.type === 'Arrow') {
+          } else if (config.type === "Arrow") {
             return (
               <Arrow
                 key={name}
@@ -98,7 +103,7 @@ function MyScene() {
         })}
         <SimulationCell />
 
-        {showContactShadow &&
+        {showContactShadow && (
           <ContactShadows
             position={[0, -15, 0]}
             opacity={0.5}
@@ -107,7 +112,7 @@ function MyScene() {
             far={30}
             color="#000000"
           />
-        }
+        )}
 
         <OrbitControls enableDamping={false} />
       </Canvas>

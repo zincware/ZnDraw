@@ -1,7 +1,7 @@
-import { useEffect, useCallback } from 'react';
-import { useAppStore } from '../store';
-import { usePresenterToken } from './usePresenterToken';
-import { socket } from '../socket';
+import { useEffect, useCallback } from "react";
+import { useAppStore } from "../store";
+import { usePresenterToken } from "./usePresenterToken";
+import { socket } from "../socket";
 
 export const useKeyboardShortcuts = () => {
   const {
@@ -18,27 +18,37 @@ export const useKeyboardShortcuts = () => {
   const { requestToken, releaseToken, setFrame } = usePresenterToken();
 
   const getNavigableFrames = useCallback((): number[] => {
-    if (frameSelectionEnabled && frame_selection && frame_selection.length > 0) {
+    if (
+      frameSelectionEnabled &&
+      frame_selection &&
+      frame_selection.length > 0
+    ) {
       return [...frame_selection].sort((a, b) => a - b);
     }
     return Array.from({ length: frameCount }, (_, i) => i);
   }, [frameSelectionEnabled, frame_selection, frameCount]);
 
   // For manual navigation (arrow keys, clicks) - uses atomic mode
-  const goToFrameAtomic = useCallback((frame: number) => {
-    setCurrentFrame(frame);
-    socket.emit('set_frame_atomic', { frame }, (response: any) => {
-      if (response && !response.success) {
-        console.error(`Failed to set frame: ${response.error}`);
-      }
-    });
-  }, [setCurrentFrame]);
+  const goToFrameAtomic = useCallback(
+    (frame: number) => {
+      setCurrentFrame(frame);
+      socket.emit("set_frame_atomic", { frame }, (response: any) => {
+        if (response && !response.success) {
+          console.error(`Failed to set frame: ${response.error}`);
+        }
+      });
+    },
+    [setCurrentFrame],
+  );
 
   // For playback - uses continuous mode with presenter token
-  const goToFrameContinuous = useCallback((frame: number) => {
-    setCurrentFrame(frame);
-    setFrame(frame);
-  }, [setCurrentFrame, setFrame]);
+  const goToFrameContinuous = useCallback(
+    (frame: number) => {
+      setCurrentFrame(frame);
+      setFrame(frame);
+    },
+    [setCurrentFrame, setFrame],
+  );
 
   const handlePreviousFrame = useCallback(() => {
     const navigableFrames = getNavigableFrames();
@@ -67,11 +77,19 @@ export const useKeyboardShortcuts = () => {
         setPlaying(false);
       }
     }
-  }, [currentFrame, getNavigableFrames, goToFrameAtomic, playing, setPlaying, releaseToken]);
+  }, [
+    currentFrame,
+    getNavigableFrames,
+    goToFrameAtomic,
+    playing,
+    setPlaying,
+    releaseToken,
+  ]);
 
   const handleTogglePlayback = useCallback(async () => {
     const navigableFrames = getNavigableFrames();
-    const isAtLastFrame = currentFrame === navigableFrames[navigableFrames.length - 1];
+    const isAtLastFrame =
+      currentFrame === navigableFrames[navigableFrames.length - 1];
 
     if (!playing) {
       // Starting playback - request presenter token
@@ -88,7 +106,15 @@ export const useKeyboardShortcuts = () => {
       releaseToken();
       setPlaying(false);
     }
-  }, [playing, setPlaying, currentFrame, getNavigableFrames, requestToken, releaseToken, goToFrameContinuous]);
+  }, [
+    playing,
+    setPlaying,
+    currentFrame,
+    getNavigableFrames,
+    requestToken,
+    releaseToken,
+    goToFrameContinuous,
+  ]);
 
   // Handle automatic frame advancement during playback
   useEffect(() => {
@@ -115,7 +141,15 @@ export const useKeyboardShortcuts = () => {
     }, 33); // approximately 30 fps
 
     return () => clearInterval(intervalId);
-  }, [playing, currentFrame, getNavigableFrames, goToFrameContinuous, setPlaying, skipFrames, releaseToken]);
+  }, [
+    playing,
+    currentFrame,
+    getNavigableFrames,
+    goToFrameContinuous,
+    setPlaying,
+    skipFrames,
+    releaseToken,
+  ]);
 
   // Cleanup presenter token when component unmounts while playing
   useEffect(() => {
@@ -131,8 +165,8 @@ export const useKeyboardShortcuts = () => {
       // Check if focus is on an input element
       const target = event.target as HTMLElement;
       const isInputFocused =
-        target.tagName === 'INPUT' ||
-        target.tagName === 'TEXTAREA' ||
+        target.tagName === "INPUT" ||
+        target.tagName === "TEXTAREA" ||
         target.isContentEditable;
 
       // Don't trigger shortcuts when typing in forms
@@ -141,17 +175,17 @@ export const useKeyboardShortcuts = () => {
       }
 
       switch (event.key) {
-        case 'ArrowLeft':
+        case "ArrowLeft":
           event.preventDefault();
           handlePreviousFrame();
           break;
 
-        case 'ArrowRight':
+        case "ArrowRight":
           event.preventDefault();
           handleNextFrame();
           break;
 
-        case ' ':
+        case " ":
           event.preventDefault();
           handleTogglePlayback();
           break;
@@ -161,10 +195,10 @@ export const useKeyboardShortcuts = () => {
       }
     };
 
-    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener("keydown", handleKeyDown);
 
     return () => {
-      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener("keydown", handleKeyDown);
     };
   }, [handlePreviousFrame, handleNextFrame, handleTogglePlayback]);
 };

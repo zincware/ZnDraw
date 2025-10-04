@@ -1,4 +1,4 @@
-import * as THREE from 'three';
+import * as THREE from "three";
 
 /**
  * Available material types for geometries.
@@ -6,31 +6,31 @@ import * as THREE from 'three';
  */
 export const MATERIALS = {
   MeshPhysicalMaterial: {
-    component: 'meshPhysicalMaterial' as const,
+    component: "meshPhysicalMaterial" as const,
     defaultProps: {
       roughness: 0.3,
       reflectivity: 0.4,
-      clearcoat: 0.1
-    }
+      clearcoat: 0.1,
+    },
   },
   MeshStandardMaterial: {
-    component: 'meshStandardMaterial' as const,
+    component: "meshStandardMaterial" as const,
     defaultProps: {
       roughness: 0.5,
-      metalness: 0.0
-    }
+      metalness: 0.0,
+    },
   },
   MeshBasicMaterial: {
-    component: 'meshBasicMaterial' as const,
-    defaultProps: {}
+    component: "meshBasicMaterial" as const,
+    defaultProps: {},
   },
   MeshToonMaterial: {
-    component: 'meshToonMaterial' as const,
-    defaultProps: {}
-  }
+    component: "meshToonMaterial" as const,
+    defaultProps: {},
+  },
 } as const;
 
-export const DEFAULT_MATERIAL = 'MeshPhysicalMaterial';
+export const DEFAULT_MATERIAL = "MeshPhysicalMaterial";
 
 export type MaterialType = keyof typeof MATERIALS;
 
@@ -48,18 +48,18 @@ export function renderMaterial(materialType?: string) {
   const commonProps = {
     color: "white",
     side: THREE.FrontSide,
-    ...config.defaultProps
+    ...config.defaultProps,
   };
 
   // TypeScript needs explicit handling for each component type
   switch (MaterialComponent) {
-    case 'meshPhysicalMaterial':
+    case "meshPhysicalMaterial":
       return <meshPhysicalMaterial {...commonProps} />;
-    case 'meshStandardMaterial':
+    case "meshStandardMaterial":
       return <meshStandardMaterial {...commonProps} />;
-    case 'meshBasicMaterial':
+    case "meshBasicMaterial":
       return <meshBasicMaterial {...commonProps} />;
-    case 'meshToonMaterial':
+    case "meshToonMaterial":
       return <meshToonMaterial {...commonProps} />;
     default:
       return <meshPhysicalMaterial {...commonProps} />;

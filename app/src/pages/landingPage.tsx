@@ -1,30 +1,28 @@
-import Box from '@mui/material/Box';
-import AppBar from '@mui/material/AppBar';
-import CssBaseline from '@mui/material/CssBaseline';
-import Toolbar from '@mui/material/Toolbar';
-import Typography from '@mui/material/Typography';
-import IconButton from '@mui/material/IconButton';
-import Tooltip from '@mui/material/Tooltip';
-import ChatIcon from '@mui/icons-material/Chat';
-import CodeIcon from '@mui/icons-material/Code';
-import LightModeIcon from '@mui/icons-material/LightMode';
-import DarkModeIcon from '@mui/icons-material/DarkMode';
-import FrameProgressBar from '../components/ProgressBar';
-import SideBar from '../components/SideBar';
+import Box from "@mui/material/Box";
+import AppBar from "@mui/material/AppBar";
+import CssBaseline from "@mui/material/CssBaseline";
+import Toolbar from "@mui/material/Toolbar";
+import Typography from "@mui/material/Typography";
+import IconButton from "@mui/material/IconButton";
+import Tooltip from "@mui/material/Tooltip";
+import ChatIcon from "@mui/icons-material/Chat";
+import CodeIcon from "@mui/icons-material/Code";
+import LightModeIcon from "@mui/icons-material/LightMode";
+import DarkModeIcon from "@mui/icons-material/DarkMode";
+import FrameProgressBar from "../components/ProgressBar";
+import SideBar from "../components/SideBar";
 
-import { useSocketManager } from '../hooks/useSocketManager';
-import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
-import MyScene from '../components/Canvas';
-import ChatWindow from '../components/ChatWindow';
-import ConnectionDialog from '../components/ConnectionDialog';
-import { useAppStore } from '../store';
-import { useRestJoinManager } from '../hooks/useRestManager';
-import { useState } from 'react';
-import { useColorScheme } from '@mui/material/styles';
-import WindowManager from '../components/WindowManager';
-import AddPlotButton from '../components/AddPlotButton';
-
-
+import { useSocketManager } from "../hooks/useSocketManager";
+import { useKeyboardShortcuts } from "../hooks/useKeyboardShortcuts";
+import MyScene from "../components/Canvas";
+import ChatWindow from "../components/ChatWindow";
+import ConnectionDialog from "../components/ConnectionDialog";
+import { useAppStore } from "../store";
+import { useRestJoinManager } from "../hooks/useRestManager";
+import { useState } from "react";
+import { useColorScheme } from "@mui/material/styles";
+import WindowManager from "../components/WindowManager";
+import AddPlotButton from "../components/AddPlotButton";
 
 export default function MainPage() {
   useSocketManager();
@@ -36,27 +34,49 @@ export default function MainPage() {
   const { mode, setMode } = useColorScheme();
 
   const handleToggleColorMode = () => {
-    setMode(mode === 'light' ? 'dark' : 'light');
+    setMode(mode === "light" ? "dark" : "light");
   };
 
   return (
     <>
-      <Box sx={{ display: 'flex', flexDirection: 'column', height: '100vh', width: '100vw', overflow: 'hidden' }}>
+      <Box
+        sx={{
+          display: "flex",
+          flexDirection: "column",
+          height: "100vh",
+          width: "100vw",
+          overflow: "hidden",
+        }}
+      >
         <CssBaseline />
 
         {/* Header / AppBar */}
-        <AppBar position="static" sx={{ zIndex: (theme) => theme.zIndex.drawer + 1 }}>
+        <AppBar
+          position="static"
+          sx={{ zIndex: (theme) => theme.zIndex.drawer + 1 }}
+        >
           <Toolbar>
-            <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
+            <Typography
+              variant="h6"
+              noWrap
+              component="div"
+              sx={{ flexGrow: 1 }}
+            >
               ZnDraw
             </Typography>
-            <Tooltip title={mode === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}>
+            <Tooltip
+              title={
+                mode === "light"
+                  ? "Switch to dark mode"
+                  : "Switch to light mode"
+              }
+            >
               <IconButton
                 color="inherit"
                 aria-label="toggle color mode"
                 onClick={handleToggleColorMode}
               >
-                {mode === 'light' ? <DarkModeIcon /> : <LightModeIcon />}
+                {mode === "light" ? <DarkModeIcon /> : <LightModeIcon />}
               </IconButton>
             </Tooltip>
             <Tooltip title={"Python code connection info"}>
@@ -69,33 +89,41 @@ export default function MainPage() {
               </IconButton>
             </Tooltip>
             <Tooltip title={"Toggle chat window"}>
-            <IconButton
-              color="inherit"
-              aria-label="toggle chat"
-              onClick={() => setChatOpen(!chatOpen)}
-            >
-              <ChatIcon />
-            </IconButton>
+              <IconButton
+                color="inherit"
+                aria-label="toggle chat"
+                onClick={() => setChatOpen(!chatOpen)}
+              >
+                <ChatIcon />
+              </IconButton>
             </Tooltip>
             <AddPlotButton />
           </Toolbar>
         </AppBar>
 
         {/* Main content row with sidebar and center area */}
-        <Box sx={{ display: 'flex', flexGrow: 1, minHeight: 0 }}>
+        <Box sx={{ display: "flex", flexGrow: 1, minHeight: 0 }}>
           <SideBar />
 
           {/* Main Content Area with drag boundary */}
-          <Box component="main" sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+          <Box
+            component="main"
+            sx={{
+              flexGrow: 1,
+              display: "flex",
+              flexDirection: "column",
+              minWidth: 0,
+            }}
+          >
             {/* THIS IS THE CRUCIAL DRAG BOUNDARY CONTAINER */}
             <Box
               className="drag-boundary-container"
               sx={{
                 flexGrow: 1,
-                position: 'relative',
-                overflow: 'hidden',
-                display: 'flex',
-                flexDirection: 'column'
+                position: "relative",
+                overflow: "hidden",
+                display: "flex",
+                flexDirection: "column",
               }}
             >
               <MyScene />

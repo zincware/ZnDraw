@@ -1,4 +1,4 @@
-import { create } from 'zustand';
+import { create } from "zustand";
 
 interface AppState {
   // Connection & Room
@@ -62,16 +62,20 @@ export const useAppStore = create<AppState>((set) => ({
   setUserId: (userId) => set({ userId }),
   setClientId: (clientId) => set({ clientId }),
   setCurrentFrame: (frame) => set({ currentFrame: frame }),
-  setFrameCount: (count) => set((state) => {
-    // If currentFrame is beyond the new frameCount, reset to 0
-    const newCurrentFrame = state.currentFrame >= count ? 0 : state.currentFrame;
-    return { frameCount: count, currentFrame: newCurrentFrame };
-  }),
+  setFrameCount: (count) =>
+    set((state) => {
+      // If currentFrame is beyond the new frameCount, reset to 0
+      const newCurrentFrame =
+        state.currentFrame >= count ? 0 : state.currentFrame;
+      return { frameCount: count, currentFrame: newCurrentFrame };
+    }),
   setLoading: (loading) => set({ isLoading: loading }),
   setSkipFrames: (skip) => set({ skipFrames: skip }),
   setSelection: (selection) => set({ selection: selection }),
-  setFrameSelection: (frame_selection) => set({ frame_selection: frame_selection }),
-  setFrameSelectionEnabled: (enabled) => set({ frameSelectionEnabled: enabled }),
+  setFrameSelection: (frame_selection) =>
+    set({ frame_selection: frame_selection }),
+  setFrameSelectionEnabled: (enabled) =>
+    set({ frameSelectionEnabled: enabled }),
   setBookmarks: (bookmarks) => set({ bookmarks: bookmarks }),
   setPlaying: (playing) => set({ playing: playing }),
   setChatOpen: (open) => set({ chatOpen: open }),

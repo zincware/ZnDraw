@@ -1,18 +1,18 @@
-import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import Box from '@mui/material/Box';
-import Container from '@mui/material/Container';
-import Typography from '@mui/material/Typography';
-import Table from '@mui/material/Table';
-import TableBody from '@mui/material/TableBody';
-import TableCell from '@mui/material/TableCell';
-import TableContainer from '@mui/material/TableContainer';
-import TableHead from '@mui/material/TableHead';
-import TableRow from '@mui/material/TableRow';
-import Paper from '@mui/material/Paper';
-import Button from '@mui/material/Button';
-import CircularProgress from '@mui/material/CircularProgress';
-import Alert from '@mui/material/Alert';
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import Box from "@mui/material/Box";
+import Container from "@mui/material/Container";
+import Typography from "@mui/material/Typography";
+import Table from "@mui/material/Table";
+import TableBody from "@mui/material/TableBody";
+import TableCell from "@mui/material/TableCell";
+import TableContainer from "@mui/material/TableContainer";
+import TableHead from "@mui/material/TableHead";
+import TableRow from "@mui/material/TableRow";
+import Paper from "@mui/material/Paper";
+import Button from "@mui/material/Button";
+import CircularProgress from "@mui/material/CircularProgress";
+import Alert from "@mui/material/Alert";
 
 interface Template {
   id: string;
@@ -29,14 +29,16 @@ export default function TemplateSelectionPage() {
   useEffect(() => {
     const fetchTemplates = async () => {
       try {
-        const response = await fetch('/api/templates');
+        const response = await fetch("/api/templates");
         if (!response.ok) {
           throw new Error(`Failed to fetch templates: ${response.status}`);
         }
         const data = await response.json();
 
         // Filter out "empty" template for decision logic
-        const nonEmptyTemplates = data.filter((t: Template) => t.id !== 'empty');
+        const nonEmptyTemplates = data.filter(
+          (t: Template) => t.id !== "empty",
+        );
 
         if (nonEmptyTemplates.length === 0) {
           // Only "empty" template exists, auto-forward to empty room
@@ -47,13 +49,15 @@ export default function TemplateSelectionPage() {
           // Only one non-empty template exists, auto-forward to it
           const roomUuid = crypto.randomUUID();
           const userUuid = crypto.randomUUID();
-          navigate(`/rooms/${roomUuid}/${userUuid}?template=${nonEmptyTemplates[0].id}`);
+          navigate(
+            `/rooms/${roomUuid}/${userUuid}?template=${nonEmptyTemplates[0].id}`,
+          );
         } else {
           // Multiple non-empty templates, show selection table
           setTemplates(data);
         }
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Unknown error');
+        setError(err instanceof Error ? err.message : "Unknown error");
       } finally {
         setLoading(false);
       }
@@ -71,7 +75,14 @@ export default function TemplateSelectionPage() {
   if (loading) {
     return (
       <Container maxWidth="md">
-        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
+        <Box
+          sx={{
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            minHeight: "100vh",
+          }}
+        >
           <CircularProgress />
         </Box>
       </Container>
@@ -102,9 +113,15 @@ export default function TemplateSelectionPage() {
           <Table>
             <TableHead>
               <TableRow>
-                <TableCell><strong>Name</strong></TableCell>
-                <TableCell><strong>Description</strong></TableCell>
-                <TableCell align="right"><strong>Action</strong></TableCell>
+                <TableCell>
+                  <strong>Name</strong>
+                </TableCell>
+                <TableCell>
+                  <strong>Description</strong>
+                </TableCell>
+                <TableCell align="right">
+                  <strong>Action</strong>
+                </TableCell>
               </TableRow>
             </TableHead>
             <TableBody>

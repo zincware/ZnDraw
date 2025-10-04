@@ -1,13 +1,20 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { listFigures, getFigure, createFigure, deleteFigure, FigureData } from '../myapi/client';
-import { useAppStore } from '../store';
-import { use } from 'react';
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  listFigures,
+  getFigure,
+  createFigure,
+  deleteFigure,
+  FigureData,
+} from "../myapi/client";
+import { useAppStore } from "../store";
+import { use } from "react";
 
 // Define query keys for caching and invalidation
 const figuresKeys = {
-  all: (roomId: string) => ['figures', roomId] as const,
-  list: (roomId: string) => [...figuresKeys.all(roomId), 'list'] as const,
-  detail: (roomId: string, key: string) => [...figuresKeys.all(roomId), 'detail', key] as const,
+  all: (roomId: string) => ["figures", roomId] as const,
+  list: (roomId: string) => [...figuresKeys.all(roomId), "list"] as const,
+  detail: (roomId: string, key: string) =>
+    [...figuresKeys.all(roomId), "detail", key] as const,
 };
 
 // --- Custom Hooks ---
@@ -16,7 +23,7 @@ const figuresKeys = {
  * Fetches the list of all figure keys for the current room.
  */
 export const useFigureList = () => {
-  const {roomId} = useAppStore();
+  const { roomId } = useAppStore();
 
   return useQuery({
     queryKey: figuresKeys.list(roomId!),
@@ -28,13 +35,19 @@ export const useFigureList = () => {
 /**
  * Fetches the data for a single figure.
  */
-export const useFigure = (key: string | null, options?: { enabled?: boolean }) => {
-  const {roomId} = useAppStore();
+export const useFigure = (
+  key: string | null,
+  options?: { enabled?: boolean },
+) => {
+  const { roomId } = useAppStore();
 
   return useQuery({
     queryKey: figuresKeys.detail(roomId!, key!),
     queryFn: () => getFigure(roomId!, key!),
-    enabled: (options?.enabled !== undefined ? options.enabled : true) && !!roomId && !!key, // Only run if both roomId and key are set, and options.enabled is true
+    enabled:
+      (options?.enabled !== undefined ? options.enabled : true) &&
+      !!roomId &&
+      !!key, // Only run if both roomId and key are set, and options.enabled is true
   });
 };
 
@@ -44,7 +57,7 @@ export const useFigure = (key: string | null, options?: { enabled?: boolean }) =
  */
 export const useCreateFigure = () => {
   const queryClient = useQueryClient();
-  const {roomId} = useAppStore();
+  const { roomId } = useAppStore();
 
   return useMutation({
     mutationFn: (variables: { key: string; figure: FigureData }) =>
@@ -64,9 +77,8 @@ export const useCreateFigure = () => {
  */
 export const useDeleteFigure = () => {
   const queryClient = useQueryClient();
-  const {roomId} = useAppStore();
-//   const setSelectedFigureKey = useRoomStore((state) => state.setSelectedFigureKey); // TODO
-
+  const { roomId } = useAppStore();
+  //   const setSelectedFigureKey = useRoomStore((state) => state.setSelectedFigureKey); // TODO
 
   return useMutation({
     mutationFn: (key: string) => deleteFigure(roomId!, key),
@@ -77,9 +89,9 @@ export const useDeleteFigure = () => {
       queryClient.removeQueries({ queryKey: figuresKeys.detail(roomId!, key) });
 
       // If the deleted figure was the selected one, unselect it
-    //   if (useRoomStore.getState().selectedFigureKey === key) {
-    //     setSelectedFigureKey(null);
-    //   }
+      //   if (useRoomStore.getState().selectedFigureKey === key) {
+      //     setSelectedFigureKey(null);
+      //   }
     },
   });
 };

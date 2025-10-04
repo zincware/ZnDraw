@@ -1,38 +1,39 @@
-import { Rnd } from 'react-rnd';
-import Plot from 'react-plotly.js';
-import { useWindowManagerStore } from '../stores/windowManagerStore';
-import { useFigure, useFigureList } from '../hooks/useFigures';
+import { Rnd } from "react-rnd";
+import Plot from "react-plotly.js";
+import { useWindowManagerStore } from "../stores/windowManagerStore";
+import { useFigure, useFigureList } from "../hooks/useFigures";
 
 // MUI Imports
-import { 
-    Box, 
-    Paper, 
-    Typography, 
-    IconButton, 
-    CircularProgress, 
-    TextField,
-    Autocomplete
-} from '@mui/material';
-import { Close as CloseIcon, ErrorOutline as ErrorIcon } from '@mui/icons-material';
+import {
+  Box,
+  Paper,
+  Typography,
+  IconButton,
+  CircularProgress,
+  TextField,
+  Autocomplete,
+} from "@mui/material";
+import {
+  Close as CloseIcon,
+  ErrorOutline as ErrorIcon,
+} from "@mui/icons-material";
 
 interface FigureWindowProps {
   windowId: string;
 }
 
 function FigureWindow({ windowId }: FigureWindowProps) {
-  const windowInstance = useWindowManagerStore((state) => state.openWindows[windowId]);
-  const { 
-    updateWindowState, 
-    closeWindow, 
-    bringToFront, 
-    changeFigureInWindow 
-  } = useWindowManagerStore();
-  
-  const { 
-    data: figureResponse, 
-    isLoading, 
-    isError, 
-    error 
+  const windowInstance = useWindowManagerStore(
+    (state) => state.openWindows[windowId],
+  );
+  const { updateWindowState, closeWindow, bringToFront, changeFigureInWindow } =
+    useWindowManagerStore();
+
+  const {
+    data: figureResponse,
+    isLoading,
+    isError,
+    error,
   } = useFigure(windowInstance?.figureKey, { enabled: !!windowInstance });
   const { data: allFiguresResponse } = useFigureList();
 
@@ -40,19 +41,39 @@ function FigureWindow({ windowId }: FigureWindowProps) {
     return null;
   }
 
-  const handleAutocompleteChange = (event: React.SyntheticEvent, newValue: string | null) => {
+  const handleAutocompleteChange = (
+    event: React.SyntheticEvent,
+    newValue: string | null,
+  ) => {
     if (newValue) {
       changeFigureInWindow(windowId, newValue);
     }
   };
-  
+
   const renderContent = () => {
     if (isLoading) {
-      return <Box display="flex" justifyContent="center" alignItems="center" height="100%"><CircularProgress /></Box>;
+      return (
+        <Box
+          display="flex"
+          justifyContent="center"
+          alignItems="center"
+          height="100%"
+        >
+          <CircularProgress />
+        </Box>
+      );
     }
     if (isError) {
       return (
-        <Box display="flex" flexDirection="column" justifyContent="center" alignItems="center" height="100%" color="error.main" textAlign="center">
+        <Box
+          display="flex"
+          flexDirection="column"
+          justifyContent="center"
+          alignItems="center"
+          height="100%"
+          color="error.main"
+          textAlign="center"
+        >
           <ErrorIcon sx={{ fontSize: 40, mb: 1 }} />
           <Typography variant="body1">Error loading figure.</Typography>
           <Typography variant="caption">{error?.message}</Typography>
@@ -60,16 +81,27 @@ function FigureWindow({ windowId }: FigureWindowProps) {
       );
     }
     if (figureResponse?.figure) {
-        const figureData = figureResponse.figure;
-        if (figureData.type === 'plotly' && figureData.data) {
-            try {
-                const plotlyJson = JSON.parse(figureData.data);
-                return <Plot data={plotlyJson.data} layout={{ ...plotlyJson.layout, autosize: true }} useResizeHandler={true} style={{ width: '100%', height: '100%' }} />;
-            } catch (e) {
-                return <Typography color="error">Invalid Plotly JSON format.</Typography>;
-            }
+      const figureData = figureResponse.figure;
+      if (figureData.type === "plotly" && figureData.data) {
+        try {
+          const plotlyJson = JSON.parse(figureData.data);
+          return (
+            <Plot
+              data={plotlyJson.data}
+              layout={{ ...plotlyJson.layout, autosize: true }}
+              useResizeHandler={true}
+              style={{ width: "100%", height: "100%" }}
+            />
+          );
+        } catch (e) {
+          return (
+            <Typography color="error">Invalid Plotly JSON format.</Typography>
+          );
         }
-        return <pre style={{ margin: 0 }}>{JSON.stringify(figureData, null, 2)}</pre>;
+      }
+      return (
+        <pre style={{ margin: 0 }}>{JSON.stringify(figureData, null, 2)}</pre>
+      );
     }
     return null;
   };
@@ -84,7 +116,9 @@ function FigureWindow({ windowId }: FigureWindowProps) {
       // Use the same class name as the chat for consistency
       dragHandleClassName="drag-handle"
       onDragStart={() => bringToFront(windowId)}
-      onDragStop={(_, d) => { updateWindowState(windowId, { x: d.x, y: d.y }); }}
+      onDragStop={(_, d) => {
+        updateWindowState(windowId, { x: d.x, y: d.y });
+      }}
       onResizeStop={(_, __, ref, ___, position) => {
         updateWindowState(windowId, {
           width: parseInt(ref.style.width, 10),
@@ -95,14 +129,14 @@ function FigureWindow({ windowId }: FigureWindowProps) {
       bounds=".drag-boundary-container"
     >
       {/* --- STYLE CHANGE: Elevation and layout match ChatWindow --- */}
-      <Paper 
+      <Paper
         elevation={4}
         sx={{
-            width: '100%',
-            height: '100%',
-            display: 'flex',
-            flexDirection: 'column',
-            overflow: 'hidden',
+          width: "100%",
+          height: "100%",
+          display: "flex",
+          flexDirection: "column",
+          overflow: "hidden",
         }}
       >
         {/* Header / Title Bar */}
@@ -113,12 +147,12 @@ function FigureWindow({ windowId }: FigureWindowProps) {
           // --- STYLE CHANGE: Header styles now match ChatWindow ---
           sx={{
             p: 1,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
             borderBottom: 1,
-            borderColor: 'divider',
-            cursor: 'move',
+            borderColor: "divider",
+            cursor: "move",
           }}
         >
           {/* We now use a flex layout with space-between like the chat window */}
@@ -142,7 +176,7 @@ function FigureWindow({ windowId }: FigureWindowProps) {
               />
             )}
           />
-          
+
           <IconButton onClick={() => closeWindow(windowId)} size="small">
             <CloseIcon />
           </IconButton>
@@ -153,9 +187,9 @@ function FigureWindow({ windowId }: FigureWindowProps) {
           sx={{
             flexGrow: 1,
             p: 1,
-            overflow: 'auto',
-            position: 'relative',
-            backgroundColor: 'background.paper' // Use theme background color
+            overflow: "auto",
+            position: "relative",
+            backgroundColor: "background.paper", // Use theme background color
           }}
         >
           {renderContent()}

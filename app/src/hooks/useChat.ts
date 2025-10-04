@@ -1,19 +1,25 @@
-import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { socket } from '../socket';
-import type { ChatMessage, ChatMessagesResponse } from '../types/chat';
+import {
+  useInfiniteQuery,
+  useMutation,
+  useQueryClient,
+} from "@tanstack/react-query";
+import { socket } from "../socket";
+import type { ChatMessage, ChatMessagesResponse } from "../types/chat";
 
 // Fetch chat messages with infinite scroll support
 export const useChatMessages = (room: string, limit: number = 30) => {
   return useInfiniteQuery<ChatMessagesResponse>({
-    queryKey: ['chat', room],
+    queryKey: ["chat", room],
     queryFn: async ({ pageParam }) => {
       const params = new URLSearchParams();
-      params.append('limit', limit.toString());
+      params.append("limit", limit.toString());
       if (pageParam) {
-        params.append('before', pageParam.toString());
+        params.append("before", pageParam.toString());
       }
-      const response = await fetch(`/api/rooms/${room}/chat/messages?${params}`);
-      if (!response.ok) throw new Error('Failed to fetch messages');
+      const response = await fetch(
+        `/api/rooms/${room}/chat/messages?${params}`,
+      );
+      if (!response.ok) throw new Error("Failed to fetch messages");
       return response.json();
     },
     getNextPageParam: (lastPage) =>
@@ -29,7 +35,7 @@ export const useSendMessage = (room: string) => {
   return useMutation({
     mutationFn: async (content: string) => {
       return new Promise<ChatMessage>((resolve, reject) => {
-        socket.emit('chat:message:create', { content }, (response: any) => {
+        socket.emit("chat:message:create", { content }, (response: any) => {
           if (response.success) resolve(response.message);
           else reject(new Error(response.error));
         });
@@ -42,12 +48,22 @@ export const useSendMessage = (room: string) => {
 // Edit message
 export const useEditMessage = (room: string) => {
   return useMutation({
-    mutationFn: async ({ messageId, content }: { messageId: string; content: string }) => {
+    mutationFn: async ({
+      messageId,
+      content,
+    }: {
+      messageId: string;
+      content: string;
+    }) => {
       return new Promise<ChatMessage>((resolve, reject) => {
-        socket.emit('chat:message:edit', { messageId, content }, (response: any) => {
-          if (response.success) resolve(response.message);
-          else reject(new Error(response.error));
-        });
+        socket.emit(
+          "chat:message:edit",
+          { messageId, content },
+          (response: any) => {
+            if (response.success) resolve(response.message);
+            else reject(new Error(response.error));
+          },
+        );
       });
     },
     // Note: We don't invalidate queries here - socket events will update the cache
