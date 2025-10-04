@@ -251,3 +251,25 @@ class APIManager:
         )
         response.raise_for_status()
         return response.json()
+
+    def set_geometry(self, data: dict, key: str, geometry_type: str) -> None:
+        response = requests.put(
+            f"{self.url}/api/rooms/{self.room}/geometries",
+            json={"key": key, "data": data, "type": geometry_type},
+        )
+        response.raise_for_status()
+
+    def del_geometry(self, key: str) -> None:
+        response = requests.delete(
+            f"{self.url}/api/rooms/{self.room}/geometries/{key}",
+        )
+        response.raise_for_status()
+
+    def get_geometries(self) -> dict | None:
+        response = requests.get(
+            f"{self.url}/api/rooms/{self.room}/geometries",
+        )
+        if response.status_code == 404:
+            return None
+        response.raise_for_status()
+        return response.json()

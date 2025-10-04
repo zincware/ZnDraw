@@ -5,7 +5,7 @@ import { set, throttle } from 'lodash';
 import { useQueryClient } from '@tanstack/react-query';
 
 export const useRestJoinManager = () => {
-    const { setClientId, setRoomId, setUserId, setCurrentFrame, setFrameCount, setSelection, setFrameSelection, setBookmarks, setJoinToken } = useAppStore();
+    const { setClientId, setRoomId, setUserId, setCurrentFrame, setFrameCount, setSelection, setFrameSelection, setBookmarks, setJoinToken, setGeometries } = useAppStore();
     const { roomId: room, userId } = useParams<{ roomId: string, userId: string }>();
     const [searchParams] = useSearchParams();
     const queryClient = useQueryClient();
@@ -72,6 +72,9 @@ export const useRestJoinManager = () => {
             }
             if (data.joinToken) {
                 setJoinToken(data.joinToken);
+            }
+            if (data.geometries) {
+                setGeometries(data.geometries);
             }
             setRoomId(room);
             setUserId(userId);

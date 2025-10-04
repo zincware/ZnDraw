@@ -11,11 +11,17 @@ from zndraw.api_manager import APIManager
 from zndraw.exceptions import LockError
 from zndraw.extensions import Extension, ExtensionType
 from zndraw.frame_cache import FrameCache
+from zndraw.scene_manager import Geometries
 from zndraw.settings import RoomConfig, settings
 from zndraw.socket_manager import SocketIOLock, SocketManager
 from zndraw.utils import atoms_from_dict, atoms_to_dict, update_colors_and_radii
 
 log = logging.getLogger(__name__)
+
+
+class _GeometryStore(t.TypedDict):
+    type: str
+    data: dict
 
 
 class _ExtensionStore(t.TypedDict):
@@ -50,6 +56,9 @@ class ZnDraw(MutableSequence):
     _selection: frozenset[int] = frozenset()
     _frame_selection: frozenset[int] = frozenset()
     _bookmarks: dict[int, str] = dataclasses.field(default_factory=dict, init=False)
+    _geometries: dict[str, _GeometryStore] = dataclasses.field(
+        default_factory=dict, init=False
+    )
 
     def __post_init__(self):
         self.api = APIManager(url=self.url, room=self.room, client_id=self._client_id)
@@ -80,11 +89,17 @@ class ZnDraw(MutableSequence):
             self._bookmarks = {int(k): v for k, v in response_data["bookmarks"].items()}
         if response_data.get("step") is not None:
             self._step = int(response_data["step"])
+        if response_data.get("geometries") is not None:
+            self._geometries = response_data["geometries"]
         self._len = response_data["frameCount"]
 
     @property
     def lock(self) -> SocketIOLock:
         return SocketIOLock(self.socket.sio, target="trajectory:meta")
+
+    @property
+    def geometries(self) -> Geometries:
+        return Geometries(self)
 
     @property
     def sid(self) -> str:

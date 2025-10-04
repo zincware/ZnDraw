@@ -63,6 +63,7 @@ class SocketManager:
         self.sio.on("frame_selection:update", self._on_frame_selection_update)
         self.sio.on("bookmarks:update", self._on_bookmarks_update)
         self.sio.on("frames:invalidate", self._on_frames_invalidate)
+        self.sio.on("invalidate:geometry", self._on_geometry_invalidate)
 
     def connect(self):
         if self.sio.connected:
@@ -112,6 +113,13 @@ class SocketManager:
     def _on_bookmarks_update(self, data):
         if "bookmarks" in data:
             self.zndraw._bookmarks = {int(k): v for k, v in data["bookmarks"].items()}
+
+    def _on_geometry_invalidate(self, data):
+        if key := data.get("key"):
+            # Refresh geometries from server to get updated state
+            response = self.zndraw.api.get_geometries()
+            if response is not None:
+                self.zndraw._geometries = response
 
     def _on_queue_update(self, data: dict):
         print(f"Queue update received: {data}")

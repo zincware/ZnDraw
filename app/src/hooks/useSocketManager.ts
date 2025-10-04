@@ -4,7 +4,7 @@ import { useAppStore } from '../store';
 import { useQueryClient } from '@tanstack/react-query';
 
 export const useSocketManager = () => {
-  const { setConnected, setFrameCount, isConnected, setCurrentFrame, setFrameSelection, setSelection, setBookmarks, roomId, userId, joinToken } = useAppStore();
+  const { setConnected, setFrameCount, isConnected, setCurrentFrame, setFrameSelection, setSelection, setBookmarks, roomId, userId, joinToken, setGeometries } = useAppStore();
   const queryClient = useQueryClient();
 
   useEffect(() => {
@@ -155,6 +155,24 @@ export const useSocketManager = () => {
       });
     }
 
+    function onGeometriesInvalidate(data: any) {
+      // get new geometries from data
+      fetch('/api/rooms/' + roomId + '/geometries')
+        .then(response => {
+          if (!response.ok) {
+            throw new Error(`Failed to fetch geometries: ${response.status} ${response.statusText}`);
+          }
+          return response.json();
+        })
+        .then(geometries => {
+          console.log('Received updated geometries:', geometries);
+          setGeometries(geometries);
+        })
+        .catch(error => {
+          console.error('Error fetching geometries:', error);
+        });
+    }
+
     function onConnectError(err: any) {
       console.error('Socket connection error:', err);
     }
@@ -173,6 +191,7 @@ export const useSocketManager = () => {
     socket.on('frames:invalidate', onFramesInvalidate);
     socket.on('chat:message:new', onChatMessageNew);
     socket.on('chat:message:updated', onChatMessageUpdated);
+    socket.on('invalidate:geometry', onGeometriesInvalidate);
 
     socket.auth = { token: joinToken };
     socket.connect();
@@ -191,6 +210,7 @@ export const useSocketManager = () => {
       socket.off('frames:invalidate', onFramesInvalidate);
       socket.off('chat:message:new', onChatMessageNew);
       socket.off('chat:message:updated', onChatMessageUpdated);
+      socket.off('invalidate:geometry', onGeometriesInvalidate);
     };
-  }, [joinToken, roomId, userId, setConnected, setFrameCount, userId, isConnected, setCurrentFrame, queryClient, setBookmarks]);
+  }, [joinToken, roomId, userId, setConnected, setFrameCount, userId, isConnected, setCurrentFrame, queryClient, setBookmarks, setSelection, setFrameSelection, setGeometries]);
 };

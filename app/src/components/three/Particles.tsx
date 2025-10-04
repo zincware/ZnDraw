@@ -2,30 +2,32 @@ import * as THREE from 'three';
 import { useQueries } from '@tanstack/react-query';
 import { getFrameDataOptions } from '../../hooks/useTrajectoryData';
 import { useAppStore } from '../../store';
-import { useRef, useEffect, useMemo } from 'react';
+import { useRef, useMemo } from 'react';
 import { useExtensionData } from '../../hooks/useSchemas';
 import type { Representation } from '../../types/room-config';
 import { useFrame } from '@react-three/fiber';
 
-// Reusable vectors to avoid creating them in the loop
+interface SphereProps {
+  positionKey: string;
+  colorKey: string;
+  radiusKey: string;
+}
+
+// Reusable vectors and objects to avoid creating them in the loop
 const positionVec = new THREE.Vector3();
 const scaleVec = new THREE.Vector3();
-
-// Reusable THREE objects to avoid creating them in the loop
 const matrix = new THREE.Matrix4();
 const color = new THREE.Color();
-export default function Particles() {
+
+export default function Sphere({ positionKey, colorKey, radiusKey }: SphereProps) {
   const instancedMeshRef = useRef<THREE.InstancedMesh | null>(null);
   const { currentFrame, roomId, clientId, userId, selection } = useAppStore();
   const lastGoodFrameData = useRef<any>(null);
-  
-  // Memoize the selection Set for performance
+
   const selectionSet = useMemo(() => {
-    console.log('Current selection:', selection);
     return selection ? new Set(selection) : null;
   }, [selection]);
 
-  // Fetch representation settings
   const { data: representationSettings } = useExtensionData(
     roomId || '',
     userId || '',
@@ -37,30 +39,31 @@ export default function Particles() {
   const material = representationSettings?.material ?? 'MeshStandardMaterial';
   const particleScale = representationSettings?.particle_scale ?? 1.0;
 
-  const requiredKeys = ['arrays.positions', 'arrays.colors', 'arrays.radii'];
+  const requiredKeys = useMemo(() => [positionKey, colorKey, radiusKey], [
+    positionKey,
+    colorKey,
+    radiusKey,
+  ]);
 
   const queries = useMemo(() => {
     if (!roomId) {
       return [];
     }
     return requiredKeys.map(key => getFrameDataOptions(roomId, currentFrame, key));
-  }, [currentFrame, roomId]);
+  }, [currentFrame, roomId, requiredKeys]);
 
   const queryResults = useQueries({ queries });
-
-  const queryData = queryResults.map(q => q.data);
 
   const { frameData, isFetching } = useMemo(() => {
     const isFetching = queryResults.some(result => result.isFetching || result.isPlaceholderData);
     const allDataPresent = queryResults.every(result => result.data);
 
-    // If queries haven't run or are still fetching, there's no data.
     if (!allDataPresent || queryResults.length === 0) {
       return { isFetching, frameData: null };
     }
 
     const firstSuccessfulResult = queryResults.find(result => result.isSuccess);
-    const combinedData = {};
+    const combinedData: { [key: string]: any } = {};
     let isComplete = true;
 
     for (let i = 0; i < requiredKeys.length; i++) {
@@ -80,18 +83,21 @@ export default function Particles() {
 
     combinedData.count = firstSuccessfulResult?.data?.shape[0] || 0;
     return { isFetching, frameData: combinedData };
-  }, [queryData]); // Depend on the array of data objects.
+  }, [queryResults, requiredKeys]);
 
   const dataToRender = frameData || lastGoodFrameData.current;
 
-  // This hook also runs safely on every render.
   useFrame(() => {
     if (!instancedMeshRef.current || !dataToRender || isFetching) {
       return;
     }
 
     const mesh = instancedMeshRef.current;
-    const { "arrays.positions": positions, "arrays.colors": colors, "arrays.radii": radii, count } = dataToRender;
+    
+    const positions = dataToRender[positionKey];
+    const colors = dataToRender[colorKey];
+    const radii = dataToRender[radiusKey];
+    const { count } = dataToRender;
 
     if (!positions || !colors || !radii || !count) {
       return;
@@ -105,7 +111,6 @@ export default function Particles() {
       matrix.identity().setPosition(positionVec).scale(scaleVec);
       mesh.setMatrixAt(i, matrix);
 
-      // If this particle is in the selection, color it pink, otherwise use original color
       if (selectionSet && selectionSet.has(i)) {
         color.setRGB(1.0, 0.75, 0.8); // Pink color
       } else {
@@ -120,9 +125,7 @@ export default function Particles() {
     }
   });
 
-  // FIX 2: The guard is now placed *after* all hooks have been called.
   if (!clientId || !roomId || !dataToRender) {
-    // You can return a loader here for the initial state
     return null;
   }
 
@@ -130,26 +133,19 @@ export default function Particles() {
     lastGoodFrameData.current = frameData;
   }
 
-  // Render the appropriate material based on settings
   const renderMaterial = () => {
     const commonProps = { color: "white", side: THREE.FrontSide };
-
     switch (material) {
-      case 'MeshBasicMaterial':
-        return <meshBasicMaterial {...commonProps} />;
-      case 'MeshPhysicalMaterial':
-        return <meshPhysicalMaterial {...commonProps} roughness={0.3} reflectivity={0.4} />;
-      case 'MeshToonMaterial':
-        return <meshToonMaterial {...commonProps} />;
-      case 'MeshStandardMaterial':
-      default:
-        return <meshStandardMaterial {...commonProps} />;
+        case 'MeshBasicMaterial': return <meshBasicMaterial {...commonProps} />;
+        case 'MeshPhysicalMaterial': return <meshPhysicalMaterial {...commonProps} roughness={0.3} reflectivity={0.4} />;
+        case 'MeshToonMaterial': return <meshToonMaterial {...commonProps} />;
+        case 'MeshStandardMaterial': default: return <meshStandardMaterial {...commonProps} />;
     }
   };
 
   return (
     <instancedMesh
-      key={dataToRender.count}
+      key={dataToRender.count} // Unique key based on count
       ref={instancedMeshRef}
       args={[undefined, undefined, dataToRender.count]}
     >

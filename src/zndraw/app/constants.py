@@ -12,3 +12,4 @@ class SocketEvents:
     REGISTER_EXTENSION = "register:extension"
     LEN_FRAMES = "len_frames"
     FRAME_UPDATE = "frame_update"
+    INVALIDATE_GEOMETRY = "invalidate:geometry"

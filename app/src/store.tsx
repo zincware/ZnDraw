@@ -17,6 +17,7 @@ interface AppState {
   playing: boolean;
   chatOpen: boolean;
   joinToken: string | null;
+  geometries: Record<string, any>; // Store geometries by their IDs
 
   // Actions (functions to modify the state)
   setRoomId: (roomId: string) => void;
@@ -34,6 +35,7 @@ interface AppState {
   setBookmarks: (bookmark: Record<number, string> | null) => void;
   setPlaying: (playing: boolean) => void;
   setChatOpen: (open: boolean) => void;
+  setGeometries: (geometries: Record<string, any>) => void;
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -53,6 +55,7 @@ export const useAppStore = create<AppState>((set) => ({
   playing: false,
   chatOpen: false,
   joinToken: null,
+  geometries: {},
   // Actions
   setConnected: (status) => set({ isConnected: status }),
   setRoomId: (roomId) => set({ roomId }),
@@ -73,4 +76,5 @@ export const useAppStore = create<AppState>((set) => ({
   setPlaying: (playing) => set({ playing: playing }),
   setChatOpen: (open) => set({ chatOpen: open }),
   setJoinToken: (joinToken) => set({ joinToken }),
+  setGeometries: (geometries) => set({ geometries: geometries }),
 }));

@@ -1,8 +1,9 @@
+import numpy as np
 import requests
+from ase.calculators.singlepoint import SinglePointCalculator
 
 from zndraw import ZnDraw
-import numpy as np
-from ase.calculators.singlepoint import SinglePointCalculator
+
 
 def test_metadata_s22(server, s22):
     vis = ZnDraw(url=server, room="s22-0", user="user1")
@@ -172,6 +173,7 @@ def test_metadata_s22_arrays(server, s22):
         "type": "array",
     }
 
+
 def test_metadata_s22_info(server, s22):
     vis = ZnDraw(url=server, room="s22-0", user="user1")
     for atoms in s22:
@@ -202,7 +204,9 @@ def test_metadata_s22_info(server, s22):
 def test_metadata_s22_calc(server, s22):
     vis = ZnDraw(url=server, room="s22-0", user="user1")
     for atoms in s22:
-        atoms.calc = SinglePointCalculator(atoms, energy=np.random.rand(), forces=np.random.rand(len(atoms), 3))
+        atoms.calc = SinglePointCalculator(
+            atoms, energy=np.random.rand(), forces=np.random.rand(len(atoms), 3)
+        )
     vis.extend(s22)
 
     response = requests.get(f"{server}/api/rooms/s22-0/frames/0/metadata")
@@ -236,7 +240,9 @@ def test_metadata_s22_calc(server, s22):
 def test_metadata_s22_info_arrays_calc(server, s22):
     vis = ZnDraw(url=server, room="s22-0", user="user1")
     for atoms in s22:
-        atoms.calc = SinglePointCalculator(atoms, energy=np.random.rand(), forces=np.random.rand(len(atoms), 3))
+        atoms.calc = SinglePointCalculator(
+            atoms, energy=np.random.rand(), forces=np.random.rand(len(atoms), 3)
+        )
         atoms.arrays["forces"] = np.random.rand(len(atoms), 3)
         atoms.info["energy"] = np.random.rand()
     vis.extend(s22)

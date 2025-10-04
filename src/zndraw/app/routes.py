@@ -1880,6 +1880,7 @@ def join_room(room_id):
         "created": True,
         "presenter-lock": False,
         "step": None,
+        "geometries": None,
     }
 
     response["created"] = not room_exists
@@ -1947,6 +1948,16 @@ def join_room(room_id):
             )
         log.info(f"Initialized default settings for new room '{room_id}'")
 
+    if not room_exists:
+        # create default geometries
+        from zndraw.geometries import Sphere
+
+        r.hset(
+            f"room:{room_id}:geometries",
+            "particles",
+            json.dumps({"type": Sphere.__name__, "data": Sphere().model_dump()}),
+        )
+
     selection = r.get(f"room:{room_id}:selection:default")
     response["selection"] = json.loads(selection) if selection else None
 
@@ -1963,6 +1974,9 @@ def join_room(room_id):
 
     bookmarks_key = f"room:{room_id}:bookmarks"
     physical_bookmarks = r.hgetall(bookmarks_key)
+
+    geometries = r.hgetall(f"room:{room_id}:geometries")
+    response["geometries"] = {k: json.loads(v) for k, v in geometries.items()}
 
     if physical_bookmarks:
         frame_mapping = r.zrange(indices_key, 0, -1)
@@ -1992,6 +2006,60 @@ def join_room(room_id):
     response["settings"] = settings_data
 
     return response
+
+
+@main.route("/api/rooms/<string:room_id>/geometries", methods=["PUT"])
+def set_geometry(room_id: str):
+    data = request.get_json() or {}
+    key = data["key"]
+    from zndraw.geometries import geometries
+
+    if data["type"] not in geometries:
+        return {
+            "error": f"Unknown geometry type '{data['type']}'",
+            "type": "ValueError",
+        }, 400
+    value_to_store = json.dumps({"type": data["type"], "data": data["data"]})
+
+    r = current_app.extensions["redis"]
+    r.hset(f"room:{room_id}:geometries", key, value_to_store)
+    socketio.emit(
+        SocketEvents.INVALIDATE_GEOMETRY,
+        {
+            "key": key,
+        },
+        to=f"room:{room_id}",
+    )
+
+    return {"status": "success"}, 200
+
+
+@main.route("/api/rooms/<string:room_id>/geometries/<string:key>", methods=["DELETE"])
+def delete_geometry(room_id: str, key: str):
+    r = current_app.extensions["redis"]
+    response = r.hdel(f"room:{room_id}:geometries", key)
+    if response == 0:
+        return {
+            "error": f"Geometry with key '{key}' does not exist",
+            "type": "KeyError",
+        }, 404
+    socketio.emit(
+        SocketEvents.INVALIDATE_GEOMETRY,
+        {
+            "key": key,
+        },
+        to=f"room:{room_id}",
+    )
+    return {"status": "success"}
+
+
+@main.route("/api/rooms/<string:room_id>/geometries", methods=["GET"])
+def list_geometries(room_id: str):
+    r = current_app.extensions["redis"]
+
+    all_data = r.hgetall(f"room:{room_id}:geometries")
+    result = {key: json.loads(value) for key, value in all_data.items()}
+    return result, 200
 
 
 def _transition_worker_to_idle(

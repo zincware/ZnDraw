@@ -8,7 +8,12 @@ import { useColorScheme } from '@mui/material/styles';
 
 // Import our new, self-contained components
 import { SimulationCell } from './three/SimulationCell';
-import Particles from './three/Particles';
+import Sphere from './three/Particles';
+
+const componentMap = {
+  Sphere: Sphere,
+  // Box: Box,
+};
 
 // A small helper component to keep a light attached to the camera
 function CameraAttachedLight({ intensity = 1.0 }) {
@@ -26,7 +31,7 @@ function CameraAttachedLight({ intensity = 1.0 }) {
 
 // The main scene component
 function MyScene() {
-  const { roomId, userId } = useAppStore();
+  const { roomId, userId, geometries } = useAppStore();
   const { mode } = useColorScheme();
 
   const { data: studioLightingSettings } = useExtensionData(
@@ -56,7 +61,37 @@ function MyScene() {
         <directionalLight position={[10, 20, -20]} intensity={rimLightIntensity} />
 
         {/* Render our clean, refactored components */}
-        <Particles />
+        {/* <Sphere /> */}
+        {Object.entries(geometries).map(([name, config]) => {
+        // Look up the component based on its 'type' string
+        const Component = componentMap[config.type];
+
+        // If the type doesn't match any component, render nothing and warn.
+        if (!Component) {
+          console.warn(`No component found for geometry type: ${config.type}`);
+          return null;
+        }
+        
+        // This is a robust way to handle different prop mappings if needed.
+        // For now, we assume a component of type 'Sphere' needs these specific props.
+        if (config.type === 'Sphere') {
+          return (
+            <Sphere
+              key={name} // React requires a unique key for list items
+              positionKey={config.data.position}
+              colorKey={config.data.color}
+              radiusKey={config.data.radius}
+            />
+          );
+        }
+
+        // You could add other types here
+        // if (config.type === 'Box') {
+        //   return <Box key={name} /* ...box props... */ />;
+        // }
+
+        return null;
+      })}
         <SimulationCell />
 
         {showContactShadow &&

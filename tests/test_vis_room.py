@@ -25,6 +25,16 @@ def test_rest_join_new_room(server):
     assert data["step"] == 0
     assert data["bookmarks"] is None
     assert data["template"] == "empty"
+    assert data["geometries"] == {
+        "particles": {
+            "type": "Sphere",
+            "data": {
+                "color": "arrays.colors",
+                "position": "arrays.positions",
+                "radius": "arrays.radii",
+            },
+        }
+    }
     assert "settings" in data
     assert "joinToken" in data
     assert "clientId" in data

@@ -471,9 +471,6 @@ def test_zarr_storage_mask_resize_on_matching_shape():
     npt.assert_array_equal(store[3]["x"], np.array([9, 10, 11]))
 
 
-
-
-
 def test_numpy_scalar_types_in_storage():
     """Test that numpy scalar types (int64, float64, bool_) are properly handled in zarr storage.
 
