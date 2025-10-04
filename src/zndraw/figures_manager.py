@@ -2,6 +2,7 @@ import typing as t
 from collections.abc import MutableMapping
 import plotly.graph_objs as go
 import plotly.io as pio
+import json
 
 if t.TYPE_CHECKING:
     from zndraw import ZnDraw

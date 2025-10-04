@@ -21,7 +21,7 @@ import { useAppStore } from '../store';
 import { useRestJoinManager } from '../hooks/useRestManager';
 import { useState } from 'react';
 import { useColorScheme } from '@mui/material/styles';
-
+import WindowManager from '../components/WindowManager';
 
 
 export default function MainPage() {
@@ -40,8 +40,8 @@ export default function MainPage() {
   return (
     <>
       <Box sx={{ display: 'flex' }}>
-
         <CssBaseline />
+        <WindowManager />
         <AppBar position="fixed" sx={{ zIndex: (theme) => theme.zIndex.drawer + 1 }}>
           <Toolbar>
             <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>

@@ -2,10 +2,12 @@ import { useEffect } from 'react';
 import { socket } from '../socket';
 import { useAppStore } from '../store';
 import { useQueryClient } from '@tanstack/react-query';
+import { useWindowManagerStore } from '../stores/windowManagerStore';
 
 export const useSocketManager = () => {
   const { setConnected, setFrameCount, isConnected, setCurrentFrame, setFrameSelection, setSelection, setBookmarks, roomId, userId, joinToken, setGeometries } = useAppStore();
   const queryClient = useQueryClient();
+  const { openWindow } = useWindowManagerStore();
 
   useEffect(() => {
     if (!joinToken) {
@@ -14,7 +16,7 @@ export const useSocketManager = () => {
     }
 
     async function onConnect() {
-      console.log('Socket connected and joining room:',   roomId, userId);
+      console.log('Socket connected and joining room:', roomId, userId);
       setConnected(true);
 
     }
@@ -173,6 +175,24 @@ export const useSocketManager = () => {
         });
     }
 
+    function onFiguresInvalidate(data: { key: string }) {
+      console.log(`Received invalidation for figure: ${data.key}`);
+      if (data.key) {
+        // Step 1: Always invalidate the data so it's fresh when needed.
+        queryClient.invalidateQueries({
+          queryKey: ['figures', roomId, 'detail', data.key],
+        });
+
+        // Step 2: Check if window is already open. If not, open it.
+        // We use getState() here to get the latest state without adding it as a dependency.
+        const isWindowOpen = !!useWindowManagerStore.getState().openWindows[data.key];
+        if (!isWindowOpen) {
+          console.log(`Popping up new window for figure: ${data.key}`);
+          openWindow(data.key);
+        }
+      }
+    }
+
     function onConnectError(err: any) {
       console.error('Socket connection error:', err);
     }
@@ -192,6 +212,7 @@ export const useSocketManager = () => {
     socket.on('chat:message:new', onChatMessageNew);
     socket.on('chat:message:updated', onChatMessageUpdated);
     socket.on('invalidate:geometry', onGeometriesInvalidate);
+    socket.on('invalidate:figure', onFiguresInvalidate);
 
     socket.auth = { token: joinToken };
     socket.connect();
@@ -211,6 +232,7 @@ export const useSocketManager = () => {
       socket.off('chat:message:new', onChatMessageNew);
       socket.off('chat:message:updated', onChatMessageUpdated);
       socket.off('invalidate:geometry', onGeometriesInvalidate);
+      socket.off('invalidate:figure', onFiguresInvalidate);
     };
   }, [joinToken, roomId, userId, setConnected, setFrameCount, userId, isConnected, setCurrentFrame, queryClient, setBookmarks, setSelection, setFrameSelection, setGeometries]);
 };

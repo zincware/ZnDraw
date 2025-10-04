@@ -64,6 +64,7 @@ class SocketManager:
         self.sio.on("bookmarks:update", self._on_bookmarks_update)
         self.sio.on("frames:invalidate", self._on_frames_invalidate)
         self.sio.on("invalidate:geometry", self._on_geometry_invalidate)
+        self.sio.on("invalidate:figure", self._on_figure_invalidate)
 
     def connect(self):
         if self.sio.connected:

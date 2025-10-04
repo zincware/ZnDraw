@@ -2,6 +2,7 @@ import requests
 from zndraw import ZnDraw
 import plotly.graph_objs as go
 import pytest
+import json
 
 # --- Test Data ---
 # Dummy figure data for testing purposes.
@@ -217,6 +218,13 @@ def test_vis_figures(server):
 
     del vis.figures["fig1"]
     assert set(list(vis.figures)) == {"fig2"}
+
+    response = requests.get(f"{server}/api/rooms/test-vis-figures/figures/fig2")
+    assert response.status_code == 200
+    assert response.json()["figure"]["type"] == "plotly"
+    # stored as json, because fig.to_json() is save to serialize, fig.to_dict() is not
+    assert json.loads(response.json()["figure"]["data"]) == fig2.to_dict()
+    assert response.json()["key"] == "fig2"
 
 def test_vis_figures_sync(server):
     vis1 = ZnDraw(url=server, room="test-vis-figures-sync", user="tester1")
