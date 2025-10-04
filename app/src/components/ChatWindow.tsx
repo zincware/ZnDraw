@@ -159,7 +159,7 @@ const ChatWindow = ({ open, onClose }: ChatWindowProps) => {
       }}
       minWidth={300}
       minHeight={400}
-      bounds="window"
+      bounds=".drag-boundary-container"
       dragHandleClassName="drag-handle"
       style={{ zIndex: 1301 }}
     >

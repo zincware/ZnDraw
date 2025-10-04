@@ -33,16 +33,30 @@ export const useWindowManagerStore = create<WindowManagerStore>((set, get) => ({
     const openCount = Object.keys(get().openWindows).length;
     const windowId = `window-${Date.now()}`; // Generate a unique, stable ID
 
+    // Get the boundary container dimensions
+    const boundaryContainer = document.querySelector('.drag-boundary-container');
+    const containerWidth = boundaryContainer?.clientWidth || window.innerWidth;
+    const containerHeight = boundaryContainer?.clientHeight || window.innerHeight;
+
+    // Define window dimensions
+    const windowWidth = 500;
+    const windowHeight = 400;
+    const padding = 20;
+
+    // Position in lower right corner with 20px padding on all sides
+    const x = containerWidth - windowWidth - padding - (openCount * 30);
+    const y = containerHeight - windowHeight - padding - (openCount * 30);
+
     set((state) => ({
       openWindows: {
         ...state.openWindows,
         [windowId]: {
           id: windowId,
           figureKey, // The figure to display initially
-          x: 50 + openCount * 20,
-          y: 100 + openCount * 20,
-          width: 500,
-          height: 400,
+          x: Math.max(padding, x), // Ensure minimum padding from left
+          y: Math.max(padding, y), // Ensure minimum padding from top
+          width: windowWidth,
+          height: windowHeight,
           zIndex: newZIndex,
         },
       },

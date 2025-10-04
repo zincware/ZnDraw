@@ -90,7 +90,7 @@ function FigureWindow({ windowId }: FigureWindowProps) {
           ...position,
         });
       }}
-      bounds="parent"
+      bounds=".drag-boundary-container"
     >
       <Paper 
         elevation={8}

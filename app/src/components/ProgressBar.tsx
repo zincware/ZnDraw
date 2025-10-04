@@ -218,19 +218,16 @@ const FrameProgressBar = () => {
 
     return (
         <Box sx={{
-            position: 'fixed',
-            bottom: 0,
-            left: 0,
-            right: 0,
             padding: '5px 10px',
             backgroundColor: 'background.paper',
-            border: '1px solid',
+            borderTop: '1px solid',
             borderColor: 'divider',
             boxShadow: '0 -2px 8px rgba(0,0,0,0.1)',
-            zIndex: (theme) => theme.zIndex.drawer + 1,
             display: 'flex',
             alignItems: 'center',
             gap: 4,
+            flexShrink: 0,
+            zIndex: (theme) => theme.zIndex.drawer + 1,
         }}>
             <Box sx={{ minWidth: '100px', cursor: 'pointer' }} onClick={handleDisplayClick}>
                 {isEditing ? (

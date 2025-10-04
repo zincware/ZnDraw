@@ -41,10 +41,11 @@ export default function MainPage() {
 
   return (
     <>
-      <Box sx={{ display: 'flex' }}>
+      <Box sx={{ display: 'flex', flexDirection: 'column', height: '100vh', width: '100vw', overflow: 'hidden' }}>
         <CssBaseline />
-        <WindowManager />
-        <AppBar position="fixed" sx={{ zIndex: (theme) => theme.zIndex.drawer + 1 }}>
+        
+        {/* Header / AppBar */}
+        <AppBar position="static" sx={{ zIndex: (theme) => theme.zIndex.drawer + 1 }}>
           <Toolbar>
             <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
               ZnDraw
@@ -75,18 +76,36 @@ export default function MainPage() {
             <AddPlotButton />
           </Toolbar>
         </AppBar>
-        <SideBar />
 
-        {/* Main Content Area */}
-        <Box component="main" sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
-          <Toolbar />
-          <MyScene />
+        {/* Main content row with sidebar and center area */}
+        <Box sx={{ display: 'flex', flexGrow: 1, minHeight: 0 }}>
+          <SideBar />
+
+          {/* Main Content Area with drag boundary */}
+          <Box component="main" sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+            {/* THIS IS THE CRUCIAL DRAG BOUNDARY CONTAINER */}
+            <Box
+              className="drag-boundary-container"
+              sx={{
+                flexGrow: 1,
+                position: 'relative',
+                overflow: 'hidden',
+                display: 'flex',
+                flexDirection: 'column'
+              }}
+            >
+              <MyScene />
+              <WindowManager />
+            </Box>
+          </Box>
         </Box>
+
+        {/* Progress bar spans full width outside the drag boundary */}
+        <FrameProgressBar />
 
         {/* Chat Window */}
         <ChatWindow open={chatOpen} onClose={() => setChatOpen(false)} />
       </Box>
-      <FrameProgressBar />
 
       <ConnectionDialog
         open={connectionDialogOpen}
