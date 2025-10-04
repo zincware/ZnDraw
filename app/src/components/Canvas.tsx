@@ -8,6 +8,7 @@ import { OrbitControls, ContactShadows } from '@react-three/drei';
 import { useExtensionData } from '../hooks/useSchemas';
 import type { Representation } from '../types/room-config';
 import { useColorScheme } from '@mui/material/styles';
+import { SimulationCell } from './three/SimulationCell';
 
 // Reusable THREE objects
 const matrix = new THREE.Matrix4();
@@ -239,6 +240,7 @@ function MyScene() {
 
         {/* Your scene content */}
         <Instances />
+        <SimulationCell />
 
         {showContactShadow &&
           <ContactShadows
