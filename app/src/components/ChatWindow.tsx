@@ -177,7 +177,7 @@ const ChatWindow = ({ open, onClose }: ChatWindowProps) => {
         <Box
           className="drag-handle"
           sx={{
-            p: 2,
+            p: 1.4,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',

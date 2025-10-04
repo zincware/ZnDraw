@@ -112,7 +112,7 @@ function FigureWindow({ windowId }: FigureWindowProps) {
           onMouseDown={() => bringToFront(windowId)}
           // --- STYLE CHANGE: Header styles now match ChatWindow ---
           sx={{
-            p: 2,
+            p: 1,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
