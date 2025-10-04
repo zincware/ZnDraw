@@ -43,7 +43,7 @@ export default function MainPage() {
     <>
       <Box sx={{ display: 'flex', flexDirection: 'column', height: '100vh', width: '100vw', overflow: 'hidden' }}>
         <CssBaseline />
-        
+
         {/* Header / AppBar */}
         <AppBar position="static" sx={{ zIndex: (theme) => theme.zIndex.drawer + 1 }}>
           <Toolbar>
@@ -59,13 +59,16 @@ export default function MainPage() {
                 {mode === 'light' ? <DarkModeIcon /> : <LightModeIcon />}
               </IconButton>
             </Tooltip>
-            <IconButton
-              color="inherit"
-              aria-label="show connection info"
-              onClick={() => setConnectionDialogOpen(true)}
-            >
-              <CodeIcon />
-            </IconButton>
+            <Tooltip title={"Python code connection info"}>
+              <IconButton
+                color="inherit"
+                aria-label="show connection info"
+                onClick={() => setConnectionDialogOpen(true)}
+              >
+                <CodeIcon />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title={"Toggle chat window"}>
             <IconButton
               color="inherit"
               aria-label="toggle chat"
@@ -73,6 +76,7 @@ export default function MainPage() {
             >
               <ChatIcon />
             </IconButton>
+            </Tooltip>
             <AddPlotButton />
           </Toolbar>
         </AppBar>

@@ -1,9 +1,11 @@
 import { useMemo } from 'react';
 import { useFigureList } from '../hooks/useFigures';
 import { useWindowManagerStore } from '../stores/windowManagerStore';
-import { Button } from '@mui/material';
+import { IconButton } from '@mui/material';
 import { Addchart as AddChartIcon } from '@mui/icons-material';
 import { useShallow } from 'zustand/react/shallow';
+import Tooltip from '@mui/material/Tooltip';
+
 
 function AddPlotButton() {
   // 1. Get all figure keys available on the server
@@ -31,14 +33,16 @@ function AddPlotButton() {
   };
 
   return (
-    <Button
-      variant="contained"
-      startIcon={<AddChartIcon />}
+    <Tooltip title={"Add a new plot window"}>
+    <IconButton
+      color="inherit"
+      aria-label="add plot"
       onClick={handleOpenNextPlot}
       disabled={!nextKeyToShow} // Button is disabled if no available plots are left
     >
-      Show Next Plot
-    </Button>
+      <AddChartIcon />
+    </IconButton>
+    </Tooltip>
   );
 }
 
