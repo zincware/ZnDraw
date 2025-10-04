@@ -215,12 +215,20 @@ export const useSocketManager = () => {
 
         // Step 3: Check if ANY window is already displaying this figure key
         // We need to check if any window.figureKey matches, not just if openWindows[data.key] exists
-        const isWindowDisplayingFigure = Object.values(useWindowManagerStore.getState().openWindows)
+        const openWindowsState = useWindowManagerStore.getState().openWindows;
+        const isWindowDisplayingFigure = Object.values(openWindowsState)
           .some(window => window.figureKey === data.key);
         
+        const openWindowCount = Object.keys(openWindowsState).length;
+        const MAX_AUTO_OPEN_WINDOWS = 5;
+        
         if (!isWindowDisplayingFigure) {
-          console.log(`Popping up new window for figure: ${data.key}`);
-          openWindow(data.key);
+          if (openWindowCount < MAX_AUTO_OPEN_WINDOWS) {
+            console.log(`Popping up new window for figure: ${data.key} (${openWindowCount + 1}/${MAX_AUTO_OPEN_WINDOWS})`);
+            openWindow(data.key);
+          } else {
+            console.log(`Not opening window for figure: ${data.key} - maximum of ${MAX_AUTO_OPEN_WINDOWS} windows already open`);
+          }
         } else {
           console.log(`Window already open for figure: ${data.key}, not opening a new one`);
         }
