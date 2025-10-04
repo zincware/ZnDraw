@@ -37,7 +37,7 @@ export default function Particles() {
   const material = representationSettings?.material ?? 'MeshStandardMaterial';
   const particleScale = representationSettings?.particle_scale ?? 1.0;
 
-  const requiredKeys = ['positions', 'colors', 'radii'];
+  const requiredKeys = ['arrays.positions', 'arrays.colors', 'arrays.radii'];
 
   const queries = useMemo(() => {
     if (!roomId) {
@@ -91,7 +91,7 @@ export default function Particles() {
     }
 
     const mesh = instancedMeshRef.current;
-    const { positions, colors, radii, count } = dataToRender;
+    const { "arrays.positions": positions, "arrays.colors": colors, "arrays.radii": radii, count } = dataToRender;
 
     if (!positions || !colors || !radii || !count) {
       return;

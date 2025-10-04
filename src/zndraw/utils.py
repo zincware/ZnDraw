@@ -25,23 +25,78 @@ def _convert_numpy_scalars(obj):
 
 
 def atoms_to_dict(atoms: ase.Atoms) -> dict:
-    if not atoms.calc:
-        result = atoms.todict()
-    else:
-        result = atoms.todict()
-        result["<SinglePointCalculator>"] = atoms.calc.results
-    # return result
+    result = atoms.todict()
+
+    # Create a new dict with properly prefixed keys
+    prefixed_result = {}
+
+    # Get the list of keys that are actually in atoms.arrays
+    array_keys = set(atoms.arrays.keys())
+
+    # Process all keys from todict
+    for key, value in result.items():
+        if key in array_keys:
+            # Keys in atoms.arrays get 'arrays.' prefix
+            prefixed_result[f"arrays.{key}"] = value
+        elif key == "info":
+            # Expand info dict with 'info.' prefix
+            # Convert scalar values to numpy arrays to preserve dtype information
+            for info_key, info_value in value.items():
+                if isinstance(info_value, (int, float, bool, np.number)):
+                    prefixed_result[f"info.{info_key}"] = np.array(info_value)
+                else:
+                    prefixed_result[f"info.{info_key}"] = info_value
+        else:
+            # cell, pbc, and other non-array fields keep their original keys
+            prefixed_result[key] = value
+
+    # Handle calculator results with 'calc.' prefix
+    # Convert scalar values to numpy arrays to preserve dtype information
+    if atoms.calc:
+        for calc_key, calc_value in atoms.calc.results.items():
+            if isinstance(calc_value, (int, float, bool, np.number)):
+                prefixed_result[f"calc.{calc_key}"] = np.array(calc_value)
+            else:
+                prefixed_result[f"calc.{calc_key}"] = calc_value
+
     # Convert any numpy scalars to Python native types to avoid JSON serialization errors
-    return _convert_numpy_scalars(result)
+    return _convert_numpy_scalars(prefixed_result)
 
 
 def atoms_from_dict(d: dict) -> ase.Atoms:
-    if "<SinglePointCalculator>" not in d:
-        return ase.Atoms.fromdict(d)
-    calc_results = d.pop("<SinglePointCalculator>")
-    atoms = ase.Atoms.fromdict(d)
-    atoms.calc = SinglePointCalculator(atoms)
-    atoms.calc.results = calc_results
+    # Reconstruct the original dict structure from prefixed keys
+    reconstructed = {}
+    info_dict = {}
+    calc_dict = {}
+
+    for key, value in d.items():
+        if key.startswith("arrays."):
+            # Remove 'arrays.' prefix for reconstruction
+            array_key = key[7:]  # len("arrays.") = 7
+            reconstructed[array_key] = value
+        elif key.startswith("info."):
+            # Collect info keys
+            info_key = key[5:]  # len("info.") = 5
+            info_dict[info_key] = value
+        elif key.startswith("calc."):
+            # Collect calc keys
+            calc_key = key[5:]  # len("calc.") = 5
+            calc_dict[calc_key] = value
+        else:
+            reconstructed[key] = value
+
+    # Add info dict if it has any keys
+    if info_dict:
+        reconstructed["info"] = info_dict
+
+    # Create atoms from reconstructed dict
+    atoms = ase.Atoms.fromdict(reconstructed)
+
+    # Add calculator if calc_dict has any keys
+    if calc_dict:
+        atoms.calc = SinglePointCalculator(atoms)
+        atoms.calc.results = calc_dict
+
     return atoms
 
 
