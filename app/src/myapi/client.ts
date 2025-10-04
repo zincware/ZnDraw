@@ -55,3 +55,15 @@ export const deleteFigure = async (
   );
   return data;
 };
+
+export interface FrameMetadata {
+  frameId: number;
+  keys: string[];
+  metadata: Record<string, any>;
+  sourceRoom: string;
+}
+
+export const getFrameMetadata = async (roomId: string, frameId: number = 0): Promise<FrameMetadata> => {
+  const { data } = await apiClient.get(`/api/rooms/${roomId}/frames/${frameId}/metadata`);
+  return data;
+};

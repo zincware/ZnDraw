@@ -1,3 +1,4 @@
+import { getFrameMetadata } from "../myapi/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 export interface ExtensionMetadata {
@@ -175,5 +176,15 @@ export const useJob = (room: string, jobId: string) => {
     queryKey: ["job", room, jobId],
     queryFn: () => fetchJob(room, jobId),
     enabled: !!room && !!jobId,
+  });
+};
+
+
+export const useFrameMetadata = (roomId: string, frameId: number = 0) => {
+  return useQuery({
+    queryKey: ['metadata', roomId, frameId], // TODO: need to invalidate!
+    queryFn: () => getFrameMetadata(roomId, frameId),
+    enabled: !!roomId, // Only run the query if a roomId is available
+    staleTime: 1000 * 60 * 5, // Metadata for frame 0 is unlikely to change often
   });
 };

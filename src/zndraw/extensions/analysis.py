@@ -46,6 +46,28 @@ class DihedralAngle(Analysis):
         vis.figures["DihedralAngle"] = fig
 
 
+class Properties1D(Analysis):
+    value: str = Field(..., description="The property value")
+
+    @classmethod
+    def model_json_schema(cls, **kwargs: t.Any) -> dict[str, t.Any]:
+        schema = super().model_json_schema(**kwargs)
+        schema["properties"]["value"]["x-dynamic-enum"] = "AVAILABLE_ATOMS_KEYS"
+        return schema
+    
+    def run(self, vis: "ZnDraw") -> None:
+        properties = vis.get(slice(None, None, None), keys=[self.value])
+        df = pd.DataFrame(properties)
+        fig = px.line(df, y=self.value)
+        meta_step = np.arange(len(properties))
+        fig.update_traces(
+            customdata=np.stack([meta_step], axis=-1),
+        )
+        # update_figure_layout(fig)
+        vis.figures[f"Properties1D-{self.value}"] = fig
+
+
 analysis: dict[str, t.Type[Analysis]] = {
     "DihedralAngle": DihedralAngle,
+    "Properties1D": Properties1D,
 }

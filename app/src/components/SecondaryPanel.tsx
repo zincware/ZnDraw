@@ -1,4 +1,3 @@
-// components/SecondaryPanel.tsx
 import { useEffect, useMemo, useState, useRef, useCallback } from "react";
 import {
   Box,
@@ -23,6 +22,7 @@ import {
   useSchemas,
   useExtensionData,
   useSubmitExtension,
+  useFrameMetadata,
 } from "../hooks/useSchemas";
 import { useAppStore } from "../store";
 import { ExtensionStatusChips } from "./ExtensionStatusChips";
@@ -33,6 +33,7 @@ import CustomColorPicker, {
 import CustomRangeSlider, {
   customRangeSliderTester,
 } from "./jsonforms-renderers/CustomRangeSlider";
+import { FrameMetadata } from "../myapi/client";
 
 interface SecondaryPanelProps {
   panelTitle: string;
@@ -44,10 +45,38 @@ const customRenderers = [
   { tester: customRangeSliderTester, renderer: CustomRangeSlider },
 ];
 
+/**
+ * Recursively traverses a JSON schema and injects dynamic enum values.
+ * @param schema The original JSON schema.
+ * @param metadata The metadata object containing keys to inject.
+ * @returns A new schema object with enums injected.
+ */
+const injectDynamicEnums = (schema: any, metadata: FrameMetadata | undefined): any => {
+  // Create a deep copy to avoid mutating the original object from the react-query cache.
+  const newSchema = JSON.parse(JSON.stringify(schema));
+
+  const traverse = (obj: any) => {
+    if (obj && typeof obj === 'object') {
+      // Check if the current object has our custom dynamic enum property
+      if (obj['x-dynamic-enum'] === 'AVAILABLE_ATOMS_KEYS' && metadata?.keys) {
+        // If it does, inject the keys from the metadata
+        obj.enum = metadata.keys;
+      }
+
+      // Continue traversing through the object's properties and array items
+      Object.keys(obj).forEach(key => {
+        traverse(obj[key]);
+      });
+    }
+  };
+
+  traverse(newSchema);
+  return newSchema;
+};
+
 const SecondaryPanel = ({ panelTitle }: SecondaryPanelProps) => {
   const { roomId, userId } = useAppStore();
   const [localFormData, setLocalFormData] = useState<any>({});
-  // const userInteractionRef = useRef(false);
   const ignoreFirstChangeRef = useRef(true);
 
   if (!roomId || !userId) {
@@ -63,6 +92,9 @@ const SecondaryPanel = ({ panelTitle }: SecondaryPanelProps) => {
     isError: isSchemasError,
   } = useSchemas(roomId, panelTitle);
 
+  // --- MODIFICATION: Fetch the frame metadata ---
+  const { data: metadata, isLoading: isLoadingMetadata } = useFrameMetadata(roomId);
+
   const {
     data: serverData,
     isLoading: isLoadingData,
@@ -72,14 +104,12 @@ const SecondaryPanel = ({ panelTitle }: SecondaryPanelProps) => {
   useEffect(() => {
     if (!isLoadingData && serverData !== undefined) {
       setLocalFormData(serverData ?? {});
-      // userInteractionRef.current = false;
-      ignoreFirstChangeRef.current = true; // <-- added
+      ignoreFirstChangeRef.current = true;
     }
   }, [isLoadingData, serverData, selectedExtension]);
 
   const { mutate: submit, isPending: isSubmitting } = useSubmitExtension();
 
-  // Debounced submit function for settings auto-save
   const debouncedSubmit = useMemo(
     () =>
       debounce((data: any) => {
@@ -91,11 +121,10 @@ const SecondaryPanel = ({ panelTitle }: SecondaryPanelProps) => {
           extension: selectedExtension,
           data: data,
         });
-      }, 10),
+      }, 100), // Increased debounce time slightly
     [selectedExtension, roomId, userId, panelTitle, submit],
   );
 
-  // Cleanup debounce on unmount
   useEffect(() => {
     return () => {
       debouncedSubmit.cancel();
@@ -107,15 +136,13 @@ const SecondaryPanel = ({ panelTitle }: SecondaryPanelProps) => {
       const safeData = data ?? {};
       if (ignoreFirstChangeRef.current) {
         ignoreFirstChangeRef.current = false;
-        return; // ignore JsonForms init overwrite
+        return;
       }
       setLocalFormData(safeData);
 
-      // Auto-submit for settings category
       if (panelTitle === "settings") {
         debouncedSubmit(safeData);
       }
-      // userInteractionRef.current = true;
     },
     [panelTitle, debouncedSubmit],
   );
@@ -135,17 +162,18 @@ const SecondaryPanel = ({ panelTitle }: SecondaryPanelProps) => {
     });
   };
 
-  const currentSchema = useMemo(
-    () => schemas?.[selectedExtension ?? ""]?.schema,
-    [schemas, selectedExtension],
-  );
+  // --- MODIFICATION: Create a dynamic schema by injecting metadata ---
+  const dynamicSchema = useMemo(() => {
+    const originalSchema = schemas?.[selectedExtension ?? ""]?.schema;
+    if (!originalSchema) return null;
+
+    // Call our new helper function to handle injection generically
+    return injectDynamicEnums(originalSchema, metadata);
+
+  }, [schemas, selectedExtension, metadata]);
   const formOptions = useMemo(() => Object.keys(schemas || {}), [schemas]);
 
-  useEffect(() => {
-    console.log("localFormData changed: ", localFormData);
-  }, [localFormData]);
-
-  if (isLoadingSchemas) {
+  if (isLoadingSchemas || isLoadingMetadata) {
     return (
       <Box
         sx={{
@@ -196,9 +224,8 @@ const SecondaryPanel = ({ panelTitle }: SecondaryPanelProps) => {
           <ExtensionStatusChips metadata={schemas[selectedExtension]} />
         )}
 
-        {currentSchema && (
+        {dynamicSchema && (
           <>
-            {/* Only show Run Extension button for non-settings categories */}
             {panelTitle !== "settings" && (
               <Button
                 variant="contained"
@@ -217,8 +244,8 @@ const SecondaryPanel = ({ panelTitle }: SecondaryPanelProps) => {
               <CircularProgress />
             ) : (
               <JsonForms
-                key={selectedExtension} // remount when extension changes
-                schema={currentSchema}
+                key={selectedExtension}
+                schema={dynamicSchema}
                 data={localFormData}
                 renderers={customRenderers}
                 cells={materialCells}
