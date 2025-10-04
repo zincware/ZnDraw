@@ -22,6 +22,8 @@ import { useRestJoinManager } from '../hooks/useRestManager';
 import { useState } from 'react';
 import { useColorScheme } from '@mui/material/styles';
 import WindowManager from '../components/WindowManager';
+import AddPlotButton from '../components/AddPlotButton';
+
 
 
 export default function MainPage() {
@@ -70,6 +72,7 @@ export default function MainPage() {
             >
               <ChatIcon />
             </IconButton>
+            <AddPlotButton />
           </Toolbar>
         </AppBar>
         <SideBar />

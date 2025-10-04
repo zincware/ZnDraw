@@ -1,24 +1,72 @@
 import { Rnd } from 'react-rnd';
 import Plot from 'react-plotly.js';
 import { useWindowManagerStore } from '../stores/windowManagerStore';
-import { useFigure } from '../hooks/useFigures';
+import { useFigure, useFigureList } from '../hooks/useFigures';
 
 // MUI Imports
-import { Box, Paper, Typography, IconButton, CircularProgress } from '@mui/material';
+import { 
+    Box, 
+    Paper, 
+    Typography, 
+    IconButton, 
+    CircularProgress, 
+    Select, 
+    MenuItem, 
+    FormControl 
+} from '@mui/material';
+import { SelectChangeEvent } from '@mui/material/Select';
 import { Close as CloseIcon, ErrorOutline as ErrorIcon } from '@mui/icons-material';
 
 interface FigureWindowProps {
-  figureKey: string;
+  windowId: string; // The component is now identified by its own stable ID
 }
 
-function FigureWindow({ figureKey }: FigureWindowProps) {
-  const windowState = useWindowManagerStore((state) => state.openWindows[figureKey]);
-  const { updateWindowState, closeWindow, bringToFront } = useWindowManagerStore();
-  const { data: figureResponse, isLoading, isError, error } = useFigure(figureKey);
+function FigureWindow({ windowId }: FigureWindowProps) {
+  // --- STATE & DATA ---
+  
+  // 1. Get the window's own state (position, size, and current figureKey) from the store
+  const windowInstance = useWindowManagerStore((state) => state.openWindows[windowId]);
+  
+  // 2. Get the actions from the store to manipulate this and other windows
+  const { 
+    updateWindowState, 
+    closeWindow, 
+    bringToFront, 
+    changeFigureInWindow 
+  } = useWindowManagerStore();
+  
+  // 3. Fetch the actual plot data for the figure this window is currently displaying
+  // The 'enabled' flag prevents fetching if the window instance isn't ready
+  const { 
+    data: figureResponse, 
+    isLoading, 
+    isError, 
+    error 
+  } = useFigure(windowInstance?.figureKey, { enabled: !!windowInstance });
+  
+  // 4. Fetch the list of ALL available plots to populate the dropdown menu
+  const { data: allFiguresResponse } = useFigureList();
 
-  if (!windowState) return null;
+  // --- GUARDS ---
+  
+  // If the window was closed, its instance will be removed from the store, so we render nothing.
+  if (!windowInstance) {
+    return null;
+  }
 
-  // Function to render the content based on the fetch state
+  // --- HANDLERS ---
+  
+  const handleFigureChange = (event: SelectChangeEvent<string>) => {
+    const newFigureKey = event.target.value;
+    // Call the store action to update which figure this window is showing
+    changeFigureInWindow(windowId, newFigureKey);
+  };
+  
+  // --- RENDER LOGIC ---
+
+  /**
+   * Renders the content of the window based on the data fetching status.
+   */
   const renderContent = () => {
     if (isLoading) {
       return (
@@ -37,6 +85,7 @@ function FigureWindow({ figureKey }: FigureWindowProps) {
           alignItems="center"
           height="100%"
           color="error.main"
+          textAlign="center"
         >
           <ErrorIcon sx={{ fontSize: 40, mb: 1 }} />
           <Typography variant="body1">Error loading figure.</Typography>
@@ -49,7 +98,7 @@ function FigureWindow({ figureKey }: FigureWindowProps) {
         const figureData = figureResponse.figure;
         if (figureData.type === 'plotly' && figureData.data) {
             try {
-                // Your backend stores the plotly figure as a JSON string
+                // The backend stores the plotly figure as a JSON string, so we parse it
                 const plotlyJson = JSON.parse(figureData.data);
                 return (
                     <Plot
@@ -60,11 +109,11 @@ function FigureWindow({ figureKey }: FigureWindowProps) {
                     />
                 );
             } catch (e) {
-                return <Typography color="error">Invalid Plotly JSON format.</Typography>
+                return <Typography color="error">Invalid Plotly JSON format.</Typography>;
             }
         }
         // Fallback for other figure types like 'line' or 'circle'
-        return <pre>{JSON.stringify(figureData, null, 2)}</pre>;
+        return <pre style={{ margin: 0 }}>{JSON.stringify(figureData, null, 2)}</pre>;
     }
 
     return null;
@@ -72,18 +121,18 @@ function FigureWindow({ figureKey }: FigureWindowProps) {
 
   return (
     <Rnd
-      size={{ width: windowState.width, height: windowState.height }}
-      position={{ x: windowState.x, y: windowState.y }}
-      minWidth={300}
-      minHeight={250}
-      style={{ zIndex: windowState.zIndex }}
+      size={{ width: windowInstance.width, height: windowInstance.height }}
+      position={{ x: windowInstance.x, y: windowInstance.y }}
+      minWidth={350}
+      minHeight={300}
+      style={{ zIndex: windowInstance.zIndex }}
       dragHandleClassName="window-header" // This class name is used by Rnd to identify the drag handle
-      onDragStart={() => bringToFront(figureKey)}
+      onDragStart={() => bringToFront(windowId)}
       onDragStop={(_, d) => {
-        updateWindowState(figureKey, { x: d.x, y: d.y });
+        updateWindowState(windowId, { x: d.x, y: d.y });
       }}
       onResizeStop={(_, __, ref, ___, position) => {
-        updateWindowState(figureKey, {
+        updateWindowState(windowId, {
           width: parseInt(ref.style.width, 10),
           height: parseInt(ref.style.height, 10),
           ...position,
@@ -98,17 +147,18 @@ function FigureWindow({ figureKey }: FigureWindowProps) {
             height: '100%',
             display: 'flex',
             flexDirection: 'column',
-            overflow: 'hidden', // Ensures content doesn't spill out
+            overflow: 'hidden',
+            border: '1px solid rgba(0,0,0,0.2)'
         }}
       >
         {/* Header / Title Bar */}
         <Box
-          className="window-header" // Critical for react-rnd dragging
-          onMouseDown={() => bringToFront(figureKey)}
+          className="window-header"
+          onMouseDown={() => bringToFront(windowId)}
           sx={{
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'space-between',
+            gap: 2,
             bgcolor: 'primary.main',
             color: 'primary.contrastText',
             py: 0.5,
@@ -116,10 +166,29 @@ function FigureWindow({ figureKey }: FigureWindowProps) {
             cursor: 'grab',
           }}
         >
-          <Typography variant="subtitle2" component="h2" noWrap sx={{ flexGrow: 1 }}>
-            Figure: {figureKey}
-          </Typography>
-          <IconButton onClick={() => closeWindow(figureKey)} size="small" color="inherit">
+          <Typography variant="subtitle2" component="h2" noWrap>Figure:</Typography>
+          
+          <FormControl variant="standard" size="small" sx={{ flexGrow: 1, minWidth: 120 }}>
+            <Select
+              value={windowInstance.figureKey}
+              onChange={handleFigureChange}
+              // Styling to make the select blend with the dark header
+              sx={{
+                color: 'inherit',
+                '& .MuiSelect-icon': { color: 'inherit' },
+                '&:before': { borderBottom: '1px solid rgba(255, 255, 255, 0.7)' },
+                '&:hover:not(.Mui-disabled):before': { borderBottom: '1px solid #fff' },
+              }}
+            >
+              {allFiguresResponse?.figures.map((key) => (
+                <MenuItem key={key} value={key}>
+                  {key}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          
+          <IconButton onClick={() => closeWindow(windowId)} size="small" color="inherit">
             <CloseIcon fontSize="small" />
           </IconButton>
         </Box>
@@ -128,9 +197,10 @@ function FigureWindow({ figureKey }: FigureWindowProps) {
         <Box
           sx={{
             flexGrow: 1,
-            p: 1, // Add some padding around the content
-            overflow: 'auto', // Allow content to scroll if it overflows
-            position: 'relative' // For centering loading/error states
+            p: 1,
+            overflow: 'auto',
+            position: 'relative', // For centering loading/error states
+            backgroundColor: '#fff'
           }}
         >
           {renderContent()}

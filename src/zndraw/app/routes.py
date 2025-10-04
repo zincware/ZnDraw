@@ -2091,6 +2091,7 @@ def create_figure(room_id: str):
         SocketEvents.INVALIDATE_FIGURE,
         {
             "key": key,
+            "operation": "set",
         },
         to=f"room:{room_id}",
     )
@@ -2115,6 +2116,7 @@ def delete_figure(room_id: str, key: str):
         SocketEvents.INVALIDATE_FIGURE,
         {
             "key": key,
+            "operation": "delete",
         },
         to=f"room:{room_id}",
     )

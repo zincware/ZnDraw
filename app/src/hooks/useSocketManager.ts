@@ -175,20 +175,54 @@ export const useSocketManager = () => {
         });
     }
 
-    function onFiguresInvalidate(data: { key: string }) {
-      console.log(`Received invalidation for figure: ${data.key}`);
-      if (data.key) {
-        // Step 1: Always invalidate the data so it's fresh when needed.
+    function onFiguresInvalidate(data: { key: string; operation?: 'set' | 'delete' }) {
+      console.log(`Received invalidation for figure: ${data.key}, operation: ${data.operation}`);
+      if (!data.key) return;
+
+      const operation = data.operation || 'set'; // default to 'set' for backward compatibility
+
+      if (operation === 'delete') {
+        // Step 1: Remove the figure data from the cache
+        queryClient.removeQueries({
+          queryKey: ['figures', roomId, 'detail', data.key],
+        });
+        
+        // Step 2: Close any open windows displaying this figure
+        // Find all windows showing this figure key
+        const windowsToClose = Object.entries(useWindowManagerStore.getState().openWindows)
+          .filter(([_, window]) => window.figureKey === data.key)
+          .map(([windowId]) => windowId);
+        
+        windowsToClose.forEach(windowId => {
+          console.log(`Closing window ${windowId} for deleted figure: ${data.key}`);
+          useWindowManagerStore.getState().closeWindow(windowId);
+        });
+
+        // Step 3: Invalidate the figures list to update the UI
+        queryClient.invalidateQueries({
+          queryKey: ['figures', roomId, 'list'],
+        });
+      } else if (operation === 'set') {
+        // Step 1: Invalidate the data so it's fresh when needed
         queryClient.invalidateQueries({
           queryKey: ['figures', roomId, 'detail', data.key],
         });
 
-        // Step 2: Check if window is already open. If not, open it.
-        // We use getState() here to get the latest state without adding it as a dependency.
-        const isWindowOpen = !!useWindowManagerStore.getState().openWindows[data.key];
-        if (!isWindowOpen) {
+        // Step 2: Invalidate the list in case this is a new figure
+        queryClient.invalidateQueries({
+          queryKey: ['figures', roomId, 'list'],
+        });
+
+        // Step 3: Check if ANY window is already displaying this figure key
+        // We need to check if any window.figureKey matches, not just if openWindows[data.key] exists
+        const isWindowDisplayingFigure = Object.values(useWindowManagerStore.getState().openWindows)
+          .some(window => window.figureKey === data.key);
+        
+        if (!isWindowDisplayingFigure) {
           console.log(`Popping up new window for figure: ${data.key}`);
           openWindow(data.key);
+        } else {
+          console.log(`Window already open for figure: ${data.key}, not opening a new one`);
         }
       }
     }
@@ -234,5 +268,5 @@ export const useSocketManager = () => {
       socket.off('invalidate:geometry', onGeometriesInvalidate);
       socket.off('invalidate:figure', onFiguresInvalidate);
     };
-  }, [joinToken, roomId, userId, setConnected, setFrameCount, userId, isConnected, setCurrentFrame, queryClient, setBookmarks, setSelection, setFrameSelection, setGeometries]);
+  }, [joinToken, roomId, userId, setConnected, setFrameCount, setCurrentFrame, queryClient, setBookmarks, setSelection, setFrameSelection, setGeometries, openWindow]);
 };

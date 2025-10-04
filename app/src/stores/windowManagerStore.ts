@@ -1,7 +1,9 @@
 import { create } from 'zustand';
 
-// Defines the state for a single window
-export interface WindowState {
+// A window now has its own stable ID and a figureKey property for its content
+export interface WindowInstance {
+  id: string;
+  figureKey: string; 
   x: number;
   y: number;
   width: number;
@@ -9,42 +11,38 @@ export interface WindowState {
   zIndex: number;
 }
 
-// Defines the entire store's state and actions
 interface WindowManagerStore {
-  openWindows: Record<string, WindowState>; // A dictionary of figureKey -> WindowState
-  _zIndexCounter: number; // Private-like counter to ensure new windows are on top
-  openWindow: (key: string) => void;
-  closeWindow: (key: string) => void;
-  updateWindowState: (key: string, updates: Partial<WindowState>) => void;
-  bringToFront: (key: string) => void;
+  openWindows: Record<string, WindowInstance>; // The key is now a unique windowId
+  _zIndexCounter: number;
+  openWindow: (figureKey: string) => void;
+  closeWindow: (windowId: string) => void;
+  changeFigureInWindow: (windowId: string, newFigureKey: string) => void; // New action
+  updateWindowState: (windowId: string, updates: Partial<Omit<WindowInstance, 'id' | 'figureKey'>>) => void;
+  bringToFront: (windowId: string) => void;
 }
 
 export const useWindowManagerStore = create<WindowManagerStore>((set, get) => ({
   openWindows: {},
-  _zIndexCounter: 100, // Start z-index from a base number
+  _zIndexCounter: 100,
 
   /**
-   * Opens a new window for a given figure key or brings it to the front if already open.
+   * Opens a new window displaying the given figure.
    */
-  openWindow: (key) => {
-    const { openWindows, bringToFront } = get();
-    if (openWindows[key]) {
-      bringToFront(key); // If already open, just bring it to the front
-      return;
-    }
-
+  openWindow: (figureKey) => {
     const newZIndex = get()._zIndexCounter + 1;
-    // Cascade new windows for better visibility
-    const openCount = Object.keys(openWindows).length;
-    
+    const openCount = Object.keys(get().openWindows).length;
+    const windowId = `window-${Date.now()}`; // Generate a unique, stable ID
+
     set((state) => ({
       openWindows: {
         ...state.openWindows,
-        [key]: {
+        [windowId]: {
+          id: windowId,
+          figureKey, // The figure to display initially
           x: 50 + openCount * 20,
           y: 100 + openCount * 20,
-          width: 400,
-          height: 300,
+          width: 500,
+          height: 400,
           zIndex: newZIndex,
         },
       },
@@ -53,42 +51,59 @@ export const useWindowManagerStore = create<WindowManagerStore>((set, get) => ({
   },
 
   /**
-   * Closes a window by removing it from the state.
+   * Closes a window using its unique ID.
    */
-  closeWindow: (key) => {
+  closeWindow: (windowId) => {
     set((state) => {
-      const { [key]: _, ...remainingWindows } = state.openWindows;
+      const { [windowId]: _, ...remainingWindows } = state.openWindows;
       return { openWindows: remainingWindows };
+    });
+  },
+  
+  /**
+   * Changes the figure displayed within an existing window.
+   */
+  changeFigureInWindow: (windowId, newFigureKey) => {
+    set((state) => {
+      if (!state.openWindows[windowId]) return state; // Safety check
+      return {
+        openWindows: {
+          ...state.openWindows,
+          [windowId]: {
+            ...state.openWindows[windowId],
+            figureKey: newFigureKey,
+          },
+        },
+      };
     });
   },
 
   /**
-   * Updates a window's state (position, size) after dragging or resizing.
+   * Updates a window's state (position, size) after user interaction.
    */
-  updateWindowState: (key, updates) => {
+  updateWindowState: (windowId, updates) => {
     set((state) => ({
       openWindows: {
         ...state.openWindows,
-        [key]: { ...state.openWindows[key], ...updates },
+        [windowId]: { ...state.openWindows[windowId], ...updates },
       },
     }));
   },
 
   /**
-   * Brings a specific window to the top by giving it the highest z-index.
+   * Brings a specific window to the top.
    */
-  bringToFront: (key) => {
-    const currentWindow = get().openWindows[key];
+  bringToFront: (windowId) => {
+    const currentWindow = get().openWindows[windowId];
     if (!currentWindow) return;
 
     const newZIndex = get()._zIndexCounter + 1;
     
-    // Only update if it's not already on top
-    if (currentWindow.zIndex !== newZIndex -1) {
+    if (currentWindow.zIndex !== newZIndex - 1) {
         set((state) => ({
           openWindows: {
             ...state.openWindows,
-            [key]: { ...currentWindow, zIndex: newZIndex },
+            [windowId]: { ...currentWindow, zIndex: newZIndex },
           },
           _zIndexCounter: newZIndex,
         }));

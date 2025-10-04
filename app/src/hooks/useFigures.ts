@@ -28,13 +28,13 @@ export const useFigureList = () => {
 /**
  * Fetches the data for a single figure.
  */
-export const useFigure = (key: string | null) => {
+export const useFigure = (key: string | null, options?: { enabled?: boolean }) => {
   const {roomId} = useAppStore();
 
   return useQuery({
     queryKey: figuresKeys.detail(roomId!, key!),
     queryFn: () => getFigure(roomId!, key!),
-    enabled: !!roomId && !!key, // Only run if both roomId and key are set
+    enabled: (options?.enabled !== undefined ? options.enabled : true) && !!roomId && !!key, // Only run if both roomId and key are set, and options.enabled is true
   });
 };
 
