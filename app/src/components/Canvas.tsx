@@ -67,6 +67,9 @@ function MyScene() {
                 positionKey={config.data.position}
                 colorKey={config.data.color}
                 radiusKey={config.data.radius}
+                material={config.data.material}
+                resolution={config.data.resolution}
+                scale={config.data.scale}
               />
             );
           } else if (config.type === 'Arrow') {
@@ -78,6 +81,7 @@ function MyScene() {
                 color={config.data.color}
                 radius={config.data.radius}
                 scale={config.data.scale}
+                material={config.data.material}
               />
             );
           } else {

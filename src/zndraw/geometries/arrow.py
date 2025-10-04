@@ -1,36 +1,34 @@
-from pydantic import BaseModel, ConfigDict, Field
+"""Arrow geometry for ZnDraw."""
+
+from pydantic import Field
+from .base import BaseGeometry, DataProp
 
 
-class Arrow(BaseModel):
-    """A arrow geometry."""
+class Arrow(BaseGeometry):
+    """Arrow geometry with direction vector.
 
-    model_config = ConfigDict(frozen=True)
-    start: str | tuple[float, float, float] | list[tuple[float, float, float]] = (
-        Field(
-            default="arrays.positions",
-            description="The start position of the arrow. Dynamic via e.g. `arrays.positions`, or static for one or more arrows via `(x, y, z)`.",
-            # examples=[
-            #     "0,0,0",
-            #     (0.0, 0.0, 0.0),
-            #     [(0.0, 0.0, 0.0), (1.0, 1.0, 1.0)],
-            # ],
-        )
+    Arrows are defined by a start position and a direction vector.
+    The direction vector determines both the arrow's orientation and its length.
+    """
+
+    # Use 'start' as the primary field with 'position' alias for compatibility
+    start: DataProp = Field(
+        default="arrays.positions",
+        description="Arrow start position [x,y,z]. String for dynamic data key, tuple for static value.",
+        alias="position"
     )
-    direction: str | tuple[float, float, float] | list[tuple[float, float, float]] = (
-        Field(
-            default="calc.forces",
-            description="The direction of the arrow. Dynamic via e.g. `arrays.directions`, or static for one or more arrows via `(x, y, z)`.",
-        )
+
+    direction: DataProp = Field(
+        default="arrays.forces",
+        description="Direction vector [x,y,z]. Defines arrow orientation and base length. String for dynamic data key, tuple for static value."
     )
-    radius: str | float | int = Field(
-        default=1,
-        description="The radius of the arrow. Dynamic via e.g. `arrays.radii`, or static via a float.",
+
+    radius: DataProp = Field(
+        default=0.05,
+        description="Arrow shaft radius. String for dynamic data key, float for static value."
     )
-    color: str | tuple[float, float, float] | list[tuple[float, float, float]] = Field(
-        default="arrays.colors",
-        description="The color of the arrow. Dynamic via e.g. `arrays.colors`, or static via an RGB tuple or list of RGB tuples.",
-    )
-    scale: str | float | int = Field(
-        default=1,
-        description="A global scale factor for the arrow size. Dynamic via e.g. `arrays.scales`, or static via a float.",
+
+    scale: DataProp = Field(
+        default=1.0,
+        description="Length scale multiplier applied to direction vector length. String for dynamic data key, float for static value."
     )

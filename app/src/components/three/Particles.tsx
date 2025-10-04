@@ -4,13 +4,16 @@ import { getFrameDataOptions } from '../../hooks/useTrajectoryData';
 import { useAppStore } from '../../store';
 import { useRef, useMemo } from 'react';
 import { useExtensionData } from '../../hooks/useSchemas';
-import type { Representation } from '../../types/room-config';
 import { useFrame } from '@react-three/fiber';
+import { renderMaterial } from './materials';
 
 interface SphereProps {
   positionKey: string;
   colorKey: string;
   radiusKey: string;
+  material: string;
+  resolution?: number;
+  scale?: number;
 }
 
 // Reusable vectors and objects to avoid creating them in the loop
@@ -19,7 +22,7 @@ const scaleVec = new THREE.Vector3();
 const matrix = new THREE.Matrix4();
 const color = new THREE.Color();
 
-export default function Sphere({ positionKey, colorKey, radiusKey }: SphereProps) {
+export default function Sphere({ positionKey, colorKey, radiusKey, material, resolution, scale }: SphereProps) {
   const instancedMeshRef = useRef<THREE.InstancedMesh | null>(null);
   const { currentFrame, roomId, clientId, userId, selection } = useAppStore();
   const lastGoodFrameData = useRef<any>(null);
@@ -28,16 +31,9 @@ export default function Sphere({ positionKey, colorKey, radiusKey }: SphereProps
     return selection ? new Set(selection) : null;
   }, [selection]);
 
-  const { data: representationSettings } = useExtensionData(
-    roomId || '',
-    userId || '',
-    'settings',
-    'representation'
-  ) as { data: Representation | undefined };
 
-  const particleResolution = representationSettings?.particle_resolution ?? 8;
-  const material = representationSettings?.material ?? 'MeshStandardMaterial';
-  const particleScale = representationSettings?.particle_scale ?? 1.0;
+  const particleResolution = resolution || 8;
+  const particleScale = scale || 1.0;
 
   const requiredKeys = useMemo(() => [positionKey, colorKey, radiusKey], [
     positionKey,
@@ -133,16 +129,6 @@ export default function Sphere({ positionKey, colorKey, radiusKey }: SphereProps
     lastGoodFrameData.current = frameData;
   }
 
-  const renderMaterial = () => {
-    const commonProps = { color: "white", side: THREE.FrontSide };
-    switch (material) {
-        case 'MeshBasicMaterial': return <meshBasicMaterial {...commonProps} />;
-        case 'MeshPhysicalMaterial': return <meshPhysicalMaterial {...commonProps} roughness={0.3} reflectivity={0.4} />;
-        case 'MeshToonMaterial': return <meshToonMaterial {...commonProps} />;
-        case 'MeshStandardMaterial': default: return <meshStandardMaterial {...commonProps} />;
-    }
-  };
-
   return (
     <instancedMesh
       key={dataToRender.count} // Unique key based on count
@@ -150,7 +136,7 @@ export default function Sphere({ positionKey, colorKey, radiusKey }: SphereProps
       args={[undefined, undefined, dataToRender.count]}
     >
       <sphereGeometry args={[1, particleResolution, particleResolution]} />
-      {renderMaterial()}
+      {renderMaterial(material)}
     </instancedMesh>
   );
 }

@@ -18,8 +18,10 @@ def test_rest_get_geometries(server):
             "type": "Sphere",
             "data": {
                 "color": "arrays.colors",
+                "material": "MeshPhysicalMaterial",
                 "position": "arrays.positions",
                 "radius": "arrays.radii",
+                "resolution": 16,
             },
         }
     }

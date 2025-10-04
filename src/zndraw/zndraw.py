@@ -495,6 +495,7 @@ class ZnDraw(MutableSequence):
             client_id=self.sid,
         )
         print(f"Extension '{name}' registered with room '{self.room}'.")
+        self.socket._on_queue_update({})
 
     def run(self, extension: Extension) -> dict:
         return self.api.run_extension(

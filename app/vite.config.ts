@@ -4,11 +4,11 @@ import { defineConfig } from "vite";
 export default defineConfig({
 	plugins: [react()],
 	base: "/",
-	// build: {
-	// 	outDir: "../zndraw/templates", // Output directory for templates
-	// 	emptyOutDir: true, // Clear the output directory before building
-	// },
-    root: "./src",
+	build: {
+		outDir: '../../src/zndraw/static',
+		emptyOutDir: true,
+	},
+	root: "./src",
 	publicDir: "public", // Directory for static assets
 	server: {
 		proxy: {

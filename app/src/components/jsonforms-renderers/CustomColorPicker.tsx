@@ -44,7 +44,6 @@ const CustomColorPicker = ({
                         cursor: "pointer",
                         // A small visual improvement to show a border around the color swatch
                         borderRadius: '4px',
-                        border: '1px solid #ccc',
                     }}
                 />
                 <code>{value}</code>

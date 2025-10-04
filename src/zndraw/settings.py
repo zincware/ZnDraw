@@ -62,28 +62,6 @@ class EnvironmentPreset(str, enum.Enum):
     warehouse = "warehouse"
 
 
-class Representation(SettingsBase):
-    """Controls the visual style of atoms and bonds."""
-
-    particle_scale: float = Field(
-        1.0, ge=0.1, le=5, description="Atom radius scaling factor"
-    )
-    show_bonds: bool = Field(True, description="Render bonds between atoms")
-    bond_size: float = Field(
-        1.0, ge=0.1, le=5, description="Bond radius scaling factor"
-    )
-    material: Material = Field(
-        Material.MeshStandardMaterial, description="Atom and bond material"
-    )
-    particle_resolution: int = Field(
-        12, ge=2, le=32, description="Sphere resolution for atoms"
-    )
-    bond_resolution: int = Field(
-        3, ge=2, le=10, description="Cylinder resolution for bonds"
-    )
-    # Future
-
-
 class Scene(SettingsBase):
     """Controls the background, lighting, and environment."""
 
@@ -241,12 +219,10 @@ class VectorDisplay(SettingsBase):
 
 settings = {
     "camera": Camera,
-    "representation": Representation,
     "scene": Scene,
     "playback": Playback,
     "rendering": Rendering,
     "interaction": Interaction,
-    "vector_display": VectorDisplay,
     "studio_lighting": StudioLighting,
 }
 
@@ -254,15 +230,11 @@ settings = {
 class RoomConfig(SettingsBase):
     """ZnDraw room configuration combining all settings sections."""
 
-    representation: Representation = Representation()
     scene: Scene = Scene()
     playback: Playback = Playback()
     camera: Camera = Camera()
     rendering: Rendering = Rendering()
     interaction: Interaction = Interaction()
-    vector_display: VectorDisplay = (
-        VectorDisplay()
-    )  # Or nest under a general DataOverlays model
     studio_lighting: StudioLighting = StudioLighting()
 
 

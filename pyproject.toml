@@ -1,7 +1,8 @@
 [project]
 name = "zndraw"
-version = "0.1.0"
-description = "ZnDraw communication testing with physical-to-logical frame mapping"
+version = "0.6.0a1"
+description = "ZnDraw"
+license = { file = "LICENSE" }
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
@@ -34,9 +35,12 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/zndraw"]
+include = [
+    "src/zndraw/**",
+]
 
 [project.scripts]
-zndraw-server = "zndraw.cli:app"
+zndraw = "zndraw.cli:app"
 
 [project.optional-dependencies]
 test = [

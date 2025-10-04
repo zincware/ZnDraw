@@ -12,10 +12,8 @@ export interface RoomConfig {
     interaction?:     Interaction;
     playback?:        Playback;
     rendering?:       Rendering;
-    representation?:  Representation;
     scene?:           Scene;
     studio_lighting?: StudioLighting;
-    vector_display?:  VectorDisplay;
     [property: string]: any;
 }
 
@@ -149,33 +147,6 @@ export interface PathTracerSettings {
 /**
  * Controls the visual style of atoms and bonds.
  */
-export interface Representation {
-    /**
-     * Cylinder resolution for bonds
-     */
-    bond_resolution?: number;
-    /**
-     * Bond radius scaling factor
-     */
-    bond_size?: number;
-    /**
-     * Atom and bond material
-     */
-    material?: Material;
-    /**
-     * Sphere resolution for atoms
-     */
-    particle_resolution?: number;
-    /**
-     * Atom radius scaling factor
-     */
-    particle_scale?: number;
-    /**
-     * Render bonds between atoms
-     */
-    show_bonds?: boolean;
-    [property: string]: any;
-}
 
 /**
  * Atom and bond material

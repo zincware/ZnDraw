@@ -4,9 +4,10 @@ import traceback
 
 import msgpack
 import zarr
-from flask import Response, current_app, request
+from flask import Response, current_app, request, send_from_directory
 from flask_socketio import disconnect
 from zarr.storage import MemoryStore
+from pathlib import Path
 
 from zndraw.server import socketio
 from zndraw.storage import ZarrStorageSequence, decode_data, encode_data
@@ -115,6 +116,15 @@ def emit_frames_invalidate(
         to=f"room:{room_id}",
     )
 
+@main.route("/")
+def serve_react_app():
+    static_folder = Path(__file__).parent.parent / "static"
+    return send_from_directory(static_folder, "index.html")
+
+@main.route("/assets/<path:filename>")
+def serve_static_assets(filename: str):
+    static_folder = Path(__file__).parent.parent / "static" / "assets"
+    return send_from_directory(static_folder, filename)
 
 @main.route("/api/disconnect/<string:client_sid>", methods=["POST"])
 def disconnect_sid(client_sid: str):

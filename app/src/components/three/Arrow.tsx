@@ -3,10 +3,9 @@ import { useQueries } from '@tanstack/react-query';
 import { getFrameDataOptions } from '../../hooks/useTrajectoryData';
 import { useAppStore } from '../../store';
 import { useRef, useMemo } from 'react';
-import { useExtensionData } from '../../hooks/useSchemas';
-import type { Representation } from '../../types/room-config';
 import { useFrame } from '@react-three/fiber';
 import { BufferGeometryUtils } from "three/examples/jsm/Addons.js";
+import { renderMaterial } from './materials';
 
 // Props interface for the dynamic keys
 type StaticValue = number | number[] | number[][];
@@ -18,6 +17,7 @@ interface ArrowProps {
     color: DataProp;
     radius: DataProp;
     scale: DataProp;
+    material: string;
 }
 
 // Reusable THREE objects
@@ -58,24 +58,14 @@ function createArrowMesh() {
     return arrowGeometry;
 }
 
-export default function Arrow({ start, direction, color, radius, scale }: ArrowProps) {
+export default function Arrow({ start, direction, color, radius, scale, material }: ArrowProps) {
     const instancedMeshRef = useRef<THREE.InstancedMesh | null>(null);
-    const { currentFrame, roomId, clientId, userId, selection } = useAppStore();
+    const { currentFrame, roomId, clientId, selection } = useAppStore();
     const lastGoodFrameData = useRef<any>(null);
 
     const selectionSet = useMemo(() => {
         return selection ? new Set(selection) : null;
     }, [selection]);
-
-    const { data: representationSettings } = useExtensionData(
-        roomId || '',
-        userId || '',
-        'settings',
-        'representation'
-    ) as { data: Representation | undefined };
-
-    const material = representationSettings?.material ?? 'MeshStandardMaterial';
-    const particleScale = representationSettings?.particle_scale ?? 1.0;
 
     const { dynamicKeys, staticValues } = useMemo(() => {
         const props = { start, direction, color, radius, scale };
@@ -221,7 +211,7 @@ export default function Arrow({ start, direction, color, radius, scale }: ArrowP
 
             // 2. Set the scale. The Y-axis corresponds to the arrow's height (length),
             //    while X and Z correspond to its width (radius).
-            const radius = radii[i] * particleScale;
+            const radius = radii[i];
             _scaleVec.set(radius, length, radius);
 
             // 3. Calculate the rotation quaternion.
@@ -264,23 +254,13 @@ export default function Arrow({ start, direction, color, radius, scale }: ArrowP
         lastGoodFrameData.current = frameData;
     }
 
-    const renderMaterial = () => {
-        const commonProps = { color: "white", side: THREE.FrontSide };
-        switch (material) {
-            case 'MeshBasicMaterial': return <meshBasicMaterial {...commonProps} />;
-            case 'MeshPhysicalMaterial': return <meshPhysicalMaterial {...commonProps} roughness={0.3} reflectivity={0.4} />;
-            case 'MeshToonMaterial': return <meshToonMaterial {...commonProps} />;
-            case 'MeshStandardMaterial': default: return <meshStandardMaterial {...commonProps} />;
-        }
-    };
-
     return (
         <instancedMesh
             key={dataToRender.count} // Unique key based on count
             ref={instancedMeshRef}
             args={[geometry, undefined, dataToRender.count]}
         >
-            {renderMaterial()}
+            {renderMaterial(material)}
         </instancedMesh>
     );
 }
