@@ -285,6 +285,127 @@ def get_frames(room_id):
         )
 
 
+@main.route("/api/rooms/<string:room_id>/frames/<int:frame_id>/metadata", methods=["GET"])
+def get_frame_metadata(room_id: str, frame_id: int):
+    """Get available keys and their shapes for a specific frame.
+    
+    Returns metadata about what data is available for the given frame,
+    including the list of valid keys and their shapes/dtypes.
+    """
+    r = current_app.extensions["redis"]
+    
+    try:
+        storage = get_storage(room_id)
+        
+        # Get logical-to-physical mapping from Redis
+        indices_key = f"room:{room_id}:trajectory:indices"
+        frame_mapping = r.zrange(indices_key, 0, -1)
+        
+        if not frame_mapping:
+            return {
+                "error": f"No frames found in room '{room_id}'",
+                "type": "IndexError",
+            }, 404
+        
+        max_frame = len(frame_mapping) - 1
+        
+        # Validate frame_id
+        if frame_id < 0 or frame_id > max_frame:
+            return {
+                "error": f"Invalid frame index {frame_id}, valid range: 0-{max_frame}",
+                "type": "IndexError",
+            }, 404
+        
+        # Get the physical index for this frame
+        mapping_entry = frame_mapping[frame_id]
+        
+        if ":" in mapping_entry:
+            source_room_id, physical_index_str = mapping_entry.split(":", 1)
+            physical_index = int(physical_index_str)
+            source_storage = get_storage(source_room_id)
+        else:
+            # Fallback for any legacy data without colon separator
+            physical_index = int(mapping_entry)
+            source_storage = storage
+        
+        # Get the Zarr group
+        zarr_group = source_storage.group
+        
+        # Get valid keys for this frame
+        if "__valid_keys__" not in zarr_group:
+            return {
+                "error": "No metadata available for this frame",
+                "type": "MetadataError",
+            }, 404
+        
+        try:
+            valid_keys_array = zarr_group["__valid_keys__"]
+            valid_keys_json = valid_keys_array[physical_index].item()  # type: ignore
+            valid_keys = json.loads(valid_keys_json)
+        except IndexError:
+            return {
+                "error": f"Frame index {frame_id} is out of bounds",
+                "type": "IndexError",
+            }, 404
+        
+        # Build metadata for each key
+        keys_metadata = {}
+        
+        for key in valid_keys:
+            if key in zarr_group:
+                item = zarr_group[key]
+                
+                if isinstance(item, zarr.Array):
+                    # Get shape and dtype for this array
+                    is_json = item.attrs.get("format") == "json"
+                    
+                    if is_json:
+                        # For JSON-encoded arrays, we can't determine shape without loading
+                        keys_metadata[key] = {
+                            "type": "json",
+                            "dtype": "json"
+                        }
+                    else:
+                        # Regular numpy array
+                        shape = item.shape[1:]  # Remove the frame dimension
+                        
+                        # Check if there's a mask for variable-sized arrays
+                        mask_key = f"__mask__{key}__"
+                        if mask_key in zarr_group:
+                            mask_array = zarr_group[mask_key]
+                            actual_size = int(mask_array[physical_index])  # type: ignore
+                            shape = (actual_size,) + shape[1:]
+                        
+                        keys_metadata[key] = {
+                            "type": "array",
+                            "shape": list(shape),
+                            "dtype": str(item.dtype)
+                        }
+                elif isinstance(item, zarr.Group):
+                    # For nested groups, indicate it's a group
+                    keys_metadata[key] = {
+                        "type": "group"
+                    }
+        
+        return {
+            "frameId": frame_id,
+            # "physicalIndex": physical_index,
+            "sourceRoom": source_room_id if ":" in mapping_entry else room_id,
+            "keys": valid_keys,
+            "metadata": keys_metadata
+        }, 200
+        
+    except Exception as e:
+        error_data = {
+            "error": f"Server error: {e}",
+            "type": type(e).__name__,
+        }
+        log.error(f"Error getting frame metadata: {e}\n{traceback.format_exc()}")
+        return Response(
+            json.dumps(error_data), status=500, content_type="application/json"
+        )
+
+
 @main.route("/api/rooms/<string:room_id>/frames", methods=["DELETE"])
 def delete_frames_batch(room_id):
     """Deletes frames using either a single frame_id, indices, or slice parameters from query params."""
