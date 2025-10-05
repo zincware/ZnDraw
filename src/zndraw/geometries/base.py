@@ -9,6 +9,10 @@ DataProp = Union[
     str, float, tuple[float, float, float], list[tuple[float, float, float]]
 ]
 
+class InteractionSettings(BaseModel):
+    enabled: bool = Field(True)
+    color: str | None = Field(None)
+    opacity: float = Field(1.0, ge=0.0, le=1.0)
 
 class BaseGeometry(BaseModel):
     """Base class for all geometries with common properties."""

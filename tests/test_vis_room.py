@@ -35,6 +35,7 @@ def test_rest_join_new_room(server):
                 "radius": "arrays.radii",
                 "resolution": 16,
                 "scale": 1.0,
+                "selectable": True,
             },
         }
     }

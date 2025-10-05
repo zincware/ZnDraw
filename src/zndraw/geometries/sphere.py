@@ -1,6 +1,8 @@
 from pydantic import Field
 
-from .base import BaseGeometry, DataProp
+from .base import BaseGeometry, DataProp, InteractionSettings
+
+
 
 
 class Sphere(BaseGeometry):
@@ -23,3 +25,13 @@ class Sphere(BaseGeometry):
         ge=0.0,
         description="Uniform scale factor applied to sphere radius.",
     )
+
+    selecting: InteractionSettings = Field(
+        default_factory=lambda: InteractionSettings(enabled=True, color="##FF6A00", opacity=0.5),
+        description="Selection interaction settings."
+    )
+    hovering: InteractionSettings = Field(
+        default_factory=lambda: InteractionSettings(enabled=True, color="#FF0000", opacity=0.5),
+        description="Hover interaction settings."
+    )
+

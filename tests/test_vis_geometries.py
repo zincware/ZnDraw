@@ -23,6 +23,7 @@ def test_rest_get_geometries(server):
                 "radius": "arrays.radii",
                 "resolution": 16,
                 "scale": 1.0,
+                "selectable": True,
             },
         }
     }

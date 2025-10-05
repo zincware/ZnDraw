@@ -69,12 +69,7 @@ function MyScene() {
             return (
               <Sphere
                 key={name} // React requires a unique key for list items
-                positionKey={config.data.position}
-                colorKey={config.data.color}
-                radiusKey={config.data.radius}
-                material={config.data.material}
-                resolution={config.data.resolution}
-                scale={config.data.scale}
+                data={config.data}
               />
             );
           } else if (config.type === "Arrow") {
