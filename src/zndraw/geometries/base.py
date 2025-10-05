@@ -35,6 +35,6 @@ class BaseGeometry(BaseModel):
         "MeshBasicMaterial",
         "MeshToonMaterial",
     ] = Field(
-        default="MeshPhysicalMaterial",
+        default="MeshStandardMaterial",
         description="Material type (static config, not fetched from server)",
     )

@@ -1972,12 +1972,17 @@ def join_room(room_id):
 
     if not room_exists:
         # create default geometries
-        from zndraw.geometries import Sphere
+        from zndraw.geometries import Sphere, Bond
 
         r.hset(
             f"room:{room_id}:geometries",
             "particles",
             json.dumps({"type": Sphere.__name__, "data": Sphere().model_dump()}),
+        )
+        r.hset(
+            f"room:{room_id}:geometries",
+            "bonds",
+            json.dumps({"type": Bond.__name__, "data": Bond().model_dump()}),
         )
 
     selection = r.get(f"room:{room_id}:selection:default")

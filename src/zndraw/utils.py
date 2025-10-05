@@ -125,13 +125,14 @@ def update_colors_and_radii(atoms: ase.Atoms) -> None:
         )
         atoms.set_array("colors", colors)
     if "radii" not in atoms.arrays:
-        radii = np.array(
-            [
-                covalent_radii[atom.number]
-                if atom.number < len(covalent_radii)
-                else 0.77
-                for atom in atoms
-            ],
-            dtype=np.float32,
-        )
+        # radii = np.array(
+        #     [
+        #         covalent_radii[atom.number]
+        #         if atom.number < len(covalent_radii)
+        #         else 0.77
+        #         for atom in atoms
+        #     ],
+        #     dtype=np.float32,
+        # )
+        radii = covalent_radii[atoms.numbers]
         atoms.set_array("radii", radii)

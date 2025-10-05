@@ -8,7 +8,7 @@ import { renderMaterial } from "./materials";
 
 interface InteractionSettings {
   enabled: boolean;
-  color: string | null;
+  color: string;
   opacity: number;
 }
 
@@ -243,7 +243,7 @@ export default function Sphere({ data }: { data: SphereData }) {
             side={THREE.FrontSide}
             transparent
             opacity={selecting.opacity}
-            color={selecting.color || "#FFFF00"}
+            color={selecting.color}
           />
         </instancedMesh>
       )}
@@ -256,7 +256,7 @@ export default function Sphere({ data }: { data: SphereData }) {
             side={THREE.BackSide}
             transparent
             opacity={hovering.opacity}
-            color={hovering.color || "#00FFFF"}
+            color={hovering.color}
           />
         </mesh>
       )}

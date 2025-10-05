@@ -57,9 +57,22 @@ export const getFrameDataOptions = (
       const singleFrameData = decodedData[0];
 
       const keyData = singleFrameData[key];
-      if (!keyData || !keyData.dtype || !keyData.data) {
+      console.log(`Data for key "${key}" at frame ${frameIndex}:`, keyData);
+      if (!keyData) {
         console.warn(
           `Data for key "${key}" not found in response for frame ${frameIndex}`,
+        );
+        return null;
+      }
+      if (!keyData.dtype) {
+        console.warn(
+          `Data for key "${key}" is missing dtype information for frame ${frameIndex}`,
+        );
+        return null;
+      }
+      if (!keyData.data) {
+        console.warn(
+          `Data for key "${key}" is missing actual data for frame ${frameIndex}`,
         );
         return null;
       }
@@ -75,6 +88,7 @@ export const getFrameDataOptions = (
           `Failed to create typed array for dtype: ${keyData.dtype}`,
         );
       }
+      // console.log(`Fetched key "${key}" for frame ${frameIndex}:`, dataArray);
 
       return {
         data: dataArray,

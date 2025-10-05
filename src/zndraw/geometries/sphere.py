@@ -21,7 +21,7 @@ class Sphere(BaseGeometry):
     )
 
     scale: float = Field(
-        default=1.0,
+        default=0.7,
         ge=0.0,
         description="Uniform scale factor applied to sphere radius.",
     )
@@ -33,7 +33,7 @@ class Sphere(BaseGeometry):
     )
 
     selecting: InteractionSettings = Field(
-        default_factory=lambda: InteractionSettings(enabled=True, color="##FF6A00", opacity=0.5),
+        default_factory=lambda: InteractionSettings(enabled=True, color="#FF6A00", opacity=0.5),
         description="Selection interaction settings."
     )
     hovering: InteractionSettings = Field(

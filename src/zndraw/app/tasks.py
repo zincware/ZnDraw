@@ -9,6 +9,7 @@ import znh5md
 # Tqdm is removed from the generator as it won't render in a Celery worker.
 # from tqdm import tqdm
 from celery import shared_task
+from zndraw.connectivity import add_connectivity
 
 log = logging.getLogger(__name__)
 
@@ -74,6 +75,10 @@ def read_file(
             log.info(f"Processing frames from {file_path} in batches of {batch_size}")
 
             for batch in batch_generator(frame_iterator, batch_size):
+                # compute connectivity for each frame in the batch, if reasonable sized
+                for atoms in batch:
+                    if len(atoms) < 1000:
+                        add_connectivity(atoms)
                 vis.extend(batch)
 
     except Exception as e:

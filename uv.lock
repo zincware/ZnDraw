@@ -2093,6 +2093,22 @@ wheels = [
 ]
 
 [[package]]
+name = "vesin"
+version = "0.3.8"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "numpy" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/a4/30/07e513c3634f8ed0a5124a5d77298ae4363f7983d67ad2d6166f324f9fcd/vesin-0.3.8.tar.gz", hash = "sha256:24337b9d9b3657b44b237b8daa255cdeb352a472f190bb50c4ebadff60ceb3fe", size = 31857, upload-time = "2025-09-17T11:15:44.947Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/4f/be/0d537cdab2abc4b82da157bc9960fdf435a57a5e7afde4ef61a80fd4f1ff/vesin-0.3.8-py3-none-macosx_10_13_x86_64.whl", hash = "sha256:9fefdb3e93f482506f39602d1742b6fe75330155fc8ea7460acc3115aeb382af", size = 26285, upload-time = "2025-09-17T11:15:37.754Z" },
+    { url = "https://files.pythonhosted.org/packages/a4/9c/3e8484a97e2ea794866b011c64c87a9e19d705614b04fa164116e97a087d/vesin-0.3.8-py3-none-macosx_11_0_arm64.whl", hash = "sha256:1f6eb8b422c6ea93e1e25d251d2d747f6545714f5aaf86ca7aa4e07d6e40874f", size = 26396, upload-time = "2025-09-17T11:15:39.413Z" },
+    { url = "https://files.pythonhosted.org/packages/0e/88/98f71df2d457855e6eec4127eab0cd047fb5923e72e939b5de182ed6d7f9/vesin-0.3.8-py3-none-manylinux2014_aarch64.manylinux_2_17_aarch64.whl", hash = "sha256:b52a5a1f49807e0e6bf898d138e8463dc7bae035601b7e267fc5e124e70b71b0", size = 54972, upload-time = "2025-09-17T11:15:40.224Z" },
+    { url = "https://files.pythonhosted.org/packages/26/18/c5c330affbbd2c61fdb3e452b3ded3c2df6ce4b95d66decbef65545e5326/vesin-0.3.8-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:63c0e0115873600ff54949c91f3cc1794b95fc19a74b1f5b7ebf7471c96aa79f", size = 56311, upload-time = "2025-09-17T11:15:41.853Z" },
+    { url = "https://files.pythonhosted.org/packages/b4/95/3ad672662945df3816f58902b4c1c7a4216947b47b8cd610f92288d957f7/vesin-0.3.8-py3-none-win_amd64.whl", hash = "sha256:e297f31a6df2e9fb8d43c94893e6da306d21e083acf9b693dc21c3510901f4e3", size = 57396, upload-time = "2025-09-17T11:15:43.03Z" },
+]
+
+[[package]]
 name = "vine"
 version = "5.1.0"
 source = { registry = "https://pypi.org/simple" }
@@ -2179,6 +2195,7 @@ dependencies = [
     { name = "redis" },
     { name = "tqdm" },
     { name = "typer" },
+    { name = "vesin" },
     { name = "zarr" },
     { name = "znh5md" },
 ]
@@ -2213,6 +2230,7 @@ requires-dist = [
     { name = "redis", specifier = ">=6.4.0" },
     { name = "tqdm", specifier = ">=4.67.1" },
     { name = "typer", specifier = ">=0.19.2" },
+    { name = "vesin", specifier = ">=0.3.8" },
     { name = "zarr", specifier = ">=3.1.3" },
     { name = "znh5md", specifier = ">=0.4.8" },
 ]

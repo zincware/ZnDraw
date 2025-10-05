@@ -10,6 +10,7 @@ import { useColorScheme } from "@mui/material/styles";
 import { SimulationCell } from "./three/SimulationCell";
 import Sphere from "./three/Particles";
 import Arrow from "./three/Arrow";
+import Bonds from "./three/SingleBonds";
 
 // A small helper component to keep a light attached to the camera
 function CameraAttachedLight({ intensity = 1.0 }) {
@@ -68,7 +69,14 @@ function MyScene() {
           if (config.type === "Sphere") {
             return (
               <Sphere
-                key={name} // React requires a unique key for list items
+                key={name}
+                data={config.data}
+              />
+            );
+          } else if (config.type === "Bond") {
+            return (
+              <Bonds
+                key={name}
                 data={config.data}
               />
             );
