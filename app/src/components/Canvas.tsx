@@ -11,6 +11,7 @@ import { SimulationCell } from "./three/SimulationCell";
 import Sphere from "./three/Particles";
 import Arrow from "./three/Arrow";
 import Bonds from "./three/SingleBonds";
+import Curve from "./three/Curve";
 
 // A small helper component to keep a light attached to the camera
 function CameraAttachedLight({ intensity = 1.0 }) {
@@ -90,6 +91,13 @@ function MyScene() {
                 radius={config.data.radius}
                 scale={config.data.scale}
                 material={config.data.material}
+              />
+            );
+          } else if (config.type === "Curve") {
+            return (
+              <Curve
+                key={name}
+                data={config.data}
               />
             );
           } else {
