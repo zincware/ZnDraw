@@ -31,7 +31,7 @@ export default function Sphere({
   scale,
 }: SphereProps) {
   const instancedMeshRef = useRef<THREE.InstancedMesh | null>(null);
-  const { currentFrame, roomId, clientId, userId, selection } = useAppStore();
+  const { currentFrame, roomId, clientId, userId, selection, updateSelection } = useAppStore();
   const lastGoodFrameData = useRef<any>(null);
 
   const selectionSet = useMemo(() => {
@@ -144,11 +144,21 @@ export default function Sphere({
     lastGoodFrameData.current = frameData;
   }
 
+  const onClickHandler = (event: any) => {
+    // Basic validation
+    if (event.detail !== 1 || event.instanceId === undefined) return;
+    event.stopPropagation();
+
+    // Call the centralized store action with the required info from the event
+    updateSelection(event.instanceId, event.shiftKey);
+  };
+
   return (
     <instancedMesh
-      key={dataToRender.count} // Unique key based on count
+      key={dataToRender.count}
       ref={instancedMeshRef}
       args={[undefined, undefined, dataToRender.count]}
+      onClick={onClickHandler}
     >
       <sphereGeometry args={[1, particleResolution, particleResolution]} />
       {renderMaterial(material)}

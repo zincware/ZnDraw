@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { socket } from "./socket";
 
 interface AppState {
   // Connection & Room
@@ -36,6 +37,7 @@ interface AppState {
   setPlaying: (playing: boolean) => void;
   setChatOpen: (open: boolean) => void;
   setGeometries: (geometries: Record<string, any>) => void;
+  updateSelection: (id: number, isShiftPressed: boolean) => void;
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -81,4 +83,39 @@ export const useAppStore = create<AppState>((set) => ({
   setChatOpen: (open) => set({ chatOpen: open }),
   setJoinToken: (joinToken) => set({ joinToken }),
   setGeometries: (geometries) => set({ geometries: geometries }),
+
+  updateSelection: (id, isShiftPressed) =>
+    set((state) => {
+      const currentSelection = state.selection || [];
+      // Use a Set for an efficient O(1) check to see if the item is already selected
+      const isCurrentlySelected = new Set(currentSelection).has(id);
+
+      // --- LOGIC FOR SHIFT + CLICK ---
+      if (isShiftPressed) {
+        // Create a new Set from the current selection for easy manipulation
+        const selectionSet = new Set(currentSelection);
+        
+        if (isCurrentlySelected) {
+          // Rule 4: Shift-click on selected -> remove from selection set, keep the others
+          selectionSet.delete(id);
+        } else {
+          // Rule 3: Shift-click on unselected -> add the particle to selection
+          selectionSet.add(id);
+        }
+        socket.emit("selection:set", {"indices": Array.from(selectionSet)});
+        // Convert back to an array to store in state
+        return { selection: Array.from(selectionSet) };
+      }
+
+      // --- LOGIC FOR SIMPLE CLICK (no shift) ---
+      if (isCurrentlySelected) {
+        // Rule 2: Click on selected -> no particles in the selection
+        socket.emit("selection:set", {"indices": []});
+        return { selection: [] };
+      } else {
+        // Rule 1: Click on unselected -> the particle clicked on should be the ONLY particle in selection
+        socket.emit("selection:set", {"indices": [id]});
+        return { selection: [id] };
+      }
+    }),
 }));
