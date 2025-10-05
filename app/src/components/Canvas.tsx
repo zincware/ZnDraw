@@ -97,6 +97,7 @@ function MyScene() {
             return (
               <Curve
                 key={name}
+                geometryKey={name}
                 data={config.data}
               />
             );

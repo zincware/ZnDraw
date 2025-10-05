@@ -30,7 +30,7 @@ interface CurveData {
  * A component to render a 3D curve using @react-three/drei,
  * with optional markers that can be interactively moved.
  */
-export default function Curve({ data }: { data: CurveData }) {
+export default function Curve({ data, geometryKey }: { data: CurveData; geometryKey: string }) {
   const {
     position: positionProp,
     color,
@@ -157,6 +157,46 @@ export default function Curve({ data }: { data: CurveData }) {
     setSelectedIndex(insertIndex + 1);
   };
 
+  // --- Handler to send updated geometry data to backend ---
+  const handleMouseUp = async () => {
+    if (!roomId || !interactivePoints) return;
+
+    // Convert Vector3 array to array of tuples
+    const positions = interactivePoints.map(point => [point.x, point.y, point.z]);
+
+    // Build the complete data object matching the backend format
+    const geometryData = {
+      position: positions,
+      color: data.color,
+      material: data.material,
+      variant: data.variant,
+      divisions: data.divisions,
+      thickness: data.thickness,
+      marker: data.marker,
+      virtual_marker: data.virtual_marker,
+    };
+
+    try {
+      const response = await fetch(`/api/rooms/${roomId}/geometries`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          key: geometryKey,
+          data: geometryData,
+          type: "Curve",
+        }),
+      });
+
+      if (!response.ok) {
+        console.error("Failed to update geometry:", await response.text());
+      }
+    } catch (error) {
+      console.error("Error updating geometry:", error);
+    }
+  };
+
   // --- Early exit if not ready ---
   if (!roomId || !interactivePoints) return null;
 
@@ -236,6 +276,7 @@ export default function Curve({ data }: { data: CurveData }) {
               setInteractivePoints(newPoints);
             }
           }}
+          onMouseUp={handleMouseUp}
           onPointerMissed={() => setSelectedIndex(null)}
         />
       )}
