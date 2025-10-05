@@ -34,7 +34,7 @@ class Curve(BaseGeometry):
     divisions: int = Field(
         default=50,
         description="Number of divisions along the curve",
-        ge=2,
+        ge=1,
     )
     thickness: float = Field(
         default=1.0,

@@ -2,10 +2,10 @@ import { useMemo, useRef, useState, useEffect } from "react";
 import * as THREE from "three";
 import { useQueries } from "@tanstack/react-query";
 import {
-  CatmullRomLine,
   Dodecahedron,
   TransformControls,
 } from "@react-three/drei";
+import { Line } from "@react-three/drei";
 import { getFrameDataOptions } from "../../hooks/useTrajectoryData";
 import { useAppStore } from "../../store";
 
@@ -107,11 +107,15 @@ export default function Curve({ data }: { data: CurveData }) {
 
   const selectedMesh = selectedIndex !== null ? markerRefs.current[selectedIndex] : null;
 
+  // --- Generate curve points ---
+  const curve = new THREE.CatmullRomCurve3(interactivePoints);
+  const linePoints = curve.getPoints(data.divisions * interactivePoints.length);
+
   // --- Render ---
   return (
     <group>
-      <CatmullRomLine
-        points={interactivePoints}
+      <Line
+        points={linePoints}
         color={color}
         lineWidth={thickness}
         dashed={material === "LineDashedMaterial"}
