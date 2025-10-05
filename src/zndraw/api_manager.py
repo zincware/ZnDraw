@@ -266,26 +266,84 @@ class APIManager:
         return response.json()
 
     def set_geometry(self, data: dict, key: str, geometry_type: str) -> None:
-        response = requests.put(
+        """Create or update a geometry.
+        
+        Args:
+            data: The geometry data dict
+            key: The geometry key/name
+            geometry_type: The type of geometry (Sphere, Arrow, Bond, Curve)
+        """
+        response = requests.post(
             f"{self.url}/api/rooms/{self.room}/geometries",
             json={"key": key, "data": data, "type": geometry_type},
         )
         response.raise_for_status()
 
-    def del_geometry(self, key: str) -> None:
-        response = requests.delete(
-            f"{self.url}/api/rooms/{self.room}/geometries/{key}",
-        )
-        response.raise_for_status()
-
-    def get_geometries(self) -> dict | None:
+    def get_geometry(self, key: str) -> dict | None:
+        """Get a specific geometry by key.
+        
+        Args:
+            key: The geometry key/name
+            
+        Returns:
+            The geometry dict with 'type' and 'data' keys, or None if not found
+        """
         response = requests.get(
-            f"{self.url}/api/rooms/{self.room}/geometries",
+            f"{self.url}/api/rooms/{self.room}/geometries/{key}",
         )
         if response.status_code == 404:
             return None
         response.raise_for_status()
-        return response.json()
+        return response.json().get("geometry", None)
+
+    def del_geometry(self, key: str) -> None:
+        """Delete a geometry.
+        
+        Args:
+            key: The geometry key/name
+        """
+        response = requests.delete(
+            f"{self.url}/api/rooms/{self.room}/geometries/{key}",
+        )
+        response_data = response.json()
+        if response.status_code != 200:
+            error = response_data.get("error", None)
+            error_type = response_data.get("type", None)
+            if error_type == "KeyError":
+                raise KeyError(error)
+        response.raise_for_status()
+
+    def list_geometries(self) -> list[str]:
+        """List all geometry keys.
+        
+        Returns:
+            List of geometry keys
+        """
+        response = requests.get(
+            f"{self.url}/api/rooms/{self.room}/geometries",
+        )
+        response.raise_for_status()
+        return response.json().get("geometries", [])
+    
+    def get_geometries(self) -> dict | None:
+        """Get all geometries (DEPRECATED: use list_geometries and get_geometry).
+        
+        This method fetches all geometry keys and then retrieves each geometry.
+        For better performance, use list_geometries() and get_geometry(key) as needed.
+        
+        Returns:
+            Dict mapping geometry keys to their data {key: {type, data}, ...}
+        """
+        keys = self.list_geometries()
+        if not keys:
+            return {}
+        
+        result = {}
+        for key in keys:
+            geometry = self.get_geometry(key)
+            if geometry:
+                result[key] = geometry
+        return result
 
     def add_figure(self, key: str, figure: dict) -> None:
         response = requests.post(

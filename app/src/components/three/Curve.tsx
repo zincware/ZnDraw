@@ -178,7 +178,7 @@ export default function Curve({ data, geometryKey }: { data: CurveData; geometry
 
     try {
       const response = await fetch(`/api/rooms/${roomId}/geometries`, {
-        method: "PUT",
+        method: "POST",
         headers: {
           "Content-Type": "application/json",
         },

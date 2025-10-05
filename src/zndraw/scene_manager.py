@@ -32,16 +32,23 @@ class Geometries(MutableMapping):
             raise ValueError(f"Unknown geometry type: {geometry_type}")
 
     def __getitem__(self, key: str) -> BaseModel:
+        """Get a geometry by key.
+        
+        First checks local cache, then fetches from server if needed.
+        """
         if key not in self.vis._geometries:
-            response = self.vis.api.get_geometries()
+            # Try to fetch this specific geometry from server
+            response = self.vis.api.get_geometry(key)
             if response is None:
                 raise KeyError(f"Geometry with key '{key}' does not exist")
-            self.vis._geometries = response
-        if key not in self.vis._geometries:
-            raise KeyError(f"Geometry with key '{key}' does not exist")
+            # Response has correct structure with 'type' and 'data' keys
+            from zndraw.zndraw import _GeometryStore
+            self.vis._geometries[key] = t.cast(_GeometryStore, response)
+        
+        geometry_data = self.vis._geometries[key]
         return self._geometry_to_model(
-            geometry_type=self.vis._geometries[key]["type"],
-            geometry_data=self.vis._geometries[key]["data"],
+            geometry_type=geometry_data["type"],
+            geometry_data=geometry_data["data"],
         )
 
     def __setitem__(self, key: str, value: BaseModel) -> None:
@@ -62,7 +69,27 @@ class Geometries(MutableMapping):
         self.vis.api.del_geometry(key=key)
 
     def __iter__(self):
+        """Iterate over geometry keys.
+        
+        If local cache is empty, fetches keys from server first.
+        """
+        if not self.vis._geometries:
+            # Fetch keys from server
+            keys = self.vis.api.list_geometries()
+            # Populate cache with None to track keys exist
+            for key in keys:
+                if key not in self.vis._geometries:
+                    # Mark as known but not loaded
+                    pass
+            return iter(keys)
         return iter(self.vis._geometries)
 
     def __len__(self) -> int:
+        """Return the number of geometries.
+        
+        If local cache is empty, fetches keys from server first.
+        """
+        if not self.vis._geometries:
+            keys = self.vis.api.list_geometries()
+            return len(keys)
         return len(self.vis._geometries)

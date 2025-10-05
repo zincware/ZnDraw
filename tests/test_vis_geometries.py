@@ -6,75 +6,58 @@ from zndraw.geometries import Sphere, Bond
 
 
 def test_rest_get_geometries(server):
+    """Test listing geometry keys and getting individual geometries."""
     room = "test-room-geom"
     response = requests.post(f"{server}/api/rooms/{room}/join", json={})
     assert response.status_code == 200
 
+    # Test listing geometry keys
     response = requests.get(f"{server}/api/rooms/{room}/geometries")
     assert response.status_code == 200
     data = response.json()
-    assert data == {
-        "bonds": {
-            "data": {
-                "color": "arrays.colors",
-                "connectivity": "info.connectivity",
-                "hovering": {
-                    "color": "#FF0000",
-                    "enabled": True,
-                    "opacity": 0.5,
-                },
-                "material": "MeshStandardMaterial",
-                "opacity": 1.0,
-                "position": "arrays.positions",
-                "radius": "arrays.radii",
-                "resolution": 16,
-                "scale": 0.25,
-                "selecting": {
-                    "color": "#FF6A00",
-                    "enabled": True,
-                    "opacity": 0.5,
-                },
-            },
-            "type": "Bond",
-        },
-        "particles": {
-            "type": "Sphere",
-            "data": {
-                "color": "arrays.colors",
-                "material": "MeshStandardMaterial",
-                "position": "arrays.positions",
-                "radius": "arrays.radii",
-                "resolution": 16,
-                "scale": 0.7,
-                "opacity": 1.0,
-                "selecting": {"enabled": True, "opacity": 0.5, "color": "#FF6A00"},
-                "hovering": {"enabled": True, "opacity": 0.5, "color": "#FF0000"},
-            },
-        },
-    }
+    assert "geometries" in data
+    assert set(data["geometries"]) == {"particles", "bonds"}
+    
+    # Test getting individual geometry - particles
+    response = requests.get(f"{server}/api/rooms/{room}/geometries/particles")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["key"] == "particles"
+    assert data["geometry"]["type"] == "Sphere"
+    assert data["geometry"]["data"]["color"] == "arrays.colors"
+    assert data["geometry"]["data"]["scale"] == 0.7
+    
+    # Test getting individual geometry - bonds
+    response = requests.get(f"{server}/api/rooms/{room}/geometries/bonds")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["key"] == "bonds"
+    assert data["geometry"]["type"] == "Bond"
+    assert data["geometry"]["data"]["connectivity"] == "info.connectivity"
+    assert data["geometry"]["data"]["scale"] == 0.25
+    
+    # Test getting non-existent geometry
+    response = requests.get(f"{server}/api/rooms/{room}/geometries/nonexistent")
+    assert response.status_code == 404
 
 
 def test_rest_update_geometries(server):
+    """Test creating/updating geometries via POST endpoint."""
     room = "test-room-geom-update"
     response = requests.post(f"{server}/api/rooms/{room}/join", json={})
     assert response.status_code == 200
 
-    new_geometries = {
-        "particles": {
-            "type": "Sphere",
-            "data": {
-                "color": [1.0, 0.0, 0.0],
-                "position": [1.0, 1.0, 1.0],
-                "radius": 1.0,
-            },
-        }
+    new_geometry_data = {
+        "color": [1.0, 0.0, 0.0],
+        "position": [1.0, 1.0, 1.0],
+        "radius": 1.0,
     }
 
-    response = requests.put(
+    response = requests.post(
         f"{server}/api/rooms/{room}/geometries",
         json={
             "key": "particles",
-            "data": new_geometries["particles"]["data"],
+            "data": new_geometry_data,
             "type": "Sphere",
         },
     )
@@ -82,18 +65,23 @@ def test_rest_update_geometries(server):
     data = response.json()
     assert data["status"] == "success"
 
-    response = requests.get(f"{server}/api/rooms/{room}/geometries")
+    # Verify the geometry was updated
+    response = requests.get(f"{server}/api/rooms/{room}/geometries/particles")
     assert response.status_code == 200
     data = response.json()
-    assert data["particles"] == new_geometries["particles"] 
+    assert data["geometry"]["type"] == "Sphere"
+    assert data["geometry"]["data"]["color"] == [1.0, 0.0, 0.0]
+    assert data["geometry"]["data"]["position"] == [1.0, 1.0, 1.0]
+    assert data["geometry"]["data"]["radius"] == 1.0 
 
 
 def test_rest_add_unknown_geometry(server):
+    """Test that creating geometry with unknown type returns error."""
     room = "test-room-geom-unknown"
     response = requests.post(f"{server}/api/rooms/{room}/join", json={})
     assert response.status_code == 200
 
-    response = requests.put(
+    response = requests.post(
         f"{server}/api/rooms/{room}/geometries",
         json={
             "key": "unknown",
@@ -108,6 +96,7 @@ def test_rest_add_unknown_geometry(server):
 
 
 def test_rest_delete_geometry(server):
+    """Test deleting geometries."""
     room = "test-room-geom-delete"
     response = requests.post(f"{server}/api/rooms/{room}/join", json={})
     assert response.status_code == 200
@@ -122,10 +111,11 @@ def test_rest_delete_geometry(server):
     data = response.json()
     assert data["status"] == "success"
 
+    # Verify no geometries remain
     response = requests.get(f"{server}/api/rooms/{room}/geometries")
     assert response.status_code == 200
     data = response.json()
-    assert data == {}
+    assert data == {"geometries": []}
 
 
 def test_rest_delete_unknown_geometry(server):

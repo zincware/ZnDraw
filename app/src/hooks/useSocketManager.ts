@@ -190,19 +190,43 @@ export const useSocketManager = () => {
     }
 
     function onGeometriesInvalidate(data: any) {
-      // get new geometries from data
+      // Fetch list of geometry keys first
       fetch("/api/rooms/" + roomId + "/geometries")
         .then((response) => {
           if (!response.ok) {
             throw new Error(
-              `Failed to fetch geometries: ${response.status} ${response.statusText}`,
+              `Failed to fetch geometry keys: ${response.status} ${response.statusText}`,
             );
           }
           return response.json();
         })
-        .then((geometries) => {
-          console.log("Received updated geometries:", geometries);
-          setGeometries(geometries);
+        .then(async (data) => {
+          const keys = data.geometries || [];
+          console.log("Received geometry keys:", keys);
+          
+          // Fetch all geometries in parallel
+          const geometryPromises = keys.map((key: string) =>
+            fetch(`/api/rooms/${roomId}/geometries/${key}`)
+              .then((res) => res.json())
+              .then((data) => ({ key, geometry: data.geometry }))
+              .catch((error) => {
+                console.error(`Error fetching geometry ${key}:`, error);
+                return null;
+              })
+          );
+          
+          const geometries = await Promise.all(geometryPromises);
+          
+          // Build geometries object from results
+          const geometriesObj: Record<string, any> = {};
+          geometries.forEach((item) => {
+            if (item && item.geometry) {
+              geometriesObj[item.key] = item.geometry;
+            }
+          });
+          
+          console.log("Received updated geometries:", geometriesObj);
+          setGeometries(geometriesObj);
         })
         .catch((error) => {
           console.error("Error fetching geometries:", error);

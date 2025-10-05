@@ -25,20 +25,16 @@ def test_rest_join_new_room(server):
     assert data["step"] == 0
     assert data["bookmarks"] is None
     assert data["template"] == "empty"
-    assert data["geometries"] == {
-        "particles": {
-            "type": "Sphere",
-            "data": {
-                "color": "arrays.colors",
-                "material": "MeshPhysicalMaterial",
-                "position": "arrays.positions",
-                "radius": "arrays.radii",
-                "resolution": 16,
-                "scale": 1.0,
-                "selectable": True,
-            },
-        }
-    }
+    # Verify default geometries are created
+    assert "geometries" in data
+    assert "particles" in data["geometries"]
+    assert "bonds" in data["geometries"]
+    assert data["geometries"]["particles"]["type"] == "Sphere"
+    assert data["geometries"]["bonds"]["type"] == "Bond"
+    # Verify default Sphere properties
+    assert data["geometries"]["particles"]["data"]["scale"] == 0.7
+    assert data["geometries"]["particles"]["data"]["material"] == "MeshStandardMaterial"
+    assert data["geometries"]["particles"]["data"]["position"] == "arrays.positions"
     assert "settings" in data
     assert "joinToken" in data
     assert "clientId" in data

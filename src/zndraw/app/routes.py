@@ -2035,18 +2035,37 @@ def join_room(room_id):
     return response
 
 
-@main.route("/api/rooms/<string:room_id>/geometries", methods=["PUT"])
-def set_geometry(room_id: str):
+@main.route("/api/rooms/<string:room_id>/geometries", methods=["POST"])
+def create_geometry(room_id: str):
+    """Create or update a geometry in the room.
+    
+    Request body:
+        {
+            "key": "geometry_name",
+            "type": "Sphere" | "Arrow" | "Bond" | "Curve",
+            "data": {...}  // geometry-specific data
+        }
+    """
     data = request.get_json() or {}
-    key = data["key"]
-    from zndraw.geometries import geometries
-
-    if data["type"] not in geometries:
+    key = data.get("key")
+    geometry_type = data.get("type")
+    geometry_data = data.get("data")
+    
+    if not key or not geometry_type or geometry_data is None:
         return {
-            "error": f"Unknown geometry type '{data['type']}'",
+            "error": "'key', 'type', and 'data' are required",
             "type": "ValueError",
         }, 400
-    value_to_store = json.dumps({"type": data["type"], "data": data["data"]})
+    
+    from zndraw.geometries import geometries
+
+    if geometry_type not in geometries:
+        return {
+            "error": f"Unknown geometry type '{geometry_type}'",
+            "type": "ValueError",
+        }, 400
+    
+    value_to_store = json.dumps({"type": geometry_type, "data": geometry_data})
 
     r = current_app.extensions["redis"]
     r.hset(f"room:{room_id}:geometries", key, value_to_store)
@@ -2059,6 +2078,27 @@ def set_geometry(room_id: str):
     )
 
     return {"status": "success"}, 200
+
+
+@main.route("/api/rooms/<string:room_id>/geometries/<string:key>", methods=["GET"])
+def get_geometry(room_id: str, key: str):
+    """Get a specific geometry by key.
+    
+    Returns:
+        {
+            "key": "geometry_name",
+            "geometry": {
+                "type": "Sphere",
+                "data": {...}
+            }
+        }
+    """
+    r = current_app.extensions["redis"]
+    geometry_data = r.hget(f"room:{room_id}:geometries", key)
+    if not geometry_data:
+        return {"error": f"Geometry with key '{key}' not found", "type": "KeyError"}, 404
+    geometry = json.loads(geometry_data)
+    return {"key": key, "geometry": geometry}, 200
 
 
 @main.route("/api/rooms/<string:room_id>/geometries/<string:key>", methods=["DELETE"])
@@ -2077,16 +2117,19 @@ def delete_geometry(room_id: str, key: str):
         },
         to=f"room:{room_id}",
     )
-    return {"status": "success"}
+    return {"status": "success"}, 200
 
 
 @main.route("/api/rooms/<string:room_id>/geometries", methods=["GET"])
 def list_geometries(room_id: str):
+    """List all geometry keys in the room.
+    
+    Returns:
+        {"geometries": ["key1", "key2", ...]}
+    """
     r = current_app.extensions["redis"]
-
-    all_data = r.hgetall(f"room:{room_id}:geometries")
-    result = {key: json.loads(value) for key, value in all_data.items()}
-    return result, 200
+    all_keys = r.hkeys(f"room:{room_id}:geometries")
+    return {"geometries": list(all_keys)}, 200
 
 
 # -------------#
