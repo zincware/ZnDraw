@@ -38,7 +38,7 @@ class Bond(BaseGeometry):
     )
 
     selecting: InteractionSettings = Field(
-        default_factory=lambda: InteractionSettings(enabled=True, color="##FF6A00", opacity=0.5),
+        default_factory=lambda: InteractionSettings(enabled=True, color="#FF6A00", opacity=0.5),
         description="Selection interaction settings."
     )
     hovering: InteractionSettings = Field(

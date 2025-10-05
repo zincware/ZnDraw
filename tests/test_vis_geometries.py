@@ -2,7 +2,7 @@ import pytest
 import requests
 
 from zndraw import ZnDraw
-from zndraw.geometries import Sphere
+from zndraw.geometries import Sphere, Bond
 
 
 def test_rest_get_geometries(server):
@@ -14,18 +14,43 @@ def test_rest_get_geometries(server):
     assert response.status_code == 200
     data = response.json()
     assert data == {
+        "bonds": {
+            "data": {
+                "color": "arrays.colors",
+                "connectivity": "info.connectivity",
+                "hovering": {
+                    "color": "#FF0000",
+                    "enabled": True,
+                    "opacity": 0.5,
+                },
+                "material": "MeshStandardMaterial",
+                "opacity": 1.0,
+                "position": "arrays.positions",
+                "radius": "arrays.radii",
+                "resolution": 16,
+                "scale": 0.25,
+                "selecting": {
+                    "color": "#FF6A00",
+                    "enabled": True,
+                    "opacity": 0.5,
+                },
+            },
+            "type": "Bond",
+        },
         "particles": {
             "type": "Sphere",
             "data": {
                 "color": "arrays.colors",
-                "material": "MeshPhysicalMaterial",
+                "material": "MeshStandardMaterial",
                 "position": "arrays.positions",
                 "radius": "arrays.radii",
                 "resolution": 16,
-                "scale": 1.0,
-                "selectable": True,
+                "scale": 0.7,
+                "opacity": 1.0,
+                "selecting": {"enabled": True, "opacity": 0.5, "color": "#FF6A00"},
+                "hovering": {"enabled": True, "opacity": 0.5, "color": "#FF0000"},
             },
-        }
+        },
     }
 
 
@@ -60,7 +85,7 @@ def test_rest_update_geometries(server):
     response = requests.get(f"{server}/api/rooms/{room}/geometries")
     assert response.status_code == 200
     data = response.json()
-    assert data == new_geometries
+    assert data["particles"] == new_geometries["particles"] 
 
 
 def test_rest_add_unknown_geometry(server):
@@ -92,6 +117,11 @@ def test_rest_delete_geometry(server):
     data = response.json()
     assert data["status"] == "success"
 
+    response = requests.delete(f"{server}/api/rooms/{room}/geometries/bonds")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "success"
+
     response = requests.get(f"{server}/api/rooms/{room}/geometries")
     assert response.status_code == 200
     data = response.json()
@@ -112,9 +142,9 @@ def test_rest_delete_unknown_geometry(server):
 
 def test_vis_list_geometries(server):
     vis = ZnDraw(url=server, room="test-room-vis-list-geom", user="tester")
-    assert len(vis.geometries) == 1
+    assert len(vis.geometries) == 2
     assert vis.geometries["particles"] == Sphere()
-
+    assert vis.geometries["bonds"] == Bond()
 
 def test_vis_add_update_delete_geometry(server):
     vis1 = ZnDraw(url=server, room="room1", user="tester")
