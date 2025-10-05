@@ -142,7 +142,7 @@ export default function Curve({ data }: { data: CurveData }) {
       {selectedMesh && (
         <TransformControls
           object={selectedMesh}
-          onMouseUp={() => {
+          onChange={() => {
             if (selectedIndex !== null && markerRefs.current[selectedIndex]) {
               const newPoints = [...interactivePoints];
               newPoints[selectedIndex] =
