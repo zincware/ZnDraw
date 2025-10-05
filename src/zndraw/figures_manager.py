@@ -1,8 +1,8 @@
 import typing as t
 from collections.abc import MutableMapping
+
 import plotly.graph_objs as go
 import plotly.io as pio
-import json
 
 if t.TYPE_CHECKING:
     from zndraw import ZnDraw
@@ -15,11 +15,11 @@ class Figures(MutableMapping):
     def _dict_to_figure(self, figure: dict) -> go.Figure:
         if not isinstance(figure, dict):
             raise ValueError("Figure data must be a dictionary")
-        
+
         if figure.get("type") == "plotly":
             fig = pio.from_json(figure["data"])
             return fig
-        
+
         raise ValueError("Unsupported figure type or invalid figure data")
 
     def _figure_to_dict(self, figure: go.Figure) -> dict:
@@ -29,7 +29,6 @@ class Figures(MutableMapping):
         if response is None:
             raise ValueError("Failed to convert figure to JSON")
         return {"data": response, "type": "plotly"}
-
 
     def __getitem__(self, key: str) -> go.Figure:
         if key not in self.vis._figures:

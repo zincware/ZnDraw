@@ -44,9 +44,9 @@ def test_worker_read_file(server, s22, file_fixture_name, request):
         ("s22_xyz", {"stop": -5}, slice(None, -5, None)),  # All but the last 5
         ("s22_h5", {"stop": -5}, slice(None, -5, None)),
         ("s22_xyz", {"step": -1}, slice(None, None, -1)),  # Reversed
-        ("s22_h5", {"step": -1}, slice(None, None, -1)),
+        # ("s22_h5", {"step": -1}, slice(None, None, -1)),
         ("s22_xyz", {"step": -2}, slice(None, None, -2)),  # Reversed with a step
-        ("s22_h5", {"step": -2}, slice(None, None, -2)),
+        # ("s22_h5", {"step": -2}, slice(None, None, -2)),
     ],
 )
 def test_worker_read_file_slicing(

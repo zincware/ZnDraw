@@ -1,16 +1,17 @@
+import itertools
 import logging
 from pathlib import Path
 
 import ase.io
 import requests
 import znh5md
-import itertools
-# Tqdm is removed from the generator as it won't render in a Celery worker.
-# from tqdm import tqdm 
 
+# Tqdm is removed from the generator as it won't render in a Celery worker.
+# from tqdm import tqdm
 from celery import shared_task
 
 log = logging.getLogger(__name__)
+
 
 def batch_generator(iterable, size):
     """Yields successive n-sized chunks from any iterable."""
@@ -44,36 +45,34 @@ def read_file(
     try:
         frame_iterator = None
         if file_path.suffix in [".h5", ".h5md"]:
+            if step is not None and step <= 0:
+                vis.log("Step must be a positive integer for H5MD files.")
+                raise ValueError("Step must be a positive integer for H5MD files.")
             io = znh5md.IO(file_path)
-            
-            # --- FIX 1: Correctly handle None for islice ---
-            # Provide default integer values for start and step if they are None.
-            # stop can correctly be None.
-            _start = start if start is not None else 0
-            _step = step if step is not None else 1
-            frame_iterator = itertools.islice(io, _start, stop, _step)
+
+            n_frames = len(io)
+            s = slice(start, stop, step)
+            # The 'indices' method converts the slice into a (start, stop, step)
+            # tuple of non-negative integers that can be used with islice.
+            _start, _stop, _step = s.indices(n_frames)
+
+            frame_iterator = itertools.islice(io, _start, _stop, _step)
         else:
-            # --- FIX 2: Correctly build the ASE index string ---
-            # Convert None to empty strings for the slice format.
+            # --- This logic is correct for ASE's string-based index ---
+            # It properly handles None by creating empty strings, e.g., ":-1:"
             start_str = str(start) if start is not None else ""
             stop_str = str(stop) if stop is not None else ""
             step_str = str(step) if step is not None else ""
             index_str = f"{start_str}:{stop_str}:{step_str}"
-            
+
             # Use ase.io.iread() with the correctly formatted index string.
             frame_iterator = ase.io.iread(file_path, index=index_str)
 
         # Now, the batching logic is the same for both file types
         if frame_iterator:
-            # We can wrap the iterator in tqdm here if we want to see the total number of items
-            # but it is better to use Celery's progress reporting for background tasks.
-            total_items = None
-            if stop is not None and start is not None and step is not None:
-                total_items = (stop - start) // step
-            
             # A simple log message is often better for background tasks.
             log.info(f"Processing frames from {file_path} in batches of {batch_size}")
-            
+
             for batch in batch_generator(frame_iterator, batch_size):
                 vis.extend(batch)
 
@@ -114,9 +113,9 @@ def celery_job_worker(self, room: str, server_url: str = "http://localhost:5000"
         room: The room ID to poll for jobs
         server_url: The ZnDraw server URL
     """
+    from zndraw.extensions.analysis import analysis
     from zndraw.extensions.modifiers import modifiers
     from zndraw.extensions.selections import selections
-    from zndraw.extensions.analysis import analysis
     from zndraw.settings import settings
     from zndraw.zndraw import ZnDraw
 
@@ -199,4 +198,3 @@ def celery_job_worker(self, room: str, server_url: str = "http://localhost:5000"
             vis.disconnect()
         except Exception:
             pass
-

@@ -1,5 +1,5 @@
-from zndraw.geometries.sphere import Sphere
 from zndraw.geometries.arrow import Arrow
+from zndraw.geometries.sphere import Sphere
 
 geometries = {
     "Sphere": Sphere,

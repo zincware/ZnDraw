@@ -1,19 +1,20 @@
 import json
 import logging
 import traceback
+from pathlib import Path
 
 import msgpack
 import zarr
 from flask import Response, current_app, request, send_from_directory
 from flask_socketio import disconnect
 from zarr.storage import MemoryStore
-from pathlib import Path
 
 from zndraw.server import socketio
 from zndraw.storage import ZarrStorageSequence, decode_data, encode_data
 
 from . import main
 from .constants import SocketEvents
+from .frame_index_manager import FrameIndexManager
 from .job_manager import JobManager
 from .queue_manager import emit_queue_update
 from .redis_keys import ExtensionKeys
@@ -116,15 +117,18 @@ def emit_frames_invalidate(
         to=f"room:{room_id}",
     )
 
+
 @main.route("/")
 def serve_react_app():
     static_folder = Path(__file__).parent.parent / "static"
     return send_from_directory(static_folder, "index.html")
 
+
 @main.route("/assets/<path:filename>")
 def serve_static_assets(filename: str):
     static_folder = Path(__file__).parent.parent / "static" / "assets"
     return send_from_directory(static_folder, filename)
+
 
 @main.route("/api/disconnect/<string:client_sid>", methods=["POST"])
 def disconnect_sid(client_sid: str):
@@ -168,130 +172,124 @@ def internal_emit():
 
 @main.route("/api/rooms/<string:room_id>/frames", methods=["GET"])
 def get_frames(room_id):
-    """Serves multiple frames' data from the room's Zarr store using either indices or slice parameters."""
+    """
+    Serves multiple frames' data from the room's Zarr store using either
+    indices or slice parameters. This implementation is optimized and uses
+    the FrameIndexManager for all index operations.
+    """
     r = current_app.extensions["redis"]
     try:
-        storage = get_storage(room_id)
-
-        # Get logical-to-physical mapping from Redis
         indices_key = f"room:{room_id}:trajectory:indices"
-        frame_mapping = r.zrange(indices_key, 0, -1)
+        manager = FrameIndexManager(r, indices_key)
 
-        if not frame_mapping:
+        frame_count = manager.get_count()
+
+        if frame_count == 0:
             return {
-                "error": f"Index out of range for data with 0 frames in room '{room_id}'",
+                "error": f"Index out of range for data with {frame_count} frames in room '{room_id}'",
                 "type": "IndexError",
             }, 404
 
-        max_frame = len(frame_mapping) - 1
+        max_frame_idx = frame_count - 1
+        physical_keys = []
 
-        # Determine frame indices based on request parameters
         if "indices" in request.args:
-            # Indices parameter was provided as comma-separated values
             indices_str = request.args.get("indices")
-
-            # Handle empty string case
             if not indices_str:
                 frame_indices = []
             else:
-                # Split by comma and convert to integers
                 try:
                     frame_indices = [int(idx.strip()) for idx in indices_str.split(",")]
                 except ValueError:
                     return {"error": "Indices must be comma-separated integers"}, 400
 
-            # Validate frame indices
             for frame_id in frame_indices:
-                if (
-                    not isinstance(frame_id, int)
-                    or frame_id < 0
-                    or frame_id > max_frame
-                ):
-                    error_data = {
-                        "error": f"Invalid frame index {frame_id}, valid range: 0-{max_frame}",
-                        "type": "IndexError",
-                    }
+                if not (0 <= frame_id <= max_frame_idx):
                     return Response(
-                        json.dumps(error_data),
+                        json.dumps(
+                            {
+                                "error": f"Invalid frame index {frame_id}, valid range: 0-{max_frame_idx}",
+                                "type": "IndexError",
+                            }
+                        ),
                         status=404,
                         content_type="application/json",
                     )
 
-        else:
-            # Default to slice behavior for any remaining cases (including empty payload)
-            # This handles slice parameters and slice(None, None, None) which sends empty payload
+            # Use the new manager method for non-contiguous indices
+            physical_keys = manager.get_by_indices(frame_indices)
+
+        else:  # Slice logic
             start_param = request.args.get("start")
             stop_param = request.args.get("stop")
             step_param = request.args.get("step")
 
             start = int(start_param) if start_param is not None else None
             stop = int(stop_param) if stop_param is not None else None
-            step = int(step_param) if step_param is not None else None
+            step = int(step_param) if step_param is not None else 1
 
-            if step == 0:
+            if step is not None and step == 0:
                 return {"error": "step cannot be zero"}, 400
 
-            # Use slice.indices to properly handle negative indices
             slice_obj = slice(start, stop, step)
-            start, stop, step = slice_obj.indices(len(frame_mapping))
+            start, stop, step_val = slice_obj.indices(frame_count)
 
-            # Generate frame indices from slice
-            frame_indices = list(range(start, stop, step))
+            if step_val == 1:
+                # Use the optimized range method for contiguous slices
+                physical_keys = manager.get_range(start, stop - 1)
+            else:
+                # For stepped slices, generate indices and use the by_indices method
+                frame_indices = list(range(start, stop, step_val))
+                physical_keys = manager.get_by_indices(frame_indices)
 
-        # Get keys parameter if specified (comma-separated)
+        # If no keys were found (e.g., empty indices list), return empty response
+        if not physical_keys:
+            return Response(msgpack.packb([]), content_type="application/octet-stream")
+
         keys_str = request.args.get("keys")
-        if keys_str:
-            requested_keys = [k.strip() for k in keys_str.split(",")]
-        else:
-            requested_keys = None
+        requested_keys = [k.strip() for k in keys_str.split(",")] if keys_str else None
 
-        # TODO: requested keys and KeyError handling
-        # TODO: instead of iterate load at once
+        frames_data = []
         try:
-            frames_data = []
-            for frame_id in frame_indices:
-                # Parse the frame mapping entry (format: "room_id:physical_index")
-                mapping_entry = frame_mapping[frame_id]
+            for mapping_entry in physical_keys:
+                mapping_entry_str = (
+                    mapping_entry.decode("utf-8")
+                    if isinstance(mapping_entry, bytes)
+                    else mapping_entry
+                )
 
-                if ":" in mapping_entry:
-                    source_room_id, physical_index_str = mapping_entry.split(":", 1)
+                if ":" in mapping_entry_str:
+                    source_room_id, physical_index_str = mapping_entry_str.split(":", 1)
                     physical_index = int(physical_index_str)
                     source_storage = get_storage(source_room_id)
                 else:
-                    # Fallback for any legacy data without colon separator
-                    physical_index = int(mapping_entry)
-                    source_storage = storage
+                    physical_index = int(mapping_entry_str)
+                    source_storage = get_storage(room_id)
 
                 frame_data = source_storage.get(physical_index, keys=requested_keys)
                 frames_data.append(encode_data(frame_data))
-        except KeyError as e:
-            error_data = {
-                "error": f"Key(s) not found: {e}",
-                "type": "KeyError",
-            }
+        except (KeyError, IndexError) as e:
+            # Handle both Zarr key errors and physical index errors
             return Response(
-                json.dumps(error_data), status=404, content_type="application/json"
-            )
-        except IndexError as e:
-            error_data = {
-                "error": f"Frame index out of range: {e}",
-                "type": "IndexError",
-            }
-            return Response(
-                json.dumps(error_data), status=404, content_type="application/json"
+                json.dumps(
+                    {
+                        "error": f"Error accessing physical storage: {e}",
+                        "type": type(e).__name__,
+                    }
+                ),
+                status=404,
+                content_type="application/json",
             )
 
         packed_data = msgpack.packb(frames_data)
         return Response(packed_data, content_type="application/octet-stream")
+
     except Exception as e:
-        error_data = {
-            "error": f"Server error: {e}",
-            "type": type(e).__name__,
-            "success": False,
-        }
-        log.error(f"Server error: {e}\n{traceback.format_exc()}")
+        log.error(f"Server error in get_frames: {e}\n{traceback.format_exc()}")
         return Response(
-            json.dumps(error_data), status=500, content_type="application/json"
+            json.dumps({"error": f"Server error: {e}", "type": type(e).__name__}),
+            status=500,
+            content_type="application/json",
         )
 
 
@@ -420,7 +418,8 @@ def delete_frames_batch(room_id):
 
     try:
         indices_key = f"room:{room_id}:trajectory:indices"
-        frame_mapping = r.zrange(indices_key, 0, -1)
+        index_manager = FrameIndexManager(r, indices_key)
+        frame_mapping = index_manager.get_all()
 
         if not frame_mapping:
             return {"error": "No frames found in room"}, 404
@@ -514,29 +513,12 @@ def delete_frames_batch(room_id):
                         "type": "PermissionError",
                     }, 403
 
-        # Optimized batch delete: calculate final state once, then apply in single transaction
-        # Convert to set for O(1) lookup
-        indices_to_delete = set(frame_indices)
+        # Delete frames using gap method - no need to rebuild the entire sorted set
+        members_to_delete = [frame_mapping[idx] for idx in frame_indices]
 
-        # Build the list of frames that should remain after deletion
-        remaining_frames = []
-        for idx, physical_idx_str in enumerate(frame_mapping):
-            if idx not in indices_to_delete:
-                remaining_frames.append(physical_idx_str)
-
-        # Use a pipeline to delete and rebuild the mapping in a single atomic transaction
-        pipeline = r.pipeline()
-        pipeline.delete(indices_key)
-
-        if remaining_frames:
-            # Build new mapping with sequential logical indices
-            new_mapping = {
-                physical_idx_str: logical_pos
-                for logical_pos, physical_idx_str in enumerate(remaining_frames)
-            }
-            pipeline.zadd(indices_key, new_mapping)
-
-        pipeline.execute()
+        if members_to_delete:
+            # Batch delete all members at once
+            r.zrem(indices_key, *members_to_delete)
 
         log.info(
             f"Deleted {len(frame_indices)} frames from room '{room_id}'. Physical data preserved."
@@ -581,6 +563,7 @@ def append_frame(room_id):
         storage = get_storage(room_id)
 
         indices_key = f"room:{room_id}:trajectory:indices"
+        index_manager = FrameIndexManager(r, indices_key)
 
         if action == "replace":
             # Get frame_id from query parameters
@@ -594,6 +577,7 @@ def append_frame(room_id):
                 return {"error": "frame_id must be an integer"}, 400
 
             frame_mapping = r.zrange(indices_key, 0, -1)
+            frame_mapping_with_scores = r.zrange(indices_key, 0, -1, withscores=True)
 
             # Validate target_frame_id
             if not (0 <= target_frame_id < len(frame_mapping)):
@@ -607,12 +591,12 @@ def append_frame(room_id):
             storage.append(decoded_data)
 
             old_mapping_entry = frame_mapping[target_frame_id]
+            # Get the original score to preserve gap-based indexing
+            _, old_score = frame_mapping_with_scores[target_frame_id]
 
             pipeline = r.pipeline()
             pipeline.zrem(indices_key, old_mapping_entry)
-            pipeline.zadd(
-                indices_key, {f"{room_id}:{new_physical_index}": target_frame_id}
-            )
+            pipeline.zadd(indices_key, {f"{room_id}:{new_physical_index}": old_score})
             pipeline.execute()
 
             # Remove bookmark for old physical frame (if it exists)
@@ -639,7 +623,7 @@ def append_frame(room_id):
                 }, 400
 
             # 1. Determine starting logical and physical positions
-            start_logical_pos = r.zcard(indices_key)
+            start_logical_pos = index_manager.get_count()
             start_physical_pos = len(storage)
             num_frames = len(serialized_data)
 
@@ -647,13 +631,9 @@ def append_frame(room_id):
             decoded_frames = [decode_data(frame) for frame in serialized_data]
             storage.extend(decoded_frames)
 
-            # 3. Create the new logical-to-physical mapping for all new frames with room_id prefix
-            new_mapping = {
-                f"{room_id}:{start_physical_pos + i}": start_logical_pos + i
-                for i in range(num_frames)
-            }
-            if new_mapping:
-                r.zadd(indices_key, new_mapping)
+            # 3. Append all new frames using gap method
+            for i in range(num_frames):
+                index_manager.append(f"{room_id}:{start_physical_pos + i}")
 
             # 4. Prepare response data
             new_indices = list(range(start_logical_pos, start_logical_pos + num_frames))
@@ -676,33 +656,22 @@ def append_frame(room_id):
             except ValueError:
                 return {"error": "insert_position must be an integer"}, 400
 
-            current_length = r.zcard(indices_key)
+            current_length = index_manager.get_count()
 
             if not (0 <= insert_position <= current_length):
                 return {
                     "error": f"Insert position {insert_position} out of range [0, {current_length}]"
                 }, 400
 
-            # 1. Determine the new physical index (always at the end of the physical store)
+            # 1. Determine the new physical index
             new_physical_index = len(storage)
 
             # 2. Decode and append the new frame data to the physical store
             decoded_data = decode_data(serialized_data)
             storage.append(decoded_data)
 
-            # 3. Atomically shift existing logical indices and insert the new one
-            pipeline = r.pipeline()
-            # Get members whose scores (logical positions) need to be incremented
-            members_to_shift = r.zrangebyscore(indices_key, insert_position, "+inf")
-            if members_to_shift:
-                for member in members_to_shift:
-                    pipeline.zincrby(indices_key, 1, member)
-
-            # Add the new frame at the correct logical position with room_id prefix
-            pipeline.zadd(
-                indices_key, {f"{room_id}:{new_physical_index}": insert_position}
-            )
-            pipeline.execute()
+            # 3. Insert using gap method (O(log N) instead of O(N))
+            index_manager.insert(insert_position, f"{room_id}:{new_physical_index}")
 
             # Emit bookmarks update (logical indices shifted by the insert)
             emit_bookmarks_update(room_id)
@@ -718,16 +687,16 @@ def append_frame(room_id):
 
         elif action == "append":
             # Append operation: add a new frame to the end of the logical sequence
-            # 1. Determine the new logical and physical positions
-            logical_position = r.zcard(indices_key)
+            # 1. Determine logical and physical positions
+            logical_position = index_manager.get_count()
             new_physical_index = len(storage)
 
             # 2. Decode and append the new frame data
             decoded_data = decode_data(serialized_data)
             storage.append(decoded_data)
 
-            # 3. Add the new physical index to the logical sequence with room_id prefix
-            r.zadd(indices_key, {f"{room_id}:{new_physical_index}": logical_position})
+            # 3. Add the new physical index to the logical sequence using gap method
+            index_manager.append(f"{room_id}:{new_physical_index}")
 
             log.debug(
                 f"Appended frame {logical_position} (physical: {room_id}:{new_physical_index}) to room '{room_id}'"
@@ -767,7 +736,9 @@ def bulk_replace_frames(room_id):
 
         storage = get_storage(room_id)
         indices_key = f"room:{room_id}:trajectory:indices"
-        frame_mapping = r.zrange(indices_key, 0, -1)
+        index_manager = FrameIndexManager(r, indices_key)
+        frame_mapping = index_manager.get_all()
+        frame_mapping_with_scores = index_manager.get_all(withscores=True)
 
         # Determine which indices to replace
         if "indices" in request.args:
@@ -806,13 +777,13 @@ def bulk_replace_frames(room_id):
             pipeline = r.pipeline()
             for i, logical_idx in enumerate(target_indices):
                 old_mapping_entry = frame_mapping[logical_idx]
+                # Get the original score to preserve gap-based indexing
+                old_member, old_score = frame_mapping_with_scores[logical_idx]
                 new_physical_idx = start_physical_pos + i
 
-                # Remove old mapping and add new one
+                # Remove old mapping and add new one with same score
                 pipeline.zrem(indices_key, old_mapping_entry)
-                pipeline.zadd(
-                    indices_key, {f"{room_id}:{new_physical_idx}": logical_idx}
-                )
+                pipeline.zadd(indices_key, {f"{room_id}:{new_physical_idx}": old_score})
 
             pipeline.execute()
 
@@ -1061,6 +1032,39 @@ def promote_room_to_template(room_id):
     return {"status": "ok"}, 200
 
 
+@main.route("/api/rooms/<string:room_id>/renormalize", methods=["POST"])
+def renormalize_frame_indices(room_id):
+    """Renormalize frame indices to contiguous integers starting from 0.
+
+    This is an O(N) operation that should be called infrequently when
+    precision drift becomes an issue (e.g., scores too close together).
+
+    Returns
+    -------
+    dict
+        JSON response with status and number of frames renormalized
+    """
+    redis_client = current_app.extensions["redis"]
+    indices_key = f"room:{room_id}:trajectory:indices"
+
+    # Check if room exists
+    room_exists = redis_client.exists(indices_key)
+    if not room_exists:
+        return {"error": "Room not found"}, 404
+
+    # Renormalize the indices
+    manager = FrameIndexManager(redis_client, indices_key)
+    count = manager.renormalize()
+
+    log.info(f"Renormalized {count} frame indices for room '{room_id}'")
+
+    # Emit bookmarks update since logical positions haven't changed
+    # but we should still notify clients
+    emit_bookmarks_update(room_id)
+
+    return {"status": "ok", "framesRenormalized": count}, 200
+
+
 @main.route("/api/shutdown", methods=["POST"])
 def exit_app():
     """Endpoint to gracefully shut down the server. Secured via a shared secret."""
@@ -1078,9 +1082,9 @@ def get_room_schema(room_id: str, category: str):
     - idleWorkers: number of idle workers available
     - progressingWorkers: number of workers currently processing tasks
     """
+    from zndraw.extensions.analysis import analysis
     from zndraw.extensions.modifiers import modifiers
     from zndraw.extensions.selections import selections
-    from zndraw.extensions.analysis import analysis
     from zndraw.settings import settings
 
     # Map category strings to the corresponding imported objects
@@ -1162,9 +1166,9 @@ def log_room_extension(room_id: str, category: str, extension: str):
     redis_client = current_app.extensions["redis"]
 
     # Check if this is a server-side (Celery) extension
+    from zndraw.extensions.analysis import analysis
     from zndraw.extensions.modifiers import modifiers
     from zndraw.extensions.selections import selections
-    from zndraw.extensions.analysis import analysis
     from zndraw.settings import settings
 
     category_map = {
@@ -1468,8 +1472,8 @@ def register_extension(room_id: str):
 
     redis_client = current_app.extensions["redis"]
 
-    from zndraw.extensions.modifiers import modifiers
     from zndraw.extensions.analysis import analysis
+    from zndraw.extensions.modifiers import modifiers
     from zndraw.extensions.selections import selections
     from zndraw.settings import settings
 
@@ -1637,9 +1641,9 @@ def get_next_job(room_id: str):
     for category in ["modifiers", "selections", "analysis"]:
         if is_celery_worker:
             # For celery workers, check all extensions for celery jobs
+            from zndraw.extensions.analysis import analysis
             from zndraw.extensions.modifiers import modifiers
             from zndraw.extensions.selections import selections
-            from zndraw.extensions.analysis import analysis
 
             category_map = {
                 "modifiers": modifiers,
@@ -2079,9 +2083,11 @@ def list_geometries(room_id: str):
     result = {key: json.loads(value) for key, value in all_data.items()}
     return result, 200
 
- #-------------#
- ### FIGURES ###
- #-------------#
+
+# -------------#
+### FIGURES ###
+# -------------#
+
 
 @main.route("/api/rooms/<string:room_id>/figures", methods=["POST"])
 def create_figure(room_id: str):
@@ -2090,8 +2096,11 @@ def create_figure(room_id: str):
     figure = data.get("figure")
 
     if not key or not figure:
-        return {"error": "Both 'key' and 'figure' are required", "type": "ValueError"}, 400
-    
+        return {
+            "error": "Both 'key' and 'figure' are required",
+            "type": "ValueError",
+        }, 400
+
     # store in hash
     r = current_app.extensions["redis"]
     r.hset(f"room:{room_id}:figures", key, json.dumps(figure))
@@ -2105,6 +2114,7 @@ def create_figure(room_id: str):
     )
     return {"status": "success"}, 200
 
+
 @main.route("/api/rooms/<string:room_id>/figures/<string:key>", methods=["GET"])
 def get_figure(room_id: str, key: str):
     r = current_app.extensions["redis"]
@@ -2114,12 +2124,16 @@ def get_figure(room_id: str, key: str):
     figure = json.loads(figure_data)
     return {"key": key, "figure": figure}, 200
 
+
 @main.route("/api/rooms/<string:room_id>/figures/<string:key>", methods=["DELETE"])
 def delete_figure(room_id: str, key: str):
     r = current_app.extensions["redis"]
     response = r.hdel(f"room:{room_id}:figures", key)
     if response == 0:
-        return {"error": f"Figure with key '{key}' does not exist", "type": "KeyError"}, 404
+        return {
+            "error": f"Figure with key '{key}' does not exist",
+            "type": "KeyError",
+        }, 404
     socketio.emit(
         SocketEvents.INVALIDATE_FIGURE,
         {
@@ -2129,6 +2143,7 @@ def delete_figure(room_id: str, key: str):
         to=f"room:{room_id}",
     )
     return {"status": "success"}, 200
+
 
 @main.route("/api/rooms/<string:room_id>/figures", methods=["GET"])
 def list_figures(room_id: str):

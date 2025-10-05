@@ -30,8 +30,11 @@ def test_rest_join_new_room(server):
             "type": "Sphere",
             "data": {
                 "color": "arrays.colors",
+                "material": "MeshPhysicalMaterial",
                 "position": "arrays.positions",
                 "radius": "arrays.radii",
+                "resolution": 16,
+                "scale": 1.0,
             },
         }
     }

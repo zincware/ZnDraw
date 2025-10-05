@@ -10,12 +10,12 @@ import numpy as np
 from zndraw.api_manager import APIManager
 from zndraw.exceptions import LockError
 from zndraw.extensions import Extension, ExtensionType
+from zndraw.figures_manager import Figures
 from zndraw.frame_cache import FrameCache
 from zndraw.scene_manager import Geometries
 from zndraw.settings import RoomConfig, settings
 from zndraw.socket_manager import SocketIOLock, SocketManager
 from zndraw.utils import atoms_from_dict, atoms_to_dict, update_colors_and_radii
-from zndraw.figures_manager import Figures
 
 log = logging.getLogger(__name__)
 
@@ -60,9 +60,7 @@ class ZnDraw(MutableSequence):
     _geometries: dict[str, _GeometryStore] = dataclasses.field(
         default_factory=dict, init=False
     )
-    _figures: dict[str, dict] = dataclasses.field(
-        default_factory=dict, init=False
-    )
+    _figures: dict[str, dict] = dataclasses.field(default_factory=dict, init=False)
 
     def __post_init__(self):
         self.api = APIManager(url=self.url, room=self.room, client_id=self._client_id)
@@ -104,7 +102,7 @@ class ZnDraw(MutableSequence):
     @property
     def geometries(self) -> Geometries:
         return Geometries(self)
-    
+
     @property
     def figures(self) -> Figures:
         return Figures(self)
@@ -210,7 +208,6 @@ class ZnDraw(MutableSequence):
             self._bookmarks = bookmarks
         else:
             raise RuntimeError("Client is not connected.")
-
 
     def connect(self):
         self.socket.connect()

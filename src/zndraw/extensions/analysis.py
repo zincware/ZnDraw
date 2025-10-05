@@ -1,11 +1,9 @@
-import random
 import typing as t
 
-import networkx as nx
 import numpy as np
-from pydantic import Field
 import pandas as pd
 import plotly.express as px
+from pydantic import Field
 
 from zndraw.extensions.abc import Extension, ExtensionType
 
@@ -17,6 +15,7 @@ class Analysis(Extension):
     """The base class for all analysis extensions."""
 
     category: t.ClassVar[ExtensionType] = ExtensionType.ANALYSIS
+
 
 class DihedralAngle(Analysis):
     def run(self, vis: "ZnDraw") -> None:
@@ -54,7 +53,7 @@ class Properties1D(Analysis):
         schema = super().model_json_schema(**kwargs)
         schema["properties"]["value"]["x-dynamic-enum"] = "AVAILABLE_ATOMS_KEYS"
         return schema
-    
+
     def run(self, vis: "ZnDraw") -> None:
         properties = vis.get(slice(None, None, None), keys=[self.value])
         df = pd.DataFrame(properties)

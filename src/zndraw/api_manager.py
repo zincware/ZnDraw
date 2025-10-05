@@ -315,7 +315,7 @@ class APIManager:
             return None
         response.raise_for_status()
         return response.json().get("figure", None)
-    
+
     def list_figures(self) -> list[str]:
         response = requests.get(
             f"{self.url}/api/rooms/{self.room}/figures",

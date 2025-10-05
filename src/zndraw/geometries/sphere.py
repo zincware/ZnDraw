@@ -1,4 +1,5 @@
 from pydantic import Field
+
 from .base import BaseGeometry, DataProp
 
 
@@ -14,11 +15,11 @@ class Sphere(BaseGeometry):
         default=16,
         ge=4,
         le=64,
-        description="Sphere geometry resolution (number of segments). Higher values = smoother sphere."
+        description="Sphere geometry resolution (number of segments). Higher values = smoother sphere.",
     )
 
     scale: float = Field(
         default=1.0,
         ge=0.0,
-        description="Uniform scale factor applied to sphere radius."
+        description="Uniform scale factor applied to sphere radius.",
     )

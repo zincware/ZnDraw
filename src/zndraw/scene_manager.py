@@ -3,8 +3,7 @@ from collections.abc import MutableMapping
 
 from pydantic import BaseModel
 
-from zndraw.geometries import Sphere
-from zndraw.geometries import Arrow
+from zndraw.geometries import Arrow, Sphere
 
 if t.TYPE_CHECKING:
     from zndraw import ZnDraw
