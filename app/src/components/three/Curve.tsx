@@ -12,6 +12,7 @@ import { useAppStore } from "../../store";
 interface MarkerData {
   size: number;
   color: string | null;
+  opacity: number;
 }
 
 interface CurveData {
@@ -22,6 +23,7 @@ interface CurveData {
   variant: "CatmullRomCurve3";
   thickness: number;
   marker: MarkerData | null;
+  virtual_marker: MarkerData | null;
 }
 
 /**
@@ -44,6 +46,7 @@ export default function Curve({ data }: { data: CurveData }) {
   const [interactivePoints, setInteractivePoints] = useState<THREE.Vector3[] | null>(null);
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const markerRefs = useRef<(THREE.Mesh | null)[]>([]);
+  const virtualMarkerRefs = useRef<(THREE.Mesh | null)[]>([]);
 
   // --- Data Fetching ---
   const shouldFetchPosition = typeof positionProp === "string";
@@ -100,7 +103,59 @@ export default function Curve({ data }: { data: CurveData }) {
     if (!sourceCurvePoints) return;
     setInteractivePoints(sourceCurvePoints);
     markerRefs.current = markerRefs.current.slice(0, sourceCurvePoints.length);
+    virtualMarkerRefs.current = virtualMarkerRefs.current.slice(0, Math.max(0, sourceCurvePoints.length - 1));
   }, [sourceCurvePoints]);
+
+  // --- Calculate virtual marker positions ON the curve between each pair of control points ---
+  const virtualMarkerPositions = useMemo(() => {
+    if (!interactivePoints || interactivePoints.length < 2) return [];
+    const curve = new THREE.CatmullRomCurve3(interactivePoints);
+    const positions: THREE.Vector3[] = [];
+    
+    // Get all points on the curve for analysis
+    const curvePoints = curve.getPoints(data.divisions * interactivePoints.length);
+    
+    // For each pair of consecutive control points, find the midpoint on the curve
+    for (let i = 0; i < interactivePoints.length - 1; i++) {
+      const controlPoint1 = interactivePoints[i];
+      const controlPoint2 = interactivePoints[i + 1];
+      
+      // Find the curve points closest to each control point
+      let minDist1 = Infinity;
+      let minDist2 = Infinity;
+      let index1 = 0;
+      let index2 = 0;
+      
+      for (let j = 0; j < curvePoints.length; j++) {
+        const dist1 = curvePoints[j].distanceTo(controlPoint1);
+        const dist2 = curvePoints[j].distanceTo(controlPoint2);
+        
+        if (dist1 < minDist1) {
+          minDist1 = dist1;
+          index1 = j;
+        }
+        if (dist2 < minDist2) {
+          minDist2 = dist2;
+          index2 = j;
+        }
+      }
+      
+      // Place virtual marker at the midpoint index between these two curve points
+      const midIndex = Math.floor((index1 + index2) / 2);
+      positions.push(curvePoints[midIndex].clone());
+    }
+    return positions;
+  }, [interactivePoints, data.divisions]);
+
+  // --- Handler to convert virtual marker to actual marker ---
+  const handleVirtualMarkerClick = (insertIndex: number) => {
+    if (!interactivePoints) return;
+    const newPoints = [...interactivePoints];
+    newPoints.splice(insertIndex + 1, 0, virtualMarkerPositions[insertIndex].clone());
+    setInteractivePoints(newPoints);
+    // Set the newly created point as selected
+    setSelectedIndex(insertIndex + 1);
+  };
 
   // --- Early exit if not ready ---
   if (!roomId || !interactivePoints) return null;
@@ -125,8 +180,10 @@ export default function Curve({ data }: { data: CurveData }) {
       {marker &&
         interactivePoints.map((point, index) => (
           <Dodecahedron
-            key={index}
-            ref={(el) => (markerRefs.current[index] = el)}
+            key={`marker-${index}`}
+            ref={(el) => {
+              markerRefs.current[index] = el;
+            }}
             position={point}
             args={[marker.size]}
             onClick={(e) => {
@@ -134,9 +191,38 @@ export default function Curve({ data }: { data: CurveData }) {
               setSelectedIndex(index);
             }}
           >
-            <meshBasicMaterial color={marker.color || color} />
+            <meshBasicMaterial 
+              color={marker.color || color} 
+              opacity={marker.opacity}
+              transparent={marker.opacity < 1}
+            />
           </Dodecahedron>
         ))}
+
+      {/* Virtual Markers (midpoints between consecutive markers) */}
+      {data.virtual_marker && virtualMarkerPositions.map((position, index) => {
+        const virtualMarker = data.virtual_marker!;
+        return (
+          <Dodecahedron
+            key={`virtual-${index}`}
+            ref={(el) => {
+              virtualMarkerRefs.current[index] = el;
+            }}
+            position={position}
+            args={[virtualMarker.size]}
+            onClick={(e) => {
+              e.stopPropagation();
+              handleVirtualMarkerClick(index);
+            }}
+          >
+            <meshBasicMaterial 
+              color={virtualMarker.color || color} 
+              opacity={virtualMarker.opacity}
+              transparent={virtualMarker.opacity < 1}
+            />
+          </Dodecahedron>
+        );
+      })}
 
       {/* Transform Controls for interactivity */}
       {selectedMesh && (
