@@ -40,7 +40,7 @@ export type MaterialType = keyof typeof MATERIALS;
  * @param materialType - The material type name (e.g., "MeshPhysicalMaterial")
  * @returns JSX element for the material component
  */
-export function renderMaterial(materialType?: string) {
+export function renderMaterial(materialType?: string, opacity?: number) {
   const type = (materialType || DEFAULT_MATERIAL) as MaterialType;
   const config = MATERIALS[type] || MATERIALS[DEFAULT_MATERIAL];
   const MaterialComponent = config.component;
@@ -49,6 +49,8 @@ export function renderMaterial(materialType?: string) {
     color: "white",
     side: THREE.FrontSide,
     ...config.defaultProps,
+    transparent: opacity !== undefined && opacity < 1.0,
+    opacity: opacity !== undefined ? opacity : 1.0,
   };
 
   // TypeScript needs explicit handling for each component type

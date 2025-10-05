@@ -25,6 +25,12 @@ class Sphere(BaseGeometry):
         ge=0.0,
         description="Uniform scale factor applied to sphere radius.",
     )
+    opacity: float = Field(
+        default=1.0,
+        ge=0.0,
+        le=1.0,
+        description="Sphere opacity, between 0 (transparent) and 1 (opaque).",
+    )
 
     selecting: InteractionSettings = Field(
         default_factory=lambda: InteractionSettings(enabled=True, color="##FF6A00", opacity=0.5),
