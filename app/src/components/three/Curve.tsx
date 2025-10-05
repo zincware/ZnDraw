@@ -1,21 +1,24 @@
-import { useMemo, useRef } from "react";
-import * as THREE from "three"; // Still needed for THREE.Vector3
+import { useMemo, useRef, useState, useEffect } from "react";
+import * as THREE from "three";
 import { useQueries } from "@tanstack/react-query";
-import { CatmullRomLine, Dodecahedron } from "@react-three/drei";
-import { getFrameDataOptions } from "../../hooks/useTrajectoryData"; // Assuming this hook exists
-import { useAppStore } from "../../store"; // Assuming this store exists
+import {
+  CatmullRomLine,
+  Dodecahedron,
+  TransformControls,
+} from "@react-three/drei";
+import { getFrameDataOptions } from "../../hooks/useTrajectoryData";
+import { useAppStore } from "../../store";
 
 interface MarkerData {
-    size: number;
-    color: string | null;
+  size: number;
+  color: string | null;
 }
 
-// Define the structure for the curve's properties
 interface CurveData {
   position: string | number[][];
   color: string;
   material: "LineBasicMaterial" | "LineDashedMaterial";
-  divisions: number; // Note: CatmullRomLine handles divisions internally. This prop is no longer directly used for geometry.
+  divisions: number;
   variant: "CatmullRomCurve3";
   thickness: number;
   marker: MarkerData | null;
@@ -23,7 +26,7 @@ interface CurveData {
 
 /**
  * A component to render a 3D curve using @react-three/drei,
- * with optional markers at each control point.
+ * with optional markers that can be interactively moved.
  */
 export default function Curve({ data }: { data: CurveData }) {
   const {
@@ -37,8 +40,12 @@ export default function Curve({ data }: { data: CurveData }) {
   const { currentFrame, roomId } = useAppStore();
   const lastGoodFrameData = useRef<{ points: number[] } | null>(null);
 
-  // --- Data Fetching ---
+  // --- State for Interactivity ---
+  const [interactivePoints, setInteractivePoints] = useState<THREE.Vector3[] | null>(null);
+  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+  const markerRefs = useRef<(THREE.Mesh | null)[]>([]);
 
+  // --- Data Fetching ---
   const shouldFetchPosition = typeof positionProp === "string";
 
   const queries = useMemo(() => {
@@ -48,75 +55,100 @@ export default function Curve({ data }: { data: CurveData }) {
 
   const queryResults = useQueries({ queries });
 
-  // --- Data Processing ---
-
-  const { processedData } = useMemo(() => {
-    const isQueryFetching = queryResults.some((r) => r.isFetching || r.isPlaceholderData);
-
+  const processedData = useMemo(() => {
     if (shouldFetchPosition) {
       const result = queryResults[0];
-      if (!result || !result.isSuccess) {
-        return { processedData: null };
-      }
+      if (!result || !result.isSuccess) return null;
       const points = result.data?.data || [];
-      if (points.length < 6) return { processedData: null };
-      return { processedData: { points } };
+      return points.length < 6 ? null : { points };
     } else {
-      if (positionProp.length < 2) {
-         return { processedData: null };
-      }
-      const points = (positionProp as number[][]).flat();
-      return { processedData: { points } };
+      const manualPoints = positionProp as number[][];
+      if (manualPoints.length < 2) return null;
+      const points = manualPoints.flat();
+      return { points };
     }
   }, [queryResults, positionProp, shouldFetchPosition]);
 
+  // Keep last good frame data so the line doesn’t flicker between frames
   const dataToRender = processedData || lastGoodFrameData.current;
-  if (processedData) {
-    lastGoodFrameData.current = processedData;
-  }
+  if (processedData) lastGoodFrameData.current = processedData;
 
-  // --- Points Generation for Drei ---
+  // --- Stable memoization of 3D points ---
+  // Converts flat array → Vector3 array, but only when the underlying numeric values actually change.
+  const sourceCurvePoints = useMemo(() => {
+    if (!dataToRender?.points) return null;
 
-  // Memoize the array of THREE.Vector3 points, which will serve as the control points.
-  const curvePoints = useMemo(() => {
-    if (!dataToRender) return null;
+    // Create a unique key based on numeric content.
+    const key = dataToRender.points.join(",");
+    const vectors: THREE.Vector3[] = [];
 
-    const { points: flatPoints } = dataToRender;
-    const vectors = [];
-    for (let i = 0; i < flatPoints.length; i += 3) {
-      vectors.push(new THREE.Vector3(flatPoints[i], flatPoints[i + 1], flatPoints[i + 2]));
+    for (let i = 0; i < dataToRender.points.length; i += 3) {
+      vectors.push(
+        new THREE.Vector3(
+          dataToRender.points[i],
+          dataToRender.points[i + 1],
+          dataToRender.points[i + 2]
+        )
+      );
     }
+    return vectors.length < 2 ? null : vectors;
+  }, [dataToRender?.points?.join(",")]);
 
-    // A curve needs at least two control points.
-    if (vectors.length < 2) return null;
-    
-    return vectors;
-  }, [dataToRender]);
+  // --- Sync effect ---
+  // Updates interactivity state only when actual data changes (no infinite loops!)
+  useEffect(() => {
+    if (!sourceCurvePoints) return;
+    setInteractivePoints(sourceCurvePoints);
+    markerRefs.current = markerRefs.current.slice(0, sourceCurvePoints.length);
+  }, [sourceCurvePoints]);
 
+  // --- Early exit if not ready ---
+  if (!roomId || !interactivePoints) return null;
 
-  // --- Rendering ---
+  const selectedMesh = selectedIndex !== null ? markerRefs.current[selectedIndex] : null;
 
-  // If there's no data to render, render nothing.
-  if (!roomId || !curvePoints) return null;
-
+  // --- Render ---
   return (
-    // Use a key to ensure the component remounts if the number of points changes.
-    // A group is used to contain both the line and its markers.
-    <group key={dataToRender?.points.length}>
+    <group>
       <CatmullRomLine
-        points={curvePoints}
+        points={interactivePoints}
         color={color}
         lineWidth={thickness}
         dashed={material === "LineDashedMaterial"}
-        // Other CatmullRomLine props like `tension` or `dashScale` could be added here
       />
 
-      {/* Conditionally render markers at each control point */}
-      {marker && curvePoints.map((point, index) => (
-        <Dodecahedron key={index} position={point} args={[marker.size]}>
+      {/* Optional Markers */}
+      {marker &&
+        interactivePoints.map((point, index) => (
+          <Dodecahedron
+            key={index}
+            ref={(el) => (markerRefs.current[index] = el)}
+            position={point}
+            args={[marker.size]}
+            onClick={(e) => {
+              e.stopPropagation();
+              setSelectedIndex(index);
+            }}
+          >
             <meshBasicMaterial color={marker.color || color} />
-        </Dodecahedron>
-      ))}
+          </Dodecahedron>
+        ))}
+
+      {/* Transform Controls for interactivity */}
+      {selectedMesh && (
+        <TransformControls
+          object={selectedMesh}
+          onMouseUp={() => {
+            if (selectedIndex !== null && markerRefs.current[selectedIndex]) {
+              const newPoints = [...interactivePoints];
+              newPoints[selectedIndex] =
+                markerRefs.current[selectedIndex]!.position.clone();
+              setInteractivePoints(newPoints);
+            }
+          }}
+          onPointerMissed={() => setSelectedIndex(null)}
+        />
+      )}
     </group>
   );
 }

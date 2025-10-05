@@ -125,7 +125,7 @@ function MyScene() {
           />
         )}
 
-        <OrbitControls enableDamping={false} />
+        <OrbitControls enableDamping={false} makeDefault/>
       </Canvas>
     </div>
   );
