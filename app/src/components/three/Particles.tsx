@@ -2,8 +2,7 @@ import * as THREE from "three";
 import { useQueries } from "@tanstack/react-query";
 import { getFrameDataOptions } from "../../hooks/useTrajectoryData";
 import { useAppStore } from "../../store";
-import { useRef, useMemo, useState, useEffect } from "react";
-import { useFrame } from "@react-three/fiber";
+import { useRef, useMemo, useState, useEffect, useCallback } from "react";
 import { renderMaterial } from "./materials";
 
 interface InteractionSettings {
@@ -32,7 +31,7 @@ const tempColor = new THREE.Color();
 const HOVER_SCALE = 1.25;
 const SELECTION_SCALE = 1.01;
 
-export default function Sphere({ data }: { data: SphereData }) {
+export default function Sphere({ data, geometryKey }: { data: SphereData; geometryKey: string }) {
   const {
     position: positionProp,
     color: colorProp,
@@ -42,6 +41,7 @@ export default function Sphere({ data }: { data: SphereData }) {
     scale,
     selecting,
     hovering,
+    opacity,
   } = data;
 
   const mainMeshRef = useRef<THREE.InstancedMesh | null>(null);
@@ -49,7 +49,7 @@ export default function Sphere({ data }: { data: SphereData }) {
   const hoverMeshRef = useRef<THREE.Mesh | null>(null);
   const [hoveredInstanceId, setHoveredInstanceId] = useState<number | null>(null);
 
-  const { currentFrame, roomId, clientId, selection, updateSelection } = useAppStore();
+  const { currentFrame, roomId, clientId, selection, updateSelection, setDrawingPointerPosition, isDrawing } = useAppStore();
   const lastGoodFrameData = useRef<any>(null);
 
   const selectionSet = useMemo(() => new Set(selection || []), [selection]);
@@ -162,32 +162,34 @@ export default function Sphere({ data }: { data: SphereData }) {
     if (mainMesh.instanceColor) mainMesh.instanceColor.needsUpdate = true;
   }, [dataToRender, particleScale]);
 
-  // 🎮 Handle per-frame updates for hover/selection
-  useFrame(() => {
-    if (!dataToRender || isFetching) return;
+  useEffect(() => {
+    if (!selectionMeshRef.current || !dataToRender || !selecting) return;
 
     const selectionMesh = selectionMeshRef.current;
-    const hoverMesh = hoverMeshRef.current;
     const { positions, radii, count } = dataToRender;
 
-    // Update selection highlights
-    if (selectionMesh) {
-      selectedIndices.forEach((id, index) => {
-        if (id >= count) return;
-        const i3 = id * 3;
-        positionVec.set(positions[i3], positions[i3 + 1], positions[i3 + 2]);
-        const r = radii[id] * particleScale * SELECTION_SCALE;
-        scaleVec.set(r, r, r);
-        matrix.identity().setPosition(positionVec).scale(scaleVec);
-        selectionMesh.setMatrixAt(index, matrix);
-      });
-      selectionMesh.count = selectedIndices.length;
-      selectionMesh.instanceMatrix.needsUpdate = true;
-    }
+    selectedIndices.forEach((id, index) => {
+      if (id >= count) return;
+      const i3 = id * 3;
+      positionVec.set(positions[i3], positions[i3 + 1], positions[i3 + 2]);
+      const r = radii[id] * particleScale * SELECTION_SCALE;
+      scaleVec.set(r, r, r);
+      matrix.identity().setPosition(positionVec).scale(scaleVec);
+      selectionMesh.setMatrixAt(index, matrix);
+    });
 
-    // Update hover highlight
+    selectionMesh.count = selectedIndices.length;
+    selectionMesh.instanceMatrix.needsUpdate = true;
+
+  }, [selectedIndices, dataToRender, particleScale, selecting]);
+
+  useEffect(() => {
+    if (!dataToRender || isFetching) return;
+
+    const hoverMesh = hoverMeshRef.current;
+    const { positions, radii, count } = dataToRender;
     if (hoverMesh) {
-      if (hovering.enabled && hoveredInstanceId !== null && hoveredInstanceId < count) {
+      if (hovering && hoveredInstanceId !== null && hoveredInstanceId < count) {
         hoverMesh.visible = true;
         const i3 = hoveredInstanceId * 3;
         positionVec.set(positions[i3], positions[i3 + 1], positions[i3 + 2]);
@@ -198,21 +200,34 @@ export default function Sphere({ data }: { data: SphereData }) {
         hoverMesh.visible = false;
       }
     }
-  });
+  }, [hoveredInstanceId, dataToRender, particleScale, hovering]);
+
+
+  const mainGeometry = useMemo(() => {
+    return new THREE.SphereGeometry(1, particleResolution, particleResolution);
+  }, [particleResolution]);
 
   if (!clientId || !roomId || !dataToRender) return null;
 
-  const onClickHandler = (event: any) => {
+  const onClickHandler = useCallback((event: any) => {
     if (event.detail !== 1 || event.instanceId === undefined) return;
     event.stopPropagation();
     updateSelection(event.instanceId, event.shiftKey);
-  };
+  }, [updateSelection]);
 
-  const onPointerMoveHandler = (event: any) => {
+  const onPointerMoveHandler = useCallback((event: any) => {
+    if (event.instanceId === undefined) return;
+    event.stopPropagation();
+    if (isDrawing) {
+      setDrawingPointerPosition(event.point);
+    }
+  }, [isDrawing, setDrawingPointerPosition]);
+
+  const onPointerEnterHandler = useCallback((event: any) => {
     if (event.instanceId === undefined) return;
     event.stopPropagation();
     setHoveredInstanceId(event.instanceId);
-  };
+  }, []);
 
   const onPointerOutHandler = () => setHoveredInstanceId(null);
 
@@ -223,22 +238,23 @@ export default function Sphere({ data }: { data: SphereData }) {
         key={dataToRender.count}
         ref={mainMeshRef}
         args={[undefined, undefined, dataToRender.count]}
-        onClick={selecting.enabled ? onClickHandler : undefined}
-        onPointerMove={hovering.enabled ? onPointerMoveHandler : undefined}
-        onPointerOut={hovering.enabled ? onPointerOutHandler : undefined}
+        onClick={selecting ? onClickHandler : undefined}
+        onPointerEnter={hovering ? onPointerEnterHandler : undefined}
+        onPointerMove={hovering ? onPointerMoveHandler : undefined}
+        onPointerOut={hovering ? onPointerOutHandler : undefined}
       >
-        <sphereGeometry args={[1, particleResolution, particleResolution]} />
+        <primitive object={mainGeometry} attach="geometry" />
         {renderMaterial(material, data.opacity)}
       </instancedMesh>
 
       {/* Selection mesh */}
-      {selecting.enabled && (
+      {selecting && (
         <instancedMesh
           key={`selection-${selectedIndices.length}`}
           ref={selectionMeshRef}
           args={[undefined, undefined, selectedIndices.length]}
         >
-          <sphereGeometry args={[1, particleResolution, particleResolution]} />
+          <primitive object={mainGeometry} attach="geometry" />
           <meshBasicMaterial
             side={THREE.FrontSide}
             transparent
@@ -249,9 +265,9 @@ export default function Sphere({ data }: { data: SphereData }) {
       )}
 
       {/* Hover mesh */}
-      {hovering.enabled && (
+      {hovering && (
         <mesh ref={hoverMeshRef} visible={false}>
-          <sphereGeometry args={[1, particleResolution, particleResolution]} />
+          <primitive object={mainGeometry} attach="geometry" />
           <meshBasicMaterial
             side={THREE.BackSide}
             transparent

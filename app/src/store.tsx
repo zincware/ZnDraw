@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { socket } from "./socket";
+import * as THREE from "three";
 
 interface AppState {
   // Connection & Room
@@ -20,6 +21,7 @@ interface AppState {
   joinToken: string | null;
   geometries: Record<string, any>; // Store geometries by their IDs
   isDrawing: boolean;
+  drawingPointerPosition: THREE.Vector3 | null; // 3D position of mouse cursor for drawing
 
   // Actions (functions to modify the state)
   setRoomId: (roomId: string) => void;
@@ -39,6 +41,7 @@ interface AppState {
   setChatOpen: (open: boolean) => void;
   setGeometries: (geometries: Record<string, any>) => void;
   setIsDrawing: (isDrawing: boolean) => void;
+  setDrawingPointerPosition: (position: THREE.Vector3 | null) => void;
   updateSelection: (id: number, isShiftPressed: boolean) => void;
 }
 
@@ -61,6 +64,7 @@ export const useAppStore = create<AppState>((set) => ({
   joinToken: null,
   geometries: {},
   isDrawing: false,
+  drawingPointerPosition: null,
   // Actions
   setConnected: (status) => set({ isConnected: status }),
   setRoomId: (roomId) => set({ roomId }),
@@ -87,6 +91,7 @@ export const useAppStore = create<AppState>((set) => ({
   setJoinToken: (joinToken) => set({ joinToken }),
   setGeometries: (geometries) => set({ geometries: geometries }),
   setIsDrawing: (isDrawing) => set({ isDrawing: isDrawing }),
+  setDrawingPointerPosition: (position) => set({ drawingPointerPosition: position }),
 
   updateSelection: (id, isShiftPressed) =>
     set((state) => {
