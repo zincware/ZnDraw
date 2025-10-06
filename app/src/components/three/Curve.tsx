@@ -112,7 +112,7 @@ export default function Curve({ data, geometryKey }: { data: CurveData; geometry
     if (!interactivePoints || interactivePoints.length < 2) return [];
     const curve = new THREE.CatmullRomCurve3(interactivePoints);
     const positions: THREE.Vector3[] = [];
-    
+
     // Get all points on the curve for analysis
     const curvePoints = curve.getPoints(data.divisions * interactivePoints.length);
     console.log("Curve has", curvePoints.length, "total points for virtual marker calculation.");
@@ -120,17 +120,17 @@ export default function Curve({ data, geometryKey }: { data: CurveData; geometry
     for (let i = 0; i < interactivePoints.length - 1; i++) {
       const controlPoint1 = interactivePoints[i];
       const controlPoint2 = interactivePoints[i + 1];
-      
+
       // Find the curve points closest to each control point
       let minDist1 = Infinity;
       let minDist2 = Infinity;
       let index1 = 0;
       let index2 = 0;
-      
+
       for (let j = 0; j < curvePoints.length; j++) {
         const dist1 = curvePoints[j].distanceTo(controlPoint1);
         const dist2 = curvePoints[j].distanceTo(controlPoint2);
-        
+
         if (dist1 < minDist1) {
           minDist1 = dist1;
           index1 = j;
@@ -140,7 +140,7 @@ export default function Curve({ data, geometryKey }: { data: CurveData; geometry
           index2 = j;
         }
       }
-      
+
       // Place virtual marker at the midpoint index between these two curve points
       const midIndex = Math.floor((index1 + index2) / 2);
       positions.push(curvePoints[midIndex].clone());
@@ -185,29 +185,32 @@ export default function Curve({ data, geometryKey }: { data: CurveData; geometry
   };
 
   const linePoints = useMemo(() => {
-    if (!interactivePoints || interactivePoints.length < 2) return [];
-    const curve = new THREE.CatmullRomCurve3(interactivePoints);
-    if (drawingPointerPosition && isDrawing) {
-      const extendedPoints = [...interactivePoints, drawingPointerPosition.clone()];
-      const extendedCurve = new THREE.CatmullRomCurve3(extendedPoints);
-      return extendedCurve.getPoints(data.divisions * extendedPoints.length);
-    } else {
-      return curve.getPoints(data.divisions * interactivePoints.length);
-    }
+    const points = drawingPointerPosition && isDrawing
+      ? [...(interactivePoints || []), drawingPointerPosition.clone()]
+      : interactivePoints;
+
+    if (!points || points.length < 2) return [];
+    const curve = new THREE.CatmullRomCurve3(points);
+    return curve.getPoints(data.divisions * points.length);
   }, [drawingPointerPosition, isDrawing, interactivePoints, data.divisions]);
 
   const onDrawingPointerClick = (e: any) => {
     if (drawingIsValid) {
       // add the point to the curve
-      if (!interactivePoints || !drawingPointerPosition) return;
-      const newPoints = [...interactivePoints, drawingPointerPosition.clone()];
-      setInteractivePoints(newPoints);
+      if (!drawingPointerPosition) return;
+      if (!interactivePoints) {
+        setInteractivePoints([drawingPointerPosition.clone()]);
+      } else {
+        const newPoints = [...interactivePoints, drawingPointerPosition.clone()];
+        setInteractivePoints(newPoints);
+      }
+
     } else {
       setIsDrawing(false);
     }
   };
 
-  if (!roomId || !interactivePoints) return null;
+  if (!roomId) return null;
 
   const selectedMesh = selectedIndex !== null ? markerRefs.current[selectedIndex] : null;
 
@@ -241,8 +244,8 @@ export default function Curve({ data, geometryKey }: { data: CurveData; geometry
               setSelectedIndex(index);
             }}
           >
-            <meshBasicMaterial 
-              color={marker.color || color} 
+            <meshBasicMaterial
+              color={marker.color || color}
               opacity={marker.opacity}
               transparent={marker.opacity < 1}
             />
@@ -265,8 +268,8 @@ export default function Curve({ data, geometryKey }: { data: CurveData; geometry
               handleVirtualMarkerClick(index);
             }}
           >
-            <meshBasicMaterial 
-              color={virtualMarker.color || color} 
+            <meshBasicMaterial
+              color={virtualMarker.color || color}
               opacity={virtualMarker.opacity}
               transparent={virtualMarker.opacity < 1}
             />
@@ -278,11 +281,11 @@ export default function Curve({ data, geometryKey }: { data: CurveData; geometry
       {isDrawing && drawingPointerPosition && (
         <Dodecahedron
           position={drawingPointerPosition}
-          args={[ (marker?.size || 0.2) * 0.75 ]}
+          args={[(marker?.size || 0.2) * 0.75]}
           onClick={onDrawingPointerClick}
         >
-          <meshBasicMaterial 
-            color={drawingColor} 
+          <meshBasicMaterial
+            color={drawingColor}
             opacity={1.0}
             transparent={false}
           />

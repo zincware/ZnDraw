@@ -227,9 +227,9 @@ export default function Sphere({ data, geometryKey }: { data: SphereData; geomet
     event.stopPropagation();
     setHoveredInstanceId(event.instanceId);
     setDrawingIsValid(true);
-  }, []);
+  }, [setDrawingIsValid]);
 
-  const onPointerOutHandler = useCallback(() => { setHoveredInstanceId(null); setDrawingIsValid(false); }, []);
+  const onPointerOutHandler = useCallback(() => { setHoveredInstanceId(null); setDrawingIsValid(false); }, [setDrawingIsValid]);
 
   if (!clientId || !roomId || !dataToRender) return null;
 

@@ -60,3 +60,7 @@ class Curve(BaseGeometry):
         default_factory=lambda: CurveMarker(size=0.08, color="gray", opacity=0.5),
         description="Virtual marker between two existing markers (for adding new points)",
     )
+    color: str = Field(
+        default="#001722",
+        description="Curve color",
+    )
