@@ -8,6 +8,7 @@ import {
 import { Line } from "@react-three/drei";
 import { getFrameDataOptions } from "../../hooks/useTrajectoryData";
 import { useAppStore } from "../../store";
+import { createGeometry } from "../../myapi/client";
 
 interface MarkerData {
   size: number;
@@ -177,21 +178,7 @@ export default function Curve({ data, geometryKey }: { data: CurveData; geometry
     };
 
     try {
-      const response = await fetch(`/api/rooms/${roomId}/geometries`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          key: geometryKey,
-          data: geometryData,
-          type: "Curve",
-        }),
-      });
-
-      if (!response.ok) {
-        console.error("Failed to update geometry:", await response.text());
-      }
+      await createGeometry(roomId, geometryKey, "Curve", geometryData);
     } catch (error) {
       console.error("Error updating geometry:", error);
     }

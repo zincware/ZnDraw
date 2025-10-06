@@ -7,6 +7,8 @@ import { socket } from "../socket";
 import type { ChatMessage, ChatMessagesResponse } from "../types/chat";
 
 // Fetch chat messages with infinite scroll support
+// Note: Using fetch directly here because socket.io handles chat updates
+// and the response types match the types/chat.ts definitions
 export const useChatMessages = (room: string, limit: number = 30) => {
   return useInfiniteQuery<ChatMessagesResponse>({
     queryKey: ["chat", room],

@@ -1,4 +1,4 @@
-import { getFrameMetadata } from "../myapi/client";
+import { getFrameMetadata, getSchemas, getExtensionData, submitExtension as submitExtensionApi, listJobs, getJob } from "../myapi/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 export interface ExtensionMetadata {
@@ -13,48 +13,12 @@ export interface SchemasResponse {
   [extensionName: string]: ExtensionMetadata;
 }
 
-const fetchSchemas = async (
-  room: string,
-  category: string,
-): Promise<SchemasResponse> => {
-  const response = await fetch(`/api/rooms/${room}/schema/${category}`);
-  if (!response.ok) {
-    throw new Error(`Failed to fetch schema for ${category}`);
-  }
-  return response.json();
-};
-
 export const useSchemas = (room: string, category: string) => {
   return useQuery({
     queryKey: ["schemas", room, category],
-    queryFn: () => fetchSchemas(room, category),
+    queryFn: () => getSchemas(room, category),
     enabled: !!room && !!category, // Only run the query if room and category are available
   });
-};
-
-const fetchExtensionData = async (
-  room: string,
-  user: string,
-  category: string,
-  extension: string,
-) => {
-  const response = await fetch(
-    `/api/rooms/${room}/extensions/${category}/${extension}/data?userId=${user}`,
-    {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-      },
-    },
-  );
-  if (!response.ok) {
-    throw new Error(
-      `Failed to fetch extension data for ${category}/${extension}`,
-    );
-  }
-  const result = await response.json();
-  console.log(`Fetched extension ${category}/${extension} data:`, result);
-  return result["data"];
 };
 
 export const useExtensionData = (
@@ -65,41 +29,30 @@ export const useExtensionData = (
 ) => {
   return useQuery({
     queryKey: ["extensionData", room, user, category, extension], // The key is critical
-    queryFn: () => fetchExtensionData(room, user, category, extension),
+    queryFn: async () => {
+      const result = await getExtensionData(room, user, category, extension);
+      console.log(`Fetched extension ${category}/${extension} data:`, result);
+      return result.data;
+    },
     // Remove staleTime: Infinity if you expect this data to be updated externally
     staleTime: 1000 * 60, // e.g., stale after 1 minute
     enabled: !!room && !!user && !!category && !!extension,
   });
 };
 
-// NEW: Mutation for submitting the extension data
-const submitExtension = async (variables: {
-  roomId: string;
-  userId: string;
-  category: string;
-  extension: string;
-  data: any;
-}) => {
-  const { roomId, userId, category, extension, data } = variables;
-  const response = await fetch(
-    `/api/rooms/${roomId}/extensions/${category}/${extension}/submit`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userId, data }),
-    },
-  );
-  if (!response.ok) {
-    throw new Error("Network response was not ok");
-  }
-  return response.json();
-};
-
 export const useSubmitExtension = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: submitExtension,
+    mutationFn: async (variables: {
+      roomId: string;
+      userId: string;
+      category: string;
+      extension: string;
+      data: any;
+    }) => {
+      return submitExtensionApi(variables);
+    },
     // On success, MANUALLY update the query's cached data
     onSuccess: (serverData, variables) => {
       console.log("Extension submitted successfully:", serverData);
@@ -142,39 +95,25 @@ export interface Job {
   result: any;
 }
 
-// Fetch active jobs for a room
-const fetchJobs = async (room: string): Promise<Job[]> => {
-  const response = await fetch(`/api/rooms/${room}/jobs`);
-  if (!response.ok) {
-    throw new Error("Failed to fetch jobs");
-  }
-  const result = await response.json();
-  return result.jobs;
-};
-
 export const useJobs = (room: string) => {
   return useQuery({
     queryKey: ["jobs", room],
-    queryFn: () => fetchJobs(room),
+    queryFn: async () => {
+      const result = await listJobs(room);
+      return result.jobs;
+    },
     enabled: !!room,
     refetchInterval: 5000, // Refetch every 5 seconds
   });
 };
 
-// Fetch a specific job
-const fetchJob = async (room: string, jobId: string): Promise<Job> => {
-  const response = await fetch(`/api/rooms/${room}/jobs/${jobId}`);
-  if (!response.ok) {
-    throw new Error("Failed to fetch job");
-  }
-  const result = await response.json();
-  return result.job;
-};
-
 export const useJob = (room: string, jobId: string) => {
   return useQuery({
     queryKey: ["job", room, jobId],
-    queryFn: () => fetchJob(room, jobId),
+    queryFn: async () => {
+      const result = await getJob(room, jobId);
+      return result.job;
+    },
     enabled: !!room && !!jobId,
   });
 };

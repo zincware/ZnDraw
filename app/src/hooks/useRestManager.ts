@@ -3,6 +3,7 @@ import { useAppStore } from "../store";
 import { useParams, useSearchParams } from "react-router-dom";
 import { set, throttle } from "lodash";
 import { useQueryClient } from "@tanstack/react-query";
+import { joinRoom as joinRoomApi } from "../myapi/client";
 
 export const useRestJoinManager = () => {
   const {
@@ -47,24 +48,7 @@ export const useRestJoinManager = () => {
     }
 
     try {
-      const response = await fetch(`/api/rooms/${room}/join`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(requestBody),
-        // 3. Pass the controller's signal to the fetch options.
-        signal: controller.signal,
-      });
-
-      if (!response.ok) {
-        console.error(
-          `Failed to join room: ${response.status} ${response.statusText}`,
-        );
-        return;
-      }
-
-      const data = await response.json();
+      const data = await joinRoomApi(room, requestBody, controller.signal);
       console.log("Join response data:", data);
 
       // Update Zustand store with room data
@@ -77,7 +61,7 @@ export const useRestJoinManager = () => {
       if (data.frame_selection !== undefined) {
         setFrameSelection(data.frame_selection);
       }
-      if (data.step !== undefined) {
+      if (data.step !== undefined && data.step !== null) {
         setCurrentFrame(data.step);
       }
       if (data.bookmarks !== undefined) {
@@ -112,7 +96,7 @@ export const useRestJoinManager = () => {
       }
     } catch (error) {
       // 4. Check if the error was due to the request being aborted.
-      if (error.name === "AbortError") {
+      if (error instanceof Error && error.name === "AbortError") {
         console.log("Fetch aborted on unmount or re-run.");
       } else {
         console.error("Error joining room:", error);

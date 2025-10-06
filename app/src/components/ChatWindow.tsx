@@ -16,6 +16,7 @@ import CloseIcon from "@mui/icons-material/Close";
 import EditIcon from "@mui/icons-material/Edit";
 import CheckIcon from "@mui/icons-material/Check";
 import CancelIcon from "@mui/icons-material/Cancel";
+import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
 import ReactMarkdown from "react-markdown";
 import { useParams } from "react-router-dom";
 import {
@@ -196,7 +197,12 @@ const ChatWindow = ({ open, onClose }: ChatWindowProps) => {
             cursor: "move",
           }}
         >
-          <Typography variant="h6">Chat</Typography>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            <Typography variant="h6">Chat</Typography>
+            <IconButton size="small" sx={{ color: "text.secondary" }}>
+              <HelpOutlineIcon fontSize="small" />
+            </IconButton>
+          </Box>
           <IconButton onClick={onClose} size="small">
             <CloseIcon />
           </IconButton>

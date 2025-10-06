@@ -13,6 +13,7 @@ import Paper from "@mui/material/Paper";
 import Button from "@mui/material/Button";
 import CircularProgress from "@mui/material/CircularProgress";
 import Alert from "@mui/material/Alert";
+import { listTemplates } from "../myapi/client";
 
 interface Template {
   id: string;
@@ -29,11 +30,7 @@ export default function TemplateSelectionPage() {
   useEffect(() => {
     const fetchTemplates = async () => {
       try {
-        const response = await fetch("/api/templates");
-        if (!response.ok) {
-          throw new Error(`Failed to fetch templates: ${response.status}`);
-        }
-        const data = await response.json();
+        const data = await listTemplates();
 
         // Filter out "empty" template for decision logic
         const nonEmptyTemplates = data.filter(

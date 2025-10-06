@@ -1,4 +1,5 @@
 import { decode } from "@msgpack/msgpack";
+import { getFrames } from "../myapi/client";
 
 const numpyDtypeToTypedArray = {
   float32: Float32Array,
@@ -11,33 +12,6 @@ const numpyDtypeToTypedArray = {
   uint32: Uint32Array,
 };
 
-const fetchFrameData = async (
-  roomId: string,
-  frameIndex: number,
-  keys: string[],
-  signal: AbortSignal,
-) => {
-  const params = new URLSearchParams();
-  params.append("indices", frameIndex.toString());
-  if (keys && keys.length > 0) {
-    params.append("keys", keys.join(","));
-  }
-  const response = await fetch(
-    `/api/rooms/${roomId}/frames?${params.toString()}`,
-    {
-      signal, // TanStack Query passes an AbortSignal automatically!
-      method: "GET",
-      headers: { "Content-Type": "application/json" },
-    },
-  );
-
-  if (!response.ok) {
-    console.error("Received error response from /api/frames:", response);
-    throw new Error(`Request failed with status ${response.status}`);
-  }
-  return response.arrayBuffer();
-};
-
 export const getFrameDataOptions = (
   roomId: string,
   frameIndex: number,
@@ -47,7 +21,7 @@ export const getFrameDataOptions = (
     // We are not calling useQuery here, but returning its options object
     // so that `useQueries` can use it.
     queryKey: ["frame", roomId, frameIndex, key],
-    queryFn: ({ signal }) => fetchFrameData(roomId, frameIndex, [key], signal),
+    queryFn: ({ signal }: { signal: AbortSignal }) => getFrames(roomId, frameIndex, [key], signal),
     staleTime: Infinity,
     gcTime: 1000 * 60 * 5,
     // placeholderData: (previousData: any, previousQuery: any) => previousData,
@@ -77,7 +51,7 @@ export const getFrameDataOptions = (
         return null;
       }
 
-      const TypedArray = numpyDtypeToTypedArray[keyData.dtype];
+      const TypedArray = numpyDtypeToTypedArray[keyData.dtype as keyof typeof numpyDtypeToTypedArray];
       if (!TypedArray) {
         throw new Error(`Unsupported dtype: ${keyData.dtype}`);
       }
