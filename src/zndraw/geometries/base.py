@@ -10,7 +10,6 @@ DataProp = Union[
 ]
 
 class InteractionSettings(BaseModel):
-    enabled: bool = Field(True)
     color: str | None = Field(None)
     opacity: float = Field(1.0, ge=0.0, le=1.0)
 

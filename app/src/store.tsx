@@ -22,6 +22,7 @@ interface AppState {
   geometries: Record<string, any>; // Store geometries by their IDs
   isDrawing: boolean;
   drawingPointerPosition: THREE.Vector3 | null; // 3D position of mouse cursor for drawing
+  drawingIsValid: boolean; // Whether the drawing position is valid (over geometry)
 
   // Actions (functions to modify the state)
   setRoomId: (roomId: string) => void;
@@ -43,6 +44,7 @@ interface AppState {
   setIsDrawing: (isDrawing: boolean) => void;
   setDrawingPointerPosition: (position: THREE.Vector3 | null) => void;
   updateSelection: (id: number, isShiftPressed: boolean) => void;
+  setDrawingIsValid: (isValid: boolean) => void;
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -65,6 +67,7 @@ export const useAppStore = create<AppState>((set) => ({
   geometries: {},
   isDrawing: false,
   drawingPointerPosition: null,
+  drawingIsValid: false,
   // Actions
   setConnected: (status) => set({ isConnected: status }),
   setRoomId: (roomId) => set({ roomId }),
@@ -92,6 +95,7 @@ export const useAppStore = create<AppState>((set) => ({
   setGeometries: (geometries) => set({ geometries: geometries }),
   setIsDrawing: (isDrawing) => set({ isDrawing: isDrawing }),
   setDrawingPointerPosition: (position) => set({ drawingPointerPosition: position }),
+  setDrawingIsValid: (isValid) => set({ drawingIsValid: isValid }),
 
   updateSelection: (id, isShiftPressed) =>
     set((state) => {

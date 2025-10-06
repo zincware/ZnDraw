@@ -1,7 +1,7 @@
 from pydantic import Field, BaseModel
 import typing as t
 
-from .base import BaseGeometry
+from .base import BaseGeometry, DataProp
 
 class CurveMarker(BaseModel):
     """Settings for markers on the curve control points."""
@@ -25,6 +25,11 @@ class CurveMarker(BaseModel):
 
 class Curve(BaseGeometry):
     """A curve geometry."""
+
+    position: DataProp = Field(
+        default=[],
+        description="Position [x,y,z]. String for dynamic data key, tuple/list for static values.",
+    )
 
     material: t.Literal[
         "LineBasicMaterial",

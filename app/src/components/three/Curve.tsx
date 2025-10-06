@@ -40,7 +40,7 @@ export default function Curve({ data, geometryKey }: { data: CurveData; geometry
     marker,
   } = data;
 
-  const { currentFrame, roomId } = useAppStore();
+  const { currentFrame, roomId, isDrawing, drawingIsValid, drawingPointerPosition, setIsDrawing } = useAppStore();
   const lastGoodFrameData = useRef<{ points: number[] } | null>(null);
 
   // --- State for Interactivity ---
@@ -184,27 +184,50 @@ export default function Curve({ data, geometryKey }: { data: CurveData; geometry
     }
   };
 
-  // --- Early exit if not ready ---
+  const linePoints = useMemo(() => {
+    if (!interactivePoints || interactivePoints.length < 2) return [];
+    const curve = new THREE.CatmullRomCurve3(interactivePoints);
+    if (drawingPointerPosition && isDrawing) {
+      const extendedPoints = [...interactivePoints, drawingPointerPosition.clone()];
+      const extendedCurve = new THREE.CatmullRomCurve3(extendedPoints);
+      return extendedCurve.getPoints(data.divisions * extendedPoints.length);
+    } else {
+      return curve.getPoints(data.divisions * interactivePoints.length);
+    }
+  }, [drawingPointerPosition, isDrawing, interactivePoints, data.divisions]);
+
+  const onDrawingPointerClick = (e: any) => {
+    if (drawingIsValid) {
+      // add the point to the curve
+      if (!interactivePoints || !drawingPointerPosition) return;
+      const newPoints = [...interactivePoints, drawingPointerPosition.clone()];
+      setInteractivePoints(newPoints);
+    } else {
+      setIsDrawing(false);
+    }
+  };
+
   if (!roomId || !interactivePoints) return null;
 
   const selectedMesh = selectedIndex !== null ? markerRefs.current[selectedIndex] : null;
 
-  // --- Generate curve points ---
-  const curve = new THREE.CatmullRomCurve3(interactivePoints);
-  const linePoints = curve.getPoints(data.divisions * interactivePoints.length);
+  const drawingColor = isDrawing && !drawingIsValid ? "#f01d23" : color;
 
   // --- Render ---
   return (
     <group>
-      <Line
-        points={linePoints}
-        color={color}
-        lineWidth={thickness}
-        dashed={material === "LineDashedMaterial"}
-      />
+      {/* Render curve line */}
+      {linePoints.length > 0 && (
+        <Line
+          points={linePoints}
+          color={drawingColor}
+          lineWidth={thickness}
+          dashed={material === "LineDashedMaterial"}
+        />
+      )}
 
       {/* Optional Markers */}
-      {marker &&
+      {marker && interactivePoints &&
         interactivePoints.map((point, index) => (
           <Dodecahedron
             key={`marker-${index}`}
@@ -251,12 +274,27 @@ export default function Curve({ data, geometryKey }: { data: CurveData; geometry
         );
       })}
 
+      {/* Pointer Position Marker */}
+      {isDrawing && drawingPointerPosition && (
+        <Dodecahedron
+          position={drawingPointerPosition}
+          args={[ (marker?.size || 0.2) * 0.75 ]}
+          onClick={onDrawingPointerClick}
+        >
+          <meshBasicMaterial 
+            color={drawingColor} 
+            opacity={1.0}
+            transparent={false}
+          />
+        </Dodecahedron>
+      )}
+
       {/* Transform Controls for interactivity */}
       {selectedMesh && (
         <TransformControls
           object={selectedMesh}
           onChange={() => {
-            if (selectedIndex !== null && markerRefs.current[selectedIndex]) {
+            if (selectedIndex !== null && markerRefs.current[selectedIndex] && interactivePoints) {
               const newPoints = [...interactivePoints];
               newPoints[selectedIndex] =
                 markerRefs.current[selectedIndex]!.position.clone();

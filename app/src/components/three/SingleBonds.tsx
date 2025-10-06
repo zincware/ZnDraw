@@ -10,6 +10,7 @@ interface InteractionSettings {
   enabled: boolean;
   color: string | null;
   opacity: number;
+  is_drawable: boolean;
 }
 
 interface BondData {
@@ -39,7 +40,7 @@ const colorTempB = new THREE.Color();
 const HOVER_SCALE = 1.25;
 const SELECTION_SCALE = 1.05;
 
-export default function Bonds({ data }: { data: BondData }) {
+export default function Bonds({ data, geometryKey }: { data: BondData; geometryKey: string }) {
   const {
     position: positionProp,
     color: colorProp,
@@ -58,7 +59,7 @@ export default function Bonds({ data }: { data: BondData }) {
   const hoverMeshRef = useRef<THREE.Mesh | null>(null);
   const [hoveredBondId, setHoveredBondId] = useState<number | null>(null);
 
-  const { currentFrame, roomId, selection } = useAppStore();
+    const { roomId, currentFrame, selection } = useAppStore();
   const lastGoodData = useRef<any>(null);
 
   const selectionSet = useMemo(() => new Set(selection || []), [selection]);

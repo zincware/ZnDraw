@@ -12,6 +12,7 @@ import Sphere from "./three/Particles";
 import Arrow from "./three/Arrow";
 import Bonds from "./three/SingleBonds";
 import Curve from "./three/Curve";
+import VirtualCanvas from "./three/VirtualCanvas";
 
 // A small helper component to keep a light attached to the camera
 function CameraAttachedLight({ intensity = 1.0 }) {
@@ -71,6 +72,7 @@ function MyScene() {
             return (
               <Sphere
                 key={name}
+                geometryKey={name}
                 data={config.data}
               />
             );
@@ -78,6 +80,7 @@ function MyScene() {
             return (
               <Bonds
                 key={name}
+                geometryKey={name}
                 data={config.data}
               />
             );
@@ -85,6 +88,7 @@ function MyScene() {
             return (
               <Arrow
                 key={name}
+                geometryKey={name}
                 start={config.data.start}
                 direction={config.data.direction}
                 color={config.data.color}
@@ -114,6 +118,7 @@ function MyScene() {
           return null;
         })}
         <SimulationCell />
+        <VirtualCanvas />
 
         {showContactShadow && (
           <ContactShadows

@@ -49,7 +49,7 @@ export default function Sphere({ data, geometryKey }: { data: SphereData; geomet
   const hoverMeshRef = useRef<THREE.Mesh | null>(null);
   const [hoveredInstanceId, setHoveredInstanceId] = useState<number | null>(null);
 
-  const { currentFrame, roomId, clientId, selection, updateSelection, setDrawingPointerPosition, isDrawing } = useAppStore();
+  const { currentFrame, roomId, clientId, selection, updateSelection, setDrawingPointerPosition, isDrawing, setDrawingIsValid } = useAppStore();
   const lastGoodFrameData = useRef<any>(null);
 
   const selectionSet = useMemo(() => new Set(selection || []), [selection]);
@@ -207,7 +207,6 @@ export default function Sphere({ data, geometryKey }: { data: SphereData; geomet
     return new THREE.SphereGeometry(1, particleResolution, particleResolution);
   }, [particleResolution]);
 
-  if (!clientId || !roomId || !dataToRender) return null;
 
   const onClickHandler = useCallback((event: any) => {
     if (event.detail !== 1 || event.instanceId === undefined) return;
@@ -227,9 +226,12 @@ export default function Sphere({ data, geometryKey }: { data: SphereData; geomet
     if (event.instanceId === undefined) return;
     event.stopPropagation();
     setHoveredInstanceId(event.instanceId);
+    setDrawingIsValid(true);
   }, []);
 
-  const onPointerOutHandler = () => setHoveredInstanceId(null);
+  const onPointerOutHandler = useCallback(() => { setHoveredInstanceId(null); setDrawingIsValid(false); }, []);
+
+  if (!clientId || !roomId || !dataToRender) return null;
 
   return (
     <group>

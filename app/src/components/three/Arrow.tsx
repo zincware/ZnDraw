@@ -18,6 +18,7 @@ interface ArrowProps {
   radius: DataProp;
   scale: DataProp;
   material: string;
+  geometryKey: string;
 }
 
 // Reusable THREE objects
@@ -65,6 +66,7 @@ export default function Arrow({
   radius,
   scale,
   material,
+  geometryKey,
 }: ArrowProps) {
   const instancedMeshRef = useRef<THREE.InstancedMesh | null>(null);
   const { currentFrame, roomId, clientId, selection } = useAppStore();

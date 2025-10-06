@@ -32,12 +32,11 @@ class Sphere(BaseGeometry):
         description="Sphere opacity, between 0 (transparent) and 1 (opaque).",
     )
 
-    selecting: InteractionSettings = Field(
-        default_factory=lambda: InteractionSettings(enabled=True, color="#FF6A00", opacity=0.5),
+    selecting: InteractionSettings | None = Field(
+        default_factory=lambda: InteractionSettings(color="#FF6A00", opacity=0.5),
         description="Selection interaction settings."
     )
-    hovering: InteractionSettings = Field(
-        default_factory=lambda: InteractionSettings(enabled=True, color="#FF0000", opacity=0.5),
+    hovering: InteractionSettings | None = Field(
+        default_factory=lambda: InteractionSettings(color="#FF0000", opacity=0.5),
         description="Hover interaction settings."
     )
-
