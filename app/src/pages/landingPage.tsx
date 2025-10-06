@@ -9,6 +9,7 @@ import ChatIcon from "@mui/icons-material/Chat";
 import CodeIcon from "@mui/icons-material/Code";
 import LightModeIcon from "@mui/icons-material/LightMode";
 import DarkModeIcon from "@mui/icons-material/DarkMode";
+import BrushIcon from "@mui/icons-material/Brush";
 import FrameProgressBar from "../components/ProgressBar";
 import SideBar from "../components/SideBar";
 
@@ -29,7 +30,7 @@ export default function MainPage() {
   useKeyboardShortcuts();
   useRestJoinManager();
 
-  const { chatOpen, setChatOpen } = useAppStore();
+  const { chatOpen, setChatOpen, isDrawing, setIsDrawing } = useAppStore();
   const [connectionDialogOpen, setConnectionDialogOpen] = useState(false);
   const { mode, setMode } = useColorScheme();
 
@@ -64,6 +65,18 @@ export default function MainPage() {
             >
               ZnDraw
             </Typography>
+            <Tooltip title={isDrawing ? "Disable drawing mode" : "Enable drawing mode"}>
+              <IconButton
+                color="inherit"
+                aria-label="toggle drawing mode"
+                onClick={() => setIsDrawing(!isDrawing)}
+                sx={{
+                  backgroundColor: isDrawing ? 'rgba(255, 255, 255, 0.2)' : 'transparent',
+                }}
+              >
+                <BrushIcon />
+              </IconButton>
+            </Tooltip>
             <Tooltip
               title={
                 mode === "light"

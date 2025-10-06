@@ -19,6 +19,7 @@ interface AppState {
   chatOpen: boolean;
   joinToken: string | null;
   geometries: Record<string, any>; // Store geometries by their IDs
+  isDrawing: boolean;
 
   // Actions (functions to modify the state)
   setRoomId: (roomId: string) => void;
@@ -37,6 +38,7 @@ interface AppState {
   setPlaying: (playing: boolean) => void;
   setChatOpen: (open: boolean) => void;
   setGeometries: (geometries: Record<string, any>) => void;
+  setIsDrawing: (isDrawing: boolean) => void;
   updateSelection: (id: number, isShiftPressed: boolean) => void;
 }
 
@@ -58,6 +60,7 @@ export const useAppStore = create<AppState>((set) => ({
   chatOpen: false,
   joinToken: null,
   geometries: {},
+  isDrawing: false,
   // Actions
   setConnected: (status) => set({ isConnected: status }),
   setRoomId: (roomId) => set({ roomId }),
@@ -83,6 +86,7 @@ export const useAppStore = create<AppState>((set) => ({
   setChatOpen: (open) => set({ chatOpen: open }),
   setJoinToken: (joinToken) => set({ joinToken }),
   setGeometries: (geometries) => set({ geometries: geometries }),
+  setIsDrawing: (isDrawing) => set({ isDrawing: isDrawing }),
 
   updateSelection: (id, isShiftPressed) =>
     set((state) => {
