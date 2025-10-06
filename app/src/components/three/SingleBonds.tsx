@@ -85,7 +85,6 @@ export default function Bonds({ data }: { data: BondData }) {
   const queryDataDeps = useMemo(() => queryResults.map(q => q.data?.data), [queryResults]);
 
   const { processedData, isFetching } = useMemo(() => {
-    console.log("Recalculating bond data..."); // This should now only log when data actually changes.
     const isQueryFetching = queryResults.some((q) => q.isFetching || q.isPlaceholderData);
     if (keysToFetch.length > 0 && !queryResults.every((q) => q.isSuccess)) {
       return { isFetching: isQueryFetching, processedData: null };
@@ -146,7 +145,7 @@ export default function Bonds({ data }: { data: BondData }) {
 
     // FIX 2: We now create two instances (half-bonds) per bond pair.
     const instances: { matrix: THREE.Matrix4; color: THREE.Color }[] = [];
-
+    console.log("Rendering", bondPairs.length, "bonds as", bondPairs.length * 2, "half-bond instances.");
     for (const bond of bondPairs) {
       const [a, b] = bond;
       if (a >= atomCount || b >= atomCount) continue;
@@ -186,8 +185,10 @@ export default function Bonds({ data }: { data: BondData }) {
     // FIX 3: Use the new stable dependency array.
   }, [keysToFetch, positionProp, colorProp, radiusProp, connectivityProp, bondScale, ...queryDataDeps]);
 
-  const dataToRender = processedData || lastGoodData.current;
-  if (processedData) lastGoodData.current = processedData;
+  // FIX: Clear lastGoodData when processedData is intentionally null (not fetching)
+  // This ensures bonds disappear when connectivity data becomes unavailable
+  const dataToRender = isFetching ? lastGoodData.current : processedData;
+  if (!isFetching) lastGoodData.current = processedData;
 
   const bondGeometry = useMemo(() => {
     // FIX 1 & 2: Create a unit cylinder that goes from y=0 to y=1.

@@ -144,7 +144,7 @@ export default function Sphere({ data }: { data: SphereData }) {
 
     const mainMesh = mainMeshRef.current;
     const { positions, colors, radii, count } = dataToRender;
-
+    console.log("Rendering", count, "particles.");
     for (let i = 0; i < count; i++) {
       const i3 = i * 3;
       positionVec.set(positions[i3], positions[i3 + 1], positions[i3 + 2]);

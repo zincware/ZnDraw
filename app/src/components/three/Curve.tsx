@@ -85,7 +85,7 @@ export default function Curve({ data, geometryKey }: { data: CurveData; geometry
     // Create a unique key based on numeric content.
     const key = dataToRender.points.join(",");
     const vectors: THREE.Vector3[] = [];
-
+    console.log("Curve has", dataToRender.points.length / 3, "points.");
     for (let i = 0; i < dataToRender.points.length; i += 3) {
       vectors.push(
         new THREE.Vector3(
@@ -115,7 +115,7 @@ export default function Curve({ data, geometryKey }: { data: CurveData; geometry
     
     // Get all points on the curve for analysis
     const curvePoints = curve.getPoints(data.divisions * interactivePoints.length);
-    
+    console.log("Curve has", curvePoints.length, "total points for virtual marker calculation.");
     // For each pair of consecutive control points, find the midpoint on the curve
     for (let i = 0; i < interactivePoints.length - 1; i++) {
       const controlPoint1 = interactivePoints[i];

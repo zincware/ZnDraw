@@ -211,8 +211,7 @@ export default function Arrow({
     if (!positions || !directions || !colors || !radii || !scales || !count) {
       return;
     }
-    console.log("Rendering arrows with scale:", scales);
-
+    console.log("Rendering", count, "arrows.");
     for (let i = 0; i < count; i++) {
       const i3 = i * 3;
 
