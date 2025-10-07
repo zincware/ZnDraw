@@ -4,8 +4,6 @@ import typing as t
 from .base import BaseGeometry, DataProp, InteractionSettings
 
 
-
-
 class Sphere(BaseGeometry):
     """A sphere geometry."""
 
@@ -22,6 +20,12 @@ class Sphere(BaseGeometry):
         schema["properties"]["radius"]["x-dynamic-enum"] = "AVAILABLE_ATOMS_KEYS"
         schema["properties"]["radius"]["type"] = "string"
         schema["properties"]["radius"].pop("anyOf", None)
+        schema["$defs"]["InteractionSettings"]["properties"]["color"][
+            "x-color-picker"
+        ] = True
+        schema["$defs"]["InteractionSettings"]["properties"]["color"][
+            "x-dynamic-enum"
+        ] = "AVAILABLE_ATOMS_KEYS"
         return schema
 
     radius: DataProp = Field(
@@ -50,9 +54,9 @@ class Sphere(BaseGeometry):
 
     selecting: InteractionSettings = Field(
         default=InteractionSettings(color="#FF6A00", opacity=0.5),
-        description="Selection interaction settings."
+        description="Selection interaction settings.",
     )
     hovering: InteractionSettings = Field(
         default=InteractionSettings(color="#FF0000", opacity=0.5),
-        description="Hover interaction settings."
+        description="Hover interaction settings.",
     )
