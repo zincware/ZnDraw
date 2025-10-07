@@ -6,12 +6,16 @@ from .base import BaseGeometry, DataProp
 class CurveMarker(BaseModel):
     """Settings for markers on the curve control points."""
 
+    enabled: bool = Field(
+        default=True,
+        description="Whether to show markers at the control points",
+    )
     size: float = Field(
         default=0.1,
         description="Size of the markers",
         gt=0,
     )
-    color: t.Optional[str] = Field(
+    color: str = Field(
         default="#000000",
         description="Color of the markers. If None, uses the curve color",
     )
@@ -25,6 +29,26 @@ class CurveMarker(BaseModel):
 
 class Curve(BaseGeometry):
     """A curve geometry."""
+
+    @classmethod
+    def model_json_schema(cls, **kwargs: t.Any) -> dict[str, t.Any]:
+        schema = super().model_json_schema(**kwargs)
+        schema["properties"]["position"]["x-dynamic-enum"] = "AVAILABLE_ATOMS_KEYS"
+        schema["properties"]["position"]["type"] = "string"
+        schema["properties"]["position"].pop("anyOf", None)
+
+        schema["properties"]["color"]["x-dynamic-enum"] = "AVAILABLE_ATOMS_KEYS"
+        schema["properties"]["color"]["type"] = "string"
+        schema["properties"]["color"]["x-color-picker"] = True
+        schema["properties"]["color"].pop("anyOf", None)
+        
+        schema["$defs"]["CurveMarker"]["properties"]["color"][
+            "x-color-picker"
+        ] = True
+        schema["$defs"]["CurveMarker"]["properties"]["color"][
+            "x-dynamic-enum"
+        ] = "AVAILABLE_ATOMS_KEYS"
+        return schema
 
     position: DataProp = Field(
         default=[],
@@ -52,11 +76,11 @@ class Curve(BaseGeometry):
         description="Thickness of the line (not implemented in Three.js LineBasicMaterial)",
         gt=0,
     )
-    marker: CurveMarker | None = Field(
+    marker: CurveMarker = Field(
         default_factory=CurveMarker,
         description="Settings for markers at the control points",
     )
-    virtual_marker: CurveMarker | None = Field(
+    virtual_marker: CurveMarker = Field(
         default_factory=lambda: CurveMarker(size=0.08, color="gray", opacity=0.5),
         description="Virtual marker between two existing markers (for adding new points)",
     )

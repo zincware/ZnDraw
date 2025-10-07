@@ -12,6 +12,7 @@ import { createGeometry } from "../../myapi/client";
 import { debounce } from "lodash";
 
 interface MarkerData {
+  enabled: boolean;
   size: number;
   color: string;
   opacity: number;
@@ -24,8 +25,8 @@ interface CurveData {
   divisions: number;
   variant: "CatmullRomCurve3";
   thickness: number;
-  marker: MarkerData | null;
-  virtual_marker: MarkerData | null;
+  marker: MarkerData;
+  virtual_marker: MarkerData;
 }
 
 /**
@@ -255,7 +256,7 @@ export default function Curve({ data, geometryKey }: { data: CurveData; geometry
       )}
 
       {/* Markers */}
-      {marker && markerPositions &&
+      {marker.enabled && markerPositions &&
         markerPositions.map((point, index) => (
           <Dodecahedron
             key={`marker-${index}`}
@@ -278,7 +279,7 @@ export default function Curve({ data, geometryKey }: { data: CurveData; geometry
         ))}
 
       {/* Virtual Markers */}
-      {data.virtual_marker && virtualMarkerPositions.map((position, index) => {
+      {data.virtual_marker.enabled && virtualMarkerPositions.map((position, index) => {
         const virtualMarker = data.virtual_marker!;
         return (
           <Dodecahedron
@@ -297,7 +298,7 @@ export default function Curve({ data, geometryKey }: { data: CurveData; geometry
       })}
 
       {/* Drawing Marker */}
-      {isDrawing && drawingPointerPosition && marker && (
+      {isDrawing && drawingPointerPosition && marker.enabled && (
         <Dodecahedron
           key={`virtual-drawing`}
           position={drawingPointerPosition}

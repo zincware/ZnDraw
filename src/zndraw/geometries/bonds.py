@@ -1,4 +1,5 @@
 from pydantic import Field
+import typing as t
 
 from .base import BaseGeometry, DataProp, InteractionSettings
 
@@ -7,6 +8,34 @@ from .base import BaseGeometry, DataProp, InteractionSettings
 
 class Bond(BaseGeometry):
     """A bond geometry."""
+
+    @classmethod
+    def model_json_schema(cls, **kwargs: t.Any) -> dict[str, t.Any]:
+        schema = super().model_json_schema(**kwargs)
+        schema["properties"]["position"]["x-dynamic-enum"] = "AVAILABLE_ATOMS_KEYS"
+        schema["properties"]["position"]["type"] = "string"
+        schema["properties"]["position"].pop("anyOf", None)
+
+        schema["properties"]["connectivity"]["x-dynamic-enum"] = "AVAILABLE_ATOMS_KEYS"
+        schema["properties"]["connectivity"]["type"] = "string"
+        schema["properties"]["connectivity"].pop("anyOf", None)
+
+        schema["properties"]["color"]["x-dynamic-enum"] = "AVAILABLE_ATOMS_KEYS"
+        schema["properties"]["color"]["type"] = "string"
+        schema["properties"]["color"]["x-color-picker"] = True
+        schema["properties"]["color"].pop("anyOf", None)
+
+        schema["properties"]["radius"]["x-dynamic-enum"] = "AVAILABLE_ATOMS_KEYS"
+        schema["properties"]["radius"]["type"] = "string"
+        schema["properties"]["radius"].pop("anyOf", None)
+        
+        schema["$defs"]["InteractionSettings"]["properties"]["color"][
+            "x-color-picker"
+        ] = True
+        schema["$defs"]["InteractionSettings"]["properties"]["color"][
+            "x-dynamic-enum"
+        ] = "AVAILABLE_ATOMS_KEYS"
+        return schema
 
     radius: DataProp = Field(
         default="arrays.radii",
