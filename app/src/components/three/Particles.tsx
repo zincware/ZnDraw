@@ -4,6 +4,7 @@ import { getFrameDataOptions } from "../../hooks/useTrajectoryData";
 import { useAppStore } from "../../store";
 import { useRef, useMemo, useState, useEffect, useCallback } from "react";
 import { renderMaterial } from "./materials";
+import { shouldFetchAsFrameData, hexToRgb } from "../../utils/colorUtils";
 
 interface InteractionSettings {
   enabled: boolean;
@@ -58,11 +59,13 @@ export default function Sphere({ data, geometryKey }: { data: SphereData; geomet
   const particleResolution = resolution || 8;
   const particleScale = scale || 1.0;
 
-  // Determine what to fetch
+  // Determine what to fetch (skip hex colors)
   const keysToFetch = useMemo(() => {
     const keys: string[] = [];
     if (typeof positionProp === "string") keys.push(positionProp);
-    if (typeof colorProp === "string") keys.push(colorProp);
+    if (typeof colorProp === "string" && shouldFetchAsFrameData(colorProp)) {
+      keys.push(colorProp);
+    }
     if (typeof radiusProp === "string") keys.push(radiusProp);
     return keys;
   }, [positionProp, colorProp, radiusProp]);
@@ -103,8 +106,23 @@ export default function Sphere({ data, geometryKey }: { data: SphereData; geomet
     if (count === 0) return { isFetching: isQueryFetching, processedData: null };
 
     let finalColors: number[];
-    if (typeof colorProp === "string") {
-      finalColors = fetchedMap.get(colorProp) || [];
+    if (typeof colorProp === "string" && shouldFetchAsFrameData(colorProp)) {
+      const fetchedColors = fetchedMap.get(colorProp);
+      finalColors = fetchedColors ? Array.from(fetchedColors) : [];
+    } else if (typeof colorProp === "string") {
+      // Hex color string - convert to RGB and replicate for all particles
+      const rgb = hexToRgb(colorProp);
+      if (rgb) {
+        finalColors = new Array(count * 3);
+        for (let i = 0; i < count; i++) {
+          finalColors[i * 3] = rgb[0];
+          finalColors[i * 3 + 1] = rgb[1];
+          finalColors[i * 3 + 2] = rgb[2];
+        }
+      } else {
+        // Fallback to white if hex parsing fails
+        throw new Error(`Invalid hex color: ${colorProp}`);
+      }
     } else if (colorProp.length > 0 && Array.isArray(colorProp[0])) {
       finalColors = (colorProp as number[][]).flat();
     } else {

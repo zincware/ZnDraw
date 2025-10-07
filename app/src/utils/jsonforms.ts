@@ -5,14 +5,22 @@ import CustomColorPicker, {
 import CustomRangeSlider, {
   customRangeSliderTester,
 } from "../components/jsonforms-renderers/CustomRangeSlider";
+import CustomDynamicEnumWithColorPicker, {
+  customDynamicEnumWithColorPickerTester,
+} from "../components/jsonforms-renderers/CustomDynamicEnumWithColorPicker";
 import { FrameMetadata } from "../myapi/client";
 
 /**
  * Custom JSONForms renderers including material renderers and custom components.
+ * Order matters: higher priority renderers should come first.
  */
 export const customRenderers = [
   ...materialRenderers,
-  { tester: customColorPickerTester, renderer: CustomColorPicker },
+  {
+    tester: customDynamicEnumWithColorPickerTester,
+    renderer: CustomDynamicEnumWithColorPicker,
+  }, // Priority 10
+  { tester: customColorPickerTester, renderer: CustomColorPicker }, // Priority 5
   { tester: customRangeSliderTester, renderer: CustomRangeSlider },
 ];
 
@@ -33,8 +41,10 @@ export const injectDynamicEnums = (
     if (obj && typeof obj === "object") {
       // Check if the current object has our custom dynamic enum property
       if (obj["x-dynamic-enum"] === "AVAILABLE_ATOMS_KEYS" && metadata?.keys) {
-        // If it does, inject the keys from the metadata
+        // Inject the keys from the metadata as enum values
         obj.enum = metadata.keys;
+        // IMPORTANT: Preserve x-dynamic-enum and x-color-picker markers
+        // They are needed by the custom renderer tester
       }
 
       // Continue traversing through the object's properties and array items
