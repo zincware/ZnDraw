@@ -1,4 +1,5 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef, useCallback } from "react";
+import { debounce } from "lodash";
 import {
   Box,
   Button,
@@ -11,9 +12,9 @@ import {
   CircularProgress,
   Alert,
   SelectChangeEvent,
+  Chip,
 } from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
-import SaveIcon from "@mui/icons-material/Save";
 import { JsonForms } from "@jsonforms/react";
 import { materialCells } from "@jsonforms/material-renderers";
 import { useGeometryStore } from "../../stores/geometryStore";
@@ -28,7 +29,7 @@ import { customRenderers, injectDynamicEnums } from "../../utils/jsonforms";
 
 const GeometryForm = () => {
   const { roomId } = useAppStore();
-  const clientId = undefined; // we don't want to skip when saving the current clientId, so undefined
+  const clientId = null; // we don't want to skip when saving the current clientId, so undefined
   const {
     mode,
     selectedKey,
@@ -42,6 +43,8 @@ const GeometryForm = () => {
 
   const [keyInput, setKeyInput] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const isInitializedRef = useRef(false);
 
   // Fetch geometry schemas
   const {
@@ -75,6 +78,7 @@ const GeometryForm = () => {
 
   // Initialize form data for edit mode
   useEffect(() => {
+    isInitializedRef.current = false;
     if (mode === "edit" && geometryData) {
       setKeyInput(geometryData.key);
       setSelectedType(geometryData.geometry.type);
@@ -83,6 +87,10 @@ const GeometryForm = () => {
       setKeyInput("");
       setFormData({});
     }
+    // Mark as initialized after a short delay to avoid saving initial data
+    setTimeout(() => {
+      isInitializedRef.current = true;
+    }, 500);
   }, [mode, geometryData, setFormData, setSelectedType]);
 
   const handleTypeChange = (event: SelectChangeEvent<string>) => {
@@ -96,23 +104,13 @@ const GeometryForm = () => {
     setFormData(data ?? {});
   };
 
-  const handleSave = () => {
-    if (!roomId) {
-      setError("Room ID is missing");
-      return;
-    }
-
-    if (!keyInput.trim()) {
-      setError("Key is required");
-      return;
-    }
-
-    if (!selectedType) {
-      setError("Type is required");
+  const saveGeometry = useCallback(() => {
+    if (!roomId || !keyInput.trim() || !selectedType) {
       return;
     }
 
     setError(null);
+    setIsSaving(true);
 
     createGeometry(
       {
@@ -124,14 +122,36 @@ const GeometryForm = () => {
       },
       {
         onSuccess: () => {
-          resetForm();
+          setIsSaving(false);
         },
         onError: (error: any) => {
+          setIsSaving(false);
           setError(error.message || "Failed to save geometry");
         },
       }
     );
-  };
+  }, [roomId, clientId, keyInput, selectedType, formData, createGeometry]);
+
+  // Create debounced version of save
+  const debouncedSave = useMemo(
+    () => debounce(saveGeometry, 250),
+    [saveGeometry]
+  );
+
+  // Auto-save effect
+  useEffect(() => {
+    // Skip if not initialized or in create mode without key
+    if (!isInitializedRef.current || (mode === "create" && !keyInput.trim())) {
+      return;
+    }
+
+    debouncedSave();
+
+    // Cleanup
+    return () => {
+      debouncedSave.cancel();
+    };
+  }, [formData, keyInput, selectedType, mode, debouncedSave]);
 
   const handleCancel = () => {
     resetForm();
@@ -189,13 +209,22 @@ const GeometryForm = () => {
   return (
     <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
       <Box sx={{ p: 2, borderBottom: "1px solid rgba(0, 0, 0, 0.12)" }}>
-        <Button
-          startIcon={<ArrowBackIcon />}
-          onClick={handleCancel}
-          sx={{ mb: 2 }}
-        >
-          Back to List
-        </Button>
+        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2 }}>
+          <Button
+            startIcon={<ArrowBackIcon />}
+            onClick={handleCancel}
+          >
+            Back to List
+          </Button>
+          {isSaving && (
+            <Chip
+              label="Saving..."
+              size="small"
+              color="primary"
+              sx={{ ml: 2 }}
+            />
+          )}
+        </Box>
         <Typography variant="h6">
           {mode === "create" ? "Create Geometry" : "Edit Geometry"}
         </Typography>
@@ -249,18 +278,9 @@ const GeometryForm = () => {
           </>
         )}
 
-        <Box sx={{ mt: 3, display: "flex", gap: 2 }}>
-          <Button
-            variant="contained"
-            startIcon={<SaveIcon />}
-            onClick={handleSave}
-            disabled={isCreating || !selectedType || !keyInput.trim()}
-            fullWidth
-          >
-            {isCreating ? "Saving..." : "Save"}
-          </Button>
+        <Box sx={{ mt: 3 }}>
           <Button variant="outlined" onClick={handleCancel} fullWidth>
-            Cancel
+            Close
           </Button>
         </Box>
       </Box>
