@@ -123,6 +123,12 @@ export const deleteGeometry = async (
   return data;
 };
 
+export const getGeometrySchemas = async (
+  roomId: string,
+): Promise<{ schemas: Record<string, any> }> => {
+  const { data } = await apiClient.get(`/api/rooms/${roomId}/geometries/schemas`);
+  return data;
+};
 // ==================== Room API ====================
 
 export interface JoinRoomRequest {

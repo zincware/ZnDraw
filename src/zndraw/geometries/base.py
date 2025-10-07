@@ -10,8 +10,11 @@ DataProp = Union[
 ]
 
 class InteractionSettings(BaseModel):
-    color: str | None = Field(None)
-    opacity: float = Field(1.0, ge=0.0, le=1.0)
+    model_config = ConfigDict(frozen=True)
+
+    enabled: bool = Field(default=True)
+    color: str = Field(default="#FF6600")
+    opacity: float = Field(default=1.0, ge=0.0, le=1.0)
 
 class BaseGeometry(BaseModel):
     """Base class for all geometries with common properties."""

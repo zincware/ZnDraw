@@ -192,13 +192,18 @@ export const useSocketManager = () => {
 
     async function onGeometriesInvalidate(data: any) {
       if (!roomId) return;
-      
+
       try {
+        // Invalidate React Query cache for geometries
+        queryClient.invalidateQueries({
+          queryKey: ["geometries", roomId, "list"],
+        });
+
         // Fetch list of geometry keys first
         const listResponse = await listGeometries(roomId);
         const keys = listResponse.geometries || [];
         console.log("Received geometry keys:", keys);
-        
+
         // Fetch all geometries in parallel
         const geometryPromises = keys.map(async (key: string) => {
           try {
@@ -209,9 +214,9 @@ export const useSocketManager = () => {
             return null;
           }
         });
-        
+
         const geometries = await Promise.all(geometryPromises);
-        
+
         // Build geometries object from results
         const geometriesObj: Record<string, any> = {};
         geometries.forEach((item) => {
@@ -219,7 +224,7 @@ export const useSocketManager = () => {
             geometriesObj[item.key] = item.geometry;
           }
         });
-        
+
         console.log("Received updated geometries:", geometriesObj);
         setGeometries(geometriesObj);
       } catch (error) {

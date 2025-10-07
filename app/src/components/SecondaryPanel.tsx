@@ -13,10 +13,7 @@ import {
 } from "@mui/material";
 import SaveIcon from "@mui/icons-material/Save";
 import { JsonForms } from "@jsonforms/react";
-import {
-  materialCells,
-  materialRenderers,
-} from "@jsonforms/material-renderers";
+import { materialCells } from "@jsonforms/material-renderers";
 import { useFormStore } from "../formStore";
 import {
   useSchemas,
@@ -27,52 +24,11 @@ import {
 import { useAppStore } from "../store";
 import { ExtensionStatusChips } from "./ExtensionStatusChips";
 import { debounce } from "lodash";
-import CustomColorPicker, {
-  customColorPickerTester,
-} from "./jsonforms-renderers/CustomColorPicker";
-import CustomRangeSlider, {
-  customRangeSliderTester,
-} from "./jsonforms-renderers/CustomRangeSlider";
-import { FrameMetadata } from "../myapi/client";
+import { customRenderers, injectDynamicEnums } from "../utils/jsonforms";
 
 interface SecondaryPanelProps {
   panelTitle: string;
 }
-
-const customRenderers = [
-  ...materialRenderers,
-  { tester: customColorPickerTester, renderer: CustomColorPicker },
-  { tester: customRangeSliderTester, renderer: CustomRangeSlider },
-];
-
-/**
- * Recursively traverses a JSON schema and injects dynamic enum values.
- * @param schema The original JSON schema.
- * @param metadata The metadata object containing keys to inject.
- * @returns A new schema object with enums injected.
- */
-const injectDynamicEnums = (schema: any, metadata: FrameMetadata | undefined): any => {
-  // Create a deep copy to avoid mutating the original object from the react-query cache.
-  const newSchema = JSON.parse(JSON.stringify(schema));
-
-  const traverse = (obj: any) => {
-    if (obj && typeof obj === 'object') {
-      // Check if the current object has our custom dynamic enum property
-      if (obj['x-dynamic-enum'] === 'AVAILABLE_ATOMS_KEYS' && metadata?.keys) {
-        // If it does, inject the keys from the metadata
-        obj.enum = metadata.keys;
-      }
-
-      // Continue traversing through the object's properties and array items
-      Object.keys(obj).forEach(key => {
-        traverse(obj[key]);
-      });
-    }
-  };
-
-  traverse(newSchema);
-  return newSchema;
-};
 
 const SecondaryPanel = ({ panelTitle }: SecondaryPanelProps) => {
   const { roomId, userId } = useAppStore();

@@ -163,7 +163,7 @@ export default function Sphere({ data, geometryKey }: { data: SphereData; geomet
   }, [dataToRender, particleScale]);
 
   useEffect(() => {
-    if (!selectionMeshRef.current || !dataToRender || !selecting) return;
+    if (!selectionMeshRef.current || !dataToRender || !selecting.enabled) return;
 
     const selectionMesh = selectionMeshRef.current;
     const { positions, radii, count } = dataToRender;
@@ -240,7 +240,7 @@ export default function Sphere({ data, geometryKey }: { data: SphereData; geomet
         key={dataToRender.count}
         ref={mainMeshRef}
         args={[undefined, undefined, dataToRender.count]}
-        onClick={selecting ? onClickHandler : undefined}
+        onClick={selecting.enabled ? onClickHandler : undefined}
         onPointerEnter={hovering ? onPointerEnterHandler : undefined}
         onPointerMove={hovering ? onPointerMoveHandler : undefined}
         onPointerOut={hovering ? onPointerOutHandler : undefined}
@@ -250,7 +250,7 @@ export default function Sphere({ data, geometryKey }: { data: SphereData; geomet
       </instancedMesh>
 
       {/* Selection mesh */}
-      {selecting && (
+      {selecting.enabled && (
         <instancedMesh
           key={`selection-${selectedIndices.length}`}
           ref={selectionMeshRef}

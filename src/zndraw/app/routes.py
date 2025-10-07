@@ -2140,6 +2140,20 @@ def list_geometries(room_id: str):
     return {"geometries": list(all_keys)}, 200
 
 
+@main.route("/api/rooms/<string:room_id>/geometries/schemas", methods=["GET"])
+def list_geometry_schemas(room_id: str):
+    """Return JSON schemas for all geometry types for form generation."""
+    from zndraw.geometries import geometries
+
+    schemas = {
+        name: model.model_json_schema()
+        for name, model in geometries.items()
+    }
+    return {"schemas": schemas}, 200
+
+# return schema for given geometry type
+
+
 # -------------#
 ### FIGURES ###
 # -------------#
