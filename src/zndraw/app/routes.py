@@ -2055,6 +2055,7 @@ def create_geometry(room_id: str):
     key = data.get("key")
     geometry_type = data.get("type")
     geometry_data = data.get("data")
+    clientId = data.get("clientId")
     
     if not key or not geometry_type or geometry_data is None:
         return {
@@ -2074,12 +2075,14 @@ def create_geometry(room_id: str):
 
     r = current_app.extensions["redis"]
     r.hset(f"room:{room_id}:geometries", key, value_to_store)
+    clientSID = r.hget(f"client:{clientId}", "currentSid") if clientId else None
     socketio.emit(
         SocketEvents.INVALIDATE_GEOMETRY,
         {
             "key": key,
         },
         to=f"room:{room_id}",
+        skip_sid=clientSID
     )
 
     return {"status": "success"}, 200

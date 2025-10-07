@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState, useEffect } from "react";
+import { useMemo, useRef, useState, useEffect, useCallback } from "react";
 import * as THREE from "three";
 import { useQueries } from "@tanstack/react-query";
 import {
@@ -9,10 +9,11 @@ import { Line } from "@react-three/drei";
 import { getFrameDataOptions } from "../../hooks/useTrajectoryData";
 import { useAppStore } from "../../store";
 import { createGeometry } from "../../myapi/client";
+import { debounce } from "lodash";
 
 interface MarkerData {
   size: number;
-  color: string | null;
+  color: string;
   opacity: number;
 }
 
@@ -40,14 +41,15 @@ export default function Curve({ data, geometryKey }: { data: CurveData; geometry
     marker,
   } = data;
 
-  const { currentFrame, roomId, isDrawing, drawingIsValid, drawingPointerPosition, setIsDrawing } = useAppStore();
-  const lastGoodFrameData = useRef<{ points: number[] } | null>(null);
-
-  // --- State for Interactivity ---
-  const [interactivePoints, setInteractivePoints] = useState<THREE.Vector3[] | null>(null);
+  const { currentFrame, roomId, isDrawing, drawingIsValid, drawingPointerPosition, setIsDrawing, clientId } = useAppStore();
+  const [markerPositions, setMarkerPositions] = useState<THREE.Vector3[]>([]);
+  const [lineSegments, setLineSegments] = useState<THREE.Vector3[]>([]);
+  const [virtualMarkerPositions, setVirtualMarkerPositions] = useState<THREE.Vector3[]>([]);
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+
+  const [lastUpdateSource, setLastUpdateSource] = useState<'remote' | 'local' | null>(null);
+
   const markerRefs = useRef<(THREE.Mesh | null)[]>([]);
-  const virtualMarkerRefs = useRef<(THREE.Mesh | null)[]>([]);
 
   // --- Data Fetching ---
   const shouldFetchPosition = typeof positionProp === "string";
@@ -59,67 +61,47 @@ export default function Curve({ data, geometryKey }: { data: CurveData; geometry
 
   const queryResults = useQueries({ queries });
 
-  const processedData = useMemo(() => {
+  useEffect(() => {
     if (shouldFetchPosition) {
       const result = queryResults[0];
-      if (!result || !result.isSuccess) return null;
-      const points = result.data?.data || [];
-      return points.length < 6 ? null : { points };
+      if (result && result.isSuccess) {
+        const points = result.data?.data || [];
+        const vecPoints = [];
+        for (let i = 0; i < points.length; i += 3) {
+          vecPoints.push(new THREE.Vector3(points[i], points[i + 1], points[i + 2]));
+        }
+        setMarkerPositions(vecPoints);
+        setLastUpdateSource('remote');
+      }
     } else {
       const manualPoints = positionProp as number[][];
-      if (manualPoints.length < 2) return null;
-      const points = manualPoints.flat();
-      return { points };
+      const vecPoints = manualPoints.map(p => new THREE.Vector3(p[0], p[1], p[2]));
+      setMarkerPositions(vecPoints);
+      setLastUpdateSource('remote');
     }
-  }, [queryResults, positionProp, shouldFetchPosition]);
+  }, [queryResults?.data, positionProp, shouldFetchPosition]); 
+  // you MUST use queryResults?.data instead of queryResults because otherwise you rely on the query, not on the persistent result data!
 
-  // Keep last good frame data so the line doesn’t flicker between frames
-  const dataToRender = processedData || lastGoodFrameData.current;
-  if (processedData) lastGoodFrameData.current = processedData;
-
-  // --- Stable memoization of 3D points ---
-  // Converts flat array → Vector3 array, but only when the underlying numeric values actually change.
-  const sourceCurvePoints = useMemo(() => {
-    if (!dataToRender?.points) return null;
-
-    // Create a unique key based on numeric content.
-    const key = dataToRender.points.join(",");
-    const vectors: THREE.Vector3[] = [];
-    console.log("Curve has", dataToRender.points.length / 3, "points.");
-    for (let i = 0; i < dataToRender.points.length; i += 3) {
-      vectors.push(
-        new THREE.Vector3(
-          dataToRender.points[i],
-          dataToRender.points[i + 1],
-          dataToRender.points[i + 2]
-        )
-      );
-    }
-    return vectors.length < 2 ? null : vectors;
-  }, [dataToRender?.points?.join(",")]);
-
-  // --- Sync effect ---
-  // Updates interactivity state only when actual data changes (no infinite loops!)
   useEffect(() => {
-    if (!sourceCurvePoints) return;
-    setInteractivePoints(sourceCurvePoints);
-    markerRefs.current = markerRefs.current.slice(0, sourceCurvePoints.length);
-    virtualMarkerRefs.current = virtualMarkerRefs.current.slice(0, Math.max(0, sourceCurvePoints.length - 1));
-  }, [sourceCurvePoints]);
+    const allPoints: THREE.Vector3[] = [...markerPositions];
+    if (drawingPointerPosition !== null && isDrawing) {
+      allPoints.push(drawingPointerPosition);
+    }
+    if (allPoints.length < 2) {
+      setLineSegments([]);
+      setVirtualMarkerPositions([]);
+      return;
+    }
+    const curve = new THREE.CatmullRomCurve3(allPoints);
+    const curvePoints = curve.getPoints(data.divisions * allPoints.length);
+    setLineSegments(curvePoints);
 
-  // --- Calculate virtual marker positions ON the curve between each pair of control points ---
-  const virtualMarkerPositions = useMemo(() => {
-    if (!interactivePoints || interactivePoints.length < 2) return [];
-    const curve = new THREE.CatmullRomCurve3(interactivePoints);
-    const positions: THREE.Vector3[] = [];
-
-    // Get all points on the curve for analysis
-    const curvePoints = curve.getPoints(data.divisions * interactivePoints.length);
-    console.log("Curve has", curvePoints.length, "total points for virtual marker calculation.");
-    // For each pair of consecutive control points, find the midpoint on the curve
-    for (let i = 0; i < interactivePoints.length - 1; i++) {
-      const controlPoint1 = interactivePoints[i];
-      const controlPoint2 = interactivePoints[i + 1];
+    const _virtualMarkerPositions: THREE.Vector3[] = [];
+    console.log("Calculating virtual markers for points:", allPoints);
+    // virtual markers
+    for (let i = 0; i < allPoints.length - 1; i++) {
+      const controlPoint1 = allPoints[i];
+      const controlPoint2 = allPoints[i + 1];
 
       // Find the curve points closest to each control point
       let minDist1 = Infinity;
@@ -143,27 +125,69 @@ export default function Curve({ data, geometryKey }: { data: CurveData; geometry
 
       // Place virtual marker at the midpoint index between these two curve points
       const midIndex = Math.floor((index1 + index2) / 2);
-      positions.push(curvePoints[midIndex].clone());
+      _virtualMarkerPositions.push(curvePoints[midIndex].clone());
     }
-    return positions;
-  }, [interactivePoints, data.divisions]);
+    setVirtualMarkerPositions(_virtualMarkerPositions);
 
-  // --- Handler to convert virtual marker to actual marker ---
-  const handleVirtualMarkerClick = (insertIndex: number) => {
-    if (!interactivePoints) return;
-    const newPoints = [...interactivePoints];
+  }, [markerPositions, drawingPointerPosition, isDrawing, data.divisions]);
+
+  const handleVirtualMarkerClick = useCallback((insertIndex: number) => {
+    const newPoints = [...markerPositions];
     newPoints.splice(insertIndex + 1, 0, virtualMarkerPositions[insertIndex].clone());
-    setInteractivePoints(newPoints);
-    // Set the newly created point as selected
-    setSelectedIndex(insertIndex + 1);
-  };
+    setMarkerPositions(newPoints);
+    // We need to select *after* the new marker has been added
+    // Delay selection to the next tick so refs update
+    setTimeout(() => {
+      setSelectedIndex(insertIndex + 1);
+    }, 0);
+  }, [markerPositions, virtualMarkerPositions]);
 
-  // --- Handler to send updated geometry data to backend ---
-  const handleMouseUp = async () => {
-    if (!roomId || !interactivePoints) return;
+  const handleDrawingMarkerClick = useCallback(() => {
+    if (drawingIsValid && drawingPointerPosition) {
+      const newPoints = [...markerPositions];
+      newPoints.push(drawingPointerPosition.clone());
+      setMarkerPositions(newPoints);
+    } else {
+      setIsDrawing(false);
+    }
+  }, [drawingIsValid, drawingPointerPosition, markerPositions, setIsDrawing]);
+
+  const selectedMesh = useMemo(() => {
+    return selectedIndex !== null ? markerRefs.current[selectedIndex] : null;
+  }, [selectedIndex]);
+
+  // attach event handler to backspace/delete key to remove selected marker
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Backspace" || e.key === "Delete") {
+        // Use functional state update to avoid stale closure
+        setSelectedIndex(null);
+
+        // We need to remove the transform controls first,
+        // because the on-change handler would recreate the marker
+        setTimeout(() => {
+          setMarkerPositions(prev => {
+            if (selectedIndex === null) return prev;
+            const newPoints = [...prev];
+            newPoints.splice(selectedIndex, 1);
+            return newPoints;
+          });
+        }, 0);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+    // 👇 only run once; don't depend on selectedIndex or markerPositions
+  }, [selectedIndex]);
+
+  const persistMarkerPositions = useCallback(async () => {
+    if (!roomId || !markerPositions) return;
 
     // Convert Vector3 array to array of tuples
-    const positions = interactivePoints.map(point => [point.x, point.y, point.z]);
+    const positions = markerPositions.map(point => [point.x, point.y, point.z]);
 
     // Build the complete data object matching the backend format
     const geometryData = {
@@ -178,98 +202,93 @@ export default function Curve({ data, geometryKey }: { data: CurveData; geometry
     };
 
     try {
-      await createGeometry(roomId, geometryKey, "Curve", geometryData);
+      await createGeometry(roomId, clientId, geometryKey, "Curve", geometryData);
     } catch (error) {
       console.error("Error updating geometry:", error);
     }
-  };
+  }, [roomId, markerPositions, geometryKey, data]);
 
-  const linePoints = useMemo(() => {
-    const points = drawingPointerPosition && isDrawing
-      ? [...(interactivePoints || []), drawingPointerPosition.clone()]
-      : interactivePoints;
+  useEffect(() => {
+    if (lastUpdateSource !== 'local') return;
+    
+    const debouncedPersist = debounce(persistMarkerPositions, 500);
+    debouncedPersist();
+    return () => {
+      debouncedPersist.cancel();
+    };
+  }, [markerPositions, persistMarkerPositions, lastUpdateSource]);
 
-    if (!points || points.length < 2) return [];
-    const curve = new THREE.CatmullRomCurve3(points);
-    return curve.getPoints(data.divisions * points.length);
-  }, [drawingPointerPosition, isDrawing, interactivePoints, data.divisions]);
-
-  const onDrawingPointerClick = (e: any) => {
-    if (drawingIsValid) {
-      // add the point to the curve
-      if (!drawingPointerPosition) return;
-      if (!interactivePoints) {
-        setInteractivePoints([drawingPointerPosition.clone()]);
-      } else {
-        const newPoints = [...interactivePoints, drawingPointerPosition.clone()];
-        setInteractivePoints(newPoints);
-      }
-
-    } else {
-      setIsDrawing(false);
+  const onTransformChange = useCallback(() => {
+    if (selectedIndex !== null && markerRefs.current[selectedIndex]) {
+      setMarkerPositions(prev => {
+        const newPoints = [...prev];
+        newPoints[selectedIndex] = markerRefs.current[selectedIndex]!.position.clone();
+        return newPoints;
+      });
+      setLastUpdateSource('local');
     }
-  };
+  }, [selectedIndex]);
 
   if (!roomId) return null;
-
-  const selectedMesh = selectedIndex !== null ? markerRefs.current[selectedIndex] : null;
-
-  const drawingColor = isDrawing && !drawingIsValid ? "#f01d23" : color;
 
   // --- Render ---
   return (
     <group>
+      {/* Transform Controls */}
+      {selectedMesh && selectedIndex !== null &&
+        <TransformControls
+          object={selectedMesh}
+          onPointerMissed={() => setSelectedIndex(null)}
+          mode="translate"
+          onChange={onTransformChange}
+        />
+      }
+
       {/* Render curve line */}
-      {linePoints.length > 0 && (
+      {lineSegments.length >= 2 && (
         <Line
-          points={linePoints}
-          color={drawingColor}
+          points={lineSegments}
+          color={(isDrawing && !drawingIsValid) ? "#FF0000" : color}
           lineWidth={thickness}
           dashed={material === "LineDashedMaterial"}
         />
       )}
 
-      {/* Optional Markers */}
-      {marker && interactivePoints &&
-        interactivePoints.map((point, index) => (
+      {/* Markers */}
+      {marker && markerPositions &&
+        markerPositions.map((point, index) => (
           <Dodecahedron
             key={`marker-${index}`}
+            position={point}
+            args={[marker.size]}
             ref={(el) => {
               markerRefs.current[index] = el;
             }}
-            position={point}
-            args={[marker.size]}
             onClick={(e) => {
               e.stopPropagation();
               setSelectedIndex(index);
             }}
           >
             <meshBasicMaterial
-              color={marker.color || color}
+              color={(isDrawing && !drawingIsValid) ? "#FF0000" : marker.color}
               opacity={marker.opacity}
               transparent={marker.opacity < 1}
             />
           </Dodecahedron>
         ))}
 
-      {/* Virtual Markers (midpoints between consecutive markers) */}
+      {/* Virtual Markers */}
       {data.virtual_marker && virtualMarkerPositions.map((position, index) => {
         const virtualMarker = data.virtual_marker!;
         return (
           <Dodecahedron
             key={`virtual-${index}`}
-            ref={(el) => {
-              virtualMarkerRefs.current[index] = el;
-            }}
             position={position}
             args={[virtualMarker.size]}
-            onClick={(e) => {
-              e.stopPropagation();
-              handleVirtualMarkerClick(index);
-            }}
+            onClick={() => handleVirtualMarkerClick(index)}
           >
             <meshBasicMaterial
-              color={virtualMarker.color || color}
+              color={virtualMarker.color}
               opacity={virtualMarker.opacity}
               transparent={virtualMarker.opacity < 1}
             />
@@ -277,36 +296,20 @@ export default function Curve({ data, geometryKey }: { data: CurveData; geometry
         );
       })}
 
-      {/* Pointer Position Marker */}
-      {isDrawing && drawingPointerPosition && (
+      {/* Drawing Marker */}
+      {isDrawing && drawingPointerPosition && marker && (
         <Dodecahedron
+          key={`virtual-drawing`}
           position={drawingPointerPosition}
-          args={[(marker?.size || 0.2) * 0.75]}
-          onClick={onDrawingPointerClick}
+          args={[marker.size]}
+          onClick={handleDrawingMarkerClick}
         >
           <meshBasicMaterial
-            color={drawingColor}
-            opacity={1.0}
-            transparent={false}
+            color={(isDrawing && !drawingIsValid) ? "#FF0000" : marker.color}
+            opacity={marker.opacity}
+            transparent={marker.opacity < 1}
           />
         </Dodecahedron>
-      )}
-
-      {/* Transform Controls for interactivity */}
-      {selectedMesh && (
-        <TransformControls
-          object={selectedMesh}
-          onChange={() => {
-            if (selectedIndex !== null && markerRefs.current[selectedIndex] && interactivePoints) {
-              const newPoints = [...interactivePoints];
-              newPoints[selectedIndex] =
-                markerRefs.current[selectedIndex]!.position.clone();
-              setInteractivePoints(newPoints);
-            }
-          }}
-          onMouseUp={handleMouseUp}
-          onPointerMissed={() => setSelectedIndex(null)}
-        />
       )}
     </group>
   );

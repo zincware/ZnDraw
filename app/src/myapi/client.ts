@@ -101,6 +101,7 @@ export const getGeometry = async (
 
 export const createGeometry = async (
   roomId: string,
+  clientId: string | null,
   key: string,
   geometryType: string,
   geometryData: Record<string, any>,
@@ -109,6 +110,7 @@ export const createGeometry = async (
     key,
     type: geometryType,
     data: geometryData,
+    clientId,
   });
   return data;
 };

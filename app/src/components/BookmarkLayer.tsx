@@ -36,7 +36,6 @@ const BookmarkLayer: React.FC<BookmarkLayerProps> = ({
     Object.keys(bookmarks).length === 0 ||
     containerWidth === 0
   ) {
-    console.log("Not rendering bookmark layer:", { bookmarks, containerWidth });
     return null;
   }
 
@@ -45,7 +44,6 @@ const BookmarkLayer: React.FC<BookmarkLayerProps> = ({
     label,
   }));
 
-  console.log("Rendering", bookmarkEntries.length, "bookmarks");
 
   return (
     <Box

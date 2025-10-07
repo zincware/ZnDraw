@@ -12,7 +12,7 @@ class CurveMarker(BaseModel):
         gt=0,
     )
     color: t.Optional[str] = Field(
-        default=None,
+        default="#000000",
         description="Color of the markers. If None, uses the curve color",
     )
     opacity: float = Field(
@@ -48,7 +48,7 @@ class Curve(BaseGeometry):
         ge=1,
     )
     thickness: float = Field(
-        default=1.0,
+        default=2.0,
         description="Thickness of the line (not implemented in Three.js LineBasicMaterial)",
         gt=0,
     )

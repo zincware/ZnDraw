@@ -29,10 +29,6 @@ const SelectionLayer: React.FC<SelectionLayerProps> = ({
   };
 
   if (!selectedFrames || selectedFrames.length === 0 || containerWidth === 0) {
-    console.log("Not rendering selection layer:", {
-      selectedFrames,
-      containerWidth,
-    });
     return null;
   }
 
