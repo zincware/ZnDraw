@@ -447,3 +447,74 @@ export const setDefaultRoom = async (
   return data;
 };
 
+// ==================== File Browser API ====================
+
+export interface FileItem {
+  name: string;
+  type: "file" | "directory";
+  size: number | null;
+  modified: string;
+  supported?: boolean;
+}
+
+export interface DirectoryListResponse {
+  current_path: string;
+  items: FileItem[];
+  parent: string | null;
+}
+
+export interface LoadFileRequest {
+  path: string;
+  room?: string;
+  start?: number;
+  stop?: number;
+  step?: number;
+  make_default?: boolean;
+}
+
+export interface LoadFileResponse {
+  status: string;
+  room: string;
+  message: string;
+  task_id: string;
+}
+
+export interface SupportedTypesResponse {
+  extensions: string[];
+  descriptions: Record<string, string>;
+}
+
+export interface FileBrowserConfig {
+  enabled: boolean;
+}
+
+export const listDirectory = async (
+  path?: string,
+): Promise<DirectoryListResponse> => {
+  const params = path ? `?path=${encodeURIComponent(path)}` : "";
+  const { data } = await apiClient.get(`/api/file-browser/list${params}`);
+  return data;
+};
+
+export const loadFile = async (
+  request: LoadFileRequest,
+): Promise<LoadFileResponse> => {
+  const { data } = await apiClient.post("/api/file-browser/load", request);
+  return data;
+};
+
+export const getSupportedTypes = async (): Promise<SupportedTypesResponse> => {
+  const { data } = await apiClient.get("/api/file-browser/supported-types");
+  return data;
+};
+
+export const getFileBrowserConfig = async (): Promise<FileBrowserConfig> => {
+  try {
+    // Try to list root directory to check if feature is enabled
+    await apiClient.get("/api/file-browser/list");
+    return { enabled: true };
+  } catch (error) {
+    return { enabled: false };
+  }
+};
+

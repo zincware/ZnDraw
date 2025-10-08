@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Box from "@mui/material/Box";
@@ -28,11 +28,13 @@ import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
 import StarIcon from "@mui/icons-material/Star";
 import StarBorderIcon from "@mui/icons-material/StarBorder";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
+import FolderOpenIcon from "@mui/icons-material/FolderOpen";
 import {
   listRooms,
   updateRoom,
   duplicateRoom,
   setDefaultRoom,
+  getFileBrowserConfig,
   Room,
 } from "../myapi/client";
 
@@ -65,7 +67,17 @@ export default function RoomListPage() {
     description: "",
     error: null,
   });
+  const [fileBrowserEnabled, setFileBrowserEnabled] = useState(false);
   const navigate = useNavigate();
+
+  // Check if file browser is enabled
+  useEffect(() => {
+    const checkFileBrowser = async () => {
+      const config = await getFileBrowserConfig();
+      setFileBrowserEnabled(config.enabled);
+    };
+    checkFileBrowser();
+  }, []);
 
   // Use React Query with placeholderData to prevent flickering
   const {
@@ -443,6 +455,15 @@ export default function RoomListPage() {
           >
             Create New Empty Room
           </Button>
+          {fileBrowserEnabled && (
+            <Button
+              variant="outlined"
+              startIcon={<FolderOpenIcon />}
+              onClick={() => navigate("/file-browser")}
+            >
+              Open File Browser
+            </Button>
+          )}
         </Box>
       </Box>
 

@@ -78,6 +78,16 @@ def main(
         "--browser/--no-browser",
         help="Automatically open the web browser.",
     ),
+    file_browser: bool = typer.Option(
+        False,
+        "--file-browser/--no-file-browser",
+        help="Enable local filesystem browser endpoint.",
+    ),
+    file_browser_root: str | None = typer.Option(
+        None,
+        "--file-browser-root",
+        help="Root directory for file browser (defaults to current working directory).",
+    ),
 ):
     """
     Start or connect to a ZnDraw server.
@@ -243,6 +253,8 @@ def main(
     flask_app = create_app(storage_path=storage_path, redis_url=redis_url)
     server_url = f"http://{host}:{port}"
     flask_app.config["SERVER_URL"] = server_url
+    flask_app.config["FILE_BROWSER_ENABLED"] = file_browser
+    flask_app.config["FILE_BROWSER_ROOT"] = file_browser_root or os.getcwd()
 
     # Track the first room for browser opening
     first_room = None

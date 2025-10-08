@@ -45,8 +45,10 @@ def create_app(
 
     from zndraw.app import main as main_blueprint
     from zndraw.app import tasks  # noqa: F401
+    from zndraw.app.file_browser import file_browser as file_browser_blueprint
 
     app.register_blueprint(main_blueprint)
+    app.register_blueprint(file_browser_blueprint)
 
     # Store configuration
     app.config["STORAGE_PATH"] = storage_path

@@ -24,6 +24,7 @@ import StarIcon from "@mui/icons-material/Star";
 import StarBorderIcon from "@mui/icons-material/StarBorder";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import ListIcon from "@mui/icons-material/List";
+import FolderOpenIcon from "@mui/icons-material/FolderOpen";
 import {
   getRoom,
   updateRoom,
@@ -32,6 +33,7 @@ import {
   getDefaultRoom,
   listRooms,
   RoomDetail,
+  getFileBrowserConfig,
 } from "../myapi/client";
 
 interface DuplicateFormState {
@@ -54,6 +56,7 @@ export default function RoomManagementMenu() {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [roomDetail, setRoomDetail] = useState<RoomDetail | null>(null);
   const [isDefault, setIsDefault] = useState(false);
+  const [fileBrowserEnabled, setFileBrowserEnabled] = useState(false);
   const [duplicateDialog, setDuplicateDialog] = useState(false);
   const [duplicateForm, setDuplicateForm] = useState<DuplicateFormState>({
     newRoomId: "",
@@ -82,6 +85,15 @@ export default function RoomManagementMenu() {
       }
     }
   }, [roomId, rooms]);
+
+  // Check if file browser is enabled
+  useEffect(() => {
+    const checkFileBrowser = async () => {
+      const config = await getFileBrowserConfig();
+      setFileBrowserEnabled(config.enabled);
+    };
+    checkFileBrowser();
+  }, []);
 
   const menuOpen = Boolean(anchorEl);
 
@@ -221,6 +233,11 @@ export default function RoomManagementMenu() {
     handleCloseMenu();
   };
 
+  const handleGoToFileBrowser = () => {
+    navigate("/file-browser");
+    handleCloseMenu();
+  };
+
   if (!roomId) {
     return null;
   }
@@ -316,6 +333,15 @@ export default function RoomManagementMenu() {
           </ListItemIcon>
           <ListItemText>Go to Room List</ListItemText>
         </MenuItem>
+
+        {fileBrowserEnabled && (
+          <MenuItem onClick={handleGoToFileBrowser}>
+            <ListItemIcon>
+              <FolderOpenIcon />
+            </ListItemIcon>
+            <ListItemText>Open File Browser</ListItemText>
+          </MenuItem>
+        )}
       </Menu>
 
       {/* Duplicate Dialog */}
