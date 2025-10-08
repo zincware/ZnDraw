@@ -51,7 +51,10 @@ class Properties1D(Analysis):
     @classmethod
     def model_json_schema(cls, **kwargs: t.Any) -> dict[str, t.Any]:
         schema = super().model_json_schema(**kwargs)
-        schema["properties"]["value"]["x-dynamic-enum"] = "AVAILABLE_ATOMS_KEYS"
+        schema["properties"]["value"]["x-custom-type"] = "dynamic-enum"
+        schema["properties"]["value"]["x-features"] = ["dynamic-atom-props"]
+        schema["properties"]["value"]["type"] = "string"
+        schema["properties"]["value"].pop("anyOf", None)
         return schema
 
     def run(self, vis: "ZnDraw") -> None:

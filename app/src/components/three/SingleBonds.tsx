@@ -86,12 +86,13 @@ export default function Bonds({ data, geometryKey }: { data: BondData; geometryK
   const queryDataDeps = useMemo(() => queryResults.map(q => q.data?.data), [queryResults]);
 
   const { processedData, isFetching } = useMemo(() => {
-    const isQueryFetching = queryResults.some((q) => q.isFetching || q.isPlaceholderData);
-    if (keysToFetch.length > 0 && !queryResults.every((q) => q.isSuccess)) {
-      return { isFetching: isQueryFetching, processedData: null };
-    }
+    try {
+      const isQueryFetching = queryResults.some((q) => q.isFetching || q.isPlaceholderData);
+      if (keysToFetch.length > 0 && !queryResults.every((q) => q.isSuccess)) {
+        return { isFetching: isQueryFetching, processedData: null };
+      }
 
-    const fetchedMap = new Map(queryResults.map((r, i) => [keysToFetch[i], r.data?.data]));
+      const fetchedMap = new Map(queryResults.map((r, i) => [keysToFetch[i], r.data?.data]));
 
     let atomCount = 0;
     let finalPositions: number[] | Float32Array | Float64Array = [];
@@ -182,7 +183,11 @@ export default function Bonds({ data, geometryKey }: { data: BondData; geometryK
       instances.push({ matrix: localMatrixB, color: colorTempB.clone() });
     }
 
-    return { isFetching: isQueryFetching, processedData: { instances } };
+      return { isFetching: isQueryFetching, processedData: { instances } };
+    } catch (error) {
+      console.error("Error processing Bonds geometry data:", error);
+      return { isFetching: false, processedData: null };
+    }
     // FIX 3: Use the new stable dependency array.
   }, [keysToFetch, positionProp, colorProp, radiusProp, connectivityProp, bondScale, ...queryDataDeps]);
 
@@ -200,19 +205,33 @@ export default function Bonds({ data, geometryKey }: { data: BondData; geometryK
   }, [bondResolution]);
 
   useEffect(() => {
-    if (!mainMeshRef.current || !dataToRender) return;
-    const mesh = mainMeshRef.current;
-    const { instances } = dataToRender;
-    // The number of instances is now double the number of bonds
-    if (mesh.count !== instances.length) {
-      mesh.count = instances.length;
+    try {
+      if (!mainMeshRef.current || !dataToRender) return;
+      const mesh = mainMeshRef.current;
+      const { instances } = dataToRender;
+
+      if (!instances || !Array.isArray(instances)) {
+        console.error("Bond instances data is invalid");
+        return;
+      }
+
+      // The number of instances is now double the number of bonds
+      if (mesh.count !== instances.length) {
+        mesh.count = instances.length;
+      }
+      for (let i = 0; i < instances.length; i++) {
+        if (!instances[i]?.matrix || !instances[i]?.color) {
+          console.error(`Bond instance ${i} has invalid data`);
+          continue;
+        }
+        mesh.setMatrixAt(i, instances[i].matrix);
+        mesh.setColorAt(i, instances[i].color);
+      }
+      mesh.instanceMatrix.needsUpdate = true;
+      if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+    } catch (error) {
+      console.error("Error rendering Bond instances:", error);
     }
-    for (let i = 0; i < instances.length; i++) {
-      mesh.setMatrixAt(i, instances[i].matrix);
-      mesh.setColorAt(i, instances[i].color);
-    }
-    mesh.instanceMatrix.needsUpdate = true;
-    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
   }, [dataToRender]);
   
   // Hover/Selection logic may need adjustment if you want to select the whole bond (2 instances)

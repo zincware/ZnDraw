@@ -8,6 +8,9 @@ import CustomRangeSlider, {
 import CustomDynamicEnumWithColorPicker, {
   customDynamicEnumWithColorPickerTester,
 } from "../components/jsonforms-renderers/CustomDynamicEnumWithColorPicker";
+import DynamicEnumRenderer, {
+  dynamicEnumTester,
+} from "../components/jsonforms-renderers/DynamicEnumRenderer";
 import { FrameMetadata } from "../myapi/client";
 
 /**
@@ -16,10 +19,11 @@ import { FrameMetadata } from "../myapi/client";
  */
 export const customRenderers = [
   ...materialRenderers,
+  { tester: dynamicEnumTester, renderer: DynamicEnumRenderer }, // Priority 10 - New unified renderer
   {
     tester: customDynamicEnumWithColorPickerTester,
     renderer: CustomDynamicEnumWithColorPicker,
-  }, // Priority 10
+  }, // Priority 10 - Legacy renderer (will be removed)
   { tester: customColorPickerTester, renderer: CustomColorPicker }, // Priority 5
   { tester: customRangeSliderTester, renderer: CustomRangeSlider },
 ];
@@ -39,12 +43,15 @@ export const injectDynamicEnums = (
 
   const traverse = (obj: any) => {
     if (obj && typeof obj === "object") {
-      // Check if the current object has our custom dynamic enum property
-      if (obj["x-dynamic-enum"] === "AVAILABLE_ATOMS_KEYS" && metadata?.keys) {
+      // NEW PATTERN: Check for x-custom-type="dynamic-enum" with "dynamic-atom-props" feature
+      if (
+        obj["x-custom-type"] === "dynamic-enum" &&
+        Array.isArray(obj["x-features"]) &&
+        obj["x-features"].includes("dynamic-atom-props") &&
+        metadata?.keys
+      ) {
         // Inject the keys from the metadata as enum values
         obj.enum = metadata.keys;
-        // IMPORTANT: Preserve x-dynamic-enum and x-color-picker markers
-        // They are needed by the custom renderer tester
       }
 
       // Continue traversing through the object's properties and array items

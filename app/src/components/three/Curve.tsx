@@ -76,6 +76,10 @@ export default function Curve({ data, geometryKey }: { data: CurveData; geometry
       }
     } else {
       const manualPoints = positionProp as number[][];
+      if (manualPoints === undefined) {
+        console.error("Manual points are undefined");
+        return;
+      }
       const vecPoints = manualPoints.map(p => new THREE.Vector3(p[0], p[1], p[2]));
       setMarkerPositions(vecPoints);
       setLastUpdateSource('remote');
@@ -85,6 +89,7 @@ export default function Curve({ data, geometryKey }: { data: CurveData; geometry
 
   useEffect(() => {
     const allPoints: THREE.Vector3[] = [...markerPositions];
+    if (!data) return;
     if (drawingPointerPosition !== null && isDrawing) {
       allPoints.push(drawingPointerPosition);
     }
@@ -231,6 +236,7 @@ export default function Curve({ data, geometryKey }: { data: CurveData; geometry
   }, [selectedIndex]);
 
   if (!roomId) return null;
+  if (!marker) return null;
 
   // --- Render ---
   return (

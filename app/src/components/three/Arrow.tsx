@@ -12,7 +12,7 @@ type StaticValue = number | number[] | number[][];
 type DataProp = string | StaticValue;
 
 interface ArrowProps {
-  start: DataProp;
+  position: DataProp;
   direction: DataProp;
   color: DataProp;
   radius: DataProp;
@@ -60,7 +60,7 @@ function createArrowMesh() {
 }
 
 export default function Arrow({
-  start,
+  position,
   direction,
   color,
   radius,
@@ -77,7 +77,7 @@ export default function Arrow({
   }, [selection]);
 
   const { dynamicKeys, staticValues } = useMemo(() => {
-    const props = { start, direction, color, radius, scale };
+    const props = { position, direction, color, radius, scale };
     const dynamicKeys: { [key: string]: string } = {};
     const staticValues: { [key: string]: StaticValue } = {};
 
@@ -89,8 +89,10 @@ export default function Arrow({
         staticValues[key] = value;
       }
     }
+    console.log("Dynamic Keys:", dynamicKeys);
+    console.log("Static Values:", staticValues);
     return { dynamicKeys, staticValues };
-  }, [start, direction, color, radius, scale]);
+  }, [position, direction, color, radius, scale]);
 
   const requiredKeys = Object.values(dynamicKeys);
 
@@ -107,24 +109,25 @@ export default function Arrow({
 
   // REWRITTEN: The data combination logic
   const { frameData, isFetching } = useMemo(() => {
-    const isFetching = queryResults.some(
-      (result) => result.isFetching || result.isPlaceholderData,
-    );
+    try {
+      const isFetching = queryResults.some(
+        (result) => result.isFetching || result.isPlaceholderData,
+      );
 
-    // 1. Get fetched data
-    const fetchedData: { [key: string]: any[] } = {};
-    const propToKeyMap = Object.entries(dynamicKeys);
-    for (let i = 0; i < requiredKeys.length; i++) {
-      const key = requiredKeys[i];
-      const result = queryResults[i];
-      if (result?.data?.data) {
-        // Find which prop this key belongs to (e.g., "arrays.positions" -> "start")
-        const propName = propToKeyMap.find(([prop, k]) => k === key)?.[0];
-        if (propName) {
-          fetchedData[propName] = result.data.data;
+      // 1. Get fetched data
+      const fetchedData: { [key: string]: any[] } = {};
+      const propToKeyMap = Object.entries(dynamicKeys);
+      for (let i = 0; i < requiredKeys.length; i++) {
+        const key = requiredKeys[i];
+        const result = queryResults[i];
+        if (result?.data?.data) {
+          // Find which prop this key belongs to (e.g., "arrays.positions" -> "position")
+          const propName = propToKeyMap.find(([prop, k]) => k === key)?.[0];
+          if (propName) {
+            fetchedData[propName] = result.data.data;
+          }
         }
       }
-    }
 
     // 2. Determine the instance count
     let count = 0;
@@ -132,9 +135,9 @@ export default function Arrow({
     if (firstFetchedProp) {
       // Count from dynamic data (assuming 3 components per instance e.g. [x,y,z,x,y,z...])
       count = firstFetchedProp.length / 3;
-    } else if (staticValues.start && Array.isArray(staticValues.start[0])) {
-      // Count from static 'start' array
-      count = staticValues.start.length;
+    } else if (staticValues.position && Array.isArray(staticValues.position[0])) {
+      // Count from static 'position' array
+      count = staticValues.position.length;
     } else if (
       staticValues.direction &&
       Array.isArray(staticValues.direction[0])
@@ -146,7 +149,7 @@ export default function Arrow({
 
     // 3. Combine fetched and static data into a final structure
     const combinedData: { [key: string]: any } = { count };
-    const allPropNames = ["start", "direction", "color", "radius", "scale"];
+    const allPropNames = ["position", "direction", "color", "radius", "scale"];
 
     for (const prop of allPropNames) {
       if (fetchedData[prop]) {
@@ -178,17 +181,21 @@ export default function Arrow({
         return { isFetching, frameData: null };
       }
     }
-    // Rename 'start' to 'startKey' etc. to match useFrame expectations
-    const finalFrameData = {
-      ["startKey"]: combinedData.start,
-      ["directionKey"]: combinedData.direction,
-      ["colorKey"]: combinedData.color,
-      ["radiusKey"]: combinedData.radius,
-      ["scaleKey"]: combinedData.scale,
-      count: combinedData.count,
-    };
+      // Rename 'position' to 'positionKey' etc. to match useFrame expectations
+      const finalFrameData = {
+        ["positionKey"]: combinedData.position,
+        ["directionKey"]: combinedData.direction,
+        ["colorKey"]: combinedData.color,
+        ["radiusKey"]: combinedData.radius,
+        ["scaleKey"]: combinedData.scale,
+        count: combinedData.count,
+      };
 
-    return { isFetching, frameData: finalFrameData };
+      return { isFetching, frameData: finalFrameData };
+    } catch (error) {
+      console.error("Error processing Arrow geometry data:", error);
+      return { isFetching: false, frameData: null };
+    }
   }, [queryResults, staticValues, dynamicKeys, requiredKeys]);
 
   const dataToRender = frameData || lastGoodFrameData.current;
@@ -196,25 +203,39 @@ export default function Arrow({
   const geometry = useMemo(createArrowMesh, []);
 
   useFrame(() => {
-    if (!instancedMeshRef.current || !dataToRender || isFetching) {
-      return;
-    }
+    try {
+      if (!instancedMeshRef.current || !dataToRender || isFetching) {
+        return;
+      }
 
-    const mesh = instancedMeshRef.current;
+      const mesh = instancedMeshRef.current;
 
-    const positions = dataToRender["startKey"];
-    const directions = dataToRender["directionKey"];
-    const colors = dataToRender["colorKey"];
-    const radii = dataToRender["radiusKey"];
-    const scales = dataToRender["scaleKey"];
-    const { count } = dataToRender;
+      const positions = dataToRender["positionKey"];
+      const directions = dataToRender["directionKey"];
+      const colors = dataToRender["colorKey"];
+      const radii = dataToRender["radiusKey"];
+      const scales = dataToRender["scaleKey"];
+      const { count } = dataToRender;
 
-    // MODIFICATION: Ensure directions data is also present
-    if (!positions || !directions || !colors || !radii || !scales || !count) {
-      return;
-    }
-    console.log("Rendering", count, "arrows.");
-    for (let i = 0; i < count; i++) {
+      // MODIFICATION: Ensure directions data is also present
+      if (!positions || !directions || !colors || !radii || !scales || !count) {
+        return;
+      }
+
+      // Validate array lengths
+      if (
+        positions.length < count * 3 ||
+        directions.length < count * 3 ||
+        colors.length < count * 3 ||
+        radii.length < count ||
+        scales.length < count
+      ) {
+        console.error("Arrow data arrays have invalid lengths");
+        return;
+      }
+
+      console.log("Rendering", count, "arrows.");
+      for (let i = 0; i < count; i++) {
       const i3 = i * 3;
 
       // Set the starting position of the arrow
@@ -260,9 +281,12 @@ export default function Arrow({
       mesh.setColorAt(i, _color);
     }
 
-    mesh.instanceMatrix.needsUpdate = true;
-    if (mesh.instanceColor) {
-      mesh.instanceColor.needsUpdate = true;
+      mesh.instanceMatrix.needsUpdate = true;
+      if (mesh.instanceColor) {
+        mesh.instanceColor.needsUpdate = true;
+      }
+    } catch (error) {
+      console.error("Error rendering Arrow instances:", error);
     }
   });
 

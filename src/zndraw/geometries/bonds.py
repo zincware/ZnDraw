@@ -12,34 +12,32 @@ class Bond(BaseGeometry):
     @classmethod
     def model_json_schema(cls, **kwargs: t.Any) -> dict[str, t.Any]:
         schema = super().model_json_schema(**kwargs)
-        schema["properties"]["position"]["x-dynamic-enum"] = "AVAILABLE_ATOMS_KEYS"
+        schema["properties"]["position"]["x-custom-type"] = "dynamic-enum"
+        schema["properties"]["position"]["x-features"] = ["dynamic-atom-props"]
         schema["properties"]["position"]["type"] = "string"
         schema["properties"]["position"].pop("anyOf", None)
 
-        schema["properties"]["connectivity"]["x-dynamic-enum"] = "AVAILABLE_ATOMS_KEYS"
+        schema["properties"]["connectivity"]["x-custom-type"] = "dynamic-enum"
+        schema["properties"]["connectivity"]["x-features"] = ["dynamic-atom-props"]
         schema["properties"]["connectivity"]["type"] = "string"
         schema["properties"]["connectivity"].pop("anyOf", None)
 
-        schema["properties"]["color"]["x-dynamic-enum"] = "AVAILABLE_ATOMS_KEYS"
+        schema["properties"]["color"]["x-custom-type"] = "dynamic-enum"
         schema["properties"]["color"]["type"] = "string"
-        schema["properties"]["color"]["x-color-picker"] = True
+        schema["properties"]["color"]["x-features"] = ["color-picker", "dynamic-atom-props", "free-solo"]
         schema["properties"]["color"].pop("anyOf", None)
 
-        schema["properties"]["radius"]["x-dynamic-enum"] = "AVAILABLE_ATOMS_KEYS"
-        schema["properties"]["radius"]["type"] = "string"
-        schema["properties"]["radius"].pop("anyOf", None)
-        
         schema["$defs"]["InteractionSettings"]["properties"]["color"][
-            "x-color-picker"
-        ] = True
+            "x-custom-type"
+        ] = "dynamic-enum"
         schema["$defs"]["InteractionSettings"]["properties"]["color"][
-            "x-dynamic-enum"
-        ] = "AVAILABLE_ATOMS_KEYS"
+            "x-features"
+        ] = ["color-picker", "dynamic-atom-props", "free-solo"]
         return schema
 
-    radius: DataProp = Field(
-        default="arrays.radii",
-        description="Bond radius. String for dynamic data key, float for static value.",
+    radius: float = Field(
+        default=1,
+        description="Bond radius.",
     )
 
     resolution: int = Field(

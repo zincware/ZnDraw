@@ -89,7 +89,7 @@ function MyScene() {
               <Arrow
                 key={name}
                 geometryKey={name}
-                start={config.data.start}
+                position={config.data.position}
                 direction={config.data.direction}
                 color={config.data.color}
                 radius={config.data.radius}

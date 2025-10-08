@@ -31,7 +31,7 @@ export const getFrameDataOptions = (
       const singleFrameData = decodedData[0];
 
       const keyData = singleFrameData[key];
-      console.log(`Data for key "${key}" at frame ${frameIndex}:`, keyData);
+      // console.log(`Data for key "${key}" at frame ${frameIndex}:`, keyData);
       if (!keyData) {
         console.warn(
           `Data for key "${key}" not found in response for frame ${frameIndex}`,

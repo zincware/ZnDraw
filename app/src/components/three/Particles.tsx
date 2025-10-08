@@ -80,14 +80,15 @@ export default function Sphere({ data, geometryKey }: { data: SphereData; geomet
 
   // Process fetched + local data into consistent format
   const { processedData, isFetching } = useMemo(() => {
-    const isQueryFetching = queryResults.some((r) => r.isFetching || r.isPlaceholderData);
-    const allSucceeded = queryResults.every((r) => r.isSuccess);
+    try {
+      const isQueryFetching = queryResults.some((r) => r.isFetching || r.isPlaceholderData);
+      const allSucceeded = queryResults.every((r) => r.isSuccess);
 
-    if (keysToFetch.length > 0 && !allSucceeded) {
-      return { isFetching: isQueryFetching, processedData: null };
-    }
+      if (keysToFetch.length > 0 && !allSucceeded) {
+        return { isFetching: isQueryFetching, processedData: null };
+      }
 
-    const fetchedMap = new Map(queryResults.map((r, i) => [keysToFetch[i], r.data?.data]));
+      const fetchedMap = new Map(queryResults.map((r, i) => [keysToFetch[i], r.data?.data]));
 
     let count = 0;
     let finalPositions: number[] = [];
@@ -147,10 +148,14 @@ export default function Sphere({ data, geometryKey }: { data: SphereData; geomet
       return { isFetching: isQueryFetching, processedData: null };
     }
 
-    return {
-      isFetching: isQueryFetching,
-      processedData: { positions: finalPositions, colors: finalColors, radii: finalRadii, count },
-    };
+      return {
+        isFetching: isQueryFetching,
+        processedData: { positions: finalPositions, colors: finalColors, radii: finalRadii, count },
+      };
+    } catch (error) {
+      console.error("Error processing Sphere/Particles geometry data:", error);
+      return { isFetching: false, processedData: null };
+    }
   }, [queryResults, keysToFetch, positionProp, colorProp, radiusProp]);
 
   const dataToRender = processedData || lastGoodFrameData.current;
@@ -158,12 +163,21 @@ export default function Sphere({ data, geometryKey }: { data: SphereData; geomet
 
   // ⚡ Update geometry only when data changes
   useEffect(() => {
-    if (!mainMeshRef.current || !dataToRender) return;
+    try {
+      if (!mainMeshRef.current || !dataToRender) return;
 
-    const mainMesh = mainMeshRef.current;
-    const { positions, colors, radii, count } = dataToRender;
-    console.log("Rendering", count, "particles.");
-    for (let i = 0; i < count; i++) {
+      const mainMesh = mainMeshRef.current;
+      const { positions, colors, radii, count } = dataToRender;
+
+      // Validate data
+      if (!positions || !colors || !radii || !count) return;
+      if (positions.length < count * 3 || colors.length < count * 3 || radii.length < count) {
+        console.error("Sphere data arrays have invalid lengths");
+        return;
+      }
+
+      console.log("Rendering", count, "particles.");
+      for (let i = 0; i < count; i++) {
       const i3 = i * 3;
       positionVec.set(positions[i3], positions[i3 + 1], positions[i3 + 2]);
       const r = radii[i] * particleScale;
@@ -174,19 +188,25 @@ export default function Sphere({ data, geometryKey }: { data: SphereData; geomet
       mainMesh.setColorAt(i, tempColor);
     }
 
-    mainMesh.count = count;
-    mainMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-    mainMesh.instanceMatrix.needsUpdate = true;
-    if (mainMesh.instanceColor) mainMesh.instanceColor.needsUpdate = true;
+      mainMesh.count = count;
+      mainMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+      mainMesh.instanceMatrix.needsUpdate = true;
+      if (mainMesh.instanceColor) mainMesh.instanceColor.needsUpdate = true;
+    } catch (error) {
+      console.error("Error rendering Sphere/Particles instances:", error);
+    }
   }, [dataToRender, particleScale]);
 
   useEffect(() => {
-    if (!selectionMeshRef.current || !dataToRender || !selecting.enabled) return;
+    try {
+      if (!selectionMeshRef.current || !dataToRender || !selecting.enabled) return;
 
-    const selectionMesh = selectionMeshRef.current;
-    const { positions, radii, count } = dataToRender;
+      const selectionMesh = selectionMeshRef.current;
+      const { positions, radii, count } = dataToRender;
 
-    selectedIndices.forEach((id, index) => {
+      if (!positions || !radii || !count) return;
+
+      selectedIndices.forEach((id, index) => {
       if (id >= count) return;
       const i3 = id * 3;
       positionVec.set(positions[i3], positions[i3 + 1], positions[i3 + 2]);
@@ -196,9 +216,11 @@ export default function Sphere({ data, geometryKey }: { data: SphereData; geomet
       selectionMesh.setMatrixAt(index, matrix);
     });
 
-    selectionMesh.count = selectedIndices.length;
-    selectionMesh.instanceMatrix.needsUpdate = true;
-
+      selectionMesh.count = selectedIndices.length;
+      selectionMesh.instanceMatrix.needsUpdate = true;
+    } catch (error) {
+      console.error("Error updating selection mesh:", error);
+    }
   }, [selectedIndices, dataToRender, particleScale, selecting]);
 
   useEffect(() => {

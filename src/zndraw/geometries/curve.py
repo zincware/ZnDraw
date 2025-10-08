@@ -33,21 +33,22 @@ class Curve(BaseGeometry):
     @classmethod
     def model_json_schema(cls, **kwargs: t.Any) -> dict[str, t.Any]:
         schema = super().model_json_schema(**kwargs)
-        schema["properties"]["position"]["x-dynamic-enum"] = "AVAILABLE_ATOMS_KEYS"
+        schema["properties"]["position"]["x-custom-type"] = "dynamic-enum"
+        schema["properties"]["position"]["x-features"] = ["dynamic-atom-props"]
         schema["properties"]["position"]["type"] = "string"
         schema["properties"]["position"].pop("anyOf", None)
 
-        schema["properties"]["color"]["x-dynamic-enum"] = "AVAILABLE_ATOMS_KEYS"
+        schema["properties"]["color"]["x-custom-type"] = "dynamic-enum"
+        schema["properties"]["color"]["x-features"] = ["color-picker", "dynamic-atom-props", "free-solo"]
         schema["properties"]["color"]["type"] = "string"
-        schema["properties"]["color"]["x-color-picker"] = True
         schema["properties"]["color"].pop("anyOf", None)
         
         schema["$defs"]["CurveMarker"]["properties"]["color"][
-            "x-color-picker"
-        ] = True
+            "x-custom-type"
+        ] = "dynamic-enum"
         schema["$defs"]["CurveMarker"]["properties"]["color"][
-            "x-dynamic-enum"
-        ] = "AVAILABLE_ATOMS_KEYS"
+            "x-features"
+        ] = ["color-picker", "dynamic-atom-props", "free-solo"]
         return schema
 
     position: DataProp = Field(
