@@ -23,6 +23,7 @@ interface AppState {
   isDrawing: boolean;
   drawingPointerPosition: THREE.Vector3 | null; // 3D position of mouse cursor for drawing
   drawingIsValid: boolean; // Whether the drawing position is valid (over geometry)
+  metadataLock: boolean; // Whether the room has a metadata lock (vis.lock - yellow)
 
   // Actions (functions to modify the state)
   setRoomId: (roomId: string) => void;
@@ -45,6 +46,7 @@ interface AppState {
   setDrawingPointerPosition: (position: THREE.Vector3 | null) => void;
   updateSelection: (id: number, isShiftPressed: boolean) => void;
   setDrawingIsValid: (isValid: boolean) => void;
+  setMetadataLock: (locked: boolean) => void;
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -68,6 +70,7 @@ export const useAppStore = create<AppState>((set) => ({
   isDrawing: false,
   drawingPointerPosition: null,
   drawingIsValid: false,
+  metadataLock: false,
   // Actions
   setConnected: (status) => set({ isConnected: status }),
   setRoomId: (roomId) => set({ roomId }),
@@ -96,6 +99,7 @@ export const useAppStore = create<AppState>((set) => ({
   setIsDrawing: (isDrawing) => set({ isDrawing: isDrawing }),
   setDrawingPointerPosition: (position) => set({ drawingPointerPosition: position }),
   setDrawingIsValid: (isValid) => set({ drawingIsValid: isValid }),
+  setMetadataLock: (locked) => set({ metadataLock: locked }),
 
   updateSelection: (id, isShiftPressed) =>
     set((state) => {

@@ -3,55 +3,48 @@ import { useNavigate } from "react-router-dom";
 import Box from "@mui/material/Box";
 import Container from "@mui/material/Container";
 import Typography from "@mui/material/Typography";
-import Table from "@mui/material/Table";
-import TableBody from "@mui/material/TableBody";
-import TableCell from "@mui/material/TableCell";
-import TableContainer from "@mui/material/TableContainer";
-import TableHead from "@mui/material/TableHead";
-import TableRow from "@mui/material/TableRow";
-import Paper from "@mui/material/Paper";
-import Button from "@mui/material/Button";
 import CircularProgress from "@mui/material/CircularProgress";
 import Alert from "@mui/material/Alert";
-import { listTemplates } from "../myapi/client";
+import { listRooms, getDefaultRoom } from "../myapi/client";
 
-interface Template {
-  id: string;
-  name: string;
-  description: string;
-}
-
+/**
+ * StartupPage implements the new startup logic:
+ * - No rooms: Navigate to empty template
+ * - One room: Navigate to that room
+ * - Multiple rooms with default: Navigate to default room
+ * - Multiple rooms without default: Show room list
+ */
 export default function TemplateSelectionPage() {
-  const [templates, setTemplates] = useState<Template[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
-    const fetchTemplates = async () => {
+    const determineStartupNavigation = async () => {
       try {
-        const data = await listTemplates();
+        const rooms = await listRooms();
 
-        // Filter out "empty" template for decision logic
-        const nonEmptyTemplates = data.filter(
-          (t: Template) => t.id !== "empty",
-        );
-
-        if (nonEmptyTemplates.length === 0) {
-          // Only "empty" template exists, auto-forward to empty room
+        if (rooms.length === 0) {
+          // No rooms - create empty template
           const roomUuid = crypto.randomUUID();
           const userUuid = crypto.randomUUID();
           navigate(`/rooms/${roomUuid}/${userUuid}?template=empty`);
-        } else if (nonEmptyTemplates.length === 1) {
-          // Only one non-empty template exists, auto-forward to it
-          const roomUuid = crypto.randomUUID();
+        } else if (rooms.length === 1) {
+          // One room - navigate to it
           const userUuid = crypto.randomUUID();
-          navigate(
-            `/rooms/${roomUuid}/${userUuid}?template=${nonEmptyTemplates[0].id}`,
-          );
+          navigate(`/rooms/${rooms[0].id}/${userUuid}`);
         } else {
-          // Multiple non-empty templates, show selection table
-          setTemplates(data);
+          // Multiple rooms - check for default
+          const { roomId: defaultRoomId } = await getDefaultRoom();
+          
+          if (defaultRoomId) {
+            // Navigate to default room
+            const userUuid = crypto.randomUUID();
+            navigate(`/rooms/${defaultRoomId}/${userUuid}`);
+          } else {
+            // No default - show room list
+            navigate("/rooms");
+          }
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : "Unknown error");
@@ -60,14 +53,8 @@ export default function TemplateSelectionPage() {
       }
     };
 
-    fetchTemplates();
+    determineStartupNavigation();
   }, [navigate]);
-
-  const handleJoinTemplate = (templateId: string) => {
-    const roomUuid = crypto.randomUUID();
-    const userUuid = crypto.randomUUID();
-    navigate(`/rooms/${roomUuid}/${userUuid}?template=${templateId}`);
-  };
 
   if (loading) {
     return (
@@ -81,6 +68,9 @@ export default function TemplateSelectionPage() {
           }}
         >
           <CircularProgress />
+          <Typography variant="body1" sx={{ ml: 2 }}>
+            Loading rooms...
+          </Typography>
         </Box>
       </Container>
     );
@@ -90,56 +80,22 @@ export default function TemplateSelectionPage() {
     return (
       <Container maxWidth="md">
         <Box sx={{ mt: 4 }}>
-          <Alert severity="error">{error}</Alert>
+          <Alert severity="error">
+            Failed to load rooms: {error}
+          </Alert>
         </Box>
       </Container>
     );
   }
 
+  // This component only handles navigation logic, so if we reach here
+  // something went wrong with the navigation
   return (
     <Container maxWidth="md">
-      <Box sx={{ mt: 4, mb: 4 }}>
-        <Typography variant="h3" component="h1" gutterBottom>
-          Welcome to Collaborative Viewer
-        </Typography>
-        <Typography variant="subtitle1" color="text.secondary" gutterBottom>
-          Select a template to create a new room
-        </Typography>
-
-        <TableContainer component={Paper} sx={{ mt: 3 }}>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell>
-                  <strong>Name</strong>
-                </TableCell>
-                <TableCell>
-                  <strong>Description</strong>
-                </TableCell>
-                <TableCell align="right">
-                  <strong>Action</strong>
-                </TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {templates.map((template) => (
-                <TableRow key={template.id} hover>
-                  <TableCell>{template.name}</TableCell>
-                  <TableCell>{template.description}</TableCell>
-                  <TableCell align="right">
-                    <Button
-                      variant="contained"
-                      color="primary"
-                      onClick={() => handleJoinTemplate(template.id)}
-                    >
-                      Join
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
+      <Box sx={{ mt: 4 }}>
+        <Alert severity="warning">
+          Navigation logic did not redirect properly. Please refresh the page.
+        </Alert>
       </Box>
     </Container>
   );

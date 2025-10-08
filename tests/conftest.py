@@ -15,6 +15,13 @@ import znh5md
 
 from zndraw.start_celery import run_celery_worker
 
+@pytest.fixture
+def redis_client():
+    """Create a Redis client and clean up after test."""
+    client = redis.Redis(host="localhost", port=6379, decode_responses=True)
+    yield client
+    client.flushall()
+
 
 @pytest.fixture
 def server(tmp_path) -> t.Generator[str, None, None]:

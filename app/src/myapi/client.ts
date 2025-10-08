@@ -346,3 +346,87 @@ export const getChatMessages = async (
   return data;
 };
 
+// ==================== Room Management API ====================
+
+export interface Room {
+  id: string;
+  description?: string | null;
+  frameCount: number;
+  locked: boolean;
+  metadataLocked?: boolean;
+  hidden: boolean;
+  isDefault?: boolean;
+}
+
+export interface RoomDetail {
+  id: string;
+  description?: string | null;
+  frameCount: number;
+  locked: boolean;
+  metadataLocked?: boolean;
+  hidden: boolean;
+  isDefault?: boolean;
+}
+
+export interface RoomUpdateRequest {
+  description?: string | null;
+  locked?: boolean;
+  hidden?: boolean;
+}
+
+export interface DuplicateRoomRequest {
+  newRoomId?: string;
+  description?: string;
+}
+
+export interface DuplicateRoomResponse {
+  status: string;
+  roomId: string;
+  frameCount: number;
+}
+
+export interface DefaultRoomResponse {
+  roomId: string | null;
+}
+
+export const listRooms = async (): Promise<Room[]> => {
+  const { data } = await apiClient.get("/api/rooms");
+  return data;
+};
+
+export const getRoom = async (roomId: string): Promise<RoomDetail> => {
+  const { data } = await apiClient.get(`/api/rooms/${roomId}`);
+  return data;
+};
+
+export const updateRoom = async (
+  roomId: string,
+  updates: RoomUpdateRequest,
+): Promise<{ status: string }> => {
+  const { data } = await apiClient.patch(`/api/rooms/${roomId}`, updates);
+  return data;
+};
+
+export const duplicateRoom = async (
+  roomId: string,
+  request: DuplicateRoomRequest = {},
+): Promise<DuplicateRoomResponse> => {
+  const { data } = await apiClient.post(
+    `/api/rooms/${roomId}/duplicate`,
+    request,
+  );
+  return data;
+};
+
+export const getDefaultRoom = async (): Promise<DefaultRoomResponse> => {
+  const { data } = await apiClient.get("/api/rooms/default");
+  return data;
+};
+
+export const setDefaultRoom = async (
+  roomId: string | null,
+): Promise<{ status: string }> => {
+  const { data } = await apiClient.put("/api/rooms/default", { roomId });
+  return data;
+};
+

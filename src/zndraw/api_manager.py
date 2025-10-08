@@ -13,16 +13,28 @@ class APIManager:
     room: str
     client_id: str | None = None
 
-    def join_room(self, template: t.Any, user_id: str = "guest") -> dict:
-        # Import here to avoid circular import
-        from zndraw.zndraw import _TemplateValue
-
-        # If template is _TemplateValue (default), don't send it (use server default)
-        # If template is None, send {"template": None} (create blank room)
-        # If template is a string, send {"template": template_name}
+    def join_room(
+        self,
+        description: str | None = None,
+        copy_from: str | None = None,
+        user_id: str = "guest"
+    ) -> dict:
+        """Join a room, optionally creating it with a description or copying from an existing room.
+        
+        Args:
+            description: Optional description for the room (only used if room is created)
+            copy_from: Optional room ID to copy frames and settings from (only used if room is created)
+            user_id: User identifier
+        
+        Returns:
+            Dict containing room information and join token
+        """
         payload = {"userId": user_id}
-        if template is not _TemplateValue:
-            payload["template"] = template
+        
+        if description is not None:
+            payload["description"] = description
+        if copy_from is not None:
+            payload["copyFrom"] = copy_from
         if self.client_id:
             payload["clientId"] = self.client_id
 

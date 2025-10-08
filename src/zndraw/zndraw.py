@@ -31,12 +31,6 @@ class _ExtensionStore(t.TypedDict):
     extension: t.Type[Extension]
 
 
-class _TemplateValue:
-    """Sentinel value for template parameter."""
-
-    pass
-
-
 @dataclasses.dataclass
 class ZnDraw(MutableSequence):
     """A client for interacting with the ZnDraw server."""
@@ -45,7 +39,8 @@ class ZnDraw(MutableSequence):
     room: str = "default"
     user: str = "guest"
     auto_pickup_jobs: bool = True
-    template: str | None | t.Type[_TemplateValue] = _TemplateValue
+    description: str | None = None
+    copy_from: str | None = None
 
     _step: int = 0
     _len: int = 0
@@ -61,13 +56,18 @@ class ZnDraw(MutableSequence):
         default_factory=dict, init=False
     )
     _figures: dict[str, dict] = dataclasses.field(default_factory=dict, init=False)
+    _lock: SocketIOLock | None = dataclasses.field(default=None, init=False)
 
     def __post_init__(self):
         self.api = APIManager(url=self.url, room=self.room, client_id=self._client_id)
         self.cache: FrameCache | None = FrameCache(maxsize=100)
 
         # Call join_room FIRST to get join token and prepare room
-        response_data = self.api.join_room(template=self.template, user_id=self.user)
+        response_data = self.api.join_room(
+            description=self.description,
+            copy_from=self.copy_from,
+            user_id=self.user
+        )
 
         # Update client_id if server assigned a new one
         if "clientId" in response_data:
@@ -83,6 +83,10 @@ class ZnDraw(MutableSequence):
         self.socket = SocketManager(zndraw_instance=self, join_token=join_token)
         self.connect()
 
+        # Initialize the lock after socket is connected
+        # TTL of 60 seconds with automatic refresh every 30 seconds
+        self._lock = SocketIOLock(self.socket.sio, target="trajectory:meta", ttl=60)
+
         if response_data["selection"] is not None:
             self._selection = frozenset(response_data["selection"])
         if response_data["frame_selection"] is not None:
@@ -97,7 +101,9 @@ class ZnDraw(MutableSequence):
 
     @property
     def lock(self) -> SocketIOLock:
-        return SocketIOLock(self.socket.sio, target="trajectory:meta")
+        if self._lock is None:
+            raise RuntimeError("Lock not initialized. Ensure client is connected.")
+        return self._lock
 
     @property
     def geometries(self) -> Geometries:

@@ -6,6 +6,7 @@ import {
 } from "react-router-dom";
 import MainPage from "./pages/landingPage";
 import TemplateSelectionPage from "./pages/templateSelection";
+import RoomListPage from "./pages/roomList";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider, createTheme } from "@mui/material/styles";
 import CssBaseline from "@mui/material/CssBaseline";
@@ -30,6 +31,10 @@ const router = createBrowserRouter([
   {
     path: "/",
     element: <TemplateSelectionPage />,
+  },
+  {
+    path: "/rooms",
+    element: <RoomListPage />,
   },
   {
     path: "/rooms/:roomId",

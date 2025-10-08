@@ -12,6 +12,7 @@ import DarkModeIcon from "@mui/icons-material/DarkMode";
 import BrushIcon from "@mui/icons-material/Brush";
 import FrameProgressBar from "../components/ProgressBar";
 import SideBar from "../components/SideBar";
+import RoomManagementMenu from "../components/RoomManagementMenu";
 
 import { useSocketManager } from "../hooks/useSocketManager";
 import { useKeyboardShortcuts } from "../hooks/useKeyboardShortcuts";
@@ -111,6 +112,7 @@ export default function MainPage() {
               </IconButton>
             </Tooltip>
             <AddPlotButton />
+            <RoomManagementMenu />
           </Toolbar>
         </AppBar>
 

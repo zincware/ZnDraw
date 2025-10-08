@@ -53,7 +53,7 @@ class Bond(BaseGeometry):
     )
 
     scale: float = Field(
-        default=0.25,
+        default=0.15,
         ge=0.0,
         description="Uniform scale factor applied to bond radius.",
     )

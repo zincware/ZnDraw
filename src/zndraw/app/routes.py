@@ -49,6 +49,39 @@ def get_storage(room_id: str) -> ZarrStorageSequence:
     return storage
 
 
+def check_room_locked(
+    room_id: str, client_id: str | None = None
+) -> tuple[dict[str, str], int] | None:
+    """
+    Check if a room is locked. Returns error response tuple if locked, None if not locked.
+    
+    Args:
+        room_id: The room ID to check
+        client_id: Optional client ID - if provided and this client holds the metadata lock,
+                   the check will pass
+    
+    Returns:
+        Error tuple if locked and client doesn't hold lock, None otherwise
+    """
+    redis_client = current_app.extensions["redis"]
+    
+    # Check permanent room lock
+    locked = redis_client.get(f"room:{room_id}:locked")
+    if locked == "1":
+        return {"error": "Room is locked and cannot be modified"}, 403
+    
+    # Check metadata lock (from vis.lock context manager)
+    # If a client_id is provided and it holds the lock, allow the operation
+    if client_id:
+        metadata_lock_key = get_lock_key(room_id, "trajectory:meta")
+        lock_holder = redis_client.get(metadata_lock_key)
+        if lock_holder and lock_holder != client_id:
+            # Someone else holds the metadata lock
+            return {"error": "Room is temporarily locked by another operation"}, 403
+    
+    return None
+
+
 def emit_bookmarks_update(room_id: str):
     """
     Emit bookmarks update to all clients after frame mapping changes.
@@ -114,6 +147,21 @@ def emit_frames_invalidate(
     socketio.emit(
         "frames:invalidate",
         data,
+        to=f"room:{room_id}",
+    )
+
+
+def emit_len_frames_update(room_id: str):
+    """
+    Emit len_frames event to update clients about the frame count after mutations.
+    """
+    r = current_app.extensions["redis"]
+    indices_key = f"room:{room_id}:trajectory:indices"
+    frame_count = r.zcard(indices_key)
+    
+    socketio.emit(
+        "len_frames",
+        {"success": True, "count": frame_count},
         to=f"room:{room_id}",
     )
 
@@ -414,6 +462,11 @@ def get_frame_metadata(room_id: str, frame_id: int):
 @main.route("/api/rooms/<string:room_id>/frames", methods=["DELETE"])
 def delete_frames_batch(room_id):
     """Deletes frames using either a single frame_id, indices, or slice parameters from query params."""
+    # Check if room is locked
+    lock_error = check_room_locked(room_id)
+    if lock_error:
+        return lock_error
+
     r = current_app.extensions["redis"]
 
     try:
@@ -531,6 +584,8 @@ def delete_frames_batch(room_id):
             emit_frames_invalidate(
                 room_id, operation="delete", affected_from=min(frame_indices)
             )
+        # Emit len_frames update to notify clients of frame count change
+        emit_len_frames_update(room_id)
 
         return {"success": True, "deleted_count": len(frame_indices)}
     except Exception as e:
@@ -548,6 +603,11 @@ def delete_frames_batch(room_id):
 @main.route("/api/rooms/<string:room_id>/frames", methods=["POST"])
 def append_frame(room_id):
     """Handles frame operations (append, extend, replace, insert) based on action query parameter."""
+    # Check if room is locked
+    lock_error = check_room_locked(room_id)
+    if lock_error:
+        return lock_error
+
     r = current_app.extensions["redis"]
 
     # Get action from query parameters
@@ -638,6 +698,9 @@ def append_frame(room_id):
             # 4. Prepare response data
             new_indices = list(range(start_logical_pos, start_logical_pos + num_frames))
 
+            # Emit len_frames update to notify clients of frame count change
+            emit_len_frames_update(room_id)
+            
             log.info(
                 f"Extended trajectory with {num_frames} frames (physical: {start_physical_pos}-{start_physical_pos + num_frames - 1}) to room '{room_id}'"
             )
@@ -679,6 +742,8 @@ def append_frame(room_id):
             emit_frames_invalidate(
                 room_id, operation="insert", affected_from=insert_position
             )
+            # Emit len_frames update to notify clients of frame count change
+            emit_len_frames_update(room_id)
 
             log.info(
                 f"Inserted frame at position {insert_position} (physical: {new_physical_index}) in room '{room_id}'"
@@ -698,6 +763,9 @@ def append_frame(room_id):
             # 3. Add the new physical index to the logical sequence using gap method
             index_manager.append(f"{room_id}:{new_physical_index}")
 
+            # Emit len_frames update to notify clients of frame count change
+            emit_len_frames_update(room_id)
+            
             log.debug(
                 f"Appended frame {logical_position} (physical: {room_id}:{new_physical_index}) to room '{room_id}'"
             )
@@ -864,26 +932,21 @@ def bulk_replace_frames(room_id):
         return {"error": "Failed to bulk replace frames"}, 500
 
 
-def ensure_empty_template_exists():
-    """Ensure the 'empty' template exists in Redis."""
-    redis_client = current_app.extensions["redis"]
-    template_key = "template:empty"
-
-    # Check if template already exists
-    if not redis_client.exists(template_key):
-        # Create the empty template
-        template_data = {
-            "id": "empty",
-            "name": "Empty Room Template",
-            "description": "Empty room template",
-        }
-        redis_client.hset(template_key, mapping=template_data)
-        log.info("Created 'empty' template")
-
-
 @main.route("/api/rooms", methods=["GET"])
 def list_rooms():
-    """List all active rooms."""
+    """List all active rooms with metadata.
+    
+    Returns:
+        [{
+            "id": "room1",
+            "description": "My room",
+            "frameCount": 42,
+            "locked": false,
+            "metadataLocked": false,
+            "hidden": false,
+            "isDefault": false
+        }]
+    """
     redis_client = current_app.extensions["redis"]
 
     # Scan for all room keys to find unique room IDs
@@ -894,18 +957,52 @@ def list_rooms():
         if len(parts) >= 2:
             room_ids.add(parts[1])
 
-    # Return list of room objects with id and template fields
+    # Get default room
+    default_room = redis_client.get("default_room")
+
+    # Build detailed room objects
     rooms = []
     for room_id in sorted(room_ids):
-        template_id = redis_client.get(f"room:{room_id}:template") or "empty"
-        rooms.append({"id": room_id, "template": template_id})
+        # Get frame count
+        indices_key = f"room:{room_id}:trajectory:indices"
+        frame_count = redis_client.zcard(indices_key)
+        
+        # Get metadata
+        description = redis_client.get(f"room:{room_id}:description")
+        locked = redis_client.get(f"room:{room_id}:locked") == "1"
+        hidden = redis_client.get(f"room:{room_id}:hidden") == "1"
+        is_default = (default_room == room_id)
+        
+        # Check if metadata lock is held (trajectory:meta is the target used by vis.lock)
+        metadata_lock_key = get_lock_key(room_id, "trajectory:meta")
+        metadata_locked = redis_client.get(metadata_lock_key) is not None
+        
+        rooms.append({
+            "id": room_id,
+            "description": description if description else None,
+            "frameCount": frame_count,
+            "locked": locked,
+            "metadataLocked": metadata_locked,
+            "hidden": hidden,
+            "isDefault": is_default
+        })
 
     return rooms, 200
 
 
 @main.route("/api/rooms/<string:room_id>", methods=["GET"])
 def get_room(room_id):
-    """Get details for a specific room."""
+    """Get details for a specific room.
+    
+    Returns:
+        {
+            "id": "room1",
+            "description": "My room",
+            "frameCount": 42,
+            "locked": false,
+            "hidden": false
+        }
+    """
     redis_client = current_app.extensions["redis"]
 
     # Check if room exists
@@ -917,97 +1014,39 @@ def get_room(room_id):
     if not room_exists:
         return {"error": "Room not found"}, 404
 
-    template_id = redis_client.get(f"room:{room_id}:template") or "empty"
+    # Get frame count
+    indices_key = f"room:{room_id}:trajectory:indices"
+    frame_count = redis_client.zcard(indices_key)
+    
+    # Get metadata
+    description = redis_client.get(f"room:{room_id}:description")
+    locked = redis_client.get(f"room:{room_id}:locked") == "1"
+    hidden = redis_client.get(f"room:{room_id}:hidden") == "1"
 
-    return {"id": room_id, "template": template_id}, 200
+    return {
+        "id": room_id,
+        "description": description if description else None,
+        "frameCount": frame_count,
+        "locked": locked,
+        "hidden": hidden
+    }, 200
 
 
-@main.route("/api/templates", methods=["GET"])
-def list_templates():
-    """List all available room templates."""
+@main.route("/api/rooms/<string:room_id>", methods=["PATCH"])
+def update_room(room_id):
+    """Update room metadata (description, locked, hidden).
+    
+    Request body:
+        {
+            "description": "My custom description",  // Optional
+            "locked": true,                          // Optional
+            "hidden": false                          // Optional
+        }
+    """
     redis_client = current_app.extensions["redis"]
+    data = request.get_json() or {}
 
-    # Ensure empty template exists
-    ensure_empty_template_exists()
-
-    # Get all templates from Redis
-    templates = []
-    for key in redis_client.scan_iter(match="template:*"):
-        template_data = redis_client.hgetall(key)
-        if template_data:
-            templates.append(template_data)
-
-    # Sort by id to ensure "empty" comes first
-    templates.sort(key=lambda t: (t["id"] != "empty", t["id"]))
-
-    return templates, 200
-
-
-@main.route("/api/templates/default", methods=["GET"])
-def get_default_template():
-    """Get the default template."""
-    redis_client = current_app.extensions["redis"]
-
-    # Ensure empty template exists
-    ensure_empty_template_exists()
-
-    # Get default template ID from Redis, defaulting to "empty"
-    default_template_id = redis_client.get("default_template") or "empty"
-
-    # Get the template data
-    template_key = f"template:{default_template_id}"
-    template_data = redis_client.hgetall(template_key)
-
-    if not template_data:
-        return {"error": "Default template not found"}, 404
-
-    return template_data, 200
-
-
-@main.route("/api/templates/default", methods=["PUT"])
-def set_default_template():
-    """Set the default template."""
-    redis_client = current_app.extensions["redis"]
-    data = request.get_json()
-
-    template_id = data.get("template_id")
-    if not template_id:
-        return {"error": "template_id is required"}, 400
-
-    # Verify template exists
-    template_key = f"template:{template_id}"
-    if not redis_client.exists(template_key):
-        return {"error": f"Template '{template_id}' not found"}, 404
-
-    # Set as default
-    redis_client.set("default_template", template_id)
-
-    log.info(f"Set default template to '{template_id}'")
-    return {"status": "ok"}, 200
-
-
-@main.route("/api/rooms/<string:room_id>/promote", methods=["POST"])
-def promote_room_to_template(room_id):
-    """Promote a room to a template and make it read-only."""
-    redis_client = current_app.extensions["redis"]
-    data = request.get_json()
-
-    name = data.get("name")
-    description = data.get("description")
-
-    if not name or not description:
-        return {"error": "name and description are required"}, 400
-
-    # Sanitize room_id: replace ':' with '_' to avoid conflicts with frame index format
-    if ":" in room_id:
-        original_room_id = room_id
-        room_id = room_id.replace(":", "_")
-        log.warning(
-            f"Template/Room ID '{original_room_id}' contains ':' which is reserved. "
-            f"Using sanitized ID '{room_id}' instead."
-        )
-
-    # Check if room exists by looking for any room-related keys
+    # Check if room exists
     room_exists = False
     for key in redis_client.scan_iter(match=f"room:{room_id}:*", count=1):
         room_exists = True
@@ -1016,20 +1055,161 @@ def promote_room_to_template(room_id):
     if not room_exists:
         return {"error": "Room not found"}, 404
 
-    # Create template from room
-    template_key = f"template:{room_id}"
-    template_data = {"id": room_id, "name": name, "description": description}
-    redis_client.hset(template_key, mapping=template_data)
+    # Update description
+    if "description" in data:
+        if data["description"] is None:
+            redis_client.delete(f"room:{room_id}:description")
+        else:
+            redis_client.set(f"room:{room_id}:description", data["description"])
 
-    # Lock the room permanently by setting a lock without TTL
-    # This prevents any client from acquiring the trajectory lock
-    lock_key = get_lock_key(room_id, "trajectory:meta")
-    redis_client.set(lock_key, "template-lock")
+    # Update locked status
+    if "locked" in data:
+        redis_client.set(f"room:{room_id}:locked", "1" if data["locked"] else "0")
+
+    # Update hidden status
+    if "hidden" in data:
+        redis_client.set(f"room:{room_id}:hidden", "1" if data["hidden"] else "0")
+
+    log.info(f"Updated room '{room_id}' metadata: {data}")
+    return {"status": "ok"}, 200
+
+
+@main.route("/api/rooms/default", methods=["GET"])
+def get_default_room():
+    """Get the default room ID.
+    
+    Returns:
+        {"roomId": "room1"} or {"roomId": null}
+    """
+    redis_client = current_app.extensions["redis"]
+    default_room = redis_client.get("default_room")
+    return {"roomId": default_room if default_room else None}, 200
+
+
+@main.route("/api/rooms/default", methods=["PUT"])
+def set_default_room():
+    """Set the default room.
+    
+    Request body:
+        {"roomId": "room1"}  // or null to unset
+    """
+    redis_client = current_app.extensions["redis"]
+    data = request.get_json() or {}
+
+    room_id = data.get("roomId")
+    
+    if room_id is None:
+        # Unset default room
+        redis_client.delete("default_room")
+        log.info("Unset default room")
+    else:
+        # Verify room exists
+        room_exists = False
+        for key in redis_client.scan_iter(match=f"room:{room_id}:*", count=1):
+            room_exists = True
+            break
+
+        if not room_exists:
+            return {"error": "Room not found"}, 404
+
+        # Set default room
+        redis_client.set("default_room", room_id)
+        log.info(f"Set default room to '{room_id}'")
+
+    return {"status": "ok"}, 200
+
+
+@main.route("/api/rooms/<string:room_id>/duplicate", methods=["POST"])
+def duplicate_room(room_id):
+    """Duplicate a room by copying all frame mappings and metadata.
+    
+    Request body:
+        {
+            "newRoomId": "new-room-uuid",  // Optional, auto-generated if not provided
+            "description": "Copy of room1"  // Optional, description for new room
+        }
+    
+    Returns:
+        {
+            "status": "ok",
+            "roomId": "new-room-uuid",
+            "frameCount": 42
+        }
+    """
+    redis_client = current_app.extensions["redis"]
+    data = request.get_json() or {}
+
+    # Check source room exists
+    source_indices_key = f"room:{room_id}:trajectory:indices"
+    if not redis_client.exists(source_indices_key):
+        return {"error": "Source room not found"}, 404
+
+    # Generate or use provided new room ID
+    new_room_id = data.get("newRoomId")
+    if not new_room_id:
+        import uuid
+        new_room_id = str(uuid.uuid4())
+
+    # Check new room doesn't already exist
+    if redis_client.exists(f"room:{new_room_id}:trajectory:indices"):
+        return {"error": "Room with that ID already exists"}, 409
+
+    # 1. Copy trajectory indices (sorted set) - this shares frame data
+    source_indices = redis_client.zrange(source_indices_key, 0, -1, withscores=True)
+    if source_indices:
+        redis_client.zadd(
+            f"room:{new_room_id}:trajectory:indices",
+            {member: score for member, score in source_indices}
+        )
+
+    # 2. Copy geometries hash
+    geometries = redis_client.hgetall(f"room:{room_id}:geometries")
+    if geometries:
+        redis_client.hset(f"room:{new_room_id}:geometries", mapping=geometries)
+
+    # 3. Copy bookmarks hash (physical keys remain valid)
+    bookmarks = redis_client.hgetall(f"room:{room_id}:bookmarks")
+    if bookmarks:
+        redis_client.hset(f"room:{new_room_id}:bookmarks", mapping=bookmarks)
+
+    # 4. Initialize new room metadata
+    redis_client.set(f"room:{new_room_id}:current_frame", 0)
+    redis_client.set(f"room:{new_room_id}:locked", 0)
+    redis_client.set(f"room:{new_room_id}:hidden", 0)
+    
+    description = data.get("description")
+    if description:
+        redis_client.set(f"room:{new_room_id}:description", description)
+
+    # 5. Initialize default geometries for new room
+    from zndraw.geometries import Sphere, Bond, Curve
+
+    if not geometries:  # Only if source had no geometries
+        redis_client.hset(
+            f"room:{new_room_id}:geometries",
+            "particles",
+            json.dumps({"type": Sphere.__name__, "data": Sphere().model_dump()}),
+        )
+        redis_client.hset(
+            f"room:{new_room_id}:geometries",
+            "bonds",
+            json.dumps({"type": Bond.__name__, "data": Bond().model_dump()}),
+        )
+        redis_client.hset(
+            f"room:{new_room_id}:geometries",
+            "curve",
+            json.dumps({"type": Curve.__name__, "data": Curve().model_dump()}),
+        )
 
     log.info(
-        f"Promoted room '{room_id}' to template '{name}' and locked it permanently"
+        f"Duplicated room '{room_id}' to '{new_room_id}' with {len(source_indices)} frames"
     )
-    return {"status": "ok"}, 200
+
+    return {
+        "status": "ok",
+        "roomId": new_room_id,
+        "frameCount": len(source_indices)
+    }, 200
 
 
 @main.route("/api/rooms/<string:room_id>/renormalize", methods=["POST"])
@@ -1853,6 +2033,8 @@ def join_room(room_id):
 
     user_name = data.get("userId", "Anonymous")
     client_id = data.get("clientId")
+    description = data.get("description")
+    copy_from = data.get("copyFrom")
     r = current_app.extensions["redis"]
 
     # Generate clientId if not provided
@@ -1869,8 +2051,8 @@ def join_room(room_id):
     r.hset(client_key, "userName", user_name)
     r.hset(client_key, "currentRoom", room_id)
 
-    # Check if room already exists
-    room_exists = r.exists(f"room:{room_id}:template")
+    # Check if room already exists (check for any room-related keys)
+    room_exists = r.exists(f"room:{room_id}:current_frame")
 
     # Add client to room's client set (they're joining the room, even if not connected yet)
     r.sadd(f"room:{room_id}:clients", client_id)
@@ -1896,7 +2078,6 @@ def join_room(room_id):
         "joinToken": join_token,
         "frameCount": 0,
         "roomId": room_id,
-        "template": "empty",
         "selection": None,
         "frame_selection": None,
         "created": True,
@@ -1908,51 +2089,46 @@ def join_room(room_id):
     response["created"] = not room_exists
 
     if not room_exists:
-        if "template" not in data:
-            # Use default template
-            from .routes import ensure_empty_template_exists
-
-            ensure_empty_template_exists()
-            template_id = r.get("default_template") or "empty"
-        elif data["template"] is None:
-            # Explicit None means use "empty" template
-            template_id = "empty"
+        # Create new room
+        if copy_from:
+            # Copy from existing room
+            source_indices_key = f"room:{copy_from}:trajectory:indices"
+            if not r.exists(source_indices_key):
+                return {"error": f"Source room '{copy_from}' not found"}, 404
+            
+            # Copy trajectory indices (sorted set) - this shares frame data
+            source_indices = r.zrange(source_indices_key, 0, -1, withscores=True)
+            if source_indices:
+                r.zadd(
+                    f"room:{room_id}:trajectory:indices",
+                    {member: score for member, score in source_indices}
+                )
+            
+            # Copy geometries hash
+            geometries = r.hgetall(f"room:{copy_from}:geometries")
+            if geometries:
+                r.hset(f"room:{room_id}:geometries", mapping=geometries)
+            
+            # Copy bookmarks hash (physical keys remain valid)
+            bookmarks = r.hgetall(f"room:{copy_from}:bookmarks")
+            if bookmarks:
+                r.hset(f"room:{room_id}:bookmarks", mapping=bookmarks)
+            
+            log.info(
+                f"New room '{room_id}' created by copying from room '{copy_from}' with {len(source_indices)} frames"
+            )
         else:
-            # Use specified template
-            template_id = data["template"]
-            # Verify template exists, fall back to "empty" if it doesn't
-            template_key = f"template:{template_id}"
-            if not r.exists(template_key):
-                log.warning(
-                    f"Template '{template_id}' not found for room '{room_id}', falling back to 'empty'"
-                )
-                template_id = "empty"
-
-        # Store the template used for this room
-        r.set(f"room:{room_id}:template", template_id)
-        log.info(f"New room '{room_id}' created from template '{template_id}'")
-
-        # Initialize room with template frames if not empty
-        if template_id != "empty":
-            template_indices_key = f"room:{template_id}:trajectory:indices"
-            template_frames = r.zrange(template_indices_key, 0, -1, withscores=True)
-
-            if template_frames:
-                room_indices_key = f"room:{room_id}:trajectory:indices"
-                # Copy template frames with the new room_id:index format
-                for member, score in template_frames:
-                    r.zadd(room_indices_key, {member: score})
-                log.info(
-                    f"Copied {len(template_frames)} frames from template '{template_id}' to room '{room_id}'"
-                )
-        response["template"] = template_id
-
-    indices_key = f"room:{room_id}:trajectory:indices"
-    response["frameCount"] = r.zcard(indices_key)
-
-    # Initialize current_frame to 0 for newly created rooms
-    if not room_exists:
+            # Create empty room
+            log.info(f"New room '{room_id}' created as empty room")
+        
+        # Set description if provided
+        if description:
+            r.set(f"room:{room_id}:description", description)
+        
+        # Initialize room metadata
         r.set(f"room:{room_id}:current_frame", 0)
+        r.set(f"room:{room_id}:locked", 0)
+        r.set(f"room:{room_id}:hidden", 0)
         log.info(f"Initialized current_frame to 0 for new room '{room_id}'")
 
         # Initialize default settings for new room
@@ -1970,25 +2146,28 @@ def join_room(room_id):
             )
         log.info(f"Initialized default settings for new room '{room_id}'")
 
-    if not room_exists:
-        # create default geometries
-        from zndraw.geometries import Sphere, Bond, Curve
+        # Create default geometries only if not copied from another room
+        if not copy_from:
+            from zndraw.geometries import Sphere, Bond, Curve
 
-        r.hset(
-            f"room:{room_id}:geometries",
-            "particles",
-            json.dumps({"type": Sphere.__name__, "data": Sphere().model_dump()}),
-        )
-        r.hset(
-            f"room:{room_id}:geometries",
-            "bonds",
-            json.dumps({"type": Bond.__name__, "data": Bond().model_dump()}),
-        )
-        r.hset(
-            f"room:{room_id}:geometries",
-            "curve",
-            json.dumps({"type": Curve.__name__, "data": Curve().model_dump()}),
-        )
+            r.hset(
+                f"room:{room_id}:geometries",
+                "particles",
+                json.dumps({"type": Sphere.__name__, "data": Sphere().model_dump()}),
+            )
+            r.hset(
+                f"room:{room_id}:geometries",
+                "bonds",
+                json.dumps({"type": Bond.__name__, "data": Bond().model_dump()}),
+            )
+            r.hset(
+                f"room:{room_id}:geometries",
+                "curve",
+                json.dumps({"type": Curve.__name__, "data": Curve().model_dump()}),
+            )
+
+    indices_key = f"room:{room_id}:trajectory:indices"
+    response["frameCount"] = r.zcard(indices_key)
 
     selection = r.get(f"room:{room_id}:selection:default")
     response["selection"] = json.loads(selection) if selection else None

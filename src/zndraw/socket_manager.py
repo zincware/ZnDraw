@@ -1,5 +1,7 @@
 import dataclasses
 import logging
+import threading
+import time
 import typing as t
 import warnings
 
@@ -13,26 +15,103 @@ log = logging.getLogger(__name__)
 
 @dataclasses.dataclass
 class SocketIOLock:
-    """A client-side context manager for a distributed lock via Socket.IO."""
+    """A client-side context manager for a distributed lock via Socket.IO.
+    
+    This lock is re-entrant - the same client can acquire it multiple times
+    and must release it the same number of times.
+    
+    Includes automatic lock renewal to prevent TTL expiration during long operations.
+    """
 
     sio: socketio.Client
     target: str
+    ttl: int = 60  # TTL in seconds (must be <= 300 as validated by server)
+    _lock_count: int = dataclasses.field(default=0, init=False)
+    _refresh_thread: threading.Thread | None = dataclasses.field(default=None, init=False)
+    _refresh_stop: threading.Event = dataclasses.field(default_factory=threading.Event, init=False)
+
+    def _refresh_lock_periodically(self):
+        """Background thread that refreshes the lock periodically to prevent TTL expiration.
+        
+        Refreshes at half the TTL interval to ensure the lock stays active.
+        """
+        refresh_interval = self.ttl / 2
+        while not self._refresh_stop.is_set():
+            # Wait for half the TTL or until stop signal
+            if self._refresh_stop.wait(timeout=refresh_interval):
+                break
+            
+            # Refresh the lock by calling lock:refresh
+            try:
+                payload = {"target": self.target, "ttl": self.ttl}
+                response = self.sio.call("lock:refresh", payload, timeout=10)
+                if response and response.get("success"):
+                    log.debug(f"Lock refreshed for target '{self.target}' with TTL {self.ttl}s")
+                else:
+                    error_msg = response.get("error", "Unknown error") if response else "No response"
+                    log.warning(f"Failed to refresh lock for target '{self.target}': {error_msg}")
+            except Exception as e:
+                log.error(f"Error refreshing lock for target '{self.target}': {e}")
 
     def acquire(self, timeout: float = 60) -> bool:
         """
         Acquire a lock for the specific target.
-        Waits for the server's confirmation.
+        If already held by this client, increment the lock count.
+        Starts a background thread to refresh the lock periodically.
+        
+        Args:
+            timeout: Socket.IO call timeout (not the lock TTL)
+        
+        Returns:
+            True if lock acquired successfully, False otherwise
         """
-        payload = {"target": self.target}
+        # If we already hold the lock, just increment the count
+        if self._lock_count > 0:
+            self._lock_count += 1
+            return True
+        
+        payload = {"target": self.target, "ttl": self.ttl}
         # sio.call is inherently blocking, so it waits for the server's response.
-        response = self.sio.call("lock:acquire", payload, timeout=timeout)
-        return response and response.get("success", False)
+        response = self.sio.call("lock:acquire", payload, timeout=int(timeout))
+        
+        # Check if server returned an error
+        if response and response.get("error"):
+            raise ValueError(f"Failed to acquire lock: {response['error']}")
+        
+        success = response and response.get("success", False)
+        if success:
+            self._lock_count = 1
+            # Start the refresh thread
+            self._refresh_stop.clear()
+            self._refresh_thread = threading.Thread(
+                target=self._refresh_lock_periodically,
+                daemon=True,
+                name=f"lock-refresh-{self.target}"
+            )
+            self._refresh_thread.start()
+        return success
 
     def release(self) -> bool:
-        """Release the lock."""
-        payload = {"target": self.target}
-        response = self.sio.call("lock:release", payload, timeout=10)
-        return response and response.get("success", False)
+        """Release the lock. Only actually releases when count reaches 0.
+        Stops the refresh thread when the lock is fully released."""
+        if self._lock_count == 0:
+            warnings.warn(f"Attempting to release lock for '{self.target}' but not held")
+            return False
+        
+        self._lock_count -= 1
+        
+        # Only actually release the lock when count reaches 0
+        if self._lock_count == 0:
+            # Stop the refresh thread first
+            self._refresh_stop.set()
+            if self._refresh_thread and self._refresh_thread.is_alive():
+                self._refresh_thread.join(timeout=2)
+            
+            payload = {"target": self.target}
+            response = self.sio.call("lock:release", payload, timeout=10)
+            return response and response.get("success", False)
+        
+        return True  # Successfully decremented count
 
     def __enter__(self):
         if not self.acquire():

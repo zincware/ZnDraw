@@ -42,65 +42,67 @@ def read_file(
     if not file_path.exists():
         vis.log(f"File {file} does not exist.")
         return
+    
     vis.log(f"Reading file {file}...")
-    try:
-        frame_iterator = None
-        if file_path.suffix in [".h5", ".h5md"]:
-            if step is not None and step <= 0:
-                vis.log("Step must be a positive integer for H5MD files.")
-                raise ValueError("Step must be a positive integer for H5MD files.")
-            io = znh5md.IO(file_path)
+    
+    # Use vis.lock context manager to lock room during upload
+    with vis.lock:
+        try:
+            frame_iterator = None
+            if file_path.suffix in [".h5", ".h5md"]:
+                if step is not None and step <= 0:
+                    vis.log("Step must be a positive integer for H5MD files.")
+                    raise ValueError("Step must be a positive integer for H5MD files.")
+                io = znh5md.IO(file_path)
 
-            n_frames = len(io)
-            s = slice(start, stop, step)
-            # The 'indices' method converts the slice into a (start, stop, step)
-            # tuple of non-negative integers that can be used with islice.
-            _start, _stop, _step = s.indices(n_frames)
+                n_frames = len(io)
+                s = slice(start, stop, step)
+                # The 'indices' method converts the slice into a (start, stop, step)
+                # tuple of non-negative integers that can be used with islice.
+                _start, _stop, _step = s.indices(n_frames)
 
-            frame_iterator = itertools.islice(io, _start, _stop, _step)
-        else:
-            # --- This logic is correct for ASE's string-based index ---
-            # It properly handles None by creating empty strings, e.g., ":-1:"
-            start_str = str(start) if start is not None else ""
-            stop_str = str(stop) if stop is not None else ""
-            step_str = str(step) if step is not None else ""
-            index_str = f"{start_str}:{stop_str}:{step_str}"
+                frame_iterator = itertools.islice(io, _start, _stop, _step)
+            else:
+                # --- This logic is correct for ASE's string-based index ---
+                # It properly handles None by creating empty strings, e.g., ":-1:"
+                start_str = str(start) if start is not None else ""
+                stop_str = str(stop) if stop is not None else ""
+                step_str = str(step) if step is not None else ""
+                index_str = f"{start_str}:{stop_str}:{step_str}"
 
-            # Use ase.io.iread() with the correctly formatted index string.
-            frame_iterator = ase.io.iread(file_path, index=index_str)
+                # Use ase.io.iread() with the correctly formatted index string.
+                frame_iterator = ase.io.iread(file_path, index=index_str)
 
-        # Now, the batching logic is the same for both file types
-        if frame_iterator:
-            # A simple log message is often better for background tasks.
-            log.info(f"Processing frames from {file_path} in batches of {batch_size}")
+            # Now, the batching logic is the same for both file types
+            if frame_iterator:
+                # A simple log message is often better for background tasks.
+                log.info(f"Processing frames from {file_path} in batches of {batch_size}")
 
-            for batch in batch_generator(frame_iterator, batch_size):
-                # compute connectivity for each frame in the batch, if reasonable sized
-                for atoms in batch:
-                    if len(atoms) < 1000:
-                        add_connectivity(atoms)
-                vis.extend(batch)
+                for batch in batch_generator(frame_iterator, batch_size):
+                    # compute connectivity for each frame in the batch, if reasonable sized
+                    for atoms in batch:
+                        if len(atoms) < 1000:
+                            add_connectivity(atoms)
+                    vis.extend(batch)
 
-    except Exception as e:
-        # Log the full exception for better debugging
-        log.exception(f"An error occurred while reading file {file_path}")
-        vis.log(f"Error reading file {file_path}: {e}")
-        return
+        except Exception as e:
+            # Log the full exception for better debugging
+            log.exception(f"An error occurred while reading file {file_path}")
+            vis.log(f"Error reading file {file_path}: {e}")
+            raise  # Re-raise to exit the context manager properly
 
     vis.log(f"Finished reading file {file}.")
-    # promote to template
-    try:
-        requests.post(
-            f"{server_url}/api/rooms/{room}/promote",
-            json={"name": file, "description": f"Data uploaded from file {file}"},
-        ).raise_for_status()
-        if make_default:
+    
+    # Set as default room if requested
+    if make_default:
+        try:
             requests.put(
-                f"{server_url}/api/templates/default", json={"template_id": room}
+                f"{server_url}/api/rooms/default", json={"roomId": room}
             ).raise_for_status()
-    except requests.RequestException as e:
-        log.error(f"Failed to promote template for room {room}: {e}")
-        vis.log("Failed to promote data to template.")
+            log.info(f"Set room {room} as default")
+        except requests.RequestException as e:
+            log.error(f"Failed to set default room {room}: {e}")
+            vis.log("Failed to set room as default.")
 
     vis.disconnect()
 

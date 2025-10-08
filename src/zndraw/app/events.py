@@ -515,14 +515,21 @@ def acquire_lock(data):
     sid = request.sid
     r = current_app.extensions["redis"]
     target = data.get("target")
+    ttl = data.get("ttl", 60)  # Default to 60 seconds if not specified
     room = get_project_room_from_session(sid)
 
     if not room or not target:
         return {"success": False, "error": "Room or target missing"}
+    
+    # Validate TTL - must not exceed 300 seconds (5 minutes)
+    if not isinstance(ttl, (int, float)) or ttl <= 0:
+        return {"success": False, "error": "TTL must be a positive number"}
+    if ttl > 300:
+        return {"success": False, "error": "TTL cannot exceed 300 seconds (5 minutes)"}
 
     lock_key = get_lock_key(room, target)
-    if r.set(lock_key, sid, nx=True, ex=60):
-        log.debug(f"Lock acquired for '{target}' in room '{room}' by {sid}")
+    if r.set(lock_key, sid, nx=True, ex=int(ttl)):
+        log.debug(f"Lock acquired for '{target}' in room '{room}' by {sid} with TTL {ttl}s")
         return {"success": True}
     else:
         log.info(
@@ -545,16 +552,44 @@ def release_lock(data):
     if r.get(lock_key) == sid:
         r.delete(lock_key)
 
-        # gathering the lock means typically, making updates, so update frame count
-        # TODO: later move this to the specific frames changed, because
-        # we need to send a frames_changed event anyway
-        emit("len_frames", _get_len(), to=f"room:{room}")
-
         log.debug(f"Lock released for '{target}' in room '{room}' by {sid}")
         return {"success": True}
 
     log.warning(
         f"Failed release: Lock for '{target}' in room '{room}' not held by {sid}"
+    )
+    return {"success": False}
+
+
+@socketio.on("lock:refresh")
+def refresh_lock(data):
+    """Refresh the TTL of an existing lock to prevent expiration during long operations."""
+    sid = request.sid
+    r = current_app.extensions["redis"]
+    target = data.get("target")
+    ttl = data.get("ttl", 60)  # Default to 60 seconds if not specified
+    room = get_project_room_from_session(sid)
+
+    if not room or not target:
+        return {"success": False, "error": "Room or target missing"}
+    
+    # Validate TTL - must not exceed 300 seconds (5 minutes)
+    if not isinstance(ttl, (int, float)) or ttl <= 0:
+        return {"success": False, "error": "TTL must be a positive number"}
+    if ttl > 300:
+        return {"success": False, "error": "TTL cannot exceed 300 seconds (5 minutes)"}
+
+    lock_key = get_lock_key(room, target)
+    
+    # Only refresh if the lock is held by this client
+    if r.get(lock_key) == sid:
+        # Reset the TTL
+        r.expire(lock_key, int(ttl))
+        log.debug(f"Lock refreshed for '{target}' in room '{room}' by {sid} with TTL {ttl}s")
+        return {"success": True}
+    
+    log.warning(
+        f"Failed refresh: Lock for '{target}' in room '{room}' not held by {sid}"
     )
     return {"success": False}
 

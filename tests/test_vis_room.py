@@ -24,7 +24,6 @@ def test_rest_join_new_room(server):
     assert data["presenter-lock"] is None
     assert data["step"] == 0
     assert data["bookmarks"] is None
-    assert data["template"] == "empty"
     # Verify default geometries are created
     assert "geometries" in data
     assert "particles" in data["geometries"]
@@ -46,7 +45,6 @@ def test_rest_join_new_room(server):
     assert isinstance(rooms, list)
     assert len(rooms) == 1
     assert rooms[0]["id"] == room
-    assert rooms[0]["template"] == "empty"
 
     # getting any frame will fail with index error
     for frame_idx in [0, 1, -1, 100]:
@@ -79,37 +77,33 @@ def test_join_existing_room(server):
     assert data["frame_selection"] is None
     assert data["created"] is False
     assert data["presenter-lock"] is None
-    assert data["template"] == "empty"
 
 
-def test_join_room_with_template(server):
-    # create a room and promote to template
-    room = "template-room"
-    response = requests.post(f"{server}/api/rooms/{room}/join", json={})
-    assert response.status_code == 200
-    response = requests.post(
-        f"{server}/api/rooms/{room}/promote",
-        json={"name": "Template Room", "description": "A custom template"},
-    )
-    assert response.status_code == 200
-
-    # create a new room using the above template
+def test_join_room_with_copy_from(server, s22):
+    # create a source room with some frames
+    source_room = "source-room"
+    vis = ZnDraw(url=server, room=source_room, user="user1")
+    vis.extend(s22[:3])
+    
+    # create a new room by copying from the source room
     new_room = "test-room-1"
     response = requests.post(
-        f"{server}/api/rooms/{new_room}/join", json={"template": room}
+        f"{server}/api/rooms/{new_room}/join", json={"copyFrom": source_room}
     )
     assert response.status_code == 200
     data = response.json()
     assert data["status"] == "ok"
-    assert data["template"] == room
+    assert data["roomId"] == new_room
+    assert data["frameCount"] == 3  # Should have copied 3 frames
+    assert data["created"] is True
 
-    # create a new room without template
+    # create a new room without copying from another room
     another_room = "test-room-2"
     response = requests.post(f"{server}/api/rooms/{another_room}/join", json={})
     assert response.status_code == 200
     data = response.json()
     assert data["status"] == "ok"
-    assert data["template"] == "empty"
+    assert data["frameCount"] == 0  # Empty room
 
 
 def test_join_room_invalid_name(server):
