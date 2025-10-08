@@ -75,7 +75,7 @@ def main(
     ),
     browser: bool = typer.Option(
         True,
-        "--browser",
+        "--browser/--no-browser",
         help="Automatically open the web browser.",
     ),
 ):
