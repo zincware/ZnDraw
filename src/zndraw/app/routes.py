@@ -171,17 +171,21 @@ def health_check():
     """Health check endpoint for server status verification."""
     return {"status": "ok"}, 200
 
-
-@main.route("/")
-def serve_react_app():
-    static_folder = Path(__file__).parent.parent / "static"
-    return send_from_directory(static_folder, "index.html")
-
-
 @main.route("/assets/<path:filename>")
 def serve_static_assets(filename: str):
     static_folder = Path(__file__).parent.parent / "static" / "assets"
     return send_from_directory(static_folder, filename)
+
+@main.route('/', defaults={'path': ''})
+@main.route("/<path:path>")
+def serve_react_router_paths(path: str):
+    """Catch-all route to serve index.html for React Router paths.
+    
+    This allows React Router to handle client-side routing for paths like /rooms, /rooms/:id, etc.
+    API routes are registered with higher priority and won't match this pattern.
+    """
+    static_folder = Path(__file__).parent.parent / "static"
+    return send_from_directory(static_folder, "index.html")
 
 
 @main.route("/api/disconnect/<string:client_sid>", methods=["POST"])
