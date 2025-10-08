@@ -38,7 +38,7 @@ def read_file(
     from zndraw import ZnDraw
 
     file_path = Path(file)
-    vis = ZnDraw(room=room, url=server_url, user="uploader")
+    vis = ZnDraw(room=room, url=server_url, user="uploader", description=f"{file}")
     if not file_path.exists():
         vis.log(f"File {file} does not exist.")
         return
