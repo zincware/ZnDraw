@@ -3,10 +3,12 @@ import {
   RouterProvider,
   Navigate,
   useParams,
+  useSearchParams,
 } from "react-router-dom";
 import MainPage from "./pages/landingPage";
 import TemplateSelectionPage from "./pages/templateSelection";
 import RoomListPage from "./pages/roomList";
+import RoomWaitingPage from "./pages/roomWaiting";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider, createTheme } from "@mui/material/styles";
 import CssBaseline from "@mui/material/CssBaseline";
@@ -21,8 +23,17 @@ const theme = createTheme({
 });
 
 // Redirect component for /rooms/:roomId -> /rooms/:roomId/:uuid
+// Or show waiting page if waitForCreation=true
 const RoomRedirect = () => {
   const { roomId } = useParams<{ roomId: string }>();
+  const [searchParams] = useSearchParams();
+  
+  const waitForCreation = searchParams.get("waitForCreation") === "true";
+  
+  if (waitForCreation) {
+    return <RoomWaitingPage />;
+  }
+  
   const userId = crypto.randomUUID();
   return <Navigate to={`/rooms/${roomId}/${userId}`} replace />;
 };

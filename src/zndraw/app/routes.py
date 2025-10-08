@@ -2045,7 +2045,18 @@ def join_room(room_id):
     client_id = data.get("clientId")
     description = data.get("description")
     copy_from = data.get("copyFrom")
+    allow_create = data.get("allowCreate", True)  # Default to True for backward compatibility
     r = current_app.extensions["redis"]
+
+    # Check if room already exists (check for any room-related keys)
+    room_exists = r.exists(f"room:{room_id}:current_frame")
+
+    # If allowCreate is False and room doesn't exist, return 404
+    if not allow_create and not room_exists:
+        return {
+            "status": "not_found",
+            "message": f"Room '{room_id}' does not exist yet. It may still be loading."
+        }, 404
 
     # Generate clientId if not provided
     if not client_id:
@@ -2060,9 +2071,6 @@ def join_room(room_id):
     # Update client data (but NOT currentSid - that happens on socket connect)
     r.hset(client_key, "userName", user_name)
     r.hset(client_key, "currentRoom", room_id)
-
-    # Check if room already exists (check for any room-related keys)
-    room_exists = r.exists(f"room:{room_id}:current_frame")
 
     # Add client to room's client set (they're joining the room, even if not connected yet)
     r.sadd(f"room:{room_id}:clients", client_id)

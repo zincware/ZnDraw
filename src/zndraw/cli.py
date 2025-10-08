@@ -2,6 +2,7 @@ import os
 import re
 import shutil
 import time
+import webbrowser
 
 import typer
 
@@ -72,6 +73,11 @@ def main(
         "--shutdown",
         help="Stop the local server if it is running.",
     ),
+    browser: bool = typer.Option(
+        True,
+        "--browser",
+        help="Automatically open the web browser.",
+    ),
 ):
     """
     Start or connect to a ZnDraw server.
@@ -114,8 +120,6 @@ def main(
 
         typer.echo(f"Shutting down server (PID: {server_info.pid})...")
         if shutdown_server(server_info):
-            # Wait a bit for the process to terminate
-            time.sleep(1)
             if not is_process_running(server_info.pid):
                 typer.echo("✓ Server shut down successfully")
                 remove_server_info()
@@ -133,8 +137,12 @@ def main(
         if path is not None:
             typer.echo("Uploading files to remote server...")
             make_default = True
-            for p in path:
+            for idx, p in enumerate(path):
                 room = path_to_room(p)
+                if idx == 0 and browser:
+                    browser_url = f"{connect}/rooms/{room}?waitForCreation=true"
+                    typer.echo(f"Opening browser at {browser_url}")
+                    webbrowser.open(browser_url)
                 typer.echo(f"  Uploading file {p} to room {room}")
                 read_file(
                     file=p,
@@ -147,9 +155,15 @@ def main(
                 )
                 make_default = False
             typer.echo("✓ Files uploaded successfully")
+                
         else:
             typer.echo(f"Connected to remote server at {connect}")
             typer.echo("No files to upload.")
+            
+            # Open browser to root if no files
+            if browser:
+                typer.echo(f"Opening browser at {connect}")
+                webbrowser.open(connect)
         
         raise typer.Exit(0)
 
@@ -176,8 +190,13 @@ def main(
                 typer.echo("Uploading files to existing server...")
                 make_default = True
                 server_url = f"http://localhost:{server_info.port}"
-                for p in path:
+                for idx, p in enumerate(path):
                     room = path_to_room(p)
+                    # Open browser after uploading files, pointing to first room
+                    if browser and idx == 0:
+                        browser_url = f"http://localhost:{server_info.port}/rooms/{room}?waitForCreation=true"
+                        typer.echo(f"Opening browser at {browser_url}")
+                        webbrowser.open(browser_url)
                     typer.echo(f"  Uploading file {p} to room {room}")
                     read_file(
                         file=p,
@@ -190,6 +209,14 @@ def main(
                     )
                     make_default = False
                 typer.echo("✓ Files uploaded successfully")
+                
+                
+            else:
+                # Open browser to root if no files
+                if browser:
+                    browser_url = f"http://localhost:{server_info.port}"
+                    typer.echo(f"Opening browser at {browser_url}")
+                    webbrowser.open(browser_url)
 
             typer.echo(f"\nServer is running at http://localhost:{server_info.port}")
             raise typer.Exit(0)
@@ -217,10 +244,14 @@ def main(
     server_url = f"http://{host}:{port}"
     flask_app.config["SERVER_URL"] = server_url
 
+    # Track the first room for browser opening
+    first_room = None
     if path is not None:
         make_default = True
-        for p in path:
+        for idx, p in enumerate(path):
             room = path_to_room(p)
+            if idx == 0:
+                first_room = room
             typer.echo(f"Loading file {p} into room {room}.")
             read_file.delay(
                 file=p,
@@ -241,6 +272,17 @@ def main(
     write_server_info(server_info)
     typer.echo(f"✓ Server started (PID: {server_info.pid}, Port: {port})")
     typer.echo(f"  Server URL: http://localhost:{port}")
+
+    # Open browser if requested
+    if browser:
+        # If we have a file being loaded, open to that room with waitForCreation flag
+        if first_room:
+            browser_url = f"http://localhost:{port}/rooms/{first_room}?waitForCreation=true"
+            typer.echo(f"Opening browser at {browser_url}")
+        else:
+            browser_url = f"http://localhost:{port}"
+            typer.echo(f"Opening browser at {browser_url}")
+        webbrowser.open(browser_url)
 
     try:
         socketio.run(flask_app, debug=debug, host="0.0.0.0", port=port)

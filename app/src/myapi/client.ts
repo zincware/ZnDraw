@@ -134,6 +134,7 @@ export const getGeometrySchemas = async (
 export interface JoinRoomRequest {
   userId: string;
   template?: string;
+  allowCreate?: boolean;
 }
 
 export interface JoinRoomResponse {
@@ -161,6 +162,22 @@ export const joinRoom = async (
   const { data } = await apiClient.post(`/api/rooms/${roomId}/join`, request, {
     signal,
   });
+  return data;
+};
+
+export interface RoomInfo {
+  id: string;
+  description: string | null;
+  frameCount: number;
+  locked: boolean;
+  hidden: boolean;
+}
+
+export const getRoomInfo = async (
+  roomId: string,
+  signal?: AbortSignal,
+): Promise<RoomInfo> => {
+  const { data } = await apiClient.get(`/api/rooms/${roomId}`, { signal });
   return data;
 };
 
