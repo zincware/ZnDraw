@@ -1,10 +1,22 @@
+import os
 import re
 import shutil
+import time
 
 import typer
 
+from zndraw import __version__
 from zndraw.app.tasks import read_file
 from zndraw.server import create_app, socketio
+from zndraw.server_manager import (
+    ServerInfo,
+    get_server_status,
+    is_process_running,
+    read_server_info,
+    remove_server_info,
+    shutdown_server,
+    write_server_info,
+)
 from zndraw.start_celery import run_celery_worker
 
 app = typer.Typer()
@@ -40,24 +52,180 @@ def main(
         envvar="ZNDRAW_SERVER_HOST",
         help="Server hostname or IP address for the SERVER_URL (e.g., 'example.com' or '192.168.1.1')",
     ),
+    force_new_server: bool = typer.Option(
+        False,
+        "--force-new-server",
+        help="Always start a new server instance, ignoring any existing server.",
+    ),
+    connect: str | None = typer.Option(
+        None,
+        "--connect",
+        help="Connect to a specified remote server (e.g., https://zndraw.myserver.com), bypassing local server checks.",
+    ),
+    status: bool = typer.Option(
+        False,
+        "--status",
+        help="Check if a local server is running and display its status.",
+    ),
+    shutdown: bool = typer.Option(
+        False,
+        "--shutdown",
+        help="Stop the local server if it is running.",
+    ),
 ):
     """
-    Start the zndraw-server.
+    Start or connect to a ZnDraw server.
+
+    By default, this command will check if a local server is already running and connect to it.
+    If no server is running, it will start a new one.
+
+    Use --status to check server status or --shutdown to stop the server.
     """
+    # Handle --status flag
+    if status:
+        is_running, server_info, status_message = get_server_status()
+
+        if is_running and server_info is not None:
+            typer.echo(f"✓ {status_message}")
+            typer.echo(f"  Server URL: http://localhost:{server_info.port}")
+            raise typer.Exit(0)
+        else:
+            if server_info is None:
+                typer.echo("✗ No local ZnDraw server is running")
+            else:
+                typer.echo(f"✗ {status_message}")
+                typer.echo("  (You may want to run 'zndraw --shutdown' to clean up)")
+            raise typer.Exit(1)
+        return
+
+    # Handle --shutdown flag
+    if shutdown:
+        server_info = read_server_info()
+
+        if server_info is None:
+            typer.echo("No server.pid file found. No server to shut down.")
+            raise typer.Exit(0)
+
+        if not is_process_running(server_info.pid):
+            typer.echo(f"Process {server_info.pid} is not running.")
+            typer.echo("Cleaning up server.pid file...")
+            remove_server_info()
+            raise typer.Exit(0)
+
+        typer.echo(f"Shutting down server (PID: {server_info.pid})...")
+        if shutdown_server(server_info):
+            # Wait a bit for the process to terminate
+            time.sleep(1)
+            if not is_process_running(server_info.pid):
+                typer.echo("✓ Server shut down successfully")
+                remove_server_info()
+                raise typer.Exit(0)
+            else:
+                typer.echo("⚠ Server process may still be running")
+                raise typer.Exit(1)
+        else:
+            typer.echo("✗ Failed to shut down server")
+            raise typer.Exit(1)
+    # Handle remote connection
+    if connect:
+        typer.echo(f"Connecting to remote server: {connect}")
+        
+        if path is not None:
+            typer.echo("Uploading files to remote server...")
+            make_default = True
+            for p in path:
+                room = path_to_room(p)
+                typer.echo(f"  Uploading file {p} to room {room}")
+                read_file(
+                    file=p,
+                    room=room,
+                    server_url=connect,
+                    start=start,
+                    stop=stop,
+                    step=step,
+                    make_default=make_default,
+                )
+                make_default = False
+            typer.echo("✓ Files uploaded successfully")
+        else:
+            typer.echo(f"Connected to remote server at {connect}")
+            typer.echo("No files to upload.")
+        
+        raise typer.Exit(0)
+
+    # Check for existing server unless force_new_server is set
+    if not force_new_server:
+        is_running, server_info, status_message = get_server_status()
+
+        if is_running and server_info is not None:
+            typer.echo(f"✓ Found existing server: {status_message}")
+            typer.echo(f"  Server URL: http://localhost:{server_info.port}")
+
+            # Check version compatibility
+            if server_info.version != __version__:
+                typer.echo(
+                    f"⚠ Warning: Server version ({server_info.version}) "
+                    f"differs from CLI version ({__version__})"
+                )
+                typer.echo(
+                    "  Consider running 'zndraw shutdown' and starting a new server."
+                )
+
+            # If files are provided, load them into the existing server
+            if path is not None:
+                typer.echo("Uploading files to existing server...")
+                make_default = True
+                server_url = f"http://localhost:{server_info.port}"
+                for p in path:
+                    room = path_to_room(p)
+                    typer.echo(f"  Uploading file {p} to room {room}")
+                    read_file(
+                        file=p,
+                        room=room,
+                        server_url=server_url,
+                        start=start,
+                        stop=stop,
+                        step=step,
+                        make_default=make_default,
+                    )
+                    make_default = False
+                typer.echo("✓ Files uploaded successfully")
+
+            typer.echo(f"\nServer is running at http://localhost:{server_info.port}")
+            raise typer.Exit(0)
+        elif server_info is not None:
+            # Server info exists but server is not running - clean up
+            typer.echo(f"Found stale server info: {status_message}")
+            typer.echo("Cleaning up and starting a new server...")
+            remove_server_info()
+
+    # Start a new server
+    if force_new_server:
+        typer.echo("Starting a new server instance (--force-new-server)...")
+    else:
+        typer.echo("No existing server found. Starting a new server...")
+
     # if one file, promote to template and default
     # if multiple files, print a list of rooms.
-    print([path_to_room(p) for p in path] if path else "No files loaded on startup.")
+    typer.echo(
+        f"Rooms: {[path_to_room(p) for p in path]}"
+        if path
+        else "No files loaded on startup."
+    )
 
     flask_app = create_app(storage_path=storage_path, redis_url=redis_url)
-    flask_app.config["SERVER_URL"] = f"http://{host}:{port}"
+    server_url = f"http://{host}:{port}"
+    flask_app.config["SERVER_URL"] = server_url
+
     if path is not None:
         make_default = True
         for p in path:
             room = path_to_room(p)
-            print(f"Loading file {p} into room {room}.")
+            typer.echo(f"Loading file {p} into room {room}.")
             read_file.delay(
                 file=p,
                 room=room,
+                server_url=server_url,
                 start=start,
                 stop=stop,
                 step=step,
@@ -67,6 +235,13 @@ def main(
 
     if celery:
         worker = run_celery_worker()
+
+    # Write server info to PID file
+    server_info = ServerInfo(pid=os.getpid(), port=port, version=__version__)
+    write_server_info(server_info)
+    typer.echo(f"✓ Server started (PID: {server_info.pid}, Port: {port})")
+    typer.echo(f"  Server URL: http://localhost:{port}")
+
     try:
         socketio.run(flask_app, debug=debug, host="0.0.0.0", port=port)
     finally:
@@ -75,4 +250,7 @@ def main(
         if celery:
             worker.terminate()
             worker.wait()
-            print("Celery worker closed.")
+            typer.echo("Celery worker closed.")
+        # Clean up PID file when server stops
+        remove_server_info()
+        typer.echo("Server stopped.")

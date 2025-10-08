@@ -166,6 +166,12 @@ def emit_len_frames_update(room_id: str):
     )
 
 
+@main.route("/health")
+def health_check():
+    """Health check endpoint for server status verification."""
+    return {"status": "ok"}, 200
+
+
 @main.route("/")
 def serve_react_app():
     static_folder = Path(__file__).parent.parent / "static"
@@ -1249,7 +1255,7 @@ def renormalize_frame_indices(room_id):
 def exit_app():
     """Endpoint to gracefully shut down the server. Secured via a shared secret."""
     socketio.stop()
-    return {"success": True}
+    return {"success": True} # this might never be seen
 
 
 @main.route("/api/rooms/<string:room_id>/schema/<string:category>", methods=["GET"])
