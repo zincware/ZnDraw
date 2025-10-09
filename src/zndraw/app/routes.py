@@ -2397,8 +2397,17 @@ def create_geometry(room_id: str):
             "error": f"Unknown geometry type '{geometry_type}'",
             "type": "ValueError",
         }, 400
-    
-    value_to_store = json.dumps({"type": geometry_type, "data": geometry_data})
+
+    # Validate and apply defaults through Pydantic model
+    try:
+        geometry_class = geometries[geometry_type]
+        validated_geometry = geometry_class(**geometry_data)
+        value_to_store = json.dumps({"type": geometry_type, "data": validated_geometry.model_dump()})
+    except Exception as e:
+        return {
+            "error": f"Invalid geometry data: {str(e)}",
+            "type": "ValidationError",
+        }, 400
 
     r = current_app.extensions["redis"]
     r.hset(f"room:{room_id}:geometries", key, value_to_store)
