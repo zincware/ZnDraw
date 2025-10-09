@@ -1,5 +1,6 @@
 import itertools
 import logging
+from datetime import datetime, timezone
 from pathlib import Path
 
 import ase.io
@@ -34,6 +35,7 @@ def read_file(
     step: int | None = None,
     make_default: bool = False,
     batch_size: int = 10,
+    root_path: str | None = None,
 ) -> None:
     from zndraw import ZnDraw
 
@@ -92,6 +94,40 @@ def read_file(
             raise  # Re-raise to exit the context manager properly
 
     vis.log(f"Finished reading file {file}.")
+    
+    # Store file metadata
+    try:
+        stat = file_path.stat()
+        # Get relative path from root_path if provided
+        if root_path:
+            try:
+                relative_path = file_path.relative_to(Path(root_path).resolve())
+            except ValueError:
+                # If not relative to root_path, use absolute path
+                relative_path = file_path.absolute()
+        else:
+            # Fallback: try relative to cwd
+            try:
+                relative_path = file_path.relative_to(Path.cwd())
+            except ValueError:
+                # If not relative to cwd, use absolute path
+                relative_path = file_path.absolute()
+        
+        metadata = {
+            "relative_file_path": str(relative_path),
+            "file_size": str(stat.st_size),
+            "file_modified_timestamp": datetime.fromtimestamp(stat.st_mtime, tz=timezone.utc).isoformat(),
+        }
+        
+        # Store metadata via REST API
+        requests.post(
+            f"{server_url}/api/rooms/{room}/metadata",
+            json=metadata
+        ).raise_for_status()
+        log.info(f"Stored metadata for room {room}: {metadata}")
+    except Exception as e:
+        log.error(f"Failed to store metadata for room {room}: {e}")
+        # Don't fail the whole task if metadata storage fails
     
     # Set as default room if requested
     if make_default:

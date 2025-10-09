@@ -45,6 +45,7 @@ def server(tmp_path) -> t.Generator[str, None, None]:
                 str(storage_path),
                 "--redis-url",
                 redis_url,
+                "--no-browser",
             ],
             stdout=stdout_f,
             stderr=stderr_f,

@@ -12,7 +12,9 @@ from zndraw.exceptions import LockError
 from zndraw.extensions import Extension, ExtensionType
 from zndraw.figures_manager import Figures
 from zndraw.frame_cache import FrameCache
+from zndraw.metadata_manager import RoomMetadata
 from zndraw.scene_manager import Geometries
+from zndraw.server_manager import get_server_status
 from zndraw.settings import RoomConfig, settings
 from zndraw.socket_manager import SocketIOLock, SocketManager
 from zndraw.utils import atoms_from_dict, atoms_to_dict, update_colors_and_radii
@@ -33,9 +35,27 @@ class _ExtensionStore(t.TypedDict):
 
 @dataclasses.dataclass
 class ZnDraw(MutableSequence):
-    """A client for interacting with the ZnDraw server."""
+    """A client for interacting with the ZnDraw server.
+    
+    Parameters
+    ----------
+    url
+        URL of the ZnDraw server. If None, will attempt to auto-discover
+        a running local server (similar to zndraw CLI behavior).
+    room
+        Name of the room to connect to.
+    user
+        Username for the client connection.
+    auto_pickup_jobs
+        Whether to automatically pick up extension jobs.
+    description
+        Optional description for the room.
+    copy_from
+        Optional room name to copy initial state from.
+    
+    """
 
-    url: str = "http://localhost:5000"
+    url: str | None = None
     room: str = "default"
     user: str = "guest"
     auto_pickup_jobs: bool = True
@@ -57,8 +77,22 @@ class ZnDraw(MutableSequence):
     )
     _figures: dict[str, dict] = dataclasses.field(default_factory=dict, init=False)
     _lock: SocketIOLock | None = dataclasses.field(default=None, init=False)
+    _metadata: RoomMetadata | None = dataclasses.field(default=None, init=False)
 
     def __post_init__(self):
+        # Auto-discover local server if url is None
+        if self.url is None:
+            is_running, server_info, status_message = get_server_status()
+            
+            if is_running and server_info is not None:
+                self.url = f"http://localhost:{server_info.port}"
+                log.info(f"Auto-discovered local ZnDraw server: {status_message}")
+            else:
+                raise RuntimeError(
+                    "No local ZnDraw server found. Please start a server with 'zndraw' "
+                    "or provide an explicit URL."
+                )
+        
         self.api = APIManager(url=self.url, room=self.room, client_id=self._client_id)
         self.cache: FrameCache | None = FrameCache(maxsize=100)
 
@@ -112,6 +146,25 @@ class ZnDraw(MutableSequence):
     @property
     def figures(self) -> Figures:
         return Figures(self)
+    
+    @property
+    def metadata(self) -> RoomMetadata:
+        """Access room metadata as a dict-like object.
+        
+        Returns
+        -------
+        RoomMetadata
+            A MutableMapping interface to room metadata.
+            
+        Examples
+        --------
+        >>> vis.metadata["file"] = "data.xyz"
+        >>> print(vis.metadata["file"])
+        >>> del vis.metadata["file"]
+        """
+        if self._metadata is None:
+            self._metadata = RoomMetadata(self)
+        return self._metadata
 
     @property
     def sid(self) -> str:

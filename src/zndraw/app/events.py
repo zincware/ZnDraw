@@ -517,9 +517,10 @@ def acquire_lock(data):
     target = data.get("target")
     ttl = data.get("ttl", 60)  # Default to 60 seconds if not specified
     room = get_project_room_from_session(sid)
+    client_id = get_client_id_from_sid(sid)
 
-    if not room or not target:
-        return {"success": False, "error": "Room or target missing"}
+    if not room or not target or not client_id:
+        return {"success": False, "error": "Room, target, or client_id missing"}
     
     # Validate TTL - must not exceed 300 seconds (5 minutes)
     if not isinstance(ttl, (int, float)) or ttl <= 0:
@@ -528,12 +529,14 @@ def acquire_lock(data):
         return {"success": False, "error": "TTL cannot exceed 300 seconds (5 minutes)"}
 
     lock_key = get_lock_key(room, target)
-    if r.set(lock_key, sid, nx=True, ex=int(ttl)):
-        log.debug(f"Lock acquired for '{target}' in room '{room}' by {sid} with TTL {ttl}s")
+    # Store client_id in lock (not sid) so HTTP endpoints can verify
+    if r.set(lock_key, client_id, nx=True, ex=int(ttl)):
+        log.debug(f"Lock acquired for '{target}' in room '{room}' by client {client_id} (sid:{sid}) with TTL {ttl}s")
         return {"success": True}
     else:
+        lock_holder = r.get(lock_key)
         log.info(
-            f"Lock for '{target}' in room '{room}' already held by {r.get(lock_key)}, denied for {sid}"
+            f"Lock for '{target}' in room '{room}' already held by {lock_holder}, denied for {client_id} (sid:{sid})"
         )
         return {"success": False}
 
@@ -544,19 +547,22 @@ def release_lock(data):
     r = current_app.extensions["redis"]
     target = data.get("target")
     room = get_project_room_from_session(sid)
+    client_id = get_client_id_from_sid(sid)
 
-    if not room or not target:
-        return {"success": False, "error": "Room or target missing"}
+    if not room or not target or not client_id:
+        return {"success": False, "error": "Room, target, or client_id missing"}
 
     lock_key = get_lock_key(room, target)
-    if r.get(lock_key) == sid:
+    lock_holder = r.get(lock_key)
+    # Compare with client_id (not sid) since that's what we store
+    if lock_holder == client_id:
         r.delete(lock_key)
 
-        log.debug(f"Lock released for '{target}' in room '{room}' by {sid}")
+        log.debug(f"Lock released for '{target}' in room '{room}' by client {client_id} (sid:{sid})")
         return {"success": True}
 
     log.warning(
-        f"Failed release: Lock for '{target}' in room '{room}' not held by {sid}"
+        f"Failed release: Lock for '{target}' in room '{room}' held by {lock_holder}, not by {client_id} (sid:{sid})"
     )
     return {"success": False}
 
@@ -569,9 +575,10 @@ def refresh_lock(data):
     target = data.get("target")
     ttl = data.get("ttl", 60)  # Default to 60 seconds if not specified
     room = get_project_room_from_session(sid)
+    client_id = get_client_id_from_sid(sid)
 
-    if not room or not target:
-        return {"success": False, "error": "Room or target missing"}
+    if not room or not target or not client_id:
+        return {"success": False, "error": "Room, target, or client_id missing"}
     
     # Validate TTL - must not exceed 300 seconds (5 minutes)
     if not isinstance(ttl, (int, float)) or ttl <= 0:
@@ -580,12 +587,13 @@ def refresh_lock(data):
         return {"success": False, "error": "TTL cannot exceed 300 seconds (5 minutes)"}
 
     lock_key = get_lock_key(room, target)
+    lock_holder = r.get(lock_key)
     
-    # Only refresh if the lock is held by this client
-    if r.get(lock_key) == sid:
+    # Only refresh if the lock is held by this client (compare with client_id)
+    if lock_holder == client_id:
         # Reset the TTL
         r.expire(lock_key, int(ttl))
-        log.debug(f"Lock refreshed for '{target}' in room '{room}' by {sid} with TTL {ttl}s")
+        log.debug(f"Lock refreshed for '{target}' in room '{room}' by client {client_id} (sid:{sid}) with TTL {ttl}s")
         return {"success": True}
     
     log.warning(

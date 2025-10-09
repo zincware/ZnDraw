@@ -16,7 +16,7 @@ def test_rest_get_geometries(server):
     assert response.status_code == 200
     data = response.json()
     assert "geometries" in data
-    assert set(data["geometries"]) == {"particles", "bonds"}
+    assert set(data["geometries"]) == {"particles", "bonds", "curve"}
     
     # Test getting individual geometry - particles
     response = requests.get(f"{server}/api/rooms/{room}/geometries/particles")
@@ -34,7 +34,7 @@ def test_rest_get_geometries(server):
     assert data["key"] == "bonds"
     assert data["geometry"]["type"] == "Bond"
     assert data["geometry"]["data"]["connectivity"] == "info.connectivity"
-    assert data["geometry"]["data"]["scale"] == 0.25
+    assert data["geometry"]["data"]["scale"] == 0.15
     
     # Test getting non-existent geometry
     response = requests.get(f"{server}/api/rooms/{room}/geometries/nonexistent")
@@ -111,6 +111,11 @@ def test_rest_delete_geometry(server):
     data = response.json()
     assert data["status"] == "success"
 
+    response = requests.delete(f"{server}/api/rooms/{room}/geometries/curve")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "success"
+
     # Verify no geometries remain
     response = requests.get(f"{server}/api/rooms/{room}/geometries")
     assert response.status_code == 200
@@ -131,10 +136,13 @@ def test_rest_delete_unknown_geometry(server):
 
 
 def test_vis_list_geometries(server):
+    from zndraw.geometries import Curve
+    
     vis = ZnDraw(url=server, room="test-room-vis-list-geom", user="tester")
-    assert len(vis.geometries) == 2
+    assert len(vis.geometries) == 3
     assert vis.geometries["particles"] == Sphere()
     assert vis.geometries["bonds"] == Bond()
+    assert vis.geometries["curve"] == Curve()
 
 def test_vis_add_update_delete_geometry(server):
     vis1 = ZnDraw(url=server, room="room1", user="tester")

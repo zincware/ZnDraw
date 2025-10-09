@@ -137,6 +137,10 @@ class APIManager:
             upload_url = f"{self.url}/api/rooms/{self.room}/frames"
             params = {"action": action}
             params.update(kwargs)
+            
+            # Add client_id if available (for lock checking)
+            if self.client_id:
+                params["client_id"] = self.client_id
 
             http_response = requests.post(
                 upload_url, data=packed_data, params=params, timeout=30
@@ -178,6 +182,10 @@ class APIManager:
                 params["stop"] = index.stop
             if index.step is not None:
                 params["step"] = index.step
+        
+        # Add client_id if available (for lock checking)
+        if self.client_id:
+            params["client_id"] = self.client_id
 
         response = requests.delete(delete_url, params=params, timeout=30)
 
@@ -392,3 +400,52 @@ class APIManager:
         )
         response.raise_for_status()
         return response.json().get("figures", [])
+    
+    def get_metadata(self) -> dict[str, str]:
+        """Get all metadata for the room.
+        
+        Returns
+        -------
+        dict[str, str]
+            Dictionary of metadata fields.
+        """
+        response = requests.get(f"{self.url}/api/rooms/{self.room}/metadata")
+        response.raise_for_status()
+        return response.json().get("metadata", {})
+    
+    def set_metadata(self, data: dict[str, str]) -> None:
+        """Update room metadata.
+        
+        Parameters
+        ----------
+        data : dict[str, str]
+            Dictionary of metadata fields to update.
+            
+        Raises
+        ------
+        requests.HTTPError
+            If the request fails (e.g., room is locked).
+        """
+        response = requests.post(
+            f"{self.url}/api/rooms/{self.room}/metadata",
+            json=data
+        )
+        response.raise_for_status()
+    
+    def delete_metadata_field(self, field: str) -> None:
+        """Delete a metadata field.
+        
+        Parameters
+        ----------
+        field : str
+            The metadata field name to delete.
+            
+        Raises
+        ------
+        requests.HTTPError
+            If the request fails (e.g., room is locked).
+        """
+        response = requests.delete(
+            f"{self.url}/api/rooms/{self.room}/metadata/{field}"
+        )
+        response.raise_for_status()

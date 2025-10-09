@@ -373,6 +373,7 @@ export interface Room {
   metadataLocked?: boolean;
   hidden: boolean;
   isDefault?: boolean;
+  metadata?: Record<string, string>;
 }
 
 export interface RoomDetail {
@@ -406,8 +407,9 @@ export interface DefaultRoomResponse {
   roomId: string | null;
 }
 
-export const listRooms = async (): Promise<Room[]> => {
-  const { data } = await apiClient.get("/api/rooms");
+export const listRooms = async (search?: string): Promise<Room[]> => {
+  const params = search ? `?search=${encodeURIComponent(search)}` : "";
+  const { data } = await apiClient.get(`/api/rooms${params}`);
   return data;
 };
 
@@ -455,6 +457,10 @@ export interface FileItem {
   size: number | null;
   modified: string;
   supported?: boolean;
+  alreadyLoaded?: {
+    room: string;
+    description?: string | null;
+  };
 }
 
 export interface DirectoryListResponse {
@@ -470,14 +476,29 @@ export interface LoadFileRequest {
   stop?: number;
   step?: number;
   make_default?: boolean;
+  force_upload?: boolean;
 }
 
-export interface LoadFileResponse {
-  status: string;
+export interface LoadFileQueuedResponse {
+  status: "queued";
   room: string;
   message: string;
   task_id: string;
 }
+
+export interface LoadFileAlreadyLoadedResponse {
+  status: "file_already_loaded";
+  existingRoom: string;
+  message: string;
+  filePath: string;
+  options: {
+    openExisting: string;
+    createNew: string;
+    forceUpload: string;
+  };
+}
+
+export type LoadFileResponse = LoadFileQueuedResponse | LoadFileAlreadyLoadedResponse;
 
 export interface SupportedTypesResponse {
   extensions: string[];
@@ -490,8 +511,12 @@ export interface FileBrowserConfig {
 
 export const listDirectory = async (
   path?: string,
+  search?: string,
 ): Promise<DirectoryListResponse> => {
-  const params = path ? `?path=${encodeURIComponent(path)}` : "";
+  const queryParams = new URLSearchParams();
+  if (path) queryParams.append("path", path);
+  if (search) queryParams.append("search", search);
+  const params = queryParams.toString() ? `?${queryParams.toString()}` : "";
   const { data } = await apiClient.get(`/api/file-browser/list${params}`);
   return data;
 };
@@ -516,5 +541,26 @@ export const getFileBrowserConfig = async (): Promise<FileBrowserConfig> => {
   } catch (error) {
     return { enabled: false };
   }
+};
+
+export interface CreateRoomFromFileRequest {
+  sourceRoom: string;
+  newRoom?: string;
+  description?: string;
+}
+
+export interface CreateRoomFromFileResponse {
+  status: string;
+  roomId: string;
+  sourceRoom: string;
+  frameCount: number;
+  message: string;
+}
+
+export const createRoomFromFile = async (
+  request: CreateRoomFromFileRequest,
+): Promise<CreateRoomFromFileResponse> => {
+  const { data } = await apiClient.post("/api/file-browser/create-room-from-file", request);
+  return data;
 };
 

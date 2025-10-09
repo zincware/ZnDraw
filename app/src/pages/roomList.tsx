@@ -52,6 +52,7 @@ interface DuplicateFormState {
 
 export default function RoomListPage() {
   const queryClient = useQueryClient();
+  const [searchQuery, setSearchQuery] = useState<string>("");
   const [snackbar, setSnackbar] = useState<{
     open: boolean;
     message: string;
@@ -86,8 +87,8 @@ export default function RoomListPage() {
     error,
     isError,
   } = useQuery({
-    queryKey: ["rooms"],
-    queryFn: listRooms,
+    queryKey: ["rooms", searchQuery],
+    queryFn: () => listRooms(searchQuery || undefined),
     refetchInterval: 5000, // Refetch every 5 seconds
     placeholderData: (previousData) => previousData, // Keep previous data while refetching
   });
@@ -414,6 +415,19 @@ export default function RoomListPage() {
         <Typography variant="subtitle1" color="text.secondary" gutterBottom>
           Manage your rooms: lock, hide, set default, or duplicate
         </Typography>
+
+        {/* Search Bar */}
+        <Box sx={{ mt: 3, mb: 2 }}>
+          <TextField
+            fullWidth
+            size="small"
+            label="Search rooms"
+            placeholder="Search by metadata (file path, etc.) - supports regex"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            variant="outlined"
+          />
+        </Box>
 
         <Box sx={{ height: 600, width: "100%", mt: 3 }}>
           <DataGrid

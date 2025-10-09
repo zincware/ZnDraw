@@ -55,9 +55,13 @@ def check_room_locked(
     """
     Check if a room is locked. Returns error response tuple if locked, None if not locked.
     
+    This checks BOTH:
+    1. Permanent room lock (room:{room_id}:locked)
+    2. Temporary trajectory lock (trajectory:meta) - used by vis.lock context manager
+    
     Args:
         room_id: The room ID to check
-        client_id: Optional client ID - if provided and this client holds the metadata lock,
+        client_id: Optional client ID - if provided and this client holds the trajectory lock,
                    the check will pass
     
     Returns:
@@ -70,14 +74,19 @@ def check_room_locked(
     if locked == "1":
         return {"error": "Room is locked and cannot be modified"}, 403
     
-    # Check metadata lock (from vis.lock context manager)
-    # If a client_id is provided and it holds the lock, allow the operation
-    if client_id:
-        metadata_lock_key = get_lock_key(room_id, "trajectory:meta")
-        lock_holder = redis_client.get(metadata_lock_key)
-        if lock_holder and lock_holder != client_id:
-            # Someone else holds the metadata lock
-            return {"error": "Room is temporarily locked by another operation"}, 403
+    # Check trajectory lock (from vis.lock context manager)
+    # This protects ALL trajectory operations: append, delete, upload, etc.
+    trajectory_lock_key = get_lock_key(room_id, "trajectory:meta")
+    lock_holder = redis_client.get(trajectory_lock_key)
+    
+    if lock_holder:
+        log.debug(f"Lock check: room={room_id}, lock_holder={lock_holder}, client_id={client_id}")
+        # If a client_id is provided and it holds the lock, allow the operation
+        if client_id and lock_holder == client_id:
+            return None
+        # Otherwise, the room is locked by another operation
+        log.warning(f"Lock rejected: lock_holder={lock_holder} != client_id={client_id}")
+        return {"error": "Room is temporarily locked by another operation"}, 423
     
     return None
 
@@ -472,8 +481,11 @@ def get_frame_metadata(room_id: str, frame_id: int):
 @main.route("/api/rooms/<string:room_id>/frames", methods=["DELETE"])
 def delete_frames_batch(room_id):
     """Deletes frames using either a single frame_id, indices, or slice parameters from query params."""
-    # Check if room is locked
-    lock_error = check_room_locked(room_id)
+    # Get client_id from query params (if provided)
+    client_id = request.args.get("client_id")
+    
+    # Check if room is locked (passes client_id for lock holder check)
+    lock_error = check_room_locked(room_id, client_id)
     if lock_error:
         return lock_error
 
@@ -613,8 +625,11 @@ def delete_frames_batch(room_id):
 @main.route("/api/rooms/<string:room_id>/frames", methods=["POST"])
 def append_frame(room_id):
     """Handles frame operations (append, extend, replace, insert) based on action query parameter."""
-    # Check if room is locked
-    lock_error = check_room_locked(room_id)
+    # Get client_id from query params (if provided)
+    client_id = request.args.get("client_id")
+    
+    # Check if room is locked (passes client_id for lock holder check)
+    lock_error = check_room_locked(room_id, client_id)
     if lock_error:
         return lock_error
 
@@ -922,6 +937,7 @@ def bulk_replace_frames(room_id):
             pipeline.execute()
 
             emit_bookmarks_update(room_id)
+            emit_len_frames_update(room_id)
             emit_frames_invalidate(
                 room_id, operation="bulk_replace", affected_from=start
             )
@@ -946,6 +962,9 @@ def bulk_replace_frames(room_id):
 def list_rooms():
     """List all active rooms with metadata.
     
+    Query Parameters:
+        search: Optional regex pattern to search in metadata values
+    
     Returns:
         [{
             "id": "room1",
@@ -954,10 +973,15 @@ def list_rooms():
             "locked": false,
             "metadataLocked": false,
             "hidden": false,
-            "isDefault": false
+            "isDefault": false,
+            "metadata": {"relative_file_path": "...", ...}
         }]
     """
+    import re
+    from zndraw.app.metadata_manager import RoomMetadataManager
+    
     redis_client = current_app.extensions["redis"]
+    search_pattern = request.args.get("search")
 
     # Scan for all room keys to find unique room IDs
     room_ids = set()
@@ -987,6 +1011,24 @@ def list_rooms():
         metadata_lock_key = get_lock_key(room_id, "trajectory:meta")
         metadata_locked = redis_client.get(metadata_lock_key) is not None
         
+        # Get file metadata
+        metadata_manager = RoomMetadataManager(redis_client, room_id)
+        file_metadata = metadata_manager.get_all()
+        
+        # Filter by search pattern if provided
+        if search_pattern:
+            try:
+                pattern = re.compile(search_pattern, re.IGNORECASE)
+                # Search in metadata values and room ID
+                search_targets = list(file_metadata.values()) + [room_id]
+                if description:
+                    search_targets.append(description)
+                if not any(pattern.search(str(v)) for v in search_targets):
+                    continue
+            except re.error:
+                # Invalid regex, skip filtering for this room
+                pass
+        
         rooms.append({
             "id": room_id,
             "description": description if description else None,
@@ -994,7 +1036,8 @@ def list_rooms():
             "locked": locked,
             "metadataLocked": metadata_locked,
             "hidden": hidden,
-            "isDefault": is_default
+            "isDefault": is_default,
+            "metadata": file_metadata
         })
 
     return rooms, 200
@@ -1010,9 +1053,12 @@ def get_room(room_id):
             "description": "My room",
             "frameCount": 42,
             "locked": false,
-            "hidden": false
+            "hidden": false,
+            "metadata": {"relative_file_path": "...", ...}
         }
     """
+    from zndraw.app.metadata_manager import RoomMetadataManager
+    
     redis_client = current_app.extensions["redis"]
 
     # Check if room exists
@@ -1032,13 +1078,18 @@ def get_room(room_id):
     description = redis_client.get(f"room:{room_id}:description")
     locked = redis_client.get(f"room:{room_id}:locked") == "1"
     hidden = redis_client.get(f"room:{room_id}:hidden") == "1"
+    
+    # Get file metadata
+    metadata_manager = RoomMetadataManager(redis_client, room_id)
+    file_metadata = metadata_manager.get_all()
 
     return {
         "id": room_id,
         "description": description if description else None,
         "frameCount": frame_count,
         "locked": locked,
-        "hidden": hidden
+        "hidden": hidden,
+        "metadata": file_metadata
     }, 200
 
 
@@ -1127,6 +1178,85 @@ def set_default_room():
         log.info(f"Set default room to '{room_id}'")
 
     return {"status": "ok"}, 200
+
+
+@main.route("/api/rooms/<string:room_id>/metadata", methods=["GET"])
+def get_room_metadata(room_id: str):
+    """Get all metadata for a room.
+    
+    Returns:
+        {"metadata": {"relative_file_path": "...", ...}}
+    """
+    from zndraw.app.metadata_manager import RoomMetadataManager
+    
+    redis_client = current_app.extensions["redis"]
+    manager = RoomMetadataManager(redis_client, room_id)
+    metadata = manager.get_all()
+    
+    return {"metadata": metadata}, 200
+
+
+@main.route("/api/rooms/<string:room_id>/metadata", methods=["POST"])
+def update_room_metadata(room_id: str):
+    """Update room metadata. Respects room lock.
+    
+    Request body:
+        {"relative_file_path": "data/file.xyz", "file_size": "12345", ...}
+    
+    Returns:
+        {"success": true, "metadata": {...}}
+    """
+    from zndraw.app.metadata_manager import RoomMetadataManager
+    
+    # Check permanent room lock only (metadata doesn't use trajectory lock)
+    redis_client = current_app.extensions["redis"]
+    locked = redis_client.get(f"room:{room_id}:locked")
+    if locked == "1":
+        return {"error": "Room is locked and cannot be modified"}, 403
+    
+    data = request.get_json() or {}
+    
+    # Validate all values are strings
+    for key, value in data.items():
+        if not isinstance(value, str):
+            return {
+                "error": f"All values must be strings. Field '{key}' has type {type(value).__name__}"
+            }, 400
+    
+    # Update metadata
+    manager = RoomMetadataManager(redis_client, room_id)
+    try:
+        manager.update(data)
+        metadata = manager.get_all()
+        return {"success": True, "metadata": metadata}, 200
+    except Exception as e:
+        log.error(f"Error updating metadata for room '{room_id}': {e}")
+        return {"error": str(e)}, 500
+
+
+@main.route("/api/rooms/<string:room_id>/metadata/<string:field>", methods=["DELETE"])
+def delete_room_metadata_field(room_id: str, field: str):
+    """Delete specific metadata field. Respects room lock.
+    
+    Returns:
+        {"success": true}
+    """
+    from zndraw.app.metadata_manager import RoomMetadataManager
+    
+    # Check permanent room lock only (metadata doesn't use trajectory lock)
+    redis_client = current_app.extensions["redis"]
+    locked = redis_client.get(f"room:{room_id}:locked")
+    if locked == "1":
+        return {"error": "Room is locked and cannot be modified"}, 403
+    
+    manager = RoomMetadataManager(redis_client, room_id)
+    
+    try:
+        deleted = manager.delete(field)
+        return {"success": True, "deleted": deleted}, 200
+    except Exception as e:
+        log.error(f"Error deleting metadata field '{field}' for room '{room_id}': {e}")
+        return {"error": str(e)}, 500
 
 
 @main.route("/api/rooms/<string:room_id>/duplicate", methods=["POST"])

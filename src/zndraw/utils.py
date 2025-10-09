@@ -125,14 +125,62 @@ def update_colors_and_radii(atoms: ase.Atoms) -> None:
         )
         atoms.set_array("colors", colors)
     if "radii" not in atoms.arrays:
-        # radii = np.array(
-        #     [
-        #         covalent_radii[atom.number]
-        #         if atom.number < len(covalent_radii)
-        #         else 0.77
-        #         for atom in atoms
-        #     ],
-        #     dtype=np.float32,
-        # )
-        radii = covalent_radii[atoms.numbers]
+        radii = covalent_radii[atoms.numbers].astype(np.float32)
         atoms.set_array("radii", radii)
+
+
+def generate_room_name(base_name: str, redis_client, max_length: int = 20) -> str:
+    """Generate a unique room name from a base name.
+    
+    The room name is truncated to max_length characters. If a room with that name
+    already exists, an MD5 hash suffix is appended to ensure uniqueness.
+    
+    Parameters
+    ----------
+    base_name : str
+        The original filename or path to create a room name from.
+    redis_client
+        Redis client to check for existing room names.
+    max_length : int
+        Maximum length for the room name (default: 20).
+        
+    Returns
+    -------
+    str
+        A unique room name.
+        
+    Examples
+    --------
+    >>> generate_room_name("very_long_filename.xyz", redis_client)
+    'very_long_filename.'  # if unique
+    >>> generate_room_name("structure.xyz", redis_client)  # if collision
+    'structure.xyz_a3f2'  # hash suffix added
+    """
+    import hashlib
+    
+    # Truncate to max length
+    truncated = base_name[:max_length]
+    
+    # If no redis client provided, skip collision check
+    if redis_client is None:
+        return truncated
+    
+    # Check if this room name already exists
+    room_exists = False
+    for key in redis_client.scan_iter(match=f"room:{truncated}:*", count=1):
+        room_exists = True
+        break
+    
+    if not room_exists:
+        return truncated
+    
+    # Room exists, add hash suffix
+    # Use MD5 of full name to generate collision suffix
+    hash_value = hashlib.md5(base_name.encode()).hexdigest()[:4]
+    
+    # Truncate further to make room for hash suffix
+    suffix_length = 5  # underscore + 4 hex chars
+    if len(truncated) + suffix_length > max_length:
+        truncated = truncated[: max_length - suffix_length]
+    
+    return f"{truncated}_{hash_value}"

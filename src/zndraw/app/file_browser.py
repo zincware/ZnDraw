@@ -6,11 +6,156 @@ from pathlib import Path
 
 from flask import Blueprint, current_app, jsonify, request
 
-from zndraw.cli import path_to_room
-
 log = logging.getLogger(__name__)
 
 file_browser = Blueprint("file_browser", __name__, url_prefix="/api/file-browser")
+
+
+def _get_all_rooms_metadata(redis_client) -> dict[str, dict]:
+    """Get metadata for all rooms.
+    
+    Parameters
+    ----------
+    redis_client
+        Redis client instance.
+    
+    Returns
+    -------
+    dict[str, dict]
+        Dictionary mapping room_id to room metadata and description.
+    """
+    from zndraw.app.metadata_manager import RoomMetadataManager
+    
+    rooms = {}
+    for key in redis_client.scan_iter(match="room:*:metadata"):
+        room_id = key.split(":")[1]
+        manager = RoomMetadataManager(redis_client, room_id)
+        metadata = manager.get_all()
+        
+        # Get room description
+        description_key = f"room:{room_id}:description"
+        description = redis_client.get(description_key)
+        
+        rooms[room_id] = {
+            "room_id": room_id,
+            "metadata": metadata,
+            "description": description
+        }
+    
+    return rooms
+
+
+def _find_matching_room(
+    file_path: Path, 
+    root_path: str, 
+    rooms_metadata: dict[str, dict]
+) -> dict | None:
+    """Find a room that contains this exact file.
+    
+    Parameters
+    ----------
+    file_path : Path
+        The file path to search for.
+    root_path : str
+        The root path for file browser.
+    rooms_metadata : dict[str, dict]
+        Pre-loaded metadata for all rooms.
+    
+    Returns
+    -------
+    dict | None
+        Room info if match found, None otherwise.
+    """
+    # Compute relative path from root
+    try:
+        relative_path = str(file_path.relative_to(Path(root_path).resolve()))
+    except ValueError:
+        # If file is not relative to root, use absolute path
+        relative_path = str(file_path)
+    
+    # Get current file stats
+    try:
+        current_stat = file_path.stat()
+        current_size = str(current_stat.st_size)
+        current_mtime = datetime.fromtimestamp(
+            current_stat.st_mtime, tz=timezone.utc
+        ).isoformat()
+    except OSError:
+        return None
+    
+    # Check each room's metadata
+    for room_id, room_info in rooms_metadata.items():
+        metadata = room_info["metadata"]
+        
+        stored_path = metadata.get("relative_file_path")
+        stored_size = metadata.get("file_size")
+        stored_mtime = metadata.get("file_modified_timestamp")
+        
+        # Check exact match: same path, size, and mtime
+        if (stored_path == relative_path and
+            stored_size == current_size and
+            stored_mtime == current_mtime):
+            return room_info
+    
+    return None
+
+
+def _find_room_with_exact_file(file_path: Path, redis_client, root_path: str) -> str | None:
+    """Find a room that has this exact file (matching path, size, and mtime).
+    
+    Parameters
+    ----------
+    file_path : Path
+        The absolute file path to search for.
+    redis_client
+        Redis client instance.
+    root_path : str
+        The root path for file browser to compute relative path.
+    
+    Returns
+    -------
+    str | None
+        Room ID if exact match found, None otherwise.
+    """
+    from zndraw.app.metadata_manager import RoomMetadataManager
+    
+    # Compute relative path from root
+    try:
+        relative_path = str(file_path.relative_to(Path(root_path).resolve()))
+    except ValueError:
+        # If file is not relative to root, use absolute path
+        relative_path = str(file_path)
+    
+    # Get current file stats
+    current_stat = file_path.stat()
+    current_size = str(current_stat.st_size)
+    current_mtime = datetime.fromtimestamp(
+        current_stat.st_mtime, tz=timezone.utc
+    ).isoformat()
+    
+    log.info(f"Looking for duplicate file: relative_path={relative_path}, size={current_size}, mtime={current_mtime}")
+    
+    # Scan all rooms for matching metadata
+    for key in redis_client.scan_iter(match="room:*:metadata"):
+        room_id = key.split(":")[1]
+        manager = RoomMetadataManager(redis_client, room_id)
+        metadata = manager.get_all()
+        
+        stored_path = metadata.get("relative_file_path")
+        stored_size = metadata.get("file_size")
+        stored_mtime = metadata.get("file_modified_timestamp")
+        
+        log.debug(f"Checking room {room_id}: stored_path={stored_path}, stored_size={stored_size}, stored_mtime={stored_mtime}")
+        
+        # Check exact match: same path, size, and mtime
+        if (stored_path == relative_path and
+            stored_size == current_size and
+            stored_mtime == current_mtime):
+            log.info(f"Found duplicate in room: {room_id}")
+            return room_id
+    
+    log.info("No duplicate found")
+    return None
 
 # Supported file extensions for molecular structure files
 SUPPORTED_EXTENSIONS = {
@@ -98,19 +243,24 @@ def list_directory():
     ----------------
     path : str, optional
         Relative path from browser root. Defaults to root.
+    search : str, optional
+        Regex pattern to filter file/directory names.
 
     Returns
     -------
     Response
         JSON response with directory contents or error.
     """
+    import re
+    
     # Check if feature is enabled
     error = check_feature_enabled()
     if error:
         return jsonify(error[0]), error[1]
 
-    # Get requested path
+    # Get requested path and search pattern
     requested_path = request.args.get("path", "")
+    search_pattern = request.args.get("search")
     root = current_app.config.get("FILE_BROWSER_ROOT", ".")
 
     # Validate path
@@ -126,6 +276,10 @@ def list_directory():
     if not target_path.is_dir():
         return jsonify({"error": "Path is not a directory"}), 400
 
+    # Get redis client and preload all room metadata for file matching
+    redis_client = current_app.extensions["redis"]
+    rooms_metadata = _get_all_rooms_metadata(redis_client)
+    
     # List directory contents
     try:
         items = []
@@ -133,6 +287,16 @@ def list_directory():
             # Skip hidden files
             if item.name.startswith("."):
                 continue
+            
+            # Apply search filter if provided
+            if search_pattern:
+                try:
+                    pattern = re.compile(search_pattern, re.IGNORECASE)
+                    if not pattern.search(item.name):
+                        continue
+                except re.error:
+                    # Invalid regex, include all items
+                    pass
 
             item_info = {
                 "name": item.name,
@@ -143,9 +307,22 @@ def list_directory():
                 ).isoformat(),
             }
 
-            # Mark if file is supported
+            # Mark if file is supported and check if already loaded
             if item.is_file():
                 item_info["supported"] = is_supported_file(item)
+                
+                # Check if this file is already loaded in any room
+                if item_info["supported"]:
+                    loaded_room = _find_matching_room(
+                        item, 
+                        root, 
+                        rooms_metadata
+                    )
+                    if loaded_room:
+                        item_info["alreadyLoaded"] = {
+                            "room": loaded_room["room_id"],
+                            "description": loaded_room.get("description")
+                        }
 
             items.append(item_info)
 
@@ -233,10 +410,33 @@ def load_file():
             400,
         )
 
+    # Check for duplicate file unless force_upload is true
+    force_upload = data.get("force_upload", False)
+    redis_client = current_app.extensions["redis"]
+    
+    if not force_upload:
+        existing_room = _find_room_with_exact_file(target_path, redis_client, root)
+        
+        if existing_room:
+            return jsonify({
+                "status": "file_already_loaded",
+                "existingRoom": existing_room,
+                "message": f"This file is already loaded in room '{existing_room}'",
+                "filePath": str(target_path),
+                "options": {
+                    "openExisting": f"Open room '{existing_room}'",
+                    "createNew": "Create new room (reuse storage)",
+                    "forceUpload": "Upload anyway (ignore existing)"
+                }
+            }), 200
+    
     # Get or generate room name
     room = data.get("room")
     if not room:
-        room = path_to_room(str(target_path))
+        from zndraw.utils import generate_room_name
+        # Use filename as base, not full path
+        base_name = target_path.name
+        room = generate_room_name(base_name, redis_client)
 
     # Get optional parameters
     start = data.get("start")
@@ -258,6 +458,7 @@ def load_file():
             stop=stop,
             step=step,
             make_default=make_default,
+            root_path=root,
         )
 
         return jsonify(
@@ -272,6 +473,101 @@ def load_file():
     except Exception as e:
         log.error(f"Error queuing file load task: {e}")
         return jsonify({"error": "Failed to queue file loading task"}), 500
+
+
+@file_browser.route("/create-room-from-file", methods=["POST"])
+def create_room_from_existing_file():
+    """Create a new room reusing physical storage from an existing room.
+    
+    Request Body
+    ------------
+    sourceRoom : str
+        The room ID to copy storage from.
+    newRoom : str, optional
+        Name for the new room. If not provided, will be auto-generated.
+    description : str, optional
+        Description for the new room.
+    
+    Returns
+    -------
+    Response
+        JSON response with new room information or error.
+        
+    Notes
+    -----
+    Creates a new room with identity mapping {i: i for i in range(frame_count_original)}
+    WITHOUT re-uploading the file. Reuses the same physical Zarr storage.
+    """
+    # Check if feature is enabled
+    error = check_feature_enabled()
+    if error:
+        return jsonify(error[0]), error[1]
+    
+    data = request.get_json()
+    source_room = data.get("sourceRoom")
+    new_room = data.get("newRoom")
+    description = data.get("description")
+    
+    if not source_room:
+        return jsonify({"error": "sourceRoom is required"}), 400
+    
+    redis_client = current_app.extensions["redis"]
+    
+    # Get source room metadata
+    from zndraw.app.metadata_manager import RoomMetadataManager
+    source_metadata_manager = RoomMetadataManager(redis_client, source_room)
+    source_metadata = source_metadata_manager.get_all()
+    
+    if not source_metadata:
+        return jsonify({"error": "Source room has no metadata"}), 400
+    
+    # Check if source room exists
+    source_indices_key = f"room:{source_room}:trajectory:indices"
+    frame_count_int = redis_client.zcard(source_indices_key)
+    
+    if frame_count_int == 0:
+        return jsonify({"error": "Source room not found or has no frames"}), 404
+    
+    # Generate new room name if not provided
+    if not new_room:
+        from zndraw.utils import generate_room_name
+        from pathlib import Path
+        # Use just the filename (not the full path) to generate consistent name
+        file_path_str = source_metadata.get("relative_file_path") or source_room
+        # Extract just the filename, not the directory path
+        base_name = Path(file_path_str).name
+        new_room = generate_room_name(base_name, redis_client=redis_client)
+    
+    # Create identity mapping for new room
+    new_indices_key = f"room:{new_room}:trajectory:indices"
+    
+    # Copy all frame references with identity mapping
+    # Get all members from source room
+    source_frames = redis_client.zrange(source_indices_key, 0, -1, withscores=True)
+    
+    # Create mapping in new room
+    for frame_key, score in source_frames:
+        redis_client.zadd(new_indices_key, {frame_key: score})
+    
+    # Copy metadata to new room
+    new_metadata_manager = RoomMetadataManager(redis_client, new_room)
+    new_metadata_manager.update(source_metadata)
+    
+    # Set room description and properties
+    if description:
+        redis_client.set(f"room:{new_room}:description", description)
+    redis_client.set(f"room:{new_room}:locked", "0")
+    redis_client.set(f"room:{new_room}:hidden", "0")
+    
+    log.info(f"Created room '{new_room}' from '{source_room}' with {frame_count_int} frames")
+    
+    return jsonify({
+        "status": "success",
+        "roomId": new_room,
+        "sourceRoom": source_room,
+        "frameCount": frame_count_int,
+        "message": f"Room '{new_room}' created from '{source_room}' without re-uploading"
+    }), 201
 
 
 @file_browser.route("/supported-types", methods=["GET"])

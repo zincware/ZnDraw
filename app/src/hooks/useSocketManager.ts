@@ -348,6 +348,9 @@ export const useSocketManager = () => {
       socket.off("chat:message:updated", onChatMessageUpdated);
       socket.off("invalidate:geometry", onGeometriesInvalidate);
       socket.off("invalidate:figure", onFiguresInvalidate);
+      
+      // Disconnect socket when component unmounts to ensure clean reconnection
+      socket.disconnect();
     };
   }, [
     joinToken,
