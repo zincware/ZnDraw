@@ -89,12 +89,7 @@ function MyScene() {
               <Arrow
                 key={name}
                 geometryKey={name}
-                position={config.data.position}
-                direction={config.data.direction}
-                color={config.data.color}
-                radius={config.data.radius}
-                scale={config.data.scale}
-                material={config.data.material}
+                data={config.data}
               />
             );
           } else if (config.type === "Curve") {

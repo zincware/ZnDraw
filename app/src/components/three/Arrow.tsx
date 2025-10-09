@@ -1,11 +1,24 @@
 import * as THREE from "three";
-import { useQueries } from "@tanstack/react-query";
-import { getFrameDataOptions } from "../../hooks/useTrajectoryData";
 import { useAppStore } from "../../store";
-import { useRef, useMemo } from "react";
-import { useFrame } from "@react-three/fiber";
+import { useRef, useMemo, useEffect, useState } from "react";
 import { BufferGeometryUtils } from "three/examples/jsm/Addons.js";
 import { renderMaterial } from "./materials";
+import { getFrames } from "../../myapi/client";
+import { decode } from "@msgpack/msgpack";
+import { useQuery } from '@tanstack/react-query';
+import { shouldFetchAsFrameData, hexToRgb } from "../../utils/colorUtils";
+
+const numpyDtypeToTypedArray = {
+  float32: Float32Array,
+  float64: Float64Array,
+  int8: Int8Array,
+  int16: Int16Array,
+  int32: Int32Array,
+  uint8: Uint8Array,
+  uint16: Uint16Array,
+  uint32: Uint32Array,
+};
+
 
 // Props interface for the dynamic keys
 type StaticValue = number | number[] | number[][];
@@ -59,183 +72,284 @@ function createArrowMesh() {
   return arrowGeometry;
 }
 
-export default function Arrow({
-  position,
-  direction,
-  color,
-  radius,
-  scale,
-  material,
-  geometryKey,
-}: ArrowProps) {
+export default function Arrow({ data, geometryKey }: { data: ArrowProps; geometryKey: string }) {
+  const { position, direction, color, radius, scale, material } = data;
   const instancedMeshRef = useRef<THREE.InstancedMesh | null>(null);
   const { currentFrame, roomId, clientId, selection } = useAppStore();
-  const lastGoodFrameData = useRef<any>(null);
+  const [fetchedData, setFetchedData] = useState<Record<string, any>>({});
 
-  const selectionSet = useMemo(() => {
-    return selection ? new Set(selection) : null;
-  }, [selection]);
-
-  const { dynamicKeys, staticValues } = useMemo(() => {
-    const props = { position, direction, color, radius, scale };
-    const dynamicKeys: { [key: string]: string } = {};
-    const staticValues: { [key: string]: StaticValue } = {};
-
-    for (const key in props) {
-      const value = props[key as keyof ArrowProps];
-      if (typeof value === "string") {
-        dynamicKeys[key] = value;
-      } else {
-        staticValues[key] = value;
-      }
-    }
-    console.log("Dynamic Keys:", dynamicKeys);
-    console.log("Static Values:", staticValues);
-    return { dynamicKeys, staticValues };
+  // Determine which keys need fetching (exclude hex colors)Cwi
+  const keysToFetch = useMemo(() => {
+    const keys: Record<string, string> = {};
+    if (typeof position === "string") keys.position = position;
+    if (typeof direction === "string") keys.direction = direction;
+    if (typeof color === "string" && shouldFetchAsFrameData(color)) keys.color = color;
+    if (typeof radius === "string") keys.radius = radius;
+    if (typeof scale === "string") keys.scale = scale;
+    console.log("Arrow keysToFetch:", keys);
+    return keys;
   }, [position, direction, color, radius, scale]);
 
-  const requiredKeys = Object.values(dynamicKeys);
+  // Create queries for each dynamic property
+  const { data: positionData, isFetching: isPositionFetching } = useQuery({
+    queryKey: ["frame", roomId, currentFrame, keysToFetch.position],
+    queryFn: ({ signal }: { signal: AbortSignal }) =>
+      getFrames(roomId, currentFrame, [keysToFetch.position], signal),
+    enabled: !!keysToFetch.position,
+  });
 
-  const queries = useMemo(() => {
-    if (!roomId) {
-      return [];
-    }
-    return requiredKeys.map((key) =>
-      getFrameDataOptions(roomId, currentFrame, key),
-    );
-  }, [currentFrame, roomId, requiredKeys]);
+  const { data: directionData, isFetching: isDirectionFetching } = useQuery({
+    queryKey: ["frame", roomId, currentFrame, keysToFetch.direction],
+    queryFn: ({ signal }: { signal: AbortSignal }) =>
+      getFrames(roomId, currentFrame, [keysToFetch.direction], signal),
+    enabled: !!keysToFetch.direction,
+  });
 
-  const queryResults = useQueries({ queries });
+  const { data: colorData, isFetching: isColorFetching } = useQuery({
+    queryKey: ["frame", roomId, currentFrame, keysToFetch.color],
+    queryFn: ({ signal }: { signal: AbortSignal }) =>
+      getFrames(roomId, currentFrame, [keysToFetch.color], signal),
+    enabled: !!keysToFetch.color,
+  });
 
-  // REWRITTEN: The data combination logic
-  const { frameData, isFetching } = useMemo(() => {
-    try {
-      const isFetching = queryResults.some(
-        (result) => result.isFetching || result.isPlaceholderData,
-      );
+  const { data: radiusData, isFetching: isRadiusFetching } = useQuery({
+    queryKey: ["frame", roomId, currentFrame, keysToFetch.radius],
+    queryFn: ({ signal }: { signal: AbortSignal }) =>
+      getFrames(roomId, currentFrame, [keysToFetch.radius], signal),
+    enabled: !!keysToFetch.radius,
+  });
 
-      // 1. Get fetched data
-      const fetchedData: { [key: string]: any[] } = {};
-      const propToKeyMap = Object.entries(dynamicKeys);
-      for (let i = 0; i < requiredKeys.length; i++) {
-        const key = requiredKeys[i];
-        const result = queryResults[i];
-        if (result?.data?.data) {
-          // Find which prop this key belongs to (e.g., "arrays.positions" -> "position")
-          const propName = propToKeyMap.find(([prop, k]) => k === key)?.[0];
-          if (propName) {
-            fetchedData[propName] = result.data.data;
-          }
+  const { data: scaleData, isFetching: isScaleFetching } = useQuery({
+    queryKey: ["frame", roomId, currentFrame, keysToFetch.scale],
+    queryFn: ({ signal }: { signal: AbortSignal }) =>
+      getFrames(roomId, currentFrame, [keysToFetch.scale], signal),
+    enabled: !!keysToFetch.scale,
+  });
+
+  // Check if any enabled query is still fetching
+  const isFetching =
+    (keysToFetch.position && isPositionFetching) ||
+    (keysToFetch.direction && isDirectionFetching) ||
+    (keysToFetch.color && isColorFetching) ||
+    (keysToFetch.radius && isRadiusFetching) ||
+    (keysToFetch.scale && isScaleFetching);
+
+  // Clean up fetchedData when keysToFetch changes (e.g., switching from data key to static value)
+  useEffect(() => {
+    setFetchedData((prev) => {
+      const cleanedData: Record<string, any> = {};
+      // Only keep data that's still in keysToFetch
+      for (const key of Object.keys(keysToFetch)) {
+        if (prev[key]) {
+          cleanedData[key] = prev[key];
         }
       }
+      return cleanedData;
+    });
+  }, [keysToFetch]);
 
-    // 2. Determine the instance count
-    let count = 0;
-    const firstFetchedProp = Object.values(fetchedData)[0];
-    if (firstFetchedProp) {
-      // Count from dynamic data (assuming 3 components per instance e.g. [x,y,z,x,y,z...])
-      count = firstFetchedProp.length / 3;
-    } else if (staticValues.position && Array.isArray(staticValues.position[0])) {
-      // Count from static 'position' array
-      count = staticValues.position.length;
-    } else if (
-      staticValues.direction &&
-      Array.isArray(staticValues.direction[0])
-    ) {
-      // Or count from static 'direction' array
-      count = staticValues.direction.length;
+  // Decode position data
+  useEffect(() => {
+    if (positionData && keysToFetch.position) {
+      const decodedData = decode(positionData)[0][keysToFetch.position] as any;
+      const TypedArray = numpyDtypeToTypedArray[decodedData.dtype as keyof typeof numpyDtypeToTypedArray];
+      const dataArray = new TypedArray(decodedData.data.slice().buffer);
+
+      setFetchedData((prev) => ({
+        ...prev,
+        position: dataArray,
+      }));
     }
-    if (count === 0) return { isFetching, frameData: null };
+  }, [positionData, keysToFetch.position]);
 
-    // 3. Combine fetched and static data into a final structure
-    const combinedData: { [key: string]: any } = { count };
-    const allPropNames = ["position", "direction", "color", "radius", "scale"];
+  // Decode direction data
+  useEffect(() => {
+    if (directionData && keysToFetch.direction) {
+      const decodedData = decode(directionData)[0][keysToFetch.direction] as any;
+      const TypedArray = numpyDtypeToTypedArray[decodedData.dtype as keyof typeof numpyDtypeToTypedArray];
+      const dataArray = new TypedArray(decodedData.data.slice().buffer);
 
-    for (const prop of allPropNames) {
-      if (fetchedData[prop]) {
-        // Use fetched data
-        combinedData[prop] = fetchedData[prop];
-      } else if (staticValues[prop] !== undefined) {
-        // Use static data, expanding it if it's a uniform value
-        const staticVal = staticValues[prop];
-        if (
-          Array.isArray(staticVal) &&
-          (Array.isArray(staticVal[0]) || staticVal.length === count * 3)
-        ) {
-          // Per-instance array (e.g., [[x,y,z], ...] or flat [x,y,z,x,y,z...])
-          combinedData[prop] = Array.isArray(staticVal[0])
-            ? staticVal.flat()
-            : staticVal;
+      setFetchedData((prev) => ({
+        ...prev,
+        direction: dataArray,
+      }));
+    }
+  }, [directionData, keysToFetch.direction]);
+
+  // Decode color data
+  useEffect(() => {
+    if (colorData && keysToFetch.color) {
+      const decodedData = decode(colorData)[0][keysToFetch.color] as any;
+      const TypedArray = numpyDtypeToTypedArray[decodedData.dtype as keyof typeof numpyDtypeToTypedArray];
+      const dataArray = new TypedArray(decodedData.data.slice().buffer);
+
+      setFetchedData((prev) => ({
+        ...prev,
+        color: dataArray,
+      }));
+    }
+  }, [colorData, keysToFetch.color]);
+
+  // Decode radius data
+  useEffect(() => {
+    if (radiusData && keysToFetch.radius) {
+      const decodedData = decode(radiusData)[0][keysToFetch.radius] as any;
+      const TypedArray = numpyDtypeToTypedArray[decodedData.dtype as keyof typeof numpyDtypeToTypedArray];
+      const dataArray = new TypedArray(decodedData.data.slice().buffer);
+
+      setFetchedData((prev) => ({
+        ...prev,
+        radius: dataArray,
+      }));
+    }
+  }, [radiusData, keysToFetch.radius]);
+
+  // Decode scale data
+  useEffect(() => {
+    if (scaleData && keysToFetch.scale) {
+      const decodedData = decode(scaleData)[0][keysToFetch.scale] as any;
+      const TypedArray = numpyDtypeToTypedArray[decodedData.dtype as keyof typeof numpyDtypeToTypedArray];
+      const dataArray = new TypedArray(decodedData.data.slice().buffer);
+
+      setFetchedData((prev) => ({
+        ...prev,
+        scale: dataArray,
+      }));
+    }
+  }, [scaleData, keysToFetch.scale]);
+
+  // Process fetched + static data into final format
+  const processedData = useMemo(() => {
+    console.log("Processing Arrow data with fetchedData:", fetchedData);
+    try {
+      // Determine count from fetched or static data
+      let finalCount = 0;
+      let finalPositions: number[] = [];
+      let finalDirections: number[] = [];
+      let finalColors: number[] = [];
+      let finalRadii: number[] = [];
+      let finalScales: number[] = [];
+
+      // Process position
+      if (fetchedData.position) {
+        finalCount = fetchedData.position.length / 3;
+        finalPositions = Array.from(fetchedData.position);
+      } else if (typeof position !== "string") {
+        if (Array.isArray(position[0])) {
+          finalCount = position.length;
+          finalPositions = (position as number[][]).flat();
         } else {
-          // Uniform value (e.g., 5 or [1,0,0]) - expand it for all instances
-          const components = prop === "radius" || prop === "scale" ? 1 : 3;
-          const arr = new Float32Array(count * components);
-          for (let i = 0; i < count; i++) {
-            if (components === 1) arr[i] = staticVal as number;
-            else arr.set(staticVal as number[], i * 3);
-          }
-          combinedData[prop] = arr;
+          finalCount = 1;
+          finalPositions = position as number[];
         }
-      } else {
-        // This prop was not provided, return null
-        return { isFetching, frameData: null };
-      }
-    }
-      // Rename 'position' to 'positionKey' etc. to match useFrame expectations
-      const finalFrameData = {
-        ["positionKey"]: combinedData.position,
-        ["directionKey"]: combinedData.direction,
-        ["colorKey"]: combinedData.color,
-        ["radiusKey"]: combinedData.radius,
-        ["scaleKey"]: combinedData.scale,
-        count: combinedData.count,
-      };
-
-      return { isFetching, frameData: finalFrameData };
-    } catch (error) {
-      console.error("Error processing Arrow geometry data:", error);
-      return { isFetching: false, frameData: null };
-    }
-  }, [queryResults, staticValues, dynamicKeys, requiredKeys]);
-
-  const dataToRender = frameData || lastGoodFrameData.current;
-
-  const geometry = useMemo(createArrowMesh, []);
-
-  useFrame(() => {
-    try {
-      if (!instancedMeshRef.current || !dataToRender || isFetching) {
-        return;
       }
 
-      const mesh = instancedMeshRef.current;
+      if (finalCount === 0) return null;
 
-      const positions = dataToRender["positionKey"];
-      const directions = dataToRender["directionKey"];
-      const colors = dataToRender["colorKey"];
-      const radii = dataToRender["radiusKey"];
-      const scales = dataToRender["scaleKey"];
-      const { count } = dataToRender;
-
-      // MODIFICATION: Ensure directions data is also present
-      if (!positions || !directions || !colors || !radii || !scales || !count) {
-        return;
+      // Process direction
+      if (fetchedData.direction) {
+        finalDirections = Array.from(fetchedData.direction);
+      } else if (typeof direction !== "string") {
+        if (Array.isArray(direction[0])) {
+          finalDirections = (direction as number[][]).flat();
+        } else if (Array.isArray(direction)) {
+          finalDirections = new Array(finalCount * 3);
+          for (let i = 0; i < finalCount; i++) {
+            finalDirections[i * 3] = (direction as number[])[0];
+            finalDirections[i * 3 + 1] = (direction as number[])[1];
+            finalDirections[i * 3 + 2] = (direction as number[])[2];
+          }
+        }
       }
 
-      // Validate array lengths
+      // Process color
+      if (fetchedData.color) {
+        finalColors = Array.from(fetchedData.color);
+      } else if (typeof color === "string") {
+        // Hex color
+        const rgb = hexToRgb(color);
+        if (rgb) {
+          finalColors = new Array(finalCount * 3);
+          for (let i = 0; i < finalCount; i++) {
+            finalColors[i * 3] = rgb[0];
+            finalColors[i * 3 + 1] = rgb[1];
+            finalColors[i * 3 + 2] = rgb[2];
+          }
+        } else {
+          throw new Error(`Invalid hex color: ${color}`);
+        }
+      } else if (Array.isArray(color[0])) {
+        finalColors = (color as number[][]).flat();
+      } else if (Array.isArray(color)) {
+        finalColors = new Array(finalCount * 3);
+        for (let i = 0; i < finalCount; i++) {
+          finalColors[i * 3] = (color as number[])[0];
+          finalColors[i * 3 + 1] = (color as number[])[1];
+          finalColors[i * 3 + 2] = (color as number[])[2];
+        }
+      }
+
+      // Process radius
+      if (fetchedData.radius) {
+        finalRadii = Array.from(fetchedData.radius);
+      } else if (typeof radius !== "string") {
+        if (Array.isArray(radius)) {
+          finalRadii = radius as number[];
+        } else {
+          finalRadii = new Array(finalCount).fill(radius);
+        }
+      }
+
+      // Process scale
+      if (fetchedData.scale) {
+        finalScales = Array.from(fetchedData.scale);
+      } else if (typeof scale !== "string") {
+        if (Array.isArray(scale)) {
+          finalScales = scale as number[];
+        } else {
+          finalScales = new Array(finalCount).fill(scale);
+        }
+      }
+
+      // Validate lengths
       if (
-        positions.length < count * 3 ||
-        directions.length < count * 3 ||
-        colors.length < count * 3 ||
-        radii.length < count ||
-        scales.length < count
+        finalPositions.length / 3 !== finalCount ||
+        finalDirections.length / 3 !== finalCount ||
+        finalColors.length / 3 !== finalCount ||
+        finalRadii.length !== finalCount ||
+        finalScales.length !== finalCount
       ) {
-        console.error("Arrow data arrays have invalid lengths");
-        return;
+        console.error("Arrow data arrays have inconsistent lengths");
+        return null;
       }
 
-      console.log("Rendering", count, "arrows.");
-      for (let i = 0; i < count; i++) {
+      return {
+        positions: finalPositions,
+        directions: finalDirections,
+        colors: finalColors,
+        radii: finalRadii,
+        scales: finalScales,
+        count: finalCount,
+      };
+    } catch (error) {
+      console.error("Error processing Arrow data:", error);
+      return null;
+    }
+  }, [fetchedData, position, direction, color, radius, scale]);
+
+
+  // Update arrow instances when data changes
+  useEffect(() => {
+    if (!processedData || !instancedMeshRef.current) return;
+
+    const mesh = instancedMeshRef.current;
+    const { positions, directions, colors, radii, scales, count: dataCount } = processedData;
+
+    console.log("Updating", dataCount, "arrows");
+
+    const selectionSet = selection ? new Set(selection) : null;
+
+    for (let i = 0; i < dataCount; i++) {
       const i3 = i * 3;
 
       // Set the starting position of the arrow
@@ -244,65 +358,51 @@ export default function Arrow({
       // Set the direction vector
       _direction.set(directions[i3], directions[i3 + 1], directions[i3 + 2]);
 
-      // --- START OF NEW LOGIC ---
+      // Calculate the length of the arrow from the direction vector's magnitude
+      const arrowLength = _direction.length() * scales[i];
 
-      // 1. Calculate the length of the arrow from the direction vector's magnitude.
-      const length = _direction.length() * scales[i];
+      // Set the scale (Y-axis is height/length, X and Z are width/radius)
+      const arrowRadius = radii[i];
+      _scaleVec.set(arrowRadius, arrowLength, arrowRadius);
 
-      // 2. Set the scale. The Y-axis corresponds to the arrow's height (length),
-      //    while X and Z correspond to its width (radius).
-      const radius = radii[i];
-      _scaleVec.set(radius, length, radius);
-
-      // 3. Calculate the rotation quaternion.
-      //    This finds the rotation needed to go from our default arrow direction (_arrowUp)
-      //    to the new target direction. We normalize the direction vector for this calculation.
-      if (length > 0.0001) {
-        // Avoid issues with zero-length vectors
+      // Calculate the rotation quaternion
+      if (arrowLength > 0.0001) {
         _quaternion.setFromUnitVectors(_arrowUp, _direction.normalize());
       } else {
-        // If length is zero, no rotation is needed, and scale on Y is zero, hiding it.
         _quaternion.identity();
       }
 
-      // 4. Compose the final transformation matrix from position, rotation, and scale.
-      //    This is more efficient and robust than setting them individually.
+      // Compose the final transformation matrix
       _matrix.compose(_startVec, _quaternion, _scaleVec);
-
-      // --- END OF NEW LOGIC ---
-
       mesh.setMatrixAt(i, _matrix);
 
+      // Set color (with selection highlight)
       if (selectionSet && selectionSet.has(i)) {
-        _color.setRGB(1.0, 0.75, 0.8); // Pink color
+        _color.setRGB(1.0, 0.75, 0.8); // Pink for selection
       } else {
         _color.setRGB(colors[i3], colors[i3 + 1], colors[i3 + 2]);
       }
       mesh.setColorAt(i, _color);
     }
 
-      mesh.instanceMatrix.needsUpdate = true;
-      if (mesh.instanceColor) {
-        mesh.instanceColor.needsUpdate = true;
-      }
-    } catch (error) {
-      console.error("Error rendering Arrow instances:", error);
+    mesh.instanceMatrix.needsUpdate = true;
+    if (mesh.instanceColor) {
+      mesh.instanceColor.needsUpdate = true;
     }
-  });
+  }, [processedData, selection]);
 
-  if (!clientId || !roomId || !dataToRender) {
+  const geometry = useMemo(createArrowMesh, []);
+
+  // Return null if no data is available yet
+  if (!processedData || !clientId || !roomId) {
     return null;
-  }
-
-  if (frameData) {
-    lastGoodFrameData.current = frameData;
   }
 
   return (
     <instancedMesh
-      key={dataToRender.count} // Unique key based on count
+      key={processedData.count}
       ref={instancedMeshRef}
-      args={[geometry, undefined, dataToRender.count]}
+      args={[geometry, undefined, processedData.count]}
     >
       {renderMaterial(material)}
     </instancedMesh>
