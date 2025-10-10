@@ -13,6 +13,8 @@ import {
   Alert,
   SelectChangeEvent,
   Chip,
+  FormControlLabel,
+  Switch,
 } from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import { JsonForms } from "@jsonforms/react";
@@ -42,6 +44,7 @@ const GeometryForm = () => {
   } = useGeometryStore();
 
   const [keyInput, setKeyInput] = useState("");
+  const [activeState, setActiveState] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const isInitializedRef = useRef(false);
@@ -83,9 +86,11 @@ const GeometryForm = () => {
       setKeyInput(geometryData.key);
       setSelectedType(geometryData.geometry.type);
       setFormData(geometryData.geometry.data || {});
+      setActiveState(geometryData.geometry.data?.active !== false); // Default to true if undefined
     } else if (mode === "create") {
       setKeyInput("");
       setFormData({});
+      setActiveState(true); // Default to true for new geometries
     }
     // Mark as initialized after a short delay to avoid saving initial data
     setTimeout(() => {
@@ -118,7 +123,10 @@ const GeometryForm = () => {
         clientId,
         key: keyInput.trim(),
         geometryType: selectedType,
-        geometryData: formData,
+        geometryData: {
+          ...formData,
+          active: activeState,
+        },
       },
       {
         onSuccess: () => {
@@ -130,7 +138,7 @@ const GeometryForm = () => {
         },
       }
     );
-  }, [roomId, clientId, keyInput, selectedType, formData, createGeometry]);
+  }, [roomId, clientId, keyInput, selectedType, formData, activeState, createGeometry]);
 
   // Create debounced version of save
   const debouncedSave = useMemo(
@@ -262,6 +270,17 @@ const GeometryForm = () => {
             ))}
           </Select>
         </FormControl>
+
+        <FormControlLabel
+          control={
+            <Switch
+              checked={activeState}
+              onChange={(e) => setActiveState(e.target.checked)}
+            />
+          }
+          label="Active (visible in scene)"
+          sx={{ mb: 2 }}
+        />
 
         {currentSchema && (
           <>

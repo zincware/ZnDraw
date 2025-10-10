@@ -24,6 +24,8 @@ interface AppState {
   drawingPointerPosition: THREE.Vector3 | null; // 3D position of mouse cursor for drawing
   drawingIsValid: boolean; // Whether the drawing position is valid (over geometry)
   metadataLock: boolean; // Whether the room has a metadata lock (vis.lock - yellow)
+  geometryFetchingStates: Record<string, boolean>; // Tracks fetching state per geometry key
+  synchronizedMode: boolean; // Whether playback should wait for all active geometries to finish fetching
 
   // Actions (functions to modify the state)
   setRoomId: (roomId: string) => void;
@@ -47,9 +49,13 @@ interface AppState {
   updateSelection: (id: number, isShiftPressed: boolean) => void;
   setDrawingIsValid: (isValid: boolean) => void;
   setMetadataLock: (locked: boolean) => void;
+  setGeometryFetching: (geometryKey: string, isFetching: boolean) => void;
+  removeGeometryFetching: (geometryKey: string) => void;
+  getIsFetching: () => boolean; // Computed: returns true if any active geometry is fetching
+  setSynchronizedMode: (enabled: boolean) => void;
 }
 
-export const useAppStore = create<AppState>((set) => ({
+export const useAppStore = create<AppState>((set, get) => ({
   // Initial State
   roomId: null,
   userId: null,
@@ -71,6 +77,8 @@ export const useAppStore = create<AppState>((set) => ({
   drawingPointerPosition: null,
   drawingIsValid: false,
   metadataLock: false,
+  geometryFetchingStates: {},
+  synchronizedMode: false,
   // Actions
   setConnected: (status) => set({ isConnected: status }),
   setRoomId: (roomId) => set({ roomId }),
@@ -96,10 +104,47 @@ export const useAppStore = create<AppState>((set) => ({
   setChatOpen: (open) => set({ chatOpen: open }),
   setJoinToken: (joinToken) => set({ joinToken }),
   setGeometries: (geometries) => set({ geometries: geometries }),
+  updateGeometry: (key, geometry) =>
+    set((state) => ({
+      geometries: {
+        ...state.geometries,
+        [key]: geometry,
+      },
+    })),
   setIsDrawing: (isDrawing) => set({ isDrawing: isDrawing }),
   setDrawingPointerPosition: (position) => set({ drawingPointerPosition: position }),
   setDrawingIsValid: (isValid) => set({ drawingIsValid: isValid }),
   setMetadataLock: (locked) => set({ metadataLock: locked }),
+
+  setGeometryFetching: (geometryKey, isFetching) =>
+    set((state) => ({
+      geometryFetchingStates: {
+        ...state.geometryFetchingStates,
+        [geometryKey]: isFetching,
+      },
+    })),
+
+  removeGeometryFetching: (geometryKey) =>
+    set((state) => {
+      const newStates = { ...state.geometryFetchingStates };
+      delete newStates[geometryKey];
+      return { geometryFetchingStates: newStates };
+    }),
+
+  getIsFetching: () => {
+    const state = get();
+    const { geometries, geometryFetchingStates } = state;
+
+    // Check if any active geometry is fetching
+    return Object.entries(geometryFetchingStates).some(([key, isFetching]) => {
+      const geometry = geometries[key];
+      // Only count fetching if geometry exists and is active (or active is undefined for backwards compat)
+      const isActive = geometry?.data?.active !== false;
+      return isFetching && isActive;
+    });
+  },
+
+  setSynchronizedMode: (enabled) => set({ synchronizedMode: enabled }),
 
   updateSelection: (id, isShiftPressed) =>
     set((state) => {
@@ -111,7 +156,7 @@ export const useAppStore = create<AppState>((set) => ({
       if (isShiftPressed) {
         // Create a new Set from the current selection for easy manipulation
         const selectionSet = new Set(currentSelection);
-        
+
         if (isCurrentlySelected) {
           // Rule 4: Shift-click on selected -> remove from selection set, keep the others
           selectionSet.delete(id);

@@ -21,6 +21,11 @@ class BaseGeometry(BaseModel):
 
     model_config = ConfigDict(frozen=True)
 
+    active: bool = Field(
+        default=True,
+        description="Whether this geometry should be rendered. Inactive geometries are hidden.",
+    )
+
     position: DataProp = Field(
         default="arrays.positions",
         description="Position [x,y,z]. String for dynamic data key, tuple/list for static values.",

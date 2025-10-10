@@ -55,7 +55,7 @@ export default function Sphere({ data, geometryKey }: { data: SphereData; geomet
   const [hoveredInstanceId, setHoveredInstanceId] = useState<number | null>(null);
   const [instanceCount, setInstanceCount] = useState(0);
 
-  const { currentFrame, roomId, clientId, selection, updateSelection, setDrawingPointerPosition, isDrawing, setDrawingIsValid } = useAppStore();
+  const { currentFrame, roomId, clientId, selection, updateSelection, setDrawingPointerPosition, isDrawing, setDrawingIsValid, setGeometryFetching, removeGeometryFetching } = useAppStore();
 
   const selectionSet = useMemo(() => new Set(selection || []), [selection]);
   const selectedIndices = useMemo(() => Array.from(selectionSet), [selectionSet]);
@@ -93,6 +93,18 @@ export default function Sphere({ data, geometryKey }: { data: SphereData; geomet
     (typeof positionProp === "string" && isPositionFetching) ||
     (typeof colorProp === "string" && shouldFetchAsFrameData(colorProp as string) && isColorFetching) ||
     (typeof radiusProp === "string" && isRadiusFetching);
+
+  // Report fetching state to global store
+  useEffect(() => {
+    setGeometryFetching(geometryKey, isFetching);
+  }, [geometryKey, isFetching, setGeometryFetching]);
+
+  // Clean up fetching state on unmount
+  useEffect(() => {
+    return () => {
+      removeGeometryFetching(geometryKey);
+    };
+  }, [geometryKey, removeGeometryFetching]);
 
   // Consolidated data processing and mesh update
   useEffect(() => {
@@ -170,7 +182,7 @@ export default function Sphere({ data, geometryKey }: { data: SphereData; geomet
       }
 
       // --- Hover Mesh Update ---
-      if (hovering && hoverMeshRef.current) {
+      if (hovering?.enabled && hoverMeshRef.current) {
         const hoverMesh = hoverMeshRef.current;
         if (hoveredInstanceId !== null && hoveredInstanceId < finalCount) {
           hoverMesh.visible = true;
@@ -242,9 +254,9 @@ export default function Sphere({ data, geometryKey }: { data: SphereData; geomet
         ref={mainMeshRef}
         args={[undefined, undefined, instanceCount]}
         onClick={selecting.enabled ? onClickHandler : undefined}
-        onPointerEnter={hovering ? onPointerEnterHandler : undefined}
-        onPointerMove={hovering ? onPointerMoveHandler : undefined}
-        onPointerOut={hovering ? onPointerOutHandler : undefined}
+        onPointerEnter={hovering?.enabled ? onPointerEnterHandler : undefined}
+        onPointerMove={hovering?.enabled ? onPointerMoveHandler : undefined}
+        onPointerOut={hovering?.enabled ? onPointerOutHandler : undefined}
       >
         <primitive object={mainGeometry} attach="geometry" />
         {renderMaterial(material, data.opacity)}
@@ -268,7 +280,7 @@ export default function Sphere({ data, geometryKey }: { data: SphereData; geomet
       )}
 
       {/* Hover mesh */}
-      {hovering && (
+      {hovering?.enabled && (
         <mesh ref={hoverMeshRef} visible={false}>
           <primitive object={mainGeometry} attach="geometry" />
           <meshBasicMaterial

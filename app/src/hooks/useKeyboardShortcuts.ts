@@ -13,6 +13,8 @@ export const useKeyboardShortcuts = () => {
     playing,
     setPlaying,
     skipFrames,
+    synchronizedMode,
+    getIsFetching,
   } = useAppStore();
 
   const { requestToken, releaseToken, setFrame } = usePresenterToken();
@@ -121,6 +123,11 @@ export const useKeyboardShortcuts = () => {
     if (!playing) return;
 
     const intervalId = setInterval(() => {
+      // In synchronized mode, wait for all active geometries to finish fetching
+      if (synchronizedMode && getIsFetching()) {
+        return; // Skip frame advancement until geometries are ready
+      }
+
       const navigableFrames = getNavigableFrames();
       const currentIndex = navigableFrames.indexOf(currentFrame);
       const lastIndex = navigableFrames.length - 1;
@@ -149,6 +156,8 @@ export const useKeyboardShortcuts = () => {
     setPlaying,
     skipFrames,
     releaseToken,
+    synchronizedMode,
+    getIsFetching,
   ]);
 
   // Cleanup presenter token when component unmounts while playing

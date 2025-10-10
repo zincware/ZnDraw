@@ -60,7 +60,7 @@ export default function Bonds({ data, geometryKey }: { data: BondData; geometryK
   const [hoveredBondId, setHoveredBondId] = useState<number | null>(null);
   const [instanceCount, setInstanceCount] = useState(0);
 
-  const { roomId, currentFrame, clientId, selection } = useAppStore();
+  const { roomId, currentFrame, clientId, selection, setGeometryFetching, removeGeometryFetching } = useAppStore();
 
   const selectionSet = useMemo(() => new Set(selection || []), [selection]);
   const bondResolution = resolution || 8;
@@ -105,6 +105,18 @@ export default function Bonds({ data, geometryKey }: { data: BondData; geometryK
     (typeof colorProp === "string" && shouldFetchAsFrameData(colorProp as string) && isColorFetching) ||
     (typeof radiusProp === "string" && isRadiusFetching) ||
     (typeof connectivityProp === "string" && isConnectivityFetching);
+
+  // Report fetching state to global store
+  useEffect(() => {
+    setGeometryFetching(geometryKey, isFetching);
+  }, [geometryKey, isFetching, setGeometryFetching]);
+
+  // Clean up fetching state on unmount
+  useEffect(() => {
+    return () => {
+      removeGeometryFetching(geometryKey);
+    };
+  }, [geometryKey, removeGeometryFetching]);
 
   // Consolidated data processing and mesh update
   useEffect(() => {

@@ -41,7 +41,7 @@ export default function Curve({ data, geometryKey }: { data: CurveData; geometry
     marker,
   } = data;
 
-  const { currentFrame, roomId, isDrawing, drawingIsValid, drawingPointerPosition, setIsDrawing, clientId } = useAppStore();
+  const { currentFrame, roomId, isDrawing, drawingIsValid, drawingPointerPosition, setIsDrawing, clientId, setGeometryFetching, removeGeometryFetching } = useAppStore();
   const [markerPositions, setMarkerPositions] = useState<THREE.Vector3[]>([]);
   const [lineSegments, setLineSegments] = useState<THREE.Vector3[]>([]);
   const [virtualMarkerPositions, setVirtualMarkerPositions] = useState<THREE.Vector3[]>([]);
@@ -60,6 +60,18 @@ export default function Curve({ data, geometryKey }: { data: CurveData; geometry
     enabled: !!roomId && !!clientId && typeof positionProp === "string",
     placeholderData: keepPreviousData,
   });
+
+  // Report fetching state to global store
+  useEffect(() => {
+    setGeometryFetching(geometryKey, isFetching);
+  }, [geometryKey, isFetching, setGeometryFetching]);
+
+  // Clean up fetching state on unmount
+  useEffect(() => {
+    return () => {
+      removeGeometryFetching(geometryKey);
+    };
+  }, [geometryKey, removeGeometryFetching]);
 
   useEffect(() => {
     if (typeof positionProp === "string") {

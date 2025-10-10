@@ -67,51 +67,53 @@ function MyScene() {
 
         {/* Render our clean, refactored components */}
         {/* <Sphere /> */}
-        {Object.entries(geometries).map(([name, config]) => {
-          if (config.type === "Sphere") {
-            return (
-              <Sphere
-                key={name}
-                geometryKey={name}
-                data={config.data}
-              />
-            );
-          } else if (config.type === "Bond") {
-            return (
-              <Bonds
-                key={name}
-                geometryKey={name}
-                data={config.data}
-              />
-            );
-          } else if (config.type === "Arrow") {
-            return (
-              <Arrow
-                key={name}
-                geometryKey={name}
-                data={config.data}
-              />
-            );
-          } else if (config.type === "Curve") {
-            return (
-              <Curve
-                key={name}
-                geometryKey={name}
-                data={config.data}
-              />
-            );
-          } else {
-            console.warn(`Unhandled geometry type: ${config.type}`);
+        {Object.entries(geometries)
+          .filter(([_, config]) => config.data?.active !== false)
+          .map(([name, config]) => {
+            if (config.type === "Sphere") {
+              return (
+                <Sphere
+                  key={name}
+                  geometryKey={name}
+                  data={config.data}
+                />
+              );
+            } else if (config.type === "Bond") {
+              return (
+                <Bonds
+                  key={name}
+                  geometryKey={name}
+                  data={config.data}
+                />
+              );
+            } else if (config.type === "Arrow") {
+              return (
+                <Arrow
+                  key={name}
+                  geometryKey={name}
+                  data={config.data}
+                />
+              );
+            } else if (config.type === "Curve") {
+              return (
+                <Curve
+                  key={name}
+                  geometryKey={name}
+                  data={config.data}
+                />
+              );
+            } else {
+              console.warn(`Unhandled geometry type: ${config.type}`);
+              return null;
+            }
+
+            // You could add other types here
+            // if (config.type === 'Box') {
+            //   return <Box key={name} /* ...box props... */ />;
+            // }
+
             return null;
-          }
-
-          // You could add other types here
-          // if (config.type === 'Box') {
-          //   return <Box key={name} /* ...box props... */ />;
-          // }
-
-          return null;
-        })}
+          })}
         <SimulationCell />
         <VirtualCanvas />
 

@@ -58,10 +58,10 @@ function createArrowMesh() {
   return arrowGeometry;
 }
 
-export default function Arrow({ data }: { data: ArrowProps; geometryKey: string }) {
+export default function Arrow({ data, geometryKey }: { data: ArrowProps; geometryKey: string }) {
   const { position, direction, color, radius, scale, material } = data;
   const instancedMeshRef = useRef<THREE.InstancedMesh | null>(null);
-  const { currentFrame, roomId, clientId, selection } = useAppStore();
+  const { currentFrame, roomId, clientId, selection, setGeometryFetching, removeGeometryFetching } = useAppStore();
   const [instanceCount, setInstanceCount] = useState(0);
 
   // Individual queries for each attribute - enables perfect cross-component caching
@@ -113,6 +113,17 @@ export default function Arrow({ data }: { data: ArrowProps; geometryKey: string 
     (typeof radius === "string" && isRadiusFetching) ||
     (typeof scale === "string" && isScaleFetching);
 
+  // Report fetching state to global store
+  useEffect(() => {
+    setGeometryFetching(geometryKey, isFetching);
+  }, [geometryKey, isFetching, setGeometryFetching]);
+
+  // Clean up fetching state on unmount
+  useEffect(() => {
+    return () => {
+      removeGeometryFetching(geometryKey);
+    };
+  }, [geometryKey, removeGeometryFetching]);
 
   useEffect(() => {
     if (isFetching) {

@@ -4,14 +4,15 @@ import {
   GridColDef,
   GridActionsCellItem,
   GridRowParams,
+  GridRenderCellParams,
 } from "@mui/x-data-grid";
-import { Box, TextField, InputAdornment } from "@mui/material";
+import { Box, TextField, InputAdornment, Switch } from "@mui/material";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import SearchIcon from "@mui/icons-material/Search";
 import { useGeometryStore } from "../../stores/geometryStore";
 import DeleteConfirmDialog from "./DeleteConfirmDialog";
-import { useDeleteGeometry } from "../../hooks/useGeometries";
+import { useDeleteGeometry, useCreateGeometry } from "../../hooks/useGeometries";
 import { useAppStore } from "../../store";
 
 interface GeometryGridProps {
@@ -19,13 +20,14 @@ interface GeometryGridProps {
 }
 
 const GeometryGrid = ({ geometries }: GeometryGridProps) => {
-  const { roomId } = useAppStore();
+  const { roomId, geometries: geometriesData } = useAppStore();
   const { setMode, setSelectedKey, searchFilter, setSearchFilter } =
     useGeometryStore();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [geometryToDelete, setGeometryToDelete] = useState<string | null>(null);
 
   const { mutate: deleteGeometry } = useDeleteGeometry();
+  const { mutate: updateGeometry } = useCreateGeometry();
 
   const handleEdit = (key: string) => {
     setSelectedKey(key);
@@ -50,6 +52,23 @@ const GeometryGrid = ({ geometries }: GeometryGridProps) => {
     setGeometryToDelete(null);
   };
 
+  const handleActiveToggle = (key: string, currentActive: boolean) => {
+    const geometry = geometriesData[key];
+    if (!geometry || !roomId) return;
+
+    // Update the geometry with the new active state
+    updateGeometry({
+      roomId,
+      clientId: null,
+      key,
+      geometryType: geometry.type,
+      geometryData: {
+        ...geometry.data,
+        active: !currentActive,
+      },
+    });
+  };
+
   const columns: GridColDef[] = [
     {
       field: "key",
@@ -62,6 +81,27 @@ const GeometryGrid = ({ geometries }: GeometryGridProps) => {
       headerName: "Type",
       flex: 1,
       minWidth: 120,
+    },
+    {
+      field: "active",
+      headerName: "Active",
+      width: 80,
+      renderCell: (params: GridRenderCellParams) => {
+        const isActive = params.row.active !== false;
+        return (
+          <Switch
+            checked={isActive}
+            onChange={(e) => {
+              e.stopPropagation();
+              handleActiveToggle(params.row.key, isActive);
+            }}
+            onClick={(e) => {
+              e.stopPropagation();
+            }}
+            size="small"
+          />
+        );
+      },
     },
     {
       field: "actions",
@@ -99,6 +139,7 @@ const GeometryGrid = ({ geometries }: GeometryGridProps) => {
     id: index,
     key: g.key,
     type: g.type,
+    active: geometriesData[g.key]?.data?.active !== false, // Default to true if undefined
   }));
 
   return (

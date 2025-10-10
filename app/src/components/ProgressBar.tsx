@@ -11,6 +11,8 @@ import { useState, useMemo, useRef, useEffect } from "react";
 import WifiIcon from "@mui/icons-material/Wifi";
 import CloudDownloadIcon from "@mui/icons-material/CloudDownload";
 import FilterListIcon from "@mui/icons-material/FilterList";
+import SyncIcon from "@mui/icons-material/Sync";
+import SyncDisabledIcon from "@mui/icons-material/SyncDisabled";
 import { useAppStore } from "../store";
 import { throttle } from "lodash";
 import { socket } from "../socket";
@@ -41,6 +43,9 @@ const FrameProgressBar = () => {
     bookmarks,
     frameSelectionEnabled,
     setFrameSelectionEnabled,
+    synchronizedMode,
+    setSynchronizedMode,
+    getIsFetching,
   } = useAppStore();
 
   const { requestPresenterMode, releasePresenterMode, presenterMode } =
@@ -415,6 +420,29 @@ const FrameProgressBar = () => {
             </IconButton>
           </Tooltip>
         )}
+        <Tooltip
+          title={
+            synchronizedMode
+              ? "Synchronized mode enabled - playback waits for all active geometries to finish loading"
+              : "Synchronized mode disabled - playback uses fixed FPS"
+          }
+        >
+          <IconButton
+            size="small"
+            onClick={() => setSynchronizedMode(!synchronizedMode)}
+            sx={{
+              color: synchronizedMode
+                ? "primary.main"
+                : "text.secondary",
+              ...(getIsFetching() && synchronizedMode ? waitingAnimation : {}),
+              "&:hover": {
+                backgroundColor: "action.hover",
+              },
+            }}
+          >
+            {synchronizedMode ? <SyncIcon fontSize="small" /> : <SyncDisabledIcon fontSize="small" />}
+          </IconButton>
+        </Tooltip>
         {renderConnectionStatus()}
       </Box>
     </Box>
