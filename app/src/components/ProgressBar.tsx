@@ -17,6 +17,7 @@ import { useAppStore } from "../store";
 import { throttle } from "lodash";
 import { socket } from "../socket";
 import { usePresenterMode } from "../hooks/usePresenterMode";
+import { useAtomicFrameSet } from "../hooks/useAtomicFrameSet";
 import SelectionLayer from "./SelectionLayer";
 import BookmarkLayer from "./BookmarkLayer";
 import SelectionTrackOverlay from "./SelectionTrackOverlay";
@@ -50,6 +51,7 @@ const FrameProgressBar = () => {
 
   const { requestPresenterMode, releasePresenterMode, presenterMode } =
     usePresenterMode();
+  const setFrameAtomic = useAtomicFrameSet();
 
   // Find nearest selected frame when filtering is enabled
   const findNearestSelectedFrame = (targetFrame: number): number => {
@@ -202,7 +204,7 @@ const FrameProgressBar = () => {
   const handleInputSubmit = () => {
     const newFrame = parseInt(inputValue, 10);
     if (!isNaN(newFrame) && newFrame >= 0 && newFrame <= frameCount - 1) {
-      setCurrentFrame(newFrame);
+      setFrameAtomic(newFrame);
     } else {
       setInputValue(currentFrame.toString());
     }
@@ -315,14 +317,7 @@ const FrameProgressBar = () => {
           frameCount={frameCount}
           currentFrame={currentFrame}
           containerWidth={sliderWidth}
-          onBookmarkClick={(frame) => {
-            setCurrentFrame(frame);
-            socket.emit("set_frame_atomic", { frame }, (response: any) => {
-              if (response && !response.success) {
-                console.error(`Failed to set frame: ${response.error}`);
-              }
-            });
-          }}
+          onBookmarkClick={setFrameAtomic}
         />
 
         {/* Selection Track Overlay - Always shown to replace MUI track/rail */}

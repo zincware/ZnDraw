@@ -1,7 +1,7 @@
 import { useEffect, useCallback } from "react";
 import { useAppStore } from "../store";
 import { usePresenterToken } from "./usePresenterToken";
-import { socket } from "../socket";
+import { useAtomicFrameSet } from "./useAtomicFrameSet";
 
 export const useKeyboardShortcuts = () => {
   const {
@@ -17,7 +17,8 @@ export const useKeyboardShortcuts = () => {
     getIsFetching,
   } = useAppStore();
 
-  const { requestToken, releaseToken, setFrame } = usePresenterToken();
+  const goToFrameAtomic = useAtomicFrameSet();
+  const { requestToken, releaseToken, setFrame } = usePresenterToken(goToFrameAtomic);
 
   const getNavigableFrames = useCallback((): number[] => {
     if (
@@ -29,19 +30,6 @@ export const useKeyboardShortcuts = () => {
     }
     return Array.from({ length: frameCount }, (_, i) => i);
   }, [frameSelectionEnabled, frame_selection, frameCount]);
-
-  // For manual navigation (arrow keys, clicks) - uses atomic mode
-  const goToFrameAtomic = useCallback(
-    (frame: number) => {
-      setCurrentFrame(frame);
-      socket.emit("set_frame_atomic", { frame }, (response: any) => {
-        if (response && !response.success) {
-          console.error(`Failed to set frame: ${response.error}`);
-        }
-      });
-    },
-    [setCurrentFrame],
-  );
 
   // For playback - uses continuous mode with presenter token
   const goToFrameContinuous = useCallback(

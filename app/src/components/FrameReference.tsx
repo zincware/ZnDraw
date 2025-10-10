@@ -5,17 +5,19 @@ import MovieFilterIcon from "@mui/icons-material/MovieFilter";
 import ViewInArIcon from "@mui/icons-material/ViewInAr";
 import { useAppStore } from "../store";
 import LocationOnIcon from "@mui/icons-material/LocationOn";
+import { useAtomicFrameSet } from "../hooks/useAtomicFrameSet";
 
 interface FrameReferenceProps {
   frame: number;
 }
 
 export const FrameReference: React.FC<FrameReferenceProps> = ({ frame }) => {
-  const { setCurrentFrame, frameCount } = useAppStore();
+  const { frameCount } = useAppStore();
+  const setFrameAtomic = useAtomicFrameSet();
 
   const handleClick = () => {
     if (frame >= 0 && frame < frameCount) {
-      setCurrentFrame(frame);
+      setFrameAtomic(frame);
     }
   };
 

@@ -1,7 +1,12 @@
 import { useState, useCallback } from "react";
 import { socket } from "../socket";
 
-export const usePresenterToken = () => {
+/**
+ * Hook for managing presenter token and frame updates.
+ *
+ * @param atomicFrameSet - Function to set frame atomically (updates local state + emits to server)
+ */
+export const usePresenterToken = (atomicFrameSet: (frame: number) => void) => {
   const [hasToken, setHasToken] = useState(false);
 
   const requestToken = useCallback(async (): Promise<boolean> => {
@@ -30,15 +35,11 @@ export const usePresenterToken = () => {
         // Use continuous mode when we have the token
         socket.emit("set_frame_continuous", { frame });
       } else {
-        // Use atomic mode without token
-        socket.emit("set_frame_atomic", { frame }, (response: any) => {
-          if (response && !response.success) {
-            console.error(`Failed to set frame: ${response.error}`);
-          }
-        });
+        // Use atomic mode without token (delegates to atomic frame setter)
+        atomicFrameSet(frame);
       }
     },
-    [hasToken],
+    [hasToken, atomicFrameSet],
   );
 
   return {

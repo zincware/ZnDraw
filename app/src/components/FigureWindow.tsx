@@ -3,6 +3,7 @@ import Plot from "react-plotly.js";
 import { useWindowManagerStore } from "../stores/windowManagerStore";
 import { useFigure, useFigureList } from "../hooks/useFigures";
 import { useAppStore } from "../store";
+import { useAtomicFrameSet } from "../hooks/useAtomicFrameSet";
 
 // MUI Imports
 import {
@@ -38,7 +39,8 @@ function FigureWindow({ windowId }: FigureWindowProps) {
   } = useFigure(windowInstance?.figureKey, { enabled: !!windowInstance });
   const { data: allFiguresResponse } = useFigureList();
 
-  const { setCurrentFrame, setSelection, setFrameSelection } = useAppStore();
+  const { setSelection, setFrameSelection } = useAppStore();
+  const setFrameAtomic = useAtomicFrameSet();
 
   if (!windowInstance) {
     return null;
@@ -49,7 +51,7 @@ function FigureWindow({ windowId }: FigureWindowProps) {
       return;
     }
     if (points[0]?.customdata && points[0].customdata[0] != null) {
-      setCurrentFrame(points[0].customdata[0]);
+      setFrameAtomic(points[0].customdata[0]);
     }
     if (points[0]?.customdata && points[0].customdata[1] != null) {
       setSelection([points[0].customdata[1]]);
