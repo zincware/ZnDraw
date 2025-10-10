@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { useEffect, useRef } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { OrbitControls, ContactShadows } from "@react-three/drei";
+import { OrbitControls, ContactShadows, Environment } from "@react-three/drei";
 import { useAppStore } from "../store";
 import { useExtensionData } from "../hooks/useSchemas";
 import { useColorScheme, useTheme } from "@mui/material/styles";
@@ -15,20 +15,7 @@ import Curve from "./three/Curve";
 import VirtualCanvas from "./three/VirtualCanvas";
 import Crosshair from "./three/crosshair";
 import CameraManager from "./CameraManager";
-
-// A small helper component to keep a light attached to the camera
-function CameraAttachedLight({ intensity = 1.0 }) {
-  const { camera } = useThree();
-  const lightRef = useRef<THREE.DirectionalLight>(null!);
-
-  useFrame(() => {
-    if (lightRef.current) {
-      lightRef.current.position.copy(camera.position);
-    }
-  });
-
-  return <directionalLight ref={lightRef} intensity={intensity} />;
-}
+import SceneLighting from "./SceneLighting"
 
 // The main scene component
 function MyScene() {
@@ -73,13 +60,13 @@ function MyScene() {
       >
         {/* Place the CameraManager here, inside the Canvas */}
         <CameraManager settings={cameraSettings} />
-        <CameraAttachedLight intensity={studioLightingSettings.key_light_intensity} />
-        <ambientLight intensity={studioLightingSettings.fill_light_intensity} />
-        <directionalLight
-          position={[10, 20, -20]}
-          intensity={studioLightingSettings.rim_light_intensity}
+        <SceneLighting 
+          ambient_light={studioLightingSettings.ambient_light}
+          key_light={studioLightingSettings.key_light}
+          fill_light={studioLightingSettings.fill_light}
+          rim_light={studioLightingSettings.rim_light}
+          hemisphere_light={studioLightingSettings.hemisphere_light}
         />
-
         {/* Render our clean, refactored components */}
         {/* <Sphere /> */}
         {Object.entries(geometries)
@@ -141,16 +128,12 @@ function MyScene() {
         )}
         <VirtualCanvas />
 
-        {studioLightingSettings.contact_shadow && (
-          <ContactShadows
-            position={[0, -15, 0]}
-            opacity={0.5}
-            scale={80}
-            blur={2}
-            far={30}
-            color="#000000"
-          />
-        )}
+        {/* {studioLightingSettings.contact_shadow && (
+          <mesh receiveShadow rotation={[-Math.PI / 2, 0, 0]} position={[0, -15, 0]}>
+            <planeGeometry args={[1000, 1000]} />
+            <shadowMaterial opacity={0.3} />
+          </mesh>
+        )} */}
 
         <OrbitControls enableDamping={false} makeDefault />
       </Canvas>

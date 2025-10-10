@@ -29,11 +29,12 @@ export const useExtensionData = (
 ) => {
   const initialData = {
     "studio_lighting": {
-      "key_light_intensity": 1.2,
-      "fill_light_intensity": 0.3,
-      "rim_light_intensity": 1.5,
+      "ambient_light": 0.35,
+      "key_light": 0.7,
+      "fill_light": 0.4,
+      "rim_light": 0.5,
+      "hemisphere_light": 0.3,
       "background_color": "default",
-      "contact_shadow": true
     },
     "camera": {
       "camera": "PerspectiveCamera",

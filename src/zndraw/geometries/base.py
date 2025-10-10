@@ -1,6 +1,7 @@
 """Base geometry class for all ZnDraw geometries."""
 
 from typing import Literal, Union
+from enum import Enum
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -8,6 +9,24 @@ from pydantic import BaseModel, ConfigDict, Field
 DataProp = Union[
     str, float, tuple[float, float, float], list[tuple[float, float, float]]
 ]
+
+class Material(str, Enum):
+    # --- PHYSICAL MATERIALS ---
+    MeshPhysicalMaterial_matt = "MeshPhysicalMaterial (matt)"
+    MeshPhysicalMaterial_semi_gloss = "MeshPhysicalMaterial (semi-gloss)"
+    MeshPhysicalMaterial_shiny = "MeshPhysicalMaterial (shiny)"
+    MeshPhysicalMaterial_transparent = "MeshPhysicalMaterial (transparent)"
+    MeshPhysicalMaterial_glass = "MeshPhysicalMaterial (glass)"
+
+    # --- STANDARD MATERIALS ---
+    MeshStandardMaterial_matt = "MeshStandardMaterial (matt)"
+    MeshStandardMaterial_metallic = "MeshStandardMaterial (metallic)"
+
+    # --- SIMPLE / STYLISED MATERIALS ---
+    MeshBasicMaterial = "MeshBasicMaterial"
+    MeshToonMaterial = "MeshToonMaterial"
+    MeshLambertMaterial_matt = "MeshLambertMaterial (matt)"
+    MeshPhongMaterial_classic = "MeshPhongMaterial (classic)"
 
 class InteractionSettings(BaseModel):
     model_config = ConfigDict(frozen=True)
@@ -36,12 +55,7 @@ class BaseGeometry(BaseModel):
         description="Color [r,g,b]. String for dynamic data key, tuple/list for static values.",
     )
 
-    material: Literal[
-        "MeshPhysicalMaterial",
-        "MeshStandardMaterial",
-        "MeshBasicMaterial",
-        "MeshToonMaterial",
-    ] = Field(
-        default="MeshStandardMaterial",
+    material: Material = Field(
+        default=Material.MeshPhysicalMaterial_matt,
         description="Material type (static config, not fetched from server)",
     )

@@ -28,15 +28,6 @@ class SettingsBase(BaseModel):
         return v
 
 
-class Material(str, enum.Enum):
-    MeshBasicMaterial = "MeshBasicMaterial"
-    # MeshLambertMaterial = "MeshLambertMaterial"
-    # MeshMatcapMaterial = "MeshMatcapMaterial"
-    # MeshPhongMaterial = "MeshPhongMaterial"
-    MeshPhysicalMaterial = "MeshPhysicalMaterial"
-    MeshStandardMaterial = "MeshStandardMaterial"
-    MeshToonMaterial = "MeshToonMaterial"
-
 
 class Controls(str, enum.Enum):
     OrbitControls = "OrbitControls"
@@ -82,23 +73,35 @@ class StudioLighting(SettingsBase):
     background_color: str = Field(
         default="default", description="Neutral background color of the scene"
     )
-    key_light_intensity: float = Field(
-        default=1.1,
+    key_light: float = Field(
+        default=0.7,
         ge=0.0,
         le=3.0,
         description="Intensity of the main light attached to the camera",
     )
-    fill_light_intensity: float = Field(
-        default=0.3,
+    fill_light: float = Field(
+        default=0.4,
         ge=0.0,
         le=3.0,
         description="Intensity of the soft global light that lifts shadows",
     )
-    rim_light_intensity: float = Field(
-        default=0.4,
+    rim_light: float = Field(
+        default=0.5,
         ge=0.0,
         le=5.0,
         description="Intensity of the back light that creates highlights",
+    )
+    hemisphere_light: float = Field(
+        default=0.3,
+        ge=0.0,
+        le=3.0,
+        description="Intensity of the ambient light from above",
+    )
+    ambient_light: float = Field(
+        default=0.35,
+        ge=0.0,
+        le=3.0,
+        description="Intensity of the ambient light that fills the scene",
     )
     contact_shadow: bool = Field(
         default=False, description="Show contact shadow below the model"
@@ -108,8 +111,16 @@ class StudioLighting(SettingsBase):
     def model_json_schema(cls, *args, **kwargs) -> dict[str, t.Any]:
         schema = super().model_json_schema(*args, **kwargs)
         schema["properties"]["background_color"]["format"] = "color"
-        schema["properties"]["key_light_intensity"]["format"] = "range"
-        schema["properties"]["key_light_intensity"]["step"] = 0.1
+        schema["properties"]["key_light"]["format"] = "range"
+        schema["properties"]["key_light"]["step"] = 0.01
+        schema["properties"]["fill_light"]["format"] = "range"
+        schema["properties"]["fill_light"]["step"] = 0.01
+        schema["properties"]["rim_light"]["format"] = "range"
+        schema["properties"]["rim_light"]["step"] = 0.01
+        schema["properties"]["hemisphere_light"]["format"] = "range"
+        schema["properties"]["hemisphere_light"]["step"] = 0.01
+        schema["properties"]["ambient_light"]["format"] = "range"
+        schema["properties"]["ambient_light"]["step"] = 0.01
         return schema
 
 
