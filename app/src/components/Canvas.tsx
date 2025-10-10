@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { OrbitControls, ContactShadows } from "@react-three/drei";
 import { useAppStore } from "../store";
@@ -7,7 +7,7 @@ import { useExtensionData } from "../hooks/useSchemas";
 import { useColorScheme } from "@mui/material/styles";
 
 // Import our new, self-contained components
-import { SimulationCell } from "./three/SimulationCell";
+import { Cell } from "./three/Cell";
 import Sphere from "./three/Particles";
 import Arrow from "./three/Arrow";
 import Bonds from "./three/SingleBonds";
@@ -40,15 +40,16 @@ function MyScene() {
     "studio_lighting",
   );
 
-  // Use settings or provide sensible defaults
-  const keyLightIntensity = studioLightingSettings?.key_light_intensity ?? 1.2;
-  const fillLightIntensity =
-    studioLightingSettings?.fill_light_intensity ?? 0.3;
-  const rimLightIntensity = studioLightingSettings?.rim_light_intensity ?? 1.5;
-  const backgroundColor =
-    studioLightingSettings?.background_color ??
-    (mode === "dark" ? "#333840" : "#f5f5f5");
-  const showContactShadow = studioLightingSettings?.contact_shadow ?? true;
+  const { data: cameraSettings } = useExtensionData(
+    roomId || "",
+    userId || "",
+    "settings",
+    "camera",
+  );
+
+  useEffect(() => {
+    console.log("camera-settings", cameraSettings);
+  }, [cameraSettings])
 
   return (
     <div style={{ width: "100%", height: "calc(100vh - 64px)" }}>
@@ -56,13 +57,14 @@ function MyScene() {
         shadows
         camera={{ position: [-10, 10, 30], fov: 50 }}
         gl={{ antialias: true, toneMapping: THREE.ACESFilmicToneMapping }}
-        style={{ background: backgroundColor }}
+        style={{ background: studioLightingSettings.background_color }}
+        orthographic={cameraSettings.camera === "OrthographicCamera"}
       >
-        <CameraAttachedLight intensity={keyLightIntensity} />
-        <ambientLight intensity={fillLightIntensity} />
+        <CameraAttachedLight intensity={studioLightingSettings.key_light_intensity} />
+        <ambientLight intensity={studioLightingSettings.fill_light_intensity} />
         <directionalLight
           position={[10, 20, -20]}
-          intensity={rimLightIntensity}
+          intensity={studioLightingSettings.rim_light_intensity}
         />
 
         {/* Render our clean, refactored components */}
@@ -102,6 +104,13 @@ function MyScene() {
                   data={config.data}
                 />
               );
+            } else if (config.type === "Cell") {
+              return (
+                <Cell
+                  key={name}
+                  data={config.data}
+                />
+              );
             } else {
               console.warn(`Unhandled geometry type: ${config.type}`);
               return null;
@@ -114,10 +123,9 @@ function MyScene() {
 
             return null;
           })}
-        <SimulationCell />
         <VirtualCanvas />
 
-        {showContactShadow && (
+        {studioLightingSettings.contact_shadow && (
           <ContactShadows
             position={[0, -15, 0]}
             opacity={0.5}

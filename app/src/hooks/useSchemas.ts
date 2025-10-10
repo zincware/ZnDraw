@@ -27,15 +27,29 @@ export const useExtensionData = (
   category: string,
   extension: string,
 ) => {
+  const initialData = {
+    "studio_lighting": {
+      "key_light_intensity": 1.2,
+      "fill_light_intensity": 0.3,
+      "rim_light_intensity": 1.5,
+      "background_color": "#333840",
+      "contact_shadow": true
+    },
+    "camera": {
+      "camera": "PerspectiveCamera"
+    }
+  }
+
   return useQuery({
-    queryKey: ["extensionData", room, user, category, extension], // The key is critical
+    queryKey: ["extensionData", room, user, category, extension],
     queryFn: async () => {
       const result = await getExtensionData(room, user, category, extension);
       console.log(`Fetched extension ${category}/${extension} data:`, result);
       return result.data;
     },
     // Remove staleTime: Infinity if you expect this data to be updated externally
-    staleTime: 1000 * 60, // e.g., stale after 1 minute
+    initialData: initialData[extension] || undefined,
+    staleTime: Infinity,
     enabled: !!room && !!user && !!category && !!extension,
   });
 };

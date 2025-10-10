@@ -6,7 +6,14 @@ import * as THREE from "three";
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { getFrames } from "../../myapi/client";
 
-export const SimulationCell = () => {
+interface CellData {
+  position: string;
+  color: string;
+  material: "LineBasicMaterial" | "LineDashedMaterial";
+  thickness: number;
+}
+
+export const Cell = ({ data }: {data: CellData}) => {
   const { mode } = useColorScheme();
   const theme = useTheme();
   const { currentFrame, roomId, clientId } = useAppStore();
@@ -17,9 +24,9 @@ export const SimulationCell = () => {
 
   // Simple single query for cell data
   const { data: cellData, isFetching } = useQuery({
-    queryKey: ["frame", roomId, currentFrame, "cell"],
+    queryKey: ["frame", roomId, currentFrame, data.position],
     queryFn: ({ signal }: { signal: AbortSignal }) =>
-      getFrames(roomId!, currentFrame, ["cell"], signal),
+      getFrames(roomId!, currentFrame, [data.position], signal),
     enabled: !!roomId && !!clientId,
     placeholderData: keepPreviousData,
   });
@@ -29,7 +36,7 @@ export const SimulationCell = () => {
       return; // Wait for data, keepPreviousData ensures old view remains
     }
 
-    const cell = cellData?.cell;
+    const cell = cellData?.[data.position];
     if (!cell) {
       setDisplayedVertices(null);
       return;
@@ -76,16 +83,15 @@ export const SimulationCell = () => {
       [v[3], v[7]],
     ];
     setDisplayedVertices(calculatedVertices);
-  }, [cellData, isFetching]);
+  }, [cellData, isFetching, data.position]);
 
-  const lineColor =
-    mode === "light" ? theme.palette.primary.dark : theme.palette.primary.light;
+  const lineColor = data.color === "default" ? (mode === "light" ? theme.palette.primary.dark : theme.palette.primary.light) : data.color;
 
   return (
     <group>
       {displayedVertices &&
         displayedVertices.map((points, index) => (
-          <Line key={index} points={points} color={lineColor} lineWidth={2} />
+          <Line key={index} points={points} color={lineColor} lineWidth={data.thickness} dashed={data.material === "LineDashedMaterial"}/>
         ))}
     </group>
   );
