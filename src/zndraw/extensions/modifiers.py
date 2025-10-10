@@ -71,13 +71,15 @@ class Rotate(UpdateScene):
         points = vis.points
         atom_ids = vis.selection
         atoms = vis.atoms
+        if atoms is None:
+            raise ValueError("No atoms in the scene.")
         if len(points) != 2:
             raise ValueError("Please draw exactly 2 points to rotate around.")
 
         angle = self.angle if self.direction == "left" else -self.angle
         angle = angle / self.steps
 
-        atoms_selected, atoms_remaining = self.apply_selection(atom_ids, atoms)
+        atoms_selected, atoms_remaining = self.apply_selection(list(atom_ids), atoms)
         # create a vector from the two points
         vector = points[1] - points[0]
         frames = []

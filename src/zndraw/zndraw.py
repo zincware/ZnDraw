@@ -196,6 +196,25 @@ class ZnDraw(MutableSequence):
                     raise RuntimeError(error_msg)
         else:
             raise RuntimeError("Client is not connected.")
+        
+    @property
+    def points(self) -> np.ndarray:
+        """Get the current frame as an `ase.Atoms` object."""
+        from zndraw.geometries import Curve
+        curve: Curve | None = self.geometries.get("curve")
+        if curve is not None:
+            if isinstance(curve.position, str):
+                raise ValueError("Curve position is string; cannot retrieve static points.")
+            return np.array(curve.position)
+        return np.empty((0, 3))
+    
+    @property
+    def atoms(self) -> ase.Atoms | None:
+        """Get the current frame as an `ase.Atoms` object."""
+        try:
+            return self[self.step]
+        except (IndexError, KeyError):
+            return None
 
     @property
     def selection(self) -> frozenset[int]:

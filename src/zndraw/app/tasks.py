@@ -6,6 +6,8 @@ from pathlib import Path
 import ase.io
 import requests
 import znh5md
+import traceback
+
 
 # Tqdm is removed from the generator as it won't render in a Celery worker.
 # from tqdm import tqdm
@@ -228,7 +230,7 @@ def celery_job_worker(self, room: str, server_url: str = "http://localhost:5000"
         )
 
     except Exception as e:
-        vis.log(f"Error executing job {job_id}: {e}")
+        vis.log(f"Error executing job {job_id}: {e} \n{traceback.format_exc()}")
         log.error(
             f"Worker {worker_id} error executing job {job_id}: {e}", exc_info=True
         )
