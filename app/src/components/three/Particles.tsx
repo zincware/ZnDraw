@@ -1,10 +1,20 @@
 import * as THREE from "three";
-import { useQueries } from "@tanstack/react-query";
-import { getFrameDataOptions } from "../../hooks/useTrajectoryData";
+import { useQuery, keepPreviousData } from "@tanstack/react-query";
+import { getFrames } from "../../myapi/client";
 import { useAppStore } from "../../store";
 import { useRef, useMemo, useState, useEffect, useCallback } from "react";
 import { renderMaterial } from "./materials";
-import { shouldFetchAsFrameData, hexToRgb } from "../../utils/colorUtils";
+import { shouldFetchAsFrameData } from "../../utils/colorUtils";
+import {
+  type DataProp,
+  processNumericAttribute,
+  processColorAttribute,
+  getInstanceCount,
+  validateArrayLengths,
+  SELECTION_SCALE,
+  HOVER_SCALE,
+} from "../../utils/geometryData";
+import { _vec3, _matrix, _color } from "../../utils/threeObjectPools";
 
 interface InteractionSettings {
   enabled: boolean;
@@ -24,13 +34,7 @@ interface SphereData {
   hovering: InteractionSettings;
 }
 
-const positionVec = new THREE.Vector3();
-const scaleVec = new THREE.Vector3();
-const matrix = new THREE.Matrix4();
-const tempColor = new THREE.Color();
-
-const HOVER_SCALE = 1.25;
-const SELECTION_SCALE = 1.01;
+// Reusable THREE objects imported from threeObjectPools
 
 export default function Sphere({ data, geometryKey }: { data: SphereData; geometryKey: string }) {
   const {
@@ -49,9 +53,9 @@ export default function Sphere({ data, geometryKey }: { data: SphereData; geomet
   const selectionMeshRef = useRef<THREE.InstancedMesh | null>(null);
   const hoverMeshRef = useRef<THREE.Mesh | null>(null);
   const [hoveredInstanceId, setHoveredInstanceId] = useState<number | null>(null);
+  const [instanceCount, setInstanceCount] = useState(0);
 
   const { currentFrame, roomId, clientId, selection, updateSelection, setDrawingPointerPosition, isDrawing, setDrawingIsValid } = useAppStore();
-  const lastGoodFrameData = useRef<any>(null);
 
   const selectionSet = useMemo(() => new Set(selection || []), [selection]);
   const selectedIndices = useMemo(() => Array.from(selectionSet), [selectionSet]);
@@ -59,188 +63,145 @@ export default function Sphere({ data, geometryKey }: { data: SphereData; geomet
   const particleResolution = resolution || 8;
   const particleScale = scale || 1.0;
 
-  // Determine what to fetch (skip hex colors)
-  const keysToFetch = useMemo(() => {
-    const keys: string[] = [];
-    if (typeof positionProp === "string") keys.push(positionProp);
-    if (typeof colorProp === "string" && shouldFetchAsFrameData(colorProp)) {
-      keys.push(colorProp);
-    }
-    if (typeof radiusProp === "string") keys.push(radiusProp);
-    return keys;
-  }, [positionProp, colorProp, radiusProp]);
+  // Individual queries for each attribute - enables perfect cross-component caching
+  const { data: positionData, isFetching: isPositionFetching } = useQuery({
+    queryKey: ["frame", roomId, currentFrame, positionProp],
+    queryFn: ({ signal }: { signal: AbortSignal }) =>
+      getFrames(roomId!, currentFrame, [positionProp as string], signal),
+    enabled: !!roomId && !!clientId && typeof positionProp === "string",
+    placeholderData: keepPreviousData,
+  });
 
-  // Fetch frame data
-  const queries = useMemo(() => {
-    if (!roomId) return [];
-    return keysToFetch.map((key) => getFrameDataOptions(roomId, currentFrame, key));
-  }, [currentFrame, roomId, keysToFetch]);
+  const { data: colorData, isFetching: isColorFetching } = useQuery({
+    queryKey: ["frame", roomId, currentFrame, colorProp],
+    queryFn: ({ signal }: { signal: AbortSignal }) =>
+      getFrames(roomId!, currentFrame, [colorProp as string], signal),
+    enabled: !!roomId && !!clientId && typeof colorProp === "string" && shouldFetchAsFrameData(colorProp as string),
+    placeholderData: keepPreviousData,
+  });
 
-  const queryResults = useQueries({ queries });
+  const { data: radiusData, isFetching: isRadiusFetching } = useQuery({
+    queryKey: ["frame", roomId, currentFrame, radiusProp],
+    queryFn: ({ signal }: { signal: AbortSignal }) =>
+      getFrames(roomId!, currentFrame, [radiusProp as string], signal),
+    enabled: !!roomId && !!clientId && typeof radiusProp === "string",
+    placeholderData: keepPreviousData,
+  });
 
-  // Process fetched + local data into consistent format
-  const { processedData, isFetching } = useMemo(() => {
-    try {
-      const isQueryFetching = queryResults.some((r) => r.isFetching || r.isPlaceholderData);
-      const allSucceeded = queryResults.every((r) => r.isSuccess);
+  // Check if any enabled query is still fetching
+  const isFetching =
+    (typeof positionProp === "string" && isPositionFetching) ||
+    (typeof colorProp === "string" && shouldFetchAsFrameData(colorProp as string) && isColorFetching) ||
+    (typeof radiusProp === "string" && isRadiusFetching);
 
-      if (keysToFetch.length > 0 && !allSucceeded) {
-        return { isFetching: isQueryFetching, processedData: null };
-      }
-
-      const fetchedMap = new Map(queryResults.map((r, i) => [keysToFetch[i], r.data?.data]));
-
-    let count = 0;
-    let finalPositions: number[] = [];
-    if (typeof positionProp === "string") {
-      const remoteData = fetchedMap.get(positionProp) || [];
-      count = remoteData.length / 3;
-      finalPositions = remoteData;
-    } else if (positionProp.length > 0 && Array.isArray(positionProp[0])) {
-      count = positionProp.length;
-      finalPositions = (positionProp as number[][]).flat();
-    } else if (positionProp.length > 0) {
-      count = 1;
-      finalPositions = positionProp as number[];
-    }
-
-    if (count === 0) return { isFetching: isQueryFetching, processedData: null };
-
-    let finalColors: number[];
-    if (typeof colorProp === "string" && shouldFetchAsFrameData(colorProp)) {
-      const fetchedColors = fetchedMap.get(colorProp);
-      finalColors = fetchedColors ? Array.from(fetchedColors) : [];
-    } else if (typeof colorProp === "string") {
-      // Hex color string - convert to RGB and replicate for all particles
-      const rgb = hexToRgb(colorProp);
-      if (rgb) {
-        finalColors = new Array(count * 3);
-        for (let i = 0; i < count; i++) {
-          finalColors[i * 3] = rgb[0];
-          finalColors[i * 3 + 1] = rgb[1];
-          finalColors[i * 3 + 2] = rgb[2];
-        }
-      } else {
-        // Fallback to white if hex parsing fails
-        throw new Error(`Invalid hex color: ${colorProp}`);
-      }
-    } else if (colorProp.length > 0 && Array.isArray(colorProp[0])) {
-      finalColors = (colorProp as number[][]).flat();
-    } else {
-      finalColors = new Array(count).fill(colorProp).flat();
-    }
-
-    let finalRadii: number[];
-    if (typeof radiusProp === "string") {
-      finalRadii = fetchedMap.get(radiusProp) || [];
-    } else if (Array.isArray(radiusProp)) {
-      finalRadii = radiusProp as number[];
-    } else {
-      finalRadii = new Array(count).fill(radiusProp);
-    }
-
-    if (
-      finalPositions.length / 3 !== count ||
-      finalColors.length / 3 !== count ||
-      finalRadii.length !== count
-    ) {
-      console.error("Sphere data arrays have inconsistent lengths.");
-      return { isFetching: isQueryFetching, processedData: null };
-    }
-
-      return {
-        isFetching: isQueryFetching,
-        processedData: { positions: finalPositions, colors: finalColors, radii: finalRadii, count },
-      };
-    } catch (error) {
-      console.error("Error processing Sphere/Particles geometry data:", error);
-      return { isFetching: false, processedData: null };
-    }
-  }, [queryResults, keysToFetch, positionProp, colorProp, radiusProp]);
-
-  const dataToRender = processedData || lastGoodFrameData.current;
-  if (processedData) lastGoodFrameData.current = processedData;
-
-  // ⚡ Update geometry only when data changes
+  // Consolidated data processing and mesh update
   useEffect(() => {
+    if (isFetching) {
+      return; // Wait for all enabled queries to complete
+    }
+
     try {
-      if (!mainMeshRef.current || !dataToRender) return;
+      // --- Data Processing Step ---
+      const fetchedPosition = typeof positionProp === 'string' ? positionData?.[positionProp as string] : undefined;
+      const finalCount = getInstanceCount(positionProp, fetchedPosition);
 
-      const mainMesh = mainMeshRef.current;
-      const { positions, colors, radii, count } = dataToRender;
-
-      // Validate data
-      if (!positions || !colors || !radii || !count) return;
-      if (positions.length < count * 3 || colors.length < count * 3 || radii.length < count) {
-        console.error("Sphere data arrays have invalid lengths");
+      if (finalCount === 0) {
+        if (instanceCount !== 0) setInstanceCount(0);
         return;
       }
 
-      console.log("Rendering", count, "particles.");
-      for (let i = 0; i < count; i++) {
-      const i3 = i * 3;
-      positionVec.set(positions[i3], positions[i3 + 1], positions[i3 + 2]);
-      const r = radii[i] * particleScale;
-      scaleVec.set(r, r, r);
-      matrix.identity().setPosition(positionVec).scale(scaleVec);
-      mainMesh.setMatrixAt(i, matrix);
-      tempColor.setRGB(colors[i3], colors[i3 + 1], colors[i3 + 2]);
-      mainMesh.setColorAt(i, tempColor);
-    }
+      // Process all attributes
+      const finalPositions = processNumericAttribute(positionProp, fetchedPosition, finalCount);
 
-      mainMesh.count = count;
+      const fetchedColor = typeof colorProp === 'string' ? colorData?.[colorProp as string] : undefined;
+      const finalColors = processColorAttribute(colorProp, fetchedColor, finalCount);
+
+      const fetchedRadius = typeof radiusProp === 'string' ? radiusData?.[radiusProp as string] : undefined;
+      const finalRadii = processNumericAttribute(radiusProp, fetchedRadius, finalCount);
+
+      // --- Validation Step ---
+      const isDataValid = validateArrayLengths(
+        { positions: finalPositions, colors: finalColors, radii: finalRadii },
+        { positions: finalCount * 3, colors: finalCount * 3, radii: finalCount }
+      );
+
+      if (!isDataValid) {
+        console.error("Sphere/Particles data is invalid or has inconsistent lengths.");
+        if (instanceCount !== 0) setInstanceCount(0);
+        return;
+      }
+
+      // --- Mesh Resizing Step ---
+      if (instanceCount !== finalCount) {
+        setInstanceCount(finalCount);
+        return;
+      }
+
+      // --- Main Mesh Instance Update ---
+      const mainMesh = mainMeshRef.current;
+      if (!mainMesh) return;
+
+      for (let i = 0; i < finalCount; i++) {
+        const i3 = i * 3;
+        _vec3.set(finalPositions[i3], finalPositions[i3 + 1], finalPositions[i3 + 2]);
+        const r = finalRadii[i] * particleScale;
+        _matrix.identity().setPosition(_vec3).scale(_vec3.set(r, r, r));
+        mainMesh.setMatrixAt(i, _matrix);
+        _color.setRGB(finalColors[i3], finalColors[i3 + 1], finalColors[i3 + 2]);
+        mainMesh.setColorAt(i, _color);
+      }
+
       mainMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
       mainMesh.instanceMatrix.needsUpdate = true;
       if (mainMesh.instanceColor) mainMesh.instanceColor.needsUpdate = true;
-    } catch (error) {
-      console.error("Error rendering Sphere/Particles instances:", error);
-    }
-  }, [dataToRender, particleScale]);
 
-  useEffect(() => {
-    try {
-      if (!selectionMeshRef.current || !dataToRender || !selecting.enabled) return;
-
-      const selectionMesh = selectionMeshRef.current;
-      const { positions, radii, count } = dataToRender;
-
-      if (!positions || !radii || !count) return;
-
-      selectedIndices.forEach((id, index) => {
-      if (id >= count) return;
-      const i3 = id * 3;
-      positionVec.set(positions[i3], positions[i3 + 1], positions[i3 + 2]);
-      const r = radii[id] * particleScale * SELECTION_SCALE;
-      scaleVec.set(r, r, r);
-      matrix.identity().setPosition(positionVec).scale(scaleVec);
-      selectionMesh.setMatrixAt(index, matrix);
-    });
-
-      selectionMesh.count = selectedIndices.length;
-      selectionMesh.instanceMatrix.needsUpdate = true;
-    } catch (error) {
-      console.error("Error updating selection mesh:", error);
-    }
-  }, [selectedIndices, dataToRender, particleScale, selecting]);
-
-  useEffect(() => {
-    if (!dataToRender || isFetching) return;
-
-    const hoverMesh = hoverMeshRef.current;
-    const { positions, radii, count } = dataToRender;
-    if (hoverMesh) {
-      if (hovering && hoveredInstanceId !== null && hoveredInstanceId < count) {
-        hoverMesh.visible = true;
-        const i3 = hoveredInstanceId * 3;
-        positionVec.set(positions[i3], positions[i3 + 1], positions[i3 + 2]);
-        const r = radii[hoveredInstanceId] * particleScale * HOVER_SCALE;
-        hoverMesh.position.copy(positionVec);
-        hoverMesh.scale.set(r, r, r);
-      } else {
-        hoverMesh.visible = false;
+      // --- Selection Mesh Update ---
+      if (selecting.enabled && selectionMeshRef.current) {
+        const selectionMesh = selectionMeshRef.current;
+        selectedIndices.forEach((id, index) => {
+          if (id >= finalCount) return;
+          const i3 = id * 3;
+          _vec3.set(finalPositions[i3], finalPositions[i3 + 1], finalPositions[i3 + 2]);
+          const r = finalRadii[id] * particleScale * SELECTION_SCALE;
+          _matrix.identity().setPosition(_vec3).scale(_vec3.set(r, r, r));
+          selectionMesh.setMatrixAt(index, _matrix);
+        });
+        selectionMesh.instanceMatrix.needsUpdate = true;
       }
+
+      // --- Hover Mesh Update ---
+      if (hovering && hoverMeshRef.current) {
+        const hoverMesh = hoverMeshRef.current;
+        if (hoveredInstanceId !== null && hoveredInstanceId < finalCount) {
+          hoverMesh.visible = true;
+          const i3 = hoveredInstanceId * 3;
+          _vec3.set(finalPositions[i3], finalPositions[i3 + 1], finalPositions[i3 + 2]);
+          const r = finalRadii[hoveredInstanceId] * particleScale * HOVER_SCALE;
+          hoverMesh.position.copy(_vec3);
+          hoverMesh.scale.set(r, r, r);
+        } else {
+          hoverMesh.visible = false;
+        }
+      }
+    } catch (error) {
+      console.error("Error processing Sphere/Particles data:", error);
+      if (instanceCount !== 0) setInstanceCount(0);
     }
-  }, [hoveredInstanceId, dataToRender, particleScale, hovering]);
+  }, [
+    isFetching,
+    positionData,
+    colorData,
+    radiusData,
+    positionProp,
+    colorProp,
+    radiusProp,
+    instanceCount,
+    particleScale,
+    selectedIndices,
+    selecting,
+    hovering,
+    hoveredInstanceId,
+  ]);
 
 
   const mainGeometry = useMemo(() => {
@@ -271,15 +232,15 @@ export default function Sphere({ data, geometryKey }: { data: SphereData; geomet
 
   const onPointerOutHandler = useCallback(() => { setHoveredInstanceId(null); setDrawingIsValid(false); }, [setDrawingIsValid]);
 
-  if (!clientId || !roomId || !dataToRender) return null;
+  if (!clientId || !roomId) return null;
 
   return (
     <group>
       {/* Main mesh */}
       <instancedMesh
-        key={dataToRender.count}
+        key={instanceCount}
         ref={mainMeshRef}
-        args={[undefined, undefined, dataToRender.count]}
+        args={[undefined, undefined, instanceCount]}
         onClick={selecting.enabled ? onClickHandler : undefined}
         onPointerEnter={hovering ? onPointerEnterHandler : undefined}
         onPointerMove={hovering ? onPointerMoveHandler : undefined}

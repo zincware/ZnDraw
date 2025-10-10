@@ -1,4 +1,30 @@
 import axios from "axios";
+import { decode } from "@msgpack/msgpack";
+
+const numpyDtypeToTypedArray = {
+  float32: Float32Array,
+  float64: Float64Array,
+  int8: Int8Array,
+  int16: Int16Array,
+  int32: Int32Array,
+  uint8: Uint8Array,
+  uint16: Uint16Array,
+  uint32: Uint32Array,
+};
+
+function decodeTypedData(encoded: any, key: string) {
+  if (!encoded) return undefined;
+  try {
+    const decoded = decode(encoded)[0][key];
+    const TypedArrayCtor = numpyDtypeToTypedArray[decoded.dtype as keyof typeof numpyDtypeToTypedArray];
+    if (!TypedArrayCtor) throw new Error(`Unsupported dtype: ${decoded.dtype}`);
+    return new TypedArrayCtor(decoded.data.slice().buffer);
+  } catch (err) {
+    console.error(`Failed to decode ${key}:`, err);
+    return undefined;
+  }
+}
+
 
 // Define the types based on your Python code
 export interface FigureData {
@@ -305,13 +331,14 @@ export const getFrames = async (
   frameIndex: number,
   keys: string[],
   signal?: AbortSignal,
-): Promise<ArrayBuffer> => {
+): Promise<Record<string, any> | null> => {
   const params = new URLSearchParams();
   params.append("indices", frameIndex.toString());
+  // because frameIndex is an integer, in decodeTypedData we use [0][key] to access the data
   if (keys && keys.length > 0) {
     params.append("keys", keys.join(","));
   }
-  
+
   const { data } = await apiClient.get(
     `/api/rooms/${roomId}/frames?${params.toString()}`,
     {
@@ -319,7 +346,15 @@ export const getFrames = async (
       responseType: "arraybuffer",
     },
   );
-  return data;
+
+  const result: Record<string, any> = {};
+  for (const key of keys) {
+    const decoded = decodeTypedData(data, key);
+    if (decoded !== undefined) {
+      result[key] = decoded;
+    }
+  }
+  return Object.keys(result).length > 0 ? result : null;
 };
 
 // ==================== Chat API ====================
@@ -356,7 +391,7 @@ export const getChatMessages = async (
   params.append("limit", limit.toString());
   if (before) params.append("before", before.toString());
   if (after) params.append("after", after.toString());
-  
+
   const { data } = await apiClient.get(
     `/api/rooms/${roomId}/chat/messages?${params.toString()}`,
   );

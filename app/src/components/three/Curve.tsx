@@ -1,14 +1,13 @@
 import { useMemo, useRef, useState, useEffect, useCallback } from "react";
 import * as THREE from "three";
-import { useQueries } from "@tanstack/react-query";
+import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import {
   Dodecahedron,
   TransformControls,
 } from "@react-three/drei";
 import { Line } from "@react-three/drei";
-import { getFrameDataOptions } from "../../hooks/useTrajectoryData";
 import { useAppStore } from "../../store";
-import { createGeometry } from "../../myapi/client";
+import { getFrames, createGeometry } from "../../myapi/client";
 import { debounce } from "lodash";
 
 interface MarkerData {
@@ -53,28 +52,35 @@ export default function Curve({ data, geometryKey }: { data: CurveData; geometry
   const markerRefs = useRef<(THREE.Mesh | null)[]>([]);
 
   // --- Data Fetching ---
-  const shouldFetchPosition = typeof positionProp === "string";
-
-  const queries = useMemo(() => {
-    if (!roomId || !shouldFetchPosition) return [];
-    return [getFrameDataOptions(roomId, currentFrame, positionProp as string)];
-  }, [currentFrame, roomId, positionProp, shouldFetchPosition]);
-
-  const queryResults = useQueries({ queries });
+  // Simple conditional query for position data
+  const { data: positionQueryData, isFetching } = useQuery({
+    queryKey: ["frame", roomId, currentFrame, positionProp],
+    queryFn: ({ signal }: { signal: AbortSignal }) =>
+      getFrames(roomId!, currentFrame, [positionProp as string], signal),
+    enabled: !!roomId && !!clientId && typeof positionProp === "string",
+    placeholderData: keepPreviousData,
+  });
 
   useEffect(() => {
-    if (shouldFetchPosition) {
-      const result = queryResults[0];
-      if (result && result.isSuccess) {
-        const points = result.data?.data || [];
-        const vecPoints = [];
-        for (let i = 0; i < points.length; i += 3) {
-          vecPoints.push(new THREE.Vector3(points[i], points[i + 1], points[i + 2]));
-        }
-        setMarkerPositions(vecPoints);
+    if (typeof positionProp === "string") {
+      // Fetched from server
+      if (isFetching) return;
+
+      const points = positionQueryData?.[positionProp];
+      if (!points) {
+        setMarkerPositions([]);
         setLastUpdateSource('remote');
+        return;
       }
+
+      const vecPoints = [];
+      for (let i = 0; i < points.length; i += 3) {
+        vecPoints.push(new THREE.Vector3(points[i], points[i + 1], points[i + 2]));
+      }
+      setMarkerPositions(vecPoints);
+      setLastUpdateSource('remote');
     } else {
+      // Static data
       const manualPoints = positionProp as number[][];
       if (manualPoints === undefined) {
         console.error("Manual points are undefined");
@@ -84,8 +90,7 @@ export default function Curve({ data, geometryKey }: { data: CurveData; geometry
       setMarkerPositions(vecPoints);
       setLastUpdateSource('remote');
     }
-  }, [queryResults?.data, positionProp, shouldFetchPosition]); 
-  // you MUST use queryResults?.data instead of queryResults because otherwise you rely on the query, not on the persistent result data!
+  }, [positionQueryData, isFetching, positionProp]);
 
   useEffect(() => {
     const allPoints: THREE.Vector3[] = [...markerPositions];
@@ -103,7 +108,6 @@ export default function Curve({ data, geometryKey }: { data: CurveData; geometry
     setLineSegments(curvePoints);
 
     const _virtualMarkerPositions: THREE.Vector3[] = [];
-    console.log("Calculating virtual markers for points:", allPoints);
     // virtual markers
     for (let i = 0; i < allPoints.length - 1; i++) {
       const controlPoint1 = allPoints[i];
