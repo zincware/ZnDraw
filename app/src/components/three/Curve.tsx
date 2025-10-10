@@ -168,6 +168,7 @@ export default function Curve({ data, geometryKey }: { data: CurveData; geometry
     if (drawingIsValid && drawingPointerPosition) {
       const newPoints = [...markerPositions];
       newPoints.push(drawingPointerPosition.clone());
+      setLastUpdateSource('local');
       setMarkerPositions(newPoints);
     } else {
       setIsDrawing(false);
@@ -188,6 +189,7 @@ export default function Curve({ data, geometryKey }: { data: CurveData; geometry
         // We need to remove the transform controls first,
         // because the on-change handler would recreate the marker
         setTimeout(() => {
+          setLastUpdateSource('local');
           setMarkerPositions(prev => {
             if (selectedIndex === null) return prev;
             const newPoints = [...prev];
