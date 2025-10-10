@@ -14,6 +14,7 @@ import Bonds from "./three/SingleBonds";
 import Curve from "./three/Curve";
 import VirtualCanvas from "./three/VirtualCanvas";
 import Crosshair from "./three/crosshair";
+import CameraManager from "./CameraManager";
 
 // A small helper component to keep a light attached to the camera
 function CameraAttachedLight({ intensity = 1.0 }) {
@@ -58,12 +59,20 @@ function MyScene() {
   return (
     <div style={{ width: "100%", height: "calc(100vh - 64px)" }}>
       <Canvas
+        // Add a key that changes when the camera type changes.
+        // This will force React to re-create the Canvas and its camera.
+        key={cameraSettings.camera}
         shadows
-        camera={{ position: [-10, 10, 30], fov: 50, near: cameraSettings.near_plane, far: cameraSettings.far_plane}}
+        // We REMOVE the dynamic near/far properties from here.
+        // The initial position and fov are still useful.
+        camera={{ position: [-10, 10, 30], fov: 50 }}
         gl={{ antialias: true, toneMapping: THREE.ACESFilmicToneMapping }}
         style={{ background: backgroundColor }}
+        // The orthographic prop still sets the initial camera type.
         orthographic={cameraSettings.camera === "OrthographicCamera"}
       >
+        {/* Place the CameraManager here, inside the Canvas */}
+        <CameraManager settings={cameraSettings} />
         <CameraAttachedLight intensity={studioLightingSettings.key_light_intensity} />
         <ambientLight intensity={studioLightingSettings.fill_light_intensity} />
         <directionalLight
