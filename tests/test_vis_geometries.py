@@ -75,6 +75,49 @@ def test_rest_update_geometries(server):
     assert data["geometry"]["data"]["radius"] == 1.0 
 
 
+def test_rest_partial_update_geometries(server):
+    """Test partially updating a geometry without losing existing data."""
+    room = "test-room-geom-partial-update"
+    response = requests.post(f"{server}/api/rooms/{room}/join", json={})
+    assert response.status_code == 200
+
+    # First, create a geometry with some data
+    initial_geometry_data = {
+        "position": [[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]],
+        "color": "#FF0000",
+    }
+    response = requests.post(
+        f"{server}/api/rooms/{room}/geometries",
+        json={
+            "key": "curve",
+            "data": initial_geometry_data,
+            "type": "Curve",
+        },
+    )
+    assert response.status_code == 200
+
+    # Now, update only the 'active' status
+    partial_update_data = {"active": False}
+    response = requests.post(
+        f"{server}/api/rooms/{room}/geometries",
+        json={
+            "key": "curve",
+            "data": partial_update_data,
+            "type": "Curve",
+        },
+    )
+    assert response.status_code == 200
+
+    # Verify the geometry was updated and old data was preserved
+    response = requests.get(f"{server}/api/rooms/{room}/geometries/curve")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["geometry"]["type"] == "Curve"
+    assert data["geometry"]["data"]["active"] is False
+    assert data["geometry"]["data"]["position"] == [[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]]
+    assert data["geometry"]["data"]["color"] == "#FF0000"
+
+
 def test_rest_add_unknown_geometry(server):
     """Test that creating geometry with unknown type returns error."""
     room = "test-room-geom-unknown"

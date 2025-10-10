@@ -63,7 +63,6 @@ const GeometryGrid = ({ geometries }: GeometryGridProps) => {
       key,
       geometryType: geometry.type,
       geometryData: {
-        ...geometry.data,
         active: !currentActive,
       },
     });

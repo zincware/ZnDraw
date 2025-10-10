@@ -2398,6 +2398,21 @@ def create_geometry(room_id: str):
             "type": "ValueError",
         }, 400
 
+    r = current_app.extensions["redis"]
+    existing_geometry_json = r.hget(f"room:{room_id}:geometries", key)
+
+    if existing_geometry_json:
+        existing_geometry = json.loads(existing_geometry_json)
+        # Make sure we're updating the same type of geometry
+        if existing_geometry.get("type") == geometry_type:
+            # Merge new data into existing data
+            merged_data = existing_geometry.get("data", {}).copy()
+            merged_data.update(geometry_data)
+            geometry_data = merged_data
+        else:
+            log.warning(f"Geometry type mismatch for key '{key}'. Overwriting.")
+
+
     # Validate and apply defaults through Pydantic model
     try:
         geometry_class = geometries[geometry_type]
@@ -2409,7 +2424,6 @@ def create_geometry(room_id: str):
             "type": "ValidationError",
         }, 400
 
-    r = current_app.extensions["redis"]
     r.hset(f"room:{room_id}:geometries", key, value_to_store)
     clientSID = r.hget(f"client:{clientId}", "currentSid") if clientId else None
     socketio.emit(
