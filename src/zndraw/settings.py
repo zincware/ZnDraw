@@ -62,46 +62,46 @@ class EnvironmentPreset(str, enum.Enum):
     warehouse = "warehouse"
 
 
-class Scene(SettingsBase):
-    """Controls the background, lighting, and environment."""
+# class Scene(SettingsBase):
+#     """Controls the background, lighting, and environment."""
 
-    background_color: str = Field("#ffffff", description="Scene background color")
-    show_simulation_box: bool = Field(
-        True, description="Show the periodic cell boundary"
-    )
-    show_floor: bool = Field(False, description="Display a reflective grid floor")
-    environment: EnvironmentPreset = Field(
-        EnvironmentPreset.studio,
-        description="HDR environment for reflections and lighting",
-    )
+#     background_color: str = Field(default="#ffffff", description="Scene background color")
+#     show_simulation_box: bool = Field(
+#         True, description="Show the periodic cell boundary"
+#     )
+#     show_floor: bool = Field(default=False, description="Display a reflective grid floor")
+#     environment: EnvironmentPreset = Field(
+#         default=EnvironmentPreset.studio,
+#         description="HDR environment for reflections and lighting",
+#     )
 
 
 class StudioLighting(SettingsBase):
     """Controls for the neutral studio lighting setup."""
 
     background_color: str = Field(
-        "#FFFFFF", description="Neutral background color of the scene"
+        default="default", description="Neutral background color of the scene"
     )
     key_light_intensity: float = Field(
-        1.1,
+        default=1.1,
         ge=0.0,
         le=3.0,
         description="Intensity of the main light attached to the camera",
     )
     fill_light_intensity: float = Field(
-        0.3,
+        default=0.3,
         ge=0.0,
         le=3.0,
         description="Intensity of the soft global light that lifts shadows",
     )
     rim_light_intensity: float = Field(
-        0.4,
+        default=0.4,
         ge=0.0,
         le=5.0,
         description="Intensity of the back light that creates highlights",
     )
     contact_shadow: bool = Field(
-        False, description="Show contact shadow below the model"
+        default=False, description="Show contact shadow below the model"
     )
 
     @classmethod
@@ -113,116 +113,109 @@ class StudioLighting(SettingsBase):
         return schema
 
 
-class Playback(SettingsBase):
-    """Controls for trajectory animation."""
+# class Playback(SettingsBase):
+#     """Controls for trajectory animation."""
 
-    animation_loop: bool = Field(False, description="Loop animation when it ends")
-    playback_speed: float = Field(
-        1.0, ge=0.1, le=10.0, description="Animation speed multiplier"
-    )
-    # This was 'frame_update', which is a bit ambiguous. Renaming for clarity.
-    sync_with_updates: bool = Field(
-        True, description="Automatically jump to newly added frames"
-    )
+#     animation_loop: bool = Field(False, description="Loop animation when it ends")
+#     playback_speed: float = Field(
+#         1.0, ge=0.1, le=10.0, description="Animation speed multiplier"
+#     )
+#     # This was 'frame_update', which is a bit ambiguous. Renaming for clarity.
+#     sync_with_updates: bool = Field(
+#         True, description="Automatically jump to newly added frames"
+#     )
 
 
 class Camera(SettingsBase):
     """Defines the camera projection and user interaction controls."""
 
     camera_type: CameraEnum = Field(
-        CameraEnum.PerspectiveCamera,
+        default=CameraEnum.PerspectiveCamera,
         alias="camera",
         description="Camera projection type",
     )
-    controls: Controls = Field(
-        Controls.OrbitControls, description="Mouse interaction mode"
-    )
     near_plane: float = Field(
-        0.1, ge=0, le=100, description="Camera near rendering plane"
+        default=0.1, ge=0, le=100, description="Camera near rendering plane"
     )
     far_plane: float = Field(
-        300, ge=1, le=1000, description="Camera far rendering plane"
+        default=300, ge=1, le=1000, description="Camera far rendering plane"
     )
     show_crosshair: bool = Field(
-        False, description="Show a crosshair at the camera's focal point"
-    )
-    # This is a collaboration feature, which could even be in its own category if you add more.
-    synchronize_view: bool = Field(
-        True, description="Synchronize camera with other users in the room"
+        default=False, description="Show a crosshair at the camera's focal point"
     )
 
 
-class PathTracerSettings(SettingsBase):
-    """Settings for the experimental path tracer. Overrides standard materials."""
+# class PathTracerSettings(SettingsBase):
+#     """Settings for the experimental path tracer. Overrides standard materials."""
 
-    enabled: bool = False
-    metalness: float = Field(0.7, ge=0.0, le=1.0, description="Global metalness")
-    roughness: float = Field(0.2, ge=0.0, le=1.0, description="Global roughness")
-    clearcoat: float = Field(0.0, ge=0.0, le=1.0, description="Global clearcoat")
-    clearcoatRoughness: float = Field(
-        0.0, ge=0.0, le=1.0, description="Global clearcoat roughness"
-    )
-
-
-class Rendering(SettingsBase):
-    """Controls for rendering quality and visual effects."""
-
-    max_fps: int = Field(30, ge=1, le=120, description="Maximum frames per second")
-    antialiasing: bool = Field(
-        True, description="Enable multisample anti-aliasing (MSAA)"
-    )
-    ambient_occlusion: bool = Field(
-        False, description="Enable Screen-Space Ambient Occlusion (SSAO)"
-    )
-    shadows: bool = Field(False, description="Enable dynamic shadows")
-    path_tracer: PathTracerSettings = PathTracerSettings()
+#     enabled: bool = False
+#     metalness: float = Field(0.7, ge=0.0, le=1.0, description="Global metalness")
+#     roughness: float = Field(0.2, ge=0.0, le=1.0, description="Global roughness")
+#     clearcoat: float = Field(0.0, ge=0.0, le=1.0, description="Global clearcoat")
+#     clearcoatRoughness: float = Field(
+#         0.0, ge=0.0, le=1.0, description="Global clearcoat roughness"
+#     )
 
 
-class Interaction(SettingsBase):
-    """Controls for selection, hover effects, and measurements."""
+# class Rendering(SettingsBase):
+#     """Controls for rendering quality and visual effects."""
 
-    selection_color: str = Field(
-        "#ffa500", description="Highlight color for selected atoms"
-    )
-    selection_opacity: float = Field(
-        0.5, ge=0.0, le=1.0, description="Opacity of non-selected atoms"
-    )
-    hover_opacity: float = Field(
-        0.8, ge=0.0, le=1.0, description="Opacity of non-hovered atoms"
-    )
+#     max_fps: int = Field(30, ge=1, le=120, description="Maximum frames per second")
+#     antialiasing: bool = Field(
+#         True, description="Enable multisample anti-aliasing (MSAA)"
+#     )
+#     ambient_occlusion: bool = Field(
+#         False, description="Enable Screen-Space Ambient Occlusion (SSAO)"
+#     )
+#     shadows: bool = Field(False, description="Enable dynamic shadows")
+#     path_tracer: PathTracerSettings = PathTracerSettings()
 
 
-class VectorDisplay(SettingsBase):
-    vectorfield: bool = Field(True, description="Show vectorfield.")
-    vectors: list[str] = Field(
-        default_factory=list, description="Visualize vectorial property"
-    )
-    vector_scale: float = Field(1.0, ge=0.1, le=5, description="Rescale Vectors")
-    vector_colors: dict[str, str] = Field(
-        default_factory=dict, description="Color for each vector"
-    )
+# class Interaction(SettingsBase):
+#     """Controls for selection, hover effects, and measurements."""
 
-    # Arrow configuration properties
-    normalize: bool = Field(True, description="Normalize vector lengths")
-    scale_vector_thickness: bool = Field(
-        False, description="Scale arrow thickness based on vector magnitude"
-    )
-    opacity: float = Field(1.0, ge=0.0, le=1.0, description="Arrow transparency")
-    colorrange: tuple[float, float] = Field(
-        (0.0, 1.0), description="Min and max values for color mapping"
-    )
-    default_colormap: list[tuple[float, float, float]] = Field(
-        default=[(0.66, 1.0, 0.5), (0.0, 1.0, 0.5)],
-        description="Default HSL colormap for vector fields (blue to red)",
-    )
+#     selection_color: str = Field(
+#         "#ffa500", description="Highlight color for selected atoms"
+#     )
+#     selection_opacity: float = Field(
+#         0.5, ge=0.0, le=1.0, description="Opacity of non-selected atoms"
+#     )
+#     hover_opacity: float = Field(
+#         0.8, ge=0.0, le=1.0, description="Opacity of non-hovered atoms"
+#     )
+
+
+# class VectorDisplay(SettingsBase):
+#     vectorfield: bool = Field(True, description="Show vectorfield.")
+#     vectors: list[str] = Field(
+#         default_factory=list, description="Visualize vectorial property"
+#     )
+#     vector_scale: float = Field(1.0, ge=0.1, le=5, description="Rescale Vectors")
+#     vector_colors: dict[str, str] = Field(
+#         default_factory=dict, description="Color for each vector"
+#     )
+
+#     # Arrow configuration properties
+#     normalize: bool = Field(True, description="Normalize vector lengths")
+#     scale_vector_thickness: bool = Field(
+#         False, description="Scale arrow thickness based on vector magnitude"
+#     )
+#     opacity: float = Field(1.0, ge=0.0, le=1.0, description="Arrow transparency")
+#     colorrange: tuple[float, float] = Field(
+#         (0.0, 1.0), description="Min and max values for color mapping"
+#     )
+#     default_colormap: list[tuple[float, float, float]] = Field(
+#         default=[(0.66, 1.0, 0.5), (0.0, 1.0, 0.5)],
+#         description="Default HSL colormap for vector fields (blue to red)",
+#     )
 
 
 settings = {
     "camera": Camera,
-    "scene": Scene,
-    "playback": Playback,
-    "rendering": Rendering,
-    "interaction": Interaction,
+    # "scene": Scene,
+    # "playback": Playback,
+    # "rendering": Rendering,
+    # "interaction": Interaction,
     "studio_lighting": StudioLighting,
 }
 
@@ -230,11 +223,11 @@ settings = {
 class RoomConfig(SettingsBase):
     """ZnDraw room configuration combining all settings sections."""
 
-    scene: Scene = Scene()
-    playback: Playback = Playback()
+    # scene: Scene = Scene()
+    # playback: Playback = Playback()
     camera: Camera = Camera()
-    rendering: Rendering = Rendering()
-    interaction: Interaction = Interaction()
+    # rendering: Rendering = Rendering()
+    # interaction: Interaction = Interaction()
     studio_lighting: StudioLighting = StudioLighting()
 
 

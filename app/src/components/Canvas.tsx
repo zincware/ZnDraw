@@ -4,7 +4,7 @@ import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { OrbitControls, ContactShadows } from "@react-three/drei";
 import { useAppStore } from "../store";
 import { useExtensionData } from "../hooks/useSchemas";
-import { useColorScheme } from "@mui/material/styles";
+import { useColorScheme, useTheme } from "@mui/material/styles";
 
 // Import our new, self-contained components
 import { Cell } from "./three/Cell";
@@ -13,6 +13,7 @@ import Arrow from "./three/Arrow";
 import Bonds from "./three/SingleBonds";
 import Curve from "./three/Curve";
 import VirtualCanvas from "./three/VirtualCanvas";
+import Crosshair from "./three/crosshair";
 
 // A small helper component to keep a light attached to the camera
 function CameraAttachedLight({ intensity = 1.0 }) {
@@ -51,13 +52,16 @@ function MyScene() {
     console.log("camera-settings", cameraSettings);
   }, [cameraSettings])
 
+  const backgroundColor = studioLightingSettings.background_color === "default" ? (mode === "light" ? "#FFFFFF" : "#212121ff") : studioLightingSettings.background_color;
+
+
   return (
     <div style={{ width: "100%", height: "calc(100vh - 64px)" }}>
       <Canvas
         shadows
-        camera={{ position: [-10, 10, 30], fov: 50 }}
+        camera={{ position: [-10, 10, 30], fov: 50, near: cameraSettings.near_plane, far: cameraSettings.far_plane}}
         gl={{ antialias: true, toneMapping: THREE.ACESFilmicToneMapping }}
-        style={{ background: studioLightingSettings.background_color }}
+        style={{ background: backgroundColor }}
         orthographic={cameraSettings.camera === "OrthographicCamera"}
       >
         <CameraAttachedLight intensity={studioLightingSettings.key_light_intensity} />
@@ -123,6 +127,9 @@ function MyScene() {
 
             return null;
           })}
+        {cameraSettings.show_crosshair && (
+          <Crosshair />
+        )}
         <VirtualCanvas />
 
         {studioLightingSettings.contact_shadow && (
@@ -136,7 +143,7 @@ function MyScene() {
           />
         )}
 
-        <OrbitControls enableDamping={false} makeDefault/>
+        <OrbitControls enableDamping={false} makeDefault />
       </Canvas>
     </div>
   );

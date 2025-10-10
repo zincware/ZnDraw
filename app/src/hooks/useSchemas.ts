@@ -32,11 +32,14 @@ export const useExtensionData = (
       "key_light_intensity": 1.2,
       "fill_light_intensity": 0.3,
       "rim_light_intensity": 1.5,
-      "background_color": "#333840",
+      "background_color": "default",
       "contact_shadow": true
     },
     "camera": {
-      "camera": "PerspectiveCamera"
+      "camera": "PerspectiveCamera",
+      "show_crosshair": false,
+      "far_plane": 300,
+      "near_plane": 1
     }
   }
 
