@@ -43,6 +43,12 @@ export const useKeyboardShortcuts = () => {
   );
 
   const handlePreviousFrame = useCallback(() => {
+    // Pause playback when manually navigating
+    if (playing) {
+      releaseToken();
+      setPlaying(false);
+    }
+
     const navigableFrames = getNavigableFrames();
     const currentIndex = navigableFrames.indexOf(currentFrame);
 
@@ -52,9 +58,15 @@ export const useKeyboardShortcuts = () => {
       // Wrap to last frame
       goToFrameAtomic(navigableFrames[navigableFrames.length - 1]);
     }
-  }, [currentFrame, getNavigableFrames, goToFrameAtomic]);
+  }, [currentFrame, getNavigableFrames, goToFrameAtomic, playing, setPlaying, releaseToken]);
 
   const handleNextFrame = useCallback(() => {
+    // Pause playback when manually navigating
+    if (playing) {
+      releaseToken();
+      setPlaying(false);
+    }
+
     const navigableFrames = getNavigableFrames();
     const currentIndex = navigableFrames.indexOf(currentFrame);
 
@@ -63,11 +75,6 @@ export const useKeyboardShortcuts = () => {
     } else {
       // Wrap to first frame
       goToFrameAtomic(navigableFrames[0]);
-      // Stop playback when reaching the last frame
-      if (playing) {
-        releaseToken();
-        setPlaying(false);
-      }
     }
   }, [
     currentFrame,
@@ -117,6 +124,12 @@ export const useKeyboardShortcuts = () => {
   const handlePreviousBookmark = useCallback(() => {
     if (!bookmarks) return;
 
+    // Pause playback when manually navigating
+    if (playing) {
+      releaseToken();
+      setPlaying(false);
+    }
+
     const bookmarkFrames = Object.keys(bookmarks)
       .map(Number)
       .sort((a, b) => a - b);
@@ -134,11 +147,17 @@ export const useKeyboardShortcuts = () => {
       // Wrap to last bookmark
       goToFrameAtomic(bookmarkFrames[0]);
     }
-  }, [bookmarks, currentFrame, goToFrameAtomic]);
+  }, [bookmarks, currentFrame, goToFrameAtomic, playing, setPlaying, releaseToken]);
 
   // Jump to next bookmark (Shift + ArrowRight)
   const handleNextBookmark = useCallback(() => {
     if (!bookmarks) return;
+
+    // Pause playback when manually navigating
+    if (playing) {
+      releaseToken();
+      setPlaying(false);
+    }
 
     const bookmarkFrames = Object.keys(bookmarks)
       .map(Number)
@@ -155,7 +174,7 @@ export const useKeyboardShortcuts = () => {
       // Wrap to first bookmark
       goToFrameAtomic(bookmarkFrames[0]);
     }
-  }, [bookmarks, currentFrame, goToFrameAtomic]);
+  }, [bookmarks, currentFrame, goToFrameAtomic, playing, setPlaying, releaseToken]);
 
   // Handle automatic frame advancement during playback
   useEffect(() => {

@@ -1,7 +1,7 @@
 - [ ] selection e.g. ctrl + a with multiple windows triggers infinite loop
-- [ ] left / right arrow should stop playback
+- [x] left / right arrow should stop playback
 - [ ] floor color is strange
-- [ ] shadow blur max 2
+- [x] shadow blur max 2
 - [ ] settings on "empty" room not showing
 - [ ] add double click on bookmarks to edit
 - [ ] make bookmarks in python like `vis.bookmarks[0] = 10` just like the others.
@@ -9,3 +9,5 @@
 - [ ] have one camera per room, but by default no client is attached to it. Use `vis.geometries` for it, so multiple cameras are possible.
 - [ ] on new room set `uploading` blob to be true.
 - [ ] delete room
+- [ ] drag / drop, ctrl + v and ctrl + c and download / upload buttons
+

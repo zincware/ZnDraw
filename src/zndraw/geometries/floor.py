@@ -75,7 +75,7 @@ class Floor(BaseGeometry):
     shadow_blur: float = Field(
         default=0.5,
         ge=0.0,
-        le=10.0,
+        le=2.0,
         description="Shadow blur radius"
     )
 
