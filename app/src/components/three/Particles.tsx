@@ -52,10 +52,9 @@ export default function Sphere({ data, geometryKey }: { data: SphereData; geomet
   const mainMeshRef = useRef<THREE.InstancedMesh | null>(null);
   const selectionMeshRef = useRef<THREE.InstancedMesh | null>(null);
   const hoverMeshRef = useRef<THREE.Mesh | null>(null);
-  const [hoveredInstanceId, setHoveredInstanceId] = useState<number | null>(null);
   const [instanceCount, setInstanceCount] = useState(0);
 
-  const { currentFrame, roomId, clientId, selection, updateSelection, setDrawingPointerPosition, isDrawing, setDrawingIsValid, setGeometryFetching, removeGeometryFetching } = useAppStore();
+  const { currentFrame, roomId, clientId, selection, updateSelection, setDrawingPointerPosition, isDrawing, setDrawingIsValid, setGeometryFetching, removeGeometryFetching, hoveredParticleId, setHoveredParticleId, setParticleCount } = useAppStore();
 
   const selectionSet = useMemo(() => new Set(selection || []), [selection]);
   const selectedIndices = useMemo(() => Array.from(selectionSet), [selectionSet]);
@@ -150,6 +149,7 @@ export default function Sphere({ data, geometryKey }: { data: SphereData; geomet
       // --- Mesh Resizing Step ---
       if (instanceCount !== finalCount) {
         setInstanceCount(finalCount);
+        setParticleCount(finalCount);
         return;
       }
 
@@ -188,11 +188,11 @@ export default function Sphere({ data, geometryKey }: { data: SphereData; geomet
       // --- Hover Mesh Update ---
       if (hovering?.enabled && hoverMeshRef.current) {
         const hoverMesh = hoverMeshRef.current;
-        if (hoveredInstanceId !== null && hoveredInstanceId < finalCount) {
+        if (hoveredParticleId !== null && hoveredParticleId < finalCount) {
           hoverMesh.visible = true;
-          const i3 = hoveredInstanceId * 3;
+          const i3 = hoveredParticleId * 3;
           _vec3.set(finalPositions[i3], finalPositions[i3 + 1], finalPositions[i3 + 2]);
-          const r = finalRadii[hoveredInstanceId] * particleScale * HOVER_SCALE;
+          const r = finalRadii[hoveredParticleId] * particleScale * HOVER_SCALE;
           hoverMesh.position.copy(_vec3);
           hoverMesh.scale.set(r, r, r);
         } else {
@@ -216,7 +216,7 @@ export default function Sphere({ data, geometryKey }: { data: SphereData; geomet
     validSelectedIndices,
     selecting,
     hovering,
-    hoveredInstanceId,
+    hoveredParticleId,
   ]);
 
 
@@ -242,11 +242,14 @@ export default function Sphere({ data, geometryKey }: { data: SphereData; geomet
   const onPointerEnterHandler = useCallback((event: any) => {
     if (event.instanceId === undefined) return;
     event.stopPropagation();
-    setHoveredInstanceId(event.instanceId);
+    setHoveredParticleId(event.instanceId);
     setDrawingIsValid(true);
-  }, [setDrawingIsValid]);
+  }, [setDrawingIsValid, setHoveredParticleId]);
 
-  const onPointerOutHandler = useCallback(() => { setHoveredInstanceId(null); setDrawingIsValid(false); }, [setDrawingIsValid]);
+  const onPointerOutHandler = useCallback(() => { 
+    setHoveredParticleId(null);
+    setDrawingIsValid(false); 
+  }, [setDrawingIsValid, setHoveredParticleId]);
 
   if (!clientId || !roomId) return null;
 

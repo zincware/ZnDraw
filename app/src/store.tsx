@@ -26,6 +26,10 @@ interface AppState {
   metadataLock: boolean; // Whether the room has a metadata lock (vis.lock - yellow)
   geometryFetchingStates: Record<string, boolean>; // Tracks fetching state per geometry key
   synchronizedMode: boolean; // Whether playback should wait for all active geometries to finish fetching
+  showInfoBoxes: boolean; // Whether to show info boxes (toggled with 'i' key)
+  hoveredParticleId: number | null; // ID of currently hovered particle
+  particleCount: number; // Number of particles in current frame
+  curveLength: number; // Length of the active curve in drawing mode
 
   // Actions (functions to modify the state)
   setRoomId: (roomId: string) => void;
@@ -55,6 +59,10 @@ interface AppState {
   setSynchronizedMode: (enabled: boolean) => void;
   addBookmark: (frame: number, label?: string) => void;
   deleteBookmark: (frame: number) => void;
+  toggleInfoBoxes: () => void;
+  setHoveredParticleId: (id: number | null) => void;
+  setParticleCount: (count: number) => void;
+  setCurveLength: (length: number) => void;
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -81,6 +89,10 @@ export const useAppStore = create<AppState>((set, get) => ({
   metadataLock: false,
   geometryFetchingStates: {},
   synchronizedMode: false,
+  showInfoBoxes: false,
+  hoveredParticleId: null,
+  particleCount: 0,
+  curveLength: 0,
   // Actions
   setConnected: (status) => set({ isConnected: status }),
   setRoomId: (roomId) => set({ roomId }),
@@ -110,7 +122,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   setChatOpen: (open) => set({ chatOpen: open }),
   setJoinToken: (joinToken) => set({ joinToken }),
   setGeometries: (geometries) => set({ geometries: geometries }),
-  updateGeometry: (key, geometry) =>
+  updateGeometry: (key: string, geometry: any) =>
     set((state) => ({
       geometries: {
         ...state.geometries,
@@ -218,4 +230,9 @@ export const useAppStore = create<AppState>((set, get) => ({
     // Emit socket event to sync with other clients
     socket.emit("bookmarks:set", { bookmarks: updatedBookmarks });
   },
+
+  toggleInfoBoxes: () => set((state) => ({ showInfoBoxes: !state.showInfoBoxes })),
+  setHoveredParticleId: (id) => set({ hoveredParticleId: id }),
+  setParticleCount: (count) => set({ particleCount: count }),
+  setCurveLength: (length) => set({ curveLength: length }),
 }));

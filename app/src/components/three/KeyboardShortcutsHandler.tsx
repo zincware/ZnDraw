@@ -39,6 +39,7 @@ export const KeyboardShortcutsHandler = () => {
     setIsDrawing,
     isDrawing,
     roomId,
+    toggleInfoBoxes,
   } = useAppStore();
 
   useEffect(() => {
@@ -133,6 +134,13 @@ export const KeyboardShortcutsHandler = () => {
         return;
       }
 
+      // Handle i/I for toggle info boxes
+      if (event.key === "i" || event.key === "I") {
+        event.preventDefault();
+        toggleInfoBoxes();
+        return;
+      }
+
       // Handle r for rotate camera
       if (event.key === "r" || event.key === "R") {
         event.preventDefault();
@@ -182,6 +190,7 @@ export const KeyboardShortcutsHandler = () => {
     queryClient,
     roomId,
     currentFrame,
+    toggleInfoBoxes,
   ]);
 
   return null; // This component only handles keyboard events

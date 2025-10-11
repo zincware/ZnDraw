@@ -17,7 +17,9 @@ import VirtualCanvas from "./three/VirtualCanvas";
 import Crosshair from "./three/crosshair";
 import CameraManager from "./CameraManager";
 import SceneLighting from "./SceneLighting";
-import { KeyboardShortcutsHandler } from "./three/KeyboardShortcutsHandler"
+import { KeyboardShortcutsHandler } from "./three/KeyboardShortcutsHandler";
+import StaticInfoBox from "./three/StaticInfoBox";
+import HoverInfoBox from "./three/HoverInfoBox";
 
 // The main scene component
 function MyScene() {
@@ -150,6 +152,9 @@ function MyScene() {
 
         <OrbitControls enableDamping={false} makeDefault />
       </Canvas>
+      {/* Info boxes rendered outside Canvas, in DOM */}
+      <StaticInfoBox />
+      <HoverInfoBox />
     </div>
   );
 }
