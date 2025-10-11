@@ -62,7 +62,7 @@ export default function Sphere({ data, geometryKey }: { data: SphereData; geomet
 
   const particleResolution = resolution || 8;
   const particleScale = scale || 1.0;
-
+  // console.log("queryKey", ["frame", roomId, currentFrame, positionProp]);
   // Individual queries for each attribute - enables perfect cross-component caching
   const { data: positionData, isFetching: isPositionFetching } = useQuery({
     queryKey: ["frame", roomId, currentFrame, positionProp],

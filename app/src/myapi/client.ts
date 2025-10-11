@@ -324,6 +324,20 @@ export const getJob = async (
   return data;
 };
 
+export type TypedArray =
+  | Float32Array
+  | Float64Array
+  | Int8Array
+  | Int16Array
+  | Int32Array
+  | Uint8Array
+  | Uint16Array
+  | Uint32Array;
+
+export interface FrameResponse {
+  [key: string]: TypedArray;
+}
+
 // ==================== Trajectory/Frames API ====================
 
 export const getFrames = async (
@@ -331,7 +345,7 @@ export const getFrames = async (
   frameIndex: number,
   keys: string[],
   signal?: AbortSignal,
-): Promise<Record<string, any> | null> => {
+): Promise<FrameResponse | null> => {
   const params = new URLSearchParams();
   params.append("indices", frameIndex.toString());
   // because frameIndex is an integer, in decodeTypedData we use [0][key] to access the data
@@ -354,7 +368,7 @@ export const getFrames = async (
       result[key] = decoded;
     }
   }
-  return Object.keys(result).length > 0 ? result : null;
+  return Object.keys(result).length > 0 ? (result as FrameResponse) : null;
 };
 
 // ==================== Chat API ====================

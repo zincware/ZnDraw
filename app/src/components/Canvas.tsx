@@ -16,7 +16,8 @@ import Curve from "./three/Curve";
 import VirtualCanvas from "./three/VirtualCanvas";
 import Crosshair from "./three/crosshair";
 import CameraManager from "./CameraManager";
-import SceneLighting from "./SceneLighting"
+import SceneLighting from "./SceneLighting";
+import { KeyboardShortcutsHandler } from "./three/KeyboardShortcutsHandler"
 
 // The main scene component
 function MyScene() {
@@ -61,80 +62,84 @@ function MyScene() {
       >
         {/* Place the CameraManager here, inside the Canvas */}
         <CameraManager settings={cameraSettings} />
-        <SceneLighting 
+        <SceneLighting
           ambient_light={studioLightingSettings.ambient_light}
           key_light={studioLightingSettings.key_light}
           fill_light={studioLightingSettings.fill_light}
           rim_light={studioLightingSettings.rim_light}
           hemisphere_light={studioLightingSettings.hemisphere_light}
         />
+
+        {/* Keyboard shortcuts for 3D interactions */}
+        <KeyboardShortcutsHandler />
+
         {/* Render our clean, refactored components */}
         {/* <Sphere /> */}
         {Object.entries(geometries)
-          .filter(([_, config]) => config.data?.active !== false)
-          .map(([name, config]) => {
-            if (config.type === "Sphere") {
-              return (
-                <Sphere
-                  key={name}
-                  geometryKey={name}
-                  data={config.data}
-                />
-              );
-            } else if (config.type === "Bond") {
-              return (
-                <Bonds
-                  key={name}
-                  geometryKey={name}
-                  data={config.data}
-                />
-              );
-            } else if (config.type === "Arrow") {
-              return (
-                <Arrow
-                  key={name}
-                  geometryKey={name}
-                  data={config.data}
-                />
-              );
-            } else if (config.type === "Curve") {
-              return (
-                <Curve
-                  key={name}
-                  geometryKey={name}
-                  data={config.data}
-                />
-              );
-            } else if (config.type === "Cell") {
-              return (
-                <Cell
-                  key={name}
-                  data={config.data}
-                />
-              );
-            } else if (config.type === "Floor") {
-              return (
-                <Floor
-                  key={name}
-                  data={config.data}
-                />
-              );
-            } else {
-              console.warn(`Unhandled geometry type: ${config.type}`);
+            .filter(([_, config]) => config.data?.active !== false)
+            .map(([name, config]) => {
+              if (config.type === "Sphere") {
+                return (
+                  <Sphere
+                    key={name}
+                    geometryKey={name}
+                    data={config.data}
+                  />
+                );
+              } else if (config.type === "Bond") {
+                return (
+                  <Bonds
+                    key={name}
+                    geometryKey={name}
+                    data={config.data}
+                  />
+                );
+              } else if (config.type === "Arrow") {
+                return (
+                  <Arrow
+                    key={name}
+                    geometryKey={name}
+                    data={config.data}
+                  />
+                );
+              } else if (config.type === "Curve") {
+                return (
+                  <Curve
+                    key={name}
+                    geometryKey={name}
+                    data={config.data}
+                  />
+                );
+              } else if (config.type === "Cell") {
+                return (
+                  <Cell
+                    key={name}
+                    data={config.data}
+                  />
+                );
+              } else if (config.type === "Floor") {
+                return (
+                  <Floor
+                    key={name}
+                    data={config.data}
+                  />
+                );
+              } else {
+                console.warn(`Unhandled geometry type: ${config.type}`);
+                return null;
+              }
+
+              // You could add other types here
+              // if (config.type === 'Box') {
+              //   return <Box key={name} /* ...box props... */ />;
+              // }
+
               return null;
-            }
-
-            // You could add other types here
-            // if (config.type === 'Box') {
-            //   return <Box key={name} /* ...box props... */ />;
-            // }
-
-            return null;
-          })}
-        {cameraSettings.show_crosshair && (
-          <Crosshair />
-        )}
-        <VirtualCanvas />
+            })}
+          {cameraSettings.show_crosshair && (
+            <Crosshair />
+          )}
+          <VirtualCanvas />
 
         {/* {studioLightingSettings.contact_shadow && (
           <mesh receiveShadow rotation={[-Math.PI / 2, 0, 0]} position={[0, -15, 0]}>

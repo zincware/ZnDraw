@@ -42,6 +42,7 @@ const FrameProgressBar = () => {
     setSkipFrames,
     frame_selection,
     bookmarks,
+    deleteBookmark,
     frameSelectionEnabled,
     setFrameSelectionEnabled,
     synchronizedMode,
@@ -318,6 +319,7 @@ const FrameProgressBar = () => {
           currentFrame={currentFrame}
           containerWidth={sliderWidth}
           onBookmarkClick={setFrameAtomic}
+          onBookmarkDelete={deleteBookmark}
         />
 
         {/* Selection Track Overlay - Always shown to replace MUI track/rail */}

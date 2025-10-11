@@ -53,6 +53,8 @@ interface AppState {
   removeGeometryFetching: (geometryKey: string) => void;
   getIsFetching: () => boolean; // Computed: returns true if any active geometry is fetching
   setSynchronizedMode: (enabled: boolean) => void;
+  addBookmark: (frame: number, label?: string) => void;
+  deleteBookmark: (frame: number) => void;
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -94,7 +96,11 @@ export const useAppStore = create<AppState>((set, get) => ({
     }),
   setLoading: (loading) => set({ isLoading: loading }),
   setSkipFrames: (skip) => set({ skipFrames: skip }),
-  setSelection: (selection) => set({ selection: selection }),
+  setSelection: (selection) => {
+    set({ selection: selection });
+    // Emit socket event to sync with other clients
+    socket.emit("selection:set", { indices: selection || [] });
+  },
   setFrameSelection: (frame_selection) =>
     set({ frame_selection: frame_selection }),
   setFrameSelectionEnabled: (enabled) =>
@@ -180,4 +186,36 @@ export const useAppStore = create<AppState>((set, get) => ({
         return { selection: [id] };
       }
     }),
+
+  addBookmark: (frame, label) => {
+    const { bookmarks } = get();
+    const currentBookmarks = bookmarks || {};
+
+    // Add new bookmark
+    const updatedBookmarks = {
+      ...currentBookmarks,
+      [frame]: label || `Bookmark ${frame}`
+    };
+
+    // Update local state immediately
+    set({ bookmarks: updatedBookmarks });
+
+    // Emit socket event to sync with other clients
+    socket.emit("bookmarks:set", { bookmarks: updatedBookmarks });
+  },
+
+  deleteBookmark: (frame) => {
+    const { bookmarks } = get();
+    if (!bookmarks) return;
+
+    // Remove bookmark
+    const updatedBookmarks = { ...bookmarks };
+    delete updatedBookmarks[frame];
+
+    // Update local state immediately
+    set({ bookmarks: updatedBookmarks });
+
+    // Emit socket event to sync with other clients
+    socket.emit("bookmarks:set", { bookmarks: updatedBookmarks });
+  },
 }));

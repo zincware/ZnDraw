@@ -8,6 +8,7 @@ interface BookmarkLayerProps {
   currentFrame: number;
   containerWidth: number;
   onBookmarkClick?: (frame: number, label: string) => void;
+  onBookmarkDelete?: (frame: number) => void;
 }
 
 const BookmarkLayer: React.FC<BookmarkLayerProps> = ({
@@ -16,6 +17,7 @@ const BookmarkLayer: React.FC<BookmarkLayerProps> = ({
   currentFrame,
   containerWidth,
   onBookmarkClick,
+  onBookmarkDelete,
 }) => {
   useEffect(() => {
     console.log("Bookmarks updated:", bookmarks);
@@ -78,7 +80,17 @@ const BookmarkLayer: React.FC<BookmarkLayerProps> = ({
             enterNextDelay={300}
           >
             <Box
-              onClick={() => onBookmarkClick?.(frame, label)}
+              onClick={(e) => {
+                if (e.shiftKey) {
+                  // Shift + Click: Delete bookmark
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onBookmarkDelete?.(frame);
+                } else {
+                  // Normal click: Navigate to bookmark
+                  onBookmarkClick?.(frame, label);
+                }
+              }}
               sx={{
                 position: "absolute",
                 left: leftPercent,

@@ -15,6 +15,8 @@ export const useKeyboardShortcuts = () => {
     skipFrames,
     synchronizedMode,
     getIsFetching,
+    addBookmark,
+    bookmarks,
   } = useAppStore();
 
   const goToFrameAtomic = useAtomicFrameSet();
@@ -106,6 +108,55 @@ export const useKeyboardShortcuts = () => {
     goToFrameContinuous,
   ]);
 
+  // Add bookmark (B)
+  const handleAddBookmark = useCallback(() => {
+    addBookmark(currentFrame);
+  }, [addBookmark, currentFrame]);
+
+  // Jump to previous bookmark (Shift + ArrowLeft)
+  const handlePreviousBookmark = useCallback(() => {
+    if (!bookmarks) return;
+
+    const bookmarkFrames = Object.keys(bookmarks)
+      .map(Number)
+      .sort((a, b) => a - b);
+
+    if (bookmarkFrames.length === 0) return;
+
+    // Find the nearest bookmark before current frame
+    const prevBookmark = bookmarkFrames
+      .reverse()
+      .find((frame) => frame < currentFrame);
+
+    if (prevBookmark !== undefined) {
+      goToFrameAtomic(prevBookmark);
+    } else {
+      // Wrap to last bookmark
+      goToFrameAtomic(bookmarkFrames[0]);
+    }
+  }, [bookmarks, currentFrame, goToFrameAtomic]);
+
+  // Jump to next bookmark (Shift + ArrowRight)
+  const handleNextBookmark = useCallback(() => {
+    if (!bookmarks) return;
+
+    const bookmarkFrames = Object.keys(bookmarks)
+      .map(Number)
+      .sort((a, b) => a - b);
+
+    if (bookmarkFrames.length === 0) return;
+
+    // Find the nearest bookmark after current frame
+    const nextBookmark = bookmarkFrames.find((frame) => frame > currentFrame);
+
+    if (nextBookmark !== undefined) {
+      goToFrameAtomic(nextBookmark);
+    } else {
+      // Wrap to first bookmark
+      goToFrameAtomic(bookmarkFrames[0]);
+    }
+  }, [bookmarks, currentFrame, goToFrameAtomic]);
+
   // Handle automatic frame advancement during playback
   useEffect(() => {
     if (!playing) return;
@@ -171,6 +222,19 @@ export const useKeyboardShortcuts = () => {
         return;
       }
 
+      // Handle Shift + Arrow keys for bookmark navigation
+      if (event.shiftKey && event.key === "ArrowLeft") {
+        event.preventDefault();
+        handlePreviousBookmark();
+        return;
+      }
+
+      if (event.shiftKey && event.key === "ArrowRight") {
+        event.preventDefault();
+        handleNextBookmark();
+        return;
+      }
+
       switch (event.key) {
         case "ArrowLeft":
           event.preventDefault();
@@ -187,6 +251,12 @@ export const useKeyboardShortcuts = () => {
           handleTogglePlayback();
           break;
 
+        case "b":
+        case "B":
+          event.preventDefault();
+          handleAddBookmark();
+          break;
+
         default:
           break;
       }
@@ -197,5 +267,12 @@ export const useKeyboardShortcuts = () => {
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [handlePreviousFrame, handleNextFrame, handleTogglePlayback]);
+  }, [
+    handlePreviousFrame,
+    handleNextFrame,
+    handleTogglePlayback,
+    handleAddBookmark,
+    handlePreviousBookmark,
+    handleNextBookmark,
+  ]);
 };
