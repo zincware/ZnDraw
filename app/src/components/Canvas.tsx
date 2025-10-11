@@ -8,6 +8,7 @@ import { useColorScheme, useTheme } from "@mui/material/styles";
 
 // Import our new, self-contained components
 import { Cell } from "./three/Cell";
+import { Floor } from "./three/Floor";
 import Sphere from "./three/Particles";
 import Arrow from "./three/Arrow";
 import Bonds from "./three/SingleBonds";
@@ -107,6 +108,13 @@ function MyScene() {
             } else if (config.type === "Cell") {
               return (
                 <Cell
+                  key={name}
+                  data={config.data}
+                />
+              );
+            } else if (config.type === "Floor") {
+              return (
+                <Floor
                   key={name}
                   data={config.data}
                 />

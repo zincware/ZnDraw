@@ -1322,7 +1322,7 @@ def duplicate_room(room_id):
         redis_client.set(f"room:{new_room_id}:description", description)
 
     # 5. Initialize default geometries for new room
-    from zndraw.geometries import Sphere, Bond, Curve, Cell
+    from zndraw.geometries import Sphere, Bond, Curve, Cell, Floor
 
     if not geometries:  # Only if source had no geometries
         redis_client.hset(
@@ -1344,6 +1344,11 @@ def duplicate_room(room_id):
             f"room:{new_room_id}:geometries",
             "cell",
             json.dumps({"type": Cell.__name__, "data": Cell().model_dump()}),
+        )
+        redis_client.hset(
+            f"room:{new_room_id}:geometries",
+            "floor",
+            json.dumps({"type": Floor.__name__, "data": Floor().model_dump()}),
         )
 
     log.info(
@@ -2301,7 +2306,7 @@ def join_room(room_id):
 
         # Create default geometries only if not copied from another room
         if not copy_from:
-            from zndraw.geometries import Sphere, Bond, Curve, Cell
+            from zndraw.geometries import Sphere, Bond, Curve, Cell, Floor
 
             r.hset(
                 f"room:{room_id}:geometries",
@@ -2322,6 +2327,11 @@ def join_room(room_id):
                 f"room:{room_id}:geometries",
                 "cell",
                 json.dumps({"type": Cell.__name__, "data": Cell().model_dump()}),
+            )
+            r.hset(
+                f"room:{room_id}:geometries",
+                "floor",
+                json.dumps({"type": Floor.__name__, "data": Floor().model_dump()}),
             )
 
     indices_key = f"room:{room_id}:trajectory:indices"
