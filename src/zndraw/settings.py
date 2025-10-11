@@ -53,20 +53,6 @@ class EnvironmentPreset(str, enum.Enum):
     warehouse = "warehouse"
 
 
-# class Scene(SettingsBase):
-#     """Controls the background, lighting, and environment."""
-
-#     background_color: str = Field(default="#ffffff", description="Scene background color")
-#     show_simulation_box: bool = Field(
-#         True, description="Show the periodic cell boundary"
-#     )
-#     show_floor: bool = Field(default=False, description="Display a reflective grid floor")
-#     environment: EnvironmentPreset = Field(
-#         default=EnvironmentPreset.studio,
-#         description="HDR environment for reflections and lighting",
-#     )
-
-
 class StudioLighting(SettingsBase):
     """Controls for the neutral studio lighting setup."""
 
@@ -124,17 +110,21 @@ class StudioLighting(SettingsBase):
         return schema
 
 
-# class Playback(SettingsBase):
-#     """Controls for trajectory animation."""
+class PropertyInspector(SettingsBase):
+    """Property Inspector settings for per-particle and global property display."""
 
-#     animation_loop: bool = Field(False, description="Loop animation when it ends")
-#     playback_speed: float = Field(
-#         1.0, ge=0.1, le=10.0, description="Animation speed multiplier"
-#     )
-#     # This was 'frame_update', which is a bit ambiguous. Renaming for clarity.
-#     sync_with_updates: bool = Field(
-#         True, description="Automatically jump to newly added frames"
-#     )
+    enabled_properties: list[str] = Field(
+        default_factory=list,
+        description="Selected property keys to display in the inspector table",
+    )
+
+    @classmethod
+    def model_json_schema(cls, *args, **kwargs) -> dict[str, t.Any]:
+        """Inject custom type for PropertyInspectorRenderer."""
+        schema = super().model_json_schema(*args, **kwargs)
+        # Mark enabled_properties field for custom renderer
+        schema["properties"]["enabled_properties"]["x-custom-type"] = "property-inspector"
+        return schema
 
 
 class Camera(SettingsBase):
@@ -156,90 +146,19 @@ class Camera(SettingsBase):
     )
 
 
-# class PathTracerSettings(SettingsBase):
-#     """Settings for the experimental path tracer. Overrides standard materials."""
-
-#     enabled: bool = False
-#     metalness: float = Field(0.7, ge=0.0, le=1.0, description="Global metalness")
-#     roughness: float = Field(0.2, ge=0.0, le=1.0, description="Global roughness")
-#     clearcoat: float = Field(0.0, ge=0.0, le=1.0, description="Global clearcoat")
-#     clearcoatRoughness: float = Field(
-#         0.0, ge=0.0, le=1.0, description="Global clearcoat roughness"
-#     )
-
-
-# class Rendering(SettingsBase):
-#     """Controls for rendering quality and visual effects."""
-
-#     max_fps: int = Field(30, ge=1, le=120, description="Maximum frames per second")
-#     antialiasing: bool = Field(
-#         True, description="Enable multisample anti-aliasing (MSAA)"
-#     )
-#     ambient_occlusion: bool = Field(
-#         False, description="Enable Screen-Space Ambient Occlusion (SSAO)"
-#     )
-#     shadows: bool = Field(False, description="Enable dynamic shadows")
-#     path_tracer: PathTracerSettings = PathTracerSettings()
-
-
-# class Interaction(SettingsBase):
-#     """Controls for selection, hover effects, and measurements."""
-
-#     selection_color: str = Field(
-#         "#ffa500", description="Highlight color for selected atoms"
-#     )
-#     selection_opacity: float = Field(
-#         0.5, ge=0.0, le=1.0, description="Opacity of non-selected atoms"
-#     )
-#     hover_opacity: float = Field(
-#         0.8, ge=0.0, le=1.0, description="Opacity of non-hovered atoms"
-#     )
-
-
-# class VectorDisplay(SettingsBase):
-#     vectorfield: bool = Field(True, description="Show vectorfield.")
-#     vectors: list[str] = Field(
-#         default_factory=list, description="Visualize vectorial property"
-#     )
-#     vector_scale: float = Field(1.0, ge=0.1, le=5, description="Rescale Vectors")
-#     vector_colors: dict[str, str] = Field(
-#         default_factory=dict, description="Color for each vector"
-#     )
-
-#     # Arrow configuration properties
-#     normalize: bool = Field(True, description="Normalize vector lengths")
-#     scale_vector_thickness: bool = Field(
-#         False, description="Scale arrow thickness based on vector magnitude"
-#     )
-#     opacity: float = Field(1.0, ge=0.0, le=1.0, description="Arrow transparency")
-#     colorrange: tuple[float, float] = Field(
-#         (0.0, 1.0), description="Min and max values for color mapping"
-#     )
-#     default_colormap: list[tuple[float, float, float]] = Field(
-#         default=[(0.66, 1.0, 0.5), (0.0, 1.0, 0.5)],
-#         description="Default HSL colormap for vector fields (blue to red)",
-#     )
-
-
 settings = {
     "camera": Camera,
-    # "scene": Scene,
-    # "playback": Playback,
-    # "rendering": Rendering,
-    # "interaction": Interaction,
     "studio_lighting": StudioLighting,
+    "property_inspector": PropertyInspector,
 }
 
 
 class RoomConfig(SettingsBase):
     """ZnDraw room configuration combining all settings sections."""
 
-    # scene: Scene = Scene()
-    # playback: Playback = Playback()
     camera: Camera = Camera()
-    # rendering: Rendering = Rendering()
-    # interaction: Interaction = Interaction()
     studio_lighting: StudioLighting = StudioLighting()
+    property_inspector: PropertyInspector = PropertyInspector()
 
 
 if __name__ == "__main__":

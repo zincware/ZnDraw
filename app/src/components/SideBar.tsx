@@ -27,6 +27,7 @@ const navItems = [
 
 const PRIMARY_DRAWER_WIDTH = 60;
 const SECONDARY_PANEL_WIDTH = 240;
+const SETTINGS_PANEL_WIDTH = 500;
 const GEOMETRIES_PANEL_WIDTH = 600;
 
 const SideBar = () => {
@@ -44,6 +45,8 @@ const SideBar = () => {
   // Determine panel width based on selected category
   const panelWidth = selectedCategory === "geometries"
     ? GEOMETRIES_PANEL_WIDTH
+    : selectedCategory === "settings"
+    ? SETTINGS_PANEL_WIDTH
     : SECONDARY_PANEL_WIDTH;
 
   return (

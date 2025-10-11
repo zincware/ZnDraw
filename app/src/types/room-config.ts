@@ -8,44 +8,33 @@
  * ZnDraw room configuration combining all settings sections.
  */
 export interface RoomConfig {
-  camera?: Camera;
-  interaction?: Interaction;
-  playback?: Playback;
-  rendering?: Rendering;
-  scene?: Scene;
-  studio_lighting?: StudioLighting;
-  [property: string]: any;
+    camera?:             Camera;
+    property_inspector?: PropertyInspector;
+    studio_lighting?:    StudioLighting;
+    [property: string]: any;
 }
 
 /**
  * Defines the camera projection and user interaction controls.
  */
 export interface Camera {
-  /**
-   * Camera projection type
-   */
-  camera?: CameraEnum;
-  /**
-   * Mouse interaction mode
-   */
-  controls?: Controls;
-  /**
-   * Camera far rendering plane
-   */
-  far_plane?: number;
-  /**
-   * Camera near rendering plane
-   */
-  near_plane?: number;
-  /**
-   * Show a crosshair at the camera's focal point
-   */
-  show_crosshair?: boolean;
-  /**
-   * Synchronize camera with other users in the room
-   */
-  synchronize_view?: boolean;
-  [property: string]: any;
+    /**
+     * Camera projection type
+     */
+    camera?: CameraEnum;
+    /**
+     * Camera far rendering plane
+     */
+    far_plane?: number;
+    /**
+     * Camera near rendering plane
+     */
+    near_plane?: number;
+    /**
+     * Show a crosshair at the camera's focal point
+     */
+    show_crosshair?: boolean;
+    [property: string]: any;
 }
 
 /**
@@ -54,211 +43,47 @@ export interface Camera {
 export type CameraEnum = "PerspectiveCamera" | "OrthographicCamera";
 
 /**
- * Mouse interaction mode
+ * Property Inspector settings for per-particle and global property display.
  */
-export type Controls = "OrbitControls" | "TrackballControls";
-
-/**
- * Controls for selection, hover effects, and measurements.
- */
-export interface Interaction {
-  /**
-   * Opacity of non-hovered atoms
-   */
-  hover_opacity?: number;
-  /**
-   * Highlight color for selected atoms
-   */
-  selection_color?: string;
-  /**
-   * Opacity of non-selected atoms
-   */
-  selection_opacity?: number;
-  [property: string]: any;
+export interface PropertyInspector {
+    /**
+     * Selected property keys to display in the inspector table
+     */
+    enabled_properties?: string[];
+    [property: string]: any;
 }
-
-/**
- * Controls for trajectory animation.
- */
-export interface Playback {
-  /**
-   * Loop animation when it ends
-   */
-  animation_loop?: boolean;
-  /**
-   * Animation speed multiplier
-   */
-  playback_speed?: number;
-  /**
-   * Automatically jump to newly added frames
-   */
-  sync_with_updates?: boolean;
-  [property: string]: any;
-}
-
-/**
- * Controls for rendering quality and visual effects.
- */
-export interface Rendering {
-  /**
-   * Enable Screen-Space Ambient Occlusion (SSAO)
-   */
-  ambient_occlusion?: boolean;
-  /**
-   * Enable multisample anti-aliasing (MSAA)
-   */
-  antialiasing?: boolean;
-  /**
-   * Maximum frames per second
-   */
-  max_fps?: number;
-  path_tracer?: PathTracerSettings;
-  /**
-   * Enable dynamic shadows
-   */
-  shadows?: boolean;
-  [property: string]: any;
-}
-
-/**
- * Settings for the experimental path tracer. Overrides standard materials.
- */
-export interface PathTracerSettings {
-  /**
-   * Global clearcoat
-   */
-  clearcoat?: number;
-  /**
-   * Global clearcoat roughness
-   */
-  clearcoatRoughness?: number;
-  enabled?: boolean;
-  /**
-   * Global metalness
-   */
-  metalness?: number;
-  /**
-   * Global roughness
-   */
-  roughness?: number;
-  [property: string]: any;
-}
-
-/**
- * Controls the visual style of atoms and bonds.
- */
-
-/**
- * Atom and bond material
- */
-export type Material =
-  | "MeshBasicMaterial"
-  | "MeshPhysicalMaterial"
-  | "MeshStandardMaterial"
-  | "MeshToonMaterial";
-
-/**
- * Controls the background, lighting, and environment.
- */
-export interface Scene {
-  /**
-   * Scene background color
-   */
-  background_color?: string;
-  /**
-   * HDR environment for reflections and lighting
-   */
-  environment?: EnvironmentPreset;
-  /**
-   * Display a reflective grid floor
-   */
-  show_floor?: boolean;
-  /**
-   * Show the periodic cell boundary
-   */
-  show_simulation_box?: boolean;
-  [property: string]: any;
-}
-
-/**
- * HDR environment for reflections and lighting
- */
-export type EnvironmentPreset =
-  | "none"
-  | "apartment"
-  | "city"
-  | "dawn"
-  | "forest"
-  | "lobby"
-  | "night"
-  | "park"
-  | "studio"
-  | "sunset"
-  | "warehouse";
 
 /**
  * Controls for the neutral studio lighting setup.
  */
 export interface StudioLighting {
-  /**
-   * Neutral background color of the scene
-   */
-  background_color?: string;
-  /**
-   * Show contact shadow below the model
-   */
-  contact_shadow?: boolean;
-  /**
-   * Intensity of the soft global light that lifts shadows
-   */
-  fill_light_intensity?: number;
-  /**
-   * Intensity of the main light attached to the camera
-   */
-  key_light_intensity?: number;
-  /**
-   * Intensity of the back light that creates highlights
-   */
-  rim_light_intensity?: number;
-  [property: string]: any;
-}
-
-export interface VectorDisplay {
-  /**
-   * Min and max values for color mapping
-   */
-  colorrange?: any[];
-  /**
-   * Default HSL colormap for vector fields (blue to red)
-   */
-  default_colormap?: Array<any[]>;
-  /**
-   * Normalize vector lengths
-   */
-  normalize?: boolean;
-  /**
-   * Arrow transparency
-   */
-  opacity?: number;
-  /**
-   * Scale arrow thickness based on vector magnitude
-   */
-  scale_vector_thickness?: boolean;
-  /**
-   * Color for each vector
-   */
-  vector_colors?: { [key: string]: string };
-  /**
-   * Rescale Vectors
-   */
-  vector_scale?: number;
-  /**
-   * Show vectorfield.
-   */
-  vectorfield?: boolean;
-  /**
-   * Visualize vectorial property
-   */
-  vectors?: string[];
-  [property: string]: any;
+    /**
+     * Intensity of the ambient light that fills the scene
+     */
+    ambient_light?: number;
+    /**
+     * Neutral background color of the scene
+     */
+    background_color?: string;
+    /**
+     * Show contact shadow below the model
+     */
+    contact_shadow?: boolean;
+    /**
+     * Intensity of the soft global light that lifts shadows
+     */
+    fill_light?: number;
+    /**
+     * Intensity of the ambient light from above
+     */
+    hemisphere_light?: number;
+    /**
+     * Intensity of the main light attached to the camera
+     */
+    key_light?: number;
+    /**
+     * Intensity of the back light that creates highlights
+     */
+    rim_light?: number;
+    [property: string]: any;
 }

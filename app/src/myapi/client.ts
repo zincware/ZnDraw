@@ -7,15 +7,17 @@ const numpyDtypeToTypedArray = {
   int8: Int8Array,
   int16: Int16Array,
   int32: Int32Array,
+  int64: BigInt64Array,
   uint8: Uint8Array,
   uint16: Uint16Array,
   uint32: Uint32Array,
+  uint64: BigUint64Array,
 };
 
 function decodeTypedData(encoded: any, key: string) {
   if (!encoded) return undefined;
   try {
-    const decoded = decode(encoded)[0][key];
+    const decoded = decode(encoded)[0][key] as { dtype: string; data: any };
     const TypedArrayCtor = numpyDtypeToTypedArray[decoded.dtype as keyof typeof numpyDtypeToTypedArray];
     if (!TypedArrayCtor) throw new Error(`Unsupported dtype: ${decoded.dtype}`);
     return new TypedArrayCtor(decoded.data.slice().buffer);
@@ -330,9 +332,11 @@ export type TypedArray =
   | Int8Array
   | Int16Array
   | Int32Array
+  | BigInt64Array
   | Uint8Array
   | Uint16Array
-  | Uint32Array;
+  | Uint32Array
+  | BigUint64Array;
 
 export interface FrameResponse {
   [key: string]: TypedArray;
@@ -611,5 +615,50 @@ export const createRoomFromFile = async (
 ): Promise<CreateRoomFromFileResponse> => {
   const { data } = await apiClient.post("/api/file-browser/create-room-from-file", request);
   return data;
+};
+
+/**
+ * Categorize properties based on metadata shape into per-particle and global properties.
+ * Per-particle properties have their first dimension equal to the particle count.
+ *
+ * @param metadata - Frame metadata containing property keys and metadata
+ * @param particleCount - Number of particles in the frame
+ * @returns Object containing categorized perParticle and global property arrays
+ */
+export const categorizeProperties = (
+  metadata: FrameMetadata,
+  particleCount: number
+): { perParticle: import("../types/property-inspector").PropertyInfo[]; global: import("../types/property-inspector").PropertyInfo[] } => {
+  const perParticle: import("../types/property-inspector").PropertyInfo[] = [];
+  const global: import("../types/property-inspector").PropertyInfo[] = [];
+
+  metadata.keys.forEach((key) => {
+    const meta = metadata.metadata[key];
+    if (!meta) return;
+
+    // Per-particle detection: first dimension equals particle count
+    const isPerParticle =
+      meta.shape &&
+      meta.shape.length > 0 &&
+      meta.shape[0] === particleCount;
+
+    const [prefix] = key.split(".");
+
+    const info: import("../types/property-inspector").PropertyInfo = {
+      key,
+      metadata: meta,
+      category: isPerParticle ? "per-particle" : "global",
+      prefix: prefix || "other",
+      enabled: false,
+    };
+
+    if (isPerParticle) {
+      perParticle.push(info);
+    } else {
+      global.push(info);
+    }
+  });
+
+  return { perParticle, global };
 };
 

@@ -11,6 +11,9 @@ import CustomDynamicEnumWithColorPicker, {
 import DynamicEnumRenderer, {
   dynamicEnumTester,
 } from "../components/jsonforms-renderers/DynamicEnumRenderer";
+import PropertyInspectorRenderer, {
+  propertyInspectorTester,
+} from "../components/jsonforms-renderers/PropertyInspectorRenderer";
 import { FrameMetadata } from "../myapi/client";
 
 /**
@@ -20,6 +23,7 @@ import { FrameMetadata } from "../myapi/client";
 export const customRenderers = [
   ...materialRenderers,
   { tester: dynamicEnumTester, renderer: DynamicEnumRenderer }, // Priority 10 - New unified renderer
+  { tester: propertyInspectorTester, renderer: PropertyInspectorRenderer }, // Priority 10 - Property Inspector
   {
     tester: customDynamicEnumWithColorPickerTester,
     renderer: CustomDynamicEnumWithColorPicker,

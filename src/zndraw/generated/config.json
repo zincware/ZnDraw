@@ -8,11 +8,6 @@
           "default": "PerspectiveCamera",
           "description": "Camera projection type"
         },
-        "controls": {
-          "$ref": "#/$defs/Controls",
-          "default": "OrbitControls",
-          "description": "Mouse interaction mode"
-        },
         "near_plane": {
           "default": 0.1,
           "description": "Camera near rendering plane",
@@ -34,12 +29,6 @@
           "description": "Show a crosshair at the camera's focal point",
           "title": "Show Crosshair",
           "type": "boolean"
-        },
-        "synchronize_view": {
-          "default": true,
-          "description": "Synchronize camera with other users in the room",
-          "title": "Synchronize View",
-          "type": "boolean"
         }
       },
       "title": "Camera",
@@ -53,299 +42,72 @@
       "title": "CameraEnum",
       "type": "string"
     },
-    "Controls": {
-      "enum": [
-        "OrbitControls",
-        "TrackballControls"
-      ],
-      "title": "Controls",
-      "type": "string"
-    },
-    "EnvironmentPreset": {
-      "enum": [
-        "none",
-        "apartment",
-        "city",
-        "dawn",
-        "forest",
-        "lobby",
-        "night",
-        "park",
-        "studio",
-        "sunset",
-        "warehouse"
-      ],
-      "title": "EnvironmentPreset",
-      "type": "string"
-    },
-    "Interaction": {
-      "description": "Controls for selection, hover effects, and measurements.",
+    "PropertyInspector": {
+      "description": "Property Inspector settings for per-particle and global property display.",
       "properties": {
-        "selection_color": {
-          "default": "#ffa500",
-          "description": "Highlight color for selected atoms",
-          "title": "Selection Color",
-          "type": "string"
-        },
-        "selection_opacity": {
-          "default": 0.5,
-          "description": "Opacity of non-selected atoms",
-          "maximum": 1.0,
-          "minimum": 0.0,
-          "title": "Selection Opacity",
-          "type": "number"
-        },
-        "hover_opacity": {
-          "default": 0.8,
-          "description": "Opacity of non-hovered atoms",
-          "maximum": 1.0,
-          "minimum": 0.0,
-          "title": "Hover Opacity",
-          "type": "number"
+        "enabled_properties": {
+          "description": "Selected property keys to display in the inspector table",
+          "items": {
+            "type": "string"
+          },
+          "title": "Enabled Properties",
+          "type": "array"
         }
       },
-      "title": "Interaction",
-      "type": "object"
-    },
-    "Material": {
-      "enum": [
-        "MeshBasicMaterial",
-        "MeshPhysicalMaterial",
-        "MeshStandardMaterial",
-        "MeshToonMaterial"
-      ],
-      "title": "Material",
-      "type": "string"
-    },
-    "PathTracerSettings": {
-      "description": "Settings for the experimental path tracer. Overrides standard materials.",
-      "properties": {
-        "enabled": {
-          "default": false,
-          "title": "Enabled",
-          "type": "boolean"
-        },
-        "metalness": {
-          "default": 0.7,
-          "description": "Global metalness",
-          "maximum": 1.0,
-          "minimum": 0.0,
-          "title": "Metalness",
-          "type": "number"
-        },
-        "roughness": {
-          "default": 0.2,
-          "description": "Global roughness",
-          "maximum": 1.0,
-          "minimum": 0.0,
-          "title": "Roughness",
-          "type": "number"
-        },
-        "clearcoat": {
-          "default": 0.0,
-          "description": "Global clearcoat",
-          "maximum": 1.0,
-          "minimum": 0.0,
-          "title": "Clearcoat",
-          "type": "number"
-        },
-        "clearcoatRoughness": {
-          "default": 0.0,
-          "description": "Global clearcoat roughness",
-          "maximum": 1.0,
-          "minimum": 0.0,
-          "title": "Clearcoatroughness",
-          "type": "number"
-        }
-      },
-      "title": "PathTracerSettings",
-      "type": "object"
-    },
-    "Playback": {
-      "description": "Controls for trajectory animation.",
-      "properties": {
-        "animation_loop": {
-          "default": false,
-          "description": "Loop animation when it ends",
-          "title": "Animation Loop",
-          "type": "boolean"
-        },
-        "playback_speed": {
-          "default": 1.0,
-          "description": "Animation speed multiplier",
-          "maximum": 10.0,
-          "minimum": 0.1,
-          "title": "Playback Speed",
-          "type": "number"
-        },
-        "sync_with_updates": {
-          "default": true,
-          "description": "Automatically jump to newly added frames",
-          "title": "Sync With Updates",
-          "type": "boolean"
-        }
-      },
-      "title": "Playback",
-      "type": "object"
-    },
-    "Rendering": {
-      "description": "Controls for rendering quality and visual effects.",
-      "properties": {
-        "max_fps": {
-          "default": 30,
-          "description": "Maximum frames per second",
-          "maximum": 120,
-          "minimum": 1,
-          "title": "Max Fps",
-          "type": "integer"
-        },
-        "antialiasing": {
-          "default": true,
-          "description": "Enable multisample anti-aliasing (MSAA)",
-          "title": "Antialiasing",
-          "type": "boolean"
-        },
-        "ambient_occlusion": {
-          "default": false,
-          "description": "Enable Screen-Space Ambient Occlusion (SSAO)",
-          "title": "Ambient Occlusion",
-          "type": "boolean"
-        },
-        "shadows": {
-          "default": false,
-          "description": "Enable dynamic shadows",
-          "title": "Shadows",
-          "type": "boolean"
-        },
-        "path_tracer": {
-          "$ref": "#/$defs/PathTracerSettings",
-          "default": {
-            "enabled": false,
-            "metalness": 0.7,
-            "roughness": 0.2,
-            "clearcoat": 0.0,
-            "clearcoatRoughness": 0.0
-          }
-        }
-      },
-      "title": "Rendering",
-      "type": "object"
-    },
-    "Representation": {
-      "description": "Controls the visual style of atoms and bonds.",
-      "properties": {
-        "particle_scale": {
-          "default": 1.0,
-          "description": "Atom radius scaling factor",
-          "maximum": 5,
-          "minimum": 0.1,
-          "title": "Particle Scale",
-          "type": "number"
-        },
-        "show_bonds": {
-          "default": true,
-          "description": "Render bonds between atoms",
-          "title": "Show Bonds",
-          "type": "boolean"
-        },
-        "bond_size": {
-          "default": 1.0,
-          "description": "Bond radius scaling factor",
-          "maximum": 5,
-          "minimum": 0.1,
-          "title": "Bond Size",
-          "type": "number"
-        },
-        "material": {
-          "$ref": "#/$defs/Material",
-          "default": "MeshStandardMaterial",
-          "description": "Atom and bond material"
-        },
-        "particle_resolution": {
-          "default": 12,
-          "description": "Sphere resolution for atoms",
-          "maximum": 32,
-          "minimum": 2,
-          "title": "Particle Resolution",
-          "type": "integer"
-        },
-        "bond_resolution": {
-          "default": 3,
-          "description": "Cylinder resolution for bonds",
-          "maximum": 10,
-          "minimum": 2,
-          "title": "Bond Resolution",
-          "type": "integer"
-        }
-      },
-      "title": "Representation",
-      "type": "object"
-    },
-    "Scene": {
-      "description": "Controls the background, lighting, and environment.",
-      "properties": {
-        "background_color": {
-          "default": "#ffffff",
-          "description": "Scene background color",
-          "title": "Background Color",
-          "type": "string"
-        },
-        "show_simulation_box": {
-          "default": true,
-          "description": "Show the periodic cell boundary",
-          "title": "Show Simulation Box",
-          "type": "boolean"
-        },
-        "show_floor": {
-          "default": false,
-          "description": "Display a reflective grid floor",
-          "title": "Show Floor",
-          "type": "boolean"
-        },
-        "environment": {
-          "$ref": "#/$defs/EnvironmentPreset",
-          "default": "studio",
-          "description": "HDR environment for reflections and lighting"
-        }
-      },
-      "title": "Scene",
+      "title": "PropertyInspector",
       "type": "object"
     },
     "StudioLighting": {
       "description": "Controls for the neutral studio lighting setup.",
       "properties": {
         "background_color": {
-          "default": "#FFFFFF",
+          "default": "default",
           "description": "Neutral background color of the scene",
           "title": "Background Color",
           "type": "string"
         },
-        "key_light_intensity": {
-          "default": 1.2,
+        "key_light": {
+          "default": 0.7,
           "description": "Intensity of the main light attached to the camera",
           "maximum": 3.0,
           "minimum": 0.0,
-          "title": "Key Light Intensity",
+          "title": "Key Light",
           "type": "number"
         },
-        "fill_light_intensity": {
-          "default": 0.3,
+        "fill_light": {
+          "default": 0.4,
           "description": "Intensity of the soft global light that lifts shadows",
           "maximum": 3.0,
           "minimum": 0.0,
-          "title": "Fill Light Intensity",
+          "title": "Fill Light",
           "type": "number"
         },
-        "rim_light_intensity": {
-          "default": 1.5,
+        "rim_light": {
+          "default": 0.5,
           "description": "Intensity of the back light that creates highlights",
           "maximum": 5.0,
           "minimum": 0.0,
-          "title": "Rim Light Intensity",
+          "title": "Rim Light",
+          "type": "number"
+        },
+        "hemisphere_light": {
+          "default": 0.3,
+          "description": "Intensity of the ambient light from above",
+          "maximum": 3.0,
+          "minimum": 0.0,
+          "title": "Hemisphere Light",
+          "type": "number"
+        },
+        "ambient_light": {
+          "default": 0.35,
+          "description": "Intensity of the ambient light that fills the scene",
+          "maximum": 3.0,
+          "minimum": 0.0,
+          "title": "Ambient Light",
           "type": "number"
         },
         "contact_shadow": {
-          "default": true,
+          "default": false,
           "description": "Show contact shadow below the model",
           "title": "Contact Shadow",
           "type": "boolean"
@@ -353,217 +115,37 @@
       },
       "title": "StudioLighting",
       "type": "object"
-    },
-    "VectorDisplay": {
-      "properties": {
-        "vectorfield": {
-          "default": true,
-          "description": "Show vectorfield.",
-          "title": "Vectorfield",
-          "type": "boolean"
-        },
-        "vectors": {
-          "description": "Visualize vectorial property",
-          "items": {
-            "type": "string"
-          },
-          "title": "Vectors",
-          "type": "array"
-        },
-        "vector_scale": {
-          "default": 1.0,
-          "description": "Rescale Vectors",
-          "maximum": 5,
-          "minimum": 0.1,
-          "title": "Vector Scale",
-          "type": "number"
-        },
-        "vector_colors": {
-          "additionalProperties": {
-            "type": "string"
-          },
-          "description": "Color for each vector",
-          "title": "Vector Colors",
-          "type": "object"
-        },
-        "normalize": {
-          "default": true,
-          "description": "Normalize vector lengths",
-          "title": "Normalize",
-          "type": "boolean"
-        },
-        "scale_vector_thickness": {
-          "default": false,
-          "description": "Scale arrow thickness based on vector magnitude",
-          "title": "Scale Vector Thickness",
-          "type": "boolean"
-        },
-        "opacity": {
-          "default": 1.0,
-          "description": "Arrow transparency",
-          "maximum": 1.0,
-          "minimum": 0.0,
-          "title": "Opacity",
-          "type": "number"
-        },
-        "colorrange": {
-          "default": [
-            0.0,
-            1.0
-          ],
-          "description": "Min and max values for color mapping",
-          "maxItems": 2,
-          "minItems": 2,
-          "prefixItems": [
-            {
-              "type": "number"
-            },
-            {
-              "type": "number"
-            }
-          ],
-          "title": "Colorrange",
-          "type": "array"
-        },
-        "default_colormap": {
-          "default": [
-            [
-              0.66,
-              1.0,
-              0.5
-            ],
-            [
-              0.0,
-              1.0,
-              0.5
-            ]
-          ],
-          "description": "Default HSL colormap for vector fields (blue to red)",
-          "items": {
-            "maxItems": 3,
-            "minItems": 3,
-            "prefixItems": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "number"
-              },
-              {
-                "type": "number"
-              }
-            ],
-            "type": "array"
-          },
-          "title": "Default Colormap",
-          "type": "array"
-        }
-      },
-      "title": "VectorDisplay",
-      "type": "object"
     }
   },
   "description": "ZnDraw room configuration combining all settings sections.",
   "properties": {
-    "representation": {
-      "$ref": "#/$defs/Representation",
-      "default": {
-        "particle_scale": 1.0,
-        "show_bonds": true,
-        "bond_size": 1.0,
-        "material": "MeshStandardMaterial",
-        "particle_resolution": 12,
-        "bond_resolution": 3
-      }
-    },
-    "scene": {
-      "$ref": "#/$defs/Scene",
-      "default": {
-        "background_color": "#ffffff",
-        "show_simulation_box": true,
-        "show_floor": false,
-        "environment": "studio"
-      }
-    },
-    "playback": {
-      "$ref": "#/$defs/Playback",
-      "default": {
-        "animation_loop": false,
-        "playback_speed": 1.0,
-        "sync_with_updates": true
-      }
-    },
     "camera": {
       "$ref": "#/$defs/Camera",
       "default": {
         "camera": "PerspectiveCamera",
-        "controls": "OrbitControls",
         "near_plane": 0.1,
         "far_plane": 300.0,
-        "show_crosshair": false,
-        "synchronize_view": true
-      }
-    },
-    "rendering": {
-      "$ref": "#/$defs/Rendering",
-      "default": {
-        "max_fps": 30,
-        "antialiasing": true,
-        "ambient_occlusion": false,
-        "shadows": false,
-        "path_tracer": {
-          "clearcoat": 0.0,
-          "clearcoatRoughness": 0.0,
-          "enabled": false,
-          "metalness": 0.7,
-          "roughness": 0.2
-        }
-      }
-    },
-    "interaction": {
-      "$ref": "#/$defs/Interaction",
-      "default": {
-        "selection_color": "#ffa500",
-        "selection_opacity": 0.5,
-        "hover_opacity": 0.8
-      }
-    },
-    "vector_display": {
-      "$ref": "#/$defs/VectorDisplay",
-      "default": {
-        "vectorfield": true,
-        "vectors": [],
-        "vector_scale": 1.0,
-        "vector_colors": {},
-        "normalize": true,
-        "scale_vector_thickness": false,
-        "opacity": 1.0,
-        "colorrange": [
-          0.0,
-          1.0
-        ],
-        "default_colormap": [
-          [
-            0.66,
-            1.0,
-            0.5
-          ],
-          [
-            0.0,
-            1.0,
-            0.5
-          ]
-        ]
+        "show_crosshair": false
       }
     },
     "studio_lighting": {
       "$ref": "#/$defs/StudioLighting",
       "default": {
-        "background_color": "#FFFFFF",
-        "key_light_intensity": 1.2,
-        "fill_light_intensity": 0.3,
-        "rim_light_intensity": 1.5,
-        "contact_shadow": true
+        "background_color": "default",
+        "key_light": 0.7,
+        "fill_light": 0.4,
+        "rim_light": 0.5,
+        "hemisphere_light": 0.3,
+        "ambient_light": 0.35,
+        "contact_shadow": false
+      }
+    },
+    "property_inspector": {
+      "$ref": "#/$defs/PropertyInspector",
+      "default": {
+        "enabled_properties": [],
+        "show_per_particle": true,
+        "show_global": true
       }
     }
   },

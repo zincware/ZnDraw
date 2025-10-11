@@ -1,6 +1,8 @@
 import { Box, Typography, Paper, useTheme } from "@mui/material";
 import { useAppStore } from "../../store";
 import { Rnd } from "react-rnd";
+import { usePropertyInspectorSettings } from "../../hooks/usePropertyInspectorSettings";
+import { formatPropertyValue } from "../../utils/propertyFormatting";
 
 /**
  * StaticInfoBox - Displays general scene information in a draggable window.
@@ -16,10 +18,18 @@ export default function StaticInfoBox() {
   const {
     showInfoBoxes,
     particleCount,
-    currentFrame,
-    frameCount,
     selection,
   } = useAppStore();
+
+  // Performance optimization: only fetch global properties when boxes are visible
+  const {
+    enabledProperties,
+    propertyValues,
+    isEnabled,
+  } = usePropertyInspectorSettings({
+    category: "global",
+    enabled: showInfoBoxes,
+  });
 
   if (!showInfoBoxes) return null;
 
@@ -83,6 +93,33 @@ export default function StaticInfoBox() {
                 Selected: <strong>{selectionCount}</strong>
               </Typography>
             )}
+            {isEnabled && propertyValues.map((query, index) => {
+              const key = enabledProperties[index];
+
+              // Skip if loading or error
+              if (query.isLoading || query.isError || !query.data?.value) {
+                return null;
+              }
+
+              const value = query.data.value;
+
+              // Format value using utility function (no particleId for global props)
+              const displayValue = formatPropertyValue(value);
+
+              return (
+                <Typography
+                  key={key}
+                  variant="caption"
+                  sx={{
+                    color: theme.palette.text.secondary,
+                    fontFamily: "monospace",
+                    fontSize: "0.75rem",
+                  }}
+                >
+                  {key}: {displayValue}
+                </Typography>
+              );
+            })}
           </Box>
         </Box>
       </Paper>

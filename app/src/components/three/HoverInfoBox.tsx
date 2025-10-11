@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { Box, Typography, Paper, useTheme } from "@mui/material";
 import { useAppStore } from "../../store";
+import { usePropertyInspectorSettings } from "../../hooks/usePropertyInspectorSettings";
+import { formatPropertyValue } from "../../utils/propertyFormatting";
 
 /**
  * HoverInfoBox - Displays contextual information at the mouse position.
@@ -18,6 +20,19 @@ export default function HoverInfoBox() {
   } = useAppStore();
 
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
+
+  // Performance optimization: only fetch per-particle properties when boxes are visible and particle is hovered
+  const shouldFetchProperties = showInfoBoxes && hoveredParticleId !== null;
+
+  const {
+    enabledProperties,
+    propertyValues,
+    isEnabled,
+    categories,
+  } = usePropertyInspectorSettings({
+    category: "per-particle",
+    enabled: shouldFetchProperties,
+  });
 
   useEffect(() => {
     const handleMouseMove = (event: MouseEvent) => {
@@ -65,12 +80,44 @@ export default function HoverInfoBox() {
       >
         <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
           {showParticleInfo && (
-            <Typography
-              variant="body2"
-              sx={{ color: theme.palette.primary.main, fontWeight: "bold" }}
-            >
-              Particle: {hoveredParticleId}
-            </Typography>
+            <>
+              <Typography
+                variant="body2"
+                sx={{ color: theme.palette.primary.main, fontWeight: "bold" }}
+              >
+                Particle: {hoveredParticleId}
+              </Typography>
+              {isEnabled && hoveredParticleId !== null && propertyValues.map((query, index) => {
+                const key = enabledProperties[index];
+
+                // Skip if loading or error
+                if (query.isLoading || query.isError || !query.data?.value) {
+                  return null;
+                }
+
+                const value = query.data.value;
+
+                // Find property metadata for proper formatting
+                const propInfo = categories?.perParticle.find(p => p.key === key);
+
+                // Format value using utility function
+                const displayValue = formatPropertyValue(value, hoveredParticleId, propInfo);
+
+                return (
+                  <Typography
+                    key={key}
+                    variant="caption"
+                    sx={{
+                      color: theme.palette.text.secondary,
+                      fontFamily: "monospace",
+                      fontSize: "0.75rem",
+                    }}
+                  >
+                    {key}: {displayValue}
+                  </Typography>
+                );
+              })}
+            </>
           )}
           {showCurveInfo && (
             <Typography
