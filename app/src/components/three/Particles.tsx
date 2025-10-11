@@ -59,6 +59,10 @@ export default function Sphere({ data, geometryKey }: { data: SphereData; geomet
 
   const selectionSet = useMemo(() => new Set(selection || []), [selection]);
   const selectedIndices = useMemo(() => Array.from(selectionSet), [selectionSet]);
+  const validSelectedIndices = useMemo(
+    () => selectedIndices.filter((id) => id < instanceCount),
+    [selectedIndices, instanceCount]
+  );
 
   const particleResolution = resolution || 8;
   const particleScale = scale || 1.0;
@@ -170,7 +174,7 @@ export default function Sphere({ data, geometryKey }: { data: SphereData; geomet
       // --- Selection Mesh Update ---
       if (selecting.enabled && selectionMeshRef.current) {
         const selectionMesh = selectionMeshRef.current;
-        selectedIndices.forEach((id, index) => {
+        validSelectedIndices.forEach((id, index) => {
           if (id >= finalCount) return;
           const i3 = id * 3;
           _vec3.set(finalPositions[i3], finalPositions[i3 + 1], finalPositions[i3 + 2]);
@@ -209,7 +213,7 @@ export default function Sphere({ data, geometryKey }: { data: SphereData; geomet
     radiusProp,
     instanceCount,
     particleScale,
-    selectedIndices,
+    validSelectedIndices,
     selecting,
     hovering,
     hoveredInstanceId,
@@ -265,9 +269,9 @@ export default function Sphere({ data, geometryKey }: { data: SphereData; geomet
       {/* Selection mesh */}
       {selecting.enabled && (
         <instancedMesh
-          key={`selection-${selectedIndices.length}`}
+          key={`selection-${validSelectedIndices.length}`}
           ref={selectionMeshRef}
-          args={[undefined, undefined, selectedIndices.length]}
+          args={[undefined, undefined, validSelectedIndices.length]}
         >
           <primitive object={mainGeometry} attach="geometry" />
           <meshBasicMaterial
