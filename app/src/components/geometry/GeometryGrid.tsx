@@ -23,7 +23,7 @@ interface GeometryGridProps {
 }
 
 const GeometryGrid = ({ geometries }: GeometryGridProps) => {
-  const { roomId, geometries: geometriesData, activeCurveForDrawing, setActiveCurveForDrawing } = useAppStore();
+  const { roomId, geometries: geometriesData, activeCurveForDrawing, setActiveCurveForDrawing, attachedCameraKey, attachToCamera, detachFromCamera } = useAppStore();
   const { setMode, setSelectedKey, searchFilter, setSearchFilter } =
     useGeometryStore();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -71,14 +71,21 @@ const GeometryGrid = ({ geometries }: GeometryGridProps) => {
     });
   };
 
-  const handleDrawingTargetToggle = (key: string, isCurve: boolean) => {
-    if (!isCurve) return;
-
-    // Toggle: if already selected, deselect; otherwise select
-    if (activeCurveForDrawing === key) {
-      setActiveCurveForDrawing(null);
-    } else {
-      setActiveCurveForDrawing(key);
+  const handleSelectionToggle = (key: string, geometryType: string) => {
+    if (geometryType === "Curve") {
+      // Toggle curve drawing target
+      if (activeCurveForDrawing === key) {
+        setActiveCurveForDrawing(null);
+      } else {
+        setActiveCurveForDrawing(key);
+      }
+    } else if (geometryType === "Camera") {
+      // Toggle camera attachment
+      if (attachedCameraKey === key) {
+        detachFromCamera();
+      } else {
+        attachToCamera(key);
+      }
     }
   };
 
@@ -96,24 +103,34 @@ const GeometryGrid = ({ geometries }: GeometryGridProps) => {
       minWidth: 120,
     },
     {
-      field: "drawingTarget",
-      headerName: "Draw",
+      field: "selection",
+      headerName: "Active",
       width: 70,
       renderCell: (params: GridRenderCellParams) => {
-        const isCurve = params.row.type === "Curve";
-        const isSelected = activeCurveForDrawing === params.row.key;
+        const geometryType = params.row.type;
+        const isCurve = geometryType === "Curve";
+        const isCamera = geometryType === "Camera";
 
-        if (!isCurve) {
+        // Only show for Curves and Cameras
+        if (!isCurve && !isCamera) {
           return null;
         }
 
+        const isSelected = isCurve
+          ? activeCurveForDrawing === params.row.key
+          : attachedCameraKey === params.row.key;
+
+        const tooltipText = isCurve
+          ? (isSelected ? "Deselect this curve for drawing" : "Select this curve for drawing")
+          : (isSelected ? "Detach from this camera" : "Attach to this camera");
+
         return (
-          <Tooltip title={isSelected ? "Stop drawing on this curve" : "Draw on this curve"}>
+          <Tooltip title={tooltipText}>
             <IconButton
               size="small"
               onClick={(e) => {
                 e.stopPropagation();
-                handleDrawingTargetToggle(params.row.key, isCurve);
+                handleSelectionToggle(params.row.key, geometryType);
               }}
               color={isSelected ? "primary" : "default"}
             >
@@ -125,7 +142,7 @@ const GeometryGrid = ({ geometries }: GeometryGridProps) => {
     },
     {
       field: "active",
-      headerName: "Active",
+      headerName: "Visible",
       width: 80,
       renderCell: (params: GridRenderCellParams) => {
         const isActive = params.row.active !== false;

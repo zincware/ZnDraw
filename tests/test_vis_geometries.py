@@ -2,7 +2,7 @@ import pytest
 import requests
 
 from zndraw import ZnDraw
-from zndraw.geometries import Sphere, Bond
+from zndraw.geometries import Sphere, Bond, Camera, CameraType, Curve
 
 
 def test_rest_get_geometries(server):
@@ -11,12 +11,12 @@ def test_rest_get_geometries(server):
     response = requests.post(f"{server}/api/rooms/{room}/join", json={})
     assert response.status_code == 200
 
-    # Test listing geometry keys
+    # Test listing geometry keys (default geometries include cell and floor)
     response = requests.get(f"{server}/api/rooms/{room}/geometries")
     assert response.status_code == 200
     data = response.json()
     assert "geometries" in data
-    assert set(data["geometries"]) == {"particles", "bonds", "curve"}
+    assert set(data["geometries"]) == {"particles", "bonds", "curve", "cell", "floor"}
     
     # Test getting individual geometry - particles
     response = requests.get(f"{server}/api/rooms/{room}/geometries/particles")
@@ -159,6 +159,16 @@ def test_rest_delete_geometry(server):
     data = response.json()
     assert data["status"] == "success"
 
+    response = requests.delete(f"{server}/api/rooms/{room}/geometries/cell")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "success"
+
+    response = requests.delete(f"{server}/api/rooms/{room}/geometries/floor")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "success"
+
     # Verify no geometries remain
     response = requests.get(f"{server}/api/rooms/{room}/geometries")
     assert response.status_code == 200
@@ -179,13 +189,15 @@ def test_rest_delete_unknown_geometry(server):
 
 
 def test_vis_list_geometries(server):
-    from zndraw.geometries import Curve
-    
+    from zndraw.geometries import Curve, Cell, Floor
+
     vis = ZnDraw(url=server, room="test-room-vis-list-geom", user="tester")
-    assert len(vis.geometries) == 3
+    assert len(vis.geometries) == 5
     assert vis.geometries["particles"] == Sphere()
     assert vis.geometries["bonds"] == Bond()
     assert vis.geometries["curve"] == Curve()
+    assert vis.geometries["cell"] == Cell()
+    assert vis.geometries["floor"] == Floor()
 
 def test_vis_add_update_delete_geometry(server):
     vis1 = ZnDraw(url=server, room="room1", user="tester")
@@ -224,3 +236,211 @@ def test_vis_geometries_key_error(server):
         KeyError, match="Geometry with key 'nonexistent' does not exist"
     ):
         _ = vis.geometries["nonexistent"]
+
+
+def test_rest_create_basic_camera(server):
+    """Test creating a basic camera via REST API."""
+    room = "test-room-camera-basic"
+    response = requests.post(f"{server}/api/rooms/{room}/join", json={})
+    assert response.status_code == 200
+
+    # Create curves for camera position and target
+    response = requests.post(
+        f"{server}/api/rooms/{room}/geometries",
+        json={
+            "key": "cam_pos",
+            "data": {"position": [[0.0, 0.0, 10.0]]},
+            "type": "Curve",
+        },
+    )
+    assert response.status_code == 200
+
+    response = requests.post(
+        f"{server}/api/rooms/{room}/geometries",
+        json={
+            "key": "cam_target",
+            "data": {"position": [[0.0, 0.0, 0.0]]},
+            "type": "Curve",
+        },
+    )
+    assert response.status_code == 200
+
+    camera_data = {
+        "position_curve_key": "cam_pos",
+        "position_progress": 0.0,
+        "target_curve_key": "cam_target",
+        "target_progress": 0.0,
+        "up": [0.0, 1.0, 0.0],
+        "fov": 60.0,
+        "camera_type": "PerspectiveCamera",
+    }
+
+    response = requests.post(
+        f"{server}/api/rooms/{room}/geometries",
+        json={
+            "key": "camera1",
+            "data": camera_data,
+            "type": "Camera",
+        },
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "success"
+
+    # Verify the camera was created
+    response = requests.get(f"{server}/api/rooms/{room}/geometries/camera1")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["geometry"]["type"] == "Camera"
+    assert data["geometry"]["data"]["position_curve_key"] == "cam_pos"
+    assert data["geometry"]["data"]["target_curve_key"] == "cam_target"
+    assert data["geometry"]["data"]["fov"] == 60.0
+
+
+def test_vis_create_camera_with_curves(server):
+    """Test creating a camera with curve attachments via Python API."""
+    vis = ZnDraw(url=server, room="room-camera-curves", user="tester")
+
+    # Create curves for camera paths
+    position_curve = Curve(
+        position=[[0, 0, 10], [5, 5, 10], [10, 0, 10]],
+        color="#FF0000",
+    )
+    target_curve = Curve(
+        position=[[0, 0, 0], [2, 2, 0], [4, 0, 0]],
+        color="#00FF00",
+    )
+
+    vis.geometries["camera_path"] = position_curve
+    vis.geometries["target_path"] = target_curve
+
+    # Create camera with curve references
+    camera = Camera(
+        position_curve_key="camera_path",
+        position_progress=0.5,
+        target_curve_key="target_path",
+        target_progress=0.5,
+        fov=75.0,
+        helper_visible=True,
+        helper_color="#0000FF",
+    )
+
+    vis.geometries["cinematic_camera"] = camera
+    vis.socket.sio.sleep(0.5)
+
+    # Verify the camera was created with curve references
+    retrieved_camera = vis.geometries["cinematic_camera"]
+    assert retrieved_camera.position_curve_key == "camera_path"
+    assert retrieved_camera.position_progress == 0.5
+    assert retrieved_camera.target_curve_key == "target_path"
+    assert retrieved_camera.target_progress == 0.5
+
+
+def test_vis_camera_types(server):
+    """Test creating cameras with different types."""
+    vis = ZnDraw(url=server, room="room-camera-types", user="tester")
+
+    # Create curves for camera position and target
+    vis.geometries["pos1"] = Curve(position=[[0, 0, 10]])
+    vis.geometries["target1"] = Curve(position=[[0, 0, 0]])
+    vis.geometries["pos2"] = Curve(position=[[0, 0, 10]])
+    vis.geometries["target2"] = Curve(position=[[0, 0, 0]])
+
+    # Perspective camera
+    perspective_camera = Camera(
+        position_curve_key="pos1",
+        target_curve_key="target1",
+        camera_type=CameraType.PERSPECTIVE,
+        fov=75.0,
+    )
+    vis.geometries["perspective_cam"] = perspective_camera
+
+    # Orthographic camera
+    orthographic_camera = Camera(
+        position_curve_key="pos2",
+        target_curve_key="target2",
+        camera_type=CameraType.ORTHOGRAPHIC,
+        zoom=2.0,
+    )
+    vis.geometries["ortho_cam"] = orthographic_camera
+
+    vis.socket.sio.sleep(0.5)
+
+    # Verify both cameras
+    assert vis.geometries["perspective_cam"].camera_type == CameraType.PERSPECTIVE
+    assert vis.geometries["ortho_cam"].camera_type == CameraType.ORTHOGRAPHIC
+
+
+def test_vis_camera_validation(server):
+    """Test camera validation for invalid parameters."""
+    vis = ZnDraw(url=server, room="room-camera-validation", user="tester")
+
+    # Create curves for testing
+    vis.geometries["pos"] = Curve(position=[[0, 0, 10]])
+    vis.geometries["target"] = Curve(position=[[0, 0, 0]])
+
+    # Test invalid FOV (must be between 0 and 180)
+    with pytest.raises(Exception):  # Pydantic validation error
+        camera = Camera(
+            position_curve_key="pos",
+            target_curve_key="target",
+            fov=200.0,  # Invalid: > 180
+        )
+
+    # Test invalid far plane (must be > near)
+    with pytest.raises(Exception):  # Pydantic validation error
+        camera = Camera(
+            position_curve_key="pos",
+            target_curve_key="target",
+            near=10.0,
+            far=5.0,  # Invalid: < near
+        )
+
+    # Test invalid up vector (cannot be zero)
+    with pytest.raises(Exception):  # Pydantic validation error
+        camera = Camera(
+            position_curve_key="pos",
+            target_curve_key="target",
+            up=(0.0, 0.0, 0.0),  # Invalid: zero vector
+        )
+
+
+def test_vis_camera_update_progress(server):
+    """Test updating camera curve progress."""
+    vis = ZnDraw(url=server, room="room-camera-progress", user="tester")
+
+    # Create curves
+    position_curve = Curve(
+        position=[[0, 0, 0], [5, 5, 5], [10, 0, 0]],
+        color="#FF00FF",
+    )
+    target_curve = Curve(
+        position=[[0, 0, 0]],
+        color="#00FFFF",
+    )
+    vis.geometries["path"] = position_curve
+    vis.geometries["target"] = target_curve
+
+    # Create camera attached to curve
+    camera = Camera(
+        position_curve_key="path",
+        position_progress=0.0,
+        target_curve_key="target",
+        target_progress=0.0,
+    )
+    vis.geometries["moving_camera"] = camera
+    vis.socket.sio.sleep(0.5)
+
+    # Update progress
+    camera_updated = Camera(
+        position_curve_key="path",
+        position_progress=1.0,  # Move to end of curve
+        target_curve_key="target",
+        target_progress=0.0,
+    )
+    vis.geometries["moving_camera"] = camera_updated
+    vis.socket.sio.sleep(0.5)
+
+    # Verify progress was updated
+    retrieved = vis.geometries["moving_camera"]
+    assert retrieved.position_progress == 1.0

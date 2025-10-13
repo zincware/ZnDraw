@@ -44,7 +44,7 @@ export default function Curve({ data, geometryKey }: { data: CurveData; geometry
 
   const theme = useTheme();
 
-  const { currentFrame, roomId, isDrawing, drawingIsValid, drawingPointerPosition, setIsDrawing, clientId, setGeometryFetching, removeGeometryFetching, setCurveLength, activeCurveForDrawing } = useAppStore();
+  const { currentFrame, roomId, isDrawing, drawingIsValid, drawingPointerPosition, setIsDrawing, clientId, setGeometryFetching, removeGeometryFetching, setCurveLength, activeCurveForDrawing, registerCurveRef, unregisterCurveRef } = useAppStore();
   const [markerPositions, setMarkerPositions] = useState<THREE.Vector3[]>([]);
   const [lineSegments, setLineSegments] = useState<THREE.Vector3[]>([]);
   const [virtualMarkerPositions, setVirtualMarkerPositions] = useState<THREE.Vector3[]>([]);
@@ -53,6 +53,7 @@ export default function Curve({ data, geometryKey }: { data: CurveData; geometry
   const [lastUpdateSource, setLastUpdateSource] = useState<'remote' | 'local' | null>(null);
 
   const markerRefs = useRef<(THREE.Mesh | null)[]>([]);
+  const curveRef = useRef<THREE.CatmullRomCurve3 | null>(null);
 
   // Check if this curve is the active drawing target
   const isActiveDrawingTarget = activeCurveForDrawing === geometryKey;
@@ -85,12 +86,13 @@ export default function Curve({ data, geometryKey }: { data: CurveData; geometry
     setGeometryFetching(geometryKey, isFetching);
   }, [geometryKey, isFetching, setGeometryFetching]);
 
-  // Clean up fetching state on unmount
+  // Clean up fetching state and curve ref on unmount
   useEffect(() => {
     return () => {
       removeGeometryFetching(geometryKey);
+      unregisterCurveRef(geometryKey);
     };
-  }, [geometryKey, removeGeometryFetching]);
+  }, [geometryKey, removeGeometryFetching, unregisterCurveRef]);
 
   useEffect(() => {
     if (typeof positionProp === "string") {
@@ -134,9 +136,17 @@ export default function Curve({ data, geometryKey }: { data: CurveData; geometry
       setLineSegments([]);
       setVirtualMarkerPositions([]);
       setCurveLength(0);
+      // Unregister curve if we drop below 2 points
+      curveRef.current = null;
+      unregisterCurveRef(geometryKey);
       return;
     }
-    const curve = new THREE.CatmullRomCurve3(allPoints);
+    const curve = new THREE.CatmullRomCurve3(allPoints, false, 'catmullrom', 0.5);
+    curveRef.current = curve;
+
+    // Register curve ref with store for Camera access
+    registerCurveRef(geometryKey, curve);
+
     const curvePoints = curve.getPoints(data.divisions * allPoints.length);
     setLineSegments(curvePoints);
 
@@ -174,7 +184,7 @@ export default function Curve({ data, geometryKey }: { data: CurveData; geometry
     }
     setVirtualMarkerPositions(_virtualMarkerPositions);
 
-  }, [markerPositions, drawingPointerPosition, isDrawing, isActiveDrawingTarget, data.divisions, setCurveLength]);
+  }, [markerPositions, drawingPointerPosition, isDrawing, isActiveDrawingTarget, data.divisions, setCurveLength, geometryKey, registerCurveRef, unregisterCurveRef]);
 
   const handleVirtualMarkerClick = useCallback((insertIndex: number) => {
     const newPoints = [...markerPositions];

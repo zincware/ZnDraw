@@ -62,7 +62,7 @@ interface SelectionGroupRow {
 }
 
 export default function SelectionsPanel() {
-  const { roomId, userId, selections, selectionGroups, activeSelectionGroup, updateSelectionForGeometry } =
+  const { roomId, userId, selections, selectionGroups, activeSelectionGroup, updateSelectionForGeometry, geometries } =
     useAppStore();
 
   // Selection Groups state
@@ -165,8 +165,8 @@ export default function SelectionsPanel() {
   const dynamicSchema = useMemo(() => {
     const originalSchema = schemas?.[selectedExtension ?? ""]?.schema;
     if (!originalSchema) return null;
-    return injectDynamicEnums(originalSchema, metadata);
-  }, [schemas, selectedExtension, metadata]);
+    return injectDynamicEnums(originalSchema, metadata, geometries);
+  }, [schemas, selectedExtension, metadata, geometries]);
 
   const formOptions = useMemo(() => Object.keys(schemas || {}), [schemas]);
 

@@ -30,7 +30,7 @@ import { useFrameMetadata } from "../../hooks/useSchemas";
 import { customRenderers, injectDynamicEnums } from "../../utils/jsonforms";
 
 const GeometryForm = () => {
-  const { roomId } = useAppStore();
+  const { roomId, geometries } = useAppStore();
   const clientId = null; // we don't want to skip when saving the current clientId, so undefined
   const {
     mode,
@@ -166,11 +166,11 @@ const GeometryForm = () => {
     setError(null);
   };
 
-  // Create dynamic schema with injected metadata
+  // Create dynamic schema with injected metadata and geometries
   const currentSchema = useMemo(() => {
     if (!selectedType || !schemas[selectedType]) return null;
-    return injectDynamicEnums(schemas[selectedType], metadata);
-  }, [selectedType, schemas, metadata]);
+    return injectDynamicEnums(schemas[selectedType], metadata, geometries);
+  }, [selectedType, schemas, metadata, geometries]);
 
   if (isLoadingSchemas || isLoadingMetadata) {
     return (

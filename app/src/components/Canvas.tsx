@@ -5,6 +5,7 @@ import { OrbitControls, ContactShadows, Environment } from "@react-three/drei";
 import { useAppStore, getActiveCurves, selectPreferredCurve } from "../store";
 import { useExtensionData } from "../hooks/useSchemas";
 import { useColorScheme, useTheme } from "@mui/material/styles";
+import { useCameraControls } from "../hooks/useCameraControls";
 
 // Import our new, self-contained components
 import { Cell } from "./three/Cell";
@@ -13,6 +14,7 @@ import Sphere from "./three/Particles";
 import Arrow from "./three/Arrow";
 import Bonds from "./three/SingleBonds";
 import Curve from "./three/Curve";
+import Camera from "./three/Camera";
 import VirtualCanvas from "./three/VirtualCanvas";
 import Crosshair from "./three/crosshair";
 import CameraManager from "./CameraManager";
@@ -24,8 +26,11 @@ import DrawingIndicator from "./three/DrawingIndicator";
 
 // The main scene component
 function MyScene() {
-  const { roomId, userId, geometries, activeCurveForDrawing, setActiveCurveForDrawing } = useAppStore();
+  const { roomId, userId, geometries, activeCurveForDrawing, setActiveCurveForDrawing, attachedCameraKey } = useAppStore();
   const { mode } = useColorScheme();
+
+  // Get camera control states based on attached camera
+  const cameraControls = useCameraControls(attachedCameraKey, geometries);
 
   const { data: studioLightingSettings } = useExtensionData(
     roomId || "",
@@ -131,6 +136,14 @@ function MyScene() {
                     data={config.data}
                   />
                 );
+              } else if (config.type === "Camera") {
+                return (
+                  <Camera
+                    key={name}
+                    geometryKey={name}
+                    data={config.data}
+                  />
+                );
               } else if (config.type === "Cell") {
                 return (
                   <Cell
@@ -162,7 +175,14 @@ function MyScene() {
           </mesh>
         )} */}
 
-        <OrbitControls enableDamping={false} makeDefault />
+        <OrbitControls
+          enableDamping={false}
+          makeDefault
+          enabled={cameraControls.enabled}
+          enablePan={cameraControls.enablePan}
+          enableRotate={cameraControls.enableRotate}
+          enableZoom={cameraControls.enableZoom}
+        />
       </Canvas>
       {/* Info boxes and drawing indicator rendered outside Canvas, in DOM */}
       <StaticInfoBox />

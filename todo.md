@@ -5,8 +5,8 @@
 - [ ] settings on "empty" room not showing
 - [x] add double click on bookmarks to edit
 - [x] make bookmarks in python like `vis.bookmarks[0] = 10` just like the others.
-- [ ] vis.geometries[camera].curve = "curve" and vis.geometries[camera].curve_position = 0..1 to allow simulating camera along curve
-- [ ] have one camera per room, but by default no client is attached to it. Use `vis.geometries` for it, so multiple cameras are possible.
+- [x] vis.geometries[camera].curve = "curve" and vis.geometries[camera].curve_position = 0..1 to allow simulating camera along curve
+- [x] have one camera per room, but by default no client is attached to it. Use `vis.geometries` for it, so multiple cameras are possible.
 - [ ] on new room set `uploading` blob to be true.
 - [ ] delete room
 - [ ] drag / drop, ctrl + v and ctrl + c and download / upload buttons
@@ -26,7 +26,7 @@
 - [ ] blobs to plotyl
 - [ ] frames / atoms selection in ploty ( need to be tested )
 - [ ] add prefetching and show prefetched frames in progress bar
-- [ ] `vis.geometries.pop(name)` to delete geometry only working on page reload
+- [x] `vis.geometries.pop(name)` to delete geometry only working on page reload
 - [ ] allow "freezing" current configuration as refernce or show multiple configurations on top of each other
 - [ ] `x-custom-type: dynamic-enum` support transformations via custom editor with changed to data like
 ```json

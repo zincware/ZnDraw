@@ -31,7 +31,7 @@ interface SecondaryPanelProps {
 }
 
 const SecondaryPanel = ({ panelTitle }: SecondaryPanelProps) => {
-  const { roomId, userId } = useAppStore();
+  const { roomId, userId, geometries } = useAppStore();
   const [localFormData, setLocalFormData] = useState<any>({});
   const ignoreFirstChangeRef = useRef(true);
 
@@ -124,9 +124,9 @@ const SecondaryPanel = ({ panelTitle }: SecondaryPanelProps) => {
     if (!originalSchema) return null;
 
     // Call our new helper function to handle injection generically
-    return injectDynamicEnums(originalSchema, metadata);
+    return injectDynamicEnums(originalSchema, metadata, geometries);
 
-  }, [schemas, selectedExtension, metadata]);
+  }, [schemas, selectedExtension, metadata, geometries]);
   const formOptions = useMemo(() => Object.keys(schemas || {}), [schemas]);
 
   if (isLoadingSchemas || isLoadingMetadata) {

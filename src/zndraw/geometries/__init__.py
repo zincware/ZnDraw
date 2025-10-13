@@ -5,6 +5,7 @@ from zndraw.geometries.curve import Curve, CurveMarker
 from zndraw.geometries.base import InteractionSettings
 from zndraw.geometries.cell import Cell
 from zndraw.geometries.floor import Floor
+from zndraw.geometries.camera import Camera, CameraType
 
 geometries = {
     "Sphere": Sphere,
@@ -13,6 +14,7 @@ geometries = {
     "Curve": Curve,
     "Cell": Cell,
     "Floor": Floor,
+    "Camera": Camera,
 }
 
-__all__ = ["Sphere", "Arrow", "Bond", "Curve", "geometries", "InteractionSettings", "CurveMarker", "Cell", "Floor"]
+__all__ = ["Sphere", "Arrow", "Bond", "Curve", "geometries", "InteractionSettings", "CurveMarker", "Cell", "Floor", "Camera", "CameraType"]

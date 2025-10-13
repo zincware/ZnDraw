@@ -36,11 +36,13 @@ export const customRenderers = [
  * Recursively traverses a JSON schema and injects dynamic enum values.
  * @param schema The original JSON schema.
  * @param metadata The metadata object containing keys to inject.
+ * @param geometries Optional geometries object for dynamic-geometries feature.
  * @returns A new schema object with enums injected.
  */
 export const injectDynamicEnums = (
   schema: any,
-  metadata: FrameMetadata | undefined
+  metadata: FrameMetadata | undefined,
+  geometries?: Record<string, any>
 ): any => {
   // Create a deep copy to avoid mutating the original object from the react-query cache.
   const newSchema = JSON.parse(JSON.stringify(schema));
@@ -56,6 +58,25 @@ export const injectDynamicEnums = (
       ) {
         // Inject the keys from the metadata as enum values
         obj.enum = metadata.keys;
+      }
+
+      // NEW PATTERN: Check for x-custom-type="dynamic-enum" with "dynamic-geometries" feature
+      if (
+        obj["x-custom-type"] === "dynamic-enum" &&
+        Array.isArray(obj["x-features"]) &&
+        obj["x-features"].includes("dynamic-geometries") &&
+        geometries
+      ) {
+        // Filter geometries by type if x-geometry-filter is present
+        const geometryFilter = obj["x-geometry-filter"];
+        const geometryKeys = Object.keys(geometries).filter((key) => {
+          if (!geometryFilter) return true;
+          const geometry = geometries[key];
+          return geometry?.type === geometryFilter;
+        });
+
+        // Inject the filtered geometry keys as enum values
+        obj.enum = geometryKeys;
       }
 
       // Continue traversing through the object's properties and array items

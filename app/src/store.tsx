@@ -34,6 +34,8 @@ interface AppState {
   particleCount: number; // Number of particles in current frame
   curveLength: number; // Length of the active curve in drawing mode
   activeCurveForDrawing: string | null; // The geometry key of the curve currently targeted for drawing
+  attachedCameraKey: string | null; // The geometry key of the camera currently attached to
+  curveRefs: Record<string, THREE.CatmullRomCurve3>; // Non-serializable refs to THREE.js curve objects
 
   // Actions (functions to modify the state)
   setRoomId: (roomId: string) => void;
@@ -75,6 +77,10 @@ interface AppState {
   setCurveLength: (length: number) => void;
   setActiveCurveForDrawing: (key: string | null) => void;
   toggleDrawingMode: (queryClient?: any) => Promise<void>;
+  attachToCamera: (cameraKey: string) => void;
+  detachFromCamera: () => void;
+  registerCurveRef: (key: string, curve: THREE.CatmullRomCurve3) => void;
+  unregisterCurveRef: (key: string) => void;
 }
 
 // Helper functions (pure, exported for reuse across components)
@@ -122,6 +128,20 @@ export const useAppStore = create<AppState>((set, get) => ({
   particleCount: 0,
   curveLength: 0,
   activeCurveForDrawing: null,
+  attachedCameraKey: null,
+
+  /**
+   * Non-serializable THREE.js curve objects shared between Curve and Camera components.
+   * ⚠️ Non-serializable - excluded from persistence/devtools.
+   *
+   * Managed via registerCurveRef/unregisterCurveRef lifecycle hooks in Curve.tsx.
+   * Used by Camera.tsx to compute positions along curves without prop drilling.
+   *
+   * This is the correct pattern for Zustand - see https://docs.pmnd.rs/zustand/guides/flux-inspired-practice
+   * If persistence is added later, use partialize() to exclude this field.
+   */
+  curveRefs: {},
+
   // Actions
   setConnected: (status) => set({ isConnected: status }),
   setRoomId: (roomId) => set({ roomId }),
@@ -454,5 +474,40 @@ export const useAppStore = create<AppState>((set, get) => ({
       // Already have a valid selected curve - just toggle drawing
       set({ isDrawing: !isDrawing });
     }
+  },
+
+  attachToCamera: (cameraKey) => {
+    const { geometries } = get();
+    const camera = geometries[cameraKey];
+
+    // Validate camera exists and is a Camera type
+    if (!camera || camera.type !== "Camera") {
+      console.warn(`Cannot attach to camera '${cameraKey}': not found or not a Camera`);
+      return;
+    }
+
+    console.log(`Attaching to camera: ${cameraKey}`);
+    set({ attachedCameraKey: cameraKey });
+  },
+
+  detachFromCamera: () => {
+    console.log("Detaching from camera");
+    set({ attachedCameraKey: null });
+  },
+
+  registerCurveRef: (key, curve) => {
+    set((state) => ({
+      curveRefs: {
+        ...state.curveRefs,
+        [key]: curve,
+      },
+    }));
+  },
+
+  unregisterCurveRef: (key) => {
+    set((state) => {
+      const { [key]: removed, ...rest } = state.curveRefs;
+      return { curveRefs: rest };
+    });
   },
 }));
