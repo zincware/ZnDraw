@@ -2524,6 +2524,7 @@ def create_geometry(room_id: str):
         SocketEvents.INVALIDATE_GEOMETRY,
         {
             "key": key,
+            "operation": "set",
         },
         to=f"room:{room_id}",
         skip_sid=clientSID
@@ -2566,6 +2567,7 @@ def delete_geometry(room_id: str, key: str):
         SocketEvents.INVALIDATE_GEOMETRY,
         {
             "key": key,
+            "operation": "delete",
         },
         to=f"room:{room_id}",
     )

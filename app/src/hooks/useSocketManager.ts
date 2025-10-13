@@ -21,6 +21,7 @@ export const useSocketManager = () => {
     joinToken,
     setGeometries,
     updateGeometry,
+    removeGeometry,
   } = useAppStore();
   const queryClient = useQueryClient();
   const { openWindow } = useWindowManagerStore();
@@ -208,65 +209,93 @@ export const useSocketManager = () => {
       if (!roomId) return;
 
       try {
-        // If a specific key is provided, only update that geometry (targeted update)
-        if (data && data.key) {
-          const { key } = data;
-          console.log(`Updating specific geometry: ${key}`);
+        const operation = data?.operation || "set"; // default to 'set' for backward compatibility
 
-          // Invalidate the specific geometry detail query
-          queryClient.invalidateQueries({
+        if (operation === "delete") {
+          // Handle geometry deletion
+          const { key } = data;
+          if (!key) {
+            console.warn("Delete operation received without key");
+            return;
+          }
+
+          console.log(`Deleting geometry: ${key}`);
+
+          // Remove from the store
+          removeGeometry(key);
+
+          // Remove the specific geometry from the cache
+          queryClient.removeQueries({
             queryKey: ["geometries", roomId, "detail", key],
           });
 
-          // Fetch only the updated geometry
-          try {
-            const response = await getGeometry(roomId, key);
-            // Update only this specific geometry in the store
-            updateGeometry(key, response.geometry);
-            console.log(`Updated geometry ${key}:`, response.geometry);
-          } catch (error) {
-            console.error(`Error fetching geometry ${key}:`, error);
-          }
-        } else {
-          // No specific key - refetch all geometries (fallback for backward compatibility)
-          console.log("No specific key provided, refetching all geometries");
-
-          // Invalidate React Query cache for geometries
+          // Invalidate the list to update the UI
           queryClient.invalidateQueries({
             queryKey: ["geometries", roomId, "list"],
           });
 
-          // Fetch list of geometry keys first
-          const listResponse = await listGeometries(roomId);
-          const keys = listResponse.geometries || [];
-          console.log("Received geometry keys:", keys);
+          console.log(`Removed geometry ${key} from store and cache`);
+        } else if (operation === "set") {
+          // Handle geometry creation/update
+          if (data && data.key) {
+            const { key } = data;
+            console.log(`Updating specific geometry: ${key}`);
 
-          // Fetch all geometries in parallel
-          const geometryPromises = keys.map(async (key: string) => {
+            // Invalidate the specific geometry detail query
+            queryClient.invalidateQueries({
+              queryKey: ["geometries", roomId, "detail", key],
+            });
+
+            // Fetch only the updated geometry
             try {
               const response = await getGeometry(roomId, key);
-              return { key, geometry: response.geometry };
+              // Update only this specific geometry in the store
+              updateGeometry(key, response.geometry);
+              console.log(`Updated geometry ${key}:`, response.geometry);
             } catch (error) {
               console.error(`Error fetching geometry ${key}:`, error);
-              return null;
             }
-          });
+          } else {
+            // No specific key - refetch all geometries (fallback for backward compatibility)
+            console.log("No specific key provided, refetching all geometries");
 
-          const geometries = await Promise.all(geometryPromises);
+            // Invalidate React Query cache for geometries
+            queryClient.invalidateQueries({
+              queryKey: ["geometries", roomId, "list"],
+            });
 
-          // Build geometries object from results
-          const geometriesObj: Record<string, any> = {};
-          geometries.forEach((item) => {
-            if (item && item.geometry) {
-              geometriesObj[item.key] = item.geometry;
-            }
-          });
+            // Fetch list of geometry keys first
+            const listResponse = await listGeometries(roomId);
+            const keys = listResponse.geometries || [];
+            console.log("Received geometry keys:", keys);
 
-          console.log("Received updated geometries:", geometriesObj);
-          setGeometries(geometriesObj);
+            // Fetch all geometries in parallel
+            const geometryPromises = keys.map(async (key: string) => {
+              try {
+                const response = await getGeometry(roomId, key);
+                return { key, geometry: response.geometry };
+              } catch (error) {
+                console.error(`Error fetching geometry ${key}:`, error);
+                return null;
+              }
+            });
+
+            const geometries = await Promise.all(geometryPromises);
+
+            // Build geometries object from results
+            const geometriesObj: Record<string, any> = {};
+            geometries.forEach((item) => {
+              if (item && item.geometry) {
+                geometriesObj[item.key] = item.geometry;
+              }
+            });
+
+            console.log("Received updated geometries:", geometriesObj);
+            setGeometries(geometriesObj);
+          }
         }
       } catch (error) {
-        console.error("Error fetching geometries:", error);
+        console.error("Error handling geometry invalidation:", error);
       }
     }
 
@@ -446,6 +475,7 @@ export const useSocketManager = () => {
     setFrameSelection,
     setGeometries,
     updateGeometry,
+    removeGeometry,
     openWindow,
   ]);
 };

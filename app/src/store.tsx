@@ -57,6 +57,7 @@ interface AppState {
   setChatOpen: (open: boolean) => void;
   setGeometries: (geometries: Record<string, any>) => void;
   updateGeometry: (key: string, geometry: any) => void; // update specific geometry
+  removeGeometry: (key: string) => void; // remove specific geometry
   setIsDrawing: (isDrawing: boolean) => void;
   setDrawingPointerPosition: (position: THREE.Vector3 | null) => void;
   updateSelections: (geometryKey: string, id: number, isShiftPressed: boolean) => void;
@@ -187,6 +188,16 @@ export const useAppStore = create<AppState>((set, get) => ({
         [key]: geometry,
       },
     })),
+  removeGeometry: (key: string) =>
+    set((state) => {
+      const { [key]: removed, ...rest } = state.geometries;
+      // Clear activeCurveForDrawing if the deleted geometry was the active curve
+      const newActiveCurve = state.activeCurveForDrawing === key ? null : state.activeCurveForDrawing;
+      return {
+        geometries: rest,
+        activeCurveForDrawing: newActiveCurve,
+      };
+    }),
   setIsDrawing: (isDrawing) => set({ isDrawing: isDrawing }),
   setDrawingPointerPosition: (position) => set({ drawingPointerPosition: position }),
   setDrawingIsValid: (isValid) => set({ drawingIsValid: isValid }),
