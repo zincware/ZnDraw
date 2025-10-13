@@ -17,7 +17,7 @@ import Snackbar from "@mui/material/Snackbar";
 import Alert from "@mui/material/Alert";
 import Chip from "@mui/material/Chip";
 import Typography from "@mui/material/Typography";
-import SettingsIcon from "@mui/icons-material/Settings";
+import MoreVertIcon from "@mui/icons-material/MoreVert";
 import LockIcon from "@mui/icons-material/Lock";
 import LockOpenIcon from "@mui/icons-material/LockOpen";
 import StarIcon from "@mui/icons-material/Star";
@@ -297,14 +297,14 @@ export default function RoomManagementMenu() {
         />
       )}
 
-      {/* Room settings menu button */}
-      <Tooltip title="Room settings">
+      {/* Room menu button */}
+      <Tooltip title="Room menu">
         <IconButton
           color="inherit"
-          aria-label="room settings"
+          aria-label="room menu"
           onClick={handleOpenMenu}
         >
-          <SettingsIcon />
+          <MoreVertIcon />
         </IconButton>
       </Tooltip>
 

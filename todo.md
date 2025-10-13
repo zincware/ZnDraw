@@ -15,7 +15,7 @@
 - [ ] link to github
 - [ ] SiMGen buttons and tutorial
 - [x] sync mode default should be on
-- [ ] make the snackbar pop ups, e.g. `room locked` appear higher to not interfere with the progress bar.
+- [x] make the snackbar pop ups, e.g. `room locked` appear higher to not interfere with the progress bar.
 - [ ] close zndraw button via "settings" menu upper right and different icons, must be distinguishable, also via name
 - [ ] move to rest with invalidate and update invalidate to contain the data that changed, if small 
     - [x] bookmarks
