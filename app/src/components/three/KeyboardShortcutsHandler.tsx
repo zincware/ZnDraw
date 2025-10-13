@@ -40,6 +40,9 @@ export const KeyboardShortcutsHandler = () => {
     isDrawing,
     roomId,
     toggleInfoBoxes,
+    geometries,
+    activeCurveForDrawing,
+    setActiveCurveForDrawing,
   } = useAppStore();
 
   useEffect(() => {
@@ -127,10 +130,40 @@ export const KeyboardShortcutsHandler = () => {
         return;
       }
 
-      // Handle x/X for toggle drawing
+      // Handle x/X for toggle drawing with smart curve selection
       if (event.key === "x" || event.key === "X") {
         event.preventDefault();
-        setIsDrawing(!isDrawing);
+
+        // Get all active curves
+        const activeCurves = Object.entries(geometries)
+          .filter(([_, g]) => g.type === "Curve" && g.data?.active !== false)
+          .map(([key, _]) => key);
+
+        if (activeCurves.length === 0) {
+          // No curves available - do nothing or show notification
+          console.warn("No active curves available for drawing");
+          return;
+        }
+
+        if (activeCurves.length === 1) {
+          // Only one curve - auto-select it
+          const singleCurveKey = activeCurves[0];
+          if (!activeCurveForDrawing) {
+            setActiveCurveForDrawing(singleCurveKey);
+          }
+          setIsDrawing(!isDrawing);
+          return;
+        }
+
+        // Multiple curves exist
+        if (activeCurveForDrawing) {
+          // Already have a selected curve - just toggle drawing
+          setIsDrawing(!isDrawing);
+        } else {
+          // No curve selected - auto-select the first one (most recently added is last, but first is fine)
+          setActiveCurveForDrawing(activeCurves[0]);
+          setIsDrawing(true);
+        }
         return;
       }
 
@@ -191,6 +224,9 @@ export const KeyboardShortcutsHandler = () => {
     roomId,
     currentFrame,
     toggleInfoBoxes,
+    geometries,
+    activeCurveForDrawing,
+    setActiveCurveForDrawing,
   ]);
 
   return null; // This component only handles keyboard events

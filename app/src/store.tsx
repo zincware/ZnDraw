@@ -33,6 +33,7 @@ interface AppState {
   hoveredParticleId: number | null; // ID of currently hovered particle
   particleCount: number; // Number of particles in current frame
   curveLength: number; // Length of the active curve in drawing mode
+  activeCurveForDrawing: string | null; // The geometry key of the curve currently targeted for drawing
 
   // Actions (functions to modify the state)
   setRoomId: (roomId: string) => void;
@@ -71,6 +72,7 @@ interface AppState {
   setHoveredParticleId: (id: number | null) => void;
   setParticleCount: (count: number) => void;
   setCurveLength: (length: number) => void;
+  setActiveCurveForDrawing: (key: string | null) => void;
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -104,6 +106,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   hoveredParticleId: null,
   particleCount: 0,
   curveLength: 0,
+  activeCurveForDrawing: null,
   // Actions
   setConnected: (status) => set({ isConnected: status }),
   setRoomId: (roomId) => set({ roomId }),
@@ -328,4 +331,5 @@ export const useAppStore = create<AppState>((set, get) => ({
   setHoveredParticleId: (id) => set({ hoveredParticleId: id }),
   setParticleCount: (count) => set({ particleCount: count }),
   setCurveLength: (length) => set({ curveLength: length }),
+  setActiveCurveForDrawing: (key) => set({ activeCurveForDrawing: key }),
 }));

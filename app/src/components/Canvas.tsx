@@ -20,6 +20,7 @@ import SceneLighting from "./SceneLighting";
 import { KeyboardShortcutsHandler } from "./three/KeyboardShortcutsHandler";
 import StaticInfoBox from "./three/StaticInfoBox";
 import HoverInfoBox from "./three/HoverInfoBox";
+import DrawingIndicator from "./three/DrawingIndicator";
 
 // The main scene component
 function MyScene() {
@@ -152,9 +153,10 @@ function MyScene() {
 
         <OrbitControls enableDamping={false} makeDefault />
       </Canvas>
-      {/* Info boxes rendered outside Canvas, in DOM */}
+      {/* Info boxes and drawing indicator rendered outside Canvas, in DOM */}
       <StaticInfoBox />
       <HoverInfoBox />
+      <DrawingIndicator />
     </div>
   );
 }

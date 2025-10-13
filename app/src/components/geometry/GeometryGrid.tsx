@@ -6,10 +6,13 @@ import {
   GridRowParams,
   GridRenderCellParams,
 } from "@mui/x-data-grid";
-import { Box, TextField, InputAdornment, Switch } from "@mui/material";
+import { Box, TextField, InputAdornment, Switch, IconButton, Tooltip } from "@mui/material";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import SearchIcon from "@mui/icons-material/Search";
+import BrushIcon from "@mui/icons-material/Brush";
+import RadioButtonUncheckedIcon from "@mui/icons-material/RadioButtonUnchecked";
+import RadioButtonCheckedIcon from "@mui/icons-material/RadioButtonChecked";
 import { useGeometryStore } from "../../stores/geometryStore";
 import DeleteConfirmDialog from "./DeleteConfirmDialog";
 import { useDeleteGeometry, useCreateGeometry } from "../../hooks/useGeometries";
@@ -20,7 +23,7 @@ interface GeometryGridProps {
 }
 
 const GeometryGrid = ({ geometries }: GeometryGridProps) => {
-  const { roomId, geometries: geometriesData } = useAppStore();
+  const { roomId, geometries: geometriesData, activeCurveForDrawing, setActiveCurveForDrawing } = useAppStore();
   const { setMode, setSelectedKey, searchFilter, setSearchFilter } =
     useGeometryStore();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -68,6 +71,17 @@ const GeometryGrid = ({ geometries }: GeometryGridProps) => {
     });
   };
 
+  const handleDrawingTargetToggle = (key: string, isCurve: boolean) => {
+    if (!isCurve) return;
+
+    // Toggle: if already selected, deselect; otherwise select
+    if (activeCurveForDrawing === key) {
+      setActiveCurveForDrawing(null);
+    } else {
+      setActiveCurveForDrawing(key);
+    }
+  };
+
   const columns: GridColDef[] = [
     {
       field: "key",
@@ -80,6 +94,34 @@ const GeometryGrid = ({ geometries }: GeometryGridProps) => {
       headerName: "Type",
       flex: 1,
       minWidth: 120,
+    },
+    {
+      field: "drawingTarget",
+      headerName: "Draw",
+      width: 70,
+      renderCell: (params: GridRenderCellParams) => {
+        const isCurve = params.row.type === "Curve";
+        const isSelected = activeCurveForDrawing === params.row.key;
+
+        if (!isCurve) {
+          return null;
+        }
+
+        return (
+          <Tooltip title={isSelected ? "Stop drawing on this curve" : "Draw on this curve"}>
+            <IconButton
+              size="small"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleDrawingTargetToggle(params.row.key, isCurve);
+              }}
+              color={isSelected ? "primary" : "default"}
+            >
+              {isSelected ? <RadioButtonCheckedIcon /> : <RadioButtonUncheckedIcon />}
+            </IconButton>
+          </Tooltip>
+        );
+      },
     },
     {
       field: "active",

@@ -44,7 +44,7 @@ export default function Curve({ data, geometryKey }: { data: CurveData; geometry
 
   const theme = useTheme();
 
-  const { currentFrame, roomId, isDrawing, drawingIsValid, drawingPointerPosition, setIsDrawing, clientId, setGeometryFetching, removeGeometryFetching, setCurveLength } = useAppStore();
+  const { currentFrame, roomId, isDrawing, drawingIsValid, drawingPointerPosition, setIsDrawing, clientId, setGeometryFetching, removeGeometryFetching, setCurveLength, activeCurveForDrawing } = useAppStore();
   const [markerPositions, setMarkerPositions] = useState<THREE.Vector3[]>([]);
   const [lineSegments, setLineSegments] = useState<THREE.Vector3[]>([]);
   const [virtualMarkerPositions, setVirtualMarkerPositions] = useState<THREE.Vector3[]>([]);
@@ -53,6 +53,9 @@ export default function Curve({ data, geometryKey }: { data: CurveData; geometry
   const [lastUpdateSource, setLastUpdateSource] = useState<'remote' | 'local' | null>(null);
 
   const markerRefs = useRef<(THREE.Mesh | null)[]>([]);
+
+  // Check if this curve is the active drawing target
+  const isActiveDrawingTarget = activeCurveForDrawing === geometryKey;
 
   // Helper function to resolve color based on theme
   const getLineColor = useCallback((colorValue: string) => {
@@ -123,7 +126,8 @@ export default function Curve({ data, geometryKey }: { data: CurveData; geometry
   useEffect(() => {
     const allPoints: THREE.Vector3[] = [...markerPositions];
     if (!data) return;
-    if (drawingPointerPosition !== null && isDrawing) {
+    // Only add drawing pointer if this is the active drawing target
+    if (drawingPointerPosition !== null && isDrawing && isActiveDrawingTarget) {
       allPoints.push(drawingPointerPosition);
     }
     if (allPoints.length < 2) {
@@ -170,7 +174,7 @@ export default function Curve({ data, geometryKey }: { data: CurveData; geometry
     }
     setVirtualMarkerPositions(_virtualMarkerPositions);
 
-  }, [markerPositions, drawingPointerPosition, isDrawing, data.divisions, setCurveLength]);
+  }, [markerPositions, drawingPointerPosition, isDrawing, isActiveDrawingTarget, data.divisions, setCurveLength]);
 
   const handleVirtualMarkerClick = useCallback((insertIndex: number) => {
     const newPoints = [...markerPositions];
@@ -292,7 +296,7 @@ export default function Curve({ data, geometryKey }: { data: CurveData; geometry
       {lineSegments.length >= 2 && (
         <Line
           points={lineSegments}
-          color={(isDrawing && !drawingIsValid) ? "#FF0000" : getLineColor(color)}
+          color={(isDrawing && isActiveDrawingTarget && !drawingIsValid) ? "#FF0000" : getLineColor(color)}
           lineWidth={thickness}
           dashed={material === "LineDashedMaterial"}
         />
@@ -314,7 +318,7 @@ export default function Curve({ data, geometryKey }: { data: CurveData; geometry
             }}
           >
             <meshBasicMaterial
-              color={(isDrawing && !drawingIsValid) ? "#FF0000" : getMarkerColor(marker.color)}
+              color={(isDrawing && isActiveDrawingTarget && !drawingIsValid) ? "#FF0000" : getMarkerColor(marker.color)}
               opacity={marker.opacity}
               transparent={marker.opacity < 1}
             />
@@ -340,8 +344,8 @@ export default function Curve({ data, geometryKey }: { data: CurveData; geometry
         );
       })}
 
-      {/* Drawing Marker */}
-      {isDrawing && drawingPointerPosition && marker.enabled && (
+      {/* Drawing Marker - only show for active drawing target */}
+      {isDrawing && isActiveDrawingTarget && drawingPointerPosition && marker.enabled && (
         <Dodecahedron
           key={`virtual-drawing`}
           position={drawingPointerPosition}
@@ -349,7 +353,7 @@ export default function Curve({ data, geometryKey }: { data: CurveData; geometry
           onClick={handleDrawingMarkerClick}
         >
           <meshBasicMaterial
-            color={(isDrawing && !drawingIsValid) ? "#FF0000" : getMarkerColor(marker.color)}
+            color={(isDrawing && isActiveDrawingTarget && !drawingIsValid) ? "#FF0000" : getMarkerColor(marker.color)}
             opacity={marker.opacity}
             transparent={marker.opacity < 1}
           />
