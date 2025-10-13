@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { socket } from "./socket";
 import * as THREE from "three";
-import { updateSelection as updateSelectionAPI, loadSelectionGroup as loadSelectionGroupAPI } from "./myapi/client";
+import { updateSelection as updateSelectionAPI, loadSelectionGroup as loadSelectionGroupAPI, setBookmark as setBookmarkAPI, deleteBookmark as deleteBookmarkAPI } from "./myapi/client";
 
 interface AppState {
   // Connection & Room
@@ -55,6 +55,7 @@ interface AppState {
   setPlaying: (playing: boolean) => void;
   setChatOpen: (open: boolean) => void;
   setGeometries: (geometries: Record<string, any>) => void;
+  updateGeometry: (key: string, geometry: any) => void; // update specific geometry
   setIsDrawing: (isDrawing: boolean) => void;
   setDrawingPointerPosition: (position: THREE.Vector3 | null) => void;
   updateSelections: (geometryKey: string, id: number, isShiftPressed: boolean) => void;
@@ -268,35 +269,59 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   addBookmark: (frame, label) => {
-    const { bookmarks } = get();
-    const currentBookmarks = bookmarks || {};
+    const roomId = get().roomId;
+    if (!roomId) return;
 
-    // Add new bookmark
-    const updatedBookmarks = {
-      ...currentBookmarks,
-      [frame]: label || `Bookmark ${frame}`
-    };
+    const bookmarkLabel = label || `Bookmark ${frame}`;
 
-    // Update local state immediately
-    set({ bookmarks: updatedBookmarks });
+    // Optimistic update - add bookmark locally
+    set((state) => ({
+      bookmarks: {
+        ...(state.bookmarks || {}),
+        [frame]: bookmarkLabel,
+      },
+    }));
 
-    // Emit socket event to sync with other clients
-    socket.emit("bookmarks:set", { bookmarks: updatedBookmarks });
+    // Update via REST API - server will emit invalidate event to sync with other clients
+    setBookmarkAPI(roomId, frame, bookmarkLabel).catch((error) => {
+      console.error(`Failed to set bookmark at frame ${frame}:`, error);
+      // Rollback on error
+      set((state) => {
+        if (!state.bookmarks) return state;
+        const { [frame]: removed, ...rest } = state.bookmarks;
+        return { bookmarks: rest };
+      });
+    });
   },
 
   deleteBookmark: (frame) => {
+    const roomId = get().roomId;
+    if (!roomId) return;
+
     const { bookmarks } = get();
-    if (!bookmarks) return;
+    if (!bookmarks || !(frame in bookmarks)) return;
 
-    // Remove bookmark
-    const updatedBookmarks = { ...bookmarks };
-    delete updatedBookmarks[frame];
+    // Store the old value for rollback
+    const oldLabel = bookmarks[frame];
 
-    // Update local state immediately
-    set({ bookmarks: updatedBookmarks });
+    // Optimistic update - remove bookmark locally
+    set((state) => {
+      if (!state.bookmarks) return state;
+      const { [frame]: removed, ...rest } = state.bookmarks;
+      return { bookmarks: rest };
+    });
 
-    // Emit socket event to sync with other clients
-    socket.emit("bookmarks:set", { bookmarks: updatedBookmarks });
+    // Update via REST API - server will emit invalidate event to sync with other clients
+    deleteBookmarkAPI(roomId, frame).catch((error) => {
+      console.error(`Failed to delete bookmark at frame ${frame}:`, error);
+      // Rollback on error
+      set((state) => ({
+        bookmarks: {
+          ...(state.bookmarks || {}),
+          [frame]: oldLabel,
+        },
+      }));
+    });
   },
 
   toggleInfoBoxes: () => set((state) => ({ showInfoBoxes: !state.showInfoBoxes })),

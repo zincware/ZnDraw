@@ -91,39 +91,112 @@ def check_room_locked(
     return None
 
 
-def emit_bookmarks_update(room_id: str):
+def shift_bookmarks_on_delete(room_id: str, deleted_indices: list[int]):
     """
-    Emit bookmarks update to all clients after frame mapping changes.
-    Converts physical bookmarks to logical indices based on current mapping.
+    Shift bookmark indices after frames are deleted.
+    Bookmarks at deleted indices are removed, bookmarks after are shifted down.
+
+    Parameters
+    ----------
+    room_id : str
+        The room ID
+    deleted_indices : list[int]
+        Sorted list of deleted frame indices
+    """
+    if not deleted_indices:
+        return
+
+    r = current_app.extensions["redis"]
+    bookmarks_key = f"room:{room_id}:bookmarks"
+    bookmarks_raw = r.hgetall(bookmarks_key)
+
+    if not bookmarks_raw:
+        return
+
+    # Convert to int keys and sort deletion indices
+    bookmarks = {int(k): v for k, v in bookmarks_raw.items()}
+    deleted_set = set(deleted_indices)
+
+    # Build new bookmarks dict with shifted indices
+    new_bookmarks = {}
+    for idx, label in bookmarks.items():
+        # Remove bookmarks at deleted indices
+        if idx in deleted_set:
+            continue
+
+        # Calculate how many indices below this one were deleted
+        shift = sum(1 for del_idx in deleted_indices if del_idx < idx)
+        new_idx = idx - shift
+        new_bookmarks[new_idx] = label
+
+    # Update Redis with shifted bookmarks
+    r.delete(bookmarks_key)
+    if new_bookmarks:
+        r.hset(bookmarks_key, mapping={str(k): v for k, v in new_bookmarks.items()})
+
+
+def shift_bookmarks_on_insert(room_id: str, insert_position: int):
+    """
+    Shift bookmark indices after a frame is inserted.
+    All bookmarks at or after the insert position shift up by 1.
+
+    Parameters
+    ----------
+    room_id : str
+        The room ID
+    insert_position : int
+        The index where the frame was inserted
     """
     r = current_app.extensions["redis"]
-    indices_key = f"room:{room_id}:trajectory:indices"
     bookmarks_key = f"room:{room_id}:bookmarks"
+    bookmarks_raw = r.hgetall(bookmarks_key)
 
-    physical_bookmarks = r.hgetall(bookmarks_key)
+    if not bookmarks_raw:
+        return
 
-    if physical_bookmarks:
-        # Get current frame mapping
-        frame_mapping = r.zrange(indices_key, 0, -1)
+    # Convert to int keys
+    bookmarks = {int(k): v for k, v in bookmarks_raw.items()}
 
-        # Build reverse mapping: physical_key -> logical_index
-        physical_to_logical = {
-            physical_key: idx for idx, physical_key in enumerate(frame_mapping)
-        }
+    # Build new bookmarks dict with shifted indices
+    new_bookmarks = {}
+    for idx, label in bookmarks.items():
+        if idx >= insert_position:
+            new_bookmarks[idx + 1] = label
+        else:
+            new_bookmarks[idx] = label
 
-        # Convert bookmarks from physical to logical indices
-        logical_bookmarks = {}
-        for physical_key, label in physical_bookmarks.items():
-            if physical_key in physical_to_logical:
-                logical_idx = physical_to_logical[physical_key]
-                logical_bookmarks[str(logical_idx)] = label
+    # Update Redis with shifted bookmarks
+    r.delete(bookmarks_key)
+    if new_bookmarks:
+        r.hset(bookmarks_key, mapping={str(k): v for k, v in new_bookmarks.items()})
 
-        # Emit bookmarks update to all clients
-        socketio.emit(
-            "bookmarks:update",
-            {"bookmarks": logical_bookmarks},
-            to=f"room:{room_id}",
-        )
+
+def remove_bookmark_at_index(room_id: str, index: int):
+    """
+    Remove bookmark at a specific index (used when frame is replaced).
+
+    Parameters
+    ----------
+    room_id : str
+        The room ID
+    index : int
+        The frame index
+    """
+    r = current_app.extensions["redis"]
+    bookmarks_key = f"room:{room_id}:bookmarks"
+    r.hdel(bookmarks_key, str(index))
+
+
+def emit_bookmarks_invalidate(room_id: str):
+    """
+    Emit bookmarks invalidate event to all clients after frame mapping changes.
+    Clients will refetch bookmarks from the server when they receive this event.
+    """
+    socketio.emit(
+        SocketEvents.INVALIDATE_BOOKMARK,
+        {"operation": "frame_mapping_changed"},
+        to=f"room:{room_id}",
+    )
 
 
 def emit_frames_invalidate(
@@ -599,8 +672,10 @@ def delete_frames_batch(room_id):
             f"Deleted {len(frame_indices)} frames from room '{room_id}'. Physical data preserved."
         )
 
+        # Shift bookmarks after deletion
+        shift_bookmarks_on_delete(room_id, frame_indices)
         # Emit bookmarks update to all clients
-        emit_bookmarks_update(room_id)
+        emit_bookmarks_invalidate(room_id)
         # Invalidate all frames from the first deleted position onward
         if frame_indices:
             emit_frames_invalidate(
@@ -684,12 +759,11 @@ def append_frame(room_id):
             pipeline.zadd(indices_key, {f"{room_id}:{new_physical_index}": old_score})
             pipeline.execute()
 
-            # Remove bookmark for old physical frame (if it exists)
-            bookmarks_key = f"room:{room_id}:bookmarks"
-            r.hdel(bookmarks_key, old_mapping_entry)
+            # Remove bookmark at the logical index (if it exists)
+            remove_bookmark_at_index(room_id, target_frame_id)
 
             # Emit bookmarks update to reflect removal
-            emit_bookmarks_update(room_id)
+            emit_bookmarks_invalidate(room_id)
             # Invalidate only the replaced frame
             emit_frames_invalidate(
                 room_id, operation="replace", affected_index=target_frame_id
@@ -761,8 +835,10 @@ def append_frame(room_id):
             # 3. Insert using gap method (O(log N) instead of O(N))
             index_manager.insert(insert_position, f"{room_id}:{new_physical_index}")
 
+            # Shift bookmarks after insertion
+            shift_bookmarks_on_insert(room_id, insert_position)
             # Emit bookmarks update (logical indices shifted by the insert)
-            emit_bookmarks_update(room_id)
+            emit_bookmarks_invalidate(room_id)
             # Invalidate all frames from insert position onward (they all shift up)
             emit_frames_invalidate(
                 room_id, operation="insert", affected_from=insert_position
@@ -880,7 +956,7 @@ def bulk_replace_frames(room_id):
 
             pipeline.execute()
 
-            emit_bookmarks_update(room_id)
+            emit_bookmarks_invalidate(room_id)
             emit_frames_invalidate(
                 room_id, operation="replace", affected_from=min(target_indices)
             )
@@ -936,7 +1012,7 @@ def bulk_replace_frames(room_id):
 
             pipeline.execute()
 
-            emit_bookmarks_update(room_id)
+            emit_bookmarks_invalidate(room_id)
             emit_len_frames_update(room_id)
             emit_frames_invalidate(
                 room_id, operation="bulk_replace", affected_from=start
@@ -1390,7 +1466,7 @@ def renormalize_frame_indices(room_id):
 
     # Emit bookmarks update since logical positions haven't changed
     # but we should still notify clients
-    emit_bookmarks_update(room_id)
+    emit_bookmarks_invalidate(room_id)
 
     return {"status": "ok", "framesRenormalized": count}, 200
 
@@ -2353,28 +2429,14 @@ def join_room(room_id):
     response["step"] = int(step) if step is not None else 0
 
     bookmarks_key = f"room:{room_id}:bookmarks"
-    physical_bookmarks = r.hgetall(bookmarks_key)
+    bookmarks_raw = r.hgetall(bookmarks_key)
 
     geometries = r.hgetall(f"room:{room_id}:geometries")
     response["geometries"] = {k: json.loads(v) for k, v in geometries.items()}
 
-    if physical_bookmarks:
-        frame_mapping = r.zrange(indices_key, 0, -1)
-
-        # Build reverse mapping: physical_key -> logical_index
-        physical_to_logical = {
-            physical_key: idx for idx, physical_key in enumerate(frame_mapping)
-        }
-
-        # Convert bookmarks from physical to logical indices
-        logical_bookmarks = {}
-        for physical_key, label in physical_bookmarks.items():
-            if physical_key in physical_to_logical:
-                logical_idx = physical_to_logical[physical_key]
-                logical_bookmarks[logical_idx] = label
-            # If physical_key not in mapping, skip it (orphaned bookmark)
-
-        response["bookmarks"] = logical_bookmarks
+    # Convert bookmark keys from strings (Redis) to integers
+    if bookmarks_raw:
+        response["bookmarks"] = {int(k): v for k, v in bookmarks_raw.items()}
     else:
         response["bookmarks"] = None
 
@@ -2602,6 +2664,107 @@ def list_figures(room_id: str):
     r = current_app.extensions["redis"]
     all_keys = r.hkeys(f"room:{room_id}:figures")
     return {"figures": list(all_keys)}, 200
+
+
+# ============================================================================
+# Bookmarks API Routes
+# ============================================================================
+
+
+@main.route("/api/rooms/<string:room_id>/bookmarks", methods=["GET"])
+def get_all_bookmarks(room_id: str):
+    """Get all bookmarks for a room.
+
+    Returns:
+        {"bookmarks": {1: "First Frame", 5: "Middle Frame"}}
+    """
+    r = current_app.extensions["redis"]
+    bookmarks_raw = r.hgetall(f"room:{room_id}:bookmarks")
+    # Convert byte keys to integers
+    bookmarks = {int(k): v for k, v in bookmarks_raw.items()}
+    return {"bookmarks": bookmarks}, 200
+
+
+@main.route("/api/rooms/<string:room_id>/bookmarks/<int:index>", methods=["GET"])
+def get_bookmark(room_id: str, index: int):
+    """Get a specific bookmark by frame index."""
+    r = current_app.extensions["redis"]
+
+    # Check if frame index is valid
+    frame_count = r.zcard(f"room:{room_id}:trajectory:indices")
+    if index < 0 or index >= frame_count:
+        return {
+            "error": f"Bookmark index {index} out of range (0-{frame_count-1})",
+            "type": "IndexError",
+        }, 404
+
+    label = r.hget(f"room:{room_id}:bookmarks", str(index))
+    if label is None:
+        return {
+            "error": f"Bookmark at index {index} does not exist",
+            "type": "KeyError",
+        }, 404
+
+    return {"index": index, "label": label}, 200
+
+
+@main.route("/api/rooms/<string:room_id>/bookmarks/<int:index>", methods=["PUT"])
+def set_bookmark(room_id: str, index: int):
+    """Set or update a bookmark at a specific frame index.
+
+    Body: {"label": "Frame Label"}
+    """
+    r = current_app.extensions["redis"]
+    data = request.get_json() or {}
+    label = data.get("label")
+
+    if not label or not isinstance(label, str):
+        return {
+            "error": "Bookmark label must be a non-empty string",
+            "type": "ValueError",
+        }, 400
+
+    # Check if frame index is valid
+    frame_count = r.zcard(f"room:{room_id}:trajectory:indices")
+    if index < 0 or index >= frame_count:
+        return {
+            "error": f"Bookmark index {index} out of range (0-{frame_count-1})",
+            "type": "IndexError",
+        }, 400
+
+    # Set the bookmark
+    r.hset(f"room:{room_id}:bookmarks", str(index), label)
+
+    # Emit invalidate event
+    socketio.emit(
+        SocketEvents.INVALIDATE_BOOKMARK,
+        {"index": index, "operation": "set"},
+        to=f"room:{room_id}",
+    )
+
+    return {"status": "success"}, 200
+
+
+@main.route("/api/rooms/<string:room_id>/bookmarks/<int:index>", methods=["DELETE"])
+def delete_bookmark(room_id: str, index: int):
+    """Delete a bookmark at a specific frame index."""
+    r = current_app.extensions["redis"]
+
+    response = r.hdel(f"room:{room_id}:bookmarks", str(index))
+    if response == 0:
+        return {
+            "error": f"Bookmark at index {index} does not exist",
+            "type": "KeyError",
+        }, 404
+
+    # Emit invalidate event
+    socketio.emit(
+        SocketEvents.INVALIDATE_BOOKMARK,
+        {"index": index, "operation": "delete"},
+        to=f"room:{room_id}",
+    )
+
+    return {"status": "success"}, 200
 
 
 # ============================================================================

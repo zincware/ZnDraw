@@ -13,6 +13,38 @@ class APIManager:
     room: str
     client_id: str | None = None
 
+    def _raise_for_error_type(self, response: requests.Response) -> None:
+        """Convert API error responses to appropriate Python exceptions.
+
+        Parameters
+        ----------
+        response : requests.Response
+            The HTTP response object
+
+        Raises
+        ------
+        KeyError, IndexError, ValueError, TypeError, PermissionError
+            Based on the error type returned by the API
+        """
+        try:
+            error_data = response.json()
+            error_type = error_data.get("type", "")
+            error_msg = error_data.get("error", response.text)
+
+            exception_map = {
+                "KeyError": KeyError,
+                "IndexError": IndexError,
+                "ValueError": ValueError,
+                "TypeError": TypeError,
+                "PermissionError": PermissionError,
+            }
+
+            if error_type in exception_map:
+                raise exception_map[error_type](error_msg)
+        except ValueError:
+            # JSON decode failed, let raise_for_status handle it
+            pass
+
     def join_room(
         self,
         description: str | None = None,
@@ -594,4 +626,98 @@ class APIManager:
         response = requests.post(
             f"{self.url}/api/rooms/{self.room}/selections/groups/{group_name}/load"
         )
+        response.raise_for_status()
+
+    # ========================================================================
+    # Bookmarks API Methods
+    # ========================================================================
+
+    def get_all_bookmarks(self) -> dict[int, str]:
+        """Get all bookmarks for the room.
+
+        Returns
+        -------
+        dict[int, str]
+            Dictionary mapping frame indices to bookmark labels.
+        """
+        response = requests.get(f"{self.url}/api/rooms/{self.room}/bookmarks")
+        response.raise_for_status()
+        bookmarks = response.json().get("bookmarks", {})
+        # Convert string keys from JSON back to integers
+        return {int(k): v for k, v in bookmarks.items()}
+
+    def get_bookmark(self, index: int) -> dict:
+        """Get a specific bookmark by frame index.
+
+        Parameters
+        ----------
+        index : int
+            Frame index
+
+        Returns
+        -------
+        dict
+            {"index": 0, "label": "First Frame"}
+
+        Raises
+        ------
+        KeyError
+            If bookmark not found at the given index
+        IndexError
+            If index is out of range
+        """
+        response = requests.get(
+            f"{self.url}/api/rooms/{self.room}/bookmarks/{index}"
+        )
+        if response.status_code == 404:
+            self._raise_for_error_type(response)
+
+        response.raise_for_status()
+        return response.json()
+
+    def set_bookmark(self, index: int, label: str) -> None:
+        """Set or update a bookmark at a specific frame index.
+
+        Parameters
+        ----------
+        index : int
+            Frame index
+        label : str
+            Bookmark label
+
+        Raises
+        ------
+        ValueError
+            If label is invalid (empty or not a string)
+        IndexError
+            If index is out of range
+        """
+        response = requests.put(
+            f"{self.url}/api/rooms/{self.room}/bookmarks/{index}",
+            json={"label": label},
+        )
+        if response.status_code == 400:
+            self._raise_for_error_type(response)
+
+        response.raise_for_status()
+
+    def delete_bookmark(self, index: int) -> None:
+        """Delete a bookmark at a specific frame index.
+
+        Parameters
+        ----------
+        index : int
+            Frame index
+
+        Raises
+        ------
+        KeyError
+            If bookmark not found at the given index
+        """
+        response = requests.delete(
+            f"{self.url}/api/rooms/{self.room}/bookmarks/{index}"
+        )
+        if response.status_code == 404:
+            self._raise_for_error_type(response)
+
         response.raise_for_status()

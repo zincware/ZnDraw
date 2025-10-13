@@ -32,17 +32,6 @@ Sets the selection of frames.
 }
 ```
 
-## bookmarks:set
-Sets the bookmarks for frames.
-```json
-{
-  "bookmarks": {
-    "0": "first frame",
-    "10": "tenth frame"
-  }
-}
-```
-
 ## set_frame_atomic
 Sets the current frame for all clients. Can only be used when no presenter is active.
 ```json
@@ -134,13 +123,19 @@ Sent when the frame selection is updated.
 }
 ```
 
-## bookmarks:update
-Sent when the bookmarks are updated.
+## bookmarks:invalidate
+Sent when bookmarks are modified (set, updated, or deleted). Clients should refetch bookmarks via REST API.
+Uses the REST + invalidate pattern: modifications are made via REST API endpoints, and this event notifies clients to refetch.
+
+REST API endpoints:
+- GET `/api/rooms/{room_id}/bookmarks` - Get all bookmarks
+- PUT `/api/rooms/{room_id}/bookmarks/{index}` - Set/update bookmark at index
+- DELETE `/api/rooms/{room_id}/bookmarks/{index}` - Delete bookmark at index
+
 ```json
 {
-  "bookmarks": {
-    "0": "first frame"
-  }
+  "index": 0,
+  "operation": "set"
 }
 ```
 

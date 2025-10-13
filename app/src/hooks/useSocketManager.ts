@@ -3,16 +3,15 @@ import { socket } from "../socket";
 import { useAppStore } from "../store";
 import { useQueryClient } from "@tanstack/react-query";
 import { useWindowManagerStore } from "../stores/windowManagerStore";
-import { listGeometries, getGeometry, getAllSelections } from "../myapi/client";
+import { listGeometries, getGeometry, getAllSelections, getAllBookmarks } from "../myapi/client";
+import { convertBookmarkKeys } from "../utils/bookmarks";
 
 export const useSocketManager = () => {
   const {
     setConnected,
     setFrameCount,
-    isConnected,
     setCurrentFrame,
     setFrameSelection,
-    setSelection,
     setSelections,
     setSelectionGroups,
     setActiveSelectionGroup,
@@ -113,9 +112,25 @@ export const useSocketManager = () => {
       setFrameSelection(data["indices"] || null);
     }
 
-    function onBookmarksUpdate(data: any) {
-      console.log("Bookmarks update:", data);
-      setBookmarks(data["bookmarks"] || null);
+    async function onBookmarksInvalidate(data: any) {
+      if (!roomId) return;
+
+      try {
+        console.log("Received bookmarks:invalidate event:", data);
+
+        // Fetch the latest bookmarks from the server
+        const response = await getAllBookmarks(roomId);
+
+        // Convert string keys to number keys (JSON limitation)
+        const bookmarksWithNumberKeys = convertBookmarkKeys(response.bookmarks);
+
+        // Update the store with the latest bookmarks
+        setBookmarks(bookmarksWithNumberKeys);
+
+        console.log("Updated bookmarks from server:", bookmarksWithNumberKeys);
+      } catch (error) {
+        console.error("Error fetching bookmarks after invalidation:", error);
+      }
     }
 
     function onFramesInvalidate(data: any) {
@@ -383,7 +398,7 @@ export const useSocketManager = () => {
     socket.on("invalidate:schema", onSchemaInvalidate);
     socket.on("queue:update", onQueueUpdate);
     socket.on("frame_selection:update", onFrameSelectionUpdate);
-    socket.on("bookmarks:update", onBookmarksUpdate);
+    socket.on("bookmarks:invalidate", onBookmarksInvalidate);
     socket.on("frames:invalidate", onFramesInvalidate);
     socket.on("chat:message:new", onChatMessageNew);
     socket.on("chat:message:updated", onChatMessageUpdated);
@@ -404,7 +419,7 @@ export const useSocketManager = () => {
       socket.off("invalidate:schema", onSchemaInvalidate);
       socket.off("queue:update", onQueueUpdate);
       socket.off("frame_selection:update", onFrameSelectionUpdate);
-      socket.off("bookmarks:update", onBookmarksUpdate);
+      socket.off("bookmarks:invalidate", onBookmarksInvalidate);
       socket.off("frames:invalidate", onFramesInvalidate);
       socket.off("chat:message:new", onChatMessageNew);
       socket.off("chat:message:updated", onChatMessageUpdated);
@@ -425,7 +440,6 @@ export const useSocketManager = () => {
     setCurrentFrame,
     queryClient,
     setBookmarks,
-    setSelection,
     setSelections,
     setSelectionGroups,
     setActiveSelectionGroup,

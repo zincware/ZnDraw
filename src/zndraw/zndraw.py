@@ -8,6 +8,7 @@ import ase
 import numpy as np
 
 from zndraw.api_manager import APIManager
+from zndraw.bookmarks_manager import Bookmarks
 from zndraw.exceptions import LockError
 from zndraw.extensions import Extension, ExtensionType
 from zndraw.figures_manager import Figures
@@ -375,31 +376,25 @@ class ZnDraw(MutableSequence):
             raise RuntimeError("Client is not connected.")
 
     @property
-    def bookmarks(self) -> dict[int, str]:
-        return self._bookmarks.copy()
+    def bookmarks(self) -> Bookmarks:
+        """Access bookmarks using MutableMapping interface.
 
-    @bookmarks.setter
-    def bookmarks(self, value: dict[int, str] | None):
-        bookmarks = {} if value is None else value
-        if not isinstance(bookmarks, dict):
-            raise TypeError("Bookmarks must be a dictionary.")
+        Returns
+        -------
+        Bookmarks
+            A dict-like interface to frame bookmarks.
 
-        for idx, label in bookmarks.items():
-            if not (isinstance(idx, int) and 0 <= idx < len(self)):
-                raise IndexError(f"Bookmark index {idx} out of range.")
-            if not isinstance(label, str):
-                raise TypeError("Bookmark label must be a string.")
-
-        if self.socket.sio.connected:
-            bookmarks_json = {str(k): v for k, v in bookmarks.items()}
-            response = self.socket.sio.call(
-                "bookmarks:set", {"bookmarks": bookmarks_json}, timeout=5
-            )
-            if response and not response.get("success", False):
-                raise RuntimeError(response.get("message", "Failed to set bookmarks"))
-            self._bookmarks = bookmarks
-        else:
-            raise RuntimeError("Client is not connected.")
+        Examples
+        --------
+        >>> vis.bookmarks[0] = "First Frame"
+        >>> print(vis.bookmarks[0])
+        >>> del vis.bookmarks[0]
+        >>> len(vis.bookmarks)
+        >>> list(vis.bookmarks)
+        """
+        if not hasattr(self, "_bookmarks_accessor"):
+            self._bookmarks_accessor = Bookmarks(self)
+        return self._bookmarks_accessor
 
     def connect(self):
         self.socket.connect()

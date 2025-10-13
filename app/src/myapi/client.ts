@@ -243,6 +243,41 @@ export const loadSelectionGroup = async (
   return data;
 };
 
+// ==================== Bookmarks API ====================
+
+export interface BookmarksResponse {
+  bookmarks: Record<number, string>;
+}
+
+export const getAllBookmarks = async (
+  roomId: string,
+): Promise<BookmarksResponse> => {
+  const { data } = await apiClient.get(`/api/rooms/${roomId}/bookmarks`);
+  return data;
+};
+
+export const setBookmark = async (
+  roomId: string,
+  index: number,
+  label: string,
+): Promise<{ status: string }> => {
+  const { data } = await apiClient.put(
+    `/api/rooms/${roomId}/bookmarks/${index}`,
+    { label },
+  );
+  return data;
+};
+
+export const deleteBookmark = async (
+  roomId: string,
+  index: number,
+): Promise<{ status: string }> => {
+  const { data } = await apiClient.delete(
+    `/api/rooms/${roomId}/bookmarks/${index}`,
+  );
+  return data;
+};
+
 // ==================== Room API ====================
 
 export interface JoinRoomRequest {

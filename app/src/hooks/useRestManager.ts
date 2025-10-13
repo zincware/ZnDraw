@@ -4,6 +4,7 @@ import { useParams, useSearchParams } from "react-router-dom";
 import { set, throttle } from "lodash";
 import { useQueryClient } from "@tanstack/react-query";
 import { joinRoom as joinRoomApi } from "../myapi/client";
+import { convertBookmarkKeys } from "../utils/bookmarks";
 
 export const useRestJoinManager = () => {
   const {
@@ -77,7 +78,7 @@ export const useRestJoinManager = () => {
         setCurrentFrame(data.step);
       }
       if (data.bookmarks !== undefined) {
-        setBookmarks(data.bookmarks);
+        setBookmarks(convertBookmarkKeys(data.bookmarks));
       }
       if (data.clientId) {
         setClientId(data.clientId);

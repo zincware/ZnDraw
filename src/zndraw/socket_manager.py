@@ -140,7 +140,7 @@ class SocketManager:
         self.sio.on("invalidate", self._on_invalidate)
         self.sio.on("queue:update", self._on_queue_update)
         self.sio.on("frame_selection:update", self._on_frame_selection_update)
-        self.sio.on("bookmarks:update", self._on_bookmarks_update)
+        self.sio.on("bookmarks:invalidate", self._on_bookmarks_invalidate)
         self.sio.on("frames:invalidate", self._on_frames_invalidate)
         self.sio.on("invalidate:geometry", self._on_geometry_invalidate)
         self.sio.on("invalidate:figure", self._on_figure_invalidate)
@@ -190,9 +190,11 @@ class SocketManager:
         if "indices" in data:
             self.zndraw._frame_selection = frozenset(data["indices"])
 
-    def _on_bookmarks_update(self, data):
-        if "bookmarks" in data:
-            self.zndraw._bookmarks = {int(k): v for k, v in data["bookmarks"].items()}
+    def _on_bookmarks_invalidate(self, data):
+        """Handle bookmark invalidation by refetching from server."""
+        # Refetch all bookmarks from server to update local cache
+        bookmarks = self.zndraw.api.get_all_bookmarks()
+        self.zndraw._bookmarks = bookmarks
 
     def _on_geometry_invalidate(self, data):
         if key := data.get("key"):

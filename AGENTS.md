@@ -19,6 +19,8 @@ If sensible, implement collections.abc interfaces for your classes, such as Muta
 To run tests use
 - `uv run pytest tests/`
 
+Tests can run for up to 5 minutes - be patient!
+
 When designing new tests, read the old tests first to understand the existing patterns.
 Use `pytest.mark.parametrize` to avoid code duplication.
 Tests should be very specific and test only one thing.
