@@ -16,7 +16,7 @@ class CurveMarker(BaseModel):
         gt=0,
     )
     color: str = Field(
-        default="#000000",
+        default="default",
         description="Color of the markers. If None, uses the curve color",
     )
     opacity: float = Field(
@@ -82,10 +82,10 @@ class Curve(BaseGeometry):
         description="Settings for markers at the control points",
     )
     virtual_marker: CurveMarker = Field(
-        default_factory=lambda: CurveMarker(size=0.08, color="gray", opacity=0.5),
+        default_factory=lambda: CurveMarker(size=0.08, color="default", opacity=0.5),
         description="Virtual marker between two existing markers (for adding new points)",
     )
     color: str = Field(
-        default="#001722",
+        default="default",
         description="Curve color",
     )

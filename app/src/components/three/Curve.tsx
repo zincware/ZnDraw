@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState, useEffect, useCallback } from "react";
 import * as THREE from "three";
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
+import { useTheme } from "@mui/material/styles";
 import {
   Dodecahedron,
   TransformControls,
@@ -41,6 +42,8 @@ export default function Curve({ data, geometryKey }: { data: CurveData; geometry
     marker,
   } = data;
 
+  const theme = useTheme();
+
   const { currentFrame, roomId, isDrawing, drawingIsValid, drawingPointerPosition, setIsDrawing, clientId, setGeometryFetching, removeGeometryFetching, setCurveLength } = useAppStore();
   const [markerPositions, setMarkerPositions] = useState<THREE.Vector3[]>([]);
   const [lineSegments, setLineSegments] = useState<THREE.Vector3[]>([]);
@@ -50,6 +53,19 @@ export default function Curve({ data, geometryKey }: { data: CurveData; geometry
   const [lastUpdateSource, setLastUpdateSource] = useState<'remote' | 'local' | null>(null);
 
   const markerRefs = useRef<(THREE.Mesh | null)[]>([]);
+
+  // Helper function to resolve color based on theme
+  const getLineColor = useCallback((colorValue: string) => {
+    return colorValue === "default"
+      ? theme.palette.text.primary
+      : colorValue;
+  }, [theme]);
+
+  const getMarkerColor = useCallback((colorValue: string) => {
+    return colorValue === "default"
+      ? theme.palette.secondary.main
+      : colorValue;
+  }, [theme]);
 
   // --- Data Fetching ---
   // Simple conditional query for position data
@@ -276,7 +292,7 @@ export default function Curve({ data, geometryKey }: { data: CurveData; geometry
       {lineSegments.length >= 2 && (
         <Line
           points={lineSegments}
-          color={(isDrawing && !drawingIsValid) ? "#FF0000" : color}
+          color={(isDrawing && !drawingIsValid) ? "#FF0000" : getLineColor(color)}
           lineWidth={thickness}
           dashed={material === "LineDashedMaterial"}
         />
@@ -298,7 +314,7 @@ export default function Curve({ data, geometryKey }: { data: CurveData; geometry
             }}
           >
             <meshBasicMaterial
-              color={(isDrawing && !drawingIsValid) ? "#FF0000" : marker.color}
+              color={(isDrawing && !drawingIsValid) ? "#FF0000" : getMarkerColor(marker.color)}
               opacity={marker.opacity}
               transparent={marker.opacity < 1}
             />
@@ -316,7 +332,7 @@ export default function Curve({ data, geometryKey }: { data: CurveData; geometry
             onClick={() => handleVirtualMarkerClick(index)}
           >
             <meshBasicMaterial
-              color={virtualMarker.color}
+              color={getMarkerColor(virtualMarker.color)}
               opacity={virtualMarker.opacity}
               transparent={virtualMarker.opacity < 1}
             />
@@ -333,7 +349,7 @@ export default function Curve({ data, geometryKey }: { data: CurveData; geometry
           onClick={handleDrawingMarkerClick}
         >
           <meshBasicMaterial
-            color={(isDrawing && !drawingIsValid) ? "#FF0000" : marker.color}
+            color={(isDrawing && !drawingIsValid) ? "#FF0000" : getMarkerColor(marker.color)}
             opacity={marker.opacity}
             transparent={marker.opacity < 1}
           />

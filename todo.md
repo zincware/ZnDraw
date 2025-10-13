@@ -10,7 +10,7 @@
 - [ ] on new room set `uploading` blob to be true.
 - [ ] delete room
 - [ ] drag / drop, ctrl + v and ctrl + c and download / upload buttons
-- [ ] curve, have "default" as color
+- [x] curve, have "default" as color
 - [ ] default value for modifiers / selection / settings / analyses
 - [ ] link to github
 - [ ] SiMGen buttons and tutorial
