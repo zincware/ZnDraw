@@ -81,7 +81,11 @@ function MyScene() {
         // We REMOVE the dynamic near/far properties from here.
         // The initial position and fov are still useful.
         camera={{ position: [-10, 10, 30], fov: 50 }}
-        gl={{ antialias: true, toneMapping: THREE.ACESFilmicToneMapping }}
+        gl={{
+          antialias: true,
+          toneMapping: THREE.ACESFilmicToneMapping,
+          preserveDrawingBuffer: cameraSettings.preserve_drawing_buffer === true
+        }}
         style={{ background: backgroundColor }}
         // The orthographic prop still sets the initial camera type.
         orthographic={cameraSettings.camera === "OrthographicCamera"}

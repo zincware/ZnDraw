@@ -29,6 +29,12 @@
           "description": "Show a crosshair at the camera's focal point",
           "title": "Show Crosshair",
           "type": "boolean"
+        },
+        "preserve_drawing_buffer": {
+          "default": false,
+          "description": "Enable screenshot capture (WARNING: reduces rendering performance)",
+          "title": "Preserve Drawing Buffer",
+          "type": "boolean"
         }
       },
       "title": "Camera",
@@ -125,7 +131,8 @@
         "camera": "PerspectiveCamera",
         "near_plane": 0.1,
         "far_plane": 300.0,
-        "show_crosshair": false
+        "show_crosshair": false,
+        "preserve_drawing_buffer": false
       }
     },
     "studio_lighting": {
@@ -143,9 +150,7 @@
     "property_inspector": {
       "$ref": "#/$defs/PropertyInspector",
       "default": {
-        "enabled_properties": [],
-        "show_per_particle": true,
-        "show_global": true
+        "enabled_properties": []
       }
     }
   },

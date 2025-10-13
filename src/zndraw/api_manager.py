@@ -721,3 +721,122 @@ class APIManager:
             self._raise_for_error_type(response)
 
         response.raise_for_status()
+
+    # ========================================================================
+    # Screenshot API Methods
+    # ========================================================================
+
+    def list_screenshots(self, limit: int = 20, offset: int = 0) -> dict:
+        """List all screenshots for the room.
+
+        Parameters
+        ----------
+        limit : int
+            Maximum number of screenshots to return (default 20, max 100).
+        offset : int
+            Number of screenshots to skip (default 0).
+
+        Returns
+        -------
+        dict
+            {
+                "screenshots": [
+                    {
+                        "id": 1,
+                        "format": "png",
+                        "size": 123456,
+                        "width": 1920,
+                        "height": 1080,
+                        "url": "/api/rooms/{room}/screenshots/1"
+                    }
+                ],
+                "total": 45,
+                "limit": 20,
+                "offset": 0
+            }
+        """
+        response = requests.get(
+            f"{self.url}/api/rooms/{self.room}/screenshots",
+            params={"limit": limit, "offset": offset},
+        )
+        response.raise_for_status()
+        return response.json()
+
+    def get_screenshot_metadata(self, screenshot_id: int) -> dict:
+        """Get metadata for a specific screenshot.
+
+        Parameters
+        ----------
+        screenshot_id : int
+            Screenshot identifier
+
+        Returns
+        -------
+        dict
+            {
+                "id": 1,
+                "format": "png",
+                "size": 123456,
+                "width": 1920,
+                "height": 1080,
+                "url": "/api/rooms/{room}/screenshots/1"
+            }
+
+        Raises
+        ------
+        requests.HTTPError
+            If screenshot not found (404).
+        """
+        response = requests.get(
+            f"{self.url}/api/rooms/{self.room}/screenshots/{screenshot_id}/metadata"
+        )
+        response.raise_for_status()
+        return response.json()
+
+    def download_screenshot(self, screenshot_id: int) -> bytes:
+        """Download a screenshot as bytes.
+
+        Parameters
+        ----------
+        screenshot_id : int
+            Screenshot identifier
+
+        Returns
+        -------
+        bytes
+            The image file data
+
+        Raises
+        ------
+        requests.HTTPError
+            If screenshot not found (404).
+        """
+        response = requests.get(
+            f"{self.url}/api/rooms/{self.room}/screenshots/{screenshot_id}"
+        )
+        response.raise_for_status()
+        return response.content
+
+    def delete_screenshot(self, screenshot_id: int) -> bool:
+        """Delete a screenshot.
+
+        Parameters
+        ----------
+        screenshot_id : int
+            Screenshot identifier
+
+        Returns
+        -------
+        bool
+            True if deleted successfully
+
+        Raises
+        ------
+        requests.HTTPError
+            If screenshot not found (404).
+        """
+        response = requests.delete(
+            f"{self.url}/api/rooms/{self.room}/screenshots/{screenshot_id}"
+        )
+        response.raise_for_status()
+        return response.json().get("success", False)

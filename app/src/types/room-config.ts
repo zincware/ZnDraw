@@ -31,6 +31,10 @@ export interface Camera {
      */
     near_plane?: number;
     /**
+     * Enable screenshot capture (WARNING: reduces rendering performance)
+     */
+    preserve_drawing_buffer?: boolean;
+    /**
      * Show a crosshair at the camera's focal point
      */
     show_crosshair?: boolean;

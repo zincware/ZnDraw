@@ -88,6 +88,99 @@ class SelectionGroups:
         return len(data["groups"])
 
 
+class Screenshots:
+    """Accessor for room screenshots."""
+
+    def __init__(self, zndraw_instance: "ZnDraw") -> None:
+        self.vis = zndraw_instance
+
+    def list(self, limit: int = 20, offset: int = 0) -> list[dict]:
+        """List all screenshots for this room.
+
+        Parameters
+        ----------
+        limit : int
+            Maximum number of screenshots to return (default: 20, max: 100).
+        offset : int
+            Number of screenshots to skip (default: 0).
+
+        Returns
+        -------
+        list[dict]
+            List of screenshot metadata dictionaries.
+        """
+        result = self.vis.api.list_screenshots(limit, offset)
+        return result.get("screenshots", [])
+
+    def get(self, screenshot_id: int) -> bytes:
+        """Download screenshot data by ID.
+
+        Parameters
+        ----------
+        screenshot_id : int
+            Screenshot identifier.
+
+        Returns
+        -------
+        bytes
+            The image file data.
+        """
+        return self.vis.api.download_screenshot(screenshot_id)
+
+    def metadata(self, screenshot_id: int) -> dict:
+        """Get metadata for a screenshot.
+
+        Parameters
+        ----------
+        screenshot_id : int
+            Screenshot identifier.
+
+        Returns
+        -------
+        dict
+            Screenshot metadata (id, format, size, dimensions).
+        """
+        return self.vis.api.get_screenshot_metadata(screenshot_id)
+
+    def delete(self, screenshot_id: int) -> bool:
+        """Delete a screenshot.
+
+        Parameters
+        ----------
+        screenshot_id : int
+            Screenshot identifier.
+
+        Returns
+        -------
+        bool
+            True if deleted successfully.
+        """
+        return self.vis.api.delete_screenshot(screenshot_id)
+
+    @property
+    def latest(self) -> dict | None:
+        """Get most recent screenshot metadata.
+
+        Returns
+        -------
+        dict | None
+            Latest screenshot metadata, or None if no screenshots exist.
+        """
+        results = self.list(limit=1)
+        return results[0] if results else None
+
+    def __len__(self) -> int:
+        """Get total number of screenshots.
+
+        Returns
+        -------
+        int
+            Total screenshot count.
+        """
+        result = self.vis.api.list_screenshots(limit=1)
+        return result.get("total", 0)
+
+
 @dataclasses.dataclass
 class ZnDraw(MutableSequence):
     """A client for interacting with the ZnDraw server.
@@ -395,6 +488,33 @@ class ZnDraw(MutableSequence):
         if not hasattr(self, "_bookmarks_accessor"):
             self._bookmarks_accessor = Bookmarks(self)
         return self._bookmarks_accessor
+
+    @property
+    def screenshots(self) -> Screenshots:
+        """Access screenshots for this room.
+
+        Returns
+        -------
+        Screenshots
+            An interface to manage room screenshots.
+
+        Examples
+        --------
+        >>> # List all screenshots
+        >>> screenshots = vis.screenshots.list()
+        >>>
+        >>> # Get latest screenshot
+        >>> latest = vis.screenshots.latest
+        >>>
+        >>> # Download screenshot data
+        >>> data = vis.screenshots.get(screenshot_id)
+        >>>
+        >>> # Delete a screenshot
+        >>> vis.screenshots.delete(screenshot_id)
+        """
+        if not hasattr(self, "_screenshots_accessor"):
+            self._screenshots_accessor = Screenshots(self)
+        return self._screenshots_accessor
 
     def connect(self):
         self.socket.connect()

@@ -144,6 +144,10 @@ class Camera(SettingsBase):
     show_crosshair: bool = Field(
         default=False, description="Show a crosshair at the camera's focal point"
     )
+    preserve_drawing_buffer: bool = Field(
+        default=False,
+        description="Enable screenshot capture (WARNING: reduces rendering performance)",
+    )
 
 
 settings = {

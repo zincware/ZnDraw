@@ -2971,6 +2971,194 @@ def load_selection_group(room_id: str, group_name: str):
 # ============================================================================
 
 
+# ============================================================================
+# Screenshot API Routes
+# ============================================================================
+
+from zndraw.screenshot_manager import ScreenshotManager
+
+# 10MB max file size for screenshots
+MAX_SCREENSHOT_SIZE = 10 * 1024 * 1024
+
+
+def _get_screenshot_manager(room_id: str) -> ScreenshotManager:
+    """Helper to create ScreenshotManager instance."""
+    storage_path = current_app.config.get("STORAGE_PATH", "./zndraw-data.zarr")
+    return ScreenshotManager(room_id, storage_path)
+
+
+@main.route("/api/rooms/<string:room_id>/screenshots/upload", methods=["POST"])
+def upload_screenshot(room_id: str):
+    """Upload screenshot from frontend.
+
+    Request:
+        multipart/form-data with:
+        - file: image file
+        - format: png/jpeg/webp
+        - width: optional image width
+        - height: optional image height
+
+    Response:
+        JSON with screenshot metadata
+    """
+    if "file" not in request.files:
+        return {"error": "No file provided"}, 400
+
+    file = request.files["file"]
+    if file.filename == "":
+        return {"error": "Empty filename"}, 400
+
+    format = request.form.get("format", "png")
+    width = request.form.get("width", type=int)
+    height = request.form.get("height", type=int)
+
+    try:
+        image_data = file.read()
+
+        # Validate file size
+        if len(image_data) > MAX_SCREENSHOT_SIZE:
+            return {
+                "error": f"File too large. Maximum size is {MAX_SCREENSHOT_SIZE // 1024 // 1024}MB"
+            }, 400
+
+        manager = _get_screenshot_manager(room_id)
+        screenshot = manager.save(image_data, format, width, height)
+
+        socketio.emit(
+            "screenshot:created",
+            {"id": screenshot.id},
+            to=f"room:{room_id}",
+        )
+
+        return {
+            "id": screenshot.id,
+            "format": screenshot.format,
+            "size": screenshot.size,
+            "url": f"/api/rooms/{room_id}/screenshots/{screenshot.id}",
+        }, 201
+    except ValueError as e:
+        return {"error": str(e)}, 400
+    except Exception as e:
+        return {"error": f"Failed to save screenshot: {str(e)}"}, 500
+
+
+@main.route("/api/rooms/<string:room_id>/screenshots", methods=["GET"])
+def list_screenshots(room_id: str):
+    """List all screenshots for a room.
+
+    Query params:
+        limit: max results (default 20)
+        offset: skip N results (default 0)
+
+    Response:
+        JSON with screenshots array and total count
+    """
+    limit = request.args.get("limit", 20, type=int)
+    offset = request.args.get("offset", 0, type=int)
+
+    if limit < 1 or limit > 100:
+        return {"error": "Limit must be between 1 and 100"}, 400
+    if offset < 0:
+        return {"error": "Offset must be non-negative"}, 400
+
+    try:
+        manager = _get_screenshot_manager(room_id)
+        screenshots = manager.list(limit, offset)
+        total = manager.count()
+
+        return {
+            "screenshots": [
+                {
+                    "id": s.id,
+                    "format": s.format,
+                    "size": s.size,
+                    "width": s.width,
+                    "height": s.height,
+                    "url": f"/api/rooms/{room_id}/screenshots/{s.id}",
+                }
+                for s in screenshots
+            ],
+            "total": total,
+            "limit": limit,
+            "offset": offset,
+        }, 200
+    except Exception as e:
+        return {"error": f"Failed to list screenshots: {str(e)}"}, 500
+
+
+@main.route("/api/rooms/<string:room_id>/screenshots/<int:screenshot_id>", methods=["GET"])
+def get_screenshot(room_id: str, screenshot_id: int):
+    """Download a specific screenshot.
+
+    Returns the image file with appropriate Content-Type header.
+    """
+    try:
+        manager = _get_screenshot_manager(room_id)
+        result = manager.get(screenshot_id)
+
+        if not result:
+            return {"error": "Screenshot not found"}, 404
+
+        filepath, metadata = result
+        return send_from_directory(
+            filepath.parent,
+            filepath.name,
+            mimetype=f"image/{metadata.format}",
+        )
+    except Exception as e:
+        return {"error": f"Failed to get screenshot: {str(e)}"}, 500
+
+
+@main.route(
+    "/api/rooms/<string:room_id>/screenshots/<int:screenshot_id>/metadata",
+    methods=["GET"],
+)
+def get_screenshot_metadata(room_id: str, screenshot_id: int):
+    """Get metadata for a specific screenshot."""
+    try:
+        manager = _get_screenshot_manager(room_id)
+        result = manager.get(screenshot_id)
+
+        if not result:
+            return {"error": "Screenshot not found"}, 404
+
+        _, metadata = result
+        return {
+            "id": metadata.id,
+            "format": metadata.format,
+            "size": metadata.size,
+            "width": metadata.width,
+            "height": metadata.height,
+            "url": f"/api/rooms/{room_id}/screenshots/{metadata.id}",
+        }, 200
+    except Exception as e:
+        return {"error": f"Failed to get screenshot metadata: {str(e)}"}, 500
+
+
+@main.route("/api/rooms/<string:room_id>/screenshots/<int:screenshot_id>", methods=["DELETE"])
+def delete_screenshot(room_id: str, screenshot_id: int):
+    """Delete a screenshot."""
+    try:
+        manager = _get_screenshot_manager(room_id)
+
+        if manager.delete(screenshot_id):
+            socketio.emit(
+                "screenshot:deleted",
+                {"id": screenshot_id},
+                to=f"room:{room_id}",
+            )
+            return {"success": True}, 200
+
+        return {"error": "Screenshot not found"}, 404
+    except Exception as e:
+        return {"error": f"Failed to delete screenshot: {str(e)}"}, 500
+
+
+# ============================================================================
+# End Screenshot API Routes
+# ============================================================================
+
+
 def _transition_worker_to_idle(
     redis_client,
     socketio_instance,

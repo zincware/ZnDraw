@@ -26,6 +26,8 @@ import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import ListIcon from "@mui/icons-material/List";
 import FolderOpenIcon from "@mui/icons-material/FolderOpen";
 import PowerSettingsNewIcon from "@mui/icons-material/PowerSettingsNew";
+import CameraAltIcon from "@mui/icons-material/CameraAlt";
+import CircularProgress from "@mui/material/CircularProgress";
 import {
   getRoom,
   updateRoom,
@@ -37,6 +39,9 @@ import {
   getFileBrowserConfig,
   shutdownServer,
 } from "../myapi/client";
+import { takeAndUploadScreenshot } from "../utils/screenshot";
+import { useExtensionData } from "../hooks/useSchemas";
+import { useAppStore } from "../store";
 
 interface DuplicateFormState {
   newRoomId: string;
@@ -54,7 +59,8 @@ interface DuplicateFormState {
 export default function RoomManagementMenu() {
   const { roomId } = useParams<{ roomId: string }>();
   const navigate = useNavigate();
-  
+  const { userId } = useAppStore();
+
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [roomDetail, setRoomDetail] = useState<RoomDetail | null>(null);
   const [isDefault, setIsDefault] = useState(false);
@@ -71,6 +77,15 @@ export default function RoomManagementMenu() {
     message: string;
     severity: "success" | "error";
   }>({ open: false, message: "", severity: "success" });
+  const [screenshotLoading, setScreenshotLoading] = useState(false);
+
+  // Fetch camera settings to check preserve_drawing_buffer
+  const { data: cameraSettings } = useExtensionData(
+    roomId || "",
+    userId || "",
+    "settings",
+    "camera",
+  );
 
   // Fetch all rooms to check for duplicates and get current room metadata
   const { data: rooms = [] } = useQuery({
@@ -258,6 +273,54 @@ export default function RoomManagementMenu() {
     });
   };
 
+  const handleTakeScreenshot = async () => {
+    if (!roomId) {
+      setSnackbar({
+        open: true,
+        message: "No room ID available",
+        severity: "error",
+      });
+      return;
+    }
+
+    // Check if preserve_drawing_buffer is enabled
+    if (!cameraSettings?.preserve_drawing_buffer) {
+      setSnackbar({
+        open: true,
+        message: "Enable 'preserve_drawing_buffer' in Camera settings first",
+        severity: "error",
+      });
+      return;
+    }
+
+    setScreenshotLoading(true);
+    handleCloseMenu();
+
+    try {
+      const canvas = document.querySelector("canvas");
+
+      if (!canvas) {
+        throw new Error("Canvas element not found");
+      }
+
+      const result = await takeAndUploadScreenshot(canvas, roomId);
+
+      setSnackbar({
+        open: true,
+        message: "Screenshot saved successfully",
+        severity: "success",
+      });
+    } catch (error) {
+      setSnackbar({
+        open: true,
+        message: `Screenshot failed: ${error instanceof Error ? error.message : "Unknown error"}`,
+        severity: "error",
+      });
+    } finally {
+      setScreenshotLoading(false);
+    }
+  };
+
   if (!roomId) {
     return null;
   }
@@ -345,6 +408,13 @@ export default function RoomManagementMenu() {
             <ContentCopyIcon />
           </ListItemIcon>
           <ListItemText>Duplicate Room</ListItemText>
+        </MenuItem>
+
+        <MenuItem onClick={handleTakeScreenshot} disabled={screenshotLoading}>
+          <ListItemIcon>
+            {screenshotLoading ? <CircularProgress size={20} /> : <CameraAltIcon />}
+          </ListItemIcon>
+          <ListItemText>Take Screenshot</ListItemText>
         </MenuItem>
 
         <MenuItem onClick={handleGoToRoomList}>
