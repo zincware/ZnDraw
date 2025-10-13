@@ -2,7 +2,7 @@ import * as THREE from "three";
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { getFrames } from "../../myapi/client";
 import { useAppStore } from "../../store";
-import { useRef, useMemo, useState, useEffect } from "react";
+import { useRef, useMemo, useState, useEffect, useCallback } from "react";
 import { renderMaterial } from "./materials";
 import { shouldFetchAsFrameData } from "../../utils/colorUtils";
 import {
@@ -59,10 +59,30 @@ export default function Bonds({ data, geometryKey }: { data: BondData; geometryK
   const hoverMeshRef = useRef<THREE.Mesh | null>(null);
   const [hoveredBondId, setHoveredBondId] = useState<number | null>(null);
   const [instanceCount, setInstanceCount] = useState(0);
+  const [bondPairs, setBondPairs] = useState<[number, number][]>([]);
 
-  const { roomId, currentFrame, clientId, selection, setGeometryFetching, removeGeometryFetching } = useAppStore();
+  const { roomId, currentFrame, clientId, selections, updateSelections, setGeometryFetching, removeGeometryFetching } = useAppStore();
 
-  const selectionSet = useMemo(() => new Set(selection || []), [selection]);
+  // Use geometry-specific selection
+  const bondSelection = selections[geometryKey] || [];
+  const selectionSet = useMemo(() => new Set(bondSelection), [bondSelection]);
+
+  // Calculate which bond instances should be selected
+  // Check if the bond pair index is in the selection set
+  const selectedBondIndices = useMemo(() => {
+    const indices: number[] = [];
+    let instanceIndex = 0;
+    for (let bondPairIndex = 0; bondPairIndex < bondPairs.length; bondPairIndex++) {
+      const isSelected = selectionSet.has(bondPairIndex);
+      if (isSelected) {
+        indices.push(instanceIndex);     // First half-bond
+        indices.push(instanceIndex + 1); // Second half-bond
+      }
+      instanceIndex += 2;
+    }
+    return indices;
+  }, [bondPairs, selectionSet]);
+
   const bondResolution = resolution || 8;
   const bondScale = scale || 1.0;
 
@@ -161,37 +181,43 @@ export default function Bonds({ data, geometryKey }: { data: BondData; geometryK
       const fetchedConnectivity = typeof connectivityProp === 'string' ? connectivityData?.[connectivityProp as string] : undefined;
       const connectivityRaw = fetchedConnectivity || connectivityProp;
 
-      const bondPairs: [number, number][] = [];
+      const newBondPairs: [number, number][] = [];
       if (connectivityRaw && connectivityRaw.length > 0) {
         if (Array.isArray(connectivityRaw[0])) {
-          (connectivityRaw as number[][]).forEach(conn => bondPairs.push([conn[0], conn[1]]));
+          (connectivityRaw as number[][]).forEach(conn => newBondPairs.push([conn[0], conn[1]]));
         } else {
           for (let i = 0; i < connectivityRaw.length; i += 3) {
-            bondPairs.push([connectivityRaw[i], connectivityRaw[i + 1]]);
+            newBondPairs.push([connectivityRaw[i], connectivityRaw[i + 1]]);
           }
         }
       }
 
-      if (bondPairs.length === 0) {
+      if (newBondPairs.length === 0) {
         if (instanceCount !== 0) setInstanceCount(0);
+        if (bondPairs.length !== 0) setBondPairs([]);
         return;
       }
 
       // Each bond pair creates 2 half-bond instances
-      const finalCount = bondPairs.length * 2;
+      const finalCount = newBondPairs.length * 2;
 
       // --- Mesh Resizing Step ---
       if (instanceCount !== finalCount) {
         setInstanceCount(finalCount);
+        setBondPairs(newBondPairs);
         return;
+      }
+
+      // Update bondPairs if connectivity changed
+      if (JSON.stringify(bondPairs) !== JSON.stringify(newBondPairs)) {
+        setBondPairs(newBondPairs);
       }
 
       // --- Mesh Instance Update Step ---
       const mainMesh = mainMeshRef.current;
       if (!mainMesh) return;
-
       let instanceIndex = 0;
-      for (const bond of bondPairs) {
+      for (const bond of newBondPairs) {
         const [a, b] = bond;
         if (a >= atomCount || b >= atomCount) continue;
 
@@ -225,6 +251,39 @@ export default function Bonds({ data, geometryKey }: { data: BondData; geometryK
 
       mainMesh.instanceMatrix.needsUpdate = true;
       if (mainMesh.instanceColor) mainMesh.instanceColor.needsUpdate = true;
+
+      // --- Selection Mesh Update ---
+      if (selecting.enabled && selectionMeshRef.current) {
+        const selectionMesh = selectionMeshRef.current;
+        selectedBondIndices.forEach((bondInstanceId, arrayIndex) => {
+          // Copy matrix from main mesh and scale up
+          mainMesh.getMatrixAt(bondInstanceId, _matrix);
+          _matrix.scale(new THREE.Vector3(SELECTION_SCALE, SELECTION_SCALE, SELECTION_SCALE));
+          selectionMesh.setMatrixAt(arrayIndex, _matrix);
+        });
+        selectionMesh.instanceMatrix.needsUpdate = true;
+      }
+
+      // --- Hover Mesh Update ---
+      if (hovering?.enabled && hoverMeshRef.current) {
+        const hoverMesh = hoverMeshRef.current;
+        if (hoveredBondId !== null && hoveredBondId < finalCount) {
+          hoverMesh.visible = true;
+          // Get the matrix from the hovered bond instance
+          mainMesh.getMatrixAt(hoveredBondId, _matrix);
+          // Decompose to get position, rotation, and scale
+          const position = new THREE.Vector3();
+          const rotation = new THREE.Quaternion();
+          const scale = new THREE.Vector3();
+          _matrix.decompose(position, rotation, scale);
+          // Apply to hover mesh with scaled-up dimensions
+          hoverMesh.position.copy(position);
+          hoverMesh.quaternion.copy(rotation);
+          hoverMesh.scale.copy(scale).multiplyScalar(HOVER_SCALE);
+        } else {
+          hoverMesh.visible = false;
+        }
+      }
     } catch (error) {
       console.error("Error processing Bonds data:", error);
       if (instanceCount !== 0) setInstanceCount(0);
@@ -241,6 +300,10 @@ export default function Bonds({ data, geometryKey }: { data: BondData; geometryK
     connectivityProp,
     instanceCount,
     bondScale,
+    selecting,
+    selectedBondIndices,
+    hovering,
+    hoveredBondId,
   ]);
 
   const bondGeometry = useMemo(() => {
@@ -250,14 +313,28 @@ export default function Bonds({ data, geometryKey }: { data: BondData; geometryK
     geom.translate(0, 0.5, 0); // Move base to origin
     return geom;
   }, [bondResolution]);
-  
-  const onPointerMove = (e: any) => {
+
+  const onClickHandler = useCallback((event: any) => {
+    if (event.detail !== 1 || event.instanceId === undefined) return;
+    event.stopPropagation();
+    // Convert instance ID to bond pair index (each pair has 2 instances)
+    const bondPairIndex = Math.floor(event.instanceId / 2);
+    updateSelections(geometryKey, bondPairIndex, event.shiftKey);
+  }, [updateSelections, geometryKey]);
+
+  const onPointerEnter = useCallback((e: any) => {
     if (e.instanceId === undefined) return;
     e.stopPropagation();
     setHoveredBondId(e.instanceId);
-  };
+  }, []);
 
-  const onPointerOut = () => setHoveredBondId(null);
+  const onPointerMove = useCallback((e: any) => {
+    if (e.instanceId === undefined) return;
+    e.stopPropagation();
+    setHoveredBondId(e.instanceId);
+  }, []);
+
+  const onPointerOut = useCallback(() => setHoveredBondId(null), []);
 
   if (!clientId || !roomId) return null;
 
@@ -267,23 +344,42 @@ export default function Bonds({ data, geometryKey }: { data: BondData; geometryK
         key={instanceCount}
         ref={mainMeshRef}
         args={[bondGeometry, undefined, instanceCount]}
+        onClick={selecting.enabled ? onClickHandler : undefined}
+        onPointerEnter={hovering.enabled ? onPointerEnter : undefined}
         onPointerMove={hovering.enabled ? onPointerMove : undefined}
         onPointerOut={hovering.enabled ? onPointerOut : undefined}
       >
         {renderMaterial(material, opacity)}
       </instancedMesh>
 
-      {/* Selection and hover meshes can be enabled later if needed */}
-      {/* {selecting.enabled && (
-        <instancedMesh ref={selectionMeshRef} args={[bondGeometry, undefined, 0]}>
-          <meshBasicMaterial transparent opacity={selecting.opacity} color={selecting.color || "#FFFF00"} />
+      {/* Selection mesh */}
+      {selecting.enabled && (
+        <instancedMesh
+          key={`selection-${selectedBondIndices.length}`}
+          ref={selectionMeshRef}
+          args={[bondGeometry, undefined, selectedBondIndices.length]}
+        >
+          <meshBasicMaterial
+            side={THREE.FrontSide}
+            transparent
+            opacity={selecting.opacity}
+            color={selecting.color || "#FFFF00"}
+          />
         </instancedMesh>
       )}
-      {hovering.enabled && (
-        <mesh ref={hoverMeshRef} visible={false} geometry={bondGeometry}>
-          <meshBasicMaterial transparent opacity={hovering.opacity} color={hovering.color || "#00FFFF"} />
+
+      {/* Hover mesh */}
+      {hovering?.enabled && (
+        <mesh ref={hoverMeshRef} visible={false}>
+          <primitive object={bondGeometry} attach="geometry" />
+          <meshBasicMaterial
+            side={THREE.BackSide}
+            transparent
+            opacity={hovering.opacity}
+            color={hovering.color || "#00FFFF"}
+          />
         </mesh>
-      )} */}
+      )}
     </group>
   );
 }

@@ -54,9 +54,11 @@ export default function Sphere({ data, geometryKey }: { data: SphereData; geomet
   const hoverMeshRef = useRef<THREE.Mesh | null>(null);
   const [instanceCount, setInstanceCount] = useState(0);
 
-  const { currentFrame, roomId, clientId, selection, updateSelection, setDrawingPointerPosition, isDrawing, setDrawingIsValid, setGeometryFetching, removeGeometryFetching, hoveredParticleId, setHoveredParticleId, setParticleCount } = useAppStore();
+  const { currentFrame, roomId, clientId, selections, updateSelections, setDrawingPointerPosition, isDrawing, setDrawingIsValid, setGeometryFetching, removeGeometryFetching, hoveredParticleId, setHoveredParticleId, setParticleCount } = useAppStore();
 
-  const selectionSet = useMemo(() => new Set(selection || []), [selection]);
+  // Use geometry-specific selection
+  const particleSelection = selections[geometryKey] || [];
+  const selectionSet = useMemo(() => new Set(particleSelection), [particleSelection]);
   const selectedIndices = useMemo(() => Array.from(selectionSet), [selectionSet]);
   const validSelectedIndices = useMemo(
     () => selectedIndices.filter((id) => id < instanceCount),
@@ -156,7 +158,6 @@ export default function Sphere({ data, geometryKey }: { data: SphereData; geomet
       // --- Main Mesh Instance Update ---
       const mainMesh = mainMeshRef.current;
       if (!mainMesh) return;
-
       for (let i = 0; i < finalCount; i++) {
         const i3 = i * 3;
         _vec3.set(finalPositions[i3], finalPositions[i3 + 1], finalPositions[i3 + 2]);
@@ -228,8 +229,8 @@ export default function Sphere({ data, geometryKey }: { data: SphereData; geomet
   const onClickHandler = useCallback((event: any) => {
     if (event.detail !== 1 || event.instanceId === undefined) return;
     event.stopPropagation();
-    updateSelection(event.instanceId, event.shiftKey);
-  }, [updateSelection]);
+    updateSelections(geometryKey, event.instanceId, event.shiftKey);
+  }, [updateSelections, geometryKey]);
 
   const onPointerMoveHandler = useCallback((event: any) => {
     if (event.instanceId === undefined) return;

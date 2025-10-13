@@ -434,12 +434,12 @@ class APIManager:
     
     def delete_metadata_field(self, field: str) -> None:
         """Delete a metadata field.
-        
+
         Parameters
         ----------
         field : str
             The metadata field name to delete.
-            
+
         Raises
         ------
         requests.HTTPError
@@ -447,5 +447,151 @@ class APIManager:
         """
         response = requests.delete(
             f"{self.url}/api/rooms/{self.room}/metadata/{field}"
+        )
+        response.raise_for_status()
+
+    # ========================================================================
+    # Selection API Methods
+    # ========================================================================
+
+    def get_all_selections(self) -> dict:
+        """Get all current selections and groups.
+
+        Returns
+        -------
+        dict
+            {
+                "selections": {"particles": [1,2,3], "forces": [2,3]},
+                "groups": {"group1": {"particles": [1,3], "forces": [1,3]}},
+                "activeGroup": "group1" | None
+            }
+        """
+        response = requests.get(f"{self.url}/api/rooms/{self.room}/selections")
+        response.raise_for_status()
+        return response.json()
+
+    def get_selection(self, geometry: str) -> dict:
+        """Get selection for a specific geometry.
+
+        Parameters
+        ----------
+        geometry : str
+            The geometry name (e.g., "particles", "forces")
+
+        Returns
+        -------
+        dict
+            {"selection": [1, 2, 3]}
+        """
+        response = requests.get(
+            f"{self.url}/api/rooms/{self.room}/selections/{geometry}"
+        )
+        response.raise_for_status()
+        return response.json()
+
+    def update_selection(self, geometry: str, indices: list[int]) -> None:
+        """Update selection for a specific geometry.
+
+        Parameters
+        ----------
+        geometry : str
+            The geometry name (e.g., "particles", "forces")
+        indices : list[int]
+            List of indices to select
+
+        Raises
+        ------
+        requests.HTTPError
+            If the request fails (e.g., invalid indices).
+        """
+        response = requests.put(
+            f"{self.url}/api/rooms/{self.room}/selections/{geometry}",
+            json={"indices": indices},
+        )
+        response.raise_for_status()
+
+    def get_selection_group(self, group_name: str) -> dict:
+        """Get a specific selection group.
+
+        Parameters
+        ----------
+        group_name : str
+            The group name
+
+        Returns
+        -------
+        dict
+            {"group": {"particles": [1, 3], "forces": [1, 3]}}
+
+        Raises
+        ------
+        requests.HTTPError
+            If group not found (404).
+        """
+        response = requests.get(
+            f"{self.url}/api/rooms/{self.room}/selections/groups/{group_name}"
+        )
+        response.raise_for_status()
+        return response.json()
+
+    def create_update_selection_group(
+        self, group_name: str, group_data: dict[str, list[int]]
+    ) -> None:
+        """Create or update a selection group.
+
+        Parameters
+        ----------
+        group_name : str
+            The group name
+        group_data : dict[str, list[int]]
+            Dict mapping geometry names to index lists
+            e.g., {"particles": [1, 3], "forces": [1, 3]}
+
+        Raises
+        ------
+        requests.HTTPError
+            If the request fails (e.g., invalid data).
+        """
+        response = requests.put(
+            f"{self.url}/api/rooms/{self.room}/selections/groups/{group_name}",
+            json=group_data,
+        )
+        response.raise_for_status()
+
+    def delete_selection_group(self, group_name: str) -> None:
+        """Delete a selection group.
+
+        Parameters
+        ----------
+        group_name : str
+            The group name
+
+        Raises
+        ------
+        requests.HTTPError
+            If group not found (404).
+        """
+        response = requests.delete(
+            f"{self.url}/api/rooms/{self.room}/selections/groups/{group_name}"
+        )
+        response.raise_for_status()
+
+    def load_selection_group(self, group_name: str) -> None:
+        """Load a selection group (apply it to current selections).
+
+        This sets the active group and updates all selections to match the group.
+
+        Parameters
+        ----------
+        group_name : str
+            The group name
+
+        Raises
+        ------
+        requests.HTTPError
+            If group not found (404).
+        """
+        response = requests.post(
+            f"{self.url}/api/rooms/{self.room}/selections/groups/{group_name}/load"
         )
         response.raise_for_status()

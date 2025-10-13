@@ -3,6 +3,7 @@ import { Box } from "@mui/material";
 import PrimaryDrawer from "./PrimaryDrawer";
 import SecondaryPanel from "./SecondaryPanel";
 import GeometryPanel from "./geometry/GeometryPanel";
+import SelectionsPanel from "./SelectionsPanel";
 import { useFormStore } from "../formStore";
 import SettingsIcon from "@mui/icons-material/Settings";
 import FilterCenterFocusIcon from "@mui/icons-material/FilterCenterFocus";
@@ -18,7 +19,7 @@ const navItems = [
     name: "selections",
     icon: <FilterCenterFocusIcon />,
     schemaType: "selections",
-    description: "Selection tools"
+    description: "Selection tools and groups"
   },
   { name: "modifiers", icon: <BuildIcon />, schemaType: "modifiers", description: "Modifier tools" },
   { name: "analysis", icon: <AnalyticsIcon />, schemaType: "analysis", description: "Analysis tools" },
@@ -29,6 +30,7 @@ const PRIMARY_DRAWER_WIDTH = 60;
 const SECONDARY_PANEL_WIDTH = 240;
 const SETTINGS_PANEL_WIDTH = 500;
 const GEOMETRIES_PANEL_WIDTH = 600;
+const SELECTIONS_PANEL_WIDTH = 550;
 
 const SideBar = () => {
   const selectedCategory = useFormStore((state) => state.selectedCategory);
@@ -45,6 +47,8 @@ const SideBar = () => {
   // Determine panel width based on selected category
   const panelWidth = selectedCategory === "geometries"
     ? GEOMETRIES_PANEL_WIDTH
+    : selectedCategory === "selections"
+    ? SELECTIONS_PANEL_WIDTH
     : selectedCategory === "settings"
     ? SETTINGS_PANEL_WIDTH
     : SECONDARY_PANEL_WIDTH;
@@ -75,6 +79,8 @@ const SideBar = () => {
         >
           {selectedCategory === "geometries" ? (
             <GeometryPanel />
+          ) : selectedCategory === "selections" ? (
+            <SelectionsPanel />
           ) : (
             <SecondaryPanel
               key={selectedCategory}

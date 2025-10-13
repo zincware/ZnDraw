@@ -157,6 +157,92 @@ export const getGeometrySchemas = async (
   const { data } = await apiClient.get(`/api/rooms/${roomId}/geometries/schemas`);
   return data;
 };
+
+// ==================== Selections API ====================
+
+export interface SelectionsResponse {
+  selections: Record<string, number[]>;
+  groups: Record<string, Record<string, number[]>>;
+  activeGroup: string | null;
+}
+
+export interface SelectionResponse {
+  geometry: string;
+  selection: number[];
+}
+
+export interface SelectionGroupResponse {
+  group: Record<string, number[]>;
+}
+
+export const getAllSelections = async (
+  roomId: string,
+): Promise<SelectionsResponse> => {
+  const { data } = await apiClient.get(`/api/rooms/${roomId}/selections`);
+  return data;
+};
+
+export const getSelection = async (
+  roomId: string,
+  geometry: string,
+): Promise<SelectionResponse> => {
+  const { data } = await apiClient.get(`/api/rooms/${roomId}/selections/${geometry}`);
+  return data;
+};
+
+export const updateSelection = async (
+  roomId: string,
+  geometry: string,
+  indices: number[],
+): Promise<{ success: boolean }> => {
+  const { data } = await apiClient.put(`/api/rooms/${roomId}/selections/${geometry}`, {
+    indices,
+  });
+  return data;
+};
+
+export const getSelectionGroup = async (
+  roomId: string,
+  groupName: string,
+): Promise<SelectionGroupResponse> => {
+  const { data } = await apiClient.get(
+    `/api/rooms/${roomId}/selections/groups/${groupName}`,
+  );
+  return data;
+};
+
+export const createUpdateSelectionGroup = async (
+  roomId: string,
+  groupName: string,
+  groupData: Record<string, number[]>,
+): Promise<{ success: boolean }> => {
+  const { data } = await apiClient.put(
+    `/api/rooms/${roomId}/selections/groups/${groupName}`,
+    groupData,
+  );
+  return data;
+};
+
+export const deleteSelectionGroup = async (
+  roomId: string,
+  groupName: string,
+): Promise<{ success: boolean }> => {
+  const { data } = await apiClient.delete(
+    `/api/rooms/${roomId}/selections/groups/${groupName}`,
+  );
+  return data;
+};
+
+export const loadSelectionGroup = async (
+  roomId: string,
+  groupName: string,
+): Promise<{ success: boolean }> => {
+  const { data } = await apiClient.post(
+    `/api/rooms/${roomId}/selections/groups/${groupName}/load`,
+  );
+  return data;
+};
+
 // ==================== Room API ====================
 
 export interface JoinRoomRequest {
@@ -172,7 +258,9 @@ export interface JoinRoomResponse {
   frameCount: number;
   roomId: string;
   template: string;
-  selection: number[] | null;
+  selections: Record<string, number[]>;
+  selectionGroups: Record<string, Record<string, number[]>>;
+  activeSelectionGroup: string | null;
   frame_selection: number[] | null;
   created: boolean;
   "presenter-lock": boolean | string | null;

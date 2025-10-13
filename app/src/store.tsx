@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { socket } from "./socket";
 import * as THREE from "three";
+import { updateSelection as updateSelectionAPI, loadSelectionGroup as loadSelectionGroupAPI } from "./myapi/client";
 
 interface AppState {
   // Connection & Room
@@ -12,7 +13,9 @@ interface AppState {
   currentFrame: number;
   frameCount: number;
   skipFrames: number;
-  selection: number[] | null;
+  selections: Record<string, number[]>; // per-geometry selections
+  selectionGroups: Record<string, Record<string, number[]>>; // named selection groups
+  activeSelectionGroup: string | null; // currently active group
   frame_selection: number[] | null;
   frameSelectionEnabled: boolean;
   bookmarks: Record<number, string> | null;
@@ -41,7 +44,11 @@ interface AppState {
   setFrameCount: (count: number) => void;
   setLoading: (loading: boolean) => void;
   setSkipFrames: (skip: number) => void;
-  setSelection: (selection: number[] | null) => void;
+  setSelections: (selections: Record<string, number[]>) => void; // set all selections
+  updateSelectionForGeometry: (geometry: string, indices: number[]) => void; // update specific geometry
+  setSelectionGroups: (groups: Record<string, Record<string, number[]>>) => void; // set all groups
+  setActiveSelectionGroup: (groupName: string | null) => void; // set active group
+  loadSelectionGroup: (groupName: string) => void; // load a group
   setFrameSelection: (selection: number[] | null) => void;
   setFrameSelectionEnabled: (enabled: boolean) => void;
   setBookmarks: (bookmark: Record<number, string> | null) => void;
@@ -50,7 +57,7 @@ interface AppState {
   setGeometries: (geometries: Record<string, any>) => void;
   setIsDrawing: (isDrawing: boolean) => void;
   setDrawingPointerPosition: (position: THREE.Vector3 | null) => void;
-  updateSelection: (id: number, isShiftPressed: boolean) => void;
+  updateSelections: (geometryKey: string, id: number, isShiftPressed: boolean) => void;
   setDrawingIsValid: (isValid: boolean) => void;
   setMetadataLock: (locked: boolean) => void;
   setGeometryFetching: (geometryKey: string, isFetching: boolean) => void;
@@ -76,6 +83,9 @@ export const useAppStore = create<AppState>((set, get) => ({
   isLoading: false,
   skipFrames: 1,
   selection: null,
+  selections: {}, // New: per-geometry selections
+  selectionGroups: {}, // New: named selection groups
+  activeSelectionGroup: null, // New: currently active group
   frame_selection: null,
   frameSelectionEnabled: false,
   bookmarks: null,
@@ -108,11 +118,55 @@ export const useAppStore = create<AppState>((set, get) => ({
     }),
   setLoading: (loading) => set({ isLoading: loading }),
   setSkipFrames: (skip) => set({ skipFrames: skip }),
-  setSelection: (selection) => {
-    set({ selection: selection });
-    // Emit socket event to sync with other clients
-    socket.emit("selection:set", { indices: selection || [] });
+
+  // New: set all selections (used when refetching from server)
+  // TODO: socket emit / post request?
+  setSelections: (selections) => {
+    set({
+      selections,
+    });
   },
+
+  // New: update selection for a specific geometry
+  updateSelectionForGeometry: (geometry, indices) => {
+    const roomId = get().roomId;
+    if (!roomId) return;
+
+    // Optimistic update
+    set((state) => {
+      const newSelections = {
+        ...state.selections,
+        [geometry]: indices,
+      };
+      return {
+        selections: newSelections,
+        selection: geometry === "particles" ? indices : state.selection,
+      };
+    });
+
+    // Update via REST API
+    updateSelectionAPI(roomId, geometry, indices).catch((error) => {
+      console.error(`Failed to update selection for ${geometry}:`, error);
+    });
+  },
+
+  // New: set all selection groups (used when refetching from server)
+  setSelectionGroups: (groups) => set({ selectionGroups: groups }),
+
+  // New: set the active selection group
+  setActiveSelectionGroup: (groupName) => set({ activeSelectionGroup: groupName }),
+
+  // New: load a selection group
+  loadSelectionGroup: (groupName) => {
+    const roomId = get().roomId;
+    if (!roomId) return;
+
+    // Call API to load the group - server will update selections and send invalidation
+    loadSelectionGroupAPI(roomId, groupName).catch((error) => {
+      console.error(`Failed to load selection group ${groupName}:`, error);
+    });
+  },
+
   setFrameSelection: (frame_selection) =>
     set({ frame_selection: frame_selection }),
   setFrameSelectionEnabled: (enabled) =>
@@ -164,40 +218,54 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   setSynchronizedMode: (enabled) => set({ synchronizedMode: enabled }),
 
-  updateSelection: (id, isShiftPressed) =>
-    set((state) => {
-      const currentSelection = state.selection || [];
-      // Use a Set for an efficient O(1) check to see if the item is already selected
-      const isCurrentlySelected = new Set(currentSelection).has(id);
+  updateSelections: (geometryKey, id, isShiftPressed) => {
+    const state = get();
+    const roomId = state.roomId;
+    if (!roomId) return;
 
-      // --- LOGIC FOR SHIFT + CLICK ---
-      if (isShiftPressed) {
-        // Create a new Set from the current selection for easy manipulation
-        const selectionSet = new Set(currentSelection);
+    const currentSelection = state.selections[geometryKey] || [];
+    // Use a Set for an efficient O(1) check to see if the item is already selected
+    const isCurrentlySelected = new Set(currentSelection).has(id);
 
-        if (isCurrentlySelected) {
-          // Rule 4: Shift-click on selected -> remove from selection set, keep the others
-          selectionSet.delete(id);
-        } else {
-          // Rule 3: Shift-click on unselected -> add the particle to selection
-          selectionSet.add(id);
-        }
-        socket.emit("selection:set", {"indices": Array.from(selectionSet)});
-        // Convert back to an array to store in state
-        return { selection: Array.from(selectionSet) };
+    let newSelection: number[];
+
+    // --- LOGIC FOR SHIFT + CLICK ---
+    if (isShiftPressed) {
+      // Create a new Set from the current selection for easy manipulation
+      const selectionSet = new Set(currentSelection);
+
+      if (isCurrentlySelected) {
+        // Rule 4: Shift-click on selected -> remove from selection set, keep the others
+        selectionSet.delete(id);
+      } else {
+        // Rule 3: Shift-click on unselected -> add the element to selection
+        selectionSet.add(id);
       }
-
+      newSelection = Array.from(selectionSet);
+    } else {
       // --- LOGIC FOR SIMPLE CLICK (no shift) ---
       if (isCurrentlySelected) {
-        // Rule 2: Click on selected -> no particles in the selection
-        socket.emit("selection:set", {"indices": []});
-        return { selection: [] };
+        // Rule 2: Click on selected -> clear the selection
+        newSelection = [];
       } else {
-        // Rule 1: Click on unselected -> the particle clicked on should be the ONLY particle in selection
-        socket.emit("selection:set", {"indices": [id]});
-        return { selection: [id] };
+        // Rule 1: Click on unselected -> the element clicked on should be the ONLY element in selection
+        newSelection = [id];
       }
-    }),
+    }
+
+    // Optimistic update
+    set((state) => ({
+      selections: {
+        ...state.selections,
+        [geometryKey]: newSelection,
+      },
+    }));
+
+    // Update via REST API
+    updateSelectionAPI(roomId, geometryKey, newSelection).catch((error) => {
+      console.error(`Failed to update selection for ${geometryKey}:`, error);
+    });
+  },
 
   addBookmark: (frame, label) => {
     const { bookmarks } = get();

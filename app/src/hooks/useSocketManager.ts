@@ -3,7 +3,7 @@ import { socket } from "../socket";
 import { useAppStore } from "../store";
 import { useQueryClient } from "@tanstack/react-query";
 import { useWindowManagerStore } from "../stores/windowManagerStore";
-import { listGeometries, getGeometry } from "../myapi/client";
+import { listGeometries, getGeometry, getAllSelections } from "../myapi/client";
 
 export const useSocketManager = () => {
   const {
@@ -13,6 +13,9 @@ export const useSocketManager = () => {
     setCurrentFrame,
     setFrameSelection,
     setSelection,
+    setSelections,
+    setSelectionGroups,
+    setActiveSelectionGroup,
     setBookmarks,
     roomId,
     userId,
@@ -103,11 +106,6 @@ export const useSocketManager = () => {
       console.log(
         `Queue updated for ${category}/${extension}: ${queueLength} queued, ${idleWorkers} idle, ${progressingWorkers} progressing`,
       );
-    }
-
-    function onSelectionUpdate(data: any) {
-      console.log(data);
-      setSelection(data["indices"] || null);
     }
 
     function onFrameSelectionUpdate(data: any) {
@@ -333,6 +331,45 @@ export const useSocketManager = () => {
       }
     }
 
+    async function onSelectionsInvalidate(data: any) {
+      if (!roomId) return;
+
+      try {
+        console.log("Received invalidate:selection event:", data);
+
+        // Fetch the latest selections from the server
+        const response = await getAllSelections(roomId);
+
+        // Update the store with the latest selections, groups, and active group
+        setSelections(response.selections);
+        setSelectionGroups(response.groups);
+        setActiveSelectionGroup(response.activeGroup);
+
+        console.log("Updated selections from server:", response);
+      } catch (error) {
+        console.error("Error fetching selections after invalidation:", error);
+      }
+    }
+
+    async function onSelectionGroupsInvalidate(data: any) {
+      if (!roomId) return;
+
+      try {
+        console.log("Received invalidate:selection_groups event:", data);
+
+        // Fetch only the groups and active group (more efficient than fetching everything)
+        const response = await getAllSelections(roomId);
+
+        // Update only groups and active group (not selections)
+        setSelectionGroups(response.groups);
+        setActiveSelectionGroup(response.activeGroup);
+
+        console.log("Updated selection groups from server:", response.groups);
+      } catch (error) {
+        console.error("Error fetching selection groups after invalidation:", error);
+      }
+    }
+
     function onConnectError(err: any) {
       console.error("Socket connection error:", err);
     }
@@ -345,7 +382,6 @@ export const useSocketManager = () => {
     socket.on("invalidate", onInvalidate);
     socket.on("invalidate:schema", onSchemaInvalidate);
     socket.on("queue:update", onQueueUpdate);
-    socket.on("selection:update", onSelectionUpdate);
     socket.on("frame_selection:update", onFrameSelectionUpdate);
     socket.on("bookmarks:update", onBookmarksUpdate);
     socket.on("frames:invalidate", onFramesInvalidate);
@@ -353,6 +389,8 @@ export const useSocketManager = () => {
     socket.on("chat:message:updated", onChatMessageUpdated);
     socket.on("invalidate:geometry", onGeometriesInvalidate);
     socket.on("invalidate:figure", onFiguresInvalidate);
+    socket.on("invalidate:selection", onSelectionsInvalidate);
+    socket.on("invalidate:selection_groups", onSelectionGroupsInvalidate);
 
     socket.auth = { token: joinToken };
     socket.connect();
@@ -365,7 +403,6 @@ export const useSocketManager = () => {
       socket.off("invalidate", onInvalidate);
       socket.off("invalidate:schema", onSchemaInvalidate);
       socket.off("queue:update", onQueueUpdate);
-      socket.off("selection:update", onSelectionUpdate);
       socket.off("frame_selection:update", onFrameSelectionUpdate);
       socket.off("bookmarks:update", onBookmarksUpdate);
       socket.off("frames:invalidate", onFramesInvalidate);
@@ -373,7 +410,9 @@ export const useSocketManager = () => {
       socket.off("chat:message:updated", onChatMessageUpdated);
       socket.off("invalidate:geometry", onGeometriesInvalidate);
       socket.off("invalidate:figure", onFiguresInvalidate);
-      
+      socket.off("invalidate:selection", onSelectionsInvalidate);
+      socket.off("invalidate:selection_groups", onSelectionGroupsInvalidate);
+
       // Disconnect socket when component unmounts to ensure clean reconnection
       socket.disconnect();
     };
@@ -387,6 +426,9 @@ export const useSocketManager = () => {
     queryClient,
     setBookmarks,
     setSelection,
+    setSelections,
+    setSelectionGroups,
+    setActiveSelectionGroup,
     setFrameSelection,
     setGeometries,
     updateGeometry,

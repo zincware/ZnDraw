@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { useAppStore } from "../../store";
-import { useRef, useMemo, useEffect, useState } from "react";
+import { useRef, useMemo, useEffect, useState, useCallback } from "react";
 import { BufferGeometryUtils } from "three/examples/jsm/Addons.js";
 import { renderMaterial } from "./materials";
 import { getFrames } from "../../myapi/client";
@@ -61,8 +61,12 @@ function createArrowMesh() {
 export default function Arrow({ data, geometryKey }: { data: ArrowProps; geometryKey: string }) {
   const { position, direction, color, radius, scale, material } = data;
   const instancedMeshRef = useRef<THREE.InstancedMesh | null>(null);
-  const { currentFrame, roomId, clientId, selection, setGeometryFetching, removeGeometryFetching } = useAppStore();
+  const { currentFrame, roomId, clientId, selections, updateSelections, setGeometryFetching, removeGeometryFetching } = useAppStore();
   const [instanceCount, setInstanceCount] = useState(0);
+
+  // Use geometry-specific selection
+  const arrowSelection = selections[geometryKey] || [];
+  const selectionSet = useMemo(() => new Set(arrowSelection), [arrowSelection]);
 
   // Individual queries for each attribute - enables perfect cross-component caching
   const { data: positionData, isFetching: isPositionFetching } = useQuery({
@@ -190,7 +194,6 @@ export default function Arrow({ data, geometryKey }: { data: ArrowProps; geometr
       if (!mesh) return;
 
       // --- Mesh Instance Update Step ---
-      const selectionSet = selection ? new Set(selection) : null;
       for (let i = 0; i < finalCount; i++) {
         const i3 = i * 3;
         _vec3.set(finalPositions[i3], finalPositions[i3 + 1], finalPositions[i3 + 2]);
@@ -239,21 +242,31 @@ export default function Arrow({ data, geometryKey }: { data: ArrowProps; geometr
     radius,
     scale,
     instanceCount,
-    selection,
+    selectionSet,
   ]);
 
   // Create the base geometry only once
   const geometry = useMemo(createArrowMesh, []);
 
+  const onClickHandler = useCallback((event: any) => {
+    if (event.detail !== 1 || event.instanceId === undefined) return;
+    event.stopPropagation();
+    updateSelections(geometryKey, event.instanceId, event.shiftKey);
+  }, [updateSelections, geometryKey]);
+
   if (!clientId || !roomId) {
     return null;
   }
+
+  // Check if selecting is enabled from data
+  const selectingEnabled = data.selecting?.enabled || false;
 
   return (
     <instancedMesh
       key={instanceCount}
       ref={instancedMeshRef}
       args={[geometry, undefined, instanceCount]}
+      onClick={selectingEnabled ? onClickHandler : undefined}
     >
       {renderMaterial(material)}
     </instancedMesh>

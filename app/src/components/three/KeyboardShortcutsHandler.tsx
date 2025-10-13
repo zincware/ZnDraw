@@ -34,8 +34,8 @@ export const KeyboardShortcutsHandler = () => {
 
   const {
     currentFrame,
-    selection,
-    setSelection,
+    selections,
+    updateSelectionForGeometry,
     setIsDrawing,
     isDrawing,
     roomId,
@@ -74,7 +74,7 @@ export const KeyboardShortcutsHandler = () => {
         if (positions) {
           const count = positions.length / 3; // Assuming 3 components per vertex
           const allIndices = Array.from({ length: count }, (_, i) => i);
-          setSelection(allIndices);
+          updateSelectionForGeometry("particles", allIndices);
         }
         return;
       }
@@ -94,9 +94,9 @@ export const KeyboardShortcutsHandler = () => {
           positions = positionsData as TypedArray;
         }
         // filter positions by selection, if len(selection) > 0
-        if (positions && selection && selection.length > 0) {
-          const filtered = new (positions.constructor as any)(selection.length * 3);
-          selection.forEach((idx, i) => {
+        if (positions && selections["particles"] && selections["particles"].length > 0) {
+          const filtered = new (positions.constructor as any)(selections["particles"].length * 3);
+          selections["particles"].forEach((idx, i) => {
             if (positions) {
               filtered[i * 3] = positions[idx * 3];
               filtered[i * 3 + 1] = positions[idx * 3 + 1];
@@ -183,8 +183,8 @@ export const KeyboardShortcutsHandler = () => {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [
     controls,
-    selection,
-    setSelection,
+    selections,
+    updateSelectionForGeometry,
     isDrawing,
     setIsDrawing,
     queryClient,

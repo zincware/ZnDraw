@@ -2185,7 +2185,7 @@ def join_room(room_id):
     client_id = data.get("clientId")
     description = data.get("description")
     copy_from = data.get("copyFrom")
-    allow_create = data.get("allowCreate", True)  # Default to True for backward compatibility
+    allow_create = data.get("allowCreate", True)
     r = current_app.extensions["redis"]
 
     # Check if room already exists (check for any room-related keys)
@@ -2236,7 +2236,7 @@ def join_room(room_id):
         "joinToken": join_token,
         "frameCount": 0,
         "roomId": room_id,
-        "selection": None,
+        "selections": None,
         "frame_selection": None,
         "created": True,
         "presenter-lock": False,
@@ -2337,8 +2337,9 @@ def join_room(room_id):
     indices_key = f"room:{room_id}:trajectory:indices"
     response["frameCount"] = r.zcard(indices_key)
 
-    selection = r.get(f"room:{room_id}:selection:default")
-    response["selection"] = json.loads(selection) if selection else None
+    selections_raw = r.hgetall(f"room:{room_id}:selections")
+    selections = {k: json.loads(v) for k, v in selections_raw.items()}
+    response["selections"] = selections
 
     frame_selection = r.get(f"room:{room_id}:frame_selection:default")
     response["frame_selection"] = (
@@ -2383,6 +2384,17 @@ def join_room(room_id):
     for setting_name, setting_value in settings_hash.items():
         settings_data[setting_name] = json.loads(setting_value)
     response["settings"] = settings_data
+
+    # Fetch selection groups
+    groups_raw = r.hgetall(f"room:{room_id}:selection_groups")
+    selection_groups = {}
+    for group_name, group_data in groups_raw.items():
+        selection_groups[group_name] = json.loads(group_data)
+    response["selectionGroups"] = selection_groups
+
+    # Fetch active selection group
+    active_group = r.get(f"room:{room_id}:active_selection_group")
+    response["activeSelectionGroup"] = active_group if active_group else None
 
     return response
 
@@ -2590,6 +2602,208 @@ def list_figures(room_id: str):
     r = current_app.extensions["redis"]
     all_keys = r.hkeys(f"room:{room_id}:figures")
     return {"figures": list(all_keys)}, 200
+
+
+# ============================================================================
+# Selection API Routes
+# ============================================================================
+
+
+@main.route("/api/rooms/<string:room_id>/selections", methods=["GET"])
+def get_all_selections(room_id: str):
+    """Get all current selections and groups.
+
+    Returns:
+        {
+            "selections": {"particles": [1,2,3], "forces": [2,3]},
+            "groups": {"group1": {"particles": [1,3], "forces": [1,3]}},
+            "activeGroup": "group1" | null
+        }
+    """
+    r = current_app.extensions["redis"]
+
+    # Get current selections
+    selections_raw = r.hgetall(f"room:{room_id}:selections")
+    selections = {k: json.loads(v) for k, v in selections_raw.items()}
+
+    # Get selection groups
+    groups_raw = r.hgetall(f"room:{room_id}:selection_groups")
+    groups = {k: json.loads(v) for k, v in groups_raw.items()}
+
+    # Get active group
+    active_group = r.get(f"room:{room_id}:active_selection_group")
+
+    return {
+        "selections": selections,
+        "groups": groups,
+        "activeGroup": active_group,
+    }, 200
+
+
+@main.route("/api/rooms/<string:room_id>/selections/<string:geometry>", methods=["GET"])
+def get_selection(room_id: str, geometry: str):
+    """Get selection for a specific geometry."""
+    r = current_app.extensions["redis"]
+    selection = r.hget(f"room:{room_id}:selections", geometry)
+
+    if selection is None:
+        return {"selection": []}, 200
+
+    return {"selection": json.loads(selection)}, 200
+
+
+@main.route(
+    "/api/rooms/<string:room_id>/selections/<string:geometry>", methods=["PUT"]
+)
+def update_selection(room_id: str, geometry: str):
+    """Update selection for a specific geometry.
+
+    Body: {"indices": [1, 2, 3]}
+    """
+    r = current_app.extensions["redis"]
+    data = request.get_json()
+
+    indices = data.get("indices", [])
+    if not isinstance(indices, list):
+        return {"error": "indices must be a list"}, 400
+
+    if any(not isinstance(idx, int) or idx < 0 for idx in indices):
+        return {"error": "All indices must be non-negative integers"}, 400
+
+    # Store selection
+    r.hset(f"room:{room_id}:selections", geometry, json.dumps(indices))
+
+    # Clear active group (manual edit breaks group association)
+    r.delete(f"room:{room_id}:active_selection_group")
+
+    # Emit invalidation
+    socketio.emit(
+        SocketEvents.INVALIDATE_SELECTION,
+        {"geometry": geometry},
+        to=f"room:{room_id}",
+    )
+
+    return {"success": True}, 200
+
+
+@main.route(
+    "/api/rooms/<string:room_id>/selections/groups/<string:group_name>",
+    methods=["GET"],
+)
+def get_selection_group(room_id: str, group_name: str):
+    """Get a specific selection group."""
+    r = current_app.extensions["redis"]
+    group = r.hget(f"room:{room_id}:selection_groups", group_name)
+
+    if group is None:
+        return {"error": "Group not found"}, 404
+
+    return {"group": json.loads(group)}, 200
+
+
+@main.route(
+    "/api/rooms/<string:room_id>/selections/groups/<string:group_name>",
+    methods=["PUT"],
+)
+def create_update_selection_group(room_id: str, group_name: str):
+    """Create or update a selection group.
+
+    Body: {"particles": [1, 3], "forces": [1, 3]}
+    """
+    r = current_app.extensions["redis"]
+    data = request.get_json()
+
+    # Validate data is a dict of geometry -> indices
+    if not isinstance(data, dict):
+        return {"error": "Group must be a dictionary"}, 400
+
+    for geometry, indices in data.items():
+        if not isinstance(indices, list):
+            return {"error": f"Indices for '{geometry}' must be a list"}, 400
+        if any(not isinstance(idx, int) or idx < 0 for idx in indices):
+            return {"error": f"Invalid indices for '{geometry}'"}, 400
+
+    # Store group
+    r.hset(f"room:{room_id}:selection_groups", group_name, json.dumps(data))
+
+    # Emit invalidation (groups list changed)
+    socketio.emit(
+        SocketEvents.INVALIDATE_SELECTION_GROUPS,
+        {"operation": "group_saved", "group": group_name},
+        to=f"room:{room_id}",
+    )
+
+    return {"success": True}, 200
+
+
+@main.route(
+    "/api/rooms/<string:room_id>/selections/groups/<string:group_name>",
+    methods=["DELETE"],
+)
+def delete_selection_group(room_id: str, group_name: str):
+    """Delete a selection group."""
+    r = current_app.extensions["redis"]
+
+    # Check if group exists
+    if not r.hexists(f"room:{room_id}:selection_groups", group_name):
+        return {"error": "Group not found"}, 404
+
+    # Delete group
+    r.hdel(f"room:{room_id}:selection_groups", group_name)
+
+    # Clear active group if it was this one
+    active_group = r.get(f"room:{room_id}:active_selection_group")
+    if active_group == group_name:
+        r.delete(f"room:{room_id}:active_selection_group")
+
+    # Emit invalidation
+    socketio.emit(
+        SocketEvents.INVALIDATE_SELECTION_GROUPS,
+        {"operation": "group_deleted", "group": group_name},
+        to=f"room:{room_id}",
+    )
+
+    return {"success": True}, 200
+
+
+@main.route(
+    "/api/rooms/<string:room_id>/selections/groups/<string:group_name>/load",
+    methods=["POST"],
+)
+def load_selection_group(room_id: str, group_name: str):
+    """Load a selection group (apply it to current selections).
+
+    This sets the active group and updates all selections to match the group.
+    """
+    r = current_app.extensions["redis"]
+
+    # Get group
+    group_data = r.hget(f"room:{room_id}:selection_groups", group_name)
+    if group_data is None:
+        return {"error": "Group not found"}, 404
+
+    group = json.loads(group_data)
+
+    # Apply group to current selections
+    for geometry, indices in group.items():
+        r.hset(f"room:{room_id}:selections", geometry, json.dumps(indices))
+
+    # Set as active group
+    r.set(f"room:{room_id}:active_selection_group", group_name)
+
+    # Emit invalidation (all selections changed)
+    socketio.emit(
+        SocketEvents.INVALIDATE_SELECTION,
+        {"operation": "group_loaded", "group": group_name},
+        to=f"room:{room_id}",
+    )
+
+    return {"success": True}, 200
+
+
+# ============================================================================
+# End Selection API Routes
+# ============================================================================
 
 
 def _transition_worker_to_idle(

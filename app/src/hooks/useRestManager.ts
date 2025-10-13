@@ -12,7 +12,9 @@ export const useRestJoinManager = () => {
     setUserId,
     setCurrentFrame,
     setFrameCount,
-    setSelection,
+    setSelections,
+    setSelectionGroups,
+    setActiveSelectionGroup,
     setFrameSelection,
     setBookmarks,
     setJoinToken,
@@ -52,11 +54,21 @@ export const useRestJoinManager = () => {
       console.log("Join response data:", data);
 
       // Update Zustand store with room data
+      // TODO: all of these should be fetched lazily instead of at join time
       if (typeof data.frameCount === "number") {
         setFrameCount(data.frameCount);
       }
-      if (data.selection !== undefined) {
-        setSelection(data.selection);
+      if (data.selections !== undefined) {
+        console.log("Setting selections from join:", data.selections);
+        setSelections(data.selections);
+      }
+      if (data.selectionGroups !== undefined) {
+        console.log("Setting selection groups from join:", data.selectionGroups);
+        setSelectionGroups(data.selectionGroups);
+      }
+      if (data.activeSelectionGroup !== undefined) {
+        console.log("Setting active selection group from join:", data.activeSelectionGroup);
+        setActiveSelectionGroup(data.activeSelectionGroup);
       }
       if (data.frame_selection !== undefined) {
         setFrameSelection(data.frame_selection);
@@ -117,10 +129,13 @@ export const useRestJoinManager = () => {
     setUserId,
     setCurrentFrame,
     setFrameCount,
-    setSelection,
+    setSelections,
+    setSelectionGroups,
+    setActiveSelectionGroup,
     setFrameSelection,
     setBookmarks,
     setJoinToken,
+    setGeometries,
   ]);
 
   const throttledJoin = useMemo(

@@ -33,6 +33,60 @@ class _ExtensionStore(t.TypedDict):
     extension: t.Type[Extension]
 
 
+class Selections:
+    """Accessor for per-geometry selections."""
+
+    def __init__(self, zndraw_instance: "ZnDraw") -> None:
+        self.vis = zndraw_instance
+
+    def __getitem__(self, geometry: str) -> frozenset[int]:
+        response = self.vis.api.get_selection(geometry)
+        return frozenset(response.get("selection", []))
+
+    def __setitem__(self, geometry: str, indices: t.Iterable[int]) -> None:
+        self.vis.api.update_selection(geometry, list(indices))
+
+    def __delitem__(self, geometry: str) -> None:
+        self.vis.api.update_selection(geometry, [])
+
+    def __iter__(self):
+        data = self.vis.api.get_all_selections()
+        return iter(data["selections"].keys())
+
+    def __len__(self) -> int:
+        data = self.vis.api.get_all_selections()
+        return len(data["selections"])
+
+
+class SelectionGroups:
+    """Accessor for named selection groups."""
+
+    def __init__(self, zndraw_instance: "ZnDraw") -> None:
+        self.vis = zndraw_instance
+
+    def __getitem__(self, group_name: str) -> dict[str, list[int]]:
+        response = self.vis.api.get_selection_group(group_name)
+        return response["group"]
+
+    def __setitem__(
+        self, group_name: str, group_data: dict[str, t.Iterable[int]]
+    ) -> None:
+        # Convert iterables to lists
+        data = {k: list(v) for k, v in group_data.items()}
+        self.vis.api.create_update_selection_group(group_name, data)
+
+    def __delitem__(self, group_name: str) -> None:
+        self.vis.api.delete_selection_group(group_name)
+
+    def __iter__(self):
+        data = self.vis.api.get_all_selections()
+        return iter(data["groups"].keys())
+
+    def __len__(self) -> int:
+        data = self.vis.api.get_all_selections()
+        return len(data["groups"])
+
+
 @dataclasses.dataclass
 class ZnDraw(MutableSequence):
     """A client for interacting with the ZnDraw server.
@@ -121,8 +175,6 @@ class ZnDraw(MutableSequence):
         # TTL of 60 seconds with automatic refresh every 30 seconds
         self._lock = SocketIOLock(self.socket.sio, target="trajectory:meta", ttl=60)
 
-        if response_data["selection"] is not None:
-            self._selection = frozenset(response_data["selection"])
         if response_data["frame_selection"] is not None:
             self._frame_selection = frozenset(response_data["frame_selection"])
         if response_data.get("bookmarks") is not None:
@@ -150,12 +202,12 @@ class ZnDraw(MutableSequence):
     @property
     def metadata(self) -> RoomMetadata:
         """Access room metadata as a dict-like object.
-        
+
         Returns
         -------
         RoomMetadata
             A MutableMapping interface to room metadata.
-            
+
         Examples
         --------
         >>> vis.metadata["file"] = "data.xyz"
@@ -165,6 +217,66 @@ class ZnDraw(MutableSequence):
         if self._metadata is None:
             self._metadata = RoomMetadata(self)
         return self._metadata
+
+    @property
+    def selections(self) -> Selections:
+        """Access selections by geometry name.
+
+        Returns
+        -------
+        Selections
+            A dict-like interface to per-geometry selections.
+
+        Examples
+        --------
+        >>> vis.selections["particles"] = [1, 2, 3]
+        >>> print(vis.selections["particles"])
+        >>> del vis.selections["particles"]
+        """
+        if not hasattr(self, "_selections_accessor"):
+            self._selections_accessor = Selections(self)
+        return self._selections_accessor
+
+    @property
+    def selection_groups(self) -> SelectionGroups:
+        """Access named selection groups.
+
+        Returns
+        -------
+        SelectionGroups
+            A dict-like interface to selection groups.
+
+        Examples
+        --------
+        >>> vis.selection_groups["group1"] = {"particles": [1, 2], "forces": [3]}
+        >>> print(vis.selection_groups["group1"])
+        >>> del vis.selection_groups["group1"]
+        """
+        if not hasattr(self, "_selection_groups_accessor"):
+            self._selection_groups_accessor = SelectionGroups(self)
+        return self._selection_groups_accessor
+
+    @property
+    def active_selection_group(self) -> str | None:
+        """Get the currently active selection group name.
+
+        Returns
+        -------
+        str | None
+            The name of the active selection group, or None if no group is active.
+        """
+        data = self.api.get_all_selections()
+        return data.get("activeGroup")
+
+    def load_selection_group(self, group_name: str) -> None:
+        """Load a selection group (apply it to current selections).
+
+        Parameters
+        ----------
+        group_name : str
+            Name of the group to load.
+        """
+        self.api.load_selection_group(group_name)
 
     @property
     def sid(self) -> str:
@@ -218,25 +330,27 @@ class ZnDraw(MutableSequence):
 
     @property
     def selection(self) -> frozenset[int]:
-        return self._selection
+        """Get selection for 'particles' geometry.
+
+        Returns
+        -------
+        frozenset[int]
+            The current selection indices for particles.
+        """
+        return self.selections["particles"]
 
     @selection.setter
     def selection(self, value: t.Iterable[int] | None):
-        indices = [] if value is None else list(value)
-        if not all(
-            isinstance(idx, int) and 0 <= idx < len(self[self.step]) for idx in indices
-        ):
-            raise ValueError("Selection must be an iterable of valid atom indices.")
+        """Set selection for 'particles' geometry.
 
-        if self.socket.sio.connected:
-            response = self.socket.sio.call(
-                "selection:set", {"indices": indices}, timeout=5
-            )
-            if response and not response.get("success", False):
-                raise RuntimeError(response.get("message", "Failed to set selection"))
-            self._selection = frozenset(indices)
-        else:
-            raise RuntimeError("Client is not connected.")
+        Parameters
+        ----------
+        value : t.Iterable[int] | None
+            The selection indices to set, or None to clear the selection.
+        """
+        if value is None:
+            value = []
+        self.selections["particles"] = value
 
     @property
     def frame_selection(self) -> frozenset[int]:
