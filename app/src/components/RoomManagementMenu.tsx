@@ -25,6 +25,7 @@ import StarBorderIcon from "@mui/icons-material/StarBorder";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import ListIcon from "@mui/icons-material/List";
 import FolderOpenIcon from "@mui/icons-material/FolderOpen";
+import PowerSettingsNewIcon from "@mui/icons-material/PowerSettingsNew";
 import {
   getRoom,
   updateRoom,
@@ -34,6 +35,7 @@ import {
   listRooms,
   RoomDetail,
   getFileBrowserConfig,
+  shutdownServer,
 } from "../myapi/client";
 
 interface DuplicateFormState {
@@ -63,6 +65,7 @@ export default function RoomManagementMenu() {
     description: "",
     error: null,
   });
+  const [shutdownDialog, setShutdownDialog] = useState(false);
   const [snackbar, setSnackbar] = useState<{
     open: boolean;
     message: string;
@@ -238,6 +241,23 @@ export default function RoomManagementMenu() {
     handleCloseMenu();
   };
 
+  const handleOpenShutdownDialog = () => {
+    setShutdownDialog(true);
+    handleCloseMenu();
+  };
+
+  const handleCloseShutdownDialog = () => {
+    setShutdownDialog(false);
+  };
+
+  const handleShutdownServer = async () => {
+    setShutdownDialog(false);
+    // Call shutdown - server will shut down before it can respond, so don't show error
+    shutdownServer().catch(() => {
+      // Expected to fail since server shuts down immediately
+    });
+  };
+
   if (!roomId) {
     return null;
   }
@@ -342,11 +362,43 @@ export default function RoomManagementMenu() {
             <ListItemText>Open File Browser</ListItemText>
           </MenuItem>
         )}
+
+        <MenuItem onClick={handleOpenShutdownDialog}>
+          <ListItemIcon>
+            <PowerSettingsNewIcon />
+          </ListItemIcon>
+          <ListItemText>Close ZnDraw</ListItemText>
+        </MenuItem>
       </Menu>
 
+      {/* Shutdown Confirmation Dialog */}
+      <Dialog
+        open={shutdownDialog}
+        onClose={handleCloseShutdownDialog}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle>Shutdown Server?</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+            This will close the ZnDraw server for all connected users. Are you sure?
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseShutdownDialog}>Cancel</Button>
+          <Button
+            onClick={handleShutdownServer}
+            variant="contained"
+            color="error"
+          >
+            Shutdown
+          </Button>
+        </DialogActions>
+      </Dialog>
+
       {/* Duplicate Dialog */}
-      <Dialog 
-        open={duplicateDialog} 
+      <Dialog
+        open={duplicateDialog}
         onClose={handleCloseDuplicateDialog}
         maxWidth="sm"
         fullWidth

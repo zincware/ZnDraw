@@ -785,3 +785,13 @@ export const categorizeProperties = (
   return { perParticle, global };
 };
 
+// ==================== Server Management API ====================
+
+/**
+ * Shutdown the ZnDraw server gracefully.
+ */
+export const shutdownServer = async (): Promise<{ success: boolean }> => {
+  const { data } = await apiClient.post("/api/shutdown");
+  return data;
+};
+

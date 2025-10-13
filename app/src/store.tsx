@@ -99,7 +99,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   drawingIsValid: false,
   metadataLock: false,
   geometryFetchingStates: {},
-  synchronizedMode: false,
+  synchronizedMode: true,
   showInfoBoxes: false,
   hoveredParticleId: null,
   particleCount: 0,
