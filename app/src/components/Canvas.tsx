@@ -2,7 +2,7 @@ import * as THREE from "three";
 import { useEffect, useRef } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { OrbitControls, ContactShadows, Environment } from "@react-three/drei";
-import { useAppStore } from "../store";
+import { useAppStore, getActiveCurves, selectPreferredCurve } from "../store";
 import { useExtensionData } from "../hooks/useSchemas";
 import { useColorScheme, useTheme } from "@mui/material/styles";
 
@@ -24,7 +24,7 @@ import DrawingIndicator from "./three/DrawingIndicator";
 
 // The main scene component
 function MyScene() {
-  const { roomId, userId, geometries } = useAppStore();
+  const { roomId, userId, geometries, activeCurveForDrawing, setActiveCurveForDrawing } = useAppStore();
   const { mode } = useColorScheme();
 
   const { data: studioLightingSettings } = useExtensionData(
@@ -44,6 +44,24 @@ function MyScene() {
   useEffect(() => {
     console.log("camera-settings", cameraSettings);
   }, [cameraSettings])
+
+  // Auto-select default curve on startup
+  useEffect(() => {
+    // Only run if we don't have an active curve selected yet
+    if (activeCurveForDrawing) return;
+
+    // Get all active curves using helper function
+    const activeCurves = getActiveCurves(geometries);
+
+    // If no curves available, do nothing
+    if (activeCurves.length === 0) return;
+
+    // Select preferred curve using helper function
+    const defaultCurve = selectPreferredCurve(activeCurves);
+
+    console.log(`Auto-selecting default curve: ${defaultCurve}`);
+    setActiveCurveForDrawing(defaultCurve);
+  }, [geometries, activeCurveForDrawing, setActiveCurveForDrawing]);
 
   const backgroundColor = studioLightingSettings.background_color === "default" ? (mode === "light" ? "#FFFFFF" : "#212121ff") : studioLightingSettings.background_color;
 
@@ -131,13 +149,6 @@ function MyScene() {
                 console.warn(`Unhandled geometry type: ${config.type}`);
                 return null;
               }
-
-              // You could add other types here
-              // if (config.type === 'Box') {
-              //   return <Box key={name} /* ...box props... */ />;
-              // }
-
-              return null;
             })}
           {cameraSettings.show_crosshair && (
             <Crosshair />

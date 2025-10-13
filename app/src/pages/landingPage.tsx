@@ -25,15 +25,17 @@ import { useState } from "react";
 import { useColorScheme } from "@mui/material/styles";
 import WindowManager from "../components/WindowManager";
 import AddPlotButton from "../components/AddPlotButton";
+import { useQueryClient } from "@tanstack/react-query";
 
 export default function MainPage() {
   useSocketManager();
   useKeyboardShortcuts();
   useRestJoinManager();
 
-  const { chatOpen, setChatOpen, isDrawing, setIsDrawing } = useAppStore();
+  const { chatOpen, setChatOpen, isDrawing, toggleDrawingMode } = useAppStore();
   const [connectionDialogOpen, setConnectionDialogOpen] = useState(false);
   const { mode, setMode } = useColorScheme();
+  const queryClient = useQueryClient();
 
   const handleToggleColorMode = () => {
     setMode(mode === "light" ? "dark" : "light");
@@ -70,7 +72,7 @@ export default function MainPage() {
               <IconButton
                 color="inherit"
                 aria-label="toggle drawing mode"
-                onClick={() => setIsDrawing(!isDrawing)}
+                onClick={() => toggleDrawingMode(queryClient)}
                 sx={{
                   backgroundColor: isDrawing ? 'rgba(255, 255, 255, 0.2)' : 'transparent',
                 }}

@@ -22,6 +22,7 @@ export const useSocketManager = () => {
     setGeometries,
     updateGeometry,
     removeGeometry,
+    setActiveCurveForDrawing,
   } = useAppStore();
   const queryClient = useQueryClient();
   const { openWindow } = useWindowManagerStore();
@@ -252,6 +253,13 @@ export const useSocketManager = () => {
               // Update only this specific geometry in the store
               updateGeometry(key, response.geometry);
               console.log(`Updated geometry ${key}:`, response.geometry);
+
+              // Auto-select newly created curves ONLY if no curve is currently selected
+              const currentActiveCurve = useAppStore.getState().activeCurveForDrawing;
+              if (!currentActiveCurve && response.geometry.type === "Curve" && response.geometry.data?.active !== false) {
+                console.log(`Auto-selecting newly created curve (no curve was selected): ${key}`);
+                setActiveCurveForDrawing(key);
+              }
             } catch (error) {
               console.error(`Error fetching geometry ${key}:`, error);
             }
@@ -476,6 +484,7 @@ export const useSocketManager = () => {
     setGeometries,
     updateGeometry,
     removeGeometry,
+    setActiveCurveForDrawing,
     openWindow,
   ]);
 };

@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { socket } from "./socket";
 import * as THREE from "three";
-import { updateSelection as updateSelectionAPI, loadSelectionGroup as loadSelectionGroupAPI, setBookmark as setBookmarkAPI, deleteBookmark as deleteBookmarkAPI } from "./myapi/client";
+import { updateSelection as updateSelectionAPI, loadSelectionGroup as loadSelectionGroupAPI, setBookmark as setBookmarkAPI, deleteBookmark as deleteBookmarkAPI, createGeometry, getGeometry } from "./myapi/client";
 
 interface AppState {
   // Connection & Room
@@ -74,7 +74,21 @@ interface AppState {
   setParticleCount: (count: number) => void;
   setCurveLength: (length: number) => void;
   setActiveCurveForDrawing: (key: string | null) => void;
+  toggleDrawingMode: (queryClient?: any) => Promise<void>;
 }
+
+// Helper functions (pure, exported for reuse across components)
+export const getActiveCurves = (geometries: Record<string, any>): string[] => {
+  return Object.entries(geometries)
+    .filter(([_, g]) => g.type === "Curve" && g.data?.active !== false)
+    .map(([key, _]) => key);
+};
+
+export const selectPreferredCurve = (activeCurves: string[]): string | null => {
+  if (activeCurves.length === 0) return null;
+  // Prefer "curve" if it exists, otherwise use first available
+  return activeCurves.includes("curve") ? "curve" : activeCurves[0];
+};
 
 export const useAppStore = create<AppState>((set, get) => ({
   // Initial State
@@ -191,8 +205,14 @@ export const useAppStore = create<AppState>((set, get) => ({
   removeGeometry: (key: string) =>
     set((state) => {
       const { [key]: removed, ...rest } = state.geometries;
-      // Clear activeCurveForDrawing if the deleted geometry was the active curve
-      const newActiveCurve = state.activeCurveForDrawing === key ? null : state.activeCurveForDrawing;
+
+      // If the deleted geometry was the active curve, auto-select next available curve
+      let newActiveCurve = state.activeCurveForDrawing;
+      if (state.activeCurveForDrawing === key) {
+        const remainingCurves = getActiveCurves(rest);
+        newActiveCurve = selectPreferredCurve(remainingCurves);
+      }
+
       return {
         geometries: rest,
         activeCurveForDrawing: newActiveCurve,
@@ -343,4 +363,96 @@ export const useAppStore = create<AppState>((set, get) => ({
   setParticleCount: (count) => set({ particleCount: count }),
   setCurveLength: (length) => set({ curveLength: length }),
   setActiveCurveForDrawing: (key) => set({ activeCurveForDrawing: key }),
+
+  toggleDrawingMode: async (queryClient?: any) => {
+    const state = get();
+    const { geometries, activeCurveForDrawing, isDrawing, roomId, clientId } = state;
+
+    // Get all active curves using helper function
+    const activeCurves = getActiveCurves(geometries);
+
+    // Case 1: No curves exist - create one named "curve"
+    if (activeCurves.length === 0) {
+      if (!roomId) {
+        console.warn("Cannot create curve: no room ID");
+        return;
+      }
+
+      console.log("No curves found, creating default curve named 'curve'");
+
+      // Optimistic update - add geometry to store immediately
+      set((state) => ({
+        geometries: {
+          ...state.geometries,
+          curve: {
+            type: "Curve",
+            data: { position: [] }
+          }
+        },
+        activeCurveForDrawing: "curve",
+        isDrawing: true
+      }));
+
+      try {
+        // Create geometry on backend
+        await createGeometry(roomId, clientId, "curve", "Curve", {
+          position: [],
+        });
+        console.log("Default curve created successfully");
+
+        // Fetch the validated geometry from backend to get defaults/transformations
+        // (socket event won't reach us due to skip_sid)
+        const response = await getGeometry(roomId, "curve");
+        console.log("Fetched validated curve data:", response.geometry);
+
+        // Update with the backend-validated data
+        set((state) => ({
+          geometries: {
+            ...state.geometries,
+            curve: response.geometry
+          }
+        }));
+
+        // Invalidate geometry list to refetch from server (this will update the sidebar)
+        if (queryClient && roomId) {
+          queryClient.invalidateQueries({
+            queryKey: ["geometries", roomId, "list"]
+          });
+        }
+      } catch (error) {
+        console.error("Error creating default curve:", error);
+        // Rollback on error - remove the optimistically added geometry
+        set((state) => {
+          const { curve: removed, ...rest } = state.geometries;
+          return {
+            geometries: rest,
+            activeCurveForDrawing: null,
+            isDrawing: false
+          };
+        });
+      }
+      return;
+    }
+
+    // Case 2: One curve exists - auto-select it and toggle
+    if (activeCurves.length === 1) {
+      const singleCurveKey = activeCurves[0];
+      if (!activeCurveForDrawing) {
+        set({ activeCurveForDrawing: singleCurveKey, isDrawing: !isDrawing });
+      } else {
+        set({ isDrawing: !isDrawing });
+      }
+      return;
+    }
+
+    // Case 3: Multiple curves exist
+    if (!activeCurveForDrawing || !activeCurves.includes(activeCurveForDrawing)) {
+      // No curve selected OR selected curve no longer exists - select preferred curve
+      const preferredCurve = selectPreferredCurve(activeCurves);
+      set({ activeCurveForDrawing: preferredCurve, isDrawing: true });
+    } else {
+      // Already have a valid selected curve - just toggle drawing
+      set({ isDrawing: !isDrawing });
+    }
+  },
 }));
