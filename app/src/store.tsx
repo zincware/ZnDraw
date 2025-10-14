@@ -23,6 +23,7 @@ interface AppState {
   chatOpen: boolean;
   joinToken: string | null;
   geometries: Record<string, any>; // Store geometries by their IDs
+  geometryDefaults: Record<string, any>; // Default values for each geometry type from Pydantic
   isDrawing: boolean;
   drawingPointerPosition: THREE.Vector3 | null; // 3D position of mouse cursor for drawing
   drawingIsValid: boolean; // Whether the drawing position is valid (over geometry)
@@ -30,7 +31,7 @@ interface AppState {
   geometryFetchingStates: Record<string, boolean>; // Tracks fetching state per geometry key
   synchronizedMode: boolean; // Whether playback should wait for all active geometries to finish fetching
   showInfoBoxes: boolean; // Whether to show info boxes (toggled with 'i' key)
-  hoveredParticleId: number | null; // ID of currently hovered particle
+  hoveredGeometryInstance: { geometryKey: string; instanceId: number } | null; // Currently hovered geometry instance
   particleCount: number; // Number of particles in current frame
   curveLength: number; // Length of the active curve in drawing mode
   activeCurveForDrawing: string | null; // The geometry key of the curve currently targeted for drawing
@@ -59,6 +60,7 @@ interface AppState {
   setPlaying: (playing: boolean) => void;
   setChatOpen: (open: boolean) => void;
   setGeometries: (geometries: Record<string, any>) => void;
+  setGeometryDefaults: (defaults: Record<string, any>) => void;
   updateGeometry: (key: string, geometry: any) => void; // update specific geometry
   removeGeometry: (key: string) => void; // remove specific geometry
   setIsDrawing: (isDrawing: boolean) => void;
@@ -73,7 +75,7 @@ interface AppState {
   addBookmark: (frame: number, label?: string) => void;
   deleteBookmark: (frame: number) => void;
   toggleInfoBoxes: () => void;
-  setHoveredParticleId: (id: number | null) => void;
+  setHoveredGeometryInstance: (geometryKey: string | null, instanceId: number | null) => void;
   setParticleCount: (count: number) => void;
   setCurveLength: (length: number) => void;
   setActiveCurveForDrawing: (key: string | null) => void;
@@ -120,6 +122,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   chatOpen: false,
   joinToken: null,
   geometries: {},
+  geometryDefaults: {},
   isDrawing: false,
   drawingPointerPosition: null,
   drawingIsValid: false,
@@ -127,7 +130,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   geometryFetchingStates: {},
   synchronizedMode: true,
   showInfoBoxes: false,
-  hoveredParticleId: null,
+  hoveredGeometryInstance: null,
   particleCount: 0,
   curveLength: 0,
   activeCurveForDrawing: null,
@@ -219,6 +222,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   setChatOpen: (open) => set({ chatOpen: open }),
   setJoinToken: (joinToken) => set({ joinToken }),
   setGeometries: (geometries) => set({ geometries: geometries }),
+  setGeometryDefaults: (defaults) => set({ geometryDefaults: defaults }),
   updateGeometry: (key: string, geometry: any) =>
     set((state) => ({
       geometries: {
@@ -383,7 +387,13 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   toggleInfoBoxes: () => set((state) => ({ showInfoBoxes: !state.showInfoBoxes })),
-  setHoveredParticleId: (id) => set({ hoveredParticleId: id }),
+  setHoveredGeometryInstance: (geometryKey, instanceId) => {
+    if (geometryKey === null || instanceId === null) {
+      set({ hoveredGeometryInstance: null });
+    } else {
+      set({ hoveredGeometryInstance: { geometryKey, instanceId } });
+    }
+  },
   setParticleCount: (count) => set({ particleCount: count }),
   setCurveLength: (length) => set({ curveLength: length }),
   setActiveCurveForDrawing: (key) => set({ activeCurveForDrawing: key }),

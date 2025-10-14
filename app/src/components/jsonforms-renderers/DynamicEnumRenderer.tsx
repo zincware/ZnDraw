@@ -95,6 +95,12 @@ const DynamicEnumRenderer = ({
           options={options}
           value={value}
           inputValue={typeof value === "string" ? value : ""}
+          getOptionLabel={(option) => {
+            // Handle non-string options gracefully
+            if (typeof option === "string") return option;
+            if (Array.isArray(option)) return JSON.stringify(option);
+            return String(option);
+          }}
           onChange={(_, newValue) => {
             // newValue can be null, a string from options, or typed value
             handleChange(path, newValue || "");

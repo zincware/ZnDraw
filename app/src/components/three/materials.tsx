@@ -132,14 +132,14 @@ export type MaterialType = keyof typeof MATERIALS;
  * Renders a Three.js material based on a string key.
  * Compatible with Python enum values for consistent cross-language usage.
  */
-export function renderMaterial(materialType?: string, opacity?: number, color?: THREE.Color | string) {
+export function renderMaterial(materialType?: string, opacity?: number, color?: THREE.Color | string, side?: THREE.Side) {
   const type = (materialType || DEFAULT_MATERIAL) as MaterialType;
   const config = MATERIALS[type] || MATERIALS[DEFAULT_MATERIAL];
   const MaterialComponent = config.component;
 
   const commonProps = {
     color: color || "white",
-    side: THREE.FrontSide,
+    side: side || THREE.FrontSide,
     ...config.defaultProps,
     transparent: opacity !== undefined && opacity < 1.0,
     opacity: opacity !== undefined ? opacity : 1.0,

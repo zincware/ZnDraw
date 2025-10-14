@@ -6,8 +6,10 @@ import { useRef, useMemo, useState, useEffect, useCallback } from "react";
 import { renderMaterial } from "./materials";
 import { shouldFetchAsFrameData } from "../../utils/colorUtils";
 import {
-  processNumericAttribute,
+  processPositionAttribute,
+  processRotationAttribute,
   processColorAttribute,
+  processSize2D,
   getInstanceCount,
   validateArrayLengths,
   SELECTION_SCALE,
@@ -15,6 +17,7 @@ import {
 } from "../../utils/geometryData";
 import { _vec3, _euler, _matrix, _color } from "../../utils/threeObjectPools";
 import { convertInstancedMeshToMerged, disposeMesh } from "../../utils/convertInstancedMesh";
+import { getGeometryWithDefaults } from "../../utils/geometryDefaults";
 
 interface InteractionSettings {
   enabled: boolean;
@@ -44,6 +47,11 @@ export default function Plane({
   geometryKey: string;
   pathtracingEnabled?: boolean;
 }) {
+  const { geometryDefaults } = useAppStore();
+
+  // Merge with defaults from Pydantic (single source of truth)
+  const fullData = getGeometryWithDefaults<PlaneData>(data, "Plane", geometryDefaults);
+
   const {
     position: positionProp,
     size: sizeProp,
@@ -55,7 +63,7 @@ export default function Plane({
     selecting,
     hovering,
     opacity,
-  } = data;
+  } = fullData;
 
   const mainMeshRef = useRef<THREE.InstancedMesh | null>(null);
   const selectionMeshRef = useRef<THREE.InstancedMesh | null>(null);
@@ -63,7 +71,7 @@ export default function Plane({
   const mergedMeshRef = useRef<THREE.Mesh | null>(null);
   const [instanceCount, setInstanceCount] = useState(0);
 
-  const { currentFrame, roomId, clientId, selections, updateSelections, hoveredParticleId, setHoveredParticleId, setGeometryFetching, removeGeometryFetching, requestPathtracingUpdate } = useAppStore();
+  const { currentFrame, roomId, clientId, selections, updateSelections, hoveredGeometryInstance, setHoveredGeometryInstance, setDrawingPointerPosition, isDrawing, setDrawingIsValid, setGeometryFetching, removeGeometryFetching, requestPathtracingUpdate } = useAppStore();
 
   // Use geometry-specific selection
   const planeSelection = selections[geometryKey] || [];
@@ -135,6 +143,7 @@ export default function Plane({
     }
 
     try {
+
       // --- Data Processing Step ---
       const fetchedPosition = typeof positionProp === 'string' ? positionData?.[positionProp as string] : undefined;
       const finalCount = getInstanceCount(positionProp, fetchedPosition);
@@ -144,34 +153,17 @@ export default function Plane({
         return;
       }
 
-      // Process all attributes
-      const finalPositions = processNumericAttribute(positionProp, fetchedPosition, finalCount);
+      // Process all attributes using new specialized functions
+      const finalPositions = processPositionAttribute(positionProp, fetchedPosition);
 
       const fetchedColor = typeof colorProp === 'string' ? colorData?.[colorProp as string] : undefined;
       const finalColors = processColorAttribute(colorProp, fetchedColor, finalCount);
 
       const fetchedSize = typeof sizeProp === 'string' ? sizeData?.[sizeProp as string] : undefined;
-      // For Plane, size is [width, height], so we need to handle 2D data
-      let finalSizes: number[];
-      if (fetchedSize) {
-        finalSizes = Array.from(fetchedSize);
-      } else if (typeof sizeProp !== "string") {
-        if (Array.isArray(sizeProp[0])) {
-          // Array of [width, height] pairs
-          finalSizes = (sizeProp as number[][]).flat();
-        } else if (Array.isArray(sizeProp) && sizeProp.length === 2) {
-          // Single [width, height] to replicate
-          finalSizes = Array(finalCount).fill(sizeProp).flat();
-        } else {
-          // Already a flat array
-          finalSizes = sizeProp as number[];
-        }
-      } else {
-        finalSizes = [];
-      }
+      const finalSizes = processSize2D(sizeProp, fetchedSize, finalCount);
 
       const fetchedRotation = typeof rotationProp === 'string' ? rotationData?.[rotationProp as string] : undefined;
-      const finalRotations = processNumericAttribute(rotationProp, fetchedRotation, finalCount);
+      const finalRotations = processRotationAttribute(rotationProp, fetchedRotation, finalCount);
 
       // --- Validation Step ---
       const isDataValid = validateArrayLengths(
@@ -194,6 +186,7 @@ export default function Plane({
       // --- Main Mesh Instance Update ---
       const mainMesh = mainMeshRef.current;
       if (!mainMesh) return;
+
       for (let i = 0; i < finalCount; i++) {
         const i3 = i * 3;
         const i2 = i * 2;
@@ -203,6 +196,8 @@ export default function Plane({
         const height = finalSizes[i2 + 1] * planeScale;
         _matrix.compose(_vec3, new THREE.Quaternion().setFromEuler(_euler), new THREE.Vector3(width, height, 1));
         mainMesh.setMatrixAt(i, _matrix);
+
+        // Use original colors (no inline selection/hover colors)
         _color.setRGB(finalColors[i3], finalColors[i3 + 1], finalColors[i3 + 2]);
         mainMesh.setColorAt(i, _color);
       }
@@ -211,7 +206,7 @@ export default function Plane({
       mainMesh.instanceMatrix.needsUpdate = true;
       if (mainMesh.instanceColor) mainMesh.instanceColor.needsUpdate = true;
 
-      // --- Selection Mesh Update ---
+      // --- Selection Mesh Update (uses thin box geometry for visible outline) ---
       if (selecting.enabled && selectionMeshRef.current) {
         const selectionMesh = selectionMeshRef.current;
         validSelectedIndices.forEach((id, index) => {
@@ -222,30 +217,13 @@ export default function Plane({
           _euler.set(finalRotations[i3], finalRotations[i3 + 1], finalRotations[i3 + 2]);
           const width = finalSizes[i2] * planeScale * SELECTION_SCALE;
           const height = finalSizes[i2 + 1] * planeScale * SELECTION_SCALE;
-          _matrix.compose(_vec3, new THREE.Quaternion().setFromEuler(_euler), new THREE.Vector3(width, height, 1));
+          // Use thin depth (0.01) for visible outline effect
+          _matrix.compose(_vec3, new THREE.Quaternion().setFromEuler(_euler), new THREE.Vector3(width, height, 0.01));
           selectionMesh.setMatrixAt(index, _matrix);
         });
         selectionMesh.instanceMatrix.needsUpdate = true;
       }
 
-      // --- Hover Mesh Update ---
-      if (hovering?.enabled && hoverMeshRef.current) {
-        const hoverMesh = hoverMeshRef.current;
-        if (hoveredParticleId !== null && hoveredParticleId < finalCount) {
-          hoverMesh.visible = true;
-          const i3 = hoveredParticleId * 3;
-          const i2 = hoveredParticleId * 2;
-          _vec3.set(finalPositions[i3], finalPositions[i3 + 1], finalPositions[i3 + 2]);
-          _euler.set(finalRotations[i3], finalRotations[i3 + 1], finalRotations[i3 + 2]);
-          const width = finalSizes[i2] * planeScale * HOVER_SCALE;
-          const height = finalSizes[i2 + 1] * planeScale * HOVER_SCALE;
-          hoverMesh.position.copy(_vec3);
-          hoverMesh.quaternion.setFromEuler(_euler);
-          hoverMesh.scale.set(width, height, 1);
-        } else {
-          hoverMesh.visible = false;
-        }
-      }
     } catch (error) {
       console.error("Error processing Plane data:", error);
       if (instanceCount !== 0) setInstanceCount(0);
@@ -264,9 +242,44 @@ export default function Plane({
     planeScale,
     validSelectedIndices,
     selecting,
-    hovering,
-    hoveredParticleId,
+    geometryKey,
   ]);
+
+  // Separate effect for hover mesh updates - doesn't trigger data reprocessing
+  useEffect(() => {
+    if (!hovering?.enabled || !hoverMeshRef.current || !mainMeshRef.current) return;
+    if (instanceCount === 0) return;
+
+    const hoverMesh = hoverMeshRef.current;
+    const mainMesh = mainMeshRef.current;
+
+    // Only show hover if it's for this geometry
+    if (hoveredGeometryInstance?.geometryKey === geometryKey &&
+        hoveredGeometryInstance?.instanceId !== null &&
+        hoveredGeometryInstance.instanceId < instanceCount) {
+      hoverMesh.visible = true;
+
+      // Get transform from main mesh
+      const matrix = new THREE.Matrix4();
+      mainMesh.getMatrixAt(hoveredGeometryInstance.instanceId, matrix);
+
+      const position = new THREE.Vector3();
+      const quaternion = new THREE.Quaternion();
+      const scale = new THREE.Vector3();
+      matrix.decompose(position, quaternion, scale);
+
+      // Apply hover scale (with thin depth for outline)
+      hoverMesh.position.copy(position);
+      hoverMesh.quaternion.copy(quaternion);
+      hoverMesh.scale.set(
+        scale.x * HOVER_SCALE,
+        scale.y * HOVER_SCALE,
+        0.01 // Thin depth for outline
+      );
+    } else {
+      hoverMesh.visible = false;
+    }
+  }, [hoveredGeometryInstance, instanceCount, hovering, geometryKey]);
 
   // Convert instanced mesh to merged mesh for path tracing
   useEffect(() => {
@@ -302,10 +315,10 @@ export default function Plane({
     requestPathtracingUpdate,
   ]);
 
-  // Shared geometry for all planes
-  const mainGeometry = useMemo(() => {
-    return new THREE.PlaneGeometry(1, 1);
-  }, []);
+  // Shared geometries
+  const mainGeometry = useMemo(() => new THREE.PlaneGeometry(1, 1), []);
+  // Thin box geometry for selection/hover (since PlaneGeometry can't be visibly scaled for outline)
+  const outlineGeometry = useMemo(() => new THREE.BoxGeometry(1, 1, 0.01), []);
 
   const onClickHandler = useCallback((event: any) => {
     if (event.detail !== 1 || event.instanceId === undefined) return;
@@ -313,19 +326,27 @@ export default function Plane({
     updateSelections(geometryKey, event.instanceId, event.shiftKey);
   }, [updateSelections, geometryKey]);
 
+  const onPointerMoveHandler = useCallback((event: any) => {
+    if (event.instanceId === undefined) return;
+    event.stopPropagation();
+    if (isDrawing) {
+      setDrawingPointerPosition(event.point);
+    }
+  }, [isDrawing, setDrawingPointerPosition]);
+
   const onPointerEnterHandler = useCallback((event: any) => {
     if (event.instanceId === undefined) return;
     event.stopPropagation();
-    setHoveredParticleId(event.instanceId);
-  }, [setHoveredParticleId]);
+    setHoveredGeometryInstance(geometryKey, event.instanceId);
+    setDrawingIsValid(true);
+  }, [setHoveredGeometryInstance, setDrawingIsValid, geometryKey]);
 
   const onPointerOutHandler = useCallback(() => {
-    setHoveredParticleId(null);
-  }, [setHoveredParticleId]);
+    setHoveredGeometryInstance(null, null);
+    setDrawingIsValid(false);
+  }, [setHoveredGeometryInstance, setDrawingIsValid]);
 
   if (!clientId || !roomId) return null;
-
-  const materialSide = double_sided ? THREE.DoubleSide : THREE.FrontSide;
 
   return (
     <group>
@@ -337,23 +358,23 @@ export default function Plane({
         visible={!pathtracingEnabled}
         onClick={!pathtracingEnabled && selecting.enabled ? onClickHandler : undefined}
         onPointerEnter={!pathtracingEnabled && hovering?.enabled ? onPointerEnterHandler : undefined}
+        onPointerMove={!pathtracingEnabled && hovering?.enabled ? onPointerMoveHandler : undefined}
         onPointerOut={!pathtracingEnabled && hovering?.enabled ? onPointerOutHandler : undefined}
       >
         <primitive object={mainGeometry} attach="geometry" />
-        {/* Override material side based on double_sided prop */}
-        {material && renderMaterial(material, opacity)}
+        {renderMaterial(material, opacity, undefined, double_sided ? THREE.DoubleSide : THREE.FrontSide)}
       </instancedMesh>
 
-      {/* Selection mesh - only when NOT pathtracing */}
+      {/* Selection mesh - thin box geometry for visible outline */}
       {!pathtracingEnabled && selecting.enabled && (
         <instancedMesh
           key={`selection-${validSelectedIndices.length}`}
           ref={selectionMeshRef}
           args={[undefined, undefined, validSelectedIndices.length]}
         >
-          <primitive object={mainGeometry} attach="geometry" />
+          <primitive object={outlineGeometry} attach="geometry" />
           <meshBasicMaterial
-            side={materialSide}
+            side={double_sided ? THREE.DoubleSide : THREE.FrontSide}
             transparent
             opacity={selecting.opacity}
             color={selecting.color}
@@ -361,12 +382,12 @@ export default function Plane({
         </instancedMesh>
       )}
 
-      {/* Hover mesh - only when NOT pathtracing */}
+      {/* Hover mesh - thin box geometry for visible outline */}
       {!pathtracingEnabled && hovering?.enabled && (
         <mesh ref={hoverMeshRef} visible={false}>
-          <primitive object={mainGeometry} attach="geometry" />
+          <primitive object={outlineGeometry} attach="geometry" />
           <meshBasicMaterial
-            side={materialSide}
+            side={THREE.BackSide}
             transparent
             opacity={hovering.opacity}
             color={hovering.color}

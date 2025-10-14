@@ -1,38 +1,46 @@
 from pydantic import Field
 import typing as t
 
-from .base import BaseGeometry, DataProp, InteractionSettings
+from .base import BaseGeometry, SizeProp, InteractionSettings, apply_schema_feature
 
 
 class Sphere(BaseGeometry):
-    """A sphere geometry."""
+    """A sphere geometry.
+
+    By default, creates a single sphere at the origin (0,0,0).
+    """
+
+    # Override defaults for user-created geometries
+    position: t.Union[str, list[tuple[float, float, float]]] = Field(
+        default=[(0.0, 0.0, 0.0)],
+        description="Position coordinates. String for dynamic data key (e.g. 'arrays.positions'), list of tuples for static per-instance positions [(x,y,z), ...].",
+    )
+
+    color: t.Union[str, list[str]] = Field(
+        default="#808080",
+        description="Color values. String for dynamic key (e.g. 'arrays.colors') or shared hex color (e.g. '#FF0000'), list of hex colors for per-instance ['#FF0000', '#00FF00', ...].",
+    )
 
     @classmethod
     def model_json_schema(cls, **kwargs: t.Any) -> dict[str, t.Any]:
         schema = super().model_json_schema(**kwargs)
-        schema["properties"]["position"]["x-custom-type"] = "dynamic-enum"
-        schema["properties"]["position"]["x-features"] = ["dynamic-atom-props"]
-        schema["properties"]["position"]["type"] = "string"
-        schema["properties"]["position"].pop("anyOf", None)
-        schema["properties"]["color"]["x-custom-type"] = "dynamic-enum"
-        schema["properties"]["color"]["x-features"] = ["color-picker", "dynamic-atom-props", "free-solo"]
-        schema["properties"]["color"]["type"] = "string"
-        schema["properties"]["color"].pop("anyOf", None)
-        schema["properties"]["radius"]["x-custom-type"] = "dynamic-enum"
-        schema["properties"]["radius"]["x-features"] = ["dynamic-atom-props"]
-        schema["properties"]["radius"]["type"] = "string"
-        schema["properties"]["radius"].pop("anyOf", None)
-        schema["$defs"]["InteractionSettings"]["properties"]["color"][
-            "x-custom-type"
-        ] = "dynamic-enum"
-        schema["$defs"]["InteractionSettings"]["properties"]["color"][
-            "x-features"
-        ] = ["color-picker", "dynamic-atom-props", "free-solo"]
+
+        # Apply schema features using helper
+        apply_schema_feature(schema, "position", ["dynamic-atom-props"])
+        apply_schema_feature(schema, "color", ["color-picker", "dynamic-atom-props", "free-solo"])
+        apply_schema_feature(schema, "radius", ["dynamic-atom-props"])
+        apply_schema_feature(
+            schema,
+            "color",
+            ["color-picker", "dynamic-atom-props", "free-solo"],
+            definition_path="InteractionSettings"
+        )
+
         return schema
 
-    radius: DataProp = Field(
+    radius: SizeProp = Field(
         default="arrays.radii",
-        description="Sphere radius. String for dynamic data key, float for static value.",
+        description="Sphere radius. String for dynamic data key, float for shared value across all instances, list for per-instance radii.",
     )
 
     resolution: int = Field(

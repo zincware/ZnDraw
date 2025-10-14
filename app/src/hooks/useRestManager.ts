@@ -20,6 +20,7 @@ export const useRestJoinManager = () => {
     setBookmarks,
     setJoinToken,
     setGeometries,
+    setGeometryDefaults,
   } = useAppStore();
   const { roomId: room, userId } = useParams<{
     roomId: string;
@@ -86,6 +87,11 @@ export const useRestJoinManager = () => {
       if (data.joinToken) {
         setJoinToken(data.joinToken);
       }
+      // IMPORTANT: Set defaults BEFORE geometries to avoid race condition
+      // Geometries need defaults to render properly
+      if (data.geometryDefaults) {
+        setGeometryDefaults(data.geometryDefaults);
+      }
       if (data.geometries) {
         setGeometries(data.geometries);
       }
@@ -137,6 +143,7 @@ export const useRestJoinManager = () => {
     setBookmarks,
     setJoinToken,
     setGeometries,
+    setGeometryDefaults,
   ]);
 
   const throttledJoin = useMemo(

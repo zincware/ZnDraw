@@ -3,7 +3,7 @@
 import typing as t
 from pydantic import Field
 
-from .base import BaseGeometry, DataProp
+from .base import BaseGeometry, PositionProp, InteractionSettings, apply_schema_feature
 
 
 class Arrow(BaseGeometry):
@@ -16,40 +16,29 @@ class Arrow(BaseGeometry):
     @classmethod
     def model_json_schema(cls, **kwargs: t.Any) -> dict[str, t.Any]:
         schema = super().model_json_schema(**kwargs)
-        
-        # Position field: dropdown of atom props only
-        schema["properties"]["position"]["x-custom-type"] = "dynamic-enum"
-        schema["properties"]["position"]["x-features"] = ["dynamic-atom-props"]
-        schema["properties"]["position"]["type"] = "string"
-        schema["properties"]["position"].pop("anyOf", None)
 
-        # Direction field: dropdown of atom props (vectors)
-        schema["properties"]["direction"]["x-custom-type"] = "dynamic-enum"
-        schema["properties"]["direction"]["x-features"] = ["dynamic-atom-props"]
-        schema["properties"]["direction"]["type"] = "string"
-        schema["properties"]["direction"].pop("anyOf", None)
-        
-        # Color field: dropdown + free text + color picker
-        schema["properties"]["color"]["x-custom-type"] = "dynamic-enum"
-        schema["properties"]["color"]["x-features"] = [
-            "color-picker",
-            "dynamic-atom-props",
-            "free-solo",
-        ]
-        schema["properties"]["color"]["type"] = "string"
-        schema["properties"]["color"].pop("anyOf", None)
-        
+        # Apply schema features using helper
+        apply_schema_feature(schema, "position", ["dynamic-atom-props"])
+        apply_schema_feature(schema, "direction", ["dynamic-atom-props"])
+        apply_schema_feature(schema, "color", ["color-picker", "dynamic-atom-props", "free-solo"])
+        apply_schema_feature(
+            schema,
+            "color",
+            ["color-picker", "dynamic-atom-props", "free-solo"],
+            definition_path="InteractionSettings"
+        )
+
         return schema
 
     # Use 'start' as the primary field with 'position' alias for compatibility
-    position: DataProp = Field(
+    position: PositionProp = Field(
         default="arrays.positions",
-        description="Arrow start position [x,y,z]. String for dynamic data key, tuple for static value.",
+        description="Arrow start position [x,y,z]. String for dynamic data key, list of tuples for static per-instance positions.",
     )
 
-    direction: DataProp = Field(
+    direction: t.Union[str, list[tuple[float, float, float]]] = Field(
         default="calc.forces",
-        description="Direction vector [x,y,z]. Defines arrow orientation and base length. String for dynamic data key, tuple for static value.",
+        description="Direction vector [x,y,z]. Defines arrow orientation and base length. String for dynamic data key, list of tuples for static per-instance directions.",
     )
 
     radius: float = Field(
@@ -60,4 +49,21 @@ class Arrow(BaseGeometry):
     scale: float = Field(
         default=1.0,
         description="Length scale multiplier applied to direction vector length. String for dynamic data key, float for static value.",
+    )
+
+    opacity: float = Field(
+        default=1.0,
+        ge=0.0,
+        le=1.0,
+        description="Arrow opacity, between 0 (transparent) and 1 (opaque).",
+    )
+
+    selecting: InteractionSettings = Field(
+        default=InteractionSettings(color="#FF6A00", opacity=0.5),
+        description="Selection interaction settings.",
+    )
+
+    hovering: InteractionSettings = Field(
+        default=InteractionSettings(color="#FF0000", opacity=0.5),
+        description="Hover interaction settings.",
     )

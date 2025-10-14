@@ -6,8 +6,10 @@ import { useRef, useMemo, useState, useEffect, useCallback } from "react";
 import { renderMaterial } from "./materials";
 import { shouldFetchAsFrameData } from "../../utils/colorUtils";
 import {
-  processNumericAttribute,
+  processPositionAttribute,
+  processRotationAttribute,
   processColorAttribute,
+  processSize3D,
   getInstanceCount,
   validateArrayLengths,
   SELECTION_SCALE,
@@ -15,6 +17,7 @@ import {
 } from "../../utils/geometryData";
 import { _vec3, _euler, _matrix, _color } from "../../utils/threeObjectPools";
 import { convertInstancedMeshToMerged, disposeMesh } from "../../utils/convertInstancedMesh";
+import { getGeometryWithDefaults } from "../../utils/geometryDefaults";
 
 interface InteractionSettings {
   enabled: boolean;
@@ -43,6 +46,11 @@ export default function Box({
   geometryKey: string;
   pathtracingEnabled?: boolean;
 }) {
+  const { geometryDefaults } = useAppStore();
+
+  // Merge with defaults from Pydantic (single source of truth)
+  const fullData = getGeometryWithDefaults<BoxData>(data, "Box", geometryDefaults);
+
   const {
     position: positionProp,
     size: sizeProp,
@@ -52,7 +60,7 @@ export default function Box({
     scale,
     selecting,
     hovering,
-  } = data;
+  } = fullData;
 
   const mainMeshRef = useRef<THREE.InstancedMesh | null>(null);
   const selectionMeshRef = useRef<THREE.InstancedMesh | null>(null);
@@ -60,7 +68,7 @@ export default function Box({
   const mergedMeshRef = useRef<THREE.Mesh | null>(null);
   const [instanceCount, setInstanceCount] = useState(0);
 
-  const { currentFrame, roomId, clientId, selections, updateSelections, hoveredParticleId, setHoveredParticleId, setGeometryFetching, removeGeometryFetching, requestPathtracingUpdate } = useAppStore();
+  const { currentFrame, roomId, clientId, selections, updateSelections, hoveredGeometryInstance, setHoveredGeometryInstance, setDrawingPointerPosition, isDrawing, setDrawingIsValid, setGeometryFetching, removeGeometryFetching, requestPathtracingUpdate } = useAppStore();
 
   // Use geometry-specific selection
   const boxSelection = selections[geometryKey] || [];
@@ -132,6 +140,7 @@ export default function Box({
     }
 
     try {
+
       // --- Data Processing Step ---
       const fetchedPosition = typeof positionProp === 'string' ? positionData?.[positionProp as string] : undefined;
       const finalCount = getInstanceCount(positionProp, fetchedPosition);
@@ -141,17 +150,17 @@ export default function Box({
         return;
       }
 
-      // Process all attributes
-      const finalPositions = processNumericAttribute(positionProp, fetchedPosition, finalCount);
+      // Process all attributes using new specialized functions
+      const finalPositions = processPositionAttribute(positionProp, fetchedPosition);
 
       const fetchedColor = typeof colorProp === 'string' ? colorData?.[colorProp as string] : undefined;
       const finalColors = processColorAttribute(colorProp, fetchedColor, finalCount);
 
       const fetchedSize = typeof sizeProp === 'string' ? sizeData?.[sizeProp as string] : undefined;
-      const finalSizes = processNumericAttribute(sizeProp, fetchedSize, finalCount);
+      const finalSizes = processSize3D(sizeProp, fetchedSize, finalCount);
 
       const fetchedRotation = typeof rotationProp === 'string' ? rotationData?.[rotationProp as string] : undefined;
-      const finalRotations = processNumericAttribute(rotationProp, fetchedRotation, finalCount);
+      const finalRotations = processRotationAttribute(rotationProp, fetchedRotation, finalCount);
 
       // --- Validation Step ---
       const isDataValid = validateArrayLengths(
@@ -174,6 +183,7 @@ export default function Box({
       // --- Main Mesh Instance Update ---
       const mainMesh = mainMeshRef.current;
       if (!mainMesh) return;
+
       for (let i = 0; i < finalCount; i++) {
         const i3 = i * 3;
         _vec3.set(finalPositions[i3], finalPositions[i3 + 1], finalPositions[i3 + 2]);
@@ -183,6 +193,8 @@ export default function Box({
         const depth = finalSizes[i3 + 2] * boxScale;
         _matrix.compose(_vec3, new THREE.Quaternion().setFromEuler(_euler), new THREE.Vector3(width, height, depth));
         mainMesh.setMatrixAt(i, _matrix);
+
+        // Use original colors (no inline selection/hover colors)
         _color.setRGB(finalColors[i3], finalColors[i3 + 1], finalColors[i3 + 2]);
         mainMesh.setColorAt(i, _color);
       }
@@ -208,24 +220,6 @@ export default function Box({
         selectionMesh.instanceMatrix.needsUpdate = true;
       }
 
-      // --- Hover Mesh Update ---
-      if (hovering?.enabled && hoverMeshRef.current) {
-        const hoverMesh = hoverMeshRef.current;
-        if (hoveredParticleId !== null && hoveredParticleId < finalCount) {
-          hoverMesh.visible = true;
-          const i3 = hoveredParticleId * 3;
-          _vec3.set(finalPositions[i3], finalPositions[i3 + 1], finalPositions[i3 + 2]);
-          _euler.set(finalRotations[i3], finalRotations[i3 + 1], finalRotations[i3 + 2]);
-          const width = finalSizes[i3] * boxScale * HOVER_SCALE;
-          const height = finalSizes[i3 + 1] * boxScale * HOVER_SCALE;
-          const depth = finalSizes[i3 + 2] * boxScale * HOVER_SCALE;
-          hoverMesh.position.copy(_vec3);
-          hoverMesh.quaternion.setFromEuler(_euler);
-          hoverMesh.scale.set(width, height, depth);
-        } else {
-          hoverMesh.visible = false;
-        }
-      }
     } catch (error) {
       console.error("Error processing Box data:", error);
       if (instanceCount !== 0) setInstanceCount(0);
@@ -244,9 +238,40 @@ export default function Box({
     boxScale,
     validSelectedIndices,
     selecting,
-    hovering,
-    hoveredParticleId,
+    geometryKey,
   ]);
+
+  // Separate effect for hover mesh updates - doesn't trigger data reprocessing
+  useEffect(() => {
+    if (!hovering?.enabled || !hoverMeshRef.current || !mainMeshRef.current) return;
+    if (instanceCount === 0) return;
+
+    const hoverMesh = hoverMeshRef.current;
+    const mainMesh = mainMeshRef.current;
+
+    // Only show hover if it's for this geometry
+    if (hoveredGeometryInstance?.geometryKey === geometryKey &&
+        hoveredGeometryInstance?.instanceId !== null &&
+        hoveredGeometryInstance.instanceId < instanceCount) {
+      hoverMesh.visible = true;
+
+      // Get transform from main mesh
+      const matrix = new THREE.Matrix4();
+      mainMesh.getMatrixAt(hoveredGeometryInstance.instanceId, matrix);
+
+      const position = new THREE.Vector3();
+      const quaternion = new THREE.Quaternion();
+      const scale = new THREE.Vector3();
+      matrix.decompose(position, quaternion, scale);
+
+      // Apply hover scale
+      hoverMesh.position.copy(position);
+      hoverMesh.quaternion.copy(quaternion);
+      hoverMesh.scale.copy(scale).multiplyScalar(HOVER_SCALE);
+    } else {
+      hoverMesh.visible = false;
+    }
+  }, [hoveredGeometryInstance, instanceCount, hovering, geometryKey]);
 
   // Convert instanced mesh to merged mesh for path tracing
   useEffect(() => {
@@ -293,15 +318,25 @@ export default function Box({
     updateSelections(geometryKey, event.instanceId, event.shiftKey);
   }, [updateSelections, geometryKey]);
 
+  const onPointerMoveHandler = useCallback((event: any) => {
+    if (event.instanceId === undefined) return;
+    event.stopPropagation();
+    if (isDrawing) {
+      setDrawingPointerPosition(event.point);
+    }
+  }, [isDrawing, setDrawingPointerPosition]);
+
   const onPointerEnterHandler = useCallback((event: any) => {
     if (event.instanceId === undefined) return;
     event.stopPropagation();
-    setHoveredParticleId(event.instanceId);
-  }, [setHoveredParticleId]);
+    setHoveredGeometryInstance(geometryKey, event.instanceId);
+    setDrawingIsValid(true);
+  }, [setHoveredGeometryInstance, setDrawingIsValid, geometryKey]);
 
   const onPointerOutHandler = useCallback(() => {
-    setHoveredParticleId(null);
-  }, [setHoveredParticleId]);
+    setHoveredGeometryInstance(null, null);
+    setDrawingIsValid(false);
+  }, [setHoveredGeometryInstance, setDrawingIsValid]);
 
   if (!clientId || !roomId) return null;
 
@@ -315,6 +350,7 @@ export default function Box({
         visible={!pathtracingEnabled}
         onClick={!pathtracingEnabled && selecting.enabled ? onClickHandler : undefined}
         onPointerEnter={!pathtracingEnabled && hovering?.enabled ? onPointerEnterHandler : undefined}
+        onPointerMove={!pathtracingEnabled && hovering?.enabled ? onPointerMoveHandler : undefined}
         onPointerOut={!pathtracingEnabled && hovering?.enabled ? onPointerOutHandler : undefined}
       >
         <primitive object={mainGeometry} attach="geometry" />

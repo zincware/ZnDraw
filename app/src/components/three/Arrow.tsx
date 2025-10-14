@@ -7,24 +7,34 @@ import { getFrames } from "../../myapi/client";
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { shouldFetchAsFrameData } from "../../utils/colorUtils";
 import {
-  type DataProp,
+  type SizeProp,
   processNumericAttribute,
   processColorAttribute,
   getInstanceCount,
   validateArrayLengths,
-  SELECTION_COLOR,
+  SELECTION_SCALE,
+  HOVER_SCALE,
 } from "../../utils/geometryData";
 import { _vec3, _vec3_2, _vec3_3, _quat, _matrix, _color } from "../../utils/threeObjectPools";
 import { convertInstancedMeshToMerged, disposeMesh } from "../../utils/convertInstancedMesh";
+import { getGeometryWithDefaults } from "../../utils/geometryDefaults";
 
-interface ArrowProps {
-  position: DataProp;
-  direction: DataProp;
-  color: DataProp;
-  radius: DataProp;
-  scale: DataProp;
+interface InteractionSettings {
+  enabled: boolean;
+  color: string;
+  opacity: number;
+}
+
+interface ArrowData {
+  position: string | number[][] | number[];
+  direction: string | number[][] | number[];
+  color: string | number[][] | number[];
+  radius: SizeProp;
+  scale: SizeProp;
   material: string;
-  geometryKey: string;
+  opacity: number;
+  selecting: InteractionSettings;
+  hovering: InteractionSettings;
 }
 
 // Arrow-specific reusable THREE objects
@@ -64,20 +74,32 @@ export default function Arrow({
   geometryKey,
   pathtracingEnabled = false
 }: {
-  data: ArrowProps;
+  data: ArrowData;
   geometryKey: string;
   pathtracingEnabled?: boolean;
 }) {
-  const { position, direction, color, radius, scale, material } = data;
-  const instancedMeshRef = useRef<THREE.InstancedMesh | null>(null);
+  const { geometryDefaults } = useAppStore();
+
+  // Merge with defaults from Pydantic (single source of truth)
+  const fullData = getGeometryWithDefaults<ArrowData>(data, "Arrow", geometryDefaults);
+  const { position, direction, color, radius, scale, material, opacity, selecting, hovering } = fullData;
+
+  const mainMeshRef = useRef<THREE.InstancedMesh | null>(null);
+  const selectionMeshRef = useRef<THREE.InstancedMesh | null>(null);
+  const hoverMeshRef = useRef<THREE.Mesh | null>(null);
   const mergedMeshRef = useRef<THREE.Mesh | null>(null);
   const [instanceCount, setInstanceCount] = useState(0);
 
-  const { currentFrame, roomId, clientId, selections, updateSelections, setGeometryFetching, removeGeometryFetching, requestPathtracingUpdate } = useAppStore();
+  const { currentFrame, roomId, clientId, selections, updateSelections, hoveredGeometryInstance, setHoveredGeometryInstance, setDrawingPointerPosition, isDrawing, setDrawingIsValid, setGeometryFetching, removeGeometryFetching, requestPathtracingUpdate } = useAppStore();
 
   // Use geometry-specific selection
   const arrowSelection = selections[geometryKey] || [];
   const selectionSet = useMemo(() => new Set(arrowSelection), [arrowSelection]);
+  const selectedIndices = useMemo(() => Array.from(selectionSet), [selectionSet]);
+  const validSelectedIndices = useMemo(
+    () => selectedIndices.filter((id) => id < instanceCount),
+    [selectedIndices, instanceCount]
+  );
 
   // Individual queries for each attribute - enables perfect cross-component caching
   const { data: positionData, isFetching: isPositionFetching } = useQuery({
@@ -201,10 +223,10 @@ export default function Arrow({
         return;
       }
 
-      const mesh = instancedMeshRef.current;
-      if (!mesh) return;
+      // --- Main Mesh Instance Update ---
+      const mainMesh = mainMeshRef.current;
+      if (!mainMesh) return;
 
-      // --- Mesh Instance Update Step ---
       for (let i = 0; i < finalCount; i++) {
         const i3 = i * 3;
         _vec3.set(finalPositions[i3], finalPositions[i3 + 1], finalPositions[i3 + 2]);
@@ -222,19 +244,42 @@ export default function Arrow({
         }
 
         _matrix.compose(_vec3, _quat, _vec3_3);
-        mesh.setMatrixAt(i, _matrix);
+        mainMesh.setMatrixAt(i, _matrix);
 
-        if (selectionSet && selectionSet.has(i)) {
-          _color.setRGB(SELECTION_COLOR[0], SELECTION_COLOR[1], SELECTION_COLOR[2]);
-        } else {
-          _color.setRGB(finalColors[i3], finalColors[i3 + 1], finalColors[i3 + 2]);
-        }
-        mesh.setColorAt(i, _color);
+        // Use original colors (no inline selection/hover colors)
+        _color.setRGB(finalColors[i3], finalColors[i3 + 1], finalColors[i3 + 2]);
+        mainMesh.setColorAt(i, _color);
       }
 
-      mesh.instanceMatrix.needsUpdate = true;
-      if (mesh.instanceColor) {
-        mesh.instanceColor.needsUpdate = true;
+      mainMesh.instanceMatrix.needsUpdate = true;
+      if (mainMesh.instanceColor) {
+        mainMesh.instanceColor.needsUpdate = true;
+      }
+
+      // --- Selection Mesh Update ---
+      if (selecting.enabled && selectionMeshRef.current) {
+        const selectionMesh = selectionMeshRef.current;
+        validSelectedIndices.forEach((id, index) => {
+          if (id >= finalCount) return;
+          const i3 = id * 3;
+          _vec3.set(finalPositions[i3], finalPositions[i3 + 1], finalPositions[i3 + 2]);
+          _vec3_2.set(finalDirections[i3], finalDirections[i3 + 1], finalDirections[i3 + 2]);
+
+          const arrowLength = _vec3_2.length() * finalScales[id];
+          const arrowRadius = finalRadii[id] * SELECTION_SCALE;
+          _vec3_3.set(arrowRadius, arrowLength * SELECTION_SCALE, arrowRadius);
+
+          // Avoid issues with zero-length vectors
+          if (arrowLength > 1e-6) {
+            _quat.setFromUnitVectors(_arrowUp, _vec3_2.normalize());
+          } else {
+            _quat.identity();
+          }
+
+          _matrix.compose(_vec3, _quat, _vec3_3);
+          selectionMesh.setMatrixAt(index, _matrix);
+        });
+        selectionMesh.instanceMatrix.needsUpdate = true;
       }
     } catch (error) {
       console.error("Error processing Arrow data:", error);
@@ -253,8 +298,42 @@ export default function Arrow({
     radius,
     scale,
     instanceCount,
-    selectionSet,
+    validSelectedIndices,
+    selecting,
+    geometryKey,
   ]);
+
+  // Separate effect for hover mesh updates - doesn't trigger data reprocessing
+  useEffect(() => {
+    if (!hovering?.enabled || !hoverMeshRef.current || !mainMeshRef.current) return;
+    if (instanceCount === 0) return;
+
+    const hoverMesh = hoverMeshRef.current;
+    const mainMesh = mainMeshRef.current;
+
+    // Only show hover if it's for this geometry
+    if (hoveredGeometryInstance?.geometryKey === geometryKey &&
+        hoveredGeometryInstance?.instanceId !== null &&
+        hoveredGeometryInstance.instanceId < instanceCount) {
+      hoverMesh.visible = true;
+
+      // Get transform from main mesh
+      const matrix = new THREE.Matrix4();
+      mainMesh.getMatrixAt(hoveredGeometryInstance.instanceId, matrix);
+
+      const position = new THREE.Vector3();
+      const quaternion = new THREE.Quaternion();
+      const scale = new THREE.Vector3();
+      matrix.decompose(position, quaternion, scale);
+
+      // Apply hover scale
+      hoverMesh.position.copy(position);
+      hoverMesh.quaternion.copy(quaternion);
+      hoverMesh.scale.copy(scale).multiplyScalar(HOVER_SCALE);
+    } else {
+      hoverMesh.visible = false;
+    }
+  }, [hoveredGeometryInstance, instanceCount, hovering, geometryKey]);
 
   // Convert instanced mesh to merged mesh for path tracing
   useEffect(() => {
@@ -267,7 +346,7 @@ export default function Arrow({
       return;
     }
 
-    if (!instancedMeshRef.current || instanceCount === 0) return;
+    if (!mainMeshRef.current || instanceCount === 0) return;
 
     // Dispose old merged mesh if it exists
     if (mergedMeshRef.current) {
@@ -275,7 +354,7 @@ export default function Arrow({
     }
 
     // Convert instanced mesh to single merged mesh with vertex colors
-    const mergedMesh = convertInstancedMeshToMerged(instancedMeshRef.current);
+    const mergedMesh = convertInstancedMeshToMerged(mainMeshRef.current);
     mergedMeshRef.current = mergedMesh;
 
     // Request pathtracing update
@@ -293,8 +372,6 @@ export default function Arrow({
     instanceCount,
     geometryKey,
     requestPathtracingUpdate,
-    // DO NOT depend on positionData/directionData/colorData/selections here!
-    // That causes unnecessary rebuilds. instanceCount only changes AFTER mesh update completes.
   ]);
 
   // Create the base geometry only once
@@ -306,23 +383,74 @@ export default function Arrow({
     updateSelections(geometryKey, event.instanceId, event.shiftKey);
   }, [updateSelections, geometryKey]);
 
+  const onPointerMoveHandler = useCallback((event: any) => {
+    if (event.instanceId === undefined) return;
+    event.stopPropagation();
+    if (isDrawing) {
+      setDrawingPointerPosition(event.point);
+    }
+  }, [isDrawing, setDrawingPointerPosition]);
+
+  const onPointerEnterHandler = useCallback((event: any) => {
+    if (event.instanceId === undefined) return;
+    event.stopPropagation();
+    setHoveredGeometryInstance(geometryKey, event.instanceId);
+    setDrawingIsValid(true);
+  }, [setHoveredGeometryInstance, setDrawingIsValid, geometryKey]);
+
+  const onPointerOutHandler = useCallback(() => {
+    setHoveredGeometryInstance(null, null);
+    setDrawingIsValid(false);
+  }, [setHoveredGeometryInstance, setDrawingIsValid]);
+
   if (!clientId || !roomId) {
     return null;
   }
 
   return (
     <group>
-      {/* Instanced mesh - visible when NOT pathtracing */}
-      {/* NOTE: Interactions (click) disabled when pathtracing enabled */}
+      {/* Main instanced mesh - visible when NOT pathtracing */}
       <instancedMesh
         key={instanceCount}
-        ref={instancedMeshRef}
+        ref={mainMeshRef}
         args={[geometry, undefined, instanceCount]}
         visible={!pathtracingEnabled}
-        onClick={!pathtracingEnabled ? onClickHandler : undefined}
+        onClick={!pathtracingEnabled && selecting.enabled ? onClickHandler : undefined}
+        onPointerEnter={!pathtracingEnabled && hovering?.enabled ? onPointerEnterHandler : undefined}
+        onPointerMove={!pathtracingEnabled && hovering?.enabled ? onPointerMoveHandler : undefined}
+        onPointerOut={!pathtracingEnabled && hovering?.enabled ? onPointerOutHandler : undefined}
       >
-        {renderMaterial(material)}
+        {renderMaterial(material, opacity)}
       </instancedMesh>
+
+      {/* Selection mesh - only when NOT pathtracing */}
+      {!pathtracingEnabled && selecting.enabled && (
+        <instancedMesh
+          key={`selection-${validSelectedIndices.length}`}
+          ref={selectionMeshRef}
+          args={[geometry, undefined, validSelectedIndices.length]}
+        >
+          <meshBasicMaterial
+            side={THREE.FrontSide}
+            transparent
+            opacity={selecting.opacity}
+            color={selecting.color}
+          />
+        </instancedMesh>
+      )}
+
+      {/* Hover mesh - only when NOT pathtracing */}
+      {!pathtracingEnabled && hovering?.enabled && (
+        <mesh ref={hoverMeshRef} visible={false}>
+          <primitive object={geometry} attach="geometry" />
+          <meshBasicMaterial
+            side={THREE.BackSide}
+            transparent
+            opacity={hovering.opacity}
+            color={hovering.color}
+          />
+        </mesh>
+      )}
 
       {/* Merged mesh - visible when pathtracing */}
       {pathtracingEnabled && mergedMeshRef.current && (

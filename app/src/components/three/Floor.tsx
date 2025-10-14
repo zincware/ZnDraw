@@ -5,6 +5,7 @@ import * as THREE from "three";
 import { useColorScheme, useTheme } from "@mui/material/styles";
 import { useExtensionData } from "../../hooks/useSchemas";
 import { useAppStore } from "../../store";
+import { getGeometryWithDefaults } from "../../utils/geometryDefaults";
 
 interface FloorData {
   active: boolean;
@@ -23,10 +24,13 @@ interface FloorData {
 
 export const Floor = ({ data }: { data: FloorData }) => {
   const { scene } = useThree();
-  const { roomId, userId } = useAppStore();
+  const { roomId, userId, geometryDefaults } = useAppStore();
   const gridRef = useRef<THREE.GridHelper | null>(null);
   const { mode } = useColorScheme();
   const theme = useTheme();
+
+  // Merge with defaults from Pydantic (single source of truth)
+  const fullData = getGeometryWithDefaults<FloorData>(data, "Floor", geometryDefaults);
 
   // Get camera settings for camera_far
   const { data: cameraSettings } = useExtensionData(
@@ -52,17 +56,17 @@ export const Floor = ({ data }: { data: FloorData }) => {
   const shadowScale = Math.min(size * 0.3, 150);
 
   // Map "default" colors to theme colors with better contrast
-  const floorColor = data.color === "default"
+  const floorColor = fullData.color === "default"
     ? (mode === "light" ? "#e0e0e0" : "#303030")
-    : data.color;
+    : fullData.color;
 
-  const gridColor = data.grid_color === "default"
+  const gridColor = fullData.grid_color === "default"
     ? (mode === "light" ? "#616161" : "#9e9e9e")
-    : data.grid_color;
+    : fullData.grid_color;
 
   // Sync fog with camera_far and background
   useEffect(() => {
-    if (!data.fog_enabled) {
+    if (!fullData.fog_enabled) {
       scene.fog = null;
       return;
     }
@@ -82,7 +86,7 @@ export const Floor = ({ data }: { data: FloorData }) => {
       scene.fog = null;
     };
   }, [
-    data.fog_enabled,
+    fullData.fog_enabled,
     cameraSettings?.far_plane,
     studioSettings?.background_color,
     mode,
@@ -91,27 +95,27 @@ export const Floor = ({ data }: { data: FloorData }) => {
 
   // Update grid when settings change
   useEffect(() => {
-    if (!gridRef.current || !data.show_grid) return;
+    if (!gridRef.current || !fullData.show_grid) return;
 
     const grid = gridRef.current;
-    grid.position.y = data.height;
+    grid.position.y = fullData.height;
 
     // Update grid material color/opacity
     if (grid.material instanceof THREE.Material) {
-      grid.material.opacity = data.grid_opacity;
+      grid.material.opacity = fullData.grid_opacity;
       grid.material.transparent = true;
       grid.material.color.set(gridColor);
     }
-  }, [data.height, gridColor, data.grid_opacity, data.show_grid]);
+  }, [fullData.height, gridColor, fullData.grid_opacity, fullData.show_grid]);
 
-  const divisions = Math.floor(size / data.grid_spacing);
+  const divisions = Math.floor(size / fullData.grid_spacing);
 
   return (
     <group>
       {/* Floor Plane (receives shadows) */}
       <mesh
         rotation={[-Math.PI / 2, 0, 0]}
-        position={[0, data.height - 0.01, 0]}
+        position={[0, fullData.height - 0.01, 0]}
         receiveShadow
       >
         <planeGeometry args={[size, size]} />
@@ -123,21 +127,21 @@ export const Floor = ({ data }: { data: FloorData }) => {
       </mesh>
 
       {/* Grid Helper */}
-      {data.show_grid && (
+      {fullData.show_grid && (
         <gridHelper
           ref={gridRef}
           args={[size, divisions, gridColor, gridColor]}
-          position={[0, data.height, 0]}
+          position={[0, fullData.height, 0]}
         />
       )}
 
       {/* Contact Shadows (drei component) */}
-      {data.show_shadows && (
+      {fullData.show_shadows && (
         <ContactShadows
-          position={[0, data.height + 0.01, 0]}
-          opacity={data.shadow_opacity}
+          position={[0, fullData.height + 0.01, 0]}
+          opacity={fullData.shadow_opacity}
           scale={shadowScale}
-          blur={data.shadow_blur}
+          blur={fullData.shadow_blur}
           far={20}
           resolution={512}
         />

@@ -6,7 +6,6 @@ import { useRef, useMemo, useState, useEffect, useCallback } from "react";
 import { renderMaterial } from "./materials";
 import { shouldFetchAsFrameData } from "../../utils/colorUtils";
 import {
-  type DataProp,
   processNumericAttribute,
   processColorAttribute,
   getInstanceCount,
@@ -16,6 +15,7 @@ import {
 } from "../../utils/geometryData";
 import { _vec3, _matrix, _color } from "../../utils/threeObjectPools";
 import { convertInstancedMeshToMerged, disposeMesh } from "../../utils/convertInstancedMesh";
+import { getGeometryWithDefaults } from "../../utils/geometryDefaults";
 
 interface InteractionSettings {
   enabled: boolean;
@@ -46,6 +46,11 @@ export default function Sphere({
   geometryKey: string;
   pathtracingEnabled?: boolean;
 }) {
+  const { geometryDefaults } = useAppStore();
+
+  // Merge with defaults from Pydantic (single source of truth)
+  const fullData = getGeometryWithDefaults<SphereData>(data, "Sphere", geometryDefaults);
+
   const {
     position: positionProp,
     color: colorProp,
@@ -56,7 +61,7 @@ export default function Sphere({
     selecting,
     hovering,
     opacity,
-  } = data;
+  } = fullData;
 
   const mainMeshRef = useRef<THREE.InstancedMesh | null>(null);
   const selectionMeshRef = useRef<THREE.InstancedMesh | null>(null);
@@ -64,7 +69,7 @@ export default function Sphere({
   const mergedMeshRef = useRef<THREE.Mesh | null>(null);
   const [instanceCount, setInstanceCount] = useState(0);
 
-  const { currentFrame, roomId, clientId, selections, updateSelections, setDrawingPointerPosition, isDrawing, setDrawingIsValid, setGeometryFetching, removeGeometryFetching, hoveredParticleId, setHoveredParticleId, setParticleCount, requestPathtracingUpdate } = useAppStore();
+  const { currentFrame, roomId, clientId, selections, updateSelections, setDrawingPointerPosition, isDrawing, setDrawingIsValid, setGeometryFetching, removeGeometryFetching, hoveredGeometryInstance, setHoveredGeometryInstance, setParticleCount, requestPathtracingUpdate } = useAppStore();
 
   // Use geometry-specific selection
   const particleSelection = selections[geometryKey] || [];
@@ -196,20 +201,6 @@ export default function Sphere({
         selectionMesh.instanceMatrix.needsUpdate = true;
       }
 
-      // --- Hover Mesh Update ---
-      if (hovering?.enabled && hoverMeshRef.current) {
-        const hoverMesh = hoverMeshRef.current;
-        if (hoveredParticleId !== null && hoveredParticleId < finalCount) {
-          hoverMesh.visible = true;
-          const i3 = hoveredParticleId * 3;
-          _vec3.set(finalPositions[i3], finalPositions[i3 + 1], finalPositions[i3 + 2]);
-          const r = finalRadii[hoveredParticleId] * particleScale * HOVER_SCALE;
-          hoverMesh.position.copy(_vec3);
-          hoverMesh.scale.set(r, r, r);
-        } else {
-          hoverMesh.visible = false;
-        }
-      }
     } catch (error) {
       console.error("Error processing Sphere/Particles data:", error);
       if (instanceCount !== 0) setInstanceCount(0);
@@ -226,9 +217,37 @@ export default function Sphere({
     particleScale,
     validSelectedIndices,
     selecting,
-    hovering,
-    hoveredParticleId,
   ]);
+
+  // Separate effect for hover mesh updates - doesn't trigger data reprocessing
+  useEffect(() => {
+    if (!hovering?.enabled || !hoverMeshRef.current || !mainMeshRef.current) return;
+    if (instanceCount === 0) return;
+
+    const hoverMesh = hoverMeshRef.current;
+    const mainMesh = mainMeshRef.current;
+
+    // Only show hover if it's for this geometry
+    if (hoveredGeometryInstance?.geometryKey === geometryKey &&
+        hoveredGeometryInstance?.instanceId !== null &&
+        hoveredGeometryInstance.instanceId < instanceCount) {
+      hoverMesh.visible = true;
+
+      // Get transform from main mesh
+      const matrix = new THREE.Matrix4();
+      mainMesh.getMatrixAt(hoveredGeometryInstance.instanceId, matrix);
+
+      const position = new THREE.Vector3();
+      const scale = new THREE.Vector3();
+      matrix.decompose(position, new THREE.Quaternion(), scale);
+
+      // Apply hover scale
+      hoverMesh.position.copy(position);
+      hoverMesh.scale.copy(scale).multiplyScalar(HOVER_SCALE);
+    } else {
+      hoverMesh.visible = false;
+    }
+  }, [hoveredGeometryInstance, instanceCount, hovering, geometryKey]);
 
   // Convert instanced mesh to merged mesh for path tracing
   useEffect(() => {
@@ -293,14 +312,14 @@ export default function Sphere({
   const onPointerEnterHandler = useCallback((event: any) => {
     if (event.instanceId === undefined) return;
     event.stopPropagation();
-    setHoveredParticleId(event.instanceId);
+    setHoveredGeometryInstance(geometryKey, event.instanceId);
     setDrawingIsValid(true);
-  }, [setDrawingIsValid, setHoveredParticleId]);
+  }, [setDrawingIsValid, setHoveredGeometryInstance, geometryKey]);
 
-  const onPointerOutHandler = useCallback(() => { 
-    setHoveredParticleId(null);
-    setDrawingIsValid(false); 
-  }, [setDrawingIsValid, setHoveredParticleId]);
+  const onPointerOutHandler = useCallback(() => {
+    setHoveredGeometryInstance(null, null);
+    setDrawingIsValid(false);
+  }, [setDrawingIsValid, setHoveredGeometryInstance]);
 
   if (!clientId || !roomId) return null;
 
@@ -319,7 +338,7 @@ export default function Sphere({
         onPointerOut={!pathtracingEnabled && hovering?.enabled ? onPointerOutHandler : undefined}
       >
         <primitive object={mainGeometry} attach="geometry" />
-        {renderMaterial(material, data.opacity)}
+        {renderMaterial(material, opacity)}
       </instancedMesh>
 
       {/* Selection mesh - only when NOT pathtracing */}

@@ -3,12 +3,11 @@
 import typing as t
 from pydantic import Field
 
-from .base import BaseGeometry, DataProp, InteractionSettings
+from .base import BaseGeometry, RotationProp, InteractionSettings, apply_schema_feature
 
 # Custom type for 2D plane size (width, height)
-PlaneSize = t.Union[
-    str, float, tuple[float, float], list[tuple[float, float]]
-]
+# Can be shared (single tuple) or per-instance (list of tuples) or dynamic
+PlaneSize = t.Union[str, tuple[float, float], list[tuple[float, float]]]
 
 
 class Plane(BaseGeometry):
@@ -17,58 +16,47 @@ class Plane(BaseGeometry):
     Planes are defined by a center position and size dimensions [width, height].
     Optional rotation can be applied as Euler angles [x, y, z] in radians.
     By default, planes are oriented in the XY plane (facing along Z-axis).
+
+    By default, creates a single 1x1 plane at the origin (0,0,0).
     """
+
+    # Override defaults for user-created geometries
+    position: t.Union[str, list[tuple[float, float, float]]] = Field(
+        default=[(0.0, 0.0, 0.0)],
+        description="Position coordinates. String for dynamic data key (e.g. 'arrays.positions'), list of tuples for static per-instance positions [(x,y,z), ...].",
+    )
+
+    color: t.Union[str, list[str]] = Field(
+        default="#808080",
+        description="Color values. String for dynamic key (e.g. 'arrays.colors') or shared hex color (e.g. '#FF0000'), list of hex colors for per-instance ['#FF0000', '#00FF00', ...].",
+    )
 
     @classmethod
     def model_json_schema(cls, **kwargs: t.Any) -> dict[str, t.Any]:
         schema = super().model_json_schema(**kwargs)
 
-        # Position field: dropdown of atom props
-        schema["properties"]["position"]["x-custom-type"] = "dynamic-enum"
-        schema["properties"]["position"]["x-features"] = ["dynamic-atom-props"]
-        schema["properties"]["position"]["type"] = "string"
-        schema["properties"]["position"].pop("anyOf", None)
-
-        # Size field: dropdown of atom props
-        schema["properties"]["size"]["x-custom-type"] = "dynamic-enum"
-        schema["properties"]["size"]["x-features"] = ["dynamic-atom-props"]
-        schema["properties"]["size"]["type"] = "string"
-        schema["properties"]["size"].pop("anyOf", None)
-
-        # Color field: dropdown + free text + color picker
-        schema["properties"]["color"]["x-custom-type"] = "dynamic-enum"
-        schema["properties"]["color"]["x-features"] = [
-            "color-picker",
-            "dynamic-atom-props",
-            "free-solo",
-        ]
-        schema["properties"]["color"]["type"] = "string"
-        schema["properties"]["color"].pop("anyOf", None)
-
-        # Rotation field: dropdown of atom props
-        schema["properties"]["rotation"]["x-custom-type"] = "dynamic-enum"
-        schema["properties"]["rotation"]["x-features"] = ["dynamic-atom-props"]
-        schema["properties"]["rotation"]["type"] = "string"
-        schema["properties"]["rotation"].pop("anyOf", None)
-
-        # Selection/hover color pickers
-        schema["$defs"]["InteractionSettings"]["properties"]["color"][
-            "x-custom-type"
-        ] = "dynamic-enum"
-        schema["$defs"]["InteractionSettings"]["properties"]["color"][
-            "x-features"
-        ] = ["color-picker", "dynamic-atom-props", "free-solo"]
+        # Apply schema features using helper
+        apply_schema_feature(schema, "position", ["dynamic-atom-props"])
+        apply_schema_feature(schema, "size", ["dynamic-atom-props"])
+        apply_schema_feature(schema, "color", ["color-picker", "dynamic-atom-props", "free-solo"])
+        apply_schema_feature(schema, "rotation", ["dynamic-atom-props"])
+        apply_schema_feature(
+            schema,
+            "color",
+            ["color-picker", "dynamic-atom-props", "free-solo"],
+            definition_path="InteractionSettings"
+        )
 
         return schema
 
     size: PlaneSize = Field(
         default=(1.0, 1.0),
-        description="Plane dimensions [width, height]. String for dynamic data key, tuple for static value.",
+        description="Plane dimensions [width, height]. Tuple for shared size across all instances, list of tuples for per-instance sizes, string for dynamic data key.",
     )
 
-    rotation: DataProp = Field(
+    rotation: RotationProp = Field(
         default=(0.0, 0.0, 0.0),
-        description="Rotation as Euler angles [x, y, z] in radians. String for dynamic data key, tuple for static value.",
+        description="Rotation as Euler angles [x, y, z] in radians. Tuple for shared rotation across all instances, list of tuples for per-instance rotations, string for dynamic data key.",
     )
 
     scale: float = Field(

@@ -28,9 +28,10 @@ import {
 import { useAppStore } from "../../store";
 import { useFrameMetadata } from "../../hooks/useSchemas";
 import { customRenderers, injectDynamicEnums } from "../../utils/jsonforms";
+import { getGeometryWithDefaults } from "../../utils/geometryDefaults";
 
 const GeometryForm = () => {
-  const { roomId, geometries } = useAppStore();
+  const { roomId, geometries, geometryDefaults } = useAppStore();
   const clientId = null; // we don't want to skip when saving the current clientId, so undefined
   const {
     mode,
@@ -47,6 +48,7 @@ const GeometryForm = () => {
   const [activeState, setActiveState] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [isLocked, setIsLocked] = useState(false); // Track if key/type are locked
   const isInitializedRef = useRef(false);
 
   // Fetch geometry schemas
@@ -81,27 +83,41 @@ const GeometryForm = () => {
 
   // Initialize form data for edit mode
   useEffect(() => {
-    isInitializedRef.current = false;
     if (mode === "edit" && geometryData) {
+      isInitializedRef.current = false;
       setKeyInput(geometryData.key);
       setSelectedType(geometryData.geometry.type);
       setFormData(geometryData.geometry.data || {});
       setActiveState(geometryData.geometry.data?.active !== false); // Default to true if undefined
-    } else if (mode === "create") {
-      setKeyInput("");
-      setFormData({});
-      setActiveState(true); // Default to true for new geometries
+      setIsLocked(true); // Lock fields in edit mode
+
+      // Mark as initialized after a short delay to avoid saving initial data
+      setTimeout(() => {
+        isInitializedRef.current = true;
+      }, 500);
     }
-    // Mark as initialized after a short delay to avoid saving initial data
-    setTimeout(() => {
-      isInitializedRef.current = true;
-    }, 500);
   }, [mode, geometryData, setFormData, setSelectedType]);
+
+  // Apply defaults and lock fields when both key and type are present in create mode
+  const lockAndCreateGeometry = useCallback(() => {
+    if (mode === "create" && keyInput.trim() && selectedType && geometryDefaults && !isLocked) {
+      const defaultData = getGeometryWithDefaults({}, selectedType, geometryDefaults);
+      setFormData(defaultData);
+      setIsLocked(true);
+      isInitializedRef.current = true;
+    }
+  }, [mode, keyInput, selectedType, geometryDefaults, isLocked, setFormData]);
+
+  // Handler for when key or type field is blurred
+  const handleFieldBlur = useCallback(() => {
+    if (keyInput.trim() && selectedType) {
+      lockAndCreateGeometry();
+    }
+  }, [keyInput, selectedType, lockAndCreateGeometry]);
 
   const handleTypeChange = (event: SelectChangeEvent<string>) => {
     const type = event.target.value;
     setSelectedType(type);
-    setFormData({}); // Reset form data when type changes
     setError(null);
   };
 
@@ -148,8 +164,8 @@ const GeometryForm = () => {
 
   // Auto-save effect
   useEffect(() => {
-    // Skip if not initialized or in create mode without key
-    if (!isInitializedRef.current || (mode === "create" && !keyInput.trim())) {
+    // Skip if not initialized or in create mode without key/type
+    if (!isInitializedRef.current || (mode === "create" && (!keyInput.trim() || !selectedType))) {
       return;
     }
 
@@ -159,11 +175,14 @@ const GeometryForm = () => {
     return () => {
       debouncedSave.cancel();
     };
-  }, [formData, keyInput, selectedType, mode, debouncedSave]);
+  }, [formData, keyInput, selectedType, activeState, mode, debouncedSave]);
 
   const handleCancel = () => {
     resetForm();
     setError(null);
+    setIsLocked(false);
+    setKeyInput("");
+    isInitializedRef.current = false;
   };
 
   // Create dynamic schema with injected metadata and geometries
@@ -250,9 +269,11 @@ const GeometryForm = () => {
           label="Key"
           value={keyInput}
           onChange={(e) => setKeyInput(e.target.value)}
-          disabled={mode === "edit"}
+          onBlur={handleFieldBlur}
+          disabled={isLocked}
           sx={{ mb: 2 }}
           required
+          helperText={!isLocked && mode === "create" ? "Enter a unique name for this geometry" : ""}
         />
 
         <FormControl fullWidth sx={{ mb: 2 }} required>
@@ -261,7 +282,8 @@ const GeometryForm = () => {
             value={selectedType || ""}
             label="Type"
             onChange={handleTypeChange}
-            disabled={mode === "edit"}
+            onBlur={handleFieldBlur}
+            disabled={isLocked}
           >
             {schemaOptions.map((type) => (
               <MenuItem key={type} value={type}>

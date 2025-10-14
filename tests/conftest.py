@@ -122,3 +122,29 @@ def s22_h5(s22, tmp_path) -> str:
     traj_path = tmp_path / "s22.h5"
     znh5md.write(traj_path, s22)
     return traj_path.as_posix()
+
+
+@pytest.fixture
+def joined_room(server, request):
+    """Join a room and return tuple of (server_url, room_name).
+
+    Room name is automatically generated from test function name.
+    If test name is "test_foo_bar", room will be "test-foo-bar".
+
+    Example:
+        def test_my_feature(joined_room):
+            server, room = joined_room
+            # Room is already joined, ready to use
+            response = requests.get(f"{server}/api/rooms/{room}/geometries")
+    """
+    import requests
+
+    # Generate room name from test function name
+    test_name = request.node.name
+    room = test_name.replace("_", "-")
+
+    # Join the room
+    response = requests.post(f"{server}/api/rooms/{room}/join", json={})
+    assert response.status_code == 200, f"Failed to join room {room}"
+
+    return server, room

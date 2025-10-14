@@ -26,6 +26,7 @@ import StaticInfoBox from "./three/StaticInfoBox";
 import HoverInfoBox from "./three/HoverInfoBox";
 import DrawingIndicator from "./three/DrawingIndicator";
 import { PathTracingRenderer } from "./PathTracingRenderer";
+import { GeometryErrorBoundary } from "./three/GeometryErrorBoundary";
 
 // The main scene component
 function MyScene() {
@@ -124,78 +125,87 @@ function MyScene() {
             .map(([name, config]) => {
               if (config.type === "Sphere") {
                 return (
-                  <Sphere
-                    key={name}
-                    geometryKey={name}
-                    data={config.data}
-                    pathtracingEnabled={pathtracingEnabled}
-                  />
+                  <GeometryErrorBoundary key={name} geometryKey={name}>
+                    <Sphere
+                      geometryKey={name}
+                      data={config.data}
+                      pathtracingEnabled={pathtracingEnabled}
+                    />
+                  </GeometryErrorBoundary>
                 );
               } else if (config.type === "Bond") {
                 return (
-                  <Bonds
-                    key={name}
-                    geometryKey={name}
-                    data={config.data}
-                    pathtracingEnabled={pathtracingEnabled}
-                  />
+                  <GeometryErrorBoundary key={name} geometryKey={name}>
+                    <Bonds
+                      geometryKey={name}
+                      data={config.data}
+                      pathtracingEnabled={pathtracingEnabled}
+                    />
+                  </GeometryErrorBoundary>
                 );
               } else if (config.type === "Arrow") {
                 return (
-                  <Arrow
-                    key={name}
-                    geometryKey={name}
-                    data={config.data}
-                    pathtracingEnabled={pathtracingEnabled}
-                  />
+                  <GeometryErrorBoundary key={name} geometryKey={name}>
+                    <Arrow
+                      geometryKey={name}
+                      data={config.data}
+                      pathtracingEnabled={pathtracingEnabled}
+                    />
+                  </GeometryErrorBoundary>
                 );
               } else if (config.type === "Curve") {
                 return (
-                  <Curve
-                    key={name}
-                    geometryKey={name}
-                    data={config.data}
-                  />
+                  <GeometryErrorBoundary key={name} geometryKey={name}>
+                    <Curve
+                      geometryKey={name}
+                      data={config.data}
+                    />
+                  </GeometryErrorBoundary>
                 );
               } else if (config.type === "Camera") {
                 return (
-                  <Camera
-                    key={name}
-                    geometryKey={name}
-                    data={config.data}
-                  />
+                  <GeometryErrorBoundary key={name} geometryKey={name}>
+                    <Camera
+                      geometryKey={name}
+                      data={config.data}
+                    />
+                  </GeometryErrorBoundary>
                 );
               } else if (config.type === "Cell") {
                 return (
-                  <Cell
-                    key={name}
-                    data={config.data}
-                  />
+                  <GeometryErrorBoundary key={name} geometryKey={name}>
+                    <Cell
+                      data={config.data}
+                    />
+                  </GeometryErrorBoundary>
                 );
               } else if (config.type === "Floor") {
                 return (
-                  <Floor
-                    key={name}
-                    data={config.data}
-                  />
+                  <GeometryErrorBoundary key={name} geometryKey={name}>
+                    <Floor
+                      data={config.data}
+                    />
+                  </GeometryErrorBoundary>
                 );
               } else if (config.type === "Box") {
                 return (
-                  <Box
-                    key={name}
-                    geometryKey={name}
-                    data={config.data}
-                    pathtracingEnabled={pathtracingEnabled}
-                  />
+                  <GeometryErrorBoundary key={name} geometryKey={name}>
+                    <Box
+                      geometryKey={name}
+                      data={config.data}
+                      pathtracingEnabled={pathtracingEnabled}
+                    />
+                  </GeometryErrorBoundary>
                 );
               } else if (config.type === "Plane") {
                 return (
-                  <Plane
-                    key={name}
-                    geometryKey={name}
-                    data={config.data}
-                    pathtracingEnabled={pathtracingEnabled}
-                  />
+                  <GeometryErrorBoundary key={name} geometryKey={name}>
+                    <Plane
+                      geometryKey={name}
+                      data={config.data}
+                      pathtracingEnabled={pathtracingEnabled}
+                    />
+                  </GeometryErrorBoundary>
                 );
               } else {
                 console.warn(`Unhandled geometry type: ${config.type}`);

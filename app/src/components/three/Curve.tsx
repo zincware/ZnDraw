@@ -10,6 +10,7 @@ import { Line } from "@react-three/drei";
 import { useAppStore } from "../../store";
 import { getFrames, createGeometry } from "../../myapi/client";
 import { debounce } from "lodash";
+import { getGeometryWithDefaults } from "../../utils/geometryDefaults";
 
 interface MarkerData {
   enabled: boolean;
@@ -34,13 +35,29 @@ interface CurveData {
  * with optional markers that can be interactively moved.
  */
 export default function Curve({ data, geometryKey }: { data: CurveData; geometryKey: string }) {
+  const { geometryDefaults } = useAppStore();
+
+  // Merge with defaults from Pydantic (single source of truth)
+  // Memoize the entire result to prevent re-creation on every render
+  const fullData = useMemo(
+    () => getGeometryWithDefaults<CurveData>(data, "Curve", geometryDefaults),
+    [JSON.stringify(data), JSON.stringify(geometryDefaults.Curve)]
+  );
+
+  // Memoize object/array references to prevent infinite re-renders
+  const positionProp = useMemo(() => fullData.position, [
+    typeof fullData.position === 'string' ? fullData.position : JSON.stringify(fullData.position)
+  ]);
+  const marker = useMemo(() => fullData.marker, [JSON.stringify(fullData.marker)]);
+  const virtual_marker = useMemo(() => fullData.virtual_marker, [JSON.stringify(fullData.virtual_marker)]);
+
   const {
-    position: positionProp,
     color,
     material,
     thickness,
-    marker,
-  } = data;
+    divisions,
+    variant,
+  } = fullData;
 
   const theme = useTheme();
 
@@ -101,22 +118,28 @@ export default function Curve({ data, geometryKey }: { data: CurveData; geometry
 
       const points = positionQueryData?.[positionProp];
       if (!points) {
-        setMarkerPositions([]);
+        setMarkerPositions(prev => prev.length === 0 ? prev : []);
         setLastUpdateSource('remote');
         return;
       }
 
       const vecPoints = [];
       for (let i = 0; i < points.length; i += 3) {
-        vecPoints.push(new THREE.Vector3(points[i], points[i + 1], points[i + 2]));
+        vecPoints.push(new THREE.Vector3(
+          Number(points[i]),
+          Number(points[i + 1]),
+          Number(points[i + 2])
+        ));
       }
       setMarkerPositions(vecPoints);
       setLastUpdateSource('remote');
     } else {
       // Static data
       const manualPoints = positionProp as number[][];
-      if (manualPoints === undefined) {
-        console.error("Manual points are undefined");
+      if (!manualPoints || manualPoints.length === 0) {
+        // Don't update if already empty - prevents infinite loop
+        setMarkerPositions(prev => prev.length === 0 ? prev : []);
+        setLastUpdateSource('remote');
         return;
       }
       const vecPoints = manualPoints.map(p => new THREE.Vector3(p[0], p[1], p[2]));
@@ -127,7 +150,7 @@ export default function Curve({ data, geometryKey }: { data: CurveData; geometry
 
   useEffect(() => {
     const allPoints: THREE.Vector3[] = [...markerPositions];
-    if (!data) return;
+    if (!fullData) return;
     // Only add drawing pointer if this is the active drawing target
     if (drawingPointerPosition !== null && isDrawing && isActiveDrawingTarget) {
       allPoints.push(drawingPointerPosition);
@@ -147,7 +170,7 @@ export default function Curve({ data, geometryKey }: { data: CurveData; geometry
     // Register curve ref with store for Camera access
     registerCurveRef(geometryKey, curve);
 
-    const curvePoints = curve.getPoints(data.divisions * allPoints.length);
+    const curvePoints = curve.getPoints(divisions * allPoints.length);
     setLineSegments(curvePoints);
 
     setCurveLength(curve.getLength());
@@ -184,7 +207,7 @@ export default function Curve({ data, geometryKey }: { data: CurveData; geometry
     }
     setVirtualMarkerPositions(_virtualMarkerPositions);
 
-  }, [markerPositions, drawingPointerPosition, isDrawing, isActiveDrawingTarget, data.divisions, setCurveLength, geometryKey, registerCurveRef, unregisterCurveRef]);
+  }, [markerPositions, drawingPointerPosition, isDrawing, isActiveDrawingTarget, divisions, setCurveLength, geometryKey, registerCurveRef, unregisterCurveRef]);
 
   const handleVirtualMarkerClick = useCallback((insertIndex: number) => {
     const newPoints = [...markerPositions];
@@ -249,13 +272,13 @@ export default function Curve({ data, geometryKey }: { data: CurveData; geometry
     // Build the complete data object matching the backend format
     const geometryData = {
       position: positions,
-      color: data.color,
-      material: data.material,
-      variant: data.variant,
-      divisions: data.divisions,
-      thickness: data.thickness,
-      marker: data.marker,
-      virtual_marker: data.virtual_marker,
+      color,
+      material,
+      variant: fullData.variant, // variant is not destructured, keep fullData reference
+      divisions,
+      thickness,
+      marker,
+      virtual_marker,
     };
 
     try {
@@ -263,7 +286,7 @@ export default function Curve({ data, geometryKey }: { data: CurveData; geometry
     } catch (error) {
       console.error("Error updating geometry:", error);
     }
-  }, [roomId, markerPositions, geometryKey, data]);
+  }, [roomId, markerPositions, geometryKey, color, material, variant, divisions, thickness, marker, virtual_marker, clientId]);
 
   useEffect(() => {
     if (lastUpdateSource !== 'local') return;
@@ -286,8 +309,9 @@ export default function Curve({ data, geometryKey }: { data: CurveData; geometry
     }
   }, [selectedIndex]);
 
+  // Early returns after all hooks (Rules of Hooks)
   if (!roomId) return null;
-  if (!marker) return null;
+  if (!marker || !virtual_marker) return null;
 
   // --- Render ---
   return (
@@ -336,23 +360,20 @@ export default function Curve({ data, geometryKey }: { data: CurveData; geometry
         ))}
 
       {/* Virtual Markers */}
-      {data.virtual_marker.enabled && virtualMarkerPositions.map((position, index) => {
-        const virtualMarker = data.virtual_marker!;
-        return (
+      {virtual_marker.enabled && virtualMarkerPositions.map((position, index) => (
           <Dodecahedron
             key={`virtual-${index}`}
             position={position}
-            args={[virtualMarker.size]}
+            args={[virtual_marker.size]}
             onClick={() => handleVirtualMarkerClick(index)}
           >
             <meshBasicMaterial
-              color={getMarkerColor(virtualMarker.color)}
-              opacity={virtualMarker.opacity}
-              transparent={virtualMarker.opacity < 1}
+              color={getMarkerColor(virtual_marker.color)}
+              opacity={virtual_marker.opacity}
+              transparent={virtual_marker.opacity < 1}
             />
           </Dodecahedron>
-        );
-      })}
+      ))}
 
       {/* Drawing Marker - only show for active drawing target */}
       {isDrawing && isActiveDrawingTarget && drawingPointerPosition && marker.enabled && (

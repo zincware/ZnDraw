@@ -5,11 +5,9 @@ from zndraw import ZnDraw
 from zndraw.geometries import Sphere, Bond, Camera, CameraType, Curve
 
 
-def test_rest_get_geometries(server):
+def test_rest_get_geometries(joined_room):
     """Test listing geometry keys and getting individual geometries."""
-    room = "test-room-geom"
-    response = requests.post(f"{server}/api/rooms/{room}/join", json={})
-    assert response.status_code == 200
+    server, room = joined_room
 
     # Test listing geometry keys (default geometries include cell and floor)
     response = requests.get(f"{server}/api/rooms/{room}/geometries")
@@ -41,15 +39,13 @@ def test_rest_get_geometries(server):
     assert response.status_code == 404
 
 
-def test_rest_update_geometries(server):
+def test_rest_update_geometries(joined_room):
     """Test creating/updating geometries via POST endpoint."""
-    room = "test-room-geom-update"
-    response = requests.post(f"{server}/api/rooms/{room}/join", json={})
-    assert response.status_code == 200
+    server, room = joined_room
 
     new_geometry_data = {
-        "color": [1.0, 0.0, 0.0],
-        "position": [1.0, 1.0, 1.0],
+        "color": "#FF0000",  # Use hex color (shared across all instances)
+        "position": [[1.0, 1.0, 1.0]],  # Position must be list of tuples
         "radius": 1.0,
     }
 
@@ -70,16 +66,14 @@ def test_rest_update_geometries(server):
     assert response.status_code == 200
     data = response.json()
     assert data["geometry"]["type"] == "Sphere"
-    assert data["geometry"]["data"]["color"] == [1.0, 0.0, 0.0]
-    assert data["geometry"]["data"]["position"] == [1.0, 1.0, 1.0]
+    assert data["geometry"]["data"]["color"] == "#FF0000"
+    assert data["geometry"]["data"]["position"] == [[1.0, 1.0, 1.0]]
     assert data["geometry"]["data"]["radius"] == 1.0 
 
 
-def test_rest_partial_update_geometries(server):
+def test_rest_partial_update_geometries(joined_room):
     """Test partially updating a geometry without losing existing data."""
-    room = "test-room-geom-partial-update"
-    response = requests.post(f"{server}/api/rooms/{room}/join", json={})
-    assert response.status_code == 200
+    server, room = joined_room
 
     # First, create a geometry with some data
     initial_geometry_data = {
@@ -118,11 +112,9 @@ def test_rest_partial_update_geometries(server):
     assert data["geometry"]["data"]["color"] == "#FF0000"
 
 
-def test_rest_add_unknown_geometry(server):
+def test_rest_add_unknown_geometry(joined_room):
     """Test that creating geometry with unknown type returns error."""
-    room = "test-room-geom-unknown"
-    response = requests.post(f"{server}/api/rooms/{room}/join", json={})
-    assert response.status_code == 200
+    server, room = joined_room
 
     response = requests.post(
         f"{server}/api/rooms/{room}/geometries",
@@ -138,11 +130,9 @@ def test_rest_add_unknown_geometry(server):
     assert "Unknown geometry type" in data["error"]
 
 
-def test_rest_delete_geometry(server):
+def test_rest_delete_geometry(joined_room):
     """Test deleting geometries."""
-    room = "test-room-geom-delete"
-    response = requests.post(f"{server}/api/rooms/{room}/join", json={})
-    assert response.status_code == 200
+    server, room = joined_room
 
     response = requests.delete(f"{server}/api/rooms/{room}/geometries/particles")
     assert response.status_code == 200
@@ -176,10 +166,8 @@ def test_rest_delete_geometry(server):
     assert data == {"geometries": []}
 
 
-def test_rest_delete_unknown_geometry(server):
-    room = "test-room-geom-delete-unknown"
-    response = requests.post(f"{server}/api/rooms/{room}/join", json={})
-    assert response.status_code == 200
+def test_rest_delete_unknown_geometry(joined_room):
+    server, room = joined_room
 
     response = requests.delete(f"{server}/api/rooms/{room}/geometries/unknown")
     assert response.status_code == 404
@@ -203,7 +191,7 @@ def test_vis_add_update_delete_geometry(server):
     vis1 = ZnDraw(url=server, room="room1", user="tester")
     vis2 = ZnDraw(url=server, room="room1", user="tester2")
 
-    new_sphere = Sphere(color=(0.0, 1.0, 0.0), position=(0.0, 0.0, 0.0), radius=2.0)
+    new_sphere = Sphere(color="#00FF00", position=[[0.0, 0.0, 0.0]], radius=2.0)
     vis1.geometries["new_sphere"] = new_sphere
     vis2.socket.sio.sleep(0.5)
     assert vis1.geometries["new_sphere"] == new_sphere
@@ -238,11 +226,9 @@ def test_vis_geometries_key_error(server):
         _ = vis.geometries["nonexistent"]
 
 
-def test_rest_create_basic_camera(server):
+def test_rest_create_basic_camera(joined_room):
     """Test creating a basic camera via REST API."""
-    room = "test-room-camera-basic"
-    response = requests.post(f"{server}/api/rooms/{room}/join", json={})
-    assert response.status_code == 200
+    server, room = joined_room
 
     # Create curves for camera position and target
     response = requests.post(

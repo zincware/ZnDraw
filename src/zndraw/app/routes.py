@@ -1401,10 +1401,15 @@ def duplicate_room(room_id):
     from zndraw.geometries import Sphere, Bond, Curve, Cell, Floor
 
     if not geometries:  # Only if source had no geometries
+        # Create particles with explicit arrays.positions/colors for initial /join
+        particles_data = Sphere(
+            position="arrays.positions",
+            color="arrays.colors"
+        ).model_dump()
         redis_client.hset(
             f"room:{new_room_id}:geometries",
             "particles",
-            json.dumps({"type": Sphere.__name__, "data": Sphere().model_dump()}),
+            json.dumps({"type": Sphere.__name__, "data": particles_data}),
         )
         redis_client.hset(
             f"room:{new_room_id}:geometries",
@@ -2384,10 +2389,14 @@ def join_room(room_id):
         if not copy_from:
             from zndraw.geometries import Sphere, Bond, Curve, Cell, Floor
 
+            particles_data = Sphere(
+                position="arrays.positions",
+                color="arrays.colors"
+            ).model_dump()
             r.hset(
                 f"room:{room_id}:geometries",
                 "particles",
-                json.dumps({"type": Sphere.__name__, "data": Sphere().model_dump()}),
+                json.dumps({"type": Sphere.__name__, "data": particles_data}),
             )
             r.hset(
                 f"room:{room_id}:geometries",
@@ -2433,6 +2442,19 @@ def join_room(room_id):
 
     geometries = r.hgetall(f"room:{room_id}:geometries")
     response["geometries"] = {k: json.loads(v) for k, v in geometries.items()}
+
+    # Add geometry defaults from Pydantic models (single source of truth)
+    from zndraw.geometries import geometries as geometry_models
+    geometry_defaults = {}
+    for name, model in geometry_models.items():
+        try:
+            # Try to instantiate with no arguments to get defaults
+            geometry_defaults[name] = model().model_dump()
+        except Exception:
+            # Skip geometries that require arguments (e.g., Camera requires curve references)
+            # These geometries don't have meaningful defaults without context
+            pass
+    response["geometryDefaults"] = geometry_defaults
 
     # Convert bookmark keys from strings (Redis) to integers
     if bookmarks_raw:
@@ -2596,8 +2618,6 @@ def list_geometry_schemas(room_id: str):
         for name, model in geometries.items()
     }
     return {"schemas": schemas}, 200
-
-# return schema for given geometry type
 
 
 # -------------#

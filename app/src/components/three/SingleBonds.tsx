@@ -6,7 +6,6 @@ import { useRef, useMemo, useState, useEffect, useCallback } from "react";
 import { renderMaterial } from "./materials";
 import { shouldFetchAsFrameData } from "../../utils/colorUtils";
 import {
-  type DataProp,
   processNumericAttribute,
   processColorAttribute,
   SELECTION_SCALE,
@@ -14,6 +13,7 @@ import {
 } from "../../utils/geometryData";
 import { _vec3, _vec3_2, _quat, _matrix, _color } from "../../utils/threeObjectPools";
 import { convertInstancedMeshToMerged, disposeMesh } from "../../utils/convertInstancedMesh";
+import { getGeometryWithDefaults } from "../../utils/geometryDefaults";
 
 interface InteractionSettings {
   enabled: boolean;
@@ -50,6 +50,11 @@ export default function Bonds({
   geometryKey: string;
   pathtracingEnabled?: boolean;
 }) {
+  const { geometryDefaults } = useAppStore();
+
+  // Merge with defaults from Pydantic (single source of truth)
+  const fullData = getGeometryWithDefaults<BondData>(data, "Bond", geometryDefaults);
+
   const {
     position: positionProp,
     color: colorProp,
@@ -61,7 +66,7 @@ export default function Bonds({
     opacity,
     selecting,
     hovering,
-  } = data;
+  } = fullData;
 
   const mainMeshRef = useRef<THREE.InstancedMesh | null>(null);
   const selectionMeshRef = useRef<THREE.InstancedMesh | null>(null);

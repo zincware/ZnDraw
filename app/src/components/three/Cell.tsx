@@ -5,6 +5,7 @@ import { useState, useEffect } from "react";
 import * as THREE from "three";
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { getFrames } from "../../myapi/client";
+import { getGeometryWithDefaults } from "../../utils/geometryDefaults";
 
 interface CellData {
   position: string;
@@ -16,7 +17,10 @@ interface CellData {
 export const Cell = ({ data }: {data: CellData}) => {
   const { mode } = useColorScheme();
   const theme = useTheme();
-  const { currentFrame, roomId, clientId } = useAppStore();
+  const { currentFrame, roomId, clientId, geometryDefaults } = useAppStore();
+
+  // Merge with defaults from Pydantic (single source of truth)
+  const fullData = getGeometryWithDefaults<CellData>(data, "Cell", geometryDefaults);
 
   const [displayedVertices, setDisplayedVertices] = useState<
     THREE.Vector3[][] | null
@@ -24,9 +28,9 @@ export const Cell = ({ data }: {data: CellData}) => {
 
   // Simple single query for cell data
   const { data: cellData, isFetching } = useQuery({
-    queryKey: ["frame", roomId, currentFrame, data.position],
+    queryKey: ["frame", roomId, currentFrame, fullData.position],
     queryFn: ({ signal }: { signal: AbortSignal }) =>
-      getFrames(roomId!, currentFrame, [data.position], signal),
+      getFrames(roomId!, currentFrame, [fullData.position], signal),
     enabled: !!roomId && !!clientId,
     placeholderData: keepPreviousData,
   });
@@ -36,7 +40,7 @@ export const Cell = ({ data }: {data: CellData}) => {
       return; // Wait for data, keepPreviousData ensures old view remains
     }
 
-    const cell = cellData?.[data.position];
+    const cell = cellData?.[fullData.position];
     if (!cell) {
       setDisplayedVertices(null);
       return;
@@ -83,15 +87,15 @@ export const Cell = ({ data }: {data: CellData}) => {
       [v[3], v[7]],
     ];
     setDisplayedVertices(calculatedVertices);
-  }, [cellData, isFetching, data.position]);
+  }, [cellData, isFetching, fullData.position]);
 
-  const lineColor = data.color === "default" ? (mode === "light" ? theme.palette.primary.dark : theme.palette.primary.light) : data.color;
+  const lineColor = fullData.color === "default" ? (mode === "light" ? theme.palette.primary.dark : theme.palette.primary.light) : fullData.color;
 
   return (
     <group>
       {displayedVertices &&
         displayedVertices.map((points, index) => (
-          <Line key={index} points={points} color={lineColor} lineWidth={data.thickness} dashed={data.material === "LineDashedMaterial"}/>
+          <Line key={index} points={points} color={lineColor} lineWidth={fullData.thickness} dashed={fullData.material === "LineDashedMaterial"}/>
         ))}
     </group>
   );

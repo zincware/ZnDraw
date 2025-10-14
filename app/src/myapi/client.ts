@@ -301,6 +301,7 @@ export interface JoinRoomResponse {
   "presenter-lock": boolean | string | null;
   step: number | null;
   geometries: Record<string, GeometryData> | null;
+  geometryDefaults: Record<string, any> | null;
   bookmarks: Record<number, string> | null;
   settings: Record<string, any>;
 }
