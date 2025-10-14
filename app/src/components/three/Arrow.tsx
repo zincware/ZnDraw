@@ -15,6 +15,7 @@ import {
   SELECTION_COLOR,
 } from "../../utils/geometryData";
 import { _vec3, _vec3_2, _vec3_3, _quat, _matrix, _color } from "../../utils/threeObjectPools";
+import { convertInstancedMeshToMerged, disposeMesh } from "../../utils/convertInstancedMesh";
 
 interface ArrowProps {
   position: DataProp;
@@ -58,11 +59,21 @@ function createArrowMesh() {
   return arrowGeometry;
 }
 
-export default function Arrow({ data, geometryKey }: { data: ArrowProps; geometryKey: string }) {
+export default function Arrow({
+  data,
+  geometryKey,
+  pathtracingEnabled = false
+}: {
+  data: ArrowProps;
+  geometryKey: string;
+  pathtracingEnabled?: boolean;
+}) {
   const { position, direction, color, radius, scale, material } = data;
   const instancedMeshRef = useRef<THREE.InstancedMesh | null>(null);
-  const { currentFrame, roomId, clientId, selections, updateSelections, setGeometryFetching, removeGeometryFetching } = useAppStore();
+  const mergedMeshRef = useRef<THREE.Mesh | null>(null);
   const [instanceCount, setInstanceCount] = useState(0);
+
+  const { currentFrame, roomId, clientId, selections, updateSelections, setGeometryFetching, removeGeometryFetching, requestPathtracingUpdate } = useAppStore();
 
   // Use geometry-specific selection
   const arrowSelection = selections[geometryKey] || [];
@@ -245,6 +256,47 @@ export default function Arrow({ data, geometryKey }: { data: ArrowProps; geometr
     selectionSet,
   ]);
 
+  // Convert instanced mesh to merged mesh for path tracing
+  useEffect(() => {
+    if (!pathtracingEnabled) {
+      // Clean up merged mesh when pathtracing disabled
+      if (mergedMeshRef.current) {
+        disposeMesh(mergedMeshRef.current);
+        mergedMeshRef.current = null;
+      }
+      return;
+    }
+
+    if (!instancedMeshRef.current || instanceCount === 0) return;
+
+    // Dispose old merged mesh if it exists
+    if (mergedMeshRef.current) {
+      disposeMesh(mergedMeshRef.current);
+    }
+
+    // Convert instanced mesh to single merged mesh with vertex colors
+    const mergedMesh = convertInstancedMeshToMerged(instancedMeshRef.current);
+    mergedMeshRef.current = mergedMesh;
+
+    // Request pathtracing update
+    requestPathtracingUpdate();
+
+    // Cleanup on unmount or when dependencies change
+    return () => {
+      if (mergedMeshRef.current) {
+        disposeMesh(mergedMeshRef.current);
+        mergedMeshRef.current = null;
+      }
+    };
+  }, [
+    pathtracingEnabled,
+    instanceCount,
+    geometryKey,
+    requestPathtracingUpdate,
+    // DO NOT depend on positionData/directionData/colorData/selections here!
+    // That causes unnecessary rebuilds. instanceCount only changes AFTER mesh update completes.
+  ]);
+
   // Create the base geometry only once
   const geometry = useMemo(createArrowMesh, []);
 
@@ -258,17 +310,24 @@ export default function Arrow({ data, geometryKey }: { data: ArrowProps; geometr
     return null;
   }
 
-  // Check if selecting is enabled from data
-  const selectingEnabled = data.selecting?.enabled || false;
-
   return (
-    <instancedMesh
-      key={instanceCount}
-      ref={instancedMeshRef}
-      args={[geometry, undefined, instanceCount]}
-      onClick={selectingEnabled ? onClickHandler : undefined}
-    >
-      {renderMaterial(material)}
-    </instancedMesh>
+    <group>
+      {/* Instanced mesh - visible when NOT pathtracing */}
+      {/* NOTE: Interactions (click) disabled when pathtracing enabled */}
+      <instancedMesh
+        key={instanceCount}
+        ref={instancedMeshRef}
+        args={[geometry, undefined, instanceCount]}
+        visible={!pathtracingEnabled}
+        onClick={!pathtracingEnabled ? onClickHandler : undefined}
+      >
+        {renderMaterial(material)}
+      </instancedMesh>
+
+      {/* Merged mesh - visible when pathtracing */}
+      {pathtracingEnabled && mergedMeshRef.current && (
+        <primitive object={mergedMeshRef.current} />
+      )}
+    </group>
   );
 }

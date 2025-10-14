@@ -23,6 +23,7 @@ import { KeyboardShortcutsHandler } from "./three/KeyboardShortcutsHandler";
 import StaticInfoBox from "./three/StaticInfoBox";
 import HoverInfoBox from "./three/HoverInfoBox";
 import DrawingIndicator from "./three/DrawingIndicator";
+import { PathTracingRenderer } from "./PathTracingRenderer";
 
 // The main scene component
 function MyScene() {
@@ -46,9 +47,14 @@ function MyScene() {
     "camera",
   );
 
-  useEffect(() => {
-    console.log("camera-settings", cameraSettings);
-  }, [cameraSettings])
+  const { data: pathtracingSettings } = useExtensionData(
+    roomId || "",
+    userId || "",
+    "settings",
+    "pathtracing",
+  );
+
+  const pathtracingEnabled = pathtracingSettings?.enabled === true;
 
   // Auto-select default curve on startup
   useEffect(() => {
@@ -92,16 +98,22 @@ function MyScene() {
       >
         {/* Place the CameraManager here, inside the Canvas */}
         <CameraManager settings={cameraSettings} />
-        <SceneLighting
-          ambient_light={studioLightingSettings.ambient_light}
-          key_light={studioLightingSettings.key_light}
-          fill_light={studioLightingSettings.fill_light}
-          rim_light={studioLightingSettings.rim_light}
-          hemisphere_light={studioLightingSettings.hemisphere_light}
-        />
 
-        {/* Keyboard shortcuts for 3D interactions */}
-        <KeyboardShortcutsHandler />
+        {/* Wrap scene in PathTracingRenderer */}
+        <PathTracingRenderer settings={pathtracingSettings}>
+          {/* Disable studio lighting when pathtracing (environment provides light) */}
+          {!pathtracingEnabled && (
+            <SceneLighting
+              ambient_light={studioLightingSettings.ambient_light}
+              key_light={studioLightingSettings.key_light}
+              fill_light={studioLightingSettings.fill_light}
+              rim_light={studioLightingSettings.rim_light}
+              hemisphere_light={studioLightingSettings.hemisphere_light}
+            />
+          )}
+
+          {/* Keyboard shortcuts for 3D interactions */}
+          <KeyboardShortcutsHandler />
 
         {/* Render our clean, refactored components */}
         {/* <Sphere /> */}
@@ -114,6 +126,7 @@ function MyScene() {
                     key={name}
                     geometryKey={name}
                     data={config.data}
+                    pathtracingEnabled={pathtracingEnabled}
                   />
                 );
               } else if (config.type === "Bond") {
@@ -122,6 +135,7 @@ function MyScene() {
                     key={name}
                     geometryKey={name}
                     data={config.data}
+                    pathtracingEnabled={pathtracingEnabled}
                   />
                 );
               } else if (config.type === "Arrow") {
@@ -130,6 +144,7 @@ function MyScene() {
                     key={name}
                     geometryKey={name}
                     data={config.data}
+                    pathtracingEnabled={pathtracingEnabled}
                   />
                 );
               } else if (config.type === "Curve") {
@@ -171,6 +186,7 @@ function MyScene() {
             <Crosshair />
           )}
           <VirtualCanvas />
+        </PathTracingRenderer>
 
         {/* {studioLightingSettings.contact_shadow && (
           <mesh receiveShadow rotation={[-Math.PI / 2, 0, 0]} position={[0, -15, 0]}>

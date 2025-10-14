@@ -29,6 +29,7 @@
 - [x] `vis.geometries.pop(name)` to delete geometry only working on page reload
 - [ ] allow "freezing" current configuration as refernce or show multiple configurations on top of each other
 - [ ] `x-custom-type: dynamic-enum` support transformations via custom editor with changed to data like
+- [ ] support delta storage, e.g. mapping is `1+5+11` and have something like `vis.update(1, "calc.energy", ...)` or so?
 ```json
 {
     "source": "calc.forces",

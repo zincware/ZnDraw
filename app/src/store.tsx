@@ -36,6 +36,7 @@ interface AppState {
   activeCurveForDrawing: string | null; // The geometry key of the curve currently targeted for drawing
   attachedCameraKey: string | null; // The geometry key of the camera currently attached to
   curveRefs: Record<string, THREE.CatmullRomCurve3>; // Non-serializable refs to THREE.js curve objects
+  pathtracingNeedsUpdate: boolean; // Flag to signal pathtracer that scene has changed
 
   // Actions (functions to modify the state)
   setRoomId: (roomId: string) => void;
@@ -81,6 +82,8 @@ interface AppState {
   detachFromCamera: () => void;
   registerCurveRef: (key: string, curve: THREE.CatmullRomCurve3) => void;
   unregisterCurveRef: (key: string) => void;
+  requestPathtracingUpdate: () => void; // Signal that pathtracer needs to update its scene
+  clearPathtracingUpdate: () => void; // Clear the update flag after update is processed
 }
 
 // Helper functions (pure, exported for reuse across components)
@@ -129,6 +132,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   curveLength: 0,
   activeCurveForDrawing: null,
   attachedCameraKey: null,
+  pathtracingNeedsUpdate: false,
 
   /**
    * Non-serializable THREE.js curve objects shared between Curve and Camera components.
@@ -509,5 +513,13 @@ export const useAppStore = create<AppState>((set, get) => ({
       const { [key]: removed, ...rest } = state.curveRefs;
       return { curveRefs: rest };
     });
+  },
+
+  requestPathtracingUpdate: () => {
+    set({ pathtracingNeedsUpdate: true });
+  },
+
+  clearPathtracingUpdate: () => {
+    set({ pathtracingNeedsUpdate: false });
   },
 }));

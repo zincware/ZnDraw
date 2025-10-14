@@ -48,6 +48,94 @@
       "title": "CameraEnum",
       "type": "string"
     },
+    "EnvironmentPreset": {
+      "enum": [
+        "none",
+        "apartment",
+        "city",
+        "dawn",
+        "forest",
+        "lobby",
+        "night",
+        "park",
+        "studio",
+        "sunset",
+        "warehouse"
+      ],
+      "title": "EnvironmentPreset",
+      "type": "string"
+    },
+    "PathTracing": {
+      "description": "GPU Path Tracing settings for high-quality physically-based rendering.",
+      "properties": {
+        "enabled": {
+          "default": false,
+          "description": "Enable GPU path tracing renderer",
+          "title": "Enabled",
+          "type": "boolean"
+        },
+        "min_samples": {
+          "default": 1,
+          "description": "Minimum samples before displaying result",
+          "minimum": 1,
+          "title": "Min Samples",
+          "type": "integer"
+        },
+        "samples": {
+          "default": 256,
+          "description": "Maximum samples to render",
+          "maximum": 10000,
+          "minimum": 1,
+          "title": "Samples",
+          "type": "integer"
+        },
+        "bounces": {
+          "default": 3,
+          "description": "Number of light bounces for global illumination",
+          "maximum": 32,
+          "minimum": 1,
+          "title": "Bounces",
+          "type": "integer"
+        },
+        "tiles": {
+          "default": 1,
+          "description": "Rendering tile count (higher = less memory, slower)",
+          "maximum": 8,
+          "minimum": 1,
+          "title": "Tiles",
+          "type": "integer"
+        },
+        "environment_preset": {
+          "$ref": "#/$defs/EnvironmentPreset",
+          "default": "studio",
+          "description": "HDRI environment preset for scene lighting"
+        },
+        "environment_intensity": {
+          "default": 1.0,
+          "description": "Environment map brightness multiplier",
+          "maximum": 10.0,
+          "minimum": 0.0,
+          "title": "Environment Intensity",
+          "type": "number"
+        },
+        "environment_blur": {
+          "default": 0.0,
+          "description": "Environment background blur amount",
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Environment Blur",
+          "type": "number"
+        },
+        "environment_background": {
+          "default": false,
+          "description": "Show environment as visible background",
+          "title": "Environment Background",
+          "type": "boolean"
+        }
+      },
+      "title": "PathTracing",
+      "type": "object"
+    },
     "PropertyInspector": {
       "description": "Property Inspector settings for per-particle and global property display.",
       "properties": {
@@ -151,6 +239,20 @@
       "$ref": "#/$defs/PropertyInspector",
       "default": {
         "enabled_properties": []
+      }
+    },
+    "pathtracing": {
+      "$ref": "#/$defs/PathTracing",
+      "default": {
+        "enabled": false,
+        "min_samples": 1,
+        "samples": 256,
+        "bounces": 3,
+        "tiles": 1,
+        "environment_preset": "studio",
+        "environment_intensity": 1.0,
+        "environment_blur": 0.0,
+        "environment_background": false
       }
     }
   },

@@ -15,6 +15,7 @@ import {
   HOVER_SCALE,
 } from "../../utils/geometryData";
 import { _vec3, _matrix, _color } from "../../utils/threeObjectPools";
+import { convertInstancedMeshToMerged, disposeMesh } from "../../utils/convertInstancedMesh";
 
 interface InteractionSettings {
   enabled: boolean;
@@ -36,7 +37,15 @@ interface SphereData {
 
 // Reusable THREE objects imported from threeObjectPools
 
-export default function Sphere({ data, geometryKey }: { data: SphereData; geometryKey: string }) {
+export default function Sphere({
+  data,
+  geometryKey,
+  pathtracingEnabled = false
+}: {
+  data: SphereData;
+  geometryKey: string;
+  pathtracingEnabled?: boolean;
+}) {
   const {
     position: positionProp,
     color: colorProp,
@@ -52,9 +61,10 @@ export default function Sphere({ data, geometryKey }: { data: SphereData; geomet
   const mainMeshRef = useRef<THREE.InstancedMesh | null>(null);
   const selectionMeshRef = useRef<THREE.InstancedMesh | null>(null);
   const hoverMeshRef = useRef<THREE.Mesh | null>(null);
+  const mergedMeshRef = useRef<THREE.Mesh | null>(null);
   const [instanceCount, setInstanceCount] = useState(0);
 
-  const { currentFrame, roomId, clientId, selections, updateSelections, setDrawingPointerPosition, isDrawing, setDrawingIsValid, setGeometryFetching, removeGeometryFetching, hoveredParticleId, setHoveredParticleId, setParticleCount } = useAppStore();
+  const { currentFrame, roomId, clientId, selections, updateSelections, setDrawingPointerPosition, isDrawing, setDrawingIsValid, setGeometryFetching, removeGeometryFetching, hoveredParticleId, setHoveredParticleId, setParticleCount, requestPathtracingUpdate } = useAppStore();
 
   // Use geometry-specific selection
   const particleSelection = selections[geometryKey] || [];
@@ -220,11 +230,51 @@ export default function Sphere({ data, geometryKey }: { data: SphereData; geomet
     hoveredParticleId,
   ]);
 
+  // Convert instanced mesh to merged mesh for path tracing
+  useEffect(() => {
+    if (!pathtracingEnabled) {
+      // Clean up merged mesh when pathtracing disabled
+      if (mergedMeshRef.current) {
+        disposeMesh(mergedMeshRef.current);
+        mergedMeshRef.current = null;
+      }
+      return;
+    }
 
+    if (!mainMeshRef.current || instanceCount === 0) return;
+
+    // Dispose old merged mesh if it exists
+    if (mergedMeshRef.current) {
+      disposeMesh(mergedMeshRef.current);
+    }
+
+    // Convert instanced mesh to single merged mesh with vertex colors
+    const mergedMesh = convertInstancedMeshToMerged(mainMeshRef.current);
+    mergedMeshRef.current = mergedMesh;
+
+    // Request pathtracing update
+    requestPathtracingUpdate();
+
+    // Cleanup on unmount or when dependencies change
+    return () => {
+      if (mergedMeshRef.current) {
+        disposeMesh(mergedMeshRef.current);
+        mergedMeshRef.current = null;
+      }
+    };
+  }, [
+    pathtracingEnabled,
+    instanceCount,
+    geometryKey,
+    requestPathtracingUpdate,
+    // DO NOT depend on positionData/colorData/radiusData/selections/hover here!
+    // That causes unnecessary rebuilds. instanceCount only changes AFTER mesh update completes.
+  ]);
+
+  // Shared geometry for all particles (both instanced and merged meshes)
   const mainGeometry = useMemo(() => {
     return new THREE.SphereGeometry(1, particleResolution, particleResolution);
   }, [particleResolution]);
-
 
   const onClickHandler = useCallback((event: any) => {
     if (event.detail !== 1 || event.instanceId === undefined) return;
@@ -256,22 +306,24 @@ export default function Sphere({ data, geometryKey }: { data: SphereData; geomet
 
   return (
     <group>
-      {/* Main mesh */}
+      {/* Main instanced mesh - visible when NOT pathtracing */}
+      {/* NOTE: Interactions (click, hover) disabled when pathtracing enabled */}
       <instancedMesh
         key={instanceCount}
         ref={mainMeshRef}
         args={[undefined, undefined, instanceCount]}
-        onClick={selecting.enabled ? onClickHandler : undefined}
-        onPointerEnter={hovering?.enabled ? onPointerEnterHandler : undefined}
-        onPointerMove={hovering?.enabled ? onPointerMoveHandler : undefined}
-        onPointerOut={hovering?.enabled ? onPointerOutHandler : undefined}
+        visible={!pathtracingEnabled}
+        onClick={!pathtracingEnabled && selecting.enabled ? onClickHandler : undefined}
+        onPointerEnter={!pathtracingEnabled && hovering?.enabled ? onPointerEnterHandler : undefined}
+        onPointerMove={!pathtracingEnabled && hovering?.enabled ? onPointerMoveHandler : undefined}
+        onPointerOut={!pathtracingEnabled && hovering?.enabled ? onPointerOutHandler : undefined}
       >
         <primitive object={mainGeometry} attach="geometry" />
         {renderMaterial(material, data.opacity)}
       </instancedMesh>
 
-      {/* Selection mesh */}
-      {selecting.enabled && (
+      {/* Selection mesh - only when NOT pathtracing */}
+      {!pathtracingEnabled && selecting.enabled && (
         <instancedMesh
           key={`selection-${validSelectedIndices.length}`}
           ref={selectionMeshRef}
@@ -287,8 +339,8 @@ export default function Sphere({ data, geometryKey }: { data: SphereData; geomet
         </instancedMesh>
       )}
 
-      {/* Hover mesh */}
-      {hovering?.enabled && (
+      {/* Hover mesh - only when NOT pathtracing */}
+      {!pathtracingEnabled && hovering?.enabled && (
         <mesh ref={hoverMeshRef} visible={false}>
           <primitive object={mainGeometry} attach="geometry" />
           <meshBasicMaterial
@@ -298,6 +350,11 @@ export default function Sphere({ data, geometryKey }: { data: SphereData; geomet
             color={hovering.color}
           />
         </mesh>
+      )}
+
+      {/* Merged mesh - visible when pathtracing */}
+      {pathtracingEnabled && mergedMeshRef.current && (
+        <primitive object={mergedMeshRef.current} />
       )}
     </group>
   );

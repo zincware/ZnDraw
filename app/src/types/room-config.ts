@@ -9,6 +9,7 @@
  */
 export interface RoomConfig {
     camera?:             Camera;
+    pathtracing?:        PathTracing;
     property_inspector?: PropertyInspector;
     studio_lighting?:    StudioLighting;
     [property: string]: any;
@@ -45,6 +46,54 @@ export interface Camera {
  * Camera projection type
  */
 export type CameraEnum = "PerspectiveCamera" | "OrthographicCamera";
+
+/**
+ * GPU Path Tracing settings for high-quality physically-based rendering.
+ */
+export interface PathTracing {
+    /**
+     * Number of light bounces for global illumination
+     */
+    bounces?: number;
+    /**
+     * Enable GPU path tracing renderer
+     */
+    enabled?: boolean;
+    /**
+     * Show environment as visible background
+     */
+    environment_background?: boolean;
+    /**
+     * Environment background blur amount
+     */
+    environment_blur?: number;
+    /**
+     * Environment map brightness multiplier
+     */
+    environment_intensity?: number;
+    /**
+     * HDRI environment preset for scene lighting
+     */
+    environment_preset?: EnvironmentPreset;
+    /**
+     * Minimum samples before displaying result
+     */
+    min_samples?: number;
+    /**
+     * Maximum samples to render
+     */
+    samples?: number;
+    /**
+     * Rendering tile count (higher = less memory, slower)
+     */
+    tiles?: number;
+    [property: string]: any;
+}
+
+/**
+ * HDRI environment preset for scene lighting
+ */
+export type EnvironmentPreset = "none" | "apartment" | "city" | "dawn" | "forest" | "lobby" | "night" | "park" | "studio" | "sunset" | "warehouse";
 
 /**
  * Property Inspector settings for per-particle and global property display.

@@ -13,6 +13,7 @@ import {
   HOVER_SCALE,
 } from "../../utils/geometryData";
 import { _vec3, _vec3_2, _quat, _matrix, _color } from "../../utils/threeObjectPools";
+import { convertInstancedMeshToMerged, disposeMesh } from "../../utils/convertInstancedMesh";
 
 interface InteractionSettings {
   enabled: boolean;
@@ -40,7 +41,15 @@ const _colorA = new THREE.Color();
 const _colorB = new THREE.Color();
 const _quatInv = new THREE.Quaternion();
 
-export default function Bonds({ data, geometryKey }: { data: BondData; geometryKey: string }) {
+export default function Bonds({
+  data,
+  geometryKey,
+  pathtracingEnabled = false
+}: {
+  data: BondData;
+  geometryKey: string;
+  pathtracingEnabled?: boolean;
+}) {
   const {
     position: positionProp,
     color: colorProp,
@@ -57,11 +66,12 @@ export default function Bonds({ data, geometryKey }: { data: BondData; geometryK
   const mainMeshRef = useRef<THREE.InstancedMesh | null>(null);
   const selectionMeshRef = useRef<THREE.InstancedMesh | null>(null);
   const hoverMeshRef = useRef<THREE.Mesh | null>(null);
+  const mergedMeshRef = useRef<THREE.Mesh | null>(null);
   const [hoveredBondId, setHoveredBondId] = useState<number | null>(null);
   const [instanceCount, setInstanceCount] = useState(0);
   const [bondPairs, setBondPairs] = useState<[number, number][]>([]);
 
-  const { roomId, currentFrame, clientId, selections, updateSelections, setGeometryFetching, removeGeometryFetching } = useAppStore();
+  const { roomId, currentFrame, clientId, selections, updateSelections, setGeometryFetching, removeGeometryFetching, requestPathtracingUpdate } = useAppStore();
 
   // Use geometry-specific selection
   const bondSelection = selections[geometryKey] || [];
@@ -306,6 +316,47 @@ export default function Bonds({ data, geometryKey }: { data: BondData; geometryK
     hoveredBondId,
   ]);
 
+  // Convert instanced mesh to merged mesh for path tracing
+  useEffect(() => {
+    if (!pathtracingEnabled) {
+      // Clean up merged mesh when pathtracing disabled
+      if (mergedMeshRef.current) {
+        disposeMesh(mergedMeshRef.current);
+        mergedMeshRef.current = null;
+      }
+      return;
+    }
+
+    if (!mainMeshRef.current || instanceCount === 0) return;
+
+    // Dispose old merged mesh if it exists
+    if (mergedMeshRef.current) {
+      disposeMesh(mergedMeshRef.current);
+    }
+
+    // Convert instanced mesh to single merged mesh with vertex colors
+    const mergedMesh = convertInstancedMeshToMerged(mainMeshRef.current);
+    mergedMeshRef.current = mergedMesh;
+
+    // Request pathtracing update
+    requestPathtracingUpdate();
+
+    // Cleanup on unmount or when dependencies change
+    return () => {
+      if (mergedMeshRef.current) {
+        disposeMesh(mergedMeshRef.current);
+        mergedMeshRef.current = null;
+      }
+    };
+  }, [
+    pathtracingEnabled,
+    instanceCount,
+    geometryKey,
+    requestPathtracingUpdate,
+    // DO NOT depend on positionData/colorData/radiusData/connectivityData/bondPairs/selections here!
+    // That causes unnecessary rebuilds. instanceCount only changes AFTER mesh update completes.
+  ]);
+
   const bondGeometry = useMemo(() => {
     // Create a unit cylinder that goes from y=0 to y=1.
     // This makes it a perfect "half-bond" that can be positioned at an atom's center and scaled outwards.
@@ -340,45 +391,58 @@ export default function Bonds({ data, geometryKey }: { data: BondData; geometryK
 
   return (
     <group>
+      {/* Instanced mesh - visible when NOT pathtracing */}
+      {/* NOTE: Interactions (click, hover) disabled when pathtracing enabled */}
       <instancedMesh
         key={instanceCount}
         ref={mainMeshRef}
         args={[bondGeometry, undefined, instanceCount]}
-        onClick={selecting.enabled ? onClickHandler : undefined}
-        onPointerEnter={hovering.enabled ? onPointerEnter : undefined}
-        onPointerMove={hovering.enabled ? onPointerMove : undefined}
-        onPointerOut={hovering.enabled ? onPointerOut : undefined}
+        visible={!pathtracingEnabled}
+        onClick={!pathtracingEnabled && selecting.enabled ? onClickHandler : undefined}
+        onPointerEnter={!pathtracingEnabled && hovering.enabled ? onPointerEnter : undefined}
+        onPointerMove={!pathtracingEnabled && hovering.enabled ? onPointerMove : undefined}
+        onPointerOut={!pathtracingEnabled && hovering.enabled ? onPointerOut : undefined}
       >
         {renderMaterial(material, opacity)}
       </instancedMesh>
 
-      {/* Selection mesh */}
-      {selecting.enabled && (
-        <instancedMesh
-          key={`selection-${selectedBondIndices.length}`}
-          ref={selectionMeshRef}
-          args={[bondGeometry, undefined, selectedBondIndices.length]}
-        >
-          <meshBasicMaterial
-            side={THREE.FrontSide}
-            transparent
-            opacity={selecting.opacity}
-            color={selecting.color || "#FFFF00"}
-          />
-        </instancedMesh>
+      {/* Selection and hover meshes - only when NOT pathtracing */}
+      {!pathtracingEnabled && (
+        <>
+          {/* Selection mesh */}
+          {selecting.enabled && (
+            <instancedMesh
+              key={`selection-${selectedBondIndices.length}`}
+              ref={selectionMeshRef}
+              args={[bondGeometry, undefined, selectedBondIndices.length]}
+            >
+              <meshBasicMaterial
+                side={THREE.FrontSide}
+                transparent
+                opacity={selecting.opacity}
+                color={selecting.color || "#FFFF00"}
+              />
+            </instancedMesh>
+          )}
+
+          {/* Hover mesh */}
+          {hovering?.enabled && (
+            <mesh ref={hoverMeshRef} visible={false}>
+              <primitive object={bondGeometry} attach="geometry" />
+              <meshBasicMaterial
+                side={THREE.BackSide}
+                transparent
+                opacity={hovering.opacity}
+                color={hovering.color || "#00FFFF"}
+              />
+            </mesh>
+          )}
+        </>
       )}
 
-      {/* Hover mesh */}
-      {hovering?.enabled && (
-        <mesh ref={hoverMeshRef} visible={false}>
-          <primitive object={bondGeometry} attach="geometry" />
-          <meshBasicMaterial
-            side={THREE.BackSide}
-            transparent
-            opacity={hovering.opacity}
-            color={hovering.color || "#00FFFF"}
-          />
-        </mesh>
+      {/* Merged mesh - visible when pathtracing */}
+      {pathtracingEnabled && mergedMeshRef.current && (
+        <primitive object={mergedMeshRef.current} />
       )}
     </group>
   );

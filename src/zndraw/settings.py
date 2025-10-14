@@ -150,10 +150,84 @@ class Camera(SettingsBase):
     )
 
 
+class PathTracing(SettingsBase):
+    """GPU Path Tracing settings for high-quality physically-based rendering."""
+
+    enabled: bool = Field(
+        default=False,
+        description="Enable GPU path tracing renderer"
+    )
+
+    min_samples: int = Field(
+        default=1,
+        ge=1,
+        description="Minimum samples before displaying result"
+    )
+
+    samples: int = Field(
+        default=256,
+        ge=1,
+        le=10000,
+        description="Maximum samples to render"
+    )
+
+    bounces: int = Field(
+        default=3,
+        ge=1,
+        le=32,
+        description="Number of light bounces for global illumination"
+    )
+
+    tiles: int = Field(
+        default=1,
+        ge=1,
+        le=8,
+        description="Rendering tile count (higher = less memory, slower)"
+    )
+
+    environment_preset: EnvironmentPreset = Field(
+        default=EnvironmentPreset.studio,
+        description="HDRI environment preset for scene lighting"
+    )
+
+    environment_intensity: float = Field(
+        default=1.0,
+        ge=0.0,
+        le=10.0,
+        description="Environment map brightness multiplier"
+    )
+
+    environment_blur: float = Field(
+        default=0.0,
+        ge=0.0,
+        le=1.0,
+        description="Environment background blur amount"
+    )
+
+    environment_background: bool = Field(
+        default=False,
+        description="Show environment as visible background"
+    )
+
+    @classmethod
+    def model_json_schema(cls, *args, **kwargs) -> dict[str, t.Any]:
+        schema = super().model_json_schema(*args, **kwargs)
+        schema["properties"]["min_samples"]["format"] = "range"
+        schema["properties"]["samples"]["format"] = "range"
+        schema["properties"]["bounces"]["format"] = "range"
+        schema["properties"]["tiles"]["format"] = "range"
+        schema["properties"]["environment_intensity"]["format"] = "range"
+        schema["properties"]["environment_intensity"]["step"] = 0.1
+        schema["properties"]["environment_blur"]["format"] = "range"
+        schema["properties"]["environment_blur"]["step"] = 0.01
+        return schema
+
+
 settings = {
     "camera": Camera,
     "studio_lighting": StudioLighting,
     "property_inspector": PropertyInspector,
+    "pathtracing": PathTracing,
 }
 
 
@@ -163,6 +237,7 @@ class RoomConfig(SettingsBase):
     camera: Camera = Camera()
     studio_lighting: StudioLighting = StudioLighting()
     property_inspector: PropertyInspector = PropertyInspector()
+    pathtracing: PathTracing = PathTracing()
 
 
 if __name__ == "__main__":
