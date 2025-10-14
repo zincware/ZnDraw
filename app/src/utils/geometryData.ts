@@ -56,7 +56,7 @@ export function buildFetchKeys(
  */
 export function processNumericAttribute(
   propValue: DataProp,
-  fetchedValue: number[] | Float32Array | Float64Array | undefined,
+  fetchedValue: ArrayLike<number> | undefined,
   count: number
 ): number[] {
   let finalArray: number[] = [];
@@ -102,7 +102,7 @@ export function processNumericAttribute(
  */
 export function processColorAttribute(
   propValue: DataProp,
-  fetchedValue: number[] | Float32Array | Float64Array | undefined,
+  fetchedValue: ArrayLike<number> | undefined,
   count: number
 ): number[] {
   let finalColors: number[] = [];
@@ -164,7 +164,7 @@ export function validateArrayLengths(
  */
 export function getInstanceCount(
   positionProp: DataProp,
-  fetchedPosition: number[] | Float32Array | Float64Array | undefined
+  fetchedPosition: ArrayLike<number> | undefined
 ): number {
   if (fetchedPosition) {
     return fetchedPosition.length / 3;

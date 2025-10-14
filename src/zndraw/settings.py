@@ -158,30 +158,30 @@ class PathTracing(SettingsBase):
         description="Enable GPU path tracing renderer"
     )
 
-    min_samples: int = Field(
-        default=1,
-        ge=1,
+    min_samples: float = Field(
+        default=1.0,
+        ge=1.0,
         description="Minimum samples before displaying result"
     )
 
-    samples: int = Field(
-        default=256,
-        ge=1,
-        le=10000,
+    samples: float = Field(
+        default=256.0,
+        ge=1.0,
+        le=10000.0,
         description="Maximum samples to render"
     )
 
-    bounces: int = Field(
-        default=3,
-        ge=1,
-        le=32,
+    bounces: float = Field(
+        default=3.0,
+        ge=1.0,
+        le=32.0,
         description="Number of light bounces for global illumination"
     )
 
-    tiles: int = Field(
-        default=1,
-        ge=1,
-        le=8,
+    tiles: float = Field(
+        default=1.0,
+        ge=1.0,
+        le=8.0,
         description="Rendering tile count (higher = less memory, slower)"
     )
 

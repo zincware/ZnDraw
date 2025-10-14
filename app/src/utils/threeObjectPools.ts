@@ -22,6 +22,9 @@ export const _vec3_3 = new THREE.Vector3();
 // Quaternion for rotation calculations
 export const _quat = new THREE.Quaternion();
 
+// Euler for rotation calculations
+export const _euler = new THREE.Euler();
+
 // Matrix for instance transformations
 export const _matrix = new THREE.Matrix4();
 

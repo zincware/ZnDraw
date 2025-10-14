@@ -1,10 +1,10 @@
 import * as THREE from "three";
-import { useEffect, useRef } from "react";
-import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { OrbitControls, ContactShadows, Environment } from "@react-three/drei";
+import { useEffect } from "react";
+import { Canvas } from "@react-three/fiber";
+import { OrbitControls } from "@react-three/drei";
 import { useAppStore, getActiveCurves, selectPreferredCurve } from "../store";
 import { useExtensionData } from "../hooks/useSchemas";
-import { useColorScheme, useTheme } from "@mui/material/styles";
+import { useColorScheme } from "@mui/material/styles";
 import { useCameraControls } from "../hooks/useCameraControls";
 
 // Import our new, self-contained components
@@ -13,6 +13,8 @@ import { Floor } from "./three/Floor";
 import Sphere from "./three/Particles";
 import Arrow from "./three/Arrow";
 import Bonds from "./three/SingleBonds";
+import Box from "./three/Box";
+import Plane from "./three/Plane";
 import Curve from "./three/Curve";
 import Camera from "./three/Camera";
 import VirtualCanvas from "./three/VirtualCanvas";
@@ -175,6 +177,24 @@ function MyScene() {
                   <Floor
                     key={name}
                     data={config.data}
+                  />
+                );
+              } else if (config.type === "Box") {
+                return (
+                  <Box
+                    key={name}
+                    geometryKey={name}
+                    data={config.data}
+                    pathtracingEnabled={pathtracingEnabled}
+                  />
+                );
+              } else if (config.type === "Plane") {
+                return (
+                  <Plane
+                    key={name}
+                    geometryKey={name}
+                    data={config.data}
+                    pathtracingEnabled={pathtracingEnabled}
                   />
                 );
               } else {

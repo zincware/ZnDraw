@@ -3,7 +3,7 @@ from collections.abc import MutableMapping
 
 from pydantic import BaseModel
 
-from zndraw.geometries import Arrow, Sphere, Bond, Curve, Camera, Cell, Floor
+from zndraw.geometries import Arrow, Sphere, Bond, Curve, Camera, Cell, Floor, Box, Plane
 
 if t.TYPE_CHECKING:
     from zndraw import ZnDraw
@@ -34,6 +34,10 @@ class Geometries(MutableMapping):
             return Cell(**geometry_data)
         elif geometry_type == "Floor":
             return Floor(**geometry_data)
+        elif geometry_type == "Box":
+            return Box(**geometry_data)
+        elif geometry_type == "Plane":
+            return Plane(**geometry_data)
         else:
             raise ValueError(f"Unknown geometry type: {geometry_type}")
 

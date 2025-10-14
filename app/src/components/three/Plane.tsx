@@ -1,0 +1,383 @@
+import * as THREE from "three";
+import { useQuery, keepPreviousData } from "@tanstack/react-query";
+import { getFrames } from "../../myapi/client";
+import { useAppStore } from "../../store";
+import { useRef, useMemo, useState, useEffect, useCallback } from "react";
+import { renderMaterial } from "./materials";
+import { shouldFetchAsFrameData } from "../../utils/colorUtils";
+import {
+  processNumericAttribute,
+  processColorAttribute,
+  getInstanceCount,
+  validateArrayLengths,
+  SELECTION_SCALE,
+  HOVER_SCALE,
+} from "../../utils/geometryData";
+import { _vec3, _euler, _matrix, _color } from "../../utils/threeObjectPools";
+import { convertInstancedMeshToMerged, disposeMesh } from "../../utils/convertInstancedMesh";
+
+interface InteractionSettings {
+  enabled: boolean;
+  color: string;
+  opacity: number;
+}
+
+interface PlaneData {
+  position: string | number[][] | number[];
+  size: string | number[][] | number[];
+  color: string | number[][] | number[];
+  rotation: string | number[][] | number[];
+  material: string;
+  scale: number;
+  opacity: number;
+  double_sided: boolean;
+  selecting: InteractionSettings;
+  hovering: InteractionSettings;
+}
+
+export default function Plane({
+  data,
+  geometryKey,
+  pathtracingEnabled = false
+}: {
+  data: PlaneData;
+  geometryKey: string;
+  pathtracingEnabled?: boolean;
+}) {
+  const {
+    position: positionProp,
+    size: sizeProp,
+    color: colorProp,
+    rotation: rotationProp,
+    material,
+    scale,
+    double_sided,
+    selecting,
+    hovering,
+    opacity,
+  } = data;
+
+  const mainMeshRef = useRef<THREE.InstancedMesh | null>(null);
+  const selectionMeshRef = useRef<THREE.InstancedMesh | null>(null);
+  const hoverMeshRef = useRef<THREE.Mesh | null>(null);
+  const mergedMeshRef = useRef<THREE.Mesh | null>(null);
+  const [instanceCount, setInstanceCount] = useState(0);
+
+  const { currentFrame, roomId, clientId, selections, updateSelections, hoveredParticleId, setHoveredParticleId, setGeometryFetching, removeGeometryFetching, requestPathtracingUpdate } = useAppStore();
+
+  // Use geometry-specific selection
+  const planeSelection = selections[geometryKey] || [];
+  const selectionSet = useMemo(() => new Set(planeSelection), [planeSelection]);
+  const selectedIndices = useMemo(() => Array.from(selectionSet), [selectionSet]);
+  const validSelectedIndices = useMemo(
+    () => selectedIndices.filter((id) => id < instanceCount),
+    [selectedIndices, instanceCount]
+  );
+
+  const planeScale = scale || 1.0;
+
+  // Individual queries for each attribute
+  const { data: positionData, isFetching: isPositionFetching } = useQuery({
+    queryKey: ["frame", roomId, currentFrame, positionProp],
+    queryFn: ({ signal }: { signal: AbortSignal }) =>
+      getFrames(roomId!, currentFrame, [positionProp as string], signal),
+    enabled: !!roomId && !!clientId && typeof positionProp === "string",
+    placeholderData: keepPreviousData,
+  });
+
+  const { data: sizeData, isFetching: isSizeFetching } = useQuery({
+    queryKey: ["frame", roomId, currentFrame, sizeProp],
+    queryFn: ({ signal }: { signal: AbortSignal }) =>
+      getFrames(roomId!, currentFrame, [sizeProp as string], signal),
+    enabled: !!roomId && !!clientId && typeof sizeProp === "string",
+    placeholderData: keepPreviousData,
+  });
+
+  const { data: colorData, isFetching: isColorFetching } = useQuery({
+    queryKey: ["frame", roomId, currentFrame, colorProp],
+    queryFn: ({ signal }: { signal: AbortSignal }) =>
+      getFrames(roomId!, currentFrame, [colorProp as string], signal),
+    enabled: !!roomId && !!clientId && typeof colorProp === "string" && shouldFetchAsFrameData(colorProp as string),
+    placeholderData: keepPreviousData,
+  });
+
+  const { data: rotationData, isFetching: isRotationFetching } = useQuery({
+    queryKey: ["frame", roomId, currentFrame, rotationProp],
+    queryFn: ({ signal }: { signal: AbortSignal }) =>
+      getFrames(roomId!, currentFrame, [rotationProp as string], signal),
+    enabled: !!roomId && !!clientId && typeof rotationProp === "string",
+    placeholderData: keepPreviousData,
+  });
+
+  // Check if any enabled query is still fetching
+  const isFetching =
+    (typeof positionProp === "string" && isPositionFetching) ||
+    (typeof sizeProp === "string" && isSizeFetching) ||
+    (typeof colorProp === "string" && shouldFetchAsFrameData(colorProp as string) && isColorFetching) ||
+    (typeof rotationProp === "string" && isRotationFetching);
+
+  // Report fetching state to global store
+  useEffect(() => {
+    setGeometryFetching(geometryKey, isFetching);
+  }, [geometryKey, isFetching, setGeometryFetching]);
+
+  // Clean up fetching state on unmount
+  useEffect(() => {
+    return () => {
+      removeGeometryFetching(geometryKey);
+    };
+  }, [geometryKey, removeGeometryFetching]);
+
+  // Consolidated data processing and mesh update
+  useEffect(() => {
+    if (isFetching) {
+      return; // Wait for all enabled queries to complete
+    }
+
+    try {
+      // --- Data Processing Step ---
+      const fetchedPosition = typeof positionProp === 'string' ? positionData?.[positionProp as string] : undefined;
+      const finalCount = getInstanceCount(positionProp, fetchedPosition);
+
+      if (finalCount === 0) {
+        if (instanceCount !== 0) setInstanceCount(0);
+        return;
+      }
+
+      // Process all attributes
+      const finalPositions = processNumericAttribute(positionProp, fetchedPosition, finalCount);
+
+      const fetchedColor = typeof colorProp === 'string' ? colorData?.[colorProp as string] : undefined;
+      const finalColors = processColorAttribute(colorProp, fetchedColor, finalCount);
+
+      const fetchedSize = typeof sizeProp === 'string' ? sizeData?.[sizeProp as string] : undefined;
+      // For Plane, size is [width, height], so we need to handle 2D data
+      let finalSizes: number[];
+      if (fetchedSize) {
+        finalSizes = Array.from(fetchedSize);
+      } else if (typeof sizeProp !== "string") {
+        if (Array.isArray(sizeProp[0])) {
+          // Array of [width, height] pairs
+          finalSizes = (sizeProp as number[][]).flat();
+        } else if (Array.isArray(sizeProp) && sizeProp.length === 2) {
+          // Single [width, height] to replicate
+          finalSizes = Array(finalCount).fill(sizeProp).flat();
+        } else {
+          // Already a flat array
+          finalSizes = sizeProp as number[];
+        }
+      } else {
+        finalSizes = [];
+      }
+
+      const fetchedRotation = typeof rotationProp === 'string' ? rotationData?.[rotationProp as string] : undefined;
+      const finalRotations = processNumericAttribute(rotationProp, fetchedRotation, finalCount);
+
+      // --- Validation Step ---
+      const isDataValid = validateArrayLengths(
+        { positions: finalPositions, colors: finalColors, sizes: finalSizes, rotations: finalRotations },
+        { positions: finalCount * 3, colors: finalCount * 3, sizes: finalCount * 2, rotations: finalCount * 3 }
+      );
+
+      if (!isDataValid) {
+        console.error("Plane data is invalid or has inconsistent lengths.");
+        if (instanceCount !== 0) setInstanceCount(0);
+        return;
+      }
+
+      // --- Mesh Resizing Step ---
+      if (instanceCount !== finalCount) {
+        setInstanceCount(finalCount);
+        return;
+      }
+
+      // --- Main Mesh Instance Update ---
+      const mainMesh = mainMeshRef.current;
+      if (!mainMesh) return;
+      for (let i = 0; i < finalCount; i++) {
+        const i3 = i * 3;
+        const i2 = i * 2;
+        _vec3.set(finalPositions[i3], finalPositions[i3 + 1], finalPositions[i3 + 2]);
+        _euler.set(finalRotations[i3], finalRotations[i3 + 1], finalRotations[i3 + 2]);
+        const width = finalSizes[i2] * planeScale;
+        const height = finalSizes[i2 + 1] * planeScale;
+        _matrix.compose(_vec3, new THREE.Quaternion().setFromEuler(_euler), new THREE.Vector3(width, height, 1));
+        mainMesh.setMatrixAt(i, _matrix);
+        _color.setRGB(finalColors[i3], finalColors[i3 + 1], finalColors[i3 + 2]);
+        mainMesh.setColorAt(i, _color);
+      }
+
+      mainMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+      mainMesh.instanceMatrix.needsUpdate = true;
+      if (mainMesh.instanceColor) mainMesh.instanceColor.needsUpdate = true;
+
+      // --- Selection Mesh Update ---
+      if (selecting.enabled && selectionMeshRef.current) {
+        const selectionMesh = selectionMeshRef.current;
+        validSelectedIndices.forEach((id, index) => {
+          if (id >= finalCount) return;
+          const i3 = id * 3;
+          const i2 = id * 2;
+          _vec3.set(finalPositions[i3], finalPositions[i3 + 1], finalPositions[i3 + 2]);
+          _euler.set(finalRotations[i3], finalRotations[i3 + 1], finalRotations[i3 + 2]);
+          const width = finalSizes[i2] * planeScale * SELECTION_SCALE;
+          const height = finalSizes[i2 + 1] * planeScale * SELECTION_SCALE;
+          _matrix.compose(_vec3, new THREE.Quaternion().setFromEuler(_euler), new THREE.Vector3(width, height, 1));
+          selectionMesh.setMatrixAt(index, _matrix);
+        });
+        selectionMesh.instanceMatrix.needsUpdate = true;
+      }
+
+      // --- Hover Mesh Update ---
+      if (hovering?.enabled && hoverMeshRef.current) {
+        const hoverMesh = hoverMeshRef.current;
+        if (hoveredParticleId !== null && hoveredParticleId < finalCount) {
+          hoverMesh.visible = true;
+          const i3 = hoveredParticleId * 3;
+          const i2 = hoveredParticleId * 2;
+          _vec3.set(finalPositions[i3], finalPositions[i3 + 1], finalPositions[i3 + 2]);
+          _euler.set(finalRotations[i3], finalRotations[i3 + 1], finalRotations[i3 + 2]);
+          const width = finalSizes[i2] * planeScale * HOVER_SCALE;
+          const height = finalSizes[i2 + 1] * planeScale * HOVER_SCALE;
+          hoverMesh.position.copy(_vec3);
+          hoverMesh.quaternion.setFromEuler(_euler);
+          hoverMesh.scale.set(width, height, 1);
+        } else {
+          hoverMesh.visible = false;
+        }
+      }
+    } catch (error) {
+      console.error("Error processing Plane data:", error);
+      if (instanceCount !== 0) setInstanceCount(0);
+    }
+  }, [
+    isFetching,
+    positionData,
+    sizeData,
+    colorData,
+    rotationData,
+    positionProp,
+    sizeProp,
+    colorProp,
+    rotationProp,
+    instanceCount,
+    planeScale,
+    validSelectedIndices,
+    selecting,
+    hovering,
+    hoveredParticleId,
+  ]);
+
+  // Convert instanced mesh to merged mesh for path tracing
+  useEffect(() => {
+    if (!pathtracingEnabled) {
+      if (mergedMeshRef.current) {
+        disposeMesh(mergedMeshRef.current);
+        mergedMeshRef.current = null;
+      }
+      return;
+    }
+
+    if (!mainMeshRef.current || instanceCount === 0) return;
+
+    if (mergedMeshRef.current) {
+      disposeMesh(mergedMeshRef.current);
+    }
+
+    const mergedMesh = convertInstancedMeshToMerged(mainMeshRef.current);
+    mergedMeshRef.current = mergedMesh;
+
+    requestPathtracingUpdate();
+
+    return () => {
+      if (mergedMeshRef.current) {
+        disposeMesh(mergedMeshRef.current);
+        mergedMeshRef.current = null;
+      }
+    };
+  }, [
+    pathtracingEnabled,
+    instanceCount,
+    geometryKey,
+    requestPathtracingUpdate,
+  ]);
+
+  // Shared geometry for all planes
+  const mainGeometry = useMemo(() => {
+    return new THREE.PlaneGeometry(1, 1);
+  }, []);
+
+  const onClickHandler = useCallback((event: any) => {
+    if (event.detail !== 1 || event.instanceId === undefined) return;
+    event.stopPropagation();
+    updateSelections(geometryKey, event.instanceId, event.shiftKey);
+  }, [updateSelections, geometryKey]);
+
+  const onPointerEnterHandler = useCallback((event: any) => {
+    if (event.instanceId === undefined) return;
+    event.stopPropagation();
+    setHoveredParticleId(event.instanceId);
+  }, [setHoveredParticleId]);
+
+  const onPointerOutHandler = useCallback(() => {
+    setHoveredParticleId(null);
+  }, [setHoveredParticleId]);
+
+  if (!clientId || !roomId) return null;
+
+  const materialSide = double_sided ? THREE.DoubleSide : THREE.FrontSide;
+
+  return (
+    <group>
+      {/* Main instanced mesh - visible when NOT pathtracing */}
+      <instancedMesh
+        key={instanceCount}
+        ref={mainMeshRef}
+        args={[undefined, undefined, instanceCount]}
+        visible={!pathtracingEnabled}
+        onClick={!pathtracingEnabled && selecting.enabled ? onClickHandler : undefined}
+        onPointerEnter={!pathtracingEnabled && hovering?.enabled ? onPointerEnterHandler : undefined}
+        onPointerOut={!pathtracingEnabled && hovering?.enabled ? onPointerOutHandler : undefined}
+      >
+        <primitive object={mainGeometry} attach="geometry" />
+        {/* Override material side based on double_sided prop */}
+        {material && renderMaterial(material, opacity)}
+      </instancedMesh>
+
+      {/* Selection mesh - only when NOT pathtracing */}
+      {!pathtracingEnabled && selecting.enabled && (
+        <instancedMesh
+          key={`selection-${validSelectedIndices.length}`}
+          ref={selectionMeshRef}
+          args={[undefined, undefined, validSelectedIndices.length]}
+        >
+          <primitive object={mainGeometry} attach="geometry" />
+          <meshBasicMaterial
+            side={materialSide}
+            transparent
+            opacity={selecting.opacity}
+            color={selecting.color}
+          />
+        </instancedMesh>
+      )}
+
+      {/* Hover mesh - only when NOT pathtracing */}
+      {!pathtracingEnabled && hovering?.enabled && (
+        <mesh ref={hoverMeshRef} visible={false}>
+          <primitive object={mainGeometry} attach="geometry" />
+          <meshBasicMaterial
+            side={materialSide}
+            transparent
+            opacity={hovering.opacity}
+            color={hovering.color}
+          />
+        </mesh>
+      )}
+
+      {/* Merged mesh - visible when pathtracing */}
+      {pathtracingEnabled && mergedMeshRef.current && (
+        <primitive object={mergedMeshRef.current} />
+      )}
+    </group>
+  );
+}
