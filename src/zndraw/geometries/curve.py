@@ -1,7 +1,7 @@
 from pydantic import Field, BaseModel
 import typing as t
 
-from .base import BaseGeometry, DataProp
+from .base import BaseGeometry, PositionProp, apply_schema_feature
 
 class CurveMarker(BaseModel):
     """Settings for markers on the curve control points."""
@@ -33,25 +33,23 @@ class Curve(BaseGeometry):
     @classmethod
     def model_json_schema(cls, **kwargs: t.Any) -> dict[str, t.Any]:
         schema = super().model_json_schema(**kwargs)
-        schema["properties"]["position"]["x-custom-type"] = "dynamic-enum"
-        schema["properties"]["position"]["x-features"] = ["dynamic-atom-props"]
-        schema["properties"]["position"]["type"] = "string"
-        schema["properties"]["position"].pop("anyOf", None)
 
-        schema["properties"]["color"]["x-custom-type"] = "dynamic-enum"
-        schema["properties"]["color"]["x-features"] = ["color-picker", "dynamic-atom-props", "free-solo"]
-        schema["properties"]["color"]["type"] = "string"
-        schema["properties"]["color"].pop("anyOf", None)
-        
-        schema["$defs"]["CurveMarker"]["properties"]["color"][
-            "x-custom-type"
-        ] = "dynamic-enum"
-        schema["$defs"]["CurveMarker"]["properties"]["color"][
-            "x-features"
-        ] = ["color-picker", "dynamic-atom-props", "free-solo"]
+        # Apply schema features using helper
+        apply_schema_feature(schema, "position", ["dynamic-atom-props"])
+        apply_schema_feature(schema, "color", ["color-picker", "dynamic-atom-props", "free-solo"])
+
+        # Color picker for CurveMarker properties
+        if "CurveMarker" in schema.get("$defs", {}):
+            schema["$defs"]["CurveMarker"]["properties"]["color"][
+                "x-custom-type"
+            ] = "dynamic-enum"
+            schema["$defs"]["CurveMarker"]["properties"]["color"][
+                "x-features"
+            ] = ["color-picker", "dynamic-atom-props", "free-solo"]
+
         return schema
 
-    position: DataProp = Field(
+    position: PositionProp = Field(
         default=[],
         description="Position [x,y,z]. String for dynamic data key, tuple/list for static values.",
     )

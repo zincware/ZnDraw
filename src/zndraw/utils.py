@@ -112,9 +112,13 @@ def get_scaled_radii() -> np.ndarray:
 
 
 def update_colors_and_radii(atoms: ase.Atoms) -> None:
-    """Update the colors and radii of the atoms in-place."""
+    """Update the colors and radii of the atoms in-place.
+
+    Colors are stored as hex strings instead of RGB arrays.
+    """
     if "colors" not in atoms.arrays:
-        colors = np.array(
+        # Get RGB colors from jmol_colors
+        rgb_colors = np.array(
             [
                 jmol_colors[atom.number]
                 if atom.number < len(jmol_colors)
@@ -123,7 +127,16 @@ def update_colors_and_radii(atoms: ase.Atoms) -> None:
             ],
             dtype=np.float32,
         )
-        atoms.set_array("colors", colors)
+
+        # Convert RGB (0-1 range) to hex strings
+        hex_colors = []
+        for rgb in rgb_colors:
+            r, g, b = (np.clip(rgb, 0, 1) * 255).astype(int)
+            hex_colors.append(f'#{r:02x}{g:02x}{b:02x}')
+
+        # Store as numpy array of object dtype (required for ASE)
+        atoms.set_array("colors", np.array(hex_colors, dtype=object))
+
     if "radii" not in atoms.arrays:
         radii = covalent_radii[atoms.numbers].astype(np.float32)
         atoms.set_array("radii", radii)

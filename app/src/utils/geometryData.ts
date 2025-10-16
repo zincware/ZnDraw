@@ -1,13 +1,11 @@
-import { hexToRgb } from "./colorUtils";
-
 /**
  * Type definitions for geometry data props.
- * Updated to match backend type system.
+ * Updated to match backend normalization - all non-dynamic fields are lists.
  */
 // Position is ALWAYS per-instance (list of tuples or dynamic key)
 export type PositionProp = string | [number, number, number][];
 
-// Color can be shared (single hex) or per-instance (list of hex) or dynamic
+// Color is always hex strings - list of hex strings or dynamic reference
 export type ColorProp = string | string[];
 
 // Size/radius can be shared (single value) or per-instance (list) or dynamic
@@ -68,83 +66,32 @@ export function processNumericAttribute(
 }
 
 /**
- * Process a color attribute with special handling for hex colors.
- * Handles hex strings (shared), list of hex strings (per-instance), RGB arrays, and fetched data.
+ * Process color data - returns array of hex strings
+ * Backend sends: string (dynamic ref) | string[] (hex list)
+ * Fetched data: string[] (hex list from server)
  *
- * @param propValue - The color prop value (hex string, list of hex strings, RGB array, or fetch key)
- * @param fetchedValue - Data fetched from server (if propValue is a fetch key)
+ * @param propValue - The color prop value from backend
+ * @param fetchedValue - Data fetched from server (if propValue is dynamic ref)
  * @param count - Expected number of instances
- * @returns Flattened array of RGB values (0-1 range)
- * @throws Error if hex color is invalid
+ * @returns Array of hex color strings
  */
-export function processColorAttribute(
-  propValue: ColorProp,
+export function processColorData(
+  propValue: string | string[],
   fetchedValue: any,
   count: number
-): number[] {
-  let finalColors: number[] = [];
-
+): string[] {
+  // Fetched data is already hex strings from backend
   if (fetchedValue) {
-    // Data was fetched from server
-    finalColors = Array.from(fetchedValue);
-  } else if (typeof propValue === "string") {
-    // Shared hex color string - convert to RGB and replicate for all instances
-    const rgb = hexToRgb(propValue);
-    if (rgb) {
-      finalColors = Array(count).fill(rgb).flat();
-    } else {
-      throw new Error(`Invalid hex color: ${propValue}`);
-    }
-  } else if (Array.isArray(propValue)) {
-    // Check if it's an array of hex strings or RGB arrays
-    if (typeof propValue[0] === "string") {
-      // Array of hex strings - convert each to RGB
-      finalColors = (propValue as string[]).flatMap(hex => {
-        const rgb = hexToRgb(hex);
-        if (!rgb) throw new Error(`Invalid hex color: ${hex}`);
-        return rgb;
-      });
-    } else if (Array.isArray(propValue[0])) {
-      // Array of RGB arrays
-      finalColors = (propValue as number[][]).flat();
-    } else {
-      // Single RGB value to replicate
-      finalColors = Array(count).fill(propValue).flat();
-    }
+    return fetchedValue as string[];
   }
 
-  return finalColors;
-}
-
-/**
- * Process a size/radius attribute (1D - single value per instance).
- * Handles shared (single value for all) or per-instance (list) or dynamic data.
- *
- * @param propValue - The size prop value (string key, number, or list)
- * @param fetchedValue - Data fetched from server (if propValue is a string)
- * @param count - Expected number of instances
- * @returns Flattened array of size values [r1, r2, r3, ...]
- */
-export function processSizeAttribute(
-  propValue: SizeProp,
-  fetchedValue: any,
-  count: number
-): number[] {
-  if (fetchedValue) {
-    return Array.from(fetchedValue);
-  }
-
-  if (typeof propValue === "number") {
-    // Shared value - replicate for all instances
-    return Array(count).fill(propValue);
-  }
-
+  // Backend always sends list of hex strings [\"#FF0000\", ...]
   if (Array.isArray(propValue)) {
-    // Per-instance list
-    return propValue as number[];
+    return propValue;
   }
 
-  return [];
+  // Shouldn't reach here - dynamic refs should be fetched
+  throw new Error(`Dynamic color reference not fetched: ${propValue}`);
 }
 
 /**
@@ -169,6 +116,11 @@ export function processSize2D(
     // Check if it's a list of tuples or a single tuple
     const firstElem = propValue[0];
     if (Array.isArray(firstElem)) {
+      // Check if it's a single tuple that needs replication
+      if ((propValue as number[][]).length === 1 && count > 1) {
+        // Single tuple in a list [(w,h)] - replicate for all instances
+        return Array(count).fill([...(propValue as number[][])[0]]).flat();
+      }
       // List of tuples [[w,h], [w,h], ...]
       return (propValue as number[][]).flat();
     } else if (propValue.length === 2 && typeof firstElem === "number") {
@@ -202,6 +154,11 @@ export function processSize3D(
     // Check if it's a list of tuples or a single tuple
     const firstElem = propValue[0];
     if (Array.isArray(firstElem)) {
+      // Check if it's a single tuple that needs replication
+      if ((propValue as number[][]).length === 1 && count > 1) {
+        // Single tuple in a list [(w,h,d)] - replicate for all instances
+        return Array(count).fill([...(propValue as number[][])[0]]).flat();
+      }
       // List of tuples [[w,h,d], [w,h,d], ...]
       return (propValue as number[][]).flat();
     } else if (propValue.length === 3 && typeof firstElem === "number") {
@@ -237,6 +194,11 @@ export function processRotationAttribute(
       // Single tuple [x, y, z] - replicate for all instances
       return Array(count).fill([...propValue]).flat();
     } else {
+      // Check if it's a single tuple in a list that needs replication
+      if ((propValue as number[][]).length === 1 && count > 1) {
+        // Single tuple in a list [(x,y,z)] - replicate for all instances
+        return Array(count).fill([...(propValue as number[][])[0]]).flat();
+      }
       // List of tuples [[x,y,z], [x,y,z], ...] - flatten
       return (propValue as number[][]).flat();
     }
@@ -298,14 +260,14 @@ export function validateArrayLengths(
 
 /**
  * Determine instance count from position attribute.
- * Position is always per-instance (list of tuples or dynamic key).
+ * Backend always sends [[x,y,z], ...] format after normalization.
  *
  * @param positionProp - The position prop value
  * @param fetchedPosition - Fetched position data (if applicable)
  * @returns Number of instances
  */
 export function getInstanceCount(
-  positionProp: string | number[] | number[][],
+  positionProp: string | number[][],
   fetchedPosition: any
 ): number {
   if (fetchedPosition) {
@@ -313,16 +275,41 @@ export function getInstanceCount(
   }
 
   if (Array.isArray(positionProp)) {
-    // Check if it's a flat array or array of tuples
-    if (Array.isArray(positionProp[0])) {
-      // List of tuples [[x,y,z], [x,y,z], ...]
-      return positionProp.length;
-    } else {
-      // Flat array [x,y,z,x,y,z,...] - divide by 3
-      return positionProp.length / 3;
-    }
+    return positionProp.length;  // Backend always sends [[x,y,z], ...]
   }
 
-  // String (dynamic key) - unknown until fetched
-  return 0;
+  return 0;  // Dynamic reference not yet fetched
+}
+
+/**
+ * Get color count to detect single-color mode for UI
+ *
+ * @param colorProp - The color prop value
+ * @returns Number of colors, or 0 if dynamic reference
+ */
+export function getColorCount(
+  colorProp: string | string[]
+): number {
+  if (typeof colorProp === 'string') {
+    return 0;  // Dynamic reference
+  }
+  return colorProp.length;  // List of hex strings
+}
+
+/**
+ * Expand a shared color (single color for all instances) to a full array.
+ * If the color array has only one color and there are multiple instances,
+ * replicate that color for all instances.
+ *
+ * @param colorHexArray - Array of hex color strings
+ * @param count - Number of instances
+ * @returns Array of hex colors (expanded if shared, unchanged otherwise)
+ */
+export function expandSharedColor(
+  colorHexArray: string[],
+  count: number
+): string[] {
+  return colorHexArray.length === 1 && count > 1
+    ? Array(count).fill(colorHexArray[0])
+    : colorHexArray;
 }

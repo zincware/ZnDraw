@@ -6,6 +6,28 @@ import { useWindowManagerStore } from "../stores/windowManagerStore";
 import { listGeometries, getGeometry, getAllSelections, getAllBookmarks } from "../myapi/client";
 import { convertBookmarkKeys } from "../utils/bookmarks";
 
+/**
+ * Factory function for creating consistent invalidate handlers.
+ * Ensures uniform error handling across all handlers.
+ */
+function createInvalidateHandler<T>(
+  fetchFn: (roomId: string) => Promise<T>,
+  updateStoreFn: (data: T) => void,
+  eventName: string
+) {
+  return async (data: any, roomId: string | null) => {
+    if (!roomId) return;
+    try {
+      console.log(`Received ${eventName} event:`, data);
+      const response = await fetchFn(roomId);
+      updateStoreFn(response);
+      console.log(`Updated ${eventName} from server:`, response);
+    } catch (error) {
+      console.error(`Error fetching ${eventName}:`, error);
+    }
+  };
+}
+
 export const useSocketManager = () => {
   const {
     setConnected,
@@ -114,26 +136,15 @@ export const useSocketManager = () => {
       setFrameSelection(data["indices"] || null);
     }
 
-    async function onBookmarksInvalidate(data: any) {
-      if (!roomId) return;
-
-      try {
-        console.log("Received bookmarks:invalidate event:", data);
-
-        // Fetch the latest bookmarks from the server
-        const response = await getAllBookmarks(roomId);
-
-        // Convert string keys to number keys (JSON limitation)
+    // Create handlers using factory for consistency
+    const onBookmarksInvalidate = createInvalidateHandler(
+      getAllBookmarks,
+      (response) => {
         const bookmarksWithNumberKeys = convertBookmarkKeys(response.bookmarks);
-
-        // Update the store with the latest bookmarks
         setBookmarks(bookmarksWithNumberKeys);
-
-        console.log("Updated bookmarks from server:", bookmarksWithNumberKeys);
-      } catch (error) {
-        console.error("Error fetching bookmarks after invalidation:", error);
-      }
-    }
+      },
+      "bookmarks"
+    );
 
     function onFramesInvalidate(data: any) {
       const { roomId, operation, affectedIndex, affectedFrom } = data;
@@ -245,6 +256,12 @@ export const useSocketManager = () => {
             // Invalidate the specific geometry detail query
             queryClient.invalidateQueries({
               queryKey: ["geometries", roomId, "detail", key],
+            });
+
+            // Also invalidate frame queries - geometry data may reference dynamic frame data
+            // that needs to be refetched (e.g., "arrays.position")
+            queryClient.invalidateQueries({
+              queryKey: ["frame", roomId],
             });
 
             // Fetch only the updated geometry
@@ -383,44 +400,24 @@ export const useSocketManager = () => {
       }
     }
 
-    async function onSelectionsInvalidate(data: any) {
-      if (!roomId) return;
-
-      try {
-        console.log("Received invalidate:selection event:", data);
-
-        // Fetch the latest selections from the server
-        const response = await getAllSelections(roomId);
-
-        // Update the store with the latest selections, groups, and active group
+    const onSelectionsInvalidate = createInvalidateHandler(
+      getAllSelections,
+      (response) => {
         setSelections(response.selections);
         setSelectionGroups(response.groups);
         setActiveSelectionGroup(response.activeGroup);
+      },
+      "selections"
+    );
 
-        console.log("Updated selections from server:", response);
-      } catch (error) {
-        console.error("Error fetching selections after invalidation:", error);
-      }
-    }
-
-    async function onSelectionGroupsInvalidate(data: any) {
-      if (!roomId) return;
-
-      try {
-        console.log("Received invalidate:selection_groups event:", data);
-
-        // Fetch only the groups and active group (more efficient than fetching everything)
-        const response = await getAllSelections(roomId);
-
-        // Update only groups and active group (not selections)
+    const onSelectionGroupsInvalidate = createInvalidateHandler(
+      getAllSelections,
+      (response) => {
         setSelectionGroups(response.groups);
         setActiveSelectionGroup(response.activeGroup);
-
-        console.log("Updated selection groups from server:", response.groups);
-      } catch (error) {
-        console.error("Error fetching selection groups after invalidation:", error);
-      }
-    }
+      },
+      "selection_groups"
+    );
 
     function onConnectError(err: any) {
       console.error("Socket connection error:", err);

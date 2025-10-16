@@ -535,3 +535,141 @@ def test_numpy_scalar_types_in_storage():
     retrieved2 = store[1]
     assert retrieved2["info"]["energy"] == 456.789
     assert retrieved2["info"]["step"] == 200
+
+
+def test_hex_color_serialization_with_encode_decode():
+    """Test that hex color arrays (object dtype) can be serialized and deserialized.
+
+    This test reproduces the error: ValueError: cannot create an OBJECT array from memory buffer
+    that occurs when trying to encode/decode hex color arrays stored with dtype=object.
+    """
+    # Create hex color array exactly as update_colors_and_radii() does
+    hex_colors = ['#ff0000', '#00ff00', '#0000ff']
+    data = {
+        "colors": np.array(hex_colors, dtype=object),
+        "positions": np.array([[0, 0, 0], [1, 1, 1], [2, 2, 2]]),
+    }
+
+    # Encode the data
+    encoded = encode_data(data)
+
+    # This should not fail anymore
+    decoded = decode_data(encoded)
+
+    # Verify the colors are preserved
+    npt.assert_array_equal(decoded["colors"], data["colors"])
+    npt.assert_array_equal(decoded["positions"], data["positions"])
+
+
+def test_hex_color_serialization_with_atoms():
+    """Test that atoms with hex colors can be stored and retrieved from Zarr.
+
+    This is an integration test that verifies the complete workflow:
+    1. Create atoms with hex colors using update_colors_and_radii()
+    2. Convert to dict using atoms_to_dict()
+    3. Store in Zarr using ZarrStorageSequence
+    4. Retrieve from Zarr
+    5. Verify colors are preserved
+    """
+    import ase
+    from zndraw.utils import update_colors_and_radii
+
+    # Create simple atoms object
+    atoms = ase.Atoms('H2O', positions=[(0, 0, 0), (1, 0, 0), (0, 1, 0)])
+    update_colors_and_radii(atoms)
+
+    # Verify colors are object dtype hex strings
+    assert atoms.arrays["colors"].dtype == object
+    assert all(isinstance(c, str) and c.startswith('#') for c in atoms.arrays["colors"])
+
+    # Convert to dict (as done during file upload)
+    data = atoms_to_dict(atoms)
+
+    # Store in Zarr
+    root = zarr.group(store=MemoryStore())
+    store = ZarrStorageSequence(root)
+    store.append(data)
+
+    # Retrieve from Zarr
+    retrieved = store[0]
+
+    # Verify colors are preserved (stored with flattened key 'arrays.colors')
+    npt.assert_array_equal(retrieved["arrays.colors"], data["arrays.colors"])
+    assert retrieved["arrays.colors"].dtype == object
+    assert all(isinstance(c, str) and c.startswith('#') for c in retrieved["arrays.colors"])
+
+
+def test_variable_sized_object_arrays():
+    """Test that object dtype arrays with different sizes across frames work correctly.
+
+    This reproduces the error: ValueError: cannot reshape array of size 6 into shape (8,)
+    that occurs when loading molecules with different numbers of atoms from s22.xyz.
+    """
+    # Create frames with different numbers of atoms (like s22 dataset)
+    frame1_colors = np.array(['#ff0000', '#00ff00', '#0000ff', '#ffff00', '#ff00ff', '#00ffff'], dtype=object)
+    frame2_colors = np.array(['#ff0000', '#00ff00', '#0000ff', '#ffff00', '#ff00ff', '#00ffff', '#ffffff', '#000000'], dtype=object)
+
+    data1 = {
+        "colors": frame1_colors,
+        "positions": np.random.rand(6, 3),
+    }
+    data2 = {
+        "colors": frame2_colors,
+        "positions": np.random.rand(8, 3),
+    }
+
+    # Store in Zarr
+    root = zarr.group(store=MemoryStore())
+    store = ZarrStorageSequence(root)
+    store.append(data1)
+    store.append(data2)
+
+    # Retrieve both frames
+    retrieved1 = store[0]
+    retrieved2 = store[1]
+
+    # Verify colors are preserved with correct shapes
+    npt.assert_array_equal(retrieved1["colors"], frame1_colors)
+    assert retrieved1["colors"].shape == (6,)
+    assert retrieved1["colors"].dtype == object
+
+    npt.assert_array_equal(retrieved2["colors"], frame2_colors)
+    assert retrieved2["colors"].shape == (8,)
+    assert retrieved2["colors"].dtype == object
+
+
+def test_s22_with_hex_colors(s22):
+    """Integration test with s22 dataset to verify complete workflow with variable-sized frames.
+
+    This tests the exact scenario from the user's error:
+    Loading s22.xyz with different numbers of atoms per frame.
+    """
+    from zndraw.utils import update_colors_and_radii
+
+    # Process all s22 frames with hex colors
+    frames_data = []
+    for atoms in s22:
+        atoms_copy = atoms.copy()
+        update_colors_and_radii(atoms_copy)
+        frames_data.append(atoms_to_dict(atoms_copy))
+
+    # Store in Zarr (simulating file upload)
+    root = zarr.group(store=MemoryStore())
+    store = ZarrStorageSequence(root)
+    store.extend(frames_data)
+
+    # Verify we stored all frames
+    assert len(store) == len(s22)
+
+    # Retrieve each frame and verify colors are correct
+    for i, original_atoms in enumerate(s22):
+        retrieved = store[i]
+
+        # Colors should be preserved
+        assert "arrays.colors" in retrieved
+        assert retrieved["arrays.colors"].dtype == object
+        assert len(retrieved["arrays.colors"]) == len(original_atoms)
+        assert all(isinstance(c, str) and c.startswith('#') for c in retrieved["arrays.colors"])
+
+        # Positions should match
+        npt.assert_array_almost_equal(retrieved["arrays.positions"], original_atoms.positions)

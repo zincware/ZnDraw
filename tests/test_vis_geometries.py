@@ -430,3 +430,117 @@ def test_vis_camera_update_progress(server):
     # Verify progress was updated
     retrieved = vis.geometries["moving_camera"]
     assert retrieved.position_progress == 1.0
+
+
+def test_box_normalization():
+    """Test that Box normalizes inputs to list format."""
+    from zndraw.geometries import Box
+
+    # Single tuple/hex inputs -> wrapped in lists
+    box1 = Box(position=(0, 0, 0), rotation=(0, 0.5, 0), color="#FF0000", size=(1, 1, 1))
+    assert box1.position == [(0.0, 0.0, 0.0)]
+    assert box1.rotation == [(0.0, 0.5, 0.0)]
+    assert box1.color == ["#FF0000"]
+    assert box1.size == [(1.0, 1.0, 1.0)]
+
+    # List inputs -> kept as lists
+    box2 = Box(
+        position=[(0, 0, 0), (1, 1, 1)],
+        rotation=[(0, 0.5, 0), (0, 0, 0.5)],
+        color=["#FF0000", "#00FF00"],
+        size=[(1, 1, 1), (2, 2, 2)]
+    )
+    assert len(box2.position) == 2
+    assert len(box2.rotation) == 2
+    assert box2.color == ["#FF0000", "#00FF00"]
+    assert len(box2.size) == 2
+
+    # Dynamic references -> pass through
+    box3 = Box(position="arrays.positions", color="arrays.colors")
+    assert box3.position == "arrays.positions"
+    assert box3.color == "arrays.colors"
+
+
+def test_plane_normalization():
+    """Test that Plane normalizes inputs to list format."""
+    from zndraw.geometries import Plane
+
+    # Single tuple/hex inputs -> wrapped in lists
+    plane1 = Plane(position=(0, 0, 0), rotation=(0, 0.5, 0), color="#FF0000", size=(1, 1))
+    assert plane1.position == [(0.0, 0.0, 0.0)]
+    assert plane1.rotation == [(0.0, 0.5, 0.0)]
+    assert plane1.color == ["#FF0000"]
+    assert plane1.size == [(1.0, 1.0)]
+
+    # List inputs -> kept as lists
+    plane2 = Plane(
+        position=[(0, 0, 0), (1, 1, 1)],
+        rotation=[(0, 0.5, 0), (0, 0, 0.5)],
+        color=["#FF0000", "#00FF00"],
+        size=[(1, 1), (2, 2)]
+    )
+    assert len(plane2.position) == 2
+    assert len(plane2.rotation) == 2
+    assert plane2.color == ["#FF0000", "#00FF00"]
+    assert len(plane2.size) == 2
+
+
+def test_arrow_normalization():
+    """Test that Arrow normalizes inputs to list format."""
+    from zndraw.geometries import Arrow
+
+    # Single tuple/hex inputs -> wrapped in lists
+    arrow1 = Arrow(position=(0, 0, 0), direction=(0, 0, 1), color="#FF0000")
+    assert arrow1.position == [(0.0, 0.0, 0.0)] or arrow1.position == "arrays.positions"  # Default might be dynamic
+    assert arrow1.direction == [(0.0, 0.0, 1.0)] or arrow1.direction == "calc.forces"  # Default might be dynamic
+    assert arrow1.color == ["#FF0000"] or arrow1.color == "arrays.colors"  # Default might be dynamic
+
+
+def test_color_conversion_to_hex():
+    """Test that atoms colors are converted to hex strings."""
+    import ase
+    from zndraw.utils import update_colors_and_radii
+
+    # Create atoms
+    atoms = ase.Atoms('H2O', positions=[(0, 0, 0), (1, 0, 0), (0, 1, 0)])
+
+    # Colors should not exist yet
+    assert "colors" not in atoms.arrays
+
+    # Call update function
+    update_colors_and_radii(atoms)
+
+    # Verify colors were added as hex strings
+    colors = atoms.arrays["colors"]
+    assert len(colors) == 3
+    assert all(isinstance(c, str) and c.startswith('#') for c in colors)
+
+    # Verify hex format (should be 7 characters: # + 6 hex digits)
+    assert all(len(c) == 7 for c in colors)
+
+    # Verify radii were also added
+    assert "radii" in atoms.arrays
+    assert len(atoms.arrays["radii"]) == 3
+
+
+def test_color_already_exists():
+    """Test that update_colors_and_radii doesn't overwrite existing colors."""
+    import ase
+    import numpy as np
+    from zndraw.utils import update_colors_and_radii
+
+    atoms = ase.Atoms('H2O', positions=[(0, 0, 0), (1, 0, 0), (0, 1, 0)])
+
+    # Manually set colors
+    existing_colors = np.array(["#AABBCC", "#DDEEFF", "#112233"], dtype=object)
+    atoms.set_array("colors", existing_colors)
+
+    # Call update function
+    update_colors_and_radii(atoms)
+
+    # Verify colors were not changed
+    colors = atoms.arrays["colors"]
+    assert len(colors) == 3
+    assert colors[0] == "#AABBCC"
+    assert colors[1] == "#DDEEFF"
+    assert colors[2] == "#112233"

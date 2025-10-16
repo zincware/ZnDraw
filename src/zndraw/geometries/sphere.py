@@ -7,19 +7,13 @@ from .base import BaseGeometry, SizeProp, InteractionSettings, apply_schema_feat
 class Sphere(BaseGeometry):
     """A sphere geometry.
 
-    By default, creates a single sphere at the origin (0,0,0).
+    By default, uses dynamic references to arrays.positions and arrays.colors.
+    This makes it suitable for visualizing atoms/particles.
     """
 
-    # Override defaults for user-created geometries
-    position: t.Union[str, list[tuple[float, float, float]]] = Field(
-        default=[(0.0, 0.0, 0.0)],
-        description="Position coordinates. String for dynamic data key (e.g. 'arrays.positions'), list of tuples for static per-instance positions [(x,y,z), ...].",
-    )
-
-    color: t.Union[str, list[str]] = Field(
-        default="#808080",
-        description="Color values. String for dynamic key (e.g. 'arrays.colors') or shared hex color (e.g. '#FF0000'), list of hex colors for per-instance ['#FF0000', '#00FF00', ...].",
-    )
+    # Keep defaults from BaseGeometry (dynamic references)
+    # position: default="arrays.positions"
+    # color: default="arrays.colors"
 
     @classmethod
     def model_json_schema(cls, **kwargs: t.Any) -> dict[str, t.Any]:

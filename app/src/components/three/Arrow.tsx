@@ -9,13 +9,14 @@ import { shouldFetchAsFrameData } from "../../utils/colorUtils";
 import {
   type SizeProp,
   processNumericAttribute,
-  processColorAttribute,
+  processColorData,
   getInstanceCount,
   validateArrayLengths,
+  expandSharedColor,
   SELECTION_SCALE,
   HOVER_SCALE,
 } from "../../utils/geometryData";
-import { _vec3, _vec3_2, _vec3_3, _quat, _matrix, _color } from "../../utils/threeObjectPools";
+import { _vec3, _vec3_2, _vec3_3, _quat, _quat2, _matrix, _matrix2, _color } from "../../utils/threeObjectPools";
 import { convertInstancedMeshToMerged, disposeMesh } from "../../utils/convertInstancedMesh";
 import { getGeometryWithDefaults } from "../../utils/geometryDefaults";
 
@@ -26,9 +27,9 @@ interface InteractionSettings {
 }
 
 interface ArrowData {
-  position: string | number[][] | number[];
-  direction: string | number[][] | number[];
-  color: string | number[][] | number[];
+  position: string | number[][];
+  direction: string | number[][];
+  color: string | string[]; // Dynamic ref or list of hex strings
   radius: SizeProp;
   scale: SizeProp;
   material: string;
@@ -182,7 +183,7 @@ export default function Arrow({
       const finalPositions = processNumericAttribute(position, fetchedPosition, finalCount);
 
       const fetchedColor = typeof color === 'string' ? colorData?.[color as string] : undefined;
-      const finalColors = processColorAttribute(color, fetchedColor, finalCount);
+      const colorHexArray = processColorData(color, fetchedColor, finalCount);
 
       const fetchedRadius = typeof radius === 'string' ? radiusData?.[radius as string] : undefined;
       const finalRadii = processNumericAttribute(radius, fetchedRadius, finalCount);
@@ -193,23 +194,24 @@ export default function Arrow({
       const fetchedScale = typeof scale === 'string' ? scaleData?.[scale as string] : undefined;
       const finalScales = processNumericAttribute(scale, fetchedScale, finalCount);
 
+      // Handle shared color (single color for all instances)
+      const finalColorHex = expandSharedColor(colorHexArray, finalCount);
+
       // --- Validation Step ---
       const isDataValid = validateArrayLengths(
         {
           positions: finalPositions,
           directions: finalDirections,
-          colors: finalColors,
           radii: finalRadii,
           scales: finalScales,
         },
         {
           positions: finalCount * 3,
           directions: finalCount * 3,
-          colors: finalCount * 3,
           radii: finalCount,
           scales: finalCount,
         }
-      );
+      ) && (finalColorHex.length === finalCount);
 
       if (!isDataValid) {
         console.error("Arrow data is invalid or has inconsistent lengths.");
@@ -246,8 +248,8 @@ export default function Arrow({
         _matrix.compose(_vec3, _quat, _vec3_3);
         mainMesh.setMatrixAt(i, _matrix);
 
-        // Use original colors (no inline selection/hover colors)
-        _color.setRGB(finalColors[i3], finalColors[i3 + 1], finalColors[i3 + 2]);
+        // Set color directly from hex string (THREE.Color.set() accepts hex)
+        _color.set(finalColorHex[i]);
         mainMesh.setColorAt(i, _color);
       }
 
@@ -255,6 +257,10 @@ export default function Arrow({
       if (mainMesh.instanceColor) {
         mainMesh.instanceColor.needsUpdate = true;
       }
+
+      // Update bounding box to prevent frustum culling issues
+      mainMesh.computeBoundingBox();
+      mainMesh.computeBoundingSphere();
 
       // --- Selection Mesh Update ---
       if (selecting.enabled && selectionMeshRef.current) {
@@ -280,12 +286,17 @@ export default function Arrow({
           selectionMesh.setMatrixAt(index, _matrix);
         });
         selectionMesh.instanceMatrix.needsUpdate = true;
+
+        // Update bounding box for selection mesh
+        selectionMesh.computeBoundingBox();
+        selectionMesh.computeBoundingSphere();
       }
     } catch (error) {
       console.error("Error processing Arrow data:", error);
       if (instanceCount !== 0) setInstanceCount(0);
     }
   }, [
+    data, // Add data to dependencies to ensure updates trigger
     isFetching,
     positionData,
     directionData,
@@ -317,19 +328,14 @@ export default function Arrow({
         hoveredGeometryInstance.instanceId < instanceCount) {
       hoverMesh.visible = true;
 
-      // Get transform from main mesh
-      const matrix = new THREE.Matrix4();
-      mainMesh.getMatrixAt(hoveredGeometryInstance.instanceId, matrix);
-
-      const position = new THREE.Vector3();
-      const quaternion = new THREE.Quaternion();
-      const scale = new THREE.Vector3();
-      matrix.decompose(position, quaternion, scale);
+      // Get transform from main mesh using pooled objects
+      mainMesh.getMatrixAt(hoveredGeometryInstance.instanceId, _matrix2);
+      _matrix2.decompose(_vec3, _quat2, _vec3_2);
 
       // Apply hover scale
-      hoverMesh.position.copy(position);
-      hoverMesh.quaternion.copy(quaternion);
-      hoverMesh.scale.copy(scale).multiplyScalar(HOVER_SCALE);
+      hoverMesh.position.copy(_vec3);
+      hoverMesh.quaternion.copy(_quat2);
+      hoverMesh.scale.copy(_vec3_2).multiplyScalar(HOVER_SCALE);
     } else {
       hoverMesh.visible = false;
     }

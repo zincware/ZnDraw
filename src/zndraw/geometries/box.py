@@ -1,9 +1,17 @@
 """Box geometry for ZnDraw."""
 
 import typing as t
-from pydantic import Field
+from pydantic import Field, field_validator
 
-from .base import BaseGeometry, RotationProp, InteractionSettings, apply_schema_feature
+from .base import (
+    BaseGeometry,
+    RotationProp,
+    Size3DProp,
+    InteractionSettings,
+    apply_schema_feature,
+    PositionProp,
+    ColorProp,
+)
 
 
 class Box(BaseGeometry):
@@ -16,14 +24,14 @@ class Box(BaseGeometry):
     """
 
     # Override defaults for user-created geometries
-    position: t.Union[str, list[tuple[float, float, float]]] = Field(
+    position: PositionProp = Field(
         default=[(0.0, 0.0, 0.0)],
         description="Position coordinates. String for dynamic data key (e.g. 'arrays.positions'), list of tuples for static per-instance positions [(x,y,z), ...].",
     )
 
-    color: t.Union[str, list[str]] = Field(
-        default="#808080",
-        description="Color values. String for dynamic key (e.g. 'arrays.colors') or shared hex color (e.g. '#FF0000'), list of hex colors for per-instance ['#FF0000', '#00FF00', ...].",
+    color: ColorProp = Field(
+        default=["#808080"],
+        description="Color values. String for dynamic key (e.g. 'arrays.colors') or list of hex colors ['#FF0000', '#00FF00', ...].",
     )
 
     @classmethod
@@ -44,14 +52,14 @@ class Box(BaseGeometry):
 
         return schema
 
-    size: t.Union[str, tuple[float, float, float], list[tuple[float, float, float]]] = Field(
-        default=(1.0, 1.0, 1.0),
-        description="Box dimensions [width, height, depth]. Tuple for shared size across all instances, list of tuples for per-instance sizes, string for dynamic data key.",
+    size: Size3DProp = Field(
+        default=[(1.0, 1.0, 1.0)],
+        description="Box dimensions [width, height, depth]. List of tuples for per-instance sizes, string for dynamic data key. Single tuples are automatically normalized to lists.",
     )
 
     rotation: RotationProp = Field(
-        default=(0.0, 0.0, 0.0),
-        description="Rotation as Euler angles [x, y, z] in radians. Tuple for shared rotation across all instances, list of tuples for per-instance rotations, string for dynamic data key.",
+        default=[(0.0, 0.0, 0.0)],
+        description="Rotation as Euler angles [x, y, z] in radians. List of tuples for per-instance rotations, string for dynamic data key. Single tuples are automatically normalized to lists.",
     )
 
     scale: float = Field(
@@ -76,3 +84,15 @@ class Box(BaseGeometry):
         default=InteractionSettings(color="#FF0000", opacity=0.5),
         description="Hover interaction settings.",
     )
+
+    @field_validator("rotation", "size", mode="before")
+    @classmethod
+    def normalize_vector_fields(cls, v):
+        """Normalize vector fields to list of tuples (position inherited from BaseGeometry)."""
+        if v is None:
+            return []
+        if isinstance(v, str):  # Dynamic reference
+            return v
+        if isinstance(v, tuple):  # Single tuple -> wrap in list
+            return [v]
+        return v  # Already a list

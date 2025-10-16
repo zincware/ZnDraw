@@ -1,9 +1,14 @@
 """Arrow geometry for ZnDraw."""
 
 import typing as t
-from pydantic import Field
+from pydantic import Field, field_validator
 
-from .base import BaseGeometry, PositionProp, InteractionSettings, apply_schema_feature
+from .base import (
+    BaseGeometry,
+    PositionProp,
+    InteractionSettings,
+    apply_schema_feature,
+)
 
 
 class Arrow(BaseGeometry):
@@ -36,7 +41,7 @@ class Arrow(BaseGeometry):
         description="Arrow start position [x,y,z]. String for dynamic data key, list of tuples for static per-instance positions.",
     )
 
-    direction: t.Union[str, list[tuple[float, float, float]]] = Field(
+    direction: PositionProp = Field(
         default="calc.forces",
         description="Direction vector [x,y,z]. Defines arrow orientation and base length. String for dynamic data key, list of tuples for static per-instance directions.",
     )
@@ -67,3 +72,15 @@ class Arrow(BaseGeometry):
         default=InteractionSettings(color="#FF0000", opacity=0.5),
         description="Hover interaction settings.",
     )
+
+    @field_validator("direction", mode="before")
+    @classmethod
+    def normalize_direction(cls, v):
+        """Normalize direction vector to list of tuples (inherited from BaseGeometry for position)."""
+        if v is None:
+            return []
+        if isinstance(v, str):  # Dynamic reference
+            return v
+        if isinstance(v, tuple):  # Single tuple -> wrap in list
+            return [v]
+        return v  # Already a list

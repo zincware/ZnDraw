@@ -19,30 +19,3 @@ export const shouldFetchAsFrameData = (value: any): boolean => {
   if (typeof value !== "string") return false;
   return !isHexColor(value);
 };
-
-/**
- * Converts a hex color to RGB array in 0-1 range
- * @param hex The hex color string (e.g., "#FF5733" or "#f73")
- * @returns Array of [r, g, b] in 0-1 range, or null if invalid
- */
-export const hexToRgb = (hex: string): [number, number, number] | null => {
-  if (!isHexColor(hex)) return null;
-
-  const hexValue = hex.replace("#", "");
-
-  let r: number, g: number, b: number;
-
-  if (hexValue.length === 3) {
-    // Convert #RGB to #RRGGBB
-    r = parseInt(hexValue[0] + hexValue[0], 16);
-    g = parseInt(hexValue[1] + hexValue[1], 16);
-    b = parseInt(hexValue[2] + hexValue[2], 16);
-  } else {
-    r = parseInt(hexValue.slice(0, 2), 16);
-    g = parseInt(hexValue.slice(2, 4), 16);
-    b = parseInt(hexValue.slice(4, 6), 16);
-  }
-
-  // Return in 0-1 range for Three.js
-  return [r / 255, g / 255, b / 255];
-};

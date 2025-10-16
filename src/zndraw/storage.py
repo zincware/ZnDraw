@@ -30,11 +30,20 @@ def encode_data(data: dict) -> dict:
     serialized = {}
     for key, value in data.items():
         if isinstance(value, np.ndarray):
-            serialized[key] = {
-                "data": value.tobytes(),
-                "shape": value.shape,
-                "dtype": str(value.dtype),
-            }
+            # Object dtype arrays (like hex color strings) cannot be serialized with tobytes()
+            # so we serialize them as JSON instead
+            if value.dtype == object:
+                serialized[key] = {
+                    "data": json.dumps(value.tolist()),
+                    "shape": value.shape,
+                    "dtype": str(value.dtype),
+                }
+            else:
+                serialized[key] = {
+                    "data": value.tobytes(),
+                    "shape": value.shape,
+                    "dtype": str(value.dtype),
+                }
         elif isinstance(value, dict):
             serialized[key] = encode_data(value)
         else:
@@ -51,9 +60,15 @@ def decode_data(data: dict) -> dict:
             and "shape" in value
             and "dtype" in value
         ):
-            deserialized[key] = np.frombuffer(
-                value["data"], dtype=value["dtype"]
-            ).reshape(value["shape"])
+            # Object dtype arrays were serialized as JSON, not bytes
+            if value["dtype"] == "object":
+                deserialized[key] = np.array(
+                    json.loads(value["data"]), dtype=object
+                ).reshape(value["shape"])
+            else:
+                deserialized[key] = np.frombuffer(
+                    value["data"], dtype=value["dtype"]
+                ).reshape(value["shape"])
         elif isinstance(value, dict):
             deserialized[key] = decode_data(value)
         else:
@@ -119,7 +134,15 @@ def read_zarr(root: zarr.Group, index: int, keys: t.Optional[list[str]] = None) 
         item = root[key]
         if isinstance(item, zarr.Array):
             if item.attrs.get("format") == "json":
-                data[key] = json.loads(item[index].item())
+                deserialized = json.loads(item[index].item())
+                # Check if this was originally an object dtype array
+                if item.attrs.get("original_dtype") == "object":
+                    # The shape is naturally preserved through JSON serialization
+                    # (tolist() -> json.dumps() -> json.loads() -> np.array preserves nested structure)
+                    # No need to reshape!
+                    data[key] = np.array(deserialized, dtype=object)
+                else:
+                    data[key] = deserialized
             else:
                 if f"__mask__{key}__" in root:
                     mask = root[f"__mask__{key}__"][index]
@@ -185,12 +208,25 @@ def extend_zarr(root: zarr.Group, data: list[dict]):
 
             # Determine how to handle the value based on its type
             if isinstance(value, np.ndarray):
-                item_type, dtype, shape_suffix, prepared_value = (
-                    "array",
-                    value.dtype,
-                    value.shape,
-                    value,
-                )
+                # Object dtype arrays (like hex color strings) need to be stored as JSON
+                # because Zarr doesn't support object dtype directly
+                if value.dtype == object:
+                    # tolist() preserves nested structure, json preserves it, and np.array reconstructs it
+                    # so no need to store shape separately
+                    prepared_value = json.dumps(value.tolist())
+                    item_type, dtype, shape_suffix, attrs = (
+                        "json_array",
+                        zarr.dtype.VariableLengthUTF8(),
+                        (),
+                        {"format": "json", "original_dtype": "object"},
+                    )
+                else:
+                    item_type, dtype, shape_suffix, prepared_value = (
+                        "array",
+                        value.dtype,
+                        value.shape,
+                        value,
+                    )
             elif isinstance(value, dict):
                 try:
                     # Convert numpy types to native Python types before JSON serialization

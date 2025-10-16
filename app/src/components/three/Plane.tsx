@@ -7,15 +7,16 @@ import { renderMaterial } from "./materials";
 import { shouldFetchAsFrameData } from "../../utils/colorUtils";
 import {
   processPositionAttribute,
-  processRotationAttribute,
-  processColorAttribute,
   processSize2D,
+  processRotationAttribute,
+  processColorData,
   getInstanceCount,
   validateArrayLengths,
+  expandSharedColor,
   SELECTION_SCALE,
   HOVER_SCALE,
 } from "../../utils/geometryData";
-import { _vec3, _euler, _matrix, _color } from "../../utils/threeObjectPools";
+import { _vec3, _vec3_2, _vec3_3, _euler, _matrix, _matrix2, _quat, _quat2, _color } from "../../utils/threeObjectPools";
 import { convertInstancedMeshToMerged, disposeMesh } from "../../utils/convertInstancedMesh";
 import { getGeometryWithDefaults } from "../../utils/geometryDefaults";
 
@@ -26,10 +27,10 @@ interface InteractionSettings {
 }
 
 interface PlaneData {
-  position: string | number[][] | number[];
-  size: string | number[][] | number[];
-  color: string | number[][] | number[];
-  rotation: string | number[][] | number[];
+  position: string | number[][];
+  size: string | number[][];
+  color: string | string[]; // Dynamic ref or list of hex strings
+  rotation: string | number[][];
   material: string;
   scale: number;
   opacity: number;
@@ -157,7 +158,7 @@ export default function Plane({
       const finalPositions = processPositionAttribute(positionProp, fetchedPosition);
 
       const fetchedColor = typeof colorProp === 'string' ? colorData?.[colorProp as string] : undefined;
-      const finalColors = processColorAttribute(colorProp, fetchedColor, finalCount);
+      const colorHexArray = processColorData(colorProp, fetchedColor, finalCount);
 
       const fetchedSize = typeof sizeProp === 'string' ? sizeData?.[sizeProp as string] : undefined;
       const finalSizes = processSize2D(sizeProp, fetchedSize, finalCount);
@@ -165,11 +166,14 @@ export default function Plane({
       const fetchedRotation = typeof rotationProp === 'string' ? rotationData?.[rotationProp as string] : undefined;
       const finalRotations = processRotationAttribute(rotationProp, fetchedRotation, finalCount);
 
+      // Handle shared color (single color for all instances)
+      const finalColorHex = expandSharedColor(colorHexArray, finalCount);
+
       // --- Validation Step ---
       const isDataValid = validateArrayLengths(
-        { positions: finalPositions, colors: finalColors, sizes: finalSizes, rotations: finalRotations },
-        { positions: finalCount * 3, colors: finalCount * 3, sizes: finalCount * 2, rotations: finalCount * 3 }
-      );
+        { positions: finalPositions, sizes: finalSizes, rotations: finalRotations },
+        { positions: finalCount * 3, sizes: finalCount * 2, rotations: finalCount * 3 }
+      ) && (finalColorHex.length === finalCount);
 
       if (!isDataValid) {
         console.error("Plane data is invalid or has inconsistent lengths.");
@@ -194,17 +198,23 @@ export default function Plane({
         _euler.set(finalRotations[i3], finalRotations[i3 + 1], finalRotations[i3 + 2]);
         const width = finalSizes[i2] * planeScale;
         const height = finalSizes[i2 + 1] * planeScale;
-        _matrix.compose(_vec3, new THREE.Quaternion().setFromEuler(_euler), new THREE.Vector3(width, height, 1));
+        _quat.setFromEuler(_euler);
+        _vec3_2.set(width, height, 1);
+        _matrix.compose(_vec3, _quat, _vec3_2);
         mainMesh.setMatrixAt(i, _matrix);
 
-        // Use original colors (no inline selection/hover colors)
-        _color.setRGB(finalColors[i3], finalColors[i3 + 1], finalColors[i3 + 2]);
+        // Set color directly from hex string (THREE.Color.set() accepts hex)
+        _color.set(finalColorHex[i]);
         mainMesh.setColorAt(i, _color);
       }
 
       mainMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
       mainMesh.instanceMatrix.needsUpdate = true;
       if (mainMesh.instanceColor) mainMesh.instanceColor.needsUpdate = true;
+
+      // Update bounding box to prevent frustum culling issues
+      mainMesh.computeBoundingBox();
+      mainMesh.computeBoundingSphere();
 
       // --- Selection Mesh Update (uses thin box geometry for visible outline) ---
       if (selecting.enabled && selectionMeshRef.current) {
@@ -218,10 +228,16 @@ export default function Plane({
           const width = finalSizes[i2] * planeScale * SELECTION_SCALE;
           const height = finalSizes[i2 + 1] * planeScale * SELECTION_SCALE;
           // Use thin depth (0.01) for visible outline effect
-          _matrix.compose(_vec3, new THREE.Quaternion().setFromEuler(_euler), new THREE.Vector3(width, height, 0.01));
+          _quat.setFromEuler(_euler);
+          _vec3_2.set(width, height, 0.01);
+          _matrix.compose(_vec3, _quat, _vec3_2);
           selectionMesh.setMatrixAt(index, _matrix);
         });
         selectionMesh.instanceMatrix.needsUpdate = true;
+
+        // Update bounding box for selection mesh
+        selectionMesh.computeBoundingBox();
+        selectionMesh.computeBoundingSphere();
       }
 
     } catch (error) {
@@ -229,6 +245,7 @@ export default function Plane({
       if (instanceCount !== 0) setInstanceCount(0);
     }
   }, [
+    data, // Add data to dependencies to ensure updates trigger
     isFetching,
     positionData,
     sizeData,
@@ -259,21 +276,16 @@ export default function Plane({
         hoveredGeometryInstance.instanceId < instanceCount) {
       hoverMesh.visible = true;
 
-      // Get transform from main mesh
-      const matrix = new THREE.Matrix4();
-      mainMesh.getMatrixAt(hoveredGeometryInstance.instanceId, matrix);
-
-      const position = new THREE.Vector3();
-      const quaternion = new THREE.Quaternion();
-      const scale = new THREE.Vector3();
-      matrix.decompose(position, quaternion, scale);
+      // Get transform from main mesh using pooled objects
+      mainMesh.getMatrixAt(hoveredGeometryInstance.instanceId, _matrix2);
+      _matrix2.decompose(_vec3, _quat2, _vec3_2);
 
       // Apply hover scale (with thin depth for outline)
-      hoverMesh.position.copy(position);
-      hoverMesh.quaternion.copy(quaternion);
+      hoverMesh.position.copy(_vec3);
+      hoverMesh.quaternion.copy(_quat2);
       hoverMesh.scale.set(
-        scale.x * HOVER_SCALE,
-        scale.y * HOVER_SCALE,
+        _vec3_2.x * HOVER_SCALE,
+        _vec3_2.y * HOVER_SCALE,
         0.01 // Thin depth for outline
       );
     } else {

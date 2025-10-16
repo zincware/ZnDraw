@@ -1,6 +1,6 @@
 from pydantic import Field
 import typing as t
-from .base import BaseGeometry, DataProp
+from .base import BaseGeometry, apply_schema_feature
 
 
 class Cell(BaseGeometry):
@@ -9,17 +9,12 @@ class Cell(BaseGeometry):
     @classmethod
     def model_json_schema(cls, **kwargs: t.Any) -> dict[str, t.Any]:
         schema = super().model_json_schema(**kwargs)
-        schema["properties"]["position"]["x-custom-type"] = "dynamic-enum"
-        schema["properties"]["position"]["x-features"] = ["dynamic-atom-props"]
-        schema["properties"]["position"]["type"] = "string"
-        schema["properties"]["position"].pop("anyOf", None)
 
-        schema["properties"]["color"]["x-custom-type"] = "dynamic-enum"
-        schema["properties"]["color"]["x-features"] = ["color-picker"]
+        # Apply schema features using helper
+        apply_schema_feature(schema, "position", ["dynamic-atom-props"])
+        apply_schema_feature(schema, "color", ["color-picker"])
         # TODO: add dropdown with "default" option, where default means follow color scheme
-        schema["properties"]["color"]["type"] = "string"
-        schema["properties"]["color"].pop("anyOf", None)
-        
+
         return schema
     
     color: str = Field(default="default", description="Color of the cell")

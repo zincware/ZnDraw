@@ -7,11 +7,12 @@ import { renderMaterial } from "./materials";
 import { shouldFetchAsFrameData } from "../../utils/colorUtils";
 import {
   processNumericAttribute,
-  processColorAttribute,
+  processColorData,
+  expandSharedColor,
   SELECTION_SCALE,
   HOVER_SCALE,
 } from "../../utils/geometryData";
-import { _vec3, _vec3_2, _quat, _matrix, _color } from "../../utils/threeObjectPools";
+import { _vec3, _vec3_2, _vec3_3, _vec3_4, _quat, _quat2, _matrix, _matrix2, _color } from "../../utils/threeObjectPools";
 import { convertInstancedMeshToMerged, disposeMesh } from "../../utils/convertInstancedMesh";
 import { getGeometryWithDefaults } from "../../utils/geometryDefaults";
 
@@ -25,7 +26,7 @@ interface InteractionSettings {
 interface BondData {
   position: string | number[][];
   connectivity?: Array<[number, number, number]> | string;
-  color: string | number[][] | string;
+  color: string | string[]; // Dynamic ref or list of hex strings
   radius: string | number[] | number;
   material: string;
   resolution: number;
@@ -163,20 +164,13 @@ export default function Bonds({
       // --- Data Processing Step ---
       // Process atom positions first to get atom count
       const fetchedPosition = typeof positionProp === 'string' ? positionData?.[positionProp as string] : undefined;
-      let atomCount = 0;
-      let finalPositions: number[] = [];
 
+      // Calculate atom count from fetched or static position data
+      let atomCount = 0;
       if (fetchedPosition) {
         atomCount = fetchedPosition.length / 3;
-        finalPositions = Array.from(fetchedPosition);
-      } else if (typeof positionProp !== "string") {
-        if (Array.isArray(positionProp) && Array.isArray(positionProp[0])) {
-          atomCount = (positionProp as number[][]).length;
-          finalPositions = (positionProp as number[][]).flat();
-        } else if (Array.isArray(positionProp)) {
-          atomCount = (positionProp as number[]).length / 3;
-          finalPositions = positionProp as number[];
-        }
+      } else if (Array.isArray(positionProp)) {
+        atomCount = positionProp.length;  // positionProp is number[][]
       }
 
       if (atomCount === 0) {
@@ -184,9 +178,15 @@ export default function Bonds({
         return;
       }
 
+      // Use processNumericAttribute for consistent position processing
+      const finalPositions = processNumericAttribute(positionProp, fetchedPosition, atomCount);
+
       // Process colors
       const fetchedColor = typeof colorProp === 'string' ? colorData?.[colorProp as string] : undefined;
-      const finalColors = processColorAttribute(colorProp, fetchedColor, atomCount);
+      const colorHexArray = processColorData(colorProp, fetchedColor, atomCount);
+
+      // Handle shared color (single color for all atoms)
+      const finalColorHex = expandSharedColor(colorHexArray, atomCount);
 
       // Process radii
       const fetchedRadius = typeof radiusProp === 'string' ? radiusData?.[radiusProp as string] : undefined;
@@ -241,25 +241,36 @@ export default function Bonds({
         _vec3.fromArray(finalPositions, a3);
         _vec3_2.fromArray(finalPositions, b3);
 
-        const bondVec = _vec3_2.clone().sub(_vec3);
-        const length = bondVec.length();
+        // Calculate bond vector using pooled object _vec3_3
+        _vec3_3.copy(_vec3_2).sub(_vec3);
+        const length = _vec3_3.length();
         const radius = finalRadii[a] * bondScale;
         const halfLength = length / 2;
 
+        // Use _vec3_4 for scale vector
+        _vec3_4.set(radius, halfLength, radius);
+
         // First half-bond (from atom A)
-        _quat.setFromUnitVectors(_up, bondVec.clone().normalize());
-        _matrix.compose(_vec3, _quat, new THREE.Vector3(radius, halfLength, radius));
+        // Normalize _vec3_3 in place instead of cloning
+        _vec3_3.normalize();
+        _quat.setFromUnitVectors(_up, _vec3_3);
+        _matrix.compose(_vec3, _quat, _vec3_4);
         mainMesh.setMatrixAt(instanceIndex, _matrix);
-        _colorA.setRGB(finalColors[a3], finalColors[a3 + 1], finalColors[a3 + 2]);
+
+        // Set color directly from hex string (THREE.Color.set() accepts hex)
+        _colorA.set(finalColorHex[a]);
         mainMesh.setColorAt(instanceIndex, _colorA);
         instanceIndex++;
 
         // Second half-bond (from atom B, inverted direction)
-        const bondVecInv = _vec3.clone().sub(_vec3_2);
-        _quatInv.setFromUnitVectors(_up, bondVecInv.clone().normalize());
-        _matrix.compose(_vec3_2, _quatInv, new THREE.Vector3(radius, halfLength, radius));
+        // Reuse _vec3_3 for inverted direction
+        _vec3_3.copy(_vec3).sub(_vec3_2).normalize();
+        _quatInv.setFromUnitVectors(_up, _vec3_3);
+        _matrix.compose(_vec3_2, _quatInv, _vec3_4);
         mainMesh.setMatrixAt(instanceIndex, _matrix);
-        _colorB.setRGB(finalColors[b3], finalColors[b3 + 1], finalColors[b3 + 2]);
+
+        // Set color directly from hex string (THREE.Color.set() accepts hex)
+        _colorB.set(finalColorHex[b]);
         mainMesh.setColorAt(instanceIndex, _colorB);
         instanceIndex++;
       }
@@ -267,16 +278,25 @@ export default function Bonds({
       mainMesh.instanceMatrix.needsUpdate = true;
       if (mainMesh.instanceColor) mainMesh.instanceColor.needsUpdate = true;
 
+      // Update bounding box to prevent frustum culling issues
+      mainMesh.computeBoundingBox();
+      mainMesh.computeBoundingSphere();
+
       // --- Selection Mesh Update ---
       if (selecting.enabled && selectionMeshRef.current) {
         const selectionMesh = selectionMeshRef.current;
         selectedBondIndices.forEach((bondInstanceId, arrayIndex) => {
-          // Copy matrix from main mesh and scale up
+          // Copy matrix from main mesh and scale up using pooled vector
           mainMesh.getMatrixAt(bondInstanceId, _matrix);
-          _matrix.scale(new THREE.Vector3(SELECTION_SCALE, SELECTION_SCALE, SELECTION_SCALE));
+          _vec3_3.set(SELECTION_SCALE, SELECTION_SCALE, SELECTION_SCALE);
+          _matrix.scale(_vec3_3);
           selectionMesh.setMatrixAt(arrayIndex, _matrix);
         });
         selectionMesh.instanceMatrix.needsUpdate = true;
+
+        // Update bounding box for selection mesh
+        selectionMesh.computeBoundingBox();
+        selectionMesh.computeBoundingSphere();
       }
 
       // --- Hover Mesh Update ---
@@ -284,17 +304,13 @@ export default function Bonds({
         const hoverMesh = hoverMeshRef.current;
         if (hoveredBondId !== null && hoveredBondId < finalCount) {
           hoverMesh.visible = true;
-          // Get the matrix from the hovered bond instance
-          mainMesh.getMatrixAt(hoveredBondId, _matrix);
-          // Decompose to get position, rotation, and scale
-          const position = new THREE.Vector3();
-          const rotation = new THREE.Quaternion();
-          const scale = new THREE.Vector3();
-          _matrix.decompose(position, rotation, scale);
+          // Get the matrix from the hovered bond instance using pooled objects
+          mainMesh.getMatrixAt(hoveredBondId, _matrix2);
+          _matrix2.decompose(_vec3, _quat2, _vec3_2);
           // Apply to hover mesh with scaled-up dimensions
-          hoverMesh.position.copy(position);
-          hoverMesh.quaternion.copy(rotation);
-          hoverMesh.scale.copy(scale).multiplyScalar(HOVER_SCALE);
+          hoverMesh.position.copy(_vec3);
+          hoverMesh.quaternion.copy(_quat2);
+          hoverMesh.scale.copy(_vec3_2).multiplyScalar(HOVER_SCALE);
         } else {
           hoverMesh.visible = false;
         }

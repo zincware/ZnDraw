@@ -7,13 +7,14 @@ import { renderMaterial } from "./materials";
 import { shouldFetchAsFrameData } from "../../utils/colorUtils";
 import {
   processNumericAttribute,
-  processColorAttribute,
+  processColorData,
   getInstanceCount,
   validateArrayLengths,
+  expandSharedColor,
   SELECTION_SCALE,
   HOVER_SCALE,
 } from "../../utils/geometryData";
-import { _vec3, _matrix, _color } from "../../utils/threeObjectPools";
+import { _vec3, _vec3_2, _matrix, _matrix2, _quat2, _color } from "../../utils/threeObjectPools";
 import { convertInstancedMeshToMerged, disposeMesh } from "../../utils/convertInstancedMesh";
 import { getGeometryWithDefaults } from "../../utils/geometryDefaults";
 
@@ -24,8 +25,8 @@ interface InteractionSettings {
 }
 
 interface SphereData {
-  position: string | number[][] | number[];
-  color: string | number[][] | number[];
+  position: string | number[][];
+  color: string | string[]; // Dynamic ref or list of hex strings
   radius: string | number[] | number;
   material: string;
   resolution: number;
@@ -146,16 +147,19 @@ export default function Sphere({
       const finalPositions = processNumericAttribute(positionProp, fetchedPosition, finalCount);
 
       const fetchedColor = typeof colorProp === 'string' ? colorData?.[colorProp as string] : undefined;
-      const finalColors = processColorAttribute(colorProp, fetchedColor, finalCount);
+      const colorHexArray = processColorData(colorProp, fetchedColor, finalCount);
 
       const fetchedRadius = typeof radiusProp === 'string' ? radiusData?.[radiusProp as string] : undefined;
       const finalRadii = processNumericAttribute(radiusProp, fetchedRadius, finalCount);
 
+      // Handle shared color (single color for all instances)
+      const finalColorHex = expandSharedColor(colorHexArray, finalCount);
+
       // --- Validation Step ---
       const isDataValid = validateArrayLengths(
-        { positions: finalPositions, colors: finalColors, radii: finalRadii },
-        { positions: finalCount * 3, colors: finalCount * 3, radii: finalCount }
-      );
+        { positions: finalPositions, radii: finalRadii },
+        { positions: finalCount * 3, radii: finalCount }
+      ) && (finalColorHex.length === finalCount);
 
       if (!isDataValid) {
         console.error("Sphere/Particles data is invalid or has inconsistent lengths.");
@@ -179,13 +183,19 @@ export default function Sphere({
         const r = finalRadii[i] * particleScale;
         _matrix.identity().setPosition(_vec3).scale(_vec3.set(r, r, r));
         mainMesh.setMatrixAt(i, _matrix);
-        _color.setRGB(finalColors[i3], finalColors[i3 + 1], finalColors[i3 + 2]);
+
+        // Set color directly from hex string (THREE.Color.set() accepts hex)
+        _color.set(finalColorHex[i]);
         mainMesh.setColorAt(i, _color);
       }
 
       mainMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
       mainMesh.instanceMatrix.needsUpdate = true;
       if (mainMesh.instanceColor) mainMesh.instanceColor.needsUpdate = true;
+
+      // Update bounding box to prevent frustum culling issues
+      mainMesh.computeBoundingBox();
+      mainMesh.computeBoundingSphere();
 
       // --- Selection Mesh Update ---
       if (selecting.enabled && selectionMeshRef.current) {
@@ -199,6 +209,10 @@ export default function Sphere({
           selectionMesh.setMatrixAt(index, _matrix);
         });
         selectionMesh.instanceMatrix.needsUpdate = true;
+
+        // Update bounding box for selection mesh
+        selectionMesh.computeBoundingBox();
+        selectionMesh.computeBoundingSphere();
       }
 
     } catch (error) {
@@ -206,6 +220,7 @@ export default function Sphere({
       if (instanceCount !== 0) setInstanceCount(0);
     }
   }, [
+    data, // Add data to dependencies to ensure updates trigger
     isFetching,
     positionData,
     colorData,
@@ -233,17 +248,13 @@ export default function Sphere({
         hoveredGeometryInstance.instanceId < instanceCount) {
       hoverMesh.visible = true;
 
-      // Get transform from main mesh
-      const matrix = new THREE.Matrix4();
-      mainMesh.getMatrixAt(hoveredGeometryInstance.instanceId, matrix);
-
-      const position = new THREE.Vector3();
-      const scale = new THREE.Vector3();
-      matrix.decompose(position, new THREE.Quaternion(), scale);
+      // Get transform from main mesh using pooled objects
+      mainMesh.getMatrixAt(hoveredGeometryInstance.instanceId, _matrix2);
+      _matrix2.decompose(_vec3, _quat2, _vec3_2);
 
       // Apply hover scale
-      hoverMesh.position.copy(position);
-      hoverMesh.scale.copy(scale).multiplyScalar(HOVER_SCALE);
+      hoverMesh.position.copy(_vec3);
+      hoverMesh.scale.copy(_vec3_2).multiplyScalar(HOVER_SCALE);
     } else {
       hoverMesh.visible = false;
     }

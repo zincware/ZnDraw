@@ -18,6 +18,18 @@ function decodeTypedData(encoded: any, key: string) {
   if (!encoded) return undefined;
   try {
     const decoded = decode(encoded)[0][key] as { dtype: string; data: any };
+
+    // Handle object dtype (e.g., hex color strings)
+    // Object dtype arrays are sent as JSON-encoded strings in msgpack
+    if (decoded.dtype === 'object') {
+      // The data field contains a JSON string that needs to be parsed
+      if (typeof decoded.data === 'string') {
+        return JSON.parse(decoded.data);
+      }
+      // If already parsed (shouldn't happen, but handle gracefully)
+      return decoded.data;
+    }
+
     const TypedArrayCtor = numpyDtypeToTypedArray[decoded.dtype as keyof typeof numpyDtypeToTypedArray];
     if (!TypedArrayCtor) throw new Error(`Unsupported dtype: ${decoded.dtype}`);
     return new TypedArrayCtor(decoded.data.slice().buffer);

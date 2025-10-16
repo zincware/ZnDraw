@@ -3,23 +3,29 @@
 from typing import Literal, Union, Any
 from enum import Enum
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 # Type aliases for geometry properties
 # Position is ALWAYS per-instance (list of tuples or dynamic key)
 PositionProp = Union[str, list[tuple[float, float, float]]]
 
-# Color can be shared (single hex) or per-instance (list of hex) or dynamic
+# Color is always hex strings - single hex or list of hex strings, or dynamic reference
 ColorProp = Union[str, list[str]]
 
 # Size/radius can be shared (single value) or per-instance (list) or dynamic
 SizeProp = Union[str, float, list[float]]
 
+# 2D size for plane (width, height)
+Size2DProp = Union[str, tuple[float, float], list[tuple[float, float]]]
+
+# 3D size for box (width, height, depth)
+Size3DProp = Union[str, tuple[float, float, float], list[tuple[float, float, float]]]
+
 # Rotation can be shared (single tuple) or per-instance (list of tuples) or dynamic
 RotationProp = Union[str, tuple[float, float, float], list[tuple[float, float, float]]]
 
-# Generic data property (for backward compatibility)
-DataProp = Union[str, float, tuple[float, float, float], list[tuple[float, float, float]]]
+# Connectivity for bonds: per-bond indices and properties (atom_a, atom_b, bond_order, etc)
+ConnectivityProp = Union[str, list[tuple[float, float, float]]]
 
 class Material(str, Enum):
     # --- PHYSICAL MATERIALS ---
@@ -101,10 +107,37 @@ class BaseGeometry(BaseModel):
 
     color: ColorProp = Field(
         default="arrays.colors",
-        description="Color values. String for dynamic key (e.g. 'arrays.colors') or shared hex color (e.g. '#FF0000'), list of hex colors for per-instance ['#FF0000', '#00FF00', ...].",
+        description="Color values. String for dynamic key (e.g. 'arrays.colors') or list of hex colors ['#FF0000', '#00FF00', ...]. Single hex colors are automatically normalized to lists.",
     )
 
     material: Material = Field(
         default=Material.MeshPhysicalMaterial_matt,
         description="Material type (static config, not fetched from server)",
     )
+
+    @field_validator("position", mode="before")
+    @classmethod
+    def normalize_position(cls, v):
+        """Normalize position to list of tuples."""
+        if v is None:
+            return []
+        if isinstance(v, str):  # Dynamic reference
+            return v
+        if isinstance(v, tuple):  # Single tuple -> wrap in list
+            return [v]
+        return v  # Already a list
+
+    @field_validator("color", mode="before")
+    @classmethod
+    def normalize_color(cls, v):
+        """Normalize color to list of hex strings."""
+        if v is None:
+            return []
+        # Dynamic reference -> pass through (strings not starting with #)
+        if isinstance(v, str) and not v.startswith("#"):
+            return v
+        # Single hex color -> wrap in list
+        if isinstance(v, str) and v.startswith("#"):
+            return [v]
+        # Already a list -> return as is
+        return v
