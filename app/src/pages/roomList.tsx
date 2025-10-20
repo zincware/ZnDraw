@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Box from "@mui/material/Box";
@@ -29,6 +29,7 @@ import StarIcon from "@mui/icons-material/Star";
 import StarBorderIcon from "@mui/icons-material/StarBorder";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import FolderOpenIcon from "@mui/icons-material/FolderOpen";
+import UploadFileIcon from "@mui/icons-material/UploadFile";
 import {
   listRooms,
   updateRoom,
@@ -37,6 +38,8 @@ import {
   getFileBrowserConfig,
   Room,
 } from "../myapi/client";
+import { useDragAndDrop } from "../hooks/useDragAndDrop";
+import DropOverlay from "../components/DropOverlay";
 
 interface DuplicateDialogState {
   open: boolean;
@@ -70,6 +73,36 @@ export default function RoomListPage() {
   });
   const [fileBrowserEnabled, setFileBrowserEnabled] = useState(false);
   const navigate = useNavigate();
+
+  // Drag and drop support
+  const { isDragging, handleDragOver, handleDragEnter, handleDragLeave, handleDrop } = useDragAndDrop();
+
+  // File upload ref for button click
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  const handleFileUploadClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileInputChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
+
+    // Use the uploadFile API from drag/drop hook
+    const file = files[0];
+    const uploadEvent = {
+      preventDefault: () => {},
+      stopPropagation: () => {},
+      dataTransfer: { files: [file] }
+    } as any;
+
+    await handleDrop(uploadEvent);
+
+    // Reset input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
 
   // Check if file browser is enabled
   useEffect(() => {
@@ -407,7 +440,24 @@ export default function RoomListPage() {
   }
 
   return (
-    <Container maxWidth="lg">
+    <Container
+      maxWidth="lg"
+      onDragOver={handleDragOver}
+      onDragEnter={handleDragEnter}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+    >
+      <DropOverlay isDragging={isDragging} />
+
+      {/* Hidden file input for button upload */}
+      <input
+        type="file"
+        ref={fileInputRef}
+        style={{ display: 'none' }}
+        onChange={handleFileInputChange}
+        accept=".xyz,.extxyz,.pdb,.cif,.h5,.h5md,.hdf5,.gro,.mol,.sdf,.db,.json,.traj,.nc,.car,.xsf,.cube,.vasp,.poscar,.contcar,.xdatcar,.outcar,.xml,.pwi,.pwo,.out,.castep,.cell,.geom,.md,.gjf,.com,.log,.arc,.dmol"
+      />
+
       <Box sx={{ mt: 4, mb: 4 }}>
         <Typography variant="h3" component="h1" gutterBottom>
           Room Management
@@ -468,6 +518,13 @@ export default function RoomListPage() {
             }}
           >
             Create New Empty Room
+          </Button>
+          <Button
+            variant="contained"
+            startIcon={<UploadFileIcon />}
+            onClick={handleFileUploadClick}
+          >
+            Upload File
           </Button>
           {fileBrowserEnabled && (
             <Button

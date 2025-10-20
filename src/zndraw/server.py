@@ -66,6 +66,10 @@ def create_app(
     app.config["STORAGE_PATH"] = storage_path
     app.config["REDIS_URL"] = redis_url
 
+    # Upload configuration
+    app.config["UPLOAD_TEMP_DIR"] = os.getenv("ZNDRAW_UPLOAD_TEMP", "/tmp/zndraw_uploads")
+    app.config["MAX_CONTENT_LENGTH"] = int(os.getenv("ZNDRAW_MAX_UPLOAD_MB", "500")) * 1024 * 1024
+
     if redis_url is None:
         data_folder = Path("~/.zincware/zndraw/celery/out").expanduser()
         data_folder_processed = Path(

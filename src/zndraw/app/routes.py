@@ -5,7 +5,7 @@ from pathlib import Path
 
 import msgpack
 import zarr
-from flask import Response, current_app, request, send_from_directory
+from flask import Response, current_app, request, send_from_directory, send_file
 from flask_socketio import disconnect
 from zarr.storage import MemoryStore
 
@@ -3265,3 +3265,139 @@ def _transition_worker_to_idle(
         log.warning(
             f"Failed to move worker {worker_id} from progressing to idle (may already be idle or not in progressing)"
         )
+
+
+@main.route("/api/rooms/<string:room_id>/download", methods=["GET"])
+def download_frames(room_id: str):
+    """Download frames in ExtendedXYZ format using streaming.
+
+    Query Parameters
+    ----------------
+    indices : str, optional
+        Comma-separated frame indices (e.g., '0,5,10'). If not provided, downloads all frames.
+    selection : str, optional
+        Comma-separated particle indices to filter.
+    filename : str, optional
+        Custom filename for download.
+
+    Returns
+    -------
+    Response
+        Streaming XYZ file download or error.
+    """
+    from io import StringIO
+    import ase.io
+    from zndraw.utils import atoms_from_dict
+
+    redis_client = current_app.extensions["redis"]
+
+    # Get parameters
+    indices_param = request.args.get('indices')
+    selection_param = request.args.get('selection')
+    custom_filename = request.args.get('filename')
+
+    # Parse selection if provided
+    selection = None
+    if selection_param:
+        try:
+            selection = [int(i.strip()) for i in selection_param.split(',')]
+        except ValueError:
+            return {"error": "Invalid selection format"}, 400
+
+    # Get frame indices manager with correct Redis key
+    indices_key = f"room:{room_id}:trajectory:indices"
+    fim = FrameIndexManager(redis_client, indices_key)
+
+    # Check if room has frames
+    frame_count = len(fim)
+    if frame_count == 0:
+        return {"error": "No frames available in room"}, 400
+
+    # Determine which frames to export
+    frame_indices = []
+
+    if indices_param:
+        # Use explicit indices parameter
+        try:
+            frame_indices = [int(i.strip()) for i in indices_param.split(',')]
+        except ValueError:
+            return {"error": "Invalid indices format"}, 400
+    else:
+        # No indices provided = download all frames
+        frame_indices = list(range(frame_count))
+
+    # Validate frame indices
+    for idx in frame_indices:
+        if idx < 0 or idx >= frame_count:
+            return {"error": f"Frame index {idx} out of range (0-{frame_count-1})"}, 400
+
+    # Generate filename
+    if not custom_filename:
+        if len(frame_indices) == 1:
+            custom_filename = f"{room_id}_frame_{frame_indices[0]}.xyz"
+        else:
+            custom_filename = f"{room_id}_{len(frame_indices)}_frames.xyz"
+
+    def generate_xyz_chunks():
+        """Generator that yields XYZ format chunks for streaming."""
+        buffer = StringIO()
+
+        # Get physical keys for all frame indices at once (efficient)
+        physical_keys = fim.get_by_indices(frame_indices)
+
+        for idx, mapping_entry in zip(frame_indices, physical_keys):
+            try:
+                # Decode bytes to string if necessary
+                mapping_entry_str = (
+                    mapping_entry.decode('utf-8')
+                    if isinstance(mapping_entry, bytes)
+                    else mapping_entry
+                )
+
+                # Parse the mapping entry to get source room and physical index
+                if ':' in mapping_entry_str:
+                    source_room_id, physical_index_str = mapping_entry_str.split(':', 1)
+                    physical_index = int(physical_index_str)
+                    source_storage = get_storage(source_room_id)
+                else:
+                    physical_index = int(mapping_entry_str)
+                    source_storage = get_storage(room_id)
+
+                # Access storage using physical index
+                atoms_dict = source_storage[physical_index]
+
+                # Convert to ASE Atoms object using the proper utility function
+                atoms = atoms_from_dict(atoms_dict)
+
+                # Apply selection filter if provided
+                if selection:
+                    atoms = atoms[selection]
+
+                # Write single frame to buffer in ExtendedXYZ format
+                ase.io.write(buffer, atoms, format='extxyz', write_info=True)
+
+                # Get string content and encode to bytes
+                chunk = buffer.getvalue().encode('utf-8')
+
+                # Yield the chunk
+                yield chunk
+
+                # Clear buffer for next frame
+                buffer.seek(0)
+                buffer.truncate(0)
+
+            except Exception as e:
+                log.error(f"Error streaming frame {idx}: {e}")
+                # Continue with next frame instead of failing entire download
+                continue
+
+    # Return streaming response
+    return Response(
+        generate_xyz_chunks(),
+        mimetype='chemical/x-xyz',
+        headers={
+            'Content-Disposition': f'attachment; filename="{custom_filename}"',
+            'Content-Type': 'chemical/x-xyz'
+        }
+    )
+

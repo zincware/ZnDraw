@@ -11,18 +11,21 @@ import CodeIcon from "@mui/icons-material/Code";
 import LightModeIcon from "@mui/icons-material/LightMode";
 import DarkModeIcon from "@mui/icons-material/DarkMode";
 import BrushIcon from "@mui/icons-material/Brush";
+import UploadFileIcon from "@mui/icons-material/UploadFile";
 import FrameProgressBar from "../components/ProgressBar";
 import SideBar from "../components/SideBar";
 import RoomManagementMenu from "../components/RoomManagementMenu";
 
 import { useSocketManager } from "../hooks/useSocketManager";
 import { useKeyboardShortcuts } from "../hooks/useKeyboardShortcuts";
+import { useDragAndDrop } from "../hooks/useDragAndDrop";
 import MyScene from "../components/Canvas";
 import ChatWindow from "../components/ChatWindow";
 import ConnectionDialog from "../components/ConnectionDialog";
+import DropOverlay from "../components/DropOverlay";
 import { useAppStore } from "../store";
 import { useRestJoinManager } from "../hooks/useRestManager";
-import { useState } from "react";
+import React, { useState } from "react";
 import { useColorScheme } from "@mui/material/styles";
 import WindowManager from "../components/WindowManager";
 import AddPlotButton from "../components/AddPlotButton";
@@ -32,11 +35,39 @@ export default function MainPage() {
   useSocketManager();
   useKeyboardShortcuts();
   useRestJoinManager();
+  const { isDragging, handleDragOver, handleDragEnter, handleDragLeave, handleDrop } = useDragAndDrop();
 
   const { chatOpen, setChatOpen, isDrawing, toggleDrawingMode, chatUnreadCount } = useAppStore();
   const [connectionDialogOpen, setConnectionDialogOpen] = useState(false);
   const { mode, setMode } = useColorScheme();
   const queryClient = useQueryClient();
+
+  // File upload ref for button click
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  const handleFileUploadClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileInputChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
+
+    // Use the uploadFile API from drag/drop hook
+    const file = files[0];
+    const uploadEvent = {
+      preventDefault: () => {},
+      stopPropagation: () => {},
+      dataTransfer: { files: [file] }
+    } as any;
+
+    await handleDrop(uploadEvent);
+
+    // Reset input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
 
   const handleToggleColorMode = () => {
     setMode(mode === "light" ? "dark" : "light");
@@ -122,9 +153,27 @@ export default function MainPage() {
               </IconButton>
             </Tooltip>
             <AddPlotButton />
+            <Tooltip title="Upload file">
+              <IconButton
+                color="inherit"
+                aria-label="upload file"
+                onClick={handleFileUploadClick}
+              >
+                <UploadFileIcon />
+              </IconButton>
+            </Tooltip>
             <RoomManagementMenu />
           </Toolbar>
         </AppBar>
+
+        {/* Hidden file input for button upload */}
+        <input
+          type="file"
+          ref={fileInputRef}
+          style={{ display: 'none' }}
+          onChange={handleFileInputChange}
+          accept=".xyz,.extxyz,.pdb,.cif,.h5,.h5md,.hdf5,.gro,.mol,.sdf,.db,.json,.traj,.nc,.car,.xsf,.cube,.vasp,.poscar,.contcar,.xdatcar,.outcar,.xml,.pwi,.pwo,.out,.castep,.cell,.geom,.md,.gjf,.com,.log,.arc,.dmol"
+        />
 
         {/* Main content row with sidebar and center area */}
         <Box sx={{ display: "flex", flexGrow: 1, minHeight: 0 }}>
@@ -143,6 +192,10 @@ export default function MainPage() {
             {/* THIS IS THE CRUCIAL DRAG BOUNDARY CONTAINER */}
             <Box
               className="drag-boundary-container"
+              onDragOver={handleDragOver}
+              onDragEnter={handleDragEnter}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
               sx={{
                 flexGrow: 1,
                 position: "relative",
@@ -151,6 +204,7 @@ export default function MainPage() {
                 flexDirection: "column",
               }}
             >
+              <DropOverlay isDragging={isDragging} />
               <MyScene />
               <WindowManager />
             </Box>

@@ -23,8 +23,8 @@
     - [ ] frame selection
     - [ ] len?
     - [ ] queue?
-- [ ] blobs to plotyl
-- [ ] frames / atoms selection in ploty ( need to be tested )
+- [x] blobs to plotyl
+- [x] frames / atoms selection in ploty ( need to be tested )
 - [ ] add prefetching and show prefetched frames in progress bar
 - [x] `vis.geometries.pop(name)` to delete geometry only working on page reload
 - [ ] allow "freezing" current configuration as refernce or show multiple configurations on top of each other
@@ -52,6 +52,6 @@
 }
 ```
 - [ ] with geometries sidebar open, playback is much slower!
-- [ ] fix property inspector!
+- [x] fix property inspector!
 - [ ] if there are now bonds / connectivity, still allow playback!
 - [ ] loading a room with frames 0:10:100 should not set the room to be already loaded (could think about a clever way to reuse this data though)

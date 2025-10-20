@@ -718,6 +718,41 @@ export const loadFile = async (
   return data;
 };
 
+export interface UploadFileRequest {
+  file: File;
+  room?: string;
+  start?: number;
+  stop?: number;
+  step?: number;
+  make_default?: boolean;
+}
+
+export interface UploadFileResponse {
+  status: string;
+  room: string;
+  task_id: string;
+  message: string;
+}
+
+export const uploadFile = async (
+  request: UploadFileRequest
+): Promise<UploadFileResponse> => {
+  const formData = new FormData();
+  formData.append('file', request.file);
+
+  if (request.room) formData.append('room', request.room);
+  if (request.start !== undefined) formData.append('start', request.start.toString());
+  if (request.stop !== undefined) formData.append('stop', request.stop.toString());
+  if (request.step !== undefined) formData.append('step', request.step.toString());
+  if (request.make_default) formData.append('make_default', 'true');
+
+  const { data } = await apiClient.post('/api/file-browser/upload', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  });
+
+  return data;
+};
+
 export const getSupportedTypes = async (): Promise<SupportedTypesResponse> => {
   const { data } = await apiClient.get("/api/file-browser/supported-types");
   return data;
@@ -752,6 +787,34 @@ export const createRoomFromFile = async (
 ): Promise<CreateRoomFromFileResponse> => {
   const { data } = await apiClient.post("/api/file-browser/create-room-from-file", request);
   return data;
+};
+
+export interface DownloadFramesRequest {
+  roomId: string;
+  indices?: number[];
+  selection?: number[];
+  filename?: string;
+}
+
+export const downloadFrames = (request: DownloadFramesRequest): void => {
+  const params = new URLSearchParams();
+
+  // If indices provided, send them; otherwise no parameters = all frames
+  if (request.indices !== undefined) {
+    params.append('indices', request.indices.join(','));
+  }
+
+  if (request.selection) {
+    params.append('selection', request.selection.join(','));
+  }
+
+  if (request.filename) {
+    params.append('filename', request.filename);
+  }
+
+  // Trigger browser download (ExtendedXYZ format)
+  const url = `/api/rooms/${request.roomId}/download?${params.toString()}`;
+  window.location.href = url;
 };
 
 /**

@@ -169,6 +169,35 @@ class FrameIndexManager:
 
         return len(all_elements)
 
+    def __len__(self) -> int:
+        """Get the total number of frames.
+
+        Returns:
+            Number of frames in the sequence
+        """
+        return self.redis.zcard(self.key)
+
+    def __getitem__(self, index: int) -> str:
+        """Get frame at a specific index.
+
+        Args:
+            index: Frame index (0-indexed, negative indices supported)
+
+        Returns:
+            Frame key at the specified index
+
+        Raises:
+            IndexError: If index is out of range
+        """
+        result = self.redis.zrange(self.key, index, index)
+        if not result:
+            raise IndexError(f"Frame index {index} out of range")
+        # Decode bytes to string if necessary
+        frame_key = result[0]
+        if isinstance(frame_key, bytes):
+            frame_key = frame_key.decode('utf-8')
+        return frame_key
+
     def get_count(self) -> int:
         """Get the total number of frames.
 

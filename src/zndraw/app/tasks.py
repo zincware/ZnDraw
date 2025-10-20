@@ -40,11 +40,15 @@ def read_file(
     make_default: bool = False,
     batch_size: int = 10,
     root_path: str | None = None,
+    cleanup_after: bool = False,
+    description: str | None = None,
 ) -> None:
     from zndraw import ZnDraw
 
     file_path = Path(file)
-    vis = ZnDraw(room=room, url=server_url, user="uploader", description=f"{file}")
+    # Use custom description if provided, otherwise default to file path
+    room_description = description if description is not None else f"{file}"
+    vis = ZnDraw(room=room, url=server_url, user="uploader", description=room_description)
     if not file_path.exists():
         vis.log(f"File {file} does not exist.")
         return
@@ -239,6 +243,15 @@ def read_file(
             vis.log("Failed to set room as default.")
 
     vis.disconnect()
+
+    # Cleanup temporary file if requested
+    if cleanup_after and file_path.exists():
+        try:
+            import os
+            os.remove(file_path)
+            log.info(f"Cleaned up temporary file: {file_path}")
+        except Exception as e:
+            log.error(f"Failed to cleanup temp file {file_path}: {e}")
 
 
 @shared_task(bind=True)

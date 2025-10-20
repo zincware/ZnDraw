@@ -27,6 +27,7 @@ import ListIcon from "@mui/icons-material/List";
 import FolderOpenIcon from "@mui/icons-material/FolderOpen";
 import PowerSettingsNewIcon from "@mui/icons-material/PowerSettingsNew";
 import CameraAltIcon from "@mui/icons-material/CameraAlt";
+import DownloadIcon from "@mui/icons-material/Download";
 import CircularProgress from "@mui/material/CircularProgress";
 import {
   getRoom,
@@ -38,6 +39,7 @@ import {
   RoomDetail,
   getFileBrowserConfig,
   shutdownServer,
+  downloadFrames,
 } from "../myapi/client";
 import { takeAndUploadScreenshot } from "../utils/screenshot";
 import { useExtensionData } from "../hooks/useSchemas";
@@ -59,7 +61,7 @@ interface DuplicateFormState {
 export default function RoomManagementMenu() {
   const { roomId } = useParams<{ roomId: string }>();
   const navigate = useNavigate();
-  const { userId } = useAppStore();
+  const { userId, currentFrame } = useAppStore();
 
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [roomDetail, setRoomDetail] = useState<RoomDetail | null>(null);
@@ -321,6 +323,41 @@ export default function RoomManagementMenu() {
     }
   };
 
+  const handleDownloadCurrentFrame = () => {
+    if (!roomId) return;
+
+    // Send the actual current frame index from frontend state
+    downloadFrames({
+      roomId,
+      indices: [currentFrame],
+    });
+
+    handleCloseMenu();
+
+    setSnackbar({
+      open: true,
+      message: "Downloading current frame as ExtendedXYZ",
+      severity: "success",
+    });
+  };
+
+  const handleDownloadAllFrames = () => {
+    if (!roomId) return;
+
+    // No parameters = download all frames
+    downloadFrames({
+      roomId,
+    });
+
+    handleCloseMenu();
+
+    setSnackbar({
+      open: true,
+      message: "Downloading all frames as ExtendedXYZ",
+      severity: "success",
+    });
+  };
+
   if (!roomId) {
     return null;
   }
@@ -415,6 +452,20 @@ export default function RoomManagementMenu() {
             {screenshotLoading ? <CircularProgress size={20} /> : <CameraAltIcon />}
           </ListItemIcon>
           <ListItemText>Take Screenshot</ListItemText>
+        </MenuItem>
+
+        <MenuItem onClick={handleDownloadCurrentFrame}>
+          <ListItemIcon>
+            <DownloadIcon />
+          </ListItemIcon>
+          <ListItemText>Current Frame (ExtXYZ)</ListItemText>
+        </MenuItem>
+
+        <MenuItem onClick={handleDownloadAllFrames}>
+          <ListItemIcon>
+            <DownloadIcon />
+          </ListItemIcon>
+          <ListItemText>All Frames (ExtXYZ)</ListItemText>
         </MenuItem>
 
         <MenuItem onClick={handleGoToRoomList}>

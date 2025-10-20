@@ -1,6 +1,7 @@
 """File browser endpoints for browsing and loading local files."""
 
 import logging
+import os
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -517,6 +518,9 @@ def load_file():
 
     server_url = current_app.config.get("SERVER_URL", "http://localhost:5000")
 
+    # Create description indicating file browser load
+    description = f"{target_path.name} (loaded from file browser)"
+
     try:
         task = read_file.delay(
             file=str(target_path),
@@ -527,6 +531,7 @@ def load_file():
             step=step,
             make_default=make_default,
             root_path=root,
+            description=description,
         )
 
         return jsonify(
@@ -540,6 +545,116 @@ def load_file():
 
     except Exception as e:
         log.error(f"Error queuing file load task: {e}")
+        return jsonify({"error": "Failed to queue file loading task"}), 500
+
+
+@file_browser.route("/upload", methods=["POST"])
+def upload_file():
+    """Upload file content for loading into ZnDraw.
+
+    Note: This endpoint is always available (does not require file browser to be enabled)
+    since drag/drop upload is a core feature.
+
+    Form Data
+    ---------
+    file : FileStorage
+        File to upload (multipart/form-data).
+    room : str, optional
+        Room name. If not provided, generated from filename.
+    start : int, optional
+        Start frame for trajectory files.
+    stop : int, optional
+        Stop frame for trajectory files.
+    step : int, optional
+        Step frame for trajectory files.
+    make_default : bool, optional
+        Whether to make this the default room. Defaults to False.
+
+    Returns
+    -------
+    Response
+        JSON response with task information or error.
+    """
+    import uuid
+    from werkzeug.utils import secure_filename
+
+    # Check if file was provided
+    if 'file' not in request.files:
+        return jsonify({"error": "No file provided"}), 400
+
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({"error": "No file selected"}), 400
+
+    # Validate file type
+    ext = Path(file.filename).suffix.lstrip('.').lower()
+    if ext not in FORMAT_BACKENDS:
+        return jsonify({"error": f"Unsupported format: {ext}"}), 400
+
+    # Create temporary directory for uploads
+    temp_dir = current_app.config.get("UPLOAD_TEMP_DIR", "/tmp/zndraw_uploads")
+    os.makedirs(temp_dir, exist_ok=True)
+
+    # Generate unique filename to avoid collisions
+    unique_id = str(uuid.uuid4())
+    temp_filename = f"{unique_id}_{secure_filename(file.filename)}"
+    temp_path = os.path.join(temp_dir, temp_filename)
+
+    # Save uploaded file
+    try:
+        file.save(temp_path)
+    except Exception as e:
+        log.error(f"Failed to save uploaded file: {e}")
+        return jsonify({"error": "Failed to save uploaded file"}), 500
+
+    # Get or generate room name
+    room = request.form.get("room")
+    if not room:
+        from zndraw.utils import generate_room_name
+        redis_client = current_app.extensions["redis"]
+        room = generate_room_name(file.filename, redis_client)
+
+    # Get optional parameters
+    start = request.form.get("start", type=int)
+    stop = request.form.get("stop", type=int)
+    step = request.form.get("step", type=int)
+    make_default = request.form.get("make_default", type=bool, default=False)
+
+    # Queue Celery task with temp file path
+    from zndraw.app.tasks import read_file
+
+    server_url = current_app.config.get("SERVER_URL", "http://localhost:5000")
+
+    # Create description indicating drag/drop upload
+    description = f"{file.filename} (uploaded via drag & drop)"
+
+    try:
+        task = read_file.delay(
+            file=temp_path,
+            room=room,
+            server_url=server_url,
+            start=start,
+            stop=stop,
+            step=step,
+            make_default=make_default,
+            cleanup_after=True,
+            description=description,
+        )
+
+        return jsonify({
+            "status": "queued",
+            "room": room,
+            "task_id": task.id,
+            "message": "File uploaded and loading queued"
+        })
+
+    except Exception as e:
+        # Clean up temp file if task queuing failed
+        try:
+            os.remove(temp_path)
+        except Exception:
+            pass
+        log.error(f"Error queuing file upload task: {e}")
         return jsonify({"error": "Failed to queue file loading task"}), 500
 
 
@@ -643,16 +758,14 @@ def supported_types():
     """
     Get list of supported file types.
 
+    Note: This endpoint is always available (does not require file browser to be enabled)
+    since it's needed for drag/drop upload validation, which is a core feature.
+
     Returns
     -------
     Response
         JSON response with supported extensions, descriptions, and backend handlers.
     """
-    # Check if feature is enabled
-    error = check_feature_enabled()
-    if error:
-        return jsonify(error[0]), error[1]
-
     # Generate extensions with dot prefix and descriptions from FORMAT_BACKENDS
     extensions = [f".{ext}" for ext in FORMAT_BACKENDS.keys()]
     descriptions = {

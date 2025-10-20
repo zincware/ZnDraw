@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import {
@@ -33,6 +33,7 @@ import InsertDriveFileIcon from "@mui/icons-material/InsertDriveFile";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import HomeIcon from "@mui/icons-material/Home";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import UploadFileIcon from "@mui/icons-material/UploadFile";
 import {
   listDirectory,
   loadFile,
@@ -42,6 +43,8 @@ import {
   LoadFileRequest,
   LoadFileAlreadyLoadedResponse,
 } from "../myapi/client";
+import { useDragAndDrop } from "../hooks/useDragAndDrop";
+import DropOverlay from "../components/DropOverlay";
 
 /**
  * FileBrowser page allows browsing local filesystem and loading files into ZnDraw.
@@ -70,6 +73,36 @@ export default function FileBrowserPage() {
     message: string;
     severity: "success" | "error";
   }>({ open: false, message: "", severity: "success" });
+
+  // Drag and drop support
+  const { isDragging, handleDragOver, handleDragEnter, handleDragLeave, handleDrop } = useDragAndDrop();
+
+  // File upload ref for button click
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  const handleFileUploadClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileInputChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
+
+    // Use the uploadFile API from drag/drop hook
+    const file = files[0];
+    const uploadEvent = {
+      preventDefault: () => {},
+      stopPropagation: () => {},
+      dataTransfer: { files: [file] }
+    } as any;
+
+    await handleDrop(uploadEvent);
+
+    // Reset input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
 
   // Query for directory listing
   const {
@@ -282,7 +315,24 @@ export default function FileBrowserPage() {
   }
 
   return (
-    <Box sx={{ flexGrow: 1 }}>
+    <Box
+      sx={{ flexGrow: 1 }}
+      onDragOver={handleDragOver}
+      onDragEnter={handleDragEnter}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+    >
+      <DropOverlay isDragging={isDragging} />
+
+      {/* Hidden file input for button upload */}
+      <input
+        type="file"
+        ref={fileInputRef}
+        style={{ display: 'none' }}
+        onChange={handleFileInputChange}
+        accept=".xyz,.extxyz,.pdb,.cif,.h5,.h5md,.hdf5,.gro,.mol,.sdf,.db,.json,.traj,.nc,.car,.xsf,.cube,.vasp,.poscar,.contcar,.xdatcar,.outcar,.xml,.pwi,.pwo,.out,.castep,.cell,.geom,.md,.gjf,.com,.log,.arc,.dmol"
+      />
+
       <AppBar position="static">
         <Toolbar>
           <IconButton
@@ -296,6 +346,13 @@ export default function FileBrowserPage() {
           <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
             File Browser
           </Typography>
+          <Button
+            color="inherit"
+            startIcon={<UploadFileIcon />}
+            onClick={handleFileUploadClick}
+          >
+            Upload File
+          </Button>
         </Toolbar>
       </AppBar>
 
