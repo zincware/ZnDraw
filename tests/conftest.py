@@ -125,6 +125,36 @@ def s22_h5(s22, tmp_path) -> str:
 
 
 @pytest.fixture
+def s22_db(s22, tmp_path) -> str:
+    """Return the S22 trajectory as an ASE database with multiple structures."""
+    import ase.db
+
+    db_path = tmp_path / "s22.db"
+    db = ase.db.connect(str(db_path))
+
+    # Write all S22 structures to the database
+    for i, atoms in enumerate(s22):
+        db.write(atoms, name=f"s22_{i}", index=i)
+
+    return db_path.as_posix()
+
+
+@pytest.fixture
+def s22_json_db(s22, tmp_path) -> str:
+    """Return the S22 trajectory as a JSON-format ASE database."""
+    import ase.db
+
+    db_path = tmp_path / "s22.json"
+    db = ase.db.connect(str(db_path))
+
+    # Write all S22 structures to the database
+    for i, atoms in enumerate(s22):
+        db.write(atoms, name=f"s22_{i}", index=i)
+
+    return db_path.as_posix()
+
+
+@pytest.fixture
 def joined_room(server, request):
     """Join a room and return tuple of (server_url, room_name).
 

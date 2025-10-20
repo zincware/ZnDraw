@@ -3,6 +3,7 @@ import logging
 from datetime import datetime, timezone
 from pathlib import Path
 
+import ase.db
 import ase.io
 import requests
 import znh5md
@@ -105,6 +106,55 @@ def read_file(
                 _start, _stop, _step = s.indices(n_frames)
 
                 frame_iterator = itertools.islice(io, _start, _stop, _step)
+            elif backend_name == "ASE-DB":
+                # Use ASE database connection for database files
+                # Supports: SQLite (.db), JSON (.json), PostgreSQL, MySQL, ASELMDB (.aselmdb)
+                # Connection strings for PostgreSQL/MySQL: postgresql://..., mysql://...
+                vis.log(f"Connecting to ASE database...")
+                db = ase.db.connect(file_path)
+                n_rows = db.count()
+                vis.log(f"Database contains {n_rows} structures")
+
+                if n_rows == 0:
+                    vis.log("⚠️ Warning: Database is empty")
+                    return
+
+                # Validate step
+                if step is not None and step <= 0:
+                    vis.log("❌ Error: Step must be a positive integer (e.g., 1, 2, 5)")
+                    raise ValueError("Step must be a positive integer for database files.")
+
+                # Validate and adjust slice parameters
+                # User provides 0-indexed, database uses 1-indexed IDs internally
+                _start = start if start is not None else 0
+                _stop = stop if stop is not None else n_rows
+                _step = step if step is not None else 1
+
+                if _start >= n_rows:
+                    vis.log(f"❌ Error: Start row ({_start}) exceeds database size ({n_rows} rows)")
+                    raise ValueError(f"Start row {_start} exceeds database size")
+
+                if _stop > n_rows:
+                    vis.log(f"⚠️ Warning: Stop row ({_stop}) exceeds database size ({n_rows}), using end of database")
+                    _stop = n_rows
+
+                # Create list of row IDs to retrieve (convert 0-indexed to 1-indexed)
+                # Database IDs are 1-indexed: first row is ID=1
+                selected_ids = list(range(_start + 1, _stop + 1, _step))
+                vis.log(f"Selecting {len(selected_ids)} structures from database")
+
+                # Create iterator over selected database rows
+                def db_iterator():
+                    for row_id in selected_ids:
+                        try:
+                            row = db.get(id=row_id)
+                            yield row.toatoms()
+                        except KeyError:
+                            # Row ID might not exist (gaps in database)
+                            vis.log(f"⚠️ Warning: Row ID {row_id} not found in database, skipping")
+                            continue
+
+                frame_iterator = db_iterator()
             else:
                 # Use ASE for all other formats (known and unknown)
                 # --- This logic is correct for ASE's string-based index ---
