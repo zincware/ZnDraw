@@ -47,7 +47,10 @@ def main(
     debug: bool = False,
     celery: bool = True,
     storage_path: str = "./zndraw-data.zarr",
-    redis_url: str = "redis://localhost:6379",
+    redis_url: str | None = typer.Option(
+        None,
+        help="Redis server URL (e.g., `redis://localhost:6379`). If not provided, an in-memory storage will be used.",
+    ),
     host: str = typer.Option(
         "localhost",
         envvar="ZNDRAW_SERVER_HOST",
@@ -277,7 +280,7 @@ def main(
             make_default = False
 
     if celery:
-        worker = run_celery_worker()
+        worker = run_celery_worker(redis_url)
 
     # Write server info to PID file
     server_info = ServerInfo(pid=os.getpid(), port=port, version=__version__)

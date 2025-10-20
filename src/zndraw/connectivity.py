@@ -38,11 +38,19 @@ def add_connectivity(atoms: ase.Atoms, scale: float = 1.2) -> None:
     pairwise_cutoffs = atom_radii[:, None] + atom_radii[None, :]
     max_cutoff = np.max(pairwise_cutoffs)
 
+    # Store original PBC settings and temporarily disable them to avoid
+    # bonds being drawn across periodic boundaries
+    original_pbc = atoms.pbc.copy()
+    atoms.set_pbc(False)
+
     # Get the neighbor list using the maximum possible cutoff.
     # 'i' and 'j' are indices, 'd' is the distance.
     i_list, j_list, d_list, _ = vesin.ase_neighbor_list(
         "ijdS", atoms, cutoff=max_cutoff, self_interaction=False
     )
+
+    # Restore original PBC settings
+    atoms.set_pbc(original_pbc)
     
     connectivity: T_CONNECTIVITY = []
     

@@ -1,9 +1,12 @@
 import logging
+import os
 
 import redis
+from znsocket import MemoryStorage
 from celery import Celery, Task
 from flask import Flask
 from flask_socketio import SocketIO
+from pathlib import Path
 
 log = logging.getLogger(__name__)
 
@@ -31,16 +34,25 @@ def celery_init_app(app: Flask) -> Celery:
     return celery_app
 
 
-def redis_init_app(app: Flask, redis_url: str) -> redis.Redis:
-    r = redis.Redis.from_url(redis_url, decode_responses=True)
-    app.extensions["redis"] = r
+def redis_init_app(app: Flask, redis_url: str | None) -> redis.Redis | MemoryStorage:
+    if redis_url is None:
+        r = MemoryStorage()
+        app.extensions["redis"] = r
+    else:
+        r = redis.Redis.from_url(redis_url, decode_responses=True)
+        app.extensions["redis"] = r
     return r
+    
 
 
 def create_app(
     storage_path: str = "./zndraw-data.zarr",
-    redis_url: str = "redis://localhost:6379",
+    redis_url: str | None = None,
 ) -> Flask:
+    # Priority: explicit parameter > environment variable > None
+    if redis_url is None:
+        redis_url = os.getenv("ZNDRAW_REDIS_URL")
+
     app = Flask(__name__)
 
     from zndraw.app import main as main_blueprint
@@ -54,21 +66,39 @@ def create_app(
     app.config["STORAGE_PATH"] = storage_path
     app.config["REDIS_URL"] = redis_url
 
-    # Production
-    app.config.from_mapping(
-        CELERY=dict(
-            broker_url=redis_url,
-            result_backend=redis_url,
-            task_ignore_result=True,
-        ),
-    )
+    if redis_url is None:
+        data_folder = Path("~/.zincware/zndraw/celery/out").expanduser()
+        data_folder_processed = Path(
+            "~/.zincware/zndraw/celery/processed"
+        ).expanduser()
+        control_folder = Path("~/.zincware/zndraw/celery/ctrl").expanduser()
 
-    # Standalone / not recommended!
-    # app.config.from_mapping(
-    #     CELERY=dict(
-    #         task_always_eager=True,
-    #     ),
-    # )
+        data_folder.mkdir(parents=True, exist_ok=True)
+        data_folder_processed.mkdir(parents=True, exist_ok=True)
+        control_folder.mkdir(parents=True, exist_ok=True)
+
+        app.config.from_mapping(
+            CELERY={
+                "broker_url": "filesystem://",
+                "result_backend": "cache",
+                "cache_backend": "memory",
+                "task_ignore_result": True,
+                "broker_transport_options": {
+                    "data_folder_in": data_folder.as_posix(),
+                    "data_folder_out": data_folder.as_posix(),
+                    "data_folder_processed": data_folder_processed.as_posix(),
+                    "control_folder": control_folder.as_posix(),
+                },
+            },
+        )
+    else:
+        app.config.from_mapping(
+            CELERY=dict(
+                broker_url=redis_url,
+                result_backend=redis_url,
+                task_ignore_result=True,
+            ),
+        )
 
     app.config.from_prefixed_env()
     celery_init_app(app)

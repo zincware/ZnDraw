@@ -6,18 +6,20 @@ import subprocess
 
 
 # We use this for running tests for now
-def run_celery_worker() -> subprocess.Popen:
+def run_celery_worker(redis_url: str | None) -> subprocess.Popen:
     """Run a celery worker."""
     my_env = os.environ.copy()
     if platform.system() == "Darwin" and platform.processor() == "arm":
         # fix celery worker issue on apple silicon
         my_env["OBJC_DISABLE_INITIALIZE_FORK_SAFETY"] = "YES"
+    if redis_url is not None:
+        my_env["ZNDRAW_REDIS_URL"] = redis_url
 
     worker = subprocess.Popen(
         [
             "celery",
             "-A",
-            "src.zndraw.app.make_celery",
+            "zndraw.app.make_celery",
             "worker",
             "--loglevel=info",
         ],
