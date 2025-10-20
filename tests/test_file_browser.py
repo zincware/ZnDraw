@@ -198,12 +198,16 @@ def test_load_endpoint_nonexistent_file(tmp_path):
 
 
 def test_load_endpoint_unsupported_file(tmp_path):
-    """Test load endpoint with unsupported file type."""
+    """Test load endpoint with unknown file type.
+
+    Note: The endpoint now accepts all files and lets the backend reader handle
+    errors. Unknown formats are attempted via ASE.
+    """
     app = create_app()
     app.config["FILE_BROWSER_ENABLED"] = True
     app.config["FILE_BROWSER_ROOT"] = str(tmp_path)
 
-    # Create unsupported file
+    # Create unknown file format
     (tmp_path / "test.txt").write_text("test")
 
     with app.test_client() as client:
@@ -211,8 +215,9 @@ def test_load_endpoint_unsupported_file(tmp_path):
             "/api/file-browser/load",
             json={"path": "test.txt"}
         )
-        assert response.status_code == 400
-        assert "Unsupported file type" in response.json["error"]
+        # File is accepted for processing (backend will handle read errors)
+        assert response.status_code == 200
+        assert "task_id" in response.json
 
 
 def test_list_endpoint_hidden_files(tmp_path):

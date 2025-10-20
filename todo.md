@@ -53,3 +53,5 @@
 ```
 - [ ] with geometries sidebar open, playback is much slower!
 - [ ] fix property inspector!
+- [ ] if there are now bonds / connectivity, still allow playback!
+- [ ] loading a room with frames 0:10:100 should not set the room to be already loaded (could think about a clever way to reuse this data though)

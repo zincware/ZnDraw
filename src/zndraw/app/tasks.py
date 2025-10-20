@@ -13,6 +13,7 @@ import traceback
 # from tqdm import tqdm
 from celery import shared_task
 from zndraw.connectivity import add_connectivity
+from zndraw.app.file_browser import FORMAT_BACKENDS
 
 log = logging.getLogger(__name__)
 
@@ -47,19 +48,57 @@ def read_file(
         vis.log(f"File {file} does not exist.")
         return
     
-    vis.log(f"Reading file {file}...")
-    
+    # Determine backend based on file extension
+    ext = file_path.suffix.lstrip(".").lower()
+    backends = FORMAT_BACKENDS.get(ext, ["ASE"])  # Default to ASE for unknown formats
+    backend_name = backends[0]
+
+    # Format slice information for user-friendly display
+    def format_slice_info(start, stop, step):
+        """Format slice parameters for user-friendly display."""
+        if start is None and stop is None and step is None:
+            return "all frames"
+
+        parts = []
+        if start is not None:
+            parts.append(f"from frame {start}")
+        if stop is not None:
+            parts.append(f"to frame {stop - 1}")
+        if step is not None and step != 1:
+            parts.append(f"every {step} frames")
+
+        return " ".join(parts) if parts else "all frames"
+
+    slice_info = format_slice_info(start, stop, step)
+
+    if ext in FORMAT_BACKENDS:
+        vis.log(f"Reading {slice_info} from {file} using {backend_name}...")
+    else:
+        vis.log(f"Reading {slice_info} from {file} (unknown format, attempting with ASE)...")
+
     # Use vis.lock context manager to lock room during upload
     with vis.lock:
         try:
             frame_iterator = None
-            if file_path.suffix in [".h5", ".h5md"]:
+            loaded_frame_count = 0  # Track number of frames loaded
+
+            if backend_name == "ZnH5MD":
+                # Use ZnH5MD for H5/H5MD files
                 if step is not None and step <= 0:
-                    vis.log("Step must be a positive integer for H5MD files.")
+                    vis.log("❌ Error: Step must be a positive integer (e.g., 1, 2, 5)")
                     raise ValueError("Step must be a positive integer for H5MD files.")
                 io = znh5md.IO(file_path)
 
                 n_frames = len(io)
+
+                # Validate slice parameters against file length
+                if start is not None and start >= n_frames:
+                    vis.log(f"❌ Error: Start frame ({start}) exceeds file length ({n_frames} frames)")
+                    raise ValueError(f"Start frame {start} exceeds file length")
+
+                if stop is not None and stop > n_frames:
+                    vis.log(f"⚠️ Warning: Stop frame ({stop}) exceeds file length ({n_frames}), using end of file")
+
                 s = slice(start, stop, step)
                 # The 'indices' method converts the slice into a (start, stop, step)
                 # tuple of non-negative integers that can be used with islice.
@@ -67,6 +106,7 @@ def read_file(
 
                 frame_iterator = itertools.islice(io, _start, _stop, _step)
             else:
+                # Use ASE for all other formats (known and unknown)
                 # --- This logic is correct for ASE's string-based index ---
                 # It properly handles None by creating empty strings, e.g., ":-1:"
                 start_str = str(start) if start is not None else ""
@@ -75,6 +115,7 @@ def read_file(
                 index_str = f"{start_str}:{stop_str}:{step_str}"
 
                 # Use ase.io.iread() with the correctly formatted index string.
+                # This may fail for unsupported formats, which will be caught below
                 frame_iterator = ase.io.iread(file_path, index=index_str)
 
             # Now, the batching logic is the same for both file types
@@ -88,14 +129,19 @@ def read_file(
                         if len(atoms) < 1000:
                             add_connectivity(atoms)
                     vis.extend(batch)
+                    loaded_frame_count += len(batch)
 
         except Exception as e:
             # Log the full exception for better debugging
             log.exception(f"An error occurred while reading file {file_path}")
-            vis.log(f"Error reading file {file_path}: {e}")
+            vis.log(f"❌ Error reading file {file_path}: {e}")
             raise  # Re-raise to exit the context manager properly
 
-    vis.log(f"Finished reading file {file}.")
+    # Report success with frame count
+    if slice_info != "all frames":
+        vis.log(f"✓ Successfully loaded {loaded_frame_count} frames ({slice_info})")
+    else:
+        vis.log(f"✓ Successfully loaded {loaded_frame_count} frames")
     
     # Store file metadata
     try:

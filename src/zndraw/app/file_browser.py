@@ -157,20 +157,88 @@ def _find_room_with_exact_file(file_path: Path, redis_client, root_path: str) ->
     log.info("No duplicate found")
     return None
 
-# Supported file extensions for molecular structure files
-SUPPORTED_EXTENSIONS = {
-    ".xyz": "XYZ coordinate file",
-    ".pdb": "Protein Data Bank file",
-    ".h5md": "H5MD molecular data",
-    ".h5": "H5MD molecular data",
-    ".hdf5": "HDF5 file",
-    ".traj": "Trajectory file",
-    ".nc": "NetCDF trajectory file",
-    ".extxyz": "Extended XYZ file",
-    ".cif": "Crystallographic Information File",
-    ".mol": "MDL Molfile",
-    ".sdf": "Structure Data File",
+# File format to backend/library mapping
+# Maps file extensions (without dot) to the backend libraries that handle them
+FORMAT_BACKENDS = {
+    "h5": ["ZnH5MD"],
+    "h5md": ["ZnH5MD"],
+    "hdf5": ["ZnH5MD"],
+    "xyz": ["ASE"],
+    "extxyz": ["ASE"],
+    "pdb": ["ASE"],
+    "traj": ["ASE"],
+    "nc": ["ASE"],
+    "cif": ["ASE"],
+    "mol": ["ASE"],
+    "sdf": ["ASE"],
+    "db": ["ASE"],
+    "gro": ["ASE"],
+    "car": ["ASE"],
+    "xsf": ["ASE"],
+    "cube": ["ASE"],
+    "json": ["ASE"],
+    "vasp": ["ASE"],
+    "poscar": ["ASE"],
+    "contcar": ["ASE"],
+    "xdatcar": ["ASE"],
+    "outcar": ["ASE"],
+    "xml": ["ASE"],
+    "pwi": ["ASE"],
+    "pwo": ["ASE"],
+    "out": ["ASE"],
+    "castep": ["ASE"],
+    "cell": ["ASE"],
+    "geom": ["ASE"],
+    "md": ["ASE"],
+    "gjf": ["ASE"],
+    "com": ["ASE"],
+    "log": ["ASE"],
+    "arc": ["ASE"],
+    "dmol": ["ASE"],
+    "gen": ["ASE"],
+    "g96": ["ASE"],
+    "xtl": ["ASE"],
+    "rmc6f": ["ASE"],
+    "shelx": ["ASE"],
+    "res": ["ASE"],
+    "vtu": ["ASE"],
+    "vti": ["ASE"],
+    "x3d": ["ASE"],
+    "xsd": ["ASE"],
+    "xtd": ["ASE"],
+    "dcd": ["ASE"],
+    "restart": ["ASE"],
+    "dat": ["ASE"],
+    "config": ["ASE"],
+    "phonon": ["ASE"],
+    "cfg": ["ASE"],
+    "cjson": ["ASE"],
+    "f34": ["ASE"],
+    "con": ["ASE"],
+    "nwi": ["ASE"],
+    "nwo": ["ASE"],
 }
+
+
+def get_format_info(extension: str) -> str | None:
+    """
+    Get backend information for a file extension.
+
+    Parameters
+    ----------
+    extension : str
+        File extension (with or without leading dot).
+
+    Returns
+    -------
+    str | None
+        Backend information string or None if not in known formats.
+    """
+    ext = extension.lstrip(".")
+    backends = FORMAT_BACKENDS.get(ext)
+    if backends:
+        return f"Supported by {', '.join(backends)}"
+    return None
 
 
 def validate_path(requested_path: str, root: str) -> Path | None:
@@ -205,7 +273,10 @@ def validate_path(requested_path: str, root: str) -> Path | None:
 
 def is_supported_file(filepath: Path) -> bool:
     """
-    Check if file is supported by ASE or znh5md.
+    Check if file has a known supported extension.
+
+    Note: This is informational only. The backend will attempt to read
+    unknown formats via ASE, which may succeed for additional formats.
 
     Parameters
     ----------
@@ -215,9 +286,10 @@ def is_supported_file(filepath: Path) -> bool:
     Returns
     -------
     bool
-        True if file extension is supported.
+        True if file extension is in known supported formats.
     """
-    return filepath.suffix.lower() in SUPPORTED_EXTENSIONS
+    ext = filepath.suffix.lstrip(".").lower()
+    return ext in FORMAT_BACKENDS
 
 
 def check_feature_enabled() -> tuple[dict[str, str], int] | None:
@@ -307,15 +379,19 @@ def list_directory():
                 ).isoformat(),
             }
 
-            # Mark if file is supported and check if already loaded
+            # Mark if file is supported and add format info
             if item.is_file():
                 item_info["supported"] = is_supported_file(item)
-                
+                # Add format information for all files
+                format_info = get_format_info(item.suffix)
+                if format_info:
+                    item_info["format_info"] = format_info
+
                 # Check if this file is already loaded in any room
                 if item_info["supported"]:
                     loaded_room = _find_matching_room(
-                        item, 
-                        root, 
+                        item,
+                        root,
                         rooms_metadata
                     )
                     if loaded_room:
@@ -398,17 +474,8 @@ def load_file():
     if not target_path.is_file():
         return jsonify({"error": "Path is not a file"}), 400
 
-    # Check if file type is supported
-    if not is_supported_file(target_path):
-        return (
-            jsonify(
-                {
-                    "error": f"Unsupported file type: {target_path.suffix}",
-                    "supported_extensions": list(SUPPORTED_EXTENSIONS.keys()),
-                }
-            ),
-            400,
-        )
+    # Note: We don't check file type here - we let the backend reader handle it
+    # Known formats use their assigned backend, unknown formats are tried via ASE
 
     # Check for duplicate file unless force_upload is true
     force_upload = data.get("force_upload", False)
@@ -578,16 +645,24 @@ def supported_types():
     Returns
     -------
     Response
-        JSON response with supported extensions and descriptions.
+        JSON response with supported extensions, descriptions, and backend handlers.
     """
     # Check if feature is enabled
     error = check_feature_enabled()
     if error:
         return jsonify(error[0]), error[1]
 
+    # Generate extensions with dot prefix and descriptions from FORMAT_BACKENDS
+    extensions = [f".{ext}" for ext in FORMAT_BACKENDS.keys()]
+    descriptions = {
+        f".{ext}": f"Supported by {', '.join(backends)}"
+        for ext, backends in FORMAT_BACKENDS.items()
+    }
+
     return jsonify(
         {
-            "extensions": list(SUPPORTED_EXTENSIONS.keys()),
-            "descriptions": SUPPORTED_EXTENSIONS,
+            "extensions": extensions,
+            "descriptions": descriptions,
+            "backends": FORMAT_BACKENDS,
         }
     )

@@ -646,6 +646,7 @@ export interface FileItem {
   size: number | null;
   modified: string;
   supported?: boolean;
+  format_info?: string;
   alreadyLoaded?: {
     room: string;
     description?: string | null;

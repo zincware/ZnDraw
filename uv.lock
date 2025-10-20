@@ -2864,7 +2864,7 @@ wheels = [
 
 [[package]]
 name = "zndraw"
-version = "0.6.0a3"
+version = "0.6.0a4"
 source = { editable = "." }
 dependencies = [
     { name = "cachetools" },

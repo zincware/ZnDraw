@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import {
@@ -60,6 +60,11 @@ export default function FileBrowserPage() {
     filePath: string;
   }>({ open: false, data: null, filePath: "" });
   const [roomName, setRoomName] = useState<string>("");
+  const [sliceParams, setSliceParams] = useState<{
+    start: string;
+    stop: string;
+    step: string;
+  }>({ start: "", stop: "", step: "" });
   const [snackbar, setSnackbar] = useState<{
     open: boolean;
     message: string;
@@ -145,10 +150,12 @@ export default function FileBrowserPage() {
       // Navigate to subdirectory
       const newPath = currentPath ? `${currentPath}/${item.name}` : item.name;
       setCurrentPath(newPath);
-    } else if (item.supported) {
-      // Open load dialog for supported files
+    } else {
+      // Open load dialog for all files
+      // Backend will attempt to read unknown formats via ASE
       setLoadDialog({ open: true, file: item });
       setRoomName(""); // Reset room name
+      setSliceParams({ start: "", stop: "", step: "" }); // Reset slice params
     }
   };
 
@@ -168,8 +175,48 @@ export default function FileBrowserPage() {
     }
   };
 
+  const validateSliceParams = (): string | null => {
+    const start = sliceParams.start ? parseInt(sliceParams.start) : null;
+    const stop = sliceParams.stop ? parseInt(sliceParams.stop) : null;
+    const step = sliceParams.step ? parseInt(sliceParams.step) : null;
+
+    if (sliceParams.start && isNaN(start!)) {
+      return "Start must be a valid integer";
+    }
+    if (sliceParams.stop && isNaN(stop!)) {
+      return "Stop must be a valid integer";
+    }
+    if (sliceParams.step && isNaN(step!)) {
+      return "Step must be a valid integer";
+    }
+    if (step !== null && step <= 0) {
+      return "Step must be a positive integer (e.g., 1, 2, 5)";
+    }
+    if (start !== null && start < 0) {
+      return "Start cannot be negative";
+    }
+    if (stop !== null && stop < 0) {
+      return "Stop cannot be negative";
+    }
+    if (start !== null && stop !== null && start >= stop) {
+      return "Start must be less than stop";
+    }
+    return null;
+  };
+
   const handleLoadFile = () => {
     if (!loadDialog.file) return;
+
+    // Validate slice parameters
+    const validationError = validateSliceParams();
+    if (validationError) {
+      setSnackbar({
+        open: true,
+        message: validationError,
+        severity: "error",
+      });
+      return;
+    }
 
     const filePath = currentPath
       ? `${currentPath}/${loadDialog.file.name}`
@@ -178,6 +225,10 @@ export default function FileBrowserPage() {
     const request: LoadFileRequest = {
       path: filePath,
       room: roomName || undefined,
+      // Only include slice params if they're non-empty
+      ...(sliceParams.start && { start: parseInt(sliceParams.start) }),
+      ...(sliceParams.stop && { stop: parseInt(sliceParams.stop) }),
+      ...(sliceParams.step && { step: parseInt(sliceParams.step) }),
     };
 
     loadFileMutation.mutate(request);
@@ -335,39 +386,41 @@ export default function FileBrowserPage() {
                   key={index}
                   disablePadding
                   secondaryAction={
-                    item.type === "file" && item.supported ? (
+                    item.type === "file" ? (
                       item.alreadyLoaded ? (
                         <Tooltip title={`Already loaded in room: ${item.alreadyLoaded.room}`}>
                           <CheckCircleIcon color="primary" />
                         </Tooltip>
-                      ) : (
-                        <Tooltip title="Supported file type">
+                      ) : item.supported ? (
+                        <Tooltip title={item.format_info || "Supported file type"}>
                           <CheckCircleIcon color="success" />
                         </Tooltip>
-                      )
+                      ) : null
                     ) : null
                   }
                 >
-                  <ListItemButton
-                    onClick={() => handleItemClick(item)}
-                    disabled={item.type === "file" && !item.supported}
-                  >
+                  <ListItemButton onClick={() => handleItemClick(item)}>
                     <ListItemIcon>
                       {item.type === "directory" ? (
                         <FolderIcon color="primary" />
                       ) : (
-                        <InsertDriveFileIcon
-                          color={item.supported ? "action" : "disabled"}
-                        />
+                        <InsertDriveFileIcon color="action" />
                       )}
                     </ListItemIcon>
                     <ListItemText
                       primary={item.name}
                       secondary={
                         item.type === "file"
-                          ? item.alreadyLoaded
-                            ? `${(item.size || 0) / 1024 > 1024 ? `${((item.size || 0) / 1024 / 1024).toFixed(2)} MB` : `${((item.size || 0) / 1024).toFixed(2)} KB`} • Already loaded in '${item.alreadyLoaded.room}'`
-                            : `${(item.size || 0) / 1024 > 1024 ? `${((item.size || 0) / 1024 / 1024).toFixed(2)} MB` : `${((item.size || 0) / 1024).toFixed(2)} KB`}`
+                          ? (() => {
+                              const sizeStr = (item.size || 0) / 1024 > 1024
+                                ? `${((item.size || 0) / 1024 / 1024).toFixed(2)} MB`
+                                : `${((item.size || 0) / 1024).toFixed(2)} KB`;
+                              const formatStr = item.format_info ? ` • ${item.format_info}` : "";
+                              const loadedStr = item.alreadyLoaded
+                                ? ` • Already loaded in '${item.alreadyLoaded.room}'`
+                                : "";
+                              return `${sizeStr}${formatStr}${loadedStr}`;
+                            })()
                           : "Directory"
                       }
                     />
@@ -388,9 +441,19 @@ export default function FileBrowserPage() {
       >
         <DialogTitle>Load File into ZnDraw</DialogTitle>
         <DialogContent>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
             File: {loadDialog.file?.name}
           </Typography>
+          {loadDialog.file?.format_info && (
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              Format: {loadDialog.file.format_info}
+            </Typography>
+          )}
+          {!loadDialog.file?.format_info && (
+            <Typography variant="body2" color="warning.main" sx={{ mb: 2 }}>
+              Unknown format - will attempt to read via ASE
+            </Typography>
+          )}
 
           <TextField
             autoFocus
@@ -402,7 +465,67 @@ export default function FileBrowserPage() {
             value={roomName}
             onChange={(e) => setRoomName(e.target.value)}
             helperText="Leave empty to auto-generate a room name from the filename"
+            sx={{ mb: 2 }}
           />
+
+          <Typography variant="body2" sx={{ mb: 1, fontWeight: 500 }}>
+            Frame Selection (optional)
+          </Typography>
+          <Typography variant="caption" color="text.secondary" sx={{ mb: 2, display: "block" }}>
+            Load specific frames from trajectory files. Leave empty to load all frames.
+          </Typography>
+
+          <Box sx={{ display: "flex", gap: 2 }}>
+            <TextField
+              size="small"
+              label="Start"
+              type="number"
+              value={sliceParams.start}
+              onChange={(e) =>
+                setSliceParams({ ...sliceParams, start: e.target.value })
+              }
+              helperText="First frame"
+              sx={{ flex: 1 }}
+              slotProps={{ htmlInput: { min: 0 } }}
+            />
+            <TextField
+              size="small"
+              label="Stop"
+              type="number"
+              value={sliceParams.stop}
+              onChange={(e) =>
+                setSliceParams({ ...sliceParams, stop: e.target.value })
+              }
+              helperText="Last frame"
+              sx={{ flex: 1 }}
+              slotProps={{ htmlInput: { min: 0 } }}
+            />
+            <TextField
+              size="small"
+              label="Step"
+              type="number"
+              value={sliceParams.step}
+              onChange={(e) =>
+                setSliceParams({ ...sliceParams, step: e.target.value })
+              }
+              helperText="Interval"
+              sx={{ flex: 1 }}
+              slotProps={{ htmlInput: { min: 1 } }}
+            />
+          </Box>
+
+          {(sliceParams.start || sliceParams.stop || sliceParams.step) && (
+            <Typography
+              variant="caption"
+              color="primary.main"
+              sx={{ mt: 1, display: "block" }}
+            >
+              Will load: [{sliceParams.start || "0"}:{sliceParams.stop || "end"}:
+              {sliceParams.step || "1"}]
+              {sliceParams.step && parseInt(sliceParams.step) > 1 &&
+                ` (every ${sliceParams.step} frame${parseInt(sliceParams.step) > 1 ? "s" : ""})`}
+            </Typography>
+          )}
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setLoadDialog({ open: false, file: null })}>
