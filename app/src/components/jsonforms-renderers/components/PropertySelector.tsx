@@ -104,7 +104,7 @@ export default function PropertySelector({
                 </ListItemIcon>
                 <ListItemText
                   primary={prop.key}
-                  secondary={`${prop.metadata.dtype} [${prop.metadata.shape.join(" × ")}]`}
+                  secondary={`${prop.metadata.dtype} [${prop.metadata.shape?.join(" × ") ?? "scalar"}]`}
                   slotProps={{
                     primary: { sx: { fontFamily: "monospace", fontSize: "0.85rem" } },
                   }}
@@ -136,7 +136,7 @@ export default function PropertySelector({
                 </ListItemIcon>
                 <ListItemText
                   primary={prop.key}
-                  secondary={`${prop.metadata.dtype} [${prop.metadata.shape.join(" × ")}]`}
+                  secondary={`${prop.metadata.dtype} [${prop.metadata.shape?.join(" × ") ?? "scalar"}]`}
                   slotProps={{
                     primary: { sx: { fontFamily: "monospace", fontSize: "0.85rem" } },
                   }}

@@ -55,18 +55,41 @@ export const extractParticleValue = (
 ): string => {
   const shape = propertyInfo?.metadata?.shape;
 
-  if (shape && shape.length > 1) {
+  // Check if multi-dimensional based on shape metadata
+  if (shape && Array.isArray(shape) && shape.length > 1) {
     // Multi-dimensional: extract slice for this particle
+    const numParticles = shape[0];
     const elementsPerParticle = shape[1];
+
+    // Validate the particle ID is within the expected range
+    if (particleId < 0 || particleId >= numParticles) {
+      return "—";
+    }
+
     const startIdx = particleId * elementsPerParticle;
+    const endIdx = startIdx + elementsPerParticle;
+
+    // Validate indices are within array bounds
+    if (endIdx > value.length) {
+      return "—";
+    }
+
     const particleSlice = Array.from(
-      (value as any).slice(startIdx, startIdx + elementsPerParticle)
+      (value as any).slice(startIdx, endIdx)
     );
     return `[${particleSlice.map(formatValue).join(", ")}]`;
   }
 
   // 1D array: direct indexing
+  // Validate particleId is within bounds for 1D array
+  if (particleId < 0 || particleId >= value.length) {
+    return "—";
+  }
+
   const particleValue = value[particleId];
+  if (particleValue === undefined || particleValue === null) {
+    return "—";
+  }
   return formatValue(particleValue);
 };
 

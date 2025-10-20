@@ -110,7 +110,7 @@ def read_file(
                 # Use ASE database connection for database files
                 # Supports: SQLite (.db), JSON (.json), PostgreSQL, MySQL, ASELMDB (.aselmdb)
                 # Connection strings for PostgreSQL/MySQL: postgresql://..., mysql://...
-                vis.log(f"Connecting to ASE database...")
+                vis.log("Connecting to ASE database...")
                 db = ase.db.connect(file_path)
                 n_rows = db.count()
                 vis.log(f"Database contains {n_rows} structures")

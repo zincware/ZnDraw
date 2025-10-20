@@ -4,7 +4,7 @@
 
 export interface PropertyMetadata {
   dtype: string;
-  shape: number[];
+  shape?: number[];
   type: "array" | "scalar";
 }
 

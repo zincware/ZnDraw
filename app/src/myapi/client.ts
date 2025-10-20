@@ -776,6 +776,7 @@ export const categorizeProperties = (
     // Per-particle detection: first dimension equals particle count
     const isPerParticle =
       meta.shape &&
+      Array.isArray(meta.shape) &&
       meta.shape.length > 0 &&
       meta.shape[0] === particleCount;
 

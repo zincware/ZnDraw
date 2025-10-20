@@ -14,10 +14,15 @@ export default function HoverInfoBox() {
   const theme = useTheme();
   const {
     showInfoBoxes,
-    hoveredParticleId,
+    hoveredGeometryInstance,
     curveLength,
     isDrawing,
   } = useAppStore();
+
+  // Extract particle ID from hovered geometry instance
+  const hoveredParticleId = hoveredGeometryInstance?.geometryKey === "particles"
+    ? hoveredGeometryInstance.instanceId
+    : null;
 
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
 
@@ -46,7 +51,7 @@ export default function HoverInfoBox() {
   if (!showInfoBoxes) return null;
 
   // Determine what to show
-  const showParticleInfo = hoveredParticleId !== null;
+  const showParticleInfo = hoveredParticleId != null; // Loose equality checks both null and undefined
   const showCurveInfo = isDrawing && curveLength > 0;
   const hasContent = showParticleInfo || showCurveInfo;
 
@@ -87,7 +92,7 @@ export default function HoverInfoBox() {
               >
                 Particle: {hoveredParticleId}
               </Typography>
-              {isEnabled && hoveredParticleId !== null && propertyValues.map((query, index) => {
+              {isEnabled && hoveredParticleId != null && enabledProperties.length > 0 && propertyValues.map((query, index) => {
                 const key = enabledProperties[index];
 
                 // Skip if loading or error
@@ -99,6 +104,11 @@ export default function HoverInfoBox() {
 
                 // Find property metadata for proper formatting
                 const propInfo = categories?.perParticle.find(p => p.key === key);
+
+                // Skip if property info not found (shouldn't happen but defensive)
+                if (!propInfo) {
+                  return null;
+                }
 
                 // Format value using utility function
                 const displayValue = formatPropertyValue(value, hoveredParticleId, propInfo);
