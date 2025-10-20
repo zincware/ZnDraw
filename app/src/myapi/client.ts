@@ -59,6 +59,11 @@ const apiClient = axios.create({});
 
 // --- API Functions ---
 
+export const getServerVersion = async (): Promise<{ version: string }> => {
+  const { data } = await apiClient.get('/api/version');
+  return data;
+};
+
 export const listFigures = async (
   roomId: string,
 ): Promise<FigureListResponse> => {

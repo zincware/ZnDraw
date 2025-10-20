@@ -37,7 +37,7 @@ export default function MainPage() {
   useRestJoinManager();
   const { isDragging, handleDragOver, handleDragEnter, handleDragLeave, handleDrop } = useDragAndDrop();
 
-  const { chatOpen, setChatOpen, isDrawing, toggleDrawingMode, chatUnreadCount } = useAppStore();
+  const { chatOpen, setChatOpen, isDrawing, toggleDrawingMode, chatUnreadCount, serverVersion } = useAppStore();
   const [connectionDialogOpen, setConnectionDialogOpen] = useState(false);
   const { mode, setMode } = useColorScheme();
   const queryClient = useQueryClient();
@@ -98,7 +98,7 @@ export default function MainPage() {
               component="div"
               sx={{ flexGrow: 1 }}
             >
-              ZnDraw
+              {serverVersion ? `ZnDraw ${serverVersion}` : 'ZnDraw'}
             </Typography>
             <Tooltip title={isDrawing ? "Disable drawing mode" : "Enable drawing mode"}>
               <IconButton

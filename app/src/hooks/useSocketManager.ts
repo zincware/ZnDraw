@@ -3,8 +3,9 @@ import { socket } from "../socket";
 import { useAppStore } from "../store";
 import { useQueryClient } from "@tanstack/react-query";
 import { useWindowManagerStore } from "../stores/windowManagerStore";
-import { listGeometries, getGeometry, getAllSelections, getAllBookmarks } from "../myapi/client";
+import { listGeometries, getGeometry, getAllSelections, getAllBookmarks, getServerVersion } from "../myapi/client";
 import { convertBookmarkKeys } from "../utils/bookmarks";
+import { checkVersionCompatibility, getClientVersion } from "../utils/versionCompatibility";
 
 /**
  * Factory function for creating consistent invalidate handlers.
@@ -45,6 +46,7 @@ export const useSocketManager = () => {
     updateGeometry,
     removeGeometry,
     setActiveCurveForDrawing,
+    setServerVersion,
   } = useAppStore();
   const queryClient = useQueryClient();
   const { openWindow } = useWindowManagerStore();
@@ -57,7 +59,36 @@ export const useSocketManager = () => {
 
     async function onConnect() {
       console.log("Socket connected and joining room:", roomId, userId);
-      setConnected(true);
+
+      try {
+        // Fetch server version
+        const { version: serverVersion } = await getServerVersion();
+        console.log("Server version:", serverVersion);
+        setServerVersion(serverVersion);
+
+        // Check version compatibility
+        const clientVersion = getClientVersion();
+        console.log("Client version:", clientVersion);
+
+        const compatibility = checkVersionCompatibility(clientVersion, serverVersion);
+
+        if (!compatibility.compatible) {
+          console.error(compatibility.message);
+          alert(compatibility.message);
+          socket.disconnect();
+          return;
+        }
+
+        if (compatibility.severity === 'warning') {
+          console.warn(compatibility.message);
+        }
+
+        setConnected(true);
+      } catch (error) {
+        console.error("Error checking version compatibility:", error);
+        // Still connect even if version check fails
+        setConnected(true);
+      }
     }
     function onDisconnect() {
       console.log("Socket disconnected");
@@ -488,6 +519,7 @@ export const useSocketManager = () => {
     updateGeometry,
     removeGeometry,
     setActiveCurveForDrawing,
+    setServerVersion,
     openWindow,
   ]);
 };

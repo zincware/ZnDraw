@@ -40,6 +40,7 @@ interface AppState {
   curveRefs: Record<string, THREE.CatmullRomCurve3>; // Non-serializable refs to THREE.js curve objects
   pathtracingNeedsUpdate: boolean; // Flag to signal pathtracer that scene has changed
   chatUnreadCount: number; // Number of unread chat messages
+  serverVersion: string | null; // Server version for display and compatibility checking
 
   // Actions (functions to modify the state)
   setRoomId: (roomId: string) => void;
@@ -91,6 +92,7 @@ interface AppState {
   clearPathtracingUpdate: () => void; // Clear the update flag after update is processed
   incrementChatUnread: () => void;
   resetChatUnread: () => void;
+  setServerVersion: (version: string | null) => void;
 }
 
 // Helper functions (pure, exported for reuse across components)
@@ -143,6 +145,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   attachedCameraKey: null,
   pathtracingNeedsUpdate: false,
   chatUnreadCount: 0,
+  serverVersion: null,
 
   /**
    * Non-serializable THREE.js curve objects shared between Curve and Camera components.
@@ -543,4 +546,5 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   incrementChatUnread: () => set((state) => ({ chatUnreadCount: state.chatUnreadCount + 1 })),
   resetChatUnread: () => set({ chatUnreadCount: 0 }),
+  setServerVersion: (version) => set({ serverVersion: version }),
 }));

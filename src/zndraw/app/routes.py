@@ -253,6 +253,14 @@ def health_check():
     """Health check endpoint for server status verification."""
     return {"status": "ok"}, 200
 
+
+@main.route("/api/version")
+def get_version():
+    """Get the ZnDraw server version."""
+    import zndraw
+    return {"version": zndraw.__version__}, 200
+
+
 @main.route("/assets/<path:filename>")
 def serve_static_assets(filename: str):
     static_folder = Path(__file__).parent.parent / "static" / "assets"

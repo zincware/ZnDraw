@@ -19,6 +19,7 @@ from zndraw.server_manager import get_server_status
 from zndraw.settings import RoomConfig, settings
 from zndraw.socket_manager import SocketIOLock, SocketManager
 from zndraw.utils import atoms_from_dict, atoms_to_dict, update_colors_and_radii
+from zndraw.version_utils import validate_server_version
 
 log = logging.getLogger(__name__)
 
@@ -243,6 +244,10 @@ class ZnDraw(MutableSequence):
         
         self.api = APIManager(url=self.url, room=self.room, client_id=self._client_id)
         self.cache: FrameCache | None = FrameCache(maxsize=100)
+
+        # Validate server version compatibility before connecting
+        import zndraw
+        validate_server_version(self.api, zndraw.__version__)
 
         # Call join_room FIRST to get join token and prepare room
         response_data = self.api.join_room(
