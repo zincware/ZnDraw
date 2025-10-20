@@ -14,3 +14,4 @@ wheels/
 tmp/
 *.pdb
 data/
+.DS_Store

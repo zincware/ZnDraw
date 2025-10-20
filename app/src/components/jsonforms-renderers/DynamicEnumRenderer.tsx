@@ -187,7 +187,7 @@ const StaticValueDisplay = ({
  * - "dynamic-atom-props": Populate dropdown from metadata keys
  * - "free-solo": Allow custom text input
  * - "color-picker": Add color picker UI alongside autocomplete
- * - "editable-array": Enable array editing via table (automatically enabled for arrays)
+ * - "editable-array": Enable array editing via table
  */
 const DynamicEnumRenderer = ({
   data,
@@ -205,6 +205,7 @@ const DynamicEnumRenderer = ({
   const hasColorPicker = features.includes("color-picker");
   const hasFreeSolo = features.includes("free-solo");
   const hasDynamicProps = features.includes("dynamic-atom-props");
+  const hasEditableArray = features.includes("editable-array");
 
   // Get options from injected enum or empty array
   const options = schema.enum || [];
@@ -255,7 +256,7 @@ const DynamicEnumRenderer = ({
   }, []);
 
   // Handle saving from array editor
-  const handleSaveArrayEditor = useCallback((newValue: string | number | number[] | number[][]) => {
+  const handleSaveArrayEditor = useCallback((newValue: string | number | (string | number)[] | (string | number)[][]) => {
     handleChange(path, newValue);
     setArrayEditorOpen(false);
   }, [handleChange, path]);
@@ -377,26 +378,32 @@ const DynamicEnumRenderer = ({
             />
           )}
 
-          {/* Add edit button for string values to open table with defaults */}
-          <ArrayFieldToolbar
-            valueType="string"
-            onEditArray={handleOpenArrayEditor}
-          />
+          {/* Add edit button for string values to open table with defaults (only if editable-array feature is enabled) */}
+          {hasEditableArray && (
+            <Box sx={{ marginTop: "8px" }}>
+              <ArrayFieldToolbar
+                valueType="string"
+                onEditArray={handleOpenArrayEditor}
+              />
+            </Box>
+          )}
         </Box>
       </Box>
 
-      {/* Array editor dialog (available for all value types) */}
-      <ArrayEditorDialog
-        open={arrayEditorOpen}
-        value={data}
-        fieldType={fieldType}
-        fieldLabel={label || path}
-        enumOptions={options as string[]}
-        onSave={handleSaveArrayEditor}
-        onCancel={() => setArrayEditorOpen(false)}
-        onFetchFromServer={isFetchableString ? handleLoadFromServer : undefined}
-        instanceCount={instanceCount}
-      />
+      {/* Array editor dialog (only available if editable-array feature is enabled) */}
+      {hasEditableArray && (
+        <ArrayEditorDialog
+          open={arrayEditorOpen}
+          value={data}
+          fieldType={fieldType}
+          fieldLabel={label || path}
+          enumOptions={options as string[]}
+          onSave={handleSaveArrayEditor}
+          onCancel={() => setArrayEditorOpen(false)}
+          onFetchFromServer={isFetchableString ? handleLoadFromServer : undefined}
+          instanceCount={instanceCount}
+        />
+      )}
     </>
   );
 };
