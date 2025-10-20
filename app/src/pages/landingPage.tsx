@@ -30,6 +30,7 @@ import { useColorScheme } from "@mui/material/styles";
 import WindowManager from "../components/WindowManager";
 import AddPlotButton from "../components/AddPlotButton";
 import { useQueryClient } from "@tanstack/react-query";
+import { LAYOUT_CONSTANTS } from "../constants/layout";
 
 export default function MainPage() {
   useSocketManager();
@@ -89,9 +90,18 @@ export default function MainPage() {
         {/* Header / AppBar */}
         <AppBar
           position="static"
-          sx={{ zIndex: (theme) => theme.zIndex.drawer + 1 }}
+          sx={{
+            zIndex: (theme) => theme.zIndex.drawer + 1,
+            height: LAYOUT_CONSTANTS.APPBAR_HEIGHT,
+          }}
         >
-          <Toolbar>
+          <Toolbar
+            sx={{
+              minHeight: `${LAYOUT_CONSTANTS.APPBAR_HEIGHT}px !important`,
+              height: LAYOUT_CONSTANTS.APPBAR_HEIGHT,
+              padding: '0 16px',
+            }}
+          >
             <Typography
               variant="h6"
               noWrap

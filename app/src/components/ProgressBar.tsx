@@ -21,6 +21,7 @@ import { useAtomicFrameSet } from "../hooks/useAtomicFrameSet";
 import SelectionLayer from "./SelectionLayer";
 import BookmarkLayer from "./BookmarkLayer";
 import SelectionTrackOverlay from "./SelectionTrackOverlay";
+import { LAYOUT_CONSTANTS } from "../constants/layout";
 
 const FrameProgressBar = () => {
   const [isEditing, setIsEditing] = useState(false);
@@ -262,6 +263,7 @@ const FrameProgressBar = () => {
   return (
     <Box
       sx={{
+        height: `${LAYOUT_CONSTANTS.PROGRESSBAR_HEIGHT}px`,
         padding: "5px 10px",
         backgroundColor: "background.paper",
         borderTop: "1px solid",

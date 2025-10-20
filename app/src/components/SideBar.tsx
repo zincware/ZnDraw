@@ -10,6 +10,7 @@ import FilterCenterFocusIcon from "@mui/icons-material/FilterCenterFocus";
 import BuildIcon from "@mui/icons-material/Build";
 import AnalyticsIcon from '@mui/icons-material/Analytics';
 import CategoryIcon from '@mui/icons-material/Category';
+import { LAYOUT_CONSTANTS, getContentHeight } from "../constants/layout";
 
 
 // Hardcode the navigation items
@@ -26,7 +27,6 @@ const navItems = [
   { name: "geometries", icon: <CategoryIcon />, schemaType: "geometries", description: "Manage geometries" },
 ];
 
-const PRIMARY_DRAWER_WIDTH = 60;
 const SECONDARY_PANEL_WIDTH = 240;
 const SETTINGS_PANEL_WIDTH = 500;
 const GEOMETRIES_PANEL_WIDTH = 600;
@@ -56,7 +56,7 @@ const SideBar = () => {
   return (
     <>
       <PrimaryDrawer
-        drawerWidth={PRIMARY_DRAWER_WIDTH}
+        drawerWidth={LAYOUT_CONSTANTS.PRIMARY_DRAWER_WIDTH}
         navItems={navItems}
         selectedItem={selectedCategory}
         onItemClick={handlePanelToggle}
@@ -67,10 +67,10 @@ const SideBar = () => {
           key={selectedCategory}
           sx={{
             position: "fixed",
-            left: PRIMARY_DRAWER_WIDTH,
-            top: 64, // Height of AppBar
+            left: LAYOUT_CONSTANTS.PRIMARY_DRAWER_WIDTH,
+            top: LAYOUT_CONSTANTS.APPBAR_HEIGHT,
             width: panelWidth,
-            height: "calc(100vh - 64px)",
+            height: getContentHeight(),
             zIndex: (theme) => theme.zIndex.drawer,
             borderRight: "1px solid rgba(0, 0, 0, 0.12)",
             bgcolor: "background.paper",
