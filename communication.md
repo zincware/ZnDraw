@@ -34,7 +34,7 @@ sequenceDiagram
 Everything that comes from the `ase.Atoms` uses REST + SOCKET.IO.
 Settings and Extensions use REST + SOCKET.IO.
 
-currentStep uses SOCKET.IO only.
+P uses SOCKET.IO only.
 Drawing use SOCKET.IO only.
 Camera use SOCKET.IO only.
 Chat use SOCKET.IO + for fetching history it uses REST + SOCKET.IO.

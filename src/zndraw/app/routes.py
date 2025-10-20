@@ -2435,7 +2435,19 @@ def join_room(room_id):
     response["presenter-lock"] = presenter_lock
 
     step = r.get(f"room:{room_id}:current_frame")
-    response["step"] = int(step) if step is not None else 0
+    try:
+        # Validate and convert to int (may be bytes from Redis or invalid value)
+        if step is not None:
+            step_int = int(step)
+            if step_int < 0:
+                log.warning(f"Negative frame in Redis for room {room_id}: {step_int}, resetting to 0")
+                step_int = 0
+            response["step"] = step_int
+        else:
+            response["step"] = 0
+    except (ValueError, TypeError) as e:
+        log.error(f"Invalid step value in Redis for room {room_id}: {step} - {e}")
+        response["step"] = 0
 
     bookmarks_key = f"room:{room_id}:bookmarks"
     bookmarks_raw = r.hgetall(bookmarks_key)

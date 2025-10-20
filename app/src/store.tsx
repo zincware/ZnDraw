@@ -32,6 +32,7 @@ interface AppState {
   synchronizedMode: boolean; // Whether playback should wait for all active geometries to finish fetching
   showInfoBoxes: boolean; // Whether to show info boxes (toggled with 'i' key)
   hoveredGeometryInstance: { geometryKey: string; instanceId: number } | null; // Currently hovered geometry instance
+  hoveredFrame: number | null; // Currently hovered frame (from plot hover)
   particleCount: number; // Number of particles in current frame
   curveLength: number; // Length of the active curve in drawing mode
   activeCurveForDrawing: string | null; // The geometry key of the curve currently targeted for drawing
@@ -76,6 +77,7 @@ interface AppState {
   deleteBookmark: (frame: number) => void;
   toggleInfoBoxes: () => void;
   setHoveredGeometryInstance: (geometryKey: string | null, instanceId: number | null) => void;
+  setHoveredFrame: (frame: number | null) => void;
   setParticleCount: (count: number) => void;
   setCurveLength: (length: number) => void;
   setActiveCurveForDrawing: (key: string | null) => void;
@@ -131,6 +133,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   synchronizedMode: true,
   showInfoBoxes: false,
   hoveredGeometryInstance: null,
+  hoveredFrame: null,
   particleCount: 0,
   curveLength: 0,
   activeCurveForDrawing: null,
@@ -394,6 +397,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       set({ hoveredGeometryInstance: { geometryKey, instanceId } });
     }
   },
+  setHoveredFrame: (frame) => set({ hoveredFrame: frame }),
   setParticleCount: (count) => set({ particleCount: count }),
   setCurveLength: (length) => set({ curveLength: length }),
   setActiveCurveForDrawing: (key) => set({ activeCurveForDrawing: key }),

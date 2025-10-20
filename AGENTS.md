@@ -31,3 +31,5 @@ Each test must be a function, not a method of a class!
 Use numpy style docstrings.
 Docstrings must be concise and to the point.
 Use type hints wherever possible. `import typing as t` if necessary, but use `list[int|float] | None` instead of `t.Optional[t.List[int|float]]`!
+
+Do not create a summary file for the implemented features, unless specifically requested!

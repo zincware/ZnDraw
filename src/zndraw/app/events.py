@@ -283,11 +283,19 @@ def handle_set_frame_atomic(data):
 
     frame = data.get("frame")
     if frame is not None:
-        redis_client.set(f"room:{room}:current_frame", frame)
-        emit("frame_update", {"frame": frame}, to=f"room:{room}", skip_sid=request.sid)
-        return {"success": True}
+        try:
+            # Validate and convert to int (Plotly may send float)
+            frame_int = int(frame)
+            if frame_int < 0:
+                return {"success": False, "error": "Frame must be non-negative"}
+            redis_client.set(f"room:{room}:current_frame", frame_int)
+            emit("frame_update", {"frame": frame_int}, to=f"room:{room}", skip_sid=request.sid)
+            return {"success": True}
+        except (ValueError, TypeError) as e:
+            log.error(f"Invalid frame value: {frame} - {e}")
+            return {"success": False, "error": f"Invalid frame value: {frame}"}
 
-    return {"success": False, "error": "Invalid frame"}
+    return {"success": False, "error": "Frame parameter missing"}
 
 
 @socketio.on("set_frame_continuous")
@@ -304,13 +312,23 @@ def handle_set_frame_continuous(data):
     if presenter_sid and presenter_sid == request.sid:
         frame = data.get("frame")
         if frame is not None:
-            redis_client.set(f"room:{room}:current_frame", frame)
-            emit(
-                "frame_update",
-                {"frame": frame},
-                to=f"room:{room}",
-                skip_sid=request.sid,
-            )
+            try:
+                # Validate and convert to int (Plotly may send float)
+                frame_int = int(frame)
+                if frame_int < 0:
+                    log.warning(f"Negative frame rejected: {frame_int}")
+                    return {"success": False, "error": "Frame must be non-negative"}
+                redis_client.set(f"room:{room}:current_frame", frame_int)
+                emit(
+                    "frame_update",
+                    {"frame": frame_int},
+                    to=f"room:{room}",
+                    skip_sid=request.sid,
+                )
+                return {"success": True}
+            except (ValueError, TypeError) as e:
+                log.error(f"Invalid frame value in continuous: {frame} - {e}")
+                return {"success": False, "error": f"Invalid frame value: {frame}"}
 
 
 @socketio.on("request_presenter_token")

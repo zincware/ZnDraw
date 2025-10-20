@@ -52,3 +52,4 @@
 }
 ```
 - [ ] with geometries sidebar open, playback is much slower!
+- [ ] fix property inspector!
