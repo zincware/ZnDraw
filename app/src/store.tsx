@@ -39,6 +39,7 @@ interface AppState {
   attachedCameraKey: string | null; // The geometry key of the camera currently attached to
   curveRefs: Record<string, THREE.CatmullRomCurve3>; // Non-serializable refs to THREE.js curve objects
   pathtracingNeedsUpdate: boolean; // Flag to signal pathtracer that scene has changed
+  chatUnreadCount: number; // Number of unread chat messages
 
   // Actions (functions to modify the state)
   setRoomId: (roomId: string) => void;
@@ -88,6 +89,8 @@ interface AppState {
   unregisterCurveRef: (key: string) => void;
   requestPathtracingUpdate: () => void; // Signal that pathtracer needs to update its scene
   clearPathtracingUpdate: () => void; // Clear the update flag after update is processed
+  incrementChatUnread: () => void;
+  resetChatUnread: () => void;
 }
 
 // Helper functions (pure, exported for reuse across components)
@@ -139,6 +142,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   activeCurveForDrawing: null,
   attachedCameraKey: null,
   pathtracingNeedsUpdate: false,
+  chatUnreadCount: 0,
 
   /**
    * Non-serializable THREE.js curve objects shared between Curve and Camera components.
@@ -536,4 +540,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   clearPathtracingUpdate: () => {
     set({ pathtracingNeedsUpdate: false });
   },
+
+  incrementChatUnread: () => set((state) => ({ chatUnreadCount: state.chatUnreadCount + 1 })),
+  resetChatUnread: () => set({ chatUnreadCount: 0 }),
 }));

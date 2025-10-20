@@ -5,6 +5,7 @@ import Toolbar from "@mui/material/Toolbar";
 import Typography from "@mui/material/Typography";
 import IconButton from "@mui/material/IconButton";
 import Tooltip from "@mui/material/Tooltip";
+import Badge from "@mui/material/Badge";
 import ChatIcon from "@mui/icons-material/Chat";
 import CodeIcon from "@mui/icons-material/Code";
 import LightModeIcon from "@mui/icons-material/LightMode";
@@ -32,7 +33,7 @@ export default function MainPage() {
   useKeyboardShortcuts();
   useRestJoinManager();
 
-  const { chatOpen, setChatOpen, isDrawing, toggleDrawingMode } = useAppStore();
+  const { chatOpen, setChatOpen, isDrawing, toggleDrawingMode, chatUnreadCount } = useAppStore();
   const [connectionDialogOpen, setConnectionDialogOpen] = useState(false);
   const { mode, setMode } = useColorScheme();
   const queryClient = useQueryClient();
@@ -110,7 +111,14 @@ export default function MainPage() {
                 aria-label="toggle chat"
                 onClick={() => setChatOpen(!chatOpen)}
               >
-                <ChatIcon />
+                <Badge
+                  badgeContent={chatUnreadCount}
+                  color="error"
+                  max={99}
+                  invisible={chatUnreadCount === 0 || chatOpen}
+                >
+                  <ChatIcon />
+                </Badge>
               </IconButton>
             </Tooltip>
             <AddPlotButton />

@@ -49,7 +49,7 @@ const htmlPlugins = [rehypeKatex];
 const MemoizedMarkdown = memo(ReactMarkdown);
 
 const ChatWindow = ({ open, onClose }: ChatWindowProps) => {
-  const { setCurrentFrame } = useAppStore();
+  const { setCurrentFrame, resetChatUnread } = useAppStore();
   const { roomId, userId } = useParams<{ roomId: string; userId: string }>();
   const [messageInput, setMessageInput] = useState("");
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
@@ -86,8 +86,10 @@ const ChatWindow = ({ open, onClose }: ChatWindowProps) => {
     if (open) {
       // Use timeout to ensure DOM is updated before scrolling
       setTimeout(scrollToBottom, 100);
+      // Reset unread count when chat is opened
+      resetChatUnread();
     }
-  }, [open, data]); // Rerun when opened or when new data arrives
+  }, [open, data, resetChatUnread]); // Rerun when opened or when new data arrives
 
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
     if (scrollContainerRef.current) {

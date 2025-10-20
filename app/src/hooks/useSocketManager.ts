@@ -202,6 +202,12 @@ export const useSocketManager = () => {
         }
         return { ...oldData, pages: newPages };
       });
+
+      // Increment unread count if chat is closed
+      const { chatOpen, incrementChatUnread } = useAppStore.getState();
+      if (!chatOpen) {
+        incrementChatUnread();
+      }
     }
 
     function onChatMessageUpdated(data: any) {
