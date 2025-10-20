@@ -1,7 +1,9 @@
 import pytest
+import ase
 
 from zndraw import ZnDraw
 from zndraw.app import tasks
+from zndraw.app.tasks import calculate_adaptive_resolution
 
 # It is assumed that you have fixtures named 'server', 's22_xyz', 's22_h5',
 # and 's22' defined in a conftest.py file.
@@ -172,3 +174,52 @@ def test_worker_read_file_db_partial_range(server, s22, s22_db):
     # Check content matches
     for atoms_vis, atoms_expected in zip(vis, expected_data):
         assert atoms_vis == atoms_expected
+
+
+@pytest.mark.parametrize(
+    "num_particles, expected_resolution",
+    [
+        (100, 16),        # Small system
+        (500, 16),        # Still small
+        (1000, 14),       # Boundary case
+        (2500, 14),       # Medium-small
+        (5000, 12),       # Medium
+        (10000, 10),      # Large
+        (25000, 8),       # Very large
+        (100000, 8),      # Huge
+        (500000, 6),      # Massive
+    ],
+)
+def test_calculate_adaptive_resolution(num_particles, expected_resolution):
+    """Test that adaptive resolution calculation produces expected values."""
+    resolution = calculate_adaptive_resolution(num_particles)
+    assert resolution == expected_resolution
+    assert 6 <= resolution <= 16, "Resolution should be between 6 and 16"
+
+
+def test_adaptive_resolution_applied_large_system(server, tmp_path):
+    """Test that adaptive resolution is applied when loading a large system."""
+    # Create a file with a large number of atoms
+    atoms = ase.Atoms("H" * 15000, positions=[[i, 0, 0] for i in range(15000)])
+    xyz_file = tmp_path / "large_system.xyz"
+    ase.io.write(xyz_file, atoms)
+
+    # Load the file
+    tasks.read_file(file=str(xyz_file), room="test_large_system", server_url=server)
+    vis = ZnDraw(room="test_large_system", url=server, user="tester")
+
+    # Check that resolution was reduced
+    particles_geometry = vis.geometries["particles"]
+    assert particles_geometry.resolution < 16, "Resolution should be reduced for large systems"
+    assert particles_geometry.resolution == 10, "Expected resolution of 10 for 15000 particles"
+
+
+def test_adaptive_resolution_not_applied_small_system(server, s22_xyz):
+    """Test that adaptive resolution is NOT applied for small systems."""
+    # Load a small system (s22 has small molecules)
+    tasks.read_file(file=s22_xyz, room="test_small_system", server_url=server)
+    vis = ZnDraw(room="test_small_system", url=server, user="tester")
+
+    # Check that resolution remains at default
+    particles_geometry = vis.geometries["particles"]
+    assert particles_geometry.resolution == 16, "Resolution should remain 16 for small systems"

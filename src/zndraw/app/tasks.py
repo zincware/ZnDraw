@@ -29,6 +29,46 @@ def batch_generator(iterable, size):
         yield chunk
 
 
+def calculate_adaptive_resolution(num_particles: int) -> int:
+    """Calculate adaptive sphere resolution based on particle count.
+
+    Reduces resolution for large systems to maintain performance.
+
+    Parameters
+    ----------
+    num_particles : int
+        Number of particles in the system
+
+    Returns
+    -------
+    int
+        Resolution value between 6 and 16
+
+    Examples
+    --------
+    >>> calculate_adaptive_resolution(100)
+    16
+    >>> calculate_adaptive_resolution(1000)
+    14
+    >>> calculate_adaptive_resolution(10000)
+    10
+    >>> calculate_adaptive_resolution(100000)
+    8
+    """
+    if num_particles < 1000:
+        return 16
+    elif num_particles < 5000:
+        return 14
+    elif num_particles < 10000:
+        return 12
+    elif num_particles < 25000:
+        return 10
+    elif num_particles <= 100000:
+        return 8
+    else:
+        return 6
+
+
 @shared_task
 def read_file(
     file: str,
@@ -82,10 +122,13 @@ def read_file(
         vis.log(f"Reading {slice_info} from {file} (unknown format, attempting with ASE)...")
 
     # Use vis.lock context manager to lock room during upload
+    # Initialize tracking variables
+    loaded_frame_count = 0  # Track number of frames loaded
+    max_particles = 0  # Track maximum particle count across all frames
+
     with vis.lock:
         try:
             frame_iterator = None
-            loaded_frame_count = 0  # Track number of frames loaded
 
             if backend_name == "ZnH5MD":
                 # Use ZnH5MD for H5/H5MD files
@@ -182,6 +225,8 @@ def read_file(
                     for atoms in batch:
                         if len(atoms) < 1000:
                             add_connectivity(atoms)
+                        # Track max particle count
+                        max_particles = max(max_particles, len(atoms))
                     vis.extend(batch)
                     loaded_frame_count += len(batch)
 
@@ -196,6 +241,31 @@ def read_file(
         vis.log(f"✓ Successfully loaded {loaded_frame_count} frames ({slice_info})")
     else:
         vis.log(f"✓ Successfully loaded {loaded_frame_count} frames")
+
+    # Apply adaptive resolution based on particle count
+    if loaded_frame_count > 0 and max_particles > 0:
+        adaptive_resolution = calculate_adaptive_resolution(max_particles)
+        # Only update if resolution should be reduced
+        if adaptive_resolution < 16:
+            try:
+                from zndraw.geometries import Sphere
+
+                # Get current particles geometry
+                current_particles = vis.geometries["particles"]
+                # Create new Sphere with updated resolution (Pydantic models are frozen)
+                updated_particles = Sphere(
+                    **{**current_particles.model_dump(), "resolution": adaptive_resolution}
+                )
+                # Write back to server
+                vis.geometries["particles"] = updated_particles
+                log.info(
+                    f"Adaptive resolution: {max_particles} particles -> resolution {adaptive_resolution}"
+                )
+                vis.log(
+                    f"Adjusted render quality for {max_particles} particles (resolution: {adaptive_resolution})"
+                )
+            except Exception as e:
+                log.warning(f"Failed to apply adaptive resolution: {e}")
     
     # Store file metadata
     try:
