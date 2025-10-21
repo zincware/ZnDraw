@@ -242,6 +242,8 @@ class ZnDraw(MutableSequence):
                     "or provide an explicit URL."
                 )
         
+        self.url = self.url.rstrip("/")
+
         self.api = APIManager(url=self.url, room=self.room, client_id=self._client_id)
         self.cache: FrameCache | None = FrameCache(maxsize=100)
 
@@ -843,3 +845,22 @@ class ZnDraw(MutableSequence):
         self, limit: int = 30, before: int = None, after: int = None
     ) -> dict:
         return self.api.get_messages(limit=limit, before=before, after=after)
+
+    def _repr_html_(self):
+        """Get an HTML representation for embedding the viewer in Jupyter notebooks.
+
+        Returns
+        -------
+        IPython.display.IFrame
+            An IFrame object displaying the ZnDraw viewer.
+
+        """
+        try:
+            from IPython.display import IFrame
+        except ImportError:
+            raise ImportError(
+                "IPython is required for viewer display. Install with: pip install ipython"
+            )
+
+        viewer_url = f"{self.url}/rooms/{self.room}/{self.user}"
+        return IFrame(src=viewer_url, width="100%", height=600)._repr_html_()
