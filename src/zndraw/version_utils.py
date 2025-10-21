@@ -117,8 +117,7 @@ def validate_server_version(api_manager, client_version: str) -> None:
         If patch versions differ
     """
     try:
-        response = api_manager.get(f"{api_manager.url}/api/version")
-        server_version = response.json()["version"]
+        server_version = api_manager.get_version()
 
         log.info(f"Server version: {server_version}")
         log.info(f"Client version: {client_version}")

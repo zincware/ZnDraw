@@ -45,6 +45,23 @@ class APIManager:
             # JSON decode failed, let raise_for_status handle it
             pass
 
+    def get_version(self) -> str:
+        """Get the server version.
+
+        Returns
+        -------
+        str
+            The server version string.
+
+        Raises
+        ------
+        RuntimeError
+            If the version endpoint is not accessible.
+        """
+        response = requests.get(f"{self.url}/api/version", timeout=5.0)
+        response.raise_for_status()
+        return response.json()["version"]
+
     def join_room(
         self,
         description: str | None = None,
