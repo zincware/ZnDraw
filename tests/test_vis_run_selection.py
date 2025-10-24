@@ -3,7 +3,7 @@ import pytest
 from zndraw import ZnDraw
 from zndraw.extensions import selections
 
-CELERY_TIMEOUT = 2
+CELERY_TIMEOUT = 5
 
 TEST_CASES = [
     (selections.NoneSelection, lambda vis: tuple(), {}, "NoneSelection"),

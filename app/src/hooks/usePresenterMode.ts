@@ -71,7 +71,12 @@ export const usePresenterMode = (): PresenterModeHook => {
 
   // Handle presenter events from others
   useEffect(() => {
-    const onPresenterUpdate = (data: { presenterSid: string | null }) => {
+    const onRoomUpdate = (data: any) => {
+      // Only handle presenterSid updates
+      if (!("presenterSid" in data)) {
+        return;
+      }
+
       console.log("Presenter update received:", data);
 
       if (presenterLockTimeout.current) {
@@ -92,10 +97,10 @@ export const usePresenterMode = (): PresenterModeHook => {
       }
     };
 
-    socket.on("presenter_update", onPresenterUpdate);
+    socket.on("room:update", onRoomUpdate);
 
     return () => {
-      socket.off("presenter_update", onPresenterUpdate);
+      socket.off("room:update", onRoomUpdate);
 
       if (presenterLockTimeout.current) {
         clearTimeout(presenterLockTimeout.current);

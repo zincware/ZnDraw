@@ -65,32 +65,33 @@ class Rotate(UpdateScene):
 
     def run(self, vis, **kwargs) -> None:
         # split atoms object into the selected from atoms_ids and the remaining
-        if len(vis) > vis.step + 1:
-            del vis[vis.step + 1 :]
+        with vis.lock(msg="Rotating"):
+            if len(vis) > vis.step + 1:
+                del vis[vis.step + 1 :]
 
-        points = vis.points
-        atom_ids = vis.selection
-        atoms = vis.atoms
-        if atoms is None:
-            raise ValueError("No atoms in the scene.")
-        if len(points) != 2:
-            raise ValueError("Please draw exactly 2 points to rotate around.")
+            points = vis.points
+            atom_ids = vis.selection
+            atoms = vis.atoms
+            if atoms is None:
+                raise ValueError("No atoms in the scene.")
+            if len(points) != 2:
+                raise ValueError("Please draw exactly 2 points to rotate around.")
 
-        angle = self.angle if self.direction == "left" else -self.angle
-        angle = angle / self.steps
+            angle = self.angle if self.direction == "left" else -self.angle
+            angle = angle / self.steps
 
-        atoms_selected, atoms_remaining = self.apply_selection(list(atom_ids), atoms)
-        # create a vector from the two points
-        vector = points[1] - points[0]
-        frames = []
-        for _ in range(self.steps):
-            # rotate the selected atoms around the vector
-            atoms_selected.rotate(angle, vector, center=points[0])
-            # update the positions of the selected atoms
-            atoms.positions[atom_ids] = atoms_selected.positions
-            frames.append(atoms.copy())
+            atoms_selected, atoms_remaining = self.apply_selection(list(atom_ids), atoms)
+            # create a vector from the two points
+            vector = points[1] - points[0]
+            frames = []
+            for _ in range(self.steps):
+                # rotate the selected atoms around the vector
+                atoms_selected.rotate(angle, vector, center=points[0])
+                # update the positions of the selected atoms
+                atoms.positions[atom_ids] = atoms_selected.positions
+                frames.append(atoms.copy())
 
-        vis.extend(frames)
+            vis.extend(frames)
 
 
 class Delete(UpdateScene):

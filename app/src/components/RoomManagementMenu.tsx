@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
 import IconButton from "@mui/material/IconButton";
 import Tooltip from "@mui/material/Tooltip";
 import Menu from "@mui/material/Menu";
@@ -42,6 +41,7 @@ import {
 import { takeAndUploadScreenshot } from "../utils/screenshot";
 import { useExtensionData } from "../hooks/useSchemas";
 import { useAppStore } from "../store";
+import { useRoomsStore } from "../roomsStore";
 
 interface DuplicateFormState {
   newRoomId: string;
@@ -59,7 +59,7 @@ interface DuplicateFormState {
 export default function RoomManagementMenu() {
   const { roomId } = useParams<{ roomId: string }>();
   const navigate = useNavigate();
-  const { userId, currentFrame, showSnackbar } = useAppStore();
+  const { userId, currentFrame, showSnackbar, lockMetadata } = useAppStore();
 
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [roomDetail, setRoomDetail] = useState<RoomDetail | null>(null);
@@ -82,22 +82,25 @@ export default function RoomManagementMenu() {
     "camera",
   );
 
-  // Fetch all rooms to check for duplicates and get current room metadata
-  const { data: rooms = [] } = useQuery({
-    queryKey: ["rooms"],
-    queryFn: listRooms,
-    refetchInterval: 5000,
-  });
-  
-  // Update roomDetail when rooms data changes
+  // Subscribe to rooms from Zustand store (triggers re-render on changes)
+  const rooms = useRoomsStore((state) => state.roomsArray);
+
+  // Subscribe to current room (triggers re-render when this room updates)
+  const currentRoomFromStore = useRoomsStore((state) =>
+    roomId ? state.getRoom(roomId) : undefined
+  );
+
+  // Fetch rooms on mount
   useEffect(() => {
-    if (roomId && rooms.length > 0) {
-      const currentRoom = rooms.find((room) => room.id === roomId);
-      if (currentRoom) {
-        setRoomDetail(currentRoom);
-      }
+    useRoomsStore.getState().fetchRooms();
+  }, []);
+
+  // Update local roomDetail state when room changes in store
+  useEffect(() => {
+    if (currentRoomFromStore) {
+      setRoomDetail(currentRoomFromStore);
     }
-  }, [roomId, rooms]);
+  }, [currentRoomFromStore]);
 
   // Check if file browser is enabled
   useEffect(() => {
@@ -318,14 +321,23 @@ export default function RoomManagementMenu() {
   return (
     <>
       {/* Metadata lock indicator (yellow) - vis.lock for uploads */}
-      {roomDetail?.metadataLocked && !roomDetail?.locked && (
-        <Chip
-          icon={<LockIcon />}
-          label="Uploading"
-          color="warning"
-          size="small"
-          sx={{ mr: 1 }}
-        />
+      {lockMetadata?.locked && !roomDetail?.locked && (
+        <Tooltip
+          title={
+            lockMetadata.userName
+              ? `Locked by ${lockMetadata.userName}${lockMetadata.timestamp ? ` (${Math.floor((Date.now() - lockMetadata.timestamp * 1000) / 1000)}s ago)` : ''}`
+              : "Room is locked"
+          }
+          arrow
+        >
+          <Chip
+            icon={<LockIcon />}
+            label={lockMetadata.msg || "Uploading"}
+            color="warning"
+            size="small"
+            sx={{ mr: 1 }}
+          />
+        </Tooltip>
       )}
       
       {/* Room lock indicator (red) - permanent lock */}

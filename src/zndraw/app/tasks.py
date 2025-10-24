@@ -126,7 +126,7 @@ def read_file(
     loaded_frame_count = 0  # Track number of frames loaded
     max_particles = 0  # Track maximum particle count across all frames
 
-    with vis.lock:
+    with vis.lock(msg="Uploading ..."):
         try:
             frame_iterator = None
 

@@ -27,7 +27,14 @@ interface AppState {
   isDrawing: boolean;
   drawingPointerPosition: THREE.Vector3 | null; // 3D position of mouse cursor for drawing
   drawingIsValid: boolean; // Whether the drawing position is valid (over geometry)
-  metadataLock: boolean; // Whether the room has a metadata lock (vis.lock - yellow)
+  lockMetadata: {
+    locked: boolean;
+    holder?: string;
+    userName?: string;
+    msg?: string;
+    timestamp?: number;
+    ttl?: number;
+  } | null; // Lock metadata for trajectory:meta lock (vis.lock)
   geometryFetchingStates: Record<string, boolean>; // Tracks fetching state per geometry key
   synchronizedMode: boolean; // Whether playback should wait for all active geometries to finish fetching
   showInfoBoxes: boolean; // Whether to show info boxes (toggled with 'i' key)
@@ -74,7 +81,14 @@ interface AppState {
   setDrawingPointerPosition: (position: THREE.Vector3 | null) => void;
   updateSelections: (geometryKey: string, id: number, isShiftPressed: boolean) => void;
   setDrawingIsValid: (isValid: boolean) => void;
-  setMetadataLock: (locked: boolean) => void;
+  setLockMetadata: (metadata: {
+    locked: boolean;
+    holder?: string;
+    userName?: string;
+    msg?: string;
+    timestamp?: number;
+    ttl?: number;
+  } | null) => void;
   setGeometryFetching: (geometryKey: string, isFetching: boolean) => void;
   removeGeometryFetching: (geometryKey: string) => void;
   getIsFetching: () => boolean; // Computed: returns true if any active geometry is fetching
@@ -142,7 +156,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   isDrawing: false,
   drawingPointerPosition: null,
   drawingIsValid: false,
-  metadataLock: false,
+  lockMetadata: null,
   geometryFetchingStates: {},
   synchronizedMode: true,
   showInfoBoxes: false,
@@ -272,7 +286,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   setIsDrawing: (isDrawing) => set({ isDrawing: isDrawing }),
   setDrawingPointerPosition: (position) => set({ drawingPointerPosition: position }),
   setDrawingIsValid: (isValid) => set({ drawingIsValid: isValid }),
-  setMetadataLock: (locked) => set({ metadataLock: locked }),
+  setLockMetadata: (metadata) => set({ lockMetadata: metadata }),
 
   setGeometryFetching: (geometryKey, isFetching) =>
     set((state) => ({

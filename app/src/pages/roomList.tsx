@@ -40,6 +40,8 @@ import {
 import { useDragAndDrop } from "../hooks/useDragAndDrop";
 import DropOverlay from "../components/DropOverlay";
 import { useAppStore } from "../store";
+import { useRoomsStore } from "../roomsStore";
+import { useSocketManager } from "../hooks/useSocketManager";
 
 interface DuplicateDialogState {
   open: boolean;
@@ -56,6 +58,15 @@ interface DuplicateFormState {
 export default function RoomListPage() {
   const queryClient = useQueryClient();
   const { showSnackbar } = useAppStore();
+
+  // Connect to socket and join overview:public room
+  useSocketManager({ isOverview: true });
+
+  // Subscribe to rooms store (triggers re-render on changes)
+  const allRooms = useRoomsStore((state) => state.roomsArray);
+  const loading = useRoomsStore((state) => state.loading);
+  const roomsError = useRoomsStore((state) => state.error);
+
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [duplicateDialog, setDuplicateDialog] = useState<DuplicateDialogState>({
     open: false,
@@ -109,23 +120,28 @@ export default function RoomListPage() {
     checkFileBrowser();
   }, []);
 
-  // Use React Query with placeholderData to prevent flickering
-  const {
-    data: rooms = [],
-    isLoading: loading,
-    error,
-    isError,
-  } = useQuery({
-    queryKey: ["rooms", searchQuery],
-    queryFn: () => listRooms(searchQuery || undefined),
-    refetchInterval: 5000, // Refetch every 5 seconds
-    placeholderData: (previousData) => previousData, // Keep previous data while refetching
-  });
+  // Fetch rooms on mount (socket updates will keep them synced)
+  useEffect(() => {
+    useRoomsStore.getState().fetchRooms();
+  }, []);
+
+  // Filter rooms based on search query
+  const rooms = searchQuery
+    ? allRooms.filter(
+        (room) =>
+          room.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          (room.description &&
+            room.description.toLowerCase().includes(searchQuery.toLowerCase()))
+      )
+    : allRooms;
+
+  const error = roomsError;
+  const isError = !!roomsError;
 
   const handleUpdateDescription = async (roomId: string, description: string) => {
     try {
       await updateRoom(roomId, { description: description || null });
-      await queryClient.invalidateQueries({ queryKey: ["rooms"] });
+      // Socket event will update Zustand store automatically
       showSnackbar("Description updated", "success");
     } catch (err) {
       showSnackbar("Failed to update description", "error");
@@ -135,7 +151,7 @@ export default function RoomListPage() {
   const handleToggleLock = async (roomId: string, currentLocked: boolean) => {
     try {
       await updateRoom(roomId, { locked: !currentLocked });
-      await queryClient.invalidateQueries({ queryKey: ["rooms"] });
+      // Socket event will update Zustand store automatically
       showSnackbar(currentLocked ? "Room unlocked" : "Room locked", "success");
     } catch (err) {
       showSnackbar("Failed to update lock status", "error");
@@ -145,7 +161,7 @@ export default function RoomListPage() {
   const handleToggleHidden = async (roomId: string, currentHidden: boolean) => {
     try {
       await updateRoom(roomId, { hidden: !currentHidden });
-      await queryClient.invalidateQueries({ queryKey: ["rooms"] });
+      // Socket event will update Zustand store automatically
       showSnackbar(currentHidden ? "Room shown" : "Room hidden", "success");
     } catch (err) {
       showSnackbar("Failed to update visibility", "error");
@@ -155,7 +171,7 @@ export default function RoomListPage() {
   const handleToggleDefault = async (roomId: string, isCurrentlyDefault: boolean) => {
     try {
       await setDefaultRoom(isCurrentlyDefault ? null : roomId);
-      await queryClient.invalidateQueries({ queryKey: ["rooms"] });
+      // Socket event will update Zustand store automatically
       showSnackbar(isCurrentlyDefault ? "Default room cleared" : "Default room set", "success");
     } catch (err) {
       showSnackbar("Failed to update default room", "error");

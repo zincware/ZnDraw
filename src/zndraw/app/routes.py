@@ -240,12 +240,10 @@ def emit_len_frames_update(room_id: str):
     r = current_app.extensions["redis"]
     indices_key = f"room:{room_id}:trajectory:indices"
     frame_count = r.zcard(indices_key)
-    
-    socketio.emit(
-        "len_frames",
-        {"success": True, "count": frame_count},
-        to=f"room:{room_id}",
-    )
+
+    # Broadcast frame count update via room:update event
+    from zndraw.app.room_manager import emit_room_update
+    emit_room_update(socketio, room_id, frameCount=frame_count)
 
 
 @main.route("/health")
@@ -1180,7 +1178,7 @@ def get_room(room_id):
 @main.route("/api/rooms/<string:room_id>", methods=["PATCH"])
 def update_room(room_id):
     """Update room metadata (description, locked, hidden).
-    
+
     Request body:
         {
             "description": "My custom description",  // Optional
@@ -1200,20 +1198,33 @@ def update_room(room_id):
     if not room_exists:
         return {"error": "Room not found"}, 404
 
+    # Track what changed for socket event
+    changes = {}
+
     # Update description
     if "description" in data:
         if data["description"] is None:
             redis_client.delete(f"room:{room_id}:description")
+            changes["description"] = None
         else:
             redis_client.set(f"room:{room_id}:description", data["description"])
+            changes["description"] = data["description"]
 
     # Update locked status
     if "locked" in data:
         redis_client.set(f"room:{room_id}:locked", "1" if data["locked"] else "0")
+        changes["locked"] = bool(data["locked"])
 
     # Update hidden status
     if "hidden" in data:
         redis_client.set(f"room:{room_id}:hidden", "1" if data["hidden"] else "0")
+        changes["hidden"] = bool(data["hidden"])
+
+    # Emit socket event for real-time updates
+    if changes:
+        from zndraw.app.room_manager import emit_room_update
+        emit_room_update(socketio, room_id, **changes)
+        log.debug(f"Emitted room:update for room '{room_id}': {changes}")
 
     log.info(f"Updated room '{room_id}' metadata: {data}")
     return {"status": "ok"}, 200
@@ -1242,11 +1253,19 @@ def set_default_room():
     data = request.get_json() or {}
 
     room_id = data.get("roomId")
-    
+
+    # Get previous default room
+    previous_default = redis_client.get("default_room")
+
     if room_id is None:
         # Unset default room
         redis_client.delete("default_room")
         log.info("Unset default room")
+
+        # Update previous default room
+        if previous_default:
+            from zndraw.app.room_manager import emit_room_update
+            emit_room_update(socketio, previous_default, isDefault=False)
     else:
         # Verify room exists
         room_exists = False
@@ -1260,6 +1279,17 @@ def set_default_room():
         # Set default room
         redis_client.set("default_room", room_id)
         log.info(f"Set default room to '{room_id}'")
+
+        # Update previous default room if different
+        if previous_default and previous_default != room_id:
+            from zndraw.app.room_manager import emit_room_update
+            emit_room_update(socketio, previous_default, isDefault=False)
+
+        # Update new default room
+        from zndraw.app.room_manager import emit_room_update
+        emit_room_update(socketio, room_id, isDefault=True)
+
+    log.debug(f"Updated default room from {previous_default} to {room_id}")
 
     return {"status": "ok"}, 200
 
@@ -1321,26 +1351,92 @@ def update_room_metadata(room_id: str):
 @main.route("/api/rooms/<string:room_id>/metadata/<string:field>", methods=["DELETE"])
 def delete_room_metadata_field(room_id: str, field: str):
     """Delete specific metadata field. Respects room lock.
-    
+
     Returns:
         {"success": true}
     """
     from zndraw.app.metadata_manager import RoomMetadataManager
-    
+
     # Check permanent room lock only (metadata doesn't use trajectory lock)
     redis_client = current_app.extensions["redis"]
     locked = redis_client.get(f"room:{room_id}:locked")
     if locked == "1":
         return {"error": "Room is locked and cannot be modified"}, 403
-    
+
     manager = RoomMetadataManager(redis_client, room_id)
-    
+
     try:
         deleted = manager.delete(field)
         return {"success": True, "deleted": deleted}, 200
     except Exception as e:
         log.error(f"Error deleting metadata field '{field}' for room '{room_id}': {e}")
         return {"error": str(e)}, 500
+
+
+@main.route("/api/rooms/<string:room_id>/locks/<string:target>", methods=["GET"])
+def get_lock_status(room_id: str, target: str):
+    """Get current lock status and metadata for a specific target.
+
+    Returns who holds the lock and what they're doing with it.
+    Useful for frontend to display lock status to users.
+
+    Parameters
+    ----------
+    room_id : str
+        Room identifier
+    target : str
+        Lock target (e.g., 'trajectory:meta')
+
+    Returns
+    -------
+    dict
+        Lock status including holder, metadata, and TTL
+
+    Example response (unlocked):
+        {"locked": false, "target": "trajectory:meta"}
+
+    Example response (locked):
+        {
+            "locked": true,
+            "target": "trajectory:meta",
+            "holder": "client_123",
+            "metadata": {
+                "clientId": "client_123",
+                "userName": "alice",
+                "timestamp": 1234567890.123,
+                "msg": "Uploading trajectory data"
+            },
+            "ttl": 45
+        }
+    """
+    redis_client = current_app.extensions["redis"]
+    lock_key = get_lock_key(room_id, target)
+
+    lock_holder = redis_client.get(lock_key)
+    if not lock_holder:
+        return {"locked": False, "target": target}
+
+    # Get metadata
+    metadata_key = f"{lock_key}:metadata"
+    metadata_json = redis_client.get(metadata_key)
+
+    metadata = {}
+    if metadata_json:
+        try:
+            metadata = json.loads(metadata_json)
+        except json.JSONDecodeError:
+            log.error(f"Failed to parse lock metadata: {metadata_json}")
+
+    # Get TTL
+    ttl = redis_client.ttl(lock_key)
+
+    return {
+        "locked": True,
+        "target": target,
+        "holder": lock_holder,
+        "metadata": metadata,
+        "ttl": ttl
+    }
 
 
 @main.route("/api/rooms/<string:room_id>/duplicate", methods=["POST"])
@@ -2414,6 +2510,20 @@ def join_room(room_id):
                 json.dumps(category_data),
             )
         log.info(f"Initialized default settings for new room '{room_id}'")
+
+        # Broadcast room creation to all connected clients
+        frame_count = r.zcard(f"room:{room_id}:trajectory:indices")
+        from zndraw.app.room_manager import emit_room_update
+        emit_room_update(
+            socketio,
+            room_id,
+            created=True,
+            description=description,
+            frameCount=frame_count,
+            locked=False,
+            hidden=False,
+            isDefault=False
+        )
 
         # Create default geometries only if not copied from another room
         if not copy_from:

@@ -17,11 +17,15 @@ log = logging.getLogger(__name__)
 @dataclasses.dataclass
 class SocketIOLock:
     """A client-side context manager for a distributed lock via Socket.IO.
-    
+
     This lock is re-entrant - the same client can acquire it multiple times
     and must release it the same number of times.
-    
+
     Includes automatic lock renewal to prevent TTL expiration during long operations.
+
+    Optional metadata can be sent to describe the lock's purpose:
+        with vis.lock(msg="Uploading trajectory data"):
+            vis.extend(frames)
     """
 
     sio: socketio.Client
@@ -30,10 +34,42 @@ class SocketIOLock:
     _lock_count: int = dataclasses.field(default=0, init=False)
     _refresh_thread: threading.Thread | None = dataclasses.field(default=None, init=False)
     _refresh_stop: threading.Event = dataclasses.field(default_factory=threading.Event, init=False)
+    _pending_metadata: dict | None = dataclasses.field(default=None, init=False)
+
+    def __call__(self, msg: str | None = None, metadata: dict | None = None) -> "SocketIOLock":
+        """Set optional metadata for this lock acquisition.
+
+        Returns self to maintain singleton pattern and support re-entrant locking.
+
+        Parameters
+        ----------
+        msg : str | None
+            Human-readable message describing the lock purpose
+        metadata : dict | None
+            Additional metadata fields
+
+        Returns
+        -------
+        SocketIOLock
+            Returns self for use as context manager
+
+        Examples
+        --------
+        >>> with vis.lock(msg="Uploading trajectory"):
+        ...     vis.extend(frames)
+        >>> with vis.lock(metadata={"step": 1, "total": 10}):
+        ...     process_batch()
+        """
+        self._pending_metadata = {}
+        if msg is not None:
+            self._pending_metadata["msg"] = msg
+        if metadata:
+            self._pending_metadata.update(metadata)
+        return self
 
     def _refresh_lock_periodically(self):
         """Background thread that refreshes the lock periodically to prevent TTL expiration.
-        
+
         Refreshes at half the TTL interval to ensure the lock stays active.
         """
         refresh_interval = self.ttl / 2
@@ -41,7 +77,7 @@ class SocketIOLock:
             # Wait for half the TTL or until stop signal
             if self._refresh_stop.wait(timeout=refresh_interval):
                 break
-            
+
             # Refresh the lock by calling lock:refresh
             try:
                 payload = {"target": self.target, "ttl": self.ttl}
@@ -53,6 +89,28 @@ class SocketIOLock:
                     log.warning(f"Failed to refresh lock for target '{self.target}': {error_msg}")
             except Exception as e:
                 log.error(f"Error refreshing lock for target '{self.target}': {e}")
+
+    def _send_metadata(self):
+        """Send lock metadata to server after lock acquisition.
+
+        Logs warnings on failure but does not raise exceptions to avoid
+        breaking the lock acquisition flow.
+        """
+        payload = {
+            "target": self.target,
+            "metadata": self._pending_metadata
+        }
+        try:
+            response = self.sio.call("lock:msg", payload, timeout=5)
+            if not (response and response.get("success")):
+                log.warning(
+                    f"Failed to send lock metadata for target '{self.target}': {response}"
+                )
+        except Exception as e:
+            log.error(
+                f"Error sending lock metadata for target '{self.target}': {e}",
+                exc_info=True
+            )
 
     def acquire(self, timeout: float = 60) -> bool:
         """
@@ -117,6 +175,14 @@ class SocketIOLock:
     def __enter__(self):
         if not self.acquire():
             raise RuntimeError(f"Failed to acquire lock for target '{self.target}'")
+
+        # Send metadata if present (works for both initial and re-entrant)
+        if self._pending_metadata:
+            self._send_metadata()
+
+        # Always clear to prevent stale metadata
+        self._pending_metadata = None
+
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
@@ -137,7 +203,7 @@ class SocketManager:
         self.sio.on("connect", self._on_connect)
         self.sio.on("frame_update", self._on_frame_update)
         self.sio.on("selection:update", self._on_selection_update)
-        self.sio.on("len_frames", self._on_len_frames_update)
+        self.sio.on("room:update", self._on_room_update)
         self.sio.on("invalidate", self._on_invalidate)
         self.sio.on("queue:update", self._on_queue_update)
         self.sio.on("frame_selection:update", self._on_frame_selection_update)
@@ -179,9 +245,10 @@ class SocketManager:
         if "frame" in data:
             self.zndraw._step = data["frame"]
 
-    def _on_len_frames_update(self, data):
-        if "count" in data:
-            self.zndraw._len = data["count"]
+    def _on_room_update(self, data):
+        """Handle room:update events (consolidated room metadata updates)."""
+        if "frameCount" in data:
+            self.zndraw._len = data["frameCount"]
 
     def _on_selection_update(self, data):
         if "indices" in data:

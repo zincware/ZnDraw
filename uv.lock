@@ -2923,7 +2923,7 @@ requires-dist = [
     { name = "vesin", specifier = ">=0.3.8" },
     { name = "zarr", specifier = ">=3.1.3" },
     { name = "znh5md", specifier = ">=0.4.8" },
-    { name = "znsocket", specifier = ">=0.2.13a2" },
+    { name = "znsocket", specifier = ">=0.2.13a3" },
 ]
 provides-extras = ["test"]
 
@@ -2962,7 +2962,7 @@ wheels = [
 
 [[package]]
 name = "znsocket"
-version = "0.2.13a2"
+version = "0.2.13a3"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "eventlet" },
@@ -2972,7 +2972,7 @@ dependencies = [
     { name = "typer" },
     { name = "znjson" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/a9/10/38195846483ebd88ff468f0cb97c6fdfa0e6c6d364d86f1f7d339b4289e5/znsocket-0.2.13a2.tar.gz", hash = "sha256:bc8b187575d5beff35569f9768ccdac4be4423f183664ca99d22413c48cfbc79", size = 247557, upload-time = "2025-10-24T07:32:42.724Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/fe/bf/ae841418ba99734505166d0638f8bc6228484e68120c42ba22a507483ee3/znsocket-0.2.13a3.tar.gz", hash = "sha256:6c53f22c504761fb2926ea0c29a72abd51e47f06889f3ea3a5167480f987b139", size = 248166, upload-time = "2025-10-24T10:17:44.141Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/48/f9/2167bbc16b001bad8e44f25fd16b849a9a59183d684789fb8f0586d4482c/znsocket-0.2.13a2-py3-none-any.whl", hash = "sha256:7de1954ec2b6c0d4989551c98556678cf6279d0a870f3b084d28ab38e57992e7", size = 45331, upload-time = "2025-10-24T07:32:41.244Z" },
+    { url = "https://files.pythonhosted.org/packages/78/22/b76ff8b4d5f796b179b99301a728f96f66190cced7d756d2b9699d1321b1/znsocket-0.2.13a3-py3-none-any.whl", hash = "sha256:e292a19923f6306fde5c7e2051e277e8abf5f3963ef239d2d519d78165cdcad6", size = 45608, upload-time = "2025-10-24T10:17:42.623Z" },
 ]

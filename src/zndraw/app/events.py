@@ -1,5 +1,6 @@
 import json
 import logging
+import time
 import typing as t
 
 from flask import current_app, request
@@ -8,7 +9,9 @@ from flask_socketio import emit
 from zndraw.server import socketio
 
 from .constants import SocketEvents
+from .models import LockMetadata
 from .redis_keys import ExtensionKeys
+from .room_manager import emit_room_update
 
 log = logging.getLogger(__name__)
 
@@ -165,8 +168,9 @@ def handle_disconnect():
         presenter_sid = r.get(lock_key)
         if presenter_sid and presenter_sid == sid:
             r.delete(lock_key)
-            # Inform everyone that the presenter left
-            emit("presenter_update", {"presenterSid": None}, to=f"room:{room_name}")
+            # Inform everyone that the presenter left via room:update
+            from zndraw.app.room_manager import emit_room_update
+            emit_room_update(socketio, room_name, skip_sid=sid, presenterSid=None)
 
     # Extension cleanup - use client_id if available, otherwise fall back to sid for backwards compatibility
     worker_id = client_id if client_id else sid
@@ -331,6 +335,38 @@ def handle_set_frame_continuous(data):
                 return {"success": False, "error": f"Invalid frame value: {frame}"}
 
 
+@socketio.on("frame_selection:set")
+def handle_frame_selection_set(data):
+    """
+    Handles setting the frame selection for a room.
+    """
+    room = get_project_room_from_session(request.sid)
+    if not room:
+        return {"success": False, "error": "Client has not joined a room"}
+
+    redis_client = current_app.extensions["redis"]
+    indices = data.get("indices", [])
+
+    if not isinstance(indices, list):
+        return {"success": False, "error": "indices must be a list"}
+
+    if not all(isinstance(idx, int) and idx >= 0 for idx in indices):
+        return {"success": False, "error": "All indices must be non-negative integers"}
+
+    # Store frame selection in Redis
+    redis_client.set(f"room:{room}:frame_selection:default", json.dumps(indices))
+
+    # Emit update to all clients in the room
+    emit(
+        "frame_selection:update",
+        {"indices": indices},
+        to=f"room:{room}",
+        skip_sid=request.sid,
+    )
+
+    return {"success": True}
+
+
 @socketio.on("request_presenter_token")
 def handle_request_presenter_token():
     sid = request.sid
@@ -353,12 +389,8 @@ def handle_request_presenter_token():
 
         # If this is a brand new presenter, inform the room
         if current_holder is None:
-            emit(
-                "presenter_update",
-                {"presenterSid": sid},
-                to=f"room:{room}",
-                skip_sid=sid,
-            )
+            from zndraw.app.room_manager import emit_room_update
+            emit_room_update(socketio, room, skip_sid=sid, presenterSid=sid)
 
         return {"success": True}
     else:
@@ -377,12 +409,8 @@ def handle_release_presenter_token():
 
     if presenter_sid and presenter_sid == request.sid:
         r.delete(lock_key)
-        emit(
-            "presenter_update",
-            {"presenterSid": None},
-            to=f"room:{room}",
-            skip_sid=request.sid,
-        )
+        from zndraw.app.room_manager import emit_room_update
+        emit_room_update(socketio, room, skip_sid=request.sid, presenterSid=None)
         return {"success": True}
     else:
         return {"success": False, "error": "Not the current presenter"}
@@ -434,7 +462,12 @@ def release_lock(data):
     lock_holder = r.get(lock_key)
     # Compare with client_id (not sid) since that's what we store
     if lock_holder == client_id:
+        # Delete lock AND metadata
         r.delete(lock_key)
+        r.delete(f"{lock_key}:metadata")
+
+        # Broadcast lock release via room:update event
+        emit_room_update(socketio, room, skip_sid=sid, metadataLocked=None)
 
         log.debug(f"Lock released for '{target}' in room '{room}' by client {client_id} (sid:{sid})")
         return {"success": True}
@@ -457,7 +490,7 @@ def refresh_lock(data):
 
     if not room or not target or not client_id:
         return {"success": False, "error": "Room, target, or client_id missing"}
-    
+
     # Validate TTL - must not exceed 300 seconds (5 minutes)
     if not isinstance(ttl, (int, float)) or ttl <= 0:
         return {"success": False, "error": "TTL must be a positive number"}
@@ -466,18 +499,150 @@ def refresh_lock(data):
 
     lock_key = get_lock_key(room, target)
     lock_holder = r.get(lock_key)
-    
+
     # Only refresh if the lock is held by this client (compare with client_id)
     if lock_holder == client_id:
         # Reset the TTL
         r.expire(lock_key, int(ttl))
         log.debug(f"Lock refreshed for '{target}' in room '{room}' by client {client_id} (sid:{sid}) with TTL {ttl}s")
         return {"success": True}
-    
+
     log.warning(
         f"Failed refresh: Lock for '{target}' in room '{room}' not held by {sid}"
     )
     return {"success": False}
+
+
+@socketio.on("lock:msg")
+def update_lock_message(data):
+    """Update metadata for an active lock.
+
+    This endpoint allows the lock holder to send descriptive metadata
+    about what they're doing with the lock (e.g., "Uploading 1000 frames").
+
+    IMPORTANT: Server validates that the requesting client actually holds the lock.
+
+    Parameters
+    ----------
+    data : dict
+        Contains 'target' and 'metadata' fields
+
+    Returns
+    -------
+    dict
+        Success response or error
+    """
+    sid = request.sid
+    r = current_app.extensions["redis"]
+    target = data.get("target")
+    metadata = data.get("metadata", {})
+    room = get_project_room_from_session(sid)
+    client_id = get_client_id_from_sid(sid)
+
+    if not room or not target or not client_id:
+        return {"success": False, "error": "Missing required fields"}
+
+    lock_key = get_lock_key(room, target)
+    lock_holder = r.get(lock_key)
+
+    # Validate that this client actually holds the lock
+    if lock_holder != client_id:
+        log.warning(
+            f"Rejected lock:msg from {client_id}: lock for '{target}' held by {lock_holder}"
+        )
+        return {"success": False, "error": "Lock not held by this client"}
+
+    # Store metadata with same TTL as lock
+    metadata_key = f"{lock_key}:metadata"
+
+    # Get username for display
+    user_name = r.hget(f"client:{client_id}", "userName")
+
+    # Store metadata
+    metadata_with_user = {
+        "clientId": client_id,
+        "userName": user_name or "unknown",
+        "timestamp": time.time(),
+        **metadata
+    }
+
+    # Serialize to JSON for storage
+    r.set(metadata_key, json.dumps(metadata_with_user))
+
+    # Match lock TTL
+    lock_ttl = r.ttl(lock_key)
+    if lock_ttl > 0:
+        r.expire(metadata_key, lock_ttl)
+
+    # Broadcast to room via room:update event
+    lock_metadata = LockMetadata(
+        msg=metadata.get("msg"),
+        userName=user_name,
+        timestamp=metadata_with_user["timestamp"]
+    )
+    emit_room_update(socketio, room, skip_sid=sid, metadataLocked=lock_metadata.model_dump())
+
+    log.debug(f"Lock metadata updated for '{target}' by {user_name}: {metadata}")
+    return {"success": True}
+
+
+@socketio.on("join:overview")
+def handle_join_overview():
+    """Client joining /rooms page - join overview:public room."""
+    from flask_socketio import join_room
+
+    sid = request.sid
+    join_room("overview:public")
+    log.debug(f"Client {sid} joined overview:public")
+    return {"status": "joined", "room": "overview:public"}
+
+
+@socketio.on("leave:overview")
+def handle_leave_overview():
+    """Client leaving /rooms page - leave overview:public room."""
+    from flask_socketio import leave_room
+
+    sid = request.sid
+    leave_room("overview:public")
+    log.debug(f"Client {sid} left overview:public")
+    return {"status": "left", "room": "overview:public"}
+
+
+@socketio.on("join:room")
+def handle_join_room(data):
+    """Client joining specific room page - join room:<room_id> and leave overview:public."""
+    from flask_socketio import join_room, leave_room
+
+    sid = request.sid
+    room_id = data.get("roomId")
+
+    if not room_id:
+        return {"status": "error", "message": "roomId required"}
+
+    # Leave overview if joined
+    leave_room("overview:public")
+
+    # Join specific room
+    join_room(f"room:{room_id}")
+
+    log.debug(f"Client {sid} joined room:{room_id}")
+    return {"status": "joined", "room": f"room:{room_id}"}
+
+
+@socketio.on("leave:room")
+def handle_leave_room(data):
+    """Client leaving specific room page - leave room:<room_id>."""
+    from flask_socketio import leave_room
+
+    sid = request.sid
+    room_id = data.get("roomId")
+
+    if not room_id:
+        return {"status": "error", "message": "roomId required"}
+
+    leave_room(f"room:{room_id}")
+    log.debug(f"Client {sid} left room:{room_id}")
+    return {"status": "left", "room": f"room:{room_id}"}
 
 
 @socketio.on("chat:message:create")

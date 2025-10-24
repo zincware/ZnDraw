@@ -33,7 +33,9 @@ import { useQueryClient } from "@tanstack/react-query";
 import { LAYOUT_CONSTANTS } from "../constants/layout";
 
 export default function MainPage() {
-  useSocketManager();
+  const { roomId } = useAppStore(); // Get roomId from app store
+
+  useSocketManager({ roomId: roomId || undefined });
   useKeyboardShortcuts();
   useRestJoinManager();
   const { isDragging, handleDragOver, handleDragEnter, handleDragLeave, handleDrop } = useDragAndDrop();

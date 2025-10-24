@@ -91,6 +91,7 @@ def main(
     ),
     port: int = 5000,
     debug: bool = False,
+    verbose: bool = False,
     celery: bool = True,
     storage_path: str = "./zndraw-data.zarr",
     redis_url: str | None = typer.Option(
@@ -155,6 +156,9 @@ def main(
     if detached and (status or shutdown or connect):
         typer.echo("Error: --detached cannot be used with --status, --shutdown, or --connect", err=True)
         raise typer.Exit(1)
+    if verbose:
+        import logging
+        logging.basicConfig(level=logging.DEBUG)
 
     # Handle --status flag
     if status:

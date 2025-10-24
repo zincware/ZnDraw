@@ -6,6 +6,7 @@ import { useWindowManagerStore } from "../stores/windowManagerStore";
 import { listGeometries, getGeometry, getAllSelections, getAllBookmarks, getServerVersion } from "../myapi/client";
 import { convertBookmarkKeys } from "../utils/bookmarks";
 import { checkVersionCompatibility, getClientVersion } from "../utils/versionCompatibility";
+import { useRoomsStore } from "../roomsStore";
 
 /**
  * Factory function for creating consistent invalidate handlers.
@@ -29,7 +30,12 @@ function createInvalidateHandler<T>(
   };
 }
 
-export const useSocketManager = () => {
+interface SocketManagerOptions {
+  roomId?: string;  // Room ID when on /rooms/:roomId page
+  isOverview?: boolean;  // True when on /rooms page
+}
+
+export const useSocketManager = (options: SocketManagerOptions = {}) => {
   const {
     setConnected,
     setFrameCount,
@@ -39,7 +45,7 @@ export const useSocketManager = () => {
     setSelectionGroups,
     setActiveSelectionGroup,
     setBookmarks,
-    roomId,
+    roomId: appStoreRoomId,
     userId,
     joinToken,
     setGeometries,
@@ -47,9 +53,14 @@ export const useSocketManager = () => {
     removeGeometry,
     setActiveCurveForDrawing,
     setServerVersion,
+    setLockMetadata,
   } = useAppStore();
   const queryClient = useQueryClient();
   const { openWindow } = useWindowManagerStore();
+
+  // Use provided roomId from options, fallback to appStore roomId
+  const roomId = options.roomId || appStoreRoomId;
+  const { isOverview = false } = options;
 
   useEffect(() => {
     if (!joinToken) {
@@ -83,6 +94,15 @@ export const useSocketManager = () => {
           console.warn(compatibility.message);
         }
 
+        // Join appropriate room based on page
+        if (isOverview) {
+          console.log("Joining overview:public");
+          socket.emit("join:overview");
+        } else if (roomId) {
+          console.log(`Joining room:${roomId}`);
+          socket.emit("join:room", { roomId });
+        }
+
         setConnected(true);
       } catch (error) {
         console.error("Error checking version compatibility:", error);
@@ -93,13 +113,6 @@ export const useSocketManager = () => {
     function onDisconnect() {
       console.log("Socket disconnected");
       setConnected(false);
-    }
-    function onLenUpdate(data: any) {
-      if (data && typeof data.count === "number") {
-        setFrameCount(data.count);
-      } else {
-        console.error("Invalid len_frames data:", data);
-      }
     }
 
     function onFrameUpdate(data: any) {
@@ -456,6 +469,53 @@ export const useSocketManager = () => {
       "selection_groups"
     );
 
+    function onRoomUpdate(data: any) {
+      console.log("Room update:", data);
+      const { roomId: updateRoomId, created, ...updates } = data;
+
+      // Handle lock metadata update
+      if ("metadataLocked" in updates) {
+        if (updates.metadataLocked) {
+          setLockMetadata({
+            locked: true,
+            holder: updates.metadataLocked.clientId,
+            userName: updates.metadataLocked.userName,
+            msg: updates.metadataLocked.msg,
+            timestamp: updates.metadataLocked.timestamp,
+          });
+        } else {
+          setLockMetadata({ locked: false });
+        }
+      }
+
+      // Handle frame count update
+      if ("frameCount" in updates) {
+        setFrameCount(updates.frameCount);
+      }
+
+      // Update Zustand rooms store
+      if (created) {
+        // New room created
+        useRoomsStore.getState().setRoom(updateRoomId, {
+          id: updateRoomId,
+          frameCount: 0,
+          locked: false,
+          hidden: false,
+          isDefault: false,
+          ...updates,
+        });
+      } else {
+        // Update existing room
+        useRoomsStore.getState().updateRoom(updateRoomId, updates);
+      }
+    }
+
+    function onRoomDelete(data: any) {
+      console.log("Room deleted:", data);
+      const { roomId: deletedRoomId } = data;
+      useRoomsStore.getState().removeRoom(deletedRoomId);
+    }
+
     function onConnectError(err: any) {
       console.error("Socket connection error:", err);
     }
@@ -463,7 +523,6 @@ export const useSocketManager = () => {
     socket.on("disconnect", onDisconnect);
     socket.on("connect", onConnect);
     socket.on("connect_error", onConnectError);
-    socket.on("len_frames", onLenUpdate);
     socket.on("frame_update", onFrameUpdate);
     socket.on("invalidate", onInvalidate);
     socket.on("invalidate:schema", onSchemaInvalidate);
@@ -477,14 +536,22 @@ export const useSocketManager = () => {
     socket.on("invalidate:figure", onFiguresInvalidate);
     socket.on("invalidate:selection", onSelectionsInvalidate);
     socket.on("invalidate:selection_groups", onSelectionGroupsInvalidate);
+    socket.on("room:update", onRoomUpdate);
+    socket.on("room:delete", onRoomDelete);
 
     socket.auth = { token: joinToken };
     socket.connect();
 
     return () => {
+      // Leave room on cleanup
+      if (isOverview) {
+        socket.emit("leave:overview");
+      } else if (roomId) {
+        socket.emit("leave:room", { roomId });
+      }
+
       socket.off("connect", onConnect);
       socket.off("disconnect", onDisconnect);
-      socket.off("len_frames", onLenUpdate);
       socket.off("frame_update", onFrameUpdate);
       socket.off("invalidate", onInvalidate);
       socket.off("invalidate:schema", onSchemaInvalidate);
@@ -498,6 +565,8 @@ export const useSocketManager = () => {
       socket.off("invalidate:figure", onFiguresInvalidate);
       socket.off("invalidate:selection", onSelectionsInvalidate);
       socket.off("invalidate:selection_groups", onSelectionGroupsInvalidate);
+      socket.off("room:update", onRoomUpdate);
+      socket.off("room:delete", onRoomDelete);
 
       // Disconnect socket when component unmounts to ensure clean reconnection
       socket.disconnect();
@@ -506,6 +575,7 @@ export const useSocketManager = () => {
     joinToken,
     roomId,
     userId,
+    isOverview,
     setConnected,
     setFrameCount,
     setCurrentFrame,
@@ -520,6 +590,7 @@ export const useSocketManager = () => {
     removeGeometry,
     setActiveCurveForDrawing,
     setServerVersion,
+    setLockMetadata,
     openWindow,
   ]);
 };

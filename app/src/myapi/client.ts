@@ -569,14 +569,21 @@ export const getChatMessages = async (
 
 // ==================== Room Management API ====================
 
+export interface LockMetadata {
+  msg?: string | null;
+  userName?: string | null;
+  timestamp?: number | null;
+}
+
 export interface Room {
   id: string;
   description?: string | null;
   frameCount: number;
   locked: boolean;
-  metadataLocked?: boolean;
+  metadataLocked?: LockMetadata | null;
   hidden: boolean;
   isDefault?: boolean;
+  presenterSid?: string | null;
   metadata?: Record<string, string>;
 }
 
@@ -585,9 +592,10 @@ export interface RoomDetail {
   description?: string | null;
   frameCount: number;
   locked: boolean;
-  metadataLocked?: boolean;
+  metadataLocked?: LockMetadata | null;
   hidden: boolean;
   isDefault?: boolean;
+  presenterSid?: string | null;
 }
 
 export interface RoomUpdateRequest {
@@ -609,6 +617,20 @@ export interface DuplicateRoomResponse {
 
 export interface DefaultRoomResponse {
   roomId: string | null;
+}
+
+export interface LockStatus {
+  locked: boolean;
+  target: string;
+  holder?: string;
+  metadata?: {
+    clientId?: string;
+    userName?: string;
+    msg?: string;
+    timestamp?: number;
+    [key: string]: any;
+  };
+  ttl?: number;
 }
 
 export const listRooms = async (search?: string): Promise<Room[]> => {
@@ -650,6 +672,14 @@ export const setDefaultRoom = async (
   roomId: string | null,
 ): Promise<{ status: string }> => {
   const { data } = await apiClient.put("/api/rooms/default", { roomId });
+  return data;
+};
+
+export const getLockStatus = async (
+  roomId: string,
+  target: string = "trajectory:meta",
+): Promise<LockStatus> => {
+  const { data } = await apiClient.get(`/api/rooms/${roomId}/locks/${target}`);
   return data;
 };
 

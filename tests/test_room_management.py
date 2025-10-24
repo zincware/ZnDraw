@@ -549,11 +549,135 @@ def test_locked_room_allows_reads(server, s22, locked_value):
     room_id = f"read-test-room-{locked_value}"
     vis = ZnDraw(url=server, room=room_id, user="user1")
     vis.append(s22[0])
-    
+
     r = redis.Redis(host="localhost", port=6379, decode_responses=True)
     r.set(f"room:{room_id}:locked", locked_value)
-    
+
     # GET requests should work regardless of lock status
     response = requests.get(f"{server}/api/rooms/{room_id}/frames")
     # May fail for other reasons, but not due to lock (should be 200 with data)
     assert response.status_code != 403
+
+
+def test_lock_with_message(server, s22):
+    """Test that lock can be acquired with a custom message."""
+    vis = ZnDraw(url=server, room="test-lock-msg", user="user1")
+    vis.append(s22[0])
+
+    # Acquire lock with message
+    with vis.lock(msg="Uploading trajectory data"):
+        # Check lock status via REST API
+        response = requests.get(f"{server}/api/rooms/test-lock-msg/locks/trajectory:meta")
+        assert response.status_code == 200
+        lock_status = response.json()
+
+        assert lock_status["locked"] is True
+        assert lock_status["target"] == "trajectory:meta"
+        assert "metadata" in lock_status
+        assert lock_status["metadata"]["msg"] == "Uploading trajectory data"
+        assert lock_status["metadata"]["userName"] == "user1"
+        assert "timestamp" in lock_status["metadata"]
+
+    # After release, lock should be gone
+    response = requests.get(f"{server}/api/rooms/test-lock-msg/locks/trajectory:meta")
+    assert response.status_code == 200
+    lock_status = response.json()
+    assert lock_status["locked"] is False
+
+
+def test_lock_with_custom_metadata(server, s22):
+    """Test that lock can be acquired with custom metadata."""
+    vis = ZnDraw(url=server, room="test-lock-metadata", user="user1")
+    vis.append(s22[0])
+
+    # Acquire lock with custom metadata
+    with vis.lock(metadata={"operation": "simulation", "step": 42, "total": 100}):
+        # Check lock status
+        response = requests.get(f"{server}/api/rooms/test-lock-metadata/locks/trajectory:meta")
+        assert response.status_code == 200
+        lock_status = response.json()
+
+        assert lock_status["locked"] is True
+        assert lock_status["metadata"]["operation"] == "simulation"
+        assert lock_status["metadata"]["step"] == 42
+        assert lock_status["metadata"]["total"] == 100
+
+    # After release, lock should be gone
+    response = requests.get(f"{server}/api/rooms/test-lock-metadata/locks/trajectory:meta")
+    lock_status = response.json()
+    assert lock_status["locked"] is False
+
+
+def test_lock_with_message_and_metadata(server, s22):
+    """Test that lock can be acquired with both message and metadata."""
+    vis = ZnDraw(url=server, room="test-lock-both", user="user1")
+    vis.append(s22[0])
+
+    # Acquire lock with both message and metadata
+    with vis.lock(msg="Processing batch", metadata={"batch": 1, "total": 10}):
+        # Check lock status
+        response = requests.get(f"{server}/api/rooms/test-lock-both/locks/trajectory:meta")
+        assert response.status_code == 200
+        lock_status = response.json()
+
+        assert lock_status["locked"] is True
+        assert lock_status["metadata"]["msg"] == "Processing batch"
+        assert lock_status["metadata"]["batch"] == 1
+        assert lock_status["metadata"]["total"] == 10
+
+
+def test_lock_reentrant_with_different_messages(server, s22):
+    """Test that re-entrant lock can update metadata."""
+    vis = ZnDraw(url=server, room="test-lock-reentrant", user="user1")
+    vis.append(s22[0])
+
+    with vis.lock(msg="Outer operation"):
+        # Check outer message
+        response = requests.get(f"{server}/api/rooms/test-lock-reentrant/locks/trajectory:meta")
+        lock_status = response.json()
+        assert lock_status["metadata"]["msg"] == "Outer operation"
+
+        with vis.lock(msg="Inner operation"):
+            # Check inner message (should update)
+            response = requests.get(f"{server}/api/rooms/test-lock-reentrant/locks/trajectory:meta")
+            lock_status = response.json()
+            assert lock_status["metadata"]["msg"] == "Inner operation"
+
+    # After both releases, lock should be gone
+    response = requests.get(f"{server}/api/rooms/test-lock-reentrant/locks/trajectory:meta")
+    lock_status = response.json()
+    assert lock_status["locked"] is False
+
+
+def test_lock_without_metadata_still_works(server, s22):
+    """Test that lock without metadata still works (backward compatibility)."""
+    vis = ZnDraw(url=server, room="test-lock-no-meta", user="user1")
+    vis.append(s22[0])
+
+    # Acquire lock without metadata (old style)
+    with vis.lock:
+        # Check lock is acquired
+        response = requests.get(f"{server}/api/rooms/test-lock-no-meta/locks/trajectory:meta")
+        assert response.status_code == 200
+        lock_status = response.json()
+
+        assert lock_status["locked"] is True
+        # Metadata should be empty since no message was provided
+        assert lock_status["metadata"] == {}
+
+    # After release, lock should be gone
+    response = requests.get(f"{server}/api/rooms/test-lock-no-meta/locks/trajectory:meta")
+    lock_status = response.json()
+    assert lock_status["locked"] is False
+
+
+def test_lock_status_unlocked_target(server):
+    """Test getting lock status for an unlocked target."""
+    response = requests.get(f"{server}/api/rooms/nonexistent/locks/trajectory:meta")
+    assert response.status_code == 200
+    lock_status = response.json()
+
+    assert lock_status["locked"] is False
+    assert lock_status["target"] == "trajectory:meta"
+    assert "holder" not in lock_status
+    assert "metadata" not in lock_status
