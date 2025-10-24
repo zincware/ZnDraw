@@ -18,8 +18,6 @@ import {
   DialogContent,
   DialogContentText,
   DialogActions,
-  Snackbar,
-  Alert,
   Tooltip,
   Accordion,
   AccordionSummary,
@@ -62,7 +60,7 @@ interface SelectionGroupRow {
 }
 
 export default function SelectionsPanel() {
-  const { roomId, userId, selections, selectionGroups, activeSelectionGroup, updateSelectionForGeometry, geometries } =
+  const { roomId, userId, selections, selectionGroups, activeSelectionGroup, updateSelectionForGeometry, geometries, showSnackbar } =
     useAppStore();
 
   // Selection Groups state
@@ -72,15 +70,6 @@ export default function SelectionsPanel() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [groupToDelete, setGroupToDelete] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [snackbar, setSnackbar] = useState<{
-    open: boolean;
-    message: string;
-    severity: "success" | "error";
-  }>({
-    open: false,
-    message: "",
-    severity: "success",
-  });
 
   // Selection Tools state
   const [localFormData, setLocalFormData] = useState<any>({});
@@ -422,11 +411,7 @@ export default function SelectionsPanel() {
     if (!roomId || !currentGroupName.trim()) return;
 
     if (selectionGroups[currentGroupName.trim()]) {
-      setSnackbar({
-        open: true,
-        message: `Group "${currentGroupName.trim()}" already exists`,
-        severity: "error",
-      });
+      showSnackbar(`Group "${currentGroupName.trim()}" already exists`, "error");
       return;
     }
 
@@ -434,22 +419,14 @@ export default function SelectionsPanel() {
     try {
       await createUpdateSelectionGroup(roomId, currentGroupName.trim(), selections);
       setCurrentGroupName("");
-      setSnackbar({
-        open: true,
-        message: `Group "${currentGroupName.trim()}" saved`,
-        severity: "success",
-      });
+      showSnackbar(`Group "${currentGroupName.trim()}" saved`, "success");
     } catch (err) {
       console.error("Failed to save selection group:", err);
-      setSnackbar({
-        open: true,
-        message: "Failed to save selection group",
-        severity: "error",
-      });
+      showSnackbar("Failed to save selection group", "error");
     } finally {
       setIsLoading(false);
     }
-  }, [roomId, currentGroupName, selections, selectionGroups]);
+  }, [roomId, currentGroupName, selections, selectionGroups, showSnackbar]);
 
   const handleSaveNameEdit = useCallback(
     async (oldName: string) => {
@@ -459,11 +436,7 @@ export default function SelectionsPanel() {
       }
 
       if (selectionGroups[editNameValue.trim()] && editNameValue.trim() !== oldName) {
-        setSnackbar({
-          open: true,
-          message: `Group "${editNameValue.trim()}" already exists`,
-          severity: "error",
-        });
+        showSnackbar(`Group "${editNameValue.trim()}" already exists`, "error");
         setEditingGroupName(null);
         return;
       }
@@ -473,24 +446,16 @@ export default function SelectionsPanel() {
         await deleteSelectionGroup(roomId, oldName);
         await createUpdateSelectionGroup(roomId, editNameValue.trim(), selectionGroups[oldName]);
         setEditingGroupName(null);
-        setSnackbar({
-          open: true,
-          message: `Group renamed to "${editNameValue.trim()}"`,
-          severity: "success",
-        });
+        showSnackbar(`Group renamed to "${editNameValue.trim()}"`, "success");
       } catch (err) {
         console.error("Failed to rename group:", err);
-        setSnackbar({
-          open: true,
-          message: "Failed to rename group",
-          severity: "error",
-        });
+        showSnackbar("Failed to rename group", "error");
         setEditingGroupName(null);
       } finally {
         setIsLoading(false);
       }
     },
-    [roomId, editNameValue, selectionGroups]
+    [roomId, editNameValue, selectionGroups, showSnackbar]
   );
 
   const handleRowClick = useCallback(
@@ -507,16 +472,12 @@ export default function SelectionsPanel() {
         // Success - no notification needed
       } catch (err) {
         console.error("Failed to load selection group:", err);
-        setSnackbar({
-          open: true,
-          message: `Failed to load group "${row.name}"`,
-          severity: "error",
-        });
+        showSnackbar(`Failed to load group "${row.name}"`, "error");
       } finally {
         setIsLoading(false);
       }
     },
-    [roomId, editingGroupName]
+    [roomId, editingGroupName, showSnackbar]
   );
 
   const handleClearCurrent = useCallback(() => {
@@ -537,23 +498,15 @@ export default function SelectionsPanel() {
 
     try {
       await deleteSelectionGroup(roomId, groupToDelete);
-      setSnackbar({
-        open: true,
-        message: `Group "${groupToDelete}" deleted`,
-        severity: "success",
-      });
+      showSnackbar(`Group "${groupToDelete}" deleted`, "success");
     } catch (err) {
       console.error("Failed to delete group:", err);
-      setSnackbar({
-        open: true,
-        message: `Failed to delete group "${groupToDelete}"`,
-        severity: "error",
-      });
+      showSnackbar(`Failed to delete group "${groupToDelete}"`, "error");
     } finally {
       setIsLoading(false);
       setGroupToDelete(null);
     }
-  }, [roomId, groupToDelete]);
+  }, [roomId, groupToDelete, showSnackbar]);
 
   if (!roomId || !userId) {
     return <Typography sx={{ p: 2 }}>Joining room...</Typography>;
@@ -722,17 +675,6 @@ export default function SelectionsPanel() {
         </DialogActions>
       </Dialog>
 
-      {/* Snackbar for feedback */}
-      <Snackbar
-        open={snackbar.open}
-        autoHideDuration={3000}
-        onClose={() => setSnackbar({ ...snackbar, open: false })}
-        anchorOrigin={{ vertical: "top", horizontal: "center" }}
-      >
-        <Alert severity={snackbar.severity} onClose={() => setSnackbar({ ...snackbar, open: false })}>
-          {snackbar.message}
-        </Alert>
-      </Snackbar>
     </Box>
   );
 }

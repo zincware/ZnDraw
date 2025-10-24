@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
-import { getFrames } from "../../myapi/client";
+import { getFrames, updateGeometryActive } from "../../myapi/client";
 import { useAppStore } from "../../store";
 import { useRef, useMemo, useState, useEffect, useCallback } from "react";
 import { renderMaterial } from "./materials";
@@ -34,6 +34,7 @@ interface BondData {
   opacity: number;
   selecting: InteractionSettings;
   hovering: InteractionSettings;
+  active?: boolean; // Whether geometry is active (can be disabled on critical errors)
 }
 
 // Bond-specific reusable THREE objects
@@ -76,8 +77,9 @@ export default function Bonds({
   const [hoveredBondId, setHoveredBondId] = useState<number | null>(null);
   const [instanceCount, setInstanceCount] = useState(0);
   const [bondPairs, setBondPairs] = useState<[number, number][]>([]);
+  const hasDisabledGeometryRef = useRef(false);
 
-  const { roomId, currentFrame, clientId, selections, updateSelections, setGeometryFetching, removeGeometryFetching, requestPathtracingUpdate } = useAppStore();
+  const { roomId, currentFrame, frameCount, clientId, selections, updateSelections, setGeometryFetching, removeGeometryFetching, requestPathtracingUpdate, updateGeometry, showSnackbar } = useAppStore();
 
   // Use geometry-specific selection
   const bondSelection = selections[geometryKey] || [];
@@ -103,36 +105,40 @@ export default function Bonds({
   const bondScale = scale || 1.0;
 
   // Individual queries for each attribute - enables perfect cross-component caching
-  const { data: positionData, isFetching: isPositionFetching } = useQuery({
+  const { data: positionData, isFetching: isPositionFetching, isError: isPositionError } = useQuery({
     queryKey: ["frame", roomId, currentFrame, positionProp],
     queryFn: ({ signal }: { signal: AbortSignal }) =>
       getFrames(roomId!, currentFrame, [positionProp as string], signal),
-    enabled: !!roomId && !!clientId && typeof positionProp === "string",
+    enabled: !!roomId && !!clientId && frameCount > 0 && typeof positionProp === "string",
     placeholderData: keepPreviousData,
+    retry: false,
   });
 
-  const { data: colorData, isFetching: isColorFetching } = useQuery({
+  const { data: colorData, isFetching: isColorFetching, isError: isColorError } = useQuery({
     queryKey: ["frame", roomId, currentFrame, colorProp],
     queryFn: ({ signal }: { signal: AbortSignal }) =>
       getFrames(roomId!, currentFrame, [colorProp as string], signal),
-    enabled: !!roomId && !!clientId && typeof colorProp === "string" && shouldFetchAsFrameData(colorProp as string),
+    enabled: !!roomId && !!clientId && frameCount > 0 && typeof colorProp === "string" && shouldFetchAsFrameData(colorProp as string),
     placeholderData: keepPreviousData,
+    retry: false,
   });
 
-  const { data: radiusData, isFetching: isRadiusFetching } = useQuery({
+  const { data: radiusData, isFetching: isRadiusFetching, isError: isRadiusError } = useQuery({
     queryKey: ["frame", roomId, currentFrame, radiusProp],
     queryFn: ({ signal }: { signal: AbortSignal }) =>
       getFrames(roomId!, currentFrame, [radiusProp as string], signal),
-    enabled: !!roomId && !!clientId && typeof radiusProp === "string",
+    enabled: !!roomId && !!clientId && frameCount > 0 && typeof radiusProp === "string",
     placeholderData: keepPreviousData,
+    retry: false,
   });
 
-  const { data: connectivityData, isFetching: isConnectivityFetching } = useQuery({
+  const { data: connectivityData, isFetching: isConnectivityFetching, isError: isConnectivityError } = useQuery({
     queryKey: ["frame", roomId, currentFrame, connectivityProp],
     queryFn: ({ signal }: { signal: AbortSignal }) =>
       getFrames(roomId!, currentFrame, [connectivityProp as string], signal),
-    enabled: !!roomId && !!clientId && typeof connectivityProp === "string",
+    enabled: !!roomId && !!clientId && frameCount > 0 && typeof connectivityProp === "string",
     placeholderData: keepPreviousData,
+    retry: false,
   });
 
   // Check if any enabled query is still fetching
@@ -141,6 +147,16 @@ export default function Bonds({
     (typeof colorProp === "string" && shouldFetchAsFrameData(colorProp as string) && isColorFetching) ||
     (typeof radiusProp === "string" && isRadiusFetching) ||
     (typeof connectivityProp === "string" && isConnectivityFetching);
+
+  // Check if any query has errored - treat as data unavailable
+  const hasQueryError = useMemo(
+    () =>
+      (typeof positionProp === "string" && isPositionError) ||
+      (typeof colorProp === "string" && shouldFetchAsFrameData(colorProp as string) && isColorError) ||
+      (typeof radiusProp === "string" && isRadiusError) ||
+      (typeof connectivityProp === "string" && isConnectivityError),
+    [positionProp, isPositionError, colorProp, isColorError, radiusProp, isRadiusError, connectivityProp, isConnectivityError]
+  );
 
   // Report fetching state to global store
   useEffect(() => {
@@ -154,11 +170,79 @@ export default function Bonds({
     };
   }, [geometryKey, removeGeometryFetching]);
 
+  // Detect critical fetch failures and disable geometry
+  useEffect(() => {
+    if (!roomId || !clientId || hasDisabledGeometryRef.current || isFetching || frameCount === 0) {
+      return;
+    }
+
+    // Critical errors for Bonds: position or connectivity queries failed
+    const hasCriticalError =
+      (typeof positionProp === "string" && isPositionError) ||
+      (typeof connectivityProp === "string" && isConnectivityError);
+
+    if (hasCriticalError) {
+      if (process.env.NODE_ENV !== 'production') {
+        console.warn(
+          `Bonds geometry "${geometryKey}": Critical data fetch failed. Disabling geometry.`,
+          {
+            positionError: typeof positionProp === "string" && isPositionError,
+            connectivityError: typeof connectivityProp === "string" && isConnectivityError
+          }
+        );
+      }
+      hasDisabledGeometryRef.current = true;
+
+      // Optimistically update local state immediately
+      const updatedGeometry = {
+        type: "Bond",
+        data: { ...data, active: false }
+      };
+      updateGeometry(geometryKey, updatedGeometry);
+
+      // Show snackbar notification
+      showSnackbar(`Geometry "${geometryKey}" disabled - data fetch failed`, "warning");
+
+      // Then update server (server will skip emitting back to this client)
+      updateGeometryActive(roomId, clientId, geometryKey, "Bond", false)
+        .then(() => {
+          if (process.env.NODE_ENV !== 'production') {
+            console.info(`Bonds geometry "${geometryKey}" disabled successfully on server.`);
+          }
+        })
+        .catch((error) => {
+          console.error(`Failed to disable Bonds geometry "${geometryKey}" on server:`, error);
+          // Rollback optimistic update on error
+          const rollbackGeometry = {
+            type: "Bond",
+            data: { ...data }
+          };
+          updateGeometry(geometryKey, rollbackGeometry);
+          hasDisabledGeometryRef.current = false;
+        });
+    }
+  }, [
+    roomId,
+    clientId,
+    geometryKey,
+    frameCount,
+    isFetching,
+    positionProp,
+    connectivityProp,
+    isPositionError,
+    isConnectivityError,
+    updateGeometry,
+    showSnackbar,
+  ]);
+
   // Consolidated data processing and mesh update
   useEffect(() => {
     if (isFetching) {
       return; // Wait for all enabled queries to complete
     }
+
+    // If queries have errored, continue with fallback to static data (this is normal when data doesn't exist)
+    // No logging needed as this is expected behavior
 
     try {
       // --- Data Processing Step ---
@@ -321,6 +405,7 @@ export default function Bonds({
     }
   }, [
     isFetching,
+    hasQueryError,
     positionData,
     colorData,
     radiusData,
@@ -409,6 +494,11 @@ export default function Bonds({
   const onPointerOut = useCallback(() => setHoveredBondId(null), []);
 
   if (!clientId || !roomId) return null;
+
+  // Don't render if geometry is disabled
+  if (fullData.active === false) {
+    return null;
+  }
 
   return (
     <group>

@@ -16,7 +16,6 @@ import {
   DialogContent,
   DialogActions,
   TextField,
-  Snackbar,
   IconButton,
   Tooltip,
   List,
@@ -45,12 +44,14 @@ import {
 } from "../myapi/client";
 import { useDragAndDrop } from "../hooks/useDragAndDrop";
 import DropOverlay from "../components/DropOverlay";
+import { useAppStore } from "../store";
 
 /**
  * FileBrowser page allows browsing local filesystem and loading files into ZnDraw.
  */
 export default function FileBrowserPage() {
   const navigate = useNavigate();
+  const { showSnackbar } = useAppStore();
   const [currentPath, setCurrentPath] = useState<string>("");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [loadDialog, setLoadDialog] = useState<{
@@ -68,11 +69,6 @@ export default function FileBrowserPage() {
     stop: string;
     step: string;
   }>({ start: "", stop: "", step: "" });
-  const [snackbar, setSnackbar] = useState<{
-    open: boolean;
-    message: string;
-    severity: "success" | "error";
-  }>({ open: false, message: "", severity: "success" });
 
   // Drag and drop support
   const { isDragging, handleDragOver, handleDragEnter, handleDragLeave, handleDrop } = useDragAndDrop();
@@ -133,11 +129,7 @@ export default function FileBrowserPage() {
         setLoadDialog({ open: false, file: null });
       } else {
         // File loading queued
-        setSnackbar({
-          open: true,
-          message: `File loading queued in room: ${data.room}`,
-          severity: "success",
-        });
+        showSnackbar(`File loading queued in room: ${data.room}`, "success");
         setLoadDialog({ open: false, file: null });
 
         // Navigate to the room with waitForCreation flag
@@ -146,11 +138,7 @@ export default function FileBrowserPage() {
       }
     },
     onError: (error: any) => {
-      setSnackbar({
-        open: true,
-        message: error?.response?.data?.error || "Failed to load file",
-        severity: "error",
-      });
+      showSnackbar(error?.response?.data?.error || "Failed to load file", "error");
     },
   });
 
@@ -158,11 +146,7 @@ export default function FileBrowserPage() {
   const createRoomMutation = useMutation({
     mutationFn: createRoomFromFile,
     onSuccess: (data) => {
-      setSnackbar({
-        open: true,
-        message: `New room '${data.roomId}' created from existing file (no re-upload!)`,
-        severity: "success",
-      });
+      showSnackbar(`New room '${data.roomId}' created from existing file (no re-upload!)`, "success");
       setFileAlreadyLoadedDialog({ open: false, data: null, filePath: "" });
 
       // Navigate to the new room
@@ -170,11 +154,7 @@ export default function FileBrowserPage() {
       navigate(`/rooms/${data.roomId}/${userId}`);
     },
     onError: (error: any) => {
-      setSnackbar({
-        open: true,
-        message: error?.response?.data?.error || "Failed to create room from file",
-        severity: "error",
-      });
+      showSnackbar(error?.response?.data?.error || "Failed to create room from file", "error");
     },
   });
 
@@ -243,11 +223,7 @@ export default function FileBrowserPage() {
     // Validate slice parameters
     const validationError = validateSliceParams();
     if (validationError) {
-      setSnackbar({
-        open: true,
-        message: validationError,
-        severity: "error",
-      });
+      showSnackbar(validationError, "error");
       return;
     }
 
@@ -654,22 +630,6 @@ export default function FileBrowserPage() {
           </Button>
         </DialogActions>
       </Dialog>
-
-      {/* Snackbar for notifications */}
-      <Snackbar
-        open={snackbar.open}
-        autoHideDuration={4000}
-        onClose={() => setSnackbar({ ...snackbar, open: false })}
-        anchorOrigin={{ vertical: "top", horizontal: "center" }}
-      >
-        <Alert
-          onClose={() => setSnackbar({ ...snackbar, open: false })}
-          severity={snackbar.severity}
-          sx={{ width: "100%" }}
-        >
-          {snackbar.message}
-        </Alert>
-      </Snackbar>
     </Box>
   );
 }

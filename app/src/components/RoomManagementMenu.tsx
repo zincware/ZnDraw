@@ -13,8 +13,6 @@ import DialogContent from "@mui/material/DialogContent";
 import DialogActions from "@mui/material/DialogActions";
 import TextField from "@mui/material/TextField";
 import Button from "@mui/material/Button";
-import Snackbar from "@mui/material/Snackbar";
-import Alert from "@mui/material/Alert";
 import Chip from "@mui/material/Chip";
 import Typography from "@mui/material/Typography";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
@@ -61,7 +59,7 @@ interface DuplicateFormState {
 export default function RoomManagementMenu() {
   const { roomId } = useParams<{ roomId: string }>();
   const navigate = useNavigate();
-  const { userId, currentFrame } = useAppStore();
+  const { userId, currentFrame, showSnackbar } = useAppStore();
 
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [roomDetail, setRoomDetail] = useState<RoomDetail | null>(null);
@@ -74,11 +72,6 @@ export default function RoomManagementMenu() {
     error: null,
   });
   const [shutdownDialog, setShutdownDialog] = useState(false);
-  const [snackbar, setSnackbar] = useState<{
-    open: boolean;
-    message: string;
-    severity: "success" | "error";
-  }>({ open: false, message: "", severity: "success" });
   const [screenshotLoading, setScreenshotLoading] = useState(false);
 
   // Fetch camera settings to check preserve_drawing_buffer
@@ -145,17 +138,9 @@ export default function RoomManagementMenu() {
     try {
       await updateRoom(roomId, { locked: !roomDetail.locked });
       setRoomDetail({ ...roomDetail, locked: !roomDetail.locked });
-      setSnackbar({
-        open: true,
-        message: roomDetail.locked ? "Room unlocked" : "Room locked",
-        severity: "success",
-      });
+      showSnackbar(roomDetail.locked ? "Room unlocked" : "Room locked", "success");
     } catch (err) {
-      setSnackbar({
-        open: true,
-        message: "Failed to update lock status",
-        severity: "error",
-      });
+      showSnackbar("Failed to update lock status", "error");
     }
     handleCloseMenu();
   };
@@ -166,17 +151,9 @@ export default function RoomManagementMenu() {
     try {
       await setDefaultRoom(isDefault ? null : roomId);
       setIsDefault(!isDefault);
-      setSnackbar({
-        open: true,
-        message: isDefault ? "Default room cleared" : "Set as default room",
-        severity: "success",
-      });
+      showSnackbar(isDefault ? "Default room cleared" : "Set as default room", "success");
     } catch (err) {
-      setSnackbar({
-        open: true,
-        message: "Failed to update default room",
-        severity: "error",
-      });
+      showSnackbar("Failed to update default room", "error");
     }
     handleCloseMenu();
   };
@@ -277,21 +254,13 @@ export default function RoomManagementMenu() {
 
   const handleTakeScreenshot = async () => {
     if (!roomId) {
-      setSnackbar({
-        open: true,
-        message: "No room ID available",
-        severity: "error",
-      });
+      showSnackbar("No room ID available", "error");
       return;
     }
 
     // Check if preserve_drawing_buffer is enabled
     if (!cameraSettings?.preserve_drawing_buffer) {
-      setSnackbar({
-        open: true,
-        message: "Enable 'preserve_drawing_buffer' in Camera settings first",
-        severity: "error",
-      });
+      showSnackbar("Enable 'preserve_drawing_buffer' in Camera settings first", "error");
       return;
     }
 
@@ -307,17 +276,9 @@ export default function RoomManagementMenu() {
 
       const result = await takeAndUploadScreenshot(canvas, roomId);
 
-      setSnackbar({
-        open: true,
-        message: "Screenshot saved successfully",
-        severity: "success",
-      });
+      showSnackbar("Screenshot saved successfully", "success");
     } catch (error) {
-      setSnackbar({
-        open: true,
-        message: `Screenshot failed: ${error instanceof Error ? error.message : "Unknown error"}`,
-        severity: "error",
-      });
+      showSnackbar(`Screenshot failed: ${error instanceof Error ? error.message : "Unknown error"}`, "error");
     } finally {
       setScreenshotLoading(false);
     }
@@ -334,11 +295,7 @@ export default function RoomManagementMenu() {
 
     handleCloseMenu();
 
-    setSnackbar({
-      open: true,
-      message: "Downloading current frame as ExtendedXYZ",
-      severity: "success",
-    });
+    showSnackbar("Downloading current frame as ExtendedXYZ", "success");
   };
 
   const handleDownloadAllFrames = () => {
@@ -351,11 +308,7 @@ export default function RoomManagementMenu() {
 
     handleCloseMenu();
 
-    setSnackbar({
-      open: true,
-      message: "Downloading all frames as ExtendedXYZ",
-      severity: "success",
-    });
+    showSnackbar("Downloading all frames as ExtendedXYZ", "success");
   };
 
   if (!roomId) {
@@ -577,22 +530,6 @@ export default function RoomManagementMenu() {
           </Button>
         </DialogActions>
       </Dialog>
-
-      {/* Snackbar for notifications */}
-      <Snackbar
-        open={snackbar.open}
-        autoHideDuration={4000}
-        onClose={() => setSnackbar({ ...snackbar, open: false })}
-        anchorOrigin={{ vertical: "top", horizontal: "center" }}
-      >
-        <Alert
-          onClose={() => setSnackbar({ ...snackbar, open: false })}
-          severity={snackbar.severity}
-          sx={{ width: "100%" }}
-        >
-          {snackbar.message}
-        </Alert>
-      </Snackbar>
     </>
   );
 }

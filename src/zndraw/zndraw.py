@@ -41,9 +41,9 @@ class Selections:
     def __init__(self, zndraw_instance: "ZnDraw") -> None:
         self.vis = zndraw_instance
 
-    def __getitem__(self, geometry: str) -> frozenset[int]:
+    def __getitem__(self, geometry: str) -> tuple[int]:
         response = self.vis.api.get_selection(geometry)
-        return frozenset(response.get("selection", []))
+        return tuple(response.get("selection", []))
 
     def __setitem__(self, geometry: str, indices: t.Iterable[int]) -> None:
         self.vis.api.update_selection(geometry, list(indices))
@@ -422,15 +422,12 @@ class ZnDraw(MutableSequence):
         return np.empty((0, 3))
     
     @property
-    def atoms(self) -> ase.Atoms | None:
+    def atoms(self) -> ase.Atoms:
         """Get the current frame as an `ase.Atoms` object."""
-        try:
-            return self[self.step]
-        except (IndexError, KeyError):
-            return None
+        return self[self.step]
 
     @property
-    def selection(self) -> frozenset[int]:
+    def selection(self) -> tuple[int]:
         """Get selection for 'particles' geometry.
 
         Returns

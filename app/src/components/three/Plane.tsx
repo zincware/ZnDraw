@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
-import { getFrames } from "../../myapi/client";
+import { getFrames, updateGeometryActive } from "../../myapi/client";
 import { useAppStore } from "../../store";
 import { useRef, useMemo, useState, useEffect, useCallback } from "react";
 import { renderMaterial } from "./materials";
@@ -37,6 +37,7 @@ interface PlaneData {
   double_sided: boolean;
   selecting: InteractionSettings;
   hovering: InteractionSettings;
+  active?: boolean; // Whether geometry is active (can be disabled on critical errors)
 }
 
 export default function Plane({
@@ -71,8 +72,9 @@ export default function Plane({
   const hoverMeshRef = useRef<THREE.Mesh | null>(null);
   const mergedMeshRef = useRef<THREE.Mesh | null>(null);
   const [instanceCount, setInstanceCount] = useState(0);
+  const hasDisabledGeometryRef = useRef(false);
 
-  const { currentFrame, roomId, clientId, selections, updateSelections, hoveredGeometryInstance, setHoveredGeometryInstance, setDrawingPointerPosition, isDrawing, setDrawingIsValid, setGeometryFetching, removeGeometryFetching, requestPathtracingUpdate } = useAppStore();
+  const { currentFrame, frameCount, roomId, clientId, selections, updateSelections, hoveredGeometryInstance, setHoveredGeometryInstance, setDrawingPointerPosition, isDrawing, setDrawingIsValid, setGeometryFetching, removeGeometryFetching, requestPathtracingUpdate, updateGeometry, showSnackbar } = useAppStore();
 
   // Use geometry-specific selection
   const planeSelection = selections[geometryKey] || [];
@@ -86,36 +88,40 @@ export default function Plane({
   const planeScale = scale || 1.0;
 
   // Individual queries for each attribute
-  const { data: positionData, isFetching: isPositionFetching } = useQuery({
+  const { data: positionData, isFetching: isPositionFetching, isError: isPositionError } = useQuery({
     queryKey: ["frame", roomId, currentFrame, positionProp],
     queryFn: ({ signal }: { signal: AbortSignal }) =>
       getFrames(roomId!, currentFrame, [positionProp as string], signal),
-    enabled: !!roomId && !!clientId && typeof positionProp === "string",
+    enabled: !!roomId && !!clientId && frameCount > 0 && typeof positionProp === "string",
     placeholderData: keepPreviousData,
+    retry: false,
   });
 
-  const { data: sizeData, isFetching: isSizeFetching } = useQuery({
+  const { data: sizeData, isFetching: isSizeFetching, isError: isSizeError } = useQuery({
     queryKey: ["frame", roomId, currentFrame, sizeProp],
     queryFn: ({ signal }: { signal: AbortSignal }) =>
       getFrames(roomId!, currentFrame, [sizeProp as string], signal),
-    enabled: !!roomId && !!clientId && typeof sizeProp === "string",
+    enabled: !!roomId && !!clientId && frameCount > 0 && typeof sizeProp === "string",
     placeholderData: keepPreviousData,
+    retry: false,
   });
 
-  const { data: colorData, isFetching: isColorFetching } = useQuery({
+  const { data: colorData, isFetching: isColorFetching, isError: isColorError } = useQuery({
     queryKey: ["frame", roomId, currentFrame, colorProp],
     queryFn: ({ signal }: { signal: AbortSignal }) =>
       getFrames(roomId!, currentFrame, [colorProp as string], signal),
-    enabled: !!roomId && !!clientId && typeof colorProp === "string" && shouldFetchAsFrameData(colorProp as string),
+    enabled: !!roomId && !!clientId && frameCount > 0 && typeof colorProp === "string" && shouldFetchAsFrameData(colorProp as string),
     placeholderData: keepPreviousData,
+    retry: false,
   });
 
-  const { data: rotationData, isFetching: isRotationFetching } = useQuery({
+  const { data: rotationData, isFetching: isRotationFetching, isError: isRotationError } = useQuery({
     queryKey: ["frame", roomId, currentFrame, rotationProp],
     queryFn: ({ signal }: { signal: AbortSignal }) =>
       getFrames(roomId!, currentFrame, [rotationProp as string], signal),
-    enabled: !!roomId && !!clientId && typeof rotationProp === "string",
+    enabled: !!roomId && !!clientId && frameCount > 0 && typeof rotationProp === "string",
     placeholderData: keepPreviousData,
+    retry: false,
   });
 
   // Check if any enabled query is still fetching
@@ -124,6 +130,16 @@ export default function Plane({
     (typeof sizeProp === "string" && isSizeFetching) ||
     (typeof colorProp === "string" && shouldFetchAsFrameData(colorProp as string) && isColorFetching) ||
     (typeof rotationProp === "string" && isRotationFetching);
+
+  // Check if any query has errored - treat as data unavailable
+  const hasQueryError = useMemo(
+    () =>
+      (typeof positionProp === "string" && isPositionError) ||
+      (typeof sizeProp === "string" && isSizeError) ||
+      (typeof colorProp === "string" && shouldFetchAsFrameData(colorProp as string) && isColorError) ||
+      (typeof rotationProp === "string" && isRotationError),
+    [positionProp, isPositionError, sizeProp, isSizeError, colorProp, isColorError, rotationProp, isRotationError]
+  );
 
   // Report fetching state to global store
   useEffect(() => {
@@ -137,11 +153,72 @@ export default function Plane({
     };
   }, [geometryKey, removeGeometryFetching]);
 
+  // Detect critical fetch failures and disable geometry
+  useEffect(() => {
+    if (!roomId || !clientId || hasDisabledGeometryRef.current || isFetching || frameCount === 0) {
+      return;
+    }
+
+    // Critical error for Plane: position query failed
+    const hasCriticalError = typeof positionProp === "string" && isPositionError;
+
+    if (hasCriticalError) {
+      if (process.env.NODE_ENV !== 'production') {
+        console.warn(
+          `Plane geometry "${geometryKey}": Critical data fetch failed. Disabling geometry.`,
+          { positionError: isPositionError }
+        );
+      }
+      hasDisabledGeometryRef.current = true;
+
+      // Optimistically update local state immediately
+      const updatedGeometry = {
+        type: "Plane",
+        data: { ...data, active: false }
+      };
+      updateGeometry(geometryKey, updatedGeometry);
+
+      // Show snackbar notification
+      showSnackbar(`Geometry "${geometryKey}" disabled - data fetch failed`, "warning");
+
+      // Then update server (server will skip emitting back to this client)
+      updateGeometryActive(roomId, clientId, geometryKey, "Plane", false)
+        .then(() => {
+          if (process.env.NODE_ENV !== 'production') {
+            console.info(`Plane geometry "${geometryKey}" disabled successfully on server.`);
+          }
+        })
+        .catch((error) => {
+          console.error(`Failed to disable Plane geometry "${geometryKey}" on server:`, error);
+          // Rollback optimistic update on error
+          const rollbackGeometry = {
+            type: "Plane",
+            data: { ...data }
+          };
+          updateGeometry(geometryKey, rollbackGeometry);
+          hasDisabledGeometryRef.current = false;
+        });
+    }
+  }, [
+    roomId,
+    clientId,
+    geometryKey,
+    frameCount,
+    isFetching,
+    positionProp,
+    isPositionError,
+    updateGeometry,
+    showSnackbar,
+  ]);
+
   // Consolidated data processing and mesh update
   useEffect(() => {
     if (isFetching) {
       return; // Wait for all enabled queries to complete
     }
+
+    // If queries have errored, continue with fallback to static data (this is normal when data doesn't exist)
+    // No logging needed as this is expected behavior
 
     try {
 
@@ -247,6 +324,7 @@ export default function Plane({
   }, [
     data, // Add data to dependencies to ensure updates trigger
     isFetching,
+    hasQueryError,
     positionData,
     sizeData,
     colorData,
@@ -359,6 +437,11 @@ export default function Plane({
   }, [setHoveredGeometryInstance, setDrawingIsValid]);
 
   if (!clientId || !roomId) return null;
+
+  // Don't render if geometry is disabled
+  if (fullData.active === false) {
+    return null;
+  }
 
   return (
     <group>

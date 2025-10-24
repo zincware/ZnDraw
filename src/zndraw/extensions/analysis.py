@@ -178,6 +178,120 @@ class Properties1D(Analysis):
         vis.figures[f"Properties1D-{self.value}"] = fig
 
 
+class Properties2D(Analysis):
+    """2D property scatter plot with interactive frame selection.
+
+    Creates an interactive scatter plot showing the relationship between two
+    properties across all frames with color-coded data points.
+    Supports bidirectional synchronization with frame selection.
+    """
+
+    x_data: str = Field(..., description="Property for x-axis")
+    y_data: str = Field(..., description="Property for y-axis")
+    color: str = Field(..., description="Property for color mapping")
+    fix_aspect_ratio: bool = Field(
+        True, description="Fix aspect ratio to 1:1 for equal scaling"
+    )
+
+    @classmethod
+    def model_json_schema(cls, **kwargs: t.Any) -> dict[str, t.Any]:
+        schema = super().model_json_schema(**kwargs)
+        # Mark property fields as dynamic enums
+        for prop in ["x_data", "y_data", "color"]:
+            schema["properties"][prop]["x-custom-type"] = "dynamic-enum"
+            schema["properties"][prop]["x-features"] = ["dynamic-atom-props", "step"]
+            schema["properties"][prop]["type"] = "string"
+            schema["properties"][prop].pop("anyOf", None)
+        # Mark fix_aspect_ratio as checkbox
+        schema["properties"]["fix_aspect_ratio"]["format"] = "checkbox"
+        return schema
+
+    def run(self, vis: "ZnDraw") -> None:
+        """Create interactive 2D property scatter plot.
+
+        Supports special 'step' property to use frame indices.
+        All other properties are retrieved from frame data.
+        """
+        # Determine which properties to fetch (exclude 'step')
+        keys_to_fetch = []
+        for prop in [self.x_data, self.y_data, self.color]:
+            if prop != "step" and prop not in keys_to_fetch:
+                keys_to_fetch.append(prop)
+
+        # Get all frames with required properties
+        if keys_to_fetch:
+            properties = vis.get(slice(None, None, None), keys=keys_to_fetch)
+        else:
+            # All properties are 'step', just need frame count
+            properties = [{} for _ in range(len(vis))]
+
+        num_frames = len(properties)
+
+        # Extract or generate data for each axis
+        def get_property_data(prop_name: str) -> np.ndarray:
+            if prop_name == "step":
+                return np.arange(num_frames)
+            else:
+                data = np.array([frame[prop_name] for frame in properties])
+                return data.reshape(-1)
+
+        x_data = get_property_data(self.x_data)
+        y_data = get_property_data(self.y_data)
+        color_data = get_property_data(self.color)
+
+        # Create dataframe for plotting
+        df = pd.DataFrame(
+            {
+                self.x_data: x_data,
+                self.y_data: y_data,
+                self.color: color_data,
+            }
+        )
+
+        # Create scatter plot with color mapping
+        fig = px.scatter(
+            df,
+            x=self.x_data,
+            y=self.y_data,
+            color=self.color,
+            labels={
+                self.x_data: self.x_data,
+                self.y_data: self.y_data,
+                self.color: self.color,
+            },
+            title=f"2D Properties: {self.x_data} vs {self.y_data}",
+        )
+
+        # Fix aspect ratio if requested
+        if self.fix_aspect_ratio:
+            fig.update_yaxes(scaleanchor="x", scaleratio=1)
+
+        # Set up customdata and interactions for frame selection
+        meta_step = np.arange(num_frames)
+
+        fig.update_traces(
+            customdata=np.stack([meta_step], axis=-1),
+            selector=dict(mode="markers"),
+            meta={
+                "interactions": [
+                    {
+                        "click": "step",
+                        "select": "step",
+                        "hover": "step",
+                    }
+                ]
+            },
+        )
+
+        # Enable lasso and box selection
+        fig.update_layout(
+            dragmode="lasso",
+            hovermode="closest",
+        )
+
+        vis.figures["Properties2D"] = fig
+
+
 class ForceCorrelation(Analysis):
     """Analyze correlation between two properties for the current frame.
 
@@ -283,5 +397,6 @@ class ForceCorrelation(Analysis):
 analysis: dict[str, t.Type[Analysis]] = {
     "DihedralAngle": DihedralAngle,
     "Properties1D": Properties1D,
+    "Properties2D": Properties2D,
     "ForceCorrelation": ForceCorrelation,
 }

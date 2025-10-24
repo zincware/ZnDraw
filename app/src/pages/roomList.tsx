@@ -14,7 +14,6 @@ import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
 import DialogActions from "@mui/material/DialogActions";
 import TextField from "@mui/material/TextField";
-import Snackbar from "@mui/material/Snackbar";
 import {
   DataGrid,
   GridColDef,
@@ -40,6 +39,7 @@ import {
 } from "../myapi/client";
 import { useDragAndDrop } from "../hooks/useDragAndDrop";
 import DropOverlay from "../components/DropOverlay";
+import { useAppStore } from "../store";
 
 interface DuplicateDialogState {
   open: boolean;
@@ -55,12 +55,8 @@ interface DuplicateFormState {
 
 export default function RoomListPage() {
   const queryClient = useQueryClient();
+  const { showSnackbar } = useAppStore();
   const [searchQuery, setSearchQuery] = useState<string>("");
-  const [snackbar, setSnackbar] = useState<{
-    open: boolean;
-    message: string;
-    severity: "success" | "error";
-  }>({ open: false, message: "", severity: "success" });
   const [duplicateDialog, setDuplicateDialog] = useState<DuplicateDialogState>({
     open: false,
     roomId: "",
@@ -130,17 +126,9 @@ export default function RoomListPage() {
     try {
       await updateRoom(roomId, { description: description || null });
       await queryClient.invalidateQueries({ queryKey: ["rooms"] });
-      setSnackbar({
-        open: true,
-        message: "Description updated",
-        severity: "success",
-      });
+      showSnackbar("Description updated", "success");
     } catch (err) {
-      setSnackbar({
-        open: true,
-        message: "Failed to update description",
-        severity: "error",
-      });
+      showSnackbar("Failed to update description", "error");
     }
   };
 
@@ -148,17 +136,9 @@ export default function RoomListPage() {
     try {
       await updateRoom(roomId, { locked: !currentLocked });
       await queryClient.invalidateQueries({ queryKey: ["rooms"] });
-      setSnackbar({
-        open: true,
-        message: currentLocked ? "Room unlocked" : "Room locked",
-        severity: "success",
-      });
+      showSnackbar(currentLocked ? "Room unlocked" : "Room locked", "success");
     } catch (err) {
-      setSnackbar({
-        open: true,
-        message: "Failed to update lock status",
-        severity: "error",
-      });
+      showSnackbar("Failed to update lock status", "error");
     }
   };
 
@@ -166,17 +146,9 @@ export default function RoomListPage() {
     try {
       await updateRoom(roomId, { hidden: !currentHidden });
       await queryClient.invalidateQueries({ queryKey: ["rooms"] });
-      setSnackbar({
-        open: true,
-        message: currentHidden ? "Room shown" : "Room hidden",
-        severity: "success",
-      });
+      showSnackbar(currentHidden ? "Room shown" : "Room hidden", "success");
     } catch (err) {
-      setSnackbar({
-        open: true,
-        message: "Failed to update visibility",
-        severity: "error",
-      });
+      showSnackbar("Failed to update visibility", "error");
     }
   };
 
@@ -184,17 +156,9 @@ export default function RoomListPage() {
     try {
       await setDefaultRoom(isCurrentlyDefault ? null : roomId);
       await queryClient.invalidateQueries({ queryKey: ["rooms"] });
-      setSnackbar({
-        open: true,
-        message: isCurrentlyDefault ? "Default room cleared" : "Default room set",
-        severity: "success",
-      });
+      showSnackbar(isCurrentlyDefault ? "Default room cleared" : "Default room set", "success");
     } catch (err) {
-      setSnackbar({
-        open: true,
-        message: "Failed to update default room",
-        severity: "error",
-      });
+      showSnackbar("Failed to update default room", "error");
     }
   };
 
@@ -499,11 +463,7 @@ export default function RoomListPage() {
               return newRow;
             }}
             onProcessRowUpdateError={(error) => {
-              setSnackbar({
-                open: true,
-                message: "Failed to update row",
-                severity: "error",
-              });
+              showSnackbar("Failed to update row", "error");
             }}
           />
         </Box>
@@ -599,21 +559,6 @@ export default function RoomListPage() {
         </DialogActions>
       </Dialog>
 
-      {/* Snackbar for notifications */}
-      <Snackbar
-        open={snackbar.open}
-        autoHideDuration={4000}
-        onClose={() => setSnackbar({ ...snackbar, open: false })}
-        anchorOrigin={{ vertical: "top", horizontal: "center" }}
-      >
-        <Alert
-          onClose={() => setSnackbar({ ...snackbar, open: false })}
-          severity={snackbar.severity}
-          sx={{ width: "100%" }}
-        >
-          {snackbar.message}
-        </Alert>
-      </Snackbar>
     </Container>
   );
 }

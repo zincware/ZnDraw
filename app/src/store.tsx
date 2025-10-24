@@ -35,12 +35,16 @@ interface AppState {
   hoveredFrame: number | null; // Currently hovered frame (from plot hover)
   particleCount: number; // Number of particles in current frame
   curveLength: number; // Length of the active curve in drawing mode
+  fps: number | null; // Current FPS during playback
+  frameLoadTime: number | null; // Time to load current frame (ms) when not playing
+  lastFrameChangeTime: number | null; // Timestamp of last frame change (for FPS calculation)
   activeCurveForDrawing: string | null; // The geometry key of the curve currently targeted for drawing
   attachedCameraKey: string | null; // The geometry key of the camera currently attached to
   curveRefs: Record<string, THREE.CatmullRomCurve3>; // Non-serializable refs to THREE.js curve objects
   pathtracingNeedsUpdate: boolean; // Flag to signal pathtracer that scene has changed
   chatUnreadCount: number; // Number of unread chat messages
   serverVersion: string | null; // Server version for display and compatibility checking
+  snackbar: { open: boolean; message: string; severity: "success" | "info" | "warning" | "error" } | null; // Snackbar notification state
 
   // Actions (functions to modify the state)
   setRoomId: (roomId: string) => void;
@@ -82,6 +86,9 @@ interface AppState {
   setHoveredFrame: (frame: number | null) => void;
   setParticleCount: (count: number) => void;
   setCurveLength: (length: number) => void;
+  setFps: (fps: number | null) => void;
+  setFrameLoadTime: (time: number | null) => void;
+  setLastFrameChangeTime: (time: number | null) => void;
   setActiveCurveForDrawing: (key: string | null) => void;
   toggleDrawingMode: (queryClient?: any) => Promise<void>;
   attachToCamera: (cameraKey: string) => void;
@@ -93,6 +100,8 @@ interface AppState {
   incrementChatUnread: () => void;
   resetChatUnread: () => void;
   setServerVersion: (version: string | null) => void;
+  showSnackbar: (message: string, severity?: "success" | "info" | "warning" | "error") => void;
+  hideSnackbar: () => void;
 }
 
 // Helper functions (pure, exported for reuse across components)
@@ -141,11 +150,15 @@ export const useAppStore = create<AppState>((set, get) => ({
   hoveredFrame: null,
   particleCount: 0,
   curveLength: 0,
+  fps: null,
+  frameLoadTime: null,
+  lastFrameChangeTime: null,
   activeCurveForDrawing: null,
   attachedCameraKey: null,
   pathtracingNeedsUpdate: false,
   chatUnreadCount: 0,
   serverVersion: null,
+  snackbar: null,
 
   /**
    * Non-serializable THREE.js curve objects shared between Curve and Camera components.
@@ -407,6 +420,9 @@ export const useAppStore = create<AppState>((set, get) => ({
   setHoveredFrame: (frame) => set({ hoveredFrame: frame }),
   setParticleCount: (count) => set({ particleCount: count }),
   setCurveLength: (length) => set({ curveLength: length }),
+  setFps: (fps) => set({ fps }),
+  setFrameLoadTime: (time) => set({ frameLoadTime: time }),
+  setLastFrameChangeTime: (time) => set({ lastFrameChangeTime: time }),
   setActiveCurveForDrawing: (key) => set({ activeCurveForDrawing: key }),
 
   toggleDrawingMode: async (queryClient?: any) => {
@@ -547,4 +563,6 @@ export const useAppStore = create<AppState>((set, get) => ({
   incrementChatUnread: () => set((state) => ({ chatUnreadCount: state.chatUnreadCount + 1 })),
   resetChatUnread: () => set({ chatUnreadCount: 0 }),
   setServerVersion: (version) => set({ serverVersion: version }),
+  showSnackbar: (message, severity = "info") => set({ snackbar: { open: true, message, severity } }),
+  hideSnackbar: () => set((state) => state.snackbar ? { snackbar: { ...state.snackbar, open: false } } : {}),
 }));

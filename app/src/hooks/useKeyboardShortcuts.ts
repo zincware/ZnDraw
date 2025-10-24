@@ -17,6 +17,8 @@ export const useKeyboardShortcuts = () => {
     getIsFetching,
     addBookmark,
     bookmarks,
+    setFps,
+    setLastFrameChangeTime,
   } = useAppStore();
 
   const goToFrameAtomic = useAtomicFrameSet();
@@ -217,6 +219,33 @@ export const useKeyboardShortcuts = () => {
     synchronizedMode,
     getIsFetching,
   ]);
+
+  // Track FPS during playback
+  useEffect(() => {
+    if (!playing) {
+      // Reset FPS when not playing
+      setFps(null);
+      setLastFrameChangeTime(null);
+      return;
+    }
+
+    // Calculate FPS based on time since last frame change
+    const now = performance.now();
+    const lastFrameTime = useAppStore.getState().lastFrameChangeTime;
+
+    if (lastFrameTime !== null) {
+      const delta = now - lastFrameTime;
+      if (delta > 0) {
+        const instantFps = 1000 / delta;
+        // Use exponential moving average to smooth FPS (80% old, 20% new)
+        const currentFps = useAppStore.getState().fps;
+        const smoothedFps = currentFps === null ? instantFps : 0.8 * currentFps + 0.2 * instantFps;
+        setFps(smoothedFps);
+      }
+    }
+
+    setLastFrameChangeTime(now);
+  }, [playing, currentFrame, setFps, setLastFrameChangeTime]); // Only depend on playing and currentFrame changes
 
   // Cleanup presenter token when component unmounts while playing
   useEffect(() => {

@@ -90,7 +90,8 @@ def server(tmp_path) -> t.Generator[str, None, None]:
 
 @pytest.fixture
 def celery_worker():
-    worker = run_celery_worker()
+    redis_url = "redis://localhost:6379"
+    worker = run_celery_worker(redis_url)
     try:
         yield worker
     finally:

@@ -5,6 +5,7 @@ import { OrbitControls } from "@react-three/drei";
 import { useAppStore, getActiveCurves, selectPreferredCurve } from "../store";
 import { useExtensionData } from "../hooks/useSchemas";
 import { useColorScheme } from "@mui/material/styles";
+import { Snackbar, Alert } from "@mui/material";
 import { useCameraControls } from "../hooks/useCameraControls";
 
 // Import our new, self-contained components
@@ -27,11 +28,15 @@ import HoverInfoBox from "./three/HoverInfoBox";
 import DrawingIndicator from "./three/DrawingIndicator";
 import { PathTracingRenderer } from "./PathTracingRenderer";
 import { GeometryErrorBoundary } from "./three/GeometryErrorBoundary";
+import { useFrameLoadTime } from "../hooks/useFrameLoadTime";
 
 // The main scene component
 function MyScene() {
-  const { roomId, userId, geometries, activeCurveForDrawing, setActiveCurveForDrawing, attachedCameraKey } = useAppStore();
+  const { roomId, userId, geometries, activeCurveForDrawing, setActiveCurveForDrawing, attachedCameraKey, snackbar, hideSnackbar } = useAppStore();
   const { mode } = useColorScheme();
+
+  // Track frame load time when not playing
+  useFrameLoadTime();
 
   // Get camera control states based on attached camera
   const cameraControls = useCameraControls(attachedCameraKey, geometries);
@@ -238,6 +243,20 @@ function MyScene() {
       <StaticInfoBox />
       <HoverInfoBox />
       <DrawingIndicator />
+
+      {/* Global snackbar for notifications */}
+      {snackbar && (
+        <Snackbar
+          open={snackbar.open}
+          autoHideDuration={6000}
+          onClose={hideSnackbar}
+          anchorOrigin={{ vertical: "top", horizontal: "center" }}
+        >
+          <Alert severity={snackbar.severity} onClose={hideSnackbar}>
+            {snackbar.message}
+          </Alert>
+        </Snackbar>
+      )}
     </div>
   );
 }

@@ -33,3 +33,4 @@ Docstrings must be concise and to the point.
 Use type hints wherever possible. `import typing as t` if necessary, but use `list[int|float] | None` instead of `t.Optional[t.List[int|float]]`!
 
 Do not create a summary file for the implemented features, unless specifically requested!
+Do not create files you are not asked for. This includes files in /tmp

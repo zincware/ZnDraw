@@ -19,6 +19,9 @@ export default function StaticInfoBox() {
     showInfoBoxes,
     particleCount,
     selection,
+    playing,
+    fps,
+    frameLoadTime,
   } = useAppStore();
 
   // Performance optimization: only fetch global properties when boxes are visible
@@ -91,6 +94,16 @@ export default function StaticInfoBox() {
             {selectionCount > 0 && (
               <Typography variant="body2" sx={{ color: theme.palette.warning.main }}>
                 Selected: <strong>{selectionCount}</strong>
+              </Typography>
+            )}
+            {playing && fps !== null && (
+              <Typography variant="body2" sx={{ color: theme.palette.success.main }}>
+                FPS: <strong>{fps.toFixed(1)}</strong>
+              </Typography>
+            )}
+            {!playing && frameLoadTime !== null && (
+              <Typography variant="body2" sx={{ color: theme.palette.info.main }}>
+                Load: <strong>{frameLoadTime}ms</strong>
               </Typography>
             )}
             {isEnabled && propertyValues.map((query, index) => {

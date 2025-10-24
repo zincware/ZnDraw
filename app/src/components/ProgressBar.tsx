@@ -175,6 +175,13 @@ const FrameProgressBar = () => {
     };
   }, [releasePresenterMode]);
 
+  // Auto-disable frame selection filter when frame selection is reset
+  useEffect(() => {
+    if (frameSelectionEnabled && (!frame_selection || frame_selection.length === 0)) {
+      setFrameSelectionEnabled(false);
+    }
+  }, [frame_selection, frameSelectionEnabled, setFrameSelectionEnabled]);
+
   const waitingAnimation = {
     "@keyframes pulse": {
       "0%": { opacity: 1 },

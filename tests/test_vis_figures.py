@@ -1,10 +1,13 @@
 import json
 
+import ase
+import numpy as np
 import plotly.graph_objs as go
 import pytest
 import requests
 
 from zndraw import ZnDraw
+from zndraw.extensions.analysis import Properties2D
 
 # --- Test Data ---
 # Dummy figure data for testing purposes.
@@ -272,3 +275,88 @@ def test_vis_figures_errors(server):
 
     with pytest.raises(KeyError):
         del vis.figures["nonexistent"]
+
+
+def test_properties_2d_analysis(server, celery_worker):
+    """Test Properties2D analysis extension via vis.run()."""
+    vis = ZnDraw(url=server, room="test-properties-2d", user="tester")
+
+    # Create test data with properties in info
+    atoms_list = []
+    num_frames = 10
+    for i in range(num_frames):
+        atoms = ase.Atoms("H2", positions=[[0, 0, 0], [0, 0, 0.74 + i * 0.01]])
+        atoms.info["energy"] = -1.0 - i * 0.1
+        atoms.info["temperature"] = 300 + i * 10
+        atoms_list.append(atoms)
+
+    vis.extend(atoms_list)
+
+    # Run Properties2D analysis (properties in info are accessed as "info.<key>")
+    analysis = Properties2D(
+        x_data="info.energy",
+        y_data="info.temperature",
+        color="step",
+        fix_aspect_ratio=False,
+    )
+    vis.run(analysis)
+
+    # Wait for celery worker to process the job
+    vis.socket.sio.sleep(4)
+
+    # Verify figure was created
+    assert "Properties2D" in vis.figures
+    fig = vis.figures["Properties2D"]
+    assert isinstance(fig, go.Figure)
+
+    # Verify figure data
+    fig_dict = fig.to_dict()
+    assert "data" in fig_dict
+    assert len(fig_dict["data"]) > 0
+
+    # Verify customdata for frame interactions exists
+    # Note: Plotly may group points when color is a continuous variable
+    scatter_trace = fig_dict["data"][0]
+    assert "customdata" in scatter_trace
+    assert len(scatter_trace["customdata"]) > 0
+
+    # Verify interactions metadata
+    assert "meta" in scatter_trace
+    assert "interactions" in scatter_trace["meta"]
+
+
+def test_properties_2d_with_step(server, celery_worker):
+    """Test Properties2D analysis with 'step' as one of the properties."""
+    vis = ZnDraw(url=server, room="test-properties-2d-step", user="tester")
+
+    # Create test data with properties
+    atoms_list = []
+    num_frames = 5
+    for i in range(num_frames):
+        atoms = ase.Atoms("H2", positions=[[0, 0, 0], [0, 0, 0.74]])
+        atoms.info["energy"] = -1.0 - i * 0.1
+        atoms_list.append(atoms)
+
+    vis.extend(atoms_list)
+
+    # Run Properties2D analysis with 'step' as x_data
+    analysis = Properties2D(
+        x_data="step", y_data="info.energy", color="step", fix_aspect_ratio=True
+    )
+    vis.run(analysis)
+
+    # Wait for celery worker to process the job
+    vis.socket.sio.sleep(4)
+
+    # Verify figure was created
+    assert "Properties2D" in vis.figures
+    fig = vis.figures["Properties2D"]
+    assert isinstance(fig, go.Figure)
+
+    # Verify the figure has correct layout (aspect ratio fix)
+    fig_dict = fig.to_dict()
+    assert "layout" in fig_dict
+    assert "yaxis" in fig_dict["layout"]
+    # When fix_aspect_ratio is True, scaleanchor should be set
+    assert fig_dict["layout"]["yaxis"].get("scaleanchor") == "x"
+    assert fig_dict["layout"]["yaxis"].get("scaleratio") == 1
