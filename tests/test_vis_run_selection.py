@@ -6,12 +6,12 @@ from zndraw.extensions import selections
 CELERY_TIMEOUT = 2
 
 TEST_CASES = [
-    (selections.NoneSelection, lambda vis: frozenset(), {}, "NoneSelection"),
-    (selections.All, lambda vis: frozenset(range(len(vis[0]))), {}, "All"),
-    (selections.Invert, lambda vis: frozenset(range(3, len(vis[0]))), {}, "Invert"),
+    (selections.NoneSelection, lambda vis: tuple(), {}, "NoneSelection"),
+    (selections.All, lambda vis: tuple(range(len(vis[0]))), {}, "All"),
+    (selections.Invert, lambda vis: tuple(range(3, len(vis[0]))), {}, "Invert"),
     (
         selections.Range,
-        lambda vis: frozenset(range(0, 5, 1)),
+        lambda vis: tuple(range(0, 5, 1)),
         {"start": 0, "end": 5, "step": 1},
         "Range 0-5",
     ),
@@ -32,7 +32,7 @@ def test_selections(
 
     expected_selection = expected_result_func(vis)
     vis.selection = [0, 1, 2]
-    assert vis.selection == frozenset([0, 1, 2])
+    assert vis.selection == (0, 1, 2)
 
     selection_instance = selection_class(**kwargs)
     selection_instance.run(vis)
@@ -40,7 +40,7 @@ def test_selections(
 
     # --- Test run via Celery ---
     vis.selection = [0, 1, 2]
-    assert vis.selection == frozenset([0, 1, 2])
+    assert vis.selection == (0, 1, 2)
 
     vis.run(selection_instance)
     vis.socket.sio.sleep(CELERY_TIMEOUT)

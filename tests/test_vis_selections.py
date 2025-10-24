@@ -21,11 +21,11 @@ def test_selections_set_get(s22, server):
 
     # Set selection for "particles"
     vis.selections["particles"] = [0, 1, 2]
-    assert vis.selections["particles"] == frozenset([0, 1, 2])
+    assert vis.selections["particles"] == (0, 1, 2)
 
     # Set selection for another geometry
     vis.selections["forces"] = [2, 3, 4]
-    assert vis.selections["forces"] == frozenset([2, 3, 4])
+    assert vis.selections["forces"] == (2, 3, 4)
 
     # Verify both selections exist
     assert "particles" in vis.selections
@@ -38,11 +38,11 @@ def test_selections_delete(s22, server):
     vis.extend(s22)
 
     vis.selections["particles"] = [0, 1, 2]
-    assert vis.selections["particles"] == frozenset([0, 1, 2])
+    assert vis.selections["particles"] == (0, 1, 2)
 
     # Delete the selection
     del vis.selections["particles"]
-    assert vis.selections["particles"] == frozenset([])
+    assert vis.selections["particles"] == ()
 
 
 def test_selections_iteration(s22, server):
@@ -85,14 +85,14 @@ def test_selections_persistence(s22, server):
     time.sleep(0.2)  # Wait for invalidation
 
     # Check selection in vis2
-    assert vis2.selections["particles"] == frozenset([0, 1, 2])
+    assert vis2.selections["particles"] == (0, 1, 2)
 
     # Update in vis2
     vis2.selections["particles"] = [3, 4]
     time.sleep(0.2)
 
     # Check update in vis1
-    assert vis1.selections["particles"] == frozenset([3, 4])
+    assert vis1.selections["particles"] == (3, 4)
 
 
 def test_selections_different_rooms(s22, server):
@@ -105,8 +105,8 @@ def test_selections_different_rooms(s22, server):
     vis1.selections["particles"] = [0, 1]
     vis2.selections["particles"] = [2, 3]
 
-    assert vis1.selections["particles"] == frozenset([0, 1])
-    assert vis2.selections["particles"] == frozenset([2, 3])
+    assert vis1.selections["particles"] == (0, 1)
+    assert vis2.selections["particles"] == (2, 3)
 
 
 # ==================== Selection Groups Tests ====================
@@ -239,8 +239,8 @@ def test_load_selection_group(s22, server):
     time.sleep(0.2)  # Wait for server update and invalidation
 
     # Verify selections were updated
-    assert vis.selections["particles"] == frozenset([0, 1, 2])
-    assert vis.selections["forces"] == frozenset([3, 4, 5])
+    assert vis.selections["particles"] == (0, 1, 2)
+    assert vis.selections["forces"] == (3, 4, 5)
 
     # Verify active group was set
     assert vis.active_selection_group == "mygroup"
@@ -278,7 +278,7 @@ def test_load_selection_group_persistence(s22, server):
     time.sleep(0.3)
 
     # Check selections in vis2
-    assert vis2.selections["particles"] == frozenset([0, 1, 2])
+    assert vis2.selections["particles"] == (0, 1, 2)
     assert vis2.active_selection_group == "group1"
 
 
@@ -292,15 +292,15 @@ def test_selection_particles(s22, server):
     time.sleep(0.1)
 
     # Should update both old and new
-    assert vis.selection == frozenset([0, 1, 2])
-    assert vis.selections["particles"] == frozenset([0, 1, 2])
+    assert vis.selection == (0, 1, 2)
+    assert vis.selections["particles"] == (0, 1, 2)
 
     # Set using new property
     vis.selections["particles"] = [3, 4, 5]
     time.sleep(0.1)
 
     # Should update old property too
-    assert vis.selection == frozenset([3, 4, 5])
+    assert vis.selection == (3, 4, 5)
 
 
 def test_selection_particles_persistence(s22, server):
@@ -314,11 +314,11 @@ def test_selection_particles_persistence(s22, server):
     time.sleep(0.2)
 
     # Check using new API in vis2
-    assert vis2.selections["particles"] == frozenset([0, 1, 2])
+    assert vis2.selections["particles"] == (0, 1, 2)
 
     # Set using new API in vis2
     vis2.selections["particles"] = [5, 6]
     time.sleep(0.2)
 
     # Check using old API in vis1
-    assert vis1.selection == frozenset([5, 6])
+    assert vis1.selection == (5, 6)
