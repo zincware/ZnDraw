@@ -4,6 +4,7 @@ import threading
 import time
 import typing as t
 import warnings
+import traceback
 
 import socketio
 
@@ -227,6 +228,7 @@ class SocketManager:
                 )
             except Exception as e:
                 log.error(f"Error processing job {job_data.get('jobId')}: {e}")
+                traceback.print_exc()
                 self.zndraw.api.update_job_status(
                     job_id=job_data.get("jobId"),
                     status="failed",

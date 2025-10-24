@@ -2036,130 +2036,152 @@ def get_next_job(room_id: str):
     Returns:
         Job object directly (jobId, category, extension, data, etc.) or null if no jobs available
     """
-    data = request.get_json() or {}
-    worker_id = data.get("workerId")
+    try:
+        data = request.get_json() or {}
+        worker_id = data.get("workerId")
 
-    if not worker_id:
-        return {"error": "workerId is required"}, 400
+        if not worker_id:
+            return {"error": "workerId is required"}, 400
 
-    redis_client = current_app.extensions["redis"]
+        redis_client = current_app.extensions["redis"]
 
-    # Check if worker already has a running job
-    for key in redis_client.scan_iter(match="job:*"):
-        job_data = redis_client.hgetall(key)
-        if (
-            job_data.get("worker_id") == worker_id
-            and job_data.get("status") == "running"
-        ):
-            return {"error": "Worker is not idle"}, 400
+        # Check if worker already has a running job
+        for key in redis_client.scan_iter(match="job:*"):
+            job_data = redis_client.hgetall(key)
+            if (
+                job_data.get("worker_id") == worker_id
+                and job_data.get("status") == "running"
+            ):
+                return {"error": "Worker is not idle"}, 400
 
-    # If worker is "celery-worker", check for celery jobs across all extensions
-    is_celery_worker = worker_id.startswith("celery")
+        # If worker is "celery-worker", check for celery jobs across all extensions
+        is_celery_worker = worker_id.startswith("celery")
 
-    # Check both modifiers and selections categories for queued jobs
-    for category in ["modifiers", "selections", "analysis"]:
-        if is_celery_worker:
-            # For celery workers, check all extensions for celery jobs
-            from zndraw.extensions.analysis import analysis
-            from zndraw.extensions.modifiers import modifiers
-            from zndraw.extensions.selections import selections
+        # Check both modifiers and selections categories for queued jobs
+        for category in ["modifiers", "selections", "analysis"]:
+            if is_celery_worker:
+                # For celery workers, check all extensions for celery jobs
+                try:
+                    from zndraw.extensions.analysis import analysis
+                    from zndraw.extensions.modifiers import modifiers
+                    from zndraw.extensions.selections import selections
+                except ImportError as e:
+                    log.error(f"Failed to import extensions: {e}")
+                    continue
 
-            category_map = {
-                "modifiers": modifiers,
-                "selections": selections,
-                "analysis": analysis,
-            }
+                category_map = {
+                    "modifiers": modifiers,
+                    "selections": selections,
+                    "analysis": analysis,
+                }
 
-            if category in category_map:
-                for extension in category_map[category].keys():
+                if category in category_map:
+                    for extension in category_map[category].keys():
+                        keys = ExtensionKeys.for_extension(room_id, category, extension)
+                        queue_length = redis_client.llen(keys.queue)
+
+                        if queue_length > 0:
+                            # Peek at the first job to check if it's a celery job
+                            task_data = redis_client.lindex(keys.queue, 0)
+                            if task_data:
+                                try:
+                                    task_info = json.loads(task_data)
+                                except json.JSONDecodeError as e:
+                                    log.error(f"Invalid JSON in queue {keys.queue}: {e}, data: {task_data}")
+                                    # Skip this malformed job and continue
+                                    redis_client.lpop(keys.queue)
+                                    continue
+
+                                if task_info.get("provider") == "celery":
+                                    # This is a celery job, pop it
+                                    redis_client.lpop(keys.queue)
+                                    job_id = task_info.get("jobId")
+
+                                    # Get full job details
+                                    job = JobManager.get_job(redis_client, job_id)
+                                    if job:
+                                        # Mark job as started by this worker
+                                        JobManager.start_job(
+                                            redis_client, job_id, worker_id
+                                        )
+
+                                        # Emit queue update
+                                        emit_queue_update(
+                                            redis_client,
+                                            room_id,
+                                            category,
+                                            extension,
+                                            socketio,
+                                        )
+
+                                        # Get updated job details (now with running status)
+                                        job = JobManager.get_job(redis_client, job_id)
+
+                                        # Rename 'id' to 'jobId' for consistency with client expectations
+                                        job["jobId"] = job.pop("id")
+
+                                        log.info(
+                                            f"Assigned celery job {job_id} to worker {worker_id} from queue"
+                                        )
+                                        return job, 200
+            else:
+                # Get all extensions this worker is registered for in this category
+                user_extensions_key = ExtensionKeys.user_extensions_key(
+                    room_id, category, worker_id
+                )
+                registered_extensions = redis_client.smembers(user_extensions_key)
+
+                # Check each registered extension for queued jobs
+                for extension in registered_extensions:
                     keys = ExtensionKeys.for_extension(room_id, category, extension)
                     queue_length = redis_client.llen(keys.queue)
 
                     if queue_length > 0:
-                        # Peek at the first job to check if it's a celery job
-                        task_data = redis_client.lindex(keys.queue, 0)
+                        # Get the first job from the queue
+                        task_data = redis_client.lpop(keys.queue)
                         if task_data:
-                            task_info = json.loads(task_data)
-                            if task_info.get("provider") == "celery":
-                                # This is a celery job, pop it
-                                redis_client.lpop(keys.queue)
-                                job_id = task_info.get("jobId")
+                            try:
+                                task_info = json.loads(task_data)
+                            except json.JSONDecodeError as e:
+                                log.error(f"Invalid JSON in queue {keys.queue}: {e}, data: {task_data}")
+                                # Continue to next extension, the malformed job was already popped
+                                continue
 
-                                # Get full job details
-                                job = JobManager.get_job(redis_client, job_id)
-                                if job:
-                                    # Mark job as started by this worker
-                                    JobManager.start_job(
-                                        redis_client, job_id, worker_id
-                                    )
+                            job_id = task_info.get("jobId")
 
-                                    # Emit queue update
-                                    emit_queue_update(
-                                        redis_client,
-                                        room_id,
-                                        category,
-                                        extension,
-                                        socketio,
-                                    )
-
-                                    # Get updated job details (now with running status)
-                                    job = JobManager.get_job(redis_client, job_id)
-
-                                    # Rename 'id' to 'jobId' for consistency with client expectations
-                                    job["jobId"] = job.pop("id")
-
-                                    log.info(
-                                        f"Assigned celery job {job_id} to worker {worker_id} from queue"
-                                    )
-                                    return job, 200
-        else:
-            # Get all extensions this worker is registered for in this category
-            user_extensions_key = ExtensionKeys.user_extensions_key(
-                room_id, category, worker_id
-            )
-            registered_extensions = redis_client.smembers(user_extensions_key)
-
-            # Check each registered extension for queued jobs
-            for extension in registered_extensions:
-                keys = ExtensionKeys.for_extension(room_id, category, extension)
-                queue_length = redis_client.llen(keys.queue)
-
-                if queue_length > 0:
-                    # Get the first job from the queue
-                    task_data = redis_client.lpop(keys.queue)
-                    if task_data:
-                        task_info = json.loads(task_data)
-                        job_id = task_info.get("jobId")
-
-                        # Get full job details
-                        job = JobManager.get_job(redis_client, job_id)
-                        if job:
-                            # Move worker from idle to progressing
-                            redis_client.smove(
-                                keys.idle_workers, keys.progressing_workers, worker_id
-                            )
-
-                            # Mark job as started by this worker
-                            JobManager.start_job(redis_client, job_id, worker_id)
-
-                            # Emit queue update (this covers job:started notification)
-                            emit_queue_update(
-                                redis_client, room_id, category, extension, socketio
-                            )
-
-                            # Get updated job details (now with running status)
+                            # Get full job details
                             job = JobManager.get_job(redis_client, job_id)
+                            if job:
+                                # Move worker from idle to progressing
+                                redis_client.smove(
+                                    keys.idle_workers, keys.progressing_workers, worker_id
+                                )
 
-                            # Rename 'id' to 'jobId' for consistency with client expectations
-                            job["jobId"] = job.pop("id")
+                                # Mark job as started by this worker
+                                JobManager.start_job(redis_client, job_id, worker_id)
 
-                            log.info(
-                                f"Assigned job {job_id} to worker {worker_id} from queue"
-                            )
-                            return job, 200
+                                # Emit queue update (this covers job:started notification)
+                                emit_queue_update(
+                                    redis_client, room_id, category, extension, socketio
+                                )
 
-    # No jobs available
-    return {"error": "No jobs available"}, 400
+                                # Get updated job details (now with running status)
+                                job = JobManager.get_job(redis_client, job_id)
+
+                                # Rename 'id' to 'jobId' for consistency with client expectations
+                                job["jobId"] = job.pop("id")
+
+                                log.info(
+                                    f"Assigned job {job_id} to worker {worker_id} from queue"
+                                )
+                                return job, 200
+
+        # No jobs available
+        return {"error": "No jobs available"}, 400
+
+    except Exception as e:
+        log.error(f"Unexpected error in get_next_job for worker {worker_id if 'worker_id' in locals() else 'unknown'}: {e}", exc_info=True)
+        return {"error": f"Internal server error: {str(e)}"}, 500
 
 
 @main.route("/api/rooms/<string:room_id>/chat/messages", methods=["GET"])
