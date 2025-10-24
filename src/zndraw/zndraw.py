@@ -451,8 +451,8 @@ class ZnDraw(MutableSequence):
         self.selections["particles"] = value
 
     @property
-    def frame_selection(self) -> frozenset[int]:
-        return self._frame_selection
+    def frame_selection(self) -> tuple[int, ...]:
+        return tuple(sorted(self._frame_selection))
 
     @frame_selection.setter
     def frame_selection(self, value: t.Iterable[int] | None):
