@@ -312,6 +312,11 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
               queryKey: ["geometries", roomId, "detail", key],
             });
 
+            // Invalidate the list to update the geometry grid
+            queryClient.invalidateQueries({
+              queryKey: ["geometries", roomId, "list"],
+            });
+
             // Also invalidate frame queries - geometry data may reference dynamic frame data
             // that needs to be refetched (e.g., "arrays.position")
             queryClient.invalidateQueries({
